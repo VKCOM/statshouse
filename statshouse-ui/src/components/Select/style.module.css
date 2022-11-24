@@ -1,0 +1,278 @@
+/* Copyright 2022 V Kontakte LLC
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+:root {
+  --selectLoaderColor: black;
+  --selectBgColor: white;
+  --selectSelectedBgColor: #81dff3;
+  --selectCursorBgCollor: #c8c8c8;
+  --selectSelectedCursorBgCollor: #68afc0;
+}
+
+@keyframes spinner-border {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.select {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: var(--selectBgColor);
+  outline: none 0 !important;
+
+  width: 100%;
+}
+
+.select:focus {
+  outline: none 0 !important;
+}
+
+.select .input {
+  display: inline-block;
+  background-image: none;
+  border: solid 0 transparent;
+  outline: none 0;
+  line-height: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  padding: 0;
+  margin: 0;
+  color: #212529;
+}
+
+.select .chevron {
+  position: absolute;
+  padding: 0;
+  top: calc(50% - 1em);
+  right: 1px;
+  width: 2em;
+  height: 2em;
+  background-color: rgba(255, 255, 255, 0.8);
+  border: none 0;
+}
+
+.select .chevron:after {
+  cursor: pointer;
+  box-sizing: border-box;
+  display: block;
+  padding: 0;
+  width: 2em;
+  height: 2em;
+  content: '';
+  background-image: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3e%3cpath fill=%27none%27 stroke=%27%23343a40%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M2 5l6 6 6-6%27/%3e%3c/svg%3e');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 0.75em 0.75em;
+}
+
+.select.loading .chevron:after {
+  background-image: none;
+  border-color: var(--selectLoaderColor);
+  border-radius: 50%;
+  border-style: solid;
+  margin: 0.5em;
+  width: 1em;
+  height: 1em;
+  padding: 0;
+  border-width: 0.2em;
+  border-right-color: transparent;
+  animation: 0.75s linear infinite spinner-border;
+}
+
+.select .close {
+  display: none;
+  box-sizing: content-box;
+  padding: 1em 0.25em;
+  color: inherit;
+  width: 2em;
+  height: 2em;
+  line-height: 1em;
+}
+
+.select .close:before {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background-image: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27 fill=%27%23000%27%3e%3cpath d=%27M.293.293a1 1 0 011.414 0L8 6.586 14.293.293a1 1 0 111.414 1.414L9.414 8l6.293 6.293a1 1 0 01-1.414 1.414L8 9.414l-6.293 6.293a1 1 0 01-1.414-1.414L6.586 8 .293 1.707a1 1 0 010-1.414z%27/%3e%3c/svg%3e');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: center;
+  content: '';
+  box-sizing: content-box;
+}
+
+.select .list {
+  position: absolute;
+  top: 100%;
+  left: -1px;
+  width: auto;
+  max-width: 100%;
+  min-width: 100%;
+  height: auto;
+  max-height: 250px;
+  min-height: 1.7em;
+  overflow: auto;
+  visibility: collapse;
+  opacity: 0;
+  padding: 0;
+  background-image: none;
+  z-index: 9999;
+  display: block;
+  background-color: inherit;
+  box-sizing: content-box;
+  appearance: none;
+  list-style: none;
+}
+
+.select.listBottom .list {
+  top: auto;
+  bottom: 100%;
+}
+
+.select.listRight .list {
+  left: auto;
+  right: 0;
+}
+
+.select.full.focus {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  overflow: auto;
+  z-index: 9999;
+}
+
+.select.full.focus .list {
+  position: relative;
+  width: 100%;
+  max-width: unset;
+  height: auto;
+  top: auto;
+  left: auto;
+  bottom: auto;
+  right: auto;
+  flex-grow: 1;
+  max-height: unset;
+  z-index: 9999;
+}
+
+.select.full.focus .close,
+.select.full:focus .close {
+  display: block;
+}
+
+.select.focus .list,
+.select .input.focus + .list {
+  visibility: visible;
+  opacity: 1;
+  overflow: auto;
+}
+
+.select .list:before {
+  padding: 0.25em 0.5em 0.25em 0.5em;
+  user-select: none;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  position: relative;
+  cursor: inherit;
+  opacity: 0.5;
+}
+
+.select.focus:not(.listBottom) .list {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: none;
+}
+
+.select.focus.listBottom .list {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom: none;
+}
+
+.select.focus:not(.listBottom) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.select.focus.listBottom {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.select:not(.loading) .list:empty:before {
+  content: 'Empty';
+}
+
+.select.loading .list:empty:before {
+  content: 'Loading...';
+}
+
+.select .option {
+  padding: 0.25em 0.5em 0.25em 0.5em;
+  user-select: none;
+  cursor: pointer;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  position: relative;
+  display: flex;
+}
+
+.select .option * {
+  text-overflow: ellipsis;
+}
+
+.select .selected {
+  background-color: var(--selectSelectedBgColor);
+}
+
+.select.cursor .option.hover,
+.select:not(.cursor) .option:hover {
+  background-color: var(--selectCursorBgCollor);
+}
+
+.select.cursor .selected.hover,
+.select:not(.cursor) .selected:hover {
+  background-color: var(--selectSelectedCursorBgCollor);
+}
+
+.select .option[data-disabled] {
+  background-color: transparent;
+  cursor: inherit;
+  opacity: 0.5;
+}
+
+.select.full .option {
+  padding: 0.5em;
+}
+
+.select .option .checkbox {
+}
+
+.select .option .checkboxLabel {
+  background-color: transparent;
+  margin: -0.25em 0 -0.25em -0.5em;
+  padding: 0.25em 0.25em 0.25em 2em;
+}
+
+.select .option .label {
+  flex-grow: 1;
+  width: 0;
+  overflow: hidden;
+}
+
+.select .optionSplitter{
+  border-bottom: 1px solid var(--selectCursorBgCollor);
+  margin: 0.25em;
+}

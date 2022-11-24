@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OpenAPI - StatsHouse</title>
+  <link rel="stylesheet" href="./swagger-ui-dist@4.5.0.css" />
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="./swagger-ui-dist@4.5.0.js" crossorigin></script>
+<script>
+  window.onload = () => {
+    window.ui = SwaggerUIBundle({
+      url: './openapi.json',
+      dom_id: '#swagger-ui',
+    });
+  };
+</script>
+</body>
+</html>

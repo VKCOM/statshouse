@@ -1,0 +1,1137 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "StatsHouse - OpenAPI 3.0",
+    "description": "",
+    "version": "0.1"
+  },
+  "servers": [
+    {
+      "url": "/api"
+    }
+  ],
+  "paths": {
+    "/query": {
+      "get": {
+        "description": "get data",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paramMetric"
+          },
+          {
+            "$ref": "#/components/parameters/paramFrom"
+          },
+          {
+            "$ref": "#/components/parameters/paramTo"
+          },
+          {
+            "$ref": "#/components/parameters/paramWidth"
+          },
+          {
+            "$ref": "#/components/parameters/paramWhat"
+          },
+          {
+            "$ref": "#/components/parameters/paramVerbose"
+          },
+          {
+            "$ref": "#/components/parameters/paramVersion"
+          },
+          {
+            "$ref": "#/components/parameters/paramNumResult"
+          },
+          {
+            "$ref": "#/components/parameters/paramFilter"
+          },
+          {
+            "$ref": "#/components/parameters/paramBy"
+          },
+          {
+            "$ref": "#/components/parameters/paramWidthAgg"
+          },
+          {
+            "$ref": "#/components/parameters/paramTimeShift"
+          },
+          {
+            "$ref": "#/components/parameters/paramDataFormat"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetQueryResp"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics-list": {
+      "get": {
+        "description": "Get metrics list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetMetricsListResp"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metric": {
+      "get": {
+        "description": "Get metric meta info",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paramMetric"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MetricInfo"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Edit metric meta info",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paramMetric"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MetricInfo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/MetricInfo"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/render": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paramMetric"
+          },
+          {
+            "$ref": "#/components/parameters/paramFrom"
+          },
+          {
+            "$ref": "#/components/parameters/paramTo"
+          },
+          {
+            "$ref": "#/components/parameters/paramWidth"
+          },
+          {
+            "$ref": "#/components/parameters/paramWhat"
+          },
+          {
+            "$ref": "#/components/parameters/paramVerbose"
+          },
+          {
+            "$ref": "#/components/parameters/paramVersion"
+          },
+          {
+            "$ref": "#/components/parameters/paramNumResult"
+          },
+          {
+            "$ref": "#/components/parameters/paramFilter"
+          },
+          {
+            "$ref": "#/components/parameters/paramBy"
+          },
+          {
+            "$ref": "#/components/parameters/paramWidthAgg"
+          },
+          {
+            "$ref": "#/components/parameters/paramTimeShift"
+          },
+          {
+            "$ref": "#/components/parameters/paramRenderFormat"
+          },
+          {
+            "$ref": "#/components/parameters/paramRenderWidth"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "image/png": {}
+            }
+          }
+        }
+      }
+    },
+    "/metric-tag-values": {
+      "get": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paramMetric"
+          },
+          {
+            "$ref": "#/components/parameters/paramVersion"
+          },
+          {
+            "$ref": "#/components/parameters/paramNumResult"
+          },
+          {
+            "$ref": "#/components/parameters/paramTagID"
+          },
+          {
+            "$ref": "#/components/parameters/paramFrom"
+          },
+          {
+            "$ref": "#/components/parameters/paramTo"
+          },
+          {
+            "$ref": "#/components/parameters/paramWhat"
+          },
+          {
+            "$ref": "#/components/parameters/paramFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/GetMetricTagValuesResp"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reset-flood": {
+      "post": {
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paramMetric"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/dashboard": {
+      "get": {
+        "description": "Get dashboard info",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paramID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/DashboardInfoResp"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "Update dashboard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardInfoUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/DashboardInfoResp"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "description": "Create dashboard",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DashboardInfoCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/DashboardInfoResp"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboards-list": {
+      "get": {
+        "description": "Get list dashboards",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/GetDashboardListResp"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "paramMetric": {
+        "name": "s",
+        "in": "query",
+        "description": "Name metric",
+        "required": true,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "string"
+        },
+        "example": ""
+      },
+      "paramFrom": {
+        "name": "f",
+        "in": "query",
+        "description": "from time",
+        "required": true,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "number"
+        },
+        "example": 1665585339
+      },
+      "paramTo": {
+        "name": "t",
+        "in": "query",
+        "description": "to time",
+        "required": true,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "number"
+        },
+        "example": 1665758140
+      },
+      "paramWidth": {
+        "name": "w",
+        "in": "query",
+        "description": "width",
+        "required": true,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "number"
+        },
+        "example": 3144
+      },
+      "paramWhat": {
+        "name": "qw",
+        "in": "query",
+        "description": "what",
+        "required": true,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/queryFn"
+          }
+        },
+        "example": [
+          "count_norm"
+        ]
+      },
+      "paramVerbose": {
+        "name": "qv",
+        "in": "query",
+        "description": "verbose",
+        "required": false,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "number",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "example": 1
+      },
+      "paramVersion": {
+        "name": "v",
+        "in": "query",
+        "description": "backend version",
+        "required": true,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "1",
+            "2"
+          ]
+        },
+        "example": 2
+      },
+      "paramNumResult": {
+        "name": "n",
+        "in": "query",
+        "description": "num results",
+        "required": true,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "number"
+        },
+        "example": 5
+      },
+      "paramTagID": {
+        "name": "k",
+        "in": "query",
+        "description": "Tag ID",
+        "required": true,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "number"
+        },
+        "example": 0
+      },
+      "paramFilter": {
+        "name": "qf",
+        "in": "query",
+        "description": "Filter",
+        "required": false,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "paramBy": {
+        "name": "qb",
+        "in": "query",
+        "description": "By",
+        "required": false,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "paramWidthAgg": {
+        "name": "g",
+        "in": "query",
+        "description": "Width agg",
+        "required": false,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "paramTimeShift": {
+        "name": "ts",
+        "in": "query",
+        "description": "Time shift",
+        "required": false,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "paramDataFormat": {
+        "name": "df",
+        "in": "query",
+        "description": "Data format",
+        "required": false,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "",
+            "csv"
+          ]
+        }
+      },
+      "paramRenderFormat": {
+        "name": "df",
+        "in": "query",
+        "description": "Format render",
+        "required": false,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "",
+            "png",
+            "svg",
+            "text"
+          ]
+        }
+      },
+      "paramTabNumber": {
+        "name": "tn",
+        "in": "query",
+        "description": "Tab number, add N graph",
+        "required": false,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "number"
+        }
+      },
+      "paramRenderWidth": {
+        "name": "rw",
+        "in": "query",
+        "description": "Render width",
+        "required": false,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "number"
+        }
+      },
+      "paramID": {
+        "name": "id",
+        "in": "query",
+        "description": "ID",
+        "required": true,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      "paramIDNum": {
+        "name": "id",
+        "in": "query",
+        "description": "ID",
+        "required": true,
+        "allowEmptyValue": false,
+        "schema": {
+          "type": "number"
+        }
+      }
+    },
+    "schemas": {
+      "MetricKind": {
+        "type": "string",
+        "enum": [
+          "counter",
+          "value",
+          "value_p",
+          "unique",
+          "mixed",
+          "mixed_p"
+        ]
+      },
+      "MetricMetaTagRawKind": {
+        "type": "string",
+        "enum": [
+          "uint",
+          "hex",
+          "hex_bswap",
+          "timestamp",
+          "timestamp_local",
+          "ip",
+          "ip_bswap"
+        ]
+      },
+      "MetricMetaTag": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "raw": {
+            "type": "boolean"
+          },
+          "raw_kind": {
+            "$ref": "#/components/schemas/MetricMetaTagRawKind"
+          },
+          "id2value": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "value_comments": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MetricMetaValue": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "metric_id": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricMetaTag"
+            }
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MetricKind"
+          },
+          "weight": {
+            "type": "number"
+          },
+          "resolution": {
+            "type": "number"
+          },
+          "string_top_name": {
+            "type": "string"
+          },
+          "string_top_description": {
+            "type": "string"
+          },
+          "pre_key_tag_id": {
+            "type": "string"
+          },
+          "pre_key_from": {
+            "type": "number"
+          },
+          "update_time": {
+            "type": "number"
+          },
+          "version": {
+            "type": "number"
+          },
+          "group_id": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ]
+      },
+      "MetricInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "metric": {
+            "$ref": "#/components/schemas/MetricMetaValue"
+          }
+        },
+        "required": [
+          "metric"
+        ]
+      },
+      "metricShortInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "GetMetricsListResp": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "metrics": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/metricShortInfo"
+            }
+          }
+        },
+        "required": [
+          "metrics"
+        ]
+      },
+      "queryFn": {
+        "type": "string",
+        "enum": [
+          "count",
+          "count_norm",
+          "cu_count",
+          "min",
+          "max",
+          "avg",
+          "cu_avg",
+          "sum",
+          "sum_norm",
+          "cu_sum",
+          "stddev",
+          "p25",
+          "p50",
+          "p75",
+          "p90",
+          "p95",
+          "p99",
+          "p999",
+          "unique",
+          "unique_norm",
+          "max_host",
+          "max_count_host",
+          "dv_count",
+          "dv_sum",
+          "dv_avg",
+          "dv_min",
+          "dv_max",
+          "dv_unique",
+          "dv_unique_norm",
+          "dv_count_norm",
+          "dv_sum_norm"
+        ]
+      },
+      "SeriesMetaTag": {
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "comment": {
+            "type": "string"
+          },
+          "raw": {
+            "type": "boolean"
+          },
+          "raw_kind": {
+            "$ref": "#/components/schemas/MetricMetaTagRawKind"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      },
+      "QuerySeriesMeta": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "time_shift": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/SeriesMetaTag"
+            }
+          },
+          "max_hosts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "what": {
+            "$ref": "#/components/schemas/queryFn"
+          }
+        },
+        "required": [
+          "time_shift",
+          "tags",
+          "max_hosts",
+          "what"
+        ]
+      },
+      "querySeries": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "time": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "series_meta": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuerySeriesMeta"
+            }
+          },
+          "series_data": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "required": [
+          "time",
+          "series_meta",
+          "series_data"
+        ]
+      },
+      "GetQueryResp": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "series": {
+            "$ref": "#/components/schemas/querySeries"
+          },
+          "receive_errors": {
+            "type": "number"
+          },
+          "sampling_factor_src": {
+            "type": "number"
+          },
+          "sampling_factor_agg": {
+            "type": "number"
+          },
+          "mapping_errors": {
+            "type": "number"
+          },
+          "mapping_flood_events_legacy": {
+            "type": "number"
+          },
+          "receive_errors_legacy": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "series"
+        ]
+      },
+      "MetricTagValueInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "value",
+          "count"
+        ]
+      },
+      "GetMetricTagValuesResp": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "tag_values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricTagValueInfo"
+            }
+          },
+          "tag_values_more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tag_values",
+          "tag_values_more"
+        ]
+      },
+      "dashboardShortInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description"
+        ]
+      },
+      "GetDashboardListResp": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dashboards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/dashboardShortInfo"
+            },
+            "nullable": true
+          }
+        },
+        "required": [
+          "dashboards"
+        ]
+      },
+      "DashboardMetaResp": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dashboard_id": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "update_time": {
+            "type": "number"
+          },
+          "deleted_time": {
+            "type": "number"
+          },
+          "description": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "dashboard_id",
+          "name",
+          "description",
+          "version",
+          "update_time",
+          "deleted_time",
+          "data"
+        ]
+      },
+      "DashboardMetaCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "name",
+          "description",
+          "data"
+        ]
+      },
+      "DashboardMetaUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dashboard_id": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "version": {
+            "type": "number"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "dashboard_id",
+          "name",
+          "description",
+          "version",
+          "data"
+        ]
+      },
+      "DashboardInfoResp": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dashboard": {
+            "$ref": "#/components/schemas/DashboardMetaResp"
+          }
+        },
+        "required": [
+          "dashboard"
+        ]
+      },
+      "DashboardInfoCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dashboard": {
+            "$ref": "#/components/schemas/DashboardMetaCreate"
+          }
+        },
+        "required": [
+          "dashboard"
+        ]
+      },
+      "DashboardInfoUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dashboard": {
+            "$ref": "#/components/schemas/DashboardMetaUpdate"
+          },
+          "delete_mark": {
+            "type": "boolean",
+            "description": "true for delete"
+          }
+        },
+        "required": [
+          "dashboard"
+        ]
+      }
+    },
+    "requestBodies": {
+    }
+  }
+}

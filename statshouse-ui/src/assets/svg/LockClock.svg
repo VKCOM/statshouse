@@ -1,0 +1,13 @@
+<svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        fill="currentColor"
+        class="bi bi-lock-clock"
+        viewBox="0 0 16 16"
+>
+    <path d="m6 1a2 2 0 0 1 2 2v4h-4v-4a2 2 0 0 1 2-2zm3 6v-4a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5a2 2 0 0 0-2-2zm-6 1h6a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-5a1 1 0 0 1 1-1z" />
+    <g transform="matrix(.49153 0 0 .49153 8.1356 8.1356)" fill="currentColor">
+        <path d="m16 8a8 8 0 1 1-16 0 8 8 0 0 1 16 0zm-8-4.5a0.5 0.5 0 0 0-1 0v5.5a0.5 0.5 0 0 0 0.252 0.434l3.5 2a0.5 0.5 0 0 0 0.496-0.868l-3.248-1.856z" />
+    </g>
+</svg>

@@ -1,0 +1,321 @@
+/* Copyright 2022 V Kontakte LLC
+ *
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ */
+
+@import '~bootstrap/scss/functions';
+@import '~bootstrap/scss/variables';
+@import '~bootstrap/scss/mixins';
+@import '~bootstrap/scss/maps';
+@import '~bootstrap/scss/utilities';
+@import '~bootstrap/scss/utilities/api';
+@import '~bootstrap/scss/helpers';
+@import '~bootstrap/scss/reboot';
+@import '~bootstrap/scss/root';
+@import '~bootstrap/scss/type';
+@import '~bootstrap/scss/containers';
+@import '~bootstrap/scss/grid';
+@import '~bootstrap/scss/list-group';
+@import '~bootstrap/scss/forms';
+@import '~bootstrap/scss/card';
+@import '~bootstrap/scss/buttons';
+@import '~bootstrap/scss/button-group';
+@import '~bootstrap/scss/spinners';
+@import '~bootstrap/scss/badge';
+@import '~bootstrap/scss/tables';
+@import '~bootstrap/scss/alert';
+@import '~bootstrap/scss/close';
+@import '~bootstrap/scss/nav';
+@import '~bootstrap/scss/dropdown';
+
+@import 'view/lib/uPlot/uPlot.css';
+
+:root {
+  --golden-ratio: 1.61803398875;
+  --plot-margin: 54px;
+}
+
+@media screen and (max-width: 767.98px) {
+  :root {
+    --plot-margin: 0;
+  }
+}
+
+html {
+  overflow-y: scroll; // prevent layout shift when scrollbar appears
+}
+
+.font-normal {
+  font-family: $font-family-sans-serif !important;
+}
+
+.faq-page {
+  h5 {
+    &:first-child {
+      margin-top: 0.5rem;
+    }
+
+    &:not(:first-child) {
+      margin-top: 1.5rem;
+    }
+
+    a {
+      color: var(--bs-secondary);
+    }
+  }
+
+  mark {
+    font-family: $font-family-monospace;
+    font-size: 0.875em;
+    background-color: var(--bs-light);
+  }
+
+  pre {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    background-color: var(--bs-light);
+  }
+}
+
+.w-from-to {
+  width: 4rem !important;
+}
+
+.flex-grow-1-5 {
+  flex-grow: 1.5 !important;
+}
+
+.overflow-force-wrap {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+:root {
+  --legend-name-width: 96px;
+  --legend-value-width: 96px;
+}
+
+.btn-outline-primary {
+  --#{$prefix}btn-hover-bg: #{$blue-100};
+  --#{$prefix}btn-hover-color: #{$primary};
+}
+
+.plot-compact {
+  max-width: calc(min(100vw, 100vh * 1.61803398875 /* golden ratio */
+  ));
+
+  .u-legend {
+    padding-left: 54px !important; // must be synced with yAxisSize
+    text-align: right !important;
+    font-size: 12px;
+
+    tr {
+      max-width: calc(100% - 16px);
+    }
+
+    th {
+      max-width: 100%;
+      font-weight: normal !important;
+
+      .u-marker {
+        margin-bottom: -2px !important; // must be synced with legend.markers.width
+      }
+
+      .u-label {
+        max-width: calc(100% - 16px);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+      }
+    }
+  }
+}
+
+.plot-compact.plot-dash {
+  tr {
+    margin-right: 4px;
+    max-width: calc(100% - 4px);
+  }
+}
+
+.plot-full .u-legend {
+  padding-top: 16px !important;
+  padding-left: 54px !important; // must be synced with yAxisSize
+  text-align: left !important;
+  column-width: calc(var(--legend-name-width) + var(--legend-value-width) + 16px) !important;
+  column-count: auto !important;
+
+  tr {
+    th {
+      white-space: nowrap !important;
+
+      .u-label {
+        position: relative;
+        max-width: 500px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+
+    td {
+      white-space: nowrap !important;
+    }
+
+    &:first-child td {
+      width: 96px !important;
+    }
+
+    &:not(:first-child) td {
+      width: var(--legend-value-width) !important;
+    }
+  }
+
+  // disable .u-inline externally: make legend a table
+  &.u-inline {
+    tr {
+      display: table-row !important;
+      margin-right: 0 !important;
+
+      th {
+        display: table-cell !important;
+        padding-left: 0 !important;
+
+        .u-marker {
+          margin-right: 8px !important;
+        }
+
+        &:after {
+          display: none !important;
+        }
+      }
+
+      td {
+        display: table-cell !important;
+      }
+    }
+  }
+}
+
+.plot-legend-focus {
+  font-weight: bold;
+}
+
+code {
+  color: black;
+  font-weight: bold;
+}
+
+input.form-control-safari-fix::-webkit-datetime-edit {
+  display: inline-flex;
+}
+
+input.form-control-safari-fix::-webkit-datetime-edit,
+input.form-control-safari-fix::-webkit-datetime-edit-year-field,
+input.form-control-safari-fix::-webkit-datetime-edit-month-field,
+input.form-control-safari-fix::-webkit-datetime-edit-day-field,
+input.form-control-safari-fix::-webkit-datetime-edit-hour-field,
+input.form-control-safari-fix::-webkit-datetime-edit-minute-field,
+input.form-control-safari-fix::-webkit-datetime-edit-second-field,
+input.form-control-safari-fix::-webkit-datetime-edit-millisecond-field,
+input.form-control-safari-fix::-webkit-datetime-edit-meridiem-field {
+  padding: 0;
+}
+
+.sh-select {
+  --selectLoaderColor: #{$cyan};
+}
+
+.sh-select.select-open {
+  border-color: #86b7fe;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.blink {
+  animation: blinker 10s ease infinite;
+}
+
+@keyframes blinker {
+  98% {
+    opacity: 1;
+  }
+  99% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.btn-close_tab {
+  margin: 1px;
+  box-sizing: border-box;
+  height: calc(100% - 1px);
+}
+
+.hidden-dashboard {
+  z-index: -1000;
+  position: absolute;
+  opacity: 0;
+  left: -200%;
+  top: -200%;
+  width: 100%;
+  pointer-events: none;
+}
+
+.w-0 {
+  width: 0;
+}
+
+.h-0 {
+  height: 0;
+}
+
+.z-1000 {
+  z-index: 1000;
+}
+
+.z-100 {
+  z-index: 100;
+}
+
+.z-10 {
+  z-index: 10;
+}
+
+
+@keyframes show-delay {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.show-delay {
+  animation: show-delay 1s 0s step-end 1;
+}
+
+.w-max-540 {
+  max-width: 540px;
+}
+
+.w-max-720 {
+  max-width: 720px;
+}
+
+@include media-breakpoint-down(md) {
+  .hidden-down-md {
+    display: none;
+  }
+}
+
+.spinner-white-bg {
+  box-shadow: rgba(255, 255, 255, 0.5) 0 0 4px 4px;
+  background-color: rgba(255, 255, 255, 0.5);
+}
