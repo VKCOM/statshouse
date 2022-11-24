@@ -1,0 +1,10 @@
+/.idea/
+/.vscode/
+
+/target/
+
+node_modules/
+.DS_Store
+*.tmp
+*.swp
+*.o
