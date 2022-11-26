@@ -1,7 +1,7 @@
 # StatsHouse Quick Start Guide
 
 ## Running from docker
-The command below will start in-memory StatsHouse instance. Nothing is persisted there, all will disappear after containers shutdown.
+The command below will start in-memory StatsHouse instance. Nothing is persisted there, so everything will disappear after containers shutdown.
 ```shell
 docker compose --profile sh up
 ```
@@ -24,7 +24,7 @@ asset-manifest.json  favicon.ico  index.html  logo192.png  logo512.png  manifest
 
 ## Before first run
 ### Create directories
-StatsHouse does not create directories and files on its own, it expects them to exist. Need to create directories for cache and binary logs. Directory exact location is unimportant, but it should be writeable. Consider the following directory structure:
+StatsHouse does not create directories and files on its own, it expects them to exist. It's required to create directories for cache and binary logs. Exact directories location is not important, as long as it's writeable. Consider the following directory structure:
 ```shell
 mkdir -p ~/statshouse/cache/aggregator
 mkdir -p ~/statshouse/cache/agent
@@ -32,22 +32,23 @@ mkdir -p ~/statshouse/cache/api
 mkdir -p ~/statshouse/metadata/binlog
 ```
 
-Further here it is assumed directories above exist.
+In the examples below it's assumed that the directories exist.
 
 ### Create metadata engine's binlog
 ```shell
 ./target/statshouse-metadata --binlog-prefix=$HOME/statshouse/metadata/binlog/bl --create-binlog "0,1"
 ```
+
 ### Configure ClickHouse
-StatsHouse expects particular tables exist in ClickHouse. To create them use on of the two following scripts:
-* `docker/clickhouse.sql` for localhost ClickHouse
+StatsHouse expects particular tables to exist in ClickHouse. To create them use on of the two following scripts:
+* `docker/clickhouse.sql` for ClickHouse on localhost
 * `docker/clickhouse-cluster.sql` for ClickHouse cluster
 
 For starters, you can use the docker-compose service in this repo (it already has all necessary tables created):
 ``` shell
 docker compose --profile kh up -d
 ```
-Verify docker-compose instance is running with:
+Verify docker-compose instance by running the following:
 ```shell
 docker run -it --rm --network=statshouse_default --link kh:clickhouse-server yandex/clickhouse-client --host clickhouse-server
 ```
