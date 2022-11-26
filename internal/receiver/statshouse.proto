@@ -31,13 +31,11 @@ message MetricBatch {
 // }
 // 3. replace Metric with
 // message Metric {
-//    optional string     name    = 1;
-//    repeated MapFieldEntry tags = 2;  // same as optional map<string, string> tags = 2;
-//    optional double     counter = 3;  // works as event multiplier if used with value, unique
-//    repeated double     value   = 4;
-//    repeated int64      unique  = 5;
-//    repeated string     stop    = 6;
-//    optional int64      t       = 7;  // UNIX nanoseconds UTC
-//    optional uint32     ts      = 8;  // UNIX seconds UTC
+// string              name    = 1;
+// map<string, string> tags    = 2;
+// double              counter = 3;
+// uint32              ts      = 4;  // UNIX seconds UTC
+// repeated double     value   = 5;
+// repeated int64      unique  = 6;
 // }
 // 4. ./protocute --cpp_out=. ~/go/src/github.com/vkcom/statshouse/internal/receiver/statshouse.proto
