@@ -372,7 +372,7 @@ function dataIdxNearest(self: uPlot, seriesIdx: number, hoveredIdx: number, curs
     }
     if (yValues[i] != null) {
       nonNullLft = i;
-      break
+      break;
     }
     // Optimization, uncomment if 'if' above does not work well
     // for (let j = 1; j < self.data.length; ++j)
