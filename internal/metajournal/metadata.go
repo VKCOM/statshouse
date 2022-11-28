@@ -275,7 +275,7 @@ func (l *MetricMetaLoader) SavePromConfig(ctx context.Context, version int64, co
 	cfg, err := prom_config.Load(config, false, promlog.NewLogfmtLogger(os.Stdout))
 	event := tlmetadata.Event{}
 	if err != nil {
-		return event, fmt.Errorf("Invalid prometheus config syntax: %w", err)
+		return event, fmt.Errorf("invalid prometheus config syntax: %w", err)
 	}
 	if err := checkPromConfig(cfg); err != nil {
 		return event, err
