@@ -31,15 +31,15 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
-	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/util"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
+	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
+	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 )
 
 //go:generate easyjson -no_std_marshalers httputil.go handler.go

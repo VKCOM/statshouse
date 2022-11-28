@@ -14,6 +14,7 @@ import (
 )
 
 // ReqResultExtra описывает следующий комбинатор:
+//
 //	rpcReqResultExtra {flags:#} binlog_pos:flags.0?%Long binlog_time:flags.1?%Long engine_pid:flags.2?%net.Pid request_size:flags.3?%Int response_size:flags.3?%Int failed_subqueries:flags.4?%Int compression_version:flags.5?%Int stats:flags.6?%(Dictionary %String) = RpcReqResultExtra flags
 type ReqResultExtra struct {
 	flags uint32

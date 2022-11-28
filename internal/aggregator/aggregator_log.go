@@ -12,10 +12,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rowbinary"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/vkgo/rowbinary"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
 
 func (a *Aggregator) appendInternalLogLocked(typ string, key0 string, key1 string, key2 string, key3 string, key4 string, key5 string, message string) {

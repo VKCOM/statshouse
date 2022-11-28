@@ -14,8 +14,8 @@ import (
 
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
 const MaxTestResponseSize = 10 << 20

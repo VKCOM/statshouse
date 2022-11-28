@@ -16,10 +16,10 @@ import (
 
 	"go.uber.org/atomic"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
 )
 
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere

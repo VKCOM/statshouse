@@ -18,8 +18,8 @@ import (
 
 	"github.com/mailru/easyjson"
 
-	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 	"github.com/vkcom/statshouse/internal/api"
+	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 )
 
 //go:generate easyjson -no_std_marshalers httpclient.go

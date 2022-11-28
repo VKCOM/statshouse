@@ -8,8 +8,8 @@
 package gen2
 
 import (
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/internal"
+	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 )
 
 // We can create only types which have zero type arguments and zero nat arguments

@@ -28,7 +28,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
-	
+
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlengine"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/metadata"

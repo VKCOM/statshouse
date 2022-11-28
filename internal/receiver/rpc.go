@@ -12,13 +12,13 @@ import (
 
 	"go.uber.org/atomic"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/mapping"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
 type RPCReceiver struct {

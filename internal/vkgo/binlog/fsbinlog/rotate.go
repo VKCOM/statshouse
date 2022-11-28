@@ -7,7 +7,7 @@
 package fsbinlog
 
 /*
- * 
+ *
  */
 
 import (
