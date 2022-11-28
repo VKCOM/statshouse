@@ -3,7 +3,6 @@ WORKDIR /src
 COPY Makefile ./
 COPY .git/ ./.git/
 COPY statshouse-ui/ ./statshouse-ui/
-ENV NODE_OPTIONS --openssl-legacy-provider
 RUN make build-sh-ui
 
 FROM golang:1.19-bullseye AS build-go
