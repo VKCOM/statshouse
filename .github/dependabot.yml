@@ -1,0 +1,44 @@
+version: 2
+updates:
+
+  - package-ecosystem: "gomod"
+    directory: "/"
+    open-pull-requests-limit: 0
+    allow:
+      - dependency-type: "direct"
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "VKCOM/vk-sec"
+      - "VKCOM/statshouse"
+
+  - package-ecosystem: "npm"
+    directory: "/statshouse-ui/"
+    open-pull-requests-limit: 0
+    allow:
+      - dependency-type: "direct"
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "VKCOM/vk-sec"
+      - "VKCOM/statshouse"
+
+  - package-ecosystem: "npm"
+    directory: "/grafana-plugin-ui/"
+    open-pull-requests-limit: 0
+    allow:
+      - dependency-type: "direct"
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "VKCOM/vk-sec"
+      - "VKCOM/statshouse"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    open-pull-requests-limit: 0
+    schedule:
+      interval: "daily"
+    reviewers:
+      - "VKCOM/vk-sec"
+      - "VKCOM/statshouse"
