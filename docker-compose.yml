@@ -19,7 +19,7 @@ services:
       context: .
       dockerfile: docker/aggregator.Dockerfile
     container_name: sh-aggregator
-    command: aggregator --log-level=trace --agg-addr='0.0.0.0:13336' --kh=localhost:8123 --metadata-addr metadata:2442 --cache-dir=/var/lib/statshouse/cache/aggregator --aes-pwd-file=/etc/statshouse/key1.txt
+    command: aggregator --cluster=test_shard_localhost --log-level=trace --agg-addr='0.0.0.0:13336' --kh=localhost:8123 --metadata-addr metadata:2442 --cache-dir=/var/lib/statshouse/cache/aggregator --aes-pwd-file=/etc/statshouse/key1.txt
     hostname: aggregator
     expose:
       - 8123
@@ -35,7 +35,7 @@ services:
       context: .
       dockerfile: docker/statshouse.Dockerfile
     container_name: sh-agent
-    command: agent --log-level=trace --agg-addr='aggregator:13336,aggregator:13336,aggregator:13336' --cache-dir=/var/lib/statshouse/cache/agent --aes-pwd-file=/etc/statshouse/key1.txt
+    command: agent --cluster=test_shard_localhost --log-level=trace --agg-addr='aggregator:13336,aggregator:13336,aggregator:13336' --cache-dir=/var/lib/statshouse/cache/agent --aes-pwd-file=/etc/statshouse/key1.txt
     expose:
       - 13337/udp
     ports:
