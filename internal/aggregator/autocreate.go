@@ -13,12 +13,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
 type autoCreate struct {

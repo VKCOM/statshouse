@@ -21,7 +21,6 @@ import (
 	"go.uber.org/atomic"
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/aggregator"
 	"github.com/vkcom/statshouse/internal/data_model"
@@ -34,6 +33,7 @@ import (
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/receiver"
+	"github.com/vkcom/statshouse/internal/vkgo/build"
 )
 
 func mainBenchmarks() {

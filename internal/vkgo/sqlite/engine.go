@@ -318,7 +318,7 @@ func openRW(path string, appID int32, schemas ...string) (*sqlite0.Conn, error) 
 //
 //	return conn, nil
 // }
-//
+
 func openROWAL(path string) (*sqlite0.Conn, error) {
 	conn, err := openWAL(path, sqlite0.OpenReadonly|sqlite0.OpenNoMutex|sqlite0.OpenPrivateCache)
 	if err != nil {

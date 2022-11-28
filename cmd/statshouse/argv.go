@@ -13,7 +13,7 @@ import (
 	"os"
 
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	
+
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/aggregator"
 	"github.com/vkcom/statshouse/internal/receiver"

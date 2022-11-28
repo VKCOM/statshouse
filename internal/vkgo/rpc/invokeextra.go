@@ -14,6 +14,7 @@ import (
 )
 
 // InvokeReqExtra описывает следующий комбинатор:
+//
 //	rpcInvokeReqExtra {flags:#}
 //		return_binlog_pos:flags.0?%True
 //		return_binlog_time:flags.1?%True

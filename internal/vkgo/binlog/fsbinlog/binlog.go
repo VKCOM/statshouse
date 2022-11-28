@@ -172,7 +172,7 @@ func CreateEmptyFsBinlog(options Options) (string, error) {
 //	read := 0
 //	for {
 //		...
-// 		lev, n, err := deserializeLev(payload)
+//		lev, n, err := deserializeLev(payload)
 //		n = binlog2.AddPadding(n)
 //		payload = payload(n:)
 //		read += n

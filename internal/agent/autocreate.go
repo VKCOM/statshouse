@@ -10,8 +10,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
 func (s *Agent) AutoCreateMetric(ctx context.Context, args tlstatshouse.AutoCreate) error {

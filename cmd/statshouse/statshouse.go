@@ -25,8 +25,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	
-	"github.com/vkcom/statshouse/internal/vkgo/platform"
+
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/aggregator"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -36,6 +35,7 @@ import (
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/receiver"
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
+	"github.com/vkcom/statshouse/internal/vkgo/platform"
 )
 
 var (

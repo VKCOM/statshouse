@@ -8,8 +8,9 @@
 package internal
 
 import (
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"sort"
+
+	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 )
 
 var _ = basictl.NatWrite
