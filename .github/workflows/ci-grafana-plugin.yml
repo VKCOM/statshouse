@@ -1,0 +1,27 @@
+name: CI Grafana plugin
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - statshouse-ui/**
+      - .github/
+  pull_request:
+    branches:
+      - master
+    paths:
+      - statshouse-ui/**
+jobs:
+  Run Grafana plugin CI:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v3
+        working-directory: grafana-plugin-ui
+        with:
+          node-version: 18.x
+          cache: yarn
+      - run: yarn test
+        working-directory: grafana-plugin-ui
