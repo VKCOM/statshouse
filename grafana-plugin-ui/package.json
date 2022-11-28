@@ -1,7 +1,7 @@
 {
-  "name": "vk-statshouse",
-  "version": "1.0.1",
-  "description": "",
+  "name": "statshouse-grafana-plugin-ui",
+  "version": "0.1.0",
+  "private": true,
   "scripts": {
     "build": "grafana-toolkit plugin:build",
     "test": "grafana-toolkit plugin:test",
@@ -10,8 +10,6 @@
     "sign": "grafana-toolkit plugin:sign",
     "start": "yarn watch"
   },
-  "author": "Sergei Kondratov",
-  "license": "Apache-2.0",
   "devDependencies": {
     "@grafana/data": "8.4.6",
     "@grafana/toolkit": "8.4.6",
