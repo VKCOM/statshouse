@@ -1,0 +1,20 @@
+on:
+  pull_request:
+    paths:
+      - 'grafana-plugin-ui/**'
+jobs:
+  ci-grafana-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+          cache: 'npm'
+          cache-dependency-path: grafana-plugin-ui/package-lock.json
+      - run: npm ci
+        working-directory: grafana-plugin-ui
+      - run: npm run build
+        working-directory: grafana-plugin-ui
