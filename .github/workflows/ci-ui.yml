@@ -1,0 +1,26 @@
+name: CI UI
+on:
+  push:
+    paths:
+      - statshouse-ui/**
+      - .github/
+  pull_request:
+    paths:
+      - statshouse-ui/**
+      - .github/
+jobs:
+  Run UI CI:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v3
+        working-directory: statshouse-ui
+        with:
+          node-version: 18.x
+          cache: 'npm'
+      - run: npm ci
+        working-directory: statshouse-ui
+      - run: npm run build
+        working-directory: statshouse-ui
