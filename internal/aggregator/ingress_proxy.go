@@ -70,7 +70,7 @@ func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
 
 func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy) error {
 	if len(config.IngressKeys) == 0 {
-		return fmt.Errorf("Ingress proxy must have non-empty list of ingress crypto keys")
+		return fmt.Errorf("ingress proxy must have non-empty list of ingress crypto keys")
 	}
 	if len(config.ExternalAddresses)%3 != 0 || len(config.ExternalAddresses) == 0 {
 		return fmt.Errorf("--ingress-external-addr must contain exactly 3 comma-separated addresses of ingress proxies, contains '%q'", strings.Join(config.ExternalAddresses, ","))

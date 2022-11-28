@@ -19,7 +19,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 )
 
-var errorTsOverflow = fmt.Errorf("Ts field overflow, must have range [0..2^32)")
+var errorTsOverflow = fmt.Errorf("ts field overflow, must have range [0..2^32)")
 
 func protobufError(n int) error {
 	return protowire.ParseError(n)

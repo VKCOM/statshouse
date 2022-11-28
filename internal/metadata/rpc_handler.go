@@ -172,7 +172,7 @@ func (h *Handler) RawEditEntity(ctx context.Context, hctx *rpc.HandlerContext) (
 	}
 	event, err := h.db.SaveEntity(args.Event.Name, args.Event.Id, args.Event.Version, args.Event.Data, args.IsSetCreate(), args.IsSetDelete(), args.Event.EventType)
 	if err == errInvalidMetricVersion {
-		return "", fmt.Errorf("Invalid version. Reload this page and try again")
+		return "", fmt.Errorf("invalid version. Reload this page and try again")
 	}
 	if err != nil {
 		return "", fmt.Errorf("failed to create event: %w", err)

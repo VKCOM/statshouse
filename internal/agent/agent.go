@@ -127,14 +127,14 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	default:
 		// Our built-in metrics are supposed to work without mapping, so all keys must be known in advance
 		// Also we protect built-in metrics from sampling, so must ensure their cardinality is limited
-		return nil, fmt.Errorf("Configuration error: --statshouse-env (%q) should be either 'production' or 'staging' ", config.StatsHouseEnv)
+		return nil, fmt.Errorf("configuration error: --statshouse-env (%q) should be either 'production' or 'staging' ", config.StatsHouseEnv)
 	}
 	logF("Configuration: detected build arch key as %d for string %q", result.buildArchTag, runtime.GOARCH)
 	if getConfigResult != nil {
 		result.GetConfigResult = *getConfigResult // Inside aggregator
 	} else {
 		if len(config.AggregatorAddresses) < 3 {
-			return nil, fmt.Errorf("Configuration Error: must have 3 aggregator addresses for configuration redundancy")
+			return nil, fmt.Errorf("configuration Error: must have 3 aggregator addresses for configuration redundancy")
 		}
 		result.GetConfigResult = GetConfig(network, rpcClient, config.AggregatorAddresses, result.isEnvStaging, result.componentTag, result.buildArchTag, config.Cluster, logF)
 	}

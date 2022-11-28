@@ -351,7 +351,7 @@ func (a *Aggregator) checkShardConfigurationTotal(shardReplicaTotal int32) error
 	if a.config.PreviousNumShards != 0 && int(shardReplicaTotal) == a.config.PreviousNumShards {
 		return nil
 	}
-	return fmt.Errorf("Statshouse misconfiguration! shard*replicas total sent by source (%d) does not match shard*replicas total of aggregator (%d) or --previous-shards (%d)", shardReplicaTotal, len(a.addresses), a.config.PreviousNumShards)
+	return fmt.Errorf("statshouse misconfiguration! shard*replicas total sent by source (%d) does not match shard*replicas total of aggregator (%d) or --previous-shards (%d)", shardReplicaTotal, len(a.addresses), a.config.PreviousNumShards)
 }
 
 func (a *Aggregator) checkShardConfiguration(shardReplica int32, shardReplicaTotal int32) error {
@@ -363,7 +363,7 @@ func (a *Aggregator) checkShardConfiguration(shardReplica int32, shardReplicaTot
 	}
 	ourShardReplica := int((a.shardKey-1)*3 + (a.replicaKey - 1)) // shardKey is 1 for shard 0
 	if int(shardReplica) != ourShardReplica {
-		return fmt.Errorf("Statshouse misconfiguration! shard*replica sent by source (%d) does not match shard*replica expected by aggregator (%d) with shard:replica %d:%d", shardReplica, ourShardReplica, a.shardKey, a.replicaKey)
+		return fmt.Errorf("statshouse misconfiguration! shard*replica sent by source (%d) does not match shard*replica expected by aggregator (%d) with shard:replica %d:%d", shardReplica, ourShardReplica, a.shardKey, a.replicaKey)
 	}
 	return nil
 }

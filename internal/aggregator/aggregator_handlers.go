@@ -405,12 +405,12 @@ func (a *Aggregator) handleGetConfig(_ context.Context, hctx *rpc.HandlerContext
 	if args.IsSetCluster() && args.Cluster != a.config.Cluster {
 		key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, a.aggregatorHost, a.shardKey, a.replicaKey)
 		a.sh2.AddCounterHost(key.WithAgentEnvRouteArch(agentEnv, route, buildArch), 1, host, nil)
-		return fmt.Errorf("Statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
+		return fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
 	if !args.IsSetCluster() && a.config.Cluster != DefaultConfigAggregator().Cluster {
 		key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, a.aggregatorHost, a.shardKey, a.replicaKey)
 		a.sh2.AddCounterHost(key.WithAgentEnvRouteArch(agentEnv, route, buildArch), 1, host, nil)
-		return fmt.Errorf("Statshouse misconfiguration! configuration request without cluster is supported only by default %q cluster, but cluster connected is %q", DefaultConfigAggregator().Cluster, a.config.Cluster)
+		return fmt.Errorf("statshouse misconfiguration! configuration request without cluster is supported only by default %q cluster, but cluster connected is %q", DefaultConfigAggregator().Cluster, a.config.Cluster)
 	}
 	key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, a.aggregatorHost, a.shardKey, a.replicaKey)
 	a.sh2.AddCounterHost(key.WithAgentEnvRouteArch(agentEnv, route, buildArch), 1, host, nil)
@@ -431,7 +431,7 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, hctx *rpc.HandlerContex
 	if args.Cluster != a.config.Cluster {
 		key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, a.aggregatorHost, a.shardKey, a.replicaKey)
 		a.sh2.AddCounterHost(key.WithAgentEnvRouteArch(agentEnv, route, buildArch), 1, host, nil)
-		return fmt.Errorf("Statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
+		return fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
 	}
 	key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, a.aggregatorHost, a.shardKey, a.replicaKey)
 	a.sh2.AddCounterHost(key.WithAgentEnvRouteArch(agentEnv, route, buildArch), 1, host, nil)
