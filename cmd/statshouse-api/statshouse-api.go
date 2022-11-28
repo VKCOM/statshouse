@@ -132,7 +132,7 @@ func main() {
 	pflag.BoolVar(&argv.insecureMode, "insecure-mode", false, "set insecure-mode if you don't need any access verification")
 	pflag.StringVar(&argv.pidFile, "pid-file", "statshouse_api.pid", "path to PID file")
 
-	pflag.StringVar(&argv.pprofAddr, "pprof-addr", "", "Go pprof HTTP listen address")
+	pflag.StringVar(&argv.pprofAddr, "pprof-addr", "", "Go pprof HTTP listen address.")
 	pflag.StringSliceVar(&argv.protectedMetricPrefixes, "protected-metric-prefixes", nil, "comma-separated list of metric prefixes that require access bits set")
 	pflag.BoolVar(&argv.showInvisible, "show-invisible", false, "show invisible metrics as well")
 	pflag.DurationVar(&argv.slow, "slow", 0, "slow down all HTTP requests by this much")
