@@ -39,7 +39,7 @@ export class DataSource extends DataSourceWithBackend<SHQuery, SHDataSourceOptio
   }
 
   getAvailableMetricNames(): Promise<MetricNamesResponse> {
-    return this.getResource('metric-names');
+    return this.getResource('metric-names.');
   }
 
   getMetricProperties(metricName: string): Promise<MetricPropertiesResponse> {
