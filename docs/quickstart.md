@@ -18,7 +18,7 @@ Find them in target/ and statshouse-ui/build/ directories:
 ls target/
 statshouse  statshouse-api  statshouse-metadata
 
-ls ./statshouse-ui/build/
+ls statshouse-ui/build/
 asset-manifest.json  favicon.ico  index.html  logo192.png  logo512.png  manifest.json  openapi  robots.txt  static
 ```
 
