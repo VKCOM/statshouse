@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "grafana-toolkit plugin:build",
-    "test": "grafana-toolkit plugin:test",
-    "dev": "grafana-toolkit plugin:dev",
-    "watch": "grafana-toolkit plugin:dev --watch",
-    "sign": "grafana-toolkit plugin:sign",
-    "start": "yarn watch"
+    "build": "NODE_OPTIONS=--openssl-legacy-provider grafana-toolkit plugin:build",
+    "test": "NODE_OPTIONS=--openssl-legacy-provider grafana-toolkit plugin:test",
+    "dev": "NODE_OPTIONS=--openssl-legacy-provider grafana-toolkit plugin:dev",
+    "watch": "NODE_OPTIONS=--openssl-legacy-provider grafana-toolkit plugin:dev --watch",
+    "sign": "NODE_OPTIONS=--openssl-legacy-provider grafana-toolkit plugin:sign",
+    "start": "NODE_OPTIONS=--openssl-legacy-provider yarn watch"
   },
   "devDependencies": {
     "@grafana/data": "8.4.6",
