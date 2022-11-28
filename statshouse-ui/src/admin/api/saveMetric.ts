@@ -42,7 +42,7 @@ export function saveMetric(metric: IMetric) {
   })
     .then((res) => res.json())
     .catch(() => {
-      throw new Error('Unknown error');
+      throw new Error('Unknown error.');
     })
     .then((parsed) => {
       if ('error' in parsed) {
