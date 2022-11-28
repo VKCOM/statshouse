@@ -1,1 +1,27 @@
 * @VKCOM/statshouse
+
+/README.md                       @flyingmutant
+/.gitignore                      @flyingmutant
+/.gitattributes                  @flyingmutant
+/.github/                        @flyingmutant
+
+/docker/                         @alpinskiy
+/docker-compose.yml              @alpinskiy
+/.dockerignore                   @alpinskiy
+
+/statshouse-ui/                  @vauweb
+/grafana-plugin-ui/              @anhnostrom
+
+/cmd/statshouse/                 @hrissan
+/cmd/statshouse-api/             @flyingmutant
+/cmd/statshouse-metadata/        @nevgeny
+/cmd/statshouse-grafana-plugin/  @anhnostrom
+
+/internal/                       @hrissan
+/internal/aggregator/prometheus/ @nevgeny
+/internal/api/                   @flyingmutant
+/internal/metadata/              @nevgeny
+/internal/metajournal/           @nevgeny
+/internal/plugin/                @anhnostrom
+/internal/promql/                @alpinskiy
+/internal/vkgo/                  @flyingmutant
