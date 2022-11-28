@@ -134,7 +134,7 @@ func (c *Claims) Valid() error {
 	}
 
 	if !c.VerifyIssuedAt(now.Add(JWTTimeWindow), true) {
-		vErr.Inner = fmt.Errorf("Token used before issued")
+		vErr.Inner = fmt.Errorf("token used before issued")
 		vErr.Errors |= jwt.ValidationErrorIssuedAt
 	}
 
