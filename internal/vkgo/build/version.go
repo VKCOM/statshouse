@@ -7,6 +7,7 @@
 package build
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -17,15 +18,17 @@ import (
 
 var (
 	// Build* заполняются при сборке go build -ldflags
-	time            string
-	machine         string
-	commit          string
-	commitTimestamp string
-	version         string
-	number          string
+	time                string
+	machine             string
+	commit              string
+	commitTimestamp     string
+	version             string
+	number              string
+	trustedSubnetGroups string
 
 	appName              string
 	commitTimestampInt64 int64
+	trustedSubnetGroupsS [][]string
 )
 
 func Time() string {
@@ -75,6 +78,7 @@ func Info() string {
 func init() {
 	appName = path.Base(os.Args[0])
 	commitTimestampInt64, _ = strconv.ParseInt(commitTimestamp, 10, 64)
+	parseTrustedSubnetGroups()
 }
 
 func AppName() string { // TODO - remember during build
@@ -109,4 +113,19 @@ func FlagParseShowVersionHelp() {
 		_, _ = fmt.Fprintf(os.Stderr, "Unexpected command line argument - %q, check command line for typos\n", flag.Args()[0])
 		os.Exit(1)
 	}
+}
+
+func parseTrustedSubnetGroups() {
+	if len(trustedSubnetGroups) == 0 {
+		return
+	}
+	err := json.Unmarshal([]byte(trustedSubnetGroups), &trustedSubnetGroupsS)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to parse TrustedSubnetGroups %q: %v\n", trustedSubnetGroups, err)
+		os.Exit(1)
+	}
+}
+
+func TrustedSubnetGroups() [][]string {
+	return trustedSubnetGroupsS
 }

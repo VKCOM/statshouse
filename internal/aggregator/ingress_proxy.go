@@ -91,7 +91,7 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 			ForceEncryption:        true, // Protection against wrong logic in net masks
 			Logf:                   log.Printf,
 			DisableContextTimeout:  true,
-			TrustedSubnetGroups:    nil,
+			TrustedSubnetGroups:    build.TrustedSubnetGroups(),
 			Version:                build.Info(),
 			DefaultResponseTimeout: data_model.MaxConveyorDelay * time.Second,                                                                 // TODO
 			MaxInflightPackets:     (data_model.MaxConveyorDelay + data_model.MaxHistorySendStreams) * 3 * len(sh2.GetConfigResult.Addresses), // see server settings in aggregator
@@ -190,7 +190,7 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 		client = &rpc.Client{
 			Logf:                log.Printf,
 			CryptoKey:           proxy.aesPwd,
-			TrustedSubnetGroups: nil,
+			TrustedSubnetGroups: build.TrustedSubnetGroups(),
 		}
 		proxy.clients[remoteAddress] = client
 	}
@@ -243,7 +243,7 @@ func (proxy *IngressProxy) proxyLegacyRequest(tag uint32, ctx context.Context, h
 		client = &rpc.Client{
 			Logf:                log.Printf,
 			CryptoKey:           proxy.aesPwd,
-			TrustedSubnetGroups: nil,
+			TrustedSubnetGroups: build.TrustedSubnetGroups(),
 		}
 		proxy.clients[remoteAddress] = client
 	}

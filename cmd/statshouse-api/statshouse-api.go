@@ -413,7 +413,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 
 	srv := &rpc.Server{
 		Logf:                log.Printf,
-		TrustedSubnetGroups: nil,
+		TrustedSubnetGroups: build.TrustedSubnetGroups(),
 		Handler:             handlerRPC.Handle,
 		CryptoKeys:          rpcCryptoKeys,
 	}

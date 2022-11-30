@@ -350,7 +350,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		Logf:                logErr.Printf,
 		Version:             build.Info(),
 		CryptoKeys:          []string{aesPwd},
-		TrustedSubnetGroups: nil,
+		TrustedSubnetGroups: build.TrustedSubnetGroups(),
 		Handler:             handlerRPC.Handle,
 		StatsHandler:        statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats,
 	}
