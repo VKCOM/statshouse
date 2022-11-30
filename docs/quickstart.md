@@ -54,6 +54,7 @@ docker run -it --rm --network=statshouse_default --link kh:clickhouse-server yan
 ```
 
 ## Running from command line
+Assuming that ClickHouse is available on localhost (default ports), follow the steps below. If this is not the case, then change `--kh` aggregator argument (step 2) and `--clickhouse-v2-addrs` api argument (step 4) accordingly.
 1. Start StatsHouse metadata engine:
     ```shell
     ./target/statshouse-metadata --statshouse-addr= --db-path=$HOME/statshouse/metadata/db --binlog-prefix=$HOME/statshouse/metadata/binlog/bl
