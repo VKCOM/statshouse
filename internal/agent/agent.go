@@ -81,7 +81,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	beforeFlushBucketFunc func(now time.Time), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
 	rpcClient := &rpc.Client{ // single socket per aggregator
 		CryptoKey:           aesPwd,
-		TrustedSubnetGroups: nil,
+		TrustedSubnetGroups: build.TrustedSubnetGroups(),
 		Logf:                logF,
 		PongTimeout:         data_model.ClientRPCPongTimeout,
 	}

@@ -315,7 +315,7 @@ func run() error {
 	server := &rpc.Server{
 		Handler:             rpc.ChainHandler(h.Handle, engineHandler.Handle),
 		Logf:                log.Printf,
-		TrustedSubnetGroups: nil,
+		TrustedSubnetGroups: build.TrustedSubnetGroups(),
 		CryptoKeys:          rpcCryptoKeys,
 		MaxWorkers:          5000,
 		ResponseBufSize:     1024,

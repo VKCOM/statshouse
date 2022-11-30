@@ -137,7 +137,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		Client: &rpc.Client{
 			Logf:                log.Printf,
 			CryptoKey:           aesPwd,
-			TrustedSubnetGroups: nil,
+			TrustedSubnetGroups: build.TrustedSubnetGroups(),
 		},
 		Network: config.MetadataNet,
 		Address: config.MetadataAddr,
@@ -166,7 +166,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 			Logf:                   log.Printf,
 			MaxWorkers:             -1,
 			DisableContextTimeout:  true,
-			TrustedSubnetGroups:    nil,
+			TrustedSubnetGroups:    build.TrustedSubnetGroups(),
 			Version:                build.Info(),
 			DefaultResponseTimeout: data_model.MaxConveyorDelay * time.Second,                            // TODO
 			MaxInflightPackets:     (data_model.MaxConveyorDelay + data_model.MaxHistorySendStreams) * 3, // *3 is additional load for spares, when original aggregator is down

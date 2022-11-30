@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 
 	"github.com/vkcom/statshouse/internal/agent"
@@ -79,7 +80,7 @@ func argvCreateClient() *rpc.Client {
 	return &rpc.Client{
 		Logf:                logErr.Printf,
 		CryptoKey:           readAESPwd(),
-		TrustedSubnetGroups: nil,
+		TrustedSubnetGroups: build.TrustedSubnetGroups(),
 	}
 }
 
