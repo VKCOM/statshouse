@@ -103,11 +103,13 @@ html {
 }
 
 .plot-compact {
-  max-width: calc(min(100vw, 100vh * 1.61803398875 /* golden ratio */
-  ));
+  max-width: calc(min(100vw, 100vh * 1.61803398875 /* golden ratio */));
+
+  .plot-legend {
+    padding-left: 54px !important; // must be synced with yAxisSize
+  }
 
   .u-legend {
-    padding-left: 54px !important; // must be synced with yAxisSize
     text-align: right !important;
     font-size: 12px;
 
@@ -134,16 +136,60 @@ html {
   }
 }
 
-.plot-compact.plot-dash {
+.plot-compact.plot-dash:not(.plot-hover) .plot-legend {
+  height: 2em;
+}
+
+.plot-view.plot-hover .plot-view-inner {
+  background-color: rgb(255, 255, 255);
+  box-shadow: 0 0 5px 1px rgba(0, 0, 0, 0.1);
+}
+
+.plot-item:hover {
+  z-index: 1000;
+
+  .plot-compact.plot-dash.plot-hover .plot-legend .u-legend {
+    padding-left: 4px;
+    padding-bottom: 8px;
+  }
+}
+
+.plot-compact:not(.plot-dash),
+.plot-compact.plot-dash:not(.plot-hover) {
+  .plot-legend {
+    overflow: hidden;
+  }
+
   tr {
     margin-right: 4px;
     max-width: calc(100% - 4px);
   }
+
+  .u-value {
+    display: none;
+  }
+
+  th::after {
+    display: none;
+    content: '';
+  }
+
+  tr:first-child {
+    display: none;
+  }
 }
 
-.plot-full .u-legend {
+.plot-full .plot-legend {
   padding-top: 16px !important;
+}
+
+.plot-full .plot-legend,
+.plot-compact.plot-dash:hover .plot-legend {
   padding-left: 54px !important; // must be synced with yAxisSize
+}
+
+.plot-full .u-legend,
+.plot-compact.plot-dash.plot-hover .u-legend {
   text-align: left !important;
   column-width: calc(var(--legend-name-width) + var(--legend-value-width) + 16px) !important;
   column-count: auto !important;
@@ -286,7 +332,6 @@ input.form-control-safari-fix::-webkit-datetime-edit-meridiem-field {
 .z-10 {
   z-index: 10;
 }
-
 
 @keyframes show-delay {
   from {
