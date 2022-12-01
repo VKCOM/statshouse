@@ -455,7 +455,7 @@ function AliasField(props: {
   return (
     <div className="row mt-3">
       <label htmlFor={`tag${tagNumber}`} className="col-sm-2 col-lg-1 col-form-label font-monospace">
-        {tagNumber === -1 ? '_s' : `${tagNumber}`}
+        tag&nbsp;{tagNumber === -1 ? '_s' : `${tagNumber}`}
       </label>
       <div className="col">
         <div className="row align-items-center">
@@ -466,7 +466,7 @@ function AliasField(props: {
               type="text"
               className="form-control"
               value={value.name}
-              placeholder={tagNumber === -1 ? '_s' : `${tagNumber}`}
+              placeholder={tagNumber === -1 ? 'tag _s' : `tag ${tagNumber}`}
               disabled={tagNumber === 0 || disabled}
               onChange={(e) => onChange({ name: e.target.value })}
             />
