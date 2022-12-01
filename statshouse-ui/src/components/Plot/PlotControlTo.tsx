@@ -37,7 +37,8 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({
   const onToDateChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       const v = e.target.value;
-      if (v === '') {
+      const [y] = parseInputDate(v);
+      if (v === '' || y < 1900) {
         return;
       }
 
