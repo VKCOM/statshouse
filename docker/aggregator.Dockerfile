@@ -8,7 +8,7 @@ COPY internal/ ./internal/
 RUN go mod download
 RUN make build-sh
 
-FROM yandex/clickhouse-server:21.8.9
+FROM clickhouse/clickhouse-server:22.11
 RUN groupadd kitten
 RUN useradd -g kitten kitten
 COPY --from=build /src/target/statshouse /bin/
