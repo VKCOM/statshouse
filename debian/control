@@ -1,0 +1,27 @@
+Source: statshouse
+Section: misc
+Priority: optional
+Maintainer: Gregory Petrosyan <g.petrosyan@corp.vk.com>
+Build-Depends: debhelper (>= 9)
+Standards-Version: 3.9.5
+Homepage: https://github.com/VKCOM/statshouse
+
+Package: statshouse
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: statshouse is a main daemon of StatsHouse monitoring system.
+
+Package: statshouse-api
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}, gnuplot-nox, fonts-open-sans
+Description: statshouse-api provides HTTP API and frontend for StatsHouse.
+
+Package: statshouse-grafana-plugin
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: statshouse-grafana-plugin provides backend data source plugin for grafana.
+
+Package: statshouse-metadata
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: statshouse-metadata provides storage of metadata of StatsHouse
