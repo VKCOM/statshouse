@@ -1,0 +1,43 @@
+[Unit]
+Description=StatsHouse HTTP API and UI server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+LoadCredential=pass:/etc/engine/pass
+ExecStart=/usr/bin/statshouse-api \
+          --access-log \
+          --verbose \
+          --utc-offset 0 \
+          --listen-addr localhost:8080 \
+          --pprof-addr localhost:8081 \
+          --approx-cache-max-size 1_000_000 \
+          --clickhouse-v1-addrs= \
+          --clickhouse-v2-addrs=localhost:9000 \
+          --static-dir /usr/lib/statshouse-api/statshouse-ui/build \
+          --disk-cache /var/cache/statshouse-api/statshouse-api-meta-cache.db \
+          --pid-file /run/statshouse-api/statshouse-api.pid \
+          --rpc-crypto-path ${CREDENTIALS_DIRECTORY}/pass \
+          --max-chunks-count 1000 \
+          --listen-rpc-addr localhost:13347
+ExecReload=/bin/kill -HUP $MAINPID
+PIDFile=/run/statshouse-api/statshouse-api.pid
+Restart=always
+
+DynamicUser=true
+RuntimeDirectory=statshouse-api
+StateDirectory=statshouse-api
+CacheDirectory=statshouse-api
+WorkingDirectory=/var/lib/statshouse-api/
+PrivateUsers=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

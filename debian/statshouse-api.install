@@ -1,0 +1,3 @@
+target/statshouse-api usr/bin/
+cmd/statshouse-api/statshouse-api.service usr/lib/systemd/system/
+statshouse-ui/build usr/lib/statshouse-api/statshouse-ui/
