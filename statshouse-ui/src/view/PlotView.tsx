@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import uPlot from './lib/uPlot/uPlot.esm';
 import { calcYRange } from '../common/calcYRange';
 import { PlotSubMenu } from '../components/Plot/PlotSubMenu';
@@ -37,6 +37,7 @@ import { xAxisValues, xAxisValuesCompact } from '../common/axisValues';
 import { useRefState } from '../hooks';
 import cn from 'classnames';
 
+const unFocusAlfa = 1.1;
 const rightPad = 16;
 const font =
   '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
@@ -196,7 +197,7 @@ const PlotView = memo(function PlotView_(props: {
         dataIdx: dataIdxNearest,
       },
       focus: {
-        alpha: 1.1, // avoid redrawing unfocused series
+        alpha: unFocusAlfa, // avoid redrawing unfocused series
       },
       axes: [
         {
@@ -234,7 +235,7 @@ const PlotView = memo(function PlotView_(props: {
         },
       ],
       legend: {
-        live: !compact,
+        live: true, //!compact,
         markers: {
           width: devicePixelRatio > 1 ? 1.5 : 1,
         },
@@ -264,87 +265,110 @@ const PlotView = memo(function PlotView_(props: {
 
   const onUpdatePreview = useMemo(() => setPreviewImage?.bind(undefined, indexPlot), [indexPlot, setPreviewImage]);
 
+  const [fixHeight, setFixHeight] = useState<number>(0);
+  const divOut = useRef<HTMLDivElement>(null);
+  const onMouseOver = useCallback(() => {
+    if (divOut.current) {
+      setFixHeight(divOut.current.getBoundingClientRect().height);
+    }
+  }, []);
+  const onMouseOut = useCallback(() => {
+    setFixHeight(0);
+  }, []);
+
   return (
     <div
-      className={cn(compact ? 'plot-compact' : 'plot-full', dashboard && 'plot-dash', className)}
+      className={cn(
+        'plot-view',
+        compact ? 'plot-compact' : 'plot-full',
+        dashboard && 'plot-dash',
+        fixHeight > 0 && 'plot-hover',
+        className
+      )}
+      ref={divOut}
       style={
         {
           '--legend-name-width': `${legendNameWidth}px`,
           '--legend-value-width': `${legendValueWidth}px`,
+          height: fixHeight > 0 ? `${fixHeight}px` : undefined,
         } as React.CSSProperties
       }
+      onMouseOver={onMouseOver}
+      onMouseOut={onMouseOut}
     >
-      <div className="d-flex align-items-center" style={{ marginRight: `${rightPad}px` }}>
-        {/*loader*/}
-        <div
-          style={{ width: `${yAxisSize}px` }}
-          className="flex-shrink-0 d-flex justify-content-end align-items-center pe-3"
-        >
-          {numQueries > 0 && compact && (
-            <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-          )}
-        </div>
-        {/*header*/}
-        <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
-          {/*last error*/}
-          {!!lastError && (
-            <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
-              <small className="overflow-force-wrap font-monospace">{lastError}</small>
-              <button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
-            </div>
-          )}
-          <PlotHeader
-            indexPlot={indexPlot}
-            sel={sel}
-            setLive={setLive}
-            meta={meta}
-            live={live}
-            yLock={sel.yLock}
-            setTimeRange={setTimeRange}
-            onResetZoom={resetZoom}
-            onYLockChange={onYLockChange}
-            dashboard={dashboard}
-            compact={compact}
-          />
-          {!compact && (
-            /*meta*/
-            <PlotSubMenu
-              linkCSV={linkCSV}
-              mappingFloodEvents={mappingFloodEvents}
-              timeRange={timeRange}
+      <div className="plot-view-inner">
+        <div className="d-flex align-items-center" style={{ marginRight: `${rightPad}px` }}>
+          {/*loader*/}
+          <div
+            style={{ width: `${yAxisSize}px` }}
+            className="flex-shrink-0 d-flex justify-content-end align-items-center pe-3"
+          >
+            {numQueries > 0 && compact && (
+              <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
+            )}
+          </div>
+          {/*header*/}
+          <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
+            {/*last error*/}
+            {!!lastError && (
+              <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
+                <small className="overflow-force-wrap font-monospace">{lastError}</small>
+                <button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
+              </div>
+            )}
+            <PlotHeader
+              indexPlot={indexPlot}
               sel={sel}
-              receiveErrors={receiveErrors}
-              samplingFactorAgg={samplingFactorAgg}
-              samplingFactorSrc={samplingFactorSrc}
+              setLive={setLive}
+              meta={meta}
+              live={live}
+              yLock={sel.yLock}
+              setTimeRange={setTimeRange}
+              onResetZoom={resetZoom}
+              onYLockChange={onYLockChange}
+              dashboard={dashboard}
+              compact={compact}
+            />
+            {!compact && (
+              /*meta*/
+              <PlotSubMenu
+                linkCSV={linkCSV}
+                mappingFloodEvents={mappingFloodEvents}
+                timeRange={timeRange}
+                sel={sel}
+                receiveErrors={receiveErrors}
+                samplingFactorAgg={samplingFactorAgg}
+                samplingFactorSrc={samplingFactorSrc}
+              />
+            )}
+          </div>
+        </div>
+        <div
+          className="position-relative w-100"
+          style={{
+            paddingTop: '61.8034%',
+          }}
+        >
+          {error403 ? (
+            <div className="text-bg-light w-100 h-100 position-absolute top-0 start-0 d-flex align-items-center justify-content-center">
+              Access denied
+            </div>
+          ) : (
+            <UPlotWrapper
+              opts={opts}
+              data={data}
+              series={series}
+              scales={scales}
+              onReady={onReady}
+              onSetSelect={onSetSelect}
+              legendTarget={uLegendTarget}
+              onUpdatePreview={onUpdatePreview}
+              className="w-100 h-100 position-absolute top-0 start-0"
             />
           )}
         </div>
+        {!error403 && <div className="plot-legend" ref={uLegend}></div>}
       </div>
-      <div
-        className="position-relative w-100"
-        style={{
-          paddingTop: '61.8034%',
-        }}
-      >
-        {error403 ? (
-          <div className="text-bg-light w-100 h-100 position-absolute top-0 start-0 d-flex align-items-center justify-content-center">
-            Access denied
-          </div>
-        ) : (
-          <UPlotWrapper
-            opts={opts}
-            data={data}
-            series={series}
-            scales={scales}
-            onReady={onReady}
-            onSetSelect={onSetSelect}
-            legendTarget={uLegendTarget}
-            onUpdatePreview={onUpdatePreview}
-            className="w-100 h-100 position-absolute top-0 start-0"
-          />
-        )}
-      </div>
-      {!error403 && <div className="plot-legend" ref={uLegend}></div>}
     </div>
   );
 });

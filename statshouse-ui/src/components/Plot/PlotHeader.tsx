@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { Dispatch, memo, SetStateAction, useMemo } from 'react';
-import { metricMeta, querySelector, whatToWhatDesc } from '../../view/api';
+import { formatTagValue, metricMeta, querySelector, whatToWhatDesc } from '../../view/api';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
 import { lockRange } from '../../view/url';
@@ -48,8 +48,12 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
       (meta.tags || [])
         .map((t, index) => ({
           title: t.description,
-          in: (sel.filterIn[`key${index}`] || []).join(', '),
-          notIn: (sel.filterNotIn[`key${index}`] || []).join(', '),
+          in: (sel.filterIn[`key${index}`] || [])
+            .map((value) => formatTagValue(value, t?.value_comments?.[value], t.raw, t.raw_kind))
+            .join(', '),
+          notIn: (sel.filterNotIn[`key${index}`] || [])
+            .map((value) => formatTagValue(value, t?.value_comments?.[value], t.raw, t.raw_kind))
+            .join(', '),
         }))
         .filter((f, index) => (f.in || f.notIn) && !syncTag.some((group) => group[indexPlot] === index)),
     [indexPlot, meta.tags, sel.filterIn, sel.filterNotIn, syncTag]
@@ -58,8 +62,12 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     const sTags = (meta.tags || [])
       .map((t, index) => ({
         title: t.description,
-        in: (sel.filterIn[`key${index}`] || []).join(', '),
-        notIn: (sel.filterNotIn[`key${index}`] || []).join(', '),
+        in: (sel.filterIn[`key${index}`] || [])
+          .map((value) => formatTagValue(value, t?.value_comments?.[value], t.raw, t.raw_kind))
+          .join(', '),
+        notIn: (sel.filterNotIn[`key${index}`] || [])
+          .map((value) => formatTagValue(value, t?.value_comments?.[value], t.raw, t.raw_kind))
+          .join(', '),
       }))
       .filter((f, index) => (f.in || f.notIn) && syncTag.some((group) => group[indexPlot] === index));
     return {

@@ -239,7 +239,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
                   <div
                     key={value.indexPlot}
                     className={cn(
-                      'col-6 p-1',
+                      'plot-item col-6 p-1',
                       select === value.indexPlot && 'opacity-50',
                       dashboardLayoutEdit && css.cursorMove
                     )}

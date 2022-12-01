@@ -1,0 +1,9 @@
+
+[**.{js,ts,jsx,tsx,css,scss}]
+indent_style = space
+indent_size = 2
+
+# uPlot lib no change
+[src/view/lib/uPlot/*.{js,ts,css}]
+indent_style = tab
+indent_size = 4
