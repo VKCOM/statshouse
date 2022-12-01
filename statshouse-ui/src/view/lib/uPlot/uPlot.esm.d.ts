@@ -214,7 +214,7 @@ declare namespace uPlot {
 
 	export type TypedArray = Int8Array | Uint8Array | Int16Array | Uint16Array | Int32Array | Uint32Array | Uint8ClampedArray | Float32Array | Float64Array;
 
-	export type AlignedData = [
+	export type AlignedData = TypedArray[] | [
 		xValues: number[] | TypedArray,
 		...yValues: ((number | null | undefined)[] | TypedArray)[],
 	]
@@ -278,6 +278,9 @@ declare namespace uPlot {
 		isolate?: boolean; // false
 		/** series indicators */
 		markers?: Legend.Markers;
+
+		/** callback for moving the legend elsewhere. e.g. external DOM container */
+		mount?: (self: uPlot, el: HTMLElement) => void;
 
 		/** current index (readback-only, not for init) */
 		idx?: number | null;
@@ -646,6 +649,9 @@ declare namespace uPlot {
 
 			// whether to draw ascenders/descenders at null/gap boundaries
 			ascDesc?: boolean; // false
+
+			// extend hz lines to plot edges when x scale is beyond x data limits?
+			extend?: boolean; // false
 		}
 
 		export const enum BarsPathBuilderFacetUnit {
@@ -674,7 +680,7 @@ declare namespace uPlot {
 		/** custom per-datapoint styling and positioning */
 		export interface BarsPathBuilderDisplay {
 			x0?: BarsPathBuilderFacet;
-		//	x1?: BarsPathBuilderFacet;
+			//	x1?: BarsPathBuilderFacet;
 			y0?: BarsPathBuilderFacet;
 			y1?: BarsPathBuilderFacet;
 			size?: BarsPathBuilderFacet;
@@ -743,7 +749,7 @@ declare namespace uPlot {
 				flags?: number;
 			}
 
-			export type Show = boolean | ((self: uPlot, seriesIdx: number, idx0: number, idx1: number) => boolean | undefined);
+			export type Show = boolean | ((self: uPlot, seriesIdx: number, idx0: number, idx1: number, gaps?: null | number[][]) => boolean | undefined);
 
 			export type Filter = number[] | null | ((self: uPlot, seriesIdx: number, show: boolean, gaps?: null | number[][]) => number[] | null);
 
@@ -897,7 +903,7 @@ declare namespace uPlot {
 
 	export interface Band {
 		/** band on/off */
-	//	show?: boolean;
+		//	show?: boolean;
 
 		/** series indices of upper and lower band edges */
 		series: Band.Bounds;
