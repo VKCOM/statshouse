@@ -44,6 +44,15 @@ const KEY: Record<string, string> = {
   Escape: 'Escape',
 };
 
+const POSITION_SCROLL = {
+  None: 'None',
+  Up: 'Up',
+  Down: 'Down',
+  Middle: 'Middle',
+} as const;
+
+export type PositionScroll = typeof POSITION_SCROLL[keyof typeof POSITION_SCROLL];
+
 function appendItems(target: HTMLElement, items: SelectOptionProps[], multiple: boolean = false): void {
   target.append(
     ...items.map((item) => {
@@ -112,21 +121,48 @@ function updateCheck(list?: HTMLElement | null) {
   }
 }
 
-function scrollToClass(target?: HTMLElement | null, className?: string) {
+function scrollToClass(
+  target?: HTMLElement | null,
+  className?: string,
+  position: PositionScroll = POSITION_SCROLL.None
+) {
   if (className && target) {
     const elem = target.querySelector(`.${className}`) as HTMLElement | null;
-    scrollToElement(target, elem);
+    scrollToElement(target, elem, position);
   }
 }
 
-function scrollToElement(target?: HTMLElement | null, element?: HTMLElement | null) {
+function scrollToElement(
+  target?: HTMLElement | null,
+  element?: HTMLElement | null,
+  position: PositionScroll = POSITION_SCROLL.None
+) {
   if (element && target) {
     const bottom = element.offsetTop + element.offsetHeight;
     const bottomScroll = target.scrollTop + target.offsetHeight;
-    if (target.scrollTop > element.offsetTop) {
-      target.scrollTo(0, element.offsetTop);
-    } else if (bottomScroll < bottom) {
-      target.scrollTo(0, bottom - target.offsetHeight);
+    switch (position) {
+      case POSITION_SCROLL.Up:
+        if (target.scrollTop > element.offsetTop || bottomScroll < bottom) {
+          target.scrollTo(0, element.offsetTop);
+        }
+        break;
+      case POSITION_SCROLL.Down:
+        if (target.scrollTop > element.offsetTop || bottomScroll < bottom) {
+          target.scrollTo(0, bottom - target.offsetHeight);
+        }
+        break;
+      case POSITION_SCROLL.Middle:
+        if (target.scrollTop > element.offsetTop || bottomScroll < bottom) {
+          target.scrollTo(0, bottom - target.offsetHeight / 2);
+        }
+        break;
+      case POSITION_SCROLL.None:
+      default:
+        if (target.scrollTop > element.offsetTop) {
+          target.scrollTo(0, element.offsetTop);
+        } else if (bottomScroll < bottom) {
+          target.scrollTo(0, bottom - target.offsetHeight);
+        }
     }
   }
 }
@@ -158,7 +194,6 @@ export const Select: FC<SelectProps> = ({
   const [noSearch, setNoSearch] = useState(true);
 
   const [listPosition, setListPosition] = useState('');
-  const [styleList, setStyleList] = useState<React.CSSProperties>({});
 
   const [cursor, setCursor] = useState<string | undefined>(values[0]);
   const [showCursor, setShowCursor] = useState(false);
@@ -404,7 +439,9 @@ export const Select: FC<SelectProps> = ({
       const maxHeight = Math.max(heightBottom, heightTop);
       const minHeight = Math.min(heightBottom, heightTop);
       let listPosition: string[] = [];
-      setStyleList({ maxHeight: `${maxHeight}px` });
+      if (list.current) {
+        list.current.style.maxHeight = `${maxHeight}px`;
+      }
       if (inputBound.left + bound.width + 30 > window.innerWidth) {
         if (inputBound.right - bound.width - 30 >= 0) {
           listPosition.push(css.listRight);
@@ -427,7 +464,7 @@ export const Select: FC<SelectProps> = ({
       if (focus && input.current === event.target) {
         updatePositionClass();
         setCursor(values[0]);
-        scrollToClass(list.current, css.selected);
+        scrollToClass(list.current, css.selected, POSITION_SCROLL.Middle);
         if (!multiple && !Array.isArray(value)) {
           setNoSearch(true);
           setSearchValue(value ?? '');
@@ -472,7 +509,7 @@ export const Select: FC<SelectProps> = ({
       updateClass(list.current, values, css.selected);
       updateCheck(list.current);
       updatePositionClass();
-      scrollToClass(list.current, css.selected);
+      scrollToClass(list.current, css.selected, POSITION_SCROLL.Middle);
     }
   }, [filterOptions, updatePositionClass, multiple]);
 
@@ -522,13 +559,7 @@ export const Select: FC<SelectProps> = ({
         onInput={onInputSearch}
         placeholder={placeholderInput}
       />
-      <ul
-        ref={list}
-        onClick={onClickSelect}
-        onInput={onChangeSelect}
-        className={`${css.list} ${classNameList}`}
-        style={styleList}
-      />
+      <ul ref={list} onClick={onClickSelect} onInput={onChangeSelect} className={`${css.list} ${classNameList}`} />
       <button type="button" className={css.chevron} onFocus={onFocusChevron} onClick={onClickChevron}></button>
     </div>
   );
