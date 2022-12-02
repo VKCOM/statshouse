@@ -26,25 +26,25 @@ build-ui: build-sh-ui build-grafana-ui
 build-docker: build-docker-sh build-docker-sh-api build-docker-sh-metadata
 
 build-sh:
-	go build -ldflags "$(COMMON_LDFLAGS)" -o target/statshouse ./cmd/statshouse
+	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse ./cmd/statshouse
 
 build-sh-api:
-	go build -ldflags "$(COMMON_LDFLAGS)" -o target/statshouse-api ./cmd/statshouse-api
+	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
 
 build-sh-api-embed:
-	go build -tags embed -ldflags "$(COMMON_LDFLAGS)" -o target/statshouse-api ./cmd/statshouse-api
+	go build -tags embed -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
 
 build-sh-metadata:
-	go build -ldflags "$(COMMON_LDFLAGS)" -o target/statshouse-metadata ./cmd/statshouse-metadata
+	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-metadata ./cmd/statshouse-metadata
 
 build-sh-grafana:
-	go build -ldflags "$(COMMON_LDFLAGS)" -o target/statshouse-grafana-plugin ./cmd/statshouse-grafana-plugin
+	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-grafana-plugin ./cmd/statshouse-grafana-plugin
 
 build-sh-ui:
 	cd statshouse-ui && npm clean-install && NODE_ENV=production REACT_APP_BUILD_VERSION=$(BUILD_VERSION) npm run build
 
 build-grafana-ui:
-	cd grafana-plugin-ui && yarn build
+	cd grafana-plugin-ui && npm clean-install && npm run build
 
 build-docker-sh:
 	docker build -t statshouse -f docker/statshouse.Dockerfile .
@@ -54,3 +54,6 @@ build-docker-sh-api:
 
 build-docker-sh-metadata:
 	docker build -t statshouse-metadata -f docker/statshouse-metadata.Dockerfile .
+
+build-deb:
+	./build/makedeb.sh

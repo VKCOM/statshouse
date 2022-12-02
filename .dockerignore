@@ -1,2 +1,2 @@
 docker-compose.yml
-docker/*.Dockerfile
+build/*.Dockerfile

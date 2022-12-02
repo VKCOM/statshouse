@@ -1,2 +1,0 @@
-grafana-plugin-ui/dist usr/lib/statshouse-grafana-plugin/
-target/gpx_vk-statshouse_linux_amd64 usr/lib/statshouse-grafana-plugin/dist/
