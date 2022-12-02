@@ -19,5 +19,5 @@ RUN mkdir -p /var/lib/statshouse/cache/api
 FROM gcr.io/distroless/base-debian11:nonroot
 COPY --from=build-go /src/target/statshouse-api /bin/
 COPY --from=build-go --chown=nonroot:nonroot /var/lib/statshouse/ /var/lib/statshouse/
-COPY docker/key1.txt /etc/statshouse/
+COPY build/key1.txt /etc/statshouse/
 ENTRYPOINT ["/bin/statshouse-api"]

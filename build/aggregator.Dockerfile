@@ -13,7 +13,7 @@ RUN groupadd kitten
 RUN useradd -g kitten kitten
 COPY --from=build /src/target/statshouse /bin/
 COPY --from=build --chown=kitten:kitten /var/lib/statshouse/ /var/lib/statshouse/
-COPY docker/key1.txt /etc/statshouse/
-COPY docker/aggregator-entrypoint.sh /bin/
-COPY docker/clickhouse.sql /docker-entrypoint-initdb.d/
+COPY build/key1.txt /etc/statshouse/
+COPY build/aggregator-entrypoint.sh /bin/
+COPY build/clickhouse.sql /docker-entrypoint-initdb.d/
 ENTRYPOINT ["/bin/aggregator-entrypoint.sh"]

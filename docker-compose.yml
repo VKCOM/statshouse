@@ -6,7 +6,7 @@ services:
       - sh
     build:
       context: .
-      dockerfile: docker/statshouse-metadata.Dockerfile
+      dockerfile: build/statshouse-metadata.Dockerfile
     container_name: sh-metadata
     command: --db-path=/var/lib/statshouse/metadata/db --binlog-prefix=/var/lib/statshouse/metadata/binlog/bl --rpc-crypto-path=/etc/statshouse/key1.txt
     expose:
@@ -17,7 +17,7 @@ services:
     image: aggregator
     build:
       context: .
-      dockerfile: docker/aggregator.Dockerfile
+      dockerfile: build/aggregator.Dockerfile
     container_name: sh-aggregator
     command: aggregator --cluster=test_shard_localhost --log-level=trace --agg-addr='0.0.0.0:13336' --kh=localhost:8123 --metadata-addr metadata:2442 --cache-dir=/var/lib/statshouse/cache/aggregator --aes-pwd-file=/etc/statshouse/key1.txt
     hostname: aggregator
@@ -33,7 +33,7 @@ services:
     image: statshouse
     build:
       context: .
-      dockerfile: docker/statshouse.Dockerfile
+      dockerfile: build/statshouse.Dockerfile
     container_name: sh-agent
     command: agent --cluster=test_shard_localhost --log-level=trace --agg-addr='aggregator:13336,aggregator:13336,aggregator:13336' --cache-dir=/var/lib/statshouse/cache/agent --aes-pwd-file=/etc/statshouse/key1.txt
     expose:
@@ -47,7 +47,7 @@ services:
       - sh
     build:
       context: .
-      dockerfile: docker/statshouse-api.Dockerfile
+      dockerfile: build/statshouse-api.Dockerfile
     container_name: sh-api
     command: --verbose --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=aggregator:9000 --listen-addr 0.0.0.0:10888 --metadata-addr metadata:2442 --statshouse-addr=agent:13337 --disk-cache=/var/lib/statshouse/cache/api/mapping_cache.sqlite3 --rpc-crypto-path=/etc/statshouse/key1.txt
     expose:
@@ -59,7 +59,7 @@ services:
       - kh
     build:
       context: .
-      dockerfile: docker/clickhouse.Dockerfile
+      dockerfile: build/clickhouse.Dockerfile
     container_name: kh
     expose:
       - 8123

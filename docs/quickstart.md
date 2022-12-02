@@ -41,8 +41,8 @@ In the examples below it's assumed that the directories exist.
 
 ### Configure ClickHouse
 StatsHouse expects particular tables to exist in ClickHouse. To create them use on of the two following scripts:
-* `docker/clickhouse.sql` for ClickHouse on localhost
-* `docker/clickhouse-cluster.sql` for ClickHouse cluster
+* `build/clickhouse.sql` for ClickHouse on localhost
+* `build/clickhouse-cluster.sql` for ClickHouse cluster
 
 For starters, you can use the docker-compose service in this repo (it already has all necessary tables created):
 ``` shell
