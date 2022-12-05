@@ -609,6 +609,10 @@ export function ieee32ToFloat(intval: number): number {
   return fval;
 }
 
+export function lexDecode(intval: number): number {
+  return ieee32ToFloat(intval < 0 ? (intval >>> 0) ^ 0x7fffffff : intval >>> 0);
+}
+
 export function convert(kind: RawValueKind | undefined, input: number): string {
   switch (kind) {
     case 'hex':
@@ -630,6 +634,8 @@ export function convert(kind: RawValueKind | undefined, input: number): string {
       return (input & 255) + '.' + ((input >> 8) & 255) + '.' + ((input >> 16) & 255) + '.' + ((input >> 24) & 255);
     case 'uint':
       return (input >>> 0).toString(10);
+    case 'lexenc_float':
+      return lexDecode(input).toString(10);
     default:
       return input.toString(10);
   }
