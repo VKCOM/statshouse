@@ -514,6 +514,7 @@ function AliasField(props: {
                   <option value="timestamp_local">timestamp_local</option>
                   <option value="ip">ip</option>
                   <option value="ip_bswap">ip_bswap</option>
+                  <option value="lexenc_float">lexenc_float</option>
                 </select>
               )}
             </div>

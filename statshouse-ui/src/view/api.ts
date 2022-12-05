@@ -555,7 +555,15 @@ export type metricKind = 'counter' | 'value' | 'value_p' | 'unique' | 'mixed' | 
  * timestamp_local: UNIX timestamp, show local time for this TS
  * EMPTY:           decimal number, can be negative
  */
-export type RawValueKind = 'uint' | 'hex' | 'hex_bswap' | 'timestamp' | 'timestamp_local' | 'ip' | 'ip_bswap';
+export type RawValueKind =
+  | 'uint'
+  | 'hex'
+  | 'hex_bswap'
+  | 'timestamp'
+  | 'timestamp_local'
+  | 'ip'
+  | 'ip_bswap'
+  | 'lexenc_float';
 
 export interface metricMeta {
   readonly name: string;

@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import './../testMock/matchMedia.mock';
-import { convert } from './utils';
+import { convert, lexDecode } from './utils';
 
 describe('utils', () => {
   test('convert hex', () => {
@@ -81,5 +81,65 @@ describe('utils', () => {
     expect(convert('timestamp_local', 2147483647)).toBe('2038-01-19 06:14:07');
     expect(convert('timestamp_local', -2142740666)).toBe('1902-02-06 20:45:51');
     expect(convert('timestamp_local', 2130730822)).toBe('2037-07-09 08:40:22');
+  });
+
+  test('test lexDecode', () => {
+    // const min = -2_139_095_040;
+    // const s1 = -8388608; // 0
+    // const s2 = 8388607; // 0
+    // const max = 2_139_095_039;
+
+    expect(lexDecode(-2_139_095_041)).toBe(Number.NEGATIVE_INFINITY);
+    expect(lexDecode(0)).toBe(0);
+    expect(lexDecode(2_139_095_040)).toBe(Number.POSITIVE_INFINITY);
+    expect(lexDecode(Number.NEGATIVE_INFINITY)).toBeNaN();
+
+    let res0 = lexDecode(-2_139_095_040);
+    for (let i = -2_139_095_039; i < -2_139_094_939; i++) {
+      const res1 = lexDecode(i);
+      expect(res1).toBeGreaterThan(res0);
+      res0 = res1;
+    }
+    res0 = lexDecode(-1_139_095_040);
+    for (let i = -1_139_095_039; i < -1_139_094_939; i++) {
+      const res1 = lexDecode(i);
+      expect(res1).toBeGreaterThan(res0);
+      res0 = res1;
+    }
+    res0 = lexDecode(-8388709);
+    for (let i = -8388708; i < -8388608; i++) {
+      const res1 = lexDecode(i);
+      expect(res1).toBeGreaterThan(res0);
+      res0 = res1;
+    }
+
+    res0 = lexDecode(8388608);
+    for (let i = 8388609; i < 8388709; i++) {
+      const res1 = lexDecode(i);
+      expect(res1).toBeGreaterThan(res0);
+      res0 = res1;
+    }
+
+    res0 = lexDecode(1_139_094_938);
+    for (let i = 1_139_094_939; i < 1_139_095_040; i++) {
+      const res1 = lexDecode(i);
+      expect(res1).toBeGreaterThan(res0);
+      res0 = res1;
+    }
+
+    res0 = lexDecode(2_139_094_938);
+    for (let i = 2_139_094_939; i < 2_139_095_040; i++) {
+      const res1 = lexDecode(i);
+      expect(res1).toBeGreaterThan(res0);
+      res0 = res1;
+    }
+  });
+  test('convert lexenc_float', () => {
+    expect(convert('lexenc_float', 0)).toBe('0');
+    expect(convert('lexenc_float', Number.NEGATIVE_INFINITY)).toBe('NaN');
+    expect(convert('lexenc_float', -1_139_095_039)).toBe('-458.42181396484375');
+    expect(convert('lexenc_float', 1_139_094_939)).toBe('458.4187927246094');
+    expect(convert('lexenc_float', -8388709)).toBe('-1.1755083638069308e-38');
+    expect(convert('lexenc_float', 8388609)).toBe('1.175494490952134e-38');
   });
 });
