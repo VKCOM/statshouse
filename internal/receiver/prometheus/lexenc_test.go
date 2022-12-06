@@ -8,6 +8,7 @@ package prometheus
 
 import (
 	"math"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -22,8 +23,33 @@ func TestLexEnc(t *testing.T) {
 	// from +Inf down towards 0
 	lexEncTestRange(t, float32(math.Inf(+1)), 0, 1000)
 	// NaN
-	_, err := LexEncode(float32(math.NaN()))
-	require.Error(t, err)
+	n := LexEncode(float32(math.NaN()))
+	require.Equal(t, n, LexEncode(LexDecode(n)))
+}
+
+func TestLexEncFullRange(t *testing.T) {
+	if os.Getenv("STATSHOUSE_RUN_LEXENC_FULL_RANGE_TEST") != "1" {
+		t.Skip("TestLexEncFullRange skipped because STATSHOUSE_RUN_LEXENC_FULL_RANGE_TEST not set")
+	}
+	n := []int32{0, math.MinInt32}
+	f := []float32{0, LexDecode(n[1])}
+	for {
+		if n[1] != LexEncode(f[1]) {
+			t.Fatalf("%v != %v", n[1], LexEncode(f[1]))
+		}
+		if n[1] == math.MaxInt32 {
+			break
+		}
+		n[0] = n[1]
+		f[0] = f[1]
+		n[1]++
+		f[1] = LexDecode(n[1])
+		if !(f[0] < f[1] ||
+			math.IsNaN(float64(f[0])) || math.IsNaN(float64(f[1])) ||
+			(math.Float32bits(f[0]) == 0x80000000 && math.Float32bits(f[1]) == 0x00000000)) {
+			t.Fatalf("%v < %v, but !(%v < %v)", n[0], n[1], f[0], f[1])
+		}
+	}
 }
 
 func lexEncTestRange(t *testing.T, first, last float32, cnt int64) {
@@ -43,13 +69,11 @@ func lexEncTestRange(t *testing.T, first, last float32, cnt int64) {
 }
 
 func lexEncTestSlice(t *testing.T, src []float32, enc []int32) {
-	var err error
 	if enc == nil {
 		enc = make([]int32, len(src))
 	}
 	for i := range src {
-		enc[i], err = LexEncode(src[i])
-		require.NoError(t, err)
+		enc[i] = LexEncode(src[i])
 		require.Equal(t, LexDecode(enc[i]), src[i])
 	}
 	for i := 1; i < len(enc); i++ {
