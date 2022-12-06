@@ -7,7 +7,9 @@
 package prometheus
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -144,10 +146,11 @@ func (cache metricCache) getMetric(key cacheMetricKey) (cacheMetric, bool) {
 			if err != nil {
 				break
 			}
-			le, err = LexEncode(float32(x))
-			if err != nil {
+			if math.IsNaN(x) {
+				err = errors.New("bucket label is NaN")
 				break
 			}
+			le = LexEncode(float32(x))
 			tags = append(tags, tl.DictionaryFieldStringBytes{Key: []byte(format.LETagName), Value: []byte(strconv.FormatInt(int64(le), 10))})
 		default:
 			tags = append(tags, tl.DictionaryFieldStringBytes{Key: []byte(l.Name), Value: []byte(l.Value)})

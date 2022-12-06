@@ -22,8 +22,8 @@ func TestLexEnc(t *testing.T) {
 	// from +Inf down towards 0
 	lexEncTestRange(t, float32(math.Inf(+1)), 0, 1000)
 	// NaN
-	_, err := LexEncode(float32(math.NaN()))
-	require.Error(t, err)
+	n := LexEncode(float32(math.NaN()))
+	require.Equal(t, n, LexEncode(LexDecode(n)))
 }
 
 func lexEncTestRange(t *testing.T, first, last float32, cnt int64) {
@@ -43,13 +43,11 @@ func lexEncTestRange(t *testing.T, first, last float32, cnt int64) {
 }
 
 func lexEncTestSlice(t *testing.T, src []float32, enc []int32) {
-	var err error
 	if enc == nil {
 		enc = make([]int32, len(src))
 	}
 	for i := range src {
-		enc[i], err = LexEncode(src[i])
-		require.NoError(t, err)
+		enc[i] = LexEncode(src[i])
 		require.Equal(t, LexDecode(enc[i]), src[i])
 	}
 	for i := 1; i < len(enc); i++ {

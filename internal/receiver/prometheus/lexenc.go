@@ -7,23 +7,19 @@
 package prometheus
 
 import (
-	"errors"
 	"math"
 )
 
-func LexEncode(x float32) (int32, error) {
+func LexEncode(x float32) int32 {
 	if x == 0 {
-		return 0, nil
-	}
-	if math.IsNaN(float64(x)) {
-		return 0, errors.New("no sortable binary representation for NaN")
+		return 0
 	}
 	bits := math.Float32bits(x)
 	if x < 0 {
 		// flip all except signbit so bigger negatives go before smaller ones
 		bits ^= 0x7fffffff
 	}
-	return int32(bits), nil
+	return int32(bits)
 }
 
 func LexDecode(x int32) float32 {
