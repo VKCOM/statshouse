@@ -4,12 +4,22 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import uPlot from '../../view/lib/uPlot/uPlot.esm';
 import { useResizeObserver } from '../../view/utils';
 import { canvasToImageData } from '../../common/canvasToImage';
 import { debug } from '../../common/debug';
 
+export type LegendItem = {
+  label: string;
+  width: number;
+  fill?: string;
+  stroke?: string;
+  show: boolean;
+  value: string | number;
+  alpha?: number;
+  focus?: boolean;
+};
 export type UPlotWrapperPropsOpts = Partial<uPlot.Options>;
 export type UPlotWrapperPropsScales = Record<string, { min: number; max: number }>;
 export type UPlotWrapperPropsHooks = {
@@ -39,11 +49,25 @@ export type UPlotWrapperProps = {
   series?: uPlot.Series[];
   legendTarget?: HTMLDivElement | null;
   onUpdatePreview?: React.Dispatch<React.SetStateAction<string>>;
+  onUpdateLegend?: React.Dispatch<React.SetStateAction<LegendItem[]>>;
   className?: string;
 } & UPlotWrapperPropsHooks;
 
 export const microTask =
   typeof queueMicrotask === 'undefined' ? (fn: () => void) => Promise.resolve().then(fn) : queueMicrotask;
+
+function readLegend(u: uPlot): LegendItem[] {
+  return u.series.map((s, index) => ({
+    label: s.label ?? '',
+    width:
+      (u.legend.markers?.width instanceof Function ? u.legend.markers?.width(u, index) : u.legend.markers?.width) ?? 1,
+    fill: s.fill instanceof Function ? s.fill(u, index)?.toString() : s.fill?.toString(),
+    stroke: s.stroke instanceof Function ? s.stroke(u, index)?.toString() : s.stroke?.toString(),
+    show: s.show ?? false,
+    value: u.legend.values?.[index]?.['_'] ?? '—',
+    alpha: s.alpha,
+  }));
+}
 
 export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
   opts,
@@ -52,6 +76,7 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
   scales = {},
   legendTarget,
   onUpdatePreview,
+  onUpdateLegend,
   className,
   onInit,
   onSetCursor,
@@ -75,6 +100,8 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
   const hooksEvent = useRef<UPlotWrapperPropsHooks>({});
+  const [seriesFocus, setSeriesFocus] = useState<null | number>(null);
+  const [legend, setLegend] = useState<LegendItem[]>([]);
 
   useEffect(() => {
     hooksEvent.current = {
@@ -222,6 +249,7 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
           hooksEvent.current.onDrawClear?.(u);
         },
         ready: (u) => {
+          setLegend(readLegend(u));
           hooksEvent.current.onReady?.(u);
         },
         setData: (u) => {
@@ -231,12 +259,18 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
           hooksEvent.current.onSyncRect?.(u, rect);
         },
         setSeries: (u, seriesIdx, opts) => {
+          if ((opts as { focus?: boolean }).focus) {
+            setSeriesFocus(seriesIdx);
+          }
+          setLegend(readLegend(u));
           hooksEvent.current.onSetSeries?.(u, seriesIdx, opts);
         },
         addSeries: (u, seriesIdx) => {
+          setLegend(readLegend(u));
           hooksEvent.current.onAddSeries?.(u, seriesIdx);
         },
         delSeries: (u, seriesIdx) => {
+          setLegend(readLegend(u));
           hooksEvent.current.onDelSeries?.(u, seriesIdx);
         },
         drawSeries: (u, seriesIdx) => {
@@ -252,6 +286,7 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
           hooksEvent.current.onSetCursor?.(u);
         },
         setLegend: (u) => {
+          setLegend(readLegend(u));
           hooksEvent.current.onSetLegend?.(u);
         },
         setSelect: (u) => {
@@ -261,6 +296,14 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
     }),
     []
   );
+
+  useEffect(() => {
+    const legendF = legend.slice();
+    if (seriesFocus !== null) {
+      legendF[seriesFocus] = { ...legendF[seriesFocus], focus: true };
+    }
+    onUpdateLegend?.(legendF);
+  }, [legend, seriesFocus, onUpdateLegend]);
 
   useLayoutEffect(() => {
     if (width === 0 || uRef.current) {

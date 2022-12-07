@@ -9,7 +9,7 @@ import uPlot from './lib/uPlot/uPlot.esm';
 import { calcYRange } from '../common/calcYRange';
 import { PlotSubMenu } from '../components/Plot/PlotSubMenu';
 import { PlotHeader } from '../components/Plot/PlotHeader';
-import { UPlotWrapper, UPlotWrapperPropsOpts } from '../components';
+import { LegendItem, UPlotWrapper, UPlotWrapperPropsOpts } from '../components';
 import { formatSI, now, timeRangeAbbrevExpand } from './utils';
 import { queryURLCSV } from './api';
 import { grey } from './palette';
@@ -34,7 +34,6 @@ import {
   useStore,
 } from '../store';
 import { xAxisValues, xAxisValuesCompact } from '../common/axisValues';
-import { useRefState } from '../hooks';
 import cn from 'classnames';
 
 const unFocusAlfa = 1.1;
@@ -107,6 +106,9 @@ const PlotView = memo(function PlotView_(props: {
   const meta = useStore(selectorPlotMetricsMeta);
   const loadMetricsMeta = useStore(selectorLoadMetricsMeta);
 
+  const uPlotRef = useRef<uPlot>();
+  const [legend, setLegend] = useState<LegendItem[]>([]);
+
   useEffect(() => {
     if (sel.metricName) {
       loadMetricsMeta(sel.metricName);
@@ -142,8 +144,6 @@ const PlotView = memo(function PlotView_(props: {
   useEffect(() => {
     resetZoomRef.current = resetZoom;
   }, [resetZoom]);
-
-  const [uLegendTarget, uLegend] = useRefState<HTMLDivElement>(null);
 
   const onSetSelect = useCallback(
     (u: uPlot) => {
@@ -235,6 +235,7 @@ const PlotView = memo(function PlotView_(props: {
         },
       ],
       legend: {
+        show: false,
         live: true, //!compact,
         markers: {
           width: devicePixelRatio > 1 ? 1.5 : 1,
@@ -255,6 +256,9 @@ const PlotView = memo(function PlotView_(props: {
 
   const onReady = useCallback(
     (u: uPlot) => {
+      if (uPlotRef.current !== u) {
+        uPlotRef.current = u;
+      }
       setUPlotWeight(indexPlot, u.bbox.width);
       u.over.ondblclick = () => {
         resetZoomRef.current();
@@ -276,13 +280,24 @@ const PlotView = memo(function PlotView_(props: {
     setFixHeight(0);
   }, []);
 
+  const onLegendFocus = useCallback((event: React.MouseEvent) => {
+    const index = parseInt(event.currentTarget.getAttribute('data-index') ?? '') || null;
+    const focus = event.type === 'mouseover';
+    index && uPlotRef.current?.setSeries(index, { focus }, true);
+  }, []);
+  const onLegendShow = useCallback((event: React.MouseEvent) => {
+    const index = parseInt(event.currentTarget.getAttribute('data-index') ?? '') || null;
+    const show = event.currentTarget.className.includes('u-off');
+    index && uPlotRef.current?.setSeries(index, { show }, true);
+  }, []);
+
   return (
     <div
       className={cn(
         'plot-view',
         compact ? 'plot-compact' : 'plot-full',
         dashboard && 'plot-dash',
-        fixHeight > 0 && 'plot-hover',
+        fixHeight > 0 && dashboard && 'plot-hover',
         className
       )}
       ref={divOut}
@@ -290,7 +305,7 @@ const PlotView = memo(function PlotView_(props: {
         {
           '--legend-name-width': `${legendNameWidth}px`,
           '--legend-value-width': `${legendValueWidth}px`,
-          height: fixHeight > 0 ? `${fixHeight}px` : undefined,
+          height: fixHeight > 0 && dashboard ? `${fixHeight}px` : undefined,
         } as React.CSSProperties
       }
       onMouseOver={onMouseOver}
@@ -361,13 +376,42 @@ const PlotView = memo(function PlotView_(props: {
               scales={scales}
               onReady={onReady}
               onSetSelect={onSetSelect}
-              legendTarget={uLegendTarget}
               onUpdatePreview={onUpdatePreview}
               className="w-100 h-100 position-absolute top-0 start-0"
+              onUpdateLegend={setLegend}
             />
           )}
         </div>
-        {!error403 && <div className="plot-legend" ref={uLegend}></div>}
+        {!error403 && (
+          <div className="plot-legend">
+            <table className="u-legend u-inline u-live">
+              <tbody>
+                {legend.map((l, index) => (
+                  <tr
+                    key={l.label}
+                    data-index={index}
+                    className={cn('u-series', l.focus && 'plot-legend-focus', !l.show && 'u-off')}
+                    style={{ opacity: l.alpha }}
+                    onMouseOut={onLegendFocus}
+                    onMouseOver={onLegendFocus}
+                    onClick={onLegendShow}
+                  >
+                    <th>
+                      <div
+                        className="u-marker"
+                        style={{ border: l.stroke && `${l.width}px solid ${l.stroke}`, background: l.fill }}
+                      ></div>
+                      <div className="u-label" title={l.label}>
+                        {l.label}
+                      </div>
+                    </th>
+                    <td className="u-value">{l.value}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
