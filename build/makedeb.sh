@@ -11,12 +11,15 @@ if [[ -z $TAG ]]; then
 fi
 
 if [[ -z $BUILD_VERSION ]]; then
-  BUILD_VERSION=$(git describe --tags --always --dirty)
-  BUILD_VERSION=${BUILD_VERSION#v} # v1.0.0 -> 1.0.0
+  # upstream-version
+  UPSTREAM=$(git describe --tags --always --dirty)
+  UPSTREAM=${UPSTREAM#v} # v1.0.0 -> 1.0.0
+  # epoch:upstream-version-debian.revision
+  BUILD_VERSION="1:$UPSTREAM-$TAG"
 fi
 
 if [[ -z $GID ]]; then
-  GID=1000
+  GID=$(id -g)
 fi
 
 # build StatsHouse
@@ -46,4 +49,4 @@ docker run --rm -v "$PWD:/src" -w /src -u "$UID:$GID" "$DEB_IMAGE" dch \
 docker run --rm -v "$PWD/..:/src" -w /src/build -u "$UID:$GID" "$DEB_IMAGE" debuild --no-lintian -us -uc -b)
 
 # Drop to target directory
-for f in *"$BUILD_VERSION"*; do mv -u "$f" "target/$f"; done
+for f in *"${BUILD_VERSION##[0-9]*\:}"*; do mv -u "$f" "target/$f"; done
