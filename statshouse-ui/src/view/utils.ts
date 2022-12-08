@@ -12,6 +12,7 @@ import { DashboardInfo, RawValueKind } from './api';
 import { QueryParams } from '../common/plotQueryParams';
 
 export const goldenRatio = 1.61803398875;
+export const minusSignChar = '−'; //&#8722;
 
 export function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(n, max));
@@ -327,31 +328,31 @@ export function timeShiftDesc(ts: number): string {
     case 0:
       return '';
     case -24 * 3600:
-      return '−24h';
+      return minusSignChar + '24h';
     case -48 * 3600:
-      return '−48h';
+      return minusSignChar + '48h';
     case -7 * 24 * 3600:
-      return '−1w';
+      return minusSignChar + '1w';
     case -7 * 2 * 24 * 3600:
-      return '−2w';
+      return minusSignChar + '2w';
     case -7 * 3 * 24 * 3600:
-      return '−3w';
+      return minusSignChar + '3w';
     case -7 * 4 * 24 * 3600:
-      return '−4w';
+      return minusSignChar + '4w';
     case -365 * 24 * 3600:
-      return '−365d';
+      return minusSignChar + '365d';
     case -31 * 24 * 3600:
-      return '-1M';
+      return minusSignChar + '1M';
     case -2 * 31 * 24 * 3600:
-      return '-2M';
+      return minusSignChar + '2M';
     case -3 * 31 * 24 * 3600:
-      return '-3M';
+      return minusSignChar + '3M';
     case -6 * 31 * 24 * 3600:
-      return '-6M';
+      return minusSignChar + '6M';
     case -12 * 31 * 24 * 3600:
-      return '-1Y';
+      return minusSignChar + '1Y';
     default:
-      return `${ts}s`.replaceAll('-', '−');
+      return `${ts}s`.replaceAll('-', minusSignChar);
   }
 }
 

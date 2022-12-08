@@ -57,6 +57,7 @@ export const selectorMetricsList = (s: Store) => s.metricsList;
 export const selectorLoadMetricsList = (s: Store) => s.loadMetricsList;
 
 export const selectorPlotsData = (s: Store) => s.plotsData;
+export const selectorSetPlotShow = (s: Store) => s.setPlotShow;
 export const selectorPlotsDataByIndex = (index: number, s: Store) => s.plotsData[index] ?? {};
 export const selectorPlotLastError = (s: Store) => s.setPlotLastError;
 export const selectorSetYLockChange = (s: Store) => s.setYLockChange;

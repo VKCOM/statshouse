@@ -48,6 +48,7 @@ import {
   dashboardShortInfo,
   dashboardURL,
   GetDashboardListResp,
+  metaToBaseLabel,
   metaToLabel,
   metricMeta,
   metricResult,
@@ -78,6 +79,7 @@ export type PlotStore = {
   data: uPlot.AlignedData;
   series: uPlot.Series[];
   scales: Record<string, { min: number; max: number }>;
+  groups: Record<string, { show: boolean; idx: number[] }>;
   lastPlotParams?: PlotParams;
   lastTimeRange?: TimeRange;
   lastQuerySeriesMeta?: querySeriesMeta[];
@@ -127,6 +129,7 @@ export type Store = {
   plotsData: PlotStore[];
   plotsDataAbortController: AbortController[];
   loadPlot(index: number, force?: boolean): void;
+  setPlotShow(indexPlot: number, idx: number, show?: boolean): void;
   setPlotLastError(index: number, error: string): void;
   uPlotsWidth: number[];
   setUPlotWidth(index: number, weight: number): void;
@@ -449,6 +452,7 @@ export const useStore = create<Store>()(
             data: [[]],
             series: [],
             scales: {},
+            groups: {},
             receiveErrors: 0,
             samplingFactorSrc: 0,
             samplingFactorAgg: 0,
@@ -506,6 +510,7 @@ export const useStore = create<Store>()(
         apiGet<queryResult>(url, controller.signal, true)
           .then((resp) => {
             const uniqueWhat = new Set();
+
             for (const meta of resp?.series.series_meta ?? []) {
               uniqueWhat.add(meta.what);
             }
@@ -531,14 +536,40 @@ export const useStore = create<Store>()(
                   ? 2 / devicePixelRatio
                   : 1
                 : 1 / devicePixelRatio;
+            const oldGroups = prevState.plotsData[index]?.groups;
+            let showReset = true;
+            const groups: Record<string, { show: boolean; idx: number[] }> = resp.series.series_meta.reduce(
+              (res, meta, index) => {
+                const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
+                res[baseLabel] = res[baseLabel] ?? {
+                  show: oldGroups[baseLabel]?.show ?? true,
+                  idx: [],
+                };
+                res[baseLabel].idx.push(index + 1);
+                if (res[baseLabel].show) {
+                  showReset = false;
+                }
+
+                return res;
+              },
+              {} as Record<string, { show: boolean; idx: number[] }>
+            );
+
+            if (showReset) {
+              Object.values(groups).forEach((g) => {
+                g.show = true;
+              });
+            }
+
             const series: uPlot.Series[] = resp.series.series_meta.map((meta, indexMeta): uPlot.Series => {
+              const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
               const label = metaToLabel(meta, uniqueWhat.size);
               const color = selectColor(`${lastPlotParams.metricName}: ${label}`, usedColors);
               if (color !== prevState.plotsData[index]?.series[indexMeta]?.stroke) {
                 changeColor = true;
               }
               return {
-                show: true,
+                show: groups[baseLabel]?.show ?? true,
                 auto: false, // we control the scaling manually
                 label,
                 stroke: color,
@@ -592,6 +623,7 @@ export const useStore = create<Store>()(
                     ? state.plotsData[index]?.series
                     : series,
                 scales: dequal(scales, state.plotsData[index]?.scales) ? state.plotsData[index]?.scales : scales,
+                groups: dequal(groups, state.plotsData[index]?.groups) ? state.plotsData[index]?.groups : groups,
                 receiveErrors: resp.receive_errors_legacy,
                 samplingFactorSrc: resp.sampling_factor_src,
                 samplingFactorAgg: resp.sampling_factor_agg,
@@ -613,6 +645,7 @@ export const useStore = create<Store>()(
                   data: [[]],
                   series: [],
                   scales: {},
+                  groups: {},
                   receiveErrors: 0,
                   samplingFactorSrc: 0,
                   samplingFactorAgg: 0,
@@ -634,6 +667,7 @@ export const useStore = create<Store>()(
                   data: [[]],
                   series: [],
                   scales: {},
+                  groups: {},
                   receiveErrors: 0,
                   samplingFactorSrc: 0,
                   samplingFactorAgg: 0,
@@ -653,6 +687,15 @@ export const useStore = create<Store>()(
             getState().setNumQueriesPlot(index, (n) => n - 1);
           });
       }
+    },
+    setPlotShow(indexPlot, idx, show) {
+      setState((state) => {
+        Object.entries(state.plotsData[indexPlot].groups).forEach(([, group]) => {
+          if (group.idx.includes(idx)) {
+            group.show = show ?? !group.show;
+          }
+        });
+      });
     },
     setPlotLastError(index, error) {
       setState((state) => {
