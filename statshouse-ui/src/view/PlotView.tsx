@@ -25,6 +25,7 @@ import {
   selectorPlotsDataByIndex,
   selectorSetLiveMode,
   selectorSetParamsPlots,
+  selectorSetPlotShow,
   selectorSetPreviews,
   selectorSetTimeRange,
   selectorSetUPlotWidth,
@@ -78,6 +79,7 @@ const PlotView = memo(function PlotView_(props: {
     scales,
     series,
     data,
+    groups,
     legendNameWidth,
     legendValueWidth,
     mappingFloodEvents,
@@ -87,6 +89,8 @@ const PlotView = memo(function PlotView_(props: {
     error: lastError,
     error403,
   } = useStore(selectorPlotsData);
+
+  const setPlotShow = useStore(selectorSetPlotShow);
 
   const setYLockChange = useStore(selectorSetYLockChange);
   const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot, setYLockChange]);
@@ -285,11 +289,26 @@ const PlotView = memo(function PlotView_(props: {
     const focus = event.type === 'mouseover';
     index && uPlotRef.current?.setSeries(index, { focus }, true);
   }, []);
-  const onLegendShow = useCallback((event: React.MouseEvent) => {
-    const index = parseInt(event.currentTarget.getAttribute('data-index') ?? '') || null;
-    const show = event.currentTarget.className.includes('u-off');
-    index && uPlotRef.current?.setSeries(index, { show }, true);
-  }, []);
+  const onLegendShow = useCallback(
+    (event: React.MouseEvent) => {
+      const index = parseInt(event.currentTarget.getAttribute('data-index') ?? '') || null;
+      const show = event.currentTarget.className.includes('u-off');
+      if (index) {
+        setPlotShow(indexPlot, index, show);
+      }
+    },
+    [indexPlot, setPlotShow]
+  );
+
+  useEffect(() => {
+    Object.values(groups).forEach((g) => {
+      g.idx.forEach((idx) => {
+        if (uPlotRef.current?.series[idx].show !== g.show) {
+          uPlotRef.current?.setSeries(idx, { show: g.show }, true);
+        }
+      });
+    });
+  }, [groups]);
 
   return (
     <div
@@ -388,7 +407,7 @@ const PlotView = memo(function PlotView_(props: {
               <tbody>
                 {legend.map((l, index) => (
                   <tr
-                    key={l.label}
+                    key={index}
                     data-index={index}
                     className={cn('u-series', l.focus && 'plot-legend-focus', !l.show && 'u-off')}
                     style={{ opacity: l.alpha }}

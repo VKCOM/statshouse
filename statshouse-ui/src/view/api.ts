@@ -5,8 +5,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as utils from './utils';
-import { TimeRange } from '../common/TimeRange';
 import { convert } from './utils';
+import { TimeRange } from '../common/TimeRange';
 
 export interface lockRange {
   readonly min: number;
@@ -132,18 +132,21 @@ export function formatTagValue(value: string, comment?: string, raw?: boolean, k
   return `⚡ ${i}`;
 }
 
-// XXX: keep in sync with Go
-export function metaToLabel(meta: querySeriesMeta, uniqueWhatLength: number): string {
-  const tags = Object.entries(meta.tags)
-    .sort(([tagID1], [tagID2]) => tagID1.localeCompare(tagID2))
-    .map(([, metaTag]) => formatTagValue(metaTag.value, metaTag.comment, metaTag.raw, metaTag.raw_kind))
-    .join(', ');
-
-  let desc = tags !== '' ? tags : 'Value';
+export function metaToBaseLabel(meta: querySeriesMeta, uniqueWhatLength: number): string {
+  let desc =
+    Object.entries(meta.tags)
+      .sort(([a], [b]) => (a > b ? 1 : a < b ? -1 : 0))
+      .map(([, metaTag]) => formatTagValue(metaTag.value, metaTag.comment, metaTag.raw, metaTag.raw_kind))
+      .join(', ') || 'Value';
   if (uniqueWhatLength > 1) {
     desc = `${desc}: ${whatToWhatDesc(meta.what)}`;
   }
+  return desc;
+}
 
+// XXX: keep in sync with Go
+export function metaToLabel(meta: querySeriesMeta, uniqueWhatLength: number): string {
+  const desc = metaToBaseLabel(meta, uniqueWhatLength);
   const tsd = utils.timeShiftDesc(meta.time_shift);
   return tsd !== '' ? `${tsd} ${desc}` : desc;
 }
