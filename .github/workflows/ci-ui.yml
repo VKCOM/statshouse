@@ -20,3 +20,5 @@ jobs:
         working-directory: statshouse-ui
       - run: npm run build
         working-directory: statshouse-ui
+      - run: CI=true npm run test
+        working-directory: statshouse-ui
