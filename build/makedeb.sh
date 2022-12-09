@@ -10,10 +10,12 @@ if [[ -z $TAG ]]; then
   exit 1
 fi
 
+# upstream-version
+UPSTREAM=$(git describe --tags --always --dirty)
+UPSTREAM=${UPSTREAM#v} # v1.0.0 -> 1.0.0
+BUILD_TIME="$(date +%FT%T%z)"
+REACT_APP_BUILD_VERSION=$UPSTREAM-$BUILD_TIME
 if [[ -z $BUILD_VERSION ]]; then
-  # upstream-version
-  UPSTREAM=$(git describe --tags --always --dirty)
-  UPSTREAM=${UPSTREAM#v} # v1.0.0 -> 1.0.0
   # epoch:upstream-version-debian.revision
   BUILD_VERSION="1:$UPSTREAM-$TAG"
 fi
@@ -32,11 +34,13 @@ if [[ $CUSTOM_BUILD_IMAGE ]]; then
 fi
 GOCACHE=build/go-cache
 mkdir -p "$PWD/$GOCACHE"
-COMMON_BUILD_VARS=("-e=BUILD_TIME" "-e=BUILD_MACHINE" "-e=BUILD_COMMIT" "-e=BUILD_VERSION" "-e=BUILD_ID" \
-                   "-e=BUILD_COMMIT_TS" "-e=BUILD_TRUSTED_SUBNET_GROUPS")
-docker run --rm -v "$PWD:/src" -w /src "${COMMON_BUILD_VARS[@]}" -e GOCACHE="/src/$GOCACHE" \
-   -u "$UID:$GID" "$GOLANG_IMAGE" make build-sh build-sh-metadata build-sh-api build-sh-grafana
-docker run --rm -v "$PWD:/src" -w /src -u "$UID:$GID" node:18-bullseye make build-sh-ui build-grafana-ui
+docker run --rm -u "$UID:$GID" -v "$PWD:/src" -w /src \
+  -e BUILD_MACHINE="$(uname -n -m -r -s)" -e BUILD_TIME="$BUILD_TIME" -e BUILD_VERSION="$UPSTREAM" \
+  -e BUILD_COMMIT="$(git log --format="%H" -n 1)" -e BUILD_COMMIT_TS="$(git log --format="%ct" -n 1)" \
+  -e GOCACHE="/src/$GOCACHE" -e BUILD_TRUSTED_SUBNET_GROUPS \
+  "$GOLANG_IMAGE" make build-sh build-sh-metadata build-sh-api build-sh-grafana
+docker run --rm -u "$UID:$GID" -v "$PWD:/src" -w /src -e REACT_APP_BUILD_VERSION="$REACT_APP_BUILD_VERSION" \
+  node:18-bullseye make build-sh-ui build-grafana-ui
 
 # build debian package
 (cd build
