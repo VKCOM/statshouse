@@ -1,8 +1,9 @@
-BUILD_VERSION    := $(shell git describe --tags --always --dirty)
-BUILD_COMMIT     := $(shell git log --format="%H" -n 1)
-BUILD_COMMIT_TS  := $(shell git log --format="%ct" -n 1)
-BUILD_TIME       := $(shell date +%FT%T%z)
-BUILD_MACHINE    := $(shell uname -n -m -r -s)
+BUILD_VERSION   := $(if $(BUILD_VERSION),$(BUILD_VERSION),$(shell git describe --tags --always --dirty))
+BUILD_COMMIT    := $(if $(BUILD_COMMIT),$(BUILD_COMMIT),$(shell git log --format="%H" -n 1))
+BUILD_COMMIT_TS := $(if $(BUILD_COMMIT_TS),$(BUILD_COMMIT_TS),$(shell git log --format="%ct" -n 1))
+BUILD_TIME      := $(if $(BUILD_TIME),$(BUILD_TIME),$(shell date +%FT%T%z))
+BUILD_MACHINE   := $(if $(BUILD_MACHINE),$(BUILD_MACHINE),$(shell uname -n -m -r -s))
+REACT_APP_BUILD_VERSION := $(if $(REACT_APP_BUILD_VERSION),$(REACT_APP_BUILD_VERSION),$(BUILD_VERSION)-$(BUILD_TIME))
 # TODO: BUILD_ID
 
 COMMON_BUILD_VARS := -X 'github.com/vkcom/statshouse/internal/vkgo/build.time=$(BUILD_TIME)' \
@@ -41,7 +42,7 @@ build-sh-grafana:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-grafana-plugin ./cmd/statshouse-grafana-plugin
 
 build-sh-ui:
-	cd statshouse-ui && npm clean-install && NODE_ENV=production REACT_APP_BUILD_VERSION=$(BUILD_VERSION) npm run build
+	cd statshouse-ui && npm clean-install && NODE_ENV=production REACT_APP_BUILD_VERSION=$(REACT_APP_BUILD_VERSION) npm run build
 
 build-grafana-ui:
 	cd grafana-plugin-ui && npm clean-install && npm run build
