@@ -1065,18 +1065,23 @@ Set by aggregator.`,
 				Description: "data_format",
 			}},
 		},
+
 		BuiltinMetricIDAPISelectBytes: {
-			Name:        BuiltinMetricNameAPISelectBytes,
-			Kind:        MetricKindValue,
-			Description: "Number of bytes was handled by ClickHouse SELECT query",
+			Name: BuiltinMetricNameAPISelectBytes,
+			Kind: MetricKindValue,
+			// TODO replace with logs
+			StringTopDescription: "error",
+			Description:          "Number of bytes was handled by ClickHouse SELECT query",
 			Tags: []MetricMetaTag{{
 				Description: "query type",
 			}},
 		},
 		BuiltinMetricIDAPISelectRows: {
-			Name:        BuiltinMetricNameAPISelectRows,
-			Kind:        MetricKindValue,
-			Description: "Number of rows was handled by ClickHouse SELECT query",
+			Name: BuiltinMetricNameAPISelectRows,
+			Kind: MetricKindValue,
+			// TODO replace with logs
+			StringTopDescription: "error",
+			Description:          "Number of rows was handled by ClickHouse SELECT query",
 			Tags: []MetricMetaTag{{
 				Description: "query type",
 			}},
