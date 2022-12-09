@@ -7,13 +7,16 @@
 package build
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path"
 	"runtime"
 	"strconv"
+	"strings"
+
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
 var (
@@ -119,9 +122,23 @@ func parseTrustedSubnetGroups() {
 	if len(trustedSubnetGroups) == 0 {
 		return
 	}
-	err := json.Unmarshal([]byte(trustedSubnetGroups), &trustedSubnetGroupsS)
-	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to parse TrustedSubnetGroups %q: %v\n", trustedSubnetGroups, err)
+	for _, group := range strings.Split(trustedSubnetGroups, ";") {
+		var s []string
+		for _, addr := range strings.Split(group, ",") {
+			t := strings.TrimSpace(addr)
+			if len(t) != 0 {
+				s = append(s, t)
+			}
+		}
+		if len(s) != 0 {
+			trustedSubnetGroupsS = append(trustedSubnetGroupsS, s)
+		}
+	}
+	_, errs := rpc.ParseTrustedSubnets(trustedSubnetGroupsS)
+	if len(errs) != 0 {
+		for _, err := range errs {
+			log.Printf("failed to parse trusted subnet: %q", err)
+		}
 		os.Exit(1)
 	}
 }
