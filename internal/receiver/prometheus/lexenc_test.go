@@ -7,11 +7,42 @@
 package prometheus
 
 import (
+	"bytes"
+	"encoding/binary"
 	"math"
 	"testing"
 
+	"pgregory.net/rapid"
+
 	"github.com/stretchr/testify/require"
 )
+
+func TestLexEncode(t *testing.T) {
+	float32NoNaN := rapid.Float32Range(float32(math.Inf(-1)), float32(math.Inf(1)))
+
+	rapid.Check(t, func(t *rapid.T) {
+		a := float32NoNaN.Draw(t, "a").(float32)
+		b := float32NoNaN.Draw(t, "b").(float32)
+		ae, be := LexEncode(a), LexEncode(b)
+		var ab, bb [4]byte
+		binary.BigEndian.PutUint32(ab[:], uint32(ae))
+		binary.BigEndian.PutUint32(bb[:], uint32(be))
+		switch {
+		case a < b:
+			if bytes.Compare(ab[:], bb[:]) >= 0 {
+				t.Fatalf("%v < %v, but %x >= %x", a, b, ab, bb)
+			}
+		case a > b:
+			if bytes.Compare(ab[:], bb[:]) <= 0 {
+				t.Fatalf("%v > %v, but %x <= %x", a, b, ab, bb)
+			}
+		default:
+			if ab != bb {
+				t.Fatalf("%v == %v, but %x != %x", a, b, ab, bb)
+			}
+		}
+	})
+}
 
 func TestLexEnc(t *testing.T) {
 	// from -Inf up towards 0
