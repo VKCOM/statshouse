@@ -1,7 +1,14 @@
 # StatsHouse protocol and data format
 
-While there are multiple ways to get metrics into StatsHouse —
-UDP, TCP, unix sockets, HTTP pull mode — the main way is to send
+We advise to always use an official [client library](../README.md#clients)
+when communicating with StatsHouse. However, if there is no official
+library for your favorite language or environment yet,
+or you are curious about how things work under the hood — read on.
+
+## UDP
+
+There are multiple ways to get metrics into StatsHouse —
+UDP, TCP, unix sockets, HTTP pull mode — but the main way is to send
 UDP packets with TL, msgpack or protobuf payloads. TL is probably
 the fastest format to encode/decode, so we consider it our native
 serialization format. Except for speed, there is no difference
