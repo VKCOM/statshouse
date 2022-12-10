@@ -13,7 +13,6 @@ import { currentAccessInfo } from './common/access';
 import { DashboardListView } from './view/DashboardListView';
 
 const FAQ = React.lazy(() => import('./doc/FAQ'));
-const NEWS = React.lazy(() => import('./doc/News'));
 
 const yAxisSize = 54; // must be synced with .u-legend padding-left
 
@@ -24,14 +23,6 @@ function App() {
       <Route path="/" element={<Navigate to="view" replace={true} />} />
       <Route path="embed" element={<ViewPage embed={true} yAxisSize={yAxisSize} />} />
       <Route path="/" element={<NavbarApp />}>
-        <Route
-          path="doc/news"
-          element={
-            <Suspense fallback={<div>News Loading...</div>}>
-              <NEWS yAxisSize={yAxisSize} />
-            </Suspense>
-          }
-        />
         <Route
           path="doc/faq"
           element={
