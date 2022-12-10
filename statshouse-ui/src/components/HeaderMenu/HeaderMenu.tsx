@@ -4,9 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import StatshousePdf from '../../doc/Statshouse.pdf';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGGridFill } from 'bootstrap-icons/icons/grid-fill.svg';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
@@ -15,7 +14,6 @@ import { ReactComponent as SVGCardList } from 'bootstrap-icons/icons/card-list.s
 import cn from 'classnames';
 
 import { HeaderMenuItem } from './HeaderMenuItem';
-import { NEWS_VERSION } from '../../constant';
 import { selectorParams, selectorPlotList, selectorSetParams, useStore } from '../../store';
 import { currentAccessInfo, logoutURL } from '../../common/access';
 import { HeaderMenuItemPlot } from './HeaderMenuItemPlot';
@@ -25,17 +23,9 @@ import { parseParamsFromUrl } from '../../common/plotQueryParams';
 import produce from 'immer';
 
 export const StatsHouseIcon = () => {
-  const location = useLocation();
-  const [actualNews, setActualNews] = useState(false);
-  useEffect(() => {
-    setActualNews(location.pathname !== '/doc/news' && window.localStorage.getItem('NEWS_VERSION') !== NEWS_VERSION);
-  }, [location]);
   return (
     <span className="position-relative">
       <SVGLightning className={css.icon} />
-      {actualNews && (
-        <span className="position-absolute top-0 start-100 translate-middle p-1 bg-danger rounded-circle blink"></span>
-      )}
     </span>
   );
 };
@@ -49,16 +39,11 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   const setParams = useStore(selectorSetParams);
   const menuPlots = useStore(selectorPlotList);
   const location = useLocation();
-  const [actualNews, setActualNews] = useState(false);
   const ai = currentAccessInfo();
 
   const isView = location.pathname === '/view';
   const isDashList = location.pathname === '/dash-list';
   // const isAdminGroup = location.pathname === '/admin/group';
-
-  useEffect(() => {
-    setActualNews(location.pathname !== '/doc/news' && window.localStorage.getItem('NEWS_VERSION') !== NEWS_VERSION);
-  }, [location]);
 
   const onPasteClipboard = useCallback(() => {
     (navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.reject())
@@ -91,43 +76,34 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
         <HeaderMenuItem icon={StatsHouseIcon} title="Home" to="/" description="StatsHouse">
           <li className={css.splitter}></li>
           <li className="nav-item">
-            <NavLink className="nav-link" to="/admin/create" title="Create metric" end>
+            <NavLink className="nav-link" to="/admin/create" end>
               Create&nbsp;metric
             </NavLink>
           </li>
           <li className={css.splitter}></li>
           <li className="nav-item">
-            <NavLink className="nav-link text-nowrap position-relative" to="/doc/news" title="News" end>
-              {actualNews && (
-                <span
-                  className={cn(
-                    'position-absolute __start-0 top-50 translate-middle-y p-1 bg-danger rounded-circle',
-                    css.news
-                  )}
-                ></span>
-              )}
-              News&nbsp;<sup>{NEWS_VERSION}</sup>
-            </NavLink>
+            <a className="nav-link" href="https://github.com/VKCOM/statshouse/discussions/categories/announcements">
+              News
+            </a>
           </li>
           <li className="nav-item">
-            <NavLink className="nav-link" to="/doc/faq" title="FAQ" end>
+            <NavLink className="nav-link" to="/doc/faq" end>
               FAQ
             </NavLink>
           </li>
           <li className="nav-item">
-            <a className="nav-link" href={StatshousePdf} title="Doc (PDF)">
-              Doc&nbsp;(PDF)
+            <a className="nav-link" href="https://github.com/VKCOM/statshouse#documentation">
+              Documentation
             </a>
           </li>
           <li className="nav-item">
-            <a className="nav-link" href="https://github.com/VKCOM/statshouse/discussions" title="Support chat">
-              Support&nbsp;chat
-            </a>
-          </li>
-          <li className={css.splitter}></li>
-          <li className="nav-item">
-            <a className="nav-link" href="/openapi/" target="_blank" title="OpenAPI">
+            <a className="nav-link" href="/openapi/" target="_blank">
               OpenAPI
+            </a>
+          </li>
+          <li className="nav-item">
+            <a className="nav-link" href="https://github.com/VKCOM/statshouse/discussions/categories/q-a">
+              Support
             </a>
           </li>
           {!!ai.user && (
