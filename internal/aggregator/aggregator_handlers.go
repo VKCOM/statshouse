@@ -26,23 +26,14 @@ import (
 )
 
 type userData struct {
-	sendSourceBucket  tlstatshouse.SendSourceBucketBytes
 	sendSourceBucket2 tlstatshouse.SendSourceBucket2Bytes
-	sourceBucket      tlstatshouse.SourceBucketBytes
 	sourceBucket2     tlstatshouse.SourceBucket2Bytes
-	sendKeepAlive     tlstatshouse.SendKeepAliveBytes
 	sendKeepAlive2    tlstatshouse.SendKeepAlive2Bytes
-	getMetrics        tlstatshouse.GetMetrics
-	getMetrics2       tlstatshouse.GetMetrics2
 	getMetrics3       tlstatshouse.GetMetrics3
-	getTagMapping     tlstatshouse.GetTagMappingBytes
 	getTagMapping2    tlstatshouse.GetTagMapping2Bytes
 	getTagBoostrap    tlstatshouse.GetTagMappingBootstrapBytes
-	getConfig         tlstatshouse.GetConfig
 	getConfig2        tlstatshouse.GetConfig2
-	testConnection    tlstatshouse.TestConnectionBytes
 	testConneection2  tlstatshouse.TestConnection2Bytes
-	getTargets        tlstatshouse.GetTargetsBytes
 	getTargets2       tlstatshouse.GetTargets2Bytes
 	autoCreate        tlstatshouse.AutoCreate
 	uncompressed      []byte
@@ -63,7 +54,9 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	keyIDTag := int32(binary.BigEndian.Uint32(keyID[:4]))
 	key := data_model.AggKey(0, format.BuiltinMetricIDRPCRequests, [16]int32{0, format.TagValueIDComponentAggregator, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag}, a.aggregatorHost, a.shardKey, a.replicaKey)
 	err := a.handleClientImpl(ctx, hctx)
-	if rpc.IsHijackedResponse(err) {
+	if err == rpc.ErrNoHandler {
+		key.Keys[3] = format.TagValueIDRPCRequestsStatusNoHandler
+	} else if rpc.IsHijackedResponse(err) {
 		key.Keys[3] = format.TagValueIDRPCRequestsStatusHijack
 	} else if err != nil {
 		key.Keys[3] = format.TagValueIDRPCRequestsStatusErrLocal
@@ -76,13 +69,6 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 	var tag uint32
 	tag, hctx.Request, _ = basictl.NatReadTag(hctx.Request)
 	switch tag {
-	case constants.StatshouseGetConfig:
-		ud := getUserData(hctx)
-		_, err := ud.getConfig.Read(hctx.Request)
-		if err != nil {
-			return fmt.Errorf("failed to deserialize statshouse.getConfig request: %w", err)
-		}
-		return a.handleGetConfig(ctx, hctx, ud.getConfig)
 	case constants.StatshouseGetConfig2:
 		ud := getUserData(hctx)
 		_, err := ud.getConfig2.Read(hctx.Request)
@@ -90,33 +76,6 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 			return fmt.Errorf("failed to deserialize statshouse.getConfig2 request: %w", err)
 		}
 		return a.handleGetConfig2(ctx, hctx, ud.getConfig2)
-	case constants.StatshouseGetMetrics:
-		ud := getUserData(hctx)
-		_, err := ud.getMetrics.Read(hctx.Request)
-		if err != nil {
-			return fmt.Errorf("failed to deserialize statshouse.getMetrics request: %w", err)
-		}
-		gm2 := tlstatshouse.GetMetrics2{
-			Header: tlstatshouse.CommonProxyHeader{
-				ShardReplica:      ud.getMetrics.ShardReplica,
-				ShardReplicaTotal: ud.getMetrics.ShardReplicaTotal,
-				HostName:          ud.getMetrics.HostName,
-				BuildArch:         ud.getMetrics.BuildArch,
-			},
-			Version: ud.getMetrics.Version,
-		}
-		if ud.getMetrics.IsSetIngressProxy() {
-			gm2.Header.SetIngressProxy(true, &gm2.FieldsMask)
-		}
-		// TODO - remove ASAP, because if fields mask is added to getMetrics2, we are in trouble
-		return a.metricStorage.Journal().HandleGetMetrics(ctx, hctx, gm2)
-	case constants.StatshouseGetMetrics2:
-		ud := getUserData(hctx)
-		_, err := ud.getMetrics2.Read(hctx.Request)
-		if err != nil {
-			return fmt.Errorf("failed to deserialize statshouse.getMetrics2 request: %w", err)
-		}
-		return a.metricStorage.Journal().HandleGetMetrics(ctx, hctx, ud.getMetrics2)
 	case constants.StatshouseGetMetrics3:
 		ud := getUserData(hctx)
 		_, err := ud.getMetrics3.Read(hctx.Request)
@@ -124,34 +83,6 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 			return fmt.Errorf("failed to deserialize statshouse.getMetrics3 request: %w", err)
 		}
 		return a.metricStorage.Journal().HandleGetMetrics3(ctx, hctx, ud.getMetrics3)
-	case constants.StatshouseGetTagMapping:
-		ud := getUserData(hctx)
-		_, err := ud.getTagMapping.Read(hctx.Request)
-		if err != nil {
-			return fmt.Errorf("failed to deserialize statshouse.getTagMapping request: %w", err)
-		}
-		gt2 := tlstatshouse.GetTagMapping2Bytes{
-			Header: tlstatshouse.CommonProxyHeaderBytes{
-				ShardReplica:      ud.getTagMapping.ShardReplica,
-				ShardReplicaTotal: ud.getTagMapping.ShardReplicaTotal,
-				HostName:          ud.getTagMapping.HostName,
-				BuildArch:         ud.getTagMapping.BuildArch,
-			},
-			Metric:    ud.getTagMapping.Metric,
-			Key:       ud.getTagMapping.Key,
-			TagIdKey:  ud.getTagMapping.TagIdKey,
-			ClientEnv: ud.getTagMapping.ClientEnv,
-		}
-		if ud.getTagMapping.IsSetIngressProxy() {
-			gt2.Header.SetIngressProxy(true, &gt2.FieldsMask)
-		}
-		if ud.getTagMapping.IsSetCreate() {
-			gt2.SetCreate(true)
-		}
-		if !ud.getTagMapping.IsSetCanonicalMetricName() {
-			return fmt.Errorf("non-canonical metric names no more supported, please upgrade statshouse")
-		}
-		return a.tagsMapper.handleCreateTagMapping(ctx, hctx, gt2)
 	case constants.StatshouseGetTagMapping2:
 		ud := getUserData(hctx)
 		_, err := ud.getTagMapping2.Read(hctx.Request)
@@ -167,15 +98,6 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 		}
 		hctx.Response = append(hctx.Response, a.tagMappingBootstrapResponse...)
 		return nil
-	case constants.StatshouseSendKeepAlive:
-		{
-			ud := getUserData(hctx)
-			_, err := ud.sendKeepAlive.Read(hctx.Request)
-			if err != nil {
-				return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive request: %w", err)
-			}
-			return a.handleKeepAlive(ctx, hctx, ud.sendKeepAlive)
-		}
 	case constants.StatshouseSendKeepAlive2:
 		{
 			ud := getUserData(hctx)
@@ -184,72 +106,6 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 				return fmt.Errorf("failed to deserialize statshouse.sendKeepAlive2 request: %w", err)
 			}
 			return a.handleKeepAlive2(ctx, hctx, ud.sendKeepAlive2)
-		}
-	case constants.StatshouseSendSourceBucket:
-		{
-			ud := getUserData(hctx)
-			rawSize := len(hctx.Request)
-			if rawSize < 4 {
-				return fmt.Errorf("expecting compressed data with size at least 4, actual size %d", rawSize)
-			}
-			_, err := ud.sendSourceBucket.Read(hctx.Request)
-			if err != nil {
-				return fmt.Errorf("failed to deserialize statshouse.sendSourceBucket request: %w", err)
-			}
-			readFrom := ud.sendSourceBucket.CompressedData
-			if int(ud.sendSourceBucket.OriginalSize) != len(ud.sendSourceBucket.CompressedData) {
-				if ud.sendSourceBucket.OriginalSize > data_model.MaxUncompressedBucketSize {
-					return fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket - uncompressed size %d too big", ud.sendSourceBucket.OriginalSize)
-				}
-				ud.uncompressed = append(ud.uncompressed[:0], make([]byte, int(ud.sendSourceBucket.OriginalSize))...)
-				s, err := lz4.UncompressBlock(ud.sendSourceBucket.CompressedData, ud.uncompressed)
-				if err != nil {
-					return fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket: %w", err)
-				}
-				if s != int(ud.sendSourceBucket.OriginalSize) {
-					return fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket request: expected size %d actual %d", ud.sendSourceBucket.OriginalSize, s)
-				}
-				ud.uncompressed = append(ud.uncompressed, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) // Append MissedSeconds, AgentEnv, IngestionStatusOK (TODO remove when all statshouses are updated)
-				readFrom = ud.uncompressed
-			}
-			tag2, _ := basictl.NatPeekTag(readFrom)
-			if tag2 == constants.StatshouseSourceBucket2 { // new version of bucket
-				_, err = ud.sourceBucket2.ReadBoxed(readFrom)
-				if err != nil {
-					return fmt.Errorf("failed to deserialize statshouse.sourceBucket2: %w", err)
-				}
-				ssb2 := tlstatshouse.SendSourceBucket2Bytes{
-					Header: tlstatshouse.CommonProxyHeaderBytes{
-						ShardReplica:      ud.sendSourceBucket.ShardReplica,
-						ShardReplicaTotal: ud.sendSourceBucket.ShardReplicaTotal,
-						HostName:          ud.sendSourceBucket.HostName,
-						BuildArch:         ud.sendSourceBucket.BuildArch,
-					},
-					Time:            ud.sendSourceBucket.Time,
-					BuildCommit:     ud.sendSourceBucket.BuildCommit,
-					BuildCommitDate: ud.sendSourceBucket.BuildCommitDate,
-					BuildCommitTs:   ud.sendSourceBucket.BuildCommitTs,
-					QueueSizeDisk:   ud.sendSourceBucket.QueueSizeDisk,
-					QueueSizeMemory: ud.sendSourceBucket.QueueSizeMemory,
-					OriginalSize:    ud.sendSourceBucket.OriginalSize,
-					CompressedData:  ud.sendSourceBucket.CompressedData,
-				}
-				if ud.sendSourceBucket.IsSetIngressProxy() {
-					ssb2.Header.SetIngressProxy(true, &ssb2.FieldsMask)
-				}
-				if ud.sendSourceBucket.IsSetHistoric() {
-					ssb2.SetHistoric(true)
-				}
-				if ud.sendSourceBucket.IsSetSpare() {
-					ssb2.SetSpare(true)
-				}
-				return a.handleClientBucket2(ctx, hctx, ssb2, ud.sendSourceBucket.IsSetShardReplica(), ud.sourceBucket2, rawSize)
-			}
-			_, err = ud.sourceBucket.ReadBoxed(readFrom)
-			if err != nil {
-				return fmt.Errorf("failed to deserialize statshouse.sourceBucket: %w", err)
-			}
-			return a.handleClientBucket(ctx, hctx, ud.sendSourceBucket, ud.sourceBucket, rawSize)
 		}
 	case constants.StatshouseSendSourceBucket2:
 		{
@@ -293,27 +149,6 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 			}
 			return a.handleClientBucket2(ctx, hctx, ud.sendSourceBucket2, true, ud.sourceBucket2, rawSize)
 		}
-	case constants.StatshouseTestConnection:
-		{
-			ud := getUserData(hctx)
-			_, err := ud.testConnection.Read(hctx.Request)
-			if err != nil {
-				return fmt.Errorf("failed to deserialize statshouse.testConnection request: %w", err)
-			}
-			tc2 := tlstatshouse.TestConnection2Bytes{
-				Header: tlstatshouse.CommonProxyHeaderBytes{
-					ShardReplica:      ud.testConnection.ShardReplica,
-					ShardReplicaTotal: ud.testConnection.ShardReplicaTotal,
-				},
-				Payload:            ud.testConnection.Payload,
-				ResponseSize:       ud.testConnection.ResponseSize,
-				ResponseTimeoutSec: ud.testConnection.ResponseTimeoutSec,
-			}
-			if ud.testConnection.IsSetIngressProxy() {
-				tc2.Header.SetIngressProxy(true, &tc2.FieldsMask)
-			}
-			return a.testConnection.handleTestConnection(ctx, hctx, tc2)
-		}
 	case constants.StatshouseTestConnection2:
 		{
 			ud := getUserData(hctx)
@@ -322,31 +157,6 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 				return fmt.Errorf("failed to deserialize statshouse.testConneection2 request: %w", err)
 			}
 			return a.testConnection.handleTestConnection(ctx, hctx, ud.testConneection2)
-		}
-	case constants.StatshouseGetTargets:
-		{
-			if a.promUpdater == nil {
-				return fmt.Errorf("aggregator not configured for prometheus")
-			}
-			ud := getUserData(hctx)
-			_, err := ud.getTargets.Read(hctx.Request)
-			if err != nil {
-				return fmt.Errorf("failed to deserialize statshouse.getTargets request: %w", err)
-			}
-			// We do not set host name here in header, because it was wrong host name
-			gt2 := tlstatshouse.GetTargets2Bytes{
-				Header: tlstatshouse.CommonProxyHeaderBytes{
-					ShardReplica:      ud.getTargets.ShardReplica,
-					ShardReplicaTotal: ud.getTargets.ShardReplicaTotal,
-					BuildArch:         ud.getTargets.BuildArch,
-				},
-				OldHash:      ud.getTargets.OldHash,
-				PromHostName: ud.getTargets.HostName,
-			}
-			if ud.getTargets.IsSetIngressProxy() {
-				gt2.Header.SetIngressProxy(true, &gt2.FieldsMask)
-			}
-			return a.promUpdater.HandleGetTargets(ctx, hctx, gt2)
 		}
 	case constants.StatshouseGetTargets2:
 		{
@@ -394,32 +204,6 @@ func (a *Aggregator) getAgentEnv(isEnvStaging bool) int32 {
 	return format.TagValueIDProduction
 }
 
-func (a *Aggregator) handleGetConfig(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetConfig) (err error) {
-	now := time.Now()
-	host := a.tagsMapper.mapHost(now, []byte(args.HostName), format.BuiltinMetricNameBudgetHost, false)
-	// hack - we pass host through key0, because we can not yet set per metric host
-	agentEnv := int32(format.TagValueIDProduction)
-	buildArch := format.FilterBuildArch(args.BuildArch)
-	route := int32(format.TagValueIDRouteDirect) // all config routes are direct
-
-	if args.IsSetCluster() && args.Cluster != a.config.Cluster {
-		key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, a.aggregatorHost, a.shardKey, a.replicaKey)
-		a.sh2.AddCounterHost(key.WithAgentEnvRouteArch(agentEnv, route, buildArch), 1, host, nil)
-		return fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, a.config.Cluster)
-	}
-	if !args.IsSetCluster() && a.config.Cluster != DefaultConfigAggregator().Cluster {
-		key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, a.aggregatorHost, a.shardKey, a.replicaKey)
-		a.sh2.AddCounterHost(key.WithAgentEnvRouteArch(agentEnv, route, buildArch), 1, host, nil)
-		return fmt.Errorf("statshouse misconfiguration! configuration request without cluster is supported only by default %q cluster, but cluster connected is %q", DefaultConfigAggregator().Cluster, a.config.Cluster)
-	}
-	key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigOK}, a.aggregatorHost, a.shardKey, a.replicaKey)
-	a.sh2.AddCounterHost(key.WithAgentEnvRouteArch(agentEnv, route, buildArch), 1, host, nil)
-
-	ret := a.getConfigResult()
-	hctx.Response, err = args.WriteResult(hctx.Response, ret)
-	return err
-}
-
 func (a *Aggregator) handleGetConfig2(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetConfig2) (err error) {
 	now := time.Now()
 	host := a.tagsMapper.mapHost(now, []byte(args.Header.HostName), format.BuiltinMetricNameBudgetHost, false)
@@ -439,203 +223,6 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, hctx *rpc.HandlerContex
 	ret := a.getConfigResult()
 	hctx.Response, err = args.WriteResult(hctx.Response, ret)
 	return err
-}
-
-func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucketBytes, bucket tlstatshouse.SourceBucketBytes, rawSize int) (err error) {
-	if !args.IsSetHistoric() && a.config.SimulateRandomErrors > 0 && rand.Float64() < a.config.SimulateRandomErrors { // SimulateRandomErrors > 0 is optimization
-		a.mu.Lock()
-		defer a.mu.Unlock()
-		aggBucket := a.recentBuckets[len(a.recentBuckets)-1]
-		aggBucket.contributorsSimulatedErrors = append(aggBucket.contributorsSimulatedErrors, hctx)
-		return hctx.HijackResponse()
-	}
-	now := time.Now()
-	receiveDelay := now.Sub(time.Unix(int64(args.Time), 0)).Seconds()
-	host := a.tagsMapper.mapHost(now, args.HostName, format.BuiltinMetricNameBudgetHost, false)
-	agentEnv := int32(format.TagValueIDProduction)
-	buildArch := format.FilterBuildArch(args.BuildArch)
-
-	// opportunistic mapping. We do not map addrStr. To find hosts with hostname not set use internal_log
-
-	var aggBucket *aggregatorBucket
-	a.mu.Lock()
-	if args.IsSetShardReplica() { // Skip old versions not yet updated
-		if err := a.checkShardConfiguration(args.ShardReplica, args.ShardReplicaTotal); err != nil {
-			key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorSend, args.ShardReplica, args.ShardReplicaTotal}, a.aggregatorHost, a.shardKey, a.replicaKey)
-			a.mu.Unlock()
-			a.sh2.AddCounterHost(key, 1, host, nil)
-			return err // TODO - return code so clients will print into log and discard data
-		}
-	}
-
-	OldestTime := a.recentBuckets[0].time
-	NewestTime := a.recentBuckets[len(a.recentBuckets)-1].time
-
-	if args.IsSetHistoric() {
-		if args.Time > NewestTime {
-			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketHistoric}, a.aggregatorHost, a.shardKey, a.replicaKey)
-			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(args.Time-NewestTime), 1, host)
-			// We discard, because otherwise clients will flood aggregators with this data
-			hctx.Response, err = args.WriteResult(hctx.Response, []byte("historic bucket time is too far in the future"))
-			return err
-		}
-		if OldestTime >= data_model.MaxHistoricWindow+data_model.MaxHistoricWindowLag && args.Time < OldestTime-data_model.MaxHistoricWindow-data_model.MaxHistoricWindowLag {
-			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregator}, a.aggregatorHost, a.shardKey, a.replicaKey)
-			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(NewestTime-args.Time), 1, host)
-			hctx.Response, err = args.WriteResult(hctx.Response, []byte("Successfully discarded historic bucket beyond historic window"))
-			return err
-		}
-		if args.Time < OldestTime {
-			aggBucket = a.historicBuckets[args.Time]
-			if aggBucket == nil {
-				aggBucket = &aggregatorBucket{time: args.Time}
-				a.historicBuckets[args.Time] = aggBucket
-				if a.sendHistoricCondition() {
-					a.cond.Broadcast() // we are not sure that Signal is enough
-				}
-			}
-		} else {
-			// If source receives error from recent conveyor quickly, it will come to spare while bucket is still recent
-			// This is useful optimization, because can save half inserts
-			aggBucket = a.recentBuckets[args.Time-OldestTime]
-		}
-	} else {
-		if args.Time > NewestTime { // AgentShard too far in a future
-			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketRecent}, a.aggregatorHost, a.shardKey, a.replicaKey)
-			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(args.Time-NewestTime), 1, host)
-			// We discard, because otherwise clients will flood aggregators with this data
-			hctx.Response, err = args.WriteResult(hctx.Response, []byte("bucket time is too far in the future"))
-			return err
-		}
-		if args.Time < OldestTime {
-			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLateRecent}, a.aggregatorHost, a.shardKey, a.replicaKey)
-			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(NewestTime-args.Time), 1, host)
-			return rpc.Error{
-				Code:        data_model.RPCErrorMissedRecentConveyor,
-				Description: "bucket time is too far in the past for recent conveyor",
-			}
-		}
-		aggBucket = a.recentBuckets[args.Time-OldestTime]
-	}
-
-	aggBucket.sendMu.RLock()
-	// This lock order ensures, that if sender gets a.mu.Lock(), then all aggregating clients already have aggBucket.sendMu.RLock()
-	if args.IsSetSpare() {
-		aggBucket.contributorsSpare.AddValueCounterHost(0, 1, host) // protected by a.mu
-	} else {
-		aggBucket.contributorsOriginal.AddValueCounterHost(0, 1, host) // protected by a.mu
-	}
-	aggBucket.contributors = append(aggBucket.contributors, hctx) // protected by a.mu
-	aggBucket.rawSize += rawSize                                  // protected by a.mu
-	aggHost := a.aggregatorHost
-	a.mu.Unlock()
-	defer aggBucket.sendMu.RUnlock()
-
-	lockedShard := -1
-	sampleFactors := map[int32]float32{}
-	var newKeys []data_model.Key
-	var usedMetrics []int32
-
-	for _, v := range bucket.SampleFactors {
-		sampleFactors[v.Metric] = v.Value
-	}
-	conveyor := int32(format.TagValueIDConveyorRecent)
-	if args.IsSetHistoric() {
-		conveyor = format.TagValueIDConveyorHistoric
-	}
-	spare := int32(format.TagValueIDAggregatorOriginal)
-	if args.IsSetSpare() {
-		spare = format.TagValueIDAggregatorSpare
-	}
-	route := int32(format.TagValueIDRouteDirect)
-	if args.IsSetIngressProxy() {
-		route = int32(format.TagValueIDRouteIngressProxy)
-	}
-
-	for _, item := range bucket.Metrics {
-		k, sID := data_model.KeyFromStatshouseItem(item, args.Time)
-		if k.Metric < 0 {
-			k = k.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		}
-		s := aggBucket.lockShard(&lockedShard, sID)
-		created := false
-		mi := data_model.MapKeyItemMultiItem(&s.multiItems, k, data_model.AggregatorStringTopCapacity, &created)
-		mi.MergeWithTLItem(&item, host)
-		if created {
-			if !args.IsSetSpare() { // Data from spares should not affect cardinality estimations
-				newKeys = append(newKeys, k)
-			}
-			usedMetrics = append(usedMetrics, k.Metric)
-		}
-	}
-	aggBucket.lockShard(&lockedShard, -1)
-
-	aggBucket.mu.Lock()
-
-	if aggBucket.usedMetrics == nil {
-		aggBucket.usedMetrics = map[int32]struct{}{}
-	}
-	for _, m := range usedMetrics {
-		aggBucket.usedMetrics[m] = struct{}{}
-	}
-	aggBucket.mu.Unlock()
-
-	// newKeys will not be large, if average cardinality is low
-	// we update estimators under sendMu.RLock so that sample factors used for inserting will be already updated
-	a.estimator.UpdateWithKeys(args.Time, newKeys)
-
-	now2 := time.Now()
-	// Write meta metrics. They all simply go to shard 0 independent of their keys.
-	s := aggBucket.lockShard(&lockedShard, 0)
-	getMultiItem := func(t uint32, m int32, keys [16]int32) *data_model.MultiItem {
-		key := data_model.AggKey(t, m, keys, aggHost, a.shardKey, a.replicaKey).WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		return data_model.MapKeyItemMultiItem(&s.multiItems, key, data_model.AggregatorStringTopCapacity, nil)
-	}
-	getMultiItem(args.Time, format.BuiltinMetricIDAggSizeCompressed, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(float64(rawSize), 1, host)
-
-	getMultiItem(args.Time, format.BuiltinMetricIDAggSizeUncompressed, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(float64(args.OriginalSize), 1, host)
-	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketReceiveDelaySec, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDSecondReal}).Tail.AddValueCounterHost(receiveDelay, 1, host)
-	for i := uint32(0); i < bucket.MissedSeconds && i < data_model.MaxMissedSecondsIntoContributors; i++ {
-		// as all statistics of missed second is sent in the next second, we think this situation should not lead to holes in # of agents who sent the second
-		d := receiveDelay - float64(i+1)
-		getMultiItem(args.Time+i, format.BuiltinMetricIDAggBucketReceiveDelaySec, [16]int32{0, 0, 0, 0, conveyor, spare, format.TagValueIDSecondPhantom}).Tail.AddValueCounterHost(d, 1, host)
-	}
-	getMultiItem(args.Time, format.BuiltinMetricIDAggBucketAggregateTimeSec, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(now2.Sub(now).Seconds(), 1, host)
-	getMultiItem(args.Time, format.BuiltinMetricIDAggAdditionsToEstimator, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(float64(len(newKeys)), 1, host)
-	if bucket.MissedSeconds != 0 {
-		getMultiItem(args.Time, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingMissedSeconds}).Tail.AddValueCounterHost(float64(bucket.MissedSeconds), 1, host)
-	}
-	if args.QueueSizeMemory != 0 {
-		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueMemory}).Tail.AddValueCounterHost(float64(args.QueueSizeMemory), 1, host)
-	}
-	if args.QueueSizeDisk != 0 {
-		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueDisk}).Tail.AddValueCounterHost(float64(args.QueueSizeDisk), 1, host)
-	}
-
-	var bcStr []byte
-	if format.ValidStringValue(mem.B(args.BuildCommit)) {
-		bcStr = args.BuildCommit
-	}
-	getMultiItem((args.Time/60)*60, format.BuiltinMetricIDVersions, [16]int32{0, 0, format.TagValueIDComponentAgent, args.BuildCommitDate, args.BuildCommitTs}).MapStringTopBytes(bcStr, 1).AddCounterHost(1, host)
-
-	for _, v := range bucket.SampleFactors {
-		// We probably wish to stop splitting by aggregator, because this metric is taking already too much space - about 2% of all data
-		getMultiItem(args.Time, format.BuiltinMetricIDAgentSamplingFactor, [16]int32{0, v.Metric}).Tail.AddValueCounterHost(float64(v.Value), 1, host)
-	}
-	for _, v := range bucket.IngestionStatusOk {
-		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
-		if v.Count > 0 {
-			data_model.MapKeyItemMultiItem(&s.multiItems, (data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Keys: [16]int32{0, v.Metric, format.TagValueIDSrcIngestionStatusOKCached}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil).Tail.AddCounterHost(float64(v.Count), host)
-		} else {
-			data_model.MapKeyItemMultiItem(&s.multiItems, (data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Keys: [16]int32{0, v.Metric, format.TagValueIDSrcIngestionStatusOKUncached}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil).Tail.AddCounterHost(float64(-v.Count), host)
-		}
-	}
-	aggBucket.lockShard(&lockedShard, -1)
-	return hctx.HijackResponse()
 }
 
 func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, setShardReplica bool, bucket tlstatshouse.SourceBucket2Bytes, rawSize int) (err error) {
@@ -881,43 +468,6 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 		}
 	}
 	aggBucket.lockShard(&lockedShard, -1)
-	return hctx.HijackResponse()
-}
-
-func (a *Aggregator) handleKeepAlive(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.SendKeepAliveBytes) error {
-	now := time.Now()
-	host := a.tagsMapper.mapHost(now, args.HostName, format.BuiltinMetricNameBudgetHost, false)
-	agentEnv := int32(format.TagValueIDProduction)
-	buildArch := format.FilterBuildArch(args.BuildArch)
-
-	a.mu.Lock()
-	if args.IsSetShardReplica() {
-		if err := a.checkShardConfiguration(args.ShardReplica, args.ShardReplicaTotal); err != nil {
-			key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigErrorKeepAlive, args.ShardReplica, args.ShardReplicaTotal}, a.aggregatorHost, a.shardKey, a.replicaKey)
-			a.mu.Unlock()
-			a.sh2.AddCounterHost(key, 1, host, nil)
-			return err
-		}
-	}
-	aggBucket := a.recentBuckets[0] // Most ready for insert
-	aggBucket.sendMu.RLock()
-	// This lock order ensures, that if sender gets a.mu.Lock(), then all aggregating clients already have aggBucket.sendMu.RLock()
-	aggBucket.contributors = append(aggBucket.contributors, hctx) // protected by a.mu
-	aggHost := a.aggregatorHost
-	a.mu.Unlock()
-	defer aggBucket.sendMu.RUnlock()
-	// Write meta statistics
-	route := int32(format.TagValueIDRouteDirect)
-	if args.IsSetIngressProxy() {
-		route = int32(format.TagValueIDRouteIngressProxy)
-	}
-
-	lockedShard := -1
-	s := aggBucket.lockShard(&lockedShard, 0)
-	// Counters can contain this metrics while # of contributors is 0. We compensate by adding small fixed budget.
-	data_model.MapKeyItemMultiItem(&s.multiItems, data_model.AggKey(aggBucket.time, format.BuiltinMetricIDAggKeepAlive, [16]int32{}, aggHost, a.shardKey, a.replicaKey).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil).Tail.AddCounterHost(1, host)
-	aggBucket.lockShard(&lockedShard, -1)
-
 	return hctx.HijackResponse()
 }
 

@@ -146,7 +146,6 @@ tagMappingLoop:
 					Description: "histogram bucket label",
 					Index:       i,
 					Raw:         true,
-					RawKind:     "lexenc_float",
 				}
 				if i < len(value.Tags) {
 					value.Tags[i] = meta

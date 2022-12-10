@@ -22,9 +22,9 @@ import (
 	"github.com/cloudflare/tableflip"
 	"github.com/spf13/pflag"
 
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-
+	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
+	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
@@ -191,7 +191,7 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		_, err = fsbinlog.CreateEmptyFsBinlog(fsbinlog.Options{
+		_, err = fsbinlog.CreateEmptyFsBinlog(binlog.Options{
 			PrefixPath:        argv.binlogPrefix,
 			Magic:             binlogMagic,
 			EngineIDInCluster: uint(engineID),
@@ -229,7 +229,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("can't kill old process: %w", err)
 	}
-	bl, err := fsbinlog.NewFsBinlog(&Logger{}, fsbinlog.Options{
+	bl, err := fsbinlog.NewFsBinlog(&Logger{}, binlog.Options{
 		PrefixPath: argv.binlogPrefix,
 		Magic:      binlogMagic,
 	})

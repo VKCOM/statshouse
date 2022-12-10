@@ -14,12 +14,13 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 
+var testEnvTurnOffFSync bool
+
 type binlogWriter struct {
-	logger             Logger
+	logger             binlog.Logger
 	engine             binlog.Engine
 	stat               *stat
 	fd                 *os.File
-	WriteCrcEveryKB    int32
 	BinlogChunkMaxSize int64
 	curFileHeader      *fileHeader
 	PrefixPath         string
@@ -30,14 +31,13 @@ type binlogWriter struct {
 	// Канал сигнализирующий о наличии данных. Протокол следующий:
 	// если передано nil, то мы можем забрать (steal) данные, если в данный момент не заняты
 	// если переданы буфферы, это значит, что клиент уперся в HardMemLimit и мы обязанны их взять как можно скорее
-	ch            chan struct{}
-	flushInterval time.Duration
+	ch chan struct{}
 }
 
 func newBinlogWriter(
-	logger Logger,
+	logger binlog.Logger,
 	engine binlog.Engine,
-	options Options,
+	options binlog.Options,
 	posAfterRead int64,
 	lastFileHdr *fileHeader,
 	buffEx *buffExchange,
@@ -47,14 +47,12 @@ func newBinlogWriter(
 		logger:             logger,
 		engine:             engine,
 		stat:               stat,
-		WriteCrcEveryKB:    options.WriteCrcEveryKB,
 		BinlogChunkMaxSize: int64(options.MaxChunkSize),
 		curFileHeader:      lastFileHdr,
 		PrefixPath:         options.PrefixPath,
 		buffEx:             buffEx,
 		close:              make(chan struct{}),
 		ch:                 make(chan struct{}, 1),
-		flushInterval:      options.FlushInterval,
 	}
 
 	expectedSize := posAfterRead - lastFileHdr.Position
@@ -91,9 +89,9 @@ func (bw *binlogWriter) initChunk(createNew bool, filename string, expectedSize 
 	return nil
 }
 
-func (bw *binlogWriter) loop() error {
+func (bw *binlogWriter) loop() (PositionInfo, error) {
 	var rd replaceData
-	flushCh := time.NewTimer(bw.flushInterval)
+	flushCh := time.NewTimer(flushInterval)
 	buff := make([]byte, 0, defaultBuffSize)
 
 	defer func() {
@@ -112,9 +110,11 @@ func (bw *binlogWriter) loop() error {
 			}
 		}
 
-		if err := bw.fd.Sync(); err != nil {
-			if bw.logger != nil {
-				bw.logger.Errorf("Cannot flush data to file: %s", err)
+		if !testEnvTurnOffFSync {
+			if err := bw.fd.Sync(); err != nil {
+				if bw.logger != nil {
+					bw.logger.Errorf("Cannot flush data to file: %s", err)
+				}
 			}
 		}
 		if err := bw.fd.Close(); err != nil {
@@ -124,8 +124,12 @@ func (bw *binlogWriter) loop() error {
 		}
 	}()
 
-	stop := false
-	dirty := false
+	var (
+		stop    bool
+		dirty   bool
+		loopErr error
+	)
+loop:
 	for !stop {
 		hitTimer := false
 
@@ -137,7 +141,7 @@ func (bw *binlogWriter) loop() error {
 
 		case <-flushCh.C:
 			hitTimer = true
-			flushCh.Reset(bw.flushInterval)
+			flushCh.Reset(flushInterval)
 
 		case <-bw.close:
 			stop = true
@@ -146,25 +150,35 @@ func (bw *binlogWriter) loop() error {
 		buff, rd = bw.buffEx.replaceBuff(buff)
 		if len(buff) != 0 {
 			if err := bw.writeBuffer(buff, &rd); err != nil {
-				return err
+				loopErr = err
+				break loop
 			}
 			dirty = true
 		}
 
 		if dirty && (rd.commitASAP || hitTimer || stop) {
-			if err := bw.fd.Sync(); err != nil {
+			var err error
+			if !testEnvTurnOffFSync {
+				err = bw.fd.Sync()
+			}
+
+			if err != nil {
 				if bw.logger != nil {
 					bw.logger.Warnf("Binlog: cannot fsync: %s", err)
 				}
 			} else {
 				bw.stat.lastPosition.Store(rd.offsetGlobal)
 				snapData := prepareSnapMeta(rd.offsetGlobal, rd.crc, bw.stat.lastTimestamp.Load())
-				bw.engine.Commit(rd.offsetGlobal, snapData)
+				bw.engine.Commit(rd.offsetGlobal, snapData, rd.offsetGlobal)
 				dirty = false
 			}
 		}
 	}
-	return nil
+	return PositionInfo{
+		Offset:         rd.offsetGlobal,
+		Crc:            rd.crc,
+		LastFileHeader: *bw.curFileHeader,
+	}, loopErr
 }
 
 func (bw *binlogWriter) writeBuffer(buff []byte, rd *replaceData) error {
@@ -189,8 +203,10 @@ func (bw *binlogWriter) rotate(rotateTo, rotateFrom []byte) error {
 	// Нужно сначала создать новый файл, записать в него ROTATE_FROM, синкнуть на диск, а потом уже писать ROTATE_TO и закрывать старый.
 	// Так работают сишные движки и такое поведение ожидает репликатор.
 
-	if err := bw.fd.Sync(); err != nil {
-		return err
+	if !testEnvTurnOffFSync {
+		if err := bw.fd.Sync(); err != nil {
+			return err
+		}
 	}
 
 	var newHeader fileHeader
@@ -218,9 +234,11 @@ func (bw *binlogWriter) rotate(rotateTo, rotateFrom []byte) error {
 	bw.stat.lastTimestamp.Store(uint32(newHeader.LevRotateFrom.Timestamp))
 	bw.stat.currentBinlogPath.Store(newHeader.FileName)
 
-	if err := bw.fd.Sync(); err != nil {
-		if bw.logger != nil {
-			bw.logger.Warnf(`could not sync new binlog file: %s`, err)
+	if !testEnvTurnOffFSync {
+		if err := bw.fd.Sync(); err != nil {
+			if bw.logger != nil {
+				bw.logger.Warnf(`could not sync new binlog file: %s`, err)
+			}
 		}
 	}
 
@@ -229,9 +247,11 @@ func (bw *binlogWriter) rotate(rotateTo, rotateFrom []byte) error {
 		return fmt.Errorf(`could not write ROTATE_TO event: %s`, err)
 	}
 
-	if err := prevChunkFd.Sync(); err != nil {
-		if bw.logger != nil {
-			bw.logger.Warnf(`could not sync previous bw file after rotation: %s`, err)
+	if !testEnvTurnOffFSync {
+		if err := prevChunkFd.Sync(); err != nil {
+			if bw.logger != nil {
+				bw.logger.Warnf(`could not sync previous bw file after rotation: %s`, err)
+			}
 		}
 	}
 

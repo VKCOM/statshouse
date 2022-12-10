@@ -109,6 +109,7 @@ const (
 	TagValueIDRPCRequestsStatusErrLocal    = 2
 	TagValueIDRPCRequestsStatusErrUpstream = 3
 	TagValueIDRPCRequestsStatusHijack      = 4
+	TagValueIDRPCRequestsStatusNoHandler   = 5
 
 	TagValueIDProduction = 1
 	TagValueIDStaging    = 2
@@ -1130,7 +1131,8 @@ Set by aggregator.`,
 					TagValueIDRPCRequestsStatusOK:          "ok",
 					TagValueIDRPCRequestsStatusErrLocal:    "err_local",
 					TagValueIDRPCRequestsStatusErrUpstream: "err_upstream",
-					TagValueIDRPCRequestsStatusHijack:      "hijacked"}),
+					TagValueIDRPCRequestsStatusHijack:      "hijacked",
+					TagValueIDRPCRequestsStatusNoHandler:   "err_no_handler"}),
 			}, {
 				Description: "-", // in the future - error code
 			}, {

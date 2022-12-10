@@ -38,10 +38,10 @@ func TestRoundRange(t *testing.T) {
 
 	rapid.Check(t, func(t *rapid.T) {
 		var (
-			start     = rapid.Int64Range(_1M*2, _1M*2+_7d).Draw(t, "start").(int64)
-			end       = rapid.Int64Range(start, _1M*6).Draw(t, "end").(int64)
-			step      = rapid.SampledFrom([]int64{_1s, _5s, _15s, _1m, _5m, _15m, _1h, _4h, _24h, _7d, _1M}).Draw(t, "step").(int64)
-			utcOffset = rapid.Int64Range(-168, 168).Draw(t, "utcOffset").(int64) * 3600
+			start     = rapid.Int64Range(_1M*2, _1M*2+_7d).Draw(t, "start")
+			end       = rapid.Int64Range(start, _1M*6).Draw(t, "end")
+			step      = rapid.SampledFrom([]int64{_1s, _5s, _15s, _1m, _5m, _15m, _1h, _4h, _24h, _7d, _1M}).Draw(t, "step")
+			utcOffset = rapid.Int64Range(-168, 168).Draw(t, "utcOffset") * 3600
 		)
 		rStart, rEnd := roundRange(start, end, step, utcOffset, location)
 		t.Logf("start %v, end %v", rStart, rEnd)
@@ -306,10 +306,10 @@ func TestLODGenerateTimePoints(t *testing.T) {
 
 	rapid.Check(t, func(t *rapid.T) {
 		var (
-			start     = rapid.Int64Range(0, _1M*2).Draw(t, "start").(int64)
-			end       = rapid.Int64Range(start, _1M*6).Draw(t, "end").(int64)
-			step      = rapid.SampledFrom([]int64{_1s, _5s, _15s, _1m, _5m, _15m, _1h, _4h, _24h, _7d, _1M}).Draw(t, "step").(int64)
-			utcOffset = rapid.Int64Range(-168, 168).Draw(t, "utcOffset").(int64) * 3600
+			start     = rapid.Int64Range(0, _1M*2).Draw(t, "start")
+			end       = rapid.Int64Range(start, _1M*6).Draw(t, "end")
+			step      = rapid.SampledFrom([]int64{_1s, _5s, _15s, _1m, _5m, _15m, _1h, _4h, _24h, _7d, _1M}).Draw(t, "step")
+			utcOffset = rapid.Int64Range(-168, 168).Draw(t, "utcOffset") * 3600
 		)
 		rStart, rEnd := roundRange(start, end, step, utcOffset, location)
 		lod := lodInfo{

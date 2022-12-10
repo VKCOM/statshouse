@@ -142,6 +142,11 @@ var (
 		tlName:       "fsbinlog.levStart",
 		createObject: func() Object { var ret internal.FsbinlogLevStart; return &ret },
 	}
+	itemFsbinlogLevUpgradeToGms = TLItem{
+		tag:          0xb75009a0,
+		tlName:       "fsbinlog.levUpgradeToGms",
+		createObject: func() Object { var ret internal.FsbinlogLevUpgradeToGms; return &ret },
+	}
 	itemFsbinlogSnapshotMeta = TLItem{
 		tag:          0x6b49d850,
 		tlName:       "fsbinlog.snapshotMeta",
@@ -155,14 +160,18 @@ func init() {
 
 var itemsByTag = map[uint32]*TLItem{
 	0x44c644b:  &itemFsbinlogLevStart,
+	0xb75009a0: &itemFsbinlogLevUpgradeToGms,
 	0x6b49d850: &itemFsbinlogSnapshotMeta,
 }
 
 var itemsByName = map[string]*TLItem{
-	"fsbinlog.levStart":              &itemFsbinlogLevStart,
-	"fsbinlog.levStart#044c644b":     &itemFsbinlogLevStart,
-	"#044c644b":                      &itemFsbinlogLevStart,
-	"fsbinlog.snapshotMeta":          &itemFsbinlogSnapshotMeta,
-	"fsbinlog.snapshotMeta#6b49d850": &itemFsbinlogSnapshotMeta,
-	"#6b49d850":                      &itemFsbinlogSnapshotMeta,
+	"fsbinlog.levStart":                 &itemFsbinlogLevStart,
+	"fsbinlog.levStart#044c644b":        &itemFsbinlogLevStart,
+	"#044c644b":                         &itemFsbinlogLevStart,
+	"fsbinlog.levUpgradeToGms":          &itemFsbinlogLevUpgradeToGms,
+	"fsbinlog.levUpgradeToGms#b75009a0": &itemFsbinlogLevUpgradeToGms,
+	"#b75009a0":                         &itemFsbinlogLevUpgradeToGms,
+	"fsbinlog.snapshotMeta":             &itemFsbinlogSnapshotMeta,
+	"fsbinlog.snapshotMeta#6b49d850":    &itemFsbinlogSnapshotMeta,
+	"#6b49d850":                         &itemFsbinlogSnapshotMeta,
 }

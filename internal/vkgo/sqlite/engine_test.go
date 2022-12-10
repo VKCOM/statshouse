@@ -68,7 +68,7 @@ func insertText(e *Engine, s string) error {
 }
 
 func openEngine(t *testing.T, prefix string, dbfile, schema string, create bool, applyF func(string2 string)) (*Engine, binlog2.Binlog) {
-	options := fsbinlog.Options{
+	options := binlog2.Options{
 		PrefixPath: prefix + "/test",
 		Magic:      3456,
 	}
@@ -373,4 +373,31 @@ func Test_Engine_Put_Empty_String(t *testing.T) {
 	}, false)
 	require.NoError(t, err)
 	require.Equal(t, "", data)
+}
+
+func Test_Engine_WithoutBinlog(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (data TEXT NOT NULL);"
+	dir := t.TempDir()
+	engine, err := OpenEngine(Options{
+		Path:   dir + "/db",
+		APPID:  32,
+		Scheme: schema,
+	}, nil, nil)
+	require.NoError(t, err)
+	var data = ""
+
+	err = engine.Do(func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
+		return cache, err
+	}, false)
+	require.NoError(t, err)
+	err = engine.Do(func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("SELECT data from test_db")
+		require.NoError(t, rows.Error())
+		require.True(t, rows.Next())
+		data, err = rows.ColumnBlobString(0)
+		return cache, err
+	}, false)
+	require.NoError(t, err)
+	require.Equal(t, "abc", data)
 }

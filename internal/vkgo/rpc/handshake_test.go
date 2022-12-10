@@ -22,10 +22,10 @@ import (
 func TestNetPIDRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		pid1 := NetPID{
-			IP:   rapid.Uint32().Draw(t, "ip").(uint32),
-			Port: rapid.Uint16().Draw(t, "port").(uint16),
-			PID:  rapid.Uint16().Draw(t, "pid").(uint16),
-			Time: rapid.Int32().Draw(t, "time").(int32),
+			IP:   rapid.Uint32().Draw(t, "ip"),
+			Port: rapid.Uint16().Draw(t, "port"),
+			PID:  rapid.Uint16().Draw(t, "pid"),
+			Time: rapid.Int32().Draw(t, "time"),
 		}
 
 		var b1 bytes.Buffer
@@ -58,40 +58,40 @@ func TestNetPIDRoundtrip(t *testing.T) {
 func TestInvokeExtraRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		extra1 := InvokeReqExtra{}
-		if rapid.Bool().Draw(t, "WaitBinlogPos").(bool) {
-			extra1.SetWaitBinlogPos(rapid.Int64().Draw(t, "WaitBinlogPos").(int64))
+		if rapid.Bool().Draw(t, "WaitBinlogPos") {
+			extra1.SetWaitBinlogPos(rapid.Int64().Draw(t, "WaitBinlogPos"))
 		}
-		if rapid.Bool().Draw(t, "SetStringForwardKeys").(bool) {
-			extra1.SetStringForwardKeys(rapid.SliceOfN(rapid.String(), 0, 2).Draw(t, "SetStringForwardKeys").([]string))
+		if rapid.Bool().Draw(t, "SetStringForwardKeys") {
+			extra1.SetStringForwardKeys(rapid.SliceOfN(rapid.String(), 0, 2).Draw(t, "SetStringForwardKeys"))
 			if len(extra1.StringForwardKeys) == 0 {
 				extra1.StringForwardKeys = nil
 			}
 		}
-		if rapid.Bool().Draw(t, "SetIntForwardKeys").(bool) {
-			extra1.SetIntForwardKeys(rapid.SliceOfN(rapid.Int64(), 0, 2).Draw(t, "SetIntForwardKeys").([]int64))
+		if rapid.Bool().Draw(t, "SetIntForwardKeys") {
+			extra1.SetIntForwardKeys(rapid.SliceOfN(rapid.Int64(), 0, 2).Draw(t, "SetIntForwardKeys"))
 			if len(extra1.IntForwardKeys) == 0 {
 				extra1.IntForwardKeys = nil
 			}
 		}
-		if rapid.Bool().Draw(t, "StringForward").(bool) {
-			extra1.SetStringForward(rapid.String().Draw(t, "StringForward").(string))
+		if rapid.Bool().Draw(t, "StringForward") {
+			extra1.SetStringForward(rapid.String().Draw(t, "StringForward"))
 		}
-		if rapid.Bool().Draw(t, "IntForward").(bool) {
-			extra1.SetIntForward(rapid.Int64().Draw(t, "IntForward").(int64))
+		if rapid.Bool().Draw(t, "IntForward") {
+			extra1.SetIntForward(rapid.Int64().Draw(t, "IntForward"))
 		}
-		if rapid.Bool().Draw(t, "CustomTimeoutMs").(bool) {
-			extra1.SetCustomTimeoutMs(rapid.Int32().Draw(t, "CustomTimeoutMs").(int32))
+		if rapid.Bool().Draw(t, "CustomTimeoutMs") {
+			extra1.SetCustomTimeoutMs(rapid.Int32().Draw(t, "CustomTimeoutMs"))
 		}
-		if rapid.Bool().Draw(t, "SupportedCompressionVersion").(bool) {
-			extra1.SetSupportedCompressionVersion(rapid.Int32().Draw(t, "SupportedCompressionVersion").(int32))
+		if rapid.Bool().Draw(t, "SupportedCompressionVersion") {
+			extra1.SetSupportedCompressionVersion(rapid.Int32().Draw(t, "SupportedCompressionVersion"))
 		}
-		if rapid.Bool().Draw(t, "RandomDelay").(bool) {
-			extra1.SetRandomDelay(rapid.Float64().Draw(t, "RandomDelay").(float64))
+		if rapid.Bool().Draw(t, "RandomDelay") {
+			extra1.SetRandomDelay(rapid.Float64().Draw(t, "RandomDelay"))
 		}
-		if rapid.Bool().Draw(t, "ReturnBinlogPos").(bool) {
+		if rapid.Bool().Draw(t, "ReturnBinlogPos") {
 			extra1.SetReturnBinlogPos()
 		}
-		if rapid.Bool().Draw(t, "NoResult").(bool) {
+		if rapid.Bool().Draw(t, "NoResult") {
 			extra1.SetNoResult()
 		}
 
@@ -126,36 +126,36 @@ func TestInvokeExtraRoundtrip(t *testing.T) {
 func TestResultExtraRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		pid1 := NetPID{
-			IP:   rapid.Uint32().Draw(t, "ip").(uint32),
-			Port: rapid.Uint16().Draw(t, "port").(uint16),
-			PID:  rapid.Uint16().Draw(t, "pid").(uint16),
-			Time: rapid.Int32().Draw(t, "time").(int32),
+			IP:   rapid.Uint32().Draw(t, "ip"),
+			Port: rapid.Uint16().Draw(t, "port"),
+			PID:  rapid.Uint16().Draw(t, "pid"),
+			Time: rapid.Int32().Draw(t, "time"),
 		}
 
 		extra1 := ReqResultExtra{}
-		if rapid.Bool().Draw(t, "BinlogPos").(bool) {
-			extra1.SetBinlogPos(rapid.Int64().Draw(t, "BinlogPos").(int64))
+		if rapid.Bool().Draw(t, "BinlogPos") {
+			extra1.SetBinlogPos(rapid.Int64().Draw(t, "BinlogPos"))
 		}
-		if rapid.Bool().Draw(t, "BinlogTime").(bool) {
-			extra1.SetBinlogTime(rapid.Int64().Draw(t, "BinlogTime").(int64))
+		if rapid.Bool().Draw(t, "BinlogTime") {
+			extra1.SetBinlogTime(rapid.Int64().Draw(t, "BinlogTime"))
 		}
-		if rapid.Bool().Draw(t, "EnginePID").(bool) {
+		if rapid.Bool().Draw(t, "EnginePID") {
 			extra1.SetEnginePID(pid1)
 		}
-		if rapid.Bool().Draw(t, "SetRequestSize").(bool) {
-			extra1.SetRequestSize(rapid.Int32().Draw(t, "SetRequestSize").(int32))
+		if rapid.Bool().Draw(t, "SetRequestSize") {
+			extra1.SetRequestSize(rapid.Int32().Draw(t, "SetRequestSize"))
 		}
-		if rapid.Bool().Draw(t, "SetResponseSize").(bool) {
-			extra1.SetResponseSize(rapid.Int32().Draw(t, "SetResponseSize").(int32))
+		if rapid.Bool().Draw(t, "SetResponseSize") {
+			extra1.SetResponseSize(rapid.Int32().Draw(t, "SetResponseSize"))
 		}
-		if rapid.Bool().Draw(t, "SetFailedSubqueries").(bool) {
-			extra1.SetFailedSubqueries(rapid.Int32().Draw(t, "SetFailedSubqueries").(int32))
+		if rapid.Bool().Draw(t, "SetFailedSubqueries") {
+			extra1.SetFailedSubqueries(rapid.Int32().Draw(t, "SetFailedSubqueries"))
 		}
-		if rapid.Bool().Draw(t, "SetCompressionVersion").(bool) {
-			extra1.SetCompressionVersion(rapid.Int32().Draw(t, "SetCompressionVersion").(int32))
+		if rapid.Bool().Draw(t, "SetCompressionVersion") {
+			extra1.SetCompressionVersion(rapid.Int32().Draw(t, "SetCompressionVersion"))
 		}
-		if rapid.Bool().Draw(t, "SetStats").(bool) {
-			extra1.SetStats(rapid.MapOfN(rapid.String(), rapid.String(), 0, 2).Draw(t, "SetStats").(map[string]string))
+		if rapid.Bool().Draw(t, "SetStats") {
+			extra1.SetStats(rapid.MapOfN(rapid.String(), rapid.String(), 0, 2).Draw(t, "SetStats"))
 			if len(extra1.Stats) == 0 {
 				extra1.Stats = map[string]string{}
 			}

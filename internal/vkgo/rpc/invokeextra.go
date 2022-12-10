@@ -31,6 +31,7 @@ import (
 //		custom_timeout_ms:flags.23?%Int
 //		supported_compression_version:flags.25?%Int
 //		random_delay:flags.26?%Double
+//		return_view_number:flags.27?%True
 //		= RpcInvokeReqExtra flags
 type InvokeReqExtra struct {
 	flags uint32
@@ -173,6 +174,14 @@ func (e *InvokeReqExtra) SetRandomDelay(v float64) {
 
 func (e *InvokeReqExtra) IsSetRandomDelay() bool {
 	return e.flags&(1<<26) != 0
+}
+
+func (e *InvokeReqExtra) SetReturnViewNumber() {
+	e.flags |= 1 << 27
+}
+
+func (e *InvokeReqExtra) IsSetReturnViewNumber() bool {
+	return e.flags&(1<<27) != 0
 }
 
 func (e *InvokeReqExtra) readFromBytesBuffer(r *bytes.Buffer) error {

@@ -21,37 +21,29 @@ import (
 	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
+	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/constants"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
 )
-
-type Options struct {
-	PrefixPath      string // путь до бинлога, включающий префикс для файлов финлога (например `some/path/gopusher_binlog`)
-	Magic           uint32 // Ожидаемый magic (scheme) движка (0 - если можно открывать любой тип)
-	ReadOnly        bool
-	ReplicaMode     bool   // Бинлог открывается в режиме читающей реплики (постоянно читаем файл, если EOF, ждем новой записи)
-	WriteCrcEveryKB int32  // Как часто нужно писать в бинлог LEV_CRC32 события (по умолчанию defaultWriteCrcEveryKB)
-	MaxChunkSize    uint32 // Примерный порог (в байтах) для срабатывания ротации бинлога
-	BuffSizeLimit   int    // Лимит буффера, при котором он будет передаваться воркеру на запись, если он свободен (по умолчанию равен WriteCrcEveryKB * 1024)
-	HardMemLimit    int    // Лимит буффера, при котором включается механизм back pressure: Append начнет блокироваться, пока буффер не передастся на запись (по умолчанию defaultHardMemoryLimitKB)
-
-	EngineIDInCluster uint // Номер данного шарда в кластере, для статы
-	ClusterSize       uint // Размер кластера для данного шарда, для статы
-	FlushInterval     time.Duration
-}
 
 const (
 	mb                     = 1024 * 1024
 	flushInterval          = 500 * time.Millisecond
-	defaultWriteCrcEveryKB = 64
+	writeCrcEveryBytes     = 64 * 1024
+	bufferSendThreshold    = writeCrcEveryBytes
 	defaultMaxChunkSize    = 1024 * mb
 	defaultHardMemoryLimit = 100 * mb
 	defaultBuffSize        = mb / 2
 
 	defaultFilePerm = os.FileMode(0640)
+
+	MagicFsbinlogSnapshotMeta = constants.FsbinlogSnapshotMeta
 )
 
+type LevUpgradeToBarsic = tlfsbinlog.LevUpgradeToGms
+
 var (
-	errStopped = fmt.Errorf("already stopped")
+	errStopped            = fmt.Errorf("already stopped")
+	ErrUpgradeToBarsicLev = fmt.Errorf("need upgrade to barsic")
 )
 
 type (
@@ -68,17 +60,17 @@ type (
 		currentBinlogPath  atomic.String
 	}
 
-	readFinishInfo struct {
-		readPos        int64
-		crc            uint32
-		lastFileHeader fileHeader
+	PositionInfo struct {
+		Offset         int64
+		Crc            uint32
+		LastFileHeader fileHeader
 	}
 
 	fsBinlog struct {
-		options      Options
+		options      binlog.Options
 		stat         stat
 		engine       binlog.Engine
-		logger       Logger
+		logger       binlog.Logger
 		writerInitMu sync.Mutex
 		writer       *binlogWriter
 		stop         chan struct{}
@@ -95,8 +87,16 @@ type (
 	}
 )
 
+// BinlogReadWrite is an internal interface for migration
+// TODO: move this interface to internal folder
+type BinlogReadWrite interface {
+	binlog.Binlog
+	ReadAll(offset int64, snapshotMeta []byte, engine binlog.Engine) (PositionInfo, error)
+	WriteLoop(ri PositionInfo) (PositionInfo, error)
+}
+
 // NewFsBinlog создает объект бинлога с правильными дефолтами
-func NewFsBinlog(logger Logger, options Options) (binlog.Binlog, error) {
+func NewFsBinlog(logger binlog.Logger, options binlog.Options) (BinlogReadWrite, error) {
 	return doCreateBinlog(logger, options)
 }
 
@@ -104,11 +104,11 @@ func NewFsBinlog(logger Logger, options Options) (binlog.Binlog, error) {
 // может получится, что бинлоги дойдут до EOF, но потом что-то ещё запишется потому-что предыдущий мастер ещё жив.
 // Для корректной обработки сценария есть эта функция.
 //
-// В этом режиме бинлог при получении ошибки EOF вызывает Binlog.ChangeRole с параметром Ready == false.
+// В этом режиме бинлог при получении ошибки EOF вызывает Binlog.ChangeRole с параметром IsReady == false.
 // После этого он блокируется на канале, который возвращается из этой функции. Обязанность клиента - дернуть
 // канал, когда станет известно, что предыдущий мастер завершил работу (см. vkd.Options.ReadyHandler).
-// После этого бинлог возвращается к обычной работе и при получении EOF будет вызван Binlog.ChangeRole с Ready == true
-func NewFsBinlogMasterChange(logger Logger, options Options) (binlog.Binlog, *chan struct{}, error) {
+// После этого бинлог возвращается к обычной работе и при получении EOF будет вызван Binlog.ChangeRole с IsReady == true
+func NewFsBinlogMasterChange(logger binlog.Logger, options binlog.Options) (BinlogReadWrite, *chan struct{}, error) {
 	bl, err := doCreateBinlog(logger, options)
 	if err != nil {
 		return nil, nil, err
@@ -118,21 +118,12 @@ func NewFsBinlogMasterChange(logger Logger, options Options) (binlog.Binlog, *ch
 	return bl, &pidChanged, nil
 }
 
-func doCreateBinlog(logger Logger, options Options) (*fsBinlog, error) {
-	if options.WriteCrcEveryKB == 0 {
-		options.WriteCrcEveryKB = defaultWriteCrcEveryKB
-	}
+func doCreateBinlog(logger binlog.Logger, options binlog.Options) (*fsBinlog, error) {
 	if options.MaxChunkSize == 0 {
 		options.MaxChunkSize = defaultMaxChunkSize
 	}
-	if options.BuffSizeLimit == 0 {
-		options.BuffSizeLimit = int(options.WriteCrcEveryKB) * 1024
-	}
 	if options.HardMemLimit == 0 {
 		options.HardMemLimit = defaultHardMemoryLimit
-	}
-	if options.FlushInterval == 0 {
-		options.FlushInterval = flushInterval
 	}
 	return &fsBinlog{
 		options: options,
@@ -143,7 +134,10 @@ func doCreateBinlog(logger Logger, options Options) (*fsBinlog, error) {
 
 // CreateEmptyFsBinlog создает новый бинлог.
 // Обычная схема такая: движок запускается с флагом --create-binlog и завершает работу, после его запускают на уже существующих файлах
-func CreateEmptyFsBinlog(options Options) (string, error) {
+func CreateEmptyFsBinlog(options binlog.Options) (string, error) {
+	if len(options.PrefixPath) == 0 {
+		return "", fmt.Errorf("PrefixPath is empty, cannot create binlog file")
+	}
 	root := path.Dir(options.PrefixPath)
 	basename := path.Base(options.PrefixPath)
 
@@ -189,56 +183,79 @@ func AddPadding(readBytes int) int {
 	return readBytes + 4 - left
 }
 
-func (b *fsBinlog) Start(offset int64, snapshotMeta []byte, engine binlog.Engine) error {
+func (b *fsBinlog) ReadAll(offset int64, snapshotMeta []byte, engine binlog.Engine) (PositionInfo, error) {
 	var si *tlfsbinlog.SnapshotMeta
 	if len(snapshotMeta) > 0 {
 		si = &tlfsbinlog.SnapshotMeta{}
 		_, err := si.ReadBoxed(snapshotMeta)
 		if err != nil {
-			return fmt.Errorf("wrong snapshot meta format: %w", err)
+			return PositionInfo{}, fmt.Errorf("wrong snapshot meta format: %w", err)
 		}
 	}
 
 	if engine == nil {
-		return fmt.Errorf("engine pointer is nil")
+		return PositionInfo{}, fmt.Errorf("engine pointer is nil")
 	}
 	b.engine = engine
 
-	ri, err := b.readAll(offset, si)
+	return b.readAll(offset, si)
+}
+
+func (b *fsBinlog) WriteLoop(ri PositionInfo) (PositionInfo, error) {
+	if b.options.ReplicaMode {
+		return ri, fmt.Errorf("cannot start write loop in replica mode")
+	}
+
+	if err := b.setupWriterWorker(ri); err != nil {
+		return ri, fmt.Errorf("binlog writer loop finished with error: %w", err)
+	}
+
+	b.predict.firstFile = ri.LastFileHeader.Position == 0
+	if b.predict.firstFile {
+		// We should save file content for hash calc in Rotate levs (only on first file)
+		fp, err := os.Open(ri.LastFileHeader.FileName)
+		if err != nil {
+			return ri, err
+		}
+		_, _ = fp.ReadAt(b.buffEx.hashBuff1[:], 0)
+	} else {
+		b.predict.currFileHash = ri.LastFileHeader.LevRotateFrom.CurLogHash
+	}
+
+	snapMeta := prepareSnapMeta(ri.Offset, ri.Crc, b.stat.lastTimestamp.Load())
+	b.engine.Commit(ri.Offset, snapMeta, ri.Offset)
+
+	b.engine.ChangeRole(binlog.ChangeRoleInfo{
+		IsMaster: true,
+		IsReady:  true,
+	})
+
+	return b.writer.loop()
+}
+
+func (b *fsBinlog) Start(offset int64, snapshotMeta []byte, engine binlog.Engine) error {
+	readInfo, err := b.ReadAll(offset, snapshotMeta, engine)
 	if err != nil {
-		return fmt.Errorf("binlog reading failed: %w", err)
+		return err
 	}
 
 	if b.options.ReplicaMode {
 		return nil
 	}
 
-	if err = b.setupWriterWorker(ri); err != nil {
-		return fmt.Errorf("binlog writer loop finished with error: %w", err)
+	if b.options.ReadAndExit {
+		return nil
 	}
 
-	b.predict.firstFile = ri.lastFileHeader.Position == 0
-	if b.predict.firstFile {
-		// We should save file content for hash calc in Rotate levs (only on first file)
-		fp, err := os.Open(ri.lastFileHeader.FileName)
-		if err != nil {
-			return err
-		}
-		_, _ = fp.ReadAt(b.buffEx.hashBuff1[:], 0)
-	} else {
-		b.predict.currFileHash = ri.lastFileHeader.LevRotateFrom.CurLogHash
-	}
-
-	snapMeta := prepareSnapMeta(ri.readPos, ri.crc, b.stat.lastTimestamp.Load())
-	engine.Commit(ri.readPos, snapMeta)
-
-	engine.ChangeRole(binlog.ChangeRoleInfo{
-		IsMaster: true,
-		Ready:    true,
-	})
-
-	return b.writer.loop()
+	_, err = b.WriteLoop(readInfo)
+	return err
 }
+
+func (b *fsBinlog) Restart() {
+	_ = b.Shutdown() // TODO - better idea?
+}
+
+func (b *fsBinlog) EngineStatus(status binlog.EngineStatus) {} // Status will appear only after upgrade to Barsic
 
 func (b *fsBinlog) Append(onOffset int64, payload []byte) (int64, error) {
 	return b.doAppend(onOffset, payload, false)
@@ -264,7 +281,7 @@ func (b *fsBinlog) doAppend(onOffset int64, body []byte, asap bool) (int64, erro
 		return nextPos, err
 	}
 
-	if asap || curBuffSize >= b.options.BuffSizeLimit {
+	if asap || curBuffSize >= bufferSendThreshold {
 		if curBuffSize >= b.options.HardMemLimit {
 			if b.logger != nil {
 				b.logger.Infof("Binlog: buffer size exceed hard memory limit (%d byte), start back pressure procedure", b.options.HardMemLimit)
@@ -294,8 +311,8 @@ func (b *fsBinlog) putLevToBuffer(incomeOffset int64, body []byte, asap bool) (i
 
 	b.buffEx.appendLevUnsafe(body)
 
-	// Add Crc32 Lev if need
-	if b.buffEx.rd.offsetGlobal-b.predict.lastPosForCrc >= int64(b.options.WriteCrcEveryKB*1024) {
+	// Add Crc32 Lev
+	if b.buffEx.rd.offsetGlobal-b.predict.lastPosForCrc >= writeCrcEveryBytes {
 		lev := levCrc32{
 			Type:      magicLevCrc32,
 			Timestamp: int32(time.Now().Unix()),
@@ -308,7 +325,7 @@ func (b *fsBinlog) putLevToBuffer(incomeOffset int64, body []byte, asap bool) (i
 		b.stat.lastTimestamp.Store(uint32(lev.Timestamp))
 	}
 
-	// Add Rotate Levs if need
+	// Add Rotate Levs
 	if b.buffEx.rd.offsetGlobal-b.predict.fileStartPos >= int64(b.options.MaxChunkSize) {
 		levRotateTo := levRotateTo{
 			Type:        magicLevRotateTo,
@@ -407,10 +424,10 @@ func (b *fsBinlog) AddStats(stats map[string]string) {
 	}
 }
 
-func (b *fsBinlog) readAll(fromPosition int64, si *seekInfo) (readFinishInfo, error) {
-	reader, err := newBinlogReader(b.pidChanged, b.options.FlushInterval, b.logger, &b.stat, &b.stop)
+func (b *fsBinlog) readAll(fromPosition int64, si *seekInfo) (PositionInfo, error) {
+	reader, err := newBinlogReader(b.pidChanged, flushInterval, b.logger, &b.stat, &b.stop)
 	if err != nil {
-		return readFinishInfo{}, err
+		return PositionInfo{}, err
 	}
 
 	b.stat.readStartPos.Store(uint64(fromPosition))
@@ -429,18 +446,19 @@ func (b *fsBinlog) readAll(fromPosition int64, si *seekInfo) (readFinishInfo, er
 	if errors.Is(err, errStopped) {
 		err = nil // Not really an error
 	}
-	if err != nil {
-		return readFinishInfo{}, err
+
+	if err != nil && err != ErrUpgradeToBarsicLev {
+		return PositionInfo{}, err
 	}
 
-	readInfo := readFinishInfo{
-		readPos:        posAfterRead,
-		crc:            crcAfterRead,
-		lastFileHeader: reader.fileHeaders[len(reader.fileHeaders)-1], // should have at least one
+	readInfo := PositionInfo{
+		Offset:         posAfterRead,
+		Crc:            crcAfterRead,
+		LastFileHeader: reader.fileHeaders[len(reader.fileHeaders)-1], // should have at least one
 	}
 
 	if b.logger != nil {
-		if err != nil {
+		if err != nil && err != ErrUpgradeToBarsicLev {
 			b.logger.Errorf("fsBinlog reading error: read from pos %d to %d, current crc: 0x%x, error: %s",
 				fromPosition,
 				posAfterRead,
@@ -477,8 +495,8 @@ func (b *fsBinlog) isWriterInitialized() bool {
 	return b.writer != nil
 }
 
-func (b *fsBinlog) setupWriterWorker(readInfo readFinishInfo) error {
-	if b.options.ReadOnly || b.options.ReplicaMode {
+func (b *fsBinlog) setupWriterWorker(readInfo PositionInfo) error {
+	if b.options.ReplicaMode {
 		return fmt.Errorf("cannot init writer: not in master mode")
 	}
 
@@ -489,21 +507,21 @@ func (b *fsBinlog) setupWriterWorker(readInfo readFinishInfo) error {
 		return nil
 	}
 
-	b.stat.writeStartPos.Store(uint64(readInfo.readPos))
+	b.stat.writeStartPos.Store(uint64(readInfo.Offset))
 
-	b.predict.lastPosForCrc = readInfo.readPos
-	b.predict.fileStartPos = readInfo.lastFileHeader.Position
+	b.predict.lastPosForCrc = readInfo.Offset
+	b.predict.fileStartPos = readInfo.LastFileHeader.Position
 
-	processedInFile := readInfo.readPos - readInfo.lastFileHeader.Position
-	b.buffEx = newBuffEx(readInfo.crc, processedInFile, readInfo.readPos, int64(b.options.MaxChunkSize))
+	processedInFile := readInfo.Offset - readInfo.LastFileHeader.Position
+	b.buffEx = newBuffEx(readInfo.Crc, processedInFile, readInfo.Offset, int64(b.options.MaxChunkSize))
 
 	var err error
 	b.writer, err = newBinlogWriter(
 		b.logger,
 		b.engine,
 		b.options,
-		readInfo.readPos,
-		&readInfo.lastFileHeader,
+		readInfo.Offset,
+		&readInfo.LastFileHeader,
 		b.buffEx,
 		&b.stat,
 	)

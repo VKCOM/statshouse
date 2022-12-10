@@ -795,7 +795,7 @@ func (pc *peerClient) handleResponse(queryID int64, resp *Response, toplevelErro
 		}
 
 		if tag == reqResultErrorTag {
-			var unused int64
+			var unused int64 // excess query_id erroneously saved by incorrect serialization of RpcReqResult object tree
 			if afterTag, err = basictl.LongRead(afterTag, &unused); err != nil {
 				return true, err
 			}

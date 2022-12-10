@@ -12,6 +12,7 @@ import (
 )
 
 type (
-	LevStart     = internal.FsbinlogLevStart
-	SnapshotMeta = internal.FsbinlogSnapshotMeta
+	LevStart        = internal.FsbinlogLevStart
+	LevUpgradeToGms = internal.FsbinlogLevUpgradeToGms
+	SnapshotMeta    = internal.FsbinlogSnapshotMeta
 )
