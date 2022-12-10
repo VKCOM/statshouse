@@ -29,9 +29,9 @@ var (
 	number              string
 	trustedSubnetGroups string
 
-	appName              string
-	commitTimestampInt64 int64
-	trustedSubnetGroupsS [][]string
+	appName               string
+	commitTimestampUint32 uint32
+	trustedSubnetGroupsS  [][]string
 )
 
 func Time() string {
@@ -56,8 +56,8 @@ func Commit() string {
 }
 
 // UNIX timestampt seconds, so stable in any TZ
-func CommitTimestamp() int64 {
-	return commitTimestampInt64
+func CommitTimestamp() uint32 {
+	return commitTimestampUint32
 }
 
 func Version() string {
@@ -80,7 +80,8 @@ func Info() string {
 
 func init() {
 	appName = path.Base(os.Args[0])
-	commitTimestampInt64, _ = strconv.ParseInt(commitTimestamp, 10, 64)
+	ts, _ := strconv.ParseUint(commitTimestamp, 10, 32)
+	commitTimestampUint32 = uint32(ts)
 	parseTrustedSubnetGroups()
 }
 
