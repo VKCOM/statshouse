@@ -22,13 +22,11 @@ import { PlotLink } from '../Plot/PlotLink';
 import { parseParamsFromUrl } from '../../common/plotQueryParams';
 import produce from 'immer';
 
-export const StatsHouseIcon = () => {
-  return (
-    <span className="position-relative">
-      <SVGLightning className={css.icon} />
-    </span>
-  );
-};
+export const StatsHouseIcon = () => (
+  <span className="position-relative">
+    <SVGLightning className={css.icon} />
+  </span>
+);
 
 export type HeaderMenuProps = {
   className?: string;
@@ -82,7 +80,12 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
           </li>
           <li className={css.splitter}></li>
           <li className="nav-item">
-            <a className="nav-link" href="https://github.com/VKCOM/statshouse/discussions/categories/announcements">
+            <a
+              className="nav-link"
+              href="https://github.com/VKCOM/statshouse/discussions/categories/announcements"
+              target="_blank"
+              rel="noreferrer"
+            >
               News
             </a>
           </li>
@@ -92,7 +95,12 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             </NavLink>
           </li>
           <li className="nav-item">
-            <a className="nav-link" href="https://github.com/VKCOM/statshouse#documentation">
+            <a
+              className="nav-link"
+              href="https://github.com/VKCOM/statshouse#documentation"
+              target="_blank"
+              rel="noreferrer"
+            >
               Documentation
             </a>
           </li>
@@ -102,7 +110,12 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             </a>
           </li>
           <li className="nav-item">
-            <a className="nav-link" href="https://github.com/VKCOM/statshouse/discussions/categories/q-a">
+            <a
+              className="nav-link"
+              href="https://github.com/VKCOM/statshouse/discussions/categories/q-a"
+              target="_blank"
+              rel="noreferrer"
+            >
               Support
             </a>
           </li>
