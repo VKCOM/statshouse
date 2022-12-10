@@ -1741,7 +1741,6 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 			}
 		}
 	}
-
 	if len(allTimes) > 0 {
 		allTimes = allTimes[1:] // exclude extra point on the left
 	}

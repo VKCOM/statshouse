@@ -17,7 +17,7 @@ func TestToByteSlice(t *testing.T) {
 	t.Parallel()
 
 	rapid.Check(t, func(t *rapid.T) {
-		s := rapid.String().Draw(t, "s").(string)
+		s := rapid.String().Draw(t, "s")
 		b := []byte(s)
 		ub := toByteSlice(s)
 

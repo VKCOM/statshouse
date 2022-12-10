@@ -57,16 +57,16 @@ func BenchmarkPartialSortIndexByValue(b *testing.B) {
 
 func TestPartialSortIndexByValue(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		idx := make([]int, rapid.IntRange(0, 1<<20).Draw(t, "len").(int))
+		idx := make([]int, rapid.IntRange(0, 1<<20).Draw(t, "len"))
 		for i := 0; i < len(idx); i++ {
 			idx[i] = i
 		}
 
-		seed := rapid.Uint64().Draw(t, "seed").(uint64)
+		seed := rapid.Uint64().Draw(t, "seed")
 		rand.New(seed).Shuffle(len(idx), func(i, j int) { idx[i], idx[j] = idx[j], idx[i] })
 
-		val := rapid.SliceOfN(rapid.Float64(), len(idx), len(idx)).Draw(t, "idx").([]float64)
-		n := rapid.IntRange(0, len(val)).Draw(t, "n").(int)
+		val := rapid.SliceOfN(rapid.Float64(), len(idx), len(idx)).Draw(t, "idx")
+		n := rapid.IntRange(0, len(val)).Draw(t, "n")
 
 		partialSortIndexByValueDesc(idx, val, n)
 

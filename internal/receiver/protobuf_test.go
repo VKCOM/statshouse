@@ -27,19 +27,19 @@ func TestProtobuf(t *testing.T) {
 		var src pb.MetricBatch
 		var dst tlstatshouse.AddMetricsBatchBytes
 
-		num := rapid.IntRange(0, 100).Draw(t, "num_metrics").(int)
+		num := rapid.IntRange(0, 100).Draw(t, "num_metrics")
 		for i := 0; i < num; i++ {
 			metric := &pb.Metric{
-				Name:    rapid.String().Draw(t, "name").(string),
+				Name:    rapid.String().Draw(t, "name"),
 				Tags:    map[string]string{},
-				Counter: rapid.Float64().Draw(t, "counter").(float64),
-				Ts:      rapid.Uint32().Draw(t, "timestamp").(uint32),
-				Value:   rapid.SliceOf(rapid.Float64()).Draw(t, "value").([]float64),
-				Unique:  rapid.SliceOf(rapid.Int64()).Draw(t, "unique").([]int64),
+				Counter: rapid.Float64().Draw(t, "counter"),
+				Ts:      rapid.Uint32().Draw(t, "timestamp"),
+				Value:   rapid.SliceOf(rapid.Float64()).Draw(t, "value"),
+				Unique:  rapid.SliceOf(rapid.Int64()).Draw(t, "unique"),
 			}
-			numTags := rapid.IntRange(0, 20).Draw(t, "num_tags").(int)
+			numTags := rapid.IntRange(0, 20).Draw(t, "num_tags")
 			for j := 0; j < numTags; j++ {
-				metric.Tags[rapid.String().Draw(t, "key").(string)] = rapid.String().Draw(t, "value").(string)
+				metric.Tags[rapid.String().Draw(t, "key")] = rapid.String().Draw(t, "value")
 			}
 			src.Metrics = append(src.Metrics, metric)
 		}

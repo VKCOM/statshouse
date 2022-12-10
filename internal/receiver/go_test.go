@@ -22,6 +22,10 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
 )
 
+var (
+	_ *goMachine // for staticcheck: type goMachine is unused (U1000)
+)
+
 const (
 	goStatsHouseAddr = "127.0.0.1:"
 	envName          = "abc"
@@ -32,52 +36,67 @@ type tag struct {
 	V string
 }
 
-func identOrEmpty() *rapid.Generator {
+func identOrEmpty() *rapid.Generator[string] {
 	return rapid.OneOf(rapid.Just(""), ident())
 }
 
-func keys() *rapid.Generator {
+func keys() *rapid.Generator[statlogs.RawTags] {
 	return rapid.Custom(func(t *rapid.T) statlogs.RawTags {
 		return statlogs.RawTags{
-			Env:   identOrEmpty().Draw(t, "key0").(string),
-			Tag1:  identOrEmpty().Draw(t, "key1").(string),
-			Tag2:  identOrEmpty().Draw(t, "key2").(string),
-			Tag3:  identOrEmpty().Draw(t, "key3").(string),
-			Tag4:  identOrEmpty().Draw(t, "key4").(string),
-			Tag5:  identOrEmpty().Draw(t, "key5").(string),
-			Tag6:  identOrEmpty().Draw(t, "key6").(string),
-			Tag7:  identOrEmpty().Draw(t, "key7").(string),
-			Tag8:  identOrEmpty().Draw(t, "key8").(string),
-			Tag9:  identOrEmpty().Draw(t, "key9").(string),
-			Tag10: identOrEmpty().Draw(t, "key10").(string),
-			Tag11: identOrEmpty().Draw(t, "key11").(string),
-			Tag12: identOrEmpty().Draw(t, "key12").(string),
-			Tag13: identOrEmpty().Draw(t, "key13").(string),
-			Tag14: identOrEmpty().Draw(t, "key14").(string),
-			Tag15: identOrEmpty().Draw(t, "key15").(string),
+			Env:   identOrEmpty().Draw(t, "key0"),
+			Tag1:  identOrEmpty().Draw(t, "key1"),
+			Tag2:  identOrEmpty().Draw(t, "key2"),
+			Tag3:  identOrEmpty().Draw(t, "key3"),
+			Tag4:  identOrEmpty().Draw(t, "key4"),
+			Tag5:  identOrEmpty().Draw(t, "key5"),
+			Tag6:  identOrEmpty().Draw(t, "key6"),
+			Tag7:  identOrEmpty().Draw(t, "key7"),
+			Tag8:  identOrEmpty().Draw(t, "key8"),
+			Tag9:  identOrEmpty().Draw(t, "key9"),
+			Tag10: identOrEmpty().Draw(t, "key10"),
+			Tag11: identOrEmpty().Draw(t, "key11"),
+			Tag12: identOrEmpty().Draw(t, "key12"),
+			Tag13: identOrEmpty().Draw(t, "key13"),
+			Tag14: identOrEmpty().Draw(t, "key14"),
+			Tag15: identOrEmpty().Draw(t, "key15"),
 		}
 	})
 }
 
-func tagsArrSlice() *rapid.Generator {
-	return rapid.SliceOfN(rapid.ArrayOf(2, ident()), 0, 16)
-}
-func tagsSlice() *rapid.Generator {
-	return rapid.SliceOfN(rapid.ArrayOf(2, ident()), 0, 16).Map(func(sl [][2]string) []tag {
-		result := make([]tag, 0)
-		already := map[string]bool{}
-		for _, arr := range sl {
-			if already[arr[0]] {
-				continue
-			}
-			already[arr[0]] = true
-			result = append(result, tag{
-				K: arr[0],
-				V: arr[1],
-			})
+func tagArr() *rapid.Generator[[2]string] {
+	k := ident()
+	v := ident()
+
+	return rapid.Custom(func(t *rapid.T) [2]string {
+		return [2]string{
+			k.Draw(t, "k"),
+			v.Draw(t, "v"),
 		}
-		return result
 	})
+}
+
+func tagsArrSlice() *rapid.Generator[[][2]string] {
+	return rapid.SliceOfN(tagArr(), 0, 16)
+}
+
+func tagsSlice() *rapid.Generator[[]tag] {
+	return rapid.Transform(
+		tagsArrSlice(),
+		func(sl [][2]string) []tag {
+			result := make([]tag, 0)
+			already := map[string]bool{}
+			for _, arr := range sl {
+				if already[arr[0]] {
+					continue
+				}
+				already[arr[0]] = true
+				result = append(result, tag{
+					K: arr[0],
+					V: arr[1],
+				})
+			}
+			return result
+		})
 }
 
 func toTagsStruct(tags [][2]string, skey string, withEnv bool) []tag {
@@ -95,36 +114,36 @@ func toTagsStruct(tags [][2]string, skey string, withEnv bool) []tag {
 		res = append(res, tag{K: name, V: value})
 	}
 	if skey != "" {
-		res = append(res, tag{K: "skey", V: skey})
+		res = append(res, tag{K: "_s", V: skey})
 	}
 	if withEnv && !envExists {
-		res = append(res, tag{K: "key0", V: envName})
+		res = append(res, tag{K: "0", V: envName})
 	}
 	return res
 }
 
 func toTags(ks statlogs.RawTags, skey string, withEnv bool) []tag {
 	m := map[string]string{
-		"key0":  ks.Env,
-		"key1":  ks.Tag1,
-		"key2":  ks.Tag2,
-		"key3":  ks.Tag3,
-		"key4":  ks.Tag4,
-		"key5":  ks.Tag5,
-		"key6":  ks.Tag6,
-		"key7":  ks.Tag7,
-		"key8":  ks.Tag8,
-		"key9":  ks.Tag9,
-		"key10": ks.Tag10,
-		"key11": ks.Tag11,
-		"key12": ks.Tag12,
-		"key13": ks.Tag13,
-		"key14": ks.Tag14,
-		"key15": ks.Tag15,
-		"skey":  skey,
+		"0":  ks.Env,
+		"1":  ks.Tag1,
+		"2":  ks.Tag2,
+		"3":  ks.Tag3,
+		"4":  ks.Tag4,
+		"5":  ks.Tag5,
+		"6":  ks.Tag6,
+		"7":  ks.Tag7,
+		"8":  ks.Tag8,
+		"9":  ks.Tag9,
+		"10": ks.Tag10,
+		"11": ks.Tag11,
+		"12": ks.Tag12,
+		"13": ks.Tag13,
+		"14": ks.Tag14,
+		"15": ks.Tag15,
+		"_s": skey,
 	}
 	if withEnv && ks.Env == "" {
-		m["key0"] = envName
+		m["0"] = envName
 	}
 	for k, v := range m {
 		if v == "" {
@@ -173,9 +192,9 @@ func (g *goMachine) Cleanup() {
 
 func (g *goMachine) Counter(t *rapid.T) {
 	var (
-		name  = ident().Draw(t, "name").(string)
-		ks    = keys().Draw(t, "keys").(statlogs.RawTags)
-		value = rapid.Float64Range(0.1, math.MaxInt32).Draw(t, "value").(float64)
+		name  = ident().Draw(t, "name")
+		ks    = keys().Draw(t, "keys")
+		value = rapid.Float64Range(0.1, math.MaxInt32).Draw(t, "value")
 	)
 
 	k := ts(name, toTags(ks, "", g.envIsSet))
@@ -189,9 +208,9 @@ func (g *goMachine) Counter(t *rapid.T) {
 
 func (g *goMachine) CounterNamed(t *rapid.T) {
 	var (
-		name  = ident().Draw(t, "name").(string)
-		value = rapid.Float64Range(0.1, math.MaxInt32).Draw(t, "value").(float64)
-		tags  = tagsArrSlice().Draw(t, "tags").([][2]string)
+		name  = ident().Draw(t, "name")
+		value = rapid.Float64Range(0.1, math.MaxInt32).Draw(t, "value")
+		tags  = tagsArrSlice().Draw(t, "tags")
 	)
 
 	k := ts(name, toTagsStruct(tags, "", g.envIsSet))
@@ -204,9 +223,9 @@ func (g *goMachine) CounterNamed(t *rapid.T) {
 
 func (g *goMachine) Values(t *rapid.T) {
 	var (
-		name   = ident().Draw(t, "name").(string)
-		ks     = keys().Draw(t, "keys").(statlogs.RawTags)
-		values = rapid.SliceOfN(rapid.Float64(), 1, -1).Draw(t, "values").([]float64)
+		name   = ident().Draw(t, "name")
+		ks     = keys().Draw(t, "keys")
+		values = rapid.SliceOfN(rapid.Float64(), 1, -1).Draw(t, "values")
 	)
 
 	k := ts(name, toTags(ks, "", g.envIsSet))
@@ -220,9 +239,9 @@ func (g *goMachine) Values(t *rapid.T) {
 
 func (g *goMachine) ValuesNamed(t *rapid.T) {
 	var (
-		name   = ident().Draw(t, "name").(string)
-		values = rapid.SliceOfN(rapid.Float64(), 1, -1).Draw(t, "values").([]float64)
-		tags   = tagsArrSlice().Draw(t, "tags").([][2]string)
+		name   = ident().Draw(t, "name")
+		values = rapid.SliceOfN(rapid.Float64(), 1, -1).Draw(t, "values")
+		tags   = tagsArrSlice().Draw(t, "tags")
 	)
 
 	k := ts(name, toTagsStruct(tags, "", g.envIsSet))
@@ -236,9 +255,9 @@ func (g *goMachine) ValuesNamed(t *rapid.T) {
 
 func (g *goMachine) Uniques(t *rapid.T) {
 	var (
-		name   = ident().Draw(t, "name").(string)
-		ks     = keys().Draw(t, "keys").(statlogs.RawTags)
-		values = rapid.SliceOfN(rapid.Int64(), 1, -1).Draw(t, "values").([]int64)
+		name   = ident().Draw(t, "name")
+		ks     = keys().Draw(t, "keys")
+		values = rapid.SliceOfN(rapid.Int64(), 1, -1).Draw(t, "values")
 	)
 
 	k := ts(name, toTags(ks, "", g.envIsSet))
@@ -252,9 +271,9 @@ func (g *goMachine) Uniques(t *rapid.T) {
 
 func (g *goMachine) UniquesNamed(t *rapid.T) {
 	var (
-		name   = ident().Draw(t, "name").(string)
-		values = rapid.SliceOfN(rapid.Int64(), 1, -1).Draw(t, "values").([]int64)
-		tags   = tagsArrSlice().Draw(t, "tags").([][2]string)
+		name   = ident().Draw(t, "name")
+		values = rapid.SliceOfN(rapid.Int64(), 1, -1).Draw(t, "values")
+		tags   = tagsArrSlice().Draw(t, "tags")
 	)
 
 	k := ts(name, toTagsStruct(tags, "", g.envIsSet))
@@ -268,9 +287,9 @@ func (g *goMachine) UniquesNamed(t *rapid.T) {
 
 func (g *goMachine) STops(t *rapid.T) {
 	var (
-		name   = ident().Draw(t, "name").(string)
-		ks     = keys().Draw(t, "keys").(statlogs.RawTags)
-		values = rapid.SliceOfN(identLike(format.MaxStringLen), 1, -1).Draw(t, "values").([]string) // not arbitrary strings for easier text encoding
+		name   = ident().Draw(t, "name")
+		ks     = keys().Draw(t, "keys")
+		values = rapid.SliceOfN(identLike(format.MaxStringLen), 1, -1).Draw(t, "values") // not arbitrary strings for easier text encoding
 	)
 	k := ts(name, toTags(ks, "", g.envIsSet))
 	if len(k) > maxTSSize {
@@ -284,9 +303,9 @@ func (g *goMachine) STops(t *rapid.T) {
 
 func (g *goMachine) STopsNamed(t *rapid.T) {
 	var (
-		name   = ident().Draw(t, "name").(string)
-		values = rapid.SliceOfN(identLike(format.MaxStringLen), 1, -1).Draw(t, "values").([]string) // not arbitrary strings for easier text encoding
-		tags   = tagsArrSlice().Draw(t, "tags").([][2]string)
+		name   = ident().Draw(t, "name")
+		values = rapid.SliceOfN(identLike(format.MaxStringLen), 1, -1).Draw(t, "values") // not arbitrary strings for easier text encoding
+		tags   = tagsArrSlice().Draw(t, "tags")
 	)
 
 	k := ts(name, toTagsStruct(tags, "", g.envIsSet))
@@ -362,7 +381,7 @@ func (g *goMachine) Run(t *rapid.T) {
 func (g *goMachine) Check(*rapid.T) {}
 
 func TestGoRoundtrip(t *testing.T) {
-	rapid.Check(t, rapid.Run(&goMachine{}))
+	rapid.Check(t, rapid.Run[*goMachine]())
 }
 
 /* It seems, test above also sets key0 sometimes. So for speed we commented this test out

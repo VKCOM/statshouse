@@ -187,56 +187,58 @@ func OpenEngine(
 		waitUntilBinlogReady: make(chan struct{}),
 		commitCh:             make(chan struct{}, 1),
 	}
-	binlogEngineImpl := &binlogEngineImpl{e: e}
-	e.committedInfo.Store(&committedInfo{})
+
 	e.txLoopIter(false, false)
 	if err := e.err; err != nil {
 		_ = e.close(false)
 		return nil, fmt.Errorf("failed to start write transaction: %w", err)
 	}
-
-	offset, err := e.loadOrCreateBinlogPosition()
-	if err != nil {
-		_ = e.close(false)
-		return nil, fmt.Errorf("failed to load binlog position: %w", err)
-	}
-	e.dbOffset = offset
-	meta, err := e.loadOrCreateMeta()
-	if err != nil {
-		_ = e.close(false)
-		return nil, fmt.Errorf("failed to load snapshot meta: %w", err)
-	}
-
-	errCh := make(chan error)
-	go func() {
-		err = binlog.Start(offset, meta, binlogEngineImpl)
+	if binlog != nil {
+		binlogEngineImpl := &binlogEngineImpl{e: e}
+		e.committedInfo.Store(&committedInfo{})
+		offset, err := e.binlogLoadOrCreatePosition()
 		if err != nil {
-			fmt.Println(err.Error())
-			errCh <- err
+			_ = e.close(false)
+			return nil, fmt.Errorf("failed to load binlog position: %w", err)
 		}
-	}()
-	select {
-	case <-e.waitUntilBinlogReady:
-	case err := <-errCh:
-		_ = e.close(false)
-		return nil, fmt.Errorf("failed to start %w", err)
-	}
-	offset, err = e.loadOrCreateBinlogPosition()
-	if err != nil {
-		_ = e.close(false)
-		return nil, fmt.Errorf("failed to load binlog position: %w", err)
-	}
-	if e.dbOffset != offset {
-		return nil, fmt.Errorf("lev offsets are different: e.dbOffset=%d, offset=%d", e.dbOffset, offset)
-	}
-	info, _ := e.committedInfo.Load().(*committedInfo)
-	if e.dbOffset > info.offset {
-		return nil, fmt.Errorf("db offset greater than binlog offset after binlog reread")
-	}
-	e.txLoopIter(true, false)
-	if err := e.err; err != nil {
-		_ = e.close(false)
-		return nil, fmt.Errorf("failed to commit binlog offset: %w", err)
+		e.dbOffset = offset
+		meta, err := e.binlogLoadOrCreateMeta()
+		if err != nil {
+			_ = e.close(false)
+			return nil, fmt.Errorf("failed to load snapshot meta: %w", err)
+		}
+
+		errCh := make(chan error)
+		go func() {
+			err = binlog.Start(offset, meta, binlogEngineImpl)
+			if err != nil {
+				fmt.Println(err.Error())
+				errCh <- err
+			}
+		}()
+		select {
+		case <-e.waitUntilBinlogReady:
+		case err := <-errCh:
+			_ = e.close(false)
+			return nil, fmt.Errorf("failed to start %w", err)
+		}
+		offset, err = e.binlogLoadOrCreatePosition()
+		if err != nil {
+			_ = e.close(false)
+			return nil, fmt.Errorf("failed to load binlog position: %w", err)
+		}
+		if e.dbOffset != offset {
+			return nil, fmt.Errorf("lev offsets are different: e.dbOffset=%d, offset=%d", e.dbOffset, offset)
+		}
+		info, _ := e.committedInfo.Load().(*committedInfo)
+		if e.dbOffset > info.offset {
+			return nil, fmt.Errorf("db offset greater than binlog offset after binlog reread")
+		}
+		e.txLoopIter(true, false)
+		if err := e.err; err != nil {
+			_ = e.close(false)
+			return nil, fmt.Errorf("failed to commit binlog offset: %w", err)
+		}
 	}
 	go e.txLoop()
 
@@ -310,15 +312,14 @@ func openRW(path string, appID int32, schemas ...string) (*sqlite0.Conn, error) 
 	return conn, nil
 }
 
-// func openChk(path string) (*sqlite0.Conn, error) {
-//	conn, err := openWAL(path, sqlite0.OpenReadWrite|sqlite0.OpenNoMutex|sqlite0.OpenPrivateCache)
-//	if err != nil {
-//		return nil, err
-//	}
+//	func openChk(path string) (*sqlite0.Conn, error) {
+//		conn, err := openWAL(path, sqlite0.OpenReadWrite|sqlite0.OpenNoMutex|sqlite0.OpenPrivateCache)
+//		if err != nil {
+//			return nil, err
+//		}
 //
-//	return conn, nil
-// }
-
+//		return conn, nil
+//	}
 func openROWAL(path string) (*sqlite0.Conn, error) {
 	conn, err := openWAL(path, sqlite0.OpenReadonly|sqlite0.OpenNoMutex|sqlite0.OpenPrivateCache)
 	if err != nil {
@@ -328,12 +329,12 @@ func openROWAL(path string) (*sqlite0.Conn, error) {
 	return conn, nil
 }
 
-func (e *Engine) loadOrCreateBinlogPosition() (int64, error) {
+func (e *Engine) binlogLoadOrCreatePosition() (int64, error) {
 	var offset int64
 	err := e.do(func(conn Conn) error {
 		var isExists bool
 		var err error
-		offset, isExists, err = loadBinlogPosition(conn)
+		offset, isExists, err = binlogLoadPosition(conn)
 		if err != nil {
 			return err
 		}
@@ -346,7 +347,7 @@ func (e *Engine) loadOrCreateBinlogPosition() (int64, error) {
 	return offset, err
 }
 
-func (e *Engine) loadOrCreateMeta() ([]byte, error) {
+func (e *Engine) binlogLoadOrCreateMeta() ([]byte, error) {
 	var meta []byte
 	err := e.do(func(conn Conn) error {
 		rows := conn.Query("SELECT meta from __snapshot_meta")
@@ -363,12 +364,12 @@ func (e *Engine) loadOrCreateMeta() ([]byte, error) {
 	return meta, err
 }
 
-func (e *Engine) updateMeta(conn Conn, meta []byte) error {
+func (e *Engine) binlogUpdateMeta(conn Conn, meta []byte) error {
 	_, err := conn.Exec("UPDATE __snapshot_meta SET meta = $meta;", Blob("$meta", meta))
 	return err
 }
 
-func loadBinlogPosition(conn Conn) (offset int64, isExists bool, err error) {
+func binlogLoadPosition(conn Conn) (offset int64, isExists bool, err error) {
 	rows := conn.Query("SELECT offset from __binlog_offset")
 	if rows.err != nil {
 		return 0, false, rows.err
@@ -420,7 +421,7 @@ func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error)
 	offset := e.dbOffset
 	errFromTx := e.do(func(conn Conn) error {
 		// mustn't change any state in this function
-		dbOffset, _, err := loadBinlogPosition(conn)
+		dbOffset, _, err := binlogLoadPosition(conn)
 		if err != nil {
 			return err
 		}
@@ -441,7 +442,7 @@ func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error)
 		n, err = e.apply(conn, offset+int64(shouldSkipLen), payload)
 		n += shouldSkipLen
 		newOffset = offset + int64(n)
-		err1 := updateBinlogOffset(conn, newOffset)
+		err1 := binlogUpdateOffset(conn, newOffset)
 		if err != nil {
 			errToReturn = err
 			if !errors.Is(err, binlog2.ErrorUnknownMagic) && !errors.Is(err, binlog2.ErrorNotEnoughData) {
@@ -457,7 +458,7 @@ func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error)
 	return e.dbOffset, errToReturn
 }
 
-func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte) {
+func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotOffset int64) {
 	e := impl.e
 	old := e.committedInfo.Load()
 	if old != nil {
@@ -474,7 +475,7 @@ func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte) {
 	case e.commitCh <- struct{}{}:
 	default:
 	}
-	e.notifyWaited(offset)
+	e.binlogNotifyWaited(offset)
 }
 
 func (impl *binlogEngineImpl) Revert(toOffset int64) bool {
@@ -483,7 +484,7 @@ func (impl *binlogEngineImpl) Revert(toOffset int64) bool {
 
 func (impl *binlogEngineImpl) ChangeRole(info binlog2.ChangeRoleInfo) {
 	e := impl.e
-	if info.Ready {
+	if info.IsReady {
 		e.readyNotify.Do(func() {
 			close(e.waitUntilBinlogReady)
 		})
@@ -493,7 +494,7 @@ func (impl *binlogEngineImpl) ChangeRole(info binlog2.ChangeRoleInfo) {
 func (impl *binlogEngineImpl) Skip(skipLen int64) int64 {
 	impl.e.dbOffset += skipLen
 	err := impl.e.do(func(conn Conn) error {
-		return updateBinlogOffset(conn, impl.e.dbOffset)
+		return binlogUpdateOffset(conn, impl.e.dbOffset)
 	})
 	if err != nil {
 		log.Panicf("error in skip handler: %s", err)
@@ -501,7 +502,7 @@ func (impl *binlogEngineImpl) Skip(skipLen int64) int64 {
 	return impl.e.dbOffset
 }
 
-func (e *Engine) waitBinlogDBSync(conn Conn) *committedInfo {
+func (e *Engine) binlogWaitDBSync(conn Conn) *committedInfo {
 	info, _ := e.committedInfo.Load().(*committedInfo)
 	for info.offset < e.dbOffset {
 		<-e.commitCh
@@ -514,12 +515,12 @@ func (e *Engine) txLoopIter(commit, waitBinlogCommit bool) {
 	c := e.start(false)
 	defer c.close()
 	var info *committedInfo
-	if waitBinlogCommit {
-		info = e.waitBinlogDBSync(c)
+	if waitBinlogCommit && e.binlog != nil {
+		info = e.binlogWaitDBSync(c)
 	}
 	if commit {
-		if info != nil && len(info.meta) > 0 {
-			err := e.updateMeta(c, info.meta)
+		if e.binlog != nil && info != nil && len(info.meta) > 0 {
+			err := e.binlogUpdateMeta(c, info.meta)
 			if err != nil {
 				e.err = err
 			}
@@ -554,12 +555,12 @@ func backupToTemp(e *Engine, prefix string) (string, error) {
 func getBackupPath(e *Engine, prefix string) (string, error) {
 	c := e.start(false)
 	defer c.close()
-	offs, _, err := loadBinlogPosition(c)
+	offs, _, err := binlogLoadPosition(c)
 	path := prefix + "." + strconv.FormatInt(offs, 10)
 	return path, err
 }
 
-func (e *Engine) notifyWaited(committedOffset int64) {
+func (e *Engine) binlogNotifyWaited(committedOffset int64) {
 	e.waitQMx.Lock()
 	defer e.waitQMx.Unlock()
 	i := 0
@@ -623,13 +624,12 @@ func (e *Engine) Do(fn func(Conn, []byte) ([]byte, error),
 		return err
 	}
 	shouldWriteBinlog := len(buffer) > 0
-
 	var ch chan struct{}
-	if shouldWriteBinlog {
+	if shouldWriteBinlog && e.binlog != nil {
 		offsetBeforeWrite := e.dbOffset
 		offsetAfterWritePredicted := offsetBeforeWrite + int64(fsbinlog.AddPadding(len(buffer)))
 
-		err = updateBinlogOffset(c, offsetAfterWritePredicted)
+		err = binlogUpdateOffset(c, offsetAfterWritePredicted)
 		if err != nil {
 			e.spOk = false
 			c.close()
@@ -664,13 +664,13 @@ func (e *Engine) Do(fn func(Conn, []byte) ([]byte, error),
 	}
 	e.spOk = true
 	c.close()
-	if waitCommit && shouldWriteBinlog {
+	if waitCommit && shouldWriteBinlog && e.binlog != nil {
 		<-ch
 	}
 	return nil
 }
 
-func updateBinlogOffset(c Conn, offset int64) error {
+func binlogUpdateOffset(c Conn, offset int64) error {
 	_, err := c.Exec("UPDATE __binlog_offset set offset = $offset;", Int64("$offset", offset))
 	return err
 }

@@ -55,7 +55,7 @@ func initD1b(t *testing.T, dir string, dbFile string, createBl bool, options *Op
 	if options == nil {
 		options = defaultOptions()
 	}
-	boptions := fsbinlog.Options{
+	boptions := binlog2.Options{
 		PrefixPath: dir,
 		Magic:      3456,
 	}

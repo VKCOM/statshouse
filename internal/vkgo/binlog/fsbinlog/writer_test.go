@@ -15,6 +15,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 
 const beginSize = 24 + 20 // start lev + tag lev
@@ -22,10 +24,9 @@ const beginSize = 24 + 20 // start lev + tag lev
 func TestSimpleWrite(t *testing.T) {
 	dir := t.TempDir()
 
-	options := Options{
-		PrefixPath:      filepath.Join(dir, "test_log"),
-		WriteCrcEveryKB: 100000,
-		MaxChunkSize:    100000,
+	options := binlog.Options{
+		PrefixPath:   filepath.Join(dir, "test_log"),
+		MaxChunkSize: 100000,
 	}
 	file, err := CreateEmptyFsBinlog(options)
 	require.NoError(t, err)
@@ -43,7 +44,10 @@ func TestSimpleWrite(t *testing.T) {
 	engine := NewTestEngine(int64(len(fileData)))
 	bw, err := newBinlogWriter(&LoggerStdout{}, engine, options, int64(len(fileData)), &fh, buff, &stat{})
 	require.NoError(t, err)
-	go func() { assert.NoError(t, bw.loop()) }()
+	go func() {
+		_, err = bw.loop()
+		assert.NoError(t, err)
+	}()
 
 	buff.mu.Lock()
 	lev1 := []byte("hello123") // remember to add padding by 4 bytes
@@ -74,10 +78,9 @@ func TestSimpleWrite(t *testing.T) {
 func TestRotate(t *testing.T) {
 	dir := t.TempDir()
 
-	options := Options{
-		PrefixPath:      filepath.Join(dir, "test_log"),
-		WriteCrcEveryKB: 100000,
-		MaxChunkSize:    1024,
+	options := binlog.Options{
+		PrefixPath:   filepath.Join(dir, "test_log"),
+		MaxChunkSize: 1024,
 	}
 	file, err := CreateEmptyFsBinlog(options)
 	require.NoError(t, err)
@@ -94,7 +97,10 @@ func TestRotate(t *testing.T) {
 	engine := NewTestEngine(int64(len(fileData)))
 	bw, err := newBinlogWriter(&LoggerStdout{}, engine, options, int64(len(fileData)), &fh, buff, &stat{})
 	require.NoError(t, err)
-	go func() { assert.NoError(t, bw.loop()) }()
+	go func() {
+		_, err = bw.loop()
+		assert.NoError(t, err)
+	}()
 
 	// 0 and 1 should be in first file, 2 in second
 	buff.mu.Lock()

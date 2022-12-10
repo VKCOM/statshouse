@@ -8,6 +8,7 @@
 package constants
 
 const (
-	FsbinlogLevStart     = 0x044c644b // fsbinlog.levStart
-	FsbinlogSnapshotMeta = 0x6b49d850 // fsbinlog.snapshotMeta
+	FsbinlogLevStart        = 0x044c644b // fsbinlog.levStart
+	FsbinlogLevUpgradeToGms = 0xb75009a0 // fsbinlog.levUpgradeToGms
+	FsbinlogSnapshotMeta    = 0x6b49d850 // fsbinlog.snapshotMeta
 )

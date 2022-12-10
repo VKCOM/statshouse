@@ -15,7 +15,7 @@ import (
 
 // ReqResultExtra описывает следующий комбинатор:
 //
-//	rpcReqResultExtra {flags:#} binlog_pos:flags.0?%Long binlog_time:flags.1?%Long engine_pid:flags.2?%net.Pid request_size:flags.3?%Int response_size:flags.3?%Int failed_subqueries:flags.4?%Int compression_version:flags.5?%Int stats:flags.6?%(Dictionary %String) = RpcReqResultExtra flags
+//	rpcReqResultExtra {flags:#} binlog_pos:flags.0?%Long binlog_time:flags.1?%Long engine_pid:flags.2?%net.Pid request_size:flags.3?%Int response_size:flags.3?%Int failed_subqueries:flags.4?%Int compression_version:flags.5?%Int stats:flags.6?%(Dictionary %String) view_number:flags.27?%long = RpcReqResultExtra flags
 type ReqResultExtra struct {
 	flags uint32
 
@@ -27,6 +27,7 @@ type ReqResultExtra struct {
 	FailedSubqueries   int32             // Conditional: {flags}.4
 	CompressionVersion int32             // Conditional: {flags}.5
 	Stats              map[string]string // Conditional: {flags}.6
+	ViewNumber         int64             // Conditional: {flags}.27
 }
 
 func (e *ReqResultExtra) SetBinlogPos(v int64) {
@@ -101,6 +102,15 @@ func (e *ReqResultExtra) IsSetStats() bool {
 	return e.flags&(1<<6) != 0
 }
 
+func (e *ReqResultExtra) SetViewNumber(v int64) {
+	e.ViewNumber = v
+	e.flags |= 1 << 27
+}
+
+func (e *ReqResultExtra) IsSetViewNumber() bool {
+	return e.flags&(1<<27) != 0
+}
+
 func (e *ReqResultExtra) readFromBytesBuffer(r *bytes.Buffer) error {
 	if e.flags&(1<<0) != 0 {
 		if err := tlrw.ReadInt64(r, &e.BinlogPos); err != nil {
@@ -154,6 +164,11 @@ func (e *ReqResultExtra) readFromBytesBuffer(r *bytes.Buffer) error {
 		}
 		e.Stats = _data
 	}
+	if e.flags&(1<<27) != 0 {
+		if err := tlrw.ReadInt64(r, &e.ViewNumber); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -188,6 +203,9 @@ func (e *ReqResultExtra) writeToBytesBuffer(w *bytes.Buffer) error {
 				return err
 			}
 		}
+	}
+	if e.flags&(1<<27) != 0 {
+		tlrw.WriteInt64(w, e.ViewNumber)
 	}
 
 	return nil
@@ -253,6 +271,13 @@ func (e *ReqResultExtra) Read(w []byte) (_ []byte, err error) {
 	} else {
 		vectorDictionaryFieldStringReset(e.Stats)
 	}
+	if e.flags&(1<<27) != 0 {
+		if w, err = basictl.LongRead(w, &e.ViewNumber); err != nil {
+			return w, err
+		}
+	} else {
+		e.ViewNumber = 0
+	}
 	return w, nil
 }
 
@@ -283,6 +308,9 @@ func (e *ReqResultExtra) Write(w []byte) (_ []byte, err error) {
 		if w, err = vectorDictionaryFieldStringWrite(w, e.Stats); err != nil {
 			return w, err
 		}
+	}
+	if e.flags&(1<<27) != 0 {
+		w = basictl.LongWrite(w, e.ViewNumber)
 	}
 	return w, nil
 }
