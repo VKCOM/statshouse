@@ -22,12 +22,6 @@ import { PlotLink } from '../Plot/PlotLink';
 import { parseParamsFromUrl } from '../../common/plotQueryParams';
 import produce from 'immer';
 
-export const StatsHouseIcon = () => (
-  <span className="position-relative">
-    <SVGLightning className={css.icon} />
-  </span>
-);
-
 export type HeaderMenuProps = {
   className?: string;
 };
@@ -71,7 +65,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   return (
     <div className={cn('sticky-top align-self-start', css.navOuter, className)}>
       <ul className={`nav pb-5  d-flex flex-column ${css.nav}`}>
-        <HeaderMenuItem icon={StatsHouseIcon} title="Home" to="/" description="StatsHouse">
+        <HeaderMenuItem icon={SVGLightning} title="Home" to="/" description="StatsHouse">
           <li className={css.splitter}></li>
           <li className="nav-item">
             <NavLink className="nav-link" to="/admin/create" end>
