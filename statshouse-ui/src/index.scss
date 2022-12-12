@@ -140,7 +140,10 @@ html {
   height: 2em;
 }
 
-.plot-view.plot-hover .plot-view-inner {
+.plot-view.plot-dash.plot-hover .plot-view-inner {
+  position: relative;
+  padding-top: 16px;
+  top: -16px;
   background-color: rgb(255, 255, 255);
   box-shadow: 0 0 5px 1px rgba(0, 0, 0, 0.1);
 }
