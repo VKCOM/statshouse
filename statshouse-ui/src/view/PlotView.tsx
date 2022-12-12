@@ -285,16 +285,24 @@ const PlotView = memo(function PlotView_(props: {
   }, []);
 
   const onLegendFocus = useCallback((event: React.MouseEvent) => {
+    if ((uPlotRef.current?.cursor as { _lock: boolean })._lock) {
+      return;
+    }
     const index = parseInt(event.currentTarget.getAttribute('data-index') ?? '') || null;
     const focus = event.type === 'mouseover';
     index && uPlotRef.current?.setSeries(index, { focus }, true);
   }, []);
+
   const onLegendShow = useCallback(
     (event: React.MouseEvent) => {
+      if ((uPlotRef.current?.cursor as { _lock: boolean })._lock) {
+        return;
+      }
       const index = parseInt(event.currentTarget.getAttribute('data-index') ?? '') || null;
       const show = event.currentTarget.className.includes('u-off');
+
       if (index) {
-        setPlotShow(indexPlot, index, show);
+        setPlotShow(indexPlot, index, show, event.ctrlKey || event.metaKey);
       }
     },
     [indexPlot, setPlotShow]

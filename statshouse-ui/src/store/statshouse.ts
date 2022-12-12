@@ -129,7 +129,7 @@ export type Store = {
   plotsData: PlotStore[];
   plotsDataAbortController: AbortController[];
   loadPlot(index: number, force?: boolean): void;
-  setPlotShow(indexPlot: number, idx: number, show?: boolean): void;
+  setPlotShow(indexPlot: number, idx: number, show?: boolean, single?: boolean): void;
   setPlotLastError(index: number, error: string): void;
   uPlotsWidth: number[];
   setUPlotWidth(index: number, weight: number): void;
@@ -688,13 +688,25 @@ export const useStore = create<Store>()(
           });
       }
     },
-    setPlotShow(indexPlot, idx, show) {
+    setPlotShow(indexPlot, idx, show, single) {
       setState((state) => {
-        Object.entries(state.plotsData[indexPlot].groups).forEach(([, group]) => {
-          if (group.idx.includes(idx)) {
-            group.show = show ?? !group.show;
-          }
-        });
+        const gr = Object.values(state.plotsData[indexPlot].groups);
+        if (single) {
+          const otherShow = gr.some((group) => (group.idx.includes(idx) ? false : group.show));
+          gr.forEach((group) => {
+            if (!group.idx.includes(idx)) {
+              group.show = !otherShow;
+            } else {
+              group.show = true;
+            }
+          });
+        } else {
+          gr.forEach((group) => {
+            if (group.idx.includes(idx)) {
+              group.show = show ?? !group.show;
+            }
+          });
+        }
       });
     },
     setPlotLastError(index, error) {
