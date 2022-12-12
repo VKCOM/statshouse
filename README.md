@@ -48,6 +48,12 @@ cases, StatsHouse provides a Grafana data source plugin as well.
 - [Internals](./docs/internals.ru.md) (in Russian)
 - [Protocol and data format](./docs/protocol.md)
 
+## Presentations
+
+- HighLoad++ 2022 (in Russian):
+  [video](https://www.youtube.com/watch?v=oWXaQrCNK-Q&t=365s),
+  [slides](./docs/presentations/highload2022.ru.pdf)
+
 ## Clients
 
 - [Go](https://github.com/VKCOM/statshouse-go)
