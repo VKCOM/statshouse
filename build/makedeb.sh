@@ -16,8 +16,12 @@ UPSTREAM=${UPSTREAM#v} # v1.0.0 -> 1.0.0
 BUILD_TIME="$(date +%FT%T%z)"
 REACT_APP_BUILD_VERSION=$UPSTREAM-$BUILD_TIME
 if [[ -z $BUILD_VERSION ]]; then
-  # epoch:upstream-version-debian.revision
-  BUILD_VERSION="1:$UPSTREAM-$TAG"
+  if [[ -z $BUILD_VERSION_SUFFIX ]]; then
+    # epoch:upstream-version-debian.revision
+    BUILD_VERSION="1:$UPSTREAM-$TAG"
+  else
+    BUILD_VERSION="1:$UPSTREAM-$BUILD_VERSION_SUFFIX-$TAG"
+  fi
 fi
 
 if [[ -z $GID ]]; then
