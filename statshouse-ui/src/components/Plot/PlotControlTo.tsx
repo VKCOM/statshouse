@@ -96,7 +96,7 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({
         checked={!timeRange.absolute}
         onChange={onRelativeToChange}
       />
-      <label className="btn btn-outline-primary" htmlFor="toggle-relative" title="Use relative date/time in URL">
+      <label className="btn btn-outline-primary" htmlFor="toggle-relative" title="Use relative date/time">
         {!timeRange.absolute ? <SVGLockClock /> : <SVGUnlockClock />}
       </label>
     </div>

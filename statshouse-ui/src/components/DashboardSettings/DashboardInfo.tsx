@@ -11,11 +11,14 @@ import {
   selectorRemoveServerParams,
   selectorSaveServerParams,
   selectorSetParams,
+  selectorSetTimeRange,
+  selectorTimeRange,
   useStore,
 } from '../../store';
 import { useStateInput } from '../../hooks';
 import produce from 'immer';
 import { useNavigate } from 'react-router-dom';
+import { PlotControlTo } from '../Plot';
 
 export type DashboardInfoProps = {};
 
@@ -24,6 +27,8 @@ export const DashboardInfo: React.FC<DashboardInfoProps> = () => {
   const setParams = useStore(selectorSetParams);
   const saveServerParams = useStore(selectorSaveServerParams);
   const removeServerParams = useStore(selectorRemoveServerParams);
+  const timeRange = useStore(selectorTimeRange);
+  const setTimeRange = useStore(selectorSetTimeRange);
   const isServer = useStore(selectorIsServer);
   const nameInput = useStateInput(params.dashboard?.name ?? '');
   const descriptionInput = useStateInput(params.dashboard?.description ?? '');
@@ -120,6 +125,18 @@ export const DashboardInfo: React.FC<DashboardInfoProps> = () => {
               />
             </div>
           </div>
+          <div className="mb-2 row">
+            <label className="col-form-label col-sm-2">To</label>
+            <div className="col-sm-10">
+              <PlotControlTo timeRange={timeRange} setTimeRange={setTimeRange} className="" classNameInput="" />
+            </div>
+          </div>
+          {timeRange.absolute && (
+            <div className="mb-2 alert alert-warning" role="alert">
+              You use absolute date/time, if you want the current time to be always on when opening the dashboard,
+              enable relative time
+            </div>
+          )}
           <div className="d-flex flex-row justify-content-end">
             <button type="submit" className="btn btn-outline-primary" disabled={saveSpinner}>
               {saveSpinner && (
