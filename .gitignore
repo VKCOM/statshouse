@@ -5,6 +5,9 @@
 
 /cmd/statshouse-api/build/
 
+/statshouse_api.pid
+/statshouse_api_cache.db
+
 node_modules/
 .DS_Store
 *.tmp
