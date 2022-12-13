@@ -267,6 +267,7 @@ const PlotView = memo(function PlotView_(props: {
       u.over.ondblclick = () => {
         resetZoomRef.current();
       };
+      u.setCursor({ top: -10, left: -10 }, false);
     },
     [indexPlot, setUPlotWeight]
   );
