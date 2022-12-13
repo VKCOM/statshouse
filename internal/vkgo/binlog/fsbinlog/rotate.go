@@ -6,10 +6,6 @@
 
 package fsbinlog
 
-/*
- * https://confluence.mvk.com/pages/viewpage.action?pageId=27592007
- */
-
 import (
 	"crypto/md5"
 	"encoding/binary"
