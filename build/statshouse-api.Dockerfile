@@ -11,7 +11,7 @@ COPY go.mod go.sum Makefile ./
 COPY .git/ ./.git/
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
-COPY --from=build-node /src/statshouse-ui/build /src/cmd/statshouse-api/build/
+COPY --from=build-node /src/statshouse-ui/build /src/statshouse-ui/build/
 RUN go mod download
 RUN make build-sh-api-embed
 RUN mkdir -p /var/lib/statshouse/cache/api
