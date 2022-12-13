@@ -319,7 +319,7 @@ func formatTagValue(s string, c string) string {
 	i, _ := strconv.Atoi(s[1:])
 	switch i {
 	case format.TagValueIDUnspecified:
-		return "⚡ unspecified"
+		return "⚡ empty"
 	case format.TagValueIDMappingFlood:
 		return "⚡ mapping flood"
 	default:

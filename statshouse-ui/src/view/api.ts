@@ -124,7 +124,7 @@ export function formatTagValue(value: string, comment?: string, raw?: boolean, k
   }
   const i = parseInt(value.substring(1));
   if (i === 0 && !raw) {
-    return '⚡ empty or not set';
+    return '⚡ empty';
   }
   if (i === -1 && !raw) {
     return '⚡ mapping flood';
