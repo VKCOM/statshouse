@@ -48,13 +48,13 @@ build-grafana-ui:
 	cd grafana-plugin-ui && npm clean-install && npm run build
 
 build-docker-sh:
-	docker build -t statshouse -f docker/statshouse.Dockerfile .
+	docker build -t statshouse -f build/statshouse.Dockerfile .
 
 build-docker-sh-api:
-	docker build -t statshouse-api -f docker/statshouse-api.Dockerfile .
+	docker build -t statshouse-api -f build/statshouse-api.Dockerfile .
 
 build-docker-sh-metadata:
-	docker build -t statshouse-metadata -f docker/statshouse-metadata.Dockerfile .
+	docker build -t statshouse-metadata -f build/statshouse-metadata.Dockerfile .
 
 build-deb:
 	./build/makedeb.sh
