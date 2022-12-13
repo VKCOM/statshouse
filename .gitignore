@@ -3,6 +3,8 @@
 
 /target/
 
+/cmd/statshouse-api/build/
+
 node_modules/
 .DS_Store
 *.tmp
