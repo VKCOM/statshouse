@@ -41,7 +41,7 @@ import {
   tabPrefix,
   v2Value,
 } from '../view/api';
-import { KeysTo, TIME_RANGE_KEYS_TO } from './TimeRange';
+import { defaultTimeRange, KeysTo } from './TimeRange';
 import { timeRangeToFromParams, timeRangeToToParams } from '../hooks';
 
 export type PlotParams = {
@@ -84,7 +84,7 @@ export type QueryParams = {
 };
 
 export const defaultParams: Readonly<QueryParams> = {
-  timeRange: { to: TIME_RANGE_KEYS_TO.default, from: 0 },
+  timeRange: { ...defaultTimeRange },
   tabNum: 0,
   tagSync: [],
   plots: [
@@ -344,7 +344,16 @@ export function readDashboardID(params: URLSearchParams): number {
   return numberFromParams(params, '', queryDashboardID, 0, false);
 }
 
-export function writeDashboardID(id: number, params: URLSearchParams): URLSearchParams {
-  numberToParams(id, params, '', queryDashboardID, 0);
+export function writeDashboard(
+  value: QueryParams,
+  params: URLSearchParams,
+  defaultParams: Readonly<QueryParams>
+): URLSearchParams {
+  if (value.dashboard?.dashboard_id) {
+    numberToParams(value.dashboard.dashboard_id, params, '', queryDashboardID, 0);
+    numberToParams(value.tabNum, params, '', queryParamTabNum, defaultParams.tabNum);
+    numberToParams(value.timeRange.from, params, '', queryParamFromTime, defaultParams.timeRange.from);
+    timeRangeToToParams(value.timeRange.to, params, '', queryParamToTime, defaultParams.timeRange.to);
+  }
   return params;
 }

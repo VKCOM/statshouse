@@ -14,7 +14,7 @@ import {
   readDashboardID,
   readParams,
   sortEntity,
-  writeDashboardID,
+  writeDashboard,
   writeParams,
 } from '../common/plotQueryParams';
 import uPlot from '../view/lib/uPlot/uPlot.esm';
@@ -26,6 +26,7 @@ import {
   apiGet,
   apiPost,
   apiPut,
+  deepClone,
   defaultBaseRange,
   Error403,
   formatLegendValue,
@@ -102,6 +103,8 @@ type SetSearchParams = (
 ) => void;
 
 export type Store = {
+  defaultParams: QueryParams;
+  setDefaultParams(nextState: React.SetStateAction<QueryParams>): void;
   timeRange: TimeRange;
   params: QueryParams;
   liveMode: boolean;
@@ -169,6 +172,8 @@ export type Store = {
   loadServerParams(id: number): Promise<QueryParams>;
   saveServerParams(): Promise<QueryParams>;
   removeServerParams(): Promise<QueryParams>;
+  saveDashboardParams?: QueryParams;
+  setSaveDashboardParams(nextState: React.SetStateAction<QueryParams | undefined>): void;
   listServerDashboard: dashboardShortInfo[];
   listServerDashboardAbortController?: AbortController;
   loadListServerDashboard(): void;
@@ -196,6 +201,13 @@ export function getNextState<T>(prevState: T, nextState: React.SetStateAction<T>
 
 export const useStore = create<Store>()(
   immer((setState, getState) => ({
+    defaultParams: { ...defaultParams },
+    setDefaultParams(nextState) {
+      const nextDefaultParams = getNextState(getState().defaultParams, nextState);
+      setState((state) => {
+        state.defaultParams = nextDefaultParams;
+      });
+    },
     timeRange: new TimeRange({ to: TIME_RANGE_KEYS_TO.default, from: 0 }),
     params: {
       timeRange: { to: TIME_RANGE_KEYS_TO.default, from: 0 },
@@ -204,7 +216,7 @@ export const useStore = create<Store>()(
       tabNum: 0,
     },
     setTimeRange(value, force?) {
-      const tr = new TimeRange(getState().timeRange.getRangeUrl());
+      const tr = new TimeRange(getState().params.timeRange);
       tr.setRange(value);
       const nextTimeRange = tr.getRangeUrl();
       if (
@@ -219,32 +231,56 @@ export const useStore = create<Store>()(
           false,
           force
         );
-        setState((state) => {
-          state.timeRange = tr;
-        });
       }
     },
     async updateParamsByUrl() {
       const id = readDashboardID(new URLSearchParams(document.location.search));
-
-      const params = id
-        ? await getState().loadServerParams(id)
-        : readParams(getState().params, new URLSearchParams(document.location.search), defaultParams);
+      const saveParams = id ? await getState().loadServerParams(id) : undefined;
+      getState().setDefaultParams({
+        ...defaultParams,
+        tabNum: saveParams ? -1 : defaultParams.tabNum,
+        timeRange: {
+          to:
+            saveParams && !(typeof saveParams?.timeRange.to === 'number' && saveParams.timeRange.to > 0)
+              ? saveParams.timeRange.to
+              : defaultParams.timeRange.to,
+          from: saveParams?.timeRange.from ?? defaultParams.timeRange.from,
+        },
+      });
+      const urlParams = readParams(
+        getState().params,
+        new URLSearchParams(document.location.search),
+        getState().defaultParams
+      );
+      const params = saveParams ?? urlParams;
       if (!params) {
         return;
       }
       let reset = false;
       const nowTime = now();
-
-      if (params.timeRange.from === defaultTimeRange.from || params.timeRange.to === defaultTimeRange.to) {
+      if (saveParams) {
+        params.tabNum = urlParams.tabNum ?? params.tabNum;
+        params.timeRange.to =
+          (typeof params.timeRange.to === 'number' && params.timeRange.to > 0) ||
+          urlParams.timeRange.to !== getState().defaultParams.timeRange.to
+            ? urlParams.timeRange.to
+            : params.timeRange.to;
+        params.timeRange.from =
+          urlParams.timeRange.from !== getState().defaultParams.timeRange.from
+            ? urlParams.timeRange.from
+            : params.timeRange.from;
+      }
+      if (params.timeRange.from === defaultTimeRange.from && params.timeRange.to === defaultTimeRange.to) {
         params.timeRange = timeRangeAbbrevExpand(defaultBaseRange, nowTime);
+        reset = true;
+      } else if (params.timeRange.to === defaultTimeRange.to) {
+        params.timeRange.to = nowTime;
         reset = true;
       } else if (params.timeRange.from > nowTime) {
         params.timeRange = {
           to: nowTime,
           from: new TimeRange(params.timeRange).relativeFrom,
         };
-
         reset = true;
       }
 
@@ -271,10 +307,6 @@ export const useStore = create<Store>()(
       if (globalSettings.disabled_v1) {
         params.plots = params.plots.map((item) => (item.useV2 ? item : { ...item, useV2: true }));
         reset = true;
-      }
-
-      if (id && params.dashboard?.dashboard_id === getState().params.dashboard?.dashboard_id) {
-        params.tabNum = getState().params.tabNum;
       }
 
       const resetPlot = params.dashboard?.dashboard_id !== getState().params.dashboard?.dashboard_id;
@@ -378,19 +410,19 @@ export const useStore = create<Store>()(
     },
     updateUrl(replace?: boolean) {
       const prevState = getState();
-      if (prevState.params.dashboard?.dashboard_id) {
-        prevState.setSearchParams?.(writeDashboardID(prevState.params.dashboard.dashboard_id, new URLSearchParams()), {
-          replace: replace,
-        });
-        return;
-      }
-      const p = writeParams(prevState.params, new URLSearchParams(document.location.search), defaultParams);
-
       const autoReplace =
         prevState.params.timeRange.from === defaultTimeRange.from ||
         prevState.params.timeRange.to === defaultTimeRange.to ||
         prevState.liveMode ||
         prevState.timeRange.from > now();
+
+      if (prevState.params.dashboard?.dashboard_id) {
+        prevState.setSearchParams?.(writeDashboard(prevState.params, new URLSearchParams(), prevState.defaultParams), {
+          replace: replace || autoReplace,
+        });
+        return;
+      }
+      const p = writeParams(prevState.params, new URLSearchParams(document.location.search), prevState.defaultParams);
       prevState.setSearchParams?.(p, { replace: replace || autoReplace });
     },
     setSearchParams: undefined,
@@ -1036,6 +1068,12 @@ export const useStore = create<Store>()(
           resolve(paramsLD);
           return;
         }
+        const cache = getState().saveDashboardParams;
+        if (cache?.dashboard?.dashboard_id === id) {
+          resolve(deepClone(cache));
+          return;
+        }
+        getState().setSaveDashboardParams(undefined);
         const url = dashboardURL(id);
         getState().serverParamsAbortController?.abort();
         const controller = new AbortController();
@@ -1046,7 +1084,9 @@ export const useStore = create<Store>()(
         apiGet<DashboardInfo>(url, controller.signal, true)
           .then((data) => {
             if (data) {
-              resolve(normalizeDashboard(data));
+              const p = normalizeDashboard(data);
+              getState().setSaveDashboardParams(p);
+              resolve(deepClone(p));
             }
           })
           .catch((error) => {
@@ -1084,6 +1124,7 @@ export const useStore = create<Store>()(
         };
         const controller = new AbortController();
         const url = dashboardURL();
+        getState().setSaveDashboardParams(undefined);
         getState().setGlobalNumQueriesPlot((s) => s + 1);
         (params.dashboard.dashboard_id !== undefined
           ? apiPost<DashboardInfo>(url, params, controller.signal, true)
@@ -1092,8 +1133,9 @@ export const useStore = create<Store>()(
           .then((data) => {
             if (data) {
               const nextParams = normalizeDashboard(data);
-              getState().setParams(nextParams);
-              resolve(nextParams);
+              getState().setSaveDashboardParams(nextParams);
+              getState().setParams(deepClone(nextParams));
+              resolve(deepClone(nextParams));
             }
           })
           .catch((error) => {
@@ -1162,6 +1204,12 @@ export const useStore = create<Store>()(
           });
       });
     },
+    saveDashboardParams: undefined,
+    setSaveDashboardParams(nextState) {
+      setState((state) => {
+        state.saveDashboardParams = getNextState(state.saveDashboardParams, nextState);
+      });
+    },
     listServerDashboard: [],
     listServerDashboardAbortController: undefined,
     loadListServerDashboard() {
@@ -1169,7 +1217,6 @@ export const useStore = create<Store>()(
       const url = dashboardListURL();
       getState().setGlobalNumQueriesPlot((s) => s + 1);
       apiGet<GetDashboardListResp>(url, controller.signal, true)
-        // apiGetMockLocalStorageLoadListServerDashboard<DashboardParams[]>(url, controller.signal, true)
         .then((data) => {
           setState((state) => {
             state.listServerDashboard = [...(data?.dashboards ?? [])];
