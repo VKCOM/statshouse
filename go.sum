@@ -481,6 +481,8 @@ github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o
 github.com/tinylib/msgp v1.1.6 h1:i+SbKraHhnrf9M5MYmvQhFnbLhAXSDWF8WWsuyRdocw=
 github.com/tinylib/msgp v1.1.6/go.mod h1:75BAfg2hauQhs3qedfdDZmWAPcFMAvJE5b9rGOMufyw=
 github.com/valyala/fastrand v1.1.0 h1:f+5HkLW4rsgzdNoleUOB69hyT9IlD2ZQh9GyDMfb5G8=
+github.com/vkcom/statshouse-go v0.0.0-20221129160158-005f723138d1 h1:IpgdS8q+AXsY07Ie8CPaT+z4ywhw8qPt3c6xmf0GhP0=
+github.com/vkcom/statshouse-go v0.0.0-20221129160158-005f723138d1/go.mod h1:lFONjxTctTxIj9NNcbA7sKH1zbYOqWuGtBjbzLnvNb0=
 github.com/vultr/govultr/v2 v2.17.0 h1:BHa6MQvQn4YNOw+ecfrbISOf4+3cvgofEQHKBSXt6t0=
 github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8 h1:nIPpBwaJSVYIxUFsDv3M8ofmx9yWTog9BfvIu0q41lo=
 github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8/go.mod h1:HUYIGzjTL3rfEspMxjDjgmT5uz5wzYJKVo23qUhYTos=

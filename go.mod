@@ -96,6 +96,7 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
+	github.com/vkcom/statshouse-go v0.0.0-20221129160158-005f723138d1 // indirect
 	go.opentelemetry.io/otel v1.11.1 // indirect
 	go.opentelemetry.io/otel/trace v1.11.1 // indirect
 	go.uber.org/goleak v1.1.12 // indirect
