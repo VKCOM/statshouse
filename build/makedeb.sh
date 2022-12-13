@@ -20,7 +20,7 @@ if [[ -z $BUILD_VERSION ]]; then
     # epoch:upstream-version-debian.revision
     BUILD_VERSION="1:$UPSTREAM-$TAG"
   else
-    BUILD_VERSION="1:$UPSTREAM-$BUILD_VERSION_SUFFIX-$TAG"
+    BUILD_VERSION="1:$UPSTREAM-$BUILD_VERSION_SUFFIX"
   fi
 fi
 
@@ -29,12 +29,8 @@ if [[ -z $GID ]]; then
 fi
 
 # build StatsHouse
-GOLANG_IMAGE="golang:1.19-$TAG" # e.g. golang:1.19-bullseye
-if [[ $CUSTOM_BUILD_IMAGE ]]; then
-  GOLANG_IMAGE="statshouse-build-$CUSTOM_BUILD_IMAGE:$TAG"
-  docker build -t "$GOLANG_IMAGE" --build-arg PARENT="$CUSTOM_BUILD_IMAGE:$TAG" \
-    --build-arg GOLANG_URL="$GOLANG_URL" --build-arg GOLANG_SHA256="$GOLANG_SHA256" \
-    - < build/golang.Dockerfile
+if [[ -z $GOLANG_IMAGE ]]; then
+  GOLANG_IMAGE="golang:1.19-$TAG" # e.g. golang:1.19-bullseye
 fi
 GOCACHE=build/go-cache
 mkdir -p "$PWD/$GOCACHE"
@@ -43,8 +39,11 @@ docker run --rm -u "$UID:$GID" -v "$PWD:/src" -w /src \
   -e BUILD_COMMIT="$(git log --format="%H" -n 1)" -e BUILD_COMMIT_TS="$(git log --format="%ct" -n 1)" \
   -e GOCACHE="/src/$GOCACHE" -e BUILD_TRUSTED_SUBNET_GROUPS \
   "$GOLANG_IMAGE" make build-sh build-sh-metadata build-sh-api build-sh-grafana
+if [[ -z $NODE_IMAGE ]]; then
+  NODE_IMAGE="node:18-bullseye"
+fi
 docker run --rm -u "$UID:$GID" -v "$PWD:/src" -w /src -e REACT_APP_BUILD_VERSION="$REACT_APP_BUILD_VERSION" \
-  node:18-bullseye make build-sh-ui build-grafana-ui
+  "$NODE_IMAGE" make build-sh-ui build-grafana-ui
 
 # build debian package
 (cd build
