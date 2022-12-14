@@ -9,10 +9,12 @@ import { immer } from 'zustand/middleware/immer';
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
 import {
   defaultParams,
+  getLiveParams,
   PlotParams,
   QueryParams,
   readDashboardID,
   readParams,
+  setLiveParams,
   sortEntity,
   writeDashboard,
   writeParams,
@@ -336,6 +338,9 @@ export const useStore = create<Store>()(
       if (reset) {
         getState().updateUrl(true);
       }
+      if (getLiveParams(new URLSearchParams(document.location.search))) {
+        getState().setLiveMode(true);
+      }
     },
     setParams(nextState, replace?, force?) {
       const prevParams = getState().params;
@@ -417,9 +422,13 @@ export const useStore = create<Store>()(
         prevState.timeRange.from > now();
 
       if (prevState.params.dashboard?.dashboard_id) {
-        prevState.setSearchParams?.(writeDashboard(prevState.params, new URLSearchParams(), prevState.defaultParams), {
-          replace: replace || autoReplace,
-        });
+        const live = getLiveParams(new URLSearchParams(document.location.search)); // save live param in url
+        prevState.setSearchParams?.(
+          writeDashboard(prevState.params, setLiveParams(live, new URLSearchParams()), prevState.defaultParams),
+          {
+            replace: replace || autoReplace,
+          }
+        );
         return;
       }
       const p = writeParams(prevState.params, new URLSearchParams(document.location.search), prevState.defaultParams);
@@ -442,6 +451,9 @@ export const useStore = create<Store>()(
     setLiveMode(nextStatus) {
       setState((state) => {
         state.liveMode = getNextState(state.liveMode, nextStatus);
+        if (!state.liveMode) {
+          getState().setSearchParams?.(setLiveParams(state.liveMode, new URLSearchParams(document.location.search)));
+        }
       });
     },
     previews: [],
