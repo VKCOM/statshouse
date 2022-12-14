@@ -20,6 +20,7 @@ import {
   selectorTimeRange,
   useStore,
 } from '../../store';
+import { ReactComponent as SVGColumnsGap } from 'bootstrap-icons/icons/columns-gap.svg';
 
 export type DashboardHeaderProps = {};
 export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
@@ -86,15 +87,17 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
           />
         </div>
         <div className="ms-4 mb-2">
-          <div className="form-check form-switch" title="Edit dashboard layout">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              role="switch"
-              checked={dashboardLayoutEdit}
-              onChange={onDashboardLayoutEdit}
-            />
-          </div>
+          <input
+            type="checkbox"
+            className="btn-check"
+            id="dashboard-layout"
+            autoComplete="off"
+            checked={dashboardLayoutEdit}
+            onChange={onDashboardLayoutEdit}
+          />
+          <label className="btn btn-outline-primary btn-sm" htmlFor="dashboard-layout" title="Edit dashboard layout">
+            <SVGColumnsGap />
+          </label>
         </div>
       </div>
     </div>
