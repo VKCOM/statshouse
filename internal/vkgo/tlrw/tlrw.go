@@ -20,10 +20,6 @@ const (
 	maxStringLen    = 1 << 24
 )
 
-func PutUint32(b []byte, v uint32) {
-	binary.LittleEndian.PutUint32(b, v)
-}
-
 func WriteUint32(w *bytes.Buffer, v uint32) {
 	var tmp [4]byte
 	binary.LittleEndian.PutUint32(tmp[:], v)
