@@ -17,9 +17,11 @@ import (
 )
 
 const (
-	tinyStringLen   = 253
-	bigStringMarker = 0xfe
-	maxStringLen    = 1 << 24
+	tinyStringLen    = 253
+	bigStringMarker  = 0xfe
+	hugeStringMarker = 0xff
+	bigStringLen     = (1 << 24) - 1
+	hugeStringLen    = (1 << 56) - 1
 )
 
 func CheckLengthSanity(r []byte, natParam uint32, minObjectSize uint32) error {
@@ -120,12 +122,11 @@ func StringRead(r []byte, dst *string) ([]byte, error) {
 }
 
 func StringWrite(w []byte, v string) ([]byte, error) {
-	return writeString(w, v, false)
+	return writeString(w, v), nil
 }
 
 func StringWriteTruncated(w []byte, v string) []byte {
-	w, _ = writeString(w, v, true)
-	return w
+	return writeString(w, v)
 }
 
 func StringReadBytes(r []byte, dst *[]byte) ([]byte, error) {
@@ -135,18 +136,36 @@ func StringReadBytes(r []byte, dst *[]byte) ([]byte, error) {
 	b0 := r[0]
 
 	var l int
+	var p int
 	switch {
 	case b0 <= tinyStringLen:
 		l = int(b0)
 		r = r[1:]
+		p = l + 1
 	case b0 == bigStringMarker:
 		if len(r) < 4 {
 			return r, io.ErrUnexpectedEOF
 		}
 		l = (int(r[3]) << 16) + (int(r[2]) << 8) + (int(r[1]) << 0)
 		r = r[4:]
-	default:
-		return r, fmt.Errorf("invalid first string length byte: 0x%x", b0)
+		p = l // +4
+		if l <= tinyStringLen {
+			return r, fmt.Errorf("non-canonical (big) string format for length: %d", l)
+		}
+	default: // hugeStringMarker
+		if len(r) < 8 {
+			return r, io.ErrUnexpectedEOF
+		}
+		l64 := (int64(r[7]) << 48) + (int64(r[6]) << 40) + (int64(r[5]) << 32) + (int64(r[4]) << 24) + (int64(r[3]) << 16) + (int64(r[2]) << 8) + (int64(r[1]) << 0)
+		if l64 > math.MaxInt {
+			return r, fmt.Errorf("string length cannot be represented on 32-bit platform: %d", l64)
+		}
+		l = int(l64)
+		r = r[8:]
+		p = l // +8
+		if l <= bigStringLen {
+			return r, fmt.Errorf("non-canonical (huge) string format for length: %d", l)
+		}
 	}
 
 	if l > 0 {
@@ -163,7 +182,7 @@ func StringReadBytes(r []byte, dst *[]byte) ([]byte, error) {
 	} else {
 		*dst = (*dst)[:0]
 	}
-	padding := paddingLen(l)
+	padding := paddingLen(p)
 	if len(r) < l+padding {
 		return r, io.ErrUnexpectedEOF
 	}
@@ -171,12 +190,11 @@ func StringReadBytes(r []byte, dst *[]byte) ([]byte, error) {
 }
 
 func StringWriteBytes(w []byte, v []byte) ([]byte, error) {
-	return writeStringBytes(w, v, false)
+	return writeStringBytes(w, v), nil
 }
 
 func StringWriteBytesTruncated(w []byte, v []byte) []byte {
-	w, _ = writeStringBytes(w, v, true)
-	return w
+	return writeStringBytes(w, v)
 }
 
 func NatPeekTag(r []byte) (uint32, error) {
@@ -204,55 +222,69 @@ func NatReadExactTag(r []byte, tag uint32) ([]byte, error) {
 }
 
 func paddingLen(l int) int {
-	if l <= tinyStringLen {
-		l++
-	}
 	return int(-uint(l) % 4)
 }
 
-func writeString(w []byte, v string, truncate bool) ([]byte, error) {
+func writeString(w []byte, v string) []byte {
 	l := len(v)
-	if truncate && l >= maxStringLen {
-		l = maxStringLen - 1
-		v = v[:l]
-	}
+	var p int
 	switch {
 	case l <= tinyStringLen:
 		w = append(w, byte(l))
-	case l < maxStringLen:
+		p = l + 1
+	case l <= bigStringLen:
 		w = append(w, bigStringMarker, byte(l), byte(l>>8), byte(l>>16))
+		p = l // +4
 	default:
-		return w, fmt.Errorf("string(%v) exceeds maximum length %v", l, maxStringLen)
+		if l > hugeStringLen { // for correctness only, we do not expect strings so huge
+			l = hugeStringLen
+			v = v[:l]
+		}
+		w = append(w, hugeStringMarker, byte(l), byte(l>>8), byte(l>>16), byte(l>>24), byte(l>>32), byte(l>>40), byte(l>>48))
+		p = l // +8
 	}
 	w = append(w, v...)
 
-	padding := paddingLen(l)
-	var zeroes [4]byte
-	w = append(w, zeroes[:padding]...)
-	return w, nil
+	switch uint(p) % 4 {
+	case 1:
+		w = append(w, 0, 0, 0)
+	case 2:
+		w = append(w, 0, 0)
+	case 3:
+		w = append(w, 0)
+	}
+	return w
 }
 
-func writeStringBytes(w []byte, v []byte, truncate bool) ([]byte, error) {
+func writeStringBytes(w []byte, v []byte) []byte {
 	l := len(v)
-	if truncate && l >= maxStringLen {
-		l = maxStringLen - 1
-		v = v[:l]
-	}
+	var p int
 	switch {
 	case l <= tinyStringLen:
 		w = append(w, byte(l))
-	case l < maxStringLen:
+		p = l + 1
+	case l <= bigStringLen:
 		w = append(w, bigStringMarker, byte(l), byte(l>>8), byte(l>>16))
+		p = l // +4
 	default:
-		return w, fmt.Errorf("string(%v) exceeds maximum length %v", l, maxStringLen)
+		if l > hugeStringLen { // for correctness only, we do not expect strings so huge
+			l = hugeStringLen
+			v = v[:l]
+		}
+		w = append(w, hugeStringMarker, byte(l), byte(l>>8), byte(l>>16), byte(l>>24), byte(l>>32), byte(l>>40), byte(l>>48))
+		p = l // +8
 	}
 	w = append(w, v...)
 
-	if padding := paddingLen(l); padding > 0 {
-		var zeroes [4]byte
-		w = append(w, zeroes[:padding]...)
+	switch uint(p) % 4 {
+	case 1:
+		w = append(w, 0, 0, 0)
+	case 2:
+		w = append(w, 0, 0)
+	case 3:
+		w = append(w, 0)
 	}
-	return w, nil
+	return w
 }
 
 func JSONWriteBool(w []byte, v bool) []byte {

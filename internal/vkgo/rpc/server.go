@@ -693,7 +693,7 @@ func (s *Server) Serve(ln net.Listener) error {
 }
 
 func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *sync.WaitGroup) {
-	magicHead, flags, err := conn.HandshakeServer(s.CryptoKeys, s.trustedSubnetGroups, s.ForceEncryption, s.startTime)
+	magicHead, flags, err := conn.HandshakeServer(s.CryptoKeys, s.trustedSubnetGroups, s.ForceEncryption, s.startTime, DefaultHandshakeStepTimeout)
 	if err != nil {
 		switch string(magicHead) {
 		case memcachedStatsReqRN, memcachedStatsReqN, memcachedGetStatsReq:

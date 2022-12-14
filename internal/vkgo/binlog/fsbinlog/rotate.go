@@ -6,6 +6,10 @@
 
 package fsbinlog
 
+/*
+ *
+ */
+
 import (
 	"crypto/md5"
 	"encoding/binary"
