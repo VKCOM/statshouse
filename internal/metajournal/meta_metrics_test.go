@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -24,9 +24,9 @@ func newMetricStorage(loader MetricsStorageLoader) *MetricsStorage {
 }
 
 func TestMetricsStorage(t *testing.T) {
-	events := []tlmetadata.Event{}
-	m := newMetricStorage(func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
-		var result []tlmetadata.Event
+	events := []tlstatshouse_metadata.Event{}
+	m := newMetricStorage(func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlstatshouse_metadata.Event, int64, error) {
+		var result []tlstatshouse_metadata.Event
 		for _, e := range events {
 			if e.Version > lastVersion {
 				result = append(result, e)
@@ -62,7 +62,7 @@ func TestMetricsStorage(t *testing.T) {
 
 		t.Run("create metric", func(t *testing.T) {
 			value.Version = 1
-			events = []tlmetadata.Event{
+			events = []tlstatshouse_metadata.Event{
 				{
 					Id:        int64(value.MetricID),
 					Name:      value.Name,
@@ -91,7 +91,7 @@ func TestMetricsStorage(t *testing.T) {
 			value.Description = descr
 			bytes, err := value.MarshalBinary()
 			require.NoError(t, err)
-			events = []tlmetadata.Event{
+			events = []tlstatshouse_metadata.Event{
 				{
 					Id:        int64(value.MetricID),
 					Name:      value.Name,
@@ -121,7 +121,7 @@ func TestMetricsStorage(t *testing.T) {
 			value.Description = descr
 			bytes, err := value.MarshalBinary()
 			require.NoError(t, err)
-			events = []tlmetadata.Event{
+			events = []tlstatshouse_metadata.Event{
 				{
 					Id:        int64(value.MetricID),
 					Name:      value.Name,
@@ -146,7 +146,7 @@ func TestMetricsStorage(t *testing.T) {
 
 		t.Run("create dashboard", func(t *testing.T) {
 			dashboard.Version = 4
-			events = []tlmetadata.Event{
+			events = []tlstatshouse_metadata.Event{
 				{
 					Id:        int64(dashboard.DashboardID),
 					Name:      dashboard.Name,
@@ -176,7 +176,7 @@ func TestMetricsStorage(t *testing.T) {
 			}
 			bytes, err := json.Marshal(dashboard.JSONData)
 			require.NoError(t, err)
-			events = []tlmetadata.Event{
+			events = []tlstatshouse_metadata.Event{
 				{
 					Id:        int64(dashboard.DashboardID),
 					Name:      dashboard.Name,
@@ -201,7 +201,7 @@ func TestMetricsStorage(t *testing.T) {
 			value.Version = 6
 			value.MetricID = 1235
 			value.Name = "testmetric3"
-			events = []tlmetadata.Event{
+			events = []tlstatshouse_metadata.Event{
 				{
 					Id:        int64(value.MetricID),
 					Name:      value.Name,
@@ -234,7 +234,7 @@ func TestMetricsStorage(t *testing.T) {
 			dashboard.JSONData = map[string]interface{}{}
 			bytes, err := json.Marshal(dashboard.JSONData)
 			require.NoError(t, err)
-			events = []tlmetadata.Event{
+			events = []tlstatshouse_metadata.Event{
 				{
 					Id:        int64(dashboard.DashboardID),
 					Name:      dashboard.Name,
@@ -258,7 +258,7 @@ func TestMetricsStorage(t *testing.T) {
 		})
 
 		t.Run("empty journal", func(t *testing.T) {
-			events = []tlmetadata.Event{}
+			events = []tlstatshouse_metadata.Event{}
 			err = m.journal.updateJournal(nil)
 			require.NoError(t, err)
 
@@ -277,7 +277,7 @@ func TestMetricsStorage(t *testing.T) {
 			group.Version = 8
 			bytes, err := json.Marshal(group)
 			require.NoError(t, err)
-			events = []tlmetadata.Event{
+			events = []tlstatshouse_metadata.Event{
 				{
 					Id:        int64(group.ID),
 					Name:      group.Name,
@@ -313,7 +313,7 @@ func TestMetricsStorage(t *testing.T) {
 			value.GroupID = group.ID
 			bytes, err := json.Marshal(value)
 			require.NoError(t, err)
-			events = []tlmetadata.Event{
+			events = []tlstatshouse_metadata.Event{
 				{
 					Id:        int64(value.MetricID),
 					Name:      value.Name,
@@ -344,7 +344,7 @@ func TestMetricsStorage(t *testing.T) {
 			value.GroupID = group.ID + 1
 			bytes, err := json.Marshal(value)
 			require.NoError(t, err)
-			events = []tlmetadata.Event{
+			events = []tlstatshouse_metadata.Event{
 				{
 					Id:        int64(value.MetricID),
 					Name:      value.Name,
@@ -372,7 +372,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Contains(t, m.metricsByGroup[group.ID+1], value.MetricID)
 		})
 		t.Run("broadcast prom clients", func(t *testing.T) {
-			events = []tlmetadata.Event{
+			events = []tlstatshouse_metadata.Event{
 				{
 					Id:        351525,
 					Name:      "-",
@@ -401,19 +401,19 @@ func TestMetricsStorage(t *testing.T) {
 		})
 	})
 	t.Run("test getJournalDiffLocked3", func(t *testing.T) {
-		a := tlmetadata.Event{
+		a := tlstatshouse_metadata.Event{
 			Id:      1,
 			Version: 1,
 		}
-		b := tlmetadata.Event{
+		b := tlstatshouse_metadata.Event{
 			Id:      2,
 			Version: 2,
 		}
-		c := tlmetadata.Event{
+		c := tlstatshouse_metadata.Event{
 			Id:      3,
 			Version: 3,
 		}
-		test := func(clientVersion int64, journal, expected []tlmetadata.Event) func(t *testing.T) {
+		test := func(clientVersion int64, journal, expected []tlstatshouse_metadata.Event) func(t *testing.T) {
 			return func(t *testing.T) {
 				m.journal.journal = journal
 				res := m.journal.getJournalDiffLocked3(clientVersion)
@@ -426,10 +426,10 @@ func TestMetricsStorage(t *testing.T) {
 			}
 		}
 		t.Run("empty journal", test(0, nil, nil))
-		t.Run("full journal", test(0, []tlmetadata.Event{a, b, c}, []tlmetadata.Event{a, b, c}))
-		t.Run("part of journal1", test(1, []tlmetadata.Event{a, b, c}, []tlmetadata.Event{b, c}))
-		t.Run("part of journal2", test(2, []tlmetadata.Event{a, b, c}, []tlmetadata.Event{c}))
-		t.Run("part of journal3", test(3, []tlmetadata.Event{a, b, c}, nil))
-		t.Run("part of journal4", test(999, []tlmetadata.Event{a, b, c}, nil))
+		t.Run("full journal", test(0, []tlstatshouse_metadata.Event{a, b, c}, []tlstatshouse_metadata.Event{a, b, c}))
+		t.Run("part of journal1", test(1, []tlstatshouse_metadata.Event{a, b, c}, []tlstatshouse_metadata.Event{b, c}))
+		t.Run("part of journal2", test(2, []tlstatshouse_metadata.Event{a, b, c}, []tlstatshouse_metadata.Event{c}))
+		t.Run("part of journal3", test(3, []tlstatshouse_metadata.Event{a, b, c}, nil))
+		t.Run("part of journal4", test(999, []tlstatshouse_metadata.Event{a, b, c}, nil))
 	})
 }

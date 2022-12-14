@@ -20,19 +20,19 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
-func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, *tlmetadata.Client, *Handler) {
+func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, *tlstatshouse_metadata.Client, *Handler) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
 	db.now = now
 	handler := NewHandler(db, "abc", log.Printf)
 	proxy := ProxyHandler{}
-	h := tlmetadata.Handler{
+	h := tlstatshouse_metadata.Handler{
 		RawGetMapping:          proxy.HandleProxy("", handler.RawGetMappingByValue),
 		RawGetInvertMapping:    proxy.HandleProxy("", handler.RawGetMappingByID),
 		RawEditEntitynew:       proxy.HandleProxy("", handler.RawEditEntity),
@@ -67,7 +67,7 @@ func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, 
 		ConnWriteBufSize:    0,
 		PongTimeout:         0,
 	}
-	cl := &tlmetadata.Client{
+	cl := &tlstatshouse_metadata.Client{
 		Client:  rpcClient,
 		Network: "tcp4",
 		Address: ln.Addr().String(),
@@ -85,12 +85,12 @@ func statJson(name string, id int64, any string) (string, map[string]interface{}
 	return jsonResp, m
 }
 
-func getMetricsAsync(t *testing.T, rpcClient *tlmetadata.Client, from int64) (chan tlmetadata.GetJournalResponsenew, chan error) {
+func getMetricsAsync(t *testing.T, rpcClient *tlstatshouse_metadata.Client, from int64) (chan tlstatshouse_metadata.GetJournalResponsenew, chan error) {
 	cErr := make(chan error)
-	cResp := make(chan tlmetadata.GetJournalResponsenew)
+	cResp := make(chan tlstatshouse_metadata.GetJournalResponsenew)
 	go func() {
-		r := tlmetadata.GetJournalResponsenew{}
-		err := rpcClient.GetJournalnew(context.Background(), tlmetadata.GetJournalnew{
+		r := tlstatshouse_metadata.GetJournalResponsenew{}
+		err := rpcClient.GetJournalnew(context.Background(), tlstatshouse_metadata.GetJournalnew{
 			From:  from,
 			Limit: 1000,
 		}, nil, &r)
@@ -103,12 +103,12 @@ func getMetricsAsync(t *testing.T, rpcClient *tlmetadata.Client, from int64) (ch
 	return cResp, cErr
 }
 
-func getJournalAsync(t *testing.T, rpcClient *tlmetadata.Client, from int64) (chan tlmetadata.GetJournalResponsenew, chan error) {
+func getJournalAsync(t *testing.T, rpcClient *tlstatshouse_metadata.Client, from int64) (chan tlstatshouse_metadata.GetJournalResponsenew, chan error) {
 	cErr := make(chan error)
-	cResp := make(chan tlmetadata.GetJournalResponsenew)
+	cResp := make(chan tlstatshouse_metadata.GetJournalResponsenew)
 	go func() {
-		r := tlmetadata.GetJournalResponsenew{}
-		err := rpcClient.GetJournalnew(context.Background(), tlmetadata.GetJournalnew{
+		r := tlstatshouse_metadata.GetJournalResponsenew{}
+		err := rpcClient.GetJournalnew(context.Background(), tlstatshouse_metadata.GetJournalnew{
 			From:  from,
 			Limit: 1000,
 		}, nil, &r)
@@ -121,12 +121,12 @@ func getJournalAsync(t *testing.T, rpcClient *tlmetadata.Client, from int64) (ch
 	return cResp, cErr
 }
 
-func getMetrics(t *testing.T, rpcClient *tlmetadata.Client, from int64) (tlmetadata.GetJournalResponsenew, error, bool) {
+func getMetrics(t *testing.T, rpcClient *tlstatshouse_metadata.Client, from int64) (tlstatshouse_metadata.GetJournalResponsenew, error, bool) {
 	cErr := make(chan error, 1)
-	cResp := make(chan tlmetadata.GetJournalResponsenew, 1)
+	cResp := make(chan tlstatshouse_metadata.GetJournalResponsenew, 1)
 	go func() {
-		r := tlmetadata.GetJournalResponsenew{}
-		err := rpcClient.GetJournalnew(context.Background(), tlmetadata.GetJournalnew{
+		r := tlstatshouse_metadata.GetJournalResponsenew{}
+		err := rpcClient.GetJournalnew(context.Background(), tlstatshouse_metadata.GetJournalnew{
 			From:  from,
 			Limit: 1000,
 		}, nil, &r)
@@ -138,20 +138,20 @@ func getMetrics(t *testing.T, rpcClient *tlmetadata.Client, from int64) (tlmetad
 	}()
 	select {
 	case err := <-cErr:
-		return tlmetadata.GetJournalResponsenew{}, err, false
+		return tlstatshouse_metadata.GetJournalResponsenew{}, err, false
 	case resp := <-cResp:
 		return resp, nil, false
 	case <-time.After(3 * time.Second):
-		return tlmetadata.GetJournalResponsenew{}, nil, true
+		return tlstatshouse_metadata.GetJournalResponsenew{}, nil, true
 	}
 }
 
-func getJournal(t *testing.T, rpcClient *tlmetadata.Client, from int64) (tlmetadata.GetJournalResponsenew, error, bool) {
+func getJournal(t *testing.T, rpcClient *tlstatshouse_metadata.Client, from int64) (tlstatshouse_metadata.GetJournalResponsenew, error, bool) {
 	cErr := make(chan error, 1)
-	cResp := make(chan tlmetadata.GetJournalResponsenew, 1)
+	cResp := make(chan tlstatshouse_metadata.GetJournalResponsenew, 1)
 	go func() {
-		r := tlmetadata.GetJournalResponsenew{}
-		err := rpcClient.GetJournalnew(context.Background(), tlmetadata.GetJournalnew{
+		r := tlstatshouse_metadata.GetJournalResponsenew{}
+		err := rpcClient.GetJournalnew(context.Background(), tlstatshouse_metadata.GetJournalnew{
 			From:  from,
 			Limit: 1000,
 		}, nil, &r)
@@ -163,17 +163,17 @@ func getJournal(t *testing.T, rpcClient *tlmetadata.Client, from int64) (tlmetad
 	}()
 	select {
 	case err := <-cErr:
-		return tlmetadata.GetJournalResponsenew{}, err, false
+		return tlstatshouse_metadata.GetJournalResponsenew{}, err, false
 	case resp := <-cResp:
 		return resp, nil, false
 	case <-time.After(3 * time.Second):
-		return tlmetadata.GetJournalResponsenew{}, nil, true
+		return tlstatshouse_metadata.GetJournalResponsenew{}, nil, true
 	}
 }
 
-func getMapping(rpcClient *tlmetadata.Client, metricName, key string, create bool) (tlmetadata.GetMappingResponseUnion, error) {
-	resp := tlmetadata.GetMappingResponseUnion{}
-	req := tlmetadata.GetMapping{
+func getMapping(rpcClient *tlstatshouse_metadata.Client, metricName, key string, create bool) (tlstatshouse_metadata.GetMappingResponseUnion, error) {
+	resp := tlstatshouse_metadata.GetMappingResponseUnion{}
+	req := tlstatshouse_metadata.GetMapping{
 		FieldMask: 0,
 		Metric:    metricName,
 		Key:       key,
@@ -185,16 +185,16 @@ func getMapping(rpcClient *tlmetadata.Client, metricName, key string, create boo
 	return resp, err
 }
 
-func getInvertMapping(rpcClient *tlmetadata.Client, id int32) (tlmetadata.GetInvertMappingResponseUnion, error) {
-	resp := tlmetadata.GetInvertMappingResponseUnion{}
-	req := tlmetadata.GetInvertMapping{
+func getInvertMapping(rpcClient *tlstatshouse_metadata.Client, id int32) (tlstatshouse_metadata.GetInvertMappingResponseUnion, error) {
+	resp := tlstatshouse_metadata.GetInvertMappingResponseUnion{}
+	req := tlstatshouse_metadata.GetInvertMapping{
 		Id: id,
 	}
 	err := rpcClient.GetInvertMapping(context.Background(), req, nil, &resp)
 	return resp, err
 }
 
-func putMetricTest(t *testing.T, rpcClient *tlmetadata.Client, name string, id, version int64, any string) (tlmetadata.Event, error) {
+func putMetricTest(t *testing.T, rpcClient *tlstatshouse_metadata.Client, name string, id, version int64, any string) (tlstatshouse_metadata.Event, error) {
 	jsonStr, m := statJson(name, id, any)
 	checkJson(t, jsonStr)
 	resp, err := putMetric(t, rpcClient, name, jsonStr, id, version)
@@ -204,7 +204,7 @@ func putMetricTest(t *testing.T, rpcClient *tlmetadata.Client, name string, id, 
 	return resp, nil
 }
 
-func putJournalTest(t *testing.T, rpcClient *tlmetadata.Client, name string, id, version int64, typ int32, any string, delete bool) (tlmetadata.Event, error) {
+func putJournalTest(t *testing.T, rpcClient *tlstatshouse_metadata.Client, name string, id, version int64, typ int32, any string, delete bool) (tlstatshouse_metadata.Event, error) {
 	jsonStr, m := statJson(name, id, any)
 	checkJson(t, jsonStr)
 	resp, err := putJournalEvent(t, rpcClient, name, jsonStr, id, version, typ, delete)
@@ -213,10 +213,10 @@ func putJournalTest(t *testing.T, rpcClient *tlmetadata.Client, name string, id,
 	return resp, nil
 }
 
-func putMetric(t *testing.T, rpcClient *tlmetadata.Client, name, json string, id, version int64) (tlmetadata.Event, error) {
-	resp := tlmetadata.Event{}
-	req := tlmetadata.EditEntitynew{
-		Event: tlmetadata.Event{
+func putMetric(t *testing.T, rpcClient *tlstatshouse_metadata.Client, name, json string, id, version int64) (tlstatshouse_metadata.Event, error) {
+	resp := tlstatshouse_metadata.Event{}
+	req := tlstatshouse_metadata.EditEntitynew{
+		Event: tlstatshouse_metadata.Event{
 			Id:      id,
 			Name:    name,
 			Version: version,
@@ -228,26 +228,26 @@ func putMetric(t *testing.T, rpcClient *tlmetadata.Client, name, json string, id
 	return resp, err
 }
 
-func putBootstrap(t *testing.T, rpcClient *tlmetadata.Client, mappings []tlstatshouse.Mapping) (int32, error) {
+func putBootstrap(t *testing.T, rpcClient *tlstatshouse_metadata.Client, mappings []tlstatshouse.Mapping) (int32, error) {
 	res := &tlstatshouse.PutTagMappingBootstrapResult{}
-	err := rpcClient.PutTagMappingBootstrap(context.Background(), tlmetadata.PutTagMappingBootstrap{
+	err := rpcClient.PutTagMappingBootstrap(context.Background(), tlstatshouse_metadata.PutTagMappingBootstrap{
 		Mappings: mappings,
 	}, nil, res)
 	require.NoError(t, err)
 	return res.CountInserted, nil
 }
 
-func getBootstrap(t *testing.T, rpcClient *tlmetadata.Client) ([]tlstatshouse.Mapping, error) {
+func getBootstrap(t *testing.T, rpcClient *tlstatshouse_metadata.Client) ([]tlstatshouse.Mapping, error) {
 	res := &tlstatshouse.GetTagMappingBootstrapResult{}
-	err := rpcClient.GetTagMappingBootstrap(context.Background(), tlmetadata.GetTagMappingBootstrap{}, nil, res)
+	err := rpcClient.GetTagMappingBootstrap(context.Background(), tlstatshouse_metadata.GetTagMappingBootstrap{}, nil, res)
 	require.NoError(t, err)
 	return res.Mappings, nil
 }
 
-func putJournalEvent(t *testing.T, rpcClient *tlmetadata.Client, name, json string, id, version int64, typ int32, delete bool) (tlmetadata.Event, error) {
-	resp := tlmetadata.Event{}
-	req := tlmetadata.EditEntitynew{
-		Event: tlmetadata.Event{
+func putJournalEvent(t *testing.T, rpcClient *tlstatshouse_metadata.Client, name, json string, id, version int64, typ int32, delete bool) (tlstatshouse_metadata.Event, error) {
+	resp := tlstatshouse_metadata.Event{}
+	req := tlstatshouse_metadata.EditEntitynew{
+		Event: tlstatshouse_metadata.Event{
 			Id:        id,
 			Name:      name,
 			Version:   version,
@@ -267,7 +267,7 @@ func checkJson(t *testing.T, str string) {
 	require.NoError(t, err)
 }
 
-func checkMetricResponse(t *testing.T, metric tlmetadata.Event, jsonExpected map[string]interface{}) {
+func checkMetricResponse(t *testing.T, metric tlstatshouse_metadata.Event, jsonExpected map[string]interface{}) {
 	require.Greater(t, metric.Version, int64(0))
 	actualJson := map[string]interface{}{}
 	err := json.Unmarshal([]byte(metric.Data), &actualJson)
@@ -275,7 +275,7 @@ func checkMetricResponse(t *testing.T, metric tlmetadata.Event, jsonExpected map
 	require.True(t, reflect.DeepEqual(jsonExpected, actualJson), fmt.Sprintf("JSON aren't equals. Expected: %s, actual: %s", jsonExpected, metric.Data))
 }
 
-func checkJournalResponse(t *testing.T, metric tlmetadata.Event, jsonExpected map[string]interface{}) {
+func checkJournalResponse(t *testing.T, metric tlstatshouse_metadata.Event, jsonExpected map[string]interface{}) {
 	require.Greater(t, metric.Version, int64(0))
 	actualJson := map[string]interface{}{}
 	err := json.Unmarshal([]byte(metric.Data), &actualJson)

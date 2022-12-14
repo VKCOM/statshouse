@@ -15,32 +15,34 @@ var _ = basictl.NatWrite
 
 var _ = True{}
 
-type MetadataGetMapping struct {
+type StatshouseMetadataGetMapping struct {
 	FieldMask uint32
 	Metric    string
 	Key       string
 	// CreateIfAbsent True // Conditional: item.FieldMask.1
 }
 
-func (MetadataGetMapping) TLName() string { return "metadata.getMapping" }
-func (MetadataGetMapping) TLTag() uint32  { return 0x9dfa7a83 }
+func (StatshouseMetadataGetMapping) TLName() string { return "statshouse_metadata.getMapping" }
+func (StatshouseMetadataGetMapping) TLTag() uint32  { return 0x9dfa7a83 }
 
-func (item *MetadataGetMapping) SetCreateIfAbsent(v bool) {
+func (item *StatshouseMetadataGetMapping) SetCreateIfAbsent(v bool) {
 	if v {
 		item.FieldMask |= 1 << 1
 	} else {
 		item.FieldMask &^= 1 << 1
 	}
 }
-func (item *MetadataGetMapping) IsSetCreateIfAbsent() bool { return item.FieldMask&(1<<1) != 0 }
+func (item *StatshouseMetadataGetMapping) IsSetCreateIfAbsent() bool {
+	return item.FieldMask&(1<<1) != 0
+}
 
-func (item *MetadataGetMapping) Reset() {
+func (item *StatshouseMetadataGetMapping) Reset() {
 	item.FieldMask = 0
 	item.Metric = ""
 	item.Key = ""
 }
 
-func (item *MetadataGetMapping) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataGetMapping) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
@@ -53,7 +55,7 @@ func (item *MetadataGetMapping) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *MetadataGetMapping) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataGetMapping) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
 	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
 		return w, err
@@ -64,42 +66,42 @@ func (item *MetadataGetMapping) Write(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *MetadataGetMapping) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataGetMapping) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x9dfa7a83); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *MetadataGetMapping) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseMetadataGetMapping) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x9dfa7a83)
 	return item.Write(w)
 }
 
-func (item *MetadataGetMapping) ReadResult(w []byte, ret *MetadataGetMappingResponseUnion) (_ []byte, err error) {
+func (item *StatshouseMetadataGetMapping) ReadResult(w []byte, ret *StatshouseMetadataGetMappingResponseUnion) (_ []byte, err error) {
 	return ret.ReadBoxed(w, item.FieldMask)
 }
 
-func (item *MetadataGetMapping) WriteResult(w []byte, ret MetadataGetMappingResponseUnion) (_ []byte, err error) {
+func (item *StatshouseMetadataGetMapping) WriteResult(w []byte, ret StatshouseMetadataGetMappingResponseUnion) (_ []byte, err error) {
 	return ret.WriteBoxed(w, item.FieldMask)
 }
 
-func (item *MetadataGetMapping) ReadResultJSON(j interface{}, ret *MetadataGetMappingResponseUnion) error {
-	if err := MetadataGetMappingResponseUnion__ReadJSON(ret, j, item.FieldMask); err != nil {
+func (item *StatshouseMetadataGetMapping) ReadResultJSON(j interface{}, ret *StatshouseMetadataGetMappingResponseUnion) error {
+	if err := StatshouseMetadataGetMappingResponseUnion__ReadJSON(ret, j, item.FieldMask); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *MetadataGetMapping) WriteResultJSON(w []byte, ret MetadataGetMappingResponseUnion) (_ []byte, err error) {
+func (item *StatshouseMetadataGetMapping) WriteResultJSON(w []byte, ret StatshouseMetadataGetMappingResponseUnion) (_ []byte, err error) {
 	if w, err = ret.WriteJSON(w, item.FieldMask); err != nil {
 		return w, err
 	}
 	return w, nil
 }
 
-func (item *MetadataGetMapping) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetMappingResponseUnion
+func (item *StatshouseMetadataGetMapping) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseMetadataGetMappingResponseUnion
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -107,12 +109,12 @@ func (item *MetadataGetMapping) ReadResultWriteResultJSON(r []byte, w []byte) (_
 	return r, w, err
 }
 
-func (item *MetadataGetMapping) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *StatshouseMetadataGetMapping) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
 	j, err := JsonBytesToInterface(r)
 	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.getMapping", err.Error())
+		return r, w, ErrorInvalidJSON("statshouse_metadata.getMapping", err.Error())
 	}
-	var ret MetadataGetMappingResponseUnion
+	var ret StatshouseMetadataGetMappingResponseUnion
 	if err = item.ReadResultJSON(j, &ret); err != nil {
 		return r, w, err
 	}
@@ -120,7 +122,7 @@ func (item *MetadataGetMapping) ReadResultJSONWriteResult(r []byte, w []byte) ([
 	return r, w, err
 }
 
-func (item MetadataGetMapping) String() string {
+func (item StatshouseMetadataGetMapping) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -128,13 +130,13 @@ func (item MetadataGetMapping) String() string {
 	return string(w)
 }
 
-func MetadataGetMapping__ReadJSON(item *MetadataGetMapping, j interface{}) error {
+func StatshouseMetadataGetMapping__ReadJSON(item *StatshouseMetadataGetMapping, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *MetadataGetMapping) readJSON(j interface{}) error {
+func (item *StatshouseMetadataGetMapping) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.getMapping", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.getMapping", "expected json object")
 	}
 	_jFieldMask := _jm["field_mask"]
 	delete(_jm, "field_mask")
@@ -154,7 +156,7 @@ func (item *MetadataGetMapping) readJSON(j interface{}) error {
 	_jCreateIfAbsent := _jm["createIfAbsent"]
 	delete(_jm, "createIfAbsent")
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.getMapping", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.getMapping", k)
 	}
 	if _jCreateIfAbsent != nil {
 		_bit := false
@@ -170,7 +172,7 @@ func (item *MetadataGetMapping) readJSON(j interface{}) error {
 	return nil
 }
 
-func (item *MetadataGetMapping) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataGetMapping) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -194,17 +196,17 @@ func (item *MetadataGetMapping) WriteJSON(w []byte) (_ []byte, err error) {
 	return append(w, '}'), nil
 }
 
-func (item *MetadataGetMapping) MarshalJSON() ([]byte, error) {
+func (item *StatshouseMetadataGetMapping) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *MetadataGetMapping) UnmarshalJSON(b []byte) error {
+func (item *StatshouseMetadataGetMapping) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("metadata.getMapping", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.getMapping", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("metadata.getMapping", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.getMapping", err.Error())
 	}
 	return nil
 }

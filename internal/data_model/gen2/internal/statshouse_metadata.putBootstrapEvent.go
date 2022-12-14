@@ -13,44 +13,46 @@ import (
 
 var _ = basictl.NatWrite
 
-type MetadataPutBootstrapEvent struct {
+type StatshouseMetadataPutBootstrapEvent struct {
 	FieldsMask uint32
 	Mappings   []StatshouseMapping
 }
 
-func (MetadataPutBootstrapEvent) TLName() string { return "metadata.putBootstrapEvent" }
-func (MetadataPutBootstrapEvent) TLTag() uint32  { return 0x5854dfaf }
+func (StatshouseMetadataPutBootstrapEvent) TLName() string {
+	return "statshouse_metadata.putBootstrapEvent"
+}
+func (StatshouseMetadataPutBootstrapEvent) TLTag() uint32 { return 0x5854dfaf }
 
-func (item *MetadataPutBootstrapEvent) Reset() {
+func (item *StatshouseMetadataPutBootstrapEvent) Reset() {
 	item.FieldsMask = 0
 	item.Mappings = item.Mappings[:0]
 }
 
-func (item *MetadataPutBootstrapEvent) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutBootstrapEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
 	return VectorStatshouseMapping0Read(w, &item.Mappings)
 }
 
-func (item *MetadataPutBootstrapEvent) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutBootstrapEvent) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	return VectorStatshouseMapping0Write(w, item.Mappings)
 }
 
-func (item *MetadataPutBootstrapEvent) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutBootstrapEvent) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x5854dfaf); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *MetadataPutBootstrapEvent) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseMetadataPutBootstrapEvent) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x5854dfaf)
 	return item.Write(w)
 }
 
-func (item MetadataPutBootstrapEvent) String() string {
+func (item StatshouseMetadataPutBootstrapEvent) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -58,13 +60,13 @@ func (item MetadataPutBootstrapEvent) String() string {
 	return string(w)
 }
 
-func MetadataPutBootstrapEvent__ReadJSON(item *MetadataPutBootstrapEvent, j interface{}) error {
+func StatshouseMetadataPutBootstrapEvent__ReadJSON(item *StatshouseMetadataPutBootstrapEvent, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *MetadataPutBootstrapEvent) readJSON(j interface{}) error {
+func (item *StatshouseMetadataPutBootstrapEvent) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.putBootstrapEvent", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.putBootstrapEvent", "expected json object")
 	}
 	_jFieldsMask := _jm["fields_mask"]
 	delete(_jm, "fields_mask")
@@ -74,7 +76,7 @@ func (item *MetadataPutBootstrapEvent) readJSON(j interface{}) error {
 	_jMappings := _jm["mappings"]
 	delete(_jm, "mappings")
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.putBootstrapEvent", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.putBootstrapEvent", k)
 	}
 	if err := VectorStatshouseMapping0ReadJSON(_jMappings, &item.Mappings); err != nil {
 		return err
@@ -82,7 +84,7 @@ func (item *MetadataPutBootstrapEvent) readJSON(j interface{}) error {
 	return nil
 }
 
-func (item *MetadataPutBootstrapEvent) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutBootstrapEvent) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -99,17 +101,17 @@ func (item *MetadataPutBootstrapEvent) WriteJSON(w []byte) (_ []byte, err error)
 	return append(w, '}'), nil
 }
 
-func (item *MetadataPutBootstrapEvent) MarshalJSON() ([]byte, error) {
+func (item *StatshouseMetadataPutBootstrapEvent) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *MetadataPutBootstrapEvent) UnmarshalJSON(b []byte) error {
+func (item *StatshouseMetadataPutBootstrapEvent) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("metadata.putBootstrapEvent", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.putBootstrapEvent", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("metadata.putBootstrapEvent", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.putBootstrapEvent", err.Error())
 	}
 	return nil
 }

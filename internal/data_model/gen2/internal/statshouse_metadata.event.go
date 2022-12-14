@@ -13,7 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
-type MetadataEvent struct {
+type StatshouseMetadataEvent struct {
 	FieldMask  uint32
 	Id         int64
 	Name       string
@@ -24,10 +24,10 @@ type MetadataEvent struct {
 	Data       string
 }
 
-func (MetadataEvent) TLName() string { return "metadata.event" }
-func (MetadataEvent) TLTag() uint32  { return 0x9286affa }
+func (StatshouseMetadataEvent) TLName() string { return "statshouse_metadata.event" }
+func (StatshouseMetadataEvent) TLTag() uint32  { return 0x9286affa }
 
-func (item *MetadataEvent) Reset() {
+func (item *StatshouseMetadataEvent) Reset() {
 	item.FieldMask = 0
 	item.Id = 0
 	item.Name = ""
@@ -38,7 +38,7 @@ func (item *MetadataEvent) Reset() {
 	item.Data = ""
 }
 
-func (item *MetadataEvent) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
@@ -63,7 +63,7 @@ func (item *MetadataEvent) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringRead(w, &item.Data)
 }
 
-func (item *MetadataEvent) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEvent) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.Id)
 	if w, err = basictl.StringWrite(w, item.Name); err != nil {
@@ -76,19 +76,19 @@ func (item *MetadataEvent) Write(w []byte) (_ []byte, err error) {
 	return basictl.StringWrite(w, item.Data)
 }
 
-func (item *MetadataEvent) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEvent) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x9286affa); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *MetadataEvent) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseMetadataEvent) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x9286affa)
 	return item.Write(w)
 }
 
-func (item MetadataEvent) String() string {
+func (item StatshouseMetadataEvent) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -96,11 +96,13 @@ func (item MetadataEvent) String() string {
 	return string(w)
 }
 
-func MetadataEvent__ReadJSON(item *MetadataEvent, j interface{}) error { return item.readJSON(j) }
-func (item *MetadataEvent) readJSON(j interface{}) error {
+func StatshouseMetadataEvent__ReadJSON(item *StatshouseMetadataEvent, j interface{}) error {
+	return item.readJSON(j)
+}
+func (item *StatshouseMetadataEvent) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.event", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.event", "expected json object")
 	}
 	_jFieldMask := _jm["field_mask"]
 	delete(_jm, "field_mask")
@@ -143,12 +145,12 @@ func (item *MetadataEvent) readJSON(j interface{}) error {
 		return err
 	}
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.event", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.event", k)
 	}
 	return nil
 }
 
-func (item *MetadataEvent) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEvent) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -193,22 +195,22 @@ func (item *MetadataEvent) WriteJSON(w []byte) (_ []byte, err error) {
 	return append(w, '}'), nil
 }
 
-func (item *MetadataEvent) MarshalJSON() ([]byte, error) {
+func (item *StatshouseMetadataEvent) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *MetadataEvent) UnmarshalJSON(b []byte) error {
+func (item *StatshouseMetadataEvent) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("metadata.event", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.event", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("metadata.event", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.event", err.Error())
 	}
 	return nil
 }
 
-type MetadataEventBytes struct {
+type StatshouseMetadataEventBytes struct {
 	FieldMask  uint32
 	Id         int64
 	Name       []byte
@@ -219,10 +221,10 @@ type MetadataEventBytes struct {
 	Data       []byte
 }
 
-func (MetadataEventBytes) TLName() string { return "metadata.event" }
-func (MetadataEventBytes) TLTag() uint32  { return 0x9286affa }
+func (StatshouseMetadataEventBytes) TLName() string { return "statshouse_metadata.event" }
+func (StatshouseMetadataEventBytes) TLTag() uint32  { return 0x9286affa }
 
-func (item *MetadataEventBytes) Reset() {
+func (item *StatshouseMetadataEventBytes) Reset() {
 	item.FieldMask = 0
 	item.Id = 0
 	item.Name = item.Name[:0]
@@ -233,7 +235,7 @@ func (item *MetadataEventBytes) Reset() {
 	item.Data = item.Data[:0]
 }
 
-func (item *MetadataEventBytes) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEventBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
@@ -258,7 +260,7 @@ func (item *MetadataEventBytes) Read(w []byte) (_ []byte, err error) {
 	return basictl.StringReadBytes(w, &item.Data)
 }
 
-func (item *MetadataEventBytes) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEventBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.Id)
 	if w, err = basictl.StringWriteBytes(w, item.Name); err != nil {
@@ -271,19 +273,19 @@ func (item *MetadataEventBytes) Write(w []byte) (_ []byte, err error) {
 	return basictl.StringWriteBytes(w, item.Data)
 }
 
-func (item *MetadataEventBytes) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEventBytes) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x9286affa); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *MetadataEventBytes) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseMetadataEventBytes) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x9286affa)
 	return item.Write(w)
 }
 
-func (item MetadataEventBytes) String() string {
+func (item StatshouseMetadataEventBytes) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -291,13 +293,13 @@ func (item MetadataEventBytes) String() string {
 	return string(w)
 }
 
-func MetadataEventBytes__ReadJSON(item *MetadataEventBytes, j interface{}) error {
+func StatshouseMetadataEventBytes__ReadJSON(item *StatshouseMetadataEventBytes, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *MetadataEventBytes) readJSON(j interface{}) error {
+func (item *StatshouseMetadataEventBytes) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.event", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.event", "expected json object")
 	}
 	_jFieldMask := _jm["field_mask"]
 	delete(_jm, "field_mask")
@@ -340,12 +342,12 @@ func (item *MetadataEventBytes) readJSON(j interface{}) error {
 		return err
 	}
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.event", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.event", k)
 	}
 	return nil
 }
 
-func (item *MetadataEventBytes) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEventBytes) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -390,22 +392,22 @@ func (item *MetadataEventBytes) WriteJSON(w []byte) (_ []byte, err error) {
 	return append(w, '}'), nil
 }
 
-func (item *MetadataEventBytes) MarshalJSON() ([]byte, error) {
+func (item *StatshouseMetadataEventBytes) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *MetadataEventBytes) UnmarshalJSON(b []byte) error {
+func (item *StatshouseMetadataEventBytes) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("metadata.event", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.event", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("metadata.event", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.event", err.Error())
 	}
 	return nil
 }
 
-func VectorMetadataEvent0Read(w []byte, vec *[]MetadataEvent) (_ []byte, err error) {
+func VectorStatshouseMetadataEvent0Read(w []byte, vec *[]StatshouseMetadataEvent) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -414,7 +416,7 @@ func VectorMetadataEvent0Read(w []byte, vec *[]MetadataEvent) (_ []byte, err err
 		return w, err
 	}
 	if uint32(cap(*vec)) < l {
-		*vec = make([]MetadataEvent, l)
+		*vec = make([]StatshouseMetadataEvent, l)
 	} else {
 		*vec = (*vec)[:l]
 	}
@@ -426,7 +428,7 @@ func VectorMetadataEvent0Read(w []byte, vec *[]MetadataEvent) (_ []byte, err err
 	return w, nil
 }
 
-func VectorMetadataEvent0Write(w []byte, vec []MetadataEvent) (_ []byte, err error) {
+func VectorStatshouseMetadataEvent0Write(w []byte, vec []StatshouseMetadataEvent) (_ []byte, err error) {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		if w, err = elem.Write(w); err != nil {
@@ -436,25 +438,25 @@ func VectorMetadataEvent0Write(w []byte, vec []MetadataEvent) (_ []byte, err err
 	return w, nil
 }
 
-func VectorMetadataEvent0ReadJSON(j interface{}, vec *[]MetadataEvent) error {
-	l, _arr, err := JsonReadArray("[]MetadataEvent", j)
+func VectorStatshouseMetadataEvent0ReadJSON(j interface{}, vec *[]StatshouseMetadataEvent) error {
+	l, _arr, err := JsonReadArray("[]StatshouseMetadataEvent", j)
 	if err != nil {
 		return err
 	}
 	if cap(*vec) < l {
-		*vec = make([]MetadataEvent, l)
+		*vec = make([]StatshouseMetadataEvent, l)
 	} else {
 		*vec = (*vec)[:l]
 	}
 	for i := range *vec {
-		if err := MetadataEvent__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+		if err := StatshouseMetadataEvent__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func VectorMetadataEvent0WriteJSON(w []byte, vec []MetadataEvent) (_ []byte, err error) {
+func VectorStatshouseMetadataEvent0WriteJSON(w []byte, vec []StatshouseMetadataEvent) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -465,7 +467,7 @@ func VectorMetadataEvent0WriteJSON(w []byte, vec []MetadataEvent) (_ []byte, err
 	return append(w, ']'), nil
 }
 
-func VectorMetadataEvent0BytesRead(w []byte, vec *[]MetadataEventBytes) (_ []byte, err error) {
+func VectorStatshouseMetadataEvent0BytesRead(w []byte, vec *[]StatshouseMetadataEventBytes) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -474,7 +476,7 @@ func VectorMetadataEvent0BytesRead(w []byte, vec *[]MetadataEventBytes) (_ []byt
 		return w, err
 	}
 	if uint32(cap(*vec)) < l {
-		*vec = make([]MetadataEventBytes, l)
+		*vec = make([]StatshouseMetadataEventBytes, l)
 	} else {
 		*vec = (*vec)[:l]
 	}
@@ -486,7 +488,7 @@ func VectorMetadataEvent0BytesRead(w []byte, vec *[]MetadataEventBytes) (_ []byt
 	return w, nil
 }
 
-func VectorMetadataEvent0BytesWrite(w []byte, vec []MetadataEventBytes) (_ []byte, err error) {
+func VectorStatshouseMetadataEvent0BytesWrite(w []byte, vec []StatshouseMetadataEventBytes) (_ []byte, err error) {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		if w, err = elem.Write(w); err != nil {
@@ -496,25 +498,25 @@ func VectorMetadataEvent0BytesWrite(w []byte, vec []MetadataEventBytes) (_ []byt
 	return w, nil
 }
 
-func VectorMetadataEvent0BytesReadJSON(j interface{}, vec *[]MetadataEventBytes) error {
-	l, _arr, err := JsonReadArray("[]MetadataEventBytes", j)
+func VectorStatshouseMetadataEvent0BytesReadJSON(j interface{}, vec *[]StatshouseMetadataEventBytes) error {
+	l, _arr, err := JsonReadArray("[]StatshouseMetadataEventBytes", j)
 	if err != nil {
 		return err
 	}
 	if cap(*vec) < l {
-		*vec = make([]MetadataEventBytes, l)
+		*vec = make([]StatshouseMetadataEventBytes, l)
 	} else {
 		*vec = (*vec)[:l]
 	}
 	for i := range *vec {
-		if err := MetadataEventBytes__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+		if err := StatshouseMetadataEventBytes__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func VectorMetadataEvent0BytesWriteJSON(w []byte, vec []MetadataEventBytes) (_ []byte, err error) {
+func VectorStatshouseMetadataEvent0BytesWriteJSON(w []byte, vec []StatshouseMetadataEventBytes) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

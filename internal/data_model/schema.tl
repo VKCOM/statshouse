@@ -153,7 +153,7 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     from: long // строго больше
     limit: long
     return_if_empty: field_mask.3?true
-     = metadata.GetJournalResponsenew fields_mask;
+     = statshouse_metadata.GetJournalResponsenew fields_mask;
 
 @readwrite statshouse.getTagMapping2#4285ff56
     fields_mask:#

@@ -29,8 +29,8 @@ import (
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/aggregator/prometheus"
 	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
@@ -133,7 +133,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	}
 	log.Printf("success autoconfiguration in cluster %q, localShard=%d localReplica=%d address list is (%q)", config.Cluster, shardKey, replicaKey, strings.Join(addresses, ","))
 
-	metadataClient := &tlmetadata.Client{
+	metadataClient := &tlstatshouse_metadata.Client{
 		Client: &rpc.Client{
 			Logf:                log.Printf,
 			CryptoKey:           aesPwd,
@@ -155,7 +155,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 			return fmt.Errorf("failed to load mapping bootstrap: %v", err)
 		}
 		// ok, empty bootstrap is good for us for running locally
-		tagMappingBootstrapResponse, _ = (&tlmetadata.GetTagMappingBootstrap{}).WriteResult(nil, tlstatshouse.GetTagMappingBootstrapResult{})
+		tagMappingBootstrapResponse, _ = (&tlstatshouse_metadata.GetTagMappingBootstrap{}).WriteResult(nil, tlstatshouse.GetTagMappingBootstrapResult{})
 	}
 
 	a := &Aggregator{
@@ -235,10 +235,10 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	return a.server.ListenAndServe("tcp4", listenAddr)
 }
 
-func loadBoostrap(dc *pcache.DiskCache, client *tlmetadata.Client) ([]byte, error) {
+func loadBoostrap(dc *pcache.DiskCache, client *tlstatshouse_metadata.Client) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // TODO - timeout
 	defer cancel()
-	args := tlmetadata.GetTagMappingBootstrap{}
+	args := tlstatshouse_metadata.GetTagMappingBootstrap{}
 	var ret tlstatshouse.GetTagMappingBootstrapResult
 	if err := client.GetTagMappingBootstrap(ctx, args, nil, &ret); err != nil {
 		if dc == nil {

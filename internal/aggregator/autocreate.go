@@ -14,15 +14,15 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
 type autoCreate struct {
-	client     *tlmetadata.Client
+	client     *tlstatshouse_metadata.Client
 	storage    *metajournal.MetricsStorage
 	mu         sync.Mutex
 	co         *sync.Cond
@@ -36,7 +36,7 @@ type autoCreateTask struct {
 	args tlstatshouse.AutoCreate
 }
 
-func newAutoCreate(client *tlmetadata.Client, storage *metajournal.MetricsStorage) *autoCreate {
+func newAutoCreate(client *tlstatshouse_metadata.Client, storage *metajournal.MetricsStorage) *autoCreate {
 	ac := autoCreate{
 		client:  client,
 		storage: storage,
@@ -184,8 +184,8 @@ tagMappingLoop:
 	if err != nil {
 		return fmt.Errorf("failed to serialize metric: %w", err)
 	}
-	edit := tlmetadata.EditEntitynew{
-		Event: tlmetadata.Event{
+	edit := tlstatshouse_metadata.EditEntitynew{
+		Event: tlstatshouse_metadata.Event{
 			Id:        int64(value.MetricID),
 			Name:      value.Name,
 			EventType: format.MetricEvent,
@@ -195,7 +195,7 @@ tagMappingLoop:
 	}
 	edit.SetCreate(!metricExists)
 	// issue RPC call
-	var ret tlmetadata.Event
+	var ret tlstatshouse_metadata.Event
 	ctx, cancel := context.WithTimeout(ac.ctx, time.Minute)
 	defer cancel()
 	err = ac.client.EditEntitynew(ctx, edit, nil, &ret)

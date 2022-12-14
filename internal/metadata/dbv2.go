@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 
@@ -161,12 +161,12 @@ func (db *DBV2) Close() error {
 	return nil
 }
 
-func (db *DBV2) JournalEvents(sinceVersion int64, page int64) ([]tlmetadata.Event, error) {
+func (db *DBV2) JournalEvents(sinceVersion int64, page int64) ([]tlstatshouse_metadata.Event, error) {
 	limit := metricCountReadLimit
 	if page < limit {
 		limit = page
 	}
-	result := make([]tlmetadata.Event, 0)
+	result := make([]tlstatshouse_metadata.Event, 0)
 	var bytesRead int64
 	err := db.eng.Do(func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("SELECT id, name, version, data, updated_at, type, deleted_at FROM metrics_v2 WHERE version > $version ORDER BY version asc;",
@@ -192,7 +192,7 @@ func (db *DBV2) JournalEvents(sinceVersion int64, page int64) ([]tlmetadata.Even
 			if int64(len(result)) >= limit {
 				break
 			}
-			result = append(result, tlmetadata.Event{
+			result = append(result, tlstatshouse_metadata.Event{
 				Id:         id,
 				Name:       name,
 				Version:    version,
@@ -207,8 +207,8 @@ func (db *DBV2) JournalEvents(sinceVersion int64, page int64) ([]tlmetadata.Even
 	return result, err
 }
 
-func (db *DBV2) PutOldMetric(name string, id int64, versionToInsert int64, newJson string, updateTime uint32, typ int32) (tlmetadata.Event, error) {
-	metric := tlmetadata.Event{}
+func (db *DBV2) PutOldMetric(name string, id int64, versionToInsert int64, newJson string, updateTime uint32, typ int32) (tlstatshouse_metadata.Event, error) {
+	metric := tlstatshouse_metadata.Event{}
 	err := db.eng.Do(func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		var err error
 		metric, cache, err = putEntityWithFixedID(conn, cache, name, id, versionToInsert, newJson, updateTime, typ)
@@ -217,9 +217,9 @@ func (db *DBV2) PutOldMetric(name string, id int64, versionToInsert int64, newJs
 	return metric, err
 }
 
-func (db *DBV2) SaveEntity(name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32) (tlmetadata.Event, error) {
+func (db *DBV2) SaveEntity(name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32) (tlstatshouse_metadata.Event, error) {
 	updatedAt := db.now().Unix()
-	var result tlmetadata.Event
+	var result tlstatshouse_metadata.Event
 	createFixed := false
 	err := db.eng.Do(func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		if id < 0 {
@@ -293,7 +293,7 @@ func (db *DBV2) SaveEntity(name string, id int64, oldVersion int64, newJson stri
 		}
 		deletedAt, _ := row.ColumnInt64(2)
 
-		result = tlmetadata.Event{
+		result = tlstatshouse_metadata.Event{
 			Id:         id,
 			Version:    version,
 			Name:       name,
@@ -304,12 +304,12 @@ func (db *DBV2) SaveEntity(name string, id int64, oldVersion int64, newJson stri
 		}
 		var err error
 		if createMetric {
-			metadataCreatMetricEvent := tlmetadata.CreateEntityEvent{
+			metadataCreatMetricEvent := tlstatshouse_metadata.CreateEntityEvent{
 				Metric: result,
 			}
 			cache, err = metadataCreatMetricEvent.WriteBoxed(cache)
 		} else {
-			metadataEditMetricEvent := tlmetadata.EditEntityEvent{
+			metadataEditMetricEvent := tlstatshouse_metadata.EditEntityEvent{
 				Metric:     result,
 				OldVersion: oldVersion,
 			}
@@ -384,8 +384,8 @@ func (db *DBV2) ResetFlood(metric string) error {
 	}, false)
 }
 
-func (db *DBV2) GetOrCreateMapping(metricName, key string) (tlmetadata.GetMappingResponseUnion, error) {
-	var resp tlmetadata.GetMappingResponseUnion
+func (db *DBV2) GetOrCreateMapping(metricName, key string) (tlstatshouse_metadata.GetMappingResponseUnion, error) {
+	var resp tlstatshouse_metadata.GetMappingResponseUnion
 	now := db.now()
 	err := db.eng.Do(func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		var err error

@@ -19,8 +19,8 @@ import (
 
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -49,7 +49,7 @@ func TestMapper(aggAddr []string, mapString string, client *rpc.Client) {
 			Limit: 1,
 		}
 		args.Header.SetAgentEnvStaging(true, &args.FieldsMask) // let's consider such requests staging
-		var ret tlmetadata.GetJournalResponsenewBytes
+		var ret tlstatshouse_metadata.GetJournalResponsenewBytes
 		// We do not need timeout for long poll, RPC has disconnect detection via ping-pong
 
 		now := time.Now()

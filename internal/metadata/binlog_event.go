@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
@@ -22,13 +22,13 @@ import (
 
 func applyEvent(conn sqlite2.Conn, offset int64, data []byte) (int, error) {
 	readCount := 0
-	var editMetricEvent tlmetadata.EditMetricEvent
-	var createMetricEvent tlmetadata.CreateMetricEvent
-	var putMappingEvent tlmetadata.PutMappingEvent
-	var createMappingEvent tlmetadata.CreateMappingEvent
-	var editEntityEvent tlmetadata.EditEntityEvent
-	var createEntityEvent tlmetadata.CreateEntityEvent
-	var putBootstrapEvent tlmetadata.PutBootstrapEvent
+	var editMetricEvent tlstatshouse_metadata.EditMetricEvent
+	var createMetricEvent tlstatshouse_metadata.CreateMetricEvent
+	var putMappingEvent tlstatshouse_metadata.PutMappingEvent
+	var createMappingEvent tlstatshouse_metadata.CreateMappingEvent
+	var editEntityEvent tlstatshouse_metadata.EditEntityEvent
+	var createEntityEvent tlstatshouse_metadata.CreateEntityEvent
+	var putBootstrapEvent tlstatshouse_metadata.PutBootstrapEvent
 
 	var tail []byte
 	for len(data) > 0 {
@@ -114,9 +114,9 @@ func applyEvent(conn sqlite2.Conn, offset int64, data []byte) (int, error) {
 	return fsbinlog.AddPadding(readCount), nil
 }
 
-func applyEditMetricEvent(conn sqlite2.Conn, event tlmetadata.EditMetricEvent) error {
-	return applyEditEntityEvent(conn, tlmetadata.EditEntityEvent{
-		Metric: tlmetadata.Event{
+func applyEditMetricEvent(conn sqlite2.Conn, event tlstatshouse_metadata.EditMetricEvent) error {
+	return applyEditEntityEvent(conn, tlstatshouse_metadata.EditEntityEvent{
+		Metric: tlstatshouse_metadata.Event{
 			Id:         event.Metric.Id,
 			Name:       event.Metric.Name,
 			EventType:  event.Metric.EventType,
@@ -127,7 +127,7 @@ func applyEditMetricEvent(conn sqlite2.Conn, event tlmetadata.EditMetricEvent) e
 	})
 }
 
-func applyEditEntityEvent(conn sqlite2.Conn, event tlmetadata.EditEntityEvent) error {
+func applyEditEntityEvent(conn sqlite2.Conn, event tlstatshouse_metadata.EditEntityEvent) error {
 	deletedAt := event.Metric.Unused
 	_, err := conn.Exec("UPDATE metrics_v2 SET version = $newVersion, data = json($data), updated_at = $updatedAt, deleted_at = $deletedAt WHERE version = $oldVersion AND name = $name AND id = $id;",
 		sqlite2.BlobString("$data", event.Metric.Data),
@@ -143,7 +143,7 @@ func applyEditEntityEvent(conn sqlite2.Conn, event tlmetadata.EditEntityEvent) e
 	return nil
 }
 
-func applyCreateMappingEvent(conn sqlite2.Conn, event tlmetadata.CreateMappingEvent) error {
+func applyCreateMappingEvent(conn sqlite2.Conn, event tlstatshouse_metadata.CreateMappingEvent) error {
 	var err error
 	if event.IsSetCreate() {
 		_, err = conn.Exec("INSERT INTO flood_limits (last_time_update, count_free, metric_name) VALUES ($t, $c, $name)",
@@ -166,9 +166,9 @@ func applyCreateMappingEvent(conn sqlite2.Conn, event tlmetadata.CreateMappingEv
 	return err
 }
 
-func applyCreateMetricEvent(conn sqlite2.Conn, event tlmetadata.CreateMetricEvent) error {
-	return applyCreateEntityEvent(conn, tlmetadata.CreateEntityEvent{
-		Metric: tlmetadata.Event{
+func applyCreateMetricEvent(conn sqlite2.Conn, event tlstatshouse_metadata.CreateMetricEvent) error {
+	return applyCreateEntityEvent(conn, tlstatshouse_metadata.CreateEntityEvent{
+		Metric: tlstatshouse_metadata.Event{
 			Id:         event.Metric.Id,
 			Name:       event.Metric.Name,
 			EventType:  event.Metric.EventType,
@@ -180,7 +180,7 @@ func applyCreateMetricEvent(conn sqlite2.Conn, event tlmetadata.CreateMetricEven
 	})
 }
 
-func applyCreateEntityEvent(conn sqlite2.Conn, event tlmetadata.CreateEntityEvent) error {
+func applyCreateEntityEvent(conn sqlite2.Conn, event tlstatshouse_metadata.CreateEntityEvent) error {
 	_, err := conn.Exec("INSERT INTO metrics_v2 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, json($data), $name, $updatedAt, $type, $deletedAt);",
 		sqlite2.BlobString("$data", event.Metric.Data),
 		sqlite2.BlobString("$name", event.Metric.Name),
@@ -195,16 +195,16 @@ func applyCreateEntityEvent(conn sqlite2.Conn, event tlmetadata.CreateEntityEven
 	return nil
 }
 
-func getOrCreateMapping(conn sqlite2.Conn, cache []byte, metricName, key string, now time.Time, globalBudget, maxBudget, budgetBonus int64, stepSec uint32, lastCreatedID int32) (tlmetadata.GetMappingResponseUnion, []byte, error) {
+func getOrCreateMapping(conn sqlite2.Conn, cache []byte, metricName, key string, now time.Time, globalBudget, maxBudget, budgetBonus int64, stepSec uint32, lastCreatedID int32) (tlstatshouse_metadata.GetMappingResponseUnion, []byte, error) {
 	var id int32
 	row := conn.Query("SELECT id FROM mappings where name = $name;", sqlite2.BlobString("$name", key))
 	if row.Error() != nil {
-		return tlmetadata.GetMappingResponseUnion{}, cache, row.Error()
+		return tlstatshouse_metadata.GetMappingResponseUnion{}, cache, row.Error()
 	}
 	if row.Next() {
 		resp, _ := row.ColumnInt64(0)
 		id := int32(resp)
-		return tlmetadata.GetMappingResponse{Id: id}.AsUnion(), cache, nil
+		return tlstatshouse_metadata.GetMappingResponse{Id: id}.AsUnion(), cache, nil
 	}
 	pred := roundTime(now, stepSec)
 	var countToInsert = maxBudget
@@ -213,7 +213,7 @@ func getOrCreateMapping(conn sqlite2.Conn, cache []byte, metricName, key string,
 	row = conn.Query("SELECT last_time_update, count_free from flood_limits WHERE metric_name = $name",
 		sqlite2.BlobString("$name", metricName))
 	if row.Error() != nil {
-		return tlmetadata.GetMappingResponse{Id: id}.AsUnion(), cache, row.Error()
+		return tlstatshouse_metadata.GetMappingResponse{Id: id}.AsUnion(), cache, row.Error()
 	}
 	var err error
 	metricLimitIsExists := row.Next()
@@ -229,7 +229,7 @@ func getOrCreateMapping(conn sqlite2.Conn, cache []byte, metricName, key string,
 		if !skipFloodLimitModification {
 			countToInsert = calcBudget(count, 1, timeUpdate, pred, maxBudget, budgetBonus, stepSec)
 			if countToInsert < 0 {
-				return tlmetadata.GetMappingResponseFloodLimitError{}.AsUnion(), cache, nil
+				return tlstatshouse_metadata.GetMappingResponseFloodLimitError{}.AsUnion(), cache, nil
 			}
 		}
 		_, err = conn.Exec("UPDATE flood_limits SET last_time_update = $t, count_free = $c WHERE metric_name = $name",
@@ -237,7 +237,7 @@ func getOrCreateMapping(conn sqlite2.Conn, cache []byte, metricName, key string,
 			sqlite2.Int64("$c", countToInsert),
 			sqlite2.BlobString("$name", metricName))
 		if err != nil {
-			return tlmetadata.GetMappingResponseUnion{}, cache, err
+			return tlstatshouse_metadata.GetMappingResponseUnion{}, cache, err
 		}
 	} else {
 		countToInsert = maxBudget - 1
@@ -247,15 +247,15 @@ func getOrCreateMapping(conn sqlite2.Conn, cache []byte, metricName, key string,
 			sqlite2.BlobString("$name", metricName))
 	}
 	if err != nil {
-		return tlmetadata.GetMappingResponseUnion{}, cache, fmt.Errorf("failed to update flood limits: %w", err)
+		return tlstatshouse_metadata.GetMappingResponseUnion{}, cache, fmt.Errorf("failed to update flood limits: %w", err)
 	}
 
 	idResp, err := conn.Exec("INSERT INTO mappings (name) VALUES ($name)", sqlite2.BlobString("$name", key))
 	if err != nil {
-		return tlmetadata.GetMappingResponseUnion{}, cache, fmt.Errorf("failed to insert mapping: %w", err)
+		return tlstatshouse_metadata.GetMappingResponseUnion{}, cache, fmt.Errorf("failed to insert mapping: %w", err)
 	}
 	id = int32(idResp)
-	event := tlmetadata.CreateMappingEvent{
+	event := tlstatshouse_metadata.CreateMappingEvent{
 		Id:        id,
 		Key:       key,
 		Metric:    metricName,
@@ -264,7 +264,7 @@ func getOrCreateMapping(conn sqlite2.Conn, cache []byte, metricName, key string,
 	}
 	event.SetCreate(!metricLimitIsExists)
 	eventBytes, err := event.WriteBoxed(cache)
-	return tlmetadata.GetMappingResponseCreated{Id: id}.AsUnion(), eventBytes, err
+	return tlstatshouse_metadata.GetMappingResponseCreated{Id: id}.AsUnion(), eventBytes, err
 }
 
 func putMapping(conn sqlite2.Conn, cache []byte, ks []string, vs []int32) ([]byte, error) {
@@ -275,7 +275,7 @@ func putMapping(conn sqlite2.Conn, cache []byte, ks []string, vs []int32) ([]byt
 		}
 	}
 
-	event := tlmetadata.PutMappingEvent{
+	event := tlstatshouse_metadata.PutMappingEvent{
 		Keys:  ks,
 		Value: vs,
 	}
@@ -306,15 +306,15 @@ func applyPutBootstrap(conn sqlite2.Conn, cache []byte, mappings []tlstatshouse.
 	if err != nil {
 		return 0, cache, err
 	}
-	event := tlmetadata.PutBootstrapEvent{
+	event := tlstatshouse_metadata.PutBootstrapEvent{
 		Mappings: filteredMappings,
 	}
 	cache, err = event.WriteBoxed(cache)
 	return int32(len(filteredMappings)), cache, err
 }
 
-func putEntityWithFixedID(conn sqlite2.Conn, cache []byte, name string, id int64, versionToInsert int64, newJson string, updateTime uint32, typ int32) (tlmetadata.Event, []byte, error) {
-	result := tlmetadata.Event{}
+func putEntityWithFixedID(conn sqlite2.Conn, cache []byte, name string, id int64, versionToInsert int64, newJson string, updateTime uint32, typ int32) (tlstatshouse_metadata.Event, []byte, error) {
+	result := tlstatshouse_metadata.Event{}
 	_, err := conn.Exec("INSERT INTO metrics_v2 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, json($data), $name, $updatedAt, $type, 0);",
 		sqlite2.Int64("$id", id),
 		sqlite2.Int64("$version", versionToInsert),
@@ -325,7 +325,7 @@ func putEntityWithFixedID(conn sqlite2.Conn, cache []byte, name string, id int64
 	if err != nil {
 		return result, cache, err
 	}
-	result = tlmetadata.Event{
+	result = tlstatshouse_metadata.Event{
 		Id:         id,
 		Version:    versionToInsert,
 		Data:       newJson,
@@ -333,7 +333,7 @@ func putEntityWithFixedID(conn sqlite2.Conn, cache []byte, name string, id int64
 		UpdateTime: updateTime,
 		EventType:  typ,
 	}
-	tlEvent := tlmetadata.CreateEntityEvent{
+	tlEvent := tlstatshouse_metadata.CreateEntityEvent{
 		Metric: result,
 	}
 	cache, err = tlEvent.WriteBoxed(cache)

@@ -19,7 +19,7 @@ import (
 	prom_config "github.com/prometheus/prometheus/config"
 	"go4.org/mem"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -33,10 +33,10 @@ const (
 
 type MetricMetaLoader struct {
 	loadTimeout time.Duration
-	client      *tlmetadata.Client
+	client      *tlstatshouse_metadata.Client
 }
 
-func NewMetricMetaLoader(client *tlmetadata.Client, loadTimeout time.Duration) *MetricMetaLoader {
+func NewMetricMetaLoader(client *tlstatshouse_metadata.Client, loadTimeout time.Duration) *MetricMetaLoader {
 	return &MetricMetaLoader{
 		client:      client,
 		loadTimeout: loadTimeout,
@@ -51,8 +51,8 @@ func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.Dashb
 	if err != nil {
 		return format.DashboardMeta{}, fmt.Errorf("faield to serialize dashboard: %w", err)
 	}
-	editMetricReq := tlmetadata.EditEntitynew{
-		Event: tlmetadata.Event{
+	editMetricReq := tlstatshouse_metadata.EditEntitynew{
+		Event: tlstatshouse_metadata.Event{
 			Id:        int64(value.DashboardID),
 			Name:      value.Name,
 			EventType: format.DashboardEvent,
@@ -64,7 +64,7 @@ func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.Dashb
 	editMetricReq.SetDelete(remove)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
-	event := tlmetadata.Event{}
+	event := tlstatshouse_metadata.Event{}
 	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
 	if err != nil {
 		return format.DashboardMeta{}, fmt.Errorf("failed to edit metric: %w", err)
@@ -95,8 +95,8 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 	if err != nil {
 		return format.MetricsGroup{}, fmt.Errorf("faield to serialize group: %w", err)
 	}
-	editMetricReq := tlmetadata.EditEntitynew{
-		Event: tlmetadata.Event{
+	editMetricReq := tlstatshouse_metadata.EditEntitynew{
+		Event: tlstatshouse_metadata.Event{
 			Id:        int64(value.ID),
 			Name:      value.Name,
 			EventType: format.MetricsGroupEvent,
@@ -108,7 +108,7 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 	editMetricReq.SetDelete(delete)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
-	event := tlmetadata.Event{}
+	event := tlstatshouse_metadata.Event{}
 	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
 	if err != nil {
 		return format.MetricsGroup{}, fmt.Errorf("failed to edit group: %w", err)
@@ -138,8 +138,8 @@ func (l *MetricMetaLoader) SaveMetric(ctx context.Context, value format.MetricMe
 	if err != nil {
 		return m, fmt.Errorf("failed to serialize metric: %w", err)
 	}
-	editMetricReq := tlmetadata.EditEntitynew{
-		Event: tlmetadata.Event{
+	editMetricReq := tlstatshouse_metadata.EditEntitynew{
+		Event: tlstatshouse_metadata.Event{
 			Id:        int64(value.MetricID),
 			Name:      value.Name,
 			EventType: format.MetricEvent,
@@ -150,7 +150,7 @@ func (l *MetricMetaLoader) SaveMetric(ctx context.Context, value format.MetricMe
 	editMetricReq.SetCreate(create)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
-	event := tlmetadata.Event{}
+	event := tlstatshouse_metadata.Event{}
 	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
 	if err != nil {
 		return m, fmt.Errorf("failed to edit metric: %w", err)
@@ -169,9 +169,9 @@ func (l *MetricMetaLoader) SaveMetric(ctx context.Context, value format.MetricMe
 	return m, nil
 }
 
-func (l *MetricMetaLoader) LoadJournal(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
-	resp := tlmetadata.GetJournalResponsenew{}
-	req := tlmetadata.GetJournalnew{
+func (l *MetricMetaLoader) LoadJournal(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlstatshouse_metadata.Event, int64, error) {
+	resp := tlstatshouse_metadata.GetJournalResponsenew{}
+	req := tlstatshouse_metadata.GetJournalnew{
 		From:  lastVersion,
 		Limit: 1000,
 	}
@@ -189,10 +189,10 @@ func (l *MetricMetaLoader) PutTagMapping(ctx context.Context, tag string, id int
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
 
-	err := l.client.PutMapping(ctx, tlmetadata.PutMapping{
+	err := l.client.PutMapping(ctx, tlstatshouse_metadata.PutMapping{
 		Keys:  []string{tag},
 		Value: []int32{id},
-	}, nil, &tlmetadata.PutMappingResponse{})
+	}, nil, &tlstatshouse_metadata.PutMappingResponse{})
 	if err != nil {
 		return fmt.Errorf("failed to put mapping: %w", err)
 	}
@@ -210,12 +210,12 @@ func (l *MetricMetaLoader) GetTagMapping(ctx context.Context, tag string, metric
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
 
-	req := tlmetadata.GetMapping{
+	req := tlstatshouse_metadata.GetMapping{
 		Metric: metricName,
 		Key:    tag,
 	}
 	req.SetCreateIfAbsent(create)
-	resp := tlmetadata.GetMappingResponseUnion{}
+	resp := tlstatshouse_metadata.GetMappingResponseUnion{}
 	err := l.client.GetMapping(ctx, req, nil, &resp)
 	if err != nil {
 		return 0, format.TagValueIDAggMappingCreatedStatusErrorPMC, 0, err
@@ -271,17 +271,17 @@ func checkPromConfig(cfg *prom_config.Config) error {
 	return nil
 }
 
-func (l *MetricMetaLoader) SavePromConfig(ctx context.Context, version int64, config string) (tlmetadata.Event, error) {
+func (l *MetricMetaLoader) SavePromConfig(ctx context.Context, version int64, config string) (tlstatshouse_metadata.Event, error) {
 	cfg, err := prom_config.Load(config, false, promlog.NewLogfmtLogger(os.Stdout))
-	event := tlmetadata.Event{}
+	event := tlstatshouse_metadata.Event{}
 	if err != nil {
 		return event, fmt.Errorf("invalid prometheus config syntax: %w", err)
 	}
 	if err := checkPromConfig(cfg); err != nil {
 		return event, err
 	}
-	editMetricReq := tlmetadata.EditEntitynew{
-		Event: tlmetadata.Event{
+	editMetricReq := tlstatshouse_metadata.EditEntitynew{
+		Event: tlstatshouse_metadata.Event{
 			Id:        prometheusConfigID,
 			Name:      "prom-config",
 			EventType: format.PromConfigEvent,
@@ -301,10 +301,10 @@ func (l *MetricMetaLoader) SavePromConfig(ctx context.Context, version int64, co
 func (l *MetricMetaLoader) ResetFlood(ctx context.Context, metricName string) (bool, error) {
 	ctx, cancel := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancel()
-	req := tlmetadata.ResetFlood2{
+	req := tlstatshouse_metadata.ResetFlood2{
 		Metric: metricName,
 	}
-	resp := tlmetadata.ResetFloodResponse2{}
+	resp := tlstatshouse_metadata.ResetFloodResponse2{}
 	err := l.client.ResetFlood2(ctx, req, nil, &resp)
 	// TODO - return budget before and after in a message to UI
 	if err != nil {

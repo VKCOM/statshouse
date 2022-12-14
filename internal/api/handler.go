@@ -32,7 +32,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
@@ -324,7 +324,7 @@ type (
 	}
 )
 
-func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedPrefixes []string, showInvisible bool, utcOffsetSec int64, approxCacheMaxSize int, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, location *time.Location, localMode, readOnly, insecureMode bool) (*Handler, error) {
+func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedPrefixes []string, showInvisible bool, utcOffsetSec int64, approxCacheMaxSize int, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlstatshouse_metadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, location *time.Location, localMode, readOnly, insecureMode bool) (*Handler, error) {
 	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	diskCacheSuffix := metadataClient.Address // TODO - use cluster name or something here
 
@@ -998,13 +998,13 @@ func (h *Handler) handleGetPromConfig(ai accessInfo) (*PromConfigInfo, time.Dura
 	}, defaultCacheTTL, nil
 }
 
-func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, configStr string, version int64) (tlmetadata.Event, error) {
+func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, configStr string, version int64) (tlstatshouse_metadata.Event, error) {
 	if !ai.isAdmin() {
-		return tlmetadata.Event{}, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
+		return tlstatshouse_metadata.Event{}, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 	}
 	event, err := h.metadataLoader.SavePromConfig(ctx, version, configStr)
 	if err != nil {
-		return tlmetadata.Event{}, fmt.Errorf("failed to save prometheus config: %w", err)
+		return tlstatshouse_metadata.Event{}, fmt.Errorf("failed to save prometheus config: %w", err)
 	}
 	return event, nil
 }

@@ -15,7 +15,7 @@ var _ = basictl.NatWrite
 
 var _ = True{}
 
-type MetadataCreateMappingEvent struct {
+type StatshouseMetadataCreateMappingEvent struct {
 	FieldMask uint32
 	Id        int32
 	Key       string
@@ -25,19 +25,23 @@ type MetadataCreateMappingEvent struct {
 	UpdatedAt uint32
 }
 
-func (MetadataCreateMappingEvent) TLName() string { return "metadata.createMappingEvent" }
-func (MetadataCreateMappingEvent) TLTag() uint32  { return 0x12345678 }
+func (StatshouseMetadataCreateMappingEvent) TLName() string {
+	return "statshouse_metadata.createMappingEvent"
+}
+func (StatshouseMetadataCreateMappingEvent) TLTag() uint32 { return 0x12345678 }
 
-func (item *MetadataCreateMappingEvent) SetCreate(v bool) {
+func (item *StatshouseMetadataCreateMappingEvent) SetCreate(v bool) {
 	if v {
 		item.FieldMask |= 1 << 0
 	} else {
 		item.FieldMask &^= 1 << 0
 	}
 }
-func (item *MetadataCreateMappingEvent) IsSetCreate() bool { return item.FieldMask&(1<<0) != 0 }
+func (item *StatshouseMetadataCreateMappingEvent) IsSetCreate() bool {
+	return item.FieldMask&(1<<0) != 0
+}
 
-func (item *MetadataCreateMappingEvent) Reset() {
+func (item *StatshouseMetadataCreateMappingEvent) Reset() {
 	item.FieldMask = 0
 	item.Id = 0
 	item.Key = ""
@@ -46,7 +50,7 @@ func (item *MetadataCreateMappingEvent) Reset() {
 	item.UpdatedAt = 0
 }
 
-func (item *MetadataCreateMappingEvent) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataCreateMappingEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
@@ -65,7 +69,7 @@ func (item *MetadataCreateMappingEvent) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.UpdatedAt)
 }
 
-func (item *MetadataCreateMappingEvent) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataCreateMappingEvent) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.IntWrite(w, item.Id)
 	if w, err = basictl.StringWrite(w, item.Key); err != nil {
@@ -78,19 +82,19 @@ func (item *MetadataCreateMappingEvent) Write(w []byte) (_ []byte, err error) {
 	return basictl.NatWrite(w, item.UpdatedAt), nil
 }
 
-func (item *MetadataCreateMappingEvent) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataCreateMappingEvent) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x12345678); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *MetadataCreateMappingEvent) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseMetadataCreateMappingEvent) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x12345678)
 	return item.Write(w)
 }
 
-func (item MetadataCreateMappingEvent) String() string {
+func (item StatshouseMetadataCreateMappingEvent) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -98,13 +102,13 @@ func (item MetadataCreateMappingEvent) String() string {
 	return string(w)
 }
 
-func MetadataCreateMappingEvent__ReadJSON(item *MetadataCreateMappingEvent, j interface{}) error {
+func StatshouseMetadataCreateMappingEvent__ReadJSON(item *StatshouseMetadataCreateMappingEvent, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *MetadataCreateMappingEvent) readJSON(j interface{}) error {
+func (item *StatshouseMetadataCreateMappingEvent) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.createMappingEvent", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.createMappingEvent", "expected json object")
 	}
 	_jFieldMask := _jm["field_mask"]
 	delete(_jm, "field_mask")
@@ -139,7 +143,7 @@ func (item *MetadataCreateMappingEvent) readJSON(j interface{}) error {
 		return err
 	}
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.createMappingEvent", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.createMappingEvent", k)
 	}
 	if _jCreate != nil {
 		_bit := false
@@ -155,7 +159,7 @@ func (item *MetadataCreateMappingEvent) readJSON(j interface{}) error {
 	return nil
 }
 
-func (item *MetadataCreateMappingEvent) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataCreateMappingEvent) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -194,17 +198,17 @@ func (item *MetadataCreateMappingEvent) WriteJSON(w []byte) (_ []byte, err error
 	return append(w, '}'), nil
 }
 
-func (item *MetadataCreateMappingEvent) MarshalJSON() ([]byte, error) {
+func (item *StatshouseMetadataCreateMappingEvent) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *MetadataCreateMappingEvent) UnmarshalJSON(b []byte) error {
+func (item *StatshouseMetadataCreateMappingEvent) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("metadata.createMappingEvent", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.createMappingEvent", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("metadata.createMappingEvent", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.createMappingEvent", err.Error())
 	}
 	return nil
 }

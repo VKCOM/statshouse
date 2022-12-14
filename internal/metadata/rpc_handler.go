@@ -16,8 +16,8 @@ import (
 
 	"go.uber.org/atomic"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
 )
@@ -39,7 +39,7 @@ type Handler struct {
 }
 
 type getJournalClient struct {
-	args tlmetadata.GetJournalnew
+	args tlstatshouse_metadata.GetJournalnew
 	hctx *rpc.HandlerContext
 }
 
@@ -98,11 +98,11 @@ func (h *Handler) broadcastJournal(sentToAll bool) {
 	h.getJournalMx.Lock()
 	defer h.getJournalMx.Unlock()
 	pos := 0
-	eventsToClient := make([]tlmetadata.Event, 0)
+	eventsToClient := make([]tlstatshouse_metadata.Event, 0)
 	clientGotResponseCount := 0
 	var newMinimum int64 = math.MaxInt64
 	for _, client := range h.getJournalClients {
-		resp := filterResponse(journalNew, eventsToClient, func(m tlmetadata.Event) bool {
+		resp := filterResponse(journalNew, eventsToClient, func(m tlstatshouse_metadata.Event) bool {
 			return m.Version > client.args.From
 		})
 		if len(resp.Events) == 0 {
@@ -137,7 +137,7 @@ func (h *Handler) initStats() {
 }
 
 func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
-	var args tlmetadata.GetJournalnew
+	var args tlstatshouse_metadata.GetJournalnew
 	_, err := args.Read(hctx.Request)
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.getJournal request: %w", err)
@@ -148,7 +148,7 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 		return "", fmt.Errorf("failed to get metrics update: %w", err)
 	}
 	if len(m) > 0 {
-		resp := filterResponse(m, nil, func(m tlmetadata.Event) bool { return true })
+		resp := filterResponse(m, nil, func(m tlstatshouse_metadata.Event) bool { return true })
 		hctx.Response, err = args.WriteResult(hctx.Response, resp)
 		return "", err
 	}
@@ -165,7 +165,7 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 }
 
 func (h *Handler) RawEditEntity(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
-	var args tlmetadata.EditEntitynew
+	var args tlstatshouse_metadata.EditEntitynew
 	_, err := args.Read(hctx.Request)
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.editMetricEvent request: %w", err)
@@ -183,26 +183,26 @@ func (h *Handler) RawEditEntity(ctx context.Context, hctx *rpc.HandlerContext) (
 }
 
 func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
-	var args tlmetadata.GetMapping
+	var args tlstatshouse_metadata.GetMapping
 	_, err := args.Read(hctx.Request)
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.getMapping request: %w", err)
 	}
 
-	var mapping tlmetadata.GetMappingResponseUnion
+	var mapping tlstatshouse_metadata.GetMappingResponseUnion
 	var notExists bool
 	if args.IsSetCreateIfAbsent() {
 		mapping, err = h.db.GetOrCreateMapping(args.Metric, args.Key)
 	} else {
 		var id int32
 		id, notExists, err = h.db.GetMappingByValue(args.Key)
-		mapping = tlmetadata.GetMappingResponse{Id: id}.AsUnion()
+		mapping = tlstatshouse_metadata.GetMappingResponse{Id: id}.AsUnion()
 	}
 	if err != nil {
 		return "", err
 	}
 	if notExists {
-		mapping = tlmetadata.GetMappingResponseKeyNotExists{}.AsUnion()
+		mapping = tlstatshouse_metadata.GetMappingResponseKeyNotExists{}.AsUnion()
 	}
 	status := "load_mapping"
 	if mapping.IsCreated() {
@@ -213,7 +213,7 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 }
 
 func (h *Handler) RawPutMapping(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
-	var args tlmetadata.PutMapping
+	var args tlstatshouse_metadata.PutMapping
 	_, err := args.Read(hctx.Request)
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.putMappingEvent request: %w", err)
@@ -222,12 +222,12 @@ func (h *Handler) RawPutMapping(ctx context.Context, hctx *rpc.HandlerContext) (
 	if err != nil {
 		return "", err
 	}
-	hctx.Response, err = args.WriteResult(hctx.Response, tlmetadata.PutMappingResponse{})
+	hctx.Response, err = args.WriteResult(hctx.Response, tlstatshouse_metadata.PutMappingResponse{})
 	return "", err
 }
 
 func (h *Handler) RawGetMappingByID(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
-	var args tlmetadata.GetInvertMapping
+	var args tlstatshouse_metadata.GetInvertMapping
 	_, err := args.Read(hctx.Request)
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.getInvertMapping request: %w", err)
@@ -237,13 +237,13 @@ func (h *Handler) RawGetMappingByID(ctx context.Context, hctx *rpc.HandlerContex
 		return "", err
 	}
 
-	var resp tlmetadata.GetInvertMappingResponseUnion
+	var resp tlstatshouse_metadata.GetInvertMappingResponseUnion
 	var status string
 	if !isExists {
-		resp = tlmetadata.GetInvertMappingResponseKeyNotExists{}.AsUnion()
+		resp = tlstatshouse_metadata.GetInvertMappingResponseKeyNotExists{}.AsUnion()
 		status = "key_not_exists"
 	} else {
-		resp = tlmetadata.GetInvertMappingResponse{Key: k}.AsUnion()
+		resp = tlstatshouse_metadata.GetInvertMappingResponse{Key: k}.AsUnion()
 		status = "get"
 	}
 	hctx.Response, err = args.WriteResult(hctx.Response, resp)
@@ -252,7 +252,7 @@ func (h *Handler) RawGetMappingByID(ctx context.Context, hctx *rpc.HandlerContex
 
 // resetFlood
 func (h *Handler) RawResetFlood(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
-	var args tlmetadata.ResetFlood
+	var args tlstatshouse_metadata.ResetFlood
 	_, err := args.Read(hctx.Request)
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.resetFlood request: %w", err)
@@ -263,16 +263,16 @@ func (h *Handler) RawResetFlood(ctx context.Context, hctx *rpc.HandlerContext) (
 	if err != nil {
 		return "", err
 	}
-	resp := tlmetadata.ResetFloodResponse{}
+	resp := tlstatshouse_metadata.ResetFloodResponse{}
 	hctx.Response, err = args.WriteResult(hctx.Response, resp)
 	return "", err
 }
 
-func (h *Handler) ResetFlood2(ctx context.Context, args tlmetadata.ResetFlood2) (tlmetadata.ResetFloodResponse2, error) {
-	return tlmetadata.ResetFloodResponse2{}, h.db.ResetFlood(args.Metric) // TODO - return budgets before and after reset
+func (h *Handler) ResetFlood2(ctx context.Context, args tlstatshouse_metadata.ResetFlood2) (tlstatshouse_metadata.ResetFloodResponse2, error) {
+	return tlstatshouse_metadata.ResetFloodResponse2{}, h.db.ResetFlood(args.Metric) // TODO - return budgets before and after reset
 }
 
-func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.GetTagMappingBootstrap) (tlstatshouse.GetTagMappingBootstrapResult, error) {
+func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlstatshouse_metadata.GetTagMappingBootstrap) (tlstatshouse.GetTagMappingBootstrapResult, error) {
 	var ret tlstatshouse.GetTagMappingBootstrapResult
 
 	totalSizeEstimate := 0
@@ -309,14 +309,14 @@ func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.Ge
 	return ret, nil
 }
 
-func (h *Handler) PutTagMappingBootstrap(ctx context.Context, args tlmetadata.PutTagMappingBootstrap) (tlstatshouse.PutTagMappingBootstrapResult, error) {
+func (h *Handler) PutTagMappingBootstrap(ctx context.Context, args tlstatshouse_metadata.PutTagMappingBootstrap) (tlstatshouse.PutTagMappingBootstrapResult, error) {
 	count, err := h.db.PutBootstrap(args.Mappings)
 	return tlstatshouse.PutTagMappingBootstrapResult{CountInserted: count}, err
 }
 
-func filterResponse(ms []tlmetadata.Event, buffer []tlmetadata.Event, filter func(m tlmetadata.Event) bool) tlmetadata.GetJournalResponsenew {
+func filterResponse(ms []tlstatshouse_metadata.Event, buffer []tlstatshouse_metadata.Event, filter func(m tlstatshouse_metadata.Event) bool) tlstatshouse_metadata.GetJournalResponsenew {
 	var currentVersion int64 = math.MinInt64
-	result := tlmetadata.GetJournalResponsenew{}
+	result := tlstatshouse_metadata.GetJournalResponsenew{}
 	for _, m := range ms {
 		if !filter(m) {
 			continue

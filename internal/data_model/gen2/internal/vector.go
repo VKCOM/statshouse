@@ -662,203 +662,6 @@ func (item *VectorLong) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type VectorMetadataEvent []MetadataEvent
-
-func (VectorMetadataEvent) TLName() string { return "vector" }
-func (VectorMetadataEvent) TLTag() uint32  { return 0x1cb5c415 }
-
-func (item *VectorMetadataEvent) Reset() {
-	ptr := (*[]MetadataEvent)(item)
-	*ptr = (*ptr)[:0]
-}
-
-func (item *VectorMetadataEvent) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]MetadataEvent)(item)
-	return VectorMetadataEvent0Read(w, ptr)
-}
-
-func (item *VectorMetadataEvent) Write(w []byte) (_ []byte, err error) {
-	ptr := (*[]MetadataEvent)(item)
-	return VectorMetadataEvent0Write(w, *ptr)
-}
-
-func (item *VectorMetadataEvent) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *VectorMetadataEvent) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
-}
-
-func (item VectorMetadataEvent) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func VectorMetadataEvent__ReadJSON(item *VectorMetadataEvent, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *VectorMetadataEvent) readJSON(j interface{}) error {
-	ptr := (*[]MetadataEvent)(item)
-	if err := VectorMetadataEvent0ReadJSON(j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (item *VectorMetadataEvent) WriteJSON(w []byte) (_ []byte, err error) {
-	ptr := (*[]MetadataEvent)(item)
-	if w, err = VectorMetadataEvent0WriteJSON(w, *ptr); err != nil {
-		return w, err
-	}
-	return w, nil
-}
-func (item *VectorMetadataEvent) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *VectorMetadataEvent) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	return nil
-}
-
-type VectorMetadataEventBytes []MetadataEventBytes
-
-func (VectorMetadataEventBytes) TLName() string { return "vector" }
-func (VectorMetadataEventBytes) TLTag() uint32  { return 0x1cb5c415 }
-
-func (item *VectorMetadataEventBytes) Reset() {
-	ptr := (*[]MetadataEventBytes)(item)
-	*ptr = (*ptr)[:0]
-}
-
-func (item *VectorMetadataEventBytes) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]MetadataEventBytes)(item)
-	return VectorMetadataEvent0BytesRead(w, ptr)
-}
-
-func (item *VectorMetadataEventBytes) Write(w []byte) (_ []byte, err error) {
-	ptr := (*[]MetadataEventBytes)(item)
-	return VectorMetadataEvent0BytesWrite(w, *ptr)
-}
-
-func (item *VectorMetadataEventBytes) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *VectorMetadataEventBytes) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
-}
-
-func (item VectorMetadataEventBytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func VectorMetadataEventBytes__ReadJSON(item *VectorMetadataEventBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *VectorMetadataEventBytes) readJSON(j interface{}) error {
-	ptr := (*[]MetadataEventBytes)(item)
-	if err := VectorMetadataEvent0BytesReadJSON(j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (item *VectorMetadataEventBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	ptr := (*[]MetadataEventBytes)(item)
-	if w, err = VectorMetadataEvent0BytesWriteJSON(w, *ptr); err != nil {
-		return w, err
-	}
-	return w, nil
-}
-func (item *VectorMetadataEventBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *VectorMetadataEventBytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	return nil
-}
-
-type VectorMetadataMetricOld []MetadataMetricOld
-
-func (VectorMetadataMetricOld) TLName() string { return "vector" }
-func (VectorMetadataMetricOld) TLTag() uint32  { return 0x1cb5c415 }
-
-func (item *VectorMetadataMetricOld) Reset() {
-	ptr := (*[]MetadataMetricOld)(item)
-	*ptr = (*ptr)[:0]
-}
-
-func (item *VectorMetadataMetricOld) Read(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
-	ptr := (*[]MetadataMetricOld)(item)
-	return VectorMetadataMetricOld0Read(w, ptr, nat_tfield_mask)
-}
-
-func (item *VectorMetadataMetricOld) Write(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
-	ptr := (*[]MetadataMetricOld)(item)
-	return VectorMetadataMetricOld0Write(w, *ptr, nat_tfield_mask)
-}
-
-func (item *VectorMetadataMetricOld) ReadBoxed(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
-		return w, err
-	}
-	return item.Read(w, nat_tfield_mask)
-}
-
-func (item *VectorMetadataMetricOld) WriteBoxed(w []byte, nat_tfield_mask uint32) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w, nat_tfield_mask)
-}
-
-func VectorMetadataMetricOld__ReadJSON(item *VectorMetadataMetricOld, j interface{}, nat_tfield_mask uint32) error {
-	return item.readJSON(j, nat_tfield_mask)
-}
-func (item *VectorMetadataMetricOld) readJSON(j interface{}, nat_tfield_mask uint32) error {
-	ptr := (*[]MetadataMetricOld)(item)
-	if err := VectorMetadataMetricOld0ReadJSON(j, ptr, nat_tfield_mask); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (item *VectorMetadataMetricOld) WriteJSON(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
-	ptr := (*[]MetadataMetricOld)(item)
-	if w, err = VectorMetadataMetricOld0WriteJSON(w, *ptr, nat_tfield_mask); err != nil {
-		return w, err
-	}
-	return w, nil
-}
-
 type VectorStatshouseApiFilter []StatshouseApiFilter
 
 func (VectorStatshouseApiFilter) TLName() string { return "vector" }
@@ -1660,6 +1463,203 @@ func (item *VectorStatshouseMappingBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
+}
+
+type VectorStatshouseMetadataEvent []StatshouseMetadataEvent
+
+func (VectorStatshouseMetadataEvent) TLName() string { return "vector" }
+func (VectorStatshouseMetadataEvent) TLTag() uint32  { return 0x1cb5c415 }
+
+func (item *VectorStatshouseMetadataEvent) Reset() {
+	ptr := (*[]StatshouseMetadataEvent)(item)
+	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseMetadataEvent) Read(w []byte) (_ []byte, err error) {
+	ptr := (*[]StatshouseMetadataEvent)(item)
+	return VectorStatshouseMetadataEvent0Read(w, ptr)
+}
+
+func (item *VectorStatshouseMetadataEvent) Write(w []byte) (_ []byte, err error) {
+	ptr := (*[]StatshouseMetadataEvent)(item)
+	return VectorStatshouseMetadataEvent0Write(w, *ptr)
+}
+
+func (item *VectorStatshouseMetadataEvent) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+func (item *VectorStatshouseMetadataEvent) WriteBoxed(w []byte) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x1cb5c415)
+	return item.Write(w)
+}
+
+func (item VectorStatshouseMetadataEvent) String() string {
+	w, err := item.WriteJSON(nil)
+	if err != nil {
+		return err.Error()
+	}
+	return string(w)
+}
+
+func VectorStatshouseMetadataEvent__ReadJSON(item *VectorStatshouseMetadataEvent, j interface{}) error {
+	return item.readJSON(j)
+}
+func (item *VectorStatshouseMetadataEvent) readJSON(j interface{}) error {
+	ptr := (*[]StatshouseMetadataEvent)(item)
+	if err := VectorStatshouseMetadataEvent0ReadJSON(j, ptr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (item *VectorStatshouseMetadataEvent) WriteJSON(w []byte) (_ []byte, err error) {
+	ptr := (*[]StatshouseMetadataEvent)(item)
+	if w, err = VectorStatshouseMetadataEvent0WriteJSON(w, *ptr); err != nil {
+		return w, err
+	}
+	return w, nil
+}
+func (item *VectorStatshouseMetadataEvent) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil)
+}
+
+func (item *VectorStatshouseMetadataEvent) UnmarshalJSON(b []byte) error {
+	j, err := JsonBytesToInterface(b)
+	if err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	if err = item.readJSON(j); err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	return nil
+}
+
+type VectorStatshouseMetadataEventBytes []StatshouseMetadataEventBytes
+
+func (VectorStatshouseMetadataEventBytes) TLName() string { return "vector" }
+func (VectorStatshouseMetadataEventBytes) TLTag() uint32  { return 0x1cb5c415 }
+
+func (item *VectorStatshouseMetadataEventBytes) Reset() {
+	ptr := (*[]StatshouseMetadataEventBytes)(item)
+	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseMetadataEventBytes) Read(w []byte) (_ []byte, err error) {
+	ptr := (*[]StatshouseMetadataEventBytes)(item)
+	return VectorStatshouseMetadataEvent0BytesRead(w, ptr)
+}
+
+func (item *VectorStatshouseMetadataEventBytes) Write(w []byte) (_ []byte, err error) {
+	ptr := (*[]StatshouseMetadataEventBytes)(item)
+	return VectorStatshouseMetadataEvent0BytesWrite(w, *ptr)
+}
+
+func (item *VectorStatshouseMetadataEventBytes) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+func (item *VectorStatshouseMetadataEventBytes) WriteBoxed(w []byte) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x1cb5c415)
+	return item.Write(w)
+}
+
+func (item VectorStatshouseMetadataEventBytes) String() string {
+	w, err := item.WriteJSON(nil)
+	if err != nil {
+		return err.Error()
+	}
+	return string(w)
+}
+
+func VectorStatshouseMetadataEventBytes__ReadJSON(item *VectorStatshouseMetadataEventBytes, j interface{}) error {
+	return item.readJSON(j)
+}
+func (item *VectorStatshouseMetadataEventBytes) readJSON(j interface{}) error {
+	ptr := (*[]StatshouseMetadataEventBytes)(item)
+	if err := VectorStatshouseMetadataEvent0BytesReadJSON(j, ptr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (item *VectorStatshouseMetadataEventBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	ptr := (*[]StatshouseMetadataEventBytes)(item)
+	if w, err = VectorStatshouseMetadataEvent0BytesWriteJSON(w, *ptr); err != nil {
+		return w, err
+	}
+	return w, nil
+}
+func (item *VectorStatshouseMetadataEventBytes) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil)
+}
+
+func (item *VectorStatshouseMetadataEventBytes) UnmarshalJSON(b []byte) error {
+	j, err := JsonBytesToInterface(b)
+	if err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	if err = item.readJSON(j); err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	return nil
+}
+
+type VectorStatshouseMetadataMetricOld []StatshouseMetadataMetricOld
+
+func (VectorStatshouseMetadataMetricOld) TLName() string { return "vector" }
+func (VectorStatshouseMetadataMetricOld) TLTag() uint32  { return 0x1cb5c415 }
+
+func (item *VectorStatshouseMetadataMetricOld) Reset() {
+	ptr := (*[]StatshouseMetadataMetricOld)(item)
+	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseMetadataMetricOld) Read(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
+	ptr := (*[]StatshouseMetadataMetricOld)(item)
+	return VectorStatshouseMetadataMetricOld0Read(w, ptr, nat_tfield_mask)
+}
+
+func (item *VectorStatshouseMetadataMetricOld) Write(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
+	ptr := (*[]StatshouseMetadataMetricOld)(item)
+	return VectorStatshouseMetadataMetricOld0Write(w, *ptr, nat_tfield_mask)
+}
+
+func (item *VectorStatshouseMetadataMetricOld) ReadBoxed(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
+		return w, err
+	}
+	return item.Read(w, nat_tfield_mask)
+}
+
+func (item *VectorStatshouseMetadataMetricOld) WriteBoxed(w []byte, nat_tfield_mask uint32) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x1cb5c415)
+	return item.Write(w, nat_tfield_mask)
+}
+
+func VectorStatshouseMetadataMetricOld__ReadJSON(item *VectorStatshouseMetadataMetricOld, j interface{}, nat_tfield_mask uint32) error {
+	return item.readJSON(j, nat_tfield_mask)
+}
+func (item *VectorStatshouseMetadataMetricOld) readJSON(j interface{}, nat_tfield_mask uint32) error {
+	ptr := (*[]StatshouseMetadataMetricOld)(item)
+	if err := VectorStatshouseMetadataMetricOld0ReadJSON(j, ptr, nat_tfield_mask); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (item *VectorStatshouseMetadataMetricOld) WriteJSON(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
+	ptr := (*[]StatshouseMetadataMetricOld)(item)
+	if w, err = VectorStatshouseMetadataMetricOld0WriteJSON(w, *ptr, nat_tfield_mask); err != nil {
+		return w, err
+	}
+	return w, nil
 }
 
 type VectorStatshouseMetric []StatshouseMetric

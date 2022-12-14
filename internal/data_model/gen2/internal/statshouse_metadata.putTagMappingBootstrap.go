@@ -13,66 +13,68 @@ import (
 
 var _ = basictl.NatWrite
 
-type MetadataPutTagMappingBootstrap struct {
+type StatshouseMetadataPutTagMappingBootstrap struct {
 	FieldsMask uint32
 	Mappings   []StatshouseMapping
 }
 
-func (MetadataPutTagMappingBootstrap) TLName() string { return "metadata.putTagMappingBootstrap" }
-func (MetadataPutTagMappingBootstrap) TLTag() uint32  { return 0x5fc8ab9b }
+func (StatshouseMetadataPutTagMappingBootstrap) TLName() string {
+	return "statshouse_metadata.putTagMappingBootstrap"
+}
+func (StatshouseMetadataPutTagMappingBootstrap) TLTag() uint32 { return 0x5fc8ab9b }
 
-func (item *MetadataPutTagMappingBootstrap) Reset() {
+func (item *StatshouseMetadataPutTagMappingBootstrap) Reset() {
 	item.FieldsMask = 0
 	item.Mappings = item.Mappings[:0]
 }
 
-func (item *MetadataPutTagMappingBootstrap) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutTagMappingBootstrap) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
 	return VectorStatshouseMapping0Read(w, &item.Mappings)
 }
 
-func (item *MetadataPutTagMappingBootstrap) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutTagMappingBootstrap) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	return VectorStatshouseMapping0Write(w, item.Mappings)
 }
 
-func (item *MetadataPutTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x5fc8ab9b); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *MetadataPutTagMappingBootstrap) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseMetadataPutTagMappingBootstrap) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x5fc8ab9b)
 	return item.Write(w)
 }
 
-func (item *MetadataPutTagMappingBootstrap) ReadResult(w []byte, ret *StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
+func (item *StatshouseMetadataPutTagMappingBootstrap) ReadResult(w []byte, ret *StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
 	return ret.ReadBoxed(w)
 }
 
-func (item *MetadataPutTagMappingBootstrap) WriteResult(w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
+func (item *StatshouseMetadataPutTagMappingBootstrap) WriteResult(w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
 	return ret.WriteBoxed(w)
 }
 
-func (item *MetadataPutTagMappingBootstrap) ReadResultJSON(j interface{}, ret *StatshousePutTagMappingBootstrapResult) error {
+func (item *StatshouseMetadataPutTagMappingBootstrap) ReadResultJSON(j interface{}, ret *StatshousePutTagMappingBootstrapResult) error {
 	if err := StatshousePutTagMappingBootstrapResult__ReadJSON(ret, j); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *MetadataPutTagMappingBootstrap) WriteResultJSON(w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
+func (item *StatshouseMetadataPutTagMappingBootstrap) WriteResultJSON(w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
 	if w, err = ret.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return w, nil
 }
 
-func (item *MetadataPutTagMappingBootstrap) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseMetadataPutTagMappingBootstrap) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshousePutTagMappingBootstrapResult
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
@@ -81,10 +83,10 @@ func (item *MetadataPutTagMappingBootstrap) ReadResultWriteResultJSON(r []byte, 
 	return r, w, err
 }
 
-func (item *MetadataPutTagMappingBootstrap) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *StatshouseMetadataPutTagMappingBootstrap) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
 	j, err := JsonBytesToInterface(r)
 	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.putTagMappingBootstrap", err.Error())
+		return r, w, ErrorInvalidJSON("statshouse_metadata.putTagMappingBootstrap", err.Error())
 	}
 	var ret StatshousePutTagMappingBootstrapResult
 	if err = item.ReadResultJSON(j, &ret); err != nil {
@@ -94,7 +96,7 @@ func (item *MetadataPutTagMappingBootstrap) ReadResultJSONWriteResult(r []byte, 
 	return r, w, err
 }
 
-func (item MetadataPutTagMappingBootstrap) String() string {
+func (item StatshouseMetadataPutTagMappingBootstrap) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -102,13 +104,13 @@ func (item MetadataPutTagMappingBootstrap) String() string {
 	return string(w)
 }
 
-func MetadataPutTagMappingBootstrap__ReadJSON(item *MetadataPutTagMappingBootstrap, j interface{}) error {
+func StatshouseMetadataPutTagMappingBootstrap__ReadJSON(item *StatshouseMetadataPutTagMappingBootstrap, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *MetadataPutTagMappingBootstrap) readJSON(j interface{}) error {
+func (item *StatshouseMetadataPutTagMappingBootstrap) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.putTagMappingBootstrap", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.putTagMappingBootstrap", "expected json object")
 	}
 	_jFieldsMask := _jm["fields_mask"]
 	delete(_jm, "fields_mask")
@@ -118,7 +120,7 @@ func (item *MetadataPutTagMappingBootstrap) readJSON(j interface{}) error {
 	_jMappings := _jm["mappings"]
 	delete(_jm, "mappings")
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.putTagMappingBootstrap", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.putTagMappingBootstrap", k)
 	}
 	if err := VectorStatshouseMapping0ReadJSON(_jMappings, &item.Mappings); err != nil {
 		return err
@@ -126,7 +128,7 @@ func (item *MetadataPutTagMappingBootstrap) readJSON(j interface{}) error {
 	return nil
 }
 
-func (item *MetadataPutTagMappingBootstrap) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutTagMappingBootstrap) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -143,17 +145,17 @@ func (item *MetadataPutTagMappingBootstrap) WriteJSON(w []byte) (_ []byte, err e
 	return append(w, '}'), nil
 }
 
-func (item *MetadataPutTagMappingBootstrap) MarshalJSON() ([]byte, error) {
+func (item *StatshouseMetadataPutTagMappingBootstrap) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *MetadataPutTagMappingBootstrap) UnmarshalJSON(b []byte) error {
+func (item *StatshouseMetadataPutTagMappingBootstrap) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("metadata.putTagMappingBootstrap", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.putTagMappingBootstrap", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("metadata.putTagMappingBootstrap", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.putTagMappingBootstrap", err.Error())
 	}
 	return nil
 }

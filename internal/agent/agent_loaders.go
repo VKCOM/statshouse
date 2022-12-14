@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -110,7 +110,7 @@ func (s *Agent) LoadPromTargets(ctxParent context.Context, version string) (res 
 	return &ret, ret.Hash, nil
 }
 
-func (s *Agent) LoadMetaMetricJournal(ctxParent context.Context, version int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
+func (s *Agent) LoadMetaMetricJournal(ctxParent context.Context, version int64, returnIfEmpty bool) ([]tlstatshouse_metadata.Event, int64, error) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	// Actually use only single aggregator for mapping
 	s0, _ := s.getRandomLiveShards()
@@ -129,7 +129,7 @@ func (s *Agent) LoadMetaMetricJournal(ctxParent context.Context, version int64, 
 	s0.fillProxyHeader(&args.FieldsMask, &args.Header)
 	args.SetReturnIfEmpty(returnIfEmpty)
 
-	var ret tlmetadata.GetJournalResponsenew
+	var ret tlstatshouse_metadata.GetJournalResponsenew
 
 	// We do not need timeout for long poll, RPC has disconnect detection via ping-pong
 	err := s0.client.GetMetrics3(ctxParent, args, &extra, &ret)

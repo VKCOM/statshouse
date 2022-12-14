@@ -86,22 +86,22 @@ func (item *StatshouseGetMetrics3) WriteBoxed(w []byte) ([]byte, error) {
 	return item.Write(w)
 }
 
-func (item *StatshouseGetMetrics3) ReadResult(w []byte, ret *MetadataGetJournalResponsenew) (_ []byte, err error) {
+func (item *StatshouseGetMetrics3) ReadResult(w []byte, ret *StatshouseMetadataGetJournalResponsenew) (_ []byte, err error) {
 	return ret.ReadBoxed(w, item.FieldsMask)
 }
 
-func (item *StatshouseGetMetrics3) WriteResult(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
+func (item *StatshouseGetMetrics3) WriteResult(w []byte, ret StatshouseMetadataGetJournalResponsenew) (_ []byte, err error) {
 	return ret.WriteBoxed(w, item.FieldsMask)
 }
 
-func (item *StatshouseGetMetrics3) ReadResultJSON(j interface{}, ret *MetadataGetJournalResponsenew) error {
-	if err := MetadataGetJournalResponsenew__ReadJSON(ret, j, item.FieldsMask); err != nil {
+func (item *StatshouseGetMetrics3) ReadResultJSON(j interface{}, ret *StatshouseMetadataGetJournalResponsenew) error {
+	if err := StatshouseMetadataGetJournalResponsenew__ReadJSON(ret, j, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *StatshouseGetMetrics3) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
+func (item *StatshouseGetMetrics3) WriteResultJSON(w []byte, ret StatshouseMetadataGetJournalResponsenew) (_ []byte, err error) {
 	if w, err = ret.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -109,7 +109,7 @@ func (item *StatshouseGetMetrics3) WriteResultJSON(w []byte, ret MetadataGetJour
 }
 
 func (item *StatshouseGetMetrics3) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetJournalResponsenew
+	var ret StatshouseMetadataGetJournalResponsenew
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -122,7 +122,7 @@ func (item *StatshouseGetMetrics3) ReadResultJSONWriteResult(r []byte, w []byte)
 	if err != nil {
 		return r, w, ErrorInvalidJSON("statshouse.getMetrics3", err.Error())
 	}
-	var ret MetadataGetJournalResponsenew
+	var ret StatshouseMetadataGetJournalResponsenew
 	if err = item.ReadResultJSON(j, &ret); err != nil {
 		return r, w, err
 	}
@@ -312,22 +312,22 @@ func (item *StatshouseGetMetrics3Bytes) WriteBoxed(w []byte) ([]byte, error) {
 	return item.Write(w)
 }
 
-func (item *StatshouseGetMetrics3Bytes) ReadResult(w []byte, ret *MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
+func (item *StatshouseGetMetrics3Bytes) ReadResult(w []byte, ret *StatshouseMetadataGetJournalResponsenewBytes) (_ []byte, err error) {
 	return ret.ReadBoxed(w, item.FieldsMask)
 }
 
-func (item *StatshouseGetMetrics3Bytes) WriteResult(w []byte, ret MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
+func (item *StatshouseGetMetrics3Bytes) WriteResult(w []byte, ret StatshouseMetadataGetJournalResponsenewBytes) (_ []byte, err error) {
 	return ret.WriteBoxed(w, item.FieldsMask)
 }
 
-func (item *StatshouseGetMetrics3Bytes) ReadResultJSON(j interface{}, ret *MetadataGetJournalResponsenewBytes) error {
-	if err := MetadataGetJournalResponsenewBytes__ReadJSON(ret, j, item.FieldsMask); err != nil {
+func (item *StatshouseGetMetrics3Bytes) ReadResultJSON(j interface{}, ret *StatshouseMetadataGetJournalResponsenewBytes) error {
+	if err := StatshouseMetadataGetJournalResponsenewBytes__ReadJSON(ret, j, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *StatshouseGetMetrics3Bytes) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
+func (item *StatshouseGetMetrics3Bytes) WriteResultJSON(w []byte, ret StatshouseMetadataGetJournalResponsenewBytes) (_ []byte, err error) {
 	if w, err = ret.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -335,7 +335,7 @@ func (item *StatshouseGetMetrics3Bytes) WriteResultJSON(w []byte, ret MetadataGe
 }
 
 func (item *StatshouseGetMetrics3Bytes) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetJournalResponsenewBytes
+	var ret StatshouseMetadataGetJournalResponsenewBytes
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -348,7 +348,7 @@ func (item *StatshouseGetMetrics3Bytes) ReadResultJSONWriteResult(r []byte, w []
 	if err != nil {
 		return r, w, ErrorInvalidJSON("statshouse.getMetrics3", err.Error())
 	}
-	var ret MetadataGetJournalResponsenewBytes
+	var ret StatshouseMetadataGetJournalResponsenewBytes
 	if err = item.ReadResultJSON(j, &ret); err != nil {
 		return r, w, err
 	}

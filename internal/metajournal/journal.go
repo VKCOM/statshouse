@@ -21,8 +21,8 @@ import (
 
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -49,9 +49,9 @@ type MetricsVersionClient3 struct {
 	hctx *rpc.HandlerContext
 }
 
-type MetricsStorageLoader func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error)
+type MetricsStorageLoader func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlstatshouse_metadata.Event, int64, error)
 
-type ApplyEvent func(newEntries []tlmetadata.Event)
+type ApplyEvent func(newEntries []tlstatshouse_metadata.Event)
 
 type Journal struct {
 	mu         sync.RWMutex
@@ -65,7 +65,7 @@ type Journal struct {
 	stateHash            string
 	stopWriteToDiscCache bool
 
-	journal    []tlmetadata.Event
+	journal    []tlstatshouse_metadata.Event
 	journalOld []*struct {
 		version int64
 		JSON    string
@@ -134,7 +134,7 @@ func (ms *Journal) StateHash() string {
 	return ms.stateHash
 }
 
-func (ms *Journal) LoadJournal(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
+func (ms *Journal) LoadJournal(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlstatshouse_metadata.Event, int64, error) {
 	return ms.metaLoader(ctx, lastVersion, returnIfEmpty)
 }
 
@@ -181,9 +181,9 @@ func (ms *Journal) parseDiscCache() {
 		log.Printf("error loading metric journal: %v", err)
 		return
 	}
-	var journal2 []tlmetadata.Event
+	var journal2 []tlstatshouse_metadata.Event
 	for _, l := range list {
-		value := tlmetadata.Event{}
+		value := tlstatshouse_metadata.Event{}
 		if _, err := value.ReadBoxed(l.Value); err != nil {
 			log.Printf("clearing journal, error parsing journal entry: %v", err)
 			_ = ms.dc.EraseNamespace(ms.namespace) // we read items out of order, so have to clear both disk
@@ -202,7 +202,7 @@ func (ms *Journal) parseDiscCache() {
 	log.Printf("Loaded metric storage version %d, journal hash is %s", ms.versionLocked(), ms.stateHash)
 }
 
-func regenerateOldJSON(src []tlmetadata.Event) (res []*struct {
+func regenerateOldJSON(src []tlstatshouse_metadata.Event) (res []*struct {
 	version int64
 	JSON    string
 }) {
@@ -248,8 +248,8 @@ func regenerateOldJSON(src []tlmetadata.Event) (res []*struct {
 	return res
 }
 
-func calculateStateHashLocked(events []tlmetadata.Event) string {
-	r := &tlmetadata.GetJournalResponsenew{Events: events}
+func calculateStateHashLocked(events []tlstatshouse_metadata.Event) string {
+	r := &tlstatshouse_metadata.GetJournalResponsenew{Events: events}
 	bytes, _ := r.Write(nil, 0)
 	hash := sha1.Sum(bytes)
 	return hex.EncodeToString(hash[:])
@@ -328,8 +328,8 @@ func (ms *Journal) updateJournal(aggLog AggLog) error {
 	return nil
 }
 
-func updateEntriesJournal(oldJournal, newEntries []tlmetadata.Event) []tlmetadata.Event {
-	var result []tlmetadata.Event
+func updateEntriesJournal(oldJournal, newEntries []tlstatshouse_metadata.Event) []tlstatshouse_metadata.Event {
+	var result []tlstatshouse_metadata.Event
 	newEntriesMap := map[journalEventID]struct{}{}
 	for _, entry := range newEntries {
 		newEntriesMap[journalEventID{
@@ -364,8 +364,8 @@ func (ms *Journal) goUpdateMetrics(a AggLog) {
 	}
 }
 
-func (ms *Journal) getJournalDiffLocked3(verNumb int64) tlmetadata.GetJournalResponsenew {
-	result := tlmetadata.GetJournalResponsenew{CurrentVersion: ms.versionLocked()}
+func (ms *Journal) getJournalDiffLocked3(verNumb int64) tlstatshouse_metadata.GetJournalResponsenew {
+	result := tlstatshouse_metadata.GetJournalResponsenew{CurrentVersion: ms.versionLocked()}
 	if verNumb >= ms.versionLocked() { // wait until version changes
 		return result
 	}

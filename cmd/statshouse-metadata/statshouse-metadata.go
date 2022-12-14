@@ -30,7 +30,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlengine"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/metadata"
 )
 
@@ -292,7 +292,7 @@ func run() error {
 
 	proxy := metadata.ProxyHandler{Host: host}
 	handler := metadata.NewHandler(db, host, log.Printf)
-	h := &tlmetadata.Handler{
+	h := &tlstatshouse_metadata.Handler{
 		RawGetMapping:       proxy.HandleProxy("getMapping", handler.RawGetMappingByValue),
 		RawPutMapping:       proxy.HandleProxy("putMapping", handler.RawPutMapping),
 		RawGetInvertMapping: proxy.HandleProxy("getMappingByID", handler.RawGetMappingByID),
