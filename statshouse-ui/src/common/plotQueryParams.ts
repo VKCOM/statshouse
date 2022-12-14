@@ -6,6 +6,8 @@
 
 import { dequal } from 'dequal/lite';
 import {
+  booleanFromParams,
+  booleanToParams,
   intListFromParams,
   intListToParams,
   join,
@@ -28,6 +30,7 @@ import {
   queryParamFilterSync,
   queryParamFromTime,
   queryParamGroupBy,
+  queryParamLive,
   queryParamLockMax,
   queryParamLockMin,
   queryParamMetric,
@@ -355,5 +358,18 @@ export function writeDashboard(
     numberToParams(value.timeRange.from, params, '', queryParamFromTime, defaultParams.timeRange.from);
     timeRangeToToParams(value.timeRange.to, params, '', queryParamToTime, defaultParams.timeRange.to);
   }
+  return params;
+}
+
+export function getLiveParams(params: URLSearchParams, defaultParams: boolean = false): boolean {
+  return booleanFromParams(params, '', queryParamLive, defaultParams);
+}
+
+export function setLiveParams(
+  value: boolean,
+  params: URLSearchParams,
+  defaultParams: boolean = false
+): URLSearchParams {
+  booleanToParams(value, params, '', queryParamLive, defaultParams);
   return params;
 }

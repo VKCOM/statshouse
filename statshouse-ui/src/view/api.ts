@@ -451,6 +451,8 @@ export const queryMetricsGroupID = 'id';
 export const queryValueBackendVersion1 = '1';
 export const queryValueBackendVersion2 = '2';
 
+export const queryParamLive = 'live';
+
 export function v2Value(useV2: boolean): string {
   return useV2 ? queryValueBackendVersion2 : queryValueBackendVersion1;
 }
