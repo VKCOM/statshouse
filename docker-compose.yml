@@ -7,8 +7,10 @@ services:
     build:
       context: .
       dockerfile: build/statshouse-metadata.Dockerfile
+      args:
+        - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-metadata
-    command: --statshouse-addr=agent:13337 --db-path=/var/lib/statshouse/metadata/db --binlog-prefix=/var/lib/statshouse/metadata/binlog/bl --rpc-crypto-path=/etc/statshouse/key1.txt
+    command: --statshouse-addr=agent:13337 --db-path=/var/lib/statshouse/metadata/db --binlog-prefix=/var/lib/statshouse/metadata/binlog/bl
     expose:
       - 2442
   aggregator-kh:
@@ -33,8 +35,10 @@ services:
     build:
       context: .
       dockerfile: build/statshouse.Dockerfile
+      args:
+        - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-aggregator
-    command: aggregator --cluster=test_shard_aggregator --log-level=trace --agg-addr=':13336' --kh=aggregator-kh:8123 --metadata-addr=metadata:2442 --auto-create --cache-dir=/var/lib/statshouse/cache/aggregator --aes-pwd-file=/etc/statshouse/key1.txt
+    command: aggregator --cluster=test_shard_aggregator --log-level=trace --agg-addr=':13336' --kh=aggregator-kh:8123 --metadata-addr=metadata:2442 --auto-create --cache-dir=/var/lib/statshouse/cache/aggregator
     expose:
       - 13336
     depends_on:
@@ -46,8 +50,10 @@ services:
     build:
       context: .
       dockerfile: build/statshouse.Dockerfile
+      args:
+        - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-agent
-    command: agent --cluster=test_shard_aggregator --log-level=trace --agg-addr='aggregator:13336,aggregator:13336,aggregator:13336' --cache-dir=/var/lib/statshouse/cache/agent --aes-pwd-file=/etc/statshouse/key1.txt --remote-write-enabled
+    command: agent --cluster=test_shard_aggregator --log-level=trace --agg-addr='aggregator:13336,aggregator:13336,aggregator:13336' --cache-dir=/var/lib/statshouse/cache/agent --remote-write-enabled
     ports:
       - "8081:8081"
       - "13337:13337/udp"
@@ -59,8 +65,10 @@ services:
     build:
       context: .
       dockerfile: build/statshouse-api.Dockerfile
+      args:
+        - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-api
-    command: --verbose --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=aggregator-kh:9000 --listen-addr=:10888 --metadata-addr=metadata:2442 --statshouse-addr=agent:13337 --disk-cache=/var/lib/statshouse/cache/api/mapping_cache.sqlite3 --rpc-crypto-path=/etc/statshouse/key1.txt
+    command: --verbose --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=aggregator-kh:9000 --listen-addr=:10888 --metadata-addr=metadata:2442 --statshouse-addr=agent:13337 --disk-cache=/var/lib/statshouse/cache/api/mapping_cache.sqlite3
     ports:
       - "10888:10888"
     depends_on:
