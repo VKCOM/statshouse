@@ -95,6 +95,10 @@ html {
 :root {
   --legend-name-width: 96px;
   --legend-value-width: 96px;
+  --legend-percent-width: 96px;
+  --legend-max-host-width: 0;
+  --legend-max-host-percent-width: 0;
+  --legend-time-width: 136px;
 }
 
 .btn-outline-primary {
@@ -194,9 +198,11 @@ html {
 .plot-full .u-legend,
 .plot-compact.plot-dash.plot-hover .u-legend {
   text-align: left !important;
-  column-width: calc(var(--legend-name-width) + var(--legend-value-width) + 16px) !important;
+  column-width: calc(
+    var(--legend-name-width) + var(--legend-value-width) + var(--legend-percent-width) + var(--legend-max-host-width) +
+      16px
+  ) !important;
   column-count: auto !important;
-
   tr {
     th {
       white-space: nowrap !important;
@@ -213,13 +219,24 @@ html {
     td {
       white-space: nowrap !important;
     }
-
-    &:first-child td {
-      width: 96px !important;
+    td[data-name='time'] {
+      width: var(--legend-time-width) !important;
     }
-
     &:not(:first-child) td {
-      width: var(--legend-value-width) !important;
+      &[data-name='value'] {
+        width: var(--legend-value-width) !important;
+        text-align: end;
+      }
+      &[data-name='percent'] {
+        width: var(--legend-percent-width) !important;
+      }
+      &[data-name='max_host'] {
+        width: var(--legend-max-host-width) !important;
+        text-align: end;
+      }
+      &[data-name='max_host_percent'] {
+        width: var(--legend-max-host-percent-width) !important;
+      }
     }
   }
 

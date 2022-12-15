@@ -10,13 +10,14 @@ import { useResizeObserver } from '../../view/utils';
 import { canvasToImageData } from '../../common/canvasToImage';
 import { debug } from '../../common/debug';
 
-export type LegendItem = {
+export type LegendItem<T = Object> = {
   label: string;
   width: number;
   fill?: string;
   stroke?: string;
   show: boolean;
   value: string | number;
+  values?: T;
   alpha?: number;
   focus?: boolean;
 };
@@ -57,16 +58,21 @@ export const microTask =
   typeof queueMicrotask === 'undefined' ? (fn: () => void) => Promise.resolve().then(fn) : queueMicrotask;
 
 function readLegend(u: uPlot): LegendItem[] {
-  return u.series.map((s, index) => ({
-    label: s.label ?? '',
-    width:
-      (u.legend.markers?.width instanceof Function ? u.legend.markers?.width(u, index) : u.legend.markers?.width) ?? 1,
-    fill: s.fill instanceof Function ? s.fill(u, index)?.toString() : s.fill?.toString(),
-    stroke: s.stroke instanceof Function ? s.stroke(u, index)?.toString() : s.stroke?.toString(),
-    show: s.show ?? false,
-    value: u.legend.values?.[index]?.['_'] ?? '—',
-    alpha: s.alpha,
-  }));
+  return u.series.map((s, index) => {
+    const idx = u.legend.idxs?.[index];
+    return {
+      label: s.label ?? '',
+      width:
+        (u.legend.markers?.width instanceof Function ? u.legend.markers?.width(u, index) : u.legend.markers?.width) ??
+        1,
+      fill: s.fill instanceof Function ? s.fill(u, index)?.toString() : s.fill?.toString(),
+      stroke: s.stroke instanceof Function ? s.stroke(u, index)?.toString() : s.stroke?.toString(),
+      show: s.show ?? false,
+      value: u.legend.values?.[index]?.['_'] ?? '—',
+      values: typeof idx === 'number' ? s.values?.(u, index, idx) : undefined,
+      alpha: s.alpha,
+    };
+  });
 }
 
 export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
