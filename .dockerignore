@@ -1,2 +1,21 @@
-docker-compose.yml
-build/*.Dockerfile
+# Ignore everything
+*
+
+# Allow specific
+!/.git
+!/Makefile
+!/build/*.xml
+!/build/*.sql
+!/cmd
+!/internal
+!/go.mod
+!/go.sum
+!/statshouse-ui
+!/grafana-plugin-ui
+
+# Ignore sub-directories
+/statshouse-ui/build
+/statshouse-ui/node_modules
+/grafana-plugin-ui/coverage
+/grafana-plugin-ui/dist
+/grafana-plugin-ui/node_modules
