@@ -1,20 +1,26 @@
 # StatsHouse Quick Start Guide
 
-## Running from docker
-The command below will start in-memory StatsHouse instance. Nothing is persisted there, so everything will disappear after containers shutdown.
+## Using Docker
+The command below will start an in-memory StatsHouse instance and open the UI once ready. Nothing is persisted there, so everything will disappear after the command exit.
 ```shell
-docker compose --profile sh up
+./localrun.sh
 ```
 
-After containers started, navigate to http://localhost:10888/view?f=-300&t=0&s=__contributors_log_rev and toggle "play" button.
+[`statshouse-example.go`](../cmd/statshouse-example/statshouse-example.go) contains a simple instrumented web server.
+Run it to start sending metrics to the StatsHouse instance you've just launched:
+```shell
+go run ./cmd/statshouse-example/statshouse-example.go
+```
 
-## Building
-The following command will compile all three StatsHouse binaries as well as frontend SPA:
-```bash
+## Local build
+
+### Build StatsHouse
+The following command will compile all three StatsHouse binaries as well as the frontend SPA:
+```shell
 make build-sh build-sh-api build-sh-metadata build-sh-ui
 ```
-Find them in target/ and statshouse-ui/build/ directories:
-```bash
+Find them in `target/` and `statshouse-ui/build/` directories:
+```shell
 ls target/
 statshouse  statshouse-api  statshouse-metadata
 
@@ -22,7 +28,7 @@ ls statshouse-ui/build/
 asset-manifest.json  favicon.ico  index.html  logo192.png  logo512.png  manifest.json  openapi  robots.txt  static
 ```
 
-## Before first run
+## Before the first run
 ### Create directories
 StatsHouse does not create directories and files on its own, it expects them to exist. It's required to create directories for cache and binary logs. Exact directories location is not important, as long as it's writeable. Consider the following directory structure:
 ```shell
@@ -53,7 +59,7 @@ Verify docker-compose instance by running the following:
 docker run -it --rm --network=statshouse_default --link kh:clickhouse-server yandex/clickhouse-client --host clickhouse-server
 ```
 
-## Running from command line
+## Running from the command line
 Assuming that ClickHouse is available on localhost (default ports), follow the steps below. If this is not the case, then change `--kh` aggregator argument (step 2) and `--clickhouse-v2-addrs` api argument (step 4) accordingly.
 1. Start StatsHouse metadata engine:
     ```shell
@@ -74,4 +80,5 @@ Assuming that ClickHouse is available on localhost (default ports), follow the s
     ```shell
     ./target/statshouse-api --verbose --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=localhost:9000 --listen-addr=localhost:10888 --disk-cache=$HOME/statshouse/cache/api/mapping_cache.sqlite3 --static-dir=statshouse-ui/build
     ```
-5. Open StatsHouse dashboard http://localhost:10888/view?f=-300&t=0&s=__contributors_log_rev and toggle "play" button.
+
+5. Open StatsHouse UI: http://localhost:10888/view?live&f=-300&t=0&s=__contributors_log_rev
