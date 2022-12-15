@@ -89,7 +89,7 @@ func run(addr string, shAddr string) error {
 		return fmt.Errorf("failed to create listening socket: %w", err)
 	}
 	defer func() { _ = ln.Close() }()
-	log.Printf("listening on http://%s", ln.Addr().String())
+	log.Printf("listening on http://%s - open this page in a web browser for more information", ln.Addr().String())
 
 	http.Handle("/foo", &handler{name: "/foo", shAddr: shAddr, tmpl: tmpl})
 	http.Handle("/bar", &handler{name: "/bar", shAddr: shAddr, tmpl: tmpl})
