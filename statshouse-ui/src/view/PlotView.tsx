@@ -9,12 +9,13 @@ import uPlot from './lib/uPlot/uPlot.esm';
 import { calcYRange } from '../common/calcYRange';
 import { PlotSubMenu } from '../components/Plot/PlotSubMenu';
 import { PlotHeader } from '../components/Plot/PlotHeader';
-import { LegendItem, UPlotWrapper, UPlotWrapperPropsOpts } from '../components';
+import { LegendItem, PlotLegend, UPlotWrapper, UPlotWrapperPropsOpts } from '../components';
 import { formatSI, now, timeRangeAbbrevExpand } from './utils';
 import { queryURLCSV } from './api';
 import { grey } from './palette';
 import produce from 'immer';
 import {
+  PlotValues,
   selectorBaseRange,
   selectorLiveMode,
   selectorLoadMetricsMeta,
@@ -82,6 +83,9 @@ const PlotView = memo(function PlotView_(props: {
     groups,
     legendNameWidth,
     legendValueWidth,
+    legendPercentWidth,
+    legendMaxHostWidth,
+    legendMaxHostPercentWidth,
     mappingFloodEvents,
     samplingFactorSrc,
     samplingFactorAgg,
@@ -285,30 +289,22 @@ const PlotView = memo(function PlotView_(props: {
     setFixHeight(0);
   }, []);
 
-  const onLegendFocus = useCallback((event: React.MouseEvent) => {
+  const onLegendFocus = useCallback((index: number, focus: boolean) => {
     if ((uPlotRef.current?.cursor as { _lock: boolean })._lock) {
       return;
     }
-    const index = parseInt(event.currentTarget.getAttribute('data-index') ?? '') || null;
-    const focus = event.type === 'mouseover';
-    index && uPlotRef.current?.setSeries(index, { focus }, true);
+    uPlotRef.current?.setSeries(index, { focus }, true);
   }, []);
 
   const onLegendShow = useCallback(
-    (event: React.MouseEvent) => {
+    (index: number, show: boolean, single: boolean) => {
       if ((uPlotRef.current?.cursor as { _lock: boolean })._lock) {
         return;
       }
-      const index = parseInt(event.currentTarget.getAttribute('data-index') ?? '') || null;
-      const show = event.currentTarget.className.includes('u-off');
-
-      if (index) {
-        setPlotShow(indexPlot, index, show, event.ctrlKey || event.metaKey);
-      }
+      setPlotShow(indexPlot, index, show, single);
     },
     [indexPlot, setPlotShow]
   );
-
   useEffect(() => {
     Object.values(groups).forEach((g) => {
       g.idx.forEach((idx) => {
@@ -333,6 +329,9 @@ const PlotView = memo(function PlotView_(props: {
         {
           '--legend-name-width': `${legendNameWidth}px`,
           '--legend-value-width': `${legendValueWidth}px`,
+          '--legend-percent-width': `${legendPercentWidth}px`,
+          '--legend-max-host-width': `${legendMaxHostWidth}px`,
+          '--legend-max-host-percent-width': `${legendMaxHostPercentWidth}px`,
           height: fixHeight > 0 && dashboard ? `${fixHeight}px` : undefined,
         } as React.CSSProperties
       }
@@ -411,34 +410,11 @@ const PlotView = memo(function PlotView_(props: {
           )}
         </div>
         {!error403 && (
-          <div className="plot-legend">
-            <table className="u-legend u-inline u-live">
-              <tbody>
-                {legend.map((l, index) => (
-                  <tr
-                    key={index}
-                    data-index={index}
-                    className={cn('u-series', l.focus && 'plot-legend-focus', !l.show && 'u-off')}
-                    style={{ opacity: l.alpha }}
-                    onMouseOut={onLegendFocus}
-                    onMouseOver={onLegendFocus}
-                    onClick={onLegendShow}
-                  >
-                    <th>
-                      <div
-                        className="u-marker"
-                        style={{ border: l.stroke && `${l.width}px solid ${l.stroke}`, background: l.fill }}
-                      ></div>
-                      <div className="u-label" title={l.label}>
-                        {l.label}
-                      </div>
-                    </th>
-                    <td className="u-value">{l.value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <PlotLegend
+            legend={legend as LegendItem<PlotValues>[]}
+            onLegendShow={onLegendShow}
+            onLegendFocus={onLegendFocus}
+          />
         )}
       </div>
     </div>
