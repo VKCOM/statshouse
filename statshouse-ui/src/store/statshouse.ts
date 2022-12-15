@@ -92,6 +92,18 @@ export type PlotStore = {
   mappingFloodEvents: number;
   legendValueWidth: number;
   legendNameWidth: number;
+  legendPercentWidth: number;
+  legendMaxHostWidth: number;
+  legendMaxHostPercentWidth: number;
+};
+
+export type PlotValues = {
+  rawValue: number | null;
+  value: string;
+  max_host: string;
+  total: number;
+  percent: string;
+  max_host_percent: string;
 };
 
 type SetSearchParams = (
@@ -503,6 +515,9 @@ export const useStore = create<Store>()(
             mappingFloodEvents: 0,
             legendValueWidth: 0,
             legendNameWidth: 0,
+            legendPercentWidth: 0,
+            legendMaxHostWidth: 0,
+            legendMaxHostPercentWidth: 0,
             lastPlotParams: undefined,
             lastTimeRange: undefined,
             lastQuerySeriesMeta: undefined,
@@ -566,7 +581,8 @@ export const useStore = create<Store>()(
               })
             );
             const legendNameWidth = (resp?.series.series_meta.length ?? 0) > 5 ? maxLabelLength * pxPerChar : 1_000_000;
-
+            let legendMaxHostWidth = 0;
+            const legendMaxHostPercentWidth = 0;
             const data: uPlot.AlignedData = [
               resp.series.time as number[],
               ...(resp.series.series_data as (number | null)[][]),
@@ -612,6 +628,20 @@ export const useStore = create<Store>()(
               if (color !== prevState.plotsData[index]?.series[indexMeta]?.stroke) {
                 changeColor = true;
               }
+              if (meta.max_hosts) {
+                legendMaxHostWidth = Math.max(
+                  legendMaxHostWidth,
+                  meta.max_hosts.reduce((res, host) => Math.max(res, host.length), 0)
+                );
+              }
+              const max_host_map =
+                meta.max_hosts?.reduce((res, host) => {
+                  if (host) {
+                    res[host] = (res[host] ?? 0) + 1;
+                  }
+                  return res;
+                }, {} as Record<string, number>) ?? {};
+              const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
               return {
                 show: groups[baseLabel]?.show ?? true,
                 auto: false, // we control the scaling manually
@@ -626,6 +656,25 @@ export const useStore = create<Store>()(
                 paths: uPlot.paths.stepped!({
                   align: 1,
                 }),
+                values(u, seriesIdx, idx): PlotValues {
+                  const rawValue = u.data[seriesIdx][idx] ?? null;
+                  let total = 0;
+                  for (let i = 1; i < u.series.length; i++) {
+                    const v = u.data[i][idx];
+                    if (v !== null && v !== undefined) {
+                      total += v;
+                    }
+                  }
+                  const value = formatLegendValue(rawValue);
+                  const max_host = meta.max_hosts !== null && idx < meta.max_hosts.length ? meta.max_hosts[idx] : '';
+
+                  const max_host_percent =
+                    meta.max_hosts !== null && max_host_map && meta.max_hosts[idx]
+                      ? formatPercent((max_host_map[meta.max_hosts[idx]] ?? 0) / max_host_total)
+                      : '';
+                  const percent = rawValue !== null ? formatPercent(rawValue / total) : '';
+                  return { rawValue, value, max_host, total, percent, max_host_percent };
+                },
                 value(u: uPlot, rawValue: number | null, seriesIdx: number, idx: number): string {
                   let total = 0;
                   for (let i = 1; i < u.series.length; i++) {
@@ -653,10 +702,8 @@ export const useStore = create<Store>()(
               Math.abs(Math.floor(yMinAll) - 0.001),
               Math.abs(Math.ceil(yMaxAll) + 0.001)
             );
-            const legendValueWidth = Math.max(
-              (formatLegendValue(legendExampleValue).length + 2 /* focus marker */ + 4) /* percentage */ * pxPerChar,
-              17 * pxPerChar
-            );
+            const legendValueWidth = (formatLegendValue(legendExampleValue).length + 2) * pxPerChar; // +2 - focus marker
+            const legendPercentWidth = (4 + 2) * pxPerChar; // +2 - focus marker
 
             setState((state) => {
               state.plotsData[index] = {
@@ -674,6 +721,9 @@ export const useStore = create<Store>()(
                 mappingFloodEvents: resp.mapping_flood_events_legacy,
                 legendValueWidth,
                 legendNameWidth,
+                legendPercentWidth,
+                legendMaxHostWidth,
+                legendMaxHostPercentWidth,
                 lastPlotParams,
                 lastQuerySeriesMeta: [...resp.series.series_meta],
                 lastTimeRange: prevState.timeRange,
@@ -696,6 +746,9 @@ export const useStore = create<Store>()(
                   mappingFloodEvents: 0,
                   legendValueWidth: 0,
                   legendNameWidth: 0,
+                  legendPercentWidth: 0,
+                  legendMaxHostWidth: 0,
+                  legendMaxHostPercentWidth: 0,
                   lastPlotParams: undefined,
                   lastTimeRange: undefined,
                   lastQuerySeriesMeta: undefined,
@@ -718,6 +771,9 @@ export const useStore = create<Store>()(
                   mappingFloodEvents: 0,
                   legendValueWidth: 0,
                   legendNameWidth: 0,
+                  legendPercentWidth: 0,
+                  legendMaxHostWidth: 0,
+                  legendMaxHostPercentWidth: 0,
                   lastPlotParams: undefined,
                   lastTimeRange: undefined,
                   lastQuerySeriesMeta: undefined,
