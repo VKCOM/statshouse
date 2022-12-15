@@ -283,6 +283,14 @@ export const useStore = create<Store>()(
           urlParams.timeRange.from !== getState().defaultParams.timeRange.from
             ? urlParams.timeRange.from
             : params.timeRange.from;
+        if (params.dashboard?.dashboard_id === getState().params.dashboard?.dashboard_id) {
+          params.plots = getState().params.plots;
+          params.tagSync = getState().params.tagSync;
+        }
+        if (!params.plots[params.tabNum]) {
+          params.tabNum = getState().defaultParams.tabNum;
+          reset = true;
+        }
       }
       if (params.timeRange.from === defaultTimeRange.from && params.timeRange.to === defaultTimeRange.to) {
         params.timeRange = timeRangeAbbrevExpand(defaultBaseRange, nowTime);
