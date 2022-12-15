@@ -353,6 +353,22 @@ func selectQueryLODs(version string, preKeyFrom int64, resolution int, isUnique 
 		}
 		lodFrom = lod.toSec
 	}
+	return mergeLods(ret)
+}
+
+func mergeLods(lods []lodInfo) []lodInfo {
+	if len(lods) == 0 {
+		return lods
+	}
+	ret := lods[:1]
+	for _, lod := range lods[1:] {
+		l := ret[len(ret)-1]
+		if l.toSec == lod.fromSec && l.table == lod.table && l.stepSec == lod.stepSec && l.hasPreKey == lod.hasPreKey {
+			ret[len(ret)-1].toSec = lod.toSec
+		} else {
+			ret = append(ret, lod)
+		}
+	}
 	return ret
 }
 
