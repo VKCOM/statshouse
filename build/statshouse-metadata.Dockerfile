@@ -1,4 +1,6 @@
 FROM golang:1.19-bullseye AS build
+ARG BUILD_TRUSTED_SUBNET_GROUPS
+ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
 RUN mkdir -p /var/lib/statshouse/metadata/binlog
 WORKDIR /src
 COPY go.mod go.sum Makefile ./
@@ -12,5 +14,4 @@ RUN target/statshouse-metadata --binlog-prefix "/var/lib/statshouse/metadata/bin
 FROM gcr.io/distroless/base-debian11:nonroot
 COPY --from=build /src/target/statshouse-metadata /bin/
 COPY --from=build --chown=nonroot:nonroot /var/lib/statshouse/ /var/lib/statshouse/
-COPY build/key1.txt /etc/statshouse/
 ENTRYPOINT ["/bin/statshouse-metadata"]
