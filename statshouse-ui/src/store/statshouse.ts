@@ -637,9 +637,13 @@ export const useStore = create<Store>()(
                 changeColor = true;
               }
               if (meta.max_hosts) {
+                const max_hosts_l = meta.max_hosts
+                  .map((host) => host.length * pxPerChar)
+                  .filter(Boolean)
+                  .sort();
                 legendMaxHostWidth = Math.max(
                   legendMaxHostWidth,
-                  meta.max_hosts.reduce((res, host) => Math.max(res, host.length), 0)
+                  ...max_hosts_l.slice(Math.floor(max_hosts_l.length * 0.25))
                 );
               }
               const max_host_map =
@@ -682,19 +686,6 @@ export const useStore = create<Store>()(
                       : '';
                   const percent = rawValue !== null ? formatPercent(rawValue / total) : '';
                   return { rawValue, value, max_host, total, percent, max_host_percent };
-                },
-                value(u: uPlot, rawValue: number | null, seriesIdx: number, idx: number): string {
-                  let total = 0;
-                  for (let i = 1; i < u.series.length; i++) {
-                    const v = u.data[i][idx];
-                    if (v !== null && v !== undefined) {
-                      total += v;
-                    }
-                  }
-                  const v = formatLegendValue(rawValue);
-                  const max_host =
-                    meta.max_hosts !== null && idx < meta.max_hosts.length ? ' ' + meta.max_hosts[idx] : '';
-                  return (rawValue !== null ? `${v} ${formatPercent(rawValue / total)}` : v) + max_host;
                 },
               };
             });

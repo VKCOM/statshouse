@@ -1,0 +1,124 @@
+.legend {
+  overflow: auto;
+  padding-bottom: 1em;
+}
+
+.innerLegend {
+  max-width: 100%;
+}
+
+.innerLegend th {
+  padding: 0 4px;
+  min-width: 9em;
+}
+
+.innerLegend td {
+  padding: 0 4px;
+}
+
+.hide th,
+.hide td,
+.hide.labelOuter {
+  opacity: 0.3;
+}
+
+.focus {
+  font-weight: bold;
+}
+
+.marker {
+  width: 1em;
+  height: 1em;
+  margin-right: 4px;
+}
+
+.labelOuter {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  cursor: pointer;
+}
+
+.compact .labelOuter {
+  width: auto;
+}
+
+.label {
+  flex-grow: 1;
+  width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.time .label {
+  width: 3em;
+}
+
+.timeValue {
+  font-weight: normal;
+  text-align: start;
+  white-space: nowrap;
+}
+
+.value {
+  text-align: end;
+  white-space: nowrap;
+  width: calc(var(--legend-value-width) + 2.3em);
+}
+
+.percent {
+  text-align: end;
+  white-space: nowrap;
+  width: var(--legend-percent-width);
+}
+
+.maxHost {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: end;
+  width: var(--legend-max-host-width);
+}
+
+.maxHostPercent {
+  text-align: end;
+  white-space: nowrap;
+  width: var(--legend-percent-width);
+}
+
+.dotSpace {
+  display: inline-block;
+  text-align: start;
+  width: var(--legend-dot-space-width);
+}
+
+.percentSuffix .dotSpace {
+  width: calc(var(--legend-dot-space-width) + var(--legend-percent-suffix-width));
+}
+
+.dotSpaceSeparate:before {
+  content: '.';
+}
+
+.labelCompact {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.innerLegendCompact {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  height: 1.5em;
+  overflow: hidden;
+}
+
+.innerLegendCompact .labelOuter {
+  margin-left: 4px;
+}
