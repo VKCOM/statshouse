@@ -83,3 +83,15 @@ services:
     ports:
       - "8123:8123"
       - "9000:9000"
+  all-in-one:
+    profiles:
+      - all-in-one
+    build:
+      context: .
+      dockerfile: build/all-in-one.Dockerfile
+      args:
+        - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
+    container_name: all-in-one
+    ports:
+      - "10888:10888"
+      - "13337:13337/udp"

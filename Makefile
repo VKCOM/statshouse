@@ -63,6 +63,7 @@ build-docker-sh-api:
 		--build-arg BUILD_COMMIT="$(BUILD_COMMIT)" --build-arg BUILD_COMMIT_TS="$(BUILD_COMMIT_TS)" \
 		--build-arg BUILD_ID="$(BUILD_ID)" --build-arg BUILD_VERSION="$(BUILD_VERSION)" \
 		--build-arg BUILD_TRUSTED_SUBNET_GROUPS="$(BUILD_TRUSTED_SUBNET_GROUPS)" \
+		--build-arg REACT_APP_BUILD_VERSION="$(REACT_APP_BUILD_VERSION)" \
 		-t statshouse-api -f build/statshouse-api.Dockerfile .
 
 build-docker-sh-metadata:

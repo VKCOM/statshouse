@@ -5,6 +5,7 @@
 !/Makefile
 !/build/*.xml
 !/build/*.sql
+!/build/*.sh
 !/cmd
 !/internal
 !/go.mod
