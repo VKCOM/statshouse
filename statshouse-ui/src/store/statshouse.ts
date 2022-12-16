@@ -665,10 +665,10 @@ export const useStore = create<Store>()(
                   align: 1,
                 }),
                 values(u, seriesIdx, idx): PlotValues {
-                  const rawValue = u.data[seriesIdx][idx] ?? null;
+                  const rawValue = u.data[seriesIdx]?.[idx] ?? null;
                   let total = 0;
                   for (let i = 1; i < u.series.length; i++) {
-                    const v = u.data[i][idx];
+                    const v = u.data[i]?.[idx];
                     if (v !== null && v !== undefined) {
                       total += v;
                     }
