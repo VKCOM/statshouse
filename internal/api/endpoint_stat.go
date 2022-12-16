@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/vkcom/statshouse/internal/format"
 
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -122,5 +123,27 @@ func CurrentChunksCount(brs *BigResponseStorage) func(*statlogs.Registry) {
 				Tag1: srvfunc.HostnameForStatshouse(),
 			},
 		).Value(float64(brs.Count()))
+	}
+}
+
+func ChSelectProfile(isFast bool, info clickhouse.ProfileInfo, err error) {
+	chSelectPushMetric(format.BuiltinMetricNameAPISelectBytes, isFast, float64(info.Bytes), err)
+	chSelectPushMetric(format.BuiltinMetricNameAPISelectRows, isFast, float64(info.Rows), err)
+}
+
+func chSelectPushMetric(metric string, isFast bool, data float64, err error) {
+	mode := "slow"
+	if isFast {
+		mode = "fast"
+	}
+	m := statlogs.AccessMetricRaw(
+		metric,
+		statlogs.RawTags{
+			Tag1: mode,
+		},
+	)
+	m.Value(data)
+	if err != nil {
+		m.StringTop(err.Error())
 	}
 }

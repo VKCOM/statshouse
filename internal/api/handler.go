@@ -533,10 +533,12 @@ func (h *Handler) doSelect(isFast bool, ctx context.Context, user string, versio
 	saveDebugQuery(ctx, debugQuery)
 
 	start := time.Now()
-	err = h.ch[version].Select(isFast, ctx, dest, query, args...)
+	info, err := h.ch[version].Select(isFast, ctx, dest, query, args...)
 	if h.verbose {
 		log.Printf("[debug] SQL for %q done in %v, err: %v", user, time.Since(start), err)
 	}
+
+	ChSelectProfile(isFast, info, err)
 
 	return err
 }

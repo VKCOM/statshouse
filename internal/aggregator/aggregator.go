@@ -118,9 +118,14 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	if config.ExternalPort == "" {
 		config.ExternalPort = listenPort
 	}
-	shardKey, replicaKey, addresses, err := selectShardReplica(config.KHAddr, config.Cluster, config.ExternalPort)
-	if err != nil {
-		return fmt.Errorf("failed to find out local shard and replica in cluster %q, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
+	var shardKey int32 = 1
+	var replicaKey int32 = 1
+	var addresses = []string{listenAddr}
+	if config.KHAddr != "" {
+		shardKey, replicaKey, addresses, err = selectShardReplica(config.KHAddr, config.Cluster, config.ExternalPort)
+		if err != nil {
+			return fmt.Errorf("failed to find out local shard and replica in cluster %q, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
+		}
 	}
 	withoutCluster := false
 	if len(addresses) == 1 { // mostly demo runs with local non-replicated clusters

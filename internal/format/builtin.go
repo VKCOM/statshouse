@@ -77,6 +77,8 @@ const (
 	BuiltinMetricIDGeneratorGapsCounter       = -63
 	BuiltinMetricIDGroupSizeBeforeSampling    = -64
 	BuiltinMetricIDGroupSizeAfterSampling     = -65
+	BuiltinMetricIDAPISelectBytes             = -66
+	BuiltinMetricIDAPISelectRows              = -67
 
 	// metric names used in code directly
 	BuiltinMetricNameAggBucketReceiveDelaySec = "__agg_bucket_receive_delay_sec"
@@ -90,6 +92,8 @@ const (
 	BuiltinMetricNameUsageMemory              = "__usage_mem"
 	BuiltinMetricNameUsageCPU                 = "__usage_cpu"
 	BuiltinMetricNameAPIBRS                   = "__api_big_response_storage_size"
+	BuiltinMetricNameAPISelectBytes           = "__api_ch_select_bytes"
+	BuiltinMetricNameAPISelectRows            = "__api_ch_select_rows"
 	BuiltinMetricNameAPIEndpointResponseTime  = "__api_endpoint_response_time"
 	BuiltinMetricNameAPIEndpointServiceTime   = "__api_endpoint_service_time"
 	BuiltinMetricNameBudgetHost               = "__budget_host"
@@ -1044,7 +1048,7 @@ Set by aggregator.`,
 				Description: "data_format",
 			}},
 		},
-		BuiltinMetricIDAPIEndpointServiceTime: { // TODO - harmonize
+		BuiltinMetricIDAPIEndpointServiceTime: {
 			Name:        BuiltinMetricNameAPIEndpointServiceTime,
 			Kind:        MetricKindValue,
 			Description: "Time to handle HTTP query by API",
@@ -1059,6 +1063,27 @@ Set by aggregator.`,
 				Description: "token_name",
 			}, {
 				Description: "data_format",
+			}},
+		},
+
+		BuiltinMetricIDAPISelectBytes: {
+			Name: BuiltinMetricNameAPISelectBytes,
+			Kind: MetricKindValue,
+			// TODO replace with logs
+			StringTopDescription: "error",
+			Description:          "Number of bytes was handled by ClickHouse SELECT query",
+			Tags: []MetricMetaTag{{
+				Description: "query type",
+			}},
+		},
+		BuiltinMetricIDAPISelectRows: {
+			Name: BuiltinMetricNameAPISelectRows,
+			Kind: MetricKindValue,
+			// TODO replace with logs
+			StringTopDescription: "error",
+			Description:          "Number of rows was handled by ClickHouse SELECT query",
+			Tags: []MetricMetaTag{{
+				Description: "query type",
 			}},
 		},
 		BuiltinMetricIDBudgetUnknownMetric: {
@@ -1214,7 +1239,7 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDBudgetUnknownMetric:  true,
 	}
 
-	// API sends this metrics via local statshouse instance
+	// API and metadata sends this metrics via local statshouse instance
 	builtinMetricsAllowedToReceive = map[int32]bool{
 		BuiltinMetricIDTimingErrors:            true,
 		BuiltinMetricIDPromScrapeTime:          true,
@@ -1225,6 +1250,8 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDUsageMemory:             true,
 		BuiltinMetricIDUsageCPU:                true,
 		BuiltinMetricIDAPIActiveQueries:        true,
+		BuiltinMetricIDAPISelectRows:           true,
+		BuiltinMetricIDAPISelectBytes:          true,
 	}
 
 	metricsWithAgentEnvRouteArch = map[int32]bool{
