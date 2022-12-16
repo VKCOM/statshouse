@@ -8,6 +8,7 @@ package api
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 	"testing"
 	"time"
@@ -477,6 +478,24 @@ func TestCalcUTCOffset(t *testing.T) {
 			}
 
 			assert.Equal(t, test.want, CalcUTCOffset(loc, test.data.weekStartsAt))
+		})
+	}
+}
+
+func Test_mergeLods(t *testing.T) {
+	tests := []struct {
+		name string
+		lods []lodInfo
+		want []lodInfo
+	}{
+		{"merge lods", []lodInfo{{fromSec: 0, toSec: 10, stepSec: 1}, {fromSec: 10, toSec: 20, stepSec: 1}}, []lodInfo{{fromSec: 0, toSec: 20, stepSec: 1}}},
+		{"skip merge lods", []lodInfo{{fromSec: 0, toSec: 10, stepSec: 2}, {fromSec: 10, toSec: 20, stepSec: 1}}, []lodInfo{{fromSec: 0, toSec: 10, stepSec: 2}, {fromSec: 10, toSec: 20, stepSec: 1}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := mergeLods(tt.lods); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("mergeLods() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
