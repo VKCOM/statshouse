@@ -95,10 +95,12 @@ html {
 :root {
   --legend-name-width: 96px;
   --legend-value-width: 96px;
-  --legend-percent-width: 96px;
+  --legend-percent-width: 2.3em;
   --legend-max-host-width: 0;
   --legend-max-host-percent-width: 0;
   --legend-time-width: 136px;
+  --legend-dot-space-width: 2.3em;
+  --legend-percent-suffix-width: 0.9em;
 }
 
 .btn-outline-primary {
@@ -107,41 +109,16 @@ html {
 }
 
 .plot-compact {
-  max-width: calc(min(100vw, 100vh * 1.61803398875 /* golden ratio */));
-
-  .plot-legend {
-    padding-left: 54px !important; // must be synced with yAxisSize
-  }
-
-  .u-legend {
-    text-align: right !important;
-    font-size: 12px;
-
-    tr {
-      max-width: calc(100% - 16px);
-    }
-
-    th {
-      max-width: 100%;
-      font-weight: normal !important;
-
-      .u-marker {
-        margin-bottom: -2px !important; // must be synced with legend.markers.width
-      }
-
-      .u-label {
-        max-width: calc(100% - 16px);
-        overflow: hidden;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        vertical-align: middle;
-      }
-    }
-  }
+  max-width: calc(min(100vw, 100vh * var(--golden-ratio)));
 }
 
-.plot-compact.plot-dash:not(.plot-hover) .plot-legend {
-  height: 2em;
+.plot-legend {
+  padding-left: var(--plot-margin);
+  padding-right: 20px;
+  font-size: 14px;
+}
+.plot-compact .plot-legend {
+  font-size: 12px;
 }
 
 .plot-view.plot-dash.plot-hover .plot-view-inner {
@@ -154,120 +131,6 @@ html {
 
 .plot-item:hover {
   z-index: 1000;
-
-  .plot-compact.plot-dash.plot-hover .plot-legend .u-legend {
-    padding-left: 4px;
-    padding-bottom: 8px;
-  }
-}
-
-.plot-compact:not(.plot-dash),
-.plot-compact.plot-dash:not(.plot-hover) {
-  .plot-legend {
-    overflow: hidden;
-  }
-
-  tr {
-    margin-right: 4px;
-    max-width: calc(100% - 4px);
-  }
-
-  .u-value {
-    display: none;
-  }
-
-  th::after {
-    display: none;
-    content: '';
-  }
-
-  tr:first-child {
-    display: none;
-  }
-}
-
-.plot-full .plot-legend {
-  padding-top: 16px !important;
-}
-
-.plot-full .plot-legend,
-.plot-compact.plot-dash:hover .plot-legend {
-  padding-left: 54px !important; // must be synced with yAxisSize
-}
-
-.plot-full .u-legend,
-.plot-compact.plot-dash.plot-hover .u-legend {
-  text-align: left !important;
-  column-width: calc(
-    var(--legend-name-width) + var(--legend-value-width) + var(--legend-percent-width) + var(--legend-max-host-width) +
-      16px
-  ) !important;
-  column-count: auto !important;
-  tr {
-    th {
-      white-space: nowrap !important;
-
-      .u-label {
-        position: relative;
-        max-width: 500px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-    }
-
-    td {
-      white-space: nowrap !important;
-    }
-    td[data-name='time'] {
-      width: var(--legend-time-width) !important;
-    }
-    &:not(:first-child) td {
-      &[data-name='value'] {
-        width: var(--legend-value-width) !important;
-        text-align: end;
-      }
-      &[data-name='percent'] {
-        width: var(--legend-percent-width) !important;
-      }
-      &[data-name='max_host'] {
-        width: var(--legend-max-host-width) !important;
-        text-align: end;
-      }
-      &[data-name='max_host_percent'] {
-        width: var(--legend-max-host-percent-width) !important;
-      }
-    }
-  }
-
-  // disable .u-inline externally: make legend a table
-  &.u-inline {
-    tr {
-      display: table-row !important;
-      margin-right: 0 !important;
-
-      th {
-        display: table-cell !important;
-        padding-left: 0 !important;
-
-        .u-marker {
-          margin-right: 8px !important;
-        }
-
-        &:after {
-          display: none !important;
-        }
-      }
-
-      td {
-        display: table-cell !important;
-      }
-    }
-  }
-}
-
-.plot-legend-focus {
-  font-weight: bold;
 }
 
 code {

@@ -83,9 +83,7 @@ const PlotView = memo(function PlotView_(props: {
     groups,
     legendNameWidth,
     legendValueWidth,
-    legendPercentWidth,
     legendMaxHostWidth,
-    legendMaxHostPercentWidth,
     mappingFloodEvents,
     samplingFactorSrc,
     samplingFactorAgg,
@@ -329,9 +327,7 @@ const PlotView = memo(function PlotView_(props: {
         {
           '--legend-name-width': `${legendNameWidth}px`,
           '--legend-value-width': `${legendValueWidth}px`,
-          '--legend-percent-width': `${legendPercentWidth}px`,
           '--legend-max-host-width': `${legendMaxHostWidth}px`,
-          '--legend-max-host-percent-width': `${legendMaxHostPercentWidth}px`,
           height: fixHeight > 0 && dashboard ? `${fixHeight}px` : undefined,
         } as React.CSSProperties
       }
@@ -410,11 +406,14 @@ const PlotView = memo(function PlotView_(props: {
           )}
         </div>
         {!error403 && (
-          <PlotLegend
-            legend={legend as LegendItem<PlotValues>[]}
-            onLegendShow={onLegendShow}
-            onLegendFocus={onLegendFocus}
-          />
+          <div className="plot-legend">
+            <PlotLegend
+              legend={legend as LegendItem<PlotValues>[]}
+              onLegendShow={onLegendShow}
+              onLegendFocus={onLegendFocus}
+              compact={compact && !(fixHeight > 0 && dashboard)}
+            />
+          </div>
         )}
       </div>
     </div>
