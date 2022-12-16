@@ -287,7 +287,7 @@ export const useStore = create<Store>()(
           params.plots = getState().params.plots;
           params.tagSync = getState().params.tagSync;
         }
-        if (!params.plots[params.tabNum]) {
+        if (params.tabNum >= 0 && !params.plots[params.tabNum]) {
           params.tabNum = getState().defaultParams.tabNum;
           reset = true;
         }
