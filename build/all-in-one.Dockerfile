@@ -30,11 +30,21 @@ COPY go.mod go.sum Makefile ./
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
 RUN go mod download
-RUN make build-sh-api
-RUN mkdir -p /var/lib/statshouse/cache/api
+RUN make build-sh build-sh-api build-sh-metadata
 
-FROM gcr.io/distroless/base-debian11:nonroot
+FROM clickhouse/clickhouse-server:22.11
+RUN groupadd kitten
+RUN useradd -g kitten kitten
+RUN mkdir -p /var/lib/statshouse/cache/aggregator
+RUN mkdir -p /var/lib/statshouse/cache/agent
+RUN mkdir -p /var/lib/statshouse/cache/api
+RUN mkdir -p /var/lib/statshouse/metadata/binlog
+COPY build/clickhouse.sql /docker-entrypoint-initdb.d/
+COPY build/all-in-one-entrypoint.sh /bin/
+COPY --from=build-go /src/target/statshouse /bin/
 COPY --from=build-go /src/target/statshouse-api /bin/
-COPY --from=build-go --chown=nonroot:nonroot /var/lib/statshouse/ /var/lib/statshouse/
+COPY --from=build-go /src/target/statshouse-metadata /bin/
 COPY --from=build-node /src/statshouse-ui/build /usr/lib/statshouse-api/statshouse-ui/
-ENTRYPOINT ["/bin/statshouse-api", "--static-dir=/usr/lib/statshouse-api/statshouse-ui/"]
+RUN /bin/statshouse-metadata --binlog-prefix "/var/lib/statshouse/metadata/binlog/bl" --create-binlog "0,1"
+RUN chown -R kitten:kitten /var/lib/statshouse
+ENTRYPOINT ["/bin/all-in-one-entrypoint.sh"]
