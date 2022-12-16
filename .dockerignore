@@ -2,7 +2,6 @@
 *
 
 # Allow specific
-!/.git
 !/Makefile
 !/build/*.xml
 !/build/*.sql

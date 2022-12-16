@@ -52,13 +52,25 @@ build-grafana-ui:
 	cd grafana-plugin-ui && npm clean-install && npm run build
 
 build-docker-sh:
-	docker build -t statshouse -f build/statshouse.Dockerfile .
+	docker build --build-arg BUILD_TIME="$(BUILD_TIME)" --build-arg BUILD_MACHINE="$(BUILD_MACHINE)" \
+		--build-arg BUILD_COMMIT="$(BUILD_COMMIT)" --build-arg BUILD_COMMIT_TS="$(BUILD_COMMIT_TS)" \
+		--build-arg BUILD_ID="$(BUILD_ID)" --build-arg BUILD_VERSION="$(BUILD_VERSION)" \
+		--build-arg BUILD_TRUSTED_SUBNET_GROUPS="$(BUILD_TRUSTED_SUBNET_GROUPS)" \
+		-t statshouse -f build/statshouse.Dockerfile .
 
 build-docker-sh-api:
-	docker build -t statshouse-api -f build/statshouse-api.Dockerfile .
+	docker build --build-arg BUILD_TIME="$(BUILD_TIME)" --build-arg BUILD_MACHINE="$(BUILD_MACHINE)" \
+		--build-arg BUILD_COMMIT="$(BUILD_COMMIT)" --build-arg BUILD_COMMIT_TS="$(BUILD_COMMIT_TS)" \
+		--build-arg BUILD_ID="$(BUILD_ID)" --build-arg BUILD_VERSION="$(BUILD_VERSION)" \
+		--build-arg BUILD_TRUSTED_SUBNET_GROUPS="$(BUILD_TRUSTED_SUBNET_GROUPS)" \
+		-t statshouse-api -f build/statshouse-api.Dockerfile .
 
 build-docker-sh-metadata:
-	docker build -t statshouse-metadata -f build/statshouse-metadata.Dockerfile .
+	docker build --build-arg BUILD_TIME="$(BUILD_TIME)" --build-arg BUILD_MACHINE="$(BUILD_MACHINE)" \
+		--build-arg BUILD_COMMIT="$(BUILD_COMMIT)" --build-arg BUILD_COMMIT_TS="$(BUILD_COMMIT_TS)" \
+		--build-arg BUILD_ID="$(BUILD_ID)" --build-arg BUILD_VERSION="$(BUILD_VERSION)" \
+		--build-arg BUILD_TRUSTED_SUBNET_GROUPS="$(BUILD_TRUSTED_SUBNET_GROUPS)" \
+		-t statshouse-metadata -f build/statshouse-metadata.Dockerfile .
 
 build-deb:
 	./build/makedeb.sh
