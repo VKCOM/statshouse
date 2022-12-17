@@ -286,6 +286,7 @@ export const useStore = create<Store>()(
         if (params.dashboard?.dashboard_id === getState().params.dashboard?.dashboard_id) {
           params.plots = getState().params.plots;
           params.tagSync = getState().params.tagSync;
+          params.dashboard = getState().params.dashboard;
         }
         if (params.tabNum >= 0 && !params.plots[params.tabNum]) {
           params.tabNum = getState().defaultParams.tabNum;
