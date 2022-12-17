@@ -117,8 +117,13 @@ html {
   padding-right: 20px;
   font-size: 14px;
 }
+
 .plot-compact .plot-legend {
   font-size: 12px;
+}
+
+.plot-full .plot-legend {
+  padding-top: 16px;
 }
 
 .plot-view.plot-dash.plot-hover .plot-view-inner {

@@ -16,7 +16,7 @@ export type LegendItem<T = Object> = {
   fill?: string;
   stroke?: string;
   show: boolean;
-  value: string | number;
+  value?: string;
   values?: T;
   alpha?: number;
   focus?: boolean;
@@ -68,7 +68,7 @@ function readLegend(u: uPlot): LegendItem[] {
       fill: s.fill instanceof Function ? s.fill(u, index)?.toString() : s.fill?.toString(),
       stroke: s.stroke instanceof Function ? s.stroke(u, index)?.toString() : s.stroke?.toString(),
       show: s.show ?? false,
-      value: u.legend.values?.[index]?.['_'] ?? '—',
+      value: u.legend.values?.[index]?.['_']?.toString().replace('—', '') ?? '', // replace '—' uplot
       values: typeof idx === 'number' ? s.values?.(u, index, idx) : undefined,
       alpha: s.alpha,
     };

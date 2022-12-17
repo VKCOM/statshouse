@@ -88,7 +88,7 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({ legend, onLegendShow, on
                 onMouseOver={onFocus}
                 onClick={onShow}
               >
-                <th colSpan={index === 0 ? 2 : 1}>
+                <td colSpan={index === 0 ? 2 : 1}>
                   <div className={cn(css.labelOuter, index === 0 && css.time)}>
                     <div
                       className={css.marker}
@@ -99,16 +99,10 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({ legend, onLegendShow, on
                       className={css.label}
                       title={l.label}
                     >
-                      {l.label}
+                      {index !== 0 ? l.label : l.value || ' '}
                     </div>
-                    {index === 0 && (
-                      <div className={css.timeValue}>
-                        <div></div>
-                        <AlignByDot value={l.value?.toString() ?? '—'} />
-                      </div>
-                    )}
                   </div>
-                </th>
+                </td>
                 {index !== 0 && (
                   <>
                     <td className={css.value}>
