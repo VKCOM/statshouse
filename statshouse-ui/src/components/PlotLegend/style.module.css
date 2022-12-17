@@ -1,19 +1,22 @@
 .legend {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
+    'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   overflow: auto;
   padding-bottom: 1em;
 }
 
 .innerLegend {
   max-width: 100%;
+  line-height: 1.5;
 }
 
 .innerLegend th {
-  padding: 0 4px;
+  padding: 4px;
   min-width: 9em;
 }
 
 .innerLegend td {
-  padding: 0 4px;
+  padding: 4px;
 }
 
 .hide th,
