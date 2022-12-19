@@ -53,7 +53,6 @@
   width: 0;
   overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .time .label {
@@ -81,7 +80,6 @@
 .maxHost {
   overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis;
   text-align: end;
   width: var(--legend-max-host-width);
 }
@@ -110,7 +108,6 @@
   max-width: 100%;
   overflow: hidden;
   white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .innerLegendCompact {
