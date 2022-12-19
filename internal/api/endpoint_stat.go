@@ -39,6 +39,7 @@ const (
 
 type endpointStat struct {
 	endpoint   string
+	method     string
 	metric     string
 	startTime  time.Time
 	tokenName  string
@@ -63,6 +64,7 @@ func (es *endpointStat) logEvent(statName string, code int) {
 			Tag3: strconv.Itoa(code),
 			Tag4: es.tokenName,
 			Tag5: es.dataFormat,
+			Tag6: es.method,
 		},
 	).Value(v)
 }
@@ -79,12 +81,13 @@ func getStatTokenName(user string) string {
 	return user
 }
 
-func newEndpointStat(endpoint string, metricID int32, dataFormat string) *endpointStat {
+func newEndpointStat(endpoint, method string, metricID int32, dataFormat string) *endpointStat {
 	return &endpointStat{
 		endpoint:   endpoint,
 		metric:     strconv.Itoa(int(metricID)), // metric ID key is considered "raw"
 		startTime:  time.Now(),
 		dataFormat: dataFormat,
+		method:     method,
 	}
 }
 
@@ -124,6 +127,27 @@ func CurrentChunksCount(brs *BigResponseStorage) func(*statlogs.Registry) {
 			},
 		).Value(float64(brs.Count()))
 	}
+}
+
+func ChSelectMetricDuration(duration time.Duration, metricID int32, table, kind string, isFast bool, err error) {
+	mode := "slow"
+	if isFast {
+		mode = "fast"
+	}
+	ok := "ok"
+	if err != nil {
+		ok = "error"
+	}
+	statlogs.AccessMetricRaw(
+		format.BuiltinMetricNameAPISelectDuration,
+		statlogs.RawTags{
+			Tag1: mode,
+			Tag2: strconv.Itoa(int(metricID)),
+			Tag3: table,
+			Tag4: kind,
+			Tag5: ok,
+		},
+	).Value(duration.Seconds())
 }
 
 func ChSelectProfile(isFast bool, info clickhouse.ProfileInfo, err error) {
