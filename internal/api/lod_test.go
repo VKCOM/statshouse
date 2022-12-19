@@ -482,7 +482,7 @@ func TestCalcUTCOffset(t *testing.T) {
 	}
 }
 
-func Test_mergeLods(t *testing.T) {
+func Test_mergeLODs(t *testing.T) {
 	tests := []struct {
 		name string
 		lods []lodInfo
