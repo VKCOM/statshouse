@@ -1101,8 +1101,8 @@ Set by aggregator.`,
 					Description: "query type",
 				},
 				{
-					Description: "metric id",
-					Raw:         true,
+					Description: "metric",
+					IsMetric:    true,
 				},
 				{
 					Description: "table",
