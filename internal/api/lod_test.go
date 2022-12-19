@@ -493,8 +493,8 @@ func Test_mergeLods(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := mergeLods(tt.lods); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("mergeLods() = %v, want %v", got, tt.want)
+			if got := mergeLODs(tt.lods); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("mergeLODs() = %v, want %v", got, tt.want)
 			}
 		})
 	}
