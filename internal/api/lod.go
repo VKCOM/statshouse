@@ -353,10 +353,10 @@ func selectQueryLODs(version string, preKeyFrom int64, resolution int, isUnique 
 		}
 		lodFrom = lod.toSec
 	}
-	return mergeLods(ret)
+	return mergeLODs(ret)
 }
 
-func mergeLods(lods []lodInfo) []lodInfo {
+func mergeLODs(lods []lodInfo) []lodInfo {
 	if len(lods) == 0 {
 		return lods
 	}
