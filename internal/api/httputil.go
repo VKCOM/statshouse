@@ -336,6 +336,9 @@ func parseTagID(tagID string) (string, error) {
 	if tagID == format.StringTopTagID || format.ParseTagIDForAPI(tagID) >= 0 {
 		return tagID, nil
 	}
+	if i, err := strconv.Atoi(tagID); err == nil && 0 <= i && i < format.MaxTags {
+		return format.TagIDPrefix + tagID, nil
+	}
 	return "", httpErr(http.StatusBadRequest, fmt.Errorf("invalid tag ID: %q", tagID))
 }
 

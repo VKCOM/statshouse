@@ -1399,7 +1399,7 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 
 func init() {
 	for i := 0; i < MaxTags; i++ {
-		legacyName := tagIDPrefix + strconv.Itoa(i)
+		legacyName := TagIDPrefix + strconv.Itoa(i)
 		tagIDs = append(tagIDs, legacyName)
 		newTagIDs = append(newTagIDs, strconv.Itoa(i))
 		tagIDToIndexForAPI[legacyName] = i

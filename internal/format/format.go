@@ -35,8 +35,8 @@ const (
 	// and made shorter new names "0".."15", "_s", "_h"
 	PreKeyTagID    = "prekey"
 	StringTopTagID = "skey"
-	tagIDPrefix    = "key"
-	EnvTagID       = tagIDPrefix + "0"
+	TagIDPrefix    = "key"
+	EnvTagID       = TagIDPrefix + "0"
 	EnvTagName     = "env" // this is legacy name. We want to get rid of all different names for tag 0.
 	LETagName      = "le"
 
