@@ -48,7 +48,7 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({ legend, onLegendShow, on
   }, [legend]);
 
   const legendWidth = useMemo(
-    () => Math.min(Math.max(...legend.map((l) => l.label?.length ?? 0)) * 8, width * min),
+    () => Math.min((Math.max(...legend.map((l) => l.label?.length ?? 0)) + 2) * 8, width * min),
     [min, legend, width]
   );
 

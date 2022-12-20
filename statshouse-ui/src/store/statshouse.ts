@@ -642,10 +642,9 @@ export const useStore = create<Store>()(
                   .map((host) => host.length * pxPerChar)
                   .filter(Boolean)
                   .sort();
-                legendMaxHostWidth = Math.max(
-                  legendMaxHostWidth,
-                  ...max_hosts_l.slice(Math.floor(max_hosts_l.length * 0.25))
-                );
+                const full = max_hosts_l[0] ?? 0;
+                const p75 = max_hosts_l[max_hosts_l.length * 0.25] ?? 0;
+                legendMaxHostWidth = Math.max(legendMaxHostWidth, full - p75 > 20 ? p75 : full);
               }
               const max_host_map =
                 meta.max_hosts?.reduce((res, host) => {
