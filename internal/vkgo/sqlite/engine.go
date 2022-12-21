@@ -7,6 +7,7 @@
 package sqlite
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -94,7 +95,7 @@ type Engine struct {
 	rw  *sqlite0.Conn
 	//	chk *sqlite0.Conn
 	//	ro  *sqlite0.Conn
-
+	mode           engineMode
 	rwMu           sync.Mutex
 	prep           map[string]stmtInfo
 	used           map[*sqlite0.Stmt]struct{}
@@ -118,18 +119,22 @@ type Engine struct {
 }
 
 type Options struct {
-	Path   string
-	APPID  int32
-	Scheme string
+	Path           string
+	APPID          int32
+	Scheme         string
+	Replica        bool
+	DurabilityMode DurabilityMode
 }
 
 type binlogEngineImpl struct {
-	e *Engine
+	e             *Engine
+	engineStarted chan struct{}
 }
 
 type waitCommitInfo struct {
-	offset int64
-	waitCh chan struct{}
+	offset   int64
+	readWait bool
+	waitCh   chan struct{}
 }
 
 type committedInfo struct {
@@ -145,6 +150,20 @@ type stmtInfo struct {
 }
 
 type ApplyEventFunction func(conn Conn, offset int64, cache []byte) (int, error)
+
+type engineMode int
+type DurabilityMode int
+
+const (
+	initial engineMode = iota
+	master             = iota
+	replica            = iota
+)
+
+const (
+	WaitCommit   DurabilityMode = iota // Wait for commit to finish before returning from Do()
+	NoWaitCommit DurabilityMode = iota // Do not wait for commit to finish before returning from Do()
+)
 
 func OpenEngine(
 	opt Options,
@@ -186,15 +205,20 @@ func OpenEngine(
 		readyNotify:          sync.Once{},
 		waitUntilBinlogReady: make(chan struct{}),
 		commitCh:             make(chan struct{}, 1),
+		mode:                 initial,
 	}
 
-	e.txLoopIter(false, false)
+	e.commitTXAndStartNew(false, false)
 	if err := e.err; err != nil {
 		_ = e.close(false)
 		return nil, fmt.Errorf("failed to start write transaction: %w", err)
 	}
 	if binlog != nil {
-		binlogEngineImpl := &binlogEngineImpl{e: e}
+		engineStarted := make(chan struct{})
+		defer func() {
+			close(engineStarted)
+		}()
+		binlogEngineImpl := &binlogEngineImpl{e: e, engineStarted: engineStarted}
 		e.committedInfo.Store(&committedInfo{})
 		offset, err := e.binlogLoadOrCreatePosition()
 		if err != nil {
@@ -208,20 +232,13 @@ func OpenEngine(
 			return nil, fmt.Errorf("failed to load snapshot meta: %w", err)
 		}
 
-		errCh := make(chan error)
 		go func() {
 			err = binlog.Start(offset, meta, binlogEngineImpl)
 			if err != nil {
-				fmt.Println(err.Error())
-				errCh <- err
+				log.Panicf("binlog.Start() failed: %v", err)
 			}
 		}()
-		select {
-		case <-e.waitUntilBinlogReady:
-		case err := <-errCh:
-			_ = e.close(false)
-			return nil, fmt.Errorf("failed to start %w", err)
-		}
+		<-e.waitUntilBinlogReady
 		offset, err = e.binlogLoadOrCreatePosition()
 		if err != nil {
 			_ = e.close(false)
@@ -230,14 +247,9 @@ func OpenEngine(
 		if e.dbOffset != offset {
 			return nil, fmt.Errorf("lev offsets are different: e.dbOffset=%d, offset=%d", e.dbOffset, offset)
 		}
-		info, _ := e.committedInfo.Load().(*committedInfo)
-		if e.dbOffset > info.offset {
-			return nil, fmt.Errorf("db offset greater than binlog offset after binlog reread")
-		}
-		e.txLoopIter(true, false)
-		if err := e.err; err != nil {
-			_ = e.close(false)
-			return nil, fmt.Errorf("failed to commit binlog offset: %w", err)
+		e.mode = master
+		if opt.Replica {
+			e.mode = replica
 		}
 	}
 	go e.txLoop()
@@ -387,7 +399,7 @@ func (e *Engine) Close() error {
 
 func (e *Engine) close(waitCommit bool) error {
 	if waitCommit {
-		e.txLoopIter(true, true)
+		e.commitTXAndStartNew(true, true)
 	}
 	e.rwMu.Lock()
 	defer e.rwMu.Unlock()
@@ -409,7 +421,10 @@ func (e *Engine) txLoop() {
 	defer t.Stop()
 
 	for range t.C {
-		e.txLoopIter(true, true)
+		// TODO replace with runtime mode change
+		if e.mode == master || e.mode == initial {
+			e.commitTXAndStartNew(true, true)
+		}
 	}
 }
 
@@ -452,7 +467,6 @@ func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error)
 		return err1
 	})
 	if errFromTx == nil {
-		e.txLoopIter(true, false)
 		e.dbOffset = newOffset
 	}
 	return e.dbOffset, errToReturn
@@ -471,15 +485,22 @@ func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnap
 		meta:   snapshotMeta,
 		offset: offset,
 	})
+
 	select {
 	case e.commitCh <- struct{}{}:
 	default:
 	}
 	e.binlogNotifyWaited(offset)
+	// TODO: replace with runtime mode change
+	if e.mode == replica || e.mode == initial {
+		c := e.start(context.Background(), false)
+		e.commitTXAndStartNewLocked(c, true, false)
+		c.close()
+	}
 }
 
 func (impl *binlogEngineImpl) Revert(toOffset int64) bool {
-	return true
+	return false
 }
 
 func (impl *binlogEngineImpl) ChangeRole(info binlog2.ChangeRoleInfo) {
@@ -511,9 +532,14 @@ func (e *Engine) binlogWaitDBSync(conn Conn) *committedInfo {
 	return info
 }
 
-func (e *Engine) txLoopIter(commit, waitBinlogCommit bool) {
-	c := e.start(false)
+func (e *Engine) commitTXAndStartNew(commit, waitBinlogCommit bool) {
+	c := e.start(context.Background(), false)
 	defer c.close()
+	e.commitTXAndStartNewLocked(c, commit, waitBinlogCommit)
+
+}
+
+func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit bool) {
 	var info *committedInfo
 	if waitBinlogCommit && e.binlog != nil {
 		info = e.binlogWaitDBSync(c)
@@ -542,7 +568,7 @@ func (e *Engine) txLoopIter(commit, waitBinlogCommit bool) {
 }
 
 func backupToTemp(e *Engine, prefix string) (string, error) {
-	c := e.start(false)
+	c := e.start(context.Background(), false)
 	defer c.close()
 	path := prefix + "." + strconv.FormatUint(rand.Uint64(), 10) + ".tmp"
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
@@ -553,7 +579,7 @@ func backupToTemp(e *Engine, prefix string) (string, error) {
 }
 
 func getBackupPath(e *Engine, prefix string) (string, error) {
-	c := e.start(false)
+	c := e.start(context.Background(), false)
 	defer c.close()
 	offs, _, err := binlogLoadPosition(c)
 	path := prefix + "." + strconv.FormatInt(offs, 10)
@@ -565,7 +591,7 @@ func (e *Engine) binlogNotifyWaited(committedOffset int64) {
 	defer e.waitQMx.Unlock()
 	i := 0
 	for i = 0; i < len(e.waitQ); i++ {
-		if e.waitQ[i].offset > committedOffset {
+		if !e.waitQ[i].readWait && e.waitQ[i].offset > committedOffset {
 			break
 		}
 		close(e.waitQ[i].waitCh)
@@ -574,7 +600,7 @@ func (e *Engine) binlogNotifyWaited(committedOffset int64) {
 }
 
 func (e *Engine) do(fn func(Conn) error) error {
-	c := e.start(true)
+	c := e.start(context.Background(), true)
 	defer c.close()
 	err := fn(c)
 	if err != nil {
@@ -612,26 +638,35 @@ func (e *Engine) Backup(prefix string) error {
 	return fmt.Errorf("snapshot %s already exists", backupExpectedPath)
 }
 
-func (e *Engine) Do(fn func(Conn, []byte) ([]byte, error),
-	waitCommit bool) error {
-	c := e.start(true)
-
+func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) error {
+	c := e.start(ctx, true)
+	e.spOk = false
 	var err error
 	buffer, err := fn(c, nil)
 	if err != nil {
-		e.spOk = false
 		c.close()
 		return err
 	}
+	if e.binlog == nil {
+		e.spOk = true
+		c.close()
+		return nil
+	}
 	shouldWriteBinlog := len(buffer) > 0
+	isReadOp := !shouldWriteBinlog
+	if shouldWriteBinlog && e.mode == replica {
+		c.close()
+		return fmt.Errorf("failed to write binlog in replica mode") // TODO replace with GMS error
+	}
 	var ch chan struct{}
-	if shouldWriteBinlog && e.binlog != nil {
+	waitCommit := e.opt.DurabilityMode == WaitCommit
+	var offsetAfterWritePredicted int64
+	if shouldWriteBinlog {
 		offsetBeforeWrite := e.dbOffset
-		offsetAfterWritePredicted := offsetBeforeWrite + int64(fsbinlog.AddPadding(len(buffer)))
+		offsetAfterWritePredicted = offsetBeforeWrite + int64(fsbinlog.AddPadding(len(buffer)))
 
 		err = binlogUpdateOffset(c, offsetAfterWritePredicted)
 		if err != nil {
-			e.spOk = false
 			c.close()
 			return err
 		}
@@ -643,28 +678,31 @@ func (e *Engine) Do(fn func(Conn, []byte) ([]byte, error),
 			offsetAfterWrite, err = e.binlog.Append(e.dbOffset, buffer)
 		}
 		if err != nil {
-			e.spOk = false
 			c.close()
 			return err
 		}
-		info, _ := e.committedInfo.Load().(*committedInfo)
-		if waitCommit && info.offset < offsetAfterWrite {
-			ch = make(chan struct{})
-			e.waitQMx.Lock()
-			e.waitQ = append(e.waitQ, waitCommitInfo{
-				offset: offsetAfterWritePredicted,
-				waitCh: ch,
-			})
-			e.waitQMx.Unlock()
-		} else {
-			waitCommit = false
-		}
-		// after this line we can't roll back tx
+		// after this line we can't roll back savepoint
 		e.dbOffset = offsetAfterWrite
+	}
+	if waitCommit {
+		e.waitQMx.Lock()
+		info, _ := e.committedInfo.Load().(*committedInfo)
+		// check if commit was already done
+		alreadyCommitted := offsetAfterWritePredicted <= info.offset
+		uncommittedWriteExists := len(e.waitQ) > 0
+		if (isReadOp && uncommittedWriteExists) || (!isReadOp && alreadyCommitted) {
+			ch = make(chan struct{})
+			e.waitQ = append(e.waitQ, waitCommitInfo{
+				offset:   offsetAfterWritePredicted,
+				waitCh:   ch,
+				readWait: isReadOp,
+			})
+		}
+		e.waitQMx.Unlock()
 	}
 	e.spOk = true
 	c.close()
-	if waitCommit && shouldWriteBinlog && e.binlog != nil {
+	if ch != nil {
 		<-ch
 	}
 	return nil
@@ -675,14 +713,15 @@ func binlogUpdateOffset(c Conn, offset int64) error {
 	return err
 }
 
-func (e *Engine) start(autoSavepoint bool) Conn {
+func (e *Engine) start(ctx context.Context, autoSavepoint bool) Conn {
 	e.rwMu.Lock()
-	return Conn{e, autoSavepoint}
+	return Conn{e, autoSavepoint, ctx}
 }
 
 type Conn struct {
 	e             *Engine
 	autoSavepoint bool
+	ctx           context.Context
 }
 
 func (c Conn) close() {
@@ -726,7 +765,7 @@ func (c Conn) ExecUnsafe(sql string, args ...Arg) (int64, error) {
 
 func (c Conn) query(allowUnsafe bool, sql string, args ...Arg) Rows {
 	s, err := c.doQuery(allowUnsafe, sql, args...)
-	return Rows{c.e, s, err, false}
+	return Rows{c.e, s, err, false, c.ctx}
 }
 
 func (c Conn) exec(allowUnsafe bool, sql string, args ...Arg) (int64, error) {
@@ -741,6 +780,7 @@ type Rows struct {
 	s    *sqlite0.Stmt
 	err  error
 	used bool
+	ctx  context.Context
 }
 
 func (r *Rows) Error() error {
@@ -750,6 +790,12 @@ func (r *Rows) Error() error {
 func (r *Rows) next(setUsed bool) bool {
 	if r.err != nil {
 		return false
+	}
+	if r.ctx != nil {
+		if err := r.ctx.Err(); err != nil {
+			r.err = err
+			return false
+		}
 	}
 
 	if setUsed && !r.used {

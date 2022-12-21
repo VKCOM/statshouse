@@ -7,6 +7,7 @@
 package sqlite
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"math/rand"
@@ -60,17 +61,18 @@ func genBinlogEvent(s string, cache []byte) []byte {
 }
 
 func insertText(e *Engine, s string) error {
-	return e.Do(func(conn Conn, cache []byte) ([]byte, error) {
+	return e.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 		_, err := conn.Exec("INSERT INTO test_db(t) VALUES ($t)", BlobString("$t", s))
 
 		return genBinlogEvent(s, cache), err
-	}, false)
+	})
 }
 
-func openEngine(t *testing.T, prefix string, dbfile, schema string, create bool, applyF func(string2 string)) (*Engine, binlog2.Binlog) {
+func openEngine(t *testing.T, prefix string, dbfile, schema string, create, replica bool, applyF func(string2 string)) (*Engine, binlog2.Binlog) {
 	options := binlog2.Options{
-		PrefixPath: prefix + "/test",
-		Magic:      3456,
+		PrefixPath:  prefix + "/test",
+		Magic:       3456,
+		ReplicaMode: replica,
 	}
 	if create {
 		_, err := fsbinlog.CreateEmptyFsBinlog(options)
@@ -79,9 +81,11 @@ func openEngine(t *testing.T, prefix string, dbfile, schema string, create bool,
 	bl, err := fsbinlog.NewFsBinlog(&Logger{}, options)
 	require.NoError(t, err)
 	engine, err := OpenEngine(Options{
-		Path:   prefix + "/" + dbfile,
-		APPID:  32,
-		Scheme: schema,
+		Path:           prefix + "/" + dbfile,
+		APPID:          32,
+		Scheme:         schema,
+		DurabilityMode: NoWaitCommit,
+		Replica:        replica,
 	}, bl, func(conn Conn, offset int64, bytes []byte) (int, error) {
 		read := 0
 		for len(bytes) > 0 {
@@ -133,7 +137,7 @@ func isEquals(a, b []string) error {
 
 func Test_Engine_Reread_From_Begin(t *testing.T) {
 	dir := t.TempDir()
-	engine, bl := openEngine(t, dir, "db", schema, true, nil)
+	engine, bl := openEngine(t, dir, "db", schema, true, false, nil)
 	agg := &testAggregation{}
 	n := 30000
 	wg := &sync.WaitGroup{}
@@ -158,7 +162,7 @@ func Test_Engine_Reread_From_Begin(t *testing.T) {
 	require.NoError(t, bl.Shutdown())
 	history := []string{}
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db1", schema, false, func(s string) {
+	engine, bl = openEngine(t, dir, "db1", schema, false, false, func(s string) {
 		mx.Lock()
 		defer mx.Unlock()
 		history = append(history, s)
@@ -174,7 +178,7 @@ func Test_Engine_Reread_From_Begin(t *testing.T) {
 
 func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	dir := t.TempDir()
-	engine, bl := openEngine(t, dir, "db", schema, true, nil)
+	engine, bl := openEngine(t, dir, "db", schema, true, false, nil)
 	agg := &testAggregation{}
 	n := 20000 + rand.Intn(20000)
 	wg := &sync.WaitGroup{}
@@ -220,7 +224,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	require.NoError(t, bl.Shutdown())
 	history := []string{}
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db", schema, false, func(s string) {
+	engine, bl = openEngine(t, dir, "db", schema, false, false, func(s string) {
 		mx.Lock()
 		defer mx.Unlock()
 		history = append(history, s)
@@ -230,7 +234,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 		expectedMap[t] = struct{}{}
 	}
 	actualDb := map[string]struct{}{}
-	err := engine.Do(func(conn Conn, bytes []byte) ([]byte, error) {
+	err := engine.Do(context.Background(), func(conn Conn, bytes []byte) ([]byte, error) {
 		rows := conn.Query("SELECT t from test_db")
 		if rows.err != nil {
 			return bytes, rows.err
@@ -243,7 +247,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 			actualDb[t] = struct{}{}
 		}
 		return bytes, nil
-	}, true)
+	})
 	require.NoError(t, err)
 	require.NoError(t, isEquals(binlogHistory, history))
 	require.True(t, reflect.DeepEqual(expectedMap, actualDb))
@@ -253,7 +257,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 
 func Test_Engine(t *testing.T) {
 	dir := t.TempDir()
-	engine, bl := openEngine(t, dir, "db", schema, true, nil)
+	engine, bl := openEngine(t, dir, "db", schema, true, false, nil)
 	agg := &testAggregation{}
 	n := 8000
 	var task int32 = 10000000
@@ -285,7 +289,7 @@ func Test_Engine(t *testing.T) {
 	require.NoError(t, engine.Close())
 	require.NoError(t, bl.Shutdown())
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db", schema, false, func(s string) {
+	engine, bl = openEngine(t, dir, "db", schema, false, false, func(s string) {
 		t.Fatal("mustn't apply music")
 	})
 	mx.Lock()
@@ -297,7 +301,7 @@ func Test_Engine(t *testing.T) {
 		expectedMap[t] = struct{}{}
 	}
 	actualDb := map[string]struct{}{}
-	err := engine.Do(func(conn Conn, bytes []byte) ([]byte, error) {
+	err := engine.Do(context.Background(), func(conn Conn, bytes []byte) ([]byte, error) {
 		rows := conn.Query("SELECT t from test_db")
 		if rows.err != nil {
 			return bytes, rows.err
@@ -310,7 +314,7 @@ func Test_Engine(t *testing.T) {
 			actualDb[t] = struct{}{}
 		}
 		return bytes, nil
-	}, true)
+	})
 	require.NoError(t, err)
 	require.True(t, reflect.DeepEqual(expectedMap, actualDb))
 	require.NoError(t, engine.Close())
@@ -320,22 +324,22 @@ func Test_Engine(t *testing.T) {
 func Test_Engine_Read_Empty_Raw(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER PRIMARY KEY AUTOINCREMENT, oid INT, data TEXT);"
 	dir := t.TempDir()
-	engine, _ := openEngine(t, dir, "db", schema, true, nil)
+	engine, _ := openEngine(t, dir, "db", schema, true, false, nil)
 	var rowID int64
 	var blob []byte
 	var err error
 	var isNull bool
 
-	err = engine.Do(func(conn Conn, cache []byte) ([]byte, error) {
+	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 		buf := make([]byte, 12)
 		rowID, err = conn.Exec("INSERT INTO test_db(oid) VALUES ($oid)", Int64("$oid", 1))
 		binary.LittleEndian.PutUint32(buf, magic)
 		binary.LittleEndian.PutUint64(buf[4:], uint64(1))
 		return cache, err
-	}, false)
+	})
 	require.NoError(t, err)
 
-	err = engine.Do(func(conn Conn, cache []byte) ([]byte, error) {
+	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("SELECT data FROM test_db WHERE id=$id or id=$id1", Int64("$id", rowID))
 
 		for rows.Next() {
@@ -346,7 +350,7 @@ func Test_Engine_Read_Empty_Raw(t *testing.T) {
 			}
 		}
 		return cache, err
-	}, false)
+	})
 	require.NoError(t, err)
 	require.True(t, isNull)
 	require.Nil(t, blob)
@@ -355,22 +359,22 @@ func Test_Engine_Read_Empty_Raw(t *testing.T) {
 func Test_Engine_Put_Empty_String(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (data TEXT NOT NULL);"
 	dir := t.TempDir()
-	engine, _ := openEngine(t, dir, "db", schema, true, nil)
+	engine, _ := openEngine(t, dir, "db", schema, true, false, nil)
 	var err error
 	var data = "abc"
 
-	err = engine.Do(func(conn Conn, cache []byte) ([]byte, error) {
+	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 		_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", ""))
 		return cache, err
-	}, false)
+	})
 	require.NoError(t, err)
-	err = engine.Do(func(conn Conn, cache []byte) ([]byte, error) {
+	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("SELECT data from test_db")
 		require.NoError(t, rows.Error())
 		require.True(t, rows.Next())
 		data, err = rows.ColumnBlobString(0)
 		return cache, err
-	}, false)
+	})
 	require.NoError(t, err)
 	require.Equal(t, "", data)
 }
@@ -386,18 +390,41 @@ func Test_Engine_WithoutBinlog(t *testing.T) {
 	require.NoError(t, err)
 	var data = ""
 
-	err = engine.Do(func(conn Conn, cache []byte) ([]byte, error) {
+	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 		_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
 		return cache, err
-	}, false)
+	})
 	require.NoError(t, err)
-	err = engine.Do(func(conn Conn, cache []byte) ([]byte, error) {
+	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("SELECT data from test_db")
 		require.NoError(t, rows.Error())
 		require.True(t, rows.Next())
 		data, err = rows.ColumnBlobString(0)
 		return cache, err
-	}, false)
+	})
 	require.NoError(t, err)
 	require.Equal(t, "abc", data)
 }
+
+/*
+func Test_ReplicaMode(t *testing.T) {
+	dir := t.TempDir()
+	engineMaster, _ := openEngine(t, dir, "db1", schema, true, false, nil)
+	engineRepl, _ := openEngine(t, dir, "db", schema, false, true, nil)
+	for i := 0;i<100;i++ {
+		err := insertText(engineMaster, strconv.Itoa(i))
+		require.NoError(t, err)
+	}
+	err := engineRepl.Do(nil, func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("SELECT t from test_db")
+		if rows.Next() {
+			str, err := rows.ColumnBlobString(0)
+			require.NoError(t, err)
+			require.Equal(t, "abc", str)
+		}
+		t.Error("Replica doesn't have data")
+		return cache, nil
+	})
+	require.NoError(t, err)
+}
+*/
