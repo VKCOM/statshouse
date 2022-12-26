@@ -565,7 +565,7 @@ func TestBootstrap(t *testing.T) {
 	})
 
 	t.Run("insert to non empty db", func(t *testing.T) {
-		require.NoError(t, h.db.PutMapping([]string{a.Str, c.Str}, []int32{a.Value, c.Value}))
+		require.NoError(t, h.db.PutMapping(context.Background(), []string{a.Str, c.Str}, []int32{a.Value, c.Value}))
 		count, err := putBootstrap(t, rpcClient, []tlstatshouse.Mapping{a, b, c})
 		require.NoError(t, err)
 		require.Equal(t, int32(2), count)

@@ -20,98 +20,112 @@ import (
 	sqlite2 "github.com/vkcom/statshouse/internal/vkgo/sqlite"
 )
 
-func applyEvent(conn sqlite2.Conn, offset int64, data []byte) (int, error) {
-	readCount := 0
-	var editMetricEvent tlmetadata.EditMetricEvent
-	var createMetricEvent tlmetadata.CreateMetricEvent
-	var putMappingEvent tlmetadata.PutMappingEvent
-	var createMappingEvent tlmetadata.CreateMappingEvent
-	var editEntityEvent tlmetadata.EditEntityEvent
-	var createEntityEvent tlmetadata.CreateEntityEvent
-	var putBootstrapEvent tlmetadata.PutBootstrapEvent
+func applyScanEvent(scanOnly bool) func(conn sqlite2.Conn, offset int64, data []byte) (int, error) {
+	return func(conn sqlite2.Conn, offset int64, data []byte) (int, error) {
+		readCount := 0
+		var editMetricEvent tlmetadata.EditMetricEvent
+		var createMetricEvent tlmetadata.CreateMetricEvent
+		var putMappingEvent tlmetadata.PutMappingEvent
+		var createMappingEvent tlmetadata.CreateMappingEvent
+		var editEntityEvent tlmetadata.EditEntityEvent
+		var createEntityEvent tlmetadata.CreateEntityEvent
+		var putBootstrapEvent tlmetadata.PutBootstrapEvent
 
-	var tail []byte
-	for len(data) > 0 {
-		var tag uint32
-		var err error
-		tag, data, err = basictl.NatReadTag(data)
-		if err != nil {
-			return fsbinlog.AddPadding(readCount), err
+		var tail []byte
+		for len(data) > 0 {
+			var tag uint32
+			var err error
+			tag, data, err = basictl.NatReadTag(data)
+			if err != nil {
+				return fsbinlog.AddPadding(readCount), err
+			}
+
+			switch tag {
+			case editMetricEvent.TLTag():
+				tail, err = editMetricEvent.Read(data)
+				if err != nil {
+					return fsbinlog.AddPadding(readCount), err
+				}
+				if !scanOnly {
+					err = applyEditMetricEvent(conn, editMetricEvent)
+					if err != nil {
+						return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataEditMetricEvent correctly: %w", err)
+					}
+				}
+			case editEntityEvent.TLTag():
+				tail, err = editEntityEvent.Read(data)
+				if err != nil {
+					return fsbinlog.AddPadding(readCount), err
+				}
+				if !scanOnly {
+					err = applyEditEntityEvent(conn, editEntityEvent)
+					if err != nil {
+						return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataEditMetricEvent correctly: %w", err)
+					}
+				}
+			case createMetricEvent.TLTag():
+				tail, err = createMetricEvent.Read(data)
+				if err != nil {
+					return fsbinlog.AddPadding(readCount), err
+				}
+				if !scanOnly {
+					err = applyCreateMetricEvent(conn, createMetricEvent)
+					if err != nil {
+						return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataCreateMappingEvent: %w", err)
+					}
+				}
+			case createEntityEvent.TLTag():
+				tail, err = createEntityEvent.Read(data)
+				if err != nil {
+					return fsbinlog.AddPadding(readCount), err
+				}
+				if !scanOnly {
+					err = applyCreateEntityEvent(conn, createEntityEvent)
+					if err != nil {
+						return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataCreateMappingEvent: %w", err)
+					}
+				}
+			case putMappingEvent.TLTag():
+				tail, err = putMappingEvent.Read(data)
+				if err != nil {
+					return fsbinlog.AddPadding(readCount), err
+				}
+				if !scanOnly {
+					_, err = putMapping(conn, nil, putMappingEvent.Keys, putMappingEvent.Value)
+					if err != nil {
+						return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataPutMappingEvent: %w", err)
+					}
+				}
+			case createMappingEvent.TLTag():
+				tail, err = createMappingEvent.Read(data)
+				if err != nil {
+					return fsbinlog.AddPadding(readCount), err
+				}
+				if !scanOnly {
+					err = applyCreateMappingEvent(conn, createMappingEvent)
+					if err != nil {
+						return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataCreateMappingEvent: %w", err)
+					}
+				}
+			case putBootstrapEvent.TLTag():
+				tail, err = putBootstrapEvent.Read(data)
+				if err != nil {
+					return fsbinlog.AddPadding(readCount), err
+				}
+				if !scanOnly {
+					_, _, err := applyPutBootstrap(conn, nil, putBootstrapEvent.Mappings)
+					if err != nil {
+						return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataPutBootstrapEvent: %w", err)
+					}
+				}
+			default:
+				return fsbinlog.AddPadding(readCount), binlog2.ErrorUnknownMagic
+			}
+			readCount += fsbinlog.AddPadding(4 + len(data) - len(tail))
+			data = tail
 		}
-
-		switch tag {
-		case editMetricEvent.TLTag():
-			tail, err = editMetricEvent.Read(data)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), err
-			}
-			err = applyEditMetricEvent(conn, editMetricEvent)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataEditMetricEvent correctly: %w", err)
-			}
-		case editEntityEvent.TLTag():
-			tail, err = editEntityEvent.Read(data)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), err
-			}
-			err = applyEditEntityEvent(conn, editEntityEvent)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataEditMetricEvent correctly: %w", err)
-			}
-		case createMetricEvent.TLTag():
-			tail, err = createMetricEvent.Read(data)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), err
-			}
-			err = applyCreateMetricEvent(conn, createMetricEvent)
-
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataCreateMappingEvent: %w", err)
-			}
-		case createEntityEvent.TLTag():
-			tail, err = createEntityEvent.Read(data)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), err
-			}
-			err = applyCreateEntityEvent(conn, createEntityEvent)
-
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataCreateMappingEvent: %w", err)
-			}
-		case putMappingEvent.TLTag():
-			tail, err = putMappingEvent.Read(data)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), err
-			}
-			_, err = putMapping(conn, nil, putMappingEvent.Keys, putMappingEvent.Value)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataPutMappingEvent: %w", err)
-			}
-		case createMappingEvent.TLTag():
-			tail, err = createMappingEvent.Read(data)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), err
-			}
-			err = applyCreateMappingEvent(conn, createMappingEvent)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataCreateMappingEvent: %w", err)
-			}
-		case putBootstrapEvent.TLTag():
-			tail, err = putBootstrapEvent.Read(data)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), err
-			}
-			_, _, err := applyPutBootstrap(conn, nil, putBootstrapEvent.Mappings)
-			if err != nil {
-				return fsbinlog.AddPadding(readCount), fmt.Errorf("can't apply binlog event MetadataPutBootstrapEvent: %w", err)
-			}
-		default:
-			return fsbinlog.AddPadding(readCount), binlog2.ErrorUnknownMagic
-		}
-		readCount += fsbinlog.AddPadding(4 + len(data) - len(tail))
-		data = tail
+		return fsbinlog.AddPadding(readCount), nil
 	}
-	return fsbinlog.AddPadding(readCount), nil
 }
 
 func applyEditMetricEvent(conn sqlite2.Conn, event tlmetadata.EditMetricEvent) error {

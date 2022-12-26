@@ -8,7 +8,6 @@ package sqlite
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/vkcom/statshouse/internal/vkgo/sqlite/internal/sqlite0"
 )
@@ -84,14 +83,11 @@ func doSingleROToWALQuery(path string, f func(*Engine) error) error {
 	}
 
 	e := &Engine{
-		opt:  Options{Path: path},
-		rw:   ro,
-		rwMu: sync.Mutex{},
-		prep: map[string]stmtInfo{},
-		used: map[*sqlite0.Stmt]struct{}{},
+		opt: Options{Path: path},
+		rw:  newSqliteConn(ro),
 	}
 	err = f(e)
-	for _, si := range e.prep {
+	for _, si := range e.rw.prep {
 		_ = si.stmt.Close()
 	}
 
@@ -113,14 +109,11 @@ func doSingleROQuery(path string, f func(*Engine) error) error {
 		return fmt.Errorf("failed to set DB busy timeout to %v: %w", busyTimeout, err)
 	}
 	e := &Engine{
-		opt:  Options{Path: path},
-		rw:   conn,
-		rwMu: sync.Mutex{},
-		prep: map[string]stmtInfo{},
-		used: map[*sqlite0.Stmt]struct{}{},
+		opt: Options{Path: path},
+		rw:  newSqliteConn(conn),
 	}
 	err = f(e)
-	for _, si := range e.prep {
+	for _, si := range e.rw.prep {
 		_ = si.stmt.Close()
 	}
 

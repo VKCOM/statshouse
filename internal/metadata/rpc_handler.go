@@ -88,7 +88,9 @@ func (h *Handler) broadcastJournal(sentToAll bool) {
 	if qLength == 0 {
 		return
 	}
-	journalNew, err := h.db.JournalEvents(h.minVersion, 100)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	journalNew, err := h.db.JournalEvents(ctx, h.minVersion, 100)
+	cancel()
 	if err != nil {
 		return
 	}
@@ -143,7 +145,7 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 		return "", fmt.Errorf("failed to deserialize metadata.getJournal request: %w", err)
 	}
 	version := args.From
-	m, err := h.db.JournalEvents(version, args.Limit)
+	m, err := h.db.JournalEvents(ctx, version, args.Limit)
 	if err != nil {
 		return "", fmt.Errorf("failed to get metrics update: %w", err)
 	}
@@ -170,7 +172,7 @@ func (h *Handler) RawEditEntity(ctx context.Context, hctx *rpc.HandlerContext) (
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.editMetricEvent request: %w", err)
 	}
-	event, err := h.db.SaveEntity(args.Event.Name, args.Event.Id, args.Event.Version, args.Event.Data, args.IsSetCreate(), args.IsSetDelete(), args.Event.EventType)
+	event, err := h.db.SaveEntity(ctx, args.Event.Name, args.Event.Id, args.Event.Version, args.Event.Data, args.IsSetCreate(), args.IsSetDelete(), args.Event.EventType)
 	if err == errInvalidMetricVersion {
 		return "", fmt.Errorf("invalid version. Reload this page and try again")
 	}
@@ -192,10 +194,10 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 	var mapping tlmetadata.GetMappingResponseUnion
 	var notExists bool
 	if args.IsSetCreateIfAbsent() {
-		mapping, err = h.db.GetOrCreateMapping(args.Metric, args.Key)
+		mapping, err = h.db.GetOrCreateMapping(ctx, args.Metric, args.Key)
 	} else {
 		var id int32
-		id, notExists, err = h.db.GetMappingByValue(args.Key)
+		id, notExists, err = h.db.GetMappingByValue(ctx, args.Key)
 		mapping = tlmetadata.GetMappingResponse{Id: id}.AsUnion()
 	}
 	if err != nil {
@@ -218,7 +220,7 @@ func (h *Handler) RawPutMapping(ctx context.Context, hctx *rpc.HandlerContext) (
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.putMappingEvent request: %w", err)
 	}
-	err = h.db.PutMapping(args.Keys, args.Value)
+	err = h.db.PutMapping(ctx, args.Keys, args.Value)
 	if err != nil {
 		return "", err
 	}
@@ -232,7 +234,7 @@ func (h *Handler) RawGetMappingByID(ctx context.Context, hctx *rpc.HandlerContex
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.getInvertMapping request: %w", err)
 	}
-	k, isExists, err := h.db.GetMappingByID(args.Id)
+	k, isExists, err := h.db.GetMappingByID(ctx, args.Id)
 	if err != nil {
 		return "", err
 	}
@@ -258,7 +260,7 @@ func (h *Handler) RawResetFlood(ctx context.Context, hctx *rpc.HandlerContext) (
 		return "", fmt.Errorf("failed to deserialize metadata.resetFlood request: %w", err)
 	}
 
-	err = h.db.ResetFlood(args.Metric)
+	err = h.db.ResetFlood(ctx, args.Metric)
 
 	if err != nil {
 		return "", err
@@ -269,7 +271,7 @@ func (h *Handler) RawResetFlood(ctx context.Context, hctx *rpc.HandlerContext) (
 }
 
 func (h *Handler) ResetFlood2(ctx context.Context, args tlmetadata.ResetFlood2) (tlmetadata.ResetFloodResponse2, error) {
-	return tlmetadata.ResetFloodResponse2{}, h.db.ResetFlood(args.Metric) // TODO - return budgets before and after reset
+	return tlmetadata.ResetFloodResponse2{}, h.db.ResetFlood(ctx, args.Metric) // TODO - return budgets before and after reset
 }
 
 func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.GetTagMappingBootstrap) (tlstatshouse.GetTagMappingBootstrapResult, error) {
@@ -277,12 +279,12 @@ func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.Ge
 
 	totalSizeEstimate := 0
 	boostrapDifferences := 0
-	response, err := h.db.GetBootstrap()
+	response, err := h.db.GetBootstrap(ctx)
 	if err != nil {
 		return tlstatshouse.GetTagMappingBootstrapResult{}, nil
 	}
 	for _, ma := range response.Mappings {
-		k, isExists, err := h.db.GetMappingByID(ma.Value)
+		k, isExists, err := h.db.GetMappingByID(ctx, ma.Value)
 		if err != nil {
 			return ret, err
 		}
@@ -310,7 +312,7 @@ func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.Ge
 }
 
 func (h *Handler) PutTagMappingBootstrap(ctx context.Context, args tlmetadata.PutTagMappingBootstrap) (tlstatshouse.PutTagMappingBootstrapResult, error) {
-	count, err := h.db.PutBootstrap(args.Mappings)
+	count, err := h.db.PutBootstrap(ctx, args.Mappings)
 	return tlstatshouse.PutTagMappingBootstrapResult{CountInserted: count}, err
 }
 

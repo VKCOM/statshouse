@@ -7,6 +7,7 @@
 package metadata
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -74,9 +75,9 @@ func initD1b(t *testing.T, dir string, dbFile string, createBl bool, options *Op
 func Test_SaveMetric(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity("a", 0, 0, "{}", true, false, format.MetricEvent)
+	_, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent)
 	require.NoError(t, err)
-	updates, err := db.JournalEvents(0, 100)
+	updates, err := db.JournalEvents(context.Background(), 0, 100)
 	require.NoError(t, err)
 	require.Len(t, updates, 1)
 	m := updates[0]
@@ -87,18 +88,18 @@ func Test_SaveMetric(t *testing.T) {
 func Test_RenameMetric(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	e, err := db.SaveEntity("a", 0, 0, "{}", true, false, format.MetricEvent)
+	e, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent)
 	require.NoError(t, err)
-	updates, err := db.JournalEvents(0, 100)
+	updates, err := db.JournalEvents(context.Background(), 0, 100)
 	require.NoError(t, err)
 	require.Len(t, updates, 1)
 	m := updates[0]
 	require.Equal(t, "a", m.Name)
 	require.Equal(t, "{}", m.Data)
-	e1, err := db.SaveEntity("b", e.Id, e.Version, "{}", false, false, format.MetricEvent)
+	e1, err := db.SaveEntity(context.Background(), "b", e.Id, e.Version, "{}", false, false, format.MetricEvent)
 	require.NoError(t, err)
 	require.Equal(t, e.Id, e1.Id)
-	updates, err = db.JournalEvents(e.Version, 100)
+	updates, err = db.JournalEvents(context.Background(), e.Version, 100)
 	require.NoError(t, err)
 	require.Len(t, updates, 1)
 	m = updates[0]
@@ -110,32 +111,32 @@ func Test_RenameMetric(t *testing.T) {
 func Test_SaveMetric_WithInvalidVersion(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity("a", 0, 0, "{}", true, false, format.MetricEvent)
+	_, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent)
 	require.NoError(t, err)
-	updates, err := db.JournalEvents(0, 100)
+	updates, err := db.JournalEvents(context.Background(), 0, 100)
 	require.NoError(t, err)
 	require.Len(t, updates, 1)
 	m := updates[0]
 	require.Equal(t, "a", m.Name)
 	require.Equal(t, "{}", m.Data)
-	_, err = db.SaveEntity(m.Name, m.Id, m.Version+1, m.Data, false, false, format.MetricEvent)
+	_, err = db.SaveEntity(context.Background(), m.Name, m.Id, m.Version+1, m.Data, false, false, format.MetricEvent)
 	require.Equal(t, errInvalidMetricVersion, err)
 }
 
 func Test_SaveMetric_Delete(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity("a", 0, 0, "{}", true, false, format.MetricEvent)
+	_, err := db.SaveEntity(context.Background(), "a", 0, 0, "{}", true, false, format.MetricEvent)
 	require.NoError(t, err)
-	updates, err := db.JournalEvents(0, 100)
+	updates, err := db.JournalEvents(context.Background(), 0, 100)
 	require.NoError(t, err)
 	require.Len(t, updates, 1)
 	m := updates[0]
 	require.Equal(t, "a", m.Name)
 	require.Equal(t, "{}", m.Data)
-	r, err := db.SaveEntity(m.Name, m.Id, m.Version, m.Data, false, true, format.MetricEvent)
+	r, err := db.SaveEntity(context.Background(), m.Name, m.Id, m.Version, m.Data, false, true, format.MetricEvent)
 	require.NoError(t, err)
-	updates, err = db.JournalEvents(m.Version, 100)
+	updates, err = db.JournalEvents(context.Background(), m.Version, 100)
 	require.NoError(t, err)
 	require.Len(t, updates, 1)
 	m = updates[0]
@@ -149,9 +150,9 @@ func Test_SaveMetric_Delete(t *testing.T) {
 func Test_SaveEntity_PredefinedEntity(t *testing.T) {
 	path := t.TempDir()
 	db, _ := initD1b(t, path, "db", true, nil)
-	_, err := db.SaveEntity("a", -1, 0, "{}", false, false, format.MetricEvent)
+	_, err := db.SaveEntity(context.Background(), "a", -1, 0, "{}", false, false, format.MetricEvent)
 	require.NoError(t, err)
-	updates, err := db.JournalEvents(0, 100)
+	updates, err := db.JournalEvents(context.Background(), 0, 100)
 	require.NoError(t, err)
 	require.Len(t, updates, 1)
 	m := updates[0]
@@ -159,9 +160,9 @@ func Test_SaveEntity_PredefinedEntity(t *testing.T) {
 	require.Equal(t, "{}", m.Data)
 	require.Equal(t, int64(-1), m.Id)
 
-	_, err = db.SaveEntity(m.Name, m.Id, m.Version, `{"a": 1}`, false, false, format.MetricEvent)
+	_, err = db.SaveEntity(context.Background(), m.Name, m.Id, m.Version, `{"a": 1}`, false, false, format.MetricEvent)
 	require.NoError(t, err)
-	updates, err = db.JournalEvents(m.Version, 100)
+	updates, err = db.JournalEvents(context.Background(), m.Version, 100)
 	require.NoError(t, err)
 	require.Len(t, updates, 1)
 	m = updates[0]
@@ -201,40 +202,40 @@ func TestDB_GetOrCreateMapping(t *testing.T) {
 	db, _ := initD1b(t, path, "db", true, nil)
 
 	t.Run("create mapping", func(t *testing.T) {
-		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc", "k"))
+		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc", "k"))
 		require.NoError(t, err)
 		require.Greater(t, mapping, int32(0))
 	})
 	t.Run("get mapping", func(t *testing.T) {
-		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc1", "k1"))
+		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc1", "k1"))
 		require.NoError(t, err)
 		require.Greater(t, mapping, int32(0))
-		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc1", "k1"))
+		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc1", "k1"))
 		require.NoError(t, err)
 		require.Equal(t, mapping, mapping1)
 	})
 
 	t.Run("put mapping", func(t *testing.T) {
-		err := db.PutMapping([]string{"k20"}, []int32{4423})
+		err := db.PutMapping(context.Background(), []string{"k20"}, []int32{4423})
 		require.NoError(t, err)
-		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping("ab", "k20"))
+		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "ab", "k20"))
 		require.NoError(t, err)
 		require.Equal(t, int32(4423), mapping1)
-		err = db.PutMapping([]string{"k20"}, []int32{4424})
+		err = db.PutMapping(context.Background(), []string{"k20"}, []int32{4424})
 		require.NoError(t, err)
-		mapping1, err = unpackGetMappingUnion(db.GetOrCreateMapping("ab", "k20"))
+		mapping1, err = unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "ab", "k20"))
 		require.NoError(t, err)
 		require.Equal(t, int32(4424), mapping1)
 	})
 
 	t.Run("get mapping 1", func(t *testing.T) {
-		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc4", "k9"))
+		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc4", "k9"))
 		require.NoError(t, err)
 		require.Greater(t, mapping, int32(0))
-		mapping1, _, err := db.GetMappingByValue("k9")
+		mapping1, _, err := db.GetMappingByValue(context.Background(), "k9")
 		require.NoError(t, err)
 		require.Equal(t, mapping, mapping1)
-		mapping2, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc4", "k9"))
+		mapping2, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc4", "k9"))
 		require.NoError(t, err)
 		require.Equal(t, mapping, mapping2)
 	})
@@ -248,15 +249,15 @@ func TestDB_GetOrCreateMapping(t *testing.T) {
 			return now
 		}
 		now = time.Unix(1641027722, 0)
-		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc2", "k3"))
+		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc2", "k3"))
 		require.NoError(t, err)
 		require.Greater(t, mapping, int32(0))
 		now = time.Unix(1641027723, 0)
-		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc2", "k4"))
+		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc2", "k4"))
 		require.NoError(t, err)
 		require.Greater(t, mapping1, mapping)
 		now = time.Unix(1641027724, 49)
-		resp, err := db.GetOrCreateMapping("abc2", "k5")
+		resp, err := db.GetOrCreateMapping(context.Background(), "abc2", "k5")
 		require.NoError(t, err)
 		require.True(t, resp.IsFloodLimitError())
 	})
@@ -269,18 +270,18 @@ func TestDB_GetOrCreateMapping(t *testing.T) {
 			return now
 		}
 		now = time.Unix(1641027722, 0)
-		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc3", "k6"))
+		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc3", "k6"))
 		require.NoError(t, err)
 		require.Greater(t, mapping, int32(0))
 		now = time.Unix(1641027723, 0)
-		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc3", "k7"))
+		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc3", "k7"))
 		require.NoError(t, err)
 		require.Greater(t, mapping1, mapping)
 		now = time.Unix(1641027724, 0)
-		_, err = unpackGetMappingUnion(db.GetOrCreateMapping("abc3", "k8"))
+		_, err = unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc3", "k8"))
 		require.Error(t, err)
 		now = time.Unix(1641027725, 0)
-		mapping2, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc3", "k8"))
+		mapping2, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc3", "k8"))
 		require.NoError(t, err)
 		require.Greater(t, mapping2, mapping1)
 	})
@@ -294,15 +295,15 @@ func TestDB_GetOrCreateMapping(t *testing.T) {
 			return now
 		}
 		now = time.Unix(1641027722, 0)
-		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc53", "k9"))
+		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc53", "k9"))
 		require.NoError(t, err)
 		require.Greater(t, mapping, int32(0))
 		now = time.Unix(1641027723, 0)
-		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc53", "k10"))
+		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc53", "k10"))
 		require.NoError(t, err)
 		require.Greater(t, mapping1, mapping)
 		now = time.Unix(1641027724, 49)
-		mapping2, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc53", "k11"))
+		mapping2, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc53", "k11"))
 		require.NoError(t, err)
 		require.Greater(t, mapping2, mapping1)
 	})
@@ -320,16 +321,16 @@ func TestDB_ResetFlood(t *testing.T) {
 			return now
 		}
 		now = time.Unix(1641027722, 0)
-		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc2", "k3"))
+		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc2", "k3"))
 		require.NoError(t, err)
 		require.Greater(t, mapping, int32(0))
 		now = time.Unix(1641027724, 0)
-		resp, err := db.GetOrCreateMapping("abc2", "k5")
+		resp, err := db.GetOrCreateMapping(context.Background(), "abc2", "k5")
 		require.NoError(t, err)
 		require.True(t, resp.IsFloodLimitError())
-		err = db.ResetFlood("abc2")
+		err = db.ResetFlood(context.Background(), "abc2")
 		require.NoError(t, err)
-		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc2", "k5"))
+		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc2", "k5"))
 		require.NoError(t, err)
 		require.Greater(t, mapping1, mapping)
 	})
@@ -341,10 +342,10 @@ func TestDB_GetKeyMapping(t *testing.T) {
 
 	t.Run("get mapping", func(t *testing.T) {
 		const k = "k1"
-		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc1", k))
+		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc1", k))
 		require.NoError(t, err)
 		require.Greater(t, mapping, int32(0))
-		key, isExists, err := db.GetMappingByID(mapping)
+		key, isExists, err := db.GetMappingByID(context.Background(), mapping)
 		require.NoError(t, err)
 		require.True(t, isExists)
 		require.Equal(t, k, key)
@@ -352,10 +353,10 @@ func TestDB_GetKeyMapping(t *testing.T) {
 
 	t.Run("get not existing mapping", func(t *testing.T) {
 		const k = "k1"
-		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping("abc1", k))
+		mapping, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc1", k))
 		require.NoError(t, err)
 		require.Greater(t, mapping, int32(0))
-		_, isExists, err := db.GetMappingByID(mapping + 7)
+		_, isExists, err := db.GetMappingByID(context.Background(), mapping+7)
 		require.NoError(t, err)
 		require.False(t, isExists)
 	})
@@ -377,22 +378,22 @@ func TestDB_Bootstrap(t *testing.T) {
 		Value: 3,
 	}
 	t.Run("insert to empty db", func(t *testing.T) {
-		c, err := db.PutBootstrap([]tlstatshouse.Mapping{a, b})
+		c, err := db.PutBootstrap(context.Background(), []tlstatshouse.Mapping{a, b})
 		require.NoError(t, err)
 		require.Equal(t, int32(0), c)
 
-		m, err := db.GetBootstrap()
+		m, err := db.GetBootstrap(context.Background())
 		require.NoError(t, err)
 		require.Len(t, m.Mappings, 0)
 	})
 
 	t.Run("insert to non empty db", func(t *testing.T) {
-		require.NoError(t, db.PutMapping([]string{a.Str, c.Str}, []int32{a.Value, c.Value}))
-		count, err := db.PutBootstrap([]tlstatshouse.Mapping{a, b, c})
+		require.NoError(t, db.PutMapping(context.Background(), []string{a.Str, c.Str}, []int32{a.Value, c.Value}))
+		count, err := db.PutBootstrap(context.Background(), []tlstatshouse.Mapping{a, b, c})
 		require.NoError(t, err)
 		require.Equal(t, int32(2), count)
 
-		m, err := db.GetBootstrap()
+		m, err := db.GetBootstrap(context.Background())
 		require.NoError(t, err)
 		require.Len(t, m.Mappings, 2)
 		require.Contains(t, m.Mappings, a)
@@ -506,7 +507,7 @@ func Test_Reread_Binlog_CreateMapping(t *testing.T) {
 			func(t *testing.T, db *DBV2, goroutineNum int) {
 				k := strconv.FormatInt(rand.Int63()%10000, 10)
 				name := metricsNames[rand.Int()%len(metricsNames)]
-				respUnion, err := db.GetOrCreateMapping(name, k)
+				respUnion, err := db.GetOrCreateMapping(context.Background(), name, k)
 				require.NoError(t, err)
 				require.True(t, respUnion.IsGetMappingResponse() || respUnion.IsCreated())
 				mx.Lock()
@@ -522,7 +523,7 @@ func Test_Reread_Binlog_CreateMapping(t *testing.T) {
 				mx.Lock()
 				defer mx.Unlock()
 				for k, id := range mappings {
-					resp, err := db.GetOrCreateMapping("a", k)
+					resp, err := db.GetOrCreateMapping(context.Background(), "a", k)
 					require.NoError(t, err)
 					require.True(t, resp.IsGetMappingResponse() || resp.IsCreated())
 					resp1, ok := resp.AsGetMappingResponse()
@@ -567,14 +568,14 @@ func Test_Reread_Binlog_SaveMetric(t *testing.T) {
 						delete = rand.Int()%2 == 0
 					}
 					mx.Unlock()
-					metric, err := db.SaveEntity(name, metric.Id, metric.Version, "{}", !notCreate, delete, format.MetricEvent)
+					metric, err := db.SaveEntity(context.Background(), name, metric.Id, metric.Version, "{}", !notCreate, delete, format.MetricEvent)
 					require.NoError(t, err)
 					mx.Lock()
 					metrics[name] = metric
 					mx.Unlock()
 				}
 			}, func(t *testing.T, db *DBV2) {
-				metric1, err := db.JournalEvents(0, 100000)
+				metric1, err := db.JournalEvents(context.Background(), 0, 100000)
 				require.NoError(t, err)
 				require.Equal(t, len(metrics), len(metric1))
 				for _, metric := range metric1 {
@@ -605,7 +606,7 @@ func Test_Reread_Binlog_PutOldMetric(t *testing.T) {
 		testRereadBinlog(t, opt, path, "db", dbFile2, 30,
 			func(t *testing.T, db *DBV2, i int) {
 				name := "metric" + strconv.FormatInt(int64(i+1), 10)
-				metric, err := db.PutOldMetric(name, int64(i+1), int64(i+1), "{}", uint32(time.Now().Unix()), format.MetricEvent)
+				metric, err := db.PutOldMetric(context.Background(), name, int64(i+1), int64(i+1), "{}", uint32(time.Now().Unix()), format.MetricEvent)
 				require.NoError(t, err)
 				mx.Lock()
 				metrics[name] = metric
@@ -613,7 +614,7 @@ func Test_Reread_Binlog_PutOldMetric(t *testing.T) {
 			}, func(t *testing.T, db *DBV2) {
 				mx.Lock()
 				defer mx.Unlock()
-				metric1, err := db.JournalEvents(0, 100000)
+				metric1, err := db.JournalEvents(context.Background(), 0, 100000)
 				require.NoError(t, err)
 				require.Equal(t, len(metrics), len(metric1))
 				for _, metric := range metric1 {
@@ -649,7 +650,7 @@ func Test_Reread_Binlog_PutBootstrap(t *testing.T) {
 				i := index
 				index++
 				name := "tag" + strconv.FormatInt(int64(i), 10)
-				err := db.PutMapping([]string{name}, []int32{i})
+				err := db.PutMapping(context.Background(), []string{name}, []int32{i})
 				require.NoError(t, err)
 				mappings[name] = i
 				var mappingsList1 []tlstatshouse.Mapping
@@ -662,14 +663,14 @@ func Test_Reread_Binlog_PutBootstrap(t *testing.T) {
 						break
 					}
 				}
-				c, err := db.PutBootstrap(mappingsList1)
+				c, err := db.PutBootstrap(context.Background(), mappingsList1)
 				require.NoError(t, err)
 				require.Equal(t, len(mappingsList1), int(c))
 				mappingsList = mappingsList1
 			}, func(t *testing.T, db *DBV2) {
 				mx.Lock()
 				defer mx.Unlock()
-				bootstrap, err := db.GetBootstrap()
+				bootstrap, err := db.GetBootstrap(context.Background())
 				require.NoError(t, err)
 				sort.Slice(bootstrap.Mappings, func(i, j int) bool {
 					return bootstrap.Mappings[i].Value < bootstrap.Mappings[j].Value
