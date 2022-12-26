@@ -126,7 +126,7 @@ func OpenDB(
 		Path:   path,
 		APPID:  appId,
 		Scheme: scheme,
-	}, binlog, applyEvent)
+	}, binlog, applyScanEvent(false), applyScanEvent(true))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open engine: %w", err)
 	}
@@ -161,14 +161,14 @@ func (db *DBV2) Close() error {
 	return nil
 }
 
-func (db *DBV2) JournalEvents(sinceVersion int64, page int64) ([]tlmetadata.Event, error) {
+func (db *DBV2) JournalEvents(ctx context.Context, sinceVersion int64, page int64) ([]tlmetadata.Event, error) {
 	limit := metricCountReadLimit
 	if page < limit {
 		limit = page
 	}
 	result := make([]tlmetadata.Event, 0)
 	var bytesRead int64
-	err := db.eng.Do(context.Background(), func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
+	err := db.eng.Do(ctx, func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("SELECT id, name, version, data, updated_at, type, deleted_at FROM metrics_v2 WHERE version > $version ORDER BY version asc;",
 			sqlite2.Int64("$version", sinceVersion))
 		for rows.Next() {
@@ -207,9 +207,9 @@ func (db *DBV2) JournalEvents(sinceVersion int64, page int64) ([]tlmetadata.Even
 	return result, err
 }
 
-func (db *DBV2) PutOldMetric(name string, id int64, versionToInsert int64, newJson string, updateTime uint32, typ int32) (tlmetadata.Event, error) {
+func (db *DBV2) PutOldMetric(ctx context.Context, name string, id int64, versionToInsert int64, newJson string, updateTime uint32, typ int32) (tlmetadata.Event, error) {
 	metric := tlmetadata.Event{}
-	err := db.eng.Do(context.Background(), func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
+	err := db.eng.Do(ctx, func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		var err error
 		metric, cache, err = putEntityWithFixedID(conn, cache, name, id, versionToInsert, newJson, updateTime, typ)
 		return cache, err
@@ -217,11 +217,11 @@ func (db *DBV2) PutOldMetric(name string, id int64, versionToInsert int64, newJs
 	return metric, err
 }
 
-func (db *DBV2) SaveEntity(name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32) (tlmetadata.Event, error) {
+func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32) (tlmetadata.Event, error) {
 	updatedAt := db.now().Unix()
 	var result tlmetadata.Event
 	createFixed := false
-	err := db.eng.Do(context.Background(), func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
+	err := db.eng.Do(ctx, func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		if id < 0 {
 			rows := conn.Query("SELECT id FROM metrics_v2 WHERE id = $id;",
 				sqlite2.Int64("$id", id))
@@ -323,10 +323,10 @@ func (db *DBV2) SaveEntity(name string, id int64, oldVersion int64, newJson stri
 	return result, err
 }
 
-func (db *DBV2) GetMappingByValue(key string) (int32, bool, error) {
+func (db *DBV2) GetMappingByValue(ctx context.Context, key string) (int32, bool, error) {
 	var res int32
 	var notExists bool
-	err := db.eng.Do(context.Background(), func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
+	err := db.eng.Do(ctx, func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		row := conn.Query("SELECT id FROM mappings where name = $name", sqlite2.BlobString("$name", key))
 		if row.Next() {
 			id, _ := row.ColumnInt64(0)
@@ -353,10 +353,10 @@ func (db *DBV2) PrintAllMappings() error {
 	return err
 }
 
-func (db *DBV2) GetMappingByID(id int32) (string, bool, error) {
+func (db *DBV2) GetMappingByID(ctx context.Context, id int32) (string, bool, error) {
 	var res string
 	var isExists bool
-	err := db.eng.Do(context.Background(), func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
+	err := db.eng.Do(ctx, func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		var err error
 		res, isExists, err = getMappingByID(conn, id)
 		return cache, err
@@ -376,18 +376,18 @@ func getMappingByID(conn sqlite2.Conn, id int32) (k string, isExists bool, err e
 	return "", false, nil
 }
 
-func (db *DBV2) ResetFlood(metric string) error {
-	return db.eng.Do(context.Background(), func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
+func (db *DBV2) ResetFlood(ctx context.Context, metric string) error {
+	return db.eng.Do(ctx, func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		_, err := conn.Exec("DELETE FROM flood_limits WHERE metric_name = $name",
 			sqlite2.BlobString("$name", metric))
 		return cache, err
 	})
 }
 
-func (db *DBV2) GetOrCreateMapping(metricName, key string) (tlmetadata.GetMappingResponseUnion, error) {
+func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) (tlmetadata.GetMappingResponseUnion, error) {
 	var resp tlmetadata.GetMappingResponseUnion
 	now := db.now()
-	err := db.eng.Do(context.Background(), func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
+	err := db.eng.Do(ctx, func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		var err error
 		resp, cache, err = getOrCreateMapping(conn, cache, metricName, key, now, db.globalBudget, db.maxBudget, db.budgetBonus, db.stepSec, db.lastMappingIDToInsert)
 		if resp.IsCreated() {
@@ -402,18 +402,18 @@ func (db *DBV2) GetOrCreateMapping(metricName, key string) (tlmetadata.GetMappin
 	return resp, err
 }
 
-func (db *DBV2) PutMapping(ks []string, vs []int32) error {
+func (db *DBV2) PutMapping(ctx context.Context, ks []string, vs []int32) error {
 	if len(ks) != len(vs) {
 		return fmt.Errorf("can't match keys size and values size")
 	}
-	return db.eng.Do(context.Background(), func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
+	return db.eng.Do(ctx, func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		return putMapping(conn, cache, ks, vs)
 	})
 }
 
-func (db *DBV2) GetBootstrap() (tlstatshouse.GetTagMappingBootstrapResult, error) {
+func (db *DBV2) GetBootstrap(ctx context.Context) (tlstatshouse.GetTagMappingBootstrapResult, error) {
 	res := tlstatshouse.GetTagMappingBootstrapResult{}
-	err := db.eng.Do(context.Background(), func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
+	err := db.eng.Do(ctx, func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("SELECT data FROM property WHERE name = $name",
 			sqlite2.BlobString("$name", bootstrapFieldName))
 		if rows.Error() != nil {
@@ -434,9 +434,9 @@ func (db *DBV2) GetBootstrap() (tlstatshouse.GetTagMappingBootstrapResult, error
 	return res, err
 }
 
-func (db *DBV2) PutBootstrap(mappings []tlstatshouse.Mapping) (int32, error) {
+func (db *DBV2) PutBootstrap(ctx context.Context, mappings []tlstatshouse.Mapping) (int32, error) {
 	var count int32
-	err := db.eng.Do(context.Background(), func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
+	err := db.eng.Do(ctx, func(conn sqlite2.Conn, cache []byte) ([]byte, error) {
 		var err error
 		count, cache, err = applyPutBootstrap(conn, cache, mappings)
 		return cache, err

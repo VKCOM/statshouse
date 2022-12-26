@@ -13,7 +13,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -70,10 +69,13 @@ import (
 // - look at snapshot logic in sqlite3WalBeginReadTransaction for "safety" conditions
 
 const (
-	busyTimeout = 5 * time.Second
-	cacheKB     = 65536                         // 64MB
-	mmapSize    = 8 * 1024 * 1024 * 1024 * 1024 // 8TB
-	commitEvery = 60 * time.Second
+	busyTimeout        = 5 * time.Second
+	cacheKB            = 65536                         // 64MB
+	mmapSize           = 8 * 1024 * 1024 * 1024 * 1024 // 8TB
+	commitEveryDefault = 1 * time.Second
+	commitEveryByTimer = 3 * time.Second
+	commitTXTimeout    = 10 * time.Second
+	maxROConn          = 128
 
 	beginStmt  = "BEGIN IMMEDIATE" // TODO: not immediate? then SQLITE_BUSY_SNAPSHOT from upgrade is possible
 	commitStmt = "COMMIT"
@@ -91,28 +93,28 @@ var (
 )
 
 type Engine struct {
-	opt Options
-	rw  *sqlite0.Conn
+	opt  Options
+	ctx  context.Context
+	stop func()
+	rw   *sqliteConn
 	//	chk *sqlite0.Conn
-	//	ro  *sqlite0.Conn
-	mode           engineMode
-	rwMu           sync.Mutex
-	prep           map[string]stmtInfo
-	used           map[*sqlite0.Stmt]struct{}
-	err            error
-	spIn           bool
-	spOk           bool
-	spBeginStmt    string
-	spCommitStmt   string
-	spRollbackStmt string
+	roMx    sync.Mutex
+	roFree  []*sqliteConn
+	roCount int
+	roCond  *sync.Cond
+
+	mode engineMode
+
 	binlog         binlog2.Binlog
+	dbOffset       int64
+	lastCommitTime time.Time
 
 	waitQMx       sync.Mutex
 	waitQ         []waitCommitInfo
 	committedInfo *atomic.Value
-	dbOffset      int64
 
 	apply                ApplyEventFunction
+	scan                 ApplyEventFunction
 	waitUntilBinlogReady chan struct{}
 	readyNotify          sync.Once
 	commitCh             chan struct{}
@@ -123,12 +125,8 @@ type Options struct {
 	APPID          int32
 	Scheme         string
 	Replica        bool
+	CommitEvery    time.Duration
 	DurabilityMode DurabilityMode
-}
-
-type binlogEngineImpl struct {
-	e             *Engine
-	engineStarted chan struct{}
 }
 
 type waitCommitInfo struct {
@@ -155,9 +153,9 @@ type engineMode int
 type DurabilityMode int
 
 const (
-	initial engineMode = iota
-	master             = iota
-	replica            = iota
+	initialMaster engineMode = iota // commit sql tx after got commit from binlog
+	master                   = iota // commit sql tx by timer, to synchronize sqlite and binlog
+	replica                  = iota // queue data in apply and commit sql tx after got commit from binlog
 )
 
 const (
@@ -168,7 +166,12 @@ const (
 func OpenEngine(
 	opt Options,
 	binlog binlog2.Binlog,
-	apply ApplyEventFunction) (*Engine, error) {
+	apply ApplyEventFunction,
+	scan ApplyEventFunction, // this helps to work in replica mode with old binlog
+) (*Engine, error) {
+	if opt.CommitEvery == 0 {
+		opt.CommitEvery = commitEveryDefault
+	}
 	rw, err := openRW(opt.Path, opt.APPID, opt.Scheme, initOffsetTable, snapshotMetaTable)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW connection: %w", err)
@@ -179,37 +182,33 @@ func OpenEngine(
 	//	return nil, fmt.Errorf("failed to open CHK connection: %w", err)
 	//}
 	//
-	// ro, err := openROWAL(path)
-	// if err != nil {
-	//	_ = rw.Close()
-	//	_ = chk.Close()
-	//	return nil, fmt.Errorf("failed to open RO connection: %w", err)
-	// }
 
-	var spID [16]byte
-	_, _ = rand.New().Read(spID[:])
+	ctx, stop := context.WithCancel(context.Background())
 	e := &Engine{
-		rw: rw,
+		rw:   newSqliteConn(rw),
+		ctx:  ctx,
+		stop: stop,
+
 		//	chk:                     chk,
-		//	ro:                      ro,
-		opt:                  opt,
-		prep:                 map[string]stmtInfo{},
-		used:                 map[*sqlite0.Stmt]struct{}{},
-		spBeginStmt:          fmt.Sprintf("SAVEPOINT __sqlite_engine_auto_%x", spID[:]),
-		spCommitStmt:         fmt.Sprintf("RELEASE __sqlite_engine_auto_%x", spID[:]),
-		spRollbackStmt:       fmt.Sprintf("ROLLBACK TO __sqlite_engine_auto_%x", spID[:]),
+		opt: opt,
+
 		apply:                apply,
+		scan:                 scan,
 		binlog:               binlog,
 		committedInfo:        &atomic.Value{},
 		dbOffset:             0,
 		readyNotify:          sync.Once{},
 		waitUntilBinlogReady: make(chan struct{}),
 		commitCh:             make(chan struct{}, 1),
-		mode:                 initial,
+		mode:                 initialMaster,
+	}
+	e.roCond = sync.NewCond(&e.roMx)
+	if opt.Replica {
+		e.mode = replica
 	}
 
 	e.commitTXAndStartNew(false, false)
-	if err := e.err; err != nil {
+	if err := e.rw.err; err != nil {
 		_ = e.close(false)
 		return nil, fmt.Errorf("failed to start write transaction: %w", err)
 	}
@@ -239,21 +238,21 @@ func OpenEngine(
 			}
 		}()
 		<-e.waitUntilBinlogReady
-		offset, err = e.binlogLoadOrCreatePosition()
-		if err != nil {
-			_ = e.close(false)
-			return nil, fmt.Errorf("failed to load binlog position: %w", err)
-		}
-		if e.dbOffset != offset {
-			return nil, fmt.Errorf("lev offsets are different: e.dbOffset=%d, offset=%d", e.dbOffset, offset)
-		}
-		e.mode = master
-		if opt.Replica {
-			e.mode = replica
+		if !opt.Replica && binlogEngineImpl.state == waitToCommit {
+			err := binlogEngineImpl.applyQueue.applyAllChanges(binlogEngineImpl.apply, binlogEngineImpl.skip)
+			if err != nil {
+				log.Panicf("cannot apply queued data: %s", err)
+			}
+			binlogEngineImpl.state = none
 		}
 	}
-	go e.txLoop()
-
+	e.mode = master
+	if opt.Replica {
+		e.mode = replica
+	}
+	if e.opt.DurabilityMode == WaitCommit {
+		go e.txLoop()
+	}
 	return e, nil
 }
 
@@ -394,19 +393,19 @@ func binlogLoadPosition(conn Conn) (offset int64, isExists bool, err error) {
 }
 
 func (e *Engine) Close() error {
-	return e.close(true)
+	return e.close(e.opt.DurabilityMode == WaitCommit)
 }
 
 func (e *Engine) close(waitCommit bool) error {
 	if waitCommit {
 		e.commitTXAndStartNew(true, true)
 	}
-	e.rwMu.Lock()
-	defer e.rwMu.Unlock()
+	e.rw.mu.Lock()
+	defer e.rw.mu.Unlock()
 
-	err := e.err
-	e.err = errAlreadyClosed
-	for _, si := range e.prep {
+	err := e.rw.err
+	e.rw.err = errAlreadyClosed
+	for _, si := range e.rw.prep {
 		multierr.AppendInto(&err, si.stmt.Close())
 	}
 	multierr.AppendInto(&err, e.rw.Close())
@@ -417,110 +416,18 @@ func (e *Engine) close(waitCommit bool) error {
 }
 
 func (e *Engine) txLoop() {
-	t := time.NewTicker(commitEvery)
-	defer t.Stop()
+	for {
+		select {
+		case <-time.NewTimer(commitEveryByTimer).C:
+		case <-e.ctx.Done():
+			return
+		}
 
-	for range t.C {
 		// TODO replace with runtime mode change
-		if e.mode == master || e.mode == initial {
+		if e.mode == master {
 			e.commitTXAndStartNew(true, true)
 		}
 	}
-}
-
-// Apply применяется при перечитывании или при работе реплики
-func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error) {
-	e := impl.e
-	var errToReturn error
-	var n int
-	offset := e.dbOffset
-	errFromTx := e.do(func(conn Conn) error {
-		// mustn't change any state in this function
-		dbOffset, _, err := binlogLoadPosition(conn)
-		if err != nil {
-			return err
-		}
-		newOffset = offset
-		var shouldSkipLen = 0
-		if dbOffset > offset {
-			oldLen := len(payload)
-			shouldSkipLen = int(dbOffset - offset)
-			if shouldSkipLen > oldLen {
-				shouldSkipLen = oldLen
-			}
-			payload = payload[shouldSkipLen:]
-			if len(payload) == 0 {
-				n = oldLen
-				return nil
-			}
-		}
-		n, err = e.apply(conn, offset+int64(shouldSkipLen), payload)
-		n += shouldSkipLen
-		newOffset = offset + int64(n)
-		err1 := binlogUpdateOffset(conn, newOffset)
-		if err != nil {
-			errToReturn = err
-			if !errors.Is(err, binlog2.ErrorUnknownMagic) && !errors.Is(err, binlog2.ErrorNotEnoughData) {
-				return err
-			}
-		}
-		return err1
-	})
-	if errFromTx == nil {
-		e.dbOffset = newOffset
-	}
-	return e.dbOffset, errToReturn
-}
-
-func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotOffset int64) {
-	e := impl.e
-	old := e.committedInfo.Load()
-	if old != nil {
-		ci := old.(*committedInfo)
-		if ci.offset > offset {
-			return
-		}
-	}
-	e.committedInfo.Store(&committedInfo{
-		meta:   snapshotMeta,
-		offset: offset,
-	})
-
-	select {
-	case e.commitCh <- struct{}{}:
-	default:
-	}
-	e.binlogNotifyWaited(offset)
-	// TODO: replace with runtime mode change
-	if e.mode == replica || e.mode == initial {
-		c := e.start(context.Background(), false)
-		e.commitTXAndStartNewLocked(c, true, false)
-		c.close()
-	}
-}
-
-func (impl *binlogEngineImpl) Revert(toOffset int64) bool {
-	return false
-}
-
-func (impl *binlogEngineImpl) ChangeRole(info binlog2.ChangeRoleInfo) {
-	e := impl.e
-	if info.IsReady {
-		e.readyNotify.Do(func() {
-			close(e.waitUntilBinlogReady)
-		})
-	}
-}
-
-func (impl *binlogEngineImpl) Skip(skipLen int64) int64 {
-	impl.e.dbOffset += skipLen
-	err := impl.e.do(func(conn Conn) error {
-		return binlogUpdateOffset(conn, impl.e.dbOffset)
-	})
-	if err != nil {
-		log.Panicf("error in skip handler: %s", err)
-	}
-	return impl.e.dbOffset
 }
 
 func (e *Engine) binlogWaitDBSync(conn Conn) *committedInfo {
@@ -535,11 +442,11 @@ func (e *Engine) binlogWaitDBSync(conn Conn) *committedInfo {
 func (e *Engine) commitTXAndStartNew(commit, waitBinlogCommit bool) {
 	c := e.start(context.Background(), false)
 	defer c.close()
-	e.commitTXAndStartNewLocked(c, commit, waitBinlogCommit)
+	_ = e.commitTXAndStartNewLocked(c, commit, waitBinlogCommit)
 
 }
 
-func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit bool) {
+func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit bool) error {
 	var info *committedInfo
 	if waitBinlogCommit && e.binlog != nil {
 		info = e.binlogWaitDBSync(c)
@@ -548,23 +455,25 @@ func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit bool
 		if e.binlog != nil && info != nil && len(info.meta) > 0 {
 			err := e.binlogUpdateMeta(c, info.meta)
 			if err != nil {
-				e.err = err
+				e.rw.err = err
 			}
 		}
-		if e.err == nil {
+		if e.rw.err == nil {
 			_, err := c.exec(true, commitStmt)
 			if err != nil {
-				e.err = fmt.Errorf("periodic tx commit failed: %w", err)
+				e.rw.err = fmt.Errorf("periodic tx commit failed: %w", err)
 			}
 		}
 	}
 
-	if e.err == nil {
+	if e.rw.err == nil {
 		_, err := c.exec(true, beginStmt)
 		if err != nil {
-			e.err = fmt.Errorf("periodic tx begin failed: %w", err)
+			e.rw.err = fmt.Errorf("periodic tx begin failed: %w", err)
 		}
 	}
+	e.lastCommitTime = time.Now()
+	return e.rw.err
 }
 
 func backupToTemp(e *Engine, prefix string) (string, error) {
@@ -573,9 +482,9 @@ func backupToTemp(e *Engine, prefix string) (string, error) {
 	path := prefix + "." + strconv.FormatUint(rand.Uint64(), 10) + ".tmp"
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		_, err := c.exec(true, "VACUUM INTO $to", BlobText("$to", path))
-		e.err = err
+		e.rw.err = err
 	}
-	return path, e.err
+	return path, e.rw.err
 }
 
 func getBackupPath(e *Engine, prefix string) (string, error) {
@@ -604,10 +513,10 @@ func (e *Engine) do(fn func(Conn) error) error {
 	defer c.close()
 	err := fn(c)
 	if err != nil {
-		e.spOk = false
+		e.rw.spOk = false
 		return err
 	}
-	e.spOk = true
+	e.rw.spOk = true
 	return err
 }
 
@@ -638,9 +547,53 @@ func (e *Engine) Backup(prefix string) error {
 	return fmt.Errorf("snapshot %s already exists", backupExpectedPath)
 }
 
+// ViewCommitted - can view only committed to sqlite data
+// It depends on e.opt.CommitEvery
+// TODO: research shm to see uncommitted data
+func (e *Engine) ViewCommitted(ctx context.Context, fn func(Conn) error) error {
+	e.roMx.Lock()
+	var conn *sqliteConn
+	for len(e.roFree) == 0 && e.roCount >= maxROConn {
+		e.roCond.Wait()
+	}
+	if len(e.roFree) == 0 {
+		ro, err := openROWAL(e.opt.Path)
+		if err != nil {
+			_ = ro.Close()
+			// _ = chk.Close()
+			return fmt.Errorf("failed to open RO connection: %w", err)
+		}
+		conn = newSqliteConn(ro)
+		e.roCount++
+	} else {
+		conn = e.roFree[0]
+		e.roFree = e.roFree[1:]
+	}
+	e.roMx.Unlock()
+	defer func() {
+		e.roMx.Lock()
+		e.roFree = append(e.roFree, conn)
+		e.roMx.Unlock()
+		e.roCond.Signal()
+	}()
+	conn.mu.Lock()
+	c := Conn{conn, false, ctx}
+	err := fn(c)
+	if err != nil {
+		c.close()
+		return err
+	}
+	c.close()
+	return nil
+}
+
 func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) error {
 	c := e.start(ctx, true)
-	e.spOk = false
+	e.rw.spOk = false
+	if e.opt.DurabilityMode == WaitCommit && e.mode == replica {
+		c.close()
+		return fmt.Errorf("invalid durability mode for replica")
+	}
 	var err error
 	buffer, err := fn(c, nil)
 	if err != nil {
@@ -648,7 +601,7 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 		return err
 	}
 	if e.binlog == nil {
-		e.spOk = true
+		e.rw.spOk = true
 		c.close()
 		return nil
 	}
@@ -660,6 +613,7 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 	}
 	var ch chan struct{}
 	waitCommit := e.opt.DurabilityMode == WaitCommit
+	mustCommitNow := time.Since(e.lastCommitTime) >= e.opt.CommitEvery && !waitCommit && !isReadOp
 	var offsetAfterWritePredicted int64
 	if shouldWriteBinlog {
 		offsetBeforeWrite := e.dbOffset
@@ -672,7 +626,7 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 		}
 
 		var offsetAfterWrite int64
-		if waitCommit {
+		if waitCommit || mustCommitNow {
 			offsetAfterWrite, err = e.binlog.AppendASAP(e.dbOffset, buffer)
 		} else {
 			offsetAfterWrite, err = e.binlog.Append(e.dbOffset, buffer)
@@ -684,13 +638,13 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 		// after this line we can't roll back savepoint
 		e.dbOffset = offsetAfterWrite
 	}
-	if waitCommit {
+	if waitCommit || mustCommitNow {
 		e.waitQMx.Lock()
 		info, _ := e.committedInfo.Load().(*committedInfo)
 		// check if commit was already done
 		alreadyCommitted := offsetAfterWritePredicted <= info.offset
 		uncommittedWriteExists := len(e.waitQ) > 0
-		if (isReadOp && uncommittedWriteExists) || (!isReadOp && alreadyCommitted) {
+		if (isReadOp && uncommittedWriteExists) || (!isReadOp && !alreadyCommitted) || mustCommitNow {
 			ch = make(chan struct{})
 			e.waitQ = append(e.waitQ, waitCommitInfo{
 				offset:   offsetAfterWritePredicted,
@@ -700,7 +654,12 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 		}
 		e.waitQMx.Unlock()
 	}
-	e.spOk = true
+	if mustCommitNow && ch != nil {
+		<-ch
+		ch = nil
+		_ = e.commitTXAndStartNewLocked(c, true, false)
+	}
+	e.rw.spOk = true
 	c.close()
 	if ch != nil {
 		<-ch
@@ -714,221 +673,6 @@ func binlogUpdateOffset(c Conn, offset int64) error {
 }
 
 func (e *Engine) start(ctx context.Context, autoSavepoint bool) Conn {
-	e.rwMu.Lock()
-	return Conn{e, autoSavepoint, ctx}
-}
-
-type Conn struct {
-	e             *Engine
-	autoSavepoint bool
-	ctx           context.Context
-}
-
-func (c Conn) close() {
-	c.execEndSavepoint()
-	for stmt := range c.e.used {
-		_ = stmt.Reset()
-		delete(c.e.used, stmt)
-	}
-	c.e.rwMu.Unlock()
-}
-
-func (c Conn) execBeginSavepoint() error {
-	c.e.spIn = true
-	c.e.spOk = false
-	_, err := c.exec(true, c.e.spBeginStmt)
-	return err
-}
-
-func (c Conn) execEndSavepoint() {
-	if c.e.spIn {
-		if c.e.spOk {
-			_, _ = c.exec(true, c.e.spCommitStmt)
-		} else {
-			_, _ = c.exec(true, c.e.spRollbackStmt)
-		}
-		c.e.spIn = false
-	}
-}
-
-func (c Conn) Query(sql string, args ...Arg) Rows {
-	return c.query(false, sql, args...)
-}
-
-func (c Conn) Exec(sql string, args ...Arg) (int64, error) {
-	return c.exec(false, sql, args...)
-}
-
-func (c Conn) ExecUnsafe(sql string, args ...Arg) (int64, error) {
-	return c.exec(true, sql, args...)
-}
-
-func (c Conn) query(allowUnsafe bool, sql string, args ...Arg) Rows {
-	s, err := c.doQuery(allowUnsafe, sql, args...)
-	return Rows{c.e, s, err, false, c.ctx}
-}
-
-func (c Conn) exec(allowUnsafe bool, sql string, args ...Arg) (int64, error) {
-	rows := c.query(allowUnsafe, sql, args...)
-	for rows.Next() {
-	}
-	return c.LastInsertRowID(), rows.Error()
-}
-
-type Rows struct {
-	e    *Engine
-	s    *sqlite0.Stmt
-	err  error
-	used bool
-	ctx  context.Context
-}
-
-func (r *Rows) Error() error {
-	return r.err
-}
-
-func (r *Rows) next(setUsed bool) bool {
-	if r.err != nil {
-		return false
-	}
-	if r.ctx != nil {
-		if err := r.ctx.Err(); err != nil {
-			r.err = err
-			return false
-		}
-	}
-
-	if setUsed && !r.used {
-		r.e.used[r.s] = struct{}{}
-		r.used = true
-	}
-	row, err := r.s.Step()
-	if err != nil {
-		r.err = err
-	}
-	return row
-}
-
-func (r *Rows) Next() bool {
-	return r.next(true)
-}
-
-func (r *Rows) ColumnBlob(i int, buf []byte) ([]byte, error) {
-	return r.s.ColumnBlob(i, buf)
-}
-
-func (r *Rows) ColumnBlobRaw(i int) ([]byte, error) {
-	return r.s.ColumnBlobRaw(i)
-}
-
-func (r *Rows) ColumnBlobRawString(i int) (string, error) {
-	return r.s.ColumnBlobRawString(i)
-}
-
-func (r *Rows) ColumnBlobString(i int) (string, error) {
-	return r.s.ColumnBlobString(i)
-}
-
-func (r *Rows) ColumnIsNull(i int) bool {
-	return r.s.ColumnIsNull(i)
-}
-
-func (r *Rows) ColumnInt64(i int) (int64, error) {
-	return r.s.ColumnInt64(i)
-}
-
-func (c Conn) LastInsertRowID() int64 {
-	return c.e.rw.LastInsertRowID()
-}
-
-func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt, error) {
-	if c.e.err != nil {
-		return nil, c.e.err
-	}
-
-	si, ok := c.e.prep[sql]
-	var err error
-	if !ok {
-		si, err = prepare(c.e.rw, sql)
-		if err != nil {
-			return nil, err
-		}
-		c.e.prep[sql] = si
-	}
-
-	if !allowUnsafe && !si.isSafe {
-		return nil, errUnsafe
-	}
-	if c.autoSavepoint && (!si.isSelect && !si.isVacuumInto) && !c.e.spIn {
-		err := c.execBeginSavepoint()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	_, used := c.e.used[si.stmt]
-	if used {
-		err := si.stmt.Reset()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return doStmt(si, args...)
-}
-
-func doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
-	for _, arg := range args {
-		var err error
-		p := si.stmt.Param(arg.name)
-		switch arg.typ {
-		case argByte:
-			err = si.stmt.BindBlob(p, arg.b)
-		case argByteConst:
-			err = si.stmt.BindBlobConst(p, arg.b)
-		case argString:
-			err = si.stmt.BindBlobString(p, arg.s)
-		case argInt64:
-			err = si.stmt.BindInt64(p, arg.n)
-		case argText:
-			err = si.stmt.BindBlobText(p, arg.s)
-		default:
-			err = fmt.Errorf("unknown arg type for %q: %v", arg.name, arg.typ)
-		}
-		if err != nil {
-			return nil, err
-		}
-	}
-	return si.stmt, nil
-}
-
-func prepare(c *sqlite0.Conn, sql string) (stmtInfo, error) {
-	s, _, err := c.Prepare(sql, true)
-	if err != nil {
-		return stmtInfo{}, err
-	}
-	norm := s.NormalizedSQL()
-	return stmtInfo{
-		stmt:         s,
-		isSafe:       isSafe(norm),
-		isSelect:     isSelect(norm),
-		isVacuumInto: isVacuumInto(norm),
-	}, nil
-}
-
-func isSelect(normSQL string) bool {
-	return strings.HasPrefix(normSQL, normSelect+" ")
-}
-
-func isVacuumInto(normSQL string) bool {
-	return strings.HasPrefix(normSQL, normVacuum+" ")
-}
-
-func isSafe(normSQL string) bool {
-	for _, s := range safeStatements {
-		if strings.HasPrefix(normSQL, s+" ") {
-			return true
-		}
-	}
-	return false
+	e.rw.mu.Lock()
+	return Conn{e.rw, autoSavepoint, ctx}
 }

@@ -12,10 +12,12 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 
@@ -68,7 +70,47 @@ func insertText(e *Engine, s string) error {
 	})
 }
 
-func openEngine(t *testing.T, prefix string, dbfile, schema string, create, replica bool, applyF func(string2 string)) (*Engine, binlog2.Binlog) {
+func apply(t *testing.T, scanOnly bool, applyF func(string2 string)) func(conn Conn, offset int64, bytes []byte) (int, error) {
+	return func(conn Conn, offset int64, bytes []byte) (int, error) {
+		read := 0
+		for len(bytes) > 0 {
+			if len(bytes) < 4 {
+				return fsbinlog.AddPadding(read), binlog2.ErrorNotEnoughData
+			}
+			var mark uint32
+			mark, _, err := basictl.NatReadTag(bytes)
+			if err != nil {
+				return fsbinlog.AddPadding(read), err
+			}
+			if mark != magic {
+				return fsbinlog.AddPadding(read), binlog2.ErrorUnknownMagic
+			}
+			if len(bytes) < 8 {
+				return fsbinlog.AddPadding(read), binlog2.ErrorNotEnoughData
+			}
+			n := binary.LittleEndian.Uint32(bytes[4:8])
+			if len(bytes) < int(n)+8 {
+				return fsbinlog.AddPadding(read), binlog2.ErrorNotEnoughData
+			}
+			str := bytes[8:][:n]
+			if !scanOnly {
+				_, err = conn.Exec("INSERT INTO test_db(t) VALUES ($t)", BlobString("$t", string(str)))
+				require.NoError(t, err)
+			}
+			if applyF != nil && !scanOnly {
+				applyF(string(str))
+			}
+
+			offset := fsbinlog.AddPadding(4 + 4 + int(n))
+			read += offset
+			bytes = bytes[offset:]
+		}
+		return fsbinlog.AddPadding(read), nil
+	}
+
+}
+
+func openEngine(t *testing.T, prefix string, dbfile, schema string, create, replica bool, mode DurabilityMode, applyF func(string2 string)) (*Engine, binlog2.Binlog) {
 	options := binlog2.Options{
 		PrefixPath:  prefix + "/test",
 		Magic:       3456,
@@ -84,48 +126,16 @@ func openEngine(t *testing.T, prefix string, dbfile, schema string, create, repl
 		Path:           prefix + "/" + dbfile,
 		APPID:          32,
 		Scheme:         schema,
-		DurabilityMode: NoWaitCommit,
+		DurabilityMode: mode,
 		Replica:        replica,
-	}, bl, func(conn Conn, offset int64, bytes []byte) (int, error) {
-		read := 0
-		for len(bytes) > 0 {
-			if len(bytes) < 4 {
-				return fsbinlog.AddPadding(read), binlog2.ErrorNotEnoughData
-			}
-			var mark uint32
-			mark, _, err = basictl.NatReadTag(bytes)
-			if err != nil {
-				return fsbinlog.AddPadding(read), err
-			}
-			if mark != magic {
-				return fsbinlog.AddPadding(read), binlog2.ErrorUnknownMagic
-			}
-			if len(bytes) < 8 {
-				return fsbinlog.AddPadding(read), binlog2.ErrorNotEnoughData
-			}
-			n := binary.LittleEndian.Uint32(bytes[4:8])
-			if len(bytes) < int(n)+8 {
-				return fsbinlog.AddPadding(read), binlog2.ErrorNotEnoughData
-			}
-			str := bytes[8:][:n]
-			_, err = conn.Exec("INSERT INTO test_db(t) VALUES ($t)", BlobString("$t", string(str)))
-			require.NoError(t, err)
-			if applyF != nil {
-				applyF(string(str))
-			}
-			offset := fsbinlog.AddPadding(4 + 4 + int(n))
-			read += offset
-			bytes = bytes[offset:]
-		}
-		return fsbinlog.AddPadding(read), nil
-	})
+	}, bl, apply(t, false, applyF), apply(t, true, applyF))
 	require.NoError(t, err)
 	return engine, bl
 }
 
 func isEquals(a, b []string) error {
 	if len(a) != len(b) {
-		return fmt.Errorf(strings.Join(a, ",") + "\n" + strings.Join(b, ","))
+		return fmt.Errorf("len(a) != len(b) %d != %d", len(a), len(b))
 	}
 	for i := range a {
 		if a[i] != b[i] {
@@ -137,9 +147,9 @@ func isEquals(a, b []string) error {
 
 func Test_Engine_Reread_From_Begin(t *testing.T) {
 	dir := t.TempDir()
-	engine, bl := openEngine(t, dir, "db", schema, true, false, nil)
+	engine, bl := openEngine(t, dir, "db", schema, true, false, NoWaitCommit, nil)
 	agg := &testAggregation{}
-	n := 30000
+	n := 100000
 	wg := &sync.WaitGroup{}
 	for i := 0; i < n; i++ {
 		wg.Add(1)
@@ -162,7 +172,7 @@ func Test_Engine_Reread_From_Begin(t *testing.T) {
 	require.NoError(t, bl.Shutdown())
 	history := []string{}
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db1", schema, false, false, func(s string) {
+	engine, bl = openEngine(t, dir, "db1", schema, false, false, NoWaitCommit, func(s string) {
 		mx.Lock()
 		defer mx.Unlock()
 		history = append(history, s)
@@ -178,9 +188,9 @@ func Test_Engine_Reread_From_Begin(t *testing.T) {
 
 func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	dir := t.TempDir()
-	engine, bl := openEngine(t, dir, "db", schema, true, false, nil)
+	engine, bl := openEngine(t, dir, "db", schema, true, false, WaitCommit, nil)
 	agg := &testAggregation{}
-	n := 20000 + rand.Intn(20000)
+	n := 500 + rand.Intn(500)
 	wg := &sync.WaitGroup{}
 	for i := 0; i < n; i++ {
 		wg.Add(1)
@@ -199,14 +209,16 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	binlogOffset := engine.dbOffset
+	require.NoError(t, bl.Shutdown())
 	require.NoError(t, engine.Close())
+	binlogHistory := []string{}
+	engine, bl = openEngine(t, dir, "db2", schema, false, false, NoWaitCommit, nil)
+	binlogOffset := engine.dbOffset
 	textInDb := map[string]struct{}{}
 	for _, s := range agg.writeHistory {
 		textInDb[s] = struct{}{}
 	}
-	n = 20000 + rand.Intn(20000)
-	binlogHistory := []string{}
+	n = 5000 + rand.Intn(1000)
 
 	for i := 0; i < n; i++ {
 		data := make([]byte, 1+rand.Int()%30)
@@ -214,7 +226,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 		require.NoError(t, err)
 		str := string(data)
 		if _, ok := textInDb[str]; !ok {
-			binlogOffset, err = bl.Append(binlogOffset, genBinlogEvent(str, nil))
+			binlogOffset, err = bl.AppendASAP(binlogOffset, genBinlogEvent(str, nil))
 			require.NoError(t, err)
 			textInDb[str] = struct{}{}
 			agg.writeHistory = append(agg.writeHistory, str)
@@ -222,9 +234,11 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 		}
 	}
 	require.NoError(t, bl.Shutdown())
+	require.NoError(t, engine.Close())
+
 	history := []string{}
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db", schema, false, false, func(s string) {
+	engine, bl = openEngine(t, dir, "db", schema, false, false, WaitCommit, func(s string) {
 		mx.Lock()
 		defer mx.Unlock()
 		history = append(history, s)
@@ -236,15 +250,15 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	actualDb := map[string]struct{}{}
 	err := engine.Do(context.Background(), func(conn Conn, bytes []byte) ([]byte, error) {
 		rows := conn.Query("SELECT t from test_db")
-		if rows.err != nil {
-			return bytes, rows.err
-		}
 		for rows.Next() {
 			t, err := rows.ColumnBlobString(0)
 			if err != nil {
 				return bytes, err
 			}
 			actualDb[t] = struct{}{}
+		}
+		if rows.err != nil {
+			return bytes, rows.err
 		}
 		return bytes, nil
 	})
@@ -257,7 +271,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 
 func Test_Engine(t *testing.T) {
 	dir := t.TempDir()
-	engine, bl := openEngine(t, dir, "db", schema, true, false, nil)
+	engine, bl := openEngine(t, dir, "db", schema, true, false, WaitCommit, nil)
 	agg := &testAggregation{}
 	n := 8000
 	var task int32 = 10000000
@@ -289,7 +303,7 @@ func Test_Engine(t *testing.T) {
 	require.NoError(t, engine.Close())
 	require.NoError(t, bl.Shutdown())
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db", schema, false, false, func(s string) {
+	engine, bl = openEngine(t, dir, "db", schema, false, false, WaitCommit, func(s string) {
 		t.Fatal("mustn't apply music")
 	})
 	mx.Lock()
@@ -324,7 +338,7 @@ func Test_Engine(t *testing.T) {
 func Test_Engine_Read_Empty_Raw(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER PRIMARY KEY AUTOINCREMENT, oid INT, data TEXT);"
 	dir := t.TempDir()
-	engine, _ := openEngine(t, dir, "db", schema, true, false, nil)
+	engine, _ := openEngine(t, dir, "db", schema, true, false, WaitCommit, nil)
 	var rowID int64
 	var blob []byte
 	var err error
@@ -359,7 +373,7 @@ func Test_Engine_Read_Empty_Raw(t *testing.T) {
 func Test_Engine_Put_Empty_String(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (data TEXT NOT NULL);"
 	dir := t.TempDir()
-	engine, _ := openEngine(t, dir, "db", schema, true, false, nil)
+	engine, _ := openEngine(t, dir, "db", schema, true, false, WaitCommit, nil)
 	var err error
 	var data = "abc"
 
@@ -386,7 +400,7 @@ func Test_Engine_WithoutBinlog(t *testing.T) {
 		Path:   dir + "/db",
 		APPID:  32,
 		Scheme: schema,
-	}, nil, nil)
+	}, nil, nil, nil)
 	require.NoError(t, err)
 	var data = ""
 
@@ -406,25 +420,92 @@ func Test_Engine_WithoutBinlog(t *testing.T) {
 	require.Equal(t, "abc", data)
 }
 
-/*
 func Test_ReplicaMode(t *testing.T) {
+	t.Skip("TODO: fix this test")
+	const n = 10000
 	dir := t.TempDir()
-	engineMaster, _ := openEngine(t, dir, "db1", schema, true, false, nil)
-	engineRepl, _ := openEngine(t, dir, "db", schema, false, true, nil)
-	for i := 0;i<100;i++ {
+	engineMaster, _ := openEngine(t, dir, "db1", schema, true, false, NoWaitCommit, nil)
+	engineRepl, _ := openEngine(t, dir, "db", schema, false, true, NoWaitCommit, nil)
+	for i := 0; i < n; i++ {
 		err := insertText(engineMaster, strconv.Itoa(i))
 		require.NoError(t, err)
 	}
-	err := engineRepl.Do(nil, func(conn Conn, cache []byte) ([]byte, error) {
+	time.Sleep(5 * time.Second)
+	c := 0
+	err := engineRepl.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("SELECT t from test_db")
-		if rows.Next() {
-			str, err := rows.ColumnBlobString(0)
-			require.NoError(t, err)
-			require.Equal(t, "abc", str)
+		for rows.Next() {
+			c++
 		}
-		t.Error("Replica doesn't have data")
 		return cache, nil
 	})
 	require.NoError(t, err)
+	require.Greater(t, c, 0, "no data in replica")
+	require.Equal(t, c, n)
 }
-*/
+
+func Test_Engine_Put_And_Read_RO(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (data TEXT NOT NULL);"
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, WaitCommit, nil)
+	var err error
+	var data = ""
+	var read func(int) []string
+	read = func(rec int) []string {
+		var s []string
+		err = engine.ViewCommitted(context.Background(), func(conn Conn) error {
+			if rec > 0 {
+				s = append(s, read(rec-1)...)
+			}
+			rows := conn.Query("SELECT data from test_db")
+			for rows.Next() {
+				data, err = rows.ColumnBlobString(0)
+				s = append(s, data)
+			}
+			require.NoError(t, rows.Error())
+			return nil
+		})
+		require.NoError(t, err)
+		return s
+	}
+
+	t.Run("RO can see commited data", func(t *testing.T) {
+		err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
+			_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
+			return cache, err
+		})
+		require.NoError(t, err)
+		engine.commitTXAndStartNew(true, true)
+		s := read(0)
+		require.Len(t, s, 1)
+		require.Contains(t, s, "abc")
+	})
+
+	t.Run("RO can't see uncommitted data", func(t *testing.T) {
+		data = ""
+		err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
+			s := read(0)
+			require.Len(t, s, 1)
+			require.Contains(t, s, "abc")
+			_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "def"))
+			require.NoError(t, err)
+			s = read(0)
+			require.Len(t, s, 1)
+			require.Contains(t, s, "abc")
+			return cache, err
+		})
+		require.NoError(t, err)
+		engine.commitTXAndStartNew(true, true)
+		s := read(0)
+		require.Len(t, s, 2)
+		require.Contains(t, s, "abc")
+		require.Contains(t, s, "def")
+	})
+
+	t.Run("RO can work concurrently", func(t *testing.T) {
+		s := read(100)
+		require.Len(t, s, 202)
+		require.Contains(t, s, "abc")
+		require.Contains(t, s, "def")
+	})
+}
