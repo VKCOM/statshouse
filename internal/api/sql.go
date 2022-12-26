@@ -57,7 +57,7 @@ WHERE
 		preKeyTagName(lod, pq.tagID, pq.preKeyTagID),
 		valueName,
 		sqlAggFn(pq.version, "sum"),
-		preKeyTableName(lod, pq.tagID, pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
+		preKeyTableName(lod, pq.tagID, pq.preKeyTagID, pq.filterIn, pq.filterNotIn, false),
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
@@ -182,7 +182,7 @@ WHERE
 		timeInterval,
 		commaBy,
 		what,
-		preKeyTableName(lod, "", pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
+		preKeyTableName(lod, "", pq.preKeyTagID, pq.filterIn, pq.filterNotIn, pq.kind != queryFnKindUnique),
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
@@ -255,12 +255,18 @@ func (s *stringFixed) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func preKeyTableName(lod lodInfo, tagID string, preKeyTagID string, filterIn map[string][]interface{}, filterNotIn map[string][]interface{}) string {
+func preKeyTableName(lod lodInfo, tagID string, preKeyTagID string, filterIn map[string][]interface{}, filterNotIn map[string][]interface{}, useDist bool) string {
 	usePreKey := lod.hasPreKey && ((tagID != "" && tagID == preKeyTagID) || len(filterIn[preKeyTagID]) > 0 || len(filterNotIn[preKeyTagID]) > 0)
+	var t string
 	if usePreKey {
-		return preKeyTableNames[lod.table]
+		t = preKeyTableNames[lod.table]
+	} else {
+	t = lod.table
 	}
-	return lod.table
+	if !useDist {
+		return strings.TrimPrefix(t, "_dist")
+	}
+	return t
 }
 
 func preKeyTagName(lod lodInfo, tagID string, preKeyTagID string) string {

@@ -472,7 +472,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 	}
 
 	var rows []cacheInvalidateLogRow
-	err := h.doSelect(true, ctx, "cache-update", Version2, &rows, fmt.Sprintf(`
+	err := h.doSelect(-1,true, ctx, "cache-update", Version2, &rows, fmt.Sprintf(`
 SELECT
   toInt64(time) AS time, toInt64(key1) AS key1
 FROM
@@ -521,7 +521,7 @@ SETTINGS
 	return from, newSeen
 }
 
-func (h *Handler) doSelect(isFast bool, ctx context.Context, user string, version string, dest interface{}, query string, args ...interface{}) error {
+func (h *Handler) doSelect(replica int, isFast bool, ctx context.Context, user string, version string, dest interface{}, query string, args ...interface{}) error {
 	if version == Version1 && h.ch[version] == nil {
 		return fmt.Errorf("legacy ClickHouse database is disabled")
 	}
@@ -533,7 +533,7 @@ func (h *Handler) doSelect(isFast bool, ctx context.Context, user string, versio
 	saveDebugQuery(ctx, debugQuery)
 
 	start := time.Now()
-	info, err := h.ch[version].Select(isFast, ctx, dest, query, args...)
+	info, err := h.ch[version].Select(replica, isFast, ctx, dest, query, args...)
 	if h.verbose {
 		log.Printf("[debug] SQL for %q done in %v, err: %v", user, time.Since(start), err)
 	}
@@ -1267,7 +1267,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 
 			var data []selectRow
 			isFast := lod.fromSec+FastQueryTimeInterval >= lod.toSec
-			err = h.doSelect(isFast, ctx, req.ai.user, version, &data, query, args...)
+			err = h.doSelect(-1, isFast, ctx, req.ai.user, version, &data, query, args...)
 			if err != nil {
 				return nil, err
 			}
@@ -2132,29 +2132,77 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 		return err
 	}
 
-	var data []tsSelectRow
+	var datas [][]tsSelectRow
 	start := time.Now()
 	isFast := lod.fromSec+FastQueryTimeInterval >= lod.toSec
-	err = h.doSelect(isFast, ctx, pq.user, pq.version, &data, query, args...)
-	if err != nil {
-		return err
-	}
-	if len(data) == maxSeriesRows {
-		return fmt.Errorf("can't fetch more than %v rows", maxSeriesRows) // prevent cache being populated by incomplete data
-	}
-	if h.verbose {
-		log.Printf("[debug] loaded %v rows from %v (%v timestamps, %v to %v step %v) for %q in %v",
-			len(data),
-			lod.table,
-			(lod.toSec-lod.fromSec)/lod.stepSec,
-			time.Unix(lod.fromSec, 0),
-			time.Unix(lod.toSec, 0),
-			time.Duration(lod.stepSec)*time.Second,
-			pq.user,
-			time.Since(start),
-		)
+	if pq.kind != queryFnKindUnique {
+		var data []tsSelectRow
+		err = h.doSelect(-1, isFast, ctx, pq.user, pq.version, &data, query, args...)
+		if err != nil {
+			return err
+		}
+		if len(data) == maxSeriesRows {
+			return fmt.Errorf("can't fetch more than %v rows", maxSeriesRows) // prevent cache being populated by incomplete data
+		}
+		if h.verbose {
+			log.Printf("[debug] loaded %v rows from %v (%v timestamps, %v to %v step %v) for %q in %v",
+				len(data),
+				lod.table,
+				(lod.toSec-lod.fromSec)/lod.stepSec,
+				time.Unix(lod.fromSec, 0),
+				time.Unix(lod.toSec, 0),
+				time.Duration(lod.stepSec)*time.Second,
+				pq.user,
+				time.Since(start),
+			)
+		}
+		datas = append(datas, data)
+	} else {
+		wg := sync.WaitGroup{}
+		mx := sync.Mutex{}
+		for i := 0; i < 12; i++ {
+			wg.Add(1)
+			//go func(i int) {
+			wg.Done()
+			var data []tsSelectRow
+			err = h.doSelect(i, isFast, ctx, pq.user, pq.version, &data, query, args...)
+			if h.verbose {
+				log.Printf("[debug] loaded %v rows from %v (%v timestamps, %v to %v step %v) for %q in %v",
+					len(data),
+					lod.table,
+					(lod.toSec-lod.fromSec)/lod.stepSec,
+					time.Unix(lod.fromSec, 0),
+					time.Unix(lod.toSec, 0),
+					time.Duration(lod.stepSec)*time.Second,
+					pq.user,
+					time.Since(start),
+				)
+			}
+			mx.Lock()
+			datas = append(datas, data)
+			mx.Unlock()
+			//}(i)
+		}
+		wg.Wait()
 	}
 
+	m := make(map[int64]tsSelectRow)
+	for _, d := range datas {
+		for _, row := range d {
+			if rowold, ok := m[row.Time]; ok {
+				rowold.CountNorm += row.CountNorm
+				rowold.Val0 += row.Val0
+				m[row.Time] = rowold
+			} else {
+				m[row.Time] = row
+			}
+
+		}
+	}
+	var data []tsSelectRow
+	for _, row := range m {
+		data = append(data, row)
+	}
 	for _, row := range data {
 		if !isTimestampValid(row.Time, lod.stepSec, h.utcOffset, h.location) {
 			log.Printf("[warning] got invalid timestamp while loading for %q, ignoring: %d is not a multiple of %v", pq.user, row.Time, lod.stepSec)

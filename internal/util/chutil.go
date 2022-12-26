@@ -101,7 +101,7 @@ func (ch *ClickHouse) SemaphoreCountFast() int64 {
 	return cur
 }
 
-func (ch *ClickHouse) Select(isFast bool, ctx context.Context, dest interface{}, query string, args ...interface{}) (clickhouse.ProfileInfo, error) {
+func (ch *ClickHouse) Select(replica int, isFast bool, ctx context.Context, dest interface{}, query string, args ...interface{}) (clickhouse.ProfileInfo, error) {
 	var profile clickhouse.ProfileInfo
 	ctx = clickhouse.Context(ctx, clickhouse.WithProfileInfo(func(info *clickhouse.ProfileInfo) {
 		profile = *info
@@ -119,8 +119,13 @@ func (ch *ClickHouse) Select(isFast bool, ctx context.Context, dest interface{},
 		return profile, err
 	}
 	defer sem.Release(1)
-	cid := int(next.Inc()) % len(conns)
-	conn := conns[cid]
+	var conn clickhouse.Conn
+	if replica == -1 {
+		cid := int(next.Inc()) % len(conns)
+		conn = conns[cid]
+	} else {
+		conn = conns[replica]
+	}
 	return profile, conn.Select(ctx, dest, query, args...)
 }
 
