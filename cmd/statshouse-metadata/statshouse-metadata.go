@@ -338,7 +338,7 @@ func run() error {
 			switch sig {
 			case indexSignal:
 				log.Println("[debug] starting backup")
-				err := engineRPCHandler.Backup(argv.binlogPrefix)
+				err := engineRPCHandler.Backup(context.Background(), argv.binlogPrefix)
 				if err != nil {
 					log.Printf("[error] %v", err)
 				} else {
