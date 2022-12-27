@@ -534,8 +534,9 @@ func (h *Handler) doSelect(isFast bool, ctx context.Context, user string, versio
 
 	start := time.Now()
 	info, err := h.ch[version].Select(isFast, ctx, dest, query, args...)
+	duration := time.Since(start)
 	if h.verbose {
-		log.Printf("[debug] SQL for %q done in %v, err: %v", user, time.Since(start), err)
+		log.Printf("[debug] SQL for %q done in %v, err: %v", user, duration, err)
 	}
 
 	ChSelectProfile(isFast, info, err)
@@ -792,12 +793,13 @@ func (h *Handler) parseAccessToken(w http.ResponseWriter, r *http.Request, es *e
 }
 
 func (h *Handler) HandleGetMetricsList(w http.ResponseWriter, r *http.Request) {
-	ai, ok := h.parseAccessToken(w, r, nil)
+	sl := newEndpointStat(EndpointMetricList, r.Method, 0, "")
+	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
 	}
 	resp, cache, err := h.handleGetMetricsList(ai)
-	respondJSON(w, resp, cache, queryClientCacheStale, err, h.verbose, ai.user, nil)
+	respondJSON(w, resp, cache, queryClientCacheStale, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) handleGetMetricsList(ai accessInfo) (*GetMetricsListResp, time.Duration, error) {
@@ -822,7 +824,7 @@ func (h *Handler) handleGetMetricsList(ai accessInfo) (*GetMetricsListResp, time
 }
 
 func (h *Handler) HandleGetMetric(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointMetric, h.getMetricIDForStat(r.FormValue(ParamMetric)), "")
+	sl := newEndpointStat(EndpointMetric, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), "")
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
@@ -832,7 +834,7 @@ func (h *Handler) HandleGetMetric(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetPromConfig(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointPrometheus, 0, "")
+	sl := newEndpointStat(EndpointPrometheus, r.Method, 0, "")
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
@@ -842,6 +844,7 @@ func (h *Handler) HandleGetPromConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandlePostMetric(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStat(EndpointMetric, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), "")
 	if h.checkReadOnlyMode(w, r) {
 		return
 	}
@@ -856,28 +859,29 @@ func (h *Handler) HandlePostMetric(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = r.Body.Close() }()
 	res, err := io.ReadAll(rd)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	if len(res) >= maxMetricHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("metric body too big. Max size is %d bytes", maxMetricHTTPBodySize)), h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("metric body too big. Max size is %d bytes", maxMetricHTTPBodySize)), h.verbose, ai.user, sl)
 		return
 	}
 	var metric MetricInfo
 	if err := easyjson.Unmarshal(res, &metric); err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	m, err := h.handlePostMetric(r.Context(), ai, formValueParamMetric(r), metric.Metric)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	err = h.waitVersionUpdate(r.Context(), m.Version)
-	respondJSON(w, &MetricInfo{Metric: m}, defaultCacheTTL, 0, err, h.verbose, ai.user, nil)
+	respondJSON(w, &MetricInfo{Metric: m}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) HandlePutPostGroup(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStat(EndpointGroup, r.Method, 0, "")
 	if h.checkReadOnlyMode(w, r) {
 		return
 	}
@@ -892,48 +896,50 @@ func (h *Handler) HandlePutPostGroup(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = r.Body.Close() }()
 	res, err := io.ReadAll(rd)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	if len(res) >= maxMetricHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("group body too big. Max size is %d bytes", maxMetricHTTPBodySize)), h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("group body too big. Max size is %d bytes", maxMetricHTTPBodySize)), h.verbose, ai.user, sl)
 		return
 	}
 	var groupInfo MetricsGroupInfo
 	if err := easyjson.Unmarshal(res, &groupInfo); err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	d, err := h.handlePostGroup(r.Context(), ai, groupInfo.Group, r.Method == http.MethodPut, groupInfo.Delete)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	err = h.waitVersionUpdate(r.Context(), d.Group.Version)
-	respondJSON(w, d, defaultCacheTTL, 0, err, h.verbose, ai.user, nil)
+	respondJSON(w, d, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) HandlePostResetFlood(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStat(EndpointResetFlood, r.Method, 0, "")
 	if h.checkReadOnlyMode(w, r) {
 		return
 	}
-	ai, ok := h.parseAccessToken(w, r, nil)
+	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
 	}
 	if !ai.isAdmin() {
 		err := httpErr(http.StatusForbidden, fmt.Errorf("admin access required"))
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	del, err := h.metadataLoader.ResetFlood(context.Background(), formValueParamMetric(r))
 	if err == nil && !del {
 		err = fmt.Errorf("metric flood counter was empty (no flood)")
 	}
-	respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+	respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStat(EndpointPrometheus, r.Method, 0, "")
 	if h.checkReadOnlyMode(w, r) {
 		return
 	}
@@ -948,25 +954,25 @@ func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
 	defer func() { _ = r.Body.Close() }()
 	res, err := io.ReadAll(rd)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	if len(res) >= maxPromConfigHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("confog body too big. Max size is %d bytes", maxPromConfigHTTPBodySize)), h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("confog body too big. Max size is %d bytes", maxPromConfigHTTPBodySize)), h.verbose, ai.user, sl)
 		return
 	}
 	var promConfigInfo PromConfigInfo
 	if err := easyjson.Unmarshal(res, &promConfigInfo); err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	event, err := h.handlePostPromConfig(r.Context(), ai, promConfigInfo.Config, promConfigInfo.Version)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	err = h.waitVersionUpdate(r.Context(), event.Version)
-	respondJSON(w, &PromConfigInfo{Config: event.Data, Version: event.Version}, defaultCacheTTL, 0, err, h.verbose, ai.user, nil)
+	respondJSON(w, &PromConfigInfo{Config: event.Data, Version: event.Version}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) handleGetMetric(ai accessInfo, metricWithNamespace string, metricIDStr string) (*MetricInfo, time.Duration, error) {
@@ -1151,7 +1157,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 }
 
 func (h *Handler) HandleGetMetricTagValues(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointMetricTagValues, h.getMetricIDForStat(r.FormValue(ParamMetric)), "")
+	sl := newEndpointStat(EndpointMetricTagValues, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), "")
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
@@ -1319,7 +1325,7 @@ func sumSeries(data *[]float64, missingValue float64) float64 {
 }
 
 func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointQuery, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	sl := newEndpointStat(EndpointQuery, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
@@ -1759,7 +1765,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 }
 
 func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointRender, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	sl := newEndpointStat(EndpointRender, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
@@ -1848,7 +1854,7 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointDashboard, h.getMetricIDForStat(r.FormValue(ParamID)), "")
+	sl := newEndpointStat(EndpointDashboard, r.Method, 0, "")
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
@@ -1864,7 +1870,7 @@ func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetGroup(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointGroup, 0, "")
+	sl := newEndpointStat(EndpointGroup, r.Method, 0, "")
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
@@ -1880,7 +1886,7 @@ func (h *Handler) HandleGetGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetGroupsList(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointGroup, 0, "")
+	sl := newEndpointStat(EndpointGroup, r.Method, 0, "")
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
@@ -1890,7 +1896,7 @@ func (h *Handler) HandleGetGroupsList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetDashboardList(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointDashboard, 0, "")
+	sl := newEndpointStat(EndpointDashboard, r.Method, 0, "")
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
@@ -1900,6 +1906,7 @@ func (h *Handler) HandleGetDashboardList(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) HandlePutPostDashboard(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStat(EndpointDashboard, r.Method, 0, "")
 	if h.checkReadOnlyMode(w, r) {
 		return
 	}
@@ -1914,25 +1921,25 @@ func (h *Handler) HandlePutPostDashboard(w http.ResponseWriter, r *http.Request)
 	defer func() { _ = r.Body.Close() }()
 	res, err := io.ReadAll(rd)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	if len(res) >= maxMetricHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("metric body too big. Max size is %d bytes", maxMetricHTTPBodySize)), h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("metric body too big. Max size is %d bytes", maxMetricHTTPBodySize)), h.verbose, ai.user, sl)
 		return
 	}
 	var dashboard DashboardInfo
 	if err := easyjson.Unmarshal(res, &dashboard); err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	d, err := h.handlePostDashboard(r.Context(), ai, dashboard.Dashboard, r.Method == http.MethodPut, dashboard.Delete)
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	err = h.waitVersionUpdate(r.Context(), d.Dashboard.Version)
-	respondJSON(w, d, defaultCacheTTL, 0, err, h.verbose, ai.user, nil)
+	respondJSON(w, d, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) handleGetRender(ctx context.Context, req getRenderReq) (*getRenderResp, error) {
@@ -2133,12 +2140,18 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 	}
 
 	var data []tsSelectRow
-	start := time.Now()
 	isFast := lod.fromSec+FastQueryTimeInterval >= lod.toSec
+	metric := pq.metricID
+	table := lod.table
+	kind := pq.kind
+	start := time.Now()
 	err = h.doSelect(isFast, ctx, pq.user, pq.version, &data, query, args...)
+	duration := time.Since(start)
+	ChSelectMetricDuration(duration, metric, table, string(kind), isFast, err)
 	if err != nil {
 		return err
 	}
+
 	if len(data) == maxSeriesRows {
 		return fmt.Errorf("can't fetch more than %v rows", maxSeriesRows) // prevent cache being populated by incomplete data
 	}

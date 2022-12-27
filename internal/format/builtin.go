@@ -79,6 +79,7 @@ const (
 	BuiltinMetricIDGroupSizeAfterSampling     = -65
 	BuiltinMetricIDAPISelectBytes             = -66
 	BuiltinMetricIDAPISelectRows              = -67
+	BuiltinMetricIDAPISelectDuration          = -68
 
 	// metric names used in code directly
 	BuiltinMetricNameAggBucketReceiveDelaySec = "__agg_bucket_receive_delay_sec"
@@ -94,6 +95,7 @@ const (
 	BuiltinMetricNameAPIBRS                   = "__api_big_response_storage_size"
 	BuiltinMetricNameAPISelectBytes           = "__api_ch_select_bytes"
 	BuiltinMetricNameAPISelectRows            = "__api_ch_select_rows"
+	BuiltinMetricNameAPISelectDuration        = "__api_ch_select_duration"
 	BuiltinMetricNameAPIEndpointResponseTime  = "__api_endpoint_response_time"
 	BuiltinMetricNameAPIEndpointServiceTime   = "__api_endpoint_service_time"
 	BuiltinMetricNameBudgetHost               = "__budget_host"
@@ -1046,6 +1048,8 @@ Set by aggregator.`,
 				Description: "token_name",
 			}, {
 				Description: "data_format",
+			}, {
+				Description: "method",
 			}},
 		},
 		BuiltinMetricIDAPIEndpointServiceTime: {
@@ -1063,6 +1067,8 @@ Set by aggregator.`,
 				Description: "token_name",
 			}, {
 				Description: "data_format",
+			}, {
+				Description: "method",
 			}},
 		},
 
@@ -1085,6 +1091,29 @@ Set by aggregator.`,
 			Tags: []MetricMetaTag{{
 				Description: "query type",
 			}},
+		},
+		BuiltinMetricIDAPISelectDuration: {
+			Name:        BuiltinMetricNameAPISelectDuration,
+			Kind:        MetricKindValue,
+			Description: "Duration of clickhouse query",
+			Tags: []MetricMetaTag{
+				{
+					Description: "query type",
+				},
+				{
+					Description: "metric",
+					IsMetric:    true,
+				},
+				{
+					Description: "table",
+				},
+				{
+					Description: "kind",
+				},
+				{
+					Description: "status",
+				},
+			},
 		},
 		BuiltinMetricIDBudgetUnknownMetric: {
 			Name:        BuiltinMetricNameBudgetUnknownMetric,
@@ -1252,6 +1281,7 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDAPIActiveQueries:        true,
 		BuiltinMetricIDAPISelectRows:           true,
 		BuiltinMetricIDAPISelectBytes:          true,
+		BuiltinMetricIDAPISelectDuration:       true,
 	}
 
 	metricsWithAgentEnvRouteArch = map[int32]bool{
@@ -1296,6 +1326,9 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDGeneratorSinCounter:        true,
 		BuiltinMetricIDAPIRPCServiceTime:          true,
 		BuiltinMetricIDAPIBRS:                     true,
+		BuiltinMetricIDAPISelectRows:              true,
+		BuiltinMetricIDAPISelectBytes:             true,
+		BuiltinMetricIDAPISelectDuration:          true,
 		BuiltinMetricIDAPIEndpointResponseTime:    true,
 		BuiltinMetricIDAPIEndpointServiceTime:     true,
 		BuiltinMetricIDAPIActiveQueries:           true,
