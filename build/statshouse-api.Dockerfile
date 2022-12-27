@@ -29,12 +29,12 @@ WORKDIR /src
 COPY go.mod go.sum Makefile ./
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
-RUN go mod download
+RUN go mod download -x
 RUN make build-sh-api
-RUN mkdir -p /var/lib/statshouse/cache/api
 
 FROM gcr.io/distroless/base-debian11:nonroot
+WORKDIR /var/lib/statshouse/cache/api
+WORKDIR /home/nonroot
 COPY --from=build-go /src/target/statshouse-api /bin/
-COPY --from=build-go --chown=nonroot:nonroot /var/lib/statshouse/ /var/lib/statshouse/
 COPY --from=build-node /src/statshouse-ui/build /usr/lib/statshouse-api/statshouse-ui/
 ENTRYPOINT ["/bin/statshouse-api", "--static-dir=/usr/lib/statshouse-api/statshouse-ui/"]
