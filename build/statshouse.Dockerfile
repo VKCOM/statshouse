@@ -13,16 +13,16 @@ ENV BUILD_COMMIT_TS=$BUILD_COMMIT_TS
 ENV BUILD_ID=$BUILD_ID
 ENV BUILD_VERSION=$BUILD_VERSION
 ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
-RUN mkdir -p /var/lib/statshouse/cache/aggregator
-RUN mkdir -p /var/lib/statshouse/cache/agent
 WORKDIR /src
 COPY go.mod go.sum Makefile ./
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
-RUN go mod download
+RUN go mod download -x
 RUN make build-sh
 
 FROM gcr.io/distroless/base-debian11:nonroot
-COPY --from=build /src/target/statshouse /bin/
-COPY --from=build --chown=nonroot:nonroot /var/lib/statshouse/ /var/lib/statshouse/
+WORKDIR /var/lib/statshouse/cache/aggregator
+WORKDIR /var/lib/statshouse/cache/agent
+WORKDIR /home/nonroot
+COPY --from=build /src/target/statshouse /bin
 ENTRYPOINT ["/bin/statshouse"]

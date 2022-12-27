@@ -8,13 +8,15 @@ services:
     build:
       context: .
       dockerfile: build/statshouse-metadata.Dockerfile
+      args:
+        - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-metadata
-    command: --statshouse-addr=localhost:13337 --db-path=/var/lib/statshouse/metadata/db --binlog-prefix=/var/lib/statshouse/metadata/binlog/bl
+    user: "root:root"
+    command: --statshouse-addr=agent:13337 --db-path=/var/lib/statshouse/metadata/db --binlog-prefix=/var/lib/statshouse/metadata/binlog/bl
     volumes:
-      - metadata:/var/lib/statshouse
-    expose:
-      - 2442
-    network_mode: host
+      - metadata:/var/lib/statshouse/metadata
+    ports:
+      - "2442:2442"
   kh:
     profiles:
       - sh
@@ -27,15 +29,14 @@ services:
     hostname: aggregator
     volumes:
       - kh:/var/lib/clickhouse
-    expose:
-      - 8123
-      - 9000
+    ports:
+      - "8123:8123"
+      - "9000:9000"
     healthcheck:
       test: ["CMD-SHELL", "clickhouse-client --query='SELECT 1'"]
       interval: 200ms
       timeout: 1s
       retries: 1500
-    network_mode: host
   aggregator:
     profiles:
       - sh
@@ -43,11 +44,13 @@ services:
     build:
       context: .
       dockerfile: build/statshouse.Dockerfile
+      args:
+        - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-aggregator
-    command: aggregator --cluster=test_shard_localhost --log-level=trace --agg-addr=':13336' --kh=localhost:8123 --metadata-addr=localhost:2442 --auto-create --cache-dir=/var/lib/statshouse/cache/aggregator
-    expose:
-      - 13336
-    network_mode: host
+    user: "root:root"
+    command: aggregator -u=root -g=root --cluster=test_shard_aggregator --log-level=trace --agg-addr=':13336' --kh=kh:8123 --metadata-addr=metadata:2442 --auto-create --cache-dir=/var/lib/statshouse/cache/aggregator
+    ports:
+      - "13336:13336"
     depends_on:
       kh:
         condition: service_healthy
@@ -58,12 +61,15 @@ services:
     build:
       context: .
       dockerfile: build/statshouse.Dockerfile
+      args:
+        - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-agent
-    command: agent --cluster=test_shard_localhost --log-level=trace --agg-addr='localhost:13336,localhost:13336,localhost:13336' --cache-dir=/var/lib/statshouse/cache/agent --remote-write-enabled
+    user: "root:root"
+    command: agent -u=root -g=root --cluster=test_shard_aggregator --log-level=trace --agg-addr='aggregator:13336,aggregator:13336,aggregator:13336' --cache-dir=/var/lib/statshouse/cache/agent --remote-write-enabled
     expose:
       - 8081
-      - 13337/udp
-    network_mode: host
+    ports:
+      - "13337:13337/udp"
     depends_on:
       - aggregator
   api:
@@ -72,11 +78,13 @@ services:
     build:
       context: .
       dockerfile: build/statshouse-api.Dockerfile
+      args:
+        - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-api
-    command: --verbose --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=localhost:9000 --listen-addr=:10888 --metadata-addr=localhost:2442 --statshouse-addr=localhost:13337 --disk-cache=/var/lib/statshouse/cache/api/mapping_cache.sqlite3
-    expose:
-      - 10888
-    network_mode: host
+    user: "root:root"
+    command: --verbose --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=kh:9000 --listen-addr=:10888 --metadata-addr=metadata:2442 --statshouse-addr=agent:13337 --disk-cache=/var/lib/statshouse/cache/api/mapping_cache.sqlite3
+    ports:
+      - "10888:10888"
     depends_on:
       kh:
         condition: service_healthy
@@ -86,11 +94,17 @@ services:
     build:
       context: .
       dockerfile: build/all-in-one.Dockerfile
-    container_name: all-in-one
-    expose:
-      - 10888
-      - 13337/udp
-    network_mode: host
+    container_name: sh-all-in-one
+    user: "root:root"
+    ports:
+      - "2442:2442"
+      - "8123:8123"
+      - "10888:10888"
+      - "13336:13336"
+      - "13337:13337/udp"
+    volumes:
+      - metadata:/var/lib/statshouse/metadata
+      - kh:/var/lib/clickhouse
   grafana:
     profiles:
       - api-dev
@@ -109,9 +123,8 @@ services:
     volumes:
       - prometheus:/prometheus
       - ${PWD}/build/prometheus.yml:/etc/prometheus/prometheus.yml
-    expose:
-      - 9090
-    network_mode: host
+    ports:
+      - "9090:9090"
 
 volumes:
   kh:

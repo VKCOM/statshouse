@@ -13,16 +13,16 @@ ENV BUILD_COMMIT_TS=$BUILD_COMMIT_TS
 ENV BUILD_ID=$BUILD_ID
 ENV BUILD_VERSION=$BUILD_VERSION
 ENV BUILD_TRUSTED_SUBNET_GROUPS=$BUILD_TRUSTED_SUBNET_GROUPS
-RUN mkdir -p /var/lib/statshouse/metadata/binlog
 WORKDIR /src
 COPY go.mod go.sum Makefile ./
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
-RUN go mod download
+RUN go mod download -x
 RUN make build-sh-metadata
-RUN target/statshouse-metadata --binlog-prefix "/var/lib/statshouse/metadata/binlog/bl" --create-binlog "0,1"
 
 FROM gcr.io/distroless/base-debian11:nonroot
+WORKDIR /var/lib/statshouse/metadata/binlog
+WORKDIR /home/nonroot
 COPY --from=build /src/target/statshouse-metadata /bin/
-COPY --from=build --chown=nonroot:nonroot /var/lib/statshouse/ /var/lib/statshouse/
+RUN ["/bin/statshouse-metadata", "--binlog-prefix=/var/lib/statshouse/metadata/binlog/bl", "--create-binlog=0,1"]
 ENTRYPOINT ["/bin/statshouse-metadata"]
