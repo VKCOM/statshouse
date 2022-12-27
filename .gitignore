@@ -2,9 +2,12 @@
 /.vscode/
 
 /target/
+/statshouse
+/statshouse-api
+/statshouse-example
+/statshouse-metadata
 
 /cmd/statshouse-api/build/
-
 /statshouse_api.pid
 /statshouse_api_cache.db
 
