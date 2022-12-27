@@ -11,7 +11,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
 )
@@ -34,7 +34,7 @@ type MetricsStorage struct {
 	groupsByID     map[int32]*format.MetricsGroup
 	metricsByGroup map[int32]map[int32]*format.MetricMetaValue
 
-	promConfig tlmetadata.Event
+	promConfig tlstatshouse_metadata.Event
 
 	applyPromConfig ApplyPromConfig
 
@@ -60,7 +60,7 @@ func (ms *MetricsStorage) StateHash() string { return ms.journal.StateHash() }
 
 func (ms *MetricsStorage) Journal() *Journal { return ms.journal }
 
-func (ms *MetricsStorage) PromConfig() tlmetadata.Event {
+func (ms *MetricsStorage) PromConfig() tlstatshouse_metadata.Event {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	return ms.promConfig
@@ -150,7 +150,7 @@ func (ms *MetricsStorage) GetGroupsList() []*format.MetricsGroup {
 	return groups
 }
 
-func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
+func (ms *MetricsStorage) ApplyEvent(newEntries []tlstatshouse_metadata.Event) {
 	promConfigSet := false
 	promConfigData := ""
 	promConfigVersion := int64(0)

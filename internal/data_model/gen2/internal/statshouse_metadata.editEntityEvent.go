@@ -13,22 +13,24 @@ import (
 
 var _ = basictl.NatWrite
 
-type MetadataEditEntityEvent struct {
+type StatshouseMetadataEditEntityEvent struct {
 	FieldsMask uint32
-	Metric     MetadataEvent
+	Metric     StatshouseMetadataEvent
 	OldVersion int64
 }
 
-func (MetadataEditEntityEvent) TLName() string { return "metadata.editEntityEvent" }
-func (MetadataEditEntityEvent) TLTag() uint32  { return 0x1234b677 }
+func (StatshouseMetadataEditEntityEvent) TLName() string {
+	return "statshouse_metadata.editEntityEvent"
+}
+func (StatshouseMetadataEditEntityEvent) TLTag() uint32 { return 0x1234b677 }
 
-func (item *MetadataEditEntityEvent) Reset() {
+func (item *StatshouseMetadataEditEntityEvent) Reset() {
 	item.FieldsMask = 0
 	item.Metric.Reset()
 	item.OldVersion = 0
 }
 
-func (item *MetadataEditEntityEvent) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEditEntityEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -38,7 +40,7 @@ func (item *MetadataEditEntityEvent) Read(w []byte) (_ []byte, err error) {
 	return basictl.LongRead(w, &item.OldVersion)
 }
 
-func (item *MetadataEditEntityEvent) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEditEntityEvent) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	if w, err = item.Metric.Write(w); err != nil {
 		return w, err
@@ -46,19 +48,19 @@ func (item *MetadataEditEntityEvent) Write(w []byte) (_ []byte, err error) {
 	return basictl.LongWrite(w, item.OldVersion), nil
 }
 
-func (item *MetadataEditEntityEvent) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEditEntityEvent) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1234b677); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *MetadataEditEntityEvent) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseMetadataEditEntityEvent) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x1234b677)
 	return item.Write(w)
 }
 
-func (item MetadataEditEntityEvent) String() string {
+func (item StatshouseMetadataEditEntityEvent) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -66,13 +68,13 @@ func (item MetadataEditEntityEvent) String() string {
 	return string(w)
 }
 
-func MetadataEditEntityEvent__ReadJSON(item *MetadataEditEntityEvent, j interface{}) error {
+func StatshouseMetadataEditEntityEvent__ReadJSON(item *StatshouseMetadataEditEntityEvent, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *MetadataEditEntityEvent) readJSON(j interface{}) error {
+func (item *StatshouseMetadataEditEntityEvent) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.editEntityEvent", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.editEntityEvent", "expected json object")
 	}
 	_jFieldsMask := _jm["fields_mask"]
 	delete(_jm, "fields_mask")
@@ -87,15 +89,15 @@ func (item *MetadataEditEntityEvent) readJSON(j interface{}) error {
 		return err
 	}
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.editEntityEvent", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.editEntityEvent", k)
 	}
-	if err := MetadataEvent__ReadJSON(&item.Metric, _jMetric); err != nil {
+	if err := StatshouseMetadataEvent__ReadJSON(&item.Metric, _jMetric); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *MetadataEditEntityEvent) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEditEntityEvent) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -115,17 +117,17 @@ func (item *MetadataEditEntityEvent) WriteJSON(w []byte) (_ []byte, err error) {
 	return append(w, '}'), nil
 }
 
-func (item *MetadataEditEntityEvent) MarshalJSON() ([]byte, error) {
+func (item *StatshouseMetadataEditEntityEvent) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *MetadataEditEntityEvent) UnmarshalJSON(b []byte) error {
+func (item *StatshouseMetadataEditEntityEvent) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("metadata.editEntityEvent", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.editEntityEvent", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("metadata.editEntityEvent", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.editEntityEvent", err.Error())
 	}
 	return nil
 }

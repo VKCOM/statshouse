@@ -25,9 +25,9 @@ import (
 	"github.com/vkcom/statshouse/internal/aggregator"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/mapping"
 	"github.com/vkcom/statshouse/internal/metajournal"
@@ -171,7 +171,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 	const testFastPath = true       // or slow path
 	const keyPrefix = "__benchmark"
 
-	dolphinLoader := func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
+	dolphinLoader := func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlstatshouse_metadata.Event, int64, error) {
 		if returnIfEmpty {
 			return nil, lastVersion, nil
 		}
@@ -187,7 +187,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 		}
 		_ = result.RestoreCachedInfo()
 		data, err := result.MarshalBinary()
-		return []tlmetadata.Event{{
+		return []tlstatshouse_metadata.Event{{
 			Id:         int64(result.MetricID),
 			Name:       result.Name,
 			EventType:  0,
@@ -465,7 +465,7 @@ func mainSimulator() {
 
 	client := argvCreateClient()
 
-	metaDataClient := &tlmetadata.Client{
+	metaDataClient := &tlstatshouse_metadata.Client{
 		Client:  client,
 		Network: "tcp4",
 		Address: "127.0.0.1:2442",

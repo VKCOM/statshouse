@@ -13,44 +13,46 @@ import (
 
 var _ = basictl.NatWrite
 
-type MetadataResetFloodResponse2 struct {
+type StatshouseMetadataResetFloodResponse2 struct {
 	BudgetBefore int32
 	BudgetAfter  int32
 }
 
-func (MetadataResetFloodResponse2) TLName() string { return "metadata.resetFloodResponse2" }
-func (MetadataResetFloodResponse2) TLTag() uint32  { return 0x9286abef }
+func (StatshouseMetadataResetFloodResponse2) TLName() string {
+	return "statshouse_metadata.resetFloodResponse2"
+}
+func (StatshouseMetadataResetFloodResponse2) TLTag() uint32 { return 0x9286abef }
 
-func (item *MetadataResetFloodResponse2) Reset() {
+func (item *StatshouseMetadataResetFloodResponse2) Reset() {
 	item.BudgetBefore = 0
 	item.BudgetAfter = 0
 }
 
-func (item *MetadataResetFloodResponse2) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataResetFloodResponse2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.BudgetBefore); err != nil {
 		return w, err
 	}
 	return basictl.IntRead(w, &item.BudgetAfter)
 }
 
-func (item *MetadataResetFloodResponse2) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataResetFloodResponse2) Write(w []byte) (_ []byte, err error) {
 	w = basictl.IntWrite(w, item.BudgetBefore)
 	return basictl.IntWrite(w, item.BudgetAfter), nil
 }
 
-func (item *MetadataResetFloodResponse2) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataResetFloodResponse2) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x9286abef); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *MetadataResetFloodResponse2) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseMetadataResetFloodResponse2) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x9286abef)
 	return item.Write(w)
 }
 
-func (item MetadataResetFloodResponse2) String() string {
+func (item StatshouseMetadataResetFloodResponse2) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -58,13 +60,13 @@ func (item MetadataResetFloodResponse2) String() string {
 	return string(w)
 }
 
-func MetadataResetFloodResponse2__ReadJSON(item *MetadataResetFloodResponse2, j interface{}) error {
+func StatshouseMetadataResetFloodResponse2__ReadJSON(item *StatshouseMetadataResetFloodResponse2, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *MetadataResetFloodResponse2) readJSON(j interface{}) error {
+func (item *StatshouseMetadataResetFloodResponse2) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.resetFloodResponse2", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.resetFloodResponse2", "expected json object")
 	}
 	_jBudgetBefore := _jm["budget_before"]
 	delete(_jm, "budget_before")
@@ -77,12 +79,12 @@ func (item *MetadataResetFloodResponse2) readJSON(j interface{}) error {
 		return err
 	}
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.resetFloodResponse2", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.resetFloodResponse2", k)
 	}
 	return nil
 }
 
-func (item *MetadataResetFloodResponse2) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataResetFloodResponse2) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.BudgetBefore != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -97,17 +99,17 @@ func (item *MetadataResetFloodResponse2) WriteJSON(w []byte) (_ []byte, err erro
 	return append(w, '}'), nil
 }
 
-func (item *MetadataResetFloodResponse2) MarshalJSON() ([]byte, error) {
+func (item *StatshouseMetadataResetFloodResponse2) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *MetadataResetFloodResponse2) UnmarshalJSON(b []byte) error {
+func (item *StatshouseMetadataResetFloodResponse2) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("metadata.resetFloodResponse2", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.resetFloodResponse2", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("metadata.resetFloodResponse2", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.resetFloodResponse2", err.Error())
 	}
 	return nil
 }

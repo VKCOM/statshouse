@@ -13,7 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
-type MetadataMetricOld struct {
+type StatshouseMetadataMetricOld struct {
 	Id         int64
 	Name       string
 	EventType  int32  // Conditional: nat_field_mask.2
@@ -23,42 +23,42 @@ type MetadataMetricOld struct {
 	Data       string
 }
 
-func (MetadataMetricOld) TLName() string { return "metadata.metricOld" }
-func (MetadataMetricOld) TLTag() uint32  { return 0x9286abfa }
+func (StatshouseMetadataMetricOld) TLName() string { return "statshouse_metadata.metricOld" }
+func (StatshouseMetadataMetricOld) TLTag() uint32  { return 0x9286abfa }
 
-func (item *MetadataMetricOld) SetEventType(v int32, nat_field_mask *uint32) {
+func (item *StatshouseMetadataMetricOld) SetEventType(v int32, nat_field_mask *uint32) {
 	item.EventType = v
 	if nat_field_mask != nil {
 		*nat_field_mask |= 1 << 2
 	}
 }
-func (item *MetadataMetricOld) ClearEventType(nat_field_mask *uint32) {
+func (item *StatshouseMetadataMetricOld) ClearEventType(nat_field_mask *uint32) {
 	item.EventType = 0
 	if nat_field_mask != nil {
 		*nat_field_mask &^= 1 << 2
 	}
 }
-func (item *MetadataMetricOld) IsSetEventType(nat_field_mask uint32) bool {
+func (item *StatshouseMetadataMetricOld) IsSetEventType(nat_field_mask uint32) bool {
 	return nat_field_mask&(1<<2) != 0
 }
 
-func (item *MetadataMetricOld) SetUnused(v uint32, nat_field_mask *uint32) {
+func (item *StatshouseMetadataMetricOld) SetUnused(v uint32, nat_field_mask *uint32) {
 	item.Unused = v
 	if nat_field_mask != nil {
 		*nat_field_mask |= 1 << 3
 	}
 }
-func (item *MetadataMetricOld) ClearUnused(nat_field_mask *uint32) {
+func (item *StatshouseMetadataMetricOld) ClearUnused(nat_field_mask *uint32) {
 	item.Unused = 0
 	if nat_field_mask != nil {
 		*nat_field_mask &^= 1 << 3
 	}
 }
-func (item *MetadataMetricOld) IsSetUnused(nat_field_mask uint32) bool {
+func (item *StatshouseMetadataMetricOld) IsSetUnused(nat_field_mask uint32) bool {
 	return nat_field_mask&(1<<3) != 0
 }
 
-func (item *MetadataMetricOld) Reset() {
+func (item *StatshouseMetadataMetricOld) Reset() {
 	item.Id = 0
 	item.Name = ""
 	item.EventType = 0
@@ -68,7 +68,7 @@ func (item *MetadataMetricOld) Reset() {
 	item.Data = ""
 }
 
-func (item *MetadataMetricOld) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *StatshouseMetadataMetricOld) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.LongRead(w, &item.Id); err != nil {
 		return w, err
 	}
@@ -98,7 +98,7 @@ func (item *MetadataMetricOld) Read(w []byte, nat_field_mask uint32) (_ []byte, 
 	return basictl.StringRead(w, &item.Data)
 }
 
-func (item *MetadataMetricOld) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *StatshouseMetadataMetricOld) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.Id)
 	if w, err = basictl.StringWrite(w, item.Name); err != nil {
 		return w, err
@@ -114,25 +114,25 @@ func (item *MetadataMetricOld) Write(w []byte, nat_field_mask uint32) (_ []byte,
 	return basictl.StringWrite(w, item.Data)
 }
 
-func (item *MetadataMetricOld) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *StatshouseMetadataMetricOld) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x9286abfa); err != nil {
 		return w, err
 	}
 	return item.Read(w, nat_field_mask)
 }
 
-func (item *MetadataMetricOld) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+func (item *StatshouseMetadataMetricOld) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x9286abfa)
 	return item.Write(w, nat_field_mask)
 }
 
-func MetadataMetricOld__ReadJSON(item *MetadataMetricOld, j interface{}, nat_field_mask uint32) error {
+func StatshouseMetadataMetricOld__ReadJSON(item *StatshouseMetadataMetricOld, j interface{}, nat_field_mask uint32) error {
 	return item.readJSON(j, nat_field_mask)
 }
-func (item *MetadataMetricOld) readJSON(j interface{}, nat_field_mask uint32) error {
+func (item *StatshouseMetadataMetricOld) readJSON(j interface{}, nat_field_mask uint32) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.metricOld", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.metricOld", "expected json object")
 	}
 	_jId := _jm["id"]
 	delete(_jm, "id")
@@ -164,13 +164,13 @@ func (item *MetadataMetricOld) readJSON(j interface{}, nat_field_mask uint32) er
 		return err
 	}
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.metricOld", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.metricOld", k)
 	}
 	if nat_field_mask&(1<<2) == 0 && _jEventType != nil {
-		return ErrorInvalidJSON("metadata.metricOld", "field 'event_type' is defined, while corresponding implicit fieldmask bit is 0")
+		return ErrorInvalidJSON("statshouse_metadata.metricOld", "field 'event_type' is defined, while corresponding implicit fieldmask bit is 0")
 	}
 	if nat_field_mask&(1<<3) == 0 && _jUnused != nil {
-		return ErrorInvalidJSON("metadata.metricOld", "field 'unused' is defined, while corresponding implicit fieldmask bit is 0")
+		return ErrorInvalidJSON("statshouse_metadata.metricOld", "field 'unused' is defined, while corresponding implicit fieldmask bit is 0")
 	}
 	if nat_field_mask&(1<<2) != 0 {
 		if err := JsonReadInt32(_jEventType, &item.EventType); err != nil {
@@ -189,7 +189,7 @@ func (item *MetadataMetricOld) readJSON(j interface{}, nat_field_mask uint32) er
 	return nil
 }
 
-func (item *MetadataMetricOld) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *StatshouseMetadataMetricOld) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Id != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -233,7 +233,7 @@ func (item *MetadataMetricOld) WriteJSON(w []byte, nat_field_mask uint32) (_ []b
 	return append(w, '}'), nil
 }
 
-func VectorMetadataMetricOld0Read(w []byte, vec *[]MetadataMetricOld, nat_tfield_mask uint32) (_ []byte, err error) {
+func VectorStatshouseMetadataMetricOld0Read(w []byte, vec *[]StatshouseMetadataMetricOld, nat_tfield_mask uint32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -242,7 +242,7 @@ func VectorMetadataMetricOld0Read(w []byte, vec *[]MetadataMetricOld, nat_tfield
 		return w, err
 	}
 	if uint32(cap(*vec)) < l {
-		*vec = make([]MetadataMetricOld, l)
+		*vec = make([]StatshouseMetadataMetricOld, l)
 	} else {
 		*vec = (*vec)[:l]
 	}
@@ -254,7 +254,7 @@ func VectorMetadataMetricOld0Read(w []byte, vec *[]MetadataMetricOld, nat_tfield
 	return w, nil
 }
 
-func VectorMetadataMetricOld0Write(w []byte, vec []MetadataMetricOld, nat_tfield_mask uint32) (_ []byte, err error) {
+func VectorStatshouseMetadataMetricOld0Write(w []byte, vec []StatshouseMetadataMetricOld, nat_tfield_mask uint32) (_ []byte, err error) {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		if w, err = elem.Write(w, nat_tfield_mask); err != nil {
@@ -264,25 +264,25 @@ func VectorMetadataMetricOld0Write(w []byte, vec []MetadataMetricOld, nat_tfield
 	return w, nil
 }
 
-func VectorMetadataMetricOld0ReadJSON(j interface{}, vec *[]MetadataMetricOld, nat_tfield_mask uint32) error {
-	l, _arr, err := JsonReadArray("[]MetadataMetricOld", j)
+func VectorStatshouseMetadataMetricOld0ReadJSON(j interface{}, vec *[]StatshouseMetadataMetricOld, nat_tfield_mask uint32) error {
+	l, _arr, err := JsonReadArray("[]StatshouseMetadataMetricOld", j)
 	if err != nil {
 		return err
 	}
 	if cap(*vec) < l {
-		*vec = make([]MetadataMetricOld, l)
+		*vec = make([]StatshouseMetadataMetricOld, l)
 	} else {
 		*vec = (*vec)[:l]
 	}
 	for i := range *vec {
-		if err := MetadataMetricOld__ReadJSON(&(*vec)[i], _arr[i], nat_tfield_mask); err != nil {
+		if err := StatshouseMetadataMetricOld__ReadJSON(&(*vec)[i], _arr[i], nat_tfield_mask); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func VectorMetadataMetricOld0WriteJSON(w []byte, vec []MetadataMetricOld, nat_tfield_mask uint32) (_ []byte, err error) {
+func VectorStatshouseMetadataMetricOld0WriteJSON(w []byte, vec []StatshouseMetadataMetricOld, nat_tfield_mask uint32) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

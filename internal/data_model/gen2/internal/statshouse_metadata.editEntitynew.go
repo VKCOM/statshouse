@@ -15,40 +15,40 @@ var _ = basictl.NatWrite
 
 var _ = True{}
 
-type MetadataEditEntitynew struct {
+type StatshouseMetadataEditEntitynew struct {
 	FieldsMask uint32
-	Event      MetadataEvent
+	Event      StatshouseMetadataEvent
 	// Create True // Conditional: item.FieldsMask.0
 	// Delete True // Conditional: item.FieldsMask.1
 }
 
-func (MetadataEditEntitynew) TLName() string { return "metadata.editEntitynew" }
-func (MetadataEditEntitynew) TLTag() uint32  { return 0x86df475f }
+func (StatshouseMetadataEditEntitynew) TLName() string { return "statshouse_metadata.editEntitynew" }
+func (StatshouseMetadataEditEntitynew) TLTag() uint32  { return 0x86df475f }
 
-func (item *MetadataEditEntitynew) SetCreate(v bool) {
+func (item *StatshouseMetadataEditEntitynew) SetCreate(v bool) {
 	if v {
 		item.FieldsMask |= 1 << 0
 	} else {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item *MetadataEditEntitynew) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item *StatshouseMetadataEditEntitynew) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
 
-func (item *MetadataEditEntitynew) SetDelete(v bool) {
+func (item *StatshouseMetadataEditEntitynew) SetDelete(v bool) {
 	if v {
 		item.FieldsMask |= 1 << 1
 	} else {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item *MetadataEditEntitynew) IsSetDelete() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item *StatshouseMetadataEditEntitynew) IsSetDelete() bool { return item.FieldsMask&(1<<1) != 0 }
 
-func (item *MetadataEditEntitynew) Reset() {
+func (item *StatshouseMetadataEditEntitynew) Reset() {
 	item.FieldsMask = 0
 	item.Event.Reset()
 }
 
-func (item *MetadataEditEntitynew) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEditEntitynew) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
@@ -58,7 +58,7 @@ func (item *MetadataEditEntitynew) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *MetadataEditEntitynew) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEditEntitynew) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	if w, err = item.Event.Write(w); err != nil {
 		return w, err
@@ -66,42 +66,42 @@ func (item *MetadataEditEntitynew) Write(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *MetadataEditEntitynew) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEditEntitynew) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x86df475f); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *MetadataEditEntitynew) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseMetadataEditEntitynew) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x86df475f)
 	return item.Write(w)
 }
 
-func (item *MetadataEditEntitynew) ReadResult(w []byte, ret *MetadataEvent) (_ []byte, err error) {
+func (item *StatshouseMetadataEditEntitynew) ReadResult(w []byte, ret *StatshouseMetadataEvent) (_ []byte, err error) {
 	return ret.ReadBoxed(w)
 }
 
-func (item *MetadataEditEntitynew) WriteResult(w []byte, ret MetadataEvent) (_ []byte, err error) {
+func (item *StatshouseMetadataEditEntitynew) WriteResult(w []byte, ret StatshouseMetadataEvent) (_ []byte, err error) {
 	return ret.WriteBoxed(w)
 }
 
-func (item *MetadataEditEntitynew) ReadResultJSON(j interface{}, ret *MetadataEvent) error {
-	if err := MetadataEvent__ReadJSON(ret, j); err != nil {
+func (item *StatshouseMetadataEditEntitynew) ReadResultJSON(j interface{}, ret *StatshouseMetadataEvent) error {
+	if err := StatshouseMetadataEvent__ReadJSON(ret, j); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *MetadataEditEntitynew) WriteResultJSON(w []byte, ret MetadataEvent) (_ []byte, err error) {
+func (item *StatshouseMetadataEditEntitynew) WriteResultJSON(w []byte, ret StatshouseMetadataEvent) (_ []byte, err error) {
 	if w, err = ret.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return w, nil
 }
 
-func (item *MetadataEditEntitynew) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataEvent
+func (item *StatshouseMetadataEditEntitynew) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseMetadataEvent
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -109,12 +109,12 @@ func (item *MetadataEditEntitynew) ReadResultWriteResultJSON(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item *MetadataEditEntitynew) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *StatshouseMetadataEditEntitynew) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
 	j, err := JsonBytesToInterface(r)
 	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.editEntitynew", err.Error())
+		return r, w, ErrorInvalidJSON("statshouse_metadata.editEntitynew", err.Error())
 	}
-	var ret MetadataEvent
+	var ret StatshouseMetadataEvent
 	if err = item.ReadResultJSON(j, &ret); err != nil {
 		return r, w, err
 	}
@@ -122,7 +122,7 @@ func (item *MetadataEditEntitynew) ReadResultJSONWriteResult(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item MetadataEditEntitynew) String() string {
+func (item StatshouseMetadataEditEntitynew) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -130,13 +130,13 @@ func (item MetadataEditEntitynew) String() string {
 	return string(w)
 }
 
-func MetadataEditEntitynew__ReadJSON(item *MetadataEditEntitynew, j interface{}) error {
+func StatshouseMetadataEditEntitynew__ReadJSON(item *StatshouseMetadataEditEntitynew, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *MetadataEditEntitynew) readJSON(j interface{}) error {
+func (item *StatshouseMetadataEditEntitynew) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.editEntitynew", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.editEntitynew", "expected json object")
 	}
 	_jFieldsMask := _jm["fields_mask"]
 	delete(_jm, "fields_mask")
@@ -150,7 +150,7 @@ func (item *MetadataEditEntitynew) readJSON(j interface{}) error {
 	_jDelete := _jm["delete"]
 	delete(_jm, "delete")
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.editEntitynew", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.editEntitynew", k)
 	}
 	if _jCreate != nil {
 		_bit := false
@@ -174,13 +174,13 @@ func (item *MetadataEditEntitynew) readJSON(j interface{}) error {
 			item.FieldsMask &^= 1 << 1
 		}
 	}
-	if err := MetadataEvent__ReadJSON(&item.Event, _jEvent); err != nil {
+	if err := StatshouseMetadataEvent__ReadJSON(&item.Event, _jEvent); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *MetadataEditEntitynew) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataEditEntitynew) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -203,17 +203,17 @@ func (item *MetadataEditEntitynew) WriteJSON(w []byte) (_ []byte, err error) {
 	return append(w, '}'), nil
 }
 
-func (item *MetadataEditEntitynew) MarshalJSON() ([]byte, error) {
+func (item *StatshouseMetadataEditEntitynew) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *MetadataEditEntitynew) UnmarshalJSON(b []byte) error {
+func (item *StatshouseMetadataEditEntitynew) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("metadata.editEntitynew", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.editEntitynew", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("metadata.editEntitynew", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.editEntitynew", err.Error())
 	}
 	return nil
 }

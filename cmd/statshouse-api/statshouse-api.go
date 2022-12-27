@@ -29,8 +29,8 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
 
 	"github.com/vkcom/statshouse/internal/api"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/util"
@@ -325,7 +325,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		argv.approxCacheMaxSize,
 		chV1,
 		chV2,
-		&tlmetadata.Client{
+		&tlstatshouse_metadata.Client{
 			Client: &rpc.Client{
 				Logf:      log.Printf,
 				CryptoKey: rpcCryptoKey,

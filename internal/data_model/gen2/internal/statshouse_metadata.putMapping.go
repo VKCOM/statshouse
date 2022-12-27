@@ -13,22 +13,22 @@ import (
 
 var _ = basictl.NatWrite
 
-type MetadataPutMapping struct {
+type StatshouseMetadataPutMapping struct {
 	FieldMask uint32
 	Keys      []string
 	Value     []int32
 }
 
-func (MetadataPutMapping) TLName() string { return "metadata.putMapping" }
-func (MetadataPutMapping) TLTag() uint32  { return 0x9faf5281 }
+func (StatshouseMetadataPutMapping) TLName() string { return "statshouse_metadata.putMapping" }
+func (StatshouseMetadataPutMapping) TLTag() uint32  { return 0x9faf5281 }
 
-func (item *MetadataPutMapping) Reset() {
+func (item *StatshouseMetadataPutMapping) Reset() {
 	item.FieldMask = 0
 	item.Keys = item.Keys[:0]
 	item.Value = item.Value[:0]
 }
 
-func (item *MetadataPutMapping) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutMapping) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
@@ -38,7 +38,7 @@ func (item *MetadataPutMapping) Read(w []byte) (_ []byte, err error) {
 	return VectorInt0Read(w, &item.Value)
 }
 
-func (item *MetadataPutMapping) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutMapping) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
 	if w, err = VectorString0Write(w, item.Keys); err != nil {
 		return w, err
@@ -46,42 +46,42 @@ func (item *MetadataPutMapping) Write(w []byte) (_ []byte, err error) {
 	return VectorInt0Write(w, item.Value)
 }
 
-func (item *MetadataPutMapping) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutMapping) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x9faf5281); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *MetadataPutMapping) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseMetadataPutMapping) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x9faf5281)
 	return item.Write(w)
 }
 
-func (item *MetadataPutMapping) ReadResult(w []byte, ret *MetadataPutMappingResponse) (_ []byte, err error) {
+func (item *StatshouseMetadataPutMapping) ReadResult(w []byte, ret *StatshouseMetadataPutMappingResponse) (_ []byte, err error) {
 	return ret.ReadBoxed(w)
 }
 
-func (item *MetadataPutMapping) WriteResult(w []byte, ret MetadataPutMappingResponse) (_ []byte, err error) {
+func (item *StatshouseMetadataPutMapping) WriteResult(w []byte, ret StatshouseMetadataPutMappingResponse) (_ []byte, err error) {
 	return ret.WriteBoxed(w)
 }
 
-func (item *MetadataPutMapping) ReadResultJSON(j interface{}, ret *MetadataPutMappingResponse) error {
-	if err := MetadataPutMappingResponse__ReadJSON(ret, j); err != nil {
+func (item *StatshouseMetadataPutMapping) ReadResultJSON(j interface{}, ret *StatshouseMetadataPutMappingResponse) error {
+	if err := StatshouseMetadataPutMappingResponse__ReadJSON(ret, j); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *MetadataPutMapping) WriteResultJSON(w []byte, ret MetadataPutMappingResponse) (_ []byte, err error) {
+func (item *StatshouseMetadataPutMapping) WriteResultJSON(w []byte, ret StatshouseMetadataPutMappingResponse) (_ []byte, err error) {
 	if w, err = ret.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return w, nil
 }
 
-func (item *MetadataPutMapping) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataPutMappingResponse
+func (item *StatshouseMetadataPutMapping) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseMetadataPutMappingResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -89,12 +89,12 @@ func (item *MetadataPutMapping) ReadResultWriteResultJSON(r []byte, w []byte) (_
 	return r, w, err
 }
 
-func (item *MetadataPutMapping) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *StatshouseMetadataPutMapping) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
 	j, err := JsonBytesToInterface(r)
 	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.putMapping", err.Error())
+		return r, w, ErrorInvalidJSON("statshouse_metadata.putMapping", err.Error())
 	}
-	var ret MetadataPutMappingResponse
+	var ret StatshouseMetadataPutMappingResponse
 	if err = item.ReadResultJSON(j, &ret); err != nil {
 		return r, w, err
 	}
@@ -102,7 +102,7 @@ func (item *MetadataPutMapping) ReadResultJSONWriteResult(r []byte, w []byte) ([
 	return r, w, err
 }
 
-func (item MetadataPutMapping) String() string {
+func (item StatshouseMetadataPutMapping) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -110,13 +110,13 @@ func (item MetadataPutMapping) String() string {
 	return string(w)
 }
 
-func MetadataPutMapping__ReadJSON(item *MetadataPutMapping, j interface{}) error {
+func StatshouseMetadataPutMapping__ReadJSON(item *StatshouseMetadataPutMapping, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *MetadataPutMapping) readJSON(j interface{}) error {
+func (item *StatshouseMetadataPutMapping) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.putMapping", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.putMapping", "expected json object")
 	}
 	_jFieldMask := _jm["field_mask"]
 	delete(_jm, "field_mask")
@@ -128,7 +128,7 @@ func (item *MetadataPutMapping) readJSON(j interface{}) error {
 	_jValue := _jm["value"]
 	delete(_jm, "value")
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.putMapping", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.putMapping", k)
 	}
 	if err := VectorString0ReadJSON(_jKeys, &item.Keys); err != nil {
 		return err
@@ -139,7 +139,7 @@ func (item *MetadataPutMapping) readJSON(j interface{}) error {
 	return nil
 }
 
-func (item *MetadataPutMapping) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataPutMapping) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -163,17 +163,17 @@ func (item *MetadataPutMapping) WriteJSON(w []byte) (_ []byte, err error) {
 	return append(w, '}'), nil
 }
 
-func (item *MetadataPutMapping) MarshalJSON() ([]byte, error) {
+func (item *StatshouseMetadataPutMapping) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *MetadataPutMapping) UnmarshalJSON(b []byte) error {
+func (item *StatshouseMetadataPutMapping) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("metadata.putMapping", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.putMapping", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("metadata.putMapping", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.putMapping", err.Error())
 	}
 	return nil
 }

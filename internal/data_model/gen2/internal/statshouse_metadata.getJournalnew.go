@@ -15,32 +15,34 @@ var _ = basictl.NatWrite
 
 var _ = True{}
 
-type MetadataGetJournalnew struct {
+type StatshouseMetadataGetJournalnew struct {
 	FieldMask uint32
 	From      int64
 	Limit     int64
 	// ReturnIfEmpty True // Conditional: item.FieldMask.3
 }
 
-func (MetadataGetJournalnew) TLName() string { return "metadata.getJournalnew" }
-func (MetadataGetJournalnew) TLTag() uint32  { return 0x93ba92f8 }
+func (StatshouseMetadataGetJournalnew) TLName() string { return "statshouse_metadata.getJournalnew" }
+func (StatshouseMetadataGetJournalnew) TLTag() uint32  { return 0x93ba92f8 }
 
-func (item *MetadataGetJournalnew) SetReturnIfEmpty(v bool) {
+func (item *StatshouseMetadataGetJournalnew) SetReturnIfEmpty(v bool) {
 	if v {
 		item.FieldMask |= 1 << 3
 	} else {
 		item.FieldMask &^= 1 << 3
 	}
 }
-func (item *MetadataGetJournalnew) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
+func (item *StatshouseMetadataGetJournalnew) IsSetReturnIfEmpty() bool {
+	return item.FieldMask&(1<<3) != 0
+}
 
-func (item *MetadataGetJournalnew) Reset() {
+func (item *StatshouseMetadataGetJournalnew) Reset() {
 	item.FieldMask = 0
 	item.From = 0
 	item.Limit = 0
 }
 
-func (item *MetadataGetJournalnew) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataGetJournalnew) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
@@ -53,49 +55,49 @@ func (item *MetadataGetJournalnew) Read(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func (item *MetadataGetJournalnew) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataGetJournalnew) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.From)
 	w = basictl.LongWrite(w, item.Limit)
 	return w, nil
 }
 
-func (item *MetadataGetJournalnew) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataGetJournalnew) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x93ba92f8); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *MetadataGetJournalnew) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseMetadataGetJournalnew) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x93ba92f8)
 	return item.Write(w)
 }
 
-func (item *MetadataGetJournalnew) ReadResult(w []byte, ret *MetadataGetJournalResponsenew) (_ []byte, err error) {
+func (item *StatshouseMetadataGetJournalnew) ReadResult(w []byte, ret *StatshouseMetadataGetJournalResponsenew) (_ []byte, err error) {
 	return ret.ReadBoxed(w, item.FieldMask)
 }
 
-func (item *MetadataGetJournalnew) WriteResult(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
+func (item *StatshouseMetadataGetJournalnew) WriteResult(w []byte, ret StatshouseMetadataGetJournalResponsenew) (_ []byte, err error) {
 	return ret.WriteBoxed(w, item.FieldMask)
 }
 
-func (item *MetadataGetJournalnew) ReadResultJSON(j interface{}, ret *MetadataGetJournalResponsenew) error {
-	if err := MetadataGetJournalResponsenew__ReadJSON(ret, j, item.FieldMask); err != nil {
+func (item *StatshouseMetadataGetJournalnew) ReadResultJSON(j interface{}, ret *StatshouseMetadataGetJournalResponsenew) error {
+	if err := StatshouseMetadataGetJournalResponsenew__ReadJSON(ret, j, item.FieldMask); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *MetadataGetJournalnew) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
+func (item *StatshouseMetadataGetJournalnew) WriteResultJSON(w []byte, ret StatshouseMetadataGetJournalResponsenew) (_ []byte, err error) {
 	if w, err = ret.WriteJSON(w, item.FieldMask); err != nil {
 		return w, err
 	}
 	return w, nil
 }
 
-func (item *MetadataGetJournalnew) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetJournalResponsenew
+func (item *StatshouseMetadataGetJournalnew) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseMetadataGetJournalResponsenew
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -103,12 +105,12 @@ func (item *MetadataGetJournalnew) ReadResultWriteResultJSON(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item *MetadataGetJournalnew) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
+func (item *StatshouseMetadataGetJournalnew) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
 	j, err := JsonBytesToInterface(r)
 	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.getJournalnew", err.Error())
+		return r, w, ErrorInvalidJSON("statshouse_metadata.getJournalnew", err.Error())
 	}
-	var ret MetadataGetJournalResponsenew
+	var ret StatshouseMetadataGetJournalResponsenew
 	if err = item.ReadResultJSON(j, &ret); err != nil {
 		return r, w, err
 	}
@@ -116,7 +118,7 @@ func (item *MetadataGetJournalnew) ReadResultJSONWriteResult(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item MetadataGetJournalnew) String() string {
+func (item StatshouseMetadataGetJournalnew) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -124,13 +126,13 @@ func (item MetadataGetJournalnew) String() string {
 	return string(w)
 }
 
-func MetadataGetJournalnew__ReadJSON(item *MetadataGetJournalnew, j interface{}) error {
+func StatshouseMetadataGetJournalnew__ReadJSON(item *StatshouseMetadataGetJournalnew, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *MetadataGetJournalnew) readJSON(j interface{}) error {
+func (item *StatshouseMetadataGetJournalnew) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.getJournalnew", "expected json object")
+		return ErrorInvalidJSON("statshouse_metadata.getJournalnew", "expected json object")
 	}
 	_jFieldMask := _jm["field_mask"]
 	delete(_jm, "field_mask")
@@ -150,7 +152,7 @@ func (item *MetadataGetJournalnew) readJSON(j interface{}) error {
 	_jReturnIfEmpty := _jm["return_if_empty"]
 	delete(_jm, "return_if_empty")
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.getJournalnew", k)
+		return ErrorInvalidJSONExcessElement("statshouse_metadata.getJournalnew", k)
 	}
 	if _jReturnIfEmpty != nil {
 		_bit := false
@@ -166,7 +168,7 @@ func (item *MetadataGetJournalnew) readJSON(j interface{}) error {
 	return nil
 }
 
-func (item *MetadataGetJournalnew) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseMetadataGetJournalnew) WriteJSON(w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -190,17 +192,17 @@ func (item *MetadataGetJournalnew) WriteJSON(w []byte) (_ []byte, err error) {
 	return append(w, '}'), nil
 }
 
-func (item *MetadataGetJournalnew) MarshalJSON() ([]byte, error) {
+func (item *StatshouseMetadataGetJournalnew) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *MetadataGetJournalnew) UnmarshalJSON(b []byte) error {
+func (item *StatshouseMetadataGetJournalnew) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("metadata.getJournalnew", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.getJournalnew", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("metadata.getJournalnew", err.Error())
+		return ErrorInvalidJSON("statshouse_metadata.getJournalnew", err.Error())
 	}
 	return nil
 }

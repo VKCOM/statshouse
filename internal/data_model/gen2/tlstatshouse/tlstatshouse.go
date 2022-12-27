@@ -373,7 +373,7 @@ func (c *Client) GetMetrics2(ctx context.Context, args GetMetrics2, extra *rpc.I
 	return nil
 }
 
-func (c *Client) GetMetrics3Bytes(ctx context.Context, args GetMetrics3Bytes, extra *rpc.InvokeReqExtra, ret *internal.MetadataGetJournalResponsenewBytes) (err error) {
+func (c *Client) GetMetrics3Bytes(ctx context.Context, args GetMetrics3Bytes, extra *rpc.InvokeReqExtra, ret *internal.StatshouseMetadataGetJournalResponsenewBytes) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	if extra != nil {
@@ -396,7 +396,7 @@ func (c *Client) GetMetrics3Bytes(ctx context.Context, args GetMetrics3Bytes, ex
 	return nil
 }
 
-func (c *Client) GetMetrics3(ctx context.Context, args GetMetrics3, extra *rpc.InvokeReqExtra, ret *internal.MetadataGetJournalResponsenew) (err error) {
+func (c *Client) GetMetrics3(ctx context.Context, args GetMetrics3, extra *rpc.InvokeReqExtra, ret *internal.StatshouseMetadataGetJournalResponsenew) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	if extra != nil {
@@ -926,24 +926,24 @@ func (c *Client) TestConnection2(ctx context.Context, args TestConnection2, extr
 }
 
 type Handler struct {
-	AddMetricsBatch        func(ctx context.Context, args AddMetricsBatch) (internal.True, error)                       // statshouse.addMetricsBatch
-	AutoCreate             func(ctx context.Context, args AutoCreate) (internal.True, error)                            // statshouse.autoCreate
-	GetConfig              func(ctx context.Context, args GetConfig) (GetConfigResult, error)                           // statshouse.getConfig
-	GetConfig2             func(ctx context.Context, args GetConfig2) (GetConfigResult, error)                          // statshouse.getConfig2
-	GetMetrics             func(ctx context.Context, args GetMetrics) (GetMetricsResult, error)                         // statshouse.getMetrics
-	GetMetrics2            func(ctx context.Context, args GetMetrics2) (GetMetricsResult, error)                        // statshouse.getMetrics2
-	GetMetrics3            func(ctx context.Context, args GetMetrics3) (internal.MetadataGetJournalResponsenew, error)  // statshouse.getMetrics3
-	GetTagMapping          func(ctx context.Context, args GetTagMapping) (GetTagMappingResult, error)                   // statshouse.getTagMapping
-	GetTagMapping2         func(ctx context.Context, args GetTagMapping2) (GetTagMappingResult, error)                  // statshouse.getTagMapping2
-	GetTagMappingBootstrap func(ctx context.Context, args GetTagMappingBootstrap) (GetTagMappingBootstrapResult, error) // statshouse.getTagMappingBootstrap
-	GetTargets             func(ctx context.Context, args GetTargets) (GetTargetsResult, error)                         // statshouse.getTargets
-	GetTargets2            func(ctx context.Context, args GetTargets2) (GetTargetsResult, error)                        // statshouse.getTargets2
-	SendKeepAlive          func(ctx context.Context, args SendKeepAlive) (string, error)                                // statshouse.sendKeepAlive
-	SendKeepAlive2         func(ctx context.Context, args SendKeepAlive2) (string, error)                               // statshouse.sendKeepAlive2
-	SendSourceBucket       func(ctx context.Context, args SendSourceBucket) (string, error)                             // statshouse.sendSourceBucket
-	SendSourceBucket2      func(ctx context.Context, args SendSourceBucket2) (string, error)                            // statshouse.sendSourceBucket2
-	TestConnection         func(ctx context.Context, args TestConnection) (string, error)                               // statshouse.testConnection
-	TestConnection2        func(ctx context.Context, args TestConnection2) (string, error)                              // statshouse.testConnection2
+	AddMetricsBatch        func(ctx context.Context, args AddMetricsBatch) (internal.True, error)                                // statshouse.addMetricsBatch
+	AutoCreate             func(ctx context.Context, args AutoCreate) (internal.True, error)                                     // statshouse.autoCreate
+	GetConfig              func(ctx context.Context, args GetConfig) (GetConfigResult, error)                                    // statshouse.getConfig
+	GetConfig2             func(ctx context.Context, args GetConfig2) (GetConfigResult, error)                                   // statshouse.getConfig2
+	GetMetrics             func(ctx context.Context, args GetMetrics) (GetMetricsResult, error)                                  // statshouse.getMetrics
+	GetMetrics2            func(ctx context.Context, args GetMetrics2) (GetMetricsResult, error)                                 // statshouse.getMetrics2
+	GetMetrics3            func(ctx context.Context, args GetMetrics3) (internal.StatshouseMetadataGetJournalResponsenew, error) // statshouse.getMetrics3
+	GetTagMapping          func(ctx context.Context, args GetTagMapping) (GetTagMappingResult, error)                            // statshouse.getTagMapping
+	GetTagMapping2         func(ctx context.Context, args GetTagMapping2) (GetTagMappingResult, error)                           // statshouse.getTagMapping2
+	GetTagMappingBootstrap func(ctx context.Context, args GetTagMappingBootstrap) (GetTagMappingBootstrapResult, error)          // statshouse.getTagMappingBootstrap
+	GetTargets             func(ctx context.Context, args GetTargets) (GetTargetsResult, error)                                  // statshouse.getTargets
+	GetTargets2            func(ctx context.Context, args GetTargets2) (GetTargetsResult, error)                                 // statshouse.getTargets2
+	SendKeepAlive          func(ctx context.Context, args SendKeepAlive) (string, error)                                         // statshouse.sendKeepAlive
+	SendKeepAlive2         func(ctx context.Context, args SendKeepAlive2) (string, error)                                        // statshouse.sendKeepAlive2
+	SendSourceBucket       func(ctx context.Context, args SendSourceBucket) (string, error)                                      // statshouse.sendSourceBucket
+	SendSourceBucket2      func(ctx context.Context, args SendSourceBucket2) (string, error)                                     // statshouse.sendSourceBucket2
+	TestConnection         func(ctx context.Context, args TestConnection) (string, error)                                        // statshouse.testConnection
+	TestConnection2        func(ctx context.Context, args TestConnection2) (string, error)                                       // statshouse.testConnection2
 
 	RawAddMetricsBatch        func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.addMetricsBatch
 	RawAutoCreate             func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.autoCreate

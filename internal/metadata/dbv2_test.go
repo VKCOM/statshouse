@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 	"github.com/vkcom/statshouse/internal/format"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
@@ -170,7 +170,7 @@ func Test_SaveEntity_PredefinedEntity(t *testing.T) {
 	require.Equal(t, int64(-1), m.Id)
 }
 
-func unpackGetMappingUnion(u tlmetadata.GetMappingResponseUnion, err error) (int32, error) {
+func unpackGetMappingUnion(u tlstatshouse_metadata.GetMappingResponseUnion, err error) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
@@ -185,7 +185,7 @@ func unpackGetMappingUnion(u tlmetadata.GetMappingResponseUnion, err error) (int
 	return resp.Id, nil
 }
 
-func unpackInvertMappingUnion(u tlmetadata.GetInvertMappingResponseUnion, err error) (string, error) {
+func unpackInvertMappingUnion(u tlstatshouse_metadata.GetInvertMappingResponseUnion, err error) (string, error) {
 	if err != nil {
 		return "", err
 	}
@@ -548,7 +548,7 @@ func Test_Reread_Binlog_SaveMetric(t *testing.T) {
 		path := t.TempDir()
 		const task = 3
 		mx := sync.Mutex{}
-		metrics := map[string]tlmetadata.Event{}
+		metrics := map[string]tlstatshouse_metadata.Event{}
 		metricsNames := []string{"a", "b", "c", "d"}
 		opt := defaultOptions()
 		dbFile2 := "db"
@@ -596,7 +596,7 @@ func Test_Reread_Binlog_PutOldMetric(t *testing.T) {
 	test := func(t *testing.T, newDb bool) {
 		path := t.TempDir()
 		mx := sync.Mutex{}
-		metrics := map[string]tlmetadata.Event{}
+		metrics := map[string]tlstatshouse_metadata.Event{}
 		opt := defaultOptions()
 		dbFile2 := "db"
 		if newDb {

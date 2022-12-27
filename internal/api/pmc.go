@@ -13,13 +13,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse_metadata"
 
 	"github.com/vkcom/statshouse/internal/pcache"
 )
 
 type tagValueInverseLoader struct {
-	metaClient  *tlmetadata.Client
+	metaClient  *tlstatshouse_metadata.Client
 	loadTimeout time.Duration
 }
 
@@ -30,8 +30,8 @@ func (l tagValueInverseLoader) load(ctx context.Context, tagValueID string, _ in
 	if err != nil {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("%v not a integer", tagValueID))
 	}
-	resp := tlmetadata.GetInvertMappingResponseUnion{}
-	err = l.metaClient.GetInvertMapping(ctx, tlmetadata.GetInvertMapping{
+	resp := tlstatshouse_metadata.GetInvertMappingResponseUnion{}
+	err = l.metaClient.GetInvertMapping(ctx, tlstatshouse_metadata.GetInvertMapping{
 		Id: int32(parsed),
 	}, nil, &resp)
 	if err != nil {
@@ -48,17 +48,17 @@ func (l tagValueInverseLoader) load(ctx context.Context, tagValueID string, _ in
 
 type tagValueLoader struct {
 	loadTimeout time.Duration
-	metaClient  *tlmetadata.Client
+	metaClient  *tlstatshouse_metadata.Client
 }
 
 func (l tagValueLoader) load(ctx context.Context, tagValue string, _ interface{}) (pcache.Value, time.Duration, error) {
 	ctx, cancel := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancel()
-	req := tlmetadata.GetMapping{
+	req := tlstatshouse_metadata.GetMapping{
 		Key: tagValue,
 	}
 	req.SetCreateIfAbsent(false) // We do not need to validate tagValue, because we never ask to create here
-	resp := tlmetadata.GetMappingResponseUnion{}
+	resp := tlstatshouse_metadata.GetMappingResponseUnion{}
 	err := l.metaClient.GetMapping(ctx, req, nil, &resp)
 	if err != nil {
 		return nil, 0, err

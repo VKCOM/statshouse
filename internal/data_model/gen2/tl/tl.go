@@ -33,9 +33,6 @@ type (
 	VectorFloat                                   = internal.VectorFloat
 	VectorInt                                     = internal.VectorInt
 	VectorLong                                    = internal.VectorLong
-	VectorMetadataEvent                           = internal.VectorMetadataEvent
-	VectorMetadataEventBytes                      = internal.VectorMetadataEventBytes
-	VectorMetadataMetricOld                       = internal.VectorMetadataMetricOld
 	VectorStatshouseApiFilter                     = internal.VectorStatshouseApiFilter
 	VectorStatshouseApiFunctionBoxed              = internal.VectorStatshouseApiFunctionBoxed
 	VectorStatshouseApiSeriesMeta                 = internal.VectorStatshouseApiSeriesMeta
@@ -47,6 +44,9 @@ type (
 	VectorStatshouseItemBytes                     = internal.VectorStatshouseItemBytes
 	VectorStatshouseMapping                       = internal.VectorStatshouseMapping
 	VectorStatshouseMappingBytes                  = internal.VectorStatshouseMappingBytes
+	VectorStatshouseMetadataEvent                 = internal.VectorStatshouseMetadataEvent
+	VectorStatshouseMetadataEventBytes            = internal.VectorStatshouseMetadataEventBytes
+	VectorStatshouseMetadataMetricOld             = internal.VectorStatshouseMetadataMetricOld
 	VectorStatshouseMetric                        = internal.VectorStatshouseMetric
 	VectorStatshouseMetricBytes                   = internal.VectorStatshouseMetricBytes
 	VectorStatshouseMultiItem                     = internal.VectorStatshouseMultiItem
