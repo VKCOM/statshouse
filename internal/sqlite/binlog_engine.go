@@ -27,6 +27,11 @@ const (
 // Apply is used when re-reading or when working as a replica
 func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error) {
 	e := impl.e
+	if e.opt.ReadAndExit {
+		offs, err := impl.apply(payload)
+		e.commitTXAndStartNew(true, false)
+		return offs, err
+	}
 	if time.Since(impl.lastCommitTime) > e.opt.CommitEvery || impl.state == waitToCommit {
 		committedInfo := e.committedInfo.Load().(*committedInfo)
 		if committedInfo != nil && e.dbOffset > committedInfo.offset {
