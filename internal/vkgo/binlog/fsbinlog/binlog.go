@@ -233,7 +233,7 @@ func (b *fsBinlog) WriteLoop(ri PositionInfo) (PositionInfo, error) {
 	return b.writer.loop()
 }
 
-func (b *fsBinlog) Start(offset int64, snapshotMeta []byte, engine binlog.Engine) error {
+func (b *fsBinlog) Run(offset int64, snapshotMeta []byte, engine binlog.Engine) error {
 	readInfo, err := b.ReadAll(offset, snapshotMeta, engine)
 	if err != nil {
 		return err

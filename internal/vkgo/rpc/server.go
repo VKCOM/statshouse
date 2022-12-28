@@ -436,10 +436,10 @@ func (s *Server) acquireRequestBuf(ctx context.Context, reqBodySize int) (*[]byt
 	ok := s.reqMemSem.TryAcquire(int64(take))
 	if !ok {
 		s.rareLog(&s.lastReqMemWaitLog,
-			"rpc: waiting to acquire request memory (want %d, mem %.3f, limit %.3f, %d conns, %d reqs); consider increasing Server.RequestMemoryLimit",
+			"rpc: waiting to acquire request memory (want %d, mem %s, limit %s, %d conns, %d reqs); consider increasing Server.RequestMemoryLimit",
 			take,
-			float64(s.statRequestMemory.Load())/1024/1024,
-			float64(s.requestMemoryLimit())/1024/1024,
+			humanByteCountIEC(s.statRequestMemory.Load()),
+			humanByteCountIEC(int64(s.requestMemoryLimit())),
 			s.statConnectionsCurrent.Load(),
 			s.statRequestsCurrent.Load(),
 		)
@@ -477,10 +477,10 @@ func (s *Server) acquireResponseBuf(ctx context.Context) (*[]byte, int, error) {
 	ok := s.respMemSem.TryAcquire(int64(take))
 	if !ok {
 		s.rareLog(&s.lastRespMemWaitLog,
-			"rpc: waiting to acquire response memory (want %d, mem %.3f, limit %.3f, %d conns, %d reqs); consider increasing Server.ResponseMemoryLimit or lowering Server.ResponseMemEstimate",
+			"rpc: waiting to acquire response memory (want %d, mem %s, limit %s, %d conns, %d reqs); consider increasing Server.ResponseMemoryLimit or lowering Server.ResponseMemEstimate",
 			take,
-			float64(s.statResponseMemory.Load())/1024/1024,
-			float64(s.responseMemoryLimit())/1024/1024,
+			humanByteCountIEC(s.statResponseMemory.Load()),
+			humanByteCountIEC(int64(s.responseMemoryLimit())),
 			s.statConnectionsCurrent.Load(),
 			s.statRequestsCurrent.Load(),
 		)
@@ -516,10 +516,10 @@ func (s *Server) accountResponseMem(ctx context.Context, taken int, respBodySize
 		}
 		if !ok {
 			s.rareLog(&s.lastRespMemWaitLog,
-				"rpc: waiting to acquire response memory (want %d, mem %.3f, limit %.3f, %d conns, %d reqs); consider increasing Server.ResponseMemoryLimit",
+				"rpc: waiting to acquire response memory (want %d, mem %s, limit %s, %d conns, %d reqs); consider increasing Server.ResponseMemoryLimit",
 				want,
-				float64(s.statResponseMemory.Load())/1024/1024,
-				float64(s.responseMemoryLimit())/1024/1024,
+				humanByteCountIEC(s.statResponseMemory.Load()),
+				humanByteCountIEC(int64(s.responseMemoryLimit())),
 				s.statConnectionsCurrent.Load(),
 				s.statRequestsCurrent.Load(),
 			)

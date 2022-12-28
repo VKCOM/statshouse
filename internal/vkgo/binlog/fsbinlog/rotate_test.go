@@ -57,7 +57,7 @@ func TestBinlogRotate(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(0, []byte{}, engine))
+		assert.Nil(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -97,7 +97,7 @@ func TestRotateLevsCorrect(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Start(0, []byte{}, engine))
+		assert.NoError(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -146,7 +146,7 @@ func TestRotateLevsCorrectFromMiddle(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Start(0, []byte{}, engine))
+		assert.NoError(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -176,7 +176,7 @@ func TestRotateLevsCorrectFromMiddle(t *testing.T) {
 
 	stop = make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Start(0, []byte{}, engine))
+		assert.NoError(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 

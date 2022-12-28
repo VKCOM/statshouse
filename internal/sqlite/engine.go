@@ -15,12 +15,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
+
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 
 	"go.uber.org/atomic"
-
-	"github.com/vkcom/statshouse/internal/vkgo/sqlite/internal/sqlite0"
 
 	"go.uber.org/multierr"
 	"pgregory.net/rand"
@@ -216,7 +216,7 @@ func OpenEngine(
 		}
 
 		go func() {
-			err = binlog.Start(offset, meta, binlogEngineImpl)
+			err = binlog.Run(offset, meta, binlogEngineImpl)
 			if err != nil {
 				e.rw.mu.Lock()
 				e.rw.err = err

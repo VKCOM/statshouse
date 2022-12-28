@@ -8,7 +8,12 @@ package binlog
 
 import (
 	"errors"
+	"fmt"
+
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
+
+const BarsicNotAMasterRPCError = -2011 // TODO - move to better place
 
 var (
 	// ErrorUnknownMagic mean engine encounter unknown magic number.
@@ -27,6 +32,25 @@ type ChangeRoleInfo struct {
 }
 
 func (c ChangeRoleInfo) IsReadyMaster() bool { return c.IsMaster && c.IsReady }
+
+// Experimental, TODO - move to better place
+func (c ChangeRoleInfo) ValidateWriteRequest(hctx *rpc.HandlerContext) error {
+	c.ValidateReadRequest(hctx)
+	if !c.IsReadyMaster() {
+		return rpc.Error{
+			Code:        BarsicNotAMasterRPCError,
+			Description: fmt.Sprintf("%d not master", c.ViewNumber),
+		}
+	}
+	return nil
+}
+
+// Experimental, TODO - move to better place
+func (c ChangeRoleInfo) ValidateReadRequest(hctx *rpc.HandlerContext) {
+	if hctx != nil {
+		hctx.ResponseExtra.SetViewNumber(c.ViewNumber)
+	}
+}
 
 type EngineStatus struct { // copy of tlbarsic.EngineStatus
 	Version                  string
@@ -55,6 +79,7 @@ type Engine interface {
 	//
 	// * для Barsic payload всегда содержит только полные пользовательские события (возможно несколько). Движок обязан
 	//   обработать все данные из payload.
+	//   содержимое payload перетирается после завершения обработчика, не сохраняйте этот слайс или его подслайс.
 	Apply(payload []byte) (newOffset int64, err error)
 
 	// Skip говорит движку, что нужно пропустить skipLen байт бинлога. Это может быть вызвано тем, что внутри
@@ -67,6 +92,7 @@ type Engine interface {
 	// которые нужно записать в следующий снепшот и вернуть при старте движка в Binlog.Start
 	// safeSnapshotOffset это минимум от закоммиченной и локально fsync-нутой позиции, можно начинать реальную запись сделанного
 	// снапшота только когда эта позиция станет >= безопасной позиции снапшота
+	// содержимое snapshotMeta перетирается после завершения обработчика, не сохраняйте этот слайс или его подслайс.
 	Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64)
 
 	// Revert говорит движку, что все события начиная с позиции toOffset невалидны и движок должен откатить их из своего состояния.
@@ -91,7 +117,8 @@ type Binlog interface {
 	// Start запускает работу бинлогов. Если движок уже прочитал часть состояния из снепшота, он должен передать
 	// offset и snapshotMeta (берутся из Engine.Commit).
 	// Блокируется на все время работы бинлогов
-	Start(offset int64, snapshotMeta []byte, engine Engine) error
+	// содержимое snapshotMeta копируется, слайс или подслайс не сохраняется
+	Run(offset int64, snapshotMeta []byte, engine Engine) error
 
 	// Если движок испытывает желание перезапуститься, он может в любой момент, даже до Start, вызвать Restart
 	// 1 или более раз. Если движок был мастером, Барсик запустит процесс безоткатного снятия роли, затем
@@ -105,9 +132,11 @@ type Binlog interface {
 	//
 	// Функция не thread safe, движок должен сам следить за линеаризуемостью событий. Append не поглощает
 	// payload, этот слайс можно сразу переиспользовать
+	// содержимое payload копируется, слайс или подслайс не сохраняется
 	Append(onOffset int64, payload []byte) (nextLevOffset int64, err error)
 
 	// AppendASAP тоже что и Append, только просит имплементацию закоммитить события как только сможет
+	// содержимое payload копируется, слайс или подслайс не сохраняется
 	AppendASAP(onOffset int64, payload []byte) (nextLevOffset int64, err error)
 
 	// AddStats записывает статистику в stats. Формат соответствует стандартным 7enginestat

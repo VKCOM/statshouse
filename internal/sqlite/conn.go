@@ -6,7 +6,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vkcom/statshouse/internal/vkgo/sqlite/internal/sqlite0"
+	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
+
 	"pgregory.net/rand"
 )
 
