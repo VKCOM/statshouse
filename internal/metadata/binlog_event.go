@@ -10,18 +10,18 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/sqlite"
+
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
-
-	sqlite2 "github.com/vkcom/statshouse/internal/vkgo/sqlite"
 )
 
-func applyScanEvent(scanOnly bool) func(conn sqlite2.Conn, offset int64, data []byte) (int, error) {
-	return func(conn sqlite2.Conn, offset int64, data []byte) (int, error) {
+func applyScanEvent(scanOnly bool) func(conn sqlite.Conn, offset int64, data []byte) (int, error) {
+	return func(conn sqlite.Conn, offset int64, data []byte) (int, error) {
 		readCount := 0
 		var editMetricEvent tlmetadata.EditMetricEvent
 		var createMetricEvent tlmetadata.CreateMetricEvent
@@ -128,7 +128,7 @@ func applyScanEvent(scanOnly bool) func(conn sqlite2.Conn, offset int64, data []
 	}
 }
 
-func applyEditMetricEvent(conn sqlite2.Conn, event tlmetadata.EditMetricEvent) error {
+func applyEditMetricEvent(conn sqlite.Conn, event tlmetadata.EditMetricEvent) error {
 	return applyEditEntityEvent(conn, tlmetadata.EditEntityEvent{
 		Metric: tlmetadata.Event{
 			Id:         event.Metric.Id,
@@ -141,46 +141,46 @@ func applyEditMetricEvent(conn sqlite2.Conn, event tlmetadata.EditMetricEvent) e
 	})
 }
 
-func applyEditEntityEvent(conn sqlite2.Conn, event tlmetadata.EditEntityEvent) error {
+func applyEditEntityEvent(conn sqlite.Conn, event tlmetadata.EditEntityEvent) error {
 	deletedAt := event.Metric.Unused
 	_, err := conn.Exec("UPDATE metrics_v2 SET version = $newVersion, data = json($data), updated_at = $updatedAt, deleted_at = $deletedAt WHERE version = $oldVersion AND name = $name AND id = $id;",
-		sqlite2.BlobString("$data", event.Metric.Data),
-		sqlite2.Int64("$updatedAt", int64(event.Metric.UpdateTime)),
-		sqlite2.Int64("$oldVersion", event.OldVersion),
-		sqlite2.BlobString("$name", event.Metric.Name),
-		sqlite2.Int64("$id", event.Metric.Id),
-		sqlite2.Int64("$newVersion", event.Metric.Version),
-		sqlite2.Int64("$deletedAt", int64(deletedAt)))
+		sqlite.BlobString("$data", event.Metric.Data),
+		sqlite.Int64("$updatedAt", int64(event.Metric.UpdateTime)),
+		sqlite.Int64("$oldVersion", event.OldVersion),
+		sqlite.BlobString("$name", event.Metric.Name),
+		sqlite.Int64("$id", event.Metric.Id),
+		sqlite.Int64("$newVersion", event.Metric.Version),
+		sqlite.Int64("$deletedAt", int64(deletedAt)))
 	if err != nil {
 		return fmt.Errorf("failed to update metric: %w", err)
 	}
 	return nil
 }
 
-func applyCreateMappingEvent(conn sqlite2.Conn, event tlmetadata.CreateMappingEvent) error {
+func applyCreateMappingEvent(conn sqlite.Conn, event tlmetadata.CreateMappingEvent) error {
 	var err error
 	if event.IsSetCreate() {
 		_, err = conn.Exec("INSERT INTO flood_limits (last_time_update, count_free, metric_name) VALUES ($t, $c, $name)",
-			sqlite2.Int64("$t", int64(event.UpdatedAt)),
-			sqlite2.Int64("$c", event.Badget),
-			sqlite2.BlobString("$name", event.Metric))
+			sqlite.Int64("$t", int64(event.UpdatedAt)),
+			sqlite.Int64("$c", event.Badget),
+			sqlite.BlobString("$name", event.Metric))
 	} else {
 		_, err = conn.Exec("UPDATE flood_limits SET last_time_update = $t, count_free = $c WHERE metric_name = $name",
-			sqlite2.Int64("$t", int64(event.UpdatedAt)),
-			sqlite2.Int64("$c", event.Badget),
-			sqlite2.BlobString("$name", event.Metric))
+			sqlite.Int64("$t", int64(event.UpdatedAt)),
+			sqlite.Int64("$c", event.Badget),
+			sqlite.BlobString("$name", event.Metric))
 	}
 	if err != nil {
 		return err
 	}
 	_, err = conn.Exec("INSERT INTO mappings (name, id) VALUES ($name, $id)",
-		sqlite2.BlobString("$name", event.Key),
-		sqlite2.Int64("$id", int64(event.Id)),
+		sqlite.BlobString("$name", event.Key),
+		sqlite.Int64("$id", int64(event.Id)),
 	)
 	return err
 }
 
-func applyCreateMetricEvent(conn sqlite2.Conn, event tlmetadata.CreateMetricEvent) error {
+func applyCreateMetricEvent(conn sqlite.Conn, event tlmetadata.CreateMetricEvent) error {
 	return applyCreateEntityEvent(conn, tlmetadata.CreateEntityEvent{
 		Metric: tlmetadata.Event{
 			Id:         event.Metric.Id,
@@ -194,24 +194,24 @@ func applyCreateMetricEvent(conn sqlite2.Conn, event tlmetadata.CreateMetricEven
 	})
 }
 
-func applyCreateEntityEvent(conn sqlite2.Conn, event tlmetadata.CreateEntityEvent) error {
+func applyCreateEntityEvent(conn sqlite.Conn, event tlmetadata.CreateEntityEvent) error {
 	_, err := conn.Exec("INSERT INTO metrics_v2 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, json($data), $name, $updatedAt, $type, $deletedAt);",
-		sqlite2.BlobString("$data", event.Metric.Data),
-		sqlite2.BlobString("$name", event.Metric.Name),
-		sqlite2.Int64("$updatedAt", int64(event.Metric.UpdateTime)),
-		sqlite2.Int64("$id", event.Metric.Id),
-		sqlite2.Int64("$version", event.Metric.Version),
-		sqlite2.Int64("$type", int64(event.Metric.EventType)),
-		sqlite2.Int64("$deletedAt", int64(event.Metric.Unused)))
+		sqlite.BlobString("$data", event.Metric.Data),
+		sqlite.BlobString("$name", event.Metric.Name),
+		sqlite.Int64("$updatedAt", int64(event.Metric.UpdateTime)),
+		sqlite.Int64("$id", event.Metric.Id),
+		sqlite.Int64("$version", event.Metric.Version),
+		sqlite.Int64("$type", int64(event.Metric.EventType)),
+		sqlite.Int64("$deletedAt", int64(event.Metric.Unused)))
 	if err != nil {
 		return fmt.Errorf("failed to put new metric: %w", err)
 	}
 	return nil
 }
 
-func getOrCreateMapping(conn sqlite2.Conn, cache []byte, metricName, key string, now time.Time, globalBudget, maxBudget, budgetBonus int64, stepSec uint32, lastCreatedID int32) (tlmetadata.GetMappingResponseUnion, []byte, error) {
+func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, now time.Time, globalBudget, maxBudget, budgetBonus int64, stepSec uint32, lastCreatedID int32) (tlmetadata.GetMappingResponseUnion, []byte, error) {
 	var id int32
-	row := conn.Query("SELECT id FROM mappings where name = $name;", sqlite2.BlobString("$name", key))
+	row := conn.Query("SELECT id FROM mappings where name = $name;", sqlite.BlobString("$name", key))
 	if row.Error() != nil {
 		return tlmetadata.GetMappingResponseUnion{}, cache, row.Error()
 	}
@@ -225,7 +225,7 @@ func getOrCreateMapping(conn sqlite2.Conn, cache []byte, metricName, key string,
 	var timeUpdate uint32
 	var count int64
 	row = conn.Query("SELECT last_time_update, count_free from flood_limits WHERE metric_name = $name",
-		sqlite2.BlobString("$name", metricName))
+		sqlite.BlobString("$name", metricName))
 	if row.Error() != nil {
 		return tlmetadata.GetMappingResponse{Id: id}.AsUnion(), cache, row.Error()
 	}
@@ -247,24 +247,24 @@ func getOrCreateMapping(conn sqlite2.Conn, cache []byte, metricName, key string,
 			}
 		}
 		_, err = conn.Exec("UPDATE flood_limits SET last_time_update = $t, count_free = $c WHERE metric_name = $name",
-			sqlite2.Int64("$t", int64(pred)),
-			sqlite2.Int64("$c", countToInsert),
-			sqlite2.BlobString("$name", metricName))
+			sqlite.Int64("$t", int64(pred)),
+			sqlite.Int64("$c", countToInsert),
+			sqlite.BlobString("$name", metricName))
 		if err != nil {
 			return tlmetadata.GetMappingResponseUnion{}, cache, err
 		}
 	} else {
 		countToInsert = maxBudget - 1
 		_, err = conn.Exec("INSERT INTO flood_limits (last_time_update, count_free, metric_name) VALUES ($t, $c, $name)",
-			sqlite2.Int64("$t", int64(pred)),
-			sqlite2.Int64("$c", countToInsert),
-			sqlite2.BlobString("$name", metricName))
+			sqlite.Int64("$t", int64(pred)),
+			sqlite.Int64("$c", countToInsert),
+			sqlite.BlobString("$name", metricName))
 	}
 	if err != nil {
 		return tlmetadata.GetMappingResponseUnion{}, cache, fmt.Errorf("failed to update flood limits: %w", err)
 	}
 
-	idResp, err := conn.Exec("INSERT INTO mappings (name) VALUES ($name)", sqlite2.BlobString("$name", key))
+	idResp, err := conn.Exec("INSERT INTO mappings (name) VALUES ($name)", sqlite.BlobString("$name", key))
 	if err != nil {
 		return tlmetadata.GetMappingResponseUnion{}, cache, fmt.Errorf("failed to insert mapping: %w", err)
 	}
@@ -281,9 +281,9 @@ func getOrCreateMapping(conn sqlite2.Conn, cache []byte, metricName, key string,
 	return tlmetadata.GetMappingResponseCreated{Id: id}.AsUnion(), eventBytes, err
 }
 
-func putMapping(conn sqlite2.Conn, cache []byte, ks []string, vs []int32) ([]byte, error) {
+func putMapping(conn sqlite.Conn, cache []byte, ks []string, vs []int32) ([]byte, error) {
 	for i := range ks {
-		_, err := conn.Exec("INSERT OR REPLACE INTO mappings(id, name) VALUES($id, $name);", sqlite2.Int64("$id", int64(vs[i])), sqlite2.BlobString("$name", ks[i]))
+		_, err := conn.Exec("INSERT OR REPLACE INTO mappings(id, name) VALUES($id, $name);", sqlite.Int64("$id", int64(vs[i])), sqlite.BlobString("$name", ks[i]))
 		if err != nil {
 			return cache, err
 		}
@@ -297,7 +297,7 @@ func putMapping(conn sqlite2.Conn, cache []byte, ks []string, vs []int32) ([]byt
 	return cache, err
 }
 
-func applyPutBootstrap(conn sqlite2.Conn, cache []byte, mappings []tlstatshouse.Mapping) (int32, []byte, error) {
+func applyPutBootstrap(conn sqlite.Conn, cache []byte, mappings []tlstatshouse.Mapping) (int32, []byte, error) {
 	filteredMappings := make([]tlstatshouse.Mapping, 0, len(mappings))
 	for _, m := range mappings {
 		k, isExists, err := getMappingByID(conn, m.Value)
@@ -315,8 +315,8 @@ func applyPutBootstrap(conn sqlite2.Conn, cache []byte, mappings []tlstatshouse.
 		return 0, cache, err
 	}
 	_, err = conn.Exec("INSERT OR REPLACE INTO property (name, data) VALUES ($name, $data)",
-		sqlite2.BlobString("$name", bootstrapFieldName),
-		sqlite2.Blob("$data", bytes))
+		sqlite.BlobString("$name", bootstrapFieldName),
+		sqlite.Blob("$data", bytes))
 	if err != nil {
 		return 0, cache, err
 	}
@@ -327,15 +327,15 @@ func applyPutBootstrap(conn sqlite2.Conn, cache []byte, mappings []tlstatshouse.
 	return int32(len(filteredMappings)), cache, err
 }
 
-func putEntityWithFixedID(conn sqlite2.Conn, cache []byte, name string, id int64, versionToInsert int64, newJson string, updateTime uint32, typ int32) (tlmetadata.Event, []byte, error) {
+func putEntityWithFixedID(conn sqlite.Conn, cache []byte, name string, id int64, versionToInsert int64, newJson string, updateTime uint32, typ int32) (tlmetadata.Event, []byte, error) {
 	result := tlmetadata.Event{}
 	_, err := conn.Exec("INSERT INTO metrics_v2 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, json($data), $name, $updatedAt, $type, 0);",
-		sqlite2.Int64("$id", id),
-		sqlite2.Int64("$version", versionToInsert),
-		sqlite2.BlobString("$data", newJson),
-		sqlite2.BlobString("$name", name),
-		sqlite2.Int64("$updatedAt", int64(updateTime)),
-		sqlite2.Int64("$type", int64(typ)))
+		sqlite.Int64("$id", id),
+		sqlite.Int64("$version", versionToInsert),
+		sqlite.BlobString("$data", newJson),
+		sqlite.BlobString("$name", name),
+		sqlite.Int64("$updatedAt", int64(updateTime)),
+		sqlite.Int64("$type", int64(typ)))
 	if err != nil {
 		return result, cache, err
 	}

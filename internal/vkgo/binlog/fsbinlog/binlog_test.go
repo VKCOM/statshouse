@@ -226,7 +226,7 @@ func OpenBinlogAndWriteLevs(t *testing.T, options binlog.Options, engine TestEng
 	assert.Nil(t, err)
 
 	go func() {
-		err = bl.Start(0, []byte{}, engine)
+		err = bl.Run(0, []byte{}, engine)
 		assert.Nil(t, err)
 	}()
 
@@ -285,7 +285,7 @@ func TestBinlogSetGet(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(0, []byte{}, engine))
+		assert.Nil(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -343,7 +343,7 @@ func TestUnknownMagic(t *testing.T) {
 	bl, err := NewFsBinlog(&LoggerStdout{}, options)
 	assert.Nil(t, err)
 
-	require.Error(t, bl.Start(0, []byte{}, engine))
+	require.Error(t, bl.Run(0, []byte{}, engine))
 
 	assert.Equal(t, len(testLevs), count)
 	assert.NoError(t, bl.Shutdown())
@@ -388,7 +388,7 @@ func TestBinlogReadFromPosition(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(snapPos, []byte{}, engine))
+		assert.Nil(t, bl.Run(snapPos, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -440,7 +440,7 @@ func TestBinlogReadFromPositionRotateFile(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(snapPos, []byte{}, engine))
+		assert.Nil(t, bl.Run(snapPos, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -504,7 +504,7 @@ func TestBinlogWriteWithSeveralFiles(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(snapPos, []byte{}, engine))
+		assert.Nil(t, bl.Run(snapPos, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -561,7 +561,7 @@ func TestBinlogSimulateMasterChangeWithPartialEvent(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Start(0, []byte{}, engine))
+		assert.NoError(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -622,7 +622,7 @@ func TestBinlogBigSetGetRandom(t *testing.T) {
 
 		stop := make(chan struct{})
 		go func() {
-			assert.NoError(t, bl.Start(0, []byte{}, engine))
+			assert.NoError(t, bl.Run(0, []byte{}, engine))
 			stop <- struct{}{}
 		}()
 
@@ -672,7 +672,7 @@ func TestBinlogBigSetGetRandom(t *testing.T) {
 	assert.Nil(t, err)
 	stop := make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Start(0, []byte{}, readEngine))
+		assert.NoError(t, bl.Run(0, []byte{}, readEngine))
 		stop <- struct{}{}
 	}()
 
@@ -716,7 +716,7 @@ func TestBigLev(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(0, []byte{}, engine))
+		assert.Nil(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -768,7 +768,7 @@ func TestSnapshotMeta(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		require.NoError(t, bl.Start(snapPos, snapMeta, engine))
+		require.NoError(t, bl.Run(snapPos, snapMeta, engine))
 		stop <- struct{}{}
 	}()
 
@@ -819,7 +819,7 @@ func TestSnapshotMetaCommitInDifferentFile(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		require.NoError(t, bl.Start(snapPos, snapMeta, engine))
+		require.NoError(t, bl.Run(snapPos, snapMeta, engine))
 		stop <- struct{}{}
 	}()
 
@@ -843,7 +843,7 @@ func BenchmarkWrite(b *testing.B) {
 	engine := NewTestEngine(0)
 
 	go func() {
-		if err := bl.Start(0, []byte{}, engine); err != nil {
+		if err := bl.Run(0, []byte{}, engine); err != nil {
 			log.Fatalln(err)
 		}
 	}()
@@ -954,7 +954,7 @@ func TestReplicaWithRotate(t *testing.T) {
 
 	stopChan := make(chan struct{})
 	go func() {
-		assert.Nil(t, replicaBl.Start(snapPos, []byte{}, replicaEngine))
+		assert.Nil(t, replicaBl.Run(snapPos, []byte{}, replicaEngine))
 		stopChan <- struct{}{}
 	}()
 
@@ -1006,7 +1006,7 @@ func TestBinlogReadAndExit(t *testing.T) {
 	bl, err := NewFsBinlog(&LoggerStdout{}, options)
 	assert.Nil(t, err)
 
-	assert.Nil(t, bl.Start(0, []byte{}, engine))
+	assert.Nil(t, bl.Run(0, []byte{}, engine))
 
 	assert.Equal(t, len(testLevs), count)
 }

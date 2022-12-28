@@ -9,7 +9,7 @@ package sqlite
 import (
 	"fmt"
 
-	"github.com/vkcom/statshouse/internal/vkgo/sqlite/internal/sqlite0"
+	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
 )
 
 const (

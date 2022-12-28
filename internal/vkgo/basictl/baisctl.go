@@ -24,6 +24,8 @@ const (
 	hugeStringLen    = (1 << 56) - 1
 )
 
+var errBadPadding = fmt.Errorf("non-canonical non-zero string padding")
+
 func CheckLengthSanity(r []byte, natParam uint32, minObjectSize uint32) error {
 	if uint64(len(r)) < uint64(natParam)*uint64(minObjectSize) { // Must wrap io.ErrUnexpectedEOF
 		return fmt.Errorf("invalid length: %d for remaining reader length: %d and min object size %d: %w", natParam, len(r), minObjectSize, io.ErrUnexpectedEOF)
@@ -185,6 +187,11 @@ func StringReadBytes(r []byte, dst *[]byte) ([]byte, error) {
 	padding := paddingLen(p)
 	if len(r) < l+padding {
 		return r, io.ErrUnexpectedEOF
+	}
+	for i := 0; i < padding; i++ {
+		if r[l+i] != 0 {
+			return r, errBadPadding
+		}
 	}
 	return r[l+padding:], nil
 }
