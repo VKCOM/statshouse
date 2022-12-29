@@ -4,7 +4,7 @@ services:
   metadata:
     profiles:
       - sh
-      - api-dev
+      - api-off
     build:
       context: .
       dockerfile: build/statshouse-metadata.Dockerfile
@@ -21,12 +21,12 @@ services:
     profiles:
       - sh
       - kh
-      - api-dev
+      - api-off
     build:
       context: .
       dockerfile: build/clickhouse.Dockerfile
     container_name: kh
-    hostname: aggregator
+    hostname: localhost
     volumes:
       - kh:/var/lib/clickhouse
     ports:
@@ -40,7 +40,7 @@ services:
   aggregator:
     profiles:
       - sh
-      - api-dev
+      - api-off
     build:
       context: .
       dockerfile: build/statshouse.Dockerfile
@@ -48,7 +48,7 @@ services:
         - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-aggregator
     user: "root:root"
-    command: aggregator -u=root -g=root --cluster=test_shard_aggregator --log-level=trace --agg-addr=':13336' --kh=kh:8123 --metadata-addr=metadata:2442 --auto-create --cache-dir=/var/lib/statshouse/cache/aggregator
+    command: aggregator -u=root -g=root --cluster=test_shard_localhost --log-level=trace --agg-addr=':13336' --kh=kh:8123 --metadata-addr=metadata:2442 --auto-create --cache-dir=/var/lib/statshouse/cache/aggregator
     ports:
       - "13336:13336"
     depends_on:
@@ -57,7 +57,7 @@ services:
   agent:
     profiles:
       - sh
-      - api-dev
+      - api-off
     build:
       context: .
       dockerfile: build/statshouse.Dockerfile
@@ -65,11 +65,12 @@ services:
         - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-agent
     user: "root:root"
-    command: agent -u=root -g=root --cluster=test_shard_aggregator --log-level=trace --agg-addr='aggregator:13336,aggregator:13336,aggregator:13336' --cache-dir=/var/lib/statshouse/cache/agent --remote-write-enabled
+    command: agent -u=root -g=root --cluster=test_shard_localhost --log-level=trace --agg-addr='aggregator:13336,aggregator:13336,aggregator:13336' --cache-dir=/var/lib/statshouse/cache/agent --remote-write-enabled
     expose:
       - 8081
     ports:
       - "13337:13337/udp"
+      - "13337:13337/tcp"
     depends_on:
       - aggregator
   api:
@@ -94,14 +95,57 @@ services:
     build:
       context: .
       dockerfile: build/all-in-one.Dockerfile
-    container_name: sh-all-in-one
+    container_name: sh
     user: "root:root"
     ports:
       - "2442:2442"
       - "8123:8123"
+      - "9000:9000"
       - "10888:10888"
       - "13336:13336"
       - "13337:13337/udp"
+      - "13337:13337/tcp"
+    volumes:
+      - metadata:/var/lib/statshouse/metadata
+      - kh:/var/lib/clickhouse
+  all-but-aggregator:
+    profiles:
+      - aggregator-off
+    build:
+      context: .
+      dockerfile: build/all-in-one.Dockerfile
+    container_name: sh
+    user: "root:root"
+    environment:
+      - AGGREGATOR_OFF=1
+    expose:
+      - 2442
+      - 8123
+      - 9000
+      - 10888
+      - 13337/udp
+      - 13337/tcp
+    network_mode: host
+    volumes:
+      - metadata:/var/lib/statshouse/metadata
+      - kh:/var/lib/clickhouse
+  all-but-agent:
+    profiles:
+      - agent-off
+    build:
+      context: .
+      dockerfile: build/all-in-one.Dockerfile
+    container_name: sh
+    user: "root:root"
+    environment:
+      - AGENT_OFF=1
+    expose:
+      - 2442
+      - 8123
+      - 9000
+      - 10888
+      - 13336
+    network_mode: host
     volumes:
       - metadata:/var/lib/statshouse/metadata
       - kh:/var/lib/clickhouse
