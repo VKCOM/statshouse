@@ -8,5 +8,5 @@
 /statshouse-ui/src/view/lib/**                   linguist-vendored
 /statshouse-ui/public/openapi/*.js               linguist-vendored
 /statshouse-ui/public/openapi/*.css              linguist-vendored
-/internal/vkgo/sqlite/internal/sqlite0/sqlite3.* linguist-vendored
+/internal/sqlite/internal/sqlite0/sqlite3.* linguist-vendored
 /internal/data_model/gen2/**                      linguist-generated
