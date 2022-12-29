@@ -1,0 +1,15 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="aggregator" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="statshouse" />
+    <working_directory value="$PROJECT_DIR$" />
+    <parameters value="aggregator --cluster=test_shard_localhost --log-level=trace --agg-addr=':13336' --kh=localhost:8123 --metadata-addr=localhost:2442 --auto-create --cache-dir=target/run/cache/aggregator" />
+    <kind value="DIRECTORY" />
+    <package value="github.com/vkcom/statshouse/cmd/statshouse" />
+    <directory value="$PROJECT_DIR$/cmd/statshouse" />
+    <filePath value="$PROJECT_DIR$/cmd/statshouse/statshouse.go" />
+    <output_directory value="$PROJECT_DIR$/target" />
+    <method v="2">
+      <option name="RunConfigurationTask" enabled="true" run_configuration_name="reset-cache" run_configuration_type="ShConfigurationType" />
+    </method>
+  </configuration>
+</component>
