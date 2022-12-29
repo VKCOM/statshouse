@@ -51,7 +51,7 @@ cases, StatsHouse provides a Grafana data source plugin as well.
 ## Presentations
 
 - HighLoad++ 2022 (in Russian):
-  [video](https://www.youtube.com/watch?v=oWXaQrCNK-Q&t=365s),
+  [video](https://www.youtube.com/watch?v=gs2_PGgPVwU),
   [slides](./docs/presentations/highload2022.ru.pdf)
 
 ## Clients
