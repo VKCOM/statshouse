@@ -18,6 +18,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 
 func TestBinlogRotate(t *testing.T) {
@@ -25,7 +27,7 @@ func TestBinlogRotate(t *testing.T) {
 
 	testLevs := []string{genStr(256), genStr(700), genStr(512), genStr(256)}
 
-	options := Options{
+	options := binlog.Options{
 		PrefixPath:   dir + "/test_pref",
 		MaxChunkSize: 1024,
 		Magic:        testMagic,
@@ -55,7 +57,7 @@ func TestBinlogRotate(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(0, []byte{}, engine))
+		assert.Nil(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -80,7 +82,7 @@ func TestRotateLevsCorrect(t *testing.T) {
 		testLevs[i] = genStr(seededRand.Intn(1024 * 10))
 	}
 
-	options := Options{
+	options := binlog.Options{
 		PrefixPath:   dir + "/test_pref",
 		Magic:        testMagic,
 		MaxChunkSize: 1024 * 1024,
@@ -95,7 +97,7 @@ func TestRotateLevsCorrect(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Start(0, []byte{}, engine))
+		assert.NoError(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -129,7 +131,7 @@ func TestRotateLevsCorrectFromMiddle(t *testing.T) {
 		testLevs[i] = genStr(seededRand.Intn(1024 * 10))
 	}
 
-	options := Options{
+	options := binlog.Options{
 		PrefixPath:   dir + "/test_pref",
 		Magic:        testMagic,
 		MaxChunkSize: 1024 * 1024 / 2,
@@ -144,7 +146,7 @@ func TestRotateLevsCorrectFromMiddle(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Start(0, []byte{}, engine))
+		assert.NoError(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -174,7 +176,7 @@ func TestRotateLevsCorrectFromMiddle(t *testing.T) {
 
 	stop = make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Start(0, []byte{}, engine))
+		assert.NoError(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 

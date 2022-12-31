@@ -31,8 +31,8 @@ func ParseTrustedSubnets(groups [][]string) (trustedSubnetGroups [][]*net.IPNet,
 	return trustedSubnetGroups, errs
 }
 
-func (pc *PacketConn) HandshakeClient(cryptoKey string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, startTime int32, flags uint32) error {
-	body, keys, err := pc.nonceExchangeClient(nil, cryptoKey, trustedSubnetGroups, forceEncryption)
+func (pc *PacketConn) HandshakeClient(cryptoKey string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, startTime int32, flags uint32, handshakeStepTimeout time.Duration) error {
+	body, keys, err := pc.nonceExchangeClient(nil, cryptoKey, trustedSubnetGroups, forceEncryption, handshakeStepTimeout)
 	if err != nil {
 		return fmt.Errorf("nonce exchange failed: %w", err)
 	}
@@ -44,7 +44,7 @@ func (pc *PacketConn) HandshakeClient(cryptoKey string, trustedSubnetGroups [][]
 		}
 	}
 
-	_, hs, err := pc.handshakeExchangeClient(body, startTime, flags)
+	_, hs, err := pc.handshakeExchangeClient(body, startTime, flags, handshakeStepTimeout)
 	if err != nil {
 		return fmt.Errorf("handshake exchange failed between %v (local) and %v: %w", pc.conn.LocalAddr(), pc.conn.RemoteAddr(), err)
 	}
@@ -56,8 +56,8 @@ func (pc *PacketConn) HandshakeClient(cryptoKey string, trustedSubnetGroups [][]
 	return nil
 }
 
-func (pc *PacketConn) HandshakeServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, startTime int32) ([]byte, uint32, error) {
-	magicHead, keys, body, err := pc.nonceExchangeServer(nil, cryptoKeys, trustedSubnetGroups, forceEncryption)
+func (pc *PacketConn) HandshakeServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, startTime int32, handshakeStepTimeout time.Duration) ([]byte, uint32, error) {
+	magicHead, keys, body, err := pc.nonceExchangeServer(nil, cryptoKeys, trustedSubnetGroups, forceEncryption, handshakeStepTimeout)
 	if err != nil {
 		return magicHead, 0, fmt.Errorf("nonce exchange failed: %w", err)
 	}
@@ -69,7 +69,7 @@ func (pc *PacketConn) HandshakeServer(cryptoKeys []string, trustedSubnetGroups [
 		}
 	}
 
-	clientHandshake, _, err := pc.handshakeExchangeServer(body, startTime)
+	clientHandshake, _, err := pc.handshakeExchangeServer(body, startTime, handshakeStepTimeout)
 	if err != nil {
 		return nil, 0, fmt.Errorf("handshake exchange failed between %v (local) and %v: %w", pc.conn.LocalAddr(), pc.conn.RemoteAddr(), err)
 	}
@@ -80,7 +80,7 @@ func (pc *PacketConn) HandshakeServer(cryptoKeys []string, trustedSubnetGroups [
 	return nil, clientHandshake.Flags, nil
 }
 
-func (pc *PacketConn) nonceExchangeClient(body []byte, cryptoKey string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool) ([]byte, *cryptoKeys, error) {
+func (pc *PacketConn) nonceExchangeClient(body []byte, cryptoKey string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, handshakeStepTimeout time.Duration) ([]byte, *cryptoKeys, error) {
 	client, err := prepareNonceClient(cryptoKey, trustedSubnetGroups, forceEncryption, pc.conn.LocalAddr(), pc.conn.RemoteAddr())
 	if err != nil {
 		return body, nil, err
@@ -117,7 +117,7 @@ func (pc *PacketConn) nonceExchangeClient(body []byte, cryptoKey string, trusted
 	return body, nil, nil
 }
 
-func (pc *PacketConn) nonceExchangeServer(body []byte, cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool) (magicHead []byte, keys *cryptoKeys, _ []byte, err error) {
+func (pc *PacketConn) nonceExchangeServer(body []byte, cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, handshakeStepTimeout time.Duration) (magicHead []byte, keys *cryptoKeys, _ []byte, err error) {
 	reqType, magicHead, body, err := pc.readPacketWithMagic(body[:0], handshakeStepTimeout)
 	if err != nil {
 		return magicHead, nil, body, err
@@ -235,7 +235,7 @@ func (pc *PacketConn) deriveKeysServer(cryptoKey string, clientTime int32, clien
 		serverNonce, serverIP, serverPort)
 }
 
-func (pc *PacketConn) handshakeExchangeClient(body []byte, startTime int32, flags uint32) ([]byte, *handshakeMsg, error) {
+func (pc *PacketConn) handshakeExchangeClient(body []byte, startTime int32, flags uint32, handshakeStepTimeout time.Duration) ([]byte, *handshakeMsg, error) {
 	client := prepareHandshakeClient(pc.conn.LocalAddr(), startTime, flags)
 
 	body = client.writeTo(body[:0])
@@ -261,7 +261,7 @@ func (pc *PacketConn) handshakeExchangeClient(body []byte, startTime int32, flag
 	}, nil
 }
 
-func (pc *PacketConn) handshakeExchangeServer(body []byte, startTime int32) (*handshakeMsg, []byte, error) {
+func (pc *PacketConn) handshakeExchangeServer(body []byte, startTime int32, handshakeStepTimeout time.Duration) (*handshakeMsg, []byte, error) {
 	reqType, body, err := pc.ReadPacket(body, handshakeStepTimeout)
 	if err != nil {
 		return nil, body, err

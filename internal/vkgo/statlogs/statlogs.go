@@ -322,40 +322,41 @@ func fillTag(k *metricKeyTransport, tagName string, tagValue string) {
 	}
 	k.tags[k.numSet] = [2]string{tagName, tagValue}
 	k.numSet++
-	k.hasEnv = tagName == "0" || tagName == "env" || tagName == "key0" // TODO - keep only first ==
+	k.hasEnv = k.hasEnv || tagName == "0" || tagName == "env" || tagName == "key0" // TODO - keep only "0", rest are legacy
 }
-
-// TODO - replace "key0" , "key1"... below, also replace "skey"
 
 func (r *Registry) send() {
 	ss, ssn, env := r.load()
 	for _, s := range ss {
 		k := metricKeyTransport{name: s.k.name}
-		fillTag(&k, "key0", s.k.tags.Env)
-		fillTag(&k, "key1", s.k.tags.Tag1)
-		fillTag(&k, "key2", s.k.tags.Tag2)
-		fillTag(&k, "key3", s.k.tags.Tag3)
-		fillTag(&k, "key4", s.k.tags.Tag4)
-		fillTag(&k, "key5", s.k.tags.Tag5)
-		fillTag(&k, "key6", s.k.tags.Tag6)
-		fillTag(&k, "key7", s.k.tags.Tag7)
-		fillTag(&k, "key8", s.k.tags.Tag8)
-		fillTag(&k, "key9", s.k.tags.Tag9)
-		fillTag(&k, "key10", s.k.tags.Tag10)
-		fillTag(&k, "key11", s.k.tags.Tag11)
-		fillTag(&k, "key12", s.k.tags.Tag12)
-		fillTag(&k, "key13", s.k.tags.Tag13)
-		fillTag(&k, "key14", s.k.tags.Tag14)
-		fillTag(&k, "key15", s.k.tags.Tag15)
+		fillTag(&k, "0", s.k.tags.Env)
+		fillTag(&k, "1", s.k.tags.Tag1)
+		fillTag(&k, "2", s.k.tags.Tag2)
+		fillTag(&k, "3", s.k.tags.Tag3)
+		fillTag(&k, "4", s.k.tags.Tag4)
+		fillTag(&k, "5", s.k.tags.Tag5)
+		fillTag(&k, "6", s.k.tags.Tag6)
+		fillTag(&k, "7", s.k.tags.Tag7)
+		fillTag(&k, "8", s.k.tags.Tag8)
+		fillTag(&k, "9", s.k.tags.Tag9)
+		fillTag(&k, "10", s.k.tags.Tag10)
+		fillTag(&k, "11", s.k.tags.Tag11)
+		fillTag(&k, "12", s.k.tags.Tag12)
+		fillTag(&k, "13", s.k.tags.Tag13)
+		fillTag(&k, "14", s.k.tags.Tag14)
+		fillTag(&k, "15", s.k.tags.Tag15)
+		if !k.hasEnv {
+			fillTag(&k, "0", env)
+		}
 
 		r.swapToCur(s.v)
 		if n := atomicLoadFloat64(&r.cur.atomicCount); n > 0 {
-			r.sendCounter(&k, env, "", n, 0)
+			r.sendCounter(&k, "", n, 0)
 		}
-		r.sendValues(&k, env, "", 0, 0, r.cur.value)
-		r.sendUniques(&k, env, "", 0, 0, r.cur.unique)
+		r.sendValues(&k, "", 0, 0, r.cur.value)
+		r.sendUniques(&k, "", 0, 0, r.cur.unique)
 		for _, skey := range r.cur.stop {
-			r.sendCounter(&k, env, skey, 1, 0)
+			r.sendCounter(&k, skey, 1, 0)
 		}
 	}
 	for _, s := range ssn {
@@ -363,32 +364,35 @@ func (r *Registry) send() {
 		for _, v := range s.k.tags {
 			fillTag(&k, v[0], v[1])
 		}
+		if !k.hasEnv {
+			fillTag(&k, "0", env)
+		}
 
 		r.swapToCur(s.v)
 		if n := atomicLoadFloat64(&r.cur.atomicCount); n > 0 {
-			r.sendCounter(&k, env, "", n, 0)
+			r.sendCounter(&k, "", n, 0)
 		}
-		r.sendValues(&k, env, "", 0, 0, r.cur.value)
-		r.sendUniques(&k, env, "", 0, 0, r.cur.unique)
+		r.sendValues(&k, "", 0, 0, r.cur.value)
+		r.sendUniques(&k, "", 0, 0, r.cur.unique)
 		for _, skey := range r.cur.stop {
-			r.sendCounter(&k, env, skey, 1, 0)
+			r.sendCounter(&k, skey, 1, 0)
 		}
 	}
 
 	r.flush()
 }
 
-func (r *Registry) sendCounter(k *metricKeyTransport, env string, skey string, counter float64, tsUnixSec uint32) {
-	_ = r.writeHeader(k, env, skey, counter, tsUnixSec, counterFieldsMask|newSemanticFieldsMask, 0)
+func (r *Registry) sendCounter(k *metricKeyTransport, skey string, counter float64, tsUnixSec uint32) {
+	_ = r.writeHeader(k, skey, counter, tsUnixSec, counterFieldsMask|newSemanticFieldsMask, 0)
 }
 
-func (r *Registry) sendUniques(k *metricKeyTransport, env string, skey string, counter float64, tsUnixSec uint32, values []int64) {
+func (r *Registry) sendUniques(k *metricKeyTransport, skey string, counter float64, tsUnixSec uint32, values []int64) {
 	fieldsMask := uniqueFieldsMask | newSemanticFieldsMask
 	if counter != 0 && counter != float64(len(values)) {
 		fieldsMask |= counterFieldsMask
 	}
 	for len(values) > 0 {
-		left := r.writeHeader(k, env, skey, counter, tsUnixSec, fieldsMask, tlInt32Size+tlInt64Size)
+		left := r.writeHeader(k, skey, counter, tsUnixSec, fieldsMask, tlInt32Size+tlInt64Size)
 		if left < 0 {
 			return // header did not fit into empty buffer
 		}
@@ -404,13 +408,13 @@ func (r *Registry) sendUniques(k *metricKeyTransport, env string, skey string, c
 	}
 }
 
-func (r *Registry) sendValues(k *metricKeyTransport, env string, skey string, counter float64, tsUnixSec uint32, values []float64) {
+func (r *Registry) sendValues(k *metricKeyTransport, skey string, counter float64, tsUnixSec uint32, values []float64) {
 	fieldsMask := valueFieldsMask | newSemanticFieldsMask
 	if counter != 0 && counter != float64(len(values)) {
 		fieldsMask |= counterFieldsMask
 	}
 	for len(values) > 0 {
-		left := r.writeHeader(k, env, skey, counter, tsUnixSec, fieldsMask, tlInt32Size+tlFloat64Size)
+		left := r.writeHeader(k, skey, counter, tsUnixSec, fieldsMask, tlInt32Size+tlFloat64Size)
 		if left < 0 {
 			return // header did not fit into empty buffer
 		}
@@ -456,7 +460,7 @@ func (r *Registry) flush() {
 	}
 }
 
-func (r *Registry) writeHeaderImpl(k *metricKeyTransport, env string, skey string, counter float64, tsUnixSec uint32, fieldsMask uint32) {
+func (r *Registry) writeHeaderImpl(k *metricKeyTransport, skey string, counter float64, tsUnixSec uint32, fieldsMask uint32) {
 	if tsUnixSec != 0 {
 		fieldsMask |= tsFieldsMask
 	}
@@ -464,18 +468,12 @@ func (r *Registry) writeHeaderImpl(k *metricKeyTransport, env string, skey strin
 	r.packetBuf = basictl.StringWriteTruncated(r.packetBuf, k.name)
 	// can write more than maxTags pairs, but this is allowed by statshouse
 	numSet := k.numSet
-	if !k.hasEnv && env != "" {
-		numSet++
-	}
 	if skey != "" {
 		numSet++
 	}
 	r.packetBuf = basictl.NatWrite(r.packetBuf, uint32(numSet))
-	if !k.hasEnv && env != "" {
-		r.writeTag("key0", env)
-	}
 	if skey != "" {
-		r.writeTag("skey", skey)
+		r.writeTag("_s", skey)
 	}
 	for i := 0; i < k.numSet; i++ {
 		r.writeTag(k.tags[i][0], k.tags[i][1])
@@ -489,9 +487,9 @@ func (r *Registry) writeHeaderImpl(k *metricKeyTransport, env string, skey strin
 }
 
 // returns space reserve or <0 if did not fit
-func (r *Registry) writeHeader(k *metricKeyTransport, env string, skey string, counter float64, tsUnixSec uint32, fieldsMask uint32, reserveSpace int) int {
+func (r *Registry) writeHeader(k *metricKeyTransport, skey string, counter float64, tsUnixSec uint32, fieldsMask uint32, reserveSpace int) int {
 	wasLen := len(r.packetBuf)
-	r.writeHeaderImpl(k, env, skey, counter, tsUnixSec, fieldsMask)
+	r.writeHeaderImpl(k, skey, counter, tsUnixSec, fieldsMask)
 	left := maxPayloadSize - len(r.packetBuf) - reserveSpace
 	if left >= 0 {
 		r.batchCount++
@@ -500,7 +498,7 @@ func (r *Registry) writeHeader(k *metricKeyTransport, env string, skey string, c
 	if wasLen != batcnHeaderLen {
 		r.packetBuf = r.packetBuf[:wasLen]
 		r.flush()
-		r.writeHeaderImpl(k, env, skey, counter, tsUnixSec, fieldsMask)
+		r.writeHeaderImpl(k, skey, counter, tsUnixSec, fieldsMask)
 		left = maxPayloadSize - len(r.packetBuf) - reserveSpace
 		if left >= 0 {
 			r.batchCount++

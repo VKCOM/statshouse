@@ -27,7 +27,6 @@ import (
 
 const (
 	DefaultConnBufSize = 16 * 1024 * 1024
-	maxUDPPacketSize   = math.MaxUint16
 
 	errClosed = "use of closed network connection" // TODO: migrate to net.ErrClosed for Go 1.16+
 )
@@ -163,7 +162,7 @@ func (u *UDP) Addr() string {
 }
 
 func (u *UDP) Serve(h Handler) error {
-	data := make([]byte, maxUDPPacketSize)
+	data := make([]byte, math.MaxUint16) // enough for any UDP packet
 	var batch tlstatshouse.AddMetricsBatchBytes
 outer:
 	for {

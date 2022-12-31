@@ -14,6 +14,7 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
+
 	api "github.com/vkcom/statshouse/internal/api"
 )
 

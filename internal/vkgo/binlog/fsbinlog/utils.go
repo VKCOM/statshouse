@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
 )
 
@@ -122,7 +123,7 @@ func scanForFilesFromPos(afterThisPosition int64, prefixPath string, expectedMag
 }
 
 // WriteEmptyBinlog записывает содержимое начального блока нового бинлога (имя файла "name.000000.bin")
-func writeEmptyBinlog(options Options, w io.Writer) error {
+func writeEmptyBinlog(options binlog.Options, w io.Writer) error {
 	levStart := tlfsbinlog.LevStart{
 		SchemaId:   int32(options.Magic),
 		ExtraBytes: 0,
@@ -178,18 +179,18 @@ func getAlignedBuffer(buff []byte) []byte {
 	return buff[:len(buff)-(len(buff)%4)]
 }
 
-type ReadBuffer struct {
+type readBuffer struct {
 	buff []byte
 	size int
 }
 
-func NewReadBuffer(size int) *ReadBuffer {
-	return &ReadBuffer{
+func newReadBuffer(size int) *readBuffer {
+	return &readBuffer{
 		buff: make([]byte, size),
 	}
 }
 
-func (b *ReadBuffer) TryReadFrom(r io.Reader) (int, error) {
+func (b *readBuffer) TryReadFrom(r io.Reader) (int, error) {
 	if b.size == cap(b.buff) {
 		tmp := make([]byte, cap(b.buff)*2)
 		copy(tmp, b.buff)
@@ -200,17 +201,17 @@ func (b *ReadBuffer) TryReadFrom(r io.Reader) (int, error) {
 	return n, err
 }
 
-func (b *ReadBuffer) RemoveProcessed(readBytes int) {
+func (b *readBuffer) RemoveProcessed(readBytes int) {
 	if readBytes != 0 {
 		copy(b.buff, b.buff[readBytes:b.size])
 		b.size -= readBytes
 	}
 }
 
-func (b *ReadBuffer) Bytes() []byte {
+func (b *readBuffer) Bytes() []byte {
 	return b.buff[:b.size]
 }
 
-func (b *ReadBuffer) IsLowFilled() bool {
+func (b *readBuffer) IsLowFilled() bool {
 	return b.size < int(float64(cap(b.buff))*0.1)
 }

@@ -1,0 +1,12 @@
+<clickhouse>
+    <remote_servers>
+        <test_shard_aggregator>
+            <shard>
+                <replica>
+                    <host>aggregator</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+        </test_shard_aggregator>
+    </remote_servers>
+</clickhouse>

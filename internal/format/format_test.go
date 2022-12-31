@@ -20,7 +20,7 @@ import (
 
 func TestValidIdent(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		s := rapid.StringMatching(`[a-zA-Z0-9_]*`).Draw(t, "s").(string)
+		s := rapid.StringMatching(`[a-zA-Z0-9_]*`).Draw(t, "s")
 		ok := len(s) > 0 && len(s) <= MaxStringLen && s[0] != '_' && !(s[0] >= '0' && s[0] <= '9')
 		require.Equal(t, ok, validIdent(mem.S(s)))
 	})
@@ -62,9 +62,9 @@ func TestValidStringValue(t *testing.T) {
 
 func TestAppendValidStringValue_Bytes(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		n := rapid.IntRange(4, MaxStringLen).Draw(t, "n").(int)
-		src := rapid.SliceOf(rapid.Byte()).Draw(t, "src").([]byte)
-		doubleIndex := rapid.IntRange(0, 1+len(src)*2).Draw(t, "doubleIndex").(int) // rapid does not know double spaces are interesting for us
+		n := rapid.IntRange(4, MaxStringLen).Draw(t, "n")
+		src := rapid.SliceOf(rapid.Byte()).Draw(t, "src")
+		doubleIndex := rapid.IntRange(0, 1+len(src)*2).Draw(t, "doubleIndex") // rapid does not know double spaces are interesting for us
 		if doubleIndex < len(src) {
 			src[doubleIndex] = ' '
 		}
@@ -103,8 +103,8 @@ func TestAppendValidStringValue_Bytes(t *testing.T) {
 
 func TestAppendValidStringValue_String(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		n := rapid.IntRange(4, MaxStringLen).Draw(t, "n").(int)
-		src := rapid.StringOfN(rapid.RuneFrom([]rune{' '}, unicode.PrintRanges...), 1, n, n).Draw(t, "src").(string)
+		n := rapid.IntRange(4, MaxStringLen).Draw(t, "n")
+		src := rapid.StringOfN(rapid.RuneFrom([]rune{' '}, unicode.PrintRanges...), 1, n, n).Draw(t, "src")
 		src = strings.TrimSpace(src)
 		if len(src) == 0 {
 			t.Skip()
@@ -118,7 +118,7 @@ func TestAppendValidStringValue_String(t *testing.T) {
 
 func TestBytePrint(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		b := rapid.SliceOfN(rapid.Byte(), 1, 1).Draw(t, "b").([]byte)
+		b := rapid.SliceOfN(rapid.Byte(), 1, 1).Draw(t, "b")
 		r, _ := utf8.DecodeRune(b)
 		if r != utf8.RuneError {
 			require.Equal(t, unicode.IsPrint(r), bytePrint(b[0]))

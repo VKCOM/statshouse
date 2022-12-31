@@ -30,14 +30,14 @@ type binlogReader struct {
 	stat                *stat
 	readyCallbackCalled bool
 	fileHeaders         []fileHeader
-	logger              Logger
+	logger              binlog.Logger
 	commitDuration      time.Duration
 
 	stop       *chan struct{}
 	pidChanged *chan struct{}
 }
 
-func newBinlogReader(pidChanged *chan struct{}, commitDuration time.Duration, logger Logger, stat *stat, stopCh *chan struct{}) (*binlogReader, error) {
+func newBinlogReader(pidChanged *chan struct{}, commitDuration time.Duration, logger binlog.Logger, stat *stat, stopCh *chan struct{}) (*binlogReader, error) {
 	return &binlogReader{
 		stop:           stopCh,
 		pidChanged:     pidChanged,
@@ -67,7 +67,7 @@ func (b *binlogReader) readAllFromPosition(fromPosition int64, prefixPath string
 
 	b.fileHeaders, err = scanForFilesFromPos(0, prefixPath, expectedMagic, nil)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, fmt.Errorf("failed to scan directory for binlog files: %w", err)
 	}
 	if len(b.fileHeaders) == 0 {
 		return 0, 0, fmt.Errorf("binlog not found")
@@ -226,12 +226,12 @@ func (b *binlogReader) readUncompressedFile(r io.Reader, curPos int64, curCrc32 
 	)
 	b.stat.positionInCurFile.Store(levRotateSize)
 
-	buffer := NewReadBuffer(64 * 1024)
+	buffer := newReadBuffer(64 * 1024)
 	commitTimer := time.NewTimer(b.commitDuration)
 	makeCommit := func(int64, uint32) {
 		if hasUncommitted {
 			snapMeta := prepareSnapMeta(curPos, curCrc32, b.stat.lastTimestamp.Load())
-			engine.Commit(curPos, snapMeta)
+			engine.Commit(curPos, snapMeta, curPos)
 			hasUncommitted = false
 		}
 	}
@@ -258,7 +258,7 @@ loop:
 			return curPos, curCrc32, errStopped
 		case <-commitTimer.C:
 			// Фейковый коммит. fsync делает репликатор и мы не знаем когда он произошел, поэтому так.
-			// Делаем это для того, чтобы быть похожим на GMS
+			// Делаем это для того, чтобы быть похожим на Barsic
 			makeCommit(curPos, curCrc32)
 			commitTimer.Reset(b.commitDuration)
 		default:
@@ -283,7 +283,7 @@ loop:
 					// Нотифицируем клиента, что мы дошли до какого-то конца
 					engine.ChangeRole(binlog.ChangeRoleInfo{
 						IsMaster: isMaster,
-						Ready:    false,
+						IsReady:  false,
 					})
 
 					// Ждем пока он нотифицирует нас, что предыдущий процесс грохнут
@@ -306,7 +306,7 @@ loop:
 					b.readyCallbackCalled = true
 					engine.ChangeRole(binlog.ChangeRoleInfo{
 						IsMaster: false,
-						Ready:    true,
+						IsReady:  true,
 					})
 				}
 
@@ -395,6 +395,15 @@ loop:
 			// реализовать при необходимости lev_set_persistent_config_array
 			return curPos, curCrc32, fmt.Errorf("unexpected magic magicLevSetPersistentConfigArray (%x)", magicLevSetPersistentConfigArray)
 
+		case constants.FsbinlogLevUpgradeToGms:
+			var lev tlfsbinlog.LevUpgradeToGms
+			var leftover []byte
+			leftover, processErr = lev.ReadBoxed(buff)
+			readBytes = len(buff) - len(leftover)
+			if processErr == nil {
+				processErr = ErrUpgradeToBarsicLev
+			}
+
 		default:
 			serviceLev = false
 
@@ -433,7 +442,7 @@ loop:
 		clientDontKnowMagic = false
 		hasUncommitted = true
 
-		if serviceLev && processErr == nil {
+		if serviceLev && (processErr == nil || processErr == ErrUpgradeToBarsicLev) {
 			newPos := engine.Skip(int64(readBytes))
 			if newPos != curPos+int64(readBytes) {
 				return curPos, curCrc32, fmt.Errorf("engine.skip return new position %d, expect %d", newPos, curPos+int64(readBytes))
@@ -452,7 +461,7 @@ func (b *binlogReader) updateTimestamp(timestamp uint32) {
 
 func (b *binlogReader) readAndUpdateCRCIfNeed(r io.Reader, curPos int64, curCrc32 uint32, startPos int64, si *seekInfo) (int64, uint32, error) {
 	if si != nil {
-		// GMS have same restriction
+		// Barsic have same restriction
 		if si.CommitPosition > startPos {
 			return 0, 0, fmt.Errorf("start offset position is lesser than commit position in SnapshotMeta")
 		}

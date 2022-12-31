@@ -14,6 +14,7 @@ import (
 	"hash/crc32"
 	"io"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -47,7 +48,9 @@ var (
 
 // transport stream, encrypted using standard VK rpc scheme
 type PacketConn struct {
-	conn            net.Conn
+	conn       net.Conn
+	tcpconn_fd *os.File
+
 	remoteAddr      string
 	localAddr       string
 	timeoutAccuracy time.Duration
@@ -87,6 +90,12 @@ func NewPacketConn(c net.Conn, readBufSize int, writeBufSize int, timeoutAccurac
 	}
 	copy(pc.trailerWriteBuf[4:], []byte{padVal, 0, 0, 0, padVal, 0, 0, 0, padVal, 0, 0, 0, padVal, 0, 0, 0})
 
+	if tcpconn, ok := c.(*net.TCPConn); ok { // pay cast and dup() const only on start
+		if fd, err := tcpconn.File(); err == nil { // ok, will work as not a tcp connection
+			pc.tcpconn_fd = fd
+		}
+	}
+
 	return pc
 }
 
@@ -100,6 +109,9 @@ func (pc *PacketConn) RemoteAddr() string {
 
 func (pc *PacketConn) Close() error {
 	pc.closeOnce.Do(func() {
+		if pc.tcpconn_fd != nil {
+			_ = pc.tcpconn_fd.Close()
+		}
 		pc.closeErr = pc.conn.Close()
 	})
 	return pc.closeErr

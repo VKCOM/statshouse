@@ -215,7 +215,7 @@ func runMain() int {
 			return 1
 		}
 		if legacyVerb {
-			if argv.configAgent.SkipFirstNShards == agent.DefaultConfig().SkipFirstNShards && argv.cluster == "statlogs_video" {
+			if argv.configAgent.SkipFirstNShards == agent.DefaultConfig().SkipFirstNShards {
 				argv.configAgent.SkipFirstNShards = 12
 				log.Printf("WARNING: using legacy options, overriding video cluster sharding to use only shards 4.. (replica*shards 12..)")
 			}

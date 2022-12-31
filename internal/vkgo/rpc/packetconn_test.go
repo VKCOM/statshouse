@@ -18,6 +18,10 @@ import (
 	"pgregory.net/rapid"
 )
 
+var (
+	_ *packetConnMachine // for staticcheck: type packetConnMachine is unused (U1000)
+)
+
 const (
 	rwTimeout = 1000 * time.Millisecond // shorter timeout is better for shrinking, but can lead to flaky tests
 )
@@ -40,10 +44,10 @@ type packetConnMachine struct {
 
 func (p *packetConnMachine) Init(t *rapid.T) {
 	nc1, nc2 := net.Pipe()
-	rb1 := rapid.IntRange(0, 4*aes.BlockSize).Draw(t, "rb1").(int)
-	wb1 := rapid.IntRange(0, 4*aes.BlockSize).Draw(t, "wb1").(int)
-	rb2 := rapid.IntRange(0, 4*aes.BlockSize).Draw(t, "rb2").(int)
-	wb2 := rapid.IntRange(0, 4*aes.BlockSize).Draw(t, "wb2").(int)
+	rb1 := rapid.IntRange(0, 4*aes.BlockSize).Draw(t, "rb1")
+	wb1 := rapid.IntRange(0, 4*aes.BlockSize).Draw(t, "wb1")
+	rb2 := rapid.IntRange(0, 4*aes.BlockSize).Draw(t, "rb2")
+	wb2 := rapid.IntRange(0, 4*aes.BlockSize).Draw(t, "wb2")
 
 	p.c1 = &connEx{
 		pc: NewPacketConn(nc1, rb1, wb1, 0),
@@ -52,19 +56,19 @@ func (p *packetConnMachine) Init(t *rapid.T) {
 		pc: NewPacketConn(nc2, rb2, wb2, 0),
 	}
 
-	enc := rapid.Bool().Draw(t, "enc").(bool)
+	enc := rapid.Bool().Draw(t, "enc")
 	if enc {
-		key1 := rapid.ArrayOf(16, rapid.Byte()).Draw(t, "key1").([16]byte)
-		key2 := rapid.ArrayOf(16, rapid.Byte()).Draw(t, "key2").([16]byte)
-		iv1 := rapid.ArrayOf(aes.BlockSize, rapid.Byte()).Draw(t, "iv1").([aes.BlockSize]byte)
-		iv2 := rapid.ArrayOf(aes.BlockSize, rapid.Byte()).Draw(t, "iv2").([aes.BlockSize]byte)
+		key1 := rapid.SliceOfN(rapid.Byte(), 16, 16).Draw(t, "key1")
+		key2 := rapid.SliceOfN(rapid.Byte(), 16, 16).Draw(t, "key2")
+		iv1 := rapid.SliceOfN(rapid.Byte(), aes.BlockSize, aes.BlockSize).Draw(t, "iv1")
+		iv2 := rapid.SliceOfN(rapid.Byte(), aes.BlockSize, aes.BlockSize).Draw(t, "iv2")
 
-		err := p.c1.pc.encrypt(key1[:], iv1[:], key2[:], iv2[:])
+		err := p.c1.pc.encrypt(key1, iv1, key2, iv2)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		err = p.c2.pc.encrypt(key2[:], iv2[:], key1[:], iv1[:])
+		err = p.c2.pc.encrypt(key2, iv2, key1, iv1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -105,8 +109,8 @@ func send(t *rapid.T, from *connEx, to *connEx) {
 	t.Helper()
 
 	pc := packetContent{
-		packetType: rapid.Uint32().Draw(t, "type").(uint32),
-		body:       bytes.Repeat(rapid.SliceOf(rapid.Byte()).Draw(t, "body").([]byte), 4),
+		packetType: rapid.Uint32().Draw(t, "type"),
+		body:       bytes.Repeat(rapid.SliceOf(rapid.Byte()).Draw(t, "body"), 4),
 	}
 
 	var wg sync.WaitGroup
@@ -153,5 +157,5 @@ func send(t *rapid.T, from *connEx, to *connEx) {
 func TestPacketConn(t *testing.T) {
 	t.Parallel()
 
-	rapid.Check(t, rapid.Run(&packetConnMachine{}))
+	rapid.Check(t, rapid.Run[*packetConnMachine]())
 }

@@ -15,12 +15,13 @@ import (
 	"time"
 
 	"github.com/pierrec/lz4"
+	"pgregory.net/rand"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"pgregory.net/rand"
 )
 
 // If clients wish periodic measurements, they are advised to send them around the middle of calendar second

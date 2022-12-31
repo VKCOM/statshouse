@@ -563,7 +563,7 @@ export function usePrevious<T>(value: T): T | undefined {
 
 export function formatLegendValue(value: number | null): string {
   if (value === null) {
-    return '—';
+    return '';
   }
   const abs = Math.abs(value);
   const maxFrac = abs > 1000 ? 0 : abs > 100 ? 1 : abs > 10 ? 2 : abs > 0.001 ? 3 : 9;
@@ -670,4 +670,8 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       version: data.dashboard.version,
     },
   };
+}
+
+export function deepClone<T>(data: T): T {
+  return JSON.parse(JSON.stringify(data)) as T;
 }

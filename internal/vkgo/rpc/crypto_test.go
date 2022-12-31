@@ -17,6 +17,10 @@ import (
 	"pgregory.net/rapid"
 )
 
+var (
+	_ *cryptoRWMachine // for staticcheck: type cryptoRWMachine is unused (U1000)
+)
+
 type cryptoRWMachine struct {
 	buf      *bytes.Buffer
 	r        *cryptoReader
@@ -29,8 +33,8 @@ type cryptoRWMachine struct {
 }
 
 func (c *cryptoRWMachine) Init(t *rapid.T) {
-	rb := rapid.IntRange(0, 4*des.BlockSize).Draw(t, "rb").(int)
-	wb := rapid.IntRange(0, 4*des.BlockSize).Draw(t, "wb").(int)
+	rb := rapid.IntRange(0, 4*des.BlockSize).Draw(t, "rb")
+	wb := rapid.IntRange(0, 4*des.BlockSize).Draw(t, "wb")
 
 	c.buf = &bytes.Buffer{}
 	c.r = newCryptoReader(c.buf, rb)
@@ -55,20 +59,20 @@ func (c *cryptoRWMachine) Encrypt(t *rapid.T) {
 		t.Skip("already encrypted")
 	}
 
-	key := rapid.ArrayOf(8, rapid.Byte()).Draw(t, "key").([8]byte)
-	e, err := des.NewCipher(key[:])
+	key := rapid.SliceOfN(rapid.Byte(), 8, 8).Draw(t, "key")
+	e, err := des.NewCipher(key)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	c.encStart = c.written.Len()
-	iv := rapid.ArrayOf(des.BlockSize, rapid.Byte()).Draw(t, "iv").([des.BlockSize]byte)
-	c.w.encrypt(cipher.NewCBCEncrypter(e, iv[:]))
-	c.enc = cipher.NewCBCDecrypter(e, iv[:])
+	iv := rapid.SliceOfN(rapid.Byte(), des.BlockSize, des.BlockSize).Draw(t, "iv")
+	c.w.encrypt(cipher.NewCBCEncrypter(e, iv))
+	c.enc = cipher.NewCBCDecrypter(e, iv)
 }
 
 func (c *cryptoRWMachine) Read(t *rapid.T) {
-	n := rapid.IntRange(0, 32768).Draw(t, "n").(int)
+	n := rapid.IntRange(0, 32768).Draw(t, "n")
 	if c.encStart >= c.read.Len() && c.encStart < c.read.Len()+n && c.r.enc == nil {
 		n = c.encStart - c.read.Len()
 	}
@@ -95,7 +99,7 @@ func (c *cryptoRWMachine) Read(t *rapid.T) {
 }
 
 func (c *cryptoRWMachine) Write(t *rapid.T) {
-	p := rapid.SliceOf(rapid.Byte()).Draw(t, "p").([]byte)
+	p := rapid.SliceOf(rapid.Byte()).Draw(t, "p")
 	q := append([]byte(nil), p...)
 
 	n, err := c.w.Write(p)
@@ -128,7 +132,7 @@ func (c *cryptoRWMachine) Flush(t *rapid.T) {
 func TestCryptoRWRoundtrip(t *testing.T) {
 	t.Parallel()
 
-	rapid.Check(t, rapid.Run(&cryptoRWMachine{}))
+	rapid.Check(t, rapid.Run[*cryptoRWMachine]())
 }
 
 func BenchmarkCryptoWriter_Write(b *testing.B) {

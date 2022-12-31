@@ -39,13 +39,13 @@ func NewEngineRpcHandler(binlogPrefix string, db *DBV2) *EngineRpcHandler {
 	}
 }
 
-func (h *EngineRpcHandler) Backup(prefix string) error {
+func (h *EngineRpcHandler) Backup(ctx context.Context, prefix string) error {
 	h.backupMx.Lock()
 	defer h.backupMx.Unlock()
 	h.reindexMx.Lock()
 	h.reindexStatus = tlengine.ReindexStatusRunning{StartTime: int32(time.Now().Unix())}.AsUnion()
 	h.reindexMx.Unlock()
-	err := h.db.backup(prefix)
+	err := h.db.backup(ctx, prefix)
 	h.reindexMx.Lock()
 	defer h.reindexMx.Unlock()
 	if err != nil {

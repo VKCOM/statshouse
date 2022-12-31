@@ -423,7 +423,7 @@ func ValidRawKind(s string) bool {
 	// timestamp_local: UNIX timestamp, show local time for this TS
 	// EMPTY:           decimal number, can be negative
 	switch s {
-	case "", "uint", "ip", "ip_bswap", "hex", "hex_bswap", "timestamp", "timestamp_local", "lexenc_float":
+	case "", "uint", "ip", "ip_bswap", "hex", "hex_bswap", "timestamp", "timestamp_local":
 		return true
 	}
 	return false

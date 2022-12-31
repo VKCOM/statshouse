@@ -28,6 +28,10 @@ import (
 	"github.com/vkcom/statshouse/internal/receiver"
 )
 
+var (
+	_ *phpMachine // for staticcheck: type phpMachine is unused (U1000)
+)
+
 // cd internal/receiver
 // скопировать data/packages/statlogs-writer/src/StatsHouse.php в эту папку
 // поставить пхп
@@ -90,11 +94,11 @@ type valuesInfo struct {
 	Shutdown  int
 }
 
-func ident() *rapid.Generator {
+func ident() *rapid.Generator[string] {
 	return identLike(format.MaxStringLen)
 }
 
-func identLike(maxLen int) *rapid.Generator {
+func identLike(maxLen int) *rapid.Generator[string] {
 	return rapid.StringMatching("[a-zA-Z][a-zA-Z0-9_]*").Filter(func(s string) bool { return len(s) <= maxLen })
 }
 
@@ -217,12 +221,12 @@ func (p *phpMachine) Init(_ *rapid.T) {
 func (p *phpMachine) AppendWriteCount(t *rapid.T) {
 	info := valuesInfo{
 		Func:      "writeCount",
-		Name:      ident().Draw(t, "name").(string),
-		Tags:      tagsSlice().Draw(t, "tags").([]tag),
-		Values:    []float64{rapid.Float64Range(0, math.MaxInt32).Draw(t, "value").(float64)},
-		Shutdown:  rapid.IntRange(0, 1).Draw(t, "shutdown").(int),
-		Count:     float64(rapid.IntRange(1, 10).Draw(t, "count").(int)),
-		Timestamp: int64(rapid.IntRange(0, 1).Draw(t, "timestamp").(int)),
+		Name:      ident().Draw(t, "name"),
+		Tags:      tagsSlice().Draw(t, "tags"),
+		Values:    []float64{rapid.Float64Range(0, math.MaxInt32).Draw(t, "value")},
+		Shutdown:  rapid.IntRange(0, 1).Draw(t, "shutdown"),
+		Count:     float64(rapid.IntRange(1, 10).Draw(t, "count")),
+		Timestamp: int64(rapid.IntRange(0, 1).Draw(t, "timestamp")),
 	}
 
 	k := ts(info.Name, info.Tags)
@@ -244,12 +248,12 @@ func (p *phpMachine) AppendWriteCount(t *rapid.T) {
 func (p *phpMachine) AppendWriteValue(t *rapid.T) {
 	info := valuesInfo{
 		Func:      "writeValue",
-		Name:      ident().Draw(t, "name").(string),
-		Tags:      tagsSlice().Draw(t, "tags").([]tag),
+		Name:      ident().Draw(t, "name"),
+		Tags:      tagsSlice().Draw(t, "tags"),
 		Values:    rapid.SliceOfN(rapid.Float64Range(0, math.MaxFloat32), 1, -1).Draw(t, "values"),
-		Shutdown:  rapid.IntRange(0, 1).Draw(t, "shutdown").(int),
-		Count:     float64(rapid.IntRange(1, 10).Draw(t, "count").(int)),
-		Timestamp: int64(rapid.IntRange(0, 1).Draw(t, "timestamp").(int)),
+		Shutdown:  rapid.IntRange(0, 1).Draw(t, "shutdown"),
+		Count:     float64(rapid.IntRange(1, 10).Draw(t, "count")),
+		Timestamp: int64(rapid.IntRange(0, 1).Draw(t, "timestamp")),
 	}
 
 	k := ts(info.Name, info.Tags)
@@ -270,12 +274,12 @@ func (p *phpMachine) AppendWriteValue(t *rapid.T) {
 func (p *phpMachine) AppendWriteUnique(t *rapid.T) {
 	info := valuesInfo{
 		Func:      "writeUnique",
-		Name:      ident().Draw(t, "name").(string),
-		Tags:      tagsSlice().Draw(t, "tags").([]tag),
+		Name:      ident().Draw(t, "name"),
+		Tags:      tagsSlice().Draw(t, "tags"),
 		Values:    rapid.SliceOfN(rapid.Int64(), 1, -1).Draw(t, "values"),
-		Shutdown:  rapid.IntRange(0, 1).Draw(t, "shutdown").(int),
-		Count:     float64(rapid.IntRange(1, 10).Draw(t, "count").(int)),
-		Timestamp: int64(rapid.IntRange(0, 1).Draw(t, "timestamp").(int)),
+		Shutdown:  rapid.IntRange(0, 1).Draw(t, "shutdown"),
+		Count:     float64(rapid.IntRange(1, 10).Draw(t, "count")),
+		Timestamp: int64(rapid.IntRange(0, 1).Draw(t, "timestamp")),
 	}
 
 	k := ts(info.Name, info.Tags)
@@ -296,12 +300,12 @@ func (p *phpMachine) AppendWriteUnique(t *rapid.T) {
 func (p *phpMachine) AppendWriteSTop(t *rapid.T) {
 	info := valuesInfo{
 		Func:      "writeSTop",
-		Name:      ident().Draw(t, "name").(string),
-		Tags:      tagsSlice().Draw(t, "tags").([]tag),
+		Name:      ident().Draw(t, "name"),
+		Tags:      tagsSlice().Draw(t, "tags"),
 		Values:    rapid.SliceOfN(identLike(format.MaxStringLen), 1, -1).Draw(t, "values"), // not arbitrary strings for easier text encoding
-		Shutdown:  rapid.IntRange(0, 1).Draw(t, "shutdown").(int),
-		Count:     float64(rapid.IntRange(1, 10).Draw(t, "count").(int)),
-		Timestamp: int64(rapid.IntRange(0, 1).Draw(t, "timestamp").(int)),
+		Shutdown:  rapid.IntRange(0, 1).Draw(t, "shutdown"),
+		Count:     float64(rapid.IntRange(1, 10).Draw(t, "count")),
+		Timestamp: int64(rapid.IntRange(0, 1).Draw(t, "timestamp")),
 	}
 
 	k := ts(info.Name, info.Tags)
@@ -435,5 +439,5 @@ func TestPHPRoundtrip(t *testing.T) {
 		t.Skip("PHP integration test requires configured PHP environment and client source code")
 	}
 
-	rapid.Check(t, rapid.Run(&phpMachine{}))
+	rapid.Check(t, rapid.Run[*phpMachine]())
 }

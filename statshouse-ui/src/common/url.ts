@@ -79,6 +79,27 @@ export function stringToParams(value: string, params: URLSearchParams, prefix: s
   }
 }
 
+export function booleanFromParams(params: URLSearchParams, prefix: string, name: string, default_: boolean): boolean {
+  name = join(prefix, name);
+  const v = params.get(name);
+  return v !== null ? true : default_;
+}
+
+export function booleanToParams(
+  value: boolean,
+  params: URLSearchParams,
+  prefix: string,
+  name: string,
+  default_: boolean
+) {
+  name = join(prefix, name);
+  if (value === default_ || !value) {
+    params.delete(name);
+  } else {
+    params.set(name, '');
+  }
+}
+
 export function stringListFromParams(
   params: URLSearchParams,
   prefix: string,

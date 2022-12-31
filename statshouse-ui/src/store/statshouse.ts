@@ -9,12 +9,14 @@ import { immer } from 'zustand/middleware/immer';
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
 import {
   defaultParams,
+  getLiveParams,
   PlotParams,
   QueryParams,
   readDashboardID,
   readParams,
+  setLiveParams,
   sortEntity,
-  writeDashboardID,
+  writeDashboard,
   writeParams,
 } from '../common/plotQueryParams';
 import uPlot from '../view/lib/uPlot/uPlot.esm';
@@ -26,6 +28,7 @@ import {
   apiGet,
   apiPost,
   apiPut,
+  deepClone,
   defaultBaseRange,
   Error403,
   formatLegendValue,
@@ -89,6 +92,18 @@ export type PlotStore = {
   mappingFloodEvents: number;
   legendValueWidth: number;
   legendNameWidth: number;
+  legendPercentWidth: number;
+  legendMaxHostWidth: number;
+  legendMaxHostPercentWidth: number;
+};
+
+export type PlotValues = {
+  rawValue: number | null;
+  value: string;
+  max_host: string;
+  total: number;
+  percent: string;
+  max_host_percent: string;
 };
 
 type SetSearchParams = (
@@ -102,6 +117,8 @@ type SetSearchParams = (
 ) => void;
 
 export type Store = {
+  defaultParams: QueryParams;
+  setDefaultParams(nextState: React.SetStateAction<QueryParams>): void;
   timeRange: TimeRange;
   params: QueryParams;
   liveMode: boolean;
@@ -129,7 +146,7 @@ export type Store = {
   plotsData: PlotStore[];
   plotsDataAbortController: AbortController[];
   loadPlot(index: number, force?: boolean): void;
-  setPlotShow(indexPlot: number, idx: number, show?: boolean): void;
+  setPlotShow(indexPlot: number, idx: number, show?: boolean, single?: boolean): void;
   setPlotLastError(index: number, error: string): void;
   uPlotsWidth: number[];
   setUPlotWidth(index: number, weight: number): void;
@@ -169,6 +186,8 @@ export type Store = {
   loadServerParams(id: number): Promise<QueryParams>;
   saveServerParams(): Promise<QueryParams>;
   removeServerParams(): Promise<QueryParams>;
+  saveDashboardParams?: QueryParams;
+  setSaveDashboardParams(nextState: React.SetStateAction<QueryParams | undefined>): void;
   listServerDashboard: dashboardShortInfo[];
   listServerDashboardAbortController?: AbortController;
   loadListServerDashboard(): void;
@@ -196,6 +215,13 @@ export function getNextState<T>(prevState: T, nextState: React.SetStateAction<T>
 
 export const useStore = create<Store>()(
   immer((setState, getState) => ({
+    defaultParams: { ...defaultParams },
+    setDefaultParams(nextState) {
+      const nextDefaultParams = getNextState(getState().defaultParams, nextState);
+      setState((state) => {
+        state.defaultParams = nextDefaultParams;
+      });
+    },
     timeRange: new TimeRange({ to: TIME_RANGE_KEYS_TO.default, from: 0 }),
     params: {
       timeRange: { to: TIME_RANGE_KEYS_TO.default, from: 0 },
@@ -204,7 +230,7 @@ export const useStore = create<Store>()(
       tabNum: 0,
     },
     setTimeRange(value, force?) {
-      const tr = new TimeRange(getState().timeRange.getRangeUrl());
+      const tr = new TimeRange(getState().params.timeRange);
       tr.setRange(value);
       const nextTimeRange = tr.getRangeUrl();
       if (
@@ -219,32 +245,65 @@ export const useStore = create<Store>()(
           false,
           force
         );
-        setState((state) => {
-          state.timeRange = tr;
-        });
       }
     },
     async updateParamsByUrl() {
       const id = readDashboardID(new URLSearchParams(document.location.search));
-
-      const params = id
-        ? await getState().loadServerParams(id)
-        : readParams(getState().params, new URLSearchParams(document.location.search), defaultParams);
+      const saveParams = id ? await getState().loadServerParams(id) : undefined;
+      getState().setDefaultParams({
+        ...defaultParams,
+        tabNum: saveParams ? -1 : defaultParams.tabNum,
+        timeRange: {
+          to:
+            saveParams && !(typeof saveParams?.timeRange.to === 'number' && saveParams.timeRange.to > 0)
+              ? saveParams.timeRange.to
+              : defaultParams.timeRange.to,
+          from: saveParams?.timeRange.from ?? defaultParams.timeRange.from,
+        },
+      });
+      const urlParams = readParams(
+        getState().params,
+        new URLSearchParams(document.location.search),
+        getState().defaultParams
+      );
+      const params = saveParams ?? urlParams;
       if (!params) {
         return;
       }
       let reset = false;
       const nowTime = now();
-
-      if (params.timeRange.from === defaultTimeRange.from || params.timeRange.to === defaultTimeRange.to) {
+      if (saveParams) {
+        params.tabNum = urlParams.tabNum ?? params.tabNum;
+        params.timeRange.to =
+          (typeof params.timeRange.to === 'number' && params.timeRange.to > 0) ||
+          urlParams.timeRange.to !== getState().defaultParams.timeRange.to
+            ? urlParams.timeRange.to
+            : params.timeRange.to;
+        params.timeRange.from =
+          urlParams.timeRange.from !== getState().defaultParams.timeRange.from
+            ? urlParams.timeRange.from
+            : params.timeRange.from;
+        if (params.dashboard?.dashboard_id === getState().params.dashboard?.dashboard_id) {
+          params.plots = getState().params.plots;
+          params.tagSync = getState().params.tagSync;
+          params.dashboard = getState().params.dashboard;
+        }
+        if (params.tabNum >= 0 && !params.plots[params.tabNum]) {
+          params.tabNum = getState().defaultParams.tabNum;
+          reset = true;
+        }
+      }
+      if (params.timeRange.from === defaultTimeRange.from && params.timeRange.to === defaultTimeRange.to) {
         params.timeRange = timeRangeAbbrevExpand(defaultBaseRange, nowTime);
+        reset = true;
+      } else if (params.timeRange.to === defaultTimeRange.to) {
+        params.timeRange.to = nowTime;
         reset = true;
       } else if (params.timeRange.from > nowTime) {
         params.timeRange = {
           to: nowTime,
           from: new TimeRange(params.timeRange).relativeFrom,
         };
-
         reset = true;
       }
 
@@ -273,10 +332,6 @@ export const useStore = create<Store>()(
         reset = true;
       }
 
-      if (id && params.dashboard?.dashboard_id === getState().params.dashboard?.dashboard_id) {
-        params.tabNum = getState().params.tabNum;
-      }
-
       const resetPlot = params.dashboard?.dashboard_id !== getState().params.dashboard?.dashboard_id;
       if (!dequal(params, getState().params)) {
         debug.log(
@@ -303,6 +358,9 @@ export const useStore = create<Store>()(
       }
       if (reset) {
         getState().updateUrl(true);
+      }
+      if (getLiveParams(new URLSearchParams(document.location.search))) {
+        getState().setLiveMode(true);
       }
     },
     setParams(nextState, replace?, force?) {
@@ -378,19 +436,23 @@ export const useStore = create<Store>()(
     },
     updateUrl(replace?: boolean) {
       const prevState = getState();
-      if (prevState.params.dashboard?.dashboard_id) {
-        prevState.setSearchParams?.(writeDashboardID(prevState.params.dashboard.dashboard_id, new URLSearchParams()), {
-          replace: replace,
-        });
-        return;
-      }
-      const p = writeParams(prevState.params, new URLSearchParams(document.location.search), defaultParams);
-
       const autoReplace =
         prevState.params.timeRange.from === defaultTimeRange.from ||
         prevState.params.timeRange.to === defaultTimeRange.to ||
         prevState.liveMode ||
         prevState.timeRange.from > now();
+
+      if (prevState.params.dashboard?.dashboard_id) {
+        const live = getLiveParams(new URLSearchParams(document.location.search)); // save live param in url
+        prevState.setSearchParams?.(
+          writeDashboard(prevState.params, setLiveParams(live, new URLSearchParams()), prevState.defaultParams),
+          {
+            replace: replace || autoReplace,
+          }
+        );
+        return;
+      }
+      const p = writeParams(prevState.params, new URLSearchParams(document.location.search), prevState.defaultParams);
       prevState.setSearchParams?.(p, { replace: replace || autoReplace });
     },
     setSearchParams: undefined,
@@ -410,6 +472,9 @@ export const useStore = create<Store>()(
     setLiveMode(nextStatus) {
       setState((state) => {
         state.liveMode = getNextState(state.liveMode, nextStatus);
+        if (!state.liveMode) {
+          getState().setSearchParams?.(setLiveParams(state.liveMode, new URLSearchParams(document.location.search)));
+        }
       });
     },
     previews: [],
@@ -459,6 +524,9 @@ export const useStore = create<Store>()(
             mappingFloodEvents: 0,
             legendValueWidth: 0,
             legendNameWidth: 0,
+            legendPercentWidth: 0,
+            legendMaxHostWidth: 0,
+            legendMaxHostPercentWidth: 0,
             lastPlotParams: undefined,
             lastTimeRange: undefined,
             lastQuerySeriesMeta: undefined,
@@ -522,7 +590,8 @@ export const useStore = create<Store>()(
               })
             );
             const legendNameWidth = (resp?.series.series_meta.length ?? 0) > 5 ? maxLabelLength * pxPerChar : 1_000_000;
-
+            let legendMaxHostWidth = 0;
+            const legendMaxHostPercentWidth = 0;
             const data: uPlot.AlignedData = [
               resp.series.time as number[],
               ...(resp.series.series_data as (number | null)[][]),
@@ -568,6 +637,23 @@ export const useStore = create<Store>()(
               if (color !== prevState.plotsData[index]?.series[indexMeta]?.stroke) {
                 changeColor = true;
               }
+              if (meta.max_hosts) {
+                const max_hosts_l = meta.max_hosts
+                  .map((host) => host.length * pxPerChar)
+                  .filter(Boolean)
+                  .sort();
+                const full = max_hosts_l[0] ?? 0;
+                const p75 = max_hosts_l[max_hosts_l.length * 0.25] ?? 0;
+                legendMaxHostWidth = Math.max(legendMaxHostWidth, full - p75 > 20 ? p75 : full);
+              }
+              const max_host_map =
+                meta.max_hosts?.reduce((res, host) => {
+                  if (host) {
+                    res[host] = (res[host] ?? 0) + 1;
+                  }
+                  return res;
+                }, {} as Record<string, number>) ?? {};
+              const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
               return {
                 show: groups[baseLabel]?.show ?? true,
                 auto: false, // we control the scaling manually
@@ -582,18 +668,24 @@ export const useStore = create<Store>()(
                 paths: uPlot.paths.stepped!({
                   align: 1,
                 }),
-                value(u: uPlot, rawValue: number | null, seriesIdx: number, idx: number): string {
+                values(u, seriesIdx, idx): PlotValues {
+                  const rawValue = u.data[seriesIdx]?.[idx] ?? null;
                   let total = 0;
                   for (let i = 1; i < u.series.length; i++) {
-                    const v = u.data[i][idx];
+                    const v = u.data[i]?.[idx];
                     if (v !== null && v !== undefined) {
                       total += v;
                     }
                   }
-                  const v = formatLegendValue(rawValue);
-                  const max_host =
-                    meta.max_hosts !== null && idx < meta.max_hosts.length ? ' ' + meta.max_hosts[idx] : '';
-                  return (rawValue !== null ? `${v} ${formatPercent(rawValue / total)}` : v) + max_host;
+                  const value = formatLegendValue(rawValue);
+                  const max_host = meta.max_hosts !== null && idx < meta.max_hosts.length ? meta.max_hosts[idx] : '';
+
+                  const max_host_percent =
+                    meta.max_hosts !== null && max_host_map && meta.max_hosts[idx]
+                      ? formatPercent((max_host_map[meta.max_hosts[idx]] ?? 0) / max_host_total)
+                      : '';
+                  const percent = rawValue !== null ? formatPercent(rawValue / total) : '';
+                  return { rawValue, value, max_host, total, percent, max_host_percent };
                 },
               };
             });
@@ -609,10 +701,8 @@ export const useStore = create<Store>()(
               Math.abs(Math.floor(yMinAll) - 0.001),
               Math.abs(Math.ceil(yMaxAll) + 0.001)
             );
-            const legendValueWidth = Math.max(
-              (formatLegendValue(legendExampleValue).length + 2 /* focus marker */ + 4) /* percentage */ * pxPerChar,
-              17 * pxPerChar
-            );
+            const legendValueWidth = (formatLegendValue(legendExampleValue).length + 2) * pxPerChar; // +2 - focus marker
+            const legendPercentWidth = (4 + 2) * pxPerChar; // +2 - focus marker
 
             setState((state) => {
               state.plotsData[index] = {
@@ -630,6 +720,9 @@ export const useStore = create<Store>()(
                 mappingFloodEvents: resp.mapping_flood_events_legacy,
                 legendValueWidth,
                 legendNameWidth,
+                legendPercentWidth,
+                legendMaxHostWidth,
+                legendMaxHostPercentWidth,
                 lastPlotParams,
                 lastQuerySeriesMeta: [...resp.series.series_meta],
                 lastTimeRange: prevState.timeRange,
@@ -652,6 +745,9 @@ export const useStore = create<Store>()(
                   mappingFloodEvents: 0,
                   legendValueWidth: 0,
                   legendNameWidth: 0,
+                  legendPercentWidth: 0,
+                  legendMaxHostWidth: 0,
+                  legendMaxHostPercentWidth: 0,
                   lastPlotParams: undefined,
                   lastTimeRange: undefined,
                   lastQuerySeriesMeta: undefined,
@@ -674,6 +770,9 @@ export const useStore = create<Store>()(
                   mappingFloodEvents: 0,
                   legendValueWidth: 0,
                   legendNameWidth: 0,
+                  legendPercentWidth: 0,
+                  legendMaxHostWidth: 0,
+                  legendMaxHostPercentWidth: 0,
                   lastPlotParams: undefined,
                   lastTimeRange: undefined,
                   lastQuerySeriesMeta: undefined,
@@ -688,13 +787,25 @@ export const useStore = create<Store>()(
           });
       }
     },
-    setPlotShow(indexPlot, idx, show) {
+    setPlotShow(indexPlot, idx, show, single) {
       setState((state) => {
-        Object.entries(state.plotsData[indexPlot].groups).forEach(([, group]) => {
-          if (group.idx.includes(idx)) {
-            group.show = show ?? !group.show;
-          }
-        });
+        const gr = Object.values(state.plotsData[indexPlot].groups);
+        if (single) {
+          const otherShow = gr.some((group) => (group.idx.includes(idx) ? false : group.show));
+          gr.forEach((group) => {
+            if (!group.idx.includes(idx)) {
+              group.show = !otherShow;
+            } else {
+              group.show = true;
+            }
+          });
+        } else {
+          gr.forEach((group) => {
+            if (group.idx.includes(idx)) {
+              group.show = show ?? !group.show;
+            }
+          });
+        }
       });
     },
     setPlotLastError(index, error) {
@@ -1024,6 +1135,12 @@ export const useStore = create<Store>()(
           resolve(paramsLD);
           return;
         }
+        const cache = getState().saveDashboardParams;
+        if (cache?.dashboard?.dashboard_id === id) {
+          resolve(deepClone(cache));
+          return;
+        }
+        getState().setSaveDashboardParams(undefined);
         const url = dashboardURL(id);
         getState().serverParamsAbortController?.abort();
         const controller = new AbortController();
@@ -1034,7 +1151,9 @@ export const useStore = create<Store>()(
         apiGet<DashboardInfo>(url, controller.signal, true)
           .then((data) => {
             if (data) {
-              resolve(normalizeDashboard(data));
+              const p = normalizeDashboard(data);
+              getState().setSaveDashboardParams(p);
+              resolve(deepClone(p));
             }
           })
           .catch((error) => {
@@ -1072,6 +1191,7 @@ export const useStore = create<Store>()(
         };
         const controller = new AbortController();
         const url = dashboardURL();
+        getState().setSaveDashboardParams(undefined);
         getState().setGlobalNumQueriesPlot((s) => s + 1);
         (params.dashboard.dashboard_id !== undefined
           ? apiPost<DashboardInfo>(url, params, controller.signal, true)
@@ -1080,8 +1200,9 @@ export const useStore = create<Store>()(
           .then((data) => {
             if (data) {
               const nextParams = normalizeDashboard(data);
-              getState().setParams(nextParams);
-              resolve(nextParams);
+              getState().setSaveDashboardParams(nextParams);
+              getState().setParams(deepClone(nextParams));
+              resolve(deepClone(nextParams));
             }
           })
           .catch((error) => {
@@ -1150,6 +1271,12 @@ export const useStore = create<Store>()(
           });
       });
     },
+    saveDashboardParams: undefined,
+    setSaveDashboardParams(nextState) {
+      setState((state) => {
+        state.saveDashboardParams = getNextState(state.saveDashboardParams, nextState);
+      });
+    },
     listServerDashboard: [],
     listServerDashboardAbortController: undefined,
     loadListServerDashboard() {
@@ -1157,7 +1284,6 @@ export const useStore = create<Store>()(
       const url = dashboardListURL();
       getState().setGlobalNumQueriesPlot((s) => s + 1);
       apiGet<GetDashboardListResp>(url, controller.signal, true)
-        // apiGetMockLocalStorageLoadListServerDashboard<DashboardParams[]>(url, controller.signal, true)
         .then((data) => {
           setState((state) => {
             state.listServerDashboard = [...(data?.dashboards ?? [])];

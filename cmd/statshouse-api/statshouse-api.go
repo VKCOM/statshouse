@@ -254,7 +254,8 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	defer func() { _ = chV2.Close() }()
 
 	c := &rpc.Client{
-		Logf: log.Printf,
+		Logf:                log.Printf,
+		TrustedSubnetGroups: build.TrustedSubnetGroups(),
 	}
 	defer func() { _ = c.Close() }()
 
@@ -327,8 +328,9 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		chV2,
 		&tlmetadata.Client{
 			Client: &rpc.Client{
-				Logf:      log.Printf,
-				CryptoKey: rpcCryptoKey,
+				Logf:                log.Printf,
+				CryptoKey:           rpcCryptoKey,
+				TrustedSubnetGroups: build.TrustedSubnetGroups(),
 			},
 			Network: argv.metadataNet,
 			Address: argv.metadataAddr,

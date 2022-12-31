@@ -19,7 +19,7 @@ func TestBuf_Tag(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		rw := &bytes.Buffer{}
 
-		tag := rapid.Uint32().Draw(t, "tag").(uint32)
+		tag := rapid.Uint32().Draw(t, "tag")
 		WriteUint32(rw, tag)
 		if rw.Len()%4 != 0 {
 			t.Fatalf("size not divisible by 4: %v", rw.Len())
@@ -42,7 +42,7 @@ func TestBuf_Uint32(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		rw := &bytes.Buffer{}
 
-		in := rapid.Uint32().Draw(t, "in").(uint32)
+		in := rapid.Uint32().Draw(t, "in")
 		WriteUint32(rw, in)
 		if rw.Len()%4 != 0 {
 			t.Fatalf("size not divisible by 4: %v", rw.Len())
@@ -69,7 +69,7 @@ func TestBuf_Int32(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		rw := &bytes.Buffer{}
 
-		in := rapid.Int32().Draw(t, "in").(int32)
+		in := rapid.Int32().Draw(t, "in")
 		WriteInt32(rw, in)
 		if rw.Len()%4 != 0 {
 			t.Fatalf("size not divisible by 4: %v", rw.Len())
@@ -96,7 +96,7 @@ func TestBuf_Uint64(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		rw := &bytes.Buffer{}
 
-		in := rapid.Uint64().Draw(t, "in").(uint64)
+		in := rapid.Uint64().Draw(t, "in")
 		WriteUint64(rw, in)
 		if rw.Len()%4 != 0 {
 			t.Fatalf("size not divisible by 4: %v", rw.Len())
@@ -123,7 +123,7 @@ func TestBuf_Int64(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		rw := &bytes.Buffer{}
 
-		in := rapid.Int64().Draw(t, "in").(int64)
+		in := rapid.Int64().Draw(t, "in")
 		WriteInt64(rw, in)
 		if rw.Len()%4 != 0 {
 			t.Fatalf("size not divisible by 4: %v", rw.Len())
@@ -150,7 +150,7 @@ func TestBuf_Float32(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		rw := &bytes.Buffer{}
 
-		in := rapid.Float32().Draw(t, "in").(float32)
+		in := rapid.Float32().Draw(t, "in")
 		WriteFloat32(rw, in)
 		if rw.Len()%4 != 0 {
 			t.Fatalf("size not divisible by 4: %v", rw.Len())
@@ -177,7 +177,7 @@ func TestBuf_Float64(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		rw := &bytes.Buffer{}
 
-		in := rapid.Float64().Draw(t, "in").(float64)
+		in := rapid.Float64().Draw(t, "in")
 		WriteFloat64(rw, in)
 		if rw.Len()%4 != 0 {
 			t.Fatalf("size not divisible by 4: %v", rw.Len())
@@ -204,7 +204,7 @@ func TestBuf_String(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		rw := &bytes.Buffer{}
 
-		in := rapid.String().Draw(t, "in").(string)
+		in := rapid.String().Draw(t, "in")
 		errW := WriteString(rw, in)
 		if errW != nil {
 			t.Fatalf("failed to write %#v: %v", in, errW)
@@ -237,7 +237,7 @@ func TestBuf_ByteSlice(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		rw := &bytes.Buffer{}
 
-		in := rapid.SliceOf(rapid.Byte()).Draw(t, "in").([]byte)
+		in := rapid.SliceOf(rapid.Byte()).Draw(t, "in")
 		errW := WriteStringBytes(rw, in)
 		if errW != nil {
 			t.Fatalf("failed to write %#v: %v", in, errW)
@@ -249,7 +249,7 @@ func TestBuf_ByteSlice(t *testing.T) {
 			t.Fatalf("invalid size: %v instead of %v", rw.Len(), n)
 		}
 
-		out := rapid.SliceOf(rapid.Byte()).Draw(t, "out").([]byte)
+		out := rapid.SliceOf(rapid.Byte()).Draw(t, "out")
 		errR := ReadStringBytes(rw, &out)
 		if errR != nil {
 			t.Fatalf("failed to read: %v", errR)

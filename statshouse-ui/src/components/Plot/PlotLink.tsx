@@ -56,7 +56,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
   );
   const plotSearch = usePlotLink(plotSearchFn);
   const onClick = useCallback(() => {
-    setParams(plotSearchFn, true, true);
+    setParams(plotSearchFn, false, true);
   }, [plotSearchFn, setParams]);
 
   if (isServer && !to) {

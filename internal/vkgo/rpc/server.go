@@ -87,7 +87,6 @@ func ChainHandler(ff ...HandlerFunc) HandlerFunc {
 // HandlerContext must not be used outside the handler
 type HandlerContext struct {
 	ActorID     []uint64
-	Extra       []InvokeReqExtra
 	QueryID     int64
 	RequestTime time.Time
 	listenAddr  net.Addr
@@ -99,6 +98,10 @@ type HandlerContext struct {
 	Request  []byte
 	response *[]byte // pointer for reuse. Holds allocated slice which will be put into sync pool, has always len 0
 	Response []byte
+
+	RequestExtra           []InvokeReqExtra // every proxy added its own extra. Clients must take into account RequestExtra[0] (last one added)
+	ResponseExtra          ReqResultExtra   // everything we set here will be sent if client requested it (bit of RequestExtra[0].flags set)
+	requestExtraFieldsmask uint32           // defensive copy
 
 	// UserData allows caching common state between different requests.
 	UserData interface{}
@@ -133,7 +136,7 @@ func (hctx *HandlerContext) RemoteAddr() net.Addr { return hctx.remoteAddr }
 
 func (hctx *HandlerContext) timeout() time.Duration {
 	timeout := hctx.defaultTimeout
-	for _, extra := range hctx.Extra {
+	for _, extra := range hctx.RequestExtra {
 		if extra.IsSetCustomTimeoutMs() {
 			curTimeout := time.Duration(extra.CustomTimeoutMs) * time.Millisecond
 			if timeout == hctx.defaultTimeout || timeout > curTimeout {
@@ -175,9 +178,10 @@ func (hctx *HandlerContext) releaseResponse() {
 }
 
 func (hctx *HandlerContext) reset() {
+	// We do not preserve map in ResponseExtra because strings will not be reused anyway
 	*hctx = HandlerContext{
-		ActorID: hctx.ActorID[:0],
-		Extra:   hctx.Extra[:0],
+		ActorID:      hctx.ActorID[:0],
+		RequestExtra: hctx.RequestExtra[:0],
 
 		UserData: hctx.UserData,
 
@@ -432,10 +436,10 @@ func (s *Server) acquireRequestBuf(ctx context.Context, reqBodySize int) (*[]byt
 	ok := s.reqMemSem.TryAcquire(int64(take))
 	if !ok {
 		s.rareLog(&s.lastReqMemWaitLog,
-			"rpc: waiting to acquire request memory (want %d, mem %.3f, limit %.3f, %d conns, %d reqs); consider increasing Server.RequestMemoryLimit",
+			"rpc: waiting to acquire request memory (want %d, mem %s, limit %s, %d conns, %d reqs); consider increasing Server.RequestMemoryLimit",
 			take,
-			float64(s.statRequestMemory.Load())/1024/1024,
-			float64(s.requestMemoryLimit())/1024/1024,
+			humanByteCountIEC(s.statRequestMemory.Load()),
+			humanByteCountIEC(int64(s.requestMemoryLimit())),
 			s.statConnectionsCurrent.Load(),
 			s.statRequestsCurrent.Load(),
 		)
@@ -473,10 +477,10 @@ func (s *Server) acquireResponseBuf(ctx context.Context) (*[]byte, int, error) {
 	ok := s.respMemSem.TryAcquire(int64(take))
 	if !ok {
 		s.rareLog(&s.lastRespMemWaitLog,
-			"rpc: waiting to acquire response memory (want %d, mem %.3f, limit %.3f, %d conns, %d reqs); consider increasing Server.ResponseMemoryLimit or lowering Server.ResponseMemEstimate",
+			"rpc: waiting to acquire response memory (want %d, mem %s, limit %s, %d conns, %d reqs); consider increasing Server.ResponseMemoryLimit or lowering Server.ResponseMemEstimate",
 			take,
-			float64(s.statResponseMemory.Load())/1024/1024,
-			float64(s.responseMemoryLimit())/1024/1024,
+			humanByteCountIEC(s.statResponseMemory.Load()),
+			humanByteCountIEC(int64(s.responseMemoryLimit())),
 			s.statConnectionsCurrent.Load(),
 			s.statRequestsCurrent.Load(),
 		)
@@ -512,10 +516,10 @@ func (s *Server) accountResponseMem(ctx context.Context, taken int, respBodySize
 		}
 		if !ok {
 			s.rareLog(&s.lastRespMemWaitLog,
-				"rpc: waiting to acquire response memory (want %d, mem %.3f, limit %.3f, %d conns, %d reqs); consider increasing Server.ResponseMemoryLimit",
+				"rpc: waiting to acquire response memory (want %d, mem %s, limit %s, %d conns, %d reqs); consider increasing Server.ResponseMemoryLimit",
 				want,
-				float64(s.statResponseMemory.Load())/1024/1024,
-				float64(s.responseMemoryLimit())/1024/1024,
+				humanByteCountIEC(s.statResponseMemory.Load()),
+				humanByteCountIEC(int64(s.responseMemoryLimit())),
 				s.statConnectionsCurrent.Load(),
 				s.statRequestsCurrent.Load(),
 			)
@@ -689,7 +693,7 @@ func (s *Server) Serve(ln net.Listener) error {
 }
 
 func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *sync.WaitGroup) {
-	magicHead, flags, err := conn.HandshakeServer(s.CryptoKeys, s.trustedSubnetGroups, s.ForceEncryption, s.startTime)
+	magicHead, flags, err := conn.HandshakeServer(s.CryptoKeys, s.trustedSubnetGroups, s.ForceEncryption, s.startTime, DefaultHandshakeStepTimeout)
 	if err != nil {
 		switch string(magicHead) {
 		case memcachedStatsReqRN, memcachedStatsReqN, memcachedGetStatsReq:
@@ -797,14 +801,22 @@ func (sc *serverConn) closed() bool {
 	}
 }
 
-func (sc *serverConn) writeResponseUnlocked(respPacketType uint32, queryID int64, body []byte, timeout time.Duration) error {
-	if err := sc.conn.startWritePacketUnlocked(respPacketType, timeout); err != nil {
+func (sc *serverConn) writeResponseUnlocked(hctx *HandlerContext, timeout time.Duration) (err error) {
+	if err := sc.conn.startWritePacketUnlocked(hctx.respPacketType, timeout); err != nil {
 		return err
 	}
-	if respPacketType == packetTypeRPCReqResult || respPacketType == packetTypeRPCReqError {
-		sc.conn.headerWriteBuf = basictl.LongWrite(sc.conn.headerWriteBuf, queryID)
+	if hctx.respPacketType == packetTypeRPCReqResult || hctx.respPacketType == packetTypeRPCReqError {
+		sc.conn.headerWriteBuf = basictl.LongWrite(sc.conn.headerWriteBuf, hctx.queryID)
+		hctx.ResponseExtra.flags &= hctx.requestExtraFieldsmask // return only fields they understand
+		if hctx.respPacketType == packetTypeRPCReqResult && hctx.ResponseExtra.flags != 0 {
+			sc.conn.headerWriteBuf = basictl.NatWrite(sc.conn.headerWriteBuf, reqResultHeaderTag)
+
+			if sc.conn.headerWriteBuf, err = hctx.ResponseExtra.Write(sc.conn.headerWriteBuf); err != nil {
+				return err // should be no errors during writing, though
+			}
+		}
 	}
-	return sc.conn.writeSimplePacketUnlocked(body)
+	return sc.conn.writeSimplePacketUnlocked(hctx.Response)
 }
 
 func (sc *serverConn) acquireHandlerCtx() (*HandlerContext, bool) {
@@ -961,7 +973,7 @@ func (s *Server) sendLoop(sc *serverConn, wg *sync.WaitGroup) {
 		sent := false
 		for _, hctx := range buf {
 			if !hctx.noResult {
-				err := sc.writeResponseUnlocked(hctx.respPacketType, hctx.queryID, hctx.Response, maxPacketRWTime)
+				err := sc.writeResponseUnlocked(hctx, maxPacketRWTime)
 				if err != nil {
 					if !sc.closed() && (!commonConnCloseError(err) || s.LogCommonNetworkErrors) {
 						s.Logf("rpc: error writing packet 0x%x#0x%x to %v, disconnecting: %v", hctx.respPacketType, hctx.reqType, sc.conn.remoteAddr, err)
@@ -1044,18 +1056,19 @@ func (s *Server) doHandle(ctx context.Context, hctx *HandlerContext) (err error)
 				hctx.ActorID = append(hctx.ActorID, uint64(actorID))
 			}
 			if tag == destActorFlagsTag || tag == destFlagsTag {
-				var extra InvokeReqExtra
+				var extra InvokeReqExtra // do not reuse because client could possibly save slice/pointer
 				if hctx.Request, err = extra.Read(hctx.Request); err != nil {
 					return fmt.Errorf("failed to read request extra: %w", err)
 				}
-				hctx.Extra = append(hctx.Extra, extra)
+				hctx.RequestExtra = append(hctx.RequestExtra, extra)
 			}
 		}
 
 		hctx.reqType = tag
 		hctx.respPacketType = packetTypeRPCReqResult
-		if len(hctx.Extra) > 0 {
-			hctx.noResult = hctx.Extra[0].IsSetNoResult()
+		if len(hctx.RequestExtra) > 0 {
+			hctx.noResult = hctx.RequestExtra[0].IsSetNoResult()
+			hctx.requestExtraFieldsmask = hctx.RequestExtra[0].flags
 		}
 		return s.callHandler(ctx, hctx)
 	default:

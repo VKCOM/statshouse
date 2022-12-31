@@ -570,7 +570,7 @@ func (pc *peerClient) runLoop() {
 
 func (pc *peerClient) run() bool {
 	address := srvfunc.MaybeResolveHost(pc.address.Network, pc.address.Address)
-	nc, err := net.DialTimeout(pc.address.Network, address, handshakeStepTimeout)
+	nc, err := net.DialTimeout(pc.address.Network, address, DefaultHandshakeStepTimeout)
 	if err != nil {
 		pc.logf("rpc: failed to start new peer connection with %v: %v", pc.address, err)
 		return false
@@ -579,7 +579,7 @@ func (pc *peerClient) run() bool {
 	c := NewPacketConn(nc, pc.client.connReadBufSize(), pc.client.connWriteBufSize(), DefaultConnTimeoutAccuracy)
 	defer func() { _ = c.Close() }()
 
-	err = c.HandshakeClient(pc.cryptoKey, pc.client.trustedSubnetGroups, pc.forceEncryption, uniqueStartTime(), 0)
+	err = c.HandshakeClient(pc.cryptoKey, pc.client.trustedSubnetGroups, pc.forceEncryption, uniqueStartTime(), 0, DefaultHandshakeStepTimeout)
 	if err != nil {
 		pc.logf("rpc: failed to establish new peer connection with %v: %v", pc.address, err)
 		return false
@@ -795,7 +795,7 @@ func (pc *peerClient) handleResponse(queryID int64, resp *Response, toplevelErro
 		}
 
 		if tag == reqResultErrorTag {
-			var unused int64
+			var unused int64 // excess query_id erroneously saved by incorrect serialization of RpcReqResult object tree
 			if afterTag, err = basictl.LongRead(afterTag, &unused); err != nil {
 				return true, err
 			}

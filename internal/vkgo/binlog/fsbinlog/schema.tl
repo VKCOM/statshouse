@@ -4,7 +4,6 @@ fsbinlog.snapshotMeta#6b49d850 fields_mask:#
     CommitCrc:#
     CommitTs:# = fsbinlog.SnapshotMeta;
 
-
 fsbinlog.levStart#044c644b
     SchemaId:int
     ExtraBytes:int
@@ -12,3 +11,8 @@ fsbinlog.levStart#044c644b
     SplitMin:int
     SplitMax:int
  = fsbinlog.LevStart;
+
+fsbinlog.levUpgradeToGms#b75009a0 fields_mask:#
+    PayloadOffset:long
+    Crc:#
+    Ts:# = fsbinlog.LevUpgradeToGms;

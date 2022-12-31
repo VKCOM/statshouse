@@ -34,11 +34,6 @@ const longPollTimeout = time.Hour // TODO - remove after rpc.Server tells about 
 
 type AggLog func(typ string, key0 string, key1 string, key2 string, key3 string, key4 string, key5 string, message string)
 
-type MetricsVersionClient struct {
-	args tlstatshouse.GetMetrics2 // We remember both field mask to correctly serialize response and version
-	hctx *rpc.HandlerContext
-}
-
 type versionClient struct {
 	expectedVersion int64
 	ch              chan struct{}
@@ -77,7 +72,6 @@ type Journal struct {
 	}
 
 	clientsMu              sync.Mutex // Always taken after mu
-	metricsVersionClients  []MetricsVersionClient
 	metricsVersionClients3 []MetricsVersionClient3
 
 	versionClientMu sync.Mutex
@@ -370,28 +364,6 @@ func (ms *Journal) goUpdateMetrics(a AggLog) {
 	}
 }
 
-func (ms *Journal) getJournalDiffLocked(ver string) tlstatshouse.GetMetricsResult {
-	curVersion := strconv.FormatInt(ms.versionLocked(), 10)
-	verNumb, _ := strconv.ParseInt(ver, 10, 64)
-
-	result := tlstatshouse.GetMetricsResult{Version: curVersion}
-	if verNumb >= ms.versionLocked() { // wait until version changes
-		return result
-	}
-	pos := sort.Search(len(ms.journalOld), func(i int) bool {
-		return ms.journalOld[i].version > verNumb
-	})
-	for i := pos; i < len(ms.journalOld); i++ {
-		j := ms.journalOld[i]
-		result.Metrics = append(result.Metrics, j.JSON)
-		if len(result.Metrics) <= data_model.MaxJournalItemsSent {
-			continue
-		}
-		result.Version = strconv.FormatInt(j.version, 10) // keep this logic for legacy clients
-	}
-	return result
-}
-
 func (ms *Journal) getJournalDiffLocked3(verNumb int64) tlmetadata.GetJournalResponsenew {
 	result := tlmetadata.GetJournalResponsenew{CurrentVersion: ms.versionLocked()}
 	if verNumb >= ms.versionLocked() { // wait until version changes
@@ -423,39 +395,8 @@ func (ms *Journal) getJournalDiffLocked3(verNumb int64) tlmetadata.GetJournalRes
 }
 
 func (ms *Journal) broadcastJournal() {
-	ms.broadcastMetrics()
 	ms.broadcastJournalRPC(false)
 	ms.broadcastJournalVersionClient()
-}
-
-func (ms *Journal) broadcastMetrics() {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	ms.clientsMu.Lock()
-	defer ms.clientsMu.Unlock()
-	// TODO - most clients wait with the same version, store them in hashmap by version, prepare response once, send to many
-	keepPos := 0
-	for _, c := range ms.metricsVersionClients {
-		if ms.metricsDead {
-			c.hctx.SendHijackedResponse(errDeadMetrics)
-			continue
-		}
-		result := ms.getJournalDiffLocked(c.args.Version)
-		if len(result.Metrics) == 0 { // still waiting, copy to start of array
-			ms.metricsVersionClients[keepPos] = c
-			keepPos++
-			continue
-		}
-		var err error
-		c.hctx.Response, err = c.args.WriteResult(c.hctx.Response, result)
-		if err != nil {
-			ms.builtinAddValue(&ms.BuiltinLongPollDelayedError, 0)
-		} else {
-			ms.builtinAddValue(&ms.BuiltinLongPollDelayedOK, float64(len(result.Metrics)))
-		}
-		c.hctx.SendHijackedResponse(err)
-	}
-	ms.metricsVersionClients = ms.metricsVersionClients[:keepPos]
 }
 
 func (ms *Journal) broadcastJournalRPC(sendToAll bool) {
@@ -504,31 +445,6 @@ func (ms *Journal) broadcastJournalVersionClient() {
 		}
 	}
 	ms.versionClients = ms.versionClients[:keepPos]
-}
-
-func (ms *Journal) HandleGetMetrics(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetMetrics2) error {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	if ms.metricsDead {
-		ms.builtinAddValue(&ms.BuiltinLongPollImmediateError, 0)
-		return errDeadMetrics
-	}
-	result := ms.getJournalDiffLocked(args.Version)
-	if len(result.Metrics) != 0 {
-		var err error
-		hctx.Response, err = args.WriteResult(hctx.Response, result)
-		if err != nil {
-			ms.builtinAddValue(&ms.BuiltinLongPollImmediateError, 0)
-		} else {
-			ms.builtinAddValue(&ms.BuiltinLongPollImmediateOK, float64(len(result.Metrics)))
-		}
-		return err
-	}
-	ms.clientsMu.Lock()
-	defer ms.clientsMu.Unlock()
-	ms.metricsVersionClients = append(ms.metricsVersionClients, MetricsVersionClient{args: args, hctx: hctx})
-	ms.builtinAddValue(&ms.BuiltinLongPollEnqueue, 1)
-	return hctx.HijackResponse()
 }
 
 func (ms *Journal) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetMetrics3) error {

@@ -17,19 +17,19 @@ func ChangeUserGroup(username, groupname string) error {
 		return nil
 	}
 
-	if groupname != `` {
+	if groupname != "" {
 		if gid, err := LookupGroup(groupname); err != nil {
-			return fmt.Errorf(`could not get group %s: %w`, groupname, err)
+			return fmt.Errorf("could not get group %s: %w", groupname, err)
 		} else if err := syscall.Setgid(gid); err != nil {
-			return fmt.Errorf(`could not change group to %s: %w`, groupname, err)
+			return fmt.Errorf("could not change group to %s: %w", groupname, err)
 		}
 	}
 
-	if username != `` {
+	if username != "" {
 		if uid, err := LookupUser(username); err != nil {
-			return fmt.Errorf(`could not get user %s: %w`, username, err)
+			return fmt.Errorf("could not get user %s: %w", username, err)
 		} else if err := syscall.Setuid(uid); err != nil {
-			return fmt.Errorf(`could not change user to %s: %w`, username, err)
+			return fmt.Errorf("could not change user to %s: %w", username, err)
 		}
 	}
 

@@ -8,6 +8,7 @@ import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from 're
 import css from './style.module.css';
 import { useDebounceState } from '../../hooks';
 import useDeepCompareEffect from 'use-deep-compare-effect';
+import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from '../../common/toggleKeyboard';
 
 export type SelectOptionProps = {
   value: string;
@@ -406,10 +407,17 @@ export const Select: FC<SelectProps> = ({
     let result;
     let filtered = options;
     if (searchValueDebounce && !noSearch) {
+      const orig = searchValueDebounce.toLocaleLowerCase();
+      const ru = toggleKeyboard(orig, mapKeyboardEnToRu);
+      const en = toggleKeyboard(orig, mapKeyboardRuToEn);
       filtered = options.filter(
         (item) =>
-          item.name.toLocaleLowerCase().includes(searchValueDebounce.toLocaleLowerCase()) ||
-          item.value.toLocaleLowerCase().includes(searchValueDebounce.toLocaleLowerCase())
+          item.name.toLocaleLowerCase().includes(orig) ||
+          item.value.toLocaleLowerCase().includes(orig) ||
+          item.name.toLocaleLowerCase().includes(ru) ||
+          item.value.toLocaleLowerCase().includes(ru) ||
+          item.name.toLocaleLowerCase().includes(en) ||
+          item.value.toLocaleLowerCase().includes(en)
       );
       result = filtered.slice(start, start + maxOptions);
     } else {

@@ -15,7 +15,7 @@ import (
 
 func TestI32SRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		i := rapid.Int32().Draw(t, "i").(int32)
+		i := rapid.Int32().Draw(t, "i")
 		j := si32(i32s(i))
 		require.Equal(t, i, j)
 	})
@@ -23,7 +23,7 @@ func TestI32SRoundtrip(t *testing.T) {
 
 func TestI64SRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
-		i := rapid.Int64().Draw(t, "i").(int64)
+		i := rapid.Int64().Draw(t, "i")
 		j := si64(i64s(i))
 		require.Equal(t, i, j)
 	})

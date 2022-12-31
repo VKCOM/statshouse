@@ -124,7 +124,7 @@ export function formatTagValue(value: string, comment?: string, raw?: boolean, k
   }
   const i = parseInt(value.substring(1));
   if (i === 0 && !raw) {
-    return '⚡ empty or not set';
+    return '⚡ empty';
   }
   if (i === -1 && !raw) {
     return '⚡ mapping flood';
@@ -450,6 +450,8 @@ export const queryMetricsGroupID = 'id';
 
 export const queryValueBackendVersion1 = '1';
 export const queryValueBackendVersion2 = '2';
+
+export const queryParamLive = 'live';
 
 export function v2Value(useV2: boolean): string {
   return useV2 ? queryValueBackendVersion2 : queryValueBackendVersion1;

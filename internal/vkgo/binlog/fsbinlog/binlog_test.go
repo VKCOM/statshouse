@@ -29,6 +29,12 @@ import (
 
 const testMagic = uint32(12345)
 
+func TestMain(m *testing.M) {
+	testEnvTurnOffFSync = true
+	code := m.Run()
+	os.Exit(code)
+}
+
 type LoggerStdout struct{}
 
 func (*LoggerStdout) Tracef(format string, args ...interface{}) {
@@ -98,7 +104,7 @@ func genBytesIntoSlice(buff []byte) {
 	genStrCount = (genStrCount + 1) % 26
 }
 
-func InitBinlogWithLevs(t *testing.T, options Options, engine TestEngine, levs []string) binlog.Binlog {
+func InitBinlogWithLevs(t *testing.T, options binlog.Options, engine TestEngine, levs []string) binlog.Binlog {
 	_, err := CreateEmptyFsBinlog(options)
 	assert.Nil(t, err)
 
@@ -135,7 +141,7 @@ func (e *TestEngineImpl) Apply(payload []byte) (int64, error) {
 	}
 	return e.applyCb(payload)
 }
-func (e *TestEngineImpl) Commit(offset int64, snapshotMeta []byte) {
+func (e *TestEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotOffset int64) {
 	e.commitMu.Lock()
 
 	e.commitPosition.Store(offset)
@@ -161,7 +167,7 @@ func (e *TestEngineImpl) Revert(toOffset int64) bool {
 }
 
 func (e *TestEngineImpl) ChangeRole(info binlog.ChangeRoleInfo) {
-	if info.Ready {
+	if info.IsReady {
 		e.ready.Store(true)
 	}
 	e.kindaReady.Store(true)
@@ -215,12 +221,12 @@ func NewTestEngine(startPosition int64) *TestEngineImpl {
 	return out
 }
 
-func OpenBinlogAndWriteLevs(t *testing.T, options Options, engine TestEngine, levs []string) binlog.Binlog {
+func OpenBinlogAndWriteLevs(t *testing.T, options binlog.Options, engine TestEngine, levs []string) binlog.Binlog {
 	bl, err := NewFsBinlog(&LoggerStdout{}, options)
 	assert.Nil(t, err)
 
 	go func() {
-		err = bl.Start(0, []byte{}, engine)
+		err = bl.Run(0, []byte{}, engine)
 		assert.Nil(t, err)
 	}()
 
@@ -250,7 +256,7 @@ func TestBinlogSetGet(t *testing.T) {
 
 	testLevs := []string{"hello world", "hello world 2", genStr(50)}
 
-	options := Options{
+	options := binlog.Options{
 		ReplicaMode: false,
 		PrefixPath:  dir + "/test_pref",
 		Magic:       testMagic,
@@ -279,7 +285,7 @@ func TestBinlogSetGet(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(0, []byte{}, engine))
+		assert.Nil(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -295,7 +301,7 @@ func TestUnknownMagic(t *testing.T) {
 
 	testLevs := []string{"hello world", "hello world 2"}
 
-	options := Options{
+	options := binlog.Options{
 		ReplicaMode: false,
 		PrefixPath:  dir + "/test_pref",
 		Magic:       testMagic,
@@ -337,7 +343,7 @@ func TestUnknownMagic(t *testing.T) {
 	bl, err := NewFsBinlog(&LoggerStdout{}, options)
 	assert.Nil(t, err)
 
-	require.Error(t, bl.Start(0, []byte{}, engine))
+	require.Error(t, bl.Run(0, []byte{}, engine))
 
 	assert.Equal(t, len(testLevs), count)
 	assert.NoError(t, bl.Shutdown())
@@ -347,7 +353,7 @@ func TestBinlogReadFromPosition(t *testing.T) {
 	dir := t.TempDir()
 	testLevs := []string{"hello world", "hello world 2", "hello world3", "hello world4"}
 
-	options := Options{
+	options := binlog.Options{
 		PrefixPath: dir + "/test_pref",
 		Magic:      testMagic,
 	}
@@ -382,7 +388,7 @@ func TestBinlogReadFromPosition(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(snapPos, []byte{}, engine))
+		assert.Nil(t, bl.Run(snapPos, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -398,7 +404,7 @@ func TestBinlogReadFromPositionRotateFile(t *testing.T) {
 	dir := t.TempDir()
 	testLevs := []string{genStr(1024), genStr(700), genStr(512), genStr(256), genStr(512)}
 
-	options := Options{
+	options := binlog.Options{
 		PrefixPath:   dir + "/test_pref",
 		MaxChunkSize: 1024,
 		Magic:        testMagic,
@@ -434,7 +440,7 @@ func TestBinlogReadFromPositionRotateFile(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(snapPos, []byte{}, engine))
+		assert.Nil(t, bl.Run(snapPos, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -451,7 +457,7 @@ func TestBinlogWriteWithSeveralFiles(t *testing.T) {
 
 	testLevs := []string{genStr(1024), genStr(512), genStr(512), genStr(512), genStr(512), genStr(512)}
 
-	options := Options{
+	options := binlog.Options{
 		PrefixPath:   dir + "/test_pref",
 		MaxChunkSize: 1024,
 		Magic:        testMagic,
@@ -498,7 +504,7 @@ func TestBinlogWriteWithSeveralFiles(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(snapPos, []byte{}, engine))
+		assert.Nil(t, bl.Run(snapPos, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -514,7 +520,7 @@ func TestBinlogSimulateMasterChangeWithPartialEvent(t *testing.T) {
 
 	testLevs := []string{genStr(1024), genStr(1024), genStr(1024), genStr(1024)}
 
-	options := Options{
+	options := binlog.Options{
 		PrefixPath: dir + "/test_pref",
 		Magic:      testMagic,
 	}
@@ -555,7 +561,7 @@ func TestBinlogSimulateMasterChangeWithPartialEvent(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Start(0, []byte{}, engine))
+		assert.NoError(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -600,7 +606,7 @@ func TestBinlogBigSetGetRandom(t *testing.T) {
 		}
 	}
 
-	options := Options{
+	options := binlog.Options{
 		ReplicaMode:  false,
 		PrefixPath:   dir + "/test_pref",
 		Magic:        testMagic,
@@ -616,7 +622,7 @@ func TestBinlogBigSetGetRandom(t *testing.T) {
 
 		stop := make(chan struct{})
 		go func() {
-			assert.NoError(t, bl.Start(0, []byte{}, engine))
+			assert.NoError(t, bl.Run(0, []byte{}, engine))
 			stop <- struct{}{}
 		}()
 
@@ -666,7 +672,7 @@ func TestBinlogBigSetGetRandom(t *testing.T) {
 	assert.Nil(t, err)
 	stop := make(chan struct{})
 	go func() {
-		assert.NoError(t, bl.Start(0, []byte{}, readEngine))
+		assert.NoError(t, bl.Run(0, []byte{}, readEngine))
 		stop <- struct{}{}
 	}()
 
@@ -682,7 +688,7 @@ func TestBigLev(t *testing.T) {
 
 	testLevs := []string{genStr(1024 * 1024)}
 
-	options := Options{
+	options := binlog.Options{
 		PrefixPath: dir + "/test_pref",
 		Magic:      testMagic,
 	}
@@ -710,7 +716,7 @@ func TestBigLev(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		assert.Nil(t, bl.Start(0, []byte{}, engine))
+		assert.Nil(t, bl.Run(0, []byte{}, engine))
 		stop <- struct{}{}
 	}()
 
@@ -727,7 +733,7 @@ func TestSnapshotMeta(t *testing.T) {
 
 	testLevs := []string{"hello world", "hello world 2", genStr(50)}
 
-	options := Options{
+	options := binlog.Options{
 		ReplicaMode: false,
 		PrefixPath:  dir + "/test_pref",
 		Magic:       testMagic,
@@ -762,7 +768,7 @@ func TestSnapshotMeta(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		require.NoError(t, bl.Start(snapPos, snapMeta, engine))
+		require.NoError(t, bl.Run(snapPos, snapMeta, engine))
 		stop <- struct{}{}
 	}()
 
@@ -777,7 +783,7 @@ func TestSnapshotMetaCommitInDifferentFile(t *testing.T) {
 
 	testLevs := []string{genStr(256), genStr(256), genStr(500), genStr(500), genStr(500), genStr(500)}
 
-	options := Options{
+	options := binlog.Options{
 		MaxChunkSize: 1024,
 		PrefixPath:   dir + "/test_pref",
 		Magic:        testMagic,
@@ -813,7 +819,7 @@ func TestSnapshotMetaCommitInDifferentFile(t *testing.T) {
 
 	stop := make(chan struct{})
 	go func() {
-		require.NoError(t, bl.Start(snapPos, snapMeta, engine))
+		require.NoError(t, bl.Run(snapPos, snapMeta, engine))
 		stop <- struct{}{}
 	}()
 
@@ -826,7 +832,7 @@ func TestSnapshotMetaCommitInDifferentFile(t *testing.T) {
 func BenchmarkWrite(b *testing.B) {
 	dir := b.TempDir()
 
-	options := Options{
+	options := binlog.Options{
 		PrefixPath: dir + "/test_pref",
 	}
 
@@ -837,7 +843,7 @@ func BenchmarkWrite(b *testing.B) {
 	engine := NewTestEngine(0)
 
 	go func() {
-		if err := bl.Start(0, []byte{}, engine); err != nil {
+		if err := bl.Run(0, []byte{}, engine); err != nil {
 			log.Fatalln(err)
 		}
 	}()
@@ -917,7 +923,7 @@ func TestReplicaWithRotate(t *testing.T) {
 	dir := t.TempDir()
 	testLevs := []string{genStr(1024), genStr(700), genStr(512), genStr(512), genStr(512), genStr(512)}
 
-	masterOptions := Options{
+	masterOptions := binlog.Options{
 		PrefixPath:   dir + "/test_pref",
 		MaxChunkSize: 1024,
 		Magic:        testMagic,
@@ -926,7 +932,7 @@ func TestReplicaWithRotate(t *testing.T) {
 	masterEngine := NewTestEngine(0)
 	masterBl := InitBinlogWithLevs(t, masterOptions, masterEngine, testLevs[:1])
 
-	replicaOptions := Options{
+	replicaOptions := binlog.Options{
 		PrefixPath:   dir + "/test_pref",
 		MaxChunkSize: 1024,
 		Magic:        testMagic,
@@ -948,7 +954,7 @@ func TestReplicaWithRotate(t *testing.T) {
 
 	stopChan := make(chan struct{})
 	go func() {
-		assert.Nil(t, replicaBl.Start(snapPos, []byte{}, replicaEngine))
+		assert.Nil(t, replicaBl.Run(snapPos, []byte{}, replicaEngine))
 		stopChan <- struct{}{}
 	}()
 
@@ -965,4 +971,42 @@ func TestReplicaWithRotate(t *testing.T) {
 	assert.Nil(t, masterBl.Shutdown())
 	assert.Nil(t, replicaBl.Shutdown())
 	<-stopChan
+}
+
+func TestBinlogReadAndExit(t *testing.T) {
+	dir := t.TempDir()
+
+	testLevs := []string{"hello world", "hello world 2", genStr(50)}
+
+	options := binlog.Options{
+		PrefixPath: dir + "/test_pref",
+		Magic:      testMagic,
+	}
+	{
+		bl := InitBinlogWithLevs(t, options, NewTestEngine(0), testLevs)
+		assert.Nil(t, bl.Shutdown())
+	}
+
+	options.ReadAndExit = true
+
+	count := 0
+	engine := NewTestEngine(0)
+	engine.applyCb = func(payload []byte) (int64, error) {
+		value, n, err := deserialize(testMagic, payload)
+		if err != nil {
+			return 0, err
+		}
+		assert.Equal(t, testLevs[count], value)
+		count++
+		engine.AddOffset(n)
+
+		return engine.GetCurrentOffset(), nil
+	}
+
+	bl, err := NewFsBinlog(&LoggerStdout{}, options)
+	assert.Nil(t, err)
+
+	assert.Nil(t, bl.Run(0, []byte{}, engine))
+
+	assert.Equal(t, len(testLevs), count)
 }
