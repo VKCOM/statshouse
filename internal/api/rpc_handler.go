@@ -87,7 +87,7 @@ var (
 		queryFnP95:                  tlstatshouseApi.FnP95(),
 		queryFnP99:                  tlstatshouseApi.FnP99(),
 		queryFnP999:                 tlstatshouseApi.FnP999(),
-		queryFnUnique:               tlstatshouseApi.FnUnique(),
+		queryFnUnique:               tlstatshouseApi.FnUnique(), //todo add handler
 		queryFnUniqueNorm:           tlstatshouseApi.FnUniqueNorm(),
 		queryFnMaxHost:              tlstatshouseApi.FnMaxHost(),
 		queryFnMaxCountHost:         tlstatshouseApi.FnMaxCountHost(),

@@ -8,9 +8,8 @@ package api
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/vkcom/statshouse/internal/format"
+	"strings"
 )
 
 type preparedTagValuesQuery struct {
@@ -139,7 +138,12 @@ func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (s
 	case queryFnKindUnique:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
-  toFloat64(uniqMerge(uniq_state)) AS _val0`,
+  toFloat64(uniqCombinedMerge(uniq_state)) AS _val0`,
+			sqlAggFn(version, "sum")), nil
+	case queryFnKindUniqueCombined:
+		return fmt.Sprintf(`
+  toFloat64(%s(count)) AS _count,
+  toFloat64(uniqCombinedMerge(uniq_state)) AS _val0`,
 			sqlAggFn(version, "sum")), nil
 	default:
 		return "", fmt.Errorf("unsupported operation kind: %q", kind)
@@ -151,7 +155,6 @@ func loadPointsQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (str
 	if err != nil {
 		return "", nil, err
 	}
-
 	var commaBy string
 	if len(pq.by) > 0 {
 		for _, b := range pq.by {

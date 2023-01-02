@@ -1243,7 +1243,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		version,
 		int64(metricMeta.PreKeyFrom),
 		metricMeta.Resolution,
-		kind == queryFnKindUnique,
+		kind == queryFnKindUnique || kind == queryFnKindUniqueCombined,
 		metricMeta.StringTopDescription != "",
 		time.Now().Unix(),
 		from.Unix(),
@@ -2246,9 +2246,9 @@ func selectTSValue(what queryFn, stepMul int64, desiredStepMul int64, row *tsSel
 		return row.Val5
 	case queryFnP999:
 		return row.Val6
-	case queryFnUnique, queryFnDerivativeUnique:
+	case queryFnUnique, queryFnDerivativeUnique, queryFnUniqueCombined:
 		return stableMulDiv(row.Val0, desiredStepMul, row.StepSec)
-	case queryFnUniqueNorm, queryFnDerivativeUniqueNorm:
+	case queryFnUniqueNorm, queryFnDerivativeUniqueNorm, queryFnUniqueNormCombined:
 		return row.Val0 / float64(row.StepSec)
 	default:
 		return math.NaN()

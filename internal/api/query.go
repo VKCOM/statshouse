@@ -29,10 +29,11 @@ const (
 	queryFilterInSep    = "-"
 	queryFilterNotInSep = "~"
 
-	queryFnKindCount       = queryFnKind("count")
-	queryFnKindValue       = queryFnKind("value")
-	queryFnKindPercentiles = queryFnKind("percentiles")
-	queryFnKindUnique      = queryFnKind("unique")
+	queryFnKindCount          = queryFnKind("count")
+	queryFnKindValue          = queryFnKind("value")
+	queryFnKindPercentiles    = queryFnKind("percentiles")
+	queryFnKindUnique         = queryFnKind("unique")
+	queryFnKindUniqueCombined = queryFnKind("unique_combined")
 )
 
 const (
@@ -71,6 +72,10 @@ const (
 	queryFnDerivativeMax
 	queryFnDerivativeUnique
 	queryFnDerivativeUniqueNorm
+	queryFnUniqueCombined
+	queryFnUniqueNormCombined
+	queryFnDerivativeUniqueCombined
+	queryFnDerivativeUniqueNormCombined
 
 	ParamQueryFnCount                = "count"
 	ParamQueryFnCountNorm            = "count_norm"
@@ -95,6 +100,8 @@ const (
 	ParamQueryFnP999                 = "p999"
 	ParamQueryFnUnique               = "unique"
 	ParamQueryFnUniqueNorm           = "unique_norm"
+	ParamQueryFnUniqueCombined       = "unique_combined"
+	ParamQueryFnUniqueNormCombined   = "unique_norm_combined"
 	ParamQueryFnMaxHost              = "max_host"
 	ParamQueryFnMaxCountHost         = "max_count_host"
 	ParamQueryFnDerivativeCount      = "dv_count"
@@ -156,6 +163,10 @@ func validQueryFn(fn string) (queryFn, bool) {
 		return queryFnUnique, true
 	case ParamQueryFnUniqueNorm:
 		return queryFnUniqueNorm, true
+	case ParamQueryFnUniqueCombined:
+		return queryFnUniqueCombined, true
+	case ParamQueryFnUniqueNormCombined:
+		return queryFnUniqueNormCombined, true
 	case ParamQueryFnMaxHost:
 		return queryFnMaxHost, true
 	case ParamQueryFnMaxCountHost:
@@ -197,6 +208,8 @@ func queryFnToQueryFnKind(fn queryFn) queryFnKind {
 		return queryFnKindPercentiles
 	case queryFnUnique, queryFnUniqueNorm, queryFnDerivativeUnique, queryFnDerivativeUniqueNorm:
 		return queryFnKindUnique
+	case queryFnUniqueCombined, queryFnUniqueNormCombined, queryFnDerivativeUniqueCombined, queryFnDerivativeUniqueNormCombined:
+		return queryFnKindUniqueCombined
 	default:
 		return queryFnKindCount
 	}
@@ -394,6 +407,10 @@ func (fn queryFn) String() string {
 		return ParamQueryFnUnique
 	case queryFnUniqueNorm:
 		return ParamQueryFnUniqueNorm
+	case queryFnUniqueCombined:
+		return ParamQueryFnUniqueCombined
+	case queryFnUniqueNormCombined:
+		return ParamQueryFnUniqueNormCombined
 	case queryFnMaxHost:
 		return ParamQueryFnMaxHost
 	case queryFnMaxCountHost:
