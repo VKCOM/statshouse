@@ -12,9 +12,10 @@ export type AlignByDotProps = {
 export const AlignByDot: React.FC<AlignByDotProps> = ({ value, unit = '', className }) => {
   const [i, f = ''] = value.replace(unit, '').split('.', 2);
   return (
-    <span className={cn(className)}>
+    <span className={cn(className)} title={value}>
       <span>{i}</span>
-      <span className={cn(css.dotSpace, f && css.dotSpaceSeparate)}>
+      <span className={cn(css.dotSpace)}>
+        {f && '.'}
         {f}
         {!!value && unit}
       </span>

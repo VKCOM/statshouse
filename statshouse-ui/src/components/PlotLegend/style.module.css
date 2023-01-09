@@ -94,14 +94,14 @@
   display: inline-block;
   text-align: start;
   width: var(--legend-dot-space-width);
+  vertical-align: bottom;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
 }
 
 .percentSuffix .dotSpace {
   width: calc(var(--legend-dot-space-width) + var(--legend-percent-suffix-width));
-}
-
-.dotSpaceSeparate:before {
-  content: '.';
 }
 
 .labelCompact {
