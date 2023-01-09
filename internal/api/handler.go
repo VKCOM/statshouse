@@ -273,7 +273,7 @@ type (
 		SamplingFactorAgg        float64                 `json:"sampling_factor_agg"`         // average
 		MappingFloodEventsLegacy float64                 `json:"mapping_flood_events_legacy"` // sum of average, legacy
 		ReceiveErrors            float64                 `json:"receive_errors"`              // count/sec
-		MappingErrors            float64                 `json:"mapping_error"`               // count/sec
+		MappingErrors            float64                 `json:"mapping_errors"`              // count/sec
 		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
 		MetricMeta               *format.MetricMetaValue `json:"-"`
 		syncPoolBuffers          []*[]float64            // buffers to be returned to sync.Pool after response is serialized
