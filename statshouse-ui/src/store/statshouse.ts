@@ -91,6 +91,7 @@ export type PlotStore = {
   samplingFactorAgg: number;
   mappingFloodEvents: number;
   legendValueWidth: number;
+  legendMaxDotSpaceWidth: number;
   legendNameWidth: number;
   legendPercentWidth: number;
   legendMaxHostWidth: number;
@@ -523,6 +524,7 @@ export const useStore = create<Store>()(
             samplingFactorAgg: 0,
             mappingFloodEvents: 0,
             legendValueWidth: 0,
+            legendMaxDotSpaceWidth: 0,
             legendNameWidth: 0,
             legendPercentWidth: 0,
             legendMaxHostWidth: 0,
@@ -696,12 +698,31 @@ export const useStore = create<Store>()(
               scales.y = { ...lastPlotParams.yLock };
             }
 
+            const maxLengthValue = series.reduce((res, s, indexSeries) => {
+              if (s.show) {
+                const v =
+                  (data[indexSeries + 1] as (number | null)[] | undefined)?.reduce((res2, d) => {
+                    if (d && (res2?.toString().length ?? 0) < d.toString().length) {
+                      return d;
+                    }
+                    return res2;
+                  }, null as null | number) ?? null;
+                if (v && (v.toString().length ?? 0) > (res?.toString().length ?? 0)) {
+                  return v;
+                }
+              }
+              return res;
+            }, null as null | number);
+
             const [yMinAll, yMaxAll] = calcYRange2(series, data, false);
             const legendExampleValue = Math.max(
               Math.abs(Math.floor(yMinAll) - 0.001),
               Math.abs(Math.ceil(yMaxAll) + 0.001)
             );
             const legendValueWidth = (formatLegendValue(legendExampleValue).length + 2) * pxPerChar; // +2 - focus marker
+
+            const legendMaxDotSpaceWidth =
+              Math.max(4, (formatLegendValue(maxLengthValue).split('.', 2)[1]?.length ?? 0) + 2) * pxPerChar;
             const legendPercentWidth = (4 + 2) * pxPerChar; // +2 - focus marker
 
             setState((state) => {
@@ -719,6 +740,7 @@ export const useStore = create<Store>()(
                 samplingFactorAgg: resp.sampling_factor_agg,
                 mappingFloodEvents: resp.mapping_flood_events_legacy,
                 legendValueWidth,
+                legendMaxDotSpaceWidth,
                 legendNameWidth,
                 legendPercentWidth,
                 legendMaxHostWidth,
@@ -744,6 +766,7 @@ export const useStore = create<Store>()(
                   samplingFactorAgg: 0,
                   mappingFloodEvents: 0,
                   legendValueWidth: 0,
+                  legendMaxDotSpaceWidth: 0,
                   legendNameWidth: 0,
                   legendPercentWidth: 0,
                   legendMaxHostWidth: 0,
@@ -769,6 +792,7 @@ export const useStore = create<Store>()(
                   samplingFactorAgg: 0,
                   mappingFloodEvents: 0,
                   legendValueWidth: 0,
+                  legendMaxDotSpaceWidth: 0,
                   legendNameWidth: 0,
                   legendPercentWidth: 0,
                   legendMaxHostWidth: 0,

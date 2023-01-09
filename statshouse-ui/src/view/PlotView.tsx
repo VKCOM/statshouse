@@ -83,6 +83,7 @@ const PlotView = memo(function PlotView_(props: {
     groups,
     legendNameWidth,
     legendValueWidth,
+    legendMaxDotSpaceWidth,
     legendMaxHostWidth,
     mappingFloodEvents,
     samplingFactorSrc,
@@ -328,6 +329,7 @@ const PlotView = memo(function PlotView_(props: {
           '--legend-name-width': `${legendNameWidth}px`,
           '--legend-value-width': `${legendValueWidth}px`,
           '--legend-max-host-width': `${legendMaxHostWidth}px`,
+          '--legend-dot-space-width': `${legendMaxDotSpaceWidth}px`,
           height: fixHeight > 0 && dashboard ? `${fixHeight}px` : undefined,
         } as React.CSSProperties
       }
