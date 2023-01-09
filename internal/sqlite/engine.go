@@ -15,12 +15,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
-
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 
 	"go.uber.org/atomic"
+
+	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
 
 	"go.uber.org/multierr"
 	"pgregory.net/rand"
@@ -73,6 +73,7 @@ const (
 	mmapSize           = 8 * 1024 * 1024 * 1024 * 1024 // 8TB
 	commitEveryDefault = 1 * time.Second
 	commitTXTimeout    = 10 * time.Second
+	maxROConn          = 128
 
 	beginStmt  = "BEGIN IMMEDIATE" // TODO: not immediate? then SQLITE_BUSY_SNAPSHOT from upgrade is possible
 	commitStmt = "COMMIT"
@@ -95,6 +96,10 @@ type Engine struct {
 	stop func()
 	rw   *sqliteConn
 	//	chk *sqlite0.Conn
+	roMx    sync.Mutex
+	roFree  []*sqliteConn
+	roCount int
+	roCond  *sync.Cond
 
 	mode engineMode
 
@@ -120,6 +125,7 @@ type Options struct {
 	Replica        bool
 	CommitEvery    time.Duration
 	DurabilityMode DurabilityMode
+	ReadAndExit    bool
 }
 
 type waitCommitInfo struct {
@@ -153,6 +159,7 @@ const (
 const (
 	WaitCommit   DurabilityMode = iota // Wait for commit to finish before returning from Do()
 	NoWaitCommit DurabilityMode = iota // Do not wait for commit to finish before returning from Do()
+	NoBinlog     DurabilityMode = iota // Do not use binlog, just commit to sqlite
 )
 
 func OpenEngine(
@@ -180,7 +187,6 @@ func OpenEngine(
 		rw:   newSqliteConn(rw),
 		ctx:  ctx,
 		stop: stop,
-
 		//	chk:                     chk,
 		opt: opt,
 
@@ -194,6 +200,10 @@ func OpenEngine(
 		commitCh:             make(chan struct{}, 1),
 		mode:                 replica,
 	}
+	if opt.ReadAndExit {
+		e.opt.DurabilityMode = NoBinlog
+	}
+	e.roCond = sync.NewCond(&e.roMx)
 
 	e.commitTXAndStartNew(false, false)
 	if err := e.rw.err; err != nil {
@@ -222,6 +232,10 @@ func OpenEngine(
 				e.rw.err = err
 				e.rw.mu.Unlock()
 			}
+			if opt.ReadAndExit {
+				close(e.waitUntilBinlogReady)
+			}
+
 		}()
 		<-e.waitUntilBinlogReady
 		// in master mode we need to apply all queued events, before handling queries
@@ -233,12 +247,15 @@ func OpenEngine(
 			}
 			binlogEngineImpl.state = none
 		}
+		if opt.ReadAndExit {
+			e.binlog = nil
+		}
 	}
 	e.mode = master
 	if opt.Replica {
 		e.mode = replica
 	}
-	if e.opt.DurabilityMode == WaitCommit {
+	if e.opt.DurabilityMode == WaitCommit || e.opt.DurabilityMode == NoBinlog {
 		go e.txLoop()
 	}
 	return e, nil
@@ -319,7 +336,6 @@ func openRW(path string, appID int32, schemas ...string) (*sqlite0.Conn, error) 
 //
 //		return conn, nil
 //	}
-
 func openROWAL(path string) (*sqlite0.Conn, error) {
 	conn, err := openWAL(path, sqlite0.OpenReadonly|sqlite0.OpenNoMutex|sqlite0.OpenPrivateCache)
 	if err != nil {
@@ -414,7 +430,7 @@ func (e *Engine) txLoop() {
 
 		// TODO replace with runtime mode change
 		if e.mode == master {
-			e.commitTXAndStartNew(true, true)
+			e.commitTXAndStartNew(true, e.opt.DurabilityMode == WaitCommit)
 		}
 	}
 }
@@ -536,6 +552,41 @@ func (e *Engine) Backup(ctx context.Context, prefix string) error {
 	return fmt.Errorf("snapshot %s already exists", backupExpectedPath)
 }
 
+// ViewCommitted - can view only committed to sqlite data
+// It depends on e.opt.CommitEvery
+// TODO: research shm to see uncommitted data
+func (e *Engine) ViewCommitted(ctx context.Context, fn func(Conn) error) error {
+	e.roMx.Lock()
+	var conn *sqliteConn
+	for len(e.roFree) == 0 && e.roCount >= maxROConn {
+		e.roCond.Wait()
+	}
+	if len(e.roFree) == 0 {
+		ro, err := openROWAL(e.opt.Path)
+		if err != nil {
+			e.roMx.Unlock()
+			return fmt.Errorf("failed to open RO connection: %w", err)
+		}
+		conn = newSqliteConn(ro)
+		e.roCount++
+	} else {
+		conn = e.roFree[0]
+		e.roFree = e.roFree[1:]
+	}
+	e.roMx.Unlock()
+	defer func() {
+		e.roMx.Lock()
+		e.roFree = append(e.roFree, conn)
+		e.roMx.Unlock()
+		e.roCond.Signal()
+	}()
+	conn.mu.Lock()
+	c := Conn{conn, false, ctx}
+	err := fn(c)
+	c.close()
+	return err
+}
+
 func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) error {
 	c := e.start(ctx, true)
 	e.rw.spOk = false
@@ -545,7 +596,7 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 		c.close()
 		return err
 	}
-	if e.binlog == nil {
+	if e.opt.DurabilityMode == NoBinlog {
 		e.rw.spOk = true
 		c.close()
 		return nil
