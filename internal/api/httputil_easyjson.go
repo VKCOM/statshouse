@@ -24,7 +24,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjson7a1b8754DecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(in *jlexer.Lexer, out *Response) {
+func easyjson7a1b8754DecodeGithubComVkcomStatshouseInternalApi(in *jlexer.Lexer, out *Response) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -63,7 +63,7 @@ func easyjson7a1b8754DecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(in *j
 		in.Consumed()
 	}
 }
-func easyjson7a1b8754EncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(out *jwriter.Writer, in Response) {
+func easyjson7a1b8754EncodeGithubComVkcomStatshouseInternalApi(out *jwriter.Writer, in Response) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -94,10 +94,10 @@ func easyjson7a1b8754EncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(out *
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v Response) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson7a1b8754EncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(w, v)
+	easyjson7a1b8754EncodeGithubComVkcomStatshouseInternalApi(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *Response) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson7a1b8754DecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(l, v)
+	easyjson7a1b8754DecodeGithubComVkcomStatshouseInternalApi(l, v)
 }

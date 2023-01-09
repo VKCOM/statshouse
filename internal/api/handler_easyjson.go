@@ -27,7 +27,7 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(in *jlexer.Lexer, out *PromConfigInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi(in *jlexer.Lexer, out *PromConfigInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -60,7 +60,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(in *j
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(out *jwriter.Writer, in PromConfigInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi(out *jwriter.Writer, in PromConfigInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -79,14 +79,14 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(out *
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v PromConfigInfo) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *PromConfigInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi(l, v)
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi1(in *jlexer.Lexer, out *MetricsGroupInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi1(in *jlexer.Lexer, out *MetricsGroupInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -106,7 +106,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi1(in *
 		}
 		switch key {
 		case "group":
-			easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat(in, &out.Group)
+			easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in, &out.Group)
 		case "metrics":
 			if in.IsNull() {
 				in.Skip()
@@ -142,14 +142,14 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi1(in *
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi1(out *jwriter.Writer, in MetricsGroupInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi1(out *jwriter.Writer, in MetricsGroupInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
 		const prefix string = ",\"group\":"
 		out.RawString(prefix[1:])
-		easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat(out, in.Group)
+		easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out, in.Group)
 	}
 	{
 		const prefix string = ",\"metrics\":"
@@ -177,14 +177,14 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi1(out 
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v MetricsGroupInfo) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi1(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi1(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *MetricsGroupInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi1(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi1(l, v)
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat(in *jlexer.Lexer, out *format.MetricsGroup) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lexer, out *format.MetricsGroup) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -225,14 +225,14 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat(in
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat(out *jwriter.Writer, in format.MetricsGroup) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.Writer, in format.MetricsGroup) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
 		const prefix string = ",\"group_id\":"
 		out.RawString(prefix[1:])
-		out.Int64(int64(in.ID))
+		out.Int32(int32(in.ID))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -261,7 +261,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat(ou
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi2(in *jlexer.Lexer, out *MetricInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer, out *MetricInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -281,7 +281,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi2(in *
 		}
 		switch key {
 		case "metric":
-			easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat1(in, &out.Metric)
+			easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat1(in, &out.Metric)
 		default:
 			in.SkipRecursive()
 		}
@@ -292,28 +292,28 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi2(in *
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi2(out *jwriter.Writer, in MetricInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Writer, in MetricInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
 		const prefix string = ",\"metric\":"
 		out.RawString(prefix[1:])
-		easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat1(out, in.Metric)
+		easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat1(out, in.Metric)
 	}
 	out.RawByte('}')
 }
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v MetricInfo) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi2(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *MetricInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi2(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(l, v)
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat1(in *jlexer.Lexer, out *format.MetricMetaValue) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat1(in *jlexer.Lexer, out *format.MetricMetaValue) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -359,7 +359,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat1(i
 				}
 				for !in.IsDelim(']') {
 					var v4 format.MetricMetaTag
-					easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat2(in, &v4)
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in, &v4)
 					out.Tags = append(out.Tags, v4)
 					in.WantComma()
 				}
@@ -393,7 +393,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat1(i
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat1(out *jwriter.Writer, in format.MetricMetaValue) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat1(out *jwriter.Writer, in format.MetricMetaValue) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -431,7 +431,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat1(o
 				if v5 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat2(out, v6)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out, v6)
 			}
 			out.RawByte(']')
 		}
@@ -479,11 +479,11 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat1(o
 	{
 		const prefix string = ",\"group_id\":"
 		out.RawString(prefix)
-		out.Int64(int64(in.GroupID))
+		out.Int32(int32(in.GroupID))
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat2(in *jlexer.Lexer, out *format.MetricMetaTag) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Lexer, out *format.MetricMetaTag) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -560,7 +560,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat2(i
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat2(out *jwriter.Writer, in format.MetricMetaTag) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.Writer, in format.MetricMetaTag) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -650,7 +650,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalFormat2(o
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi3(in *jlexer.Lexer, out *GetQueryResp) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi3(in *jlexer.Lexer, out *GetQueryResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -670,7 +670,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi3(in *
 		}
 		switch key {
 		case "series":
-			easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi4(in, &out.Series)
+			easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi4(in, &out.Series)
 		case "receive_errors_legacy":
 			out.ReceiveErrorsLegacy = float64(in.Float64())
 		case "sampling_factor_src":
@@ -681,7 +681,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi3(in *
 			out.MappingFloodEventsLegacy = float64(in.Float64())
 		case "receive_errors":
 			out.ReceiveErrors = float64(in.Float64())
-		case "mapping_error":
+		case "mapping_errors":
 			out.MappingErrors = float64(in.Float64())
 		case "__debug_queries":
 			if in.IsNull() {
@@ -716,14 +716,14 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi3(in *
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi3(out *jwriter.Writer, in GetQueryResp) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi3(out *jwriter.Writer, in GetQueryResp) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
 		const prefix string = ",\"series\":"
 		out.RawString(prefix[1:])
-		easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi4(out, in.Series)
+		easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out, in.Series)
 	}
 	{
 		const prefix string = ",\"receive_errors_legacy\":"
@@ -751,7 +751,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi3(out 
 		out.Float64(float64(in.ReceiveErrors))
 	}
 	{
-		const prefix string = ",\"mapping_error\":"
+		const prefix string = ",\"mapping_errors\":"
 		out.RawString(prefix)
 		out.Float64(float64(in.MappingErrors))
 	}
@@ -776,14 +776,14 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi3(out 
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v GetQueryResp) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi3(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi3(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *GetQueryResp) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi3(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi3(l, v)
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi4(in *jlexer.Lexer, out *querySeries) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi4(in *jlexer.Lexer, out *querySeries) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -842,7 +842,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi4(in *
 				}
 				for !in.IsDelim(']') {
 					var v15 QuerySeriesMetaV2
-					easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi5(in, &v15)
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi5(in, &v15)
 					out.SeriesMeta = append(out.SeriesMeta, v15)
 					in.WantComma()
 				}
@@ -910,7 +910,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi4(in *
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi4(out *jwriter.Writer, in querySeries) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out *jwriter.Writer, in querySeries) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -941,7 +941,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi4(out 
 				if v20 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi5(out, v21)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi5(out, v21)
 			}
 			out.RawByte(']')
 		}
@@ -983,7 +983,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi4(out 
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi5(in *jlexer.Lexer, out *QuerySeriesMetaV2) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi5(in *jlexer.Lexer, out *QuerySeriesMetaV2) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1014,7 +1014,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi5(in *
 					key := string(in.String())
 					in.WantColon()
 					var v26 SeriesMetaTag
-					easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi6(in, &v26)
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(in, &v26)
 					(out.Tags)[key] = v26
 					in.WantComma()
 				}
@@ -1055,7 +1055,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi5(in *
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi5(out *jwriter.Writer, in QuerySeriesMetaV2) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi5(out *jwriter.Writer, in QuerySeriesMetaV2) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1080,7 +1080,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi5(out 
 				}
 				out.String(string(v28Name))
 				out.RawByte(':')
-				easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi6(out, v28Value)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi6(out, v28Value)
 			}
 			out.RawByte('}')
 		}
@@ -1108,7 +1108,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi5(out 
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi6(in *jlexer.Lexer, out *SeriesMetaTag) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(in *jlexer.Lexer, out *SeriesMetaTag) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1145,7 +1145,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi6(in *
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi6(out *jwriter.Writer, in SeriesMetaTag) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi6(out *jwriter.Writer, in SeriesMetaTag) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1171,132 +1171,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi6(out 
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi9(in *jlexer.Lexer, out *QuerySeriesMeta) {
-	isTopLevel := in.IsStart()
-	if in.IsNull() {
-		if isTopLevel {
-			in.Consumed()
-		}
-		in.Skip()
-		return
-	}
-	in.Delim('{')
-	for !in.IsDelim('}') {
-		key := in.UnsafeFieldName(false)
-		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
-		switch key {
-		case "time_shift":
-			out.TimeShift = int64(in.Int64())
-		case "tags":
-			if in.IsNull() {
-				in.Skip()
-			} else {
-				in.Delim('{')
-				out.Tags = make(map[string]string)
-				for !in.IsDelim('}') {
-					key := string(in.String())
-					in.WantColon()
-					var v43 string
-					v43 = string(in.String())
-					(out.Tags)[key] = v43
-					in.WantComma()
-				}
-				in.Delim('}')
-			}
-		case "max_hosts":
-			if in.IsNull() {
-				in.Skip()
-				out.MaxHosts = nil
-			} else {
-				in.Delim('[')
-				if out.MaxHosts == nil {
-					if !in.IsDelim(']') {
-						out.MaxHosts = make([]string, 0, 4)
-					} else {
-						out.MaxHosts = []string{}
-					}
-				} else {
-					out.MaxHosts = (out.MaxHosts)[:0]
-				}
-				for !in.IsDelim(']') {
-					var v44 string
-					v44 = string(in.String())
-					out.MaxHosts = append(out.MaxHosts, v44)
-					in.WantComma()
-				}
-				in.Delim(']')
-			}
-		case "what":
-			(out.What).UnmarshalEasyJSON(in)
-		default:
-			in.SkipRecursive()
-		}
-		in.WantComma()
-	}
-	in.Delim('}')
-	if isTopLevel {
-		in.Consumed()
-	}
-}
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi9(out *jwriter.Writer, in QuerySeriesMeta) {
-	out.RawByte('{')
-	first := true
-	_ = first
-	{
-		const prefix string = ",\"time_shift\":"
-		out.RawString(prefix[1:])
-		out.Int64(int64(in.TimeShift))
-	}
-	{
-		const prefix string = ",\"tags\":"
-		out.RawString(prefix)
-		if in.Tags == nil && (out.Flags&jwriter.NilMapAsEmpty) == 0 {
-			out.RawString(`null`)
-		} else {
-			out.RawByte('{')
-			v45First := true
-			for v45Name, v45Value := range in.Tags {
-				if v45First {
-					v45First = false
-				} else {
-					out.RawByte(',')
-				}
-				out.String(string(v45Name))
-				out.RawByte(':')
-				out.String(string(v45Value))
-			}
-			out.RawByte('}')
-		}
-	}
-	{
-		const prefix string = ",\"max_hosts\":"
-		out.RawString(prefix)
-		if in.MaxHosts == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
-			out.RawString("null")
-		} else {
-			out.RawByte('[')
-			for v46, v47 := range in.MaxHosts {
-				if v46 > 0 {
-					out.RawByte(',')
-				}
-				out.String(string(v47))
-			}
-			out.RawByte(']')
-		}
-	}
-	{
-		const prefix string = ",\"what\":"
-		out.RawString(prefix)
-		(in.What).MarshalEasyJSON(out)
-	}
-	out.RawByte('}')
-}
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi10(in *jlexer.Lexer, out *GetMetricsListResp) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi7(in *jlexer.Lexer, out *GetMetricsListResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1331,9 +1206,9 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi10(in 
 					out.Metrics = (out.Metrics)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v48 metricShortInfo
-					easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi11(in, &v48)
-					out.Metrics = append(out.Metrics, v48)
+					var v31 metricShortInfo
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(in, &v31)
+					out.Metrics = append(out.Metrics, v31)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1348,7 +1223,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi10(in 
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi10(out *jwriter.Writer, in GetMetricsListResp) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi7(out *jwriter.Writer, in GetMetricsListResp) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1359,11 +1234,11 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi10(out
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v49, v50 := range in.Metrics {
-				if v49 > 0 {
+			for v32, v33 := range in.Metrics {
+				if v32 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi11(out, v50)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi8(out, v33)
 			}
 			out.RawByte(']')
 		}
@@ -1373,14 +1248,14 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi10(out
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v GetMetricsListResp) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi10(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi7(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *GetMetricsListResp) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi10(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi7(l, v)
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi11(in *jlexer.Lexer, out *metricShortInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(in *jlexer.Lexer, out *metricShortInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1411,7 +1286,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi11(in 
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi11(out *jwriter.Writer, in metricShortInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi8(out *jwriter.Writer, in metricShortInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1422,7 +1297,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi11(out
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi12(in *jlexer.Lexer, out *GetMetricTagValuesResp) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi9(in *jlexer.Lexer, out *GetMetricTagValuesResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1457,9 +1332,9 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi12(in 
 					out.TagValues = (out.TagValues)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v51 MetricTagValueInfo
-					easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi13(in, &v51)
-					out.TagValues = append(out.TagValues, v51)
+					var v34 MetricTagValueInfo
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(in, &v34)
+					out.TagValues = append(out.TagValues, v34)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1476,7 +1351,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi12(in 
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi12(out *jwriter.Writer, in GetMetricTagValuesResp) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi9(out *jwriter.Writer, in GetMetricTagValuesResp) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1487,11 +1362,11 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi12(out
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v52, v53 := range in.TagValues {
-				if v52 > 0 {
+			for v35, v36 := range in.TagValues {
+				if v35 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi13(out, v53)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(out, v36)
 			}
 			out.RawByte(']')
 		}
@@ -1506,14 +1381,14 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi12(out
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v GetMetricTagValuesResp) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi12(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi9(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *GetMetricTagValuesResp) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi12(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi9(l, v)
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi13(in *jlexer.Lexer, out *MetricTagValueInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(in *jlexer.Lexer, out *MetricTagValueInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1546,7 +1421,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi13(in 
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi13(out *jwriter.Writer, in MetricTagValueInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(out *jwriter.Writer, in MetricTagValueInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1562,7 +1437,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi13(out
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi14(in *jlexer.Lexer, out *GetGroupListResp) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi11(in *jlexer.Lexer, out *GetGroupListResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1597,9 +1472,9 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi14(in 
 					out.Groups = (out.Groups)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v54 groupShortInfo
-					easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi15(in, &v54)
-					out.Groups = append(out.Groups, v54)
+					var v37 groupShortInfo
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(in, &v37)
+					out.Groups = append(out.Groups, v37)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1614,7 +1489,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi14(in 
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi14(out *jwriter.Writer, in GetGroupListResp) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi11(out *jwriter.Writer, in GetGroupListResp) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1625,11 +1500,11 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi14(out
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v55, v56 := range in.Groups {
-				if v55 > 0 {
+			for v38, v39 := range in.Groups {
+				if v38 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi15(out, v56)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(out, v39)
 			}
 			out.RawByte(']')
 		}
@@ -1639,14 +1514,14 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi14(out
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v GetGroupListResp) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi14(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi11(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *GetGroupListResp) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi14(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi11(l, v)
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi15(in *jlexer.Lexer, out *groupShortInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(in *jlexer.Lexer, out *groupShortInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1681,14 +1556,14 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi15(in 
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi15(out *jwriter.Writer, in groupShortInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(out *jwriter.Writer, in groupShortInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
 		const prefix string = ",\"id\":"
 		out.RawString(prefix[1:])
-		out.Int64(int64(in.Id))
+		out.Int32(int32(in.Id))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -1702,7 +1577,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi15(out
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi16(in *jlexer.Lexer, out *GetDashboardListResp) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi13(in *jlexer.Lexer, out *GetDashboardListResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1737,9 +1612,9 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi16(in 
 					out.Dashboards = (out.Dashboards)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v57 dashboardShortInfo
-					easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi17(in, &v57)
-					out.Dashboards = append(out.Dashboards, v57)
+					var v40 dashboardShortInfo
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi14(in, &v40)
+					out.Dashboards = append(out.Dashboards, v40)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1754,7 +1629,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi16(in 
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi16(out *jwriter.Writer, in GetDashboardListResp) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi13(out *jwriter.Writer, in GetDashboardListResp) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1765,11 +1640,11 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi16(out
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v58, v59 := range in.Dashboards {
-				if v58 > 0 {
+			for v41, v42 := range in.Dashboards {
+				if v41 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi17(out, v59)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi14(out, v42)
 			}
 			out.RawByte(']')
 		}
@@ -1779,14 +1654,14 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi16(out
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v GetDashboardListResp) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi16(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi13(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *GetDashboardListResp) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi16(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi13(l, v)
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi17(in *jlexer.Lexer, out *dashboardShortInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi14(in *jlexer.Lexer, out *dashboardShortInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1821,14 +1696,14 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi17(in 
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi17(out *jwriter.Writer, in dashboardShortInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi14(out *jwriter.Writer, in dashboardShortInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
 		const prefix string = ",\"id\":"
 		out.RawString(prefix[1:])
-		out.Int64(int64(in.Id))
+		out.Int32(int32(in.Id))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -1842,7 +1717,7 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi17(out
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi18(in *jlexer.Lexer, out *DashboardInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi15(in *jlexer.Lexer, out *DashboardInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1862,7 +1737,7 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi18(in 
 		}
 		switch key {
 		case "dashboard":
-			easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi19(in, &out.Dashboard)
+			easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi16(in, &out.Dashboard)
 		case "delete_mark":
 			out.Delete = bool(in.Bool())
 		default:
@@ -1875,14 +1750,14 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi18(in 
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi18(out *jwriter.Writer, in DashboardInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi15(out *jwriter.Writer, in DashboardInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
 		const prefix string = ",\"dashboard\":"
 		out.RawString(prefix[1:])
-		easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi19(out, in.Dashboard)
+		easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi16(out, in.Dashboard)
 	}
 	{
 		const prefix string = ",\"delete_mark\":"
@@ -1894,14 +1769,14 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi18(out
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v DashboardInfo) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi18(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi15(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *DashboardInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi18(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi15(l, v)
 }
-func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi19(in *jlexer.Lexer, out *DashboardMetaInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi16(in *jlexer.Lexer, out *DashboardMetaInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1941,15 +1816,15 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi19(in 
 				for !in.IsDelim('}') {
 					key := string(in.String())
 					in.WantColon()
-					var v60 interface{}
-					if m, ok := v60.(easyjson.Unmarshaler); ok {
+					var v43 interface{}
+					if m, ok := v43.(easyjson.Unmarshaler); ok {
 						m.UnmarshalEasyJSON(in)
-					} else if m, ok := v60.(json.Unmarshaler); ok {
+					} else if m, ok := v43.(json.Unmarshaler); ok {
 						_ = m.UnmarshalJSON(in.Raw())
 					} else {
-						v60 = in.Interface()
+						v43 = in.Interface()
 					}
-					(out.JSONData)[key] = v60
+					(out.JSONData)[key] = v43
 					in.WantComma()
 				}
 				in.Delim('}')
@@ -1964,14 +1839,14 @@ func easyjson888c126aDecodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi19(in 
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi19(out *jwriter.Writer, in DashboardMetaInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi16(out *jwriter.Writer, in DashboardMetaInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
 		const prefix string = ",\"dashboard_id\":"
 		out.RawString(prefix[1:])
-		out.Int64(int64(in.DashboardID))
+		out.Int32(int32(in.DashboardID))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -2005,21 +1880,21 @@ func easyjson888c126aEncodeGitlabMvkComGoVkgoProjectsStatshouseInternalApi19(out
 			out.RawString(`null`)
 		} else {
 			out.RawByte('{')
-			v61First := true
-			for v61Name, v61Value := range in.JSONData {
-				if v61First {
-					v61First = false
+			v44First := true
+			for v44Name, v44Value := range in.JSONData {
+				if v44First {
+					v44First = false
 				} else {
 					out.RawByte(',')
 				}
-				out.String(string(v61Name))
+				out.String(string(v44Name))
 				out.RawByte(':')
-				if m, ok := v61Value.(easyjson.Marshaler); ok {
+				if m, ok := v44Value.(easyjson.Marshaler); ok {
 					m.MarshalEasyJSON(out)
-				} else if m, ok := v61Value.(json.Marshaler); ok {
+				} else if m, ok := v44Value.(json.Marshaler); ok {
 					out.Raw(m.MarshalJSON())
 				} else {
-					out.Raw(json.Marshal(v61Value))
+					out.Raw(json.Marshal(v44Value))
 				}
 			}
 			out.RawByte('}')
