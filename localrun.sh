@@ -6,7 +6,7 @@ if [[ $1 ]]; then
   PROFILE=$1
 fi
 
-docker compose --profile "$PROFILE" up -d --build
+docker compose --profile "$PROFILE" up -d --build --remove-orphans --force-recreate
 trap "{ docker compose --profile $PROFILE down; exit; }" exit
 echo -n Waiting for services to be ready...
 for c in kh sh; do
