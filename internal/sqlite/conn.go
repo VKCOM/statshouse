@@ -4,9 +4,10 @@ import "C"
 import (
 	"context"
 	"fmt"
-	"go.uber.org/multierr"
 	"strings"
 	"sync"
+
+	"go.uber.org/multierr"
 
 	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
 
