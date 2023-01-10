@@ -12,3 +12,4 @@ export * from './Dashboard';
 export * from './DashboardSettings';
 export * from './DashboardTagControl';
 export * from './PlotLegend';
+export { BuildVersion } from './BuildVersion';

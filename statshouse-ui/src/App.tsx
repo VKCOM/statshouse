@@ -8,7 +8,7 @@ import React, { Suspense, useEffect } from 'react';
 import { Admin } from './admin/Admin';
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom';
 import { ViewPage } from './view/ViewPage';
-import { HeaderMenu } from './components';
+import { BuildVersion, HeaderMenu } from './components';
 import { currentAccessInfo } from './common/access';
 import { DashboardListView } from './view/DashboardListView';
 
@@ -53,6 +53,7 @@ const NavbarApp = function _NavbarApp() {
       <div className="flex-grow-1 w-0 d-flex flex-column">
         {globalWarning !== '' && <div className="alert-warning rounded px-2 py-1">{globalWarning}</div>}
         <Outlet />
+        <BuildVersion className="text-end text-secondary build-version container-xl pb-3" />
       </div>
     </div>
   );
