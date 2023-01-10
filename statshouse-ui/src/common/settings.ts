@@ -36,3 +36,5 @@ if (meta !== null) {
 
 export const globalSettings: settings = metaSettings!;
 export const pxPerChar = 8;
+
+export const buildVersion = document.querySelector('meta[name="build-version"]')?.getAttribute('content') ?? null;
