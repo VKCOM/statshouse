@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/multierr"
+
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 
@@ -22,7 +24,6 @@ import (
 
 	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
 
-	"go.uber.org/multierr"
 	"pgregory.net/rand"
 )
 
@@ -397,26 +398,33 @@ func binlogLoadPosition(conn Conn) (offset int64, isExists bool, err error) {
 	return 0, false, nil
 }
 
-func (e *Engine) Close() error {
-	return e.close(e.opt.DurabilityMode == WaitCommit)
+func (e *Engine) Close(ctx context.Context) error {
+	ch := make(chan error, 1)
+	defer close(ch)
+	go func() {
+		select {
+		case ch <- e.close(e.opt.DurabilityMode == WaitCommit):
+		default:
+		}
+	}()
+	select {
+	case err := <-ch:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (e *Engine) close(waitCommit bool) error {
 	if waitCommit {
 		e.commitTXAndStartNew(true, true)
 	}
-	e.rw.mu.Lock()
-	defer e.rw.mu.Unlock()
-
-	err := e.rw.err
-	e.rw.err = errAlreadyClosed
-	for _, si := range e.rw.prep {
-		multierr.AppendInto(&err, si.stmt.Close())
+	err := e.rw.Close()
+	for _, conn := range e.roFree {
+		multierr.AppendInto(&err, conn.Close())
 	}
-	multierr.AppendInto(&err, e.rw.Close())
 	// multierr.AppendInto(&err, e.chk.Close())
 	// multierr.AppendInto(&err, e.ro.Close()) // close RO one last to prevent checkpoint-on-close logic in other connections
-
 	return err
 }
 
