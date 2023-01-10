@@ -170,7 +170,9 @@ func Test_Engine_Reread_From_Begin(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	require.NoError(t, engine.Close(5*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engine.Close(ctx))
 	require.NoError(t, bl.Shutdown())
 	history := []string{}
 	mx := sync.Mutex{}
@@ -184,7 +186,9 @@ func Test_Engine_Reread_From_Begin(t *testing.T) {
 	agg.mx.Lock()
 	defer agg.mx.Unlock()
 	require.NoError(t, isEquals(agg.writeHistory, history))
-	require.NoError(t, engine.Close(5*time.Second))
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engine.Close(ctx))
 	require.NoError(t, bl.Shutdown())
 }
 
@@ -212,7 +216,9 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	}
 	wg.Wait()
 	require.NoError(t, bl.Shutdown())
-	require.NoError(t, engine.Close(5*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engine.Close(ctx))
 	binlogHistory := []string{}
 	engine, bl = openEngine(t, dir, "db2", schema, false, false, false, NoWaitCommit, nil)
 	binlogOffset := engine.dbOffset
@@ -236,7 +242,9 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 		}
 	}
 	require.NoError(t, bl.Shutdown())
-	require.NoError(t, engine.Close(5*time.Second))
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engine.Close(ctx))
 
 	history := []string{}
 	mx := sync.Mutex{}
@@ -267,7 +275,9 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, isEquals(binlogHistory, history))
 	require.True(t, reflect.DeepEqual(expectedMap, actualDb))
-	require.NoError(t, engine.Close(5*time.Second))
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engine.Close(ctx))
 	require.NoError(t, bl.Shutdown())
 }
 
@@ -302,7 +312,9 @@ func Test_Engine(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	require.NoError(t, engine.Close(5*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engine.Close(ctx))
 	require.NoError(t, bl.Shutdown())
 	mx := sync.Mutex{}
 	engine, bl = openEngine(t, dir, "db", schema, false, false, false, WaitCommit, func(s string) {
@@ -333,7 +345,9 @@ func Test_Engine(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, reflect.DeepEqual(expectedMap, actualDb))
-	require.NoError(t, engine.Close(5*time.Second))
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engine.Close(ctx))
 	require.NoError(t, bl.Shutdown())
 }
 
@@ -393,7 +407,9 @@ func Test_Engine_Put_Empty_String(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "", data)
-	require.NoError(t, engine.Close(5*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engine.Close(ctx))
 }
 
 func Test_Engine_WithoutBinlog(t *testing.T) {
@@ -422,7 +438,9 @@ func Test_Engine_WithoutBinlog(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "abc", data)
-	require.NoError(t, engine.Close(5*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engine.Close(ctx))
 }
 
 func Test_ReplicaMode(t *testing.T) {
@@ -447,8 +465,12 @@ func Test_ReplicaMode(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, c, 0, "no data in replica")
 	require.Equal(t, c, n)
-	require.NoError(t, engineMaster.Close(5*time.Second))
-	require.NoError(t, engineRepl.Close(5*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engineMaster.Close(ctx))
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engineRepl.Close(ctx))
 }
 
 func Test_Engine_Put_And_Read_RO(t *testing.T) {
@@ -515,7 +537,9 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 		require.Contains(t, s, "abc")
 		require.Contains(t, s, "def")
 	})
-	require.NoError(t, engine.Close(5*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engine.Close(ctx))
 }
 
 func Test_ReadAndExit(t *testing.T) {
@@ -532,7 +556,9 @@ func Test_ReadAndExit(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	require.NoError(t, engineMaster.Close(5*time.Second))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engineMaster.Close(ctx))
 	engineMaster, _ = openEngine(t, dir, "db", schema, false, false, true, NoBinlog, nil)
 	c := 0
 	err := engineMaster.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
@@ -545,5 +571,7 @@ func Test_ReadAndExit(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, c, 0, "no data in replica")
 	require.Equal(t, c, n)
-	require.NoError(t, engineMaster.Close(5*time.Second))
+	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engineMaster.Close(ctx))
 }

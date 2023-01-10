@@ -398,19 +398,20 @@ func binlogLoadPosition(conn Conn) (offset int64, isExists bool, err error) {
 	return 0, false, nil
 }
 
-func (e *Engine) Close(timeout time.Duration) error {
+func (e *Engine) Close(ctx context.Context) error {
 	ch := make(chan error, 1)
 	defer close(ch)
 	go func() {
 		select {
 		case ch <- e.close(e.opt.DurabilityMode == WaitCommit):
+		default:
 		}
 	}()
 	select {
 	case err := <-ch:
 		return err
-	case <-time.After(timeout):
-		return context.DeadlineExceeded
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 

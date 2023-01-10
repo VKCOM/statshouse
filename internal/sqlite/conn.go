@@ -1,6 +1,5 @@
 package sqlite
 
-import "C"
 import (
 	"context"
 	"fmt"

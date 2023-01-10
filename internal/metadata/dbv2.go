@@ -153,7 +153,9 @@ func (db *DBV2) backup(ctx context.Context, prefix string) error {
 }
 
 func (db *DBV2) Close() error {
-	err := db.eng.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	err := db.eng.Close(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to close db")
 	}
