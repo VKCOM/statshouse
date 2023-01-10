@@ -10,11 +10,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/multierr"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	"go.uber.org/multierr"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
