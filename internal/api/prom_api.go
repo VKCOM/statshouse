@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vkcom/statshouse/internal/promql"
 	"log"
 	"math"
 	"net/http"
@@ -19,29 +20,37 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/promql/parser"
-
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-func (h *Handler) HandlePromInstantQuery(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQuery bool) {
+	// parse access token
 	ai, ok := h.parseAccessToken(w, r, nil)
 	if !ok {
 		return
 	}
-
-	q, err := parsePromInstantQuery(r)
+	// parse query
+	var parse func(*http.Request, *promQueryable) (promql.Query, error)
+	if rangeQuery {
+		parse = parsePromRangeQuery
+	} else {
+		parse = parsePromInstantQuery
+	}
+	qe := promQueryable{
+		h:   h,
+		ai:  ai,
+		now: time.Now().Unix(),
+	}
+	q, err := parse(r, &qe)
 	if err != nil {
 		promAPIRespondError(w, promAPIErrorBadData, err)
 		return
 	}
-
-	ng, close, err := newPromInstantQueryEngine(q, h, ai)
-	if err != nil {
-		promAPIRespondError(w, promAPIErrorExec, err)
-		return
-	}
-	defer close()
-
+	defer func() {
+		q.Close()
+		qe.Close()
+	}()
+	// execute query
 	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
 	defer cancel()
 	defer func() {
@@ -49,50 +58,20 @@ func (h *Handler) HandlePromInstantQuery(w http.ResponseWriter, r *http.Request)
 			promAPIRespondError(w, promAPIErrorExec, fmt.Errorf("unexpected error: %v", err))
 		}
 	}()
-
-	res := ng.Exec(ctx)
+	res := q.Exec(ctx)
 	if res.Err != nil {
 		promAPIRespondError(w, promAPIErrorExec, res.Err)
 		return
 	}
-
 	promAPIRespond(w, promAPIResponseData{ResultType: res.Value.Type(), Result: res.Value})
 }
 
+func (h *Handler) HandlePromInstantQuery(w http.ResponseWriter, r *http.Request) {
+	h.handlePromQuery(w, r, false)
+}
+
 func (h *Handler) HandlePromRangeQuery(w http.ResponseWriter, r *http.Request) {
-	ai, ok := h.parseAccessToken(w, r, nil)
-	if !ok {
-		return
-	}
-
-	q, err := parsePromRangeQuery(r)
-	if err != nil {
-		promAPIRespondError(w, promAPIErrorBadData, err)
-		return
-	}
-
-	ng, close, err := newPromRangeQueryEngine(q, h, ai)
-	if err != nil {
-		promAPIRespondError(w, promAPIErrorExec, err)
-		return
-	}
-	defer close()
-
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
-	defer cancel()
-	defer func() {
-		if err := recover(); err != nil {
-			promAPIRespondError(w, promAPIErrorExec, fmt.Errorf("unexpected error: %v", err))
-		}
-	}()
-
-	res := ng.Exec(ctx)
-	if res.Err != nil {
-		promAPIRespondError(w, promAPIErrorExec, res.Err)
-		return
-	}
-
-	promAPIRespond(w, promAPIResponseData{ResultType: res.Value.Type(), Result: res.Value})
+	h.handlePromQuery(w, r, true)
 }
 
 func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Request) {
@@ -107,21 +86,21 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	vals := make([]string, 0)
+	s := make([]string, 0)
 	for _, m := range format.BuiltinMetrics {
-		vals = append(vals, m.Name)
+		s = append(s, m.Name)
 	}
 	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
 		if ai.canViewMetric(v.Name) {
-			vals = append(vals, v.Name)
+			s = append(s, v.Name)
 		}
 	}
-	promAPIRespond(w, vals)
+	promAPIRespond(w, s)
 }
 
 // region Request
 
-func parsePromRangeQuery(r *http.Request) (*promAPIQuery, error) {
+func parsePromRangeQuery(r *http.Request, q *promQueryable) (promql.Query, error) {
 	start, err := parseTime(r.FormValue("start"))
 	if err != nil {
 		return nil, fmt.Errorf("invalid parameter start: %w", err)
@@ -150,16 +129,16 @@ func parsePromRangeQuery(r *http.Request) (*promAPIQuery, error) {
 	}
 
 	qs := r.FormValue("query")
-	return &promAPIQuery{qs, start, end, step}, nil
+	return q.h.promEngine.NewRangeQuery(q, qs, start, end, step)
 }
 
-func parsePromInstantQuery(r *http.Request) (*promAPIQuery, error) {
+func parsePromInstantQuery(r *http.Request, q *promQueryable) (promql.Query, error) {
 	t, err := parseTimeParam(r, "time", time.Now())
 	if err != nil {
 		return nil, fmt.Errorf("invalid parameter time: %w", err)
 	}
 	qs := r.FormValue("query")
-	return &promAPIQuery{qs, t, t, 0}, nil
+	return q.h.promEngine.NewInstantQuery(q, qs, t)
 }
 
 func parseDuration(s string) (time.Duration, error) {

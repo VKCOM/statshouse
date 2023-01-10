@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/vkcom/statshouse/internal/promql"
 	"html/template"
 	"io"
 	"io/fs"
@@ -158,6 +159,7 @@ type (
 		readOnly              bool
 		rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 		rmID                  int
+		promEngine            *promql.Engine
 	}
 
 	//easyjson:json
@@ -397,6 +399,12 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		location:              location,
 		readOnly:              readOnly,
 		insecureMode:          insecureMode,
+		promEngine: promql.NewEngine(promql.EngineOpts{
+			Timeout:              querySelectTimeout,
+			LookbackDelta:        time.Duration(1),
+			EnableAtModifier:     true,
+			EnableNegativeOffset: true,
+		}),
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 

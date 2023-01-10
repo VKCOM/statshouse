@@ -43,22 +43,8 @@ import (
 	"github.com/prometheus/prometheus/storage"
 )
 
-// Querier provides querying access over time series data of a fixed time range.
-type Querier interface {
-	// Select returns a set of series that matches the given label matchers.
-	// Caller can specify if it requires returned series to be sorted. Prefer not requiring sorting for better performance.
-	// It allows passing hints that can help in optimising select, but it's up to implementation how this is used if used at all.
-	Select(node parser.Node, hints *storage.SelectHints, matchers ...*labels.Matcher) (parser.Node, []storage.Series)
-
-	// Close releases the resources of the Querier.
-	Close()
-}
-
-// A Queryable handles queries against a storage.
-// Use it when you need to have access to all samples without chunk encoding abstraction e.g promQL.
 type Queryable interface {
-	// Querier returns a new Querier on the storage.
-	Querier(ctx context.Context, s *parser.EvalStmt, mint, maxt int64) (Querier, error)
+	Query(ctx context.Context, s *parser.EvalStmt) (map[parser.Node]*parser.VectorSelector, error)
 }
 
 const (
@@ -385,14 +371,10 @@ func durationMilliseconds(d time.Duration) int64 {
 
 // execEvalStmt evaluates the expression of an evaluation statement for the given time range.
 func (ng *Engine) execEvalStmt(ctx context.Context, query *query, s *parser.EvalStmt) (parser.Value, storage.Warnings, error) {
-	mint, maxt := ng.findMinMaxTime(s)
-	querier, err := query.queryable.Querier(ctx, s, mint, maxt)
+	topNodes, err := query.queryable.Query(ctx, s)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer querier.Close()
-
-	topNodes := ng.populateSeries(querier, s)
 
 	// Modify the offset of vector and matrix selectors for the @ modifier
 	// w.r.t. the start time since only 1 evaluation will be done on them.
@@ -571,69 +553,6 @@ func (ng *Engine) getTimeRangesForSelector(s *parser.EvalStmt, n *parser.VectorS
 	end -= offsetMilliseconds
 
 	return start, end
-}
-
-func (ng *Engine) populateSeries(querier Querier, s *parser.EvalStmt) map[parser.Node]*parser.VectorSelector {
-	// Whenever a MatrixSelector is evaluated, evalRange is set to the corresponding range.
-	// The evaluation of the VectorSelector inside then evaluates the given range and unsets
-	// the variable.
-	var evalRange time.Duration
-	var (
-		topNode  parser.Node
-		topNodes = map[parser.Node]*parser.VectorSelector{}
-	)
-	parser.Inspect(s.Expr, func(node parser.Node, path []parser.Node) error {
-		switch n := node.(type) {
-		case *parser.VectorSelector:
-			start, end := ng.getTimeRangesForSelector(s, n, path, evalRange)
-			hints := &storage.SelectHints{
-				Start: start,
-				End:   end,
-				Step:  durationMilliseconds(s.Interval),
-				Range: durationMilliseconds(evalRange),
-				Func:  extractFuncFromPath(path),
-			}
-			evalRange = 0
-			hints.By, hints.Grouping = extractGroupsFromPath(path)
-			topNode, n.Series = querier.Select(node, hints, n.LabelMatchers...)
-			topNodes[topNode] = n
-
-		case *parser.MatrixSelector:
-			evalRange = n.Range
-		}
-		return nil
-	})
-	return topNodes
-}
-
-// extractFuncFromPath walks up the path and searches for the first instance of
-// a function or aggregation.
-func extractFuncFromPath(p []parser.Node) string {
-	if len(p) == 0 {
-		return ""
-	}
-	switch n := p[len(p)-1].(type) {
-	case *parser.AggregateExpr:
-		return n.Op.String()
-	case *parser.Call:
-		return n.Func.Name
-	case *parser.BinaryExpr:
-		// If we hit a binary expression we terminate since we only care about functions
-		// or aggregations over a single metric.
-		return ""
-	}
-	return extractFuncFromPath(p[:len(p)-1])
-}
-
-// extractGroupsFromPath parses vector outer function and extracts grouping information if by or without was used.
-func extractGroupsFromPath(p []parser.Node) (bool, []string) {
-	if len(p) == 0 {
-		return false, nil
-	}
-	if n, ok := p[len(p)-1].(*parser.AggregateExpr); ok {
-		return !n.Without, n.Grouping
-	}
-	return false, nil
 }
 
 func checkAndExpandSeriesSet(ctx context.Context, expr parser.Expr) (storage.Warnings, error) {

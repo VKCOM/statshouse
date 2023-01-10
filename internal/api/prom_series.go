@@ -20,38 +20,42 @@ type promSeries struct {
 	i    int
 }
 
-func (p *promSeries) Labels() labels.Labels {
-	s := make(labels.Labels, 0, len(p.tags))
-	for name, value := range p.tags {
+func newPromSeries(time []int64, data []float64, tags map[string]string) *promSeries {
+	return &promSeries{time, data, tags, -1}
+}
+
+func (ss *promSeries) Labels() labels.Labels {
+	s := make(labels.Labels, 0, len(ss.tags))
+	for name, value := range ss.tags {
 		s = append(s, labels.Label{Name: name, Value: value})
 	}
 	sort.Sort(s)
 	return s
 }
 
-func (p *promSeries) Iterator() chunkenc.Iterator {
-	return p
+func (ss *promSeries) Iterator() chunkenc.Iterator {
+	return ss
 }
 
-func (p *promSeries) Next() bool {
-	p.i++
-	return p.i < len(p.time) && p.i < len(p.data)
+func (ss *promSeries) Next() bool {
+	ss.i++
+	return ss.i < len(ss.time) && ss.i < len(ss.data)
 }
 
-func (p *promSeries) Seek(t int64) bool {
-	for i, v := range p.time {
+func (ss *promSeries) Seek(t int64) bool {
+	for i, v := range ss.time {
 		if t <= v {
-			p.i = i
+			ss.i = i
 			return true
 		}
 	}
 	return false
 }
 
-func (p *promSeries) At() (int64, float64) {
-	return p.time[p.i], p.data[p.i]
+func (ss *promSeries) At() (int64, float64) {
+	return ss.time[ss.i], ss.data[ss.i]
 }
 
-func (p *promSeries) Err() error {
+func (ss *promSeries) Err() error {
 	return nil
 }

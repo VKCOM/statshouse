@@ -92,7 +92,7 @@ func calcLODs(s []lodSlimInfo, from, preKeyFrom int64, l *time.Location) ([]lodI
 	return ret, len
 }
 
-func alignQueryLODs(a []*promQuery, b []*promQuery) {
+func alignQueryLODs(a []*promVectorSelector, b []*promVectorSelector) {
 	if len(a) == 0 || len(b) == 0 {
 		return
 	}
@@ -118,16 +118,16 @@ func alignQueryLODs(a []*promQuery, b []*promQuery) {
 	}
 }
 
-func splitQueryLOD(s []*promQuery, i int, len int64) {
-	for _, vq := range s {
+func splitQueryLOD(vs []*promVectorSelector, i int, len int64) {
+	for _, vq := range vs {
 		vq.lods = append(vq.lods[:i+1], vq.lods[i:]...)
 		vq.lods[i].len = len
 		vq.lods[i+1].len -= len
 	}
 }
 
-func setQueryStep(q []*promQuery, i int, step int64) {
-	for _, vq := range q {
+func setQueryStep(vs []*promVectorSelector, i int, step int64) {
+	for _, vq := range vs {
 		vq.lods[i].step = step
 	}
 }

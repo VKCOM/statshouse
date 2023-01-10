@@ -24,19 +24,17 @@ import (
 )
 
 type promQueryable struct {
-	ng               *promql.Engine
-	stmt             *parser.EvalStmt
 	h                *Handler
-	ai               accessInfo                 // to verify client is allowed to access metrics queried
-	ctx              context.Context            // evaluation context
-	now              int64                      // frozen time.Now().Unix()
-	topNodes         map[parser.Node]*promQuery // a promQuery per VectorSelector
-	buffersAllocated []*[]float64               // buffers allocated during request handling
+	ai               accessInfo   // to verify client is allowed to access metrics queried
+	now              int64        // frozen time.Now().Unix()
+	buffersAllocated []*[]float64 // buffers allocated during request handling
 }
 
-type promQuery struct {
-	node            parser.Node
+type promVectorSelector struct {
+	node            *parser.VectorSelector
+	topNode         parser.Node
 	from            int64 // unix time
+	step            time.Duration
 	lods            []lodSlimInfo
 	filterEqual     map[string][]string
 	filterNotEqual  map[string][]string
@@ -45,35 +43,40 @@ type promQuery struct {
 }
 
 type metricQuery struct {
-	info        *promQuery
+	selector    *promVectorSelector
 	meta        *format.MetricMetaValue
-	fn          queryFn
-	fnKind      queryFnKind
+	what        queryFn
+	whatKind    queryFnKind
 	by          map[string]string // key[0-15] to MetricMetaTag name
 	omitNameTag bool
 }
 
-func (qe *promQueryable) Querier(ctx context.Context, s *parser.EvalStmt, _, _ int64) (promql.Querier, error) {
-	if _, err := qe.calcPromQueries(s.Expr, 0, nil); err != nil {
+func (qe *promQueryable) Query(ctx context.Context, s *parser.EvalStmt) (map[parser.Node]*parser.VectorSelector, error) {
+	vss, err := qe.matchMetrics(s, s.Expr, 0, nil)
+	if err != nil {
 		return nil, err
 	}
-	qe.ctx = ctx
-	return qe, nil
-}
-
-func (qe *promQueryable) Select(node parser.Node, _ *storage.SelectHints, _ ...*labels.Matcher) (parser.Node, []storage.Series) {
-	vs, ok := qe.topNodes[node]
-	if !ok {
-		panic(fmt.Errorf("unexpected AST node %v", node))
-	}
-	ss := make([]storage.Series, 0)
-	for _, q := range vs.matchingMetrics {
-		err := qe.evalMetricQuery(qe.ctx, q, &ss)
-		if err != nil {
-			panic(err)
+	terminals := make(map[parser.Node]*parser.VectorSelector, len(vss))
+	for _, vs := range vss {
+		vs.node.Series = make([]storage.Series, 0)
+		for _, mq := range vs.matchingMetrics {
+			err := qe.evalQuery(ctx, mq)
+			if err != nil {
+				return nil, err
+			}
 		}
+		terminals[vs.topNode] = vs.node
 	}
-	return vs.node, ss
+	// StatsHouse stores data aggregated for half open (from, to] intervals, Prometheus engine
+	// calculates *_over_time functions over closed [from, to] time intervals. Subtracting a millisecond so
+	// Prometheus will calculate *_over_time functions over half open intervals too.
+	parser.Inspect(s, func(node parser.Node, _ []parser.Node) error {
+		if e, ok := node.(*parser.MatrixSelector); ok {
+			e.Range -= 1
+		}
+		return nil
+	})
+	return terminals, nil
 }
 
 func (qe *promQueryable) Close() {
@@ -83,15 +86,15 @@ func (qe *promQueryable) Close() {
 	qe.buffersAllocated = nil
 }
 
-func (qe *promQueryable) calcPromQueries(node parser.Node, evalRange time.Duration, path []parser.Node) ([]*promQuery, error) {
+func (qe *promQueryable) matchMetrics(s *parser.EvalStmt, node parser.Node, evalRange time.Duration, path []parser.Node) ([]*promVectorSelector, error) {
 	switch e := node.(type) {
 	case *parser.BinaryExpr:
 		if lt, rt := e.LHS.Type(), e.RHS.Type(); lt == parser.ValueTypeVector && rt == parser.ValueTypeVector {
-			resL, err := qe.calcPromQueries(e.LHS, evalRange, path)
+			resL, err := qe.matchMetrics(s, e.LHS, evalRange, path)
 			if err != nil {
 				return nil, err
 			}
-			resR, err := qe.calcPromQueries(e.RHS, evalRange, path)
+			resR, err := qe.matchMetrics(s, e.RHS, evalRange, path)
 			if err != nil {
 				return nil, err
 			}
@@ -99,23 +102,18 @@ func (qe *promQueryable) calcPromQueries(node parser.Node, evalRange time.Durati
 			return append(resL, resR...), nil
 		}
 	case *parser.VectorSelector:
-		res, err := qe.newPromQuery(e, evalRange, path)
+		res, err := qe.newVectorSelector(s, e, evalRange, path)
 		if err != nil {
 			return nil, err
 		}
-		qe.topNodes[node] = res
-		return []*promQuery{res}, nil
+		return []*promVectorSelector{res}, nil
 	case *parser.MatrixSelector:
-		// StatsHouse stores data aggregated for half open (t-range, t] intervals, Prometheus engine
-		// calculates *_over_time functions over closed [t-range,t] time intervals. Subtracting a millisecond so
-		// Prometheus will calculate *_over_time functions over half open intervals.
-		e.Range -= time.Millisecond
 		evalRange = e.Range
 	}
-	var ret []*promQuery
+	var ret []*promVectorSelector
 	path = append(path, node)
 	for _, e := range parser.Children(node) {
-		res, err := qe.calcPromQueries(e, evalRange, path)
+		res, err := qe.matchMetrics(s, e, evalRange, path)
 		if err != nil {
 			return nil, err
 		}
@@ -124,90 +122,101 @@ func (qe *promQueryable) calcPromQueries(node parser.Node, evalRange time.Durati
 	return ret, nil
 }
 
-func (qe *promQueryable) newPromQuery(expr parser.Expr, evalRange time.Duration, path []parser.Node) (*promQuery, error) {
+func (qe *promQueryable) newVectorSelector(s *parser.EvalStmt, expr parser.Expr, evalRange time.Duration, path []parser.Node) (*promVectorSelector, error) {
+	// match metrics
 	promql.UnwrapParenExpr(&expr)
-	// process LabelMatchers
 	var (
 		e          = expr.(*parser.VectorSelector)
-		start, end = qe.ng.GetTimeRangesForSelector(qe.stmt, e, path, evalRange)
-		pq         = promQuery{
+		start, end = qe.h.promEngine.GetTimeRangesForSelector(s, e, path, evalRange)
+		vs         = promVectorSelector{
 			node:           e,
+			topNode:        e,
 			from:           start,
 			filterEqual:    map[string][]string{},
 			filterNotEqual: map[string][]string{},
 		}
+		fn = queryFn(-1)
 	)
 	for _, m := range e.LabelMatchers {
 		if m.Name == labels.MetricName {
 			for _, meta := range format.BuiltinMetrics {
 				if m.Matches(meta.Name) || m.Matches(meta.Name+"_bucket") {
-					pq.matchingMetrics = append(pq.matchingMetrics, &metricQuery{info: &pq, meta: meta, fn: -1})
+					vs.matchingMetrics = append(vs.matchingMetrics, &metricQuery{selector: &vs, meta: meta, what: -1})
 					break
 				}
 			}
-			for _, meta := range qe.h.metricsStorage.GetMetaMetricList(false) {
+			for _, meta := range qe.h.metricsStorage.GetMetaMetricList(qe.h.showInvisible) {
 				if m.Matches(meta.Name) || m.Matches(meta.Name+"_bucket") {
-					pq.matchingMetrics = append(pq.matchingMetrics, &metricQuery{info: &pq, meta: meta, fn: -1})
+					vs.matchingMetrics = append(vs.matchingMetrics, &metricQuery{selector: &vs, meta: meta, what: -1})
 					break
 				}
+			}
+		} else if m.Name == "__fn" {
+			if m.Type != labels.MatchEqual {
+				return nil, fmt.Errorf("__fn supports strict equality operator only")
+			}
+			var ok bool
+			if fn, ok = validQueryFn(m.Value); !ok {
+				return nil, fmt.Errorf("bad __fn %q", m.Value)
 			}
 		} else {
 			switch m.Type {
 			case labels.MatchEqual:
-				pq.filterEqual[m.Name] = append(pq.filterEqual[m.Name], m.Value)
+				vs.filterEqual[m.Name] = append(vs.filterEqual[m.Name], m.Value)
 			case labels.MatchNotEqual:
-				pq.filterNotEqual[m.Name] = append(pq.filterNotEqual[m.Name], m.Value)
+				vs.filterNotEqual[m.Name] = append(vs.filterNotEqual[m.Name], m.Value)
 			case labels.MatchRegexp:
 				fallthrough
 			case labels.MatchNotRegexp:
-				pq.filterRegexp = append(pq.filterRegexp, m)
+				vs.filterRegexp = append(vs.filterRegexp, m)
 			}
 		}
 	}
-	if len(pq.matchingMetrics) == 0 {
-		return &pq, nil
+	if len(vs.matchingMetrics) == 0 {
+		return &vs, nil
 	}
-	pq.initGroupingAndQueryFn(path)
 	// calculate LODs
-	var (
-		step       = int(qe.stmt.Interval / time.Second)
-		resolution = 1 // a second
-	)
-	for _, metric := range pq.matchingMetrics {
-		if resolution < metric.meta.Resolution {
-			resolution = metric.meta.Resolution
+	vs.lods = calcSlimLODs(start, end, int64(vs.step), qe.now)
+	resolution := time.Second // minimum a second
+	for _, metric := range vs.matchingMetrics {
+		v := time.Duration(metric.meta.Resolution) * time.Second
+		if resolution < v {
+			resolution = v
 		}
 	}
-	if step < resolution {
-		step = resolution
+	vs.step = s.Interval
+	if vs.step < resolution {
+		vs.step = resolution
 	}
-	pq.lods = calcSlimLODs(start, end, int64(step), qe.now)
-	return &pq, nil
+	// initialize what and grouping
+	vs.initWhat(path, fn)
+	vs.initGrouping(path)
+	return &vs, nil
 }
 
-func (qe *promQueryable) evalMetricQuery(ctx context.Context, mq *metricQuery, ss *[]storage.Series) error {
+func (qe *promQueryable) evalQuery(ctx context.Context, mq *metricQuery) error {
 	if mq.meta == nil {
 		return nil
 	}
-	lods, length := calcLODs(mq.info.lods, mq.info.from, int64(mq.meta.PreKeyFrom), qe.h.location)
+	lods, length := calcLODs(mq.selector.lods, mq.selector.from, int64(mq.meta.PreKeyFrom), qe.h.location)
 	by := getGroupingTags(mq.meta, &mq.by)
 	// build query
-	filterEqual, mappedFilterEqual, err := qe.resolveFilter(mq.meta, mq.info.filterEqual)
+	filterEqual, mappedFilterEqual, err := qe.resolveFilter(mq.meta, mq.selector.filterEqual)
 	if err != nil {
 		return err
 	}
-	filterNotEqual, mappedFilterNotEqual, err := qe.resolveFilter(mq.meta, mq.info.filterNotEqual)
+	filterNotEqual, mappedFilterNotEqual, err := qe.resolveFilter(mq.meta, mq.selector.filterNotEqual)
 	if err != nil {
 		return err
 	}
-	qs := normalizedQueryString(mq.meta.Name, mq.fnKind, by, filterEqual, filterNotEqual)
+	qs := normalizedQueryString(mq.meta.Name, mq.whatKind, by, filterEqual, filterNotEqual)
 	pq := &preparedPointsQuery{
 		user:        qe.ai.user,
 		version:     Version2,
 		metricID:    mq.meta.MetricID,
 		preKeyTagID: mq.meta.PreKeyTagID,
 		isStringTop: false,
-		kind:        mq.fnKind,
+		kind:        mq.whatKind,
 		by:          by,
 		filterIn:    mappedFilterEqual,
 		filterNotIn: mappedFilterNotEqual,
@@ -242,12 +251,12 @@ func (qe *promQueryable) evalMetricQuery(ctx context.Context, mq *metricQuery, s
 					qe.buffersAllocated = append(qe.buffersAllocated, data[k])
 					for kk := range *data[k] {
 						// Prometheus engine might replace regular NaNs with previous data point,
-						// this one below is never replaced
+						// StaleNaN is never replaced
 						(*data[k])[kk] = math.Float64frombits(value2.StaleNaN)
 					}
 					qe.resolveTags(ss.tsTags, mq, &meta, histograms, ixToLE)
 				}
-				(*data[k])[i] = selectTSValue(mq.fn, lod.stepSec, 1, &ss)
+				(*data[k])[i] = selectTSValue(mq.what, lod.stepSec, 1, &ss)
 			}
 			allTimes = append(allTimes, s[0].Time*1_000)
 			i++
@@ -256,7 +265,7 @@ func (qe *promQueryable) evalMetricQuery(ctx context.Context, mq *metricQuery, s
 	// filter tags
 	var remove []int
 	for i, m := range meta {
-		for _, matcher := range mq.info.filterRegexp {
+		for _, matcher := range mq.selector.filterRegexp {
 			tagValue, ok := m.Tags[matcher.Name]
 			if ok && !matcher.Matches(tagValue) {
 				remove = append(remove, i)
@@ -281,7 +290,7 @@ func (qe *promQueryable) evalMetricQuery(ctx context.Context, mq *metricQuery, s
 		}
 	}
 	// restore (accumulate) counters
-	if mq.fn == queryFnCumulCount {
+	if mq.what == queryFnCumulCount {
 		for _, v := range data {
 			acc := 0.
 			for i, vv := range *v {
@@ -303,7 +312,7 @@ func (qe *promQueryable) evalMetricQuery(ctx context.Context, mq *metricQuery, s
 	}
 	// generate resulting series
 	for i, v := range meta {
-		*ss = append(*ss, &promSeries{time: allTimes, data: *data[i], tags: v.Tags})
+		mq.selector.node.Series = append(mq.selector.node.Series, newPromSeries(allTimes, *data[i], v.Tags))
 	}
 	return nil
 }
@@ -316,7 +325,7 @@ func (qe *promQueryable) resolveFilter(meta *format.MetricMetaValue, filter map[
 	for key, values := range filter {
 		tag, ok := meta.Name2Tag[key]
 		if !ok {
-			return nil, nil, fmt.Errorf("tag with name %s not found for metric %s", key, meta.Name)
+			return nil, nil, fmt.Errorf("not found tag %q for metric %q", key, meta.Name)
 		}
 		var (
 			s1 = make([]string, 0, len(values))
@@ -340,72 +349,112 @@ func (qe *promQueryable) resolveFilter(meta *format.MetricMetaValue, filter map[
 	return m1, m2, nil
 }
 
-func (pq *promQuery) initGroupingAndQueryFn(path []parser.Node) {
-	funcReplace := map[*parser.Call]*parser.Function{}
-outerFor:
-	for i := len(path); i != 0; i-- {
-		for _, metric := range pq.matchingMetrics {
-			node := path[i-1]
-			switch e := node.(type) {
-			case *parser.AggregateExpr:
-				if metric.by != nil || metric.fn != -1 {
-					break outerFor
-				}
-				switch e.Op {
-				case parser.AVG:
-					metric.fn = queryFnAvg
-				case parser.COUNT:
-					metric.fn = queryFnCount
-				case parser.MAX:
-					metric.fn = queryFnMax
-				case parser.MIN:
-					metric.fn = queryFnMin
-				case parser.SUM:
-					metric.fn = queryFnSum
-				}
-				if metric.fn != -1 {
-					metric.initGrouping(e)
-					pq.node = node
-				}
-			case *parser.Call:
-				if metric.fn != -1 {
-					break outerFor
-				}
-				switch e.Func.Name {
-				case "avg_over_time":
-					metric.fn = queryFnAvg
-				case "min_over_time":
-					metric.fn = queryFnMin
-				case "max_over_time":
-					metric.fn = queryFnMax
-				case "sum_over_time":
-					metric.fn = queryFnAvg
-				case "count_over_time":
-					// Ask Prometheus engine to calculate count by summing counters provided
-					funcReplace[e] = parser.Functions["sum_over_time"]
-					metric.fn = queryFnCount
-				case "histogram_quantile":
-					// Prometheus engine will get value from "le" tag
-					metric.fn = queryFnCount
-				}
-				if metric.fn != -1 {
-					metric.omitNameTag = true
-				}
-			}
-		}
-	}
-	for call, f := range funcReplace {
-		call.Func = f
-	}
-	for _, metric := range pq.matchingMetrics {
-		if metric.fn < 0 { // wasn't set
-			if metric.meta.Kind == format.MetricKindCounter {
-				metric.fn = queryFnCumulCount
+func (vs *promVectorSelector) initWhat(path []parser.Node, fn queryFn) {
+	omitNameTag := false
+	defer func() {
+		for _, mq := range vs.matchingMetrics {
+			if fn != -1 {
+				mq.what = fn
+			} else if mq.meta.Kind == format.MetricKindCounter {
+				mq.what = queryFnCumulCount
 			} else {
-				metric.fn = queryFnAvg
+				mq.what = queryFnAvg
+			}
+			mq.whatKind = queryFnToQueryFnKind(mq.what)
+			mq.omitNameTag = omitNameTag
+		}
+	}()
+	i := len(path) - 1
+	if i == -1 {
+		return
+	}
+	node := path[i]
+	if e, ok := node.(*parser.AggregateExpr); ok {
+		var aggFn queryFn
+		switch e.Op {
+		case parser.MIN:
+			aggFn = queryFnMin
+		case parser.MAX:
+			aggFn = queryFnMax
+		case parser.AVG:
+			aggFn = queryFnAvg
+		case parser.SUM:
+			aggFn = queryFnSum
+		case parser.COUNT:
+			aggFn = queryFnCount
+		}
+		if aggFn != fn && fn != -1 {
+			return
+		}
+		// Parent is an aggregate function
+		// AND it is mapped directly to one of our precomputed columns
+		// AND it does not conflict with user provided one
+		// so, we can return result from precomputed column skipping current AST node
+		fn = aggFn
+		vs.topNode = node
+		i--
+	}
+	if i == -1 {
+		return
+	}
+	switch e := path[i].(type) {
+	case *parser.MatrixSelector:
+		if i == 0 {
+			return
+		}
+		if e2, ok := path[i-1].(*parser.Call); ok {
+			if vs.step == e.Range {
+				callFn := queryFn(-1)
+				switch e2.Func.Name {
+				case "min_over_time":
+					callFn = queryFnMin
+				case "max_over_time":
+					callFn = queryFnMax
+				case "avg_over_time":
+					callFn = queryFnAvg
+				case "sum_over_time":
+					callFn = queryFnSum
+				case "count_over_time":
+					callFn = queryFnCount
+				}
+				if callFn != -1 && callFn == fn {
+					// Parent is a matrix selector
+					// AND matrix selector range equals to query step
+					// AND matrix selector is followed by *_over_time function call
+					// AND *_over_time function call is mapped directly to one of our precomputed columns
+					// AND *_over_time function call match current function
+					// so, we can return result from precomputed column skipping current AST node
+					fn = callFn
+					vs.topNode = node
+					omitNameTag = true
+				}
 			}
 		}
-		metric.fnKind = queryFnToQueryFnKind(metric.fn)
+	case *parser.Call:
+		if fn != -1 {
+			return
+		}
+		switch e.Func.Name {
+		case "histogram_quantile":
+			// Prometheus engine will get value from "le" tag
+			fn = queryFnCount
+		case "count_over_time":
+			// Prometheus engine will calculate count by summing counters provided
+			e.Func = parser.Functions["sum_over_time"]
+			fn = queryFnCount
+		}
+	}
+}
+
+func (vs *promVectorSelector) initGrouping(path []parser.Node) {
+	for i := len(path); i > 0; i-- {
+		node := path[i-1]
+		if e, ok := node.(*parser.AggregateExpr); ok {
+			for _, mq := range vs.matchingMetrics {
+				mq.initGrouping(e)
+			}
+			break
+		}
 	}
 }
 
