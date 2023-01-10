@@ -1,8 +1,10 @@
 package sqlite
 
+import "C"
 import (
 	"context"
 	"fmt"
+	"go.uber.org/multierr"
 	"strings"
 	"sync"
 
@@ -44,7 +46,15 @@ func newSqliteConn(rw *sqlite0.Conn) *sqliteConn {
 }
 
 func (c *sqliteConn) Close() error {
-	return c.rw.Close()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	err := c.err
+	c.err = errAlreadyClosed
+	for _, si := range c.prep {
+		multierr.AppendInto(&err, si.stmt.Close())
+	}
+	multierr.AppendInto(&err, c.rw.Close())
+	return err
 }
 
 func (c Conn) close() {
