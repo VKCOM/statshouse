@@ -472,9 +472,12 @@ export const useStore = create<Store>()(
     liveMode: false,
     setLiveMode(nextStatus) {
       setState((state) => {
-        state.liveMode = getNextState(state.liveMode, nextStatus);
-        if (!state.liveMode) {
-          getState().setSearchParams?.(setLiveParams(state.liveMode, new URLSearchParams(document.location.search)));
+        const nextState = getNextState(state.liveMode, nextStatus);
+        if (state.liveMode !== nextState) {
+          state.liveMode = nextState;
+          if (!state.liveMode) {
+            getState().setSearchParams?.(setLiveParams(state.liveMode, new URLSearchParams(document.location.search)));
+          }
         }
       });
     },
