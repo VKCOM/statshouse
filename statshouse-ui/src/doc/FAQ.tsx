@@ -5,14 +5,22 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 
 const FAQ = React.memo(function FAQ_(props: { yAxisSize: number }) {
   const { yAxisSize } = props;
+  const location = useLocation();
 
   // update document title
   React.useEffect(() => {
     document.title = `FAQ — StatsHouse`;
   }, []);
+
+  React.useEffect(() => {
+    if (location.hash) {
+      document.querySelector(location.hash)?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [location.hash]);
 
   return (
     <div className="container-xl pt-3 pb-3">
