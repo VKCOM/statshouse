@@ -120,13 +120,14 @@ type Engine struct {
 }
 
 type Options struct {
-	Path           string
-	APPID          int32
-	Scheme         string
-	Replica        bool
-	CommitEvery    time.Duration
-	DurabilityMode DurabilityMode
-	ReadAndExit    bool
+	Path              string
+	APPID             int32
+	Scheme            string
+	Replica           bool
+	CommitEvery       time.Duration
+	DurabilityMode    DurabilityMode
+	ReadAndExit       bool
+	CommitOnEachWrite bool // use only to test. If true break binlog + sqlite consistency
 }
 
 type waitCommitInfo struct {
@@ -455,17 +456,17 @@ func (e *Engine) binlogWaitDBSync(conn Conn) *committedInfo {
 func (e *Engine) commitTXAndStartNew(commit, waitBinlogCommit bool) {
 	c := e.start(context.Background(), false)
 	defer c.close()
-	_ = e.commitTXAndStartNewLocked(c, commit, waitBinlogCommit)
+	_ = e.commitTXAndStartNewLocked(c, commit, waitBinlogCommit, false)
 
 }
 
-func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit bool) error {
+func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, skipUpdateMeta bool) error {
 	var info *committedInfo
 	if waitBinlogCommit && e.binlog != nil {
 		info = e.binlogWaitDBSync(c)
 	}
 	if commit {
-		if e.binlog != nil && info != nil && len(info.meta) > 0 {
+		if !skipUpdateMeta && e.binlog != nil && info != nil && len(info.meta) > 0 {
 			err := e.binlogUpdateMeta(c, info.meta)
 			if err != nil {
 				e.rw.err = err
@@ -642,6 +643,9 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 		// after this line we can't roll back savepoint
 		e.dbOffset = offsetAfterWrite
 	}
+	if e.opt.CommitOnEachWrite {
+		_ = e.commitTXAndStartNewLocked(c, true, false, true)
+	}
 	if waitCommit || mustCommitNow {
 		e.waitQMx.Lock()
 		info, _ := e.committedInfo.Load().(*committedInfo)
@@ -661,7 +665,7 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 	if mustCommitNow && ch != nil {
 		<-ch
 		ch = nil
-		_ = e.commitTXAndStartNewLocked(c, true, false)
+		_ = e.commitTXAndStartNewLocked(c, true, false, false)
 	}
 	e.rw.spOk = true
 	c.close()

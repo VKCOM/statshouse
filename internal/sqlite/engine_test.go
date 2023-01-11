@@ -110,7 +110,7 @@ func apply(t *testing.T, scanOnly bool, applyF func(string2 string)) func(conn C
 
 }
 
-func openEngine(t *testing.T, prefix string, dbfile, schema string, create, replica, readAndExit bool, mode DurabilityMode, applyF func(string2 string)) (*Engine, binlog2.Binlog) {
+func openEngine(t *testing.T, prefix string, dbfile, schema string, create, replica, readAndExit, commitOnEachWrite bool, mode DurabilityMode, applyF func(string2 string)) (*Engine, binlog2.Binlog) {
 	options := binlog2.Options{
 		PrefixPath:  prefix + "/test",
 		Magic:       3456,
@@ -124,12 +124,13 @@ func openEngine(t *testing.T, prefix string, dbfile, schema string, create, repl
 	bl, err := fsbinlog.NewFsBinlog(&Logger{}, options)
 	require.NoError(t, err)
 	engine, err := OpenEngine(Options{
-		Path:           prefix + "/" + dbfile,
-		APPID:          32,
-		Scheme:         schema,
-		DurabilityMode: mode,
-		Replica:        replica,
-		ReadAndExit:    readAndExit,
+		Path:              prefix + "/" + dbfile,
+		APPID:             32,
+		Scheme:            schema,
+		DurabilityMode:    mode,
+		Replica:           replica,
+		ReadAndExit:       readAndExit,
+		CommitOnEachWrite: commitOnEachWrite,
 	}, bl, apply(t, false, applyF), apply(t, true, applyF))
 	require.NoError(t, err)
 	return engine, bl
@@ -148,10 +149,30 @@ func isEquals(a, b []string) error {
 }
 
 func Test_Engine_Reread_From_Begin(t *testing.T) {
+	t.Run("no wait commit", func(t *testing.T) {
+		test_Engine_Reread_From_Begin(t, false, false)
+	})
+	t.Run("no wait commit and commit on each tx", func(t *testing.T) {
+		test_Engine_Reread_From_Begin(t, false, true)
+	})
+	t.Run("wait commit", func(t *testing.T) {
+		test_Engine_Reread_From_Begin(t, true, false)
+	})
+
+}
+
+func test_Engine_Reread_From_Begin(t *testing.T, waitCommit, commitOnEachWrite bool) {
 	dir := t.TempDir()
-	engine, bl := openEngine(t, dir, "db", schema, true, false, false, NoWaitCommit, nil)
+	mode := NoWaitCommit
+	if waitCommit {
+		mode = WaitCommit
+	}
+	engine, bl := openEngine(t, dir, "db", schema, true, false, false, commitOnEachWrite, mode, nil)
 	agg := &testAggregation{}
 	n := 100000
+	if waitCommit {
+		n = 300
+	}
 	wg := &sync.WaitGroup{}
 	for i := 0; i < n; i++ {
 		wg.Add(1)
@@ -176,7 +197,7 @@ func Test_Engine_Reread_From_Begin(t *testing.T) {
 	require.NoError(t, bl.Shutdown())
 	history := []string{}
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db1", schema, false, false, false, NoWaitCommit, func(s string) {
+	engine, bl = openEngine(t, dir, "db1", schema, false, false, false, commitOnEachWrite, mode, func(s string) {
 		mx.Lock()
 		defer mx.Unlock()
 		history = append(history, s)
@@ -194,7 +215,7 @@ func Test_Engine_Reread_From_Begin(t *testing.T) {
 
 func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	dir := t.TempDir()
-	engine, bl := openEngine(t, dir, "db", schema, true, false, false, WaitCommit, nil)
+	engine, bl := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
 	agg := &testAggregation{}
 	n := 500 + rand.Intn(500)
 	wg := &sync.WaitGroup{}
@@ -220,7 +241,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
 	binlogHistory := []string{}
-	engine, bl = openEngine(t, dir, "db2", schema, false, false, false, NoWaitCommit, nil)
+	engine, bl = openEngine(t, dir, "db2", schema, false, false, false, false, NoWaitCommit, nil)
 	binlogOffset := engine.dbOffset
 	textInDb := map[string]struct{}{}
 	for _, s := range agg.writeHistory {
@@ -248,7 +269,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 
 	history := []string{}
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db", schema, false, false, false, WaitCommit, func(s string) {
+	engine, bl = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
 		mx.Lock()
 		defer mx.Unlock()
 		history = append(history, s)
@@ -283,7 +304,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 
 func Test_Engine(t *testing.T) {
 	dir := t.TempDir()
-	engine, bl := openEngine(t, dir, "db", schema, true, false, false, WaitCommit, nil)
+	engine, bl := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
 	agg := &testAggregation{}
 	n := 8000
 	var task int32 = 10000000
@@ -317,7 +338,7 @@ func Test_Engine(t *testing.T) {
 	require.NoError(t, engine.Close(ctx))
 	require.NoError(t, bl.Shutdown())
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db", schema, false, false, false, WaitCommit, func(s string) {
+	engine, bl = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
 		t.Fatal("mustn't apply music")
 	})
 	mx.Lock()
@@ -354,7 +375,7 @@ func Test_Engine(t *testing.T) {
 func Test_Engine_Read_Empty_Raw(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER PRIMARY KEY AUTOINCREMENT, oid INT, data TEXT);"
 	dir := t.TempDir()
-	engine, _ := openEngine(t, dir, "db", schema, true, false, false, WaitCommit, nil)
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
 	var rowID int64
 	var blob []byte
 	var err error
@@ -389,7 +410,7 @@ func Test_Engine_Read_Empty_Raw(t *testing.T) {
 func Test_Engine_Put_Empty_String(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (data TEXT NOT NULL);"
 	dir := t.TempDir()
-	engine, _ := openEngine(t, dir, "db", schema, true, false, false, WaitCommit, nil)
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
 	var err error
 	var data = "abc"
 
@@ -447,8 +468,8 @@ func Test_ReplicaMode(t *testing.T) {
 	t.Skip("TODO: fix this test")
 	const n = 10000
 	dir := t.TempDir()
-	engineMaster, _ := openEngine(t, dir, "db1", schema, true, false, false, NoWaitCommit, nil)
-	engineRepl, _ := openEngine(t, dir, "db", schema, false, true, false, NoWaitCommit, nil)
+	engineMaster, _ := openEngine(t, dir, "db1", schema, true, false, false, false, NoWaitCommit, nil)
+	engineRepl, _ := openEngine(t, dir, "db", schema, false, true, false, false, NoWaitCommit, nil)
 	for i := 0; i < n; i++ {
 		err := insertText(engineMaster, strconv.Itoa(i))
 		require.NoError(t, err)
@@ -476,7 +497,7 @@ func Test_ReplicaMode(t *testing.T) {
 func Test_Engine_Put_And_Read_RO(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (data TEXT NOT NULL);"
 	dir := t.TempDir()
-	engine, _ := openEngine(t, dir, "db", schema, true, false, false, WaitCommit, nil)
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
 	var err error
 	var data = ""
 	var read func(int) []string
@@ -545,7 +566,7 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 func Test_ReadAndExit(t *testing.T) {
 	const n = 1000
 	dir := t.TempDir()
-	engineMaster, _ := openEngine(t, dir, "db", schema, true, false, false, WaitCommit, nil)
+	engineMaster, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
 	wg := sync.WaitGroup{}
 	for i := 0; i < n; i++ {
 		wg.Add(1)
@@ -559,7 +580,7 @@ func Test_ReadAndExit(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engineMaster.Close(ctx))
-	engineMaster, _ = openEngine(t, dir, "db", schema, false, false, true, NoBinlog, nil)
+	engineMaster, _ = openEngine(t, dir, "db", schema, false, false, true, false, NoBinlog, nil)
 	c := 0
 	err := engineMaster.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("SELECT t from test_db")
