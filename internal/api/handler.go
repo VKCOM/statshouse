@@ -80,6 +80,7 @@ const (
 	ParamQueryBy      = "qb"
 	ParamQueryFilter  = "qf"
 	ParamQueryVerbose = "qv"
+	ParamAvoidCache   = "ac"
 	paramRenderWidth  = "rw"
 	paramDataFormat   = "df"
 	paramTabNumber    = "tn"
@@ -267,6 +268,7 @@ type (
 		by                      []string
 		filterIn                map[string][]string
 		filterNotIn             map[string][]string
+		avoidCache              bool
 	}
 
 	//easyjson:json
@@ -1412,8 +1414,13 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	getQuery := func(ctx context.Context) (*GetQueryResp, bool, error) {
-		resp, immutable, err := h.handleGetQuery(
+	_, avoidCache := r.Form[ParamAvoidCache]
+	if avoidCache && !ai.isAdmin() {
+		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
+	}
+
+	getQuery := func(ctx context.Context) (*GetQueryResp, error) {
+		resp, err := h.handleGetQuery(
 			ctx,
 			true,
 			getQueryReq{
@@ -1430,6 +1437,7 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 				by:                  r.Form[ParamQueryBy],
 				filterIn:            filterIn,
 				filterNotIn:         filterNotIn,
+				avoidCache:          avoidCache,
 			})
 		if h.verbose && err == nil {
 			log.Printf("[debug] handled query (%v series x %v points each) for %q in %v", len(resp.Series.SeriesMeta), len(resp.Series.Time), ai.user, time.Since(sl.startTime))
@@ -1697,7 +1705,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 					table:     lod.table,
 					hasPreKey: lod.hasPreKey,
 					location:  h.location,
-				})
+				}, req.avoidCache)
 				if err != nil {
 					return nil, false, err
 				}
@@ -2247,10 +2255,10 @@ func replaceInfNan(v *float64) {
 	}
 }
 
-func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod lodInfo, ret [][]tsSelectRow, retStartIx int) error {
+func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod lodInfo, ret [][]tsSelectRow, retStartIx int) (int, error) {
 	query, args, err := loadPointsQuery(pq, lod, h.utcOffset)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	rows := 0
@@ -2284,11 +2292,11 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 	duration := time.Since(start)
 	ChSelectMetricDuration(duration, metric, table, string(kind), isFast, isLight, err)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	if rows == maxSeriesRows {
-		return fmt.Errorf("can't fetch more than %v rows", maxSeriesRows) // prevent cache being populated by incomplete data
+	if len(data) == maxSeriesRows {
+		return len(data), fmt.Errorf("can't fetch more than %v rows", maxSeriesRows) // prevent cache being populated by incomplete data
 	}
 	if h.verbose {
 		log.Printf("[debug] loaded %v rows from %v (%v timestamps, %v to %v step %v) for %q in %v",
@@ -2303,7 +2311,26 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 		)
 	}
 
-	return nil
+	for _, row := range data {
+		if !isTimestampValid(row.Time, lod.stepSec, h.utcOffset, h.location) {
+			log.Printf("[warning] got invalid timestamp while loading for %q, ignoring: %d is not a multiple of %v", pq.user, row.Time, lod.stepSec)
+			continue
+		}
+
+		replaceInfNan(&row.CountNorm)
+		replaceInfNan(&row.Val0)
+		replaceInfNan(&row.Val1)
+		replaceInfNan(&row.Val2)
+		replaceInfNan(&row.Val3)
+		replaceInfNan(&row.Val4)
+		replaceInfNan(&row.Val5)
+		replaceInfNan(&row.Val6)
+
+		ix := retStartIx + lod.getIndexForTimestamp(row.Time, 0)
+		ret[ix] = append(ret[ix], row)
+	}
+
+	return len(data), nil
 }
 
 func stableMulDiv(v float64, mul int64, div int64) float64 {
