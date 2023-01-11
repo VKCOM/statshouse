@@ -179,7 +179,7 @@ func chSelectPushMetric(metric string, isFast, isLight bool, data float64, err e
 
 func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
 	statlogs.AccessMetricRaw(
-		format.BuiltinMetricNameAPISourceSelectRows,
+		"ch_video_select_test",
 		statlogs.RawTags{
 			Tag1: "cache",
 			Tag2: strconv.Itoa(int(metricID)),
@@ -189,7 +189,7 @@ func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
 	).Value(float64(cachedRows))
 
 	statlogs.AccessMetricRaw(
-		format.BuiltinMetricNameAPISourceSelectRows,
+		"ch_video_select_test",
 		statlogs.RawTags{
 			Tag1: "clickhouse",
 			Tag2: strconv.Itoa(int(metricID)),

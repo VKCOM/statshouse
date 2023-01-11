@@ -69,7 +69,7 @@ func (g *tsCacheGroup) Invalidate(lodLevel int64, times []int64) {
 	g.pointCaches[Version2][lodLevel].invalidate(times)
 }
 
-func (g *tsCacheGroup) Get(ctx context.Context, version string, key string, pq *preparedPointsQuery, lod lodInfo) ([][]tsSelectRow, error) {
+func (g *tsCacheGroup) Get(ctx context.Context, version string, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([][]tsSelectRow, error) {
 	switch pq.metricID {
 	case format.BuiltinMetricIDGeneratorConstCounter:
 		return generateConstCounter(lod)
@@ -78,7 +78,7 @@ func (g *tsCacheGroup) Get(ctx context.Context, version string, key string, pq *
 	case format.BuiltinMetricIDGeneratorGapsCounter:
 		return generateGapsCounter(lod)
 	default:
-		return g.pointCaches[version][lod.stepSec].get(ctx, key, pq, lod)
+		return g.pointCaches[version][lod.stepSec].get(ctx, key, pq, lod, avoidCache)
 	}
 }
 
@@ -95,7 +95,7 @@ type tsCache struct {
 	dropEvery         time.Duration
 }
 
-type tsLoadFunc func(ctx context.Context, pq *preparedPointsQuery, lod lodInfo, ret [][]tsSelectRow, retStartIx int) error
+type tsLoadFunc func(ctx context.Context, pq *preparedPointsQuery, lod lodInfo, ret [][]tsSelectRow, retStartIx int) (int, error)
 
 type tsVersionedRows struct {
 	rows         []tsSelectRow
@@ -142,29 +142,36 @@ func (c *tsCache) maybeDropCache() {
 	}
 }
 
-func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, lod lodInfo) ([][]tsSelectRow, error) {
+func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([][]tsSelectRow, error) {
 	if c.dropEvery != 0 {
 		c.maybeDropCache()
 	}
 
 	ret := make([][]tsSelectRow, lod.getIndexForTimestamp(lod.toSec, 0))
-	loadFrom, loadTo := c.loadCached(key, lod.fromSec, lod.toSec, ret, 0, lod.location)
-	if loadFrom == 0 && loadTo == 0 {
-		return ret, nil
-	}
+	var cachedRows int
 
-	realLoadFrom, realLoadTo := c.loadCached(key, loadFrom, loadTo, ret, int((loadFrom-lod.fromSec)/c.stepSec), lod.location)
-	if realLoadFrom == 0 && realLoadTo == 0 {
-		return ret, nil
+	var realLoadFrom = lod.fromSec
+	var realLoadTo = lod.toSec
+	if !avoidCache {
+		realLoadFrom, realLoadTo = c.loadCached(key, lod.fromSec, lod.toSec, ret, 0, lod.location, &cachedRows)
+		if realLoadFrom == 0 && realLoadTo == 0 {
+			ChCacheRate(cachedRows, 0, pq.metricID, lod.table, string(pq.kind))
+			return ret, nil
+		}
 	}
 
 	loadAtNano := time.Now().UnixNano()
 	loadLOD := lodInfo{fromSec: realLoadFrom, toSec: realLoadTo, stepSec: c.stepSec, table: lod.table, hasPreKey: lod.hasPreKey, location: lod.location}
-	err := c.loader(ctx, pq, loadLOD, ret, int((realLoadFrom-lod.fromSec)/c.stepSec))
+	chRows, err := c.loader(ctx, pq, loadLOD, ret, int((realLoadFrom-lod.fromSec)/c.stepSec))
 	if err != nil {
 		return nil, err
 	}
 
+	ChCacheRate(cachedRows, chRows, pq.metricID, lod.table, string(pq.kind))
+
+	if avoidCache {
+		return ret, nil
+	}
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 
@@ -228,7 +235,7 @@ func (c *tsCache) invalidate(times []int64) {
 	}
 }
 
-func (c *tsCache) loadCached(key string, fromSec int64, toSec int64, ret [][]tsSelectRow, retStartIx int, location *time.Location) (int64, int64) {
+func (c *tsCache) loadCached(key string, fromSec int64, toSec int64, ret [][]tsSelectRow, retStartIx int, location *time.Location, rows *int) (int64, int64) {
 	c.cacheMu.RLock()
 	defer c.cacheMu.RUnlock()
 
@@ -251,6 +258,7 @@ func (c *tsCache) loadCached(key string, fromSec int64, toSec int64, ret [][]tsS
 		cached, ok := e.secRows[t]
 		if ok && cached.loadedAtNano >= c.invalidatedAtNano[t]+int64(invalidateLinger) {
 			ret[ix] = cached.rows
+			*rows += len(cached.rows)
 		} else {
 			if loadFrom == 0 {
 				loadFrom = t

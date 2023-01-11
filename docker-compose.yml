@@ -83,7 +83,7 @@ services:
         - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-api
     user: "root:root"
-    command: --verbose --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=kh:9000 --listen-addr=:10888 --metadata-addr=metadata:2442 --statshouse-addr=agent:13337 --disk-cache=/var/lib/statshouse/cache/api/mapping_cache.sqlite3
+    command: --verbose --insecure-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=kh:9000 --listen-addr=:10888 --metadata-addr=metadata:2442 --statshouse-addr=agent:13337 --disk-cache=/var/lib/statshouse/cache/api/mapping_cache.sqlite3
     ports:
       - "10888:10888"
     depends_on:

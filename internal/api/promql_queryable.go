@@ -223,7 +223,7 @@ func (qe *promQueryable) evalMetricQuery(ctx context.Context, mq *metricQuery, s
 		i          int
 	)
 	for _, lod := range lods {
-		m, err := qe.h.cache.Get(ctx, Version2, qs, pq, lod)
+		m, err := qe.h.cache.Get(ctx, Version2, qs, pq, lod, false)
 		if err != nil {
 			return err
 		}
