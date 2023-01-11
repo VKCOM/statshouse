@@ -282,6 +282,27 @@ func (pc *PacketConn) WritePacket(packetType uint32, body []byte, timeout time.D
 	return pc.writeFlushUnlocked()
 }
 
+// TODO - benchmark Barsic without locking in 2 functions below
+func (pc *PacketConn) WritePacketNoFlush(packetType uint32, body []byte, timeout time.Duration) error {
+	pc.writeMu.Lock()
+	defer pc.writeMu.Unlock()
+
+	if err := pc.startWritePacketUnlocked(packetType, timeout); err != nil {
+		return err
+	}
+	if err := pc.writeSimplePacketUnlocked(body); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (pc *PacketConn) Flush() error {
+	pc.writeMu.Lock()
+	defer pc.writeMu.Unlock()
+
+	return pc.writeFlushUnlocked()
+}
+
 type closeWriter interface {
 	CloseWrite() error
 }

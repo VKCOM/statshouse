@@ -3,7 +3,6 @@ package sqlite
 import (
 	"context"
 	"errors"
-	"log"
 	"time"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
@@ -90,7 +89,7 @@ func (impl *binlogEngineImpl) apply(payload []byte) (newOffset int64, err error)
 	return e.dbOffset, errToReturn
 }
 
-func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotOffset int64) {
+func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
 	e := impl.e
 	old := e.committedInfo.Load()
 	if old != nil {
@@ -119,45 +118,44 @@ func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnap
 		c.close()
 		cancel()
 		if err != nil {
-			log.Panicf("error to commit tx: %s", err)
+			return err
 		}
 		err = impl.applyQueue.applyAllChanges(impl.apply, impl.skip)
 		if err != nil {
-			log.Panicf("cannot apply queued data: %s", err)
+			return err
 		}
 		impl.state = none
 	}
+	return nil
 }
 
-func (impl *binlogEngineImpl) Revert(toOffset int64) bool {
-	return false
+func (impl *binlogEngineImpl) Revert(toOffset int64) (bool, error) {
+	return false, nil
 }
 
-func (impl *binlogEngineImpl) ChangeRole(info binlog2.ChangeRoleInfo) {
+func (impl *binlogEngineImpl) ChangeRole(info binlog2.ChangeRoleInfo) error {
 	e := impl.e
 	if info.IsReady {
 		e.readyNotify.Do(func() {
 			close(e.waitUntilBinlogReady)
 		})
 	}
+	return nil
 }
 
-func (impl *binlogEngineImpl) Skip(skipLen int64) int64 {
+func (impl *binlogEngineImpl) Skip(skipLen int64) (int64, error) {
 	if impl.state == waitToCommit {
-		return impl.applyQueue.addNewSkip(skipLen)
+		return impl.applyQueue.addNewSkip(skipLen), nil
 	}
 	return impl.skip(skipLen)
 }
 
-func (impl *binlogEngineImpl) skip(skipLen int64) int64 {
+func (impl *binlogEngineImpl) skip(skipLen int64) (int64, error) {
 	var offset int64
 	err := impl.e.do(func(conn Conn) error {
 		impl.e.dbOffset += skipLen
 		offset = impl.e.dbOffset
 		return binlogUpdateOffset(conn, impl.e.dbOffset)
 	})
-	if err != nil {
-		log.Panicf("error in skip handler: %s", err)
-	}
-	return offset
+	return offset, err
 }

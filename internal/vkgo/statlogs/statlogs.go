@@ -21,6 +21,7 @@ import (
 const (
 	DefaultStatsHouseAddr = "127.0.0.1:13337"
 	defaultSendPeriod     = 1 * time.Second
+	errorReportingPeriod  = time.Minute
 	maxPayloadSize        = 1232 // IPv6 mandated minimum MTU size of 1280 (minus 40 byte IPv6 header and 8 byte UDP header)
 	tlInt32Size           = 4
 	tlInt64Size           = 8
@@ -161,6 +162,8 @@ type Registry struct {
 	addr   string
 	conn   *net.UDPConn
 
+	writeErrTime time.Time // we use it to reduce # of errors reported
+
 	closeOnce  sync.Once
 	closeErr   error
 	close      chan chan struct{}
@@ -251,6 +254,7 @@ func (r *Registry) configure(logf LoggerFunc, statsHouseAddr string, env string)
 			logf("[statlogs] failed to close connection: %v", err)
 		}
 		r.conn = nil
+		r.writeErrTime = time.Time{}
 	}
 	if r.addr == "" {
 		r.logf("[statlogs] configured with empty address, all statistics will be silently dropped")
@@ -455,7 +459,11 @@ func (r *Registry) flush() {
 	if r.conn != nil && r.addr != "" {
 		_, err := r.conn.Write(data)
 		if err != nil {
-			r.logf("[statlogs] failed to send data to statshouse: %v", err) // not using getLog() because confMu is already locked
+			now := time.Now()
+			if now.Sub(r.writeErrTime) > errorReportingPeriod {
+				r.writeErrTime = now
+				r.logf("[statlogs] failed to send data to statshouse: %v", err) // not using getLog() because confMu is already locked
+			}
 		}
 	}
 }
