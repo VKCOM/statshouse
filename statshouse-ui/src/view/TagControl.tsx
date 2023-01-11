@@ -162,8 +162,14 @@ export const TagControl = memo(function TagControl_(props: {
   ]);
 
   const selectValues = useMemo(
-    () => [...(sel.filterIn[tagID] ?? []), ...(sel.filterNotIn[tagID] ?? [])],
-    [sel.filterIn, sel.filterNotIn, tagID]
+    () =>
+      [...(sel.filterIn[tagID] ?? []), ...(sel.filterNotIn[tagID] ?? [])].map((t) => {
+        if (t[0] !== ' ' && tag.raw) {
+          return Object.entries(tag.value_comments ?? {}).find(([, tag_comment]) => tag_comment === t)?.[0] ?? t;
+        }
+        return t;
+      }),
+    [sel.filterIn, sel.filterNotIn, tag, tagID]
   );
 
   const onSortOrderToggle = useCallback(() => {
