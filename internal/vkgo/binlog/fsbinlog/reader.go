@@ -228,12 +228,15 @@ func (b *binlogReader) readUncompressedFile(r io.Reader, curPos int64, curCrc32 
 
 	buffer := newReadBuffer(64 * 1024)
 	commitTimer := time.NewTimer(b.commitDuration)
-	makeCommit := func(int64, uint32) {
+	makeCommit := func(int64, uint32) error {
 		if hasUncommitted {
 			snapMeta := prepareSnapMeta(curPos, curCrc32, b.stat.lastTimestamp.Load())
-			engine.Commit(curPos, snapMeta, curPos)
+			if err := engine.Commit(curPos, snapMeta, curPos); err != nil {
+				return fmt.Errorf("Engine.Commit return error %w", err)
+			}
 			hasUncommitted = false
 		}
+		return nil
 	}
 
 	curPos, curCrc32, err = b.readAndUpdateCRCIfNeed(r, curPos, curCrc32, startPos, si)
@@ -250,7 +253,7 @@ loop:
 		b.stat.positionInCurFile.Add(int64(readBytes))
 
 		if processErr != nil && !isExpectedError(processErr) {
-			return curPos, curCrc32, processErr
+			return curPos, curCrc32, fmt.Errorf("Engine.Apply return error %w", processErr)
 		}
 
 		select {
@@ -259,7 +262,9 @@ loop:
 		case <-commitTimer.C:
 			// Фейковый коммит. fsync делает репликатор и мы не знаем когда он произошел, поэтому так.
 			// Делаем это для того, чтобы быть похожим на Barsic
-			makeCommit(curPos, curCrc32)
+			if err := makeCommit(curPos, curCrc32); err != nil {
+				return curPos, curCrc32, err
+			}
 			commitTimer.Reset(b.commitDuration)
 		default:
 		}
@@ -281,10 +286,12 @@ loop:
 				// if masterNotReady, we may be in change pid procedure
 				if b.pidChanged != nil {
 					// Нотифицируем клиента, что мы дошли до какого-то конца
-					engine.ChangeRole(binlog.ChangeRoleInfo{
+					if err := engine.ChangeRole(binlog.ChangeRoleInfo{
 						IsMaster: isMaster,
 						IsReady:  false,
-					})
+					}); err != nil {
+						return curPos, curCrc32, fmt.Errorf("Engine.ChangeRole return error %w", err)
+					}
 
 					// Ждем пока он нотифицирует нас, что предыдущий процесс грохнут
 					<-*b.pidChanged
@@ -304,10 +311,12 @@ loop:
 
 				if !b.readyCallbackCalled {
 					b.readyCallbackCalled = true
-					engine.ChangeRole(binlog.ChangeRoleInfo{
+					if err := engine.ChangeRole(binlog.ChangeRoleInfo{
 						IsMaster: false,
 						IsReady:  true,
-					})
+					}); err != nil {
+						return curPos, curCrc32, fmt.Errorf("Engine.ChangeRole return error %w", err)
+					}
 				}
 
 				select {
@@ -320,7 +329,10 @@ loop:
 					}
 					continue
 				case <-commitTimer.C:
-					makeCommit(curPos, curCrc32)
+					if err := makeCommit(curPos, curCrc32); err != nil {
+						return curPos, curCrc32, err
+
+					}
 					commitTimer.Reset(b.commitDuration)
 					continue
 				case <-*b.stop:
@@ -443,9 +455,12 @@ loop:
 		hasUncommitted = true
 
 		if serviceLev && (processErr == nil || processErr == ErrUpgradeToBarsicLev) {
-			newPos := engine.Skip(int64(readBytes))
+			newPos, skipErr := engine.Skip(int64(readBytes))
+			if skipErr != nil {
+				return curPos, curCrc32, fmt.Errorf("Engine.Skip return error %w", skipErr)
+			}
 			if newPos != curPos+int64(readBytes) {
-				return curPos, curCrc32, fmt.Errorf("engine.skip return new position %d, expect %d", newPos, curPos+int64(readBytes))
+				return curPos, curCrc32, fmt.Errorf("Engine.Skip return new position %d, expect %d", newPos, curPos+int64(readBytes))
 			}
 		}
 	}

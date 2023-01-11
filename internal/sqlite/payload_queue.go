@@ -38,10 +38,13 @@ func newApplyQueue(old *applyQueue, dbOffset int64, maxBytes int) *applyQueue {
 	}
 }
 
-func (q *applyQueue) applyAllChanges(applyFunc func(payload []byte) (newOffset int64, err error), skip func(skipLen int64) int64) error {
+func (q *applyQueue) applyAllChanges(applyFunc func(payload []byte) (newOffset int64, err error), skip func(skipLen int64) (int64, error)) error {
 	for _, apply := range q.q {
 		if apply.skip > 0 {
-			_ = skip(apply.skip)
+			_, err := skip(apply.skip)
+			if err != nil {
+				return err
+			}
 		} else {
 			_, err := applyFunc(*apply.body)
 			if err != nil {

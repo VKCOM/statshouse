@@ -141,7 +141,7 @@ func (e *TestEngineImpl) Apply(payload []byte) (int64, error) {
 	}
 	return e.applyCb(payload)
 }
-func (e *TestEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotOffset int64) {
+func (e *TestEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotOffset int64) error {
 	e.commitMu.Lock()
 
 	e.commitPosition.Store(offset)
@@ -155,22 +155,24 @@ func (e *TestEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotO
 
 	e.commitMu.Unlock()
 	e.commitCV.Signal()
+	return nil
 }
 
-func (e *TestEngineImpl) Skip(skipLen int64) int64 {
+func (e *TestEngineImpl) Skip(skipLen int64) (int64, error) {
 	e.currentOffset.Add(skipLen)
-	return e.currentOffset.Load()
+	return e.currentOffset.Load(), nil
 }
 
-func (e *TestEngineImpl) Revert(toOffset int64) bool {
+func (e *TestEngineImpl) Revert(toOffset int64) (bool, error) {
 	panic("not implemented")
 }
 
-func (e *TestEngineImpl) ChangeRole(info binlog.ChangeRoleInfo) {
+func (e *TestEngineImpl) ChangeRole(info binlog.ChangeRoleInfo) error {
 	if info.IsReady {
 		e.ready.Store(true)
 	}
 	e.kindaReady.Store(true)
+	return nil
 }
 
 func (e *TestEngineImpl) WaitForReadyFlag() {

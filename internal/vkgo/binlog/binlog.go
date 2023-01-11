@@ -33,25 +33,6 @@ type ChangeRoleInfo struct {
 
 func (c ChangeRoleInfo) IsReadyMaster() bool { return c.IsMaster && c.IsReady }
 
-// Experimental, TODO - move to better place
-func (c ChangeRoleInfo) ValidateWriteRequest(hctx *rpc.HandlerContext) error {
-	c.ValidateReadRequest(hctx)
-	if !c.IsReadyMaster() {
-		return rpc.Error{
-			Code:        BarsicNotAMasterRPCError,
-			Description: fmt.Sprintf("%d not master", c.ViewNumber),
-		}
-	}
-	return nil
-}
-
-// Experimental, TODO - move to better place
-func (c ChangeRoleInfo) ValidateReadRequest(hctx *rpc.HandlerContext) {
-	if hctx != nil {
-		hctx.ResponseExtra.SetViewNumber(c.ViewNumber)
-	}
-}
-
 type EngineStatus struct { // copy of tlbarsic.EngineStatus
 	Version                  string
 	LoadedSnapshot           string
@@ -85,7 +66,7 @@ type Engine interface {
 	// Skip говорит движку, что нужно пропустить skipLen байт бинлога. Это может быть вызвано тем, что внутри
 	// обработались служебные события (в случае старых бинлогов) или тем, что в настройках явно указанно пропустить
 	// эти байты (они вызывают проблемы в работе движка). Движок должен вернуть новую позицию.
-	Skip(skipLen int64) (newOffset int64)
+	Skip(skipLen int64) (newOffset int64, err error)
 
 	// Commit говорит движку offset событий, которые гарантированно записаны в систему и не будут инвалидированны (Revert).
 	// В offset записана позиция первого байта, который ещё не закоммичен. snapshotMeta - это непрозрачный набор байтов,
@@ -93,11 +74,11 @@ type Engine interface {
 	// safeSnapshotOffset это минимум от закоммиченной и локально fsync-нутой позиции, можно начинать реальную запись сделанного
 	// снапшота только когда эта позиция станет >= безопасной позиции снапшота
 	// содержимое snapshotMeta перетирается после завершения обработчика, не сохраняйте этот слайс или его подслайс.
-	Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64)
+	Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error)
 
 	// Revert говорит движку, что все события начиная с позиции toOffset невалидны и движок должен откатить их из своего состояния.
 	// Если движок не умеет этого делать, он должен вернуть false. Дальше Barsic будет решать что с ним делать (скорее всего перезапустит)
-	Revert(toOffset int64) bool
+	Revert(toOffset int64) (bool, error)
 
 	// ChangeRole сообщает движку об изменении его роли
 	// Когда info.IsReadyMaster(), движок уже стал пишущим мастером, и имеет право ещё до выхода из этой функции
@@ -110,7 +91,7 @@ type Engine interface {
 	// примерно до конца, и некоторым движкам удобно в этот момент начать отвечать на запросы
 	// это поведение экспериментальное,
 	// TODO: подробно описать сценарий
-	ChangeRole(info ChangeRoleInfo)
+	ChangeRole(info ChangeRoleInfo) error
 }
 
 type Binlog interface {
@@ -160,4 +141,23 @@ type Options struct {
 	HardMemLimit      int    // Лимит буффера, при котором включается механизм back pressure: Append начнет блокироваться, пока буффер не передастся на запись
 	EngineIDInCluster uint   // Номер данного шарда в кластере, для статы
 	ClusterSize       uint   // Размер кластера для данного шарда, для статы
+}
+
+// Experimental, TODO - move to better place
+func (c ChangeRoleInfo) ValidateWriteRequest(hctx *rpc.HandlerContext) error {
+	c.ValidateReadRequest(hctx)
+	if !c.IsReadyMaster() {
+		return rpc.Error{
+			Code:        BarsicNotAMasterRPCError,
+			Description: fmt.Sprintf("%d not master", c.ViewNumber),
+		}
+	}
+	return nil
+}
+
+// Experimental, TODO - move to better place
+func (c ChangeRoleInfo) ValidateReadRequest(hctx *rpc.HandlerContext) {
+	if hctx != nil {
+		hctx.ResponseExtra.SetViewNumber(c.ViewNumber)
+	}
 }
