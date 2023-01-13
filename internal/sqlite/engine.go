@@ -209,7 +209,7 @@ func OpenEngine(
 
 	e.commitTXAndStartNew(false, false)
 	if err := e.rw.err; err != nil {
-		_ = e.close(false)
+		_ = e.close(false, false)
 		return nil, fmt.Errorf("failed to start write transaction: %w", err)
 	}
 	if binlog != nil {
@@ -217,13 +217,13 @@ func OpenEngine(
 		e.committedInfo.Store(&committedInfo{})
 		offset, err := e.binlogLoadOrCreatePosition()
 		if err != nil {
-			_ = e.close(false)
+			_ = e.close(false, false)
 			return nil, fmt.Errorf("failed to load binlog position: %w", err)
 		}
 		e.dbOffset = offset
 		meta, err := e.binlogLoadOrCreateMeta()
 		if err != nil {
-			_ = e.close(false)
+			_ = e.close(false, false)
 			return nil, fmt.Errorf("failed to load snapshot meta: %w", err)
 		}
 
@@ -403,8 +403,9 @@ func (e *Engine) Close(ctx context.Context) error {
 	ch := make(chan error, 1)
 	defer close(ch)
 	go func() {
+		err := e.close(e.opt.DurabilityMode == WaitCommit || e.opt.DurabilityMode == NoBinlog, e.opt.DurabilityMode == WaitCommit)
 		select {
-		case ch <- e.close(e.opt.DurabilityMode == WaitCommit):
+		case ch <- err:
 		default:
 		}
 	}()
@@ -416,9 +417,9 @@ func (e *Engine) Close(ctx context.Context) error {
 	}
 }
 
-func (e *Engine) close(waitCommit bool) error {
-	if waitCommit {
-		e.commitTXAndStartNew(true, true)
+func (e *Engine) close(shouldCommit, waitCommitBinlog bool) error {
+	if shouldCommit {
+		e.commitTXAndStartNew(true, waitCommitBinlog)
 	}
 	err := e.rw.Close()
 	for _, conn := range e.roFree {

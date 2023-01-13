@@ -433,7 +433,7 @@ func Test_Engine_Put_Empty_String(t *testing.T) {
 	require.NoError(t, engine.Close(ctx))
 }
 
-func Test_Engine_WithoutBinlog(t *testing.T) {
+func Test_Engine_NoBinlog(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (data TEXT NOT NULL);"
 	dir := t.TempDir()
 	engine, err := OpenEngine(Options{
@@ -449,6 +449,45 @@ func Test_Engine_WithoutBinlog(t *testing.T) {
 		_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
 		return cache, err
 	})
+	require.NoError(t, err)
+	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("SELECT data from test_db")
+		require.NoError(t, rows.Error())
+		require.True(t, rows.Next())
+		data, err = rows.ColumnBlobString(0)
+		return cache, err
+	})
+	require.NoError(t, err)
+	require.Equal(t, "abc", data)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	require.NoError(t, engine.Close(ctx))
+}
+
+func Test_Engine_NoBinlog_Close(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (data TEXT NOT NULL);"
+	dir := t.TempDir()
+	engine, err := OpenEngine(Options{
+		Path:           dir + "/db",
+		APPID:          32,
+		Scheme:         schema,
+		DurabilityMode: NoBinlog,
+	}, nil, nil, nil)
+	require.NoError(t, err)
+	var data = ""
+
+	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
+		return cache, err
+	})
+	require.NoError(t, err)
+	require.NoError(t, engine.Close(context.Background()))
+	engine, err = OpenEngine(Options{
+		Path:           dir + "/db",
+		APPID:          32,
+		Scheme:         schema,
+		DurabilityMode: NoBinlog,
+	}, nil, nil, nil)
 	require.NoError(t, err)
 	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("SELECT data from test_db")
@@ -580,7 +619,7 @@ func Test_ReadAndExit(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engineMaster.Close(ctx))
-	engineMaster, _ = openEngine(t, dir, "db", schema, false, false, true, false, NoBinlog, nil)
+	engineMaster, _ = openEngine(t, dir, "db1", schema, false, false, true, false, NoBinlog, nil)
 	c := 0
 	err := engineMaster.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 		rows := conn.Query("SELECT t from test_db")
