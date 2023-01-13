@@ -92,6 +92,8 @@ ORDER BY
   _count DESC,
   %s
 LIMIT %v
+SETTINGS
+  optimize_aggregation_in_order = 1
 `, preKeyTagName(lod, pq.tagID, pq.preKeyTagID), valueName, pq.numResults+1) // +1 so we can set "more":true
 
 	return query, args, nil
@@ -215,6 +217,8 @@ WHERE
 GROUP BY
   _time%s
 LIMIT %v
+SETTINGS
+  optimize_aggregation_in_order = 1
 `, commaBy, maxSeriesRows)
 
 	return query, args, nil
