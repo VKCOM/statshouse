@@ -137,6 +137,8 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     build_commit_ts:int
     queue_size_disk:int
     queue_size_memory:int
+    queue_size_disk_sum:fields_mask.2?int   // for all shard-replicas. Helps detect situation where only subset of aggregators is accessible.
+    queue_size_memory_sum:fields_mask.2?int
     original_size:int
     compressed_data:string = String;
 

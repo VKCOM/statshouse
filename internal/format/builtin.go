@@ -80,6 +80,7 @@ const (
 	BuiltinMetricIDAPISelectBytes             = -66
 	BuiltinMetricIDAPISelectRows              = -67
 	BuiltinMetricIDAPISelectDuration          = -68
+	BuiltinMetricIDAgentHistoricQueueSizeSum  = -69
 
 	// metric names used in code directly
 	BuiltinMetricNameAggBucketReceiveDelaySec = "__agg_bucket_receive_delay_sec"
@@ -691,6 +692,26 @@ Set by either agent or aggregator, depending on status.`,
 			Name:        "__src_historic_queue_size_bytes",
 			Kind:        MetricKindValue,
 			Description: "Historic queue size in memory and on disk.\nDisk size increases when second is written, decreases when file is deleted.",
+			Tags: []MetricMetaTag{{
+				Description: "storage",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDHistoricQueueMemory: "memory",
+					TagValueIDHistoricQueueDisk:   "disk",
+				}),
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}},
+		},
+		BuiltinMetricIDAgentHistoricQueueSizeSum: {
+			Name:        "__src_historic_queue_size_sum_bytes",
+			Kind:        MetricKindValue,
+			Description: "Historic queue size in memory and on disk, sum for shards sent to every shard.\nCan be compared with __src_historic_queue_size_bytes to find if subset of aggregators is inaccessible.",
 			Tags: []MetricMetaTag{{
 				Description: "storage",
 				ValueComments: convertToValueComments(map[int32]string{

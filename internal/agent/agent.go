@@ -14,13 +14,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 
+	"go.uber.org/atomic"
 	"pgregory.net/rand"
 )
 
@@ -28,6 +28,8 @@ import (
 // No values in this struct are ever changed after initialization, so no locking
 
 type Agent struct {
+	historicBucketsDataSize atomic.Int64 // sum of values for each shard
+
 	Shards          []*Shard                     // Actually those are shard-replicas
 	GetConfigResult tlstatshouse.GetConfigResult // for ingress proxy
 
