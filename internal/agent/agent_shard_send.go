@@ -629,6 +629,18 @@ func (s *Shard) sendSourceBucketCompressed(ctx context.Context, cbd compressedBu
 	if sizeDisk < math.MaxInt32 {
 		args.QueueSizeDisk = int32(sizeDisk)
 	}
+	sizeDiskSum := s.HistoricBucketsDataSizeDiskSum()
+	if sizeDiskSum < math.MaxInt32 {
+		args.SetQueueSizeDiskSum(int32(sizeDiskSum))
+	} else {
+		args.SetQueueSizeDiskSum(math.MaxInt32)
+	}
+	sizeMemSum := s.HistoricBucketsDataSizeMemSum()
+	if sizeMemSum < math.MaxInt32 {
+		args.SetQueueSizeMemorySum(int32(sizeMemSum))
+	} else {
+		args.SetQueueSizeMemorySum(math.MaxInt32)
+	}
 	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
 		if err := s.client.SendSourceBucket2Bytes(ctx, args, &extra, ret); err != nil {
 			return err
@@ -763,6 +775,7 @@ func (s *Shard) appendHistoricBucketsToSend(cbd compressedBucketData) {
 		cbd.data = nil
 	} else {
 		s.HistoricBucketsDataSize += len(cbd.data)
+		s.statshouse.historicBucketsDataSize.Add(int64(len(cbd.data)))
 	}
 	s.HistoricBucketsToSend = append(s.HistoricBucketsToSend, cbd)
 	s.cond.Signal()
@@ -793,6 +806,7 @@ func (s *Shard) popOldestHistoricSecondLocked() compressedBucketData {
 	s.HistoricBucketsToSend = s.HistoricBucketsToSend[:len(s.HistoricBucketsToSend)-1]
 
 	s.HistoricBucketsDataSize -= len(cbd.data)
+	s.statshouse.historicBucketsDataSize.Sub(int64(len(cbd.data)))
 	if s.HistoricBucketsDataSize < 0 {
 		panic("HistoricBucketsDataSize < 0")
 	}

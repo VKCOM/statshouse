@@ -19,15 +19,17 @@ type StatshouseSendSourceBucket2 struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeader
 	Time       uint32
-	// Historic True // Conditional: item.FieldsMask.0
-	// Spare True // Conditional: item.FieldsMask.1
-	BuildCommit     string
-	BuildCommitDate int32
-	BuildCommitTs   int32
-	QueueSizeDisk   int32
-	QueueSizeMemory int32
-	OriginalSize    int32
-	CompressedData  string
+	// Historic (TrueType) // Conditional: item.FieldsMask.0
+	// Spare (TrueType) // Conditional: item.FieldsMask.1
+	BuildCommit        string
+	BuildCommitDate    int32
+	BuildCommitTs      int32
+	QueueSizeDisk      int32
+	QueueSizeMemory    int32
+	QueueSizeDiskSum   int32 // Conditional: item.FieldsMask.2
+	QueueSizeMemorySum int32 // Conditional: item.FieldsMask.2
+	OriginalSize       int32
+	CompressedData     string
 }
 
 func (StatshouseSendSourceBucket2) TLName() string { return "statshouse.sendSourceBucket2" }
@@ -40,7 +42,7 @@ func (item *StatshouseSendSourceBucket2) SetHistoric(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item *StatshouseSendSourceBucket2) IsSetHistoric() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item StatshouseSendSourceBucket2) IsSetHistoric() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseSendSourceBucket2) SetSpare(v bool) {
 	if v {
@@ -49,7 +51,31 @@ func (item *StatshouseSendSourceBucket2) SetSpare(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item *StatshouseSendSourceBucket2) IsSetSpare() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item StatshouseSendSourceBucket2) IsSetSpare() bool { return item.FieldsMask&(1<<1) != 0 }
+
+func (item *StatshouseSendSourceBucket2) SetQueueSizeDiskSum(v int32) {
+	item.QueueSizeDiskSum = v
+	item.FieldsMask |= 1 << 2
+}
+func (item *StatshouseSendSourceBucket2) ClearQueueSizeDiskSum() {
+	item.QueueSizeDiskSum = 0
+	item.FieldsMask &^= 1 << 2
+}
+func (item StatshouseSendSourceBucket2) IsSetQueueSizeDiskSum() bool {
+	return item.FieldsMask&(1<<2) != 0
+}
+
+func (item *StatshouseSendSourceBucket2) SetQueueSizeMemorySum(v int32) {
+	item.QueueSizeMemorySum = v
+	item.FieldsMask |= 1 << 2
+}
+func (item *StatshouseSendSourceBucket2) ClearQueueSizeMemorySum() {
+	item.QueueSizeMemorySum = 0
+	item.FieldsMask &^= 1 << 2
+}
+func (item StatshouseSendSourceBucket2) IsSetQueueSizeMemorySum() bool {
+	return item.FieldsMask&(1<<2) != 0
+}
 
 func (item *StatshouseSendSourceBucket2) Reset() {
 	item.FieldsMask = 0
@@ -60,6 +86,8 @@ func (item *StatshouseSendSourceBucket2) Reset() {
 	item.BuildCommitTs = 0
 	item.QueueSizeDisk = 0
 	item.QueueSizeMemory = 0
+	item.QueueSizeDiskSum = 0
+	item.QueueSizeMemorySum = 0
 	item.OriginalSize = 0
 	item.CompressedData = ""
 }
@@ -89,6 +117,20 @@ func (item *StatshouseSendSourceBucket2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.QueueSizeMemory); err != nil {
 		return w, err
 	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if w, err = basictl.IntRead(w, &item.QueueSizeDiskSum); err != nil {
+			return w, err
+		}
+	} else {
+		item.QueueSizeDiskSum = 0
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if w, err = basictl.IntRead(w, &item.QueueSizeMemorySum); err != nil {
+			return w, err
+		}
+	} else {
+		item.QueueSizeMemorySum = 0
+	}
 	if w, err = basictl.IntRead(w, &item.OriginalSize); err != nil {
 		return w, err
 	}
@@ -108,6 +150,12 @@ func (item *StatshouseSendSourceBucket2) Write(w []byte) (_ []byte, err error) {
 	w = basictl.IntWrite(w, item.BuildCommitTs)
 	w = basictl.IntWrite(w, item.QueueSizeDisk)
 	w = basictl.IntWrite(w, item.QueueSizeMemory)
+	if item.FieldsMask&(1<<2) != 0 {
+		w = basictl.IntWrite(w, item.QueueSizeDiskSum)
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		w = basictl.IntWrite(w, item.QueueSizeMemorySum)
+	}
 	w = basictl.IntWrite(w, item.OriginalSize)
 	return basictl.StringWrite(w, item.CompressedData)
 }
@@ -227,6 +275,10 @@ func (item *StatshouseSendSourceBucket2) readJSON(j interface{}) error {
 	if err := JsonReadInt32(_jQueueSizeMemory, &item.QueueSizeMemory); err != nil {
 		return err
 	}
+	_jQueueSizeDiskSum := _jm["queue_size_disk_sum"]
+	delete(_jm, "queue_size_disk_sum")
+	_jQueueSizeMemorySum := _jm["queue_size_memory_sum"]
+	delete(_jm, "queue_size_memory_sum")
 	_jOriginalSize := _jm["original_size"]
 	delete(_jm, "original_size")
 	if err := JsonReadInt32(_jOriginalSize, &item.OriginalSize); err != nil {
@@ -262,8 +314,28 @@ func (item *StatshouseSendSourceBucket2) readJSON(j interface{}) error {
 			item.FieldsMask &^= 1 << 1
 		}
 	}
+	if _jQueueSizeDiskSum != nil {
+		item.FieldsMask |= 1 << 2
+	}
+	if _jQueueSizeMemorySum != nil {
+		item.FieldsMask |= 1 << 2
+	}
 	if err := StatshouseCommonProxyHeader__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
 		return err
+	}
+	if _jQueueSizeDiskSum != nil {
+		if err := JsonReadInt32(_jQueueSizeDiskSum, &item.QueueSizeDiskSum); err != nil {
+			return err
+		}
+	} else {
+		item.QueueSizeDiskSum = 0
+	}
+	if _jQueueSizeMemorySum != nil {
+		if err := JsonReadInt32(_jQueueSizeMemorySum, &item.QueueSizeMemorySum); err != nil {
+			return err
+		}
+	} else {
+		item.QueueSizeMemorySum = 0
 	}
 	return nil
 }
@@ -318,6 +390,20 @@ func (item *StatshouseSendSourceBucket2) WriteJSON(w []byte) (_ []byte, err erro
 		w = append(w, `"queue_size_memory":`...)
 		w = basictl.JSONWriteInt32(w, item.QueueSizeMemory)
 	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if item.QueueSizeDiskSum != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"queue_size_disk_sum":`...)
+			w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSum)
+		}
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if item.QueueSizeMemorySum != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"queue_size_memory_sum":`...)
+			w = basictl.JSONWriteInt32(w, item.QueueSizeMemorySum)
+		}
+	}
 	if item.OriginalSize != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"original_size":`...)
@@ -346,21 +432,21 @@ func (item *StatshouseSendSourceBucket2) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-var _ = True{}
-
 type StatshouseSendSourceBucket2Bytes struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeaderBytes
 	Time       uint32
-	// Historic True // Conditional: item.FieldsMask.0
-	// Spare True // Conditional: item.FieldsMask.1
-	BuildCommit     []byte
-	BuildCommitDate int32
-	BuildCommitTs   int32
-	QueueSizeDisk   int32
-	QueueSizeMemory int32
-	OriginalSize    int32
-	CompressedData  []byte
+	// Historic (TrueType) // Conditional: item.FieldsMask.0
+	// Spare (TrueType) // Conditional: item.FieldsMask.1
+	BuildCommit        []byte
+	BuildCommitDate    int32
+	BuildCommitTs      int32
+	QueueSizeDisk      int32
+	QueueSizeMemory    int32
+	QueueSizeDiskSum   int32 // Conditional: item.FieldsMask.2
+	QueueSizeMemorySum int32 // Conditional: item.FieldsMask.2
+	OriginalSize       int32
+	CompressedData     []byte
 }
 
 func (StatshouseSendSourceBucket2Bytes) TLName() string { return "statshouse.sendSourceBucket2" }
@@ -373,9 +459,7 @@ func (item *StatshouseSendSourceBucket2Bytes) SetHistoric(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item *StatshouseSendSourceBucket2Bytes) IsSetHistoric() bool {
-	return item.FieldsMask&(1<<0) != 0
-}
+func (item StatshouseSendSourceBucket2Bytes) IsSetHistoric() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseSendSourceBucket2Bytes) SetSpare(v bool) {
 	if v {
@@ -384,7 +468,31 @@ func (item *StatshouseSendSourceBucket2Bytes) SetSpare(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item *StatshouseSendSourceBucket2Bytes) IsSetSpare() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item StatshouseSendSourceBucket2Bytes) IsSetSpare() bool { return item.FieldsMask&(1<<1) != 0 }
+
+func (item *StatshouseSendSourceBucket2Bytes) SetQueueSizeDiskSum(v int32) {
+	item.QueueSizeDiskSum = v
+	item.FieldsMask |= 1 << 2
+}
+func (item *StatshouseSendSourceBucket2Bytes) ClearQueueSizeDiskSum() {
+	item.QueueSizeDiskSum = 0
+	item.FieldsMask &^= 1 << 2
+}
+func (item StatshouseSendSourceBucket2Bytes) IsSetQueueSizeDiskSum() bool {
+	return item.FieldsMask&(1<<2) != 0
+}
+
+func (item *StatshouseSendSourceBucket2Bytes) SetQueueSizeMemorySum(v int32) {
+	item.QueueSizeMemorySum = v
+	item.FieldsMask |= 1 << 2
+}
+func (item *StatshouseSendSourceBucket2Bytes) ClearQueueSizeMemorySum() {
+	item.QueueSizeMemorySum = 0
+	item.FieldsMask &^= 1 << 2
+}
+func (item StatshouseSendSourceBucket2Bytes) IsSetQueueSizeMemorySum() bool {
+	return item.FieldsMask&(1<<2) != 0
+}
 
 func (item *StatshouseSendSourceBucket2Bytes) Reset() {
 	item.FieldsMask = 0
@@ -395,6 +503,8 @@ func (item *StatshouseSendSourceBucket2Bytes) Reset() {
 	item.BuildCommitTs = 0
 	item.QueueSizeDisk = 0
 	item.QueueSizeMemory = 0
+	item.QueueSizeDiskSum = 0
+	item.QueueSizeMemorySum = 0
 	item.OriginalSize = 0
 	item.CompressedData = item.CompressedData[:0]
 }
@@ -424,6 +534,20 @@ func (item *StatshouseSendSourceBucket2Bytes) Read(w []byte) (_ []byte, err erro
 	if w, err = basictl.IntRead(w, &item.QueueSizeMemory); err != nil {
 		return w, err
 	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if w, err = basictl.IntRead(w, &item.QueueSizeDiskSum); err != nil {
+			return w, err
+		}
+	} else {
+		item.QueueSizeDiskSum = 0
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if w, err = basictl.IntRead(w, &item.QueueSizeMemorySum); err != nil {
+			return w, err
+		}
+	} else {
+		item.QueueSizeMemorySum = 0
+	}
 	if w, err = basictl.IntRead(w, &item.OriginalSize); err != nil {
 		return w, err
 	}
@@ -443,6 +567,12 @@ func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) (_ []byte, err err
 	w = basictl.IntWrite(w, item.BuildCommitTs)
 	w = basictl.IntWrite(w, item.QueueSizeDisk)
 	w = basictl.IntWrite(w, item.QueueSizeMemory)
+	if item.FieldsMask&(1<<2) != 0 {
+		w = basictl.IntWrite(w, item.QueueSizeDiskSum)
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		w = basictl.IntWrite(w, item.QueueSizeMemorySum)
+	}
 	w = basictl.IntWrite(w, item.OriginalSize)
 	return basictl.StringWriteBytes(w, item.CompressedData)
 }
@@ -562,6 +692,10 @@ func (item *StatshouseSendSourceBucket2Bytes) readJSON(j interface{}) error {
 	if err := JsonReadInt32(_jQueueSizeMemory, &item.QueueSizeMemory); err != nil {
 		return err
 	}
+	_jQueueSizeDiskSum := _jm["queue_size_disk_sum"]
+	delete(_jm, "queue_size_disk_sum")
+	_jQueueSizeMemorySum := _jm["queue_size_memory_sum"]
+	delete(_jm, "queue_size_memory_sum")
 	_jOriginalSize := _jm["original_size"]
 	delete(_jm, "original_size")
 	if err := JsonReadInt32(_jOriginalSize, &item.OriginalSize); err != nil {
@@ -597,8 +731,28 @@ func (item *StatshouseSendSourceBucket2Bytes) readJSON(j interface{}) error {
 			item.FieldsMask &^= 1 << 1
 		}
 	}
+	if _jQueueSizeDiskSum != nil {
+		item.FieldsMask |= 1 << 2
+	}
+	if _jQueueSizeMemorySum != nil {
+		item.FieldsMask |= 1 << 2
+	}
 	if err := StatshouseCommonProxyHeaderBytes__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
 		return err
+	}
+	if _jQueueSizeDiskSum != nil {
+		if err := JsonReadInt32(_jQueueSizeDiskSum, &item.QueueSizeDiskSum); err != nil {
+			return err
+		}
+	} else {
+		item.QueueSizeDiskSum = 0
+	}
+	if _jQueueSizeMemorySum != nil {
+		if err := JsonReadInt32(_jQueueSizeMemorySum, &item.QueueSizeMemorySum); err != nil {
+			return err
+		}
+	} else {
+		item.QueueSizeMemorySum = 0
 	}
 	return nil
 }
@@ -652,6 +806,20 @@ func (item *StatshouseSendSourceBucket2Bytes) WriteJSON(w []byte) (_ []byte, err
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"queue_size_memory":`...)
 		w = basictl.JSONWriteInt32(w, item.QueueSizeMemory)
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if item.QueueSizeDiskSum != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"queue_size_disk_sum":`...)
+			w = basictl.JSONWriteInt32(w, item.QueueSizeDiskSum)
+		}
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		if item.QueueSizeMemorySum != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"queue_size_memory_sum":`...)
+			w = basictl.JSONWriteInt32(w, item.QueueSizeMemorySum)
+		}
 	}
 	if item.OriginalSize != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

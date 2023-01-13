@@ -426,6 +426,12 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 	if args.QueueSizeDisk != 0 {
 		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueDisk}).Tail.AddValueCounterHost(float64(args.QueueSizeDisk), 1, host)
 	}
+	if args.QueueSizeMemorySum != 0 {
+		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueMemory}).Tail.AddValueCounterHost(float64(args.QueueSizeMemorySum), 1, host)
+	}
+	if args.QueueSizeDiskSum != 0 {
+		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueDisk}).Tail.AddValueCounterHost(float64(args.QueueSizeDiskSum), 1, host)
+	}
 
 	var bcStr []byte
 	componentTag := args.Header.ComponentTag
