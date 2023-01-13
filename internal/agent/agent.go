@@ -374,91 +374,33 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	// using single metric as a "namespace" for "sub-metrics" of different kinds.
 	// The only thing we check is if percentiles are allowed. This is configured per metric.
 
-	if m.IsSetNewCounterSemantic() {
-		// here m.Unique and m.Value cannot be both non-empty
-		// also m.Counter is >= 0
-		//
-		// if arrays are empty, this is simple counter event
-		// if m.Counter is 0, interpretation of arrays is trivial
-		//
-		// if both m.Values and m.Counter are set, counter is treated as true number of events,
-		// while Values are treated as a subsample of all real values
-		// so if counter is 20, and values len is 10, each value wil be recorded with weight 2
-		//
-		// if both m.Unique and m.Counter are set, counter is treated as true number of events,
-		// while Uniques are treated as a set of real values
-		// so if counter is 20, and Uniques len is 3, we simply add each of 3 events to HLL
-		// with a twist, that we also store min/max/sum/sumsquare of unique values converted to float64
-		// for the purpose of this, Uniques are treated exactly as Values
-		keyHash := h.Key.Hash()
-		shard := s.shardFromHash(keyHash)
-		if len(m.Unique) != 0 {
-			shard.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
-			return
-		}
-		if len(m.Value) != 0 {
-			shard.ApplyValues(h.Key, keyHash, h.SValue, m.Value, m.Counter, h.HostTag, h.MetricInfo)
-			return
-		}
-		if m.Counter > 0 {
-			shard.ApplyCounter(h.Key, keyHash, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
-		}
-		return
-	}
-	// TODO - remove old counter semantic as soon as libraries are updated
-	if len(h.SValue) != 0 { // we do not distinguish between "_s" key not set versus empty value (like any other key)
-		if len(m.Value) != 0 {
-			// if counter is specified in addition to value, it is considered a mult, or sample factor for those fields
-			mult := 1.0
-			if m.Counter > 0 {
-				mult = m.Counter
-			}
-			s.AddValueArrayCounterHostStringBytes(h.Key, m.Value, mult, h.HostTag, h.SValue, h.MetricInfo)
-		}
-		if len(m.Unique) != 0 {
-			// if counter is not specified in unique, len(unique) is considered to be a counter
-			// This is because some clients remove repeating elements from unique before sending, so total counter must be sent
-			uniqueCount := float64(len(m.Unique))
-			if m.Counter > 0 {
-				uniqueCount = m.Counter
-			}
-			s.AddUniqueHostStringBytes(h.Key, h.HostTag, h.SValue, m.Unique, uniqueCount, h.MetricInfo)
-		}
-		if len(m.Value) == 0 && len(m.Unique) == 0 && m.Counter > 0 {
-			s.AddCounterHostStringBytes(h.Key, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
-		}
+	// here m.Unique and m.Value cannot be both non-empty
+	// also m.Counter is >= 0
+	//
+	// if arrays are empty, this is simple counter event
+	// if m.Counter is 0, interpretation of arrays is trivial
+	//
+	// if both m.Values and m.Counter are set, counter is treated as true number of events,
+	// while Values are treated as a subsample of all real values
+	// so if counter is 20, and values len is 10, each value wil be recorded with weight 2
+	//
+	// if both m.Unique and m.Counter are set, counter is treated as true number of events,
+	// while Uniques are treated as a set of real values
+	// so if counter is 20, and Uniques len is 3, we simply add each of 3 events to HLL
+	// with a twist, that we also store min/max/sum/sumsquare of unique values converted to float64
+	// for the purpose of this, Uniques are treated exactly as Values
+	keyHash := h.Key.Hash()
+	shard := s.shardFromHash(keyHash)
+	if len(m.Unique) != 0 {
+		shard.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
 		return
 	}
 	if len(m.Value) != 0 {
-		// if counter is specified in addition to value, it is considered a mult, or sample factor for those fields
-		mult := 1.0
-		if m.Counter > 0 {
-			mult = m.Counter
-		}
-		s.AddValueCounterHostArray(h.Key, m.Value, mult, h.HostTag, h.MetricInfo)
+		shard.ApplyValues(h.Key, keyHash, h.SValue, m.Value, m.Counter, h.HostTag, h.MetricInfo)
+		return
 	}
-	if len(m.Unique) != 0 {
-		// if counter is not specified in unique, len(unique) is considered to be a counter
-		// This is because some clients remove repeating elements from unique before sending, so total counter must be sent
-		uniqueCount := float64(len(m.Unique))
-		if m.Counter > 0 {
-			uniqueCount = m.Counter
-		}
-		s.AddUniqueHostStringBytes(h.Key, h.HostTag, nil, m.Unique, uniqueCount, h.MetricInfo)
-	}
-	if len(m.Stop) != 0 { // TODO - remove
-		// if counter is specified in addition to stop, it is considered a mult, or sample factor for those fields
-		mult := 1.0
-		if m.Counter > 0 {
-			mult = m.Counter
-		}
-		for _, val := range m.Stop {
-			s.AddCounterHostStringBytes(h.Key, val, mult, h.HostTag, h.MetricInfo)
-		}
-	}
-	if len(m.Value) == 0 && len(m.Unique) == 0 && len(m.Stop) == 0 && m.Counter > 0 {
-		// If only counter is specified, it is treated as a counter
-		s.AddCounterHost(h.Key, m.Counter, h.HostTag, h.MetricInfo)
+	if m.Counter > 0 {
+		shard.ApplyCounter(h.Key, keyHash, h.SValue, m.Counter, h.HostTag, h.MetricInfo)
 	}
 }
 
