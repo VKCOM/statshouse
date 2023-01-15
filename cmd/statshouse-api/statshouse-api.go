@@ -246,14 +246,14 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		if err != nil {
 			return fmt.Errorf("failed to open ClickHouse-v1: %w", err)
 		}
-		defer func() { _ = chV1.Close() }()
+		defer func() { chV1.Close() }()
 	}
 
 	chV2, err := util.OpenClickHouse(argv.chV2MaxConns, argv.chV2MaxHeavyConns, argv.chV2Addrs, argv.chV2User, argv.chV2Password, argv.chV2Debug, chDialTimeout)
 	if err != nil {
 		return fmt.Errorf("failed to open ClickHouse-v2: %w", err)
 	}
-	defer func() { _ = chV2.Close() }()
+	defer func() { chV2.Close() }()
 
 	c := &rpc.Client{
 		Logf:                log.Printf,

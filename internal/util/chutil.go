@@ -12,21 +12,22 @@ import (
 	"time"
 	_ "unsafe" // to access clickhouse.bind
 
-	"github.com/ClickHouse/clickhouse-go/v2"
-	"go.uber.org/atomic"
-	"go.uber.org/multierr"
-
+	"github.com/ClickHouse/ch-go"
+	"github.com/ClickHouse/ch-go/chpool"
+	"github.com/ClickHouse/ch-go/proto"
+	_ "github.com/ClickHouse/clickhouse-go/v2" // to access clickhouse.bind
 	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
+	"pgregory.net/rand"
 )
 
 type connPool struct {
-	next  atomic.Int64
-	conns []clickhouse.Conn
-	sem   *semaphore.Weighted
+	rnd     *rand.Rand
+	servers []*chpool.Pool
+	sem     *semaphore.Weighted
 }
 
 type ClickHouse struct {
-	pools [4]connPool
+	pools [4]*connPool
 }
 
 const (
@@ -41,70 +42,41 @@ func OpenClickHouse(fastSlowMaxConns, lightHeavyMaxConns int, addrs []string, us
 		return nil, fmt.Errorf("at least one ClickHouse address must be specified")
 	}
 
-	open := func(a []string) (clickhouse.Conn, error) { // to capture all vars
-		return clickhouse.Open(&clickhouse.Options{
-			Addr: a,
-			Auth: clickhouse.Auth{
-				Username: user,
-				Password: password,
-			},
-			Debug: debug,
-			Compression: &clickhouse.Compression{
-				Method: clickhouse.CompressionLZ4,
-			},
-			DialTimeout:      dialTimeout,
-			MaxOpenConns:     fastSlowMaxConns,
-			ConnOpenStrategy: clickhouse.ConnOpenInOrder,
-		})
-	}
-
-	result := &ClickHouse{}
-	result.pools[fastLight].sem = semaphore.NewWeighted(int64(fastSlowMaxConns))
-	result.pools[fastHeavy].sem = semaphore.NewWeighted(int64(lightHeavyMaxConns))
-	result.pools[slowLight].sem = semaphore.NewWeighted(int64(fastSlowMaxConns))
-	result.pools[slowHeavy].sem = semaphore.NewWeighted(int64(lightHeavyMaxConns))
-
-	for i := range addrs {
-		// clickhouse uses the first accessible address
-		// we could use better permutation, but the simple one is good enough
-		a := append(append(make([]string, 0), addrs[i:]...), addrs[:i]...)
-		fastL, err := open(a)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open ClickHouse database: %w", err)
+	result := &ClickHouse{[4]*connPool{
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(fastSlowMaxConns))},   // fastLight
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(lightHeavyMaxConns))}, // fastHeavy
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(fastSlowMaxConns))},   // slowLight
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(lightHeavyMaxConns))}, // slowHeavy
+	}}
+	for _, addr := range addrs {
+		for _, pool := range result.pools {
+			server, err := chpool.Dial(context.Background(), chpool.Options{
+				MaxConns: int32(fastSlowMaxConns),
+				ClientOptions: ch.Options{
+					Address:          addr,
+					User:             user,
+					Password:         password,
+					Compression:      ch.CompressionLZ4,
+					DialTimeout:      dialTimeout,
+					HandshakeTimeout: 5 * time.Second,
+				}})
+			if err != nil {
+				result.Close()
+				return nil, err
+			}
+			pool.servers = append(pool.servers, server)
 		}
-		fastH, err := open(a)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open ClickHouse database: %w", err)
-		}
-		slowL, err := open(a)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open ClickHouse database: %w", err)
-		}
-		slowH, err := open(a)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open ClickHouse database: %w", err)
-		}
-		result.pools[fastLight].conns = append(result.pools[fastLight].conns, fastL)
-		result.pools[fastHeavy].conns = append(result.pools[fastHeavy].conns, fastH)
-		result.pools[slowLight].conns = append(result.pools[slowLight].conns, slowL)
-		result.pools[slowHeavy].conns = append(result.pools[slowHeavy].conns, slowH)
 	}
 
 	return result, nil
 }
 
-func (ch *ClickHouse) Close() error {
-	var retErr error
-	for i := 0; i <= slowHeavy; i++ {
-		for _, conn := range ch.pools[i].conns {
-			err := conn.Close()
-			if err != nil {
-				retErr = multierr.Append(retErr, err)
-			}
+func (ch *ClickHouse) Close() {
+	for _, a := range ch.pools {
+		for _, b := range a.servers {
+			b.Close()
 		}
 	}
-
-	return retErr
 }
 
 func (ch *ClickHouse) SemaphoreCountSlowLight() int64 {
@@ -140,23 +112,54 @@ func queryKind(isFast, isLight bool) int {
 	return slowHeavy
 }
 
-func (ch *ClickHouse) Select(isFast, isLight bool, ctx context.Context, dest interface{}, query string, args ...interface{}) (clickhouse.ProfileInfo, error) {
-	var profile clickhouse.ProfileInfo
-	ctx = clickhouse.Context(ctx, clickhouse.WithProfileInfo(func(info *clickhouse.ProfileInfo) {
-		profile = *info
-	}))
-	idx := queryKind(isFast, isLight)
-	conns := ch.pools[idx].conns
-	sem := ch.pools[idx].sem
-	next := &ch.pools[idx].next
-	err := sem.Acquire(ctx, 1)
-	if err != nil {
-		return profile, err
+func (ch *ClickHouse) Select(ctx context.Context, isFast, isLight bool, query ch.Query) (profile proto.Profile, err error) {
+	query.OnProfile = func(_ context.Context, p proto.Profile) error {
+		profile = p
+		return nil
 	}
-	defer sem.Release(1)
-	cid := int(next.Inc()) % len(conns)
-	conn := conns[cid]
-	return profile, conn.Select(ctx, dest, query, args...)
+	pool := ch.pools[queryKind(isFast, isLight)]
+	servers := append(make([]*chpool.Pool, 0, len(pool.servers)), pool.servers...)
+	for safetyCounter := 0; safetyCounter < len(pool.servers); safetyCounter++ {
+		var i int
+		i, err = pickRandomServer(servers, pool.rnd)
+		if err != nil {
+			return profile, err
+		}
+		err = pool.sem.Acquire(ctx, 1)
+		if err != nil {
+			return profile, err
+		}
+		err = servers[i].Do(ctx, query)
+		pool.sem.Release(1)
+		if err == nil {
+			return // succeeded
+		}
+		if ctx.Err() != nil {
+			return // failed
+		}
+		// keep searching alive server
+		servers = append(servers[:i], servers[i+1:]...)
+	}
+	return profile, fmt.Errorf("all ClickHouse servers are dead")
+}
+
+func pickRandomServer(s []*chpool.Pool, r *rand.Rand) (int, error) {
+	if len(s) == 0 {
+		return 0, fmt.Errorf("all ClickHouse servers are dead")
+	}
+	if len(s) == 1 {
+		return 0, nil
+	}
+	i1 := r.Intn(len(s))
+	i2 := r.Intn(len(s) - 1)
+	if i2 >= i1 {
+		i2++
+	}
+	if s[i1].Stat().AcquiredResources() < s[i2].Stat().AcquiredResources() {
+		return i1, nil
+	} else {
+		return i2, nil
+	}
 }
 
 func BindQuery(query string, args ...any) (string, error) {

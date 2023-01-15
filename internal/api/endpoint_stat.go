@@ -11,10 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
-
+	"github.com/ClickHouse/ch-go/proto"
 	"github.com/vkcom/statshouse/internal/format"
-
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
@@ -147,7 +145,7 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, table, kind 
 	).Value(duration.Seconds())
 }
 
-func ChSelectProfile(isFast, isLight bool, info clickhouse.ProfileInfo, err error) {
+func ChSelectProfile(isFast, isLight bool, info proto.Profile, err error) {
 	chSelectPushMetric(format.BuiltinMetricNameAPISelectBytes, isFast, isLight, float64(info.Bytes), err)
 	chSelectPushMetric(format.BuiltinMetricNameAPISelectRows, isFast, isLight, float64(info.Rows), err)
 }

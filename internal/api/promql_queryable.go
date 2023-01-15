@@ -249,7 +249,7 @@ func (qe *promQueryable) evalMetricQuery(ctx context.Context, mq *metricQuery, s
 				}
 				(*data[k])[i] = selectTSValue(mq.fn, lod.stepSec, 1, &ss)
 			}
-			allTimes = append(allTimes, s[0].Time*1_000)
+			allTimes = append(allTimes, s[0].time*1_000)
 			i++
 		}
 	}
