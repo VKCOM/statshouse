@@ -38,33 +38,21 @@ func getGroupingTags(meta *format.MetricMetaValue, by *map[string]string) []stri
 
 func (qe *promQueryable) resolveTags(t tsTags, q *metricQuery, meta *[]QuerySeriesMeta, histograms map[tsTags][]int, ixToLE map[int]float32) {
 	tags := make(map[string]string, 17)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 0, t.Tag0)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 1, t.Tag1)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 2, t.Tag2)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 3, t.Tag3)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 4, t.Tag4)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 5, t.Tag5)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 6, t.Tag6)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 7, t.Tag7)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 8, t.Tag8)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 9, t.Tag9)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 10, t.Tag10)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 11, t.Tag11)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 12, t.Tag12)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 13, t.Tag13)
-	qe.maybeAddQuerySeriesTagValue(tags, q, 14, t.Tag14)
+	for i := 0; i < 15; i++ {
+		qe.maybeAddQuerySeriesTagValue(tags, q, 0, t.tag[i])
+	}
 	// Special case for key 15 to handle "le" tag
 	tagID := format.TagID(15)
 	if tagName, ok := q.by[tagID]; ok {
 		if tagName == format.LETagName {
-			le := prometheus.LexDecode(t.Tag15)
+			le := prometheus.LexDecode(t.tag[15])
 			tags[tagName] = strconv.FormatFloat(float64(le), 'f', -1, 32)
 			ix := len(ixToLE)
 			ixToLE[ix] = le
-			t.Tag15 = 0 // modifying copy
+			t.tag[15] = 0 // modifying copy
 			histograms[t] = append(histograms[t], ix)
 		} else {
-			tags[tagName] = qe.h.getRichTagValue(q.meta, Version2, tagID, t.Tag15)
+			tags[tagName] = qe.h.getRichTagValue(q.meta, Version2, tagID, t.tag[15])
 		}
 	}
 	*meta = append(*meta, QuerySeriesMeta{Tags: tags})

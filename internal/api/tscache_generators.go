@@ -19,11 +19,12 @@ func generateConstCounter(lod lodInfo) ([][]tsSelectRow, error) {
 	for i := range rows {
 		rows[i] = []tsSelectRow{
 			{
-				Time:     fromSec,
-				StepSec:  lod.stepSec,
-				tsValues: tsValues{CountNorm: constValue * float64(lod.stepSec), Val0: float64(lod.stepSec)},
+				time:     fromSec,
+				stepSec:  lod.stepSec,
+				tsValues: tsValues{countNorm: constValue * float64(lod.stepSec)},
 			},
 		}
+		rows[i][0].val[0] = float64(lod.stepSec)
 		fromSec += lod.stepSec
 	}
 	return rows, nil
@@ -46,11 +47,12 @@ func generateSinCounter(lod lodInfo) ([][]tsSelectRow, error) {
 		countNorm := sinAmplitude*float64(lod.stepSec) + sinAmplitude*sum
 		rows[i] = []tsSelectRow{
 			{
-				Time:     fromSec,
-				StepSec:  lod.stepSec,
-				tsValues: tsValues{CountNorm: countNorm, Val0: float64(lod.stepSec)},
+				time:     fromSec,
+				stepSec:  lod.stepSec,
+				tsValues: tsValues{countNorm: countNorm},
 			},
 		}
+		rows[i][0].val[0] = float64(lod.stepSec)
 		fromSec += lod.stepSec
 	}
 	return rows, nil
@@ -90,11 +92,12 @@ func generateGapsCounter(lod lodInfo) ([][]tsSelectRow, error) {
 		}
 		rows[i] = []tsSelectRow{
 			{
-				Time:     fromSec,
-				StepSec:  lod.stepSec,
-				tsValues: tsValues{CountNorm: sum, Val0: float64(lod.stepSec)},
+				time:     fromSec,
+				stepSec:  lod.stepSec,
+				tsValues: tsValues{countNorm: sum},
 			},
 		}
+		rows[i][0].val[0] = float64(lod.stepSec)
 		fromSec += lod.stepSec
 	}
 	return rows, nil

@@ -24,42 +24,21 @@ const (
 )
 
 type tsSelectRow struct {
-	Time    int64 `ch:"_time"`
-	StepSec int64 `ch:"_stepSec"` // TODO - do not get using strange logic in clickhouse, set directly
+	time    int64
+	stepSec int64 // TODO - do not get using strange logic in clickhouse, set directly
 	tsTags
 	tsValues
 }
 
 // all numeric tags are stored as int32 to save space
 type tsTags struct {
-	Tag0  int32       `ch:"key0"`
-	Tag1  int32       `ch:"key1"`
-	Tag2  int32       `ch:"key2"`
-	Tag3  int32       `ch:"key3"`
-	Tag4  int32       `ch:"key4"`
-	Tag5  int32       `ch:"key5"`
-	Tag6  int32       `ch:"key6"`
-	Tag7  int32       `ch:"key7"`
-	Tag8  int32       `ch:"key8"`
-	Tag9  int32       `ch:"key9"`
-	Tag10 int32       `ch:"key10"`
-	Tag11 int32       `ch:"key11"`
-	Tag12 int32       `ch:"key12"`
-	Tag13 int32       `ch:"key13"`
-	Tag14 int32       `ch:"key14"`
-	Tag15 int32       `ch:"key15"`
-	STag  stringFixed `ch:"skey"` // WIP: just to test the speed
+	tag    [format.MaxTags]int32
+	tagStr stringFixed
 }
 
 type tsValues struct {
-	CountNorm float64 `ch:"_count"`
-	Val0      float64 `ch:"_val0"`
-	Val1      float64 `ch:"_val1"`
-	Val2      float64 `ch:"_val2"`
-	Val3      float64 `ch:"_val3"`
-	Val4      float64 `ch:"_val4"`
-	Val5      float64 `ch:"_val5"`
-	Val6      float64 `ch:"_val6"`
+	countNorm float64
+	val       [7]float64
 }
 
 type tsCacheGroup struct {

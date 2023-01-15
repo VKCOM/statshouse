@@ -26,11 +26,13 @@ import (
 	ttemplate "text/template"
 	"time"
 
-	"github.com/mailru/easyjson"
-	_ "github.com/mailru/easyjson/gen" // https://github.com/mailru/easyjson/issues/293
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/ClickHouse/ch-go"
+	"github.com/ClickHouse/ch-go/proto"
+	"github.com/mailru/easyjson"
+	_ "github.com/mailru/easyjson/gen" // https://github.com/mailru/easyjson/issues/293
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
@@ -478,8 +480,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 		from = uncertain
 	}
 
-	var rows []cacheInvalidateLogRow
-	err := h.doSelect(true, true, ctx, "cache-update", Version2, &rows, fmt.Sprintf(`
+	queryBody, err := util.BindQuery(fmt.Sprintf(`
 SELECT
   toInt64(time) AS time, toInt64(key1) AS key1
 FROM
@@ -503,22 +504,41 @@ SETTINGS
 	// TODO - code that works if we hit limit above
 
 	var (
+		time    proto.ColInt64
+		key1    proto.ColInt64
 		todo    = map[int64][]int64{}
 		newSeen = map[cacheInvalidateLogRow]struct{}{}
 	)
-	for _, r := range rows {
-		newSeen[r] = struct{}{}
-		from = r.T
-		if _, ok := seen[r]; ok {
-			continue
-		}
-		for lodLevel := range lodTables[Version2] {
-			t := roundTime(r.At, lodLevel, h.utcOffset)
-			w := todo[lodLevel]
-			if len(w) == 0 || w[len(w)-1] != t {
-				todo[lodLevel] = append(w, t)
+	err = h.doSelect(ctx, true, true, "cache-update", Version2, ch.Query{
+		Body: queryBody,
+		Result: proto.Results{
+			{Name: "time", Data: &time},
+			{Name: "key1", Data: &key1},
+		},
+		OnResult: func(_ context.Context, b proto.Block) error {
+			for i := 0; i < b.Rows; i++ {
+				r := cacheInvalidateLogRow{
+					T:  time[i],
+					At: key1[i],
+				}
+				newSeen[r] = struct{}{}
+				from = r.T
+				if _, ok := seen[r]; ok {
+					continue
+				}
+				for lodLevel := range lodTables[Version2] {
+					t := roundTime(r.At, lodLevel, h.utcOffset)
+					w := todo[lodLevel]
+					if len(w) == 0 || w[len(w)-1] != t {
+						todo[lodLevel] = append(w, t)
+					}
+				}
 			}
-		}
+			return nil
+		}})
+	if err != nil {
+		log.Printf("[error] cache invalidation log query failed: %v", err)
+		return from, seen
 	}
 
 	for lodLevel, times := range todo {
@@ -528,19 +548,15 @@ SETTINGS
 	return from, newSeen
 }
 
-func (h *Handler) doSelect(isFast, isLight bool, ctx context.Context, user string, version string, dest interface{}, query string, args ...interface{}) error {
+func (h *Handler) doSelect(ctx context.Context, isFast, isLight bool, user string, version string, query ch.Query) error {
 	if version == Version1 && h.ch[version] == nil {
 		return fmt.Errorf("legacy ClickHouse database is disabled")
 	}
 
-	debugQuery, err := util.BindQuery(query, args...)
-	if err != nil {
-		debugQuery = fmt.Sprintf("failed to format SQL query: %v", err)
-	}
-	saveDebugQuery(ctx, debugQuery)
+	saveDebugQuery(ctx, query.Body)
 
 	start := time.Now()
-	info, err := h.ch[version].Select(isFast, isLight, ctx, dest, query, args...)
+	info, err := h.ch[version].Select(ctx, isFast, isLight, query)
 	duration := time.Since(start)
 	if h.verbose {
 		log.Printf("[debug] SQL for %q done in %v, err: %v", user, duration, err)
@@ -1191,6 +1207,43 @@ func (h *Handler) HandleGetMetricTagValues(w http.ResponseWriter, r *http.Reques
 	respondJSON(w, resp, queryClientCache, queryClientCacheStale, err, h.verbose, ai.user, sl)
 }
 
+type selectRow struct {
+	valID int32
+	val   string
+	cnt   float64
+}
+
+type tagValuesSelectCols struct {
+	meta  tagValuesQueryMeta
+	valID proto.ColInt32
+	val   proto.ColStr
+	cnt   proto.ColFloat64
+	res   proto.Results
+}
+
+func newTagValuesSelectCols(meta tagValuesQueryMeta) *tagValuesSelectCols {
+	// NB! Keep columns selection order and names is sync with sql.go code
+	c := &tagValuesSelectCols{meta: meta}
+	if meta.stringValue {
+		c.res = append(c.res, proto.ResultColumn{Name: "_string_value", Data: &c.val})
+	} else {
+		c.res = append(c.res, proto.ResultColumn{Name: "_value", Data: &c.valID})
+	}
+	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
+	return c
+}
+
+func (c *tagValuesSelectCols) rowAt(i int) selectRow {
+	row := selectRow{cnt: c.cnt[i]}
+	if c.meta.stringValue {
+		pos := c.val.Pos[i]
+		row.val = string(c.val.Buf[pos.Start:pos.End])
+	} else {
+		row.valID = c.valID[i]
+	}
+	return row
+}
+
 func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTagValuesReq) (*GetMetricTagValuesResp, error) {
 	version, err := parseVersion(req.version)
 	if err != nil {
@@ -1240,12 +1293,6 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		return nil, err
 	}
 
-	type selectRow struct {
-		TagValueID int32   `ch:"_value"`
-		TagValue   string  `ch:"_string_value"`
-		Count      float64 `ch:"_count"`
-	}
-
 	lods := selectTagValueLODs(
 		version,
 		int64(metricMeta.PreKeyFrom),
@@ -1270,7 +1317,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 
 	tagInfo := map[selectRow]float64{}
 	if version == Version1 && tagID == format.EnvTagID {
-		tagInfo[selectRow{TagValueID: format.TagValueIDProductionLegacy}] = 100 // we only support production tables for v1
+		tagInfo[selectRow{valID: format.TagValueIDProductionLegacy}] = 100 // we only support production tables for v1
 	} else {
 		for _, lod := range lods {
 			query, args, err := tagValuesQuery(pq, lod) // we set limit to numResult+1
@@ -1278,22 +1325,29 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 				return nil, err
 			}
 
-			var data []selectRow
-			err = h.doSelect(lod.isFast(), true, ctx, req.ai.user, version, &data, query, args...)
+			cols := newTagValuesSelectCols(args)
+			isFast := lod.fromSec+FastQueryTimeInterval >= lod.toSec
+			err = h.doSelect(ctx, isFast, true, req.ai.user, version, ch.Query{
+				Body:   query,
+				Result: cols.res,
+				OnResult: func(_ context.Context, b proto.Block) error {
+					for i := 0; i < b.Rows; i++ {
+						tag := cols.rowAt(i)
+						tagInfo[tag] += tag.cnt
+					}
+					return nil
+				}})
 			if err != nil {
 				return nil, err
-			}
-			for _, d := range data {
-				tagInfo[selectRow{TagValueID: d.TagValueID, TagValue: d.TagValue}] += d.Count
 			}
 		}
 	}
 
 	data := make([]selectRow, 0, len(tagInfo))
 	for k, count := range tagInfo {
-		data = append(data, selectRow{TagValueID: k.TagValueID, TagValue: k.TagValue, Count: count})
+		data = append(data, selectRow{valID: k.valID, val: k.val, cnt: count})
 	}
-	sort.Slice(data, func(i int, j int) bool { return data[i].Count > data[j].Count })
+	sort.Slice(data, func(i int, j int) bool { return data[i].cnt > data[j].cnt })
 
 	ret := &GetMetricTagValuesResp{
 		TagValues: []MetricTagValueInfo{},
@@ -1303,15 +1357,15 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		ret.TagValuesMore = true
 	}
 	for _, d := range data {
-		v := d.TagValue
+		v := d.val
 		if pq.stringTag() {
 			v = emptyToUnspecified(v)
 		} else {
-			v = h.getRichTagValue(metricMeta, version, tagID, d.TagValueID)
+			v = h.getRichTagValue(metricMeta, version, tagID, d.valID)
 		}
 		ret.TagValues = append(ret.TagValues, MetricTagValueInfo{
 			Value: v,
-			Count: d.Count,
+			Count: d.cnt,
 		})
 	}
 
@@ -1676,23 +1730,10 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 			for _, i := range sortedIxs {
 				tags := ixToTags[i]
 				kvs := make(map[string]SeriesMetaTag, 16)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(0), tags.Tag0)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(1), tags.Tag1)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(2), tags.Tag2)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(3), tags.Tag3)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(4), tags.Tag4)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(5), tags.Tag5)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(6), tags.Tag6)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(7), tags.Tag7)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(8), tags.Tag8)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(9), tags.Tag9)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(10), tags.Tag10)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(11), tags.Tag11)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(12), tags.Tag12)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(13), tags.Tag13)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(14), tags.Tag14)
-				h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(15), tags.Tag15)
-				h.maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.STag)
+				for j := 0; j < format.MaxTags; j++ {
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(j), tags.tag[j])
+				}
+				h.maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 
 				ts := h.getFloatsSlice(len(allTimes))
 				syncPoolBuffers = append(syncPoolBuffers, ts)
@@ -1709,11 +1750,11 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 					if rows != nil {
 						lod := lods[lodIx]
 						for _, row := range *rows {
-							lodTimeIx := lod.getIndexForTimestamp(row.Time, shiftDelta)
+							lodTimeIx := lod.getIndexForTimestamp(row.time, shiftDelta)
 							(*ts)[base+lodTimeIx] = selectTSValue(q.what, lod.stepSec, desiredStepMul, row)
 							if maxHosts != nil {
 								// mapping every time is not optimal, but mapping to store in cache is also not optimal. TODO - optimize?
-								tagValueID := int32(row.Val5)
+								tagValueID := int32(row.val[5])
 								label, err := h.getTagValue(tagValueID)
 								if err != nil {
 									label = format.CodeTagValue(tagValueID)
@@ -2099,6 +2140,62 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 	}
 }
 
+type pointsSelectCols struct {
+	time   proto.ColInt64
+	step   proto.ColInt64
+	cnt    proto.ColFloat64
+	val    []proto.ColFloat64
+	tag    []proto.ColInt32
+	tagIx  []int
+	tagStr proto.ColStr
+	res    proto.Results
+}
+
+func newPointsSelectCols(meta pointsQueryMeta) *pointsSelectCols {
+	// NB! Keep columns selection order and names is sync with sql.go code
+	c := &pointsSelectCols{
+		val:   make([]proto.ColFloat64, meta.vals),
+		tag:   make([]proto.ColInt32, 0, len(meta.tags)),
+		tagIx: make([]int, 0, len(meta.tags)),
+	}
+	c.res = proto.Results{
+		{Name: "_time", Data: &c.time},
+		{Name: "_stepSec", Data: &c.step},
+	}
+	for _, tag := range meta.tags {
+		if tag == format.StringTopTagID {
+			c.res = append(c.res, proto.ResultColumn{Name: tag, Data: &c.tagStr})
+		} else {
+			c.tag = append(c.tag, proto.ColInt32{})
+			c.res = append(c.res, proto.ResultColumn{Name: tag, Data: &c.tag[len(c.tag)-1]})
+			c.tagIx = append(c.tagIx, format.ParseTagIDForAPI(tag))
+		}
+	}
+	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
+	for i := 0; i < meta.vals; i++ {
+		c.res = append(c.res, proto.ResultColumn{Name: "_val" + strconv.Itoa(i), Data: &c.val[i]})
+	}
+	return c
+}
+
+func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
+	row := tsSelectRow{
+		time:     c.time[i],
+		stepSec:  c.step[i],
+		tsValues: tsValues{countNorm: c.cnt[i]},
+	}
+	for j := 0; j < len(c.val); j++ {
+		row.val[j] = c.val[j][i]
+	}
+	for j := range c.tag {
+		row.tag[c.tagIx[j]] = c.tag[j][i]
+	}
+	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
+		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
+	}
+	return row
+}
+
 func (h *Handler) maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, tagName string, tagValuePtr *stringFixed) {
 	tagValue := ""
 	nullIx := bytes.IndexByte(tagValuePtr[:], 0)
@@ -2145,26 +2242,46 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 		return err
 	}
 
-	var data []tsSelectRow
+	rows := 0
+	cols := newPointsSelectCols(args)
+	isFast := lod.isFast()
+	isLight := pq.isLight()
 	metric := pq.metricID
 	table := lod.table
 	kind := pq.kind
 	start := time.Now()
-	isFast := lod.isFast()
-	isLight := pq.isLight()
-	err = h.doSelect(isFast, isLight, ctx, pq.user, pq.version, &data, query, args...)
+	err = h.doSelect(ctx, isFast, isLight, pq.user, pq.version, ch.Query{
+		Body:   query,
+		Result: cols.res,
+		OnResult: func(_ context.Context, block proto.Block) error {
+			for i := 0; i < block.Rows; i++ {
+				if !isTimestampValid(cols.time[i], lod.stepSec, h.utcOffset, h.location) {
+					log.Printf("[warning] got invalid timestamp while loading for %q, ignoring: %d is not a multiple of %v", pq.user, cols.time[i], lod.stepSec)
+					continue
+				}
+				replaceInfNan(&cols.cnt[i])
+				for j := 0; j < len(cols.val); j++ {
+					replaceInfNan(&cols.val[j][i])
+				}
+				row := cols.rowAt(i)
+				ix := retStartIx + lod.getIndexForTimestamp(row.time, 0)
+				ret[ix] = append(ret[ix], row)
+			}
+			rows += block.Rows
+			return nil
+		}})
 	duration := time.Since(start)
 	ChSelectMetricDuration(duration, metric, table, string(kind), isFast, isLight, err)
 	if err != nil {
 		return err
 	}
 
-	if len(data) == maxSeriesRows {
+	if rows == maxSeriesRows {
 		return fmt.Errorf("can't fetch more than %v rows", maxSeriesRows) // prevent cache being populated by incomplete data
 	}
 	if h.verbose {
 		log.Printf("[debug] loaded %v rows from %v (%v timestamps, %v to %v step %v) for %q in %v",
-			len(data),
+			rows,
 			lod.table,
 			(lod.toSec-lod.fromSec)/lod.stepSec,
 			time.Unix(lod.fromSec, 0),
@@ -2173,25 +2290,6 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 			pq.user,
 			time.Since(start),
 		)
-	}
-
-	for _, row := range data {
-		if !isTimestampValid(row.Time, lod.stepSec, h.utcOffset, h.location) {
-			log.Printf("[warning] got invalid timestamp while loading for %q, ignoring: %d is not a multiple of %v", pq.user, row.Time, lod.stepSec)
-			continue
-		}
-
-		replaceInfNan(&row.CountNorm)
-		replaceInfNan(&row.Val0)
-		replaceInfNan(&row.Val1)
-		replaceInfNan(&row.Val2)
-		replaceInfNan(&row.Val3)
-		replaceInfNan(&row.Val4)
-		replaceInfNan(&row.Val5)
-		replaceInfNan(&row.Val6)
-
-		ix := retStartIx + lod.getIndexForTimestamp(row.Time, 0)
-		ret[ix] = append(ret[ix], row)
 	}
 
 	return nil
@@ -2210,53 +2308,53 @@ func stableMulDiv(v float64, mul int64, div int64) float64 {
 
 func selectTSValue(what queryFn, stepMul int64, desiredStepMul int64, row *tsSelectRow) float64 {
 	if stepMul == _1M {
-		desiredStepMul = row.StepSec
+		desiredStepMul = row.stepSec
 	}
 	switch what {
 	case queryFnCount, queryFnMaxCountHost, queryFnDerivativeCount:
-		return stableMulDiv(row.CountNorm, desiredStepMul, row.StepSec)
+		return stableMulDiv(row.countNorm, desiredStepMul, row.stepSec)
 	case queryFnCountNorm, queryFnDerivativeCountNorm:
-		return row.CountNorm / float64(row.StepSec)
+		return row.countNorm / float64(row.stepSec)
 	case queryFnCumulCount:
-		return row.CountNorm
+		return row.countNorm
 	case queryFnCardinality:
-		return stableMulDiv(row.Val0, desiredStepMul, row.StepSec)
+		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
 	case queryFnCardinalityNorm:
-		return row.Val0 / float64(row.StepSec)
+		return row.val[0] / float64(row.stepSec)
 	case queryFnCumulCardinality:
-		return row.Val0
+		return row.val[0]
 	case queryFnMin, queryFnDerivativeMin:
-		return row.Val0
+		return row.val[0]
 	case queryFnMax, queryFnMaxHost, queryFnDerivativeMax:
-		return row.Val1
+		return row.val[1]
 	case queryFnAvg, queryFnCumulAvg, queryFnDerivativeAvg:
-		return row.Val2
+		return row.val[2]
 	case queryFnSum, queryFnDerivativeSum:
-		return stableMulDiv(row.Val3, desiredStepMul, row.StepSec)
+		return stableMulDiv(row.val[3], desiredStepMul, row.stepSec)
 	case queryFnSumNorm, queryFnDerivativeSumNorm:
-		return row.Val3 / float64(row.StepSec)
+		return row.val[3] / float64(row.stepSec)
 	case queryFnCumulSum:
-		return row.Val3
+		return row.val[3]
 	case queryFnStddev:
-		return row.Val4
+		return row.val[4]
 	case queryFnP25:
-		return row.Val0
+		return row.val[0]
 	case queryFnP50:
-		return row.Val1
+		return row.val[1]
 	case queryFnP75:
-		return row.Val2
+		return row.val[2]
 	case queryFnP90:
-		return row.Val3
+		return row.val[3]
 	case queryFnP95:
-		return row.Val4
+		return row.val[4]
 	case queryFnP99:
-		return row.Val5
+		return row.val[5]
 	case queryFnP999:
-		return row.Val6
+		return row.val[6]
 	case queryFnUnique, queryFnDerivativeUnique:
-		return stableMulDiv(row.Val0, desiredStepMul, row.StepSec)
+		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
 	case queryFnUniqueNorm, queryFnDerivativeUniqueNorm:
-		return row.Val0 / float64(row.StepSec)
+		return row.val[0] / float64(row.stepSec)
 	default:
 		return math.NaN()
 	}

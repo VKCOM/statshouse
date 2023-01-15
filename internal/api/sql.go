@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/util"
 )
 
 type preparedTagValuesQuery struct {
@@ -39,13 +40,19 @@ type preparedPointsQuery struct {
 	filterNotIn map[string][]interface{}
 }
 
+type tagValuesQueryMeta struct {
+	stringValue bool
+}
+
 func (pq *preparedPointsQuery) isLight() bool {
 	return pq.kind != queryFnKindUnique && pq.kind != queryFnKindPercentiles
 }
 
-func tagValuesQuery(pq *preparedTagValuesQuery, lod lodInfo) (string, []interface{}, error) {
+func tagValuesQuery(pq *preparedTagValuesQuery, lod lodInfo) (string, tagValuesQueryMeta, error) {
+	meta := tagValuesQueryMeta{}
 	valueName := "_value"
 	if pq.stringTag() {
+		meta.stringValue = true
 		valueName = "_string_value"
 	}
 
@@ -100,20 +107,26 @@ SETTINGS
   optimize_aggregation_in_order = 1
 `, preKeyTagName(lod, pq.tagID, pq.preKeyTagID), valueName, pq.numResults+1) // +1 so we can set "more":true
 
-	return query, args, nil
+	q, err := util.BindQuery(query, args...)
+	return q, meta, err
 }
 
-func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (string, error) {
+type pointsQueryMeta struct {
+	vals int
+	tags []string
+}
+
+func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (string, int, error) {
 	if version == Version1 && isStringTop {
 		return `
-  toFloat64(sumMerge(count)) AS _count`, nil // count is the only column available
+  toFloat64(sumMerge(count)) AS _count`, 0, nil // count is the only column available
 	}
 
 	switch kind {
 	case queryFnKindCount:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
-  toFloat64(sum(1)) AS _val0`, sqlAggFn(version, "sum")), nil
+  toFloat64(sum(1)) AS _val0`, sqlAggFn(version, "sum")), 1, nil
 	case queryFnKindValue:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
@@ -130,7 +143,7 @@ func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (s
 			sqlAggFn(version, "sum"),
 			// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance, "Naïve algorithm", poor numeric stability
 			sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"),
-			sqlMaxHost(version)), nil
+			sqlMaxHost(version)), 6, nil
 	case queryFnKindPercentiles:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
@@ -141,21 +154,21 @@ func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (s
   toFloat64(digest[5]) AS _val4,
   toFloat64(digest[6]) AS _val5,
   toFloat64(digest[7]) AS _val6`,
-			sqlAggFn(version, "sum")), nil
+			sqlAggFn(version, "sum")), 7, nil
 	case queryFnKindUnique:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
   toFloat64(uniqMerge(uniq_state)) AS _val0`,
-			sqlAggFn(version, "sum")), nil
+			sqlAggFn(version, "sum")), 1, nil
 	default:
-		return "", fmt.Errorf("unsupported operation kind: %q", kind)
+		return "", 0, fmt.Errorf("unsupported operation kind: %q", kind)
 	}
 }
 
-func loadPointsQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (string, []interface{}, error) {
-	what, err := loadPointsSelectWhat(pq.version, pq.isStringTop, pq.kind)
+func loadPointsQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (string, pointsQueryMeta, error) {
+	what, cnt, err := loadPointsSelectWhat(pq.version, pq.isStringTop, pq.kind)
 	if err != nil {
-		return "", nil, err
+		return "", pointsQueryMeta{}, err
 	}
 
 	var commaBy string
@@ -225,7 +238,8 @@ SETTINGS
   optimize_aggregation_in_order = 1
 `, commaBy, maxSeriesRows)
 
-	return query, args, nil
+	q, err := util.BindQuery(query, args...)
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by}, err
 }
 
 func sqlAggFn(version string, fn string) string {
