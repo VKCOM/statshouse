@@ -121,8 +121,10 @@ const (
 	TagValueIDProduction = 1
 	TagValueIDStaging    = 2
 
-	TagValueIDAPILaneFast = 1
-	TagValueIDAPILaneSlow = 2
+	TagValueIDAPILaneFastLight = 1
+	TagValueIDAPILaneFastHeavy = 2
+	TagValueIDAPILaneSlowLight = 3
+	TagValueIDAPILaneSlowHeavy = 4
 
 	TagValueIDConveyorRecent   = 1
 	TagValueIDConveyorHistoric = 2
@@ -1165,8 +1167,10 @@ Set by aggregator.`,
 			}, {
 				Description: "lane",
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDAPILaneFast: "fast",
-					TagValueIDAPILaneSlow: "slow"}),
+					TagValueIDAPILaneFastLight: "fastlight",
+					TagValueIDAPILaneFastHeavy: "fastheavy",
+					TagValueIDAPILaneSlowLight: "slowlight",
+					TagValueIDAPILaneSlowHeavy: "slowheavy"}),
 			}, {
 				Description: "host",
 			}},

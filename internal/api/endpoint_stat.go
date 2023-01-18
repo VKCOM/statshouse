@@ -130,11 +130,7 @@ func CurrentChunksCount(brs *BigResponseStorage) func(*statlogs.Registry) {
 	}
 }
 
-func ChSelectMetricDuration(duration time.Duration, metricID int32, table, kind string, isFast bool, err error) {
-	mode := "slow"
-	if isFast {
-		mode = "fast"
-	}
+func ChSelectMetricDuration(duration time.Duration, metricID int32, table, kind string, isFast, isLight bool, err error) {
 	ok := "ok"
 	if err != nil {
 		ok = "error"
@@ -142,7 +138,7 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, table, kind 
 	statlogs.AccessMetricRaw(
 		format.BuiltinMetricNameAPISelectDuration,
 		statlogs.RawTags{
-			Tag1: mode,
+			Tag1: modeStr(isFast, isLight),
 			Tag2: strconv.Itoa(int(metricID)),
 			Tag3: table,
 			Tag4: kind,
@@ -151,20 +147,30 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, table, kind 
 	).Value(duration.Seconds())
 }
 
-func ChSelectProfile(isFast bool, info clickhouse.ProfileInfo, err error) {
-	chSelectPushMetric(format.BuiltinMetricNameAPISelectBytes, isFast, float64(info.Bytes), err)
-	chSelectPushMetric(format.BuiltinMetricNameAPISelectRows, isFast, float64(info.Rows), err)
+func ChSelectProfile(isFast, isLight bool, info clickhouse.ProfileInfo, err error) {
+	chSelectPushMetric(format.BuiltinMetricNameAPISelectBytes, isFast, isLight, float64(info.Bytes), err)
+	chSelectPushMetric(format.BuiltinMetricNameAPISelectRows, isFast, isLight, float64(info.Rows), err)
 }
 
-func chSelectPushMetric(metric string, isFast bool, data float64, err error) {
+func modeStr(isFast, isLight bool) string {
 	mode := "slow"
 	if isFast {
 		mode = "fast"
 	}
+	if isLight {
+		mode += "light"
+	} else {
+		mode += "heavy"
+	}
+	return mode
+}
+
+func chSelectPushMetric(metric string, isFast, isLight bool, data float64, err error) {
+
 	m := statlogs.AccessMetricRaw(
 		metric,
 		statlogs.RawTags{
-			Tag1: mode,
+			Tag1: modeStr(isFast, isLight),
 		},
 	)
 	m.Value(data)
