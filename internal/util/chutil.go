@@ -14,22 +14,29 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2"
 	"go.uber.org/atomic"
+	"go.uber.org/multierr"
 
 	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 )
 
-type ClickHouse struct {
-	fastNext atomic.Int64
-	slowNext atomic.Int64
-
-	fast []clickhouse.Conn
-	slow []clickhouse.Conn
-
-	fastSem *semaphore.Weighted
-	slowSem *semaphore.Weighted
+type connPool struct {
+	next  atomic.Int64
+	conns []clickhouse.Conn
+	sem   *semaphore.Weighted
 }
 
-func OpenClickHouse(maxConns int, addrs []string, user string, password string, debug bool, dialTimeout time.Duration) (*ClickHouse, error) {
+type ClickHouse struct {
+	pools [4]connPool
+}
+
+const (
+	fastLight = 0
+	fastHeavy = 1
+	slowLight = 2
+	slowHeavy = 3 // fix Close after adding new modes
+)
+
+func OpenClickHouse(fastSlowMaxConns, lightHeavyMaxConns int, addrs []string, user string, password string, debug bool, dialTimeout time.Duration) (*ClickHouse, error) {
 	if len(addrs) == 0 {
 		return nil, fmt.Errorf("at least one ClickHouse address must be specified")
 	}
@@ -46,30 +53,41 @@ func OpenClickHouse(maxConns int, addrs []string, user string, password string, 
 				Method: clickhouse.CompressionLZ4,
 			},
 			DialTimeout:      dialTimeout,
-			MaxOpenConns:     maxConns,
+			MaxOpenConns:     fastSlowMaxConns,
 			ConnOpenStrategy: clickhouse.ConnOpenInOrder,
 		})
 	}
 
-	result := &ClickHouse{
-		fastSem: semaphore.NewWeighted(int64(maxConns)),
-		slowSem: semaphore.NewWeighted(int64(maxConns)),
-	}
+	result := &ClickHouse{}
+	result.pools[fastLight].sem = semaphore.NewWeighted(int64(fastSlowMaxConns))
+	result.pools[fastHeavy].sem = semaphore.NewWeighted(int64(lightHeavyMaxConns))
+	result.pools[slowLight].sem = semaphore.NewWeighted(int64(fastSlowMaxConns))
+	result.pools[slowHeavy].sem = semaphore.NewWeighted(int64(lightHeavyMaxConns))
 
 	for i := range addrs {
 		// clickhouse uses the first accessible address
 		// we could use better permutation, but the simple one is good enough
 		a := append(append(make([]string, 0), addrs[i:]...), addrs[:i]...)
-		slow, err := open(a)
+		fastL, err := open(a)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open ClickHouse database: %w", err)
 		}
-		fast, err := open(a)
+		fastH, err := open(a)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open ClickHouse database: %w", err)
 		}
-		result.slow = append(result.slow, slow)
-		result.fast = append(result.fast, fast)
+		slowL, err := open(a)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open ClickHouse database: %w", err)
+		}
+		slowH, err := open(a)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open ClickHouse database: %w", err)
+		}
+		result.pools[fastLight].conns = append(result.pools[fastLight].conns, fastL)
+		result.pools[fastHeavy].conns = append(result.pools[fastHeavy].conns, fastH)
+		result.pools[slowLight].conns = append(result.pools[slowLight].conns, slowL)
+		result.pools[slowHeavy].conns = append(result.pools[slowHeavy].conns, slowH)
 	}
 
 	return result, nil
@@ -77,43 +95,60 @@ func OpenClickHouse(maxConns int, addrs []string, user string, password string, 
 
 func (ch *ClickHouse) Close() error {
 	var retErr error
-	for _, c := range ch.fast {
-		if err := c.Close(); err != nil {
-			retErr = err
-		}
-	}
-	for _, c := range ch.slow {
-		if err := c.Close(); err != nil {
-			retErr = err
+	for i := 0; i <= slowHeavy; i++ {
+		for _, conn := range ch.pools[i].conns {
+			err := conn.Close()
+			if err != nil {
+				retErr = multierr.Append(retErr, err)
+			}
 		}
 	}
 
 	return retErr
 }
 
-func (ch *ClickHouse) SemaphoreCountSlow() int64 {
-	cur, _ := ch.slowSem.Observe()
+func (ch *ClickHouse) SemaphoreCountSlowLight() int64 {
+	cur, _ := ch.pools[slowLight].sem.Observe()
 	return cur
 }
 
-func (ch *ClickHouse) SemaphoreCountFast() int64 {
-	cur, _ := ch.fastSem.Observe()
+func (ch *ClickHouse) SemaphoreCountSlowHeavy() int64 {
+	cur, _ := ch.pools[slowHeavy].sem.Observe()
 	return cur
 }
 
-func (ch *ClickHouse) Select(isFast bool, ctx context.Context, dest interface{}, query string, args ...interface{}) (clickhouse.ProfileInfo, error) {
+func (ch *ClickHouse) SemaphoreCountFastLight() int64 {
+	cur, _ := ch.pools[fastLight].sem.Observe()
+	return cur
+}
+
+func (ch *ClickHouse) SemaphoreCountFastHeavy() int64 {
+	cur, _ := ch.pools[fastHeavy].sem.Observe()
+	return cur
+}
+
+func queryKind(isFast, isLight bool) int {
+	if isFast {
+		if isLight {
+			return fastLight
+		}
+		return fastHeavy
+	}
+	if isLight {
+		return slowLight
+	}
+	return slowHeavy
+}
+
+func (ch *ClickHouse) Select(isFast, isLight bool, ctx context.Context, dest interface{}, query string, args ...interface{}) (clickhouse.ProfileInfo, error) {
 	var profile clickhouse.ProfileInfo
 	ctx = clickhouse.Context(ctx, clickhouse.WithProfileInfo(func(info *clickhouse.ProfileInfo) {
 		profile = *info
 	}))
-	conns := ch.slow
-	sem := ch.slowSem
-	next := &ch.slowNext
-	if isFast {
-		conns = ch.fast
-		sem = ch.fastSem
-		next = &ch.fastNext
-	}
+	idx := queryKind(isFast, isLight)
+	conns := ch.pools[idx].conns
+	sem := ch.pools[idx].sem
+	next := &ch.pools[idx].next
 	err := sem.Acquire(ctx, 1)
 	if err != nil {
 		return profile, err

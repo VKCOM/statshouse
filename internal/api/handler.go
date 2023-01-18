@@ -423,10 +423,17 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 
 		writeActiveQuieries := func(ch *util.ClickHouse, versionTag string) {
 			if ch != nil {
-				slowMetric := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statlogs.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneSlow), Tag4: srvfunc.HostnameForStatshouse()})
-				slowMetric.Value(float64(ch.SemaphoreCountSlow()))
-				fastMetric := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statlogs.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneFast), Tag4: srvfunc.HostnameForStatshouse()})
-				fastMetric.Value(float64(ch.SemaphoreCountFast()))
+				fastLight := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statlogs.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneFastLight), Tag4: srvfunc.HostnameForStatshouse()})
+				fastLight.Value(float64(ch.SemaphoreCountFastLight()))
+
+				fastHeavy := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statlogs.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneFastHeavy), Tag4: srvfunc.HostnameForStatshouse()})
+				fastHeavy.Value(float64(ch.SemaphoreCountFastHeavy()))
+
+				slowLight := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statlogs.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneSlowLight), Tag4: srvfunc.HostnameForStatshouse()})
+				slowLight.Value(float64(ch.SemaphoreCountSlowLight()))
+
+				slowHeavy := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statlogs.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneSlowHeavy), Tag4: srvfunc.HostnameForStatshouse()})
+				slowHeavy.Value(float64(ch.SemaphoreCountSlowHeavy()))
 			}
 		}
 		writeActiveQuieries(chV1, "1")
@@ -472,7 +479,7 @@ func (h *Handler) invalidateCache(ctx context.Context, from int64, seen map[cach
 	}
 
 	var rows []cacheInvalidateLogRow
-	err := h.doSelect(true, ctx, "cache-update", Version2, &rows, fmt.Sprintf(`
+	err := h.doSelect(true, true, ctx, "cache-update", Version2, &rows, fmt.Sprintf(`
 SELECT
   toInt64(time) AS time, toInt64(key1) AS key1
 FROM
@@ -521,7 +528,7 @@ SETTINGS
 	return from, newSeen
 }
 
-func (h *Handler) doSelect(isFast bool, ctx context.Context, user string, version string, dest interface{}, query string, args ...interface{}) error {
+func (h *Handler) doSelect(isFast, isLight bool, ctx context.Context, user string, version string, dest interface{}, query string, args ...interface{}) error {
 	if version == Version1 && h.ch[version] == nil {
 		return fmt.Errorf("legacy ClickHouse database is disabled")
 	}
@@ -533,13 +540,13 @@ func (h *Handler) doSelect(isFast bool, ctx context.Context, user string, versio
 	saveDebugQuery(ctx, debugQuery)
 
 	start := time.Now()
-	info, err := h.ch[version].Select(isFast, ctx, dest, query, args...)
+	info, err := h.ch[version].Select(isFast, isLight, ctx, dest, query, args...)
 	duration := time.Since(start)
 	if h.verbose {
 		log.Printf("[debug] SQL for %q done in %v, err: %v", user, duration, err)
 	}
 
-	ChSelectProfile(isFast, info, err)
+	ChSelectProfile(isFast, isLight, info, err)
 
 	return err
 }
@@ -1272,8 +1279,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 			}
 
 			var data []selectRow
-			isFast := lod.fromSec+FastQueryTimeInterval >= lod.toSec
-			err = h.doSelect(isFast, ctx, req.ai.user, version, &data, query, args...)
+			err = h.doSelect(lod.isFast(), true, ctx, req.ai.user, version, &data, query, args...)
 			if err != nil {
 				return nil, err
 			}
@@ -2140,14 +2146,15 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 	}
 
 	var data []tsSelectRow
-	isFast := lod.fromSec+FastQueryTimeInterval >= lod.toSec
 	metric := pq.metricID
 	table := lod.table
 	kind := pq.kind
 	start := time.Now()
-	err = h.doSelect(isFast, ctx, pq.user, pq.version, &data, query, args...)
+	isFast := lod.isFast()
+	isLight := pq.isLight()
+	err = h.doSelect(isFast, isLight, ctx, pq.user, pq.version, &data, query, args...)
 	duration := time.Since(start)
-	ChSelectMetricDuration(duration, metric, table, string(kind), isFast, err)
+	ChSelectMetricDuration(duration, metric, table, string(kind), isFast, isLight, err)
 	if err != nil {
 		return err
 	}

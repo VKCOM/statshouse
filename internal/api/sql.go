@@ -39,6 +39,10 @@ type preparedPointsQuery struct {
 	filterNotIn map[string][]interface{}
 }
 
+func (pq *preparedPointsQuery) isLight() bool {
+	return pq.kind != queryFnKindUnique && pq.kind != queryFnKindPercentiles
+}
+
 func tagValuesQuery(pq *preparedTagValuesQuery, lod lodInfo) (string, []interface{}, error) {
 	valueName := "_value"
 	if pq.stringTag() {

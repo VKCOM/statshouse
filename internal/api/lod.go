@@ -266,6 +266,10 @@ type lodInfo struct {
 	location  *time.Location
 }
 
+func (lod lodInfo) isFast() bool {
+	return lod.fromSec+FastQueryTimeInterval >= lod.toSec
+}
+
 func (lod lodInfo) generateTimePoints(shift int64) []int64 {
 	if lod.stepSec == _1M {
 		length := lod.getIndexForTimestamp(lod.toSec, 0)
