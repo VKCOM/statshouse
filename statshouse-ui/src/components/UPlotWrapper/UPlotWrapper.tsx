@@ -59,7 +59,18 @@ export const microTask =
 
 function readLegend(u: uPlot): LegendItem[] {
   return u.series.map((s, index) => {
-    const idx = u.legend.idxs?.[index];
+    let idx = u.legend.idxs?.[index];
+    let lastTime = '';
+    if (idx === null && u.data?.[index]?.length) {
+      let lastIndex = u.data[index].length - 1;
+      while (typeof u.data[index][lastIndex] !== 'number' && lastIndex > 0) {
+        lastIndex--;
+      }
+      idx = lastIndex;
+      if (index === 0) {
+        lastTime = (typeof s.value === 'function' ? s.value(u, u.data[index][idx], 0, idx) : s.value)?.toString() ?? '';
+      }
+    }
     return {
       label: s.label ?? '',
       width:
@@ -68,7 +79,7 @@ function readLegend(u: uPlot): LegendItem[] {
       fill: s.fill instanceof Function ? s.fill(u, index)?.toString() : s.fill?.toString(),
       stroke: s.stroke instanceof Function ? s.stroke(u, index)?.toString() : s.stroke?.toString(),
       show: s.show ?? false,
-      value: u.legend.values?.[index]?.['_']?.toString().replace('—', '') ?? '', // replace '—' uplot
+      value: u.legend.values?.[index]?.['_']?.toString().replace('—', '') || lastTime, // replace '—' uplot
       values: typeof idx === 'number' ? s.values?.(u, index, idx) : undefined,
       alpha: s.alpha,
     };
@@ -259,6 +270,7 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
           hooksEvent.current.onReady?.(u);
         },
         setData: (u) => {
+          setLegend(readLegend(u));
           hooksEvent.current.onSetData?.(u);
         },
         syncRect: (u, rect) => {
