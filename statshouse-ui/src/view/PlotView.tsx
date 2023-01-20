@@ -79,8 +79,8 @@ const PlotView = memo(function PlotView_(props: {
   const {
     scales,
     series,
+    seriesShow,
     data,
-    groups,
     legendNameWidth,
     legendValueWidth,
     legendMaxDotSpaceWidth,
@@ -297,22 +297,17 @@ const PlotView = memo(function PlotView_(props: {
 
   const onLegendShow = useCallback(
     (index: number, show: boolean, single: boolean) => {
-      if ((uPlotRef.current?.cursor as { _lock: boolean })._lock) {
-        return;
-      }
-      setPlotShow(indexPlot, index, show, single);
+      setPlotShow(indexPlot, index - 1, show, single);
     },
     [indexPlot, setPlotShow]
   );
   useEffect(() => {
-    Object.values(groups).forEach((g) => {
-      g.idx.forEach((idx) => {
-        if (uPlotRef.current?.series[idx].show !== g.show) {
-          uPlotRef.current?.setSeries(idx, { show: g.show }, true);
-        }
-      });
+    seriesShow.forEach((show, idx) => {
+      if (uPlotRef.current?.series[idx + 1].show !== show) {
+        uPlotRef.current?.setSeries(idx + 1, { show }, true);
+      }
     });
-  }, [groups]);
+  }, [seriesShow]);
 
   return (
     <div

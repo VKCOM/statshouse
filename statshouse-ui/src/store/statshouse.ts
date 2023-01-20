@@ -51,7 +51,6 @@ import {
   dashboardShortInfo,
   dashboardURL,
   GetDashboardListResp,
-  metaToBaseLabel,
   metaToLabel,
   metricMeta,
   metricResult,
@@ -81,8 +80,8 @@ export type PlotStore = {
   error403?: string;
   data: uPlot.AlignedData;
   series: uPlot.Series[];
+  seriesShow: boolean[];
   scales: Record<string, { min: number; max: number }>;
-  groups: Record<string, { show: boolean; idx: number[] }>;
   lastPlotParams?: PlotParams;
   lastTimeRange?: TimeRange;
   lastQuerySeriesMeta?: querySeriesMeta[];
@@ -514,14 +513,15 @@ export const useStore = create<Store>()(
     plotsData: [],
     plotsDataAbortController: [],
     loadPlot(index, force: boolean = false) {
+      const oldData = getState().plotsData[index];
       if (!getState().plotsData[index]) {
         setState((state) => {
           state.plotsData[index] = {
             error: '',
             data: [[]],
             series: [],
+            seriesShow: [],
             scales: {},
-            groups: {},
             receiveErrors: 0,
             samplingFactorSrc: 0,
             samplingFactorAgg: 0,
@@ -610,36 +610,12 @@ export const useStore = create<Store>()(
                   ? 2 / devicePixelRatio
                   : 1
                 : 1 / devicePixelRatio;
-            const oldGroups = prevState.plotsData[index]?.groups;
-            let showReset = true;
-            const groups: Record<string, { show: boolean; idx: number[] }> = resp.series.series_meta.reduce(
-              (res, meta, index) => {
-                const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
-                res[baseLabel] = res[baseLabel] ?? {
-                  show: oldGroups[baseLabel]?.show ?? true,
-                  idx: [],
-                };
-                res[baseLabel].idx.push(index + 1);
-                if (res[baseLabel].show) {
-                  showReset = false;
-                }
 
-                return res;
-              },
-              {} as Record<string, { show: boolean; idx: number[] }>
-            );
-
-            if (showReset) {
-              Object.values(groups).forEach((g) => {
-                g.show = true;
-              });
-            }
-
+            const seriesShow = new Array(resp.series.series_meta.length).fill(true);
             const series: uPlot.Series[] = resp.series.series_meta.map((meta, indexMeta): uPlot.Series => {
-              const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
               const label = metaToLabel(meta, uniqueWhat.size);
               const color = selectColor(`${lastPlotParams.metricName}: ${label}`, usedColors);
-              if (color !== prevState.plotsData[index]?.series[indexMeta]?.stroke) {
+              if (color !== getState().plotsData[index]?.series[indexMeta]?.stroke) {
                 changeColor = true;
               }
               if (meta.max_hosts) {
@@ -659,8 +635,10 @@ export const useStore = create<Store>()(
                   return res;
                 }, {} as Record<string, number>) ?? {};
               const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
+              seriesShow[indexMeta] =
+                oldData.series[indexMeta]?.label === label ? oldData.series[indexMeta].show : true;
               return {
-                show: groups[baseLabel]?.show ?? true,
+                show: seriesShow[indexMeta] ?? true,
                 auto: false, // we control the scaling manually
                 label,
                 stroke: color,
@@ -696,7 +674,7 @@ export const useStore = create<Store>()(
             });
 
             const scales: UPlotWrapperPropsScales = {};
-            scales.x = { min: prevState.timeRange.from, max: prevState.timeRange.to };
+            scales.x = { min: getState().timeRange.from, max: getState().timeRange.to };
             if (lastPlotParams.yLock.min !== 0 || lastPlotParams.yLock.max !== 0) {
               scales.y = { ...lastPlotParams.yLock };
             }
@@ -736,8 +714,10 @@ export const useStore = create<Store>()(
                   dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) && !changeColor
                     ? state.plotsData[index]?.series
                     : series,
+                seriesShow: dequal(seriesShow, state.plotsData[index]?.seriesShow)
+                  ? state.plotsData[index]?.seriesShow
+                  : seriesShow,
                 scales: dequal(scales, state.plotsData[index]?.scales) ? state.plotsData[index]?.scales : scales,
-                groups: dequal(groups, state.plotsData[index]?.groups) ? state.plotsData[index]?.groups : groups,
                 receiveErrors: resp.receive_errors_legacy,
                 samplingFactorSrc: resp.sampling_factor_src,
                 samplingFactorAgg: resp.sampling_factor_agg,
@@ -750,7 +730,7 @@ export const useStore = create<Store>()(
                 legendMaxHostPercentWidth,
                 lastPlotParams,
                 lastQuerySeriesMeta: [...resp.series.series_meta],
-                lastTimeRange: prevState.timeRange,
+                lastTimeRange: getState().timeRange,
               };
             });
           })
@@ -762,8 +742,8 @@ export const useStore = create<Store>()(
                   error403: error.toString(),
                   data: [[]],
                   series: [],
+                  seriesShow: [],
                   scales: {},
-                  groups: {},
                   receiveErrors: 0,
                   samplingFactorSrc: 0,
                   samplingFactorAgg: 0,
@@ -788,8 +768,8 @@ export const useStore = create<Store>()(
                   error: error.toString(),
                   data: [[]],
                   series: [],
+                  seriesShow: [],
                   scales: {},
-                  groups: {},
                   receiveErrors: 0,
                   samplingFactorSrc: 0,
                   samplingFactorAgg: 0,
@@ -816,22 +796,15 @@ export const useStore = create<Store>()(
     },
     setPlotShow(indexPlot, idx, show, single) {
       setState((state) => {
-        const gr = Object.values(state.plotsData[indexPlot].groups);
         if (single) {
-          const otherShow = gr.some((group) => (group.idx.includes(idx) ? false : group.show));
-          gr.forEach((group) => {
-            if (!group.idx.includes(idx)) {
-              group.show = !otherShow;
-            } else {
-              group.show = true;
-            }
-          });
+          const otherShow = state.plotsData[indexPlot].seriesShow.some((_show, indexSeries) =>
+            indexSeries === idx ? false : _show
+          );
+          state.plotsData[indexPlot].seriesShow = state.plotsData[indexPlot].seriesShow.map((s, indexSeries) =>
+            indexSeries === idx ? true : !otherShow
+          );
         } else {
-          gr.forEach((group) => {
-            if (group.idx.includes(idx)) {
-              group.show = show ?? !group.show;
-            }
-          });
+          state.plotsData[indexPlot].seriesShow[idx] = show ?? !state.plotsData[indexPlot].seriesShow[idx];
         }
       });
     },
