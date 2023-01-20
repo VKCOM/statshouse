@@ -539,12 +539,16 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
 	var err error
 	var data = ""
-	var read func(int) []string
-	read = func(rec int) []string {
+	var read func(bool, int) []string
+	read = func(share bool, rec int) []string {
 		var s []string
-		err = engine.ViewCommitted(context.Background(), func(conn Conn) error {
+		view := engine.ViewCommitted
+		if share {
+			view = engine.ViewUncommitted
+		}
+		err = view(context.Background(), func(conn Conn) error {
 			if rec > 0 {
-				s = append(s, read(rec-1)...)
+				s = append(s, read(share, rec-1)...)
 			}
 			rows := conn.Query("SELECT data from test_db")
 			for rows.Next() {
@@ -558,45 +562,73 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 		return s
 	}
 
-	t.Run("RO can see commited data", func(t *testing.T) {
+	t.Run("RO unshared can see commited data", func(t *testing.T) {
 		err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
 			_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
 			return cache, err
 		})
 		require.NoError(t, err)
 		engine.commitTXAndStartNew(true, true)
-		s := read(0)
+		s := read(false, 0)
 		require.Len(t, s, 1)
 		require.Contains(t, s, "abc")
 	})
 
-	t.Run("RO can't see uncommitted data", func(t *testing.T) {
+	t.Run("RO unshared can't see uncommitted data", func(t *testing.T) {
 		data = ""
 		err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-			s := read(0)
+			s := read(false, 0)
 			require.Len(t, s, 1)
 			require.Contains(t, s, "abc")
 			_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "def"))
 			require.NoError(t, err)
-			s = read(0)
+			s = read(false, 0)
 			require.Len(t, s, 1)
 			require.Contains(t, s, "abc")
 			return cache, err
 		})
 		require.NoError(t, err)
 		engine.commitTXAndStartNew(true, true)
-		s := read(0)
+		s := read(false, 0)
 		require.Len(t, s, 2)
 		require.Contains(t, s, "abc")
 		require.Contains(t, s, "def")
 	})
 
-	t.Run("RO can work concurrently", func(t *testing.T) {
-		s := read(100)
-		require.Len(t, s, 202)
+	t.Run("RO shared can see uncommitted data", func(t *testing.T) {
+		data = ""
+		err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
+			s := read(true, 0)
+			require.Len(t, s, 2)
+			require.Contains(t, s, "abc")
+			require.Contains(t, s, "def")
+			_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "ggg"))
+			require.NoError(t, err)
+			s = read(true, 0)
+			require.Len(t, s, 3)
+			require.Contains(t, s, "abc")
+			require.Contains(t, s, "def")
+			require.Contains(t, s, "ggg")
+			return cache, err
+		})
+		require.NoError(t, err)
+		engine.commitTXAndStartNew(true, true)
+		s := read(false, 0)
+		require.Len(t, s, 3)
 		require.Contains(t, s, "abc")
 		require.Contains(t, s, "def")
+		require.Contains(t, s, "ggg")
 	})
+
+	t.Run("RO unshared can work concurrently", func(t *testing.T) {
+		s := read(false, 100)
+		require.Len(t, s, 303)
+		require.Contains(t, s, "abc")
+		require.Contains(t, s, "def")
+		require.Contains(t, s, "ggg")
+
+	})
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))

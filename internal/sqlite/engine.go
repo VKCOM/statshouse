@@ -97,10 +97,12 @@ type Engine struct {
 	stop func()
 	rw   *sqliteConn
 	//	chk *sqlite0.Conn
-	roMx    sync.Mutex
-	roFree  []*sqliteConn
-	roCount int
-	roCond  *sync.Cond
+	roMx          sync.Mutex
+	roFree        []*sqliteConn
+	roFreeShared  []*sqliteConn
+	roCond        *sync.Cond
+	roCount       int
+	roCountShared int
 
 	mode engineMode
 
@@ -202,11 +204,10 @@ func OpenEngine(
 		commitCh:             make(chan struct{}, 1),
 		mode:                 replica,
 	}
+	e.roCond = sync.NewCond(&e.roMx)
 	if opt.ReadAndExit {
 		e.opt.DurabilityMode = NoBinlog
 	}
-	e.roCond = sync.NewCond(&e.roMx)
-
 	e.commitTXAndStartNew(false, false)
 	if err := e.rw.err; err != nil {
 		_ = e.close(false, false)
@@ -294,7 +295,7 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 }
 
 func openRW(path string, appID int32, schemas ...string) (*sqlite0.Conn, error) {
-	conn, err := openWAL(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate|sqlite0.OpenNoMutex|sqlite0.OpenPrivateCache)
+	conn, err := openWAL(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate|sqlite0.OpenNoMutex|sqlite0.OpenSharedCache)
 	if err != nil {
 		return nil, err
 	}
@@ -338,10 +339,21 @@ func openRW(path string, appID int32, schemas ...string) (*sqlite0.Conn, error) 
 //
 //		return conn, nil
 //	}
-func openROWAL(path string) (*sqlite0.Conn, error) {
-	conn, err := openWAL(path, sqlite0.OpenReadonly|sqlite0.OpenNoMutex|sqlite0.OpenPrivateCache)
+func openROWAL(path string, shared bool) (*sqlite0.Conn, error) {
+	flags := sqlite0.OpenPrivateCache
+	if shared {
+		flags = sqlite0.OpenSharedCache
+	}
+	conn, err := openWAL(path, flags|sqlite0.OpenReadonly|sqlite0.OpenNoMutex)
 	if err != nil {
 		return nil, err
+	}
+	if shared {
+		err = conn.Exec("PRAGMA read_uncommitted = true;")
+		if err != nil {
+			_ = conn.Close()
+			return nil, fmt.Errorf("failed to enable read uncommitted: %w", err)
+		}
 	}
 
 	return conn, nil
@@ -564,29 +576,38 @@ func (e *Engine) Backup(ctx context.Context, prefix string) error {
 
 // ViewCommitted - can view only committed to sqlite data
 // It depends on e.opt.CommitEvery
-// TODO: research shm to see uncommitted data
 func (e *Engine) ViewCommitted(ctx context.Context, fn func(Conn) error) error {
+	return e.view(ctx, fn, false, &e.roFree, &e.roCount)
+}
+
+// TODO support wait for WaitCommit mode
+func (e *Engine) ViewUncommitted(ctx context.Context, fn func(Conn) error) error {
+	return e.view(ctx, fn, true, &e.roFreeShared, &e.roCountShared)
+}
+
+func (e *Engine) view(ctx context.Context, fn func(Conn) error, shared bool, roFree *[]*sqliteConn, roCount *int) error {
 	e.roMx.Lock()
+
 	var conn *sqliteConn
-	for len(e.roFree) == 0 && e.roCount >= maxROConn {
+	for len(*roFree) == 0 && *roCount >= maxROConn {
 		e.roCond.Wait()
 	}
-	if len(e.roFree) == 0 {
-		ro, err := openROWAL(e.opt.Path)
+	if len(*roFree) == 0 {
+		ro, err := openROWAL(e.opt.Path, shared)
 		if err != nil {
 			e.roMx.Unlock()
 			return fmt.Errorf("failed to open RO connection: %w", err)
 		}
 		conn = newSqliteConn(ro)
-		e.roCount++
+		*roCount++
 	} else {
-		conn = e.roFree[0]
-		e.roFree = e.roFree[1:]
+		conn = (*roFree)[0]
+		*roFree = (*roFree)[1:]
 	}
 	e.roMx.Unlock()
 	defer func() {
 		e.roMx.Lock()
-		e.roFree = append(e.roFree, conn)
+		*roFree = append(*roFree, conn)
 		e.roMx.Unlock()
 		e.roCond.Signal()
 	}()
@@ -618,8 +639,8 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 		return fmt.Errorf("failed to write binlog in replica mode") // TODO replace with GMS error
 	}
 	var ch chan struct{}
-	waitCommit := e.opt.DurabilityMode == WaitCommit
-	mustCommitNow := time.Since(e.lastCommitTime) >= e.opt.CommitEvery && !waitCommit && !isReadOp
+	waitCommitMode := e.opt.DurabilityMode == WaitCommit
+	mustCommitNow := time.Since(e.lastCommitTime) >= e.opt.CommitEvery && !waitCommitMode && !isReadOp
 	var offsetAfterWritePredicted int64
 	if shouldWriteBinlog {
 		offsetBeforeWrite := e.dbOffset
@@ -632,7 +653,7 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 		}
 
 		var offsetAfterWrite int64
-		if waitCommit || mustCommitNow {
+		if waitCommitMode || mustCommitNow {
 			offsetAfterWrite, err = e.binlog.AppendASAP(e.dbOffset, buffer)
 		} else {
 			offsetAfterWrite, err = e.binlog.Append(e.dbOffset, buffer)
@@ -647,7 +668,7 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 	if e.opt.CommitOnEachWrite {
 		_ = e.commitTXAndStartNewLocked(c, true, false, true)
 	}
-	if waitCommit || mustCommitNow {
+	if waitCommitMode || mustCommitNow {
 		e.waitQMx.Lock()
 		info, _ := e.committedInfo.Load().(*committedInfo)
 		// check if commit was already done
