@@ -8,16 +8,14 @@ import create from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
 import {
+  configParams,
   defaultParams,
   getLiveParams,
   PlotParams,
   QueryParams,
   readDashboardID,
-  readParams,
   setLiveParams,
   sortEntity,
-  writeDashboard,
-  writeParams,
 } from '../common/plotQueryParams';
 import uPlot from '../view/lib/uPlot/uPlot.esm';
 import { dequal } from 'dequal/lite';
@@ -74,6 +72,7 @@ import { calcYRange2 } from '../common/calcYRange';
 import { rgba, selectColor } from '../view/palette';
 import { filterPoints } from '../common/filterPoints';
 import { UPlotWrapperPropsScales } from '../components';
+import { decodeQueryParams, encodeQueryParams, mergeLeft } from '../common/QueryParamsParser';
 
 export type PlotStore = {
   error: string;
@@ -251,8 +250,7 @@ export const useStore = create<Store>()(
       const id = readDashboardID(new URLSearchParams(document.location.search));
       const saveParams = id ? await getState().loadServerParams(id) : undefined;
       getState().setDefaultParams({
-        ...defaultParams,
-        tabNum: saveParams ? -1 : defaultParams.tabNum,
+        ...(saveParams ?? defaultParams),
         timeRange: {
           to:
             saveParams && !(typeof saveParams?.timeRange.to === 'number' && saveParams.timeRange.to > 0)
@@ -261,38 +259,27 @@ export const useStore = create<Store>()(
           from: saveParams?.timeRange.from ?? defaultParams.timeRange.from,
         },
       });
-      const urlParams = readParams(
-        getState().params,
-        new URLSearchParams(document.location.search),
-        getState().defaultParams
+
+      const params = decodeQueryParams<QueryParams>(
+        configParams,
+        getState().defaultParams,
+        new URLSearchParams(window.location.search)
       );
-      const params = saveParams ?? urlParams;
       if (!params) {
         return;
       }
       let reset = false;
       const nowTime = now();
       if (saveParams) {
-        params.tabNum = urlParams.tabNum ?? params.tabNum;
-        params.timeRange.to =
-          (typeof params.timeRange.to === 'number' && params.timeRange.to > 0) ||
-          urlParams.timeRange.to !== getState().defaultParams.timeRange.to
-            ? urlParams.timeRange.to
-            : params.timeRange.to;
-        params.timeRange.from =
-          urlParams.timeRange.from !== getState().defaultParams.timeRange.from
-            ? urlParams.timeRange.from
-            : params.timeRange.from;
         if (params.dashboard?.dashboard_id === getState().params.dashboard?.dashboard_id) {
-          params.plots = getState().params.plots;
-          params.tagSync = getState().params.tagSync;
           params.dashboard = getState().params.dashboard;
         }
-        if (params.tabNum >= 0 && !params.plots[params.tabNum]) {
-          params.tabNum = getState().defaultParams.tabNum;
-          reset = true;
-        }
       }
+      if (params.tabNum >= 0 && !params.plots[params.tabNum]) {
+        params.tabNum = getState().defaultParams.tabNum;
+        reset = true;
+      }
+
       if (params.timeRange.from === defaultTimeRange.from && params.timeRange.to === defaultTimeRange.to) {
         params.timeRange = timeRangeAbbrevExpand(defaultBaseRange, nowTime);
         reset = true;
@@ -334,11 +321,8 @@ export const useStore = create<Store>()(
 
       const resetPlot = params.dashboard?.dashboard_id !== getState().params.dashboard?.dashboard_id;
       if (!dequal(params, getState().params)) {
-        debug.log(
-          'updateParamsByUrl',
-          JSON.parse(JSON.stringify(params)),
-          JSON.parse(JSON.stringify(getState().params))
-        );
+        debug.log('updateParamsByUrl', deepClone(params), deepClone(getState().params));
+        const lastPlot = getState().params.plots;
         setState((store) => {
           if (
             store.params.timeRange.to !== params.timeRange.to ||
@@ -346,14 +330,16 @@ export const useStore = create<Store>()(
           ) {
             store.timeRange = new TimeRange(params.timeRange);
           }
-          store.params = params;
+          store.params = mergeLeft(store.params, params);
           if (resetPlot) {
             store.plotsData = [];
             store.previews = [];
           }
         });
         getState().params.plots.forEach((plot, index) => {
-          getState().loadPlot(index);
+          if (lastPlot[index] !== plot) {
+            getState().loadPlot(index);
+          }
         });
       }
       if (reset) {
@@ -369,6 +355,7 @@ export const useStore = create<Store>()(
       const changed = force || !dequal(nextParams, prevParams);
       const changedTimeRange = force || !dequal(nextParams.timeRange, prevParams.timeRange);
       if (changed) {
+        const lastPlot = prevParams.plots;
         setState((state) => {
           if (changedTimeRange) {
             state.timeRange = new TimeRange(nextParams.timeRange);
@@ -376,7 +363,9 @@ export const useStore = create<Store>()(
           state.params = nextParams;
         });
         getState().params.plots.forEach((plot, index) => {
-          getState().loadPlot(index, force);
+          if (lastPlot[index] !== plot) {
+            getState().loadPlot(index, force);
+          }
         });
         if (getState().params.plots.some(({ useV2 }) => !useV2) && getState().liveMode) {
           getState().setLiveMode(false);
@@ -442,18 +431,16 @@ export const useStore = create<Store>()(
         prevState.liveMode ||
         prevState.timeRange.from > now();
 
-      if (prevState.params.dashboard?.dashboard_id) {
-        const live = getLiveParams(new URLSearchParams(document.location.search)); // save live param in url
-        prevState.setSearchParams?.(
-          writeDashboard(prevState.params, setLiveParams(live, new URLSearchParams()), prevState.defaultParams),
-          {
-            replace: replace || autoReplace,
-          }
-        );
-        return;
-      }
-      const p = writeParams(prevState.params, new URLSearchParams(document.location.search), prevState.defaultParams);
-      prevState.setSearchParams?.(p, { replace: replace || autoReplace });
+      const live = getLiveParams(new URLSearchParams(document.location.search)); // save live param in url
+      const p = encodeQueryParams(
+        configParams,
+        prevState.params,
+        prevState.defaultParams,
+        setLiveParams(live, new URLSearchParams())
+      );
+      prevState.setSearchParams?.(p, {
+        replace: replace || autoReplace,
+      });
     },
     setSearchParams: undefined,
     initSetSearchParams(setSearchParams) {
@@ -1366,29 +1353,33 @@ export const useStore = create<Store>()(
       });
     },
     setGroupName(indexGroup, name) {
-      setState((state) => {
-        if (state.params.dashboard) {
-          state.params.dashboard.groupInfo = state.params.dashboard.groupInfo ?? [];
-          if (state.params.dashboard.groupInfo[indexGroup]) {
-            state.params.dashboard.groupInfo[indexGroup].name = name;
-          } else {
-            state.params.dashboard.groupInfo[indexGroup] = { show: true, name };
+      getState().setParams(
+        produce<QueryParams>((state) => {
+          if (state.dashboard) {
+            state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
+            if (state.dashboard.groupInfo[indexGroup]) {
+              state.dashboard.groupInfo[indexGroup].name = name;
+            } else {
+              state.dashboard.groupInfo[indexGroup] = { show: true, name };
+            }
           }
-        }
-      });
+        })
+      );
     },
     setGroupShow(indexGroup, show) {
       const nextShow = getNextState(getState().params.dashboard?.groupInfo?.[indexGroup]?.show ?? true, show);
-      setState((state) => {
-        if (state.params.dashboard) {
-          state.params.dashboard.groupInfo = state.params.dashboard.groupInfo ?? [];
-          if (state.params.dashboard.groupInfo[indexGroup]) {
-            state.params.dashboard.groupInfo[indexGroup].show = nextShow;
-          } else {
-            state.params.dashboard.groupInfo[indexGroup] = { show: nextShow, name: '' };
+      getState().setParams(
+        produce<QueryParams>((state) => {
+          if (state.dashboard) {
+            state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
+            if (state.dashboard.groupInfo[indexGroup]) {
+              state.dashboard.groupInfo[indexGroup].show = nextShow;
+            } else {
+              state.dashboard.groupInfo[indexGroup] = { show: nextShow, name: '' };
+            }
           }
-        }
-      });
+        })
+      );
     },
     listMetricsGroup: [],
     loadListMetricsGroup() {
