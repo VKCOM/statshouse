@@ -1333,7 +1333,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 				OnResult: func(_ context.Context, b proto.Block) error {
 					for i := 0; i < b.Rows; i++ {
 						tag := cols.rowAt(i)
-						tagInfo[tag] += tag.cnt
+						tagInfo[selectRow{valID: tag.valID, val: tag.val}] += tag.cnt
 					}
 					return nil
 				}})
