@@ -8,8 +8,7 @@ import React, { Dispatch, memo, SetStateAction, useMemo } from 'react';
 import { formatTagValue, metricMeta, querySelector, whatToWhatDesc } from '../../view/api';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
-import { lockRange } from '../../view/url';
-import { getUrlSearch } from '../../common/plotQueryParams';
+import { getUrlSearch, lockRange } from '../../common/plotQueryParams';
 import produce from 'immer';
 import { selectorParams, selectorParamsTagSync, useStore } from '../../store';
 import { PlotLink } from './PlotLink';
@@ -85,6 +84,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     () =>
       `${document.location.protocol}//${document.location.host}${document.location.pathname}${getUrlSearch(
         produce((prev) => {
+          prev.dashboard = undefined;
           prev.tabNum = 0;
           prev.plots = [prev.plots[indexPlot]].filter(Boolean);
           prev.tagSync = [];
