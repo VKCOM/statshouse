@@ -6,6 +6,7 @@
 
 import React, { ChangeEvent, Dispatch, memo, SetStateAction, useCallback, useId } from 'react';
 import { SetTimeRangeValue } from '../../common/TimeRange';
+import { lockRange } from '../../view/url';
 import { timeRangePanLeft, timeRangePanRight, timeRangeZoomIn, timeRangeZoomOut } from '../../view/utils';
 import { ReactComponent as SVGChevronLeft } from 'bootstrap-icons/icons/chevron-left.svg';
 import { ReactComponent as SVGChevronRight } from 'bootstrap-icons/icons/chevron-right.svg';
@@ -17,7 +18,6 @@ import { ReactComponent as SVGUnlock } from 'bootstrap-icons/icons/unlock.svg';
 import { ReactComponent as SVGPlayFill } from 'bootstrap-icons/icons/play-fill.svg';
 import { ReactComponent as SVGLink } from 'bootstrap-icons/icons/link.svg';
 import { debug } from '../../common/debug';
-import { lockRange } from '../../common/plotQueryParams';
 
 export type PlotNavigateProps = {
   live: boolean;
