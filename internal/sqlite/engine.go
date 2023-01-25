@@ -119,6 +119,10 @@ type Engine struct {
 	waitUntilBinlogReady chan struct{}
 	readyNotify          sync.Once
 	commitCh             chan struct{}
+
+	isTest            bool
+	mustCommitNowFlag bool
+	mustWaitCommit    bool
 }
 
 type Options struct {
@@ -130,6 +134,8 @@ type Options struct {
 	DurabilityMode    DurabilityMode
 	ReadAndExit       bool
 	CommitOnEachWrite bool // use only to test. If true break binlog + sqlite consistency
+
+	isTest bool
 }
 
 type waitCommitInfo struct {
@@ -156,8 +162,8 @@ type engineMode int
 type DurabilityMode int
 
 const (
-	master  = iota // commit sql tx by timer, to synchronize sqlite and binlog
-	replica = iota // queue data in apply and commit sql tx after got commit from binlog
+	master  engineMode = iota // commit sql tx by timer, to synchronize sqlite and binlog
+	replica engineMode = iota // queue data in apply and commit sql tx after got commit from binlog
 )
 
 const (
@@ -172,19 +178,36 @@ func OpenEngine(
 	apply ApplyEventFunction,
 	scan ApplyEventFunction, // this helps to work in replica mode with old binlog
 ) (*Engine, error) {
+	e, err := openDB(opt, binlog, apply, scan)
+	if err != nil {
+		return nil, err
+	}
+	err = e.runBinlogAndWaitReady()
+	if err != nil {
+		e.close(false, false)
+		return nil, err
+	}
+	e.mode = master
+	if opt.Replica {
+		e.mode = replica
+	}
+	if e.opt.DurabilityMode == WaitCommit || e.opt.DurabilityMode == NoBinlog {
+		go e.txLoop()
+	}
+	return e, nil
+}
+
+func openDB(opt Options,
+	binlog binlog2.Binlog,
+	apply ApplyEventFunction,
+	scan ApplyEventFunction) (*Engine, error) {
 	if opt.CommitEvery == 0 {
 		opt.CommitEvery = commitEveryDefault
 	}
-	rw, err := openRW(opt.Path, opt.APPID, opt.Scheme, initOffsetTable, snapshotMetaTable)
+	rw, err := openRW(openWAL, opt.Path, opt.APPID, opt.Scheme, initOffsetTable, snapshotMetaTable)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW connection: %w", err)
 	}
-	// chk, err := openChk(path)
-	// if err != nil {
-	//	_ = rw.Close()
-	//	return nil, fmt.Errorf("failed to open CHK connection: %w", err)
-	//}
-	//
 
 	ctx, stop := context.WithCancel(context.Background())
 	e := &Engine{
@@ -213,55 +236,65 @@ func OpenEngine(
 		_ = e.close(false, false)
 		return nil, fmt.Errorf("failed to start write transaction: %w", err)
 	}
-	if binlog != nil {
-		binlogEngineImpl := &binlogEngineImpl{e: e}
-		e.committedInfo.Store(&committedInfo{})
-		offset, err := e.binlogLoadOrCreatePosition()
-		if err != nil {
-			_ = e.close(false, false)
-			return nil, fmt.Errorf("failed to load binlog position: %w", err)
-		}
-		e.dbOffset = offset
-		meta, err := e.binlogLoadOrCreateMeta()
-		if err != nil {
-			_ = e.close(false, false)
-			return nil, fmt.Errorf("failed to load snapshot meta: %w", err)
-		}
+	return e, nil
+}
 
+func (e *Engine) runBinlogAndWaitReady() error {
+	if e.binlog != nil {
+		impl, err := e.binlogRun()
+		if err != nil {
+			return err
+		}
+		return e.binlogWaitReady(impl)
+	}
+	return nil
+}
+func (e *Engine) binlogRun() (*binlogEngineImpl, error) {
+	impl := &binlogEngineImpl{e: e}
+	e.committedInfo.Store(&committedInfo{})
+	offset, err := e.binlogLoadOrCreatePosition()
+	if err != nil {
+		_ = e.close(false, false)
+		return nil, fmt.Errorf("failed to load binlog position: %w", err)
+	}
+	e.dbOffset = offset
+	meta, err := e.binlogLoadOrCreateMeta()
+	if err != nil {
+		_ = e.close(false, false)
+		return nil, fmt.Errorf("failed to load snapshot meta: %w", err)
+	}
+	if !e.isTest {
 		go func() {
-			err = binlog.Run(offset, meta, binlogEngineImpl)
+			err = e.binlog.Run(offset, meta, impl)
 			if err != nil {
 				e.rw.mu.Lock()
 				e.rw.err = err
 				e.rw.mu.Unlock()
 			}
-			if opt.ReadAndExit {
+			if e.opt.ReadAndExit {
 				close(e.waitUntilBinlogReady)
 			}
 
 		}()
-		<-e.waitUntilBinlogReady
-		// in master mode we need to apply all queued events, before handling queries
-		// in replica mode it's not needed, because we are getting apply events from binlog
-		if !opt.Replica && binlogEngineImpl.state == waitToCommit {
-			err := binlogEngineImpl.applyQueue.applyAllChanges(binlogEngineImpl.apply, binlogEngineImpl.skip)
-			if err != nil {
-				return nil, fmt.Errorf("failed to apply queued events: %w", err)
-			}
-			binlogEngineImpl.state = none
+	}
+	return impl, nil
+}
+
+func (e *Engine) binlogWaitReady(impl *binlogEngineImpl) error {
+	<-e.waitUntilBinlogReady
+	// in master mode we need to apply all queued events, before handling queries
+	// in replica mode it's not needed, because we are getting apply events from binlog
+	if !e.opt.Replica && impl.state == waitToCommit {
+		err := impl.applyQueue.applyAllChanges(impl.apply, impl.skip)
+		if err != nil {
+			return fmt.Errorf("failed to apply queued events: %w", err)
 		}
-		if opt.ReadAndExit {
-			e.binlog = nil
-		}
+		impl.state = none
 	}
-	e.mode = master
-	if opt.Replica {
-		e.mode = replica
+	if e.opt.ReadAndExit {
+		e.binlog = nil
 	}
-	if e.opt.DurabilityMode == WaitCommit || e.opt.DurabilityMode == NoBinlog {
-		go e.txLoop()
-	}
-	return e, nil
+	return nil
 }
 
 func openWAL(path string, flags int) (*sqlite0.Conn, error) {
@@ -294,8 +327,8 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 	return conn, nil
 }
 
-func openRW(path string, appID int32, schemas ...string) (*sqlite0.Conn, error) {
-	conn, err := openWAL(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate|sqlite0.OpenNoMutex|sqlite0.OpenSharedCache)
+func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path string, appID int32, schemas ...string) (*sqlite0.Conn, error) {
+	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate|sqlite0.OpenNoMutex|sqlite0.OpenSharedCache)
 	if err != nil {
 		return nil, err
 	}
@@ -618,6 +651,13 @@ func (e *Engine) view(ctx context.Context, fn func(Conn) error, shared bool, roF
 	return err
 }
 
+func (e *Engine) mustCommitNow(waitCommitMode, isReadOp bool) bool {
+	if !e.isTest {
+		return time.Since(e.lastCommitTime) >= e.opt.CommitEvery && !waitCommitMode && !isReadOp
+	}
+	return e.mustCommitNowFlag
+}
+
 func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) error {
 	c := e.start(ctx, true)
 	e.rw.spOk = false
@@ -640,7 +680,7 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 	}
 	var ch chan struct{}
 	waitCommitMode := e.opt.DurabilityMode == WaitCommit
-	mustCommitNow := time.Since(e.lastCommitTime) >= e.opt.CommitEvery && !waitCommitMode && !isReadOp
+	mustCommitNow := e.mustCommitNow(waitCommitMode, isReadOp)
 	var offsetAfterWritePredicted int64
 	if shouldWriteBinlog {
 		offsetBeforeWrite := e.dbOffset
@@ -674,7 +714,9 @@ func (e *Engine) Do(ctx context.Context, fn func(Conn, []byte) ([]byte, error)) 
 		// check if commit was already done
 		alreadyCommitted := offsetAfterWritePredicted <= info.offset
 		uncommittedWriteExists := len(e.waitQ) > 0
-		if (isReadOp && uncommittedWriteExists) || (!isReadOp && !alreadyCommitted) || mustCommitNow {
+		if (waitCommitMode && isReadOp && uncommittedWriteExists) ||
+			(waitCommitMode && !isReadOp && !alreadyCommitted) ||
+			(!waitCommitMode && mustCommitNow && !alreadyCommitted) {
 			ch = make(chan struct{})
 			e.waitQ = append(e.waitQ, waitCommitInfo{
 				offset:   offsetAfterWritePredicted,

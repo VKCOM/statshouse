@@ -31,7 +31,8 @@ func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error)
 		e.commitTXAndStartNew(true, false)
 		return offs, err
 	}
-	if time.Since(impl.lastCommitTime) > e.opt.CommitEvery || impl.state == waitToCommit {
+	if (e.isTest && e.mustWaitCommit) ||
+		(!e.isTest && (time.Since(impl.lastCommitTime) > e.opt.CommitEvery || impl.state == waitToCommit)) {
 		committedInfo := e.committedInfo.Load().(*committedInfo)
 		if committedInfo != nil && e.dbOffset > committedInfo.offset {
 			if impl.state == none {
