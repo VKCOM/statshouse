@@ -636,7 +636,7 @@ export const useStore = create<Store>()(
                 }, {} as Record<string, number>) ?? {};
               const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
               seriesShow[indexMeta] =
-                oldData.series[indexMeta]?.label === label ? oldData.series[indexMeta].show : true;
+                oldData?.series?.[indexMeta]?.label === label ? oldData?.series?.[indexMeta]?.show : true;
               return {
                 show: seriesShow[indexMeta] ?? true,
                 auto: false, // we control the scaling manually
