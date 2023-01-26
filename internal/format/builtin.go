@@ -650,7 +650,7 @@ Set by either agent or aggregator, depending on status.`,
 				Description: "mapper",
 				ValueComments: convertToValueComments(map[int32]string{
 					TagValueIDAggMappingDolphinLegacy: "dolphin_legacy",
-					TagValueIDAggMappingTags:          "client_pmc",
+					TagValueIDAggMappingTags:          "client_pmc_legacy",
 					TagValueIDAggMappingMetaMetrics:   "client_meta_metric",
 					TagValueIDAggMappingJournalUpdate: "journal_update",
 				}),
@@ -786,7 +786,7 @@ Set by either agent or aggregator, depending on status.`,
 				Description: "mapper",
 				ValueComments: convertToValueComments(map[int32]string{
 					TagValueIDAggMappingDolphinLegacy: "dolphin_legacy",
-					TagValueIDAggMappingTags:          "pmc",
+					TagValueIDAggMappingTags:          "pmc_legacy",
 					TagValueIDAggMappingMetaMetrics:   "meta_metric",
 				}),
 			}, {

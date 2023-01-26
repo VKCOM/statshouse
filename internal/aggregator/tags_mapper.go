@@ -156,7 +156,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 	if args.Header.IsSetIngressProxy(args.FieldsMask) {
 		route = int32(format.TagValueIDRouteIngressProxy)
 	}
-	key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMapping, [16]int32{0, 0, 0, 0, format.TagValueIDAggMappingTags, format.TagValueIDAggMappingStatusOKCached})
+	key := ms.sh2.AggKey(0, format.BuiltinMetricIDAggMapping, [16]int32{0, 0, 0, 0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAggMappingStatusOKCached})
 	key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
 
 	r := ms.tagValue.GetCached(now, args.Key)
