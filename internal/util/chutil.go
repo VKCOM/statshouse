@@ -9,6 +9,7 @@ package util
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 	_ "unsafe" // to access clickhouse.bind
 
@@ -58,7 +59,7 @@ func OpenClickHouse(fastSlowMaxConns, lightHeavyMaxConns int, addrs []string, us
 					Password:         password,
 					Compression:      ch.CompressionLZ4,
 					DialTimeout:      dialTimeout,
-					HandshakeTimeout: 5 * time.Second,
+					HandshakeTimeout: 10 * time.Second,
 				}})
 			if err != nil {
 				result.Close()
@@ -137,6 +138,7 @@ func (ch *ClickHouse) Select(ctx context.Context, isFast, isLight bool, query ch
 		if ctx.Err() != nil {
 			return // failed
 		}
+		log.Printf("ClickHouse server is dead #%d: %v", i, err)
 		// keep searching alive server
 		servers = append(servers[:i], servers[i+1:]...)
 	}
