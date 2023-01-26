@@ -1418,7 +1418,6 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 	if avoidCache && !ai.isAdmin() {
 		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
 	}
-
 	getQuery := func(ctx context.Context) (*GetQueryResp, error) {
 		resp, err := h.handleGetQuery(
 			ctx,
@@ -2295,8 +2294,8 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 		return 0, err
 	}
 
-	if len(data) == maxSeriesRows {
-		return len(data), fmt.Errorf("can't fetch more than %v rows", maxSeriesRows) // prevent cache being populated by incomplete data
+	if rows == maxSeriesRows {
+		return rows, fmt.Errorf("can't fetch more than %v rows", maxSeriesRows) // prevent cache being populated by incomplete data
 	}
 	if h.verbose {
 		log.Printf("[debug] loaded %v rows from %v (%v timestamps, %v to %v step %v) for %q in %v",
@@ -2311,26 +2310,7 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 		)
 	}
 
-	for _, row := range data {
-		if !isTimestampValid(row.Time, lod.stepSec, h.utcOffset, h.location) {
-			log.Printf("[warning] got invalid timestamp while loading for %q, ignoring: %d is not a multiple of %v", pq.user, row.Time, lod.stepSec)
-			continue
-		}
-
-		replaceInfNan(&row.CountNorm)
-		replaceInfNan(&row.Val0)
-		replaceInfNan(&row.Val1)
-		replaceInfNan(&row.Val2)
-		replaceInfNan(&row.Val3)
-		replaceInfNan(&row.Val4)
-		replaceInfNan(&row.Val5)
-		replaceInfNan(&row.Val6)
-
-		ix := retStartIx + lod.getIndexForTimestamp(row.Time, 0)
-		ret[ix] = append(ret[ix], row)
-	}
-
-	return len(data), nil
+	return rows, nil
 }
 
 func stableMulDiv(v float64, mul int64, div int64) float64 {

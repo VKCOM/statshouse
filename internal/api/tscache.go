@@ -148,10 +148,10 @@ func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, 
 	}
 
 	ret := make([][]tsSelectRow, lod.getIndexForTimestamp(lod.toSec, 0))
-	var cachedRows int
+	cachedRows := 0
 
-	var realLoadFrom = lod.fromSec
-	var realLoadTo = lod.toSec
+	realLoadFrom := lod.fromSec
+	realLoadTo := lod.toSec
 	if !avoidCache {
 		realLoadFrom, realLoadTo = c.loadCached(key, lod.fromSec, lod.toSec, ret, 0, lod.location, &cachedRows)
 		if realLoadFrom == 0 && realLoadTo == 0 {
@@ -172,6 +172,7 @@ func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, 
 	if avoidCache {
 		return ret, nil
 	}
+
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
 

@@ -80,7 +80,8 @@ const (
 	BuiltinMetricIDAPISelectBytes             = -66
 	BuiltinMetricIDAPISelectRows              = -67
 	BuiltinMetricIDAPISelectDuration          = -68
-	BuiltinMetricIDAPISourceSelectRows        = -69
+	BuiltinMetricIDAgentHistoricQueueSizeSum  = -69
+	BuiltinMetricIDAPISourceSelectRows        = -70
 
 	// metric names used in code directly
 	BuiltinMetricNameAggBucketReceiveDelaySec = "__agg_bucket_receive_delay_sec"
@@ -97,14 +98,13 @@ const (
 	BuiltinMetricNameAPISelectBytes           = "__api_ch_select_bytes"
 	BuiltinMetricNameAPISelectRows            = "__api_ch_select_rows"
 	BuiltinMetricNameAPISourceSelectRows      = "__api_ch_source_select_rows"
-
-	BuiltinMetricNameAPISelectDuration       = "__api_ch_select_duration"
-	BuiltinMetricNameAPIEndpointResponseTime = "__api_endpoint_response_time"
-	BuiltinMetricNameAPIEndpointServiceTime  = "__api_endpoint_service_time"
-	BuiltinMetricNameBudgetHost              = "__budget_host"
-	BuiltinMetricNameBudgetAggregatorHost    = "__budget_aggregator_host"
-	BuiltinMetricNameAPIActiveQueries        = "__api_active_queries"
-	BuiltinMetricNameBudgetUnknownMetric     = "__budget_unknown_metric"
+	BuiltinMetricNameAPISelectDuration        = "__api_ch_select_duration"
+	BuiltinMetricNameAPIEndpointResponseTime  = "__api_endpoint_response_time"
+	BuiltinMetricNameAPIEndpointServiceTime   = "__api_endpoint_service_time"
+	BuiltinMetricNameBudgetHost               = "__budget_host"
+	BuiltinMetricNameBudgetAggregatorHost     = "__budget_aggregator_host"
+	BuiltinMetricNameAPIActiveQueries         = "__api_active_queries"
+	BuiltinMetricNameBudgetUnknownMetric      = "__budget_unknown_metric"
 
 	TagValueIDBadgeIngestionErrorsOld  = -11 // remove from API, then stop writing
 	TagValueIDBadgeAggMappingErrorsOld = -33 // remove from API, then stop writing
@@ -1329,7 +1329,6 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDAPISelectRows:           true,
 		BuiltinMetricIDAPISelectBytes:          true,
 		BuiltinMetricIDAPISelectDuration:       true,
-		BuiltinMetricIDAPISourceSelectRows:     true,
 	}
 
 	metricsWithAgentEnvRouteArch = map[int32]bool{
@@ -1379,7 +1378,6 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDAPISelectDuration:          true,
 		BuiltinMetricIDAPIEndpointResponseTime:    true,
 		BuiltinMetricIDAPIEndpointServiceTime:     true,
-		BuiltinMetricIDAPISourceSelectRows:        true,
 		BuiltinMetricIDAPIActiveQueries:           true,
 		BuiltinMetricIDBudgetHost:                 true,
 		BuiltinMetricIDBudgetAggregatorHost:       true,
