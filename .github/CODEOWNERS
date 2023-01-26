@@ -13,12 +13,12 @@
 /statshouse-ui/                  @vauweb
 /grafana-plugin-ui/              @anhnostrom
 
-/cmd/statshouse/                 @hrissan
+/cmd/statshouse/                 @hrissan @flyingmutant
 /cmd/statshouse-api/             @flyingmutant
 /cmd/statshouse-metadata/        @nevgeny
 /cmd/statshouse-grafana-plugin/  @anhnostrom
 
-/internal/                       @hrissan
+/internal/                       @hrissan @flyingmutant
 /internal/aggregator/prometheus/ @nevgeny
 /internal/api/                   @flyingmutant
 /internal/sqlite/                @flyingmutant
