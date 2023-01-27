@@ -322,7 +322,6 @@ export const useStore = create<Store>()(
       const resetPlot = params.dashboard?.dashboard_id !== getState().params.dashboard?.dashboard_id;
       if (!dequal(params, getState().params)) {
         debug.log('updateParamsByUrl', deepClone(params), deepClone(getState().params));
-        const lastPlot = getState().params.plots;
         setState((store) => {
           if (
             store.params.timeRange.to !== params.timeRange.to ||
@@ -337,9 +336,7 @@ export const useStore = create<Store>()(
           }
         });
         getState().params.plots.forEach((plot, index) => {
-          if (lastPlot[index] !== plot) {
-            getState().loadPlot(index);
-          }
+          getState().loadPlot(index);
         });
       }
       if (reset) {
@@ -355,7 +352,6 @@ export const useStore = create<Store>()(
       const changed = force || !dequal(nextParams, prevParams);
       const changedTimeRange = force || !dequal(nextParams.timeRange, prevParams.timeRange);
       if (changed) {
-        const lastPlot = prevParams.plots;
         setState((state) => {
           if (changedTimeRange) {
             state.timeRange = new TimeRange(nextParams.timeRange);
@@ -363,9 +359,7 @@ export const useStore = create<Store>()(
           state.params = nextParams;
         });
         getState().params.plots.forEach((plot, index) => {
-          if (lastPlot[index] !== plot) {
-            getState().loadPlot(index, force);
-          }
+          getState().loadPlot(index, force);
         });
         if (getState().params.plots.some(({ useV2 }) => !useV2) && getState().liveMode) {
           getState().setLiveMode(false);
