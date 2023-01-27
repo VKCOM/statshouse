@@ -226,6 +226,7 @@ export const configParams: ConfigParams = {
         isArray: true,
       },
       customAgg: {
+        ...NumberParam,
         urlKey: queryParamAgg,
         default: 0,
       },
