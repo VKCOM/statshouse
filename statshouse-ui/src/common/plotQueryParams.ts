@@ -5,6 +5,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import {
+  queryDashboardGroupInfoCount,
+  queryDashboardGroupInfoName,
+  queryDashboardGroupInfoPrefix,
+  queryDashboardGroupInfoShow,
   queryDashboardID,
   queryParamAgg,
   queryParamBackendVersion,
@@ -22,6 +26,7 @@ import {
   queryParamToTime,
   queryParamWhat,
   queryWhat,
+  tabPrefix,
 } from '../view/api';
 import { defaultTimeRange, KeysTo, TIME_RANGE_KEYS_TO } from './TimeRange';
 import {
@@ -62,6 +67,7 @@ export type PlotParams = {
 export type GroupInfo = {
   name: string;
   show: boolean;
+  count: number;
 };
 
 export type DashboardParams = {
@@ -69,6 +75,9 @@ export type DashboardParams = {
   name?: string;
   description?: string;
   version?: number;
+  /**
+   * @deprecated not use
+   */
   groups?: (number | null)[]; // [page_plot]
   groupInfo?: GroupInfo[];
 };
@@ -143,7 +152,10 @@ export function setLiveParams(
 ): URLSearchParams {
   return encodeQueryParams<{ liveMode: boolean }>(configLive, { liveMode: value }, { liveMode: defaultParams }, params);
 }
-
+/**
+ * url get param parser config only dashboard_id
+ * /view?id=144155682
+ */
 export const configDashboardId: ConfigParams = {
   dashboard_id: {
     ...NumberParam,
@@ -152,6 +164,11 @@ export const configDashboardId: ConfigParams = {
     urlKey: queryDashboardID,
   },
 };
+
+/**
+ * url get param parser config only liveMode
+ * /view?live=1
+ */
 export const configLive: ConfigParams = {
   liveMode: {
     ...BooleanParam,
@@ -159,122 +176,167 @@ export const configLive: ConfigParams = {
     urlKey: queryParamLive,
   },
 };
-
+/**
+ * url get param parser config
+ * /view?...
+ */
 export const configParams: ConfigParams = {
   tabNum: {
+    /**
+     * tab page
+     * tn=-2 - dashboard setting
+     * tn=-1 - dashboard
+     * tn=0 - plot number 1
+     */
     ...NumberParam,
     default: 0,
     urlKey: queryParamTabNum,
   },
   dashboard: {
+    /**
+     * dashboard config
+     * id=144155682&
+     */
     params: {
+      /**
+       * dashboard id
+       * id=144155682
+       */
       dashboard_id: {
         ...NumberParam,
         always: true,
         default: undefined,
         urlKey: queryDashboardID,
       },
+      /**
+       * dashboard name
+       */
       name: {
         default: '',
-        urlKey: '',
+        urlKey: '', //not exist in url
       },
+      /**
+       * dashboard description
+       */
       description: {
         default: '',
-        urlKey: '',
+        urlKey: '', //not exist in url
       },
+      /**
+       * dashboard version
+       */
       version: {
         ...NumberParam,
         default: 0,
-        urlKey: '',
+        urlKey: '', //not exist in url
       },
-      groups: {
-        default: [],
-        urlKey: '',
-      },
+      /**
+       * dashboard group info
+       * g0.t=group+0&g.gs=1&gi1.gn=group+1&gi1.gs=0
+       */
       groupInfo: {
         default: [],
         isArray: true,
-        // prefixArray: (i) => `gi${i ? i : ''}.`,
-        prefixArray: () => '',
+        prefixArray: (i) => `${queryDashboardGroupInfoPrefix}${i}.`, // first group not num prefix
         params: {
           name: {
             required: true,
-            default: '',
-            urlKey: '',
+            urlKey: queryDashboardGroupInfoName,
           },
           show: {
             ...BooleanParam,
-            default: true,
-            urlKey: '',
+            default: false,
+            urlKey: queryDashboardGroupInfoShow,
+          },
+          count: {
+            ...NumberParam,
+            default: 0,
+            urlKey: queryDashboardGroupInfoCount,
           },
         },
       },
     },
   },
   plots: {
+    /**
+     * plots filter info
+     * s=metric&qw=avg&qf=0-tag_value&t1.s=metric2&t1.qf=0-tag_value2
+     */
     default: [],
     isArray: true,
-    prefixArray: (i) => (i ? `t${i}.` : ''),
+    prefixArray: (i) => (i ? `${tabPrefix}${i}.` : ''), //first plot not prefix
     params: {
       metricName: {
-        urlKey: queryParamMetric,
+        urlKey: queryParamMetric, // s=metric or t1.s=metric2
         required: true,
       },
       what: {
-        urlKey: queryParamWhat,
+        urlKey: queryParamWhat, // qw=avg or qw=count
         default: ['count_norm'] as queryWhat[],
         isArray: true,
       },
       customAgg: {
         ...NumberParam,
-        urlKey: queryParamAgg,
+        urlKey: queryParamAgg, // g=1 or t1.g=5
         default: 0,
       },
       groupBy: {
-        urlKey: queryParamGroupBy,
+        urlKey: queryParamGroupBy, //qb=key0 or t1.qb=key1
         default: [] as string[],
         isArray: true,
       },
       filterIn: {
         ...FilterParams(),
-        urlKey: queryParamFilter,
+        urlKey: queryParamFilter, //qf=0-tag_value or t1.qf=1-tag_value2
         isArray: true,
         fromEntries: true,
         default: {} as Record<string, string[]>,
       },
       filterNotIn: {
         ...FilterParams(true),
-        urlKey: queryParamFilter,
+        urlKey: queryParamFilter, //qf=0~tag_value or t1.qf=1~tag_value2
         isArray: true,
         fromEntries: true,
         default: {} as Record<string, string[]>,
       },
       numSeries: {
+        /**
+         * top N series
+         */
         ...NumberParam,
-        urlKey: queryParamNumResults,
+        urlKey: queryParamNumResults, //n=5 or t1.n=10
         default: 5,
       },
       timeShifts: {
+        /**
+         * add time shift series
+         */
         ...NumberParam,
-        urlKey: queryParamTimeShifts,
+        urlKey: queryParamTimeShifts, //ts=-86400 or t1.ts=-172800
         default: [] as number[],
         isArray: true,
       },
       useV2: {
+        /**
+         * api version
+         */
         ...UseV2Param,
-        urlKey: queryParamBackendVersion,
+        urlKey: queryParamBackendVersion, // v=2 or t1.v=1
         default: true,
       },
       yLock: {
+        /**
+         * y lock plot
+         */
         params: {
           min: {
             ...NumberParam,
-            urlKey: queryParamLockMin,
+            urlKey: queryParamLockMin, // yl=1010322.5806451612 or t1.yl=1010322.5806451612
             default: 0,
           },
           max: {
             ...NumberParam,
-            urlKey: queryParamLockMax,
+            urlKey: queryParamLockMax, // yh=1637419.3548387096 or t1.yh=1637419.3548387096
             default: 0,
           },
         },
@@ -282,17 +344,32 @@ export const configParams: ConfigParams = {
     },
   },
   timeRange: {
+    /**
+     * t=1675065875&f=-900
+     */
     default: {
       to: TIME_RANGE_KEYS_TO.default,
       from: 0,
     },
     params: {
       to: {
+        /**
+         * t>0 - absolute time
+         * t<0 - relative time now - abs(t second)
+         * t=0 - relative now
+         * t=ed - relative end day
+         * t=ew - relative week
+         * t=d - absolute now time
+         */
         ...TimeToParam,
         default: TIME_RANGE_KEYS_TO.default,
         urlKey: queryParamToTime,
       },
       from: {
+        /**
+         * f>0 - absolute time
+         * f<0 - relative time [time to] - abs(f second)
+         */
         ...NumberParam,
         default: 0,
         urlKey: queryParamFromTime,
@@ -300,8 +377,13 @@ export const configParams: ConfigParams = {
     },
   },
   tagSync: {
+    /**
+     * sync tag from dashboard
+     * fs=0.0-1.0
+     * [plot id].[tag index]-[plot id].[tag index]
+     */
     ...TagSyncParam,
-    urlKey: queryParamFilterSync,
+    urlKey: queryParamFilterSync, // fs=0.0-1.0
     default: [],
   },
 };

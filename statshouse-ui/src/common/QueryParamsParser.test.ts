@@ -537,8 +537,8 @@ describe('QueryParamsParser', () => {
     expect(BooleanParam.decode?.('1')).toBe(true);
     expect(BooleanParam.decode?.('')).toBe(false);
     expect(BooleanParam.encode?.(true)).toBe('1');
-    expect(BooleanParam.encode?.(false)).toBe(undefined);
-    expect(BooleanParam.encode?.(undefined)).toBe(undefined);
+    expect(BooleanParam.encode?.(false)).toBe('0');
+    expect(BooleanParam.encode?.(undefined)).toBe('0');
   });
 
   test('mergeLeft', () => {

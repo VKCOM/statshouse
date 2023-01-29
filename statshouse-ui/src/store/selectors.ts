@@ -138,7 +138,8 @@ export const selectorLoadListServerDashboard = (s: Store) => s.loadListServerDas
 export const selectorDashboardPlotList = (s: Store) =>
   s.params.plots.map((plot, indexPlot) => ({
     plot,
-    group: s.params.dashboard?.groups?.[indexPlot] ?? 0,
+    group:
+      s.params.dashboard?.groupInfo?.flatMap((g, indexGroup) => new Array(g.count).fill(indexGroup))[indexPlot] ?? 0,
     indexPlot,
   }));
 export const selectorSetDashboardGroup = (s: Store) => s.setDashboardGroup;

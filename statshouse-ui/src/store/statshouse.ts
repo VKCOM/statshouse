@@ -270,11 +270,6 @@ export const useStore = create<Store>()(
       }
       let reset = false;
       const nowTime = now();
-      if (saveParams) {
-        if (params.dashboard?.dashboard_id === getState().params.dashboard?.dashboard_id) {
-          params.dashboard = getState().params.dashboard;
-        }
-      }
       if (params.tabNum >= 0 && !params.plots[params.tabNum]) {
         params.tabNum = getState().defaultParams.tabNum;
         reset = true;
@@ -1183,6 +1178,7 @@ export const useStore = create<Store>()(
             if (data) {
               const nextParams = normalizeDashboard(data);
               getState().setSaveDashboardParams(nextParams);
+              getState().setDefaultParams(deepClone(nextParams));
               getState().setParams(deepClone(nextParams));
               resolve(deepClone(nextParams));
             }
@@ -1287,8 +1283,17 @@ export const useStore = create<Store>()(
       getState().setParams(
         produce((params) => {
           if (params.dashboard?.dashboard_id) {
-            params.dashboard.groups = params.dashboard?.groups ?? [];
-            params.dashboard.groups[indexPlot] = indexGroup;
+            params.dashboard.groupInfo = params.dashboard?.groupInfo ?? [
+              { count: params.plots.length, name: '', show: true },
+            ];
+            const groups = params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
+            const minus = groups[indexPlot] ?? 0;
+            params.dashboard.groupInfo[minus].count--;
+            if (params.dashboard.groupInfo[indexGroup]) {
+              params.dashboard.groupInfo[indexGroup].count++;
+            } else {
+              params.dashboard.groupInfo[indexGroup] = { count: 1, name: '', show: true };
+            }
           }
         })
       );
@@ -1355,7 +1360,7 @@ export const useStore = create<Store>()(
             if (state.dashboard.groupInfo[indexGroup]) {
               state.dashboard.groupInfo[indexGroup].name = name;
             } else {
-              state.dashboard.groupInfo[indexGroup] = { show: true, name };
+              state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0 };
             }
           }
         })
@@ -1370,7 +1375,7 @@ export const useStore = create<Store>()(
             if (state.dashboard.groupInfo[indexGroup]) {
               state.dashboard.groupInfo[indexGroup].show = nextShow;
             } else {
-              state.dashboard.groupInfo[indexGroup] = { show: nextShow, name: '' };
+              state.dashboard.groupInfo[indexGroup] = { show: nextShow, name: '', count: 0 };
             }
           }
         })

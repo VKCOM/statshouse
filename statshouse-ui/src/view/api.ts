@@ -447,6 +447,10 @@ export const queryParamAgg = 'g';
 export const tabPrefix = 't';
 export const queryDashboardID = 'id';
 export const queryMetricsGroupID = 'id';
+export const queryDashboardGroupInfoPrefix = 'g';
+export const queryDashboardGroupInfoName = 't';
+export const queryDashboardGroupInfoShow = 'v';
+export const queryDashboardGroupInfoCount = 'n';
 
 export const queryValueBackendVersion1 = '1';
 export const queryValueBackendVersion2 = '2';
