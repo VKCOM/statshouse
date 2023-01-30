@@ -245,7 +245,7 @@ export const configParams: ConfigParams = {
           },
           show: {
             ...BooleanParam,
-            default: false,
+            default: true,
             urlKey: queryDashboardGroupInfoShow,
           },
           count: {
