@@ -1288,9 +1288,15 @@ export const useStore = create<Store>()(
             ];
             const groups = params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
             const minus = groups[indexPlot] ?? 0;
-            params.dashboard.groupInfo[minus].count--;
+            if (params.dashboard.groupInfo[minus]) {
+              params.dashboard.groupInfo[minus].count =
+                (params.dashboard.groupInfo[minus].count ?? params.plots.length) - 1;
+            } else {
+              params.dashboard.groupInfo[minus] = { count: params.plots.length - 1, name: '', show: true };
+            }
+
             if (params.dashboard.groupInfo[indexGroup]) {
-              params.dashboard.groupInfo[indexGroup].count++;
+              params.dashboard.groupInfo[indexGroup].count = (params.dashboard.groupInfo[indexGroup].count ?? 0) + 1;
             } else {
               params.dashboard.groupInfo[indexGroup] = { count: 1, name: '', show: true };
             }
