@@ -4,11 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { dequal } from 'dequal';
+import { dequal } from 'dequal/lite';
 import { KeysTo, TIME_RANGE_KEYS_TO } from './TimeRange';
 import { filterInSep, filterNotInSep, queryValueBackendVersion1, queryValueBackendVersion2 } from '../view/api';
 import produce from 'immer';
 import { deepClone } from '../view/utils';
+
+const maxPrefixArray = 100;
+const removeValueChar = String.fromCharCode(7);
 
 export type ConfigParam<T = any, T2 = T> = {
   always?: boolean;
@@ -70,8 +73,8 @@ function getDecode<T, T2 = T>(values: string[], config: ConfigParam<T, T2>): T2 
   if (config.fromEntries) {
     return values.map(decode);
   }
-  if (config.required && values[0] === '') {
-    return undefined;
+  if (config.required && values[0] === removeValueChar) {
+    return values[0] as T2;
   }
   return decode(values[0]) ?? config.default;
 }
@@ -246,8 +249,6 @@ export const UseV2Param: ConfigParam<boolean> = {
   decode: (s) => s === queryValueBackendVersion2,
 };
 
-const maxPrefixArray = 100;
-
 function valueToArray<T extends Record<string, unknown>>(
   configParams: ConfigParams,
   value: T,
@@ -277,23 +278,19 @@ function valueToArray<T extends Record<string, unknown>>(
         if (!isObject(value[key])) {
           return [[nameParam, undefined]];
         }
+        if (dequal(value[key], defaultParams?.[key])) {
+          return [[nameParam, undefined]];
+        }
+        if (defaultParams?.[key] && !Object.keys(value[key] as Record<string, unknown>).length) {
+          return [[nameParam, removeValueChar]];
+        }
+
         return Object.entries(value[key] as Record<string, unknown>)
           .flatMap(([keyItem, items]) => {
             if (isArray(items)) {
-              return items.flatMap((item, indexItem) =>
-                getEncode([keyItem, item], {
-                  ...config,
-                  default:
-                    (defaultParams?.[key] as Record<string, unknown[]> | undefined)?.[keyItem]?.[indexItem] ??
-                    config.default?.[keyItem]?.[indexItem],
-                })
-              );
+              return items.flatMap((item) => getEncode([keyItem, item], { ...config, default: undefined }));
             }
-            return getEncode([keyItem, items], {
-              ...config,
-              default:
-                (defaultParams?.[key] as Record<string, unknown> | undefined)?.[keyItem] ?? config.default?.[keyItem],
-            });
+            return getEncode([keyItem, items], { ...config, default: undefined });
           })
           .map((item) => [nameParam, item]) as [string, string | undefined][];
       } else if (params) {
@@ -307,7 +304,7 @@ function valueToArray<T extends Record<string, unknown>>(
       }
     }
     if (!value && config.required && typeof (defaultParams?.[key] ?? config.default) !== 'undefined') {
-      return [[nameParam, '']];
+      return [[nameParam, removeValueChar]];
     }
     return (getEncode(value?.[key], { ...config, default: defaultParams?.[key] ?? config.default })?.map((item) => [
       nameParam,
@@ -382,6 +379,9 @@ export function decodeQueryParams<T extends Record<string, unknown>>(
             urlSearchParams
           );
           if (item) {
+            if (Object.values(item).some((v) => v === removeValueChar)) {
+              return [key, arr];
+            }
             arr.push(item);
           } else {
             break;
@@ -397,6 +397,10 @@ export function decodeQueryParams<T extends Record<string, unknown>>(
         if (values.length === 0) {
           return [key, defaultParams?.[key] ?? config.default];
         }
+        if (values.length === 1 && values[0] === removeValueChar) {
+          return [key, {}];
+        }
+
         const items = getDecode(values, { ...config, default: defaultParams?.[key] ?? config.default }) as (
           | [string, unknown]
           | undefined
@@ -427,7 +431,7 @@ export function decodeQueryParams<T extends Record<string, unknown>>(
       }
       const values = urlSearchParams.getAll(prefix + (urlKey ?? key));
 
-      if (config.required && ((values.length === 0 && !(defaultParams?.[key] ?? config.default)) || values[0] === '')) {
+      if (config.required && values.length === 0 && !(defaultParams?.[key] ?? config.default)) {
         throw new Error('required param not find ' + prefix + (urlKey ?? key));
       }
       if (config.isArray && values.length === 0) {
