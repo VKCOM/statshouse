@@ -660,6 +660,19 @@ export function sortByKey(key: string, a: Record<string, any>, b: Record<string,
 
 export function normalizeDashboard(data: DashboardInfo): QueryParams {
   const params = data.dashboard.data as QueryParams;
+  if (params.dashboard?.groups) {
+    params.dashboard.groupInfo = params.dashboard.groupInfo?.map((g, index) => ({
+      ...g,
+      count:
+        params.dashboard?.groups?.reduce((res: number, item) => {
+          if (item === index) {
+            res = res + 1;
+          }
+          return res;
+        }, 0 as number) ?? 0,
+    }));
+    delete params.dashboard.groups;
+  }
   return {
     ...params,
     dashboard: {

@@ -12,15 +12,49 @@ import { deepClone } from '../view/utils';
 
 export type ConfigParam<T = any, T2 = T> = {
   always?: boolean;
+  /**
+   * simple prefix
+   */
   prefix?: string;
-  prefixArray?: (i: number) => string;
+  /**
+   * callback prefix if isArray=true
+   * @param index - index item
+   */
+  prefixArray?: (index: number) => string;
+  /**
+   * param as array
+   */
   isArray?: boolean;
+  /**
+   * param as object
+   */
   fromEntries?: boolean;
+  /**
+   * list param in object
+   */
   params?: Record<string, ConfigParam>;
+  /**
+   * default value
+   */
   default?: T2;
+  /**
+   * name get param in url
+   */
   urlKey?: string;
+  /**
+   * required param of isArray item
+   * if not then end array
+   */
   required?: boolean;
+  /**
+   * encode get param
+   * @param value
+   */
   encode?: (value: T) => string | undefined;
+  /**
+   * decode get param
+   * @param value
+   */
   decode?: (value: string) => T2 | undefined;
 };
 export type ConfigParams = Record<string, ConfigParam>;
@@ -105,6 +139,9 @@ export function mergeLeft<T>(targetMerge: T, valueMerge: T): T {
   return valueMerge;
 }
 
+/**
+ * decode/encode number param
+ */
 export const NumberParam: ConfigParam<number | undefined> = {
   encode: (s) => s?.toString(),
   decode: (s) => {
@@ -115,6 +152,9 @@ export const NumberParam: ConfigParam<number | undefined> = {
   },
 };
 
+/**
+ * decode/encode JSON object param
+ */
 export const ObjectsParam: (separator: string) => ConfigParam<[string, unknown]> = (separator) => ({
   fromEntries: true,
   encode: ([key, value]) => `${key}${separator}${typeof value === 'string' ? value : JSON.stringify(value)}`,
@@ -131,11 +171,17 @@ export const ObjectsParam: (separator: string) => ConfigParam<[string, unknown]>
   },
 });
 
+/**
+ * decode/encode boolean param
+ */
 export const BooleanParam: ConfigParam<boolean | undefined> = {
-  encode: (s) => (s ? '1' : undefined),
-  decode: (s) => !!s,
+  encode: (s) => (s ? '1' : '0'),
+  decode: (s) => s === '1',
 };
 
+/**
+ * decode/encode time to param
+ */
 export const TimeToParam: ConfigParam<number | KeysTo | undefined> = {
   encode: (s) => s?.toString(),
   decode: (s) => {
@@ -149,6 +195,9 @@ export const TimeToParam: ConfigParam<number | KeysTo | undefined> = {
   },
 };
 
+/**
+ * decode/encode tag sync param
+ */
 export const TagSyncParam: ConfigParam<(number | undefined)[]> = {
   isArray: true,
   decode: (s) => [
@@ -165,6 +214,9 @@ export const TagSyncParam: ConfigParam<(number | undefined)[]> = {
       .join('-'),
 };
 
+/**
+ * decode/encode filter param
+ */
 export const FilterParams: (notIn?: boolean) => ConfigParam<[string, string]> = (notIn) => ({
   isArray: true,
   fromEntries: true,
@@ -186,6 +238,9 @@ export const FilterParams: (notIn?: boolean) => ConfigParam<[string, string]> = 
   },
 });
 
+/**
+ * decode/encode v2 param
+ */
 export const UseV2Param: ConfigParam<boolean> = {
   encode: (s) => (s ? queryValueBackendVersion2 : queryValueBackendVersion1),
   decode: (s) => s === queryValueBackendVersion2,
@@ -261,6 +316,16 @@ function valueToArray<T extends Record<string, unknown>>(
   });
 }
 
+/**
+ * encode object in URLSearchParams
+ *
+ * @param configParams - parse config
+ * @param value - value for encode
+ * @param defaultParams - default value, if equal param not write
+ * @param {URLSearchParams} urlSearchParams - source URLSearchParams for change
+ *
+ * @return {URLSearchParams}
+ */
 export function encodeQueryParams<T extends Record<string, unknown>>(
   configParams: ConfigParams,
   value: T,
@@ -284,6 +349,15 @@ export function encodeQueryParams<T extends Record<string, unknown>>(
   return nextParams;
 }
 
+/**
+ * decode object by URLSearchParams
+ *
+ * @param configParams - parse config
+ * @param defaultParams default value if not find in url
+ * @param urlSearchParams - source URLSearchParams for change
+ *
+ * @return - parse object
+ */
 export function decodeQueryParams<T extends Record<string, unknown>>(
   configParams: ConfigParams,
   defaultParams?: T,
