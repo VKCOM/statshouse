@@ -458,6 +458,7 @@ describe('QueryParamsParser', () => {
     };
     const conf: ConfigParams = {
       items: {
+        struct: true,
         isArray: true,
         prefixArray: (i) => `t${i}.`,
         params: {
@@ -508,7 +509,7 @@ describe('QueryParamsParser', () => {
       value,
       p
     );
-    expect(p2.toString()).toEqual('t1.n=%07');
+    expect(p2.toString()).toEqual('t0.n=item1&t0.f=1-value1&t0.f=2-value2');
     const v = decodeQueryParams(conf, value, p2);
     expect(v!).toEqual({
       items: [{ filterIn: { key1: ['value1'], key2: ['value2'] }, name: 'item1' }],

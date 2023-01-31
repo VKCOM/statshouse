@@ -237,6 +237,7 @@ export const configParams: ConfigParams = {
       groupInfo: {
         default: [],
         isArray: true,
+        struct: true,
         prefixArray: (i) => `${queryDashboardGroupInfoPrefix}${i}.`, // first group not num prefix
         params: {
           name: {
@@ -257,6 +258,39 @@ export const configParams: ConfigParams = {
       },
     },
   },
+  timeRange: {
+    /**
+     * t=1675065875&f=-900
+     */
+    default: {
+      to: TIME_RANGE_KEYS_TO.default,
+      from: 0,
+    },
+    params: {
+      to: {
+        /**
+         * t>0 - absolute time
+         * t<0 - relative time now - abs(t second)
+         * t=0 - relative now
+         * t=ed - relative end day
+         * t=ew - relative week
+         * t=d - absolute now time
+         */
+        ...TimeToParam,
+        default: TIME_RANGE_KEYS_TO.default,
+        urlKey: queryParamToTime,
+      },
+      from: {
+        /**
+         * f>0 - absolute time
+         * f<0 - relative time [time to] - abs(f second)
+         */
+        ...NumberParam,
+        default: 0,
+        urlKey: queryParamFromTime,
+      },
+    },
+  },
   plots: {
     /**
      * plots filter info
@@ -264,6 +298,7 @@ export const configParams: ConfigParams = {
      */
     default: [],
     isArray: true,
+    struct: true,
     prefixArray: (i) => (i ? `${tabPrefix}${i}.` : ''), //first plot not prefix
     params: {
       metricName: {
@@ -340,39 +375,6 @@ export const configParams: ConfigParams = {
             default: 0,
           },
         },
-      },
-    },
-  },
-  timeRange: {
-    /**
-     * t=1675065875&f=-900
-     */
-    default: {
-      to: TIME_RANGE_KEYS_TO.default,
-      from: 0,
-    },
-    params: {
-      to: {
-        /**
-         * t>0 - absolute time
-         * t<0 - relative time now - abs(t second)
-         * t=0 - relative now
-         * t=ed - relative end day
-         * t=ew - relative week
-         * t=d - absolute now time
-         */
-        ...TimeToParam,
-        default: TIME_RANGE_KEYS_TO.default,
-        urlKey: queryParamToTime,
-      },
-      from: {
-        /**
-         * f>0 - absolute time
-         * f<0 - relative time [time to] - abs(f second)
-         */
-        ...NumberParam,
-        default: 0,
-        urlKey: queryParamFromTime,
       },
     },
   },

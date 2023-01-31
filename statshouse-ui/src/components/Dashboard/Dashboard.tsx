@@ -11,7 +11,6 @@ import {
   selectorIsServer,
   selectorMoveAndResortPlot,
   selectorParams,
-  selectorSetDashboardGroup,
   selectorSetGroupName,
   selectorSetGroupShow,
   useStore,
@@ -48,7 +47,6 @@ export type DashboardProps = {
 export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize = 54 }) => {
   const params = useStore(selectorParams);
   const dashboardPlots = useStore(selectorDashboardPlotList);
-  const setDashboardGroup = useStore(selectorSetDashboardGroup);
   const moveAndResortPlot = useStore(selectorMoveAndResortPlot);
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
   const setGroupName = useStore(selectorSetGroupName);
@@ -84,12 +82,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
 
   const save = useCallback(
     (index: number, indexTarget: number, indexGroup: number) => {
-      if (indexGroup >= 0) {
-        setDashboardGroup(index, indexGroup);
-      }
-      moveAndResortPlot(index, indexTarget);
+      moveAndResortPlot(index, indexTarget, indexGroup);
     },
-    [moveAndResortPlot, setDashboardGroup]
+    [moveAndResortPlot]
   );
 
   const onDown = useCallback(
