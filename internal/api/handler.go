@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -1098,6 +1099,9 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 		s := "edit"
 		if create {
 			s = "create"
+		}
+		if errors.Is(err, metajournal.InvalidDashboardName) {
+			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't %s dashboard: %w", s, err))
 		}
 		return &DashboardInfo{}, fmt.Errorf("can't %s dashboard: %w", s, err)
 	}

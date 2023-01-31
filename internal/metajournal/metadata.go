@@ -31,6 +31,8 @@ const (
 	prometheusConfigID     = -1 // TODO move to file with predefined entities
 )
 
+var InvalidDashboardName = fmt.Errorf("invalid dashboard name")
+
 type MetricMetaLoader struct {
 	loadTimeout time.Duration
 	client      *tlmetadata.Client
@@ -45,7 +47,7 @@ func NewMetricMetaLoader(client *tlmetadata.Client, loadTimeout time.Duration) *
 
 func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.DashboardMeta, create, remove bool) (format.DashboardMeta, error) {
 	if !format.ValidDashboardName(value.Name) {
-		return format.DashboardMeta{}, fmt.Errorf("invalid dashboard name: %q", value.Name)
+		return format.DashboardMeta{}, fmt.Errorf("%w: %q", InvalidDashboardName, value.Name)
 	}
 	metricBytes, err := json.Marshal(value.JSONData)
 	if err != nil {
@@ -124,7 +126,6 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 	g.Name = event.Name
 	g.UpdateTime = event.UpdateTime
 	g.ID = int32(event.Id)
-	g.DeleteTime = event.Unused
 	return g, nil
 }
 
