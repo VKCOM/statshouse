@@ -293,7 +293,7 @@ describe('QueryParamsParser', () => {
   test('encode default by config', () => {
     const p = encodeQueryParams<Value>(configParams, originalValue, undefined, new URLSearchParams(''));
     expect(p.toString()).toEqual(
-      's=default+original+str&n=6&ar=1&ar=2&a=b&a2=str_b3&b2=str_c3&u=value+undef&to=ew&to2=1000&obj3=ob_key%7C%7B%22a%22%3A5%2C%22b%22%3A%225%22%7D&bool=1'
+      's=default+original+str&n=6&ar=1&ar=2&a=b&a2=str_b3&b2=str_c3&u=value+undef&to=ew&to2=1000&ob=key-%7B%22a%22%3A0%2C%22b%22%3A%22str%22%7D&ob=key2-%7B%22a%22%3A2%2C%22b%22%3A%22str2%22%7D&ob2=key-%7B%22a%22%3A0%2C%22b%22%3A%22str%22%7D&ob2=key-%7B%22a%22%3A2%2C%22b%22%3A%22str2%22%7D&obj3=ob_key%7C%7B%22a%22%3A5%2C%22b%22%3A%225%22%7D&bool=1'
     );
     const v2 = decodeQueryParams<Value>(configParams, undefined, new URLSearchParams(p.toString()));
     expect(v2).toEqual(originalValue);
@@ -508,7 +508,7 @@ describe('QueryParamsParser', () => {
       value,
       p
     );
-    expect(p2.toString()).toEqual('t1.n=');
+    expect(p2.toString()).toEqual('t1.n=%07');
     const v = decodeQueryParams(conf, value, p2);
     expect(v!).toEqual({
       items: [{ filterIn: { key1: ['value1'], key2: ['value2'] }, name: 'item1' }],
