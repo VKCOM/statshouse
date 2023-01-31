@@ -40,6 +40,11 @@ func checkActual(r *rapid.T, e *Engine, actual int64) {
 }
 
 var magicTest = []byte{0x14, 0x29, 0x31, 0x46}
+var (
+	_ *engineMachineWaitCommitMode   // for staticcheck: type engineMachineWaitCommitMode is unused (U1000)
+	_ *engineMachineNoWaitCommitMode // for staticcheck: type engineMachineNoWaitCommitMode is unused (U1000)
+	_ *engineMachineBinlogRun        // for staticcheck: type engineMachineBinlogRun is unused (U1000)
+)
 
 func binlogEvent(v int64) []byte {
 	buffer := bytes.NewBuffer(magicTest)
@@ -260,54 +265,7 @@ func TestApplyCommit(t *testing.T) {
 	rapid.Check(t, rapid.Run[*engineMachineBinlogRun]())
 }
 
-//	type engineMachineBinlogRestart struct {
-//		bl            *binlogMock
-//		engine        *Engine
-//		actualValue   int64
-//		currentOffset int64
-//		commitOffset  int64
-//		wasCommit     bool
-//
-//		lastActualValueBeforeWait   int64
-//		lastCurrentOffsetBeforeWait int64
-//		impl                        *binlogEngineImpl
-//		ready                       bool
-//	}
-//
-//	func initValue(t *rapid.T, m *engineMachineBinlogRestart) {
-//		e, err := newEngine(t, NoWaitCommit, "CREATE TABLE IF NOT EXISTS test (value INTEGER)")
-//		e.isTest = true
-//		require.NoError(t, err)
-//		m.engine = e
-//		m.bl = e.binlog.(*binlogMock)
-//		err = e.Do(context.Background(), func(conn Conn, bytes []byte) ([]byte, error) {
-//			_, err := conn.Exec("INSERT INTO test (value) VALUES (0)")
-//			return nil, err
-//		})
-//		require.NoError(t, err)
-//		e.commitTXAndStartNew(true, false)
-//		m.impl, err = m.engine.binlogRun()
-//		require.NoError(t, err)
-//	}
-//
-//	func (m *engineMachineBinlogRestart) Init(t *rapid.T) {
-//		initValue(t, m)
-//	}
-//
-//	func (m *engineMachineBinlogRestart) Ready(t *rapid.T) {
-//		err := m.engine.binlogWaitReady(m.impl)
-//		require.NoError(t, err)
-//		m.ready = true
-//	}
-//
-// func (m *engineMachineBinlogRestart) ApplyReread() {
-//
-// }
-//
-// func (m *engineMachineBinlogRestart) CommitReread(t *rapid.T) {
-//
-// }
-func openInMemory(path string, flags int) (*sqlite0.Conn, error) {
+func openInMemory(path string, flags int, cb ProfileCallback) (*sqlite0.Conn, error) {
 	conn, err := sqlite0.Open(path, flags|sqlite0.OpenMemory)
 	if err != nil {
 		return nil, err
@@ -332,7 +290,7 @@ func openInMemory(path string, flags int) (*sqlite0.Conn, error) {
 }
 
 func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine, error) {
-	rw, err := openRW(openInMemory, path, appID, initOffsetTable, snapshotMetaTable, scheme)
+	rw, err := openRW(openInMemory, path, appID, nil, initOffsetTable, snapshotMetaTable, scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW connection: %w", err)
 	}

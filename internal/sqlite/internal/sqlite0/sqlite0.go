@@ -55,6 +55,7 @@ import "C"
 import (
 	"runtime"
 	"time"
+	"unsafe"
 )
 
 // TODO: schema arguments (now nil)
@@ -90,9 +91,12 @@ func Version() string {
 	return C.GoString(C.sqlite3_libversion())
 }
 
+type ProfileCallback func(sql, expandedSQL string, duration time.Duration)
+
 type Conn struct {
 	conn   *C.sqlite3
 	unlock *C.unlock
+	cb     ProfileCallback
 }
 
 func Open(path string, flags int) (*Conn, error) {
@@ -135,6 +139,24 @@ func (c *Conn) Close() error {
 		c.unlock = nil
 	}
 	return err
+}
+
+//export go_trace_callback
+func go_trace_callback(t C.uint, c unsafe.Pointer, p unsafe.Pointer, x unsafe.Pointer) C.int {
+	duration := (*C.int)(x)
+	durationGO := time.Duration(*duration)
+	sqlExpanded := C.sqlite3_expanded_sql((*C.sqlite3_stmt)(p))
+	sqlGOExpanded := C.GoString(sqlExpanded)
+	sql := C.sqlite3_sql((*C.sqlite3_stmt)(p))
+	sqlGo := C.GoString(sql)
+	conn := (*Conn)(c)
+	conn.cb(sqlGo, sqlGOExpanded, durationGO)
+	return C.int(0)
+}
+
+func (c *Conn) RegisterCallback(cb ProfileCallback) {
+	c.cb = cb
+	C.registerProfile(c.conn, unsafe.Pointer(c))
 }
 
 func (c *Conn) AutoCommit() bool {

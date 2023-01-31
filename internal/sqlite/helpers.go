@@ -77,7 +77,7 @@ func Version() string {
 }
 
 func doSingleROToWALQuery(path string, f func(*Engine) error) error {
-	ro, err := openROWAL(path, false)
+	ro, err := openROWAL(path, false, nil)
 	if err != nil {
 		return err
 	}

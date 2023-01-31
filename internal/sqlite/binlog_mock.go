@@ -21,25 +21,6 @@ func NewBinlogMock(engine binlog.Engine, t require.TestingT) binlog.Binlog {
 
 func (b *binlogMock) Run(offset int64, snapshotMeta []byte, engine binlog.Engine) error {
 	b.engine = engine
-	//bytes := b.bytes
-	//if len(bytes) > 0 {
-	//	max := 4
-	//	for len(bytes) > 0 {
-	//		offs, err := b.engine.Apply(b.bytes[:max])
-	//		bytes = b.bytes[:offs]
-	//		if errors.Is(err, binlog.ErrorNotEnoughData) {
-	//			max *= 2
-	//		} else {
-	//			max = 4
-	//			require.NoError(b.t, err)
-	//		}
-	//	}
-	//	require.NoError(b.t, engine.ChangeRole(binlog.ChangeRoleInfo{
-	//		IsMaster:   false,
-	//		IsReady:    true,
-	//		ViewNumber: 0,
-	//	}))
-	//}
 	return nil
 }
 
@@ -89,37 +70,6 @@ func (b *binlogMock) MockApply(t require.TestingT, bytes []byte) int64 {
 	b.bytes = append(b.bytes, bytes...)
 	return newOffset
 }
-
-//func (b *binlogMock) MockCommitReread(t require.TestingT, commitOffset int64) bool {
-//	if b.lastCommit == commitOffset {
-//		return false
-//	}
-//	err := b.engine.Commit(commitOffset, binary.AppendVarint(nil, commitOffset), commitOffset)
-//	require.NoError(t, err)
-//	b.lastCommit = commitOffset
-//	return true
-//}
-//
-//func (b *binlogMock) MockApplyReread(t require.TestingT, offset, duration int64) (newOffset int64, isFinish bool, err error) {
-//	bytes := b.bytes[offset:][:duration]
-//	if len(bytes) == 0 {
-//		return 0, true, nil
-//	}
-//	max := 4
-//	for {
-//		readBytes, err := b.engine.Apply(b.bytes[:max])
-//		bytes = b.bytes[:readBytes]
-//		if errors.Is(err, binlog.ErrorNotEnoughData) {
-//			max *= 2
-//			continue
-//		}
-//		if err != nil {
-//			return 0, false, err
-//		}
-//		return offset + readBytes, false, nil
-//
-//	}
-//}
 
 func (b *binlogMock) MockSkip(t require.TestingT, skip int64) int64 {
 	newOffset, err := b.engine.Skip(skip)
