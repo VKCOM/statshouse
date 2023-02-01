@@ -214,12 +214,6 @@ func runMain() int {
 			logErr.Printf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
 			return 1
 		}
-		if legacyVerb {
-			if argv.configAgent.SkipFirstNShards == agent.DefaultConfig().SkipFirstNShards {
-				argv.configAgent.SkipFirstNShards = 12
-				log.Printf("WARNING: using legacy options, overriding video cluster sharding to use only shards 4.. (replica*shards 12..)")
-			}
-		}
 		mainAgent(aesPwd, dc)
 	case "aggregator":
 		mainAggregator(aesPwd, dc)
