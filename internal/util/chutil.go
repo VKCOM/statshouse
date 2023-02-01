@@ -142,7 +142,7 @@ func (ch *ClickHouse) Select(ctx context.Context, isFast, isLight bool, query ch
 		// keep searching alive server
 		servers = append(servers[:i], servers[i+1:]...)
 	}
-	return profile, fmt.Errorf("all ClickHouse servers are dead")
+	return profile, err
 }
 
 func pickRandomServer(s []*chpool.Pool, r *rand.Rand) (int, error) {
