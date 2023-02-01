@@ -1045,6 +1045,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi5(in *jlexer.Lexer
 			}
 		case "what":
 			(out.What).UnmarshalEasyJSON(in)
+		case "total":
+			out.Total = int(in.Int())
 		default:
 			in.SkipRecursive()
 		}
@@ -1105,6 +1107,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi5(out *jwriter.Wri
 		const prefix string = ",\"what\":"
 		out.RawString(prefix)
 		(in.What).MarshalEasyJSON(out)
+	}
+	{
+		const prefix string = ",\"total\":"
+		out.RawString(prefix)
+		out.Int(int(in.Total))
 	}
 	out.RawByte('}')
 }
