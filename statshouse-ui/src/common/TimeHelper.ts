@@ -38,7 +38,7 @@ export class TimeHelper {
       time = new Date();
     }
     time.setHours(23, 59, 59, 0);
-    time.setDate(time.getDate() - time.getDay() + 7);
+    time.setDate(time.getDate() - (time.getDay() || 7) + 7);
     return TimeHelper.toTimeStamp(+time, ms);
   }
 }
