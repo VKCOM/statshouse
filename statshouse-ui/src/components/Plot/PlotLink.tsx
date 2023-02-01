@@ -49,6 +49,9 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
               max: 0,
             },
           });
+          if (p.dashboard?.groupInfo?.length) {
+            p.dashboard.groupInfo[p.dashboard.groupInfo.length - 1].count++;
+          }
           p.tabNum = p.plots.length - 1;
         }
       }),

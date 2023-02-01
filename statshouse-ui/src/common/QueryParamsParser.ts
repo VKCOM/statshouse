@@ -50,6 +50,11 @@ export type ConfigParam<T = any, T2 = T> = {
    */
   required?: boolean;
   /**
+   * struct param of isArray item
+   * if change then rewrite all
+   */
+  struct?: boolean;
+  /**
    * encode get param
    * @param value
    */
@@ -263,6 +268,10 @@ function valueToArray<T extends Record<string, unknown>>(
         if (!isArray(value[key])) {
           return [[nameParam, undefined]];
         }
+        const _default = (defaultParams?.[key] as unknown[] | undefined) ?? config.default?.[key];
+        if (dequal(value[key], _default)) {
+          return [[nameParam, undefined]];
+        }
         return [...(value[key] as Record<string, unknown>[]), undefined].flatMap((v, index) => {
           let prefixA = prefixArray(index);
           const itemConfig = Object.fromEntries(
@@ -271,7 +280,9 @@ function valueToArray<T extends Record<string, unknown>>(
               { ...pConfig, prefix: prefixA + (pConfig.prefix ?? '') },
             ])
           );
-          const _default = (defaultParams?.[key] as unknown[] | undefined)?.[index] ?? config.default?.[index];
+          const _default = config.struct
+            ? config.default?.[index]
+            : (defaultParams?.[key] as unknown[] | undefined)?.[index] ?? config.default?.[index];
           return valueToArray(itemConfig, v, _default, urlSearchParams);
         });
       } else if (fromEntries) {
@@ -373,9 +384,12 @@ export function decodeQueryParams<T extends Record<string, unknown>>(
               { ...pConfig, prefix: prefixA + (pConfig.prefix ?? '') },
             ])
           );
+
           const item = decodeQueryParams(
             itemConfig,
-            (defaultParams?.[key] as unknown[])?.[i] ?? config.default?.[key]?.[i],
+            config.struct
+              ? config.default?.[key]?.[i]
+              : (defaultParams?.[key] as unknown[])?.[i] ?? config.default?.[key]?.[i],
             urlSearchParams
           );
           if (item) {

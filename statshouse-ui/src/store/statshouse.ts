@@ -190,8 +190,7 @@ export type Store = {
   listServerDashboard: dashboardShortInfo[];
   listServerDashboardAbortController?: AbortController;
   loadListServerDashboard(): void;
-  setDashboardGroup(indexPlot: number, indexGroup: number): void;
-  moveAndResortPlot(indexSelectPlot?: number, indexTargetPlot?: number): void;
+  moveAndResortPlot(indexSelectPlot?: number, indexTargetPlot?: number, indexGroup?: number): void;
   dashboardLayoutEdit: boolean;
   setDashboardLayoutEdit(nextStatus: boolean): void;
   setGroupName(indexGroup: number, name: string): void;
@@ -389,11 +388,29 @@ export const useStore = create<Store>()(
     removePlot(index) {
       getState().setParams(
         produce((params) => {
+          const groups = params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
+          if (groups.length !== params.plots.length) {
+            while (groups.length < params.plots.length) {
+              groups.push(Math.max(0, (params.dashboard?.groupInfo?.length ?? 0) - 1));
+            }
+          }
           if (params.plots.length > 1) {
             params.plots.splice(index, 1);
             params.tagSync = params.tagSync.map((g) => g.filter((tags, plot) => plot !== index));
-            if (params.dashboard?.groups) {
-              params.dashboard.groups.splice(index, 1);
+            groups.splice(index, 1);
+            if (params.dashboard?.groupInfo?.length) {
+              params.dashboard.groupInfo = params.dashboard.groupInfo
+                .map((g, index) => ({
+                  ...g,
+                  count:
+                    groups.reduce((res: number, item) => {
+                      if (item === index) {
+                        res = res + 1;
+                      }
+                      return res;
+                    }, 0 as number) ?? 0,
+                }))
+                .filter((g) => g.count > 0);
             }
           }
           if (params.tabNum > index) {
@@ -1279,49 +1296,18 @@ export const useStore = create<Store>()(
           getState().setGlobalNumQueriesPlot((s) => s - 1);
         });
     },
-    setDashboardGroup(indexPlot, indexGroup) {
-      getState().setParams(
-        produce((params) => {
-          if (params.dashboard?.dashboard_id) {
-            params.dashboard.groupInfo = params.dashboard?.groupInfo ?? [
-              { count: params.plots.length, name: '', show: true },
-            ];
-            const groups = params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
-            const minus = groups[indexPlot] ?? 0;
-            if (params.dashboard.groupInfo[minus]) {
-              params.dashboard.groupInfo[minus].count =
-                (params.dashboard.groupInfo[minus].count ?? params.plots.length) - 1;
-              if (!params.dashboard.groupInfo[minus].count && params.dashboard.groupInfo[minus].name === '') {
-                params.dashboard.groupInfo.splice(minus, 1);
-              }
-            } else {
-              params.dashboard.groupInfo[minus] = {
-                count: Math.max(0, params.plots.length - 1),
-                name: '',
-                show: true,
-              };
-            }
-
-            if (params.dashboard.groupInfo[indexGroup]) {
-              params.dashboard.groupInfo[indexGroup].count = (params.dashboard.groupInfo[indexGroup].count ?? 0) + 1;
-            } else {
-              params.dashboard.groupInfo[indexGroup] = { count: 1, name: '', show: true };
-            }
-            if (
-              params.dashboard.groupInfo &&
-              params.dashboard.groupInfo.length === 1 &&
-              !params.dashboard.groupInfo[0].name
-            ) {
-              params.dashboard.groupInfo = [];
-            }
-          }
-        })
-      );
-    },
-    moveAndResortPlot(indexSelectPlot, indexTargetPlot) {
+    moveAndResortPlot(indexSelectPlot, indexTargetPlot, indexGroup) {
       const prevState = getState();
       const groups =
         prevState.params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
+      if (groups.length !== prevState.params.plots.length) {
+        while (groups.length < prevState.params.plots.length) {
+          groups.push(Math.max(0, (prevState.params.dashboard?.groupInfo?.length ?? 0) - 1));
+        }
+      }
+      if (typeof indexSelectPlot !== 'undefined' && typeof indexGroup !== 'undefined' && indexGroup >= 0) {
+        groups[indexSelectPlot] = indexGroup;
+      }
       const normalize = prevState.params.plots.map((plot, indexPlot) => ({
         plot,
         group: groups[indexPlot] ?? 0,
@@ -1356,6 +1342,27 @@ export const useStore = create<Store>()(
         produce((params) => {
           params.plots = plots;
           params.tagSync = tagSync;
+
+          if (params.dashboard && typeof indexGroup !== 'undefined' && indexGroup >= 0) {
+            params.dashboard.groupInfo = params.dashboard.groupInfo ?? [];
+            params.dashboard.groupInfo[indexGroup] = params.dashboard.groupInfo[indexGroup] ?? {
+              name: '',
+              count: 0,
+              show: true,
+            };
+            params.dashboard.groupInfo = params.dashboard.groupInfo
+              .map((g, index) => ({
+                ...g,
+                count:
+                  groups.reduce((res: number, item) => {
+                    if (item === index) {
+                      res = res + 1;
+                    }
+                    return res;
+                  }, 0 as number) ?? 0,
+              }))
+              .filter((g) => g.count > 0);
+          }
         })
       );
       setState((state) => {

@@ -139,10 +139,10 @@ export const selectorDashboardPlotList = (s: Store) =>
   s.params.plots.map((plot, indexPlot) => ({
     plot,
     group:
-      s.params.dashboard?.groupInfo?.flatMap((g, indexGroup) => new Array(g.count).fill(indexGroup))[indexPlot] ?? 0,
+      s.params.dashboard?.groupInfo?.flatMap((g, indexGroup) => new Array(g.count).fill(indexGroup))[indexPlot] ??
+      Math.max(0, (s.params.dashboard?.groupInfo?.length ?? 0) - 1),
     indexPlot,
   }));
-export const selectorSetDashboardGroup = (s: Store) => s.setDashboardGroup;
 export const selectorMoveAndResortPlot = (s: Store) => s.moveAndResortPlot;
 export const selectorDashboardLayoutEdit = (s: Store) => s.dashboardLayoutEdit;
 export const selectorSetDashboardLayoutEdit = (s: Store) => s.setDashboardLayoutEdit;
