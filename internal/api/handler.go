@@ -311,6 +311,7 @@ type (
 		Tags      map[string]SeriesMetaTag `json:"tags"`
 		MaxHosts  []string                 `json:"max_hosts"` // max_host for now
 		What      queryFn                  `json:"what"`
+		Total     int                      `json:"total"`
 	}
 
 	SeriesMetaTag struct {
@@ -1782,7 +1783,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 					maxHosts = maxHosts[1:]
 				}
 
-				meta = append(meta, QuerySeriesMetaV2{TimeShift: toSec(shift), Tags: kvs, MaxHosts: maxHosts, What: q.what})
+				meta = append(meta, QuerySeriesMetaV2{TimeShift: toSec(shift), Tags: kvs, MaxHosts: maxHosts, What: q.what, Total: len(tagsToIx)})
 				data = append(data, &s)
 			}
 
