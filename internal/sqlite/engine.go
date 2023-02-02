@@ -121,12 +121,16 @@ type Engine struct {
 	readyNotify          sync.Once
 	commitCh             chan struct{}
 	stats                *stats
+
+	isTest            bool
+	mustCommitNowFlag bool
+	mustWaitCommit    bool
 }
 
 type Options struct {
 	Path              string
 	APPID             int32
-	serviceName       string
+	ServiceName       string
 	Scheme            string
 	Replica           bool
 	CommitEvery       time.Duration
@@ -229,7 +233,7 @@ func openDB(opt Options,
 		waitUntilBinlogReady: make(chan struct{}),
 		commitCh:             make(chan struct{}, 1),
 		mode:                 replica,
-		stats:                &stats{serviceName: opt.serviceName},
+		stats:                &stats{serviceName: opt.ServiceName},
 	}
 	e.roCond = sync.NewCond(&e.roMx)
 	if opt.ReadAndExit {
@@ -280,29 +284,14 @@ func (e *Engine) binlogRun() (*binlogEngineImpl, error) {
 			}
 
 		}()
-		startReradingTime := time.Now()
-		<-e.waitUntilBinlogReady
-		e.stats.queryDuration(action, "binlog_reread", time.Since(startReradingTime))
-		// in master mode we need to apply all queued events, before handling queries
-		// in replica mode it's not needed, because we are getting apply events from binlog
-		if !opt.Replica && binlogEngineImpl.state == waitToCommit {
-			err := binlogEngineImpl.applyQueue.applyAllChanges(binlogEngineImpl.apply, binlogEngineImpl.skip)
-			if err != nil {
-				return nil, fmt.Errorf("failed to apply queued events: %w", err)
-			}
-			binlogEngineImpl.state = none
-		}
-		if opt.ReadAndExit {
-			e.binlog = nil
-		}
 	}
 	return impl, nil
 }
 
 func (e *Engine) binlogWaitReady(impl *binlogEngineImpl) error {
-	startRereadingTime := time.Now()
+	startReradingTime := time.Now()
 	<-e.waitUntilBinlogReady
-	e.opt.StatsOptions.measureActionDurationSince("binlog_reread", startRereadingTime)
+	e.stats.queryDuration(action, "binlog_reread", time.Since(startReradingTime))
 	// in master mode we need to apply all queued events, before handling queries
 	// in replica mode it's not needed, because we are getting apply events from binlog
 	if !e.opt.Replica && impl.state == waitToCommit {
@@ -318,7 +307,7 @@ func (e *Engine) binlogWaitReady(impl *binlogEngineImpl) error {
 	return nil
 }
 
-func openWAL(path string, flags int, callback ProfileCallback) (*sqlite0.Conn, error) {
+func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 	conn, err := sqlite0.Open(path, flags)
 	if err != nil {
 		return nil, err
@@ -547,7 +536,7 @@ func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, ski
 			}
 		}
 		if e.rw.err == nil {
-			_, err := c.exec(true, "internal_commit_tx", commitStmt)
+			_, err := c.exec(true, commitStmt)
 			if err != nil {
 				e.rw.err = fmt.Errorf("periodic tx commit failed: %w", err)
 			}
@@ -557,6 +546,7 @@ func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, ski
 
 	if e.rw.err == nil {
 		_, err := c.exec(true, "internal_begin_tx", beginStmt)
+		_, err := c.exec(true, beginStmt)
 		if err != nil {
 			e.rw.err = fmt.Errorf("periodic tx begin failed: %w", err)
 		}
@@ -687,6 +677,13 @@ func (e *Engine) view(ctx context.Context, queryName string, fn func(Conn) error
 	return err
 }
 
+func (e *Engine) mustCommitNow(waitCommitMode, isReadOp bool) bool {
+	if !e.isTest {
+		return time.Since(e.lastCommitTime) >= e.opt.CommitEvery && !waitCommitMode && !isReadOp
+	}
+	return e.mustCommitNowFlag
+}
+
 func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) (chan struct{}, error) {
 	startTimeBeforeLock := time.Now()
 	c := e.start(ctx, true)
@@ -762,8 +759,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	e.stats.queryDuration(tx, queryName, time.Since(startTimeBeforeLock))
 	e.stats.queryDuration(tx, queryName, time.Since(startTimeAfterLock))
 
-	return ch, err
-
+	return ch, nil
 }
 
 func (e *Engine) Do(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) error {
