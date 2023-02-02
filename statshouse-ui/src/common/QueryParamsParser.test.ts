@@ -563,6 +563,24 @@ describe('QueryParamsParser', () => {
     const v = mergeLeft<MergeLeftVal2>(v1, v2);
     expect(Object.entries(v.items[0])).toEqual([['key4', ['value4']]]);
   });
+  test('mergeLeft 2.1', () => {
+    type MergeLeftVal2 = {
+      items: Record<string, string[]>[];
+      n: number;
+    };
+    const v1: MergeLeftVal2 = {
+      items: [{ key1: ['value1'] }],
+      n: 0,
+    };
+    const v2: MergeLeftVal2 = {
+      items: [{ key1: ['value1'] }],
+      n: 1,
+    };
+
+    const v = mergeLeft<MergeLeftVal2>(v1, v2);
+    expect(v.items).toBe(v1.items);
+    expect(v.n).toBe(v2.n);
+  });
   test('mergeLeft 3', () => {
     type MergeLeftVal3 = Record<string, string>;
     const v1: MergeLeftVal3 = { key1: 'value1' };
