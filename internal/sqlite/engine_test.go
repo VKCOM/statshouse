@@ -131,9 +131,6 @@ func openEngine(t *testing.T, prefix string, dbfile, schema string, create, repl
 		Replica:           replica,
 		ReadAndExit:       readAndExit,
 		CommitOnEachWrite: commitOnEachWrite,
-		ProfileCallback: func(sql, expandedSQL string, duration time.Duration) {
-			fmt.Println("SQL:", sql, "expandedSQL:", expandedSQL, "duration:", duration)
-		},
 	}, bl, apply(t, false, applyF), apply(t, true, applyF))
 	require.NoError(t, err)
 	return engine, bl
@@ -549,7 +546,7 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 		if share {
 			view = engine.ViewUncommitted
 		}
-		err = view(context.Background(), func(conn Conn) error {
+		err = view(context.Background(), "test", func(conn Conn) error {
 			if rec > 0 {
 				s = append(s, read(share, rec-1)...)
 			}
