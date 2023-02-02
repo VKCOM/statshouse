@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React from 'react';
-import uPlot from './lib/uPlot/uPlot.esm';
+import uPlot from 'uplot';
 import { TimeRange } from '../common/TimeRange';
 import * as api from './api';
 import { DashboardInfo, RawValueKind } from './api';

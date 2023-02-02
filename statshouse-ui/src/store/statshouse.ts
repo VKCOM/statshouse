@@ -6,6 +6,8 @@
 
 import create from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import uPlot from 'uplot';
+
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
 import {
   configParams,
@@ -17,7 +19,6 @@ import {
   setLiveParams,
   sortEntity,
 } from '../common/plotQueryParams';
-import uPlot from '../view/lib/uPlot/uPlot.esm';
 import { dequal } from 'dequal/lite';
 import React from 'react';
 import { URLSearchParamsInit } from 'react-router-dom';
@@ -648,6 +649,9 @@ export const useStore = create<Store>()(
                   align: 1,
                 }),
                 values(u, seriesIdx, idx): PlotValues {
+                  if (idx === null) {
+                    return { rawValue: null, value: '', max_host: '', total: 0, percent: '', max_host_percent: '' };
+                  }
                   const rawValue = u.data[seriesIdx]?.[idx] ?? null;
                   let total = 0;
                   for (let i = 1; i < u.series.length; i++) {

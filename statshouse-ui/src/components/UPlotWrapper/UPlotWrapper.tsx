@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import uPlot from '../../view/lib/uPlot/uPlot.esm';
+import uPlot from 'uplot';
 import { useResizeObserver } from '../../view/utils';
 import { canvasToImageData } from '../../common/canvasToImage';
 import { debug } from '../../common/debug';
@@ -68,7 +68,10 @@ function readLegend(u: uPlot): LegendItem[] {
       }
       idx = lastIndex;
       if (index === 0) {
-        lastTime = (typeof s.value === 'function' ? s.value(u, u.data[index][idx], 0, idx) : s.value)?.toString() ?? '';
+        lastTime =
+          (typeof s.value === 'function' ? s.value(u, u.data[index][idx], 0, idx) : s.value)
+            ?.toString()
+            .replace('--', '') ?? ''; // replace '--' uplot
       }
     }
     return {
@@ -79,7 +82,7 @@ function readLegend(u: uPlot): LegendItem[] {
       fill: s.fill instanceof Function ? s.fill(u, index)?.toString() : s.fill?.toString(),
       stroke: s.stroke instanceof Function ? s.stroke(u, index)?.toString() : s.stroke?.toString(),
       show: s.show ?? false,
-      value: u.legend.values?.[index]?.['_']?.toString().replace('—', '') || lastTime, // replace '—' uplot
+      value: u.legend.values?.[index]?.['_']?.toString().replace('--', '') || lastTime, // replace '--' uplot
       values: typeof idx === 'number' ? s.values?.(u, index, idx) : undefined,
       alpha: s.alpha,
     };
