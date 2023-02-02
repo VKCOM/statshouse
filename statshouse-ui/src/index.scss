@@ -30,7 +30,7 @@
 @import '~bootstrap/scss/nav';
 @import '~bootstrap/scss/dropdown';
 
-@import 'view/lib/uPlot/uPlot.css';
+@import 'uplot/dist/uPlot.min.css';
 
 :root {
   --golden-ratio: 1.61803398875;

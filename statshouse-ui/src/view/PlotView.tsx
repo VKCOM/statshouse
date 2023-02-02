@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import uPlot from './lib/uPlot/uPlot.esm';
+import uPlot from 'uplot';
 import { calcYRange } from '../common/calcYRange';
 import { PlotSubMenu } from '../components/Plot/PlotSubMenu';
 import { PlotHeader } from '../components/Plot/PlotHeader';
