@@ -9,6 +9,7 @@ import css from './style.module.css';
 import { useDebounceState } from '../../hooks';
 import useDeepCompareEffect from 'use-deep-compare-effect';
 import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from '../../common/toggleKeyboard';
+import cn from 'classnames';
 
 export type SelectOptionProps = {
   value: string;
@@ -17,6 +18,7 @@ export type SelectOptionProps = {
   title?: string;
   disabled?: boolean;
   splitter?: boolean;
+  stickyTop?: boolean;
 };
 
 export type SelectProps = {
@@ -31,6 +33,7 @@ export type SelectProps = {
   loading?: boolean;
   multiple?: boolean;
   moreItems?: boolean;
+  showCountItems?: boolean;
   onceSelectByClick?: boolean;
   onChange?: (value?: string | string[], name?: string) => void;
   onFocus?: () => void;
@@ -64,7 +67,7 @@ function appendItems(target: HTMLElement, items: SelectOptionProps[], multiple: 
       }
       const elem = document.createElement('LI') as HTMLElement;
       const label = document.createElement('SPAN') as HTMLElement;
-      elem.className = css.option;
+      elem.className = cn(css.option, item.stickyTop && css.optionStickyTop);
       label.className = css.label;
       if (item.value) {
         elem.dataset.value = item.value;
@@ -181,6 +184,7 @@ export const Select: FC<SelectProps> = ({
   loading = false,
   multiple = false,
   moreItems = false,
+  showCountItems = false,
   onceSelectByClick = false,
   onChange = () => undefined,
   onFocus = () => undefined,
@@ -432,11 +436,15 @@ export const Select: FC<SelectProps> = ({
     if (start + maxOptions < filtered.length) {
       result.push({ value: '', disabled: true, name: '...' });
     }
-    if (moreItems && options?.length) {
+
+    if (showCountItems && options?.length) {
+      const total = moreItems ? `>${options?.length}, truncated` : options?.length;
+      result.unshift({ value: '', disabled: true, stickyTop: true, name: `${filtered.length} of ${total}` });
+    } else if (moreItems && options?.length) {
       result.push({ value: '', disabled: true, name: `>${options?.length} items, truncated` });
     }
     return result;
-  }, [options, searchValueDebounce, noSearch, maxOptions, moreItems, valuesInput]);
+  }, [options, searchValueDebounce, noSearch, maxOptions, moreItems, showCountItems, valuesInput]);
 
   const updatePositionClass = useCallback(() => {
     if (list.current && input.current) {
