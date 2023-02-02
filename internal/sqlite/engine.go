@@ -307,7 +307,7 @@ func (e *Engine) binlogWaitReady(impl *binlogEngineImpl) error {
 	return nil
 }
 
-func openWAL(path string, flags int) (*sqlite0.Conn, error) {
+func openWAL(path string, flags int, callback ProfileCallback) (*sqlite0.Conn, error) {
 	conn, err := sqlite0.Open(path, flags)
 	if err != nil {
 		return nil, err
@@ -536,7 +536,7 @@ func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, ski
 			}
 		}
 		if e.rw.err == nil {
-			_, err := c.exec(true, commitStmt)
+			_, err := c.exec(true, "internal_commit", commitStmt)
 			if err != nil {
 				e.rw.err = fmt.Errorf("periodic tx commit failed: %w", err)
 			}
@@ -546,7 +546,6 @@ func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, ski
 
 	if e.rw.err == nil {
 		_, err := c.exec(true, "internal_begin_tx", beginStmt)
-		_, err := c.exec(true, beginStmt)
 		if err != nil {
 			e.rw.err = fmt.Errorf("periodic tx begin failed: %w", err)
 		}
