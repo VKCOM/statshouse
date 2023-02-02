@@ -25,6 +25,10 @@ const (
 
 // Apply is used when re-reading or when working as a replica
 func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error) {
+	start := time.Now()
+	defer func() {
+		impl.e.stats.queryDuration(action, "engine_apply", time.Since(start))
+	}()
 	e := impl.e
 	if e.opt.ReadAndExit {
 		offs, err := impl.apply(payload)
@@ -36,7 +40,7 @@ func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error)
 		committedInfo := e.committedInfo.Load().(*committedInfo)
 		if committedInfo != nil && e.dbOffset > committedInfo.offset {
 			if impl.state == none {
-				impl.applyQueue = newApplyQueue(impl.applyQueue, e.dbOffset, maxReplicaQueueBytes)
+				impl.applyQueue = newApplyQueue(impl.applyQueue, e.dbOffset, maxReplicaQueueBytes, impl.e.stats)
 			}
 			impl.state = waitToCommit
 			n, err := e.scan(Conn{}, e.dbOffset, payload)
@@ -91,6 +95,10 @@ func (impl *binlogEngineImpl) apply(payload []byte) (newOffset int64, err error)
 }
 
 func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
+	commitStart := time.Now()
+	defer func() {
+		impl.e.stats.queryDuration(action, "engine_commit", time.Since(commitStart))
+	}()
 	e := impl.e
 	old := e.committedInfo.Load()
 	if old != nil {
@@ -145,6 +153,10 @@ func (impl *binlogEngineImpl) ChangeRole(info binlog2.ChangeRoleInfo) error {
 }
 
 func (impl *binlogEngineImpl) Skip(skipLen int64) (int64, error) {
+	start := time.Now()
+	defer func() {
+		impl.e.stats.queryDuration(action, "engine_skip", time.Since(start))
+	}()
 	if impl.state == waitToCommit {
 		return impl.applyQueue.addNewSkip(skipLen), nil
 	}
