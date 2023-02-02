@@ -31,7 +31,7 @@ type Conn struct {
 	c             *sqliteConn
 	autoSavepoint bool
 	ctx           context.Context
-	stats         *StatsOptions
+	stats         *stats
 }
 
 func newSqliteConn(rw *sqlite0.Conn) *sqliteConn {
@@ -71,23 +71,23 @@ func (c Conn) close() {
 func (c Conn) execBeginSavepoint() error {
 	c.c.spIn = true
 	c.c.spOk = false
-	_, err := c.exec(true, "__begin_savepoint", c.c.spBeginStmt)
+	_, err := c.exec(true, "internal_begin_savepoint", c.c.spBeginStmt)
 	return err
 }
 
 func (c Conn) execEndSavepoint() {
 	if c.c.spIn {
 		if c.c.spOk {
-			_, _ = c.exec(true, "__commit_savepoint", c.c.spCommitStmt)
+			_, _ = c.exec(true, "internal_commit_savepoint", c.c.spCommitStmt)
 		} else {
-			_, _ = c.exec(true, "__rollback_savepoint", c.c.spRollbackStmt)
+			_, _ = c.exec(true, "internal_rollback_savepoint", c.c.spRollbackStmt)
 		}
 		c.c.spIn = false
 	}
 }
 
 func (c Conn) Query(name, sql string, args ...Arg) Rows {
-	return c.query(false, query, name, sql, args...)
+	return c.query(false, name, sql, args...)
 }
 
 func (c Conn) Exec(name, sql string, args ...Arg) (int64, error) {
@@ -98,14 +98,14 @@ func (c Conn) ExecUnsafe(name, sql string, args ...Arg) (int64, error) {
 	return c.exec(true, name, sql, args...)
 }
 
-func (c Conn) query(allowUnsafe bool, type_, name, sql string, args ...Arg) Rows {
+func (c Conn) query(allowUnsafe bool, name, sql string, args ...Arg) Rows {
 	start := time.Now()
 	s, err := c.doQuery(allowUnsafe, sql, args...)
-	return Rows{c.c, s, err, false, c.ctx, name, start, c.stats, type_}
+	return Rows{c.c, s, err, false, c.ctx, name, start, c.stats}
 }
 
 func (c Conn) exec(allowUnsafe bool, name, sql string, args ...Arg) (int64, error) {
-	rows := c.query(allowUnsafe, exec, name, sql, args...)
+	rows := c.query(allowUnsafe, name, sql, args...)
 	for rows.Next() {
 	}
 	return c.LastInsertRowID(), rows.Error()
@@ -119,8 +119,7 @@ type Rows struct {
 	ctx   context.Context
 	name  string
 	start time.Time
-	stats *StatsOptions
-	type_ string
+	stats *stats
 }
 
 func (r *Rows) Error() error {
@@ -147,7 +146,8 @@ func (r *Rows) next(setUsed bool) bool {
 		r.err = err
 	}
 	if !row {
-		r.stats.measureSqliteQueryDurationSince(r.type_, r.name, r.start)
+		duration := time.Since(r.start)
+		r.stats.queryDuration(query, r.name, duration)
 	}
 	return row
 }

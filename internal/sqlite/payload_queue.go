@@ -22,7 +22,7 @@ type delayedApply struct {
 	skip int64
 }
 
-func newApplyQueue(old *applyQueue, dbOffset int64, maxBytes int64, stats *StatsOptions) *applyQueue {
+func newApplyQueue(old *applyQueue, dbOffset int64, maxBytes int64, stats *stats) *applyQueue {
 	if old != nil {
 		old.maxBytes = maxBytes
 		atomic.StoreInt64(&old.qBytes, 0)
