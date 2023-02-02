@@ -1171,6 +1171,7 @@ export const useStore = create<Store>()(
     },
     saveServerParams() {
       return new Promise((resolve, reject) => {
+        const to = getState().params.timeRange.to;
         const paramsData: QueryParams = {
           ...getState().params,
           tabNum: -1,
@@ -1178,6 +1179,10 @@ export const useStore = create<Store>()(
             name: '',
             description: '',
             ...getState().params.dashboard,
+          },
+          timeRange: {
+            ...getState().params.timeRange,
+            to: typeof to === 'number' && to > 0 ? 0 : to,
           },
         };
         const params: DashboardInfo = {
