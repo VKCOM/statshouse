@@ -562,7 +562,7 @@ export const useStore = create<Store>()(
       ) {
         const agg =
           lastPlotParams.customAgg === -1
-            ? `${Math.floor(width / 2)}`
+            ? `${Math.floor(width / 4)}`
             : lastPlotParams.customAgg === 0
             ? `${Math.floor(width * devicePixelRatio)}`
             : `${lastPlotParams.customAgg}s`;
