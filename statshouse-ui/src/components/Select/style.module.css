@@ -8,8 +8,10 @@
 :root {
   --selectLoaderColor: black;
   --selectBgColor: white;
+  --selectStickyBgColor: rgba(255, 255, 255, 0.9);
   --selectSelectedBgColor: #81dff3;
   --selectCursorBgCollor: #c8c8c8;
+  --selectDisabledCollor: #888888;
   --selectSelectedCursorBgCollor: #68afc0;
 }
 
@@ -250,7 +252,15 @@
 .select .option[data-disabled] {
   background-color: transparent;
   cursor: inherit;
-  opacity: 0.5;
+  color: var(--selectDisabledCollor);
+}
+
+.select .option.optionStickyTop {
+  position: sticky;
+  top: 0;
+  opacity: 1;
+  background-color: var(--selectStickyBgColor);
+  z-index: 1;
 }
 
 .select.full .option {
@@ -272,7 +282,7 @@
   overflow: hidden;
 }
 
-.select .optionSplitter{
+.select .optionSplitter {
   border-bottom: 1px solid var(--selectCursorBgCollor);
   margin: 0.25em;
 }

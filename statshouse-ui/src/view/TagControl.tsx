@@ -246,6 +246,7 @@ export const TagControl = memo(function TagControl_(props: {
             onceSelectByClick
             multiple
             moreItems={more}
+            showCountItems
             onChange={onFilterChange}
             options={listSort}
             onFocus={onTagSelectFocus}
