@@ -131,6 +131,9 @@ func openEngine(t *testing.T, prefix string, dbfile, schema string, create, repl
 		Replica:           replica,
 		ReadAndExit:       readAndExit,
 		CommitOnEachWrite: commitOnEachWrite,
+		ProfileCallback: func(sql, expandedSQL string, duration time.Duration) {
+			fmt.Println("SQL:", sql, "expandedSQL:", expandedSQL, "duration:", duration)
+		},
 	}, bl, apply(t, false, applyF), apply(t, true, applyF))
 	require.NoError(t, err)
 	return engine, bl
@@ -621,8 +624,8 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 	})
 
 	t.Run("RO unshared can work concurrently", func(t *testing.T) {
-		s := read(false, 100)
-		require.Len(t, s, 303)
+		s := read(false, maxROConn-1)
+		require.Len(t, s, 3*maxROConn)
 		require.Contains(t, s, "abc")
 		require.Contains(t, s, "def")
 		require.Contains(t, s, "ggg")
