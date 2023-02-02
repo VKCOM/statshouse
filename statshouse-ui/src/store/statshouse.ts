@@ -254,6 +254,8 @@ export const useStore = create<Store>()(
           to:
             saveParams && !(typeof saveParams?.timeRange.to === 'number' && saveParams.timeRange.to > 0)
               ? saveParams.timeRange.to
+              : id
+              ? 0
               : defaultParams.timeRange.to,
           from: saveParams?.timeRange.from ?? defaultParams.timeRange.from,
         },
