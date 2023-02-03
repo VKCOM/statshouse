@@ -263,6 +263,10 @@
   z-index: 1;
 }
 
+.select .option[data-disabled].optionStickyTop .checkbox {
+  display: none;
+}
+
 .select.full .option {
   padding: 0.5em;
 }
