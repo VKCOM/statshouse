@@ -11,6 +11,11 @@ import useDeepCompareEffect from 'use-deep-compare-effect';
 import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from '../../common/toggleKeyboard';
 import cn from 'classnames';
 
+export const SELECT_OPTION_ACTION = {
+  ToggleFiltered: 'ToggleFiltered',
+} as const;
+export type SelectOptionAction = typeof SELECT_OPTION_ACTION[keyof typeof SELECT_OPTION_ACTION];
+
 export type SelectOptionProps = {
   value: string;
   name: string;
@@ -19,6 +24,8 @@ export type SelectOptionProps = {
   disabled?: boolean;
   splitter?: boolean;
   stickyTop?: boolean;
+  action?: SelectOptionAction;
+  select?: boolean;
 };
 
 export type SelectProps = {
@@ -28,6 +35,7 @@ export type SelectProps = {
   classNameList?: string;
   classNameInput?: string;
   maxOptions?: number;
+  maxToggleFiltered?: number;
   placeholder?: string;
   showSelected?: boolean;
   loading?: boolean;
@@ -71,6 +79,9 @@ function appendItems(target: HTMLElement, items: SelectOptionProps[], multiple: 
       label.className = css.label;
       if (item.value) {
         elem.dataset.value = item.value;
+      }
+      if (item.action) {
+        elem.dataset.action = item.action;
       }
       if (item.disabled) {
         elem.dataset.disabled = '';
@@ -117,10 +128,24 @@ function updateClass(list?: HTMLElement | null, values?: string[], className?: s
 function updateCheck(list?: HTMLElement | null) {
   if (list) {
     for (const element of list.children) {
+      const action = element.getAttribute('data-action');
       const cb = element.querySelector('input[type="checkbox"]') as HTMLInputElement | null;
-      if (cb) {
-        cb.checked = element.classList.contains(css.selected);
+      if (!cb) {
+        continue;
       }
+      if (action) {
+        switch (action) {
+          case SELECT_OPTION_ACTION.ToggleFiltered:
+            const options = [...list.children];
+            cb.checked = options.every((e) => e.classList.contains(css.selected) || e.getAttribute('data-action'));
+            cb.indeterminate =
+              !cb.checked && options.some((e) => e.classList.contains(css.selected) && !e.getAttribute('data-action'));
+            break;
+        }
+        continue;
+      }
+
+      cb.checked = element.classList.contains(css.selected);
     }
   }
 }
@@ -179,6 +204,7 @@ export const Select: FC<SelectProps> = ({
   classNameList = '',
   classNameInput = '',
   maxOptions = 1000,
+  maxToggleFiltered = 50,
   placeholder = '',
   showSelected = true,
   loading = false,
@@ -213,6 +239,48 @@ export const Select: FC<SelectProps> = ({
     }
   }, [meOpen, valuesInput]);
 
+  const filterOptions = useMemo(() => {
+    let start = 0;
+    let result;
+    let filtered = options;
+    if (searchValueDebounce && !noSearch) {
+      const orig = searchValueDebounce.toLocaleLowerCase();
+      const ru = toggleKeyboard(orig, mapKeyboardEnToRu);
+      const en = toggleKeyboard(orig, mapKeyboardRuToEn);
+      filtered = options.filter(
+        (item) =>
+          item.name.toLocaleLowerCase().includes(orig) ||
+          item.value.toLocaleLowerCase().includes(orig) ||
+          item.name.toLocaleLowerCase().includes(ru) ||
+          item.value.toLocaleLowerCase().includes(ru) ||
+          item.name.toLocaleLowerCase().includes(en) ||
+          item.value.toLocaleLowerCase().includes(en)
+      );
+      result = filtered.slice(start, start + maxOptions);
+    } else {
+      if (valuesInput.length > 0 && options?.length > maxOptions) {
+        start = Math.max(0, options?.findIndex((item) => item.value === valuesInput[0]) - Math.floor(maxOptions * 0.2));
+      }
+      result = options.slice(start, start + maxOptions);
+    }
+    const resultLength = result.length;
+    if (start > 0) {
+      result.unshift({ value: '', disabled: true, name: '...' });
+    }
+    if (start + maxOptions < filtered.length) {
+      result.push({ value: '', disabled: true, name: '...' });
+    }
+
+    if (showCountItems && resultLength) {
+      const total = moreItems ? `>${options?.length}, truncated` : options?.length;
+      const action = resultLength <= maxToggleFiltered ? SELECT_OPTION_ACTION.ToggleFiltered : undefined;
+      result.unshift({ value: '', disabled: !action, stickyTop: true, name: `${filtered.length} of ${total}`, action });
+    } else if (moreItems && options?.length) {
+      result.push({ value: '', disabled: true, name: `>${options?.length} items, truncated` });
+    }
+    return result;
+  }, [options, searchValueDebounce, noSearch, maxOptions, showCountItems, moreItems, valuesInput, maxToggleFiltered]);
+
   const onInputSearch = useCallback<React.FormEventHandler<HTMLInputElement>>(
     (event) => {
       setSearchValue(event.currentTarget.value);
@@ -246,6 +314,29 @@ export const Select: FC<SelectProps> = ({
     [multiple, onChange, onClose]
   );
 
+  const actionSelect = useCallback(
+    (action: SelectOptionAction | string) => {
+      if (!multiple) {
+        return;
+      }
+      switch (action) {
+        case SELECT_OPTION_ACTION.ToggleFiltered:
+          const changeValues = filterOptions.filter((v) => v.value).map((v) => v.value);
+          const check = changeValues.some((v) => !valuesInput.includes(v));
+          if (check) {
+            selectValue([...valuesInput, ...changeValues.filter((v) => !valuesInput.includes(v))], false);
+          } else {
+            selectValue(
+              valuesInput.filter((v) => !changeValues.includes(v)),
+              false
+            );
+          }
+          break;
+      }
+    },
+    [filterOptions, multiple, selectValue, valuesInput]
+  );
+
   const onClickSelect = useCallback<React.MouseEventHandler<HTMLElement>>(
     (event) => {
       if ((event.target as HTMLElement).dataset.noclose) {
@@ -253,8 +344,11 @@ export const Select: FC<SelectProps> = ({
       }
       const t = (event.target as Element).closest(`.${css.option}`);
       const dataValue = t?.getAttribute('data-value');
+      const dataAction = t?.getAttribute('data-action');
       const dataDisabled = t?.getAttribute('data-disabled');
-      if (dataValue && !dataDisabled) {
+      if (dataAction && !dataDisabled) {
+        actionSelect(dataAction);
+      } else if (dataValue && !dataDisabled) {
         if (onceSelectByClick || !multiple) {
           selectValue([dataValue]);
         } else {
@@ -266,14 +360,17 @@ export const Select: FC<SelectProps> = ({
         }
       }
     },
-    [multiple, onceSelectByClick, selectValue, values]
+    [actionSelect, multiple, onceSelectByClick, selectValue, values]
   );
   const onChangeSelect = useCallback<React.FormEventHandler<HTMLUListElement>>(
     (event) => {
       const t = (event.target as Element).closest(`.${css.option}`);
       const dataValue = t?.getAttribute('data-value');
+      const dataAction = t?.getAttribute('data-action');
       const dataDisabled = t?.getAttribute('data-disabled');
-      if (dataValue && !dataDisabled) {
+      if (dataAction && !dataDisabled) {
+        actionSelect(dataAction);
+      } else if (dataValue && !dataDisabled) {
         if (values.indexOf(dataValue) < 0) {
           selectValue([...values, dataValue], false);
         } else {
@@ -284,7 +381,7 @@ export const Select: FC<SelectProps> = ({
         }
       }
     },
-    [selectValue, values]
+    [actionSelect, selectValue, values]
   );
 
   const onKey = useCallback<React.KeyboardEventHandler<HTMLDivElement>>(
@@ -352,8 +449,12 @@ export const Select: FC<SelectProps> = ({
           }
           break;
         case KEY.Enter:
-          const dataValue = elem.dataset.value;
-          if (dataValue) {
+          const dataValue = elem.getAttribute('data-value');
+          const dataAction = elem.getAttribute('data-action');
+          const dataDisabled = elem.getAttribute('data-disabled');
+          if (dataAction && !dataDisabled) {
+            actionSelect(dataAction);
+          } else if (dataValue && !dataDisabled) {
             if (onceSelectByClick || !multiple) {
               selectValue([dataValue]);
             } else {
@@ -372,7 +473,7 @@ export const Select: FC<SelectProps> = ({
       event.stopPropagation();
       event.preventDefault();
     },
-    [multiple, onClose, onceSelectByClick, selectValue, values]
+    [actionSelect, multiple, onClose, onceSelectByClick, selectValue, values]
   );
 
   const onHover = useCallback<React.MouseEventHandler<HTMLDivElement>>((event) => {
@@ -405,46 +506,6 @@ export const Select: FC<SelectProps> = ({
     }
     return `${placeholders.join(', ')}`;
   }, [showSelected, values, placeholder, keyMap]);
-
-  const filterOptions = useMemo(() => {
-    let start = 0;
-    let result;
-    let filtered = options;
-    if (searchValueDebounce && !noSearch) {
-      const orig = searchValueDebounce.toLocaleLowerCase();
-      const ru = toggleKeyboard(orig, mapKeyboardEnToRu);
-      const en = toggleKeyboard(orig, mapKeyboardRuToEn);
-      filtered = options.filter(
-        (item) =>
-          item.name.toLocaleLowerCase().includes(orig) ||
-          item.value.toLocaleLowerCase().includes(orig) ||
-          item.name.toLocaleLowerCase().includes(ru) ||
-          item.value.toLocaleLowerCase().includes(ru) ||
-          item.name.toLocaleLowerCase().includes(en) ||
-          item.value.toLocaleLowerCase().includes(en)
-      );
-      result = filtered.slice(start, start + maxOptions);
-    } else {
-      if (valuesInput.length > 0 && options?.length > maxOptions) {
-        start = Math.max(0, options?.findIndex((item) => item.value === valuesInput[0]) - Math.floor(maxOptions * 0.2));
-      }
-      result = options.slice(start, start + maxOptions);
-    }
-    if (start > 0) {
-      result.unshift({ value: '', disabled: true, name: '...' });
-    }
-    if (start + maxOptions < filtered.length) {
-      result.push({ value: '', disabled: true, name: '...' });
-    }
-
-    if (showCountItems && options?.length) {
-      const total = moreItems ? `>${options?.length}, truncated` : options?.length;
-      result.unshift({ value: '', disabled: true, stickyTop: true, name: `${filtered.length} of ${total}` });
-    } else if (moreItems && options?.length) {
-      result.push({ value: '', disabled: true, name: `>${options?.length} items, truncated` });
-    }
-    return result;
-  }, [options, searchValueDebounce, noSearch, maxOptions, moreItems, showCountItems, valuesInput]);
 
   const updatePositionClass = useCallback(() => {
     if (list.current && input.current) {
