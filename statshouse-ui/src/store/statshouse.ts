@@ -585,6 +585,12 @@ export const useStore = create<Store>()(
         prevState.plotsDataAbortController[index]?.abort();
         setState((state) => {
           state.plotsDataAbortController[index] = controller;
+          const scales: UPlotWrapperPropsScales = {};
+          scales.x = { min: getState().timeRange.from, max: getState().timeRange.to };
+          if (lastPlotParams.yLock.min !== 0 || lastPlotParams.yLock.max !== 0) {
+            scales.y = { ...lastPlotParams.yLock };
+          }
+          state.plotsData[index].scales = scales;
         });
         apiGet<queryResult>(url, controller.signal, true)
           .then((resp) => {
