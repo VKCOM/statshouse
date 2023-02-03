@@ -38,6 +38,7 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
+	"github.com/vkcom/statshouse/internal/promql"
 	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
@@ -163,6 +164,7 @@ type (
 		readOnly              bool
 		rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 		rmID                  int
+		promEngine            promql.Engine
 	}
 
 	//easyjson:json
@@ -447,6 +449,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		writeActiveQuieries(chV2, "2")
 	})
 
+	h.promEngine = promql.NewEngine(h, h, h.location)
 	return h, nil
 }
 
