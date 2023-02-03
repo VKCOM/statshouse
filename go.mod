@@ -3,6 +3,7 @@ module github.com/vkcom/statshouse
 go 1.19
 
 require (
+	github.com/ClickHouse/ch-go v0.52.0
 	github.com/ClickHouse/clickhouse-go/v2 v2.4.2
 	github.com/cloudflare/tableflip v1.2.3
 	github.com/dchest/siphash v1.2.3
@@ -18,7 +19,6 @@ require (
 	github.com/gorilla/handlers v1.5.1
 	github.com/gorilla/mux v1.8.0
 	github.com/grafana/grafana-plugin-sdk-go v0.144.0
-	github.com/grafana/regexp v0.0.0-20220304095617-2e8d9baf4ac2
 	github.com/hrissan/tdigest v0.0.2
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/mailru/easyjson v0.7.7
@@ -30,10 +30,12 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
 	github.com/tinylib/msgp v1.1.6
+	github.com/vkcom/statshouse-go v0.0.0-20221129160158-005f723138d1
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	go.uber.org/atomic v1.10.0
 	go.uber.org/multierr v1.9.0
 	go4.org/mem v0.0.0-20220726221520-4f986261bf13
+	golang.org/x/exp v0.0.0-20220713135740-79cabaa25d75
 	golang.org/x/net v0.5.0
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.4.0
@@ -47,7 +49,6 @@ require (
 
 require (
 	cloud.google.com/go/compute v1.9.0 // indirect
-	github.com/ClickHouse/ch-go v0.52.0 // indirect
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/apache/arrow/go/arrow v0.0.0-20211112161151-bc219186db40 // indirect
@@ -68,6 +69,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/flatbuffers v2.0.0+incompatible // indirect
+	github.com/grafana/regexp v0.0.0-20220304095617-2e8d9baf4ac2 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.3.0 // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0 // indirect
 	github.com/hashicorp/go-hclog v0.14.1 // indirect
@@ -102,7 +104,6 @@ require (
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
-	github.com/vkcom/statshouse-go v0.0.0-20221129160158-005f723138d1 // indirect
 	go.opentelemetry.io/otel v1.12.0 // indirect
 	go.opentelemetry.io/otel/metric v0.35.0 // indirect
 	go.opentelemetry.io/otel/trace v1.12.0 // indirect
