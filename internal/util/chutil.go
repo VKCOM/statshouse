@@ -51,7 +51,7 @@ func OpenClickHouse(fastSlowMaxConns, lightHeavyMaxConns int, addrs []string, us
 	}}
 	for _, addr := range addrs {
 		for _, pool := range result.pools {
-			server, err := chpool.Dial(context.Background(), chpool.Options{
+			server, err := chpool.New(context.Background(), chpool.Options{
 				MaxConns: int32(fastSlowMaxConns),
 				ClientOptions: ch.Options{
 					Address:          addr,
