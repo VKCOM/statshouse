@@ -259,7 +259,9 @@
   position: sticky;
   top: 0;
   opacity: 1;
+  color: var(--selectDisabledCollor);
   background-color: var(--selectStickyBgColor);
+  font-style: italic;
   z-index: 1;
 }
 
