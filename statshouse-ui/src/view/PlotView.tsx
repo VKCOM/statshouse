@@ -91,6 +91,7 @@ const PlotView = memo(function PlotView_(props: {
     receiveErrors,
     error: lastError,
     error403,
+    topInfo,
   } = useStore(selectorPlotsData);
 
   const setPlotShow = useStore(selectorSetPlotShow);
@@ -410,6 +411,11 @@ const PlotView = memo(function PlotView_(props: {
               onLegendFocus={onLegendFocus}
               compact={compact && !(fixHeight > 0 && dashboard)}
             />
+            {topInfo && (!compact || (fixHeight > 0 && dashboard)) && (
+              <div className="pb-3">
+                Showing top {topInfo.top} out of {topInfo.total} total series{topInfo.info}
+              </div>
+            )}
           </div>
         )}
       </div>
