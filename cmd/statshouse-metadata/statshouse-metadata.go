@@ -271,6 +271,7 @@ func run() error {
 		StepSec:      argv.stepSec,
 		BudgetBonus:  argv.budgetBonus,
 		GlobalBudget: argv.globalBudget,
+		Migration:    true,
 	}, bl)
 	if err != nil {
 		return fmt.Errorf("db-path: %s, failed to open db: %w", argv.dbPath, err)
