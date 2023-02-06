@@ -1061,7 +1061,7 @@ export const useStore = create<Store>()(
         }
       });
     },
-    loadTagsList(indexPlot, indexTag, limit = 1000) {
+    loadTagsList(indexPlot, indexTag, limit = 20000) {
       const prevState = getState();
       const plot = prevState.params.plots[indexPlot];
       const tag = prevState.metricsMeta[plot.metricName]?.tags?.[indexTag];
