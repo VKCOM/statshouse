@@ -861,6 +861,9 @@
           },
           "what": {
             "$ref": "#/components/schemas/queryFn"
+          },
+          "total": {
+            "type": "number"
           }
         },
         "required": [

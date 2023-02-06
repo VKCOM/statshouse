@@ -95,6 +95,13 @@ export type PlotStore = {
   legendPercentWidth: number;
   legendMaxHostWidth: number;
   legendMaxHostPercentWidth: number;
+  topInfo?: TopInfo;
+};
+
+export type TopInfo = {
+  top: string;
+  total: string;
+  info: string;
 };
 
 export type PlotValues = {
@@ -541,6 +548,7 @@ export const useStore = create<Store>()(
             lastPlotParams: undefined,
             lastTimeRange: undefined,
             lastQuerySeriesMeta: undefined,
+            topInfo: undefined,
           };
         });
       }
@@ -623,6 +631,10 @@ export const useStore = create<Store>()(
                   : 1
                 : 1 / devicePixelRatio;
 
+            const topInfoCounts: Record<string, number> = {};
+            const topInfoTotals: Record<string, number> = {};
+            let topInfo: TopInfo | undefined = undefined;
+
             const seriesShow = new Array(resp.series.series_meta.length).fill(true);
             const series: uPlot.Series[] = resp.series.series_meta.map((meta, indexMeta): uPlot.Series => {
               const label = metaToLabel(meta, uniqueWhat.size);
@@ -648,6 +660,11 @@ export const useStore = create<Store>()(
                 }, {} as Record<string, number>) ?? {};
               const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
               seriesShow[indexMeta] = prev.series[indexMeta]?.label === label ? prev.series[indexMeta]?.show : true;
+
+              const key = `${meta.what}|${meta.time_shift}`;
+              topInfoCounts[key] = (topInfoCounts[key] ?? 0) + 1;
+              topInfoTotals[key] = meta.total;
+
               return {
                 show: seriesShow[indexMeta] ?? true,
                 auto: false, // we control the scaling manually
@@ -686,6 +703,36 @@ export const useStore = create<Store>()(
                 },
               };
             });
+
+            const topInfoTop = {
+              min: Math.min(...Object.values(topInfoCounts)),
+              max: Math.max(...Object.values(topInfoCounts)),
+            };
+            const topInfoTotal = {
+              min: Math.min(...Object.values(topInfoTotals)),
+              max: Math.max(...Object.values(topInfoTotals)),
+            };
+            const topInfoFunc = lastPlotParams.what.length;
+            const topInfoShifts = lastPlotParams.timeShifts.length;
+            const info: string[] = [];
+
+            if (topInfoTop.min !== topInfoTotal.min && topInfoTop.max !== topInfoTotal.max) {
+              if (topInfoFunc > 1) {
+                info.push(`${topInfoFunc} functions`);
+              }
+              if (topInfoShifts > 0) {
+                info.push(`${topInfoShifts} time-shift${topInfoShifts > 1 ? 's' : ''}`);
+              }
+              topInfo = {
+                top:
+                  topInfoTop.max === topInfoTop.min ? topInfoTop.max.toString() : `${topInfoTop.min}-${topInfoTop.max}`,
+                total:
+                  topInfoTotal.max === topInfoTotal.min
+                    ? topInfoTotal.max.toString()
+                    : `${topInfoTotal.min}-${topInfoTotal.max}`,
+                info: info.length ? ` (${info.join(',')})` : '',
+              };
+            }
 
             const scales: UPlotWrapperPropsScales = {};
             scales.x = { min: getState().timeRange.from, max: getState().timeRange.to };
@@ -745,6 +792,7 @@ export const useStore = create<Store>()(
                 lastPlotParams,
                 lastQuerySeriesMeta: [...resp.series.series_meta],
                 lastTimeRange: getState().timeRange,
+                topInfo,
               };
             });
           })
@@ -771,6 +819,7 @@ export const useStore = create<Store>()(
                   lastPlotParams: undefined,
                   lastTimeRange: undefined,
                   lastQuerySeriesMeta: undefined,
+                  topInfo: undefined,
                 };
                 delete state.previews[index];
                 state.liveMode = false;
@@ -797,6 +846,7 @@ export const useStore = create<Store>()(
                   lastPlotParams: undefined,
                   lastTimeRange: undefined,
                   lastQuerySeriesMeta: undefined,
+                  topInfo: undefined,
                 };
                 delete state.previews[index];
                 state.liveMode = false;

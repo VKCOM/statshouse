@@ -47,6 +47,7 @@ export interface querySeriesMeta {
   readonly tags: Readonly<Record<string, querySeriesMetaTag>>;
   readonly max_hosts: null | string[];
   readonly what: queryWhat;
+  readonly total: number;
 }
 
 export interface querySeriesMetaTag {
