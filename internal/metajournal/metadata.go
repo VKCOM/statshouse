@@ -89,7 +89,7 @@ func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.Dashb
 	}, nil
 }
 
-func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.MetricsGroup, create, delete bool) (g format.MetricsGroup, _ error) {
+func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.MetricsGroup, create bool) (g format.MetricsGroup, _ error) {
 	if err := value.RestoreCachedInfo(); err != nil {
 		return g, err
 	}
@@ -107,7 +107,6 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 		},
 	}
 	editMetricReq.SetCreate(create)
-	editMetricReq.SetDelete(delete)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
 	event := tlmetadata.Event{}

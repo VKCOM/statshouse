@@ -132,6 +132,8 @@ type MetricsGroup struct {
 	Weight            float64 `json:"weight,omitempty"`
 	Visible           bool    `json:"visible,omitempty"`
 	IsWeightEffective bool    `json:"is_weight_effective,omitempty"`
+	ProtectedRead     bool    `json:"protected_read,omitempty"`
+	ProtectedWrite    bool    `json:"protected_write,omitempty"`
 
 	EffectiveWeight int64 `json:"-"`
 }
@@ -161,6 +163,7 @@ type MetricMetaValue struct {
 	HasPercentiles      bool                     `json:"-"`
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
 	GroupID             int32                    `json:"-"`
+	Group               *MetricsGroup            `json:"-"`
 }
 
 type MetricMetaValueOld struct {
@@ -377,6 +380,10 @@ func (m *MetricsGroup) RestoreCachedInfo() error {
 	m.EffectiveWeight = int64(rw)
 
 	return err
+}
+
+func (m *MetricsGroup) MetricIn(metric string) bool {
+	return strings.HasPrefix(metric, m.Name+"_")
 }
 
 func ValidMetricName(s mem.RO) bool {
