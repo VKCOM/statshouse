@@ -267,7 +267,7 @@ type lodInfo struct {
 }
 
 func (lod lodInfo) isFast() bool {
-	return lod.fromSec+FastQueryTimeInterval >= lod.toSec
+	return lod.fromSec+fastQueryTimeInterval >= lod.toSec
 }
 
 func (lod lodInfo) generateTimePoints(shift int64) []int64 {

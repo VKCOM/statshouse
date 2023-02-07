@@ -104,11 +104,13 @@ const (
 	cacheInvalidateMaxRows       = 100_000
 	cacheDefaultDropEvery        = 90 * time.Second
 
-	queryClientCache      = 1 * time.Second
-	queryClientCacheStale = 9 * time.Second // ~ v2 lag
-	querySelectTimeout    = 60 * time.Second
-	// TODO: querySelectTimeout must be longer than the longest normal query.
-	FastQueryTimeInterval = (86400 + 3600) * 2
+	queryClientCache               = 1 * time.Second
+	queryClientCacheStale          = 9 * time.Second // ~ v2 lag
+	queryClientCacheImmutable      = 7 * 24 * time.Hour
+	queryClientCacheStaleImmutable = 0
+
+	querySelectTimeout    = 60 * time.Second // TODO: querySelectTimeout must be longer than the longest normal query.
+	fastQueryTimeInterval = (86400 + 3600) * 2
 
 	maxMetricHTTPBodySize     = 64 << 10
 	maxPromConfigHTTPBodySize = 500 * 1024
@@ -1191,7 +1193,7 @@ func (h *Handler) HandleGetMetricTagValues(w http.ResponseWriter, r *http.Reques
 	defer cancel()
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
-	resp, err := h.handleGetMetricTagValues(
+	resp, immutable, err := h.handleGetMetricTagValues(
 		ctx,
 		getMetricTagValuesReq{
 			ai:                  ai,
@@ -1205,7 +1207,8 @@ func (h *Handler) HandleGetMetricTagValues(w http.ResponseWriter, r *http.Reques
 			filter:              r.Form[ParamQueryFilter],
 		})
 
-	respondJSON(w, resp, queryClientCache, queryClientCacheStale, err, h.verbose, ai.user, sl)
+	cache, cacheStale := queryClientCacheDuration(immutable)
+	respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
 }
 
 type selectRow struct {
@@ -1245,53 +1248,53 @@ func (c *tagValuesSelectCols) rowAt(i int) selectRow {
 	return row
 }
 
-func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTagValuesReq) (*GetMetricTagValuesResp, error) {
+func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTagValuesReq) (resp *GetMetricTagValuesResp, immutable bool, err error) {
 	version, err := parseVersion(req.version)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	numResults, err := parseNumResults(req.numResults, defTagValues, maxTagValues, false)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	metricMeta, err := h.getMetricMeta(req.ai, req.metricWithNamespace)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	err = validateQuery(metricMeta, version)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	tagID, err := parseTagID(req.tagID)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	from, to, err := parseFromTo(req.from, req.to)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	_, kind, err := parseQueryWhat(req.what)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	filterIn, filterNotIn, err := parseQueryFilter(req.filter)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	mappedFilterIn, err := h.resolveFilter(metricMeta, version, filterIn)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	mappedFilterNotIn, err := h.resolveFilter(metricMeta, version, filterNotIn)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	lods := selectTagValueLODs(
@@ -1323,11 +1326,11 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		for _, lod := range lods {
 			query, args, err := tagValuesQuery(pq, lod) // we set limit to numResult+1
 			if err != nil {
-				return nil, err
+				return nil, false, err
 			}
 
 			cols := newTagValuesSelectCols(args)
-			isFast := lod.fromSec+FastQueryTimeInterval >= lod.toSec
+			isFast := lod.fromSec+fastQueryTimeInterval >= lod.toSec
 			err = h.doSelect(ctx, isFast, true, req.ai.user, version, ch.Query{
 				Body:   query,
 				Result: cols.res,
@@ -1339,7 +1342,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 					return nil
 				}})
 			if err != nil {
-				return nil, err
+				return nil, false, err
 			}
 		}
 	}
@@ -1370,7 +1373,8 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		})
 	}
 
-	return ret, nil
+	immutable = to.Before(time.Now().Add(invalidateFrom))
+	return ret, immutable, nil
 }
 
 func sumSeries(data *[]float64, missingValue float64) float64 {
@@ -1408,8 +1412,8 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	getQuery := func(ctx context.Context) (*GetQueryResp, error) {
-		resp, err := h.handleGetQuery(
+	getQuery := func(ctx context.Context) (*GetQueryResp, bool, error) {
+		resp, immutable, err := h.handleGetQuery(
 			ctx,
 			true,
 			getQueryReq{
@@ -1430,10 +1434,10 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 		if h.verbose && err == nil {
 			log.Printf("[debug] handled query (%v series x %v points each) for %q in %v", len(resp.Series.SeriesMeta), len(resp.Series.Time), ai.user, time.Since(sl.startTime))
 		}
-		return resp, err
+		return resp, immutable, err
 	}
 
-	getQueryBuiltin := func(ctx context.Context) (*GetQueryResp, error) {
+	getQueryBuiltin := func(ctx context.Context) (*GetQueryResp, bool, error) {
 		return h.handleGetQuery(
 			ctx,
 			false,
@@ -1455,20 +1459,21 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 	var (
 		resp          *GetQueryResp
 		respIngestion *GetQueryResp
+		immutable     bool
 	)
 	if !queryVerbose {
-		resp, err = getQuery(ctx)
+		resp, immutable, err = getQuery(ctx)
 	} else {
 		var g *errgroup.Group
 		g, ctx = errgroup.WithContext(ctx)
 		g.Go(func() error {
 			var err error
-			resp, err = getQuery(ctx)
+			resp, immutable, err = getQuery(ctx)
 			return err
 		})
 		g.Go(func() error {
 			var err error
-			respIngestion, err = getQueryBuiltin(ctx)
+			respIngestion, _, err = getQueryBuiltin(ctx)
 			return err
 		})
 		err = g.Wait()
@@ -1508,7 +1513,8 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
 		exportCSV(w, resp, metricWithNamespace, sl)
 	default:
-		respondJSON(w, resp, queryClientCache, queryClientCacheStale, err, h.verbose, ai.user, sl)
+		cache, cacheStale := queryClientCacheDuration(immutable)
+		respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
 	}
 }
 
@@ -1528,35 +1534,35 @@ func (h *Handler) freeQueryResp(resp *GetQueryResp) {
 }
 
 // don't forget to defer a call to h.freeQueryResp()
-func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req getQueryReq) (resp *GetQueryResp, err error) {
+func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req getQueryReq) (resp *GetQueryResp, immutable bool, err error) {
 	version, err := parseVersion(req.version)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	metricMeta, err := h.getMetricMeta(req.ai, req.metricWithNamespace)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	err = validateQuery(metricMeta, version)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	from, to, err := parseFromTo(req.from, req.to)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	width, widthKind, err := parseWidth(req.width, req.widthAgg)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	shifts, err := parseTimeShifts(req.timeShifts, width)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	numResultsPerShift, err := parseNumResults(
@@ -1566,21 +1572,21 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		req.allowNegativeNumResults,
 	)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	queries, err := parseQueries(version, req.what, req.by)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	mappedFilterNotIn, err := h.resolveFilter(metricMeta, version, req.filterNotIn)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	oldestShift := shifts[0]
@@ -1617,7 +1623,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 			for _, shift := range shifts[1:] {
 				shiftDelta := toSec(shift - oldestShift)
 				if shiftDelta%step != 0 {
-					return nil, httpErr(http.StatusBadRequest, fmt.Errorf("invalid time shift sequence %v (shift %v not divisible by %v)", shifts, shift, time.Duration(step)*time.Second))
+					return nil, false, httpErr(http.StatusBadRequest, fmt.Errorf("invalid time shift sequence %v (shift %v not divisible by %v)", shifts, shift, time.Duration(step)*time.Second))
 				}
 			}
 		}
@@ -1693,7 +1699,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 					location:  h.location,
 				})
 				if err != nil {
-					return nil, err
+					return nil, false, err
 				}
 
 				for _, rows := range m {
@@ -1800,6 +1806,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 	if len(allTimes) > 0 {
 		allTimes = allTimes[1:] // exclude extra point on the left
 	}
+	immutable = to.Before(time.Now().Add(invalidateFrom))
 	return &GetQueryResp{
 		Series: querySeries{
 			Time:       allTimes,
@@ -1809,7 +1816,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		DebugQueries:    sqlQueries,
 		MetricMeta:      metricMeta,
 		syncPoolBuffers: syncPoolBuffers,
-	}, nil
+	}, immutable, nil
 }
 
 func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
@@ -1885,7 +1892,7 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	resp, err := h.handleGetRender(
+	resp, immutable, err := h.handleGetRender(
 		ctx,
 		getRenderReq{
 			ai:           ai,
@@ -1898,7 +1905,8 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondPlot(w, resp.format, resp.data, queryClientCache, queryClientCacheStale, h.verbose, ai.user, sl)
+	cache, cacheStale := queryClientCacheDuration(immutable)
+	respondPlot(w, resp.format, resp.data, cache, cacheStale, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
@@ -1990,28 +1998,30 @@ func (h *Handler) HandlePutPostDashboard(w http.ResponseWriter, r *http.Request)
 	respondJSON(w, d, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
 }
 
-func (h *Handler) handleGetRender(ctx context.Context, req getRenderReq) (*getRenderResp, error) {
+func (h *Handler) handleGetRender(ctx context.Context, req getRenderReq) (*getRenderResp, bool, error) {
 	width, err := parseRenderWidth(req.renderWidth)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	format_, err := parseRenderFormat(req.renderFormat)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	var (
 		s         = make([]*GetQueryResp, len(req.getQueryReq))
+		immutable = true
 		seriesNum = 0
 		pointsNum = 0
 	)
 	for i, r := range req.getQueryReq {
 		start := time.Now()
-		data, err := h.handleGetQuery(ctx, false, r)
+		data, imm, err := h.handleGetQuery(ctx, false, r)
+		immutable = immutable && imm
 		defer h.freeQueryResp(data) // yes, hold until plot call
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		if h.verbose {
 			log.Printf("[debug] handled render query (%v series x %v points each) for %q in %v", len(data.Series.SeriesMeta), len(data.Series.Time), r.ai.user, time.Since(start))
@@ -2026,14 +2036,14 @@ func (h *Handler) handleGetRender(ctx context.Context, req getRenderReq) (*getRe
 
 	err = h.plotRenderSem.Acquire(ctx, 1)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer h.plotRenderSem.Release(1)
 
 	start := time.Now()
 	png, err := plot(ctx, format_, true, s, h.utcOffset, req.getQueryReq, width, h.plotTemplate)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if h.verbose {
 		log.Printf("[debug] handled render plot (%v series, %v points) for %q in %v", seriesNum, pointsNum, req.ai.user, time.Since(start))
@@ -2042,7 +2052,7 @@ func (h *Handler) handleGetRender(ctx context.Context, req getRenderReq) (*getRe
 	return &getRenderResp{
 		format: format_,
 		data:   png,
-	}, nil
+	}, immutable, nil
 }
 
 func (h *Handler) getRowsSlice() *[]*tsSelectRow {
@@ -2401,4 +2411,11 @@ func (h *Handler) waitVersionUpdate(ctx context.Context, version int64) error {
 	ctx, cancel := context.WithTimeout(ctx, journalUpdateTimeout)
 	defer cancel()
 	return h.metricsStorage.Journal().WaitVersion(ctx, version)
+}
+
+func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale time.Duration) {
+	if immutable {
+		return queryClientCacheImmutable, queryClientCacheStaleImmutable
+	}
+	return queryClientCache, queryClientCacheStale
 }
