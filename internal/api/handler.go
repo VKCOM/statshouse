@@ -1413,13 +1413,12 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-
 	_, avoidCache := r.Form[ParamAvoidCache]
 	if avoidCache && !ai.isAdmin() {
 		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
 	}
-	getQuery := func(ctx context.Context) (*GetQueryResp, error) {
-		resp, err := h.handleGetQuery(
+	getQuery := func(ctx context.Context) (*GetQueryResp, bool, error) {
+		resp, immutable, err := h.handleGetQuery(
 			ctx,
 			true,
 			getQueryReq{
