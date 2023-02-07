@@ -98,6 +98,17 @@ func (ms *MetricsStorage) GetMetaMetricList(includeInvisible bool) []*format.Met
 	return li
 }
 
+func (ms *MetricsStorage) GetGroupByMetricName(name string) *format.MetricsGroup {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	for _, group := range ms.groupsByID {
+		if group.MetricIn(name) {
+			return group
+		}
+	}
+	return nil
+}
+
 func (ms *MetricsStorage) GetDashboardMeta(dashboardID int32) *format.DashboardMeta {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -225,15 +236,19 @@ func (ms *MetricsStorage) calcGroupForMetricsLocked(old, new *format.MetricsGrou
 	if old != nil && old.Name != new.Name {
 		metrics := ms.metricsByGroup[old.ID]
 		for _, m := range metrics {
+			mCopy := *m
 			m.GroupID = 0
+			m.Group = nil
+			ms.metricsByID[m.MetricID] = &mCopy
 		}
 		delete(ms.metricsByGroup, old.ID)
 	}
 
 	for _, m := range ms.metricsByID {
-		if isMetricInGroup(m, new) {
-			m.GroupID = new.ID
-			ms.addMetricToGroupLocked(new.ID, m)
+		if new.MetricIn(m.Name) {
+			mCopy := *m
+			mCopy.GroupID = new.ID
+			ms.addMetricToGroupLocked(new.ID, &mCopy)
 		}
 	}
 }
@@ -242,20 +257,16 @@ func (ms *MetricsStorage) calcGroupForMetricsLocked(old, new *format.MetricsGrou
 func (ms *MetricsStorage) calcGroupForMetricLocked(new *format.MetricMetaValue) {
 	ms.removeMetricFromGroupLocked(new.GroupID, new.MetricID)
 	new.GroupID = 0
+	new.Group = nil
 	for _, g := range ms.groupsByID {
-		if isMetricInGroup(new, g) {
-			if new.GroupID != g.ID {
-				ms.removeMetricFromGroupLocked(new.GroupID, new.MetricID)
-				new.GroupID = g.ID
-				ms.addMetricToGroupLocked(g.ID, new)
-			}
-
+		if g.MetricIn(new.Name) {
+			ms.removeMetricFromGroupLocked(new.GroupID, new.MetricID)
+			new.GroupID = g.ID
+			new.Group = g
+			ms.addMetricToGroupLocked(g.ID, new)
 			return
 		}
 	}
-}
-func isMetricInGroup(metric *format.MetricMetaValue, group *format.MetricsGroup) bool {
-	return strings.HasPrefix(metric.Name, group.Name)
 }
 
 func (ms *MetricsStorage) removeMetricFromGroupLocked(groupID int32, metricID int32) {
@@ -274,6 +285,7 @@ func (ms *MetricsStorage) addMetricToGroupLocked(groupID int32, metric *format.M
 		ms.metricsByGroup[groupID] = metrics
 	}
 	metrics[metric.MetricID] = metric
+	ms.metricsByID[metric.MetricID] = metric
 }
 
 func (ms *MetricsStorage) CanAddOrChangeGroup(name string, id int32) bool {

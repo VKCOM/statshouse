@@ -61,7 +61,7 @@ func TestMetricsStorage(t *testing.T) {
 
 		group := format.MetricsGroup{
 			ID:     331,
-			Name:   "test_",
+			Name:   "test",
 			Weight: 1,
 		}
 
@@ -284,7 +284,7 @@ func TestMetricsStorage(t *testing.T) {
 			group.Version = 8
 			group1.Version = 9
 			group1.ID = group1Id
-			group1.Name = "test3_"
+			group1.Name = "test3"
 			bytes, err := json.Marshal(group)
 			require.NoError(t, err)
 			bytes1, err := json.Marshal(group1)
@@ -391,7 +391,7 @@ func TestMetricsStorage(t *testing.T) {
 		t.Run("group renamed (check old metric removed from group and metric added)", func(t *testing.T) {
 			group := group
 			group.Version = 12
-			group.Name = "test3_"
+			group.Name = "test3"
 			bytes, err := json.Marshal(group)
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
