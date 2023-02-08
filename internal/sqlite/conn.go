@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"go.uber.org/multierr"
 
@@ -30,6 +31,7 @@ type Conn struct {
 	c             *sqliteConn
 	autoSavepoint bool
 	ctx           context.Context
+	stats         *StatsOptions
 }
 
 func newSqliteConn(rw *sqlite0.Conn) *sqliteConn {
@@ -69,51 +71,56 @@ func (c Conn) close() {
 func (c Conn) execBeginSavepoint() error {
 	c.c.spIn = true
 	c.c.spOk = false
-	_, err := c.exec(true, c.c.spBeginStmt)
+	_, err := c.exec(true, "__begin_savepoint", c.c.spBeginStmt)
 	return err
 }
 
 func (c Conn) execEndSavepoint() {
 	if c.c.spIn {
 		if c.c.spOk {
-			_, _ = c.exec(true, c.c.spCommitStmt)
+			_, _ = c.exec(true, "__commit_savepoint", c.c.spCommitStmt)
 		} else {
-			_, _ = c.exec(true, c.c.spRollbackStmt)
+			_, _ = c.exec(true, "__rollback_savepoint", c.c.spRollbackStmt)
 		}
 		c.c.spIn = false
 	}
 }
 
-func (c Conn) Query(sql string, args ...Arg) Rows {
-	return c.query(false, sql, args...)
+func (c Conn) Query(name, sql string, args ...Arg) Rows {
+	return c.query(false, query, name, sql, args...)
 }
 
-func (c Conn) Exec(sql string, args ...Arg) (int64, error) {
-	return c.exec(false, sql, args...)
+func (c Conn) Exec(name, sql string, args ...Arg) (int64, error) {
+	return c.exec(false, name, sql, args...)
 }
 
-func (c Conn) ExecUnsafe(sql string, args ...Arg) (int64, error) {
-	return c.exec(true, sql, args...)
+func (c Conn) ExecUnsafe(name, sql string, args ...Arg) (int64, error) {
+	return c.exec(true, name, sql, args...)
 }
 
-func (c Conn) query(allowUnsafe bool, sql string, args ...Arg) Rows {
+func (c Conn) query(allowUnsafe bool, type_, name, sql string, args ...Arg) Rows {
+	start := time.Now()
 	s, err := c.doQuery(allowUnsafe, sql, args...)
-	return Rows{c.c, s, err, false, c.ctx}
+	return Rows{c.c, s, err, false, c.ctx, name, start, c.stats, type_}
 }
 
-func (c Conn) exec(allowUnsafe bool, sql string, args ...Arg) (int64, error) {
-	rows := c.query(allowUnsafe, sql, args...)
+func (c Conn) exec(allowUnsafe bool, name, sql string, args ...Arg) (int64, error) {
+	rows := c.query(allowUnsafe, exec, name, sql, args...)
 	for rows.Next() {
 	}
 	return c.LastInsertRowID(), rows.Error()
 }
 
 type Rows struct {
-	c    *sqliteConn
-	s    *sqlite0.Stmt
-	err  error
-	used bool
-	ctx  context.Context
+	c     *sqliteConn
+	s     *sqlite0.Stmt
+	err   error
+	used  bool
+	ctx   context.Context
+	name  string
+	start time.Time
+	stats *StatsOptions
+	type_ string
 }
 
 func (r *Rows) Error() error {
@@ -138,6 +145,9 @@ func (r *Rows) next(setUsed bool) bool {
 	row, err := r.s.Step()
 	if err != nil {
 		r.err = err
+	}
+	if !row {
+		r.stats.measureSqliteQueryDurationSince(r.type_, r.name, r.start)
 	}
 	return row
 }

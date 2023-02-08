@@ -20,8 +20,8 @@ const path = "test.db"
 const appID = 123
 
 func increment(r *rapid.T, e *Engine, v int64) {
-	err := e.Do(context.Background(), func(conn Conn, bytes []byte) ([]byte, error) {
-		_, err := conn.Exec("UPDATE test SET value = value + $v", Int64("$v", v))
+	err := e.Do(context.Background(), "test", func(conn Conn, bytes []byte) ([]byte, error) {
+		_, err := conn.Exec("test", "UPDATE test SET value = value + $v", Int64("$v", v))
 		return binlogEvent(v), err
 	})
 	require.NoError(r, err)
@@ -29,7 +29,7 @@ func increment(r *rapid.T, e *Engine, v int64) {
 
 func checkActual(r *rapid.T, e *Engine, actual int64) {
 	err := e.do(func(conn Conn) error {
-		row := conn.Query("SELECT value FROM test")
+		row := conn.Query("test", "SELECT value FROM test")
 		require.NoError(r, row.Error())
 		require.True(r, row.Next())
 		v, _ := row.ColumnInt64(0)
@@ -78,7 +78,7 @@ func applyFunc(scan bool) func(conn Conn, offset int64, bytes []byte) (int, erro
 				return 0, err
 			}
 			if !scan {
-				_, err = conn.Exec("UPDATE test SET value = value + $v", Int64("$v", v))
+				_, err = conn.Exec("test", "UPDATE test SET value = value + $v", Int64("$v", v))
 				if err != nil {
 					return 0, err
 				}
@@ -101,8 +101,8 @@ func (m *engineMachineWaitCommitMode) Init(t *rapid.T) {
 		t.Fatalf("failed to create engine: %v", err)
 	}
 	m.engine = e
-	err = e.Do(context.Background(), func(conn Conn, bytes []byte) ([]byte, error) {
-		_, err := conn.Exec("INSERT INTO test (value) VALUES (0)")
+	err = e.Do(context.Background(), "test", func(conn Conn, bytes []byte) ([]byte, error) {
+		_, err := conn.Exec("test", "INSERT INTO test (value) VALUES (0)")
 		return nil, err
 	})
 	require.NoError(t, err)
@@ -143,8 +143,8 @@ func (m *engineMachineNoWaitCommitMode) Init(t *rapid.T) {
 		t.Fatalf("failed to create engine: %v", err)
 	}
 	m.engine = e
-	err = e.Do(context.Background(), func(conn Conn, bytes []byte) ([]byte, error) {
-		_, err := conn.Exec("INSERT INTO test (value) VALUES (0)")
+	err = e.Do(context.Background(), "test", func(conn Conn, bytes []byte) ([]byte, error) {
+		_, err := conn.Exec("test", "INSERT INTO test (value) VALUES (0)")
 		return nil, err
 	})
 	require.NoError(t, err)
@@ -199,8 +199,8 @@ func (m *engineMachineBinlogRun) Init(t *rapid.T) {
 	}
 	m.engine = e
 	m.bl = e.binlog.(*binlogMock)
-	err = e.Do(context.Background(), func(conn Conn, bytes []byte) ([]byte, error) {
-		_, err := conn.Exec("INSERT INTO test (value) VALUES (0)")
+	err = e.Do(context.Background(), "test", func(conn Conn, bytes []byte) ([]byte, error) {
+		_, err := conn.Exec("test", "INSERT INTO test (value) VALUES (0)")
 		return nil, err
 	})
 	require.NoError(t, err)
@@ -307,6 +307,7 @@ func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine,
 			Scheme:         "",
 			Replica:        false,
 			DurabilityMode: mode,
+			StatsOptions:   StatsOptions{},
 		},
 
 		apply:                applyFunc(false),

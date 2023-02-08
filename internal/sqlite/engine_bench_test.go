@@ -45,11 +45,11 @@ func fillDB(b *testing.B, engine *Engine, table string, n, m int, gen func(i, j 
 	b.Helper()
 	res := make([]Arg, n*m)
 	for i := 0; i < n; i++ {
-		err := engine.Do(context.Background(), func(c Conn, cache []byte) ([]byte, error) {
+		err := engine.Do(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {
 			for j := 0; j < m; j++ {
 				k := gen(i, j)
 				q := fmt.Sprintf("INSERT INTO %s (n) VALUES ($n)", table)
-				_, err := c.Exec(q, k)
+				_, err := c.Exec("insert", q, k)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -66,7 +66,7 @@ func fillDB(b *testing.B, engine *Engine, table string, n, m int, gen func(i, j 
 
 func queryLoop(b *testing.B, eng *Engine, query func(c Conn, i int) Rows) {
 	for i := 0; i < b.N; i++ {
-		err := eng.Do(context.Background(), func(c Conn, cache []byte) ([]byte, error) {
+		err := eng.Do(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {
 			rows := query(c, i)
 			if rows.err != nil {
 				b.Fatal(rows.err)
@@ -90,6 +90,6 @@ func BenchmarkReadNumbers(b *testing.B) {
 	})
 	b.ResetTimer()
 	queryLoop(b, eng, func(c Conn, i int) Rows {
-		return c.Query("SELECT n FROM numbers WHERE n = $n", Int64("$n", r[rand.Int()%len(r)].n))
+		return c.Query("select", "SELECT n FROM numbers WHERE n = $n", Int64("$n", r[rand.Int()%len(r)].n))
 	})
 }

@@ -83,7 +83,7 @@ func doSingleROToWALQuery(path string, f func(*Engine) error) error {
 	}
 
 	e := &Engine{
-		opt: Options{Path: path},
+		opt: Options{Path: path, StatsOptions: StatsOptions{}},
 		rw:  newSqliteConn(ro),
 	}
 	err = f(e)
@@ -109,7 +109,7 @@ func doSingleROQuery(path string, f func(*Engine) error) error {
 		return fmt.Errorf("failed to set DB busy timeout to %v: %w", busyTimeout, err)
 	}
 	e := &Engine{
-		opt: Options{Path: path},
+		opt: Options{Path: path, StatsOptions: StatsOptions{}},
 		rw:  newSqliteConn(conn),
 	}
 	err = f(e)
