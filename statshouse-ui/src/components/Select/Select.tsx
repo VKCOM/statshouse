@@ -272,9 +272,16 @@ export const Select: FC<SelectProps> = ({
     }
 
     if (showCountItems && resultLength) {
-      const total = moreItems ? `>${options?.length}, truncated` : options?.length;
+      const total = moreItems ? `>` : ``;
+      const selected = valuesInput.length ? `, ${valuesInput.length} selected` : '';
       const action = resultLength <= maxToggleFiltered ? SELECT_OPTION_ACTION.ToggleFiltered : undefined;
-      result.unshift({ value: '', disabled: !action, stickyTop: true, name: `${filtered.length} of ${total}`, action });
+      result.unshift({
+        value: '',
+        disabled: !action,
+        stickyTop: true,
+        name: `${filtered.length} of ${total}${options?.length} total${selected}`,
+        action,
+      });
     } else if (moreItems && options?.length) {
       result.push({ value: '', disabled: true, name: `>${options?.length} items, truncated` });
     }
