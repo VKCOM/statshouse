@@ -63,8 +63,8 @@ func genBinlogEvent(s string, cache []byte) []byte {
 }
 
 func insertText(e *Engine, s string) error {
-	return e.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-		_, err := conn.Exec("INSERT INTO test_db(t) VALUES ($t)", BlobString("$t", s))
+	return e.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err := conn.Exec("test", "INSERT INTO test_db(t) VALUES ($t)", BlobString("$t", s))
 
 		return genBinlogEvent(s, cache), err
 	})
@@ -94,7 +94,7 @@ func apply(t *testing.T, scanOnly bool, applyF func(string2 string)) func(conn C
 			}
 			str := bytes[8:][:n]
 			if !scanOnly {
-				_, err = conn.Exec("INSERT INTO test_db(t) VALUES ($t)", BlobString("$t", string(str)))
+				_, err = conn.Exec("test", "INSERT INTO test_db(t) VALUES ($t)", BlobString("$t", string(str)))
 				require.NoError(t, err)
 			}
 			if applyF != nil && !scanOnly {
@@ -131,9 +131,6 @@ func openEngine(t *testing.T, prefix string, dbfile, schema string, create, repl
 		Replica:           replica,
 		ReadAndExit:       readAndExit,
 		CommitOnEachWrite: commitOnEachWrite,
-		ProfileCallback: func(sql, expandedSQL string, duration time.Duration) {
-			fmt.Println("SQL:", sql, "expandedSQL:", expandedSQL, "duration:", duration)
-		},
 	}, bl, apply(t, false, applyF), apply(t, true, applyF))
 	require.NoError(t, err)
 	return engine, bl
@@ -282,8 +279,8 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 		expectedMap[t] = struct{}{}
 	}
 	actualDb := map[string]struct{}{}
-	err := engine.Do(context.Background(), func(conn Conn, bytes []byte) ([]byte, error) {
-		rows := conn.Query("SELECT t from test_db")
+	err := engine.Do(context.Background(), "test", func(conn Conn, bytes []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT t from test_db")
 		for rows.Next() {
 			t, err := rows.ColumnBlobString(0)
 			if err != nil {
@@ -353,8 +350,8 @@ func Test_Engine(t *testing.T) {
 		expectedMap[t] = struct{}{}
 	}
 	actualDb := map[string]struct{}{}
-	err := engine.Do(context.Background(), func(conn Conn, bytes []byte) ([]byte, error) {
-		rows := conn.Query("SELECT t from test_db")
+	err := engine.Do(context.Background(), "test", func(conn Conn, bytes []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT t from test_db")
 		if rows.err != nil {
 			return bytes, rows.err
 		}
@@ -384,17 +381,17 @@ func Test_Engine_Read_Empty_Raw(t *testing.T) {
 	var err error
 	var isNull bool
 
-	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		buf := make([]byte, 12)
-		rowID, err = conn.Exec("INSERT INTO test_db(oid) VALUES ($oid)", Int64("$oid", 1))
+		rowID, err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Int64("$oid", 1))
 		binary.LittleEndian.PutUint32(buf, magic)
 		binary.LittleEndian.PutUint64(buf[4:], uint64(1))
 		return cache, err
 	})
 	require.NoError(t, err)
 
-	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-		rows := conn.Query("SELECT data FROM test_db WHERE id=$id or id=$id1", Int64("$id", rowID))
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT data FROM test_db WHERE id=$id or id=$id1", Int64("$id", rowID))
 
 		for rows.Next() {
 			isNull = rows.ColumnIsNull(0)
@@ -417,13 +414,13 @@ func Test_Engine_Put_Empty_String(t *testing.T) {
 	var err error
 	var data = "abc"
 
-	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-		_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", ""))
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", ""))
 		return cache, err
 	})
 	require.NoError(t, err)
-	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-		rows := conn.Query("SELECT data from test_db")
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT data from test_db")
 		require.NoError(t, rows.Error())
 		require.True(t, rows.Next())
 		data, err = rows.ColumnBlobString(0)
@@ -448,13 +445,13 @@ func Test_Engine_NoBinlog(t *testing.T) {
 	require.NoError(t, err)
 	var data = ""
 
-	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-		_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
 		return cache, err
 	})
 	require.NoError(t, err)
-	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-		rows := conn.Query("SELECT data from test_db")
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT data from test_db")
 		require.NoError(t, rows.Error())
 		require.True(t, rows.Next())
 		data, err = rows.ColumnBlobString(0)
@@ -479,8 +476,8 @@ func Test_Engine_NoBinlog_Close(t *testing.T) {
 	require.NoError(t, err)
 	var data = ""
 
-	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-		_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
 		return cache, err
 	})
 	require.NoError(t, err)
@@ -492,8 +489,8 @@ func Test_Engine_NoBinlog_Close(t *testing.T) {
 		DurabilityMode: NoBinlog,
 	}, nil, nil, nil)
 	require.NoError(t, err)
-	err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-		rows := conn.Query("SELECT data from test_db")
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT data from test_db")
 		require.NoError(t, rows.Error())
 		require.True(t, rows.Next())
 		data, err = rows.ColumnBlobString(0)
@@ -518,8 +515,8 @@ func Test_ReplicaMode(t *testing.T) {
 	}
 	time.Sleep(5 * time.Second)
 	c := 0
-	err := engineRepl.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-		rows := conn.Query("SELECT t from test_db")
+	err := engineRepl.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT t from test_db")
 		for rows.Next() {
 			c++
 		}
@@ -549,11 +546,11 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 		if share {
 			view = engine.ViewUncommitted
 		}
-		err = view(context.Background(), func(conn Conn) error {
+		err = view(context.Background(), "test", func(conn Conn) error {
 			if rec > 0 {
 				s = append(s, read(share, rec-1)...)
 			}
-			rows := conn.Query("SELECT data from test_db")
+			rows := conn.Query("test", "SELECT data from test_db")
 			for rows.Next() {
 				data, err = rows.ColumnBlobString(0)
 				s = append(s, data)
@@ -566,8 +563,8 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 	}
 
 	t.Run("RO unshared can see commited data", func(t *testing.T) {
-		err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-			_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
+		err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+			_, err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
 			return cache, err
 		})
 		require.NoError(t, err)
@@ -579,11 +576,11 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 
 	t.Run("RO unshared can't see uncommitted data", func(t *testing.T) {
 		data = ""
-		err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
+		err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 			s := read(false, 0)
 			require.Len(t, s, 1)
 			require.Contains(t, s, "abc")
-			_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "def"))
+			_, err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "def"))
 			require.NoError(t, err)
 			s = read(false, 0)
 			require.Len(t, s, 1)
@@ -600,12 +597,12 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 
 	t.Run("RO shared can see uncommitted data", func(t *testing.T) {
 		data = ""
-		err = engine.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
+		err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 			s := read(true, 0)
 			require.Len(t, s, 2)
 			require.Contains(t, s, "abc")
 			require.Contains(t, s, "def")
-			_, err = conn.Exec("INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "ggg"))
+			_, err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "ggg"))
 			require.NoError(t, err)
 			s = read(true, 0)
 			require.Len(t, s, 3)
@@ -656,8 +653,8 @@ func Test_ReadAndExit(t *testing.T) {
 	require.NoError(t, engineMaster.Close(ctx))
 	engineMaster, _ = openEngine(t, dir, "db1", schema, false, false, true, false, NoBinlog, nil)
 	c := 0
-	err := engineMaster.Do(context.Background(), func(conn Conn, cache []byte) ([]byte, error) {
-		rows := conn.Query("SELECT t from test_db")
+	err := engineMaster.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT t from test_db")
 		for rows.Next() {
 			c++
 		}

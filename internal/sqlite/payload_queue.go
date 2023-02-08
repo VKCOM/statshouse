@@ -3,14 +3,17 @@ package sqlite
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
+
+	"github.com/vkcom/statshouse-go"
 )
 
 type applyQueue struct {
 	q      []delayedApply
-	qBytes int
+	qBytes int64
 	cache  sync.Pool
 
-	maxBytes int
+	maxBytes int64
 	dbOffset int64
 }
 
@@ -19,14 +22,15 @@ type delayedApply struct {
 	skip int64
 }
 
-func newApplyQueue(old *applyQueue, dbOffset int64, maxBytes int) *applyQueue {
+func newApplyQueue(old *applyQueue, dbOffset int64, maxBytes int64, stats *StatsOptions) *applyQueue {
 	if old != nil {
 		old.maxBytes = maxBytes
+		atomic.StoreInt64(&old.qBytes, 0)
 		old.qBytes = 0
 		old.dbOffset = dbOffset
 		return old
 	}
-	return &applyQueue{
+	q := &applyQueue{
 		dbOffset: dbOffset,
 		maxBytes: maxBytes,
 		cache: sync.Pool{
@@ -36,6 +40,10 @@ func newApplyQueue(old *applyQueue, dbOffset int64, maxBytes int) *applyQueue {
 			},
 		},
 	}
+	statshouse.StartRegularMeasurement(func(registry *statshouse.Registry) {
+		stats.applyQueueSize(registry, atomic.LoadInt64(&q.qBytes))
+	})
+	return q
 }
 
 func (q *applyQueue) applyAllChanges(applyFunc func(payload []byte) (newOffset int64, err error), skip func(skipLen int64) (int64, error)) error {
@@ -59,13 +67,14 @@ func (q *applyQueue) applyAllChanges(applyFunc func(payload []byte) (newOffset i
 }
 
 func (q *applyQueue) addNewBody(body []byte, err error) (int64, error) {
-	if q.qBytes+len(body) > q.maxBytes {
+	bytesLen := atomic.LoadInt64(&q.qBytes)
+	if bytesLen+int64(len(body)) > q.maxBytes {
 		return q.dbOffset, errors.New("buffer size limit exceeded")
 	}
 	bytes := *(q.cache.Get().(*[]byte))
 	bytes = append(bytes, body...)
 	q.q = append(q.q, delayedApply{body: &bytes})
-	q.qBytes += len(body)
+	atomic.AddInt64(&q.qBytes, int64(len(body)))
 	q.dbOffset += int64(len(body))
 	return q.dbOffset, err
 }
