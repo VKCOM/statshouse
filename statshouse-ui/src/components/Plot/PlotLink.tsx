@@ -42,7 +42,6 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
               Object.entries(p.plots[cloneId].filterNotIn).map(([key, value]) => [key, value.slice()])
             ),
             numSeries: p.plots[cloneId].numSeries,
-            timeShifts: p.plots[cloneId].timeShifts.slice(),
             useV2: p.plots[cloneId].useV2,
             yLock: {
               min: 0,

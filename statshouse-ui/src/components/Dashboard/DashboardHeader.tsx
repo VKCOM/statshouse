@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useMemo } from 'react';
-import { PlotControlFrom, PlotControlTo, PlotNavigate } from '../Plot';
+import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, PlotNavigate } from '../Plot';
 import { DashboardTagControl } from '../DashboardTagControl';
 import cn from 'classnames';
 import {
@@ -85,6 +85,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
             timeRange={timeRange}
             setTimeRange={setTimeRange}
           />
+        </div>
+        <div className="ms-4 mb-2">
+          <PlotControlTimeShifts />
         </div>
         <div className="ms-4 mb-2">
           <input
