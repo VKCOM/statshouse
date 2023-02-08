@@ -65,7 +65,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   return (
     <div className={cn('sticky-top align-self-start', css.navOuter, className)}>
       <ul className={`nav pb-5  d-flex flex-column ${css.nav}`}>
-        <HeaderMenuItem icon={SVGLightning} title="Home" to="/" description="StatsHouse">
+        <HeaderMenuItem icon={SVGLightning} title="Home" to="/view" description="StatsHouse">
           <li className={css.splitter}></li>
           <li className="nav-item">
             <NavLink className="nav-link" to="/admin/create" end>

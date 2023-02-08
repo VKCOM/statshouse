@@ -9,6 +9,7 @@ import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, PlotNavigate } f
 import { DashboardTagControl } from '../DashboardTagControl';
 import cn from 'classnames';
 import {
+  selectorDashboardId,
   selectorDashboardLayoutEdit,
   selectorDisabledLive,
   selectorLiveMode,
@@ -21,9 +22,12 @@ import {
   useStore,
 } from '../../store';
 import { ReactComponent as SVGColumnsGap } from 'bootstrap-icons/icons/columns-gap.svg';
+import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
+import { NavLink } from 'react-router-dom';
 
 export type DashboardHeaderProps = {};
 export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
+  const dashboardId = useStore(selectorDashboardId);
   const tagsSync = useStore(selectorParamsTagSync);
   const showSyncPanel = useMemo(() => tagsSync.some((group) => group.some((s) => s !== null)), [tagsSync]);
 
@@ -102,6 +106,15 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
             <SVGColumnsGap />
           </label>
         </div>
+        {!!dashboardId && (
+          <div className="ms-2 mb-2">
+            <NavLink to={`/view?id=${dashboardId}`} end>
+              <button type="button" className="btn btn-sm btn-outline-primary" title="Reset dashboard to saved state">
+                <SVGArrowCounterclockwise />
+              </button>
+            </NavLink>
+          </div>
+        )}
       </div>
     </div>
   );

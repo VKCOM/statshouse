@@ -132,6 +132,7 @@ export const selectorTitle = (s: Store) => {
 export const selectorSaveServerParams = (s: Store) => s.saveServerParams;
 export const selectorRemoveServerParams = (s: Store) => s.removeServerParams;
 export const selectorIsServer = (s: Store) => s.params.dashboard?.dashboard_id !== undefined;
+export const selectorDashboardId = (s: Store) => s.params.dashboard?.dashboard_id;
 
 export const selectorListServerDashboard = (s: Store) => s.listServerDashboard;
 export const selectorLoadListServerDashboard = (s: Store) => s.loadListServerDashboard;
