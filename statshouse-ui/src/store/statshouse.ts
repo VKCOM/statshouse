@@ -84,6 +84,7 @@ export type PlotStore = {
   scales: Record<string, { min: number; max: number }>;
   lastPlotParams?: PlotParams;
   lastTimeRange?: TimeRange;
+  lastTimeShifts?: number[];
   lastQuerySeriesMeta?: querySeriesMeta[];
   receiveErrors: number;
   samplingFactorSrc: number;
@@ -233,6 +234,7 @@ export const useStore = create<Store>()(
       timeRange: { to: TIME_RANGE_KEYS_TO.default, from: 0 },
       tagSync: [],
       plots: [],
+      timeShifts: [],
       tabNum: 0,
     },
     setTimeRange(value, force?) {
@@ -307,7 +309,6 @@ export const useStore = create<Store>()(
           customAgg: 0,
           filterNotIn: { ...globalSettings.default_metric_filter_not_in },
           numSeries: 5,
-          timeShifts: [],
           useV2: true,
           yLock: {
             min: 0,
@@ -327,6 +328,8 @@ export const useStore = create<Store>()(
       const prevParams = getState().params;
       const changed = !dequal(params, prevParams);
       const changedTimeRange = !dequal(params.timeRange, prevParams.timeRange);
+
+      const changedTimeShifts = !dequal(params.timeShifts, prevParams.timeShifts);
       if (changed) {
         debug.log('updateParamsByUrl', deepClone(params), deepClone(getState().params));
         setState((store) => {
@@ -343,7 +346,7 @@ export const useStore = create<Store>()(
           }
         });
         getState().params.plots.forEach((plot, index) => {
-          if (changedTimeRange || prevParams.plots[index] !== plot) {
+          if (changedTimeRange || changedTimeShifts || prevParams.plots[index] !== plot) {
             getState().loadPlot(index);
           }
         });
@@ -360,7 +363,7 @@ export const useStore = create<Store>()(
       const nextParams = getNextState(prevParams, nextState);
       const changed = force || !dequal(nextParams, prevParams);
       const changedTimeRange = force || !dequal(nextParams.timeRange, prevParams.timeRange);
-
+      const changedTimeShifts = !dequal(nextParams.timeShifts, prevParams.timeShifts);
       if (changed) {
         setState((state) => {
           if (changedTimeRange) {
@@ -369,7 +372,7 @@ export const useStore = create<Store>()(
           state.params = nextParams;
         });
         getState().params.plots.forEach((plot, index) => {
-          if (changedTimeRange || prevParams.plots[index] !== plot) {
+          if (changedTimeRange || changedTimeShifts || prevParams.plots[index] !== plot) {
             getState().loadPlot(index, force);
           }
         });
@@ -547,6 +550,7 @@ export const useStore = create<Store>()(
             legendMaxHostPercentWidth: 0,
             lastPlotParams: undefined,
             lastTimeRange: undefined,
+            lastTimeShifts: undefined,
             lastQuerySeriesMeta: undefined,
             topInfo: undefined,
           };
@@ -566,7 +570,10 @@ export const useStore = create<Store>()(
       if (
         width &&
         lastPlotParams &&
-        (lastPlotParams !== prev.lastPlotParams || prevState.timeRange !== prev.lastTimeRange || force)
+        (lastPlotParams !== prev.lastPlotParams ||
+          prevState.timeRange !== prev.lastTimeRange ||
+          prevState.params.timeShifts !== prev.lastTimeShifts ||
+          force)
       ) {
         const agg =
           lastPlotParams.customAgg === -1
@@ -589,7 +596,7 @@ export const useStore = create<Store>()(
         prevState.setNumQueriesPlot(index, (n) => n + 1);
         const controller = new AbortController();
 
-        const url = queryURL(lastPlotParams, prevState.timeRange, agg, !compact);
+        const url = queryURL(lastPlotParams, prevState.timeRange, prevState.params.timeShifts, agg, !compact);
         prevState.plotsDataAbortController[index]?.abort();
         setState((state) => {
           state.plotsDataAbortController[index] = controller;
@@ -713,7 +720,7 @@ export const useStore = create<Store>()(
               max: Math.max(...Object.values(topInfoTotals)),
             };
             const topInfoFunc = lastPlotParams.what.length;
-            const topInfoShifts = lastPlotParams.timeShifts.length;
+            const topInfoShifts = prevState.params.timeShifts.length;
             const info: string[] = [];
 
             if (topInfoTop.min !== topInfoTotal.min && topInfoTop.max !== topInfoTotal.max) {
@@ -792,6 +799,7 @@ export const useStore = create<Store>()(
                 lastPlotParams,
                 lastQuerySeriesMeta: [...resp.series.series_meta],
                 lastTimeRange: getState().timeRange,
+                lastTimeShifts: getState().params.timeShifts,
                 topInfo,
               };
             });
@@ -818,6 +826,7 @@ export const useStore = create<Store>()(
                   legendMaxHostPercentWidth: 0,
                   lastPlotParams: undefined,
                   lastTimeRange: undefined,
+                  lastTimeShifts: undefined,
                   lastQuerySeriesMeta: undefined,
                   topInfo: undefined,
                 };
@@ -845,6 +854,7 @@ export const useStore = create<Store>()(
                   legendMaxHostPercentWidth: 0,
                   lastPlotParams: undefined,
                   lastTimeRange: undefined,
+                  lastTimeShifts: undefined,
                   lastQuerySeriesMeta: undefined,
                   topInfo: undefined,
                 };

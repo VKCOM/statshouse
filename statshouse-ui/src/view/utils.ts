@@ -673,8 +673,16 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
     }));
     delete params.dashboard.groups;
   }
+  // @ts-ignore
+  const timeShifts = params.timeShifts ?? params.plots[0]?.timeShifts ?? [];
   return {
     ...params,
+    plots: params.plots.map((p) => {
+      // @ts-ignore
+      delete p.timeShifts;
+      return p;
+    }),
+    timeShifts,
     dashboard: {
       ...(params.dashboard ?? {}),
       dashboard_id: data.dashboard.dashboard_id,

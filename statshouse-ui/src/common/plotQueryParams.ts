@@ -56,7 +56,6 @@ export type PlotParams = {
   filterIn: Record<string, string[]>;
   filterNotIn: Record<string, string[]>;
   numSeries: number;
-  timeShifts: number[];
   useV2: boolean;
   yLock: {
     min: number;
@@ -86,6 +85,7 @@ export type QueryParams = {
   ['@type']?: 'QueryParams'; // ld-json
   dashboard?: DashboardParams;
   timeRange: { to: number | KeysTo; from: number };
+  timeShifts: number[];
   tabNum: number;
   tagSync: (number | null)[][]; // [group][page_plot][tag_index]
   plots: PlotParams[];
@@ -97,6 +97,7 @@ export const defaultParams: Readonly<QueryParams> = {
   },
   timeRange: { ...defaultTimeRange },
   tabNum: 0,
+  timeShifts: [],
   tagSync: [],
   plots: [
     // {
@@ -342,15 +343,6 @@ export const configParams: ConfigParams = {
         urlKey: queryParamNumResults, //n=5 or t1.n=10
         default: 5,
       },
-      timeShifts: {
-        /**
-         * add time shift series
-         */
-        ...NumberParam,
-        urlKey: queryParamTimeShifts, //ts=-86400 or t1.ts=-172800
-        default: [] as number[],
-        isArray: true,
-      },
       useV2: {
         /**
          * api version
@@ -377,6 +369,15 @@ export const configParams: ConfigParams = {
         },
       },
     },
+  },
+  timeShifts: {
+    /**
+     * add time shift all series
+     */
+    ...NumberParam,
+    urlKey: queryParamTimeShifts, //ts=-86400 or t1.ts=-172800
+    default: [] as number[],
+    isArray: true,
   },
   tagSync: {
     /**

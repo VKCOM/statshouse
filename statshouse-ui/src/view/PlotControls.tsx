@@ -4,18 +4,20 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, Fragment, memo, useCallback, useEffect, useMemo } from 'react';
+import React, { ChangeEvent, memo, useCallback, useEffect, useMemo } from 'react';
 import * as utils from './utils';
 import { getTimeShifts, timeShiftAbbrevExpand } from './utils';
 import { MetricItem } from '../hooks';
-import { PlotControlFrom, PlotControlTo, Select } from '../components';
+import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, Select } from '../components';
 import { TagControl } from './TagControl';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import {
   selectorLastError,
   selectorParamsTagSync,
+  selectorParamsTimeShifts,
   selectorSetLastError,
+  selectorSetParams,
   selectorSetTimeRange,
   selectorTimeRange,
   useStore,
@@ -34,6 +36,9 @@ const PlotControls = memo(function PlotControls_(props: {
   clonePlot?: () => void;
 }) {
   const { indexPlot, setBaseRange, sel, setSel, meta, numQueries, clonePlot, metricsOptions } = props;
+
+  const timeShifts = useStore(selectorParamsTimeShifts);
+  const setParams = useStore(selectorSetParams);
 
   const timeRange = useStore(selectorTimeRange);
   const setTimeRange = useStore(selectorSetTimeRange);
@@ -62,39 +67,20 @@ const PlotControls = memo(function PlotControls_(props: {
     }
   }, [meta.kind, meta.name, sel.metricName, sel.what, setSel]);
 
-  const onTimeShiftChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      setSel((s) => {
-        const ts = parseInt(e.target.value);
-        let shifts = s.timeShifts.filter((v) => v !== ts);
-        if (e.target.checked) {
-          shifts.push(ts);
-        }
-        return {
-          ...s,
-          timeShifts: shifts,
-        };
-      });
-    },
-    [setSel]
-  );
-
   const onCustomAggChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
-      setSel((s) => {
-        const customAgg = parseInt(e.target.value);
-        const timeShiftsSet = getTimeShifts(customAgg);
-        const shifts = s.timeShifts.filter(
-          (v) => timeShiftsSet.find((shift) => timeShiftAbbrevExpand(shift) === v) !== undefined
-        );
-        return {
-          ...s,
-          customAgg: customAgg,
-          timeShifts: shifts,
-        };
-      });
+      const customAgg = parseInt(e.target.value);
+      const timeShiftsSet = getTimeShifts(customAgg);
+      const shifts = timeShifts.filter(
+        (v) => timeShiftsSet.find((shift) => timeShiftAbbrevExpand(shift) === v) !== undefined
+      );
+      setParams((p) => ({ ...p, timeShifts: shifts }));
+      setSel((s) => ({
+        ...s,
+        customAgg: customAgg,
+      }));
     },
-    [setSel]
+    [setParams, setSel, timeShifts]
   );
 
   const onNumSeriesChange = useCallback(
@@ -211,28 +197,7 @@ const PlotControls = memo(function PlotControls_(props: {
           <div className="align-items-baseline mt-2">
             <PlotControlTo timeRange={timeRange} setTimeRange={setTimeRange} />
           </div>
-
-          <div className="btn-group btn-group-sm w-100 mt-2" role="group">
-            {utils.getTimeShifts(sel.customAgg).map((ts) => {
-              const dt = utils.timeShiftAbbrevExpand(ts);
-              return (
-                <Fragment key={ts}>
-                  <input
-                    type="checkbox"
-                    className="btn-check"
-                    id={`compare${ts}`}
-                    autoComplete="off"
-                    value={dt}
-                    checked={sel.timeShifts.indexOf(dt) !== -1}
-                    onChange={onTimeShiftChange}
-                  />
-                  <label className="btn btn-outline-primary" htmlFor={`compare${ts}`}>
-                    {utils.timeShiftDesc(utils.timeShiftAbbrevExpand(ts))}
-                  </label>
-                </Fragment>
-              );
-            })}
-          </div>
+          <PlotControlTimeShifts className="w-100 mt-2" />
         </div>
 
         <div className="row mb-3 align-items-baseline">

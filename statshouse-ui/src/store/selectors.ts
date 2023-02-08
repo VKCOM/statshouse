@@ -16,6 +16,7 @@ export const selectorParamsPlotsByIndex = (index: number, s: Store) => s.params.
 export const selectorSetParamsPlots = (s: Store) => s.setPlotParams;
 export const selectorRemovePlot = (s: Store) => s.removePlot;
 export const selectorParamsTimeRange = (s: Store) => s.params.timeRange;
+export const selectorParamsTimeShifts = (s: Store) => s.params.timeShifts;
 export const selectorParamsTabNum = (s: Store) => s.params.tabNum;
 export const selectorTimeRange = (s: Store) => s.timeRange;
 export const selectorSetTimeRange = (s: Store) => s.setTimeRange;

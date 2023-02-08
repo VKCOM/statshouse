@@ -22,6 +22,7 @@ import {
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
   selectorParamsPlotsByIndex,
+  selectorParamsTimeShifts,
   selectorPlotLastError,
   selectorPlotsDataByIndex,
   selectorSetLiveMode,
@@ -64,6 +65,8 @@ const PlotView = memo(function PlotView_(props: {
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
   const setSel = useStore(selectorSetParamsPlots);
+
+  const timeShifts = useStore(selectorParamsTimeShifts);
 
   const timeRange = useStore(selectorTimeRange);
   const setTimeRange = useStore(selectorSetTimeRange);
@@ -259,8 +262,8 @@ const PlotView = memo(function PlotView_(props: {
         : sel.customAgg === 0
         ? `${Math.floor(width * devicePixelRatio)}`
         : `${sel.customAgg}s`;
-    return queryURLCSV(sel, timeRange, agg);
-  }, [sel, timeRange, width]);
+    return queryURLCSV(sel, timeRange, timeShifts, agg);
+  }, [sel, timeRange, timeShifts, width]);
 
   const onReady = useCallback(
     (u: uPlot) => {

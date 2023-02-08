@@ -21,7 +21,10 @@ export interface querySelector {
   readonly filterIn: Readonly<Record<string, readonly string[]>>;
   readonly filterNotIn: Readonly<Record<string, readonly string[]>>;
   readonly numSeries: number;
-  readonly timeShifts: readonly number[];
+  /**
+   * @deprecated
+   */
+  readonly timeShifts?: readonly number[];
   readonly useV2: boolean;
   readonly yLock: lockRange;
 }
@@ -465,6 +468,7 @@ export function v2Value(useV2: boolean): string {
 export function queryURL(
   sel: querySelector,
   timeRange: TimeRange,
+  timeShifts: number[],
   width: number | string,
   fetchBadges: boolean
 ): string {
@@ -478,7 +482,7 @@ export function queryURL(
     ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
     // [queryParamWhat, sel.what.map((qw) => qw.toString())],
     [queryParamVerbose, fetchBadges ? '1' : '0'],
-    ...sel.timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
+    ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
     ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
     ...filterParams(sel.filterIn, sel.filterNotIn),
   ];
@@ -487,7 +491,12 @@ export function queryURL(
   return `/api/query?${strParams}`;
 }
 
-export function queryURLCSV(sel: querySelector, timeRange: TimeRange, width: number | string): string {
+export function queryURLCSV(
+  sel: querySelector,
+  timeRange: TimeRange,
+  timeShifts: number[],
+  width: number | string
+): string {
   const params = [
     [queryParamNumResults, sel.numSeries.toString()],
     [queryParamBackendVersion, v2Value(sel.useV2)],
@@ -496,8 +505,7 @@ export function queryURLCSV(sel: querySelector, timeRange: TimeRange, width: num
     [queryParamToTime, (timeRange.to + 1).toString()],
     [queryParamWidth, width.toString()],
     ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
-    // [queryParamWhat, sel.what],
-    ...sel.timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
+    ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
     ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
     ...filterParams(sel.filterIn, sel.filterNotIn),
     [queryParamDownloadFile, 'csv'],
