@@ -406,16 +406,16 @@ func TestMetricsStorage(t *testing.T) {
 			err = m.journal.updateJournal(nil)
 			require.NoError(t, err)
 
-			require.Len(t, m.journal.journal, 6)
-			require.Len(t, m.journal.journalOld, 2)
+			require.Len(t, m.journal.journal, 7)
+			require.Len(t, m.journal.journalOld, 3)
 
-			require.Equal(t, int64(9), m.journal.versionLocked())
+			require.Equal(t, int64(12), m.journal.versionLocked())
 
-			require.Len(t, m.metricsByID, 2)
-			require.Len(t, m.metricsByName, 2)
+			require.Len(t, m.metricsByID, 3)
+			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 2)
-			require.Len(t, m.metricsByGroup, 1)
+			require.Len(t, m.metricsByGroup, 2)
 		})
 		t.Run("broadcast prom clients", func(t *testing.T) {
 			events = []tlmetadata.Event{
@@ -423,14 +423,14 @@ func TestMetricsStorage(t *testing.T) {
 					Id:        351525,
 					Name:      "-",
 					EventType: format.PromConfigEvent,
-					Version:   12,
+					Version:   13,
 					Data:      "abc",
 				},
 				{
 					Id:        351525,
 					Name:      "-",
 					EventType: format.PromConfigEvent,
-					Version:   13,
+					Version:   14,
 					Data:      "def",
 				},
 			}
@@ -443,7 +443,7 @@ func TestMetricsStorage(t *testing.T) {
 			err = m.journal.updateJournal(nil)
 			require.NoError(t, err)
 			require.Equal(t, "def", promConfgString)
-			require.Equal(t, int64(13), promConfgVersion)
+			require.Equal(t, int64(14), promConfgVersion)
 		})
 	})
 	t.Run("test getJournalDiffLocked3", func(t *testing.T) {

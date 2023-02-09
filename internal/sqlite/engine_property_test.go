@@ -318,7 +318,6 @@ func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine,
 		waitUntilBinlogReady: make(chan struct{}),
 		commitCh:             make(chan struct{}, 1),
 		mode:                 master,
-		stats:                &stats{},
 	}
 	e.isTest = true
 	e.roCond = sync.NewCond(&e.roMx)

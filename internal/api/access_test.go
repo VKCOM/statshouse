@@ -71,8 +71,8 @@ func TestAccessInfo(t *testing.T) {
 				bitViewPrefix: map[string]bool{"foo_": true},
 				accessManager: &accessManager{getGroupByMetricName: func(s string) *format.MetricsGroup {
 					return &format.MetricsGroup{
-						Name:          "foo",
-						ProtectedRead: true,
+						Name:      "foo",
+						Protected: true,
 					}
 				}},
 			}
@@ -84,8 +84,8 @@ func TestAccessInfo(t *testing.T) {
 				bitViewDefault: true,
 				accessManager: &accessManager{getGroupByMetricName: func(s string) *format.MetricsGroup {
 					return &format.MetricsGroup{
-						Name:          "foo",
-						ProtectedRead: true,
+						Name:      "foo",
+						Protected: true,
 					}
 				}},
 			}
@@ -144,9 +144,8 @@ func TestAccessInfo(t *testing.T) {
 				bitEditPrefix: map[string]bool{"foo_": true},
 				accessManager: &accessManager{getGroupByMetricName: func(s string) *format.MetricsGroup {
 					return &format.MetricsGroup{
-						Name:           "foo",
-						ProtectedRead:  true,
-						ProtectedWrite: true,
+						Name:      "foo",
+						Protected: true,
 					}
 				}},
 			}
@@ -158,9 +157,8 @@ func TestAccessInfo(t *testing.T) {
 				bitEditDefault: true,
 				accessManager: &accessManager{getGroupByMetricName: func(s string) *format.MetricsGroup {
 					return &format.MetricsGroup{
-						Name:           "foo",
-						ProtectedRead:  true,
-						ProtectedWrite: true,
+						Name:      "foo",
+						Protected: true,
 					}
 				}},
 			}
@@ -172,9 +170,8 @@ func TestAccessInfo(t *testing.T) {
 				bitEditDefault: true,
 				accessManager: &accessManager{getGroupByMetricName: func(s string) *format.MetricsGroup {
 					return &format.MetricsGroup{
-						Name:           "foo",
-						ProtectedRead:  true,
-						ProtectedWrite: true,
+						Name:      "foo",
+						Protected: true,
 					}
 				}},
 			}
@@ -187,9 +184,8 @@ func TestAccessInfo(t *testing.T) {
 				accessManager: &accessManager{getGroupByMetricName: func(s string) *format.MetricsGroup {
 					if strings.HasPrefix(s, "foo_") {
 						return &format.MetricsGroup{
-							Name:           "foo",
-							ProtectedRead:  true,
-							ProtectedWrite: true,
+							Name:      "foo",
+							Protected: true,
 						}
 					}
 					return nil

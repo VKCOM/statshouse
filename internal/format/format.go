@@ -126,14 +126,13 @@ type DashboardMeta struct {
 type MetricsGroup struct {
 	ID         int32  `json:"group_id"`
 	Name       string `json:"name"`
-	Version    int64  `json:"version,omitempty"`
+	Version    int64  `json:"version"`
 	UpdateTime uint32 `json:"update_time"`
 
 	Weight            float64 `json:"weight,omitempty"`
 	Visible           bool    `json:"visible,omitempty"`
 	IsWeightEffective bool    `json:"is_weight_effective,omitempty"`
-	ProtectedRead     bool    `json:"protected_read,omitempty"`
-	ProtectedWrite    bool    `json:"protected_write,omitempty"`
+	Protected         bool    `json:"protected,omitempty"`
 
 	EffectiveWeight int64 `json:"-"`
 }
@@ -401,6 +400,19 @@ func ValidDashboardName(s string) bool {
 	for i := 1; i < len(s); i++ {
 		c := s[i]
 		if !isLetter(c) && c != '_' && !(c >= '0' && c <= '9') && c != ' ' {
+			return false
+		}
+	}
+	return true
+}
+
+func ValidMetricsGroupName(s string) bool {
+	if len(s) == 0 || len(s) > MaxStringLen || !isLetter(s[0]) {
+		return false
+	}
+	for i := 1; i < len(s); i++ {
+		c := s[i]
+		if !isLetter(c) && !(c >= '0' && c <= '9') {
 			return false
 		}
 	}
