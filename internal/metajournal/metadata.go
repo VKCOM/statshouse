@@ -31,7 +31,7 @@ const (
 	prometheusConfigID     = -1 // TODO move to file with predefined entities
 )
 
-var InvalidDashboardName = fmt.Errorf("invalid dashboard name")
+var ErrorInvalidDashboardName = fmt.Errorf("invalid dashboard name")
 
 type MetricMetaLoader struct {
 	loadTimeout time.Duration
@@ -47,7 +47,7 @@ func NewMetricMetaLoader(client *tlmetadata.Client, loadTimeout time.Duration) *
 
 func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.DashboardMeta, create, remove bool) (format.DashboardMeta, error) {
 	if !format.ValidDashboardName(value.Name) {
-		return format.DashboardMeta{}, fmt.Errorf("%w: %q", InvalidDashboardName, value.Name)
+		return format.DashboardMeta{}, fmt.Errorf("%w: %q", ErrorInvalidDashboardName, value.Name)
 	}
 	metricBytes, err := json.Marshal(value.JSONData)
 	if err != nil {
@@ -93,6 +93,10 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 	if err := value.RestoreCachedInfo(); err != nil {
 		return g, err
 	}
+	if !format.ValidMetricsGroupName(value.Name) {
+		return g, fmt.Errorf("invalid metrics group name: %q", value.Name)
+	}
+
 	groupBytes, err := json.Marshal(value)
 	if err != nil {
 		return format.MetricsGroup{}, fmt.Errorf("faield to serialize group: %w", err)

@@ -48,9 +48,7 @@ func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, 
 	})
 
 	ln, err := net.Listen("tcp4", fmt.Sprintf(":%d", 0))
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	go func() {
 		err = server.Serve(ln)
 		if err != rpc.ErrServerClosed {

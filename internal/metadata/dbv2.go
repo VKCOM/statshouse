@@ -289,13 +289,6 @@ func (db *DBV2) PutOldMetric(ctx context.Context, name string, id int64, version
 }
 
 func checkRules(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32) error {
-	if typ == format.MetricsGroupEvent {
-		r := c.Query("select_groups", "SELECT id from metrics_v3 WHERE type = $type AND name like $pattern", sqlite.Int64("$type", int64(format.MetricsGroupEvent)), sqlite.BlobText("$pattern", name+"%"))
-		if r.Next() {
-			return fmt.Errorf("group can't be prefix of another group")
-		}
-		return r.Error()
-	}
 	return nil
 }
 

@@ -4,6 +4,8 @@ package api
 
 import (
 	json "encoding/json"
+	"math"
+
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
@@ -201,6 +203,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 			out.Visible = bool(in.Bool())
 		case "is_weight_effective":
 			out.IsWeightEffective = bool(in.Bool())
+		case "protected":
+			out.Protected = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -249,6 +253,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 		const prefix string = ",\"is_weight_effective\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.IsWeightEffective))
+	}
+	if in.Protected {
+		const prefix string = ",\"protected\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.Protected))
 	}
 	out.RawByte('}')
 }
@@ -952,7 +961,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out *jwriter.Wri
 							if v24 > 0 {
 								out.RawByte(',')
 							}
-							out.Float64(float64(v25))
+							if math.IsNaN(float64(v25)) {
+								out.RawString("null")
+							} else {
+								out.Float64(float64(v25))
+							}
 						}
 						out.RawByte(']')
 					}

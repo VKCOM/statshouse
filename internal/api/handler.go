@@ -1097,7 +1097,7 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 		if create {
 			s = "create"
 		}
-		if errors.Is(err, metajournal.InvalidDashboardName) {
+		if errors.Is(err, metajournal.ErrorInvalidDashboardName) {
 			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't %s dashboard: %w", s, err))
 		}
 		return &DashboardInfo{}, fmt.Errorf("can't %s dashboard: %w", s, err)
@@ -1131,9 +1131,12 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("group %s not found", group.Name))
 	}
 	if !create {
-		if h.metricsStorage.GetGroup(group.ID) != nil {
+		if h.metricsStorage.GetGroup(group.ID) == nil {
 			return &MetricsGroupInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("group %d not found", group.ID))
 		}
+	}
+	if !h.metricsStorage.CanAddOrChangeGroup(group.Name, group.ID) {
+		return &MetricsGroupInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("group name %s is not posible", group.Name))
 	}
 	group, err := h.metadataLoader.SaveMetricsGroup(ctx, group, create)
 	if err != nil {
