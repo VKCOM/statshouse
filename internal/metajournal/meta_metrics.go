@@ -9,6 +9,7 @@ package metajournal
 import (
 	"encoding/json"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -294,5 +295,13 @@ func (ms *MetricsStorage) CanAddOrChangeGroup(name string, id int32) bool {
 }
 
 func (ms *MetricsStorage) canAddOrChangeGroupLocked(name string, id int32) bool {
+	for _, m := range ms.groupsByID {
+		if id != 0 && id == m.ID {
+			continue
+		}
+		if strings.HasPrefix(name, m.Name) || strings.HasPrefix(m.Name, name) {
+			return false
+		}
+	}
 	return true
 }

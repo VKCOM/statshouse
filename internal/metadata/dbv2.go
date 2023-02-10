@@ -97,10 +97,10 @@ CREATE TABLE IF NOT EXISTS metrics_v3
     version INTEGER UNIQUE NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER NOT NULL,
-    data    TEXT NOT NULL,
+    data    BLOB NOT NULL,
     type    INTEGER NOT NULL,
     UNIQUE (type, name)
-);
+) STRICT;
 CREATE INDEX IF NOT EXISTS metrics_id_v3 ON metrics_v3 (version);
 CREATE INDEX IF NOT EXISTS metrics_id_v3 ON metrics_v3 (type);
 
@@ -175,39 +175,13 @@ func OpenDB(
 			if rows.Error() != nil {
 				return nil, fmt.Errorf("failed to select metrics_v2: %w", err)
 			}
-			for rows.Next() {
-				var id int64
-				var name string
-				var version int64
-				var updatedAt int64
-				var deletedAt int64
-				var data string
-				var type_ int64
-				id, _ = rows.ColumnInt64(0)
-				name, err = rows.ColumnBlobString(1)
-				version, _ = rows.ColumnInt64(2)
-				updatedAt, _ = rows.ColumnInt64(3)
-				deletedAt, _ = rows.ColumnInt64(4)
-				data, err = rows.ColumnBlobString(5)
-				type_, _ = rows.ColumnInt64(6)
-
-				_, err = conn.Exec("insert_entity", "INSERT INTO metrics_v3 (id, data, name, updated_at, deleted_at, type, version) VALUES ($id, $data, $name, $updatedAt, $deletedAt, $type, $version);",
-					sqlite.Int64("$id", id),
-					sqlite.BlobString("$data", data),
-					sqlite.BlobText("$name", name),
-					sqlite.Int64("$updatedAt", updatedAt),
-					sqlite.Int64("$deletedAt", deletedAt),
-					sqlite.Int64("$type", type_),
-					sqlite.Int64("$version", version),
-				)
-				if err != nil {
-					return nil, err
-				}
+			q := `INSERT INTO metrics_v3 (id, data, name, updated_at, deleted_at, type, version)
+			SELECT id, data, cast(name as TEXT), updated_at, deleted_at, type, version FROM metrics_v2;`
+			_, err := conn.Exec("insert_entity", q)
+			if err != nil {
+				return nil, fmt.Errorf("failed to insert entity: %w", err)
 			}
-			if rows.Error() != nil {
-				return nil, rows.Error()
-			}
-			_, err := conn.Exec("finish_migration", "INSERT INTO property (name, data) VALUES ('migration_v3', '')")
+			_, err = conn.Exec("finish_migration", "INSERT INTO property (name, data) VALUES ('migration_v3', '')")
 			return nil, err
 		})
 		if err != nil {
@@ -289,6 +263,13 @@ func (db *DBV2) PutOldMetric(ctx context.Context, name string, id int64, version
 }
 
 func checkRules(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32) error {
+	if typ == format.MetricsGroupEvent {
+		r := c.Query("select_groups", "SELECT id from metrics_v3 WHERE type = $type AND name like $pattern", sqlite.Int64("$type", int64(format.MetricsGroupEvent)), sqlite.BlobText("$pattern", name+"%"))
+		if r.Next() {
+			return fmt.Errorf("group can't be prefix of another group")
+		}
+		return r.Error()
+	}
 	return nil
 }
 

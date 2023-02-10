@@ -143,7 +143,7 @@ func applyEditMetricEvent(conn sqlite.Conn, event tlmetadata.EditMetricEvent) er
 
 func applyEditEntityEvent(conn sqlite.Conn, event tlmetadata.EditEntityEvent) error {
 	deletedAt := event.Metric.Unused
-	_, err := conn.Exec("edit_entity", "UPDATE metrics_v3 SET version = $newVersion, data = json($data), updated_at = $updatedAt, deleted_at = $deletedAt WHERE version = $oldVersion AND name = $name AND id = $id;",
+	_, err := conn.Exec("edit_entity", "UPDATE metrics_v3 SET version = $newVersion, data = $data, updated_at = $updatedAt, deleted_at = $deletedAt WHERE version = $oldVersion AND name = $name AND id = $id;",
 		sqlite.BlobString("$data", event.Metric.Data),
 		sqlite.Int64("$updatedAt", int64(event.Metric.UpdateTime)),
 		sqlite.Int64("$oldVersion", event.OldVersion),
@@ -187,7 +187,7 @@ func applyCreateMetricEvent(conn sqlite.Conn, event tlmetadata.CreateMetricEvent
 }
 
 func applyCreateEntityEvent(conn sqlite.Conn, event tlmetadata.CreateEntityEvent) error {
-	_, err := conn.Exec("insert_entity", "INSERT INTO metrics_v3 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, json($data), $name, $updatedAt, $type, $deletedAt);",
+	_, err := conn.Exec("insert_entity", "INSERT INTO metrics_v3 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, $data, $name, $updatedAt, $type, $deletedAt);",
 		sqlite.BlobString("$data", event.Metric.Data),
 		sqlite.BlobText("$name", event.Metric.Name),
 		sqlite.Int64("$updatedAt", int64(event.Metric.UpdateTime)),
@@ -321,7 +321,7 @@ func applyPutBootstrap(conn sqlite.Conn, cache []byte, mappings []tlstatshouse.M
 
 func putEntityWithFixedID(conn sqlite.Conn, cache []byte, name string, id int64, versionToInsert int64, newJson string, updateTime uint32, typ int32) (tlmetadata.Event, []byte, error) {
 	result := tlmetadata.Event{}
-	_, err := conn.Exec("insert_metric_fixed", "INSERT INTO metrics_v3 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, json($data), $name, $updatedAt, $type, 0);",
+	_, err := conn.Exec("insert_metric_fixed", "INSERT INTO metrics_v3 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, $data, $name, $updatedAt, $type, 0);",
 		sqlite.Int64("$id", id),
 		sqlite.Int64("$version", versionToInsert),
 		sqlite.BlobString("$data", newJson),

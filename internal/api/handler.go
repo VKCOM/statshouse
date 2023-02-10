@@ -1144,7 +1144,11 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 		if create {
 			s = "create"
 		}
-		return &MetricsGroupInfo{}, fmt.Errorf("can't %s group: %w", s, err)
+		errReturn := fmt.Errorf("can't %s group: %w", s, err)
+		if errors.Is(err, metajournal.ErrorGroupName) {
+			return &MetricsGroupInfo{}, httpErr(http.StatusBadRequest, errReturn)
+		}
+		return &MetricsGroupInfo{}, errReturn
 	}
 	return &MetricsGroupInfo{Group: group}, nil
 }
