@@ -32,6 +32,7 @@ const (
 )
 
 var ErrorInvalidDashboardName = fmt.Errorf("invalid dashboard name")
+var ErrorGroupName = fmt.Errorf("invalid group name")
 
 type MetricMetaLoader struct {
 	loadTimeout time.Duration
@@ -93,8 +94,9 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 	if err := value.RestoreCachedInfo(); err != nil {
 		return g, err
 	}
-	if !format.ValidMetricsGroupName(value.Name) {
-		return g, fmt.Errorf("invalid metrics group name: %q", value.Name)
+	var err error
+	if !format.ValidMetricName(mem.S(value.Name)) {
+		return g, ErrorGroupName
 	}
 
 	groupBytes, err := json.Marshal(value)

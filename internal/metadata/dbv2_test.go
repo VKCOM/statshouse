@@ -171,6 +171,16 @@ func Test_SaveEntity_PredefinedEntity(t *testing.T) {
 	require.Equal(t, int64(-1), m.Id)
 }
 
+func Test_SaveGroup_With_Bad_Name(t *testing.T) {
+	path := t.TempDir()
+	db, _ := initD1b(t, path, "db", true, nil)
+	_, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent)
+	require.NoError(t, err)
+	_, err = db.SaveEntity(context.Background(), "abc", 0, 0, "{}", true, false, format.MetricsGroupEvent)
+	require.Error(t, err)
+
+}
+
 func unpackGetMappingUnion(u tlmetadata.GetMappingResponseUnion, err error) (int32, error) {
 	if err != nil {
 		return 0, err
@@ -629,6 +639,7 @@ func Test_Migration(t *testing.T) {
 				require.True(t, ok)
 				require.Equal(t, m, metric)
 			}
+
 		}, nil)
 }
 
@@ -669,6 +680,7 @@ func Test_Reread_Binlog_PutOldMetric(t *testing.T) {
 	t.Run("reread with old db", func(t *testing.T) {
 		test(t, false)
 	})
+
 }
 
 func Test_Reread_Binlog_PutBootstrap(t *testing.T) {

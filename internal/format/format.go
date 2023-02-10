@@ -406,19 +406,6 @@ func ValidDashboardName(s string) bool {
 	return true
 }
 
-func ValidMetricsGroupName(s string) bool {
-	if len(s) == 0 || len(s) > MaxStringLen || !isLetter(s[0]) {
-		return false
-	}
-	for i := 1; i < len(s); i++ {
-		c := s[i]
-		if !isLetter(c) && !(c >= '0' && c <= '9') {
-			return false
-		}
-	}
-	return true
-}
-
 func ValidTagName(s string) bool {
 	return validIdent(mem.S(s))
 }
