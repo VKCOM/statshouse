@@ -20,6 +20,7 @@ export type LegendItem<T = Object> = {
   values?: T;
   alpha?: number;
   focus?: boolean;
+  dash?: number[];
 };
 export type UPlotWrapperPropsOpts = Partial<uPlot.Options>;
 export type UPlotWrapperPropsScales = Record<string, { min: number; max: number }>;
@@ -85,6 +86,7 @@ function readLegend(u: uPlot): LegendItem[] {
       value: u.legend.values?.[index]?.['_']?.toString().replace('--', '') || lastTime, // replace '--' uplot
       values: typeof idx === 'number' ? s.values?.(u, index, idx) : undefined,
       alpha: s.alpha,
+      dash: s.dash,
     };
   });
 }

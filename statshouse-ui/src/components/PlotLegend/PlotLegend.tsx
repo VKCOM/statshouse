@@ -92,7 +92,12 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({ legend, onLegendShow, on
                   <div className={cn(css.labelOuter, index === 0 && css.time)}>
                     <div
                       className={css.marker}
-                      style={{ border: l.stroke && `${l.width}px solid ${l.stroke}`, background: l.fill }}
+                      style={{
+                        borderColor: l.stroke,
+                        borderWidth: l.width ? `${l.width}px` : '1px',
+                        background: l.fill,
+                        borderStyle: l.dash?.length ? 'dashed' : l.stroke ? 'solid' : 'none',
+                      }}
                     ></div>
                     <div
                       style={{ width: index !== 0 ? `${legendWidth}px` : undefined }}

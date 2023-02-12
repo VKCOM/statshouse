@@ -356,6 +356,20 @@ export function timeShiftDesc(ts: number): string {
   }
 }
 
+const dashes = [
+  [2, 2],
+  [4, 4],
+  [6, 2],
+];
+
+export function timeShiftToDash(ts: number, usedDashes: Record<string, number[]>): number[] {
+  if (usedDashes[ts.toString()]) {
+    return usedDashes[ts.toString()];
+  }
+  const nextKey = Math.min(dashes.length - 1, Object.keys(usedDashes).length);
+  return (usedDashes[ts.toString()] = dashes[nextKey]);
+}
+
 type apiResponse<T> = {
   data?: T;
   error?: string;
