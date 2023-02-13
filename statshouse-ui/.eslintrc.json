@@ -1,26 +1,19 @@
 {
-  "extends": [
-    "react-app",
-    "plugin:react/recommended",
-    "plugin:react-hooks/recommended",
-    "prettier"
-  ],
+  "extends": ["react-app", "plugin:react/recommended", "plugin:react-hooks/recommended", "prettier"],
   "parser": "@typescript-eslint/parser",
-  "plugins": [
-    "react",
-    "@typescript-eslint",
-    "prettier"
-  ],
+  "plugins": ["react", "@typescript-eslint", "prettier"],
   "rules": {
     "indent": "off",
     "prettier/prettier": "warn",
-    "arrow-body-style": [
-      "warn",
-      "as-needed"
-    ],
+    "arrow-body-style": ["warn", "as-needed"],
     "prefer-arrow-callback": "off",
     "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "warn",
+    "react-hooks/exhaustive-deps": [
+      "error",
+      {
+        "enableDangerousAutofixThisMayCauseInfiniteLoops": true
+      }
+    ],
     "react/no-unescaped-entities": "off",
     "no-console": "warn"
   }
