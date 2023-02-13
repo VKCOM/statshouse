@@ -14,7 +14,7 @@ import cn from 'classnames';
 export const SELECT_OPTION_ACTION = {
   ToggleFiltered: 'ToggleFiltered',
 } as const;
-export type SelectOptionAction = typeof SELECT_OPTION_ACTION[keyof typeof SELECT_OPTION_ACTION];
+export type SelectOptionAction = (typeof SELECT_OPTION_ACTION)[keyof typeof SELECT_OPTION_ACTION];
 
 export type SelectOptionProps = {
   value: string;
@@ -63,7 +63,7 @@ const POSITION_SCROLL = {
   Middle: 'Middle',
 } as const;
 
-export type PositionScroll = typeof POSITION_SCROLL[keyof typeof POSITION_SCROLL];
+export type PositionScroll = (typeof POSITION_SCROLL)[keyof typeof POSITION_SCROLL];
 
 function appendItems(target: HTMLElement, items: SelectOptionProps[], multiple: boolean = false): void {
   target.append(
