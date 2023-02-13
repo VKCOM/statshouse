@@ -39,6 +39,7 @@ import {
   sortByKey,
   timeRangeAbbrev,
   timeRangeAbbrevExpand,
+  timeShiftToDash,
   uniqueArray,
 } from '../view/utils';
 import { globalSettings, pxPerChar } from '../common/settings';
@@ -50,6 +51,7 @@ import {
   dashboardShortInfo,
   dashboardURL,
   GetDashboardListResp,
+  metaToBaseLabel,
   metaToLabel,
   metricMeta,
   metricResult,
@@ -629,7 +631,9 @@ export const useStore = create<Store>()(
               ...(resp.series.series_data as (number | null)[][]),
             ];
 
-            const usedColors = {};
+            const usedDashes = {};
+            const usedBaseColors = {};
+            const baseColors: Record<string, string> = {};
             let changeColor = false;
             const widthLine =
               (width ?? 0) > resp.series.time.length
@@ -644,9 +648,14 @@ export const useStore = create<Store>()(
 
             const seriesShow = new Array(resp.series.series_meta.length).fill(true);
             const series: uPlot.Series[] = resp.series.series_meta.map((meta, indexMeta): uPlot.Series => {
+              const timeShift = meta.time_shift !== 0;
               const label = metaToLabel(meta, uniqueWhat.size);
-              const color = selectColor(`${lastPlotParams.metricName}: ${label}`, usedColors);
-              if (color !== getState().plotsData[index]?.series[indexMeta]?.stroke) {
+              const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
+              const baseColor =
+                baseColors[`${lastPlotParams.metricName}: ${baseLabel}`] ??
+                selectColor(`${lastPlotParams.metricName}: ${baseLabel}`, usedBaseColors);
+              baseColors[`${lastPlotParams.metricName}: ${baseLabel}`] = baseColor;
+              if (baseColor !== getState().plotsData[index]?.series[indexMeta]?.stroke) {
                 changeColor = true;
               }
               if (meta.max_hosts) {
@@ -676,9 +685,10 @@ export const useStore = create<Store>()(
                 show: seriesShow[indexMeta] ?? true,
                 auto: false, // we control the scaling manually
                 label,
-                stroke: color,
+                stroke: baseColor,
                 width: widthLine,
-                fill: rgba(color, 0.15),
+                dash: timeShift ? timeShiftToDash(meta.time_shift, usedDashes) : undefined,
+                fill: rgba(baseColor, timeShift ? 0.1 : 0.15),
                 points: {
                   filter: filterPoints,
                   size: 5,
