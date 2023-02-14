@@ -15,12 +15,12 @@ export function linkToImage(link: string): Promise<HTMLImageElement> {
 }
 
 export async function toBlob(canvas: HTMLCanvasElement | OffscreenCanvas): Promise<Blob | null> {
-  if (canvas instanceof OffscreenCanvas) {
+  if (typeof window.OffscreenCanvas === 'function' && canvas instanceof window.OffscreenCanvas) {
     // @ts-ignore
     return canvas.convertToBlob({ type: 'image/png' });
   }
   return new Promise((resolve) => {
-    canvas.toBlob(resolve, 'image/png');
+    (canvas as HTMLCanvasElement).toBlob?.(resolve, 'image/png');
   });
 }
 export function createCanvas(width: number, height: number): HTMLCanvasElement | OffscreenCanvas {
