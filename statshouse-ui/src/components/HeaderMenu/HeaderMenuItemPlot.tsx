@@ -23,7 +23,7 @@ import { PlotLink } from '../Plot/PlotLink';
 import { whatToWhatDesc } from '../../view/api';
 
 import cn from 'classnames';
-import css from './style.module.scss';
+import css from './style.module.css';
 
 export type HeaderMenuItemPlotProps = {
   indexPlot: number;
@@ -111,14 +111,10 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
         )}
       </PlotLink>
 
-      <ul
-        hidden={!open}
-        className={cn(`nav bg-light d-flex flex-column position-absolute start-100 top-0`, css.sub)}
-        ref={sub}
-      >
+      <ul hidden={!open} className={cn(`nav d-flex flex-column position-absolute start-100 top-0`, css.sub)} ref={sub}>
         <li className={cn('nav-item d-flex flex-row', css.bigPreview)}>
           <PlotLink
-            className="nav-link text-nowrap flex-grow-1 link-dark fw-bold font-monospace text-decoration-none d-flex flex-row w-0"
+            className="nav-link text-nowrap flex-grow-1 text-body fw-bold font-monospace text-decoration-none d-flex flex-row w-0"
             indexPlot={indexPlot}
             title={title}
           >
@@ -126,7 +122,7 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
             <span className="pe-1">:</span>
             <span className="text-secondary text-truncate">{plot.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
           </PlotLink>
-          <span role="button" title="Remove" className="d-block p-2 link-dark" onClick={onRemovePlot}>
+          <span role="button" title="Remove" className="d-block p-2 text-body" onClick={onRemovePlot}>
             <SVGTrash />
           </span>
         </li>

@@ -32,6 +32,7 @@ import {
   selectorSetTimeRange,
   selectorSetUPlotWidth,
   selectorSetYLockChange,
+  selectorThemeDark,
   selectorTimeRange,
   selectorUPlotsWidthByIndex,
   useStore,
@@ -117,6 +118,8 @@ const PlotView = memo(function PlotView_(props: {
   const meta = useStore(selectorPlotMetricsMeta);
   const loadMetricsMeta = useStore(selectorLoadMetricsMeta);
 
+  const themeDark = useStore(selectorThemeDark);
+
   const uPlotRef = useRef<uPlot>();
   const [legend, setLegend] = useState<LegendItem[]>([]);
 
@@ -180,6 +183,8 @@ const PlotView = memo(function PlotView_(props: {
     [indexPlot, setLive, setSel, setTimeRange]
   );
 
+  const getAxisStroke = useCallback(() => (themeDark ? '#adb5bd' : 'black'), [themeDark]);
+
   const opts = useMemo<UPlotWrapperPropsOpts>(() => {
     const grid: uPlot.Axis.Grid = {
       stroke: grey,
@@ -217,6 +222,7 @@ const PlotView = memo(function PlotView_(props: {
           values: compact ? xAxisValuesCompact : xAxisValues,
           font: font,
           size: xAxisSize,
+          stroke: getAxisStroke,
         },
         {
           grid: grid,
@@ -224,6 +230,7 @@ const PlotView = memo(function PlotView_(props: {
           values: (_, splits) => splits.map(formatSI),
           size: yAxisSize,
           font: font,
+          stroke: getAxisStroke,
         },
       ],
       scales: {
@@ -253,7 +260,7 @@ const PlotView = memo(function PlotView_(props: {
         },
       },
     };
-  }, [compact, group, topPad, xAxisSize, yAxisSize]);
+  }, [compact, getAxisStroke, group, topPad, xAxisSize, yAxisSize]);
 
   const linkCSV = useMemo(() => {
     const agg =
