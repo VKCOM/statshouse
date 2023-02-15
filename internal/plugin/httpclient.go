@@ -25,7 +25,7 @@ import (
 //go:generate easyjson -no_std_marshalers httpclient.go
 
 var (
-	reg = regexp.MustCompile(`^(key\d[-|~])\{(.+)\}$`)
+	reg = regexp.MustCompile(`^(key\d+[-|~])\{(.+)\}$`)
 )
 
 type StatsHouseAPIHTTPClient struct {
