@@ -9,50 +9,91 @@ import (
 type CPUStats struct {
 	fs procfs.FS
 
-	stats map[int64]procfs.CPUStat
-
-	pushCPUStat func(value float64, id int64, mode string)
+	stat   procfs.Stat
+	stats  map[int64]procfs.CPUStat
+	pusher Pusher
 }
 
-func NewCpuStats(pushCPUStat func(value float64, id int64, mode string)) (*CPUStats, error) {
+const bt = "test_system_uptime"
+const cpu = "test_cpu_usage" // "cpu_usage"
+const irq = ""
+const sirq = ""
+const pc = "test_system_process_created"
+const pr = "test_system_process_running"
+const pb = "test_system_process_blocked"
+const cs = ""
+
+func (*CPUStats) Name() string {
+	return "cpu_stats"
+}
+
+func NewCpuStats(pusher Pusher) (*CPUStats, error) {
 	fs, err := procfs.NewFS(procfs.DefaultMountPoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize procfs: %w", err)
 	}
 	return &CPUStats{
-		fs:          fs,
-		stats:       map[int64]procfs.CPUStat{},
-		pushCPUStat: pushCPUStat,
+		fs:     fs,
+		stats:  map[int64]procfs.CPUStat{},
+		pusher: pusher,
 	}, nil
 }
 
 func (c *CPUStats) PushMetrics() error {
-	err := c.pushCPUUsage()
-	if err != nil {
-		return fmt.Errorf("failed to push cpu usage: %w", err)
-	}
-	return nil
-}
-
-func (c *CPUStats) pushCPUUsage() error {
 	stat, err := c.fs.Stat()
 	if err != nil {
 		return fmt.Errorf("failed to get cpu stats: %w", err)
 	}
+	pushMetric := true
+	if c.stat.BootTime == 0 {
+		pushMetric = false
+	}
+	if pushMetric {
+		err = c.pushCPUMetrics(stat)
+		if err != nil {
+			//todo log
+			return fmt.Errorf("failed to push cpu metrics: %w", err)
+		}
+		err = c.pushSystemMetrics(stat)
+		if err != nil {
+			//todo log
+			return fmt.Errorf("failed to push system metrics: %w", err)
+		}
+	}
+	c.stat = stat
 	err = c.updateCPUStats(stat.CPU)
 	if err != nil {
 		return fmt.Errorf("failed to update cpu stats: %w", err)
 	}
-	for cpu, stat := range c.stats {
-		c.pushCPUStat(stat.User, cpu, "user")
-		c.pushCPUStat(stat.Nice, cpu, "nice")
-		c.pushCPUStat(stat.System, cpu, "system")
-		c.pushCPUStat(stat.Idle, cpu, "idle")
-		c.pushCPUStat(stat.Iowait, cpu, "iowait")
-		c.pushCPUStat(stat.IRQ, cpu, "irq")
-		c.pushCPUStat(stat.SoftIRQ, cpu, "softirq")
-		c.pushCPUStat(stat.Steal, cpu, "steal")
-	}
+	return nil
+}
+
+func (c *CPUStats) pushCPUMetrics(stat procfs.Stat) error {
+	t := stat.CPUTotal
+	oldT := c.stat.CPUTotal
+	c.pusher.PushSystemMetricValue(cpu, t.User-oldT.User, "user")
+	c.pusher.PushSystemMetricValue(cpu, t.Nice-oldT.Nice, "nice")
+	c.pusher.PushSystemMetricValue(cpu, t.System-oldT.System, "system")
+	c.pusher.PushSystemMetricValue(cpu, t.Idle-oldT.Idle, "idle")
+	c.pusher.PushSystemMetricValue(cpu, t.Iowait-oldT.Iowait, "iowait")
+	c.pusher.PushSystemMetricValue(cpu, t.IRQ-oldT.IRQ, "irq")
+	c.pusher.PushSystemMetricValue(cpu, t.SoftIRQ-oldT.SoftIRQ, "softirq")
+	c.pusher.PushSystemMetricValue(cpu, t.Steal-oldT.Steal, "steal")
+	irqTotal := stat.IRQTotal - c.stat.IRQTotal
+	sirqTotal := stat.SoftIRQTotal - c.stat.SoftIRQTotal
+	c.pusher.PushSystemMetricValue(irq, float64(irqTotal))
+	c.pusher.PushSystemMetricValue(sirq, float64(sirqTotal))
+	return nil
+}
+
+func (c *CPUStats) pushSystemMetrics(stat procfs.Stat) error {
+	boot := stat.BootTime
+	c.pusher.PushSystemMetricValue(bt, float64(boot))
+	c.pusher.PushSystemMetricValue(pr, float64(stat.ProcessesRunning))
+	c.pusher.PushSystemMetricCount(pc, float64(stat.ProcessCreated-c.stat.ProcessCreated))
+	c.pusher.PushSystemMetricValue(pb, float64(stat.ProcessesBlocked))
+	c.pusher.PushSystemMetricValue(cs, float64(stat.ContextSwitches))
+	fmt.Println("push system metrics")
 	return nil
 }
 

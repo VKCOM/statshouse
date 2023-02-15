@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/stats"
@@ -10,21 +9,13 @@ import (
 
 func main() {
 	// todo replace with good hostname detection
-	h, err := os.Hostname()
+	collector, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: time.Second})
 	if err != nil {
 		log.Panic(err)
 	}
-	pusher := stats.Pusher{HostName: h}
-	cpuCollector, err := stats.NewCpuStats(pusher.PushCPUUsage)
+	defer collector.StopCollector()
+	err = collector.RunCollector()
 	if err != nil {
-		log.Panic(err)
-	}
-	for {
-		time.Sleep(time.Second)
-		err := cpuCollector.PushMetrics()
-		if err != nil {
-			log.Println("failed to push metrics", err)
-		}
-
+		panic(err)
 	}
 }
