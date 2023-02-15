@@ -10,7 +10,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -1101,7 +1100,7 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 		if create {
 			s = "create"
 		}
-		if errors.Is(err, metajournal.ErrorInvalidDashboardName) {
+		if metajournal.IsUserRequestError(err) {
 			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't %s dashboard: %w", s, err))
 		}
 		return &DashboardInfo{}, fmt.Errorf("can't %s dashboard: %w", s, err)
@@ -1149,7 +1148,7 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 			s = "create"
 		}
 		errReturn := fmt.Errorf("can't %s group: %w", s, err)
-		if errors.Is(err, metajournal.ErrorGroupName) {
+		if metajournal.IsUserRequestError(err) {
 			return &MetricsGroupInfo{}, httpErr(http.StatusBadRequest, errReturn)
 		}
 		return &MetricsGroupInfo{}, errReturn

@@ -9,6 +9,7 @@ package metajournal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -31,12 +32,15 @@ const (
 	prometheusConfigID     = -1 // TODO move to file with predefined entities
 )
 
-var ErrorInvalidDashboardName = fmt.Errorf("invalid dashboard name")
-var ErrorGroupName = fmt.Errorf("invalid group name")
+var errorInvalidUserRequest = errors.New("")
 
 type MetricMetaLoader struct {
 	loadTimeout time.Duration
 	client      *tlmetadata.Client
+}
+
+func IsUserRequestError(err error) bool {
+	return errors.Is(err, errorInvalidUserRequest)
 }
 
 func NewMetricMetaLoader(client *tlmetadata.Client, loadTimeout time.Duration) *MetricMetaLoader {
@@ -48,7 +52,7 @@ func NewMetricMetaLoader(client *tlmetadata.Client, loadTimeout time.Duration) *
 
 func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.DashboardMeta, create, remove bool) (format.DashboardMeta, error) {
 	if !format.ValidDashboardName(value.Name) {
-		return format.DashboardMeta{}, fmt.Errorf("%w: %q", ErrorInvalidDashboardName, value.Name)
+		return format.DashboardMeta{}, fmt.Errorf("invalid dashboard name %w: %q", errorInvalidUserRequest, value.Name)
 	}
 	metricBytes, err := json.Marshal(value.JSONData)
 	if err != nil {
@@ -96,7 +100,7 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 	}
 	var err error
 	if !format.ValidMetricName(mem.S(value.Name)) {
-		return g, ErrorGroupName
+		return g, fmt.Errorf("invalid group name %w: %q", errorInvalidUserRequest, value.Name)
 	}
 
 	groupBytes, err := json.Marshal(value)
