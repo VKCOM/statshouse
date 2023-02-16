@@ -15,7 +15,11 @@
   <link rel="manifest" href="%PUBLIC_URL%/manifest.json">
   <title>StatsHouse UI</title>
   <meta name="build-version" content="%REACT_APP_BUILD_VERSION%">
+  <% if (process.env.NODE_ENV === 'production') { %>
   <meta name="settings" content="{{.Settings}}">
+  <% } else { %>
+  <meta name="settings" content="%REACT_APP_CONFIG%">
+  <% } %>
   <% if (process.env.NODE_ENV === 'production') { %>
   {{ if .OpenGraph }}
   <meta property="og:title" content="{{.OpenGraph.Title}}">
