@@ -108,17 +108,15 @@ func calcTrendValue(i int, tf, s0, s1, b float64) float64 {
 func funcHoltWinters(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
-		return
+		return bag, err
 	}
 	sf := args[1].(*parser.NumberLiteral).Val
 	if sf <= 0 || sf >= 1 {
-		err = fmt.Errorf("invalid smoothing factor. Expected: 0 < sf < 1, got: %f", sf)
-		return
+		return bag, fmt.Errorf("invalid smoothing factor. Expected: 0 < sf < 1, got: %f", sf)
 	}
 	tf := args[2].(*parser.NumberLiteral).Val
 	if tf <= 0 || tf >= 1 {
-		err = fmt.Errorf("invalid trend factor. Expected: 0 < tf < 1, got: %f", tf)
-		return
+		return bag, fmt.Errorf("invalid trend factor. Expected: 0 < tf < 1, got: %f", tf)
 	}
 	v := make([]float64, 0, 2)
 	for _, row := range bag.Data {
@@ -145,14 +143,13 @@ func funcHoltWinters(ctx context.Context, ev *evaluator, args parser.Expressions
 			(*row)[i] = NilValue
 		}
 	}
-	bag.Range = 0
-	return
+	return bag, nil
 }
 
 func funcRound(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
-		return
+		return bag, err
 	}
 
 	// round returns a number rounded to toNearest.
@@ -171,7 +168,7 @@ func funcRound(ctx context.Context, ev *evaluator, args parser.Expressions) (bag
 			row[i] = math.Floor(row[i]*toNearestInverse+0.5) / toNearestInverse
 		}
 	}
-	return
+	return bag, nil
 }
 
 // endregion promql/functions.go

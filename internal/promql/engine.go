@@ -116,7 +116,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 	}
 	ev.ast, err = parser.ParseExpr(qry.Expr)
 	if err != nil {
-		return
+		return ev, err
 	}
 	// match metrics
 	maxOffset := make(map[*format.MetricMetaValue]int64)
@@ -133,7 +133,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 		return err
 	})
 	if err != nil {
-		return
+		return ev, err
 	}
 	// lods, from and time
 	qry.Start -= maxRange // widen time range to accommodate range selectors
@@ -142,7 +142,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 	}
 	ev.lods, err = ng.da.GetQueryLODs(qry, maxOffset, ev.now)
 	if err != nil {
-		return
+		return ev, err
 	}
 	if len(ev.lods) == 0 {
 		ev.lods = []LOD{{Len: (qry.End-qry.Start)/qry.Step + 1, Step: qry.Step}}
@@ -172,16 +172,13 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 		case *parser.SubqueryExpr:
 			s.Offset = s.OriginalOffset / step * step
 		}
-		return err
+		return nil
 	})
-	if err != nil {
-		return
-	}
 	// the rest
 	ev.tagM = ng.newTagMap()
 	ev.tagV = ng.newTagValues(from, to, ev.tagM)
 	ev.qry = qry
-	return
+	return ev, nil
 }
 
 func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, path []parser.Node, maxOffset map[*format.MetricMetaValue]int64) error {
@@ -372,7 +369,7 @@ func (ev *evaluator) eval(ctx context.Context, expr parser.Expr) (res SeriesBag,
 	default:
 		err = fmt.Errorf("not implemented %T", expr)
 	}
-	return
+	return res, err
 }
 
 func (ev *evaluator) evalLiteral(expr parser.Expr) (*parser.NumberLiteral, bool) {
@@ -411,17 +408,16 @@ func (ev *evaluator) evalLiteral(expr parser.Expr) (*parser.NumberLiteral, bool)
 func (ev *evaluator) evalAggregate(ctx context.Context, expr *parser.AggregateExpr) (res SeriesBag, err error) {
 	res, err = ev.eval(ctx, expr.Expr)
 	if err != nil || len(res.Data) == 0 {
-		return
+		return res, err
 	}
 	var fn aggregateFunc
 	if fn = aggregates[expr.Op]; fn == nil {
-		err = fmt.Errorf("not implemented aggregate %q", expr.Op)
-		return
+		return res, fmt.Errorf("not implemented aggregate %q", expr.Op)
 	}
 	var groups []seriesGroup
 	groups, err = res.group(expr.Grouping, expr.Without)
 	if err != nil {
-		return
+		return res, err
 	}
 	var seriesCount int
 	bags := make([]SeriesBag, len(groups))
@@ -440,7 +436,7 @@ func (ev *evaluator) evalAggregate(ctx context.Context, expr *parser.AggregateEx
 		res.Tags = append(res.Tags, b.Tags...)
 		res.STags = append(res.STags, b.STags...)
 	}
-	return
+	return res, nil
 }
 
 func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (res SeriesBag, err error) {
@@ -452,7 +448,7 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 	for i := range args {
 		bags[i], err = ev.eval(ctx, args[i])
 		if err != nil {
-			return
+			return res, err
 		}
 	}
 	res.Time = ev.time
@@ -504,12 +500,12 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 			var mappingL map[uint64]int
 			mappingL, err = l.hashTags(expr.VectorMatching.MatchingLabels, !expr.VectorMatching.On)
 			if err != nil {
-				return
+				return res, err
 			}
 			var mappingR map[uint64]int
 			mappingR, err = r.hashTags(expr.VectorMatching.MatchingLabels, !expr.VectorMatching.On)
 			if err != nil {
-				return
+				return res, err
 			}
 			for h, xl := range mappingL {
 				if xr, ok := mappingR[h]; ok {
@@ -529,13 +525,13 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 		var groups []seriesGroup
 		groups, err = bags[0].group(expr.VectorMatching.MatchingLabels, !expr.VectorMatching.On)
 		if err != nil {
-			return
+			return res, err
 		}
 		one := bags[1]
 		var oneM map[uint64]int
 		oneM, err = one.hashTags(expr.VectorMatching.MatchingLabels, !expr.VectorMatching.On)
 		if err != nil {
-			return
+			return res, err
 		}
 		for _, many := range groups {
 			if oneX, ok := oneM[many.hash]; ok {
@@ -561,12 +557,12 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 		var oneM map[uint64]int
 		oneM, err = one.hashTags(expr.VectorMatching.MatchingLabels, !expr.VectorMatching.On)
 		if err != nil {
-			return
+			return res, err
 		}
 		var groups []seriesGroup
 		groups, err = bags[1].group(expr.VectorMatching.MatchingLabels, !expr.VectorMatching.On)
 		if err != nil {
-			return
+			return res, err
 		}
 		for _, many := range groups {
 			if oneX, ok := oneM[many.hash]; ok {
@@ -592,13 +588,13 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 		var mappingL map[uint64]int
 		mappingL, err = l.hashTags(expr.VectorMatching.MatchingLabels, !expr.VectorMatching.On)
 		if err != nil {
-			return
+			return res, err
 		}
 		r := bags[1]
 		var mappingR map[uint64]int
 		mappingR, err = r.hashTags(expr.VectorMatching.MatchingLabels, !expr.VectorMatching.On)
 		if err != nil {
-			return
+			return res, err
 		}
 		switch expr.Op {
 		case parser.LAND:
@@ -630,7 +626,7 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 			err = fmt.Errorf("not implemented binary operator %q", expr.Op)
 		}
 	}
-	return
+	return res, err
 }
 
 func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector) (res SeriesBag, err error) {
@@ -640,12 +636,12 @@ func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector
 		var qry SeriesQuery
 		qry, err = ev.buildSeriesQuery(ctx, sel, meta)
 		if err != nil {
-			return
+			return res, err
 		}
 		var cancel func()
 		bags[i], cancel, err = ev.da.QuerySeries(ctx, &qry)
 		if err != nil {
-			return
+			return res, err
 		}
 		ev.daCancellationList = append(ev.daCancellationList, cancel)
 		seriesCount += len(bags[i].Data)
@@ -661,7 +657,7 @@ func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector
 		res.Tags = append(res.Tags, b.Tags...)
 		res.STags = append(res.STags, b.STags...)
 	}
-	return
+	return res, nil
 }
 
 func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSelector, meta *format.MetricMetaValue) (SeriesQuery, error) {
@@ -840,7 +836,7 @@ func (tagM tagMap) getTagValueID(val string) (id int32, err error) {
 	if !ok {
 		id, err = tagM.da.GetTagValueID(val)
 		if err != nil {
-			return
+			return id, err
 		}
 		tagM.idToValue[id] = val
 		tagM.valueToID[val] = id
@@ -875,17 +871,15 @@ func (tagV tagValues) getTagValues(ctx context.Context, meta *format.MetricMetaV
 	return res, nil
 }
 
-func (tagV tagValues) getStrTop(ctx context.Context, meta *format.MetricMetaValue, offset int64) ([]string, error) {
+func (tagV tagValues) getStrTop(ctx context.Context, meta *format.MetricMetaValue, offset int64) (res []string, err error) {
 	ov, ok := tagV.strTop[meta] // offset -> values
 	if !ok {
 		ov = make(map[int64][]string)
 		tagV.strTop[meta] = ov
 	}
-	var res []string
 	if res, ok = ov[offset]; ok {
 		return res, nil
 	}
-	var err error
 	res, err = tagV.da.QuerySTagValues(ctx, meta, tagV.from, tagV.to)
 	if err == nil {
 		ov[offset] = res

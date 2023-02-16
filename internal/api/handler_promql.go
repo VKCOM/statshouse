@@ -96,39 +96,33 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 func parsePromRangeQuery(r *http.Request) (q promql.Query, err error) {
 	q.Start, err = parseTime(r.FormValue("start"))
 	if err != nil {
-		err = fmt.Errorf("invalid parameter start: %w", err)
-		return
+		return q, fmt.Errorf("invalid parameter start: %w", err)
 	}
 
 	q.End, err = parseTime(r.FormValue("end"))
 	if err != nil {
-		err = fmt.Errorf("invalid parameter end: %w", err)
-		return
+		return q, fmt.Errorf("invalid parameter end: %w", err)
 	}
 	if q.End < q.Start {
-		err = fmt.Errorf("invalid parameter end: end timestamp must not be before start time")
-		return
+		return q, fmt.Errorf("invalid parameter end: end timestamp must not be before start time")
 	}
 
 	q.Step, err = parseDuration(r.FormValue("step"))
 	if err != nil {
-		err = fmt.Errorf("invalid parameter step: %w", err)
-		return
+		return q, fmt.Errorf("invalid parameter step: %w", err)
 	}
 	if q.Step <= 0 {
-		err = fmt.Errorf("invalid parameter step: zero or negative handleQuery resolution step widths are not accepted. Try a positive integer")
-		return
+		return q, fmt.Errorf("invalid parameter step: zero or negative handleQuery resolution step widths are not accepted. Try a positive integer")
 	}
 
 	// For safety, limit the number of returned points per timeseries.
 	// This is sufficient for 60s resolution for a week or 1h resolution for a year.
 	if (q.End-q.Start)/q.Step > maxSlice {
-		err = fmt.Errorf("exceeded maximum resolution of %d points per timeseries. Try decreasing the query resolution (?step=XX)", maxSlice)
-		return
+		return q, fmt.Errorf("exceeded maximum resolution of %d points per timeseries. Try decreasing the query resolution (?step=XX)", maxSlice)
 	}
 
 	q.Expr = r.FormValue("query")
-	return
+	return q, nil
 }
 
 func parsePromInstantQuery(r *http.Request) (q promql.Query, err error) {
@@ -138,13 +132,12 @@ func parsePromInstantQuery(r *http.Request) (q promql.Query, err error) {
 	} else {
 		q.Start, err = parseTime(v)
 		if err != nil {
-			err = fmt.Errorf("invalid parameter time: %w", err)
-			return
+			return q, fmt.Errorf("invalid parameter time: %w", err)
 		}
 	}
 	q.End = q.Start
 	q.Expr = r.FormValue("query")
-	return
+	return q, nil
 }
 
 func parseTime(s string) (int64, error) {
@@ -583,7 +576,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (what queryFn, qs s
 		filterIn:    mappedFilterIn,
 		filterNotIn: mappedFilterNotIn,
 	}
-	return
+	return what, qs, pq
 }
 
 func getHandlerLODs(qry *promql.SeriesQuery, loc *time.Location) ([]lodInfo, int) {

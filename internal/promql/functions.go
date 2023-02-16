@@ -427,10 +427,10 @@ func (wnd *window) getData(s []float64) []float64 {
 func bagCall(fn func(SeriesBag) SeriesBag) callFunc {
 	return func(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 		bag, err = ev.eval(ctx, args[0])
-		if err == nil {
-			bag = fn(bag)
+		if err != nil {
+			return bag, err
 		}
-		return
+		return fn(bag), nil
 	}
 }
 
@@ -448,7 +448,7 @@ func overTimeCall(fn func(v []float64) float64) callFunc {
 	return func(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 		bag, err = ev.eval(ctx, args[0])
 		if err != nil {
-			return
+			return bag, err
 		}
 		for _, row := range bag.Data {
 			wnd := newWindow(1, bag.Range, bag.Time, *row)
@@ -459,7 +459,7 @@ func overTimeCall(fn func(v []float64) float64) callFunc {
 				(*row)[i] = NilValue
 			}
 		}
-		return
+		return bag, nil
 	}
 }
 
@@ -467,14 +467,14 @@ func simpleCall(fn func(float64) float64) callFunc {
 	return func(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 		bag, err = ev.eval(ctx, args[0])
 		if err != nil {
-			return
+			return bag, err
 		}
 		for _, row := range bag.Data {
 			for i := range *row {
 				(*row)[i] = fn((*row)[i])
 			}
 		}
-		return
+		return bag, nil
 	}
 }
 
@@ -483,7 +483,7 @@ func timeCall[V int | time.Weekday | time.Month](fn func(time.Time) V) callFunc 
 		if len(args) != 0 {
 			bag, err = ev.eval(ctx, args[0])
 			if err != nil {
-				return
+				return bag, err
 			}
 		}
 		if len(bag.Data) == 0 {
@@ -494,14 +494,14 @@ func timeCall[V int | time.Weekday | time.Month](fn func(time.Time) V) callFunc 
 				(*row)[j] = float64(fn(time.Unix(int64(v), 0).In(ev.loc)))
 			}
 		}
-		return
+		return bag, nil
 	}
 }
 
 func funcClamp(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
-		return
+		return bag, err
 	}
 	min := args[1].(*parser.NumberLiteral).Val
 	max := args[2].(*parser.NumberLiteral).Val
@@ -512,7 +512,7 @@ func funcClamp(ctx context.Context, ev *evaluator, args parser.Expressions) (bag
 				(*row)[i] = math.NaN()
 			}
 		}
-		return
+		return bag, nil
 	}
 	// return an empty vector if min > max
 	if min > max {
@@ -528,13 +528,13 @@ func funcClamp(ctx context.Context, ev *evaluator, args parser.Expressions) (bag
 			// else { min <= row[i] <= max }
 		}
 	}
-	return
+	return bag, nil
 }
 
 func funcClampMax(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
-		return
+		return bag, err
 	}
 	max := args[1].(*parser.NumberLiteral).Val
 	// return NaN if max is NaN
@@ -544,7 +544,7 @@ func funcClampMax(ctx context.Context, ev *evaluator, args parser.Expressions) (
 				(*row)[i] = math.NaN()
 			}
 		}
-		return
+		return bag, nil
 	}
 	for _, row := range bag.Data {
 		for i := range *row {
@@ -554,13 +554,13 @@ func funcClampMax(ctx context.Context, ev *evaluator, args parser.Expressions) (
 			// else { row[i] <= max }
 		}
 	}
-	return
+	return bag, nil
 }
 
 func funcClampMin(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
-		return
+		return bag, err
 	}
 	min := args[1].(*parser.NumberLiteral).Val
 	// return NaN if min is NaN
@@ -570,7 +570,7 @@ func funcClampMin(ctx context.Context, ev *evaluator, args parser.Expressions) (
 				(*row)[i] = math.NaN()
 			}
 		}
-		return
+		return bag, nil
 	}
 	for _, row := range bag.Data {
 		for i := range *row {
@@ -580,7 +580,7 @@ func funcClampMin(ctx context.Context, ev *evaluator, args parser.Expressions) (
 			// else { row[i] >= min }
 		}
 	}
-	return
+	return bag, nil
 }
 
 func funcDelta(bag SeriesBag) SeriesBag {
@@ -638,7 +638,7 @@ func funcIrate(bag SeriesBag) SeriesBag {
 func funcLabelJoin(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
-		return
+		return bag, err
 	}
 	var (
 		dst = args[1].(*parser.StringLiteral).Val
@@ -665,13 +665,13 @@ func funcLabelJoin(ctx context.Context, ev *evaluator, args parser.Expressions) 
 			delete(bag.Tags[i], dst)
 		}
 	}
-	return
+	return bag, nil
 }
 
 func funcLabelReplace(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
-		return
+		return bag, err
 	}
 	var (
 		dst = args[1].(*parser.StringLiteral).Val
@@ -681,11 +681,10 @@ func funcLabelReplace(ctx context.Context, ev *evaluator, args parser.Expression
 	)
 	r, err = regexp.Compile("^(?:" + args[4].(*parser.StringLiteral).Val + ")$")
 	if err != nil {
-		return
+		return bag, err
 	}
 	if !model.LabelNameRE.MatchString(dst) {
-		err = fmt.Errorf("invalid destination label name in label_replace(): %s", dst)
-		return
+		return bag, fmt.Errorf("invalid destination label name in label_replace(): %s", dst)
 	}
 	for i := range bag.Data {
 		var v string
@@ -713,13 +712,13 @@ func funcLabelReplace(ctx context.Context, ev *evaluator, args parser.Expression
 			delete(bag.Tags[i], dst)
 		}
 	}
-	return
+	return bag, nil
 }
 
 func funcPredictLinear(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
-		return
+		return bag, err
 	}
 	var (
 		d = args[1].(*parser.NumberLiteral).Val // duration
@@ -737,7 +736,7 @@ func funcPredictLinear(ctx context.Context, ev *evaluator, args parser.Expressio
 			(*row)[i] = NilValue
 		}
 	}
-	return
+	return bag, nil
 }
 
 func funcRate(bag SeriesBag) SeriesBag {
@@ -766,7 +765,7 @@ func funcResets(bag SeriesBag) SeriesBag {
 func funcScalar(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
-		return
+		return bag, err
 	}
 	if len(bag.Data) == 1 {
 		return bag, nil
@@ -782,7 +781,7 @@ func funcScalar(ctx context.Context, ev *evaluator, args parser.Expressions) (ba
 	for i := 1; i < len(bag.Data); i++ {
 		ev.free(bag.Data[i])
 	}
-	return
+	return bag, nil
 }
 
 func funcTime(ev *evaluator, _ parser.Expressions) SeriesBag {
@@ -901,7 +900,7 @@ func funcCountOverTime(s []float64) float64 {
 func funcQuantileOverTime(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[1])
 	if err != nil {
-		return
+		return bag, err
 	}
 	var (
 		q = args[0].(*parser.NumberLiteral).Val
@@ -920,7 +919,7 @@ func funcQuantileOverTime(ctx context.Context, ev *evaluator, args parser.Expres
 				(*row)[i] = v
 			}
 		}
-		return
+		return bag, nil
 	}
 	vs := make([]float64, 0, 2)
 	for _, row := range bag.Data {
@@ -941,7 +940,7 @@ func funcQuantileOverTime(ctx context.Context, ev *evaluator, args parser.Expres
 			(*row)[i] = NilValue
 		}
 	}
-	return
+	return bag, nil
 }
 
 func funcStdDevOverTime(s []float64) float64 {
