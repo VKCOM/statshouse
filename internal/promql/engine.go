@@ -101,7 +101,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 		}
 		bag = ev.convertTagsToSTags(bag)
 		bag.Start = qry.Start
-		return bag, ev.cancel, nil
+		return &bag, ev.cancel, nil
 	}
 }
 
