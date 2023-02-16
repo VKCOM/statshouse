@@ -117,7 +117,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             indexPlot={indexPlot}
             target={dashboard ? '_self' : '_blank'}
           >
-            <span className="link-dark">{sel.metricName}</span>:
+            <span className="text-body">{sel.metricName}</span>:
             <span className="me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
           </PlotLink>
         )}
@@ -212,7 +212,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
               indexPlot={indexPlot}
               target={dashboard ? '_self' : '_blank'}
             >
-              <span className="link-dark">{sel.metricName}</span>:
+              <span className="text-body">{sel.metricName}</span>:
               <span className="me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
             </PlotLink>
           )}

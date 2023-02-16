@@ -44,6 +44,14 @@
   }
 }
 
+[data-bs-theme='dark'] {
+  input,
+  select,
+  textarea {
+    color-scheme: dark;
+  }
+}
+
 html {
   overflow-y: scroll; // prevent layout shift when scrollbar appears
 }
@@ -74,13 +82,14 @@ html {
   mark {
     font-family: $font-family-monospace;
     font-size: 0.875em;
-    background-color: var(--bs-light);
+    color: var(--bs-secondary-text);
+    background-color: var(--bs-secondary-bg);
   }
 
   pre {
     padding-top: 0.5rem;
     padding-bottom: 0.5rem;
-    background-color: var(--bs-light);
+    background-color: var(--bs-secondary-bg);
   }
 }
 
@@ -135,8 +144,8 @@ html {
   position: relative;
   padding-top: 16px;
   top: -16px;
-  background-color: rgb(255, 255, 255);
-  box-shadow: 0 0 5px 1px rgba(0, 0, 0, 0.1);
+  background-color: var(--bs-body-bg);
+  box-shadow: var(--bs-secondary-bg) 0 0 10px 0px;
 }
 
 .plot-item:hover {
@@ -165,7 +174,7 @@ input.form-control-safari-fix::-webkit-datetime-edit-meridiem-field {
 }
 
 .sh-select {
-  --selectLoaderColor: #{$cyan};
+  --selectLoaderColor: var(--bs-cyan);
 }
 
 .sh-select.select-open {
@@ -254,6 +263,6 @@ input.form-control-safari-fix::-webkit-datetime-edit-meridiem-field {
 }
 
 .spinner-white-bg {
-  box-shadow: rgba(255, 255, 255, 0.5) 0 0 4px 4px;
-  background-color: rgba(255, 255, 255, 0.5);
+  box-shadow: rgba(var(--bs-body-bg-rgb), 0.5) 0 0 4px 4px;
+  background-color: rgba(var(--bs-body-bg-rgb), 0.5);
 }
