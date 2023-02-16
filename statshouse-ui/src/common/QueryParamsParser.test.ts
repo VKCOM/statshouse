@@ -406,6 +406,28 @@ describe('QueryParamsParser', () => {
     expect(p.toString()).toEqual('n=500');
   });
 
+  test('remove default param array', () => {
+    type ValueArray = {
+      arr: string[];
+    };
+    const conf: ConfigParams = {
+      arr: {
+        isArray: true,
+        urlKey: 't',
+      },
+    };
+    const val: ValueArray = {
+      arr: [],
+    };
+    const valDef: ValueArray = {
+      arr: ['9', '10'],
+    };
+    const p = encodeQueryParams<ValueArray>(conf, val, valDef);
+    expect(p.toString()).toEqual('t=%07');
+    const v = decodeQueryParams<ValueArray>(conf, valDef, p);
+    expect(v?.arr).toEqual([]);
+  });
+
   test('parse NumberParam', () => {
     expect(NumberParam.decode?.('2')).toBe(2);
     expect(NumberParam.decode?.('q2')).toBe(undefined);

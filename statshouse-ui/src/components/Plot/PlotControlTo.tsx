@@ -9,6 +9,7 @@ import { SetTimeRange, TimeRange } from '../../common/TimeRange';
 import { formatInputDate, formatInputTime, maxTimeRange, now, parseInputDate, parseInputTime } from '../../view/utils';
 import { ReactComponent as SVGLockClock } from '../../assets/svg/LockClock.svg';
 import { ReactComponent as SVGUnlockClock } from '../../assets/svg/UnlockClock.svg';
+import cn from 'classnames';
 
 export type PlotControlToProps = {
   timeRange: TimeRange;
@@ -71,7 +72,7 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({
   );
 
   return (
-    <div className={`input-group flex-nowrap ${className}`}>
+    <div className={cn('input-group flex-nowrap', className)}>
       <input
         type="date"
         className={`form-control form-control-safari-fix ${classNameInput}`}

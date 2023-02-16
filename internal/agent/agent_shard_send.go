@@ -115,7 +115,7 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 	for k, v := range bucket.MultiItems {
 		if k.Metric == format.BuiltinMetricIDIngestionStatus && k.Keys[2] == format.TagValueIDSrcIngestionStatusOKCached {
 			// transfer optimization.
-			sb.IngestionStatusOk2 = append(sb.IngestionStatusOk2, tlstatshouse.IngestionStatus2{Env: k.Keys[0], Metric: k.Keys[1], Value: float32(v.Tail.Value.Counter)})
+			sb.IngestionStatusOk2 = append(sb.IngestionStatusOk2, tlstatshouse.IngestionStatus2{Env: k.Keys[0], Metric: k.Keys[1], Value: float32(v.Tail.Value.Counter * v.SF)})
 			continue
 		}
 		item := k.TLMultiItemFromKey(bucket.Time)
@@ -237,6 +237,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) m
 				// Ingestion status and other unlimited per-metric built-ins should use its metric budget
 				// So metrics are better isolated
 				accountMetric = k.Keys[1]
+				whaleWeight = 0 // ingestion statuses do not compete for whale status
 			}
 			if k.Keys[2] == format.TagValueIDSrcIngestionStatusOKCached {
 				// These are so common, we have transfer optimization for them

@@ -89,10 +89,24 @@ const colors = [
     '#3dd5f3', // cyan-400
     '#0aa2c0', // cyan-600
   ],
-  ['#adb5bd'],
+  [
+    'white',
+    '#f8f9fa', // gray-100
+    '#e9ecef', // gray-200
+    '#dee2e6', // gray-300
+    '#ced4da', // gray-400
+    '#adb5bd', // gray-500
+    '#6c757d', // gray-600
+    '#495057', // gray-700
+    '#343a40', // gray-800
+    '#212529', // gray-900
+    'black',
+  ],
 ];
 
-export const grey = colors[colors.length - 1][0];
+export const grey = colors[colors.length - 1][5];
+export const greyDark = colors[colors.length - 1][8];
+export const black = colors[colors.length - 1][10];
 
 // XXX: keep in sync with Go
 export function selectColor(s: string, usedColors: Record<string, number>): string {

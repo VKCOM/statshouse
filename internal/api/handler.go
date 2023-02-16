@@ -38,6 +38,7 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
+	"github.com/vkcom/statshouse/internal/promql"
 	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
@@ -163,6 +164,7 @@ type (
 		readOnly              bool
 		rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 		rmID                  int
+		promEngine            promql.Engine
 		accessManager         *accessManager
 	}
 
@@ -404,7 +406,6 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		location:              location,
 		readOnly:              readOnly,
 		insecureMode:          insecureMode,
-		accessManager:         &accessManager{getGroupByMetricName: metricStorage.GetGroupByMetricName},
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
@@ -600,7 +601,6 @@ func (h *Handler) getMetricID(ai accessInfo, metricWithNamespace string) (int32,
 
 // getMetricMeta only checks view access
 func (h *Handler) getMetricMeta(ai accessInfo, metricWithNamespace string) (*format.MetricMetaValue, error) {
-
 	if m, ok := format.BuiltinMetricByName[metricWithNamespace]; ok {
 		return m, nil
 	}

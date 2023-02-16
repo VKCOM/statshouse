@@ -384,27 +384,3 @@ func parseRenderFormat(s string) (string, error) {
 		return "", httpErr(http.StatusBadRequest, fmt.Errorf("unknown render format %q", s))
 	}
 }
-
-func parseTimeParam(r *http.Request, paramName string, defaultValue time.Time) (time.Time, error) {
-	val := r.FormValue(paramName)
-	if val == "" {
-		return defaultValue, nil
-	}
-	res, err := parseTime(val)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("invalid time value for %q: %w", paramName, err)
-	}
-	return res, nil
-}
-
-func parseTime(s string) (time.Time, error) {
-	if t, err := strconv.ParseFloat(s, 64); err == nil {
-		s, ns := math.Modf(t)
-		ns = math.Round(ns*1000) / 1000
-		return time.Unix(int64(s), int64(ns*float64(time.Second))).UTC(), nil
-	}
-	if t, err := time.Parse(time.RFC3339Nano, s); err == nil {
-		return t, nil
-	}
-	return time.Time{}, fmt.Errorf("cannot parse %qs to a valid timestamp", s)
-}
