@@ -85,6 +85,7 @@ const (
 	paramRenderWidth  = "rw"
 	paramDataFormat   = "df"
 	paramTabNumber    = "tn"
+	paramMaxHost      = "mh"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -270,6 +271,7 @@ type (
 		by                      []string
 		filterIn                map[string][]string
 		filterNotIn             map[string][]string
+		maxHost                 bool
 		avoidCache              bool
 	}
 
@@ -1420,6 +1422,7 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 	if avoidCache && !ai.isAdmin() {
 		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
 	}
+	_, maxHost := r.Form[paramMaxHost]
 	getQuery := func(ctx context.Context) (*GetQueryResp, bool, error) {
 		resp, immutable, err := h.handleGetQuery(
 			ctx,
@@ -1439,6 +1442,7 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 				filterIn:            filterIn,
 				filterNotIn:         filterNotIn,
 				avoidCache:          avoidCache,
+				maxHost:             maxHost,
 			})
 		if h.verbose && err == nil {
 			log.Printf("[debug] handled query (%v series x %v points each) for %q in %v", len(resp.Series.SeriesMeta), len(resp.Series.Time), ai.user, time.Since(sl.startTime))
@@ -1755,7 +1759,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 				syncPoolBuffers = append(syncPoolBuffers, ts)
 
 				var maxHosts []string
-				if (q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && version == Version2 {
+				if (req.maxHost || q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && version == Version2 {
 					maxHosts = make([]string, len(*ts))
 				}
 				for i := range *ts {
