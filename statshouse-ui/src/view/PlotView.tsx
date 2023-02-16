@@ -12,7 +12,7 @@ import { PlotHeader } from '../components/Plot/PlotHeader';
 import { LegendItem, PlotLegend, UPlotWrapper, UPlotWrapperPropsOpts } from '../components';
 import { formatSI, now, timeRangeAbbrevExpand } from './utils';
 import { queryURLCSV } from './api';
-import { grey } from './palette';
+import { black, grey, greyDark } from './palette';
 import produce from 'immer';
 import {
   PlotValues,
@@ -183,11 +183,11 @@ const PlotView = memo(function PlotView_(props: {
     [indexPlot, setLive, setSel, setTimeRange]
   );
 
-  const getAxisStroke = useCallback(() => (themeDark ? '#adb5bd' : 'black'), [themeDark]);
+  const getAxisStroke = useCallback(() => (themeDark ? grey : black), [themeDark]);
 
   const opts = useMemo<UPlotWrapperPropsOpts>(() => {
     const grid: uPlot.Axis.Grid = {
-      stroke: grey,
+      stroke: themeDark ? greyDark : grey,
       width: 1 / devicePixelRatio,
     };
     const sync: uPlot.Cursor.Sync | undefined = group
@@ -260,7 +260,7 @@ const PlotView = memo(function PlotView_(props: {
         },
       },
     };
-  }, [compact, getAxisStroke, group, topPad, xAxisSize, yAxisSize]);
+  }, [compact, getAxisStroke, group, themeDark, topPad, xAxisSize, yAxisSize]);
 
   const linkCSV = useMemo(() => {
     const agg =
