@@ -36,15 +36,15 @@ type seriesGroup struct {
 	bag   SeriesBag
 }
 
-func (bag SeriesBag) Type() parser.ValueType {
+func (bag *SeriesBag) Type() parser.ValueType {
 	return parser.ValueTypeMatrix
 }
 
-func (bag SeriesBag) String() string {
+func (bag *SeriesBag) String() string {
 	return fmt.Sprintf("%dx%d", len(bag.Data), len(bag.Time))
 }
 
-func (bag SeriesBag) MarshalJSON() ([]byte, error) {
+func (bag *SeriesBag) MarshalJSON() ([]byte, error) {
 	type series struct {
 		M map[string]string `json:"metric,omitempty"`
 		V [][2]any          `json:"values,omitempty"`
@@ -67,9 +67,9 @@ func (bag SeriesBag) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s)
 }
 
-func (bag SeriesBag) group(tags []string, without bool) ([]seriesGroup, error) {
+func (bag *SeriesBag) group(tags []string, without bool) ([]seriesGroup, error) {
 	if len(tags) == 0 && !without {
-		return []seriesGroup{{bag: bag}}, nil
+		return []seriesGroup{{bag: *bag}}, nil
 	}
 	var by map[string]bool
 	if len(tags) != 0 {
@@ -129,7 +129,7 @@ func (bag SeriesBag) group(tags []string, without bool) ([]seriesGroup, error) {
 	return res, nil
 }
 
-func (bag SeriesBag) hashTags(tags []string, out bool) (map[uint64]int, error) {
+func (bag *SeriesBag) hashTags(tags []string, out bool) (map[uint64]int, error) {
 	var by map[string]bool
 	if len(tags) != 0 {
 		by = make(map[string]bool, len(tags))
@@ -156,7 +156,7 @@ func (bag SeriesBag) hashTags(tags []string, out bool) (map[uint64]int, error) {
 	return res, nil
 }
 
-func (bag SeriesBag) hashTagsAt(i int, by map[string]bool, h hash.Hash64) (uint64, []string, error) {
+func (bag *SeriesBag) hashTagsAt(i int, by map[string]bool, h hash.Hash64) (uint64, []string, error) {
 	s := make([]string, 0, len(bag.Tags[i])+len(bag.STags[i]))
 	for tag := range bag.Tags[i] {
 		if by == nil || by[tag] {
@@ -188,13 +188,13 @@ func (bag SeriesBag) hashTagsAt(i int, by map[string]bool, h hash.Hash64) (uint6
 	return h.Sum64(), s, nil
 }
 
-func (bag SeriesBag) dropMetricName() {
+func (bag *SeriesBag) dropMetricName() {
 	for i := range bag.Data {
 		delete(bag.STags[i], labels.MetricName)
 	}
 }
 
-func (bag SeriesBag) scalar() bool {
+func (bag *SeriesBag) scalar() bool {
 	if len(bag.Data) != 1 {
 		return false
 	}
