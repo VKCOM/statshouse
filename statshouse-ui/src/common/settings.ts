@@ -30,7 +30,14 @@ const meta = document.querySelector('meta[name="settings"]');
 let metaSettings = defaultSettings;
 if (meta !== null) {
   try {
-    metaSettings = { ...metaSettings, ...JSON.parse(meta.getAttribute('content')!) } as settings;
+    const serverConfig = { ...JSON.parse(meta.getAttribute('content')!) } as settings;
+    metaSettings = {
+      ...metaSettings,
+      ...serverConfig,
+      default_metric_what: serverConfig.default_metric_what.length
+        ? serverConfig.default_metric_what
+        : defaultSettings.default_metric_what,
+    } as settings;
   } catch (e) {}
 }
 

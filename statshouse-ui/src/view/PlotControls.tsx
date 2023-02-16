@@ -126,12 +126,16 @@ const PlotControls = memo(function PlotControls_(props: {
   const onWhatChange = useCallback(
     (value?: string | string[]) => {
       const whatValue = Array.isArray(value) ? value : value ? [value] : [];
+      if (!whatValue.length) {
+        const whats = metricKindToWhat(meta.kind);
+        whatValue.push(whats[0]);
+      }
       setSel((s) => ({
         ...s,
         what: whatValue as queryWhat[],
       }));
     },
-    [setSel]
+    [meta.kind, setSel]
   );
 
   const whatOption = useMemo(
