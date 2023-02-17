@@ -69,6 +69,7 @@ services:
     ports:
       - "13337:13337/udp"
       - "13337:13337/tcp"
+      - "13380:13380"
     depends_on:
       - aggregator
   api:
