@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	labelWhat = "__what"
+	labelWhat = "__what__"
 )
 
 type Query struct {
