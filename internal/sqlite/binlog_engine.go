@@ -27,7 +27,7 @@ const (
 func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error) {
 	defer impl.e.opt.StatsOptions.measureActionDurationSince("engine_apply", time.Now())
 	e := impl.e
-	if e.opt.ReadAndExit {
+	if e.opt.ReadAndExit || e.opt.CommitOnEachWrite {
 		offs, err := impl.apply(payload)
 		e.commitTXAndStartNew(true, false)
 		return offs, err
