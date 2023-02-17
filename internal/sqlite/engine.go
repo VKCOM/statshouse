@@ -738,6 +738,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	}
 	if e.opt.CommitOnEachWrite {
 		_ = e.commitTXAndStartNewLocked(c, true, false, true)
+		mustCommitNow = false
 	}
 	if waitCommitMode || mustCommitNow {
 		e.waitQMx.Lock()
