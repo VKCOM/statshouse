@@ -84,6 +84,8 @@ const (
 	initOffsetTable     = "CREATE TABLE IF NOT EXISTS __binlog_offset (offset INTEGER);"
 	snapshotMetaTable   = "CREATE TABLE IF NOT EXISTS __snapshot_meta (meta BLOB);"
 	internalQueryPrefix = "__"
+
+	numParamsMax = 1 << 15
 )
 
 var (
@@ -120,6 +122,7 @@ type Engine struct {
 	waitUntilBinlogReady chan struct{}
 	readyNotify          sync.Once
 	commitCh             chan struct{}
+	numParams            *numParams
 
 	isTest            bool
 	mustCommitNowFlag bool
@@ -232,6 +235,7 @@ func openDB(opt Options,
 		waitUntilBinlogReady: make(chan struct{}),
 		commitCh:             make(chan struct{}, 1),
 		mode:                 replica,
+		numParams:            newNumParams(numParamsMax),
 	}
 	e.roCond = sync.NewCond(&e.roMx)
 	if opt.ReadAndExit {
@@ -533,7 +537,7 @@ func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, ski
 			}
 		}
 		if e.rw.err == nil {
-			_, err := c.exec(false, true, "__commit", commitStmt)
+			_, err := c.exec(true, "__commit", commitStmt)
 			if err != nil {
 				e.rw.err = fmt.Errorf("periodic tx commit failed: %w", err)
 			}
@@ -542,7 +546,7 @@ func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, ski
 	}
 
 	if e.rw.err == nil {
-		_, err := c.exec(false, true, "__begin_tx", beginStmt)
+		_, err := c.exec(true, "__begin_tx", beginStmt)
 		if err != nil {
 			e.rw.err = fmt.Errorf("periodic tx begin failed: %w", err)
 		}
@@ -665,7 +669,7 @@ func (e *Engine) view(ctx context.Context, queryName string, fn func(Conn) error
 	}()
 	conn.mu.Lock()
 	e.opt.StatsOptions.measureWaitDurationSince(waitView, startTimeBeforeLock)
-	c := Conn{conn, false, ctx, &e.opt.StatsOptions}
+	c := Conn{conn, false, ctx, &e.opt.StatsOptions, e.numParams}
 	defer c.close()
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txView, queryName, time.Now())
 	err := fn(c)
@@ -785,5 +789,5 @@ func binlogUpdateOffset(c Conn, offset int64) error {
 
 func (e *Engine) start(ctx context.Context, autoSavepoint bool) Conn {
 	e.rw.mu.Lock()
-	return Conn{e.rw, autoSavepoint, ctx, &e.opt.StatsOptions}
+	return Conn{e.rw, autoSavepoint, ctx, &e.opt.StatsOptions, e.numParams}
 }
