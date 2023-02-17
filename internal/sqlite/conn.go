@@ -71,41 +71,50 @@ func (c Conn) close() {
 func (c Conn) execBeginSavepoint() error {
 	c.c.spIn = true
 	c.c.spOk = false
-	_, err := c.exec(true, "__begin_savepoint", c.c.spBeginStmt)
+	_, err := c.ExecUnsafe("__begin_savepoint", c.c.spBeginStmt)
 	return err
 }
 
 func (c Conn) execEndSavepoint() {
 	if c.c.spIn {
 		if c.c.spOk {
-			_, _ = c.exec(true, "__commit_savepoint", c.c.spCommitStmt)
+			_, _ = c.ExecUnsafe("__commit_savepoint", c.c.spCommitStmt)
 		} else {
-			_, _ = c.exec(true, "__rollback_savepoint", c.c.spRollbackStmt)
+			_, _ = c.ExecUnsafe("__rollback_savepoint", c.c.spRollbackStmt)
 		}
 		c.c.spIn = false
 	}
 }
 
 func (c Conn) Query(name, sql string, args ...Arg) Rows {
-	return c.query(false, query, name, sql, args...)
+	return c.query(false, false, query, name, sql, args...)
+}
+
+func (c Conn) QueryUncached(name, sql string, args ...Arg) Rows {
+	return c.query(true, false, query, name, sql, args...)
 }
 
 func (c Conn) Exec(name, sql string, args ...Arg) (int64, error) {
-	return c.exec(false, name, sql, args...)
+	return c.exec(false, false, name, sql, args...)
+}
+
+func (c Conn) ExecUncached(name, sql string, args ...Arg) (int64, error) {
+	strings.Replace()
+	return c.exec(true, false, name, sql, args...)
 }
 
 func (c Conn) ExecUnsafe(name, sql string, args ...Arg) (int64, error) {
-	return c.exec(true, name, sql, args...)
+	return c.exec(false, true, name, sql, args...)
 }
 
-func (c Conn) query(allowUnsafe bool, type_, name, sql string, args ...Arg) Rows {
+func (c Conn) query(skipCache, allowUnsafe bool, type_, name, sql string, args ...Arg) Rows {
 	start := time.Now()
-	s, err := c.doQuery(allowUnsafe, sql, args...)
+	s, err := c.doQuery(skipCache, allowUnsafe, sql, args...)
 	return Rows{c.c, s, err, false, c.ctx, name, start, c.stats, type_}
 }
 
-func (c Conn) exec(allowUnsafe bool, name, sql string, args ...Arg) (int64, error) {
-	rows := c.query(allowUnsafe, exec, name, sql, args...)
+func (c Conn) exec(skipCache, allowUnsafe bool, name, sql string, args ...Arg) (int64, error) {
+	rows := c.query(skipCache, allowUnsafe, exec, name, sql, args...)
 	for rows.Next() {
 	}
 	return c.LastInsertRowID(), rows.Error()
@@ -188,12 +197,16 @@ func (c Conn) PrepMapLength() int {
 	return len(c.c.prep)
 }
 
-func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt, error) {
+func (c Conn) doQuery(skipCache, allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt, error) {
 	if c.c.err != nil {
 		return nil, c.c.err
 	}
 
-	si, ok := c.c.prep[sql]
+	var si stmtInfo
+	var ok bool
+	if !skipCache {
+		si, ok = c.c.prep[sql]
+	}
 	var err error
 	if !ok {
 		start := time.Now()
@@ -202,7 +215,13 @@ func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt,
 		if err != nil {
 			return nil, err
 		}
-		c.c.prep[sql] = si
+		if !skipCache {
+			c.c.prep[sql] = si
+		} else {
+			defer func() {
+				_ = si.stmt.Close()
+			}()
+		}
 	}
 
 	if !allowUnsafe && !si.isSafe {
