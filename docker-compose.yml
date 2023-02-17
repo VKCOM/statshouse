@@ -67,7 +67,6 @@ services:
     user: "root:root"
     command: agent -u=root -g=root --cluster=test_shard_aggregator --log-level=trace --agg-addr='aggregator:13336,aggregator:13336,aggregator:13336' --cache-dir=/var/lib/statshouse/cache/agent --remote-write-enabled
     ports:
-      - "8081:8081"
       - "13337:13337/udp"
       - "13337:13337/tcp"
     depends_on:
