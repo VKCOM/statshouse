@@ -408,6 +408,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		location:              location,
 		readOnly:              readOnly,
 		insecureMode:          insecureMode,
+		accessManager:         &accessManager{getGroupByMetricName: func(s string) *format.MetricsGroup { return nil }}, // nop
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
@@ -450,7 +451,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		writeActiveQuieries(chV1, "1")
 		writeActiveQuieries(chV2, "2")
 	})
-
+	h.promEngine = promql.NewEngine(h, h, h.location)
 	return h, nil
 }
 
