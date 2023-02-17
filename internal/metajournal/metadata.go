@@ -9,6 +9,7 @@ package metajournal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -31,9 +32,15 @@ const (
 	prometheusConfigID     = -1 // TODO move to file with predefined entities
 )
 
+var errorInvalidUserRequest = errors.New("")
+
 type MetricMetaLoader struct {
 	loadTimeout time.Duration
 	client      *tlmetadata.Client
+}
+
+func IsUserRequestError(err error) bool {
+	return errors.Is(err, errorInvalidUserRequest)
 }
 
 func NewMetricMetaLoader(client *tlmetadata.Client, loadTimeout time.Duration) *MetricMetaLoader {
@@ -45,7 +52,7 @@ func NewMetricMetaLoader(client *tlmetadata.Client, loadTimeout time.Duration) *
 
 func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.DashboardMeta, create, remove bool) (format.DashboardMeta, error) {
 	if !format.ValidDashboardName(value.Name) {
-		return format.DashboardMeta{}, fmt.Errorf("invalid dashboard name: %q", value.Name)
+		return format.DashboardMeta{}, fmt.Errorf("invalid dashboard name %w: %q", errorInvalidUserRequest, value.Name)
 	}
 	metricBytes, err := json.Marshal(value.JSONData)
 	if err != nil {
@@ -87,10 +94,15 @@ func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.Dashb
 	}, nil
 }
 
-func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.MetricsGroup, create, delete bool) (g format.MetricsGroup, _ error) {
+func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.MetricsGroup, create bool) (g format.MetricsGroup, _ error) {
 	if err := value.RestoreCachedInfo(); err != nil {
 		return g, err
 	}
+	var err error
+	if !format.ValidMetricName(mem.S(value.Name)) {
+		return g, fmt.Errorf("invalid group name %w: %q", errorInvalidUserRequest, value.Name)
+	}
+
 	groupBytes, err := json.Marshal(value)
 	if err != nil {
 		return format.MetricsGroup{}, fmt.Errorf("faield to serialize group: %w", err)
@@ -105,7 +117,6 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 		},
 	}
 	editMetricReq.SetCreate(create)
-	editMetricReq.SetDelete(delete)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
 	event := tlmetadata.Event{}
@@ -124,7 +135,6 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 	g.Name = event.Name
 	g.UpdateTime = event.UpdateTime
 	g.ID = int32(event.Id)
-	g.DeleteTime = event.Unused
 	return g, nil
 }
 

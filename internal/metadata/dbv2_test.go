@@ -171,6 +171,16 @@ func Test_SaveEntity_PredefinedEntity(t *testing.T) {
 	require.Equal(t, int64(-1), m.Id)
 }
 
+func Test_SaveGroup_With_Bad_Name(t *testing.T) {
+	path := t.TempDir()
+	db, _ := initD1b(t, path, "db", true, nil)
+	_, err := db.SaveEntity(context.Background(), "abc_", 0, 0, "{}", true, false, format.MetricsGroupEvent)
+	require.NoError(t, err)
+	_, err = db.SaveEntity(context.Background(), "abc", 0, 0, "{}", true, false, format.MetricsGroupEvent)
+	require.Error(t, err)
+
+}
+
 func unpackGetMappingUnion(u tlmetadata.GetMappingResponseUnion, err error) (int32, error) {
 	if err != nil {
 		return 0, err
@@ -461,13 +471,13 @@ func Test_calcBudget(t *testing.T) {
 }
 
 func testRereadBinlog(t *testing.T,
-	options *Options,
+	opt1, opt2 *Options,
 	path string, dbFile1, dbFile2 string, parallelism int,
 	dbHandler func(t *testing.T, dbv2 *DBV2, goroutineNum int),
 	validator func(t *testing.T, dbv2 *DBV2),
 	clean func(t *testing.T),
 ) {
-	db, bl := initD1b(t, path, dbFile1, true, options)
+	db, bl := initD1b(t, path, dbFile1, true, opt1)
 	wg := &sync.WaitGroup{}
 	for i := 0; i < parallelism; i++ {
 		wg.Add(1)
@@ -479,7 +489,7 @@ func testRereadBinlog(t *testing.T,
 	wg.Wait()
 	require.NoError(t, db.Close())
 	require.NoError(t, bl.Shutdown())
-	db, bl = initD1b(t, path, dbFile2, false, options)
+	db, bl = initD1b(t, path, dbFile2, false, opt2)
 	validator(t, db)
 	require.NoError(t, db.Close())
 	require.NoError(t, bl.Shutdown())
@@ -502,7 +512,7 @@ func Test_Reread_Binlog_CreateMapping(t *testing.T) {
 			newFileName = "db1"
 		}
 		testRereadBinlog(t,
-			opt,
+			opt, opt,
 			path, "db", newFileName, 50,
 			func(t *testing.T, db *DBV2, goroutineNum int) {
 				k := strconv.FormatInt(rand.Int63()%10000, 10)
@@ -556,7 +566,7 @@ func Test_Reread_Binlog_SaveMetric(t *testing.T) {
 		if newDb {
 			dbFile2 = "db1"
 		}
-		testRereadBinlog(t, opt, path, "db", dbFile2, 100,
+		testRereadBinlog(t, opt, opt, path, "db", dbFile2, 100,
 			func(t *testing.T, db *DBV2, i int) {
 				suffix := strconv.FormatInt(int64(i), 10)
 				name := metricsNames[rand.Int()%len(metricsNames)] + suffix
@@ -593,6 +603,46 @@ func Test_Reread_Binlog_SaveMetric(t *testing.T) {
 	})
 }
 
+func Test_Migration(t *testing.T) {
+	path := t.TempDir()
+	const task = 3
+	mx := sync.Mutex{}
+	metrics := map[string]tlmetadata.Event{}
+	metricsNames := []string{"a", "b", "c", "d"}
+	opt1 := defaultOptions()
+	opt2 := defaultOptions()
+	opt2.Migration = true
+	testRereadBinlog(t, opt1, opt2, path, "db", "db", 100,
+		func(t *testing.T, db *DBV2, i int) {
+			suffix := strconv.FormatInt(int64(i), 10)
+			name := metricsNames[rand.Int()%len(metricsNames)] + suffix
+			for i := 0; i < task; i++ {
+				mx.Lock()
+				metric, notCreate := metrics[name]
+				delete := false
+				if notCreate {
+					delete = rand.Int()%2 == 0
+				}
+				mx.Unlock()
+				metric, err := db.SaveEntityold(context.Background(), name, metric.Id, metric.Version, "{}", !notCreate, delete, format.MetricEvent)
+				require.NoError(t, err)
+				mx.Lock()
+				metrics[name] = metric
+				mx.Unlock()
+			}
+		}, func(t *testing.T, db *DBV2) {
+			metric1, err := db.JournalEvents(context.Background(), 0, 100000)
+			require.NoError(t, err)
+			require.Equal(t, len(metrics), len(metric1))
+			for _, metric := range metric1 {
+				m, ok := metrics[metric.Name]
+				require.True(t, ok)
+				require.Equal(t, m, metric)
+			}
+
+		}, nil)
+}
+
 func Test_Reread_Binlog_PutOldMetric(t *testing.T) {
 	test := func(t *testing.T, newDb bool) {
 		path := t.TempDir()
@@ -603,7 +653,7 @@ func Test_Reread_Binlog_PutOldMetric(t *testing.T) {
 		if newDb {
 			dbFile2 = "db1"
 		}
-		testRereadBinlog(t, opt, path, "db", dbFile2, 30,
+		testRereadBinlog(t, opt, opt, path, "db", dbFile2, 30,
 			func(t *testing.T, db *DBV2, i int) {
 				name := "metric" + strconv.FormatInt(int64(i+1), 10)
 				metric, err := db.PutOldMetric(context.Background(), name, int64(i+1), int64(i+1), "{}", uint32(time.Now().Unix()), format.MetricEvent)
@@ -630,6 +680,7 @@ func Test_Reread_Binlog_PutOldMetric(t *testing.T) {
 	t.Run("reread with old db", func(t *testing.T) {
 		test(t, false)
 	})
+
 }
 
 func Test_Reread_Binlog_PutBootstrap(t *testing.T) {
@@ -643,7 +694,7 @@ func Test_Reread_Binlog_PutBootstrap(t *testing.T) {
 		}
 		var mappingsList []tlstatshouse.Mapping
 		var index int32 = 1
-		testRereadBinlog(t, defaultOptions(), path, "db", dbFile2, 30,
+		testRereadBinlog(t, defaultOptions(), defaultOptions(), path, "db", dbFile2, 30,
 			func(t *testing.T, db *DBV2, gorNumb int) {
 				mx.Lock()
 				defer mx.Unlock()

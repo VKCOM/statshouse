@@ -126,11 +126,13 @@ type DashboardMeta struct {
 type MetricsGroup struct {
 	ID         int32  `json:"group_id"`
 	Name       string `json:"name"`
-	Version    int64  `json:"version,omitempty"`
+	Version    int64  `json:"version"`
 	UpdateTime uint32 `json:"update_time"`
-	DeleteTime uint32 `json:"delete_time"` // TODO - remove, make Visible flag, as in metrics
 
-	Weight float64 `json:"weight"`
+	Weight            float64 `json:"weight,omitempty"`
+	Visible           bool    `json:"visible,omitempty"`
+	IsWeightEffective bool    `json:"is_weight_effective,omitempty"`
+	Protected         bool    `json:"protected,omitempty"`
 
 	EffectiveWeight int64 `json:"-"`
 }
@@ -151,7 +153,6 @@ type MetricMetaValue struct {
 	StringTopDescription string          `json:"string_top_description,omitempty"` // no invariants
 	PreKeyTagID          string          `json:"pre_key_tag_id,omitempty"`
 	PreKeyFrom           uint32          `json:"pre_key_from,omitempty"`
-	GroupID              int32           `json:"group_id"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
@@ -160,6 +161,8 @@ type MetricMetaValue struct {
 	EffectiveWeight     int64                    `json:"-"`
 	HasPercentiles      bool                     `json:"-"`
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
+	GroupID             int32                    `json:"-"`
+	Group               *MetricsGroup            `json:"-"`
 }
 
 type MetricMetaValueOld struct {
@@ -376,6 +379,10 @@ func (m *MetricsGroup) RestoreCachedInfo() error {
 	m.EffectiveWeight = int64(rw)
 
 	return err
+}
+
+func (m *MetricsGroup) MetricIn(metric string) bool {
+	return strings.HasPrefix(metric, m.Name+"_")
 }
 
 func ValidMetricName(s mem.RO) bool {

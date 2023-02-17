@@ -23,6 +23,8 @@ func newMetricStorage(loader MetricsStorageLoader) *MetricsStorage {
 	return result
 }
 
+const group1Id = 233
+
 func TestMetricsStorage(t *testing.T) {
 	events := []tlmetadata.Event{}
 	m := newMetricStorage(func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
@@ -38,9 +40,12 @@ func TestMetricsStorage(t *testing.T) {
 		}
 		return result, v, nil
 	})
+	// actually 1 test, but grouped by small test case (need to run together)
 	t.Run("updateJournal test(each other depends on previous)", func(t *testing.T) {
 		descrField := "__description"
 		value := format.BuiltinMetrics[format.BuiltinMetricIDAPIBRS]
+		value.Name = "test_metric"
+		value.GroupID = 0
 		_ = value.RestoreCachedInfo()
 		metricBytes, err := value.MarshalBinary()
 		require.NoError(t, err)
@@ -56,7 +61,7 @@ func TestMetricsStorage(t *testing.T) {
 
 		group := format.MetricsGroup{
 			ID:     331,
-			Name:   "abc",
+			Name:   "test",
 			Weight: 1,
 		}
 
@@ -116,7 +121,7 @@ func TestMetricsStorage(t *testing.T) {
 
 		t.Run("rename metric", func(t *testing.T) {
 			descr := "new descr"
-			value.Name = "abc"
+			value.Name = "test_abc"
 			value.Version = 3
 			value.Description = descr
 			bytes, err := value.MarshalBinary()
@@ -200,7 +205,7 @@ func TestMetricsStorage(t *testing.T) {
 		t.Run("broadcast version clients", func(t *testing.T) {
 			value.Version = 6
 			value.MetricID = 1235
-			value.Name = "testmetric3"
+			value.Name = "test1_metric3"
 			events = []tlmetadata.Event{
 				{
 					Id:        int64(value.MetricID),
@@ -273,9 +278,16 @@ func TestMetricsStorage(t *testing.T) {
 			require.Equal(t, dashboard, *m.dashboardByID[dashboard.DashboardID])
 		})
 
-		t.Run("create group", func(t *testing.T) {
+		t.Run("group created (check metric added to group)", func(t *testing.T) {
+			group := group
+			group1 := group
 			group.Version = 8
+			group1.Version = 9
+			group1.ID = group1Id
+			group1.Name = "test3"
 			bytes, err := json.Marshal(group)
+			require.NoError(t, err)
+			bytes1, err := json.Marshal(group1)
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
 				{
@@ -286,11 +298,11 @@ func TestMetricsStorage(t *testing.T) {
 					Data:      string(bytes),
 				},
 				{
-					Id:        int64(group.ID + 1),
-					Name:      group.Name + "",
+					Id:        int64(group1.ID),
+					Name:      group1.Name,
 					EventType: format.MetricsGroupEvent,
-					Version:   group.Version + 1,
-					Data:      string(bytes),
+					Version:   group1.Version,
+					Data:      string(bytes1),
 				},
 			}
 			err = m.journal.updateJournal(nil)
@@ -305,12 +317,12 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 2)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 2)
-			require.Len(t, m.metricsByGroup, 0)
+			require.Len(t, m.metricsByGroup, 1)
 		})
 
-		t.Run("move metric to group", func(t *testing.T) {
+		t.Run("metric renamed (check old metric removed from group and new metric added)", func(t *testing.T) {
 			value.Version = 10
-			value.GroupID = group.ID
+			value.Name = "test3_metric"
 			bytes, err := json.Marshal(value)
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
@@ -334,42 +346,76 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 2)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 2)
-			require.Len(t, m.metricsByGroup, 1)
+			require.Len(t, m.metricsByGroup, 2)
 			require.Contains(t, m.metricsByGroup, group.ID)
+			require.Contains(t, m.metricsByGroup, int32(group1Id))
 			require.Len(t, m.metricsByGroup[group.ID], 1)
-			require.Contains(t, m.metricsByGroup[group.ID], value.MetricID)
+			require.Contains(t, m.metricsByGroup[group1Id], value.MetricID)
 		})
-		t.Run("change metric group", func(t *testing.T) {
-			value.Version = 11
-			value.GroupID = group.ID + 1
-			bytes, err := json.Marshal(value)
+		t.Run("metric created (check new metric in group)", func(t *testing.T) {
+			var id int32 = 65463
+			metric := *value
+			metric.Version = 11
+			metric.MetricID = id
+			metric.Name = "test_metric5"
+			bytes, err := json.Marshal(metric)
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
 				{
-					Id:        int64(value.MetricID),
-					Name:      value.Name,
+					Id:        int64(metric.MetricID),
+					Name:      metric.Name,
 					EventType: format.MetricEvent,
-					Version:   value.Version,
+					Version:   metric.Version,
 					Data:      string(bytes),
 				},
 			}
 			err = m.journal.updateJournal(nil)
 			require.NoError(t, err)
 
-			require.Len(t, m.journal.journal, 6)
-			require.Len(t, m.journal.journalOld, 2)
+			require.Len(t, m.journal.journal, 7)
+			require.Len(t, m.journal.journalOld, 3)
 
 			require.Equal(t, int64(11), m.journal.versionLocked())
 
-			require.Len(t, m.metricsByID, 2)
-			require.Len(t, m.metricsByName, 2)
+			require.Len(t, m.metricsByID, 3)
+			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 2)
-			require.NotContains(t, m.metricsByGroup, group.ID)
-			require.Contains(t, m.metricsByGroup, group.ID+1)
-			require.Len(t, m.metricsByGroup[group.ID], 0)
-			require.Len(t, m.metricsByGroup[group.ID+1], 1)
-			require.Contains(t, m.metricsByGroup[group.ID+1], value.MetricID)
+			require.Len(t, m.metricsByGroup, 2)
+			require.Contains(t, m.metricsByGroup, group.ID)
+			require.Contains(t, m.metricsByGroup, int32(group1Id))
+			require.Len(t, m.metricsByGroup[group.ID], 2)
+			require.Contains(t, m.metricsByGroup[group.ID], id)
+			require.Contains(t, m.metricsByGroup[group1Id], value.MetricID)
+		})
+		t.Run("group renamed (check old metric removed from group and metric added)", func(t *testing.T) {
+			group := group
+			group.Version = 12
+			group.Name = "test3"
+			bytes, err := json.Marshal(group)
+			require.NoError(t, err)
+			events = []tlmetadata.Event{
+				{
+					Id:        int64(group.ID),
+					Name:      group.Name,
+					EventType: format.MetricsGroupEvent,
+					Version:   group.Version,
+					Data:      string(bytes),
+				},
+			}
+			err = m.journal.updateJournal(nil)
+			require.NoError(t, err)
+
+			require.Len(t, m.journal.journal, 7)
+			require.Len(t, m.journal.journalOld, 3)
+
+			require.Equal(t, int64(12), m.journal.versionLocked())
+
+			require.Len(t, m.metricsByID, 3)
+			require.Len(t, m.metricsByName, 3)
+			require.Len(t, m.dashboardByID, 2)
+			require.Len(t, m.groupsByID, 2)
+			require.Len(t, m.metricsByGroup, 2)
 		})
 		t.Run("broadcast prom clients", func(t *testing.T) {
 			events = []tlmetadata.Event{
@@ -377,14 +423,14 @@ func TestMetricsStorage(t *testing.T) {
 					Id:        351525,
 					Name:      "-",
 					EventType: format.PromConfigEvent,
-					Version:   12,
+					Version:   13,
 					Data:      "abc",
 				},
 				{
 					Id:        351525,
 					Name:      "-",
 					EventType: format.PromConfigEvent,
-					Version:   13,
+					Version:   14,
 					Data:      "def",
 				},
 			}
@@ -397,7 +443,7 @@ func TestMetricsStorage(t *testing.T) {
 			err = m.journal.updateJournal(nil)
 			require.NoError(t, err)
 			require.Equal(t, "def", promConfgString)
-			require.Equal(t, int64(13), promConfgVersion)
+			require.Equal(t, int64(14), promConfgVersion)
 		})
 	})
 	t.Run("test getJournalDiffLocked3", func(t *testing.T) {

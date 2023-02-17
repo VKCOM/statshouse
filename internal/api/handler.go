@@ -166,6 +166,7 @@ type (
 		rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 		rmID                  int
 		promEngine            promql.Engine
+		accessManager         *accessManager
 	}
 
 	//easyjson:json
@@ -214,7 +215,6 @@ type (
 	MetricsGroupInfo struct {
 		Group   format.MetricsGroup `json:"group"`
 		Metrics []string            `json:"metrics"`
-		Delete  bool                `json:"delete_mark"`
 	}
 
 	//easyjson:json
@@ -451,7 +451,6 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		writeActiveQuieries(chV2, "2")
 	})
 
-	h.promEngine = promql.NewEngine(h, h, h.location)
 	return h, nil
 }
 
@@ -604,15 +603,15 @@ func (h *Handler) getMetricID(ai accessInfo, metricWithNamespace string) (int32,
 
 // getMetricMeta only checks view access
 func (h *Handler) getMetricMeta(ai accessInfo, metricWithNamespace string) (*format.MetricMetaValue, error) {
-	if !ai.canViewMetric(metricWithNamespace) { // We are OK with sharing this bit of information with clients
-		return nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metricWithNamespace))
-	}
 	if m, ok := format.BuiltinMetricByName[metricWithNamespace]; ok {
 		return m, nil
 	}
 	v := h.metricsStorage.GetMetaMetricByName(metricWithNamespace)
 	if v == nil {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found", metricWithNamespace))
+	}
+	if !ai.canViewMetric(metricWithNamespace) { // We are OK with sharing this bit of information with clients
+		return nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metricWithNamespace))
 	}
 	return v, nil
 }
@@ -813,7 +812,7 @@ func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) parseAccessToken(w http.ResponseWriter, r *http.Request, es *endpointStat) (accessInfo, bool) {
-	ai, err := parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedPrefixes, h.localMode, h.insecureMode)
+	ai, err := h.accessManager.parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedPrefixes, h.localMode, h.insecureMode)
 	if es != nil {
 		es.setTokenName(ai.user)
 	}
@@ -941,7 +940,7 @@ func (h *Handler) HandlePutPostGroup(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	d, err := h.handlePostGroup(r.Context(), ai, groupInfo.Group, r.Method == http.MethodPut, groupInfo.Delete)
+	d, err := h.handlePostGroup(r.Context(), ai, groupInfo.Group, r.Method == http.MethodPut)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
@@ -1099,6 +1098,9 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 		if create {
 			s = "create"
 		}
+		if metajournal.IsUserRequestError(err) {
+			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't %s dashboard: %w", s, err))
+		}
 		return &DashboardInfo{}, fmt.Errorf("can't %s dashboard: %w", s, err)
 	}
 	return &DashboardInfo{Dashboard: getDashboardMetaInfo(&dashboard)}, nil
@@ -1125,22 +1127,29 @@ func (h *Handler) handleGetGroupsList(ai accessInfo) (*GetGroupListResp, time.Du
 	return resp, defaultCacheTTL, nil
 }
 
-func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group format.MetricsGroup, create, delete bool) (*MetricsGroupInfo, error) {
+func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group format.MetricsGroup, create bool) (*MetricsGroupInfo, error) {
 	if !ai.isAdmin() {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("group %s not found", group.Name))
 	}
 	if !create {
-		if h.metricsStorage.GetGroup(group.ID) != nil {
+		if h.metricsStorage.GetGroup(group.ID) == nil {
 			return &MetricsGroupInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("group %d not found", group.ID))
 		}
 	}
-	group, err := h.metadataLoader.SaveMetricsGroup(ctx, group, create, delete)
+	if !h.metricsStorage.CanAddOrChangeGroup(group.Name, group.ID) {
+		return &MetricsGroupInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("group name %s is not posible", group.Name))
+	}
+	group, err := h.metadataLoader.SaveMetricsGroup(ctx, group, create)
 	if err != nil {
 		s := "edit"
 		if create {
 			s = "create"
 		}
-		return &MetricsGroupInfo{}, fmt.Errorf("can't %s group: %w", s, err)
+		errReturn := fmt.Errorf("can't %s group: %w", s, err)
+		if metajournal.IsUserRequestError(err) {
+			return &MetricsGroupInfo{}, httpErr(http.StatusBadRequest, errReturn)
+		}
+		return &MetricsGroupInfo{}, errReturn
 	}
 	return &MetricsGroupInfo{Group: group}, nil
 }
@@ -1156,7 +1165,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		}
 	}
 	if create {
-		if !ai.canEditMetric(metric.Name, metric, metric) {
+		if !ai.canEditMetric(true, metric, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q", metric.Name))
 		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric)
@@ -1169,15 +1178,12 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		if _, ok := format.BuiltinMetrics[metric.MetricID]; ok {
 			return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, fmt.Errorf("builtin metric cannot be edited"))
 		}
-		v := h.metricsStorage.GetMetaMetric(metric.MetricID)
-		if v == nil {
+		old := h.metricsStorage.GetMetaMetric(metric.MetricID)
+		if old == nil {
 			return format.MetricMetaValue{}, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found (id %d)", metric.Name, metric.MetricID))
 		}
-		if v.Name != metric.Name && !ai.canChangeMetricByName(v.Name, metric.Name) {
-			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("one of names %s, %s isn't acceptable", metric.Name, v.Name))
-		}
-		if !ai.canEditMetric(v.Name, *v, metric) {
-			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q", v.Name))
+		if !ai.canEditMetric(false, *old, metric) {
+			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q", old.Name))
 		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric)
 		if err != nil {

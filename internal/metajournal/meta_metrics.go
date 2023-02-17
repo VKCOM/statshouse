@@ -9,6 +9,7 @@ package metajournal
 import (
 	"encoding/json"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -97,6 +98,17 @@ func (ms *MetricsStorage) GetMetaMetricList(includeInvisible bool) []*format.Met
 	return li
 }
 
+func (ms *MetricsStorage) GetGroupByMetricName(name string) *format.MetricsGroup {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	for _, group := range ms.groupsByID {
+		if group.MetricIn(name) {
+			return group
+		}
+	}
+	return nil
+}
+
 func (ms *MetricsStorage) GetDashboardMeta(dashboardID int32) *format.DashboardMeta {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -142,7 +154,7 @@ func (ms *MetricsStorage) GetGroupsList() []*format.MetricsGroup {
 	defer ms.mu.RUnlock()
 	var groups []*format.MetricsGroup
 	for _, v := range ms.groupsByID {
-		if v.DeleteTime > 0 {
+		if !v.Visible {
 			continue
 		}
 		groups = append(groups, v)
@@ -173,15 +185,9 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			if ok && valueOld.Name != value.Name {
 				delete(ms.metricsByName, valueOld.Name)
 			}
-			if ok && valueOld.GroupID != value.GroupID && valueOld.GroupID > 0 {
-				ms.removeMetricFromGroup(valueOld.GroupID, value.MetricID)
-			}
-			if value.GroupID > 0 {
-				ms.addMetricToGroup(value.GroupID, value)
-			}
 			ms.metricsByName[value.Name] = value
 			ms.metricsByID[value.MetricID] = value
-
+			ms.calcGroupForMetricLocked(value)
 		case format.DashboardEvent:
 			m := map[string]interface{}{}
 			err := json.Unmarshal([]byte(e.Data), &m)
@@ -208,9 +214,10 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.Name = e.Name
 			value.ID = int32(e.Id) // TODO - beware!
 			value.UpdateTime = e.UpdateTime
-			value.DeleteTime = e.Unused
 			_ = value.RestoreCachedInfo()
+			old := ms.groupsByID[value.ID]
 			ms.groupsByID[value.ID] = value
+			ms.calcGroupForMetricsLocked(old, value)
 		case format.PromConfigEvent:
 			ms.promConfig = e
 			promConfigSet = true
@@ -224,7 +231,45 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	}
 }
 
-func (ms *MetricsStorage) removeMetricFromGroup(groupID int32, metricID int32) {
+// call when group is added or changed O(numb of metrics)
+func (ms *MetricsStorage) calcGroupForMetricsLocked(old, new *format.MetricsGroup) {
+	if old != nil && old.Name != new.Name {
+		metrics := ms.metricsByGroup[old.ID]
+		for _, m := range metrics {
+			mCopy := *m
+			m.GroupID = 0
+			m.Group = nil
+			ms.metricsByID[m.MetricID] = &mCopy
+		}
+		delete(ms.metricsByGroup, old.ID)
+	}
+
+	for _, m := range ms.metricsByID {
+		if new.MetricIn(m.Name) {
+			mCopy := *m
+			mCopy.GroupID = new.ID
+			ms.addMetricToGroupLocked(new.ID, &mCopy)
+		}
+	}
+}
+
+// call when metric is added or changed O(number of groups)
+func (ms *MetricsStorage) calcGroupForMetricLocked(new *format.MetricMetaValue) {
+	ms.removeMetricFromGroupLocked(new.GroupID, new.MetricID)
+	new.GroupID = 0
+	new.Group = nil
+	for _, g := range ms.groupsByID {
+		if g.MetricIn(new.Name) {
+			ms.removeMetricFromGroupLocked(new.GroupID, new.MetricID)
+			new.GroupID = g.ID
+			new.Group = g
+			ms.addMetricToGroupLocked(g.ID, new)
+			return
+		}
+	}
+}
+
+func (ms *MetricsStorage) removeMetricFromGroupLocked(groupID int32, metricID int32) {
 	if metrics, ok := ms.metricsByGroup[groupID]; ok {
 		delete(metrics, metricID)
 		if len(metrics) == 0 {
@@ -233,11 +278,30 @@ func (ms *MetricsStorage) removeMetricFromGroup(groupID int32, metricID int32) {
 	}
 }
 
-func (ms *MetricsStorage) addMetricToGroup(groupID int32, metric *format.MetricMetaValue) {
+func (ms *MetricsStorage) addMetricToGroupLocked(groupID int32, metric *format.MetricMetaValue) {
 	metrics, ok := ms.metricsByGroup[groupID]
 	if !ok {
 		metrics = map[int32]*format.MetricMetaValue{}
 		ms.metricsByGroup[groupID] = metrics
 	}
 	metrics[metric.MetricID] = metric
+	ms.metricsByID[metric.MetricID] = metric
+}
+
+func (ms *MetricsStorage) CanAddOrChangeGroup(name string, id int32) bool {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	return ms.canAddOrChangeGroupLocked(name, id)
+}
+
+func (ms *MetricsStorage) canAddOrChangeGroupLocked(name string, id int32) bool {
+	for _, m := range ms.groupsByID {
+		if id != 0 && id == m.ID {
+			continue
+		}
+		if strings.HasPrefix(name, m.Name) || strings.HasPrefix(m.Name, name) {
+			return false
+		}
+	}
+	return true
 }
