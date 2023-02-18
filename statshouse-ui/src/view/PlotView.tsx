@@ -416,6 +416,7 @@ const PlotView = memo(function PlotView_(props: {
         {!error403 && (
           <div className="plot-legend">
             <PlotLegend
+              indexPlot={indexPlot}
               legend={legend as LegendItem<PlotValues>[]}
               onLegendShow={onLegendShow}
               onLegendFocus={onLegendFocus}

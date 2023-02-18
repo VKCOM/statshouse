@@ -19,6 +19,7 @@ import {
   queryParamLive,
   queryParamLockMax,
   queryParamLockMin,
+  queryParamMaxHost,
   queryParamMetric,
   queryParamNumResults,
   queryParamTabNum,
@@ -61,6 +62,7 @@ export type PlotParams = {
     min: number;
     max: number;
   };
+  maxHost: boolean;
 };
 
 export type GroupInfo = {
@@ -367,6 +369,11 @@ export const configParams: ConfigParams = {
             default: 0,
           },
         },
+      },
+      maxHost: {
+        ...BooleanParam,
+        urlKey: queryParamMaxHost,
+        default: false,
       },
     },
   },
