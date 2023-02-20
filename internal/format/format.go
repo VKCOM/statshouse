@@ -727,6 +727,9 @@ func ValidTagValueForAPI(s string) bool {
 
 // We allow both signed and unsigned 32-bit values, however values outside both ranges are prohibited
 func ContainsRawTagValue(s mem.RO) (int32, bool) {
+	if s.Len() == 0 {
+		return 0, true // make sure empty string is the same as value not set, even for raw values
+	}
 	i, err := mem.ParseInt(s, 10, 64)
 	return int32(i), err == nil && i >= math.MinInt32 && i <= math.MaxUint32
 }
