@@ -92,6 +92,7 @@ type MetaStorageInterface interface { // agent uses this to avoid circular depen
 	GetGroup(id int32) *MetricsGroup
 }
 
+// This struct is immutable, it is accessed by mapping code without any locking
 type MetricMetaTag struct {
 	Name          string            `json:"name,omitempty"`
 	Description   string            `json:"description,omitempty"`
@@ -113,6 +114,7 @@ const (
 	PromConfigEvent   int32 = 3
 )
 
+// This struct is immutable, it is accessed by mapping code without any locking
 type DashboardMeta struct {
 	DashboardID int32  `json:"dashboard_id"` // I'm sure day will come when we will be forced to make this int32
 	Name        string `json:"name"`
@@ -123,6 +125,7 @@ type DashboardMeta struct {
 	JSONData   map[string]interface{} `json:"data"`        // TODO - there must be a better way?
 }
 
+// This struct is immutable, it is accessed by mapping code without any locking
 type MetricsGroup struct {
 	ID         int32  `json:"group_id"`
 	Name       string `json:"name"`
@@ -137,6 +140,7 @@ type MetricsGroup struct {
 	EffectiveWeight int64 `json:"-"`
 }
 
+// This struct is immutable, it is accessed by mapping code without any locking
 type MetricMetaValue struct {
 	MetricID   int32  `json:"metric_id"`
 	Name       string `json:"name"`
