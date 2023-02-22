@@ -91,6 +91,7 @@ const (
 	RPCErrorInsertHistoricConveyor = -5003 // just send again after delay
 	RPCErrorNoAutoCreate           = -5004 // just live with it, this is normal
 	RPCErrorTerminateLongpoll      = -5005 // we terminate long polls because rpc.Server does not inform us about hctx disconnects. TODO - remove as soon as Server is updated
+	RPCErrorScrapeAgentIP          = -5006 // scrape agent must have IP address
 
 	JournalDiskNamespace        = "metric_journal_v5:"
 	TagValueDiskNamespace       = "tag_value_v3:"
