@@ -47,6 +47,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
               min: 0,
               max: 0,
             },
+            maxHost: false,
           });
           if (p.dashboard?.groupInfo?.length) {
             p.dashboard.groupInfo[p.dashboard.groupInfo.length - 1].count++;

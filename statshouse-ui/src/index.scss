@@ -109,12 +109,14 @@ html {
 :root {
   --legend-name-width: 96px;
   --legend-value-width: 96px;
-  --legend-percent-width: 2.3em;
+  --legend-percent-width: calc(
+    var(--legend-dot-space-width) + var(--legend-dot-space-width) + var(--legend-percent-suffix-width)
+  );
   --legend-max-host-width: 0;
   --legend-max-host-percent-width: 0;
   --legend-time-width: 136px;
-  --legend-dot-space-width: 2.3em;
-  --legend-percent-suffix-width: 0.9em;
+  --legend-dot-space-width: 2.4em;
+  --legend-percent-suffix-width: 1em;
 }
 
 .btn-outline-primary {
@@ -254,6 +256,10 @@ input.form-control-safari-fix::-webkit-datetime-edit-meridiem-field {
 
 .w-max-720 {
   max-width: 720px;
+}
+
+.min-h-auto {
+  min-height: auto;
 }
 
 @include media-breakpoint-down(md) {

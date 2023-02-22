@@ -27,6 +27,7 @@ export interface querySelector {
   readonly timeShifts?: readonly number[];
   readonly useV2: boolean;
   readonly yLock: lockRange;
+  readonly maxHost: boolean;
 }
 
 export interface queryResult {
@@ -222,8 +223,6 @@ export function metricKindToWhat(kind: metricKind): queryWhat[] {
         'cu_sum',
         'cu_count',
         '-',
-        'max_host',
-        '-',
         'dv_count',
         'dv_count_norm',
         'dv_sum',
@@ -259,8 +258,6 @@ export function metricKindToWhat(kind: metricKind): queryWhat[] {
         'p99',
         'p999',
         '-',
-        'max_host',
-        '-',
         'dv_count',
         'dv_count_norm',
         'dv_sum',
@@ -286,8 +283,6 @@ export function metricKindToWhat(kind: metricKind): queryWhat[] {
         'min',
         'max',
         'stddev',
-        '-',
-        'max_count_host',
         '-',
         'dv_count',
         'dv_count_norm',
@@ -317,9 +312,6 @@ export function metricKindToWhat(kind: metricKind): queryWhat[] {
         'cu_count',
         'cu_avg',
         'cu_sum',
-        '-',
-        'max_host',
-        'max_count_host',
         '-',
         'dv_count',
         'dv_count_norm',
@@ -359,9 +351,6 @@ export function metricKindToWhat(kind: metricKind): queryWhat[] {
         'p95',
         'p99',
         'p999',
-        '-',
-        'max_host',
-        'max_count_host',
         '-',
         'dv_count',
         'dv_count_norm',
@@ -447,6 +436,7 @@ export const queryParamDownloadFile = 'df';
 export const queryParamTabNum = 'tn';
 export const queryParamLockMin = 'yl';
 export const queryParamLockMax = 'yh';
+export const queryParamMaxHost = 'mh';
 export const queryParamAgg = 'g';
 export const tabPrefix = 't';
 export const queryDashboardID = 'id';
@@ -480,12 +470,14 @@ export function queryURL(
     [queryParamToTime, (timeRange.to + 1).toString()],
     [queryParamWidth, width.toString()],
     ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
-    // [queryParamWhat, sel.what.map((qw) => qw.toString())],
     [queryParamVerbose, fetchBadges ? '1' : '0'],
     ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
     ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
     ...filterParams(sel.filterIn, sel.filterNotIn),
   ];
+  if (sel.maxHost) {
+    params.push([queryParamMaxHost, '1']);
+  }
 
   const strParams = new URLSearchParams(params).toString();
   return `/api/query?${strParams}`;
@@ -510,6 +502,9 @@ export function queryURLCSV(
     ...filterParams(sel.filterIn, sel.filterNotIn),
     [queryParamDownloadFile, 'csv'],
   ];
+  if (sel.maxHost) {
+    params.push([queryParamMaxHost, '1']);
+  }
 
   const strParams = new URLSearchParams(params).toString();
   return `/api/query?${strParams}`;

@@ -21,6 +21,8 @@ export type LegendItem<T = Object> = {
   alpha?: number;
   focus?: boolean;
   dash?: number[];
+  deltaTime?: number;
+  noFocus?: boolean;
 };
 export type UPlotWrapperPropsOpts = Partial<uPlot.Options>;
 export type UPlotWrapperPropsScales = Record<string, { min: number; max: number }>;
@@ -59,15 +61,20 @@ export const microTask =
   typeof queueMicrotask === 'undefined' ? (fn: () => void) => Promise.resolve().then(fn) : queueMicrotask;
 
 function readLegend(u: uPlot): LegendItem[] {
+  const lastTimestamp = (u.data?.[0] && u.data[0][u.data[0].length - 1]) ?? 0;
   return u.series.map((s, index) => {
     let idx = u.legend.idxs?.[index];
     let lastTime = '';
+    let deltaTime = 0;
+    let noFocus = false;
     if (idx === null && u.data?.[index]?.length) {
+      noFocus = true;
       let lastIndex = u.data[index].length - 1;
       while (typeof u.data[index][lastIndex] !== 'number' && lastIndex > 0) {
         lastIndex--;
       }
       idx = lastIndex;
+      deltaTime = (u.data?.[0] && u.data[0][idx] - lastTimestamp) ?? 0;
       if (index === 0) {
         lastTime =
           (typeof s.value === 'function' ? s.value(u, u.data[index][idx], 0, idx) : s.value)
@@ -87,6 +94,8 @@ function readLegend(u: uPlot): LegendItem[] {
       values: typeof idx === 'number' ? s.values?.(u, index, idx) : undefined,
       alpha: s.alpha,
       dash: s.dash,
+      deltaTime,
+      noFocus,
     };
   });
 }
