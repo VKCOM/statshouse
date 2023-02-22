@@ -16,11 +16,11 @@ export function getStorageTheme() {
   if (window.location.pathname === '/embed') {
     return THEMES.Light;
   }
-  return (window.localStorage.getItem('theme') as Theme) ?? THEMES.Auto;
+  return (window.localStorage.getItem('theme') as Theme) ?? THEMES.Light;
 }
 
 export function setStorageTheme(theme: Theme) {
-  if (theme === THEMES.Auto) {
+  if (theme === THEMES.Light) {
     window.localStorage.removeItem('theme');
   } else {
     window.localStorage.setItem('theme', theme);
