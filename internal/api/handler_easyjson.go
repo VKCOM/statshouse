@@ -20,65 +20,6 @@ var (
 	_ easyjson.Marshaler
 )
 
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi(in *jlexer.Lexer, out *PromConfigInfo) {
-	isTopLevel := in.IsStart()
-	if in.IsNull() {
-		if isTopLevel {
-			in.Consumed()
-		}
-		in.Skip()
-		return
-	}
-	in.Delim('{')
-	for !in.IsDelim('}') {
-		key := in.UnsafeFieldName(false)
-		in.WantColon()
-		if in.IsNull() {
-			in.Skip()
-			in.WantComma()
-			continue
-		}
-		switch key {
-		case "config":
-			out.Config = string(in.String())
-		case "version":
-			out.Version = int64(in.Int64())
-		default:
-			in.SkipRecursive()
-		}
-		in.WantComma()
-	}
-	in.Delim('}')
-	if isTopLevel {
-		in.Consumed()
-	}
-}
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi(out *jwriter.Writer, in PromConfigInfo) {
-	out.RawByte('{')
-	first := true
-	_ = first
-	{
-		const prefix string = ",\"config\":"
-		out.RawString(prefix[1:])
-		out.String(string(in.Config))
-	}
-	{
-		const prefix string = ",\"version\":"
-		out.RawString(prefix)
-		out.Int64(int64(in.Version))
-	}
-	out.RawByte('}')
-}
-
-// MarshalEasyJSON supports easyjson.Marshaler interface
-func (v PromConfigInfo) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi(w, v)
-}
-
-// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
-func (v *PromConfigInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi(l, v)
-}
 func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi1(in *jlexer.Lexer, out *MetricsGroupInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {

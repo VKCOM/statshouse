@@ -217,12 +217,6 @@ type (
 		Metrics []string            `json:"metrics"`
 	}
 
-	//easyjson:json
-	PromConfigInfo struct {
-		Config  string `json:"config"`
-		Version int64  `json:"version"`
-	}
-
 	DashboardMetaInfo struct {
 		DashboardID int32                  `json:"dashboard_id"`
 		Name        string                 `json:"name"`
@@ -995,18 +989,15 @@ func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("confog body too big. Max size is %d bytes", maxPromConfigHTTPBodySize)), h.verbose, ai.user, sl)
 		return
 	}
-	var promConfigInfo PromConfigInfo
-	if err := easyjson.Unmarshal(res, &promConfigInfo); err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-		return
-	}
-	event, err := h.handlePostPromConfig(r.Context(), ai, promConfigInfo.Config, promConfigInfo.Version)
+	event, err := h.handlePostPromConfig(r.Context(), ai, string(res))
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	err = h.waitVersionUpdate(r.Context(), event.Version)
-	respondJSON(w, &PromConfigInfo{Config: event.Data, Version: event.Version}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
+	respondJSON(w, struct {
+		Version int64 `json:"version"`
+	}{event.Version}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) handleGetMetric(ai accessInfo, metricWithNamespace string, metricIDStr string) (*MetricInfo, time.Duration, error) {
@@ -1029,22 +1020,19 @@ func (h *Handler) handleGetMetric(ai accessInfo, metricWithNamespace string, met
 	}, defaultCacheTTL, nil
 }
 
-func (h *Handler) handleGetPromConfig(ai accessInfo) (*PromConfigInfo, time.Duration, error) {
+func (h *Handler) handleGetPromConfig(ai accessInfo) (string, time.Duration, error) {
 	if !ai.isAdmin() {
-		return &PromConfigInfo{}, 0, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
+		return "", 0, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 	}
 	config := h.metricsStorage.PromConfig()
-	return &PromConfigInfo{
-		Config:  config.Data,
-		Version: config.Version,
-	}, defaultCacheTTL, nil
+	return config.Data, defaultCacheTTL, nil
 }
 
-func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, configStr string, version int64) (tlmetadata.Event, error) {
+func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, configStr string) (tlmetadata.Event, error) {
 	if !ai.isAdmin() {
 		return tlmetadata.Event{}, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 	}
-	event, err := h.metadataLoader.SavePromConfig(ctx, version, configStr)
+	event, err := h.metadataLoader.SavePromConfig(ctx, h.metricsStorage.PromConfig().Version, configStr)
 	if err != nil {
 		return tlmetadata.Event{}, fmt.Errorf("failed to save prometheus config: %w", err)
 	}
