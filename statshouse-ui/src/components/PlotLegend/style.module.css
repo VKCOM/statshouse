@@ -1,7 +1,7 @@
 .legend {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
     'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  overflow: auto;
+  /*overflow: auto;*/
   padding-bottom: 1em;
 }
 
@@ -78,10 +78,9 @@
 }
 
 .maxHost {
-  overflow: hidden;
-  white-space: nowrap;
-  text-align: end;
-  width: var(--legend-max-host-width);
+  width: calc(var(--legend-max-host-width) + var(--legend-percent-width));
+  padding-bottom: 0 !important;
+  padding-top: 0 !important;
 }
 
 .maxHostPercent {

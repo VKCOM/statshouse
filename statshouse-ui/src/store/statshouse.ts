@@ -73,7 +73,7 @@ import {
 import { calcYRange2 } from '../common/calcYRange';
 import { rgba, selectColor } from '../view/palette';
 import { filterPoints } from '../common/filterPoints';
-import { UPlotWrapperPropsScales } from '../components';
+import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
 import { decodeQueryParams, encodeQueryParams, mergeLeft } from '../common/QueryParamsParser';
 import { getNextState } from '../common/getNextState';
 
@@ -99,6 +99,7 @@ export type PlotStore = {
   legendMaxHostWidth: number;
   legendMaxHostPercentWidth: number;
   topInfo?: TopInfo;
+  maxHostLists: SelectOptionProps[][];
 };
 
 export type TopInfo = {
@@ -114,6 +115,8 @@ export type PlotValues = {
   total: number;
   percent: string;
   max_host_percent: string;
+  top_max_host: string;
+  top_max_host_percent: string;
 };
 
 type SetSearchParams = (
@@ -314,6 +317,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           min: 0,
           max: 0,
         },
+        maxHost: false,
       };
       params.plots = [np];
       reset = true;
@@ -553,6 +557,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           lastTimeShifts: undefined,
           lastQuerySeriesMeta: undefined,
           topInfo: undefined,
+          maxHostLists: [],
         };
       });
     }
@@ -591,7 +596,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         lastPlotParams.groupBy,
         lastPlotParams.filterIn,
         lastPlotParams.filterNotIn,
-        Math.round(-prevState.timeRange.relativeFrom)
+        Math.round(-prevState.timeRange.relativeFrom),
+        lastPlotParams.maxHost
       );
       prevState.setNumQueriesPlot(index, (n) => n + 1);
       const controller = new AbortController();
@@ -643,6 +649,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           const topInfoCounts: Record<string, number> = {};
           const topInfoTotals: Record<string, number> = {};
           let topInfo: TopInfo | undefined = undefined;
+          const maxHostLists: SelectOptionProps[][] = new Array(resp.series.series_meta.length).fill([]);
 
           const seriesShow = new Array(resp.series.series_meta.length).fill(true);
           const series: uPlot.Series[] = resp.series.series_meta.map((meta, indexMeta): uPlot.Series => {
@@ -658,11 +665,11 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
             }
             if (meta.max_hosts) {
               const max_hosts_l = meta.max_hosts
-                .map((host) => host.length * pxPerChar)
+                .map((host) => host.length * pxPerChar * 1.25 + 65)
                 .filter(Boolean)
                 .sort();
               const full = max_hosts_l[0] ?? 0;
-              const p75 = max_hosts_l[max_hosts_l.length * 0.25] ?? 0;
+              const p75 = max_hosts_l[Math.floor(max_hosts_l.length * 0.25)] ?? 0;
               legendMaxHostWidth = Math.max(legendMaxHostWidth, full - p75 > 20 ? p75 : full);
             }
             const max_host_map =
@@ -674,7 +681,17 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               }, {} as Record<string, number>) ?? {};
             const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
             seriesShow[indexMeta] = prev.series[indexMeta]?.label === label ? prev.series[indexMeta]?.show : true;
-
+            maxHostLists[indexMeta] = Object.entries(max_host_map)
+              .sort(([k, a], [n, b]) => (a > b ? -1 : a < b ? 1 : k > n ? 1 : k < n ? -1 : 0))
+              .map(([host, count]) => {
+                const percent = formatPercent(count / max_host_total);
+                return {
+                  value: host,
+                  title: `${host}: ${percent}`,
+                  name: `${host}: ${percent}`,
+                  html: `<div class="d-flex"><div class="flex-grow-1 me-2 overflow-hidden text-nowrap">${host}</div><div class="text-end">${percent}</div></div>`,
+                };
+              });
             const key = `${meta.what}|${meta.time_shift}`;
             topInfoCounts[key] = (topInfoCounts[key] ?? 0) + 1;
             topInfoTotals[key] = meta.total;
@@ -696,7 +713,16 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               }),
               values(u, seriesIdx, idx): PlotValues {
                 if (idx === null) {
-                  return { rawValue: null, value: '', max_host: '', total: 0, percent: '', max_host_percent: '' };
+                  return {
+                    rawValue: null,
+                    value: '',
+                    max_host: '',
+                    total: 0,
+                    percent: '',
+                    max_host_percent: '',
+                    top_max_host: '',
+                    top_max_host_percent: '',
+                  };
                 }
                 const rawValue = u.data[seriesIdx]?.[idx] ?? null;
                 let total = 0;
@@ -714,7 +740,16 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                     ? formatPercent((max_host_map[meta.max_hosts[idx]] ?? 0) / max_host_total)
                     : '';
                 const percent = rawValue !== null ? formatPercent(rawValue / total) : '';
-                return { rawValue, value, max_host, total, percent, max_host_percent };
+                return {
+                  rawValue,
+                  value,
+                  max_host,
+                  total,
+                  percent,
+                  max_host_percent,
+                  top_max_host: maxHostLists[indexMeta]?.[0]?.value ?? '',
+                  top_max_host_percent: maxHostLists[indexMeta]?.[0]?.title ?? '',
+                };
               },
             };
           });
@@ -809,6 +844,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               lastTimeRange: getState().timeRange,
               lastTimeShifts: getState().params.timeShifts,
               topInfo,
+              maxHostLists,
             };
           });
         })
@@ -837,6 +873,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                 lastTimeShifts: undefined,
                 lastQuerySeriesMeta: undefined,
                 topInfo: undefined,
+                maxHostLists: [],
               };
               delete state.previews[index];
               state.liveMode = false;
@@ -865,6 +902,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                 lastTimeShifts: undefined,
                 lastQuerySeriesMeta: undefined,
                 topInfo: undefined,
+                maxHostLists: [],
               };
               delete state.previews[index];
               state.liveMode = false;
