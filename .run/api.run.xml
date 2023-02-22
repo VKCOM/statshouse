@@ -3,7 +3,7 @@
     <module name="statshouse" />
     <working_directory value="$PROJECT_DIR$" />
     <go_parameters value="-ldflags &quot;-X github.com/vkcom/statshouse/internal/vkgo/build.trustedSubnetGroups=0.0.0.0/0&quot;" />
-    <parameters value="--verbose --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=localhost:9000 --listen-addr=:10888 --metadata-addr=localhost:2442 --statshouse-addr=localhost:13337 --disk-cache=target/run/cache/api/mapping_cache.sqlite3 --static-dir=statshouse-ui/build" />
+    <parameters value="--verbose --local-mode --insecure-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=localhost:9000 --listen-addr=:10888 --metadata-addr=localhost:2442 --statshouse-addr=localhost:13337 --disk-cache=target/run/cache/api/mapping_cache.sqlite3 --static-dir=statshouse-ui/build" />
     <kind value="DIRECTORY" />
     <package value="github.com/vkcom/statshouse/cmd/statshouse-api" />
     <directory value="$PROJECT_DIR$/cmd/statshouse-api" />

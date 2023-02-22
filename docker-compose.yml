@@ -82,7 +82,7 @@ services:
         - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-api
     user: "root:root"
-    command: --verbose --insecure-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=kh:9000 --listen-addr=:10888 --metadata-addr=metadata:2442 --statshouse-addr=agent:13337 --disk-cache=/var/lib/statshouse/cache/api/mapping_cache.sqlite3
+    command: --verbose --insecure-mode --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=kh:9000 --listen-addr=:10888 --metadata-addr=metadata:2442 --statshouse-addr=agent:13337 --disk-cache=/var/lib/statshouse/cache/api/mapping_cache.sqlite3
     ports:
       - "10888:10888"
     depends_on:
@@ -147,6 +147,25 @@ services:
     network_mode: host
     volumes:
       - metadata:/var/lib/statshouse/metadata
+      - kh:/var/lib/clickhouse
+  all-but-metadata:
+    # run statshouse-metadata first, then
+    # ./localrun meta-off
+    profiles:
+      - meta-off
+    build:
+      context: .
+      dockerfile: build/all-in-one.Dockerfile
+    container_name: sh
+    user: "root:root"
+    environment:
+      - META_OFF=1
+    expose:
+      - 9000
+      - 10888
+      - 13336
+    network_mode: host
+    volumes:
       - kh:/var/lib/clickhouse
 
 volumes:
