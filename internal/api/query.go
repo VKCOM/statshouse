@@ -183,10 +183,13 @@ func validQueryFn(fn string) (queryFn, bool) {
 	}
 }
 
-func queryFnToQueryFnKind(fn queryFn) queryFnKind {
+func queryFnToQueryFnKind(fn queryFn, maxHost bool) queryFnKind {
 	switch fn {
 	case queryFnCount, queryFnCountNorm, queryFnCumulCount, queryFnDerivativeCount, queryFnDerivativeCountNorm,
 		queryFnCardinality, queryFnCardinalityNorm, queryFnCumulCardinality:
+		if maxHost {
+			return queryFnKindValue
+		}
 		return queryFnKindCount
 	case queryFnMin, queryFnMax, queryFnDerivativeMin, queryFnDerivativeMax,
 		queryFnAvg, queryFnCumulAvg, queryFnDerivativeAvg,
@@ -255,10 +258,10 @@ type query struct {
 	by       []string
 }
 
-func parseQueries(version string, whats []string, by []string) ([]*query, error) {
+func parseQueries(version string, whats, by []string, maxHost bool) ([]*query, error) {
 	qq := make([]*query, 0, len(whats))
 	for _, what := range whats {
-		fn, kind, err := parseQueryWhat(what)
+		fn, kind, err := parseQueryWhat(what, maxHost)
 		if err != nil {
 			return nil, err
 		}
@@ -293,12 +296,12 @@ func parseQueries(version string, whats []string, by []string) ([]*query, error)
 	return qq, nil
 }
 
-func parseQueryWhat(what string) (queryFn, queryFnKind, error) {
+func parseQueryWhat(what string, maxHost bool) (queryFn, queryFnKind, error) {
 	fn, ok := validQueryFn(what)
 	if !ok {
 		return 0, "", httpErr(http.StatusBadRequest, fmt.Errorf("invalid %q value: %q", ParamQueryWhat, what))
 	}
-	return fn, queryFnToQueryFnKind(fn), nil
+	return fn, queryFnToQueryFnKind(fn, maxHost), nil
 }
 
 func validateQuery(metricMeta *format.MetricMetaValue, version string) error {
@@ -427,7 +430,7 @@ func (fn queryFn) MarshalEasyJSON(w *jwriter.Writer) {
 
 func (fn *queryFn) UnmarshalEasyJSON(w *jlexer.Lexer) {
 	var err error
-	*fn, _, err = parseQueryWhat(w.String())
+	*fn, _, err = parseQueryWhat(w.String(), false)
 	if err != nil {
 		w.AddError(err)
 	}

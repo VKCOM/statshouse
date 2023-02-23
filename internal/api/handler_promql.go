@@ -373,7 +373,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					buffers = append(buffers, v)
 					data = append(data, v)
 				}
-				(*data[j])[i] = selectTSValue(what, lod.stepSec, lod.stepSec, &p)
+				(*data[j])[i] = selectTSValue(what, false, lod.stepSec, lod.stepSec, &p)
 			}
 			t += lod.stepSec
 			i++
@@ -563,7 +563,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (what queryFn, qs s
 		what = queryFnCountNorm
 	}
 	// the rest
-	kind := queryFnToQueryFnKind(what)
+	kind := queryFnToQueryFnKind(what, false)
 	qs = normalizedQueryString(qry.Meta.Name, kind, qry.GroupBy, filterIn, filterNotIn)
 	pq = preparedPointsQuery{
 		user:        ai.user,
