@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/prometheus/common/model"
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 )
 
@@ -288,22 +289,22 @@ var calls map[string]callFunc
 
 func init() {
 	calls = map[string]callFunc{
-		"abs": simpleCall(math.Abs),
-		// "absent": ?
-		// "absent_over_time": ?
-		"ceil": simpleCall(math.Ceil),
-		// "changes": ?
-		"clamp":         funcClamp,
-		"clamp_max":     funcClampMax,
-		"clamp_min":     funcClampMin,
-		"day_of_month":  timeCall(time.Time.Day),
-		"day_of_week":   timeCall(time.Time.Weekday),
-		"day_of_year":   timeCall(time.Time.YearDay),
-		"days_in_month": timeCall(func(t time.Time) int { return 32 - time.Date(t.Year(), t.Month(), 32, 0, 0, 0, 0, t.Location()).Day() }),
-		"delta":         bagCall(funcDelta),
-		"deriv":         bagCall(funcDeriv),
-		"exp":           simpleCall(math.Exp),
-		"floor":         simpleCall(math.Floor),
+		"abs":              simpleCall(math.Abs),
+		"absent":           funcAbsent,
+		"absent_over_time": funcAbsentOverTime,
+		"ceil":             simpleCall(math.Ceil),
+		"changes":          overTimeCall(funcChanges),
+		"clamp":            funcClamp,
+		"clamp_max":        funcClampMax,
+		"clamp_min":        funcClampMin,
+		"day_of_month":     timeCall(time.Time.Day),
+		"day_of_week":      timeCall(time.Time.Weekday),
+		"day_of_year":      timeCall(time.Time.YearDay),
+		"days_in_month":    timeCall(func(t time.Time) int { return 32 - time.Date(t.Year(), t.Month(), 32, 0, 0, 0, 0, t.Location()).Day() }),
+		"delta":            bagCall(funcDelta),
+		"deriv":            bagCall(funcDeriv),
+		"exp":              simpleCall(math.Exp),
+		"floor":            simpleCall(math.Floor),
 		// "histogram_count": ?
 		// "histogram_sum": ?
 		// "histogram_fraction": ?
@@ -349,79 +350,92 @@ func init() {
 		"stddev_over_time":   overTimeCall(funcStdDevOverTime),
 		"stdvar_over_time":   overTimeCall(funcStdVarOverTime),
 		"last_over_time":     nopCall,
-		// "present_over_time": ?
-		"acos":  simpleCall(math.Acos),
-		"acosh": simpleCall(math.Acosh),
-		"asin":  simpleCall(math.Asin),
-		"asinh": simpleCall(math.Asinh),
-		"atan":  simpleCall(math.Atan),
-		"atanh": simpleCall(math.Atanh),
-		"cos":   simpleCall(math.Cos),
-		"cosh":  simpleCall(math.Cosh),
-		"sin":   simpleCall(math.Sin),
-		"sinh":  simpleCall(math.Sinh),
-		"tan":   simpleCall(math.Tan),
-		"tanh":  simpleCall(math.Tanh),
-		"deg":   simpleCall(func(v float64) float64 { return v * 180 / math.Pi }),
-		"pi":    generatorCall(funcPi),
-		"rad":   simpleCall(func(v float64) float64 { return v * math.Pi / 180 }),
+		"present_over_time":  funcPresentOverTime,
+		"acos":               simpleCall(math.Acos),
+		"acosh":              simpleCall(math.Acosh),
+		"asin":               simpleCall(math.Asin),
+		"asinh":              simpleCall(math.Asinh),
+		"atan":               simpleCall(math.Atan),
+		"atanh":              simpleCall(math.Atanh),
+		"cos":                simpleCall(math.Cos),
+		"cosh":               simpleCall(math.Cosh),
+		"sin":                simpleCall(math.Sin),
+		"sinh":               simpleCall(math.Sinh),
+		"tan":                simpleCall(math.Tan),
+		"tanh":               simpleCall(math.Tanh),
+		"deg":                simpleCall(func(v float64) float64 { return v * 180 / math.Pi }),
+		"pi":                 generatorCall(funcPi),
+		"rad":                simpleCall(func(v float64) float64 { return v * math.Pi / 180 }),
 	}
 }
 
 type window struct {
-	time   []int64
-	data   []float64
-	minCnt int   // minimum number of points
-	minDur int64 // minimum duration
-	l, r   int   // current [l, r] interval, cnt <= r-l && dur <= time[r]-time[l]
+	// time, values and settings (readonly)
+	t []int64
+	v []float64
+	w int64 // width
+	s bool  // don't stretch to LOD resolution if set (strict)
+
+	// current [l,r] interval, number of points inside
+	l, r, n int
 }
 
-func newWindow(cnt int, dur int64, t []int64, d []float64) window {
-	return window{time: t, data: d, minCnt: cnt - 1, minDur: dur, r: len(t)}
+func newWindow(t []int64, v []float64, w int64, s bool) window {
+	return window{t: t, v: v, w: w, s: s, l: len(t), r: len(t)}
 }
 
-func (wnd *window) moveOnePointLeft() bool {
-	// move right boundary
-	for {
-		if wnd.r <= 0 {
-			return false
+func (wnd *window) moveOneLeft() bool {
+	// shift right boundary
+	if wnd.r <= 0 {
+		return false
+	}
+	if wnd.r < len(wnd.t) && !math.IsNaN(wnd.v[wnd.r]) {
+		wnd.n--
+	}
+	wnd.r--
+	// reset left boundary if needed
+	if wnd.r < wnd.l {
+		wnd.l = wnd.r
+		if math.IsNaN(wnd.v[wnd.l]) {
+			wnd.n = 0
+		} else {
+			wnd.n = 1
 		}
-		wnd.r--
-		if !math.IsNaN(wnd.data[wnd.r]) {
+	}
+	// shift left boundary until conditions are met
+	for 0 < wnd.l {
+		if wnd.w <= wnd.t[wnd.r]-wnd.t[wnd.l]+1 {
 			break
 		}
-	}
-	// move left boundary
-	wnd.l = wnd.r
-	var cnt int
-	var dur int64
-	for 0 < wnd.l && (dur < wnd.minDur || cnt < wnd.minCnt) {
+		if wnd.s && wnd.w < wnd.t[wnd.r]-wnd.t[wnd.l-1]+1 {
+			break
+		}
+		// shift left boundary
 		wnd.l--
-		if !math.IsNaN(wnd.data[wnd.l]) {
-			cnt++
-			dur = wnd.time[wnd.r] - wnd.time[wnd.l]
+		if !math.IsNaN(wnd.v[wnd.l]) {
+			wnd.n++
 		}
 	}
-	return 0 <= wnd.l && wnd.minDur <= dur && wnd.minCnt <= cnt
+	return true
 }
 
 func (wnd *window) get(t []int64, v []float64) ([]int64, []float64) {
 	for i := wnd.l; i <= wnd.r; i++ {
-		if !math.IsNaN(wnd.data[i]) {
-			t = append(t, wnd.time[i])
-			v = append(v, wnd.data[i])
+		if !math.IsNaN(wnd.v[i]) {
+			t = append(t, wnd.t[i])
+			v = append(v, wnd.v[i])
 		}
 	}
 	return t, v
 }
 
-func (wnd *window) getData(s []float64) []float64 {
+func (wnd *window) getValues(v []float64) []float64 {
 	for i := wnd.l; i <= wnd.r; i++ {
-		if !math.IsNaN(wnd.data[i]) {
-			s = append(s, wnd.data[i])
+		if !math.IsNaN(wnd.v[i]) {
+			v = append(v, wnd.v[i])
 		}
 	}
-	return s
+	return v
 }
 
 func bagCall(fn func(SeriesBag) SeriesBag) callFunc {
@@ -451,9 +465,13 @@ func overTimeCall(fn func(v []float64) float64) callFunc {
 			return bag, err
 		}
 		for _, row := range bag.Data {
-			wnd := newWindow(1, bag.Range, bag.Time, *row)
-			for wnd.moveOnePointLeft() {
-				(*row)[wnd.r] = fn((*row)[wnd.l : wnd.r+1])
+			wnd := newWindow(bag.Time, *row, bag.Range, true)
+			for wnd.moveOneLeft() {
+				if wnd.n != 0 {
+					(*row)[wnd.r] = fn((*row)[wnd.l : wnd.r+1])
+				} else {
+					(*row)[wnd.r] = NilValue
+				}
 			}
 			for i := 0; i < wnd.r; i++ {
 				(*row)[i] = NilValue
@@ -496,6 +514,126 @@ func timeCall[V int | time.Weekday | time.Month](fn func(time.Time) V) callFunc 
 		}
 		return bag, nil
 	}
+}
+
+func funcAbsent(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+	bag, err = ev.eval(ctx, args[0])
+	if err != nil {
+		return bag, err
+	}
+	var (
+		s *[]float64 // absent row
+		n int        // absent count
+	)
+	if len(bag.Data) != 0 {
+		s = bag.Data[0]
+		for i := range bag.Time {
+			var m int
+			for _, row := range bag.Data {
+				if math.Float64bits((*row)[i]) != NilValueBits {
+					m++
+				}
+			}
+			if m == 0 {
+				(*s)[i] = 1
+				n++
+			} else {
+				(*s)[i] = NilValue
+			}
+		}
+		for i := 1; i < len(bag.Data); i++ {
+			ev.free(bag.Data[i])
+		}
+	} else {
+		s = ev.alloc()
+		n = len(*s)
+		for i := range *s {
+			(*s)[i] = 1
+		}
+	}
+	stags := make(map[string]string)
+	if sel, ok := args[0].(*parser.VectorSelector); ok && n != 0 {
+		for _, m := range sel.LabelMatchers {
+			if m.Type == labels.MatchEqual {
+				stags[m.Name] = m.Value
+			}
+		}
+	}
+	return SeriesBag{
+		Time:  ev.time,
+		Data:  []*[]float64{s},
+		Tags:  make([]map[string]int32, 1),
+		STags: []map[string]string{stags}}, nil
+}
+
+func funcAbsentOverTime(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+	bag, err = ev.eval(ctx, args[0])
+	if err != nil {
+		return bag, err
+	}
+	var (
+		s *[]float64 // absent row
+		n int        // absent count
+	)
+	if len(bag.Data) != 0 {
+		s = bag.Data[0]
+		lastSeen := int64(math.MinInt64)
+		for i, t := range bag.Time {
+			var m int
+			for _, row := range bag.Data {
+				if math.Float64bits((*row)[i]) != NilValueBits {
+					m++
+				}
+			}
+			if m == 0 && lastSeen < t-bag.Range {
+				(*s)[i] = 1
+				n++
+			} else {
+				(*s)[i] = NilValue
+				lastSeen = t
+			}
+		}
+		for i := 1; i < len(bag.Data); i++ {
+			ev.free(bag.Data[i])
+		}
+	} else {
+		s = ev.alloc()
+		n = len(*s)
+		for i := range *s {
+			(*s)[i] = 1
+		}
+	}
+	stags := make(map[string]string)
+	if sel, ok := args[0].(*parser.VectorSelector); ok && n != 0 {
+		for _, m := range sel.LabelMatchers {
+			if m.Type == labels.MatchEqual {
+				stags[m.Name] = m.Value
+			}
+		}
+	}
+	return SeriesBag{
+		Time:  ev.time,
+		Data:  []*[]float64{s},
+		Tags:  make([]map[string]int32, 1),
+		STags: []map[string]string{stags}}, nil
+
+}
+
+func funcChanges(v []float64) float64 {
+	var i, j, res int
+	for i < len(v) && math.IsNaN(v[i]) {
+		i++
+	}
+	for ; i < len(v); i = j {
+		j = i + 1
+		for j < len(v) && math.IsNaN(v[j]) {
+			j++
+		}
+		if j < len(v) && v[i] != v[j] {
+			res++
+		}
+	}
+	return float64(res)
 }
 
 func funcClamp(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
@@ -602,11 +740,15 @@ func funcDeriv(bag SeriesBag) SeriesBag {
 		v = make([]float64, 0, 2)
 	)
 	for _, row := range bag.Data {
-		wnd := newWindow(2, bag.Range, bag.Time, *row)
-		for wnd.moveOnePointLeft() {
-			t, v = wnd.get(t[:0], v[:0])
-			slope, _ := linearRegression(t, v)
-			(*row)[wnd.r] = slope
+		wnd := newWindow(bag.Time, *row, bag.Range, false)
+		for wnd.moveOneLeft() {
+			if wnd.n != 0 {
+				t, v = wnd.get(t[:0], v[:0])
+				slope, _ := linearRegression(t, v)
+				(*row)[wnd.r] = slope
+			} else {
+				(*row)[wnd.r] = NilValue
+			}
 		}
 		for i := 0; i < wnd.r; i++ {
 			(*row)[i] = NilValue
@@ -726,11 +868,15 @@ func funcPredictLinear(ctx context.Context, ev *evaluator, args parser.Expressio
 		v = make([]float64, 0, 2)               // values
 	)
 	for _, row := range bag.Data {
-		wnd := newWindow(2, bag.Range, bag.Time, *row)
-		for wnd.moveOnePointLeft() {
-			t, v = wnd.get(t[:0], v[:0])
-			slope, intercept := linearRegression(t, v)
-			(*row)[wnd.r] = slope*d + intercept
+		wnd := newWindow(bag.Time, *row, bag.Range, false)
+		for wnd.moveOneLeft() {
+			if wnd.n != 0 {
+				t, v = wnd.get(t[:0], v[:0])
+				slope, intercept := linearRegression(t, v)
+				(*row)[wnd.r] = slope*d + intercept
+			} else {
+				(*row)[wnd.r] = NilValue
+			}
 		}
 		for i := 0; i < wnd.r; i++ {
 			(*row)[i] = NilValue
@@ -741,10 +887,14 @@ func funcPredictLinear(ctx context.Context, ev *evaluator, args parser.Expressio
 
 func funcRate(bag SeriesBag) SeriesBag {
 	for _, row := range bag.Data {
-		wnd := newWindow(2, bag.Range, bag.Time, *row)
-		for wnd.moveOnePointLeft() {
-			delta := (*row)[wnd.r] - (*row)[wnd.l]
-			(*row)[wnd.r] = delta / float64(bag.Time[wnd.r]-bag.Time[wnd.l])
+		wnd := newWindow(bag.Time, *row, bag.Range, false)
+		for wnd.moveOneLeft() {
+			if wnd.n != 0 {
+				delta := (*row)[wnd.r] - (*row)[wnd.l]
+				(*row)[wnd.r] = delta / float64(bag.Time[wnd.r]-bag.Time[wnd.l])
+			} else {
+				(*row)[wnd.r] = NilValue
+			}
 		}
 		for i := 0; i < wnd.r; i++ {
 			(*row)[i] = NilValue
@@ -923,21 +1073,47 @@ func funcQuantileOverTime(ctx context.Context, ev *evaluator, args parser.Expres
 	}
 	vs := make([]float64, 0, 2)
 	for _, row := range bag.Data {
-		wnd := newWindow(2, bag.Range, bag.Time, *row)
-		for wnd.moveOnePointLeft() {
-			vs = wnd.getData(vs[:0])
-			sort.Float64s(vs)
-			var (
-				ix = q * (float64(len(vs)) - 1)
-				i1 = int(math.Floor(ix))
-				i2 = int(math.Min(float64(len(vs)-1), float64(i1+1)))
-				w1 = float64(i2) - ix
-				w2 = 1 - w1
-			)
-			(*row)[wnd.r] = vs[i1]*w1 + vs[i2]*w2
+		wnd := newWindow(bag.Time, *row, bag.Range, true)
+		for wnd.moveOneLeft() {
+			if wnd.n != 0 {
+				vs = wnd.getValues(vs[:0])
+				sort.Float64s(vs)
+				var (
+					ix = q * (float64(len(vs)) - 1)
+					i1 = int(math.Floor(ix))
+					i2 = int(math.Min(float64(len(vs)-1), float64(i1+1)))
+					w1 = float64(i2) - ix
+					w2 = 1 - w1
+				)
+				(*row)[wnd.r] = vs[i1]*w1 + vs[i2]*w2
+			} else {
+				(*row)[wnd.r] = NilValue
+			}
 		}
 		for i := 0; i < wnd.r; i++ {
 			(*row)[i] = NilValue
+		}
+	}
+	return bag, nil
+}
+
+func funcPresentOverTime(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+	bag, err = ev.eval(ctx, args[0])
+	if err != nil || len(bag.Data) == 0 {
+		return bag, err
+	}
+	for _, row := range bag.Data {
+		lastSeen := int64(math.MinInt64)
+		for i, t := range bag.Time {
+			p := math.Float64bits((*row)[i]) != NilValueBits
+			if p || lastSeen < t-bag.Range {
+				(*row)[i] = 1
+				if p {
+					lastSeen = t
+				}
+			} else {
+				(*row)[i] = NilValue
+			}
 		}
 	}
 	return bag, nil

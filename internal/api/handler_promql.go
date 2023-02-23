@@ -142,11 +142,7 @@ func parsePromInstantQuery(r *http.Request) (q promql.Query, err error) {
 
 func parseTime(s string) (int64, error) {
 	if v, err := strconv.ParseFloat(s, 64); err == nil {
-		sec, ns := math.Modf(v)
-		if ns != 0 {
-			return 0, fmt.Errorf("duration cannot be less than a second")
-		}
-		return int64(sec), nil
+		return int64(math.Round(float64(v))), nil
 	}
 	if v, err := time.Parse(time.RFC3339, s); err == nil {
 		return v.Unix(), nil
@@ -155,18 +151,15 @@ func parseTime(s string) (int64, error) {
 }
 
 func parseDuration(s string) (int64, error) {
-	if v, err := strconv.ParseInt(s, 10, 32); err == nil {
-		if v < 1 {
-			return 0, fmt.Errorf("duration cannot be less than a second")
+	if v, err := strconv.ParseFloat(s, 64); err == nil {
+		v = math.Round(v)
+		if v <= 0 {
+			v = 1
 		}
-		return v, nil
+		return int64(v), nil
 	}
 	if v, err := model.ParseDuration(s); err == nil {
-		rem := v % model.Duration(time.Second)
-		if rem != 0 {
-			return 0, fmt.Errorf("duration cannot be less than a second")
-		}
-		return int64(v / model.Duration(time.Second)), nil
+		return int64(math.Round(float64(v) / float64(time.Second))), nil
 	}
 	return 0, fmt.Errorf("cannot parse %qs to a valid duration", s)
 }
@@ -360,6 +353,10 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			return promql.SeriesBag{}, nil, err
 		}
 		t := lod.fromSec
+		stepSec := qry.Range
+		if stepSec == 0 {
+			stepSec = lod.stepSec
+		}
 		for _, s := range m {
 			for _, p := range s {
 				j, ok := tagsIx[p.tsTags]
@@ -373,7 +370,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					buffers = append(buffers, v)
 					data = append(data, v)
 				}
-				(*data[j])[i] = selectTSValue(what, false, lod.stepSec, lod.stepSec, &p)
+				(*data[j])[i] = selectTSValue(what, false, lod.stepSec, stepSec, &p)
 			}
 			t += lod.stepSec
 			i++
@@ -382,14 +379,17 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	tags := make([]map[string]int32, len(tagsIx))
 	stags := make([]map[string]string, len(tagsIx))
 	for v, j := range tagsIx {
-		ti := map[string]int32{}
+		ti := make(map[string]int32)
 		for ix, id := range v.tag {
 			if id != 0 && ix < len(qry.Meta.Tags) {
 				ti[qry.Meta.Tags[ix].Name] = id
 			}
 		}
 		tags[j] = ti
-		stags[j] = map[string]string{labels.MetricName: qry.Meta.Name}
+		stags[j] = make(map[string]string)
+		if !qry.OmitNameTag {
+			stags[j][labels.MetricName] = qry.Meta.Name
+		}
 	}
 	for _, tagID := range qry.GroupBy {
 		if tagID == format.StringTopTagID || tagID == qry.Meta.StringTopName {
@@ -403,7 +403,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			break
 		}
 	}
-	if qry.What == promql.AggregateCount {
+	if qry.What == promql.DigestCntAgg {
 		for _, row := range data {
 			accumulateSeries(*row)
 		}
@@ -548,19 +548,25 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (what queryFn, qs s
 		mappedFilterNotIn[format.StringTopTagID] = append(mappedFilterNotIn[format.StringTopTagID], str)
 	}
 	// get "queryFn"
-	switch {
-	case qry.What == promql.AggregateCount:
+	switch qry.What {
+	case promql.DigestCnt, promql.DigestCntAgg:
 		what = queryFnCount
-	case qry.What == promql.Min:
+	case promql.DigestMin:
 		what = queryFnMin
-	case qry.What == promql.Max:
+	case promql.DigestMax:
 		what = queryFnMax
-	case qry.What == promql.Sum:
+	case promql.DigestSum:
+		what = queryFnSum
+	case promql.SumPerSecond:
 		what = queryFnSumNorm
-	case qry.What == promql.Avg:
+	case promql.DigestAvg:
 		what = queryFnAvg
-	default:
+	case promql.DigestStdDev:
+		what = queryFnStddev
+	case promql.CntPerSecond:
 		what = queryFnCountNorm
+	default:
+		panic(fmt.Errorf("unrecognized what: %v", qry.What))
 	}
 	// the rest
 	kind := queryFnToQueryFnKind(what, false)

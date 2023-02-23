@@ -18,12 +18,15 @@ type What int
 
 const (
 	Unspecified What = iota
-	AggregateCount
-	Count
-	Min
-	Max
-	Sum
-	Avg
+	DigestAvg
+	DigestCnt
+	DigestMax
+	DigestMin
+	DigestSum
+	DigestStdDev
+	DigestCntAgg // DigestCnt aggregated over query interval
+	CntPerSecond // DigestCnt divided by digest interval
+	SumPerSecond // DigestSum divided by digest interval
 
 	NilValueBits = 0x7ff0000000000002
 )
@@ -40,8 +43,9 @@ type SeriesQuery struct {
 	What What
 
 	// when
-	From int64
-	LODs []LOD
+	From  int64
+	Range int64
+	LODs  []LOD
 
 	// grouping
 	GroupBy []string
@@ -51,6 +55,8 @@ type SeriesQuery struct {
 	FilterOut  [format.MaxTags]map[int32]string // as above
 	SFilterIn  []string
 	SFilterOut []string
+
+	OmitNameTag bool
 }
 
 type DataAccess interface {

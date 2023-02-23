@@ -37,10 +37,11 @@ type evaluator struct {
 	al  Allocator
 	da  DataAccess
 	loc *time.Location
+	now int64
 
 	qry Query
 	ast parser.Expr
-	now int64
+	ars map[parser.Expr]parser.Expr // ast reductions
 
 	lods []LOD
 	from int64
@@ -90,9 +91,6 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 	case *parser.StringLiteral:
 		return String{T: qry.Start, V: e.Val}, func() {}, nil
 	default:
-		if l, ok := ev.evalLiteral(ev.ast); ok {
-			ev.ast = l
-		}
 		var bag SeriesBag
 		bag, err = ev.eval(ctx, ev.ast)
 		if err != nil {
@@ -111,12 +109,16 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 		da:        ng.da,
 		loc:       ng.loc,
 		now:       time.Now().Unix(),
+		ars:       make(map[parser.Expr]parser.Expr),
 		alBuffers: make(map[*[]float64]bool),
 		daBuffers: make(map[*[]float64]bool),
 	}
 	ev.ast, err = parser.ParseExpr(qry.Expr)
 	if err != nil {
 		return ev, err
+	}
+	if l, ok := evalLiteral(ev.ast); ok {
+		ev.ast = l
 	}
 	// match metrics
 	maxOffset := make(map[*format.MetricMetaValue]int64)
@@ -126,6 +128,10 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 		case *parser.VectorSelector:
 			err = ng.matchMetrics(ctx, e, nodes, maxOffset)
 		case *parser.MatrixSelector:
+			if maxRange < e.Range {
+				maxRange = e.Range
+			}
+		case *parser.SubqueryExpr:
 			if maxRange < e.Range {
 				maxRange = e.Range
 			}
@@ -164,17 +170,32 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 			to += v.Step
 		}
 	}
-	// align selectors offsets
+	// evaluate reduction rules, align selectors offsets
 	parser.Inspect(ev.ast, func(node parser.Node, nodes []parser.Node) error {
 		switch s := node.(type) {
 		case *parser.VectorSelector:
+			var grouped bool
+			if ar, ok := evalReductionRules(nodes, step); ok {
+				s.What = int(ar.what)
+				s.GroupBy = ar.groupBy
+				s.GroupWithout = ar.groupWithout
+				s.Range = ar.selRange
+				s.OmitNameTag = true
+				ev.ars[ar.expr] = s
+				grouped = ar.grouped
+			}
+			if !grouped { // then group by all
+				for i := 0; i < format.MaxTags; i++ {
+					s.GroupBy = append(s.GroupBy, format.TagID(i))
+				}
+			}
 			s.Offset = s.OriginalOffset / step * step
 		case *parser.SubqueryExpr:
 			s.Offset = s.OriginalOffset / step * step
 		}
 		return nil
 	})
-	// the rest
+	// tag values
 	ev.tagM = ng.newTagMap()
 	ev.tagV = ng.newTagValues(from, to, ev.tagM)
 	ev.qry = qry
@@ -212,55 +233,22 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, p
 			}
 			switch matcher.Value {
 			case "cnt":
-				what = Count
+				what = DigestCnt
 			case "min":
-				what = Min
+				what = DigestMin
 			case "max":
-				what = Max
+				what = DigestMax
 			case "sum":
-				what = Sum
+				what = DigestSum
 			case "avg":
-				what = Avg
+				what = DigestAvg
+			case "stddev":
+				what = DigestStdDev
 			default:
 				return fmt.Errorf("unrecognized %s value %q", labelWhat, matcher.Value)
 			}
 		}
 	}
-	var replacement bool
-	for i := len(path); i != 0; i-- {
-		if _, ok := path[i-1].(*parser.ParenExpr); ok {
-			continue
-		}
-		if expr, ok := path[i-1].(*parser.AggregateExpr); ok {
-			aggregateWhat := Unspecified
-			switch expr.Op {
-			case parser.AVG:
-				aggregateWhat = Avg
-			case parser.COUNT:
-				aggregateWhat = Count
-			case parser.MAX:
-				aggregateWhat = Max
-			case parser.MIN:
-				aggregateWhat = Min
-			case parser.SUM:
-				aggregateWhat = Sum
-			}
-			if aggregateWhat != Unspecified && (what == Unspecified || what == aggregateWhat) {
-				what = aggregateWhat
-				sel.GroupBy = expr.Grouping
-				sel.GroupWithout = expr.Without
-				expr.ReplacementExpr = sel
-				replacement = true
-			}
-		}
-		break
-	}
-	if len(sel.GroupBy) == 0 && !replacement { // then group by all
-		for i := 0; i < format.MaxTags; i++ {
-			sel.GroupBy = append(sel.GroupBy, format.TagID(i))
-		}
-	}
-	sel.What = int(what)
 	return nil
 }
 
@@ -280,13 +268,12 @@ func (ng Engine) newTagValues(from int64, to int64, tagM tagMap) tagValues {
 }
 
 func (ev *evaluator) eval(ctx context.Context, expr parser.Expr) (res SeriesBag, err error) {
+	if e, ok := ev.ars[expr]; ok {
+		return ev.eval(ctx, e)
+	}
 	switch e := expr.(type) {
 	case *parser.AggregateExpr:
-		if e.ReplacementExpr != nil {
-			res, err = ev.eval(ctx, e.ReplacementExpr)
-		} else {
-			res, err = ev.evalAggregate(ctx, e)
-		}
+		res, err = ev.evalAggregate(ctx, e)
 		if err == nil && e.Op != parser.TOPK && e.Op != parser.BOTTOMK {
 			res.dropMetricName()
 		}
@@ -372,11 +359,11 @@ func (ev *evaluator) eval(ctx context.Context, expr parser.Expr) (res SeriesBag,
 	return res, err
 }
 
-func (ev *evaluator) evalLiteral(expr parser.Expr) (*parser.NumberLiteral, bool) {
+func evalLiteral(expr parser.Expr) (*parser.NumberLiteral, bool) {
 	switch e := expr.(type) {
 	case *parser.BinaryExpr:
-		l, okL := ev.evalLiteral(e.LHS)
-		r, okR := ev.evalLiteral(e.RHS)
+		l, okL := evalLiteral(e.LHS)
+		r, okR := evalLiteral(e.RHS)
 		if okL && okR {
 			return &parser.NumberLiteral{Val: getBinaryFunc(scalarBinaryFuncM, e.Op, e.ReturnBool)(l.Val, r.Val)}, true
 		} else if okL {
@@ -387,9 +374,9 @@ func (ev *evaluator) evalLiteral(expr parser.Expr) (*parser.NumberLiteral, bool)
 	case *parser.NumberLiteral:
 		return e, true
 	case *parser.ParenExpr:
-		return ev.evalLiteral(e.Expr)
+		return evalLiteral(e.Expr)
 	case *parser.UnaryExpr:
-		if l, ok := ev.evalLiteral(e.Expr); ok {
+		if l, ok := evalLiteral(e.Expr); ok {
 			if e.Op == parser.SUB {
 				l.Val = -l.Val
 			}
@@ -398,7 +385,7 @@ func (ev *evaluator) evalLiteral(expr parser.Expr) (*parser.NumberLiteral, bool)
 	default:
 		for _, node := range parser.Children(expr) {
 			if e2, ok := node.(parser.Expr); ok {
-				ev.evalLiteral(e2)
+				evalLiteral(e2)
 			}
 		}
 	}
@@ -665,9 +652,9 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	what := What(sel.What)
 	if what == Unspecified {
 		if meta.Kind == format.MetricKindCounter {
-			what = AggregateCount
+			what = DigestCntAgg
 		} else {
-			what = Avg
+			what = DigestAvg
 		}
 	}
 	// grouping
@@ -764,15 +751,17 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		}
 	}
 	return SeriesQuery{
-		Meta:       meta,
-		What:       what,
-		From:       ev.from - sel.Offset,
-		LODs:       ev.lods,
-		GroupBy:    groupBy,
-		FilterIn:   filterIn,
-		FilterOut:  filterOut,
-		SFilterIn:  sFilterIn,
-		SFilterOut: sFilterOut,
+		Meta:        meta,
+		What:        what,
+		From:        ev.from - sel.Offset,
+		Range:       sel.Range,
+		LODs:        ev.lods,
+		GroupBy:     groupBy,
+		FilterIn:    filterIn,
+		FilterOut:   filterOut,
+		SFilterIn:   sFilterIn,
+		SFilterOut:  sFilterOut,
+		OmitNameTag: sel.OmitNameTag,
 	}, nil
 }
 

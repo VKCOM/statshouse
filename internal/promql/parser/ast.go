@@ -86,8 +86,6 @@ type AggregateExpr struct {
 	Grouping []string // The labels by which to group the Vector.
 	Without  bool     // Whether to drop the given labels rather than keep them.
 	PosRange PositionRange
-
-	ReplacementExpr Expr
 }
 
 // BinaryExpr represents a binary expression between two child expressions.
@@ -194,6 +192,8 @@ type VectorSelector struct {
 	GroupBy         []string
 	GroupWithout    bool
 	Offset          int64
+	Range           int64
+	OmitNameTag     bool
 }
 
 // TestStmt is an internal helper statement that allows execution
