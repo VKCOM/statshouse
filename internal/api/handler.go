@@ -1294,7 +1294,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		return nil, false, err
 	}
 
-	_, kind, err := parseQueryWhat(req.what)
+	_, kind, err := parseQueryWhat(req.what, false)
 	if err != nil {
 		return nil, false, err
 	}
@@ -1596,7 +1596,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		return nil, false, err
 	}
 
-	queries, err := parseQueries(version, req.what, req.by)
+	queries, err := parseQueries(version, req.what, req.by, req.maxHost)
 	if err != nil {
 		return nil, false, err
 	}
@@ -1737,7 +1737,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 							ixToLodToRows[ix][lodIx] = h.getRowsSlice()
 						}
 						*ixToLodToRows[ix][lodIx] = append(*ixToLodToRows[ix][lodIx], &rows[i])
-						v := math.Abs(selectTSValue(q.what, lod.stepSec, desiredStepMul, &rows[i]))
+						v := math.Abs(selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i]))
 						ixToAmount[ix] += v * v * float64(lod.stepSec)
 					}
 				}
@@ -1779,13 +1779,12 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 						lod := lods[lodIx]
 						for _, row := range *rows {
 							lodTimeIx := lod.getIndexForTimestamp(row.time, shiftDelta)
-							(*ts)[base+lodTimeIx] = selectTSValue(q.what, lod.stepSec, desiredStepMul, row)
+							(*ts)[base+lodTimeIx] = selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, row)
 							if maxHosts != nil {
 								// mapping every time is not optimal, but mapping to store in cache is also not optimal. TODO - optimize?
-								tagValueID := int32(row.val[5])
-								label, err := h.getTagValue(tagValueID)
+								label, err := h.getTagValue(row.maxHost)
 								if err != nil {
-									label = format.CodeTagValue(tagValueID)
+									label = format.CodeTagValue(row.maxHost)
 								}
 								maxHosts[base+lodTimeIx] = label
 							}
@@ -2173,14 +2172,15 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 }
 
 type pointsSelectCols struct {
-	time   proto.ColInt64
-	step   proto.ColInt64
-	cnt    proto.ColFloat64
-	val    []proto.ColFloat64
-	tag    []proto.ColInt32
-	tagIx  []int
-	tagStr proto.ColStr
-	res    proto.Results
+	time    proto.ColInt64
+	step    proto.ColInt64
+	cnt     proto.ColFloat64
+	val     []proto.ColFloat64
+	tag     []proto.ColInt32
+	tagIx   []int
+	tagStr  proto.ColStr
+	maxHost proto.ColInt32
+	res     proto.Results
 }
 
 func newPointsSelectCols(meta pointsQueryMeta) *pointsSelectCols {
@@ -2207,6 +2207,9 @@ func newPointsSelectCols(meta pointsQueryMeta) *pointsSelectCols {
 	for i := 0; i < meta.vals; i++ {
 		c.res = append(c.res, proto.ResultColumn{Name: "_val" + strconv.Itoa(i), Data: &c.val[i]})
 	}
+	if meta.maxHost {
+		c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.maxHost})
+	}
 	return c
 }
 
@@ -2224,6 +2227,9 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	}
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
+	}
+	if len(c.maxHost) != 0 {
+		row.maxHost = c.maxHost[i]
 	}
 	return row
 }
@@ -2338,7 +2344,7 @@ func stableMulDiv(v float64, mul int64, div int64) float64 {
 	return v * float64(mul) / float64(div)
 }
 
-func selectTSValue(what queryFn, stepMul int64, desiredStepMul int64, row *tsSelectRow) float64 {
+func selectTSValue(what queryFn, maxHost bool, stepMul int64, desiredStepMul int64, row *tsSelectRow) float64 {
 	if stepMul == _1M {
 		desiredStepMul = row.stepSec
 	}
@@ -2350,10 +2356,19 @@ func selectTSValue(what queryFn, stepMul int64, desiredStepMul int64, row *tsSel
 	case queryFnCumulCount:
 		return row.countNorm
 	case queryFnCardinality:
+		if maxHost {
+			return stableMulDiv(row.val[5], desiredStepMul, row.stepSec)
+		}
 		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
 	case queryFnCardinalityNorm:
+		if maxHost {
+			return row.val[5] / float64(row.stepSec)
+		}
 		return row.val[0] / float64(row.stepSec)
 	case queryFnCumulCardinality:
+		if maxHost {
+			return row.val[5]
+		}
 		return row.val[0]
 	case queryFnMin, queryFnDerivativeMin:
 		return row.val[0]
