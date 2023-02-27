@@ -56,6 +56,7 @@
 }
 
 .time .label {
+  min-width: 11em;
   width: 3em;
 }
 
