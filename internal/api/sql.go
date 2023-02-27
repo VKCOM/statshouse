@@ -113,8 +113,9 @@ SETTINGS
 }
 
 type pointsQueryMeta struct {
-	vals int
-	tags []string
+	vals    int
+	tags    []string
+	maxHost bool
 }
 
 func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (string, int, error) {
@@ -136,7 +137,8 @@ func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (s
   toFloat64(%s(sum))/toFloat64(%s(count)) AS _val2,
   toFloat64(%s(sum)) AS _val3,
   if(%s(count) < 2, 0, sqrt(greatest(   (%s(sumsquare) - pow(%s(sum), 2) / %s(count)) / (%s(count) - 1)   , 0))) AS _val4,
-  toFloat64(%s) as _val5`,
+  toFloat64(sum(1)) AS _val5,
+  %s as _maxHost`,
 			sqlAggFn(version, "sum"),
 			sqlAggFn(version, "min"),
 			sqlAggFn(version, "max"),
@@ -154,13 +156,15 @@ func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (s
   toFloat64(digest[4]) AS _val3,
   toFloat64(digest[5]) AS _val4,
   toFloat64(digest[6]) AS _val5,
-  toFloat64(digest[7]) AS _val6`,
-			sqlAggFn(version, "sum")), 7, nil
+  toFloat64(digest[7]) AS _val6,
+  %s as _maxHost`,
+			sqlAggFn(version, "sum"), sqlMaxHost(version)), 7, nil
 	case queryFnKindUnique:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
-  toFloat64(uniqMerge(uniq_state)) AS _val0`,
-			sqlAggFn(version, "sum")), 1, nil
+  toFloat64(uniqMerge(uniq_state)) AS _val0,
+  %s as _maxHost`,
+			sqlAggFn(version, "sum"), sqlMaxHost(version)), 1, nil
 	default:
 		return "", 0, fmt.Errorf("unsupported operation kind: %q", kind)
 	}
@@ -240,7 +244,7 @@ SETTINGS
 `, commaBy, maxSeriesRows)
 
 	q, err := util.BindQuery(query, args...)
-	return q, pointsQueryMeta{vals: cnt, tags: pq.by}, err
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by, maxHost: pq.kind != queryFnKindCount}, err
 }
 
 func sqlAggFn(version string, fn string) string {

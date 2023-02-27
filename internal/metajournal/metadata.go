@@ -274,7 +274,7 @@ func checkPromConfig(cfg *prom_config.Config) error {
 		return fmt.Errorf("statshouse doesn't support prometheus remote read")
 	}
 
-	if cfg.StorageConfig != prom_config.DefaultStorageConfig {
+	if cfg.StorageConfig.ExemplarsConfig != nil && cfg.StorageConfig != prom_config.DefaultStorageConfig {
 		return fmt.Errorf("statshouse doesn't support storage section")
 	}
 
