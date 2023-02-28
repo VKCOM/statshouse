@@ -703,6 +703,9 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 		return nil, err
 	}
 	if e.opt.DurabilityMode == NoBinlog {
+		if e.opt.CommitOnEachWrite {
+			_ = e.commitTXAndStartNewLocked(c, true, false, true)
+		}
 		e.rw.spOk = true
 		return nil, nil
 	}
