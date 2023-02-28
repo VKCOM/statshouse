@@ -64,7 +64,13 @@ func sqliteErr(rc C.int, conn *C.sqlite3, from string) error {
 	}
 }
 
-func ensureZeroTerm(s string) string {
+func ensureZeroTerm(s []byte) []byte {
+	if len(s) == 0 || s[len(s)-1] != 0 {
+		return append(s, '\x00')
+	}
+	return s
+}
+func ensureZeroTermStr(s string) string {
 	if len(s) == 0 || s[len(s)-1] != 0 {
 		s += "\x00"
 	}
@@ -73,6 +79,10 @@ func ensureZeroTerm(s string) string {
 
 func unsafeStringPtr(s string) unsafe.Pointer {
 	return unsafe.Pointer((*reflect.StringHeader)(unsafe.Pointer(&s)).Data)
+}
+
+func unsafeBytesCPtr(s []byte) *C.char {
+	return (*C.char)(unsafe.Pointer(&s[0]))
 }
 
 func unsafeStringCPtr(s string) *C.char {

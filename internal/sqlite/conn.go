@@ -18,13 +18,14 @@ type sqliteConn struct {
 	rw             *sqlite0.Conn
 	mu             sync.Mutex
 	prep           map[string]stmtInfo
-	used           map[*sqlite0.Stmt]struct{}
+	used           map[*sqlite0.Stmt]bool
 	err            error
 	spIn           bool
 	spOk           bool
 	spBeginStmt    string
 	spCommitStmt   string
 	spRollbackStmt string
+	numParams      *queryBuilder
 }
 
 type Conn struct {
@@ -40,10 +41,11 @@ func newSqliteConn(rw *sqlite0.Conn) *sqliteConn {
 	return &sqliteConn{
 		rw:             rw,
 		prep:           make(map[string]stmtInfo),
-		used:           make(map[*sqlite0.Stmt]struct{}),
+		used:           make(map[*sqlite0.Stmt]bool),
 		spBeginStmt:    fmt.Sprintf("SAVEPOINT __sqlite_engine_auto_%x", spID[:]),
 		spCommitStmt:   fmt.Sprintf("RELEASE __sqlite_engine_auto_%x", spID[:]),
 		spRollbackStmt: fmt.Sprintf("ROLLBACK TO __sqlite_engine_auto_%x", spID[:]),
+		numParams:      &queryBuilder{},
 	}
 }
 
@@ -61,8 +63,12 @@ func (c *sqliteConn) Close() error {
 
 func (c Conn) close() {
 	c.execEndSavepoint()
-	for stmt := range c.c.used {
-		_ = stmt.Reset()
+	for stmt, skipCache := range c.c.used {
+		if skipCache {
+			_ = stmt.Close()
+		} else {
+			_ = stmt.Reset()
+		}
 		delete(c.c.used, stmt)
 	}
 	c.c.mu.Unlock()
@@ -71,16 +77,16 @@ func (c Conn) close() {
 func (c Conn) execBeginSavepoint() error {
 	c.c.spIn = true
 	c.c.spOk = false
-	_, err := c.exec(true, "__begin_savepoint", c.c.spBeginStmt)
+	_, err := c.ExecUnsafe("__begin_savepoint", c.c.spBeginStmt)
 	return err
 }
 
 func (c Conn) execEndSavepoint() {
 	if c.c.spIn {
 		if c.c.spOk {
-			_, _ = c.exec(true, "__commit_savepoint", c.c.spCommitStmt)
+			_, _ = c.ExecUnsafe("__commit_savepoint", c.c.spCommitStmt)
 		} else {
-			_, _ = c.exec(true, "__rollback_savepoint", c.c.spRollbackStmt)
+			_, _ = c.ExecUnsafe("__rollback_savepoint", c.c.spRollbackStmt)
 		}
 		c.c.spIn = false
 	}
@@ -100,8 +106,8 @@ func (c Conn) ExecUnsafe(name, sql string, args ...Arg) (int64, error) {
 
 func (c Conn) query(allowUnsafe bool, type_, name, sql string, args ...Arg) Rows {
 	start := time.Now()
-	s, err := c.doQuery(allowUnsafe, sql, args...)
-	return Rows{c.c, s, err, false, c.ctx, name, start, c.stats, type_}
+	s, skipCache, err := c.doQuery(allowUnsafe, sql, args...)
+	return Rows{c.c, s, err, false, c.ctx, name, start, c.stats, type_, skipCache}
 }
 
 func (c Conn) exec(allowUnsafe bool, name, sql string, args ...Arg) (int64, error) {
@@ -112,15 +118,16 @@ func (c Conn) exec(allowUnsafe bool, name, sql string, args ...Arg) (int64, erro
 }
 
 type Rows struct {
-	c     *sqliteConn
-	s     *sqlite0.Stmt
-	err   error
-	used  bool
-	ctx   context.Context
-	name  string
-	start time.Time
-	stats *StatsOptions
-	type_ string
+	c                   *sqliteConn
+	s                   *sqlite0.Stmt
+	err                 error
+	used                bool
+	ctx                 context.Context
+	name                string
+	start               time.Time
+	stats               *StatsOptions
+	type_               string
+	mustCloseConnection bool
 }
 
 func (r *Rows) Error() error {
@@ -139,7 +146,7 @@ func (r *Rows) next(setUsed bool) bool {
 	}
 
 	if setUsed && !r.used {
-		r.c.used[r.s] = struct{}{}
+		r.c.used[r.s] = r.mustCloseConnection
 		r.used = true
 	}
 	row, err := r.s.Step()
@@ -188,30 +195,56 @@ func (c Conn) PrepMapLength() int {
 	return len(c.c.prep)
 }
 
-func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt, error) {
-	if c.c.err != nil {
-		return nil, c.c.err
-	}
+func checkSliceParamName(s string) bool {
+	return strings.HasPrefix(s, "$") && strings.HasSuffix(s, "$")
+}
 
-	si, ok := c.c.prep[sql]
-	var err error
+func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt, bool, error) {
+	if c.c.err != nil {
+		return nil, false, c.c.err
+	}
+	skipCache := false
+	c.c.numParams.reset(sql)
+	for _, arg := range args {
+		if strings.HasPrefix(arg.name, "$internal") {
+			return nil, false, fmt.Errorf("prefix $internal is reserved")
+		}
+		if arg.isSliceArg() {
+			if !checkSliceParamName(arg.name) {
+				return nil, false, fmt.Errorf("invalid list arg name %s", arg.name)
+			}
+			skipCache = true
+			c.c.numParams.addSliceParam(arg)
+		}
+	}
+	sqlBytes, err := c.c.numParams.buildQueryLocked()
+	if err != nil {
+		return nil, false, err
+	}
+	var si stmtInfo
+	var ok bool
+	if !skipCache {
+		si, ok = c.c.prep[sql]
+	}
 	if !ok {
 		start := time.Now()
-		si, err = prepare(c.c.rw, sql)
+		si, err = prepare(c.c.rw, sqlBytes)
 		c.stats.measureActionDurationSince("sqlite_prepare", start)
 		if err != nil {
-			return nil, err
+			return nil, skipCache, err
 		}
-		c.c.prep[sql] = si
+		if !skipCache {
+			c.c.prep[sql] = si
+		}
 	}
 
 	if !allowUnsafe && !si.isSafe {
-		return nil, errUnsafe
+		return nil, skipCache, errUnsafe
 	}
 	if c.autoSavepoint && (!si.isSelect && !si.isVacuumInto) && !c.c.spIn {
 		err := c.execBeginSavepoint()
 		if err != nil {
-			return nil, err
+			return nil, skipCache, err
 		}
 	}
 
@@ -219,14 +252,16 @@ func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt,
 	if used {
 		err := si.stmt.Reset()
 		if err != nil {
-			return nil, err
+			return nil, skipCache, err
 		}
 	}
 
-	return doStmt(si, args...)
+	stmt, err := c.doStmt(si, args...)
+	return stmt, skipCache, err
 }
 
-func doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
+func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
+	start := 0
 	for _, arg := range args {
 		var err error
 		p := si.stmt.Param(arg.name)
@@ -241,6 +276,24 @@ func doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 			err = si.stmt.BindInt64(p, arg.n)
 		case argText:
 			err = si.stmt.BindBlobText(p, arg.s)
+		case argInt64Slice:
+			for _, n := range arg.ns {
+				p := si.stmt.ParamBytes(c.c.numParams.nameLocked(start))
+				err = si.stmt.BindInt64(p, n)
+				if err != nil {
+					return nil, err
+				}
+				start++
+			}
+		case argTextSlice:
+			for _, n := range arg.ss {
+				p := si.stmt.ParamBytes(c.c.numParams.nameLocked(start))
+				err = si.stmt.BindBlobText(p, n)
+				if err != nil {
+					return nil, err
+				}
+				start++
+			}
 		default:
 			err = fmt.Errorf("unknown arg type for %q: %v", arg.name, arg.typ)
 		}
@@ -251,7 +304,7 @@ func doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 	return si.stmt, nil
 }
 
-func prepare(c *sqlite0.Conn, sql string) (stmtInfo, error) {
+func prepare(c *sqlite0.Conn, sql []byte) (stmtInfo, error) {
 	s, _, err := c.Prepare(sql, true)
 	if err != nil {
 		return stmtInfo{}, err

@@ -556,7 +556,7 @@ func backupToTemp(ctx context.Context, e *Engine, prefix string) (string, error)
 	defer c.close()
 	path := prefix + "." + strconv.FormatUint(rand.Uint64(), 10) + ".tmp"
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		_, err := c.exec(true, "__vacuum", "VACUUM INTO $to", BlobText("$to", path))
+		_, err := c.ExecUnsafe("__vacuum", "VACUUM INTO $to", BlobText("$to", path))
 		e.rw.err = err
 	}
 	return path, e.rw.err
