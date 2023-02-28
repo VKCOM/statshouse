@@ -163,6 +163,7 @@ func (ms *MetricsStorage) GetGroupsList() []*format.MetricsGroup {
 }
 
 func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
+	// This code operates on immutable structs, it should not change ony stored object
 	promConfigSet := false
 	promConfigData := ""
 	promConfigVersion := int64(0)
