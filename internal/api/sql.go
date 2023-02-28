@@ -116,6 +116,7 @@ type pointsQueryMeta struct {
 	vals    int
 	tags    []string
 	maxHost bool
+	version string
 }
 
 func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (string, int, error) {
@@ -244,7 +245,7 @@ SETTINGS
 `, commaBy, maxSeriesRows)
 
 	q, err := util.BindQuery(query, args...)
-	return q, pointsQueryMeta{vals: cnt, tags: pq.by, maxHost: pq.kind != queryFnKindCount}, err
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by, maxHost: pq.kind != queryFnKindCount, version: pq.version}, err
 }
 
 func sqlAggFn(version string, fn string) string {

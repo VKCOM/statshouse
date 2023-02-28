@@ -1768,7 +1768,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 						for _, row := range *rows {
 							lodTimeIx := lod.getIndexForTimestamp(row.time, shiftDelta)
 							(*ts)[base+lodTimeIx] = selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, row)
-							if maxHosts != nil {
+							if maxHosts != nil && row.maxHost != 0 {
 								// mapping every time is not optimal, but mapping to store in cache is also not optimal. TODO - optimize?
 								label, err := h.getTagValue(row.maxHost)
 								if err != nil {
@@ -2160,15 +2160,16 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 }
 
 type pointsSelectCols struct {
-	time    proto.ColInt64
-	step    proto.ColInt64
-	cnt     proto.ColFloat64
-	val     []proto.ColFloat64
-	tag     []proto.ColInt32
-	tagIx   []int
-	tagStr  proto.ColStr
-	maxHost proto.ColInt32
-	res     proto.Results
+	time      proto.ColInt64
+	step      proto.ColInt64
+	cnt       proto.ColFloat64
+	val       []proto.ColFloat64
+	tag       []proto.ColInt32
+	tagIx     []int
+	tagStr    proto.ColStr
+	maxHostV1 proto.ColUInt8
+	maxHostV2 proto.ColInt32
+	res       proto.Results
 }
 
 func newPointsSelectCols(meta pointsQueryMeta) *pointsSelectCols {
@@ -2196,7 +2197,11 @@ func newPointsSelectCols(meta pointsQueryMeta) *pointsSelectCols {
 		c.res = append(c.res, proto.ResultColumn{Name: "_val" + strconv.Itoa(i), Data: &c.val[i]})
 	}
 	if meta.maxHost {
-		c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.maxHost})
+		if meta.version == Version1 {
+			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.maxHostV1})
+		} else {
+			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.maxHostV2})
+		}
 	}
 	return c
 }
@@ -2216,8 +2221,10 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
 	}
-	if len(c.maxHost) != 0 {
-		row.maxHost = c.maxHost[i]
+	if len(c.maxHostV2) != 0 {
+		row.maxHost = c.maxHostV2[i]
+	} else if len(c.maxHostV1) != 0 {
+		row.maxHost = int32(c.maxHostV1[i])
 	}
 	return row
 }
