@@ -686,9 +686,9 @@ func Test_Engine_Slice_Params(t *testing.T) {
 	require.NoError(t, err)
 	count := 0
 	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
-		rows := conn.Query("test", "SELECT oid FROM test_db WHERE oid in($ids) or oid in($ids1)",
-			Int64Slice("$ids", []int64{1, 2}),
-			Int64Slice("$ids1", []int64{3}))
+		rows := conn.Query("test", "SELECT oid FROM test_db WHERE oid in($ids$) or oid in($ids1$)",
+			Int64SList("$ids$", []int64{1, 2}),
+			Int64SList("$ids1$", []int64{3}))
 
 		for rows.Next() {
 			count++

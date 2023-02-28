@@ -19,13 +19,13 @@ type sqliteConn struct {
 	mu             sync.Mutex
 	prep           map[string]stmtInfo
 	used           map[*sqlite0.Stmt]bool
-	builder        *strings.Builder
 	err            error
 	spIn           bool
 	spOk           bool
 	spBeginStmt    string
 	spCommitStmt   string
 	spRollbackStmt string
+	numParams      *queryBuilder
 }
 
 type Conn struct {
@@ -33,7 +33,6 @@ type Conn struct {
 	autoSavepoint bool
 	ctx           context.Context
 	stats         *StatsOptions
-	numParams     *numParams
 }
 
 func newSqliteConn(rw *sqlite0.Conn) *sqliteConn {
@@ -43,10 +42,10 @@ func newSqliteConn(rw *sqlite0.Conn) *sqliteConn {
 		rw:             rw,
 		prep:           make(map[string]stmtInfo),
 		used:           make(map[*sqlite0.Stmt]bool),
-		builder:        &strings.Builder{},
 		spBeginStmt:    fmt.Sprintf("SAVEPOINT __sqlite_engine_auto_%x", spID[:]),
 		spCommitStmt:   fmt.Sprintf("RELEASE __sqlite_engine_auto_%x", spID[:]),
 		spRollbackStmt: fmt.Sprintf("ROLLBACK TO __sqlite_engine_auto_%x", spID[:]),
+		numParams:      &queryBuilder{},
 	}
 }
 
@@ -196,41 +195,40 @@ func (c Conn) PrepMapLength() int {
 	return len(c.c.prep)
 }
 
-func (c Conn) genParams(start, n int) string {
-	for i := 0; i < n; i++ {
-		if i > 0 {
-			c.c.builder.WriteString(",")
-		}
-		c.c.builder.WriteString(c.numParams.get(start))
-		start++
-	}
-	return c.c.builder.String()
+func checkSliceParamName(s string) bool {
+	return strings.HasPrefix(s, "$") && strings.HasSuffix(s, "$")
 }
 
 func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt, bool, error) {
 	if c.c.err != nil {
 		return nil, false, c.c.err
 	}
-	i := 0
 	skipCache := false
+	c.c.numParams.reset(sql)
 	for _, arg := range args {
+		if strings.HasPrefix(arg.name, "$internal") {
+			return nil, false, fmt.Errorf("prefix $internal is reserved")
+		}
 		if arg.isSliceArg() {
-			c.c.builder.Reset()
+			if !checkSliceParamName(arg.name) {
+				return nil, false, fmt.Errorf("invalid list arg name %s", arg.name)
+			}
 			skipCache = true
-			sql = strings.Replace(sql, arg.name, c.genParams(i, arg.length), 1)
-			i += arg.length
+			c.c.numParams.addSliceParam(arg)
 		}
 	}
-
+	sqlBytes, err := c.c.numParams.buildQueryLocked()
+	if err != nil {
+		return nil, false, err
+	}
 	var si stmtInfo
 	var ok bool
 	if !skipCache {
 		si, ok = c.c.prep[sql]
 	}
-	var err error
 	if !ok {
 		start := time.Now()
-		si, err = prepare(c.c.rw, sql)
+		si, err = prepare(c.c.rw, sqlBytes)
 		c.stats.measureActionDurationSince("sqlite_prepare", start)
 		if err != nil {
 			return nil, skipCache, err
@@ -280,7 +278,7 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 			err = si.stmt.BindBlobText(p, arg.s)
 		case argInt64Slice:
 			for _, n := range arg.ns {
-				p := si.stmt.Param(c.numParams.get(start))
+				p := si.stmt.ParamBytes(c.c.numParams.nameLocked(start))
 				err = si.stmt.BindInt64(p, n)
 				if err != nil {
 					return nil, err
@@ -289,7 +287,7 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 			}
 		case argTextSlice:
 			for _, n := range arg.ss {
-				p := si.stmt.Param(c.numParams.get(start))
+				p := si.stmt.ParamBytes(c.c.numParams.nameLocked(start))
 				err = si.stmt.BindBlobText(p, n)
 				if err != nil {
 					return nil, err
@@ -306,7 +304,7 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 	return si.stmt, nil
 }
 
-func prepare(c *sqlite0.Conn, sql string) (stmtInfo, error) {
+func prepare(c *sqlite0.Conn, sql []byte) (stmtInfo, error) {
 	s, _, err := c.Prepare(sql, true)
 	if err != nil {
 		return stmtInfo{}, err

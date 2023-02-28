@@ -74,7 +74,7 @@ func Int64(name string, n int64) Arg {
 	}
 }
 
-func Int64Slice(name string, ns []int64) Arg {
+func Int64SList(name string, ns []int64) Arg {
 	return Arg{
 		name:   name,
 		typ:    argInt64Slice,
@@ -83,7 +83,7 @@ func Int64Slice(name string, ns []int64) Arg {
 	}
 }
 
-func TextSlice(name string, ss []string) Arg {
+func TextList(name string, ss []string) Arg {
 	return Arg{
 		name:   name,
 		typ:    argTextSlice,
@@ -111,9 +111,8 @@ func doSingleROToWALQuery(path string, f func(*Engine) error) error {
 	}
 
 	e := &Engine{
-		opt:       Options{Path: path, StatsOptions: StatsOptions{}},
-		rw:        newSqliteConn(ro),
-		numParams: newNumParams(8),
+		opt: Options{Path: path, StatsOptions: StatsOptions{}},
+		rw:  newSqliteConn(ro),
 	}
 	err = f(e)
 	for _, si := range e.rw.prep {
@@ -138,9 +137,8 @@ func doSingleROQuery(path string, f func(*Engine) error) error {
 		return fmt.Errorf("failed to set DB busy timeout to %v: %w", busyTimeout, err)
 	}
 	e := &Engine{
-		opt:       Options{Path: path, StatsOptions: StatsOptions{}},
-		rw:        newSqliteConn(conn),
-		numParams: newNumParams(8),
+		opt: Options{Path: path, StatsOptions: StatsOptions{}},
+		rw:  newSqliteConn(conn),
 	}
 	err = f(e)
 	for _, si := range e.rw.prep {

@@ -105,7 +105,7 @@ func Open(path string, flags int) (*Conn, error) {
 	}
 
 	var cConn *C.sqlite3
-	path = ensureZeroTerm(path)
+	path = ensureZeroTermStr(path)
 	rc := C.sqlite3_open_v2(unsafeStringCPtr(path), &cConn, C.int(flags), nil) //nolint:gocritic // nonsense
 	runtime.KeepAlive(path)
 	if rc != ok {
@@ -174,7 +174,7 @@ func (c *Conn) SetBusyTimeout(dt time.Duration) error {
 }
 
 func (c *Conn) Exec(sql string) error {
-	sql = ensureZeroTerm(sql)
+	sql = ensureZeroTermStr(sql)
 	rc := C.sqlite3_exec(c.conn, unsafeStringCPtr(sql), nil, nil, nil)
 	runtime.KeepAlive(sql)
 	return sqliteErr(rc, c.conn, "sqlite3_exec")
@@ -191,9 +191,10 @@ type Stmt struct {
 	keepAliveStrings []string
 	keepAliveBytes   [][]byte
 	params           map[string]int
+	n                int
 }
 
-func (c *Conn) Prepare(sql string, persistent bool) (*Stmt, string, error) {
+func (c *Conn) Prepare(sql []byte, persistent bool) (*Stmt, []byte, error) {
 	var flags C.uint
 	if persistent {
 		flags = preparePersistent
@@ -202,24 +203,23 @@ func (c *Conn) Prepare(sql string, persistent bool) (*Stmt, string, error) {
 	var cStmt *C.sqlite3_stmt
 	var cTail *C.char
 	sql = ensureZeroTerm(sql)
-	cSQL := unsafeStringCPtr(sql)
+	cSQL := unsafeBytesCPtr(sql)
 	rc := C._sqlite3_blocking_prepare_v3(c.conn, c.unlock, cSQL, C.int(len(sql)), flags, &cStmt, &cTail) //nolint:gocritic // nonsense
 	runtime.KeepAlive(sql)
 	if rc != ok {
-		return nil, "", sqliteErr(rc, c.conn, "_sqlite3_blocking_prepare_v3")
+		return nil, nil, sqliteErr(rc, c.conn, "_sqlite3_blocking_prepare_v3")
 	}
 	if cStmt == nil {
-		return nil, "", nil
+		return nil, nil, nil
 	}
 
-	var tail string
+	var tail []byte
 	if cTail != nil {
 		tailOffset := int(C.str_offset(cSQL, cTail))
 		if tailOffset >= 0 && tailOffset < len(sql) {
 			tail = sql[tailOffset:]
 		}
 	}
-
 	n := int(C.sqlite3_bind_parameter_count(cStmt))
 	params := make(map[string]int, n)
 	for i := 0; i < n; i++ {
@@ -230,11 +230,10 @@ func (c *Conn) Prepare(sql string, persistent bool) (*Stmt, string, error) {
 	}
 
 	return &Stmt{
-		conn:             c,
-		stmt:             cStmt,
-		keepAliveStrings: make([]string, n),
-		keepAliveBytes:   make([][]byte, n),
-		params:           params,
+		conn:   c,
+		stmt:   cStmt,
+		params: params,
+		n:      n,
 	}, tail, nil
 }
 
@@ -268,6 +267,10 @@ func (s *Stmt) Param(name string) int {
 	return s.params[name]
 }
 
+func (s *Stmt) ParamBytes(name []byte) int {
+	return s.params[string(name)]
+}
+
 func (s *Stmt) BindBlob(param int, v []byte) error {
 	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeSlicePtr(v), C.int(len(v)), 1)
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
@@ -278,6 +281,9 @@ func (s *Stmt) BindBlobString(param int, v string) error {
 		rc := C.sqlite3_bind_zeroblob(s.stmt, C.int(param), C.int(0))
 		return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob")
 	}
+	if s.keepAliveStrings == nil {
+		s.keepAliveStrings = make([]string, s.n)
+	}
 	s.keepAliveStrings[param-1] = v
 	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeStringPtr(v), C.int(len(v)), 0)
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
@@ -287,6 +293,9 @@ func (s *Stmt) BindBlobText(param int, v string) error {
 	if v == "" {
 		rc := C.sqlite3_bind_zeroblob(s.stmt, C.int(param), C.int(0))
 		return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob")
+	}
+	if s.keepAliveStrings == nil {
+		s.keepAliveStrings = make([]string, s.n)
 	}
 	s.keepAliveStrings[param-1] = v
 	cstr := (*C.char)(unsafeStringPtr(v))
@@ -300,6 +309,9 @@ func (s *Stmt) BindInt64(param int, v int64) error {
 }
 
 func (s *Stmt) BindBlobConst(param int, v []byte) error {
+	if s.keepAliveBytes == nil {
+		s.keepAliveBytes = make([][]byte, s.n)
+	}
 	s.keepAliveBytes[param-1] = v
 	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeSlicePtr(v), C.int(len(v)), 0)
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
