@@ -30,7 +30,6 @@ import {
 import { currentAccessInfo, logoutURL } from '../../common/access';
 import { HeaderMenuItemPlot } from './HeaderMenuItemPlot';
 import css from './style.module.css';
-import { PlotLink } from '../Plot/PlotLink';
 import { parseParamsFromUrl } from '../../common/plotQueryParams';
 
 const themeIcon = {
@@ -193,14 +192,14 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
           icon={SVGGridFill}
           indexPlot={-1}
           title="Dashboard"
-          className={cn(params.tabNum === -1 && isView && css.activeItem)}
+          className={cn(params.tabNum < 0 && isView && css.activeItem)}
         >
-          <li className={css.splitter}></li>
+          {/*<li className={css.splitter}></li>
           <li className="nav-item">
             <PlotLink className="nav-link" indexPlot={-2} title="Dashboard Setting">
               Dashboard&nbsp;Setting
             </PlotLink>
-          </li>
+          </li>*/}
         </HeaderMenuItem>
         {menuPlots.map((item) => (
           <HeaderMenuItemPlot key={item.indexPlot} indexPlot={item.indexPlot} />

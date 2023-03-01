@@ -4,16 +4,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, PlotNavigate } from '../Plot';
-import { DashboardTagControl } from '../DashboardTagControl';
-import cn from 'classnames';
 import {
   selectorDashboardId,
   selectorDashboardLayoutEdit,
   selectorDisabledLive,
   selectorLiveMode,
-  selectorParamsTagSync,
   selectorSetBaseRange,
   selectorSetDashboardLayoutEdit,
   selectorSetLiveMode,
@@ -21,15 +18,16 @@ import {
   selectorTimeRange,
   useStore,
 } from '../../store';
-import { ReactComponent as SVGColumnsGap } from 'bootstrap-icons/icons/columns-gap.svg';
+import { ReactComponent as SVGGearFill } from 'bootstrap-icons/icons/gear-fill.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { NavLink } from 'react-router-dom';
+
+import css from './style.module.css';
+import cn from 'classnames';
 
 export type DashboardHeaderProps = {};
 export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
   const dashboardId = useStore(selectorDashboardId);
-  const tagsSync = useStore(selectorParamsTagSync);
-  const showSyncPanel = useMemo(() => tagsSync.some((group) => group.some((s) => s !== null)), [tagsSync]);
 
   const timeRange = useStore(selectorTimeRange);
   const setTimeRange = useStore(selectorSetTimeRange);
@@ -51,8 +49,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
   );
 
   return (
-    <div className="d-flex flex-row flex-wrap mb-3" style={{ marginLeft: 'var(--plot-margin)' }}>
-      <div className="me-4 mb-2 order-0">
+    <div className={cn('d-flex flex-row flex-wrap mb-3', css.margin)}>
+      <div className="me-4 mb-2">
         <PlotNavigate
           className="btn-group-sm"
           setTimeRange={setTimeRange}
@@ -61,17 +59,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
           disabledLive={disabledLive}
         />
       </div>
-      {showSyncPanel && (
-        <DashboardTagControl
-          className={cn(
-            'd-flex flex-grow-1 flex-row gap-3 flex-wrap',
-            tagsSync.length > 1
-              ? 'order-4 col-12 justify-content-start'
-              : 'order-4 col-12 order-lg-2 col-lg-3 justify-content-center'
-          )}
-        />
-      )}
-      <div className="d-flex flex-row flex-wrap flex-grow-1 align-items-end justify-content-end order-3">
+      <div className="d-flex flex-row flex-wrap flex-grow-1 align-items-end justify-content-end">
         <div className="flex-grow-1"></div>
         <div className="mb-2">
           <PlotControlFrom
@@ -102,8 +90,8 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
             checked={dashboardLayoutEdit}
             onChange={onDashboardLayoutEdit}
           />
-          <label className="btn btn-outline-primary btn-sm" htmlFor="dashboard-layout" title="Edit dashboard layout">
-            <SVGColumnsGap />
+          <label className="btn btn-outline-primary btn-sm" htmlFor="dashboard-layout" title="Edit dashboard">
+            <SVGGearFill />
           </label>
         </div>
         {!!dashboardId && (

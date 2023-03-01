@@ -124,12 +124,17 @@ export function parseParamsFromUrl(url: string): QueryParams {
   return decodeQueryParams(configParams, defaultParams, new URLSearchParams(new URL(url).search))!;
 }
 
-export function getUrlSearch(nextState: React.SetStateAction<QueryParams>, prev?: QueryParams, baseLink?: string) {
+export function getUrlSearch(
+  nextState: React.SetStateAction<QueryParams>,
+  prev?: QueryParams,
+  baseLink?: string,
+  defaultP?: QueryParams
+) {
   const params = new URLSearchParams(baseLink ?? window.location.search);
-  const prevState = prev ?? decodeQueryParams(configParams, defaultParams, params);
+  const prevState = prev ?? decodeQueryParams(configParams, defaultP ?? defaultParams, params);
   if (prevState) {
     const newState = getNextState(prevState, nextState);
-    return '?' + encodeQueryParams(configParams, newState, defaultParams, params).toString();
+    return '?' + encodeQueryParams(configParams, newState, defaultP ?? defaultParams, params).toString();
   }
   return '?' + params.toString();
 }

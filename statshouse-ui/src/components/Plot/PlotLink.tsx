@@ -5,14 +5,15 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useMemo } from 'react';
-import { selectorIsServer, selectorSetParams, useStore } from '../../store';
-import { NavLink, To } from 'react-router-dom';
+import { selectorDefaultParams, selectorIsServer, selectorSetParams, useStore } from '../../store';
+import { Link, To } from 'react-router-dom';
 import { QueryParams } from '../../common/plotQueryParams';
 import produce from 'immer';
 import { usePlotLink } from '../../hooks';
 
 export type PlotLinkProps = {
   indexPlot?: number;
+  isLink?: boolean;
   to?: To;
 } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> &
   React.RefAttributes<HTMLAnchorElement>;
@@ -20,9 +21,10 @@ export type PlotLinkProps = {
 export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.forwardRef<
   HTMLAnchorElement,
   PlotLinkProps
->(function _PlotLink({ indexPlot, to, children, ...attributes }, ref) {
+>(function _PlotLink({ indexPlot, isLink, to, children, ...attributes }, ref) {
   const isServer = useStore(selectorIsServer);
   const setParams = useStore(selectorSetParams);
+  const defaultParams = useStore(selectorDefaultParams);
   const plotSearchFn = useMemo<(value: QueryParams) => QueryParams>(
     () =>
       produce((p) => {
@@ -57,12 +59,12 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
       }),
     [indexPlot]
   );
-  const plotSearch = usePlotLink(plotSearchFn);
+  const plotSearch = usePlotLink(plotSearchFn, defaultParams);
   const onClick = useCallback(() => {
     setParams(plotSearchFn, false, false);
   }, [plotSearchFn, setParams]);
 
-  if (isServer && !to) {
+  if (!isLink && isServer && !to) {
     return (
       <span role="button" onClick={onClick} ref={ref} {...attributes}>
         {children}
@@ -71,8 +73,8 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
   }
 
   return (
-    <NavLink to={to ?? plotSearch} end {...attributes} ref={ref}>
+    <Link to={to ?? plotSearch} {...attributes} ref={ref}>
       {children}
-    </NavLink>
+    </Link>
   );
 });
