@@ -279,6 +279,7 @@ type (
 		ReceiveErrors            float64                 `json:"receive_errors"`              // count/sec
 		MappingErrors            float64                 `json:"mapping_errors"`              // count/sec
 		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
+		DebugPromQL              string                  `json:"__debug_promql"`              // private, unstable: equivalent PromQL query
 		MetricMeta               *format.MetricMetaValue `json:"-"`
 		syncPoolBuffers          []*[]float64            // buffers to be returned to sync.Pool after response is serialized
 	}
@@ -1822,6 +1823,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 			SeriesData: data,
 		},
 		DebugQueries:    sqlQueries,
+		DebugPromQL:     getPromQuery(req),
 		MetricMeta:      metricMeta,
 		syncPoolBuffers: syncPoolBuffers,
 	}, immutable, nil
@@ -2379,6 +2381,8 @@ func selectTSValue(what queryFn, maxHost bool, stepMul int64, desiredStepMul int
 		return row.val[3]
 	case queryFnStddev:
 		return row.val[4]
+	case queryFnStdvar:
+		return row.val[4] * row.val[4]
 	case queryFnP25:
 		return row.val[0]
 	case queryFnP50:

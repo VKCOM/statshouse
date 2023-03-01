@@ -188,11 +188,12 @@ type VectorSelector struct {
 	PosRange PositionRange
 
 	MatchingMetrics []*format.MetricMetaValue
-	What            int
+	MatchingNames   []string
+	Offset, Factor  int64
+	What            string
 	GroupBy         []string
 	GroupWithout    bool
-	Offset          int64
-	Range           int64
+	MaxHost         bool
 	OmitNameTag     bool
 }
 

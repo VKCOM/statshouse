@@ -105,7 +105,7 @@ func calcTrendValue(i int, tf, s0, s1, b float64) float64 {
 // data. A lower smoothing factor increases the influence of historical data. The trend factor (0 < tf < 1) affects
 // how trends in historical data will affect the current data. A higher trend factor increases the influence.
 // of trends. Algorithm taken from https://en.wikipedia.org/wiki/Exponential_smoothing titled: "Double exponential smoothing".
-func funcHoltWinters(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+func funcHoltWinters(ctx context.Context, ev *evaluator, args parser.Expressions) (bag *SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
 		return bag, err
@@ -150,7 +150,7 @@ func funcHoltWinters(ctx context.Context, ev *evaluator, args parser.Expressions
 	return bag, nil
 }
 
-func funcRound(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+func funcRound(ctx context.Context, ev *evaluator, args parser.Expressions) (bag *SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
 		return bag, err

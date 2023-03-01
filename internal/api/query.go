@@ -51,6 +51,7 @@ const (
 	queryFnSumNorm
 	queryFnCumulSum
 	queryFnStddev
+	queryFnStdvar
 	queryFnP25
 	queryFnP50
 	queryFnP75

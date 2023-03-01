@@ -368,9 +368,9 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	a.Path("/"+api.EndpointGroup).Methods("POST", "PUT").HandlerFunc(f.HandlePutPostGroup)
 	a.Path("/" + api.EndpointPrometheus).Methods("GET").HandlerFunc(f.HandleGetPromConfig)
 	a.Path("/" + api.EndpointPrometheus).Methods("POST").HandlerFunc(f.HandlePostPromConfig)
-	a.Path("/v1/query").Methods("POST").HandlerFunc(f.HandlePromInstantQuery)
-	a.Path("/v1/query_range").Methods("POST").HandlerFunc(f.HandlePromRangeQuery)
-	a.Path("/v1/label/{name}/values").Methods("GET").HandlerFunc(f.HandlePromLabelValuesQuery)
+	m.Path("/prom/api/v1/query").Methods("POST").HandlerFunc(f.HandlePromInstantQuery)
+	m.Path("/prom/api/v1/query_range").Methods("POST").HandlerFunc(f.HandlePromRangeQuery)
+	m.Path("/prom/api/v1/label/{name}/values").Methods("GET").HandlerFunc(f.HandlePromLabelValuesQuery)
 	m.PathPrefix("/").Methods("GET", "HEAD").HandlerFunc(f.HandleStatic)
 
 	h := http.Handler(m)
