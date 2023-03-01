@@ -1,3 +1,9 @@
+// Copyright 2022 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 package promql
 
 import "github.com/vkcom/statshouse/internal/promql/parser"
@@ -5,8 +11,8 @@ import "github.com/vkcom/statshouse/internal/promql/parser"
 type reduction struct {
 	rule         int
 	expr         parser.Expr
-	what         What
-	selRange     int64 // matrix selector range
+	what         string
+	factor       int64 // matrix selector range
 	grouped      bool
 	groupBy      []string
 	groupWithout bool
@@ -22,10 +28,10 @@ var reductionRules = [][]reductionRuleFunc{
 	// #2 sum(sum_over_time(demo_memory_usage_bytes[5s]))
 	{reduceMatrixSelector, reduceOverTimeCall, reduceAggregateExpr},
 	// #3 sum_over_time(sum(demo_memory_usage_bytes)[5s:])
-	{reduceAggregateExpr, reduceSubqueryExpr, reduceOverTimeCall},
+	{reduceAggregateExpr, reduceSubQueryExpr, reduceOverTimeCall},
 }
 
-func evalReductionRules(nodes []parser.Node, step int64) (res reduction, ok bool) {
+func evalReductionRules(s *parser.VectorSelector, nodes []parser.Node, step int64) (res reduction, ok bool) {
 	var (
 		depth int
 		curr  = make([]reduction, len(reductionRules))
@@ -33,6 +39,7 @@ func evalReductionRules(nodes []parser.Node, step int64) (res reduction, ok bool
 	)
 	for i := range curr {
 		curr[i].rule = i
+		curr[i].what = s.What
 	}
 	for i := len(nodes); i != 0 && len(curr) != 0; i-- {
 		// skip parentheses
@@ -73,41 +80,51 @@ func reduceMatrixSelector(r *reduction, e parser.Expr, step int64) bool {
 	if !ok || sel.Range > step {
 		return false
 	}
-	r.selRange = sel.Range
+	r.factor = sel.Range
 	return true
 }
 
-func reduceSubqueryExpr(r *reduction, e parser.Expr, step int64) bool {
+func reduceSubQueryExpr(r *reduction, e parser.Expr, step int64) bool {
 	sel, ok := e.(*parser.SubqueryExpr)
 	if !ok || sel.Range > step {
 		return false
 	}
-	r.selRange = sel.Range
+	r.factor = sel.Range
 	return true
 }
 
-func reduceOverTimeCall(r *reduction, e parser.Expr, _ int64) bool {
+func reduceOverTimeCall(r *reduction, e parser.Expr, step int64) bool {
 	call, ok := e.(*parser.Call)
 	if !ok {
 		return false
 	}
+	var what string
 	switch call.Func.Name {
 	case "avg_over_time":
-		r.what = DigestAvg
+		what = Avg
 	case "min_over_time":
-		r.what = DigestMin
+		what = Min
 	case "max_over_time":
-		r.what = DigestMax
+		what = Max
 	case "sum_over_time":
-		r.what = DigestSum
+		what = Sum
 	case "count_over_time":
-		r.what = DigestCnt
+		what = Count
 	case "stddev_over_time":
-		r.what = DigestStdDev
+		if r.factor != step {
+			return false
+		}
+		what = StdDev
+	case "stdvar_over_time":
+		if r.factor != step {
+			return false
+		}
+		what = StdVar
 	default:
 		return false
 	}
-	return true
+	r.what, ok = reduceWhat(r.what, what)
+	return ok
 }
 
 func reduceAggregateExpr(r *reduction, e parser.Expr, _ int64) bool {
@@ -115,33 +132,36 @@ func reduceAggregateExpr(r *reduction, e parser.Expr, _ int64) bool {
 	if !ok {
 		return false
 	}
-	var what What
+	var what string
 	switch agg.Op {
 	case parser.AVG:
-		what = DigestAvg
+		what = Avg
 	case parser.MIN:
-		what = DigestMin
+		what = Min
 	case parser.MAX:
-		what = DigestMax
+		what = Max
 	case parser.SUM:
-		what = SumPerSecond
+		what = SumSec
 	case parser.COUNT:
-		what = CntPerSecond
+		what = CountSec
 	default:
 		return false
 	}
-	switch {
-	case r.what == Unspecified:
-		r.what = what
-	case r.what == what:
-	case r.what == DigestSum && what == SumPerSecond:
-	case r.what == DigestCnt && what == CntPerSecond:
-		// do nothing
-	default:
+	if r.what, ok = reduceWhat(r.what, what); !ok {
 		return false
 	}
 	r.grouped = true
 	r.groupBy = agg.Grouping
 	r.groupWithout = agg.Without
 	return true
+}
+
+func reduceWhat(a, b string) (string, bool) {
+	if a == "" || a == SumSec && b == Sum || a == CountSec && b == Count {
+		return b, true
+	}
+	if a == b || a == Sum && b == SumSec || a == Count && b == CountSec {
+		return a, true
+	}
+	return a, false
 }
