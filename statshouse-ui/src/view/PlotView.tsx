@@ -40,7 +40,7 @@ import {
 import { xAxisValues, xAxisValuesCompact } from '../common/axisValues';
 import cn from 'classnames';
 
-const unFocusAlfa = 1.1;
+const unFocusAlfa = 1;
 const rightPad = 16;
 const font =
   '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
