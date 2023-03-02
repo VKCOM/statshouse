@@ -659,16 +659,18 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           const topInfoTotals: Record<string, number> = {};
           let topInfo: TopInfo | undefined = undefined;
           const maxHostLists: SelectOptionProps[][] = new Array(resp.series.series_meta.length).fill([]);
-
+          const oneGraph = resp.series.series_meta.filter((s) => s.time_shift === 0).length <= 1;
           const seriesShow = new Array(resp.series.series_meta.length).fill(true);
           const series: uPlot.Series[] = resp.series.series_meta.map((meta, indexMeta): uPlot.Series => {
             const timeShift = meta.time_shift !== 0;
             const label = metaToLabel(meta, uniqueWhat.size);
             const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
-            const baseColor =
-              baseColors[`${lastPlotParams.metricName}: ${baseLabel}`] ??
-              selectColor(`${lastPlotParams.metricName}: ${baseLabel}`, usedBaseColors);
-            baseColors[`${lastPlotParams.metricName}: ${baseLabel}`] = baseColor;
+            const isValue = baseLabel.indexOf('Value') === 0;
+            const prefColor = '9'; // it`s magic prefix
+            const metricName = isValue ? `${lastPlotParams.metricName}: ` : '';
+            const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
+            const baseColor = baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
+            baseColors[colorKey] = baseColor;
             if (baseColor !== getState().plotsData[index]?.series[indexMeta]?.stroke) {
               changeColor = true;
             }
