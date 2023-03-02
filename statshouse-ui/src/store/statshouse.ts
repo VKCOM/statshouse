@@ -344,6 +344,12 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           store.timeRange = new TimeRange(params.timeRange);
         }
         store.params = mergeLeft(store.params, params);
+        if (store.params.tabNum < -1) {
+          store.dashboardLayoutEdit = true;
+        }
+        if (store.params.tabNum >= 0) {
+          store.dashboardLayoutEdit = false;
+        }
         if (resetPlot) {
           store.plotsData = [];
           store.previews = [];
@@ -374,6 +380,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           state.timeRange = new TimeRange(nextParams.timeRange);
         }
         state.params = nextParams;
+        if (state.params.tabNum >= 0) {
+          state.dashboardLayoutEdit = false;
+        }
       });
       getState().params.plots.forEach((plot, index) => {
         if (changedTimeRange || changedTimeShifts || prevParams.plots[index] !== plot) {
@@ -1318,6 +1327,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
       const url = dashboardURL();
       getState().setSaveDashboardParams(undefined);
       getState().setGlobalNumQueriesPlot((s) => s + 1);
+      getState().setLastError('');
       (params.dashboard.dashboard_id !== undefined
         ? apiPost<DashboardInfo>(url, params, controller.signal, true)
         : apiPut<DashboardInfo>(url, params, controller.signal, true)
@@ -1374,6 +1384,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
 
       const controller = new AbortController();
       const url = dashboardURL();
+      getState().setLastError('');
       getState().setGlobalNumQueriesPlot((s) => s + 1);
       apiPost<DashboardInfo>(url, params, controller.signal, true)
         .then((data) => {
@@ -1501,6 +1512,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     setState((state) => {
       state.dashboardLayoutEdit = nextStatus;
     });
+    if (!nextStatus && getState().params.tabNum < -1) {
+      getState().setTabNum(-1);
+    }
   },
   setGroupName(indexGroup, name) {
     getState().setParams(

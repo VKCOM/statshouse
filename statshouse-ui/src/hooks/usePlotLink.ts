@@ -8,11 +8,11 @@ import { getUrlSearch, QueryParams } from '../common/plotQueryParams';
 import { SetStateAction, useEffect, useState } from 'react';
 import { selectorParams, useStore } from '../store';
 
-export function usePlotLink(value: SetStateAction<QueryParams>): string {
+export function usePlotLink(value: SetStateAction<QueryParams>, defaultParams?: QueryParams): string {
   const params = useStore(selectorParams);
   const [link, setLink] = useState<string>('');
   useEffect(() => {
-    setLink('/view' + getUrlSearch(value, params));
-  }, [params, value]);
+    setLink('/view' + getUrlSearch(value, params, undefined, defaultParams));
+  }, [defaultParams, params, value]);
   return link;
 }

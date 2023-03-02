@@ -4,16 +4,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import {
+  selectorGlobalNumQueriesPlot,
   selectorIsServer,
   selectorParams,
   selectorRemoveServerParams,
-  selectorSaveServerParams,
+  selectorSetDashboardLayoutEdit,
   selectorSetParams,
   useStore,
 } from '../../store';
-import { useStateInput } from '../../hooks';
 import produce from 'immer';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,88 +22,81 @@ export type DashboardInfoProps = {};
 export const DashboardInfo: React.FC<DashboardInfoProps> = () => {
   const params = useStore(selectorParams);
   const setParams = useStore(selectorSetParams);
-  const saveServerParams = useStore(selectorSaveServerParams);
   const removeServerParams = useStore(selectorRemoveServerParams);
   const isServer = useStore(selectorIsServer);
-  const nameInput = useStateInput(params.dashboard?.name ?? '');
-  const descriptionInput = useStateInput(params.dashboard?.description ?? '');
-  const [saveSpinner, setSaveSpinner] = useState(false);
-  const [saveError, setSaveError] = useState('');
+  const numQueries = useStore(selectorGlobalNumQueriesPlot);
+  const setDashboardLayoutEdit = useStore(selectorSetDashboardLayoutEdit);
+
   const navigate = useNavigate();
 
-  const onSubmit = useCallback<React.FormEventHandler<HTMLFormElement>>(
-    (event) => {
-      const dashboard = {
-        ...params.dashboard,
-        name: nameInput.value,
-        description: descriptionInput.value,
-      };
+  const inputName = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
       setParams(
         produce((params) => {
-          params.dashboard = dashboard;
+          params.dashboard = params.dashboard ?? {};
+          params.dashboard.name = value;
         })
       );
-      setSaveSpinner(true);
-      setSaveError('');
-      saveServerParams()
-        .catch((error: string) => {
-          setSaveError(error);
-        })
-        .finally(() => {
-          setSaveSpinner(false);
-        });
-      event.preventDefault();
     },
-    [descriptionInput.value, nameInput.value, params.dashboard, saveServerParams, setParams]
+    [setParams]
+  );
+  const inputDescription = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setParams(
+        produce((params) => {
+          params.dashboard = params.dashboard ?? {};
+          params.dashboard.description = value;
+        })
+      );
+    },
+    [setParams]
   );
 
   const onRemoveDashboard = useCallback(
     (event: React.MouseEvent) => {
       if (params.dashboard?.dashboard_id && window.confirm(`Remove dashboard ${params.dashboard?.name}?`)) {
-        setSaveSpinner(true);
-        setSaveError('');
-        removeServerParams()
-          .catch((error: string) => {
-            setSaveError(error);
-          })
-          .then(() => {
-            setParams(
-              produce((params) => {
-                params.dashboard = undefined;
-              })
-            );
-            navigate('/dash-list');
-          })
-          .finally(() => {
-            setSaveSpinner(false);
-          });
+        removeServerParams().then(() => {
+          setDashboardLayoutEdit(false);
+          setParams(
+            produce((params) => {
+              params.dashboard = undefined;
+            })
+          );
+          navigate('/dash-list');
+        });
       }
       event.preventDefault();
     },
-    [navigate, params.dashboard?.dashboard_id, params.dashboard?.name, removeServerParams, setParams]
+    [
+      navigate,
+      params.dashboard?.dashboard_id,
+      params.dashboard?.name,
+      removeServerParams,
+      setDashboardLayoutEdit,
+      setParams,
+    ]
   );
-
-  const errorClear = useCallback(() => {
-    setSaveError('');
-  }, []);
 
   return (
     <div className="card border-0">
       <div className="card-body p-2">
         <h5 className="card-title">Dashboard Info</h5>
-        {!!saveError && (
-          <div className="alert alert-danger d-flex align-items-center justify-content-between">
-            <small className="overflow-force-wrap font-monospace">{saveError}</small>
-            <button type="button" className="btn-close" aria-label="Close" onClick={errorClear}></button>
-          </div>
-        )}
-        <form onSubmit={onSubmit} className="card-text">
+        <div className="card-text">
           <div className="mb-2 row">
             <label htmlFor="dashboard-input-name" className="col-form-label col-sm-2">
               Name
             </label>
             <div className="col-sm-10">
-              <input id="dashboard-input-name" type="text" className="form-control" aria-label="Name" {...nameInput} />
+              <input
+                id="dashboard-input-name"
+                type="text"
+                className="form-control"
+                aria-label="Name"
+                defaultValue={params.dashboard?.name ?? ''}
+                onInput={inputName}
+              />
             </div>
           </div>
           <div className="mb-2 row">
@@ -116,24 +109,24 @@ export const DashboardInfo: React.FC<DashboardInfoProps> = () => {
                 type="text"
                 className="form-control"
                 aria-label="Name"
-                {...descriptionInput}
+                defaultValue={params.dashboard?.description ?? ''}
+                onInput={inputDescription}
               />
             </div>
           </div>
           <div className="d-flex flex-row justify-content-end">
-            <button type="submit" className="btn btn-outline-primary" disabled={saveSpinner}>
-              {saveSpinner && (
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-              )}
-              {isServer ? 'Save' : 'Create'}
-            </button>
-            {params.dashboard?.dashboard_id !== undefined && (
-              <button type="button" className="btn btn-outline-danger ms-2" onClick={onRemoveDashboard}>
+            {isServer && (
+              <button
+                type="button"
+                className="btn btn-outline-danger ms-2"
+                onClick={onRemoveDashboard}
+                disabled={numQueries > 1}
+              >
                 Remove
               </button>
             )}
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
