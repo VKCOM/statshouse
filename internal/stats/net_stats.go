@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -141,7 +142,11 @@ func NewNetStats(pusher Pusher) (*NetStats, error) {
 func (c *NetStats) PushMetrics() error {
 	err := c.pushNetDev()
 	if err != nil {
-		//todo log
+		log.Println("failed to push net/dev", err)
+	}
+	err = c.pushSNMP()
+	if err != nil {
+		log.Println("failed to push net/snmp", err)
 	}
 
 	return nil
@@ -178,6 +183,7 @@ func (c *NetStats) pushSNMP() error {
 	c.pushIP(netstat)
 	c.pushTCP(netstat)
 	c.pushUDP(netstat)
+	c.oldNetStat = netstat
 	return nil
 }
 
