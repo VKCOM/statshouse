@@ -36,6 +36,7 @@
 :root {
   --golden-ratio: 1.61803398875;
   --plot-margin: 54px;
+  --bs-primary: var(--bs-link-color);
 }
 
 @media screen and (max-width: 767.98px) {
@@ -120,8 +121,20 @@ html {
 }
 
 .btn-outline-primary {
-  --#{$prefix}btn-hover-bg: #{$blue-100};
-  --#{$prefix}btn-hover-color: #{$primary};
+  --bs-btn-hover-bg: rgba(var(--bs-link-color-rgb), 0.4);
+  --bs-btn-hover-color: var(--bs-link-color);
+  --bs-btn-color: var(--bs-link-color);
+  --bs-btn-border-color: var(--bs-link-color);
+  --bs-btn-hover-border-color: var(--bs-link-color);
+  --bs-btn-active-bg: var(--bs-link-color);
+  --bs-btn-active-border-color: var(--bs-link-color);
+  --bs-btn-disabled-color: var(--bs-link-color);
+  --bs-btn-disabled-bg: transparent;
+  --bs-btn-disabled-border-color: var(--bs-link-color);
+}
+.form-check-input:checked {
+  background-color: var(--bs-link-color);
+  border-color: var(--bs-link-color);
 }
 
 .plot-compact {
