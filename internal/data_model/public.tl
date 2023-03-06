@@ -5,7 +5,6 @@ statshouse.metric#3325d884 fields_mask:#
   tags:    (dictionary string)
   counter: fields_mask.0?double
   ts:      fields_mask.4?#               // UNIX timestamp UTC
-  t:       fields_mask.5?long            // deprecated, UNIX nanoseconds UTC
   value:   fields_mask.1?(vector double)
   unique:  fields_mask.2?(vector long)
 

@@ -65,13 +65,6 @@ func msgpackUnmarshalStatshouseMetric(m *tlstatshouse.MetricBytes, buf []byte) (
 				return nil, msgp.WrapError(err, "Counter")
 			}
 			m.SetCounter(value)
-		case "t":
-			var value int64
-			value, buf, err = msgp.ReadInt64Bytes(buf)
-			if err != nil {
-				return nil, msgp.WrapError(err, "T")
-			}
-			m.SetT(value)
 		case "ts":
 			var value uint32
 			value, buf, err = msgp.ReadUint32Bytes(buf)

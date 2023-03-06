@@ -346,18 +346,9 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName, h.LegacyCanonicalTagKey},
 		}, 1)
 	}
-	if m.IsSetT() || m.T != 0 {
-		key := data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Keys:   [16]int32{0, h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedT}}
-		s.AddCounter(key, 1)
-	}
 
 	// We do not check fields mask here, only fields values
-	if m.T != 0 { // sending 0 instead of manipulating field mask is more convenient for many clients
-		h.Key.Timestamp = uint32(m.T / 1_000_000_000)
-	}
-	if m.Ts != 0 {
+	if m.Ts != 0 { // sending 0 instead of manipulating field mask is more convenient for many clients
 		h.Key.Timestamp = m.Ts
 	}
 	// Ignore metric kind and use all the info we have: this way people can continue

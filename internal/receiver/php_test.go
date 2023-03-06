@@ -354,7 +354,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 		defer timer.Stop()
 		serveErr <- recv.Serve(receiver.CallbackHandler{
 			Metrics: func(m *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
-				sumTimestamp.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.T)
+				sumTimestamp.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), int64(m.Ts))
 				switch {
 				case len(m.Value) > 0:
 					valueMetrics.merge(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.Value)
