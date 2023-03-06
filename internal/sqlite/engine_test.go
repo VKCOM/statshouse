@@ -621,8 +621,8 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 	})
 
 	t.Run("RO unshared can work concurrently", func(t *testing.T) {
-		s := read(false, maxROConn-1)
-		require.Len(t, s, 3*maxROConn)
+		s := read(false, 100-1)
+		require.Len(t, s, 3*100)
 		require.Contains(t, s, "abc")
 		require.Contains(t, s, "def")
 		require.Contains(t, s, "ggg")

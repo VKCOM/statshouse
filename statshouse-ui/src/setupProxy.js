@@ -7,6 +7,11 @@ module.exports = function (app) {
       createProxyMiddleware({
         target: process.env.REACT_APP_PROXY,
         changeOrigin: true,
+        onProxyReq: (proxyReq) => {
+          if (process.env.REACT_APP_PROXY_COOKIE) {
+            proxyReq.setHeader('cookie', process.env.REACT_APP_PROXY_COOKIE);
+          }
+        },
       })
     );
   }

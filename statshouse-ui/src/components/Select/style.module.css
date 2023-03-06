@@ -6,13 +6,19 @@
  */
 
 :root {
-  --selectLoaderColor: black;
-  --selectBgColor: white;
-  --selectStickyBgColor: rgba(255, 255, 255, 0.9);
-  --selectSelectedBgColor: #81dff3;
-  --selectCursorBgCollor: #c8c8c8;
-  --selectDisabledCollor: #888888;
-  --selectSelectedCursorBgCollor: #68afc0;
+  --selectLoaderColor: var(--bs-primary);
+  --selectBgColor: var(--bs-form-control-bg);
+  --selectColor: var(--bs-body-color);
+  --selectStickyBgColor: var(--bs-form-control-bg);
+  --selectChevronBgColor: var(--bs-form-control-bg);
+  --selectSelectedBgColor: var(--bs-primary-bg-subtle);
+  --selectCursorBgColor: var(--bs-secondary-bg);
+  --selectDisabledColor: var(--bs-tertiary-color);
+  --selectSelectedCursorBgColor: var(--bs-primary-border-subtle);
+  --selectIconChevron: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3e%3cpath fill=%27none%27 stroke=%27%23343a40%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M2 5l6 6 6-6%27/%3e%3c/svg%3e');
+}
+[data-bs-theme='dark'] {
+  --selectIconChevron: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3e%3cpath fill=%27none%27 stroke=%27%23adb5bd%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M2 5l6 6 6-6%27/%3e%3c/svg%3e');
 }
 
 @keyframes spinner-border {
@@ -25,9 +31,8 @@
   display: flex;
   flex-direction: column;
   position: relative;
-  background-color: var(--selectBgColor);
   outline: none 0 !important;
-
+  color: var(--selectColor);
   width: 100%;
 }
 
@@ -43,9 +48,10 @@
   line-height: inherit;
   font-size: inherit;
   font-weight: inherit;
-  padding: 0;
+  padding: 0 1.5em 0 0;
   margin: 0;
-  color: #212529;
+  background-color: var(--selectBgColor);
+  color: var(--selectColor);
 }
 
 .select .chevron {
@@ -55,7 +61,7 @@
   right: 1px;
   width: 2em;
   height: 2em;
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: var(--selectChevronBgColor);
   border: none 0;
 }
 
@@ -67,7 +73,7 @@
   width: 2em;
   height: 2em;
   content: '';
-  background-image: url('data:image/svg+xml,%3csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3e%3cpath fill=%27none%27 stroke=%27%23343a40%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M2 5l6 6 6-6%27/%3e%3c/svg%3e');
+  background-image: var(--selectIconChevron);
   background-repeat: no-repeat;
   background-position: center;
   background-size: 0.75em 0.75em;
@@ -241,25 +247,25 @@
 
 .select.cursor .option.hover,
 .select:not(.cursor) .option:hover {
-  background-color: var(--selectCursorBgCollor);
+  background-color: var(--selectCursorBgColor);
 }
 
 .select.cursor .selected.hover,
 .select:not(.cursor) .selected:hover {
-  background-color: var(--selectSelectedCursorBgCollor);
+  background-color: var(--selectSelectedCursorBgColor);
 }
 
 .select .option[data-disabled] {
   background-color: transparent;
   cursor: inherit;
-  color: var(--selectDisabledCollor);
+  color: var(--selectDisabledColor);
 }
 
 .select .option.optionStickyTop {
   position: sticky;
   top: 0;
   opacity: 1;
-  color: var(--selectDisabledCollor);
+  color: var(--selectDisabledColor);
   background-color: var(--selectStickyBgColor);
   font-style: italic;
   z-index: 1;
@@ -289,6 +295,6 @@
 }
 
 .select .optionSplitter {
-  border-bottom: 1px solid var(--selectCursorBgCollor);
+  border-bottom: 1px solid var(--selectCursorBgColor);
   margin: 0.25em;
 }

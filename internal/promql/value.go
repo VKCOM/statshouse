@@ -4,316 +4,209 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-// Copyright 2017 The Prometheus Authors
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-// http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package promql
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"hash"
+	"hash/fnv"
+	"math"
+	"sort"
 	"strconv"
-	"strings"
-
-	"github.com/pkg/errors"
 
 	"github.com/prometheus/prometheus/model/labels"
-	"github.com/prometheus/prometheus/promql/parser"
-	"github.com/prometheus/prometheus/storage"
-	"github.com/prometheus/prometheus/tsdb/chunkenc"
+	"github.com/vkcom/statshouse/internal/promql/parser"
 )
 
-func (Matrix) Type() parser.ValueType { return parser.ValueTypeMatrix }
-func (Vector) Type() parser.ValueType { return parser.ValueTypeVector }
-func (Scalar) Type() parser.ValueType { return parser.ValueTypeScalar }
-func (String) Type() parser.ValueType { return parser.ValueTypeString }
-
-// String represents a string value.
-type String struct {
-	T int64
-	V string
+type SeriesBag struct {
+	Time  []int64
+	Data  []*[]float64
+	Tags  []map[string]int32
+	STags []map[string]string
+	Start int64
+	Range int64
 }
 
-func (s String) String() string {
-	return s.V
+type seriesGroup struct {
+	hash  uint64
+	tags  map[string]int32
+	stags map[string]string
+	bag   SeriesBag
 }
 
-func (s String) MarshalJSON() ([]byte, error) {
-	return json.Marshal([...]interface{}{float64(s.T) / 1000, s.V})
+func (bag SeriesBag) Type() parser.ValueType {
+	return parser.ValueTypeMatrix
 }
 
-// Scalar is a data point that's explicitly not associated with a metric.
-type Scalar struct {
-	T int64
-	V float64
+func (bag SeriesBag) String() string {
+	return fmt.Sprintf("%dx%d", len(bag.Data), len(bag.Time))
 }
 
-func (s Scalar) String() string {
-	v := strconv.FormatFloat(s.V, 'f', -1, 64)
-	return fmt.Sprintf("scalar: %v @[%v]", v, s.T)
-}
-
-func (s Scalar) MarshalJSON() ([]byte, error) {
-	v := strconv.FormatFloat(s.V, 'f', -1, 64)
-	return json.Marshal([...]interface{}{float64(s.T) / 1000, v})
-}
-
-// Series is a stream of data points belonging to a metric.
-type Series struct {
-	Metric labels.Labels `json:"metric"`
-	Points []Point       `json:"values"`
-}
-
-func (s Series) String() string {
-	vals := make([]string, len(s.Points))
-	for i, v := range s.Points {
-		vals[i] = v.String()
+func (bag SeriesBag) MarshalJSON() ([]byte, error) {
+	type series struct {
+		M map[string]string `json:"metric,omitempty"`
+		V [][2]any          `json:"values,omitempty"`
 	}
-	return fmt.Sprintf("%s =>\n%s", s.Metric, strings.Join(vals, "\n"))
-}
-
-// Point represents a single data point for a given timestamp.
-type Point struct {
-	T int64
-	V float64
-}
-
-func (p Point) String() string {
-	v := strconv.FormatFloat(p.V, 'f', -1, 64)
-	return fmt.Sprintf("%v @[%v]", v, p.T)
-}
-
-// MarshalJSON implements json.Marshaler.
-//
-// JSON marshaling is only needed for the HTTP API. Since Point is such a
-// frequently marshaled type, it gets an optimized treatment directly in
-// web/api/v1/api.go. Therefore, this method is unused within Prometheus. It is
-// still provided here as convenience for debugging and for other users of this
-// code. Also note that the different marshaling implementations might lead to
-// slightly different results in terms of formatting and rounding of the
-// timestamp.
-func (p Point) MarshalJSON() ([]byte, error) {
-	v := strconv.FormatFloat(p.V, 'f', -1, 64)
-	return json.Marshal([...]interface{}{float64(p.T) / 1000, v})
-}
-
-// Sample is a single sample belonging to a metric.
-type Sample struct {
-	Point
-
-	Metric labels.Labels
-}
-
-func (s Sample) String() string {
-	return fmt.Sprintf("%s => %s", s.Metric, s.Point)
-}
-
-func (s Sample) MarshalJSON() ([]byte, error) {
-	v := struct {
-		M labels.Labels `json:"metric"`
-		V Point         `json:"value"`
-	}{
-		M: s.Metric,
-		V: s.Point,
-	}
-	return json.Marshal(v)
-}
-
-// Vector is basically only an alias for model.Samples, but the
-// contract is that in a Vector, all Samples have the same timestamp.
-type Vector []Sample
-
-func (vec Vector) String() string {
-	entries := make([]string, len(vec))
-	for i, s := range vec {
-		entries[i] = s.String()
-	}
-	return strings.Join(entries, "\n")
-}
-
-// ContainsSameLabelset checks if a vector has samples with the same labelset
-// Such a behavior is semantically undefined
-// https://github.com/prometheus/prometheus/issues/4562
-func (vec Vector) ContainsSameLabelset() bool {
-	l := make(map[uint64]struct{}, len(vec))
-	for _, s := range vec {
-		hash := s.Metric.Hash()
-		if _, ok := l[hash]; ok {
-			return true
+	s := make([]series, 0, len(bag.Data))
+	for i, row := range bag.Data {
+		v := make([][2]any, 0, len(bag.Time))
+		for j, t := range bag.Time {
+			if t < bag.Start {
+				continue
+			}
+			if math.Float64bits((*row)[j]) != NilValueBits {
+				v = append(v, [2]any{t, strconv.FormatFloat((*row)[j], 'f', -1, 64)})
+			}
 		}
-		l[hash] = struct{}{}
-	}
-	return false
-}
-
-// Matrix is a slice of Series that implements sort.Interface and
-// has a String method.
-type Matrix []Series
-
-func (m Matrix) String() string {
-	// TODO(fabxc): sort, or can we rely on order from the querier?
-	strs := make([]string, len(m))
-
-	for i, ss := range m {
-		strs[i] = ss.String()
-	}
-
-	return strings.Join(strs, "\n")
-}
-
-// TotalSamples returns the total number of samples in the series within a matrix.
-func (m Matrix) TotalSamples() int {
-	numSamples := 0
-	for _, series := range m {
-		numSamples += len(series.Points)
-	}
-	return numSamples
-}
-
-func (m Matrix) Len() int           { return len(m) }
-func (m Matrix) Less(i, j int) bool { return labels.Compare(m[i].Metric, m[j].Metric) < 0 }
-func (m Matrix) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
-
-// ContainsSameLabelset checks if a matrix has samples with the same labelset.
-// Such a behavior is semantically undefined.
-// https://github.com/prometheus/prometheus/issues/4562
-func (m Matrix) ContainsSameLabelset() bool {
-	l := make(map[uint64]struct{}, len(m))
-	for _, ss := range m {
-		hash := ss.Metric.Hash()
-		if _, ok := l[hash]; ok {
-			return true
-		}
-		l[hash] = struct{}{}
-	}
-	return false
-}
-
-// Result holds the resulting value of an execution or an error
-// if any occurred.
-type Result struct {
-	Err      error
-	Value    parser.Value
-	Warnings storage.Warnings
-}
-
-// Vector returns a Vector if the result value is one. An error is returned if
-// the result was an error or the result value is not a Vector.
-func (r *Result) Vector() (Vector, error) {
-	if r.Err != nil {
-		return nil, r.Err
-	}
-	v, ok := r.Value.(Vector)
-	if !ok {
-		return nil, errors.New("query result is not a Vector")
-	}
-	return v, nil
-}
-
-// Matrix returns a Matrix. An error is returned if
-// the result was an error or the result value is not a Matrix.
-func (r *Result) Matrix() (Matrix, error) {
-	if r.Err != nil {
-		return nil, r.Err
-	}
-	v, ok := r.Value.(Matrix)
-	if !ok {
-		return nil, errors.New("query result is not a range Vector")
-	}
-	return v, nil
-}
-
-// Scalar returns a Scalar value. An error is returned if
-// the result was an error or the result value is not a Scalar.
-func (r *Result) Scalar() (Scalar, error) {
-	if r.Err != nil {
-		return Scalar{}, r.Err
-	}
-	v, ok := r.Value.(Scalar)
-	if !ok {
-		return Scalar{}, errors.New("query result is not a Scalar")
-	}
-	return v, nil
-}
-
-func (r *Result) String() string {
-	if r.Err != nil {
-		return r.Err.Error()
-	}
-	if r.Value == nil {
-		return ""
-	}
-	return r.Value.String()
-}
-
-// StorageSeries simulates promql.Series as storage.Series.
-type StorageSeries struct {
-	series Series
-}
-
-// NewStorageSeries returns a StorageSeries from a Series.
-func NewStorageSeries(series Series) *StorageSeries {
-	return &StorageSeries{
-		series: series,
-	}
-}
-
-func (ss *StorageSeries) Labels() labels.Labels {
-	return ss.series.Metric
-}
-
-// Iterator returns a new iterator of the data of the series.
-func (ss *StorageSeries) Iterator() chunkenc.Iterator {
-	return newStorageSeriesIterator(ss.series)
-}
-
-type storageSeriesIterator struct {
-	points []Point
-	curr   int
-}
-
-func newStorageSeriesIterator(series Series) *storageSeriesIterator {
-	return &storageSeriesIterator{
-		points: series.Points,
-		curr:   -1,
-	}
-}
-
-func (ssi *storageSeriesIterator) Seek(t int64) bool {
-	i := ssi.curr
-	if i < 0 {
-		i = 0
-	}
-	for ; i < len(ssi.points); i++ {
-		if ssi.points[i].T >= t {
-			ssi.curr = i
-			return true
+		if len(v) != 0 {
+			s = append(s, series{M: bag.STags[i], V: v})
 		}
 	}
-	ssi.curr = len(ssi.points) - 1
-	return false
+	return json.Marshal(s)
 }
 
-func (ssi *storageSeriesIterator) At() (t int64, v float64) {
-	p := ssi.points[ssi.curr]
-	return p.T, p.V
+func (bag SeriesBag) group(tags []string, without bool) ([]seriesGroup, error) {
+	if len(tags) == 0 && !without {
+		return []seriesGroup{{bag: bag}}, nil
+	}
+	var by map[string]bool
+	if len(tags) != 0 {
+		by = make(map[string]bool, len(tags))
+		for _, tag := range tags {
+			by[tag] = true
+		}
+		if without {
+			notBy := make(map[string]bool)
+			for i := range bag.Tags {
+				for tag := range bag.Tags[i] {
+					notBy[tag] = !by[tag]
+				}
+				for tag := range bag.STags[i] {
+					notBy[tag] = !by[tag]
+				}
+			}
+			by = notBy
+		}
+	}
+	var (
+		h      = fnv.New64()
+		groups = make(map[uint64]*seriesGroup, len(bag.Tags))
+	)
+	for i := range bag.Tags {
+		sum, s, err := bag.hashTagsAt(i, by, h)
+		if err != nil {
+			return nil, err
+		}
+		g := groups[sum]
+		if g == nil {
+			g = &seriesGroup{
+				hash:  sum,
+				tags:  make(map[string]int32),
+				stags: make(map[string]string),
+				bag:   SeriesBag{Time: bag.Time},
+			}
+			for _, tag := range s {
+				if valueID, ok := bag.Tags[i][tag]; ok {
+					g.tags[tag] = valueID
+				}
+				if value, ok := bag.STags[i][tag]; ok {
+					g.stags[tag] = value
+				}
+			}
+			groups[sum] = g
+		}
+		g.bag.Data = append(g.bag.Data, bag.Data[i])
+		g.bag.Tags = append(g.bag.Tags, bag.Tags[i])
+		g.bag.STags = append(g.bag.STags, bag.STags[i])
+		h.Reset()
+	}
+	res := make([]seriesGroup, 0, len(groups))
+	for _, g := range groups {
+		res = append(res, *g)
+	}
+	return res, nil
 }
 
-func (ssi *storageSeriesIterator) Next() bool {
-	ssi.curr++
-	return ssi.curr < len(ssi.points)
+func (bag SeriesBag) hashTags(tags []string, out bool) (map[uint64]int, error) {
+	var by map[string]bool
+	if len(tags) != 0 {
+		by = make(map[string]bool, len(tags))
+		for _, tag := range tags {
+			by[tag] = !out
+		}
+	}
+	var (
+		h   = fnv.New64()
+		res = make(map[uint64]int, len(bag.Tags))
+	)
+	for i := range bag.Tags {
+		sum, _, err := bag.hashTagsAt(i, by, h)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := res[sum]; ok {
+			// should not happen
+			return nil, fmt.Errorf("hash collision")
+		}
+		res[sum] = i
+		h.Reset()
+	}
+	return res, nil
 }
 
-func (ssi *storageSeriesIterator) Err() error {
-	return nil
+func (bag SeriesBag) hashTagsAt(i int, by map[string]bool, h hash.Hash64) (uint64, []string, error) {
+	s := make([]string, 0, len(bag.Tags[i])+len(bag.STags[i]))
+	for tag := range bag.Tags[i] {
+		if by == nil || by[tag] {
+			s = append(s, tag)
+		}
+	}
+	for tag := range bag.STags[i] {
+		if by == nil || by[tag] {
+			s = append(s, tag)
+		}
+	}
+	sort.Strings(s)
+	tagValueID := make([]byte, 4)
+	for _, tag := range s {
+		_, err := h.Write([]byte(tag))
+		if err != nil {
+			return 0, nil, err
+		}
+		if id, ok := bag.Tags[i][tag]; ok {
+			binary.LittleEndian.PutUint32(tagValueID, uint32(id))
+			_, err = h.Write(tagValueID)
+		} else {
+			_, err = h.Write([]byte(bag.STags[i][tag]))
+		}
+		if err != nil {
+			return 0, nil, err
+		}
+	}
+	return h.Sum64(), s, nil
+}
+
+func (bag SeriesBag) dropMetricName() {
+	for i := range bag.Data {
+		delete(bag.STags[i], labels.MetricName)
+	}
+}
+
+func (bag SeriesBag) scalar() bool {
+	if len(bag.Data) != 1 {
+		return false
+	}
+	for _, tags := range bag.Tags {
+		if len(tags) != 0 {
+			return false
+		}
+	}
+	for _, stags := range bag.STags {
+		if len(stags) != 0 {
+			return false
+		}
+	}
+	return true
 }

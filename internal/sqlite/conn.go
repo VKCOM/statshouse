@@ -184,6 +184,10 @@ func (c Conn) LastInsertRowID() int64 {
 	return c.c.rw.LastInsertRowID()
 }
 
+func (c Conn) PrepMapLength() int {
+	return len(c.c.prep)
+}
+
 func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt, error) {
 	if c.c.err != nil {
 		return nil, c.c.err
@@ -192,7 +196,9 @@ func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt,
 	si, ok := c.c.prep[sql]
 	var err error
 	if !ok {
+		start := time.Now()
 		si, err = prepare(c.c.rw, sql)
+		c.stats.measureActionDurationSince("sqlite_prepare", start)
 		if err != nil {
 			return nil, err
 		}

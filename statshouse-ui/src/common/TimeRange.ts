@@ -15,7 +15,7 @@ export const TIME_RANGE_KEYS_TO = {
 
 export const defaultTimeRange = { to: TIME_RANGE_KEYS_TO.default, from: 0 };
 
-export type KeysTo = typeof TIME_RANGE_KEYS_TO[keyof typeof TIME_RANGE_KEYS_TO];
+export type KeysTo = (typeof TIME_RANGE_KEYS_TO)[keyof typeof TIME_RANGE_KEYS_TO];
 
 function constToTime(now: number, value: KeysTo, ms?: boolean) {
   switch (value) {

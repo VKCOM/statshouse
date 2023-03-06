@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { type Store } from './statshouse';
+import { type Store } from './store';
 import * as api from '../view/api';
 import { metricTagValueInfo } from '../view/api';
 
@@ -170,3 +170,7 @@ export const selectorSetSelectMetricsGroup = (s: Store) => s.setSelectMetricsGro
 export const selectorPromConfig = (s: Store) => s.promConfig;
 export const selectorLoadPromConfig = (s: Store) => s.loadPromConfig;
 export const selectorSavePromConfig = (s: Store) => s.savePromConfig;
+
+export const selectorThemeDark = (s: Store) => s.theme.dark;
+export const selectorThemeName = (s: Store) => s.theme.theme;
+export const selectorSetTheme = (s: Store) => s.theme.setTheme;

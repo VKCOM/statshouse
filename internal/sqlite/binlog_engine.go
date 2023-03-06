@@ -114,15 +114,19 @@ func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnap
 	waitCommit := impl.state == waitToCommit && offset >= e.dbOffset
 	// TODO: replace with runtime mode change
 	if waitCommit {
+		start := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), commitTXTimeout)
 		c := e.start(ctx, false)
 		err := e.commitTXAndStartNewLocked(c, true, false, false)
 		impl.lastCommitTime = time.Now()
 		c.close()
+		impl.e.opt.StatsOptions.measureActionDurationSince("engine_commit_delayed_tx", start)
 		cancel()
 		if err != nil {
 			return err
 		}
+		start = time.Now()
+		defer impl.e.opt.StatsOptions.measureActionDurationSince("engine_apply_delayed", start)
 		err = impl.applyQueue.applyAllChanges(impl.apply, impl.skip)
 		if err != nil {
 			return err

@@ -75,7 +75,6 @@ const (
 	mmapSize           = 8 * 1024 * 1024 * 1024 * 1024 // 8TB
 	commitEveryDefault = 1 * time.Second
 	commitTXTimeout    = 10 * time.Second
-	maxROConn          = 3
 
 	beginStmt  = "BEGIN IMMEDIATE" // TODO: not immediate? then SQLITE_BUSY_SNAPSHOT from upgrade is possible
 	commitStmt = "COMMIT"
@@ -138,6 +137,7 @@ type Options struct {
 	ReadAndExit       bool
 	CommitOnEachWrite bool // use only to test. If true break binlog + sqlite consistency
 	ProfileCallback   ProfileCallback
+	MaxROConn         int
 }
 
 type waitCommitInfo struct {
@@ -206,6 +206,9 @@ func openDB(opt Options,
 	scan ApplyEventFunction) (*Engine, error) {
 	if opt.CommitEvery == 0 {
 		opt.CommitEvery = commitEveryDefault
+	}
+	if opt.MaxROConn == 0 {
+		opt.MaxROConn = 100
 	}
 	rw, err := openRW(openWAL, opt.Path, opt.APPID, opt.ProfileCallback, opt.Scheme, initOffsetTable, snapshotMetaTable)
 	if err != nil {
@@ -638,7 +641,7 @@ func (e *Engine) view(ctx context.Context, queryName string, fn func(Conn) error
 	startTimeBeforeLock := time.Now()
 	e.roMx.Lock()
 	var conn *sqliteConn
-	for len(*roFree) == 0 && *roCount >= maxROConn {
+	for len(*roFree) == 0 && *roCount >= e.opt.MaxROConn {
 		e.roCond.Wait()
 	}
 	if len(*roFree) == 0 {

@@ -3,7 +3,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
-
 package metadata
 
 import (
@@ -49,9 +48,7 @@ func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, 
 	})
 
 	ln, err := net.Listen("tcp4", fmt.Sprintf(":%d", 0))
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	go func() {
 		err = server.Serve(ln)
 		if err != rpc.ErrServerClosed {

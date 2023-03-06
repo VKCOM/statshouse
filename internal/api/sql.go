@@ -7,6 +7,7 @@
 package api
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 
@@ -275,6 +276,18 @@ type stringFixed [format.MaxStringLen]byte
 func (s *stringFixed) UnmarshalBinary(data []byte) error {
 	copy(s[:], data)
 	return nil
+}
+
+func (s *stringFixed) String() string {
+	nullIx := bytes.IndexByte(s[:], 0)
+	switch nullIx {
+	case 0:
+		return ""
+	case -1:
+		return string(s[:])
+	default:
+		return string(s[:nullIx])
+	}
 }
 
 func preKeyTableName(lod lodInfo, tagID string, preKeyTagID string, filterIn map[string][]interface{}, filterNotIn map[string][]interface{}) string {

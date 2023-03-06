@@ -9,7 +9,6 @@ package format
 import (
 	"math"
 	"strconv"
-	"sync"
 )
 
 const (
@@ -276,8 +275,7 @@ var (
 	// list of built-in metrics which can be sent as normal metric. Used by API and prometheus exporter
 	// Description: "-" marks tags used in incompatible way in the past. We should not reuse such tags, because there would be garbage in historic data.
 
-	builtinMetricsMx = sync.RWMutex{}
-	builtinMetrics   = map[int32]*MetricMetaValue{
+	BuiltinMetrics = map[int32]*MetricMetaValue{
 		BuiltinMetricIDAgentSamplingFactor: {
 			Name: BuiltinMetricNameAgentSamplingFactor,
 			Kind: MetricKindValue,
@@ -1500,9 +1498,9 @@ func init() {
 	tagIDTag2TagID[TagIDShift-1] = tagStringForUI + " " + NewStringTopTagID // for UI only
 	tagIDTag2TagID[TagIDShift-2] = tagStringForUI + " " + NewHostTagID      // for UI only
 
-	BuiltinMetricByName = make(map[string]*MetricMetaValue, len(builtinMetrics))
-	BuiltinMetricAllowedToReceive = make(map[string]*MetricMetaValue, len(builtinMetrics))
-	for id, m := range builtinMetrics {
+	BuiltinMetricByName = make(map[string]*MetricMetaValue, len(BuiltinMetrics))
+	BuiltinMetricAllowedToReceive = make(map[string]*MetricMetaValue, len(BuiltinMetrics))
+	for id, m := range BuiltinMetrics {
 		m.MetricID = id
 		m.GroupID = BuiltinGroupIDBuiltin
 		m.Visible = !builtinMetricsInvisible[id]
@@ -1565,21 +1563,4 @@ func init() {
 		}
 		_ = m.RestoreCachedInfo()
 	}
-}
-
-func BuiltinMetrics(metric int32) (*MetricMetaValue, bool) {
-	builtinMetricsMx.RLock()
-	defer builtinMetricsMx.RUnlock()
-	v, ok := builtinMetrics[metric]
-	return v, ok
-}
-
-func BuiltinMetricsList() []*MetricMetaValue {
-	builtinMetricsMx.RLock()
-	defer builtinMetricsMx.RUnlock()
-	res := []*MetricMetaValue{}
-	for _, value := range builtinMetrics {
-		res = append(res, value)
-	}
-	return res
 }

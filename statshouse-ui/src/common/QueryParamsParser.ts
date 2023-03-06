@@ -314,6 +314,16 @@ function valueToArray<T extends Record<string, unknown>>(
         return valueToArray(itemConfig, value[key], defaultParams?.[key] ?? config.default, urlSearchParams);
       }
     }
+    if (
+      config.isArray &&
+      value?.[key] &&
+      isArray(value[key]) &&
+      !(value[key] as unknown[]).length &&
+      typeof (defaultParams?.[key] ?? config.default) !== 'undefined' &&
+      ((defaultParams?.[key] ?? config.default) as unknown[]).length
+    ) {
+      return [[nameParam, removeValueChar]];
+    }
     if (!value && config.required && typeof (defaultParams?.[key] ?? config.default) !== 'undefined') {
       return [[nameParam, removeValueChar]];
     }
@@ -447,6 +457,9 @@ export function decodeQueryParams<T extends Record<string, unknown>>(
 
       if (config.required && values.length === 0 && !(defaultParams?.[key] ?? config.default)) {
         throw new Error('required param not find ' + prefix + (urlKey ?? key));
+      }
+      if (config.isArray && values.length === 1 && values[0] === removeValueChar) {
+        return [key, []];
       }
       if (config.isArray && values.length === 0) {
         return [key, defaultParams?.[key] ?? config.default];

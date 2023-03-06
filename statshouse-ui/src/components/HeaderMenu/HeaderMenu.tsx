@@ -10,17 +10,34 @@ import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.
 import { ReactComponent as SVGGridFill } from 'bootstrap-icons/icons/grid-fill.svg';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import { ReactComponent as SVGCardList } from 'bootstrap-icons/icons/card-list.svg';
+import { ReactComponent as SVGBrightnessHighFill } from 'bootstrap-icons/icons/brightness-high-fill.svg';
+import { ReactComponent as SVGMoonStarsFill } from 'bootstrap-icons/icons/moon-stars-fill.svg';
+import { ReactComponent as SVGCircleHalf } from 'bootstrap-icons/icons/circle-half.svg';
 // import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
 import cn from 'classnames';
+import produce from 'immer';
 
 import { HeaderMenuItem } from './HeaderMenuItem';
-import { selectorParams, selectorPlotList, selectorSetParams, useStore } from '../../store';
+import {
+  selectorParams,
+  selectorPlotList,
+  selectorSetParams,
+  selectorSetTheme,
+  selectorThemeName,
+  THEMES,
+  useStore,
+} from '../../store';
 import { currentAccessInfo, logoutURL } from '../../common/access';
 import { HeaderMenuItemPlot } from './HeaderMenuItemPlot';
-import css from './style.module.scss';
+import css from './style.module.css';
 import { PlotLink } from '../Plot/PlotLink';
 import { parseParamsFromUrl } from '../../common/plotQueryParams';
-import produce from 'immer';
+
+const themeIcon = {
+  [THEMES.Light]: SVGBrightnessHighFill,
+  [THEMES.Dark]: SVGMoonStarsFill,
+  [THEMES.Auto]: SVGCircleHalf,
+};
 
 export type HeaderMenuProps = {
   className?: string;
@@ -32,6 +49,9 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   const menuPlots = useStore(selectorPlotList);
   const location = useLocation();
   const ai = currentAccessInfo();
+
+  const themeName = useStore(selectorThemeName);
+  const setTheme = useStore(selectorSetTheme);
 
   const isView = location.pathname === '/view';
   const isDashList = location.pathname === '/dash-list';
@@ -61,6 +81,16 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
         }
       });
   }, [setParams]);
+
+  const onDark = useCallback(() => {
+    setTheme(THEMES.Dark);
+  }, [setTheme]);
+  const onLight = useCallback(() => {
+    setTheme(THEMES.Light);
+  }, [setTheme]);
+  const onAuto = useCallback(() => {
+    setTheme(THEMES.Auto);
+  }, [setTheme]);
 
   return (
     <div className={cn('sticky-top align-self-start', css.navOuter, className)}>
@@ -126,6 +156,24 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
               </li>
             </>
           )}
+        </HeaderMenuItem>
+        <HeaderMenuItem icon={themeIcon[themeName] ?? SVGBrightnessHighFill} title="Theme">
+          <li className={css.splitter}></li>
+          <li className={cn('nav-item', themeName === THEMES.Dark && 'bg-primary-subtle')}>
+            <span role="button" className="nav-link" title="Set dark theme" onClick={onDark}>
+              Dark
+            </span>
+          </li>
+          <li className={cn('nav-item', themeName === THEMES.Light && 'bg-primary-subtle')}>
+            <span role="button" className="nav-link" title="Set light theme" onClick={onLight}>
+              Light
+            </span>
+          </li>
+          <li className={cn('nav-item', themeName === THEMES.Auto && 'bg-primary-subtle')}>
+            <span role="button" className="nav-link" title="Set auto theme" onClick={onAuto}>
+              Auto
+            </span>
+          </li>
         </HeaderMenuItem>
         {/*{ai.admin && (
           <HeaderMenuItem

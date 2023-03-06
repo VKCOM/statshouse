@@ -66,9 +66,8 @@ services:
     container_name: sh-agent
     user: "root:root"
     command: agent -u=root -g=root --cluster=test_shard_aggregator --log-level=trace --agg-addr='aggregator:13336,aggregator:13336,aggregator:13336' --cache-dir=/var/lib/statshouse/cache/agent --remote-write-enabled
-    expose:
-      - 8081
     ports:
+      - "8081:8081"
       - "13337:13337/udp"
       - "13337:13337/tcp"
     depends_on:
@@ -149,29 +148,7 @@ services:
     volumes:
       - metadata:/var/lib/statshouse/metadata
       - kh:/var/lib/clickhouse
-  grafana:
-    profiles:
-      - api-dev
-    image: grafana/grafana-oss
-    container_name: grafana
-    volumes:
-      - grafana:/var/lib/grafana
-    expose:
-      - 3000
-    network_mode: host
-  prometheus:
-    profiles:
-      - api-dev
-    image: prom/prometheus
-    container_name: prometheus
-    volumes:
-      - prometheus:/prometheus
-      - ./build/prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
 
 volumes:
   kh:
   metadata:
-  prometheus:
-  grafana:

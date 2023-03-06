@@ -7,20 +7,65 @@
 package promql
 
 import (
-	"time"
+	"context"
+	"math"
 
-	"github.com/prometheus/prometheus/promql/parser"
+	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse/internal/format"
 )
 
-// Exported private promql functions
-// Extracted to separate file to change the source code of prometheus less
-// (it is easier to see what's really changed)
+type What int
 
-func UnwrapParenExpr(e *parser.Expr) {
-	unwrapParenExpr(e)
+const (
+	Unspecified What = iota
+	AggregateCount
+	Count
+	Min
+	Max
+	Sum
+	Avg
+
+	NilValueBits = 0x7ff0000000000002
+)
+
+var NilValue = math.Float64frombits(NilValueBits)
+
+type LOD struct {
+	Len, Step int64
 }
 
-func (ng *Engine) GetTimeRangesForSelector(s *parser.EvalStmt, n *parser.VectorSelector, path []parser.Node, evalRange time.Duration) (int64, int64) {
-	start, end := ng.getTimeRangesForSelector(s, n, path, evalRange)
-	return start / 1_000, end / 1_000
+type SeriesQuery struct {
+	// what
+	Meta *format.MetricMetaValue
+	What What
+
+	// when
+	From int64
+	LODs []LOD
+
+	// grouping
+	GroupBy []string
+
+	// filtering
+	FilterIn   [format.MaxTags]map[int32]string // tagIx -> tagValueID -> tagValue
+	FilterOut  [format.MaxTags]map[int32]string // as above
+	SFilterIn  []string
+	SFilterOut []string
+}
+
+type DataAccess interface {
+	MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, error)
+	GetQueryLODs(qry Query, maxOffset map[*format.MetricMetaValue]int64, now int64) ([]LOD, error)
+
+	GetTagValue(id int32) string
+	GetTagValueID(val string) (int32, error)
+
+	QuerySeries(ctx context.Context, qry *SeriesQuery) (SeriesBag, func(), error)
+	QueryTagValues(ctx context.Context, meta *format.MetricMetaValue, tagIx int, from, to int64) ([]int32, error)
+	QuerySTagValues(ctx context.Context, meta *format.MetricMetaValue, from, to int64) ([]string, error)
+}
+
+type Allocator interface {
+	Alloc(int) *[]float64
+	Free(*[]float64)
 }

@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { To } from 'react-router-dom';
 import cn from 'classnames';
 
-import css from './style.module.scss';
+import css from './style.module.css';
 import { PlotLink } from '../Plot/PlotLink';
 
 export type HeaderMenuItemProps = {
@@ -78,14 +78,14 @@ export const HeaderMenuItem: React.FC<HeaderMenuItemProps> = ({
           <Icon className={css.icon} />
         </PlotLink>
       ) : (
-        <span className="nav-link text-secondary" onTouchStart={onToggle}>
+        <span className={cn('nav-link text-secondary')} onTouchStart={onToggle}>
           <Icon className={css.icon} />
         </span>
       )}
 
       <ul
         hidden={!open}
-        className={cn(`nav bg-light d-flex flex-column position-absolute start-100 top-0`, css.nav, css.sub)}
+        className={cn(`nav d-flex flex-column position-absolute start-100 top-0`, css.nav, css.sub)}
         ref={sub}
       >
         {to || indexPlot !== undefined ? (
@@ -96,7 +96,7 @@ export const HeaderMenuItem: React.FC<HeaderMenuItemProps> = ({
           </li>
         ) : (
           <li className="nav-item">
-            <span className="nav-link text-secondary text-nowrap">{description ?? title}</span>
+            <span className={cn('nav-link text-secondary text-nowrap')}>{description ?? title}</span>
           </li>
         )}
         {children}

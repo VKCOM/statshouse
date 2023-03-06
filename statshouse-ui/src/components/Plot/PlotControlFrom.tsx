@@ -8,6 +8,7 @@ import React, { ChangeEvent, memo, useCallback, useMemo } from 'react';
 import { SetTimeRange, TIME_RANGE_KEYS_TO, TimeRange } from '../../common/TimeRange';
 import { TimeHelper } from '../../common/TimeHelper';
 import { now, timeRangeAbbrev, timeRangeAbbrevExpand, timeRangeString, timeRangeToAbbrev } from '../../view/utils';
+import cn from 'classnames';
 
 export type PlotControlFromProps = {
   timeRange: TimeRange;
@@ -62,7 +63,7 @@ export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({
   );
 
   return (
-    <div className={`input-group flex-nowrap ${className}`}>
+    <div className={cn('input-group flex-nowrap', className)}>
       <select
         className={`form-select ${classNameSelect}`}
         value={timeRangeToAbbrev(timeRange)}
