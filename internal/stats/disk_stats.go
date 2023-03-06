@@ -33,7 +33,7 @@ func NewDiskStats(pusher Pusher) (*DiskStats, error) {
 func (c *DiskStats) PushMetrics() error {
 	stats, err := c.fs.ProcDiskstats()
 	if err != nil {
-		return fmt.Errorf("failed to get meminfo: %w", err)
+		return fmt.Errorf("failed to get disk stats: %w", err)
 	}
 	for _, stat := range stats {
 		device := stat.DeviceName
@@ -43,8 +43,8 @@ func (c *DiskStats) PushMetrics() error {
 			continue
 		}
 		readIO := stat.ReadIOs - oldStat.ReadIOs
-		writeIO := stat.WriteIOs - stat.WriteIOs
-		discardIO := stat.DiscardIOs - stat.DiscardIOs
+		writeIO := stat.WriteIOs - oldStat.WriteIOs
+		discardIO := stat.DiscardIOs - oldStat.DiscardIOs
 
 		c.pusher.PushSystemMetricCount(disk, float64(readIO), "read")
 		c.pusher.PushSystemMetricCount(disk, float64(writeIO), "write")

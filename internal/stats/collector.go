@@ -56,7 +56,11 @@ func NewCollectorManager(opt CollectorManagerOptions) (*CollectorManager, error)
 	if err != nil {
 		return nil, err
 	}
-	collectors := []Collector{cpuStats, diskStats, memStats, netStats}
+	psiStats, err := NewPSI(pusher)
+	if err != nil {
+		return nil, err
+	}
+	collectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &CollectorManager{
 		opt:        opt,

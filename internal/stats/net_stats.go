@@ -283,6 +283,7 @@ func parseNetstat(reader io.Reader) (netStat, error) {
 		}
 
 		if err != nil {
+			continue
 			//todo log
 		}
 	}

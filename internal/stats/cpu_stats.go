@@ -2,6 +2,7 @@ package stats
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/prometheus/procfs"
 )
@@ -87,8 +88,8 @@ func (c *CPUStats) pushCPUMetrics(stat procfs.Stat) error {
 }
 
 func (c *CPUStats) pushSystemMetrics(stat procfs.Stat) error {
-	boot := stat.BootTime
-	c.pusher.PushSystemMetricValue(bt, float64(boot))
+	uptime := uint64(time.Now().Unix()) - stat.BootTime
+	c.pusher.PushSystemMetricValue(bt, float64(uptime))
 	c.pusher.PushSystemMetricValue(pr, float64(stat.ProcessesRunning))
 	c.pusher.PushSystemMetricCount(pc, float64(stat.ProcessCreated-c.stat.ProcessCreated))
 	c.pusher.PushSystemMetricValue(pb, float64(stat.ProcessesBlocked))
