@@ -47,9 +47,8 @@ const (
 	MaxHistoricWindow    = 86400 // 1 day to send historic data, then drop
 	MaxHistoricWindowLag = 100   // Clients try to delete old data themselves, we allow some lag for those who already sent us data
 
-	BelieveTimestampWindow = 3600 * 3 / 2 // Hour plus some margin, for crons running once per hour
-	// TODO - in the next release, increase to 24 hours plus margin. Parts are quickly merged, so all timestamps in
-	// [-day..0] will be quickly and thoroughly optimized.
+	BelieveTimestampWindow = 86400 + 2*3600 // Margin for crons running once per day.
+	// Parts are quickly merged, so all timestamps in [-day..0] will be quickly and thoroughly optimized.
 
 	MinCardinalityWindow = 300 // Our estimators GC depends on this not being too small
 	MinMaxCardinality    = 100

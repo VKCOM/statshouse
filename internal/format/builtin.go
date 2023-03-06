@@ -177,7 +177,7 @@ const (
 	TagValueIDSrcIngestionStatusErrMetricNonCanonical        = 41 // never written, for historic data
 	TagValueIDSrcIngestionStatusErrMetricInvisible           = 42
 	TagValueIDSrcIngestionStatusErrLegacyProtocol            = 43 // we stopped adding metrics to conveyor via legacy protocol
-	TagValueIDSrcIngestionStatusWarnDeprecatedT              = 44
+	TagValueIDSrcIngestionStatusWarnDeprecatedT              = 44 // never written, for historic data
 	TagValueIDSrcIngestionStatusWarnDeprecatedStop           = 45 // never written, for historic data
 	TagValueIDSrcIngestionStatusWarnMapTagSetTwice           = 46
 	TagValueIDSrcIngestionStatusWarnDeprecatedKeyName        = 47

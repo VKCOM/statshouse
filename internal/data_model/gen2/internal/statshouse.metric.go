@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -19,7 +19,6 @@ type StatshouseMetric struct {
 	Tags       map[string]string
 	Counter    float64   // Conditional: item.FieldsMask.0
 	Ts         uint32    // Conditional: item.FieldsMask.4
-	T          int64     // Conditional: item.FieldsMask.5
 	Value      []float64 // Conditional: item.FieldsMask.1
 	Unique     []int64   // Conditional: item.FieldsMask.2
 }
@@ -47,16 +46,6 @@ func (item *StatshouseMetric) ClearTs() {
 }
 func (item StatshouseMetric) IsSetTs() bool { return item.FieldsMask&(1<<4) != 0 }
 
-func (item *StatshouseMetric) SetT(v int64) {
-	item.T = v
-	item.FieldsMask |= 1 << 5
-}
-func (item *StatshouseMetric) ClearT() {
-	item.T = 0
-	item.FieldsMask &^= 1 << 5
-}
-func (item StatshouseMetric) IsSetT() bool { return item.FieldsMask&(1<<5) != 0 }
-
 func (item *StatshouseMetric) SetValue(v []float64) {
 	item.Value = v
 	item.FieldsMask |= 1 << 1
@@ -83,7 +72,6 @@ func (item *StatshouseMetric) Reset() {
 	VectorDictionaryFieldString0Reset(item.Tags)
 	item.Counter = 0
 	item.Ts = 0
-	item.T = 0
 	item.Value = item.Value[:0]
 	item.Unique = item.Unique[:0]
 }
@@ -111,13 +99,6 @@ func (item *StatshouseMetric) Read(w []byte) (_ []byte, err error) {
 		}
 	} else {
 		item.Ts = 0
-	}
-	if item.FieldsMask&(1<<5) != 0 {
-		if w, err = basictl.LongRead(w, &item.T); err != nil {
-			return w, err
-		}
-	} else {
-		item.T = 0
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = VectorDouble0Read(w, &item.Value); err != nil {
@@ -149,9 +130,6 @@ func (item *StatshouseMetric) Write(w []byte) (_ []byte, err error) {
 	}
 	if item.FieldsMask&(1<<4) != 0 {
 		w = basictl.NatWrite(w, item.Ts)
-	}
-	if item.FieldsMask&(1<<5) != 0 {
-		w = basictl.LongWrite(w, item.T)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = VectorDouble0Write(w, item.Value); err != nil {
@@ -208,8 +186,6 @@ func (item *StatshouseMetric) readJSON(j interface{}) error {
 	delete(_jm, "counter")
 	_jTs := _jm["ts"]
 	delete(_jm, "ts")
-	_jT := _jm["t"]
-	delete(_jm, "t")
 	_jValue := _jm["value"]
 	delete(_jm, "value")
 	_jUnique := _jm["unique"]
@@ -222,9 +198,6 @@ func (item *StatshouseMetric) readJSON(j interface{}) error {
 	}
 	if _jTs != nil {
 		item.FieldsMask |= 1 << 4
-	}
-	if _jT != nil {
-		item.FieldsMask |= 1 << 5
 	}
 	if _jValue != nil {
 		item.FieldsMask |= 1 << 1
@@ -248,13 +221,6 @@ func (item *StatshouseMetric) readJSON(j interface{}) error {
 		}
 	} else {
 		item.Ts = 0
-	}
-	if _jT != nil {
-		if err := JsonReadInt64(_jT, &item.T); err != nil {
-			return err
-		}
-	} else {
-		item.T = 0
 	}
 	if _jValue != nil {
 		if err := VectorDouble0ReadJSON(_jValue, &item.Value); err != nil {
@@ -306,13 +272,6 @@ func (item *StatshouseMetric) WriteJSON(w []byte) (_ []byte, err error) {
 			w = basictl.JSONWriteUint32(w, item.Ts)
 		}
 	}
-	if item.FieldsMask&(1<<5) != 0 {
-		if item.T != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"t":`...)
-			w = basictl.JSONWriteInt64(w, item.T)
-		}
-	}
 	if item.FieldsMask&(1<<1) != 0 {
 		if len(item.Value) != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
@@ -355,7 +314,6 @@ type StatshouseMetricBytes struct {
 	Tags       []DictionaryFieldStringBytes
 	Counter    float64   // Conditional: item.FieldsMask.0
 	Ts         uint32    // Conditional: item.FieldsMask.4
-	T          int64     // Conditional: item.FieldsMask.5
 	Value      []float64 // Conditional: item.FieldsMask.1
 	Unique     []int64   // Conditional: item.FieldsMask.2
 }
@@ -383,16 +341,6 @@ func (item *StatshouseMetricBytes) ClearTs() {
 }
 func (item StatshouseMetricBytes) IsSetTs() bool { return item.FieldsMask&(1<<4) != 0 }
 
-func (item *StatshouseMetricBytes) SetT(v int64) {
-	item.T = v
-	item.FieldsMask |= 1 << 5
-}
-func (item *StatshouseMetricBytes) ClearT() {
-	item.T = 0
-	item.FieldsMask &^= 1 << 5
-}
-func (item StatshouseMetricBytes) IsSetT() bool { return item.FieldsMask&(1<<5) != 0 }
-
 func (item *StatshouseMetricBytes) SetValue(v []float64) {
 	item.Value = v
 	item.FieldsMask |= 1 << 1
@@ -419,7 +367,6 @@ func (item *StatshouseMetricBytes) Reset() {
 	item.Tags = item.Tags[:0]
 	item.Counter = 0
 	item.Ts = 0
-	item.T = 0
 	item.Value = item.Value[:0]
 	item.Unique = item.Unique[:0]
 }
@@ -447,13 +394,6 @@ func (item *StatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {
 		}
 	} else {
 		item.Ts = 0
-	}
-	if item.FieldsMask&(1<<5) != 0 {
-		if w, err = basictl.LongRead(w, &item.T); err != nil {
-			return w, err
-		}
-	} else {
-		item.T = 0
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = VectorDouble0Read(w, &item.Value); err != nil {
@@ -485,9 +425,6 @@ func (item *StatshouseMetricBytes) Write(w []byte) (_ []byte, err error) {
 	}
 	if item.FieldsMask&(1<<4) != 0 {
 		w = basictl.NatWrite(w, item.Ts)
-	}
-	if item.FieldsMask&(1<<5) != 0 {
-		w = basictl.LongWrite(w, item.T)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = VectorDouble0Write(w, item.Value); err != nil {
@@ -546,8 +483,6 @@ func (item *StatshouseMetricBytes) readJSON(j interface{}) error {
 	delete(_jm, "counter")
 	_jTs := _jm["ts"]
 	delete(_jm, "ts")
-	_jT := _jm["t"]
-	delete(_jm, "t")
 	_jValue := _jm["value"]
 	delete(_jm, "value")
 	_jUnique := _jm["unique"]
@@ -560,9 +495,6 @@ func (item *StatshouseMetricBytes) readJSON(j interface{}) error {
 	}
 	if _jTs != nil {
 		item.FieldsMask |= 1 << 4
-	}
-	if _jT != nil {
-		item.FieldsMask |= 1 << 5
 	}
 	if _jValue != nil {
 		item.FieldsMask |= 1 << 1
@@ -586,13 +518,6 @@ func (item *StatshouseMetricBytes) readJSON(j interface{}) error {
 		}
 	} else {
 		item.Ts = 0
-	}
-	if _jT != nil {
-		if err := JsonReadInt64(_jT, &item.T); err != nil {
-			return err
-		}
-	} else {
-		item.T = 0
 	}
 	if _jValue != nil {
 		if err := VectorDouble0ReadJSON(_jValue, &item.Value); err != nil {
@@ -642,13 +567,6 @@ func (item *StatshouseMetricBytes) WriteJSON(w []byte) (_ []byte, err error) {
 			w = basictl.JSONAddCommaIfNeeded(w)
 			w = append(w, `"ts":`...)
 			w = basictl.JSONWriteUint32(w, item.Ts)
-		}
-	}
-	if item.FieldsMask&(1<<5) != 0 {
-		if item.T != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"t":`...)
-			w = basictl.JSONWriteInt64(w, item.T)
 		}
 	}
 	if item.FieldsMask&(1<<1) != 0 {
