@@ -117,25 +117,6 @@ func msgpackUnmarshalStatshouseMetric(m *tlstatshouse.MetricBytes, buf []byte) (
 				}
 			}
 			m.SetUnique(value)
-		case "stop":
-			var numSTop uint32
-			numSTop, buf, err = msgp.ReadArrayHeaderBytes(buf)
-			if err != nil {
-				return nil, msgp.WrapError(err, "STop")
-			}
-			value := m.Stop
-			if cap(value) >= int(numSTop) {
-				value = value[:numSTop]
-			} else {
-				value = make([][]byte, numSTop)
-			}
-			for i := range value {
-				value[i], buf, err = msgp.ReadStringAsBytes(buf, value[i])
-				if err != nil {
-					return nil, msgp.WrapError(err, "Stop", i)
-				}
-			}
-			m.SetStop(value)
 		default:
 			buf, err = msgp.Skip(buf)
 			if err != nil {

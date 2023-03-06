@@ -13,15 +13,13 @@ import (
 
 var _ = basictl.NatWrite
 
-var _ = True{}
-
 type StatshouseGetMetrics3 struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeader
 	FieldMask  uint32
 	From       int64
 	Limit      int64
-	// ReturnIfEmpty True // Conditional: item.FieldMask.3
+	// ReturnIfEmpty (TrueType) // Conditional: item.FieldMask.3
 }
 
 func (StatshouseGetMetrics3) TLName() string { return "statshouse.getMetrics3" }
@@ -34,7 +32,7 @@ func (item *StatshouseGetMetrics3) SetReturnIfEmpty(v bool) {
 		item.FieldMask &^= 1 << 3
 	}
 }
-func (item *StatshouseGetMetrics3) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
+func (item StatshouseGetMetrics3) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
 
 func (item *StatshouseGetMetrics3) Reset() {
 	item.FieldsMask = 0
@@ -239,15 +237,13 @@ func (item *StatshouseGetMetrics3) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-var _ = True{}
-
 type StatshouseGetMetrics3Bytes struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeaderBytes
 	FieldMask  uint32
 	From       int64
 	Limit      int64
-	// ReturnIfEmpty True // Conditional: item.FieldMask.3
+	// ReturnIfEmpty (TrueType) // Conditional: item.FieldMask.3
 }
 
 func (StatshouseGetMetrics3Bytes) TLName() string { return "statshouse.getMetrics3" }
@@ -260,7 +256,7 @@ func (item *StatshouseGetMetrics3Bytes) SetReturnIfEmpty(v bool) {
 		item.FieldMask &^= 1 << 3
 	}
 }
-func (item *StatshouseGetMetrics3Bytes) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
+func (item StatshouseGetMetrics3Bytes) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
 
 func (item *StatshouseGetMetrics3Bytes) Reset() {
 	item.FieldsMask = 0

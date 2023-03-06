@@ -33,7 +33,7 @@ func (item *EngineReadWriteMode) ClearReadEnabled(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 0
 	}
 }
-func (item *EngineReadWriteMode) IsSetReadEnabled(nat_fields_mask uint32) bool {
+func (item EngineReadWriteMode) IsSetReadEnabled(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<0) != 0
 }
 
@@ -49,7 +49,7 @@ func (item *EngineReadWriteMode) ClearWriteEnabled(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 1
 	}
 }
-func (item *EngineReadWriteMode) IsSetWriteEnabled(nat_fields_mask uint32) bool {
+func (item EngineReadWriteMode) IsSetWriteEnabled(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<1) != 0
 }
 

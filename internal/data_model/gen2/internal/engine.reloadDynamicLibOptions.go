@@ -31,7 +31,7 @@ func (item *EngineReloadDynamicLibOptions) ClearSlicesPart() {
 	item.SlicesPart = 0
 	item.FieldsMask &^= 1 << 0
 }
-func (item *EngineReloadDynamicLibOptions) IsSetSlicesPart() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item EngineReloadDynamicLibOptions) IsSetSlicesPart() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *EngineReloadDynamicLibOptions) Reset() {
 	item.FieldsMask = 0

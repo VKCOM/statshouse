@@ -129,18 +129,6 @@ func (proxy *IngressProxy) handler(ctx context.Context, hctx *rpc.HandlerContext
 func (proxy *IngressProxy) handlerImpl(ctx context.Context, hctx *rpc.HandlerContext) (isLocal bool, err error) {
 	tag, _ := basictl.NatPeekTag(hctx.Request)
 	switch tag {
-	case constants.StatshouseGetConfig: // TODO - remove after release version is everywhere
-		var args tlstatshouse.GetConfig
-		var ret tlstatshouse.GetConfigResult
-		_, err := args.ReadBoxed(hctx.Request)
-		if err != nil {
-			return true, fmt.Errorf("failed to deserialize statshouse.getConfig request: %w", err)
-		}
-		ret.Addresses = proxy.config.ExternalAddresses
-		ret.MaxAddressesCount = proxy.sh2.GetConfigResult.MaxAddressesCount
-		ret.PreviousAddresses = proxy.sh2.GetConfigResult.PreviousAddresses
-		hctx.Response, err = args.WriteResult(hctx.Response, ret)
-		return true, err
 	case constants.StatshouseGetConfig2:
 		var args tlstatshouse.GetConfig2
 		var ret tlstatshouse.GetConfigResult
@@ -153,11 +141,7 @@ func (proxy *IngressProxy) handlerImpl(ctx context.Context, hctx *rpc.HandlerCon
 		ret.PreviousAddresses = proxy.sh2.GetConfigResult.PreviousAddresses
 		hctx.Response, err = args.WriteResult(hctx.Response, ret)
 		return true, err
-	case constants.StatshouseGetMetrics, constants.StatshouseGetTagMapping,
-		constants.StatshouseSendKeepAlive, constants.StatshouseSendSourceBucket,
-		constants.StatshouseTestConnection, constants.StatshouseGetTargets:
-		return proxy.proxyLegacyRequest(tag, ctx, hctx) // TODO - remove after release version is everywhere
-	case constants.StatshouseGetMetrics2, constants.StatshouseGetTagMapping2,
+	case constants.StatshouseGetTagMapping2,
 		constants.StatshouseSendKeepAlive2, constants.StatshouseSendSourceBucket2,
 		constants.StatshouseTestConnection2, constants.StatshouseGetTargets2,
 		constants.StatshouseGetTagMappingBootstrap, constants.StatshouseGetMetrics3,
@@ -184,59 +168,6 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	// TODO - collect metric, send to aggregator, reply with error to clients
 	address := proxy.sh2.GetConfigResult.Addresses[shardReplica%uint32(len(proxy.sh2.GetConfigResult.Addresses))]
 
-	proxy.mu.Lock()
-	client, ok := proxy.clients[remoteAddress]
-	if !ok {
-		client = &rpc.Client{
-			Logf:                log.Printf,
-			CryptoKey:           proxy.aesPwd,
-			TrustedSubnetGroups: build.TrustedSubnetGroups(),
-		}
-		proxy.clients[remoteAddress] = client
-	}
-	proxy.mu.Unlock()
-	if !ok {
-		log.Printf("First connection from %s", remoteAddress)
-	}
-	req := client.GetRequest()
-	req.Body = append(req.Body, hctx.Request...)
-	req.Extra.FailIfNoConnection = true
-
-	resp, err := client.Do(ctx, proxy.config.Network, address, req)
-	if err != nil {
-		return false, err
-	}
-	defer client.PutResponse(resp)
-
-	hctx.Response = append(hctx.Response, resp.Body...)
-
-	return false, nil
-}
-
-func (proxy *IngressProxy) proxyLegacyRequest(tag uint32, ctx context.Context, hctx *rpc.HandlerContext) (isLocal bool, err error) {
-	if len(hctx.Request) < 16 {
-		return true, fmt.Errorf("ingress proxy legacy query with tag 0x%x is too short - %d bytes", tag, len(hctx.Request))
-	}
-	fieldsMask := binary.LittleEndian.Uint32(hctx.Request[4:])
-	shardReplica := binary.LittleEndian.Uint32(hctx.Request[8:])
-	// shardReplicaTotal := binary.LittleEndian.Uint32(hctx.Request.Bytes()[12:])
-	if fieldsMask&(1<<5) != (1 << 5) { // !args.IsSetShardReplica2()
-		return true, fmt.Errorf("ingress proxy requires correct field mask, %d is incorrect for tag 0x%x", fieldsMask, tag)
-	}
-	// if int(shardReplicaTotal) != len(proxy.config.AggregatorAddresses) {
-	//	return fmt.Errorf("ingress proxy misconfiguration - expected total %d, actual total %d", len(proxy.config.AggregatorAddresses), shardReplicaTotal)
-	// }
-	// if shardReplica >= shardReplicaTotal {
-	//	return fmt.Errorf("ingress proxy misconfiguration - invalid shard_replica %d, total %d", shardReplica, shardReplicaTotal)
-	// }
-	fieldsMask |= (1 << 6) // args.SetIngressProxy(true)
-	binary.LittleEndian.PutUint32(hctx.Request[4:], fieldsMask)
-
-	// Motivation of % len - we pass through badly configured requests for now, so aggregators will record them in builtin metric
-	// TODO - collect metric, send to aggregator, reply with error to clients
-	address := proxy.sh2.GetConfigResult.Addresses[shardReplica%uint32(len(proxy.sh2.GetConfigResult.Addresses))]
-
-	_, remoteAddress := addrIPString(hctx.RemoteAddr()) // without port, so per machine
 	proxy.mu.Lock()
 	client, ok := proxy.clients[remoteAddress]
 	if !ok {

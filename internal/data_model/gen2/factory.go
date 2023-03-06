@@ -640,20 +640,10 @@ var (
 		tlName:       "statshouse.getTagMappingResult",
 		createObject: func() Object { var ret internal.StatshouseGetTagMappingResult; return &ret },
 	}
-	itemStatshouseIngestionStatus = TLItem{
-		tag:          0x531e04a3,
-		tlName:       "statshouse.ingestion_status",
-		createObject: func() Object { var ret internal.StatshouseIngestionStatus; return &ret },
-	}
 	itemStatshouseIngestionStatus2 = TLItem{
 		tag:          0x2e17a6d3,
 		tlName:       "statshouse.ingestion_status2",
 		createObject: func() Object { var ret internal.StatshouseIngestionStatus2; return &ret },
-	}
-	itemStatshouseItem = TLItem{
-		tag:          0xc803d06,
-		tlName:       "statshouse.item",
-		createObject: func() Object { var ret internal.StatshouseItem; return &ret },
 	}
 	itemStatshouseMapping = TLItem{
 		tag:          0xbf401d4b,
@@ -685,20 +675,10 @@ var (
 		tlName:       "statshouse.sample_factor",
 		createObject: func() Object { var ret internal.StatshouseSampleFactor; return &ret },
 	}
-	itemStatshouseSourceBucket = TLItem{
-		tag:          0x3af6c822,
-		tlName:       "statshouse.sourceBucket",
-		createObject: func() Object { var ret internal.StatshouseSourceBucket; return &ret },
-	}
 	itemStatshouseSourceBucket2 = TLItem{
 		tag:          0x3af6e822,
 		tlName:       "statshouse.sourceBucket2",
 		createObject: func() Object { var ret internal.StatshouseSourceBucket2; return &ret },
-	}
-	itemStatshouseStringTopElement = TLItem{
-		tag:          0xec2e097d,
-		tlName:       "statshouse.string_top_element",
-		createObject: func() Object { var ret internal.StatshouseStringTopElement; return &ret },
 	}
 	itemStatshouseTopElement = TLItem{
 		tag:          0x9ffdea42,
@@ -717,41 +697,17 @@ var (
 		createFunction: func() Function { var ret internal.StatshouseAutoCreate; return &ret },
 		createObject:   func() Object { var ret internal.StatshouseAutoCreate; return &ret },
 	}
-	itemStatshouseGetConfig = TLItem{
-		tag:            0x3285ff57,
-		tlName:         "statshouse.getConfig",
-		createFunction: func() Function { var ret internal.StatshouseGetConfig; return &ret },
-		createObject:   func() Object { var ret internal.StatshouseGetConfig; return &ret },
-	}
 	itemStatshouseGetConfig2 = TLItem{
 		tag:            0x4285ff57,
 		tlName:         "statshouse.getConfig2",
 		createFunction: func() Function { var ret internal.StatshouseGetConfig2; return &ret },
 		createObject:   func() Object { var ret internal.StatshouseGetConfig2; return &ret },
 	}
-	itemStatshouseGetMetrics = TLItem{
-		tag:            0x3285ff54,
-		tlName:         "statshouse.getMetrics",
-		createFunction: func() Function { var ret internal.StatshouseGetMetrics; return &ret },
-		createObject:   func() Object { var ret internal.StatshouseGetMetrics; return &ret },
-	}
-	itemStatshouseGetMetrics2 = TLItem{
-		tag:            0x4285ff54,
-		tlName:         "statshouse.getMetrics2",
-		createFunction: func() Function { var ret internal.StatshouseGetMetrics2; return &ret },
-		createObject:   func() Object { var ret internal.StatshouseGetMetrics2; return &ret },
-	}
 	itemStatshouseGetMetrics3 = TLItem{
 		tag:            0x42855554,
 		tlName:         "statshouse.getMetrics3",
 		createFunction: func() Function { var ret internal.StatshouseGetMetrics3; return &ret },
 		createObject:   func() Object { var ret internal.StatshouseGetMetrics3; return &ret },
-	}
-	itemStatshouseGetTagMapping = TLItem{
-		tag:            0x3285ff56,
-		tlName:         "statshouse.getTagMapping",
-		createFunction: func() Function { var ret internal.StatshouseGetTagMapping; return &ret },
-		createObject:   func() Object { var ret internal.StatshouseGetTagMapping; return &ret },
 	}
 	itemStatshouseGetTagMapping2 = TLItem{
 		tag:            0x4285ff56,
@@ -765,23 +721,11 @@ var (
 		createFunction: func() Function { var ret internal.StatshouseGetTagMappingBootstrap; return &ret },
 		createObject:   func() Object { var ret internal.StatshouseGetTagMappingBootstrap; return &ret },
 	}
-	itemStatshouseGetTargets = TLItem{
-		tag:            0x51df72a3,
-		tlName:         "statshouse.getTargets",
-		createFunction: func() Function { var ret internal.StatshouseGetTargets; return &ret },
-		createObject:   func() Object { var ret internal.StatshouseGetTargets; return &ret },
-	}
 	itemStatshouseGetTargets2 = TLItem{
 		tag:            0x41df72a3,
 		tlName:         "statshouse.getTargets2",
 		createFunction: func() Function { var ret internal.StatshouseGetTargets2; return &ret },
 		createObject:   func() Object { var ret internal.StatshouseGetTargets2; return &ret },
-	}
-	itemStatshouseSendKeepAlive = TLItem{
-		tag:            0x3285ff53,
-		tlName:         "statshouse.sendKeepAlive",
-		createFunction: func() Function { var ret internal.StatshouseSendKeepAlive; return &ret },
-		createObject:   func() Object { var ret internal.StatshouseSendKeepAlive; return &ret },
 	}
 	itemStatshouseSendKeepAlive2 = TLItem{
 		tag:            0x4285ff53,
@@ -789,23 +733,11 @@ var (
 		createFunction: func() Function { var ret internal.StatshouseSendKeepAlive2; return &ret },
 		createObject:   func() Object { var ret internal.StatshouseSendKeepAlive2; return &ret },
 	}
-	itemStatshouseSendSourceBucket = TLItem{
-		tag:            0x94575940,
-		tlName:         "statshouse.sendSourceBucket",
-		createFunction: func() Function { var ret internal.StatshouseSendSourceBucket; return &ret },
-		createObject:   func() Object { var ret internal.StatshouseSendSourceBucket; return &ret },
-	}
 	itemStatshouseSendSourceBucket2 = TLItem{
 		tag:            0x44575940,
 		tlName:         "statshouse.sendSourceBucket2",
 		createFunction: func() Function { var ret internal.StatshouseSendSourceBucket2; return &ret },
 		createObject:   func() Object { var ret internal.StatshouseSendSourceBucket2; return &ret },
-	}
-	itemStatshouseTestConnection = TLItem{
-		tag:            0x3285ff58,
-		tlName:         "statshouse.testConnection",
-		createFunction: func() Function { var ret internal.StatshouseTestConnection; return &ret },
-		createObject:   func() Object { var ret internal.StatshouseTestConnection; return &ret },
 	}
 	itemStatshouseTestConnection2 = TLItem{
 		tag:            0x4285ff58,
@@ -1139,36 +1071,24 @@ var itemsByTag = map[uint32]*TLItem{
 	0xc803d05:  &itemStatshouseGetMetricsResult,
 	0x486a40de: &itemStatshouseGetTagMappingBootstrapResult,
 	0x1a7d91fd: &itemStatshouseGetTagMappingResult,
-	0x531e04a3: &itemStatshouseIngestionStatus,
 	0x2e17a6d3: &itemStatshouseIngestionStatus2,
-	0xc803d06:  &itemStatshouseItem,
 	0xbf401d4b: &itemStatshouseMapping,
 	0x3325d884: &itemStatshouseMetric,
 	0xc803e07:  &itemStatshouseMultiItem,
 	0xac5296df: &itemStatshousePromTarget,
 	0x486affde: &itemStatshousePutTagMappingBootstrapResult,
 	0x4f7b7822: &itemStatshouseSampleFactor,
-	0x3af6c822: &itemStatshouseSourceBucket,
 	0x3af6e822: &itemStatshouseSourceBucket2,
-	0xec2e097d: &itemStatshouseStringTopElement,
 	0x9ffdea42: &itemStatshouseTopElement,
 	0x56580239: &itemStatshouseAddMetricsBatch,
 	0x28bea524: &itemStatshouseAutoCreate,
-	0x3285ff57: &itemStatshouseGetConfig,
 	0x4285ff57: &itemStatshouseGetConfig2,
-	0x3285ff54: &itemStatshouseGetMetrics,
-	0x4285ff54: &itemStatshouseGetMetrics2,
 	0x42855554: &itemStatshouseGetMetrics3,
-	0x3285ff56: &itemStatshouseGetTagMapping,
 	0x4285ff56: &itemStatshouseGetTagMapping2,
 	0x75a7f68e: &itemStatshouseGetTagMappingBootstrap,
-	0x51df72a3: &itemStatshouseGetTargets,
 	0x41df72a3: &itemStatshouseGetTargets2,
-	0x3285ff53: &itemStatshouseSendKeepAlive,
 	0x4285ff53: &itemStatshouseSendKeepAlive2,
-	0x94575940: &itemStatshouseSendSourceBucket,
 	0x44575940: &itemStatshouseSendSourceBucket2,
-	0x3285ff58: &itemStatshouseTestConnection,
 	0x4285ff58: &itemStatshouseTestConnection2,
 	0x511276a6: &itemStatshouseApiFilter,
 	0x63928b42: &itemStatshouseApiGetChunkResponse,
@@ -1491,15 +1411,9 @@ var itemsByName = map[string]*TLItem{
 	"statshouse.getTagMappingResult":                   &itemStatshouseGetTagMappingResult,
 	"statshouse.getTagMappingResult#1a7d91fd":          &itemStatshouseGetTagMappingResult,
 	"#1a7d91fd":                                        &itemStatshouseGetTagMappingResult,
-	"statshouse.ingestion_status":                      &itemStatshouseIngestionStatus,
-	"statshouse.ingestion_status#531e04a3":             &itemStatshouseIngestionStatus,
-	"#531e04a3":                                        &itemStatshouseIngestionStatus,
 	"statshouse.ingestion_status2":                     &itemStatshouseIngestionStatus2,
 	"statshouse.ingestion_status2#2e17a6d3":            &itemStatshouseIngestionStatus2,
 	"#2e17a6d3":                                        &itemStatshouseIngestionStatus2,
-	"statshouse.item":                                  &itemStatshouseItem,
-	"statshouse.item#0c803d06":                         &itemStatshouseItem,
-	"#0c803d06":                                        &itemStatshouseItem,
 	"statshouse.mapping":                               &itemStatshouseMapping,
 	"statshouse.mapping#bf401d4b":                      &itemStatshouseMapping,
 	"#bf401d4b":                                        &itemStatshouseMapping,
@@ -1518,15 +1432,9 @@ var itemsByName = map[string]*TLItem{
 	"statshouse.sample_factor":                         &itemStatshouseSampleFactor,
 	"statshouse.sample_factor#4f7b7822":                &itemStatshouseSampleFactor,
 	"#4f7b7822":                                        &itemStatshouseSampleFactor,
-	"statshouse.sourceBucket":                          &itemStatshouseSourceBucket,
-	"statshouse.sourceBucket#3af6c822":                 &itemStatshouseSourceBucket,
-	"#3af6c822":                                        &itemStatshouseSourceBucket,
 	"statshouse.sourceBucket2":                         &itemStatshouseSourceBucket2,
 	"statshouse.sourceBucket2#3af6e822":                &itemStatshouseSourceBucket2,
 	"#3af6e822":                                        &itemStatshouseSourceBucket2,
-	"statshouse.string_top_element":                    &itemStatshouseStringTopElement,
-	"statshouse.string_top_element#ec2e097d":           &itemStatshouseStringTopElement,
-	"#ec2e097d":                                        &itemStatshouseStringTopElement,
 	"statshouse.top_element":                           &itemStatshouseTopElement,
 	"statshouse.top_element#9ffdea42":                  &itemStatshouseTopElement,
 	"#9ffdea42":                                        &itemStatshouseTopElement,
@@ -1536,51 +1444,27 @@ var itemsByName = map[string]*TLItem{
 	"statshouse.autoCreate":                            &itemStatshouseAutoCreate,
 	"statshouse.autoCreate#28bea524":                   &itemStatshouseAutoCreate,
 	"#28bea524":                                        &itemStatshouseAutoCreate,
-	"statshouse.getConfig":                             &itemStatshouseGetConfig,
-	"statshouse.getConfig#3285ff57":                    &itemStatshouseGetConfig,
-	"#3285ff57":                                        &itemStatshouseGetConfig,
 	"statshouse.getConfig2":                            &itemStatshouseGetConfig2,
 	"statshouse.getConfig2#4285ff57":                   &itemStatshouseGetConfig2,
 	"#4285ff57":                                        &itemStatshouseGetConfig2,
-	"statshouse.getMetrics":                            &itemStatshouseGetMetrics,
-	"statshouse.getMetrics#3285ff54":                   &itemStatshouseGetMetrics,
-	"#3285ff54":                                        &itemStatshouseGetMetrics,
-	"statshouse.getMetrics2":                           &itemStatshouseGetMetrics2,
-	"statshouse.getMetrics2#4285ff54":                  &itemStatshouseGetMetrics2,
-	"#4285ff54":                                        &itemStatshouseGetMetrics2,
 	"statshouse.getMetrics3":                           &itemStatshouseGetMetrics3,
 	"statshouse.getMetrics3#42855554":                  &itemStatshouseGetMetrics3,
 	"#42855554":                                        &itemStatshouseGetMetrics3,
-	"statshouse.getTagMapping":                         &itemStatshouseGetTagMapping,
-	"statshouse.getTagMapping#3285ff56":                &itemStatshouseGetTagMapping,
-	"#3285ff56":                                        &itemStatshouseGetTagMapping,
 	"statshouse.getTagMapping2":                        &itemStatshouseGetTagMapping2,
 	"statshouse.getTagMapping2#4285ff56":               &itemStatshouseGetTagMapping2,
 	"#4285ff56":                                        &itemStatshouseGetTagMapping2,
 	"statshouse.getTagMappingBootstrap":                &itemStatshouseGetTagMappingBootstrap,
 	"statshouse.getTagMappingBootstrap#75a7f68e":       &itemStatshouseGetTagMappingBootstrap,
 	"#75a7f68e":                                        &itemStatshouseGetTagMappingBootstrap,
-	"statshouse.getTargets":                            &itemStatshouseGetTargets,
-	"statshouse.getTargets#51df72a3":                   &itemStatshouseGetTargets,
-	"#51df72a3":                                        &itemStatshouseGetTargets,
 	"statshouse.getTargets2":                           &itemStatshouseGetTargets2,
 	"statshouse.getTargets2#41df72a3":                  &itemStatshouseGetTargets2,
 	"#41df72a3":                                        &itemStatshouseGetTargets2,
-	"statshouse.sendKeepAlive":                         &itemStatshouseSendKeepAlive,
-	"statshouse.sendKeepAlive#3285ff53":                &itemStatshouseSendKeepAlive,
-	"#3285ff53":                                        &itemStatshouseSendKeepAlive,
 	"statshouse.sendKeepAlive2":                        &itemStatshouseSendKeepAlive2,
 	"statshouse.sendKeepAlive2#4285ff53":               &itemStatshouseSendKeepAlive2,
 	"#4285ff53":                                        &itemStatshouseSendKeepAlive2,
-	"statshouse.sendSourceBucket":                      &itemStatshouseSendSourceBucket,
-	"statshouse.sendSourceBucket#94575940":             &itemStatshouseSendSourceBucket,
-	"#94575940":                                        &itemStatshouseSendSourceBucket,
 	"statshouse.sendSourceBucket2":                     &itemStatshouseSendSourceBucket2,
 	"statshouse.sendSourceBucket2#44575940":            &itemStatshouseSendSourceBucket2,
 	"#44575940":                                        &itemStatshouseSendSourceBucket2,
-	"statshouse.testConnection":                        &itemStatshouseTestConnection,
-	"statshouse.testConnection#3285ff58":               &itemStatshouseTestConnection,
-	"#3285ff58":                                        &itemStatshouseTestConnection,
 	"statshouse.testConnection2":                       &itemStatshouseTestConnection2,
 	"statshouse.testConnection2#4285ff58":              &itemStatshouseTestConnection2,
 	"#4285ff58":                                        &itemStatshouseTestConnection2,

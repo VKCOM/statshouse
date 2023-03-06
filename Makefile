@@ -4,6 +4,7 @@ BUILD_COMMIT_TS := $(if $(BUILD_COMMIT_TS),$(BUILD_COMMIT_TS),$(shell git log --
 BUILD_TIME      := $(if $(BUILD_TIME),$(BUILD_TIME),$(shell date +%FT%T%z))
 BUILD_MACHINE   := $(if $(BUILD_MACHINE),$(BUILD_MACHINE),$(shell uname -n -m -r -s))
 REACT_APP_BUILD_VERSION := $(if $(REACT_APP_BUILD_VERSION),$(REACT_APP_BUILD_VERSION),$(BUILD_VERSION)-$(BUILD_TIME))
+TL_BYTE_VERSIONS := statshouse.
 # TODO: BUILD_ID
 
 COMMON_BUILD_VARS := -X 'github.com/vkcom/statshouse/internal/vkgo/build.time=$(BUILD_TIME)' \
@@ -75,3 +76,27 @@ build-docker-sh-metadata:
 
 build-deb:
 	./build/makedeb.sh
+
+# if tlgen is not installed, replace tlgen with full path, for example ~/go/src/gitlab.mvk.com/go/vkgo/projects/vktl/cmd/tlgen/tlgen
+.PHONY: gen
+gen:
+	@tlgen --outdir=./internal/data_model/gen2 -v \
+		--pkgPath=github.com/vkcom/statshouse/internal/data_model/gen2/tl \
+ 		--basicPkgPath=github.com/vkcom/statshouse/internal/vkgo/basictl \
+ 		--basicRPCPath=github.com/vkcom/statshouse/internal/vkgo/rpc \
+ 		--generateByteVersions=$(TL_BYTE_VERSIONS) \
+ 		--copyrightPath=./copyright \
+		./internal/data_model/api.tl \
+		./internal/data_model/common.tl \
+		./internal/data_model/engine.tl \
+		./internal/data_model/metadata.tl \
+		./internal/data_model/public.tl \
+		./internal/data_model/schema.tl
+	@echo "Checking that generated code actually compiles..."
+	@go build ./internal/data_model/gen2/...
+
+.PHONY: lint
+lint:
+	staticcheck -version
+	staticcheck ./...
+

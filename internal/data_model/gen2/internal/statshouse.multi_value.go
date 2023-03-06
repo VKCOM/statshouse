@@ -13,12 +13,10 @@ import (
 
 var _ = basictl.NatWrite
 
-var _ = True{}
-
 type StatshouseMultiValue struct {
 	Counter float64 // Conditional: nat_fields_mask.0
-	// CounterEq1 True // Conditional: nat_fields_mask.1
-	// ValueSet True // Conditional: nat_fields_mask.2
+	// CounterEq1 (TrueType) // Conditional: nat_fields_mask.1
+	// ValueSet (TrueType) // Conditional: nat_fields_mask.2
 	ValueMin       float64              // Conditional: nat_fields_mask.3
 	ValueMax       float64              // Conditional: nat_fields_mask.4
 	ValueSum       float64              // Conditional: nat_fields_mask.4
@@ -43,7 +41,7 @@ func (item *StatshouseMultiValue) ClearCounter(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 0
 	}
 }
-func (item *StatshouseMultiValue) IsSetCounter(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValue) IsSetCounter(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<0) != 0
 }
 
@@ -56,7 +54,7 @@ func (item *StatshouseMultiValue) SetCounterEq1(v bool, nat_fields_mask *uint32)
 		}
 	}
 }
-func (item *StatshouseMultiValue) IsSetCounterEq1(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValue) IsSetCounterEq1(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<1) != 0
 }
 
@@ -69,7 +67,7 @@ func (item *StatshouseMultiValue) SetValueSet(v bool, nat_fields_mask *uint32) {
 		}
 	}
 }
-func (item *StatshouseMultiValue) IsSetValueSet(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValue) IsSetValueSet(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<2) != 0
 }
 
@@ -85,7 +83,7 @@ func (item *StatshouseMultiValue) ClearValueMin(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 3
 	}
 }
-func (item *StatshouseMultiValue) IsSetValueMin(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValue) IsSetValueMin(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<3) != 0
 }
 
@@ -101,7 +99,7 @@ func (item *StatshouseMultiValue) ClearValueMax(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item *StatshouseMultiValue) IsSetValueMax(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValue) IsSetValueMax(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -117,7 +115,7 @@ func (item *StatshouseMultiValue) ClearValueSum(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item *StatshouseMultiValue) IsSetValueSum(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValue) IsSetValueSum(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -133,7 +131,7 @@ func (item *StatshouseMultiValue) ClearValueSumSquare(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item *StatshouseMultiValue) IsSetValueSumSquare(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValue) IsSetValueSumSquare(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -149,7 +147,7 @@ func (item *StatshouseMultiValue) ClearUniques(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 5
 	}
 }
-func (item *StatshouseMultiValue) IsSetUniques(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValue) IsSetUniques(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<5) != 0
 }
 
@@ -165,7 +163,7 @@ func (item *StatshouseMultiValue) ClearCentroids(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 6
 	}
 }
-func (item *StatshouseMultiValue) IsSetCentroids(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValue) IsSetCentroids(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<6) != 0
 }
 
@@ -181,7 +179,7 @@ func (item *StatshouseMultiValue) ClearHostTag(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 7
 	}
 }
-func (item *StatshouseMultiValue) IsSetHostTag(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValue) IsSetHostTag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<7) != 0
 }
 
@@ -483,12 +481,10 @@ func (item *StatshouseMultiValue) WriteJSON(w []byte, nat_fields_mask uint32) (_
 	return append(w, '}'), nil
 }
 
-var _ = True{}
-
 type StatshouseMultiValueBytes struct {
 	Counter float64 // Conditional: nat_fields_mask.0
-	// CounterEq1 True // Conditional: nat_fields_mask.1
-	// ValueSet True // Conditional: nat_fields_mask.2
+	// CounterEq1 (TrueType) // Conditional: nat_fields_mask.1
+	// ValueSet (TrueType) // Conditional: nat_fields_mask.2
 	ValueMin       float64              // Conditional: nat_fields_mask.3
 	ValueMax       float64              // Conditional: nat_fields_mask.4
 	ValueSum       float64              // Conditional: nat_fields_mask.4
@@ -513,7 +509,7 @@ func (item *StatshouseMultiValueBytes) ClearCounter(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 0
 	}
 }
-func (item *StatshouseMultiValueBytes) IsSetCounter(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValueBytes) IsSetCounter(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<0) != 0
 }
 
@@ -526,7 +522,7 @@ func (item *StatshouseMultiValueBytes) SetCounterEq1(v bool, nat_fields_mask *ui
 		}
 	}
 }
-func (item *StatshouseMultiValueBytes) IsSetCounterEq1(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValueBytes) IsSetCounterEq1(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<1) != 0
 }
 
@@ -539,7 +535,7 @@ func (item *StatshouseMultiValueBytes) SetValueSet(v bool, nat_fields_mask *uint
 		}
 	}
 }
-func (item *StatshouseMultiValueBytes) IsSetValueSet(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValueBytes) IsSetValueSet(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<2) != 0
 }
 
@@ -555,7 +551,7 @@ func (item *StatshouseMultiValueBytes) ClearValueMin(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 3
 	}
 }
-func (item *StatshouseMultiValueBytes) IsSetValueMin(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValueBytes) IsSetValueMin(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<3) != 0
 }
 
@@ -571,7 +567,7 @@ func (item *StatshouseMultiValueBytes) ClearValueMax(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item *StatshouseMultiValueBytes) IsSetValueMax(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValueBytes) IsSetValueMax(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -587,7 +583,7 @@ func (item *StatshouseMultiValueBytes) ClearValueSum(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item *StatshouseMultiValueBytes) IsSetValueSum(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValueBytes) IsSetValueSum(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -603,7 +599,7 @@ func (item *StatshouseMultiValueBytes) ClearValueSumSquare(nat_fields_mask *uint
 		*nat_fields_mask &^= 1 << 4
 	}
 }
-func (item *StatshouseMultiValueBytes) IsSetValueSumSquare(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValueBytes) IsSetValueSumSquare(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<4) != 0
 }
 
@@ -619,7 +615,7 @@ func (item *StatshouseMultiValueBytes) ClearUniques(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 5
 	}
 }
-func (item *StatshouseMultiValueBytes) IsSetUniques(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValueBytes) IsSetUniques(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<5) != 0
 }
 
@@ -635,7 +631,7 @@ func (item *StatshouseMultiValueBytes) ClearCentroids(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 6
 	}
 }
-func (item *StatshouseMultiValueBytes) IsSetCentroids(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValueBytes) IsSetCentroids(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<6) != 0
 }
 
@@ -651,7 +647,7 @@ func (item *StatshouseMultiValueBytes) ClearHostTag(nat_fields_mask *uint32) {
 		*nat_fields_mask &^= 1 << 7
 	}
 }
-func (item *StatshouseMultiValueBytes) IsSetHostTag(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValueBytes) IsSetHostTag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<7) != 0
 }
 

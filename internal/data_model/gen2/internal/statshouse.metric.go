@@ -13,8 +13,6 @@ import (
 
 var _ = basictl.NatWrite
 
-var _ = True{}
-
 type StatshouseMetric struct {
 	FieldsMask uint32
 	Name       string
@@ -24,8 +22,6 @@ type StatshouseMetric struct {
 	T          int64     // Conditional: item.FieldsMask.5
 	Value      []float64 // Conditional: item.FieldsMask.1
 	Unique     []int64   // Conditional: item.FieldsMask.2
-	Stop       []string  // Conditional: item.FieldsMask.3
-	// NewCounterSemantic True // Conditional: item.FieldsMask.31
 }
 
 func (StatshouseMetric) TLName() string { return "statshouse.metric" }
@@ -39,7 +35,7 @@ func (item *StatshouseMetric) ClearCounter() {
 	item.Counter = 0
 	item.FieldsMask &^= 1 << 0
 }
-func (item *StatshouseMetric) IsSetCounter() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item StatshouseMetric) IsSetCounter() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseMetric) SetTs(v uint32) {
 	item.Ts = v
@@ -49,7 +45,7 @@ func (item *StatshouseMetric) ClearTs() {
 	item.Ts = 0
 	item.FieldsMask &^= 1 << 4
 }
-func (item *StatshouseMetric) IsSetTs() bool { return item.FieldsMask&(1<<4) != 0 }
+func (item StatshouseMetric) IsSetTs() bool { return item.FieldsMask&(1<<4) != 0 }
 
 func (item *StatshouseMetric) SetT(v int64) {
 	item.T = v
@@ -59,7 +55,7 @@ func (item *StatshouseMetric) ClearT() {
 	item.T = 0
 	item.FieldsMask &^= 1 << 5
 }
-func (item *StatshouseMetric) IsSetT() bool { return item.FieldsMask&(1<<5) != 0 }
+func (item StatshouseMetric) IsSetT() bool { return item.FieldsMask&(1<<5) != 0 }
 
 func (item *StatshouseMetric) SetValue(v []float64) {
 	item.Value = v
@@ -69,7 +65,7 @@ func (item *StatshouseMetric) ClearValue() {
 	item.Value = item.Value[:0]
 	item.FieldsMask &^= 1 << 1
 }
-func (item *StatshouseMetric) IsSetValue() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item StatshouseMetric) IsSetValue() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseMetric) SetUnique(v []int64) {
 	item.Unique = v
@@ -79,26 +75,7 @@ func (item *StatshouseMetric) ClearUnique() {
 	item.Unique = item.Unique[:0]
 	item.FieldsMask &^= 1 << 2
 }
-func (item *StatshouseMetric) IsSetUnique() bool { return item.FieldsMask&(1<<2) != 0 }
-
-func (item *StatshouseMetric) SetStop(v []string) {
-	item.Stop = v
-	item.FieldsMask |= 1 << 3
-}
-func (item *StatshouseMetric) ClearStop() {
-	item.Stop = item.Stop[:0]
-	item.FieldsMask &^= 1 << 3
-}
-func (item *StatshouseMetric) IsSetStop() bool { return item.FieldsMask&(1<<3) != 0 }
-
-func (item *StatshouseMetric) SetNewCounterSemantic(v bool) {
-	if v {
-		item.FieldsMask |= 1 << 31
-	} else {
-		item.FieldsMask &^= 1 << 31
-	}
-}
-func (item *StatshouseMetric) IsSetNewCounterSemantic() bool { return item.FieldsMask&(1<<31) != 0 }
+func (item StatshouseMetric) IsSetUnique() bool { return item.FieldsMask&(1<<2) != 0 }
 
 func (item *StatshouseMetric) Reset() {
 	item.FieldsMask = 0
@@ -109,7 +86,6 @@ func (item *StatshouseMetric) Reset() {
 	item.T = 0
 	item.Value = item.Value[:0]
 	item.Unique = item.Unique[:0]
-	item.Stop = item.Stop[:0]
 }
 
 func (item *StatshouseMetric) Read(w []byte) (_ []byte, err error) {
@@ -157,13 +133,6 @@ func (item *StatshouseMetric) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.Unique = item.Unique[:0]
 	}
-	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = VectorString0Read(w, &item.Stop); err != nil {
-			return w, err
-		}
-	} else {
-		item.Stop = item.Stop[:0]
-	}
 	return w, nil
 }
 
@@ -191,11 +160,6 @@ func (item *StatshouseMetric) Write(w []byte) (_ []byte, err error) {
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		if w, err = VectorLong0Write(w, item.Unique); err != nil {
-			return w, err
-		}
-	}
-	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = VectorString0Write(w, item.Stop); err != nil {
 			return w, err
 		}
 	}
@@ -250,10 +214,6 @@ func (item *StatshouseMetric) readJSON(j interface{}) error {
 	delete(_jm, "value")
 	_jUnique := _jm["unique"]
 	delete(_jm, "unique")
-	_jStop := _jm["stop"]
-	delete(_jm, "stop")
-	_jNewCounterSemantic := _jm["new_counter_semantic"]
-	delete(_jm, "new_counter_semantic")
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouse.metric", k)
 	}
@@ -271,20 +231,6 @@ func (item *StatshouseMetric) readJSON(j interface{}) error {
 	}
 	if _jUnique != nil {
 		item.FieldsMask |= 1 << 2
-	}
-	if _jStop != nil {
-		item.FieldsMask |= 1 << 3
-	}
-	if _jNewCounterSemantic != nil {
-		_bit := false
-		if err := JsonReadBool(_jNewCounterSemantic, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 31
-		} else {
-			item.FieldsMask &^= 1 << 31
-		}
 	}
 	if err := VectorDictionaryFieldString0ReadJSON(_jTags, &item.Tags); err != nil {
 		return err
@@ -323,13 +269,6 @@ func (item *StatshouseMetric) readJSON(j interface{}) error {
 		}
 	} else {
 		item.Unique = item.Unique[:0]
-	}
-	if _jStop != nil {
-		if err := VectorString0ReadJSON(_jStop, &item.Stop); err != nil {
-			return err
-		}
-	} else {
-		item.Stop = item.Stop[:0]
 	}
 	return nil
 }
@@ -392,19 +331,6 @@ func (item *StatshouseMetric) WriteJSON(w []byte) (_ []byte, err error) {
 			}
 		}
 	}
-	if item.FieldsMask&(1<<3) != 0 {
-		if len(item.Stop) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"stop":`...)
-			if w, err = VectorString0WriteJSON(w, item.Stop); err != nil {
-				return w, err
-			}
-		}
-	}
-	if item.FieldsMask&(1<<31) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"new_counter_semantic":true`...)
-	}
 	return append(w, '}'), nil
 }
 
@@ -423,8 +349,6 @@ func (item *StatshouseMetric) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-var _ = True{}
-
 type StatshouseMetricBytes struct {
 	FieldsMask uint32
 	Name       []byte
@@ -434,8 +358,6 @@ type StatshouseMetricBytes struct {
 	T          int64     // Conditional: item.FieldsMask.5
 	Value      []float64 // Conditional: item.FieldsMask.1
 	Unique     []int64   // Conditional: item.FieldsMask.2
-	Stop       [][]byte  // Conditional: item.FieldsMask.3
-	// NewCounterSemantic True // Conditional: item.FieldsMask.31
 }
 
 func (StatshouseMetricBytes) TLName() string { return "statshouse.metric" }
@@ -449,7 +371,7 @@ func (item *StatshouseMetricBytes) ClearCounter() {
 	item.Counter = 0
 	item.FieldsMask &^= 1 << 0
 }
-func (item *StatshouseMetricBytes) IsSetCounter() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item StatshouseMetricBytes) IsSetCounter() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseMetricBytes) SetTs(v uint32) {
 	item.Ts = v
@@ -459,7 +381,7 @@ func (item *StatshouseMetricBytes) ClearTs() {
 	item.Ts = 0
 	item.FieldsMask &^= 1 << 4
 }
-func (item *StatshouseMetricBytes) IsSetTs() bool { return item.FieldsMask&(1<<4) != 0 }
+func (item StatshouseMetricBytes) IsSetTs() bool { return item.FieldsMask&(1<<4) != 0 }
 
 func (item *StatshouseMetricBytes) SetT(v int64) {
 	item.T = v
@@ -469,7 +391,7 @@ func (item *StatshouseMetricBytes) ClearT() {
 	item.T = 0
 	item.FieldsMask &^= 1 << 5
 }
-func (item *StatshouseMetricBytes) IsSetT() bool { return item.FieldsMask&(1<<5) != 0 }
+func (item StatshouseMetricBytes) IsSetT() bool { return item.FieldsMask&(1<<5) != 0 }
 
 func (item *StatshouseMetricBytes) SetValue(v []float64) {
 	item.Value = v
@@ -479,7 +401,7 @@ func (item *StatshouseMetricBytes) ClearValue() {
 	item.Value = item.Value[:0]
 	item.FieldsMask &^= 1 << 1
 }
-func (item *StatshouseMetricBytes) IsSetValue() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item StatshouseMetricBytes) IsSetValue() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseMetricBytes) SetUnique(v []int64) {
 	item.Unique = v
@@ -489,28 +411,7 @@ func (item *StatshouseMetricBytes) ClearUnique() {
 	item.Unique = item.Unique[:0]
 	item.FieldsMask &^= 1 << 2
 }
-func (item *StatshouseMetricBytes) IsSetUnique() bool { return item.FieldsMask&(1<<2) != 0 }
-
-func (item *StatshouseMetricBytes) SetStop(v [][]byte) {
-	item.Stop = v
-	item.FieldsMask |= 1 << 3
-}
-func (item *StatshouseMetricBytes) ClearStop() {
-	item.Stop = item.Stop[:0]
-	item.FieldsMask &^= 1 << 3
-}
-func (item *StatshouseMetricBytes) IsSetStop() bool { return item.FieldsMask&(1<<3) != 0 }
-
-func (item *StatshouseMetricBytes) SetNewCounterSemantic(v bool) {
-	if v {
-		item.FieldsMask |= 1 << 31
-	} else {
-		item.FieldsMask &^= 1 << 31
-	}
-}
-func (item *StatshouseMetricBytes) IsSetNewCounterSemantic() bool {
-	return item.FieldsMask&(1<<31) != 0
-}
+func (item StatshouseMetricBytes) IsSetUnique() bool { return item.FieldsMask&(1<<2) != 0 }
 
 func (item *StatshouseMetricBytes) Reset() {
 	item.FieldsMask = 0
@@ -521,7 +422,6 @@ func (item *StatshouseMetricBytes) Reset() {
 	item.T = 0
 	item.Value = item.Value[:0]
 	item.Unique = item.Unique[:0]
-	item.Stop = item.Stop[:0]
 }
 
 func (item *StatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {
@@ -569,13 +469,6 @@ func (item *StatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.Unique = item.Unique[:0]
 	}
-	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = VectorString0BytesRead(w, &item.Stop); err != nil {
-			return w, err
-		}
-	} else {
-		item.Stop = item.Stop[:0]
-	}
 	return w, nil
 }
 
@@ -603,11 +496,6 @@ func (item *StatshouseMetricBytes) Write(w []byte) (_ []byte, err error) {
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		if w, err = VectorLong0Write(w, item.Unique); err != nil {
-			return w, err
-		}
-	}
-	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = VectorString0BytesWrite(w, item.Stop); err != nil {
 			return w, err
 		}
 	}
@@ -664,10 +552,6 @@ func (item *StatshouseMetricBytes) readJSON(j interface{}) error {
 	delete(_jm, "value")
 	_jUnique := _jm["unique"]
 	delete(_jm, "unique")
-	_jStop := _jm["stop"]
-	delete(_jm, "stop")
-	_jNewCounterSemantic := _jm["new_counter_semantic"]
-	delete(_jm, "new_counter_semantic")
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouse.metric", k)
 	}
@@ -685,20 +569,6 @@ func (item *StatshouseMetricBytes) readJSON(j interface{}) error {
 	}
 	if _jUnique != nil {
 		item.FieldsMask |= 1 << 2
-	}
-	if _jStop != nil {
-		item.FieldsMask |= 1 << 3
-	}
-	if _jNewCounterSemantic != nil {
-		_bit := false
-		if err := JsonReadBool(_jNewCounterSemantic, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 31
-		} else {
-			item.FieldsMask &^= 1 << 31
-		}
 	}
 	if err := VectorDictionaryFieldString0BytesReadJSON(_jTags, &item.Tags); err != nil {
 		return err
@@ -737,13 +607,6 @@ func (item *StatshouseMetricBytes) readJSON(j interface{}) error {
 		}
 	} else {
 		item.Unique = item.Unique[:0]
-	}
-	if _jStop != nil {
-		if err := VectorString0BytesReadJSON(_jStop, &item.Stop); err != nil {
-			return err
-		}
-	} else {
-		item.Stop = item.Stop[:0]
 	}
 	return nil
 }
@@ -805,19 +668,6 @@ func (item *StatshouseMetricBytes) WriteJSON(w []byte) (_ []byte, err error) {
 				return w, err
 			}
 		}
-	}
-	if item.FieldsMask&(1<<3) != 0 {
-		if len(item.Stop) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"stop":`...)
-			if w, err = VectorString0BytesWriteJSON(w, item.Stop); err != nil {
-				return w, err
-			}
-		}
-	}
-	if item.FieldsMask&(1<<31) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"new_counter_semantic":true`...)
 	}
 	return append(w, '}'), nil
 }

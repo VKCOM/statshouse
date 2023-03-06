@@ -33,7 +33,7 @@ func (item *StatshouseMultiItem) ClearT() {
 	item.T = 0
 	item.FieldsMask &^= 1 << 10
 }
-func (item *StatshouseMultiItem) IsSetT() bool { return item.FieldsMask&(1<<10) != 0 }
+func (item StatshouseMultiItem) IsSetT() bool { return item.FieldsMask&(1<<10) != 0 }
 
 func (item *StatshouseMultiItem) SetTop(v []StatshouseTopElement) {
 	item.Top = v
@@ -43,7 +43,7 @@ func (item *StatshouseMultiItem) ClearTop() {
 	item.Top = item.Top[:0]
 	item.FieldsMask &^= 1 << 11
 }
-func (item *StatshouseMultiItem) IsSetTop() bool { return item.FieldsMask&(1<<11) != 0 }
+func (item StatshouseMultiItem) IsSetTop() bool { return item.FieldsMask&(1<<11) != 0 }
 
 func (item *StatshouseMultiItem) Reset() {
 	item.FieldsMask = 0
@@ -260,7 +260,7 @@ func (item *StatshouseMultiItemBytes) ClearT() {
 	item.T = 0
 	item.FieldsMask &^= 1 << 10
 }
-func (item *StatshouseMultiItemBytes) IsSetT() bool { return item.FieldsMask&(1<<10) != 0 }
+func (item StatshouseMultiItemBytes) IsSetT() bool { return item.FieldsMask&(1<<10) != 0 }
 
 func (item *StatshouseMultiItemBytes) SetTop(v []StatshouseTopElementBytes) {
 	item.Top = v
@@ -270,7 +270,7 @@ func (item *StatshouseMultiItemBytes) ClearTop() {
 	item.Top = item.Top[:0]
 	item.FieldsMask &^= 1 << 11
 }
-func (item *StatshouseMultiItemBytes) IsSetTop() bool { return item.FieldsMask&(1<<11) != 0 }
+func (item StatshouseMultiItemBytes) IsSetTop() bool { return item.FieldsMask&(1<<11) != 0 }
 
 func (item *StatshouseMultiItemBytes) Reset() {
 	item.FieldsMask = 0

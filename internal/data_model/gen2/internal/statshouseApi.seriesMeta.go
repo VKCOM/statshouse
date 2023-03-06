@@ -31,7 +31,7 @@ func (item *StatshouseApiSeriesMeta) ClearWhat() {
 	item.What.Reset()
 	item.FieldsMask &^= 1 << 1
 }
-func (item *StatshouseApiSeriesMeta) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item StatshouseApiSeriesMeta) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseApiSeriesMeta) Reset() {
 	item.FieldsMask = 0

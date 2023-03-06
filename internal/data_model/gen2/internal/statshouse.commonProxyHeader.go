@@ -13,11 +13,9 @@ import (
 
 var _ = basictl.NatWrite
 
-var _ = True{}
-
 type StatshouseCommonProxyHeader struct {
-	// IngressProxy True // Conditional: nat_fields_mask.31
-	// AgentEnvStaging True // Conditional: nat_fields_mask.30
+	// IngressProxy (TrueType) // Conditional: nat_fields_mask.31
+	// AgentEnvStaging (TrueType) // Conditional: nat_fields_mask.30
 	ShardReplica      int32
 	ShardReplicaTotal int32
 	AgentIp           [4]int32
@@ -38,7 +36,7 @@ func (item *StatshouseCommonProxyHeader) SetIngressProxy(v bool, nat_fields_mask
 		}
 	}
 }
-func (item *StatshouseCommonProxyHeader) IsSetIngressProxy(nat_fields_mask uint32) bool {
+func (item StatshouseCommonProxyHeader) IsSetIngressProxy(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<31) != 0
 }
 
@@ -51,7 +49,7 @@ func (item *StatshouseCommonProxyHeader) SetAgentEnvStaging(v bool, nat_fields_m
 		}
 	}
 }
-func (item *StatshouseCommonProxyHeader) IsSetAgentEnvStaging(nat_fields_mask uint32) bool {
+func (item StatshouseCommonProxyHeader) IsSetAgentEnvStaging(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<30) != 0
 }
 
@@ -197,11 +195,9 @@ func (item *StatshouseCommonProxyHeader) WriteJSON(w []byte, nat_fields_mask uin
 	return append(w, '}'), nil
 }
 
-var _ = True{}
-
 type StatshouseCommonProxyHeaderBytes struct {
-	// IngressProxy True // Conditional: nat_fields_mask.31
-	// AgentEnvStaging True // Conditional: nat_fields_mask.30
+	// IngressProxy (TrueType) // Conditional: nat_fields_mask.31
+	// AgentEnvStaging (TrueType) // Conditional: nat_fields_mask.30
 	ShardReplica      int32
 	ShardReplicaTotal int32
 	AgentIp           [4]int32
@@ -222,7 +218,7 @@ func (item *StatshouseCommonProxyHeaderBytes) SetIngressProxy(v bool, nat_fields
 		}
 	}
 }
-func (item *StatshouseCommonProxyHeaderBytes) IsSetIngressProxy(nat_fields_mask uint32) bool {
+func (item StatshouseCommonProxyHeaderBytes) IsSetIngressProxy(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<31) != 0
 }
 
@@ -235,7 +231,7 @@ func (item *StatshouseCommonProxyHeaderBytes) SetAgentEnvStaging(v bool, nat_fie
 		}
 	}
 }
-func (item *StatshouseCommonProxyHeaderBytes) IsSetAgentEnvStaging(nat_fields_mask uint32) bool {
+func (item StatshouseCommonProxyHeaderBytes) IsSetAgentEnvStaging(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<30) != 0
 }
 

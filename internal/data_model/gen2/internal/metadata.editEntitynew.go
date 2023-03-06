@@ -13,13 +13,11 @@ import (
 
 var _ = basictl.NatWrite
 
-var _ = True{}
-
 type MetadataEditEntitynew struct {
 	FieldsMask uint32
 	Event      MetadataEvent
-	// Create True // Conditional: item.FieldsMask.0
-	// Delete True // Conditional: item.FieldsMask.1
+	// Create (TrueType) // Conditional: item.FieldsMask.0
+	// Delete (TrueType) // Conditional: item.FieldsMask.1
 }
 
 func (MetadataEditEntitynew) TLName() string { return "metadata.editEntitynew" }
@@ -32,7 +30,7 @@ func (item *MetadataEditEntitynew) SetCreate(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item *MetadataEditEntitynew) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item MetadataEditEntitynew) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *MetadataEditEntitynew) SetDelete(v bool) {
 	if v {
@@ -41,7 +39,7 @@ func (item *MetadataEditEntitynew) SetDelete(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item *MetadataEditEntitynew) IsSetDelete() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item MetadataEditEntitynew) IsSetDelete() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *MetadataEditEntitynew) Reset() {
 	item.FieldsMask = 0

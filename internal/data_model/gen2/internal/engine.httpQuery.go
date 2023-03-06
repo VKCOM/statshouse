@@ -31,7 +31,7 @@ func (item *EngineHttpQuery) ClearUri() {
 	item.Uri = ""
 	item.FieldsMask &^= 1 << 0
 }
-func (item *EngineHttpQuery) IsSetUri() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item EngineHttpQuery) IsSetUri() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *EngineHttpQuery) SetArgs(v map[string]string) {
 	item.Args = v
@@ -41,7 +41,7 @@ func (item *EngineHttpQuery) ClearArgs() {
 	VectorDictionaryFieldString0Reset(item.Args)
 	item.FieldsMask &^= 1 << 1
 }
-func (item *EngineHttpQuery) IsSetArgs() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item EngineHttpQuery) IsSetArgs() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *EngineHttpQuery) SetHeaders(v map[string]string) {
 	item.Headers = v
@@ -51,7 +51,7 @@ func (item *EngineHttpQuery) ClearHeaders() {
 	VectorDictionaryFieldString0Reset(item.Headers)
 	item.FieldsMask &^= 1 << 2
 }
-func (item *EngineHttpQuery) IsSetHeaders() bool { return item.FieldsMask&(1<<2) != 0 }
+func (item EngineHttpQuery) IsSetHeaders() bool { return item.FieldsMask&(1<<2) != 0 }
 
 func (item *EngineHttpQuery) Reset() {
 	item.FieldsMask = 0

@@ -32,7 +32,7 @@ func (item *EngineHttpQueryResponse) ClearReturnCode() {
 	item.ReturnCode = 0
 	item.FieldsMask &^= 1 << 0
 }
-func (item *EngineHttpQueryResponse) IsSetReturnCode() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item EngineHttpQueryResponse) IsSetReturnCode() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *EngineHttpQueryResponse) SetData(v string) {
 	item.Data = v
@@ -42,7 +42,7 @@ func (item *EngineHttpQueryResponse) ClearData() {
 	item.Data = ""
 	item.FieldsMask &^= 1 << 1
 }
-func (item *EngineHttpQueryResponse) IsSetData() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item EngineHttpQueryResponse) IsSetData() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *EngineHttpQueryResponse) SetContentType(v string) {
 	item.ContentType = v
@@ -52,7 +52,7 @@ func (item *EngineHttpQueryResponse) ClearContentType() {
 	item.ContentType = ""
 	item.FieldsMask &^= 1 << 2
 }
-func (item *EngineHttpQueryResponse) IsSetContentType() bool { return item.FieldsMask&(1<<2) != 0 }
+func (item EngineHttpQueryResponse) IsSetContentType() bool { return item.FieldsMask&(1<<2) != 0 }
 
 func (item *EngineHttpQueryResponse) SetAdditionalHeaders(v map[string]string) {
 	item.AdditionalHeaders = v
@@ -62,9 +62,7 @@ func (item *EngineHttpQueryResponse) ClearAdditionalHeaders() {
 	VectorDictionaryFieldString0Reset(item.AdditionalHeaders)
 	item.FieldsMask &^= 1 << 3
 }
-func (item *EngineHttpQueryResponse) IsSetAdditionalHeaders() bool {
-	return item.FieldsMask&(1<<3) != 0
-}
+func (item EngineHttpQueryResponse) IsSetAdditionalHeaders() bool { return item.FieldsMask&(1<<3) != 0 }
 
 func (item *EngineHttpQueryResponse) Reset() {
 	item.FieldsMask = 0

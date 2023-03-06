@@ -348,11 +348,7 @@ func (g *goMachine) Run(t *rapid.T) {
 				valueMetrics.merge(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.Value)
 			case len(m.Unique) > 0:
 				uniqueMetrics.merge(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.Unique)
-			case len(m.Stop) > 0:
-				for _, skey := range m.Stop {
-					counterMetrics.count(ts(string(m.Name), receivedSlice(m.Tags, skey)), 1)
-				}
-			case len(m.Value) == 0 && len(m.Unique) == 0 && len(m.Stop) == 0 && m.Counter > 0:
+			case len(m.Value) == 0 && len(m.Unique) == 0 && m.Counter > 0:
 				counterMetrics.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.Counter)
 				// stopMetrics.merge(, toStrings(m.Stop))
 			}

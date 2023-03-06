@@ -13,15 +13,13 @@ import (
 
 var _ = basictl.NatWrite
 
-var _ = True{}
-
 type MetadataCreateMappingEvent struct {
 	FieldMask uint32
 	Id        int32
 	Key       string
 	Metric    string
 	Badget    int64
-	// Create True // Conditional: item.FieldMask.0
+	// Create (TrueType) // Conditional: item.FieldMask.0
 	UpdatedAt uint32
 }
 
@@ -35,7 +33,7 @@ func (item *MetadataCreateMappingEvent) SetCreate(v bool) {
 		item.FieldMask &^= 1 << 0
 	}
 }
-func (item *MetadataCreateMappingEvent) IsSetCreate() bool { return item.FieldMask&(1<<0) != 0 }
+func (item MetadataCreateMappingEvent) IsSetCreate() bool { return item.FieldMask&(1<<0) != 0 }
 
 func (item *MetadataCreateMappingEvent) Reset() {
 	item.FieldMask = 0

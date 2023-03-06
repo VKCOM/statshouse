@@ -13,8 +13,6 @@ import (
 
 var _ = basictl.NatWrite
 
-var _ = True{}
-
 type StatshouseSendSourceBucket2 struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeader
