@@ -51,7 +51,7 @@ func makePrekeyCache(journal *metajournal.MetricsStorage) *prekeyIndexCache {
 		ingestionStatusPrekey: -1,
 		lastMetricPrekey:      -1, // so if somehow 0 metricID is inserted first, will have no prekey
 	}
-	if bm, ok := format.BuiltinMetrics[format.BuiltinMetricIDIngestionStatus]; ok {
+	if bm, ok := format.BuiltinMetrics(format.BuiltinMetricIDIngestionStatus); ok {
 		result.ingestionStatusPrekey = bm.PreKeyIndex
 	}
 	return result
@@ -65,7 +65,7 @@ func (p *prekeyIndexCache) getPrekeyIndex(metricID int32) int {
 		return p.lastMetricPrekey
 	}
 	p.lastMetricID = metricID
-	if bm, ok := format.BuiltinMetrics[metricID]; ok {
+	if bm, ok := format.BuiltinMetrics(metricID); ok {
 		p.lastMetricPrekey = bm.PreKeyIndex
 		return bm.PreKeyIndex
 	}

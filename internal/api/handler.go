@@ -576,7 +576,7 @@ func (h *Handler) getMetricNameWithNamespace(metricID int32) (string, error) {
 	if metricID == format.TagValueIDUnspecified {
 		return format.CodeTagValue(format.TagValueIDUnspecified), nil
 	}
-	if m, ok := format.BuiltinMetrics[metricID]; ok {
+	if m, ok := format.BuiltinMetrics(metricID); ok {
 		return m.Name, nil
 	}
 	v := h.metricsStorage.GetMetaMetric(metricID)
@@ -613,7 +613,7 @@ func (h *Handler) getMetricMeta(ai accessInfo, metricWithNamespace string) (*for
 }
 
 func (h *Handler) getMetricNameByID(metricID int32) string {
-	meta := format.BuiltinMetrics[metricID]
+	meta, _ := format.BuiltinMetrics(metricID)
 	if meta != nil {
 		return meta.Name
 	}
@@ -834,7 +834,7 @@ func (h *Handler) handleGetMetricsList(ai accessInfo) (*GetMetricsListResp, time
 	ret := &GetMetricsListResp{
 		Metrics: []metricShortInfo{},
 	}
-	for _, m := range format.BuiltinMetrics {
+	for _, m := range format.BuiltinMetricsList() {
 		if !h.showInvisible && !m.Visible { // we have invisible builtin metrics
 			continue
 		}
@@ -1161,12 +1161,17 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 			return format.MetricMetaValue{}, fmt.Errorf("failed to create metric: %w", err)
 		}
 	} else {
-		if _, ok := format.BuiltinMetrics[metric.MetricID]; ok {
-			return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, fmt.Errorf("builtin metric cannot be edited"))
-		}
-		v := h.metricsStorage.GetMetaMetric(metric.MetricID)
-		if v == nil {
-			return format.MetricMetaValue{}, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found (id %d)", metric.Name, metric.MetricID))
+		var v *format.MetricMetaValue
+		if builtin, ok := format.BuiltinMetrics(metric.MetricID); ok {
+			v = builtin
+			if !format.MetricsCanBeChanged[metric.MetricID] {
+				return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, fmt.Errorf("builtin metric cannot be edited"))
+			}
+		} else {
+			v = h.metricsStorage.GetMetaMetric(metric.MetricID)
+			if v == nil {
+				return format.MetricMetaValue{}, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found (id %d)", metric.Name, metric.MetricID))
+			}
 		}
 		if v.Name != metric.Name && !ai.canChangeMetricByName(v.Name, metric.Name) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("one of names %s, %s isn't acceptable", metric.Name, v.Name))

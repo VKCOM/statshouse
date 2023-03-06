@@ -108,7 +108,7 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 	}
 
 	vals := make([]string, 0)
-	for _, m := range format.BuiltinMetrics {
+	for _, m := range format.BuiltinMetricsList() {
 		vals = append(vals, m.Name)
 	}
 	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {

@@ -79,7 +79,7 @@ func fillTags(metric *tlstatshouse.MetricBytes, tags ...string) {
 	}
 }
 
-func buildTagsBytes(tags ...string) statshouse.RawTags {
+func BuildTagsBytes(tags ...string) statshouse.RawTags {
 	res := statshouse.RawTags{}
 	for i, tag := range tags {
 		switch i {

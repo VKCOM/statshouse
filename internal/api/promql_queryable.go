@@ -139,7 +139,7 @@ func (qe *promQueryable) newPromQuery(expr parser.Expr, evalRange time.Duration,
 	)
 	for _, m := range e.LabelMatchers {
 		if m.Name == labels.MetricName {
-			for _, meta := range format.BuiltinMetrics {
+			for _, meta := range format.BuiltinMetricsList() {
 				if m.Matches(meta.Name) || m.Matches(meta.Name+"_bucket") {
 					pq.matchingMetrics = append(pq.matchingMetrics, &metricQuery{info: &pq, meta: meta, fn: -1})
 					break

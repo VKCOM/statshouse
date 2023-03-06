@@ -9,6 +9,7 @@ package format
 import (
 	"math"
 	"strconv"
+	"sync"
 )
 
 const (
@@ -82,6 +83,9 @@ const (
 	BuiltinMetricIDAPISelectDuration          = -68
 	BuiltinMetricIDAgentHistoricQueueSizeSum  = -69
 	BuiltinMetricIDAPISourceSelectRows        = -70
+	// hardware metrics
+	BuiltinMetricIDCPUUsage     = 71
+	BuiltinMetricIDSystemUptime = 72
 
 	// metric names used in code directly
 	BuiltinMetricNameAggBucketReceiveDelaySec = "__agg_bucket_receive_delay_sec"
@@ -272,7 +276,8 @@ var (
 	// list of built-in metrics which can be sent as normal metric. Used by API and prometheus exporter
 	// Description: "-" marks tags used in incompatible way in the past. We should not reuse such tags, because there would be garbage in historic data.
 
-	BuiltinMetrics = map[int32]*MetricMetaValue{
+	builtinMetricsMx = sync.RWMutex{}
+	builtinMetrics   = map[int32]*MetricMetaValue{
 		BuiltinMetricIDAgentSamplingFactor: {
 			Name: BuiltinMetricNameAgentSamplingFactor,
 			Kind: MetricKindValue,
@@ -1307,6 +1312,9 @@ To see which seconds change when, use __contributors_log_rev`,
 				}),
 			}},
 		},
+
+		//hardware metrics
+
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -1382,6 +1390,8 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDBudgetHost:                 true,
 		BuiltinMetricIDBudgetAggregatorHost:       true,
 	}
+
+	MetricsCanBeChanged = map[int32]bool{}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue
 	BuiltinMetricAllowedToReceive map[string]*MetricMetaValue
@@ -1490,9 +1500,9 @@ func init() {
 	tagIDTag2TagID[TagIDShift-1] = tagStringForUI + " " + NewStringTopTagID // for UI only
 	tagIDTag2TagID[TagIDShift-2] = tagStringForUI + " " + NewHostTagID      // for UI only
 
-	BuiltinMetricByName = make(map[string]*MetricMetaValue, len(BuiltinMetrics))
-	BuiltinMetricAllowedToReceive = make(map[string]*MetricMetaValue, len(BuiltinMetrics))
-	for id, m := range BuiltinMetrics {
+	BuiltinMetricByName = make(map[string]*MetricMetaValue, len(builtinMetrics))
+	BuiltinMetricAllowedToReceive = make(map[string]*MetricMetaValue, len(builtinMetrics))
+	for id, m := range builtinMetrics {
 		m.MetricID = id
 		m.GroupID = BuiltinGroupIDBuiltin
 		m.Visible = !builtinMetricsInvisible[id]
@@ -1555,4 +1565,21 @@ func init() {
 		}
 		_ = m.RestoreCachedInfo()
 	}
+}
+
+func BuiltinMetrics(metric int32) (*MetricMetaValue, bool) {
+	builtinMetricsMx.RLock()
+	defer builtinMetricsMx.RUnlock()
+	v, ok := builtinMetrics[metric]
+	return v, ok
+}
+
+func BuiltinMetricsList() []*MetricMetaValue {
+	builtinMetricsMx.RLock()
+	defer builtinMetricsMx.RUnlock()
+	res := []*MetricMetaValue{}
+	for _, value := range builtinMetrics {
+		res = append(res, value)
+	}
+	return res
 }

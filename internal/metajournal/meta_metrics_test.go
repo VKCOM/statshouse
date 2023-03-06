@@ -40,7 +40,7 @@ func TestMetricsStorage(t *testing.T) {
 	})
 	t.Run("updateJournal test(each other depends on previous)", func(t *testing.T) {
 		descrField := "__description"
-		value := format.BuiltinMetrics[format.BuiltinMetricIDAPIBRS]
+		value, _ := format.BuiltinMetrics(format.BuiltinMetricIDAPIBRS)
 		_ = value.RestoreCachedInfo()
 		metricBytes, err := value.MarshalBinary()
 		require.NoError(t, err)

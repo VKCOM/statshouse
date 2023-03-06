@@ -122,21 +122,6 @@ func (ms *MetricsStorage) GetGroup(id int32) *format.MetricsGroup {
 	return ms.groupsByID[id]
 }
 
-func (ms *MetricsStorage) GetGroupWithMetricsList(id int32) (GroupWithMetricsList, bool) {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	var metricNames []string
-	if group, ok := ms.groupsByID[id]; ok {
-		if metrics, ok := ms.metricsByGroup[group.ID]; ok {
-			for _, metric := range metrics {
-				metricNames = append(metricNames, metric.Name)
-			}
-		}
-		return GroupWithMetricsList{Group: group, Metrics: metricNames}, true
-	}
-	return GroupWithMetricsList{}, false
-}
-
 func (ms *MetricsStorage) GetGroupsList() []*format.MetricsGroup {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -169,6 +154,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.MetricID = int32(e.Id) // TODO - beware!
 			value.UpdateTime = e.UpdateTime
 			_ = value.RestoreCachedInfo()
+
 			valueOld, ok := ms.metricsByID[value.MetricID]
 			if ok && valueOld.Name != value.Name {
 				delete(ms.metricsByName, valueOld.Name)

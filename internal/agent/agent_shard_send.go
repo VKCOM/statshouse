@@ -452,7 +452,7 @@ func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *ra
 			if s.statshouse.metricStorage != nil {
 				metricInfo = s.statshouse.metricStorage.GetMetaMetric(accountMetric)
 				if metricInfo == nil {
-					metricInfo = format.BuiltinMetrics[accountMetric]
+					metricInfo, _ = format.BuiltinMetrics(accountMetric)
 				}
 			}
 			samplingMetric = &data_model.SamplingMetric{
