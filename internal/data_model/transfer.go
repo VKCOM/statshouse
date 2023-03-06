@@ -26,23 +26,6 @@ func (k *Key) ToSlice() []int32 {
 	return result[:i]
 }
 
-func KeyFromStatshouseItem(item tlstatshouse.ItemBytes, bucketTimestamp uint32) (key Key, shardID int) {
-	// We use high byte of fieldsmask to pass shardID to aggregator to save lots of CPU
-	sID := item.FieldsMask >> 24
-	key.Timestamp = bucketTimestamp
-	if item.IsSetT() {
-		key.Timestamp = item.T
-		if key.Timestamp >= bucketTimestamp {
-			key.Timestamp = bucketTimestamp
-		} else if bucketTimestamp > BelieveTimestampWindow && key.Timestamp < bucketTimestamp-BelieveTimestampWindow {
-			key.Timestamp = bucketTimestamp - BelieveTimestampWindow
-		}
-	}
-	key.Metric = item.Metric
-	copy(key.Keys[:], item.Keys)
-	return key, int(sID)
-}
-
 func KeyFromStatshouseMultiItem(item *tlstatshouse.MultiItemBytes, bucketTimestamp uint32) (key Key, shardID int) {
 	// We use high byte of fieldsmask to pass shardID to aggregator, otherwise it is too much work for CPU
 	sID := item.FieldsMask >> 24
@@ -149,27 +132,6 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 	}
 }
 
-func (s *ItemValue) MergeWithTLItem(s2 *tlstatshouse.ItemBytes, hostTag int32) {
-	if !s2.IsSetValueMax() {
-		s2.ValueSum = s2.ValueMin * s2.Counter
-		s2.ValueSumSquare = s2.ValueSum * s2.ValueMin
-		s2.ValueMax = s2.ValueMin
-	}
-	s.ValueSum += s2.ValueSum
-	s.ValueSumSquare += s2.ValueSumSquare
-
-	if !s.ValueSet || s2.ValueMin < s.ValueMin {
-		s.ValueMin = s2.ValueMin
-		s.MinHostTag = hostTag
-	}
-	if !s.ValueSet || s2.ValueMax > s.ValueMax {
-		s.ValueMax = s2.ValueMax
-		s.MaxHostTag = hostTag
-	}
-	s.ValueSet = true
-	s.Counter += s2.Counter
-}
-
 func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_mask uint32, hostTag int32) {
 	counter := float64(0)
 	if s2.IsSetCounterEq1(fields_mask) {
@@ -200,33 +162,6 @@ func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_ma
 		s.MaxHostTag = hostTag
 	}
 	s.ValueSet = true
-}
-
-func (s *MultiItem) MergeWithTLItem(s2 *tlstatshouse.ItemBytes, hostTag int32) {
-	switch {
-	case s2.IsSetStringTops():
-		for _, v := range s2.StringTops {
-			mi := s.MapStringTopBytes(v.Key, float64(v.Value))
-			mi.Value.AddValueCounterHost(0, float64(v.Value), hostTag)
-		}
-	case s2.IsSetUniques():
-		s.Tail.AddUniqueHost(s2.Uniques, s2.Counter, hostTag)
-	case s2.IsSetPercentiles():
-		// Legacy version, DO nothing, this code will be removed with this TL Item format
-		break
-	case s2.IsSetCentroids():
-		s.Tail.Value.MergeWithTLItem(s2, hostTag)
-		if s.Tail.ValueTDigest == nil && len(s2.Centroids) != 0 {
-			s.Tail.ValueTDigest = tdigest.NewWithCompression(AggregatorPercentileCompression)
-		}
-		for _, v := range s2.Centroids {
-			s.Tail.ValueTDigest.Add(float64(v.Value), float64(v.Weight))
-		}
-	case s2.IsSetValueMin() || s2.IsSetValueMax():
-		s.Tail.Value.MergeWithTLItem(s2, hostTag)
-	default:
-		s.Tail.AddCounterHost(s2.Counter, hostTag)
-	}
 }
 
 func (s *MultiItem) MergeWithTLMultiItem(s2 *tlstatshouse.MultiItemBytes, hostTag int32) {

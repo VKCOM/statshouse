@@ -29,7 +29,7 @@ func (item *EnginePushStat) ClearStat() {
 	item.Stat.Reset()
 	item.FieldsMask &^= 1 << 0
 }
-func (item *EnginePushStat) IsSetStat() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item EnginePushStat) IsSetStat() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *EnginePushStat) Reset() {
 	item.FieldsMask = 0

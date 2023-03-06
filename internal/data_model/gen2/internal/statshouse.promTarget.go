@@ -13,16 +13,14 @@ import (
 
 var _ = basictl.NatWrite
 
-var _ = True{}
-
 type StatshousePromTarget struct {
 	FieldsMask     uint32
 	JobName        string
 	Url            string
 	Labels         map[string]string
 	ScrapeInterval int64
-	// HonorTimestamps True // Conditional: item.FieldsMask.0
-	// HonorLabels True // Conditional: item.FieldsMask.1
+	// HonorTimestamps (TrueType) // Conditional: item.FieldsMask.0
+	// HonorLabels (TrueType) // Conditional: item.FieldsMask.1
 	ScrapeTimeout         int64
 	BodySizeLimit         int64
 	LabelLimit            int64
@@ -41,7 +39,7 @@ func (item *StatshousePromTarget) SetHonorTimestamps(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item *StatshousePromTarget) IsSetHonorTimestamps() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item StatshousePromTarget) IsSetHonorTimestamps() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshousePromTarget) SetHonorLabels(v bool) {
 	if v {
@@ -50,7 +48,7 @@ func (item *StatshousePromTarget) SetHonorLabels(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item *StatshousePromTarget) IsSetHonorLabels() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item StatshousePromTarget) IsSetHonorLabels() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshousePromTarget) Reset() {
 	item.FieldsMask = 0
@@ -320,16 +318,14 @@ func (item *StatshousePromTarget) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-var _ = True{}
-
 type StatshousePromTargetBytes struct {
 	FieldsMask     uint32
 	JobName        []byte
 	Url            []byte
 	Labels         []DictionaryFieldStringBytes
 	ScrapeInterval int64
-	// HonorTimestamps True // Conditional: item.FieldsMask.0
-	// HonorLabels True // Conditional: item.FieldsMask.1
+	// HonorTimestamps (TrueType) // Conditional: item.FieldsMask.0
+	// HonorLabels (TrueType) // Conditional: item.FieldsMask.1
 	ScrapeTimeout         int64
 	BodySizeLimit         int64
 	LabelLimit            int64
@@ -348,9 +344,7 @@ func (item *StatshousePromTargetBytes) SetHonorTimestamps(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item *StatshousePromTargetBytes) IsSetHonorTimestamps() bool {
-	return item.FieldsMask&(1<<0) != 0
-}
+func (item StatshousePromTargetBytes) IsSetHonorTimestamps() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshousePromTargetBytes) SetHonorLabels(v bool) {
 	if v {
@@ -359,7 +353,7 @@ func (item *StatshousePromTargetBytes) SetHonorLabels(v bool) {
 		item.FieldsMask &^= 1 << 1
 	}
 }
-func (item *StatshousePromTargetBytes) IsSetHonorLabels() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item StatshousePromTargetBytes) IsSetHonorLabels() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshousePromTargetBytes) Reset() {
 	item.FieldsMask = 0

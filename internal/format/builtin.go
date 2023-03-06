@@ -178,13 +178,13 @@ const (
 	TagValueIDSrcIngestionStatusErrMetricInvisible           = 42
 	TagValueIDSrcIngestionStatusErrLegacyProtocol            = 43 // we stopped adding metrics to conveyor via legacy protocol
 	TagValueIDSrcIngestionStatusWarnDeprecatedT              = 44
-	TagValueIDSrcIngestionStatusWarnDeprecatedStop           = 45
+	TagValueIDSrcIngestionStatusWarnDeprecatedStop           = 45 // never written, for historic data
 	TagValueIDSrcIngestionStatusWarnMapTagSetTwice           = 46
 	TagValueIDSrcIngestionStatusWarnDeprecatedKeyName        = 47
 	TagValueIDSrcIngestionStatusErrMetricNameEncoding        = 48
 	TagValueIDSrcIngestionStatusErrMapTagNameEncoding        = 49
 	TagValueIDSrcIngestionStatusErrValueUniqueBothSet        = 50
-	TagValueIDSrcIngestionStatusWarnOldCounterSemantic       = 51
+	TagValueIDSrcIngestionStatusWarnOldCounterSemantic       = 51 // never written, for historic data
 
 	TagValueIDPacketFormatLegacy   = 1
 	TagValueIDPacketFormatTL       = 2

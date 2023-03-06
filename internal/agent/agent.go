@@ -346,22 +346,10 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName, h.LegacyCanonicalTagKey},
 		}, 1)
 	}
-	if !m.IsSetNewCounterSemantic() && len(m.Value) != 0 && m.Counter > 0 {
-		s.AddCounter(data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnOldCounterSemantic},
-		}, 1)
-	}
 	if m.IsSetT() || m.T != 0 {
 		key := data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Keys:   [16]int32{0, h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedT}}
-		s.AddCounter(key, 1)
-	}
-	if m.IsSetStop() || len(m.Stop) != 0 {
-		key := data_model.Key{
-			Metric: format.BuiltinMetricIDIngestionStatus,
-			Keys:   [16]int32{0, h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnDeprecatedStop}}
 		s.AddCounter(key, 1)
 	}
 

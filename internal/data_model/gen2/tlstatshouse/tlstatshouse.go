@@ -23,22 +23,14 @@ type (
 	Centroid                          = internal.StatshouseCentroid
 	CommonProxyHeader                 = internal.StatshouseCommonProxyHeader
 	CommonProxyHeaderBytes            = internal.StatshouseCommonProxyHeaderBytes
-	GetConfig                         = internal.StatshouseGetConfig
-	GetConfigBytes                    = internal.StatshouseGetConfigBytes
 	GetConfig2                        = internal.StatshouseGetConfig2
 	GetConfig2Bytes                   = internal.StatshouseGetConfig2Bytes
 	GetConfigResult                   = internal.StatshouseGetConfigResult
 	GetConfigResultBytes              = internal.StatshouseGetConfigResultBytes
-	GetMetrics                        = internal.StatshouseGetMetrics
-	GetMetricsBytes                   = internal.StatshouseGetMetricsBytes
-	GetMetrics2                       = internal.StatshouseGetMetrics2
-	GetMetrics2Bytes                  = internal.StatshouseGetMetrics2Bytes
 	GetMetrics3                       = internal.StatshouseGetMetrics3
 	GetMetrics3Bytes                  = internal.StatshouseGetMetrics3Bytes
 	GetMetricsResult                  = internal.StatshouseGetMetricsResult
 	GetMetricsResultBytes             = internal.StatshouseGetMetricsResultBytes
-	GetTagMapping                     = internal.StatshouseGetTagMapping
-	GetTagMappingBytes                = internal.StatshouseGetTagMappingBytes
 	GetTagMapping2                    = internal.StatshouseGetTagMapping2
 	GetTagMapping2Bytes               = internal.StatshouseGetTagMapping2Bytes
 	GetTagMappingBootstrap            = internal.StatshouseGetTagMappingBootstrap
@@ -46,16 +38,11 @@ type (
 	GetTagMappingBootstrapResult      = internal.StatshouseGetTagMappingBootstrapResult
 	GetTagMappingBootstrapResultBytes = internal.StatshouseGetTagMappingBootstrapResultBytes
 	GetTagMappingResult               = internal.StatshouseGetTagMappingResult
-	GetTargets                        = internal.StatshouseGetTargets
-	GetTargetsBytes                   = internal.StatshouseGetTargetsBytes
 	GetTargets2                       = internal.StatshouseGetTargets2
 	GetTargets2Bytes                  = internal.StatshouseGetTargets2Bytes
 	GetTargetsResult                  = internal.StatshouseGetTargetsResult
 	GetTargetsResultBytes             = internal.StatshouseGetTargetsResultBytes
-	IngestionStatus                   = internal.StatshouseIngestionStatus
 	IngestionStatus2                  = internal.StatshouseIngestionStatus2
-	Item                              = internal.StatshouseItem
-	ItemBytes                         = internal.StatshouseItemBytes
 	Mapping                           = internal.StatshouseMapping
 	MappingBytes                      = internal.StatshouseMappingBytes
 	Metric                            = internal.StatshouseMetric
@@ -68,22 +55,12 @@ type (
 	PromTargetBytes                   = internal.StatshousePromTargetBytes
 	PutTagMappingBootstrapResult      = internal.StatshousePutTagMappingBootstrapResult
 	SampleFactor                      = internal.StatshouseSampleFactor
-	SendKeepAlive                     = internal.StatshouseSendKeepAlive
-	SendKeepAliveBytes                = internal.StatshouseSendKeepAliveBytes
 	SendKeepAlive2                    = internal.StatshouseSendKeepAlive2
 	SendKeepAlive2Bytes               = internal.StatshouseSendKeepAlive2Bytes
-	SendSourceBucket                  = internal.StatshouseSendSourceBucket
-	SendSourceBucketBytes             = internal.StatshouseSendSourceBucketBytes
 	SendSourceBucket2                 = internal.StatshouseSendSourceBucket2
 	SendSourceBucket2Bytes            = internal.StatshouseSendSourceBucket2Bytes
-	SourceBucket                      = internal.StatshouseSourceBucket
-	SourceBucketBytes                 = internal.StatshouseSourceBucketBytes
 	SourceBucket2                     = internal.StatshouseSourceBucket2
 	SourceBucket2Bytes                = internal.StatshouseSourceBucket2Bytes
-	StringTopElement                  = internal.StatshouseStringTopElement
-	StringTopElementBytes             = internal.StatshouseStringTopElementBytes
-	TestConnection                    = internal.StatshouseTestConnection
-	TestConnectionBytes               = internal.StatshouseTestConnectionBytes
 	TestConnection2                   = internal.StatshouseTestConnection2
 	TestConnection2Bytes              = internal.StatshouseTestConnection2Bytes
 	TopElement                        = internal.StatshouseTopElement
@@ -189,52 +166,6 @@ func (c *Client) AutoCreate(ctx context.Context, args AutoCreate, extra *rpc.Inv
 	return nil
 }
 
-func (c *Client) GetConfigBytes(ctx context.Context, args GetConfigBytes, extra *rpc.InvokeReqExtra, ret *GetConfigResultBytes) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.getConfig", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.getConfig", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.getConfig", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) GetConfig(ctx context.Context, args GetConfig, extra *rpc.InvokeReqExtra, ret *GetConfigResult) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.getConfig", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.getConfig", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.getConfig", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
 func (c *Client) GetConfig2Bytes(ctx context.Context, args GetConfig2Bytes, extra *rpc.InvokeReqExtra, ret *GetConfigResultBytes) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -281,98 +212,6 @@ func (c *Client) GetConfig2(ctx context.Context, args GetConfig2, extra *rpc.Inv
 	return nil
 }
 
-func (c *Client) GetMetricsBytes(ctx context.Context, args GetMetricsBytes, extra *rpc.InvokeReqExtra, ret *GetMetricsResultBytes) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.getMetrics", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.getMetrics", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.getMetrics", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) GetMetrics(ctx context.Context, args GetMetrics, extra *rpc.InvokeReqExtra, ret *GetMetricsResult) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.getMetrics", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.getMetrics", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.getMetrics", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) GetMetrics2Bytes(ctx context.Context, args GetMetrics2Bytes, extra *rpc.InvokeReqExtra, ret *GetMetricsResultBytes) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.getMetrics2", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.getMetrics2", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.getMetrics2", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) GetMetrics2(ctx context.Context, args GetMetrics2, extra *rpc.InvokeReqExtra, ret *GetMetricsResult) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.getMetrics2", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.getMetrics2", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.getMetrics2", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
 func (c *Client) GetMetrics3Bytes(ctx context.Context, args GetMetrics3Bytes, extra *rpc.InvokeReqExtra, ret *internal.MetadataGetJournalResponsenewBytes) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -414,52 +253,6 @@ func (c *Client) GetMetrics3(ctx context.Context, args GetMetrics3, extra *rpc.I
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getMetrics3", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) GetTagMappingBytes(ctx context.Context, args GetTagMappingBytes, extra *rpc.InvokeReqExtra, ret *GetTagMappingResult) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.getTagMapping", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.getTagMapping", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.getTagMapping", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) GetTagMapping(ctx context.Context, args GetTagMapping, extra *rpc.InvokeReqExtra, ret *GetTagMappingResult) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.getTagMapping", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.getTagMapping", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.getTagMapping", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
@@ -557,52 +350,6 @@ func (c *Client) GetTagMappingBootstrap(ctx context.Context, args GetTagMappingB
 	return nil
 }
 
-func (c *Client) GetTargetsBytes(ctx context.Context, args GetTargetsBytes, extra *rpc.InvokeReqExtra, ret *GetTargetsResultBytes) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.getTargets", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.getTargets", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.getTargets", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) GetTargets(ctx context.Context, args GetTargets, extra *rpc.InvokeReqExtra, ret *GetTargetsResult) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.getTargets", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.getTargets", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.getTargets", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
 func (c *Client) GetTargets2Bytes(ctx context.Context, args GetTargets2Bytes, extra *rpc.InvokeReqExtra, ret *GetTargetsResultBytes) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -644,52 +391,6 @@ func (c *Client) GetTargets2(ctx context.Context, args GetTargets2, extra *rpc.I
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getTargets2", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) SendKeepAliveBytes(ctx context.Context, args SendKeepAliveBytes, extra *rpc.InvokeReqExtra, ret *[]byte) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.sendKeepAlive", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.sendKeepAlive", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.sendKeepAlive", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) SendKeepAlive(ctx context.Context, args SendKeepAlive, extra *rpc.InvokeReqExtra, ret *string) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.sendKeepAlive", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.sendKeepAlive", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.sendKeepAlive", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
@@ -741,52 +442,6 @@ func (c *Client) SendKeepAlive2(ctx context.Context, args SendKeepAlive2, extra 
 	return nil
 }
 
-func (c *Client) SendSourceBucketBytes(ctx context.Context, args SendSourceBucketBytes, extra *rpc.InvokeReqExtra, ret *[]byte) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.sendSourceBucket", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.sendSourceBucket", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.sendSourceBucket", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) SendSourceBucket(ctx context.Context, args SendSourceBucket, extra *rpc.InvokeReqExtra, ret *string) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.sendSourceBucket", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.sendSourceBucket", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.sendSourceBucket", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
 func (c *Client) SendSourceBucket2Bytes(ctx context.Context, args SendSourceBucket2Bytes, extra *rpc.InvokeReqExtra, ret *[]byte) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -828,52 +483,6 @@ func (c *Client) SendSourceBucket2(ctx context.Context, args SendSourceBucket2, 
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.sendSourceBucket2", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) TestConnectionBytes(ctx context.Context, args TestConnectionBytes, extra *rpc.InvokeReqExtra, ret *[]byte) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.testConnection", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.testConnection", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.testConnection", c.Network, c.ActorID, c.Address, err)
-		}
-	}
-	return nil
-}
-
-func (c *Client) TestConnection(ctx context.Context, args TestConnection, extra *rpc.InvokeReqExtra, ret *string) (err error) {
-	req := c.Client.GetRequest()
-	req.ActorID = c.ActorID
-	if extra != nil {
-		req.Extra = *extra
-	}
-	req.Body, err = args.WriteBoxed(req.Body)
-	if err != nil {
-		return internal.ErrorClientWrite("statshouse.testConnection", err)
-	}
-	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	if err != nil {
-		return internal.ErrorClientDo("statshouse.testConnection", c.Network, c.ActorID, c.Address, err)
-	}
-	defer c.Client.PutResponse(resp)
-	if ret != nil {
-		if _, err = args.ReadResult(resp.Body, ret); err != nil {
-			return internal.ErrorClientReadResult("statshouse.testConnection", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
@@ -928,40 +537,24 @@ func (c *Client) TestConnection2(ctx context.Context, args TestConnection2, extr
 type Handler struct {
 	AddMetricsBatch        func(ctx context.Context, args AddMetricsBatch) (internal.True, error)                       // statshouse.addMetricsBatch
 	AutoCreate             func(ctx context.Context, args AutoCreate) (internal.True, error)                            // statshouse.autoCreate
-	GetConfig              func(ctx context.Context, args GetConfig) (GetConfigResult, error)                           // statshouse.getConfig
 	GetConfig2             func(ctx context.Context, args GetConfig2) (GetConfigResult, error)                          // statshouse.getConfig2
-	GetMetrics             func(ctx context.Context, args GetMetrics) (GetMetricsResult, error)                         // statshouse.getMetrics
-	GetMetrics2            func(ctx context.Context, args GetMetrics2) (GetMetricsResult, error)                        // statshouse.getMetrics2
 	GetMetrics3            func(ctx context.Context, args GetMetrics3) (internal.MetadataGetJournalResponsenew, error)  // statshouse.getMetrics3
-	GetTagMapping          func(ctx context.Context, args GetTagMapping) (GetTagMappingResult, error)                   // statshouse.getTagMapping
 	GetTagMapping2         func(ctx context.Context, args GetTagMapping2) (GetTagMappingResult, error)                  // statshouse.getTagMapping2
 	GetTagMappingBootstrap func(ctx context.Context, args GetTagMappingBootstrap) (GetTagMappingBootstrapResult, error) // statshouse.getTagMappingBootstrap
-	GetTargets             func(ctx context.Context, args GetTargets) (GetTargetsResult, error)                         // statshouse.getTargets
 	GetTargets2            func(ctx context.Context, args GetTargets2) (GetTargetsResult, error)                        // statshouse.getTargets2
-	SendKeepAlive          func(ctx context.Context, args SendKeepAlive) (string, error)                                // statshouse.sendKeepAlive
 	SendKeepAlive2         func(ctx context.Context, args SendKeepAlive2) (string, error)                               // statshouse.sendKeepAlive2
-	SendSourceBucket       func(ctx context.Context, args SendSourceBucket) (string, error)                             // statshouse.sendSourceBucket
 	SendSourceBucket2      func(ctx context.Context, args SendSourceBucket2) (string, error)                            // statshouse.sendSourceBucket2
-	TestConnection         func(ctx context.Context, args TestConnection) (string, error)                               // statshouse.testConnection
 	TestConnection2        func(ctx context.Context, args TestConnection2) (string, error)                              // statshouse.testConnection2
 
 	RawAddMetricsBatch        func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.addMetricsBatch
 	RawAutoCreate             func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.autoCreate
-	RawGetConfig              func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getConfig
 	RawGetConfig2             func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getConfig2
-	RawGetMetrics             func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getMetrics
-	RawGetMetrics2            func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getMetrics2
 	RawGetMetrics3            func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getMetrics3
-	RawGetTagMapping          func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getTagMapping
 	RawGetTagMapping2         func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getTagMapping2
 	RawGetTagMappingBootstrap func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getTagMappingBootstrap
-	RawGetTargets             func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getTargets
 	RawGetTargets2            func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.getTargets2
-	RawSendKeepAlive          func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.sendKeepAlive
 	RawSendKeepAlive2         func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.sendKeepAlive2
-	RawSendSourceBucket       func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.sendSourceBucket
 	RawSendSourceBucket2      func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.sendSourceBucket2
-	RawTestConnection         func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.testConnection
 	RawTestConnection2        func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouse.testConnection2
 }
 
@@ -1028,36 +621,6 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			return nil
 		}
-	case 0x3285ff57: // statshouse.getConfig
-		if h.RawGetConfig != nil {
-			hctx.Request = r
-			err = h.RawGetConfig(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.getConfig", err)
-			}
-			return nil
-		}
-		if h.GetConfig != nil {
-			var args GetConfig
-			if _, err = args.Read(r); err != nil {
-				return internal.ErrorServerRead("statshouse.getConfig", err)
-			}
-			ctx = hctx.WithContext(ctx)
-			ret, err := h.GetConfig(ctx, args)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.getConfig", err)
-			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
-				return internal.ErrorServerWriteResult("statshouse.getConfig", err)
-			}
-			return nil
-		}
 	case 0x4285ff57: // statshouse.getConfig2
 		if h.RawGetConfig2 != nil {
 			hctx.Request = r
@@ -1088,66 +651,6 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			return nil
 		}
-	case 0x3285ff54: // statshouse.getMetrics
-		if h.RawGetMetrics != nil {
-			hctx.Request = r
-			err = h.RawGetMetrics(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.getMetrics", err)
-			}
-			return nil
-		}
-		if h.GetMetrics != nil {
-			var args GetMetrics
-			if _, err = args.Read(r); err != nil {
-				return internal.ErrorServerRead("statshouse.getMetrics", err)
-			}
-			ctx = hctx.WithContext(ctx)
-			ret, err := h.GetMetrics(ctx, args)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.getMetrics", err)
-			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
-				return internal.ErrorServerWriteResult("statshouse.getMetrics", err)
-			}
-			return nil
-		}
-	case 0x4285ff54: // statshouse.getMetrics2
-		if h.RawGetMetrics2 != nil {
-			hctx.Request = r
-			err = h.RawGetMetrics2(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.getMetrics2", err)
-			}
-			return nil
-		}
-		if h.GetMetrics2 != nil {
-			var args GetMetrics2
-			if _, err = args.Read(r); err != nil {
-				return internal.ErrorServerRead("statshouse.getMetrics2", err)
-			}
-			ctx = hctx.WithContext(ctx)
-			ret, err := h.GetMetrics2(ctx, args)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.getMetrics2", err)
-			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
-				return internal.ErrorServerWriteResult("statshouse.getMetrics2", err)
-			}
-			return nil
-		}
 	case 0x42855554: // statshouse.getMetrics3
 		if h.RawGetMetrics3 != nil {
 			hctx.Request = r
@@ -1175,36 +678,6 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
 				return internal.ErrorServerWriteResult("statshouse.getMetrics3", err)
-			}
-			return nil
-		}
-	case 0x3285ff56: // statshouse.getTagMapping
-		if h.RawGetTagMapping != nil {
-			hctx.Request = r
-			err = h.RawGetTagMapping(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.getTagMapping", err)
-			}
-			return nil
-		}
-		if h.GetTagMapping != nil {
-			var args GetTagMapping
-			if _, err = args.Read(r); err != nil {
-				return internal.ErrorServerRead("statshouse.getTagMapping", err)
-			}
-			ctx = hctx.WithContext(ctx)
-			ret, err := h.GetTagMapping(ctx, args)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.getTagMapping", err)
-			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
-				return internal.ErrorServerWriteResult("statshouse.getTagMapping", err)
 			}
 			return nil
 		}
@@ -1268,36 +741,6 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			return nil
 		}
-	case 0x51df72a3: // statshouse.getTargets
-		if h.RawGetTargets != nil {
-			hctx.Request = r
-			err = h.RawGetTargets(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.getTargets", err)
-			}
-			return nil
-		}
-		if h.GetTargets != nil {
-			var args GetTargets
-			if _, err = args.Read(r); err != nil {
-				return internal.ErrorServerRead("statshouse.getTargets", err)
-			}
-			ctx = hctx.WithContext(ctx)
-			ret, err := h.GetTargets(ctx, args)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.getTargets", err)
-			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
-				return internal.ErrorServerWriteResult("statshouse.getTargets", err)
-			}
-			return nil
-		}
 	case 0x41df72a3: // statshouse.getTargets2
 		if h.RawGetTargets2 != nil {
 			hctx.Request = r
@@ -1325,36 +768,6 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
 				return internal.ErrorServerWriteResult("statshouse.getTargets2", err)
-			}
-			return nil
-		}
-	case 0x3285ff53: // statshouse.sendKeepAlive
-		if h.RawSendKeepAlive != nil {
-			hctx.Request = r
-			err = h.RawSendKeepAlive(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.sendKeepAlive", err)
-			}
-			return nil
-		}
-		if h.SendKeepAlive != nil {
-			var args SendKeepAlive
-			if _, err = args.Read(r); err != nil {
-				return internal.ErrorServerRead("statshouse.sendKeepAlive", err)
-			}
-			ctx = hctx.WithContext(ctx)
-			ret, err := h.SendKeepAlive(ctx, args)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.sendKeepAlive", err)
-			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
-				return internal.ErrorServerWriteResult("statshouse.sendKeepAlive", err)
 			}
 			return nil
 		}
@@ -1388,36 +801,6 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			return nil
 		}
-	case 0x94575940: // statshouse.sendSourceBucket
-		if h.RawSendSourceBucket != nil {
-			hctx.Request = r
-			err = h.RawSendSourceBucket(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.sendSourceBucket", err)
-			}
-			return nil
-		}
-		if h.SendSourceBucket != nil {
-			var args SendSourceBucket
-			if _, err = args.Read(r); err != nil {
-				return internal.ErrorServerRead("statshouse.sendSourceBucket", err)
-			}
-			ctx = hctx.WithContext(ctx)
-			ret, err := h.SendSourceBucket(ctx, args)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.sendSourceBucket", err)
-			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
-				return internal.ErrorServerWriteResult("statshouse.sendSourceBucket", err)
-			}
-			return nil
-		}
 	case 0x44575940: // statshouse.sendSourceBucket2
 		if h.RawSendSourceBucket2 != nil {
 			hctx.Request = r
@@ -1445,36 +828,6 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
 				return internal.ErrorServerWriteResult("statshouse.sendSourceBucket2", err)
-			}
-			return nil
-		}
-	case 0x3285ff58: // statshouse.testConnection
-		if h.RawTestConnection != nil {
-			hctx.Request = r
-			err = h.RawTestConnection(ctx, hctx)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.testConnection", err)
-			}
-			return nil
-		}
-		if h.TestConnection != nil {
-			var args TestConnection
-			if _, err = args.Read(r); err != nil {
-				return internal.ErrorServerRead("statshouse.testConnection", err)
-			}
-			ctx = hctx.WithContext(ctx)
-			ret, err := h.TestConnection(ctx, args)
-			if rpc.IsHijackedResponse(err) {
-				return err
-			}
-			if err != nil {
-				return internal.ErrorServerHandle("statshouse.testConnection", err)
-			}
-			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
-				return internal.ErrorServerWriteResult("statshouse.testConnection", err)
 			}
 			return nil
 		}

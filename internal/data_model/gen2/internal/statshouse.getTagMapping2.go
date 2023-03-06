@@ -13,14 +13,12 @@ import (
 
 var _ = basictl.NatWrite
 
-var _ = True{}
-
 type StatshouseGetTagMapping2 struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeader
 	Metric     string
 	Key        string
-	// Create True // Conditional: item.FieldsMask.0
+	// Create (TrueType) // Conditional: item.FieldsMask.0
 	TagIdKey  int32
 	ClientEnv int32
 }
@@ -35,7 +33,7 @@ func (item *StatshouseGetTagMapping2) SetCreate(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item *StatshouseGetTagMapping2) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item StatshouseGetTagMapping2) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseGetTagMapping2) Reset() {
 	item.FieldsMask = 0
@@ -255,14 +253,12 @@ func (item *StatshouseGetTagMapping2) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-var _ = True{}
-
 type StatshouseGetTagMapping2Bytes struct {
 	FieldsMask uint32
 	Header     StatshouseCommonProxyHeaderBytes
 	Metric     []byte
 	Key        []byte
-	// Create True // Conditional: item.FieldsMask.0
+	// Create (TrueType) // Conditional: item.FieldsMask.0
 	TagIdKey  int32
 	ClientEnv int32
 }
@@ -277,7 +273,7 @@ func (item *StatshouseGetTagMapping2Bytes) SetCreate(v bool) {
 		item.FieldsMask &^= 1 << 0
 	}
 }
-func (item *StatshouseGetTagMapping2Bytes) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item StatshouseGetTagMapping2Bytes) IsSetCreate() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseGetTagMapping2Bytes) Reset() {
 	item.FieldsMask = 0

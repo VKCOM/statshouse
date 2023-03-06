@@ -13,13 +13,11 @@ import (
 
 var _ = basictl.NatWrite
 
-var _ = True{}
-
 type MetadataGetMapping struct {
 	FieldMask uint32
 	Metric    string
 	Key       string
-	// CreateIfAbsent True // Conditional: item.FieldMask.1
+	// CreateIfAbsent (TrueType) // Conditional: item.FieldMask.1
 }
 
 func (MetadataGetMapping) TLName() string { return "metadata.getMapping" }
@@ -32,7 +30,7 @@ func (item *MetadataGetMapping) SetCreateIfAbsent(v bool) {
 		item.FieldMask &^= 1 << 1
 	}
 }
-func (item *MetadataGetMapping) IsSetCreateIfAbsent() bool { return item.FieldMask&(1<<1) != 0 }
+func (item MetadataGetMapping) IsSetCreateIfAbsent() bool { return item.FieldMask&(1<<1) != 0 }
 
 func (item *MetadataGetMapping) Reset() {
 	item.FieldMask = 0

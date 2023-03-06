@@ -449,77 +449,6 @@ func (item *VectorEngineMetafilesOneMemoryStat) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type VectorFloat []float32
-
-func (VectorFloat) TLName() string { return "vector" }
-func (VectorFloat) TLTag() uint32  { return 0x1cb5c415 }
-
-func (item *VectorFloat) Reset() {
-	ptr := (*[]float32)(item)
-	*ptr = (*ptr)[:0]
-}
-
-func (item *VectorFloat) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]float32)(item)
-	return VectorFloat0Read(w, ptr)
-}
-
-func (item *VectorFloat) Write(w []byte) (_ []byte, err error) {
-	ptr := (*[]float32)(item)
-	return VectorFloat0Write(w, *ptr)
-}
-
-func (item *VectorFloat) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *VectorFloat) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
-}
-
-func (item VectorFloat) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func VectorFloat__ReadJSON(item *VectorFloat, j interface{}) error { return item.readJSON(j) }
-func (item *VectorFloat) readJSON(j interface{}) error {
-	ptr := (*[]float32)(item)
-	if err := VectorFloat0ReadJSON(j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (item *VectorFloat) WriteJSON(w []byte) (_ []byte, err error) {
-	ptr := (*[]float32)(item)
-	if w, err = VectorFloat0WriteJSON(w, *ptr); err != nil {
-		return w, err
-	}
-	return w, nil
-}
-func (item *VectorFloat) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *VectorFloat) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	return nil
-}
-
 type VectorInt []int32
 
 func (VectorInt) TLName() string { return "vector" }
@@ -818,42 +747,42 @@ func (item *VectorMetadataMetricOld) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
-func (item *VectorMetadataMetricOld) Read(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
+func (item *VectorMetadataMetricOld) Read(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataMetricOld)(item)
-	return VectorMetadataMetricOld0Read(w, ptr, nat_tfield_mask)
+	return VectorMetadataMetricOld0Read(w, ptr, nat_t)
 }
 
-func (item *VectorMetadataMetricOld) Write(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
+func (item *VectorMetadataMetricOld) Write(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataMetricOld)(item)
-	return VectorMetadataMetricOld0Write(w, *ptr, nat_tfield_mask)
+	return VectorMetadataMetricOld0Write(w, *ptr, nat_t)
 }
 
-func (item *VectorMetadataMetricOld) ReadBoxed(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
+func (item *VectorMetadataMetricOld) ReadBoxed(w []byte, nat_t uint32) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
 		return w, err
 	}
-	return item.Read(w, nat_tfield_mask)
+	return item.Read(w, nat_t)
 }
 
-func (item *VectorMetadataMetricOld) WriteBoxed(w []byte, nat_tfield_mask uint32) ([]byte, error) {
+func (item *VectorMetadataMetricOld) WriteBoxed(w []byte, nat_t uint32) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w, nat_tfield_mask)
+	return item.Write(w, nat_t)
 }
 
-func VectorMetadataMetricOld__ReadJSON(item *VectorMetadataMetricOld, j interface{}, nat_tfield_mask uint32) error {
-	return item.readJSON(j, nat_tfield_mask)
+func VectorMetadataMetricOld__ReadJSON(item *VectorMetadataMetricOld, j interface{}, nat_t uint32) error {
+	return item.readJSON(j, nat_t)
 }
-func (item *VectorMetadataMetricOld) readJSON(j interface{}, nat_tfield_mask uint32) error {
+func (item *VectorMetadataMetricOld) readJSON(j interface{}, nat_t uint32) error {
 	ptr := (*[]MetadataMetricOld)(item)
-	if err := VectorMetadataMetricOld0ReadJSON(j, ptr, nat_tfield_mask); err != nil {
+	if err := VectorMetadataMetricOld0ReadJSON(j, ptr, nat_t); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *VectorMetadataMetricOld) WriteJSON(w []byte, nat_tfield_mask uint32) (_ []byte, err error) {
+func (item *VectorMetadataMetricOld) WriteJSON(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataMetricOld)(item)
-	if w, err = VectorMetadataMetricOld0WriteJSON(w, *ptr, nat_tfield_mask); err != nil {
+	if w, err = VectorMetadataMetricOld0WriteJSON(w, *ptr, nat_t); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1224,79 +1153,6 @@ func (item *VectorStatshouseCentroid) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type VectorStatshouseIngestionStatus []StatshouseIngestionStatus
-
-func (VectorStatshouseIngestionStatus) TLName() string { return "vector" }
-func (VectorStatshouseIngestionStatus) TLTag() uint32  { return 0x1cb5c415 }
-
-func (item *VectorStatshouseIngestionStatus) Reset() {
-	ptr := (*[]StatshouseIngestionStatus)(item)
-	*ptr = (*ptr)[:0]
-}
-
-func (item *VectorStatshouseIngestionStatus) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseIngestionStatus)(item)
-	return VectorStatshouseIngestionStatus0Read(w, ptr)
-}
-
-func (item *VectorStatshouseIngestionStatus) Write(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseIngestionStatus)(item)
-	return VectorStatshouseIngestionStatus0Write(w, *ptr)
-}
-
-func (item *VectorStatshouseIngestionStatus) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *VectorStatshouseIngestionStatus) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
-}
-
-func (item VectorStatshouseIngestionStatus) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func VectorStatshouseIngestionStatus__ReadJSON(item *VectorStatshouseIngestionStatus, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *VectorStatshouseIngestionStatus) readJSON(j interface{}) error {
-	ptr := (*[]StatshouseIngestionStatus)(item)
-	if err := VectorStatshouseIngestionStatus0ReadJSON(j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (item *VectorStatshouseIngestionStatus) WriteJSON(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseIngestionStatus)(item)
-	if w, err = VectorStatshouseIngestionStatus0WriteJSON(w, *ptr); err != nil {
-		return w, err
-	}
-	return w, nil
-}
-func (item *VectorStatshouseIngestionStatus) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *VectorStatshouseIngestionStatus) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	return nil
-}
-
 type VectorStatshouseIngestionStatus2 []StatshouseIngestionStatus2
 
 func (VectorStatshouseIngestionStatus2) TLName() string { return "vector" }
@@ -1360,152 +1216,6 @@ func (item *VectorStatshouseIngestionStatus2) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorStatshouseIngestionStatus2) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	return nil
-}
-
-type VectorStatshouseItem []StatshouseItem
-
-func (VectorStatshouseItem) TLName() string { return "vector" }
-func (VectorStatshouseItem) TLTag() uint32  { return 0x1cb5c415 }
-
-func (item *VectorStatshouseItem) Reset() {
-	ptr := (*[]StatshouseItem)(item)
-	*ptr = (*ptr)[:0]
-}
-
-func (item *VectorStatshouseItem) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseItem)(item)
-	return VectorStatshouseItem0Read(w, ptr)
-}
-
-func (item *VectorStatshouseItem) Write(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseItem)(item)
-	return VectorStatshouseItem0Write(w, *ptr)
-}
-
-func (item *VectorStatshouseItem) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *VectorStatshouseItem) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
-}
-
-func (item VectorStatshouseItem) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func VectorStatshouseItem__ReadJSON(item *VectorStatshouseItem, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *VectorStatshouseItem) readJSON(j interface{}) error {
-	ptr := (*[]StatshouseItem)(item)
-	if err := VectorStatshouseItem0ReadJSON(j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (item *VectorStatshouseItem) WriteJSON(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseItem)(item)
-	if w, err = VectorStatshouseItem0WriteJSON(w, *ptr); err != nil {
-		return w, err
-	}
-	return w, nil
-}
-func (item *VectorStatshouseItem) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *VectorStatshouseItem) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	return nil
-}
-
-type VectorStatshouseItemBytes []StatshouseItemBytes
-
-func (VectorStatshouseItemBytes) TLName() string { return "vector" }
-func (VectorStatshouseItemBytes) TLTag() uint32  { return 0x1cb5c415 }
-
-func (item *VectorStatshouseItemBytes) Reset() {
-	ptr := (*[]StatshouseItemBytes)(item)
-	*ptr = (*ptr)[:0]
-}
-
-func (item *VectorStatshouseItemBytes) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseItemBytes)(item)
-	return VectorStatshouseItem0BytesRead(w, ptr)
-}
-
-func (item *VectorStatshouseItemBytes) Write(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseItemBytes)(item)
-	return VectorStatshouseItem0BytesWrite(w, *ptr)
-}
-
-func (item *VectorStatshouseItemBytes) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *VectorStatshouseItemBytes) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
-}
-
-func (item VectorStatshouseItemBytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func VectorStatshouseItemBytes__ReadJSON(item *VectorStatshouseItemBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *VectorStatshouseItemBytes) readJSON(j interface{}) error {
-	ptr := (*[]StatshouseItemBytes)(item)
-	if err := VectorStatshouseItem0BytesReadJSON(j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (item *VectorStatshouseItemBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseItemBytes)(item)
-	if w, err = VectorStatshouseItem0BytesWriteJSON(w, *ptr); err != nil {
-		return w, err
-	}
-	return w, nil
-}
-func (item *VectorStatshouseItemBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *VectorStatshouseItemBytes) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
 		return ErrorInvalidJSON("vector", err.Error())
@@ -2163,152 +1873,6 @@ func (item *VectorStatshouseSampleFactor) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorStatshouseSampleFactor) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	return nil
-}
-
-type VectorStatshouseStringTopElement []StatshouseStringTopElement
-
-func (VectorStatshouseStringTopElement) TLName() string { return "vector" }
-func (VectorStatshouseStringTopElement) TLTag() uint32  { return 0x1cb5c415 }
-
-func (item *VectorStatshouseStringTopElement) Reset() {
-	ptr := (*[]StatshouseStringTopElement)(item)
-	*ptr = (*ptr)[:0]
-}
-
-func (item *VectorStatshouseStringTopElement) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseStringTopElement)(item)
-	return VectorStatshouseStringTopElement0Read(w, ptr)
-}
-
-func (item *VectorStatshouseStringTopElement) Write(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseStringTopElement)(item)
-	return VectorStatshouseStringTopElement0Write(w, *ptr)
-}
-
-func (item *VectorStatshouseStringTopElement) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *VectorStatshouseStringTopElement) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
-}
-
-func (item VectorStatshouseStringTopElement) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func VectorStatshouseStringTopElement__ReadJSON(item *VectorStatshouseStringTopElement, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *VectorStatshouseStringTopElement) readJSON(j interface{}) error {
-	ptr := (*[]StatshouseStringTopElement)(item)
-	if err := VectorStatshouseStringTopElement0ReadJSON(j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (item *VectorStatshouseStringTopElement) WriteJSON(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseStringTopElement)(item)
-	if w, err = VectorStatshouseStringTopElement0WriteJSON(w, *ptr); err != nil {
-		return w, err
-	}
-	return w, nil
-}
-func (item *VectorStatshouseStringTopElement) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *VectorStatshouseStringTopElement) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	return nil
-}
-
-type VectorStatshouseStringTopElementBytes []StatshouseStringTopElementBytes
-
-func (VectorStatshouseStringTopElementBytes) TLName() string { return "vector" }
-func (VectorStatshouseStringTopElementBytes) TLTag() uint32  { return 0x1cb5c415 }
-
-func (item *VectorStatshouseStringTopElementBytes) Reset() {
-	ptr := (*[]StatshouseStringTopElementBytes)(item)
-	*ptr = (*ptr)[:0]
-}
-
-func (item *VectorStatshouseStringTopElementBytes) Read(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseStringTopElementBytes)(item)
-	return VectorStatshouseStringTopElement0BytesRead(w, ptr)
-}
-
-func (item *VectorStatshouseStringTopElementBytes) Write(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseStringTopElementBytes)(item)
-	return VectorStatshouseStringTopElement0BytesWrite(w, *ptr)
-}
-
-func (item *VectorStatshouseStringTopElementBytes) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
-		return w, err
-	}
-	return item.Read(w)
-}
-
-func (item *VectorStatshouseStringTopElementBytes) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
-}
-
-func (item VectorStatshouseStringTopElementBytes) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
-}
-
-func VectorStatshouseStringTopElementBytes__ReadJSON(item *VectorStatshouseStringTopElementBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *VectorStatshouseStringTopElementBytes) readJSON(j interface{}) error {
-	ptr := (*[]StatshouseStringTopElementBytes)(item)
-	if err := VectorStatshouseStringTopElement0BytesReadJSON(j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (item *VectorStatshouseStringTopElementBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	ptr := (*[]StatshouseStringTopElementBytes)(item)
-	if w, err = VectorStatshouseStringTopElement0BytesWriteJSON(w, *ptr); err != nil {
-		return w, err
-	}
-	return w, nil
-}
-func (item *VectorStatshouseStringTopElementBytes) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *VectorStatshouseStringTopElementBytes) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
 		return ErrorInvalidJSON("vector", err.Error())

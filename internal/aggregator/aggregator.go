@@ -481,7 +481,7 @@ func (a *Aggregator) goSend(senderID int) {
 			}
 		}
 		a.reporInsert(aggBucket.time, format.TagValueIDConveyorRecent, sendErr, dur, len(bodyStorage))
-		var args tlstatshouse.SendSourceBucket // Dummy
+		var args tlstatshouse.SendSourceBucket2 // Dummy
 		for _, c := range aggBucket.contributors {
 			c.Response, _ = args.WriteResult(c.Response, "Dummy result")
 			c.SendHijackedResponse(sendErr)
@@ -563,7 +563,7 @@ func (a *Aggregator) goSendHistoric(senderID int) {
 		}
 		// log.Printf("Historic inserted size %d time %d (%d buckets)", len(bodyStorage), aggBuckets[0].time, len(aggBuckets))
 
-		var args tlstatshouse.SendSourceBucket // Dummy
+		var args tlstatshouse.SendSourceBucket2 // Dummy
 		for i, b := range aggBuckets {
 			for _, c := range b.contributors {
 				c.Response, _ = args.WriteResult(c.Response, "Dummy historic result")

@@ -39,7 +39,7 @@ func (item *StatshouseApiQuery) ClearWhat() {
 	item.What = item.What[:0]
 	item.FieldsMask &^= 1 << 1
 }
-func (item *StatshouseApiQuery) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item StatshouseApiQuery) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseApiQuery) Reset() {
 	item.FieldsMask = 0
