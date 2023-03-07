@@ -17,11 +17,11 @@
   border: 1px solid var(--bs-gray-300);
 }
 
-.plotTabMenu li{
+.plotTabMenu li {
   position: relative;
 }
 
-.plotTabMenu li li{
+.plotTabMenu li li {
   min-height: 42px;
   width: 300px;
   position: relative;
@@ -43,7 +43,7 @@
   z-index: 2;
 }
 
-.plotTabMenuIcon{
+.plotTabMenuIcon {
   display: block;
   width: 50px;
   height: 50px;
@@ -51,7 +51,7 @@
   z-index: 0;
 }
 
-.plotTabMenuIconActive .plotTabMenuIcon{
+.plotTabMenuIconActive .plotTabMenuIcon {
   background-color: var(--bs-white);
   border-right: 1px solid var(--bs-white);
   border-top: 1px solid var(--bs-gray-300);
@@ -60,34 +60,38 @@
   box-sizing: content-box;
 }
 
-.plotTabMenu img{
+.plotTabMenu img {
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
-.plotTabMenu svg{
+.plotTabMenu svg {
   width: 50%;
   height: 50%;
   margin: 25%;
   object-fit: contain;
 }
 
-.plotTabMenuTitle{
+.plotTabMenuTitle {
   height: 42px;
 }
-@media screen and (min-width: 768px) {
+
+.plotInputName {
+  pointer-events: auto;
+}
+
+.plot @media screen and (min-width: 768px) {
   .plotTabMenu li:hover ul {
     display: block;
   }
 }
 @media screen and (max-width: 767.98px) {
-
-  .plotTabMenu li.plotTabMenuItemOpen ul{
+  .plotTabMenu li.plotTabMenuItemOpen ul {
     display: block;
   }
 
-  .plotTabMenuIconActive .plotTabMenuIcon{
+  .plotTabMenuIconActive .plotTabMenuIcon {
     background-color: var(--bs-white);
     border-right: 1px solid var(--bs-gray-300);
     border-left: 1px solid var(--bs-gray-300);
@@ -109,10 +113,10 @@
     left: 0;
     top: 100%;
   }
-  .plotTabMenu li{
+  .plotTabMenu li {
     position: static;
   }
-  .plotTabMenu li li{
+  .plotTabMenu li li {
     width: 100%;
   }
 }

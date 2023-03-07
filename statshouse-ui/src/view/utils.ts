@@ -694,6 +694,7 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
     plots: params.plots.map((p) => {
       // @ts-ignore
       delete p.timeShifts;
+      p.customName ??= '';
       return p;
     }),
     timeShifts,

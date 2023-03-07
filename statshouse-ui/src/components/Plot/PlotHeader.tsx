@@ -4,22 +4,26 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { Dispatch, memo, SetStateAction, useMemo } from 'react';
-import { formatTagValue, metricMeta, querySelector, whatToWhatDesc } from '../../view/api';
+import React, { Dispatch, memo, SetStateAction, useCallback, useMemo } from 'react';
+import { formatTagValue, metricMeta, whatToWhatDesc } from '../../view/api';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
-import { getUrlSearch, lockRange } from '../../common/plotQueryParams';
+import { getUrlSearch, lockRange, PlotParams } from '../../common/plotQueryParams';
 import produce from 'immer';
-import { selectorParams, selectorParamsTagSync, useStore } from '../../store';
+import { selectorDashboardLayoutEdit, selectorParams, selectorParamsTagSync, useStore } from '../../store';
 import { PlotLink } from './PlotLink';
+import { TextEditable } from '../TextEditable';
+import cn from 'classnames';
+import css from './style.module.css';
 
 export type PlotHeaderProps = {
   indexPlot?: number;
   compact?: boolean;
   dashboard?: boolean;
-  sel: querySelector;
+  sel: PlotParams;
   meta: metricMeta;
   live: boolean;
+  setParams: (nextState: React.SetStateAction<PlotParams>, replace?: boolean | undefined) => void;
   setLive: Dispatch<SetStateAction<boolean>>;
   setTimeRange: (value: SetTimeRangeValue, force?: boolean) => void;
   yLock: lockRange;
@@ -31,6 +35,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   compact,
   dashboard,
   sel,
+  setParams,
   meta,
   onResetZoom,
   onYLockChange,
@@ -41,6 +46,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
 }) => {
   const syncTag = useStore(selectorParamsTagSync);
   const params = useStore(selectorParams);
+  const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
 
   const filters = useMemo(
     () =>
@@ -95,6 +101,29 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     [indexPlot, params]
   );
 
+  const editCustomName = useCallback(
+    (value: string) => {
+      setParams(
+        produce((p) => {
+          p.customName = value;
+        })
+      );
+    },
+    [setParams]
+  );
+
+  const stopPropagation = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+  }, []);
+
+  const onInputCustomInput = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.currentTarget.value;
+      editCustomName(value);
+    },
+    [editCustomName]
+  );
+
   if (dashboard) {
     return (
       <div className={` overflow-force-wrap font-monospace fw-bold ${compact ? 'text-center' : ''}`}>
@@ -111,17 +140,33 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             link={copyLink}
           />
         )}
-        {compact && (
-          <PlotLink
-            className="text-secondary text-decoration-none"
-            indexPlot={indexPlot}
-            target={dashboard ? '_self' : '_blank'}
-          >
-            <span className="text-body">{sel.metricName}</span>:
-            <span className="me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
-          </PlotLink>
-        )}
-        {meta.resolution !== undefined && meta.resolution !== 1 && (
+        {compact &&
+          (dashboardLayoutEdit ? (
+            <input
+              type="text"
+              className={cn(css.plotInputName, 'form-control form-control-sm mb-1')}
+              value={sel.customName}
+              placeholder={sel.metricName + ': ' + sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}
+              onPointerDown={stopPropagation}
+              onInput={onInputCustomInput}
+            />
+          ) : (
+            <PlotLink
+              className="text-secondary text-decoration-none"
+              indexPlot={indexPlot}
+              target={dashboard ? '_self' : '_blank'}
+            >
+              {sel.customName ? (
+                <span className="text-body me-3">{sel.customName}</span>
+              ) : (
+                <>
+                  <span className="text-body">{sel.metricName}</span>:
+                  <span className="me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
+                </>
+              )}
+            </PlotLink>
+          ))}
+        {!dashboardLayoutEdit && meta.resolution !== undefined && meta.resolution !== 1 && (
           <span
             className={`badge ${
               meta.resolution && sel.customAgg > 0 && meta.resolution > sel.customAgg
@@ -133,8 +178,10 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             {meta.resolution}s
           </span>
         )}
-        {!sel.useV2 && <span className="badge bg-danger text-wrap me-2">legacy data, production only</span>}
-        {compact && (
+        {!dashboardLayoutEdit && !sel.useV2 && (
+          <span className="badge bg-danger text-wrap me-2">legacy data, production only</span>
+        )}
+        {!dashboardLayoutEdit && compact && (
           <>
             {
               /*tag values selected*/
@@ -196,15 +243,23 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
       <div className={`d-flex flex-grow-1 flex-wrap justify-content-${compact ? 'around' : 'between'}`}>
         {/*title*/}
         <h6
-          className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 ${
-            compact ? 'mb-0' : ''
-          }`}
+          className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 mb-0`}
         >
           {!compact && (
-            <span>
-              <span>{sel.metricName}</span>:
-              <span className="text-secondary me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
-            </span>
+            <TextEditable
+              className="flex-grow-1"
+              defaultValue={sel.customName}
+              placeholder={
+                sel.customName || (
+                  <>
+                    <span>{sel.metricName}</span>:
+                    <span className="text-secondary"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
+                  </>
+                )
+              }
+              onSave={editCustomName}
+              editByClick
+            />
           )}
           {compact && (
             <PlotLink
@@ -212,8 +267,14 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
               indexPlot={indexPlot}
               target={dashboard ? '_self' : '_blank'}
             >
-              <span className="text-body">{sel.metricName}</span>:
-              <span className="me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
+              {sel.customName ? (
+                <span className="text-body me-3">{sel.customName}</span>
+              ) : (
+                <>
+                  <span className="text-body">{sel.metricName}</span>:
+                  <span className="me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
+                </>
+              )}
             </PlotLink>
           )}
 

@@ -12,6 +12,7 @@ import {
   queryDashboardID,
   queryParamAgg,
   queryParamBackendVersion,
+  queryParamCustomName,
   queryParamFilter,
   queryParamFilterSync,
   queryParamFromTime,
@@ -51,6 +52,7 @@ export interface lockRange {
 
 export type PlotParams = {
   metricName: string;
+  customName: string;
   what: queryWhat[];
   customAgg: number;
   groupBy: string[];
@@ -312,6 +314,10 @@ export const configParams: ConfigParams = {
       metricName: {
         urlKey: queryParamMetric, // s=metric or t1.s=metric2
         required: true,
+      },
+      customName: {
+        urlKey: queryParamCustomName,
+        default: '',
       },
       what: {
         urlKey: queryParamWhat, // qw=avg or qw=count

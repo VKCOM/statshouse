@@ -15,6 +15,7 @@ export interface lockRange {
 
 export interface querySelector {
   readonly metricName: string;
+  readonly customName: string;
   readonly what: queryWhat[];
   readonly customAgg: number;
   readonly groupBy: readonly string[];
@@ -422,6 +423,7 @@ export function whatToWhatDesc(what: queryWhat): string {
 export const queryParamNumResults = 'n';
 export const queryParamBackendVersion = 'v';
 export const queryParamMetric = 's';
+export const queryParamCustomName = 'cn';
 export const queryParamFromTime = 'f';
 export const queryParamToTime = 't';
 export const queryParamWidth = 'w';

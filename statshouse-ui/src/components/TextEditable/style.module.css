@@ -1,0 +1,18 @@
+.view {
+  position: relative;
+  padding-right: calc(2em + 2px);
+}
+.edit {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translate(0, -50%);
+}
+
+.hiddenEditButton {
+  display: none;
+}
+
+.view:hover .hiddenEditButton {
+  display: block;
+}

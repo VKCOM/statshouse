@@ -193,7 +193,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
     [setGroupShow]
   );
   return (
-    <div className={cn(select !== null ? css.cursorDrag : css.cursorDefault, className)} ref={zone}>
+    <div className={cn(' container-xl', select !== null ? css.cursorDrag : css.cursorDefault, className)} ref={zone}>
       {itemsGroup.map((group, indexGroup) => (
         <div key={indexGroup} className="pb-5" data-group={indexGroup}>
           <h6

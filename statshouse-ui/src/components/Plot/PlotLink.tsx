@@ -34,6 +34,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
           const cloneId = p.tabNum < 0 ? p.plots.length - 1 : p.tabNum;
           p.plots.push({
             metricName: p.plots[cloneId].metricName,
+            customName: '',
             what: p.plots[cloneId].what.slice(),
             customAgg: p.plots[cloneId].customAgg,
             groupBy: p.plots[cloneId].groupBy.slice(),
