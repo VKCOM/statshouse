@@ -53,7 +53,6 @@ type Options struct {
 	MetricValidationFunc func(oldJson, newJson string) error
 	Now                  func() time.Time
 	Migration            bool
-	InitPredefined       bool
 }
 
 var scheme = `CREATE TABLE IF NOT EXISTS metrics
@@ -188,30 +187,6 @@ func OpenDB(
 		if err != nil {
 			log.Panic(err)
 		}
-	}
-
-	if opt.InitPredefined {
-		for _, value := range format.PredefinedMetrics {
-			err = db.eng.Do(context.Background(), "init_predifined", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-				id := int64(value.MetricID)
-				rows := conn.Query("select_entity", "SELECT id FROM metrics_v3 WHERE id = $id;",
-					sqlite.Int64("$id", id))
-				if rows.Error() != nil {
-					return cache, rows.Error()
-				}
-
-				if rows.Next() {
-					return cache, nil
-				}
-				bytes, err := format.MetricJSON(value)
-				if err != nil {
-					return cache, err
-				}
-				_, cache, err = db.saveEntityConn(conn, cache, time.Now().Unix(), value.Name, id, 0, string(bytes), true, false, format.MetricEvent)
-				return cache, err
-			})
-		}
-
 	}
 
 	return db, nil

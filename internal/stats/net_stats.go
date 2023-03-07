@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/procfs"
+	"github.com/vkcom/statshouse/internal/format"
 )
 
 type NetStats struct {
@@ -83,10 +84,10 @@ type tcp struct {
 
 type udp struct {
 	scrapeResult
-	InDatagrams  *float64
+	InDatagrams  float64
 	NoPorts      *float64
 	InErrors     *float64
-	OutDatagrams *float64
+	OutDatagrams float64
 	RcvbufErrors *float64
 	SndbufErrors *float64
 	InCsumErrors *float64
@@ -95,7 +96,7 @@ type udp struct {
 
 type icmp struct {
 	scrapeResult
-	InMsgs           *float64
+	InMsgs           float64
 	InErrors         *float64
 	InCsumErrors     *float64
 	InDestUnreachs   *float64
@@ -109,7 +110,7 @@ type icmp struct {
 	InTimestampReps  *float64
 	InAddrMasks      *float64
 	InAddrMaskReps   *float64
-	OutMsgs          *float64
+	OutMsgs          float64
 	OutErrors        *float64
 	OutDestUnreachs  *float64
 	OutTimeExcds     *float64
@@ -161,8 +162,8 @@ func (c *NetStats) pushNetDev() error {
 	total := dev.Total()
 
 	if len(c.oldNetDev) > 0 {
-		c.pusher.PushSystemMetricValue(bandwidth, float64(total.RxBytes-c.oldNetDevTotal.RxBytes), "received")
-		c.pusher.PushSystemMetricValue(bandwidth, float64(total.TxBytes-c.oldNetDevTotal.TxBytes), "sent")
+		c.pusher.PushSystemMetricValue(bandwidth, float64(total.RxBytes-c.oldNetDevTotal.RxBytes), format.RawIDTagReceived)
+		c.pusher.PushSystemMetricValue(bandwidth, float64(total.TxBytes-c.oldNetDevTotal.TxBytes), format.RawIDTagSent)
 	}
 
 	c.oldNetDev = dev
@@ -182,45 +183,67 @@ func (c *NetStats) pushSNMP() error {
 	}
 	c.pushIP(netstat)
 	c.pushTCP(netstat)
-	c.pushUDP(netstat)
+	c.pushPackets(netstat)
 	c.oldNetStat = netstat
 	return nil
+}
+
+func (c *NetStats) pushPackets(stat netStat) {
+	tcpR := stat.tcp.InSegs - c.oldNetStat.tcp.InSegs
+	tcpO := stat.tcp.InSegs - c.oldNetStat.tcp.OutSegs
+
+	ipR := stat.ip.InReceives - c.oldNetStat.ip.InReceives
+	ipO := stat.ip.OutRequests - c.oldNetStat.ip.OutRequests
+
+	udpR := stat.udp.InDatagrams - c.oldNetStat.udp.InDatagrams
+	udpO := stat.udp.OutDatagrams - c.oldNetStat.udp.OutDatagrams
+
+	icmpR := stat.icmp.InMsgs - c.oldNetStat.icmp.InMsgs
+	icmpO := stat.icmp.OutMsgs - c.oldNetStat.icmp.OutMsgs
+
+	if c.oldNetStat.tcp.isSuccess {
+		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, tcpR, format.RawIDTagReceived, format.RawIDTagTCP)
+		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, tcpO, format.RawIDTagSent, format.RawIDTagTCP)
+	}
+	if c.oldNetStat.udp.isSuccess {
+		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, udpR, format.RawIDTagReceived, format.RawIDTagUDP)
+		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, udpO, format.RawIDTagSent, format.RawIDTagUDP)
+	}
+	if c.oldNetStat.icmp.isSuccess {
+		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, icmpR, format.RawIDTagReceived, format.RawIDTagICMP)
+		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, icmpO, format.RawIDTagSent, format.RawIDTagICMP)
+	}
+	if c.oldNetStat.ip.isSuccess {
+		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, ipR-tcpR-udpR-icmpR, format.RawIDTagReceived, format.RawIDTagOther)
+		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, ipO-tcpO-udpO-icmpO, format.RawIDTagSent, format.RawIDTagOther)
+	}
 }
 
 func (c *NetStats) pushIP(stat netStat) {
 	if !c.oldNetStat.ip.isSuccess {
 		return
 	}
-	received := stat.ip.InReceives - c.oldNetStat.ip.InReceives
-	c.pusher.PushSystemMetricCount(ipPackets, received, "received")
-	sent := stat.ip.OutRequests - c.oldNetStat.ip.OutRequests
-	c.pusher.PushSystemMetricCount(ipPackets, sent, "sent")
-	/*
-		if stat.ip.InDelivers != nil {
-			delivers := *stat.ip.InDelivers - *c.oldNetStat.ip.InDelivers
-			c.pusher.PushSystemMetricValue(ipPackets, delivers, "delivers")
-		}
-	*/
-	forwarded := stat.ip.ForwDatagrams - c.oldNetStat.ip.ForwDatagrams
-	c.pusher.PushSystemMetricCount(ipPackets, forwarded, "forwarded")
+	// todo add forwarded
+	// forwarded := stat.ip.ForwDatagrams - c.oldNetStat.ip.ForwDatagrams
+	// c.pusher.PushSystemMetricCount(ipPackets, forwarded, "forwarded")
 
 	inHdrErrs := stat.ip.InHdrErrors - c.oldNetStat.ip.InHdrErrors
-	c.pusher.PushSystemMetricCount(ipPacketsErrors, inHdrErrs, "InHdrError")
+	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inHdrErrs, format.RawIDTagInHdrError, format.RawIDTagIP)
 
 	inDiscards := stat.ip.InDiscards - c.oldNetStat.ip.InDiscards
-	c.pusher.PushSystemMetricCount(ipPacketsErrors, inDiscards, "InDiscard")
+	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inDiscards, format.RawIDTagInDiscard, format.RawIDTagIP)
 
 	outDiscard := stat.ip.OutDiscards - c.oldNetStat.ip.OutDiscards
-	c.pusher.PushSystemMetricCount(ipPacketsErrors, outDiscard, "OutDiscards")
+	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, outDiscard, format.RawIDTagOutDiscard, format.RawIDTagIP)
 
 	outNoRoutes := stat.ip.OutNoRoutes - c.oldNetStat.ip.OutNoRoutes
-	c.pusher.PushSystemMetricCount(ipPacketsErrors, outNoRoutes, "OutNoRoute")
+	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, outNoRoutes, format.RawIDTagOutNoRoute, format.RawIDTagIP)
 
 	inAddrErrors := stat.ip.InAddrErrors - c.oldNetStat.ip.InAddrErrors
-	c.pusher.PushSystemMetricCount(ipPacketsErrors, inAddrErrors, "InAddrError")
+	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inAddrErrors, format.RawIDTagInAddrError, format.RawIDTagIP)
 
 	inUnknownProtos := stat.ip.InUnknownProtos - c.oldNetStat.ip.InUnknownProtos
-	c.pusher.PushSystemMetricCount(ipPacketsErrors, inUnknownProtos, "InUnknownProto")
+	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inUnknownProtos, format.RawIDTagInUnknownProto, format.RawIDTagIP)
 }
 
 func (c *NetStats) pushTCP(stat netStat) {
@@ -228,32 +251,12 @@ func (c *NetStats) pushTCP(stat netStat) {
 		return
 	}
 
-	received := stat.tcp.InSegs - c.oldNetStat.tcp.InSegs
-	c.pusher.PushSystemMetricCount(tcpPackets, received, "received")
-	sent := stat.tcp.OutSegs - c.oldNetStat.tcp.OutSegs
-	c.pusher.PushSystemMetricCount(tcpPackets, sent, "sent")
-
 	inErrs := stat.tcp.InErrs - c.oldNetStat.tcp.InErrs
-	c.pusher.PushSystemMetricCount(tcpPacketsErrors, inErrs, "InErr")
+	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inErrs, format.RawIDTagInErr, format.RawIDTagTCP)
 	inCsumError := stat.tcp.InCsumErrors - c.oldNetStat.tcp.InCsumErrors
-	c.pusher.PushSystemMetricCount(tcpPacketsErrors, inCsumError, "InCsumError")
+	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inCsumError, format.RawIDTagInCsumErr, format.RawIDTagTCP)
 	retransSegs := stat.tcp.RetransSegs - c.oldNetStat.tcp.RetransSegs
-	c.pusher.PushSystemMetricCount(tcpPacketsErrors, retransSegs, "RetransSeg")
-}
-
-func (c *NetStats) pushUDP(stat netStat) {
-	if !c.oldNetStat.udp.isSuccess {
-		return
-	}
-
-	if stat.udp.InDatagrams != nil {
-		received := *stat.udp.InDatagrams - *c.oldNetStat.udp.InDatagrams
-		c.pusher.PushSystemMetricCount(udpPackets, received, "received")
-	}
-	if stat.udp.OutDatagrams != nil {
-		sent := *stat.udp.OutDatagrams - *c.oldNetStat.udp.OutDatagrams
-		c.pusher.PushSystemMetricCount(udpPackets, sent, "sent")
-	}
+	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, retransSegs, format.RawIDTagRetransSeg, format.RawIDTagTCP)
 }
 
 func parseNetstat(reader io.Reader) (netStat, error) {
@@ -395,13 +398,13 @@ func parseUDP(names, values []string) (udp, error) {
 		}
 		switch name {
 		case "InDatagrams":
-			udp.InDatagrams = &value
+			udp.InDatagrams = value
 		case "NoPorts":
 			udp.NoPorts = &value
 		case "InErrors":
 			udp.InErrors = &value
 		case "OutDatagrams":
-			udp.OutDatagrams = &value
+			udp.OutDatagrams = value
 		case "RcvbufErrors":
 			udp.RcvbufErrors = &value
 		case "SndbufErrors":
@@ -425,7 +428,7 @@ func parseICMP(names, values []string) (icmp, error) {
 		}
 		switch name {
 		case "InMsgs":
-			icmp.InMsgs = &value
+			icmp.InMsgs = value
 		case "InErrors":
 			icmp.InErrors = &value
 		case "InCsumErrors":
@@ -453,7 +456,7 @@ func parseICMP(names, values []string) (icmp, error) {
 		case "InAddrMaskReps":
 			icmp.InAddrMaskReps = &value
 		case "OutMsgs":
-			icmp.OutMsgs = &value
+			icmp.OutMsgs = value
 		case "OutErrors":
 			icmp.OutErrors = &value
 		case "OutDestUnreachs":

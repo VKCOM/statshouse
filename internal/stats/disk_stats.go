@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/prometheus/procfs/blockdevice"
+	"github.com/vkcom/statshouse/internal/format"
 )
 
 type DiskStats struct {
@@ -46,17 +47,17 @@ func (c *DiskStats) PushMetrics() error {
 		writeIO := stat.WriteIOs - oldStat.WriteIOs
 		discardIO := stat.DiscardIOs - oldStat.DiscardIOs
 
-		c.pusher.PushSystemMetricCount(disk, float64(readIO), "read")
-		c.pusher.PushSystemMetricCount(disk, float64(writeIO), "write")
-		c.pusher.PushSystemMetricCount(disk, float64(discardIO), "discard")
+		c.pusher.PushSystemMetricCount(disk, float64(readIO), format.RawIDTagRead)
+		c.pusher.PushSystemMetricCount(disk, float64(writeIO), format.RawIDTagWrite)
+		c.pusher.PushSystemMetricCount(disk, float64(discardIO), format.RawIDTagDiscard)
 
 		readIOTicks := float64(stat.ReadTicks-oldStat.ReadTicks) / 1000
 		writeIOTicks := float64(stat.WriteTicks-oldStat.WriteTicks) / 1000
 		discardIOTicks := float64(stat.DiscardTicks-oldStat.DiscardTicks) / 1000
 
-		c.pusher.PushSystemMetricValue(disk, readIOTicks, "read")
-		c.pusher.PushSystemMetricValue(disk, writeIOTicks, "write")
-		c.pusher.PushSystemMetricValue(disk, discardIOTicks, "discard")
+		c.pusher.PushSystemMetricValue(disk, readIOTicks, format.RawIDTagRead)
+		c.pusher.PushSystemMetricValue(disk, writeIOTicks, format.RawIDTagWrite)
+		c.pusher.PushSystemMetricValue(disk, discardIOTicks, format.RawIDTagDiscard)
 	}
 	return nil
 }

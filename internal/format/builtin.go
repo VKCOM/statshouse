@@ -82,9 +82,6 @@ const (
 	BuiltinMetricIDAPISelectDuration          = -68
 	BuiltinMetricIDAgentHistoricQueueSizeSum  = -69
 	BuiltinMetricIDAPISourceSelectRows        = -70
-	// hardware metrics
-	BuiltinMetricIDCPUUsage     = 71
-	BuiltinMetricIDSystemUptime = 72
 
 	// metric names used in code directly
 	BuiltinMetricNameAggBucketReceiveDelaySec = "__agg_bucket_receive_delay_sec"
@@ -1486,6 +1483,12 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 }
 
 func init() {
+	for k, v := range hostMetrics {
+		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
+		BuiltinMetrics[k] = v
+		builtinMetricsAllowedToReceive[k] = true
+		metricsWithoutAggregatorID[k] = true
+	}
 	for i := 0; i < MaxTags; i++ {
 		legacyName := tagIDPrefix + strconv.Itoa(i)
 		tagIDs = append(tagIDs, legacyName)

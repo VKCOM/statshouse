@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/prometheus/procfs"
+	"github.com/vkcom/statshouse/internal/format"
 )
 
 type CPUStats struct {
@@ -16,12 +17,9 @@ type CPUStats struct {
 }
 
 const bt = "test_system_uptime"
-const cpu = "test_cpu_usage" // "cpu_usage"
+const cpu = format.BuiltinMetricNameCpuUsage
 const irq = ""
 const sirq = ""
-const pc = "test_system_process_created"
-const pr = "test_system_process_running"
-const pb = "test_system_process_blocked"
 const cs = ""
 
 func (*CPUStats) Name() string {
@@ -72,14 +70,14 @@ func (c *CPUStats) PushMetrics() error {
 func (c *CPUStats) pushCPUMetrics(stat procfs.Stat) error {
 	t := stat.CPUTotal
 	oldT := c.stat.CPUTotal
-	c.pusher.PushSystemMetricValue(cpu, t.User-oldT.User, "user")
-	c.pusher.PushSystemMetricValue(cpu, t.Nice-oldT.Nice, "nice")
-	c.pusher.PushSystemMetricValue(cpu, t.System-oldT.System, "system")
-	c.pusher.PushSystemMetricValue(cpu, t.Idle-oldT.Idle, "idle")
-	c.pusher.PushSystemMetricValue(cpu, t.Iowait-oldT.Iowait, "iowait")
-	c.pusher.PushSystemMetricValue(cpu, t.IRQ-oldT.IRQ, "irq")
-	c.pusher.PushSystemMetricValue(cpu, t.SoftIRQ-oldT.SoftIRQ, "softirq")
-	c.pusher.PushSystemMetricValue(cpu, t.Steal-oldT.Steal, "steal")
+	c.pusher.PushSystemMetricValue(cpu, t.User-oldT.User, format.RawIDTagUser)
+	c.pusher.PushSystemMetricValue(cpu, t.Nice-oldT.Nice, format.RawIDTagNice)
+	c.pusher.PushSystemMetricValue(cpu, t.System-oldT.System, format.RawIDTagSystem)
+	c.pusher.PushSystemMetricValue(cpu, t.Idle-oldT.Idle, format.RawIDTagIdle)
+	c.pusher.PushSystemMetricValue(cpu, t.Iowait-oldT.Iowait, format.RawIDTagIOWait)
+	c.pusher.PushSystemMetricValue(cpu, t.IRQ-oldT.IRQ, format.RawIDTagIRQ)
+	c.pusher.PushSystemMetricValue(cpu, t.SoftIRQ-oldT.SoftIRQ, format.RawIDTagSoftIRQ)
+	c.pusher.PushSystemMetricValue(cpu, t.Steal-oldT.Steal, format.RawIDTagSteal)
 	irqTotal := stat.IRQTotal - c.stat.IRQTotal
 	sirqTotal := stat.SoftIRQTotal - c.stat.SoftIRQTotal
 	c.pusher.PushSystemMetricValue(irq, float64(irqTotal))
@@ -90,11 +88,10 @@ func (c *CPUStats) pushCPUMetrics(stat procfs.Stat) error {
 func (c *CPUStats) pushSystemMetrics(stat procfs.Stat) error {
 	uptime := uint64(time.Now().Unix()) - stat.BootTime
 	c.pusher.PushSystemMetricValue(bt, float64(uptime))
-	c.pusher.PushSystemMetricValue(pr, float64(stat.ProcessesRunning))
-	c.pusher.PushSystemMetricCount(pc, float64(stat.ProcessCreated-c.stat.ProcessCreated))
-	c.pusher.PushSystemMetricValue(pb, float64(stat.ProcessesBlocked))
+	c.pusher.PushSystemMetricValue(format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesRunning), format.RawIDTagRunning)
+	c.pusher.PushSystemMetricValue(format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesBlocked), format.RawIDTagBlocked)
+	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameProcessCreated, float64(stat.ProcessCreated-c.stat.ProcessCreated))
 	c.pusher.PushSystemMetricValue(cs, float64(stat.ContextSwitches))
-	fmt.Println("push system metrics")
 	return nil
 }
 

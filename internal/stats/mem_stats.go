@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/prometheus/procfs"
+	"github.com/vkcom/statshouse/internal/format"
 )
 
 type MemStats struct {
@@ -12,7 +13,7 @@ type MemStats struct {
 	pusher Pusher
 }
 
-const mem = "test_mem_usage"
+const mem = format.BuiltinMetricNameMemUsage
 
 func (*MemStats) Name() string {
 	return "mem_stats"
@@ -67,12 +68,12 @@ func (c *MemStats) PushMetrics() error {
 	//if stat.Writeback != nil {
 	//	writeBack = *stat.Writeback
 	//}
-	cached = cached + sreclaimable - shmem //
+	cached = cached + sreclaimable - shmem
 	used := total - free - buffers - cached
-	c.pusher.PushSystemMetricValue(mem, float64(free), "free")
-	c.pusher.PushSystemMetricValue(mem, float64(used), "used")
+	c.pusher.PushSystemMetricValue(mem, float64(free), format.RawIDTagFree)
+	c.pusher.PushSystemMetricValue(mem, float64(used), format.RawIDTagUsed)
 
-	c.pusher.PushSystemMetricValue(mem, float64(buffers), "buffers")
-	c.pusher.PushSystemMetricValue(mem, float64(cached), "cached")
+	c.pusher.PushSystemMetricValue(mem, float64(buffers), format.RawIDTagBuffers)
+	c.pusher.PushSystemMetricValue(mem, float64(cached), format.RawIDTagCached)
 	return nil
 }

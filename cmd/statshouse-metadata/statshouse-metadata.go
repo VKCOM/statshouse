@@ -55,10 +55,9 @@ var argv struct {
 	budgetBonus  int64
 	globalBudget int64
 
-	version        bool
-	help           bool
-	secureMode     bool
-	initPredefined bool
+	version    bool
+	help       bool
+	secureMode bool
 }
 
 type Logger struct{}
@@ -92,7 +91,6 @@ func parseArgs() {
 	pflag.IntVarP(&argv.rpcPort, "port", "p", 2442, "RPC server port")
 	pflag.BoolVarP(&argv.help, "help", "h", false, "print usage instructions and exit")
 	pflag.BoolVar(&argv.version, "version", false, "show version information and exit")
-	pflag.BoolVar(&argv.initPredefined, "init-predefined", false, "insert predefined entities (system metrics, ...) to db")
 
 	pflag.Int64Var(&argv.maxBudget, "max-budget", metadata.MaxBudget, "maximum number of mappings that a metric can create")
 	pflag.Uint32Var(&argv.stepSec, "step-sec", metadata.StepSec, "every step-sec metric will receive budget-bonus mappings to budget")
@@ -268,13 +266,12 @@ func run() error {
 	host := srvfunc.HostnameForStatshouse()
 	log.Println("[debug] opening db and reread binlog")
 	db, err := metadata.OpenDB(argv.dbPath, metadata.Options{
-		Host:           host,
-		MaxBudget:      argv.maxBudget,
-		StepSec:        argv.stepSec,
-		BudgetBonus:    argv.budgetBonus,
-		GlobalBudget:   argv.globalBudget,
-		Migration:      true,
-		InitPredefined: argv.initPredefined,
+		Host:         host,
+		MaxBudget:    argv.maxBudget,
+		StepSec:      argv.stepSec,
+		BudgetBonus:  argv.budgetBonus,
+		GlobalBudget: argv.globalBudget,
+		Migration:    true,
 	}, bl)
 	if err != nil {
 		return fmt.Errorf("db-path: %s, failed to open db: %w", argv.dbPath, err)
