@@ -255,7 +255,7 @@ func promRespondError(w http.ResponseWriter, typ promErrorType, err error) {
 func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, []string, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
-		// should not happen, return empty set to not reveal potential security issue
+		// should not happen, return empty set to not reveal security issue
 		return nil, nil, nil
 	}
 	var (
@@ -404,10 +404,8 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (*pr
 			if valueID != 0 && j < len(qry.Meta.Tags) {
 				meta := qry.Meta.Tags[j]
 				tagsM[meta.Name] = promql.TagValue{
-					ID:          valueID,
-					Raw:         meta.Raw,
-					RawKind:     meta.RawKind,
-					Description: meta.Description,
+					ID:   valueID,
+					Meta: qry.Meta,
 				}
 			}
 		}

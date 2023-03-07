@@ -86,6 +86,7 @@ const (
 	paramDataFormat   = "df"
 	paramTabNumber    = "tn"
 	paramMaxHost      = "mh"
+	paramPromQuery    = "q"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -1526,6 +1527,71 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 		cache, cacheStale := queryClientCacheDuration(immutable)
 		respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
 	}
+}
+
+func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStat(EndpointQuery, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	ai, ok := h.parseAccessToken(w, r, sl)
+	if !ok {
+		return
+	}
+	_ = r.ParseForm()
+	from, to, err := parseFromTo(r.FormValue(ParamFromTime), r.FormValue(ParamToTime))
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	width, _, err := parseWidth(r.FormValue(ParamWidth), r.FormValue(ParamWidthAgg))
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	if width <= 0 {
+		width = 1
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	defer cancel()
+	res, cleanup, err := h.promEngine.Exec(
+		context.WithValue(ctx, accessInfoKey, &ai), // to check access rights when querying series
+		promql.Query{
+			Start: from.Unix(),
+			End:   to.Add(-time.Second).Unix(), // promEngine accepts closed range [from, to]
+			Step:  int64(width),
+			Expr:  r.FormValue(paramPromQuery),
+		})
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	defer cleanup()
+	bag, ok := res.(*promql.SeriesBag)
+	if !ok {
+		err = fmt.Errorf("string literals are not supported")
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	resp := GetQueryResp{Series: querySeries{Time: bag.Time, SeriesData: bag.Data}}
+	for i := range bag.Data {
+		meta := QuerySeriesMetaV2{MaxHosts: bag.GetSMaxHosts(i)}
+		for name, tag := range bag.GetTags(i) {
+			metaT := SeriesMetaTag{Value: h.getRichTagValue(tag.Meta, Version2, name, tag.ID)}
+			if t, tok := tag.Meta.Name2Tag[name]; tok {
+				metaT.Comment = t.ValueComments[metaT.Value]
+				metaT.Raw = t.Raw
+				metaT.RawKind = t.RawKind
+			}
+			meta.Tags[name] = metaT
+		}
+		for name, val := range bag.GetSTags(i) {
+			meta.Tags[name] = SeriesMetaTag{Value: val}
+		}
+		resp.Series.SeriesMeta = append(resp.Series.SeriesMeta, meta)
+	}
+	var (
+		immutable         = to.Before(time.Now().Add(invalidateFrom))
+		cache, cacheStale = queryClientCacheDuration(immutable)
+	)
+	respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) freeQueryResp(resp *GetQueryResp) {
