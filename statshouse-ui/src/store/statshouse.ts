@@ -691,7 +691,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                 return res;
               }, {} as Record<string, number>) ?? {};
             const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
-            seriesShow[indexMeta] = prev.series[indexMeta]?.label === label ? prev.series[indexMeta]?.show : true;
+            seriesShow[indexMeta] = prev.series[indexMeta]?.label === label ? prev.seriesShow[indexMeta] : true;
             maxHostLists[indexMeta] = Object.entries(max_host_map)
               .sort(([k, a], [n, b]) => (a > b ? -1 : a < b ? 1 : k > n ? 1 : k < n ? -1 : 0))
               .map(([host, count]) => {
