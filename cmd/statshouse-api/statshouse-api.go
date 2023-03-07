@@ -359,6 +359,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	a.Path("/" + api.EndpointMetric).Methods("POST").HandlerFunc(f.HandlePostMetric)
 	a.Path("/" + api.EndpointResetFlood).Methods("POST").HandlerFunc(f.HandlePostResetFlood)
 	a.Path("/" + api.EndpointQuery).Methods("GET").HandlerFunc(f.HandleGetQuery)
+	a.Path("/" + api.EndpointQuery).Methods("POST").HandlerFunc(f.HandlePromQuery)
 	a.Path("/" + api.EndpointRender).Methods("GET").HandlerFunc(f.HandleGetRender)
 	a.Path("/" + api.EndpointDashboard).Methods("GET").HandlerFunc(f.HandleGetDashboard)
 	a.Path("/" + api.EndpointDashboardList).Methods("GET").HandlerFunc(f.HandleGetDashboardList)

@@ -17,15 +17,14 @@ import (
 	"strconv"
 
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
 )
 
 type TagValue struct {
-	ID          int32
-	Raw         bool
-	RawKind     string
-	Description string
+	ID   int32
+	Meta *format.MetricMetaValue
 }
 
 type SeriesBag struct {
@@ -78,14 +77,14 @@ func (b *SeriesBag) appendSTagged(v *[]float64, stags map[string]string) {
 	b.STags = bagAppend(n, b.STags, stags)
 }
 
-func (b *SeriesBag) getTags(i int) map[string]TagValue {
+func (b *SeriesBag) GetTags(i int) map[string]TagValue {
 	if i < len(b.Tags) {
 		return b.Tags[i]
 	}
 	return nil
 }
 
-func (b *SeriesBag) getSTags(i int) map[string]string {
+func (b *SeriesBag) GetSTags(i int) map[string]string {
 	if i < len(b.STags) {
 		return b.STags[i]
 	}
@@ -130,6 +129,13 @@ func (b *SeriesBag) setSTag(i int, t string, v string) {
 	}
 }
 
+func (b *SeriesBag) GetSMaxHosts(i int) []string {
+	if i < len(b.SMaxHost) {
+		return b.SMaxHost[i]
+	}
+	return nil
+}
+
 func (b *SeriesBag) Type() parser.ValueType {
 	return parser.ValueTypeMatrix
 }
@@ -155,7 +161,7 @@ func (b *SeriesBag) MarshalJSON() ([]byte, error) { // slow but only 20 lines lo
 			}
 		}
 		if len(v) != 0 {
-			s = append(s, series{M: b.getSTags(i), V: v})
+			s = append(s, series{M: b.GetSTags(i), V: v})
 		}
 	}
 	return json.Marshal(s)

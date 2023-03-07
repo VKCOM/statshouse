@@ -851,9 +851,13 @@ func (ev *evaluator) stringify(bag *SeriesBag) {
 }
 
 func (ev *evaluator) stag(name string, value TagValue) string {
+	var raw bool
+	if value.Meta != nil {
+		raw = value.Meta.Name2Tag[name].Raw
+	}
 	var res string
 	switch {
-	case value.Raw:
+	case raw:
 		if name == format.LETagName {
 			res = strconv.FormatFloat(float64(prometheus.LexDecode(value.ID)), 'f', -1, 32)
 		} else {

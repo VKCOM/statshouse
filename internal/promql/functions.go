@@ -766,12 +766,12 @@ func funcLabelJoin(ctx context.Context, ev *evaluator, args parser.Expressions) 
 	}
 	for i := range bag.Data {
 		var s []string
-		for name, value := range bag.getTags(i) {
+		for name, value := range bag.GetTags(i) {
 			if src[name] {
 				s = append(s, ev.stag(name, value))
 			}
 		}
-		for name, value := range bag.getSTags(i) {
+		for name, value := range bag.GetSTags(i) {
 			if src[name] {
 				s = append(s, value)
 			}
@@ -804,13 +804,13 @@ func funcLabelReplace(ctx context.Context, ev *evaluator, args parser.Expression
 	}
 	for i := range bag.Data {
 		var v string
-		for name, value := range bag.getTags(i) {
+		for name, value := range bag.GetTags(i) {
 			if src == name {
 				v = ev.stag(name, value)
 				goto replace
 			}
 		}
-		for name, value := range bag.getSTags(i) {
+		for name, value := range bag.GetSTags(i) {
 			if src == name {
 				v = value
 				goto replace
