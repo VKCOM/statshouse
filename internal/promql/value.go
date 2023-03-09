@@ -22,126 +22,47 @@ import (
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
 )
 
-type TagValue struct {
-	ID   int32
-	Meta *format.MetricMetaValue
+type SeriesBag struct {
+	Time    []int64
+	Data    []*[]float64
+	Meta    []SeriesMeta
+	MaxHost [][]int32
+	Range   int64
 }
 
-type SeriesBag struct {
-	Time     []int64
-	Data     []*[]float64
-	Tags     []map[string]TagValue
-	STags    []map[string]string
-	MaxHost  [][]int32
-	SMaxHost [][]string
-	Start    int64
-	Range    int64
+type SeriesMeta struct {
+	Tags   map[string]int32
+	STags  map[string]string
+	Metric *format.MetricMetaValue
 }
 
 type seriesGroup struct {
-	hash  uint64
-	tags  map[string]TagValue
-	stags map[string]string
-	bag   *SeriesBag
+	hash uint64
+	meta SeriesMeta
+	bag  SeriesBag
 }
+
+type histogram struct {
+	group   seriesGroup
+	buckets []bucket
+}
+
 type bucket struct {
-	le float32
-	g  seriesGroup
+	x  int     // index in series group
+	le float32 // decoded "le" tag value
 }
 
-func (b *SeriesBag) append(s ...*SeriesBag) {
-	for _, v := range s {
-		n := len(b.Data)
-		b.Data = append(b.Data, v.Data...)
-		b.Tags = bagAppend(n, b.Tags, v.Tags...)
-		b.STags = bagAppend(n, b.STags, v.STags...)
-		b.MaxHost = bagAppend(n, b.MaxHost, v.MaxHost...)
+func (b *SeriesBag) GetSMaxHosts(i int, h Handler) []string {
+	if len(b.MaxHost) <= i {
+		return nil
 	}
-}
-
-func (b *SeriesBag) appendX(s *SeriesBag, x ...int) {
-	for _, i := range x {
-		n := len(b.Data)
-		b.Data = append(b.Data, s.Data[i])
-		b.Tags = bagAppend(n, b.Tags, s.Tags[i])
-		b.STags = bagAppend(n, b.STags, s.STags[i])
-		if i < len(s.MaxHost) {
-			b.MaxHost = bagAppend(n, b.MaxHost, s.MaxHost[i])
+	res := make([]string, len(b.MaxHost[i]))
+	for j, id := range b.MaxHost[i] {
+		if id != 0 {
+			res[j] = h.GetTagValue(id)
 		}
 	}
-}
-
-func (b *SeriesBag) appendSTagged(v *[]float64, stags map[string]string) {
-	n := len(b.Data)
-	b.Data = append(b.Data, v)
-	b.STags = bagAppend(n, b.STags, stags)
-}
-
-func (b *SeriesBag) GetTags(i int) map[string]TagValue {
-	if i < len(b.Tags) {
-		return b.Tags[i]
-	}
-	return nil
-}
-
-func (b *SeriesBag) GetSTags(i int) map[string]string {
-	if i < len(b.STags) {
-		return b.STags[i]
-	}
-	return nil
-}
-
-func (b *SeriesBag) getTag(i int, t string) (v TagValue, ok bool) {
-	if len(b.Tags) <= i {
-		return TagValue{}, false
-	}
-	v, ok = b.Tags[i][t]
-	return v, ok
-}
-
-func (b *SeriesBag) getSTag(i int, t string) (v string, ok bool) {
-	if len(b.STags) <= i {
-		return "", false
-	}
-	v, ok = b.STags[i][t]
-	return v, ok
-}
-
-func (b *SeriesBag) setTag(i int, t string, v TagValue) {
-	for j := len(b.Tags); j <= i; j++ {
-		b.Tags = append(b.Tags, nil)
-	}
-	if b.Tags[i] != nil {
-		b.Tags[i][t] = v
-	} else {
-		b.Tags[i] = map[string]TagValue{t: v}
-	}
-}
-
-func (b *SeriesBag) setSTag(i int, t string, v string) {
-	for j := len(b.STags); j <= i; j++ {
-		b.STags = append(b.STags, nil)
-	}
-	if b.STags[i] != nil {
-		b.STags[i][t] = v
-	} else {
-		b.STags[i] = map[string]string{t: v}
-	}
-}
-
-func (b *SeriesBag) GetSMaxHosts(i int) []string {
-	if i < len(b.SMaxHost) {
-		return b.SMaxHost[i]
-	}
-	return nil
-}
-
-func (b *SeriesBag) Type() parser.ValueType {
-	return parser.ValueTypeMatrix
-}
-
-func (b *SeriesBag) String() string {
-	return fmt.Sprintf("%dx%d", len(b.Data), len(b.Time))
+	return res
 }
 
 func (b *SeriesBag) MarshalJSON() ([]byte, error) { // slow but only 20 lines long
@@ -153,73 +74,124 @@ func (b *SeriesBag) MarshalJSON() ([]byte, error) { // slow but only 20 lines lo
 	for i, row := range b.Data {
 		v := make([][2]any, 0, len(b.Time))
 		for j, t := range b.Time {
-			if t < b.Start {
-				continue
-			}
 			if math.Float64bits((*row)[j]) != NilValueBits {
 				v = append(v, [2]any{t, strconv.FormatFloat((*row)[j], 'f', -1, 64)})
 			}
 		}
 		if len(v) != 0 {
-			s = append(s, series{M: b.GetSTags(i), V: v})
+			s = append(s, series{M: b.getSTags(i), V: v})
 		}
 	}
 	return json.Marshal(s)
 }
 
-func (b *SeriesBag) histogram() ([]bucket, error) {
-	s, err := b.groupBy("le")
-	if err != nil || len(s) == 0 {
-		return nil, err
-	}
-	var res []bucket
-	for _, g := range s {
-		res = append(res, bucket{prometheus.LexDecode(g.tags["le"].ID), g})
-	}
-	sort.Slice(res, func(i, j int) bool { return res[i].le < res[j].le })
-	return res, nil
+func (b *SeriesBag) String() string {
+	return fmt.Sprintf("%dx%d", len(b.Data), len(b.Time))
 }
 
-func (b *SeriesBag) groupBy(tags ...string) ([]seriesGroup, error) {
-	return b.group(false, tags)
+func (b *SeriesBag) Type() parser.ValueType {
+	return parser.ValueTypeMatrix
+}
+
+func (b *SeriesBag) append(s SeriesBag) {
+	n := len(b.Data)
+	b.Data = append(b.Data, s.Data...)
+	b.Meta = bagAppend(n, b.Meta, s.Meta...)
+	b.MaxHost = bagAppend(n, b.MaxHost, s.MaxHost...)
+}
+
+func (b *SeriesBag) appendSTagged(v *[]float64, stags map[string]string) {
+	n := len(b.Data)
+	b.Data = append(b.Data, v)
+	b.Meta = bagAppend(n, b.Meta, SeriesMeta{STags: stags})
+}
+
+func (b *SeriesBag) appendX(s SeriesBag, x ...int) {
+	for _, i := range x {
+		n := len(b.Data)
+		b.Data = append(b.Data, s.Data[i])
+		b.Meta = bagAppend(n, b.Meta, s.Meta[i])
+		if i < len(s.MaxHost) {
+			b.MaxHost = bagAppend(n, b.MaxHost, s.MaxHost[i])
+		}
+	}
+}
+
+func (b *SeriesBag) at(i int) SeriesBag {
+	return SeriesBag{
+		Time: b.Time,
+		Data: b.Data[i : i+1],
+		Meta: b.Meta[i : i+1],
+	}
+}
+
+func (b *SeriesBag) dropMetricName() {
+	for _, m := range b.Meta {
+		delete(m.STags, labels.MetricName)
+	}
+}
+
+func (b *SeriesBag) getSTag(i int, t string) (v string, ok bool) {
+	if len(b.Meta) <= i {
+		return "", false
+	}
+	v, ok = b.Meta[i].getSTag(t)
+	return v, ok
+}
+
+func (b *SeriesBag) getSTags(i int) map[string]string {
+	if i < len(b.Meta) {
+		return b.Meta[i].STags
+	}
+	return nil
+}
+
+func (b *SeriesBag) getTag(i int, t string) (v int32, ok bool) {
+	if len(b.Meta) <= i {
+		return 0, false
+	}
+	v, ok = b.Meta[i].getTag(t)
+	return v, ok
+}
+
+func (b *SeriesBag) getTags(i int) map[string]int32 {
+	if i < len(b.Meta) {
+		return b.Meta[i].Tags
+	}
+	return nil
 }
 
 func (b *SeriesBag) group(without bool, tags []string) ([]seriesGroup, error) {
 	if len(tags) == 0 && !without {
-		return []seriesGroup{{bag: b}}, nil
+		return []seriesGroup{{bag: *b}}, nil
 	}
 	var (
 		h      = fnv.New64()
 		by     = b.tagGroupBy(without, tags)
-		groups = make(map[uint64]*seriesGroup, len(b.Tags))
+		groups = make(map[uint64]*seriesGroup, len(b.Meta))
 	)
-	for i := range b.Tags {
+	for i := range b.Meta {
 		sum, s, err := b.hashAt(i, by, h)
 		if err != nil {
 			return nil, err
 		}
-		var g *SeriesBag
+		var bag *SeriesBag
 		if v, ok := groups[sum]; !ok {
-			g = &SeriesBag{Time: b.Time}
-			v = &seriesGroup{
-				hash:  sum,
-				tags:  make(map[string]TagValue),
-				stags: make(map[string]string),
-				bag:   g,
-			}
+			v = &seriesGroup{hash: sum, bag: SeriesBag{Time: b.Time}}
 			for _, tag := range s {
-				if t, ok2 := b.Tags[i][tag]; ok2 {
-					v.tags[tag] = t
+				if t, ok2 := b.getTag(i, tag); ok2 {
+					v.meta.SetTag(tag, t)
 				}
-				if value, ok2 := b.STags[i][tag]; ok2 {
-					v.stags[tag] = value
+				if value, ok2 := b.getSTag(i, tag); ok2 {
+					v.meta.SetSTag(tag, value)
 				}
 			}
 			groups[sum] = v
+			bag = &v.bag
 		} else {
-			g = v.bag
+			bag = &v.bag
 		}
-		g.appendX(b, i)
+		bag.appendX(*b, i)
 		h.Reset()
 	}
 	res := make([]seriesGroup, 0, len(groups))
@@ -229,17 +201,17 @@ func (b *SeriesBag) group(without bool, tags []string) ([]seriesGroup, error) {
 	return res, nil
 }
 
-func (b *SeriesBag) hashWithout(tags ...string) (map[uint64]int, error) {
-	return b.hash(true, tags)
+func (b *SeriesBag) groupWithout(tags ...string) ([]seriesGroup, error) {
+	return b.group(true, tags)
 }
 
 func (b *SeriesBag) hash(without bool, tags []string) (map[uint64]int, error) {
 	var (
 		h   = fnv.New64()
 		by  = b.tagGroupBy(without, tags)
-		res = make(map[uint64]int, len(b.Tags))
+		res = make(map[uint64]int, len(b.Meta))
 	)
-	for i := range b.Tags {
+	for i := range b.Meta {
 		sum, _, err := b.hashAt(i, by, h)
 		if err != nil {
 			return nil, err
@@ -254,13 +226,13 @@ func (b *SeriesBag) hash(without bool, tags []string) (map[uint64]int, error) {
 }
 
 func (b *SeriesBag) hashAt(i int, by map[string]bool, h hash.Hash64) (uint64, []string, error) {
-	s := make([]string, 0, len(b.Tags[i])+len(b.STags[i]))
-	for name := range b.Tags[i] {
+	s := make([]string, 0, len(b.Meta[i].Tags)+len(b.Meta[i].STags))
+	for name := range b.getTags(i) {
 		if by == nil || by[name] {
 			s = append(s, name)
 		}
 	}
-	for name := range b.STags[i] {
+	for name := range b.getSTags(i) {
 		if by == nil || by[name] {
 			s = append(s, name)
 		}
@@ -272,17 +244,73 @@ func (b *SeriesBag) hashAt(i int, by map[string]bool, h hash.Hash64) (uint64, []
 		if err != nil {
 			return 0, nil, err
 		}
-		if value, ok := b.Tags[i][name]; ok {
-			binary.LittleEndian.PutUint32(valueID, uint32(value.ID))
+		if value, ok := b.getTag(i, name); ok {
+			binary.LittleEndian.PutUint32(valueID, uint32(value))
 			_, err = h.Write(valueID)
 		} else {
-			_, err = h.Write([]byte(b.STags[i][name]))
+			_, err = h.Write([]byte(b.Meta[i].STags[name]))
 		}
 		if err != nil {
 			return 0, nil, err
 		}
 	}
 	return h.Sum64(), s, nil
+}
+
+func (b *SeriesBag) histograms() ([]histogram, error) {
+	groups, err := b.groupWithout(labels.BucketLabel)
+	if err != nil {
+		return nil, err
+	}
+	var res []histogram
+	for _, g := range groups {
+		var s []bucket
+		for i, meta := range g.bag.Meta {
+			if valueID, ok := meta.getTag(labels.BucketLabel); ok {
+				s = append(s, bucket{i, prometheus.LexDecode(valueID)})
+			} else if value, ok2 := meta.getSTag(labels.BucketLabel); ok2 {
+				var v float64
+				v, err = strconv.ParseFloat(value, 32)
+				if err == nil {
+					s = append(s, bucket{i, float32(v)})
+				}
+			}
+		}
+		if len(s) != 0 {
+			sort.Slice(s, func(i, j int) bool { return s[i].le < s[j].le })
+			res = append(res, histogram{g, s})
+		}
+	}
+	return res, nil
+}
+
+func (b *SeriesBag) scalar() bool {
+	if len(b.Data) != 1 {
+		return false
+	}
+	for _, meta := range b.Meta {
+		if len(meta.Tags) != 0 {
+			return false
+		}
+		if len(meta.STags) != 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func (b *SeriesBag) setSTag(i int, t string, v string) {
+	for j := len(b.Meta); j <= i; j++ {
+		b.Meta = append(b.Meta, SeriesMeta{})
+	}
+	b.Meta[i].SetSTag(t, v)
+}
+
+func (b *SeriesBag) setTag(i int, t string, v int32) {
+	for j := len(b.Meta); j <= i; j++ {
+		b.Meta = append(b.Meta, SeriesMeta{})
+	}
+	b.Meta[i].SetTag(t, v)
 }
 
 func (b *SeriesBag) tagGroupBy(without bool, tags []string) map[string]bool {
@@ -294,11 +322,11 @@ func (b *SeriesBag) tagGroupBy(without bool, tags []string) map[string]bool {
 		}
 		if without {
 			notBy := make(map[string]bool)
-			for i := range b.Tags {
-				for tag := range b.Tags[i] {
+			for _, meta := range b.Meta {
+				for tag := range meta.Tags {
 					notBy[tag] = !by[tag]
 				}
-				for tag := range b.STags[i] {
+				for tag := range meta.STags {
 					notBy[tag] = !by[tag]
 				}
 			}
@@ -308,35 +336,54 @@ func (b *SeriesBag) tagGroupBy(without bool, tags []string) map[string]bool {
 	return by
 }
 
-func (b *SeriesBag) dropMetricName() {
-	for i := range b.STags {
-		delete(b.STags[i], labels.MetricName)
+func (m *SeriesMeta) DropMetricName() {
+	delete(m.STags, labels.MetricName)
+}
+
+func (m *SeriesMeta) GetMetricName() string {
+	if m.STags == nil {
+		return ""
+	}
+	return m.STags[labels.MetricName]
+}
+
+func (m *SeriesMeta) SetSTag(name string, value string) {
+	if m.STags != nil {
+		m.STags[name] = value
+	} else {
+		m.STags = map[string]string{name: value}
 	}
 }
 
-func (b *SeriesBag) scalar() bool {
-	if len(b.Data) != 1 {
-		return false
+func (m *SeriesMeta) SetTag(name string, valueID int32) {
+	if m.Tags != nil {
+		m.Tags[name] = valueID
+	} else {
+		m.Tags = map[string]int32{name: valueID}
 	}
-	for _, tags := range b.Tags {
-		if len(tags) != 0 {
-			return false
-		}
-	}
-	for _, stags := range b.STags {
-		if len(stags) != 0 {
-			return false
-		}
-	}
-	return true
 }
 
-func (g *seriesGroup) at(i int) *SeriesBag {
-	return &SeriesBag{
-		Time:  g.bag.Time,
-		Data:  []*[]float64{g.bag.Data[i]},
-		Tags:  bagAppend(0, nil, g.tags),
-		STags: bagAppend(0, nil, g.stags),
+func (m *SeriesMeta) getSTag(name string) (v string, ok bool) {
+	if m.STags == nil {
+		return "", false
+	}
+	v, ok = m.STags[name]
+	return v, ok
+}
+
+func (m *SeriesMeta) getTag(name string) (v int32, ok bool) {
+	if m.Tags == nil {
+		return 0, false
+	}
+	v, ok = m.Tags[name]
+	return v, ok
+}
+
+func (g *seriesGroup) at(i int) SeriesBag {
+	return SeriesBag{
+		Time: g.bag.Time,
+		Data: []*[]float64{g.bag.Data[i]},
+		Meta: bagAppend(0, nil, g.meta),
 	}
 }
 
