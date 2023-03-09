@@ -73,6 +73,8 @@ const (
 	RawIDTagInErr          = 7
 	RawIDTagInCsumErr      = 8
 	RawIDTagRetransSeg     = 9
+
+	HostDCTag = 15
 )
 
 // add env, host tags later

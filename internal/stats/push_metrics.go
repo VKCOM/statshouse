@@ -14,20 +14,16 @@ type Pusher interface {
 	PushSystemMetricValue(name string, value float64, tagsList ...int32)
 	PushSystemMetricCount(name string, count float64, tagsList ...int32)
 }
+
 type PusherRemoteImpl struct {
 	HostName string
 }
 
+// PusherSHImpl isn't thread safe
 type PusherSHImpl struct {
 	HostName []byte
 	handler  receiver.Handler
-}
-
-func NewPusherSHImpl(hostName string, handler receiver.Handler) Pusher {
-	return &PusherSHImpl{
-		HostName: []byte(hostName),
-		handler:  handler,
-	}
+	metric   *tlstatshouse.MetricBytes
 }
 
 func buildTags(tags ...int32) statshouse.RawTags {
@@ -69,16 +65,15 @@ func buildTags(tags ...int32) statshouse.RawTags {
 	return res
 }
 
-var indexToKey = [][]byte{[]byte("key0"), []byte("key1"), []byte("key2"), []byte("key3"), []byte("key4"), []byte("key5"), []byte("key6"), []byte("key7"), []byte("key8"), []byte("key9"), []byte("key10"), []byte("key11"), []byte("key12"), []byte("key13"), []byte("key14"), []byte("key15")}
+const reservedKeys = 2
 
 func fillTags(metric *tlstatshouse.MetricBytes, tags ...int32) {
 	// Tag1 is reserved for host
 	for i, tag := range tags {
-		t := tl.DictionaryFieldStringBytes{
-			Key: indexToKey[i+2],
-		}
+		i = i + reservedKeys
+		t := &metric.Tags[i]
+		t.Key = strconv.AppendInt(t.Key, int64(i), 10)
 		t.Value = strconv.AppendInt(t.Value, int64(tag), 10)
-		metric.Tags = append(metric.Tags, t)
 	}
 }
 
@@ -94,37 +89,32 @@ func (p *PusherRemoteImpl) PushSystemMetricCount(name string, count float64, tag
 	statshouse.AccessMetricRaw(name, tags).Count(count)
 }
 
-func (p *PusherSHImpl) PushSystemMetricValue(name string, value float64, tagsList ...int32) {
-	metric := &tlstatshouse.MetricBytes{
-		Tags:  nil,
-		Value: []float64{value},
-		Ts:    uint32(time.Now().Unix()),
+func (p *PusherSHImpl) fillCommonMetric(m *tlstatshouse.MetricBytes, name string, tagsList ...int32) {
+	m.Reset()
+	m.Name = append(m.Name, name...)
+	m.Ts = uint32(time.Now().Unix())
+	tagsLength := len(tagsList) + reservedKeys
+	if cap(m.Tags) < tagsLength {
+		m.Tags = make([]tl.DictionaryFieldStringBytes, tagsLength)
+	} else {
+		m.Tags = m.Tags[:tagsLength]
 	}
-	metric.Name = append(metric.Name, name...)
-	metric.Tags = append(metric.Tags, tl.DictionaryFieldStringBytes{
-		Key:   indexToKey[1],
-		Value: p.HostName,
-	})
-	fillTags(metric, tagsList...)
-	p.handler.HandleMetrics(metric, nil)
+	m.Tags[1].Key = append(m.Tags[1].Key, "1"...)
+	m.Tags[1].Value = append(m.Tags[1].Value, p.HostName...)
+	fillTags(m, tagsList...)
+}
+
+func (p *PusherSHImpl) PushSystemMetricValue(name string, value float64, tagsList ...int32) {
+	m := p.metric
+	p.fillCommonMetric(m, name, tagsList...)
+	m.Value = append(m.Value, value)
+	_, _ = p.handler.HandleMetrics(m, nil)
 }
 
 // todo reuse metric
 func (p *PusherSHImpl) PushSystemMetricCount(name string, count float64, tagsList ...int32) {
-	metric := &tlstatshouse.MetricBytes{
-		Tags:    nil,
-		Counter: count,
-		Ts:      uint32(time.Now().Unix()),
-	}
-	metric.Name = append(metric.Name, name...)
-	metric.Tags = append(metric.Tags, tl.DictionaryFieldStringBytes{
-		Key:   indexToKey[1],
-		Value: p.HostName,
-	})
-	fillTags(metric, tagsList...)
-	p.handler.HandleMetrics(metric, nil)
-}
-
-func str(x int32) string {
-	return strconv.FormatInt(int64(x), 10)
+	m := p.metric
+	p.fillCommonMetric(m, name, tagsList...)
+	m.Counter = count
+	_, _ = p.handler.HandleMetrics(m, nil)
 }

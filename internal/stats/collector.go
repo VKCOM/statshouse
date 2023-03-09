@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"sync"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/receiver"
 	"go.uber.org/multierr"
 )
 
@@ -18,6 +19,7 @@ type Collector interface {
 
 type CollectorManagerOptions struct {
 	ScrapeInterval time.Duration
+	HostName       string
 }
 
 type CollectorManager struct {
@@ -34,29 +36,34 @@ type scrapeResult struct {
 const procPath = "/proc"
 const sysPath = "/sys"
 
-func NewCollectorManager(opt CollectorManagerOptions) (*CollectorManager, error) {
-	hostname, err := os.Hostname()
+func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler) (*CollectorManager, error) {
+	newPusher := func() Pusher {
+		if h == nil {
+			return &PusherRemoteImpl{HostName: opt.HostName}
+		}
+		return &PusherSHImpl{
+			HostName: []byte(opt.HostName),
+			handler:  h,
+			metric:   &tlstatshouse.MetricBytes{},
+		}
+	}
+	cpuStats, err := NewCpuStats(newPusher())
 	if err != nil {
 		return nil, err
 	}
-	pusher := &PusherRemoteImpl{HostName: hostname}
-	cpuStats, err := NewCpuStats(pusher)
+	diskStats, err := NewDiskStats(newPusher())
 	if err != nil {
 		return nil, err
 	}
-	diskStats, err := NewDiskStats(pusher)
+	memStats, err := NewMemoryStats(newPusher())
 	if err != nil {
 		return nil, err
 	}
-	memStats, err := NewMemoryStats(pusher)
+	netStats, err := NewNetStats(newPusher())
 	if err != nil {
 		return nil, err
 	}
-	netStats, err := NewNetStats(pusher)
-	if err != nil {
-		return nil, err
-	}
-	psiStats, err := NewPSI(pusher)
+	psiStats, err := NewPSI(newPusher())
 	if err != nil {
 		return nil, err
 	}

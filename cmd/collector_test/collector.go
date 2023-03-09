@@ -8,8 +8,7 @@ import (
 )
 
 func main() {
-	// todo replace with good hostname detection
-	collector, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: time.Second})
+	collector, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: time.Second, HostName: "adm512"}, nil)
 	if err != nil {
 		log.Panic(err)
 	}

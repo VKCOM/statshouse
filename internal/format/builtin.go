@@ -1307,9 +1307,6 @@ To see which seconds change when, use __contributors_log_rev`,
 				}),
 			}},
 		},
-
-		//hardware metrics
-
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -1385,8 +1382,6 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDBudgetHost:                 true,
 		BuiltinMetricIDBudgetAggregatorHost:       true,
 	}
-
-	MetricsCanBeChanged = map[int32]bool{}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue
 	BuiltinMetricAllowedToReceive map[string]*MetricMetaValue
@@ -1526,6 +1521,9 @@ func init() {
 			m.Tags[AggHostTag] = MetricMetaTag{Description: "aggregator_host"}
 			m.Tags[AggShardTag] = MetricMetaTag{Description: "aggregator_shard", Raw: true}
 			m.Tags[AggReplicaTag] = MetricMetaTag{Description: "aggregator_replica", Raw: true}
+		}
+		if _, ok := hostMetrics[id]; ok {
+			m.Tags[HostDCTag] = MetricMetaTag{Description: "dc"}
 		}
 		if metricsWithAgentEnvRouteArch[id] {
 			m.Tags[RouteTag] = MetricMetaTag{Description: "route", ValueComments: convertToValueComments(routeToValue)}
