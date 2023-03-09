@@ -48,10 +48,11 @@ func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQ
 		promRespondError(w, promErrorBadData, err)
 		return
 	}
+	q.End++ // handler expects half open interval [start, end)
 	// execute query
 	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
 	defer cancel()
-	res, dispose, err := h.promEngine.Exec(context.WithValue(ctx, accessInfoKey, &ai), q)
+	res, dispose, err := h.promEngine.Exec(context.WithValue(ctx, accessInfoKey, &ai), q, promql.Options{})
 	if err != nil {
 		promRespondError(w, promErrorExec, err)
 		return
@@ -250,8 +251,6 @@ func promRespondError(w http.ResponseWriter, typ promErrorType, err error) {
 
 // endregion
 
-// region Data Access
-
 func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, []string, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
@@ -259,31 +258,31 @@ func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]
 		return nil, nil, nil
 	}
 	var (
-		metrics []*format.MetricMetaValue
-		names   []string
+		s1 []*format.MetricMetaValue // metrics
+		s2 []string                  // metric match names
+		fn = func(metric *format.MetricMetaValue) {
+			var name string
+			switch {
+			case matcher.Matches(metric.Name):
+				name = metric.Name
+			case matcher.Matches(metric.Name + "_bucket"):
+				name = metric.Name + "_bucket"
+			default:
+				return
+			}
+			if ai.canViewMetric(matcher.Name) {
+				s1 = append(s1, metric)
+				s2 = append(s2, name)
+			}
+		}
 	)
-	match := func(meta *format.MetricMetaValue, matcher *labels.Matcher) {
-		var name string
-		switch {
-		case matcher.Matches(meta.Name):
-			name = meta.Name
-		case matcher.Matches(meta.Name + "_bucket"):
-			name = meta.Name + "_bucket"
-		default:
-			return
-		}
-		if ai.canViewMetric(matcher.Name) {
-			metrics = append(metrics, meta)
-			names = append(names, name)
-		}
+	for _, m := range format.BuiltinMetrics {
+		fn(m)
 	}
-	for _, meta := range format.BuiltinMetrics {
-		match(meta, matcher)
+	for _, m := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
+		fn(m)
 	}
-	for _, meta := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
-		match(meta, matcher)
-	}
-	return metrics, names, nil
+	return s1, s2, nil
 }
 
 func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMetaValue]int64, now int64) ([]promql.LOD, error) {
@@ -291,16 +290,16 @@ func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMet
 		return nil, nil
 	}
 	s := make([][]promql.LOD, 0, len(maxOffset))
-	for meta, offset := range maxOffset {
+	for metric, offset := range maxOffset {
 		lods := selectQueryLODs(
 			Version2,
-			int64(meta.PreKeyFrom),
-			meta.Resolution,
+			int64(metric.PreKeyFrom),
+			metric.Resolution,
 			false,
-			meta.StringTopDescription != "",
+			metric.StringTopDescription != "",
 			now,
 			shiftTimestamp(qry.Start, 1, -offset, h.location),
-			shiftTimestamp(qry.End+1, 1, -offset, h.location),
+			shiftTimestamp(qry.End, 1, -offset, h.location),
 			h.utcOffset,
 			int(qry.Step),
 			widthLODRes,
@@ -339,11 +338,11 @@ func (h *Handler) GetTagValueID(v string) (int32, error) {
 	return h.getTagValueID(v)
 }
 
-func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (*promql.SeriesBag, func(), error) {
+func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.SeriesBag, func(), error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
 		// should not happen, return empty set to not reveal security issue
-		return &promql.SeriesBag{}, func() {}, nil
+		return promql.SeriesBag{}, func() {}, nil
 	}
 	var (
 		what, qs, pq  = getHandlerArgs(qry, ai)
@@ -362,7 +361,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (*pr
 		m, err := h.cache.Get(ctx, Version2, qs, &pq, lod, false)
 		if err != nil {
 			cleanup()
-			return nil, nil, err
+			return promql.SeriesBag{}, nil, err
 		}
 		var (
 			t      = lod.fromSec
@@ -396,21 +395,13 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (*pr
 			tx++
 		}
 	}
-	tags := make([]map[string]promql.TagValue, len(tagX))
-	stags := make([]map[string]string, len(tagX))
+	meta := make([]promql.SeriesMeta, len(tagX))
 	for t, i := range tagX {
-		tagsM := make(map[string]promql.TagValue)
 		for j, valueID := range t.tag {
 			if valueID != 0 && j < len(qry.Meta.Tags) {
-				meta := qry.Meta.Tags[j]
-				tagsM[meta.Name] = promql.TagValue{
-					ID:   valueID,
-					Meta: qry.Meta,
-				}
+				meta[i].SetTag(qry.Meta.Tags[j].Name, valueID)
 			}
 		}
-		tags[i] = tagsM
-		stags[i] = make(map[string]string)
 	}
 	for _, tagID := range qry.GroupBy {
 		if tagID == format.StringTopTagID || tagID == qry.Meta.StringTopName {
@@ -419,30 +410,33 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (*pr
 				name = format.StringTopTagID
 			}
 			for v, i := range tagX {
-				stags[i][name] = emptyToUnspecified(v.tagStr.String())
+				meta[i].SetSTag(name, emptyToUnspecified(v.tagStr.String()))
 			}
 			break
 		}
+	}
+	for i := range meta {
+		meta[i].Metric = qry.Meta
 	}
 	if qry.Accumulate {
 		for _, row := range data {
 			accumulateSeries(*row)
 		}
 	}
-	return &promql.SeriesBag{Data: data, Tags: tags, STags: stags, MaxHost: maxHost}, cleanup, nil
+	return promql.SeriesBag{Data: data, Meta: meta, MaxHost: maxHost}, cleanup, nil
 }
 
-func (h *Handler) QueryTagValues(ctx context.Context, meta *format.MetricMetaValue, tagIx int, from, to int64) ([]int32, error) {
+func (h *Handler) QueryTagValues(ctx context.Context, metric *format.MetricMetaValue, tagX int, from, to int64) ([]int32, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
 		return nil, fmt.Errorf("tag not found")
 	}
 	lods := selectTagValueLODs(
 		Version2,
-		int64(meta.PreKeyFrom),
-		meta.Resolution,
+		int64(metric.PreKeyFrom),
+		metric.Resolution,
 		false,
-		meta.StringTopDescription != "",
+		metric.StringTopDescription != "",
 		time.Now().Unix(),
 		from,
 		to,
@@ -451,9 +445,9 @@ func (h *Handler) QueryTagValues(ctx context.Context, meta *format.MetricMetaVal
 	)
 	pq := &preparedTagValuesQuery{
 		version:     Version2,
-		metricID:    meta.MetricID,
-		preKeyTagID: meta.PreKeyTagID,
-		tagID:       format.TagID(tagIx),
+		metricID:    metric.MetricID,
+		preKeyTagID: metric.PreKeyTagID,
+		tagID:       format.TagID(tagX),
 		numResults:  math.MaxInt - 1,
 	}
 	tags := make(map[int32]bool)
@@ -477,24 +471,24 @@ func (h *Handler) QueryTagValues(ctx context.Context, meta *format.MetricMetaVal
 			return nil, err
 		}
 	}
-	ids := make([]int32, 0, len(tags))
-	for id := range tags {
-		ids = append(ids, id)
+	res := make([]int32, 0, len(tags))
+	for v := range tags {
+		res = append(res, v)
 	}
-	return ids, nil
+	return res, nil
 }
 
-func (h *Handler) QuerySTagValues(ctx context.Context, meta *format.MetricMetaValue, from, to int64) ([]string, error) {
+func (h *Handler) QuerySTagValues(ctx context.Context, metric *format.MetricMetaValue, from, to int64) ([]string, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
 		return nil, fmt.Errorf("tag not found")
 	}
 	lods := selectTagValueLODs(
 		Version2,
-		int64(meta.PreKeyFrom),
-		meta.Resolution,
+		int64(metric.PreKeyFrom),
+		metric.Resolution,
 		false,
-		meta.StringTopDescription != "",
+		metric.StringTopDescription != "",
 		time.Now().Unix(),
 		from,
 		to,
@@ -503,8 +497,8 @@ func (h *Handler) QuerySTagValues(ctx context.Context, meta *format.MetricMetaVa
 	)
 	pq := &preparedTagValuesQuery{
 		version:     Version2,
-		metricID:    meta.MetricID,
-		preKeyTagID: meta.PreKeyTagID,
+		metricID:    metric.MetricID,
+		preKeyTagID: metric.PreKeyTagID,
 		tagID:       format.StringTopTagID,
 		numResults:  math.MaxInt - 1,
 	}
@@ -536,39 +530,40 @@ func (h *Handler) QuerySTagValues(ctx context.Context, meta *format.MetricMetaVa
 	return ret, nil
 }
 
-func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (what queryFn, qs string, pq preparedPointsQuery) {
+func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, preparedPointsQuery) {
 	// convert "Filter"
 	var (
-		filterIn       = make(map[string][]string)
-		mappedFilterIn = make(map[string][]any)
+		filterIn  = make(map[string][]string)
+		filterInM = make(map[string][]any) // mapped
 	)
-	for ix, values := range qry.FilterIn {
-		tagID := format.TagID(ix)
-		for id, str := range values {
-			filterIn[tagID] = append(filterIn[tagID], str)
-			mappedFilterIn[tagID] = append(mappedFilterIn[tagID], id)
+	for i, m := range qry.FilterIn {
+		tagID := format.TagID(i)
+		for tagValueID, tagValue := range m {
+			filterIn[tagID] = append(filterIn[tagID], tagValue)
+			filterInM[tagID] = append(filterInM[tagID], tagValueID)
 		}
 	}
-	for _, str := range qry.SFilterIn {
-		filterIn[format.StringTopTagID] = append(filterIn[format.StringTopTagID], str)
-		mappedFilterIn[format.StringTopTagID] = append(mappedFilterIn[format.StringTopTagID], str)
+	for _, tagValue := range qry.SFilterIn {
+		filterIn[format.StringTopTagID] = append(filterIn[format.StringTopTagID], tagValue)
+		filterInM[format.StringTopTagID] = append(filterInM[format.StringTopTagID], tagValue)
 	}
 	var (
-		filterNotIn       = make(map[string][]string)
-		mappedFilterNotIn = make(map[string][]any)
+		filterOut  = make(map[string][]string)
+		filterOutM = make(map[string][]any) // mapped
 	)
-	for ix, values := range qry.FilterOut {
-		tagID := format.TagID(ix)
-		for id, str := range values {
-			filterNotIn[tagID] = append(filterNotIn[tagID], str)
-			mappedFilterNotIn[tagID] = append(mappedFilterNotIn[tagID], id)
+	for i, m := range qry.FilterOut {
+		tagID := format.TagID(i)
+		for tagValueID, tagValue := range m {
+			filterOut[tagID] = append(filterOut[tagID], tagValue)
+			filterOutM[tagID] = append(filterOutM[tagID], tagValueID)
 		}
 	}
-	for _, str := range qry.SFilterOut {
-		filterNotIn[format.StringTopTagID] = append(filterNotIn[format.StringTopTagID], str)
-		mappedFilterNotIn[format.StringTopTagID] = append(mappedFilterNotIn[format.StringTopTagID], str)
+	for _, tagValue := range qry.SFilterOut {
+		filterOut[format.StringTopTagID] = append(filterOut[format.StringTopTagID], tagValue)
+		filterOutM[format.StringTopTagID] = append(filterOutM[format.StringTopTagID], tagValue)
 	}
 	// get "queryFn"
+	var what queryFn
 	switch qry.What {
 	case promql.DigestCount:
 		what = queryFnCount
@@ -603,8 +598,8 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (what queryFn, qs s
 	}
 	// the rest
 	kind := queryFnToQueryFnKind(what, qry.MaxHost)
-	qs = normalizedQueryString(qry.Meta.Name, kind, qry.GroupBy, filterIn, filterNotIn)
-	pq = preparedPointsQuery{
+	qs := normalizedQueryString(qry.Meta.Name, kind, qry.GroupBy, filterIn, filterOut)
+	pq := preparedPointsQuery{
 		user:        ai.user,
 		version:     Version2,
 		metricID:    qry.Meta.MetricID,
@@ -612,8 +607,8 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (what queryFn, qs s
 		isStringTop: qry.Meta.StringTopDescription != "",
 		kind:        kind,
 		by:          qry.GroupBy,
-		filterIn:    mappedFilterIn,
-		filterNotIn: mappedFilterNotIn,
+		filterIn:    filterInM,
+		filterNotIn: filterOutM,
 	}
 	return what, qs, pq
 }
@@ -660,10 +655,6 @@ func getAccessInfo(ctx context.Context) *accessInfo {
 	return nil
 }
 
-// endregion
-
-// region Allocator
-
 func (h *Handler) Alloc(n int) *[]float64 {
 	if n > maxSlice {
 		panic(fmt.Errorf("exceeded maximum resolution of %d points per timeseries. Try decreasing the query resolution (?step=XX)", maxSlice))
@@ -674,135 +665,127 @@ func (h *Handler) Free(s *[]float64) {
 	h.putFloatsSlice(s)
 }
 
-// endregion
-
 func getPromQuery(req getQueryReq) string {
 	var res []string
 	for _, fn := range req.what {
+		name, ok := validQueryFn(fn)
+		if !ok {
+			continue
+		}
 		var (
 			what string
-			name string
 			aggr string
 			rate bool
 		)
-		switch fn {
-		case ParamQueryFnCount:
+		switch name {
+		case queryFnCount:
 			what = promql.Count
-			name = "count"
 			aggr = "sum"
-		case ParamQueryFnCountNorm:
+		case queryFnCountNorm:
 			what = promql.CountSec
-			name = "count/sec"
 			aggr = "sum"
-		case ParamQueryFnCumulCount:
+		case queryFnCumulCount:
 			what = promql.CountAcc
-			name = "count (cumul)"
 			aggr = "sum"
-		case ParamQueryFnCardinality:
+		case queryFnCardinality:
+			what = promql.Cardinality
+			aggr = "sum"
 			continue
-		case ParamQueryFnCardinalityNorm:
+		case queryFnCardinalityNorm:
+			what = promql.CardinalitySec
+			aggr = "sum"
 			continue
-		case ParamQueryFnCumulCardinality:
+		case queryFnCumulCardinality:
+			what = promql.CardinalityAcc
+			aggr = "sum"
 			continue
-		case ParamQueryFnMin:
+		case queryFnMin:
 			what = promql.Min
-			name = "min"
 			aggr = "min"
-		case ParamQueryFnMax:
+		case queryFnMax:
 			what = promql.Max
-			name = "max"
 			aggr = "max"
-		case ParamQueryFnAvg:
+		case queryFnAvg:
 			what = promql.Avg
-			name = "avg"
 			aggr = "avg"
-		case ParamQueryFnCumulAvg:
+		case queryFnCumulAvg:
 			what = promql.AvgAcc
-			name = "avg (cumul)"
 			aggr = "avg"
-		case ParamQueryFnSum:
+		case queryFnSum:
 			what = promql.Sum
-			name = "sum"
 			aggr = "sum"
-		case ParamQueryFnSumNorm:
+		case queryFnSumNorm:
 			what = promql.SumSec
-			name = "sum/sec"
 			aggr = "sum"
-		case ParamQueryFnCumulSum:
+		case queryFnCumulSum:
 			what = promql.SumAcc
-			name = "sum (cumul)"
 			aggr = "sum"
-		case ParamQueryFnStddev:
+		case queryFnStddev:
 			what = promql.StdDev
-			name = "stddev"
 			aggr = "stddev"
-		case ParamQueryFnP25:
+		case queryFnP25:
 			what = promql.P25
-			name = "p25"
-		case ParamQueryFnP50:
+		case queryFnP50:
 			what = promql.P50
-			name = "p50"
-		case ParamQueryFnP75:
+		case queryFnP75:
 			what = promql.P75
-			name = "p75"
-		case ParamQueryFnP90:
+		case queryFnP90:
 			what = promql.P90
-			name = "p90"
-		case ParamQueryFnP95:
+		case queryFnP95:
 			what = promql.P95
-			name = "p95"
-		case ParamQueryFnP99:
+		case queryFnP99:
 			what = promql.P99
-			name = "p99"
-		case ParamQueryFnP999:
+		case queryFnP999:
 			what = promql.P999
-			name = "p999"
-		case ParamQueryFnUnique:
+		case queryFnUnique:
+			what = promql.Unique
 			continue
-		case ParamQueryFnUniqueNorm:
+		case queryFnUniqueNorm:
+			what = promql.UniqueSec
 			continue
-		case ParamQueryFnMaxHost:
+		case queryFnMaxHost:
+			req.maxHost = true
 			continue
-		case ParamQueryFnMaxCountHost:
+		case queryFnMaxCountHost:
+			req.maxHost = true
 			continue
-		case ParamQueryFnDerivativeCount:
+		case queryFnDerivativeCount:
 			what = promql.Count
-			name = "count (derivative)"
 			aggr = "sum"
 			rate = true
-		case ParamQueryFnDerivativeSum:
+		case queryFnDerivativeSum:
 			what = promql.Sum
-			name = "sum (derivative)"
 			aggr = "sum"
 			rate = true
-		case ParamQueryFnDerivativeAvg:
+		case queryFnDerivativeAvg:
 			what = promql.Avg
-			name = "avg (derivative)"
 			aggr = "avg"
 			rate = true
-		case ParamQueryFnDerivativeCountNorm:
+		case queryFnDerivativeCountNorm:
 			what = promql.CountSec
-			name = "count/sec (derivative)"
 			aggr = "sum"
 			rate = true
-		case ParamQueryFnDerivativeSumNorm:
+		case queryFnDerivativeSumNorm:
 			what = promql.SumSec
-			name = "sum/sec (derivative)"
 			aggr = "sum"
 			rate = true
-		case ParamQueryFnDerivativeMin:
+		case queryFnDerivativeMin:
 			what = promql.Min
-			name = "min (derivative)"
 			aggr = "min"
 			rate = true
-		case ParamQueryFnDerivativeMax:
+		case queryFnDerivativeMax:
 			what = promql.Max
-			name = "max (derivative)"
 			aggr = "max"
 			rate = true
-		case ParamQueryFnDerivativeUnique:
+		case queryFnDerivativeUnique:
+			what = promql.Unique
+			aggr = "sum"
+			rate = true
 			continue
-		case ParamQueryFnDerivativeUniqueNorm:
+		case queryFnDerivativeUniqueNorm:
+			what = promql.UniqueSec
+			aggr = "sum"
+			rate = true
 			continue
 		default:
 			continue
@@ -828,7 +811,7 @@ func getPromQuery(req getQueryReq) string {
 			q = fmt.Sprintf("idelta(%s)", q)
 		}
 		// label_replace
-		q = fmt.Sprintf("label_replace(%s,%q,%q,%q,%q)", q, "__name__", name, "__name__", ".*")
+		q = fmt.Sprintf("label_replace(%s,%q,%q,%q,%q)", q, "__name__", name.String(), "__name__", ".*")
 		res = append(res, q)
 	}
 	return fmt.Sprintf("topk(%s,%s)", req.numResults, strings.Join(res, " or "))

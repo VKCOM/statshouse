@@ -15,26 +15,31 @@ import (
 )
 
 const (
-	Avg      = "avg"
-	AvgAcc   = "avgacc"
-	Count    = "count"
-	CountSec = "countsec"
-	CountAcc = "countacc"
-	Max      = "max"
-	Min      = "min"
-	Sum      = "sum"
-	SumSec   = "sumsec"
-	SumAcc   = "sumacc"
-	StdDev   = "stddev"
-	StdVar   = "stdvar"
-	P25      = "p25"
-	P50      = "p50"
-	P75      = "p75"
-	P90      = "p90"
-	P95      = "p95"
-	P99      = "p99"
-	P999     = "p999"
-	MaxHost  = "maxhost"
+	Avg            = "avg"
+	AvgAcc         = "avgacc"
+	Count          = "count"
+	CountSec       = "countsec"
+	CountAcc       = "countacc"
+	Max            = "max"
+	Min            = "min"
+	Sum            = "sum"
+	SumSec         = "sumsec"
+	SumAcc         = "sumacc"
+	StdDev         = "stddev"
+	StdVar         = "stdvar"
+	P25            = "p25"
+	P50            = "p50"
+	P75            = "p75"
+	P90            = "p90"
+	P95            = "p95"
+	P99            = "p99"
+	P999           = "p999"
+	Cardinality    = "cardinality"
+	CardinalitySec = "cardinalitysec"
+	CardinalityAcc = "cardinalityacc"
+	Unique         = "unique"
+	UniqueSec      = "uniquesec"
+	MaxHost        = "maxhost"
 
 	NilValueBits = 0x7ff0000000000002
 )
@@ -56,6 +61,8 @@ const (
 	DigestP999
 	DigestStdDev
 	DigestStdVar
+	DigestCardinality
+	DigestUnique
 )
 
 var NilValue = math.Float64frombits(NilValueBits)
@@ -65,42 +72,56 @@ type LOD struct {
 }
 
 type SeriesQuery struct {
-	// what
+	// What
 	Meta    *format.MetricMetaValue
 	What    DigestWhat
 	MaxHost bool
 
-	// when
+	// When
 	From int64
 	LODs []LOD
 
-	// grouping
+	// Grouping
 	GroupBy []string
 
-	// filtering
+	// Filtering
 	FilterIn   [format.MaxTags]map[int32]string // tagIx -> tagValueID -> tagValue
 	FilterOut  [format.MaxTags]map[int32]string // as above
 	SFilterIn  []string
 	SFilterOut []string
 
-	// transformations
+	// Transformations
 	Factor     int64
 	Accumulate bool
 }
 
-type DataAccess interface {
+type Handler interface {
+	//
+	// # Tag mapping
+	//
+
+	GetTagValue(tagValueID int32) string
+	GetTagValueID(tagValue string) (int32, error)
+
+	//
+	// # Metric Metadata
+	//
+
 	MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, []string, error)
 	GetQueryLODs(qry Query, maxOffset map[*format.MetricMetaValue]int64, now int64) ([]LOD, error)
 
-	GetTagValue(id int32) string
-	GetTagValueID(val string) (int32, error)
+	//
+	// # Storage
+	//
 
-	QuerySeries(ctx context.Context, qry *SeriesQuery) (*SeriesBag, func(), error)
-	QueryTagValues(ctx context.Context, meta *format.MetricMetaValue, tagIx int, from, to int64) ([]int32, error)
-	QuerySTagValues(ctx context.Context, meta *format.MetricMetaValue, from, to int64) ([]string, error)
-}
+	QuerySeries(ctx context.Context, qry *SeriesQuery) (SeriesBag, func(), error)
+	QueryTagValues(ctx context.Context, metric *format.MetricMetaValue, tagX int, from, to int64) ([]int32, error)
+	QuerySTagValues(ctx context.Context, metric *format.MetricMetaValue, from, to int64) ([]string, error)
 
-type Allocator interface {
+	//
+	// # Allocator
+	//
+
 	Alloc(int) *[]float64
 	Free(*[]float64)
 }

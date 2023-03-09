@@ -39,6 +39,7 @@ import (
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/promql"
+	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
@@ -314,6 +315,7 @@ type (
 		TimeShift int64                    `json:"time_shift"`
 		Tags      map[string]SeriesMetaTag `json:"tags"`
 		MaxHosts  []string                 `json:"max_hosts"` // max_host for now
+		Name      string                   `json:"name"`
 		What      queryFn                  `json:"what"`
 		Total     int                      `json:"total"`
 	}
@@ -447,8 +449,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		writeActiveQuieries(chV1, "1")
 		writeActiveQuieries(chV2, "2")
 	})
-	h.promEngine = promql.NewEngine(h, h, h.location)
-
+	h.promEngine = promql.NewEngine(h, location)
 	return h, nil
 }
 
@@ -1552,47 +1553,122 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
 	defer cancel()
-	res, cleanup, err := h.promEngine.Exec(
-		context.WithValue(ctx, accessInfoKey, &ai), // to check access rights when querying series
-		promql.Query{
-			Start: from.Unix(),
-			End:   to.Add(-time.Second).Unix(), // promEngine accepts closed range [from, to]
-			Step:  int64(width),
-			Expr:  r.FormValue(paramPromQuery),
-		})
+	var g *errgroup.Group
+	g, ctx = errgroup.WithContext(ctx)
+	var (
+		metricName  string
+		res, badges GetQueryResp
+		cleanup     func()
+		queryBadges = func(metrics []*format.MetricMetaValue) {
+			if len(metrics) != 1 {
+				return
+			}
+			metricName = metrics[0].Name
+			g.Go(func() error {
+				res2, _, err2 := h.handleGetQuery(ctx, false, getQueryReq{
+					ai:                  ai.withBadgesRequest(),
+					version:             Version2,
+					numResults:          "20",
+					metricWithNamespace: format.BuiltinMetricNameBadges,
+					from:                r.FormValue(ParamFromTime),
+					to:                  r.FormValue(ParamToTime),
+					width:               r.FormValue(ParamWidth),
+					widthAgg:            r.FormValue(ParamWidthAgg),
+					what:                []string{ParamQueryFnCountNorm, ParamQueryFnAvg},
+					by:                  []string{"key1", "key2"},
+					filterIn:            map[string][]string{"key2": {metricName, format.AddRawValuePrefix("0")}},
+				})
+				if err2 != nil {
+					return err2
+				}
+				badges = *res2
+				return nil
+			})
+		}
+		bag *promql.SeriesBag
+	)
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+	defer h.freeQueryResp(&badges)
+	g.Go(func() error {
+		var (
+			res2 parser.Value
+			err2 error
+		)
+		res2, cleanup, err2 = h.promEngine.Exec(
+			context.WithValue(ctx, accessInfoKey, &ai), // to check access rights when querying series
+			promql.Query{
+				Start: from.Unix(),
+				End:   to.Unix(),
+				Step:  int64(width),
+				Expr:  r.FormValue(paramPromQuery),
+			},
+			promql.Options{Callback: queryBadges})
+		if err2 != nil {
+			return err2
+		}
+		var ok2 bool
+		bag, ok2 = res2.(*promql.SeriesBag)
+		if !ok2 {
+			err2 = fmt.Errorf("string literals are not supported")
+			return err2
+		}
+		res = GetQueryResp{Series: querySeries{Time: bag.Time, SeriesData: bag.Data}}
+		for i, s := range bag.Meta {
+			what, _ := validQueryFn(bag.Meta[i].GetMetricName())
+			meta := QuerySeriesMetaV2{
+				Name:     metricName,
+				What:     what,
+				MaxHosts: bag.GetSMaxHosts(i, h),
+			}
+			bag.Meta[i].DropMetricName()
+			meta.Tags = make(map[string]SeriesMetaTag, len(bag.Meta[i].STags))
+			for name, v := range bag.Meta[i].STags {
+				tag := SeriesMetaTag{Value: v}
+				if s.Metric != nil {
+					if t, tok := s.Metric.Name2Tag[name]; tok {
+						tag.Comment = t.ValueComments[tag.Value]
+						tag.Raw = t.Raw
+						tag.RawKind = t.RawKind
+					}
+				}
+				meta.Tags[name] = tag
+			}
+			res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
+		}
+		return nil
+	})
+	err = g.Wait()
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	defer cleanup()
-	bag, ok := res.(*promql.SeriesBag)
-	if !ok {
-		err = fmt.Errorf("string literals are not supported")
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-		return
-	}
-	resp := GetQueryResp{Series: querySeries{Time: bag.Time, SeriesData: bag.Data}}
-	for i := range bag.Data {
-		meta := QuerySeriesMetaV2{MaxHosts: bag.GetSMaxHosts(i)}
-		for name, tag := range bag.GetTags(i) {
-			metaT := SeriesMetaTag{Value: h.getRichTagValue(tag.Meta, Version2, name, tag.ID)}
-			if t, tok := tag.Meta.Name2Tag[name]; tok {
-				metaT.Comment = t.ValueComments[metaT.Value]
-				metaT.Raw = t.Raw
-				metaT.RawKind = t.RawKind
+	if len(badges.Series.Time) > 0 {
+		for i, meta := range badges.Series.SeriesMeta {
+			if meta.Tags["key2"].Value == metricName {
+				badgeType := meta.Tags["key1"].Value
+				switch {
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor)):
+					res.SamplingFactorSrc = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor)):
+					res.SamplingFactorAgg = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld)):
+					res.ReceiveErrorsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld)):
+					res.MappingFloodEventsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors)):
+					res.ReceiveErrors = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors)):
+					res.MappingErrors = sumSeries(badges.Series.SeriesData[i], 0)
+				}
 			}
-			meta.Tags[name] = metaT
 		}
-		for name, val := range bag.GetSTags(i) {
-			meta.Tags[name] = SeriesMetaTag{Value: val}
-		}
-		resp.Series.SeriesMeta = append(resp.Series.SeriesMeta, meta)
 	}
-	var (
-		immutable         = to.Before(time.Now().Add(invalidateFrom))
-		cache, cacheStale = queryClientCacheDuration(immutable)
-	)
-	respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
+	cache, cacheStale := queryClientCacheDuration(to.Before(time.Now().Add(invalidateFrom)))
+	respondJSON(w, res, cache, cacheStale, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) freeQueryResp(resp *GetQueryResp) {
