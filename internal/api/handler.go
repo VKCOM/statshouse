@@ -277,12 +277,21 @@ type (
 	}
 
 	seriesRequestOptions struct {
-		debugQueries       bool
-		testPromql         bool
-		metricNameCallback func(string)
-		rand               *rand.Rand
-		stat               *endpointStat
-		timeNow            time.Time
+		allowNegativeNumResults bool
+		metricWithNamespace     string
+		from                    string
+		to                      string
+		width                   string
+		widthAgg                string
+		timeShifts              []string
+		what                    []string
+		by                      []string
+		filterIn                map[string][]string
+		filterNotIn             map[string][]string
+		maxHost                 bool
+		avoidCache              bool
+
+		fromRow []string
 	}
 
 	//easyjson:json
@@ -302,11 +311,16 @@ type (
 		queries                  map[lodInfo]int // not nil if testPromql option set (see getQueryReqOptions)
 	}
 
-	//easyjson:json
-	GetPointResp struct {
-		PointMeta    []QueryPointsMeta `json:"point_meta"`      // M
-		PointData    []float64         `json:"point_data"`      // M
-		DebugQueries []string          `json:"__debug_queries"` // private, unstable: SQL queries executed
+	GetTableResp struct {
+		Series       []queryRow `json:"rows"`
+		DebugQueries []string   `json:"__debug_queries"` // private, unstable: SQL queries executed
+	}
+
+	getRenderReq struct {
+		ai           accessInfo
+		getQueryReq  []getQueryReq
+		renderWidth  string
+		renderFormat string
 	}
 
 	renderRequest struct {
@@ -325,6 +339,13 @@ type (
 		Time       []int64             `json:"time"`        // N
 		SeriesMeta []QuerySeriesMetaV2 `json:"series_meta"` // M
 		SeriesData []*[]float64        `json:"series_data"` // MxN
+	}
+
+	queryRow struct {
+		Time int64                    `json:"time"`
+		Data float64                  `json:"data"`
+		Tags map[string]SeriesMetaTag `json:"tags"`
+		What queryFn                  `json:"what"`
 	}
 
 	QuerySeriesMeta struct {
