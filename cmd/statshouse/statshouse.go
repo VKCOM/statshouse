@@ -356,7 +356,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}
 	}()
 
-	m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w)
+	m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, logErr)
 	if err != nil {
 		logErr.Println("failed to init hardware collector", err.Error())
 	} else {

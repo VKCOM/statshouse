@@ -14,10 +14,14 @@ const (
 	BuiltinMetricIDNetBandwidth   = -80
 	BuiltinMetricIDNetPacket      = -81
 	BuiltinMetricIDNetError       = -82
+	BuiltinMetricIDDiskUsage      = -83
+	BuiltinMetricIDINodeUsage     = -84
 
 	BuiltinMetricNameCpuUsage    = "host_cpu_usage"
 	BuiltinMetricNameMemUsage    = "host_mem_usage"
 	BuiltinMetricNameBlockIOTime = "host_block_io_time"
+	BuiltinMetricNameDiskUsage   = "host_disk_usage"
+	BuiltinMetricNameINodeUsage  = "host_inode_usage"
 
 	BuiltinMetricNameSystemUptime   = "host_system_uptime"
 	BuiltinMetricNameProcessCreated = "host_system_process_created"
@@ -233,21 +237,22 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Name:        BuiltinMetricNameNetError,
 		Kind:        MetricKindCounter,
 		Description: "Number of network errors",
-		Tags: []MetricMetaTag{{
-			Description: "type",
-			Raw:         true,
-			ValueComments: convertToValueComments(map[int32]string{
-				RawIDTagInHdrError:     "InHdrError",
-				RawIDTagInDiscard:      "InDiscard",
-				RawIDTagOutDiscard:     "OutDiscards",
-				RawIDTagOutNoRoute:     "OutNoRoute",
-				RawIDTagInAddrError:    "InAddrError",
-				RawIDTagInUnknownProto: "InUnknownProto",
-				RawIDTagInErr:          "InErr",
-				RawIDTagInCsumErr:      "InCsumError",
-				RawIDTagRetransSeg:     "RetransSeg",
-			}),
-		},
+		Tags: []MetricMetaTag{
+			{
+				Description: "type",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagInHdrError:     "InHdrError",
+					RawIDTagInDiscard:      "InDiscard",
+					RawIDTagOutDiscard:     "OutDiscards",
+					RawIDTagOutNoRoute:     "OutNoRoute",
+					RawIDTagInAddrError:    "InAddrError",
+					RawIDTagInUnknownProto: "InUnknownProto",
+					RawIDTagInErr:          "InErr",
+					RawIDTagInCsumErr:      "InCsumError",
+					RawIDTagRetransSeg:     "RetransSeg",
+				}),
+			},
 			{
 				Description: "protocol",
 				Raw:         true,
@@ -257,6 +262,40 @@ var hostMetrics = map[int32]*MetricMetaValue{
 					RawIDTagICMP:  "icmp",
 					RawIDTagOther: "other",
 				}),
+			}},
+	},
+	BuiltinMetricIDDiskUsage: {
+		Name:        BuiltinMetricNameDiskUsage,
+		Kind:        MetricKindValue,
+		Description: "Disk space utilization",
+		Tags: []MetricMetaTag{
+			{
+				Description: "state",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagFree: "free",
+					RawIDTagUsed: "used",
+				}),
+			},
+			{
+				Description: "device",
+			}},
+	},
+	BuiltinMetricIDINodeUsage: {
+		Name:        BuiltinMetricNameINodeUsage,
+		Kind:        MetricKindValue,
+		Description: "",
+		Tags: []MetricMetaTag{
+			{
+				Description: "state",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagFree: "free",
+					RawIDTagUsed: "used",
+				}),
+			},
+			{
+				Description: "device",
 			}},
 	},
 }

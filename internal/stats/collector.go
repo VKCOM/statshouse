@@ -27,6 +27,7 @@ type CollectorManager struct {
 	ctx        context.Context
 	cancel     func()
 	collectors []Collector
+	logErr     *log.Logger
 }
 
 type scrapeResult struct {
@@ -36,7 +37,7 @@ type scrapeResult struct {
 const procPath = "/proc"
 const sysPath = "/sys"
 
-func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler) (*CollectorManager, error) {
+func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, logErr *log.Logger) (*CollectorManager, error) {
 	newPusher := func() Pusher {
 		if h == nil {
 			return &PusherRemoteImpl{HostName: opt.HostName}
@@ -51,7 +52,7 @@ func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler) (*Coll
 	if err != nil {
 		return nil, err
 	}
-	diskStats, err := NewDiskStats(newPusher())
+	diskStats, err := NewDiskStats(newPusher(), logErr)
 	if err != nil {
 		return nil, err
 	}
@@ -74,6 +75,7 @@ func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler) (*Coll
 		ctx:        ctx,
 		cancel:     cancel,
 		collectors: collectors,
+		logErr:     logErr,
 	}, nil
 }
 
@@ -95,7 +97,7 @@ func (m *CollectorManager) RunCollector() error {
 			for {
 				err := c.PushMetrics()
 				if err != nil {
-					log.Printf("failed to push metrics: %v (collector: %s)", err, c.Name())
+					m.logErr.Printf("failed to push metrics: %v (collector: %s)", err, c.Name())
 				}
 				// todo round interval to begin of second
 				select {

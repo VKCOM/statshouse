@@ -41,8 +41,6 @@ func (c *MemStats) PushMetrics() error {
 	var cached uint64
 	var sreclaimable uint64
 	var shmem uint64
-	// var dirty uint64
-	// var writeBack uint64
 
 	if stat.MemTotal != nil {
 		total = *stat.MemTotal
@@ -62,12 +60,6 @@ func (c *MemStats) PushMetrics() error {
 	if stat.Shmem != nil {
 		shmem = *stat.Shmem
 	}
-	//if stat.Dirty != nil {
-	//	dirty = *stat.Dirty
-	//}
-	//if stat.Writeback != nil {
-	//	writeBack = *stat.Writeback
-	//}
 	cached = cached + sreclaimable - shmem
 	used := total - free - buffers - cached
 	c.pusher.PushSystemMetricValue(mem, float64(free), format.RawIDTagFree)

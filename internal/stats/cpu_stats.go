@@ -16,7 +16,6 @@ type CPUStats struct {
 	pusher Pusher
 }
 
-const bt = "test_system_uptime"
 const cpu = format.BuiltinMetricNameCpuUsage
 const irq = ""
 const sirq = ""
@@ -87,7 +86,7 @@ func (c *CPUStats) pushCPUMetrics(stat procfs.Stat) error {
 
 func (c *CPUStats) pushSystemMetrics(stat procfs.Stat) error {
 	uptime := uint64(time.Now().Unix()) - stat.BootTime
-	c.pusher.PushSystemMetricValue(bt, float64(uptime))
+	c.pusher.PushSystemMetricValue(format.BuiltinMetricNameSystemUptime, float64(uptime))
 	c.pusher.PushSystemMetricValue(format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesRunning), format.RawIDTagRunning)
 	c.pusher.PushSystemMetricValue(format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesBlocked), format.RawIDTagBlocked)
 	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameProcessCreated, float64(stat.ProcessCreated-c.stat.ProcessCreated))

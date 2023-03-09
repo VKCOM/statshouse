@@ -24,15 +24,6 @@ type NetStats struct {
 	pusher Pusher
 }
 
-const (
-	bandwidth        = "test_net_bandwidth"
-	ipPackets        = "test_net_ip_packet"
-	ipPacketsErrors  = "test_net_ip_packet_errors"
-	tcpPackets       = "test_net_tcp_packets"
-	tcpPacketsErrors = "test_net_tcp_packets_errors"
-	udpPackets       = "test_net_udp_datagrams"
-)
-
 type netStat struct {
 	ip   ip
 	tcp  tcp
@@ -162,8 +153,11 @@ func (c *NetStats) pushNetDev() error {
 	total := dev.Total()
 
 	if len(c.oldNetDev) > 0 {
-		c.pusher.PushSystemMetricValue(bandwidth, float64(total.RxBytes-c.oldNetDevTotal.RxBytes), format.RawIDTagReceived)
-		c.pusher.PushSystemMetricValue(bandwidth, float64(total.TxBytes-c.oldNetDevTotal.TxBytes), format.RawIDTagSent)
+		c.pusher.PushSystemMetricValue(format.BuiltinMetricNameNetBandwidth, float64(total.RxBytes-c.oldNetDevTotal.RxBytes), format.RawIDTagReceived)
+		c.pusher.PushSystemMetricValue(format.BuiltinMetricNameNetBandwidth, float64(total.TxBytes-c.oldNetDevTotal.TxBytes), format.RawIDTagSent)
+
+		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetBandwidth, float64(total.RxPackets-c.oldNetDevTotal.RxPackets), format.RawIDTagReceived)
+		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetBandwidth, float64(total.TxPackets-c.oldNetDevTotal.TxPackets), format.RawIDTagSent)
 	}
 
 	c.oldNetDev = dev
@@ -268,7 +262,6 @@ func parseNetstat(reader io.Reader) (netStat, error) {
 		values := strings.Split(scanner.Text(), " ")
 		protocol := strings.ToLower(strings.TrimSuffix(names[0], ":"))
 		if len(names) != len(values) {
-			//todo log
 			continue
 		}
 		var err error
@@ -286,8 +279,8 @@ func parseNetstat(reader io.Reader) (netStat, error) {
 		}
 
 		if err != nil {
+			log.Println("failed to parse: %w", err)
 			continue
-			//todo log
 		}
 	}
 	return result, scanner.Err()
