@@ -85,6 +85,8 @@ const (
 	paramRenderWidth  = "rw"
 	paramDataFormat   = "df"
 	paramTabNumber    = "tn"
+	paramMaxHost      = "mh"
+	paramPromQuery    = "q"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -216,12 +218,6 @@ type (
 		Metrics []string            `json:"metrics"`
 	}
 
-	//easyjson:json
-	PromConfigInfo struct {
-		Config  string `json:"config"`
-		Version int64  `json:"version"`
-	}
-
 	DashboardMetaInfo struct {
 		DashboardID int32                  `json:"dashboard_id"`
 		Name        string                 `json:"name"`
@@ -270,6 +266,7 @@ type (
 		by                      []string
 		filterIn                map[string][]string
 		filterNotIn             map[string][]string
+		maxHost                 bool
 		avoidCache              bool
 	}
 
@@ -283,6 +280,7 @@ type (
 		ReceiveErrors            float64                 `json:"receive_errors"`              // count/sec
 		MappingErrors            float64                 `json:"mapping_errors"`              // count/sec
 		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
+		DebugPromQL              string                  `json:"__debug_promql"`              // private, unstable: equivalent PromQL query
 		MetricMeta               *format.MetricMetaValue `json:"-"`
 		syncPoolBuffers          []*[]float64            // buffers to be returned to sync.Pool after response is serialized
 	}
@@ -406,6 +404,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		location:              location,
 		readOnly:              readOnly,
 		insecureMode:          insecureMode,
+		accessManager:         &accessManager{metricStorage.GetGroupByMetricName},
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
@@ -448,6 +447,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		writeActiveQuieries(chV1, "1")
 		writeActiveQuieries(chV2, "2")
 	})
+	h.promEngine = promql.NewEngine(h, h, h.location)
 
 	return h, nil
 }
@@ -991,18 +991,15 @@ func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("confog body too big. Max size is %d bytes", maxPromConfigHTTPBodySize)), h.verbose, ai.user, sl)
 		return
 	}
-	var promConfigInfo PromConfigInfo
-	if err := easyjson.Unmarshal(res, &promConfigInfo); err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-		return
-	}
-	event, err := h.handlePostPromConfig(r.Context(), ai, promConfigInfo.Config, promConfigInfo.Version)
+	event, err := h.handlePostPromConfig(r.Context(), ai, string(res))
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	err = h.waitVersionUpdate(r.Context(), event.Version)
-	respondJSON(w, &PromConfigInfo{Config: event.Data, Version: event.Version}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
+	respondJSON(w, struct {
+		Version int64 `json:"version"`
+	}{event.Version}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) handleGetMetric(ai accessInfo, metricWithNamespace string, metricIDStr string) (*MetricInfo, time.Duration, error) {
@@ -1025,22 +1022,19 @@ func (h *Handler) handleGetMetric(ai accessInfo, metricWithNamespace string, met
 	}, defaultCacheTTL, nil
 }
 
-func (h *Handler) handleGetPromConfig(ai accessInfo) (*PromConfigInfo, time.Duration, error) {
+func (h *Handler) handleGetPromConfig(ai accessInfo) (string, time.Duration, error) {
 	if !ai.isAdmin() {
-		return &PromConfigInfo{}, 0, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
+		return "", 0, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 	}
 	config := h.metricsStorage.PromConfig()
-	return &PromConfigInfo{
-		Config:  config.Data,
-		Version: config.Version,
-	}, defaultCacheTTL, nil
+	return config.Data, defaultCacheTTL, nil
 }
 
-func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, configStr string, version int64) (tlmetadata.Event, error) {
+func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, configStr string) (tlmetadata.Event, error) {
 	if !ai.isAdmin() {
 		return tlmetadata.Event{}, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 	}
-	event, err := h.metadataLoader.SavePromConfig(ctx, version, configStr)
+	event, err := h.metadataLoader.SavePromConfig(ctx, h.metricsStorage.PromConfig().Version, configStr)
 	if err != nil {
 		return tlmetadata.Event{}, fmt.Errorf("failed to save prometheus config: %w", err)
 	}
@@ -1157,6 +1151,11 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 	create := metric.MetricID == 0
 	var resp format.MetricMetaValue
 	var err error
+	if metric.GroupID != 0 {
+		if h.metricsStorage.GetGroup(metric.GroupID) != nil {
+			return format.MetricMetaValue{}, fmt.Errorf("invalid group id: %d", metric.GroupID)
+		}
+	}
 	if create {
 		if !ai.canEditMetric(true, metric, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q", metric.Name))
@@ -1285,7 +1284,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		return nil, false, err
 	}
 
-	_, kind, err := parseQueryWhat(req.what)
+	_, kind, err := parseQueryWhat(req.what, false)
 	if err != nil {
 		return nil, false, err
 	}
@@ -1421,6 +1420,7 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 	if avoidCache && !ai.isAdmin() {
 		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
 	}
+	_, maxHost := r.Form[paramMaxHost]
 	getQuery := func(ctx context.Context) (*GetQueryResp, bool, error) {
 		resp, immutable, err := h.handleGetQuery(
 			ctx,
@@ -1440,6 +1440,7 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 				filterIn:            filterIn,
 				filterNotIn:         filterNotIn,
 				avoidCache:          avoidCache,
+				maxHost:             maxHost,
 			})
 		if h.verbose && err == nil {
 			log.Printf("[debug] handled query (%v series x %v points each) for %q in %v", len(resp.Series.SeriesMeta), len(resp.Series.Time), ai.user, time.Since(sl.startTime))
@@ -1528,6 +1529,71 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStat(EndpointQuery, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	ai, ok := h.parseAccessToken(w, r, sl)
+	if !ok {
+		return
+	}
+	_ = r.ParseForm()
+	from, to, err := parseFromTo(r.FormValue(ParamFromTime), r.FormValue(ParamToTime))
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	width, _, err := parseWidth(r.FormValue(ParamWidth), r.FormValue(ParamWidthAgg))
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	if width <= 0 {
+		width = 1
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	defer cancel()
+	res, cleanup, err := h.promEngine.Exec(
+		context.WithValue(ctx, accessInfoKey, &ai), // to check access rights when querying series
+		promql.Query{
+			Start: from.Unix(),
+			End:   to.Add(-time.Second).Unix(), // promEngine accepts closed range [from, to]
+			Step:  int64(width),
+			Expr:  r.FormValue(paramPromQuery),
+		})
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	defer cleanup()
+	bag, ok := res.(*promql.SeriesBag)
+	if !ok {
+		err = fmt.Errorf("string literals are not supported")
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	resp := GetQueryResp{Series: querySeries{Time: bag.Time, SeriesData: bag.Data}}
+	for i := range bag.Data {
+		meta := QuerySeriesMetaV2{MaxHosts: bag.GetSMaxHosts(i)}
+		for name, tag := range bag.GetTags(i) {
+			metaT := SeriesMetaTag{Value: h.getRichTagValue(tag.Meta, Version2, name, tag.ID)}
+			if t, tok := tag.Meta.Name2Tag[name]; tok {
+				metaT.Comment = t.ValueComments[metaT.Value]
+				metaT.Raw = t.Raw
+				metaT.RawKind = t.RawKind
+			}
+			meta.Tags[name] = metaT
+		}
+		for name, val := range bag.GetSTags(i) {
+			meta.Tags[name] = SeriesMetaTag{Value: val}
+		}
+		resp.Series.SeriesMeta = append(resp.Series.SeriesMeta, meta)
+	}
+	var (
+		immutable         = to.Before(time.Now().Add(invalidateFrom))
+		cache, cacheStale = queryClientCacheDuration(immutable)
+	)
+	respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
+}
+
 func (h *Handler) freeQueryResp(resp *GetQueryResp) {
 	if resp != nil {
 		for i := range resp.Series.SeriesData {
@@ -1585,7 +1651,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		return nil, false, err
 	}
 
-	queries, err := parseQueries(version, req.what, req.by)
+	queries, err := parseQueries(version, req.what, req.by, req.maxHost)
 	if err != nil {
 		return nil, false, err
 	}
@@ -1726,7 +1792,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 							ixToLodToRows[ix][lodIx] = h.getRowsSlice()
 						}
 						*ixToLodToRows[ix][lodIx] = append(*ixToLodToRows[ix][lodIx], &rows[i])
-						v := math.Abs(selectTSValue(q.what, lod.stepSec, desiredStepMul, &rows[i]))
+						v := math.Abs(selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i]))
 						ixToAmount[ix] += v * v * float64(lod.stepSec)
 					}
 				}
@@ -1756,7 +1822,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 				syncPoolBuffers = append(syncPoolBuffers, ts)
 
 				var maxHosts []string
-				if (q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && version == Version2 {
+				if (req.maxHost || q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && version == Version2 {
 					maxHosts = make([]string, len(*ts))
 				}
 				for i := range *ts {
@@ -1768,13 +1834,12 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 						lod := lods[lodIx]
 						for _, row := range *rows {
 							lodTimeIx := lod.getIndexForTimestamp(row.time, shiftDelta)
-							(*ts)[base+lodTimeIx] = selectTSValue(q.what, lod.stepSec, desiredStepMul, row)
-							if maxHosts != nil {
+							(*ts)[base+lodTimeIx] = selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, row)
+							if maxHosts != nil && row.maxHost != 0 {
 								// mapping every time is not optimal, but mapping to store in cache is also not optimal. TODO - optimize?
-								tagValueID := int32(row.val[5])
-								label, err := h.getTagValue(tagValueID)
+								label, err := h.getTagValue(row.maxHost)
 								if err != nil {
-									label = format.CodeTagValue(tagValueID)
+									label = format.CodeTagValue(row.maxHost)
 								}
 								maxHosts[base+lodTimeIx] = label
 							}
@@ -1824,6 +1889,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 			SeriesData: data,
 		},
 		DebugQueries:    sqlQueries,
+		DebugPromQL:     getPromQuery(req),
 		MetricMeta:      metricMeta,
 		syncPoolBuffers: syncPoolBuffers,
 	}, immutable, nil
@@ -2162,14 +2228,16 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 }
 
 type pointsSelectCols struct {
-	time   proto.ColInt64
-	step   proto.ColInt64
-	cnt    proto.ColFloat64
-	val    []proto.ColFloat64
-	tag    []proto.ColInt32
-	tagIx  []int
-	tagStr proto.ColStr
-	res    proto.Results
+	time      proto.ColInt64
+	step      proto.ColInt64
+	cnt       proto.ColFloat64
+	val       []proto.ColFloat64
+	tag       []proto.ColInt32
+	tagIx     []int
+	tagStr    proto.ColStr
+	maxHostV1 proto.ColUInt8
+	maxHostV2 proto.ColInt32
+	res       proto.Results
 }
 
 func newPointsSelectCols(meta pointsQueryMeta) *pointsSelectCols {
@@ -2196,6 +2264,13 @@ func newPointsSelectCols(meta pointsQueryMeta) *pointsSelectCols {
 	for i := 0; i < meta.vals; i++ {
 		c.res = append(c.res, proto.ResultColumn{Name: "_val" + strconv.Itoa(i), Data: &c.val[i]})
 	}
+	if meta.maxHost {
+		if meta.version == Version1 {
+			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.maxHostV1})
+		} else {
+			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.maxHostV2})
+		}
+	}
 	return c
 }
 
@@ -2213,6 +2288,11 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	}
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
+	}
+	if len(c.maxHostV2) != 0 {
+		row.maxHost = c.maxHostV2[i]
+	} else if len(c.maxHostV1) != 0 {
+		row.maxHost = int32(c.maxHostV1[i])
 	}
 	return row
 }
@@ -2327,7 +2407,7 @@ func stableMulDiv(v float64, mul int64, div int64) float64 {
 	return v * float64(mul) / float64(div)
 }
 
-func selectTSValue(what queryFn, stepMul int64, desiredStepMul int64, row *tsSelectRow) float64 {
+func selectTSValue(what queryFn, maxHost bool, stepMul int64, desiredStepMul int64, row *tsSelectRow) float64 {
 	if stepMul == _1M {
 		desiredStepMul = row.stepSec
 	}
@@ -2339,10 +2419,19 @@ func selectTSValue(what queryFn, stepMul int64, desiredStepMul int64, row *tsSel
 	case queryFnCumulCount:
 		return row.countNorm
 	case queryFnCardinality:
+		if maxHost {
+			return stableMulDiv(row.val[5], desiredStepMul, row.stepSec)
+		}
 		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
 	case queryFnCardinalityNorm:
+		if maxHost {
+			return row.val[5] / float64(row.stepSec)
+		}
 		return row.val[0] / float64(row.stepSec)
 	case queryFnCumulCardinality:
+		if maxHost {
+			return row.val[5]
+		}
 		return row.val[0]
 	case queryFnMin, queryFnDerivativeMin:
 		return row.val[0]
@@ -2358,6 +2447,8 @@ func selectTSValue(what queryFn, stepMul int64, desiredStepMul int64, row *tsSel
 		return row.val[3]
 	case queryFnStddev:
 		return row.val[4]
+	case queryFnStdvar:
+		return row.val[4] * row.val[4]
 	case queryFnP25:
 		return row.val[0]
 	case queryFnP50:

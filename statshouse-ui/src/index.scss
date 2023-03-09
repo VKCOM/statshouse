@@ -36,6 +36,7 @@
 :root {
   --golden-ratio: 1.61803398875;
   --plot-margin: 54px;
+  --bs-primary: var(--bs-link-color);
 }
 
 @media screen and (max-width: 767.98px) {
@@ -109,17 +110,31 @@ html {
 :root {
   --legend-name-width: 96px;
   --legend-value-width: 96px;
-  --legend-percent-width: 2.3em;
+  --legend-percent-width: calc(
+    var(--legend-dot-space-width) + var(--legend-dot-space-width) + var(--legend-percent-suffix-width)
+  );
   --legend-max-host-width: 0;
   --legend-max-host-percent-width: 0;
   --legend-time-width: 136px;
-  --legend-dot-space-width: 2.3em;
-  --legend-percent-suffix-width: 0.9em;
+  --legend-dot-space-width: 2.4em;
+  --legend-percent-suffix-width: 1em;
 }
 
 .btn-outline-primary {
-  --#{$prefix}btn-hover-bg: #{$blue-100};
-  --#{$prefix}btn-hover-color: #{$primary};
+  --bs-btn-hover-bg: rgba(var(--bs-link-color-rgb), 0.4);
+  --bs-btn-hover-color: var(--bs-link-color);
+  --bs-btn-color: var(--bs-link-color);
+  --bs-btn-border-color: var(--bs-link-color);
+  --bs-btn-hover-border-color: var(--bs-link-color);
+  --bs-btn-active-bg: var(--bs-link-color);
+  --bs-btn-active-border-color: var(--bs-link-color);
+  --bs-btn-disabled-color: var(--bs-link-color);
+  --bs-btn-disabled-bg: transparent;
+  --bs-btn-disabled-border-color: var(--bs-link-color);
+}
+.form-check-input:checked {
+  background-color: var(--bs-link-color);
+  border-color: var(--bs-link-color);
 }
 
 .plot-compact {
@@ -153,7 +168,7 @@ html {
 }
 
 code {
-  color: black;
+  color: var(--bs-body-color);
   font-weight: bold;
 }
 
@@ -254,6 +269,10 @@ input.form-control-safari-fix::-webkit-datetime-edit-meridiem-field {
 
 .w-max-720 {
   max-width: 720px;
+}
+
+.min-h-auto {
+  min-height: auto;
 }
 
 @include media-breakpoint-down(md) {

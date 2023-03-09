@@ -89,7 +89,10 @@ func BenchmarkReadNumbers(b *testing.B) {
 		return Int64("$n", int64(i*m+j))
 	})
 	b.ResetTimer()
+	list := []int64{}
 	queryLoop(b, eng, func(c Conn, i int) Rows {
-		return c.Query("select", "SELECT n FROM numbers WHERE n = $n", Int64("$n", r[rand.Int()%len(r)].n))
+		list := list[:0]
+		list = append(list, r[rand.Int()%len(r)].n)
+		return c.Query("select", "SELECT n FROM numbers WHERE n in ($n$)", Int64SList("$n$", list))
 	})
 }

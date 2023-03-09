@@ -6,8 +6,10 @@ import { PlotValues } from '../../store';
 import css from './style.module.css';
 import { AlignByDot } from './AlignByDot';
 import { useResizeObserver } from '../../view/utils';
+import { PlotLegendMaxHost } from './PlotLegendMaxHost';
 
 type PlotLegendProps = {
+  indexPlot: number;
   legend: LegendItem<PlotValues>[];
   compact?: boolean;
   onLegendFocus?: (index: number, focus: boolean) => void;
@@ -15,7 +17,14 @@ type PlotLegendProps = {
   className?: string;
 };
 
-export const PlotLegend: React.FC<PlotLegendProps> = ({ legend, onLegendShow, onLegendFocus, className, compact }) => {
+export const PlotLegend: React.FC<PlotLegendProps> = ({
+  indexPlot,
+  legend,
+  onLegendShow,
+  onLegendFocus,
+  className,
+  compact,
+}) => {
   const refDiv = useRef<HTMLDivElement>(null);
   const { width } = useResizeObserver(refDiv);
   const onFocus = useCallback(
@@ -82,13 +91,12 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({ legend, onLegendShow, on
               <tr
                 key={index}
                 data-index={index}
-                className={cn('', l.focus && css.focus, !l.show && css.hide)}
+                className={cn('', !l.noFocus && l.focus && css.focus, !l.show && css.hide)}
                 style={{ opacity: l.alpha }}
                 onMouseOut={onFocus}
                 onMouseOver={onFocus}
-                onClick={onShow}
               >
-                <td colSpan={index === 0 ? 2 : 1}>
+                <td colSpan={index === 0 ? 2 : 1} data-index={index} onClick={onShow}>
                   <div className={cn(css.labelOuter, index === 0 && css.time)}>
                     <div
                       className={css.marker}
@@ -111,15 +119,31 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({ legend, onLegendShow, on
                 {index !== 0 && (
                   <>
                     <td className={css.value}>
-                      <AlignByDot value={l.values?.value ?? '—'} />
+                      <div className="d-flex justify-content-end w-100">
+                        <div className="w-0 flex-grow-1">
+                          <AlignByDot value={l.values?.value ?? '—'} />
+                        </div>
+                      </div>
                     </td>
                     <td className={css.percent}>
-                      <AlignByDot className={css.percentSuffix} value={l.values?.percent ?? ''} unit="%" />
+                      <div className="d-flex justify-content-end w-100">
+                        <div className="w-0 flex-grow-1">
+                          <AlignByDot className={css.percentSuffix} value={l.values?.percent ?? ''} unit="%" />
+                        </div>
+                      </div>
                     </td>
-                    {l.values?.max_host && <td className={css.maxHost}>{l.values.max_host}</td>}
-                    {l.values?.max_host_percent && (
-                      <td className={css.maxHostPercent}>
-                        <AlignByDot className={css.percentSuffix} value={l.values?.max_host_percent ?? ''} unit="%" />
+                    {l.values?.max_host && (
+                      <td className={css.maxHost}>
+                        <PlotLegendMaxHost
+                          value={l.noFocus ? l.values.top_max_host : l.values.max_host}
+                          placeholder={
+                            l.noFocus
+                              ? l.values.top_max_host_percent
+                              : `${l.values.max_host}: ${l.values.max_host_percent}`
+                          }
+                          indexPlot={indexPlot}
+                          idx={index}
+                        />
                       </td>
                     )}
                   </>

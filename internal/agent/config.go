@@ -54,7 +54,7 @@ func DefaultConfig() Config {
 		StatsHouseEnv:                    "production",
 		SkipFirstNShards:                 -1,
 		RemoteWriteEnabled:               false,
-		RemoteWriteAddr:                  ":8081",
+		RemoteWriteAddr:                  ":13380",
 		RemoteWritePath:                  "/write",
 		AutoCreate:                       true,
 	}

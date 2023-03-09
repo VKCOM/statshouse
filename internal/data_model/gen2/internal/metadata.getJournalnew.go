@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,13 +13,11 @@ import (
 
 var _ = basictl.NatWrite
 
-var _ = True{}
-
 type MetadataGetJournalnew struct {
 	FieldMask uint32
 	From      int64
 	Limit     int64
-	// ReturnIfEmpty True // Conditional: item.FieldMask.3
+	// ReturnIfEmpty (TrueType) // Conditional: item.FieldMask.3
 }
 
 func (MetadataGetJournalnew) TLName() string { return "metadata.getJournalnew" }
@@ -32,7 +30,7 @@ func (item *MetadataGetJournalnew) SetReturnIfEmpty(v bool) {
 		item.FieldMask &^= 1 << 3
 	}
 }
-func (item *MetadataGetJournalnew) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
+func (item MetadataGetJournalnew) IsSetReturnIfEmpty() bool { return item.FieldMask&(1<<3) != 0 }
 
 func (item *MetadataGetJournalnew) Reset() {
 	item.FieldMask = 0

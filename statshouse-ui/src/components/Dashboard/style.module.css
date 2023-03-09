@@ -5,16 +5,19 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/.
  */
 
-.pointerEventsNone{
+.pointerEventsNone {
   pointer-events: none;
 }
-.cursorMove{
+.cursorMove {
   cursor: grab;
 }
 
-.cursorDrag{
+.cursorDrag {
   cursor: grabbing;
 }
-.cursorDefault{
+.cursorDefault {
   cursor: default;
+}
+.margin {
+  margin-left: var(--plot-margin);
 }

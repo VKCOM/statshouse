@@ -37,12 +37,14 @@ export type SelectProps = {
   maxOptions?: number;
   maxToggleFiltered?: number;
   placeholder?: string;
+  valueToInput?: boolean;
   showSelected?: boolean;
   loading?: boolean;
   multiple?: boolean;
   moreItems?: boolean;
   showCountItems?: boolean;
   onceSelectByClick?: boolean;
+  listOnlyOpen?: boolean;
   onChange?: (value?: string | string[], name?: string) => void;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -212,6 +214,8 @@ export const Select: FC<SelectProps> = ({
   moreItems = false,
   showCountItems = false,
   onceSelectByClick = false,
+  listOnlyOpen = false,
+  valueToInput = false,
   onChange = () => undefined,
   onFocus = () => undefined,
   onBlur = () => undefined,
@@ -232,6 +236,8 @@ export const Select: FC<SelectProps> = ({
   const list = useRef<HTMLUListElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const select = useRef<HTMLInputElement>(null);
+
+  const prevFilterOptions = useRef<SelectOptionProps[]>([]);
 
   useEffect(() => {
     if (!meOpen) {
@@ -273,7 +279,7 @@ export const Select: FC<SelectProps> = ({
 
     if (showCountItems && resultLength) {
       const total = moreItems ? `>` : ``;
-      const selected = valuesInput.length ? `, ${valuesInput.length} selected` : '';
+      const selected = valuesInput.length && multiple ? `, ${valuesInput.length} selected` : '';
       const action = resultLength <= maxToggleFiltered ? SELECT_OPTION_ACTION.ToggleFiltered : undefined;
       result.unshift({
         value: '',
@@ -286,7 +292,17 @@ export const Select: FC<SelectProps> = ({
       result.push({ value: '', disabled: true, name: `>${options?.length} items, truncated` });
     }
     return result;
-  }, [options, searchValueDebounce, noSearch, maxOptions, showCountItems, moreItems, valuesInput, maxToggleFiltered]);
+  }, [
+    options,
+    searchValueDebounce,
+    noSearch,
+    maxOptions,
+    showCountItems,
+    moreItems,
+    valuesInput,
+    maxToggleFiltered,
+    multiple,
+  ]);
 
   const onInputSearch = useCallback<React.FormEventHandler<HTMLInputElement>>(
     (event) => {
@@ -549,7 +565,7 @@ export const Select: FC<SelectProps> = ({
         updatePositionClass();
         setCursor(values[0]);
         scrollToClass(list.current, css.selected, POSITION_SCROLL.Middle);
-        if (!multiple && !Array.isArray(value)) {
+        if (valueToInput && !multiple && !Array.isArray(value)) {
           setNoSearch(true);
           setSearchValue(value ?? '');
           setTimeout(() => {
@@ -558,7 +574,7 @@ export const Select: FC<SelectProps> = ({
         }
       }
     },
-    [multiple, setMeFocus, setSearchValue, updatePositionClass, value, values]
+    [multiple, setMeFocus, setSearchValue, updatePositionClass, value, valueToInput, values]
   );
 
   const onClickChevron = useCallback<React.MouseEventHandler<HTMLElement>>((event) => {
@@ -572,7 +588,7 @@ export const Select: FC<SelectProps> = ({
         event.target.blur();
       } else {
         select.current?.focus();
-        if (!multiple && !Array.isArray(value)) {
+        if (valueToInput && !multiple && !Array.isArray(value)) {
           setNoSearch(true);
           setSearchValue(value ?? '');
           setTimeout(() => {
@@ -583,11 +599,12 @@ export const Select: FC<SelectProps> = ({
       event.stopPropagation();
       event.preventDefault();
     },
-    [meOpen, multiple, onClose, setSearchValue, value]
+    [meOpen, multiple, onClose, setSearchValue, value, valueToInput]
   );
 
   useDeepCompareEffect(() => {
-    if (list.current) {
+    if (list.current && (meOpen || !listOnlyOpen) && filterOptions !== prevFilterOptions.current) {
+      prevFilterOptions.current = filterOptions;
       list.current.innerHTML = '';
       appendItems(list.current, filterOptions, multiple);
       updateClass(list.current, values, css.selected);
@@ -595,7 +612,7 @@ export const Select: FC<SelectProps> = ({
       updatePositionClass();
       scrollToClass(list.current, css.selected, POSITION_SCROLL.Middle);
     }
-  }, [filterOptions, updatePositionClass, multiple]);
+  }, [filterOptions, updatePositionClass, multiple, meOpen, listOnlyOpen]);
 
   useEffect(() => {
     if (meFocus === meFocusDebounce) {

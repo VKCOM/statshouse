@@ -12,6 +12,7 @@ import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, Select } from '.
 import { TagControl } from './TagControl';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
+import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import {
   selectorLastError,
   selectorParamsTagSync,
@@ -102,6 +103,15 @@ const PlotControls = memo(function PlotControls_(props: {
     },
     [setSel]
   );
+  const onHostChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      setSel((s) => ({
+        ...s,
+        maxHost: e.target.checked,
+      }));
+    },
+    [setSel]
+  );
 
   const onMetricChange = useCallback(
     (value?: string | string[]) => {
@@ -167,6 +177,7 @@ const PlotControls = memo(function PlotControls_(props: {
               value={sel.metricName}
               options={metricsOptions}
               onChange={onMetricChange}
+              valueToInput={true}
               className="sh-select form-control"
               classNameList="dropdown-menu"
             />
@@ -183,16 +194,29 @@ const PlotControls = memo(function PlotControls_(props: {
           </div>
         </div>
         <div className="row mb-3">
-          <div className="col">
+          <div className="d-flex align-items-baseline">
             <Select
               value={sel.what}
               onChange={onWhatChange}
               options={whatOption}
               multiple
               onceSelectByClick
-              className="sh-select form-control"
+              className="sh-select form-control me-4"
               classNameList="dropdown-menu"
             />
+            <div className="form-check form-switch">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                value=""
+                id="switchMaxHost"
+                checked={sel.maxHost}
+                onChange={onHostChange}
+              />
+              <label className="form-check-label" htmlFor="switchMaxHost" title="Host">
+                <SVGPcDisplay />
+              </label>
+            </div>
           </div>
         </div>
 

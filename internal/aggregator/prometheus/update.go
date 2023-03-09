@@ -11,6 +11,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"log"
+	"net/netip"
 	"os"
 	"sort"
 	"sync"
@@ -38,6 +39,7 @@ type PromGroupsClient struct {
 	hctx *rpc.HandlerContext
 	host string
 	hash string
+	addr netip.Addr
 }
 
 type Updater struct {
@@ -48,7 +50,7 @@ type Updater struct {
 
 	// host -> hostInfo
 	mx    sync.RWMutex
-	hosts map[string]hostInfo
+	hosts map[netip.Addr]hostInfo
 
 	groupsClientsMu   sync.Mutex // Taken after mx
 	promGroupsClients []PromGroupsClient
@@ -105,7 +107,7 @@ func runUpdater(hostName string, cfg *config.Config, configVersion int64, logTra
 		logTrace = emptyTrace
 	}
 	u := &Updater{
-		hosts:    map[string]hostInfo{},
+		hosts:    map[netip.Addr]hostInfo{},
 		cfg:      cfg,
 		ctx:      ctx,
 		cancel:   cancelFunc,
@@ -170,11 +172,19 @@ func (u *Updater) ApplyConfig(cfg *config.Config) {
 
 func (u *Updater) HandleGetTargets(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetTargets2Bytes) (err error) {
 	u.logTrace("handle get groups request host: '%s', hashJobToLabels: '%s'", args.PromHostName, args.OldHash)
+	var ap netip.AddrPort
+	ap, err = netip.ParseAddrPort(hctx.RemoteAddr().String())
+	if err != nil {
+		return rpc.Error{
+			Code:        data_model.RPCErrorScrapeAgentIP,
+			Description: "scrape agent must have an IP address",
+		}
+	}
 	userHash := string(args.OldHash)
 	userHost := string(args.PromHostName)
 	u.mx.RLock()
 	defer u.mx.RUnlock()
-	info := u.hosts[userHost]
+	info := u.hosts[ap.Addr()]
 	if userHash != info.hash {
 		u.logTrace("handle get groups request host: '%s', hashJobToLabels: '%s' was responsed", args.PromHostName, args.OldHash)
 		hctx.Response, err = args.WriteResult(hctx.Response, info.result)
@@ -187,6 +197,7 @@ func (u *Updater) HandleGetTargets(_ context.Context, hctx *rpc.HandlerContext, 
 		hctx: hctx,
 		host: userHost,
 		hash: userHash,
+		addr: ap.Addr(),
 	})
 	u.logTrace("handle get groups request host: '%s', hashJobToLabels: '%s' was hijacked", args.PromHostName, args.OldHash)
 	return hctx.HijackResponse()
@@ -203,8 +214,7 @@ func (u *Updater) broadcastGroups(sendToAll bool) {
 
 	for _, client := range u.promGroupsClients {
 		userHash := client.args.OldHash
-		host := client.args.PromHostName
-		info := u.hosts[string(host)]
+		info := u.hosts[client.addr]
 		switch string(userHash) {
 		case info.hash:
 			if sendToAll {
@@ -272,14 +282,14 @@ func statshousePromTargetBytesFromScrapeConfig(scfg *config.ScrapeConfig) tlstat
 }
 
 // todo make test
-func (u *Updater) onPromUpdatedLocked() map[string]hostInfo {
+func (u *Updater) onPromUpdatedLocked() map[netip.Addr]hostInfo {
 	m := u.groups
 	cfg := u.cfg
 	cfgs := map[string]*config.ScrapeConfig{}
 	for _, sc := range cfg.ScrapeConfigs {
 		cfgs[sc.JobName] = sc
 	}
-	hosts := make(map[string][]tlstatshouse.PromTargetBytes)
+	hosts := make(map[netip.Addr][]tlstatshouse.PromTargetBytes)
 	for jobName, groups := range m {
 		scfg, ok := cfgs[jobName]
 		if !ok {
@@ -291,10 +301,10 @@ func (u *Updater) onPromUpdatedLocked() map[string]hostInfo {
 
 			for _, target := range targets {
 				url := target.URL()
-				host := url.Hostname()
-				// should we support loopback ips
-				if host == "localhost" {
-					host = u.hostName
+				host, err := netip.ParseAddr(url.Hostname())
+				if err != nil {
+					u.logTrace("scrape target must have an IP address: %v", err)
+					continue
 				}
 				target := statshousePromTargetBytesFromScrapeConfig(scfg)
 				target.Labels = sortedLabels
@@ -303,7 +313,7 @@ func (u *Updater) onPromUpdatedLocked() map[string]hostInfo {
 			}
 		}
 	}
-	result := make(map[string]hostInfo)
+	result := make(map[netip.Addr]hostInfo)
 	var buf []byte
 	for host, info := range hosts {
 		info := sortedTargets(info)

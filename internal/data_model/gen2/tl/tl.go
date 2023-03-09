@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -30,7 +30,6 @@ type (
 	VectorDouble                                  = internal.VectorDouble
 	VectorEngineBinlogPrefix                      = internal.VectorEngineBinlogPrefix
 	VectorEngineMetafilesOneMemoryStat            = internal.VectorEngineMetafilesOneMemoryStat
-	VectorFloat                                   = internal.VectorFloat
 	VectorInt                                     = internal.VectorInt
 	VectorLong                                    = internal.VectorLong
 	VectorMetadataEvent                           = internal.VectorMetadataEvent
@@ -41,10 +40,7 @@ type (
 	VectorStatshouseApiSeriesMeta                 = internal.VectorStatshouseApiSeriesMeta
 	VectorStatshouseApiTagValue                   = internal.VectorStatshouseApiTagValue
 	VectorStatshouseCentroid                      = internal.VectorStatshouseCentroid
-	VectorStatshouseIngestionStatus               = internal.VectorStatshouseIngestionStatus
 	VectorStatshouseIngestionStatus2              = internal.VectorStatshouseIngestionStatus2
-	VectorStatshouseItem                          = internal.VectorStatshouseItem
-	VectorStatshouseItemBytes                     = internal.VectorStatshouseItemBytes
 	VectorStatshouseMapping                       = internal.VectorStatshouseMapping
 	VectorStatshouseMappingBytes                  = internal.VectorStatshouseMappingBytes
 	VectorStatshouseMetric                        = internal.VectorStatshouseMetric
@@ -54,8 +50,6 @@ type (
 	VectorStatshousePromTarget                    = internal.VectorStatshousePromTarget
 	VectorStatshousePromTargetBytes               = internal.VectorStatshousePromTargetBytes
 	VectorStatshouseSampleFactor                  = internal.VectorStatshouseSampleFactor
-	VectorStatshouseStringTopElement              = internal.VectorStatshouseStringTopElement
-	VectorStatshouseStringTopElementBytes         = internal.VectorStatshouseStringTopElementBytes
 	VectorStatshouseTopElement                    = internal.VectorStatshouseTopElement
 	VectorStatshouseTopElementBytes               = internal.VectorStatshouseTopElementBytes
 	VectorString                                  = internal.VectorString

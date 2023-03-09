@@ -354,7 +354,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 		defer timer.Stop()
 		serveErr <- recv.Serve(receiver.CallbackHandler{
 			Metrics: func(m *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
-				sumTimestamp.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.T)
+				sumTimestamp.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), int64(m.Ts))
 				switch {
 				case len(m.Value) > 0:
 					valueMetrics.merge(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.Value)
@@ -362,14 +362,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 				case len(m.Unique) > 0:
 					uniqueMetrics.merge(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.Unique)
 					sumMults.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.Counter)
-				case len(m.Stop) > 0:
-					for _, skey := range m.Stop {
-						counterMetrics.count(ts(string(m.Name), receivedSlice(m.Tags, skey)), 1)
-					}
-					// TODO - check
-					// stopMetrics.merge(ts(string(m.Name), receivedSlice(m.Tags, nil)), toStrings(m.Stop))
-					// sumCountsOther.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.Counter)
-				case len(m.Value) == 0 && len(m.Unique) == 0 && len(m.Stop) == 0 && m.Counter > 0:
+				case len(m.Value) == 0 && len(m.Unique) == 0 && m.Counter > 0:
 					counterMetrics.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.Counter)
 					numCounts++
 				}

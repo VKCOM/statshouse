@@ -348,15 +348,6 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 			return true
 		}
 	}
-	for i, v := range metric.Stop { // Deprecated, TODO - remove
-		validValue, err := format.AppendValidStringValue(v[:0], v)
-		if err != nil {
-			metric.Stop[i] = format.AppendHexStringValue(v[:0], v)
-			h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapTagValueEncoding, 0, metric.Stop[i])
-			return true
-		}
-		metric.Stop[i] = validValue
-	}
 	return true
 }
 

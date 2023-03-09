@@ -105,54 +105,55 @@ func calcTrendValue(i int, tf, s0, s1, b float64) float64 {
 // data. A lower smoothing factor increases the influence of historical data. The trend factor (0 < tf < 1) affects
 // how trends in historical data will affect the current data. A higher trend factor increases the influence.
 // of trends. Algorithm taken from https://en.wikipedia.org/wiki/Exponential_smoothing titled: "Double exponential smoothing".
-func funcHoltWinters(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+func funcHoltWinters(ctx context.Context, ev *evaluator, args parser.Expressions) (bag *SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
-		return
+		return bag, err
 	}
 	sf := args[1].(*parser.NumberLiteral).Val
 	if sf <= 0 || sf >= 1 {
-		err = fmt.Errorf("invalid smoothing factor. Expected: 0 < sf < 1, got: %f", sf)
-		return
+		return bag, fmt.Errorf("invalid smoothing factor. Expected: 0 < sf < 1, got: %f", sf)
 	}
 	tf := args[2].(*parser.NumberLiteral).Val
 	if tf <= 0 || tf >= 1 {
-		err = fmt.Errorf("invalid trend factor. Expected: 0 < tf < 1, got: %f", tf)
-		return
+		return bag, fmt.Errorf("invalid trend factor. Expected: 0 < tf < 1, got: %f", tf)
 	}
 	v := make([]float64, 0, 2)
 	for _, row := range bag.Data {
-		wnd := newWindow(2, bag.Range, bag.Time, *row)
-		for wnd.moveOnePointLeft() {
-			v = wnd.getData(v[:0])
-			var (
-				s0, x, y float64
-				s1, b    = v[0], v[1] - v[0]
-			)
-			for i := 1; i < len(v); i++ {
-				// Scale the raw value against the smoothing factor.
-				x = sf * v[i]
+		wnd := newWindow(bag.Time, *row, bag.Range, false)
+		for wnd.moveOneLeft() {
+			if wnd.n != 0 {
+				v = wnd.getValues(v[:0])
+				var (
+					s0, x, y float64
+					s1, b    = v[0], v[1] - v[0]
+				)
+				for i := 1; i < len(v); i++ {
+					// Scale the raw value against the smoothing factor.
+					x = sf * v[i]
 
-				// Scale the last smoothed value with the trend at this point.
-				b = calcTrendValue(i-1, tf, s0, s1, b)
-				y = (1 - sf) * (s1 + b)
+					// Scale the last smoothed value with the trend at this point.
+					b = calcTrendValue(i-1, tf, s0, s1, b)
+					y = (1 - sf) * (s1 + b)
 
-				s0, s1 = s1, x+y
+					s0, s1 = s1, x+y
+				}
+				(*row)[wnd.r] = s1
+			} else {
+				(*row)[wnd.r] = NilValue
 			}
-			(*row)[wnd.r] = s1
 		}
 		for i := 0; i < wnd.r; i++ {
 			(*row)[i] = NilValue
 		}
 	}
-	bag.Range = 0
-	return
+	return bag, nil
 }
 
-func funcRound(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+func funcRound(ctx context.Context, ev *evaluator, args parser.Expressions) (bag *SeriesBag, err error) {
 	bag, err = ev.eval(ctx, args[0])
 	if err != nil {
-		return
+		return bag, err
 	}
 
 	// round returns a number rounded to toNearest.
@@ -171,7 +172,7 @@ func funcRound(ctx context.Context, ev *evaluator, args parser.Expressions) (bag
 			row[i] = math.Floor(row[i]*toNearestInverse+0.5) / toNearestInverse
 		}
 	}
-	return
+	return bag, nil
 }
 
 // endregion promql/functions.go

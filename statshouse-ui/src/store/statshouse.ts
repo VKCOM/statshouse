@@ -73,7 +73,7 @@ import {
 import { calcYRange2 } from '../common/calcYRange';
 import { rgba, selectColor } from '../view/palette';
 import { filterPoints } from '../common/filterPoints';
-import { UPlotWrapperPropsScales } from '../components';
+import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
 import { decodeQueryParams, encodeQueryParams, mergeLeft } from '../common/QueryParamsParser';
 import { getNextState } from '../common/getNextState';
 
@@ -99,6 +99,7 @@ export type PlotStore = {
   legendMaxHostWidth: number;
   legendMaxHostPercentWidth: number;
   topInfo?: TopInfo;
+  maxHostLists: SelectOptionProps[][];
 };
 
 export type TopInfo = {
@@ -114,6 +115,8 @@ export type PlotValues = {
   total: number;
   percent: string;
   max_host_percent: string;
+  top_max_host: string;
+  top_max_host_percent: string;
 };
 
 type SetSearchParams = (
@@ -314,6 +317,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           min: 0,
           max: 0,
         },
+        maxHost: false,
       };
       params.plots = [np];
       reset = true;
@@ -340,6 +344,12 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           store.timeRange = new TimeRange(params.timeRange);
         }
         store.params = mergeLeft(store.params, params);
+        if (store.params.tabNum < -1) {
+          store.dashboardLayoutEdit = true;
+        }
+        if (store.params.tabNum >= 0) {
+          store.dashboardLayoutEdit = false;
+        }
         if (resetPlot) {
           store.plotsData = [];
           store.previews = [];
@@ -370,6 +380,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           state.timeRange = new TimeRange(nextParams.timeRange);
         }
         state.params = nextParams;
+        if (state.params.tabNum >= 0) {
+          state.dashboardLayoutEdit = false;
+        }
       });
       getState().params.plots.forEach((plot, index) => {
         if (changedTimeRange || changedTimeShifts || prevParams.plots[index] !== plot) {
@@ -553,6 +566,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           lastTimeShifts: undefined,
           lastQuerySeriesMeta: undefined,
           topInfo: undefined,
+          maxHostLists: [],
         };
       });
     }
@@ -591,7 +605,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         lastPlotParams.groupBy,
         lastPlotParams.filterIn,
         lastPlotParams.filterNotIn,
-        Math.round(-prevState.timeRange.relativeFrom)
+        Math.round(-prevState.timeRange.relativeFrom),
+        lastPlotParams.maxHost
       );
       prevState.setNumQueriesPlot(index, (n) => n + 1);
       const controller = new AbortController();
@@ -643,26 +658,29 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           const topInfoCounts: Record<string, number> = {};
           const topInfoTotals: Record<string, number> = {};
           let topInfo: TopInfo | undefined = undefined;
-
+          const maxHostLists: SelectOptionProps[][] = new Array(resp.series.series_meta.length).fill([]);
+          const oneGraph = resp.series.series_meta.filter((s) => s.time_shift === 0).length <= 1;
           const seriesShow = new Array(resp.series.series_meta.length).fill(true);
           const series: uPlot.Series[] = resp.series.series_meta.map((meta, indexMeta): uPlot.Series => {
             const timeShift = meta.time_shift !== 0;
             const label = metaToLabel(meta, uniqueWhat.size);
             const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
-            const baseColor =
-              baseColors[`${lastPlotParams.metricName}: ${baseLabel}`] ??
-              selectColor(`${lastPlotParams.metricName}: ${baseLabel}`, usedBaseColors);
-            baseColors[`${lastPlotParams.metricName}: ${baseLabel}`] = baseColor;
+            const isValue = baseLabel.indexOf('Value') === 0;
+            const prefColor = '9'; // it`s magic prefix
+            const metricName = isValue ? `${lastPlotParams.metricName}: ` : '';
+            const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
+            const baseColor = baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
+            baseColors[colorKey] = baseColor;
             if (baseColor !== getState().plotsData[index]?.series[indexMeta]?.stroke) {
               changeColor = true;
             }
             if (meta.max_hosts) {
               const max_hosts_l = meta.max_hosts
-                .map((host) => host.length * pxPerChar)
+                .map((host) => host.length * pxPerChar * 1.25 + 65)
                 .filter(Boolean)
                 .sort();
               const full = max_hosts_l[0] ?? 0;
-              const p75 = max_hosts_l[max_hosts_l.length * 0.25] ?? 0;
+              const p75 = max_hosts_l[Math.floor(max_hosts_l.length * 0.25)] ?? 0;
               legendMaxHostWidth = Math.max(legendMaxHostWidth, full - p75 > 20 ? p75 : full);
             }
             const max_host_map =
@@ -673,8 +691,18 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                 return res;
               }, {} as Record<string, number>) ?? {};
             const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
-            seriesShow[indexMeta] = prev.series[indexMeta]?.label === label ? prev.series[indexMeta]?.show : true;
-
+            seriesShow[indexMeta] = prev.series[indexMeta]?.label === label ? prev.seriesShow[indexMeta] : true;
+            maxHostLists[indexMeta] = Object.entries(max_host_map)
+              .sort(([k, a], [n, b]) => (a > b ? -1 : a < b ? 1 : k > n ? 1 : k < n ? -1 : 0))
+              .map(([host, count]) => {
+                const percent = formatPercent(count / max_host_total);
+                return {
+                  value: host,
+                  title: `${host}: ${percent}`,
+                  name: `${host}: ${percent}`,
+                  html: `<div class="d-flex"><div class="flex-grow-1 me-2 overflow-hidden text-nowrap">${host}</div><div class="text-end">${percent}</div></div>`,
+                };
+              });
             const key = `${meta.what}|${meta.time_shift}`;
             topInfoCounts[key] = (topInfoCounts[key] ?? 0) + 1;
             topInfoTotals[key] = meta.total;
@@ -696,7 +724,16 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               }),
               values(u, seriesIdx, idx): PlotValues {
                 if (idx === null) {
-                  return { rawValue: null, value: '', max_host: '', total: 0, percent: '', max_host_percent: '' };
+                  return {
+                    rawValue: null,
+                    value: '',
+                    max_host: '',
+                    total: 0,
+                    percent: '',
+                    max_host_percent: '',
+                    top_max_host: '',
+                    top_max_host_percent: '',
+                  };
                 }
                 const rawValue = u.data[seriesIdx]?.[idx] ?? null;
                 let total = 0;
@@ -714,7 +751,16 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                     ? formatPercent((max_host_map[meta.max_hosts[idx]] ?? 0) / max_host_total)
                     : '';
                 const percent = rawValue !== null ? formatPercent(rawValue / total) : '';
-                return { rawValue, value, max_host, total, percent, max_host_percent };
+                return {
+                  rawValue,
+                  value,
+                  max_host,
+                  total,
+                  percent,
+                  max_host_percent,
+                  top_max_host: maxHostLists[indexMeta]?.[0]?.value ?? '',
+                  top_max_host_percent: maxHostLists[indexMeta]?.[0]?.title ?? '',
+                };
               },
             };
           });
@@ -809,6 +855,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               lastTimeRange: getState().timeRange,
               lastTimeShifts: getState().params.timeShifts,
               topInfo,
+              maxHostLists,
             };
           });
         })
@@ -837,6 +884,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                 lastTimeShifts: undefined,
                 lastQuerySeriesMeta: undefined,
                 topInfo: undefined,
+                maxHostLists: [],
               };
               delete state.previews[index];
               state.liveMode = false;
@@ -865,6 +913,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                 lastTimeShifts: undefined,
                 lastQuerySeriesMeta: undefined,
                 topInfo: undefined,
+                maxHostLists: [],
               };
               delete state.previews[index];
               state.liveMode = false;
@@ -1280,6 +1329,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
       const url = dashboardURL();
       getState().setSaveDashboardParams(undefined);
       getState().setGlobalNumQueriesPlot((s) => s + 1);
+      getState().setLastError('');
       (params.dashboard.dashboard_id !== undefined
         ? apiPost<DashboardInfo>(url, params, controller.signal, true)
         : apiPut<DashboardInfo>(url, params, controller.signal, true)
@@ -1336,6 +1386,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
 
       const controller = new AbortController();
       const url = dashboardURL();
+      getState().setLastError('');
       getState().setGlobalNumQueriesPlot((s) => s + 1);
       apiPost<DashboardInfo>(url, params, controller.signal, true)
         .then((data) => {
@@ -1463,6 +1514,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     setState((state) => {
       state.dashboardLayoutEdit = nextStatus;
     });
+    if (!nextStatus && getState().params.tabNum < -1) {
+      getState().setTabNum(-1);
+    }
   },
   setGroupName(indexGroup, name) {
     getState().setParams(

@@ -376,11 +376,7 @@ func parseDuration(ds string) (int64, error) {
 	if dur == 0 {
 		return 0, errors.New("duration must be greater than 0")
 	}
-	rem := dur % model.Duration(time.Second)
-	if rem != 0 {
-		return 0, errors.New("duration cannot be less than a second")
-	}
-	return int64(dur / model.Duration(time.Second)), nil
+	return int64(math.Round(float64(dur) / float64(time.Second))), nil
 }
 
 // parseGenerated invokes the yacc generated parser.

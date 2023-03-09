@@ -315,7 +315,7 @@ func (s *scrapeLoop) pushScrapeTimeMetric(when time.Time, d time.Duration, err i
 			metric.Tags = append(metric.Tags, newTag("key5", strconv.Itoa(err)))
 		}
 		metric.SetValue([]float64{d.Seconds()})
-		metric.SetT(int64(when.Nanosecond()))
+		metric.SetTs(uint32(when.Unix()))
 		s.pusher.PushLocal(metric)
 	}
 }

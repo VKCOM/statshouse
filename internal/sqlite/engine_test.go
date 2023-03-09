@@ -667,3 +667,34 @@ func Test_ReadAndExit(t *testing.T) {
 	defer cancel()
 	require.NoError(t, engineMaster.Close(ctx))
 }
+
+func Test_Engine_Slice_Params(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER PRIMARY KEY, oid INT);"
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, NoBinlog, nil)
+	var err error
+
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Int64("$oid", 1))
+		require.NoError(t, err)
+		_, err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Int64("$oid", 2))
+		require.NoError(t, err)
+		_, err = conn.Exec("test", "INSERT INTO test_db(oid) VALUES ($oid)", Int64("$oid", 3))
+		require.NoError(t, err)
+		return cache, err
+	})
+	require.NoError(t, err)
+	count := 0
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT oid FROM test_db WHERE oid in($ids$) or oid in($ids1$)",
+			Int64SList("$ids$", []int64{1, 2}),
+			Int64SList("$ids1$", []int64{3}))
+
+		for rows.Next() {
+			count++
+		}
+		return cache, err
+	})
+	require.Equal(t, 3, count)
+	require.NoError(t, err)
+}

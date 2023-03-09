@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -31,7 +31,7 @@ func (item *EngineReloadDynamicLibOptions) ClearSlicesPart() {
 	item.SlicesPart = 0
 	item.FieldsMask &^= 1 << 0
 }
-func (item *EngineReloadDynamicLibOptions) IsSetSlicesPart() bool { return item.FieldsMask&(1<<0) != 0 }
+func (item EngineReloadDynamicLibOptions) IsSetSlicesPart() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *EngineReloadDynamicLibOptions) Reset() {
 	item.FieldsMask = 0

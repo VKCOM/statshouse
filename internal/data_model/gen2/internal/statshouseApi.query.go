@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -39,7 +39,7 @@ func (item *StatshouseApiQuery) ClearWhat() {
 	item.What = item.What[:0]
 	item.FieldsMask &^= 1 << 1
 }
-func (item *StatshouseApiQuery) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
+func (item StatshouseApiQuery) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
 
 func (item *StatshouseApiQuery) Reset() {
 	item.FieldsMask = 0

@@ -8,7 +8,7 @@ import React, { SetStateAction, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import produce from 'immer';
 import { querySelector } from './api';
-import { Dashboard, DashboardSettings, PlotLayout } from '../components';
+import { Dashboard, PlotLayout } from '../components';
 import { PlotParams } from '../common/plotQueryParams';
 import { setBackgroundColor } from '../common/canvasToImage';
 import {
@@ -208,18 +208,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
               </PlotLayout>
             </div>
           )}
-          {params.tabNum < 0 && (
-            <>
-              <div className={params.tabNum === -1 ? '' : 'hidden-dashboard'}>
-                <Dashboard embed={embed} yAxisSize={yAxisSize} />
-              </div>
-              {params.tabNum === -2 && (
-                <div>
-                  <DashboardSettings />
-                </div>
-              )}
-            </>
-          )}
+          {params.tabNum < 0 && <Dashboard embed={embed} yAxisSize={yAxisSize} />}
         </div>
       </div>
     </div>

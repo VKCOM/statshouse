@@ -357,9 +357,9 @@ export function timeShiftDesc(ts: number): string {
 }
 
 const dashes = [
-  [2, 2],
   [4, 4],
-  [6, 2],
+  [6, 6],
+  [8, 4],
 ];
 
 export function timeShiftToDash(ts: number, usedDashes: Record<string, number[]>): number[] {

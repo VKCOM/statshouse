@@ -57,12 +57,13 @@
 .select .chevron {
   position: absolute;
   padding: 0;
-  top: calc(50% - 1em);
+  top: 50%;
   right: 1px;
   width: 2em;
-  height: 2em;
+  height: calc(100% - 2px);
   background-color: var(--selectChevronBgColor);
   border: none 0;
+  transform: translate(0, -50%);
 }
 
 .select .chevron:after {
@@ -71,7 +72,7 @@
   display: block;
   padding: 0;
   width: 2em;
-  height: 2em;
+  height: calc(100% - 2px);
   content: '';
   background-image: var(--selectIconChevron);
   background-repeat: no-repeat;

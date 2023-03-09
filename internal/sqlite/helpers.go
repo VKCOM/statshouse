@@ -13,11 +13,13 @@ import (
 )
 
 const (
-	argByte      = 1
-	argByteConst = 2
-	argString    = 3
-	argInt64     = 4
-	argText      = 5
+	argByte       = 1
+	argByteConst  = 2
+	argString     = 3
+	argInt64      = 4
+	argText       = 5
+	argInt64Slice = 6
+	argTextSlice  = 7
 )
 
 type Arg struct {
@@ -26,6 +28,10 @@ type Arg struct {
 	b    []byte
 	s    string
 	n    int64
+
+	length int
+	ns     []int64
+	ss     []string
 }
 
 func Blob(name string, b []byte) Arg {
@@ -68,12 +74,34 @@ func Int64(name string, n int64) Arg {
 	}
 }
 
+func Int64SList(name string, ns []int64) Arg {
+	return Arg{
+		name:   name,
+		typ:    argInt64Slice,
+		ns:     ns,
+		length: len(ns),
+	}
+}
+
+func TextList(name string, ss []string) Arg {
+	return Arg{
+		name:   name,
+		typ:    argTextSlice,
+		ss:     ss,
+		length: len(ss),
+	}
+}
+
 func SetLogf(fn func(code int, msg string)) {
 	sqlite0.SetLogf(fn)
 }
 
 func Version() string {
 	return sqlite0.Version()
+}
+
+func (a *Arg) isSliceArg() bool {
+	return a.typ == argInt64Slice
 }
 
 func doSingleROToWALQuery(path string, f func(*Engine) error) error {

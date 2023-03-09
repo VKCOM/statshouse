@@ -11,6 +11,7 @@ import { metricTagValueInfo } from '../view/api';
 export const selectorAll = (s: Store) => s;
 
 export const selectorParams = (s: Store) => s.params;
+export const selectorDefaultParams = (s: Store) => s.defaultParams;
 export const selectorParamsPlots = (s: Store) => s.params.plots;
 export const selectorParamsPlotsByIndex = (index: number, s: Store) => s.params.plots[index];
 export const selectorSetParamsPlots = (s: Store) => s.setPlotParams;
