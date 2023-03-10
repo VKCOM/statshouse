@@ -23,8 +23,6 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/spf13/pflag"
-	"github.com/vkcom/statshouse-go"
-
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 
@@ -354,9 +352,9 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	a.Path("/" + api.EndpointMetric).Methods("GET").HandlerFunc(f.HandleGetMetric)
 	a.Path("/" + api.EndpointMetric).Methods("POST").HandlerFunc(f.HandlePostMetric)
 	a.Path("/" + api.EndpointResetFlood).Methods("POST").HandlerFunc(f.HandlePostResetFlood)
-	a.Path("/" + api.EndpointQuery).Methods("GET").HandlerFunc(f.HandleSeriesQuery)
-	a.Path("/" + api.EndpointPoint).Methods("GET").HandlerFunc(f.HandleGetPoint)
-	a.Path("/" + api.EndpointQuery).Methods("POST").HandlerFunc(f.HandleSeriesQuery)
+	a.Path("/" + api.EndpointQuery).Methods("GET").HandlerFunc(f.HandleGetQuery)
+	a.Path("/" + api.EndpointTable).Methods("GET").HandlerFunc(f.HandleGetTable)
+
 	a.Path("/" + api.EndpointRender).Methods("GET").HandlerFunc(f.HandleGetRender)
 	a.Path("/" + api.EndpointDashboard).Methods("GET").HandlerFunc(f.HandleGetDashboard)
 	a.Path("/" + api.EndpointDashboardList).Methods("GET").HandlerFunc(f.HandleGetDashboardList)

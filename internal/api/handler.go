@@ -9,6 +9,7 @@ package api
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -91,7 +92,7 @@ const (
 	paramDataFormat   = "df"
 	paramTabNumber    = "tn"
 	paramMaxHost      = "mh"
-	paramPromQuery    = "q"
+	paramFromRow      = "fr"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -291,7 +292,7 @@ type (
 		maxHost                 bool
 		avoidCache              bool
 
-		fromRow []string
+		fromRow RowFrom
 	}
 
 	//easyjson:json
@@ -311,8 +312,11 @@ type (
 		queries                  map[lodInfo]int // not nil if testPromql option set (see getQueryReqOptions)
 	}
 
+	//easyjson:json
 	GetTableResp struct {
 		Series       []queryRow `json:"rows"`
+		FromRow      string     `json:"from_row"`
+		HasMore      bool       `json:"has_more"`
 		DebugQueries []string   `json:"__debug_queries"` // private, unstable: SQL queries executed
 	}
 
@@ -379,6 +383,18 @@ type (
 		Comment string `json:"comment,omitempty"`
 		Raw     bool   `json:"raw,omitempty"`
 		RawKind string `json:"raw_kind,omitempty"`
+		valueID int32
+		isSkey  bool
+	}
+
+	RawTag struct {
+		KeyNumber int   `json:"key_number"`
+		Value     int32 `json:"value"`
+	}
+	RowFrom struct {
+		Time int64    `json:"time"`
+		Tags []RawTag `json:"tags"`
+		SKey string   `json:"skey"`
 	}
 
 	cacheInvalidateLogRow struct {
@@ -463,7 +479,6 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		accessManager:         &accessManager{metricStorage.GetGroupByMetricName},
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
-
 	h.cache = newTSCacheGroup(approxCacheMaxSize, lodTables, h.utcOffset, h.loadPoints, cacheDefaultDropEvery)
 	h.pointsCache = newPointsCache(approxCacheMaxSize, h.utcOffset, h.loadPoint, time.Now)
 	go h.invalidateLoop()
@@ -1756,14 +1771,104 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 			// }
 		}
 	}
-	// Format and write the response
+	cache, cacheStale := queryClientCacheDuration(to.Before(time.Now().Add(invalidateFrom)))
+	respondJSON(w, res, cache, cacheStale, err, h.verbose, ai.user, sl)
+}
+
+func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStat(EndpointQuery, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	ai, ok := h.parseAccessToken(w, r, sl)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	defer cancel()
+
+	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
+	metricWithNamespace := formValueParamMetric(r)
+	queryVerbose := false
+	if _, ok := format.BuiltinMetricByName[metricWithNamespace]; !ok && r.FormValue(ParamQueryVerbose) == "1" {
+		queryVerbose = true
+	}
+
+	filterIn, filterNotIn, err := parseQueryFilter(r.Form[ParamQueryFilter])
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+
+	fromRow, err := parseFromRows(r.FormValue(paramFromRow))
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+
+	_, avoidCache := r.Form[ParamAvoidCache]
+	if avoidCache && !ai.isAdmin() {
+		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
+	}
+	_, maxHost := r.Form[paramMaxHost]
+	getQuery := func(ctx context.Context) (*GetTableResp, bool, error) {
+		resp, immutable, err := h.handleGetTable(
+			ctx,
+			true,
+			getQueryReq{
+				ai:                  ai,
+				version:             r.FormValue(ParamVersion),
+				metricWithNamespace: metricWithNamespace,
+				from:                r.FormValue(ParamFromTime),
+				to:                  r.FormValue(ParamToTime),
+				width:               r.FormValue(ParamWidth),
+				widthAgg:            r.FormValue(ParamWidthAgg),
+				what:                r.Form[ParamQueryWhat],
+				by:                  r.Form[ParamQueryBy],
+				filterIn:            filterIn,
+				filterNotIn:         filterNotIn,
+				avoidCache:          avoidCache,
+				maxHost:             maxHost,
+				fromRow:             fromRow,
+			})
+		if h.verbose && err == nil {
+			//todo fix log
+			log.Printf("[debug] handled query (%v series x %v points each) for %q in %v", len(resp.Series), len(resp.Series), ai.user, time.Since(sl.startTime))
+		}
+		return resp, immutable, err
+	}
+
+	var (
+		respTable *GetTableResp
+		immutable bool
+	)
+	if !queryVerbose {
+		respTable, immutable, err = getQuery(ctx)
+	} else {
+		var g *errgroup.Group
+		g, ctx = errgroup.WithContext(ctx)
+		g.Go(func() error {
+			var err error
+			respTable, immutable, err = getQuery(ctx)
+			return err
+		})
+		err = g.Wait()
+	}
+	//todo fix
+	// defer h.freeQueryResp(resp)
+
 	switch {
 	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
-		exportCSV(w, res, qry.metricWithNamespace, sl)
+		//todo add csv
+		// exportCSV(w, resp, metricWithNamespace, sl)
 	default:
-		var cache, cacheStale time.Duration
-		if res != nil {
-			cache, cacheStale = queryClientCacheDuration(res.immutable)
+		cache, cacheStale := queryClientCacheDuration(immutable)
+		respondJSON(w, respTable, cache, cacheStale, err, h.verbose, ai.user, sl)
+	}
+}
+
+func (h *Handler) freeQueryResp(resp *GetQueryResp) {
+	if resp != nil {
+		for i := range resp.Series.SeriesData {
+			resp.Series.SeriesData[i] = nil
 		}
 		respondJSON(w, res, cache, cacheStale, err, h.verbose, ai.user, sl)
 	}
@@ -1984,6 +2089,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				sortedIxs = append(sortedIxs, i)
 			}
 
+			//todo fix
 			if numResultsPerShift > 0 {
 				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand)
 				if len(sortedIxs) > numResultsPerShift {
@@ -2354,6 +2460,177 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 	return resp, immutable, nil
 }
 
+func (h *Handler) handleGetTable(ctx context.Context, debugQueries bool, req getQueryReq) (resp *GetTableResp, immutable bool, err error) {
+	version, err := parseVersion(req.version)
+	if err != nil {
+		return nil, false, err
+	}
+
+	metricMeta, err := h.getMetricMeta(req.ai, req.metricWithNamespace)
+	if err != nil {
+		return nil, false, err
+	}
+
+	err = validateQuery(metricMeta, version)
+	if err != nil {
+		return nil, false, err
+	}
+
+	from, to, err := parseFromTo(req.from, req.to)
+	if err != nil {
+		return nil, false, err
+	}
+
+	width, widthKind, err := parseWidth(req.width, req.widthAgg)
+	if err != nil {
+		return nil, false, err
+	}
+
+	queries, err := parseQueries(version, req.what, req.by, req.maxHost)
+	if err != nil {
+		return nil, false, err
+	}
+
+	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
+	if err != nil {
+		return nil, false, err
+	}
+	mappedFilterNotIn, err := h.resolveFilter(metricMeta, version, req.filterNotIn)
+	if err != nil {
+		return nil, false, err
+	}
+
+	isStringTop := metricMeta.StringTopDescription != ""
+
+	isUnique := false // this parameter has meaning only for the version 1, in other cases it does nothing
+	if version == Version1 {
+		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
+	}
+
+	lods := selectQueryLODs(
+		version,
+		int64(metricMeta.PreKeyFrom),
+		metricMeta.Resolution,
+		isUnique,
+		isStringTop,
+		time.Now().Unix(),
+		shiftTimestamp(from.Unix(), int64(width), 0, h.location),
+		shiftTimestamp(to.Unix(), int64(width), 0, h.location),
+		h.utcOffset,
+		width,
+		widthKind,
+		h.location,
+	)
+
+	if len(lods) > 0 {
+		// left shift leftmost LOD by one step to facilitate calculation of derivative (if any) in the leftmost requested point
+		// NB! don't forget to exclude this extra point on the left on successful return
+		lods[0].fromSec -= lods[0].stepSec
+	}
+
+	var sqlQueries []string
+	if debugQueries {
+		ctx = debugQueriesContext(ctx, &sqlQueries)
+	}
+
+	queryRows := []queryRow{}
+	var lastRow RowFrom
+	hasMore := false
+	skip := 0
+	fmt.Println(req.fromRow)
+loop:
+	for _, q := range queries {
+		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn)
+		pq := &preparedPointsQuery{
+			user:        req.ai.user,
+			version:     version,
+			metricID:    metricMeta.MetricID,
+			preKeyTagID: metricMeta.PreKeyTagID,
+			isStringTop: isStringTop,
+			kind:        q.whatKind,
+			by:          q.by,
+			filterIn:    mappedFilterIn,
+			filterNotIn: mappedFilterNotIn,
+			orderBy:     true,
+		}
+
+		desiredStepMul := int64(1)
+		if widthKind == widthLODRes {
+			desiredStepMul = int64(width)
+		} else if len(lods) > 0 {
+			desiredStepMul = lods[len(lods)-1].stepSec
+		}
+
+		for _, lod := range lods {
+			m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
+				fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, 0, lod.location),
+				toSec:     shiftTimestamp(lod.toSec, lod.stepSec, 0, lod.location),
+				stepSec:   lod.stepSec,
+				table:     lod.table,
+				hasPreKey: lod.hasPreKey,
+				location:  h.location,
+			}, req.avoidCache)
+			if err != nil {
+				return nil, false, err
+			}
+
+			for _, rows := range m {
+				for i := range rows {
+					lastRow.Time = rows[i].time
+					lastRow.Tags = lastRow.Tags[:0]
+					tags := &rows[i].tsTags
+					kvs := make(map[string]SeriesMetaTag, 16)
+					for j := 0; j < format.MaxTags; j++ {
+						tagName := format.TagID(j)
+						wasAdded := h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, tagName, tags.tag[j])
+						if wasAdded {
+							lastRow.Tags = append(lastRow.Tags, RawTag{
+								KeyNumber: j,
+								Value:     tags.tag[j],
+							})
+						}
+					}
+					skey := h.maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
+					lastRow.SKey = skey
+					if req.fromRow.Time > 0 && lessThan(req.fromRow, rows[i], skey) {
+						skip++
+						continue
+					}
+					data := selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i])
+					queryRows = append(queryRows, queryRow{
+						Time: rows[i].time,
+						Data: data,
+						Tags: kvs,
+						What: q.what,
+					})
+					if len(queryRows) >= 2000 {
+						hasMore = true
+						break loop
+					}
+				}
+			}
+		}
+	}
+	fmt.Println(len(queryRows))
+	fmt.Println("skip:", skip)
+	var fromRow string
+	if len(queryRows) > 0 {
+		var jsonBytes []byte
+		jsonBytes, err = json.Marshal(&lastRow)
+		if err != nil {
+			return nil, false, err
+		}
+		fromRow = base64.RawURLEncoding.EncodeToString(jsonBytes)
+	}
+	immutable = to.Before(time.Now().Add(invalidateFrom))
+	return &GetTableResp{
+		Series:       queryRows,
+		FromRow:      fromRow,
+		HasMore:      hasMore,
+		DebugQueries: sqlQueries,
+	}, immutable, nil
+}
+
 func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 	sl := newEndpointStat(EndpointRender, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
 	ai, ok := h.parseAccessToken(w, r, sl)
@@ -2685,16 +2962,19 @@ func differentiateSeries(s []float64) {
 	}
 }
 
-func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagID string, id int32) {
+func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagID string, id int32) bool {
 	if containsString(by, tagID) {
 		metaTag := SeriesMetaTag{Value: h.getRichTagValue(metricMeta, version, tagID, id)}
 		if tag, ok := metricMeta.Name2Tag[tagID]; ok {
 			metaTag.Comment = tag.ValueComments[metaTag.Value]
 			metaTag.Raw = tag.Raw
 			metaTag.RawKind = tag.RawKind
+			metaTag.valueID = id
 		}
 		m[tagID] = metaTag
+		return true
 	}
+	return false
 }
 
 type pointsSelectCols struct {
@@ -2769,28 +3049,7 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	return row
 }
 
-func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
-	row := pSelectRow{
-		tsValues: tsValues{countNorm: c.cnt[i]},
-	}
-	for j := 0; j < len(c.val); j++ {
-		row.val[j] = c.val[j][i]
-	}
-	for j := range c.tag {
-		row.tag[c.tagIx[j]] = c.tag[j][i]
-	}
-	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
-		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
-	}
-	if len(c.maxHostV2) != 0 {
-		row.maxHost = c.maxHostV2[i]
-	} else if len(c.maxHostV1) != 0 {
-		row.maxHost = int32(c.maxHostV1[i])
-	}
-	return row
-}
-
-func (h *Handler) maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, tagName string, tagValuePtr *stringFixed) {
+func (h *Handler) maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, tagName string, tagValuePtr *stringFixed) string {
 	tagValue := ""
 	nullIx := bytes.IndexByte(tagValuePtr[:], 0)
 	switch nullIx {
@@ -2802,8 +3061,10 @@ func (h *Handler) maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, 
 	}
 
 	if containsString(by, tagName) {
-		m[tagName] = SeriesMetaTag{Value: emptyToUnspecified(tagValue)}
+		m[tagName] = SeriesMetaTag{Value: emptyToUnspecified(tagValue), isSkey: true}
+		return tagValue
 	}
+	return ""
 }
 
 func replaceInfNan(v *float64) {
@@ -3110,48 +3371,19 @@ func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale t
 	return queryClientCache, queryClientCacheStale
 }
 
-func getQueryRespEqual(a, b *SeriesResponse) bool {
-	if len(a.Series.Time) != len(b.Series.Time) {
-		return false
+func lessThan(l RowFrom, r tsSelectRow, skey string) bool {
+	if l.Time != r.time {
+		fmt.Println("by time", l.Time < r.time)
+		return l.Time < r.time
 	}
-	if len(a.Series.SeriesMeta) != len(b.Series.SeriesMeta) {
-		return false
-	}
-	if len(a.Series.SeriesData) != len(b.Series.SeriesData) {
-		return false
-	}
-	for i := 0; i < len(a.Series.Time); i++ {
-		if a.Series.Time[i] != b.Series.Time[i] {
-			return false
+	for i := range l.Tags {
+		lv := l.Tags[i].Value
+		rv := r.tag[l.Tags[i].KeyNumber]
+		if lv != rv {
+			fmt.Println("by tag ", l.Tags[i].KeyNumber, lv < rv)
+			return lv < rv
 		}
 	}
-	for i := 0; i < len(a.Series.SeriesData); i++ {
-		var j int
-		for ; j < len(b.Series.SeriesMeta); j++ {
-			if reflect.DeepEqual(a.Series.SeriesMeta[i], b.Series.SeriesMeta[j]) {
-				break
-			}
-		}
-		if j == len(b.Series.SeriesMeta) {
-			return false
-		}
-		if len(*a.Series.SeriesData[i]) != len(*b.Series.SeriesData[j]) {
-			return false
-		}
-		for k := 0; k < len(*a.Series.SeriesData[i]); k++ {
-			var (
-				v1 = (*a.Series.SeriesData[i])[k]
-				v2 = (*b.Series.SeriesData[j])[k]
-			)
-			if math.IsNaN(v1) && math.IsNaN(v2) {
-				continue
-			}
-			if !(math.Abs(v1-v2) <= math.Max(math.Abs(v1), math.Abs(v2))/100) {
-				// difference is more than a percent!
-				// or one value is NaN
-				return false
-			}
-		}
-	}
-	return true
+	fmt.Println("by skey ", l.SKey < skey)
+	return l.SKey < skey
 }

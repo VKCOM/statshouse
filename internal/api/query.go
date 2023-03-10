@@ -7,6 +7,8 @@
 package api
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -295,6 +297,26 @@ func parseQueries(version string, whats, by []string, maxHost bool) ([]*query, e
 	}
 
 	return qq, nil
+}
+
+func parseFromRows(fromRows string) (RowFrom, error) {
+	res := RowFrom{}
+	if fromRows == "" {
+		return res, nil
+	}
+	var buf []byte
+	if len(buf) < len(fromRows) {
+		buf = make([]byte, len(fromRows))
+	}
+	n, err := base64.RawURLEncoding.Decode(buf, []byte(fromRows))
+	if err != nil {
+		return res, err
+	}
+	err = json.Unmarshal(buf[:n], &res)
+	if err != nil {
+		return res, err
+	}
+	return res, nil
 }
 
 func parseQueryWhat(what string, maxHost bool) (queryFn, queryFnKind, error) {
