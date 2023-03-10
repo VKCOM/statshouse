@@ -1426,21 +1426,22 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 			ctx,
 			true,
 			getQueryReq{
-				ai:                  ai,
-				version:             r.FormValue(ParamVersion),
-				numResults:          r.FormValue(ParamNumResults),
-				metricWithNamespace: metricWithNamespace,
-				from:                r.FormValue(ParamFromTime),
-				to:                  r.FormValue(ParamToTime),
-				width:               r.FormValue(ParamWidth),
-				widthAgg:            r.FormValue(ParamWidthAgg),
-				timeShifts:          r.Form[ParamTimeShift],
-				what:                r.Form[ParamQueryWhat],
-				by:                  r.Form[ParamQueryBy],
-				filterIn:            filterIn,
-				filterNotIn:         filterNotIn,
-				avoidCache:          avoidCache,
-				maxHost:             maxHost,
+				ai:                      ai,
+				version:                 r.FormValue(ParamVersion),
+				numResults:              r.FormValue(ParamNumResults),
+				allowNegativeNumResults: true,
+				metricWithNamespace:     metricWithNamespace,
+				from:                    r.FormValue(ParamFromTime),
+				to:                      r.FormValue(ParamToTime),
+				width:                   r.FormValue(ParamWidth),
+				widthAgg:                r.FormValue(ParamWidthAgg),
+				timeShifts:              r.Form[ParamTimeShift],
+				what:                    r.Form[ParamQueryWhat],
+				by:                      r.Form[ParamQueryBy],
+				filterIn:                filterIn,
+				filterNotIn:             filterNotIn,
+				avoidCache:              avoidCache,
+				maxHost:                 maxHost,
 			})
 		if h.verbose && err == nil {
 			log.Printf("[debug] handled query (%v series x %v points each) for %q in %v", len(resp.Series.SeriesMeta), len(resp.Series.Time), ai.user, time.Since(sl.startTime))
@@ -1805,6 +1806,12 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 
 			if numResultsPerShift > 0 {
 				partialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift)
+				if len(sortedIxs) > numResultsPerShift {
+					sortedIxs = sortedIxs[:numResultsPerShift]
+				}
+			} else if numResultsPerShift < 0 {
+				numResultsPerShift = -numResultsPerShift
+				partialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift)
 				if len(sortedIxs) > numResultsPerShift {
 					sortedIxs = sortedIxs[:numResultsPerShift]
 				}

@@ -325,7 +325,11 @@ func parseNumResults(s string, def int, max int, isNegativeAllowed bool) (int, e
 	}
 
 	n := int(u)
-	if n > max {
+	if n < 0 {
+		if -n > max {
+			n = -max
+		}
+	} else if n > max {
 		n = max
 	}
 

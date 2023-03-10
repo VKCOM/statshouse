@@ -10,11 +10,15 @@ import (
 	"pgregory.net/rand"
 )
 
-func partialSortIndexByValueDesc(idx []int, val []float64, n int) {
-	partialQuickSortIndexByValueDesc(idx, val, 0, len(idx), n, rand.New())
+func partialSortIndexByValueAsc(idx []int, val []float64, n int) {
+	partialQuickSortIndexByValue(idx, val, 0, len(idx), n, -1, rand.New())
 }
 
-func partialQuickSortIndexByValueDesc(idx []int, val []float64, lo, hi, n int, rnd *rand.Rand) {
+func partialSortIndexByValueDesc(idx []int, val []float64, n int) {
+	partialQuickSortIndexByValue(idx, val, 0, len(idx), n, 1, rand.New())
+}
+
+func partialQuickSortIndexByValue(idx []int, val []float64, lo, hi, n int, m float64, rnd *rand.Rand) {
 	if n <= lo {
 		return
 	}
@@ -31,7 +35,7 @@ func partialQuickSortIndexByValueDesc(idx []int, val []float64, lo, hi, n int, r
 	idx[lo], idx[p] = idx[p], idx[lo]
 	i := lo
 	for j := lo + 1; j < hi; j++ {
-		if val[idx[lo]] < val[idx[j]] {
+		if m*val[idx[lo]] < m*val[idx[j]] {
 			i++
 			idx[i], idx[j] = idx[j], idx[i]
 		}
@@ -40,6 +44,6 @@ func partialQuickSortIndexByValueDesc(idx []int, val []float64, lo, hi, n int, r
 	idx[lo], idx[i] = idx[i], idx[lo]
 
 	// recurse
-	partialQuickSortIndexByValueDesc(idx, val, lo, i, n, rnd)
-	partialQuickSortIndexByValueDesc(idx, val, i+1, hi, n, rnd)
+	partialQuickSortIndexByValue(idx, val, lo, i, n, m, rnd)
+	partialQuickSortIndexByValue(idx, val, i+1, hi, n, m, rnd)
 }
