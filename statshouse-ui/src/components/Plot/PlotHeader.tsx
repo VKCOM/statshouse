@@ -10,11 +10,18 @@ import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
 import { getUrlSearch, lockRange, PlotParams } from '../../common/plotQueryParams';
 import produce from 'immer';
-import { selectorDashboardLayoutEdit, selectorParams, selectorParamsTagSync, useStore } from '../../store';
+import {
+  selectorDashboardLayoutEdit,
+  selectorParams,
+  selectorParamsTagSync,
+  selectorPlotsDataByIndex,
+  useStore,
+} from '../../store';
 import { PlotLink } from './PlotLink';
 import { TextEditable } from '../TextEditable';
 import cn from 'classnames';
 import css from './style.module.css';
+import { promQLMetric } from '../../view/utils';
 
 export type PlotHeaderProps = {
   indexPlot?: number;
@@ -46,7 +53,19 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
 }) => {
   const syncTag = useStore(selectorParamsTagSync);
   const params = useStore(selectorParams);
+  const selectorPlotData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
+  const plotData = useStore(selectorPlotData);
+
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
+
+  const metricName = useMemo(
+    () => plotData.nameMetric || (sel.metricName !== promQLMetric ? sel.metricName : ''),
+    [plotData.nameMetric, sel.metricName]
+  );
+  const what = useMemo(
+    () => (metricName ? sel.what.map((qw) => whatToWhatDesc(qw)).join(', ') : ''),
+    [metricName, sel.what]
+  );
 
   const filters = useMemo(
     () =>
@@ -63,6 +82,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         .filter((f, index) => (f.in || f.notIn) && !syncTag.some((group) => group[indexPlot] === index)),
     [indexPlot, meta.tags, sel.filterIn, sel.filterNotIn, syncTag]
   );
+
   const syncedTags = useMemo(() => {
     const sTags = (meta.tags || [])
       .map((t, index) => ({
@@ -86,6 +106,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         .join('\n'),
     };
   }, [indexPlot, meta.tags, sel.filterIn, sel.filterNotIn, syncTag]);
+
   const copyLink = useMemo(
     () =>
       `${document.location.protocol}//${document.location.host}${document.location.pathname}${getUrlSearch(
@@ -146,7 +167,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
               type="text"
               className={cn(css.plotInputName, 'form-control form-control-sm mb-1')}
               value={sel.customName}
-              placeholder={sel.metricName + ': ' + sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}
+              placeholder={metricName + ': ' + what}
               onPointerDown={stopPropagation}
               onInput={onInputCustomInput}
             />
@@ -160,8 +181,12 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
                 <span className="text-body me-3">{sel.customName}</span>
               ) : (
                 <>
-                  <span className="text-body">{sel.metricName}</span>:
-                  <span className="me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
+                  <span className="text-body">{metricName}</span>
+                  {!!what && (
+                    <>
+                      : <span className="me-3"> {what}</span>
+                    </>
+                  )}
                 </>
               )}
             </PlotLink>
@@ -252,8 +277,12 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
               placeholder={
                 sel.customName || (
                   <>
-                    <span>{sel.metricName}</span>:
-                    <span className="text-secondary"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
+                    <span>{metricName}</span>
+                    {!!what && (
+                      <>
+                        :<span className="text-secondary"> {what}</span>
+                      </>
+                    )}
                   </>
                 )
               }
@@ -271,8 +300,12 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
                 <span className="text-body me-3">{sel.customName}</span>
               ) : (
                 <>
-                  <span className="text-body">{sel.metricName}</span>:
-                  <span className="me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
+                  <span className="text-body">{metricName}</span>
+                  {!!what && (
+                    <>
+                      :<span className="me-3"> {what}</span>
+                    </>
+                  )}
                 </>
               )}
             </PlotLink>

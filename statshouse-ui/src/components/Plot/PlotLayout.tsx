@@ -5,10 +5,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { SetStateAction, useCallback } from 'react';
-import PlotControls from '../../view/PlotControls';
+import { PlotControls } from './PlotControls';
 import { metricMeta, querySelector } from '../../view/api';
-import { timeRangeAbbrev } from '../../view/utils';
+import { promQLMetric, timeRangeAbbrev } from '../../view/utils';
 import { MetricItem } from '../../hooks';
+import { PlotControlsPromQL } from './PlotControlsPromQL';
 
 export type PlotLayoutProps = {
   embed?: boolean;
@@ -49,15 +50,27 @@ export const PlotLayout: React.FC<PlotLayoutProps> = ({
         <div className="position-relative">{children}</div>
       </div>
       <div className="mb-3 col-lg-5 col-xl-4">
-        <PlotControls
-          indexPlot={indexPlot}
-          setBaseRange={setBaseRange}
-          sel={sel}
-          setSel={setSel}
-          meta={meta}
-          numQueries={numQueries}
-          metricsOptions={metricsOptions}
-        />
+        {sel.metricName === promQLMetric ? (
+          <PlotControlsPromQL
+            indexPlot={indexPlot}
+            setBaseRange={setBaseRange}
+            sel={sel}
+            setSel={setSel}
+            meta={meta}
+            numQueries={numQueries}
+            metricsOptions={metricsOptions}
+          />
+        ) : (
+          <PlotControls
+            indexPlot={indexPlot}
+            setBaseRange={setBaseRange}
+            sel={sel}
+            setSel={setSel}
+            meta={meta}
+            numQueries={numQueries}
+            metricsOptions={metricsOptions}
+          />
+        )}
       </div>
     </div>
   );

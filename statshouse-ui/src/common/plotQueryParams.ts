@@ -65,6 +65,7 @@ export type PlotParams = {
     max: number;
   };
   maxHost: boolean;
+  promQL: string;
 };
 
 export type GroupInfo = {
@@ -386,6 +387,7 @@ export const configParams: ConfigParams = {
         urlKey: queryParamMaxHost,
         default: false,
       },
+      promQL: { default: '' },
     },
   },
   timeShifts: {

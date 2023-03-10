@@ -34,6 +34,7 @@ import {
   normalizeDashboard,
   notNull,
   now,
+  promQLMetric,
   readJSONLD,
   sortByKey,
   timeRangeAbbrev,
@@ -78,6 +79,7 @@ import { decodeQueryParams, encodeQueryParams, mergeLeft } from '../common/Query
 import { getNextState } from '../common/getNextState';
 
 export type PlotStore = {
+  nameMetric: string;
   error: string;
   error403?: string;
   data: uPlot.AlignedData;
@@ -111,6 +113,7 @@ export type TopInfo = {
 export type PlotValues = {
   rawValue: number | null;
   value: string;
+  metricName: string;
   label: string;
   baseLabel: string;
   timeShift: number;
@@ -309,6 +312,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     if (params.plots.length === 0) {
       const np: PlotParams = {
         metricName: globalSettings.default_metric,
+        promQL: '',
         customName: '',
         groupBy: [...globalSettings.default_metric_group_by],
         filterIn: { ...globalSettings.default_metric_filter_in },
@@ -554,6 +558,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     if (!getState().plotsData[index]) {
       setState((state) => {
         state.plotsData[index] = {
+          nameMetric: '',
           error: '',
           data: [[]],
           series: [],
@@ -584,7 +589,6 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     if (prevState.numQueriesPlot[index] > 0 && prevState.liveMode) {
       return;
     }
-
     const width = prevState.uPlotsWidth[index] ?? prevState.uPlotsWidth.find((w) => w && w > 0);
     const compact = prevState.compact;
     const lastPlotParams: PlotParams | undefined = prevState.params.plots[index];
@@ -618,7 +622,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
       );
       prevState.setNumQueriesPlot(index, (n) => n + 1);
       const controller = new AbortController();
-
+      const isPromQl = lastPlotParams.metricName === promQLMetric;
+      const promQLForm = new FormData();
+      promQLForm.append('q', lastPlotParams.promQL);
       const url = queryURL(lastPlotParams, prevState.timeRange, prevState.params.timeShifts, agg, !compact);
       prevState.plotsDataAbortController[index]?.abort();
       setState((state) => {
@@ -630,13 +636,22 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         }
         state.plotsData[index].scales = scales;
       });
-      apiGet<queryResult>(url, controller.signal, true)
+      (isPromQl
+        ? apiPost<queryResult>(url, promQLForm, controller.signal, true)
+        : apiGet<queryResult>(url, controller.signal, true)
+      )
         .then((resp) => {
           const uniqueWhat = new Set();
 
           for (const meta of resp?.series.series_meta ?? []) {
             uniqueWhat.add(meta.what);
           }
+
+          const uniqueName = new Set();
+          for (const meta of resp?.series.series_meta ?? []) {
+            meta.name && uniqueName.add(meta.name);
+          }
+
           const maxLabelLength = Math.max(
             'Time'.length,
             ...(resp?.series.series_meta ?? []).map((meta) => {
@@ -675,7 +690,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
             const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
             const isValue = baseLabel.indexOf('Value') === 0;
             const prefColor = '9'; // it`s magic prefix
-            const metricName = isValue ? `${lastPlotParams.metricName}: ` : '';
+            const metricName = isValue
+              ? `${meta.name || (lastPlotParams.metricName !== promQLMetric ? lastPlotParams.metricName : '')}: `
+              : '';
             const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
             const baseColor = baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
             baseColors[colorKey] = baseColor;
@@ -733,6 +750,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               values(u, seriesIdx, idx): PlotValues {
                 if (idx === null) {
                   return {
+                    metricName: '',
                     rawValue: null,
                     value: '',
                     label: '',
@@ -763,6 +781,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                     : '';
                 const percent = rawValue !== null ? formatPercent(rawValue / total) : '';
                 return {
+                  metricName,
                   rawValue,
                   value,
                   label,
@@ -844,6 +863,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
 
           setState((state) => {
             state.plotsData[index] = {
+              nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
               error: '',
               data: dequal(data, state.plotsData[index]?.data) ? state.plotsData[index]?.data : data,
               series:
@@ -877,6 +897,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           if (error instanceof Error403) {
             setState((state) => {
               state.plotsData[index] = {
+                nameMetric: '',
                 error: '',
                 error403: error.toString(),
                 data: [[]],
@@ -907,6 +928,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
             debug.error(error);
             setState((state) => {
               state.plotsData[index] = {
+                nameMetric: '',
                 error: error.toString(),
                 data: [[]],
                 series: [],
@@ -1019,7 +1041,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
   metricsMeta: { '': { name: '', metric_id: 0, kind: 'counter', description: '', tags: [] } },
   metricsMetaAbortController: {},
   loadMetricsMeta(metricName) {
-    if (!metricName) {
+    if (!metricName || metricName === promQLMetric) {
       return;
     }
     const prevState = getState();

@@ -13,6 +13,7 @@ import { QueryParams } from '../common/plotQueryParams';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
+export const promQLMetric = '~promql';
 
 export function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(n, max));
@@ -437,10 +438,13 @@ export async function apiPost<T>(
 ): Promise<T> {
   const resp = await fetch(url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
+    headers:
+      data instanceof FormData
+        ? {}
+        : {
+            'Content-Type': 'application/json',
+          },
+    body: data instanceof FormData ? data : JSON.stringify(data),
     signal,
   });
   if (promptReloadOn401 && resp.status === 401) {
@@ -696,6 +700,7 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       // @ts-ignore
       delete p.timeShifts;
       p.customName ??= '';
+      p.promQL ??= '';
       return p;
     }),
     timeShifts,

@@ -5,11 +5,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { ChangeEvent, memo, useCallback, useEffect, useMemo } from 'react';
-import * as utils from './utils';
-import { getTimeShifts, timeShiftAbbrevExpand } from './utils';
-import { MetricItem } from '../hooks';
-import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, Select } from '../components';
-import { TagControl } from './TagControl';
+import * as utils from '../../view/utils';
+import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
+import { MetricItem } from '../../hooks';
+import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, Select } from '../index';
+import { TagControl } from '../../view/TagControl';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
@@ -22,11 +22,11 @@ import {
   selectorSetTimeRange,
   selectorTimeRange,
   useStore,
-} from '../store';
-import { globalSettings } from '../common/settings';
-import { filterHasTagID, metricKindToWhat, metricMeta, querySelector, queryWhat, whatToWhatDesc } from './api';
+} from '../../store';
+import { globalSettings } from '../../common/settings';
+import { filterHasTagID, metricKindToWhat, metricMeta, querySelector, queryWhat, whatToWhatDesc } from '../../view/api';
 
-const PlotControls = memo(function PlotControls_(props: {
+export const PlotControls = memo(function PlotControls_(props: {
   indexPlot: number;
   setBaseRange: (r: utils.timeRangeAbbrev) => void;
   sel: querySelector;
@@ -319,5 +319,3 @@ const PlotControls = memo(function PlotControls_(props: {
     </div>
   );
 });
-
-export default PlotControls;
