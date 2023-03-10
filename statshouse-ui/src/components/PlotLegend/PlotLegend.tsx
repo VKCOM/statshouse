@@ -5,7 +5,7 @@ import { PlotValues } from '../../store';
 
 import css from './style.module.css';
 import { AlignByDot } from './AlignByDot';
-import { useResizeObserver } from '../../view/utils';
+import { secondsRangeToString, timeShiftDesc, useResizeObserver } from '../../view/utils';
 import { PlotLegendMaxHost } from './PlotLegendMaxHost';
 
 type PlotLegendProps = {
@@ -112,7 +112,20 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({
                       className={css.label}
                       title={l.label}
                     >
-                      {index !== 0 ? l.label : l.value || ' '}
+                      {index !== 0 ? (
+                        l.values ? (
+                          <>
+                            {!!l.values.timeShift && (
+                              <span className="text-secondary">{timeShiftDesc(l.values.timeShift)} </span>
+                            )}
+                            <span>{l.values.baseLabel}</span>
+                          </>
+                        ) : (
+                          l.label
+                        )
+                      ) : (
+                        l.value || ' '
+                      )}
                     </div>
                   </div>
                 </td>
@@ -146,6 +159,11 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({
                         />
                       </td>
                     )}
+                    <td className={css.timeShift}>
+                      <div className="text-secondary">
+                        {!!l.deltaTime && `${secondsRangeToString(Math.abs(l.deltaTime), true)} ago`}
+                      </div>
+                    </td>
                   </>
                 )}
               </tr>
