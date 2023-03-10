@@ -18,6 +18,3 @@
 .cursorDefault {
   cursor: default;
 }
-.margin {
-  margin-left: var(--plot-margin);
-}

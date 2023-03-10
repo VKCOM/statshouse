@@ -23,7 +23,6 @@ import { DashboardLayout } from './DashboardLayout';
 import { DashboardSettings } from '../DashboardSettings';
 import { DashboardTagControl } from '../DashboardTagControl';
 import cn from 'classnames';
-import css from './style.module.css';
 import { PlotLink } from '../Plot/PlotLink';
 
 export type DashboardProps = {
@@ -69,7 +68,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
         </div>
       )}
       {dashboardLayoutEdit && (
-        <ul className="nav nav-tabs mb-4">
+        <ul className="nav nav-tabs mb-4  container-xl">
           <li className="nav-item">
             <PlotLink className={cn('nav-link', tabNum === -1 && 'active')} indexPlot={-1} isLink>
               Layout
@@ -107,7 +106,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
       )}
       {showSyncPanel && tabNum === -1 && (
         <DashboardTagControl
-          className={cn('d-flex flex-grow-1 flex-row gap-3 flex-wrap col-12 justify-content-start', css.margin)}
+          className={cn('d-flex flex-grow-1 flex-row gap-3 flex-wrap col-12 justify-content-center')}
         />
       )}
       <DashboardLayout yAxisSize={yAxisSize} className={params.tabNum === -1 ? '' : 'hidden-dashboard'} />

@@ -181,10 +181,10 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
   }
   return (
     <div className="d-flex flex-column flex-md-row">
-      <div className={embed ? 'flex-grow-1' : 'flex-grow-1 container-xl pt-3 pb-3'}>
+      <div className={embed ? 'flex-grow-1' : 'flex-grow-1 pt-3 pb-3'}>
         <div className="tab-content position-relative">
           {params.tabNum >= 0 && (
-            <div className={`tab-pane show active ${params.tabNum >= 0 ? '' : 'hidden-dashboard'}`}>
+            <div className={`container-xl tab-pane show active ${params.tabNum >= 0 ? '' : 'hidden-dashboard'}`}>
               <PlotLayout
                 embed={embed}
                 indexPlot={params.tabNum}

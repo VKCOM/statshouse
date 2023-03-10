@@ -22,9 +22,6 @@ import { ReactComponent as SVGGearFill } from 'bootstrap-icons/icons/gear-fill.s
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { NavLink } from 'react-router-dom';
 
-import css from './style.module.css';
-import cn from 'classnames';
-
 export type DashboardHeaderProps = {};
 export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
   const dashboardId = useStore(selectorDashboardId);
@@ -49,7 +46,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
   );
 
   return (
-    <div className={cn('d-flex flex-row flex-wrap mb-3', css.margin)}>
+    <div className="d-flex flex-row flex-wrap mb-3 container-xl">
       <div className="me-4 mb-2">
         <PlotNavigate
           className="btn-group-sm"

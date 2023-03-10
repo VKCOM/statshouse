@@ -306,6 +306,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     if (params.plots.length === 0) {
       const np: PlotParams = {
         metricName: globalSettings.default_metric,
+        customName: '',
         groupBy: [...globalSettings.default_metric_group_by],
         filterIn: { ...globalSettings.default_metric_filter_in },
         what: [...globalSettings.default_metric_what],
@@ -353,6 +354,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         if (resetPlot) {
           store.plotsData = [];
           store.previews = [];
+          store.dashboardLayoutEdit = false;
         }
       });
       getState().params.plots.forEach((plot, index) => {
@@ -399,6 +401,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     const prev = getState().params.plots[index];
     const next = getNextState(prev, nextState);
     const changed = !dequal(next, prev);
+    const noUpdate = changed && dequal({ ...next, customName: '' }, { ...prev, customName: '' });
     if (changed) {
       setState((state) => {
         if (next.metricName !== prev.metricName) {
@@ -406,7 +409,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         }
         state.params.plots[index] = next;
       });
-      getState().loadPlot(index);
+      if (!noUpdate) {
+        getState().loadPlot(index);
+      }
       if (!next.useV2 && getState().liveMode) {
         getState().setLiveMode(false);
       }
