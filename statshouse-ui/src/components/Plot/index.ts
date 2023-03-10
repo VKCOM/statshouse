@@ -9,3 +9,4 @@ export * from './PlotControlTo';
 export * from './PlotNavigate';
 export * from './PlotLayout';
 export * from './PlotControlTimeShifts';
+export * from './PlotControls';

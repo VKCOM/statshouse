@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as utils from './utils';
-import { convert } from './utils';
+import { convert, promQLMetric } from './utils';
 import { TimeRange } from '../common/TimeRange';
 
 export interface lockRange {
@@ -16,6 +16,7 @@ export interface lockRange {
 export interface querySelector {
   readonly metricName: string;
   readonly customName: string;
+  readonly promQL: string;
   readonly what: queryWhat[];
   readonly customAgg: number;
   readonly groupBy: readonly string[];
@@ -48,6 +49,7 @@ export interface querySeries {
 }
 
 export interface querySeriesMeta {
+  readonly name?: string;
   readonly time_shift: number;
   readonly tags: Readonly<Record<string, querySeriesMetaTag>>;
   readonly max_hosts: null | string[];
@@ -464,21 +466,32 @@ export function queryURL(
   width: number | string,
   fetchBadges: boolean
 ): string {
-  const params = [
-    [queryParamNumResults, sel.numSeries.toString()],
-    [queryParamBackendVersion, v2Value(sel.useV2)],
-    [queryParamMetric, sel.metricName],
-    [queryParamFromTime, timeRange.from.toString()],
-    [queryParamToTime, (timeRange.to + 1).toString()],
-    [queryParamWidth, width.toString()],
-    ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
-    [queryParamVerbose, fetchBadges ? '1' : '0'],
-    ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
-    ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
-    ...filterParams(sel.filterIn, sel.filterNotIn),
-  ];
-  if (sel.maxHost) {
-    params.push([queryParamMaxHost, '1']);
+  let params: string[][];
+  if (sel.metricName === promQLMetric) {
+    params = [
+      [queryParamFromTime, timeRange.from.toString()],
+      [queryParamToTime, (timeRange.to + 1).toString()],
+      [queryParamWidth, width.toString()],
+      ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
+    ];
+  } else {
+    params = [
+      [queryParamNumResults, sel.numSeries.toString()],
+      [queryParamBackendVersion, v2Value(sel.useV2)],
+      [queryParamMetric, sel.metricName],
+      [queryParamFromTime, timeRange.from.toString()],
+      [queryParamToTime, (timeRange.to + 1).toString()],
+      [queryParamWidth, width.toString()],
+      ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
+      [queryParamVerbose, fetchBadges ? '1' : '0'],
+      ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
+      ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
+      ...filterParams(sel.filterIn, sel.filterNotIn),
+    ];
+
+    if (sel.maxHost) {
+      params.push([queryParamMaxHost, '1']);
+    }
   }
 
   const strParams = new URLSearchParams(params).toString();
