@@ -69,9 +69,13 @@ func TestPartialSortIndexByValue(t *testing.T) {
 		n := rapid.IntRange(0, len(val)).Draw(t, "n")
 
 		partialSortIndexByValueDesc(idx, val, n)
-
 		for i := 1; i < n; i++ {
 			require.GreaterOrEqual(t, val[idx[i-1]], val[idx[i]])
+		}
+
+		partialSortIndexByValueAsc(idx, val, n)
+		for i := 1; i < n; i++ {
+			require.LessOrEqual(t, val[idx[i-1]], val[idx[i]])
 		}
 	})
 }
