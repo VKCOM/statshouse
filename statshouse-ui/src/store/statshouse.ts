@@ -111,6 +111,9 @@ export type TopInfo = {
 export type PlotValues = {
   rawValue: number | null;
   value: string;
+  label: string;
+  baseLabel: string;
+  timeShift: number;
   max_host: string;
   total: number;
   percent: string;
@@ -732,6 +735,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                   return {
                     rawValue: null,
                     value: '',
+                    label: '',
+                    baseLabel: '',
+                    timeShift: 0,
                     max_host: '',
                     total: 0,
                     percent: '',
@@ -759,6 +765,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                 return {
                   rawValue,
                   value,
+                  label,
+                  baseLabel,
+                  timeShift: meta.time_shift,
                   max_host,
                   total,
                   percent,

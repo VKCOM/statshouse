@@ -137,13 +137,13 @@ const fmtInputDate = uPlot.fmtDate('{YYYY}-{MM}-{DD}');
 const fmtInputTime = uPlot.fmtDate('{HH}:{mm}:{ss}');
 const fmtInputDateTime = uPlot.fmtDate('{YYYY}-{MM}-{DD} {HH}:{mm}:{ss}');
 
-export function secondsRangeToString(seconds: number): string {
-  const suffix: Array<[number, string, string]> = [
-    [60, 'second', 'seconds'],
-    [60, 'minute', 'minutes'],
-    [24, 'hour', 'hours'],
-    [365, 'day', 'days'],
-    [0, 'year', 'years'],
+export function secondsRangeToString(seconds: number, short?: boolean): string {
+  const suffix: Array<[number, string, string, string]> = [
+    [60, 'second', 'seconds', 's'],
+    [60, 'minute', 'minutes', 'm'],
+    [24, 'hour', 'hours', 'h'],
+    [365, 'day', 'days', 'd'],
+    [0, 'year', 'years', 'y'],
   ];
   let range = seconds;
   let result = [];
@@ -151,11 +151,11 @@ export function secondsRangeToString(seconds: number): string {
     if (suffix[key][0] > 0) {
       const num = range % (suffix[key][0] as number);
       if (num > 0) {
-        result.unshift(`${num} ${suffix[key][num === 1 ? 1 : 2]}`);
+        result.unshift(`${num}${short ? '' : ' '}${suffix[key][short ? 3 : num === 1 ? 1 : 2]}`);
       }
       range = Math.floor(range / (suffix[key][0] as number));
     } else if (range > 0) {
-      result.unshift(`${range} ${suffix[key][range === 1 ? 1 : 2]}`);
+      result.unshift(`${range}${short ? '' : ' '}${suffix[key][short ? 3 : range === 1 ? 1 : 2]}`);
       range = 0;
     }
     if (range === 0) {
@@ -165,7 +165,7 @@ export function secondsRangeToString(seconds: number): string {
   if (result.length > 2) {
     result.pop();
   }
-  return result.join(' ');
+  return result.join(short ? '' : ' ');
 }
 
 export function timeRangeString(r: timeRange): string {
@@ -352,7 +352,8 @@ export function timeShiftDesc(ts: number): string {
     case -12 * 31 * 24 * 3600:
       return minusSignChar + '1Y';
     default:
-      return `${ts}s`.replaceAll('-', minusSignChar);
+      return minusSignChar + secondsRangeToString(Math.abs(ts), true);
+    // return `${ts}s`.replaceAll('-', minusSignChar);
   }
 }
 
