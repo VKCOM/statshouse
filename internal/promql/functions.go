@@ -217,7 +217,10 @@ func funcSum(data []*[]float64, n int) {
 	for j := 0; j < n; j++ {
 		var res float64
 		for i := 0; i < len(data); i++ {
-			res += (*data[i])[j]
+			v := (*data[i])[j]
+			if !math.IsNaN(v) {
+				res += v
+			}
 		}
 		(*data[0])[j] = res
 	}

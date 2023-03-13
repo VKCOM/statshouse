@@ -1543,13 +1543,14 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	width, _, err := parseWidth(r.FormValue(ParamWidth), r.FormValue(ParamWidthAgg))
+	width, widthKind, err := parseWidth(r.FormValue(ParamWidth), r.FormValue(ParamWidthAgg))
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	if width <= 0 {
-		width = 1
+	var opt promql.Options
+	if widthKind == widthAutoRes {
+		opt.StepAuto = true
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
 	defer cancel()
@@ -1587,6 +1588,7 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 		}
 		bag *promql.SeriesBag
 	)
+	opt.Callback = queryBadges
 	defer func() {
 		if cleanup != nil {
 			cleanup()
@@ -1601,12 +1603,12 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 		res2, cleanup, err2 = h.promEngine.Exec(
 			context.WithValue(ctx, accessInfoKey, &ai), // to check access rights when querying series
 			promql.Query{
-				Start: from.Unix(),
-				End:   to.Unix(),
-				Step:  int64(width),
-				Expr:  r.FormValue(paramPromQuery),
-			},
-			promql.Options{Callback: queryBadges})
+				Start:   from.Unix(),
+				End:     to.Unix(),
+				Step:    int64(width),
+				Expr:    r.FormValue(paramPromQuery),
+				Options: opt,
+			})
 		if err2 != nil {
 			return err2
 		}
@@ -1947,7 +1949,14 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 					maxHosts = maxHosts[1:]
 				}
 
-				meta = append(meta, QuerySeriesMetaV2{TimeShift: toSec(shift), Tags: kvs, MaxHosts: maxHosts, What: q.what, Total: len(tagsToIx)})
+				meta = append(meta, QuerySeriesMetaV2{
+					TimeShift: toSec(shift),
+					Tags:      kvs,
+					MaxHosts:  maxHosts,
+					Name:      req.metricWithNamespace,
+					What:      q.what,
+					Total:     len(tagsToIx),
+				})
 				data = append(data, &s)
 			}
 
