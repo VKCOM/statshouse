@@ -21,13 +21,15 @@ import (
 const labelWhat = "__what__"
 
 type Query struct {
-	Start int64
-	End   int64
-	Step  int64
-	Expr  string
+	Start   int64
+	End     int64
+	Step    int64
+	Expr    string
+	Options Options // StatsHouse specific
 }
 
 type Options struct {
+	StepAuto bool
 	Callback func(metrics []*format.MetricMetaValue)
 }
 
@@ -75,7 +77,7 @@ func NewEngine(h Handler, loc *time.Location) Engine {
 	return Engine{h, loc}
 }
 
-func (ng Engine) Exec(ctx context.Context, qry Query, opt Options) (res parser.Value, cancel func(), err error) {
+func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel func(), err error) {
 	var ev evaluator
 	defer func() {
 		if r := recover(); r != nil {
@@ -84,7 +86,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query, opt Options) (res parser.V
 		}
 	}()
 	// parse query
-	ev, err = ng.newEvaluator(ctx, qry, opt)
+	ev, err = ng.newEvaluator(ctx, qry)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -124,7 +126,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query, opt Options) (res parser.V
 	}
 }
 
-func (ng Engine) newEvaluator(ctx context.Context, qry Query, opt Options) (ev evaluator, err error) {
+func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err error) {
 	ev = evaluator{
 		h:     ng.h,
 		loc:   ng.loc,
@@ -222,12 +224,12 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query, opt Options) (ev e
 	// save effective query
 	ev.qry = qry
 	// callback
-	if opt.Callback != nil && len(maxOffset) != 0 {
+	if qry.Options.Callback != nil && len(maxOffset) != 0 {
 		s := make([]*format.MetricMetaValue, 0, len(maxOffset))
 		for v := range maxOffset {
 			s = append(s, v)
 		}
-		opt.Callback(s)
+		qry.Options.Callback(s)
 	}
 	return ev, nil
 }

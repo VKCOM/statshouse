@@ -52,7 +52,7 @@ func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQ
 	// execute query
 	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
 	defer cancel()
-	res, dispose, err := h.promEngine.Exec(context.WithValue(ctx, accessInfoKey, &ai), q, promql.Options{})
+	res, dispose, err := h.promEngine.Exec(context.WithValue(ctx, accessInfoKey, &ai), q)
 	if err != nil {
 		promRespondError(w, promErrorExec, err)
 		return
@@ -289,6 +289,12 @@ func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMet
 	if len(maxOffset) == 0 {
 		return nil, nil
 	}
+	var widthKind int
+	if qry.Options.StepAuto {
+		widthKind = widthAutoRes
+	} else {
+		widthKind = widthAutoRes
+	}
 	s := make([][]promql.LOD, 0, len(maxOffset))
 	for metric, offset := range maxOffset {
 		lods := selectQueryLODs(
@@ -302,7 +308,7 @@ func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMet
 			shiftTimestamp(qry.End, 1, -offset, h.location),
 			h.utcOffset,
 			int(qry.Step),
-			widthLODRes,
+			widthKind,
 			h.location)
 		if len(lods) != 0 {
 			intervals := make([]promql.LOD, 0, len(lods))
@@ -399,7 +405,14 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	for t, i := range tagX {
 		for j, valueID := range t.tag {
 			if valueID != 0 && j < len(qry.Meta.Tags) {
-				meta[i].SetTag(qry.Meta.Tags[j].Name, valueID)
+				var (
+					tag  = qry.Meta.Tags[j]
+					name = tag.Name
+				)
+				if len(name) == 0 {
+					name = format.TagID(tag.Index)
+				}
+				meta[i].SetTag(name, valueID)
 			}
 		}
 	}

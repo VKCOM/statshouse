@@ -37,9 +37,10 @@ type SeriesMeta struct {
 }
 
 type seriesGroup struct {
-	hash uint64
-	meta SeriesMeta
-	bag  SeriesBag
+	hash    uint64
+	meta    SeriesMeta
+	maxHost []int32
+	bag     SeriesBag
 }
 
 type histogram struct {
@@ -163,7 +164,7 @@ func (b *SeriesBag) getTags(i int) map[string]int32 {
 
 func (b *SeriesBag) group(without bool, tags []string) ([]seriesGroup, error) {
 	if len(tags) == 0 && !without {
-		return []seriesGroup{{bag: *b}}, nil
+		return []seriesGroup{{bag: *b, maxHost: b.groupMaxHost()}}, nil
 	}
 	var (
 		h      = fnv.New64()
@@ -175,30 +176,71 @@ func (b *SeriesBag) group(without bool, tags []string) ([]seriesGroup, error) {
 		if err != nil {
 			return nil, err
 		}
-		var bag *SeriesBag
-		if v, ok := groups[sum]; !ok {
-			v = &seriesGroup{hash: sum, bag: SeriesBag{Time: b.Time}}
+		var (
+			g  *seriesGroup
+			ok bool
+		)
+		if g, ok = groups[sum]; !ok {
+			g = &seriesGroup{hash: sum, bag: SeriesBag{Time: b.Time}}
 			for _, tag := range s {
 				if t, ok2 := b.getTag(i, tag); ok2 {
-					v.meta.SetTag(tag, t)
+					g.meta.SetTag(tag, t)
 				}
 				if value, ok2 := b.getSTag(i, tag); ok2 {
-					v.meta.SetSTag(tag, value)
+					g.meta.SetSTag(tag, value)
 				}
 			}
-			groups[sum] = v
-			bag = &v.bag
-		} else {
-			bag = &v.bag
+			groups[sum] = g
 		}
-		bag.appendX(*b, i)
+		g.bag.appendX(*b, i)
 		h.Reset()
 	}
 	res := make([]seriesGroup, 0, len(groups))
 	for _, g := range groups {
+		g.maxHost = g.bag.groupMaxHost()
 		res = append(res, *g)
 	}
 	return res, nil
+}
+
+func (b *SeriesBag) groupMaxHost() []int32 {
+	if len(b.MaxHost) == 0 {
+		return nil
+	}
+	if len(b.MaxHost) == 1 {
+		return b.MaxHost[0]
+	}
+	var (
+		i int
+		s []int32
+	)
+	for ; i < len(b.MaxHost); i++ {
+		if len(b.MaxHost[i]) != 0 {
+			s = make([]int32, 0, len(b.Time))
+			break
+		}
+	}
+	if s == nil {
+		return nil
+	}
+	for j := 0; j < len(b.Time); j++ {
+		var (
+			v = b.MaxHost[i][j]
+			k = i + 1
+		)
+		for ; k < len(b.MaxHost); k++ {
+			if k < len(b.MaxHost) && b.MaxHost[k][j] != 0 && b.MaxHost[k][j] != v {
+				if v == 0 {
+					v = b.MaxHost[k][j]
+				} else {
+					v = 0
+					break
+				}
+			}
+		}
+		s = append(s, v)
+	}
+	return s
 }
 
 func (b *SeriesBag) groupWithout(tags ...string) ([]seriesGroup, error) {
@@ -381,9 +423,10 @@ func (m *SeriesMeta) getTag(name string) (v int32, ok bool) {
 
 func (g *seriesGroup) at(i int) SeriesBag {
 	return SeriesBag{
-		Time: g.bag.Time,
-		Data: []*[]float64{g.bag.Data[i]},
-		Meta: bagAppend(0, nil, g.meta),
+		Time:    g.bag.Time,
+		Data:    []*[]float64{g.bag.Data[i]},
+		Meta:    bagAppend(0, nil, g.meta),
+		MaxHost: bagAppend(0, nil, g.maxHost),
 	}
 }
 
