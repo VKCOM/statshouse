@@ -80,6 +80,7 @@ import { getNextState } from '../common/getNextState';
 
 export type PlotStore = {
   nameMetric: string;
+  whats: string[];
   error: string;
   error403?: string;
   data: uPlot.AlignedData;
@@ -559,6 +560,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
       setState((state) => {
         state.plotsData[index] = {
           nameMetric: '',
+          whats: [],
           error: '',
           data: [[]],
           series: [],
@@ -642,14 +644,13 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
       )
         .then((resp) => {
           const uniqueWhat = new Set();
-
-          for (const meta of resp?.series.series_meta ?? []) {
-            uniqueWhat.add(meta.what);
-          }
-
           const uniqueName = new Set();
           for (const meta of resp?.series.series_meta ?? []) {
+            uniqueWhat.add(meta.what);
             meta.name && uniqueName.add(meta.name);
+          }
+          if (uniqueName.size === 0 && lastPlotParams.metricName !== promQLMetric) {
+            uniqueName.add(lastPlotParams.metricName);
           }
 
           const maxLabelLength = Math.max(
@@ -864,6 +865,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           setState((state) => {
             state.plotsData[index] = {
               nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
+              whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as string[]) : [],
               error: '',
               data: dequal(data, state.plotsData[index]?.data) ? state.plotsData[index]?.data : data,
               series:
@@ -898,6 +900,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
             setState((state) => {
               state.plotsData[index] = {
                 nameMetric: '',
+                whats: [],
                 error: '',
                 error403: error.toString(),
                 data: [[]],
@@ -929,6 +932,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
             setState((state) => {
               state.plotsData[index] = {
                 nameMetric: '',
+                whats: [],
                 error: error.toString(),
                 data: [[]],
                 series: [],
