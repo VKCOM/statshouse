@@ -63,8 +63,8 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     [plotData.nameMetric, sel.metricName]
   );
   const what = useMemo(
-    () => (metricName ? sel.what.map((qw) => whatToWhatDesc(qw)).join(', ') : ''),
-    [metricName, sel.what]
+    () => (metricName ? plotData.whats.map((qw) => whatToWhatDesc(qw)).join(', ') : ''),
+    [metricName, plotData]
   );
 
   const filters = useMemo(

@@ -375,7 +375,7 @@ export function metricKindToWhat(kind: metricKind): queryWhat[] {
 }
 
 // XXX: keep in sync with Go
-export function whatToWhatDesc(what: queryWhat): string {
+export function whatToWhatDesc(what: queryWhat | string): string {
   switch (what) {
     case 'p999':
       return 'p99.9';

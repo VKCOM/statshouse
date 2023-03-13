@@ -24,6 +24,7 @@ import { whatToWhatDesc } from '../../view/api';
 
 import cn from 'classnames';
 import css from './style.module.css';
+import { promQLMetric } from '../../view/utils';
 
 export type HeaderMenuItemPlotProps = {
   indexPlot: number;
@@ -53,9 +54,19 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
 
   const active = useRef(false);
 
+  const metricName = useMemo(
+    () => data.nameMetric || (plot.metricName !== promQLMetric ? plot.metricName : ''),
+    [data.nameMetric, plot.metricName]
+  );
+
+  const what = useMemo(
+    () => (metricName ? data.whats.map((qw) => whatToWhatDesc(qw)).join(', ') : ''),
+    [metricName, data]
+  );
+
   const title = useMemo(
-    () => plot.customName || `${plot.metricName}: ${plot.what.map((qw) => whatToWhatDesc(qw)).join(', ')}`,
-    [plot.customName, plot.metricName, plot.what]
+    () => plot.customName || `${metricName}${!!what && ': ' + what}`,
+    [metricName, plot.customName, what]
   );
 
   const onOpen = useCallback(() => {
@@ -120,11 +131,13 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
           >
             {plot.customName || (
               <>
-                <span className="text-truncate">{plot.metricName}</span>
-                <span className="pe-1">:</span>
-                <span className="text-secondary text-truncate">
-                  {plot.what.map((qw) => whatToWhatDesc(qw)).join(', ')}
-                </span>
+                <span className="text-truncate">{metricName}</span>
+                {!!what && (
+                  <>
+                    <span className="pe-1">:</span>
+                    <span className="text-secondary text-truncate">{what}</span>
+                  </>
+                )}
               </>
             )}
           </PlotLink>
