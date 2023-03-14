@@ -23,6 +23,7 @@ import {
   queryParamMaxHost,
   queryParamMetric,
   queryParamNumResults,
+  queryParamPromQL,
   queryParamTabNum,
   queryParamTimeShifts,
   queryParamToTime,
@@ -387,7 +388,7 @@ export const configParams: ConfigParams = {
         urlKey: queryParamMaxHost,
         default: false,
       },
-      promQL: { default: '' },
+      promQL: { default: '', urlKey: queryParamPromQL },
     },
   },
   timeShifts: {

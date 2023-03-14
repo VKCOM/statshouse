@@ -442,6 +442,7 @@ export const queryParamLockMin = 'yl';
 export const queryParamLockMax = 'yh';
 export const queryParamMaxHost = 'mh';
 export const queryParamAgg = 'g';
+export const queryParamPromQL = 'q';
 export const tabPrefix = 't';
 export const queryDashboardID = 'id';
 export const queryMetricsGroupID = 'id';
