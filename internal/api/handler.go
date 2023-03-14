@@ -1548,9 +1548,12 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	var opt promql.Options
+	options := promql.Options{
+		TagOffset: true,
+		TagTotal:  true,
+	}
 	if widthKind == widthAutoRes {
-		opt.StepAuto = true
+		options.StepAuto = true
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
 	defer cancel()
@@ -1588,7 +1591,7 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 		}
 		bag *promql.SeriesBag
 	)
-	opt.Callback = queryBadges
+	options.Callback = queryBadges
 	defer func() {
 		if cleanup != nil {
 			cleanup()
@@ -1607,7 +1610,7 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 				End:     to.Unix(),
 				Step:    int64(width),
 				Expr:    r.FormValue(paramPromQuery),
-				Options: opt,
+				Options: options,
 			})
 		if err2 != nil {
 			return err2
@@ -1620,15 +1623,17 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 		}
 		res = GetQueryResp{Series: querySeries{Time: bag.Time, SeriesData: bag.Data}}
 		for i, s := range bag.Meta {
-			what, _ := validQueryFn(bag.Meta[i].GetMetricName())
+			what, _ := validQueryFn(s.GetMetricName())
 			meta := QuerySeriesMetaV2{
-				Name:     metricName,
-				What:     what,
-				MaxHosts: bag.GetSMaxHosts(i, h),
+				Name:      metricName,
+				What:      what,
+				MaxHosts:  bag.GetSMaxHosts(i, h),
+				TimeShift: -s.GetOffset(),
+				Total:     s.GetTotal(),
 			}
-			bag.Meta[i].DropMetricName()
-			meta.Tags = make(map[string]SeriesMetaTag, len(bag.Meta[i].STags))
-			for name, v := range bag.Meta[i].STags {
+			s.DropMetricName()
+			meta.Tags = make(map[string]SeriesMetaTag, len(s.STags))
+			for name, v := range s.STags {
 				tag := SeriesMetaTag{Value: v}
 				if s.Metric != nil {
 					if t, tok := s.Metric.Name2Tag[name]; tok {

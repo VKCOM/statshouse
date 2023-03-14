@@ -378,6 +378,18 @@ func (b *SeriesBag) tagGroupBy(without bool, tags []string) map[string]bool {
 	return by
 }
 
+func (b *SeriesBag) tagOffset(offset int64) {
+	for _, meta := range b.Meta {
+		meta.SetTag(labelOffset, int32(offset))
+	}
+}
+
+func (b *SeriesBag) tagTotal(total int) {
+	for _, meta := range b.Meta {
+		meta.SetTag(labelTotal, int32(total))
+	}
+}
+
 func (m *SeriesMeta) DropMetricName() {
 	delete(m.STags, labels.MetricName)
 }
@@ -387,6 +399,20 @@ func (m *SeriesMeta) GetMetricName() string {
 		return ""
 	}
 	return m.STags[labels.MetricName]
+}
+
+func (m *SeriesMeta) GetOffset() int64 {
+	if m.Tags == nil {
+		return 0
+	}
+	return int64(m.Tags[labelOffset])
+}
+
+func (m *SeriesMeta) GetTotal() int {
+	if m.Tags == nil {
+		return 0
+	}
+	return int(m.Tags[labelTotal])
 }
 
 func (m *SeriesMeta) SetSTag(name string, value string) {

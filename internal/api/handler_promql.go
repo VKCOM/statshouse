@@ -606,6 +606,10 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		what = queryFnP99
 	case promql.DigestP999:
 		what = queryFnP999
+	case promql.DigestCardinality:
+		what = queryFnCardinality
+	case promql.DigestUnique:
+		what = queryFnUnique
 	default:
 		panic(fmt.Errorf("unrecognized what: %v", qry.What))
 	}
@@ -680,6 +684,14 @@ func (h *Handler) Free(s *[]float64) {
 
 func getPromQuery(req getQueryReq) string {
 	var res []string
+	width, _, err := parseWidth(req.width, req.widthAgg)
+	if err != nil {
+		return ""
+	}
+	shifts, err := parseTimeShifts(req.timeShifts, width)
+	if err != nil {
+		return ""
+	}
 	for _, fn := range req.what {
 		name, ok := validQueryFn(fn)
 		if !ok {
@@ -687,55 +699,37 @@ func getPromQuery(req getQueryReq) string {
 		}
 		var (
 			what string
-			aggr string
 			rate bool
 		)
 		switch name {
 		case queryFnCount:
 			what = promql.Count
-			aggr = "sum"
 		case queryFnCountNorm:
 			what = promql.CountSec
-			aggr = "sum"
 		case queryFnCumulCount:
 			what = promql.CountAcc
-			aggr = "sum"
 		case queryFnCardinality:
 			what = promql.Cardinality
-			aggr = "sum"
-			continue
 		case queryFnCardinalityNorm:
 			what = promql.CardinalitySec
-			aggr = "sum"
-			continue
 		case queryFnCumulCardinality:
 			what = promql.CardinalityAcc
-			aggr = "sum"
-			continue
 		case queryFnMin:
 			what = promql.Min
-			aggr = "min"
 		case queryFnMax:
 			what = promql.Max
-			aggr = "max"
 		case queryFnAvg:
 			what = promql.Avg
-			aggr = "avg"
 		case queryFnCumulAvg:
 			what = promql.AvgAcc
-			aggr = "avg"
 		case queryFnSum:
 			what = promql.Sum
-			aggr = "sum"
 		case queryFnSumNorm:
 			what = promql.SumSec
-			aggr = "sum"
 		case queryFnCumulSum:
 			what = promql.SumAcc
-			aggr = "sum"
 		case queryFnStddev:
 			what = promql.StdDev
-			aggr = "stddev"
 		case queryFnP25:
 			what = promql.P25
 		case queryFnP50:
@@ -752,80 +746,66 @@ func getPromQuery(req getQueryReq) string {
 			what = promql.P999
 		case queryFnUnique:
 			what = promql.Unique
-			continue
 		case queryFnUniqueNorm:
 			what = promql.UniqueSec
-			continue
 		case queryFnMaxHost:
 			req.maxHost = true
-			continue
 		case queryFnMaxCountHost:
 			req.maxHost = true
-			continue
 		case queryFnDerivativeCount:
 			what = promql.Count
-			aggr = "sum"
 			rate = true
 		case queryFnDerivativeSum:
 			what = promql.Sum
-			aggr = "sum"
 			rate = true
 		case queryFnDerivativeAvg:
 			what = promql.Avg
-			aggr = "avg"
 			rate = true
 		case queryFnDerivativeCountNorm:
 			what = promql.CountSec
-			aggr = "sum"
 			rate = true
 		case queryFnDerivativeSumNorm:
 			what = promql.SumSec
-			aggr = "sum"
 			rate = true
 		case queryFnDerivativeMin:
 			what = promql.Min
-			aggr = "min"
 			rate = true
 		case queryFnDerivativeMax:
 			what = promql.Max
-			aggr = "max"
 			rate = true
 		case queryFnDerivativeUnique:
 			what = promql.Unique
-			aggr = "sum"
 			rate = true
-			continue
 		case queryFnDerivativeUniqueNorm:
 			what = promql.UniqueSec
-			aggr = "sum"
 			rate = true
-			continue
 		default:
 			continue
 		}
-		// vector selectors
-		var s []string
-		s = append(s, fmt.Sprintf("__what__=%q", what))
-		if req.maxHost {
-			s = append(s, fmt.Sprintf("__what__=%q", promql.MaxHost))
+		s := make([]string, 0, 5)
+		for _, shift := range shifts {
+			s = append(s, fmt.Sprintf("__what__=%q", what), fmt.Sprintf("__by__=%q", strings.Join(req.by, ",")))
+			if req.maxHost {
+				s = append(s, fmt.Sprintf("__what__=%q", promql.MaxHost))
+			}
+			for t, v := range req.filterIn {
+				s = append(s, fmt.Sprintf("%s=~%q", t, strings.Join(v, "|")))
+			}
+			for t, v := range req.filterNotIn {
+				s = append(s, fmt.Sprintf("%s!~%q", t, strings.Join(v, "|")))
+			}
+			q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
+			if shift != 0 {
+				q = fmt.Sprintf("%s offset %ds", q, -shift/time.Second)
+			}
+			q = fmt.Sprintf("topk(%s,%s)", req.numResults, q)
+			if rate {
+				q = fmt.Sprintf("idelta(%s)", q)
+			}
+			q = fmt.Sprintf("label_replace(%s,%q,%q,%q,%q)", q, "__name__", name.String(), "__name__", ".*")
+			res = append(res, q)
+			s = s[:0]
 		}
-		for t, v := range req.filterIn {
-			s = append(s, fmt.Sprintf("%s=~%q", t, strings.Join(v, "|")))
-		}
-		for t, v := range req.filterNotIn {
-			s = append(s, fmt.Sprintf("%s!~%q", t, strings.Join(v, "|")))
-		}
-		q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
-		// transformations
-		if aggr != "" {
-			q = fmt.Sprintf("%s by (%s) (%s)", aggr, strings.Join(req.by, ","), q)
-		}
-		if rate {
-			q = fmt.Sprintf("idelta(%s)", q)
-		}
-		// label_replace
-		q = fmt.Sprintf("label_replace(%s,%q,%q,%q,%q)", q, "__name__", name.String(), "__name__", ".*")
-		res = append(res, q)
 	}
-	return fmt.Sprintf("topk(%s,%s)", req.numResults, strings.Join(res, " or "))
+	return strings.Join(res, " or ")
 }

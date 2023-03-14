@@ -241,7 +241,9 @@ func firstK(ev *evaluator, g seriesGroup, k int, topDown bool) SeriesBag {
 	for i, data := range g.bag.Data {
 		var acc float64
 		for _, v := range *data {
-			acc += v * v
+			if !math.IsNaN(v) {
+				acc += v * v
+			}
 		}
 		w[i] = acc
 	}
@@ -258,6 +260,9 @@ func firstK(ev *evaluator, g seriesGroup, k int, topDown bool) SeriesBag {
 	res.appendX(g.bag, x[:k]...)
 	for ; k < len(g.bag.Data); k++ {
 		ev.free(g.bag.Data[k])
+	}
+	if ev.qry.Options.TagTotal {
+		res.tagTotal(len(g.bag.Data))
 	}
 	return res
 }
