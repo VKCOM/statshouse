@@ -1,12 +1,16 @@
 .view {
   position: relative;
   padding-right: calc(2em + 2px);
+  line-height: calc(2em);
 }
 .edit {
   position: absolute;
   top: 50%;
   right: 0;
   transform: translate(0, -50%);
+}
+.editable {
+  height: calc(2em);
 }
 
 .hiddenEditButton {
