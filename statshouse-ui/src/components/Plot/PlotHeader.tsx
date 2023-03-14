@@ -66,6 +66,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     () => (metricName ? plotData.whats.map((qw) => whatToWhatDesc(qw)).join(', ') : ''),
     [metricName, plotData]
   );
+  const metricFullName = useMemo(() => metricName + (what ? ': ' + what : ''), [metricName, what]);
 
   const filters = useMemo(
     () =>
@@ -126,11 +127,11 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     (value: string) => {
       setParams(
         produce((p) => {
-          p.customName = value !== metricName + ': ' + what ? value : '';
+          p.customName = value !== metricFullName ? value : '';
         })
       );
     },
-    [metricName, setParams, what]
+    [metricFullName, setParams]
   );
 
   const stopPropagation = useCallback((e: React.MouseEvent) => {
@@ -140,9 +141,9 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   const onInputCustomInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.currentTarget.value;
-      editCustomName(value !== metricName + ': ' + what ? value : '');
+      editCustomName(value !== metricFullName ? value : '');
     },
-    [editCustomName, metricName, what]
+    [editCustomName, metricFullName]
   );
 
   if (dashboard) {
@@ -166,8 +167,8 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             <input
               type="text"
               className={cn(css.plotInputName, 'form-control form-control-sm mb-1')}
-              defaultValue={sel.customName || metricName + ': ' + what}
-              placeholder={metricName + ': ' + what}
+              defaultValue={sel.customName || metricFullName}
+              placeholder={metricFullName}
               onPointerDown={stopPropagation}
               onInput={onInputCustomInput}
             />
@@ -273,7 +274,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
           {!compact && (
             <TextEditable
               className="flex-grow-1"
-              defaultValue={sel.customName || metricName + ': ' + what}
+              defaultValue={sel.customName || metricFullName}
               placeholder={
                 sel.customName || (
                   <>
@@ -286,9 +287,8 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
                   </>
                 )
               }
-              inputPlaceholder={metricName + ': ' + what}
+              inputPlaceholder={metricFullName}
               onSave={editCustomName}
-              editByClick
             />
           )}
           {compact && (
