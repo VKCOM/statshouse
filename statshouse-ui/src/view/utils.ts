@@ -13,7 +13,7 @@ import { QueryParams } from '../common/plotQueryParams';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
-export const promQLMetric = '~promql';
+export const promQLMetric = '~';
 
 export function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(n, max));
