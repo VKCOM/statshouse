@@ -123,6 +123,7 @@ export const PlotControls = memo(function PlotControls_(props: {
         return {
           ...s,
           metricName: value,
+          customName: '',
           what: s.what.some((qw) => whats.indexOf(qw) === -1) ? [whats[0]] : s.what,
           groupBy: [],
           filterIn: {},

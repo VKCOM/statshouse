@@ -126,11 +126,11 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     (value: string) => {
       setParams(
         produce((p) => {
-          p.customName = value;
+          p.customName = value !== metricName + ': ' + what ? value : '';
         })
       );
     },
-    [setParams]
+    [metricName, setParams, what]
   );
 
   const stopPropagation = useCallback((e: React.MouseEvent) => {
@@ -268,12 +268,12 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
       <div className={`d-flex flex-grow-1 flex-wrap justify-content-${compact ? 'around' : 'between'}`}>
         {/*title*/}
         <h6
-          className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 mb-0`}
+          className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 mb-1`}
         >
           {!compact && (
             <TextEditable
               className="flex-grow-1"
-              defaultValue={sel.customName}
+              defaultValue={sel.customName || metricName + ': ' + what}
               placeholder={
                 sel.customName || (
                   <>
@@ -286,6 +286,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
                   </>
                 )
               }
+              inputPlaceholder={metricName + ': ' + what}
               onSave={editCustomName}
               editByClick
             />
@@ -349,7 +350,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         </h6>
         {!compact && (
           <PlotNavigate
-            className="btn-group-sm"
+            className="btn-group-sm mb-1"
             setTimeRange={setTimeRange}
             onResetZoom={onResetZoom}
             onYLockChange={onYLockChange}

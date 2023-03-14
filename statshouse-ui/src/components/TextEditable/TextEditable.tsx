@@ -14,6 +14,7 @@ export type TextEditableProps = {
   classNameInput?: string;
   template?: ReactNode | FC<TextEditableTemplateProps>;
   placeholder?: ReactNode;
+  inputPlaceholder?: string;
   value?: string;
   defaultValue?: string;
   isEdit?: boolean;
@@ -27,6 +28,7 @@ export function TextEditable({
   classNameInput,
   template,
   placeholder,
+  inputPlaceholder,
   value,
   defaultValue = '',
   isEdit = false,
@@ -65,19 +67,28 @@ export function TextEditable({
     setLocalValue(value ?? defaultValue);
   }, [defaultValue, value]);
 
-  const onEdit = useCallback(() => {
-    setLocalValue(value ?? defaultValue);
-    setEdited(true);
-    setTimeout(() => {
-      if (refInput.current) {
-        refInput.current.focus();
-        refInput.current.select();
-      }
-    }, 0);
-  }, [defaultValue, value]);
-  const onClose = useCallback(() => {
-    setEdited(false);
+  const onEdit = useCallback(
+    (e: React.MouseEvent) => {
+      setLocalValue(value ?? defaultValue);
+      setEdited(true);
+      setTimeout(() => {
+        if (refInput.current) {
+          refInput.current.focus();
+          refInput.current.select();
+        }
+      }, 0);
+      e.stopPropagation();
+    },
+    [defaultValue, value]
+  );
+
+  const onClose = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    if (e.currentTarget.type !== 'submit') {
+      setEdited(false);
+    }
+    e.stopPropagation();
   }, []);
+
   const onClickSave = useCallback(
     (e: React.FormEvent) => {
       onSave?.(localValue);
@@ -87,18 +98,33 @@ export function TextEditable({
     [localValue, onSave]
   );
 
+  useEffect(() => {
+    if (edited) {
+      const off = (e: MouseEvent) => {
+        if (e.target !== refInput.current) {
+          setEdited(false);
+        }
+      };
+      document.addEventListener('click', off, false);
+      return () => {
+        document.removeEventListener('click', off, false);
+      };
+    }
+  }, [edited]);
+
   if (edited) {
     return (
-      <div className={cn(className)}>
+      <div className={cn(css.editable, className)}>
         <form onSubmit={onClickSave} className="input-group">
           <input
             type="input"
             className={cn('form-control form-control-sm', classNameInput)}
             defaultValue={localValue}
             onInput={inputVal}
+            placeholder={inputPlaceholder}
             ref={refInput}
           />
-          <button className="btn btn-sm btn-outline-primary" type="submit">
+          <button className="btn btn-sm btn-outline-primary" type="submit" onClick={onClose}>
             <SVGCheckLg />
           </button>
           <button className="btn btn-sm btn-outline-primary" type="reset" onClick={onClose}>
