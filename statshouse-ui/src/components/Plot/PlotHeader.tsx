@@ -140,9 +140,9 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   const onInputCustomInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.currentTarget.value;
-      editCustomName(value);
+      editCustomName(value !== metricName + ': ' + what ? value : '');
     },
-    [editCustomName]
+    [editCustomName, metricName, what]
   );
 
   if (dashboard) {
@@ -166,7 +166,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             <input
               type="text"
               className={cn(css.plotInputName, 'form-control form-control-sm mb-1')}
-              value={sel.customName}
+              defaultValue={sel.customName || metricName + ': ' + what}
               placeholder={metricName + ': ' + what}
               onPointerDown={stopPropagation}
               onInput={onInputCustomInput}
