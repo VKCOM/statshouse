@@ -13,6 +13,7 @@ import { ReactComponent as SVGCardList } from 'bootstrap-icons/icons/card-list.s
 import { ReactComponent as SVGBrightnessHighFill } from 'bootstrap-icons/icons/brightness-high-fill.svg';
 import { ReactComponent as SVGMoonStarsFill } from 'bootstrap-icons/icons/moon-stars-fill.svg';
 import { ReactComponent as SVGCircleHalf } from 'bootstrap-icons/icons/circle-half.svg';
+import { ReactComponent as SVGLightbulbFill } from 'bootstrap-icons/icons/lightbulb-fill.svg';
 // import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
 import cn from 'classnames';
 import produce from 'immer';
@@ -21,6 +22,7 @@ import { HeaderMenuItem } from './HeaderMenuItem';
 import {
   selectorParams,
   selectorPlotList,
+  selectorPromqltestfailed,
   selectorSetParams,
   selectorSetTheme,
   selectorThemeName,
@@ -51,6 +53,8 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
 
   const themeName = useStore(selectorThemeName);
   const setTheme = useStore(selectorSetTheme);
+
+  const promqltestfailed = useStore(selectorPromqltestfailed);
 
   const isView = location.pathname === '/view';
   const isDashList = location.pathname === '/dash-list';
@@ -212,6 +216,13 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             </span>
           </li>
         </HeaderMenuItem>
+        {ai.developer && promqltestfailed && (
+          <HeaderMenuItem
+            icon={SVGLightbulbFill}
+            title="promqltestfailed"
+            className={css.secondDanger}
+          ></HeaderMenuItem>
+        )}
       </ul>
     </div>
   );

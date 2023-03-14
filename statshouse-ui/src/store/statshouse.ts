@@ -103,6 +103,7 @@ export type PlotStore = {
   legendMaxHostPercentWidth: number;
   topInfo?: TopInfo;
   maxHostLists: SelectOptionProps[][];
+  promqltestfailed?: boolean;
 };
 
 export type TopInfo = {
@@ -643,6 +644,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         : apiGet<queryResult>(url, controller.signal, true)
       )
         .then((resp) => {
+          const promqltestfailed = !!resp?.promqltestfailed;
           const uniqueWhat = new Set();
           const uniqueName = new Set();
           for (const meta of resp?.series.series_meta ?? []) {
@@ -892,6 +894,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               lastTimeShifts: getState().params.timeShifts,
               topInfo,
               maxHostLists,
+              promqltestfailed,
             };
           });
         })
@@ -1775,4 +1778,5 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         });
     });
   },
+  devInfo: {},
 });

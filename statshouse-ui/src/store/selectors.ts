@@ -188,3 +188,5 @@ export const selectorSavePromConfig = (s: Store) => s.savePromConfig;
 export const selectorThemeDark = (s: Store) => s.theme.dark;
 export const selectorThemeName = (s: Store) => s.theme.theme;
 export const selectorSetTheme = (s: Store) => s.theme.setTheme;
+
+export const selectorPromqltestfailed = (s: Store) => s.plotsData.map((d) => d.promqltestfailed).some(Boolean);

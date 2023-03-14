@@ -20,6 +20,7 @@ export const logoutURL = '/vkuth/logout';
 export interface accessInfo {
   readonly user: string;
   readonly admin: boolean;
+  readonly developer: boolean;
 }
 
 // assume that it can only be changed with page reload
@@ -30,6 +31,7 @@ export function currentAccessInfo(): accessInfo {
     return {
       user: '',
       admin: true,
+      developer: true,
     };
   }
   if (cachedAccessInfo === undefined) {
@@ -38,6 +40,7 @@ export function currentAccessInfo(): accessInfo {
     cachedAccessInfo = {
       user: u.user || '',
       admin: (u.bits || []).indexOf(globalSettings.vkuth_app_name + ':admin') !== -1,
+      developer: (u.bits || []).indexOf(globalSettings.vkuth_app_name + ':developer') !== -1,
     };
   }
   return cachedAccessInfo;

@@ -85,6 +85,10 @@
   left: 5px;
 }
 
+.secondDanger {
+  --bs-secondary-rgb: var(--bs-danger-rgb);
+}
+
 @media screen and (max-width: 767.98px) {
   .nav {
     --bs-nav-link-padding-x: 12px;
