@@ -217,6 +217,7 @@ export type StatsHouseStore = {
   setDashboardLayoutEdit(nextStatus: boolean): void;
   setGroupName(indexGroup: number, name: string): void;
   setGroupShow(indexGroup: number, show: React.SetStateAction<boolean>): void;
+  setGroupSize(indexGroup: number, size: React.SetStateAction<number>): void;
   listMetricsGroup: MetricsGroupShort[];
   loadListMetricsGroup(): Promise<MetricsGroupShort[]>;
   saveMetricsGroup(metricsGroup: MetricsGroup): Promise<MetricsGroupInfo | undefined>;
@@ -1569,7 +1570,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           if (state.dashboard.groupInfo[indexGroup]) {
             state.dashboard.groupInfo[indexGroup].name = name;
           } else {
-            state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0 };
+            state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: 2 };
           }
           if (
             state.dashboard.groupInfo &&
@@ -1595,6 +1596,27 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               show: nextShow,
               name: '',
               count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
+              size: 2,
+            };
+          }
+        }
+      })
+    );
+  },
+  setGroupSize(indexGroup, size) {
+    const nextSize = getNextState(getState().params.dashboard?.groupInfo?.[indexGroup]?.size ?? 2, size);
+    getState().setParams(
+      produce<QueryParams>((state) => {
+        if (state.dashboard) {
+          state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
+          if (state.dashboard.groupInfo[indexGroup]) {
+            state.dashboard.groupInfo[indexGroup].size = nextSize;
+          } else {
+            state.dashboard.groupInfo[indexGroup] = {
+              show: true,
+              name: '',
+              count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
+              size: nextSize,
             };
           }
         }

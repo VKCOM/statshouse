@@ -165,6 +165,7 @@ export const selectorSetDashboardLayoutEdit = (s: Store) => s.setDashboardLayout
 
 export const selectorSetGroupName = (s: Store) => s.setGroupName;
 export const selectorSetGroupShow = (s: Store) => s.setGroupShow;
+export const selectorSetGroupSize = (s: Store) => s.setGroupSize;
 
 export const selectorPlotList = (s: Store) => {
   if (selectorIsServer(s)) {
