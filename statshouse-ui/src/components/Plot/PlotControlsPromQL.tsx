@@ -7,7 +7,7 @@
 import React, { ChangeEvent, memo, useCallback, useEffect } from 'react';
 import * as utils from '../../view/utils';
 import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
-import { MetricItem } from '../../hooks';
+import { MetricItem, useDebounceState } from '../../hooks';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo } from '../index';
 import {
   selectorParamsTimeShifts,
@@ -30,6 +30,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   clonePlot?: () => void;
 }) {
   const { setBaseRange, sel, setSel, meta } = props;
+  const [promQL, promQLDebounce, setPromQL] = useDebounceState(sel.promQL, 500);
 
   const timeShifts = useStore(selectorParamsTimeShifts);
   const setParams = useStore(selectorSetParams);
@@ -71,14 +72,20 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   const inputPromQL = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const value = e.currentTarget.value;
-      setSel(
-        produce((p) => {
-          p.promQL = value;
-        })
-      );
+      setPromQL(value);
     },
-    [setSel]
+    [setPromQL]
   );
+  useEffect(() => {
+    setSel(
+      produce((p) => {
+        p.promQL = promQLDebounce;
+      })
+    );
+  }, [promQLDebounce, setSel]);
+  useEffect(() => {
+    setPromQL(sel.promQL);
+  }, [sel.promQL, setPromQL]);
 
   return (
     <div>
@@ -116,7 +123,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
 
         <div className="row mb-3 align-items-baseline">
           <div className="input-group">
-            <textarea className="form-control" rows={8} value={sel.promQL} onInput={inputPromQL}></textarea>
+            <textarea className="form-control" rows={8} value={promQL} onInput={inputPromQL}></textarea>
           </div>
         </div>
       </div>
