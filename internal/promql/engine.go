@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/prometheus/model/labels"
@@ -18,7 +19,12 @@ import (
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
 )
 
-const labelWhat = "__what__"
+const (
+	labelWhat   = "__what__"
+	labelBy     = "__by__"
+	labelOffset = "__offset__"
+	labelTotal  = "__total__"
+)
 
 type Query struct {
 	Start   int64
@@ -29,8 +35,10 @@ type Query struct {
 }
 
 type Options struct {
-	StepAuto bool
-	Callback func(metrics []*format.MetricMetaValue)
+	StepAuto  bool
+	TagOffset bool
+	TagTotal  bool
+	Callback  func(metrics []*format.MetricMetaValue)
 }
 
 type Engine struct {
@@ -201,14 +209,19 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 		switch s := node.(type) {
 		case *parser.VectorSelector:
 			var grouped bool
-			if ar, ok := evalReductionRules(s, nodes, stepMin); ok {
-				s.What = ar.what
-				s.GroupBy = ar.groupBy
-				s.GroupWithout = ar.groupWithout
-				s.Factor = ar.factor
-				s.OmitNameTag = true
-				ev.ars[ar.expr] = s
-				grouped = ar.grouped
+			if s.GroupBy != nil {
+				grouped = true
+			}
+			if !grouped {
+				if ar, ok := evalReductionRules(s, nodes, stepMin); ok {
+					s.What = ar.what
+					s.GroupBy = ar.groupBy
+					s.GroupWithout = ar.groupWithout
+					s.Factor = ar.factor
+					s.OmitNameTag = true
+					ev.ars[ar.expr] = s
+					grouped = ar.grouped
+				}
 			}
 			if !grouped { // then group by all
 				for i := 0; i < format.MaxTags; i++ {
@@ -239,7 +252,8 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, m
 		if len(sel.MatchingMetrics) != 0 && len(sel.What) != 0 {
 			break
 		}
-		if matcher.Name == labels.MetricName {
+		switch matcher.Name {
+		case labels.MetricName:
 			metrics, names, err := ng.h.MatchMetrics(ctx, matcher)
 			if err != nil {
 				return err
@@ -255,7 +269,7 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, m
 				sel.MatchingMetrics = append(sel.MatchingMetrics, m)
 				sel.MatchingNames = append(sel.MatchingNames, names[i])
 			}
-		} else if matcher.Name == labelWhat {
+		case labelWhat:
 			if matcher.Type != labels.MatchEqual {
 				return fmt.Errorf("%s supports only strict equality", labelWhat)
 			}
@@ -264,6 +278,15 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, m
 				sel.MaxHost = true
 			default:
 				sel.What = matcher.Value
+			}
+		case labelBy:
+			if matcher.Type != labels.MatchEqual {
+				return fmt.Errorf("%s supports only strict equality", labelBy)
+			}
+			if len(matcher.Value) != 0 {
+				sel.GroupBy = strings.Split(matcher.Value, ",")
+			} else {
+				sel.GroupBy = make([]string, 0)
 			}
 		}
 	}
@@ -578,6 +601,9 @@ func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector
 				bag.Meta[j].SetSTag(labels.MetricName, sel.MatchingNames[i])
 			}
 		}
+		if ev.qry.Options.TagOffset && sel.OriginalOffset != 0 {
+			bag.tagOffset(sel.OriginalOffset)
+		}
 		if qry.histogram.restore {
 			bag, err = ev.restoreHistogram(&bag, &qry)
 			if err != nil {
@@ -731,7 +757,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		sFilterOut []string
 	)
 	for _, matcher := range sel.LabelMatchers {
-		if matcher.Name == labels.MetricName || matcher.Name == labelWhat {
+		if strings.HasPrefix(matcher.Name, "__") {
 			continue
 		}
 		if matcher.Name == format.StringTopTagID {
@@ -839,6 +865,9 @@ func (ev *evaluator) newSeriesBag(capacity int) SeriesBag {
 func (ev *evaluator) stringify(bag *SeriesBag) {
 	for i := range bag.Meta {
 		for name, value := range bag.Meta[i].Tags {
+			if strings.HasPrefix(name, "__") {
+				continue
+			}
 			bag.setSTag(i, name, ev.getTagValue(bag.Meta[i].Metric, name, value))
 			delete(bag.Meta[i].Tags, name)
 		}
