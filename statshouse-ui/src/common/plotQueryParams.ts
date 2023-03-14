@@ -9,6 +9,7 @@ import {
   queryDashboardGroupInfoName,
   queryDashboardGroupInfoPrefix,
   queryDashboardGroupInfoShow,
+  queryDashboardGroupInfoSize,
   queryDashboardID,
   queryParamAgg,
   queryParamBackendVersion,
@@ -73,6 +74,7 @@ export type GroupInfo = {
   name: string;
   show: boolean;
   count: number;
+  size: number;
 };
 
 export type DashboardParams = {
@@ -265,6 +267,11 @@ export const configParams: ConfigParams = {
             ...NumberParam,
             default: 0,
             urlKey: queryDashboardGroupInfoCount,
+          },
+          size: {
+            ...NumberParam,
+            default: 2,
+            urlKey: queryDashboardGroupInfoSize,
           },
         },
       },

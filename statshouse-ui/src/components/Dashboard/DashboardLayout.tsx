@@ -17,6 +17,7 @@ import {
   selectorParams,
   selectorSetGroupName,
   selectorSetGroupShow,
+  selectorSetGroupSize,
   useStore,
 } from '../../store';
 import { PlotParams } from '../../common/plotQueryParams';
@@ -51,6 +52,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
   const setGroupName = useStore(selectorSetGroupName);
   const setGroupShow = useStore(selectorSetGroupShow);
+  const setGroupSize = useStore(selectorSetGroupSize);
   const isServer = useStore(selectorIsServer);
   const preview = useRef<HTMLDivElement>(null);
   const zone = useRef<HTMLDivElement>(null);
@@ -192,6 +194,16 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
     },
     [setGroupShow]
   );
+
+  const onEditGroupSize = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const index = parseInt(e.currentTarget.getAttribute('data-group') ?? '0');
+      const size = parseInt(e.currentTarget.value ?? '2');
+      setGroupSize(index, size);
+    },
+    [setGroupSize]
+  );
+
   return (
     <div className={cn(' container-xl', select !== null ? css.cursorDrag : css.cursorDefault, className)} ref={zone}>
       {itemsGroup.map((group, indexGroup) => (
@@ -201,13 +213,25 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
             className="border-bottom pb-1"
           >
             {dashboardLayoutEdit && isServer ? (
-              <input
-                className="form-control"
-                data-group={indexGroup.toString()}
-                value={params.dashboard?.groupInfo?.[indexGroup]?.name ?? ''}
-                onInput={onEditGroupName}
-                placeholder="Enter group name"
-              />
+              <div className="input-group">
+                <input
+                  className="form-control"
+                  data-group={indexGroup.toString()}
+                  value={params.dashboard?.groupInfo?.[indexGroup]?.name ?? ''}
+                  onInput={onEditGroupName}
+                  placeholder="Enter group name"
+                />
+                <select
+                  className="form-select flex-grow-0 w-auto"
+                  data-group={indexGroup.toString()}
+                  value={params.dashboard?.groupInfo?.[indexGroup]?.size?.toString() || '2'}
+                  onChange={onEditGroupSize}
+                >
+                  <option value="2">2 plots per row</option>
+                  <option value="3">3 plots per row</option>
+                  <option value="4">4 plots per row</option>
+                </select>
+              </div>
             ) : (
               <div className="d-flex flex-row" role="button" onClick={onGroupShowToggle} data-group={indexGroup}>
                 {isServer && (
@@ -229,7 +253,8 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
                 <div
                   key={value.indexPlot}
                   className={cn(
-                    'plot-item col-6 p-1',
+                    'plot-item p-1',
+                    `col-${Math.round(12 / (params.dashboard?.groupInfo?.[indexGroup]?.size ?? 2))}`,
                     select === value.indexPlot && 'opacity-50',
                     dashboardLayoutEdit && css.cursorMove
                   )}

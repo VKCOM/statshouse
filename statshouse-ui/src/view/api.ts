@@ -451,6 +451,7 @@ export const queryDashboardGroupInfoPrefix = 'g';
 export const queryDashboardGroupInfoName = 't';
 export const queryDashboardGroupInfoShow = 'v';
 export const queryDashboardGroupInfoCount = 'n';
+export const queryDashboardGroupInfoSize = 's';
 
 export const queryValueBackendVersion1 = '1';
 export const queryValueBackendVersion2 = '2';
