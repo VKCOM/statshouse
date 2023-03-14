@@ -7,6 +7,7 @@
 import { type Store } from './store';
 import * as api from '../view/api';
 import { metricTagValueInfo } from '../view/api';
+import { promQLMetric } from '../view/utils';
 
 export const selectorAll = (s: Store) => s;
 
@@ -119,6 +120,18 @@ export const selectorTitle = (s: Store) => {
       return 'Dashboard — StatsHouse';
     case -2:
       return 'Dashboard setting — StatsHouse';
+  }
+  if (s.params.plots[s.params.tabNum] && s.params.plots[s.params.tabNum].metricName === promQLMetric) {
+    if (!s.plotsData[s.params.tabNum].nameMetric) {
+      return 'StatsHouse';
+    }
+    return (
+      s.plotsData[s.params.tabNum].nameMetric +
+      (s.plotsData[s.params.tabNum].whats.length
+        ? ': ' + s.plotsData[s.params.tabNum].whats.map((qw) => api.whatToWhatDesc(qw)).join(',')
+        : '') +
+      ' — StatsHouse'
+    );
   }
   return (
     (s.params.plots[s.params.tabNum] &&
