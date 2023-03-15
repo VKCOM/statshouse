@@ -55,13 +55,16 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
   const active = useRef(false);
 
   const metricName = useMemo(
-    () => data.nameMetric || (plot.metricName !== promQLMetric ? plot.metricName : ''),
+    () => (plot.metricName !== promQLMetric ? plot.metricName : data.nameMetric),
     [data.nameMetric, plot.metricName]
   );
 
   const what = useMemo(
-    () => (metricName ? data.whats.map((qw) => whatToWhatDesc(qw)).join(', ') : ''),
-    [metricName, data]
+    () =>
+      plot.metricName === promQLMetric
+        ? data.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
+        : plot.what.map((qw) => whatToWhatDesc(qw)).join(', '),
+    [plot.metricName, plot.what, data.whats]
   );
 
   const title = useMemo(
