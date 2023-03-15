@@ -491,10 +491,9 @@ export function queryURL(
       ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
-
-    if (sel.maxHost) {
-      params.push([queryParamMaxHost, '1']);
-    }
+  }
+  if (sel.maxHost) {
+    params.push([queryParamMaxHost, '1']);
   }
 
   const strParams = new URLSearchParams(params).toString();
