@@ -261,9 +261,6 @@ func firstK(ev *evaluator, g seriesGroup, k int, topDown bool) SeriesBag {
 	for ; k < len(g.bag.Data); k++ {
 		ev.free(g.bag.Data[k])
 	}
-	if ev.qry.Options.TagTotal {
-		res.tagTotal(len(g.bag.Data))
-	}
 	return res
 }
 
@@ -310,6 +307,7 @@ func init() {
 		"minute":             timeCall(time.Time.Minute),
 		"month":              timeCall(time.Time.Month),
 		"predict_linear":     funcPredictLinear,
+		"prefix_sum":         bagCall(funcPrefixSum),
 		"rate":               bagCall(funcRate),
 		"resets":             bagCall(funcResets),
 		"round":              funcRound,
@@ -929,6 +927,19 @@ func funcPredictLinear(ctx context.Context, ev *evaluator, args parser.Expressio
 		}
 	}
 	return bag, nil
+}
+
+func funcPrefixSum(bag SeriesBag) SeriesBag {
+	for _, row := range bag.Data {
+		var sum float64
+		for i, v := range *row {
+			if !math.IsNaN(v) {
+				sum += v
+			}
+			(*row)[i] = sum
+		}
+	}
+	return bag
 }
 
 func funcRate(bag SeriesBag) SeriesBag {

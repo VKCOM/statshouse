@@ -274,6 +274,11 @@ var Functions = map[string]*Function{
 		ArgTypes:   []ValueType{ValueTypeMatrix, ValueTypeScalar},
 		ReturnType: ValueTypeVector,
 	},
+	"prefix_sum": {
+		Name:       "prefix_sum",
+		ArgTypes:   []ValueType{ValueTypeVector},
+		ReturnType: ValueTypeVector,
+	},
 	"present_over_time": {
 		Name:       "present_over_time",
 		ArgTypes:   []ValueType{ValueTypeMatrix},

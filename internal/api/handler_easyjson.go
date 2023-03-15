@@ -617,6 +617,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer
 			out.ReceiveErrors = float64(in.Float64())
 		case "mapping_errors":
 			out.MappingErrors = float64(in.Float64())
+		case "promql":
+			out.PromQL = string(in.String())
 		case "__debug_queries":
 			if in.IsNull() {
 				in.Skip()
@@ -640,8 +642,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer
 				}
 				in.Delim(']')
 			}
-		case "__debug_promql":
-			out.DebugPromQL = string(in.String())
+		case "promqltestfailed":
+			out.DebugPromQLTestFailed = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -692,6 +694,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 		out.Float64(float64(in.MappingErrors))
 	}
 	{
+		const prefix string = ",\"promql\":"
+		out.RawString(prefix)
+		out.String(string(in.PromQL))
+	}
+	{
 		const prefix string = ",\"__debug_queries\":"
 		out.RawString(prefix)
 		if in.DebugQueries == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
@@ -708,9 +715,9 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 		}
 	}
 	{
-		const prefix string = ",\"__debug_promql\":"
+		const prefix string = ",\"promqltestfailed\":"
 		out.RawString(prefix)
-		out.String(string(in.DebugPromQL))
+		out.Bool(bool(in.DebugPromQLTestFailed))
 	}
 	out.RawByte('}')
 }

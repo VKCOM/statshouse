@@ -18,6 +18,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -280,8 +281,9 @@ type (
 		MappingFloodEventsLegacy float64                 `json:"mapping_flood_events_legacy"` // sum of average, legacy
 		ReceiveErrors            float64                 `json:"receive_errors"`              // count/sec
 		MappingErrors            float64                 `json:"mapping_errors"`              // count/sec
+		PromQL                   string                  `json:"promql"`                      // equivalent PromQL query
 		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
-		DebugPromQL              string                  `json:"__debug_promql"`              // private, unstable: equivalent PromQL query
+		DebugPromQLTestFailed    bool                    `json:"promqltestfailed"`
 		MetricMeta               *format.MetricMetaValue `json:"-"`
 		syncPoolBuffers          []*[]float64            // buffers to be returned to sync.Pool after response is serialized
 	}
@@ -1529,6 +1531,9 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 		cache, cacheStale := queryClientCacheDuration(immutable)
 		respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
 	}
+	if resp.DebugPromQLTestFailed {
+		log.Printf("promqltestfailed %q %s", r.RequestURI, resp.PromQL)
+	}
 }
 
 func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
@@ -1548,13 +1553,6 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	options := promql.Options{
-		TagOffset: true,
-		TagTotal:  true,
-	}
-	if widthKind == widthAutoRes {
-		options.StepAuto = true
-	}
 	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
 	defer cancel()
 	var g *errgroup.Group
@@ -1563,11 +1561,8 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 		metricName  string
 		res, badges GetQueryResp
 		cleanup     func()
-		queryBadges = func(metrics []*format.MetricMetaValue) {
-			if len(metrics) != 1 {
-				return
-			}
-			metricName = metrics[0].Name
+		queryBadges = func(name string) {
+			metricName = name
 			g.Go(func() error {
 				res2, _, err2 := h.handleGetQuery(ctx, false, getQueryReq{
 					ai:                  ai.withBadgesRequest(),
@@ -1589,9 +1584,7 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 				return nil
 			})
 		}
-		bag *promql.SeriesBag
 	)
-	options.Callback = queryBadges
 	defer func() {
 		if cleanup != nil {
 			cleanup()
@@ -1599,54 +1592,9 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 	}()
 	defer h.freeQueryResp(&badges)
 	g.Go(func() error {
-		var (
-			res2 parser.Value
-			err2 error
-		)
-		res2, cleanup, err2 = h.promEngine.Exec(
-			context.WithValue(ctx, accessInfoKey, &ai), // to check access rights when querying series
-			promql.Query{
-				Start:   from.Unix(),
-				End:     to.Unix(),
-				Step:    int64(width),
-				Expr:    r.FormValue(paramPromQuery),
-				Options: options,
-			})
-		if err2 != nil {
-			return err2
-		}
-		var ok2 bool
-		bag, ok2 = res2.(*promql.SeriesBag)
-		if !ok2 {
-			err2 = fmt.Errorf("string literals are not supported")
-			return err2
-		}
-		res = GetQueryResp{Series: querySeries{Time: bag.Time, SeriesData: bag.Data}}
-		for i, s := range bag.Meta {
-			what, _ := validQueryFn(s.GetMetricName())
-			meta := QuerySeriesMetaV2{
-				Name:      metricName,
-				What:      what,
-				MaxHosts:  bag.GetSMaxHosts(i, h),
-				TimeShift: -s.GetOffset(),
-				Total:     s.GetTotal(),
-			}
-			s.DropMetricName()
-			meta.Tags = make(map[string]SeriesMetaTag, len(s.STags))
-			for name, v := range s.STags {
-				tag := SeriesMetaTag{Value: v}
-				if s.Metric != nil {
-					if t, tok := s.Metric.Name2Tag[name]; tok {
-						tag.Comment = t.ValueComments[tag.Value]
-						tag.Raw = t.Raw
-						tag.RawKind = t.RawKind
-					}
-				}
-				meta.Tags[name] = tag
-			}
-			res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
-		}
-		return nil
+		var err2 error
+		res, cleanup, err2 = h.evalPromqlExpr(ctx, ai, r.FormValue(paramPromQuery), from, to, time.Now(), width, widthKind, queryBadges)
+		return err2
 	})
 	err = g.Wait()
 	if err != nil {
@@ -1757,13 +1705,35 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
 	}
 
+	var (
+		now         = time.Now()
+		testPromql  bool
+		promqlGroup errgroup.Group
+		promqlExpr  string
+		promqlRes   GetQueryResp
+	)
+	if req.ai.bitDeveloper && req.metricWithNamespace != format.BuiltinMetricNameBadges {
+		testPromql = true
+		promqlExpr = getPromQuery(req)
+		var cleanup func()
+		promqlGroup.Go(func() error {
+			var err2 error
+			promqlRes, cleanup, err2 = h.evalPromqlExpr(ctx, req.ai, promqlExpr, from, to, now, width, widthKind, nil)
+			return err2
+		})
+		defer func() {
+			if cleanup != nil {
+				cleanup()
+			}
+		}()
+	}
 	lods := selectQueryLODs(
 		version,
 		int64(metricMeta.PreKeyFrom),
 		metricMeta.Resolution,
 		isUnique,
 		isStringTop,
-		time.Now().Unix(),
+		now.Unix(),
 		shiftTimestamp(from.Unix(), int64(width), toSec(oldestShift), h.location),
 		shiftTimestamp(to.Unix(), int64(width), toSec(oldestShift), h.location),
 		h.utcOffset,
@@ -1979,17 +1949,21 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		allTimes = allTimes[1:] // exclude extra point on the left
 	}
 	immutable = to.Before(time.Now().Add(invalidateFrom))
-	return &GetQueryResp{
+	resp = &GetQueryResp{
 		Series: querySeries{
 			Time:       allTimes,
 			SeriesMeta: meta,
 			SeriesData: data,
 		},
+		PromQL:          promqlExpr,
 		DebugQueries:    sqlQueries,
-		DebugPromQL:     getPromQuery(req),
 		MetricMeta:      metricMeta,
 		syncPoolBuffers: syncPoolBuffers,
-	}, immutable, nil
+	}
+	if testPromql && (promqlGroup.Wait() != nil || !getQueryRespEqual(resp, &promqlRes)) {
+		resp.DebugPromQLTestFailed = true
+	}
+	return resp, immutable, nil
 }
 
 func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
@@ -2616,4 +2590,103 @@ func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale t
 		return queryClientCacheImmutable, queryClientCacheStaleImmutable
 	}
 	return queryClientCache, queryClientCacheStale
+}
+
+func (h *Handler) evalPromqlExpr(ctx context.Context, ai accessInfo, expr string, from, to, now time.Time, width, widthKind int, cb func(string)) (res GetQueryResp, cleanup func(), err error) {
+	var (
+		metricName string
+		options    = promql.Options{
+			TimeNow:             now.Unix(),
+			ExpandToLODBoundary: true,
+			TagOffset:           true,
+			TagTotal:            true,
+			CanonicalTagNames:   true,
+			ExprQueriesSingleMetricCallback: func(metric *format.MetricMetaValue) {
+				metricName = metric.Name
+				if cb != nil {
+					cb(metricName)
+				}
+			},
+		}
+		parserV parser.Value
+	)
+	if widthKind == widthAutoRes {
+		options.StepAuto = true
+	}
+	parserV, cleanup, err = h.promEngine.Exec(
+		context.WithValue(ctx, accessInfoKey, &ai), // to check access rights when querying series
+		promql.Query{
+			Start:   from.Unix(),
+			End:     to.Unix(),
+			Step:    int64(width),
+			Expr:    expr,
+			Options: options,
+		})
+	if err != nil {
+		return GetQueryResp{}, nil, err
+	}
+	bag, ok := parserV.(*promql.SeriesBag)
+	if !ok {
+		err = fmt.Errorf("string literals are not supported")
+		return GetQueryResp{}, nil, err
+	}
+	res = GetQueryResp{Series: querySeries{Time: bag.Time, SeriesData: bag.Data}}
+	for i, s := range bag.Meta {
+		what, _ := validQueryFn(s.GetMetricName())
+		meta := QuerySeriesMetaV2{
+			Name:      metricName,
+			What:      what,
+			MaxHosts:  bag.GetSMaxHosts(i, h),
+			TimeShift: -s.GetOffset(),
+			Total:     s.GetTotal(),
+		}
+		s.DropMetricName()
+		meta.Tags = make(map[string]SeriesMetaTag, len(s.STags))
+		for name, v := range s.STags {
+			tag := SeriesMetaTag{Value: v}
+			if s.Metric != nil {
+				if t, tok := s.Metric.Name2Tag[name]; tok {
+					tag.Comment = t.ValueComments[tag.Value]
+					tag.Raw = t.Raw
+					tag.RawKind = t.RawKind
+				}
+			}
+			meta.Tags[name] = tag
+		}
+		res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
+	}
+	return res, cleanup, nil
+}
+
+func getQueryRespEqual(a, b *GetQueryResp) bool {
+	if len(a.Series.SeriesMeta) != len(b.Series.SeriesMeta) {
+		return false
+	}
+	if len(a.Series.SeriesData) != len(b.Series.SeriesData) {
+		return false
+	}
+	for i := 0; i < len(a.Series.SeriesData); i++ {
+		var j int
+		for ; j < len(b.Series.SeriesMeta); j++ {
+			if reflect.DeepEqual(a.Series.SeriesMeta[i], b.Series.SeriesMeta[j]) {
+				break
+			}
+		}
+		if j == len(b.Series.SeriesMeta) {
+			return false
+		}
+		if len(*a.Series.SeriesData[i]) != len(*b.Series.SeriesData[j]) {
+			return false
+		}
+		for k := 0; k < len(*a.Series.SeriesData[i]); k++ {
+			var (
+				v1 = (*a.Series.SeriesData[i])[k]
+				v2 = (*b.Series.SeriesData[j])[k]
+			)
+			if !math.IsNaN(v1) && !math.IsNaN(v2) && math.Abs(v1-v2) > 0.0001 {
+				return false
+			}
+		}
+	}
+	return true
 }

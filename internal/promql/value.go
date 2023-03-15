@@ -97,32 +97,33 @@ func (b *SeriesBag) Type() parser.ValueType {
 func (b *SeriesBag) append(s SeriesBag) {
 	n := len(b.Data)
 	b.Data = append(b.Data, s.Data...)
-	b.Meta = bagAppend(n, b.Meta, s.Meta...)
-	b.MaxHost = bagAppend(n, b.MaxHost, s.MaxHost...)
+	b.Meta = appendAt(n, b.Meta, s.Meta...)
+	b.MaxHost = appendAt(n, b.MaxHost, s.MaxHost...)
 }
 
 func (b *SeriesBag) appendSTagged(v *[]float64, stags map[string]string) {
 	n := len(b.Data)
 	b.Data = append(b.Data, v)
-	b.Meta = bagAppend(n, b.Meta, SeriesMeta{STags: stags})
+	b.Meta = appendAt(n, b.Meta, SeriesMeta{STags: stags})
 }
 
 func (b *SeriesBag) appendX(s SeriesBag, x ...int) {
 	for _, i := range x {
 		n := len(b.Data)
 		b.Data = append(b.Data, s.Data[i])
-		b.Meta = bagAppend(n, b.Meta, s.Meta[i])
+		b.Meta = appendAt(n, b.Meta, s.Meta[i])
 		if i < len(s.MaxHost) {
-			b.MaxHost = bagAppend(n, b.MaxHost, s.MaxHost[i])
+			b.MaxHost = appendAt(n, b.MaxHost, s.MaxHost[i])
 		}
 	}
 }
 
 func (b *SeriesBag) at(i int) SeriesBag {
 	return SeriesBag{
-		Time: b.Time,
-		Data: b.Data[i : i+1],
-		Meta: b.Meta[i : i+1],
+		Time:    b.Time,
+		Data:    safeSlice(b.Data, i, i+1),
+		Meta:    safeSlice(b.Meta, i, i+1),
+		MaxHost: safeSlice(b.MaxHost, i, i+1),
 	}
 }
 
@@ -385,8 +386,31 @@ func (b *SeriesBag) tagOffset(offset int64) {
 }
 
 func (b *SeriesBag) tagTotal(total int) {
-	for _, meta := range b.Meta {
-		meta.SetTag(labelTotal, int32(total))
+	for i := range b.Meta {
+		b.Meta[i].SetTag(labelTotal, int32(total))
+	}
+}
+
+func (b *SeriesBag) trim(start, end int64) {
+	var (
+		lo int
+		hi = len(b.Time)
+	)
+	for lo < len(b.Time) && b.Time[lo] < start {
+		lo++
+	}
+	for lo < hi-1 && end <= b.Time[hi-1] {
+		hi--
+	}
+	if lo != 0 || hi != len(b.Time) {
+		b.Time = b.Time[lo:hi]
+		for j := 0; j < len(b.Data); j++ {
+			s := (*b.Data[j])[lo:hi]
+			b.Data[j] = &s
+		}
+		for j := 0; j < len(b.MaxHost); j++ {
+			b.MaxHost[j] = b.MaxHost[j][lo:hi]
+		}
 	}
 }
 
@@ -451,12 +475,12 @@ func (g *seriesGroup) at(i int) SeriesBag {
 	return SeriesBag{
 		Time:    g.bag.Time,
 		Data:    []*[]float64{g.bag.Data[i]},
-		Meta:    bagAppend(0, nil, g.meta),
-		MaxHost: bagAppend(0, nil, g.maxHost),
+		Meta:    appendAt(0, nil, g.meta),
+		MaxHost: appendAt(0, nil, g.maxHost),
 	}
 }
 
-func bagAppend[T any](n int, dst []T, src ...T) []T {
+func appendAt[T any](n int, dst []T, src ...T) []T {
 	if len(src) == 0 {
 		return dst
 	}
@@ -465,4 +489,18 @@ func bagAppend[T any](n int, dst []T, src ...T) []T {
 		dst = append(dst, t)
 	}
 	return append(dst, src...)
+}
+
+func safeSlice[T any](s []T, i, j int) []T {
+	if s == nil {
+		return nil
+	}
+	if i < len(s) {
+		if len(s) < j {
+			j = len(s)
+
+		}
+		return s[i:j]
+	}
+	return nil
 }
