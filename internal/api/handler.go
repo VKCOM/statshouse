@@ -280,8 +280,8 @@ type (
 		MappingFloodEventsLegacy float64                 `json:"mapping_flood_events_legacy"` // sum of average, legacy
 		ReceiveErrors            float64                 `json:"receive_errors"`              // count/sec
 		MappingErrors            float64                 `json:"mapping_errors"`              // count/sec
+		PromQL                   string                  `json:"promql"`                      // equivalent PromQL query
 		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
-		DebugPromQL              string                  `json:"__debug_promql"`              // private, unstable: equivalent PromQL query
 		MetricMeta               *format.MetricMetaValue `json:"-"`
 		syncPoolBuffers          []*[]float64            // buffers to be returned to sync.Pool after response is serialized
 	}
@@ -1985,8 +1985,8 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 			SeriesMeta: meta,
 			SeriesData: data,
 		},
+		PromQL:          getPromQuery(req),
 		DebugQueries:    sqlQueries,
-		DebugPromQL:     getPromQuery(req),
 		MetricMeta:      metricMeta,
 		syncPoolBuffers: syncPoolBuffers,
 	}, immutable, nil
