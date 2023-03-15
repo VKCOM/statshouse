@@ -6,13 +6,14 @@
 
 import React, { ChangeEvent, memo, useCallback, useEffect, useMemo } from 'react';
 import * as utils from '../../view/utils';
-import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
+import { getTimeShifts, promQLMetric, timeShiftAbbrevExpand } from '../../view/utils';
 import { MetricItem } from '../../hooks';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, Select } from '../index';
 import { TagControl } from '../../view/TagControl';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
+import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
 import {
   selectorLastError,
   selectorParamsTagSync,
@@ -25,6 +26,10 @@ import {
 } from '../../store';
 import { globalSettings } from '../../common/settings';
 import { filterHasTagID, metricKindToWhat, metricMeta, querySelector, queryWhat, whatToWhatDesc } from '../../view/api';
+import { currentAccessInfo } from '../../common/access';
+import produce from 'immer';
+
+const ai = currentAccessInfo();
 
 export const PlotControls = memo(function PlotControls_(props: {
   indexPlot: number;
@@ -160,6 +165,22 @@ export const PlotControls = memo(function PlotControls_(props: {
     [meta.kind]
   );
 
+  const toPromql = useCallback(() => {
+    setSel(
+      produce((s) => {
+        const whats = metricKindToWhat(meta.kind);
+
+        s.metricName = promQLMetric;
+        s.what = [whats[0]];
+        s.customName = '';
+        s.groupBy = [];
+        s.filterIn = {};
+        s.filterNotIn = {};
+        s.promQL = '';
+      })
+    );
+  }, [meta.kind, setSel]);
+
   return (
     <div>
       <div
@@ -172,7 +193,12 @@ export const PlotControls = memo(function PlotControls_(props: {
       </div>
 
       <form spellCheck="false">
-        <div className="row mb-2">
+        <div className="d-flex mb-2">
+          {ai.developer && (
+            <button type="button" className="btn btn-outline-primary me-3" onClick={toPromql} title="PromQL">
+              <SVGCode />
+            </button>
+          )}
           <div className="col input-group">
             <Select
               value={sel.metricName}

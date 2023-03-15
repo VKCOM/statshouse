@@ -5,6 +5,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { ChangeEvent, memo, useCallback, useEffect } from 'react';
+import produce from 'immer';
+import cn from 'classnames';
 import * as utils from '../../view/utils';
 import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
 import { MetricItem, useDebounceState } from '../../hooks';
@@ -16,8 +18,10 @@ import {
   selectorTimeRange,
   useStore,
 } from '../../store';
-import { metricKindToWhat, metricMeta, querySelector } from '../../view/api';
-import produce from 'immer';
+import { metricKindToWhat, metricMeta, querySelector, queryWhat } from '../../view/api';
+import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
+import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
+import { globalSettings } from '../../common/settings';
 
 export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   indexPlot: number;
@@ -69,6 +73,16 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
     [setParams, setSel, timeShifts]
   );
 
+  const onHostChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      setSel((s) => ({
+        ...s,
+        maxHost: e.target.checked,
+      }));
+    },
+    [setSel]
+  );
+
   const inputPromQL = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       const value = e.currentTarget.value;
@@ -76,6 +90,21 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
     },
     [setPromQL]
   );
+
+  const toFilter = useCallback(() => {
+    setSel(
+      produce((s) => {
+        s.metricName = globalSettings.default_metric;
+        s.what = globalSettings.default_metric_what.slice() as queryWhat[];
+        s.customName = '';
+        s.groupBy = globalSettings.default_metric_group_by.slice();
+        s.filterIn = { ...globalSettings.default_metric_filter_in };
+        s.filterNotIn = { ...globalSettings.default_metric_filter_not_in };
+        s.promQL = '';
+      })
+    );
+  }, [setSel]);
+
   useEffect(() => {
     setSel(
       produce((p) => {
@@ -91,9 +120,12 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
     <div>
       <div>
         <div className="row mb-3 align-items-baseline">
-          <div className="col-12">
+          <div className="col-12 d-flex align-items-baseline">
+            <button type="button" className="btn btn-outline-primary me-3" title="Filter" onClick={toFilter}>
+              <SVGFilter />
+            </button>
             <select
-              className={`form-select ${sel.customAgg > 0 ? 'border-warning' : ''}`}
+              className={cn('form-select me-4', sel.customAgg > 0 && 'border-warning')}
               value={sel.customAgg}
               onChange={onCustomAggChange}
             >
@@ -111,6 +143,19 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
               <option value={7 * 24 * 60 * 60}>7 days</option>
               <option value={31 * 24 * 60 * 60}>1 month</option>
             </select>
+            <div className="form-check form-switch">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                value=""
+                id="switchMaxHost"
+                checked={sel.maxHost}
+                onChange={onHostChange}
+              />
+              <label className="form-check-label" htmlFor="switchMaxHost" title="Host">
+                <SVGPcDisplay />
+              </label>
+            </div>
           </div>
         </div>
         <div className="row mb-3 align-items-baseline">

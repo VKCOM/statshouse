@@ -627,6 +627,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
       prevState.setNumQueriesPlot(index, (n) => n + 1);
       const controller = new AbortController();
       const isPromQl = lastPlotParams.metricName === promQLMetric;
+
       const promQLForm = new FormData();
       promQLForm.append('q', lastPlotParams.promQL);
       const url = queryURL(lastPlotParams, prevState.timeRange, prevState.params.timeShifts, agg, !compact);
@@ -640,6 +641,40 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         }
         state.plotsData[index].scales = scales;
       });
+      if (isPromQl && !lastPlotParams.promQL) {
+        setState((state) => {
+          state.plotsData[index] = {
+            nameMetric: '',
+            whats: [],
+            error: '',
+            data: [[]],
+            series: [],
+            seriesShow: [],
+            scales: {},
+            receiveErrors: 0,
+            samplingFactorSrc: 0,
+            samplingFactorAgg: 0,
+            mappingFloodEvents: 0,
+            legendValueWidth: 0,
+            legendMaxDotSpaceWidth: 0,
+            legendNameWidth: 0,
+            legendPercentWidth: 0,
+            legendMaxHostWidth: 0,
+            legendMaxHostPercentWidth: 0,
+            lastPlotParams: undefined,
+            lastTimeRange: undefined,
+            lastTimeShifts: undefined,
+            lastQuerySeriesMeta: undefined,
+            topInfo: undefined,
+            maxHostLists: [],
+          };
+          delete state.previews[index];
+          state.liveMode = false;
+        });
+        getState().setNumQueriesPlot(index, (n) => n - 1);
+        return;
+      }
+
       (isPromQl
         ? apiPost<queryResult>(url, promQLForm, controller.signal, true)
         : apiGet<queryResult>(url, controller.signal, true)
