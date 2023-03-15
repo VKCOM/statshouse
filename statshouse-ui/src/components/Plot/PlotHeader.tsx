@@ -59,12 +59,15 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
 
   const metricName = useMemo(
-    () => plotData.nameMetric || (sel.metricName !== promQLMetric ? sel.metricName : ''),
+    () => (sel.metricName !== promQLMetric ? sel.metricName : plotData.nameMetric),
     [plotData.nameMetric, sel.metricName]
   );
   const what = useMemo(
-    () => (metricName ? plotData.whats.map((qw) => whatToWhatDesc(qw)).join(', ') : ''),
-    [metricName, plotData]
+    () =>
+      sel.metricName === promQLMetric
+        ? plotData.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
+        : sel.what.map((qw) => whatToWhatDesc(qw)).join(', '),
+    [plotData.whats, sel.metricName, sel.what]
   );
   const metricFullName = useMemo(() => metricName + (what ? ': ' + what : ''), [metricName, what]);
 
