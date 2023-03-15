@@ -106,6 +106,8 @@ const (
 	defTagValues  = 100
 	maxTagValues  = 100_000
 	maxSeriesRows = 10_000_000
+	maxTableRows  = 10_000
+
 	maxTimeShifts = 10
 	maxFunctions  = 10
 
@@ -314,7 +316,7 @@ type (
 
 	//easyjson:json
 	GetTableResp struct {
-		Series       []queryRow `json:"rows"`
+		Rows         []queryRow `json:"rows"`
 		FromRow      string     `json:"from_row"`
 		HasMore      bool       `json:"has_more"`
 		DebugQueries []string   `json:"__debug_queries"` // private, unstable: SQL queries executed
@@ -1735,13 +1737,34 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	} else {
 		res, freeRes, err = h.handleGetQuery(ctx, ai, qry, options)
 	}
-	if err == nil && len(qry.promQL) == 0 {
-		res.PromQL = getPromQuery(qry)
-		res.DebugPromQLTestFailed = options.testPromql && (promqlErr != nil ||
-			!reflect.DeepEqual(res.queries, promqlRes.queries) ||
-			!getQueryRespEqual(res, promqlRes))
-		if res.DebugPromQLTestFailed {
-			log.Printf("promqltestfailed %q %s", r.RequestURI, res.PromQL)
+	defer h.freeQueryResp(resp)
+	defer h.freeQueryResp(respIngestion)
+
+	if queryVerbose && err == nil && respIngestion != nil && len(respIngestion.Series.Time) > 0 {
+		for i, meta := range respIngestion.Series.SeriesMeta {
+			badgeType := meta.Tags["key1"].Value
+			metric := meta.Tags["key2"].Value
+			if metric == metricWithNamespace {
+				switch {
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor)):
+					resp.SamplingFactorSrc = sumSeries(respIngestion.Series.SeriesData[i], 1) / float64(len(respIngestion.Series.Time))
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor)):
+					resp.SamplingFactorAgg = sumSeries(respIngestion.Series.SeriesData[i], 1) / float64(len(respIngestion.Series.Time))
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld)):
+					resp.ReceiveErrorsLegacy = sumSeries(respIngestion.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld)):
+					resp.MappingFloodEventsLegacy = sumSeries(respIngestion.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors)):
+					resp.ReceiveErrors = sumSeries(respIngestion.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors)):
+					resp.MappingErrors = sumSeries(respIngestion.Series.SeriesData[i], 0)
+				}
+			}
+			// TODO - show badge if some heuristics on # of contributors is triggered
+			// if format.IsValueCodeZero(metric) && meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeContributors)) {
+			//	sumContributors := sumSeries(respIngestion.Rows.SeriesData[i], 0)
+			//	fmt.Printf("contributors sum %f\n", sumContributors)
+			// }
 		}
 	}
 	// Add badges
@@ -1776,7 +1799,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointQuery, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	sl := newEndpointStat(EndpointTable, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
@@ -1787,10 +1810,6 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
 	metricWithNamespace := formValueParamMetric(r)
-	queryVerbose := false
-	if _, ok := format.BuiltinMetricByName[metricWithNamespace]; !ok && r.FormValue(ParamQueryVerbose) == "1" {
-		queryVerbose = true
-	}
 
 	filterIn, filterNotIn, err := parseQueryFilter(r.Form[ParamQueryFilter])
 	if err != nil {
@@ -1830,30 +1849,12 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 				fromRow:             fromRow,
 			})
 		if h.verbose && err == nil {
-			//todo fix log
-			log.Printf("[debug] handled query (%v series x %v points each) for %q in %v", len(resp.Series), len(resp.Series), ai.user, time.Since(sl.startTime))
+			log.Printf("[debug] handled query (%v rows) for %q in %v", len(resp.Rows), ai.user, time.Since(sl.startTime))
 		}
 		return resp, immutable, err
 	}
 
-	var (
-		respTable *GetTableResp
-		immutable bool
-	)
-	if !queryVerbose {
-		respTable, immutable, err = getQuery(ctx)
-	} else {
-		var g *errgroup.Group
-		g, ctx = errgroup.WithContext(ctx)
-		g.Go(func() error {
-			var err error
-			respTable, immutable, err = getQuery(ctx)
-			return err
-		})
-		err = g.Wait()
-	}
-	//todo fix
-	// defer h.freeQueryResp(resp)
+	respTable, immutable, err := getQuery(ctx)
 
 	switch {
 	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
@@ -2536,8 +2537,6 @@ func (h *Handler) handleGetTable(ctx context.Context, debugQueries bool, req get
 	queryRows := []queryRow{}
 	var lastRow RowFrom
 	hasMore := false
-	skip := 0
-	fmt.Println(req.fromRow)
 loop:
 	for _, q := range queries {
 		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn)
@@ -2592,8 +2591,7 @@ loop:
 					}
 					skey := h.maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 					lastRow.SKey = skey
-					if req.fromRow.Time > 0 && lessThan(req.fromRow, rows[i], skey) {
-						skip++
+					if req.fromRow.Time > 0 && greaterOrEqualsThan(req.fromRow, rows[i], skey) {
 						continue
 					}
 					data := selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i])
@@ -2603,7 +2601,7 @@ loop:
 						Tags: kvs,
 						What: q.what,
 					})
-					if len(queryRows) >= 2000 {
+					if len(queryRows) >= maxTableRows {
 						hasMore = true
 						break loop
 					}
@@ -2611,8 +2609,6 @@ loop:
 			}
 		}
 	}
-	fmt.Println(len(queryRows))
-	fmt.Println("skip:", skip)
 	var fromRow string
 	if len(queryRows) > 0 {
 		var jsonBytes []byte
@@ -2624,7 +2620,7 @@ loop:
 	}
 	immutable = to.Before(time.Now().Add(invalidateFrom))
 	return &GetTableResp{
-		Series:       queryRows,
+		Rows:         queryRows,
 		FromRow:      fromRow,
 		HasMore:      hasMore,
 		DebugQueries: sqlQueries,
@@ -3371,19 +3367,16 @@ func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale t
 	return queryClientCache, queryClientCacheStale
 }
 
-func lessThan(l RowFrom, r tsSelectRow, skey string) bool {
+func greaterOrEqualsThan(l RowFrom, r tsSelectRow, skey string) bool {
 	if l.Time != r.time {
-		fmt.Println("by time", l.Time < r.time)
-		return l.Time < r.time
+		return l.Time > r.time
 	}
 	for i := range l.Tags {
 		lv := l.Tags[i].Value
 		rv := r.tag[l.Tags[i].KeyNumber]
 		if lv != rv {
-			fmt.Println("by tag ", l.Tags[i].KeyNumber, lv < rv)
-			return lv < rv
+			return lv > rv
 		}
 	}
-	fmt.Println("by skey ", l.SKey < skey)
-	return l.SKey < skey
+	return l.SKey >= skey
 }

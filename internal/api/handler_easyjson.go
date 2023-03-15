@@ -1155,22 +1155,22 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer
 		case "rows":
 			if in.IsNull() {
 				in.Skip()
-				out.Series = nil
+				out.Rows = nil
 			} else {
 				in.Delim('[')
-				if out.Series == nil {
+				if out.Rows == nil {
 					if !in.IsDelim(']') {
-						out.Series = make([]queryRow, 0, 2)
+						out.Rows = make([]queryRow, 0, 2)
 					} else {
-						out.Series = []queryRow{}
+						out.Rows = []queryRow{}
 					}
 				} else {
-					out.Series = (out.Series)[:0]
+					out.Rows = (out.Rows)[:0]
 				}
 				for !in.IsDelim(']') {
 					var v11 queryRow
 					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi3(in, &v11)
-					out.Series = append(out.Series, v11)
+					out.Rows = append(out.Rows, v11)
 					in.WantComma()
 				}
 				in.Delim(']')
@@ -1219,11 +1219,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 	{
 		const prefix string = ",\"rows\":"
 		out.RawString(prefix[1:])
-		if in.Series == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
+		if in.Rows == nil && (out.Flags&jwriter.NilSliceAsEmpty) == 0 {
 			out.RawString("null")
 		} else {
 			out.RawByte('[')
-			for v13, v14 := range in.Series {
+			for v13, v14 := range in.Rows {
 				if v13 > 0 {
 					out.RawByte(',')
 				}
