@@ -15,31 +15,23 @@ import (
 )
 
 const (
-	Avg            = "avg"
-	AvgAcc         = "avgacc"
-	Count          = "count"
-	CountSec       = "countsec"
-	CountAcc       = "countacc"
-	Max            = "max"
-	Min            = "min"
-	Sum            = "sum"
-	SumSec         = "sumsec"
-	SumAcc         = "sumacc"
-	StdDev         = "stddev"
-	StdVar         = "stdvar"
-	P25            = "p25"
-	P50            = "p50"
-	P75            = "p75"
-	P90            = "p90"
-	P95            = "p95"
-	P99            = "p99"
-	P999           = "p999"
-	Cardinality    = "cardinality"
-	CardinalitySec = "cardinalitysec"
-	CardinalityAcc = "cardinalityacc"
-	Unique         = "unique"
-	UniqueSec      = "uniquesec"
-	MaxHost        = "maxhost"
+	Avg         = "avg"
+	Count       = "count"
+	Max         = "max"
+	Min         = "min"
+	Sum         = "sum"
+	StdDev      = "stddev"
+	StdVar      = "stdvar"
+	P25         = "p25"
+	P50         = "p50"
+	P75         = "p75"
+	P90         = "p90"
+	P95         = "p95"
+	P99         = "p99"
+	P999        = "p999"
+	Cardinality = "cardinality"
+	Unique      = "unique"
+	MaxHost     = "maxhost"
 
 	NilValueBits = 0x7ff0000000000002
 )
@@ -93,6 +85,8 @@ type SeriesQuery struct {
 	// Transformations
 	Factor     int64
 	Accumulate bool
+
+	Options Options
 }
 
 type Handler interface {

@@ -35,10 +35,14 @@ type Query struct {
 }
 
 type Options struct {
-	StepAuto  bool
-	TagOffset bool
-	TagTotal  bool
-	Callback  func(metrics []*format.MetricMetaValue)
+	TimeNow             int64
+	StepAuto            bool
+	ExpandToLODBoundary bool
+	TagOffset           bool
+	TagTotal            bool
+	CanonicalTagNames   bool
+
+	ExprQueriesSingleMetricCallback func(*format.MetricMetaValue)
 }
 
 type Engine struct {
@@ -47,8 +51,7 @@ type Engine struct {
 }
 
 type evaluator struct {
-	h   Handler
-	loc *time.Location
+	Engine
 
 	now int64
 	qry Query
@@ -71,6 +74,7 @@ type evaluator struct {
 
 type seriesQueryX struct { // SeriesQuery extended
 	SeriesQuery
+	prefixSum bool
 	histogram histogramQuery
 }
 
@@ -109,25 +113,8 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 			ev.cancel()
 			return nil, nil, err
 		}
-		var (
-			lo int
-			hi = len(ev.time)
-		)
-		for lo < len(ev.time) && ev.time[lo] < qry.Start {
-			lo++
-		}
-		for lo < hi-1 && qry.End <= ev.time[hi-1] {
-			hi--
-		}
-		if lo != 0 || hi != len(ev.time) {
-			bag.Time = bag.Time[lo:hi]
-			for j := 0; j < len(bag.Data); j++ {
-				s := (*bag.Data[j])[lo:hi]
-				bag.Data[j] = &s
-			}
-			for j := 0; j < len(bag.MaxHost); j++ {
-				bag.MaxHost[j] = bag.MaxHost[j][lo:hi]
-			}
+		if !qry.Options.ExpandToLODBoundary {
+			bag.trim(qry.Start, qry.End)
 		}
 		ev.stringify(&bag)
 		return &bag, ev.cancel, nil
@@ -136,14 +123,17 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 
 func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err error) {
 	ev = evaluator{
-		h:     ng.h,
-		loc:   ng.loc,
-		now:   time.Now().Unix(),
-		ars:   make(map[parser.Expr]parser.Expr),
-		tags:  make(map[*format.MetricMetaValue][]map[int64]map[int32]string),
-		stags: make(map[*format.MetricMetaValue]map[int64][]string),
-		ba:    make(map[*[]float64]bool),
-		br:    make(map[*[]float64]bool),
+		Engine: ng,
+		ars:    make(map[parser.Expr]parser.Expr),
+		tags:   make(map[*format.MetricMetaValue][]map[int64]map[int32]string),
+		stags:  make(map[*format.MetricMetaValue]map[int64][]string),
+		ba:     make(map[*[]float64]bool),
+		br:     make(map[*[]float64]bool),
+	}
+	if qry.Options.TimeNow != 0 {
+		ev.now = qry.Options.TimeNow
+	} else {
+		ev.now = time.Now().Unix()
 	}
 	ev.ast, err = parser.ParseExpr(qry.Expr)
 	if err != nil {
@@ -237,12 +227,12 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 	// save effective query
 	ev.qry = qry
 	// callback
-	if qry.Options.Callback != nil && len(maxOffset) != 0 {
-		s := make([]*format.MetricMetaValue, 0, len(maxOffset))
-		for v := range maxOffset {
-			s = append(s, v)
+	if qry.Options.ExprQueriesSingleMetricCallback != nil && len(maxOffset) == 1 {
+		var metric *format.MetricMetaValue
+		for metric = range maxOffset {
+			break
 		}
-		qry.Options.Callback(s)
+		qry.Options.ExprQueriesSingleMetricCallback(metric)
 	}
 	return ev, nil
 }
@@ -273,11 +263,15 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, m
 			if matcher.Type != labels.MatchEqual {
 				return fmt.Errorf("%s supports only strict equality", labelWhat)
 			}
-			switch matcher.Value {
-			case MaxHost:
-				sel.MaxHost = true
-			default:
-				sel.What = matcher.Value
+			for _, what := range strings.Split(matcher.Value, ",") {
+				switch what {
+				case "":
+					// ignore empty "what" value
+				case MaxHost:
+					sel.MaxHost = true
+				default:
+					sel.What = what
+				}
 			}
 		case labelBy:
 			if matcher.Type != labels.MatchEqual {
@@ -596,6 +590,9 @@ func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector
 			return SeriesBag{}, err
 		}
 		ev.cancellationList = append(ev.cancellationList, cancel)
+		if qry.prefixSum {
+			bag = funcPrefixSum(bag)
+		}
 		if !sel.OmitNameTag {
 			for j := range bag.Meta {
 				bag.Meta[j].SetSTag(labels.MetricName, sel.MatchingNames[i])
@@ -611,6 +608,9 @@ func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector
 			}
 		}
 		res.append(bag)
+	}
+	if ev.qry.Options.TagTotal {
+		res.tagTotal(len(res.Data))
 	}
 	return res, nil
 }
@@ -645,36 +645,20 @@ func (ev *evaluator) restoreHistogram(bag *SeriesBag, qry *seriesQueryX) (Series
 func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSelector, metric *format.MetricMetaValue) (seriesQueryX, error) {
 	// what
 	var (
-		what       DigestWhat
-		factor     = sel.Factor
-		accumulate bool
+		what      DigestWhat
+		prefixSum bool
 	)
 	switch sel.What {
 	case Count:
 		what = DigestCount
-	case CountSec:
-		what = DigestCount
-		factor = 1
-	case CountAcc:
-		what = DigestCount
-		accumulate = true
 	case Min:
 		what = DigestMin
 	case Max:
 		what = DigestMax
 	case Sum:
 		what = DigestSum
-	case SumAcc:
-		what = DigestSum
-		accumulate = true
-	case SumSec:
-		what = DigestSum
-		factor = 1
 	case Avg:
 		what = DigestAvg
-	case AvgAcc:
-		what = DigestAvg
-		accumulate = true
 	case StdDev:
 		what = DigestStdDev
 	case StdVar:
@@ -695,21 +679,12 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		what = DigestP999
 	case Cardinality:
 		what = DigestCardinality
-	case CardinalityAcc:
-		what = DigestCardinality
-		accumulate = true
-	case CardinalitySec:
-		what = DigestCardinality
-		factor = 1
 	case Unique:
 		what = DigestUnique
-	case UniqueSec:
-		what = DigestUnique
-		factor = 1
 	case "":
 		if metric.Kind == format.MetricKindCounter {
 			what = DigestCount
-			accumulate = true
+			prefixSum = true
 		} else {
 			what = DigestAvg
 		}
@@ -835,20 +810,24 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		groupBy = append(groupBy, format.TagID(metric.Name2Tag[format.LETagName].Index))
 		histogramQ.restore = true
 	}
-	return seriesQueryX{SeriesQuery{
-		Meta:       metric,
-		What:       what,
-		From:       ev.qry.Start - sel.Offset,
-		Factor:     factor,
-		LODs:       ev.lods,
-		GroupBy:    groupBy,
-		FilterIn:   filterIn,
-		FilterOut:  filterOut,
-		SFilterIn:  sFilterIn,
-		SFilterOut: sFilterOut,
-		Accumulate: accumulate,
-		MaxHost:    sel.MaxHost,
-	}, histogramQ}, nil
+	return seriesQueryX{
+			SeriesQuery{
+				Meta:       metric,
+				What:       what,
+				From:       ev.qry.Start - sel.Offset,
+				Factor:     sel.Factor,
+				LODs:       ev.lods,
+				GroupBy:    groupBy,
+				FilterIn:   filterIn,
+				FilterOut:  filterOut,
+				SFilterIn:  sFilterIn,
+				SFilterOut: sFilterOut,
+				MaxHost:    sel.MaxHost,
+				Options:    ev.qry.Options,
+			},
+			prefixSum,
+			histogramQ},
+		nil
 }
 
 func (ev *evaluator) newSeriesBag(capacity int) SeriesBag {

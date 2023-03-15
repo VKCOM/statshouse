@@ -293,7 +293,7 @@ func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMet
 	if qry.Options.StepAuto {
 		widthKind = widthAutoRes
 	} else {
-		widthKind = widthAutoRes
+		widthKind = widthLODRes
 	}
 	s := make([][]promql.LOD, 0, len(maxOffset))
 	for metric, offset := range maxOffset {
@@ -407,10 +407,12 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			if valueID != 0 && j < len(qry.Meta.Tags) {
 				var (
 					tag  = qry.Meta.Tags[j]
-					name = tag.Name
+					name string
 				)
-				if len(name) == 0 {
+				if qry.Options.CanonicalTagNames || len(tag.Name) == 0 {
 					name = format.TagID(tag.Index)
+				} else {
+					name = tag.Name
 				}
 				meta[i].SetTag(name, valueID)
 			}
@@ -430,11 +432,6 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	}
 	for i := range meta {
 		meta[i].Metric = qry.Meta
-	}
-	if qry.Accumulate {
-		for _, row := range data {
-			accumulateSeries(*row)
-		}
 	}
 	return promql.SeriesBag{Data: data, Meta: meta, MaxHost: maxHost}, cleanup, nil
 }
@@ -698,22 +695,28 @@ func getPromQuery(req getQueryReq) string {
 			continue
 		}
 		var (
-			what string
-			rate bool
+			what  string
+			norm  bool
+			deriv bool
+			cumul bool
 		)
 		switch name {
 		case queryFnCount:
 			what = promql.Count
 		case queryFnCountNorm:
-			what = promql.CountSec
+			what = promql.Count
+			norm = true
 		case queryFnCumulCount:
-			what = promql.CountAcc
+			what = promql.Count
+			cumul = true
 		case queryFnCardinality:
 			what = promql.Cardinality
 		case queryFnCardinalityNorm:
-			what = promql.CardinalitySec
+			what = promql.Cardinality
+			norm = true
 		case queryFnCumulCardinality:
-			what = promql.CardinalityAcc
+			what = promql.Cardinality
+			cumul = true
 		case queryFnMin:
 			what = promql.Min
 		case queryFnMax:
@@ -721,13 +724,16 @@ func getPromQuery(req getQueryReq) string {
 		case queryFnAvg:
 			what = promql.Avg
 		case queryFnCumulAvg:
-			what = promql.AvgAcc
+			what = promql.Avg
+			cumul = true
 		case queryFnSum:
 			what = promql.Sum
 		case queryFnSumNorm:
-			what = promql.SumSec
+			what = promql.Sum
+			norm = true
 		case queryFnCumulSum:
-			what = promql.SumAcc
+			what = promql.Sum
+			cumul = true
 		case queryFnStddev:
 			what = promql.StdDev
 		case queryFnP25:
@@ -747,47 +753,54 @@ func getPromQuery(req getQueryReq) string {
 		case queryFnUnique:
 			what = promql.Unique
 		case queryFnUniqueNorm:
-			what = promql.UniqueSec
+			what = promql.Unique
+			norm = true
 		case queryFnMaxHost:
 			req.maxHost = true
 		case queryFnMaxCountHost:
 			req.maxHost = true
 		case queryFnDerivativeCount:
 			what = promql.Count
-			rate = true
+			deriv = true
 		case queryFnDerivativeSum:
 			what = promql.Sum
-			rate = true
+			deriv = true
 		case queryFnDerivativeAvg:
 			what = promql.Avg
-			rate = true
+			deriv = true
 		case queryFnDerivativeCountNorm:
-			what = promql.CountSec
-			rate = true
+			what = promql.Count
+			norm = true
+			deriv = true
 		case queryFnDerivativeSumNorm:
-			what = promql.SumSec
-			rate = true
+			what = promql.Sum
+			norm = true
+			deriv = true
 		case queryFnDerivativeMin:
 			what = promql.Min
-			rate = true
+			deriv = true
 		case queryFnDerivativeMax:
 			what = promql.Max
-			rate = true
+			deriv = true
 		case queryFnDerivativeUnique:
 			what = promql.Unique
-			rate = true
+			deriv = true
 		case queryFnDerivativeUniqueNorm:
-			what = promql.UniqueSec
-			rate = true
+			what = promql.Unique
+			norm = true
+			deriv = true
 		default:
 			continue
 		}
-		s := make([]string, 0, 5)
+		s := make([]string, 0, 4)
 		for _, shift := range shifts {
-			s = append(s, fmt.Sprintf("__what__=%q", what), fmt.Sprintf("__by__=%q", strings.Join(req.by, ",")))
+			w := make([]string, 0, 2)
+			w = append(w, what)
 			if req.maxHost {
-				s = append(s, fmt.Sprintf("__what__=%q", promql.MaxHost))
+				w = append(w, promql.MaxHost)
 			}
+			s = append(s, fmt.Sprintf("__what__=%q", strings.Join(w, ",")))
+			s = append(s, fmt.Sprintf("__by__=%q", strings.Join(req.by, ",")))
 			for t, v := range req.filterIn {
 				s = append(s, fmt.Sprintf("%s=~%q", t, strings.Join(v, "|")))
 			}
@@ -799,8 +812,14 @@ func getPromQuery(req getQueryReq) string {
 				q = fmt.Sprintf("%s offset %ds", q, -shift/time.Second)
 			}
 			q = fmt.Sprintf("topk(%s,%s)", req.numResults, q)
-			if rate {
+			if norm {
+				q = fmt.Sprintf("irate(prefix_sum(%s))", q)
+			}
+			if deriv {
 				q = fmt.Sprintf("idelta(%s)", q)
+			}
+			if cumul {
+				q = fmt.Sprintf("prefix_sum(%s)", q)
 			}
 			q = fmt.Sprintf("label_replace(%s,%q,%q,%q,%q)", q, "__name__", name.String(), "__name__", ".*")
 			res = append(res, q)

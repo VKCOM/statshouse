@@ -31,7 +31,7 @@ var reductionRules = [][]reductionRuleFunc{
 	{reduceAggregateExpr, reduceSubQueryExpr, reduceOverTimeCall},
 }
 
-func evalReductionRules(s *parser.VectorSelector, nodes []parser.Node, step int64) (res reduction, ok bool) {
+func evalReductionRules(sel *parser.VectorSelector, nodes []parser.Node, step int64) (res reduction, ok bool) {
 	var (
 		depth int
 		curr  = make([]reduction, len(reductionRules))
@@ -39,7 +39,7 @@ func evalReductionRules(s *parser.VectorSelector, nodes []parser.Node, step int6
 	)
 	for i := range curr {
 		curr[i].rule = i
-		curr[i].what = s.What
+		curr[i].what = sel.What
 	}
 	for i := len(nodes); i != 0 && len(curr) != 0; i-- {
 		// skip parentheses
@@ -141,9 +141,9 @@ func reduceAggregateExpr(r *reduction, e parser.Expr, _ int64) bool {
 	case parser.MAX:
 		what = Max
 	case parser.SUM:
-		what = SumSec
+		what = Sum
 	case parser.COUNT:
-		what = CountSec
+		what = Count
 	default:
 		return false
 	}
@@ -157,11 +157,8 @@ func reduceAggregateExpr(r *reduction, e parser.Expr, _ int64) bool {
 }
 
 func reduceWhat(a, b string) (string, bool) {
-	if a == "" || a == SumSec && b == Sum || a == CountSec && b == Count {
+	if a == b {
 		return b, true
-	}
-	if a == b || a == Sum && b == SumSec || a == Count && b == CountSec {
-		return a, true
 	}
 	return a, false
 }
