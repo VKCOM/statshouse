@@ -93,6 +93,7 @@ const (
 	paramTabNumber    = "tn"
 	paramMaxHost      = "mh"
 	paramFromRow      = "fr"
+	paramPromQuery    = "q"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -107,7 +108,6 @@ const (
 	maxTagValues  = 100_000
 	maxSeriesRows = 10_000_000
 	maxTableRows  = 10_000
-
 	maxTimeShifts = 10
 	maxFunctions  = 10
 
@@ -322,6 +322,7 @@ type (
 		DebugQueries []string   `json:"__debug_queries"` // private, unstable: SQL queries executed
 	}
 
+
 	getRenderReq struct {
 		ai           accessInfo
 		getQueryReq  []getQueryReq
@@ -481,6 +482,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		accessManager:         &accessManager{metricStorage.GetGroupByMetricName},
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
+
 	h.cache = newTSCacheGroup(approxCacheMaxSize, lodTables, h.utcOffset, h.loadPoints, cacheDefaultDropEvery)
 	h.pointsCache = newPointsCache(approxCacheMaxSize, h.utcOffset, h.loadPoint, time.Now)
 	go h.invalidateLoop()
@@ -521,6 +523,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		writeActiveQuieries(chV2, "2")
 	})
 	h.promEngine = promql.NewEngine(h, location)
+
 	return h, nil
 }
 
@@ -1762,41 +1765,24 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 			}
 			// TODO - show badge if some heuristics on # of contributors is triggered
 			// if format.IsValueCodeZero(metric) && meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeContributors)) {
-			//	sumContributors := sumSeries(respIngestion.Rows.SeriesData[i], 0)
-			//	fmt.Printf("contributors sum %f\n", sumContributors)
-			// }
-		}
-	}
-	// Add badges
-	if qry.verbose && err == nil && badges != nil && len(badges.Series.Time) > 0 {
-		for i, meta := range badges.Series.SeriesMeta {
-			if meta.Tags["key2"].Value == qry.metricWithNamespace {
-				badgeType := meta.Tags["key1"].Value
-				switch {
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor)):
-					res.SamplingFactorSrc = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor)):
-					res.SamplingFactorAgg = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld)):
-					res.ReceiveErrorsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld)):
-					res.MappingFloodEventsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors)):
-					res.ReceiveErrors = sumSeries(badges.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors)):
-					res.MappingErrors = sumSeries(badges.Series.SeriesData[i], 0)
-				}
-			}
-			// TODO - show badge if some heuristics on # of contributors is triggered
-			// if format.IsValueCodeZero(metric) && meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeContributors)) {
 			//	sumContributors := sumSeries(respIngestion.Series.SeriesData[i], 0)
 			//	fmt.Printf("contributors sum %f\n", sumContributors)
 			// }
 		}
 	}
-	cache, cacheStale := queryClientCacheDuration(to.Before(time.Now().Add(invalidateFrom)))
-	respondJSON(w, res, cache, cacheStale, err, h.verbose, ai.user, sl)
+
+	switch {
+	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
+		exportCSV(w, resp, metricWithNamespace, sl)
+	default:
+		cache, cacheStale := queryClientCacheDuration(immutable)
+		respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
+	}
+	if resp.DebugPromQLTestFailed {
+		log.Printf("promqltestfailed %q %s", r.RequestURI, resp.PromQL)
+	}
 }
+
 
 func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 	sl := newEndpointStat(EndpointTable, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
@@ -1864,6 +1850,106 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 		cache, cacheStale := queryClientCacheDuration(immutable)
 		respondJSON(w, respTable, cache, cacheStale, err, h.verbose, ai.user, sl)
 	}
+}
+
+
+func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStat(EndpointQuery, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	ai, ok := h.parseAccessToken(w, r, sl)
+	if !ok {
+		return
+	}
+	_ = r.ParseForm()
+	from, to, err := parseFromTo(r.FormValue(ParamFromTime), r.FormValue(ParamToTime))
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	width, widthKind, err := parseWidth(r.FormValue(ParamWidth), r.FormValue(ParamWidthAgg))
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	_, avoidCache := r.Form[ParamAvoidCache]
+	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	defer cancel()
+	var g *errgroup.Group
+	g, ctx = errgroup.WithContext(ctx)
+	var (
+		metricName  string
+		res, badges GetQueryResp
+		cleanup     func()
+		queryBadges = func(name string) {
+			metricName = name
+			g.Go(func() error {
+				res2, _, err2 := h.handleGetQuery(ctx, false, getQueryReq{
+					ai:                  ai.withBadgesRequest(),
+					version:             Version2,
+					numResults:          "20",
+					metricWithNamespace: format.BuiltinMetricNameBadges,
+					from:                r.FormValue(ParamFromTime),
+					to:                  r.FormValue(ParamToTime),
+					width:               r.FormValue(ParamWidth),
+					widthAgg:            r.FormValue(ParamWidthAgg),
+					what:                []string{ParamQueryFnCountNorm, ParamQueryFnAvg},
+					by:                  []string{"key1", "key2"},
+					filterIn:            map[string][]string{"key2": {metricName, format.AddRawValuePrefix("0")}},
+				})
+				if err2 != nil {
+					return err2
+				}
+				badges = *res2
+				return nil
+			})
+		}
+	)
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+	defer h.freeQueryResp(&badges)
+	g.Go(func() error {
+		var (
+			err2 error
+			ctx2 = context.WithValue(ctx, accessInfoKey, &ai) // to check access rights when querying series
+		)
+		res, cleanup, err2 = h.evalPromqlExpr(ctx2, r.FormValue(paramPromQuery), r.FormValue(ParamVersion), from, to, time.Now(), width, widthKind, avoidCache, queryBadges)
+		return err2
+	})
+	err = g.Wait()
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	if len(badges.Series.Time) > 0 {
+		for i, meta := range badges.Series.SeriesMeta {
+			if meta.Tags["key2"].Value == qry.metricWithNamespace {
+				badgeType := meta.Tags["key1"].Value
+				switch {
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor)):
+					res.SamplingFactorSrc = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor)):
+					res.SamplingFactorAgg = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld)):
+					res.ReceiveErrorsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld)):
+					res.MappingFloodEventsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors)):
+					res.ReceiveErrors = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors)):
+					res.MappingErrors = sumSeries(badges.Series.SeriesData[i], 0)
+				}
+			}
+			// TODO - show badge if some heuristics on # of contributors is triggered
+			// if format.IsValueCodeZero(metric) && meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeContributors)) {
+			//	sumContributors := sumSeries(respIngestion.Series.SeriesData[i], 0)
+			//	fmt.Printf("contributors sum %f\n", sumContributors)
+			// }
+		}
+	}
+	cache, cacheStale := queryClientCacheDuration(to.Before(time.Now().Add(invalidateFrom)))
+	respondJSON(w, res, cache, cacheStale, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) freeQueryResp(resp *GetQueryResp) {
@@ -1944,7 +2030,31 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 	if version == Version1 {
 		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
 	}
-
+	var (
+		now         = time.Now()
+		testPromql  bool
+		promqlGroup errgroup.Group
+		promqlExpr  string
+		promqlRes   GetQueryResp
+	)
+	if req.ai.bitDeveloper && req.metricWithNamespace != format.BuiltinMetricNameBadges {
+		testPromql = true
+		promqlExpr = getPromQuery(req)
+		var cleanup func()
+		promqlGroup.Go(func() error {
+			var (
+				err2 error
+				ctx2 = context.WithValue(ctx, accessInfoKey, &req.ai) // to check access rights when querying series
+			)
+			promqlRes, cleanup, err2 = h.evalPromqlExpr(ctx2, promqlExpr, version, from, to, now, width, widthKind, false, nil)
+			return err2
+		})
+		defer func() {
+			if cleanup != nil {
+				cleanup()
+			}
+		}()
+	}
 	lods := selectQueryLODs(
 		version,
 		int64(metricMeta.PreKeyFrom),
@@ -2090,7 +2200,6 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				sortedIxs = append(sortedIxs, i)
 			}
 
-			//todo fix
 			if numResultsPerShift > 0 {
 				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand)
 				if len(sortedIxs) > numResultsPerShift {
@@ -2460,6 +2569,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 	}
 	return resp, immutable, nil
 }
+
 
 func (h *Handler) handleGetTable(ctx context.Context, debugQueries bool, req getQueryReq) (resp *GetTableResp, immutable bool, err error) {
 	version, err := parseVersion(req.version)
@@ -3379,4 +3489,104 @@ func greaterOrEqualsThan(l RowFrom, r tsSelectRow, skey string) bool {
 		}
 	}
 	return l.SKey >= skey
+}
+
+
+func (h *Handler) evalPromqlExpr(ctx context.Context, ai accessInfo, expr string, from, to, now time.Time, width, widthKind int, cb func(string)) (res GetQueryResp, cleanup func(), err error) {
+	var (
+		metricName string
+		options    = promql.Options{
+			TimeNow:             now.Unix(),
+			ExpandToLODBoundary: true,
+			TagOffset:           true,
+			TagTotal:            true,
+			CanonicalTagNames:   true,
+			ExprQueriesSingleMetricCallback: func(metric *format.MetricMetaValue) {
+				metricName = metric.Name
+				if cb != nil {
+					cb(metricName)
+				}
+			},
+		}
+		parserV parser.Value
+	)
+	if widthKind == widthAutoRes {
+		options.StepAuto = true
+	}
+	parserV, cleanup, err = h.promEngine.Exec(
+		context.WithValue(ctx, accessInfoKey, &ai), // to check access rights when querying series
+		promql.Query{
+			Start:   from.Unix(),
+			End:     to.Unix(),
+			Step:    int64(width),
+			Expr:    expr,
+			Options: options,
+		})
+	if err != nil {
+		return GetQueryResp{}, nil, err
+	}
+	bag, ok := parserV.(*promql.SeriesBag)
+	if !ok {
+		err = fmt.Errorf("string literals are not supported")
+		return GetQueryResp{}, nil, err
+	}
+	res = GetQueryResp{Series: querySeries{Time: bag.Time, SeriesData: bag.Data}}
+	for i, s := range bag.Meta {
+		what, _ := validQueryFn(s.GetMetricName())
+		meta := QuerySeriesMetaV2{
+			Name:      metricName,
+			What:      what,
+			MaxHosts:  bag.GetSMaxHosts(i, h),
+			TimeShift: -s.GetOffset(),
+			Total:     s.GetTotal(),
+		}
+		s.DropMetricName()
+		meta.Tags = make(map[string]SeriesMetaTag, len(s.STags))
+		for name, v := range s.STags {
+			tag := SeriesMetaTag{Value: v}
+			if s.Metric != nil {
+				if t, tok := s.Metric.Name2Tag[name]; tok {
+					tag.Comment = t.ValueComments[tag.Value]
+					tag.Raw = t.Raw
+					tag.RawKind = t.RawKind
+				}
+			}
+			meta.Tags[name] = tag
+		}
+		res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
+	}
+	return res, cleanup, nil
+}
+
+func getQueryRespEqual(a, b *GetQueryResp) bool {
+	if len(a.Series.SeriesMeta) != len(b.Series.SeriesMeta) {
+		return false
+	}
+	if len(a.Series.SeriesData) != len(b.Series.SeriesData) {
+		return false
+	}
+	for i := 0; i < len(a.Series.SeriesData); i++ {
+		var j int
+		for ; j < len(b.Series.SeriesMeta); j++ {
+			if reflect.DeepEqual(a.Series.SeriesMeta[i], b.Series.SeriesMeta[j]) {
+				break
+			}
+		}
+		if j == len(b.Series.SeriesMeta) {
+			return false
+		}
+		if len(*a.Series.SeriesData[i]) != len(*b.Series.SeriesData[j]) {
+			return false
+		}
+		for k := 0; k < len(*a.Series.SeriesData[i]); k++ {
+			var (
+				v1 = (*a.Series.SeriesData[i])[k]
+				v2 = (*b.Series.SeriesData[j])[k]
+			)
+			if !math.IsNaN(v1) && !math.IsNaN(v2) && math.Abs(v1-v2) > 0.0001 {
+				return false
+			}
+		}
+	}
+	return true
 }
