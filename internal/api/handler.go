@@ -318,10 +318,10 @@ type (
 	GetTableResp struct {
 		Rows         []queryRow `json:"rows"`
 		FromRow      string     `json:"from_row"`
+		ToRow        string     `json:"to_row"`
 		HasMore      bool       `json:"has_more"`
 		DebugQueries []string   `json:"__debug_queries"` // private, unstable: SQL queries executed
 	}
-
 
 	getRenderReq struct {
 		ai           accessInfo
@@ -1783,7 +1783,6 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
 func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 	sl := newEndpointStat(EndpointTable, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
 	ai, ok := h.parseAccessToken(w, r, sl)
@@ -1851,7 +1850,6 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, respTable, cache, cacheStale, err, h.verbose, ai.user, sl)
 	}
 }
-
 
 func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 	sl := newEndpointStat(EndpointQuery, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
@@ -2219,7 +2217,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				for j := 0; j < format.MaxTags; j++ {
 					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(j), tags.tag[j])
 				}
-				h.maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
+				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 
 				ts := h.getFloatsSlice(len(allTimes))
 				syncPoolBuffers = append(syncPoolBuffers, ts)
@@ -2570,7 +2568,6 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 	return resp, immutable, nil
 }
 
-
 func (h *Handler) handleGetTable(ctx context.Context, debugQueries bool, req getQueryReq) (resp *GetTableResp, immutable bool, err error) {
 	version, err := parseVersion(req.version)
 	if err != nil {
@@ -2591,6 +2588,8 @@ func (h *Handler) handleGetTable(ctx context.Context, debugQueries bool, req get
 	if err != nil {
 		return nil, false, err
 	}
+
+	pastRequest := to.Before(from)
 
 	width, widthKind, err := parseWidth(req.width, req.widthAgg)
 	if err != nil {
@@ -2645,7 +2644,8 @@ func (h *Handler) handleGetTable(ctx context.Context, debugQueries bool, req get
 	}
 
 	queryRows := []queryRow{}
-	var lastRow RowFrom
+	fromRowIsDefined := req.fromRow.Time > 0
+	var firstRow, lastRow RowFrom
 	hasMore := false
 loop:
 	for _, q := range queries {
@@ -2684,7 +2684,19 @@ loop:
 			}
 
 			for _, rows := range m {
-				for i := range rows {
+				i := 0
+				if fromRowIsDefined {
+					i = sort.Search(len(rows), func(i int) bool {
+						return !greaterOrEqualsThan(req.fromRow, rows[i], skeyFromFixedString(&rows[i].tsTags.tagStr))
+					})
+					if pastRequest {
+						i -= maxTableRows
+						if i < 0 {
+							i = 0
+						}
+					}
+				}
+				for ; i < len(rows); i++ {
 					lastRow.Time = rows[i].time
 					lastRow.Tags = lastRow.Tags[:0]
 					tags := &rows[i].tsTags
@@ -2699,10 +2711,12 @@ loop:
 							})
 						}
 					}
-					skey := h.maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
+					skey := maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 					lastRow.SKey = skey
-					if req.fromRow.Time > 0 && greaterOrEqualsThan(req.fromRow, rows[i], skey) {
-						continue
+					if firstRow.Time == 0 {
+						firstRow.Time = lastRow.Time
+						firstRow.SKey = skey
+						firstRow.Tags = append(firstRow.Tags, lastRow.Tags...)
 					}
 					data := selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i])
 					queryRows = append(queryRows, queryRow{
@@ -2719,19 +2733,25 @@ loop:
 			}
 		}
 	}
-	var fromRow string
+	var firstRowStr, lastRowStr string
 	if len(queryRows) > 0 {
 		var jsonBytes []byte
 		jsonBytes, err = json.Marshal(&lastRow)
 		if err != nil {
 			return nil, false, err
 		}
-		fromRow = base64.RawURLEncoding.EncodeToString(jsonBytes)
+		lastRowStr = base64.RawURLEncoding.EncodeToString(jsonBytes)
+		jsonBytes, err = json.Marshal(&firstRow)
+		if err != nil {
+			return nil, false, err
+		}
+		firstRowStr = base64.RawURLEncoding.EncodeToString(jsonBytes)
 	}
 	immutable = to.Before(time.Now().Add(invalidateFrom))
 	return &GetTableResp{
 		Rows:         queryRows,
-		FromRow:      fromRow,
+		FromRow:      firstRowStr,
+		ToRow:        lastRowStr,
 		HasMore:      hasMore,
 		DebugQueries: sqlQueries,
 	}, immutable, nil
@@ -3155,7 +3175,17 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	return row
 }
 
-func (h *Handler) maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, tagName string, tagValuePtr *stringFixed) string {
+func maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, tagName string, tagValuePtr *stringFixed) string {
+	tagValue := skeyFromFixedString(tagValuePtr)
+
+	if containsString(by, tagName) {
+		m[tagName] = SeriesMetaTag{Value: emptyToUnspecified(tagValue), isSkey: true}
+		return tagValue
+	}
+	return ""
+}
+
+func skeyFromFixedString(tagValuePtr *stringFixed) string {
 	tagValue := ""
 	nullIx := bytes.IndexByte(tagValuePtr[:], 0)
 	switch nullIx {
@@ -3165,12 +3195,7 @@ func (h *Handler) maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, 
 	default:
 		tagValue = string(tagValuePtr[:nullIx])
 	}
-
-	if containsString(by, tagName) {
-		m[tagName] = SeriesMetaTag{Value: emptyToUnspecified(tagValue), isSkey: true}
-		return tagValue
-	}
-	return ""
+	return tagValue
 }
 
 func replaceInfNan(v *float64) {
@@ -3488,9 +3513,9 @@ func greaterOrEqualsThan(l RowFrom, r tsSelectRow, skey string) bool {
 			return lv > rv
 		}
 	}
+
 	return l.SKey >= skey
 }
-
 
 func (h *Handler) evalPromqlExpr(ctx context.Context, ai accessInfo, expr string, from, to, now time.Time, width, widthKind int, cb func(string)) (res GetQueryResp, cleanup func(), err error) {
 	var (

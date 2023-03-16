@@ -1177,6 +1177,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer
 			}
 		case "from_row":
 			out.FromRow = string(in.String())
+		case "to_row":
+			out.ToRow = string(in.String())
 		case "has_more":
 			out.HasMore = bool(in.Bool())
 		case "__debug_queries":
@@ -1236,6 +1238,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 		const prefix string = ",\"from_row\":"
 		out.RawString(prefix)
 		out.String(string(in.FromRow))
+	}
+	{
+		const prefix string = ",\"to_row\":"
+		out.RawString(prefix)
+		out.String(string(in.ToRow))
 	}
 	{
 		const prefix string = ",\"has_more\":"
@@ -1597,7 +1604,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(in *jlexer.Lexer
 				in.Delim('[')
 				if out.SeriesMeta == nil {
 					if !in.IsDelim(']') {
-						out.SeriesMeta = make([]QuerySeriesMetaV2, 0, 1)
+						out.SeriesMeta = make([]QuerySeriesMetaV2, 0, 0)
 					} else {
 						out.SeriesMeta = []QuerySeriesMetaV2{}
 					}
