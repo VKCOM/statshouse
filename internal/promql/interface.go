@@ -89,6 +89,14 @@ type SeriesQuery struct {
 	Options Options
 }
 
+type TagValuesQuery struct {
+	Version string
+	Meta    *format.MetricMetaValue
+	Start   int64
+	End     int64
+	TagX    int
+}
+
 type Handler interface {
 	//
 	// # Tag mapping
@@ -102,15 +110,15 @@ type Handler interface {
 	//
 
 	MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, []string, error)
-	GetQueryLODs(qry Query, maxOffset map[*format.MetricMetaValue]int64, now int64) ([]LOD, error)
+	GetQueryLODs(qry Query, maxOffset map[*format.MetricMetaValue]int64) []LOD
 
 	//
 	// # Storage
 	//
 
 	QuerySeries(ctx context.Context, qry *SeriesQuery) (SeriesBag, func(), error)
-	QueryTagValues(ctx context.Context, metric *format.MetricMetaValue, tagX int, from, to int64) ([]int32, error)
-	QuerySTagValues(ctx context.Context, metric *format.MetricMetaValue, from, to int64) ([]string, error)
+	QueryTagValues(ctx context.Context, qry TagValuesQuery) ([]int32, error)
+	QuerySTagValues(ctx context.Context, qry TagValuesQuery) ([]string, error)
 
 	//
 	// # Allocator

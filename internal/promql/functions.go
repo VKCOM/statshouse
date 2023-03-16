@@ -304,6 +304,7 @@ func init() {
 		"ln":                 simpleCall(math.Log),
 		"log2":               simpleCall(math.Log2),
 		"log10":              simpleCall(math.Log10),
+		"lod_step_sec":       funcLODStepSec,
 		"minute":             timeCall(time.Time.Minute),
 		"month":              timeCall(time.Time.Month),
 		"predict_linear":     funcPredictLinear,
@@ -899,6 +900,20 @@ func funcLabelReplace(ctx context.Context, ev *evaluator, args parser.Expression
 		}
 	}
 	return bag, nil
+}
+
+func funcLODStepSec(_ context.Context, ev *evaluator, _ parser.Expressions) (SeriesBag, error) {
+	var (
+		i   int
+		row = ev.alloc()
+	)
+	for _, v := range ev.lods {
+		for j := 0; j < int(v.Len); j++ {
+			(*row)[i] = float64(v.Step)
+			i++
+		}
+	}
+	return SeriesBag{Time: ev.time, Data: []*[]float64{row}}, nil
 }
 
 func funcPredictLinear(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {

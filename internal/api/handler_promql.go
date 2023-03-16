@@ -285,43 +285,59 @@ func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]
 	return s1, s2, nil
 }
 
-func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMetaValue]int64, now int64) ([]promql.LOD, error) {
-	if len(maxOffset) == 0 {
-		return nil, nil
-	}
+func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMetaValue]int64) []promql.LOD {
 	var widthKind int
 	if qry.Options.StepAuto {
 		widthKind = widthAutoRes
 	} else {
 		widthKind = widthLODRes
 	}
-	s := make([][]promql.LOD, 0, len(maxOffset))
-	for metric, offset := range maxOffset {
+	getLODs := func(metric *format.MetricMetaValue, offset int64) []promql.LOD {
+		var (
+			preKeyFrom int64
+			resolution int
+			stringTop  bool
+		)
+		if metric != nil {
+			preKeyFrom = int64(metric.PreKeyFrom)
+			resolution = metric.Resolution
+			stringTop = metric.StringTopDescription != ""
+		}
 		lods := selectQueryLODs(
-			Version2,
-			int64(metric.PreKeyFrom),
-			metric.Resolution,
+			promqlVersionOrDefault(qry.Options.Version),
+			preKeyFrom,
+			resolution,
 			false,
-			metric.StringTopDescription != "",
-			now,
+			stringTop,
+			qry.Options.TimeNow,
 			shiftTimestamp(qry.Start, 1, -offset, h.location),
 			shiftTimestamp(qry.End, 1, -offset, h.location),
 			h.utcOffset,
 			int(qry.Step),
 			widthKind,
 			h.location)
-		if len(lods) != 0 {
-			intervals := make([]promql.LOD, 0, len(lods))
-			for _, lod := range lods {
-				intervals = append(intervals, promql.LOD{Len: (lod.toSec - lod.fromSec) / lod.stepSec, Step: lod.stepSec})
-			}
-			s = append(s, intervals)
+		if len(lods) == 0 {
+			return nil
+		}
+		res := make([]promql.LOD, 0, len(lods))
+		for _, lod := range lods {
+			res = append(res, promql.LOD{Len: (lod.toSec - lod.fromSec) / lod.stepSec, Step: lod.stepSec})
+		}
+		return res
+	}
+	if len(maxOffset) == 0 {
+		return getLODs(nil, 0)
+	}
+	res := make([][]promql.LOD, 0, len(maxOffset))
+	for metric, offset := range maxOffset {
+		if s := getLODs(metric, offset); len(s) != 0 {
+			res = append(res, s)
 		}
 	}
-	if len(s) == 0 {
-		return nil, nil
+	if len(res) == 0 {
+		return nil
 	}
-	slices.SortFunc(s, func(a, b []promql.LOD) bool {
+	slices.SortFunc(res, func(a, b []promql.LOD) bool {
 		d := a[0].Step - b[0].Step
 		if d == 0 {
 			return a[0].Len > b[0].Len
@@ -329,7 +345,7 @@ func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMet
 			return d > 0
 		}
 	})
-	return s[0], nil
+	return res[0]
 }
 
 func (h *Handler) GetTagValue(id int32) string {
@@ -351,6 +367,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 		return promql.SeriesBag{}, func() {}, nil
 	}
 	var (
+		version       = promqlVersionOrDefault(qry.Options.Version)
 		what, qs, pq  = getHandlerArgs(qry, ai)
 		lods, timeLen = getHandlerLODs(qry, h.location)
 		data, buffers []*[]float64
@@ -364,7 +381,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 		tx int // time index
 	)
 	for _, lod := range lods {
-		m, err := h.cache.Get(ctx, Version2, qs, &pq, lod, false)
+		m, err := h.cache.Get(ctx, version, qs, &pq, lod, qry.Options.AvoidCache)
 		if err != nil {
 			cleanup()
 			return promql.SeriesBag{}, nil, err
@@ -436,31 +453,34 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	return promql.SeriesBag{Data: data, Meta: meta, MaxHost: maxHost}, cleanup, nil
 }
 
-func (h *Handler) QueryTagValues(ctx context.Context, metric *format.MetricMetaValue, tagX int, from, to int64) ([]int32, error) {
+func (h *Handler) QueryTagValues(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
 		return nil, fmt.Errorf("tag not found")
 	}
-	lods := selectTagValueLODs(
-		Version2,
-		int64(metric.PreKeyFrom),
-		metric.Resolution,
-		false,
-		metric.StringTopDescription != "",
-		time.Now().Unix(),
-		from,
-		to,
-		h.utcOffset,
-		h.location,
+	var (
+		version = promqlVersionOrDefault(qry.Version)
+		lods    = selectTagValueLODs(
+			version,
+			int64(qry.Meta.PreKeyFrom),
+			qry.Meta.Resolution,
+			false,
+			qry.Meta.StringTopDescription != "",
+			time.Now().Unix(),
+			qry.Start,
+			qry.End,
+			h.utcOffset,
+			h.location,
+		)
+		pq = &preparedTagValuesQuery{
+			version:     version,
+			metricID:    qry.Meta.MetricID,
+			preKeyTagID: qry.Meta.PreKeyTagID,
+			tagID:       format.TagID(qry.TagX),
+			numResults:  math.MaxInt - 1,
+		}
+		tags = make(map[int32]bool)
 	)
-	pq := &preparedTagValuesQuery{
-		version:     Version2,
-		metricID:    metric.MetricID,
-		preKeyTagID: metric.PreKeyTagID,
-		tagID:       format.TagID(tagX),
-		numResults:  math.MaxInt - 1,
-	}
-	tags := make(map[int32]bool)
 	for _, lod := range lods {
 		body, args, err := tagValuesQuery(pq, lod)
 		if err != nil {
@@ -488,31 +508,34 @@ func (h *Handler) QueryTagValues(ctx context.Context, metric *format.MetricMetaV
 	return res, nil
 }
 
-func (h *Handler) QuerySTagValues(ctx context.Context, metric *format.MetricMetaValue, from, to int64) ([]string, error) {
+func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery) ([]string, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
 		return nil, fmt.Errorf("tag not found")
 	}
-	lods := selectTagValueLODs(
-		Version2,
-		int64(metric.PreKeyFrom),
-		metric.Resolution,
-		false,
-		metric.StringTopDescription != "",
-		time.Now().Unix(),
-		from,
-		to,
-		h.utcOffset,
-		h.location,
+	var (
+		version = promqlVersionOrDefault(qry.Version)
+		lods    = selectTagValueLODs(
+			version,
+			int64(qry.Meta.PreKeyFrom),
+			qry.Meta.Resolution,
+			false,
+			qry.Meta.StringTopDescription != "",
+			time.Now().Unix(),
+			qry.Start,
+			qry.End,
+			h.utcOffset,
+			h.location,
+		)
+		pq = &preparedTagValuesQuery{
+			version:     version,
+			metricID:    qry.Meta.MetricID,
+			preKeyTagID: qry.Meta.PreKeyTagID,
+			tagID:       format.StringTopTagID,
+			numResults:  math.MaxInt - 1,
+		}
+		tags = make(map[string]bool)
 	)
-	pq := &preparedTagValuesQuery{
-		version:     Version2,
-		metricID:    metric.MetricID,
-		preKeyTagID: metric.PreKeyTagID,
-		tagID:       format.StringTopTagID,
-		numResults:  math.MaxInt - 1,
-	}
-	tags := make(map[string]bool)
 	for _, lod := range lods {
 		body, args, err := tagValuesQuery(pq, lod)
 		if err != nil {
@@ -615,7 +638,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 	qs := normalizedQueryString(qry.Meta.Name, kind, qry.GroupBy, filterIn, filterOut)
 	pq := preparedPointsQuery{
 		user:        ai.user,
-		version:     Version2,
+		version:     promqlVersionOrDefault(qry.Options.Version),
 		metricID:    qry.Meta.MetricID,
 		preKeyTagID: qry.Meta.PreKeyTagID,
 		isStringTop: qry.Meta.StringTopDescription != "",
@@ -813,7 +836,7 @@ func getPromQuery(req getQueryReq) string {
 			}
 			q = fmt.Sprintf("topk(%s,%s)", req.numResults, q)
 			if norm {
-				q = fmt.Sprintf("irate(prefix_sum(%s))", q)
+				q = fmt.Sprintf("(%s/lod_step_sec())", q)
 			}
 			if deriv {
 				q = fmt.Sprintf("idelta(%s)", q)
@@ -827,4 +850,11 @@ func getPromQuery(req getQueryReq) string {
 		}
 	}
 	return strings.Join(res, " or ")
+}
+
+func promqlVersionOrDefault(version string) string {
+	if len(version) != 0 {
+		return version
+	}
+	return Version2
 }
