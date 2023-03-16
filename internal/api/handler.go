@@ -94,6 +94,7 @@ const (
 	paramMaxHost      = "mh"
 	paramFromRow      = "fr"
 	paramPromQuery    = "q"
+	paramFromEnd      = "fe"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -294,6 +295,7 @@ type (
 		maxHost                 bool
 		avoidCache              bool
 
+		fromEnd bool
 		fromRow RowFrom
 	}
 
@@ -1813,6 +1815,7 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
 	}
 	_, maxHost := r.Form[paramMaxHost]
+	_, fromEnd := r.Form[paramFromEnd]
 	getQuery := func(ctx context.Context) (*GetTableResp, bool, error) {
 		resp, immutable, err := h.handleGetTable(
 			ctx,
@@ -1832,6 +1835,7 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 				avoidCache:          avoidCache,
 				maxHost:             maxHost,
 				fromRow:             fromRow,
+				fromEnd:             fromEnd,
 			})
 		if h.verbose && err == nil {
 			log.Printf("[debug] handled query (%v rows) for %q in %v", len(resp.Rows), ai.user, time.Since(sl.startTime))
@@ -2589,8 +2593,6 @@ func (h *Handler) handleGetTable(ctx context.Context, debugQueries bool, req get
 		return nil, false, err
 	}
 
-	pastRequest := to.Before(from)
-
 	width, widthKind, err := parseWidth(req.width, req.widthAgg)
 	if err != nil {
 		return nil, false, err
@@ -2643,7 +2645,7 @@ func (h *Handler) handleGetTable(ctx context.Context, debugQueries bool, req get
 		ctx = debugQueriesContext(ctx, &sqlQueries)
 	}
 
-	queryRows := []queryRow{}
+	var queryRows []queryRow
 	fromRowIsDefined := req.fromRow.Time > 0
 	var firstRow, lastRow RowFrom
 	hasMore := false
@@ -2685,18 +2687,20 @@ loop:
 
 			for _, rows := range m {
 				i := 0
+				n := len(rows)
 				if fromRowIsDefined {
 					i = sort.Search(len(rows), func(i int) bool {
-						return !greaterOrEqualsThan(req.fromRow, rows[i], skeyFromFixedString(&rows[i].tsTags.tagStr))
+						return lessThan(req.fromRow, rows[i], skeyFromFixedString(&rows[i].tsTags.tagStr), req.fromEnd)
 					})
-					if pastRequest {
+					if req.fromEnd {
+						n = i
 						i -= maxTableRows
 						if i < 0 {
 							i = 0
 						}
 					}
 				}
-				for ; i < len(rows); i++ {
+				for ; i < n; i++ {
 					lastRow.Time = rows[i].time
 					lastRow.Tags = lastRow.Tags[:0]
 					tags := &rows[i].tsTags
@@ -3502,19 +3506,21 @@ func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale t
 	return queryClientCache, queryClientCacheStale
 }
 
-func greaterOrEqualsThan(l RowFrom, r tsSelectRow, skey string) bool {
+func lessThan(l RowFrom, r tsSelectRow, skey string, orEq bool) bool {
 	if l.Time != r.time {
-		return l.Time > r.time
+		return l.Time < r.time
 	}
 	for i := range l.Tags {
 		lv := l.Tags[i].Value
 		rv := r.tag[l.Tags[i].KeyNumber]
 		if lv != rv {
-			return lv > rv
+			return lv < rv
 		}
 	}
-
-	return l.SKey >= skey
+	if orEq {
+		return l.SKey <= skey
+	}
+	return l.SKey < skey
 }
 
 func (h *Handler) evalPromqlExpr(ctx context.Context, ai accessInfo, expr string, from, to, now time.Time, width, widthKind int, cb func(string)) (res GetQueryResp, cleanup func(), err error) {
