@@ -1553,6 +1553,7 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
+	_, avoidCache := r.Form[ParamAvoidCache]
 	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
 	defer cancel()
 	var g *errgroup.Group
@@ -1592,8 +1593,11 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 	}()
 	defer h.freeQueryResp(&badges)
 	g.Go(func() error {
-		var err2 error
-		res, cleanup, err2 = h.evalPromqlExpr(ctx, ai, r.FormValue(paramPromQuery), from, to, time.Now(), width, widthKind, queryBadges)
+		var (
+			err2 error
+			ctx2 = context.WithValue(ctx, accessInfoKey, &ai) // to check access rights when querying series
+		)
+		res, cleanup, err2 = h.evalPromqlExpr(ctx2, r.FormValue(paramPromQuery), r.FormValue(ParamVersion), from, to, time.Now(), width, widthKind, avoidCache, queryBadges)
 		return err2
 	})
 	err = g.Wait()
@@ -1717,8 +1721,11 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		promqlExpr = getPromQuery(req)
 		var cleanup func()
 		promqlGroup.Go(func() error {
-			var err2 error
-			promqlRes, cleanup, err2 = h.evalPromqlExpr(ctx, req.ai, promqlExpr, from, to, now, width, widthKind, nil)
+			var (
+				err2 error
+				ctx2 = context.WithValue(ctx, accessInfoKey, &req.ai) // to check access rights when querying series
+			)
+			promqlRes, cleanup, err2 = h.evalPromqlExpr(ctx2, promqlExpr, version, from, to, now, width, widthKind, false, nil)
 			return err2
 		})
 		defer func() {
@@ -2592,10 +2599,12 @@ func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale t
 	return queryClientCache, queryClientCacheStale
 }
 
-func (h *Handler) evalPromqlExpr(ctx context.Context, ai accessInfo, expr string, from, to, now time.Time, width, widthKind int, cb func(string)) (res GetQueryResp, cleanup func(), err error) {
+func (h *Handler) evalPromqlExpr(ctx context.Context, expr string, version string, from, to, now time.Time, width, widthKind int, avoidCache bool, cb func(string)) (res GetQueryResp, cleanup func(), err error) {
 	var (
 		metricName string
 		options    = promql.Options{
+			Version:             version,
+			AvoidCache:          avoidCache,
 			TimeNow:             now.Unix(),
 			ExpandToLODBoundary: true,
 			TagOffset:           true,
@@ -2614,7 +2623,7 @@ func (h *Handler) evalPromqlExpr(ctx context.Context, ai accessInfo, expr string
 		options.StepAuto = true
 	}
 	parserV, cleanup, err = h.promEngine.Exec(
-		context.WithValue(ctx, accessInfoKey, &ai), // to check access rights when querying series
+		ctx,
 		promql.Query{
 			Start:   from.Unix(),
 			End:     to.Unix(),
@@ -2631,27 +2640,30 @@ func (h *Handler) evalPromqlExpr(ctx context.Context, ai accessInfo, expr string
 		return GetQueryResp{}, nil, err
 	}
 	res = GetQueryResp{Series: querySeries{Time: bag.Time, SeriesData: bag.Data}}
-	for i, s := range bag.Meta {
-		what, _ := validQueryFn(s.GetMetricName())
+	for i := range bag.Data {
 		meta := QuerySeriesMetaV2{
-			Name:      metricName,
-			What:      what,
-			MaxHosts:  bag.GetSMaxHosts(i, h),
-			TimeShift: -s.GetOffset(),
-			Total:     s.GetTotal(),
+			Name:     metricName,
+			Tags:     make(map[string]SeriesMetaTag),
+			MaxHosts: bag.GetSMaxHosts(i, h),
 		}
-		s.DropMetricName()
-		meta.Tags = make(map[string]SeriesMetaTag, len(s.STags))
-		for name, v := range s.STags {
-			tag := SeriesMetaTag{Value: v}
-			if s.Metric != nil {
-				if t, tok := s.Metric.Name2Tag[name]; tok {
-					tag.Comment = t.ValueComments[tag.Value]
-					tag.Raw = t.Raw
-					tag.RawKind = t.RawKind
+		if i < len(bag.Meta) {
+			s := bag.Meta[i]
+			meta.What, _ = validQueryFn(s.GetMetricName())
+			meta.TimeShift = -s.GetOffset()
+			meta.Total = s.GetTotal()
+			s.DropMetricName()
+			meta.Tags = make(map[string]SeriesMetaTag, len(s.STags))
+			for name, v := range s.STags {
+				tag := SeriesMetaTag{Value: v}
+				if s.Metric != nil {
+					if t, tok := s.Metric.Name2Tag[name]; tok {
+						tag.Comment = t.ValueComments[tag.Value]
+						tag.Raw = t.Raw
+						tag.RawKind = t.RawKind
+					}
 				}
+				meta.Tags[name] = tag
 			}
-			meta.Tags[name] = tag
 		}
 		res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
 	}
@@ -2683,7 +2695,12 @@ func getQueryRespEqual(a, b *GetQueryResp) bool {
 				v1 = (*a.Series.SeriesData[i])[k]
 				v2 = (*b.Series.SeriesData[j])[k]
 			)
-			if !math.IsNaN(v1) && !math.IsNaN(v2) && math.Abs(v1-v2) > 0.0001 {
+			if math.IsNaN(v1) && math.IsNaN(v2) {
+				continue
+			}
+			if !(math.Abs(v1-v2) < math.Max(math.Abs(v1), math.Abs(v2))/100) {
+				// difference is at least one percent!
+				// or one value is NaN
 				return false
 			}
 		}

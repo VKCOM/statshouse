@@ -27,14 +27,17 @@ const (
 )
 
 type Query struct {
-	Start   int64
-	End     int64
-	Step    int64
-	Expr    string
+	Start int64
+	End   int64
+	Step  int64
+	Expr  string
+
 	Options Options // StatsHouse specific
 }
 
-type Options struct {
+type Options struct { // if you add an option make sure that default Options{} make sense
+	Version             string
+	AvoidCache          bool
 	TimeNow             int64
 	StepAuto            bool
 	ExpandToLODBoundary bool
@@ -53,7 +56,6 @@ type Engine struct {
 type evaluator struct {
 	Engine
 
-	now int64
 	qry Query
 	ast parser.Expr
 	ars map[parser.Expr]parser.Expr // ast reductions
@@ -130,10 +132,8 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 		ba:     make(map[*[]float64]bool),
 		br:     make(map[*[]float64]bool),
 	}
-	if qry.Options.TimeNow != 0 {
-		ev.now = qry.Options.TimeNow
-	} else {
-		ev.now = time.Now().Unix()
+	if qry.Options.TimeNow == 0 {
+		qry.Options.TimeNow = time.Now().Unix()
 	}
 	ev.ast, err = parser.ParseExpr(qry.Expr)
 	if err != nil {
@@ -168,10 +168,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 	if qry.Step <= 0 {    // instant query case
 		qry.Step = 1
 	}
-	ev.lods, err = ng.h.GetQueryLODs(qry, maxOffset, ev.now)
-	if err != nil {
-		return ev, err
-	}
+	ev.lods = ng.h.GetQueryLODs(qry, maxOffset)
 	if len(ev.lods) == 0 {
 		ev.lods = []LOD{{Len: (qry.End-qry.Start)/qry.Step + 1, Step: qry.Step}}
 	}
@@ -889,7 +886,13 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 	if res, ok = m2[offset]; ok {
 		return res, nil
 	}
-	ids, err := ev.h.QueryTagValues(ctx, metric, tagX, ev.qry.Start, ev.qry.End)
+	ids, err := ev.h.QueryTagValues(ctx, TagValuesQuery{
+		ev.qry.Options.Version,
+		metric,
+		ev.qry.Start,
+		ev.qry.End,
+		tagX,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -921,7 +924,13 @@ func (ev *evaluator) getSTagValues(ctx context.Context, metric *format.MetricMet
 		return res, nil
 	}
 	var err error
-	res, err = ev.h.QuerySTagValues(ctx, metric, ev.qry.Start, ev.qry.End)
+	res, err = ev.h.QuerySTagValues(ctx, TagValuesQuery{
+		ev.qry.Options.Version,
+		metric,
+		ev.qry.Start,
+		ev.qry.End,
+		0,
+	})
 	if err == nil {
 		m[offset] = res
 	}
