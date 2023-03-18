@@ -9,6 +9,7 @@ package promql
 import (
 	"context"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -62,6 +63,7 @@ type evaluator struct {
 
 	lods []LOD
 	time []int64
+	from int64
 
 	// metric -> tag index -> offset -> tag value id -> tag value
 	tags map[*format.MetricMetaValue][]map[int64]map[int32]string
@@ -115,7 +117,9 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 			ev.cancel()
 			return nil, nil, err
 		}
-		if !qry.Options.ExpandToLODBoundary {
+		if qry.Options.ExpandToLODBoundary {
+			bag.trim(ev.from, math.MaxInt64)
+		} else {
 			bag.trim(qry.Start, qry.End)
 		}
 		ev.stringify(&bag)
@@ -143,8 +147,10 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 		ev.ast = l
 	}
 	// match metrics
-	maxOffset := make(map[*format.MetricMetaValue]int64)
-	var maxRange int64
+	var (
+		maxOffset = make(map[*format.MetricMetaValue]int64)
+		maxRange  int64
+	)
 	parser.Inspect(ev.ast, func(node parser.Node, _ []parser.Node) error {
 		switch e := node.(type) {
 		case *parser.VectorSelector:
@@ -163,35 +169,34 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 	if err != nil {
 		return ev, err
 	}
-	// lods, from and time
+	// calculate  lods
 	qry.Start -= maxRange // widen time range to accommodate range selectors
 	if qry.Step <= 0 {    // instant query case
 		qry.Step = 1
 	}
-	ev.lods = ng.h.GetQueryLODs(qry, maxOffset)
-	if len(ev.lods) == 0 {
-		ev.lods = []LOD{{Len: (qry.End-qry.Start)/qry.Step + 1, Step: qry.Step}}
-	}
-	timeLen := int64(0)
+	ev.lods, ev.from = ng.h.GetQueryLODs(qry, maxOffset)
+	// extend the interval by one from the left so that the
+	// derivative (if any) at the first point can be calculated
+	qry.Start = ev.from - ev.lods[0].Step
+	ev.lods[0].Len += 1
+	// calculate time grid
+	var timeLen int64
 	for _, v := range ev.lods {
 		timeLen += v.Len
 	}
-	var (
-		stepMax = ev.lods[0].Step
-		stepMin = ev.lods[len(ev.lods)-1].Step
-		from    = qry.Start / stepMax * stepMax
-		to      = from
-	)
+	qry.End = qry.Start
 	ev.time = make([]int64, 0, timeLen)
 	for _, v := range ev.lods {
 		for i := 0; i < int(v.Len); i++ {
-			ev.time = append(ev.time, to)
-			to += v.Step
+			ev.time = append(ev.time, qry.End)
+			qry.End += v.Step
 		}
 	}
-	qry.Start = from
-	qry.End = to
 	// evaluate reduction rules, align selectors offsets
+	var (
+		stepMax = ev.lods[0].Step
+		stepMin = ev.lods[len(ev.lods)-1].Step
+	)
 	parser.Inspect(ev.ast, func(node parser.Node, nodes []parser.Node) error {
 		switch s := node.(type) {
 		case *parser.VectorSelector:
@@ -376,6 +381,9 @@ func (ev *evaluator) evalAggregate(ctx context.Context, expr *parser.AggregateEx
 	bag, err := ev.eval(ctx, expr.Expr)
 	if err != nil {
 		return SeriesBag{}, err
+	}
+	if len(bag.Data) == 0 {
+		return bag, nil
 	}
 	var fn aggregateFunc
 	if fn = aggregates[expr.Op]; fn == nil {
@@ -588,7 +596,7 @@ func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector
 		}
 		ev.cancellationList = append(ev.cancellationList, cancel)
 		if qry.prefixSum {
-			bag = funcPrefixSum(bag)
+			bag = ev.funcPrefixSum(bag)
 		}
 		if !sel.OmitNameTag {
 			for j := range bag.Meta {
@@ -713,11 +721,13 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	} else {
 		groupBy = make([]string, 0, len(sel.GroupBy))
 		for _, name := range sel.GroupBy {
-			if tag, ok := metric.Name2Tag[name]; ok {
+			if tag, ok := metric.Name2Tag[name]; ok && 0 <= tag.Index && tag.Index < format.MaxTags {
 				groupBy = append(groupBy, format.TagID(tag.Index))
 				if tag.Name == format.LETagName {
 					histogramQ.restore = true
 				}
+			} else if name == format.StringTopTagID {
+				groupBy = append(groupBy, format.StringTopTagID)
 			}
 		}
 	}
@@ -739,8 +749,6 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchNotEqual:
 				sFilterOut = append(sFilterOut, matcher.Value)
 			case labels.MatchRegexp:
-				fallthrough
-			case labels.MatchNotRegexp:
 				strTop, err := ev.getSTagValues(ctx, metric, sel.Offset)
 				if err != nil {
 					return seriesQueryX{}, err
@@ -748,8 +756,16 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				for _, str := range strTop {
 					if matcher.Matches(str) {
 						sFilterIn = append(sFilterIn, str)
-					} else {
-						sFilterOut = append(sFilterIn, str)
+					}
+				}
+			case labels.MatchNotRegexp:
+				strTop, err := ev.getSTagValues(ctx, metric, sel.Offset)
+				if err != nil {
+					return seriesQueryX{}, err
+				}
+				for _, str := range strTop {
+					if !matcher.Matches(str) {
+						sFilterOut = append(sFilterOut, str)
 					}
 				}
 			}
@@ -787,19 +803,13 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				if err != nil {
 					return seriesQueryX{}, err
 				}
-				var (
-					in  = make(map[int32]string)
-					out = make(map[int32]string)
-				)
+				in := make(map[int32]string)
 				for id, str := range m {
 					if matcher.Matches(str) {
 						in[id] = str
-					} else {
-						out[id] = str
 					}
 				}
 				filterIn[i] = in
-				filterOut[i] = out
 			}
 		}
 	}
@@ -851,22 +861,7 @@ func (ev *evaluator) stringify(bag *SeriesBag) {
 }
 
 func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagName string, tagValueID int32) string {
-	var raw bool
-	if metric != nil {
-		raw = metric.Name2Tag[tagName].Raw
-	}
-	var res string
-	switch {
-	case raw:
-		if tagName == format.LETagName {
-			res = strconv.FormatFloat(float64(prometheus.LexDecode(tagValueID)), 'f', -1, 32)
-		} else {
-			res = strconv.FormatInt(int64(tagValueID), 10)
-		}
-	case tagValueID != 0:
-		res = ev.h.GetTagValue(tagValueID)
-	}
-	return res
+	return ev.h.GetRichTagValue(RichTagValueQuery{ev.qry.Options.Version, metric, tagName, tagValueID})
 }
 
 func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMetaValue, tagX int, offset int64) (map[int32]string, error) {

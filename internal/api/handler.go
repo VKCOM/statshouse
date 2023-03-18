@@ -1496,7 +1496,7 @@ func (h *Handler) HandleGetQuery(w http.ResponseWriter, r *http.Request) {
 	defer h.freeQueryResp(resp)
 	defer h.freeQueryResp(respIngestion)
 
-	if queryVerbose && err == nil && len(respIngestion.Series.Time) > 0 {
+	if queryVerbose && err == nil && respIngestion != nil && len(respIngestion.Series.Time) > 0 {
 		for i, meta := range respIngestion.Series.SeriesMeta {
 			badgeType := meta.Tags["key1"].Value
 			metric := meta.Tags["key2"].Value
@@ -2671,11 +2671,19 @@ func (h *Handler) evalPromqlExpr(ctx context.Context, expr string, version strin
 }
 
 func getQueryRespEqual(a, b *GetQueryResp) bool {
+	if len(a.Series.Time) != len(b.Series.Time) {
+		return false
+	}
 	if len(a.Series.SeriesMeta) != len(b.Series.SeriesMeta) {
 		return false
 	}
 	if len(a.Series.SeriesData) != len(b.Series.SeriesData) {
 		return false
+	}
+	for i := 0; i < len(a.Series.Time); i++ {
+		if a.Series.Time[i] != b.Series.Time[i] {
+			return false
+		}
 	}
 	for i := 0; i < len(a.Series.SeriesData); i++ {
 		var j int
@@ -2698,8 +2706,8 @@ func getQueryRespEqual(a, b *GetQueryResp) bool {
 			if math.IsNaN(v1) && math.IsNaN(v2) {
 				continue
 			}
-			if !(math.Abs(v1-v2) < math.Max(math.Abs(v1), math.Abs(v2))/100) {
-				// difference is at least one percent!
+			if !(math.Abs(v1-v2) <= math.Max(math.Abs(v1), math.Abs(v2))/100) {
+				// difference is more than a percent!
 				// or one value is NaN
 				return false
 			}

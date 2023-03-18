@@ -285,14 +285,14 @@ func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]
 	return s1, s2, nil
 }
 
-func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMetaValue]int64) []promql.LOD {
+func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMetaValue]int64) ([]promql.LOD, int64) {
 	var widthKind int
 	if qry.Options.StepAuto {
 		widthKind = widthAutoRes
 	} else {
 		widthKind = widthLODRes
 	}
-	getLODs := func(metric *format.MetricMetaValue, offset int64) []promql.LOD {
+	getLODs := func(metric *format.MetricMetaValue, offset int64) ([]promql.LOD, int64) {
 		var (
 			preKeyFrom int64
 			resolution int
@@ -317,35 +317,39 @@ func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMet
 			widthKind,
 			h.location)
 		if len(lods) == 0 {
-			return nil
+			return nil, 0
 		}
 		res := make([]promql.LOD, 0, len(lods))
 		for _, lod := range lods {
 			res = append(res, promql.LOD{Len: (lod.toSec - lod.fromSec) / lod.stepSec, Step: lod.stepSec})
 		}
-		return res
+		return res, lods[0].fromSec
 	}
 	if len(maxOffset) == 0 {
 		return getLODs(nil, 0)
 	}
-	res := make([][]promql.LOD, 0, len(maxOffset))
+	type lods struct {
+		v []promql.LOD
+		t int64
+	}
+	res := make([]lods, 0, len(maxOffset))
 	for metric, offset := range maxOffset {
-		if s := getLODs(metric, offset); len(s) != 0 {
-			res = append(res, s)
+		if s, t := getLODs(metric, offset); len(s) != 0 {
+			res = append(res, lods{s, t})
 		}
 	}
 	if len(res) == 0 {
-		return nil
+		return nil, 0
 	}
-	slices.SortFunc(res, func(a, b []promql.LOD) bool {
-		d := a[0].Step - b[0].Step
+	slices.SortFunc(res, func(a, b lods) bool {
+		d := a.v[0].Step - b.v[0].Step
 		if d == 0 {
-			return a[0].Len > b[0].Len
+			return a.v[0].Len > b.v[0].Len
 		} else {
 			return d > 0
 		}
 	})
-	return res[0]
+	return res[0].v, res[0].t
 }
 
 func (h *Handler) GetTagValue(id int32) string {
@@ -354,6 +358,10 @@ func (h *Handler) GetTagValue(id int32) string {
 		return format.CodeTagValue(id)
 	}
 	return v
+}
+
+func (h *Handler) GetRichTagValue(qry promql.RichTagValueQuery) string {
+	return h.getRichTagValue(qry.Meta, promqlVersionOrDefault(qry.Version), qry.TagID, qry.TagValueID)
 }
 
 func (h *Handler) GetTagValueID(v string) (int32, error) {
@@ -420,31 +428,22 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	}
 	meta := make([]promql.SeriesMeta, len(tagX))
 	for t, i := range tagX {
-		for j, valueID := range t.tag {
-			if valueID != 0 && j < len(qry.Meta.Tags) {
-				var (
-					tag  = qry.Meta.Tags[j]
-					name string
-				)
+		for _, tagID := range qry.GroupBy {
+			if tagID == format.StringTopTagID || tagID == qry.Meta.StringTopName {
+				name := qry.Meta.StringTopName
+				if len(name) == 0 {
+					name = format.StringTopTagID
+				}
+				meta[i].SetSTag(name, emptyToUnspecified(t.tagStr.String()))
+			} else if tag, ok := qry.Meta.Name2Tag[tagID]; ok && tag.Index < len(t.tag) {
+				var name string
 				if qry.Options.CanonicalTagNames || len(tag.Name) == 0 {
 					name = format.TagID(tag.Index)
 				} else {
 					name = tag.Name
 				}
-				meta[i].SetTag(name, valueID)
+				meta[i].SetTag(name, t.tag[tag.Index])
 			}
-		}
-	}
-	for _, tagID := range qry.GroupBy {
-		if tagID == format.StringTopTagID || tagID == qry.Meta.StringTopName {
-			name := qry.Meta.StringTopName
-			if len(name) == 0 {
-				name = format.StringTopTagID
-			}
-			for v, i := range tagX {
-				meta[i].SetSTag(name, emptyToUnspecified(v.tagStr.String()))
-			}
-			break
 		}
 	}
 	for i := range meta {
@@ -577,7 +576,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		}
 	}
 	for _, tagValue := range qry.SFilterIn {
-		filterIn[format.StringTopTagID] = append(filterIn[format.StringTopTagID], tagValue)
+		filterIn[format.StringTopTagID] = append(filterIn[format.StringTopTagID], promqlEmptyToUnspecified(tagValue))
 		filterInM[format.StringTopTagID] = append(filterInM[format.StringTopTagID], tagValue)
 	}
 	var (
@@ -592,7 +591,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		}
 	}
 	for _, tagValue := range qry.SFilterOut {
-		filterOut[format.StringTopTagID] = append(filterOut[format.StringTopTagID], tagValue)
+		filterOut[format.StringTopTagID] = append(filterOut[format.StringTopTagID], promqlEmptyToUnspecified(tagValue))
 		filterOutM[format.StringTopTagID] = append(filterOutM[format.StringTopTagID], tagValue)
 	}
 	// get "queryFn"
@@ -825,10 +824,10 @@ func getPromQuery(req getQueryReq) string {
 			s = append(s, fmt.Sprintf("__what__=%q", strings.Join(w, ",")))
 			s = append(s, fmt.Sprintf("__by__=%q", strings.Join(req.by, ",")))
 			for t, v := range req.filterIn {
-				s = append(s, fmt.Sprintf("%s=~%q", t, strings.Join(v, "|")))
+				s = append(s, fmt.Sprintf("%s=~%q", t, promqlGetFilterValue(t, v)))
 			}
 			for t, v := range req.filterNotIn {
-				s = append(s, fmt.Sprintf("%s!~%q", t, strings.Join(v, "|")))
+				s = append(s, fmt.Sprintf("%s!~%q", t, promqlGetFilterValue(t, v)))
 			}
 			q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
 			if shift != 0 {
@@ -850,6 +849,31 @@ func getPromQuery(req getQueryReq) string {
 		}
 	}
 	return strings.Join(res, " or ")
+}
+
+func promqlGetFilterValue(tagID string, s []string) string {
+	if tagID != format.StringTopTagID {
+		return strings.Join(s, "|")
+	}
+	s2 := make([]string, 0, len(s))
+	for _, v := range s {
+		s2 = append(s2, promqlUnspecifiedToEmpty(v))
+	}
+	return strings.Join(s2, "|")
+}
+
+func promqlEmptyToUnspecified(s string) string {
+	if s == "^$" {
+		return format.CodeTagValue(format.TagValueIDUnspecified)
+	}
+	return s
+}
+
+func promqlUnspecifiedToEmpty(s string) string {
+	if s == format.CodeTagValue(format.TagValueIDUnspecified) {
+		return "^$"
+	}
+	return s
 }
 
 func promqlVersionOrDefault(version string) string {
