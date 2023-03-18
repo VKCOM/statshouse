@@ -89,6 +89,13 @@ type SeriesQuery struct {
 	Options Options
 }
 
+type RichTagValueQuery struct {
+	Version    string
+	Meta       *format.MetricMetaValue
+	TagID      string
+	TagValueID int32
+}
+
 type TagValuesQuery struct {
 	Version string
 	Meta    *format.MetricMetaValue
@@ -103,6 +110,7 @@ type Handler interface {
 	//
 
 	GetTagValue(tagValueID int32) string
+	GetRichTagValue(qry RichTagValueQuery) string
 	GetTagValueID(tagValue string) (int32, error)
 
 	//
@@ -110,7 +118,7 @@ type Handler interface {
 	//
 
 	MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, []string, error)
-	GetQueryLODs(qry Query, maxOffset map[*format.MetricMetaValue]int64) []LOD
+	GetQueryLODs(qry Query, maxOffset map[*format.MetricMetaValue]int64) ([]LOD, int64)
 
 	//
 	// # Storage

@@ -308,7 +308,7 @@ func init() {
 		"minute":             timeCall(time.Time.Minute),
 		"month":              timeCall(time.Time.Month),
 		"predict_linear":     funcPredictLinear,
-		"prefix_sum":         bagCall(funcPrefixSum),
+		"prefix_sum":         funcPrefixSum,
 		"rate":               bagCall(funcRate),
 		"resets":             bagCall(funcResets),
 		"round":              funcRound,
@@ -944,14 +944,27 @@ func funcPredictLinear(ctx context.Context, ev *evaluator, args parser.Expressio
 	return bag, nil
 }
 
-func funcPrefixSum(bag SeriesBag) SeriesBag {
+func funcPrefixSum(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+	bag, err = ev.eval(ctx, args[0])
+	if err != nil {
+		return SeriesBag{}, err
+	}
+	return ev.funcPrefixSum(bag), nil
+}
+
+func (ev *evaluator) funcPrefixSum(bag SeriesBag) SeriesBag {
+	var i int
+	for ev.time[i] < ev.from {
+		i++
+	}
 	for _, row := range bag.Data {
 		var sum float64
-		for i, v := range *row {
+		for j := i; j < len(*row); j++ {
+			v := (*row)[j]
 			if !math.IsNaN(v) {
 				sum += v
 			}
-			(*row)[i] = sum
+			(*row)[j] = sum
 		}
 	}
 	return bag
