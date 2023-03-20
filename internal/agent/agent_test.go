@@ -75,7 +75,7 @@ func Benchmark_LZ4(b *testing.B) {
 	log.Printf("Compress %d -> %d", len(data), cs)
 }
 
-func Benchmark_LZ4_HC_0(b *testing.B) {
+func Benchmark_LZ4_HC_4(b *testing.B) {
 	cs := lz4.CompressBlockBound(len(data))
 	compressed := make([]byte, cs)
 
@@ -85,7 +85,7 @@ func Benchmark_LZ4_HC_0(b *testing.B) {
 	log.Printf("Compress %d -> %d", len(data), cs)
 }
 
-func Benchmark_LZ4_HC_16(b *testing.B) {
+func Benchmark_LZ4_HC_0(b *testing.B) {
 	cs := lz4.CompressBlockBound(len(data))
 	compressed := make([]byte, cs)
 
