@@ -1713,12 +1713,11 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		now         = time.Now()
 		testPromql  bool
 		promqlGroup errgroup.Group
-		promqlExpr  string
+		promqlExpr  = getPromQuery(req)
 		promqlRes   GetQueryResp
 	)
 	if req.ai.bitDeveloper && req.metricWithNamespace != format.BuiltinMetricNameBadges {
 		testPromql = true
-		promqlExpr = getPromQuery(req)
 		var cleanup func()
 		promqlGroup.Go(func() error {
 			var (
