@@ -104,6 +104,7 @@ export type PlotStore = {
   topInfo?: TopInfo;
   maxHostLists: SelectOptionProps[][];
   promqltestfailed?: boolean;
+  promQL: string;
 };
 
 export type TopInfo = {
@@ -136,6 +137,35 @@ type SetSearchParams = (
       }
     | undefined
 ) => void;
+
+function getEmptyPlotData(): PlotStore {
+  return {
+    nameMetric: '',
+    whats: [],
+    error: '',
+    data: [[]],
+    series: [],
+    seriesShow: [],
+    scales: {},
+    receiveErrors: 0,
+    samplingFactorSrc: 0,
+    samplingFactorAgg: 0,
+    mappingFloodEvents: 0,
+    legendValueWidth: 0,
+    legendMaxDotSpaceWidth: 0,
+    legendNameWidth: 0,
+    legendPercentWidth: 0,
+    legendMaxHostWidth: 0,
+    legendMaxHostPercentWidth: 0,
+    lastPlotParams: undefined,
+    lastTimeRange: undefined,
+    lastTimeShifts: undefined,
+    lastQuerySeriesMeta: undefined,
+    topInfo: undefined,
+    maxHostLists: [],
+    promQL: '',
+  };
+}
 
 export type StatsHouseStore = {
   defaultParams: QueryParams;
@@ -560,31 +590,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
   loadPlot(index, force: boolean = false) {
     if (!getState().plotsData[index]) {
       setState((state) => {
-        state.plotsData[index] = {
-          nameMetric: '',
-          whats: [],
-          error: '',
-          data: [[]],
-          series: [],
-          seriesShow: [],
-          scales: {},
-          receiveErrors: 0,
-          samplingFactorSrc: 0,
-          samplingFactorAgg: 0,
-          mappingFloodEvents: 0,
-          legendValueWidth: 0,
-          legendMaxDotSpaceWidth: 0,
-          legendNameWidth: 0,
-          legendPercentWidth: 0,
-          legendMaxHostWidth: 0,
-          legendMaxHostPercentWidth: 0,
-          lastPlotParams: undefined,
-          lastTimeRange: undefined,
-          lastTimeShifts: undefined,
-          lastQuerySeriesMeta: undefined,
-          topInfo: undefined,
-          maxHostLists: [],
-        };
+        state.plotsData[index] = getEmptyPlotData();
       });
     }
     const prevState = getState();
@@ -643,31 +649,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
       });
       if (isPromQl && !lastPlotParams.promQL) {
         setState((state) => {
-          state.plotsData[index] = {
-            nameMetric: '',
-            whats: [],
-            error: '',
-            data: [[]],
-            series: [],
-            seriesShow: [],
-            scales: {},
-            receiveErrors: 0,
-            samplingFactorSrc: 0,
-            samplingFactorAgg: 0,
-            mappingFloodEvents: 0,
-            legendValueWidth: 0,
-            legendMaxDotSpaceWidth: 0,
-            legendNameWidth: 0,
-            legendPercentWidth: 0,
-            legendMaxHostWidth: 0,
-            legendMaxHostPercentWidth: 0,
-            lastPlotParams: undefined,
-            lastTimeRange: undefined,
-            lastTimeShifts: undefined,
-            lastQuerySeriesMeta: undefined,
-            topInfo: undefined,
-            maxHostLists: [],
-          };
+          state.plotsData[index] = getEmptyPlotData();
           delete state.previews[index];
           state.liveMode = false;
         });
@@ -931,6 +913,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               topInfo,
               maxHostLists,
               promqltestfailed,
+              promQL: resp.promql ?? '',
             };
           });
         })
@@ -938,30 +921,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           if (error instanceof Error403) {
             setState((state) => {
               state.plotsData[index] = {
-                nameMetric: '',
-                whats: [],
-                error: '',
+                ...getEmptyPlotData(),
                 error403: error.toString(),
-                data: [[]],
-                series: [],
-                seriesShow: [],
-                scales: {},
-                receiveErrors: 0,
-                samplingFactorSrc: 0,
-                samplingFactorAgg: 0,
-                mappingFloodEvents: 0,
-                legendValueWidth: 0,
-                legendMaxDotSpaceWidth: 0,
-                legendNameWidth: 0,
-                legendPercentWidth: 0,
-                legendMaxHostWidth: 0,
-                legendMaxHostPercentWidth: 0,
-                lastPlotParams: undefined,
-                lastTimeRange: undefined,
-                lastTimeShifts: undefined,
-                lastQuerySeriesMeta: undefined,
-                topInfo: undefined,
-                maxHostLists: [],
               };
               delete state.previews[index];
               state.liveMode = false;
@@ -970,29 +931,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
             debug.error(error);
             setState((state) => {
               state.plotsData[index] = {
-                nameMetric: '',
-                whats: [],
+                ...getEmptyPlotData(),
                 error: error.toString(),
-                data: [[]],
-                series: [],
-                seriesShow: [],
-                scales: {},
-                receiveErrors: 0,
-                samplingFactorSrc: 0,
-                samplingFactorAgg: 0,
-                mappingFloodEvents: 0,
-                legendValueWidth: 0,
-                legendMaxDotSpaceWidth: 0,
-                legendNameWidth: 0,
-                legendPercentWidth: 0,
-                legendMaxHostWidth: 0,
-                legendMaxHostPercentWidth: 0,
-                lastPlotParams: undefined,
-                lastTimeRange: undefined,
-                lastTimeShifts: undefined,
-                lastQuerySeriesMeta: undefined,
-                topInfo: undefined,
-                maxHostLists: [],
               };
               delete state.previews[index];
               state.liveMode = false;
