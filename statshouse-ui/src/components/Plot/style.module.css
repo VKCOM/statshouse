@@ -80,6 +80,20 @@
 .plotInputName {
   pointer-events: auto;
 }
+.badge:empty {
+  display: none !important;
+}
+
+.badge:empty + div[role='button'] {
+  display: none !important;
+}
+
+.badgeHide {
+  max-width: 50px;
+}
+.badgeShow {
+  box-shadow: var(--bs-secondary-bg) 0 0 10px 0px;
+}
 
 @media screen and (min-width: 768px) {
   .plotTabMenu li:hover ul {

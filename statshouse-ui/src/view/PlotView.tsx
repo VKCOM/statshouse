@@ -342,7 +342,7 @@ const PlotView = memo(function PlotView_(props: {
       onMouseOut={onMouseOut}
     >
       <div className="plot-view-inner">
-        <div className="d-flex align-items-center" style={{ marginRight: `${rightPad}px` }}>
+        <div className="d-flex align-items-center position-relative z-2" style={{ marginRight: `${rightPad}px` }}>
           {/*loader*/}
           <div
             style={{ width: `${yAxisSize}px` }}
@@ -390,7 +390,7 @@ const PlotView = memo(function PlotView_(props: {
           </div>
         </div>
         <div
-          className="position-relative w-100"
+          className="position-relative w-100 z-1"
           style={{
             paddingTop: '61.8034%',
           }}
