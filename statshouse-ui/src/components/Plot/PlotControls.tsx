@@ -18,6 +18,7 @@ import {
   selectorLastError,
   selectorParamsTagSync,
   selectorParamsTimeShifts,
+  selectorPlotsDataByIndex,
   selectorSetLastError,
   selectorSetParams,
   selectorSetTimeRange,
@@ -53,6 +54,9 @@ export const PlotControls = memo(function PlotControls_(props: {
 
   const lastError = useStore(selectorLastError);
   const setLastError = useStore(selectorSetLastError);
+
+  const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
+  const plotData = useStore(selectorPlotsData);
 
   const clearLastError = useCallback(() => {
     setLastError('');
@@ -176,10 +180,10 @@ export const PlotControls = memo(function PlotControls_(props: {
         s.groupBy = [];
         s.filterIn = {};
         s.filterNotIn = {};
-        s.promQL = '';
+        s.promQL = plotData.promQL;
       })
     );
-  }, [meta.kind, setSel]);
+  }, [meta.kind, plotData.promQL, setSel]);
 
   return (
     <div>
