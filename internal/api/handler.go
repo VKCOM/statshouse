@@ -525,7 +525,6 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		writeActiveQuieries(chV2, "2")
 	})
 	h.promEngine = promql.NewEngine(h, location)
-
 	return h, nil
 }
 
@@ -1848,7 +1847,6 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
 		//todo add csv
-		// exportCSV(w, resp, metricWithNamespace, sl)
 	default:
 		cache, cacheStale := queryClientCacheDuration(immutable)
 		respondJSON(w, respTable, cache, cacheStale, err, h.verbose, ai.user, sl)
@@ -2032,6 +2030,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 	if version == Version1 {
 		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
 	}
+
 	var (
 		now         = time.Now()
 		testPromql  bool
@@ -3523,10 +3522,12 @@ func lessThan(l RowFrom, r tsSelectRow, skey string, orEq bool) bool {
 	return l.SKey < skey
 }
 
-func (h *Handler) evalPromqlExpr(ctx context.Context, ai accessInfo, expr string, from, to, now time.Time, width, widthKind int, cb func(string)) (res GetQueryResp, cleanup func(), err error) {
+func (h *Handler) evalPromqlExpr(ctx context.Context, expr string, version string, from, to, now time.Time, width, widthKind int, avoidCache bool, cb func(string)) (res GetQueryResp, cleanup func(), err error) {
 	var (
 		metricName string
 		options    = promql.Options{
+			Version:             version,
+			AvoidCache:          avoidCache,
 			TimeNow:             now.Unix(),
 			ExpandToLODBoundary: true,
 			TagOffset:           true,
@@ -3545,7 +3546,7 @@ func (h *Handler) evalPromqlExpr(ctx context.Context, ai accessInfo, expr string
 		options.StepAuto = true
 	}
 	parserV, cleanup, err = h.promEngine.Exec(
-		context.WithValue(ctx, accessInfoKey, &ai), // to check access rights when querying series
+		ctx,
 		promql.Query{
 			Start:   from.Unix(),
 			End:     to.Unix(),
@@ -3562,27 +3563,30 @@ func (h *Handler) evalPromqlExpr(ctx context.Context, ai accessInfo, expr string
 		return GetQueryResp{}, nil, err
 	}
 	res = GetQueryResp{Series: querySeries{Time: bag.Time, SeriesData: bag.Data}}
-	for i, s := range bag.Meta {
-		what, _ := validQueryFn(s.GetMetricName())
+	for i := range bag.Data {
 		meta := QuerySeriesMetaV2{
-			Name:      metricName,
-			What:      what,
-			MaxHosts:  bag.GetSMaxHosts(i, h),
-			TimeShift: -s.GetOffset(),
-			Total:     s.GetTotal(),
+			Name:     metricName,
+			Tags:     make(map[string]SeriesMetaTag),
+			MaxHosts: bag.GetSMaxHosts(i, h),
 		}
-		s.DropMetricName()
-		meta.Tags = make(map[string]SeriesMetaTag, len(s.STags))
-		for name, v := range s.STags {
-			tag := SeriesMetaTag{Value: v}
-			if s.Metric != nil {
-				if t, tok := s.Metric.Name2Tag[name]; tok {
-					tag.Comment = t.ValueComments[tag.Value]
-					tag.Raw = t.Raw
-					tag.RawKind = t.RawKind
+		if i < len(bag.Meta) {
+			s := bag.Meta[i]
+			meta.What, _ = validQueryFn(s.GetMetricName())
+			meta.TimeShift = -s.GetOffset()
+			meta.Total = s.GetTotal()
+			s.DropMetricName()
+			meta.Tags = make(map[string]SeriesMetaTag, len(s.STags))
+			for name, v := range s.STags {
+				tag := SeriesMetaTag{Value: v}
+				if s.Metric != nil {
+					if t, tok := s.Metric.Name2Tag[name]; tok {
+						tag.Comment = t.ValueComments[tag.Value]
+						tag.Raw = t.Raw
+						tag.RawKind = t.RawKind
+					}
 				}
+				meta.Tags[name] = tag
 			}
-			meta.Tags[name] = tag
 		}
 		res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
 	}
@@ -3590,11 +3594,19 @@ func (h *Handler) evalPromqlExpr(ctx context.Context, ai accessInfo, expr string
 }
 
 func getQueryRespEqual(a, b *GetQueryResp) bool {
+	if len(a.Series.Time) != len(b.Series.Time) {
+		return false
+	}
 	if len(a.Series.SeriesMeta) != len(b.Series.SeriesMeta) {
 		return false
 	}
 	if len(a.Series.SeriesData) != len(b.Series.SeriesData) {
 		return false
+	}
+	for i := 0; i < len(a.Series.Time); i++ {
+		if a.Series.Time[i] != b.Series.Time[i] {
+			return false
+		}
 	}
 	for i := 0; i < len(a.Series.SeriesData); i++ {
 		var j int
@@ -3614,7 +3626,12 @@ func getQueryRespEqual(a, b *GetQueryResp) bool {
 				v1 = (*a.Series.SeriesData[i])[k]
 				v2 = (*b.Series.SeriesData[j])[k]
 			)
-			if !math.IsNaN(v1) && !math.IsNaN(v2) && math.Abs(v1-v2) > 0.0001 {
+			if math.IsNaN(v1) && math.IsNaN(v2) {
+				continue
+			}
+			if !(math.Abs(v1-v2) <= math.Max(math.Abs(v1), math.Abs(v2))/100) {
+				// difference is more than a percent!
+				// or one value is NaN
 				return false
 			}
 		}
