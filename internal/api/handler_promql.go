@@ -685,7 +685,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 	}
 	// the rest
 	kind := queryFnToQueryFnKind(what, qry.MaxHost)
-	qs := normalizedQueryString(qry.Metric.Name, kind, qry.GroupBy, filterIn, filterOut)
+	qs := normalizedQueryString(qry.Meta.Name, kind, qry.GroupBy, filterIn, filterOut, false)
 	pq := preparedPointsQuery{
 		user:        ai.user,
 		version:     promqlVersionOrDefault(qry.Options.Version),

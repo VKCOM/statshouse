@@ -214,6 +214,7 @@ func normalizedQueryString(
 	by []string,
 	filterIn map[string][]string,
 	filterNoIn map[string][]string,
+	orderBy bool,
 ) string {
 	sortedBy := append([]string(nil), by...)
 	sort.Strings(sortedBy)
@@ -250,6 +251,11 @@ func normalizedQueryString(
 		buf.WriteString(ParamQueryFilter)
 		buf.WriteByte('=')
 		buf.WriteString(url.QueryEscape(f))
+	}
+
+	if orderBy {
+		buf.WriteByte('&')
+		buf.WriteString("order_by")
 	}
 
 	return buf.String()

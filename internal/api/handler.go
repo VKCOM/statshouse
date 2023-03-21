@@ -393,8 +393,8 @@ type (
 	}
 
 	RawTag struct {
-		KeyNumber int   `json:"key_number"`
-		Value     int32 `json:"value"`
+		Index int   `json:"index"`
+		Value int32 `json:"value"`
 	}
 	RowFrom struct {
 		Time int64    `json:"time"`
@@ -2121,7 +2121,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 	}
 
 	for _, q := range queries {
-		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn)
+		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, false)
 		pq := &preparedPointsQuery{
 			user:        ai.user,
 			version:     version,
@@ -2651,7 +2651,7 @@ func (h *Handler) handleGetTable(ctx context.Context, debugQueries bool, req get
 	hasMore := false
 loop:
 	for _, q := range queries {
-		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn)
+		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, true)
 		pq := &preparedPointsQuery{
 			user:        req.ai.user,
 			version:     version,
@@ -2710,8 +2710,8 @@ loop:
 						wasAdded := h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, tagName, tags.tag[j])
 						if wasAdded {
 							lastRow.Tags = append(lastRow.Tags, RawTag{
-								KeyNumber: j,
-								Value:     tags.tag[j],
+								Index: j,
+								Value: tags.tag[j],
 							})
 						}
 					}
@@ -3512,7 +3512,7 @@ func lessThan(l RowFrom, r tsSelectRow, skey string, orEq bool) bool {
 	}
 	for i := range l.Tags {
 		lv := l.Tags[i].Value
-		rv := r.tag[l.Tags[i].KeyNumber]
+		rv := r.tag[l.Tags[i].Index]
 		if lv != rv {
 			return lv < rv
 		}
