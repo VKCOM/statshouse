@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, memo, useCallback, useEffect } from 'react';
+import React, { ChangeEvent, memo, useCallback, useEffect, useMemo } from 'react';
 import produce from 'immer';
 import cn from 'classnames';
 import * as utils from '../../view/utils';
@@ -13,6 +13,7 @@ import { MetricItem, useDebounceState } from '../../hooks';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo } from '../index';
 import {
   selectorParamsTimeShifts,
+  selectorPlotsDataByIndex,
   selectorSetParams,
   selectorSetTimeRange,
   selectorTimeRange,
@@ -33,8 +34,11 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   metricsOptions: MetricItem[];
   clonePlot?: () => void;
 }) {
-  const { setBaseRange, sel, setSel, meta } = props;
+  const { indexPlot, setBaseRange, sel, setSel, meta } = props;
   const [promQL, promQLDebounce, setPromQL] = useDebounceState(sel.promQL, 500);
+
+  const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
+  const plotData = useStore(selectorPlotsData);
 
   const timeShifts = useStore(selectorParamsTimeShifts);
   const setParams = useStore(selectorSetParams);
@@ -94,8 +98,10 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   const toFilter = useCallback(() => {
     setSel(
       produce((s) => {
-        s.metricName = globalSettings.default_metric;
-        s.what = globalSettings.default_metric_what.slice() as queryWhat[];
+        s.metricName = plotData.nameMetric || globalSettings.default_metric;
+        s.what = (
+          plotData.whats?.length ? plotData.whats.slice() : globalSettings.default_metric_what.slice()
+        ) as queryWhat[];
         s.customName = '';
         s.groupBy = globalSettings.default_metric_group_by.slice();
         s.filterIn = { ...globalSettings.default_metric_filter_in };
@@ -103,7 +109,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
         s.promQL = '';
       })
     );
-  }, [setSel]);
+  }, [plotData.nameMetric, plotData.whats, setSel]);
 
   useEffect(() => {
     setSel(

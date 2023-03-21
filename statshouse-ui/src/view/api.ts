@@ -41,6 +41,7 @@ export interface queryResult {
   readonly mapping_errors: number;
   readonly mapping_flood_events_legacy: number;
   readonly promqltestfailed?: boolean; // only dev param
+  readonly promql: string;
 }
 
 export interface querySeries {
