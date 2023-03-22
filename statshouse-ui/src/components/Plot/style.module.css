@@ -89,7 +89,7 @@
 }
 
 .badgeHide {
-  max-width: 50px;
+  max-width: 50%;
 }
 .badgeShow {
   box-shadow: var(--bs-secondary-bg) 0 0 10px 0px;

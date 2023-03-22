@@ -90,7 +90,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             !dashboardLayoutEdit && !sel.customName && !showTags && 'pe-4'
           )}
         >
-          <div className="flex-grow-1 text-truncate overflow-hidden w-0 px-1 d-flex text-nowrap">
+          <div className="flex-grow-1 text-truncate w-50 overflow-hidden px-1 d-flex text-nowrap">
             <PlotHeaderTitle indexPlot={indexPlot} compact={compact} dashboard={dashboard} />
           </div>
           {!dashboardLayoutEdit && !sel.customName && (
