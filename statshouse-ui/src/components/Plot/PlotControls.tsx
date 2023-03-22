@@ -294,6 +294,17 @@ export const PlotControls = memo(function PlotControls_(props: {
               <option value="40">Top 40</option>
               <option value="50">Top 50</option>
               <option value="100">Top 100</option>
+              <option value="-1">Bottom 1</option>
+              <option value="-2">Bottom 2</option>
+              <option value="-3">Bottom 3</option>
+              <option value="-4">Bottom 4</option>
+              <option value="-5">Bottom 5</option>
+              <option value="-10">Bottom 10</option>
+              <option value="-20">Bottom 20</option>
+              <option value="-30">Bottom 30</option>
+              <option value="-40">Bottom 40</option>
+              <option value="-50">Bottom 50</option>
+              <option value="-100">Bottom 100</option>
             </select>
           </div>
           <div className="col-4 d-flex justify-content-end">
