@@ -46,6 +46,8 @@ import (
 	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
+
+	"pgregory.net/rand"
 )
 
 //go:generate easyjson -no_std_marshalers httputil.go handler.go
@@ -1597,7 +1599,13 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 			err2 error
 			ctx2 = context.WithValue(ctx, accessInfoKey, &ai) // to check access rights when querying series
 		)
-		res, cleanup, err2 = h.evalPromqlExpr(ctx2, r.FormValue(paramPromQuery), r.FormValue(ParamVersion), from, to, time.Now(), width, widthKind, avoidCache, queryBadges)
+		res, cleanup, err2 = h.evalPromqlExpr(ctx2,
+			r.FormValue(paramPromQuery),
+			r.FormValue(ParamVersion),
+			from, to, time.Now(),
+			width, widthKind,
+			avoidCache, nil,
+			queryBadges, nil)
 		return err2
 	})
 	err = g.Wait()
@@ -1709,23 +1717,40 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
 	}
 
+	// DEBUGGING PROMQL DO NOT DELETE
+	//type seriesQuery struct {
+	//	version    string
+	//	key        string
+	//	pq         *preparedPointsQuery
+	//	lod        lodInfo
+	//	avoidCache bool
+	//}
 	var (
 		now         = time.Now()
+		r           *rand.Rand
 		testPromql  bool
 		promqlGroup errgroup.Group
 		promqlExpr  = getPromQuery(req)
 		promqlRes   GetQueryResp
+		// DEBUGGING PROMQL DO NOT DELETE
+		//promqlQueries []seriesQuery
+		//seriesQueries []seriesQuery
 	)
 	if req.ai.bitDeveloper && req.metricWithNamespace != format.BuiltinMetricNameBadges {
+		r = rand.New()
+		promqlRand := *r // copy of "r"
 		testPromql = true
 		var cleanup func()
-		promqlGroup.Go(func() error {
-			var (
-				err2 error
-				ctx2 = context.WithValue(ctx, accessInfoKey, &req.ai) // to check access rights when querying series
-			)
-			promqlRes, cleanup, err2 = h.evalPromqlExpr(ctx2, promqlExpr, version, from, to, now, width, widthKind, false, nil)
-			return err2
+		promqlGroup.Go(func() (err error) {
+			promqlRes, cleanup, err = h.evalPromqlExpr(
+				context.WithValue(ctx, accessInfoKey, &req.ai), // to check access rights when querying series
+				promqlExpr, version, from, to, now, width, widthKind, false, &promqlRand, nil,
+				func(version string, key string, pq any, lod any, avoidCache bool) {
+					// DEBUGGING PROMQL DO NOT DELETE
+					//promqlQueries = append(promqlQueries, seriesQuery{
+					//	version, key, pq.(*preparedPointsQuery), lod.(lodInfo), avoidCache})
+				})
+			return err
 		})
 		defer func() {
 			if cleanup != nil {
@@ -1826,6 +1851,17 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 
 			shiftDelta := toSec(shift - oldestShift)
 			for lodIx, lod := range lods {
+				// DEBUGGING PROMQL DO NOT DELETE
+				//if testPromql {
+				//	seriesQueries = append(seriesQueries, seriesQuery{version, qs, pq, lodInfo{
+				//		fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
+				//		toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
+				//		stepSec:   lod.stepSec,
+				//		table:     lod.table,
+				//		hasPreKey: lod.hasPreKey,
+				//		location:  h.location,
+				//	}, req.avoidCache})
+				//}
 				m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
 					fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
 					toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
@@ -1864,13 +1900,13 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 			}
 
 			if numResultsPerShift > 0 {
-				partialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift)
+				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, r)
 				if len(sortedIxs) > numResultsPerShift {
 					sortedIxs = sortedIxs[:numResultsPerShift]
 				}
 			} else if numResultsPerShift < 0 {
 				numResultsPerShift = -numResultsPerShift
-				partialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift)
+				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, r)
 				if len(sortedIxs) > numResultsPerShift {
 					sortedIxs = sortedIxs[:numResultsPerShift]
 				}
@@ -1966,8 +2002,32 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		MetricMeta:      metricMeta,
 		syncPoolBuffers: syncPoolBuffers,
 	}
-	if testPromql && (promqlGroup.Wait() != nil || !getQueryRespEqual(resp, &promqlRes)) {
+	if testPromql {
+		promqlErr := promqlGroup.Wait()
+		if promqlErr != nil {
+			goto promQLTestFailed
+		}
+		// DEBUGGING PROMQL DO NOT DELETE
+		//
+		// PromQL engine might issue different but semantically correct queries,
+		// so (commented out) tests below does not always make sense. Might be
+		// useful for debugging purpose though so please don't delete.
+		//
+		//if len(seriesQueries) != len(promqlQueries) {
+		//	goto promQLTestFailed
+		//}
+		//for i := range seriesQueries {
+		//	if !reflect.DeepEqual(seriesQueries[i], promqlQueries[i]) {
+		//		goto promQLTestFailed
+		//	}
+		//}
+		if getQueryRespEqual(resp, &promqlRes) {
+			goto promQLTestPassed
+		}
+	promQLTestFailed:
 		resp.DebugPromQLTestFailed = true
+	promQLTestPassed:
+		// nop
 	}
 	return resp, immutable, nil
 }
@@ -2431,7 +2491,12 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 	err = h.doSelect(ctx, isFast, isLight, pq.user, pq.version, ch.Query{
 		Body:   query,
 		Result: cols.res,
-		OnResult: func(_ context.Context, block proto.Block) error {
+		OnResult: func(_ context.Context, block proto.Block) (err error) {
+			defer func() { // process crashes if we do not catch the "panic"
+				if p := recover(); p != nil {
+					err = fmt.Errorf("doSelect: %v", p)
+				}
+			}()
 			for i := 0; i < block.Rows; i++ {
 				if !isTimestampValid(cols.time[i], lod.stepSec, h.utcOffset, h.location) {
 					log.Printf("[warning] got invalid timestamp while loading for %q, ignoring: %d is not a multiple of %v", pq.user, cols.time[i], lod.stepSec)
@@ -2598,7 +2663,7 @@ func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale t
 	return queryClientCache, queryClientCacheStale
 }
 
-func (h *Handler) evalPromqlExpr(ctx context.Context, expr string, version string, from, to, now time.Time, width, widthKind int, avoidCache bool, cb func(string)) (res GetQueryResp, cleanup func(), err error) {
+func (h *Handler) evalPromqlExpr(ctx context.Context, expr string, version string, from, to, now time.Time, width, widthKind int, avoidCache bool, r *rand.Rand, cb func(string), cb2 promql.SeriesQueryCallback) (res GetQueryResp, cleanup func(), err error) {
 	var (
 		metricName string
 		options    = promql.Options{
@@ -2609,12 +2674,14 @@ func (h *Handler) evalPromqlExpr(ctx context.Context, expr string, version strin
 			TagOffset:           true,
 			TagTotal:            true,
 			CanonicalTagNames:   true,
+			Rand:                r,
 			ExprQueriesSingleMetricCallback: func(metric *format.MetricMetaValue) {
 				metricName = metric.Name
 				if cb != nil {
 					cb(metricName)
 				}
 			},
+			SeriesQueryCallback: cb2,
 		}
 		parserV parser.Value
 	)

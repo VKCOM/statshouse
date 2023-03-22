@@ -232,7 +232,11 @@ func calcLevels(version string, preKeyForm int64, isUnique bool, isStringTop boo
 		}
 	}
 
-	preKeyForm = roundTime(preKeyForm, _1h, utcOffset)
+	if preKeyForm != 0 {
+		preKeyForm = roundTime(preKeyForm, _1h, utcOffset)
+	} else {
+		preKeyForm = math.MaxInt64 // "cut < preKeyForm" is always false
+	}
 	var levels []lodSwitch
 	split := false
 	for _, s := range lodLevels[version] {

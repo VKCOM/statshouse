@@ -13,6 +13,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -286,71 +287,87 @@ func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]
 	return s1, s2, nil
 }
 
-func (h *Handler) GetQueryLODs(qry promql.Query, maxOffset map[*format.MetricMetaValue]int64) ([]promql.LOD, int64) {
+func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaValue]int64) (promql.Timescale, error) {
 	var widthKind int
 	if qry.Options.StepAuto {
 		widthKind = widthAutoRes
 	} else {
 		widthKind = widthLODRes
 	}
-	getLODs := func(metric *format.MetricMetaValue, offset int64) ([]promql.LOD, int64) {
+	getLODs := func(metric *format.MetricMetaValue, offset int64) []lodInfo {
 		var (
-			preKeyFrom int64
 			resolution int
 			stringTop  bool
 		)
 		if metric != nil {
-			preKeyFrom = int64(metric.PreKeyFrom)
 			resolution = metric.Resolution
 			stringTop = metric.StringTopDescription != ""
 		}
-		lods := selectQueryLODs(
+		return selectQueryLODs(
 			promqlVersionOrDefault(qry.Options.Version),
-			preKeyFrom,
+			0,
 			resolution,
 			false,
 			stringTop,
 			qry.Options.TimeNow,
-			shiftTimestamp(qry.Start, 1, -offset, h.location),
-			shiftTimestamp(qry.End, 1, -offset, h.location),
+			shiftTimestamp(qry.Start, qry.Step, -offset, h.location),
+			shiftTimestamp(qry.End, qry.Step, -offset, h.location),
 			h.utcOffset,
 			int(qry.Step),
 			widthKind,
 			h.location)
-		if len(lods) == 0 {
-			return nil, 0
+	}
+	type timescale struct {
+		lods   []lodInfo
+		offset int64
+	}
+	var t timescale
+	if len(offsets) == 0 {
+		t.lods = getLODs(nil, 0)
+	} else {
+		res := make([]timescale, 0, len(offsets))
+		for metric, offset := range offsets {
+			if s := getLODs(metric, offset); len(s) != 0 {
+				res = append(res, timescale{s, offset})
+			}
 		}
-		res := make([]promql.LOD, 0, len(lods))
-		for _, lod := range lods {
-			res = append(res, promql.LOD{Len: (lod.toSec - lod.fromSec) / lod.stepSec, Step: lod.stepSec})
+		if len(res) == 0 {
+			return promql.Timescale{}, fmt.Errorf("empty time interval")
 		}
-		return res, lods[0].fromSec
+		slices.SortFunc(res, func(a, b timescale) bool {
+			d := a.lods[0].stepSec - b.lods[0].stepSec
+			if d == 0 {
+				return a.lods[0].toSec-a.lods[0].fromSec > b.lods[0].toSec-b.lods[0].fromSec
+			} else {
+				return d > 0
+			}
+		})
+		t = res[0]
 	}
-	if len(maxOffset) == 0 {
-		return getLODs(nil, 0)
-	}
-	type lods struct {
-		v []promql.LOD
-		t int64
-	}
-	res := make([]lods, 0, len(maxOffset))
-	for metric, offset := range maxOffset {
-		if s, t := getLODs(metric, offset); len(s) != 0 {
-			res = append(res, lods{s, t})
+	var (
+		fl  = t.lods[0]             // first LOD
+		ll  = t.lods[len(t.lods)-1] // last LOD
+		res = promql.Timescale{
+			Start:  shiftTimestamp(fl.fromSec, fl.stepSec, t.offset, h.location),   // inclusive
+			End:    shiftTimestamp(ll.toSec, ll.stepSec, t.offset, h.location) + 1, // exclusive
+			Offset: t.offset,
 		}
+	)
+	// extend the interval by one from the left so that the
+	// derivative (if any) at the first point can be calculated
+	t.lods[0].fromSec -= t.lods[0].stepSec
+	// generate time
+	for _, lod := range t.lods {
+		s := lod.generateTimePoints(-t.offset)
+		res.LODs = append(res.LODs, promql.LOD{
+			Start: lod.fromSec,
+			End:   lod.toSec,
+			Step:  lod.stepSec,
+			Len:   len(s),
+		})
+		res.Time = append(res.Time, s...)
 	}
-	if len(res) == 0 {
-		return nil, 0
-	}
-	slices.SortFunc(res, func(a, b lods) bool {
-		d := a.v[0].Step - b.v[0].Step
-		if d == 0 {
-			return a.v[0].Len > b.v[0].Len
-		} else {
-			return d > 0
-		}
-	})
-	return res[0].v, res[0].t
+	return res, nil
 }
 
 func (h *Handler) GetTagValue(id int32) string {
@@ -362,7 +379,13 @@ func (h *Handler) GetTagValue(id int32) string {
 }
 
 func (h *Handler) GetRichTagValue(qry promql.RichTagValueQuery) string {
-	return h.getRichTagValue(qry.Meta, promqlVersionOrDefault(qry.Version), qry.TagID, qry.TagValueID)
+	var tagID string
+	if len(qry.TagID) == 0 {
+		tagID = format.TagID(qry.TagIndex)
+	} else {
+		tagID = qry.TagID
+	}
+	return h.getRichTagValue(qry.Metric, promqlVersionOrDefault(qry.Version), tagID, qry.TagValueID)
 }
 
 func (h *Handler) GetTagValueID(v string) (int32, error) {
@@ -378,7 +401,9 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	var (
 		version       = promqlVersionOrDefault(qry.Options.Version)
 		what, qs, pq  = getHandlerArgs(qry, ai)
-		lods, timeLen = getHandlerLODs(qry, h.location)
+		lods          = getHandlerLODs(qry, h.location)
+		shift         = qry.Timescale.Offset - qry.Offset
+		timeLen       = len(qry.Timescale.Time)
 		data, buffers []*[]float64
 		maxHost       [][]int32
 		tagX          = make(map[tsTags]int, len(qry.GroupBy))
@@ -390,53 +415,63 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 		tx int // time index
 	)
 	for _, lod := range lods {
-		m, err := h.cache.Get(ctx, version, qs, &pq, lod, qry.Options.AvoidCache)
+		li := lodInfo{
+			fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shift, h.location),
+			toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shift, h.location),
+			stepSec:   lod.stepSec,
+			table:     lod.table,
+			hasPreKey: lod.hasPreKey,
+			location:  lod.location,
+		}
+		if qry.Options.SeriesQueryCallback != nil {
+			qry.Options.SeriesQueryCallback(version, qs, &pq, li, qry.Options.AvoidCache)
+		}
+		m, err := h.cache.Get(ctx, version, qs, &pq, li, qry.Options.AvoidCache)
 		if err != nil {
 			cleanup()
 			return promql.SeriesBag{}, nil, err
 		}
-		var (
-			t      = lod.fromSec
-			factor = qry.Factor
-		)
+		factor := qry.Factor
 		if factor == 0 {
 			factor = lod.stepSec
 		}
-		for _, s := range m {
-			for _, d := range s {
-				i, ok := tagX[d.tsTags]
+		for _, col := range m {
+			for _, d := range col {
+				var (
+					i, ok = tagX[d.tsTags]
+					j     = tx + lod.lodInfo.getIndexForTimestamp(d.time, shift)
+				)
 				if !ok {
 					i = len(data)
 					tagX[d.tsTags] = i
-					v := h.getFloatsSlice(timeLen)
-					for k := range *v {
-						(*v)[k] = promql.NilValue
+					s := h.getFloatsSlice(timeLen)
+					for k := range *s {
+						(*s)[k] = promql.NilValue
 					}
-					buffers = append(buffers, v)
-					data = append(data, v)
+					buffers = append(buffers, s)
+					data = append(data, s)
 					if qry.MaxHost {
 						maxHost = append(maxHost, make([]int32, timeLen))
 					}
 				}
-				(*data[i])[tx] = selectTSValue(what, qry.MaxHost, lod.stepSec, factor, &d)
+				(*data[i])[j] = selectTSValue(what, qry.MaxHost, lod.stepSec, factor, &d)
 				if qry.MaxHost {
-					maxHost[i][tx] = d.maxHost
+					maxHost[i][j] = d.maxHost
 				}
 			}
-			t += lod.stepSec
-			tx++
 		}
+		tx += lod.len
 	}
 	meta := make([]promql.SeriesMeta, len(tagX))
 	for t, i := range tagX {
 		for _, tagID := range qry.GroupBy {
-			if tagID == format.StringTopTagID || tagID == qry.Meta.StringTopName {
-				name := qry.Meta.StringTopName
+			if tagID == format.StringTopTagID || tagID == qry.Metric.StringTopName {
+				name := qry.Metric.StringTopName
 				if len(name) == 0 {
 					name = format.StringTopTagID
 				}
 				meta[i].SetSTag(name, emptyToUnspecified(t.tagStr.String()))
-			} else if tag, ok := qry.Meta.Name2Tag[tagID]; ok && tag.Index < len(t.tag) {
+			} else if tag, ok := qry.Metric.Name2Tag[tagID]; ok && tag.Index < len(t.tag) {
 				var name string
 				if qry.Options.CanonicalTagNames || len(tag.Name) == 0 {
 					name = format.TagID(tag.Index)
@@ -448,7 +483,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 		}
 	}
 	for i := range meta {
-		meta[i].Metric = qry.Meta
+		meta[i].Metric = qry.Metric
 	}
 	return promql.SeriesBag{Data: data, Meta: meta, MaxHost: maxHost}, cleanup, nil
 }
@@ -460,23 +495,25 @@ func (h *Handler) QueryTagValues(ctx context.Context, qry promql.TagValuesQuery)
 	}
 	var (
 		version = promqlVersionOrDefault(qry.Version)
+		fl      = qry.Timescale.LODs[0]                         // first LOD
+		ll      = qry.Timescale.LODs[len(qry.Timescale.LODs)-1] // last LOD
 		lods    = selectTagValueLODs(
 			version,
-			int64(qry.Meta.PreKeyFrom),
-			qry.Meta.Resolution,
+			int64(qry.Metric.PreKeyFrom),
+			qry.Metric.Resolution,
 			false,
-			qry.Meta.StringTopDescription != "",
-			time.Now().Unix(),
-			qry.Start,
-			qry.End,
+			qry.Metric.StringTopDescription != "",
+			qry.Options.TimeNow,
+			shiftTimestamp(fl.Start, fl.Step, qry.Offset, h.location),
+			shiftTimestamp(ll.End, ll.Step, qry.Offset, h.location),
 			h.utcOffset,
 			h.location,
 		)
 		pq = &preparedTagValuesQuery{
 			version:     version,
-			metricID:    qry.Meta.MetricID,
-			preKeyTagID: qry.Meta.PreKeyTagID,
-			tagID:       format.TagID(qry.TagX),
+			metricID:    qry.Metric.MetricID,
+			preKeyTagID: qry.Metric.PreKeyTagID,
+			tagID:       format.TagID(qry.TagIndex),
 			numResults:  math.MaxInt - 1,
 		}
 		tags = make(map[int32]bool)
@@ -515,22 +552,24 @@ func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery
 	}
 	var (
 		version = promqlVersionOrDefault(qry.Version)
+		fl      = qry.Timescale.LODs[0]                         // first LOD
+		ll      = qry.Timescale.LODs[len(qry.Timescale.LODs)-1] // last LOD
 		lods    = selectTagValueLODs(
 			version,
-			int64(qry.Meta.PreKeyFrom),
-			qry.Meta.Resolution,
+			int64(qry.Metric.PreKeyFrom),
+			qry.Metric.Resolution,
 			false,
-			qry.Meta.StringTopDescription != "",
+			qry.Metric.StringTopDescription != "",
 			time.Now().Unix(),
-			qry.Start,
-			qry.End,
+			shiftTimestamp(fl.Start, fl.Step, qry.Offset, h.location),
+			shiftTimestamp(ll.End, ll.Step, qry.Offset, h.location),
 			h.utcOffset,
 			h.location,
 		)
 		pq = &preparedTagValuesQuery{
 			version:     version,
-			metricID:    qry.Meta.MetricID,
-			preKeyTagID: qry.Meta.PreKeyTagID,
+			metricID:    qry.Metric.MetricID,
+			preKeyTagID: qry.Metric.PreKeyTagID,
 			tagID:       format.StringTopTagID,
 			numResults:  math.MaxInt - 1,
 		}
@@ -600,12 +639,16 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 	switch qry.What {
 	case promql.DigestCount:
 		what = queryFnCount
+	case promql.DigestCountSec:
+		what = queryFnCountNorm
 	case promql.DigestMin:
 		what = queryFnMin
 	case promql.DigestMax:
 		what = queryFnMax
 	case promql.DigestSum:
 		what = queryFnSum
+	case promql.DigestSumSec:
+		what = queryFnSumNorm
 	case promql.DigestAvg:
 		what = queryFnAvg
 	case promql.DigestStdDev:
@@ -628,20 +671,24 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		what = queryFnP999
 	case promql.DigestCardinality:
 		what = queryFnCardinality
+	case promql.DigestCardinalitySec:
+		what = queryFnCardinalityNorm
 	case promql.DigestUnique:
 		what = queryFnUnique
+	case promql.DigestUniqueSec:
+		what = queryFnUniqueNorm
 	default:
 		panic(fmt.Errorf("unrecognized what: %v", qry.What))
 	}
 	// the rest
 	kind := queryFnToQueryFnKind(what, qry.MaxHost)
-	qs := normalizedQueryString(qry.Meta.Name, kind, qry.GroupBy, filterIn, filterOut)
+	qs := normalizedQueryString(qry.Metric.Name, kind, qry.GroupBy, filterIn, filterOut)
 	pq := preparedPointsQuery{
 		user:        ai.user,
 		version:     promqlVersionOrDefault(qry.Options.Version),
-		metricID:    qry.Meta.MetricID,
-		preKeyTagID: qry.Meta.PreKeyTagID,
-		isStringTop: qry.Meta.StringTopDescription != "",
+		metricID:    qry.Metric.MetricID,
+		preKeyTagID: qry.Metric.PreKeyTagID,
+		isStringTop: qry.Metric.StringTopDescription != "",
 		kind:        kind,
 		by:          qry.GroupBy,
 		filterIn:    filterInM,
@@ -650,39 +697,33 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 	return what, qs, pq
 }
 
-func getHandlerLODs(qry *promql.SeriesQuery, loc *time.Location) ([]lodInfo, int) {
+type promqlLOD struct {
+	lodInfo
+	len int
+}
+
+func getHandlerLODs(qry *promql.SeriesQuery, loc *time.Location) []promqlLOD {
 	var (
-		from       = qry.From
-		preKeyFrom = int64(qry.Meta.PreKeyFrom)
-		lods       = make([]lodInfo, 0, len(qry.LODs))
-		timeLen    int
+		lods       = make([]promqlLOD, 0, len(qry.Timescale.LODs))
+		preKeyFrom = int64(qry.Metric.PreKeyFrom)
 	)
-	for _, lod := range qry.LODs {
-		to := from + lod.Step*lod.Len
-		if from <= preKeyFrom && preKeyFrom < to {
-			split := from + lod.Step*((preKeyFrom-from-1)/lod.Step+1)
-			lods = append(lods, lodInfo{
-				fromSec:   from,
-				toSec:     split,
-				stepSec:   lod.Step,
-				table:     lodTables[Version2][lod.Step],
-				hasPreKey: false,
-				location:  loc,
-			})
-			from = split
-		}
-		lods = append(lods, lodInfo{
-			fromSec:   from,
-			toSec:     to,
-			stepSec:   lod.Step,
-			table:     lodTables[Version2][lod.Step],
-			hasPreKey: preKeyFrom < from,
-			location:  loc,
-		})
-		timeLen += int(lod.Len)
-		from = to
+	if preKeyFrom == 0 {
+		preKeyFrom = math.MaxInt64 // "preKeyFrom < start" is always false
 	}
-	return lods, timeLen
+	for _, lod := range qry.Timescale.LODs {
+		lods = append(lods, promqlLOD{
+			lodInfo: lodInfo{
+				fromSec:   lod.Start,
+				toSec:     lod.End,
+				stepSec:   lod.Step,
+				table:     lodTables[promqlVersionOrDefault(qry.Options.Version)][lod.Step],
+				hasPreKey: preKeyFrom < lod.Start,
+				location:  loc,
+			},
+			len: lod.Len,
+		})
+	}
+	return lods
 }
 
 func getAccessInfo(ctx context.Context) *accessInfo {
@@ -698,6 +739,7 @@ func (h *Handler) Alloc(n int) *[]float64 {
 	}
 	return h.getFloatsSlice(n)
 }
+
 func (h *Handler) Free(s *[]float64) {
 	h.putFloatsSlice(s)
 }
@@ -719,7 +761,6 @@ func getPromQuery(req getQueryReq) string {
 		}
 		var (
 			what  string
-			norm  bool
 			deriv bool
 			cumul bool
 		)
@@ -727,16 +768,14 @@ func getPromQuery(req getQueryReq) string {
 		case queryFnCount:
 			what = promql.Count
 		case queryFnCountNorm:
-			what = promql.Count
-			norm = true
+			what = promql.CountSec
 		case queryFnCumulCount:
 			what = promql.Count
 			cumul = true
 		case queryFnCardinality:
 			what = promql.Cardinality
 		case queryFnCardinalityNorm:
-			what = promql.Cardinality
-			norm = true
+			what = promql.CardinalitySec
 		case queryFnCumulCardinality:
 			what = promql.Cardinality
 			cumul = true
@@ -752,8 +791,7 @@ func getPromQuery(req getQueryReq) string {
 		case queryFnSum:
 			what = promql.Sum
 		case queryFnSumNorm:
-			what = promql.Sum
-			norm = true
+			what = promql.SumSec
 		case queryFnCumulSum:
 			what = promql.Sum
 			cumul = true
@@ -776,8 +814,7 @@ func getPromQuery(req getQueryReq) string {
 		case queryFnUnique:
 			what = promql.Unique
 		case queryFnUniqueNorm:
-			what = promql.Unique
-			norm = true
+			what = promql.UniqueSec
 		case queryFnMaxHost:
 			req.maxHost = true
 		case queryFnMaxCountHost:
@@ -792,12 +829,10 @@ func getPromQuery(req getQueryReq) string {
 			what = promql.Avg
 			deriv = true
 		case queryFnDerivativeCountNorm:
-			what = promql.Count
-			norm = true
+			what = promql.CountSec
 			deriv = true
 		case queryFnDerivativeSumNorm:
-			what = promql.Sum
-			norm = true
+			what = promql.SumSec
 			deriv = true
 		case queryFnDerivativeMin:
 			what = promql.Min
@@ -809,8 +844,7 @@ func getPromQuery(req getQueryReq) string {
 			what = promql.Unique
 			deriv = true
 		case queryFnDerivativeUniqueNorm:
-			what = promql.Unique
-			norm = true
+			what = promql.UniqueSec
 			deriv = true
 		default:
 			continue
@@ -835,9 +869,6 @@ func getPromQuery(req getQueryReq) string {
 				q = fmt.Sprintf("%s offset %ds", q, -shift/time.Second)
 			}
 			q = fmt.Sprintf("topk(%s,%s)", req.numResults, q)
-			if norm {
-				q = fmt.Sprintf("(%s/lod_step_sec())", q)
-			}
 			if deriv {
 				q = fmt.Sprintf("idelta(%s)", q)
 			}
@@ -853,14 +884,14 @@ func getPromQuery(req getQueryReq) string {
 }
 
 func promqlGetFilterValue(tagID string, s []string) string {
-	if tagID != format.StringTopTagID {
-		return strings.Join(s, "|")
-	}
-	s2 := make([]string, 0, len(s))
+	res := make([]string, 0, len(s))
 	for _, v := range s {
-		s2 = append(s2, promqlUnspecifiedToEmpty(v))
+		if tagID == format.StringTopTagID {
+			v = promqlUnspecifiedToEmpty(v)
+		}
+		res = append(res, regexp.QuoteMeta(v))
 	}
-	return strings.Join(s2, "|")
+	return strings.Join(res, "|")
 }
 
 func promqlEmptyToUnspecified(s string) string {

@@ -141,9 +141,9 @@ func reduceAggregateExpr(r *reduction, e parser.Expr, _ int64) bool {
 	case parser.MAX:
 		what = Max
 	case parser.SUM:
-		what = Sum
+		what = SumSec
 	case parser.COUNT:
-		what = Count
+		what = CountSec
 	default:
 		return false
 	}
@@ -157,8 +157,11 @@ func reduceAggregateExpr(r *reduction, e parser.Expr, _ int64) bool {
 }
 
 func reduceWhat(a, b string) (string, bool) {
-	if a == b {
+	if a == "" || a == SumSec && b == Sum || a == CountSec && b == Count {
 		return b, true
+	}
+	if a == b || a == Sum && b == SumSec || a == Count && b == CountSec {
+		return a, true
 	}
 	return a, false
 }
