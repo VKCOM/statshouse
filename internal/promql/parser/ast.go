@@ -190,7 +190,7 @@ type VectorSelector struct {
 
 	MatchingMetrics []*format.MetricMetaValue
 	MatchingNames   []string
-	Offset, Factor  int64
+	Factor          int64
 	What            string
 	GroupBy         []string
 	GroupWithout    bool

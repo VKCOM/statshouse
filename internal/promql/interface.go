@@ -16,23 +16,27 @@ import (
 )
 
 const (
-	Avg         = "avg"
-	Count       = "count"
-	Max         = "max"
-	Min         = "min"
-	Sum         = "sum"
-	StdDev      = "stddev"
-	StdVar      = "stdvar"
-	P25         = "p25"
-	P50         = "p50"
-	P75         = "p75"
-	P90         = "p90"
-	P95         = "p95"
-	P99         = "p99"
-	P999        = "p999"
-	Cardinality = "cardinality"
-	Unique      = "unique"
-	MaxHost     = "maxhost"
+	Avg            = "avg"
+	Count          = "count"
+	CountSec       = "countsec"
+	Max            = "max"
+	Min            = "min"
+	Sum            = "sum"
+	SumSec         = "sumsec"
+	StdDev         = "stddev"
+	StdVar         = "stdvar"
+	P25            = "p25"
+	P50            = "p50"
+	P75            = "p75"
+	P90            = "p90"
+	P95            = "p95"
+	P99            = "p99"
+	P999           = "p999"
+	Cardinality    = "cardinality"
+	CardinalitySec = "cardinalitysec"
+	Unique         = "unique"
+	UniqueSec      = "uniquesec"
+	MaxHost        = "maxhost"
 
 	NilValueBits = 0x7ff0000000000002
 )
@@ -42,9 +46,11 @@ type DigestWhat int
 const (
 	DigestAvg DigestWhat = iota + 1
 	DigestCount
+	DigestCountSec
 	DigestMax
 	DigestMin
 	DigestSum
+	DigestSumSec
 	DigestP25
 	DigestP50
 	DigestP75
@@ -55,30 +61,46 @@ const (
 	DigestStdDev
 	DigestStdVar
 	DigestCardinality
+	DigestCardinalitySec
 	DigestUnique
+	DigestUniqueSec
 )
 
 var NilValue = math.Float64frombits(NilValueBits)
 
+type Timescale struct {
+	Time   []int64
+	LODs   []LOD
+	Offset int64 // the offset for which timescale was generated
+	Start  int64 // query start aligned by LOD boundary
+	End    int64 // query end aligned by LOD boundary
+}
+
 type LOD struct {
-	Len, Step int64
+	// as in lodInfo
+	Start int64
+	End   int64
+	Step  int64
+
+	// plus number of elements LOD occupies in time array
+	Len int
 }
 
 type SeriesQuery struct {
 	// What
-	Meta    *format.MetricMetaValue
+	Metric  *format.MetricMetaValue
 	What    DigestWhat
 	MaxHost bool
 
 	// When
-	From int64
-	LODs []LOD
+	Timescale Timescale
+	Offset    int64
 
 	// Grouping
 	GroupBy []string
 
 	// Filtering
-	FilterIn   [format.MaxTags]map[int32]string // tagIx -> tagValueID -> tagValue
+	FilterIn   [format.MaxTags]map[int32]string // tag index -> tag value ID -> tag value
 	FilterOut  [format.MaxTags]map[int32]string // as above
 	SFilterIn  []string
 	SFilterOut []string
@@ -92,17 +114,19 @@ type SeriesQuery struct {
 
 type RichTagValueQuery struct {
 	Version    string
-	Meta       *format.MetricMetaValue
+	Metric     *format.MetricMetaValue
+	TagIndex   int
 	TagID      string
 	TagValueID int32
 }
 
 type TagValuesQuery struct {
-	Version string
-	Meta    *format.MetricMetaValue
-	Start   int64
-	End     int64
-	TagX    int
+	Version   string
+	Metric    *format.MetricMetaValue
+	TagIndex  int
+	Timescale Timescale
+	Offset    int64
+	Options   Options
 }
 
 type Handler interface {
@@ -119,7 +143,7 @@ type Handler interface {
 	//
 
 	MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, []string, error)
-	GetQueryLODs(qry Query, maxOffset map[*format.MetricMetaValue]int64) ([]LOD, int64)
+	GetTimescale(qry Query, offsets map[*format.MetricMetaValue]int64) (Timescale, error)
 
 	//
 	// # Storage

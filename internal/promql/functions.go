@@ -20,6 +20,7 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 
 	"github.com/vkcom/statshouse/internal/promql/parser"
+	"github.com/vkcom/statshouse/internal/util"
 )
 
 // region AggregateExpr
@@ -92,7 +93,7 @@ func funcCountValues(ev *evaluator, g seriesGroup, p parser.Expr) SeriesBag {
 			(*s)[i]++
 		}
 	}
-	res := SeriesBag{Time: ev.time}
+	res := SeriesBag{Time: ev.time()}
 	for v, s := range m {
 		for i := range *s {
 			if (*s)[i] == 0 {
@@ -233,18 +234,25 @@ func funcTopK(ev *evaluator, g seriesGroup, p parser.Expr) SeriesBag {
 
 func firstK(ev *evaluator, g seriesGroup, k int, topDown bool) SeriesBag {
 	if k <= 0 {
-		return SeriesBag{Time: ev.time}
+		return ev.newSeriesBag(0)
 	}
 	if len(g.bag.Data) <= k {
 		return g.bag
 	}
 	w := make([]float64, len(g.bag.Data))
 	for i, data := range g.bag.Data {
-		var acc float64
-		for _, v := range *data {
-			if !math.IsNaN(v) {
-				acc += v * v
+		var (
+			j   int
+			acc float64
+		)
+		for _, lod := range ev.t.LODs {
+			for m := 0; m < lod.Len; m++ {
+				v := (*data)[j+m]
+				if !math.IsNaN(v) {
+					acc += v * v * float64(lod.Step)
+				}
 			}
+			j += lod.Len
 		}
 		w[i] = acc
 	}
@@ -253,11 +261,11 @@ func firstK(ev *evaluator, g seriesGroup, k int, topDown bool) SeriesBag {
 		x[i] = i
 	}
 	if topDown {
-		sort.Slice(x, func(i, j int) bool { return w[x[i]] > w[x[j]] })
+		util.PartialSortIndexByValueDesc(x, w, k, ev.Options.Rand)
 	} else {
-		sort.Slice(x, func(i, j int) bool { return w[x[i]] < w[x[j]] })
+		util.PartialSortIndexByValueAsc(x, w, k, ev.Options.Rand)
 	}
-	res := SeriesBag{Time: ev.time}
+	res := ev.newSeriesBag(k)
 	res.appendX(g.bag, x[:k]...)
 	for ; k < len(g.bag.Data); k++ {
 		ev.free(g.bag.Data[k])
@@ -551,7 +559,7 @@ func funcAbsent(ctx context.Context, ev *evaluator, args parser.Expressions) (ba
 			}
 		}
 	}
-	return SeriesBag{Time: ev.time, Data: []*[]float64{s}}, nil
+	return SeriesBag{Time: ev.time(), Data: []*[]float64{s}}, nil
 }
 
 func funcAbsentOverTime(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
@@ -600,7 +608,7 @@ func funcAbsentOverTime(ctx context.Context, ev *evaluator, args parser.Expressi
 		}
 	}
 	return SeriesBag{
-		Time: ev.time,
+		Time: ev.time(),
 		Data: []*[]float64{s},
 		Meta: []SeriesMeta{{STags: stags}},
 	}, nil
@@ -905,16 +913,16 @@ func funcLabelReplace(ctx context.Context, ev *evaluator, args parser.Expression
 
 func funcLODStepSec(_ context.Context, ev *evaluator, _ parser.Expressions) (SeriesBag, error) {
 	var (
-		i   int
-		row = ev.alloc()
+		i int
+		s = ev.alloc()
 	)
-	for _, v := range ev.lods {
-		for j := 0; j < int(v.Len); j++ {
-			(*row)[i] = float64(v.Step)
-			i++
+	for _, lod := range ev.t.LODs {
+		for j := 0; j < lod.Len; j++ {
+			(*s)[i+j] = float64(lod.Step)
 		}
+		i += lod.Len
 	}
-	return SeriesBag{Time: ev.time, Data: []*[]float64{row}}, nil
+	return SeriesBag{Time: ev.time(), Data: []*[]float64{s}}, nil
 }
 
 func funcPredictLinear(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
@@ -954,8 +962,11 @@ func funcPrefixSum(ctx context.Context, ev *evaluator, args parser.Expressions) 
 }
 
 func (ev *evaluator) funcPrefixSum(bag SeriesBag) SeriesBag {
-	var i int
-	for ev.time[i] < ev.from {
+	var (
+		i int
+		t = ev.time()
+	)
+	for t[i] < ev.t.Start {
 		i++
 	}
 	for _, row := range bag.Data {
@@ -1020,11 +1031,14 @@ func funcScalar(ctx context.Context, ev *evaluator, args parser.Expressions) (ba
 }
 
 func funcTime(ev *evaluator, _ parser.Expressions) SeriesBag {
-	row := ev.alloc()
-	for i := range *row {
-		(*row)[i] = float64(ev.time[i])
+	var (
+		t = ev.time()
+		v = ev.alloc()
+	)
+	for i := range *v {
+		(*v)[i] = float64(t[i])
 	}
-	return SeriesBag{Time: ev.time, Data: []*[]float64{row}}
+	return SeriesBag{Time: t, Data: []*[]float64{v}}
 }
 
 func funcTimestamp(bag SeriesBag) SeriesBag {
@@ -1228,7 +1242,7 @@ func funcPi(ev *evaluator, _ parser.Expressions) SeriesBag {
 	for i := range *row {
 		(*row)[i] = math.Pi
 	}
-	return SeriesBag{Time: ev.time, Data: []*[]float64{row}}
+	return SeriesBag{Time: ev.time(), Data: []*[]float64{row}}
 }
 
 // endregion Call

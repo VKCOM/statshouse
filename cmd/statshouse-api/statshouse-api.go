@@ -306,18 +306,22 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		f := defaultMetricFilterNotIn[kv[0]]
 		defaultMetricFilterNotIn[kv[0]] = append(f, kv[1])
 	}
+	jsSettings := api.JSSettings{
+		VkuthAppName:             argv.vkuthAppName,
+		DefaultMetric:            argv.defaultMetric,
+		DefaultMetricGroupBy:     argv.defaultMetricGroupBy,
+		DefaultMetricWhat:        argv.defaultMetricWhat,
+		DefaultMetricFilterIn:    defaultMetricFilterIn,
+		DefaultMetricFilterNotIn: defaultMetricFilterNotIn,
+		DisableV1:                len(argv.chV1Addrs) == 0,
+	}
+	if argv.localMode {
+		jsSettings.VkuthAppName = ""
+	}
 	f, err := api.NewHandler(
 		argv.verbose,
 		staticFS,
-		api.JSSettings{
-			VkuthAppName:             argv.vkuthAppName,
-			DefaultMetric:            argv.defaultMetric,
-			DefaultMetricGroupBy:     argv.defaultMetricGroupBy,
-			DefaultMetricWhat:        argv.defaultMetricWhat,
-			DefaultMetricFilterIn:    defaultMetricFilterIn,
-			DefaultMetricFilterNotIn: defaultMetricFilterNotIn,
-			DisableV1:                len(argv.chV1Addrs) == 0,
-		},
+		jsSettings,
 		argv.protectedMetricPrefixes,
 		argv.showInvisible,
 		utcOffset,

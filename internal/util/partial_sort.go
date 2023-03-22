@@ -4,18 +4,24 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package api
+package util
 
 import (
 	"pgregory.net/rand"
 )
 
-func partialSortIndexByValueAsc(idx []int, val []float64, n int) {
-	partialQuickSortIndexByValue(idx, val, 0, len(idx), n, -1, rand.New())
+func PartialSortIndexByValueAsc(idx []int, val []float64, n int, rnd *rand.Rand) {
+	if rnd == nil {
+		rnd = rand.New()
+	}
+	partialQuickSortIndexByValue(idx, val, 0, len(idx), n, -1, rnd)
 }
 
-func partialSortIndexByValueDesc(idx []int, val []float64, n int) {
-	partialQuickSortIndexByValue(idx, val, 0, len(idx), n, 1, rand.New())
+func PartialSortIndexByValueDesc(idx []int, val []float64, n int, rnd *rand.Rand) {
+	if rnd == nil {
+		rnd = rand.New()
+	}
+	partialQuickSortIndexByValue(idx, val, 0, len(idx), n, 1, rnd)
 }
 
 func partialQuickSortIndexByValue(idx []int, val []float64, lo, hi, n int, m float64, rnd *rand.Rand) {

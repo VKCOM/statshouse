@@ -381,8 +381,8 @@ func (b *SeriesBag) tagGroupBy(without bool, tags []string) map[string]bool {
 }
 
 func (b *SeriesBag) tagOffset(offset int64) {
-	for _, meta := range b.Meta {
-		meta.SetTag(labelOffset, int32(offset))
+	for i := range b.Meta {
+		b.Meta[i].SetTag(labelOffset, int32(offset))
 	}
 }
 
