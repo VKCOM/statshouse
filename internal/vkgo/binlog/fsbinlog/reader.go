@@ -25,6 +25,11 @@ import (
 
 type seekInfo = tlfsbinlog.SnapshotMeta
 
+type ReaderSync interface {
+	io.Reader
+	Sync() error
+}
+
 type binlogReader struct {
 	fsWatcher           *fsnotify.Watcher
 	stat                *stat
@@ -32,29 +37,31 @@ type binlogReader struct {
 	fileHeaders         []fileHeader
 	logger              binlog.Logger
 	commitDuration      time.Duration
+	DoNotFSyncOnRead    bool
 
 	stop       *chan struct{}
 	pidChanged *chan struct{}
 }
 
-func newBinlogReader(pidChanged *chan struct{}, commitDuration time.Duration, logger binlog.Logger, stat *stat, stopCh *chan struct{}) (*binlogReader, error) {
+func newBinlogReader(pidChanged *chan struct{}, commitDuration time.Duration, logger binlog.Logger, stat *stat, DoNotFSyncOnRead bool, stopCh *chan struct{}) (*binlogReader, error) {
 	return &binlogReader{
-		stop:           stopCh,
-		pidChanged:     pidChanged,
-		stat:           stat,
-		logger:         logger,
-		commitDuration: commitDuration,
+		stop:             stopCh,
+		pidChanged:       pidChanged,
+		stat:             stat,
+		logger:           logger,
+		commitDuration:   commitDuration,
+		DoNotFSyncOnRead: DoNotFSyncOnRead,
 	}, nil
 }
 
-func (b *binlogReader) readAllFromPosition(fromPosition int64, prefixPath string, expectedMagic uint32, engine binlog.Engine, sm *seekInfo, isMaster bool) (int64, uint32, error) {
+func (b *binlogReader) readAllFromPosition(fromPosition int64, prefixPath string, expectedMagic uint32, engine binlog.Engine, sm *seekInfo, endlessMode bool) (int64, uint32, error) {
 	var (
 		err          error
 		posAfterRead int64
 		crcAfterRead uint32
 	)
 
-	if !isMaster {
+	if endlessMode {
 		b.fsWatcher, err = fsnotify.NewWatcher()
 		if err != nil {
 			return 0, 0, err
@@ -73,6 +80,11 @@ func (b *binlogReader) readAllFromPosition(fromPosition int64, prefixPath string
 		return 0, 0, fmt.Errorf("binlog not found")
 	}
 
+	if fromPosition < b.fileHeaders[0].Position {
+		return 0, 0, fmt.Errorf("cannot start from offset %d, oldest binlog file (%s) has offset %d",
+			fromPosition, b.fileHeaders[0].FileName, b.fileHeaders[0].Position)
+	}
+
 	fileIndex := getBinlogIndexByPosition(fromPosition, b.fileHeaders)
 	firstIter := true
 	if sm != nil {
@@ -84,6 +96,7 @@ func (b *binlogReader) readAllFromPosition(fromPosition int64, prefixPath string
 
 loop:
 	for {
+		rotated := false
 		for i := fileIndex; i < len(b.fileHeaders); i++ {
 			fileHdr := &b.fileHeaders[i]
 			b.stat.currentBinlogPath.Store(fileHdr.FileName)
@@ -94,13 +107,21 @@ loop:
 			}
 			firstIter = false
 
-			posAfterRead, crcAfterRead, err = b.readBinlogFromFile(fileHdr, fromPosition, engine, sm, isMaster)
+			var pos int64
+			var crc uint32
+			pos, crc, rotated, err = b.readBinlogFromFile(fileHdr, fromPosition, engine, sm, endlessMode)
 			if err != nil {
 				return posAfterRead, crcAfterRead, err
 			}
+			posAfterRead, crcAfterRead = pos, crc
 		}
 
-		if isMaster {
+		if b.pidChanged == nil && !endlessMode {
+			if rotated {
+				b.logger.Warnf("Binlog reading finished, but last read file (%s) have RotateTo event. "+
+					"This mean that there is some other binlog file and may indicate an error",
+					b.fileHeaders[len(b.fileHeaders)-1].FileName)
+			}
 			break loop
 		}
 
@@ -139,32 +160,32 @@ func (b *binlogReader) waitForNewBinlogFile(lastBinlogPosition int64, prefixPath
 	}
 }
 
-func (b *binlogReader) readBinlogFromFile(header *fileHeader, fromPos int64, engine binlog.Engine, si *seekInfo, isMaster bool) (int64, uint32, error) {
+func (b *binlogReader) readBinlogFromFile(header *fileHeader, fromPos int64, engine binlog.Engine, si *seekInfo, endlessMode bool) (int64, uint32, bool, error) {
 	fd, err := os.Open(header.FileName)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, false, err
 	}
 	defer func() { _ = fd.Close() }()
 
-	if !isMaster {
+	if endlessMode {
 		if err = b.fsWatcher.Add(header.FileName); err != nil {
-			return 0, 0, err
+			return 0, 0, false, err
 		}
 		defer func() { _ = b.fsWatcher.Remove(header.FileName) }()
 	}
 
-	var r io.Reader
+	var r ReaderSync
 	r = fd
 
 	if header.CompressInfo.Compressed {
 		fi, err := fd.Stat()
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, false, err
 		}
 
 		_, err = fd.Seek(header.CompressInfo.headerSize, 0)
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, false, err
 		}
 
 		r = newDecompressor(
@@ -182,7 +203,7 @@ func (b *binlogReader) readBinlogFromFile(header *fileHeader, fromPos int64, eng
 		fromPos,
 		engine,
 		si,
-		isMaster,
+		endlessMode,
 	)
 }
 
@@ -215,33 +236,38 @@ func readToAndUpdateCrc(r io.Reader, bytes int64, crc uint32) (uint32, error) {
 	return crc, nil
 }
 
-func (b *binlogReader) readUncompressedFile(r io.Reader, curPos int64, curCrc32 uint32, startPos int64, engine binlog.Engine, si *seekInfo, isMaster bool) (int64, uint32, error) {
+func (b *binlogReader) readUncompressedFile(r ReaderSync, curPos int64, curCrc32 uint32, startPos int64, engine binlog.Engine, si *seekInfo, endlessMode bool) (_ int64, _ uint32, rotated bool, err error) {
 	var (
 		readBytes           int
 		clientDontKnowMagic bool
 		processErr          error
 		finish              bool
 		hasUncommitted      bool
-		err                 error
 	)
 	b.stat.positionInCurFile.Store(levRotateSize)
 
 	buffer := newReadBuffer(64 * 1024)
 	commitTimer := time.NewTimer(b.commitDuration)
 	makeCommit := func(int64, uint32) error {
-		if hasUncommitted {
-			snapMeta := prepareSnapMeta(curPos, curCrc32, b.stat.lastTimestamp.Load())
-			if err := engine.Commit(curPos, snapMeta, curPos); err != nil {
-				return fmt.Errorf("Engine.Commit return error %w", err)
-			}
-			hasUncommitted = false
+		if !hasUncommitted {
+			return nil
 		}
+		if endlessMode && !b.DoNotFSyncOnRead { // no sense to run fsync in master mode while reading
+			if err := r.Sync(); err != nil {
+				return nil
+			}
+		}
+		snapMeta := prepareSnapMeta(curPos, curCrc32, b.stat.lastTimestamp.Load())
+		if err := engine.Commit(curPos, snapMeta, curPos); err != nil {
+			return fmt.Errorf("Engine.Commit return error %w", err)
+		}
+		hasUncommitted = false
 		return nil
 	}
 
 	curPos, curCrc32, err = b.readAndUpdateCRCIfNeed(r, curPos, curCrc32, startPos, si)
 	if err != nil {
-		return curPos, curCrc32, err
+		return curPos, curCrc32, false, err
 	}
 
 loop:
@@ -253,17 +279,17 @@ loop:
 		b.stat.positionInCurFile.Add(int64(readBytes))
 
 		if processErr != nil && !isExpectedError(processErr) {
-			return curPos, curCrc32, fmt.Errorf("Engine.Apply return error %w", processErr)
+			return curPos, curCrc32, false, fmt.Errorf("Engine.Apply return error %w", processErr)
 		}
 
 		select {
 		case <-*b.stop:
-			return curPos, curCrc32, errStopped
+			return curPos, curCrc32, false, errStopped
 		case <-commitTimer.C:
 			// Фейковый коммит. fsync делает репликатор и мы не знаем когда он произошел, поэтому так.
 			// Делаем это для того, чтобы быть похожим на Barsic
 			if err := makeCommit(curPos, curCrc32); err != nil {
-				return curPos, curCrc32, err
+				return curPos, curCrc32, false, err
 			}
 			commitTimer.Reset(b.commitDuration)
 		default:
@@ -278,7 +304,7 @@ loop:
 				var readError error
 				n, readError = buffer.TryReadFrom(r)
 				if readError != nil && !isEOFErr(readError) {
-					return curPos, curCrc32, readError
+					return curPos, curCrc32, false, readError
 				}
 			}
 
@@ -287,26 +313,35 @@ loop:
 				if b.pidChanged != nil {
 					// Нотифицируем клиента, что мы дошли до какого-то конца
 					if err := engine.ChangeRole(binlog.ChangeRoleInfo{
-						IsMaster: isMaster,
+						IsMaster: !endlessMode,
 						IsReady:  false,
 					}); err != nil {
-						return curPos, curCrc32, fmt.Errorf("Engine.ChangeRole return error %w", err)
+						return curPos, curCrc32, false, fmt.Errorf("Engine.ChangeRole return error %w", err)
 					}
 
-					// Ждем пока он нотифицирует нас, что предыдущий процесс грохнут
+					if b.logger != nil {
+						b.logger.Infof("Binlog: running in subst mode, wait for previous process to be killed")
+					}
 					<-*b.pidChanged
+
+					if b.logger != nil {
+						b.logger.Infof("Binlog: previous process is dead, continue to read binlog")
+					}
 
 					// Теперь файлы на диске гарантированно актуальные, больше в эту ветку заходить не нужно
 					b.pidChanged = nil
 					continue
 				}
 
-				if isMaster {
+				if !endlessMode {
+					if err := makeCommit(curPos, curCrc32); err != nil {
+						return curPos, curCrc32, false, err
+					}
 					break loop
 				}
 
 				if b.fsWatcher == nil {
-					return 0, 0, fmt.Errorf("internal error: fsWatcher is nil in replica mode")
+					return 0, 0, false, fmt.Errorf("internal error: fsWatcher is nil in replica mode")
 				}
 
 				if !b.readyCallbackCalled {
@@ -315,7 +350,7 @@ loop:
 						IsMaster: false,
 						IsReady:  true,
 					}); err != nil {
-						return curPos, curCrc32, fmt.Errorf("Engine.ChangeRole return error %w", err)
+						return curPos, curCrc32, false, fmt.Errorf("Engine.ChangeRole return error %w", err)
 					}
 				}
 
@@ -330,8 +365,7 @@ loop:
 					continue
 				case <-commitTimer.C:
 					if err := makeCommit(curPos, curCrc32); err != nil {
-						return curPos, curCrc32, err
-
+						return curPos, curCrc32, false, err
 					}
 					commitTimer.Reset(b.commitDuration)
 					continue
@@ -367,7 +401,7 @@ loop:
 
 		case magicKfsBinlogZipMagic:
 			// в не сжатых бинлогах не может быть такого типа
-			return curPos, curCrc32, fmt.Errorf("unexpected magic magicKfsBinlogZipMagic (%x)", magicKfsBinlogZipMagic)
+			return curPos, curCrc32, false, fmt.Errorf("unexpected magic magicKfsBinlogZipMagic (%x)", magicKfsBinlogZipMagic)
 
 		case magicLevTag:
 			// just read bytes
@@ -380,7 +414,7 @@ loop:
 			if processErr == nil {
 				b.updateTimestamp(uint32(lev.Timestamp))
 				if lev.Crc32 != crc32BeforeEvent {
-					return 0, 0, fmt.Errorf(`crc32 mismatch. levCrc32.crc32:%08x my:%08x position:%d`, lev.Crc32, crc32BeforeEvent, curPos)
+					return 0, 0, false, fmt.Errorf(`crc32 mismatch. levCrc32.crc32:%08x my:%08x position:%d`, lev.Crc32, crc32BeforeEvent, curPos)
 				}
 			}
 
@@ -405,7 +439,7 @@ loop:
 
 		case magicLevSetPersistentConfigArray:
 			// реализовать при необходимости lev_set_persistent_config_array
-			return curPos, curCrc32, fmt.Errorf("unexpected magic magicLevSetPersistentConfigArray (%x)", magicLevSetPersistentConfigArray)
+			return curPos, curCrc32, false, fmt.Errorf("unexpected magic magicLevSetPersistentConfigArray (%x)", magicLevSetPersistentConfigArray)
 
 		case constants.FsbinlogLevUpgradeToGms:
 			var lev tlfsbinlog.LevUpgradeToGms
@@ -421,7 +455,7 @@ loop:
 
 			if clientDontKnowMagic {
 				// Опять зашли сюда => клиент уже не знает этот magic и это не служебное событие
-				return curPos, curCrc32, binlog.ErrorUnknownMagic
+				return curPos, curCrc32, false, binlog.ErrorUnknownMagic
 			}
 
 			// never give unaligned buffer to user, because it will be ambiguous what to do with the padding
@@ -429,17 +463,17 @@ loop:
 			var newPos int64
 			newPos, processErr = engine.Apply(alignedBuff)
 			if newPos < curPos {
-				return curPos, curCrc32, fmt.Errorf("apply lev: new position (%d) is less than preceous (%d)", newPos, curPos)
+				return curPos, curCrc32, false, fmt.Errorf("apply lev: new position (%d) is less than preceous (%d)", newPos, curPos)
 			}
 			readBytes = int(newPos - curPos)
 
 			if readBytes > len(alignedBuff) {
-				return curPos, curCrc32, fmt.Errorf("engine declared to read %d bytes, but payload buffer only have %d bytes, abort reading",
+				return curPos, curCrc32, false, fmt.Errorf("engine declared to read %d bytes, but payload buffer only have %d bytes, abort reading",
 					readBytes, len(alignedBuff))
 			}
 
 			if readBytes <= 0 && processErr == nil {
-				return curPos, curCrc32, fmt.Errorf("engine does not read eny bytes and does not return eny error")
+				return curPos, curCrc32, false, fmt.Errorf("engine does not read eny bytes and does not return eny error")
 			}
 
 			// Если колбек не вычитал данные с выравниванием, то делаем это за него. // TODO: нужно ли это делать?
@@ -457,14 +491,14 @@ loop:
 		if serviceLev && (processErr == nil || processErr == ErrUpgradeToBarsicLev) {
 			newPos, skipErr := engine.Skip(int64(readBytes))
 			if skipErr != nil {
-				return curPos, curCrc32, fmt.Errorf("Engine.Skip return error %w", skipErr)
+				return curPos, curCrc32, false, fmt.Errorf("Engine.Skip return error %w", skipErr)
 			}
 			if newPos != curPos+int64(readBytes) {
-				return curPos, curCrc32, fmt.Errorf("Engine.Skip return new position %d, expect %d", newPos, curPos+int64(readBytes))
+				return curPos, curCrc32, false, fmt.Errorf("Engine.Skip return new position %d, expect %d", newPos, curPos+int64(readBytes))
 			}
 		}
 	}
-	return curPos, curCrc32, nil
+	return curPos, curCrc32, finish, nil
 }
 
 func (b *binlogReader) updateTimestamp(timestamp uint32) {

@@ -37,18 +37,17 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 	clients := rapid.SliceOf(rapid.Custom(genClient)).Draw(t, "clients")
 	numRequests := rapid.IntRange(1, 10).Draw(t, "numRequests")
 
-	s := &Server{
-		Handler:            handler,
-		CryptoKeys:         testCryptoKeys,
-		MaxConns:           rapid.IntRange(0, 3).Draw(t, "maxConns"),
-		MaxWorkers:         rapid.IntRange(-1, 3).Draw(t, "maxWorkers"),
-		MaxInflightPackets: rapid.IntRange(0, 3).Draw(t, "maxInflight"),
-		ConnReadBufSize:    rapid.IntRange(0, 64).Draw(t, "connReadBufSize"),
-		ConnWriteBufSize:   rapid.IntRange(0, 64).Draw(t, "connWriteBufSize"),
-		RequestBufSize:     rapid.IntRange(512, 1024).Draw(t, "requestBufSize"),
-		ResponseBufSize:    rapid.IntRange(512, 1024).Draw(t, "responseBufSize"),
-	}
-
+	s := NewServer(
+		ServerWithHandler(handler),
+		ServerWithCryptoKeys(testCryptoKeys),
+		ServerWithMaxConns(rapid.IntRange(0, 3).Draw(t, "maxConns")),
+		ServerWithMaxWorkers(rapid.IntRange(-1, 3).Draw(t, "maxWorkers")),
+		ServerWithMaxInflightPackets(rapid.IntRange(0, 3).Draw(t, "maxInflight")),
+		ServerWithConnReadBufSize(rapid.IntRange(0, 64).Draw(t, "connReadBufSize")),
+		ServerWithConnWriteBufSize(rapid.IntRange(0, 64).Draw(t, "connWriteBufSize")),
+		ServerWithRequestBufSize(rapid.IntRange(512, 1024).Draw(t, "requestBufSize")),
+		ServerWithResponseBufSize(rapid.IntRange(512, 1024).Draw(t, "responseBufSize")),
+	)
 	serverErr := make(chan error)
 	go func() {
 		serverErr <- s.Serve(ln)
@@ -63,8 +62,8 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 			m := c.Multi(numRequests)
 			defer m.Close()
 
-			requestIDs := map[int]uint64{}
-			requestBufs := map[int][]byte{}
+			queryIDToN := map[int64]int64{}
+			requestToRequestBuf := map[int][]byte{}
 
 			rng := rand.New()
 			for j := 0; j < numRequests; j++ {
@@ -81,34 +80,35 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 				binary.LittleEndian.PutUint32(buf, requestType)
 				req.Body = append(req.Body, buf...)
 
-				err := m.Start(context.Background(), "tcp4", ln.Addr().String(), req, uint64(n))
+				queryID, err := m.Start(context.Background(), "tcp4", ln.Addr().String(), req)
 				if err != nil {
 					t.Errorf("failed to start request %v: %v", j, err)
 				}
 
-				requestIDs[j] = uint64(n)
-				requestBufs[j] = buf
+				queryIDToN[queryID] = n
+				requestToRequestBuf[j] = buf
 			}
 
 			for k := 0; k < numRequests; k++ {
-				var id uint64
+				var queryID int64
 				var resp *Response
 				var err error
 				if k%2 == 0 {
-					for _, rID := range requestIDs {
-						id = rID // get the first request ID from the map
+					for qID := range queryIDToN {
+						queryID = qID // get the first request ID from the map
 						break
 					}
-					resp, err = m.Wait(context.Background(), id)
+					resp, err = m.Wait(context.Background(), queryID)
 				} else {
-					id, resp, err = m.WaitAny(context.Background())
+					queryID, resp, err = m.WaitAny(context.Background())
 				}
 
-				j := int(id >> 32)
-				buf := requestBufs[j]
-				delete(requestIDs, j)
+				n := queryIDToN[queryID]
+				j := int(n >> 32)
+				buf := requestToRequestBuf[j]
+				delete(requestToRequestBuf, j)
+				delete(queryIDToN, queryID)
 
-				n := int64(id)
 				if n%2 != 0 {
 					refErr := Error{
 						Code:        int32(n),

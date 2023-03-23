@@ -81,12 +81,7 @@ func SpareShardReplica(shardReplica int, timestamp uint32) int {
 // All shard aggregators must be on the same network
 func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface, logF func(format string, args ...interface{}),
 	beforeFlushBucketFunc func(now time.Time), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
-	rpcClient := &rpc.Client{ // single socket per aggregator
-		CryptoKey:           aesPwd,
-		TrustedSubnetGroups: build.TrustedSubnetGroups(),
-		Logf:                logF,
-		PongTimeout:         data_model.ClientRPCPongTimeout,
-	}
+	rpcClient := rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF), rpc.ClientWithPongTimeout(data_model.ClientRPCPongTimeout))
 	rnd := rand.New()
 	result := &Agent{
 		hostName:              format.ForceValidStringValue(hostName), // worse alternative is do not run at all

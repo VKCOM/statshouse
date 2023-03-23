@@ -9,6 +9,7 @@ package internal
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -161,12 +162,25 @@ func JsonReadString(j interface{}, dst *string) error {
 		*dst = ""
 		return nil
 	}
-	jj, ok := j.(string)
-	if !ok {
+	switch jj := j.(type) {
+	case string:
+		*dst = jj
+		return nil
+	case map[string]interface{}:
+		iface, ok := jj["base64"]
+		if !ok {
+			return fmt.Errorf("invalid json for string: base64 encoded didn't match as string")
+		}
+		str, ok := iface.(string)
+		if !ok {
+			return fmt.Errorf("invalid json for string: unexpected binary string's object")
+		}
+		buf, err := base64.StdEncoding.DecodeString(str)
+		*dst = string(buf)
+		return err
+	default:
 		return fmt.Errorf("invalid json for string")
 	}
-	*dst = jj
-	return nil
 }
 
 func JsonReadStringBytes(j interface{}, dst *[]byte) error {
@@ -174,12 +188,25 @@ func JsonReadStringBytes(j interface{}, dst *[]byte) error {
 		*dst = nil
 		return nil
 	}
-	jj, ok := j.(string)
-	if !ok {
+	switch jj := j.(type) {
+	case string:
+		*dst = append((*dst)[:0], jj...)
+		return nil
+	case map[string]interface{}:
+		iface, ok := jj["base64"]
+		if !ok {
+			return fmt.Errorf("invalid json for string: base64 encoded didn't match as string")
+		}
+		str, ok := iface.(string)
+		if !ok {
+			return fmt.Errorf("invalid json for string: unexpected binary string's object")
+		}
+		buf, err := base64.StdEncoding.DecodeString(str)
+		*dst = buf
+		return err
+	default:
 		return fmt.Errorf("invalid json for string")
 	}
-	*dst = []byte(jj)
-	return nil
 }
 
 // We allow to specify numbers as "123", so that JS can pass through int64 and bigger numbers

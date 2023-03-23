@@ -7,10 +7,7 @@
 package rpc
 
 import (
-	"bytes"
-
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/tlrw"
 )
 
 // ReqResultExtra описывает следующий комбинатор:
@@ -109,106 +106,6 @@ func (e *ReqResultExtra) SetViewNumber(v int64) {
 
 func (e *ReqResultExtra) IsSetViewNumber() bool {
 	return e.flags&(1<<27) != 0
-}
-
-func (e *ReqResultExtra) readFromBytesBuffer(r *bytes.Buffer) error {
-	if e.flags&(1<<0) != 0 {
-		if err := tlrw.ReadInt64(r, &e.BinlogPos); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<1) != 0 {
-		if err := tlrw.ReadInt64(r, &e.BinlogTime); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<2) != 0 {
-		if err := e.EnginePID.readFromBytesBuffer(r); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<3) != 0 {
-		if err := tlrw.ReadInt32(r, &e.RequestSize); err != nil {
-			return err
-		}
-		if err := tlrw.ReadInt32(r, &e.ResponseSize); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<4) != 0 {
-		if err := tlrw.ReadInt32(r, &e.FailedSubqueries); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<5) != 0 {
-		if err := tlrw.ReadInt32(r, &e.CompressionVersion); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<6) != 0 {
-		var _l uint32
-		if err := tlrw.ReadUint32(r, &_l); err != nil {
-			return err
-		}
-		_data := make(map[string]string, _l)
-		for i := 0; i < int(_l); i++ {
-			var _key string
-			if err := tlrw.ReadString(r, &_key); err != nil {
-				return err
-			}
-			var _val string
-			if err := tlrw.ReadString(r, &_val); err != nil {
-				return err
-			}
-			_data[_key] = _val
-		}
-		e.Stats = _data
-	}
-	if e.flags&(1<<27) != 0 {
-		if err := tlrw.ReadInt64(r, &e.ViewNumber); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (e *ReqResultExtra) writeToBytesBuffer(w *bytes.Buffer) error {
-	if e.flags&(1<<0) != 0 {
-		tlrw.WriteInt64(w, e.BinlogPos)
-	}
-	if e.flags&(1<<1) != 0 {
-		tlrw.WriteInt64(w, e.BinlogTime)
-	}
-	if e.flags&(1<<2) != 0 {
-		e.EnginePID.writeToByteBuffer(w)
-	}
-	if e.flags&(1<<3) != 0 {
-		tlrw.WriteInt32(w, e.RequestSize)
-		tlrw.WriteInt32(w, e.ResponseSize)
-	}
-	if e.flags&(1<<4) != 0 {
-		tlrw.WriteInt32(w, e.FailedSubqueries)
-	}
-	if e.flags&(1<<5) != 0 {
-		tlrw.WriteInt32(w, e.CompressionVersion)
-	}
-	if e.flags&(1<<6) != 0 {
-		tlrw.WriteUint32(w, uint32(len(e.Stats)))
-		for _key, _val := range e.Stats {
-			if err := tlrw.WriteString(w, _key); err != nil {
-				return err
-			}
-			if err := tlrw.WriteString(w, _val); err != nil {
-				return err
-			}
-		}
-	}
-	if e.flags&(1<<27) != 0 {
-		tlrw.WriteInt64(w, e.ViewNumber)
-	}
-
-	return nil
 }
 
 func (e *ReqResultExtra) Read(w []byte) (_ []byte, err error) {

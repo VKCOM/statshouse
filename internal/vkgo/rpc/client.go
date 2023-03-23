@@ -42,27 +42,29 @@ var (
 )
 
 type Request struct {
-	Body    []byte
-	ActorID uint64
-	Extra   InvokeReqExtra
+	Body     []byte
+	ActorID  uint64
+	Extra    InvokeReqExtra
+	HookArgs any
 }
 
-func (req *Request) reset() {
-	*req = Request{Body: req.Body[:0]}
+func (req *Request) reset(resetHookArgs func(any)) {
+	resetHookArgs(req.HookArgs)
+	*req = Request{Body: req.Body[:0], HookArgs: req.HookArgs}
 }
 
 type Response struct {
 	body  []byte // slice for reuse, always len 0
 	Body  []byte
-	Extra []ReqResultExtra
+	Extra ReqResultExtra
 
 	responseType uint32
 }
 
 func (resp *Response) reset() {
 	resp.Body = nil
+	resp.Extra = ReqResultExtra{}
 	resp.responseType = 0
-	resp.Extra = resp.Extra[:0]
 }
 
 type callContext struct {
@@ -72,42 +74,42 @@ type callContext struct {
 
 	failIfNoConnection bool // experimental, set in setupCall call and never changes
 
+	hooksState any
+
 	result    chan callResult
 	closeOnce sync.Once
 	closed    chan struct{} // single channel to signal closing both client and connection: this way we have 1 less select case in do()
 
-	multiRequestID uint64
-	multiFinished  chan callFinished
-	multiClosed    chan callClosed
+	queryID       int64
+	multiFinished chan int64
+	multiClosed   chan int64
 }
 
-func newCallContext() *callContext {
-	return &callContext{
-		result: make(chan callResult, 1),
-		closed: make(chan struct{}),
+func newCallContext(initHookState func() any) *callContext {
+	ret := &callContext{
+		result:     make(chan callResult, 1),
+		closed:     make(chan struct{}),
+		hooksState: initHookState(),
 	}
+	return ret
 }
 
 func (cctx *callContext) reset() {
 	cctx.sent.Store(false)
 	cctx.stale.Store(false)
 	cctx.failIfNoConnection = false
-	cctx.multiRequestID = 0
+	cctx.queryID = 0
 	cctx.multiFinished = nil
 	cctx.multiClosed = nil
 }
 
 // Not reused when closed
-func (cctx *callContext) close(clientClosing bool) {
+func (cctx *callContext) close() {
 	cctx.closeOnce.Do(func() {
 		if cctx.multiClosed != nil {
-			cctx.multiClosed <- callClosed{
-				multiRequestID: cctx.multiRequestID,
-				clientClosing:  clientClosing,
-			}
+			cctx.multiClosed <- cctx.queryID
 		}
-
-		close(cctx.closed)
+		close(cctx.closed) // synchronization point; control is transferred
 	})
 }
 
@@ -115,7 +117,6 @@ type writeReq struct {
 	cctx               *callContext
 	pingPongPacketType uint32 // 0 (if not ping-pong), packetTypeRPCPing, packetTypeRPCPong
 	pingPongID         int64
-	queryID            int64
 	req                *Request
 	deadline           time.Time
 }
@@ -126,17 +127,16 @@ type callResult struct {
 }
 
 type Client struct {
-	Logf       LoggerFunc // defaults to log.Printf; set to NoopLogf to disable all logging
-	loggerOnce sync.Once
+	// Place atomics first to ensure proper alignment, see https://pkg.go.dev/sync/atomic#pkg-note-BUG
+	lastQueryID atomic.Int64 // use an atomic counter instead of pure random to guarantee no ID reuse
+	logf        LoggerFunc   // defaults to log.Printf; set to NoopLogf to disable all logging
 
-	TrustedSubnetGroups [][]string
-	ForceEncryption     bool
-	CryptoKey           string
-	ConnReadBufSize     int
-	ConnWriteBufSize    int
-	PongTimeout         time.Duration // defaults to rpc.DefaultClientPongTimeout
+	forceEncryption  bool
+	cryptoKey        string
+	connReadBufSize  int
+	connWriteBufSize int
+	pongTimeout      time.Duration // defaults to rpc.DefaultClientPongTimeout
 
-	trustedSubnetsOnce  sync.Once
 	trustedSubnetGroups [][]*net.IPNet
 
 	mu      sync.RWMutex
@@ -148,10 +148,137 @@ type Client struct {
 
 	requestPool  sync.Pool
 	responsePool sync.Pool
+
+	hooks ClientHooks
+}
+
+type ClientOptions struct {
+	Logf                LoggerFunc
+	Hooks               ClientHooks
+	TrustedSubnetGroups [][]*net.IPNet
+	ForceEncryption     bool
+	CryptoKey           string
+	ConnReadBufSize     int
+	ConnWriteBufSize    int
+	PongTimeout         time.Duration
+
+	trustedSubnetGroupsParseErrors []error
+}
+
+type ClientOptionsFunc func(*ClientOptions)
+
+func ClientWithLogf(f LoggerFunc) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		o.Logf = f
+	}
+}
+
+func ClientWithHooks(hooks ClientHooks) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		o.Hooks = hooks
+	}
+}
+
+func ClientWithTrustedSubnetGroups(groups [][]string) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		gs, errs := ParseTrustedSubnets(groups)
+		o.TrustedSubnetGroups = gs
+		o.trustedSubnetGroupsParseErrors = errs
+	}
+}
+
+func ClientWithForceEncryption(force bool) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		o.ForceEncryption = force
+	}
+}
+
+func ClientWithCryptoKey(key string) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		o.CryptoKey = key
+	}
+}
+
+func ClientWithConnReadBufSize(size int) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		if size > 0 {
+			o.ConnReadBufSize = size
+		}
+	}
+}
+
+func ClientWithConnWriteBufSize(size int) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		if size > 0 {
+			o.ConnWriteBufSize = size
+		}
+	}
+}
+
+func ClientWithPongTimeout(timeout time.Duration) ClientOptionsFunc {
+	return func(o *ClientOptions) {
+		if timeout > 0 {
+			o.PongTimeout = timeout
+		}
+	}
+}
+
+func NewClient(options ...ClientOptionsFunc) *Client {
+	opts := &ClientOptions{
+		Logf:             log.Printf,
+		ConnReadBufSize:  DefaultClientConnReadBufSize,
+		ConnWriteBufSize: DefaultClientConnWriteBufSize,
+		PongTimeout:      DefaultClientPongTimeout,
+		Hooks: ClientHooks{
+			InitState:  func() any { return nil },
+			ResetState: func(state any) {},
+			Request: RequestHooks{
+				InitArguments:  func() any { return 0 },
+				ResetArguments: func(state any) {},
+				BeforeSend:     func(state any, req *Request) {},
+				AfterReceive:   func(state any, resp *Response, err error) {},
+			},
+		},
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
+
+	for _, err := range opts.trustedSubnetGroupsParseErrors {
+		opts.Logf("[rpc] failed to parse server trusted subnet %q, ignoring", err)
+	}
+
+	c := &Client{
+		logf:                opts.Logf,
+		hooks:               opts.Hooks,
+		connReadBufSize:     opts.ConnReadBufSize,
+		connWriteBufSize:    opts.ConnWriteBufSize,
+		pongTimeout:         opts.PongTimeout,
+		cryptoKey:           opts.CryptoKey,
+		forceEncryption:     opts.ForceEncryption,
+		trustedSubnetGroups: opts.TrustedSubnetGroups,
+		clients:             map[NetAddr]*peerClient{},
+	}
+	c.lastQueryID.Store(int64(rand.Uint64()))
+
+	return c
+}
+
+type ClientHooks struct {
+	InitState  func() any
+	ResetState func(state any)
+	Request    RequestHooks
+}
+
+type RequestHooks struct {
+	InitArguments  func() any
+	ResetArguments func(args any)
+
+	BeforeSend   func(state any, req *Request)
+	AfterReceive func(state any, resp *Response, err error)
 }
 
 func (c *Client) Close() error {
-	c.initLog()
 	c.closeOnce.Do(c.doClose)
 	return c.closeErr
 }
@@ -168,80 +295,41 @@ func (c *Client) doClose() {
 	c.closed = true
 }
 
-func (c *Client) connReadBufSize() int {
-	if c.ConnReadBufSize > 0 {
-		return c.ConnReadBufSize
-	}
-	return DefaultClientConnReadBufSize
-}
-
-func (c *Client) connWriteBufSize() int {
-	if c.ConnWriteBufSize > 0 {
-		return c.ConnWriteBufSize
-	}
-	return DefaultClientConnWriteBufSize
-}
-
-func (c *Client) pongTimeout() time.Duration {
-	if c.PongTimeout > 0 {
-		// We are ok with very large pongTimeout, because then will disconnect due to maxIdleDuration or maxPacketRWTime
-		return c.PongTimeout
-	}
-	return DefaultClientPongTimeout
-}
-
-func (c *Client) initLog() {
-	c.loggerOnce.Do(func() {
-		if c.Logf == nil {
-			c.Logf = log.Printf
-		}
-	})
-}
-
-func (c *Client) initTrustedSubnets() {
-	c.trustedSubnetsOnce.Do(func() {
-		gs, errs := ParseTrustedSubnets(c.TrustedSubnetGroups)
-		c.trustedSubnetGroups = gs
-		for _, err := range errs {
-			c.Logf("[rpc] failed to parse server trusted subnet %q, ignoring", err)
-		}
-	})
-}
-
-func (c *Client) start(network string, address string, req *Request) (*peerClient, error) {
-	c.initLog()
-	c.initTrustedSubnets()
-
+func (c *Client) start(network string, address string, req *Request) (*peerClient, int64, error) {
 	if network != "tcp4" && network != "unix" {
-		return nil, fmt.Errorf("unsupported network type %q", network)
+		return nil, 0, fmt.Errorf("unsupported network type %q", network)
 	}
 
 	if req.Extra.IsSetNoResult() {
-		return nil, fmt.Errorf("sending no_result requests is not supported")
+		return nil, 0, fmt.Errorf("sending no_result requests is not supported")
 	}
 
 	err := validPacketBodyLen(len(req.Body))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	na := NetAddr{network, address}
 	pc, ok := c.getPeerClient(na)
 	if !ok {
-		return nil, ErrClientClosed
+		return nil, 0, ErrClientClosed
 	}
 
-	return pc, nil
+	return pc, c.lastQueryID.Inc(), nil
+}
+
+func (c *Client) Logf(format string, args ...interface{}) {
+	c.logf(format, args...)
 }
 
 // Do supports only "tcp4" and "unix" networks
 func (c *Client) Do(ctx context.Context, network string, address string, req *Request) (*Response, error) {
-	pc, err := c.start(network, address, req)
+	pc, queryID, err := c.start(network, address, req)
 	if err != nil {
 		return nil, err
 	}
 
-	return pc.do(ctx, req)
+	return pc.do(ctx, req, queryID)
 }
 
 func (c *Client) getPeerClient(address NetAddr) (*peerClient, bool) {
@@ -273,16 +361,12 @@ func (c *Client) getPeerClientSlow(address NetAddr) (*peerClient, bool) {
 
 	pc := c.clients[address]
 	if pc == nil {
-		if c.clients == nil {
-			c.clients = map[NetAddr]*peerClient{}
-		}
-
 		pc = &peerClient{
 			client:          c,
-			logf:            c.Logf,
+			logf:            c.logf,
 			address:         address,
-			forceEncryption: c.ForceEncryption,
-			cryptoKey:       c.CryptoKey,
+			forceEncryption: c.forceEncryption,
+			cryptoKey:       c.cryptoKey,
 			calls:           map[int64]*callContext{},
 		}
 		pc.writeQCond.L = &pc.mu
@@ -320,7 +404,6 @@ type peerClient struct {
 	writeQCond sync.Cond
 
 	mu                 sync.Mutex
-	lastQueryID        int64
 	calls              map[int64]*callContext
 	conn               *clientConn
 	running            bool
@@ -342,7 +425,7 @@ func (pc *peerClient) doClose() {
 
 	for _, cctx := range pc.calls {
 		cctx.sent.Store(false) // avoid do() returning ErrClientConnClosedSideEffect instead of ErrClientClosed
-		cctx.close(true)
+		cctx.close()
 	}
 
 	if pc.conn != nil {
@@ -355,30 +438,31 @@ func (pc *peerClient) doClose() {
 	pc.closed = true
 }
 
-func (pc *peerClient) do(ctx context.Context, req *Request) (*Response, error) {
-	var cctxPut *callContext
+func (pc *peerClient) do(ctx context.Context, req *Request, queryID int64) (*Response, error) {
+	var cctxPut bool
 	deadline, _ := ctx.Deadline()
 
-	cctx, queryID, err := pc.setupCall(req, deadline, 0, nil, nil)
+	cctx, err := pc.setupCall(req, deadline, queryID, nil, nil)
 	if err != nil {
 		return nil, err
 	}
-	defer func() { pc.teardownCall(queryID, cctxPut) }()
+	defer func() { pc.teardownCall(cctx, cctxPut) }()
 
 	select {
 	case <-ctx.Done():
 		cctx.stale.Store(true)
 		return nil, ctx.Err()
 	case <-cctx.closed:
-		if cctx.sent.Load() {
+		switch {
+		case cctx.sent.Load():
 			return nil, ErrClientConnClosedSideEffect
-		}
-		if cctx.failIfNoConnection {
+		case cctx.failIfNoConnection:
 			return nil, ErrClientConnClosedNoSideEffect
+		default:
+			return nil, ErrClientClosed
 		}
-		return nil, ErrClientClosed
 	case r := <-cctx.result:
-		cctxPut = cctx
+		cctxPut = true
 		if r.ok == nil {
 			return nil, r.err
 		}
@@ -386,35 +470,35 @@ func (pc *peerClient) do(ctx context.Context, req *Request) (*Response, error) {
 	}
 }
 
-func (pc *peerClient) setupCall(req *Request, deadline time.Time, multiRequestID uint64, multiFinished chan callFinished, multiClosed chan callClosed) (*callContext, int64, error) {
-	cctx := getCallContext()
-	cctx.multiRequestID = multiRequestID
+func (pc *peerClient) setupCall(req *Request, deadline time.Time, queryID int64, multiFinished chan int64, multiClosed chan int64) (*callContext, error) {
+	cctx := getCallContext(pc.client.hooks.InitState)
+	cctx.queryID = queryID
 	cctx.multiFinished = multiFinished
 	cctx.multiClosed = multiClosed
 	cctx.failIfNoConnection = req.Extra.FailIfNoConnection
 
-	queryID, err := pc.setupCallLocked(cctx, req, deadline)
+	err := pc.setupCallLocked(cctx, req, deadline)
 	if err != nil {
 		putCallContext(cctx)
-		return nil, 0, err
+		return nil, err
 	}
 
 	pc.writeQCond.Signal() // signal without holding the mutex to reduce contention
 
-	return cctx, queryID, nil
+	return cctx, nil
 }
 
-func (pc *peerClient) setupCallLocked(cctx *callContext, req *Request, deadline time.Time) (int64, error) {
+func (pc *peerClient) setupCallLocked(cctx *callContext, req *Request, deadline time.Time) error {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 
 	if pc.closed {
-		return 0, ErrClientClosed
+		return ErrClientClosed
 	}
 
 	if pc.running {
 		if req.Extra.FailIfNoConnection && pc.waitingToReconnect {
-			return 0, ErrClientConnClosedNoSideEffect
+			return ErrClientConnClosedNoSideEffect
 		}
 	} else {
 		pc.running = true
@@ -422,26 +506,26 @@ func (pc *peerClient) setupCallLocked(cctx *callContext, req *Request, deadline 
 		go pc.runLoop()
 	}
 
-	queryID := pc.nextQueryIDUnlocked()
-	pc.calls[queryID] = cctx
+	pc.calls[cctx.queryID] = cctx
 
 	pc.writeQ = append(pc.writeQ, writeReq{
 		cctx:     cctx,
-		queryID:  queryID,
 		req:      req,
 		deadline: deadline,
 	})
 
-	return queryID, nil
+	pc.client.hooks.Request.BeforeSend(cctx.hooksState, req)
+
+	return nil
 }
 
-func (pc *peerClient) teardownCall(queryID int64, cctx *callContext) {
+func (pc *peerClient) teardownCall(cctx *callContext, cctxPut bool) {
 	pc.mu.Lock()
-	delete(pc.calls, queryID)
+	delete(pc.calls, cctx.queryID)
 	pc.mu.Unlock()
 
 	// no need to hold mutex here, since we are the sole owners of cctx
-	if cctx != nil {
+	if cctxPut {
 		select {
 		case <-cctx.closed:
 		default:
@@ -484,7 +568,7 @@ func (pc *peerClient) continueRunning(didConnect bool) bool {
 	allSent := true
 	for _, cctx := range pc.calls {
 		if cctx.sent.Load() || cctx.failIfNoConnection {
-			cctx.close(false)
+			cctx.close()
 		} else {
 			allSent = false
 		}
@@ -504,16 +588,6 @@ func (pc *peerClient) continueRunning(didConnect bool) bool {
 func (pc *peerClient) putStaleRequest(wr writeReq) {
 	putCallContext(wr.cctx)
 	pc.client.putRequest(wr.req)
-}
-
-func (pc *peerClient) nextQueryIDUnlocked() int64 {
-	for pc.lastQueryID == 0 {
-		pc.lastQueryID = int64(rand.Uint64())
-	}
-
-	pc.lastQueryID++
-
-	return pc.lastQueryID
 }
 
 func (pc *peerClient) setClientConn(cc *clientConn) bool {
@@ -576,7 +650,7 @@ func (pc *peerClient) run() bool {
 		return false
 	}
 
-	c := NewPacketConn(nc, pc.client.connReadBufSize(), pc.client.connWriteBufSize(), DefaultConnTimeoutAccuracy)
+	c := NewPacketConn(nc, pc.client.connReadBufSize, pc.client.connWriteBufSize, DefaultConnTimeoutAccuracy)
 	defer func() { _ = c.Close() }()
 
 	err = c.HandshakeClient(pc.cryptoKey, pc.client.trustedSubnetGroups, pc.forceEncryption, uniqueStartTime(), 0, DefaultHandshakeStepTimeout)
@@ -598,7 +672,7 @@ func (pc *peerClient) run() bool {
 	pong := make(chan int64, 1)
 
 	wg.Add(3)
-	go pc.pingLoop(cc, &wg, pong, pc.client.pongTimeout())
+	go pc.pingLoop(cc, &wg, pong, pc.client.pongTimeout)
 	go pc.sendLoop(cc, &wg)
 	go pc.receiveLoop(cc, &wg, pong)
 	wg.Wait()
@@ -666,7 +740,7 @@ func (pc *peerClient) sendLoop(cc *clientConn, wg *sync.WaitGroup) {
 					return
 				}
 			default:
-				err := cc.writeRequestUnlocked(wr.queryID, wr.req, wr.deadline, maxPacketRWTime)
+				err := cc.writeRequestUnlocked(wr.cctx.queryID, wr.req, wr.deadline, maxPacketRWTime)
 				if err != nil {
 					if !cc.closed() {
 						pc.logf("rpc: failed to send packet to %v, disconnecting: %v", cc.conn.remoteAddr, err)
@@ -763,64 +837,80 @@ func (pc *peerClient) handlePacket(pkt *Response, pong chan<- int64) error {
 }
 
 func (pc *peerClient) handleResponse(queryID int64, resp *Response, toplevelError bool) (put bool, err error) {
+	put = true
 	cctx, ok := pc.findCall(queryID)
 	if cctx == nil || !ok {
 		// we expect that cctx can be nil because of teardownCall after context was done (and not because server decided to send garbage)
-		return true, nil
+		return
 	}
 
 	var r callResult
+	defer func() {
+		hookErr := err
+		if err == nil {
+			hookErr = r.err
+		}
+		pc.client.hooks.Request.AfterReceive(cctx.hooksState, r.ok, hookErr)
+
+		if err == nil {
+			if cctx.multiFinished != nil {
+				cctx.multiFinished <- cctx.queryID
+			}
+			cctx.result <- r // synchronization point; control is transferred
+		}
+	}()
+
 	if toplevelError {
 		if resp.Body, err = basictl.IntRead(resp.Body, &r.err.Code); err != nil {
-			return true, err
+			return
 		}
 		if resp.Body, err = basictl.StringRead(resp.Body, &r.err.Description); err != nil {
-			return true, err
+			return
 		}
 	} else {
 		var tag uint32
 		var afterTag []byte
+		extraSet := 0
 		for {
 			if afterTag, err = basictl.NatRead(resp.Body, &tag); err != nil {
-				return true, err
+				return
 			}
 			if tag != reqResultHeaderTag {
 				break
 			}
 			var extra ReqResultExtra
 			if resp.Body, err = extra.Read(afterTag); err != nil {
-				return true, err
+				return
 			}
-			resp.Extra = append(resp.Extra, extra)
+			if extraSet == 0 {
+				resp.Extra = extra
+			}
+			extraSet++
+		}
+		if extraSet > 1 {
+			pc.logf("rpc: ResultExtra set more than once (%d) for result tag #%08d; please report to infrastructure team", extraSet, tag)
 		}
 
 		if tag == reqResultErrorTag {
 			var unused int64 // excess query_id erroneously saved by incorrect serialization of RpcReqResult object tree
 			if afterTag, err = basictl.LongRead(afterTag, &unused); err != nil {
-				return true, err
+				return
 			}
 		}
 		if tag == reqResultErrorTag || tag == reqResultErrorWrappedTag {
 			if resp.Body, err = basictl.IntRead(afterTag, &r.err.Code); err != nil {
-				return true, err
+				return
 			}
 			if resp.Body, err = basictl.StringRead(resp.Body, &r.err.Description); err != nil {
-				return true, err
+				return
 			}
 		} else {
 			r.ok = resp
 		}
 	}
 
-	if cctx.multiFinished != nil {
-		cctx.multiFinished <- callFinished{
-			multiRequestID: cctx.multiRequestID,
-			callResult:     r,
-		}
-	}
-	cctx.result <- r
-
-	return r.ok == nil, nil
+	put = r.ok == nil
+	return
 }
 
 type clientConn struct {
@@ -900,11 +990,11 @@ func (c *Client) GetRequest() *Request {
 	if v != nil {
 		return v.(*Request)
 	}
-	return &Request{}
+	return &Request{HookArgs: c.hooks.Request.InitArguments()}
 }
 
 func (c *Client) putRequest(req *Request) {
-	req.reset()
+	req.reset(c.hooks.Request.ResetArguments)
 	c.requestPool.Put(req)
 }
 
@@ -927,12 +1017,12 @@ func (c *Client) PutResponse(resp *Response) {
 	c.responsePool.Put(resp)
 }
 
-func getCallContext() *callContext {
+func getCallContext(initState func() any) *callContext {
 	v := callCtxPool.Get()
 	if v != nil {
 		return v.(*callContext)
 	}
-	return newCallContext()
+	return newCallContext(initState)
 }
 
 func putCallContext(cctx *callContext) {

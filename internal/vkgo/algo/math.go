@@ -6,6 +6,22 @@
 
 package algo
 
+import "golang.org/x/exp/constraints"
+
+func Min[T constraints.Ordered](x T, y T) T {
+	if x <= y {
+		return x
+	}
+	return y
+}
+
+func Max[T constraints.Ordered](x T, y T) T {
+	if x >= y {
+		return x
+	}
+	return y
+}
+
 func MinInt8(x int8, y int8) int8 {
 	if x <= y {
 		return x

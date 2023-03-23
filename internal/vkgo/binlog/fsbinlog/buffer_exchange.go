@@ -16,9 +16,10 @@ const (
 
 // buffExchange contains logic for exchange buffer between user and writer goroutine
 type buffExchange struct {
-	mu          sync.Mutex
-	buff        []byte
-	maxFileSize int64
+	mu           sync.Mutex
+	buff         []byte
+	maxFileSize  int64
+	finishAccept bool
 
 	hashBuff1 [16 * 1024]byte // first 16K
 	hashBuff2 []byte          // last ~16K
@@ -95,4 +96,10 @@ func (b *buffExchange) updatePos(p []byte) {
 func (b *buffExchange) rotateFile() {
 	b.rd.offsetLocal = 0
 	b.rd.rotatePos = append(b.rd.rotatePos, int64(len(b.buff)))
+}
+
+func (b *buffExchange) stopAccept() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.finishAccept = true
 }

@@ -339,15 +339,12 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
 	}
-
-	srv := &rpc.Server{
-		Logf:                logErr.Printf,
-		Version:             build.Info(),
-		CryptoKeys:          []string{aesPwd},
-		TrustedSubnetGroups: build.TrustedSubnetGroups(),
-		Handler:             handlerRPC.Handle,
-		StatsHandler:        statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats,
-	}
+	srv := rpc.NewServer(rpc.ServerWithLogf(logErr.Printf),
+		rpc.ServerWithVersion(build.Info()),
+		rpc.ServerWithCryptoKeys([]string{aesPwd}),
+		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+		rpc.ServerWithHandler(handlerRPC.Handle),
+		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats))
 	go func() {
 		err := srv.ListenAndServe("tcp4", argv.listenAddr)
 		if err != nil {

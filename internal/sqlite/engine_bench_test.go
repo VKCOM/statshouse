@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"testing"
 
+	"pgregory.net/rand"
+
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
-	"pgregory.net/rand"
 )
 
 const schemeNumbers = "CREATE TABLE IF NOT EXISTS numbers (n INTEGER PRIMARY KEY);"

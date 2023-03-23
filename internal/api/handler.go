@@ -27,6 +27,7 @@ import (
 	ttemplate "text/template"
 	"time"
 
+	"github.com/vkcom/statshouse-go"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
@@ -34,6 +35,7 @@ import (
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/mailru/easyjson"
 	_ "github.com/mailru/easyjson/gen" // https://github.com/mailru/easyjson/issues/293
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/format"
@@ -43,7 +45,6 @@ import (
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 )
 
@@ -414,37 +415,36 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 
 	h.cache = newTSCacheGroup(approxCacheMaxSize, lodTables, h.utcOffset, h.loadPoints, cacheDefaultDropEvery)
 	go h.invalidateLoop()
-
-	h.rmID = statlogs.StartRegularMeasurement(func(registry *statlogs.Registry) { // TODO - stop
+	h.rmID = statshouse.StartRegularMeasurement(func(registry *statshouse.Registry) { // TODO - stop
 		prevRUsage := h.rUsage
 		_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 		userTime := float64(h.rUsage.Utime.Nano()-prevRUsage.Utime.Nano()) / float64(time.Second)
 		sysTime := float64(h.rUsage.Stime.Nano()-prevRUsage.Stime.Nano()) / float64(time.Second)
 
-		userMetric := registry.AccessMetricRaw(format.BuiltinMetricNameUsageCPU, statlogs.RawTags{Tag1: strconv.Itoa(format.TagValueIDComponentAPI), Tag2: strconv.Itoa(format.TagValueIDCPUUsageUser)})
+		userMetric := registry.AccessMetricRaw(format.BuiltinMetricNameUsageCPU, statshouse.RawTags{Tag1: strconv.Itoa(format.TagValueIDComponentAPI), Tag2: strconv.Itoa(format.TagValueIDCPUUsageUser)})
 		userMetric.Value(userTime)
-		sysMetric := registry.AccessMetricRaw(format.BuiltinMetricNameUsageCPU, statlogs.RawTags{Tag1: strconv.Itoa(format.TagValueIDComponentAPI), Tag2: strconv.Itoa(format.TagValueIDCPUUsageSys)})
+		sysMetric := registry.AccessMetricRaw(format.BuiltinMetricNameUsageCPU, statshouse.RawTags{Tag1: strconv.Itoa(format.TagValueIDComponentAPI), Tag2: strconv.Itoa(format.TagValueIDCPUUsageSys)})
 		sysMetric.Value(sysTime)
 
 		var rss float64
 		if st, _ := srvfunc.GetMemStat(0); st != nil {
 			rss = float64(st.Res)
 		}
-		memMetric := registry.AccessMetricRaw(format.BuiltinMetricNameUsageMemory, statlogs.RawTags{Tag1: strconv.Itoa(format.TagValueIDComponentAPI)})
+		memMetric := registry.AccessMetricRaw(format.BuiltinMetricNameUsageMemory, statshouse.RawTags{Tag1: strconv.Itoa(format.TagValueIDComponentAPI)})
 		memMetric.Value(rss)
 
 		writeActiveQuieries := func(ch *util.ClickHouse, versionTag string) {
 			if ch != nil {
-				fastLight := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statlogs.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneFastLight), Tag4: srvfunc.HostnameForStatshouse()})
+				fastLight := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statshouse.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneFastLight), Tag4: srvfunc.HostnameForStatshouse()})
 				fastLight.Value(float64(ch.SemaphoreCountFastLight()))
 
-				fastHeavy := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statlogs.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneFastHeavy), Tag4: srvfunc.HostnameForStatshouse()})
+				fastHeavy := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statshouse.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneFastHeavy), Tag4: srvfunc.HostnameForStatshouse()})
 				fastHeavy.Value(float64(ch.SemaphoreCountFastHeavy()))
 
-				slowLight := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statlogs.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneSlowLight), Tag4: srvfunc.HostnameForStatshouse()})
+				slowLight := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statshouse.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneSlowLight), Tag4: srvfunc.HostnameForStatshouse()})
 				slowLight.Value(float64(ch.SemaphoreCountSlowLight()))
 
-				slowHeavy := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statlogs.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneSlowHeavy), Tag4: srvfunc.HostnameForStatshouse()})
+				slowHeavy := registry.AccessMetricRaw(format.BuiltinMetricNameAPIActiveQueries, statshouse.RawTags{Tag2: versionTag, Tag3: strconv.Itoa(format.TagValueIDAPILaneSlowHeavy), Tag4: srvfunc.HostnameForStatshouse()})
 				slowHeavy.Value(float64(ch.SemaphoreCountSlowHeavy()))
 			}
 		}
@@ -456,7 +456,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 }
 
 func (h *Handler) Close() error {
-	statlogs.StopRegularMeasurement(h.rmID)
+	statshouse.StopRegularMeasurement(h.rmID)
 	h.cacheInvalidateTicker.Stop()
 
 	ch := make(chan struct{})

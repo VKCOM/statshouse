@@ -37,15 +37,10 @@ func TestPMCCache(t *testing.T) {
 	m := NewMetadataMock()
 	ln, err := net.Listen("tcp4", "127.0.0.1:")
 	require.NoError(t, err)
-	s := &rpc.Server{
-		Handler: m.Handle,
-	}
+	s := rpc.NewServer(rpc.ServerWithHandler(m.Handle))
 	defer func() { _ = s.Close() }()
 	go func() { _ = s.Serve(ln) }()
-
-	c := &rpc.Client{
-		Logf: t.Logf,
-	}
+	c := rpc.NewClient(rpc.ClientWithLogf(t.Logf))
 	defer func() { _ = c.Close() }()
 
 	dc, err := pcache.OpenDiskCache(filepath.Join(t.TempDir(), cacheFilename), diskTxDuration)

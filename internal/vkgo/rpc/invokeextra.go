@@ -7,10 +7,7 @@
 package rpc
 
 import (
-	"bytes"
-
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/tlrw"
 )
 
 // InvokeReqExtra описывает следующий комбинатор:
@@ -182,116 +179,6 @@ func (e *InvokeReqExtra) SetReturnViewNumber() {
 
 func (e *InvokeReqExtra) IsSetReturnViewNumber() bool {
 	return e.flags&(1<<27) != 0
-}
-
-func (e *InvokeReqExtra) readFromBytesBuffer(r *bytes.Buffer) error {
-	if e.flags&(1<<16) != 0 {
-		if err := tlrw.ReadInt64(r, &e.WaitBinlogPos); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<18) != 0 {
-		var _l int
-		if err := tlrw.ReadLength32(r, &_l, 4); err != nil {
-			return err
-		}
-		var _data []string
-		if cap(e.StringForwardKeys) < _l {
-			_data = make([]string, _l)
-		} else {
-			_data = e.StringForwardKeys[:_l]
-		}
-		for _i := range _data {
-			if err := tlrw.ReadString(r, &_data[_i]); err != nil {
-				return err
-			}
-		}
-		e.StringForwardKeys = _data
-	}
-	if e.flags&(1<<19) != 0 {
-		var _l int
-		if err := tlrw.ReadLength32(r, &_l, 4); err != nil {
-			return err
-		}
-		var _data []int64
-		if cap(e.IntForwardKeys) < _l {
-			_data = make([]int64, _l)
-		} else {
-			_data = e.IntForwardKeys[:_l]
-		}
-		for _i := range _data {
-			if err := tlrw.ReadInt64(r, &_data[_i]); err != nil {
-				return err
-			}
-		}
-		e.IntForwardKeys = _data
-	}
-	if e.flags&(1<<20) != 0 {
-		if err := tlrw.ReadString(r, &e.StringForward); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<21) != 0 {
-		if err := tlrw.ReadInt64(r, &e.IntForward); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<23) != 0 {
-		if err := tlrw.ReadInt32(r, &e.CustomTimeoutMs); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<25) != 0 {
-		if err := tlrw.ReadInt32(r, &e.SupportedCompressionVersion); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<26) != 0 {
-		if err := tlrw.ReadFloat64(r, &e.RandomDelay); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (e *InvokeReqExtra) writeToBytesBuffer(w *bytes.Buffer) error {
-	if e.flags&(1<<16) != 0 {
-		tlrw.WriteInt64(w, e.WaitBinlogPos)
-	}
-	if e.flags&(1<<18) != 0 {
-		tlrw.WriteUint32(w, uint32(len(e.StringForwardKeys)))
-		for _, _elem := range e.StringForwardKeys {
-			if err := tlrw.WriteString(w, _elem); err != nil {
-				return err
-			}
-		}
-	}
-	if e.flags&(1<<19) != 0 {
-		tlrw.WriteUint32(w, uint32(len(e.IntForwardKeys)))
-		for _, _elem := range e.IntForwardKeys {
-			tlrw.WriteInt64(w, _elem)
-		}
-	}
-	if e.flags&(1<<20) != 0 {
-		if err := tlrw.WriteString(w, e.StringForward); err != nil {
-			return err
-		}
-	}
-	if e.flags&(1<<21) != 0 {
-		tlrw.WriteInt64(w, e.IntForward)
-	}
-	if e.flags&(1<<23) != 0 {
-		tlrw.WriteInt32(w, e.CustomTimeoutMs)
-	}
-	if e.flags&(1<<25) != 0 {
-		tlrw.WriteInt32(w, e.SupportedCompressionVersion)
-	}
-	if e.flags&(1<<26) != 0 {
-		tlrw.WriteFloat64(w, e.RandomDelay)
-	}
-
-	return nil
 }
 
 func (e *InvokeReqExtra) Read(w []byte) (_ []byte, err error) {

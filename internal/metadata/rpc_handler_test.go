@@ -39,10 +39,7 @@ func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, 
 		PutTagMappingBootstrap: handler.PutTagMappingBootstrap,
 		GetTagMappingBootstrap: handler.GetTagMappingBootstrap,
 	}
-	server := &rpc.Server{
-		Handler: h.Handle,
-		Logf:    log.Printf,
-	}
+	server := rpc.NewServer(rpc.ServerWithHandler(h.Handle), rpc.ServerWithLogf(log.Printf))
 	t.Cleanup(func() {
 		server.Close()
 	})
@@ -55,15 +52,7 @@ func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, 
 			require.NoError(t, err)
 		}
 	}()
-	rpcClient := &rpc.Client{
-		Logf:                nil,
-		TrustedSubnetGroups: nil,
-		ForceEncryption:     false,
-		CryptoKey:           "",
-		ConnReadBufSize:     0,
-		ConnWriteBufSize:    0,
-		PongTimeout:         0,
-	}
+	rpcClient := rpc.NewClient()
 	cl := &tlmetadata.Client{
 		Client:  rpcClient,
 		Network: "tcp4",

@@ -61,11 +61,9 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	}
 
 	m := map[string]string{}
-	if s.StatsHandler != nil {
-		s.StatsHandler(m)
-	}
+	s.statsHandler(m)
 
-	m["version"] = s.Version
+	m["version"] = s.version
 	m["hostname"] = s.statHostname
 	m["command_line"] = cmdline
 	m["current_time"] = strconv.Itoa(int(now))
@@ -130,12 +128,12 @@ func (s *Server) handleEngineStat(hctx *HandlerContext) error {
 
 func (s *Server) handleEngineVersion(hctx *HandlerContext) error {
 	hctx.Response = basictl.NatWrite(hctx.Response, tlStringTag)
-	hctx.Response = basictl.StringWriteTruncated(hctx.Response, s.Version)
+	hctx.Response = basictl.StringWriteTruncated(hctx.Response, s.version)
 	return nil
 }
 
 func (s *Server) handleEngineSetVerbosity(hctx *HandlerContext) (err error) {
-	if s.VerbosityHandler == nil {
+	if s.verbosityHandler == nil {
 		return nil
 	}
 
@@ -146,7 +144,7 @@ func (s *Server) handleEngineSetVerbosity(hctx *HandlerContext) (err error) {
 	if hctx.Request, err = basictl.IntRead(hctx.Request, &verbosity); err != nil {
 		return fmt.Errorf("failed to read verbosity level: %w", err)
 	}
-	if err = s.VerbosityHandler(int(verbosity)); err != nil {
+	if err = s.verbosityHandler(int(verbosity)); err != nil {
 		return err
 	}
 	hctx.Response = basictl.NatWrite(hctx.Response, tlTrueTag)
@@ -155,11 +153,11 @@ func (s *Server) handleEngineSetVerbosity(hctx *HandlerContext) (err error) {
 }
 
 func (s *Server) respondWithMemcachedVersion(conn *PacketConn) {
-	resp := fmt.Sprintf("VERSION %v\r\n", s.Version)
+	resp := fmt.Sprintf("VERSION %v\r\n", s.version)
 
 	err := s.sendMemcachedResponse(conn, "version", []byte(resp))
 	if err != nil {
-		s.Logf(err.Error())
+		s.logf(err.Error())
 	}
 }
 
@@ -169,7 +167,7 @@ func (s *Server) respondWithMemcachedStats(conn *PacketConn) {
 
 	err := s.sendMemcachedResponse(conn, "stats", resp)
 	if err != nil {
-		s.Logf(err.Error())
+		s.logf(err.Error())
 	}
 }
 
