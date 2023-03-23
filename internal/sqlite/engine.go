@@ -460,7 +460,7 @@ func (e *Engine) Close(ctx context.Context) error {
 	ch := make(chan error, 1)
 	defer close(ch)
 	go func() {
-		err := e.close(true, true)
+		err := e.close(true, e.opt.DurabilityMode != NoBinlog)
 		select {
 		case ch <- err:
 		default:
@@ -475,14 +475,16 @@ func (e *Engine) Close(ctx context.Context) error {
 }
 
 func (e *Engine) close(shouldCommit, waitCommitBinlog bool) error {
-	err := e.binlog.Shutdown()
-	if err != nil {
-		return err
+	if e.opt.DurabilityMode != NoBinlog {
+		err := e.binlog.Shutdown()
+		if err != nil {
+			return err
+		}
 	}
 	if shouldCommit {
 		e.commitTXAndStartNew(true, waitCommitBinlog)
 	}
-	err = e.rw.Close()
+	err := e.rw.Close()
 	for _, conn := range e.roFree {
 		multierr.AppendInto(&err, conn.Close())
 	}

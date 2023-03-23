@@ -477,7 +477,7 @@ func testRereadBinlog(t *testing.T,
 	validator func(t *testing.T, dbv2 *DBV2),
 	clean func(t *testing.T),
 ) {
-	db, bl := initD1b(t, path, dbFile1, true, opt1)
+	db, _ := initD1b(t, path, dbFile1, true, opt1)
 	wg := &sync.WaitGroup{}
 	for i := 0; i < parallelism; i++ {
 		wg.Add(1)
@@ -488,11 +488,9 @@ func testRereadBinlog(t *testing.T,
 	}
 	wg.Wait()
 	require.NoError(t, db.Close())
-	require.NoError(t, bl.Shutdown())
-	db, bl = initD1b(t, path, dbFile2, false, opt2)
+	db, _ = initD1b(t, path, dbFile2, false, opt2)
 	validator(t, db)
 	require.NoError(t, db.Close())
-	require.NoError(t, bl.Shutdown())
 	if clean != nil {
 		clean(t)
 	}

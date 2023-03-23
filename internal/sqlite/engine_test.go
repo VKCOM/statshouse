@@ -167,7 +167,7 @@ func test_Engine_Reread_From_Begin(t *testing.T, waitCommit, commitOnEachWrite b
 	if waitCommit {
 		mode = WaitCommit
 	}
-	engine, bl := openEngine(t, dir, "db", schema, true, false, false, commitOnEachWrite, mode, nil)
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, commitOnEachWrite, mode, nil)
 	agg := &testAggregation{}
 	n := 100000
 	if waitCommit {
@@ -194,10 +194,9 @@ func test_Engine_Reread_From_Begin(t *testing.T, waitCommit, commitOnEachWrite b
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
-	require.NoError(t, bl.Shutdown())
 	history := []string{}
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db1", schema, false, false, false, commitOnEachWrite, mode, func(s string) {
+	engine, _ = openEngine(t, dir, "db1", schema, false, false, false, commitOnEachWrite, mode, func(s string) {
 		mx.Lock()
 		defer mx.Unlock()
 		history = append(history, s)
@@ -210,12 +209,11 @@ func test_Engine_Reread_From_Begin(t *testing.T, waitCommit, commitOnEachWrite b
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
-	require.NoError(t, bl.Shutdown())
 }
 
 func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	dir := t.TempDir()
-	engine, bl := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, NoWaitCommit, nil)
 	agg := &testAggregation{}
 	n := 500 + rand.Intn(500)
 	wg := &sync.WaitGroup{}
@@ -236,12 +234,11 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	require.NoError(t, bl.Shutdown())
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
 	binlogHistory := []string{}
-	engine, bl = openEngine(t, dir, "db2", schema, false, false, false, false, NoWaitCommit, nil)
+	engine, bl := openEngine(t, dir, "db2", schema, false, false, false, false, NoWaitCommit, nil)
 	binlogOffset := engine.dbOffset
 	textInDb := map[string]struct{}{}
 	for _, s := range agg.writeHistory {
@@ -262,14 +259,13 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 			binlogHistory = append(binlogHistory, str)
 		}
 	}
-	require.NoError(t, bl.Shutdown())
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
 
 	history := []string{}
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
+	engine, _ = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
 		mx.Lock()
 		defer mx.Unlock()
 		history = append(history, s)
@@ -299,12 +295,11 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
-	require.NoError(t, bl.Shutdown())
 }
 
 func Test_Engine(t *testing.T) {
 	dir := t.TempDir()
-	engine, bl := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
 	agg := &testAggregation{}
 	n := 8000
 	var task int32 = 10000000
@@ -336,9 +331,8 @@ func Test_Engine(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
-	require.NoError(t, bl.Shutdown())
 	mx := sync.Mutex{}
-	engine, bl = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
+	engine, _ = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
 		t.Fatal("mustn't apply music")
 	})
 	mx.Lock()
@@ -369,7 +363,6 @@ func Test_Engine(t *testing.T) {
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
-	require.NoError(t, bl.Shutdown())
 }
 
 func Test_Engine_Read_Empty_Raw(t *testing.T) {
@@ -637,7 +630,7 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 func Test_ReadAndExit(t *testing.T) {
 	const n = 1000
 	dir := t.TempDir()
-	engineMaster, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
+	engineMaster, _ := openEngine(t, dir, "db", schema, true, false, false, false, NoWaitCommit, nil)
 	wg := sync.WaitGroup{}
 	for i := 0; i < n; i++ {
 		wg.Add(1)
