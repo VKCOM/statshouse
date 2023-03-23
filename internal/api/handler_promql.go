@@ -22,10 +22,11 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+	"golang.org/x/exp/slices"
+
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
 	"github.com/vkcom/statshouse/internal/promql/parser"
-	"golang.org/x/exp/slices"
 )
 
 var accessInfoKey contextKey

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/vkcom/statshouse-go"
 	"pgregory.net/rapid"
 
 	"github.com/vkcom/statshouse/internal/data_model"
@@ -19,7 +20,6 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/mapping"
 	"github.com/vkcom/statshouse/internal/receiver"
-	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
 )
 
 var (
@@ -40,9 +40,9 @@ func identOrEmpty() *rapid.Generator[string] {
 	return rapid.OneOf(rapid.Just(""), ident())
 }
 
-func keys() *rapid.Generator[statlogs.RawTags] {
-	return rapid.Custom(func(t *rapid.T) statlogs.RawTags {
-		return statlogs.RawTags{
+func keys() *rapid.Generator[statshouse.RawTags] {
+	return rapid.Custom(func(t *rapid.T) statshouse.RawTags {
+		return statshouse.RawTags{
 			Env:   identOrEmpty().Draw(t, "key0"),
 			Tag1:  identOrEmpty().Draw(t, "key1"),
 			Tag2:  identOrEmpty().Draw(t, "key2"),
@@ -122,7 +122,7 @@ func toTagsStruct(tags [][2]string, skey string, withEnv bool) []tag {
 	return res
 }
 
-func toTags(ks statlogs.RawTags, skey string, withEnv bool) []tag {
+func toTags(ks statshouse.RawTags, skey string, withEnv bool) []tag {
 	m := map[string]string{
 		"0":  ks.Env,
 		"1":  ks.Tag1,
@@ -166,7 +166,7 @@ type goMachine struct {
 	uniqueMetrics  intsMap
 	recv           *receiver.UDP
 	addr           string
-	send           *statlogs.Registry
+	send           *statshouse.Registry
 	envIsSet       bool
 }
 
@@ -182,7 +182,7 @@ func (g *goMachine) Init(t *rapid.T) {
 	if g.envIsSet {
 		env = envName
 	}
-	g.send = statlogs.NewRegistry(t.Logf, g.addr, env)
+	g.send = statshouse.NewRegistry(t.Logf, g.addr, env)
 }
 
 func (g *goMachine) Cleanup() {

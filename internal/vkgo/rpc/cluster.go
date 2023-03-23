@@ -46,13 +46,58 @@ func (err TargetError) Unwrap() error {
 }
 
 type ClusterClient struct {
-	Client               *Client
-	BigCluster           bool // set if expected cluster size is greater than 500 shards
-	ShardSelectKeyModulo bool // override default Maglev sharding with simple modulo
+	client               *Client
+	bigCluster           bool // set if expected cluster size is greater than 500 shards
+	shardSelectKeyModulo bool // override default Maglev sharding with simple modulo
+	onDo                 func(addr NetAddr, req *Request)
 
 	mu     sync.RWMutex
 	shards []ClusterShard
 	table  *maglev.Table
+}
+
+type ClusterClientOptions struct {
+	BigCluster           bool
+	ShardSelectKeyModulo bool
+	OnDo                 func(addr NetAddr, req *Request)
+}
+
+type ClusterClientOptionsFunc func(*ClusterClientOptions)
+
+func ClusterClientWithBigCluster(v bool) ClusterClientOptionsFunc {
+	return func(o *ClusterClientOptions) {
+		o.BigCluster = v
+	}
+}
+
+func ClusterClientWithShardSelectKeyModulo(v bool) ClusterClientOptionsFunc {
+	return func(o *ClusterClientOptions) {
+		o.ShardSelectKeyModulo = v
+	}
+}
+
+func ClusterClientWithOnDo(v func(addr NetAddr, req *Request)) ClusterClientOptionsFunc {
+	return func(o *ClusterClientOptions) {
+		o.OnDo = v
+	}
+}
+
+func NewClusterClient(client *Client, opts ...ClusterClientOptionsFunc) *ClusterClient {
+	options := &ClusterClientOptions{OnDo: func(addr NetAddr, req *Request) {}}
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	return &ClusterClient{
+		client:               client,
+		bigCluster:           options.BigCluster,
+		shardSelectKeyModulo: options.ShardSelectKeyModulo,
+		onDo:                 options.OnDo,
+	}
+}
+
+func (cc *ClusterClient) RPCClient() *Client {
+	return cc.client
 }
 
 type ClusterShard struct {
@@ -63,7 +108,7 @@ type ClusterShard struct {
 
 func (cc *ClusterClient) UpdateCluster(shards []ClusterShard) error {
 	m := maglev.SmallM
-	if cc.BigCluster {
+	if cc.bigCluster {
 		m = maglev.BigM
 	}
 	if len(shards) > m/100 {
@@ -101,7 +146,7 @@ func (cc *ClusterClient) UpdateCluster(shards []ClusterShard) error {
 	}
 
 	var table *maglev.Table
-	if !cc.ShardSelectKeyModulo {
+	if !cc.shardSelectKeyModulo {
 		shardNames := make([]string, 0, len(shardsCopy))
 		for _, s := range shardsCopy {
 			shardNames = append(shardNames, s.Name)
@@ -123,11 +168,12 @@ func (cc *ClusterClient) UpdateCluster(shards []ClusterShard) error {
 func (cc *ClusterClient) DoKey(ctx context.Context, write bool, req *Request, key uint64) (*Response, error) {
 	netAddr := cc.SelectKey(write, key)
 	if netAddr.Address == "" {
-		cc.Client.putRequest(req)
+		cc.client.putRequest(req)
 		return nil, errNoBackends
 	}
 
-	resp, err := cc.Client.Do(ctx, netAddr.Network, netAddr.Address, req)
+	cc.onDo(netAddr, req)
+	resp, err := cc.client.Do(ctx, netAddr.Network, netAddr.Address, req)
 	if err != nil {
 		return nil, TargetError{Address: netAddr, Err: err}
 	}
@@ -138,11 +184,12 @@ func (cc *ClusterClient) DoKey(ctx context.Context, write bool, req *Request, ke
 func (cc *ClusterClient) DoAny(ctx context.Context, write bool, req *Request) (*Response, error) {
 	netAddr := cc.SelectAny(write)
 	if netAddr.Address == "" {
-		cc.Client.putRequest(req)
+		cc.client.putRequest(req)
 		return nil, errNoBackends
 	}
 
-	resp, err := cc.Client.Do(ctx, netAddr.Network, netAddr.Address, req)
+	cc.onDo(netAddr, req)
+	resp, err := cc.client.Do(ctx, netAddr.Network, netAddr.Address, req)
 	if err != nil {
 		return nil, TargetError{Address: netAddr, Err: err}
 	}
@@ -161,7 +208,7 @@ func (cc *ClusterClient) DoAll(
 		return errNoBackends
 	}
 
-	return cc.Client.DoMulti(ctx, netAddrs, prepareRequest, processResponse)
+	return cc.client.DoMulti(ctx, netAddrs, prepareRequest, processResponse)
 }
 
 func (cc *ClusterClient) pick2(n int) (int, int) {
@@ -187,8 +234,8 @@ func (cc *ClusterClient) selectInShard(write bool, shard ClusterShard) NetAddr {
 		return nodes[0]
 	default:
 		i, j := cc.pick2(n)
-		li := cc.Client.getLoad(nodes[i])
-		lj := cc.Client.getLoad(nodes[j])
+		li := cc.client.getLoad(nodes[i])
+		lj := cc.client.getLoad(nodes[j])
 		if li <= lj {
 			return nodes[i]
 		}
@@ -206,7 +253,7 @@ func (cc *ClusterClient) SelectKey(write bool, key uint64) NetAddr {
 	}
 
 	var i int
-	if cc.ShardSelectKeyModulo {
+	if cc.shardSelectKeyModulo {
 		i = int(key % uint64(len(cc.shards)))
 	} else {
 		h := hashInt(key) // guarantee perfect key distribution
@@ -238,8 +285,8 @@ func (cc *ClusterClient) SelectAny(write bool) NetAddr {
 		case aj.Address == "":
 			return ai
 		default:
-			li := cc.Client.getLoad(ai)
-			lj := cc.Client.getLoad(aj)
+			li := cc.client.getLoad(ai)
+			lj := cc.client.getLoad(aj)
 			if li <= lj {
 				return ai
 			}

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 

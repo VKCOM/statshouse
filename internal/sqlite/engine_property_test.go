@@ -9,11 +9,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog"
-	"github.com/vkcom/statshouse/internal/vkgo/tlrw"
+	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"go.uber.org/atomic"
 	"pgregory.net/rapid"
+
+	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
+	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 
 const path = "test.db"
@@ -47,9 +48,9 @@ var (
 )
 
 func binlogEvent(v int64) []byte {
-	buffer := bytes.NewBuffer(magicTest)
-	tlrw.WriteInt64(buffer, v)
-	return buffer.Bytes()
+	buffer := make([]byte, 4)
+	copy(buffer, magicTest)
+	return basictl.LongWrite(buffer, v)
 }
 
 func readBinlogEvent(b []byte) ([]byte, int64, error) {
@@ -61,9 +62,7 @@ func readBinlogEvent(b []byte) ([]byte, int64, error) {
 	}
 	b = b[4:]
 	var v int64
-	buffer := bytes.NewBuffer(b)
-	err := tlrw.ReadInt64(buffer, &v)
-	b = buffer.Bytes()
+	b, err := basictl.LongRead(b, &v)
 	return b, v, err
 }
 

@@ -12,10 +12,11 @@ import (
 	"time"
 
 	"github.com/ClickHouse/ch-go/proto"
+	"github.com/vkcom/statshouse-go"
+
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
 )
 
 const (
@@ -55,9 +56,9 @@ func (es *endpointStat) responseTime(code int) {
 
 func (es *endpointStat) logEvent(statName string, code int) {
 	v := time.Since(es.startTime).Seconds()
-	statlogs.AccessMetricRaw(
+	statshouse.AccessMetricRaw(
 		statName,
-		statlogs.RawTags{
+		statshouse.RawTags{
 			Tag1: es.endpoint,
 			Tag2: es.metric,
 			Tag3: strconv.Itoa(code),
@@ -106,9 +107,9 @@ func (ms *rpcMethodStat) serviceTime(ai accessInfo, err error) {
 		errorCode = "-1"
 	}
 	v := time.Since(ms.startTime).Seconds()
-	statlogs.AccessMetricRaw(
+	statshouse.AccessMetricRaw(
 		format.BuiltinMetricNameAPIRPCServiceTime,
-		statlogs.RawTags{
+		statshouse.RawTags{
 			Tag1: ms.method,
 			Tag2: errorCode,
 			Tag3: getStatTokenName(ai.user),
@@ -117,11 +118,11 @@ func (ms *rpcMethodStat) serviceTime(ai accessInfo, err error) {
 	).Value(v)
 }
 
-func CurrentChunksCount(brs *BigResponseStorage) func(*statlogs.Registry) {
-	return func(r *statlogs.Registry) {
+func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Registry) {
+	return func(r *statshouse.Registry) {
 		r.AccessMetricRaw(
 			format.BuiltinMetricNameAPIBRS,
-			statlogs.RawTags{
+			statshouse.RawTags{
 				Tag1: srvfunc.HostnameForStatshouse(),
 			},
 		).Value(float64(brs.Count()))
@@ -133,9 +134,9 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, table, kind 
 	if err != nil {
 		ok = "error"
 	}
-	statlogs.AccessMetricRaw(
+	statshouse.AccessMetricRaw(
 		format.BuiltinMetricNameAPISelectDuration,
-		statlogs.RawTags{
+		statshouse.RawTags{
 			Tag1: modeStr(isFast, isLight),
 			Tag2: strconv.Itoa(int(metricID)),
 			Tag3: table,
@@ -165,9 +166,9 @@ func modeStr(isFast, isLight bool) string {
 
 func chSelectPushMetric(metric string, isFast, isLight bool, data float64, err error) {
 
-	m := statlogs.AccessMetricRaw(
+	m := statshouse.AccessMetricRaw(
 		metric,
-		statlogs.RawTags{
+		statshouse.RawTags{
 			Tag1: modeStr(isFast, isLight),
 		},
 	)
@@ -178,9 +179,9 @@ func chSelectPushMetric(metric string, isFast, isLight bool, data float64, err e
 }
 
 func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
-	statlogs.AccessMetricRaw(
+	statshouse.AccessMetricRaw(
 		"ch_video_select_test",
-		statlogs.RawTags{
+		statshouse.RawTags{
 			Tag1: "cache",
 			Tag2: strconv.Itoa(int(metricID)),
 			Tag3: table,
@@ -188,9 +189,9 @@ func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
 		},
 	).Value(float64(cachedRows))
 
-	statlogs.AccessMetricRaw(
+	statshouse.AccessMetricRaw(
 		"ch_video_select_test",
-		statlogs.RawTags{
+		statshouse.RawTags{
 			Tag1: "clickhouse",
 			Tag2: strconv.Itoa(int(metricID)),
 			Tag3: table,

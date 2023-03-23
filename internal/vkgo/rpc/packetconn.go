@@ -22,11 +22,12 @@ import (
 )
 
 const (
-	packetOverhead = 4 * 4
-	maxPacketLen   = 16*1024*1024 - 1
-	blockSize      = 16
-	padVal         = 4
-	startSeqNum    = (1 << 32) - 2 // unsigned to have defined overflow semantics
+	packetOverhead       = 4 * 4
+	maxPacketLen         = 16*1024*1024 - 1
+	maxNonceHandshakeLen = 1024 // this limit is not exact, but it still prevents attack to force allocating lots of memory
+	blockSize            = 16
+	padVal               = 4
+	startSeqNum          = -2
 
 	memcachedStatsReqRN  = "stats\r\n"
 	memcachedStatsReqN   = "stats\n"
@@ -59,14 +60,14 @@ type PacketConn struct {
 	r             *cryptoReader
 	rDeadline     time.Time
 	headerReadBuf [packetOverhead - 4]byte
-	readSeqNum    uint32
+	readSeqNum    int64
 
 	writeMu         sync.Mutex
 	w               *cryptoWriter
 	wDeadline       time.Time
 	headerWriteBuf  []byte
 	trailerWriteBuf [4 + blockSize]byte // CRC + optional padding
-	writeSeqNum     uint32
+	writeSeqNum     int64
 
 	encrypted bool
 	keyID     [4]byte // to identify clients for Server with more than 1 crypto key
@@ -206,7 +207,10 @@ func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout tim
 		header.tip = binary.LittleEndian.Uint32(pc.headerReadBuf[8:12])
 	} else {
 		header.length = padVal
-		for header.length == padVal {
+		for i := 0; header.length == padVal; i++ {
+			if i >= blockSize/4 {
+				return nil, fmt.Errorf("excessive (%d) padding", i)
+			}
 			n, err := io.ReadFull(pc.r, pc.headerReadBuf[:4])
 			if err != nil {
 				return pc.headerReadBuf[:n], err
@@ -223,10 +227,13 @@ func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout tim
 	}
 
 	if header.length < packetOverhead || header.length > maxPacketLen {
-		return pc.headerReadBuf[:], fmt.Errorf("packet size %v outside  [%v, %v]", header.length, packetOverhead, maxPacketLen)
+		return pc.headerReadBuf[:12], fmt.Errorf("packet size %v outside  [%v, %v]", header.length, packetOverhead, maxPacketLen)
 	}
-	if header.seqNum != pc.readSeqNum {
-		return pc.headerReadBuf[:], fmt.Errorf("seqnum mismatch: read %v, expected %v", header.seqNum, pc.readSeqNum)
+	if pc.readSeqNum < 0 && header.length > maxNonceHandshakeLen {
+		return pc.headerReadBuf[:12], fmt.Errorf("nonce/handshake packet size %v outside  [%v, %v]", header.length, packetOverhead, maxNonceHandshakeLen)
+	}
+	if header.seqNum != uint32(pc.readSeqNum) {
+		return pc.headerReadBuf[:12], fmt.Errorf("seqnum mismatch: read %v, expected %v", header.seqNum, pc.readSeqNum)
 	}
 	pc.readSeqNum++
 
@@ -329,7 +336,7 @@ func (pc *PacketConn) startWritePacketUnlocked(packetType uint32, timeout time.D
 	}
 
 	buf := basictl.NatWrite(pc.headerWriteBuf[:0], 0) // PacketLen will be filled later
-	buf = basictl.NatWrite(buf, pc.writeSeqNum)
+	buf = basictl.NatWrite(buf, uint32(pc.writeSeqNum))
 	pc.headerWriteBuf = basictl.NatWrite(buf, packetType)
 	pc.writeSeqNum++
 	return nil
@@ -448,7 +455,7 @@ func readFullOrMagic(r io.Reader, buf []byte, magics []string) (n int, err error
 			}
 		}
 	}
-	if n >= m {
+	if n >= m { // actually never >
 		err = nil
 	} else if n > 0 && err == io.EOF {
 		err = io.ErrUnexpectedEOF

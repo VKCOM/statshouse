@@ -21,13 +21,13 @@ import (
 
 	"github.com/cloudflare/tableflip"
 	"github.com/spf13/pflag"
+	"github.com/vkcom/statshouse-go"
 
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlengine"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -77,7 +77,7 @@ func parseArgs() {
 
 	pflag.StringVar(&argv.rpcCryptoKeyPath, "rpc-crypto-path", "", "path to RPC crypto key. if empty try to use stdin")
 
-	pflag.StringVar(&argv.shAddr, "statshouse-addr", statlogs.DefaultStatsHouseAddr, "address of StatsHouse UDP socket")
+	pflag.StringVar(&argv.shAddr, "statshouse-addr", statshouse.DefaultStatsHouseAddr, "address of StatsHouse UDP socket")
 	pflag.StringVar(&argv.shEnv, "statshouse-env", "dev", "fill key0/environment with this value in StatHouse statistics")
 	pflag.BoolVar(&argv.secureMode, "secure", false, "if set, fail if can't read rpc crypto key from rpc-crypto-path or from stdin")
 
@@ -288,8 +288,8 @@ func run() error {
 			log.Printf("[error] %v", err)
 		}
 	}()
-	statlogs.Configure(log.Printf, argv.shAddr, argv.shEnv)
-	defer statlogs.Close()
+	statshouse.Configure(log.Printf, argv.shAddr, argv.shEnv)
+	defer statshouse.Close()
 
 	proxy := metadata.ProxyHandler{Host: host}
 	handler := metadata.NewHandler(db, host, log.Printf)
@@ -312,16 +312,11 @@ func run() error {
 		GetReindexStatus:  engineRPCHandler.GetReindexStatus,
 		GetBinlogPrefixes: engineRPCHandler.GetBinlogPrefixes,
 	}
-
-	server := &rpc.Server{
-		Handler:             rpc.ChainHandler(h.Handle, engineHandler.Handle),
-		Logf:                log.Printf,
-		TrustedSubnetGroups: build.TrustedSubnetGroups(),
-		CryptoKeys:          rpcCryptoKeys,
-		MaxWorkers:          5000,
-		ResponseBufSize:     1024,
-		ResponseMemEstimate: 1024,
-	}
+	server := rpc.NewServer(
+		rpc.ServerWithHandler(rpc.ChainHandler(h.Handle, engineHandler.Handle)),
+		rpc.ServerWithLogf(log.Printf),
+		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+		rpc.ServerWithCryptoKeys(rpcCryptoKeys))
 	go func() {
 		err = server.Serve(rpcLn)
 		if err != rpc.ErrServerClosed {

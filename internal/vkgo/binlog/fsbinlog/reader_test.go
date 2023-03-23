@@ -67,10 +67,10 @@ func TestRead(t *testing.T) {
 	PrefixPath := filepath.Join(testDataDir, "test_log")
 
 	stop := make(chan struct{})
-	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, &stop)
+	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, false, &stop)
 	require.NoError(t, err)
 
-	engine := &TestEngineImpl{}
+	engine := NewTestEngine(0)
 	count := 0
 	engine.applyCb = func(payload []byte) (int64, error) {
 		value, n, err := deserialize(12345, payload)
@@ -83,7 +83,7 @@ func TestRead(t *testing.T) {
 		return engine.GetCurrentOffset(), nil
 	}
 
-	pos, crc, err := reader.readAllFromPosition(0, PrefixPath, testMagic, engine, nil, true)
+	pos, crc, err := reader.readAllFromPosition(0, PrefixPath, testMagic, engine, nil, false)
 	require.NoError(t, err)
 
 	expectedPos, expectedCrc := GetPosAndCrc(t, testDataDir)
@@ -100,10 +100,10 @@ func TestReadIncorrectMagic(t *testing.T) {
 	PrefixPath := filepath.Join(testDataDir, "test_log")
 
 	stop := make(chan struct{})
-	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, &stop)
+	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, false, &stop)
 	require.NoError(t, err)
 
-	_, _, err = reader.readAllFromPosition(0, PrefixPath, testMagic+1, &TestEngineImpl{}, nil, true)
+	_, _, err = reader.readAllFromPosition(0, PrefixPath, testMagic+1, NewTestEngine(0), nil, false)
 	require.Error(t, err)
 
 	close(stop)
@@ -115,7 +115,7 @@ func TestReadFromMiddle(t *testing.T) {
 
 	PrefixPath := filepath.Join(testDataDir, "test_log")
 	stop := make(chan struct{})
-	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, &stop)
+	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, false, &stop)
 	require.NoError(t, err)
 
 	count := 20
@@ -132,7 +132,7 @@ func TestReadFromMiddle(t *testing.T) {
 		return engine.GetCurrentOffset(), nil
 	}
 
-	pos, crc, err := reader.readAllFromPosition(startPosition, PrefixPath, 0, engine, nil, true)
+	pos, crc, err := reader.readAllFromPosition(startPosition, PrefixPath, 0, engine, nil, false)
 	require.NoError(t, err)
 
 	expectedPos, expectedCrc := GetPosAndCrc(t, testDataDir)
@@ -152,7 +152,7 @@ func TestReadReplicaMode(t *testing.T) {
 	PrefixPath := filepath.Join(tmpDir, "test_log")
 
 	stopCh := make(chan struct{})
-	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, &stopCh)
+	reader, err := newBinlogReader(nil, time.Second, nil, &stat{}, false, &stopCh)
 	require.NoError(t, err)
 
 	engine := NewTestEngine(0)
@@ -170,7 +170,7 @@ func TestReadReplicaMode(t *testing.T) {
 
 	quit := make(chan struct{})
 	go func() {
-		_, _, err := reader.readAllFromPosition(0, PrefixPath, 0, engine, nil, false)
+		_, _, err := reader.readAllFromPosition(0, PrefixPath, 0, engine, nil, true)
 		if err != nil && !errors.Is(err, errStopped) {
 			require.NoError(t, err)
 		}

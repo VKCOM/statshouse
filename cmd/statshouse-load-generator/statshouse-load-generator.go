@@ -8,9 +8,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/vkcom/statshouse-go"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
+
+	"github.com/vkcom/statshouse-go"
 )
 
 var (

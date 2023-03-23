@@ -96,12 +96,12 @@ func TestRPCRoundtrip(t *testing.T) {
 }
 
 func genClient(t *rapid.T) *Client {
-	return &Client{
-		ForceEncryption:  rapid.Bool().Draw(t, "forceEncryption"),
-		CryptoKey:        testCryptoKeys[rapid.IntRange(0, 2).Draw(t, "cryptoKeyIndex")],
-		ConnReadBufSize:  rapid.IntRange(0, 64).Draw(t, "connReadBufSize"),
-		ConnWriteBufSize: rapid.IntRange(0, 64).Draw(t, "connWriteBufSize"),
-	}
+	return NewClient(
+		ClientWithForceEncryption(rapid.Bool().Draw(t, "forceEncryption")),
+		ClientWithCryptoKey(testCryptoKeys[rapid.IntRange(0, 2).Draw(t, "cryptoKeyIndex")]),
+		ClientWithConnReadBufSize(rapid.IntRange(0, 64).Draw(t, "connReadBufSize")),
+		ClientWithConnWriteBufSize(rapid.IntRange(0, 64).Draw(t, "connWriteBufSize")),
+	)
 }
 
 func testRPCRoundtrip(t *rapid.T) {
@@ -113,17 +113,17 @@ func testRPCRoundtrip(t *rapid.T) {
 	clients := rapid.SliceOf(rapid.Custom(genClient)).Draw(t, "clients")
 	numRequests := rapid.IntRange(1, 10).Draw(t, "numRequests")
 
-	s := &Server{
-		Handler:            handler,
-		CryptoKeys:         testCryptoKeys,
-		MaxConns:           rapid.IntRange(0, 3).Draw(t, "maxConns"),
-		MaxWorkers:         rapid.IntRange(-1, 3).Draw(t, "maxWorkers"),
-		MaxInflightPackets: rapid.IntRange(0, 3).Draw(t, "maxInflight"),
-		ConnReadBufSize:    rapid.IntRange(0, 64).Draw(t, "connReadBufSize"),
-		ConnWriteBufSize:   rapid.IntRange(0, 64).Draw(t, "connWriteBufSize"),
-		RequestBufSize:     rapid.IntRange(512, 1024).Draw(t, "requestBufSize"),
-		ResponseBufSize:    rapid.IntRange(512, 1024).Draw(t, "responseBufSize"),
-	}
+	s := NewServer(
+		ServerWithHandler(handler),
+		ServerWithCryptoKeys(testCryptoKeys),
+		ServerWithMaxConns(rapid.IntRange(0, 3).Draw(t, "maxConns")),
+		ServerWithMaxWorkers(rapid.IntRange(-1, 3).Draw(t, "maxWorkers")),
+		ServerWithMaxInflightPackets(rapid.IntRange(0, 3).Draw(t, "maxInflight")),
+		ServerWithConnReadBufSize(rapid.IntRange(0, 64).Draw(t, "connReadBufSize")),
+		ServerWithConnWriteBufSize(rapid.IntRange(0, 64).Draw(t, "connWriteBufSize")),
+		ServerWithRequestBufSize(rapid.IntRange(512, 1024).Draw(t, "requestBufSize")),
+		ServerWithResponseBufSize(rapid.IntRange(512, 1024).Draw(t, "responseBufSize")),
+	)
 
 	serverErr := make(chan error)
 	go func() {

@@ -17,8 +17,9 @@ import (
 	"github.com/ClickHouse/ch-go/chpool"
 	"github.com/ClickHouse/ch-go/proto"
 	_ "github.com/ClickHouse/clickhouse-go/v2" // to access clickhouse.bind
-	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 	"pgregory.net/rand"
+
+	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 )
 
 type connPool struct {

@@ -8,6 +8,7 @@
 package basictl
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -433,9 +434,28 @@ var safeSet = [utf8.RuneSelf]bool{
 	'\u007f': true,
 }
 
+const (
+	binaryJSONStringStart = "{\"base64\":\""
+	binaryJSONStringEnd   = "\"}"
+)
+
+func alloc(buf []byte, size int) []byte {
+	if cap(buf) >= len(buf)+size {
+		return buf[:len(buf)+size]
+	}
+	return append(buf, make([]byte, size)...)
+}
+
 // NOTE: keep in sync with stringBytes below.
 
 func JSONWriteString(w []byte, s string) []byte {
+	if !utf8.ValidString(s) {
+		w = append(w, binaryJSONStringStart...)
+		beforeAllocation := len(w)
+		w = alloc(w, base64.StdEncoding.EncodedLen(len(s)))
+		base64.StdEncoding.Encode(w[beforeAllocation:], []byte(s))
+		return append(w, binaryJSONStringEnd...)
+	}
 	w = append(w, '"')
 	start := 0
 	for i := 0; i < len(s); {
@@ -508,6 +528,13 @@ func JSONWriteString(w []byte, s string) []byte {
 
 // NOTE: keep in sync with string above.
 func JSONWriteStringBytes(w []byte, s []byte) []byte {
+	if !utf8.Valid(s) {
+		w = append(w, binaryJSONStringStart...)
+		beforeAllocation := len(w)
+		w = alloc(w, base64.StdEncoding.EncodedLen(len(s)))
+		base64.StdEncoding.Encode(w[beforeAllocation:], s)
+		return append(w, binaryJSONStringEnd...)
+	}
 	w = append(w, '"')
 	start := 0
 	for i := 0; i < len(s); {
@@ -576,4 +603,52 @@ func JSONWriteStringBytes(w []byte, s []byte) []byte {
 		w = append(w, s[start:]...)
 	}
 	return append(w, '"')
+}
+
+type Rand interface {
+	Uint32() uint32
+	Int31() int32
+	Int63() int64
+	NormFloat64() float64
+}
+
+const RandomNatConstraint = 10
+
+func RandomNat(rand Rand) uint32 {
+	return rand.Uint32() % RandomNatConstraint
+}
+
+func RandomInt(rand Rand) int32 {
+	return rand.Int31()
+}
+
+func RandomLong(rand Rand) int64 {
+	return rand.Int63()
+}
+
+func RandomFloat(rand Rand) float32 {
+	return float32(rand.NormFloat64())
+}
+
+func RandomDouble(rand Rand) float64 {
+	return rand.NormFloat64()
+}
+
+const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+const lenLetters uint32 = uint32(len(letters))
+
+func RandomString(rand Rand) string {
+	res := make([]byte, rand.Uint32()%RandomNatConstraint)
+	for i := range res {
+		res[i] = letters[rand.Uint32()%lenLetters]
+	}
+	return string(res)
+}
+
+func RandomStringBytes(rand Rand) []byte {
+	res := make([]byte, rand.Uint32()%RandomNatConstraint)
+	for i := range res {
+		res[i] = letters[rand.Uint32()%lenLetters]
+	}
+	return res
 }

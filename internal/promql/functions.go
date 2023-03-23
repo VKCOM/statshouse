@@ -18,6 +18,7 @@ import (
 
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+
 	"github.com/vkcom/statshouse/internal/promql/parser"
 )
 

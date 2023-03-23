@@ -11,12 +11,12 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"math/rand"
 	"os"
 	"path"
 	"sort"
 	"strings"
-	"time"
+
+	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog/internal/gen/tlfsbinlog"
@@ -145,8 +145,9 @@ func writeEmptyBinlog(options binlog.Options, w io.Writer) error {
 	}
 
 	// в tag недопустимы нулевые байты
-	rand.Seed(time.Now().UnixNano())
-	rand.Read(levTag.Tag[:])
+	if _, err := rand.Read(levTag.Tag[:]); err != nil {
+		return err
+	}
 	for i := range levTag.Tag {
 		for levTag.Tag[i] == 0 {
 			levTag.Tag[i] = uint8(rand.Uint32())

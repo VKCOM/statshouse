@@ -10,81 +10,45 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"sync"
 )
 
 // TODO: experiment with https://golang.org/pkg/reflect/#Select instead of reqFinished/reqClosed
 
-const (
-	MissingMultiRequestID = uint64(math.MaxUint64)
-
-	multiStatusSent     = 0
-	multiStatusErrored  = 1
-	multiStatusReturned = 2
-)
-
 var (
-	errMultiClosed     = errors.New("rpc: Multi closed")
-	errMultiNoRequests = errors.New("rpc: no Multi requests to wait for")
-
-	callStatePool sync.Pool
+	errMultiClosed = errors.New("rpc: Multi closed")
 )
 
 type callState struct {
-	pc      *peerClient
-	queryID int64
-	cctx    *callContext
-	status  int
-}
-
-func getCallState() *callState {
-	v := callStatePool.Get()
-	if v != nil {
-		return v.(*callState)
-	}
-	return &callState{}
-}
-
-func putCallState(v *callState) {
-	*v = callState{}
-	callStatePool.Put(v)
-}
-
-type callFinished struct {
-	multiRequestID uint64
-	callResult
-}
-
-type callClosed struct {
-	multiRequestID uint64
-	clientClosing  bool
+	pc   *peerClient
+	cctx *callContext
 }
 
 // Invariants:
-// - there is no concurrent execution of Multi methods
-// - `calls` map never shrinks
+// - Start, Wait and Close hold the mutex from start to finish; WaitAny waits unlocked
 // - after Close(), Multi is in a terminal do-nothing state
 // - returning when context.Context is Done() does not change state
-// - trying to wait when there is nothing to wait for is an error
-// - each non-nop wait() decreases the number of calls with status == multiStatusSent by 1
+// - trying to Wait for a request that was not sent yet is an error (but WaitAny will hang)
+// - each non-nop Wait/WaitAny decreases the size of `calls` by 1
 
 type Multi struct {
 	c           *Client
 	mu          sync.Mutex
-	reqFinished chan callFinished
-	reqClosed   chan callClosed
-	calls       map[uint64]*callState
+	reqFinished chan int64
+	reqClosed   chan int64
+	calls       map[int64]callState
 	closed      bool
+	closeCh     chan struct{}
 }
 
 // Multi must be followed with a call to Multi.Close to release request state resources
 func (c *Client) Multi(n int) *Multi {
 	return &Multi{
 		c:           c,
-		reqFinished: make(chan callFinished, n),
-		reqClosed:   make(chan callClosed, n),
-		calls:       make(map[uint64]*callState, n),
+		reqFinished: make(chan int64, n),
+		reqClosed:   make(chan int64, n),
+		calls:       make(map[int64]callState, n),
+		closeCh:     make(chan struct{}),
 	}
 }
 
@@ -94,57 +58,48 @@ func (m *Multi) Close() {
 
 	if !m.closed {
 		m.closed = true
+		close(m.closeCh)
 
 		for _, cs := range m.calls {
-			if cs.status != multiStatusReturned {
-				cs.cctx.stale.Store(true)
-			}
-			if cs.status == multiStatusSent {
-				cs.pc.teardownCall(cs.queryID, nil)
-			}
-			putCallState(cs)
+			cs.cctx.stale.Store(true)
+			m.teardownCallStateLocked(cs, false)
 		}
 	}
 }
 
-func (m *Multi) Start(ctx context.Context, network string, address string, req *Request, id uint64) error {
+func (m *Multi) teardownCallStateLocked(cs callState, cctxPut bool) {
+	delete(m.calls, cs.cctx.queryID)
+	cs.pc.teardownCall(cs.cctx, cctxPut)
+}
+
+func (m *Multi) Start(ctx context.Context, network string, address string, req *Request) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.closed {
-		return errMultiClosed
+		return 0, errMultiClosed
 	}
 
-	if id == MissingMultiRequestID {
-		return fmt.Errorf("invalid request ID: MissingMultiRequestID (0x%x)", MissingMultiRequestID)
-	}
-
-	if _, ok := m.calls[id]; ok {
-		return fmt.Errorf("duplicate request ID %v", id)
-	}
-
-	pc, err := m.c.start(network, address, req)
+	pc, queryID, err := m.c.start(network, address, req)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	deadline, _ := ctx.Deadline()
-	cctx, queryID, err := pc.setupCall(req, deadline, id, m.reqFinished, m.reqClosed)
+	cctx, err := pc.setupCall(req, deadline, queryID, m.reqFinished, m.reqClosed)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	cs := getCallState()
-	cs.pc = pc
-	cs.queryID = queryID
-	cs.cctx = cctx
+	m.calls[queryID] = callState{
+		pc:   pc,
+		cctx: cctx,
+	}
 
-	m.calls[id] = cs
-
-	return nil
+	return queryID, nil
 }
 
-func (m *Multi) Wait(ctx context.Context, id uint64) (*Response, error) {
+func (m *Multi) Wait(ctx context.Context, queryID int64) (*Response, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -152,31 +107,26 @@ func (m *Multi) Wait(ctx context.Context, id uint64) (*Response, error) {
 		return nil, errMultiClosed
 	}
 
-	cs, ok := m.calls[id]
+	cs, ok := m.calls[queryID]
 	if !ok {
-		return nil, fmt.Errorf("missing request ID %v", id)
-	}
-
-	if cs.status != multiStatusSent {
-		return nil, fmt.Errorf("request with ID %v already returned", id)
+		return nil, fmt.Errorf("unknown query ID %v", queryID)
 	}
 
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case <-cs.cctx.closed:
-		cs.status = multiStatusErrored
-		cs.pc.teardownCall(cs.queryID, nil)
-		if cs.cctx.sent.Load() {
+		defer m.teardownCallStateLocked(cs, false) // defer because we are using cctx below
+		switch {
+		case cs.cctx.sent.Load():
 			return nil, ErrClientConnClosedSideEffect
-		}
-		if cs.cctx.failIfNoConnection {
+		case cs.cctx.failIfNoConnection:
 			return nil, ErrClientConnClosedNoSideEffect
+		default:
+			return nil, ErrClientClosed
 		}
-		return nil, ErrClientClosed
 	case r := <-cs.cctx.result:
-		cs.status = multiStatusReturned
-		cs.pc.teardownCall(cs.queryID, cs.cctx)
+		m.teardownCallStateLocked(cs, true) // don't defer because we don't use cctx anymore
 		if r.ok == nil {
 			return nil, r.err
 		}
@@ -184,60 +134,46 @@ func (m *Multi) Wait(ctx context.Context, id uint64) (*Response, error) {
 	}
 }
 
-func (m *Multi) WaitAny(ctx context.Context) (uint64, *Response, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.closed {
-		return MissingMultiRequestID, nil, errMultiClosed
-	}
-
-	hasStartedCalls := false
-	for _, cs := range m.calls {
-		if cs.status == multiStatusSent {
-			hasStartedCalls = true
-			break
-		}
-	}
-	if !hasStartedCalls {
-		return MissingMultiRequestID, nil, errMultiNoRequests
-	}
-
+func (m *Multi) WaitAny(ctx context.Context) (int64, *Response, error) {
 	for {
 		select {
 		case <-ctx.Done():
-			return MissingMultiRequestID, nil, ctx.Err()
-		case c := <-m.reqClosed:
-			cs := m.calls[c.multiRequestID]
-			if cs == nil {
-				panic(fmt.Errorf("got closed request with unknown ID %v", c.multiRequestID))
-			}
-			if cs.status != multiStatusSent {
-				continue
-			}
-
-			cs.status = multiStatusErrored
-			cs.pc.teardownCall(cs.queryID, nil)
-			if c.clientClosing {
-				return c.multiRequestID, nil, ErrClientClosed
-			}
-			return c.multiRequestID, nil, ErrClientConnClosedSideEffect
-		case r := <-m.reqFinished:
-			cs := m.calls[r.multiRequestID]
-			if cs == nil {
-				panic(fmt.Errorf("got response with unknown ID %v", r.multiRequestID))
-			}
-			if cs.status != multiStatusSent {
-				continue
+			return 0, nil, ctx.Err()
+		case <-m.closeCh:
+			return 0, nil, errMultiClosed
+		case queryID := <-m.reqClosed:
+			m.mu.Lock()
+			cs, ok := m.calls[queryID]
+			if !ok {
+				m.mu.Unlock()
+				continue // we already did a Wait()
 			}
 
-			<-cs.cctx.result // make sure cctx can be returned to the pool
-			cs.status = multiStatusReturned
-			cs.pc.teardownCall(cs.queryID, cs.cctx)
+			defer m.mu.Unlock()
+			defer m.teardownCallStateLocked(cs, false)
+			switch {
+			case cs.cctx.sent.Load():
+				return queryID, nil, ErrClientConnClosedSideEffect
+			case cs.cctx.failIfNoConnection:
+				return queryID, nil, ErrClientConnClosedNoSideEffect
+			default:
+				return queryID, nil, ErrClientClosed
+			}
+		case queryID := <-m.reqFinished:
+			m.mu.Lock()
+			cs, ok := m.calls[queryID]
+			if !ok {
+				m.mu.Unlock()
+				continue // we already did a Wait()
+			}
+
+			r := <-cs.cctx.result
+			m.teardownCallStateLocked(cs, true)
+			m.mu.Unlock()
 			if r.ok == nil {
-				return r.multiRequestID, nil, r.err
+				return queryID, nil, r.err
 			}
-			return r.multiRequestID, r.ok, nil
+			return queryID, r.ok, nil
 		}
 	}
 }
@@ -251,6 +187,7 @@ func (c *Client) DoMulti(
 ) error {
 	m := c.Multi(len(addresses))
 	defer m.Close()
+	queryIDtoAddr := make(map[int64]int, len(addresses))
 
 	for i, addr := range addresses {
 		r := c.GetRequest()
@@ -259,25 +196,28 @@ func (c *Client) DoMulti(
 			return fmt.Errorf("failed to prepare request for %v: %w", addr, err)
 		}
 
-		err = m.Start(ctx, addr.Network, addr.Address, r, uint64(i))
+		queryID, err := m.Start(ctx, addr.Network, addr.Address, r)
 		if err != nil {
 			return err
 		}
+
+		queryIDtoAddr[queryID] = i
 	}
 
 	blindAttributionStart := 0
 	seen := make([]bool, len(addresses))
 
 	for range addresses {
-		i, resp, err := m.WaitAny(ctx)
+		queryID, resp, err := m.WaitAny(ctx)
+		i := queryIDtoAddr[queryID]
 
-		if i == MissingMultiRequestID || blindAttributionStart > 0 {
+		if queryID == 0 || blindAttributionStart > 0 {
 			// We consider that multi is in the terminal error state at this point;
 			// error is most likely to be ErrClientClosed, context.Canceled or context.DeadlineExceeded.
 			// Attribute everything after this point to one of the addresses we have not seen yet.
 			for j := blindAttributionStart; j < len(seen); j++ {
 				if !seen[j] {
-					i = uint64(j)
+					i = j
 					blindAttributionStart = j + 1
 					break
 				}

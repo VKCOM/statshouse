@@ -71,7 +71,7 @@ type (
 		bucketsToSend   chan *aggregatorBucket
 		mu              sync.Mutex
 		cond            *sync.Cond // Signalled when historicBuckets len or activeSenders change
-		server          rpc.Server
+		server          *rpc.Server
 		hostName        []byte
 		aggregatorHost  int32
 		withoutCluster  bool
@@ -139,11 +139,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	log.Printf("success autoconfiguration in cluster %q, localShard=%d localReplica=%d address list is (%q)", config.Cluster, shardKey, replicaKey, strings.Join(addresses, ","))
 
 	metadataClient := &tlmetadata.Client{
-		Client: &rpc.Client{
-			Logf:                log.Printf,
-			CryptoKey:           aesPwd,
-			TrustedSubnetGroups: build.TrustedSubnetGroups(),
-		},
+		Client:  rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
 		Network: config.MetadataNet,
 		Address: config.MetadataAddr,
 		ActorID: config.MetadataActorID,
@@ -166,19 +162,17 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	a := &Aggregator{
 		bucketsToSend:   make(chan *aggregatorBucket),
 		historicBuckets: map[uint32]*aggregatorBucket{},
-		server: rpc.Server{
-			CryptoKeys:             []string{aesPwd},
-			Logf:                   log.Printf,
-			MaxWorkers:             -1,
-			DisableContextTimeout:  true,
-			TrustedSubnetGroups:    build.TrustedSubnetGroups(),
-			Version:                build.Info(),
-			DefaultResponseTimeout: data_model.MaxConveyorDelay * time.Second,                            // TODO
-			MaxInflightPackets:     (data_model.MaxConveyorDelay + data_model.MaxHistorySendStreams) * 3, // *3 is additional load for spares, when original aggregator is down
-			ResponseBufSize:        1024,
-			ResponseMemEstimate:    1024,
-			RequestMemoryLimit:     2 << 30,
-		},
+		server: rpc.NewServer(rpc.ServerWithCryptoKeys([]string{aesPwd}),
+			rpc.ServerWithLogf(log.Printf),
+			rpc.ServerWithMaxWorkers(-1),
+			rpc.ServerWithDisableContextTimeout(true),
+			rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+			rpc.ServerWithVersion(build.Info()),
+			rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
+			rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3), // *3 is additional load for spares, when original aggregator is down
+			rpc.ServerWithResponseBufSize(1024),
+			rpc.ServerWithResponseMemEstimate(1024),
+			rpc.ServerWithRequestMemoryLimit(2<<30)),
 		config:                      config,
 		hostName:                    format.ForceValidStringValue(hostName), // worse alternative is do not run at all
 		withoutCluster:              withoutCluster,
@@ -202,7 +196,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	// We use agent instance for aggregator built-in metrics
 	getConfigResult := a.getConfigResult() // agent will use this config instead of getting via RPC, because our RPC is not started yet
 	// TODO - pass storage dir after design is fixed
-	sh2, err := agent.MakeAgent("tcp4", storageDir, a.server.CryptoKeys[0], agentConfig, hostName,
+	sh2, err := agent.MakeAgent("tcp4", storageDir, aesPwd, agentConfig, hostName,
 		format.TagValueIDComponentAggregator, a.metricStorage, log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult)
 	if err != nil {
 		return fmt.Errorf("built-in agent failed to start: %v", err)
@@ -216,7 +210,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 
 	a.estimator.Init(config.CardinalityWindow, a.config.MaxCardinality/len(addresses))
 	a.cond = sync.NewCond(&a.mu)
-	a.server.Handler = a.handleClient
+	a.server.RegisterHandlerFunc(a.handleClient)
 	now := time.Now()
 	a.startTimestamp = uint32(now.Unix())
 	_ = a.advanceRecentBuckets(now, true) // Just create initial set of buckets and set LastHour

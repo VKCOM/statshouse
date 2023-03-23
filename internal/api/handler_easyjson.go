@@ -9,6 +9,7 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
+
 	format "github.com/vkcom/statshouse/internal/format"
 )
 
@@ -920,7 +921,8 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi3(out *jwriter.Wri
 								out.RawString("null")
 							} else {
 								out.Float64(float64(v25))
-							}						}
+							}
+						}
 						out.RawByte(']')
 					}
 				}
