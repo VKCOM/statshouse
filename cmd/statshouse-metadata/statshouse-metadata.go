@@ -277,12 +277,6 @@ func run() error {
 		return fmt.Errorf("db-path: %s, failed to open db: %w", argv.dbPath, err)
 	}
 	defer func() {
-		err := bl.Shutdown()
-		if err != nil {
-			log.Printf("[error] %v", err)
-		}
-	}()
-	defer func() {
 		err := db.Close()
 		if err != nil {
 			log.Printf("[error] %v", err)
