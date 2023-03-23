@@ -177,7 +177,7 @@ const (
 
 func OpenEngine(
 	opt Options,
-	binlog binlog2.Binlog,
+	binlog binlog2.Binlog, // binlog - will be closed during Close execution
 	apply ApplyEventFunction,
 	scan ApplyEventFunction, // this helps to work in replica mode with old binlog
 ) (*Engine, error) {
@@ -460,7 +460,7 @@ func (e *Engine) Close(ctx context.Context) error {
 	ch := make(chan error, 1)
 	defer close(ch)
 	go func() {
-		err := e.close(e.opt.DurabilityMode == WaitCommit || e.opt.DurabilityMode == NoBinlog, e.opt.DurabilityMode == WaitCommit)
+		err := e.close(true, true)
 		select {
 		case ch <- err:
 		default:
@@ -475,10 +475,14 @@ func (e *Engine) Close(ctx context.Context) error {
 }
 
 func (e *Engine) close(shouldCommit, waitCommitBinlog bool) error {
+	err := e.binlog.Shutdown()
+	if err != nil {
+		return err
+	}
 	if shouldCommit {
 		e.commitTXAndStartNew(true, waitCommitBinlog)
 	}
-	err := e.rw.Close()
+	err = e.rw.Close()
 	for _, conn := range e.roFree {
 		multierr.AppendInto(&err, conn.Close())
 	}
