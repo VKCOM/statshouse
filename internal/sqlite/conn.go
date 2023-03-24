@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"go.uber.org/multierr"
+	"go4.org/mem"
 
 	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
 
@@ -93,25 +94,33 @@ func (c Conn) execEndSavepoint() {
 }
 
 func (c Conn) Query(name, sql string, args ...Arg) Rows {
-	return c.query(false, query, name, sql, args...)
+	return c.query(false, query, name, nil, sql, args...)
+}
+
+func (c Conn) QueryBytes(name string, sql []byte, args ...Arg) Rows {
+	return c.query(false, query, name, sql, "", args...)
 }
 
 func (c Conn) Exec(name, sql string, args ...Arg) (int64, error) {
-	return c.exec(false, name, sql, args...)
+	return c.exec(false, name, nil, sql, args...)
+}
+
+func (c Conn) ExecBytes(name string, sql []byte, args ...Arg) (int64, error) {
+	return c.exec(false, name, sql, "", args...)
 }
 
 func (c Conn) ExecUnsafe(name, sql string, args ...Arg) (int64, error) {
-	return c.exec(true, name, sql, args...)
+	return c.exec(true, name, nil, sql, args...)
 }
 
-func (c Conn) query(allowUnsafe bool, type_, name, sql string, args ...Arg) Rows {
+func (c Conn) query(allowUnsafe bool, type_, name string, sql []byte, sqlStr string, args ...Arg) Rows {
 	start := time.Now()
-	s, skipCache, err := c.doQuery(allowUnsafe, sql, args...)
+	s, skipCache, err := c.doQuery(allowUnsafe, sql, sqlStr, args...)
 	return Rows{c.c, s, err, false, c.ctx, name, start, c.stats, type_, skipCache}
 }
 
-func (c Conn) exec(allowUnsafe bool, name, sql string, args ...Arg) (int64, error) {
-	rows := c.query(allowUnsafe, exec, name, sql, args...)
+func (c Conn) exec(allowUnsafe bool, name string, sql []byte, sqlStr string, args ...Arg) (int64, error) {
+	rows := c.query(allowUnsafe, exec, name, sql, sqlStr, args...)
 	for rows.Next() {
 	}
 	return c.LastInsertRowID(), rows.Error()
@@ -199,12 +208,23 @@ func checkSliceParamName(s string) bool {
 	return strings.HasPrefix(s, "$") && strings.HasSuffix(s, "$")
 }
 
-func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt, bool, error) {
+// if sqlString == "", sqlBytes could be copied to store as map key
+func (c Conn) doQuery(allowUnsafe bool, sqlBytes []byte, sqlString string, args ...Arg) (*sqlite0.Stmt, bool, error) {
 	if c.c.err != nil {
 		return nil, false, c.c.err
 	}
 	skipCache := false
-	c.c.numParams.reset(sql)
+	sqlIsRawBytes := true
+	if len(sqlBytes) == 0 {
+		sqlIsRawBytes = false
+	}
+	var sqlRO mem.RO
+	if sqlIsRawBytes {
+		sqlRO = mem.B(sqlBytes)
+	} else {
+		sqlRO = mem.S(sqlString)
+	}
+	c.c.numParams.reset(sqlRO)
 	for _, arg := range args {
 		if strings.HasPrefix(arg.name, "$internal") {
 			return nil, false, fmt.Errorf("prefix $internal is reserved")
@@ -224,7 +244,11 @@ func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt,
 	var si stmtInfo
 	var ok bool
 	if !skipCache {
-		si, ok = c.c.prep[sql]
+		if sqlIsRawBytes {
+			si, ok = c.c.prep[string(sqlBytes)]
+		} else {
+			si, ok = c.c.prep[sqlString]
+		}
 	}
 	if !ok {
 		start := time.Now()
@@ -234,7 +258,11 @@ func (c Conn) doQuery(allowUnsafe bool, sql string, args ...Arg) (*sqlite0.Stmt,
 			return nil, skipCache, err
 		}
 		if !skipCache {
-			c.c.prep[sql] = si
+			if sqlIsRawBytes {
+				c.c.prep[string(sqlBytes)] = si
+			} else {
+				c.c.prep[sqlString] = si
+			}
 		}
 	}
 
@@ -269,7 +297,7 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 		case argByte:
 			err = si.stmt.BindBlob(p, arg.b)
 		case argByteConst:
-			err = si.stmt.BindBlobConst(p, arg.b)
+			err = si.stmt.BindBlobConstUnsafe(p, arg.b)
 		case argString:
 			err = si.stmt.BindBlobString(p, arg.s)
 		case argInt64:

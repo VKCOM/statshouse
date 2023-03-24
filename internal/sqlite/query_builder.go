@@ -3,13 +3,13 @@ package sqlite
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
+	"go4.org/mem"
 	"golang.org/x/exp/slices"
 )
 
 type queryBuilder struct {
-	query       string
+	query       mem.RO
 	args        []Arg
 	paramsIndex []indexedArg
 	buffer      []byte
@@ -21,7 +21,7 @@ type indexedArg struct {
 	i int
 }
 
-func (p *queryBuilder) reset(query string) {
+func (p *queryBuilder) reset(query mem.RO) {
 	p.query = query
 	p.args = p.args[:0]
 	p.paramsIndex = p.paramsIndex[:0]
@@ -34,13 +34,14 @@ func (p *queryBuilder) addSliceParam(arg Arg) {
 
 func (p *queryBuilder) buildQueryLocked() ([]byte, error) {
 	if len(p.args) == 0 {
-		p.buffer = append(p.buffer, p.query...)
+		p.buffer = mem.Append(p.buffer, p.query)
 		return p.buffer, nil
 	}
 	p.paramsIndex = p.paramsIndex[:0]
 	for _, param := range p.args {
-		i := strings.Index(p.query, param.name)
-		j := strings.LastIndex(p.query, param.name)
+		i := mem.Index(p.query, mem.S(param.name))
+		j := mem.LastIndex(p.query, mem.S(param.name))
+
 		if i != j || i == -1 {
 			return nil, fmt.Errorf("query doesn't contain %s arg", param.name)
 		}
@@ -56,15 +57,15 @@ func (p *queryBuilder) buildQueryLocked() ([]byte, error) {
 	for i, indexed := range p.paramsIndex {
 		index := indexed.i
 		if i == 0 {
-			p.buffer = append(p.buffer, p.query[:index]...)
+			p.buffer = mem.Append(p.buffer, p.query.SliceTo(index))
 		}
 		p.buffer = genParams(p.buffer, start, indexed.a.length)
 		from := index + len(indexed.a.name)
-		to := len(p.query)
+		to := p.query.Len()
 		if i != len(p.paramsIndex)-1 {
 			to = p.paramsIndex[i+1].i
 		}
-		p.buffer = append(p.buffer, p.query[from:to]...)
+		p.buffer = mem.Append(p.buffer, p.query.Slice(from, to))
 		start += indexed.a.length
 	}
 	return p.buffer, nil
