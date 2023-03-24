@@ -272,7 +272,11 @@ func (s *Stmt) ParamBytes(name []byte) int {
 }
 
 func (s *Stmt) BindBlob(param int, v []byte) error {
-	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeSlicePtr(v), C.int(len(v)), 1)
+	if s.keepAliveBytes == nil {
+		s.keepAliveBytes = make([][]byte, s.n)
+	}
+	s.keepAliveBytes[param-1] = v
+	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeSlicePtr(v), C.int(len(v)), 0)
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
 }
 
