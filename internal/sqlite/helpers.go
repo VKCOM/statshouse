@@ -42,7 +42,7 @@ func Blob(name string, b []byte) Arg {
 	}
 }
 
-func BlobConst(name string, b []byte) Arg {
+func BlobConstUnsafe(name string, b []byte) Arg {
 	return Arg{
 		name: name,
 		typ:  argByteConst,

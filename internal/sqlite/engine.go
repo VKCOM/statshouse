@@ -539,7 +539,7 @@ func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, ski
 			}
 		}
 		if e.rw.err == nil {
-			_, err := c.exec(true, "__commit", commitStmt)
+			_, err := c.exec(true, "__commit", nil, commitStmt)
 			if err != nil {
 				e.rw.err = fmt.Errorf("periodic tx commit failed: %w", err)
 			}
@@ -548,7 +548,7 @@ func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, ski
 	}
 
 	if e.rw.err == nil {
-		_, err := c.exec(true, "__begin_tx", beginStmt)
+		_, err := c.exec(true, "__begin_tx", nil, beginStmt)
 		if err != nil {
 			e.rw.err = fmt.Errorf("periodic tx begin failed: %w", err)
 		}

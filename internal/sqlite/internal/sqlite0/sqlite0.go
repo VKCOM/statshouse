@@ -271,6 +271,7 @@ func (s *Stmt) ParamBytes(name []byte) int {
 	return s.params[string(name)]
 }
 
+// BindBlob copy slice of bytes
 func (s *Stmt) BindBlob(param int, v []byte) error {
 	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeSlicePtr(v), C.int(len(v)), 1)
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
@@ -308,7 +309,8 @@ func (s *Stmt) BindInt64(param int, v int64) error {
 	return sqliteErr(rc, s.conn.conn, "sqlite3_bind_int64")
 }
 
-func (s *Stmt) BindBlobConst(param int, v []byte) error {
+// BindBlobConstUnsafe don't copy slice of bytes, expecting v is immutable during the query execution
+func (s *Stmt) BindBlobConstUnsafe(param int, v []byte) error {
 	if s.keepAliveBytes == nil {
 		s.keepAliveBytes = make([][]byte, s.n)
 	}
