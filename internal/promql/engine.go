@@ -796,6 +796,8 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 					histogramQ.filter = true
 					histogramQ.compare = true
 					histogramQ.le = prometheus.LexDecode(id)
+				} else if filterIn[i] != nil {
+					filterIn[i][id] = matcher.Value
 				} else {
 					filterIn[i] = map[int32]string{id: matcher.Value}
 				}
@@ -808,6 +810,8 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 					histogramQ.filter = true
 					histogramQ.compare = false
 					histogramQ.le = prometheus.LexDecode(id)
+				} else if filterOut[i] != nil {
+					filterOut[i][id] = matcher.Value
 				} else {
 					filterOut[i] = map[int32]string{id: matcher.Value}
 				}
