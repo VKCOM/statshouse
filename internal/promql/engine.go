@@ -945,6 +945,9 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 }
 
 func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tagV string) (int32, error) {
+	if format.HasRawValuePrefix(tagV) {
+		return format.ParseCodeTagValue(tagV)
+	}
 	tag := metric.Tags[tagX]
 	if tag.Name == labels.BucketLabel && tag.Raw {
 		if v, err := strconv.ParseFloat(tagV, 32); err == nil {
