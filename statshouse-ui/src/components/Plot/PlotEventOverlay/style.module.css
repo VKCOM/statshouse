@@ -1,0 +1,16 @@
+.overlay {
+  --plot-padding-top-loc: min(var(--plot-padding-top), var(--plot-padding-top-max));
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(100% + var(--plot-padding-top-loc));
+  margin-top: calc(-1 * var(--plot-padding-top-loc));
+  pointer-events: none;
+  z-index: 1;
+}
+
+.overlayFlag {
+  pointer-events: all;
+  cursor: pointer;
+}

@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import uPlot from 'uplot';
 import { useResizeObserver } from '../../view/utils';
 import { canvasToImageData } from '../../common/canvasToImage';
@@ -55,6 +55,7 @@ export type UPlotWrapperProps = {
   onUpdatePreview?: React.Dispatch<React.SetStateAction<string>>;
   onUpdateLegend?: React.Dispatch<React.SetStateAction<LegendItem[]>>;
   className?: string;
+  children?: ReactNode;
 } & UPlotWrapperPropsHooks;
 
 export const microTask =
@@ -128,6 +129,7 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
   onReady,
   onDraw,
   onSetSelect,
+  children,
 }) => {
   const uRef = useRef<uPlot>();
   const uRefDiv = useRef<HTMLDivElement>(null);
@@ -415,7 +417,11 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
     };
   }, [getPreview, series, data, scales, width, height, onUpdatePreview]);
 
-  return <div className={className} ref={uRefDiv}></div>;
+  return (
+    <div className={className} ref={uRefDiv}>
+      {children}
+    </div>
+  );
 };
 
 export const UPlotWrapper = memo(_UPlotWrapper);

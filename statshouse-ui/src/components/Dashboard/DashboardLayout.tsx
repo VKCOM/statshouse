@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import cn from 'classnames';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ReactComponent as SVGChevronRight } from 'bootstrap-icons/icons/chevron-right.svg';
-import PlotView from '../../view/PlotView';
+import { PlotView } from '../Plot';
 import {
   selectorDashboardLayoutEdit,
   selectorDashboardPlotList,
@@ -258,6 +258,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
                     className={cn(dashboardLayoutEdit && css.pointerEventsNone)}
                     key={value.indexPlot}
                     indexPlot={value.indexPlot}
+                    type={value.plot.type}
                     compact={true}
                     yAxisSize={yAxisSize}
                     dashboard={true}
@@ -281,6 +282,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
               className={css.pointerEventsNone}
               key={select}
               indexPlot={select}
+              type={params.plots[select].type}
               compact={true}
               yAxisSize={yAxisSize}
               dashboard={true}

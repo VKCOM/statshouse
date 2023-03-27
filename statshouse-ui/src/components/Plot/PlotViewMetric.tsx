@@ -4,15 +4,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import uPlot from 'uplot';
-import { calcYRange } from '../common/calcYRange';
-import { PlotSubMenu } from '../components/Plot/PlotSubMenu';
-import { PlotHeader } from '../components/Plot/PlotHeader';
-import { LegendItem, PlotLegend, UPlotWrapper, UPlotWrapperPropsOpts } from '../components';
-import { formatSI, now, timeRangeAbbrevExpand } from './utils';
-import { queryURLCSV } from './api';
-import { black, grey, greyDark } from './palette';
+import { calcYRange } from '../../common/calcYRange';
+import { PlotSubMenu } from './PlotSubMenu';
+import { PlotHeader } from './PlotHeader';
+import { LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
+import { formatSI, now, timeRangeAbbrevExpand } from '../../view/utils';
+import { queryURLCSV } from '../../view/api';
+import { black, grey, greyDark } from '../../view/palette';
 import produce from 'immer';
 import {
   PlotValues,
@@ -36,9 +36,11 @@ import {
   selectorTimeRange,
   selectorUPlotsWidthByIndex,
   useStore,
-} from '../store';
-import { xAxisValues, xAxisValuesCompact } from '../common/axisValues';
+} from '../../store';
+import { xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
+import { PlotEventOverlay } from './PlotEventOverlay';
+import { useUPlotPluginHooks } from '../../hooks';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -53,7 +55,7 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
   return [dataMin, dataMax];
 }
 
-const PlotView = memo(function PlotView_(props: {
+export function PlotViewMetric(props: {
   indexPlot: number;
   className?: string;
   dashboard?: boolean;
@@ -123,6 +125,8 @@ const PlotView = memo(function PlotView_(props: {
 
   const uPlotRef = useRef<uPlot>();
   const [legend, setLegend] = useState<LegendItem[]>([]);
+
+  const [pluginEventOverlay, pluginEventOverlayHooks] = useUPlotPluginHooks();
 
   useEffect(() => {
     if (sel.metricName) {
@@ -258,8 +262,9 @@ const PlotView = memo(function PlotView_(props: {
           width: devicePixelRatio > 1 ? 1.5 : 1,
         },
       },
+      plugins: [pluginEventOverlay],
     };
-  }, [compact, getAxisStroke, group, themeDark, topPad, xAxisSize, yAxisSize]);
+  }, [compact, getAxisStroke, group, pluginEventOverlay, themeDark, topPad, xAxisSize, yAxisSize]);
 
   const linkCSV = useMemo(() => {
     const agg =
@@ -391,9 +396,12 @@ const PlotView = memo(function PlotView_(props: {
         </div>
         <div
           className="position-relative w-100 z-1"
-          style={{
-            paddingTop: '61.8034%',
-          }}
+          style={
+            {
+              paddingTop: '61.8034%',
+              '--plot-padding-top': `${topPad}px`,
+            } as React.CSSProperties
+          }
         >
           {error403 ? (
             <div className="text-bg-light w-100 h-100 position-absolute top-0 start-0 d-flex align-items-center justify-content-center">
@@ -410,7 +418,15 @@ const PlotView = memo(function PlotView_(props: {
               onUpdatePreview={onUpdatePreview}
               className="w-100 h-100 position-absolute top-0 start-0"
               onUpdateLegend={setLegend}
-            />
+            >
+              <UPlotPluginPortal hooks={pluginEventOverlayHooks} zone="over">
+                <PlotEventOverlay
+                  indexPlot={indexPlot}
+                  hooks={pluginEventOverlayHooks}
+                  flagHeight={Math.min(topPad, 10)}
+                />
+              </UPlotPluginPortal>
+            </UPlotWrapper>
           )}
         </div>
         {!error403 && (
@@ -432,7 +448,7 @@ const PlotView = memo(function PlotView_(props: {
       </div>
     </div>
   );
-});
+}
 
 // https://leeoniya.github.io/uPlot/demos/nearest-non-null.html
 function dataIdxNearest(self: uPlot, seriesIdx: number, hoveredIdx: number, cursorXVal: number): number {
@@ -499,5 +515,3 @@ function dataIdxNearest(self: uPlot, seriesIdx: number, hoveredIdx: number, curs
   // this code path includes returning index where only timestamps are set, but no related data points
   return hoveredIdx;
 }
-
-export default PlotView;

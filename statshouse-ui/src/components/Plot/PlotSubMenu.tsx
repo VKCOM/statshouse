@@ -8,10 +8,10 @@ import React, { memo } from 'react';
 import * as utils from '../../view/utils';
 import { TimeRange } from '../../common/TimeRange';
 import { Link } from 'react-router-dom';
-import { querySelector } from '../../view/api';
+import { PlotParams } from '../../common/plotQueryParams';
 
 export type PlotSubMenuProps = {
-  sel: querySelector;
+  sel: PlotParams;
   timeRange: TimeRange;
   receiveErrors: number;
   samplingFactorSrc: number;

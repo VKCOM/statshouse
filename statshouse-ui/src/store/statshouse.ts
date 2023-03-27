@@ -12,6 +12,7 @@ import {
   configParams,
   defaultParams,
   getLiveParams,
+  PLOT_TYPE,
   PlotParams,
   QueryParams,
   readDashboardID,
@@ -29,6 +30,7 @@ import {
   deepClone,
   defaultBaseRange,
   Error403,
+  fmtInputDateTime,
   formatLegendValue,
   formatPercent,
   normalizeDashboard,
@@ -50,7 +52,9 @@ import {
   dashboardListURL,
   dashboardShortInfo,
   dashboardURL,
+  eventColumnDefault,
   GetDashboardListResp,
+  getEventColumnsType,
   metaToBaseLabel,
   metaToLabel,
   metricMeta,
@@ -69,6 +73,9 @@ import {
   promConfigURL,
   queryResult,
   querySeriesMeta,
+  querySeriesMetaTag,
+  queryTable,
+  queryTableURL,
   queryURL,
 } from '../view/api';
 import { calcYRange2 } from '../common/calcYRange';
@@ -77,6 +84,8 @@ import { filterPoints } from '../common/filterPoints';
 import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
 import { decodeQueryParams, encodeQueryParams, mergeLeft } from '../common/QueryParamsParser';
 import { getNextState } from '../common/getNextState';
+import { Column } from 'react-data-grid';
+import { EventFormatterDefault } from '../components/Plot/EventFormatters';
 
 export type PlotStore = {
   nameMetric: string;
@@ -166,6 +175,22 @@ function getEmptyPlotData(): PlotStore {
     promQL: '',
   };
 }
+type EventDataChunk = queryTable & { to: number; from: number; fromEnd: boolean };
+export type EventDataRow = { key: string; idChunk: number; timeString: string; time: number; data: number } & Partial<
+  Record<string, querySeriesMetaTag>
+>;
+export type EventData = {
+  chunks: EventDataChunk[];
+  rows: EventDataRow[];
+  columns: Column<EventDataRow>[];
+  nextKey?: string;
+  prevKey?: string;
+  range: TimeRange;
+  nextAbortController?: AbortController;
+  prevAbortController?: AbortController;
+  error?: string;
+  error403?: string;
+};
 
 export type StatsHouseStore = {
   defaultParams: QueryParams;
@@ -258,12 +283,17 @@ export type StatsHouseStore = {
   promConfig?: PromConfigInfo;
   loadPromConfig(): Promise<PromConfigInfo | undefined>;
   savePromConfig(nextPromConfig: PromConfigInfo): Promise<PromConfigInfo | undefined>;
+  events: EventData[];
+  loadEvents(indexPlot: number, key?: string, fromEnd?: boolean, from?: number): Promise<EventData | null>;
+  clearEvents(indexPlot: number): void;
 };
 
-export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', never]], [], StatsHouseStore> = (
-  setState,
-  getState
-) => ({
+export const statsHouseState: StateCreator<
+  StatsHouseStore,
+  [['zustand/subscribeWithSelector', never], ['zustand/immer', never]],
+  [],
+  StatsHouseStore
+> = (setState, getState) => ({
   defaultParams: { ...defaultParams },
   setDefaultParams(nextState) {
     const nextDefaultParams = getNextState(getState().defaultParams, nextState);
@@ -274,6 +304,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
   timeRange: new TimeRange({ to: TIME_RANGE_KEYS_TO.default, from: 0 }),
   params: {
     timeRange: { to: TIME_RANGE_KEYS_TO.default, from: 0 },
+    eventFrom: 0,
     tagSync: [],
     plots: [],
     timeShifts: [],
@@ -359,6 +390,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           max: 0,
         },
         maxHost: false,
+        type: PLOT_TYPE.Metric,
+        events: [],
       };
       params.plots = [np];
       reset = true;
@@ -505,6 +538,14 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     );
     setState((state) => {
       state.tagsList = [];
+      state.plotsData.splice(index, 1);
+      URL.revokeObjectURL(state.previews[index]);
+      state.previews.splice(index, 1);
+      state.plotsData = state.plotsData.slice(0, state.params.plots.length);
+      state.previews.slice(state.params.plots.length).forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+      state.previews = state.previews.slice(0, state.params.plots.length);
     });
     const metrics = getState().params.plots.map(({ metricName }) => metricName);
     Object.keys(getState().metricsMeta)
@@ -603,6 +644,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     const compact = prevState.compact;
     const lastPlotParams: PlotParams | undefined = prevState.params.plots[index];
     const prev: PlotStore = prevState.plotsData[index];
+    if (lastPlotParams.metricName === '') {
+      return;
+    }
     if (
       width &&
       lastPlotParams &&
@@ -752,6 +796,12 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
             const key = `${meta.what}|${meta.time_shift}`;
             topInfoCounts[key] = (topInfoCounts[key] ?? 0) + 1;
             topInfoTotals[key] = meta.total;
+            const paths =
+              lastPlotParams.type === PLOT_TYPE.Event
+                ? uPlot.paths.bars!({ align: 1 })
+                : uPlot.paths.stepped!({
+                    align: 1,
+                  });
 
             return {
               show: seriesShow[indexMeta] ?? true,
@@ -765,9 +815,11 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                 filter: filterPoints,
                 size: 5,
               },
-              paths: uPlot.paths.stepped!({
-                align: 1,
-              }),
+              // paths: uPlot.paths.bars!({
+              //   size: [5, 5, 5],
+              //   align: 1,
+              // }),
+              paths,
               values(u, seriesIdx, idx): PlotValues {
                 if (idx === null) {
                   return {
@@ -942,6 +994,11 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         .finally(() => {
           getState().setNumQueriesPlot(index, (n) => n - 1);
         });
+      if (lastPlotParams.type === PLOT_TYPE.Event) {
+        getState()
+          .loadEvents(index, undefined, undefined, prevState.params.eventFrom || undefined)
+          .catch(debug.error);
+      }
     }
   },
   setPlotShow(indexPlot, idx, show, single) {
@@ -1817,5 +1874,156 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         });
     });
   },
-  devInfo: {},
+  events: [],
+  loadEvents(indexPlot, key, fromEnd = false, from) {
+    return new Promise((resolve, reject) => {
+      if (!getState().events[indexPlot]) {
+        setState((state) => {
+          state.events[indexPlot] = { chunks: [], rows: [], columns: [], range: new TimeRange(state.params.timeRange) };
+        });
+      }
+      const prevState = getState();
+      const prevEvent = prevState.events[indexPlot];
+      const prevPlot = prevState.params.plots[indexPlot];
+      const compact = prevState.compact;
+      if (compact || prevPlot.type !== PLOT_TYPE.Event) {
+        resolve(null);
+        return;
+      }
+      if (fromEnd) {
+        prevEvent.prevAbortController?.abort();
+      } else {
+        prevEvent.nextAbortController?.abort();
+      }
+      const controller = new AbortController();
+      const range = new TimeRange(prevState.timeRange.getRangeUrl());
+      if (from) {
+        range.setRange(({ to }) => ({ to, from }));
+      }
+      const width = prevState.uPlotsWidth[indexPlot] ?? prevState.uPlotsWidth.find((w) => w && w > 0);
+      const agg =
+        prevPlot.customAgg === -1
+          ? `${Math.floor(width / 4)}`
+          : prevPlot.customAgg === 0
+          ? `${Math.floor(width * devicePixelRatio)}`
+          : `${prevPlot.customAgg}s`;
+
+      const url = queryTableURL(prevPlot, range, agg, key, fromEnd);
+      setState((state) => {
+        if (fromEnd) {
+          state.events[indexPlot].prevAbortController = controller;
+        } else {
+          state.events[indexPlot].nextAbortController = controller;
+        }
+      });
+      apiGet<queryTable>(url, controller.signal, true)
+        .then((resp) => {
+          setState((state) => {
+            state.events[indexPlot] ??= {
+              chunks: [],
+              rows: [],
+              columns: [],
+              range: new TimeRange(range.getRangeUrl),
+            };
+            const chunk: EventDataChunk = { ...resp, ...range.getRange(), fromEnd };
+            if (chunk.more) {
+              if (chunk.fromEnd) {
+                chunk.from = chunk.rows?.[0]?.time ?? range.from;
+              } else {
+                chunk.to = chunk.rows?.[chunk.rows?.length - 1]?.time ?? range.to;
+              }
+            }
+            if (key) {
+              if (fromEnd) {
+                state.events[indexPlot].chunks.unshift(chunk);
+              } else {
+                state.events[indexPlot].chunks.push(chunk);
+              }
+            } else {
+              state.events[indexPlot].chunks = [chunk];
+            }
+            const columns: Record<string, Column<EventDataRow>> = getEventColumnsType();
+            state.events[indexPlot].rows = state.events[indexPlot].chunks.flatMap(
+              (chunk, idChunk) =>
+                chunk.rows?.map((row, index): EventDataRow => {
+                  Object.keys(row.tags).forEach((tagKey) => {
+                    if (!columns[tagKey]) {
+                      columns[tagKey] = {
+                        ...eventColumnDefault,
+                        name: tagKey,
+                        key: tagKey,
+                        formatter: EventFormatterDefault,
+                      };
+                    }
+                  });
+                  return {
+                    key: `${chunk.from_row}_${index}`,
+                    idChunk,
+                    timeString: fmtInputDateTime(new Date(row.time * 1000)),
+                    data: row.data,
+                    time: row.time,
+                    ...row.tags,
+                  } as EventDataRow;
+                }) ?? []
+            );
+            state.events[indexPlot].columns = Object.values(columns);
+            const first = state.events[indexPlot].chunks[0];
+            if (
+              (first?.more && first?.fromEnd) ||
+              from ||
+              state.events[indexPlot].range.from > prevState.timeRange.from
+            ) {
+              state.events[indexPlot].prevKey = first?.from_row;
+            } else {
+              state.events[indexPlot].prevKey = undefined;
+            }
+            const last = state.events[indexPlot].chunks[state.events[indexPlot].chunks.length - 1];
+            if (last?.more && !last?.fromEnd) {
+              state.events[indexPlot].nextKey = last?.to_row;
+            } else {
+              state.events[indexPlot].nextKey = undefined;
+            }
+
+            state.events[indexPlot].range = new TimeRange({
+              from: state.events[indexPlot].chunks[0]?.from ?? range.from,
+              to: state.events[indexPlot].chunks[state.events[indexPlot].chunks.length - 1]?.to ?? range.to,
+            });
+            state.events[indexPlot].error = undefined;
+            state.events[indexPlot].error403 = undefined;
+          });
+          resolve(getState().events[indexPlot]);
+        })
+        .catch((error) => {
+          setState((state) => {
+            state.events[indexPlot] = {
+              chunks: [],
+              rows: [],
+              columns: [],
+              range: new TimeRange(state.params.timeRange),
+            };
+            if (error instanceof Error403) {
+              state.events[indexPlot].error403 = error.toString();
+            } else if (error.name !== 'AbortError') {
+              debug.error(error);
+              state.events[indexPlot].error = error.toString();
+            }
+          });
+          reject();
+        })
+        .finally(() => {
+          setState((state) => {
+            if (fromEnd) {
+              state.events[indexPlot].prevAbortController = undefined;
+            } else {
+              state.events[indexPlot].nextAbortController = undefined;
+            }
+          });
+        });
+    });
+  },
+  clearEvents(indexPlot) {
+    setState((state) => {
+      state.events[indexPlot] = { chunks: [], rows: [], columns: [], range: new TimeRange(state.params.timeRange) };
+    });
+  },
 });

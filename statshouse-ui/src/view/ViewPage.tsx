@@ -7,7 +7,6 @@
 import React, { SetStateAction, useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import produce from 'immer';
-import { querySelector } from './api';
 import { Dashboard, PlotLayout } from '../components';
 import { PlotParams } from '../common/plotQueryParams';
 import { setBackgroundColor } from '../common/canvasToImage';
@@ -33,7 +32,7 @@ import {
   selectorUpdateParamsByUrl,
   useStore,
 } from '../store';
-import PlotView from './PlotView';
+import { PlotView } from '../components';
 import { now } from './utils';
 import { debug } from '../common/debug';
 
@@ -116,7 +115,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
   }, [params.tabNum, plotPreviews]);
 
   const changeParams = useCallback(
-    (index: number, sel: SetStateAction<querySelector>, forceReplace?: boolean) => {
+    (index: number, sel: SetStateAction<PlotParams>, forceReplace?: boolean) => {
       if (typeof index !== 'undefined') {
         setParams(
           produce((p) => {
@@ -199,6 +198,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
                   <PlotView
                     key={index}
                     indexPlot={index}
+                    type={plot.type}
                     compact={!!embed}
                     className={index === params.tabNum ? '' : 'hidden-dashboard'}
                     yAxisSize={yAxisSize}
