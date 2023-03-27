@@ -1717,24 +1717,19 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
 	}
 
-	// DEBUGGING PROMQL DO NOT DELETE
-	//type seriesQuery struct {
-	//	version    string
-	//	key        string
-	//	pq         *preparedPointsQuery
-	//	lod        lodInfo
-	//	avoidCache bool
-	//}
+	type testPromqlQuery struct {
+		key string
+		lod lodInfo
+	}
 	var (
-		now         = time.Now()
-		r           *rand.Rand
-		testPromql  bool
-		promqlGroup errgroup.Group
-		promqlExpr  = getPromQuery(req)
-		promqlRes   GetQueryResp
-		// DEBUGGING PROMQL DO NOT DELETE
-		//promqlQueries []seriesQuery
-		//seriesQueries []seriesQuery
+		now           = time.Now()
+		r             *rand.Rand
+		testPromql    bool
+		promqlGroup   errgroup.Group
+		promqlExpr    = getPromQuery(req)
+		promqlRes     GetQueryResp
+		promqlQueries []testPromqlQuery
+		seriesQueries []testPromqlQuery
 	)
 	if req.ai.bitDeveloper && req.metricWithNamespace != format.BuiltinMetricNameBadges {
 		r = rand.New()
@@ -1746,9 +1741,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 				context.WithValue(ctx, accessInfoKey, &req.ai), // to check access rights when querying series
 				promqlExpr, version, from, to, now, width, widthKind, false, &promqlRand, nil,
 				func(version string, key string, pq any, lod any, avoidCache bool) {
-					// DEBUGGING PROMQL DO NOT DELETE
-					//promqlQueries = append(promqlQueries, seriesQuery{
-					//	version, key, pq.(*preparedPointsQuery), lod.(lodInfo), avoidCache})
+					promqlQueries = append(promqlQueries, testPromqlQuery{key, lod.(lodInfo)})
 				})
 			return err
 		})
@@ -1851,17 +1844,16 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 
 			shiftDelta := toSec(shift - oldestShift)
 			for lodIx, lod := range lods {
-				// DEBUGGING PROMQL DO NOT DELETE
-				//if testPromql {
-				//	seriesQueries = append(seriesQueries, seriesQuery{version, qs, pq, lodInfo{
-				//		fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
-				//		toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
-				//		stepSec:   lod.stepSec,
-				//		table:     lod.table,
-				//		hasPreKey: lod.hasPreKey,
-				//		location:  h.location,
-				//	}, req.avoidCache})
-				//}
+				if testPromql {
+					seriesQueries = append(seriesQueries, testPromqlQuery{qs, lodInfo{
+						fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
+						toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
+						stepSec:   lod.stepSec,
+						table:     lod.table,
+						hasPreKey: lod.hasPreKey,
+						location:  h.location,
+					}})
+				}
 				m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
 					fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
 					toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
@@ -2007,20 +1999,14 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		if promqlErr != nil {
 			goto promQLTestFailed
 		}
-		// DEBUGGING PROMQL DO NOT DELETE
-		//
-		// PromQL engine might issue different but semantically correct queries,
-		// so (commented out) tests below does not always make sense. Might be
-		// useful for debugging purpose though so please don't delete.
-		//
-		//if len(seriesQueries) != len(promqlQueries) {
-		//	goto promQLTestFailed
-		//}
-		//for i := range seriesQueries {
-		//	if !reflect.DeepEqual(seriesQueries[i], promqlQueries[i]) {
-		//		goto promQLTestFailed
-		//	}
-		//}
+		if len(seriesQueries) != len(promqlQueries) {
+			goto promQLTestFailed
+		}
+		for i := range seriesQueries {
+			if !reflect.DeepEqual(seriesQueries[i], promqlQueries[i]) {
+				goto promQLTestFailed
+			}
+		}
 		if getQueryRespEqual(resp, &promqlRes) {
 			goto promQLTestPassed
 		}
@@ -2705,7 +2691,11 @@ func (h *Handler) evalPromqlExpr(ctx context.Context, expr string, version strin
 		err = fmt.Errorf("string literals are not supported")
 		return GetQueryResp{}, nil, err
 	}
-	res = GetQueryResp{Series: querySeries{Time: bag.Time, SeriesData: bag.Data}}
+	res = GetQueryResp{Series: querySeries{
+		Time:       bag.Time,
+		SeriesData: bag.Data,
+		SeriesMeta: make([]QuerySeriesMetaV2, 0, len(bag.Data)),
+	}}
 	for i := range bag.Data {
 		meta := QuerySeriesMetaV2{
 			Name:     metricName,
@@ -2732,6 +2722,10 @@ func (h *Handler) evalPromqlExpr(ctx context.Context, expr string, version strin
 			}
 		}
 		res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
+	}
+	if res.Series.SeriesData == nil {
+		// frontend expects not "null" value
+		res.Series.SeriesData = make([]*[]float64, 0)
 	}
 	return res, cleanup, nil
 }

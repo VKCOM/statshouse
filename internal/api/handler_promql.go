@@ -13,7 +13,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -858,11 +857,15 @@ func getPromQuery(req getQueryReq) string {
 			}
 			s = append(s, fmt.Sprintf("__what__=%q", strings.Join(w, ",")))
 			s = append(s, fmt.Sprintf("__by__=%q", strings.Join(req.by, ",")))
-			for t, v := range req.filterIn {
-				s = append(s, fmt.Sprintf("%s=~%q", t, promqlGetFilterValue(t, v)))
+			for t, in := range req.filterIn {
+				for _, v := range in {
+					s = append(s, fmt.Sprintf("%s=%q", t, promqlGetFilterValue(t, v)))
+				}
 			}
-			for t, v := range req.filterNotIn {
-				s = append(s, fmt.Sprintf("%s!~%q", t, promqlGetFilterValue(t, v)))
+			for t, out := range req.filterNotIn {
+				for _, v := range out {
+					s = append(s, fmt.Sprintf("%s!=%q", t, promqlGetFilterValue(t, v)))
+				}
 			}
 			q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
 			if shift != 0 {
@@ -883,15 +886,13 @@ func getPromQuery(req getQueryReq) string {
 	return strings.Join(res, " or ")
 }
 
-func promqlGetFilterValue(tagID string, s []string) string {
-	res := make([]string, 0, len(s))
-	for _, v := range s {
-		if tagID == format.StringTopTagID {
-			v = promqlUnspecifiedToEmpty(v)
-		}
-		res = append(res, regexp.QuoteMeta(v))
+func promqlGetFilterValue(tagID string, s string) string {
+	switch tagID {
+	case format.StringTopTagID:
+		return promqlUnspecifiedToEmpty(s)
+	default:
+		return s
 	}
-	return strings.Join(res, "|")
 }
 
 func promqlEmptyToUnspecified(s string) string {
