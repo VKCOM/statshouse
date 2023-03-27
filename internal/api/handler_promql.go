@@ -615,7 +615,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		}
 	}
 	for _, tagValue := range qry.SFilterIn {
-		filterIn[format.StringTopTagID] = append(filterIn[format.StringTopTagID], promqlEmptyToUnspecified(tagValue))
+		filterIn[format.StringTopTagID] = append(filterIn[format.StringTopTagID], promqlEncodeSTagValue(tagValue))
 		filterInM[format.StringTopTagID] = append(filterInM[format.StringTopTagID], tagValue)
 	}
 	var (
@@ -630,7 +630,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		}
 	}
 	for _, tagValue := range qry.SFilterOut {
-		filterOut[format.StringTopTagID] = append(filterOut[format.StringTopTagID], promqlEmptyToUnspecified(tagValue))
+		filterOut[format.StringTopTagID] = append(filterOut[format.StringTopTagID], promqlEncodeSTagValue(tagValue))
 		filterOutM[format.StringTopTagID] = append(filterOutM[format.StringTopTagID], tagValue)
 	}
 	// get "queryFn"
@@ -887,24 +887,17 @@ func getPromQuery(req getQueryReq) string {
 }
 
 func promqlGetFilterValue(tagID string, s string) string {
-	switch tagID {
-	case format.StringTopTagID:
-		return promqlUnspecifiedToEmpty(s)
+	switch {
+	case tagID == format.StringTopTagID && s == format.TagValueCodeZero:
+		return ""
 	default:
 		return s
 	}
 }
 
-func promqlEmptyToUnspecified(s string) string {
-	if s == "^$" {
-		return format.CodeTagValue(format.TagValueIDUnspecified)
-	}
-	return s
-}
-
-func promqlUnspecifiedToEmpty(s string) string {
-	if s == format.CodeTagValue(format.TagValueIDUnspecified) {
-		return "^$"
+func promqlEncodeSTagValue(s string) string {
+	if s == "" {
+		return format.TagValueCodeZero
 	}
 	return s
 }

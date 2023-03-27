@@ -24,7 +24,7 @@ const (
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)
 
 	tagValueCodePrefix     = " " // regular tag values can't start with whitespace
-	tagValueCodeZero       = tagValueCodePrefix + "0"
+	TagValueCodeZero       = tagValueCodePrefix + "0"
 	TagValueIDUnspecified  = 0
 	TagValueIDMappingFlood = -1
 
@@ -702,7 +702,7 @@ func bytePrint(c byte) bool {
 
 func CodeTagValue(code int32) string {
 	if code == 0 {
-		return tagValueCodeZero // fast-path with no allocations
+		return TagValueCodeZero // fast-path with no allocations
 	}
 	return tagValueCodePrefix + strconv.Itoa(int(code))
 }
@@ -766,7 +766,7 @@ func AddRawValuePrefix(s string) string {
 }
 
 func IsValueCodeZero(s string) bool {
-	return tagValueCodeZero == s
+	return TagValueCodeZero == s
 }
 
 func convertToValueComments(id2value map[int32]string) map[string]string {
