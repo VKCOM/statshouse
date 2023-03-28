@@ -749,14 +749,6 @@ func (h *Handler) Free(s *[]float64) {
 
 func getPromQuery(req getQueryReq) string {
 	var res []string
-	width, _, err := parseWidth(req.width, req.widthAgg)
-	if err != nil {
-		return ""
-	}
-	shifts, err := parseTimeShifts(req.timeShifts, width)
-	if err != nil {
-		return ""
-	}
 	for _, fn := range req.what {
 		name, ok := validQueryFn(fn)
 		if !ok {
@@ -852,47 +844,35 @@ func getPromQuery(req getQueryReq) string {
 		default:
 			continue
 		}
-		s := make([]string, 0, 4)
-		for _, shift := range shifts {
-			w := make([]string, 0, 2)
-			w = append(w, what)
-			if req.maxHost {
-				w = append(w, promql.MaxHost)
+		var s []string
+		s = append(s, fmt.Sprintf("__what__=%q", what))
+		s = append(s, fmt.Sprintf("__by__=%q", strings.Join(req.by, ",")))
+		for t, in := range req.filterIn {
+			for _, v := range in {
+				s = append(s, fmt.Sprintf("%s=%q", t, promqlGetFilterValue(t, v)))
 			}
-			s = append(s, fmt.Sprintf("__what__=%q", strings.Join(w, ",")))
-			s = append(s, fmt.Sprintf("__by__=%q", strings.Join(req.by, ",")))
-			for t, in := range req.filterIn {
-				for _, v := range in {
-					s = append(s, fmt.Sprintf("%s=%q", t, promqlGetFilterValue(t, v)))
-				}
-			}
-			for t, out := range req.filterNotIn {
-				for _, v := range out {
-					s = append(s, fmt.Sprintf("%s!=%q", t, promqlGetFilterValue(t, v)))
-				}
-			}
-			q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
-			if shift != 0 {
-				q = fmt.Sprintf("%s offset %ds", q, -shift/time.Second)
-			}
-			var numResults int64
-			if numResults, err = strconv.ParseInt(req.numResults, 10, 32); err == nil {
-				if numResults < 0 {
-					q = fmt.Sprintf("bottomk(%d,%s)", -numResults, q)
-				} else {
-					q = fmt.Sprintf("topk(%d,%s)", numResults, q)
-				}
-			}
-			if deriv {
-				q = fmt.Sprintf("idelta(%s)", q)
-			}
-			if cumul {
-				q = fmt.Sprintf("prefix_sum(%s)", q)
-			}
-			q = fmt.Sprintf("label_replace(%s,%q,%q,%q,%q)", q, "__name__", name.String(), "__name__", ".*")
-			res = append(res, q)
-			s = s[:0]
 		}
+		for t, out := range req.filterNotIn {
+			for _, v := range out {
+				s = append(s, fmt.Sprintf("%s!=%q", t, promqlGetFilterValue(t, v)))
+			}
+		}
+		q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
+		if numResults, err := strconv.ParseInt(req.numResults, 10, 32); err == nil {
+			if numResults < 0 {
+				q = fmt.Sprintf("bottomk(%d,%s)", -numResults, q)
+			} else {
+				q = fmt.Sprintf("topk(%d,%s)", numResults, q)
+			}
+		}
+		if deriv {
+			q = fmt.Sprintf("idelta(%s)", q)
+		}
+		if cumul {
+			q = fmt.Sprintf("prefix_sum(%s)", q)
+		}
+		q = fmt.Sprintf("label_replace(%s,%q,%q,%q,%q)", q, "__name__", name.String(), "__name__", ".*")
+		res = append(res, q)
 	}
 	return strings.Join(res, " or ")
 }
