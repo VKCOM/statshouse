@@ -369,15 +369,15 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 	return res, nil
 }
 
-func (h *Handler) GetTagValue(id int32) string {
-	v, err := h.getTagValue(id)
+func (h *Handler) GetHostName(hostID int32) string {
+	v, err := h.getTagValue(hostID)
 	if err != nil {
-		return format.CodeTagValue(id)
+		return format.CodeTagValue(hostID)
 	}
 	return v
 }
 
-func (h *Handler) GetRichTagValue(qry promql.RichTagValueQuery) string {
+func (h *Handler) GetTagValue(qry promql.TagValueQuery) string {
 	var tagID string
 	if len(qry.TagID) == 0 {
 		tagID = format.TagID(qry.TagIndex)
@@ -387,8 +387,8 @@ func (h *Handler) GetRichTagValue(qry promql.RichTagValueQuery) string {
 	return h.getRichTagValue(qry.Metric, promqlVersionOrDefault(qry.Version), tagID, qry.TagValueID)
 }
 
-func (h *Handler) GetTagValueID(v string) (int32, error) {
-	res, err := h.getTagValueID(v)
+func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
+	res, err := h.getRichTagValueID(&qry.Metric.Tags[qry.TagIndex], qry.Version, qry.TagValue)
 	if err != nil && httpCode(err) == http.StatusNotFound {
 		err = promql.ErrNotFound
 	}
@@ -491,7 +491,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	return promql.SeriesBag{Data: data, Meta: meta, MaxHost: maxHost}, cleanup, nil
 }
 
-func (h *Handler) QueryTagValues(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
+func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
 		return nil, fmt.Errorf("tag not found")

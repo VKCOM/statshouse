@@ -900,7 +900,7 @@ func (ev *evaluator) stringify(bag *SeriesBag) {
 }
 
 func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagName string, tagValueID int32) string {
-	return ev.h.GetRichTagValue(RichTagValueQuery{
+	return ev.h.GetTagValue(TagValueQuery{
 		Version:    ev.Options.Version,
 		Metric:     metric,
 		TagID:      tagName,
@@ -925,7 +925,7 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 	if res, ok = m2[offset]; ok {
 		return res, nil
 	}
-	ids, err := ev.h.QueryTagValues(ctx, TagValuesQuery{
+	ids, err := ev.h.QueryTagValueIDs(ctx, TagValuesQuery{
 		Version:   ev.Options.Version,
 		Metric:    metric,
 		TagIndex:  tagX,
@@ -939,7 +939,7 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 	// tag value ID -> tag value
 	res = make(map[int32]string, len(ids))
 	for _, id := range ids {
-		res[id] = ev.h.GetRichTagValue(RichTagValueQuery{
+		res[id] = ev.h.GetTagValue(TagValueQuery{
 			Version:    ev.Options.Version,
 			Metric:     metric,
 			TagIndex:   tagX,
@@ -960,7 +960,12 @@ func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tag
 			return prometheus.LexEncode(float32(v))
 		}
 	}
-	return ev.h.GetTagValueID(tagV)
+	return ev.h.GetTagValueID(TagValueIDQuery{
+		Version:  ev.Options.Version,
+		Metric:   metric,
+		TagIndex: tagX,
+		TagValue: tagV,
+	})
 }
 
 func (ev *evaluator) getSTagValues(ctx context.Context, metric *format.MetricMetaValue, offset int64) ([]string, error) {
