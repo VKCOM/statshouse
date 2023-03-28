@@ -9,12 +9,14 @@ package promql
 import (
 	"context"
 	"fmt"
+	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gogo/protobuf/sortkeys"
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
@@ -47,6 +49,9 @@ type Options struct { // if you add an option make sure that default Options{} c
 	TagOffset           bool
 	TagTotal            bool
 	CanonicalTagNames   bool
+	ExplicitGrouping    bool
+	MaxHost             bool
+	Offsets             []int64
 	Rand                *rand.Rand
 
 	ExprQueriesSingleMetricCallback MetricMetaValueCallback
@@ -67,9 +72,10 @@ type evaluator struct {
 	Engine
 	Options Options
 
-	ast parser.Expr
-	ars map[parser.Expr]parser.Expr // ast reductions
-	t   Timescale
+	ast    parser.Expr
+	ars    map[parser.Expr]parser.Expr // ast reductions
+	t      Timescale
+	offset int64
 
 	// metric -> tag index -> offset -> tag value id -> tag value
 	tags map[*format.MetricMetaValue][]map[int64]map[int32]string
@@ -118,7 +124,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 		return String{T: qry.Start, V: e.Val}, func() {}, nil
 	default:
 		var bag SeriesBag
-		bag, err = ev.eval(ctx, ev.ast)
+		bag, err = ev.exec(ctx)
 		if err != nil {
 			ev.cancel()
 			return nil, nil, err
@@ -153,15 +159,21 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 	if l, ok := evalLiteral(ev.ast); ok {
 		ev.ast = l
 	}
+	// offsets
+	offsets := make([]int64, 0, 1+len(qry.Options.Offsets))
+	offsets = append(offsets, 0)
+	offsets = append(offsets, qry.Options.Offsets...)
+	sort.Sort(sort.Reverse(sortkeys.Int64Slice(offsets)))
+	ev.Options.Offsets = offsets
 	// match metrics
 	var (
-		maxOffset = make(map[*format.MetricMetaValue]int64)
-		maxRange  int64
+		maxRange     int64
+		metricOffset = make(map[*format.MetricMetaValue]int64)
 	)
 	parser.Inspect(ev.ast, func(node parser.Node, path []parser.Node) error {
 		switch e := node.(type) {
 		case *parser.VectorSelector:
-			err = ng.matchMetrics(ctx, e, path, maxOffset)
+			err = ng.matchMetrics(ctx, e, path, metricOffset, offsets[0])
 		case *parser.MatrixSelector:
 			if maxRange < e.Range {
 				maxRange = e.Range
@@ -181,7 +193,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 	if qry.Step <= 0 {    // instant query case
 		qry.Step = 1
 	}
-	ev.t, err = ng.h.GetTimescale(qry, maxOffset)
+	ev.t, err = ng.h.GetTimescale(qry, metricOffset)
 	if err != nil {
 		return evaluator{}, err
 	}
@@ -205,7 +217,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 					grouped = ar.grouped
 				}
 			}
-			if !grouped { // then group by all
+			if !grouped && !qry.Options.ExplicitGrouping { // then group by all
 				for i := 0; i < format.MaxTags; i++ {
 					s.GroupBy = append(s.GroupBy, format.TagID(i))
 				}
@@ -214,17 +226,16 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 		return nil
 	})
 	// callback
-	if qry.Options.ExprQueriesSingleMetricCallback != nil && len(maxOffset) == 1 {
-		var metric *format.MetricMetaValue
-		for metric = range maxOffset {
+	if qry.Options.ExprQueriesSingleMetricCallback != nil && len(metricOffset) == 1 {
+		for metric := range metricOffset {
+			qry.Options.ExprQueriesSingleMetricCallback(metric)
 			break
 		}
-		qry.Options.ExprQueriesSingleMetricCallback(metric)
 	}
 	return ev, nil
 }
 
-func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, path []parser.Node, maxOffset map[*format.MetricMetaValue]int64) error {
+func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, path []parser.Node, metricOffset map[*format.MetricMetaValue]int64, offset int64) error {
 	for _, matcher := range sel.LabelMatchers {
 		if len(sel.MatchingMetrics) != 0 && len(sel.What) != 0 {
 			break
@@ -239,9 +250,12 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, p
 				return nil // metric does not exist, not an error
 			}
 			for i, m := range metrics {
-				offset, ok := maxOffset[m]
-				if !ok || offset < sel.OriginalOffset {
-					maxOffset[m] = sel.OriginalOffset
+				var (
+					curOffset, ok = metricOffset[m]
+					newOffset     = sel.OriginalOffset + offset
+				)
+				if !ok || curOffset < newOffset {
+					metricOffset[m] = newOffset
 				}
 				sel.MatchingMetrics = append(sel.MatchingMetrics, m)
 				sel.MatchingNames = append(sel.MatchingNames, names[i])
@@ -287,6 +301,23 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, p
 
 func (ev *evaluator) time() []int64 {
 	return ev.t.Time
+}
+
+func (ev *evaluator) exec(ctx context.Context) (SeriesBag, error) {
+	res := ev.newSeriesBag(0)
+	ev.offset = math.MinInt64
+	for _, offset := range ev.Options.Offsets {
+		if ev.offset == offset {
+			continue
+		}
+		ev.offset = offset
+		bag, err := ev.eval(ctx, ev.ast)
+		if err != nil {
+			return SeriesBag{}, err
+		}
+		res.append(bag)
+	}
+	return res, nil
 }
 
 func (ev *evaluator) eval(ctx context.Context, expr parser.Expr) (res SeriesBag, err error) {
@@ -585,8 +616,8 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 
 func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector) (SeriesBag, error) {
 	res := ev.newSeriesBag(0)
-	for i, m := range sel.MatchingMetrics {
-		qry, err := ev.buildSeriesQuery(ctx, sel, m)
+	for i, metric := range sel.MatchingMetrics {
+		qry, err := ev.buildSeriesQuery(ctx, sel, metric)
 		if err != nil {
 			return SeriesBag{}, err
 		}
@@ -606,8 +637,8 @@ func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector
 				bag.Meta[j].SetSTag(labels.MetricName, sel.MatchingNames[i])
 			}
 		}
-		if ev.Options.TagOffset && sel.OriginalOffset != 0 {
-			bag.tagOffset(sel.OriginalOffset)
+		if ev.Options.TagOffset && qry.Offset != 0 {
+			bag.tagOffset(qry.Offset)
 		}
 		if qry.histogram.restore {
 			bag, err = ev.restoreHistogram(&bag, &qry)
@@ -760,7 +791,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchNotEqual:
 				sFilterOut = append(sFilterOut, matcher.Value)
 			case labels.MatchRegexp:
-				strTop, err := ev.getSTagValues(ctx, metric, sel.OriginalOffset)
+				strTop, err := ev.getSTagValues(ctx, metric, ev.getOffset(sel))
 				if err != nil {
 					return seriesQueryX{}, err
 				}
@@ -774,7 +805,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 					return seriesQueryX{}, nil
 				}
 			case labels.MatchNotRegexp:
-				strTop, err := ev.getSTagValues(ctx, metric, sel.OriginalOffset)
+				strTop, err := ev.getSTagValues(ctx, metric, ev.getOffset(sel))
 				if err != nil {
 					return seriesQueryX{}, err
 				}
@@ -822,7 +853,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 					filterOut[i] = map[int32]string{id: matcher.Value}
 				}
 			case labels.MatchRegexp:
-				m, err := ev.getTagValues(ctx, metric, i, sel.OriginalOffset)
+				m, err := ev.getTagValues(ctx, metric, i, ev.getOffset(sel))
 				if err != nil {
 					return seriesQueryX{}, err
 				}
@@ -838,7 +869,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				}
 				filterIn[i] = in
 			case labels.MatchNotRegexp:
-				m, err := ev.getTagValues(ctx, metric, i, sel.OriginalOffset)
+				m, err := ev.getTagValues(ctx, metric, i, ev.getOffset(sel))
 				if err != nil {
 					return seriesQueryX{}, err
 				}
@@ -861,14 +892,14 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				Metric:     metric,
 				What:       what,
 				Timescale:  ev.t,
-				Offset:     sel.OriginalOffset,
+				Offset:     ev.getOffset(sel),
 				Factor:     sel.Factor,
 				GroupBy:    groupBy,
 				FilterIn:   filterIn,
 				FilterOut:  filterOut,
 				SFilterIn:  sFilterIn,
 				SFilterOut: sFilterOut,
-				MaxHost:    sel.MaxHost,
+				MaxHost:    sel.MaxHost || ev.Options.MaxHost,
 				Options:    ev.Options,
 			},
 			prefixSum,
@@ -966,6 +997,10 @@ func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tag
 		TagIndex: tagX,
 		TagValue: tagV,
 	})
+}
+
+func (ev *evaluator) getOffset(sel *parser.VectorSelector) int64 {
+	return sel.OriginalOffset + ev.offset
 }
 
 func (ev *evaluator) getSTagValues(ctx context.Context, metric *format.MetricMetaValue, offset int64) ([]string, error) {

@@ -1555,8 +1555,16 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	_, avoidCache := r.Form[ParamAvoidCache]
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	shifts, err := parseTimeShifts(r.Form[ParamTimeShift], width)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	var (
+		_, avoidCache = r.Form[ParamAvoidCache]
+		_, maxHost    = r.Form[paramMaxHost]
+		ctx, cancel   = context.WithTimeout(r.Context(), querySelectTimeout)
+	)
 	defer cancel()
 	var g *errgroup.Group
 	g, ctx = errgroup.WithContext(ctx)
@@ -1596,16 +1604,26 @@ func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
 	defer h.freeQueryResp(&badges)
 	g.Go(func() error {
 		var (
-			err2 error
-			ctx2 = context.WithValue(ctx, accessInfoKey, &ai) // to check access rights when querying series
+			err2    error
+			ctx2    = context.WithValue(ctx, accessInfoKey, &ai) // to check access rights when querying series
+			offsets = make([]int64, 0, len(shifts))
 		)
-		res, cleanup, err2 = h.evalPromqlExpr(ctx2,
-			r.FormValue(paramPromQuery),
-			r.FormValue(ParamVersion),
-			from, to, time.Now(),
-			width, widthKind,
-			avoidCache, nil,
-			queryBadges, nil)
+		for _, v := range shifts {
+			offsets = append(offsets, -toSec(v))
+		}
+		res, cleanup, err2 = h.evalPromql(ctx2, promqlEvalRequest{
+			expr:               r.FormValue(paramPromQuery),
+			version:            r.FormValue(ParamVersion),
+			from:               from,
+			to:                 to,
+			now:                time.Now(),
+			offsets:            offsets,
+			width:              width,
+			widthKind:          widthKind,
+			maxHost:            maxHost,
+			avoidCache:         avoidCache,
+			metricNameCallback: queryBadges,
+		})
 		return err2
 	})
 	err = g.Wait()
@@ -1717,9 +1735,6 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
 	}
 
-	type testPromqlQuery struct {
-		lod lodInfo
-	}
 	var (
 		now           = time.Now()
 		r             *rand.Rand
@@ -1727,8 +1742,8 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		promqlGroup   errgroup.Group
 		promqlExpr    = getPromQuery(req)
 		promqlRes     GetQueryResp
-		promqlQueries []testPromqlQuery
-		seriesQueries []testPromqlQuery
+		promqlQueries = make(map[lodInfo]int)
+		seriesQueries = make(map[lodInfo]int)
 	)
 	if req.ai.bitDeveloper && req.metricWithNamespace != format.BuiltinMetricNameBadges {
 		r = rand.New()
@@ -1736,12 +1751,26 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		testPromql = true
 		var cleanup func()
 		promqlGroup.Go(func() (err error) {
-			promqlRes, cleanup, err = h.evalPromqlExpr(
+			offsets := make([]int64, 0, len(shifts))
+			for _, v := range shifts {
+				offsets = append(offsets, -toSec(v))
+			}
+			promqlRes, cleanup, err = h.evalPromql(
 				context.WithValue(ctx, accessInfoKey, &req.ai), // to check access rights when querying series
-				promqlExpr, version, from, to, now, width, widthKind, false, &promqlRand, nil,
-				func(version string, key string, pq any, lod any, avoidCache bool) {
-					promqlQueries = append(promqlQueries, testPromqlQuery{lod.(lodInfo)})
-				})
+				promqlEvalRequest{
+					expr:      promqlExpr,
+					version:   version,
+					from:      from,
+					to:        to,
+					now:       now,
+					offsets:   offsets,
+					width:     width,
+					widthKind: widthKind,
+					maxHost:   req.maxHost,
+					r:         &promqlRand,
+					seriesQueryCallback: func(version string, key string, pq any, lod any, avoidCache bool) {
+						promqlQueries[lod.(lodInfo)]++
+					}})
 			return err
 		})
 		defer func() {
@@ -1844,14 +1873,13 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 			shiftDelta := toSec(shift - oldestShift)
 			for lodIx, lod := range lods {
 				if testPromql {
-					seriesQueries = append(seriesQueries, testPromqlQuery{lodInfo{
+					seriesQueries[lodInfo{
 						fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
 						toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
 						stepSec:   lod.stepSec,
 						table:     lod.table,
 						hasPreKey: lod.hasPreKey,
-						location:  h.location,
-					}})
+						location:  h.location}]++
 				}
 				m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
 					fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
@@ -1998,13 +2026,8 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		if promqlErr != nil {
 			goto promQLTestFailed
 		}
-		if len(seriesQueries) != len(promqlQueries) {
+		if !reflect.DeepEqual(seriesQueries, promqlQueries) {
 			goto promQLTestFailed
-		}
-		for i := range seriesQueries {
-			if !reflect.DeepEqual(seriesQueries[i], promqlQueries[i]) {
-				goto promQLTestFailed
-			}
 		}
 		if getQueryRespEqual(resp, &promqlRes) {
 			goto promQLTestPassed
@@ -2648,38 +2671,53 @@ func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale t
 	return queryClientCache, queryClientCacheStale
 }
 
-func (h *Handler) evalPromqlExpr(ctx context.Context, expr string, version string, from, to, now time.Time, width, widthKind int, avoidCache bool, r *rand.Rand, cb func(string), cb2 promql.SeriesQueryCallback) (res GetQueryResp, cleanup func(), err error) {
+type promqlEvalRequest struct {
+	expr                string
+	version             string
+	from, to, now       time.Time
+	offsets             []int64
+	width, widthKind    int
+	maxHost, avoidCache bool
+	r                   *rand.Rand
+	metricNameCallback  func(string)
+	seriesQueryCallback promql.SeriesQueryCallback
+}
+
+func (h *Handler) evalPromql(ctx context.Context, req promqlEvalRequest) (res GetQueryResp, cleanup func(), err error) {
 	var (
 		metricName string
 		options    = promql.Options{
-			Version:             version,
-			AvoidCache:          avoidCache,
-			TimeNow:             now.Unix(),
+			Version:             req.version,
+			AvoidCache:          req.avoidCache,
+			TimeNow:             req.now.Unix(),
 			ExpandToLODBoundary: true,
 			TagOffset:           true,
 			TagTotal:            true,
 			CanonicalTagNames:   true,
-			Rand:                r,
+			ExplicitGrouping:    true,
+			MaxHost:             req.maxHost,
+			Offsets:             req.offsets,
+			Rand:                req.r,
 			ExprQueriesSingleMetricCallback: func(metric *format.MetricMetaValue) {
 				metricName = metric.Name
-				if cb != nil {
-					cb(metricName)
+				if req.metricNameCallback != nil {
+					req.metricNameCallback(metricName)
 				}
 			},
-			SeriesQueryCallback: cb2,
+			SeriesQueryCallback: req.seriesQueryCallback,
 		}
 		parserV parser.Value
 	)
-	if widthKind == widthAutoRes {
+	if req.widthKind == widthAutoRes {
 		options.StepAuto = true
 	}
 	parserV, cleanup, err = h.promEngine.Exec(
 		ctx,
 		promql.Query{
-			Start:   from.Unix(),
-			End:     to.Unix(),
-			Step:    int64(width),
-			Expr:    expr,
+			Start:   req.from.Unix(),
+			End:     req.to.Unix(),
+			Step:    int64(req.width),
+			Expr:    req.expr,
 			Options: options,
 		})
 	if err != nil {
