@@ -388,7 +388,11 @@ func (h *Handler) GetRichTagValue(qry promql.RichTagValueQuery) string {
 }
 
 func (h *Handler) GetTagValueID(v string) (int32, error) {
-	return h.getTagValueID(v)
+	res, err := h.getTagValueID(v)
+	if err != nil && httpCode(err) == http.StatusNotFound {
+		err = promql.ErrNotFound
+	}
+	return res, err
 }
 
 func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.SeriesBag, func(), error) {
