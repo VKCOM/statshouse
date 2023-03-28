@@ -113,12 +113,19 @@ type SeriesQuery struct {
 	Options Options
 }
 
-type RichTagValueQuery struct {
+type TagValueQuery struct {
 	Version    string
 	Metric     *format.MetricMetaValue
 	TagIndex   int
 	TagID      string
 	TagValueID int32
+}
+
+type TagValueIDQuery struct {
+	Version  string
+	Metric   *format.MetricMetaValue
+	TagIndex int
+	TagValue string
 }
 
 type TagValuesQuery struct {
@@ -137,9 +144,9 @@ type Handler interface {
 	// # Tag mapping
 	//
 
-	GetTagValue(tagValueID int32) string
-	GetRichTagValue(qry RichTagValueQuery) string
-	GetTagValueID(tagValue string) (int32, error)
+	GetHostName(hostID int32) string
+	GetTagValue(qry TagValueQuery) string
+	GetTagValueID(qry TagValueIDQuery) (int32, error)
 
 	//
 	// # Metric Metadata
@@ -153,7 +160,7 @@ type Handler interface {
 	//
 
 	QuerySeries(ctx context.Context, qry *SeriesQuery) (SeriesBag, func(), error)
-	QueryTagValues(ctx context.Context, qry TagValuesQuery) ([]int32, error)
+	QueryTagValueIDs(ctx context.Context, qry TagValuesQuery) ([]int32, error)
 	QuerySTagValues(ctx context.Context, qry TagValuesQuery) ([]string, error)
 
 	//

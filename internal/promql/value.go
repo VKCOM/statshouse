@@ -61,7 +61,7 @@ func (b *SeriesBag) GetSMaxHosts(i int, h Handler) []string {
 	res := make([]string, len(b.MaxHost[i]))
 	for j, id := range b.MaxHost[i] {
 		if id != 0 {
-			res[j] = h.GetTagValue(id)
+			res[j] = h.GetHostName(id)
 		}
 	}
 	return res
