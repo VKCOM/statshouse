@@ -875,7 +875,14 @@ func getPromQuery(req getQueryReq) string {
 			if shift != 0 {
 				q = fmt.Sprintf("%s offset %ds", q, -shift/time.Second)
 			}
-			q = fmt.Sprintf("topk(%s,%s)", req.numResults, q)
+			var numResults int64
+			if numResults, err = strconv.ParseInt(req.numResults, 10, 32); err == nil {
+				if numResults < 0 {
+					q = fmt.Sprintf("bottomk(%d,%s)", -numResults, q)
+				} else {
+					q = fmt.Sprintf("topk(%d,%s)", numResults, q)
+				}
+			}
 			if deriv {
 				q = fmt.Sprintf("idelta(%s)", q)
 			}
