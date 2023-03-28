@@ -325,6 +325,15 @@ func parseFromRows(fromRows string) (RowFrom, error) {
 	return res, nil
 }
 
+func encodeFromRows(row *RowFrom) (string, error) {
+	jsonBytes, err := json.Marshal(row)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.RawURLEncoding.EncodeToString(jsonBytes), nil
+}
+
 func parseQueryWhat(what string, maxHost bool) (queryFn, queryFnKind, error) {
 	fn, ok := validQueryFn(what)
 	if !ok {

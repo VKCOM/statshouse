@@ -9,7 +9,6 @@ package api
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -297,6 +296,7 @@ type (
 
 		fromEnd bool
 		fromRow RowFrom
+		limit   int
 	}
 
 	//easyjson:json
@@ -318,11 +318,11 @@ type (
 
 	//easyjson:json
 	GetTableResp struct {
-		Rows         []queryRow `json:"rows"`
-		FromRow      string     `json:"from_row"`
-		ToRow        string     `json:"to_row"`
-		HasMore      bool       `json:"has_more"`
-		DebugQueries []string   `json:"__debug_queries"` // private, unstable: SQL queries executed
+		Rows         []queryTableRow `json:"rows"`
+		FromRow      string          `json:"from_row"`
+		ToRow        string          `json:"to_row"`
+		More         bool            `json:"more"`
+		DebugQueries []string        `json:"__debug_queries"` // private, unstable: SQL queries executed, can be null
 	}
 
 	getRenderReq struct {
@@ -350,11 +350,14 @@ type (
 		SeriesData []*[]float64        `json:"series_data"` // MxN
 	}
 
-	queryRow struct {
-		Time int64                    `json:"time"`
-		Data float64                  `json:"data"`
-		Tags map[string]SeriesMetaTag `json:"tags"`
-		What queryFn                  `json:"what"`
+	//easyjson:json
+	queryTableRow struct {
+		Time    int64                    `json:"time"`
+		Data    float64                  `json:"data"`
+		Tags    map[string]SeriesMetaTag `json:"tags"`
+		What    queryFn                  `json:"what"`
+		row     tsSelectRow
+		rowRepr RowFrom
 	}
 
 	QuerySeriesMeta struct {
@@ -1797,6 +1800,11 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
 	metricWithNamespace := formValueParamMetric(r)
 
+	if r.FormValue(paramDataFormat) == dataFormatCSV {
+		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("df=csv isn't supported")), h.verbose, ai.user, sl)
+		return
+	}
+
 	filterIn, filterNotIn, err := parseQueryFilter(r.Form[ParamQueryFilter])
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
@@ -1812,45 +1820,45 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 	_, avoidCache := r.Form[ParamAvoidCache]
 	if avoidCache && !ai.isAdmin() {
 		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
+		return
 	}
-	_, maxHost := r.Form[paramMaxHost]
+
 	_, fromEnd := r.Form[paramFromEnd]
-	getQuery := func(ctx context.Context) (*GetTableResp, bool, error) {
-		resp, immutable, err := h.handleGetTable(
-			ctx,
-			true,
-			getQueryReq{
-				ai:                  ai,
-				version:             r.FormValue(ParamVersion),
-				metricWithNamespace: metricWithNamespace,
-				from:                r.FormValue(ParamFromTime),
-				to:                  r.FormValue(ParamToTime),
-				width:               r.FormValue(ParamWidth),
-				widthAgg:            r.FormValue(ParamWidthAgg),
-				what:                r.Form[ParamQueryWhat],
-				by:                  r.Form[ParamQueryBy],
-				filterIn:            filterIn,
-				filterNotIn:         filterNotIn,
-				avoidCache:          avoidCache,
-				maxHost:             maxHost,
-				fromRow:             fromRow,
-				fromEnd:             fromEnd,
-			})
-		if h.verbose && err == nil {
-			log.Printf("[debug] handled query (%v rows) for %q in %v", len(resp.Rows), ai.user, time.Since(sl.startTime))
+	var limit int64 = maxTableRows
+	if limitStr := r.FormValue(ParamNumResults); limitStr != "" {
+		limit, err = strconv.ParseInt(limitStr, 10, 64)
+		if err != nil {
+			respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf(ParamNumResults+" must be a valid number")), h.verbose, ai.user, sl)
+			return
 		}
-		return resp, immutable, err
 	}
 
-	respTable, immutable, err := getQuery(ctx)
-
-	switch {
-	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
-		//todo add csv
-	default:
-		cache, cacheStale := queryClientCacheDuration(immutable)
-		respondJSON(w, respTable, cache, cacheStale, err, h.verbose, ai.user, sl)
+	respTable, immutable, err := h.handleGetTable(
+		ctx,
+		true,
+		getQueryReq{
+			ai:                  ai,
+			version:             r.FormValue(ParamVersion),
+			metricWithNamespace: metricWithNamespace,
+			from:                r.FormValue(ParamFromTime),
+			to:                  r.FormValue(ParamToTime),
+			width:               r.FormValue(ParamWidth),
+			widthAgg:            r.FormValue(ParamWidthAgg),
+			what:                r.Form[ParamQueryWhat],
+			by:                  r.Form[ParamQueryBy],
+			filterIn:            filterIn,
+			filterNotIn:         filterNotIn,
+			avoidCache:          avoidCache,
+			fromRow:             fromRow,
+			fromEnd:             fromEnd,
+			limit:               int(limit),
+		})
+	if h.verbose && err == nil {
+		log.Printf("[debug] handled query (%v rows) for %q in %v", len(respTable.Rows), ai.user, time.Since(sl.startTime))
 	}
+
+	cache, cacheStale := queryClientCacheDuration(immutable)
+	respondJSON(w, respTable, cache, cacheStale, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
@@ -2601,6 +2609,9 @@ func (h *Handler) handleGetTable(ctx context.Context, debugQueries bool, req get
 	if err != nil {
 		return nil, false, err
 	}
+	if len(queries) > 1 {
+		return nil, false, httpErr(http.StatusBadRequest, fmt.Errorf("used several qw params"))
+	}
 
 	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
 	if err != nil {
@@ -2644,11 +2655,9 @@ func (h *Handler) handleGetTable(ctx context.Context, debugQueries bool, req get
 		ctx = debugQueriesContext(ctx, &sqlQueries)
 	}
 
-	var queryRows []queryRow
+	var queryRows = make([]queryTableRow, 0)
 	fromRowIsDefined := req.fromRow.Time > 0
-	var firstRow, lastRow RowFrom
 	hasMore := false
-loop:
 	for _, q := range queries {
 		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, true)
 		pq := &preparedPointsQuery{
@@ -2685,77 +2694,77 @@ loop:
 			}
 
 			for _, rows := range m {
-				i := 0
-				n := len(rows)
-				if fromRowIsDefined {
-					i = sort.Search(len(rows), func(i int) bool {
-						return lessThan(req.fromRow, rows[i], skeyFromFixedString(&rows[i].tsTags.tagStr), req.fromEnd)
-					})
-					if req.fromEnd {
-						n = i
-						i -= maxTableRows
-						if i < 0 {
-							i = 0
-						}
-					}
-				}
-				for ; i < n; i++ {
-					lastRow.Time = rows[i].time
-					lastRow.Tags = lastRow.Tags[:0]
+				for i := 0; i < len(rows); i++ {
+					var rowRepr RowFrom
+					rowRepr.Time = rows[i].time
+					rowRepr.Tags = rowRepr.Tags[:0]
 					tags := &rows[i].tsTags
 					kvs := make(map[string]SeriesMetaTag, 16)
 					for j := 0; j < format.MaxTags; j++ {
 						tagName := format.TagID(j)
 						wasAdded := h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, tagName, tags.tag[j])
 						if wasAdded {
-							lastRow.Tags = append(lastRow.Tags, RawTag{
+							rowRepr.Tags = append(rowRepr.Tags, RawTag{
 								Index: j,
 								Value: tags.tag[j],
 							})
 						}
 					}
 					skey := maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
-					lastRow.SKey = skey
-					if firstRow.Time == 0 {
-						firstRow.Time = lastRow.Time
-						firstRow.SKey = skey
-						firstRow.Tags = append(firstRow.Tags, lastRow.Tags...)
-					}
+					rowRepr.SKey = skey
 					data := selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i])
-					queryRows = append(queryRows, queryRow{
-						Time: rows[i].time,
-						Data: data,
-						Tags: kvs,
-						What: q.what,
+					queryRows = append(queryRows, queryTableRow{
+						Time:    rows[i].time,
+						Data:    data,
+						Tags:    kvs,
+						What:    q.what,
+						row:     rows[i],
+						rowRepr: rowRepr,
 					})
-					if len(queryRows) >= maxTableRows {
-						hasMore = true
-						break loop
-					}
 				}
 			}
 		}
 	}
+
+	if fromRowIsDefined {
+		i := 0
+		n := len(queryRows)
+		i = sort.Search(len(queryRows), func(i int) bool {
+			return lessThan(req.fromRow, queryRows[i].row, skeyFromFixedString(&queryRows[i].row.tsTags.tagStr), req.fromEnd)
+		})
+		if req.fromEnd {
+			n = i
+			i -= req.limit
+			if i < 0 {
+				i = 0
+			}
+			if i > 0 {
+				hasMore = true
+			}
+		}
+		queryRows = queryRows[i:n]
+	}
+	if len(queryRows) > req.limit {
+		hasMore = !req.fromEnd
+		queryRows = queryRows[:req.limit]
+	}
 	var firstRowStr, lastRowStr string
 	if len(queryRows) > 0 {
-		var jsonBytes []byte
-		jsonBytes, err = json.Marshal(&lastRow)
+		lastRowStr, err = encodeFromRows(&queryRows[len(queryRows)-1].rowRepr)
 		if err != nil {
 			return nil, false, err
 		}
-		lastRowStr = base64.RawURLEncoding.EncodeToString(jsonBytes)
-		jsonBytes, err = json.Marshal(&firstRow)
+		firstRowStr, err = encodeFromRows(&queryRows[0].rowRepr)
 		if err != nil {
 			return nil, false, err
 		}
-		firstRowStr = base64.RawURLEncoding.EncodeToString(jsonBytes)
 	}
 	immutable = to.Before(time.Now().Add(invalidateFrom))
 	return &GetTableResp{
 		Rows:         queryRows,
 		FromRow:      firstRowStr,
 		ToRow:        lastRowStr,
-		HasMore:      hasMore,
+		More:         hasMore,
 		DebugQueries: sqlQueries,
 	}, immutable, nil
 }
