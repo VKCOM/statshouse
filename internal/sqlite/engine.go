@@ -127,17 +127,18 @@ type Engine struct {
 }
 
 type Options struct {
-	Path              string
-	APPID             int32
-	StatsOptions      StatsOptions
-	Scheme            string
-	Replica           bool
-	CommitEvery       time.Duration
-	DurabilityMode    DurabilityMode
-	ReadAndExit       bool
-	CommitOnEachWrite bool // use only to test. If true break binlog + sqlite consistency
-	ProfileCallback   ProfileCallback
-	MaxROConn         int
+	Path                   string
+	APPID                  int32
+	StatsOptions           StatsOptions
+	Scheme                 string
+	Replica                bool
+	CommitEvery            time.Duration
+	DurabilityMode         DurabilityMode
+	ReadAndExit            bool
+	CommitOnEachWrite      bool // use only to test. If true break binlog + sqlite consistency
+	ProfileCallback        ProfileCallback
+	MaxROConn              int
+	CacheMaxSizePerConnect int
 }
 
 type waitCommitInfo struct {
@@ -217,7 +218,7 @@ func openDB(opt Options,
 
 	ctx, stop := context.WithCancel(context.Background())
 	e := &Engine{
-		rw:   newSqliteConn(rw),
+		rw:   newSqliteConn(rw, opt.CacheMaxSizePerConnect),
 		ctx:  ctx,
 		stop: stop,
 		//	chk:                     chk,
@@ -475,22 +476,32 @@ func (e *Engine) Close(ctx context.Context) error {
 }
 
 func (e *Engine) close(shouldCommit, waitCommitBinlog bool) error {
-	if e.opt.DurabilityMode != NoBinlog {
+	var error error
+	if e.opt.DurabilityMode != NoBinlog && e.binlog != nil {
 		err := e.binlog.Shutdown()
 		if err != nil {
-			return err
+			multierr.AppendInto(&error, err)
 		}
 	}
-	if shouldCommit {
-		e.commitTXAndStartNew(true, waitCommitBinlog)
+	if shouldCommit && error == nil {
+		err := e.commitTXAndStartNew(true, waitCommitBinlog)
+		if err != nil {
+			multierr.AppendInto(&error, fmt.Errorf("failed to commit before close: %w", err))
+		}
 	}
 	err := e.rw.Close()
+	if err != nil {
+		multierr.AppendInto(&error, fmt.Errorf("failed to close RW connection: %w", err))
+	}
 	for _, conn := range e.roFree {
-		multierr.AppendInto(&err, conn.Close())
+		err := conn.Close()
+		if err != nil {
+			multierr.AppendInto(&error, fmt.Errorf("failed to close RO connection: %w", err))
+		}
 	}
 	// multierr.AppendInto(&err, e.chk.Close())
 	// multierr.AppendInto(&err, e.ro.Close()) // close RO one last to prevent checkpoint-on-close logic in other connections
-	return err
+	return error
 }
 
 func (e *Engine) txLoop() {
@@ -518,10 +529,10 @@ func (e *Engine) binlogWaitDBSync(conn Conn) *committedInfo {
 	return info
 }
 
-func (e *Engine) commitTXAndStartNew(commit, waitBinlogCommit bool) {
-	c := e.start(context.Background(), false)
+func (e *Engine) commitTXAndStartNew(commit, waitBinlogCommit bool) error {
+	c := e.rw.startNewConn(false, context.Background(), &e.opt.StatsOptions)
 	defer c.close()
-	_ = e.commitTXAndStartNewLocked(c, commit, waitBinlogCommit, false)
+	return e.commitTXAndStartNewLocked(c, commit, waitBinlogCommit, false)
 
 }
 
@@ -558,7 +569,7 @@ func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, ski
 }
 
 func backupToTemp(ctx context.Context, e *Engine, prefix string) (string, error) {
-	c := e.start(ctx, false)
+	c := e.rw.startNewConn(false, context.Background(), &e.opt.StatsOptions)
 	defer c.close()
 	path := prefix + "." + strconv.FormatUint(rand.Uint64(), 10) + ".tmp"
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
@@ -569,7 +580,7 @@ func backupToTemp(ctx context.Context, e *Engine, prefix string) (string, error)
 }
 
 func getBackupPath(e *Engine, prefix string) (string, error) {
-	c := e.start(context.Background(), false)
+	c := e.rw.startNewConn(false, context.Background(), &e.opt.StatsOptions)
 	defer c.close()
 	offs, _, err := binlogLoadPosition(c)
 	path := prefix + "." + strconv.FormatInt(offs, 10)
@@ -590,7 +601,7 @@ func (e *Engine) binlogNotifyWaited(committedOffset int64) {
 }
 
 func (e *Engine) do(fn func(Conn) error) error {
-	c := e.start(context.Background(), true)
+	c := e.rw.startNewConn(true, context.Background(), &e.opt.StatsOptions)
 	defer c.close()
 	err := fn(c)
 	if err != nil {
@@ -656,7 +667,7 @@ func (e *Engine) view(ctx context.Context, queryName string, fn func(Conn) error
 			e.roMx.Unlock()
 			return fmt.Errorf("failed to open RO connection: %w", err)
 		}
-		conn = newSqliteConn(ro)
+		conn = newSqliteConn(ro, e.opt.CacheMaxSizePerConnect)
 		*roCount++
 	} else {
 		conn = (*roFree)[0]
@@ -669,9 +680,8 @@ func (e *Engine) view(ctx context.Context, queryName string, fn func(Conn) error
 		e.roMx.Unlock()
 		e.roCond.Signal()
 	}()
-	conn.mu.Lock()
 	e.opt.StatsOptions.measureWaitDurationSince(waitView, startTimeBeforeLock)
-	c := Conn{conn, false, ctx, &e.opt.StatsOptions}
+	c := conn.startNewConn(false, ctx, &e.opt.StatsOptions)
 	defer c.close()
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txView, queryName, time.Now())
 	err := fn(c)
@@ -698,11 +708,10 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 		return nil, err
 	}
 	startTimeBeforeLock := time.Now()
-	c := e.start(ctx, true)
+	c := e.rw.startNewConn(true, ctx, &e.opt.StatsOptions)
 	defer c.close()
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
-	e.rw.spOk = false
 	var err error
 	buffer, err := fn(c, nil)
 	if err != nil {
@@ -790,9 +799,4 @@ func (e *Engine) Do(ctx context.Context, queryName string, fn func(Conn, []byte)
 func binlogUpdateOffset(c Conn, offset int64) error {
 	_, err := c.Exec("__update_binlog_pos", "UPDATE __binlog_offset set offset = $offset;", Int64("$offset", offset))
 	return err
-}
-
-func (e *Engine) start(ctx context.Context, autoSavepoint bool) Conn {
-	e.rw.mu.Lock()
-	return Conn{e.rw, autoSavepoint, ctx, &e.opt.StatsOptions}
 }

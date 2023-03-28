@@ -112,13 +112,10 @@ func doSingleROToWALQuery(path string, f func(*Engine) error) error {
 
 	e := &Engine{
 		opt: Options{Path: path, StatsOptions: StatsOptions{}},
-		rw:  newSqliteConn(ro),
+		rw:  newSqliteConn(ro, 10),
 	}
 	err = f(e)
-	for _, si := range e.rw.prep {
-		_ = si.stmt.Close()
-	}
-
+	e.rw.cache.close(&err)
 	closeErr := ro.Close()
 	if err != nil {
 		return err
@@ -138,13 +135,10 @@ func doSingleROQuery(path string, f func(*Engine) error) error {
 	}
 	e := &Engine{
 		opt: Options{Path: path, StatsOptions: StatsOptions{}},
-		rw:  newSqliteConn(conn),
+		rw:  newSqliteConn(conn, 10),
 	}
 	err = f(e)
-	for _, si := range e.rw.prep {
-		_ = si.stmt.Close()
-	}
-
+	e.rw.cache.close(&err)
 	closeErr := conn.Close()
 	if err != nil {
 		return err
