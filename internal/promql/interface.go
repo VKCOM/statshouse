@@ -8,6 +8,7 @@ package promql
 
 import (
 	"context"
+	"fmt"
 	"math"
 
 	"github.com/prometheus/prometheus/model/labels"
@@ -128,6 +129,8 @@ type TagValuesQuery struct {
 	Offset    int64
 	Options   Options
 }
+
+var ErrNotFound = fmt.Errorf("not found")
 
 type Handler interface {
 	//

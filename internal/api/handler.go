@@ -1718,7 +1718,6 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 	}
 
 	type testPromqlQuery struct {
-		key string
 		lod lodInfo
 	}
 	var (
@@ -1741,7 +1740,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 				context.WithValue(ctx, accessInfoKey, &req.ai), // to check access rights when querying series
 				promqlExpr, version, from, to, now, width, widthKind, false, &promqlRand, nil,
 				func(version string, key string, pq any, lod any, avoidCache bool) {
-					promqlQueries = append(promqlQueries, testPromqlQuery{key, lod.(lodInfo)})
+					promqlQueries = append(promqlQueries, testPromqlQuery{lod.(lodInfo)})
 				})
 			return err
 		})
@@ -1845,7 +1844,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 			shiftDelta := toSec(shift - oldestShift)
 			for lodIx, lod := range lods {
 				if testPromql {
-					seriesQueries = append(seriesQueries, testPromqlQuery{qs, lodInfo{
+					seriesQueries = append(seriesQueries, testPromqlQuery{lodInfo{
 						fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
 						toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
 						stepSec:   lod.stepSec,

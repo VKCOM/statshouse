@@ -790,6 +790,9 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchEqual:
 				id, err := ev.getTagValueID(metric, i, matcher.Value)
 				if err != nil {
+					if err == ErrNotFound {
+						continue // ignore values with no mapping
+					}
 					return seriesQueryX{}, err
 				}
 				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
@@ -804,6 +807,9 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchNotEqual:
 				id, err := ev.getTagValueID(metric, i, matcher.Value)
 				if err != nil {
+					if err == ErrNotFound {
+						continue // ignore values with no mapping
+					}
 					return seriesQueryX{}, err
 				}
 				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
