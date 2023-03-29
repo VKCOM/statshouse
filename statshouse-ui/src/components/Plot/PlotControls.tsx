@@ -198,11 +198,6 @@ export const PlotControls = memo(function PlotControls_(props: {
 
       <form spellCheck="false">
         <div className="d-flex mb-2">
-          {ai.developer && (
-            <button type="button" className="btn btn-outline-primary me-3" onClick={toPromql} title="PromQL">
-              <SVGCode />
-            </button>
-          )}
           <div className="col input-group">
             <Select
               value={sel.metricName}
@@ -223,6 +218,11 @@ export const PlotControls = memo(function PlotControls_(props: {
               </button>
             )}
           </div>
+          {ai.developer && (
+            <button type="button" className="btn btn-outline-primary ms-3" onClick={toPromql} title="PromQL">
+              <SVGCode />
+            </button>
+          )}
         </div>
         <div className="row mb-3">
           <div className="d-flex align-items-baseline">
