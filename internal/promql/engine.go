@@ -321,6 +321,9 @@ func (ev *evaluator) exec(ctx context.Context) (SeriesBag, error) {
 }
 
 func (ev *evaluator) eval(ctx context.Context, expr parser.Expr) (res SeriesBag, err error) {
+	if ctx.Err() != nil {
+		return SeriesBag{}, ctx.Err()
+	}
 	if e, ok := ev.ars[expr]; ok {
 		return ev.eval(ctx, e)
 	}
