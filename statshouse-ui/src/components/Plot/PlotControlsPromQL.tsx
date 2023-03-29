@@ -127,9 +127,6 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
       <div>
         <div className="row mb-3 align-items-baseline">
           <div className="col-12 d-flex align-items-baseline">
-            <button type="button" className="btn btn-outline-primary me-3" title="Filter" onClick={toFilter}>
-              <SVGFilter />
-            </button>
             <select
               className={cn('form-select me-4', sel.customAgg > 0 && 'border-warning')}
               value={sel.customAgg}
@@ -162,6 +159,9 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
                 <SVGPcDisplay />
               </label>
             </div>
+            <button type="button" className="btn btn-outline-primary ms-3" title="Filter" onClick={toFilter}>
+              <SVGFilter />
+            </button>
           </div>
         </div>
         <div className="row mb-3 align-items-baseline">
@@ -174,7 +174,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
 
         <div className="row mb-3 align-items-baseline">
           <div className="input-group">
-            <textarea className="form-control" rows={8} value={promQL} onInput={inputPromQL}></textarea>
+            <textarea className="form-control font-monospace" rows={8} value={promQL} onInput={inputPromQL}></textarea>
           </div>
         </div>
       </div>

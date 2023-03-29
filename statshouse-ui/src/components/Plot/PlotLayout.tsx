@@ -52,6 +52,7 @@ export const PlotLayout: React.FC<PlotLayoutProps> = ({
       <div className="mb-3 col-lg-5 col-xl-4">
         {sel.metricName === promQLMetric ? (
           <PlotControlsPromQL
+            key={indexPlot}
             indexPlot={indexPlot}
             setBaseRange={setBaseRange}
             sel={sel}
@@ -62,6 +63,7 @@ export const PlotLayout: React.FC<PlotLayoutProps> = ({
           />
         ) : (
           <PlotControls
+            key={indexPlot}
             indexPlot={indexPlot}
             setBaseRange={setBaseRange}
             sel={sel}
