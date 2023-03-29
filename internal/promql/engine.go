@@ -293,6 +293,7 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, p
 				sel.What = Avg
 			case "increase", "irate", "rate", "resets":
 				sel.What = Count
+				sel.PrefixSum = true
 			}
 		}
 	}
@@ -905,7 +906,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				MaxHost:    sel.MaxHost || ev.Options.MaxHost,
 				Options:    ev.Options,
 			},
-			prefixSum,
+			prefixSum || sel.PrefixSum,
 			histogramQ},
 		nil
 }
