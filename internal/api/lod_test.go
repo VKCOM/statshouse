@@ -27,10 +27,6 @@ func (x Int64Slice) Len() int           { return len(x) }
 func (x Int64Slice) Less(i, j int) bool { return x[i] < x[j] }
 func (x Int64Slice) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
 
-func init() {
-	time.Local = time.UTC // for testing the correctness of location based date calculations
-}
-
 func TestRoundRange(t *testing.T) {
 	location, err := time.LoadLocation(defaultTestTimezone)
 	if err != nil {
