@@ -401,10 +401,10 @@ func (wnd *window) moveOneLeft() bool {
 	// shift left boundary until conditions are met
 	for 0 < wnd.l {
 		if wnd.w != 0 {
-			if wnd.w <= wnd.t[wnd.r]-wnd.t[wnd.l]+1 {
+			if wnd.w <= wnd.t[wnd.r]-wnd.t[wnd.l] {
 				break
 			}
-			if wnd.s && wnd.w < wnd.t[wnd.r]-wnd.t[wnd.l-1]+1 {
+			if wnd.s && wnd.w < wnd.t[wnd.r]-wnd.t[wnd.l-1] {
 				break
 			}
 		} else if wnd.l != wnd.r {

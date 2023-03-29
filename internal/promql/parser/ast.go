@@ -196,6 +196,7 @@ type VectorSelector struct {
 	GroupWithout    bool
 	MaxHost         bool
 	OmitNameTag     bool
+	PrefixSum       bool
 }
 
 // TestStmt is an internal helper statement that allows execution
