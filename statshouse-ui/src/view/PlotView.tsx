@@ -348,7 +348,7 @@ const PlotView = memo(function PlotView_(props: {
             style={{ width: `${yAxisSize}px` }}
             className="flex-shrink-0 d-flex justify-content-end align-items-center pe-3"
           >
-            {numQueries > 0 && compact && (
+            {numQueries > 0 && (
               <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
             )}
           </div>
