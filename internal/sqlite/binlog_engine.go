@@ -116,7 +116,7 @@ func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnap
 	if waitCommit {
 		start := time.Now()
 		ctx, cancel := context.WithTimeout(context.Background(), commitTXTimeout)
-		c := e.start(ctx, false)
+		c := e.rw.startNewConn(true, ctx, &e.opt.StatsOptions)
 		err := e.commitTXAndStartNewLocked(c, true, false, false)
 		impl.lastCommitTime = time.Now()
 		c.close()

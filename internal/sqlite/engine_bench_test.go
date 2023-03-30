@@ -30,10 +30,11 @@ func initDb(b *testing.B, scheme, prefix string, dbFile string, durabilityMode D
 		}
 	}
 	engine, err := OpenEngine(Options{
-		Path:           prefix + "/" + dbFile,
-		APPID:          32,
-		Scheme:         scheme,
-		DurabilityMode: durabilityMode,
+		Path:                   prefix + "/" + dbFile,
+		APPID:                  32,
+		Scheme:                 scheme,
+		DurabilityMode:         durabilityMode,
+		CacheMaxSizePerConnect: 1,
 	}, bl, nil, nil)
 	if err != nil {
 		b.Fatal(err)

@@ -124,13 +124,14 @@ func openEngine(t *testing.T, prefix string, dbfile, schema string, create, repl
 	bl, err := fsbinlog.NewFsBinlog(&Logger{}, options)
 	require.NoError(t, err)
 	engine, err := OpenEngine(Options{
-		Path:              prefix + "/" + dbfile,
-		APPID:             32,
-		Scheme:            schema,
-		DurabilityMode:    mode,
-		Replica:           replica,
-		ReadAndExit:       readAndExit,
-		CommitOnEachWrite: commitOnEachWrite,
+		Path:                   prefix + "/" + dbfile,
+		APPID:                  32,
+		Scheme:                 schema,
+		DurabilityMode:         mode,
+		Replica:                replica,
+		ReadAndExit:            readAndExit,
+		CommitOnEachWrite:      commitOnEachWrite,
+		CacheMaxSizePerConnect: 1,
 	}, bl, apply(t, false, applyF), apply(t, true, applyF))
 	require.NoError(t, err)
 	return engine, bl
@@ -430,10 +431,11 @@ func Test_Engine_NoBinlog(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (data TEXT NOT NULL);"
 	dir := t.TempDir()
 	engine, err := OpenEngine(Options{
-		Path:           dir + "/db",
-		APPID:          32,
-		Scheme:         schema,
-		DurabilityMode: NoBinlog,
+		Path:                   dir + "/db",
+		APPID:                  32,
+		Scheme:                 schema,
+		DurabilityMode:         NoBinlog,
+		CacheMaxSizePerConnect: 1,
 	}, nil, nil, nil)
 	require.NoError(t, err)
 	var data = ""
@@ -461,10 +463,11 @@ func Test_Engine_NoBinlog_Close(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (data TEXT NOT NULL);"
 	dir := t.TempDir()
 	engine, err := OpenEngine(Options{
-		Path:           dir + "/db",
-		APPID:          32,
-		Scheme:         schema,
-		DurabilityMode: NoBinlog,
+		Path:                   dir + "/db",
+		APPID:                  32,
+		Scheme:                 schema,
+		DurabilityMode:         NoBinlog,
+		CacheMaxSizePerConnect: 1,
 	}, nil, nil, nil)
 	require.NoError(t, err)
 	var data = ""
@@ -476,10 +479,11 @@ func Test_Engine_NoBinlog_Close(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, engine.Close(context.Background()))
 	engine, err = OpenEngine(Options{
-		Path:           dir + "/db",
-		APPID:          32,
-		Scheme:         schema,
-		DurabilityMode: NoBinlog,
+		Path:                   dir + "/db",
+		APPID:                  32,
+		Scheme:                 schema,
+		DurabilityMode:         NoBinlog,
+		CacheMaxSizePerConnect: 1,
 	}, nil, nil, nil)
 	require.NoError(t, err)
 	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {

@@ -18,8 +18,8 @@ import (
 type sqliteConn struct {
 	rw             *sqlite0.Conn
 	mu             sync.Mutex
-	prep           map[string]stmtInfo
-	used           map[*sqlite0.Stmt]bool
+	cache          *queryCache
+	used           map[*sqlite0.Stmt]struct{}
 	err            error
 	spIn           bool
 	spOk           bool
@@ -36,13 +36,13 @@ type Conn struct {
 	stats         *StatsOptions
 }
 
-func newSqliteConn(rw *sqlite0.Conn) *sqliteConn {
+func newSqliteConn(rw *sqlite0.Conn, cacheMaxSize int) *sqliteConn {
 	var spID [16]byte
 	_, _ = rand.New().Read(spID[:])
 	return &sqliteConn{
 		rw:             rw,
-		prep:           make(map[string]stmtInfo),
-		used:           make(map[*sqlite0.Stmt]bool),
+		cache:          newQueryCache(cacheMaxSize),
+		used:           make(map[*sqlite0.Stmt]struct{}),
 		spBeginStmt:    fmt.Sprintf("SAVEPOINT __sqlite_engine_auto_%x", spID[:]),
 		spCommitStmt:   fmt.Sprintf("RELEASE __sqlite_engine_auto_%x", spID[:]),
 		spRollbackStmt: fmt.Sprintf("ROLLBACK TO __sqlite_engine_auto_%x", spID[:]),
@@ -50,28 +50,28 @@ func newSqliteConn(rw *sqlite0.Conn) *sqliteConn {
 	}
 }
 
+func (c *sqliteConn) startNewConn(autoSavepoint bool, ctx context.Context, stats *StatsOptions) Conn {
+	c.mu.Lock()
+	return Conn{c, autoSavepoint, ctx, stats}
+}
+
 func (c *sqliteConn) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	err := c.err
 	c.err = errAlreadyClosed
-	for _, si := range c.prep {
-		multierr.AppendInto(&err, si.stmt.Close())
-	}
+	c.cache.close(&err)
 	multierr.AppendInto(&err, c.rw.Close())
 	return err
 }
 
 func (c Conn) close() {
 	c.execEndSavepoint()
-	for stmt, skipCache := range c.c.used {
-		if skipCache {
-			_ = stmt.Close()
-		} else {
-			_ = stmt.Reset()
-		}
+	for stmt := range c.c.used {
+		_ = stmt.Reset()
 		delete(c.c.used, stmt)
 	}
+	c.c.cache.closeTx()
 	c.c.mu.Unlock()
 }
 
@@ -115,8 +115,8 @@ func (c Conn) ExecUnsafe(name, sql string, args ...Arg) (int64, error) {
 
 func (c Conn) query(allowUnsafe bool, type_, name string, sql []byte, sqlStr string, args ...Arg) Rows {
 	start := time.Now()
-	s, skipCache, err := c.doQuery(allowUnsafe, sql, sqlStr, args...)
-	return Rows{c.c, s, err, false, c.ctx, name, start, c.stats, type_, skipCache}
+	s, err := c.doQuery(allowUnsafe, sql, sqlStr, args...)
+	return Rows{c.c, s, err, false, c.ctx, name, start, c.stats, type_}
 }
 
 func (c Conn) exec(allowUnsafe bool, name string, sql []byte, sqlStr string, args ...Arg) (int64, error) {
@@ -127,16 +127,15 @@ func (c Conn) exec(allowUnsafe bool, name string, sql []byte, sqlStr string, arg
 }
 
 type Rows struct {
-	c                   *sqliteConn
-	s                   *sqlite0.Stmt
-	err                 error
-	used                bool
-	ctx                 context.Context
-	name                string
-	start               time.Time
-	stats               *StatsOptions
-	type_               string
-	mustCloseConnection bool
+	c     *sqliteConn
+	s     *sqlite0.Stmt
+	err   error
+	used  bool
+	ctx   context.Context
+	name  string
+	start time.Time
+	stats *StatsOptions
+	type_ string
 }
 
 func (r *Rows) Error() error {
@@ -153,9 +152,8 @@ func (r *Rows) next(setUsed bool) bool {
 			return false
 		}
 	}
-
 	if setUsed && !r.used {
-		r.c.used[r.s] = r.mustCloseConnection
+		r.c.used[r.s] = struct{}{}
 		r.used = true
 	}
 	row, err := r.s.Step()
@@ -200,8 +198,8 @@ func (c Conn) LastInsertRowID() int64 {
 	return c.c.rw.LastInsertRowID()
 }
 
-func (c Conn) PrepMapLength() int {
-	return len(c.c.prep)
+func (c Conn) CacheSize() int {
+	return c.c.cache.size()
 }
 
 func checkSliceParamName(s string) bool {
@@ -209,11 +207,10 @@ func checkSliceParamName(s string) bool {
 }
 
 // if sqlString == "", sqlBytes could be copied to store as map key
-func (c Conn) doQuery(allowUnsafe bool, sqlBytes []byte, sqlString string, args ...Arg) (*sqlite0.Stmt, bool, error) {
+func (c Conn) doQuery(allowUnsafe bool, sqlBytes []byte, sqlString string, args ...Arg) (*sqlite0.Stmt, error) {
 	if c.c.err != nil {
-		return nil, false, c.c.err
+		return nil, c.c.err
 	}
-	skipCache := false
 	sqlIsRawBytes := true
 	if len(sqlBytes) == 0 {
 		sqlIsRawBytes = false
@@ -227,52 +224,41 @@ func (c Conn) doQuery(allowUnsafe bool, sqlBytes []byte, sqlString string, args 
 	c.c.numParams.reset(sqlRO)
 	for _, arg := range args {
 		if strings.HasPrefix(arg.name, "$internal") {
-			return nil, false, fmt.Errorf("prefix $internal is reserved")
+			return nil, fmt.Errorf("prefix $internal is reserved")
 		}
 		if arg.isSliceArg() {
 			if !checkSliceParamName(arg.name) {
-				return nil, false, fmt.Errorf("invalid list arg name %s", arg.name)
+				return nil, fmt.Errorf("invalid list arg name %s", arg.name)
 			}
-			skipCache = true
 			c.c.numParams.addSliceParam(arg)
 		}
 	}
 	sqlBytes, err := c.c.numParams.buildQueryLocked()
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
-	var si stmtInfo
-	var ok bool
-	if !skipCache {
-		if sqlIsRawBytes {
-			si, ok = c.c.prep[string(sqlBytes)]
-		} else {
-			si, ok = c.c.prep[sqlString]
-		}
-	}
+	si, ok := c.c.cache.get(sqlString, sqlBytes)
 	if !ok {
 		start := time.Now()
-		si, err = prepare(c.c.rw, sqlBytes, skipCache)
+		si, err = prepare(c.c.rw, sqlBytes, true)
 		c.stats.measureActionDurationSince("sqlite_prepare", start)
 		if err != nil {
-			return nil, skipCache, err
+			return nil, err
 		}
-		if !skipCache {
-			if sqlIsRawBytes {
-				c.c.prep[string(sqlBytes)] = si
-			} else {
-				c.c.prep[sqlString] = si
-			}
+		if sqlIsRawBytes {
+			c.c.cache.put(string(sqlBytes), si)
+		} else {
+			c.c.cache.put(sqlString, si)
 		}
 	}
 
 	if !allowUnsafe && !si.isSafe {
-		return nil, skipCache, errUnsafe
+		return nil, errUnsafe
 	}
 	if c.autoSavepoint && (!si.isSelect && !si.isVacuumInto) && !c.c.spIn {
 		err := c.execBeginSavepoint()
 		if err != nil {
-			return nil, skipCache, err
+			return nil, err
 		}
 	}
 
@@ -280,12 +266,12 @@ func (c Conn) doQuery(allowUnsafe bool, sqlBytes []byte, sqlString string, args 
 	if used {
 		err := si.stmt.Reset()
 		if err != nil {
-			return nil, skipCache, err
+			return nil, err
 		}
 	}
 
 	stmt, err := c.doStmt(si, args...)
-	return stmt, skipCache, err
+	return stmt, err
 }
 
 func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
