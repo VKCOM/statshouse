@@ -254,8 +254,8 @@ func parseUnixTime(s string) (time.Time, error) {
 	if err != nil {
 		return time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
 	}
-	if u < 0 {
-		return time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: must be >= 0"))
+	if u <= 0 {
+		return time.Now().UTC().Add(time.Duration(u) * time.Second), nil
 	}
 
 	return time.Unix(u, 0).UTC(), nil
