@@ -4,12 +4,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, memo, useCallback, useEffect, useMemo } from 'react';
+import React, { ChangeEvent, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import produce from 'immer';
 import cn from 'classnames';
 import * as utils from '../../view/utils';
 import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
-import { MetricItem, useDebounceState } from '../../hooks';
+import { MetricItem } from '../../hooks';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo } from '../index';
 import {
   selectorParamsTimeShifts,
@@ -22,6 +22,7 @@ import {
 import { metricKindToWhat, metricMeta, querySelector, queryWhat } from '../../view/api';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
+import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { globalSettings } from '../../common/settings';
 
 export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
@@ -35,7 +36,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   clonePlot?: () => void;
 }) {
   const { indexPlot, setBaseRange, sel, setSel, meta } = props;
-  const [promQL, promQLDebounce, setPromQL] = useDebounceState(sel.promQL, 500);
+  const [promQL, setPromQL] = useState(sel.promQL);
 
   const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
   const plotData = useStore(selectorPlotsData);
@@ -98,26 +99,41 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   const toFilter = useCallback(() => {
     setSel(
       produce((s) => {
-        s.metricName = plotData.nameMetric || globalSettings.default_metric;
-        s.what = (
-          plotData.whats?.length ? plotData.whats.slice() : globalSettings.default_metric_what.slice()
-        ) as queryWhat[];
-        s.customName = '';
-        s.groupBy = globalSettings.default_metric_group_by.slice();
-        s.filterIn = { ...globalSettings.default_metric_filter_in };
-        s.filterNotIn = { ...globalSettings.default_metric_filter_not_in };
-        s.promQL = '';
+        if (plotData.nameMetric) {
+          s.metricName = plotData.nameMetric;
+          s.what = (
+            plotData.whats?.length ? plotData.whats.slice() : globalSettings.default_metric_what.slice()
+          ) as queryWhat[];
+          s.customName = '';
+          s.groupBy = [];
+          s.filterIn = {};
+          s.filterNotIn = {};
+          s.promQL = '';
+        } else {
+          s.metricName = globalSettings.default_metric;
+          s.what = globalSettings.default_metric_what.slice();
+          s.customName = '';
+          s.groupBy = globalSettings.default_metric_group_by.slice();
+          s.filterIn = { ...globalSettings.default_metric_filter_in };
+          s.filterNotIn = { ...globalSettings.default_metric_filter_not_in };
+          s.promQL = '';
+        }
       })
     );
   }, [plotData.nameMetric, plotData.whats, setSel]);
 
-  useEffect(() => {
+  const sendPromQL = useCallback(() => {
     setSel(
       produce((p) => {
-        p.promQL = promQLDebounce;
+        p.promQL = promQL;
       })
     );
-  }, [promQLDebounce, setSel]);
+  }, [promQL, setSel]);
+
+  const resetPromQL = useCallback(() => {
+    setPromQL(sel.promQL);
+  }, [sel.promQL]);
+
   useEffect(() => {
     setPromQL(sel.promQL);
   }, [sel.promQL, setPromQL]);
@@ -175,6 +191,15 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
         <div className="row mb-3 align-items-baseline">
           <div className="input-group">
             <textarea className="form-control font-monospace" rows={8} value={promQL} onInput={inputPromQL}></textarea>
+          </div>
+          <div className="d-flex flex-row justify-content-end mt-2">
+            <button type="button" className="btn btn-outline-primary me-2" title="Reset PromQL" onClick={resetPromQL}>
+              <SVGArrowCounterclockwise />
+            </button>
+            <span className="flex-grow-1"></span>
+            <button type="button" className="btn btn-outline-primary" onClick={sendPromQL}>
+              Run
+            </button>
           </div>
         </div>
       </div>
