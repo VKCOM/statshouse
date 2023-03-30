@@ -296,17 +296,18 @@ func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine,
 
 	ctx, stop := context.WithCancel(context.Background())
 	e := &Engine{
-		rw:   newSqliteConn(rw),
+		rw:   newSqliteConn(rw, 1),
 		ctx:  ctx,
 		stop: stop,
 		//	chk:                     chk,
 		opt: Options{
-			Path:           path,
-			APPID:          appID,
-			Scheme:         "",
-			Replica:        false,
-			DurabilityMode: mode,
-			StatsOptions:   StatsOptions{},
+			Path:                   path,
+			APPID:                  appID,
+			Scheme:                 "",
+			Replica:                false,
+			DurabilityMode:         mode,
+			StatsOptions:           StatsOptions{},
+			CacheMaxSizePerConnect: 1,
 		},
 
 		apply:                applyFunc(false),
