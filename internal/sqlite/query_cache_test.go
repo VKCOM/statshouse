@@ -25,7 +25,7 @@ func Test_heap_put(t *testing.T) {
 }
 
 func Test_heap_put_random(t *testing.T) {
-	h := heap{}
+	h := heap{size: 0}
 	const n = evictSize + 10000
 	arr := []int{}
 	for i := 0; i <= n; i++ {
