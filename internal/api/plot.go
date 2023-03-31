@@ -59,7 +59,7 @@ set xdata time
 set timefmt "%s"
 set format x "%H:%M\n%d/%m"
 set xrange [*:*] noextend
-set yrange [*:*] noextend
+set yrange [*<-0:*] noextend
 set datafile missing "NaN"
 
 {{range $i, $meta := $d.Data.Series.SeriesMeta -}}
