@@ -27,10 +27,7 @@ import {
 } from '../../store';
 import { globalSettings } from '../../common/settings';
 import { filterHasTagID, metricKindToWhat, metricMeta, querySelector, queryWhat, whatToWhatDesc } from '../../view/api';
-import { currentAccessInfo } from '../../common/access';
 import produce from 'immer';
-
-const ai = currentAccessInfo();
 
 export const PlotControls = memo(function PlotControls_(props: {
   indexPlot: number;
@@ -218,11 +215,9 @@ export const PlotControls = memo(function PlotControls_(props: {
               </button>
             )}
           </div>
-          {ai.developer && (
-            <button type="button" className="btn btn-outline-primary ms-3" onClick={toPromql} title="PromQL">
-              <SVGCode />
-            </button>
-          )}
+          <button type="button" className="btn btn-outline-primary ms-3" onClick={toPromql} title="PromQL">
+            <SVGCode />
+          </button>
         </div>
         <div className="row mb-3">
           <div className="d-flex align-items-baseline">
