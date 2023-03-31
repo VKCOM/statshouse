@@ -235,13 +235,21 @@ func respondPlot(w http.ResponseWriter, format string, resp []byte, cache time.D
 }
 
 func parseFromTo(fromTS string, toTS string) (from time.Time, to time.Time, err error) {
-	from, err = parseUnixTime(fromTS)
+	fromN, err := strconv.ParseInt(fromTS, 10, 64)
 	if err != nil {
-		return
+		return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
 	}
-	to, err = parseUnixTime(toTS)
+	toN, err := strconv.ParseInt(toTS, 10, 64)
 	if err != nil {
-		return
+		return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
+	}
+	to, err = parseUnixTimeTo(toN)
+	if err != nil {
+		return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
+	}
+	from, err = parseUnixTimeFrom(fromN, to)
+	if err != nil {
+		return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
 	}
 	if to.Before(from) {
 		err = httpErr(http.StatusBadRequest, fmt.Errorf("%q %v is before %q %v", ParamToTime, to, ParamFromTime, from))
@@ -249,15 +257,18 @@ func parseFromTo(fromTS string, toTS string) (from time.Time, to time.Time, err 
 	return
 }
 
-func parseUnixTime(s string) (time.Time, error) {
-	u, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
+func parseUnixTimeFrom(u int64, to time.Time) (time.Time, error) {
+	if u <= 0 {
+		return to.Add(time.Duration(u) * time.Second), nil
 	}
+
+	return time.Unix(u, 0).UTC(), nil
+}
+
+func parseUnixTimeTo(u int64) (time.Time, error) {
 	if u <= 0 {
 		return time.Now().UTC().Add(time.Duration(u) * time.Second), nil
 	}
-
 	return time.Unix(u, 0).UTC(), nil
 }
 
