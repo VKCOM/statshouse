@@ -132,7 +132,9 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
             indexPlot={indexPlot}
             title={title}
           >
-            {plot.customName || (
+            {plot.customName ? (
+              <span className="text-truncate">{plot.customName}</span>
+            ) : (
               <>
                 <span className="text-truncate">{metricName}</span>
                 {!!what && (
