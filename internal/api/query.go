@@ -72,6 +72,7 @@ const (
 	queryFnDerivativeMax
 	queryFnDerivativeUnique
 	queryFnDerivativeUniqueNorm
+	queryFnPoint
 
 	ParamQueryFnCount                = "count"
 	ParamQueryFnCountNorm            = "count_norm"
