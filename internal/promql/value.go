@@ -410,7 +410,10 @@ func (b *SeriesBag) trim(start, end int64) {
 			b.Data[j] = &s
 		}
 		for j := 0; j < len(b.MaxHost); j++ {
-			b.MaxHost[j] = b.MaxHost[j][lo:hi]
+			s := b.MaxHost[j]
+			if len(s) != 0 {
+				b.MaxHost[j] = s[lo:hi]
+			}
 		}
 	}
 }
