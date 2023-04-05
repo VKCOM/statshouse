@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"math"
 	"os/exec"
 	"sort"
@@ -69,10 +70,7 @@ set style line {{$d.LineStyle $i}} linetype 1 linecolor rgb '{{$d.LineColor $met
 $data << EOD
 {{range $i, $meta := $d.Data.Series.SeriesMeta -}}
 "{{$d.MetaToLabel $meta}}"
-{{range $j, $t := $d.Data.Series.Time -}}
-{{$d.APITime $t}} {{index $d.Data.Series.SeriesData $i $j}}
-{{end}}
-
+{{$d.WriteData $i}}
 {{end}}
 EOD
 
@@ -191,10 +189,32 @@ type gnuplotTemplateData struct {
 	usedColorIndices map[string]bool
 	uniqueWhat       map[queryFn]struct{}
 	utcOffset        int64
+
+	// The buffer which template is printed into,
+	// methods generating large texts might write directly into it
+	// (see "WriteData" function below).
+	wr io.Writer
 }
 
-func (d *gnuplotTemplateData) APITime(t int64) int64 {
-	return t + d.utcOffset
+func (d *gnuplotTemplateData) WriteData(i int) string {
+	var blank bool
+	for j, v := range *d.Data.Series.SeriesData[i] {
+		if math.IsNaN(v) {
+			if !blank {
+				// blank line tells GNUPlot to not connect adjacent points
+				fmt.Fprint(d.wr, "\n")
+				// adjacent blank lines are merged
+				blank = true
+			}
+			continue
+		}
+		fmt.Fprint(d.wr, d.Data.Series.Time[j]+d.utcOffset)
+		fmt.Fprint(d.wr, " ")
+		fmt.Fprint(d.wr, v)
+		fmt.Fprint(d.wr, "\n")
+		blank = false
+	}
+	return "\n"
 }
 
 func (d *gnuplotTemplateData) LineStyle(i int) int {
@@ -225,10 +245,34 @@ func (d *gnuplotTemplateData) Header() string {
 
 func (d *gnuplotTemplateData) LineColor(meta QuerySeriesMetaV2) string {
 	var (
-		prefColor = 9 // it`s magic prefix (copied from TypeScript code)
-		s         = fmt.Sprintf("%d%s", prefColor, d.MetaToLabel(meta))
+		oneGraph         = d.graphCount() == 1
+		uniqueWhatLength = len(d.GetUniqueWhat())
+		label            = MetaToLabel(meta, uniqueWhatLength)
+		baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength)
+		isValue          = strings.Index(baseLabel, "Value") == 0
+		metricName       string
+		prefColor        = 9 // it`s magic prefix
+		colorKey         string
 	)
-	return selectColor(s, d.usedColorIndices)
+	if isValue {
+		metricName = meta.Name
+	}
+	if oneGraph {
+		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, label)
+	} else {
+		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, baseLabel)
+	}
+	return selectColor(colorKey, d.usedColorIndices)
+}
+
+func (d *gnuplotTemplateData) graphCount() int {
+	var res int
+	for _, meta := range d.Data.Series.SeriesMeta {
+		if meta.TimeShift == 0 {
+			res++
+		}
+	}
+	return res
 }
 
 func (d *gnuplotTemplateData) MetaToLabel(meta QuerySeriesMetaV2) string {
@@ -264,7 +308,10 @@ func plot(ctx context.Context, format string, title bool, data []*GetQueryResp, 
 		width /= cols
 		height /= cols
 	}
-	td := make([]*gnuplotTemplateData, len(data))
+	var (
+		buf bytes.Buffer
+		td  = make([]*gnuplotTemplateData, len(data))
+	)
 	for i := 0; i < len(data); i++ {
 		blankFrom := time.Now().Add(-blankRenderInterval).Unix()
 		blankTo := time.Now().Unix()
@@ -285,10 +332,10 @@ func plot(ctx context.Context, format string, title bool, data []*GetQueryResp, 
 			usedColorIndices: map[string]bool{},
 			uniqueWhat:       map[queryFn]struct{}{},
 			utcOffset:        utcOffset % (24 * 3600), // ignore the part we use to align start of week
+			wr:               &buf,
 		}
 	}
 
-	var buf bytes.Buffer
 	templateData := struct {
 		Plots  []*gnuplotTemplateData
 		Format string
@@ -348,6 +395,17 @@ func selectColor(s string, used map[string]bool) string {
 
 // XXX: keep in sync with TypeScript
 func MetaToLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
+	var (
+		desc = MetaToBaseLabel(meta, uniqueWhatLength)
+		tsd  = timeShiftDesc(meta.TimeShift)
+	)
+	if tsd == "" {
+		return desc
+	}
+	return fmt.Sprintf("%s %s", tsd, desc)
+}
+
+func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 	type tagEntry struct {
 		key string
 		tag SeriesMetaTag
@@ -372,12 +430,7 @@ func MetaToLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 		desc = fmt.Sprintf("%s: %s", desc, WhatToWhatDesc(meta.What))
 	}
 
-	tsd := timeShiftDesc(meta.TimeShift)
-	if tsd == "" {
-		return desc
-	}
-
-	return fmt.Sprintf("%s %s", tsd, desc)
+	return desc
 }
 
 // XXX: keep in sync with TypeScript
