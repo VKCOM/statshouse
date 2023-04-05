@@ -2693,7 +2693,6 @@ func (h *Handler) evalPromql(ctx context.Context, req promqlEvalRequest) (res Ge
 			ExpandToLODBoundary: true,
 			TagOffset:           true,
 			TagTotal:            true,
-			CanonicalTagNames:   true,
 			ExplicitGrouping:    true,
 			MaxHost:             req.maxHost,
 			Offsets:             req.offsets,

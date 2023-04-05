@@ -476,7 +476,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				meta[i].SetSTag(name, emptyToUnspecified(t.tagStr.String()))
 			} else if tag, ok := qry.Metric.Name2Tag[tagID]; ok && tag.Index < len(t.tag) {
 				var name string
-				if qry.Options.CanonicalTagNames || len(tag.Name) == 0 {
+				if len(tag.Name) == 0 {
 					name = format.TagID(tag.Index)
 				} else {
 					name = tag.Name

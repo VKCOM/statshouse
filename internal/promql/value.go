@@ -15,9 +15,9 @@ import (
 	"math"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
@@ -328,6 +328,26 @@ func (b *SeriesBag) histograms() ([]histogram, error) {
 	return res, nil
 }
 
+func (b *SeriesBag) normalizeTagName(tagName string) string {
+	if len(b.Meta) == 0 {
+		return tagName
+	}
+	if len(b.Meta) == 1 {
+		return normalizeTagName(b.Meta[0].Metric, tagName)
+	}
+	m := make(map[*format.MetricMetaValue]bool, 2)
+	for _, meta := range b.Meta {
+		m[meta.Metric] = true
+		if 1 < len(m) {
+			return tagName
+		}
+	}
+	for metric := range m {
+		return normalizeTagName(metric, tagName)
+	}
+	return tagName
+}
+
 func (b *SeriesBag) scalar() bool {
 	if len(b.Data) != 1 {
 		return false
@@ -358,24 +378,24 @@ func (b *SeriesBag) setTag(i int, t string, v int32) {
 }
 
 func (b *SeriesBag) tagGroupBy(without bool, tags []string) map[string]bool {
-	var by map[string]bool
-	if len(tags) != 0 {
-		by = make(map[string]bool, len(tags))
-		for _, tag := range tags {
-			by[tag] = true
-		}
-		if without {
-			notBy := make(map[string]bool)
-			for _, meta := range b.Meta {
-				for tag := range meta.Tags {
-					notBy[tag] = !by[tag]
-				}
-				for tag := range meta.STags {
-					notBy[tag] = !by[tag]
-				}
+	if len(tags) == 0 {
+		return nil
+	}
+	by := make(map[string]bool, len(tags))
+	for _, tag := range tags {
+		by[b.normalizeTagName(tag)] = true
+	}
+	if without {
+		notBy := make(map[string]bool)
+		for _, meta := range b.Meta {
+			for tag := range meta.Tags {
+				notBy[tag] = !by[tag]
 			}
-			by = notBy
+			for tag := range meta.STags {
+				notBy[tag] = !by[tag]
+			}
 		}
+		by = notBy
 	}
 	return by
 }
@@ -493,6 +513,29 @@ func appendAt[T any](n int, dst []T, src ...T) []T {
 		dst = append(dst, t)
 	}
 	return append(dst, src...)
+}
+
+func normalizeTagName(metric *format.MetricMetaValue, tagName string) string {
+	if metric == nil {
+		return tagName
+	}
+	var i int
+	switch {
+	case strings.HasPrefix(tagName, "_"):
+		i = 1 // len("_")
+	case strings.HasPrefix(tagName, "key"):
+		i = 3 // len("key")
+	default:
+		return tagName
+	}
+	j, err := strconv.ParseInt(tagName[i:], 10, 8)
+	if err == nil && 0 <= j || j < format.MaxTags {
+		s := metric.Tags[j].Name
+		if len(s) != 0 {
+			return s
+		}
+	}
+	return tagName
 }
 
 func safeSlice[T any](s []T, i, j int) []T {

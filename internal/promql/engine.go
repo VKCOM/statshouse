@@ -48,7 +48,6 @@ type Options struct { // if you add an option make sure that default Options{} c
 	ExpandToLODBoundary bool
 	TagOffset           bool
 	TagTotal            bool
-	CanonicalTagNames   bool
 	ExplicitGrouping    bool
 	MaxHost             bool
 	Offsets             []int64
