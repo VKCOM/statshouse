@@ -53,6 +53,10 @@
   }
 }
 
+.u-select {
+  background-color: rgba(var(--bs-body-color-rgb), 0.1);
+}
+
 html {
   overflow-y: scroll; // prevent layout shift when scrollbar appears
 }
