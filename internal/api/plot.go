@@ -76,7 +76,7 @@ EOD
 
 {{if $d.Data.Series.SeriesMeta -}}
 plot for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with fillsteps notitle               linestyle (10+n), \
-     for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with     steps title columnheader(1) linestyle (10+n) linewidth 0.7
+     for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with linespoints title columnheader(1) linestyle (10+n) linewidth 0.7 pointtype 7 pointsize 0.2
 {{else -}}
 set key off
 set xrange [{{$d.BlankFrom}}:{{$d.BlankTo}}]
@@ -182,7 +182,7 @@ type gnuplotTemplateData struct {
 	Width     int
 	Height    int
 	Ratio     float64
-	Data      *GetQueryResp
+	Data      *SeriesResponse
 	BlankFrom int64
 	BlankTo   int64
 
@@ -296,7 +296,7 @@ func plotSize(format string, title bool, width int) (int, int) {
 	return width, height
 }
 
-func plot(ctx context.Context, format string, title bool, data []*GetQueryResp, utcOffset int64, metric []getQueryReq, width int, tmpl *template.Template) ([]byte, error) {
+func plot(ctx context.Context, format string, title bool, data []*SeriesResponse, utcOffset int64, metric []seriesRequest, width int, tmpl *template.Template) ([]byte, error) {
 	width, height := plotSize(format, title, width)
 	var (
 		rows = 1
