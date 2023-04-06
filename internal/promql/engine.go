@@ -71,10 +71,9 @@ type evaluator struct {
 	Engine
 	Options Options
 
-	ast    parser.Expr
-	ars    map[parser.Expr]parser.Expr // ast reductions
-	t      Timescale
-	offset int64
+	ast parser.Expr
+	ars map[parser.Expr]parser.Expr // ast reductions
+	t   Timescale
 
 	// metric -> tag index -> offset -> tag value id -> tag value
 	tags map[*format.MetricMetaValue][]map[int64]map[int32]string
@@ -304,14 +303,16 @@ func (ev *evaluator) time() []int64 {
 }
 
 func (ev *evaluator) exec(ctx context.Context) (SeriesBag, error) {
-	res := ev.newSeriesBag(0)
-	ev.offset = math.MinInt64
+	var (
+		res        = ev.newSeriesBag(0)
+		lastOffset = int64(math.MinInt64)
+	)
 	for _, offset := range ev.Options.Offsets {
-		if ev.offset == offset {
+		if lastOffset == offset {
 			continue
 		}
-		ev.offset = offset
-		bag, err := ev.eval(ctx, ev.ast)
+		lastOffset = offset
+		bag, err := ev.eval(withOffset(ctx, offset), ev.ast)
 		if err != nil {
 			return SeriesBag{}, err
 		}
@@ -794,7 +795,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchNotEqual:
 				sFilterOut = append(sFilterOut, matcher.Value)
 			case labels.MatchRegexp:
-				strTop, err := ev.getSTagValues(ctx, metric, ev.getOffset(sel))
+				strTop, err := ev.getSTagValues(ctx, metric, ev.getOffset(ctx, sel))
 				if err != nil {
 					return seriesQueryX{}, err
 				}
@@ -808,7 +809,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 					return seriesQueryX{}, nil
 				}
 			case labels.MatchNotRegexp:
-				strTop, err := ev.getSTagValues(ctx, metric, ev.getOffset(sel))
+				strTop, err := ev.getSTagValues(ctx, metric, ev.getOffset(ctx, sel))
 				if err != nil {
 					return seriesQueryX{}, err
 				}
@@ -856,7 +857,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 					filterOut[i] = map[int32]string{id: matcher.Value}
 				}
 			case labels.MatchRegexp:
-				m, err := ev.getTagValues(ctx, metric, i, ev.getOffset(sel))
+				m, err := ev.getTagValues(ctx, metric, i, ev.getOffset(ctx, sel))
 				if err != nil {
 					return seriesQueryX{}, err
 				}
@@ -872,7 +873,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				}
 				filterIn[i] = in
 			case labels.MatchNotRegexp:
-				m, err := ev.getTagValues(ctx, metric, i, ev.getOffset(sel))
+				m, err := ev.getTagValues(ctx, metric, i, ev.getOffset(ctx, sel))
 				if err != nil {
 					return seriesQueryX{}, err
 				}
@@ -895,7 +896,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				Metric:     metric,
 				What:       what,
 				Timescale:  ev.t,
-				Offset:     ev.getOffset(sel),
+				Offset:     ev.getOffset(ctx, sel),
 				Factor:     sel.Factor,
 				GroupBy:    groupBy,
 				FilterIn:   filterIn,
@@ -1002,8 +1003,23 @@ func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tag
 	})
 }
 
-func (ev *evaluator) getOffset(sel *parser.VectorSelector) int64 {
-	return sel.OriginalOffset + ev.offset
+func (ev *evaluator) getOffset(ctx context.Context, sel *parser.VectorSelector) int64 {
+	return sel.OriginalOffset + getOffset(ctx)
+}
+
+type contextKey int
+
+var offsetKey contextKey
+
+func withOffset(ctx context.Context, offset int64) context.Context {
+	return context.WithValue(ctx, offsetKey, offset)
+}
+
+func getOffset(ctx context.Context) int64 {
+	if offset, ok := ctx.Value(offsetKey).(int64); ok {
+		return offset
+	}
+	return 0
 }
 
 func (ev *evaluator) getSTagValues(ctx context.Context, metric *format.MetricMetaValue, offset int64) ([]string, error) {
