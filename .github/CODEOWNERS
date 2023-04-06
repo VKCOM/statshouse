@@ -14,16 +14,15 @@
 /grafana-plugin-ui/              @anhnostrom
 
 /cmd/statshouse/                 @hrissan @flyingmutant
-/cmd/statshouse-api/             @flyingmutant
+/cmd/statshouse-api/             @hrissan @flyingmutant
 /cmd/statshouse-metadata/        @nevgeny
 /cmd/statshouse-grafana-plugin/  @anhnostrom
 
 /internal/                       @hrissan @flyingmutant
 /internal/aggregator/prometheus/ @nevgeny
-/internal/api/                   @flyingmutant
-/internal/sqlite/                @flyingmutant
+/internal/api/                   @flyingmutant @alpinskiy @nevgeny
+/internal/sqlite/                @hrissan @flyingmutant
 /internal/metadata/              @nevgeny
 /internal/metajournal/           @nevgeny
 /internal/plugin/                @anhnostrom
 /internal/promql/                @alpinskiy
-/internal/vkgo/                  @flyingmutant
