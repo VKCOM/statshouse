@@ -18,7 +18,6 @@ import (
 
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/util"
 )
@@ -366,76 +365,142 @@ func init() {
 }
 
 type window struct {
-	// time, values and settings (readonly)
-	t []int64
-	v []float64
-	w int64 // width
-	s bool  // don't stretch to LOD resolution if set (strict)
-
-	// current [l,r] interval, number of points inside
-	l, r, n int
+	t, ct   []int64   // time, current interval time
+	v, cv   []float64 // values, current interval values
+	w       int64     // target width
+	l, r, n int       // current [l,r] interval, number of not NaN values inside
+	strict  bool      // don't stretch to LOD resolution if set
+	done    bool      // next "moveOneLeft" returns false if set
 }
 
 func newWindow(t []int64, v []float64, w int64, s bool) window {
-	return window{t: t, v: v, w: w, s: s, l: len(t), r: len(t)}
+	return window{t: t, v: v, w: w, strict: s, l: len(t), r: len(t), done: len(t) == 0}
 }
 
 func (wnd *window) moveOneLeft() bool {
-	// shift right boundary
-	if wnd.r <= 0 {
+	if wnd.done {
 		return false
 	}
-	if wnd.r < len(wnd.t) && !math.IsNaN(wnd.v[wnd.r]) {
-		wnd.n--
+	// shift right boundary
+	var l, r, n = wnd.l, wnd.r, wnd.n
+	if 0 < n && !math.IsNaN(wnd.v[r]) {
+		n--
 	}
-	wnd.r--
-	// reset left boundary if needed
-	if wnd.r < wnd.l {
-		wnd.l = wnd.r
-		if math.IsNaN(wnd.v[wnd.l]) {
-			wnd.n = 0
+	r--
+	// shift left boundary
+	if l > r {
+		l = r
+		if math.IsNaN(wnd.v[l]) {
+			n = 0
 		} else {
-			wnd.n = 1
+			n = 1
 		}
 	}
-	// shift left boundary until conditions are met
-	for 0 < wnd.l {
-		if wnd.w != 0 {
-			if wnd.w <= wnd.t[wnd.r]-wnd.t[wnd.l] {
+	for 0 < l {
+		if 0 < wnd.w {
+			if wnd.w <= wnd.t[r]-wnd.t[l] {
 				break
 			}
-			if wnd.s && wnd.w < wnd.t[wnd.r]-wnd.t[wnd.l-1] {
+			if wnd.strict && wnd.w < wnd.t[r]-wnd.t[l-1] {
 				break
 			}
-		} else if wnd.l != wnd.r {
+		} else if l != r {
 			break
 		}
-		// shift left boundary
-		wnd.l--
-		if !math.IsNaN(wnd.v[wnd.l]) {
-			wnd.n++
+		l--
+		if !math.IsNaN(wnd.v[l]) {
+			n++
 		}
 	}
+	if l <= 0 {
+		wnd.done = true
+		if wnd.w <= 0 {
+			if l == r {
+				return false
+			}
+		} else if wnd.t[r]-wnd.t[l] < wnd.w {
+			return false
+		}
+	}
+	wnd.l, wnd.r, wnd.n = l, r, n
 	return true
 }
 
-func (wnd *window) get(t []int64, v []float64) ([]int64, []float64) {
-	for i := wnd.l; i <= wnd.r; i++ {
-		if !math.IsNaN(wnd.v[i]) {
-			t = append(t, wnd.t[i])
-			v = append(v, wnd.v[i])
+func (wnd *window) get() ([]int64, []float64) {
+	var (
+		l = wnd.l
+		r = wnd.r
+	)
+	for l < r && math.IsNaN(wnd.v[l]) {
+		l++
+	}
+	for l < r && math.IsNaN(wnd.v[r]) {
+		r--
+	}
+	if r-l+1 == wnd.n {
+		return wnd.t[l : r+1], wnd.v[l : r+1]
+	}
+	wnd.ct = wnd.ct[:0]
+	wnd.cv = wnd.cv[:0]
+	for ; l <= r; l++ {
+		if !math.IsNaN(wnd.v[l]) {
+			wnd.ct = append(wnd.ct, wnd.t[l])
+			wnd.cv = append(wnd.cv, wnd.v[l])
 		}
 	}
-	return t, v
+	return wnd.ct, wnd.cv
 }
 
-func (wnd *window) getValues(v []float64) []float64 {
-	for i := wnd.l; i <= wnd.r; i++ {
-		if !math.IsNaN(wnd.v[i]) {
-			v = append(v, wnd.v[i])
+func (wnd *window) getValues() []float64 {
+	var (
+		l = wnd.l
+		r = wnd.r
+	)
+	for l < r && math.IsNaN(wnd.v[l]) {
+		l++
+	}
+	for l < r && math.IsNaN(wnd.v[r]) {
+		r--
+	}
+	if r-l+1 == wnd.n {
+		return wnd.v[l : r+1]
+	}
+	wnd.cv = wnd.copyValues(wnd.cv[:0], l, r)
+	return wnd.cv
+}
+
+func (wnd *window) getCopyOfValues() []float64 {
+	wnd.cv = wnd.copyValues(wnd.cv[:0], wnd.l, wnd.r)
+	return wnd.cv
+}
+
+func (wnd *window) copyValues(v []float64, l, r int) []float64 {
+	for ; l <= r; l++ {
+		if !math.IsNaN(wnd.v[l]) {
+			v = append(v, wnd.v[l])
 		}
 	}
 	return v
+}
+
+func (wnd *window) setValueAtRight(v float64) {
+	var (
+		wasNaN = math.IsNaN(wnd.v[wnd.r])
+		isNaN  = math.IsNaN(v)
+	)
+	switch {
+	case wasNaN && !isNaN:
+		wnd.n++
+	case !wasNaN && isNaN:
+		wnd.n--
+	}
+	wnd.v[wnd.r] = v
+}
+
+func (wnd *window) fillPrefixWith(v float64) {
+	for i := 0; i < wnd.r; i++ {
+		wnd.v[i] = v
+	}
 }
 
 func bagCall(fn func(SeriesBag) SeriesBag) callFunc {
@@ -468,14 +533,12 @@ func overTimeCall(fn func(v []float64) float64) callFunc {
 			wnd := newWindow(bag.Time, *row, bag.Range, true)
 			for wnd.moveOneLeft() {
 				if wnd.n != 0 {
-					(*row)[wnd.r] = fn((*row)[wnd.l : wnd.r+1])
+					wnd.setValueAtRight(fn((*row)[wnd.l : wnd.r+1]))
 				} else {
-					(*row)[wnd.r] = NilValue
+					wnd.setValueAtRight(NilValue)
 				}
 			}
-			for i := 0; i < wnd.r; i++ {
-				(*row)[i] = NilValue
-			}
+			wnd.fillPrefixWith(NilValue)
 		}
 		return bag, nil
 	}
@@ -730,24 +793,17 @@ func funcDelta(bag SeriesBag) SeriesBag {
 }
 
 func funcDeriv(bag SeriesBag) SeriesBag {
-	var (
-		t = make([]int64, 0, 2)
-		v = make([]float64, 0, 2)
-	)
 	for _, row := range bag.Data {
 		wnd := newWindow(bag.Time, *row, bag.Range, false)
 		for wnd.moveOneLeft() {
 			if wnd.n != 0 {
-				t, v = wnd.get(t[:0], v[:0])
-				slope, _ := linearRegression(t, v)
-				(*row)[wnd.r] = slope
+				slope, _ := linearRegression(wnd.get())
+				wnd.setValueAtRight(slope)
 			} else {
-				(*row)[wnd.r] = NilValue
+				wnd.setValueAtRight(NilValue)
 			}
 		}
-		for i := 0; i < wnd.r; i++ {
-			(*row)[i] = NilValue
-		}
+		wnd.fillPrefixWith(NilValue)
 	}
 	return bag
 }
@@ -930,25 +986,18 @@ func funcPredictLinear(ctx context.Context, ev *evaluator, args parser.Expressio
 	if err != nil {
 		return SeriesBag{}, err
 	}
-	var (
-		d = args[1].(*parser.NumberLiteral).Val // duration
-		t = make([]int64, 0, 2)                 // time
-		v = make([]float64, 0, 2)               // values
-	)
+	d := args[1].(*parser.NumberLiteral).Val // duration
 	for _, row := range bag.Data {
 		wnd := newWindow(bag.Time, *row, bag.Range, false)
 		for wnd.moveOneLeft() {
 			if wnd.n != 0 {
-				t, v = wnd.get(t[:0], v[:0])
-				slope, intercept := linearRegression(t, v)
-				(*row)[wnd.r] = slope*d + intercept
+				slope, intercept := linearRegression(wnd.get())
+				wnd.setValueAtRight(slope*d + intercept)
 			} else {
-				(*row)[wnd.r] = NilValue
+				wnd.setValueAtRight(NilValue)
 			}
 		}
-		for i := 0; i < wnd.r; i++ {
-			(*row)[i] = NilValue
-		}
+		wnd.fillPrefixWith(NilValue)
 	}
 	return bag, nil
 }
@@ -988,14 +1037,12 @@ func funcRate(bag SeriesBag) SeriesBag {
 		for wnd.moveOneLeft() {
 			if 1 < wnd.n {
 				delta := (*row)[wnd.r] - (*row)[wnd.l]
-				(*row)[wnd.r] = delta / float64(bag.Time[wnd.r]-bag.Time[wnd.l])
+				wnd.setValueAtRight(delta / float64(bag.Time[wnd.r]-bag.Time[wnd.l]))
 			} else {
-				(*row)[wnd.r] = NilValue
+				wnd.setValueAtRight(NilValue)
 			}
 		}
-		for i := 0; i < wnd.r; i++ {
-			(*row)[i] = NilValue
-		}
+		wnd.fillPrefixWith(NilValue)
 	}
 	return bag
 }
@@ -1165,12 +1212,11 @@ func funcQuantileOverTime(ctx context.Context, ev *evaluator, args parser.Expres
 		}
 		return bag, nil
 	}
-	vs := make([]float64, 0, 2)
 	for _, row := range bag.Data {
 		wnd := newWindow(bag.Time, *row, bag.Range, true)
 		for wnd.moveOneLeft() {
 			if wnd.n != 0 {
-				vs = wnd.getValues(vs[:0])
+				vs := wnd.getCopyOfValues()
 				sort.Float64s(vs)
 				var (
 					ix = q * (float64(len(vs)) - 1)
@@ -1179,14 +1225,12 @@ func funcQuantileOverTime(ctx context.Context, ev *evaluator, args parser.Expres
 					w1 = float64(i2) - ix
 					w2 = 1 - w1
 				)
-				(*row)[wnd.r] = vs[i1]*w1 + vs[i2]*w2
+				wnd.setValueAtRight(vs[i1]*w1 + vs[i2]*w2)
 			} else {
-				(*row)[wnd.r] = NilValue
+				wnd.setValueAtRight(NilValue)
 			}
 		}
-		for i := 0; i < wnd.r; i++ {
-			(*row)[i] = NilValue
-		}
+		wnd.fillPrefixWith(NilValue)
 	}
 	return bag, nil
 }

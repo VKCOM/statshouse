@@ -85,7 +85,7 @@ func cacheSeconds(d time.Duration) int {
 	return s
 }
 
-func exportCSV(w http.ResponseWriter, resp *GetQueryResp, metric string, es *endpointStat) {
+func exportCSV(w http.ResponseWriter, resp *SeriesResponse, metric string, es *endpointStat) {
 	es.serviceTime(http.StatusOK)
 	defer es.responseTime(http.StatusOK)
 

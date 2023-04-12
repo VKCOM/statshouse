@@ -118,34 +118,30 @@ func funcHoltWinters(ctx context.Context, ev *evaluator, args parser.Expressions
 	if tf <= 0 || tf >= 1 {
 		return bag, fmt.Errorf("invalid trend factor. Expected: 0 < tf < 1, got: %f", tf)
 	}
-	v := make([]float64, 0, 2)
 	for _, row := range bag.Data {
 		wnd := newWindow(bag.Time, *row, bag.Range, false)
 		for wnd.moveOneLeft() {
-			if wnd.n != 0 {
-				v = wnd.getValues(v[:0])
-				var (
-					s0, x, y float64
-					s1, b    = v[0], v[1] - v[0]
-				)
-				for i := 1; i < len(v); i++ {
-					// Scale the raw value against the smoothing factor.
-					x = sf * v[i]
-
-					// Scale the last smoothed value with the trend at this point.
-					b = calcTrendValue(i-1, tf, s0, s1, b)
-					y = (1 - sf) * (s1 + b)
-
-					s0, s1 = s1, x+y
-				}
-				(*row)[wnd.r] = s1
-			} else {
-				(*row)[wnd.r] = NilValue
+			v := wnd.getValues()
+			if len(v) < 2 {
+				wnd.setValueAtRight(NilValue)
+				continue
 			}
+			var s0, x, y float64
+			s1, b := v[0], v[1]-v[0]
+			for i := 1; i < len(v); i++ {
+				// Scale the raw value against the smoothing factor.
+				x = sf * v[i]
+
+				// Scale the last smoothed value with the trend at this point.
+				b = calcTrendValue(i-1, tf, s0, s1, b)
+				y = (1 - sf) * (s1 + b)
+
+				s0, s1 = s1, x+y
+			}
+			wnd.setValueAtRight(s1)
+
 		}
-		for i := 0; i < wnd.r; i++ {
-			(*row)[i] = NilValue
-		}
+		wnd.fillPrefixWith(NilValue)
 	}
 	return bag, nil
 }

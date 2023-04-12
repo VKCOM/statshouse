@@ -747,7 +747,10 @@ func (h *Handler) Free(s *[]float64) {
 	h.putFloatsSlice(s)
 }
 
-func getPromQuery(req getQueryReq) string {
+func getPromQuery(req seriesRequest) string {
+	if len(req.promQL) != 0 {
+		return req.promQL
+	}
 	var res []string
 	for _, fn := range req.what {
 		name, ok := validQueryFn(fn)
