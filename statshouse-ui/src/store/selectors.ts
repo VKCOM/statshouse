@@ -167,12 +167,8 @@ export const selectorSetGroupName = (s: Store) => s.setGroupName;
 export const selectorSetGroupShow = (s: Store) => s.setGroupShow;
 export const selectorSetGroupSize = (s: Store) => s.setGroupSize;
 
-export const selectorPlotList = (s: Store) => {
-  if (selectorIsServer(s)) {
-    return selectorDashboardPlotList(s).filter((item) => s.params.dashboard?.groupInfo?.[item.group]?.show !== false);
-  }
-  return selectorDashboardPlotList(s);
-};
+export const selectorPlotList = (s: Store) =>
+  selectorDashboardPlotList(s).filter((item) => s.params.dashboard?.groupInfo?.[item.group]?.show !== false);
 
 export const selectorListMetricsGroup = (s: Store) => s.listMetricsGroup;
 export const selectorSelectMetricsGroup = (s: Store) => s.selectMetricsGroup;

@@ -75,7 +75,7 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
       <input
         type="text"
         className={cn(css.plotInputName, 'form-control form-control-sm mb-1')}
-        defaultValue={params.customName || metricFullName}
+        value={params.customName || metricFullName}
         placeholder={metricFullName}
         onPointerDown={stopPropagation}
         onInput={onInputCustomInput}
