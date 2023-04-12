@@ -1461,7 +1461,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
   },
   moveAndResortPlot(indexSelectPlot, indexTargetPlot, indexGroup) {
     const prevState = getState();
-    const groups = prevState.params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
+    const groups: number[] =
+      prevState.params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
     if (groups.length !== prevState.params.plots.length) {
       while (groups.length < prevState.params.plots.length) {
         groups.push(Math.max(0, (prevState.params.dashboard?.groupInfo?.length ?? 0) - 1));
@@ -1507,7 +1508,19 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
             name: '',
             count: 0,
             show: true,
+            size: 2,
           };
+          for (let i = 0, max = params.dashboard.groupInfo.length; i < max; i++) {
+            if (!params.dashboard.groupInfo[i]) {
+              params.dashboard.groupInfo[i] = {
+                name: '',
+                count: 0,
+                show: true,
+                size: 2,
+              };
+            }
+          }
+
           params.dashboard.groupInfo = params.dashboard.groupInfo
             .map((g, index) => ({
               ...g,
@@ -1520,6 +1533,15 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                 }, 0 as number) ?? 0,
             }))
             .filter((g) => g.count > 0);
+          if (
+            params.dashboard.groupInfo &&
+            params.dashboard.groupInfo.length === 1 &&
+            params.dashboard.groupInfo[0].size === 2 &&
+            params.dashboard.groupInfo[0].name === '' &&
+            params.dashboard.groupInfo[0].show === true
+          ) {
+            params.dashboard.groupInfo = [];
+          }
         }
       })
     );
@@ -1550,7 +1572,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           if (
             state.dashboard.groupInfo &&
             state.dashboard.groupInfo.length === 1 &&
-            !state.dashboard.groupInfo[0].name
+            state.dashboard.groupInfo[0].size === 2 &&
+            state.dashboard.groupInfo[0].name === '' &&
+            state.dashboard.groupInfo[0].show === true
           ) {
             state.dashboard.groupInfo = [];
           }
@@ -1574,6 +1598,15 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               size: 2,
             };
           }
+          if (
+            state.dashboard.groupInfo &&
+            state.dashboard.groupInfo.length === 1 &&
+            state.dashboard.groupInfo[0].size === 2 &&
+            state.dashboard.groupInfo[0].name === '' &&
+            state.dashboard.groupInfo[0].show === true
+          ) {
+            state.dashboard.groupInfo = [];
+          }
         }
       })
     );
@@ -1593,6 +1626,15 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
               size: nextSize,
             };
+          }
+          if (
+            state.dashboard.groupInfo &&
+            state.dashboard.groupInfo.length === 1 &&
+            state.dashboard.groupInfo[0].size === 2 &&
+            state.dashboard.groupInfo[0].name === '' &&
+            state.dashboard.groupInfo[0].show === true
+          ) {
+            state.dashboard.groupInfo = [];
           }
         }
       })

@@ -12,7 +12,6 @@ import PlotView from '../../view/PlotView';
 import {
   selectorDashboardLayoutEdit,
   selectorDashboardPlotList,
-  selectorIsServer,
   selectorMoveAndResortPlot,
   selectorParams,
   selectorSetGroupName,
@@ -53,7 +52,6 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
   const setGroupName = useStore(selectorSetGroupName);
   const setGroupShow = useStore(selectorSetGroupShow);
   const setGroupSize = useStore(selectorSetGroupSize);
-  const isServer = useStore(selectorIsServer);
   const preview = useRef<HTMLDivElement>(null);
   const zone = useRef<HTMLDivElement>(null);
   const [select, setSelect] = useState<number | null>(null);
@@ -212,7 +210,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
             hidden={itemsGroup.length <= 1 && !dashboardLayoutEdit && !params.dashboard?.groupInfo?.[indexGroup]?.name}
             className="border-bottom pb-1"
           >
-            {dashboardLayoutEdit && isServer ? (
+            {dashboardLayoutEdit ? (
               <div className="input-group">
                 <input
                   className="form-control"
@@ -234,15 +232,10 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
               </div>
             ) : (
               <div className="d-flex flex-row" role="button" onClick={onGroupShowToggle} data-group={indexGroup}>
-                {isServer && (
-                  <div className="me-2">
-                    {params.dashboard?.groupInfo?.[indexGroup]?.show === false ? (
-                      <SVGChevronRight />
-                    ) : (
-                      <SVGChevronDown />
-                    )}
-                  </div>
-                )}
+                <div className="me-2">
+                  {params.dashboard?.groupInfo?.[indexGroup]?.show === false ? <SVGChevronRight /> : <SVGChevronDown />}
+                </div>
+
                 <div className="flex-grow-1">{params.dashboard?.groupInfo?.[indexGroup]?.name ?? ' '}</div>
               </div>
             )}
@@ -276,7 +269,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
           )}
         </div>
       ))}
-      {isServer && select !== null && maxGroup + 1 === itemsGroup.length && (
+      {select !== null && maxGroup + 1 === itemsGroup.length && (
         <div className="pb-5" data-group={maxGroup + 1}>
           <h6 className="border-bottom"> </h6>
         </div>
