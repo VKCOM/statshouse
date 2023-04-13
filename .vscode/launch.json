@@ -1,0 +1,37 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "api",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/cmd/statshouse-api/",
+            "buildFlags": "-ldflags '-X github.com/vkcom/statshouse/internal/vkgo/build.trustedSubnetGroups=0.0.0.0/0'",
+            "args": [
+                "--verbose",
+                "--local-mode",
+                "--insecure-mode",
+                "--access-log",
+                "--clickhouse-v1-addrs=",
+                "--clickhouse-v2-addrs=localhost:9000",
+                "--listen-addr=:10888",
+                "--metadata-addr=localhost:2442",
+                "--statshouse-addr=localhost:13337",
+                "--disk-cache=target/run/cache/api/mapping_cache.sqlite3",
+                "--static-dir=statshouse-ui/build",
+            ]
+        },
+        {
+            "name": "remote-api",
+            "type": "go",
+            "request": "attach",
+            "mode": "remote",
+            "port": 8000,
+            "host": "127.0.0.1",
+            "apiVersion": 2,
+            "showLog": true,
+        },
+    ]
+}
