@@ -305,8 +305,9 @@ type (
 
 	//easyjson:json
 	GetPointResp struct {
-		Points       queryPoints `json:"points"`
-		DebugQueries []string    `json:"__debug_queries"` // private, unstable: SQL queries executed
+		PointMeta    []QueryPointsMeta `json:"point_meta"`      // M
+		PointData    []float64         `json:"point_data"`      // M
+		DebugQueries []string          `json:"__debug_queries"` // private, unstable: SQL queries executed
 	}
 
 	renderRequest struct {
@@ -325,11 +326,6 @@ type (
 		Time       []int64             `json:"time"`        // N
 		SeriesMeta []QuerySeriesMetaV2 `json:"series_meta"` // M
 		SeriesData []*[]float64        `json:"series_data"` // MxN
-	}
-
-	queryPoints struct {
-		PointMeta []QueryPointsMeta `json:"point_meta"` // M
-		PointData []float64         `json:"point_data"` // M
 	}
 
 	QuerySeriesMeta struct {
@@ -354,8 +350,8 @@ type (
 		MaxHost   string                   `json:"max_host"` // max_host for now
 		Name      string                   `json:"name"`
 		What      queryFn                  `json:"what"`
-		FromSec   int64                    `json:"from_sec"`
-		ToSec     int64                    `json:"to_sec"`
+		FromSec   int64                    `json:"from_sec"` // rounded from sec
+		ToSec     int64                    `json:"to_sec"`   // rounded to sec
 	}
 
 	SeriesMetaTag struct {
@@ -2224,7 +2220,6 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 		}
 
 		qp := selectQueryPoint(
-			q,
 			version,
 			int64(metricMeta.PreKeyFrom),
 			metricMeta.Resolution,
@@ -2331,10 +2326,8 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 
 	immutable = to.Before(time.Now().Add(invalidateFrom))
 	resp = &GetPointResp{
-		Points: queryPoints{
-			PointMeta: meta,
-			PointData: data,
-		},
+		PointMeta:    meta,
+		PointData:    data,
 		DebugQueries: sqlQueries,
 	}
 	return resp, immutable, nil

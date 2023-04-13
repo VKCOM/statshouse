@@ -173,11 +173,11 @@ func (h *RPCHandler) GetQueryPoint(ctx context.Context, args tlstatshouseApi.Get
 		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
 		return response, err
 	}
-	response.Data = make([]float64, len(r.Points.PointData))
-	response.Meta = make([]tlstatshouseApi.PointMeta, len(r.Points.PointData))
-	for i, data := range r.Points.PointData {
+	response.Data = make([]float64, len(r.PointData))
+	response.Meta = make([]tlstatshouseApi.PointMeta, len(r.PointData))
+	for i, data := range r.PointData {
 		response.Data[i] = data
-		meta := r.Points.PointMeta[i]
+		meta := r.PointMeta[i]
 		m := tlstatshouseApi.PointMeta{
 			TimeShift: meta.TimeShift,
 			Tags:      map[string]string{},

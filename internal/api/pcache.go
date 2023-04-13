@@ -15,8 +15,6 @@ import (
 	"go.uber.org/atomic"
 )
 
-const maxInternalEvictionSampleSize = 5
-
 type pSelectRow struct {
 	tsTags
 	tsValues
@@ -26,10 +24,9 @@ type pointsCache struct {
 	loader            pointsLoadFunc
 	size              int
 	approxMaxSize     int
-	utcOffset         int64 // only used in maybeDropCache(); all external timestamps should be rounded with roundTime()
 	cacheMu           sync.RWMutex
-	cache             map[string]map[timeRange]*cacheEntry
-	invalidatedAtNano *secondsCache
+	cache             map[string]*cacheEntry
+	invalidatedAtNano *invalidatedSecondsCache
 	now               func() time.Time
 }
 
@@ -44,16 +41,16 @@ type cacheEntry struct {
 	// Place atomics first to ensure proper alignment, see https://pkg.go.dev/sync/atomic#pkg-note-BUG
 	lru          atomic.Int64
 	loadedAtNano int64
-	rows         []pSelectRow
+	rows         map[timeRange][]pSelectRow
+	size         int
 }
 
 func newPointsCache(approxMaxSize int, utcOffset int64, loader pointsLoadFunc, now func() time.Time) *pointsCache {
 	return &pointsCache{
 		loader:            loader,
 		approxMaxSize:     approxMaxSize,
-		utcOffset:         utcOffset,
-		cache:             map[string]map[timeRange]*cacheEntry{},
-		invalidatedAtNano: newSecondsCache(now),
+		cache:             map[string]*cacheEntry{},
+		invalidatedAtNano: newSecondsCache(utcOffset, now),
 		now:               now,
 	}
 }
@@ -75,27 +72,36 @@ func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQue
 	}
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
-	if _, ok := c.cache[key]; !ok {
-		c.cache[key] = map[timeRange]*cacheEntry{}
-	}
 
 	for c.size >= c.approxMaxSize {
 		c.size -= c.evictLocked()
 	}
 
-	e := &cacheEntry{
-		loadedAtNano: loadedAtNano,
-		rows:         rows,
+	e, ok := c.cache[key]
+	if !ok {
+		e = &cacheEntry{
+			lru:          atomic.Int64{},
+			loadedAtNano: 0,
+			rows:         map[timeRange][]pSelectRow{},
+		}
+		c.cache[key] = e
 	}
+
 	e.lru.Store(c.now().UnixNano())
-	c.cache[key][timeRange{from: pointQuery.fromSec, to: pointQuery.toSec}] = e
+	e.loadedAtNano = loadedAtNano
+	tr := timeRange{from: pointQuery.fromSec, to: pointQuery.toSec}
+	if _, ok := e.rows[tr]; !ok {
+		c.size++
+	}
+	e.size += len(rows)
+	e.rows[tr] = rows
 	return rows, nil
 }
 
 func (c *pointsCache) loadCached(key string, from, to int64) ([]pSelectRow, bool) {
 	c.cacheMu.RLock()
 	defer c.cacheMu.RUnlock()
-	trCache, ok := c.cache[key]
+	entry, ok := c.cache[key]
 	if !ok {
 		return nil, false
 	}
@@ -103,13 +109,13 @@ func (c *pointsCache) loadCached(key string, from, to int64) ([]pSelectRow, bool
 		from: from,
 		to:   to,
 	}
-	entry, ok := trCache[tr]
+	row, ok := entry.rows[tr]
 	if !ok {
 		return nil, false
 	}
 	entry.lru.Store(c.now().UnixNano())
-	cachedIsValid := c.invalidatedAtNano.checkInvalidationLocked(entry.loadedAtNano, from, to, c.utcOffset)
-	return entry.rows, cachedIsValid
+	cachedIsValid := c.invalidatedAtNano.checkInvalidationLocked(entry.loadedAtNano, from, to)
+	return row, cachedIsValid
 }
 
 func (c *pointsCache) invalidate(times []int64) {
@@ -118,7 +124,7 @@ func (c *pointsCache) invalidate(times []int64) {
 
 	at := c.now().UnixNano()
 	for _, sec := range times {
-		c.invalidatedAtNano.updateTimeLocked(at, sec, c.utcOffset)
+		c.invalidatedAtNano.updateTimeLocked(at, sec)
 	}
 
 	from := c.now().Add(invalidateFrom).Unix()
@@ -129,18 +135,11 @@ func (c *pointsCache) evictLocked() int {
 	k := ""
 	i := 0
 	t := int64(math.MaxInt64)
-	for key, caches := range c.cache { // "power of N random choices" with map iteration providing randomness
-		j := 0
-		for _, e := range caches {
-			u := e.lru.Load()
-			if u < t {
-				k = key
-				t = u
-			}
-			j++
-			if j > maxInternalEvictionSampleSize {
-				break
-			}
+	for key, caches := range c.cache {
+		u := caches.lru.Load()
+		if u < t {
+			k = key
+			t = u
 		}
 		i++
 		if i == maxEvictionSampleSize {
@@ -151,36 +150,37 @@ func (c *pointsCache) evictLocked() int {
 		return 0
 	}
 	e := c.cache[k]
-	n := len(e)
+	n := e.size
 	delete(c.cache, k)
 	return n
 }
 
-type secondsCache struct {
-	seconds [3]map[int64]int64
-	now     func() time.Time
+type invalidatedSecondsCache struct {
+	seconds   [3]map[int64]int64
+	now       func() time.Time
+	utcOffset int64
 }
 
 var steps = [3]int64{_1h, _1m, _1s}
 
-func newSecondsCache(now func() time.Time) *secondsCache {
-	cache := &secondsCache{now: now}
+func newSecondsCache(utcOffset int64, now func() time.Time) *invalidatedSecondsCache {
+	cache := &invalidatedSecondsCache{now: now, utcOffset: utcOffset}
 	for i := range steps {
 		cache.seconds[i] = map[int64]int64{}
 	}
 	return cache
 }
 
-func (c *secondsCache) updateTimeLocked(invalidatedAtNano, sec int64, utcOffset int64) {
+func (c *invalidatedSecondsCache) updateTimeLocked(invalidatedAtNano, sec int64) {
 	for i, step := range steps {
-		rounded := roundTime(sec, step, utcOffset)
+		rounded := roundTime(sec, step, c.utcOffset)
 		if last, ok := c.seconds[i][rounded]; !ok || (ok && invalidatedAtNano > last) {
 			c.seconds[i][rounded] = invalidatedAtNano
 		}
 	}
 }
 
-func (c *secondsCache) invalidateLocked(from int64) {
+func (c *invalidatedSecondsCache) invalidateLocked(from int64) {
 	for i := range steps {
 		j := 0
 		for sec := range c.seconds[i] {
@@ -196,7 +196,7 @@ func (c *secondsCache) invalidateLocked(from int64) {
 
 }
 
-func (c *secondsCache) checkInvalidationLocked(loadAt, from, to int64, utcOffset int64) bool {
+func (c *invalidatedSecondsCache) checkInvalidationLocked(loadAt, from, to int64) bool {
 	now := c.now()
 	cacheImmutable := now.Add(invalidateFrom)
 	if time.Unix(from, 0).Before(cacheImmutable) {
@@ -205,17 +205,17 @@ func (c *secondsCache) checkInvalidationLocked(loadAt, from, to int64, utcOffset
 	if time.Unix(to, 0).Before(cacheImmutable) {
 		return true
 	}
-	return c.checkInvalidationMapLocked(0, loadAt, from, to, utcOffset)
+	return c.checkInvalidationMapLocked(0, loadAt, from, to)
 
 }
 
-func (c *secondsCache) checkInvalidationMapLocked(ix int, loadAt, from, to int64, utcOffset int64) bool {
+func (c *invalidatedSecondsCache) checkInvalidationMapLocked(ix int, loadAt, from, to int64) bool {
 	if ix == len(steps) {
 		return true
 	}
 	step := steps[ix]
-	fromR := roundTime(from, step, utcOffset)
-	toR := roundTime(to, step, utcOffset)
+	fromR := roundTime(from, step, c.utcOffset)
+	toR := roundTime(to, step, c.utcOffset)
 	if ix == len(steps)-1 {
 		for i := from; i <= to; i += step {
 			if invalidatedAtNano, ok := c.seconds[ix][i]; ok && loadAt <= invalidatedAtNano+int64(invalidateLinger) {
@@ -234,8 +234,8 @@ func (c *secondsCache) checkInvalidationMapLocked(ix int, loadAt, from, to int64
 	if from > toPrev {
 		toPrev = from
 	}
-	res = res && c.checkInvalidationMapLocked(ix+1, loadAt, from, fromNext, utcOffset)
-	res = res && c.checkInvalidationMapLocked(ix+1, loadAt, toPrev, to, utcOffset)
+	res = res && c.checkInvalidationMapLocked(ix+1, loadAt, from, fromNext)
+	res = res && c.checkInvalidationMapLocked(ix+1, loadAt, toPrev, to)
 	if !res {
 		return false
 	}

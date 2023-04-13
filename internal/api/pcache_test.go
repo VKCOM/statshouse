@@ -35,7 +35,7 @@ func (c *secondCacheSimple) checkInvalidation(loadAt, from, to int64) bool {
 }
 
 type cacheTestState struct {
-	cache       *secondsCache
+	cache       *invalidatedSecondsCache
 	cacheSimple *secondCacheSimple
 	currentTime int64
 }
@@ -45,7 +45,7 @@ func (s *cacheTestState) Init(t *rapid.T) {
 	now := func() time.Time {
 		return time.Unix(s.currentTime, 0)
 	}
-	s.cache = newSecondsCache(now)
+	s.cache = newSecondsCache(0, now)
 	s.cacheSimple = &secondCacheSimple{sec: map[int64]int64{}, now: now}
 }
 func (s *cacheTestState) Tick(r *rapid.T) {
@@ -57,7 +57,7 @@ func (s *cacheTestState) Push(r *rapid.T) {
 	loadedAtNano := time.Unix(max, 0).UnixNano()
 	invalidatedSec := int64(invalidateFrom.Abs().Seconds())
 	sec := rapid.Int64Range(max-1-invalidatedSec, max-1).Draw(r, "invalidated sec")
-	s.cache.updateTimeLocked(loadedAtNano, sec, 0)
+	s.cache.updateTimeLocked(loadedAtNano, sec)
 	s.cacheSimple.updateTime(loadedAtNano, sec)
 }
 
@@ -70,7 +70,7 @@ func (s *cacheTestState) CheckInvalidation(r *rapid.T) {
 	loadedAt := rapid.Int64Range(max-loadedAtRange, max).Draw(r, "loaded_at")
 	loadedAtNano := time.Unix(loadedAt, 0).UnixNano()
 	expected := s.cacheSimple.checkInvalidation(loadedAtNano, from, to)
-	got := s.cache.checkInvalidationLocked(loadedAtNano, from, to, 0)
+	got := s.cache.checkInvalidationLocked(loadedAtNano, from, to)
 	require.Equal(r, expected, got)
 }
 
