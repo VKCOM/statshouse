@@ -3018,16 +3018,6 @@ func selectPointValue(what queryFn, maxHost bool, row *pSelectRow) float64 {
 	switch what {
 	case queryFnCount, queryFnMaxCountHost:
 		return row.countNorm
-	case queryFnCardinality:
-		if maxHost {
-			return row.val[5]
-		}
-		return row.val[0]
-	case queryFnCumulCardinality:
-		if maxHost {
-			return row.val[5]
-		}
-		return row.val[0]
 	case queryFnMin:
 		return row.val[0]
 	case queryFnMax, queryFnMaxHost:
@@ -3036,10 +3026,6 @@ func selectPointValue(what queryFn, maxHost bool, row *pSelectRow) float64 {
 		return row.val[2]
 	case queryFnSum:
 		return row.val[3]
-	case queryFnStddev:
-		return row.val[4]
-	case queryFnStdvar:
-		return row.val[4] * row.val[4]
 	case queryFnP25:
 		return row.val[0]
 	case queryFnP50:

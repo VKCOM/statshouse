@@ -162,7 +162,7 @@ func (h *RPCHandler) GetQueryPoint(ctx context.Context, args tlstatshouseApi.Get
 	if err != nil {
 		return response, err
 	}
-	req, err := transformPointQuery(ai, args.Query, metricMeta)
+	req, err := transformPointQuery(args.Query, metricMeta)
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryParsingFailed, Description: fmt.Sprintf("can't transform query: %v", err)}
 		return response, err
@@ -389,7 +389,7 @@ func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (req 
 	return req, nil
 }
 
-func transformPointQuery(ai accessInfo, q tlstatshouseApi.QueryPoint, meta *format.MetricMetaValue) (req seriesRequest, err error) {
+func transformPointQuery(q tlstatshouseApi.QueryPoint, meta *format.MetricMetaValue) (req seriesRequest, err error) {
 	filterIn, filterNotIn, err := parseFilterValues(q.Filter, meta)
 	if err != nil {
 		return req, fmt.Errorf("can't parse filter: %v", err)
