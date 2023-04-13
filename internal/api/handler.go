@@ -309,11 +309,11 @@ type (
 		DebugQueries []string    `json:"__debug_queries"` // private, unstable: SQL queries executed
 	}
 
-	getRenderReq struct {
-		ai           accessInfo
-		getQueryReq  []getQueryReq
-		renderWidth  string
-		renderFormat string
+	renderRequest struct {
+		ai            accessInfo
+		seriesRequest []seriesRequest
+		renderWidth   string
+		renderFormat  string
 	}
 
 	renderResponse struct {
@@ -1445,112 +1445,12 @@ func (h *Handler) getSeriesRequest(r *http.Request) (seriesRequest, error) {
 	if _, ok := format.BuiltinMetricByName[metric]; !ok && r.FormValue(ParamQueryVerbose) == "1" {
 		verbose = true
 	}
-	defer h.freeQueryResp(resp)
-	defer h.freeQueryResp(respIngestion)
-
-	if queryVerbose && err == nil && respIngestion != nil && len(respIngestion.Series.Time) > 0 {
-		for i, meta := range respIngestion.Series.SeriesMeta {
-			badgeType := meta.Tags["key1"].Value
-			metric := meta.Tags["key2"].Value
-			if metric == metricWithNamespace {
-				switch {
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor)):
-					resp.SamplingFactorSrc = sumSeries(respIngestion.Series.SeriesData[i], 1) / float64(len(respIngestion.Series.Time))
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor)):
-					resp.SamplingFactorAgg = sumSeries(respIngestion.Series.SeriesData[i], 1) / float64(len(respIngestion.Series.Time))
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld)):
-					resp.ReceiveErrorsLegacy = sumSeries(respIngestion.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld)):
-					resp.MappingFloodEventsLegacy = sumSeries(respIngestion.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors)):
-					resp.ReceiveErrors = sumSeries(respIngestion.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors)):
-					resp.MappingErrors = sumSeries(respIngestion.Series.SeriesData[i], 0)
-				}
-			}
-			// TODO - show badge if some heuristics on # of contributors is triggered
-			// if format.IsValueCodeZero(metric) && meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeContributors)) {
-			//	sumContributors := sumSeries(respIngestion.Series.SeriesData[i], 0)
-			//	fmt.Printf("contributors sum %f\n", sumContributors)
-			// }
-		}
-	}
-
-	switch {
-	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
-		exportCSV(w, resp, metricWithNamespace, sl)
-	default:
-		cache, cacheStale := queryClientCacheDuration(immutable)
-		respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
-	}
-	if resp.DebugPromQLTestFailed {
-		log.Printf("promqltestfailed %q %s", r.RequestURI, resp.PromQL)
-	}
-}
-
-func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointPoint, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
-	ai, ok := h.parseAccessToken(w, r, sl)
-	if !ok {
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
-	defer cancel()
-
-	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
-	metricWithNamespace := formValueParamMetric(r)
-
-	filterIn, filterNotIn, err := parseQueryFilter(r.Form[ParamQueryFilter])
-	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-		return
-	}
-	_, avoidCache := r.Form[ParamAvoidCache]
-	if avoidCache && !ai.isAdmin() {
-		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
-	}
-	_, maxHost := r.Form[paramMaxHost]
-
-	resp, immutable, err := h.handleGetPoint(
-		ctx,
-		true,
-		getQueryReq{
-			ai:                      ai,
-			version:                 r.FormValue(ParamVersion),
-			numResults:              r.FormValue(ParamNumResults),
-			allowNegativeNumResults: true,
-			metricWithNamespace:     metricWithNamespace,
-			from:                    r.FormValue(ParamFromTime),
-			to:                      r.FormValue(ParamToTime),
-			width:                   r.FormValue(ParamWidth),
-			widthAgg:                r.FormValue(ParamWidthAgg),
-			timeShifts:              r.Form[ParamTimeShift],
-			what:                    r.Form[ParamQueryWhat],
-			by:                      r.Form[ParamQueryBy],
-			filterIn:                filterIn,
-			filterNotIn:             filterNotIn,
-			avoidCache:              avoidCache,
-			maxHost:                 maxHost,
-		})
-
-	switch {
-	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
-		respondJSON(w, resp, 0, 0, httpErr(http.StatusBadRequest, nil), h.verbose, ai.user, sl)
-	default:
-		cache, cacheStale := queryClientCacheDuration(immutable)
-		respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
-	}
-}
-
-func (h *Handler) HandlePromQuery(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointQuery, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
-	ai, ok := h.parseAccessToken(w, r, sl)
-	if !ok {
-		return
-	}
-	_ = r.ParseForm()
-	from, to, err := parseFromTo(r.FormValue(ParamFromTime), r.FormValue(ParamToTime))
+	var (
+		err         error
+		filterIn    map[string][]string
+		filterNotIn map[string][]string
+	)
+	filterIn, filterNotIn, err = parseQueryFilter(r.Form[ParamQueryFilter])
 	if err != nil {
 		return seriesRequest{}, err
 	}
@@ -1853,219 +1753,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) handleGetPoint(ctx context.Context, debugQueries bool, req getQueryReq) (resp *GetPointResp, immutable bool, err error) {
-	version, err := parseVersion(req.version)
-	if err != nil {
-		return nil, false, err
-	}
-
-	metricMeta, err := h.getMetricMeta(req.ai, req.metricWithNamespace)
-	if err != nil {
-		return nil, false, err
-	}
-
-	err = validateQuery(metricMeta, version)
-	if err != nil {
-		return nil, false, err
-	}
-
-	from, to, err := parseFromTo(req.from, req.to)
-	if err != nil {
-		return nil, false, err
-	}
-
-	shifts, err := parseTimeShifts(req.timeShifts, -1)
-	if err != nil {
-		return nil, false, err
-	}
-
-	numResultsPerShift, err := parseNumResults(
-		req.numResults,
-		defSeries,
-		maxSeries/len(shifts),
-		req.allowNegativeNumResults,
-	)
-	if err != nil {
-		return nil, false, err
-	}
-
-	queries, err := parseQueries(version, req.what, req.by, req.maxHost)
-	if err != nil {
-		return nil, false, err
-	}
-
-	for _, q := range queries {
-		if !validateQueryPoint(q) {
-			return nil, false, fmt.Errorf("function %s isn't supported", q.what.String())
-		}
-	}
-
-	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
-	if err != nil {
-		return nil, false, err
-	}
-	mappedFilterNotIn, err := h.resolveFilter(metricMeta, version, req.filterNotIn)
-	if err != nil {
-		return nil, false, err
-	}
-
-	oldestShift := shifts[0]
-	isStringTop := metricMeta.StringTopDescription != ""
-
-	isUnique := false // this parameter has meaning only for the version 1, in other cases it does nothing
-	if version == Version1 {
-		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
-	}
-
-	var (
-		now = time.Now()
-		r   *rand.Rand
-	)
-
-	var (
-		// non-nil to ensure that we don't send them as JSON nulls
-		meta = make([]QueryPointsMeta, 0)
-		data = make([]float64, 0)
-	)
-
-	var sqlQueries []string
-	if debugQueries {
-		ctx = debugQueriesContext(ctx, &sqlQueries)
-	}
-
-	for _, q := range queries {
-		queryKey := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn)
-		pq := &preparedPointsQuery{
-			user:        req.ai.user,
-			version:     version,
-			metricID:    metricMeta.MetricID,
-			preKeyTagID: metricMeta.PreKeyTagID,
-			isStringTop: isStringTop,
-			kind:        q.whatKind,
-			by:          q.by,
-			filterIn:    mappedFilterIn,
-			filterNotIn: mappedFilterNotIn,
-		}
-
-		qp := selectQueryPoint(
-			q,
-			version,
-			int64(metricMeta.PreKeyFrom),
-			metricMeta.Resolution,
-			isUnique,
-			isStringTop,
-			now.Unix(),
-			shiftTimestamp(from.Unix(), -1, toSec(oldestShift), h.location),
-			shiftTimestamp(to.Unix(), -1, toSec(oldestShift), h.location),
-			h.utcOffset,
-			h.location,
-		)
-
-		for _, shift := range shifts {
-			var (
-				tagsToIx   = map[tsTags]int{}        // tags => index
-				ixToTags   = make([]*tsTags, 0)      // index => tags
-				ixToAmount = make([]float64, 0)      // index => total "amount"
-				ixToRow    = make([][]pSelectRow, 0) // index => row
-			)
-			shiftDelta := toSec(shift - oldestShift)
-			realFromSec := shiftTimestamp(qp.fromSec, -1, shiftDelta, qp.location)
-			realToSec := shiftTimestamp(qp.toSec, -1, shiftDelta, qp.location)
-			pqs, err := h.pointsCache.get(ctx, queryKey, pq, pointQuery{
-				fromSec:   realFromSec,
-				toSec:     realToSec,
-				table:     qp.table,
-				hasPreKey: qp.hasPreKey,
-				location:  qp.location,
-			}, req.avoidCache)
-			if err != nil {
-				return nil, false, err
-			}
-			for _, row := range pqs {
-				ix, ok := tagsToIx[row.tsTags]
-				if !ok {
-					ix = len(ixToTags)
-					tagsToIx[row.tsTags] = ix
-					ixToTags = append(ixToTags, &row.tsTags)
-					ixToAmount = append(ixToAmount, 0)
-					ixToRow = append(ixToRow, nil)
-				}
-				v := math.Abs(selectPointValue(q.what, req.maxHost, &row))
-				ixToAmount[ix] += v * v
-				ixToRow[ix] = append(ixToRow[ix], row)
-			}
-
-			sortedIxs := make([]int, 0, len(ixToAmount))
-			for i := range ixToAmount {
-				sortedIxs = append(sortedIxs, i)
-			}
-
-			if numResultsPerShift > 0 {
-				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, r)
-				if len(sortedIxs) > numResultsPerShift {
-					sortedIxs = sortedIxs[:numResultsPerShift]
-				}
-			} else if numResultsPerShift < 0 {
-				numResultsPerShift = -numResultsPerShift
-				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, r)
-				if len(sortedIxs) > numResultsPerShift {
-					sortedIxs = sortedIxs[:numResultsPerShift]
-				}
-			}
-
-			for _, ix := range sortedIxs {
-				tags := ixToTags[ix]
-				kvs := make(map[string]SeriesMetaTag, 16)
-				for j := 0; j < format.MaxTags; j++ {
-					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(j), tags.tag[j])
-				}
-				h.maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
-
-				maxHost := ""
-				showMaxHost := false
-				if (req.maxHost || q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && version == Version2 {
-					showMaxHost = true
-				}
-
-				rows := ixToRow[ix]
-				row := rows[0]
-				value := math.Abs(selectPointValue(q.what, req.maxHost, &row))
-				if showMaxHost && row.maxHost != 0 {
-					// mapping every time is not optimal, but mapping to store in cache is also not optimal. TODO - optimize?
-					label, err := h.getTagValue(row.maxHost)
-					if err != nil {
-						label = format.CodeTagValue(row.maxHost)
-					}
-					maxHost = label
-				}
-
-				meta = append(meta, QueryPointsMeta{
-					TimeShift: toSec(shift),
-					Tags:      kvs,
-					MaxHost:   maxHost,
-					Name:      req.metricWithNamespace,
-					What:      q.what,
-					FromSec:   realFromSec,
-					ToSec:     realToSec,
-				})
-				data = append(data, value)
-			}
-		}
-	}
-
-	immutable = to.Before(time.Now().Add(invalidateFrom))
-	resp = &GetPointResp{
-		Points: queryPoints{
-			PointMeta: meta,
-			PointData: data,
-		},
-		DebugQueries: sqlQueries,
-	}
-	return resp, immutable, nil
-}
-
-// don't forget to defer a call to h.freeQueryResp()
-func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req getQueryReq) (resp *GetQueryResp, immutable bool, err error) {
+func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesRequest, opt seriesRequestOptions) (resp *SeriesResponse, cleanup func(), err error) {
 	version, err := parseVersion(req.version)
 	if err != nil {
 		return nil, nil, err
@@ -2383,6 +2071,273 @@ func (h *Handler) handleGetQuery(ctx context.Context, debugQueries bool, req get
 		log.Printf("[debug] handled query (%v series x %v points each) for %q in %v", len(resp.Series.SeriesMeta), len(resp.Series.Time), ai.user, time.Since(opt.stat.startTime))
 	}
 	return resp, freeQueryResp, nil
+}
+func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStat(EndpointPoint, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	ai, ok := h.parseAccessToken(w, r, sl)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	defer cancel()
+
+	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
+	metricWithNamespace := formValueParamMetric(r)
+
+	filterIn, filterNotIn, err := parseQueryFilter(r.Form[ParamQueryFilter])
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	_, avoidCache := r.Form[ParamAvoidCache]
+	if avoidCache && !ai.isAdmin() {
+		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
+	}
+	_, maxHost := r.Form[paramMaxHost]
+
+	options := seriesRequestOptions{
+		debugQueries: true,
+		stat:         sl,
+	}
+
+	resp, immutable, err := h.handleGetPoint(
+		ctx, ai, options,
+		seriesRequest{
+			version:             r.FormValue(ParamVersion),
+			numResults:          r.FormValue(ParamNumResults),
+			metricWithNamespace: metricWithNamespace,
+			from:                r.FormValue(ParamFromTime),
+			to:                  r.FormValue(ParamToTime),
+			width:               r.FormValue(ParamWidth),
+			widthAgg:            r.FormValue(ParamWidthAgg),
+			timeShifts:          r.Form[ParamTimeShift],
+			what:                r.Form[ParamQueryWhat],
+			by:                  r.Form[ParamQueryBy],
+			filterIn:            filterIn,
+			filterNotIn:         filterNotIn,
+			avoidCache:          avoidCache,
+			maxHost:             maxHost,
+		})
+
+	switch {
+	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
+		respondJSON(w, resp, 0, 0, httpErr(http.StatusBadRequest, nil), h.verbose, ai.user, sl)
+	default:
+		cache, cacheStale := queryClientCacheDuration(immutable)
+		respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
+	}
+}
+
+func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesRequestOptions, req seriesRequest) (resp *GetPointResp, immutable bool, err error) {
+	version, err := parseVersion(req.version)
+	if err != nil {
+		return nil, false, err
+	}
+
+	metricMeta, err := h.getMetricMeta(ai, req.metricWithNamespace)
+	if err != nil {
+		return nil, false, err
+	}
+
+	err = validateQuery(metricMeta, version)
+	if err != nil {
+		return nil, false, err
+	}
+
+	from, to, err := parseFromTo(req.from, req.to)
+	if err != nil {
+		return nil, false, err
+	}
+
+	shifts, err := parseTimeShifts(req.timeShifts, -1)
+	if err != nil {
+		return nil, false, err
+	}
+
+	numResultsPerShift, err := parseNumResults(
+		req.numResults,
+		defSeries,
+		maxSeries/len(shifts),
+		opt.allowNegativeNumResults,
+	)
+	if err != nil {
+		return nil, false, err
+	}
+
+	queries, err := parseQueries(version, req.what, req.by, req.maxHost)
+	if err != nil {
+		return nil, false, err
+	}
+
+	for _, q := range queries {
+		if !validateQueryPoint(q) {
+			return nil, false, fmt.Errorf("function %s isn't supported", q.what.String())
+		}
+	}
+
+	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
+	if err != nil {
+		return nil, false, err
+	}
+	mappedFilterNotIn, err := h.resolveFilter(metricMeta, version, req.filterNotIn)
+	if err != nil {
+		return nil, false, err
+	}
+
+	oldestShift := shifts[0]
+	isStringTop := metricMeta.StringTopDescription != ""
+
+	isUnique := false // this parameter has meaning only for the version 1, in other cases it does nothing
+	if version == Version1 {
+		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
+	}
+
+	var (
+		now = time.Now()
+		r   *rand.Rand
+	)
+
+	var (
+		// non-nil to ensure that we don't send them as JSON nulls
+		meta = make([]QueryPointsMeta, 0)
+		data = make([]float64, 0)
+	)
+
+	var sqlQueries []string
+	if opt.debugQueries {
+		ctx = debugQueriesContext(ctx, &sqlQueries)
+	}
+
+	for _, q := range queries {
+		queryKey := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn)
+		pq := &preparedPointsQuery{
+			user:        ai.user,
+			version:     version,
+			metricID:    metricMeta.MetricID,
+			preKeyTagID: metricMeta.PreKeyTagID,
+			isStringTop: isStringTop,
+			kind:        q.whatKind,
+			by:          q.by,
+			filterIn:    mappedFilterIn,
+			filterNotIn: mappedFilterNotIn,
+		}
+
+		qp := selectQueryPoint(
+			q,
+			version,
+			int64(metricMeta.PreKeyFrom),
+			metricMeta.Resolution,
+			isUnique,
+			isStringTop,
+			now.Unix(),
+			shiftTimestamp(from.Unix(), -1, toSec(oldestShift), h.location),
+			shiftTimestamp(to.Unix(), -1, toSec(oldestShift), h.location),
+			h.utcOffset,
+			h.location,
+		)
+
+		for _, shift := range shifts {
+			var (
+				tagsToIx   = map[tsTags]int{}        // tags => index
+				ixToTags   = make([]*tsTags, 0)      // index => tags
+				ixToAmount = make([]float64, 0)      // index => total "amount"
+				ixToRow    = make([][]pSelectRow, 0) // index => row
+			)
+			shiftDelta := toSec(shift - oldestShift)
+			realFromSec := shiftTimestamp(qp.fromSec, -1, shiftDelta, qp.location)
+			realToSec := shiftTimestamp(qp.toSec, -1, shiftDelta, qp.location)
+			pqs, err := h.pointsCache.get(ctx, queryKey, pq, pointQuery{
+				fromSec:   realFromSec,
+				toSec:     realToSec,
+				table:     qp.table,
+				hasPreKey: qp.hasPreKey,
+				location:  qp.location,
+			}, req.avoidCache)
+			if err != nil {
+				return nil, false, err
+			}
+			for _, row := range pqs {
+				ix, ok := tagsToIx[row.tsTags]
+				if !ok {
+					ix = len(ixToTags)
+					tagsToIx[row.tsTags] = ix
+					ixToTags = append(ixToTags, &row.tsTags)
+					ixToAmount = append(ixToAmount, 0)
+					ixToRow = append(ixToRow, nil)
+				}
+				v := math.Abs(selectPointValue(q.what, req.maxHost, &row))
+				ixToAmount[ix] += v * v
+				ixToRow[ix] = append(ixToRow[ix], row)
+			}
+
+			sortedIxs := make([]int, 0, len(ixToAmount))
+			for i := range ixToAmount {
+				sortedIxs = append(sortedIxs, i)
+			}
+
+			if numResultsPerShift > 0 {
+				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, r)
+				if len(sortedIxs) > numResultsPerShift {
+					sortedIxs = sortedIxs[:numResultsPerShift]
+				}
+			} else if numResultsPerShift < 0 {
+				numResultsPerShift = -numResultsPerShift
+				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, r)
+				if len(sortedIxs) > numResultsPerShift {
+					sortedIxs = sortedIxs[:numResultsPerShift]
+				}
+			}
+
+			for _, ix := range sortedIxs {
+				tags := ixToTags[ix]
+				kvs := make(map[string]SeriesMetaTag, 16)
+				for j := 0; j < format.MaxTags; j++ {
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(j), tags.tag[j])
+				}
+				h.maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
+
+				maxHost := ""
+				showMaxHost := false
+				if (req.maxHost || q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && version == Version2 {
+					showMaxHost = true
+				}
+
+				rows := ixToRow[ix]
+				row := rows[0]
+				value := math.Abs(selectPointValue(q.what, req.maxHost, &row))
+				if showMaxHost && row.maxHost != 0 {
+					// mapping every time is not optimal, but mapping to store in cache is also not optimal. TODO - optimize?
+					label, err := h.getTagValue(row.maxHost)
+					if err != nil {
+						label = format.CodeTagValue(row.maxHost)
+					}
+					maxHost = label
+				}
+
+				meta = append(meta, QueryPointsMeta{
+					TimeShift: toSec(shift),
+					Tags:      kvs,
+					MaxHost:   maxHost,
+					Name:      req.metricWithNamespace,
+					What:      q.what,
+					FromSec:   realFromSec,
+					ToSec:     realToSec,
+				})
+				data = append(data, value)
+			}
+		}
+	}
+
+	immutable = to.Before(time.Now().Add(invalidateFrom))
+	resp = &GetPointResp{
+		Points: queryPoints{
+			PointMeta: meta,
+			PointData: data,
+		},
+		DebugQueries: sqlQueries,
+	}
+	return resp, immutable, nil
 }
 
 func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
