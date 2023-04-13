@@ -33,5 +33,22 @@
             "apiVersion": 2,
             "showLog": true,
         },
+        {
+            "name": "agent",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/cmd/statshouse/",
+            "buildFlags": "-ldflags '-X github.com/vkcom/statshouse/internal/vkgo/build.trustedSubnetGroups=0.0.0.0/0'",
+            "args": [
+                "agent",
+                "--cluster=test_shard_localhost",
+                "--log-level=trace",
+                "--agg-addr='localhost:13336,localhost:13336,localhost:13336'",
+                "--cache-dir=target/run/cache/agent",
+                "--remote-write-enabled",
+            ]
+        },
     ]
 }
