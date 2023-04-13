@@ -72,7 +72,6 @@ const (
 	queryFnDerivativeMax
 	queryFnDerivativeUnique
 	queryFnDerivativeUniqueNorm
-	queryFnPoint
 
 	ParamQueryFnCount                = "count"
 	ParamQueryFnCountNorm            = "count_norm"
@@ -311,6 +310,18 @@ func validateQuery(metricMeta *format.MetricMetaValue, version string) error {
 		return httpErr(http.StatusBadRequest, fmt.Errorf("can't use builtin metric %q with version %q", metricMeta.Name, version))
 	}
 	return nil
+}
+
+func validateQueryPoint(q *query) bool {
+	switch q.what {
+	case queryFnCount, queryFnMin, queryFnMax, queryFnAvg,
+		queryFnSum, queryFnP25, queryFnP50, queryFnP75,
+		queryFnP90, queryFnP95, queryFnP99, queryFnP999,
+		queryFnUnique:
+		return true
+	default:
+		return false
+	}
 }
 
 func parseQueryFilter(filter []string) (map[string][]string, map[string][]string, error) {

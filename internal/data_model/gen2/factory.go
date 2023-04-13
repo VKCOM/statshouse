@@ -755,15 +755,30 @@ var (
 		tlName:       "statshouseApi.chunkResponse",
 		createObject: func() Object { var ret internal.StatshouseApiGetChunkResponse; return &ret },
 	}
+	itemStatshouseApiGetQueryPointResponse = TLItem{
+		tag:          0x4487e41a,
+		tlName:       "statshouseApi.queryPointResponse",
+		createObject: func() Object { var ret internal.StatshouseApiGetQueryPointResponse; return &ret },
+	}
 	itemStatshouseApiGetQueryResponse = TLItem{
 		tag:          0x4487e49a,
 		tlName:       "statshouseApi.queryResponse",
 		createObject: func() Object { var ret internal.StatshouseApiGetQueryResponse; return &ret },
 	}
+	itemStatshouseApiPointMeta = TLItem{
+		tag:          0x5c2bf296,
+		tlName:       "statshouseApi.pointMeta",
+		createObject: func() Object { var ret internal.StatshouseApiPointMeta; return &ret },
+	}
 	itemStatshouseApiQuery = TLItem{
 		tag:          0xc9951bb9,
 		tlName:       "statshouseApi.query",
 		createObject: func() Object { var ret internal.StatshouseApiQuery; return &ret },
+	}
+	itemStatshouseApiQueryPoint = TLItem{
+		tag:          0xc9951bbb,
+		tlName:       "statshouseApi.queryPoint",
+		createObject: func() Object { var ret internal.StatshouseApiQueryPoint; return &ret },
 	}
 	itemStatshouseApiReleaseChunksResponse = TLItem{
 		tag:          0xd12dc2bd,
@@ -933,6 +948,12 @@ var (
 		createFunction: func() Function { var ret internal.StatshouseApiGetQuery; return &ret },
 		createObject:   func() Object { var ret internal.StatshouseApiGetQuery; return &ret },
 	}
+	itemStatshouseApiGetQueryPoint = TLItem{
+		tag:            0xc7348bb,
+		tlName:         "statshouseApi.getQueryPoint",
+		createFunction: func() Function { var ret internal.StatshouseApiGetQueryPoint; return &ret },
+		createObject:   func() Object { var ret internal.StatshouseApiGetQueryPoint; return &ret },
+	}
 	itemStatshouseApiReleaseChunks = TLItem{
 		tag:            0x62adc773,
 		tlName:         "statshouseApi.releaseChunks",
@@ -1092,8 +1113,11 @@ var itemsByTag = map[uint32]*TLItem{
 	0x4285ff58: &itemStatshouseTestConnection2,
 	0x511276a6: &itemStatshouseApiFilter,
 	0x63928b42: &itemStatshouseApiGetChunkResponse,
+	0x4487e41a: &itemStatshouseApiGetQueryPointResponse,
 	0x4487e49a: &itemStatshouseApiGetQueryResponse,
+	0x5c2bf296: &itemStatshouseApiPointMeta,
 	0xc9951bb9: &itemStatshouseApiQuery,
+	0xc9951bbb: &itemStatshouseApiQueryPoint,
 	0xd12dc2bd: &itemStatshouseApiReleaseChunksResponse,
 	0x7a3e919:  &itemStatshouseApiSeries,
 	0x5c2bf286: &itemStatshouseApiSeriesMeta,
@@ -1134,6 +1158,7 @@ var itemsByTag = map[uint32]*TLItem{
 	0x9ceb6f68: &itemStatshouseApiFnUniqueNorm,
 	0x52721884: &itemStatshouseApiGetChunk,
 	0xc7349bb:  &itemStatshouseApiGetQuery,
+	0xc7348bb:  &itemStatshouseApiGetQueryPoint,
 	0x62adc773: &itemStatshouseApiReleaseChunks,
 }
 
@@ -1474,12 +1499,21 @@ var itemsByName = map[string]*TLItem{
 	"statshouseApi.chunkResponse":                      &itemStatshouseApiGetChunkResponse,
 	"statshouseApi.chunkResponse#63928b42":             &itemStatshouseApiGetChunkResponse,
 	"#63928b42":                                        &itemStatshouseApiGetChunkResponse,
+	"statshouseApi.queryPointResponse":                 &itemStatshouseApiGetQueryPointResponse,
+	"statshouseApi.queryPointResponse#4487e41a":        &itemStatshouseApiGetQueryPointResponse,
+	"#4487e41a":                                        &itemStatshouseApiGetQueryPointResponse,
 	"statshouseApi.queryResponse":                      &itemStatshouseApiGetQueryResponse,
 	"statshouseApi.queryResponse#4487e49a":             &itemStatshouseApiGetQueryResponse,
 	"#4487e49a":                                        &itemStatshouseApiGetQueryResponse,
+	"statshouseApi.pointMeta":                          &itemStatshouseApiPointMeta,
+	"statshouseApi.pointMeta#5c2bf296":                 &itemStatshouseApiPointMeta,
+	"#5c2bf296":                                        &itemStatshouseApiPointMeta,
 	"statshouseApi.query":                              &itemStatshouseApiQuery,
 	"statshouseApi.query#c9951bb9":                     &itemStatshouseApiQuery,
 	"#c9951bb9":                                        &itemStatshouseApiQuery,
+	"statshouseApi.queryPoint":                         &itemStatshouseApiQueryPoint,
+	"statshouseApi.queryPoint#c9951bbb":                &itemStatshouseApiQueryPoint,
+	"#c9951bbb":                                        &itemStatshouseApiQueryPoint,
 	"statshouseApi.releaseChunksResponse":              &itemStatshouseApiReleaseChunksResponse,
 	"statshouseApi.releaseChunksResponse#d12dc2bd":     &itemStatshouseApiReleaseChunksResponse,
 	"#d12dc2bd":                                        &itemStatshouseApiReleaseChunksResponse,
@@ -1600,6 +1634,9 @@ var itemsByName = map[string]*TLItem{
 	"statshouseApi.getQuery":                           &itemStatshouseApiGetQuery,
 	"statshouseApi.getQuery#0c7349bb":                  &itemStatshouseApiGetQuery,
 	"#0c7349bb":                                        &itemStatshouseApiGetQuery,
+	"statshouseApi.getQueryPoint":                      &itemStatshouseApiGetQueryPoint,
+	"statshouseApi.getQueryPoint#0c7348bb":             &itemStatshouseApiGetQueryPoint,
+	"#0c7348bb":                                        &itemStatshouseApiGetQueryPoint,
 	"statshouseApi.releaseChunks":                      &itemStatshouseApiReleaseChunks,
 	"statshouseApi.releaseChunks#62adc773":             &itemStatshouseApiReleaseChunks,
 	"#62adc773":                                        &itemStatshouseApiReleaseChunks,

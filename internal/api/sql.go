@@ -243,7 +243,6 @@ LIMIT %v
 SETTINGS
   optimize_aggregation_in_order = 1
 `, commaBy, maxSeriesRows)
-
 	q, err := util.BindQuery(query, args...)
 	return q, pointsQueryMeta{vals: cnt, tags: pq.by, maxHost: pq.kind != queryFnKindCount, version: pq.version}, err
 }
@@ -263,9 +262,12 @@ func loadPointQuery(pq *preparedPointsQuery, pointQuery pointQuery, utcOffset in
 				commaBy += fmt.Sprintf(", %s AS %s", preKeyTagName(pointQuery.hasPreKey, b, pq.preKeyTagID), b)
 			}
 		}
-		commaBy += ","
 	}
 
+	commaBySelect := commaBy
+	if commaBy != "" {
+		commaBySelect += ","
+	}
 	// no need to escape anything as long as table and tag names are fixed
 	query := fmt.Sprintf(`
 SELECT
@@ -275,7 +277,7 @@ FROM
 WHERE
   %s = ?
   AND time >= ? AND time < ?%s`,
-		commaBy,
+		commaBySelect,
 		what,
 		preKeyTableNameFromPoint(pointQuery, "", pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
 		metricColumn(pq.version),
@@ -316,7 +318,6 @@ LIMIT %v
 SETTINGS
   optimize_aggregation_in_order = 1
 `, maxSeriesRows)
-
 	q, err := util.BindQuery(query, args...)
 	return q, pointsQueryMeta{vals: cnt, tags: pq.by, maxHost: pq.kind != queryFnKindCount, version: pq.version}, err
 }

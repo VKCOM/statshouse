@@ -354,7 +354,8 @@ type (
 		MaxHost   string                   `json:"max_host"` // max_host for now
 		Name      string                   `json:"name"`
 		What      queryFn                  `json:"what"`
-		Total     int                      `json:"total"`
+		FromSec   int64                    `json:"from_sec"`
+		ToSec     int64                    `json:"to_sec"`
 	}
 
 	SeriesMetaTag struct {
@@ -1893,6 +1894,12 @@ func (h *Handler) handleGetPoint(ctx context.Context, debugQueries bool, req get
 		return nil, false, err
 	}
 
+	for _, q := range queries {
+		if !validateQueryPoint(q) {
+			return nil, false, fmt.Errorf("function %s isn't supported", q.what.String())
+		}
+	}
+
 	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
 	if err != nil {
 		return nil, false, err
@@ -1940,7 +1947,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, debugQueries bool, req get
 			filterNotIn: mappedFilterNotIn,
 		}
 
-		qps := selectQueryPoint(
+		qp := selectQueryPoint(
 			q,
 			version,
 			int64(metricMeta.PreKeyFrom),
@@ -1955,37 +1962,37 @@ func (h *Handler) handleGetPoint(ctx context.Context, debugQueries bool, req get
 		)
 
 		for _, shift := range shifts {
-			var ( // initialized to suppress Goland's invalid "may be nil" warnings
+			var (
 				tagsToIx   = map[tsTags]int{}        // tags => index
 				ixToTags   = make([]*tsTags, 0)      // index => tags
 				ixToAmount = make([]float64, 0)      // index => total "amount"
 				ixToRow    = make([][]pSelectRow, 0) // index => row
 			)
 			shiftDelta := toSec(shift - oldestShift)
-			for _, qp := range qps {
-				pqs, err := h.pointsCache.get(ctx, queryKey, pq, pointQuery{
-					fromSec:   shiftTimestamp(qp.fromSec, -1, shiftDelta, qp.location),
-					toSec:     shiftTimestamp(qp.toSec, -1, shiftDelta, qp.location),
-					table:     qp.table,
-					hasPreKey: qp.hasPreKey,
-					location:  qp.location,
-				}, req.avoidCache)
-				if err != nil {
-					return nil, false, err
+			realFromSec := shiftTimestamp(qp.fromSec, -1, shiftDelta, qp.location)
+			realToSec := shiftTimestamp(qp.toSec, -1, shiftDelta, qp.location)
+			pqs, err := h.pointsCache.get(ctx, queryKey, pq, pointQuery{
+				fromSec:   realFromSec,
+				toSec:     realToSec,
+				table:     qp.table,
+				hasPreKey: qp.hasPreKey,
+				location:  qp.location,
+			}, req.avoidCache)
+			if err != nil {
+				return nil, false, err
+			}
+			for _, row := range pqs {
+				ix, ok := tagsToIx[row.tsTags]
+				if !ok {
+					ix = len(ixToTags)
+					tagsToIx[row.tsTags] = ix
+					ixToTags = append(ixToTags, &row.tsTags)
+					ixToAmount = append(ixToAmount, 0)
+					ixToRow = append(ixToRow, nil)
 				}
-				for _, row := range pqs {
-					ix, ok := tagsToIx[row.tsTags]
-					if !ok {
-						ix = len(ixToTags)
-						tagsToIx[row.tsTags] = ix
-						ixToTags = append(ixToTags, &row.tsTags)
-						ixToAmount = append(ixToAmount, 0)
-						ixToRow = append(ixToRow, nil)
-					}
-					v := math.Abs(selectPointValue(q.what, req.maxHost, &row))
-					ixToAmount[ix] += v * v
-					ixToRow[ix] = append(ixToRow[ix], row)
-				}
+				v := math.Abs(selectPointValue(q.what, req.maxHost, &row))
+				ixToAmount[ix] += v * v
+				ixToRow[ix] = append(ixToRow[ix], row)
 			}
 
 			sortedIxs := make([]int, 0, len(ixToAmount))
@@ -2038,7 +2045,8 @@ func (h *Handler) handleGetPoint(ctx context.Context, debugQueries bool, req get
 					MaxHost:   maxHost,
 					Name:      req.metricWithNamespace,
 					What:      q.what,
-					Total:     len(tagsToIx),
+					FromSec:   realFromSec,
+					ToSec:     realToSec,
 				})
 				data = append(data, value)
 			}
