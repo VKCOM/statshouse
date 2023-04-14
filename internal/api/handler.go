@@ -157,6 +157,7 @@ type (
 		tagValueCache         *pcache.Cache
 		tagValueIDCache       *pcache.Cache
 		cache                 *tsCacheGroup
+		pointsCache           *pointsCache
 		pointRowsPool         sync.Pool
 		pointFloatsPool       sync.Pool
 		cacheInvalidateTicker *time.Ticker
@@ -302,6 +303,13 @@ type (
 		queries                  map[lodInfo]int // not nil if testPromql option set (see getQueryReqOptions)
 	}
 
+	//easyjson:json
+	GetPointResp struct {
+		PointMeta    []QueryPointsMeta `json:"point_meta"`      // M
+		PointData    []float64         `json:"point_data"`      // M
+		DebugQueries []string          `json:"__debug_queries"` // private, unstable: SQL queries executed
+	}
+
 	renderRequest struct {
 		ai            accessInfo
 		seriesRequest []seriesRequest
@@ -334,6 +342,16 @@ type (
 		Name      string                   `json:"name"`
 		What      queryFn                  `json:"what"`
 		Total     int                      `json:"total"`
+	}
+
+	QueryPointsMeta struct {
+		TimeShift int64                    `json:"time_shift"`
+		Tags      map[string]SeriesMetaTag `json:"tags"`
+		MaxHost   string                   `json:"max_host"` // max_host for now
+		Name      string                   `json:"name"`
+		What      queryFn                  `json:"what"`
+		FromSec   int64                    `json:"from_sec"` // rounded from sec
+		ToSec     int64                    `json:"to_sec"`   // rounded to sec
 	}
 
 	SeriesMetaTag struct {
@@ -427,6 +445,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
 	h.cache = newTSCacheGroup(approxCacheMaxSize, lodTables, h.utcOffset, h.loadPoints, cacheDefaultDropEvery)
+	h.pointsCache = newPointsCache(approxCacheMaxSize, h.utcOffset, h.loadPoint, time.Now)
 	go h.invalidateLoop()
 	h.rmID = statshouse.StartRegularMeasurement(func(registry *statshouse.Registry) { // TODO - stop
 		prevRUsage := h.rUsage
@@ -566,6 +585,9 @@ SETTINGS
 
 	for lodLevel, times := range todo {
 		h.cache.Invalidate(lodLevel, times)
+		if lodLevel == _1s {
+			h.pointsCache.invalidate(times)
+		}
 	}
 
 	return from, newSeen
@@ -2046,6 +2068,270 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 	}
 	return resp, freeQueryResp, nil
 }
+func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStat(EndpointPoint, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	ai, ok := h.parseAccessToken(w, r, sl)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	defer cancel()
+
+	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
+	metricWithNamespace := formValueParamMetric(r)
+
+	filterIn, filterNotIn, err := parseQueryFilter(r.Form[ParamQueryFilter])
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	_, avoidCache := r.Form[ParamAvoidCache]
+	if avoidCache && !ai.isAdmin() {
+		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
+	}
+	_, maxHost := r.Form[paramMaxHost]
+
+	options := seriesRequestOptions{
+		debugQueries: true,
+		stat:         sl,
+	}
+
+	resp, immutable, err := h.handleGetPoint(
+		ctx, ai, options,
+		seriesRequest{
+			version:             r.FormValue(ParamVersion),
+			numResults:          r.FormValue(ParamNumResults),
+			metricWithNamespace: metricWithNamespace,
+			from:                r.FormValue(ParamFromTime),
+			to:                  r.FormValue(ParamToTime),
+			width:               r.FormValue(ParamWidth),
+			widthAgg:            r.FormValue(ParamWidthAgg),
+			timeShifts:          r.Form[ParamTimeShift],
+			what:                r.Form[ParamQueryWhat],
+			by:                  r.Form[ParamQueryBy],
+			filterIn:            filterIn,
+			filterNotIn:         filterNotIn,
+			avoidCache:          avoidCache,
+			maxHost:             maxHost,
+		})
+
+	switch {
+	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
+		respondJSON(w, resp, 0, 0, httpErr(http.StatusBadRequest, nil), h.verbose, ai.user, sl)
+	default:
+		cache, cacheStale := queryClientCacheDuration(immutable)
+		respondJSON(w, resp, cache, cacheStale, err, h.verbose, ai.user, sl)
+	}
+}
+
+func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesRequestOptions, req seriesRequest) (resp *GetPointResp, immutable bool, err error) {
+	version, err := parseVersion(req.version)
+	if err != nil {
+		return nil, false, err
+	}
+
+	metricMeta, err := h.getMetricMeta(ai, req.metricWithNamespace)
+	if err != nil {
+		return nil, false, err
+	}
+
+	err = validateQuery(metricMeta, version)
+	if err != nil {
+		return nil, false, err
+	}
+
+	from, to, err := parseFromTo(req.from, req.to)
+	if err != nil {
+		return nil, false, err
+	}
+
+	shifts, err := parseTimeShifts(req.timeShifts, -1)
+	if err != nil {
+		return nil, false, err
+	}
+
+	numResultsPerShift, err := parseNumResults(
+		req.numResults,
+		defSeries,
+		maxSeries/len(shifts),
+		opt.allowNegativeNumResults,
+	)
+	if err != nil {
+		return nil, false, err
+	}
+
+	queries, err := parseQueries(version, req.what, req.by, req.maxHost)
+	if err != nil {
+		return nil, false, err
+	}
+
+	for _, q := range queries {
+		if !validateQueryPoint(q) {
+			return nil, false, fmt.Errorf("function %s isn't supported", q.what.String())
+		}
+	}
+
+	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
+	if err != nil {
+		return nil, false, err
+	}
+	mappedFilterNotIn, err := h.resolveFilter(metricMeta, version, req.filterNotIn)
+	if err != nil {
+		return nil, false, err
+	}
+
+	oldestShift := shifts[0]
+	isStringTop := metricMeta.StringTopDescription != ""
+
+	isUnique := false // this parameter has meaning only for the version 1, in other cases it does nothing
+	if version == Version1 {
+		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
+	}
+
+	var (
+		now = time.Now()
+		r   *rand.Rand
+	)
+
+	var (
+		// non-nil to ensure that we don't send them as JSON nulls
+		meta = make([]QueryPointsMeta, 0)
+		data = make([]float64, 0)
+	)
+
+	var sqlQueries []string
+	if opt.debugQueries {
+		ctx = debugQueriesContext(ctx, &sqlQueries)
+	}
+
+	for _, q := range queries {
+		queryKey := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn)
+		pq := &preparedPointsQuery{
+			user:        ai.user,
+			version:     version,
+			metricID:    metricMeta.MetricID,
+			preKeyTagID: metricMeta.PreKeyTagID,
+			isStringTop: isStringTop,
+			kind:        q.whatKind,
+			by:          q.by,
+			filterIn:    mappedFilterIn,
+			filterNotIn: mappedFilterNotIn,
+		}
+
+		qp := selectQueryPoint(
+			version,
+			int64(metricMeta.PreKeyFrom),
+			metricMeta.Resolution,
+			isUnique,
+			isStringTop,
+			now.Unix(),
+			shiftTimestamp(from.Unix(), -1, toSec(oldestShift), h.location),
+			shiftTimestamp(to.Unix(), -1, toSec(oldestShift), h.location),
+			h.utcOffset,
+			h.location,
+		)
+
+		for _, shift := range shifts {
+			var (
+				tagsToIx   = map[tsTags]int{}        // tags => index
+				ixToTags   = make([]*tsTags, 0)      // index => tags
+				ixToAmount = make([]float64, 0)      // index => total "amount"
+				ixToRow    = make([][]pSelectRow, 0) // index => row
+			)
+			shiftDelta := toSec(shift - oldestShift)
+			realFromSec := shiftTimestamp(qp.fromSec, -1, shiftDelta, qp.location)
+			realToSec := shiftTimestamp(qp.toSec, -1, shiftDelta, qp.location)
+			pqs, err := h.pointsCache.get(ctx, queryKey, pq, pointQuery{
+				fromSec:   realFromSec,
+				toSec:     realToSec,
+				table:     qp.table,
+				hasPreKey: qp.hasPreKey,
+				location:  qp.location,
+			}, req.avoidCache)
+			if err != nil {
+				return nil, false, err
+			}
+			for _, row := range pqs {
+				ix, ok := tagsToIx[row.tsTags]
+				if !ok {
+					ix = len(ixToTags)
+					tagsToIx[row.tsTags] = ix
+					ixToTags = append(ixToTags, &row.tsTags)
+					ixToAmount = append(ixToAmount, 0)
+					ixToRow = append(ixToRow, nil)
+				}
+				v := math.Abs(selectPointValue(q.what, req.maxHost, &row))
+				ixToAmount[ix] += v * v
+				ixToRow[ix] = append(ixToRow[ix], row)
+			}
+
+			sortedIxs := make([]int, 0, len(ixToAmount))
+			for i := range ixToAmount {
+				sortedIxs = append(sortedIxs, i)
+			}
+
+			if numResultsPerShift > 0 {
+				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, r)
+				if len(sortedIxs) > numResultsPerShift {
+					sortedIxs = sortedIxs[:numResultsPerShift]
+				}
+			} else if numResultsPerShift < 0 {
+				numResultsPerShift = -numResultsPerShift
+				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, r)
+				if len(sortedIxs) > numResultsPerShift {
+					sortedIxs = sortedIxs[:numResultsPerShift]
+				}
+			}
+
+			for _, ix := range sortedIxs {
+				tags := ixToTags[ix]
+				kvs := make(map[string]SeriesMetaTag, 16)
+				for j := 0; j < format.MaxTags; j++ {
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(j), tags.tag[j])
+				}
+				h.maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
+
+				maxHost := ""
+				showMaxHost := false
+				if (req.maxHost || q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && version == Version2 {
+					showMaxHost = true
+				}
+
+				rows := ixToRow[ix]
+				row := rows[0]
+				value := math.Abs(selectPointValue(q.what, req.maxHost, &row))
+				if showMaxHost && row.maxHost != 0 {
+					// mapping every time is not optimal, but mapping to store in cache is also not optimal. TODO - optimize?
+					label, err := h.getTagValue(row.maxHost)
+					if err != nil {
+						label = format.CodeTagValue(row.maxHost)
+					}
+					maxHost = label
+				}
+
+				meta = append(meta, QueryPointsMeta{
+					TimeShift: toSec(shift),
+					Tags:      kvs,
+					MaxHost:   maxHost,
+					Name:      req.metricWithNamespace,
+					What:      q.what,
+					FromSec:   realFromSec,
+					ToSec:     realToSec,
+				})
+				data = append(data, value)
+			}
+		}
+	}
+
+	immutable = to.Before(time.Now().Add(invalidateFrom))
+	resp = &GetPointResp{
+		PointMeta:    meta,
+		PointData:    data,
+		DebugQueries: sqlQueries,
+	}
+	return resp, immutable, nil
+}
 
 func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 	sl := newEndpointStat(EndpointRender, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
@@ -2403,16 +2689,18 @@ type pointsSelectCols struct {
 	res       proto.Results
 }
 
-func newPointsSelectCols(meta pointsQueryMeta) *pointsSelectCols {
+func newPointsSelectCols(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 	// NB! Keep columns selection order and names is sync with sql.go code
 	c := &pointsSelectCols{
 		val:   make([]proto.ColFloat64, meta.vals),
 		tag:   make([]proto.ColInt32, 0, len(meta.tags)),
 		tagIx: make([]int, 0, len(meta.tags)),
 	}
-	c.res = proto.Results{
-		{Name: "_time", Data: &c.time},
-		{Name: "_stepSec", Data: &c.step},
+	if useTime {
+		c.res = proto.Results{
+			{Name: "_time", Data: &c.time},
+			{Name: "_stepSec", Data: &c.step},
+		}
 	}
 	for _, tag := range meta.tags {
 		if tag == format.StringTopTagID {
@@ -2441,6 +2729,27 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	row := tsSelectRow{
 		time:     c.time[i],
 		stepSec:  c.step[i],
+		tsValues: tsValues{countNorm: c.cnt[i]},
+	}
+	for j := 0; j < len(c.val); j++ {
+		row.val[j] = c.val[j][i]
+	}
+	for j := range c.tag {
+		row.tag[c.tagIx[j]] = c.tag[j][i]
+	}
+	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
+		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
+	}
+	if len(c.maxHostV2) != 0 {
+		row.maxHost = c.maxHostV2[i]
+	} else if len(c.maxHostV1) != 0 {
+		row.maxHost = int32(c.maxHostV1[i])
+	}
+	return row
+}
+
+func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
+	row := pSelectRow{
 		tsValues: tsValues{countNorm: c.cnt[i]},
 	}
 	for j := 0; j < len(c.val); j++ {
@@ -2507,7 +2816,7 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 	}
 
 	rows := 0
-	cols := newPointsSelectCols(args)
+	cols := newPointsSelectCols(args, true)
 	isFast := lod.isFast()
 	isLight := pq.isLight()
 	metric := pq.metricID
@@ -2557,11 +2866,69 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 			time.Unix(lod.toSec, 0),
 			time.Duration(lod.stepSec)*time.Second,
 			pq.user,
-			time.Since(start),
+			duration,
 		)
 	}
 
 	return rows, nil
+}
+
+func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, pointQuery pointQuery) ([]pSelectRow, error) {
+	query, args, err := loadPointQuery(pq, pointQuery, h.utcOffset)
+	if err != nil {
+		return nil, err
+	}
+	ret := make([]pSelectRow, 0)
+	rows := 0
+	cols := newPointsSelectCols(args, false)
+	isFast := pointQuery.isFast()
+	isLight := pq.isLight()
+	metric := pq.metricID
+	table := pointQuery.table
+	kind := pq.kind
+	start := time.Now()
+	err = h.doSelect(ctx, isFast, isLight, pq.user, pq.version, ch.Query{
+		Body:   query,
+		Result: cols.res,
+		OnResult: func(_ context.Context, block proto.Block) (err error) {
+			defer func() { // process crashes if we do not catch the "panic"
+				if p := recover(); p != nil {
+					err = fmt.Errorf("doSelect: %v", p)
+				}
+			}()
+			for i := 0; i < block.Rows; i++ {
+				//todo check
+				replaceInfNan(&cols.cnt[i])
+				for j := 0; j < len(cols.val); j++ {
+					replaceInfNan(&cols.val[j][i])
+				}
+				row := cols.rowAtPoint(i)
+				ret = append(ret, row)
+			}
+			rows += block.Rows
+			return nil
+		}})
+	duration := time.Since(start)
+	ChSelectMetricDuration(duration, metric, table, string(kind), isFast, isLight, err)
+	if err != nil {
+		return nil, err
+	}
+
+	if rows == maxSeriesRows {
+		return ret, fmt.Errorf("can't fetch more than %v rows", maxSeriesRows) // prevent cache being populated by incomplete data
+	}
+	if h.verbose {
+		log.Printf("[debug] loaded %v rows from %v (%v to %v) for %q in %v",
+			rows,
+			pointQuery.table,
+			time.Unix(pointQuery.fromSec, 0),
+			time.Unix(pointQuery.toSec, 0),
+			pq.user,
+			duration,
+		)
+	}
+
+	return ret, nil
 }
 
 func stableMulDiv(v float64, mul int64, div int64) float64 {
@@ -2635,6 +3002,39 @@ func selectTSValue(what queryFn, maxHost bool, stepMul int64, desiredStepMul int
 		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
 	case queryFnUniqueNorm, queryFnDerivativeUniqueNorm:
 		return row.val[0] / float64(row.stepSec)
+	default:
+		return math.NaN()
+	}
+}
+
+func selectPointValue(what queryFn, maxHost bool, row *pSelectRow) float64 {
+	switch what {
+	case queryFnCount, queryFnMaxCountHost:
+		return row.countNorm
+	case queryFnMin:
+		return row.val[0]
+	case queryFnMax, queryFnMaxHost:
+		return row.val[1]
+	case queryFnAvg:
+		return row.val[2]
+	case queryFnSum:
+		return row.val[3]
+	case queryFnP25:
+		return row.val[0]
+	case queryFnP50:
+		return row.val[1]
+	case queryFnP75:
+		return row.val[2]
+	case queryFnP90:
+		return row.val[3]
+	case queryFnP95:
+		return row.val[4]
+	case queryFnP99:
+		return row.val[5]
+	case queryFnP999:
+		return row.val[6]
+	case queryFnUnique:
+		return row.val[0]
 	default:
 		return math.NaN()
 	}

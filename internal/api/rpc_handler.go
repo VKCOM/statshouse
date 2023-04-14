@@ -131,6 +131,68 @@ func NewRpcHandler(
 	}
 }
 
+func (h *RPCHandler) prepareQuery(metricName, accessToken string) (*format.MetricMetaValue, accessInfo, error) {
+	ai, err := h.parseAccessToken(accessToken)
+	if err != nil {
+		err = rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
+		return nil, ai, err
+	}
+
+	metricMeta, err := h.ah.getMetricMeta(ai, metricName)
+	if err != nil {
+		err = rpc.Error{Code: rpcErrorCodeUnknownMetric, Description: fmt.Sprintf("can't get metric's meta: %v", err)}
+		return nil, ai, err
+	}
+	return metricMeta, ai, nil
+}
+
+func (h *RPCHandler) GetQueryPoint(ctx context.Context, args tlstatshouseApi.GetQueryPoint) (tlstatshouseApi.GetQueryPointResponse, error) {
+	var (
+		ai         accessInfo
+		response   tlstatshouseApi.GetQueryPointResponse
+		metricMeta *format.MetricMetaValue
+		err        error
+	)
+
+	defer func(ms *rpcMethodStat) {
+		ms.serviceTime(ai, err)
+	}(&rpcMethodStat{args.TLName(), time.Now()})
+
+	metricMeta, ai, err = h.prepareQuery(args.Query.MetricName, args.AccessToken)
+	if err != nil {
+		return response, err
+	}
+	req, err := transformPointQuery(args.Query, metricMeta)
+	if err != nil {
+		err = rpc.Error{Code: rpcErrorCodeQueryParsingFailed, Description: fmt.Sprintf("can't transform query: %v", err)}
+		return response, err
+	}
+
+	r, _, err := h.ah.handleGetPoint(ctx, ai, seriesRequestOptions{}, req)
+	if err != nil {
+		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
+		return response, err
+	}
+	response.Data = make([]float64, len(r.PointData))
+	response.Meta = make([]tlstatshouseApi.PointMeta, len(r.PointData))
+	for i, data := range r.PointData {
+		response.Data[i] = data
+		meta := r.PointMeta[i]
+		m := tlstatshouseApi.PointMeta{
+			TimeShift: meta.TimeShift,
+			Tags:      map[string]string{},
+			From:      meta.FromSec,
+			To:        meta.ToSec,
+		}
+		for k, v := range meta.Tags {
+			m.Tags[k] = v.Value
+		}
+		m.SetWhat(whatToFn[meta.What])
+		response.Meta[i] = m
+	}
+	return response, nil
+}
+
 func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery) (tlstatshouseApi.GetQueryResponse, error) {
 	var (
 		ai       accessInfo
@@ -160,7 +222,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		return response, err
 	}
 
-	res, _, err := h.ah.handleGetQuery(ctx, ai, *req, seriesRequestOptions{})
+	res, _, err := h.ah.handleGetQuery(ctx, ai, req, seriesRequestOptions{})
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
 		return response, err
@@ -290,15 +352,17 @@ func (h *RPCHandler) parseAccessToken(token string) (accessInfo, error) {
 	return h.ah.accessManager.parseAccessToken(h.jwtHelper, token, h.protectedPrefixes, h.localMode, h.insecureMode)
 }
 
-func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (*seriesRequest, error) {
+func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (req seriesRequest, err error) {
 	filterIn, filterNotIn, err := parseFilterValues(q.Filter, meta)
 	if err != nil {
-		return nil, fmt.Errorf("can't parse filter: %v", err)
+		return req, fmt.Errorf("can't parse filter: %v", err)
 	}
+
 	timeShifts := make([]string, 0, len(q.TimeShift))
 	for _, ts := range q.TimeShift {
 		timeShifts = append(timeShifts, strconv.FormatInt(ts, 10))
 	}
+
 	var what []string
 	if q.IsSetWhat() {
 		what = make([]string, 0, len(q.What))
@@ -309,13 +373,49 @@ func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (*ser
 		what = []string{fnToString[q.Function]}
 	}
 
-	req := &seriesRequest{
+	req = seriesRequest{
 		version:             strconv.FormatInt(int64(q.Version), 10),
 		numResults:          strconv.FormatInt(int64(q.TopN), 10),
 		metricWithNamespace: q.MetricName,
 		from:                strconv.FormatInt(q.TimeFrom, 10),
 		to:                  strconv.FormatInt(q.TimeTo, 10),
 		width:               q.Interval,
+		timeShifts:          timeShifts,
+		what:                what,
+		by:                  q.GroupBy,
+		filterIn:            filterIn,
+		filterNotIn:         filterNotIn,
+	}
+	return req, nil
+}
+
+func transformPointQuery(q tlstatshouseApi.QueryPoint, meta *format.MetricMetaValue) (req seriesRequest, err error) {
+	filterIn, filterNotIn, err := parseFilterValues(q.Filter, meta)
+	if err != nil {
+		return req, fmt.Errorf("can't parse filter: %v", err)
+	}
+
+	timeShifts := make([]string, 0, len(q.TimeShift))
+	for _, ts := range q.TimeShift {
+		timeShifts = append(timeShifts, strconv.FormatInt(ts, 10))
+	}
+
+	var what []string
+	if q.IsSetWhat() {
+		what = make([]string, 0, len(q.What))
+		for _, fn := range q.What {
+			what = append(what, fnToString[fn])
+		}
+	} else {
+		what = []string{fnToString[q.Function]}
+	}
+
+	req = seriesRequest{
+		version:             strconv.FormatInt(int64(q.Version), 10),
+		numResults:          strconv.FormatInt(int64(q.TopN), 10),
+		metricWithNamespace: q.MetricName,
+		from:                strconv.FormatInt(q.TimeFrom, 10),
+		to:                  strconv.FormatInt(q.TimeTo, 10),
 		timeShifts:          timeShifts,
 		what:                what,
 		by:                  q.GroupBy,

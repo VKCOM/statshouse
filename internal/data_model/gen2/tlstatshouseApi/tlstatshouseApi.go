@@ -22,8 +22,12 @@ type (
 	GetChunk              = internal.StatshouseApiGetChunk
 	GetChunkResponse      = internal.StatshouseApiGetChunkResponse
 	GetQuery              = internal.StatshouseApiGetQuery
+	GetQueryPoint         = internal.StatshouseApiGetQueryPoint
+	GetQueryPointResponse = internal.StatshouseApiGetQueryPointResponse
 	GetQueryResponse      = internal.StatshouseApiGetQueryResponse
+	PointMeta             = internal.StatshouseApiPointMeta
 	Query                 = internal.StatshouseApiQuery
+	QueryPoint            = internal.StatshouseApiQueryPoint
 	ReleaseChunks         = internal.StatshouseApiReleaseChunks
 	ReleaseChunksResponse = internal.StatshouseApiReleaseChunksResponse
 	Series                = internal.StatshouseApiSeries
@@ -119,6 +123,29 @@ func (c *Client) GetQuery(ctx context.Context, args GetQuery, extra *rpc.InvokeR
 	return nil
 }
 
+func (c *Client) GetQueryPoint(ctx context.Context, args GetQueryPoint, extra *rpc.InvokeReqExtra, ret *GetQueryPointResponse) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	if extra != nil {
+		req.Extra = *extra
+	}
+	req.Body, err = args.WriteBoxed(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("statshouseApi.getQueryPoint", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if err != nil {
+		return internal.ErrorClientDo("statshouseApi.getQueryPoint", c.Network, c.ActorID, c.Address, err)
+	}
+	defer c.Client.PutResponse(resp)
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("statshouseApi.getQueryPoint", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
 func (c *Client) ReleaseChunks(ctx context.Context, args ReleaseChunks, extra *rpc.InvokeReqExtra, ret *ReleaseChunksResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -145,10 +172,12 @@ func (c *Client) ReleaseChunks(ctx context.Context, args ReleaseChunks, extra *r
 type Handler struct {
 	GetChunk      func(ctx context.Context, args GetChunk) (GetChunkResponse, error)           // statshouseApi.getChunk
 	GetQuery      func(ctx context.Context, args GetQuery) (GetQueryResponse, error)           // statshouseApi.getQuery
+	GetQueryPoint func(ctx context.Context, args GetQueryPoint) (GetQueryPointResponse, error) // statshouseApi.getQueryPoint
 	ReleaseChunks func(ctx context.Context, args ReleaseChunks) (ReleaseChunksResponse, error) // statshouseApi.releaseChunks
 
 	RawGetChunk      func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouseApi.getChunk
 	RawGetQuery      func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouseApi.getQuery
+	RawGetQueryPoint func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouseApi.getQueryPoint
 	RawReleaseChunks func(ctx context.Context, hctx *rpc.HandlerContext) error // statshouseApi.releaseChunks
 }
 
@@ -212,6 +241,36 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
 				return internal.ErrorServerWriteResult("statshouseApi.getQuery", err)
+			}
+			return nil
+		}
+	case 0x0c7348bb: // statshouseApi.getQueryPoint
+		if h.RawGetQueryPoint != nil {
+			hctx.Request = r
+			err = h.RawGetQueryPoint(ctx, hctx)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("statshouseApi.getQueryPoint", err)
+			}
+			return nil
+		}
+		if h.GetQueryPoint != nil {
+			var args GetQueryPoint
+			if _, err = args.Read(r); err != nil {
+				return internal.ErrorServerRead("statshouseApi.getQueryPoint", err)
+			}
+			ctx = hctx.WithContext(ctx)
+			ret, err := h.GetQueryPoint(ctx, args)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("statshouseApi.getQueryPoint", err)
+			}
+			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+				return internal.ErrorServerWriteResult("statshouseApi.getQueryPoint", err)
 			}
 			return nil
 		}
