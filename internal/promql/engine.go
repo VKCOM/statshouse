@@ -137,38 +137,29 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 	}
 }
 
-func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err error) {
-	ev = evaluator{
-		Engine:  ng,
-		Options: qry.Options,
-		ars:     make(map[parser.Expr]parser.Expr),
-		tags:    make(map[*format.MetricMetaValue][]map[int64]map[int32]string),
-		stags:   make(map[*format.MetricMetaValue]map[int64][]string),
-		ba:      make(map[*[]float64]bool),
-		br:      make(map[*[]float64]bool),
-	}
+func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error) {
 	if qry.Options.TimeNow == 0 {
 		qry.Options.TimeNow = time.Now().Unix()
 	}
-	ev.ast, err = parser.ParseExpr(qry.Expr)
+	ast, err := parser.ParseExpr(qry.Expr)
 	if err != nil {
-		return ev, err
+		return evaluator{}, err
 	}
-	if l, ok := evalLiteral(ev.ast); ok {
-		ev.ast = l
+	if l, ok := evalLiteral(ast); ok {
+		ast = l
 	}
 	// offsets
 	offsets := make([]int64, 0, 1+len(qry.Options.Offsets))
 	offsets = append(offsets, 0)
 	offsets = append(offsets, qry.Options.Offsets...)
 	sort.Sort(sort.Reverse(sortkeys.Int64Slice(offsets)))
-	ev.Options.Offsets = offsets
+	qry.Options.Offsets = offsets
 	// match metrics
 	var (
 		maxRange     int64
 		metricOffset = make(map[*format.MetricMetaValue]int64)
 	)
-	parser.Inspect(ev.ast, func(node parser.Node, path []parser.Node) error {
+	parser.Inspect(ast, func(node parser.Node, path []parser.Node) error {
 		switch e := node.(type) {
 		case *parser.VectorSelector:
 			err = ng.matchMetrics(ctx, e, path, metricOffset, offsets[0])
@@ -184,20 +175,23 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 		return err
 	})
 	if err != nil {
-		return ev, err
+		return evaluator{}, err
 	}
 	// get timescale
 	qry.Start -= maxRange // widen time range to accommodate range selectors
 	if qry.Step <= 0 {    // instant query case
 		qry.Step = 1
 	}
-	ev.t, err = ng.h.GetTimescale(qry, metricOffset)
+	t, err := ng.h.GetTimescale(qry, metricOffset)
 	if err != nil {
 		return evaluator{}, err
 	}
 	// evaluate reduction rules
-	stepMin := ev.t.LODs[len(ev.t.LODs)-1].Step
-	parser.Inspect(ev.ast, func(node parser.Node, nodes []parser.Node) error {
+	var (
+		ars     = make(map[parser.Expr]parser.Expr)
+		stepMin = t.LODs[len(t.LODs)-1].Step
+	)
+	parser.Inspect(ast, func(node parser.Node, nodes []parser.Node) error {
 		switch s := node.(type) {
 		case *parser.VectorSelector:
 			var grouped bool
@@ -211,7 +205,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 					s.GroupWithout = ar.groupWithout
 					s.Factor = ar.factor
 					s.OmitNameTag = true
-					ev.ars[ar.expr] = s
+					ars[ar.expr] = s
 					grouped = ar.grouped
 				}
 			}
@@ -230,7 +224,17 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (ev evaluator, err
 			break
 		}
 	}
-	return ev, nil
+	return evaluator{
+		Engine:  ng,
+		Options: qry.Options,
+		ast:     ast,
+		ars:     ars,
+		t:       t,
+		tags:    make(map[*format.MetricMetaValue][]map[int64]map[int32]string),
+		stags:   make(map[*format.MetricMetaValue]map[int64][]string),
+		ba:      make(map[*[]float64]bool),
+		br:      make(map[*[]float64]bool),
+	}, nil
 }
 
 func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, path []parser.Node, metricOffset map[*format.MetricMetaValue]int64, offset int64) error {
