@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
+	"io"
 	"math"
 	"os/exec"
 	"sort"
@@ -59,7 +60,7 @@ set xdata time
 set timefmt "%s"
 set format x "%H:%M\n%d/%m"
 set xrange [*:*] noextend
-set yrange [*:*] noextend
+set yrange [*<-0:*] noextend
 set datafile missing "NaN"
 
 {{range $i, $meta := $d.Data.Series.SeriesMeta -}}
@@ -69,16 +70,13 @@ set style line {{$d.LineStyle $i}} linetype 1 linecolor rgb '{{$d.LineColor $met
 $data << EOD
 {{range $i, $meta := $d.Data.Series.SeriesMeta -}}
 "{{$d.MetaToLabel $meta}}"
-{{range $j, $t := $d.Data.Series.Time -}}
-{{$d.APITime $t}} {{index $d.Data.Series.SeriesData $i $j}}
-{{end}}
-
+{{$d.WriteData $i}}
 {{end}}
 EOD
 
 {{if $d.Data.Series.SeriesMeta -}}
 plot for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with fillsteps notitle               linestyle (10+n), \
-     for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with     steps title columnheader(1) linestyle (10+n) linewidth 0.7
+     for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with linespoints title columnheader(1) linestyle (10+n) linewidth 0.7 pointtype 7 pointsize 0.2
 {{else -}}
 set key off
 set xrange [{{$d.BlankFrom}}:{{$d.BlankTo}}]
@@ -93,17 +91,87 @@ unset multiplot
 
 var (
 	// XXX: keep in sync with TypeScript
-	palette = [...][2]string{
-		{"blue", "#0d6efd"},   // blue
-		{"purple", "#6610f2"}, // indigo
-		{"purple", "#6f42c1"}, // purple
-		{"red", "#d63384"},    // pink
-		{"red", "#dc3545"},    // red
-		{"yellow", "#fd7e14"}, // orange
-		{"yellow", "#ffc107"}, // yellow
-		{"green", "#198754"},  // green
-		{"green", "#20c997"},  // teal
-		{"blue", "#0dcaf0"},   // cyan
+	palette = [...][]string{
+		{
+			"blue",
+			"#0d6efd", // blue-500
+			"#6ea8fe", // blue-300
+			"#084298", // blue-700
+			"#3d8bfd", // blue-400
+			"#0a58ca", // blue-600
+		},
+		{
+			"purple",
+			"#6610f2", // indigo-500
+			"#a370f7", // indigo-300
+			"#3d0a91", // indigo-700
+			"#8540f5", // indigo-400
+			"#520dc2", // indigo-600
+		},
+		{
+			"purple",
+			"#6f42c1", // purple-500
+			"#a98eda", // purple-300
+			"#432874", // purple-700
+			"#8c68cd", // purple-400
+			"#59359a", // purple-600
+		},
+		{
+			"red",
+			"#d63384", // pink-500
+			"#e685b5", // pink-300
+			"#801f4f", // pink-700
+			"#de5c9d", // pink-400
+			"#ab296a", // pink-600
+		},
+		{
+			"red",
+			"#dc3545", // red-500
+			"#ea868f", // red-300
+			"#842029", // red-700
+			"#e35d6a", // red-400
+			"#b02a37", // red-600
+		},
+		{
+			"yellow",
+			"#fd7e14", // orange-500
+			"#feb272", // orange-300
+			"#984c0c", // orange-700
+			"#fd9843", // orange-400
+			"#ca6510", // orange-600
+		},
+		{
+			"yellow",
+			"#ffc107", // yellow-500
+			"#ffda6a", // yellow-300
+			"#997404", // yellow-700
+			"#ffda6a", // yellow-400
+			"#cc9a06", // yellow-600
+		},
+		{
+			"green",
+			"#198754", // green-500
+			"#75b798", // green-300
+			"#0f5132", // green-700
+			"#479f76", // green-400
+			"#146c43", // green-600
+		},
+		{
+			"green",
+			"#20c997", // teal-500
+			"#79dfc1", // teal-300
+			"#13795b", // teal-700
+			"#4dd4ac", // teal-400
+			"#1aa179", // teal-600
+		},
+		{
+			"blue",
+			"#0dcaf0", // cyan-500
+			"#6edff6", // cyan-300
+			"#087990", // cyan-700
+			"#3dd5f3", // cyan-400
+			"#0aa2c0", // cyan-600
+		},
 	}
 )
 
@@ -114,17 +182,39 @@ type gnuplotTemplateData struct {
 	Width     int
 	Height    int
 	Ratio     float64
-	Data      *GetQueryResp
+	Data      *SeriesResponse
 	BlankFrom int64
 	BlankTo   int64
 
 	usedColorIndices map[string]bool
 	uniqueWhat       map[queryFn]struct{}
 	utcOffset        int64
+
+	// The buffer which template is printed into,
+	// methods generating large texts might write directly into it
+	// (see "WriteData" function below).
+	wr io.Writer
 }
 
-func (d *gnuplotTemplateData) APITime(t int64) int64 {
-	return t + d.utcOffset
+func (d *gnuplotTemplateData) WriteData(i int) string {
+	var blank bool
+	for j, v := range *d.Data.Series.SeriesData[i] {
+		if math.IsNaN(v) {
+			if !blank {
+				// blank line tells GNUPlot to not connect adjacent points
+				fmt.Fprint(d.wr, "\n")
+				// adjacent blank lines are merged
+				blank = true
+			}
+			continue
+		}
+		fmt.Fprint(d.wr, d.Data.Series.Time[j]+d.utcOffset)
+		fmt.Fprint(d.wr, " ")
+		fmt.Fprint(d.wr, v)
+		fmt.Fprint(d.wr, "\n")
+		blank = false
+	}
+	return "\n"
 }
 
 func (d *gnuplotTemplateData) LineStyle(i int) int {
@@ -154,8 +244,35 @@ func (d *gnuplotTemplateData) Header() string {
 }
 
 func (d *gnuplotTemplateData) LineColor(meta QuerySeriesMetaV2) string {
-	s := fmt.Sprintf("%s: %s", d.Metric, d.MetaToLabel(meta))
-	return selectColor(s, d.usedColorIndices)
+	var (
+		oneGraph         = d.graphCount() == 1
+		uniqueWhatLength = len(d.GetUniqueWhat())
+		label            = MetaToLabel(meta, uniqueWhatLength)
+		baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength)
+		isValue          = strings.Index(baseLabel, "Value") == 0
+		metricName       string
+		prefColor        = 9 // it`s magic prefix
+		colorKey         string
+	)
+	if isValue {
+		metricName = meta.Name
+	}
+	if oneGraph {
+		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, label)
+	} else {
+		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, baseLabel)
+	}
+	return selectColor(colorKey, d.usedColorIndices)
+}
+
+func (d *gnuplotTemplateData) graphCount() int {
+	var res int
+	for _, meta := range d.Data.Series.SeriesMeta {
+		if meta.TimeShift == 0 {
+			res++
+		}
+	}
+	return res
 }
 
 func (d *gnuplotTemplateData) MetaToLabel(meta QuerySeriesMetaV2) string {
@@ -179,7 +296,7 @@ func plotSize(format string, title bool, width int) (int, int) {
 	return width, height
 }
 
-func plot(ctx context.Context, format string, title bool, data []*GetQueryResp, utcOffset int64, metric []getQueryReq, width int, tmpl *template.Template) ([]byte, error) {
+func plot(ctx context.Context, format string, title bool, data []*SeriesResponse, utcOffset int64, metric []seriesRequest, width int, tmpl *template.Template) ([]byte, error) {
 	width, height := plotSize(format, title, width)
 	var (
 		rows = 1
@@ -191,7 +308,10 @@ func plot(ctx context.Context, format string, title bool, data []*GetQueryResp, 
 		width /= cols
 		height /= cols
 	}
-	td := make([]*gnuplotTemplateData, len(data))
+	var (
+		buf bytes.Buffer
+		td  = make([]*gnuplotTemplateData, len(data))
+	)
 	for i := 0; i < len(data); i++ {
 		blankFrom := time.Now().Add(-blankRenderInterval).Unix()
 		blankTo := time.Now().Unix()
@@ -212,10 +332,10 @@ func plot(ctx context.Context, format string, title bool, data []*GetQueryResp, 
 			usedColorIndices: map[string]bool{},
 			uniqueWhat:       map[queryFn]struct{}{},
 			utcOffset:        utcOffset % (24 * 3600), // ignore the part we use to align start of week
+			wr:               &buf,
 		}
 	}
 
-	var buf bytes.Buffer
 	templateData := struct {
 		Plots  []*gnuplotTemplateData
 		Format string
@@ -275,6 +395,17 @@ func selectColor(s string, used map[string]bool) string {
 
 // XXX: keep in sync with TypeScript
 func MetaToLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
+	var (
+		desc = MetaToBaseLabel(meta, uniqueWhatLength)
+		tsd  = timeShiftDesc(meta.TimeShift)
+	)
+	if tsd == "" {
+		return desc
+	}
+	return fmt.Sprintf("%s %s", tsd, desc)
+}
+
+func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 	type tagEntry struct {
 		key string
 		tag SeriesMetaTag
@@ -299,12 +430,7 @@ func MetaToLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 		desc = fmt.Sprintf("%s: %s", desc, WhatToWhatDesc(meta.What))
 	}
 
-	tsd := timeShiftDesc(meta.TimeShift)
-	if tsd == "" {
-		return desc
-	}
-
-	return fmt.Sprintf("%s %s", tsd, desc)
+	return desc
 }
 
 // XXX: keep in sync with TypeScript

@@ -204,7 +204,7 @@ func roundRange(start int64, end int64, step int64, utcOffset int64, location *t
 	return rStart, rEnd
 }
 
-func calcLevels(version string, preKeyForm int64, isUnique bool, isStringTop bool, now int64, utcOffset int64, width int) []lodSwitch {
+func calcLevels(version string, preKeyFrom int64, isUnique bool, isStringTop bool, now int64, utcOffset int64, width int) []lodSwitch {
 	if width == _1M {
 		switch {
 		case version == Version1:
@@ -232,17 +232,21 @@ func calcLevels(version string, preKeyForm int64, isUnique bool, isStringTop boo
 		}
 	}
 
-	preKeyForm = roundTime(preKeyForm, _1h, utcOffset)
+	if preKeyFrom != 0 {
+		preKeyFrom = roundTime(preKeyFrom, _1h, utcOffset)
+	} else {
+		preKeyFrom = math.MaxInt64 // "cut < preKeyFrom" is always false
+	}
 	var levels []lodSwitch
 	split := false
 	for _, s := range lodLevels[version] {
 		cut := now - s.relSwitch
 		switch {
-		case cut < preKeyForm:
+		case cut < preKeyFrom:
 			levels = append(levels, s)
 		case !split:
 			s1 := s
-			s1.relSwitch = now - preKeyForm
+			s1.relSwitch = now - preKeyFrom
 			levels = append(levels, s1)
 			s2 := s
 			s2.hasPreKey = true

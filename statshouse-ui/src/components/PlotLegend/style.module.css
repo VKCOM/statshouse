@@ -122,3 +122,7 @@
 .innerLegendCompact .labelOuter {
   margin-left: 4px;
 }
+
+.timeShift {
+  width: auto;
+}

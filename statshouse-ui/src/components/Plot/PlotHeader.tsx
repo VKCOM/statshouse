@@ -4,22 +4,28 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { Dispatch, memo, SetStateAction, useMemo } from 'react';
-import { formatTagValue, metricMeta, querySelector, whatToWhatDesc } from '../../view/api';
+import React, { Dispatch, memo, SetStateAction, useCallback, useMemo, useState } from 'react';
+import { metricMeta } from '../../view/api';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
-import { getUrlSearch, lockRange } from '../../common/plotQueryParams';
+import { getUrlSearch, lockRange, PlotParams } from '../../common/plotQueryParams';
 import produce from 'immer';
-import { selectorParams, selectorParamsTagSync, useStore } from '../../store';
-import { PlotLink } from './PlotLink';
+import { selectorDashboardLayoutEdit, selectorParams, useStore } from '../../store';
+import cn from 'classnames';
+import css from './style.module.css';
+import { PlotHeaderTitle } from './PlotHeaderTitle';
+import { PlotHeaderBadges } from './PlotHeaderBadges';
+import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
+import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 
 export type PlotHeaderProps = {
   indexPlot?: number;
   compact?: boolean;
   dashboard?: boolean;
-  sel: querySelector;
+  sel: PlotParams;
   meta: metricMeta;
   live: boolean;
+  setParams: (nextState: React.SetStateAction<PlotParams>, replace?: boolean | undefined) => void;
   setLive: Dispatch<SetStateAction<boolean>>;
   setTimeRange: (value: SetTimeRangeValue, force?: boolean) => void;
   yLock: lockRange;
@@ -39,47 +45,14 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   setLive,
   setTimeRange,
 }) => {
-  const syncTag = useStore(selectorParamsTagSync);
   const params = useStore(selectorParams);
+  const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
 
-  const filters = useMemo(
-    () =>
-      (meta.tags || [])
-        .map((t, index) => ({
-          title: t.description,
-          in: (sel.filterIn[`key${index}`] || [])
-            .map((value) => formatTagValue(value, t?.value_comments?.[value], t.raw, t.raw_kind))
-            .join(', '),
-          notIn: (sel.filterNotIn[`key${index}`] || [])
-            .map((value) => formatTagValue(value, t?.value_comments?.[value], t.raw, t.raw_kind))
-            .join(', '),
-        }))
-        .filter((f, index) => (f.in || f.notIn) && !syncTag.some((group) => group[indexPlot] === index)),
-    [indexPlot, meta.tags, sel.filterIn, sel.filterNotIn, syncTag]
-  );
-  const syncedTags = useMemo(() => {
-    const sTags = (meta.tags || [])
-      .map((t, index) => ({
-        title: t.description,
-        in: (sel.filterIn[`key${index}`] || [])
-          .map((value) => formatTagValue(value, t?.value_comments?.[value], t.raw, t.raw_kind))
-          .join(', '),
-        notIn: (sel.filterNotIn[`key${index}`] || [])
-          .map((value) => formatTagValue(value, t?.value_comments?.[value], t.raw, t.raw_kind))
-          .join(', '),
-      }))
-      .filter((f, index) => (f.in || f.notIn) && syncTag.some((group) => group[indexPlot] === index));
-    return {
-      in: sTags
-        .filter((t) => t.in)
-        .map((t) => `${t.title}: ${t.in}`)
-        .join('\n'),
-      notIn: sTags
-        .filter((t) => t.notIn)
-        .map((t) => `${t.title}: ${t.notIn}`)
-        .join('\n'),
-    };
-  }, [indexPlot, meta.tags, sel.filterIn, sel.filterNotIn, syncTag]);
+  const [showTags, setShowTags] = useState(false);
+  const toggleShowTags = useCallback(() => {
+    setShowTags((s) => !s);
+  }, []);
+
   const copyLink = useMemo(
     () =>
       `${document.location.protocol}//${document.location.host}${document.location.pathname}${getUrlSearch(
@@ -111,72 +84,40 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             link={copyLink}
           />
         )}
-        {compact && (
-          <PlotLink
-            className="text-secondary text-decoration-none"
-            indexPlot={indexPlot}
-            target={dashboard ? '_self' : '_blank'}
-          >
-            <span className="text-body">{sel.metricName}</span>:
-            <span className="me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
-          </PlotLink>
-        )}
-        {meta.resolution !== undefined && meta.resolution !== 1 && (
-          <span
-            className={`badge ${
-              meta.resolution && sel.customAgg > 0 && meta.resolution > sel.customAgg
-                ? 'bg-danger'
-                : 'bg-warning text-black'
-            } me-2`}
-            title="Custom resolution"
-          >
-            {meta.resolution}s
-          </span>
-        )}
-        {!sel.useV2 && <span className="badge bg-danger text-wrap me-2">legacy data, production only</span>}
-        {compact && (
-          <>
-            {
-              /*tag values selected*/
-              filters.map((f, i) => (
-                <React.Fragment key={i}>
-                  {f.in && (
-                    <span
-                      title={f.title}
-                      className="badge border border-success text-success text-wrap font-normal fw-normal me-2"
-                    >
-                      {f.in}
-                    </span>
-                  )}
-                  {f.notIn && (
-                    <span
-                      title={f.title}
-                      className="badge border border-danger text-danger text-wrap font-normal fw-normal me-2"
-                    >
-                      {f.notIn}
-                    </span>
-                  )}
-                </React.Fragment>
-              ))
-            }
-            {syncedTags.in && (
-              <span
-                title={syncedTags.in}
-                className="badge border border-success text-success text-wrap font-normal fw-normal me-2"
+        <div
+          className={cn(
+            'd-flex position-relative w-100',
+            !dashboardLayoutEdit && !sel.customName && !showTags && 'pe-4'
+          )}
+        >
+          <div className="flex-grow-1 text-truncate w-50 overflow-hidden px-1 d-flex text-nowrap">
+            <PlotHeaderTitle indexPlot={indexPlot} compact={compact} dashboard={dashboard} />
+          </div>
+          {!dashboardLayoutEdit && !sel.customName && (
+            <>
+              <div
+                className={cn(
+                  css.badge,
+                  'd-flex gap-1 z-1 flex-row',
+                  showTags
+                    ? 'position-absolute bg-body end-0 top-0 flex-wrap align-items-end justify-content-end pt-4 p-1'
+                    : 'overflow-hidden  flex-nowrap',
+                  showTags ? css.badgeShow : css.badgeHide
+                )}
               >
-                synced
-              </span>
-            )}
-            {syncedTags.notIn && (
-              <span
-                title={syncedTags.notIn}
-                className="badge border border-danger text-danger text-wrap font-normal fw-normal me-2"
-              >
-                synced
-              </span>
-            )}
-          </>
-        )}
+                <PlotHeaderBadges
+                  indexPlot={indexPlot}
+                  compact={compact}
+                  dashboard={dashboard}
+                  className={cn(showTags ? 'text-wrap' : 'text-nowrap')}
+                />
+              </div>
+              <div role="button" onClick={toggleShowTags} className="z-2 px-1 position-absolute end-0 top-0">
+                {showTags ? <SVGChevronUp width="12px" height="12px" /> : <SVGChevronDown width="12px" height="12px" />}
+              </div>
+            </>
+          )}
+        </div>
         {!compact && (
           /*description*/
           <small
@@ -196,66 +137,14 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
       <div className={`d-flex flex-grow-1 flex-wrap justify-content-${compact ? 'around' : 'between'}`}>
         {/*title*/}
         <h6
-          className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 ${
-            compact ? 'mb-0' : ''
-          }`}
+          className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 mb-1`}
         >
-          {!compact && (
-            <span>
-              <span>{sel.metricName}</span>:
-              <span className="text-secondary me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
-            </span>
-          )}
-          {compact && (
-            <PlotLink
-              className="text-secondary text-decoration-none"
-              indexPlot={indexPlot}
-              target={dashboard ? '_self' : '_blank'}
-            >
-              <span className="text-body">{sel.metricName}</span>:
-              <span className="me-3"> {sel.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
-            </PlotLink>
-          )}
-
-          {meta.resolution !== undefined && meta.resolution !== 1 && (
-            <span
-              className={`badge ${
-                meta.resolution && sel.customAgg > 0 && meta.resolution > sel.customAgg
-                  ? 'bg-danger'
-                  : 'bg-warning text-black'
-              } me-2`}
-              title="Custom resolution"
-            >
-              {meta.resolution}s
-            </span>
-          )}
-          {!sel.useV2 && <span className="badge bg-danger text-wrap me-2">legacy data, production only</span>}
-          {compact &&
-            /*tag values selected*/
-            filters.map((f, i) => (
-              <React.Fragment key={i}>
-                {f.in && (
-                  <span
-                    title={f.title}
-                    className="badge border border-success text-success text-wrap font-normal fw-normal me-2"
-                  >
-                    {f.in}
-                  </span>
-                )}
-                {f.notIn && (
-                  <span
-                    title={f.title}
-                    className="badge border border-danger text-danger text-wrap font-normal fw-normal me-2"
-                  >
-                    {f.notIn}
-                  </span>
-                )}
-              </React.Fragment>
-            ))}
+          <PlotHeaderTitle indexPlot={indexPlot} compact={compact} dashboard={dashboard} />
+          <PlotHeaderBadges indexPlot={indexPlot} compact={compact} dashboard={dashboard} />
         </h6>
         {!compact && (
           <PlotNavigate
-            className="btn-group-sm"
+            className="btn-group-sm mb-1"
             setTimeRange={setTimeRange}
             onResetZoom={onResetZoom}
             onYLockChange={onYLockChange}

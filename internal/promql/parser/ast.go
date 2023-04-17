@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/prometheus/prometheus/model/labels"
+
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -189,12 +190,13 @@ type VectorSelector struct {
 
 	MatchingMetrics []*format.MetricMetaValue
 	MatchingNames   []string
-	Offset, Factor  int64
+	Factor          int64
 	What            string
 	GroupBy         []string
 	GroupWithout    bool
 	MaxHost         bool
 	OmitNameTag     bool
+	PrefixSum       bool
 }
 
 // TestStmt is an internal helper statement that allows execution

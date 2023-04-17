@@ -18,7 +18,6 @@ import (
 	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-	"github.com/vkcom/statshouse/internal/vkgo/tlrw"
 )
 
 const (
@@ -60,7 +59,7 @@ func uniqueStartTime() int32 {
 type nonceMsg struct {
 	KeyID  [4]byte
 	Schema int32
-	Time   int32
+	Time   int32 // TODO - uint32, because Y2038
 	Nonce  [16]byte
 }
 
@@ -109,7 +108,7 @@ type NetPID struct {
 	IP   uint32
 	Port uint16
 	PID  uint16
-	Time int32
+	Time int32 // TODO - uint32, because Y2038
 }
 
 func (m *handshakeMsg) writeTo(buf []byte) []byte {
@@ -151,34 +150,11 @@ func (m *NetPID) read(w []byte) (_ []byte, err error) {
 	return basictl.IntRead(w, &m.Time)
 }
 
-func (m *NetPID) readFromBytesBuffer(buf *bytes.Buffer) error {
-	if err := tlrw.ReadUint32(buf, &m.IP); err != nil {
-		return err
-	}
-	var portPID uint32
-	if err := tlrw.ReadUint32(buf, &portPID); err != nil {
-		return err
-	}
-	m.PID = uint16(portPID >> 16)
-	m.Port = uint16(portPID)
-	if err := tlrw.ReadInt32(buf, &m.Time); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (m *NetPID) write(buf []byte) []byte {
 	buf = basictl.NatWrite(buf, m.IP)
 	portPID := uint32(m.PID)<<16 | uint32(m.Port)
 	buf = basictl.NatWrite(buf, portPID)
 	return basictl.IntWrite(buf, m.Time)
-}
-
-func (m *NetPID) writeToByteBuffer(buf *bytes.Buffer) {
-	tlrw.WriteUint32(buf, m.IP)
-	portPID := uint32(m.PID)<<16 | uint32(m.Port)
-	tlrw.WriteUint32(buf, portPID)
-	tlrw.WriteInt32(buf, m.Time)
 }
 
 func (m NetPID) asTextStat() string {

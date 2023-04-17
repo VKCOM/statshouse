@@ -7,6 +7,7 @@
 import { type Store } from './store';
 import * as api from '../view/api';
 import { metricTagValueInfo } from '../view/api';
+import { promQLMetric } from '../view/utils';
 
 export const selectorAll = (s: Store) => s;
 
@@ -120,6 +121,18 @@ export const selectorTitle = (s: Store) => {
     case -2:
       return 'Dashboard setting — StatsHouse';
   }
+  if (s.params.plots[s.params.tabNum] && s.params.plots[s.params.tabNum].metricName === promQLMetric) {
+    if (!s.plotsData[s.params.tabNum].nameMetric) {
+      return 'StatsHouse';
+    }
+    return (
+      s.plotsData[s.params.tabNum].nameMetric +
+      (s.plotsData[s.params.tabNum].whats.length
+        ? ': ' + s.plotsData[s.params.tabNum].whats.map((qw) => api.whatToWhatDesc(qw)).join(',')
+        : '') +
+      ' — StatsHouse'
+    );
+  }
   return (
     (s.params.plots[s.params.tabNum] &&
       s.params.plots[s.params.tabNum].metricName !== '' &&
@@ -152,13 +165,10 @@ export const selectorSetDashboardLayoutEdit = (s: Store) => s.setDashboardLayout
 
 export const selectorSetGroupName = (s: Store) => s.setGroupName;
 export const selectorSetGroupShow = (s: Store) => s.setGroupShow;
+export const selectorSetGroupSize = (s: Store) => s.setGroupSize;
 
-export const selectorPlotList = (s: Store) => {
-  if (selectorIsServer(s)) {
-    return selectorDashboardPlotList(s).filter((item) => s.params.dashboard?.groupInfo?.[item.group]?.show !== false);
-  }
-  return selectorDashboardPlotList(s);
-};
+export const selectorPlotList = (s: Store) =>
+  selectorDashboardPlotList(s).filter((item) => s.params.dashboard?.groupInfo?.[item.group]?.show !== false);
 
 export const selectorListMetricsGroup = (s: Store) => s.listMetricsGroup;
 export const selectorSelectMetricsGroup = (s: Store) => s.selectMetricsGroup;
@@ -175,3 +185,5 @@ export const selectorSavePromConfig = (s: Store) => s.savePromConfig;
 export const selectorThemeDark = (s: Store) => s.theme.dark;
 export const selectorThemeName = (s: Store) => s.theme.theme;
 export const selectorSetTheme = (s: Store) => s.theme.setTheme;
+
+export const selectorPromqltestfailed = (s: Store) => s.plotsData.map((d) => d.promqltestfailed).some(Boolean);

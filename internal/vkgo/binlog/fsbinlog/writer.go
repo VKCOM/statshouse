@@ -26,7 +26,7 @@ type binlogWriter struct {
 	PrefixPath         string
 	buffEx             *buffExchange
 
-	close chan struct{}
+	stop chan struct{}
 
 	// Канал сигнализирующий о наличии данных. Протокол следующий:
 	// если передано nil, то мы можем забрать (steal) данные, если в данный момент не заняты
@@ -42,6 +42,7 @@ func newBinlogWriter(
 	lastFileHdr *fileHeader,
 	buffEx *buffExchange,
 	stat *stat,
+	stop chan struct{},
 ) (*binlogWriter, error) {
 	bw := &binlogWriter{
 		logger:             logger,
@@ -51,7 +52,7 @@ func newBinlogWriter(
 		curFileHeader:      lastFileHdr,
 		PrefixPath:         options.PrefixPath,
 		buffEx:             buffEx,
-		close:              make(chan struct{}),
+		stop:               stop,
 		ch:                 make(chan struct{}, 1),
 	}
 
@@ -61,10 +62,6 @@ func newBinlogWriter(
 		return nil, err
 	}
 	return bw, nil
-}
-
-func (bw *binlogWriter) Close() {
-	bw.close <- struct{}{}
 }
 
 func (bw *binlogWriter) initChunk(createNew bool, filename string, expectedSize int64) error {
@@ -143,7 +140,8 @@ loop:
 			hitTimer = true
 			flushCh.Reset(flushInterval)
 
-		case <-bw.close:
+		case <-bw.stop:
+			bw.buffEx.stopAccept()
 			stop = true
 		}
 
@@ -169,7 +167,10 @@ loop:
 			} else {
 				bw.stat.lastPosition.Store(rd.offsetGlobal)
 				snapData := prepareSnapMeta(rd.offsetGlobal, rd.crc, bw.stat.lastTimestamp.Load())
-				bw.engine.Commit(rd.offsetGlobal, snapData, rd.offsetGlobal)
+				if err := bw.engine.Commit(rd.offsetGlobal, snapData, rd.offsetGlobal); err != nil {
+					loopErr = err
+					break loop
+				}
 				dirty = false
 			}
 		}
@@ -217,7 +218,9 @@ func (bw *binlogWriter) rotate(rotateTo, rotateFrom []byte) error {
 	newHeader.Timestamp = uint64(newHeader.LevRotateFrom.Timestamp)
 	newHeader.FileName = chooseFilenameForChunk(newHeader.Position, bw.PrefixPath)
 
-	bw.logger.Tracef("rotate binlog file on position %d, new binlog filename: %s", newHeader.Position, newHeader.FileName)
+	if bw.logger != nil {
+		bw.logger.Tracef("rotate binlog file on position %d, new binlog filename: %s", newHeader.Position, newHeader.FileName)
+	}
 
 	prevChunkFd := bw.fd // Сохраняю старый файл для дозаписи события
 

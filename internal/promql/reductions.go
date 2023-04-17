@@ -31,7 +31,7 @@ var reductionRules = [][]reductionRuleFunc{
 	{reduceAggregateExpr, reduceSubQueryExpr, reduceOverTimeCall},
 }
 
-func evalReductionRules(s *parser.VectorSelector, nodes []parser.Node, step int64) (res reduction, ok bool) {
+func evalReductionRules(sel *parser.VectorSelector, nodes []parser.Node, step int64) (res reduction, ok bool) {
 	var (
 		depth int
 		curr  = make([]reduction, len(reductionRules))
@@ -39,7 +39,7 @@ func evalReductionRules(s *parser.VectorSelector, nodes []parser.Node, step int6
 	)
 	for i := range curr {
 		curr[i].rule = i
-		curr[i].what = s.What
+		curr[i].what = sel.What
 	}
 	for i := len(nodes); i != 0 && len(curr) != 0; i-- {
 		// skip parentheses

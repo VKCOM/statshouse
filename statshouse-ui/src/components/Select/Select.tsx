@@ -158,8 +158,17 @@ function scrollToClass(
   position: PositionScroll = POSITION_SCROLL.None
 ) {
   if (className && target) {
-    const elem = target.querySelector(`.${className}`) as HTMLElement | null;
-    scrollToElement(target, elem, position);
+    const elements = target.querySelectorAll(`.${className}`) as NodeListOf<HTMLElement>;
+    const top = target.scrollTop;
+    const bottom = target.scrollTop + target.offsetHeight;
+    for (const element of elements) {
+      if (top <= element.offsetTop && bottom >= element.offsetTop + element.offsetHeight) {
+        return;
+      }
+    }
+    if (elements[0]) {
+      scrollToElement(target, elements[0], position);
+    }
   }
 }
 

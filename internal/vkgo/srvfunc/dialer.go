@@ -7,111 +7,18 @@
 package srvfunc
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"net"
-	"os"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
+
+	"github.com/vkcom/statshouse/internal/vkgo/etchosts"
 )
 
-const (
-	cachePeriod = time.Second
-	hostsFile   = "/etc/hosts"
-)
+var emptyDialer = &net.Dialer{}
 
-var (
-	emptyDialer = &net.Dialer{}
-
-	hostsCache = struct {
-		m        map[string]string // hostname => ip, if nil, first invocation
-		lastStat os.FileInfo       // stats of hostsFile just before we read it
-		sync.RWMutex
-	}{}
-)
-
-func readHosts() map[string]string {
-	newMap := make(map[string]string)
-	body, err := os.ReadFile(hostsFile) // We presume we have enough memory to load hosts file
-	if err != nil {
-		log.Printf("srvfunc.CachingDialer could not open '%s': %v", hostsFile, err)
-		return newMap
-	}
-	for len(body) != 0 {
-		line := body
-		nextLineIndex := bytes.IndexByte(body, '\n')
-		if nextLineIndex >= 0 {
-			line = body[:nextLineIndex]
-			body = body[nextLineIndex+1:]
-		} else {
-			body = nil
-		}
-
-		commentIndex := bytes.IndexByte(line, '#')
-		if commentIndex >= 0 {
-			line = line[:commentIndex]
-		}
-
-		// 127.0.0.1       localhost loclahost loclhsot lolcahost
-		fields := bytes.Fields(line)
-
-		if len(fields) <= 1 {
-			continue
-		}
-		ips := string(fields[0])
-
-		// ensure that it is IPv4 address because we do not support dual stack in this resolver anyway
-		if ip := net.ParseIP(ips); ip == nil || ip.To4() == nil {
-			continue
-		}
-
-		for _, f := range fields[1:] {
-			newMap[string(f)] = ips
-		}
-	}
-	return newMap
-}
-
-func hostsUpdater() {
-	for {
-		time.Sleep(cachePeriod) // At start, because hosts was just read by the caller of go hostsUpdater
-		stat, _ := os.Stat(hostsFile)
-		hostsCache.RLock()
-		if (stat == nil && hostsCache.lastStat == nil) || (stat != nil && hostsCache.lastStat != nil && hostsCache.lastStat.ModTime() == stat.ModTime() && hostsCache.lastStat.Size() == stat.Size()) {
-			hostsCache.RUnlock()
-			continue
-		}
-		hostsCache.RUnlock()
-		newMap := readHosts()
-		hostsCache.Lock()
-		hostsCache.lastStat = stat
-		hostsCache.m = newMap
-		hostsCache.Unlock()
-	}
-}
-
-func etcHostsLookup(hostname string) string {
-	hostsCache.RLock()
-	if hostsCache.m == nil {
-		hostsCache.RUnlock()
-		hostsCache.Lock()
-		if hostsCache.m == nil {
-			hostsCache.lastStat, _ = os.Stat(hostsFile)
-			hostsCache.m = readHosts()
-			go hostsUpdater()
-		}
-		hostsCache.Unlock()
-		hostsCache.RLock()
-	}
-	ip := hostsCache.m[hostname]
-	hostsCache.RUnlock()
-	return ip
-}
-
+// MaybeResolveHost resolves hostnames to ip:port if it's TCP or UDP network
 func MaybeResolveHost(network string, addr string) string {
 	switch network {
 	case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
@@ -128,7 +35,7 @@ func MaybeResolveHost(network string, addr string) string {
 		return addr
 	}
 
-	if hostIP := etcHostsLookup(host); hostIP != "" {
+	if hostIP := etchosts.Resolve(host); hostIP != "" {
 		return net.JoinHostPort(hostIP, port)
 	}
 

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,9 +43,13 @@ func TestSimpleWrite(t *testing.T) {
 	buff := newBuffEx(crcAfterCreate, int64(len(fileData)), int64(len(fileData)), int64(options.MaxChunkSize))
 
 	engine := NewTestEngine(int64(len(fileData)))
-	bw, err := newBinlogWriter(&LoggerStdout{}, engine, options, int64(len(fileData)), &fh, buff, &stat{})
+	stop := make(chan struct{})
+	bw, err := newBinlogWriter(&LoggerStdout{}, engine, options, int64(len(fileData)), &fh, buff, &stat{}, stop)
 	require.NoError(t, err)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		_, err = bw.loop()
 		assert.NoError(t, err)
 	}()
@@ -72,7 +77,8 @@ func TestSimpleWrite(t *testing.T) {
 	require.Equal(t, engine.commitPosition.Load(), int64(lev2Pos+len(lev2)))
 	require.Equal(t, engine.commitCrc.Load(), crcFinal)
 
-	bw.Close()
+	close(stop)
+	wg.Wait()
 }
 
 func TestRotate(t *testing.T) {
@@ -95,9 +101,13 @@ func TestRotate(t *testing.T) {
 
 	buff := newBuffEx(crcAfterCreate, int64(len(fileData)), int64(len(fileData)), int64(options.MaxChunkSize))
 	engine := NewTestEngine(int64(len(fileData)))
-	bw, err := newBinlogWriter(&LoggerStdout{}, engine, options, int64(len(fileData)), &fh, buff, &stat{})
+	stop := make(chan struct{})
+	bw, err := newBinlogWriter(&LoggerStdout{}, engine, options, int64(len(fileData)), &fh, buff, &stat{}, stop)
 	require.NoError(t, err)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		_, err = bw.loop()
 		assert.NoError(t, err)
 	}()
@@ -143,5 +153,6 @@ func TestRotate(t *testing.T) {
 	require.Equal(t, engine.commitPosition.Load(), pos)
 	require.Equal(t, engine.commitCrc.Load(), crc)
 
-	bw.Close()
+	close(stop)
+	wg.Wait()
 }

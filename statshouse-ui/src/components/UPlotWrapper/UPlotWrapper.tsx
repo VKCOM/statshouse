@@ -74,7 +74,9 @@ function readLegend(u: uPlot): LegendItem[] {
         lastIndex--;
       }
       idx = lastIndex;
-      deltaTime = (u.data?.[0] && u.data[0][idx] - lastTimestamp) ?? 0;
+      if (idx / u.data[index].length < 0.9) {
+        deltaTime = (u.data?.[0] && u.data[0][idx] - lastTimestamp) ?? 0;
+      }
       if (index === 0) {
         lastTime =
           (typeof s.value === 'function' ? s.value(u, u.data[index][idx], 0, idx) : s.value)

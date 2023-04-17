@@ -95,7 +95,7 @@ func mainTestMap() {
 
 	build.FlagParseShowVersionHelp()
 
-	client := argvCreateClient()
+	client, _ := argvCreateClient()
 	if argv.aggAddr == "" {
 		log.Fatalf("--agg-addr must not be empty")
 	}
@@ -109,7 +109,7 @@ func mainTestLongpoll() {
 
 	build.FlagParseShowVersionHelp()
 
-	client := argvCreateClient()
+	client, _ := argvCreateClient()
 	if argv.aggAddr == "" {
 		log.Fatalf("--agg-addr must not be empty")
 	}
@@ -348,7 +348,7 @@ func mainTLClient() {
 
 	build.FlagParseShowVersionHelp()
 
-	client := argvCreateClient()
+	client, _ := argvCreateClient()
 
 	// use like this
 	// echo '{"metrics":[{"name":"gbuteyko_investigation","tags":{"env":"dev","key1":"I_test_statshouse","key2":"1"},"counter":1}]}' | /usr/share/engine/bin/statshouse --new-conveyor=tlclient --statshouse-addr=localhost:13333
@@ -377,7 +377,7 @@ func mainTLClientAPI() {
 
 	build.FlagParseShowVersionHelp()
 
-	client := argvCreateClient()
+	client, _ := argvCreateClient()
 
 	tlapiclient := tlstatshouseApi.Client{
 		Client:  client,
@@ -463,7 +463,7 @@ func mainSimulator() {
 
 	metricStorage := metajournal.MakeMetricsStorage("simulator", nil, nil)
 
-	client := argvCreateClient()
+	client, cryptoKey := argvCreateClient()
 
 	metaDataClient := &tlmetadata.Client{
 		Client:  client,
@@ -518,7 +518,7 @@ func mainSimulator() {
 	}
 
 	for i := 1; i < 10; i++ {
-		go aggregator.RunSimulator(i, metricStorage, argv.cacheDir, client.CryptoKey, argv.configAgent)
+		go aggregator.RunSimulator(i, metricStorage, argv.cacheDir, cryptoKey, argv.configAgent)
 	}
-	aggregator.RunSimulator(0, metricStorage, argv.cacheDir, client.CryptoKey, argv.configAgent)
+	aggregator.RunSimulator(0, metricStorage, argv.cacheDir, cryptoKey, argv.configAgent)
 }

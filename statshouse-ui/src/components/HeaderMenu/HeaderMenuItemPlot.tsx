@@ -24,6 +24,7 @@ import { whatToWhatDesc } from '../../view/api';
 
 import cn from 'classnames';
 import css from './style.module.css';
+import { promQLMetric } from '../../view/utils';
 
 export type HeaderMenuItemPlotProps = {
   indexPlot: number;
@@ -53,9 +54,22 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
 
   const active = useRef(false);
 
+  const metricName = useMemo(
+    () => (plot.metricName !== promQLMetric ? plot.metricName : data.nameMetric),
+    [data.nameMetric, plot.metricName]
+  );
+
+  const what = useMemo(
+    () =>
+      plot.metricName === promQLMetric
+        ? data.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
+        : plot.what.map((qw) => whatToWhatDesc(qw)).join(', '),
+    [plot.metricName, plot.what, data.whats]
+  );
+
   const title = useMemo(
-    () => `${plot.metricName}: ${plot.what.map((qw) => whatToWhatDesc(qw)).join(', ')}`,
-    [plot.metricName, plot.what]
+    () => plot.customName || `${metricName}${!!what && ': ' + what}`,
+    [metricName, plot.customName, what]
   );
 
   const onOpen = useCallback(() => {
@@ -118,9 +132,19 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
             indexPlot={indexPlot}
             title={title}
           >
-            <span className="text-truncate">{plot.metricName}</span>
-            <span className="pe-1">:</span>
-            <span className="text-secondary text-truncate">{plot.what.map((qw) => whatToWhatDesc(qw)).join(', ')}</span>
+            {plot.customName ? (
+              <span className="text-truncate">{plot.customName}</span>
+            ) : (
+              <>
+                <span className="text-truncate">{metricName}</span>
+                {!!what && (
+                  <>
+                    <span className="pe-1">:</span>
+                    <span className="text-secondary text-truncate">{what}</span>
+                  </>
+                )}
+              </>
+            )}
           </PlotLink>
           <span role="button" title="Remove" className="d-block p-2 text-body" onClick={onRemovePlot}>
             <SVGTrash />

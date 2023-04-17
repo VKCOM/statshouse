@@ -35,16 +35,6 @@ func getOpenGraphInfo(r *http.Request, origPath string) (*openGraphInfo, error) 
 		return nil, nil // path does not generate image
 	}
 
-	// Parse timestamps
-	offset, err := strconv.ParseInt(r.FormValue(ParamFromTime), 10, 32)
-	if err != nil || 0 <= offset {
-		return nil, fmt.Errorf("invalid time offset: %q", r.FormValue(ParamFromTime))
-	}
-	to, err := strconv.ParseInt(r.FormValue(ParamToTime), 10, 64)
-	if err != nil || to <= 0 {
-		return nil, fmt.Errorf("invalid timestamp: %q", r.FormValue(ParamToTime))
-	}
-
 	var (
 		metrics       []string
 		whats         [][]string
@@ -76,6 +66,7 @@ func getOpenGraphInfo(r *http.Request, origPath string) (*openGraphInfo, error) 
 			paramWidthAgg    = p + ParamWidthAgg
 			paramWidth       = p + ParamWidth
 			paramQueryWhat   = p + ParamQueryWhat
+			paramPromQuery   = p + paramPromQuery
 		)
 
 		// Build query
@@ -85,6 +76,7 @@ func getOpenGraphInfo(r *http.Request, origPath string) (*openGraphInfo, error) 
 		v[paramQueryBy] = r.Form[paramQueryBy]
 		v[paramQueryFilter] = r.Form[paramQueryFilter]
 		v[paramTimeShift] = r.Form[paramTimeShift]
+		v[paramPromQuery] = r.Form[paramPromQuery]
 		//-- width
 		widthAgg := r.FormValue(paramWidthAgg)
 		if widthAgg != "" {
@@ -107,8 +99,8 @@ func getOpenGraphInfo(r *http.Request, origPath string) (*openGraphInfo, error) 
 	if len(v) == 0 {
 		return nil, fmt.Errorf("no metric specified: %q", r.Form)
 	}
-	v.Set(ParamFromTime, strconv.FormatInt(to+offset, 10))
-	v.Set(ParamToTime, strconv.FormatInt(to+1, 10))
+	v.Set(ParamFromTime, r.FormValue(ParamFromTime))
+	v.Set(ParamToTime, r.FormValue(ParamToTime))
 
 	// Active tab number, total image height
 	tn, err := strconv.Atoi(r.FormValue(paramTabNumber))

@@ -34,6 +34,7 @@ import {
   normalizeDashboard,
   notNull,
   now,
+  promQLMetric,
   readJSONLD,
   sortByKey,
   timeRangeAbbrev,
@@ -78,6 +79,8 @@ import { decodeQueryParams, encodeQueryParams, mergeLeft } from '../common/Query
 import { getNextState } from '../common/getNextState';
 
 export type PlotStore = {
+  nameMetric: string;
+  whats: string[];
   error: string;
   error403?: string;
   data: uPlot.AlignedData;
@@ -100,6 +103,8 @@ export type PlotStore = {
   legendMaxHostPercentWidth: number;
   topInfo?: TopInfo;
   maxHostLists: SelectOptionProps[][];
+  promqltestfailed?: boolean;
+  promQL: string;
 };
 
 export type TopInfo = {
@@ -111,6 +116,10 @@ export type TopInfo = {
 export type PlotValues = {
   rawValue: number | null;
   value: string;
+  metricName: string;
+  label: string;
+  baseLabel: string;
+  timeShift: number;
   max_host: string;
   total: number;
   percent: string;
@@ -128,6 +137,35 @@ type SetSearchParams = (
       }
     | undefined
 ) => void;
+
+function getEmptyPlotData(): PlotStore {
+  return {
+    nameMetric: '',
+    whats: [],
+    error: '',
+    data: [[]],
+    series: [],
+    seriesShow: [],
+    scales: {},
+    receiveErrors: 0,
+    samplingFactorSrc: 0,
+    samplingFactorAgg: 0,
+    mappingFloodEvents: 0,
+    legendValueWidth: 0,
+    legendMaxDotSpaceWidth: 0,
+    legendNameWidth: 0,
+    legendPercentWidth: 0,
+    legendMaxHostWidth: 0,
+    legendMaxHostPercentWidth: 0,
+    lastPlotParams: undefined,
+    lastTimeRange: undefined,
+    lastTimeShifts: undefined,
+    lastQuerySeriesMeta: undefined,
+    topInfo: undefined,
+    maxHostLists: [],
+    promQL: '',
+  };
+}
 
 export type StatsHouseStore = {
   defaultParams: QueryParams;
@@ -209,6 +247,7 @@ export type StatsHouseStore = {
   setDashboardLayoutEdit(nextStatus: boolean): void;
   setGroupName(indexGroup: number, name: string): void;
   setGroupShow(indexGroup: number, show: React.SetStateAction<boolean>): void;
+  setGroupSize(indexGroup: number, size: React.SetStateAction<number>): void;
   listMetricsGroup: MetricsGroupShort[];
   loadListMetricsGroup(): Promise<MetricsGroupShort[]>;
   saveMetricsGroup(metricsGroup: MetricsGroup): Promise<MetricsGroupInfo | undefined>;
@@ -306,6 +345,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     if (params.plots.length === 0) {
       const np: PlotParams = {
         metricName: globalSettings.default_metric,
+        promQL: '',
+        customName: '',
         groupBy: [...globalSettings.default_metric_group_by],
         filterIn: { ...globalSettings.default_metric_filter_in },
         what: [...globalSettings.default_metric_what],
@@ -353,6 +394,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         if (resetPlot) {
           store.plotsData = [];
           store.previews = [];
+          store.dashboardLayoutEdit = false;
         }
       });
       getState().params.plots.forEach((plot, index) => {
@@ -399,6 +441,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     const prev = getState().params.plots[index];
     const next = getNextState(prev, nextState);
     const changed = !dequal(next, prev);
+    const noUpdate = changed && dequal({ ...next, customName: '' }, { ...prev, customName: '' });
     if (changed) {
       setState((state) => {
         if (next.metricName !== prev.metricName) {
@@ -406,7 +449,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         }
         state.params.plots[index] = next;
       });
-      getState().loadPlot(index);
+      if (!noUpdate) {
+        getState().loadPlot(index);
+      }
       if (!next.useV2 && getState().liveMode) {
         getState().setLiveMode(false);
       }
@@ -545,29 +590,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
   loadPlot(index, force: boolean = false) {
     if (!getState().plotsData[index]) {
       setState((state) => {
-        state.plotsData[index] = {
-          error: '',
-          data: [[]],
-          series: [],
-          seriesShow: [],
-          scales: {},
-          receiveErrors: 0,
-          samplingFactorSrc: 0,
-          samplingFactorAgg: 0,
-          mappingFloodEvents: 0,
-          legendValueWidth: 0,
-          legendMaxDotSpaceWidth: 0,
-          legendNameWidth: 0,
-          legendPercentWidth: 0,
-          legendMaxHostWidth: 0,
-          legendMaxHostPercentWidth: 0,
-          lastPlotParams: undefined,
-          lastTimeRange: undefined,
-          lastTimeShifts: undefined,
-          lastQuerySeriesMeta: undefined,
-          topInfo: undefined,
-          maxHostLists: [],
-        };
+        state.plotsData[index] = getEmptyPlotData();
       });
     }
     const prevState = getState();
@@ -576,7 +599,6 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
     if (prevState.numQueriesPlot[index] > 0 && prevState.liveMode) {
       return;
     }
-
     const width = prevState.uPlotsWidth[index] ?? prevState.uPlotsWidth.find((w) => w && w > 0);
     const compact = prevState.compact;
     const lastPlotParams: PlotParams | undefined = prevState.params.plots[index];
@@ -610,7 +632,10 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
       );
       prevState.setNumQueriesPlot(index, (n) => n + 1);
       const controller = new AbortController();
+      const isPromQl = lastPlotParams.metricName === promQLMetric;
 
+      const promQLForm = new FormData();
+      promQLForm.append('q', lastPlotParams.promQL);
       const url = queryURL(lastPlotParams, prevState.timeRange, prevState.params.timeShifts, agg, !compact);
       prevState.plotsDataAbortController[index]?.abort();
       setState((state) => {
@@ -622,13 +647,32 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         }
         state.plotsData[index].scales = scales;
       });
-      apiGet<queryResult>(url, controller.signal, true)
-        .then((resp) => {
-          const uniqueWhat = new Set();
+      if (isPromQl && !lastPlotParams.promQL) {
+        setState((state) => {
+          state.plotsData[index] = getEmptyPlotData();
+          delete state.previews[index];
+          state.liveMode = false;
+        });
+        getState().setNumQueriesPlot(index, (n) => n - 1);
+        return;
+      }
 
+      (isPromQl
+        ? apiPost<queryResult>(url, promQLForm, controller.signal, true)
+        : apiGet<queryResult>(url, controller.signal, true)
+      )
+        .then((resp) => {
+          const promqltestfailed = !!resp?.promqltestfailed;
+          const uniqueWhat = new Set();
+          const uniqueName = new Set();
           for (const meta of resp?.series.series_meta ?? []) {
             uniqueWhat.add(meta.what);
+            meta.name && uniqueName.add(meta.name);
           }
+          if (uniqueName.size === 0 && lastPlotParams.metricName !== promQLMetric) {
+            uniqueName.add(lastPlotParams.metricName);
+          }
+
           const maxLabelLength = Math.max(
             'Time'.length,
             ...(resp?.series.series_meta ?? []).map((meta) => {
@@ -667,7 +711,9 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
             const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
             const isValue = baseLabel.indexOf('Value') === 0;
             const prefColor = '9'; // it`s magic prefix
-            const metricName = isValue ? `${lastPlotParams.metricName}: ` : '';
+            const metricName = isValue
+              ? `${meta.name || (lastPlotParams.metricName !== promQLMetric ? lastPlotParams.metricName : '')}: `
+              : '';
             const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
             const baseColor = baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
             baseColors[colorKey] = baseColor;
@@ -725,8 +771,12 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               values(u, seriesIdx, idx): PlotValues {
                 if (idx === null) {
                   return {
+                    metricName: '',
                     rawValue: null,
                     value: '',
+                    label: '',
+                    baseLabel: '',
+                    timeShift: 0,
                     max_host: '',
                     total: 0,
                     percent: '',
@@ -752,8 +802,12 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                     : '';
                 const percent = rawValue !== null ? formatPercent(rawValue / total) : '';
                 return {
+                  metricName,
                   rawValue,
                   value,
+                  label,
+                  baseLabel,
+                  timeShift: meta.time_shift,
                   max_host,
                   total,
                   percent,
@@ -830,6 +884,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
 
           setState((state) => {
             state.plotsData[index] = {
+              nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
+              whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as string[]) : [],
               error: '',
               data: dequal(data, state.plotsData[index]?.data) ? state.plotsData[index]?.data : data,
               series:
@@ -856,6 +912,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               lastTimeShifts: getState().params.timeShifts,
               topInfo,
               maxHostLists,
+              promqltestfailed,
+              promQL: resp.promql ?? '',
             };
           });
         })
@@ -863,28 +921,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           if (error instanceof Error403) {
             setState((state) => {
               state.plotsData[index] = {
-                error: '',
+                ...getEmptyPlotData(),
                 error403: error.toString(),
-                data: [[]],
-                series: [],
-                seriesShow: [],
-                scales: {},
-                receiveErrors: 0,
-                samplingFactorSrc: 0,
-                samplingFactorAgg: 0,
-                mappingFloodEvents: 0,
-                legendValueWidth: 0,
-                legendMaxDotSpaceWidth: 0,
-                legendNameWidth: 0,
-                legendPercentWidth: 0,
-                legendMaxHostWidth: 0,
-                legendMaxHostPercentWidth: 0,
-                lastPlotParams: undefined,
-                lastTimeRange: undefined,
-                lastTimeShifts: undefined,
-                lastQuerySeriesMeta: undefined,
-                topInfo: undefined,
-                maxHostLists: [],
               };
               delete state.previews[index];
               state.liveMode = false;
@@ -893,27 +931,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
             debug.error(error);
             setState((state) => {
               state.plotsData[index] = {
+                ...getEmptyPlotData(),
                 error: error.toString(),
-                data: [[]],
-                series: [],
-                seriesShow: [],
-                scales: {},
-                receiveErrors: 0,
-                samplingFactorSrc: 0,
-                samplingFactorAgg: 0,
-                mappingFloodEvents: 0,
-                legendValueWidth: 0,
-                legendMaxDotSpaceWidth: 0,
-                legendNameWidth: 0,
-                legendPercentWidth: 0,
-                legendMaxHostWidth: 0,
-                legendMaxHostPercentWidth: 0,
-                lastPlotParams: undefined,
-                lastTimeRange: undefined,
-                lastTimeShifts: undefined,
-                lastQuerySeriesMeta: undefined,
-                topInfo: undefined,
-                maxHostLists: [],
               };
               delete state.previews[index];
               state.liveMode = false;
@@ -1005,7 +1024,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
   metricsMeta: { '': { name: '', metric_id: 0, kind: 'counter', description: '', tags: [] } },
   metricsMetaAbortController: {},
   loadMetricsMeta(metricName) {
-    if (!metricName) {
+    if (!metricName || metricName === promQLMetric) {
       return;
     }
     const prevState = getState();
@@ -1442,7 +1461,8 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
   },
   moveAndResortPlot(indexSelectPlot, indexTargetPlot, indexGroup) {
     const prevState = getState();
-    const groups = prevState.params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
+    const groups: number[] =
+      prevState.params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
     if (groups.length !== prevState.params.plots.length) {
       while (groups.length < prevState.params.plots.length) {
         groups.push(Math.max(0, (prevState.params.dashboard?.groupInfo?.length ?? 0) - 1));
@@ -1488,7 +1508,19 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
             name: '',
             count: 0,
             show: true,
+            size: 2,
           };
+          for (let i = 0, max = params.dashboard.groupInfo.length; i < max; i++) {
+            if (!params.dashboard.groupInfo[i]) {
+              params.dashboard.groupInfo[i] = {
+                name: '',
+                count: 0,
+                show: true,
+                size: 2,
+              };
+            }
+          }
+
           params.dashboard.groupInfo = params.dashboard.groupInfo
             .map((g, index) => ({
               ...g,
@@ -1501,6 +1533,15 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
                 }, 0 as number) ?? 0,
             }))
             .filter((g) => g.count > 0);
+          if (
+            params.dashboard.groupInfo &&
+            params.dashboard.groupInfo.length === 1 &&
+            params.dashboard.groupInfo[0].size === 2 &&
+            params.dashboard.groupInfo[0].name === '' &&
+            params.dashboard.groupInfo[0].show === true
+          ) {
+            params.dashboard.groupInfo = [];
+          }
         }
       })
     );
@@ -1526,12 +1567,14 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           if (state.dashboard.groupInfo[indexGroup]) {
             state.dashboard.groupInfo[indexGroup].name = name;
           } else {
-            state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0 };
+            state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: 2 };
           }
           if (
             state.dashboard.groupInfo &&
             state.dashboard.groupInfo.length === 1 &&
-            !state.dashboard.groupInfo[0].name
+            state.dashboard.groupInfo[0].size === 2 &&
+            state.dashboard.groupInfo[0].name === '' &&
+            state.dashboard.groupInfo[0].show === true
           ) {
             state.dashboard.groupInfo = [];
           }
@@ -1552,7 +1595,46 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
               show: nextShow,
               name: '',
               count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
+              size: 2,
             };
+          }
+          if (
+            state.dashboard.groupInfo &&
+            state.dashboard.groupInfo.length === 1 &&
+            state.dashboard.groupInfo[0].size === 2 &&
+            state.dashboard.groupInfo[0].name === '' &&
+            state.dashboard.groupInfo[0].show === true
+          ) {
+            state.dashboard.groupInfo = [];
+          }
+        }
+      })
+    );
+  },
+  setGroupSize(indexGroup, size) {
+    const nextSize = getNextState(getState().params.dashboard?.groupInfo?.[indexGroup]?.size ?? 2, size);
+    getState().setParams(
+      produce<QueryParams>((state) => {
+        if (state.dashboard) {
+          state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
+          if (state.dashboard.groupInfo[indexGroup]) {
+            state.dashboard.groupInfo[indexGroup].size = nextSize;
+          } else {
+            state.dashboard.groupInfo[indexGroup] = {
+              show: true,
+              name: '',
+              count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
+              size: nextSize,
+            };
+          }
+          if (
+            state.dashboard.groupInfo &&
+            state.dashboard.groupInfo.length === 1 &&
+            state.dashboard.groupInfo[0].size === 2 &&
+            state.dashboard.groupInfo[0].name === '' &&
+            state.dashboard.groupInfo[0].show === true
+          ) {
+            state.dashboard.groupInfo = [];
           }
         }
       })
@@ -1735,4 +1817,5 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         });
     });
   },
+  devInfo: {},
 });

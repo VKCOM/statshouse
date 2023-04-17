@@ -20,7 +20,7 @@ jobs:
       - uses: golangci/golangci-lint-action@v3
         with:
           args: --timeout=10m --disable-all -E goimports
-      - uses: dominikh/staticcheck-action@v1.2.0
+      - uses: dominikh/staticcheck-action@v1.3.0
         with:
           install-go: false
-      - run: go test -v ./...
+      - run: go test -v -race ./...

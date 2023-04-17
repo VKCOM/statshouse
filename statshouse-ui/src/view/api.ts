@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as utils from './utils';
-import { convert } from './utils';
+import { convert, promQLMetric } from './utils';
 import { TimeRange } from '../common/TimeRange';
 
 export interface lockRange {
@@ -15,6 +15,8 @@ export interface lockRange {
 
 export interface querySelector {
   readonly metricName: string;
+  readonly customName: string;
+  readonly promQL: string;
   readonly what: queryWhat[];
   readonly customAgg: number;
   readonly groupBy: readonly string[];
@@ -38,6 +40,8 @@ export interface queryResult {
   readonly sampling_factor_agg: number;
   readonly mapping_errors: number;
   readonly mapping_flood_events_legacy: number;
+  readonly promqltestfailed?: boolean; // only dev param
+  readonly promql: string;
 }
 
 export interface querySeries {
@@ -47,6 +51,7 @@ export interface querySeries {
 }
 
 export interface querySeriesMeta {
+  readonly name?: string;
   readonly time_shift: number;
   readonly tags: Readonly<Record<string, querySeriesMetaTag>>;
   readonly max_hosts: null | string[];
@@ -372,7 +377,7 @@ export function metricKindToWhat(kind: metricKind): queryWhat[] {
 }
 
 // XXX: keep in sync with Go
-export function whatToWhatDesc(what: queryWhat): string {
+export function whatToWhatDesc(what: queryWhat | string): string {
   switch (what) {
     case 'p999':
       return 'p99.9';
@@ -422,6 +427,7 @@ export function whatToWhatDesc(what: queryWhat): string {
 export const queryParamNumResults = 'n';
 export const queryParamBackendVersion = 'v';
 export const queryParamMetric = 's';
+export const queryParamCustomName = 'cn';
 export const queryParamFromTime = 'f';
 export const queryParamToTime = 't';
 export const queryParamWidth = 'w';
@@ -438,6 +444,7 @@ export const queryParamLockMin = 'yl';
 export const queryParamLockMax = 'yh';
 export const queryParamMaxHost = 'mh';
 export const queryParamAgg = 'g';
+export const queryParamPromQL = 'q';
 export const tabPrefix = 't';
 export const queryDashboardID = 'id';
 export const queryMetricsGroupID = 'id';
@@ -445,6 +452,7 @@ export const queryDashboardGroupInfoPrefix = 'g';
 export const queryDashboardGroupInfoName = 't';
 export const queryDashboardGroupInfoShow = 'v';
 export const queryDashboardGroupInfoCount = 'n';
+export const queryDashboardGroupInfoSize = 's';
 
 export const queryValueBackendVersion1 = '1';
 export const queryValueBackendVersion2 = '2';
@@ -462,19 +470,29 @@ export function queryURL(
   width: number | string,
   fetchBadges: boolean
 ): string {
-  const params = [
-    [queryParamNumResults, sel.numSeries.toString()],
-    [queryParamBackendVersion, v2Value(sel.useV2)],
-    [queryParamMetric, sel.metricName],
-    [queryParamFromTime, timeRange.from.toString()],
-    [queryParamToTime, (timeRange.to + 1).toString()],
-    [queryParamWidth, width.toString()],
-    ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
-    [queryParamVerbose, fetchBadges ? '1' : '0'],
-    ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
-    ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
-    ...filterParams(sel.filterIn, sel.filterNotIn),
-  ];
+  let params: string[][];
+  if (sel.metricName === promQLMetric) {
+    params = [
+      [queryParamFromTime, timeRange.from.toString()],
+      [queryParamToTime, (timeRange.to + 1).toString()],
+      [queryParamWidth, width.toString()],
+      ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
+    ];
+  } else {
+    params = [
+      [queryParamNumResults, sel.numSeries.toString()],
+      [queryParamBackendVersion, v2Value(sel.useV2)],
+      [queryParamMetric, sel.metricName],
+      [queryParamFromTime, timeRange.from.toString()],
+      [queryParamToTime, (timeRange.to + 1).toString()],
+      [queryParamWidth, width.toString()],
+      ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
+      [queryParamVerbose, fetchBadges ? '1' : '0'],
+      ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
+      ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
+      ...filterParams(sel.filterIn, sel.filterNotIn),
+    ];
+  }
   if (sel.maxHost) {
     params.push([queryParamMaxHost, '1']);
   }

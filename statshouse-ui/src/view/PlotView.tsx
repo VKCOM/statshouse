@@ -65,7 +65,8 @@ const PlotView = memo(function PlotView_(props: {
 
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
-  const setSel = useStore(selectorSetParamsPlots);
+  const setParamsPlots = useStore(selectorSetParamsPlots);
+  const setSel = useMemo(() => setParamsPlots.bind(undefined, indexPlot), [indexPlot, setParamsPlots]);
 
   const timeShifts = useStore(selectorParamsTimeShifts);
 
@@ -135,13 +136,12 @@ const PlotView = memo(function PlotView_(props: {
 
   const resetZoom = useCallback(() => {
     setSel(
-      indexPlot,
       produce((s) => {
         s.yLock = { min: 0, max: 0 };
       })
     );
     setTimeRange(timeRangeAbbrevExpand(baseRange, now()));
-  }, [setSel, indexPlot, setTimeRange, baseRange]);
+  }, [setSel, setTimeRange, baseRange]);
 
   const topPad = compact ? 8 : 16;
   const xAxisSize = compact ? 32 : 48;
@@ -169,7 +169,6 @@ const PlotView = memo(function PlotView_(props: {
         const xOnly = u.select.top === 0;
         if (!xOnly) {
           setSel(
-            indexPlot,
             produce((s) => {
               s.yLock = { min: yMin, max: yMax }; // unfortunately will cause a re-scale from the effect
             })
@@ -180,7 +179,7 @@ const PlotView = memo(function PlotView_(props: {
         }
       }
     },
-    [indexPlot, setLive, setSel, setTimeRange]
+    [setLive, setSel, setTimeRange]
   );
 
   const getAxisStroke = useCallback(() => (themeDark ? grey : black), [themeDark]);
@@ -343,13 +342,13 @@ const PlotView = memo(function PlotView_(props: {
       onMouseOut={onMouseOut}
     >
       <div className="plot-view-inner">
-        <div className="d-flex align-items-center" style={{ marginRight: `${rightPad}px` }}>
+        <div className="d-flex align-items-center position-relative z-2" style={{ marginRight: `${rightPad}px` }}>
           {/*loader*/}
           <div
             style={{ width: `${yAxisSize}px` }}
             className="flex-shrink-0 d-flex justify-content-end align-items-center pe-3"
           >
-            {numQueries > 0 && compact && (
+            {numQueries > 0 && (
               <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
             )}
           </div>
@@ -365,6 +364,7 @@ const PlotView = memo(function PlotView_(props: {
             <PlotHeader
               indexPlot={indexPlot}
               sel={sel}
+              setParams={setSel}
               setLive={setLive}
               meta={meta}
               live={live}
@@ -390,7 +390,7 @@ const PlotView = memo(function PlotView_(props: {
           </div>
         </div>
         <div
-          className="position-relative w-100"
+          className="position-relative w-100 z-1"
           style={{
             paddingTop: '61.8034%',
           }}

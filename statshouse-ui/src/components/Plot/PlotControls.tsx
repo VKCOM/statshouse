@@ -5,28 +5,31 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { ChangeEvent, memo, useCallback, useEffect, useMemo } from 'react';
-import * as utils from './utils';
-import { getTimeShifts, timeShiftAbbrevExpand } from './utils';
-import { MetricItem } from '../hooks';
-import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, Select } from '../components';
-import { TagControl } from './TagControl';
+import * as utils from '../../view/utils';
+import { getTimeShifts, promQLMetric, timeShiftAbbrevExpand } from '../../view/utils';
+import { MetricItem } from '../../hooks';
+import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, Select } from '../index';
+import { TagControl } from '../../view/TagControl';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
+import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
 import {
   selectorLastError,
   selectorParamsTagSync,
   selectorParamsTimeShifts,
+  selectorPlotsDataByIndex,
   selectorSetLastError,
   selectorSetParams,
   selectorSetTimeRange,
   selectorTimeRange,
   useStore,
-} from '../store';
-import { globalSettings } from '../common/settings';
-import { filterHasTagID, metricKindToWhat, metricMeta, querySelector, queryWhat, whatToWhatDesc } from './api';
+} from '../../store';
+import { globalSettings } from '../../common/settings';
+import { filterHasTagID, metricKindToWhat, metricMeta, querySelector, queryWhat, whatToWhatDesc } from '../../view/api';
+import produce from 'immer';
 
-const PlotControls = memo(function PlotControls_(props: {
+export const PlotControls = memo(function PlotControls_(props: {
   indexPlot: number;
   setBaseRange: (r: utils.timeRangeAbbrev) => void;
   sel: querySelector;
@@ -48,6 +51,9 @@ const PlotControls = memo(function PlotControls_(props: {
 
   const lastError = useStore(selectorLastError);
   const setLastError = useStore(selectorSetLastError);
+
+  const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
+  const plotData = useStore(selectorPlotsData);
 
   const clearLastError = useCallback(() => {
     setLastError('');
@@ -123,6 +129,7 @@ const PlotControls = memo(function PlotControls_(props: {
         return {
           ...s,
           metricName: value,
+          customName: '',
           what: s.what.some((qw) => whats.indexOf(qw) === -1) ? [whats[0]] : s.what,
           groupBy: [],
           filterIn: {},
@@ -159,6 +166,22 @@ const PlotControls = memo(function PlotControls_(props: {
     [meta.kind]
   );
 
+  const toPromql = useCallback(() => {
+    setSel(
+      produce((s) => {
+        const whats = metricKindToWhat(meta.kind);
+
+        s.metricName = promQLMetric;
+        s.what = [whats[0]];
+        s.customName = '';
+        s.groupBy = [];
+        s.filterIn = {};
+        s.filterNotIn = {};
+        s.promQL = plotData.promQL;
+      })
+    );
+  }, [meta.kind, plotData.promQL, setSel]);
+
   return (
     <div>
       <div
@@ -171,7 +194,7 @@ const PlotControls = memo(function PlotControls_(props: {
       </div>
 
       <form spellCheck="false">
-        <div className="row mb-2">
+        <div className="d-flex mb-2">
           <div className="col input-group">
             <Select
               value={sel.metricName}
@@ -192,6 +215,9 @@ const PlotControls = memo(function PlotControls_(props: {
               </button>
             )}
           </div>
+          <button type="button" className="btn btn-outline-primary ms-3" onClick={toPromql} title="PromQL">
+            <SVGCode />
+          </button>
         </div>
         <div className="row mb-3">
           <div className="d-flex align-items-baseline">
@@ -263,6 +289,17 @@ const PlotControls = memo(function PlotControls_(props: {
               <option value="40">Top 40</option>
               <option value="50">Top 50</option>
               <option value="100">Top 100</option>
+              <option value="-1">Bottom 1</option>
+              <option value="-2">Bottom 2</option>
+              <option value="-3">Bottom 3</option>
+              <option value="-4">Bottom 4</option>
+              <option value="-5">Bottom 5</option>
+              <option value="-10">Bottom 10</option>
+              <option value="-20">Bottom 20</option>
+              <option value="-30">Bottom 30</option>
+              <option value="-40">Bottom 40</option>
+              <option value="-50">Bottom 50</option>
+              <option value="-100">Bottom 100</option>
             </select>
           </div>
           <div className="col-4 d-flex justify-content-end">
@@ -319,5 +356,3 @@ const PlotControls = memo(function PlotControls_(props: {
     </div>
   );
 });
-
-export default PlotControls;

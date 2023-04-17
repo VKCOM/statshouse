@@ -9,9 +9,11 @@ import {
   queryDashboardGroupInfoName,
   queryDashboardGroupInfoPrefix,
   queryDashboardGroupInfoShow,
+  queryDashboardGroupInfoSize,
   queryDashboardID,
   queryParamAgg,
   queryParamBackendVersion,
+  queryParamCustomName,
   queryParamFilter,
   queryParamFilterSync,
   queryParamFromTime,
@@ -22,6 +24,7 @@ import {
   queryParamMaxHost,
   queryParamMetric,
   queryParamNumResults,
+  queryParamPromQL,
   queryParamTabNum,
   queryParamTimeShifts,
   queryParamToTime,
@@ -51,6 +54,7 @@ export interface lockRange {
 
 export type PlotParams = {
   metricName: string;
+  customName: string;
   what: queryWhat[];
   customAgg: number;
   groupBy: string[];
@@ -63,12 +67,14 @@ export type PlotParams = {
     max: number;
   };
   maxHost: boolean;
+  promQL: string;
 };
 
 export type GroupInfo = {
   name: string;
   show: boolean;
   count: number;
+  size: number;
 };
 
 export type DashboardParams = {
@@ -262,6 +268,11 @@ export const configParams: ConfigParams = {
             default: 0,
             urlKey: queryDashboardGroupInfoCount,
           },
+          size: {
+            ...NumberParam,
+            default: 2,
+            urlKey: queryDashboardGroupInfoSize,
+          },
         },
       },
     },
@@ -312,6 +323,10 @@ export const configParams: ConfigParams = {
       metricName: {
         urlKey: queryParamMetric, // s=metric or t1.s=metric2
         required: true,
+      },
+      customName: {
+        urlKey: queryParamCustomName,
+        default: '',
       },
       what: {
         urlKey: queryParamWhat, // qw=avg or qw=count
@@ -380,6 +395,7 @@ export const configParams: ConfigParams = {
         urlKey: queryParamMaxHost,
         default: false,
       },
+      promQL: { default: '', urlKey: queryParamPromQL },
     },
   },
   timeShifts: {

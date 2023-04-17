@@ -53,7 +53,7 @@ type decompressor struct {
 	xzReader *xz.Reader
 }
 
-var _ io.Reader = &decompressor{}
+var _ ReaderSync = &decompressor{}
 
 func newDecompressor(src io.ReadSeeker, srcSize uint64, algo compressAlgo, chunkOffsets []uint64) *decompressor {
 	return &decompressor{
@@ -142,6 +142,10 @@ func (d *decompressor) decompressChunkZlib(src io.Reader) error {
 	_ = zlibReader.Close()
 
 	return err
+}
+
+func (d *decompressor) Sync() error {
+	return nil
 }
 
 type kfsBinlogZipHeader struct {

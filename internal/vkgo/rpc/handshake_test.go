@@ -13,11 +13,7 @@ import (
 	"testing"
 
 	"pgregory.net/rapid"
-
-	"github.com/vkcom/statshouse/internal/vkgo/tlrw"
 )
-
-// TODO - remove bytes.Buffer version of these structs from tests and code
 
 func TestNetPIDRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
@@ -28,24 +24,19 @@ func TestNetPIDRoundtrip(t *testing.T) {
 			Time: rapid.Int32().Draw(t, "time"),
 		}
 
-		var b1 bytes.Buffer
-		pid1.writeToByteBuffer(&b1)
-		b3 := pid1.write(nil)
-		if !bytes.Equal(b3, b1.Bytes()) {
-			t.Fatalf("got 0x%x instead of 0x%x", b3, b1.Bytes())
-		}
+		b1 := pid1.write(nil)
 
 		var b2 bytes.Buffer
 		err := binary.Write(&b2, binary.LittleEndian, pid1)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !bytes.Equal(b1.Bytes(), b2.Bytes()) {
-			t.Fatalf("got 0x%x instead of 0x%x", b1.Bytes(), b2.Bytes())
+		if !bytes.Equal(b1, b2.Bytes()) {
+			t.Fatalf("got 0x%x instead of 0x%x", b1, b2.Bytes())
 		}
 
 		var pid2 NetPID
-		err = pid2.readFromBytesBuffer(&b1)
+		_, err = pid2.read(b1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -95,30 +86,14 @@ func TestInvokeExtraRoundtrip(t *testing.T) {
 			extra1.SetNoResult()
 		}
 
-		var b1 bytes.Buffer
-		tlrw.WriteUint32(&b1, extra1.flags)
-		_ = extra1.writeToBytesBuffer(&b1)
-		b3, _ := extra1.Write(nil)
-		if !bytes.Equal(b3, b1.Bytes()) {
-			t.Fatalf("got 0x%x instead of 0x%x", b3, b1.Bytes())
-		}
+		b1, _ := extra1.Write(nil)
 
 		var extra2 InvokeReqExtra
-		if _, err := extra2.Read(b1.Bytes()); err != nil {
+		if _, err := extra2.Read(b1); err != nil {
 			t.Fatal(err)
 		}
 		if !reflect.DeepEqual(extra1, extra2) {
 			t.Fatalf("read back %#v, expected %#v", extra2, extra1)
-		}
-		var extra3 InvokeReqExtra
-		if err := tlrw.ReadUint32(&b1, &extra3.flags); err != nil {
-			t.Fatal(err)
-		}
-		if err := extra3.readFromBytesBuffer(&b1); err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(extra1, extra3) {
-			t.Fatalf("read back %#v, expected %#v", extra3, extra1)
 		}
 	})
 }
@@ -161,30 +136,14 @@ func TestResultExtraRoundtrip(t *testing.T) {
 			}
 		}
 
-		var b1 bytes.Buffer
-		tlrw.WriteUint32(&b1, extra1.flags)
-		_ = extra1.writeToBytesBuffer(&b1)
-		b3, _ := extra1.Write(nil)
-		if len(extra1.Stats) == 0 && !bytes.Equal(b3, b1.Bytes()) { // map serialization is random
-			t.Fatalf("got 0x%x instead of 0x%x", b3, b1.Bytes())
-		}
+		b1, _ := extra1.Write(nil)
 
 		var extra2 ReqResultExtra
-		if _, err := extra2.Read(b1.Bytes()); err != nil {
+		if _, err := extra2.Read(b1); err != nil {
 			t.Fatal(err)
 		}
 		if !reflect.DeepEqual(extra1, extra2) {
 			t.Fatalf("read back %#v, expected %#v", extra2, extra1)
-		}
-		var extra3 ReqResultExtra
-		if err := tlrw.ReadUint32(&b1, &extra3.flags); err != nil {
-			t.Fatal(err)
-		}
-		if err := extra3.readFromBytesBuffer(&b1); err != nil {
-			t.Fatal(err)
-		}
-		if !reflect.DeepEqual(extra1, extra3) {
-			t.Fatalf("read back %#v, expected %#v", extra3, extra1)
 		}
 	})
 }

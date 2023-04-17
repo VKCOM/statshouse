@@ -232,6 +232,11 @@ var Functions = map[string]*Function{
 		ArgTypes:   []ValueType{ValueTypeVector},
 		ReturnType: ValueTypeVector,
 	},
+	"lod_step_sec": {
+		Name:       "lod_step_sec",
+		ArgTypes:   []ValueType{},
+		ReturnType: ValueTypeVector,
+	},
 	"log10": {
 		Name:       "log10",
 		ArgTypes:   []ValueType{ValueTypeVector},
@@ -272,6 +277,11 @@ var Functions = map[string]*Function{
 	"predict_linear": {
 		Name:       "predict_linear",
 		ArgTypes:   []ValueType{ValueTypeMatrix, ValueTypeScalar},
+		ReturnType: ValueTypeVector,
+	},
+	"prefix_sum": {
+		Name:       "prefix_sum",
+		ArgTypes:   []ValueType{ValueTypeVector},
 		ReturnType: ValueTypeVector,
 	},
 	"present_over_time": {

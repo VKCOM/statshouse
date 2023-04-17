@@ -9,7 +9,6 @@ package fsbinlog
 import (
 	"crypto/md5"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -45,6 +44,16 @@ var (
 	errStopped            = fmt.Errorf("already stopped")
 	ErrUpgradeToBarsicLev = fmt.Errorf("need upgrade to barsic")
 )
+
+var runSimpleMode = false
+
+// RunInSimpleMode return if binlog was created without subst mode.
+// We often run in situation then engine use master subst, but
+// not use NewFsBinlogMasterChange function. This function used by
+// vkd to log this situation.
+func RunInSimpleMode() bool {
+	return runSimpleMode
+}
 
 type (
 	// stat содержит переменные нужные только для передачи статистики
@@ -97,6 +106,7 @@ type BinlogReadWrite interface {
 
 // NewFsBinlog создает объект бинлога с правильными дефолтами
 func NewFsBinlog(logger binlog.Logger, options binlog.Options) (BinlogReadWrite, error) {
+	runSimpleMode = true
 	return doCreateBinlog(logger, options)
 }
 
@@ -109,6 +119,7 @@ func NewFsBinlog(logger binlog.Logger, options binlog.Options) (BinlogReadWrite,
 // канал, когда станет известно, что предыдущий мастер завершил работу (см. vkd.Options.ReadyHandler).
 // После этого бинлог возвращается к обычной работе и при получении EOF будет вызван Binlog.ChangeRole с IsReady == true
 func NewFsBinlogMasterChange(logger binlog.Logger, options binlog.Options) (BinlogReadWrite, *chan struct{}, error) {
+	runSimpleMode = false
 	bl, err := doCreateBinlog(logger, options)
 	if err != nil {
 		return nil, nil, err
@@ -222,19 +233,22 @@ func (b *fsBinlog) WriteLoop(ri PositionInfo) (PositionInfo, error) {
 		b.predict.currFileHash = ri.LastFileHeader.LevRotateFrom.CurLogHash
 	}
 
+	// TODO: this is probably redundant
 	snapMeta := prepareSnapMeta(ri.Offset, ri.Crc, b.stat.lastTimestamp.Load())
 	b.engine.Commit(ri.Offset, snapMeta, ri.Offset)
 
-	b.engine.ChangeRole(binlog.ChangeRoleInfo{
-		IsMaster: true,
-		IsReady:  true,
-	})
+	if err := b.engine.ChangeRole(binlog.ChangeRoleInfo{IsMaster: true, IsReady: true}); err != nil {
+		return ri, fmt.Errorf("ChangeRole return error: %w", err)
+	}
 
 	return b.writer.loop()
 }
 
 func (b *fsBinlog) Run(offset int64, snapshotMeta []byte, engine binlog.Engine) error {
 	readInfo, err := b.ReadAll(offset, snapshotMeta, engine)
+	if err == errStopped {
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -270,12 +284,7 @@ func (b *fsBinlog) doAppend(onOffset int64, body []byte, asap bool) (int64, erro
 		return 0, fmt.Errorf("writer is not initialized (still reading?)")
 	}
 
-	select {
-	case <-b.stop:
-		return -1, errStopped
-	default:
-	}
-
+	// return errStopper if write cycle is finished
 	curBuffSize, nextPos, err := b.putLevToBuffer(onOffset, body, asap)
 	if err != nil {
 		return nextPos, err
@@ -304,6 +313,10 @@ func (b *fsBinlog) doAppend(onOffset int64, body []byte, asap bool) (int64, erro
 func (b *fsBinlog) putLevToBuffer(incomeOffset int64, body []byte, asap bool) (int, int64, error) {
 	b.buffEx.mu.Lock()
 	defer b.buffEx.mu.Unlock()
+
+	if b.buffEx.finishAccept {
+		return b.buffEx.getSizeUnsafe(), b.buffEx.rd.offsetGlobal, errStopped
+	}
 
 	if incomeOffset != b.buffEx.rd.offsetGlobal {
 		return b.buffEx.getSizeUnsafe(), b.buffEx.rd.offsetGlobal, fmt.Errorf("append get wrong offset, expect: %d, got: %d", b.buffEx.rd.offsetGlobal, incomeOffset)
@@ -425,7 +438,7 @@ func (b *fsBinlog) AddStats(stats map[string]string) {
 }
 
 func (b *fsBinlog) readAll(fromPosition int64, si *seekInfo) (PositionInfo, error) {
-	reader, err := newBinlogReader(b.pidChanged, flushInterval, b.logger, &b.stat, &b.stop)
+	reader, err := newBinlogReader(b.pidChanged, flushInterval, b.logger, &b.stat, b.options.DoNotFSyncOnRead, &b.stop)
 	if err != nil {
 		return PositionInfo{}, err
 	}
@@ -439,26 +452,12 @@ func (b *fsBinlog) readAll(fromPosition int64, si *seekInfo) (PositionInfo, erro
 		b.options.Magic,
 		b.engine,
 		si,
-		!b.options.ReplicaMode,
+		b.options.ReplicaMode,
 	)
 	b.stat.loadTimeSec.Store(time.Since(from).Seconds())
 
-	if errors.Is(err, errStopped) {
-		err = nil // Not really an error
-	}
-
-	if err != nil && err != ErrUpgradeToBarsicLev {
-		return PositionInfo{}, err
-	}
-
-	readInfo := PositionInfo{
-		Offset:         posAfterRead,
-		Crc:            crcAfterRead,
-		LastFileHeader: reader.fileHeaders[len(reader.fileHeaders)-1], // should have at least one
-	}
-
 	if b.logger != nil {
-		if err != nil && err != ErrUpgradeToBarsicLev {
+		if err != nil {
 			b.logger.Errorf("fsBinlog reading error: read from pos %d to %d, current crc: 0x%x, error: %s",
 				fromPosition,
 				posAfterRead,
@@ -474,17 +473,21 @@ func (b *fsBinlog) readAll(fromPosition int64, si *seekInfo) (PositionInfo, erro
 		}
 	}
 
+	if err != nil && err != ErrUpgradeToBarsicLev {
+		return PositionInfo{}, err
+	}
+
+	readInfo := PositionInfo{
+		Offset:         posAfterRead,
+		Crc:            crcAfterRead,
+		LastFileHeader: reader.fileHeaders[len(reader.fileHeaders)-1], // should have at least one
+	}
+
 	return readInfo, err
 }
 
 func (b *fsBinlog) Shutdown() error {
 	close(b.stop)
-
-	b.writerInitMu.Lock()
-	if b.writer != nil {
-		b.writer.Close()
-	}
-	b.writerInitMu.Unlock()
 	return nil
 }
 
@@ -524,6 +527,7 @@ func (b *fsBinlog) setupWriterWorker(readInfo PositionInfo) error {
 		&readInfo.LastFileHeader,
 		b.buffEx,
 		&b.stat,
+		b.stop,
 	)
 	return err
 }

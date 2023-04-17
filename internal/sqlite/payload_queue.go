@@ -26,7 +26,6 @@ func newApplyQueue(old *applyQueue, dbOffset int64, maxBytes int64, stats *Stats
 	if old != nil {
 		old.maxBytes = maxBytes
 		atomic.StoreInt64(&old.qBytes, 0)
-		old.qBytes = 0
 		old.dbOffset = dbOffset
 		return old
 	}

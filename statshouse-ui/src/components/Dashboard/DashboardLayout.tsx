@@ -12,11 +12,11 @@ import PlotView from '../../view/PlotView';
 import {
   selectorDashboardLayoutEdit,
   selectorDashboardPlotList,
-  selectorIsServer,
   selectorMoveAndResortPlot,
   selectorParams,
   selectorSetGroupName,
   selectorSetGroupShow,
+  selectorSetGroupSize,
   useStore,
 } from '../../store';
 import { PlotParams } from '../../common/plotQueryParams';
@@ -51,7 +51,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
   const setGroupName = useStore(selectorSetGroupName);
   const setGroupShow = useStore(selectorSetGroupShow);
-  const isServer = useStore(selectorIsServer);
+  const setGroupSize = useStore(selectorSetGroupSize);
   const preview = useRef<HTMLDivElement>(null);
   const zone = useRef<HTMLDivElement>(null);
   const [select, setSelect] = useState<number | null>(null);
@@ -192,33 +192,50 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
     },
     [setGroupShow]
   );
+
+  const onEditGroupSize = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const index = parseInt(e.currentTarget.getAttribute('data-group') ?? '0');
+      const size = parseInt(e.currentTarget.value ?? '2');
+      setGroupSize(index, size);
+    },
+    [setGroupSize]
+  );
+
   return (
-    <div className={cn(select !== null ? css.cursorDrag : css.cursorDefault, className)} ref={zone}>
+    <div className={cn(' container-xl', select !== null ? css.cursorDrag : css.cursorDefault, className)} ref={zone}>
       {itemsGroup.map((group, indexGroup) => (
         <div key={indexGroup} className="pb-5" data-group={indexGroup}>
           <h6
             hidden={itemsGroup.length <= 1 && !dashboardLayoutEdit && !params.dashboard?.groupInfo?.[indexGroup]?.name}
             className="border-bottom pb-1"
           >
-            {dashboardLayoutEdit && isServer ? (
-              <input
-                className="form-control"
-                data-group={indexGroup.toString()}
-                value={params.dashboard?.groupInfo?.[indexGroup]?.name ?? ''}
-                onInput={onEditGroupName}
-                placeholder="Enter group name"
-              />
+            {dashboardLayoutEdit ? (
+              <div className="input-group">
+                <input
+                  className="form-control"
+                  data-group={indexGroup.toString()}
+                  value={params.dashboard?.groupInfo?.[indexGroup]?.name ?? ''}
+                  onInput={onEditGroupName}
+                  placeholder="Enter group name"
+                />
+                <select
+                  className="form-select flex-grow-0 w-auto"
+                  data-group={indexGroup.toString()}
+                  value={params.dashboard?.groupInfo?.[indexGroup]?.size?.toString() || '2'}
+                  onChange={onEditGroupSize}
+                >
+                  <option value="2">2 plots per row</option>
+                  <option value="3">3 plots per row</option>
+                  <option value="4">4 plots per row</option>
+                </select>
+              </div>
             ) : (
               <div className="d-flex flex-row" role="button" onClick={onGroupShowToggle} data-group={indexGroup}>
-                {isServer && (
-                  <div className="me-2">
-                    {params.dashboard?.groupInfo?.[indexGroup]?.show === false ? (
-                      <SVGChevronRight />
-                    ) : (
-                      <SVGChevronDown />
-                    )}
-                  </div>
-                )}
+                <div className="me-2">
+                  {params.dashboard?.groupInfo?.[indexGroup]?.show === false ? <SVGChevronRight /> : <SVGChevronDown />}
+                </div>
+
                 <div className="flex-grow-1">{params.dashboard?.groupInfo?.[indexGroup]?.name ?? ' '}</div>
               </div>
             )}
@@ -229,7 +246,8 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
                 <div
                   key={value.indexPlot}
                   className={cn(
-                    'plot-item col-6 p-1',
+                    'plot-item p-1',
+                    `col-${Math.round(12 / (params.dashboard?.groupInfo?.[indexGroup]?.size ?? 2))}`,
                     select === value.indexPlot && 'opacity-50',
                     dashboardLayoutEdit && css.cursorMove
                   )}
@@ -251,7 +269,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
           )}
         </div>
       ))}
-      {isServer && select !== null && maxGroup + 1 === itemsGroup.length && (
+      {select !== null && maxGroup + 1 === itemsGroup.length && (
         <div className="pb-5" data-group={maxGroup + 1}>
           <h6 className="border-bottom"> </h6>
         </div>

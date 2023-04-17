@@ -24,6 +24,7 @@ type accessInfo struct {
 	insecureMode         bool // full access to everything; can not be obtained from bits
 	protectedPrefixes    []string
 	bitAdmin             bool
+	bitDeveloper         bool
 	bitViewDefault       bool
 	bitEditDefault       bool
 	bitViewPrefix        map[string]bool
@@ -44,6 +45,7 @@ func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
 			protectedPrefixes: protectedPrefixes,
 			bitViewDefault:    true,
 			bitEditDefault:    true,
+			bitDeveloper:      localMode,
 			bitViewPrefix:     map[string]bool{},
 			bitEditPrefix:     map[string]bool{},
 			bitViewMetric:     map[string]bool{},
@@ -73,6 +75,8 @@ func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
 		switch {
 		case b == "admin":
 			ai.bitAdmin = true
+		case b == "developer":
+			ai.bitDeveloper = true
 		case b == "view_default":
 			ai.bitViewDefault = true
 		case b == "edit_default":

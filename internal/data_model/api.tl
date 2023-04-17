@@ -53,6 +53,14 @@ statshouseApi.seriesMeta#5c2bf286 fields_mask:#
     what: fields_mask.1?statshouseApi.Function
     = statshouseApi.SeriesMeta;
 
+statshouseApi.pointMeta#5c2bf296 fields_mask:#
+    time_shift: long
+    from: long
+    to: long
+    tags: %(Dictionary string)
+    what: fields_mask.1?statshouseApi.Function
+    = statshouseApi.PointMeta;
+
 statshouseApi.series#07a3e919 fields_mask:#
     series_data: %(Vector %(Vector double))
     time: %(Vector long)
@@ -72,6 +80,19 @@ statshouseApi.query#c9951bb9 fields_mask:#
     what: fields_mask.1?%(Vector statshouseApi.Function)
     = statshouseApi.Query;
 
+statshouseApi.queryPoint#c9951bbb fields_mask:#
+    version: int
+    top_n: int
+    metric_name: string
+    time_from: long
+    time_to: long
+    function: statshouseApi.Function
+    group_by: %(Vector string)
+    filter: %(Vector %(statshouseApi.Filter))
+    time_shift: %(Vector long)
+    what: fields_mask.1?%(Vector statshouseApi.Function)
+    = statshouseApi.QueryPoint;
+
 statshouseApi.queryResponse#4487e49a fields_mask:#
     series: %(statshouseApi.Series)
     series_meta: %(Vector %(statshouseApi.SeriesMeta))
@@ -79,6 +100,13 @@ statshouseApi.queryResponse#4487e49a fields_mask:#
     total_time_points: int
     response_id: long
     = statshouseApi.GetQueryResponse;
+
+
+statshouseApi.queryPointResponse#4487e41a fields_mask:#
+    data: %(Vector double)
+    meta: %(Vector %(statshouseApi.PointMeta))
+    = statshouseApi.GetQueryPointResponse;
+
 
 statshouseApi.chunkResponse#63928b42 fields_mask:#
      series: %(statshouseApi.Series)
@@ -96,6 +124,12 @@ statshouseApi.getQuery#0c7349bb fields_mask:#
     access_token: string
     query: %statshouseApi.Query
     = statshouseApi.GetQueryResponse;
+
+@read
+statshouseApi.getQueryPoint#0c7348bb fields_mask:#
+    access_token: string
+    query: %statshouseApi.QueryPoint
+    = statshouseApi.GetQueryPointResponse;
 
 @read
 statshouseApi.getChunk#52721884 fields_mask:#

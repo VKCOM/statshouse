@@ -934,6 +934,79 @@ func (item *VectorStatshouseApiFunctionBoxed) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+type VectorStatshouseApiPointMeta []StatshouseApiPointMeta
+
+func (VectorStatshouseApiPointMeta) TLName() string { return "vector" }
+func (VectorStatshouseApiPointMeta) TLTag() uint32  { return 0x1cb5c415 }
+
+func (item *VectorStatshouseApiPointMeta) Reset() {
+	ptr := (*[]StatshouseApiPointMeta)(item)
+	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorStatshouseApiPointMeta) Read(w []byte) (_ []byte, err error) {
+	ptr := (*[]StatshouseApiPointMeta)(item)
+	return VectorStatshouseApiPointMeta0Read(w, ptr)
+}
+
+func (item *VectorStatshouseApiPointMeta) Write(w []byte) (_ []byte, err error) {
+	ptr := (*[]StatshouseApiPointMeta)(item)
+	return VectorStatshouseApiPointMeta0Write(w, *ptr)
+}
+
+func (item *VectorStatshouseApiPointMeta) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+func (item *VectorStatshouseApiPointMeta) WriteBoxed(w []byte) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x1cb5c415)
+	return item.Write(w)
+}
+
+func (item VectorStatshouseApiPointMeta) String() string {
+	w, err := item.WriteJSON(nil)
+	if err != nil {
+		return err.Error()
+	}
+	return string(w)
+}
+
+func VectorStatshouseApiPointMeta__ReadJSON(item *VectorStatshouseApiPointMeta, j interface{}) error {
+	return item.readJSON(j)
+}
+func (item *VectorStatshouseApiPointMeta) readJSON(j interface{}) error {
+	ptr := (*[]StatshouseApiPointMeta)(item)
+	if err := VectorStatshouseApiPointMeta0ReadJSON(j, ptr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (item *VectorStatshouseApiPointMeta) WriteJSON(w []byte) (_ []byte, err error) {
+	ptr := (*[]StatshouseApiPointMeta)(item)
+	if w, err = VectorStatshouseApiPointMeta0WriteJSON(w, *ptr); err != nil {
+		return w, err
+	}
+	return w, nil
+}
+func (item *VectorStatshouseApiPointMeta) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil)
+}
+
+func (item *VectorStatshouseApiPointMeta) UnmarshalJSON(b []byte) error {
+	j, err := JsonBytesToInterface(b)
+	if err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	if err = item.readJSON(j); err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	return nil
+}
+
 type VectorStatshouseApiSeriesMeta []StatshouseApiSeriesMeta
 
 func (VectorStatshouseApiSeriesMeta) TLName() string { return "vector" }

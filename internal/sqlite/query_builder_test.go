@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"go4.org/mem"
 	"pgregory.net/rapid"
 )
 
@@ -46,10 +47,9 @@ func TestBuildQuery(t *testing.T) {
 			qExpected += between
 			start += m
 		}
-		p.query = sql
+		p.query = mem.S(sql)
 		q, err := p.buildQueryLocked()
 		require.NoError(t, err, sql, qExpected)
 		require.Equal(t, qExpected, string(q))
-
 	})
 }

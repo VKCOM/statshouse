@@ -9,6 +9,7 @@ package fsbinlog
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -956,7 +957,10 @@ func TestReplicaWithRotate(t *testing.T) {
 
 	stopChan := make(chan struct{})
 	go func() {
-		assert.Nil(t, replicaBl.Run(snapPos, []byte{}, replicaEngine))
+		err := replicaBl.Run(snapPos, []byte{}, replicaEngine)
+		if err != nil && !errors.Is(err, errStopped) {
+			t.Fail()
+		}
 		stopChan <- struct{}{}
 	}()
 

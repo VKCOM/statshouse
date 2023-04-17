@@ -23,10 +23,10 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/spf13/pflag"
+	"github.com/vkcom/statshouse-go"
 
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"github.com/vkcom/statshouse/internal/vkgo/statlogs"
 
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -139,7 +139,7 @@ func main() {
 	pflag.BoolVar(&argv.showInvisible, "show-invisible", false, "show invisible metrics as well")
 	pflag.DurationVar(&argv.slow, "slow", 0, "slow down all HTTP requests by this much")
 	pflag.StringVar(&argv.staticDir, "static-dir", "", "directory with static assets")
-	pflag.StringVar(&argv.statsHouseAddr, "statshouse-addr", statlogs.DefaultStatsHouseAddr, "address of StatsHouse UDP socket")
+	pflag.StringVar(&argv.statsHouseAddr, "statshouse-addr", statshouse.DefaultStatsHouseAddr, "address of StatsHouse UDP socket")
 	pflag.StringVar(&argv.statsHouseEnv, "statshouse-env", "dev", "fill key0/environment with this value in StatHouse statistics")
 	pflag.StringVar(&argv.timezone, "timezone", "Europe/Moscow", "location of the desired timezone")
 	pflag.IntVar(&argv.utcOffsetHours, "utc-offset", 0, "UTC offset for aggregation, in hours")
@@ -254,11 +254,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		return fmt.Errorf("failed to open ClickHouse-v2: %w", err)
 	}
 	defer func() { chV2.Close() }()
-
-	c := &rpc.Client{
-		Logf:                log.Printf,
-		TrustedSubnetGroups: build.TrustedSubnetGroups(),
-	}
+	c := rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
 	defer func() { _ = c.Close() }()
 
 	dc, err := pcache.OpenDiskCache(argv.diskCache, diskCacheTxDuration)
@@ -272,8 +268,8 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		}
 	}()
 
-	statlogs.Configure(log.Printf, argv.statsHouseAddr, argv.statsHouseEnv)
-	defer func() { _ = statlogs.Close() }()
+	statshouse.Configure(log.Printf, argv.statsHouseAddr, argv.statsHouseEnv)
+	defer func() { _ = statshouse.Close() }()
 	var rpcCryptoKeys []string
 	if argv.rpcCryptoKeyPath != "" {
 		cryptoKey, err := os.ReadFile(argv.rpcCryptoKeyPath)
@@ -310,18 +306,22 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		f := defaultMetricFilterNotIn[kv[0]]
 		defaultMetricFilterNotIn[kv[0]] = append(f, kv[1])
 	}
+	jsSettings := api.JSSettings{
+		VkuthAppName:             argv.vkuthAppName,
+		DefaultMetric:            argv.defaultMetric,
+		DefaultMetricGroupBy:     argv.defaultMetricGroupBy,
+		DefaultMetricWhat:        argv.defaultMetricWhat,
+		DefaultMetricFilterIn:    defaultMetricFilterIn,
+		DefaultMetricFilterNotIn: defaultMetricFilterNotIn,
+		DisableV1:                len(argv.chV1Addrs) == 0,
+	}
+	if argv.localMode {
+		jsSettings.VkuthAppName = ""
+	}
 	f, err := api.NewHandler(
 		argv.verbose,
 		staticFS,
-		api.JSSettings{
-			VkuthAppName:             argv.vkuthAppName,
-			DefaultMetric:            argv.defaultMetric,
-			DefaultMetricGroupBy:     argv.defaultMetricGroupBy,
-			DefaultMetricWhat:        argv.defaultMetricWhat,
-			DefaultMetricFilterIn:    defaultMetricFilterIn,
-			DefaultMetricFilterNotIn: defaultMetricFilterNotIn,
-			DisableV1:                len(argv.chV1Addrs) == 0,
-		},
+		jsSettings,
 		argv.protectedMetricPrefixes,
 		argv.showInvisible,
 		utcOffset,
@@ -329,11 +329,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		chV1,
 		chV2,
 		&tlmetadata.Client{
-			Client: &rpc.Client{
-				Logf:                log.Printf,
-				CryptoKey:           rpcCryptoKey,
-				TrustedSubnetGroups: build.TrustedSubnetGroups(),
-			},
+			Client:  rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(rpcCryptoKey), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
 			Network: argv.metadataNet,
 			Address: argv.metadataAddr,
 			ActorID: argv.metadataActorID,
@@ -358,8 +354,9 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	a.Path("/" + api.EndpointMetric).Methods("GET").HandlerFunc(f.HandleGetMetric)
 	a.Path("/" + api.EndpointMetric).Methods("POST").HandlerFunc(f.HandlePostMetric)
 	a.Path("/" + api.EndpointResetFlood).Methods("POST").HandlerFunc(f.HandlePostResetFlood)
-	a.Path("/" + api.EndpointQuery).Methods("GET").HandlerFunc(f.HandleGetQuery)
-	a.Path("/" + api.EndpointQuery).Methods("POST").HandlerFunc(f.HandlePromQuery)
+	a.Path("/" + api.EndpointQuery).Methods("GET").HandlerFunc(f.HandleSeriesQuery)
+	a.Path("/" + api.EndpointPoint).Methods("GET").HandlerFunc(f.HandleGetPoint)
+	a.Path("/" + api.EndpointQuery).Methods("POST").HandlerFunc(f.HandleSeriesQuery)
 	a.Path("/" + api.EndpointRender).Methods("GET").HandlerFunc(f.HandleGetRender)
 	a.Path("/" + api.EndpointDashboard).Methods("GET").HandlerFunc(f.HandleGetDashboard)
 	a.Path("/" + api.EndpointDashboardList).Methods("GET").HandlerFunc(f.HandleGetDashboardList)
@@ -406,8 +403,8 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	brs := api.NewBigResponseStorage(argv.brsMaxChunksCount, time.Second)
 	defer brs.Close()
 
-	chunksCountMeasurementID := statlogs.StartRegularMeasurement(api.CurrentChunksCount(brs))
-	defer statlogs.StopRegularMeasurement(chunksCountMeasurementID)
+	chunksCountMeasurementID := statshouse.StartRegularMeasurement(api.CurrentChunksCount(brs))
+	defer statshouse.StopRegularMeasurement(chunksCountMeasurementID)
 
 	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.protectedMetricPrefixes, argv.localMode, argv.insecureMode)
 	handlerRPC := &tlstatshouseApi.Handler{
@@ -415,13 +412,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		GetQuery:      hr.GetQuery,
 		ReleaseChunks: hr.ReleaseChunks,
 	}
-
-	srv := &rpc.Server{
-		Logf:                log.Printf,
-		TrustedSubnetGroups: build.TrustedSubnetGroups(),
-		Handler:             handlerRPC.Handle,
-		CryptoKeys:          rpcCryptoKeys,
-	}
+	srv := rpc.NewServer(rpc.ServerWithLogf(log.Printf), rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ServerWithHandler(handlerRPC.Handle), rpc.ServerWithCryptoKeys(rpcCryptoKeys))
 	defer func() { _ = srv.Close() }()
 
 	rpcLn, err := tf.Listen("tcp4", argv.listenRPCAddr)

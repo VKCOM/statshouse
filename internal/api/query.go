@@ -312,6 +312,18 @@ func validateQuery(metricMeta *format.MetricMetaValue, version string) error {
 	return nil
 }
 
+func validateQueryPoint(q *query) bool {
+	switch q.what {
+	case queryFnCount, queryFnMin, queryFnMax, queryFnAvg,
+		queryFnSum, queryFnP25, queryFnP50, queryFnP75,
+		queryFnP90, queryFnP95, queryFnP99, queryFnP999,
+		queryFnUnique:
+		return true
+	default:
+		return false
+	}
+}
+
 func parseQueryFilter(filter []string) (map[string][]string, map[string][]string, error) {
 	filterIn := map[string][]string{}
 	filterNotIn := map[string][]string{}

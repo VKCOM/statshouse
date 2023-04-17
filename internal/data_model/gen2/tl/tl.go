@@ -37,6 +37,7 @@ type (
 	VectorMetadataMetricOld                       = internal.VectorMetadataMetricOld
 	VectorStatshouseApiFilter                     = internal.VectorStatshouseApiFilter
 	VectorStatshouseApiFunctionBoxed              = internal.VectorStatshouseApiFunctionBoxed
+	VectorStatshouseApiPointMeta                  = internal.VectorStatshouseApiPointMeta
 	VectorStatshouseApiSeriesMeta                 = internal.VectorStatshouseApiSeriesMeta
 	VectorStatshouseApiTagValue                   = internal.VectorStatshouseApiTagValue
 	VectorStatshouseCentroid                      = internal.VectorStatshouseCentroid
