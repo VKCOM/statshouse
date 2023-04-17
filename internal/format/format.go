@@ -208,6 +208,17 @@ func (m *MetricMetaValue) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+func MetricJSON(value *MetricMetaValue) ([]byte, error) {
+	if err := value.RestoreCachedInfo(); err != nil {
+		return nil, err
+	}
+	metricBytes, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize metric: %w", err)
+	}
+	return metricBytes, nil
+}
+
 func (m DashboardMeta) MarshalBinary() ([]byte, error) { return json.Marshal(m) }
 func (m *DashboardMeta) UnmarshalBinary(data []byte) error {
 	if err := json.Unmarshal(data, m); err != nil {
@@ -767,17 +778,6 @@ func AddRawValuePrefix(s string) string {
 
 func IsValueCodeZero(s string) bool {
 	return TagValueCodeZero == s
-}
-
-func MetricJSON(value *MetricMetaValue) ([]byte, error) {
-	if err := value.RestoreCachedInfo(); err != nil {
-		return nil, err
-	}
-	metricBytes, err := json.Marshal(value)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize metric: %w", err)
-	}
-	return metricBytes, nil
 }
 
 func convertToValueComments(id2value map[int32]string) map[string]string {
