@@ -26,6 +26,7 @@ const (
 	EndpointMetricTagValues = "metric-tag-values"
 	EndpointQuery           = "query"
 	EndpointTable           = "table"
+	EndpointPoint           = "point"
 	EndpointRender          = "render"
 	EndpointResetFlood      = "reset-flood"
 	EndpointLegacyRedirect  = "legacy-redirect"

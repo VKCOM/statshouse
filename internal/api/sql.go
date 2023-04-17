@@ -252,6 +252,9 @@ LIMIT %v
 SETTINGS
   optimize_aggregation_in_order = 1
 `, maxSeriesRows)
+	q, err := util.BindQuery(query, args...)
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by, maxHost: pq.kind != queryFnKindCount, version: pq.version}, err
+}
 
 func loadPointQuery(pq *preparedPointsQuery, pointQuery pointQuery, utcOffset int64) (string, pointsQueryMeta, error) {
 	what, cnt, err := loadPointsSelectWhat(pq.version, pq.isStringTop, pq.kind)
