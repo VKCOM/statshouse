@@ -13,19 +13,21 @@ type CPUStats struct {
 
 	stat   procfs.Stat
 	stats  map[int64]procfs.CPUStat
-	pusher Pusher
+	writer MetricWriter
 }
 
-const cpu = format.BuiltinMetricNameCpuUsage
-const irq = ""
-const sirq = ""
-const cs = ""
+const (
+	cpu  = format.BuiltinMetricNameCpuUsage
+	irq  = ""
+	sirq = ""
+	cs   = ""
+)
 
 func (*CPUStats) Name() string {
 	return "cpu_stats"
 }
 
-func NewCpuStats(pusher Pusher) (*CPUStats, error) {
+func NewCpuStats(writer MetricWriter) (*CPUStats, error) {
 	fs, err := procfs.NewFS(procfs.DefaultMountPoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize procfs: %w", err)
@@ -33,29 +35,27 @@ func NewCpuStats(pusher Pusher) (*CPUStats, error) {
 	return &CPUStats{
 		fs:     fs,
 		stats:  map[int64]procfs.CPUStat{},
-		pusher: pusher,
+		writer: writer,
 	}, nil
 }
 
-func (c *CPUStats) PushMetrics() error {
+func (c *CPUStats) WriteMetrics() error {
 	stat, err := c.fs.Stat()
 	if err != nil {
 		return fmt.Errorf("failed to get cpu stats: %w", err)
 	}
-	pushMetric := true
+	writeMetric := true
 	if c.stat.BootTime == 0 {
-		pushMetric = false
+		writeMetric = false
 	}
-	if pushMetric {
-		err = c.pushCPUMetrics(stat)
+	if writeMetric {
+		err = c.writeCPU(stat)
 		if err != nil {
-			//todo log
-			return fmt.Errorf("failed to push cpu metrics: %w", err)
+			return fmt.Errorf("failed to write cpu metrics: %w", err)
 		}
-		err = c.pushSystemMetrics(stat)
+		err = c.writeSystem(stat)
 		if err != nil {
-			//todo log
-			return fmt.Errorf("failed to push system metrics: %w", err)
+			return fmt.Errorf("failed to write system metrics: %w", err)
 		}
 	}
 	c.stat = stat
@@ -66,31 +66,31 @@ func (c *CPUStats) PushMetrics() error {
 	return nil
 }
 
-func (c *CPUStats) pushCPUMetrics(stat procfs.Stat) error {
+func (c *CPUStats) writeCPU(stat procfs.Stat) error {
 	t := stat.CPUTotal
 	oldT := c.stat.CPUTotal
-	c.pusher.PushSystemMetricValue(cpu, t.User-oldT.User, format.RawIDTagUser)
-	c.pusher.PushSystemMetricValue(cpu, t.Nice-oldT.Nice, format.RawIDTagNice)
-	c.pusher.PushSystemMetricValue(cpu, t.System-oldT.System, format.RawIDTagSystem)
-	c.pusher.PushSystemMetricValue(cpu, t.Idle-oldT.Idle, format.RawIDTagIdle)
-	c.pusher.PushSystemMetricValue(cpu, t.Iowait-oldT.Iowait, format.RawIDTagIOWait)
-	c.pusher.PushSystemMetricValue(cpu, t.IRQ-oldT.IRQ, format.RawIDTagIRQ)
-	c.pusher.PushSystemMetricValue(cpu, t.SoftIRQ-oldT.SoftIRQ, format.RawIDTagSoftIRQ)
-	c.pusher.PushSystemMetricValue(cpu, t.Steal-oldT.Steal, format.RawIDTagSteal)
+	c.writer.WriteSystemMetricValue(cpu, t.User-oldT.User, format.RawIDTagUser)
+	c.writer.WriteSystemMetricValue(cpu, t.Nice-oldT.Nice, format.RawIDTagNice)
+	c.writer.WriteSystemMetricValue(cpu, t.System-oldT.System, format.RawIDTagSystem)
+	c.writer.WriteSystemMetricValue(cpu, t.Idle-oldT.Idle, format.RawIDTagIdle)
+	c.writer.WriteSystemMetricValue(cpu, t.Iowait-oldT.Iowait, format.RawIDTagIOWait)
+	c.writer.WriteSystemMetricValue(cpu, t.IRQ-oldT.IRQ, format.RawIDTagIRQ)
+	c.writer.WriteSystemMetricValue(cpu, t.SoftIRQ-oldT.SoftIRQ, format.RawIDTagSoftIRQ)
+	c.writer.WriteSystemMetricValue(cpu, t.Steal-oldT.Steal, format.RawIDTagSteal)
 	irqTotal := stat.IRQTotal - c.stat.IRQTotal
 	sirqTotal := stat.SoftIRQTotal - c.stat.SoftIRQTotal
-	c.pusher.PushSystemMetricValue(irq, float64(irqTotal))
-	c.pusher.PushSystemMetricValue(sirq, float64(sirqTotal))
+	c.writer.WriteSystemMetricValue(irq, float64(irqTotal))
+	c.writer.WriteSystemMetricValue(sirq, float64(sirqTotal))
 	return nil
 }
 
-func (c *CPUStats) pushSystemMetrics(stat procfs.Stat) error {
+func (c *CPUStats) writeSystem(stat procfs.Stat) error {
 	uptime := uint64(time.Now().Unix()) - stat.BootTime
-	c.pusher.PushSystemMetricValue(format.BuiltinMetricNameSystemUptime, float64(uptime))
-	c.pusher.PushSystemMetricValue(format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesRunning), format.RawIDTagRunning)
-	c.pusher.PushSystemMetricValue(format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesBlocked), format.RawIDTagBlocked)
-	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameProcessCreated, float64(stat.ProcessCreated-c.stat.ProcessCreated))
-	c.pusher.PushSystemMetricValue(cs, float64(stat.ContextSwitches))
+	c.writer.WriteSystemMetricValue(format.BuiltinMetricNameSystemUptime, float64(uptime))
+	c.writer.WriteSystemMetricValue(format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesRunning), format.RawIDTagRunning)
+	c.writer.WriteSystemMetricValue(format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesBlocked), format.RawIDTagBlocked)
+	c.writer.WriteSystemMetricCount(format.BuiltinMetricNameProcessCreated, float64(stat.ProcessCreated-c.stat.ProcessCreated))
+	c.writer.WriteSystemMetricValue(cs, float64(stat.ContextSwitches))
 	return nil
 }
 

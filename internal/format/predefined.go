@@ -1,6 +1,5 @@
 package format
 
-// the difference between predefined and builtin is predefined entities is storing in metadata and could be changed
 const (
 	BuiltinMetricIDCPUUsage       = -71
 	BuiltinMetricIDSystemUptime   = -72

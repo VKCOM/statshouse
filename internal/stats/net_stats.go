@@ -21,7 +21,7 @@ type NetStats struct {
 
 	oldNetStat netStat
 
-	pusher Pusher
+	writer MetricWriter
 }
 
 type netStat struct {
@@ -120,31 +120,31 @@ func (*NetStats) Name() string {
 	return "net_stats"
 }
 
-func NewNetStats(pusher Pusher) (*NetStats, error) {
+func NewNetStats(writer MetricWriter) (*NetStats, error) {
 	fs, err := procfs.NewFS(procfs.DefaultMountPoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize procfs: %w", err)
 	}
 	return &NetStats{
 		fs:     fs,
-		pusher: pusher,
+		writer: writer,
 	}, nil
 }
 
-func (c *NetStats) PushMetrics() error {
-	err := c.pushNetDev()
+func (c *NetStats) WriteMetrics() error {
+	err := c.writeNetDev()
 	if err != nil {
-		log.Println("failed to push net/dev", err)
+		log.Println("failed to write net/dev", err)
 	}
-	err = c.pushSNMP()
+	err = c.writeSNMP()
 	if err != nil {
-		log.Println("failed to push net/snmp", err)
+		log.Println("failed to write net/snmp", err)
 	}
 
 	return nil
 }
 
-func (c *NetStats) pushNetDev() error {
+func (c *NetStats) writeNetDev() error {
 	dev, err := c.fs.NetDev()
 	if err != nil {
 		return err
@@ -153,11 +153,11 @@ func (c *NetStats) pushNetDev() error {
 	total := dev.Total()
 
 	if len(c.oldNetDev) > 0 {
-		c.pusher.PushSystemMetricValue(format.BuiltinMetricNameNetBandwidth, float64(total.RxBytes-c.oldNetDevTotal.RxBytes), format.RawIDTagReceived)
-		c.pusher.PushSystemMetricValue(format.BuiltinMetricNameNetBandwidth, float64(total.TxBytes-c.oldNetDevTotal.TxBytes), format.RawIDTagSent)
+		c.writer.WriteSystemMetricValue(format.BuiltinMetricNameNetBandwidth, float64(total.RxBytes-c.oldNetDevTotal.RxBytes), format.RawIDTagReceived)
+		c.writer.WriteSystemMetricValue(format.BuiltinMetricNameNetBandwidth, float64(total.TxBytes-c.oldNetDevTotal.TxBytes), format.RawIDTagSent)
 
-		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetBandwidth, float64(total.RxPackets-c.oldNetDevTotal.RxPackets), format.RawIDTagReceived)
-		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetBandwidth, float64(total.TxPackets-c.oldNetDevTotal.TxPackets), format.RawIDTagSent)
+		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetBandwidth, float64(total.RxPackets-c.oldNetDevTotal.RxPackets), format.RawIDTagReceived)
+		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetBandwidth, float64(total.TxPackets-c.oldNetDevTotal.TxPackets), format.RawIDTagSent)
 	}
 
 	c.oldNetDev = dev
@@ -165,7 +165,7 @@ func (c *NetStats) pushNetDev() error {
 	return nil
 }
 
-func (c *NetStats) pushSNMP() error {
+func (c *NetStats) writeSNMP() error {
 	f, err := os.Open("/proc/net/snmp")
 	if err != nil {
 		return err
@@ -175,14 +175,14 @@ func (c *NetStats) pushSNMP() error {
 	if err != nil {
 		return err
 	}
-	c.pushIP(netstat)
-	c.pushTCP(netstat)
-	c.pushPackets(netstat)
+	c.writeIP(netstat)
+	c.writeTCP(netstat)
+	c.writePackets(netstat)
 	c.oldNetStat = netstat
 	return nil
 }
 
-func (c *NetStats) pushPackets(stat netStat) {
+func (c *NetStats) writePackets(stat netStat) {
 	tcpR := stat.tcp.InSegs - c.oldNetStat.tcp.InSegs
 	tcpO := stat.tcp.InSegs - c.oldNetStat.tcp.OutSegs
 
@@ -196,61 +196,58 @@ func (c *NetStats) pushPackets(stat netStat) {
 	icmpO := stat.icmp.OutMsgs - c.oldNetStat.icmp.OutMsgs
 
 	if c.oldNetStat.tcp.isSuccess {
-		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, tcpR, format.RawIDTagReceived, format.RawIDTagTCP)
-		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, tcpO, format.RawIDTagSent, format.RawIDTagTCP)
+		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetPacket, tcpR, format.RawIDTagReceived, format.RawIDTagTCP)
+		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetPacket, tcpO, format.RawIDTagSent, format.RawIDTagTCP)
 	}
 	if c.oldNetStat.udp.isSuccess {
-		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, udpR, format.RawIDTagReceived, format.RawIDTagUDP)
-		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, udpO, format.RawIDTagSent, format.RawIDTagUDP)
+		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetPacket, udpR, format.RawIDTagReceived, format.RawIDTagUDP)
+		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetPacket, udpO, format.RawIDTagSent, format.RawIDTagUDP)
 	}
 	if c.oldNetStat.icmp.isSuccess {
-		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, icmpR, format.RawIDTagReceived, format.RawIDTagICMP)
-		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, icmpO, format.RawIDTagSent, format.RawIDTagICMP)
+		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetPacket, icmpR, format.RawIDTagReceived, format.RawIDTagICMP)
+		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetPacket, icmpO, format.RawIDTagSent, format.RawIDTagICMP)
 	}
 	if c.oldNetStat.ip.isSuccess {
-		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, ipR-tcpR-udpR-icmpR, format.RawIDTagReceived, format.RawIDTagOther)
-		c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetPacket, ipO-tcpO-udpO-icmpO, format.RawIDTagSent, format.RawIDTagOther)
+		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetPacket, ipR-tcpR-udpR-icmpR, format.RawIDTagReceived, format.RawIDTagOther)
+		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetPacket, ipO-tcpO-udpO-icmpO, format.RawIDTagSent, format.RawIDTagOther)
 	}
 }
 
-func (c *NetStats) pushIP(stat netStat) {
+func (c *NetStats) writeIP(stat netStat) {
 	if !c.oldNetStat.ip.isSuccess {
 		return
 	}
-	// todo add forwarded
-	// forwarded := stat.ip.ForwDatagrams - c.oldNetStat.ip.ForwDatagrams
-	// c.pusher.PushSystemMetricCount(ipPackets, forwarded, "forwarded")
 
 	inHdrErrs := stat.ip.InHdrErrors - c.oldNetStat.ip.InHdrErrors
-	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inHdrErrs, format.RawIDTagInHdrError, format.RawIDTagIP)
+	c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetError, inHdrErrs, format.RawIDTagInHdrError, format.RawIDTagIP)
 
 	inDiscards := stat.ip.InDiscards - c.oldNetStat.ip.InDiscards
-	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inDiscards, format.RawIDTagInDiscard, format.RawIDTagIP)
+	c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetError, inDiscards, format.RawIDTagInDiscard, format.RawIDTagIP)
 
 	outDiscard := stat.ip.OutDiscards - c.oldNetStat.ip.OutDiscards
-	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, outDiscard, format.RawIDTagOutDiscard, format.RawIDTagIP)
+	c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetError, outDiscard, format.RawIDTagOutDiscard, format.RawIDTagIP)
 
 	outNoRoutes := stat.ip.OutNoRoutes - c.oldNetStat.ip.OutNoRoutes
-	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, outNoRoutes, format.RawIDTagOutNoRoute, format.RawIDTagIP)
+	c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetError, outNoRoutes, format.RawIDTagOutNoRoute, format.RawIDTagIP)
 
 	inAddrErrors := stat.ip.InAddrErrors - c.oldNetStat.ip.InAddrErrors
-	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inAddrErrors, format.RawIDTagInAddrError, format.RawIDTagIP)
+	c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetError, inAddrErrors, format.RawIDTagInAddrError, format.RawIDTagIP)
 
 	inUnknownProtos := stat.ip.InUnknownProtos - c.oldNetStat.ip.InUnknownProtos
-	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inUnknownProtos, format.RawIDTagInUnknownProto, format.RawIDTagIP)
+	c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetError, inUnknownProtos, format.RawIDTagInUnknownProto, format.RawIDTagIP)
 }
 
-func (c *NetStats) pushTCP(stat netStat) {
+func (c *NetStats) writeTCP(stat netStat) {
 	if !c.oldNetStat.tcp.isSuccess {
 		return
 	}
 
 	inErrs := stat.tcp.InErrs - c.oldNetStat.tcp.InErrs
-	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inErrs, format.RawIDTagInErr, format.RawIDTagTCP)
+	c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetError, inErrs, format.RawIDTagInErr, format.RawIDTagTCP)
 	inCsumError := stat.tcp.InCsumErrors - c.oldNetStat.tcp.InCsumErrors
-	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, inCsumError, format.RawIDTagInCsumErr, format.RawIDTagTCP)
+	c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetError, inCsumError, format.RawIDTagInCsumErr, format.RawIDTagTCP)
 	retransSegs := stat.tcp.RetransSegs - c.oldNetStat.tcp.RetransSegs
-	c.pusher.PushSystemMetricCount(format.BuiltinMetricNameNetError, retransSegs, format.RawIDTagRetransSeg, format.RawIDTagTCP)
+	c.writer.WriteSystemMetricCount(format.BuiltinMetricNameNetError, retransSegs, format.RawIDTagRetransSeg, format.RawIDTagTCP)
 }
 
 func parseNetstat(reader io.Reader) (netStat, error) {

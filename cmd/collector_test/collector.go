@@ -9,7 +9,11 @@ import (
 )
 
 func main() {
-	collector, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: time.Second, HostName: "adm512"}, nil, log.New(os.Stderr, "[collector]", 0))
+	host, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
+	collector, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: time.Second, HostName: host}, nil, log.New(os.Stderr, "[collector]", 0))
 	if err != nil {
 		log.Panic(err)
 	}

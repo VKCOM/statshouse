@@ -4,17 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/receiver"
-	"go.uber.org/multierr"
+	"golang.org/x/sync/errgroup"
 )
 
 type Collector interface {
 	Name() string
-	PushMetrics() error
+	WriteMetrics() error
 }
 
 type CollectorManagerOptions struct {
@@ -38,33 +37,33 @@ const procPath = "/proc"
 const sysPath = "/sys"
 
 func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, logErr *log.Logger) (*CollectorManager, error) {
-	newPusher := func() Pusher {
+	newWriter := func() MetricWriter {
 		if h == nil {
-			return &PusherRemoteImpl{HostName: opt.HostName}
+			return &MetricWriterRemoteImpl{HostName: opt.HostName}
 		}
-		return &PusherSHImpl{
+		return &MetricWriterSHImpl{
 			HostName: []byte(opt.HostName),
 			handler:  h,
 			metric:   &tlstatshouse.MetricBytes{},
 		}
 	}
-	cpuStats, err := NewCpuStats(newPusher())
+	cpuStats, err := NewCpuStats(newWriter())
 	if err != nil {
 		return nil, err
 	}
-	diskStats, err := NewDiskStats(newPusher(), logErr)
+	diskStats, err := NewDiskStats(newWriter(), logErr)
 	if err != nil {
 		return nil, err
 	}
-	memStats, err := NewMemoryStats(newPusher())
+	memStats, err := NewMemoryStats(newWriter())
 	if err != nil {
 		return nil, err
 	}
-	netStats, err := NewNetStats(newPusher())
+	netStats, err := NewNetStats(newWriter())
 	if err != nil {
 		return nil, err
 	}
-	psiStats, err := NewPSI(newPusher())
+	psiStats, err := NewPSI(newWriter())
 	if err != nil {
 		return nil, err
 	}
@@ -80,36 +79,30 @@ func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, logErr
 }
 
 func (m *CollectorManager) RunCollector() error {
-	wg := sync.WaitGroup{}
-	mx := sync.Mutex{}
-	var err error
+	errGroup := errgroup.Group{}
 	for _, c := range m.collectors {
-		wg.Add(1)
-		go func(c Collector) {
+		collector := c
+		errGroup.Go(func() (err error) {
 			defer func() {
 				if r := recover(); r != nil {
-					mx.Lock()
-					err = multierr.Append(err, fmt.Errorf("panic during to push system metrics: %s", r))
-					mx.Unlock()
+					err = fmt.Errorf("panic during to write system metrics: %s", r)
 				}
-				wg.Done()
 			}()
 			for {
-				err := c.PushMetrics()
+				err := collector.WriteMetrics()
 				if err != nil {
-					m.logErr.Printf("failed to push metrics: %v (collector: %s)", err, c.Name())
+					m.logErr.Printf("failed to write metrics: %v (collector: %s)", err, c.Name())
 				}
 				// todo round interval to begin of second
 				select {
 				case <-time.After(m.opt.ScrapeInterval):
 				case <-m.ctx.Done():
-					return
+					return nil
 				}
 			}
-		}(c)
+		})
 	}
-	wg.Wait()
-	return err
+	return errGroup.Wait()
 }
 
 func (m *CollectorManager) StopCollector() {

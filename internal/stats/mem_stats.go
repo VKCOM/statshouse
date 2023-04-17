@@ -10,7 +10,7 @@ import (
 type MemStats struct {
 	fs procfs.FS
 
-	pusher Pusher
+	writer MetricWriter
 }
 
 const mem = format.BuiltinMetricNameMemUsage
@@ -19,18 +19,18 @@ func (*MemStats) Name() string {
 	return "mem_stats"
 }
 
-func NewMemoryStats(pusher Pusher) (*MemStats, error) {
+func NewMemoryStats(writer MetricWriter) (*MemStats, error) {
 	fs, err := procfs.NewFS(procfs.DefaultMountPoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize procfs: %w", err)
 	}
 	return &MemStats{
 		fs:     fs,
-		pusher: pusher,
+		writer: writer,
 	}, nil
 }
 
-func (c *MemStats) PushMetrics() error {
+func (c *MemStats) WriteMetrics() error {
 	stat, err := c.fs.Meminfo()
 	if err != nil {
 		return fmt.Errorf("failed to get meminfo: %w", err)
@@ -62,10 +62,10 @@ func (c *MemStats) PushMetrics() error {
 	}
 	cached = cached + sreclaimable - shmem
 	used := total - free - buffers - cached
-	c.pusher.PushSystemMetricValue(mem, float64(free), format.RawIDTagFree)
-	c.pusher.PushSystemMetricValue(mem, float64(used), format.RawIDTagUsed)
+	c.writer.WriteSystemMetricValue(mem, float64(free), format.RawIDTagFree)
+	c.writer.WriteSystemMetricValue(mem, float64(used), format.RawIDTagUsed)
 
-	c.pusher.PushSystemMetricValue(mem, float64(buffers), format.RawIDTagBuffers)
-	c.pusher.PushSystemMetricValue(mem, float64(cached), format.RawIDTagCached)
+	c.writer.WriteSystemMetricValue(mem, float64(buffers), format.RawIDTagBuffers)
+	c.writer.WriteSystemMetricValue(mem, float64(cached), format.RawIDTagCached)
 	return nil
 }

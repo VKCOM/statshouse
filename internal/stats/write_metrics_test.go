@@ -16,15 +16,13 @@ func (*handlerMock) HandleMetrics(*tlstatshouse.MetricBytes, mapping.MapCallback
 }
 func (*handlerMock) HandleParseError([]byte, error) {}
 
-func BenchmarkSHPusherImpl(b *testing.B) {
-	p := PusherSHImpl{
+func BenchmarkSHWriterImpl(b *testing.B) {
+	p := MetricWriterSHImpl{
 		HostName: []byte{1},
 		handler:  &handlerMock{},
 		metric:   &tlstatshouse.MetricBytes{},
 	}
 	for i := 0; i < b.N; i++ {
-		p.PushSystemMetricValue("abc", 1, 1, 2, 3)
-		p.PushSystemMetricCount("abc", 1, 1, 2, 3)
-
+		p.WriteSystemMetricValue("abc", 1, 1, 2, 3)
 	}
 }

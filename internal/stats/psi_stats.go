@@ -12,7 +12,7 @@ type PSIStats struct {
 	fs procfs.FS
 
 	stats  map[string]procfs.PSIStats
-	pusher Pusher
+	writer MetricWriter
 }
 
 var psiResources = []string{"cpu", "io", "memory"}
@@ -21,7 +21,7 @@ func (*PSIStats) Name() string {
 	return "psi_stats"
 }
 
-func NewPSI(pusher Pusher) (*PSIStats, error) {
+func NewPSI(writer MetricWriter) (*PSIStats, error) {
 	fs, err := procfs.NewFS(procfs.DefaultMountPoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize procfs: %w", err)
@@ -29,11 +29,11 @@ func NewPSI(pusher Pusher) (*PSIStats, error) {
 	return &PSIStats{
 		fs:     fs,
 		stats:  map[string]procfs.PSIStats{},
-		pusher: pusher,
+		writer: writer,
 	}, nil
 }
 
-func (c *PSIStats) PushMetrics() error {
+func (c *PSIStats) WriteMetrics() error {
 	var err error
 	for _, resource := range psiResources {
 		psi, error := c.fs.PSIStatsForResource(resource)
@@ -52,10 +52,10 @@ func (c *PSIStats) PushMetrics() error {
 			metricName = format.BuiltinMetricNamePSIIO
 		}
 		if ok && psi.Some != nil && old.Some != nil {
-			c.pusher.PushSystemMetricValue(metricName, float64(psi.Some.Total-old.Some.Total), format.RawIDTagSome)
+			c.writer.WriteSystemMetricValue(metricName, float64(psi.Some.Total-old.Some.Total), format.RawIDTagSome)
 		}
 		if ok && psi.Full != nil && old.Full != nil {
-			c.pusher.PushSystemMetricValue(metricName, float64(psi.Full.Total-old.Full.Total), format.RawIDTagFull)
+			c.writer.WriteSystemMetricValue(metricName, float64(psi.Full.Total-old.Full.Total), format.RawIDTagFull)
 		}
 		c.stats[resource] = psi
 	}

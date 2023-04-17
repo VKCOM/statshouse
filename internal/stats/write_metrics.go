@@ -10,17 +10,17 @@ import (
 	"github.com/vkcom/statshouse/internal/receiver"
 )
 
-type Pusher interface {
-	PushSystemMetricValue(name string, value float64, tagsList ...int32)
-	PushSystemMetricCount(name string, count float64, tagsList ...int32)
+type MetricWriter interface {
+	WriteSystemMetricValue(name string, value float64, tagsList ...int32)
+	WriteSystemMetricCount(name string, count float64, tagsList ...int32)
 }
 
-type PusherRemoteImpl struct {
+type MetricWriterRemoteImpl struct {
 	HostName string
 }
 
-// PusherSHImpl isn't thread safe
-type PusherSHImpl struct {
+// MetricWriterSHImpl isn't thread safe
+type MetricWriterSHImpl struct {
 	HostName []byte
 	handler  receiver.Handler
 	metric   *tlstatshouse.MetricBytes
@@ -77,19 +77,19 @@ func fillTags(metric *tlstatshouse.MetricBytes, tags ...int32) {
 	}
 }
 
-func (p *PusherRemoteImpl) PushSystemMetricValue(name string, value float64, tagsList ...int32) {
+func (p *MetricWriterRemoteImpl) WriteSystemMetricValue(name string, value float64, tagsList ...int32) {
 	tags := buildTags(tagsList...)
 	tags.Tag1 = p.HostName
 	statshouse.AccessMetricRaw(name, tags).Value(value)
 }
 
-func (p *PusherRemoteImpl) PushSystemMetricCount(name string, count float64, tagsList ...int32) {
+func (p *MetricWriterRemoteImpl) WriteSystemMetricCount(name string, count float64, tagsList ...int32) {
 	tags := buildTags(tagsList...)
 	tags.Tag1 = p.HostName
 	statshouse.AccessMetricRaw(name, tags).Count(count)
 }
 
-func (p *PusherSHImpl) fillCommonMetric(m *tlstatshouse.MetricBytes, name string, tagsList ...int32) {
+func (p *MetricWriterSHImpl) fillCommonMetric(m *tlstatshouse.MetricBytes, name string, tagsList ...int32) {
 	m.Reset()
 	m.Name = append(m.Name, name...)
 	m.Ts = uint32(time.Now().Unix())
@@ -104,16 +104,16 @@ func (p *PusherSHImpl) fillCommonMetric(m *tlstatshouse.MetricBytes, name string
 	fillTags(m, tagsList...)
 }
 
-func (p *PusherSHImpl) PushSystemMetricValue(name string, value float64, tagsList ...int32) {
+func (p *MetricWriterSHImpl) WriteSystemMetricValue(name string, value float64, tagsList ...int32) {
 	m := p.metric
 	p.fillCommonMetric(m, name, tagsList...)
 	m.Value = append(m.Value, value)
 	_, _ = p.handler.HandleMetrics(m, nil)
 }
 
-// todo reuse metric
-func (p *PusherSHImpl) PushSystemMetricCount(name string, count float64, tagsList ...int32) {
+func (p *MetricWriterSHImpl) WriteSystemMetricCount(name string, count float64, tagsList ...int32) {
 	m := p.metric
+	m.Reset()
 	p.fillCommonMetric(m, name, tagsList...)
 	m.Counter = count
 	_, _ = p.handler.HandleMetrics(m, nil)
