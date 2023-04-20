@@ -448,3 +448,21 @@ func (fn *queryFn) UnmarshalEasyJSON(w *jlexer.Lexer) {
 		w.AddError(err)
 	}
 }
+
+func (fn *queryFn) isCumul() bool {
+	switch *fn {
+	case queryFnCumulCount, queryFnCumulAvg, queryFnCumulSum, queryFnCumulCardinality:
+		return true
+	}
+	return false
+}
+
+func (fn *queryFn) isDerivative() bool {
+	switch *fn {
+	case queryFnDerivativeCount, queryFnDerivativeCountNorm, queryFnDerivativeAvg,
+		queryFnDerivativeSum, queryFnDerivativeSumNorm, queryFnDerivativeMin,
+		queryFnDerivativeMax, queryFnDerivativeUnique, queryFnDerivativeUniqueNorm:
+		return true
+	}
+	return false
+}

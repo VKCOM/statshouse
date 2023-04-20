@@ -1949,7 +1949,11 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 						}
 						*ixToLodToRows[ix][lodIx] = append(*ixToLodToRows[ix][lodIx], &rows[i])
 						v := math.Abs(selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i]))
-						ixToAmount[ix] += v * v * float64(lod.stepSec)
+						if q.what.isCumul() {
+							ixToAmount[ix] += v
+						} else {
+							ixToAmount[ix] += v * v * float64(lod.stepSec)
+						}
 					}
 				}
 			}
@@ -2009,15 +2013,14 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 					}
 					base += len(lodTimes[lodIx])
 				}
-				switch q.what {
-				case queryFnCumulCount, queryFnCumulAvg, queryFnCumulSum, queryFnCumulCardinality:
+
+				if q.what.isCumul() {
 					// starts from 1 to exclude extra point on the left
 					accumulateSeries((*ts)[1:])
-				case queryFnDerivativeCount, queryFnDerivativeCountNorm, queryFnDerivativeAvg,
-					queryFnDerivativeSum, queryFnDerivativeSumNorm, queryFnDerivativeMin,
-					queryFnDerivativeMax, queryFnDerivativeUnique, queryFnDerivativeUniqueNorm:
+				} else if q.what.isDerivative() {
 					// Extra point on the left was needed for this case
 					differentiateSeries(*ts)
+
 				}
 
 				// exclude extra point on the left from final slice
