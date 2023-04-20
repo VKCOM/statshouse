@@ -76,7 +76,8 @@ EOD
 
 {{if $d.Data.Series.SeriesMeta -}}
 plot for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with fillsteps notitle               linestyle (10+n), \
-     for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with points title columnheader(1) linestyle (10+n) linewidth 0.7 pointtype 7 pointsize 0.2
+     for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with points title columnheader(1) linestyle (10+n) linewidth 0.7 pointtype 7 pointsize 0.2, \
+     for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with steps title columnheader(1) linestyle (10+n) linewidth 0.7
 {{else -}}
 set key off
 set xrange [{{$d.BlankFrom}}:{{$d.BlankTo}}]
