@@ -305,8 +305,8 @@ func parseQueries(version string, whats, by []string, maxHost bool) ([]*query, e
 	return qq, nil
 }
 
-func parseFromRows(fromRows string) (RowFrom, error) {
-	res := RowFrom{}
+func parseFromRows(fromRows string) (RowMarker, error) {
+	res := RowMarker{}
 	if fromRows == "" {
 		return res, nil
 	}
@@ -325,7 +325,7 @@ func parseFromRows(fromRows string) (RowFrom, error) {
 	return res, nil
 }
 
-func encodeFromRows(row *RowFrom) (string, error) {
+func encodeFromRows(row *RowMarker) (string, error) {
 	jsonBytes, err := json.Marshal(row)
 	if err != nil {
 		return "", err

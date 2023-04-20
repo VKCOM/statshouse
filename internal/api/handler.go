@@ -92,6 +92,7 @@ const (
 	paramTabNumber    = "tn"
 	paramMaxHost      = "mh"
 	paramFromRow      = "fr"
+	paramToRow        = "tr"
 	paramPromQuery    = "q"
 	paramFromEnd      = "fe"
 
@@ -278,8 +279,10 @@ type (
 		avoidCache          bool
 		verbose             bool
 
+		// get table fields
 		fromEnd bool
-		fromRow RowFrom
+		fromRow RowMarker
+		toRow   RowMarker
 		limit   int
 	}
 
@@ -351,7 +354,7 @@ type (
 		Tags    map[string]SeriesMetaTag `json:"tags"`
 		What    queryFn                  `json:"what"`
 		row     tsSelectRow
-		rowRepr RowFrom
+		rowRepr RowMarker
 	}
 
 	QuerySeriesMeta struct {
@@ -393,7 +396,8 @@ type (
 		Index int   `json:"index"`
 		Value int32 `json:"value"`
 	}
-	RowFrom struct {
+
+	RowMarker struct {
 		Time int64    `json:"time"`
 		Tags []RawTag `json:"tags"`
 		SKey string   `json:"skey"`
@@ -1499,6 +1503,11 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
+	toRow, err := parseFromRows(r.FormValue(paramToRow))
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
 
 	_, avoidCache := r.Form[ParamAvoidCache]
 	if avoidCache && !ai.isAdmin() {
@@ -1533,6 +1542,7 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 			filterNotIn:         filterNotIn,
 			avoidCache:          avoidCache,
 			fromRow:             fromRow,
+			toRow:               toRow,
 			fromEnd:             fromEnd,
 			limit:               int(limit),
 		},
@@ -2714,7 +2724,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 		return nil, false, err
 	}
 
-	from, to, err := parseFromTo(req.from, req.to)
+	from, to, err := parseFromToRows(req.from, req.to, req.fromRow, req.toRow)
 	if err != nil {
 		return nil, false, err
 	}
@@ -2775,8 +2785,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	}
 
 	var queryRows = make([]queryTableRow, 0)
-	fromRowIsDefined := req.fromRow.Time > 0
-	hasMore := false
+
 	for _, q := range queries {
 		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, true)
 		pq := &preparedPointsQuery{
@@ -2814,7 +2823,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 
 			for _, rows := range m {
 				for i := 0; i < len(rows); i++ {
-					var rowRepr RowFrom
+					var rowRepr RowMarker
 					rowRepr.Time = rows[i].time
 					rowRepr.Tags = rowRepr.Tags[:0]
 					tags := &rows[i].tsTags
@@ -2844,29 +2853,8 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 			}
 		}
 	}
-
-	if fromRowIsDefined {
-		i := 0
-		n := len(queryRows)
-		i = sort.Search(len(queryRows), func(i int) bool {
-			return lessThan(req.fromRow, queryRows[i].row, skeyFromFixedString(&queryRows[i].row.tsTags.tagStr), req.fromEnd)
-		})
-		if req.fromEnd {
-			n = i
-			i -= req.limit
-			if i < 0 {
-				i = 0
-			}
-			if i > 0 {
-				hasMore = true
-			}
-		}
-		queryRows = queryRows[i:n]
-	}
-	if len(queryRows) > req.limit {
-		hasMore = !req.fromEnd
-		queryRows = queryRows[:req.limit]
-	}
+	var hasMore bool
+	queryRows, hasMore = limitQueries(queryRows, req.fromRow, req.toRow, req.fromEnd, req.limit)
 	var firstRowStr, lastRowStr string
 	if len(queryRows) > 0 {
 		lastRowStr, err = encodeFromRows(&queryRows[len(queryRows)-1].rowRepr)
@@ -3406,7 +3394,7 @@ func queryClientCacheDuration(immutable bool) (cache time.Duration, cacheStale t
 	return queryClientCache, queryClientCacheStale
 }
 
-func lessThan(l RowFrom, r tsSelectRow, skey string, orEq bool) bool {
+func lessThan(l RowMarker, r tsSelectRow, skey string, orEq bool) bool {
 	if l.Time != r.time {
 		return l.Time < r.time
 	}
@@ -3467,4 +3455,34 @@ func getQueryRespEqual(a, b *SeriesResponse) bool {
 		}
 	}
 	return true
+}
+
+func limitQueries(q []queryTableRow, from, to RowMarker, fromEnd bool, limit int) (res []queryTableRow, hasMore bool) {
+	i := 0
+	n := len(q)
+	// result is : _, _, from, i, _, _, _, to/n, _, _
+	if from.Time != 0 {
+		i = sort.Search(len(q), func(i int) bool {
+			return lessThan(from, q[i].row, skeyFromFixedString(&q[i].row.tsTags.tagStr), false)
+		})
+	}
+	if to.Time != 0 {
+		n = sort.Search(len(q), func(i int) bool {
+			return lessThan(to, q[i].row, skeyFromFixedString(&q[i].row.tsTags.tagStr), true)
+		})
+	}
+	left := i
+	right := n
+	if fromEnd {
+		left = n - limit
+		if left < i {
+			left = i
+		}
+	} else {
+		right = i + limit
+		if right > n {
+			right = n
+		}
+	}
+	return q[left:right], left != i || right != n
 }
