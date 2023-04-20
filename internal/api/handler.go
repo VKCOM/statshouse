@@ -277,13 +277,12 @@ type (
 	}
 
 	seriesRequestOptions struct {
-		allowNegativeNumResults bool
-		debugQueries            bool
-		testPromql              bool
-		metricNameCallback      func(string)
-		rand                    *rand.Rand
-		stat                    *endpointStat
-		timeNow                 time.Time
+		debugQueries       bool
+		testPromql         bool
+		metricNameCallback func(string)
+		rand               *rand.Rand
+		stat               *endpointStat
+		timeNow            time.Time
 	}
 
 	//easyjson:json
@@ -1297,7 +1296,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		return nil, false, err
 	}
 
-	numResults, err := parseNumResults(req.numResults, defTagValues, maxTagValues, false)
+	numResults, err := parseNumResults(req.numResults, defTagValues, maxTagValues)
 	if err != nil {
 		return nil, false, err
 	}
@@ -1792,7 +1791,6 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 		req.numResults,
 		defSeries,
 		maxSeries/len(shifts),
-		opt.allowNegativeNumResults,
 	)
 	if err != nil {
 		return nil, nil, err
@@ -2155,7 +2153,6 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 		req.numResults,
 		defSeries,
 		maxSeries/len(shifts),
-		opt.allowNegativeNumResults,
 	)
 	if err != nil {
 		return nil, false, err
