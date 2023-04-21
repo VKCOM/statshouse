@@ -257,6 +257,16 @@ func parseFromTo(fromTS string, toTS string) (from time.Time, to time.Time, err 
 	return
 }
 
+func parseFromToRows(fromTS string, toTS string, f, t RowMarker) (from time.Time, to time.Time, err error) {
+	if f.Time != 0 {
+		fromTS = strconv.FormatInt(f.Time, 10)
+	}
+	if t.Time != 0 {
+		toTS = strconv.FormatInt(t.Time, 10)
+	}
+	return parseFromTo(fromTS, toTS)
+}
+
 func parseUnixTimeFrom(u int64, to time.Time) (time.Time, error) {
 	if u <= 0 {
 		return to.Add(time.Duration(u) * time.Second), nil
