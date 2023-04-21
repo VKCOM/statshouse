@@ -33,7 +33,7 @@ func NewPSI(writer MetricWriter) (*PSIStats, error) {
 	}, nil
 }
 
-func (c *PSIStats) WriteMetrics() error {
+func (c *PSIStats) WriteMetrics(nowUnix int64) error {
 	var err error
 	for _, resource := range psiResources {
 		psi, error := c.fs.PSIStatsForResource(resource)
@@ -52,10 +52,10 @@ func (c *PSIStats) WriteMetrics() error {
 			metricName = format.BuiltinMetricNamePSIIO
 		}
 		if ok && psi.Some != nil && old.Some != nil {
-			c.writer.WriteSystemMetricValue(metricName, float64(psi.Some.Total-old.Some.Total), format.RawIDTagSome)
+			c.writer.WriteSystemMetricValue(nowUnix, metricName, float64(psi.Some.Total-old.Some.Total), format.RawIDTagSome)
 		}
 		if ok && psi.Full != nil && old.Full != nil {
-			c.writer.WriteSystemMetricValue(metricName, float64(psi.Full.Total-old.Full.Total), format.RawIDTagFull)
+			c.writer.WriteSystemMetricValue(nowUnix, metricName, float64(psi.Full.Total-old.Full.Total), format.RawIDTagFull)
 		}
 		c.stats[resource] = psi
 	}

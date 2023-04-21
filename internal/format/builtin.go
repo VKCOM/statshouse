@@ -1480,6 +1480,7 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 func init() {
 	for k, v := range hostMetrics {
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
+		v.Resolution = 60
 		BuiltinMetrics[k] = v
 		builtinMetricsAllowedToReceive[k] = true
 		metricsWithoutAggregatorID[k] = true

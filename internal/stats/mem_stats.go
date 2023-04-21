@@ -30,7 +30,7 @@ func NewMemoryStats(writer MetricWriter) (*MemStats, error) {
 	}, nil
 }
 
-func (c *MemStats) WriteMetrics() error {
+func (c *MemStats) WriteMetrics(nowUnix int64) error {
 	stat, err := c.fs.Meminfo()
 	if err != nil {
 		return fmt.Errorf("failed to get meminfo: %w", err)
@@ -62,10 +62,10 @@ func (c *MemStats) WriteMetrics() error {
 	}
 	cached = cached + sreclaimable - shmem
 	used := total - free - buffers - cached
-	c.writer.WriteSystemMetricValue(mem, float64(free), format.RawIDTagFree)
-	c.writer.WriteSystemMetricValue(mem, float64(used), format.RawIDTagUsed)
+	c.writer.WriteSystemMetricValue(nowUnix, mem, float64(free), format.RawIDTagFree)
+	c.writer.WriteSystemMetricValue(nowUnix, mem, float64(used), format.RawIDTagUsed)
 
-	c.writer.WriteSystemMetricValue(mem, float64(buffers), format.RawIDTagBuffers)
-	c.writer.WriteSystemMetricValue(mem, float64(cached), format.RawIDTagCached)
+	c.writer.WriteSystemMetricValue(nowUnix, mem, float64(buffers), format.RawIDTagBuffers)
+	c.writer.WriteSystemMetricValue(nowUnix, mem, float64(cached), format.RawIDTagCached)
 	return nil
 }

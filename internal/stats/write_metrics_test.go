@@ -2,6 +2,7 @@ package stats
 
 import (
 	"testing"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -22,7 +23,8 @@ func BenchmarkSHWriterImpl(b *testing.B) {
 		handler:  &handlerMock{},
 		metric:   &tlstatshouse.MetricBytes{},
 	}
+	t := time.Now().Unix()
 	for i := 0; i < b.N; i++ {
-		p.WriteSystemMetricValue("abc", 1, 1, 2, 3)
+		p.WriteSystemMetricValue(t, "abc", 1, 1, 2, 3)
 	}
 }

@@ -51,7 +51,7 @@ func NewDiskStats(writer MetricWriter, logErr *log.Logger) (*DiskStats, error) {
 	}, nil
 }
 
-func (c *DiskStats) WriteMetrics() error {
+func (c *DiskStats) WriteMetrics(nowUnix int64) error {
 	stats, err := c.fs.ProcDiskstats()
 	if err != nil {
 		return fmt.Errorf("failed to get disk stats: %w", err)
@@ -67,23 +67,23 @@ func (c *DiskStats) WriteMetrics() error {
 		writeIO := stat.WriteIOs - oldStat.WriteIOs
 		discardIO := stat.DiscardIOs - oldStat.DiscardIOs
 
-		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameBlockIOTime, float64(readIO), format.RawIDTagRead)
-		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameBlockIOTime, float64(writeIO), format.RawIDTagWrite)
-		c.writer.WriteSystemMetricCount(format.BuiltinMetricNameBlockIOTime, float64(discardIO), format.RawIDTagDiscard)
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameBlockIOTime, float64(readIO), format.RawIDTagRead)
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameBlockIOTime, float64(writeIO), format.RawIDTagWrite)
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameBlockIOTime, float64(discardIO), format.RawIDTagDiscard)
 
 		readIOTicks := float64(stat.ReadTicks-oldStat.ReadTicks) / 1000
 		writeIOTicks := float64(stat.WriteTicks-oldStat.WriteTicks) / 1000
 		discardIOTicks := float64(stat.DiscardTicks-oldStat.DiscardTicks) / 1000
 
-		c.writer.WriteSystemMetricValue(format.BuiltinMetricNameBlockIOTime, readIOTicks, format.RawIDTagRead)
-		c.writer.WriteSystemMetricValue(format.BuiltinMetricNameBlockIOTime, writeIOTicks, format.RawIDTagWrite)
-		c.writer.WriteSystemMetricValue(format.BuiltinMetricNameBlockIOTime, discardIOTicks, format.RawIDTagDiscard)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameBlockIOTime, readIOTicks, format.RawIDTagRead)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameBlockIOTime, writeIOTicks, format.RawIDTagWrite)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameBlockIOTime, discardIOTicks, format.RawIDTagDiscard)
 	}
-	err = c.writeFSStats()
+	err = c.writeFSStats(nowUnix)
 	return err
 }
 
-func (c *DiskStats) writeFSStats() error {
+func (c *DiskStats) writeFSStats(nowUnix int64) error {
 	stats, err := parseMounts()
 	if err != nil {
 		return err
@@ -108,13 +108,13 @@ func (c *DiskStats) writeFSStats() error {
 		}
 		free := float64(s.Bfree) * float64(s.Bsize)
 		used := float64(s.Blocks)*float64(s.Bsize) - free
-		c.writer.WriteSystemMetricValue(format.BuiltinMetricNameDiskUsage, free, format.RawIDTagFree)
-		c.writer.WriteSystemMetricValue(format.BuiltinMetricNameDiskUsage, used, format.RawIDTagUsed)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameDiskUsage, free, format.RawIDTagFree)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameDiskUsage, used, format.RawIDTagUsed)
 
 		inodeFree := float64(s.Ffree)
 		inodeUsed := float64(s.Files) - inodeFree
-		c.writer.WriteSystemMetricValue(format.BuiltinMetricNameINodeUsage, inodeFree, format.RawIDTagFree)
-		c.writer.WriteSystemMetricValue(format.BuiltinMetricNameINodeUsage, inodeUsed, format.RawIDTagUsed)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameINodeUsage, inodeFree, format.RawIDTagFree)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameINodeUsage, inodeUsed, format.RawIDTagUsed)
 	}
 	return nil
 }

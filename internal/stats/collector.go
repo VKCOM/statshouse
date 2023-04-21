@@ -13,7 +13,7 @@ import (
 
 type Collector interface {
 	Name() string
-	WriteMetrics() error
+	WriteMetrics(nowUnix int64) error
 }
 
 type CollectorManagerOptions struct {
@@ -89,13 +89,13 @@ func (m *CollectorManager) RunCollector() error {
 				}
 			}()
 			for {
-				err := collector.WriteMetrics()
+				now := time.Now()
+				err := collector.WriteMetrics(now.Unix())
 				if err != nil {
 					m.logErr.Printf("failed to write metrics: %v (collector: %s)", err, c.Name())
 				}
-				// todo round interval to begin of second
 				select {
-				case <-time.After(m.opt.ScrapeInterval):
+				case <-time.After(tillNextHalfPeriod(time.Now())):
 				case <-m.ctx.Done():
 					return nil
 				}
@@ -103,6 +103,10 @@ func (m *CollectorManager) RunCollector() error {
 		})
 	}
 	return errGroup.Wait()
+}
+
+func tillNextHalfPeriod(now time.Time) time.Duration {
+	return now.Truncate(time.Second).Add(time.Second * 3 / 2).Sub(now)
 }
 
 func (m *CollectorManager) StopCollector() {
