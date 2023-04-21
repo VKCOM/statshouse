@@ -287,13 +287,12 @@ type (
 	}
 
 	seriesRequestOptions struct {
-		allowNegativeNumResults bool
-		debugQueries            bool
-		testPromql              bool
-		metricNameCallback      func(string)
-		rand                    *rand.Rand
-		stat                    *endpointStat
-		timeNow                 time.Time
+		debugQueries       bool
+		testPromql         bool
+		metricNameCallback func(string)
+		rand               *rand.Rand
+		stat               *endpointStat
+		timeNow            time.Time
 	}
 
 	//easyjson:json
