@@ -385,15 +385,15 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
           store.timeRange = new TimeRange(params.timeRange);
         }
         store.params = mergeLeft(store.params, params);
+        if (resetPlot) {
+          store.plotsData = [];
+          store.previews = [];
+          store.dashboardLayoutEdit = false;
+        }
         if (store.params.tabNum < -1) {
           store.dashboardLayoutEdit = true;
         }
         if (store.params.tabNum >= 0) {
-          store.dashboardLayoutEdit = false;
-        }
-        if (resetPlot) {
-          store.plotsData = [];
-          store.previews = [];
           store.dashboardLayoutEdit = false;
         }
       });
