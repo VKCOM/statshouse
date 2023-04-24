@@ -7,6 +7,9 @@
 import * as utils from './utils';
 import { convert, promQLMetric } from './utils';
 import { TimeRange } from '../common/TimeRange';
+import { Column } from 'react-data-grid';
+import { EventDataRow } from '../store/statshouse';
+import { PlotParams } from '../common/plotQueryParams';
 
 export interface lockRange {
   readonly min: number;
@@ -81,6 +84,20 @@ export interface DashboardInfo {
   delete_mark?: boolean;
 }
 
+export type queryTableRow = {
+  time: number;
+  data: number;
+  tags: Record<string, querySeriesMetaTag>;
+  what: queryWhat;
+};
+
+export type queryTable = {
+  rows: queryTableRow[] | null;
+  from_row: string;
+  to_row: string;
+  more: boolean;
+};
+
 export interface DashboardMeta {
   dashboard_id?: number;
   name: string;
@@ -119,6 +136,20 @@ export interface PromConfigInfo {
   config: string;
   version: number;
 }
+
+export const eventColumnDefault: Readonly<Partial<Column<EventDataRow>>> = {
+  minWidth: 20,
+  maxWidth: 300,
+  resizable: true,
+  // headerRenderer: EventFormatterHeaderDefault,
+  width: 70,
+  // sortable: true,
+  // headerCellClass: 'no-Focus',
+};
+export const getEventColumnsType: () => Record<string, Column<EventDataRow>> = () => ({
+  timeString: { key: 'timeString', name: 'Time', width: 161 },
+  data: { key: 'data', name: 'Count', width: 80 },
+});
 
 // XXX: keep in sync with Go
 export function formatTagValue(value: string, comment?: string, raw?: boolean, kind?: RawValueKind): string {
@@ -445,6 +476,11 @@ export const queryParamLockMax = 'yh';
 export const queryParamMaxHost = 'mh';
 export const queryParamAgg = 'g';
 export const queryParamPromQL = 'q';
+export const queryParamType = 'qt';
+export const queryParamEvent = 'qe';
+export const queryParamFromRow = 'fr';
+export const queryParamFromEnd = 'fe';
+export const queryParamEventFrom = 'ef';
 export const tabPrefix = 't';
 export const queryDashboardID = 'id';
 export const queryMetricsGroupID = 'id';
@@ -464,7 +500,7 @@ export function v2Value(useV2: boolean): string {
 }
 
 export function queryURL(
-  sel: querySelector,
+  sel: PlotParams,
   timeRange: TimeRange,
   timeShifts: number[],
   width: number | string,
@@ -502,7 +538,7 @@ export function queryURL(
 }
 
 export function queryURLCSV(
-  sel: querySelector,
+  sel: PlotParams,
   timeRange: TimeRange,
   timeShifts: number[],
   width: number | string
@@ -526,6 +562,51 @@ export function queryURLCSV(
 
   const strParams = new URLSearchParams(params).toString();
   return `/api/query?${strParams}`;
+}
+
+export function queryTableURL(
+  sel: PlotParams,
+  timeRange: TimeRange,
+  width: number | string,
+  key?: string,
+  fromEnd: boolean = false,
+  limit: number = 10
+): string {
+  let params: string[][];
+  if (sel.metricName === promQLMetric) {
+    params = [
+      [queryParamFromTime, timeRange.from.toString()],
+      [queryParamToTime, (timeRange.to + 1).toString()],
+      [queryParamWidth, width.toString()],
+      // ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
+    ];
+  } else {
+    params = [
+      [queryParamBackendVersion, v2Value(sel.useV2)],
+      [queryParamMetric, sel.metricName],
+      [queryParamFromTime, timeRange.from.toString()],
+      [queryParamToTime, (timeRange.to + 1).toString()],
+      [queryParamWidth, width.toString()],
+      ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
+      // [queryParamVerbose, fetchBadges ? '1' : '0'],
+      // ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
+      ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
+      ...filterParams(sel.filterIn, sel.filterNotIn),
+    ];
+  }
+  if (sel.maxHost) {
+    params.push([queryParamMaxHost, '1']);
+  }
+  if (fromEnd) {
+    params.push([queryParamFromEnd, '1']);
+  }
+  if (key) {
+    params.push([queryParamFromRow, key]);
+  }
+  params.push([queryParamNumResults, limit.toString()]);
+
+  const strParams = new URLSearchParams(params).toString();
+  return `/api/table?${strParams}`;
 }
 
 export interface metricsListResult {
@@ -699,7 +780,7 @@ function filterParams(
   return [...paramsIn, ...paramsNotIn];
 }
 
-export function filterHasTagID(sel: querySelector, indexTag: number): boolean {
+export function filterHasTagID(sel: PlotParams, indexTag: number): boolean {
   const tagID = indexTag === -1 ? 'skey' : `key${indexTag}`;
   return (
     (sel.filterIn[tagID] !== undefined && sel.filterIn[tagID].length !== 0) ||

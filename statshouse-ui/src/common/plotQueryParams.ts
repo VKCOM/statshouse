@@ -14,6 +14,8 @@ import {
   queryParamAgg,
   queryParamBackendVersion,
   queryParamCustomName,
+  queryParamEvent,
+  queryParamEventFrom,
   queryParamFilter,
   queryParamFilterSync,
   queryParamFromTime,
@@ -28,6 +30,7 @@ import {
   queryParamTabNum,
   queryParamTimeShifts,
   queryParamToTime,
+  queryParamType,
   queryParamWhat,
   queryWhat,
   tabPrefix,
@@ -52,6 +55,12 @@ export interface lockRange {
   readonly max: number;
 }
 
+export const PLOT_TYPE = {
+  Metric: 0,
+  Event: 1,
+} as const;
+export type PlotType = (typeof PLOT_TYPE)[keyof typeof PLOT_TYPE];
+
 export type PlotParams = {
   metricName: string;
   customName: string;
@@ -68,6 +77,8 @@ export type PlotParams = {
   };
   maxHost: boolean;
   promQL: string;
+  type: PlotType;
+  events: number[];
 };
 
 export type GroupInfo = {
@@ -93,6 +104,7 @@ export type QueryParams = {
   ['@type']?: 'QueryParams'; // ld-json
   dashboard?: DashboardParams;
   timeRange: { to: number | KeysTo; from: number };
+  eventFrom: number;
   timeShifts: number[];
   tabNum: number;
   tagSync: (number | null)[][]; // [group][page_plot][tag_index]
@@ -104,6 +116,7 @@ export const defaultParams: Readonly<QueryParams> = {
     dashboard_id: undefined,
   },
   timeRange: { ...defaultTimeRange },
+  eventFrom: 0,
   tabNum: 0,
   timeShifts: [],
   tagSync: [],
@@ -310,6 +323,11 @@ export const configParams: ConfigParams = {
       },
     },
   },
+  eventFrom: {
+    ...NumberParam,
+    default: 0,
+    urlKey: queryParamEventFrom,
+  },
   plots: {
     /**
      * plots filter info
@@ -396,6 +414,17 @@ export const configParams: ConfigParams = {
         default: false,
       },
       promQL: { default: '', urlKey: queryParamPromQL },
+      type: {
+        ...NumberParam,
+        default: PLOT_TYPE.Metric,
+        urlKey: queryParamType,
+      },
+      events: {
+        ...NumberParam,
+        isArray: true,
+        default: [],
+        urlKey: queryParamEvent,
+      },
     },
   },
   timeShifts: {

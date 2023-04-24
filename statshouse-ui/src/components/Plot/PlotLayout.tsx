@@ -6,10 +6,11 @@
 
 import React, { SetStateAction, useCallback } from 'react';
 import { PlotControls } from './PlotControls';
-import { metricMeta, querySelector } from '../../view/api';
+import { metricMeta } from '../../view/api';
 import { promQLMetric, timeRangeAbbrev } from '../../view/utils';
 import { MetricItem } from '../../hooks';
 import { PlotControlsPromQL } from './PlotControlsPromQL';
+import { PlotParams } from '../../common/plotQueryParams';
 
 export type PlotLayoutProps = {
   embed?: boolean;
@@ -17,8 +18,8 @@ export type PlotLayoutProps = {
   meta: metricMeta;
   indexPlot: number;
   metricsOptions: MetricItem[];
-  sel: querySelector;
-  setParams: (index: number, params: SetStateAction<querySelector>, forceReplace?: boolean) => void;
+  sel: PlotParams;
+  setParams: (index: number, params: SetStateAction<PlotParams>, forceReplace?: boolean) => void;
   setBaseRange: React.Dispatch<React.SetStateAction<timeRangeAbbrev>>;
   numQueries: number;
 };
@@ -35,7 +36,7 @@ export const PlotLayout: React.FC<PlotLayoutProps> = ({
   numQueries,
 }) => {
   const setSel = useCallback(
-    (param: SetStateAction<querySelector>, forceReplace?: boolean) => {
+    (param: SetStateAction<PlotParams>, forceReplace?: boolean) => {
       setParams(indexPlot, param, forceReplace);
     },
     [indexPlot, setParams]

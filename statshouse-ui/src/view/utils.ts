@@ -136,7 +136,7 @@ export function timeRangeZoomOut(r: timeRange): timeRange {
 
 const fmtInputDate = uPlot.fmtDate('{YYYY}-{MM}-{DD}');
 const fmtInputTime = uPlot.fmtDate('{HH}:{mm}:{ss}');
-const fmtInputDateTime = uPlot.fmtDate('{YYYY}-{MM}-{DD} {HH}:{mm}:{ss}');
+export const fmtInputDateTime = uPlot.fmtDate('{YYYY}-{MM}-{DD} {HH}:{mm}:{ss}');
 
 export function secondsRangeToString(seconds: number, short?: boolean): string {
   const suffix: Array<[number, string, string, string]> = [
@@ -701,9 +701,12 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       delete p.timeShifts;
       p.customName ??= '';
       p.promQL ??= '';
+      p.events ??= [];
+      p.type ??= 0;
       return p;
     }),
     timeShifts,
+    eventFrom: 0,
     dashboard: {
       ...(params.dashboard ?? {}),
       dashboard_id: data.dashboard.dashboard_id,

@@ -36,6 +36,8 @@
 :root {
   --golden-ratio: 1.61803398875;
   --plot-margin: 54px;
+  --plot-padding-top: 8px;
+  --plot-padding-top-max: 10px;
   --bs-primary: var(--bs-link-color);
 }
 
@@ -55,6 +57,23 @@
 
 .u-select {
   background-color: rgba(var(--bs-body-color-rgb), 0.1);
+}
+.u-time-window {
+  background-color: rgba(var(--bs-primary-rgb), 0.1);
+  position: absolute;
+  top: 0;
+  height: 100%;
+  width: 0;
+  pointer-events: none;
+}
+.u-time-window-left {
+  border-right: 1px solid var(--bs-primary);
+  left: 0;
+}
+
+.u-time-window-right {
+  border-left: 1px solid var(--bs-primary);
+  right: 0;
 }
 
 html {

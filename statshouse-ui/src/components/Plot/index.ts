@@ -10,3 +10,6 @@ export * from './PlotNavigate';
 export * from './PlotLayout';
 export * from './PlotControlTimeShifts';
 export * from './PlotControls';
+export * from './PlotView';
+export * from './PlotViewMetric';
+export * from './PlotViewEvent';

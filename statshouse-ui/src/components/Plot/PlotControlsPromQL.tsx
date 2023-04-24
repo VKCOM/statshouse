@@ -19,17 +19,18 @@ import {
   selectorTimeRange,
   useStore,
 } from '../../store';
-import { metricKindToWhat, metricMeta, querySelector, queryWhat } from '../../view/api';
+import { metricKindToWhat, metricMeta, queryWhat } from '../../view/api';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { globalSettings } from '../../common/settings';
+import { PlotParams } from '../../common/plotQueryParams';
 
 export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   indexPlot: number;
   setBaseRange: (r: utils.timeRangeAbbrev) => void;
-  sel: querySelector;
-  setSel: (state: React.SetStateAction<querySelector>, replaceUrl?: boolean) => void;
+  sel: PlotParams;
+  setSel: (state: React.SetStateAction<PlotParams>, replaceUrl?: boolean) => void;
   meta: metricMeta;
   numQueries: number;
   metricsOptions: MetricItem[];

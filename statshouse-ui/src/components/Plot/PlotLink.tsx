@@ -7,7 +7,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { selectorDefaultParams, selectorIsServer, selectorSetParams, useStore } from '../../store';
 import { Link, To } from 'react-router-dom';
-import { QueryParams } from '../../common/plotQueryParams';
+import { PlotType, QueryParams } from '../../common/plotQueryParams';
 import produce from 'immer';
 import { usePlotLink } from '../../hooks';
 
@@ -15,13 +15,14 @@ export type PlotLinkProps = {
   indexPlot?: number;
   isLink?: boolean;
   to?: To;
+  typePlot?: PlotType;
 } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> &
   React.RefAttributes<HTMLAnchorElement>;
 
 export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.forwardRef<
   HTMLAnchorElement,
   PlotLinkProps
->(function _PlotLink({ indexPlot, isLink, to, children, ...attributes }, ref) {
+>(function _PlotLink({ indexPlot, isLink, to, children, typePlot, ...attributes }, ref) {
   const isServer = useStore(selectorIsServer);
   const setParams = useStore(selectorSetParams);
   const defaultParams = useStore(selectorDefaultParams);
@@ -33,7 +34,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
         } else if (p.plots.length && p.plots.length === indexPlot) {
           const cloneId = p.tabNum < 0 ? p.plots.length - 1 : p.tabNum;
           p.plots.push({
-            metricName: p.plots[cloneId].metricName,
+            metricName: typePlot === undefined || typePlot === p.plots[cloneId].type ? p.plots[cloneId].metricName : '',
             customName: '',
             promQL: '',
             what: p.plots[cloneId].what.slice(),
@@ -48,10 +49,11 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
             numSeries: p.plots[cloneId].numSeries,
             useV2: p.plots[cloneId].useV2,
             yLock: {
-              min: 0,
-              max: 0,
+              ...p.plots[cloneId].yLock,
             },
-            maxHost: false,
+            maxHost: p.plots[cloneId].maxHost,
+            type: typePlot === undefined || typePlot === p.plots[cloneId].type ? p.plots[cloneId].type : typePlot,
+            events: p.plots[cloneId].events.slice(),
           });
           if (p.dashboard?.groupInfo?.length) {
             p.dashboard.groupInfo[p.dashboard.groupInfo.length - 1].count++;
@@ -59,7 +61,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
           p.tabNum = p.plots.length - 1;
         }
       }),
-    [indexPlot]
+    [indexPlot, typePlot]
   );
   const plotSearch = usePlotLink(plotSearchFn, defaultParams);
   const onClick = useCallback(() => {

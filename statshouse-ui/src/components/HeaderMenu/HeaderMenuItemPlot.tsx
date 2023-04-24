@@ -25,6 +25,7 @@ import { whatToWhatDesc } from '../../view/api';
 import cn from 'classnames';
 import css from './style.module.css';
 import { promQLMetric } from '../../view/utils';
+import { PLOT_TYPE } from '../../common/plotQueryParams';
 
 export type HeaderMenuItemPlotProps = {
   indexPlot: number;
@@ -68,7 +69,7 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
   );
 
   const title = useMemo(
-    () => plot.customName || `${metricName}${!!what && ': ' + what}`,
+    () => (plot.customName || metricName ? `${metricName}${!!what && ': ' + what}` : ''),
     [metricName, plot.customName, what]
   );
 
@@ -111,7 +112,11 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
       onClick={onClose}
     >
       <PlotLink
-        className={cn('nav-link', !data.error403 && ['p-0', css.preview])}
+        className={cn(
+          'nav-link',
+          !data.error403 && ['p-0', css.preview],
+          plot.type === PLOT_TYPE.Event && css.previewEvent
+        )}
         indexPlot={indexPlot}
         title={title}
         ref={touchToggle}
@@ -137,7 +142,7 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
             ) : (
               <>
                 <span className="text-truncate">{metricName}</span>
-                {!!what && (
+                {!!metricName && !!what && (
                   <>
                     <span className="pe-1">:</span>
                     <span className="text-secondary text-truncate">{what}</span>

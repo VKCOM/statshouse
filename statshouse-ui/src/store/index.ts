@@ -7,3 +7,4 @@
 export * from '../common/getNextState';
 export * from './store';
 export * from './selectors';
+export * from './dev';

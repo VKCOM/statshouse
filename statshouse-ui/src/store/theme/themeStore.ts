@@ -52,11 +52,12 @@ export type ThemeStore = {
   };
 };
 
-export const themeState: StateCreator<ThemeStore, [['zustand/immer', never]], [], ThemeStore> = (
-  setState,
-  getState,
-  store
-) => {
+export const themeState: StateCreator<
+  ThemeStore,
+  [['zustand/subscribeWithSelector', never], ['zustand/immer', never]],
+  [],
+  ThemeStore
+> = (setState, getState, store) => {
   window.addEventListener(
     'DOMContentLoaded',
     () => {

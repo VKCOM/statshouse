@@ -20,6 +20,7 @@ import produce from 'immer';
 
 import { HeaderMenuItem } from './HeaderMenuItem';
 import {
+  selectorDevEnabled,
   selectorParams,
   selectorPlotList,
   selectorPromqltestfailed,
@@ -28,11 +29,13 @@ import {
   selectorThemeName,
   THEMES,
   useStore,
+  useStoreDev,
 } from '../../store';
 import { currentAccessInfo, logoutURL } from '../../common/access';
 import { HeaderMenuItemPlot } from './HeaderMenuItemPlot';
 import css from './style.module.css';
-import { parseParamsFromUrl } from '../../common/plotQueryParams';
+import { parseParamsFromUrl, PLOT_TYPE } from '../../common/plotQueryParams';
+import { PlotLink } from '../Plot/PlotLink';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -44,10 +47,15 @@ export type HeaderMenuProps = {
   className?: string;
 };
 
+const toggleDevEnabled = () => {
+  useStoreDev.getState().setEnabled((s) => !s);
+};
+
 export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   const params = useStore(selectorParams);
   const setParams = useStore(selectorSetParams);
   const menuPlots = useStore(selectorPlotList);
+  const devEnabled = useStoreDev(selectorDevEnabled);
   const location = useLocation();
   const ai = currentAccessInfo();
 
@@ -146,6 +154,16 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
               FAQ
             </NavLink>
           </li>
+          {ai.developer && (
+            <>
+              <li className={css.splitter}></li>
+              <li className={cn('nav-item', devEnabled && 'bg-primary-subtle')} onClick={toggleDevEnabled}>
+                <span role="button" className="nav-link">
+                  {devEnabled ? 'DEV ON' : 'DEV OFF'}
+                </span>
+              </li>
+            </>
+          )}
           {!!ai.user && (
             <>
               <li className={css.splitter}></li>
@@ -209,6 +227,31 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
           <HeaderMenuItemPlot key={item.indexPlot} indexPlot={item.indexPlot} />
         ))}
         <HeaderMenuItem icon={SVGPlus} indexPlot={params.plots.length} title="Duplicate plot to new tab">
+          {ai.developer && devEnabled && (
+            <>
+              <li className={css.splitter}></li>
+              <li className="nav-item">
+                <PlotLink
+                  className="nav-link text-nowrap"
+                  indexPlot={params.plots.length}
+                  title="Add metric plot"
+                  typePlot={PLOT_TYPE.Metric}
+                >
+                  Add metric plot
+                </PlotLink>
+              </li>
+              <li className="nav-item">
+                <PlotLink
+                  className="nav-link text-nowrap"
+                  indexPlot={params.plots.length}
+                  title="Add event plot"
+                  typePlot={PLOT_TYPE.Event}
+                >
+                  Add event plot
+                </PlotLink>
+              </li>
+            </>
+          )}
           <li className={css.splitter}></li>
           <li className="nav-item">
             <span role="button" className="nav-link" title="Paste new tab from clipboard" onClick={onPasteClipboard}>
@@ -216,7 +259,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             </span>
           </li>
         </HeaderMenuItem>
-        {ai.developer && promqltestfailed && (
+        {ai.developer && devEnabled && promqltestfailed && (
           <HeaderMenuItem
             icon={SVGLightbulbFill}
             title="promqltestfailed"

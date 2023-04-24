@@ -8,6 +8,7 @@ import { type Store } from './store';
 import * as api from '../view/api';
 import { metricTagValueInfo } from '../view/api';
 import { promQLMetric } from '../view/utils';
+import { TimeRange } from '../common/TimeRange';
 
 export const selectorAll = (s: Store) => s;
 
@@ -187,3 +188,13 @@ export const selectorThemeName = (s: Store) => s.theme.theme;
 export const selectorSetTheme = (s: Store) => s.theme.setTheme;
 
 export const selectorPromqltestfailed = (s: Store) => s.plotsData.map((d) => d.promqltestfailed).some(Boolean);
+
+export const selectorEvents = (s: Store) => s.events;
+export const selectorEventsByIndex = (index: number, s: Store) =>
+  s.events[index] ?? { chunks: [], rows: [], columns: [], range: new TimeRange(s.params.timeRange) };
+export const selectorEventsTimeWindowByIndex = (index: number, s: Store) => {
+  const { range } = s.events[index] ?? { chunks: [], rows: [], columns: [], range: new TimeRange(s.params.timeRange) };
+  return range;
+};
+export const selectorLoadEvents = (s: Store) => s.loadEvents;
+export const selectorClearEvents = (s: Store) => s.clearEvents;
