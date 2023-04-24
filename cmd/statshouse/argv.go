@@ -51,6 +51,7 @@ var (
 		bufferSizeUDP                int
 		promRemoteMod                bool
 		hardwareMetricScrapeInterval time.Duration
+		hardwareMetricScrapeDisable  bool
 
 		configAggregator aggregator.ConfigAggregator
 
@@ -152,7 +153,7 @@ func argvAddAgentFlags(legacyVerb bool) {
 	flag.BoolVar(&argv.promRemoteMod, "prometheus-push-remote", false, "use remote pusher for prom metrics")
 
 	flag.DurationVar(&argv.hardwareMetricScrapeInterval, "hardware-metric-scrape-interval", time.Second, "how often hardware metrics will be scraped")
-
+	flag.BoolVar(&argv.hardwareMetricScrapeDisable, "hardware-metric-scrape-disable", false, "disable hardware metric scraping")
 }
 
 func argvAddAggregatorFlags(legacyVerb bool) {

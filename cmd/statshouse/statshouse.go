@@ -353,17 +353,19 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}
 	}()
 
-	m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, logErr)
-	if err != nil {
-		logErr.Println("failed to init hardware collector", err.Error())
-	} else {
-		go func() {
-			err := m.RunCollector()
-			if err != nil {
-				logErr.Println("failed to run hardware collector", err.Error())
-			}
-		}()
-		defer m.StopCollector()
+	if !argv.hardwareMetricScrapeDisable {
+		m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, logErr)
+		if err != nil {
+			logErr.Println("failed to init hardware collector", err.Error())
+		} else {
+			go func() {
+				err := m.RunCollector()
+				if err != nil {
+					logErr.Println("failed to run hardware collector", err.Error())
+				}
+			}()
+			defer m.StopCollector()
+		}
 	}
 	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, syscall.SIGINT, sigLogRotate)
