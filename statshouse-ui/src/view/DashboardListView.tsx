@@ -24,8 +24,8 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
     const res = listServerDashboard.filter(
       (item) =>
         searchInput.value === '' ||
-        item.name.includes(searchInput.value) ||
-        item.description.includes(searchInput.value)
+        item.name.toLowerCase().includes(searchInput.value.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchInput.value.toLowerCase())
     );
     res.sort(sortByKey.bind(null, 'name'));
     return res;
