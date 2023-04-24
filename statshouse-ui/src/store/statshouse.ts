@@ -1118,7 +1118,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         if (syncGroups.length) {
           syncGroups.forEach((g) => {
             g.forEach((tagKeyIndex, syncPlotIndex) => {
-              if (tagKeyIndex !== null) {
+              if (tagKeyIndex !== null && tagKeyIndex !== undefined) {
                 const tagKey = `key${tagKeyIndex}`;
                 if (next.length) {
                   params.plots[syncPlotIndex][nonEmpty][tagKey] = next;
@@ -1152,7 +1152,7 @@ export const statsHouseState: StateCreator<StatsHouseStore, [['zustand/immer', n
         if (syncGroups.length) {
           syncGroups.forEach((g) => {
             g.forEach((tagKeyIndex, syncPlotIndex) => {
-              if (tagKeyIndex !== null) {
+              if (tagKeyIndex !== null && tagKeyIndex !== undefined) {
                 const tagKey = `key${tagKeyIndex}`;
                 params.plots[syncPlotIndex].groupBy = next
                   ? sortEntity([...params.plots[syncPlotIndex].groupBy, tagKey])

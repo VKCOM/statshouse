@@ -69,6 +69,67 @@
         }
       }
     },
+    "/table": {
+      "get": {
+        "description": "get data",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/paramMetric"
+          },
+          {
+            "$ref": "#/components/parameters/paramFrom"
+          },
+          {
+            "$ref": "#/components/parameters/paramTo"
+          },
+          {
+            "$ref": "#/components/parameters/paramFromRow"
+          },
+          {
+            "$ref": "#/components/parameters/paramToRow"
+          },
+          {
+            "$ref": "#/components/parameters/paramWidth"
+          },
+          {
+            "$ref": "#/components/parameters/paramWhat"
+          },
+          {
+            "$ref": "#/components/parameters/paramVerbose"
+          },
+          {
+            "$ref": "#/components/parameters/paramVersion"
+          },
+          {
+            "$ref": "#/components/parameters/paramNumResult"
+          },
+          {
+            "$ref": "#/components/parameters/paramFilter"
+          },
+          {
+            "$ref": "#/components/parameters/paramBy"
+          },
+          {
+            "$ref": "#/components/parameters/paramWidthAgg"
+          },
+          {
+            "$ref": "#/components/parameters/fromEnd"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetQueryResp"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/metrics-list": {
       "get": {
         "description": "Get metrics list",
@@ -412,6 +473,17 @@
         },
         "example": ""
       },
+      "fromEnd": {
+        "name": "fe",
+        "in": "query",
+        "description": "From end flag",
+        "required": false,
+        "allowEmptyValue": true,
+        "schema": {
+          "type": "string"
+        },
+        "example": ""
+      },
       "paramFrom": {
         "name": "f",
         "in": "query",
@@ -422,6 +494,28 @@
           "type": "number"
         },
         "example": 1665585339
+      },
+      "paramFromRow": {
+        "name": "fr",
+        "in": "query",
+        "description": "from row (excluded)",
+        "required": false,
+        "allowEmptyValue": true,
+        "schema": {
+          "type": "string"
+        },
+        "example": ""
+      },
+      "paramToRow": {
+        "name": "tr",
+        "in": "query",
+        "description": "to row (excluded)",
+        "required": false,
+        "allowEmptyValue": true,
+        "schema": {
+          "type": "string"
+        },
+        "example": ""
       },
       "paramTo": {
         "name": "t",
@@ -905,6 +999,32 @@
           "series_data"
         ]
       },
+      "queryTableRow": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "time": {
+            "type": "number"
+          },
+          "data": {
+            "type": "number"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MetricMetaTag"
+            }
+          },
+          "what": {
+            "$ref": "#/components/schemas/queryFn"
+          }
+        },
+        "required": [
+          "time",
+          "series_meta",
+          "series_data"
+        ]
+      },
       "GetQueryResp": {
         "type": "object",
         "additionalProperties": false,
@@ -933,6 +1053,33 @@
         },
         "required": [
           "series"
+        ]
+      },
+      "GetTableResp": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/queryTableRow"
+            }
+          },
+          "from_row": {
+            "type": "string"
+          },
+          "to_row": {
+            "type": "string"
+          },
+          "more": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "rows",
+          "from_row",
+          "to_row",
+          "more"
         ]
       },
       "MetricTagValueInfo": {
@@ -1134,7 +1281,6 @@
         ]
       }
     },
-    "requestBodies": {
-    }
+    "requestBodies": {}
   }
 }

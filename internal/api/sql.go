@@ -39,6 +39,8 @@ type preparedPointsQuery struct {
 	by          []string
 	filterIn    map[string][]interface{}
 	filterNotIn map[string][]interface{}
+
+	orderBy bool
 }
 
 type tagValuesQueryMeta struct {
@@ -238,11 +240,18 @@ WHERE
 
 	query += fmt.Sprintf(`
 GROUP BY
-  _time%s
+  _time%s`, commaBy)
+
+	if pq.orderBy {
+		query += fmt.Sprintf(`
+ORDER BY
+  _time%s`, commaBy)
+	}
+	query += fmt.Sprintf(`
 LIMIT %v
 SETTINGS
   optimize_aggregation_in_order = 1
-`, commaBy, maxSeriesRows)
+`, maxSeriesRows)
 	q, err := util.BindQuery(query, args...)
 	return q, pointsQueryMeta{vals: cnt, tags: pq.by, maxHost: pq.kind != queryFnKindCount, version: pq.version}, err
 }

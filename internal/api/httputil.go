@@ -257,6 +257,16 @@ func parseFromTo(fromTS string, toTS string) (from time.Time, to time.Time, err 
 	return
 }
 
+func parseFromToRows(fromTS string, toTS string, f, t RowMarker) (from time.Time, to time.Time, err error) {
+	if f.Time != 0 {
+		fromTS = strconv.FormatInt(f.Time, 10)
+	}
+	if t.Time != 0 {
+		toTS = strconv.FormatInt(t.Time, 10)
+	}
+	return parseFromTo(fromTS, toTS)
+}
+
 func parseUnixTimeFrom(u int64, to time.Time) (time.Time, error) {
 	if u <= 0 {
 		return to.Add(time.Duration(u) * time.Second), nil
@@ -322,7 +332,7 @@ func parseTimeShifts(ts []string, width int) ([]time.Duration, error) {
 	return ds, nil
 }
 
-func parseNumResults(s string, def int, max int, isNegativeAllowed bool) (int, error) {
+func parseNumResults(s string, def int, max int) (int, error) {
 	if s == "" || s == "0" {
 		return def, nil
 	}
@@ -330,9 +340,6 @@ func parseNumResults(s string, def int, max int, isNegativeAllowed bool) (int, e
 	u, err := strconv.ParseInt(s, 10, 32)
 	if err != nil {
 		return 0, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse number of results: %w", err))
-	}
-	if !isNegativeAllowed && u < 0 {
-		return 0, httpErr(http.StatusBadRequest, fmt.Errorf("negative number of results isn't allowed: %v", u))
 	}
 
 	n := int(u)

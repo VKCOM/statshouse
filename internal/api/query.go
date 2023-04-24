@@ -7,6 +7,8 @@
 package api
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -212,6 +214,7 @@ func normalizedQueryString(
 	by []string,
 	filterIn map[string][]string,
 	filterNoIn map[string][]string,
+	orderBy bool,
 ) string {
 	sortedBy := append([]string(nil), by...)
 	sort.Strings(sortedBy)
@@ -248,6 +251,11 @@ func normalizedQueryString(
 		buf.WriteString(ParamQueryFilter)
 		buf.WriteByte('=')
 		buf.WriteString(url.QueryEscape(f))
+	}
+
+	if orderBy {
+		buf.WriteByte('&')
+		buf.WriteString("order_by")
 	}
 
 	return buf.String()
@@ -295,6 +303,35 @@ func parseQueries(version string, whats, by []string, maxHost bool) ([]*query, e
 	}
 
 	return qq, nil
+}
+
+func parseFromRows(fromRows string) (RowMarker, error) {
+	res := RowMarker{}
+	if fromRows == "" {
+		return res, nil
+	}
+	var buf []byte
+	if len(buf) < len(fromRows) {
+		buf = make([]byte, len(fromRows))
+	}
+	n, err := base64.RawURLEncoding.Decode(buf, []byte(fromRows))
+	if err != nil {
+		return res, err
+	}
+	err = json.Unmarshal(buf[:n], &res)
+	if err != nil {
+		return res, err
+	}
+	return res, nil
+}
+
+func encodeFromRows(row *RowMarker) (string, error) {
+	jsonBytes, err := json.Marshal(row)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.RawURLEncoding.EncodeToString(jsonBytes), nil
 }
 
 func parseQueryWhat(what string, maxHost bool) (queryFn, queryFnKind, error) {
@@ -447,4 +484,22 @@ func (fn *queryFn) UnmarshalEasyJSON(w *jlexer.Lexer) {
 	if err != nil {
 		w.AddError(err)
 	}
+}
+
+func (fn *queryFn) isCumul() bool {
+	switch *fn {
+	case queryFnCumulCount, queryFnCumulAvg, queryFnCumulSum, queryFnCumulCardinality:
+		return true
+	}
+	return false
+}
+
+func (fn *queryFn) isDerivative() bool {
+	switch *fn {
+	case queryFnDerivativeCount, queryFnDerivativeCountNorm, queryFnDerivativeAvg,
+		queryFnDerivativeSum, queryFnDerivativeSumNorm, queryFnDerivativeMin,
+		queryFnDerivativeMax, queryFnDerivativeUnique, queryFnDerivativeUniqueNorm:
+		return true
+	}
+	return false
 }
