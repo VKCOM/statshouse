@@ -14,6 +14,7 @@ import (
 type Collector interface {
 	Name() string
 	WriteMetrics(nowUnix int64) error
+	PushDuration(now int64, d time.Duration)
 }
 
 type CollectorManagerOptions struct {
@@ -94,6 +95,8 @@ func (m *CollectorManager) RunCollector() error {
 				if err != nil {
 					m.logErr.Printf("failed to write metrics: %v (collector: %s)", err, c.Name())
 				}
+				d := time.Since(now)
+				collector.PushDuration(now.Unix(), d)
 				select {
 				case <-time.After(tillNextHalfPeriod(time.Now())):
 				case <-m.ctx.Done():

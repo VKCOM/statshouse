@@ -27,6 +27,10 @@ func (*CPUStats) Name() string {
 	return "cpu_stats"
 }
 
+func (c *CPUStats) PushDuration(now int64, d time.Duration) {
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricCPU)
+}
+
 func NewCpuStats(writer MetricWriter) (*CPUStats, error) {
 	fs, err := procfs.NewFS(procfs.DefaultMountPoint)
 	if err != nil {

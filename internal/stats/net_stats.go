@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/procfs"
 	"github.com/vkcom/statshouse/internal/format"
@@ -118,6 +119,10 @@ type icmp struct {
 
 func (*NetStats) Name() string {
 	return "net_stats"
+}
+
+func (c *NetStats) PushDuration(now int64, d time.Duration) {
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricNet)
 }
 
 func NewNetStats(writer MetricWriter) (*NetStats, error) {

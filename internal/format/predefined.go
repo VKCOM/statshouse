@@ -1,20 +1,20 @@
 package format
 
 const (
-	BuiltinMetricIDCPUUsage       = -71
-	BuiltinMetricIDSystemUptime   = -72
-	BuiltinMetricIDProcessCreated = -73
-	BuiltinMetricIDProcessRunning = -74
-	BuiltinMetricIDMemUsage       = -75
-	BuiltinMetricIDBlockIOTime    = -76
-	BuiltinMetricIDPSICPU         = -77
-	BuiltinMetricIDPSIMem         = -78
-	BuiltinMetricIDPSIIO          = -79
-	BuiltinMetricIDNetBandwidth   = -80
-	BuiltinMetricIDNetPacket      = -81
-	BuiltinMetricIDNetError       = -82
-	BuiltinMetricIDDiskUsage      = -83
-	BuiltinMetricIDINodeUsage     = -84
+	BuiltinMetricIDCPUUsage       = -1000
+	BuiltinMetricIDSystemUptime   = -1001
+	BuiltinMetricIDProcessCreated = -1002
+	BuiltinMetricIDProcessRunning = -1003
+	BuiltinMetricIDMemUsage       = -1004
+	BuiltinMetricIDBlockIOTime    = -1005
+	BuiltinMetricIDPSICPU         = -1006
+	BuiltinMetricIDPSIMem         = -1007
+	BuiltinMetricIDPSIIO          = -1008
+	BuiltinMetricIDNetBandwidth   = -1009
+	BuiltinMetricIDNetPacket      = -1010
+	BuiltinMetricIDNetError       = -1011
+	BuiltinMetricIDDiskUsage      = -1012
+	BuiltinMetricIDINodeUsage     = -1013
 
 	BuiltinMetricNameCpuUsage    = "host_cpu_usage"
 	BuiltinMetricNameMemUsage    = "host_mem_usage"
@@ -77,10 +77,11 @@ const (
 	RawIDTagInCsumErr      = 8
 	RawIDTagRetransSeg     = 9
 
-	HostDCTag = 15
+	// don't use key tags greater than 11. 12..15 reserved by builtin metrics
+	HostDCTag = 11
 )
 
-// add env, host tags later
+// add host tag later
 var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDCPUUsage: {
 		Name:        BuiltinMetricNameCpuUsage,

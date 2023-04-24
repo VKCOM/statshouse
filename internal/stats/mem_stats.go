@@ -2,6 +2,7 @@ package stats
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/prometheus/procfs"
 	"github.com/vkcom/statshouse/internal/format"
@@ -17,6 +18,10 @@ const mem = format.BuiltinMetricNameMemUsage
 
 func (*MemStats) Name() string {
 	return "mem_stats"
+}
+
+func (c *MemStats) PushDuration(now int64, d time.Duration) {
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricMemory)
 }
 
 func NewMemoryStats(writer MetricWriter) (*MemStats, error) {

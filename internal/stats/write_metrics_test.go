@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -12,7 +13,8 @@ import (
 type handlerMock struct {
 }
 
-func (*handlerMock) HandleMetrics(*tlstatshouse.MetricBytes, mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+func (*handlerMock) HandleMetrics(b *tlstatshouse.MetricBytes, m mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+	fmt.Println(*b)
 	return data_model.MappedMetricHeader{}, true
 }
 func (*handlerMock) HandleParseError([]byte, error) {}

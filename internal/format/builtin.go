@@ -82,29 +82,32 @@ const (
 	BuiltinMetricIDAPISelectDuration          = -68
 	BuiltinMetricIDAgentHistoricQueueSizeSum  = -69
 	BuiltinMetricIDAPISourceSelectRows        = -70
+	BuiltinMetricIDSystemMetricScrapeDuration = -71
+	// [-1000..-1200] reversed by host system metrics
 
 	// metric names used in code directly
-	BuiltinMetricNameAggBucketReceiveDelaySec = "__agg_bucket_receive_delay_sec"
-	BuiltinMetricNameAgentSamplingFactor      = "__src_sampling_factor"
-	BuiltinMetricNameAggSamplingFactor        = "__agg_sampling_factor"
-	BuiltinMetricNameIngestionStatus          = "__src_ingestion_status"
-	BuiltinMetricNameAggMappingCreated        = "__agg_mapping_created"
-	BuiltinMetricNameBadges                   = "__badges"
-	BuiltinMetricNamePromScrapeTime           = "__prom_scrape_time"
-	BuiltinMetricNameAPIRPCServiceTime        = "__api_rpc_service_time"
-	BuiltinMetricNameUsageMemory              = "__usage_mem"
-	BuiltinMetricNameUsageCPU                 = "__usage_cpu"
-	BuiltinMetricNameAPIBRS                   = "__api_big_response_storage_size"
-	BuiltinMetricNameAPISelectBytes           = "__api_ch_select_bytes"
-	BuiltinMetricNameAPISelectRows            = "__api_ch_select_rows"
-	BuiltinMetricNameAPISourceSelectRows      = "__api_ch_source_select_rows"
-	BuiltinMetricNameAPISelectDuration        = "__api_ch_select_duration"
-	BuiltinMetricNameAPIEndpointResponseTime  = "__api_endpoint_response_time"
-	BuiltinMetricNameAPIEndpointServiceTime   = "__api_endpoint_service_time"
-	BuiltinMetricNameBudgetHost               = "__budget_host"
-	BuiltinMetricNameBudgetAggregatorHost     = "__budget_aggregator_host"
-	BuiltinMetricNameAPIActiveQueries         = "__api_active_queries"
-	BuiltinMetricNameBudgetUnknownMetric      = "__budget_unknown_metric"
+	BuiltinMetricNameAggBucketReceiveDelaySec   = "__agg_bucket_receive_delay_sec"
+	BuiltinMetricNameAgentSamplingFactor        = "__src_sampling_factor"
+	BuiltinMetricNameAggSamplingFactor          = "__agg_sampling_factor"
+	BuiltinMetricNameIngestionStatus            = "__src_ingestion_status"
+	BuiltinMetricNameAggMappingCreated          = "__agg_mapping_created"
+	BuiltinMetricNameBadges                     = "__badges"
+	BuiltinMetricNamePromScrapeTime             = "__prom_scrape_time"
+	BuiltinMetricNameAPIRPCServiceTime          = "__api_rpc_service_time"
+	BuiltinMetricNameUsageMemory                = "__usage_mem"
+	BuiltinMetricNameUsageCPU                   = "__usage_cpu"
+	BuiltinMetricNameAPIBRS                     = "__api_big_response_storage_size"
+	BuiltinMetricNameAPISelectBytes             = "__api_ch_select_bytes"
+	BuiltinMetricNameAPISelectRows              = "__api_ch_select_rows"
+	BuiltinMetricNameAPISourceSelectRows        = "__api_ch_source_select_rows"
+	BuiltinMetricNameAPISelectDuration          = "__api_ch_select_duration"
+	BuiltinMetricNameAPIEndpointResponseTime    = "__api_endpoint_response_time"
+	BuiltinMetricNameAPIEndpointServiceTime     = "__api_endpoint_service_time"
+	BuiltinMetricNameBudgetHost                 = "__budget_host"
+	BuiltinMetricNameBudgetAggregatorHost       = "__budget_aggregator_host"
+	BuiltinMetricNameAPIActiveQueries           = "__api_active_queries"
+	BuiltinMetricNameBudgetUnknownMetric        = "__budget_unknown_metric"
+	BuiltinMetricNameSystemMetricScrapeDuration = "__system_metrics_duration"
 
 	TagValueIDBadgeIngestionErrorsOld  = -11 // remove from API, then stop writing
 	TagValueIDBadgeAggMappingErrorsOld = -33 // remove from API, then stop writing
@@ -266,6 +269,12 @@ const (
 	TagValueIDBuildArch386   = 2
 	TagValueIDBuildArchARM64 = 3
 	TagValueIDBuildArchARM   = 4
+
+	TagValueIDSystemMetricCPU    = 1
+	TagValueIDSystemMetricDisk   = 2
+	TagValueIDSystemMetricMemory = 3
+	TagValueIDSystemMetricNet    = 4
+	TagValueIDSystemMetricPSI    = 5
 )
 
 var (
@@ -1307,6 +1316,21 @@ To see which seconds change when, use __contributors_log_rev`,
 				}),
 			}},
 		},
+		BuiltinMetricIDSystemMetricScrapeDuration: {
+			Name:        BuiltinMetricNameSystemMetricScrapeDuration,
+			Kind:        MetricKindValue,
+			Description: "System metrics scrape duration in seconds",
+			Tags: []MetricMetaTag{{
+				Description: "collector",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDSystemMetricCPU:    "cpu",
+					TagValueIDSystemMetricDisk:   "disk",
+					TagValueIDSystemMetricMemory: "memory",
+					TagValueIDSystemMetricNet:    "net",
+					TagValueIDSystemMetricPSI:    "psi",
+				}),
+			}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -1317,21 +1341,22 @@ To see which seconds change when, use __contributors_log_rev`,
 
 	// API and metadata sends this metrics via local statshouse instance
 	builtinMetricsAllowedToReceive = map[int32]bool{
-		BuiltinMetricIDTimingErrors:            true,
-		BuiltinMetricIDPromScrapeTime:          true,
-		BuiltinMetricIDAPIRPCServiceTime:       true,
-		BuiltinMetricIDAPIBRS:                  true,
-		BuiltinMetricIDAPIEndpointResponseTime: true,
-		BuiltinMetricIDAPIEndpointServiceTime:  true,
-		BuiltinMetricIDUsageMemory:             true,
-		BuiltinMetricIDUsageCPU:                true,
-		BuiltinMetricIDAPIActiveQueries:        true,
-		BuiltinMetricIDAPISelectRows:           true,
-		BuiltinMetricIDAPISelectBytes:          true,
-		BuiltinMetricIDAPISelectDuration:       true,
+		BuiltinMetricIDTimingErrors:               true,
+		BuiltinMetricIDPromScrapeTime:             true,
+		BuiltinMetricIDAPIRPCServiceTime:          true,
+		BuiltinMetricIDAPIBRS:                     true,
+		BuiltinMetricIDAPIEndpointResponseTime:    true,
+		BuiltinMetricIDAPIEndpointServiceTime:     true,
+		BuiltinMetricIDUsageMemory:                true,
+		BuiltinMetricIDUsageCPU:                   true,
+		BuiltinMetricIDAPIActiveQueries:           true,
+		BuiltinMetricIDAPISelectRows:              true,
+		BuiltinMetricIDAPISelectBytes:             true,
+		BuiltinMetricIDAPISelectDuration:          true,
+		BuiltinMetricIDSystemMetricScrapeDuration: true,
 	}
 
-	metricsWithAgentEnvRouteArch = map[int32]bool{
+	MetricsWithAgentEnvRouteArch = map[int32]bool{
 		BuiltinMetricIDAgentDiskCacheErrors:       true,
 		BuiltinMetricIDTimingErrors:               true,
 		BuiltinMetricIDAgentMapping:               true,
@@ -1381,6 +1406,7 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDAPIActiveQueries:           true,
 		BuiltinMetricIDBudgetHost:                 true,
 		BuiltinMetricIDBudgetAggregatorHost:       true,
+		BuiltinMetricIDSystemMetricScrapeDuration: true,
 	}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue
@@ -1526,7 +1552,7 @@ func init() {
 		if _, ok := hostMetrics[id]; ok {
 			m.Tags[HostDCTag] = MetricMetaTag{Description: "dc"}
 		}
-		if metricsWithAgentEnvRouteArch[id] {
+		if MetricsWithAgentEnvRouteArch[id] {
 			m.Tags[RouteTag] = MetricMetaTag{Description: "route", ValueComments: convertToValueComments(routeToValue)}
 			m.Tags[AgentEnvTag] = MetricMetaTag{
 				Description: "statshouse_env",

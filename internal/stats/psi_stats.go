@@ -2,6 +2,7 @@ package stats
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/prometheus/procfs"
 	"github.com/vkcom/statshouse/internal/format"
@@ -19,6 +20,10 @@ var psiResources = []string{"cpu", "io", "memory"}
 
 func (*PSIStats) Name() string {
 	return "psi_stats"
+}
+
+func (c *PSIStats) PushDuration(now int64, d time.Duration) {
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricPSI)
 }
 
 func NewPSI(writer MetricWriter) (*PSIStats, error) {
