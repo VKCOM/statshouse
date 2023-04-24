@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/stats"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
@@ -352,6 +353,18 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}
 	}()
 
+	m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, logErr)
+	if err != nil {
+		logErr.Println("failed to init hardware collector", err.Error())
+	} else {
+		go func() {
+			err := m.RunCollector()
+			if err != nil {
+				logErr.Println("failed to run hardware collector", err.Error())
+			}
+		}()
+		defer m.StopCollector()
+	}
 	chSignal := make(chan os.Signal, 1)
 	signal.Notify(chSignal, syscall.SIGINT, sigLogRotate)
 

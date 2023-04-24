@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -43,12 +44,13 @@ var (
 
 		cluster string // common for agent and ingress proxy
 
-		configAgent   agent.Config
-		maxCores      int
-		listenAddr    string
-		coresUDP      int
-		bufferSizeUDP int
-		promRemoteMod bool
+		configAgent                  agent.Config
+		maxCores                     int
+		listenAddr                   string
+		coresUDP                     int
+		bufferSizeUDP                int
+		promRemoteMod                bool
+		hardwareMetricScrapeInterval time.Duration
 
 		configAggregator aggregator.ConfigAggregator
 
@@ -148,6 +150,9 @@ func argvAddAgentFlags(legacyVerb bool) {
 	flag.IntVar(&argv.maxCores, "cores", -1, "CPU cores usage limit. 0 all available, <0 use (cores-udp*3/2 + 1)")
 
 	flag.BoolVar(&argv.promRemoteMod, "prometheus-push-remote", false, "use remote pusher for prom metrics")
+
+	flag.DurationVar(&argv.hardwareMetricScrapeInterval, "hardware-metric-scrape-interval", time.Second, "how often hardware metrics will be scraped")
+
 }
 
 func argvAddAggregatorFlags(legacyVerb bool) {

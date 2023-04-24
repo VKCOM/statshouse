@@ -141,12 +141,9 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 func (l *MetricMetaLoader) SaveMetric(ctx context.Context, value format.MetricMetaValue) (m format.MetricMetaValue, _ error) {
 	create := value.MetricID == 0
 
-	if err := value.RestoreCachedInfo(); err != nil {
-		return m, err
-	}
-	metricBytes, err := json.Marshal(value)
+	metricBytes, err := format.MetricJSON(&value)
 	if err != nil {
-		return m, fmt.Errorf("failed to serialize metric: %w", err)
+		return m, err
 	}
 	editMetricReq := tlmetadata.EditEntitynew{
 		Event: tlmetadata.Event{
