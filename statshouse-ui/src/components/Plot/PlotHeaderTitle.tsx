@@ -45,7 +45,7 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
         : params.what.map((qw) => whatToWhatDesc(qw)).join(', '),
     [params.metricName, params.what, plotData.whats]
   );
-  const metricFullName = useMemo(() => metricName + (what ? ': ' + what : ''), [metricName, what]);
+  const metricFullName = useMemo(() => (metricName ? metricName + (what ? ': ' + what : '') : ''), [metricName, what]);
 
   const editCustomName = useCallback(
     (value: string) => {
@@ -92,12 +92,18 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
           </span>
         ) : (
           <span className="overflow-hidden d-flex flex-row w-100 justify-content-center" title={metricFullName}>
-            <span className="text-body text-truncate">{metricName}</span>
-            {!!what && (
+            {metricName ? (
               <>
-                <span>: </span>
-                <span className="me-3 text-truncate">{what}</span>
+                <span className="text-body text-truncate">{metricName}</span>
+                {!!what && (
+                  <>
+                    <span>:&nbsp;</span>
+                    <span className="me-3 text-truncate">{what}</span>
+                  </>
+                )}
               </>
+            ) : (
+              <span>&nbsp;</span>
             )}
           </span>
         )}
@@ -118,7 +124,8 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
           <span className="text-body">{metricName}</span>
           {!!what && (
             <>
-              :<span className="me-3"> {what}</span>
+              <span>:&nbsp;</span>
+              <span className="me-3">{what}</span>
             </>
           )}
         </>
@@ -129,7 +136,8 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
       className="flex-grow-1"
       defaultValue={params.customName || metricFullName}
       placeholder={
-        params.customName || (
+        params.customName ||
+        (metricName && (
           <>
             <span>{metricName}</span>
             {!!what && (
@@ -138,7 +146,7 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
               </>
             )}
           </>
-        )
+        )) || <span>&nbsp;</span>
       }
       inputPlaceholder={metricFullName}
       onSave={editCustomName}
