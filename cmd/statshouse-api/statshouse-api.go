@@ -412,8 +412,12 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		GetChunk:      hr.GetChunk,
 		GetQuery:      hr.GetQuery,
 		ReleaseChunks: hr.ReleaseChunks,
+		GetQueryPoint: hr.GetQueryPoint,
 	}
-	srv := rpc.NewServer(rpc.ServerWithLogf(log.Printf), rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ServerWithHandler(handlerRPC.Handle), rpc.ServerWithCryptoKeys(rpcCryptoKeys))
+	srv := rpc.NewServer(rpc.ServerWithLogf(log.Printf),
+		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+		rpc.ServerWithHandler(handlerRPC.Handle),
+		rpc.ServerWithCryptoKeys(rpcCryptoKeys))
 	defer func() { _ = srv.Close() }()
 
 	rpcLn, err := tf.Listen("tcp4", argv.listenRPCAddr)
