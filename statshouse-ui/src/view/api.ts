@@ -525,7 +525,7 @@ export function queryURL(
       ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
       [queryParamVerbose, fetchBadges ? '1' : '0'],
       ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
-      ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
+      ...sel.groupBy.map((b) => [queryParamGroupBy, b.replace('key', '').replace('s', '_s')]),
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
   }
@@ -590,7 +590,7 @@ export function queryTableURL(
       ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
       // [queryParamVerbose, fetchBadges ? '1' : '0'],
       // ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
-      ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
+      ...sel.groupBy.map((b) => [queryParamGroupBy, b.replace('key', '').replace('s', '_s')]),
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
   }
@@ -772,10 +772,10 @@ function filterParams(
   filterNotIn: Record<string, readonly string[]>
 ): string[][] {
   const paramsIn = Object.entries(filterIn).flatMap(([tagID, tagValues]) =>
-    tagValues.map((v) => [queryParamFilter, formatFilterIn(tagID, v, true)])
+    tagValues.map((v) => [queryParamFilter, formatFilterIn(tagID, v, true).replace('key', '').replace('s', '_s')])
   );
   const paramsNotIn = Object.entries(filterNotIn).flatMap(([tagID, tagValues]) =>
-    tagValues.map((v) => [queryParamFilter, formatFilterNotIn(tagID, v, true)])
+    tagValues.map((v) => [queryParamFilter, formatFilterNotIn(tagID, v, true).replace('key', '').replace('s', '_s')])
   );
   return [...paramsIn, ...paramsNotIn];
 }
