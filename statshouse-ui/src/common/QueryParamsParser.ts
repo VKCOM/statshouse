@@ -8,7 +8,7 @@ import { dequal } from 'dequal/lite';
 import { KeysTo, TIME_RANGE_KEYS_TO } from './TimeRange';
 import { filterInSep, filterNotInSep, queryValueBackendVersion1, queryValueBackendVersion2 } from '../view/api';
 import produce from 'immer';
-import { deepClone } from '../view/utils';
+import { deepClone, freeKeyPrefix } from '../view/utils';
 
 const maxPrefixArray = 100;
 const removeValueChar = String.fromCharCode(7);
@@ -234,14 +234,14 @@ export const FilterParams: (notIn?: boolean) => ConfigParam<[string, string]> = 
     if (pos === -1 || (pos > pos2 && pos2 > -1)) {
       return undefined;
     }
-    const indexTag = s.substring(0, pos).replace('skey', '_s').replace('key', '');
+    const indexTag = freeKeyPrefix(s.substring(0, pos));
     const tagID = '_s' === indexTag ? 'skey' : `key${indexTag}`;
     const tagValue = s.substring(pos + 1);
     return [tagID, tagValue];
   },
   encode: (v) => {
     const [tagID, tagValue] = v;
-    const indexTag = tagID.replace('key', '').replace('s', '_s');
+    const indexTag = freeKeyPrefix(tagID);
     return `${indexTag}${notIn ? filterNotInSep : filterInSep}${tagValue}`;
   },
 });
@@ -250,9 +250,9 @@ export const FilterParams: (notIn?: boolean) => ConfigParam<[string, string]> = 
  * decode/encode groupBy param
  */
 export const GroupByParams: ConfigParam<string> = {
-  encode: (s) => s.replace('skey', '_s').replace('key', ''),
+  encode: (s) => freeKeyPrefix(s),
   decode: (s) => {
-    const indexTag = s.replace('skey', '_s').replace('key', '');
+    const indexTag = freeKeyPrefix(s);
     return '_s' === indexTag ? 'skey' : `key${indexTag}`;
   },
 };
