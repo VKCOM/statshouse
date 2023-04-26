@@ -199,7 +199,6 @@ export const PlotControls = memo(function PlotControls_(props: {
 
         s.metricName = promQLMetric;
         s.what = [whats[0]];
-        s.customName = '';
         s.groupBy = [];
         s.filterIn = {};
         s.filterNotIn = {};

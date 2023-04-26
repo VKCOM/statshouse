@@ -15,8 +15,6 @@ export const DashboardSettings: React.FC<DashboardSettingsProps> = () => {
 
   return (
     <div className="w-max-720 mx-auto">
-      <h4>Dashboard Settings</h4>
-      <hr />
       <div className="">
         <div className="mb-4">
           <DashboardInfo />

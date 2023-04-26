@@ -105,7 +105,6 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
           s.what = (
             plotData.whats?.length ? plotData.whats.slice() : globalSettings.default_metric_what.slice()
           ) as queryWhat[];
-          s.customName = '';
           s.groupBy = [];
           s.filterIn = {};
           s.filterNotIn = {};
