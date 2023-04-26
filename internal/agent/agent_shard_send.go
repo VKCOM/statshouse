@@ -9,6 +9,7 @@ package agent
 import (
 	"context"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -668,7 +669,7 @@ func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 	var err error
 	if s.alive.Load() {
 		err = s.sendSourceBucketCompressed(ctx, cbd, false, false, &resp)
-		s.recordSendResult(err == nil)
+		s.recordSendResult(!isShardDeadError(err))
 	} else {
 		spare := SpareShardReplica(s.ShardReplicaNum, cbd.time)
 		if !s.statshouse.Shards[spare].alive.Load() {
@@ -678,7 +679,10 @@ func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 	}
 	if err != nil {
 		if !data_model.SilentRPCError(err) {
+			s.stats.recentSendFailed.Add(1)
 			s.client.Client.Logf("Send Error: s.client.Do returned error %v, moving bucket %d to historic conveyor for shard %d", err, cbd.time, s.ShardReplicaNum)
+		} else {
+			s.stats.recentSendSkip.Add(1)
 		}
 		return false
 	}
@@ -688,6 +692,7 @@ func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 func (s *Shard) goSendRecent() {
 	for cbd := range s.BucketsToSend {
 		if s.sendRecent(cbd) {
+			s.stats.recentSendSuccess.Add(1)
 			s.diskCacheEraseWithLog(cbd.time, "after sending")
 		} else {
 			if !s.config.SaveSecondsImmediately {
@@ -704,6 +709,7 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 	for {
 		nowUnix := uint32(time.Now().Unix())
 		if s.checkOutOfWindow(nowUnix, cbd.time) { // should check in for because time passes with attempts
+			s.stats.historicOutOfWindowDropped.Add(1)
 			return
 		}
 		if len(cbd.data) == 0 { // Read once, if needed, but only after checking timestamp
@@ -724,7 +730,6 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 			}
 		}
 		var resp []byte
-
 		// We use infinite timeout, because otherwise, if aggregator is busy, source will send the same bucket again and again, inflating amount of data
 		// But we set FailIfNoConnection to switch to fallback immediately
 		if s.alive.Load() {
@@ -733,17 +738,22 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 			spare := SpareShardReplica(s.ShardReplicaNum, cbd.time)
 			if !s.statshouse.Shards[spare].alive.Load() {
 				time.Sleep(10 * time.Second) // TODO - better idea?
+				s.client.Client.Logf("both historic shards are dead, shard: %d, time %d, %v", s.ShardReplicaNum, cbd.time, err)
 				continue
 			}
 			err = s.statshouse.Shards[spare].sendSourceBucketCompressed(context.Background(), cbd, true, true, &resp)
 		}
+
 		if err != nil {
 			if !data_model.SilentRPCError(err) {
-				s.client.Client.Logf("Send Error: s.client.Do returned error %v for historic bucket %d for shard %d, trying again", err, cbd.time, s.ShardReplicaNum)
+				s.stats.historicSendFailed.Add(1)
+			} else {
+				s.stats.historicSendSkip.Add(1)
 			}
 			time.Sleep(time.Second) // TODO - better idea?
 			continue
 		}
+		s.stats.historicSendSuccess.Add(1)
 		s.diskCacheEraseWithLog(cbd.time, "after sending historic")
 		break
 	}
@@ -835,6 +845,7 @@ func (s *Shard) goSendHistoric() {
 			s.cond.Wait()
 		}
 		cbd := s.popOldestHistoricSecondLocked()
+
 		s.mu.Unlock()
 		s.sendHistoric(cbd, &scratchPad)
 		s.mu.Lock()
@@ -881,4 +892,12 @@ func (s *Shard) goEraseHistoric() {
 		time.Sleep(60 * time.Second) // rare, because only  fail-safe against all goSendHistoric blocking in infinite sends
 		s.mu.Lock()
 	}
+}
+
+func isShardDeadError(err error) bool {
+	var rpcError rpc.Error
+	if !errors.As(err, &rpcError) {
+		return true
+	}
+	return rpcError.Code != data_model.RPCErrorMissedRecentConveyor
 }
