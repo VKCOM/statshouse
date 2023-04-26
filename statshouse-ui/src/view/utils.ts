@@ -678,5 +678,5 @@ export function deepClone<T>(data: T): T {
 }
 
 export function freeKeyPrefix(str: string): string {
-  return str.replace('key', '').replace('s', '_s');
+  return str.replace('skey', '_s').replace('key', '');
 }

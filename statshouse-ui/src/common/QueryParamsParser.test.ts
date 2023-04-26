@@ -10,6 +10,7 @@ import {
   decodeQueryParams,
   encodeQueryParams,
   FilterParams,
+  GroupByParams,
   mergeLeft,
   NumberParam,
   ObjectsParam,
@@ -469,6 +470,17 @@ describe('QueryParamsParser', () => {
     expect(FilterParams(true).decode?.('_s~messages')).toEqual(['skey', 'messages']);
     expect(FilterParams(true).encode?.(['key1', 'messages'])).toBe('1~messages');
     expect(FilterParams(true).encode?.(['skey', 'messages'])).toBe('_s~messages');
+  });
+
+  test('parse GroupByParams', () => {
+    expect(GroupByParams.decode?.('1')).toEqual('key1');
+    expect(GroupByParams.decode?.('key1')).toEqual('key1');
+    expect(GroupByParams.encode?.('1')).toEqual('1');
+    expect(GroupByParams.encode?.('key1')).toEqual('1');
+    expect(GroupByParams.decode?.('skey')).toEqual('skey');
+    expect(GroupByParams.decode?.('_s')).toEqual('skey');
+    expect(GroupByParams.encode?.('_s')).toEqual('_s');
+    expect(GroupByParams.encode?.('skey')).toEqual('_s');
   });
 
   test('change FilterParams', () => {
