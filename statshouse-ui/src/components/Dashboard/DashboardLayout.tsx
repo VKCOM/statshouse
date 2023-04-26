@@ -273,6 +273,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
       {select !== null && maxGroup + 1 === itemsGroup.length && (
         <div className="pb-5" data-group={maxGroup + 1}>
           <h6 className="border-bottom"> </h6>
+          <div className="text-center text-secondary py-4">Drop here for create new group</div>
         </div>
       )}
       <div hidden={select === null} className="position-fixed opacity-75 top-0 start-0" ref={preview}>

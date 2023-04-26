@@ -9,6 +9,7 @@ import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useStateInput } from '../hooks';
 import { sortByKey } from './utils';
+import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from '../common/toggleKeyboard';
 
 export type DashboardListViewProps = {};
 
@@ -21,11 +22,18 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
   }, [loadListServerDashboard]);
 
   const filterList = useMemo(() => {
+    const orig = searchInput.value.toLocaleLowerCase();
+    const ru = toggleKeyboard(orig, mapKeyboardEnToRu);
+    const en = toggleKeyboard(orig, mapKeyboardRuToEn);
     const res = listServerDashboard.filter(
       (item) =>
         searchInput.value === '' ||
-        item.name.toLowerCase().includes(searchInput.value.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchInput.value.toLowerCase())
+        item.name.toLowerCase().includes(orig) ||
+        item.description.toLowerCase().includes(orig) ||
+        item.name.toLowerCase().includes(ru) ||
+        item.description.toLowerCase().includes(ru) ||
+        item.name.toLowerCase().includes(en) ||
+        item.description.toLowerCase().includes(en)
     );
     res.sort(sortByKey.bind(null, 'name'));
     return res;
@@ -33,26 +41,22 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
 
   return (
     <div className="container-sm pt-3 pb-3 w-max-720">
-      <div className="mb-2 row">
-        <label htmlFor="dashboard-list-search" className="col-sm-2 col-form-label">
-          Search
-        </label>
-        <div className="col-sm-10">
-          <input
-            id="dashboard-list-search"
-            type="search"
-            className="form-control"
-            aria-label="search"
-            {...searchInput}
-          />
-        </div>
+      <div className="mb-2">
+        <input
+          id="dashboard-list-search"
+          type="search"
+          placeholder="Search"
+          className="form-control"
+          aria-label="search"
+          {...searchInput}
+        />
       </div>
       <ul className="list-group">
         {filterList.map((item) => (
           <li key={item.id} className="list-group-item">
             <Link to={`/view?id=${item.id}`} className="text-black text-decoration-none">
-              <h6>{item.name}</h6>
-              {!!item.description && <div className="small text-secondary">{item.description}</div>}
+              <h6 className="m-0">{item.name}</h6>
+              {!!item.description && <div className="small text-secondary mt-2">{item.description}</div>}
             </Link>
           </li>
         ))}

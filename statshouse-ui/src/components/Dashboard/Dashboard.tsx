@@ -5,6 +5,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useMemo } from 'react';
+import { ReactComponent as SVGCloudArrowUp } from 'bootstrap-icons/icons/cloud-arrow-up.svg';
+
 import {
   selectorDashboardLayoutEdit,
   selectorGlobalNumQueriesPlot,
@@ -51,9 +53,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
     });
   }, [saveServerParams, setDashboardLayoutEdit]);
 
-  const onCloseLayoutEdit = useCallback(() => {
-    setDashboardLayoutEdit(false);
-  }, [setDashboardLayoutEdit]);
   const lastErrorClear = useCallback(() => {
     setLastError('');
   }, [setLastError]);
@@ -90,16 +89,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
               onClick={save}
               title={!params.dashboard?.name ? 'Required name dashboard' : 'Save dashboard'}
             >
-              {numQueries > 0 && (
+              {numQueries > 0 ? (
                 <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+              ) : (
+                <SVGCloudArrowUp className="mx-1" />
               )}
               {isServer ? 'Save' : 'Create'}
-            </button>
-          </li>
-
-          <li className="nav-item">
-            <button type="button" className="nav-link" onClick={onCloseLayoutEdit}>
-              Close
             </button>
           </li>
         </ul>
