@@ -400,36 +400,6 @@ export async function apiGet<T>(url: string, signal: AbortSignal, promptReloadOn
   return json.data!;
 }
 
-export async function apiGetMockLocalStorage<T>(
-  url: string,
-  signal: AbortSignal,
-  promptReloadOn401: boolean
-): Promise<T> {
-  const json = JSON.parse(window.localStorage.getItem(url) ?? 'null') as apiResponse<T>;
-  if (!json || !json.data) {
-    throw new Error(`${url} not mock response`);
-  }
-  return Promise.resolve(json.data!);
-}
-
-export async function apiGetMockLocalStorageLoadListServerDashboard<T>(
-  url: string,
-  signal: AbortSignal,
-  promptReloadOn401: boolean
-): Promise<T> {
-  const res = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = window.localStorage.key(i);
-    if (key && key.includes('/api/dash?id=')) {
-      const json = JSON.parse(window.localStorage.getItem(key) ?? 'null');
-      if (json.data?.dashboard) {
-        res.push(json.data.dashboard);
-      }
-    }
-  }
-  return Promise.resolve(res as unknown as T);
-}
-
 export async function apiPost<T>(
   url: string,
   data: unknown,
@@ -491,20 +461,6 @@ export async function apiPut<T>(
     throw new Error(`${resp.status}: ${json.error}`);
   }
   return json.data!;
-}
-
-export async function apiPostMockLocalStorage<T>(
-  url: string,
-  data: unknown,
-  signal: AbortSignal,
-  promptReloadOn401: boolean
-): Promise<T> {
-  window.localStorage.setItem(url, JSON.stringify({ data }));
-  const json = JSON.parse(window.localStorage.getItem(url) ?? 'null') as apiResponse<T>;
-  if (!json) {
-    throw new Error(`${url} not mock response`);
-  }
-  return Promise.resolve(json.data!);
 }
 
 export function readJSONLD<T>(type: string): T | null {
@@ -719,4 +675,8 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
 
 export function deepClone<T>(data: T): T {
   return JSON.parse(JSON.stringify(data)) as T;
+}
+
+export function freeKeyPrefix(str: string): string {
+  return str.replace('skey', '_s').replace('key', '');
 }

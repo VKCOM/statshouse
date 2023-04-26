@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as utils from './utils';
-import { convert, promQLMetric } from './utils';
+import { convert, freeKeyPrefix, promQLMetric } from './utils';
 import { TimeRange } from '../common/TimeRange';
 import { Column } from 'react-data-grid';
 import { EventDataRow } from '../store/statshouse';
@@ -525,7 +525,7 @@ export function queryURL(
       ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
       [queryParamVerbose, fetchBadges ? '1' : '0'],
       ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
-      ...sel.groupBy.map((b) => [queryParamGroupBy, b.replace('key', '').replace('s', '_s')]),
+      ...sel.groupBy.map((b) => [queryParamGroupBy, freeKeyPrefix(b)]),
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
   }
@@ -590,7 +590,7 @@ export function queryTableURL(
       ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
       // [queryParamVerbose, fetchBadges ? '1' : '0'],
       // ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
-      ...sel.groupBy.map((b) => [queryParamGroupBy, b.replace('key', '').replace('s', '_s')]),
+      ...sel.groupBy.map((b) => [queryParamGroupBy, freeKeyPrefix(b)]),
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
   }
@@ -749,22 +749,12 @@ export function metricTagValuesURL(
 export const filterInSep = '-';
 export const filterNotInSep = '~';
 
-export function formatFilterIn(tagID: string, tagValue: string, full?: boolean): string {
-  const indexTag = full ? tagID : tagID.replace('key', '').replace('s', '_s');
-  return `${indexTag}${filterInSep}${tagValue}`;
+export function formatFilterIn(tagID: string, tagValue: string): string {
+  return `${freeKeyPrefix(tagID)}${filterInSep}${tagValue}`;
 }
 
-export function formatFilterNotIn(tagID: string, tagValue: string, full?: boolean): string {
-  const indexTag = full ? tagID : tagID.replace('key', '').replace('s', '_s');
-  return `${indexTag}${filterNotInSep}${tagValue}`;
-}
-
-export function flattenFilterIn(filterIn: Record<string, readonly string[]>): string[] {
-  return Object.entries(filterIn).flatMap(([tagID, tagValues]) => tagValues.map((v) => formatFilterIn(tagID, v)));
-}
-
-export function flattenFilterNotIn(filterNotIn: Record<string, readonly string[]>): string[] {
-  return Object.entries(filterNotIn).flatMap(([tagID, tagValues]) => tagValues.map((v) => formatFilterNotIn(tagID, v)));
+export function formatFilterNotIn(tagID: string, tagValue: string): string {
+  return `${freeKeyPrefix(tagID)}${filterNotInSep}${tagValue}`;
 }
 
 function filterParams(
@@ -772,10 +762,10 @@ function filterParams(
   filterNotIn: Record<string, readonly string[]>
 ): string[][] {
   const paramsIn = Object.entries(filterIn).flatMap(([tagID, tagValues]) =>
-    tagValues.map((v) => [queryParamFilter, formatFilterIn(tagID, v, true).replace('key', '').replace('s', '_s')])
+    tagValues.map((v) => [queryParamFilter, formatFilterIn(tagID, v)])
   );
   const paramsNotIn = Object.entries(filterNotIn).flatMap(([tagID, tagValues]) =>
-    tagValues.map((v) => [queryParamFilter, formatFilterNotIn(tagID, v, true).replace('key', '').replace('s', '_s')])
+    tagValues.map((v) => [queryParamFilter, formatFilterNotIn(tagID, v)])
   );
   return [...paramsIn, ...paramsNotIn];
 }
