@@ -247,6 +247,17 @@ export const FilterParams: (notIn?: boolean) => ConfigParam<[string, string]> = 
 });
 
 /**
+ * decode/encode groupBy param
+ */
+export const GroupByParams: ConfigParam<string> = {
+  encode: (s) => s.replace('skey', '_s').replace('key', ''),
+  decode: (s) => {
+    const indexTag = s.replace('skey', '_s').replace('key', '');
+    return '_s' === indexTag ? 'skey' : `key${indexTag}`;
+  },
+};
+
+/**
  * decode/encode v2 param
  */
 export const UseV2Param: ConfigParam<boolean> = {

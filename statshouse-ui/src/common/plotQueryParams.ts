@@ -42,6 +42,7 @@ import {
   decodeQueryParams,
   encodeQueryParams,
   FilterParams,
+  GroupByParams,
   NumberParam,
   TagSyncParam,
   TimeToParam,
@@ -357,6 +358,7 @@ export const configParams: ConfigParams = {
         default: 0,
       },
       groupBy: {
+        ...GroupByParams,
         urlKey: queryParamGroupBy, //qb=key0 or t1.qb=key1
         default: [] as string[],
         isArray: true,
