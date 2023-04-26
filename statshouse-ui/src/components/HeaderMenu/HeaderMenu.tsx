@@ -236,6 +236,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
                   indexPlot={params.plots.length}
                   title="Add metric plot"
                   typePlot={PLOT_TYPE.Metric}
+                  newPlot
                 >
                   Add metric plot
                 </PlotLink>
@@ -246,6 +247,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
                   indexPlot={params.plots.length}
                   title="Add event plot"
                   typePlot={PLOT_TYPE.Event}
+                  newPlot
                 >
                   Add event plot
                 </PlotLink>

@@ -798,7 +798,7 @@ export const statsHouseState: StateCreator<
             topInfoTotals[key] = meta.total;
             const paths =
               lastPlotParams.type === PLOT_TYPE.Event
-                ? uPlot.paths.bars!({ align: 1 })
+                ? uPlot.paths.bars!({ size: [0.7], gap: 0, align: 1 })
                 : uPlot.paths.stepped!({
                     align: 1,
                   });
@@ -811,10 +811,13 @@ export const statsHouseState: StateCreator<
               width: widthLine,
               dash: timeShift ? timeShiftToDash(meta.time_shift, usedDashes) : undefined,
               fill: rgba(baseColor, timeShift ? 0.1 : 0.15),
-              points: {
-                filter: filterPoints,
-                size: 5,
-              },
+              points:
+                lastPlotParams.type === PLOT_TYPE.Event
+                  ? { show: false, size: 0 }
+                  : {
+                      filter: filterPoints,
+                      size: 5,
+                    },
               // paths: uPlot.paths.bars!({
               //   size: [5, 5, 5],
               //   align: 1,
