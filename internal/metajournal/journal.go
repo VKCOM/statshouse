@@ -101,10 +101,10 @@ func MakeJournal(namespaceSuffix string, dc *pcache.DiskCache, applyEvent ApplyE
 	return result
 }
 
-func (ms *Journal) Start(sh2 *agent.Agent, a AggLog, metaLoader MetricsStorageLoader) {
+func (ms *Journal) Start(sh2 *agent.Agent, aggLog AggLog, metaLoader MetricsStorageLoader) {
 	ms.metaLoader = metaLoader
 	ms.sh2 = sh2
-	go ms.goUpdateMetrics(a)
+	go ms.goUpdateMetrics(aggLog)
 	go func() {
 		// long poll termination loop
 		for {
@@ -349,10 +349,10 @@ func updateEntriesJournal(oldJournal, newEntries []tlmetadata.Event) []tlmetadat
 	return result
 }
 
-func (ms *Journal) goUpdateMetrics(a AggLog) {
+func (ms *Journal) goUpdateMetrics(aggLog AggLog) {
 	backoffTimeout := time.Duration(0)
 	for {
-		err := ms.updateJournal(a)
+		err := ms.updateJournal(aggLog)
 		if err == nil {
 			backoffTimeout = 0
 			time.Sleep(data_model.JournalDDOSProtectionTimeout) // if aggregator invariants are broken and they reply immediately forever
