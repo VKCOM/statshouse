@@ -398,13 +398,14 @@ func sendToClickhouse(httpClient *http.Client, khAddr string, table string, body
 	resp, err := httpClient.Do(req)
 	dur := time.Since(start)
 	dur = dur / time.Millisecond * time.Millisecond
+	// TODO - use ParseExceptionFromResponseBody
 	if err != nil {
 		return 0, 0, dur.Seconds(), err
 	}
 	if resp.StatusCode == http.StatusOK {
 		_, _ = io.Copy(io.Discard, resp.Body) // keepalive
 		_ = resp.Body.Close()
-		return 0, 0, dur.Seconds(), nil
+		return http.StatusOK, 0, dur.Seconds(), nil
 	}
 	partialBody := body
 	if len(partialBody) > 128 {

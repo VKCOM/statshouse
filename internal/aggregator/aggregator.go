@@ -67,7 +67,7 @@ type (
 	Aggregator struct {
 		recentBuckets   []*aggregatorBucket          // We collect into several buckets before sending
 		recentNow       uint32                       // Value used to update recentBuckets
-		historicBuckets map[uint32]*aggregatorBucket // timestamp->bucket
+		historicBuckets map[uint32]*aggregatorBucket // timestamp->bucket. Each agent sends not more than X historic buckets, so size is limited.
 		bucketsToSend   chan *aggregatorBucket
 		mu              sync.Mutex
 		cond            *sync.Cond // Signalled when historicBuckets len or activeSenders change
@@ -437,16 +437,16 @@ func selectShardReplicaImpl(httpClient *http.Client, khAddr string, cluster stri
 	return 0, 0, nil, fmt.Errorf("HTTP get from clickhouse %q for cluster %q returned body with no local replicas - %q", khAddr, cluster, string(body))
 }
 
-func (a *Aggregator) sendBucket(rnd *rand.Rand, bodyStorage *[]byte, httpClient *http.Client, b *aggregatorBucket, historic bool, comment string) (float64, error) {
+func (a *Aggregator) sendBucket(rnd *rand.Rand, bodyStorage *[]byte, httpClient *http.Client, b *aggregatorBucket, historic bool, comment string) (status int, exception int, dur float64, err error) {
 	a.estimator.ReportHourCardinality(b.time, b.usedMetrics, &b.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
 	*bodyStorage = a.RowDataMarshalAppendPositions(b, rnd, (*bodyStorage)[:0], historic)
 	// Never empty, because adds value stats
-	status, exception, dur, err := sendToClickhouse(httpClient, a.config.KHAddr, getTableDesc(), *bodyStorage)
+	status, exception, dur, err = sendToClickhouse(httpClient, a.config.KHAddr, getTableDesc(), *bodyStorage)
 	if err != nil {
 		a.appendInternalLog("insert_error", "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, err.Error())
 		log.Print(err)
 	}
-	return dur, err
+	return status, exception, dur, err
 }
 
 func (a *Aggregator) goSend(senderID int) {
@@ -460,7 +460,7 @@ func (a *Aggregator) goSend(senderID int) {
 		a.mu.Lock()
 		a.activeSenders++
 		a.mu.Unlock()
-		dur, sendErr := a.sendBucket(rnd, &bodyStorage, httpClient, aggBucket, false, comment)
+		status, exception, dur, sendErr := a.sendBucket(rnd, &bodyStorage, httpClient, aggBucket, false, comment)
 
 		a.mu.Lock()
 		a.activeSenders--
@@ -474,7 +474,7 @@ func (a *Aggregator) goSend(senderID int) {
 				Description: sendErr.Error(),
 			}
 		}
-		a.reporInsert(aggBucket.time, format.TagValueIDConveyorRecent, sendErr, dur, len(bodyStorage))
+		a.reporInsert(aggBucket.time, format.TagValueIDConveyorRecent, sendErr, status, exception, dur, len(bodyStorage))
 		var args tlstatshouse.SendSourceBucket2 // Dummy
 		for _, c := range aggBucket.contributors {
 			c.Response, _ = args.WriteResult(c.Response, "Dummy result")
@@ -563,7 +563,7 @@ func (a *Aggregator) goSendHistoric(senderID int) {
 				c.Response, _ = args.WriteResult(c.Response, "Dummy historic result")
 				c.SendHijackedResponse(sendErr)
 			}
-			a.reporInsert(b.time, format.TagValueIDConveyorHistoric, sendErr, dur, aggBucketsSizes[i])
+			a.reporInsert(b.time, format.TagValueIDConveyorHistoric, sendErr, status, exception, dur, aggBucketsSizes[i])
 		}
 		bodyStorage = bodyStorage[:0]
 		aggBuckets = aggBuckets[:0]

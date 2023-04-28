@@ -699,6 +699,12 @@ Set by either agent or aggregator, depending on status.`,
 					TagValueIDInsertTimeOK:    "ok",
 					TagValueIDInsertTimeError: "error",
 				}),
+			}, {
+				Description: "http_status",
+				Raw:         true,
+			}, {
+				Description: "clickhouse_exception",
+				Raw:         true, // TODO - ValueComments with popular clickhouse exceptions
 			}},
 		},
 		BuiltinMetricIDAgentHistoricQueueSize: {
@@ -775,6 +781,12 @@ Set by either agent or aggregator, depending on status.`,
 					TagValueIDInsertTimeOK:    "ok",
 					TagValueIDInsertTimeError: "error",
 				}),
+			}, {
+				Description: "http_status",
+				Raw:         true,
+			}, {
+				Description: "clickhouse_exception",
+				Raw:         true, // TODO - ValueComments with popular clickhouse exceptions
 			}},
 		},
 		BuiltinMetricIDAgentPerMetricSampleBudget: {
