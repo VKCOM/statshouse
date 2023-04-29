@@ -89,6 +89,9 @@ func ValidateConfigAggregator(c ConfigAggregator) error {
 	if c.HistoricInserters < 1 {
 		return fmt.Errorf("--historic-inserters (%d) must be >= 1", c.HistoricInserters)
 	}
+	if c.HistoricInserters > 4 { // Otherwise batching during historic inserts will become too small
+		return fmt.Errorf("--historic-inserters (%d) must be <= 4", c.HistoricInserters)
+	}
 
 	if c.StringTopCountInsert < data_model.MinStringTopInsert {
 		return fmt.Errorf("--string-top-insert (%d) must be >= %d", c.StringTopCountInsert, data_model.MinStringTopInsert)
