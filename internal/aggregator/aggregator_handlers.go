@@ -280,9 +280,6 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 			if aggBucket == nil {
 				aggBucket = &aggregatorBucket{time: args.Time}
 				a.historicBuckets[args.Time] = aggBucket
-				if a.sendHistoricCondition() {
-					a.cond.Broadcast() // we are not sure that Signal is enough
-				}
 			}
 		} else {
 			// If source receives error from recent conveyor quickly, it will come to spare while bucket is still recent

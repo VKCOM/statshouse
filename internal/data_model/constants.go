@@ -25,9 +25,19 @@ const (
 	LogAggregationShardsPerSecond = 8
 	AggregationShardsPerSecond    = 1 << LogAggregationShardsPerSecond
 
-	MaxHistorySendStreams      = 10      // Do not change, unless you understand how exactly new conveyor works
-	MaxHistoryInsertBatch      = 4       // Should be < MaxHistorySendStreams/2 so that we have enough historic buckets received when we finish previous insert
-	HistoryInsertBodySizeLimit = 1 << 20 // We will batch several historic buckets together if they fit in this limit
+	MaxHistorySendStreams = 24 // Do not change, unless you understand how exactly new conveyor works.
+	// [a, b, c, d, e, f, g, h, i, j]               <- this is 10 seconds sent by agent
+	//                [f, g, h, i, j]               <- after [a, b, c, d, e] is taken by insert historic, this is what remains
+	//                             []               <- after [a, b, c, d, e] is inserted and replies sent, [f, g, h, i, j] are taken
+	//                             [k, l, m, n, o]  <- while [f, g, h, i, j] are being inserted, agent receives replies to [a, b, c, d, e] and sents next [k, l, m, n, o]
+	// So, we have enough seconds always to perform smooth rolling insert.
+	// Each historic second in the diagram above actually consists of data sent by multiple agents.
+	// In the worst case, amount of memory is approx. MaxHistorySendStreams * agent insert budget per shard
+	// Big TODO - using feedback increase the length of this queue in a way it is close to some total memory limit.
+	// So if there is single agent with many seconds, queue would grow dramatically (thousand seconds)
+	MaxHistoryInsertBatch = 12 // Should be <= MaxHistorySendStreams/2 if we have 1 historic inserter, and /3 if we have 2,
+	// so that we have enough historic buckets waiting when we finish previous insert
+	MaxHistoryInsertContributorsScale = 4 // We will batch less several historic buckets if they contain many contributors
 
 	MaxLivenessResponsesWindowLength = 60
 	MaxHistoricBucketsMemorySize     = 50 << 20
@@ -85,12 +95,11 @@ const (
 
 	InternalLogInsertInterval = 5 * time.Second
 
-	RPCErrorMissedRecentConveyor   = -5001 // just send again through historic
-	RPCErrorInsertRecentConveyor   = -5002 // just send again through historic
-	RPCErrorInsertHistoricConveyor = -5003 // just send again after delay
-	RPCErrorNoAutoCreate           = -5004 // just live with it, this is normal
-	RPCErrorTerminateLongpoll      = -5005 // we terminate long polls because rpc.Server does not inform us about hctx disconnects. TODO - remove as soon as Server is updated
-	RPCErrorScrapeAgentIP          = -5006 // scrape agent must have IP address
+	RPCErrorMissedRecentConveyor = -5001 // just send again through historic
+	RPCErrorInsert               = -5002 // just send again through historic (for recent), or send again after delay (for historic)
+	RPCErrorNoAutoCreate         = -5004 // just live with it, this is normal
+	RPCErrorTerminateLongpoll    = -5005 // we terminate long polls because rpc.Server does not inform us about hctx disconnects. TODO - remove as soon as Server is updated
+	RPCErrorScrapeAgentIP        = -5006 // scrape agent must have IP address
 
 	JournalDiskNamespace        = "metric_journal_v5:"
 	TagValueDiskNamespace       = "tag_value_v3:"
@@ -124,8 +133,8 @@ func SilentRPCError(err error) bool {
 		return false
 	}
 	switch rpcError.Code {
-	case RPCErrorMissedRecentConveyor, RPCErrorInsertRecentConveyor,
-		RPCErrorInsertHistoricConveyor, RPCErrorNoAutoCreate, RPCErrorTerminateLongpoll:
+	case RPCErrorMissedRecentConveyor, RPCErrorInsert,
+		RPCErrorNoAutoCreate, RPCErrorTerminateLongpoll:
 		return true
 	default:
 		return false

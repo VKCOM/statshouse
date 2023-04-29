@@ -63,13 +63,14 @@ func (a *Aggregator) goInternalLog() {
 	}
 }
 
-func (a *Aggregator) reporInsert(bucketTime uint32, conveyorTag int32, err error, status int, exception int, dur float64, bodySize int) {
-	key := data_model.AggKey(bucketTime, format.BuiltinMetricIDAggInsertTime,
-		[16]int32{0, 0, 0, 0, conveyorTag, format.TagValueIDInsertTimeOK, int32(status), int32(exception)}, a.aggregatorHost, a.shardKey, a.replicaKey)
+func (a *Aggregator) reportInsertKeys(bucketTime uint32, metric int32, historic bool, err error, status int, exception int) data_model.Key {
+	key := data_model.AggKey(bucketTime, metric,
+		[16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent, format.TagValueIDInsertTimeOK, int32(status), int32(exception)}, a.aggregatorHost, a.shardKey, a.replicaKey)
 	if err != nil {
 		key.Keys[5] = format.TagValueIDInsertTimeError
 	}
-	a.sh2.AddValueCounterHost(key, dur, 1, 0)
-	a.sh2.AddValueCounterHost(data_model.Key{Timestamp: 0, Metric: format.BuiltinMetricIDAggInsertTimeReal, Keys: key.Keys}, dur, 1, 0)
-	a.sh2.AddValueCounterHost(data_model.Key{Timestamp: 0, Metric: format.BuiltinMetricIDAggInsertSizeReal, Keys: key.Keys}, float64(bodySize), 1, 0)
+	if historic {
+		key.Keys[4] = format.TagValueIDConveyorHistoric
+	}
+	return key
 }
