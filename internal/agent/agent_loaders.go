@@ -34,6 +34,10 @@ func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, isE
 		addr := addresses[nextAddr]
 		dst, err := clientGetConfig(network, rpcClient, addr, isEnvStaging, componentTag, archTag, cluster)
 		if err == nil {
+			// when running agent from outside run_local docker
+			// for i := range dst.Addresses {
+			//	dst.Addresses[i] = strings.ReplaceAll(dst.Addresses[i], "aggregator", "localhost")
+			// }
 			logF("Configuration: success autoconfiguration from (%q), address list is (%q), max is %d", strings.Join(addresses, ","), strings.Join(dst.Addresses, ","), dst.MaxAddressesCount)
 			return dst
 		}
