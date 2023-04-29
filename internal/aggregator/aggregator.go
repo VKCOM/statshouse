@@ -467,7 +467,20 @@ func (a *Aggregator) goSend(senderID int) {
 
 		recentContributors := len(aggBucket.contributors)
 		historicContributors := 0
-		for willInsertHistoric && len(aggBuckets) < 1+data_model.MaxHistoryInsertBatch {
+		maxHistoricInsertBatch := data_model.MaxHistorySendStreams / (1 + a.config.HistoricInserters)
+		// each historic inserter takes not more than maxHistoricInsertBatch the oldest buckets, so for example with 2 inserters
+		// [a, b, c, d, e, f]               <- this is 6 seconds sent by agent and waiting in historicBuckets to be inserted
+		// [a, b, c, d, e, f]               <- first inserter takes [a, b] and starts inserting
+		//             [e, f]               <- second inserter takes [c, d] and starts inserting
+		// Client sends no more historic seconds because it did not receive responses yet.
+		// As soon as one of the inserters finish, it sends back responses and there must be 2 seconds available without delay.
+		//                  []              <- inserter takes [e, f] and starts inserting, meanwhile agent receives 2 responses and sends 2 more seconds
+		//                  [g, h]          <- so that when the other inserter finishes, more 2 seconds will be available.
+		// So, we have enough seconds always to perform smooth rolling insert.
+		// In case both inserters finish at the same time, this rolling algorithm will perform non-ideal insert, but that is good enough for us.
+		// Note: Each historic second in the diagram is aggregation of many agents , each one receiving copy of the response
+		// Note: In the worst case, amount of memory is approx. MaxHistorySendStreams * agent insert budget per shard * # of agents
+		for willInsertHistoric && len(aggBuckets) < 1+maxHistoricInsertBatch {
 			historicBucket := a.getOldestHistoricBucket()
 			if historicBucket == nil {
 				break
