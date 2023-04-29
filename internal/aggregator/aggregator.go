@@ -432,10 +432,6 @@ func selectShardReplicaImpl(httpClient *http.Client, khAddr string, cluster stri
 	return 0, 0, nil, fmt.Errorf("HTTP get from clickhouse %q for cluster %q returned body with no local replicas - %q", khAddr, cluster, string(body))
 }
 
-func (a *Aggregator) sendBucket(rnd *rand.Rand, bodyStorage *[]byte, httpClient *http.Client, b *aggregatorBucket, historic bool, comment string) (status int, exception int, dur float64, err error) {
-	return status, exception, dur, err
-}
-
 func (a *Aggregator) goSend(senderID int) {
 	rnd := rand.New()
 	httpClient := makeHTTPClient(data_model.ClickHouseTimeout)
