@@ -26,12 +26,12 @@ type (
 		alive atomic.Bool
 
 		// Never change, so do not require protection
-		config          Config
 		statshouse      *Agent
 		ShardReplicaNum int
 		perm            []int
 
-		mu sync.Mutex
+		mu     sync.Mutex
+		config Config // can change if remotely updated
 
 		timeSpreadDelta time.Duration // randomly spread bucket sending through second between sources/machines
 
@@ -51,7 +51,7 @@ type (
 		CurentLowResBucket [][]*data_model.MetricsBucket // [resolution][shard]
 		LowResFutureQueue  []*data_model.MetricsBucket   // Max 60 seconds long. Shorter if max resolution is lower.
 
-		BucketsToSend     chan compressedBucketData
+		BucketsToSend     chan compressedBucketDataOnDisk
 		BuiltInItemValues []*BuiltInItemValue // Moved into CurrentBuckets before flush
 
 		PreprocessingBucketTime    uint32
@@ -92,6 +92,10 @@ type (
 	compressedBucketData struct {
 		time uint32
 		data []byte // first 4 bytes are uncompressed size, rest is compressed data
+	}
+	compressedBucketDataOnDisk struct {
+		compressedBucketData
+		onDisk bool // config.SaveSecondsImmediately can change while in flight
 	}
 )
 

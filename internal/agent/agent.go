@@ -38,6 +38,10 @@ type Agent struct {
 	hostName  []byte
 	args      [][]byte // split into ValidString chunks
 	config    Config
+	logF      rpc.LoggerFunc
+
+	statshouseRemoteConfigString string       // optimization
+	skipFirstNShards             atomic.Int32 // copy from config
 
 	rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 	heartBeatEventType    int32          // first time "start", then "heartbeat"
@@ -91,6 +95,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		heartBeatSecondBucket: rnd.Intn(60),
 		heartBeatReplicaNum:   rnd.Intn(3),
 		config:                config,
+		logF:                  logF,
 		commitDateTag:         format.ISO8601Date2BuildDateKey(time.Unix(int64(build.CommitTimestamp()), 0).Format(time.RFC3339)),
 		commitTimestamp:       int32(build.CommitTimestamp()),
 		buildArchTag:          format.GetBuildArchKey(runtime.GOARCH),
@@ -155,7 +160,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			timeSpreadDelta: commonSpread + time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
 			CurrentTime:     nowUnix,
 			FutureQueue:     make([][]*data_model.MetricsBucket, 60),
-			BucketsToSend:   make(chan compressedBucketData),
+			BucketsToSend:   make(chan compressedBucketDataOnDisk),
 			client: tlstatshouse.Client{
 				Client:  rpcClient,
 				Network: network,
@@ -193,10 +198,12 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	result.statErrorsDiskReadNotConfigured = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Keys: [16]int32{0, format.TagValueIDDiskCacheErrorReadNotConfigured}})
 	result.statErrorsDiskCompressFailed = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Keys: [16]int32{0, format.TagValueIDDiskCacheErrorCompressFailed}})
 	result.statLongWindowOverflow = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Keys: [16]int32{0, format.TagValueIDTimingLongWindowThrownAgent}})
+
+	result.updateConfigRemotelyExperimental() // first update from stored in sqlite
 	return result, nil
 }
 
-// separated so we can set AggregatorHost, which is dependent on tagMapper which uses agent to wirte statistics
+// separated so we can set AggregatorHost, which is dependent on tagMapper which uses agent to write statistics
 func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 	s.AggregatorHost = aggHost
 	s.AggregatorShardKey = aggShardKey
@@ -247,6 +254,32 @@ func (s *Agent) getRandomLiveShards() (*Shard, *Shard) {
 	return liveShards[i], liveShards[j]
 }
 
+func (s *Agent) updateConfigRemotelyExperimental() {
+	// We'll make this metric invisible for now to avoid being edited by anybody
+	description := ""
+	if mv := s.metricStorage.GetMetaMetricByName(data_model.StatshouseAgentRemoteConfigMetric); mv != nil {
+		description = mv.Description
+	}
+	if description == s.statshouseRemoteConfigString {
+		// Optimization. Also, if we have some race with accessing config, we do not want to risk it every second
+		return
+	}
+	s.statshouseRemoteConfigString = description
+	s.logF("Remote config:\n%s", description)
+	config := s.config
+	if err := config.updateFromRemoteDescription(description); err != nil {
+		s.logF("Remote config: error updating config from metric %q: %v", data_model.StatshouseAgentRemoteConfigMetric, err)
+		return
+	}
+	s.logF("Remote config: updated config from metric %q", data_model.StatshouseAgentRemoteConfigMetric)
+	s.skipFirstNShards.Store(int32(config.SkipFirstNShards))
+	for _, shard := range s.Shards {
+		shard.mu.Lock()
+		shard.config = config
+		shard.mu.Unlock()
+	}
+}
+
 func (s *Agent) goFlusher() {
 	now := time.Now()
 	for { // TODO - quit
@@ -258,6 +291,7 @@ func (s *Agent) goFlusher() {
 		for _, shard := range s.Shards {
 			shard.flushBuckets(now)
 		}
+		s.updateConfigRemotelyExperimental()
 	}
 }
 
@@ -283,7 +317,7 @@ func (s *BuiltInItemValue) Merge(s2 *data_model.ItemValue) {
 
 func (s *Agent) shardNumFromHash(hash uint64) int {
 	numShards := s.NumShardReplicas()
-	skipShards := s.config.SkipFirstNShards
+	skipShards := int(s.skipFirstNShards.Load()) // free on x86
 	if skipShards > 0 && skipShards < numShards {
 		mul := (hash >> 32) * uint64(numShards-skipShards) >> 32 // trunc([0..0.9999999] * numShards) in fixed point 32.32
 		return skipShards + int(mul)

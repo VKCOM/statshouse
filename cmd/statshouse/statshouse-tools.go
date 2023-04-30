@@ -21,7 +21,6 @@ import (
 	"go.uber.org/atomic"
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/aggregator"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
@@ -455,7 +454,7 @@ func mainSimulator() {
 
 	argv.configAgent.Cluster = argv.cluster
 	argv.configAgent.SampleBudget /= 10
-	if err := agent.ValidateConfigSource(argv.configAgent); err != nil {
+	if err := argv.configAgent.ValidateConfigSource(); err != nil {
 		log.Fatalf("%s", err)
 	}
 

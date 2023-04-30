@@ -8,6 +8,8 @@ package agent
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
@@ -60,7 +62,124 @@ func DefaultConfig() Config {
 	}
 }
 
-func ValidateConfigSource(c Config) error {
+func hasKeyGetSuffix(line string, prefix string) (string, bool) {
+	if len(line) >= 2 && line[0] == '-' && line[1] == '-' { // transform -- into -
+		line = line[1:]
+	}
+	if strings.HasPrefix(line, prefix) {
+		return line[len(prefix):], true
+	}
+	return "", false
+}
+
+func parseIntLine(line string, str string, value *int) error {
+	i, err := strconv.Atoi(str)
+	if err != nil {
+		return fmt.Errorf("error parsing %s: %w", line, err)
+	}
+	*value = i
+	return nil
+}
+
+func parseInt64Line(line string, str string, value *int64) error {
+	i, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing %s: %w", line, err)
+	}
+	*value = int64(i)
+	return nil
+}
+
+func parseDurationLine(line string, str string, value *time.Duration) error {
+	i, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		return fmt.Errorf("error parsing %s: %w", line, err)
+	}
+	*value = time.Duration(i)
+	return nil
+}
+
+func parseBoolLine(line string, str string, value *bool) error {
+	if str != "true" && str != "false" {
+		return fmt.Errorf("error parsing %s: must be true or false", line)
+	}
+	*value = str == "true"
+	return nil
+}
+
+func (c *Config) updateFromRemoteDescription(description string) error {
+	for _, line := range strings.Split(description, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		// all non-empty non-comment lines must have valid settings
+		if suffix, ok := hasKeyGetSuffix(line, "-sample-budget="); ok {
+			if err := parseIntLine(line, suffix, &c.SampleBudget); err != nil {
+				return err
+			}
+			continue
+		}
+		if suffix, ok := hasKeyGetSuffix(line, "-sample-groups="); ok {
+			if err := parseBoolLine(line, suffix, &c.SampleGroups); err != nil {
+				return err
+			}
+			continue
+		}
+		if suffix, ok := hasKeyGetSuffix(line, "-max-disk-size="); ok {
+			if err := parseInt64Line(line, suffix, &c.MaxHistoricDiskSize); err != nil {
+				return err
+			}
+			continue
+		}
+		if suffix, ok := hasKeyGetSuffix(line, "-skip-shards="); ok {
+			if err := parseIntLine(line, suffix, &c.SkipFirstNShards); err != nil {
+				return err
+			}
+			continue
+		}
+		if suffix, ok := hasKeyGetSuffix(line, "-string-top-capacity="); ok {
+			if err := parseIntLine(line, suffix, &c.StringTopCapacity); err != nil {
+				return err
+			}
+			continue
+		}
+		if suffix, ok := hasKeyGetSuffix(line, "-string-top-send="); ok {
+			if err := parseIntLine(line, suffix, &c.StringTopCountSend); err != nil {
+				return err
+			}
+			continue
+		}
+		if suffix, ok := hasKeyGetSuffix(line, "-liveness-window="); ok {
+			if err := parseIntLine(line, suffix, &c.LivenessResponsesWindowLength); err != nil {
+				return err
+			}
+			continue
+		}
+		if suffix, ok := hasKeyGetSuffix(line, "-liveness-success="); ok {
+			if err := parseIntLine(line, suffix, &c.LivenessResponsesWindowSuccesses); err != nil {
+				return err
+			}
+			continue
+		}
+		if suffix, ok := hasKeyGetSuffix(line, "-keep-alive-timeou="); ok {
+			if err := parseDurationLine(line, suffix, &c.KeepAliveSuccessTimeout); err != nil {
+				return err
+			}
+			continue
+		}
+		if suffix, ok := hasKeyGetSuffix(line, "-save-seconds-immediately="); ok {
+			if err := parseBoolLine(line, suffix, &c.SaveSecondsImmediately); err != nil {
+				return err
+			}
+			continue
+		}
+		return fmt.Errorf("error parsing %s: options not supported", line)
+	}
+	return c.ValidateConfigSource()
+}
+
+func (c *Config) ValidateConfigSource() error {
 	if c.SampleBudget < 1 {
 		return fmt.Errorf("sample-budget (%d) must be >= 1", c.SampleBudget)
 	}
