@@ -428,12 +428,14 @@ export function PlotViewEvent(props: {
               onUpdatePreview={onUpdatePreview}
               className="w-100 h-100 position-absolute top-0 start-0"
             >
-              <UPlotPluginPortal zone="over" hooks={pluginTimeWindowHooks}>
-                <>
-                  <div className="u-time-window u-time-window-left" style={{ width: timeWindow.leftWidth }}></div>
-                  <div className="u-time-window u-time-window-right" style={{ width: timeWindow.rightWidth }}></div>
-                </>
-              </UPlotPluginPortal>
+              {!compact && (
+                <UPlotPluginPortal zone="over" hooks={pluginTimeWindowHooks}>
+                  <>
+                    <div className="u-time-window u-time-window-left" style={{ width: timeWindow.leftWidth }}></div>
+                    <div className="u-time-window u-time-window-right" style={{ width: timeWindow.rightWidth }}></div>
+                  </>
+                </UPlotPluginPortal>
+              )}
             </UPlotWrapper>
           )}
         </div>

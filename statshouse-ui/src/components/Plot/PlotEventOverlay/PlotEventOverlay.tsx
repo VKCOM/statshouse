@@ -4,7 +4,52 @@ import { UPlotWrapperPropsHooks } from '../../UPlotWrapper';
 import uPlot from 'uplot';
 import { useResizeObserver } from '../../../view/utils';
 import css from './style.module.css';
-import { selectorParamsPlotsByIndex, selectorPlotsData, useStore } from '../../../store';
+import { PlotStore, selectorParamsPlotsByIndex, selectorPlotsData, useStore } from '../../../store';
+import { PlotEventFlag } from './PlotEventFlag';
+
+type Flag = {
+  x: number;
+  idx: number;
+  key: string;
+  opacity: number;
+  groups: { color: string; idx: number; x: number }[];
+};
+
+function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot, flagWidth: number): Flag[] {
+  const flags: Record<string, Flag> = {};
+  eventsIndex.forEach((indexEvent) => {
+    const time = eventsData[indexEvent].data[0] ?? [];
+    const data = eventsData[indexEvent].data.slice(1);
+    const maxY = Math.max(...data.flat().filter(Boolean).map(Number));
+    let prevIdx = 0;
+    for (let idx = 0, iMax = time.length; idx < iMax; idx++) {
+      for (let s = 0, sMax = data.length; s < sMax; s++) {
+        const val = data[s][idx];
+        if (val) {
+          const x = u.valToPos(time[idx], 'x') ?? 0;
+          if (flags[prevIdx] && x - flags[prevIdx].x > flagWidth * 1.5) {
+            prevIdx = idx;
+          }
+          flags[prevIdx] ??= {
+            groups: [],
+            key: `${idx}`,
+            idx,
+            opacity: 0.3,
+            x,
+          };
+          flags[prevIdx].groups.push({
+            color: eventsData[indexEvent].series[s].stroke?.toString() ?? '',
+            idx,
+            x,
+          });
+          const opacity = Math.max(0.3, val / maxY);
+          flags[prevIdx].opacity = Math.min(1, Math.max(flags[prevIdx].opacity, opacity));
+        }
+      }
+    }
+  });
+  return Object.values(flags);
+}
 
 export type PlotEventOverlayProps = {
   indexPlot: number;
@@ -12,12 +57,6 @@ export type PlotEventOverlayProps = {
   flagHeight?: number;
 };
 
-type Flag = {
-  x: number;
-  key: string;
-  opacity: number;
-  groups: { color: string }[];
-};
 export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEventOverlayProps) {
   const uPlotRef = useRef<uPlot>();
   const uRefDiv = useRef<HTMLDivElement>(null);
@@ -25,39 +64,16 @@ export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEvent
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const { events: eventsIndex } = useStore(selectorParamsPlot);
   const eventsData = useStore(selectorPlotsData);
-
+  const flagWidth = flagHeight * 1.5;
   const [lines, setLines] = useState<Flag[]>([]);
 
   const update = useCallback(() => {
     if (uPlotRef.current) {
-      const flags: Record<string, Flag> = {};
-      eventsIndex.forEach((indexEvent) => {
-        const time = eventsData[indexEvent].data[0] ?? [];
-        const data = eventsData[indexEvent].data.slice(1);
-        const maxY = Math.max(...data.flat().filter(Boolean).map(Number));
-        data.forEach((d, groupIndex) => {
-          d.forEach((val, idx) => {
-            if (val) {
-              flags[idx] ??= {
-                groups: [],
-                key: `${idx}`,
-                opacity: 0.3,
-                x: uPlotRef.current?.valToPos(time[idx], 'x') ?? 0,
-              };
-              flags[idx].groups.push({
-                color: eventsData[indexEvent].series[groupIndex].stroke?.toString() ?? '',
-              });
-              const opacity = Math.max(0.3, val / maxY);
-              flags[idx].opacity = Math.min(1, Math.max(flags[idx].opacity, opacity));
-            }
-          });
-        });
-      });
-      setLines(Object.values(flags));
+      setLines(getEventLines(eventsIndex, eventsData, uPlotRef.current, flagWidth));
     } else {
       setLines([]);
     }
-  }, [eventsData, eventsIndex]);
+  }, [eventsData, eventsIndex, flagWidth]);
 
   useEffect(() => {
     if (hooks) {
@@ -86,40 +102,31 @@ export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEvent
     <div ref={uRefDiv} className={css.overlay}>
       <svg xmlns="http://www.w3.org/2000/svg" width={width} height={height}>
         <defs>
+          <path
+            id="flagPath"
+            d={`M0,0 h${flagWidth} l-${flagHeight / 2},${flagHeight / 2} l${flagHeight / 2},${
+              flagHeight / 2
+            } h-${flagWidth} z`}
+          />
+          <path id="flagPath2" d={`M0,0 l${flagWidth},${flagHeight / 2} l${-flagWidth},${flagHeight / 2} z`} />
           <clipPath id="flag">
-            <path
-              d={`M0,0 h${flagHeight} l-${flagHeight / 2},${flagHeight / 2} l${flagHeight / 2},${
-                flagHeight / 2
-              } h-${flagHeight} z`}
-            />
+            <use href="#flagPath" />
           </clipPath>
         </defs>
-        {/*<rect x={0} y={0} width={width} height={height} stroke="black" strokeWidth="1" fill="transparent" />*/}
-        {lines.map((r) => (
-          <g
-            key={r.key}
-            transform={`translate(${r.x}, 0)`}
-            stroke="green"
-            strokeWidth="0.5"
-            opacity={r.opacity}
-            fill="green"
-          >
-            <line x1="0" x2="0" y1="0" y2={height} />
-            <g clipPath="url(#flag)" className={css.overlayFlag}>
-              {r.groups.map((g, indexG, arrG) => (
-                <rect
-                  key={indexG}
-                  x="0"
-                  y={(flagHeight / arrG.length) * indexG}
-                  width={flagHeight}
-                  height={flagHeight / arrG.length}
-                  fill={g.color}
-                  strokeWidth="0"
-                />
-              ))}
-            </g>
-          </g>
-        ))}
+        <g stroke="gray" strokeWidth="0.5" fill="gray">
+          {lines.map((r) => (
+            <PlotEventFlag
+              key={r.key}
+              index={r.idx}
+              flagWidth={flagWidth}
+              flagHeight={flagHeight}
+              height={height}
+              x={r.x}
+              opacity={r.opacity}
+              groups={r.groups}
+            />
+          ))}
+        </g>
       </svg>
     </div>
   );
