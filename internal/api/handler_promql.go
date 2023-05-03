@@ -303,6 +303,7 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		return selectQueryLODs(
 			promqlVersionOrDefault(qry.Options.Version),
 			0,
+			false,
 			resolution,
 			false,
 			stringTop,
@@ -518,6 +519,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 		lods    = selectTagValueLODs(
 			version,
 			int64(qry.Metric.PreKeyFrom),
+			qry.Metric.PreKeyOnly,
 			qry.Metric.Resolution,
 			false,
 			qry.Metric.StringTopDescription != "",
@@ -575,6 +577,7 @@ func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery
 		lods    = selectTagValueLODs(
 			version,
 			int64(qry.Metric.PreKeyFrom),
+			qry.Metric.PreKeyOnly,
 			qry.Metric.Resolution,
 			false,
 			qry.Metric.StringTopDescription != "",
@@ -735,7 +738,7 @@ func getHandlerLODs(qry *promql.SeriesQuery, loc *time.Location) []promqlLOD {
 				toSec:     lod.End,
 				stepSec:   lod.Step,
 				table:     lodTables[promqlVersionOrDefault(qry.Options.Version)][lod.Step],
-				hasPreKey: preKeyFrom < lod.Start,
+				hasPreKey: preKeyFrom < lod.Start || qry.Metric.PreKeyOnly,
 				location:  loc,
 			},
 			len: lod.Len,

@@ -204,7 +204,7 @@ func roundRange(start int64, end int64, step int64, utcOffset int64, location *t
 	return rStart, rEnd
 }
 
-func calcLevels(version string, preKeyFrom int64, isUnique bool, isStringTop bool, now int64, utcOffset int64, width int) []lodSwitch {
+func calcLevels(version string, preKeyFrom int64, preKeyOnly bool, isUnique bool, isStringTop bool, now int64, utcOffset int64, width int) []lodSwitch {
 	if width == _1M {
 		switch {
 		case version == Version1:
@@ -242,6 +242,10 @@ func calcLevels(version string, preKeyFrom int64, isUnique bool, isStringTop boo
 	for _, s := range lodLevels[version] {
 		cut := now - s.relSwitch
 		switch {
+		case preKeyOnly && preKeyFrom != math.MaxInt64:
+			s2 := s
+			s2.hasPreKey = true
+			levels = append(levels, s2)
 		case cut < preKeyFrom:
 			levels = append(levels, s)
 		case !split:
@@ -330,15 +334,15 @@ func shiftTimestamp(timestamp, stepSec, shift int64, location *time.Location) in
 	return timestamp + shift
 }
 
-func selectTagValueLODs(version string, preKeyFrom int64, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, location *time.Location) []lodInfo {
-	return selectQueryLODs(version, preKeyFrom, resolution, isUnique, isStringTop, now, from, to, utcOffset, 100, widthAutoRes, location) // really dumb
+func selectTagValueLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, location *time.Location) []lodInfo {
+	return selectQueryLODs(version, preKeyFrom, preKeyOnly, resolution, isUnique, isStringTop, now, from, to, utcOffset, 100, widthAutoRes, location) // really dumb
 }
 
-func selectQueryLODs(version string, preKeyFrom int64, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, width int, widthKind int, location *time.Location) []lodInfo {
+func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, width int, widthKind int, location *time.Location) []lodInfo {
 	var ret []lodInfo
 	pps := float64(width) / float64(to-from+1)
 	lodFrom := from
-	levels := calcLevels(version, preKeyFrom, isUnique, isStringTop, now, utcOffset, width)
+	levels := calcLevels(version, preKeyFrom, preKeyOnly, isUnique, isStringTop, now, utcOffset, width)
 	for _, s := range levels {
 		cut := now - s.relSwitch
 		if cut < lodFrom {

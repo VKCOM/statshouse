@@ -1389,6 +1389,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 	lods := selectTagValueLODs(
 		version,
 		int64(metricMeta.PreKeyFrom),
+		metricMeta.PreKeyOnly,
 		metricMeta.Resolution,
 		kind == queryFnKindUnique,
 		metricMeta.StringTopDescription != "",
@@ -2130,6 +2131,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 	lods := selectQueryLODs(
 		version,
 		int64(metricMeta.PreKeyFrom),
+		metricMeta.PreKeyOnly,
 		metricMeta.Resolution,
 		isUnique,
 		isStringTop,
@@ -2532,6 +2534,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 		qp := selectQueryPoint(
 			version,
 			int64(metricMeta.PreKeyFrom),
+			metricMeta.PreKeyOnly,
 			metricMeta.Resolution,
 			isUnique,
 			isStringTop,
@@ -2939,6 +2942,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	lods := selectQueryLODs(
 		version,
 		int64(metricMeta.PreKeyFrom),
+		metricMeta.PreKeyOnly,
 		metricMeta.Resolution,
 		isUnique,
 		isStringTop,

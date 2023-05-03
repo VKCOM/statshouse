@@ -158,9 +158,7 @@ type MetricMetaValue struct {
 	StringTopDescription string          `json:"string_top_description,omitempty"` // no invariants
 	PreKeyTagID          string          `json:"pre_key_tag_id,omitempty"`
 	PreKeyFrom           uint32          `json:"pre_key_from,omitempty"`
-	SkipMaxHost          bool            `json:"skip_max_host,omitempty"`
-	SkipMinHost          bool            `json:"skip_min_host,omitempty"`
-	SkipSumSquare        bool            `json:"skip_sum_square,omitempty"`
+	PreKeyOnly           bool            `json:"pre_key_only,omitempty"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading

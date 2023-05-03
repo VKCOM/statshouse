@@ -16,9 +16,9 @@ func (pq pointQuery) isFast() bool {
 	return pq.fromSec+fastQueryTimeInterval >= pq.toSec
 }
 
-func selectQueryPoint(version string, preKeyFrom int64, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, location *time.Location) *pointQuery {
+func selectQueryPoint(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, location *time.Location) *pointQuery {
 	var lods []lodInfo
-	lods = selectQueryLODs(version, preKeyFrom, resolution, isUnique, isStringTop, now, from, to, utcOffset, resolution, widthLODRes, location)
+	lods = selectQueryLODs(version, preKeyFrom, preKeyOnly, resolution, isUnique, isStringTop, now, from, to, utcOffset, resolution, widthLODRes, location)
 	lods = mergeForPointQuery(mergeLODs(lods), utcOffset, location)
 	if len(lods) == 0 {
 		return nil
