@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -161,7 +162,8 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 				Address: a,
 				ActorID: 0,
 			},
-			perm: rnd.Perm(data_model.AggregationShardsPerSecond),
+			perm:  rnd.Perm(data_model.AggregationShardsPerSecond),
+			stats: &shardStat{shardReplicaNum: strconv.FormatInt(int64(i), 10)},
 		}
 		shard.CurrentBuckets = make([][]*data_model.MetricsBucket, 61)
 		for r := range shard.CurrentBuckets {

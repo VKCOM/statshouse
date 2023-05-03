@@ -63,5 +63,6 @@ func (h statsHandler) handleStats(stats map[string]string) {
 		stats[fmt.Sprintf("statshouse_queue_size_disk_%d", i)] = fmt.Sprintf("%d", s.HistoricBucketsDataSizeDisk())
 		stats[fmt.Sprintf("statshouse_queue_size_memory_%d", i)] = fmt.Sprintf("%d", s.HistoricBucketsDataSizeMemory())
 		stats[fmt.Sprintf("statshouse_shard_alive_%d", i)] = fmt.Sprintf("%v", s.IsAlive())
+		s.FillStats(stats)
 	}
 }

@@ -79,6 +79,8 @@ type (
 		//      if spare is live, data is sent to it
 		//      if spare is also dead, data is sent to original
 		lastSendSuccessful []bool
+
+		stats *shardStat
 	}
 
 	BuiltInItemValue struct {
@@ -97,6 +99,10 @@ func (s *Shard) HistoricBucketsDataSizeMemory() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.HistoricBucketsDataSize
+}
+
+func (s *Shard) FillStats(stats map[string]string) {
+	s.stats.fillStats(stats)
 }
 
 func (s *Shard) HistoricBucketsDataSizeDisk() int64 {
