@@ -186,7 +186,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
     [setGroupName]
   );
   const onGroupShowToggle = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+    (e: React.MouseEvent<HTMLElement>) => {
       const index = parseInt(e.currentTarget.getAttribute('data-group') ?? '0');
       setGroupShow(index, (s) => !s);
     },
@@ -211,24 +211,29 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
             className="border-bottom pb-1"
           >
             {dashboardLayoutEdit ? (
-              <div className="input-group">
-                <input
-                  className="form-control"
-                  data-group={indexGroup.toString()}
-                  value={params.dashboard?.groupInfo?.[indexGroup]?.name ?? ''}
-                  onInput={onEditGroupName}
-                  placeholder="Enter group name"
-                />
-                <select
-                  className="form-select flex-grow-0 w-auto"
-                  data-group={indexGroup.toString()}
-                  value={params.dashboard?.groupInfo?.[indexGroup]?.size?.toString() || '2'}
-                  onChange={onEditGroupSize}
-                >
-                  <option value="2">2 plots per row</option>
-                  <option value="3">3 plots per row</option>
-                  <option value="4">4 plots per row</option>
-                </select>
+              <div className="d-flex">
+                <button className="btn me-2" onClick={onGroupShowToggle} data-group={indexGroup}>
+                  {params.dashboard?.groupInfo?.[indexGroup]?.show === false ? <SVGChevronRight /> : <SVGChevronDown />}
+                </button>
+                <div className="input-group">
+                  <input
+                    className="form-control"
+                    data-group={indexGroup.toString()}
+                    value={params.dashboard?.groupInfo?.[indexGroup]?.name ?? ''}
+                    onInput={onEditGroupName}
+                    placeholder="Enter group name"
+                  />
+                  <select
+                    className="form-select flex-grow-0 w-auto"
+                    data-group={indexGroup.toString()}
+                    value={params.dashboard?.groupInfo?.[indexGroup]?.size?.toString() || '2'}
+                    onChange={onEditGroupSize}
+                  >
+                    <option value="2">2 plots per row</option>
+                    <option value="3">3 plots per row</option>
+                    <option value="4">4 plots per row</option>
+                  </select>
+                </div>
               </div>
             ) : (
               <div className="d-flex flex-row" role="button" onClick={onGroupShowToggle} data-group={indexGroup}>

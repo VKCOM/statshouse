@@ -8,7 +8,6 @@ import { selectorListServerDashboard, selectorLoadListServerDashboard, useStore 
 import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useStateInput } from '../hooks';
-import { sortByKey } from './utils';
 import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from '../common/toggleKeyboard';
 
 export type DashboardListViewProps = {};
@@ -35,7 +34,9 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
         item.name.toLowerCase().includes(en) ||
         item.description.toLowerCase().includes(en)
     );
-    res.sort(sortByKey.bind(null, 'name'));
+    res.sort((a, b) =>
+      a.name.toLowerCase() > b.name.toLowerCase() ? 1 : a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 0
+    );
     return res;
   }, [listServerDashboard, searchInput.value]);
 

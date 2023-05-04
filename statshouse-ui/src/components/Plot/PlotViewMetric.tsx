@@ -347,7 +347,7 @@ export function PlotViewMetric(props: {
       onMouseOut={onMouseOut}
     >
       <div className="plot-view-inner">
-        <div className="d-flex align-items-center position-relative z-2" style={{ marginRight: `${rightPad}px` }}>
+        <div className="d-flex align-items-center position-relative" style={{ marginRight: `${rightPad}px` }}>
           {/*loader*/}
           <div
             style={{ width: `${yAxisSize}px` }}
