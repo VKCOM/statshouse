@@ -43,10 +43,11 @@ const (
 )
 
 type lodSwitch struct {
-	relSwitch int64 // must be properly aligned
-	levels    []int64
-	tables    map[int64]string
-	hasPreKey bool
+	relSwitch  int64 // must be properly aligned
+	levels     []int64
+	tables     map[int64]string
+	hasPreKey  bool
+	preKeyOnly bool
 }
 
 var (
@@ -242,10 +243,6 @@ func calcLevels(version string, preKeyFrom int64, preKeyOnly bool, isUnique bool
 	for _, s := range lodLevels[version] {
 		cut := now - s.relSwitch
 		switch {
-		case preKeyOnly && preKeyFrom != math.MaxInt64:
-			s2 := s
-			s2.hasPreKey = true
-			levels = append(levels, s2)
 		case cut < preKeyFrom:
 			levels = append(levels, s)
 		case !split:
@@ -254,11 +251,13 @@ func calcLevels(version string, preKeyFrom int64, preKeyOnly bool, isUnique bool
 			levels = append(levels, s1)
 			s2 := s
 			s2.hasPreKey = true
+			s2.preKeyOnly = preKeyOnly
 			levels = append(levels, s2)
 			split = true
 		default:
 			s2 := s
 			s2.hasPreKey = true
+			s2.preKeyOnly = preKeyOnly
 			levels = append(levels, s2)
 		}
 	}
@@ -266,12 +265,13 @@ func calcLevels(version string, preKeyFrom int64, preKeyOnly bool, isUnique bool
 }
 
 type lodInfo struct {
-	fromSec   int64 // inclusive
-	toSec     int64 // exclusive
-	stepSec   int64
-	table     string // is only here because we can't cleanly deduce it for v1 (unique-related madness etc.)
-	hasPreKey bool
-	location  *time.Location
+	fromSec    int64 // inclusive
+	toSec      int64 // exclusive
+	stepSec    int64
+	table      string // is only here because we can't cleanly deduce it for v1 (unique-related madness etc.)
+	hasPreKey  bool
+	preKeyOnly bool
+	location   *time.Location
 }
 
 func (lod lodInfo) isFast() bool {
@@ -375,7 +375,7 @@ func mergeLODs(lods []lodInfo) []lodInfo {
 	ret := lods[:1]
 	for _, lod := range lods[1:] {
 		l := ret[len(ret)-1]
-		if l.toSec == lod.fromSec && l.table == lod.table && l.stepSec == lod.stepSec && l.hasPreKey == lod.hasPreKey {
+		if l.toSec == lod.fromSec && l.table == lod.table && l.stepSec == lod.stepSec && l.hasPreKey == lod.hasPreKey && l.preKeyOnly == lod.preKeyOnly {
 			ret[len(ret)-1].toSec = lod.toSec
 		} else {
 			ret = append(ret, lod)
@@ -396,12 +396,13 @@ func selectLastQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOff
 	}
 	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, location)
 	return lodInfo{
-		fromSec:   fromSec,
-		toSec:     toSec,
-		stepSec:   lodLevel,
-		table:     s.tables[lodLevel],
-		hasPreKey: s.hasPreKey,
-		location:  location,
+		fromSec:    fromSec,
+		toSec:      toSec,
+		stepSec:    lodLevel,
+		table:      s.tables[lodLevel],
+		hasPreKey:  s.hasPreKey,
+		preKeyOnly: s.preKeyOnly,
+		location:   location,
 	}
 }
 
@@ -421,12 +422,13 @@ func selectQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset 
 	}
 	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, location)
 	return lodInfo{
-		fromSec:   fromSec,
-		toSec:     toSec,
-		stepSec:   lodLevel,
-		table:     s.tables[lodLevel],
-		hasPreKey: s.hasPreKey,
-		location:  location,
+		fromSec:    fromSec,
+		toSec:      toSec,
+		stepSec:    lodLevel,
+		table:      s.tables[lodLevel],
+		hasPreKey:  s.hasPreKey,
+		preKeyOnly: s.preKeyOnly,
+		location:   location,
 	}
 }
 

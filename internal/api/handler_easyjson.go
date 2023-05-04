@@ -1312,6 +1312,343 @@ func (v MetricInfo) MarshalEasyJSON(w *jwriter.Writer) {
 func (v *MetricInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
 	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(l, v)
 }
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat1(in *jlexer.Lexer, out *format.MetricMetaValue) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "metric_id":
+			out.MetricID = int32(in.Int32())
+		case "name":
+			out.Name = string(in.String())
+		case "version":
+			out.Version = int64(in.Int64())
+		case "update_time":
+			out.UpdateTime = uint32(in.Uint32())
+		case "description":
+			out.Description = string(in.String())
+		case "tags":
+			if in.IsNull() {
+				in.Skip()
+				out.Tags = nil
+			} else {
+				in.Delim('[')
+				if out.Tags == nil {
+					if !in.IsDelim(']') {
+						out.Tags = make([]format.MetricMetaTag, 0, 0)
+					} else {
+						out.Tags = []format.MetricMetaTag{}
+					}
+				} else {
+					out.Tags = (out.Tags)[:0]
+				}
+				for !in.IsDelim(']') {
+					var v26 format.MetricMetaTag
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in, &v26)
+					out.Tags = append(out.Tags, v26)
+					in.WantComma()
+				}
+				in.Delim(']')
+			}
+		case "visible":
+			out.Visible = bool(in.Bool())
+		case "kind":
+			out.Kind = string(in.String())
+		case "weight":
+			out.Weight = float64(in.Float64())
+		case "resolution":
+			out.Resolution = int(in.Int())
+		case "string_top_name":
+			out.StringTopName = string(in.String())
+		case "string_top_description":
+			out.StringTopDescription = string(in.String())
+		case "pre_key_tag_id":
+			out.PreKeyTagID = string(in.String())
+		case "pre_key_from":
+			out.PreKeyFrom = uint32(in.Uint32())
+		case "pre_key_only":
+			out.PreKeyOnly = bool(in.Bool())
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat1(out *jwriter.Writer, in format.MetricMetaValue) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"metric_id\":"
+		out.RawString(prefix[1:])
+		out.Int32(int32(in.MetricID))
+	}
+	{
+		const prefix string = ",\"name\":"
+		out.RawString(prefix)
+		out.String(string(in.Name))
+	}
+	if in.Version != 0 {
+		const prefix string = ",\"version\":"
+		out.RawString(prefix)
+		out.Int64(int64(in.Version))
+	}
+	{
+		const prefix string = ",\"update_time\":"
+		out.RawString(prefix)
+		out.Uint32(uint32(in.UpdateTime))
+	}
+	if in.Description != "" {
+		const prefix string = ",\"description\":"
+		out.RawString(prefix)
+		out.String(string(in.Description))
+	}
+	if len(in.Tags) != 0 {
+		const prefix string = ",\"tags\":"
+		out.RawString(prefix)
+		{
+			out.RawByte('[')
+			for v27, v28 := range in.Tags {
+				if v27 > 0 {
+					out.RawByte(',')
+				}
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out, v28)
+			}
+			out.RawByte(']')
+		}
+	}
+	if in.Visible {
+		const prefix string = ",\"visible\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.Visible))
+	}
+	{
+		const prefix string = ",\"kind\":"
+		out.RawString(prefix)
+		out.String(string(in.Kind))
+	}
+	if in.Weight != 0 {
+		const prefix string = ",\"weight\":"
+		out.RawString(prefix)
+		out.Float64(float64(in.Weight))
+	}
+	if in.Resolution != 0 {
+		const prefix string = ",\"resolution\":"
+		out.RawString(prefix)
+		out.Int(int(in.Resolution))
+	}
+	if in.StringTopName != "" {
+		const prefix string = ",\"string_top_name\":"
+		out.RawString(prefix)
+		out.String(string(in.StringTopName))
+	}
+	if in.StringTopDescription != "" {
+		const prefix string = ",\"string_top_description\":"
+		out.RawString(prefix)
+		out.String(string(in.StringTopDescription))
+	}
+	if in.PreKeyTagID != "" {
+		const prefix string = ",\"pre_key_tag_id\":"
+		out.RawString(prefix)
+		out.String(string(in.PreKeyTagID))
+	}
+	if in.PreKeyFrom != 0 {
+		const prefix string = ",\"pre_key_from\":"
+		out.RawString(prefix)
+		out.Uint32(uint32(in.PreKeyFrom))
+	}
+	if in.PreKeyOnly {
+		const prefix string = ",\"pre_key_only\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.PreKeyOnly))
+	}
+	out.RawByte('}')
+}
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Lexer, out *format.MetricMetaTag) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "name":
+			out.Name = string(in.String())
+		case "description":
+			out.Description = string(in.String())
+		case "raw":
+			out.Raw = bool(in.Bool())
+		case "raw_kind":
+			out.RawKind = string(in.String())
+		case "id2value":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				in.Delim('{')
+				if !in.IsDelim('}') {
+					out.ID2Value = make(map[int32]string)
+				} else {
+					out.ID2Value = nil
+				}
+				for !in.IsDelim('}') {
+					key := int32(in.Int32Str())
+					in.WantColon()
+					var v29 string
+					v29 = string(in.String())
+					(out.ID2Value)[key] = v29
+					in.WantComma()
+				}
+				in.Delim('}')
+			}
+		case "value_comments":
+			if in.IsNull() {
+				in.Skip()
+			} else {
+				in.Delim('{')
+				if !in.IsDelim('}') {
+					out.ValueComments = make(map[string]string)
+				} else {
+					out.ValueComments = nil
+				}
+				for !in.IsDelim('}') {
+					key := string(in.String())
+					in.WantColon()
+					var v30 string
+					v30 = string(in.String())
+					(out.ValueComments)[key] = v30
+					in.WantComma()
+				}
+				in.Delim('}')
+			}
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.Writer, in format.MetricMetaTag) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	if in.Name != "" {
+		const prefix string = ",\"name\":"
+		first = false
+		out.RawString(prefix[1:])
+		out.String(string(in.Name))
+	}
+	if in.Description != "" {
+		const prefix string = ",\"description\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.String(string(in.Description))
+	}
+	if in.Raw {
+		const prefix string = ",\"raw\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.Bool(bool(in.Raw))
+	}
+	if in.RawKind != "" {
+		const prefix string = ",\"raw_kind\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		out.String(string(in.RawKind))
+	}
+	if len(in.ID2Value) != 0 {
+		const prefix string = ",\"id2value\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		{
+			out.RawByte('{')
+			v31First := true
+			for v31Name, v31Value := range in.ID2Value {
+				if v31First {
+					v31First = false
+				} else {
+					out.RawByte(',')
+				}
+				out.Int32Str(int32(v31Name))
+				out.RawByte(':')
+				out.String(string(v31Value))
+			}
+			out.RawByte('}')
+		}
+	}
+	if len(in.ValueComments) != 0 {
+		const prefix string = ",\"value_comments\":"
+		if first {
+			first = false
+			out.RawString(prefix[1:])
+		} else {
+			out.RawString(prefix)
+		}
+		{
+			out.RawByte('{')
+			v32First := true
+			for v32Name, v32Value := range in.ValueComments {
+				if v32First {
+					v32First = false
+				} else {
+					out.RawByte(',')
+				}
+				out.String(string(v32Name))
+				out.RawByte(':')
+				out.String(string(v32Value))
+			}
+			out.RawByte('}')
+		}
+	}
+	out.RawByte('}')
+}
 func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi7(in *jlexer.Lexer, out *GetTableResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {

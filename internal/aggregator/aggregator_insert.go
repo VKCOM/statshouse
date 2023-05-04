@@ -52,12 +52,12 @@ type metricIndexCache struct {
 	lastMetricPrekeyOnly  bool
 }
 
-func makeMetricCache(journal *metajournal.MetricsStorage) *metricIndexCache {
-	result := &metricIndexCache{
-		journal:             journal,
-		ingestionStatusData: lastMetricData{lastMetricPrekey: -1},
-		lastMetric:          lastMetricData{lastMetricPrekey: -1}, // so if somehow 0 metricID is inserted first, will have no prekey
-
+func makePrekeyCache(journal *metajournal.MetricsStorage) *prekeyIndexCache {
+	result := &prekeyIndexCache{
+		journal:               journal,
+		ingestionStatusPrekey: -1,
+		lastMetricPrekey:      -1, // so if somehow 0 metricID is inserted first, will have no prekey
+		lastMetricPrekeyOnly:  false,
 	}
 	if bm, ok := format.BuiltinMetrics[format.BuiltinMetricIDIngestionStatus]; ok {
 		result.ingestionStatusData.lastMetricPrekey = bm.PreKeyIndex

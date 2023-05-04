@@ -156,10 +156,10 @@ func (ai *accessInfo) canEditMetric(create bool, old format.MetricMetaValue, new
 		if old.Weight != new_.Weight && !(old.Weight == 0 && new_.Weight == 1) {
 			return false
 		}
-		if hasPreKey(old) != hasPreKey(new_) {
+		if preKey(old) != preKey(new_) {
 			return false
 		}
-		if hasPreKeyOnly(old) != hasPreKeyOnly(new_) {
+		if preKeyOnly(old) != preKeyOnly(new_) {
 			return false
 		}
 
@@ -189,11 +189,11 @@ func (ai *accessInfo) withBadgesRequest() accessInfo {
 	}
 }
 
-func hasPreKey(m format.MetricMetaValue) bool {
-	return m.PreKeyTagID != "" || m.PreKeyFrom != 0
+func preKey(m format.MetricMetaValue) uint32 {
+	return m.PreKeyFrom
 }
 
-func hasPreKeyOnly(m format.MetricMetaValue) bool {
+func preKeyOnly(m format.MetricMetaValue) bool {
 	return m.PreKeyOnly
 }
 

@@ -1240,6 +1240,9 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 			return format.MetricMetaValue{}, fmt.Errorf("invalid group id: %d", metric.GroupID)
 		}
 	}
+	if metric.PreKeyOnly && (metric.PreKeyFrom == 0 || metric.PreKeyTagID == "") {
+		return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, fmt.Errorf("use prekey_only with non empty prekey_tag_id"))
+	}
 	if create {
 		if !ai.canEditMetric(true, metric, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q", metric.Name))
@@ -2226,20 +2229,22 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 			for lodIx, lod := range lods {
 				if opt.testPromql {
 					seriesQueries[lodInfo{
-						fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
-						toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
-						stepSec:   lod.stepSec,
-						table:     lod.table,
-						hasPreKey: lod.hasPreKey,
-						location:  h.location}]++
+						fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
+						toSec:      shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
+						stepSec:    lod.stepSec,
+						table:      lod.table,
+						hasPreKey:  lod.hasPreKey,
+						preKeyOnly: lod.preKeyOnly,
+						location:   h.location}]++
 				}
 				m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
-					fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
-					toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
-					stepSec:   lod.stepSec,
-					table:     lod.table,
-					hasPreKey: lod.hasPreKey,
-					location:  h.location,
+					fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
+					toSec:      shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
+					stepSec:    lod.stepSec,
+					table:      lod.table,
+					hasPreKey:  lod.hasPreKey,
+					preKeyOnly: lod.preKeyOnly,
+					location:   h.location,
 				}, req.avoidCache)
 				if err != nil {
 					return nil, nil, err
@@ -2990,12 +2995,13 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 
 		for _, lod := range lods {
 			m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
-				fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, 0, lod.location),
-				toSec:     shiftTimestamp(lod.toSec, lod.stepSec, 0, lod.location),
-				stepSec:   lod.stepSec,
-				table:     lod.table,
-				hasPreKey: lod.hasPreKey,
-				location:  h.location,
+				fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, 0, lod.location),
+				toSec:      shiftTimestamp(lod.toSec, lod.stepSec, 0, lod.location),
+				stepSec:    lod.stepSec,
+				table:      lod.table,
+				hasPreKey:  lod.hasPreKey,
+				preKeyOnly: lod.preKeyOnly,
+				location:   h.location,
 			}, req.avoidCache)
 			if err != nil {
 				return nil, false, err

@@ -38,6 +38,7 @@ func mergeForPointQuery(lods []lodInfo, utcOffset int64, location *time.Location
 		return lods
 	}
 	hasPreKey := lods[0].hasPreKey
+	preKeyOnly := lods[0].preKeyOnly
 	from := lods[0].fromSec
 	to := lods[0].toSec
 	for _, lod := range lods {
@@ -47,6 +48,7 @@ func mergeForPointQuery(lods []lodInfo, utcOffset int64, location *time.Location
 	fromSec, toSec := roundRange(from, to, lods[0].stepSec, utcOffset, location)
 	lods = lods[:1]
 	lods[0].hasPreKey = hasPreKey
+	lods[0].preKeyOnly = preKeyOnly
 	lods[0].fromSec = fromSec
 	lods[0].toSec = toSec
 	return lods

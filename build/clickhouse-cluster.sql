@@ -41,20 +41,6 @@ CREATE TABLE IF NOT EXISTS statshouse_internal_log_dist ON CLUSTER statlogs2
  `message` String)
 ENGINE = Distributed('statlogs2', 'default', 'statshouse_internal_log');
 
-CREATE TABLE IF NOT EXISTS statshouse_metric_1d_buffer ON CLUSTER statlogs2
-(`metric` Int32,
- `time` DateTime,
- `row_count` SimpleAggregateFunction(sum, Float64),
- `count` SimpleAggregateFunction(sum, Float64))
-ENGINE = Buffer('default', 'statshouse_metric_1d', 4, 60, 60, 1000000000, 1000000000, 100000000, 100000000);
-
-CREATE TABLE IF NOT EXISTS statshouse_metric_1d_dist ON CLUSTER statlogs2
-(`metric` Int32,
- `time` DateTime,
- `row_count` SimpleAggregateFunction(sum, Float64),
- `count` SimpleAggregateFunction(sum, Float64))
-ENGINE = Distributed('statlogs2', 'default', 'statshouse_metric_1d');
-
 CREATE TABLE IF NOT EXISTS statshouse_value_1h ON CLUSTER statlogs2
 (`metric` Int32,
  `time` DateTime,
