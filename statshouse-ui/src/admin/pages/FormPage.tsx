@@ -11,7 +11,7 @@ import { IBackendMetric, IKind, IMetric, ITag, ITagAlias } from '../models/metri
 import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/MetricFormValues';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { resetMetricFlood, saveMetric } from '../api/saveMetric';
-import { formatInputDate } from '../../view/utils';
+import { formatInputDate, freeKeyPrefix } from '../../view/utils';
 import { IActions } from '../storages/MetricFormValues/reducer';
 import {
   selectorClearMetricsMeta,
@@ -53,7 +53,7 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
             raw_kind: tag.raw_kind,
           })),
           tagsSize: String(metric.tags.length),
-          pre_key_tag_id: metric.pre_key_tag_id,
+          pre_key_tag_id: metric.pre_key_tag_id && freeKeyPrefix(metric.pre_key_tag_id),
           pre_key_from: metric.pre_key_from,
           version: metric.version,
           group_id: metric.group_id,
@@ -391,8 +391,8 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
               disabled
             </option>
             {values.tags.map((tag, index) => (
-              <option key={index} value={`key${index}`}>
-                {tag.name || `key${index}`}
+              <option key={index} value={`${index}`}>
+                {tag.name || `tag ${index}`}
               </option>
             ))}
           </select>
