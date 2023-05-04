@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import cn from 'classnames';
 import produce from 'immer';
 import { promQLMetric } from '../../view/utils';
@@ -19,6 +19,11 @@ import {
 import { PlotLink } from './PlotLink';
 import css from './style.module.css';
 import { TextEditable } from '../TextEditable';
+import { useDebounceState } from '../../hooks';
+
+const stopPropagation = (e: React.MouseEvent) => {
+  e.stopPropagation();
+};
 
 export type PlotHeaderTitleProps = {
   indexPlot: number;
@@ -46,21 +51,29 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
     [params.metricName, params.what, plotData.whats]
   );
   const metricFullName = useMemo(() => (metricName ? metricName + (what ? ': ' + what : '') : ''), [metricName, what]);
-
+  const [customName, debounceCustomName, setCustomName] = useDebounceState(params.customName, 200);
   const editCustomName = useCallback(
     (value: string) => {
-      setParams(
-        produce((p) => {
-          p.customName = value !== metricFullName ? value : '';
-        })
-      );
+      // setParams(
+      //   produce((p) => {
+      //     p.customName = value !== metricFullName ? value : '';
+      //   })
+      // );
+      setCustomName(value !== metricFullName ? value : '');
     },
-    [metricFullName, setParams]
+    [metricFullName, setCustomName]
   );
+  useEffect(() => {
+    setParams(
+      produce((p) => {
+        p.customName = debounceCustomName;
+      })
+    );
+  }, [debounceCustomName, setParams]);
 
-  const stopPropagation = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-  }, []);
+  useEffect(() => {
+    setCustomName(params.customName);
+  }, [params.customName, setCustomName]);
 
   const onInputCustomInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,7 +88,7 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
       <input
         type="text"
         className={cn(css.plotInputName, 'form-control form-control-sm mb-1')}
-        value={params.customName || metricFullName}
+        value={customName || metricFullName}
         placeholder={metricFullName}
         onPointerDown={stopPropagation}
         onInput={onInputCustomInput}

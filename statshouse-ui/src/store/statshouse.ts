@@ -1629,15 +1629,6 @@ export const statsHouseState: StateCreator<
           } else {
             state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: 2 };
           }
-          if (
-            state.dashboard.groupInfo &&
-            state.dashboard.groupInfo.length === 1 &&
-            state.dashboard.groupInfo[0].size === 2 &&
-            state.dashboard.groupInfo[0].name === '' &&
-            state.dashboard.groupInfo[0].show === true
-          ) {
-            state.dashboard.groupInfo = [];
-          }
         }
       })
     );
@@ -1658,15 +1649,6 @@ export const statsHouseState: StateCreator<
               size: 2,
             };
           }
-          if (
-            state.dashboard.groupInfo &&
-            state.dashboard.groupInfo.length === 1 &&
-            state.dashboard.groupInfo[0].size === 2 &&
-            state.dashboard.groupInfo[0].name === '' &&
-            state.dashboard.groupInfo[0].show === true
-          ) {
-            state.dashboard.groupInfo = [];
-          }
         }
       })
     );
@@ -1686,15 +1668,6 @@ export const statsHouseState: StateCreator<
               count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
               size: nextSize,
             };
-          }
-          if (
-            state.dashboard.groupInfo &&
-            state.dashboard.groupInfo.length === 1 &&
-            state.dashboard.groupInfo[0].size === 2 &&
-            state.dashboard.groupInfo[0].name === '' &&
-            state.dashboard.groupInfo[0].show === true
-          ) {
-            state.dashboard.groupInfo = [];
           }
         }
       })
