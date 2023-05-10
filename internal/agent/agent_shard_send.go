@@ -707,6 +707,7 @@ func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 func (s *Shard) goSendRecent() {
 	for cbd := range s.BucketsToSend {
 		if s.sendRecent(cbd.compressedBucketData) {
+			s.stats.recentSendSuccess.Add(1)
 			s.diskCacheEraseWithLog(cbd.time, "after sending")
 		} else {
 			if !cbd.onDisk {
@@ -744,6 +745,7 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 			}
 		}
 		var resp []byte
+
 		// We use infinite timeout, because otherwise, if aggregator is busy, source will send the same bucket again and again, inflating amount of data
 		// But we set FailIfNoConnection to switch to fallback immediately
 		if s.alive.Load() {
