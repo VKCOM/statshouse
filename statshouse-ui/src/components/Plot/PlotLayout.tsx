@@ -11,6 +11,8 @@ import { promQLMetric, timeRangeAbbrev } from '../../view/utils';
 import { MetricItem } from '../../hooks';
 import { PlotControlsPromQL } from './PlotControlsPromQL';
 import { PlotParams } from '../../common/plotQueryParams';
+import cn from 'classnames';
+import css from './style.module.css';
 
 export type PlotLayoutProps = {
   embed?: boolean;
@@ -47,8 +49,8 @@ export const PlotLayout: React.FC<PlotLayoutProps> = ({
   }
   return (
     <div className="row flex-wrap">
-      <div className="mb-3 col-lg-7 col-xl-8">
-        <div className="position-relative">{children}</div>
+      <div className={cn(css.plotColumn, 'mb-3 col-lg-7 col-xl-8')}>
+        <div className="position-relative flex-grow-1 d-flex flex-column">{children}</div>
       </div>
       <div className="mb-3 col-lg-5 col-xl-4">
         {sel.metricName === promQLMetric ? (

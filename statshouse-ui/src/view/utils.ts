@@ -658,6 +658,7 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       p.customName ??= '';
       p.promQL ??= '';
       p.events ??= [];
+      p.eventsBy ??= [];
       p.type ??= 0;
       return p;
     }),

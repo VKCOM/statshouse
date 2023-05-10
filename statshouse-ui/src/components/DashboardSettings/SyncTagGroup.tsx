@@ -80,7 +80,7 @@ export const SyncTagGroup: React.FC<SyncTagGroupProps> = ({
                   <option value="null">-</option>
                   {tagList.map((val, index) => (
                     <option key={index} value={index}>
-                      {val.description || val.name || `key${index}`}
+                      {val.description || val.name || `tag ${index}`}
                     </option>
                   ))}
                 </select>

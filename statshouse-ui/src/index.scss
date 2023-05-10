@@ -177,6 +177,12 @@ html {
 .plot-full .plot-legend {
   padding-top: 16px;
 }
+.plot-view,
+.plot-view-inner {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
 
 .plot-view.plot-dash.plot-hover .plot-view-inner {
   position: relative;

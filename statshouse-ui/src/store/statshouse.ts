@@ -85,7 +85,6 @@ import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
 import { decodeQueryParams, encodeQueryParams, mergeLeft } from '../common/QueryParamsParser';
 import { getNextState } from '../common/getNextState';
 import { Column } from 'react-data-grid';
-import { EventFormatterDefault } from '../components/Plot/EventFormatters';
 
 export type PlotStore = {
   nameMetric: string;
@@ -175,10 +174,17 @@ function getEmptyPlotData(): PlotStore {
     promQL: '',
   };
 }
+
 type EventDataChunk = queryTable & { to: number; from: number; fromEnd: boolean };
-export type EventDataRow = { key: string; idChunk: number; timeString: string; time: number; data: number } & Partial<
-  Record<string, querySeriesMetaTag>
->;
+
+export type EventDataRow = {
+  key: string;
+  idChunk: number;
+  timeString: string;
+  time: number;
+  data: number;
+} & Partial<Record<string, querySeriesMetaTag>>;
+
 export type EventData = {
   chunks: EventDataChunk[];
   rows: EventDataRow[];
@@ -322,6 +328,9 @@ export const statsHouseState: StateCreator<
       getState().setParams(
         produce((params) => {
           params.timeRange = nextTimeRange;
+          if (nextTimeRange.from < params.eventFrom && nextTimeRange.to > params.eventFrom) {
+            params.eventFrom = 0;
+          }
         }),
         false,
         force
@@ -392,6 +401,7 @@ export const statsHouseState: StateCreator<
         maxHost: false,
         type: PLOT_TYPE.Metric,
         events: [],
+        eventsBy: [],
       };
       params.plots = [np];
       reset = true;
@@ -508,6 +518,10 @@ export const statsHouseState: StateCreator<
         }
         if (params.plots.length > 1) {
           params.plots.splice(index, 1);
+          params.plots = params.plots.map((p) => ({
+            ...p,
+            events: p.events.filter((v) => v !== index).map((v) => (v > index ? v - 1 : v)),
+          }));
           params.tagSync = params.tagSync.map((g) => g.filter((tags, plot) => plot !== index));
           groups.splice(index, 1);
           if (params.dashboard?.groupInfo?.length) {
@@ -998,9 +1012,11 @@ export const statsHouseState: StateCreator<
           getState().setNumQueriesPlot(index, (n) => n - 1);
         });
       if (lastPlotParams.type === PLOT_TYPE.Event) {
-        getState()
-          .loadEvents(index, undefined, undefined, prevState.params.eventFrom || undefined)
-          .catch(debug.error);
+        const from =
+          prevState.timeRange.from < prevState.params.eventFrom && prevState.timeRange.to > prevState.params.eventFrom
+            ? prevState.params.eventFrom
+            : undefined;
+        getState().loadEvents(index, undefined, undefined, from).catch(debug.error);
       }
     }
   },
@@ -1884,7 +1900,7 @@ export const statsHouseState: StateCreator<
           ? `${Math.floor(width * devicePixelRatio)}`
           : `${prevPlot.customAgg}s`;
 
-      const url = queryTableURL(prevPlot, range, agg, key, fromEnd);
+      const url = queryTableURL(prevPlot, range, agg, key, fromEnd, 100);
       setState((state) => {
         if (fromEnd) {
           state.events[indexPlot].prevAbortController = controller;
@@ -1928,7 +1944,6 @@ export const statsHouseState: StateCreator<
                         ...eventColumnDefault,
                         name: tagKey,
                         key: tagKey,
-                        formatter: EventFormatterDefault,
                       };
                     }
                   });
@@ -1944,11 +1959,7 @@ export const statsHouseState: StateCreator<
             );
             state.events[indexPlot].columns = Object.values(columns);
             const first = state.events[indexPlot].chunks[0];
-            if (
-              (first?.more && first?.fromEnd) ||
-              from ||
-              state.events[indexPlot].range.from > prevState.timeRange.from
-            ) {
+            if ((first?.more && first?.fromEnd) || from) {
               state.events[indexPlot].prevKey = first?.from_row;
             } else {
               state.events[indexPlot].prevKey = undefined;
