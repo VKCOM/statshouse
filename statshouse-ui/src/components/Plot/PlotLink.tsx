@@ -53,6 +53,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
               maxHost: false,
               type: typePlot ?? PLOT_TYPE.Metric,
               events: [],
+              eventsBy: [],
             });
           } else {
             const cloneId = p.tabNum < 0 ? p.plots.length - 1 : p.tabNum;
@@ -78,6 +79,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
               maxHost: p.plots[cloneId].maxHost,
               type: typePlot === undefined || typePlot === p.plots[cloneId].type ? p.plots[cloneId].type : typePlot,
               events: p.plots[cloneId].events.slice(),
+              eventsBy: p.plots[cloneId].eventsBy.slice(),
             });
           }
           if (p.dashboard?.groupInfo?.length) {

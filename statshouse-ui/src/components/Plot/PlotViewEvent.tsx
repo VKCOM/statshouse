@@ -326,6 +326,18 @@ export function PlotViewEvent(props: {
     setFixHeight(0);
   }, []);
 
+  const [cursorTime, setCursorTime] = useState<number>();
+
+  const onSetCursor = useCallback((u: uPlot) => {
+    setCursorTime(u.data[0][u.cursor.idx ?? -1]);
+  }, []);
+
+  const onCursor = useCallback((time: number) => {
+    if (uPlotRef.current) {
+      uPlotRef.current.setCursor({ top: -1, left: uPlotRef.current?.valToPos(time, 'x') }, false);
+    }
+  }, []);
+
   useEffect(() => {
     seriesShow.forEach((show, idx) => {
       if (uPlotRef.current?.series[idx + 1].show !== show) {
@@ -426,6 +438,7 @@ export function PlotViewEvent(props: {
               onReady={onReady}
               onSetSelect={onSetSelect}
               onUpdatePreview={onUpdatePreview}
+              onSetCursor={onSetCursor}
               className="w-100 h-100 position-absolute top-0 start-0"
             >
               {!compact && (
@@ -439,7 +452,14 @@ export function PlotViewEvent(props: {
             </UPlotWrapper>
           )}
         </div>
-        {!error403 && !compact && <PlotEvents className="plot-legend" indexPlot={indexPlot} />}
+        {!error403 && !compact && (
+          <PlotEvents
+            className="plot-legend flex-grow-1"
+            indexPlot={indexPlot}
+            onCursor={onCursor}
+            cursor={cursorTime}
+          />
+        )}
       </div>
     </div>
   );

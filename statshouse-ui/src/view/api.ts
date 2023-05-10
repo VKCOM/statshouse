@@ -5,11 +5,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as utils from './utils';
-import { convert, freeKeyPrefix, promQLMetric } from './utils';
+import { convert, freeKeyPrefix, promQLMetric, uniqueArray } from './utils';
 import { TimeRange } from '../common/TimeRange';
 import { Column } from 'react-data-grid';
 import { EventDataRow } from '../store/statshouse';
 import { PlotParams } from '../common/plotQueryParams';
+import { EventFormatterDefault, EventFormatterHeaderDefault } from '../components/Plot/EventFormatters';
 
 export interface lockRange {
   readonly min: number;
@@ -141,14 +142,15 @@ export const eventColumnDefault: Readonly<Partial<Column<EventDataRow>>> = {
   minWidth: 20,
   maxWidth: 300,
   resizable: true,
-  // headerRenderer: EventFormatterHeaderDefault,
-  width: 70,
+  headerRenderer: EventFormatterHeaderDefault,
+  width: 'auto',
+  formatter: EventFormatterDefault,
   // sortable: true,
   // headerCellClass: 'no-Focus',
 };
 export const getEventColumnsType: () => Record<string, Column<EventDataRow>> = () => ({
-  timeString: { key: 'timeString', name: 'Time', width: 161 },
-  data: { key: 'data', name: 'Count', width: 80 },
+  timeString: { key: 'timeString', name: 'Time' },
+  data: { key: 'data', name: 'Count' },
 });
 
 // XXX: keep in sync with Go
@@ -479,8 +481,10 @@ export const queryParamPromQL = 'q';
 export const queryParamType = 'qt';
 export const queryParamEvent = 'qe';
 export const queryParamFromRow = 'fr';
+export const queryParamToRow = 'tr';
 export const queryParamFromEnd = 'fe';
 export const queryParamEventFrom = 'ef';
+export const queryParamEventBy = 'eb';
 export const tabPrefix = 't';
 export const queryDashboardID = 'id';
 export const queryMetricsGroupID = 'id';
@@ -590,7 +594,8 @@ export function queryTableURL(
       ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
       // [queryParamVerbose, fetchBadges ? '1' : '0'],
       // ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
-      ...sel.groupBy.map((b) => [queryParamGroupBy, freeKeyPrefix(b)]),
+      // ...sel.groupBy.map((b) => [queryParamGroupBy, freeKeyPrefix(b)]),
+      ...uniqueArray([...sel.groupBy, ...sel.eventsBy]).map((b) => [queryParamGroupBy, freeKeyPrefix(b)]),
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
   }
@@ -601,7 +606,11 @@ export function queryTableURL(
     params.push([queryParamFromEnd, '1']);
   }
   if (key) {
-    params.push([queryParamFromRow, key]);
+    if (fromEnd) {
+      params.push([queryParamToRow, key]);
+    } else {
+      params.push([queryParamFromRow, key]);
+    }
   }
   params.push([queryParamNumResults, limit.toString()]);
 

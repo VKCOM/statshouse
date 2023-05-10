@@ -15,6 +15,7 @@ import {
   queryParamBackendVersion,
   queryParamCustomName,
   queryParamEvent,
+  queryParamEventBy,
   queryParamEventFrom,
   queryParamFilter,
   queryParamFilterSync,
@@ -80,6 +81,7 @@ export type PlotParams = {
   promQL: string;
   type: PlotType;
   events: number[];
+  eventsBy: string[];
 };
 
 export type GroupInfo = {
@@ -426,6 +428,11 @@ export const configParams: ConfigParams = {
         isArray: true,
         default: [],
         urlKey: queryParamEvent,
+      },
+      eventsBy: {
+        urlKey: queryParamEventBy, //qb=key0 or t1.qb=key1
+        default: [] as string[],
+        isArray: true,
       },
     },
   },

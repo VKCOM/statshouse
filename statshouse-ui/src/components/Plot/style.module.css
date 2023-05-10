@@ -95,6 +95,14 @@
   box-shadow: var(--bs-secondary-bg) 0 0 10px 0px;
 }
 
+.plotEventsSelectColumns {
+  left: 3.75em;
+  top: 1.25em;
+}
+.plotEventsSelectRow {
+  background-color: var(--bs-link-color);
+}
+
 @media screen and (min-width: 768px) {
   .plotTabMenu li:hover ul {
     display: block;
@@ -132,5 +140,13 @@
   }
   .plotTabMenu li li {
     width: 100%;
+  }
+}
+
+@media screen and (min-width: 992px) {
+  .plotColumn {
+    min-height: calc(100vh - 100px);
+    display: flex;
+    flex-direction: column;
   }
 }
