@@ -1870,6 +1870,19 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 		// frontend expects not "null" value
 		res.Series.SeriesData = make([]*[]float64, 0)
 	}
+	// clamp values because JSON doesn't support "Inf" values,
+	// extra large values usually don't make sense.
+	// TODO: don't lose values, pass large values (including "Inf" as is)
+	for _, p := range res.Series.SeriesData {
+		row := *p
+		for i, v := range row {
+			if v < -math.MaxFloat32 {
+				row[i] = -math.MaxFloat32
+			} else if v > math.MaxFloat32 {
+				row[i] = math.MaxFloat32
+			}
+		}
+	}
 	res.queries = seriesQueries
 	return res, cleanup, nil
 }
