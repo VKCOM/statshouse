@@ -75,12 +75,9 @@ const (
 	MaxJournalItemsSent = 1000 // TODO - increase, but limit response size in bytes
 	MaxJournalBytesSent = 800 * 1024
 
-	ClickHouseTimeoutConfig   = time.Second * 10 // either quickly autoconfig or quickly exit
-	ClickhouseConfigRetries   = 5
-	ClickHouseTimeout         = time.Minute
-	ClickHouseTimeoutHistoric = 5 * time.Minute // reduces chance of duplicates via historic conveyor
-	NoHistoricBucketsDelay    = 3 * time.Second
-	ClickHouseErrorDelay      = 10 * time.Second
+	ClickHouseTimeoutConfig = time.Second * 10 // either quickly autoconfig or quickly exit
+	ClickhouseConfigRetries = 5
+	ClickHouseTimeout       = 5 * time.Minute // reduces chance of duplicates
 
 	KeepAliveMaxBackoff          = 30 * time.Second // for cases when aggregators quickly return error
 	JournalDDOSProtectionTimeout = 50 * time.Millisecond
@@ -105,6 +102,8 @@ const (
 	MappingMinInterval       = 1 * time.Millisecond
 
 	SimulatorMetricPrefix = "simulator_metric_"
+
+	StatshouseAgentRemoteConfigMetric = "statshouse_agent_remote_config"
 )
 
 func NextBackoffDuration(backoffTimeout time.Duration) time.Duration {

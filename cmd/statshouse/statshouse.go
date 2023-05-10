@@ -230,7 +230,7 @@ func runMain() int {
 
 func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	argv.configAgent.Cluster = argv.cluster
-	if err := agent.ValidateConfigSource(argv.configAgent); err != nil {
+	if err := argv.configAgent.ValidateConfigSource(); err != nil {
 		logErr.Printf("%s", err)
 		return 1
 	}
@@ -409,7 +409,7 @@ func mainAggregator(aesPwd string, dc *pcache.DiskCache) int {
 }
 
 func mainIngressProxy(aesPwd string) int {
-	if err := agent.ValidateConfigSource(argv.configAgent); err != nil {
+	if err := argv.configAgent.ValidateConfigSource(); err != nil {
 		logErr.Printf("%s", err)
 		return 1
 	}

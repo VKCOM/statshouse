@@ -15,8 +15,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/pierrec/lz4"
 	"pgregory.net/rand"
+
+	"github.com/pierrec/lz4"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -204,6 +205,9 @@ func (s *Shard) goPreProcess() {
 }
 
 func (s *Shard) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_model.MetricsBucket) {
+	s.mu.Lock()
+	stringTopCapacity := s.config.StringTopCapacity
+	s.mu.Unlock()
 	for _, b := range buckets { // optimization to merge into the largest map
 		if len(b.MultiItems) > len(bucket.MultiItems) {
 			b.MultiItems, bucket.MultiItems = bucket.MultiItems, b.MultiItems
@@ -211,7 +215,7 @@ func (s *Shard) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_m
 	}
 	for _, b := range buckets {
 		for k, v := range b.MultiItems {
-			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, k, s.config.StringTopCapacity, nil)
+			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, k, stringTopCapacity, nil)
 			mi.Merge(v)
 		}
 	}
@@ -219,7 +223,11 @@ func (s *Shard) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_m
 
 // this function will be replaced by sampleBucketWithGroups, do not improve
 func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) map[int32]float64 { // returns sample factors
-	if s.config.SampleGroups {
+	s.mu.Lock()
+	config := s.config
+	s.mu.Unlock()
+
+	if config.SampleGroups {
 		return s.sampleBucketWithGroups(bucket, rnd)
 	}
 
@@ -230,7 +238,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) m
 	var remainingWeight int64
 
 	for k, item := range bucket.MultiItems {
-		whaleWeight := item.FinishStringTop(s.config.StringTopCountSend) // all excess items are baked into Tail
+		whaleWeight := item.FinishStringTop(config.StringTopCountSend) // all excess items are baked into Tail
 		accountMetric := k.Metric
 		sz := k.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
 		if k.Metric == format.BuiltinMetricIDIngestionStatus {
@@ -275,7 +283,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) m
 		return metricsList[i].SumSize*metricsList[j].MetricWeight < metricsList[j].SumSize*metricsList[i].MetricWeight
 	})
 	numShards := s.statshouse.NumShardReplicas()
-	remainingBudget := int64((s.config.SampleBudget + numShards - 1) / numShards)
+	remainingBudget := int64((config.SampleBudget + numShards - 1) / numShards)
 	if remainingBudget <= 0 { // if happens, will lead to divide by zero below, so we add cheap protection
 		remainingBudget = 1
 	}
@@ -345,11 +353,11 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) m
 	if pos < len(metricsList) {
 		value := float64(remainingBudget) / float64(remainingWeight)
 		key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetPerMetric}}
-		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, s.config.StringTopCapacity, nil)
+		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
 		mi.Tail.Value.AddValueCounterHost(value, 1, 0)
 	} else {
 		key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetUnused}}
-		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, s.config.StringTopCapacity, nil)
+		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
 		mi.Tail.Value.AddValueCounterHost(float64(remainingBudget), 1, 0)
 	}
 	return sampleFactors
@@ -425,6 +433,10 @@ func sampleStatItem(bucket *data_model.MetricsBucket, statItem *data_model.Sampl
 
 // relatively new, can contain disastrous bugs, turned off for now
 func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *rand.Rand) map[int32]float64 { // returns sample factors
+	s.mu.Lock()
+	config := s.config
+	s.mu.Unlock()
+
 	// Same algorithm as in aggregator, but instead of inserting selected, we remove items which were not selected by sampling algorithm
 	metricsMap := map[int32]*data_model.SamplingMetric{}
 	groupsMap := map[int32]*data_model.SamplingGroup{}
@@ -433,7 +445,7 @@ func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *ra
 	var remainingGroupWeight int64
 
 	for k, item := range bucket.MultiItems {
-		whaleWeight := item.FinishStringTop(s.config.StringTopCountSend) // all excess items are baked into Tail
+		whaleWeight := item.FinishStringTop(config.StringTopCountSend) // all excess items are baked into Tail
 		accountMetric := k.Metric
 		sz := k.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
 		if k.Metric == format.BuiltinMetricIDIngestionStatus {
@@ -493,7 +505,7 @@ func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *ra
 	}
 
 	numShards := s.statshouse.NumShardReplicas()
-	remainingGroupBudget := int64((s.config.SampleBudget + numShards - 1) / numShards)
+	remainingGroupBudget := int64((config.SampleBudget + numShards - 1) / numShards)
 	if remainingGroupBudget <= 0 { // if happens, will lead to divide by zero below, so we add cheap protection
 		remainingGroupBudget = 1
 	}
@@ -509,10 +521,10 @@ func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *ra
 	// We presume we have only a few groups, so reporting sizes are over budget and itself not sampled
 	reportGroupSampling := func(sizeBefore int64, sizeAfter int64, groupID int32, fitTag int32) {
 		key := data_model.Key{Metric: format.BuiltinMetricIDGroupSizeBeforeSampling, Keys: [16]int32{0, s.statshouse.componentTag, groupID, fitTag}}
-		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, s.config.StringTopCapacity, nil)
+		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
 		mi.Tail.Value.AddValueCounterHost(float64(sizeBefore), 1, 0)
 		key = data_model.Key{Metric: format.BuiltinMetricIDGroupSizeAfterSampling, Keys: [16]int32{0, s.statshouse.componentTag, groupID, fitTag}}
-		mi = data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, s.config.StringTopCapacity, nil)
+		mi = data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
 		mi.Tail.Value.AddValueCounterHost(float64(sizeAfter), 1, 0)
 	}
 	gpos := 0
@@ -568,14 +580,17 @@ func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds ui
 		s.client.Client.Logf("Internal Error: Failed to compress bucket %v for shard %d bucket %d", err, s.ShardReplicaNum, bucket.Time)
 		return
 	}
-	if s.config.SaveSecondsImmediately {
+	s.mu.Lock()
+	saveSecondsImmediately := s.config.SaveSecondsImmediately
+	s.mu.Unlock()
+	if saveSecondsImmediately {
 		s.diskCachePutWithLog(cbd) // Continue sending anyway on error
 	}
 	select {
-	case s.BucketsToSend <- cbd:
+	case s.BucketsToSend <- compressedBucketDataOnDisk{compressedBucketData: cbd, onDisk: saveSecondsImmediately}:
 	default:
 		// s.client.Client.Logf("Slowdown: Buckets Channel full for shard %d. Moving bucket %d to Historic Conveyor", s.ShardReplicaNum, cbd.time)
-		if !s.config.SaveSecondsImmediately {
+		if !saveSecondsImmediately {
 			s.diskCachePutWithLog(cbd)
 		}
 		s.appendHistoricBucketsToSend(cbd)
@@ -691,14 +706,14 @@ func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 
 func (s *Shard) goSendRecent() {
 	for cbd := range s.BucketsToSend {
-		if s.sendRecent(cbd) {
+		if s.sendRecent(cbd.compressedBucketData) {
 			s.stats.recentSendSuccess.Add(1)
 			s.diskCacheEraseWithLog(cbd.time, "after sending")
 		} else {
-			if !s.config.SaveSecondsImmediately {
-				s.diskCachePutWithLog(cbd)
+			if !cbd.onDisk {
+				s.diskCachePutWithLog(cbd.compressedBucketData)
 			}
-			s.appendHistoricBucketsToSend(cbd)
+			s.appendHistoricBucketsToSend(cbd.compressedBucketData)
 		}
 	}
 }
@@ -730,6 +745,7 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 			}
 		}
 		var resp []byte
+
 		// We use infinite timeout, because otherwise, if aggregator is busy, source will send the same bucket again and again, inflating amount of data
 		// But we set FailIfNoConnection to switch to fallback immediately
 		if s.alive.Load() {

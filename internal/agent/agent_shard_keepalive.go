@@ -33,11 +33,11 @@ func (s *Shard) appendlastSendSuccessfulLocked(success bool) int { // returns ho
 }
 
 func (s *Shard) recordSendResult(success bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if !s.alive.Load() {
 		return
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	succ := s.appendlastSendSuccessfulLocked(success)
 	if len(s.lastSendSuccessful) == s.config.LivenessResponsesWindowLength && succ < s.config.LivenessResponsesWindowSuccesses {
 		s.alive.Store(false)
@@ -46,9 +46,10 @@ func (s *Shard) recordSendResult(success bool) {
 	}
 }
 
-func (s *Shard) recordKeepLiveResult(success bool) {
+func (s *Shard) recordKeepLiveResult(err error, dur time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	success := err == nil && dur < s.config.KeepAliveSuccessTimeout // we require strict response time here
 
 	succ := s.appendlastSendSuccessfulLocked(success)
 	if succ == s.config.LivenessResponsesWindowLength {
@@ -69,7 +70,7 @@ func (s *Shard) sendKeepLive() error {
 	var ret []byte
 	err := s.client.SendKeepAlive2Bytes(ctx, args, nil, &ret)
 	dur := time.Since(now)
-	s.recordKeepLiveResult(err == nil && dur < s.config.KeepAliveSuccessTimeout) // we require strict response time here
+	s.recordKeepLiveResult(err, dur)
 	return err
 }
 
