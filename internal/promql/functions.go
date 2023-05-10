@@ -1365,10 +1365,11 @@ var sliceScalarFuncM = map[parser.ItemType][2]sliceScalarFunc{
 }
 
 func getBinaryFunc[F sliceBinaryFunc | scalarBinaryFunc | scalarSliceFunc | sliceScalarFunc](m map[parser.ItemType][2]F, op parser.ItemType, b bool) F {
-	if b {
-		return m[op][1]
+	f := m[op]
+	if b && f[1] != nil {
+		return f[1]
 	} else {
-		return m[op][0]
+		return f[0]
 	}
 }
 
