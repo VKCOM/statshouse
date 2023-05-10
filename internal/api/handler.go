@@ -2785,12 +2785,6 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 		h.location,
 	)
 
-	if len(lods) > 0 {
-		// left shift leftmost LOD by one step to facilitate calculation of derivative (if any) in the leftmost requested point
-		// NB! don't forget to exclude this extra point on the left on successful return
-		lods[0].fromSec -= lods[0].stepSec
-	}
-
 	var sqlQueries []string
 	if debugQueries {
 		ctx = debugQueriesContext(ctx, &sqlQueries)
