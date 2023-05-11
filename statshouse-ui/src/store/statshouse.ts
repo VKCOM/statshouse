@@ -52,9 +52,7 @@ import {
   dashboardListURL,
   dashboardShortInfo,
   dashboardURL,
-  eventColumnDefault,
   GetDashboardListResp,
-  getEventColumnsType,
   metaToBaseLabel,
   metaToLabel,
   metricMeta,
@@ -77,6 +75,7 @@ import {
   queryTable,
   queryTableURL,
   queryURL,
+  queryWhat,
 } from '../view/api';
 import { calcYRange2 } from '../common/calcYRange';
 import { rgba, selectColor } from '../view/palette';
@@ -84,7 +83,6 @@ import { filterPoints } from '../common/filterPoints';
 import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
 import { decodeQueryParams, encodeQueryParams, mergeLeft } from '../common/QueryParamsParser';
 import { getNextState } from '../common/getNextState';
-import { Column } from 'react-data-grid';
 
 export type PlotStore = {
   nameMetric: string;
@@ -182,13 +180,13 @@ export type EventDataRow = {
   idChunk: number;
   timeString: string;
   time: number;
-  data: number;
+  data: number[];
 } & Partial<Record<string, querySeriesMetaTag>>;
 
 export type EventData = {
   chunks: EventDataChunk[];
   rows: EventDataRow[];
-  columns: Column<EventDataRow>[];
+  what: queryWhat[];
   nextKey?: string;
   prevKey?: string;
   range: TimeRange;
@@ -1871,7 +1869,7 @@ export const statsHouseState: StateCreator<
     return new Promise((resolve, reject) => {
       if (!getState().events[indexPlot]) {
         setState((state) => {
-          state.events[indexPlot] = { chunks: [], rows: [], columns: [], range: new TimeRange(state.params.timeRange) };
+          state.events[indexPlot] = { chunks: [], rows: [], what: [], range: new TimeRange(state.params.timeRange) };
         });
       }
       const prevState = getState();
@@ -1914,7 +1912,7 @@ export const statsHouseState: StateCreator<
             state.events[indexPlot] ??= {
               chunks: [],
               rows: [],
-              columns: [],
+              what: [],
               range: new TimeRange(range.getRangeUrl),
             };
             const chunk: EventDataChunk = { ...resp, ...range.getRange(), fromEnd };
@@ -1934,30 +1932,25 @@ export const statsHouseState: StateCreator<
             } else {
               state.events[indexPlot].chunks = [chunk];
             }
-            const columns: Record<string, Column<EventDataRow>> = getEventColumnsType();
+            state.events[indexPlot].what = chunk.what;
             state.events[indexPlot].rows = state.events[indexPlot].chunks.flatMap(
               (chunk, idChunk) =>
-                chunk.rows?.map((row, index): EventDataRow => {
-                  Object.keys(row.tags).forEach((tagKey) => {
-                    if (!columns[tagKey]) {
-                      columns[tagKey] = {
-                        ...eventColumnDefault,
-                        name: tagKey,
-                        key: tagKey,
-                      };
-                    }
-                  });
-                  return {
-                    key: `${chunk.from_row}_${index}`,
-                    idChunk,
-                    timeString: fmtInputDateTime(new Date(row.time * 1000)),
-                    data: row.data,
-                    time: row.time,
-                    ...row.tags,
-                  } as EventDataRow;
-                }) ?? []
+                chunk.rows?.map(
+                  (row, index): EventDataRow =>
+                    ({
+                      key: `${chunk.from_row}_${index}`,
+                      idChunk,
+                      timeString: fmtInputDateTime(new Date(row.time * 1000)),
+                      data: row.data,
+                      time: row.time,
+                      ...Object.fromEntries(
+                        state.events[indexPlot].what.map((whatKey, indexWhat) => [whatKey, row.data[indexWhat]])
+                      ),
+                      ...row.tags,
+                    } as EventDataRow)
+                ) ?? []
             );
-            state.events[indexPlot].columns = Object.values(columns);
+
             const first = state.events[indexPlot].chunks[0];
             if ((first?.more && first?.fromEnd) || from) {
               state.events[indexPlot].prevKey = first?.from_row;
@@ -1985,7 +1978,7 @@ export const statsHouseState: StateCreator<
             state.events[indexPlot] = {
               chunks: [],
               rows: [],
-              columns: [],
+              what: [],
               range: new TimeRange(state.params.timeRange),
             };
             if (error instanceof Error403) {
@@ -2010,7 +2003,7 @@ export const statsHouseState: StateCreator<
   },
   clearEvents(indexPlot) {
     setState((state) => {
-      state.events[indexPlot] = { chunks: [], rows: [], columns: [], range: new TimeRange(state.params.timeRange) };
+      state.events[indexPlot] = { chunks: [], rows: [], what: [], range: new TimeRange(state.params.timeRange) };
     });
   },
 });

@@ -9,6 +9,7 @@ import * as api from '../view/api';
 import { metricTagValueInfo } from '../view/api';
 import { promQLMetric } from '../view/utils';
 import { TimeRange } from '../common/TimeRange';
+import { EventData } from './statshouse';
 
 export const selectorAll = (s: Store) => s;
 
@@ -190,10 +191,10 @@ export const selectorSetTheme = (s: Store) => s.theme.setTheme;
 export const selectorPromqltestfailed = (s: Store) => s.plotsData.map((d) => d.promqltestfailed).some(Boolean);
 
 export const selectorEvents = (s: Store) => s.events;
-export const selectorEventsByIndex = (index: number, s: Store) =>
-  s.events[index] ?? { chunks: [], rows: [], columns: [], range: new TimeRange(s.params.timeRange) };
-export const selectorEventsTimeWindowByIndex = (index: number, s: Store) => {
-  const { range } = s.events[index] ?? { chunks: [], rows: [], columns: [], range: new TimeRange(s.params.timeRange) };
+export const selectorEventsByIndex = (index: number, s: Store): EventData =>
+  s.events[index] ?? { chunks: [], rows: [], what: [], range: new TimeRange(s.params.timeRange) };
+export const selectorEventsTimeWindowByIndex = (index: number, s: Store): TimeRange => {
+  const { range } = s.events[index] ?? { range: new TimeRange(s.params.timeRange) };
   return range;
 };
 export const selectorLoadEvents = (s: Store) => s.loadEvents;

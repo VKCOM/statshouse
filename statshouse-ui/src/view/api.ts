@@ -87,9 +87,9 @@ export interface DashboardInfo {
 
 export type queryTableRow = {
   time: number;
-  data: number;
+  data: number[];
   tags: Record<string, querySeriesMetaTag>;
-  what: queryWhat;
+  what?: queryWhat;
 };
 
 export type queryTable = {
@@ -97,6 +97,7 @@ export type queryTable = {
   from_row: string;
   to_row: string;
   more: boolean;
+  what: queryWhat[];
 };
 
 export interface DashboardMeta {
@@ -148,9 +149,10 @@ export const eventColumnDefault: Readonly<Partial<Column<EventDataRow>>> = {
   // sortable: true,
   // headerCellClass: 'no-Focus',
 };
-export const getEventColumnsType: () => Record<string, Column<EventDataRow>> = () => ({
-  timeString: { key: 'timeString', name: 'Time' },
-  data: { key: 'data', name: 'Count' },
+export const getEventColumnsType = (what: string[] = []): Record<string, Column<EventDataRow>> => ({
+  timeString: { key: 'timeString', name: 'Time', width: 165 },
+  ...Object.fromEntries(what.map((key) => [key, { key, name: whatToWhatDesc(key) }])),
+  // data: { key: 'data', name: whatLabel ?? 'Value' },
 });
 
 // XXX: keep in sync with Go

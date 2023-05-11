@@ -444,8 +444,12 @@ export function PlotViewEvent(props: {
               {!compact && (
                 <UPlotPluginPortal zone="over" hooks={pluginTimeWindowHooks}>
                   <>
-                    <div className="u-time-window u-time-window-left" style={{ width: timeWindow.leftWidth }}></div>
-                    <div className="u-time-window u-time-window-right" style={{ width: timeWindow.rightWidth }}></div>
+                    {timeWindow.leftWidth !== '0%' && (
+                      <div className="u-time-window u-time-window-left" style={{ width: timeWindow.leftWidth }}></div>
+                    )}
+                    {timeWindow.rightWidth !== '0%' && (
+                      <div className="u-time-window u-time-window-right" style={{ width: timeWindow.rightWidth }}></div>
+                    )}
                   </>
                 </UPlotPluginPortal>
               )}

@@ -65,7 +65,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
 
   const columns = useMemo<Column<EventDataRow, unknown>[]>(
     () => [
-      ...Object.values(getEventColumnsType()),
+      ...Object.values(getEventColumnsType(event.what)),
       ...((meta.tags
         ?.map((tag, indexTag) => {
           if (
@@ -82,7 +82,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
         })
         .filter(Boolean) ?? []) as Column<EventDataRow, unknown>[]),
     ],
-    [meta.tags, paramsPlot.eventsBy, paramsPlot.groupBy]
+    [event.what, meta.tags, paramsPlot.eventsBy, paramsPlot.groupBy]
   );
 
   const loadPrev = useCallback(() => {
@@ -220,7 +220,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
       <div className="d-flex flex-column flex-grow-1">
         {!!event.rows?.length && (
           <DataGrid<EventDataRow>
-            className="z-0 flex-grow-1"
+            className={cn('z-0 flex-grow-1', css.rdgTheme)}
             style={{ height: '400px' }}
             ref={gridRef}
             rowHeight={rowHeight}
