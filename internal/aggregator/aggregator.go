@@ -51,7 +51,6 @@ type (
 		time   uint32
 		shards [data_model.AggregationShardsPerSecond]aggregatorShard
 
-		rawSize              int                   // protected by aggregator mutex
 		contributors         []*rpc.HandlerContext // protected by aggregator mutex
 		contributorsOriginal data_model.ItemValue  // Not recorded for keep-alive, protected by aggregator mutex
 		contributorsSpare    data_model.ItemValue  // Not recorded for keep-alive, protected by aggregator mutex

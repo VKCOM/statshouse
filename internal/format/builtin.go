@@ -153,8 +153,9 @@ const (
 	TagValueIDInsertTimeOK    = 1
 	TagValueIDInsertTimeError = 2
 
-	TagValueIDHistoricQueueMemory = 1
-	TagValueIDHistoricQueueDisk   = 2
+	TagValueIDHistoricQueueMemory     = 1
+	TagValueIDHistoricQueueDiskUnsent = 2
+	TagValueIDHistoricQueueDiskSent   = 3
 
 	TagValueIDDiskCacheErrorWrite             = 1
 	TagValueIDDiskCacheErrorRead              = 2
@@ -714,8 +715,9 @@ Set by either agent or aggregator, depending on status.`,
 			Tags: []MetricMetaTag{{
 				Description: "storage",
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDHistoricQueueMemory: "memory",
-					TagValueIDHistoricQueueDisk:   "disk",
+					TagValueIDHistoricQueueMemory:     "memory",
+					TagValueIDHistoricQueueDiskUnsent: "disk_unsent",
+					TagValueIDHistoricQueueDiskSent:   "disk_sent",
 				}),
 			}, {
 				Description: "-",
@@ -734,8 +736,9 @@ Set by either agent or aggregator, depending on status.`,
 			Tags: []MetricMetaTag{{
 				Description: "storage",
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDHistoricQueueMemory: "memory",
-					TagValueIDHistoricQueueDisk:   "disk",
+					TagValueIDHistoricQueueMemory:     "memory",
+					TagValueIDHistoricQueueDiskUnsent: "disk_unsent",
+					TagValueIDHistoricQueueDiskSent:   "disk_sent",
 				}),
 			}, {
 				Description: "-",

@@ -109,22 +109,23 @@ func (s *Shard) FillStats(stats map[string]string) {
 	s.stats.fillStats(stats)
 }
 
-func (s *Shard) HistoricBucketsDataSizeDisk() int64 {
+func (s *Shard) HistoricBucketsDataSizeDisk() (total int64, unsent int64) {
 	if s.statshouse.diskCache == nil {
-		return 0
+		return 0, 0
 	}
 	return s.statshouse.diskCache.TotalFileSize(s.ShardReplicaNum)
 }
 
-func (s *Shard) HistoricBucketsDataSizeDiskSum() int64 {
+func (s *Shard) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
 	if s.statshouse.diskCache == nil {
-		return 0
+		return 0, 0
 	}
-	result := int64(0)
 	for i := range s.statshouse.Shards {
-		result += s.statshouse.diskCache.TotalFileSize(i)
+		t, u := s.statshouse.diskCache.TotalFileSize(i)
+		total += t
+		unsent += u
 	}
-	return result
+	return total, unsent
 }
 
 func (s *Shard) HistoricBucketsDataSizeMemSum() int64 {

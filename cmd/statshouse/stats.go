@@ -60,7 +60,9 @@ func (h statsHandler) handleStats(stats map[string]string) {
 
 	stats["statshouse_journal_version"] = strconv.FormatInt(h.metricsStorage.Version(), 10)
 	for i, s := range h.sh2.Shards {
-		stats[fmt.Sprintf("statshouse_queue_size_disk_%d", i)] = fmt.Sprintf("%d", s.HistoricBucketsDataSizeDisk())
+		t, u := s.HistoricBucketsDataSizeDisk()
+		stats[fmt.Sprintf("statshouse_queue_size_disk_total_%d", i)] = fmt.Sprintf("%d", t)
+		stats[fmt.Sprintf("statshouse_queue_size_disk_unsent_%d", i)] = fmt.Sprintf("%d", u)
 		stats[fmt.Sprintf("statshouse_queue_size_memory_%d", i)] = fmt.Sprintf("%d", s.HistoricBucketsDataSizeMemory())
 		stats[fmt.Sprintf("statshouse_shard_alive_%d", i)] = fmt.Sprintf("%v", s.IsAlive())
 		s.FillStats(stats)

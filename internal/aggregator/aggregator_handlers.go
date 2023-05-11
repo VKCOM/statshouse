@@ -52,6 +52,7 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	tag, _ := basictl.NatPeekTag(hctx.Request)
 	keyID := hctx.KeyID()
 	keyIDTag := int32(binary.BigEndian.Uint32(keyID[:4]))
+	requestLen := len(hctx.Request) // impl will release hctx
 	key := data_model.AggKey(0, format.BuiltinMetricIDRPCRequests, [16]int32{0, format.TagValueIDComponentAggregator, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag}, a.aggregatorHost, a.shardKey, a.replicaKey)
 	err := a.handleClientImpl(ctx, hctx)
 	if err == rpc.ErrNoHandler {
@@ -61,10 +62,11 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	} else if err != nil {
 		key.Keys[3] = format.TagValueIDRPCRequestsStatusErrLocal
 	}
-	a.sh2.AddValueCounter(key, float64(len(hctx.Request)), 1, nil)
+	a.sh2.AddValueCounter(key, float64(requestLen), 1, nil)
 	return err
 }
 
+// TODO - use generatedd handler
 func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerContext) error {
 	var tag uint32
 	tag, hctx.Request, _ = basictl.NatReadTag(hctx.Request)
@@ -128,9 +130,11 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 				if s != int(ud.sendSourceBucket2.OriginalSize) {
 					return fmt.Errorf("failed to deserialize compressed statshouse.sourceBucket request: expected size %d actual %d", ud.sendSourceBucket2.OriginalSize, s)
 				}
+				// uncomment if you add fields to the TL
 				ud.uncompressed = append(ud.uncompressed, 0, 0, 0, 0) // ingestion_status_ok2, TODO - remove when all agent are updated to version 1.0
 				readFrom = ud.uncompressed
 			} else {
+				// uncomment if you add fields to the TL
 				ud.sendSourceBucket2.CompressedData = append(ud.sendSourceBucket2.CompressedData, 0, 0, 0, 0) // ingestion_status_ok2, TODO - remove when all agent are updated to version 1.0
 				readFrom = ud.sendSourceBucket2.CompressedData
 			}
@@ -315,7 +319,6 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 		aggBucket.contributorsOriginal.AddValueCounterHost(0, 1, host) // protected by a.mu
 	}
 	aggBucket.contributors = append(aggBucket.contributors, hctx) // protected by a.mu
-	aggBucket.rawSize += rawSize                                  // protected by a.mu
 	aggHost := a.aggregatorHost
 	a.mu.Unlock()
 	defer aggBucket.sendMu.RUnlock()
@@ -417,17 +420,25 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 	if bucket.MissedSeconds != 0 {
 		getMultiItem(args.Time, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingMissedSeconds}).Tail.AddValueCounterHost(float64(bucket.MissedSeconds), 1, host)
 	}
-	if args.QueueSizeMemory != 0 {
+	if args.QueueSizeMemory > 0 {
 		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueMemory}).Tail.AddValueCounterHost(float64(args.QueueSizeMemory), 1, host)
 	}
-	if args.QueueSizeDisk != 0 {
-		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueDisk}).Tail.AddValueCounterHost(float64(args.QueueSizeDisk), 1, host)
-	}
-	if args.QueueSizeMemorySum != 0 {
+	if args.QueueSizeMemorySum > 0 {
 		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueMemory}).Tail.AddValueCounterHost(float64(args.QueueSizeMemorySum), 1, host)
 	}
-	if args.QueueSizeDiskSum != 0 {
-		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueDisk}).Tail.AddValueCounterHost(float64(args.QueueSizeDiskSum), 1, host)
+	if args.QueueSizeDiskUnsent > 0 {
+		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueDiskUnsent}).Tail.AddValueCounterHost(float64(args.QueueSizeDiskUnsent), 1, host)
+	}
+	queueSizeDiskSent := float64(args.QueueSizeDisk) - float64(args.QueueSizeDiskUnsent)
+	if queueSizeDiskSent > 0 {
+		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueDiskSent}).Tail.AddValueCounterHost(float64(queueSizeDiskSent), 1, host)
+	}
+	if args.QueueSizeDiskSumUnsent != 0 {
+		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueDiskUnsent}).Tail.AddValueCounterHost(float64(args.QueueSizeDiskSumUnsent), 1, host)
+	}
+	queueSizeDiskSumSent := float64(args.QueueSizeDiskSum) - float64(args.QueueSizeDiskSumUnsent)
+	if queueSizeDiskSumSent > 0 {
+		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueDiskSent}).Tail.AddValueCounterHost(float64(queueSizeDiskSumSent), 1, host)
 	}
 
 	var bcStr []byte
