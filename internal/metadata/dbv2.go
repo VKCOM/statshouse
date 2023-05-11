@@ -90,19 +90,19 @@ CREATE TABLE IF NOT EXISTS metrics_v2
 );
 CREATE INDEX IF NOT EXISTS metrics_id_v2 ON metrics_v2 (version);
 
-CREATE TABLE IF NOT EXISTS metrics_v3
+CREATE TABLE IF NOT EXISTS metrics_v4
 (
     id      INTEGER PRIMARY KEY AUTOINCREMENT,
     name    TEXT NOT NULL,
     version INTEGER UNIQUE NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER NOT NULL,
-    data    BLOB NOT NULL,
+    data    TEXT NOT NULL,
     type    INTEGER NOT NULL,
     UNIQUE (type, name)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS metrics_id_v3 ON metrics_v3 (version);
-CREATE INDEX IF NOT EXISTS metrics_id_v3 ON metrics_v3 (type);
+CREATE INDEX IF NOT EXISTS metrics_id_v3 ON metrics_v4 (version);
+CREATE INDEX IF NOT EXISTS metrics_id_v3 ON metrics_v4 (type);
 
 CREATE TABLE IF NOT EXISTS __offset_migration
 (
@@ -175,8 +175,8 @@ func OpenDB(
 			if rows.Error() != nil {
 				return nil, fmt.Errorf("failed to select metrics_v2: %w", err)
 			}
-			q := `INSERT INTO metrics_v3 (id, data, name, updated_at, deleted_at, type, version)
-			SELECT id, data, cast(name as TEXT), updated_at, deleted_at, type, version FROM metrics_v2;`
+			q := `INSERT INTO metrics_v4 (id, data, name, updated_at, deleted_at, type, version)
+			SELECT id, cast(data as TEXT), cast(name as TEXT), updated_at, deleted_at, type, version FROM metrics_v2;`
 			_, err := conn.Exec("insert_entity", q)
 			if err != nil {
 				return nil, fmt.Errorf("failed to insert entity: %w", err)
@@ -214,7 +214,7 @@ func (db *DBV2) JournalEvents(ctx context.Context, sinceVersion int64, page int6
 	result := make([]tlmetadata.Event, 0)
 	var bytesRead int64
 	err := db.eng.Do(ctx, "get_journal", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-		rows := conn.Query("select_journal", "SELECT id, name, version, data, updated_at, type, deleted_at FROM metrics_v3 WHERE version > $version ORDER BY version asc;",
+		rows := conn.Query("select_journal", "SELECT id, name, version, data, updated_at, type, deleted_at FROM metrics_v4 WHERE version > $version ORDER BY version asc;",
 			sqlite.Int64("$version", sinceVersion))
 		for rows.Next() {
 			id, _ := rows.ColumnInt64(0)
@@ -264,7 +264,7 @@ func (db *DBV2) PutOldMetric(ctx context.Context, name string, id int64, version
 
 func checkRules(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32) error {
 	if typ == format.MetricsGroupEvent {
-		r := c.Query("select_groups", "SELECT id from metrics_v3 WHERE type = $type AND name like $pattern", sqlite.Int64("$type", int64(format.MetricsGroupEvent)), sqlite.BlobText("$pattern", name+"%"))
+		r := c.Query("select_groups", "SELECT id from metrics_v4 WHERE type = $type AND name like $pattern", sqlite.Int64("$type", int64(format.MetricsGroupEvent)), sqlite.BlobText("$pattern", name+"%"))
 		if r.Next() {
 			return fmt.Errorf("group can't be prefix of another group")
 		}
@@ -283,7 +283,7 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 			return cache, err
 		}
 		if id < 0 {
-			rows := conn.Query("select_entity", "SELECT id FROM metrics_v3 WHERE id = $id;",
+			rows := conn.Query("select_entity", "SELECT id FROM metrics_v4 WHERE id = $id;",
 				sqlite.Int64("$id", id))
 			if rows.Error() != nil {
 				return cache, rows.Error()
@@ -297,7 +297,7 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 			}
 		}
 		if !createMetric {
-			rows := conn.Query("select_entity", "SELECT id, version, deleted_at FROM metrics_v3 where version = $oldVersion AND id = $id;",
+			rows := conn.Query("select_entity", "SELECT id, version, deleted_at FROM metrics_v4 where version = $oldVersion AND id = $id;",
 				sqlite.Int64("$oldVersion", oldVersion),
 				sqlite.Int64("$id", id))
 			if rows.Error() != nil {
@@ -310,8 +310,8 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 			if deleteEntity {
 				deletedAt = time.Now().Unix()
 			}
-			_, err := conn.Exec("update_entity", "UPDATE metrics_v3 SET version = (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v3), data = $data, updated_at = $updatedAt, name = $name, deleted_at = $deletedAt WHERE version = $oldVersion AND id = $id;",
-				sqlite.BlobString("$data", newJson),
+			_, err := conn.Exec("update_entity", "UPDATE metrics_v4 SET version = (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v4), data = $data, updated_at = $updatedAt, name = $name, deleted_at = $deletedAt WHERE version = $oldVersion AND id = $id;",
+				sqlite.BlobText("$data", newJson),
 				sqlite.Int64("$updatedAt", updatedAt),
 				sqlite.Int64("$oldVersion", oldVersion),
 				sqlite.BlobText("$name", name),
@@ -324,15 +324,15 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 		} else {
 			var err error
 			if !createFixed {
-				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v3 (version, data, name, updated_at, type, deleted_at) VALUES ( (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v3), $data, $name, $updatedAt, $type, 0);",
-					sqlite.BlobString("$data", newJson),
+				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v4 (version, data, name, updated_at, type, deleted_at) VALUES ( (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v4), $data, $name, $updatedAt, $type, 0);",
+					sqlite.BlobText("$data", newJson),
 					sqlite.BlobText("$name", name),
 					sqlite.Int64("$updatedAt", updatedAt),
 					sqlite.Int64("$type", int64(typ)))
 			} else {
-				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v3 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v3), $data, $name, $updatedAt, $type, 0);",
+				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v4 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v4), $data, $name, $updatedAt, $type, 0);",
 					sqlite.Int64("$id", id),
-					sqlite.BlobString("$data", newJson),
+					sqlite.BlobText("$data", newJson),
 					sqlite.BlobText("$name", name),
 					sqlite.Int64("$updatedAt", updatedAt),
 					sqlite.Int64("$type", int64(typ)))
@@ -341,7 +341,7 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 				return cache, fmt.Errorf("failed to put new metric %s: %w", newJson, err)
 			}
 		}
-		row := conn.Query("select_entity", "SELECT id, version, deleted_at FROM metrics_v3 where id = $id;",
+		row := conn.Query("select_entity", "SELECT id, version, deleted_at FROM metrics_v4 where id = $id;",
 			sqlite.Int64("$id", id))
 		if !row.Next() {
 			return cache, fmt.Errorf("can't get version of new metric(name: %s)", name)
