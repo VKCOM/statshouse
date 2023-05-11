@@ -32,11 +32,6 @@ type autoCreate struct {
 	shutdownFn func()
 }
 
-type autoCreateTask struct {
-	hctx *rpc.HandlerContext
-	args tlstatshouse.AutoCreate
-}
-
 func newAutoCreate(client *tlmetadata.Client, storage *metajournal.MetricsStorage) *autoCreate {
 	ac := autoCreate{
 		client:  client,
