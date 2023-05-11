@@ -433,7 +433,7 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 	if queueSizeDiskSent > 0 {
 		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSize, [16]int32{0, format.TagValueIDHistoricQueueDiskSent}).Tail.AddValueCounterHost(float64(queueSizeDiskSent), 1, host)
 	}
-	if args.QueueSizeDiskSumUnsent != 0 {
+	if args.QueueSizeDiskSumUnsent > 0 {
 		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueDiskUnsent}).Tail.AddValueCounterHost(float64(args.QueueSizeDiskSumUnsent), 1, host)
 	}
 	queueSizeDiskSumSent := float64(args.QueueSizeDiskSum) - float64(args.QueueSizeDiskSumUnsent)

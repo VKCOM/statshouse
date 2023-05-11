@@ -511,3 +511,19 @@ func (s *Agent) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str 
 func (s *Agent) AggKey(time uint32, metricID int32, keys [format.MaxTags]int32) data_model.Key {
 	return data_model.AggKey(time, metricID, keys, s.AggregatorHost, s.AggregatorShardKey, s.AggregatorReplicaKey)
 }
+
+func (s *Agent) HistoricBucketsDataSizeMemorySum() int64 {
+	return s.historicBucketsDataSize.Load()
+}
+
+func (s *Agent) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
+	if s.diskCache == nil {
+		return 0, 0
+	}
+	for i := range s.Shards {
+		t, u := s.diskCache.TotalFileSize(i)
+		total += t
+		unsent += u
+	}
+	return total, unsent
+}

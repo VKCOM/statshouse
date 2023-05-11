@@ -62,9 +62,16 @@ func (h statsHandler) handleStats(stats map[string]string) {
 	for i, s := range h.sh2.Shards {
 		t, u := s.HistoricBucketsDataSizeDisk()
 		stats[fmt.Sprintf("statshouse_queue_size_disk_total_%d", i)] = fmt.Sprintf("%d", t)
+		stats[fmt.Sprintf("statshouse_queue_size_disk_sent_%d", i)] = fmt.Sprintf("%d", t-u)
 		stats[fmt.Sprintf("statshouse_queue_size_disk_unsent_%d", i)] = fmt.Sprintf("%d", u)
 		stats[fmt.Sprintf("statshouse_queue_size_memory_%d", i)] = fmt.Sprintf("%d", s.HistoricBucketsDataSizeMemory())
 		stats[fmt.Sprintf("statshouse_shard_alive_%d", i)] = fmt.Sprintf("%v", s.IsAlive())
 		s.FillStats(stats)
 	}
+	t, u := h.sh2.HistoricBucketsDataSizeDiskSum()
+	stats["statshouse_queue_size_disk_total"] = fmt.Sprintf("%d", t)
+	stats["statshouse_queue_size_disk_sent"] = fmt.Sprintf("%d", t-u)
+	stats["statshouse_queue_size_disk_unsent"] = fmt.Sprintf("%d", u)
+	stats["statshouse_queue_size_memory"] = fmt.Sprintf("%d", h.sh2.HistoricBucketsDataSizeMemorySum())
+
 }
