@@ -322,6 +322,7 @@ type (
 	//easyjson:json
 	GetTableResp struct {
 		Rows         []queryTableRow `json:"rows"`
+		What         []queryFn       `json:"what"`
 		FromRow      string          `json:"from_row"`
 		ToRow        string          `json:"to_row"`
 		More         bool            `json:"more"`
@@ -349,9 +350,8 @@ type (
 	//easyjson:json
 	queryTableRow struct {
 		Time    int64                    `json:"time"`
-		Data    float64                  `json:"data"`
+		Data    []float64                `json:"data"`
 		Tags    map[string]SeriesMetaTag `json:"tags"`
-		What    queryFn                  `json:"what"`
 		row     tsSelectRow
 		rowRepr RowMarker
 	}
@@ -405,6 +405,12 @@ type (
 	cacheInvalidateLogRow struct {
 		T  int64 `ch:"time"` // time of insert
 		At int64 `ch:"key1"` // seconds inserted (changed), which should be invalidated
+	}
+
+	tableRowKey struct {
+		time int64
+		tsTags
+		tsValues
 	}
 )
 
@@ -2750,10 +2756,6 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	if err != nil {
 		return nil, false, err
 	}
-	if len(queries) > 1 {
-		return nil, false, httpErr(http.StatusBadRequest, fmt.Errorf("used several qw params"))
-	}
-
 	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
 	if err != nil {
 		return nil, false, err
@@ -2790,9 +2792,12 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 		ctx = debugQueriesContext(ctx, &sqlQueries)
 	}
 
+	var rowsIdx = make(map[tableRowKey]int)
 	var queryRows = make([]queryTableRow, 0)
-
-	for _, q := range queries {
+	used := map[int]struct{}{}
+	what := make([]queryFn, 0, len(queries))
+	for qIndex, q := range queries {
+		what = append(what, q.what)
 		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, true)
 		pq := &preparedPointsQuery{
 			user:        ai.user,
@@ -2847,17 +2852,40 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 					skey := maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 					rowRepr.SKey = skey
 					data := selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i])
-					queryRows = append(queryRows, queryTableRow{
-						Time:    rows[i].time,
-						Data:    data,
-						Tags:    kvs,
-						What:    q.what,
-						row:     rows[i],
-						rowRepr: rowRepr,
-					})
+					key := tableRowKey{
+						time:     rows[i].time,
+						tsTags:   rows[i].tsTags,
+						tsValues: rows[i].tsValues,
+					}
+					var ix int
+					var ok bool
+					if ix, ok = rowsIdx[key]; !ok {
+						ix = len(queryRows)
+						rowsIdx[key] = ix
+						queryRows = append(queryRows, queryTableRow{
+							Time:    rows[i].time,
+							Data:    make([]float64, 0, len(queries)),
+							Tags:    kvs,
+							row:     rows[i],
+							rowRepr: rowRepr,
+						})
+						for j := 0; j < qIndex; j++ {
+							queryRows[ix].Data = append(queryRows[ix].Data, math.NaN())
+						}
+					}
+					used[ix] = struct{}{}
+					queryRows[ix].Data = append(queryRows[ix].Data, data)
 				}
 			}
 		}
+		for _, ix := range rowsIdx {
+			if _, ok := used[ix]; ok {
+				delete(used, ix)
+			} else {
+				queryRows[ix].Data = append(queryRows[ix].Data, math.NaN())
+			}
+		}
+
 	}
 	var hasMore bool
 	queryRows, hasMore = limitQueries(queryRows, req.fromRow, req.toRow, req.fromEnd, req.limit)
@@ -2875,6 +2903,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	immutable = to.Before(time.Now().Add(invalidateFrom))
 	return &GetTableResp{
 		Rows:         queryRows,
+		What:         what,
 		FromRow:      firstRowStr,
 		ToRow:        lastRowStr,
 		More:         hasMore,
