@@ -190,6 +190,7 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 		}
 		b := true
 		bb := &b // Stupid but correct implementation. TODO - improve, remove this crap
+		// For example use normal workers pool from rpc.Server
 		r = ms.tagValue.GetOrLoadCallback(now, string(args.Key), extra, func(v pcache.Result) {
 			ms.mu.Lock()
 			defer ms.mu.Unlock()

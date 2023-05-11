@@ -322,9 +322,7 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 	} else {
 		aggBucket.contributorsOriginal.AddValueCounterHost(0, 1, host) // protected by a.mu
 	}
-	aggBucket.contributors[hctx] = struct{}{} // protected by a.mu
 	aggHost := a.aggregatorHost
-	hijackErr := hctx.HijackResponse(aggBucket) // must be under bucket lock
 	a.mu.Unlock()
 	defer aggBucket.sendMu.RUnlock()
 
@@ -399,6 +397,9 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 	for _, m := range usedMetrics {
 		aggBucket.usedMetrics[m] = struct{}{}
 	}
+	aggBucket.contributors[hctx] = struct{}{}   // must be under bucket lock
+	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
+
 	aggBucket.mu.Unlock()
 
 	// newKeys will not be large, if average cardinality is low
@@ -487,7 +488,7 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 		}
 	}
 	aggBucket.lockShard(&lockedShard, -1)
-	return hijackErr
+	return errHijack
 }
 
 func (a *Aggregator) handleKeepAlive2(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.SendKeepAlive2Bytes) error {
@@ -506,11 +507,14 @@ func (a *Aggregator) handleKeepAlive2(_ context.Context, hctx *rpc.HandlerContex
 	aggBucket := a.recentBuckets[0] // Most ready for insert
 	aggBucket.sendMu.RLock()
 	// This lock order ensures, that if sender gets a.mu.Lock(), then all aggregating clients already have aggBucket.sendMu.RLock()
-	aggBucket.contributors[hctx] = struct{}{} // protected by a.mu
 	aggHost := a.aggregatorHost
-	errHijack := hctx.HijackResponse(aggBucket)
 	a.mu.Unlock()
 	defer aggBucket.sendMu.RUnlock()
+
+	aggBucket.mu.Lock()
+	aggBucket.contributors[hctx] = struct{}{}   // must be under bucket lock
+	errHijack := hctx.HijackResponse(aggBucket) // must be under bucket lock
+	aggBucket.mu.Unlock()
 	// Write meta statistics
 	route := int32(format.TagValueIDRouteDirect)
 	if args.Header.IsSetIngressProxy(args.FieldsMask) {
