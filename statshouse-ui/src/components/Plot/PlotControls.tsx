@@ -251,9 +251,11 @@ export const PlotControls = memo(function PlotControls_(props: {
               </button>
             )}
           </div>
-          <button type="button" className="btn btn-outline-primary ms-3" onClick={toPromql} title="PromQL">
-            <SVGCode />
-          </button>
+          {sel.type === PLOT_TYPE.Metric && (
+            <button type="button" className="btn btn-outline-primary ms-3" onClick={toPromql} title="PromQL">
+              <SVGCode />
+            </button>
+          )}
         </div>
         <div className="row mb-3">
           <div className="d-flex align-items-baseline">
@@ -263,22 +265,24 @@ export const PlotControls = memo(function PlotControls_(props: {
               options={whatOption}
               multiple
               onceSelectByClick
-              className="sh-select form-control me-4"
+              className={cn('sh-select form-control', sel.type === PLOT_TYPE.Metric && ' me-4')}
               classNameList="dropdown-menu"
             />
-            <div className="form-check form-switch">
-              <input
-                className="form-check-input"
-                type="checkbox"
-                value=""
-                id="switchMaxHost"
-                checked={sel.maxHost}
-                onChange={onHostChange}
-              />
-              <label className="form-check-label" htmlFor="switchMaxHost" title="Host">
-                <SVGPcDisplay />
-              </label>
-            </div>
+            {sel.type === PLOT_TYPE.Metric && (
+              <div className="form-check form-switch">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  value=""
+                  id="switchMaxHost"
+                  checked={sel.maxHost}
+                  onChange={onHostChange}
+                />
+                <label className="form-check-label" htmlFor="switchMaxHost" title="Host">
+                  <SVGPcDisplay />
+                </label>
+              </div>
+            )}
           </div>
         </div>
 
