@@ -410,7 +410,6 @@ type (
 	tableRowKey struct {
 		time int64
 		tsTags
-		tsValues
 	}
 )
 
@@ -2792,10 +2791,11 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 		ctx = debugQueriesContext(ctx, &sqlQueries)
 	}
 
-	var rowsIdx = make(map[tableRowKey]int)
-	var queryRows = make([]queryTableRow, 0)
+	rowsIdx := make(map[tableRowKey]int)
+	queryRows := make([]queryTableRow, 0)
 	used := map[int]struct{}{}
 	what := make([]queryFn, 0, len(queries))
+	shouldSort := false
 	for qIndex, q := range queries {
 		what = append(what, q.what)
 		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, true)
@@ -2853,9 +2853,8 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 					rowRepr.SKey = skey
 					data := selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i])
 					key := tableRowKey{
-						time:     rows[i].time,
-						tsTags:   rows[i].tsTags,
-						tsValues: rows[i].tsValues,
+						time:   rows[i].time,
+						tsTags: rows[i].tsTags,
 					}
 					var ix int
 					var ok bool
@@ -2872,6 +2871,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 						for j := 0; j < qIndex; j++ {
 							queryRows[ix].Data = append(queryRows[ix].Data, math.NaN())
 						}
+						shouldSort = shouldSort || qIndex > 0
 					}
 					used[ix] = struct{}{}
 					queryRows[ix].Data = append(queryRows[ix].Data, data)
@@ -2885,8 +2885,14 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 				queryRows[ix].Data = append(queryRows[ix].Data, math.NaN())
 			}
 		}
-
 	}
+
+	if shouldSort {
+		sort.Slice(queryRows, func(i, j int) bool {
+			return rowMarkerLessThan(queryRows[i].rowRepr, queryRows[j].rowRepr)
+		})
+	}
+
 	var hasMore bool
 	queryRows, hasMore = limitQueries(queryRows, req.fromRow, req.toRow, req.fromEnd, req.limit)
 	var firstRowStr, lastRowStr string
@@ -3444,6 +3450,24 @@ func lessThan(l RowMarker, r tsSelectRow, skey string, orEq bool) bool {
 		return l.SKey <= skey
 	}
 	return l.SKey < skey
+}
+
+func rowMarkerLessThan(l, r RowMarker) bool {
+	if l.Time != r.Time {
+		return l.Time < r.Time
+	}
+	if len(l.Tags) != len(r.Tags) {
+		return len(l.Tags) < len(r.Tags)
+	}
+	for i := range l.Tags {
+		lv := l.Tags[i].Value
+		rv := r.Tags[i].Value
+		if lv != rv {
+			return lv < rv
+		}
+	}
+
+	return l.SKey < r.SKey
 }
 
 func getQueryRespEqual(a, b *SeriesResponse) bool {
