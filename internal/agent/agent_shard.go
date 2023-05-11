@@ -116,22 +116,6 @@ func (s *Shard) HistoricBucketsDataSizeDisk() (total int64, unsent int64) {
 	return s.statshouse.diskCache.TotalFileSize(s.ShardReplicaNum)
 }
 
-func (s *Shard) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
-	if s.statshouse.diskCache == nil {
-		return 0, 0
-	}
-	for i := range s.statshouse.Shards {
-		t, u := s.statshouse.diskCache.TotalFileSize(i)
-		total += t
-		unsent += u
-	}
-	return total, unsent
-}
-
-func (s *Shard) HistoricBucketsDataSizeMemSum() int64 {
-	return s.statshouse.historicBucketsDataSize.Load()
-}
-
 // If user did not set timestamp or set to 0 (default timestamp), metric arrived with 0 up to here.
 // We do not want metrics with default timestamp and timestamp explicitly set by clients to get into
 // different map entries due to key differences, that's why we must set timestamp here.

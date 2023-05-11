@@ -651,7 +651,7 @@ func (s *Shard) sendSourceBucketCompressed(ctx context.Context, cbd compressedBu
 	} else {
 		args.SetQueueSizeDiskUnsent(math.MaxInt32)
 	}
-	sizeDiskSumTotal, sizeDiskSumUnsent := s.HistoricBucketsDataSizeDiskSum()
+	sizeDiskSumTotal, sizeDiskSumUnsent := s.statshouse.HistoricBucketsDataSizeDiskSum()
 	if sizeDiskSumTotal < math.MaxInt32 {
 		args.SetQueueSizeDiskSum(int32(sizeDiskSumTotal))
 	} else {
@@ -662,7 +662,7 @@ func (s *Shard) sendSourceBucketCompressed(ctx context.Context, cbd compressedBu
 	} else {
 		args.SetQueueSizeDiskSumUnsent(math.MaxInt32)
 	}
-	sizeMemSum := s.HistoricBucketsDataSizeMemSum()
+	sizeMemSum := s.statshouse.HistoricBucketsDataSizeMemorySum()
 	if sizeMemSum < math.MaxInt32 {
 		args.SetQueueSizeMemorySum(int32(sizeMemSum))
 	} else {
