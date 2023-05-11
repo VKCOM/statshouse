@@ -21,6 +21,7 @@ import (
 
 	"github.com/cloudflare/tableflip"
 	"github.com/spf13/pflag"
+
 	"github.com/vkcom/statshouse-go"
 
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"

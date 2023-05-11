@@ -234,8 +234,8 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 		a.mu.Lock()
 		defer a.mu.Unlock()
 		aggBucket := a.recentBuckets[len(a.recentBuckets)-1]
-		aggBucket.contributorsSimulatedErrors = append(aggBucket.contributorsSimulatedErrors, hctx)
-		return hctx.HijackResponse()
+		aggBucket.contributorsSimulatedErrors[hctx] = struct{}{}
+		return hctx.HijackResponse(aggBucket)
 	}
 	now := time.Now()
 	receiveDelay := now.Sub(time.Unix(int64(args.Time), 0)).Seconds()
@@ -282,7 +282,11 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 		if args.Time < OldestTime {
 			aggBucket = a.historicBuckets[args.Time]
 			if aggBucket == nil {
-				aggBucket = &aggregatorBucket{time: args.Time}
+				aggBucket = &aggregatorBucket{
+					time:                        args.Time,
+					contributors:                map[*rpc.HandlerContext]struct{}{},
+					contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
+				}
 				a.historicBuckets[args.Time] = aggBucket
 			}
 		} else {
@@ -318,8 +322,9 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 	} else {
 		aggBucket.contributorsOriginal.AddValueCounterHost(0, 1, host) // protected by a.mu
 	}
-	aggBucket.contributors = append(aggBucket.contributors, hctx) // protected by a.mu
+	aggBucket.contributors[hctx] = struct{}{} // protected by a.mu
 	aggHost := a.aggregatorHost
+	hijackErr := hctx.HijackResponse(aggBucket) // must be under bucket lock
 	a.mu.Unlock()
 	defer aggBucket.sendMu.RUnlock()
 
@@ -482,7 +487,7 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 		}
 	}
 	aggBucket.lockShard(&lockedShard, -1)
-	return hctx.HijackResponse()
+	return hijackErr
 }
 
 func (a *Aggregator) handleKeepAlive2(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.SendKeepAlive2Bytes) error {
@@ -501,8 +506,9 @@ func (a *Aggregator) handleKeepAlive2(_ context.Context, hctx *rpc.HandlerContex
 	aggBucket := a.recentBuckets[0] // Most ready for insert
 	aggBucket.sendMu.RLock()
 	// This lock order ensures, that if sender gets a.mu.Lock(), then all aggregating clients already have aggBucket.sendMu.RLock()
-	aggBucket.contributors = append(aggBucket.contributors, hctx) // protected by a.mu
+	aggBucket.contributors[hctx] = struct{}{} // protected by a.mu
 	aggHost := a.aggregatorHost
+	errHijack := hctx.HijackResponse(aggBucket)
 	a.mu.Unlock()
 	defer aggBucket.sendMu.RUnlock()
 	// Write meta statistics
@@ -517,5 +523,5 @@ func (a *Aggregator) handleKeepAlive2(_ context.Context, hctx *rpc.HandlerContex
 	data_model.MapKeyItemMultiItem(&s.multiItems, data_model.AggKey(aggBucket.time, format.BuiltinMetricIDAggKeepAlive, [16]int32{}, aggHost, a.shardKey, a.replicaKey).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil).Tail.AddCounterHost(1, host)
 	aggBucket.lockShard(&lockedShard, -1)
 
-	return hctx.HijackResponse()
+	return errHijack
 }

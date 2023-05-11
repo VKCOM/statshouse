@@ -33,6 +33,12 @@ const (
 	memcachedStatsReqN   = "stats\n"
 	memcachedGetStatsReq = "get stats\r\n"
 	memcachedVersionReq  = "version\r\n"
+
+	PacketTypeRPCPing = uint32(0x5730a2df)
+	PacketTypeRPCPong = uint32(0x8430eaa7)
+	// contains 8 byte payload
+	// client sends PacketTypeRPCPing periodically, with pingID (int64) it increments
+	// server respond with the same payload
 )
 
 var (
@@ -55,6 +61,8 @@ type PacketConn struct {
 	remoteAddr      string
 	localAddr       string
 	timeoutAccuracy time.Duration
+
+	flagCancelReq bool
 
 	readMu        sync.Mutex
 	r             *cryptoReader
@@ -98,6 +106,11 @@ func NewPacketConn(c net.Conn, readBufSize int, writeBufSize int, timeoutAccurac
 	}
 
 	return pc
+}
+
+// Negotiated during handshake, does not change after handshake
+func (pc *PacketConn) FlagCancelReq() bool {
+	return pc.flagCancelReq
 }
 
 func (pc *PacketConn) LocalAddr() string {
@@ -207,6 +220,7 @@ func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout tim
 		header.tip = binary.LittleEndian.Uint32(pc.headerReadBuf[8:12])
 	} else {
 		header.length = padVal
+		// it is important to return (0, eof) when FIN is read on the message boundary
 		for i := 0; header.length == padVal; i++ {
 			if i >= blockSize/4 {
 				return nil, fmt.Errorf("excessive (%d) padding", i)
@@ -246,8 +260,10 @@ func (pc *PacketConn) readPacketBodyUnlocked(header *packetHeader, body []byte, 
 			return body, err
 		}
 	}
-
-	sz := int(header.length) - packetOverhead + 4 // TODO - vulnerability if length < 12, also when length >= 2^31
+	if header.length < packetOverhead || header.length > maxPacketLen {
+		panic(fmt.Sprintf("packet size %v outside [%v, %v], was checked in readPacketHeaderUnlocked", header.length, packetOverhead, maxPacketLen))
+	}
+	sz := int(header.length) - packetOverhead + 4
 	if cap(body) < sz {
 		body = make([]byte, sz)
 	} else {

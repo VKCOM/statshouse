@@ -7,15 +7,13 @@
 package metadata
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sync"
 	"time"
 
-	"context"
-
 	"github.com/vkcom/statshouse-go"
-	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -23,67 +21,43 @@ import (
 )
 
 const MaxBoostrapResponseSize = 1024 * 1024 // TODO move somewhere
-const longPollTimeout = time.Hour
 
 type Handler struct {
 	db *DBV2
 
 	getJournalMx      sync.Mutex
-	getJournalClients []getJournalClient // by getJournalMx
-	getJournalLength  *atomic.Int64      // to avoid lock when send stats
-	minVersion        int64              // by getJournalMx
+	getJournalClients map[*rpc.HandlerContext]tlmetadata.GetJournalnew // by getJournalMx
+	minVersion        int64                                            // by getJournalMx
 	metricChange      chan struct{}
 
 	host string
 	log  func(s string, args ...interface{})
 }
 
-type getJournalClient struct {
-	args tlmetadata.GetJournalnew
-	hctx *rpc.HandlerContext
-}
-
 func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) *Handler {
 	h := &Handler{
 		db:                db,
 		getJournalMx:      sync.Mutex{},
-		getJournalLength:  atomic.NewInt64(0),
-		getJournalClients: nil,
+		getJournalClients: map[*rpc.HandlerContext]tlmetadata.GetJournalnew{},
 		minVersion:        math.MaxInt64,
 		log:               log,
 		host:              host,
 		metricChange:      make(chan struct{}, 1),
 	}
 
-	go func() {
-		t := time.NewTimer(longPollTimeout)
-		for {
-			select {
-			case <-time.After(time.Second):
-			case <-h.metricChange:
-			case <-t.C:
-				h.broadcastJournal(true)
-				t = time.NewTimer(longPollTimeout)
-				continue
-			}
-			h.broadcastJournal(false)
-		}
-	}()
 	h.initStats()
 	return h
 }
 
-func (h *Handler) notifyMetricChange() {
-	select {
-	case h.metricChange <- struct{}{}:
-	default:
-	}
+func (h *Handler) CancelHijack(hctx *rpc.HandlerContext) {
+	h.getJournalMx.Lock()
+	defer h.getJournalMx.Unlock()
+	delete(h.getJournalClients, hctx)
 }
 
-func (h *Handler) broadcastJournal(sentToAll bool) {
+func (h *Handler) broadcastJournal() {
 	h.getJournalMx.Lock()
 	qLength := len(h.getJournalClients)
-	h.getJournalLength.Store(int64(qLength))
 	h.getJournalMx.Unlock()
 	if qLength == 0 {
 		return
@@ -94,33 +68,27 @@ func (h *Handler) broadcastJournal(sentToAll bool) {
 	if err != nil {
 		return
 	}
-	if len(journalNew) == 0 && !sentToAll {
+	if len(journalNew) == 0 {
 		return
 	}
 	h.getJournalMx.Lock()
 	defer h.getJournalMx.Unlock()
-	pos := 0
 	eventsToClient := make([]tlmetadata.Event, 0)
 	clientGotResponseCount := 0
 	var newMinimum int64 = math.MaxInt64
-	for _, client := range h.getJournalClients {
+	for hctx, args := range h.getJournalClients {
 		resp := filterResponse(journalNew, eventsToClient, func(m tlmetadata.Event) bool {
-			return m.Version > client.args.From
+			return m.Version > args.From
 		})
 		if len(resp.Events) == 0 {
-			if sentToAll {
-				resp.CurrentVersion = client.args.From
-			} else {
-				h.getJournalClients[pos] = client
-				pos++
-				if client.args.From < newMinimum {
-					newMinimum = client.args.From
-				}
-				continue
+			if args.From < newMinimum {
+				newMinimum = args.From
 			}
+			continue
 		}
-		client.hctx.Response, err = client.args.WriteResult(client.hctx.Response, resp)
-		client.hctx.SendHijackedResponse(err)
+		delete(h.getJournalClients, hctx)
+		hctx.Response, err = args.WriteResult(hctx.Response, resp)
+		hctx.SendHijackedResponse(err)
 		eventsToClient = eventsToClient[:0]
 		clientGotResponseCount++
 	}
@@ -128,13 +96,14 @@ func (h *Handler) broadcastJournal(sentToAll bool) {
 		h.log("[info] client got response count: %d", clientGotResponseCount)
 	}
 	h.minVersion = newMinimum
-	h.getJournalClients = h.getJournalClients[:pos]
-	h.getJournalLength.Store(int64(len(h.getJournalClients)))
 }
 
 func (h *Handler) initStats() {
 	statshouse.StartRegularMeasurement(func(registry *statshouse.Registry) {
-		registry.AccessMetricRaw(sqlengineLoadJournalWaitQLen, statshouse.RawTags{Tag1: h.host}).Value(float64(h.getJournalLength.Load()))
+		h.getJournalMx.Lock()
+		qLength := len(h.getJournalClients)
+		h.getJournalMx.Unlock()
+		registry.AccessMetricRaw(sqlengineLoadJournalWaitQLen, statshouse.RawTags{Tag1: h.host}).Value(float64(qLength))
 	})
 }
 
@@ -155,15 +124,12 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 		return "", err
 	}
 	h.getJournalMx.Lock()
-	h.getJournalClients = append(h.getJournalClients, getJournalClient{
-		args: args,
-		hctx: hctx,
-	})
+	defer h.getJournalMx.Unlock() // HijackResponse must be under our lock
+	h.getJournalClients[hctx] = args
 	if h.minVersion > args.From {
 		h.minVersion = args.From
 	}
-	h.getJournalMx.Unlock()
-	return "", hctx.HijackResponse()
+	return "", hctx.HijackResponse(h)
 }
 
 func (h *Handler) RawEditEntity(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
@@ -180,7 +146,7 @@ func (h *Handler) RawEditEntity(ctx context.Context, hctx *rpc.HandlerContext) (
 		return "", fmt.Errorf("failed to create event: %w", err)
 	}
 	hctx.Response, err = args.WriteResult(hctx.Response, event)
-	h.notifyMetricChange()
+	h.broadcastJournal()
 	return "", err
 }
 

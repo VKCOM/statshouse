@@ -22,7 +22,7 @@ type binlogWriter struct {
 	stat               *stat
 	fd                 *os.File
 	BinlogChunkMaxSize int64
-	curFileHeader      *fileHeader
+	curFileHeader      *FileHeader
 	PrefixPath         string
 	buffEx             *buffExchange
 
@@ -39,7 +39,7 @@ func newBinlogWriter(
 	engine binlog.Engine,
 	options binlog.Options,
 	posAfterRead int64,
-	lastFileHdr *fileHeader,
+	lastFileHdr *FileHeader,
 	buffEx *buffExchange,
 	stat *stat,
 	stop chan struct{},
@@ -210,7 +210,7 @@ func (bw *binlogWriter) rotate(rotateTo, rotateFrom []byte) error {
 		}
 	}
 
-	var newHeader fileHeader
+	var newHeader FileHeader
 	if _, err := readLevRotateFrom(&newHeader.LevRotateFrom, rotateFrom); err != nil {
 		return err
 	}

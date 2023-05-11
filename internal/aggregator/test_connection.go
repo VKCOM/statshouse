@@ -27,19 +27,13 @@ func init() {
 	_, _ = rand.New().Read(testResponse)
 }
 
-type TestConnectionClient struct {
-	args        tlstatshouse.TestConnection2Bytes // We remember both field mask to correctly serialize response
-	hctx        *rpc.HandlerContext
-	requestTime time.Time
-}
-
 type TestConnection struct {
 	clientsMu             sync.Mutex // Always taken after mu
-	testConnectionClients []TestConnectionClient
+	testConnectionClients map[*rpc.HandlerContext]tlstatshouse.TestConnection2Bytes
 }
 
 func MakeTestConnection() *TestConnection {
-	result := &TestConnection{}
+	result := &TestConnection{testConnectionClients: map[*rpc.HandlerContext]tlstatshouse.TestConnection2Bytes{}}
 	go result.goRun()
 	return result
 }
@@ -51,22 +45,25 @@ func (ms *TestConnection) goRun() {
 	}
 }
 
+func (ms *TestConnection) CancelHijack(hctx *rpc.HandlerContext) {
+	ms.clientsMu.Lock()
+	defer ms.clientsMu.Unlock()
+	delete(ms.testConnectionClients, hctx)
+}
+
 func (ms *TestConnection) broadcastResponses() {
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
-	keepPos := 0
 	now := time.Now()
-	for _, c := range ms.testConnectionClients {
-		if now.Sub(c.requestTime) < time.Duration(c.args.ResponseTimeoutSec)*time.Second { // still waiting, copy to start of array
-			ms.testConnectionClients[keepPos] = c
-			keepPos++
+	for hctx, args := range ms.testConnectionClients {
+		if now.Sub(hctx.RequestTime) < time.Duration(args.ResponseTimeoutSec)*time.Second { // still waiting, copy to start of array
 			continue
 		}
+		delete(ms.testConnectionClients, hctx)
 		var err error
-		c.hctx.Response, err = c.args.WriteResult(c.hctx.Response, testResponse[:c.args.ResponseSize])
-		c.hctx.SendHijackedResponse(err)
+		hctx.Response, err = args.WriteResult(hctx.Response, testResponse[:args.ResponseSize])
+		hctx.SendHijackedResponse(err)
 	}
-	ms.testConnectionClients = ms.testConnectionClients[:keepPos]
 }
 
 func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.TestConnection2Bytes) (err error) {
@@ -82,6 +79,6 @@ func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.Hand
 	}
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
-	ms.testConnectionClients = append(ms.testConnectionClients, TestConnectionClient{args: args, hctx: hctx, requestTime: time.Now()})
-	return hctx.HijackResponse()
+	ms.testConnectionClients[hctx] = args
+	return hctx.HijackResponse(ms)
 }

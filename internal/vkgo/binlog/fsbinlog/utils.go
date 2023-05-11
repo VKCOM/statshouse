@@ -37,7 +37,7 @@ func chooseFilenameForChunk(pos int64, prefixPath string) string {
 	panic(`[WTF] Unreachable code in chooseFilenameForChunk`)
 }
 
-type fileHeader struct {
+type FileHeader struct {
 	FileName      string
 	Position      int64
 	Timestamp     uint64
@@ -51,7 +51,7 @@ type fileHeader struct {
 	}
 }
 
-func getBinlogIndexByPosition(position int64, fileHeaders []fileHeader) int {
+func getBinlogIndexByPosition(position int64, fileHeaders []FileHeader) int {
 	idx := 0
 	for i, hdr := range fileHeaders {
 		if hdr.Position > position {
@@ -62,7 +62,7 @@ func getBinlogIndexByPosition(position int64, fileHeaders []fileHeader) int {
 	return idx
 }
 
-func hasFile(name string, files []fileHeader) bool {
+func hasFile(name string, files []FileHeader) bool {
 	for _, file := range files {
 		if file.FileName == name {
 			return true
@@ -71,7 +71,7 @@ func hasFile(name string, files []fileHeader) bool {
 	return false
 }
 
-func scanForFilesFromPos(afterThisPosition int64, prefixPath string, expectedMagic uint32, knownFiles []fileHeader) ([]fileHeader, error) {
+func ScanForFilesFromPos(afterThisPosition int64, prefixPath string, expectedMagic uint32, knownFiles []FileHeader) ([]FileHeader, error) {
 	root := path.Dir(prefixPath)
 	basename := path.Base(prefixPath)
 
@@ -80,7 +80,7 @@ func scanForFilesFromPos(afterThisPosition int64, prefixPath string, expectedMag
 		return nil, err
 	}
 
-	var newFileHeaders []fileHeader
+	var newFileHeaders []FileHeader
 
 	for _, fi := range allFilenames {
 		name := fi.Name()
@@ -97,7 +97,7 @@ func scanForFilesFromPos(afterThisPosition int64, prefixPath string, expectedMag
 			continue
 		}
 
-		var fh fileHeader
+		var fh FileHeader
 		fh.FileName = filepath
 		if err := readBinlogHeaderFile(&fh, expectedMagic); err != nil {
 			if afterThisPosition != 0 {
@@ -141,7 +141,7 @@ func writeEmptyBinlog(options binlog.Options, w io.Writer) error {
 
 	levTag := levTag{
 		Type: magicLevTag,
-		//Tag: nil, // заполняется ниже
+		// Tag: nil, // заполняется ниже
 	}
 
 	// в tag недопустимы нулевые байты

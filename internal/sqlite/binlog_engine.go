@@ -140,6 +140,10 @@ func (impl *binlogEngineImpl) Revert(toOffset int64) (bool, error) {
 	return false, nil
 }
 
+func (impl *binlogEngineImpl) StartReindex() error {
+	return nil // TODO - implement
+}
+
 func (impl *binlogEngineImpl) ChangeRole(info binlog2.ChangeRoleInfo) error {
 	e := impl.e
 	if info.IsReady {

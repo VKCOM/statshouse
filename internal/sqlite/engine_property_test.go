@@ -9,9 +9,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"go.uber.org/atomic"
 	"pgregory.net/rapid"
+
+	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 
 	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"

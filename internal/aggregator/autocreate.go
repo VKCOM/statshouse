@@ -26,7 +26,8 @@ type autoCreate struct {
 	storage    *metajournal.MetricsStorage
 	mu         sync.Mutex
 	co         *sync.Cond
-	queue      []autoCreateTask // protected by "mu"
+	queue      []*rpc.HandlerContext // protected by "mu"
+	args       map[*rpc.HandlerContext]tlstatshouse.AutoCreate
 	ctx        context.Context
 	shutdownFn func()
 }
@@ -40,6 +41,7 @@ func newAutoCreate(client *tlmetadata.Client, storage *metajournal.MetricsStorag
 	ac := autoCreate{
 		client:  client,
 		storage: storage,
+		args:    map[*rpc.HandlerContext]tlstatshouse.AutoCreate{},
 	}
 	ac.co = sync.NewCond(&ac.mu)
 	ac.ctx, ac.shutdownFn = context.WithCancel(context.Background())
@@ -56,48 +58,63 @@ func (ac *autoCreate) shutdown() {
 	ac.co.Broadcast()
 }
 
+func (ac *autoCreate) CancelHijack(hctx *rpc.HandlerContext) {
+	ac.mu.Lock()
+	defer ac.mu.Unlock()
+	delete(ac.args, hctx)
+	// TODO - must remove from queue here, otherwise the same hctx will be reused and added to map, and we'll break rpc.Server internal invariants
+}
+
 func (ac *autoCreate) handleAutoCreate(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.AutoCreate) error {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
-	ac.queue = append(ac.queue, autoCreateTask{hctx, args})
+	ac.queue = append(ac.queue, hctx)
+	ac.args[hctx] = args
 	ac.co.Signal()
-	return hctx.HijackResponse()
+	return hctx.HijackResponse(ac)
 }
 
 func (ac *autoCreate) goWork() {
-	s := make([]autoCreateTask, 0) // not nil, "getWork" panics otherwise
 	for {
 		var ok bool
-		s, ok = ac.getWork(s)
+		hctx, args, ok := ac.getWork()
 		if !ok { // done
 			return
 		}
-		for _, v := range s {
-			err := ac.createMetric(v.args)
-			if ac.done() {
-				return
-			}
-			v.hctx.Response, _ = v.args.WriteResult(v.hctx.Response, tl.True{})
-			v.hctx.SendHijackedResponse(err)
-			if err != nil {
-				// backoff for a second
-				time.Sleep(1 * time.Second)
-			}
+		err := ac.createMetric(args)
+		if ac.done() {
+			return
+		}
+		ac.mu.Lock()
+		if _, ok := ac.args[hctx]; ok {
+			delete(ac.args, hctx)
+			hctx.Response, _ = args.WriteResult(hctx.Response, tl.True{})
+			hctx.SendHijackedResponse(err)
+		}
+		ac.mu.Unlock()
+		if err != nil {
+			// backoff for a second
+			time.Sleep(1 * time.Second)
 		}
 	}
 }
 
-func (ac *autoCreate) getWork(s []autoCreateTask) ([]autoCreateTask, bool) {
+func (ac *autoCreate) getWork() (*rpc.HandlerContext, tlstatshouse.AutoCreate, bool) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
-	for len(ac.queue) == 0 {
-		if ac.done() {
-			return nil, false
+	for {
+		for len(ac.queue) == 0 {
+			if ac.done() {
+				return nil, tlstatshouse.AutoCreate{}, false
+			}
+			ac.co.Wait()
 		}
-		ac.co.Wait()
+		hctx := ac.queue[0]
+		ac.queue = ac.queue[1:] // TODO - reuse buffer
+		if args, ok := ac.args[hctx]; ok {
+			return hctx, args, true
+		}
 	}
-	s, ac.queue = ac.queue, s[:0] // reuse buffer
-	return s, true
 }
 
 func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreate) error {

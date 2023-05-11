@@ -9,6 +9,7 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
+
 	format "github.com/vkcom/statshouse/internal/format"
 )
 

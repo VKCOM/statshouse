@@ -11,32 +11,37 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-)
 
-// TODO: experiment with https://golang.org/pkg/reflect/#Select instead of reqFinished/reqClosed
+	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
+)
 
 var (
 	errMultiClosed = errors.New("rpc: Multi closed")
 )
 
+// How to use:
+// - each non-nop Wait/WaitAny decreases the size of `calls` by 1
+// - trying to Wait/WaitAny for a request that was not sent yet is not a problem, Wait/WaitAny will simply wait until it is sent and received
+// - returning from Wait/WaitAny when context.Context is Done() does not change state
+// - after Close(), Multi is in a terminal do-nothing state
+
+type callResult struct {
+	ok  *Response
+	err error
+}
+
 type callState struct {
-	pc   *peerClient
+	pc   *clientConn
 	cctx *callContext
 }
 
-// Invariants:
-// - Start, Wait and Close hold the mutex from start to finish; WaitAny waits unlocked
-// - after Close(), Multi is in a terminal do-nothing state
-// - returning when context.Context is Done() does not change state
-// - trying to Wait for a request that was not sent yet is an error (but WaitAny will hang)
-// - each non-nop Wait/WaitAny decreases the size of `calls` by 1
-
 type Multi struct {
 	c           *Client
+	sem         *semaphore.Weighted
 	mu          sync.Mutex
-	reqFinished chan int64
-	reqClosed   chan int64
+	multiResult chan *callContext
 	calls       map[int64]callState
+	results     map[int64]callResult
 	closed      bool
 	closeCh     chan struct{}
 }
@@ -45,9 +50,10 @@ type Multi struct {
 func (c *Client) Multi(n int) *Multi {
 	return &Multi{
 		c:           c,
-		reqFinished: make(chan int64, n),
-		reqClosed:   make(chan int64, n),
+		sem:         semaphore.NewWeighted(int64(n)),
+		multiResult: make(chan *callContext, n),
 		calls:       make(map[int64]callState, n),
+		results:     make(map[int64]callResult, n),
 		closeCh:     make(chan struct{}),
 	}
 }
@@ -56,125 +62,134 @@ func (m *Multi) Close() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if !m.closed {
-		m.closed = true
-		close(m.closeCh)
-
-		for _, cs := range m.calls {
-			cs.cctx.stale.Store(true)
-			m.teardownCallStateLocked(cs, false)
-		}
+	if m.closed {
+		return
 	}
+	m.closed = true
+	close(m.closeCh)
+
+	for _, cs := range m.calls {
+		cs.pc.cancelCall(cs.cctx, errMultiClosed) // Will release all waiting below
+	}
+	for queryID := range m.results {
+		delete(m.results, queryID)
+	}
+	// some responses may be in channel here
+	// no receivers will block because there is enough space in channel for all responses
 }
 
-func (m *Multi) teardownCallStateLocked(cs callState, cctxPut bool) {
-	delete(m.calls, cs.cctx.queryID)
-	cs.pc.teardownCall(cs.cctx, cctxPut)
+func (m *Multi) Client() *Client {
+	return m.c
 }
 
-func (m *Multi) Start(ctx context.Context, network string, address string, req *Request) (int64, error) {
+func (m *Multi) teardownCallStateLocked(queryID int64) {
+	delete(m.calls, queryID)
+	m.sem.Release(1)
+}
+
+func (m *Multi) Start(ctx context.Context, network string, address string, req *Request) error {
+	if err := m.sem.Acquire(ctx, 1); err != nil {
+		return err
+	}
+
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.closed {
-		return 0, errMultiClosed
+		m.sem.Release(1)
+		return errMultiClosed
 	}
 
-	pc, queryID, err := m.c.start(network, address, req)
+	queryID := req.QueryID()
+	pc, cctx, err := m.c.setupCall(ctx, NetAddr{network, address}, req, m.multiResult)
 	if err != nil {
-		return 0, err
+		m.sem.Release(1)
+		return err
 	}
 
-	deadline, _ := ctx.Deadline()
-	cctx, err := pc.setupCall(req, deadline, queryID, m.reqFinished, m.reqClosed)
-	if err != nil {
-		return 0, err
+	m.calls[queryID] = callState{pc: pc, cctx: cctx}
+
+	return nil
+}
+
+func (m *Multi) waitHasResult(queryID int64) (*Response, error, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed {
+		return nil, errMultiClosed, true
 	}
 
-	m.calls[queryID] = callState{
-		pc:   pc,
-		cctx: cctx,
+	if res, ok := m.results[queryID]; ok {
+		delete(m.results, queryID)
+		return res.ok, res.err, true
 	}
 
-	return queryID, nil
+	if _, ok := m.calls[queryID]; !ok {
+		return nil, fmt.Errorf("unknown query ID %v", queryID), true
+	}
+	return nil, nil, false
 }
 
 func (m *Multi) Wait(ctx context.Context, queryID int64) (*Response, error) {
+	if resp, err, ok := m.waitHasResult(queryID); ok {
+		return resp, err
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case cs := <-m.multiResult: // got ownership of cctx
+			qID, resp, err := cs.queryID, cs.resp, cs.err
+			putCallContext(cs)
+
+			m.mu.Lock()
+			m.teardownCallStateLocked(qID)
+			if qID == queryID {
+				m.mu.Unlock()
+				return resp, err
+			}
+			m.results[qID] = callResult{ok: resp, err: err}
+			m.mu.Unlock()
+			continue
+		case <-m.closeCh:
+			return nil, errMultiClosed
+		}
+	}
+}
+
+func (m *Multi) waitAnyHasResult() (int64, *Response, error, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.closed {
-		return nil, errMultiClosed
+		return 0, nil, errMultiClosed, true
 	}
 
-	cs, ok := m.calls[queryID]
-	if !ok {
-		return nil, fmt.Errorf("unknown query ID %v", queryID)
+	for queryID, res := range m.results {
+		delete(m.results, queryID)
+		return queryID, res.ok, res.err, true
 	}
 
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-cs.cctx.closed:
-		defer m.teardownCallStateLocked(cs, false) // defer because we are using cctx below
-		switch {
-		case cs.cctx.sent.Load():
-			return nil, ErrClientConnClosedSideEffect
-		case cs.cctx.failIfNoConnection:
-			return nil, ErrClientConnClosedNoSideEffect
-		default:
-			return nil, ErrClientClosed
-		}
-	case r := <-cs.cctx.result:
-		m.teardownCallStateLocked(cs, true) // don't defer because we don't use cctx anymore
-		if r.ok == nil {
-			return nil, r.err
-		}
-		return r.ok, nil
-	}
+	return 0, nil, nil, false
 }
 
 func (m *Multi) WaitAny(ctx context.Context) (int64, *Response, error) {
-	for {
-		select {
-		case <-ctx.Done():
-			return 0, nil, ctx.Err()
-		case <-m.closeCh:
-			return 0, nil, errMultiClosed
-		case queryID := <-m.reqClosed:
-			m.mu.Lock()
-			cs, ok := m.calls[queryID]
-			if !ok {
-				m.mu.Unlock()
-				continue // we already did a Wait()
-			}
+	if queryID, resp, err, ok := m.waitAnyHasResult(); ok {
+		return queryID, resp, err
+	}
+	select {
+	case <-ctx.Done():
+		return 0, nil, ctx.Err()
+	case cs := <-m.multiResult:
+		qID, resp, err := cs.queryID, cs.resp, cs.err
+		putCallContext(cs)
 
-			defer m.mu.Unlock()
-			defer m.teardownCallStateLocked(cs, false)
-			switch {
-			case cs.cctx.sent.Load():
-				return queryID, nil, ErrClientConnClosedSideEffect
-			case cs.cctx.failIfNoConnection:
-				return queryID, nil, ErrClientConnClosedNoSideEffect
-			default:
-				return queryID, nil, ErrClientClosed
-			}
-		case queryID := <-m.reqFinished:
-			m.mu.Lock()
-			cs, ok := m.calls[queryID]
-			if !ok {
-				m.mu.Unlock()
-				continue // we already did a Wait()
-			}
-
-			r := <-cs.cctx.result
-			m.teardownCallStateLocked(cs, true)
-			m.mu.Unlock()
-			if r.ok == nil {
-				return queryID, nil, r.err
-			}
-			return queryID, r.ok, nil
-		}
+		m.mu.Lock()
+		m.teardownCallStateLocked(qID)
+		m.mu.Unlock()
+		return qID, resp, err
+	case <-m.closeCh:
+		return 0, nil, errMultiClosed
 	}
 }
 
@@ -195,8 +210,9 @@ func (c *Client) DoMulti(
 		if err != nil {
 			return fmt.Errorf("failed to prepare request for %v: %w", addr, err)
 		}
+		queryID := r.QueryID()
 
-		queryID, err := m.Start(ctx, addr.Network, addr.Address, r)
+		err = m.Start(ctx, addr.Network, addr.Address, r)
 		if err != nil {
 			return err
 		}
@@ -204,29 +220,26 @@ func (c *Client) DoMulti(
 		queryIDtoAddr[queryID] = i
 	}
 
-	blindAttributionStart := 0
-	seen := make([]bool, len(addresses))
-
+	var blindErrors []error
 	for range addresses {
 		queryID, resp, err := m.WaitAny(ctx)
-		i := queryIDtoAddr[queryID]
-
-		if queryID == 0 || blindAttributionStart > 0 {
-			// We consider that multi is in the terminal error state at this point;
-			// error is most likely to be ErrClientClosed, context.Canceled or context.DeadlineExceeded.
-			// Attribute everything after this point to one of the addresses we have not seen yet.
-			for j := blindAttributionStart; j < len(seen); j++ {
-				if !seen[j] {
-					i = j
-					blindAttributionStart = j + 1
-					break
-				}
-			}
+		i, ok := queryIDtoAddr[queryID]
+		if !ok {
+			// some errors like timeout cannot be attributed to particular queryID, so we assign them to random addresses
+			blindErrors = append(blindErrors, err)
+			continue
 		}
-
-		seen[i] = true
+		delete(queryIDtoAddr, queryID)
 		err = processResponse(addresses[i], resp, err)
 		c.PutResponse(resp)
+		if err != nil {
+			return fmt.Errorf("failed to handle response from %v: %w", addresses[i], err)
+		}
+	}
+
+	for _, i := range queryIDtoAddr {
+		err := processResponse(addresses[i], nil, blindErrors[0])
+		blindErrors = blindErrors[1:]
 		if err != nil {
 			return fmt.Errorf("failed to handle response from %v: %w", addresses[i], err)
 		}

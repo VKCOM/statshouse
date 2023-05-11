@@ -21,7 +21,7 @@ import (
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"github.com/vkcom/statshouse/internal/vkgo/tlpprof"
+	"github.com/vkcom/statshouse/internal/vkgo/tlpprof" // TODO - modernize pprof package, it is very old
 )
 
 const (
@@ -42,8 +42,10 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	reqCurrent := s.statRequestsCurrent.Load()
 	connTotal := s.statConnectionsTotal.Load()
 	connCurrent := s.statConnectionsCurrent.Load()
-	requestMem := s.statRequestMemory.Load()
-	responseMem := s.statResponseMemory.Load()
+	requestMem, _ := s.reqMemSem.Observe()
+	responseMem, _ := s.respMemSem.Observe()
+
+	workersTotal := s.workerPool.Created()
 
 	gc := srvfunc.GetGCStats()
 	gcPausesMs, _ := json.Marshal(gc.LastPausesMs)
@@ -61,9 +63,9 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	}
 
 	m := map[string]string{}
-	s.statsHandler(m)
+	s.opts.StatsHandler(m)
 
-	m["version"] = s.version
+	m["version"] = s.opts.Version
 	m["hostname"] = s.statHostname
 	m["command_line"] = cmdline
 	m["current_time"] = strconv.Itoa(int(now))
@@ -80,6 +82,7 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	m["clients_active"] = strconv.FormatInt(connCurrent, 10)
 	m["request_memory"] = strconv.FormatInt(requestMem, 10)
 	m["response_memory"] = strconv.FormatInt(responseMem, 10)
+	m["workers_total"] = strconv.FormatInt(int64(workersTotal), 10)
 
 	m["gc_ms"] = strconv.FormatUint(gc.PauseTotalMs, 10)
 	m["gc_mcs"] = strconv.FormatUint(gc.PauseTotalMcs, 10)
@@ -128,12 +131,12 @@ func (s *Server) handleEngineStat(hctx *HandlerContext) error {
 
 func (s *Server) handleEngineVersion(hctx *HandlerContext) error {
 	hctx.Response = basictl.NatWrite(hctx.Response, tlStringTag)
-	hctx.Response = basictl.StringWriteTruncated(hctx.Response, s.version)
+	hctx.Response = basictl.StringWriteTruncated(hctx.Response, s.opts.Version)
 	return nil
 }
 
 func (s *Server) handleEngineSetVerbosity(hctx *HandlerContext) (err error) {
-	if s.verbosityHandler == nil {
+	if s.opts.VerbosityHandler == nil {
 		return nil
 	}
 
@@ -144,7 +147,7 @@ func (s *Server) handleEngineSetVerbosity(hctx *HandlerContext) (err error) {
 	if hctx.Request, err = basictl.IntRead(hctx.Request, &verbosity); err != nil {
 		return fmt.Errorf("failed to read verbosity level: %w", err)
 	}
-	if err = s.verbosityHandler(int(verbosity)); err != nil {
+	if err = s.opts.VerbosityHandler(int(verbosity)); err != nil {
 		return err
 	}
 	hctx.Response = basictl.NatWrite(hctx.Response, tlTrueTag)
@@ -153,11 +156,11 @@ func (s *Server) handleEngineSetVerbosity(hctx *HandlerContext) (err error) {
 }
 
 func (s *Server) respondWithMemcachedVersion(conn *PacketConn) {
-	resp := fmt.Sprintf("VERSION %v\r\n", s.version)
+	resp := fmt.Sprintf("VERSION %v\r\n", s.opts.Version)
 
 	err := s.sendMemcachedResponse(conn, "version", []byte(resp))
 	if err != nil {
-		s.logf(err.Error())
+		s.opts.Logf(err.Error())
 	}
 }
 
@@ -167,7 +170,7 @@ func (s *Server) respondWithMemcachedStats(conn *PacketConn) {
 
 	err := s.sendMemcachedResponse(conn, "stats", resp)
 	if err != nil {
-		s.logf(err.Error())
+		s.opts.Logf(err.Error())
 	}
 }
 

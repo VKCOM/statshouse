@@ -8,6 +8,7 @@ package prometheus
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"log"
@@ -15,12 +16,10 @@ import (
 	"os"
 	"sort"
 	"sync"
-	"time"
 
-	promlog "github.com/go-kit/log"
 	"gopkg.in/yaml.v2"
 
-	"context"
+	promlog "github.com/go-kit/log"
 
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/scrape"
@@ -36,7 +35,6 @@ import (
 
 type PromGroupsClient struct {
 	args tlstatshouse.GetTargets2Bytes // only fields_masks for WriteResult
-	hctx *rpc.HandlerContext
 	host string
 	hash string
 	addr netip.Addr
@@ -53,7 +51,7 @@ type Updater struct {
 	hosts map[netip.Addr]hostInfo
 
 	groupsClientsMu   sync.Mutex // Taken after mx
-	promGroupsClients []PromGroupsClient
+	promGroupsClients map[*rpc.HandlerContext]PromGroupsClient
 
 	ctx    context.Context
 	cancel func()
@@ -75,8 +73,6 @@ var hashStringRepr = func(hash []byte) string {
 	return string(hash)
 }
 
-const longPollTimeout = time.Hour
-
 func RunPromUpdaterAsync(hostName string, logTrace bool) (*Updater, error) {
 	var logTraceFunc func(format string, a ...interface{})
 	if logTrace {
@@ -89,7 +85,7 @@ func RunPromUpdaterAsync(hostName string, logTrace bool) (*Updater, error) {
 func runUpdater(hostName string, cfg *config.Config, configVersion int64, logTrace func(format string, a ...interface{})) *Updater {
 	log.Println("creating prom discovery manager")
 	ctx, cancelFunc := context.WithCancel(context.Background())
-	discoveryManager := newDiscoveryManager(ctx, cfg)
+	dm := newDiscoveryManager(ctx, cfg)
 	log.Println("running prom discovery manager")
 	go func() {
 		defer func() {
@@ -98,7 +94,7 @@ func runUpdater(hostName string, cfg *config.Config, configVersion int64, logTra
 				log.Printf("Error from prometheus: %v", err)
 			}
 		}()
-		err := discoveryManager.goRun()
+		err := dm.goRun()
 		if err != nil {
 			log.Println("failed to run discovery manager")
 		}
@@ -107,37 +103,31 @@ func runUpdater(hostName string, cfg *config.Config, configVersion int64, logTra
 		logTrace = emptyTrace
 	}
 	u := &Updater{
-		hosts:    map[netip.Addr]hostInfo{},
-		cfg:      cfg,
-		ctx:      ctx,
-		cancel:   cancelFunc,
-		manager:  discoveryManager,
-		logTrace: logTrace,
-		version:  configVersion,
-		hostName: hostName,
+		hosts:             map[netip.Addr]hostInfo{},
+		cfg:               cfg,
+		ctx:               ctx,
+		cancel:            cancelFunc,
+		manager:           dm,
+		logTrace:          logTrace,
+		version:           configVersion,
+		hostName:          hostName,
+		promGroupsClients: map[*rpc.HandlerContext]PromGroupsClient{},
 	}
 	go func(u *Updater) {
-		timer := time.NewTimer(longPollTimeout)
 	loop:
 		for {
 			select {
 			case <-ctx.Done():
 				break loop
-			case groups := <-discoveryManager.SyncCh():
-				u.UpdateGroups(groups, false)
-			case <-timer.C:
-				u.promMx.Lock()
-				m := u.groups
-				u.promMx.Unlock()
-				u.UpdateGroups(m, true)
-				timer = time.NewTimer(longPollTimeout)
+			case groups := <-dm.SyncCh():
+				u.UpdateGroups(groups)
 			}
 		}
 	}(u)
 	return u
 }
 
-func (u *Updater) UpdateGroups(m map[string][]*targetgroup.Group, sendToAll bool) {
+func (u *Updater) UpdateGroups(m map[string][]*targetgroup.Group) {
 	u.promMx.Lock()
 	u.groups = m
 	newHosts := u.onPromUpdatedLocked()
@@ -147,7 +137,7 @@ func (u *Updater) UpdateGroups(m map[string][]*targetgroup.Group, sendToAll bool
 	defer u.mx.Unlock()
 	u.hosts = newHosts
 	u.logTrace("new targets: %s", newHosts)
-	u.broadcastGroups(sendToAll)
+	u.broadcastGroups()
 }
 
 func (u *Updater) ApplyConfigFromJournal(configString string, version int64) {
@@ -192,52 +182,46 @@ func (u *Updater) HandleGetTargets(_ context.Context, hctx *rpc.HandlerContext, 
 	}
 	u.groupsClientsMu.Lock()
 	defer u.groupsClientsMu.Unlock()
-	u.promGroupsClients = append(u.promGroupsClients, PromGroupsClient{
+	u.promGroupsClients[hctx] = PromGroupsClient{
 		args: args,
-		hctx: hctx,
 		host: userHost,
 		hash: userHash,
 		addr: ap.Addr(),
-	})
+	}
 	u.logTrace("handle get groups request host: '%s', hashJobToLabels: '%s' was hijacked", args.PromHostName, args.OldHash)
-	return hctx.HijackResponse()
+	return hctx.HijackResponse(u)
 }
 
-func (u *Updater) broadcastGroups(sendToAll bool) {
+func (h *Updater) CancelHijack(hctx *rpc.HandlerContext) {
+	h.groupsClientsMu.Lock()
+	defer h.groupsClientsMu.Unlock()
+	delete(h.promGroupsClients, hctx)
+}
+
+func (u *Updater) broadcastGroups() {
 	u.groupsClientsMu.Lock()
 	defer u.groupsClientsMu.Unlock()
 	log.Println("starting broadcast groups")
 	u.logTrace("updates: %s", u.hosts)
-	pos := 0
 	sendLongPollSuccessCount := 0
 	sendLongPollFailedCount := 0
 
-	for _, client := range u.promGroupsClients {
+	for hctx, client := range u.promGroupsClients {
 		userHash := client.args.OldHash
 		info := u.hosts[client.addr]
-		switch string(userHash) {
-		case info.hash:
-			if sendToAll {
-				client.hctx.SendHijackedResponse(rpc.Error{
-					Code:        data_model.RPCErrorTerminateLongpoll,
-					Description: "long poll was terminated",
-				})
-			} else {
-				u.promGroupsClients[pos] = client
-				pos++
-			}
-		default:
-			var err error
-			client.hctx.Response, err = client.args.WriteResult(client.hctx.Response, info.result)
-			if err == nil {
-				sendLongPollSuccessCount++
-			} else {
-				sendLongPollFailedCount++
-			}
-			client.hctx.SendHijackedResponse(err)
+		if string(userHash) == info.hash {
+			continue
 		}
+		delete(u.promGroupsClients, hctx)
+		var err error
+		hctx.Response, err = client.args.WriteResult(hctx.Response, info.result)
+		if err == nil {
+			sendLongPollSuccessCount++
+		} else {
+			sendLongPollFailedCount++
+		}
+		hctx.SendHijackedResponse(err)
 	}
-	u.promGroupsClients = u.promGroupsClients[:pos]
 	u.logMap(map[string]interface{}{
 		"send_long_poll_groups_success_count": sendLongPollSuccessCount,
 		"send_long_poll_groups_failed_count":  sendLongPollFailedCount,
