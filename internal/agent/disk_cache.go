@@ -60,14 +60,16 @@ type diskCacheBucket struct {
 type diskCacheShard struct {
 	Logf func(format string, args ...interface{})
 
-	shardPath    string
-	mu           sync.Mutex                  // shards are fully independent
-	knownSeconds map[uint32]*diskCacheBucket // known are seconds written and not deleted after restart, and seconds popped from tail
+	shardPath        string
+	mu               sync.Mutex                  // shards are fully independent
+	knownSeconds     map[uint32]*diskCacheBucket // known are seconds written and not deleted after restart, and seconds popped from tail
+	knownSecondsSize int64
 
 	readingFileTail  *diskCacheFile // current tail file being processed
 	waitingFilesTail []waitingFile  // when readingFileTail is finished, next file from here is taken.
+	waitingFilesSize int64
 
-	writingFile          *diskCacheFile // after restart we begin a new file. Will be rotated periodically by size or seconds diff
+	writingFile          *diskCacheFile // after restart, we begin a new file. Will be rotated periodically by size or seconds diff
 	writingFileCreatedTs time.Time
 
 	totalFileSize int64
@@ -118,7 +120,7 @@ func (d *DiskBucketStorage) Close() error {
 	return d.lockFile.Close()
 }
 
-func (d *DiskBucketStorage) TotalFileSize(shardID int) int64 {
+func (d *DiskBucketStorage) TotalFileSize(shardID int) (total int64, unsent int64) {
 	return d.shards[shardID].TotalFileSize()
 }
 
@@ -163,6 +165,7 @@ func makeDiscCacheShard(shardPath string, logf func(format string, args ...inter
 			continue
 		}
 		d.waitingFilesTail = append(d.waitingFilesTail, waitingFile{name: dn, size: st.Size()})
+		d.waitingFilesSize += st.Size()
 		d.totalFileSize += st.Size()
 	}
 
@@ -176,6 +179,7 @@ func makeDiscCacheShard(shardPath string, logf func(format string, args ...inter
 func (d *diskCacheShard) Close() {
 	for k, sec := range d.knownSeconds {
 		d.unrefFileWithRemove(&sec.file, false)
+		d.knownSecondsSize -= int64(sec.size) + headerSize
 		delete(d.knownSeconds, k)
 	}
 	if d.readingFileTail != nil {
@@ -186,10 +190,17 @@ func (d *diskCacheShard) Close() {
 	}
 }
 
-func (d *diskCacheShard) TotalFileSize() int64 {
+func (d *diskCacheShard) TotalFileSize() (total int64, unsent int64) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return d.totalFileSize
+	unsent = d.knownSecondsSize + d.waitingFilesSize
+	if d.readingFileTail != nil && d.readingFileTail.nextPos < d.readingFileTail.size { // second must be always true
+		unsent += d.readingFileTail.size - d.readingFileTail.nextPos
+	}
+	if unsent > d.totalFileSize { // must be never
+		unsent = d.totalFileSize
+	}
+	return d.totalFileSize, unsent
 }
 
 func (d *diskCacheShard) unrefFile(fp **diskCacheFile) { // sets to nil to prevent usage
@@ -262,6 +273,7 @@ func (d *diskCacheShard) ReadNextTailSecond() (uint32, bool) {
 				return 0, false
 			}
 			tailFile := d.waitingFilesTail[0]
+			d.waitingFilesSize -= tailFile.size
 			d.waitingFilesTail = d.waitingFilesTail[1:]
 			fp, err := os.OpenFile(tailFile.name, os.O_RDWR, os.ModePerm)
 			if err != nil {
@@ -272,7 +284,7 @@ func (d *diskCacheShard) ReadNextTailSecond() (uint32, bool) {
 			d.readingFileTail = &diskCacheFile{fp: fp, name: tailFile.name, size: tailFile.size, refCount: 1}
 			break
 		}
-		if d.readingFileTail.nextPos == d.readingFileTail.size {
+		if d.readingFileTail.nextPos >= d.readingFileTail.size {
 			d.unrefFile(&d.readingFileTail)
 			continue
 		}
@@ -318,6 +330,7 @@ func (d *diskCacheShard) ReadNextTailSecond() (uint32, bool) {
 			crc:  crc,
 			size: int(chunkSize), // safe because check above
 		}
+		d.knownSecondsSize += chunkSize + headerSize
 		d.readingFileTail.refCount++
 		d.readingFileTail.nextPos += headerSize + chunkSize
 		return second, true
@@ -344,6 +357,7 @@ func (d *diskCacheShard) PutBucket(time uint32, data []byte) error {
 	d.writingFile.refCount++
 	d.writingFile.size += headerSize + int64(len(data))
 	d.totalFileSize += headerSize + int64(len(data))
+	d.knownSecondsSize += int64(sec.size) + headerSize
 	d.knownSeconds[time] = sec
 	return nil
 }
@@ -382,6 +396,7 @@ func (d *diskCacheShard) eraseBucket(time uint32) error {
 	binary.LittleEndian.PutUint32(header[0:4], magicDeletedSecond)
 	_, err := sec.file.fp.WriteAt(header[:], sec.pos)
 	d.unrefFile(&sec.file)
+	d.knownSecondsSize -= int64(sec.size) + headerSize
 	delete(d.knownSeconds, time)
 	if err != nil {
 		return fmt.Errorf("EraseBucket second %d failed in shard %q: %v", time, d.shardPath, err)

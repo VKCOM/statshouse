@@ -642,15 +642,25 @@ func (s *Shard) sendSourceBucketCompressed(ctx context.Context, cbd compressedBu
 	if sizeMem < math.MaxInt32 {
 		args.QueueSizeMemory = int32(sizeMem)
 	}
-	sizeDisk := s.HistoricBucketsDataSizeDisk()
-	if sizeDisk < math.MaxInt32 {
-		args.QueueSizeDisk = int32(sizeDisk)
+	sizeDiskTotal, sizeDiskUnsent := s.HistoricBucketsDataSizeDisk()
+	if sizeDiskTotal < math.MaxInt32 {
+		args.QueueSizeDisk = int32(sizeDiskTotal)
 	}
-	sizeDiskSum := s.HistoricBucketsDataSizeDiskSum()
-	if sizeDiskSum < math.MaxInt32 {
-		args.SetQueueSizeDiskSum(int32(sizeDiskSum))
+	if sizeDiskUnsent < math.MaxInt32 {
+		args.SetQueueSizeDiskUnsent(int32(sizeDiskUnsent))
+	} else {
+		args.SetQueueSizeDiskUnsent(math.MaxInt32)
+	}
+	sizeDiskSumTotal, sizeDiskSumUnsent := s.HistoricBucketsDataSizeDiskSum()
+	if sizeDiskSumTotal < math.MaxInt32 {
+		args.SetQueueSizeDiskSum(int32(sizeDiskSumTotal))
 	} else {
 		args.SetQueueSizeDiskSum(math.MaxInt32)
+	}
+	if sizeDiskSumUnsent < math.MaxInt32 {
+		args.SetQueueSizeDiskSumUnsent(int32(sizeDiskSumUnsent))
+	} else {
+		args.SetQueueSizeDiskSumUnsent(math.MaxInt32)
 	}
 	sizeMemSum := s.HistoricBucketsDataSizeMemSum()
 	if sizeMemSum < math.MaxInt32 {
@@ -884,9 +894,9 @@ func (s *Shard) goEraseHistoric() {
 
 		nowUnix := uint32(time.Now().Unix())
 
-		diskUsed := s.HistoricBucketsDataSizeDisk()
+		diskUsed, _ := s.HistoricBucketsDataSizeDisk()
 		// diskUsed is sum of file size, and will not shrink until all seconds in a file are deleted
-		// seconds held by historic seconds will not be deleted, because they are not poped by popOldestHistoricSecondLocked aboeve,
+		// seconds held by historic seconds will not be deleted, because they are not popped by popOldestHistoricSecondLocked above,
 		// if all possible seconds are deleted, but we are still over limit, this goroutine will block on s.cond.Wait() above
 		if diskUsed > diskLimit {
 			s.client.Client.Logf("Send Disaster: Bucket %d for shard %d (now is %d) violates disk size limit %d (%d used), throwing out", cbd.time, s.ShardReplicaNum, nowUnix, diskLimit, diskUsed)
