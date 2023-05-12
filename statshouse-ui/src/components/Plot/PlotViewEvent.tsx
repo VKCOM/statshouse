@@ -100,6 +100,7 @@ export function PlotViewEvent(props: {
     samplingFactorSrc,
     samplingFactorAgg,
     receiveErrors,
+    receiveWarnings,
     error: lastError,
     error403,
   } = useStore(selectorPlotsData);
@@ -410,6 +411,7 @@ export function PlotViewEvent(props: {
                 timeRange={timeRange}
                 sel={sel}
                 receiveErrors={receiveErrors}
+                receiveWarnings={receiveWarnings}
                 samplingFactorAgg={samplingFactorAgg}
                 samplingFactorSrc={samplingFactorSrc}
               />

@@ -303,6 +303,7 @@ type (
 		SamplingFactorAgg        float64                 `json:"sampling_factor_agg"`         // average
 		MappingFloodEventsLegacy float64                 `json:"mapping_flood_events_legacy"` // sum of average, legacy
 		ReceiveErrors            float64                 `json:"receive_errors"`              // count/sec
+		ReceiveWarnings          float64                 `json:"receive_warnings"`            // count/sec
 		MappingErrors            float64                 `json:"mapping_errors"`              // count/sec
 		PromQL                   string                  `json:"promql"`                      // equivalent PromQL query
 		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
@@ -1666,20 +1667,29 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	// Add badges
 	if qry.verbose && err == nil && badges != nil && len(badges.Series.Time) > 0 {
 		for i, meta := range badges.Series.SeriesMeta {
+			badgeTypeSamplingFactorSrc := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor))
+			badgeTypeSamplingFactorAgg := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor))
+			badgeTypeReceiveErrorsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld))
+			badgeTypeMappingFloodEventsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld))
+			badgeTypeReceiveErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors))
+			badgeTypeReceiveWarnings := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionWarnings))
+			badgeTypeMappingErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors))
 			if meta.Tags["key2"].Value == qry.metricWithNamespace {
 				badgeType := meta.Tags["key1"].Value
 				switch {
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor)):
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorSrc:
 					res.SamplingFactorSrc = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor)):
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorAgg:
 					res.SamplingFactorAgg = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld)):
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeReceiveErrorsLegacy:
 					res.ReceiveErrorsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld)):
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeMappingFloodEventsLegacy:
 					res.MappingFloodEventsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors)):
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveErrors:
 					res.ReceiveErrors = sumSeries(badges.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors)):
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveWarnings:
+					res.ReceiveWarnings = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeMappingErrors:
 					res.MappingErrors = sumSeries(badges.Series.SeriesData[i], 0)
 				}
 			}
@@ -1756,7 +1766,7 @@ func (h *Handler) queryBadges(ctx context.Context, ai accessInfo, req seriesRequ
 			to:                  req.to,
 			width:               req.width,
 			widthAgg:            req.widthAgg, // TODO - resolution of badge metric (currently 5s)?
-			what:                []string{ParamQueryFnCountNorm, ParamQueryFnAvg},
+			what:                []string{ParamQueryFnCount, ParamQueryFnAvg},
 			by:                  []string{"key1", "key2"},
 			filterIn:            map[string][]string{"key2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
 		},

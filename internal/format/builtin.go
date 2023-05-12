@@ -116,6 +116,7 @@ const (
 	TagValueIDBadgeIngestionErrors     = 1
 	TagValueIDBadgeAggMappingErrors    = 2
 	TagValueIDBadgeContributors        = 3 // # of agents who sent this second. Hyper important to distinguish between holes in your data and problems with agents (no connectivity, etc.).
+	TagValueIDBadgeIngestionWarnings   = 4
 
 	TagValueIDRPCRequestsStatusOK          = 1
 	TagValueIDRPCRequestsStatusErrLocal    = 2
@@ -909,6 +910,7 @@ Set by aggregator.`,
 					TagValueIDBadgeAgentSamplingFactor: "agent_sampling_actor",
 					TagValueIDBadgeAggSamplingFactor:   "aggregator_sampling_actor",
 					TagValueIDBadgeIngestionErrors:     "ingestion_errors",
+					TagValueIDBadgeIngestionWarnings:   "ingestion_warnings",
 					TagValueIDBadgeAggMappingErrors:    "mapping_errors",
 					TagValueIDBadgeContributors:        "contributors",
 				}),

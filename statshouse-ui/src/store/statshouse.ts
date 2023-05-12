@@ -98,6 +98,7 @@ export type PlotStore = {
   lastTimeShifts?: number[];
   lastQuerySeriesMeta?: querySeriesMeta[];
   receiveErrors: number;
+  receiveWarnings: number;
   samplingFactorSrc: number;
   samplingFactorAgg: number;
   mappingFloodEvents: number;
@@ -154,6 +155,7 @@ function getEmptyPlotData(): PlotStore {
     seriesShow: [],
     scales: {},
     receiveErrors: 0,
+    receiveWarnings: 0,
     samplingFactorSrc: 0,
     samplingFactorAgg: 0,
     mappingFloodEvents: 0,
@@ -963,10 +965,11 @@ export const statsHouseState: StateCreator<
                 ? state.plotsData[index]?.seriesShow
                 : seriesShow,
               scales: dequal(scales, state.plotsData[index]?.scales) ? state.plotsData[index]?.scales : scales,
-              receiveErrors: resp.receive_errors_legacy,
+              receiveErrors: resp.receive_errors,
+              receiveWarnings: resp.receive_warnings,
               samplingFactorSrc: resp.sampling_factor_src,
               samplingFactorAgg: resp.sampling_factor_agg,
-              mappingFloodEvents: resp.mapping_flood_events_legacy,
+              mappingFloodEvents: resp.mapping_errors,
               legendValueWidth,
               legendMaxDotSpaceWidth,
               legendNameWidth,

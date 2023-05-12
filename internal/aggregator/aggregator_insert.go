@@ -98,6 +98,17 @@ func appendKeys(res []byte, k data_model.Key, prekeyIndexes *prekeyIndexCache, u
 // We propose to move them inside metric with env=-1,-2,etc.
 // So we can select badges for free by adding || (env < 0) to requests, then filtering result rows
 // Also we must select both count and sum, then process them separately for each badge kind
+
+func appendMultiBadge(res []byte, k data_model.Key, v *data_model.MultiItem, prekeyIndexes *prekeyIndexCache, usedTimestamps map[uint32]struct{}) []byte {
+	if k.Metric >= 0 { // fastpath
+		return res
+	}
+	for _, t := range v.Top {
+		res = appendBadge(res, k, t.Value, prekeyIndexes, usedTimestamps)
+	}
+	return appendBadge(res, k, v.Tail.Value, prekeyIndexes, usedTimestamps)
+}
+
 func appendBadge(res []byte, k data_model.Key, v data_model.ItemValue, prekeyIndexes *prekeyIndexCache, usedTimestamps map[uint32]struct{}) []byte {
 	if k.Metric >= 0 { // fastpath
 		return res
@@ -107,10 +118,19 @@ func appendBadge(res []byte, k data_model.Key, v data_model.ItemValue, prekeyInd
 	// TODO - deprecated legacy badges and use new badges
 	switch k.Metric {
 	case format.BuiltinMetricIDIngestionStatus:
-		if k.Keys[1] == 0 || k.Keys[2] == format.TagValueIDSrcIngestionStatusOKCached || k.Keys[2] == format.TagValueIDSrcIngestionStatusOKUncached ||
-			k.Keys[2] == format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName || k.Keys[2] == format.TagValueIDSrcIngestionStatusWarnDeprecatedT ||
-			k.Keys[2] == format.TagValueIDSrcIngestionStatusWarnDeprecatedStop || k.Keys[2] == format.TagValueIDSrcIngestionStatusWarnOldCounterSemantic {
+		if k.Keys[1] == 0 {
 			return res
+		}
+		switch k.Keys[2] {
+		case format.TagValueIDSrcIngestionStatusOKCached,
+			format.TagValueIDSrcIngestionStatusOKUncached:
+			return res
+		case format.TagValueIDSrcIngestionStatusWarnDeprecatedKeyName,
+			format.TagValueIDSrcIngestionStatusWarnDeprecatedT,
+			format.TagValueIDSrcIngestionStatusWarnDeprecatedStop,
+			format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice,
+			format.TagValueIDSrcIngestionStatusWarnOldCounterSemantic:
+			return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionWarnings, k.Keys[1]}}, "", data_model.ItemValue{Counter: v.Counter, MaxHostTag: v.MaxHostTag}, prekeyIndexes, usedTimestamps)
 		}
 		res = appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionErrorsOld, k.Keys[1]}}, "", data_model.ItemValue{Counter: 1, ValueSum: v.Counter, MaxHostTag: v.MaxHostTag}, prekeyIndexes, usedTimestamps)
 		return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionErrors, k.Keys[1]}}, "", data_model.ItemValue{Counter: v.Counter, MaxHostTag: v.MaxHostTag}, prekeyIndexes, usedTimestamps)
@@ -227,8 +247,10 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	// TODO - actual sampleFactors are empty due to code commented out in estimator.go
 	for si := 0; si < len(b.shards); si++ {
 		for k, item := range b.shards[si].multiItems {
+			whaleWeight := item.FinishStringTop(a.config.StringTopCountInsert) // all excess items are baked into Tail
+
 			resPos := len(res)
-			res = appendBadge(res, k, item.Tail.Value, prekeyIndexes, usedTimestamps)
+			res = appendMultiBadge(res, k, item, prekeyIndexes, usedTimestamps)
 			sizeBuiltin += len(res) - resPos
 
 			accountMetric := k.Metric
@@ -244,7 +266,6 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 					accountMetric = k.Keys[1]
 				}
 			}
-			whaleWeight := item.FinishStringTop(a.config.StringTopCountInsert) // all excess items are baked into Tail
 			sz := item.RowBinarySizeEstimate()
 			samplingMetric, ok := metricsMap[accountMetric]
 			if !ok {
