@@ -11,3 +11,6 @@ export * from './useStateInput';
 export * from './usePlotLink';
 export * from './useRefState';
 export * from './useUPlotPluginHooks';
+export * from './useIntersectionObserver';
+export * from './useRectObserver';
+export * from './useWindowSize';

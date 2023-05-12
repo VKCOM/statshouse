@@ -6,8 +6,8 @@
   width: 100%;
   height: calc(100% + var(--plot-padding-top-loc));
   margin-top: calc(-1 * var(--plot-padding-top-loc));
-  pointer-events: none;
-  z-index: 1;
+  /*pointer-events: none;*/
+  z-index: 100;
 }
 
 .overlayFlag {

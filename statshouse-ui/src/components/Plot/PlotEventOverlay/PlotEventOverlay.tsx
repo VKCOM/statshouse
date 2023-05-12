@@ -100,7 +100,7 @@ export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEvent
   }, [update, width, height, eventsData, eventsIndex]);
   return (
     <div ref={uRefDiv} className={css.overlay}>
-      <svg xmlns="http://www.w3.org/2000/svg" width={width} height={height}>
+      <svg xmlns="http://www.w3.org/2000/svg" width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
         <defs>
           <path
             id="flagPath"
