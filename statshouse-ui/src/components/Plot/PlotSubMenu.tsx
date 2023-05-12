@@ -14,6 +14,7 @@ export type PlotSubMenuProps = {
   sel: PlotParams;
   timeRange: TimeRange;
   receiveErrors: number;
+  receiveWarnings: number;
   samplingFactorSrc: number;
   samplingFactorAgg: number;
   mappingFloodEvents: number;
@@ -23,6 +24,7 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
   timeRange,
   sel,
   receiveErrors,
+  receiveWarnings,
   samplingFactorSrc,
   samplingFactorAgg,
   mappingFloodEvents,
@@ -30,14 +32,18 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
 }) => (
   <ul className="nav">
     <li className="nav-item">
-      {receiveErrors > 0.5 ? (
+      {receiveErrors > 0.5 || receiveWarnings > 0.5 ? (
         <Link
           className="nav-link p-0 me-4"
           to={{
             search: `?s=__src_ingestion_status&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key1-${sel.metricName}&qb=key2&qf=key2~ok_cached&qf=key2~ok_uncached`,
           }}
         >
-          <small className="badge bg-danger">Receive errors: {utils.formatSI(receiveErrors)}</small>
+          {receiveErrors > 0.5 ? (
+            <small className="badge bg-danger">Receive errors: {utils.formatSI(receiveErrors)}</small>
+          ) : (
+            <small className="badge bg-warning text-dark">Receive warnings: {utils.formatSI(receiveWarnings)}</small>
+          )}
         </Link>
       ) : (
         <Link

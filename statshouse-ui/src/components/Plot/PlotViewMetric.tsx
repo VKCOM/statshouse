@@ -96,6 +96,7 @@ export function PlotViewMetric(props: {
     samplingFactorSrc,
     samplingFactorAgg,
     receiveErrors,
+    receiveWarnings,
     error: lastError,
     error403,
     topInfo,
@@ -388,6 +389,7 @@ export function PlotViewMetric(props: {
                 timeRange={timeRange}
                 sel={sel}
                 receiveErrors={receiveErrors}
+                receiveWarnings={receiveWarnings}
                 samplingFactorAgg={samplingFactorAgg}
                 samplingFactorSrc={samplingFactorSrc}
               />

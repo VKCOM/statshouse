@@ -246,6 +246,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer
 			out.MappingFloodEventsLegacy = float64(in.Float64())
 		case "receive_errors":
 			out.ReceiveErrors = float64(in.Float64())
+		case "receive_warnings":
+			out.ReceiveWarnings = float64(in.Float64())
 		case "mapping_errors":
 			out.MappingErrors = float64(in.Float64())
 		case "promql":
@@ -318,6 +320,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 		const prefix string = ",\"receive_errors\":"
 		out.RawString(prefix)
 		out.Float64(float64(in.ReceiveErrors))
+	}
+	{
+		const prefix string = ",\"receive_warnings\":"
+		out.RawString(prefix)
+		out.Float64(float64(in.ReceiveWarnings))
 	}
 	{
 		const prefix string = ",\"mapping_errors\":"

@@ -1035,6 +1035,9 @@
           "receive_errors": {
             "type": "number"
           },
+          "receive_warnings": {
+            "type": "number"
+          },
           "sampling_factor_src": {
             "type": "number"
           },
