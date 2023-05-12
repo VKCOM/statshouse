@@ -1550,10 +1550,12 @@ export const statsHouseState: StateCreator<
     }
     const normalize = prevState.params.plots.map((plot, indexPlot) => ({
       plot,
+      plotEventLink: plot.events.map((eId) => prevState.params.plots[eId]),
       group: groups[indexPlot] ?? 0,
       tagSync: prevState.params.tagSync.map((group, indexGroup) => ({ indexGroup, indexTag: group[indexPlot] })),
       preview: prevState.previews[indexPlot],
       plotsData: prevState.plotsData[indexPlot],
+      plotsEvent: prevState.events[indexPlot],
     }));
     if (
       typeof indexSelectPlot !== 'undefined' &&
@@ -1567,6 +1569,9 @@ export const statsHouseState: StateCreator<
     const plots = resort.map(({ plot }) => plot);
     const previews = resort.map(({ preview }) => preview);
     const plotsData = resort.map(({ plotsData }) => plotsData);
+    const plotsEvent = resort.map(({ plotsEvent }) => plotsEvent);
+    const plotEventLink = resort.map(({ plotEventLink }) => plotEventLink.map((eP) => plots.indexOf(eP)));
+
     const tagSync = resort.reduce((res, item, indexPlot) => {
       item.tagSync.forEach(({ indexGroup, indexTag }) => {
         res[indexGroup] = res[indexGroup] ?? [];
@@ -1576,7 +1581,7 @@ export const statsHouseState: StateCreator<
     }, [] as (number | null)[][]);
     prevState.setParams(
       produce((params) => {
-        params.plots = plots;
+        params.plots = plots.map((p, indexP) => ({ ...p, events: plotEventLink[indexP].filter((i) => i > -1) ?? [] }));
         params.tagSync = tagSync;
 
         if (params.dashboard && typeof indexGroup !== 'undefined' && indexGroup >= 0) {
@@ -1610,21 +1615,13 @@ export const statsHouseState: StateCreator<
                 }, 0 as number) ?? 0,
             }))
             .filter((g) => g.count > 0);
-          if (
-            params.dashboard.groupInfo &&
-            params.dashboard.groupInfo.length === 1 &&
-            params.dashboard.groupInfo[0].size === 2 &&
-            params.dashboard.groupInfo[0].name === '' &&
-            params.dashboard.groupInfo[0].show === true
-          ) {
-            params.dashboard.groupInfo = [];
-          }
         }
       })
     );
     setState((state) => {
       state.previews = previews;
       state.plotsData = plotsData;
+      state.events = plotsEvent;
     });
   },
   dashboardLayoutEdit: false,
