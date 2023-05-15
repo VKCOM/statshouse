@@ -2,11 +2,14 @@
 set -e
 
 PROFILE=sh
-if [[ $1 ]]; then
-  PROFILE=$1
-fi
+case $1 in
+  api-off|agent-off|aggregator-off|meta-off)
+    PROFILE=$1
+    shift
+    ;;
+esac
 
-docker compose --profile "$PROFILE" up -d --build --remove-orphans --force-recreate
+docker compose --profile "$PROFILE" up -d --remove-orphans $@ # --build --force-recreate
 trap "{ docker compose --profile $PROFILE down; exit; }" exit
 echo -n Waiting for services to be ready...
 for c in kh sh; do
