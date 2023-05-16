@@ -3,6 +3,7 @@ import cn from 'classnames';
 import { selectorMetricsMetaByName, selectorParamsPlotsByIndex, useStore } from '../../store';
 import { filterHasTagID } from '../../view/api';
 import produce from 'immer';
+import { getTagDescription } from '../../view/utils';
 
 export type PlotEventsSelectColumnsProps = {
   indexPlot: number;
@@ -72,7 +73,7 @@ export function PlotEventsSelectColumns({ indexPlot, className, onClose }: PlotE
               id={`flexCheckDefault_${indexTag}`}
             />
             <label className="form-check-label text-nowrap" htmlFor={`flexCheckDefault_${indexTag}`}>
-              {tag.description ? tag.description : tag.name ? tag.name : `tag ${indexTag}`}
+              {getTagDescription(meta, indexTag)}
             </label>
           </div>
         )
@@ -88,7 +89,7 @@ export function PlotEventsSelectColumns({ indexPlot, className, onClose }: PlotE
             id={`flexCheckDefault_s`}
           />
           <label className="form-check-label text-nowrap" htmlFor={`flexCheckDefault_s`}>
-            {meta.string_top_name ? meta.string_top_name : 'tag_s'}
+            {getTagDescription(meta, '_s')}
           </label>
         </div>
       )}

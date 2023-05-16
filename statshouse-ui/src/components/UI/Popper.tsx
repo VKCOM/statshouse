@@ -30,6 +30,7 @@ type refElement = Element | HTMLElement | SVGElement | null | undefined;
 
 export type PopperProps = {
   children?: ReactNode;
+  className?: string;
   targetRef?: RefObject<refElement>;
   vertical?: PopperVertical;
   horizontal?: PopperHorizontal;
@@ -89,6 +90,7 @@ const threshold = buildThresholdList(1);
 
 export function _Popper({
   children,
+  className,
   targetRef,
   horizontal = POPPER_HORIZONTAL.center,
   vertical = POPPER_VERTICAL.outTop,
@@ -191,7 +193,7 @@ export function _Popper({
     <Portal id={popperId} className={cn(css.popperGroup, fixed && css.popperGroupFixed)}>
       {visible && show && (
         <div
-          className={css.popperItem}
+          className={cn(css.popperItem, className)}
           style={
             {
               height: targetRect.height,

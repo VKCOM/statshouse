@@ -8,7 +8,7 @@ import React from 'react';
 import uPlot from 'uplot';
 import { TimeRange } from '../common/TimeRange';
 import * as api from './api';
-import { DashboardInfo, RawValueKind } from './api';
+import { DashboardInfo, metricMeta, RawValueKind } from './api';
 import { QueryParams } from '../common/plotQueryParams';
 
 export const goldenRatio = 1.61803398875;
@@ -680,4 +680,17 @@ export function deepClone<T>(data: T): T {
 
 export function freeKeyPrefix(str: string): string {
   return str.replace('skey', '_s').replace('key', '');
+}
+
+export function getTagDescription(meta: metricMeta, indexTag: number | string) {
+  if (typeof indexTag === 'number' && indexTag > -1) {
+    return meta.tags?.[indexTag].description
+      ? meta.tags?.[indexTag].description
+      : meta.tags?.[indexTag].name
+      ? meta.tags?.[indexTag].name
+      : `tag ${indexTag}`;
+  } else if (indexTag === -1 || indexTag === 'skey' || indexTag === '_s') {
+    return meta.string_top_name || meta.string_top_description || 'tag _s';
+  }
+  return `tag ${indexTag}`;
 }
