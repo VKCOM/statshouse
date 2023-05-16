@@ -9,8 +9,7 @@ import {
   selectorMetricsMeta,
   selectorParamsPlots,
   selectorParamsTagSync,
-  selectorPreSync,
-  selectorSetParams,
+  selectorPlotsData,
   useStore,
 } from '../../store';
 import { SyncTagGroup } from './SyncTagGroup';
@@ -20,14 +19,16 @@ import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
 import produce from 'immer';
 import { notNull } from '../../view/utils';
 
+const loadMetricsMeta = useStore.getState().loadMetricsMeta;
+const setParams = useStore.getState().setParams;
+const preSync = useStore.getState().preSync;
+
 export type DashboardTagSyncProp = {};
 export const DashboardTagSync: React.FC<DashboardTagSyncProp> = () => {
   const tagsSync = useStore(selectorParamsTagSync);
   const plots = useStore(selectorParamsPlots);
   const metricsMeta = useStore(selectorMetricsMeta);
-  const setParams = useStore(selectorSetParams);
-  const preSync = useStore(selectorPreSync);
-
+  const plotsData = useStore(selectorPlotsData);
   const [valueSync, setValueSync] = useState(tagsSync);
   const [edit, setEdit] = useState(false);
 
@@ -78,12 +79,18 @@ export const DashboardTagSync: React.FC<DashboardTagSyncProp> = () => {
     setEdit(false);
     setValueSync(tagsSync);
     preSync();
-  }, [preSync, setParams, tagsSync, valueSync]);
+  }, [tagsSync, valueSync]);
 
   const onCancel = useCallback(() => {
     setValueSync(tagsSync);
     setEdit(false);
   }, [tagsSync]);
+
+  useEffect(() => {
+    plots.forEach((p) => {
+      loadMetricsMeta(p.metricName);
+    });
+  }, [plots]);
 
   return (
     <div className="card border-0">
@@ -97,6 +104,7 @@ export const DashboardTagSync: React.FC<DashboardTagSyncProp> = () => {
               syncTags={group}
               setTagSync={onSetTagSync}
               plots={plots}
+              plotsData={plotsData}
               metricsMeta={metricsMeta}
               edit={edit}
             />

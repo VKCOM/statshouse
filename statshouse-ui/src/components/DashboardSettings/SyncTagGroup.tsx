@@ -8,6 +8,8 @@ import React, { useCallback, useMemo } from 'react';
 import { metricMeta, metricTag, whatToWhatDesc } from '../../view/api';
 import { PlotParams } from '../../common/plotQueryParams';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
+import { promQLMetric } from '../../view/utils';
+import { PlotStore } from '../../store';
 
 export type SyncTag = {
   namePlot: string;
@@ -21,6 +23,7 @@ export type SyncTagGroupProps = {
   syncTags: (number | null)[];
   metricsMeta: Record<string, metricMeta>;
   plots: PlotParams[];
+  plotsData: PlotStore[];
   setTagSync: (indexGroup: number, indexPlot: number, indexTag: number, status: boolean) => void;
   edit?: boolean;
 };
@@ -30,6 +33,7 @@ export const SyncTagGroup: React.FC<SyncTagGroupProps> = ({
   syncTags,
   setTagSync,
   plots,
+  plotsData,
   metricsMeta,
   edit = false,
 }) => {
@@ -40,15 +44,21 @@ export const SyncTagGroup: React.FC<SyncTagGroupProps> = ({
           if (!edit && syncTags[indexPlot] === null) {
             return null;
           }
+          const name = plot.metricName !== promQLMetric ? plot.metricName : plotsData[indexPlot].nameMetric;
+          const what =
+            plot.metricName === promQLMetric
+              ? plotsData[indexPlot].whats.map((qw) => whatToWhatDesc(qw)).join(', ')
+              : plot.what.map((qw) => whatToWhatDesc(qw)).join(', ');
+          const full = name ? name + (what ? ': ' + what : '') : '';
           return {
             indexPlot: indexPlot,
-            namePlot: `${plot.metricName}: ${plot.what.map((qw) => whatToWhatDesc(qw)).join(',')}`,
+            namePlot: plot.customName || full,
             tagList: metricsMeta[plot.metricName]?.tags?.slice() ?? [],
             tagSelect: syncTags[indexPlot],
           };
         })
         .filter(Boolean) as SyncTag[],
-    [edit, metricsMeta, plots, syncTags]
+    [edit, metricsMeta, plots, plotsData, syncTags]
   );
   const onRemove = useCallback(() => {
     setTagSync(indexGroup, -1, -1, false);
@@ -57,7 +67,11 @@ export const SyncTagGroup: React.FC<SyncTagGroupProps> = ({
     (event) => {
       const plot = parseInt(event.target.name);
       const tag = parseInt(event.target.value);
-      setTagSync(indexGroup, plot, tag, true);
+      if (isNaN(tag)) {
+        setTagSync(indexGroup, plot, 0, false);
+      } else {
+        setTagSync(indexGroup, plot, tag, true);
+      }
     },
     [indexGroup, setTagSync]
   );
