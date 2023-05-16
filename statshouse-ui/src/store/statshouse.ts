@@ -1221,7 +1221,6 @@ export const statsHouseState: StateCreator<
     const prevState = getState();
     const prev = prevState.params.plots[indexPlot];
     const next = getNextState(prev.groupBy.includes(keyTag), nextState);
-
     const tagIndex = parseInt(keyTag.match(/\d+/)?.[0] ?? '-1');
     const syncGroups = prevState.params.tagSync.filter((g) => g[indexPlot] === tagIndex);
     getState().setParams(
@@ -1231,16 +1230,22 @@ export const statsHouseState: StateCreator<
             g.forEach((tagKeyIndex, syncPlotIndex) => {
               if (tagKeyIndex !== null && tagKeyIndex !== undefined) {
                 const tagKey = `key${tagKeyIndex}`;
-                params.plots[syncPlotIndex].groupBy = next
+                const nextGroupBy = next
                   ? sortEntity([...params.plots[syncPlotIndex].groupBy, tagKey])
                   : params.plots[syncPlotIndex].groupBy.filter((t) => t !== tagKey);
+                if (!dequal(params.plots[syncPlotIndex].groupBy, nextGroupBy)) {
+                  params.plots[syncPlotIndex].groupBy = nextGroupBy;
+                }
               }
             });
           });
         } else {
-          params.plots[indexPlot].groupBy = next
+          const nextGroupBy = next
             ? sortEntity([...params.plots[indexPlot].groupBy, keyTag])
             : params.plots[indexPlot].groupBy.filter((t) => t !== keyTag);
+          if (!dequal(params.plots[indexPlot].groupBy, nextGroupBy)) {
+            params.plots[indexPlot].groupBy = nextGroupBy;
+          }
         }
       })
     );
@@ -1345,8 +1350,9 @@ export const statsHouseState: StateCreator<
       );
       const indexPlot = group.findIndex(notNull);
       const keyTag = `key${group[indexPlot]}`;
-      const byGroup = prevState.params.plots.some((plot) => plot.groupBy.indexOf(keyTag) >= 0);
-
+      const byGroup = prevState.params.plots.some(
+        (plot, indexPlot) => plot.groupBy.indexOf(keyTag) >= 0 && group[indexPlot] !== null
+      );
       if (filterIn.length) {
         prevState.setPlotParamsTag(indexPlot, keyTag, filterIn, true);
       } else if (filterNotIn.length) {
