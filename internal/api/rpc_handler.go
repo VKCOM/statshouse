@@ -222,7 +222,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		return response, err
 	}
 
-	res, _, err := h.ah.handleGetQuery(ctx, ai, req, seriesRequestOptions{})
+	res, _, err := h.ah.handlePromqlQuery(ctx, ai, req, seriesRequestOptions{})
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
 		return response, err

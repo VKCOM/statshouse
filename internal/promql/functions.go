@@ -238,22 +238,48 @@ func firstK(ev *evaluator, g seriesGroup, k int, topDown bool) SeriesBag {
 	if len(g.bag.Data) <= k {
 		return g.bag
 	}
-	w := make([]float64, len(g.bag.Data))
+	var (
+		w      = make([]float64, len(g.bag.Data))
+		nodecN int // number of non-decreasing series
+	)
 	for i, data := range g.bag.Data {
 		var (
-			j   int
-			acc float64
+			j     int
+			acc   float64
+			prev  = -math.MaxFloat64
+			nodec = true // non-decreasing
 		)
 		for _, lod := range ev.t.LODs {
 			for m := 0; m < lod.Len; m++ {
 				v := (*data)[j+m]
 				if !math.IsNaN(v) {
 					acc += v * v * float64(lod.Step)
+					if v < prev {
+						nodec = false
+					}
+					prev = v
 				}
 			}
 			j += lod.Len
 		}
 		w[i] = acc
+		if nodec {
+			nodecN++
+		}
+	}
+	if nodecN == len(w) {
+		// all series are non-decreasing, sort by last value
+		for i, data := range g.bag.Data {
+			last := -math.MaxFloat64
+			for i := len(*data); i != 0; i-- {
+				v := (*data)[i-1]
+				if !math.IsNaN(v) {
+					last = v
+					break
+				}
+			}
+			w[i] = last
+		}
 	}
 	x := make([]int, len(g.bag.Data))
 	for i := range x {
