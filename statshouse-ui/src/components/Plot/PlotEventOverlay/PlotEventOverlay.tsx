@@ -1,17 +1,20 @@
-import React, { MutableRefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { EventObserver } from '../../../common/EventObserver';
 import { UPlotWrapperPropsHooks } from '../../UPlotWrapper';
 import uPlot from 'uplot';
 import { useResizeObserver } from '../../../view/utils';
 import css from './style.module.css';
-import { PlotStore, selectorParamsPlotsByIndex, selectorPlotsData, useStore } from '../../../store';
+import { PlotStore, selectorParams, selectorPlotsData, useStore } from '../../../store';
 import { PlotEventFlag } from './PlotEventFlag';
+import { TimeRange } from '../../../common/TimeRange';
 
 type Flag = {
   x: number;
   idx: number;
   key: string;
   opacity: number;
+  range: TimeRange;
+  plotIndex: number;
   groups: { color: string; idx: number; x: number }[];
 };
 
@@ -36,12 +39,15 @@ function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot,
             idx,
             opacity: 0.3,
             x,
+            plotIndex: indexEvent,
+            range: new TimeRange({ from: time[idx], to: time[idx] }),
           };
           flags[prevIdx].groups.push({
             color: eventsData[indexEvent].series[s].stroke?.toString() ?? '',
             idx,
             x,
           });
+          flags[prevIdx].range.setRange({ from: flags[prevIdx].range.from, to: time[idx] });
           const opacity = Math.max(0.3, val / maxY);
           flags[prevIdx].opacity = Math.min(1, Math.max(flags[prevIdx].opacity, opacity));
         }
@@ -61,19 +67,20 @@ export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEvent
   const uPlotRef = useRef<uPlot>();
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
-  const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
-  const { events: eventsIndex } = useStore(selectorParamsPlot);
+  const params = useStore(selectorParams);
+  const plot = params.plots[indexPlot];
   const eventsData = useStore(selectorPlotsData);
+
   const flagWidth = flagHeight * 1.5;
   const [lines, setLines] = useState<Flag[]>([]);
 
   const update = useCallback(() => {
     if (uPlotRef.current) {
-      setLines(getEventLines(eventsIndex, eventsData, uPlotRef.current, flagWidth));
+      setLines(getEventLines(plot.events, eventsData, uPlotRef.current, flagWidth));
     } else {
       setLines([]);
     }
-  }, [eventsData, eventsIndex, flagWidth]);
+  }, [eventsData, flagWidth, plot.events]);
 
   useEffect(() => {
     if (hooks) {
@@ -87,17 +94,21 @@ export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEvent
       const offDestroy = hooks.current.on('onDestroy', () => {
         uPlotRef.current = undefined;
       });
+      const offDraw = hooks.current.on('onDraw', () => {
+        update();
+      });
 
       return () => {
         offInit();
         offDestroy();
+        offDraw();
       };
     }
-  }, [hooks]);
+  }, [hooks, update]);
 
   useEffect(() => {
     update();
-  }, [update, width, height, eventsData, eventsIndex]);
+  }, [update, width, height, eventsData]);
   return (
     <div ref={uRefDiv} className={css.overlay}>
       <svg xmlns="http://www.w3.org/2000/svg" width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
@@ -116,6 +127,9 @@ export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEvent
         <g stroke="gray" strokeWidth="0.5" fill="gray">
           {lines.map((r) => (
             <PlotEventFlag
+              plot={params.plots[r.plotIndex]}
+              range={r.range}
+              width={width}
               key={r.key}
               index={r.idx}
               flagWidth={flagWidth}
