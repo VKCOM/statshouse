@@ -49,18 +49,20 @@ func (c *PSIStats) WriteMetrics(nowUnix int64) error {
 		old, ok := c.stats[resource]
 		metricName := ""
 		switch resource {
-		case "mem":
+		case "memory":
 			metricName = format.BuiltinMetricNamePSIMem
 		case "cpu":
 			metricName = format.BuiltinMetricNamePSICPU
 		case "io":
 			metricName = format.BuiltinMetricNamePSIIO
 		}
+		some := 1000 * time.Duration(psi.Some.Total-old.Some.Total)
+		full := 1000 * time.Duration(psi.Full.Total-old.Full.Total)
 		if ok && psi.Some != nil && old.Some != nil {
-			c.writer.WriteSystemMetricValue(nowUnix, metricName, float64(psi.Some.Total-old.Some.Total), format.RawIDTagSome)
+			c.writer.WriteSystemMetricValue(nowUnix, metricName, some.Seconds(), format.RawIDTagSome)
 		}
 		if ok && psi.Full != nil && old.Full != nil {
-			c.writer.WriteSystemMetricValue(nowUnix, metricName, float64(psi.Full.Total-old.Full.Total), format.RawIDTagFull)
+			c.writer.WriteSystemMetricValue(nowUnix, metricName, full.Seconds(), format.RawIDTagFull)
 		}
 		c.stats[resource] = psi
 	}
