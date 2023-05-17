@@ -25,11 +25,22 @@ type StatshouseApiQuery struct {
 	GroupBy    []string
 	Filter     []StatshouseApiFilter
 	TimeShift  []int64
+	Promql     string                  // Conditional: item.FieldsMask.0
 	What       []StatshouseApiFunction // Conditional: item.FieldsMask.1
 }
 
 func (StatshouseApiQuery) TLName() string { return "statshouseApi.query" }
 func (StatshouseApiQuery) TLTag() uint32  { return 0xc9951bb9 }
+
+func (item *StatshouseApiQuery) SetPromql(v string) {
+	item.Promql = v
+	item.FieldsMask |= 1 << 0
+}
+func (item *StatshouseApiQuery) ClearPromql() {
+	item.Promql = ""
+	item.FieldsMask &^= 1 << 0
+}
+func (item StatshouseApiQuery) IsSetPromql() bool { return item.FieldsMask&(1<<0) != 0 }
 
 func (item *StatshouseApiQuery) SetWhat(v []StatshouseApiFunction) {
 	item.What = v
@@ -53,6 +64,7 @@ func (item *StatshouseApiQuery) Reset() {
 	item.GroupBy = item.GroupBy[:0]
 	item.Filter = item.Filter[:0]
 	item.TimeShift = item.TimeShift[:0]
+	item.Promql = ""
 	item.What = item.What[:0]
 }
 
@@ -90,6 +102,13 @@ func (item *StatshouseApiQuery) Read(w []byte) (_ []byte, err error) {
 	if w, err = VectorLong0Read(w, &item.TimeShift); err != nil {
 		return w, err
 	}
+	if item.FieldsMask&(1<<0) != 0 {
+		if w, err = basictl.StringRead(w, &item.Promql); err != nil {
+			return w, err
+		}
+	} else {
+		item.Promql = ""
+	}
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = VectorStatshouseApiFunctionBoxed0Read(w, &item.What); err != nil {
 			return w, err
@@ -123,6 +142,11 @@ func (item *StatshouseApiQuery) Write(w []byte) (_ []byte, err error) {
 	}
 	if w, err = VectorLong0Write(w, item.TimeShift); err != nil {
 		return w, err
+	}
+	if item.FieldsMask&(1<<0) != 0 {
+		if w, err = basictl.StringWrite(w, item.Promql); err != nil {
+			return w, err
+		}
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = VectorStatshouseApiFunctionBoxed0Write(w, item.What); err != nil {
@@ -203,10 +227,15 @@ func (item *StatshouseApiQuery) readJSON(j interface{}) error {
 	delete(_jm, "filter")
 	_jTimeShift := _jm["time_shift"]
 	delete(_jm, "time_shift")
+	_jPromql := _jm["promql"]
+	delete(_jm, "promql")
 	_jWhat := _jm["what"]
 	delete(_jm, "what")
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouseApi.query", k)
+	}
+	if _jPromql != nil {
+		item.FieldsMask |= 1 << 0
 	}
 	if _jWhat != nil {
 		item.FieldsMask |= 1 << 1
@@ -222,6 +251,13 @@ func (item *StatshouseApiQuery) readJSON(j interface{}) error {
 	}
 	if err := VectorLong0ReadJSON(_jTimeShift, &item.TimeShift); err != nil {
 		return err
+	}
+	if _jPromql != nil {
+		if err := JsonReadString(_jPromql, &item.Promql); err != nil {
+			return err
+		}
+	} else {
+		item.Promql = ""
 	}
 	if _jWhat != nil {
 		if err := VectorStatshouseApiFunctionBoxed0ReadJSON(_jWhat, &item.What); err != nil {
@@ -294,6 +330,13 @@ func (item *StatshouseApiQuery) WriteJSON(w []byte) (_ []byte, err error) {
 		w = append(w, `"time_shift":`...)
 		if w, err = VectorLong0WriteJSON(w, item.TimeShift); err != nil {
 			return w, err
+		}
+	}
+	if item.FieldsMask&(1<<0) != 0 {
+		if len(item.Promql) != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"promql":`...)
+			w = basictl.JSONWriteString(w, item.Promql)
 		}
 	}
 	if item.FieldsMask&(1<<1) != 0 {
