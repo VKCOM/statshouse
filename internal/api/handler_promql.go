@@ -494,6 +494,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	}
 	for i := range meta {
 		meta[i].Metric = qry.Metric
+		meta[i].What = what.String()
 	}
 	return promql.SeriesBag{Data: data, Meta: meta, MaxHost: maxHost}, cleanup, nil
 }
@@ -881,7 +882,6 @@ func getPromQuery(req seriesRequest) string {
 		if cumul {
 			q = fmt.Sprintf("prefix_sum(%s)", q)
 		}
-		q = fmt.Sprintf("label_replace(%s,%q,%q,%q,%q)", q, "__name__", name.String(), "__name__", ".*")
 		res = append(res, q)
 	}
 	return strings.Join(res, " or ")
