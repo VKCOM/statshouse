@@ -308,7 +308,7 @@ type (
 		PromQL                   string                  `json:"promql"`                      // equivalent PromQL query
 		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
 		DebugPromQLTestFailed    bool                    `json:"promqltestfailed"`
-		MetricMeta               *format.MetricMetaValue `json:"-"`
+		MetricMeta               *format.MetricMetaValue `json:"metric"`
 		immutable                bool
 		queries                  map[lodInfo]int // not nil if testPromql option set (see getQueryReqOptions)
 	}
@@ -1808,6 +1808,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	}
 	var (
 		metricName string
+		metricMeta *format.MetricMetaValue
 		options    = promql.Options{
 			Version:             req.version,
 			AvoidCache:          req.avoidCache,
@@ -1820,6 +1821,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			Offsets:             offsets,
 			Rand:                opt.rand,
 			ExprQueriesSingleMetricCallback: func(metric *format.MetricMetaValue) {
+				metricMeta = metric
 				metricName = metric.Name
 				if opt.metricNameCallback != nil {
 					opt.metricNameCallback(metricName)
@@ -1849,11 +1851,14 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if !ok {
 		return nil, nil, fmt.Errorf("string literals are not supported")
 	}
-	res := &SeriesResponse{Series: querySeries{
-		Time:       bag.Time,
-		SeriesData: bag.Data,
-		SeriesMeta: make([]QuerySeriesMetaV2, 0, len(bag.Data)),
-	}}
+	res := &SeriesResponse{
+		Series: querySeries{
+			Time:       bag.Time,
+			SeriesData: bag.Data,
+			SeriesMeta: make([]QuerySeriesMetaV2, 0, len(bag.Data)),
+		},
+		MetricMeta: metricMeta,
+	}
 	for i := range bag.Data {
 		meta := QuerySeriesMetaV2{
 			Name:     metricName,
