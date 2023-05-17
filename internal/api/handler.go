@@ -18,6 +18,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -161,6 +162,7 @@ type (
 		tagValueIDCache       *pcache.Cache
 		cache                 *tsCacheGroup
 		pointsCache           *pointsCache
+		pointRowsPool         sync.Pool
 		pointFloatsPool       sync.Pool
 		cacheInvalidateTicker *time.Ticker
 		cacheInvalidateStop   chan chan struct{}
@@ -286,6 +288,7 @@ type (
 
 	seriesRequestOptions struct {
 		debugQueries       bool
+		testPromql         bool
 		metricNameCallback func(string)
 		rand               *rand.Rand
 		stat               *endpointStat
@@ -304,8 +307,10 @@ type (
 		MappingErrors            float64                 `json:"mapping_errors"`              // count/sec
 		PromQL                   string                  `json:"promql"`                      // equivalent PromQL query
 		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
+		DebugPromQLTestFailed    bool                    `json:"promqltestfailed"`
 		MetricMeta               *format.MetricMetaValue `json:"-"`
 		immutable                bool
+		queries                  map[lodInfo]int // not nil if testPromql option set (see getQueryReqOptions)
 	}
 
 	//easyjson:json
@@ -1583,10 +1588,13 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 		freeRes       func()
 		options       = seriesRequestOptions{
 			debugQueries: true,
+			testPromql:   len(qry.promQL) == 0 && ai.bitDeveloper,
 			stat:         sl,
 		}
-		res    *SeriesResponse
-		badges *SeriesResponse
+		promqlErr error
+		res       *SeriesResponse
+		badges    *SeriesResponse
+		promqlRes *SeriesResponse
 	)
 	defer func() {
 		cancel()
@@ -1600,28 +1608,61 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 			freeRes()
 		}
 	}()
-	if !qry.verbose {
-		res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
-	} else {
-		var g *errgroup.Group
-		g, ctx = errgroup.WithContext(ctx)
-		options.metricNameCallback = func(s string) {
-			qry.metricWithNamespace = s
+	if len(qry.promQL) != 0 {
+		// PromQL request
+		if !qry.verbose {
+			res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
+		} else {
+			var g *errgroup.Group
+			g, ctx = errgroup.WithContext(ctx)
+			options.metricNameCallback = func(s string) {
+				qry.metricWithNamespace = s
+				g.Go(func() error {
+					var err error
+					badges, freeBadges, err = h.queryBadges(ctx, ai, qry)
+					return err
+				})
+			}
 			g.Go(func() error {
 				var err error
-				badges, freeBadges, err = h.queryBadges(ctx, ai, qry)
+				res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
 				return err
+			})
+			err = g.Wait()
+		}
+	} else if qry.verbose || options.testPromql {
+		var g *errgroup.Group
+		g, ctx = errgroup.WithContext(ctx)
+		if options.testPromql {
+			options.rand = rand.New()
+			options.timeNow = time.Now()
+			g.Go(func() error {
+				promqlRes, freePromqlRes, promqlErr = h.handlePromqlQuery(ctx, ai, qry, options)
+				return nil // request is still succeedes if PromQL test fail
 			})
 		}
 		g.Go(func() error {
 			var err error
-			res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
+			res, freeRes, err = h.handleGetQuery(ctx, ai, qry, options)
+			return err
+		})
+		g.Go(func() error {
+			var err error
+			badges, freeBadges, err = h.queryBadges(ctx, ai, qry)
 			return err
 		})
 		err = g.Wait()
+	} else {
+		res, freeRes, err = h.handleGetQuery(ctx, ai, qry, options)
 	}
-	if len(qry.promQL) == 0 {
+	if err == nil && len(qry.promQL) == 0 {
 		res.PromQL = getPromQuery(qry)
+		res.DebugPromQLTestFailed = options.testPromql && (promqlErr != nil ||
+			!reflect.DeepEqual(res.queries, promqlRes.queries) ||
+			!getQueryRespEqual(res, promqlRes))
+		if res.DebugPromQLTestFailed {
+			log.Printf("promqltestfailed %q %s", r.RequestURI, res.PromQL)
+		}
 	}
 	// Add badges
 	if qry.verbose && err == nil && badges != nil && len(badges.Series.Time) > 0 {
@@ -1715,7 +1756,7 @@ func (h *Handler) getSeriesRequest(r *http.Request) (seriesRequest, error) {
 }
 
 func (h *Handler) queryBadges(ctx context.Context, ai accessInfo, req seriesRequest) (*SeriesResponse, func(), error) {
-	return h.handlePromqlQuery(
+	return h.handleGetQuery(
 		ctx, ai.withBadgesRequest(),
 		seriesRequest{
 			version:             Version2,
@@ -1751,6 +1792,16 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if opt.timeNow.IsZero() {
 		opt.timeNow = time.Now()
 	}
+	var (
+		seriesQueries       map[lodInfo]int
+		seriesQueryCallback promql.SeriesQueryCallback
+	)
+	if opt.testPromql {
+		seriesQueries = make(map[lodInfo]int)
+		seriesQueryCallback = func(version string, key string, pq any, lod any, avoidCache bool) {
+			seriesQueries[lod.(lodInfo)]++
+		}
+	}
 	var offsets = make([]int64, 0, len(shifts))
 	for _, v := range shifts {
 		offsets = append(offsets, -toSec(v))
@@ -1774,6 +1825,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 					opt.metricNameCallback(metricName)
 				}
 			},
+			SeriesQueryCallback: seriesQueryCallback,
 		}
 		parserV parser.Value
 		cleanup func()
@@ -1846,7 +1898,330 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			}
 		}
 	}
+	res.queries = seriesQueries
 	return res, cleanup, nil
+}
+
+func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesRequest, opt seriesRequestOptions) (resp *SeriesResponse, cleanup func(), err error) {
+	version, err := parseVersion(req.version)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	from, to, err := parseFromTo(req.from, req.to)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	width, widthKind, err := parseWidth(req.width, req.widthAgg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	shifts, err := parseTimeShifts(req.timeShifts, width)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	var seriesQueries map[lodInfo]int
+	if opt.testPromql {
+		seriesQueries = make(map[lodInfo]int)
+	}
+	if opt.timeNow.IsZero() {
+		opt.timeNow = time.Now()
+	}
+
+	metricMeta, err := h.getMetricMeta(ai, req.metricWithNamespace)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	err = validateQuery(metricMeta, version)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	numResultsPerShift, err := parseNumResults(
+		req.numResults,
+		defSeries,
+		maxSeries/len(shifts),
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	queries, err := parseQueries(version, req.what, req.by, req.maxHost)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
+	if err != nil {
+		return nil, nil, err
+	}
+	mappedFilterNotIn, err := h.resolveFilter(metricMeta, version, req.filterNotIn)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	oldestShift := shifts[0]
+	isStringTop := metricMeta.StringTopDescription != ""
+
+	isUnique := false // this parameter has meaning only for the version 1, in other cases it does nothing
+	if version == Version1 {
+		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
+	}
+
+	lods := selectQueryLODs(
+		version,
+		int64(metricMeta.PreKeyFrom),
+		metricMeta.Resolution,
+		isUnique,
+		isStringTop,
+		opt.timeNow.Unix(),
+		shiftTimestamp(from.Unix(), int64(width), toSec(oldestShift), h.location),
+		shiftTimestamp(to.Unix(), int64(width), toSec(oldestShift), h.location),
+		h.utcOffset,
+		width,
+		widthKind,
+		h.location,
+	)
+
+	if len(lods) > 0 {
+		// left shift leftmost LOD by one step to facilitate calculation of derivative (if any) in the leftmost requested point
+		// NB! don't forget to exclude this extra point on the left on successful return
+		lods[0].fromSec -= lods[0].stepSec
+
+		// ensure that we can right-shift the oldest LOD to cover other shifts
+		if width != _1M {
+			step := lods[0].stepSec
+			for _, shift := range shifts[1:] {
+				shiftDelta := toSec(shift - oldestShift)
+				if shiftDelta%step != 0 {
+					return nil, nil, httpErr(http.StatusBadRequest, fmt.Errorf("invalid time shift sequence %v (shift %v not divisible by %v)", shifts, shift, time.Duration(step)*time.Second))
+				}
+			}
+		}
+	}
+
+	lodTimes := make([][]int64, 0, len(lods))
+	allTimes := make([]int64, 0)
+	for _, lod := range lods {
+		times := lod.generateTimePoints(toSec(oldestShift))
+		lodTimes = append(lodTimes, times)
+		allTimes = append(allTimes, times...)
+	}
+
+	var (
+		// non-nil to ensure that we don't send them as JSON nulls
+		meta = make([]QuerySeriesMetaV2, 0)
+		data = make([]*[]float64, 0)
+		// buffer drawn from the sync.Pool to store response data (will be returned inside `freeQueryResp` if `handleGetQuery` succeeds)
+		syncPoolBuffers = make([]*[]float64, 0)
+		freeQueryResp   = func() {
+			for _, s := range syncPoolBuffers {
+				h.putFloatsSlice(s)
+			}
+		}
+	)
+	defer func() {
+		if err != nil {
+			freeQueryResp()
+		}
+	}()
+
+	var sqlQueries []string
+	if opt.debugQueries {
+		ctx = debugQueriesContext(ctx, &sqlQueries)
+	}
+
+	for _, q := range queries {
+		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, false)
+		pq := &preparedPointsQuery{
+			user:        ai.user,
+			version:     version,
+			metricID:    metricMeta.MetricID,
+			preKeyTagID: metricMeta.PreKeyTagID,
+			isStringTop: isStringTop,
+			kind:        q.whatKind,
+			by:          q.by,
+			filterIn:    mappedFilterIn,
+			filterNotIn: mappedFilterNotIn,
+		}
+
+		desiredStepMul := int64(1)
+		if widthKind == widthLODRes {
+			desiredStepMul = int64(width)
+		} else if len(lods) > 0 {
+			desiredStepMul = lods[len(lods)-1].stepSec
+		}
+
+		for _, shift := range shifts {
+			type selectRowsPtr *[]*tsSelectRow
+			var ( // initialized to suppress Goland's invalid "may be nil" warnings
+				tagsToIx      = map[tsTags]int{}           // tags => index
+				ixToTags      = make([]*tsTags, 0)         // index => tags
+				ixToLodToRows = make([][]selectRowsPtr, 0) // index => ("lod index" => all rows, ordered by time)
+				ixToAmount    = make([]float64, 0)         // index => total "amount"
+			)
+
+			shiftDelta := toSec(shift - oldestShift)
+			for lodIx, lod := range lods {
+				if opt.testPromql {
+					seriesQueries[lodInfo{
+						fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
+						toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
+						stepSec:   lod.stepSec,
+						table:     lod.table,
+						hasPreKey: lod.hasPreKey,
+						location:  h.location}]++
+				}
+				m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
+					fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
+					toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
+					stepSec:   lod.stepSec,
+					table:     lod.table,
+					hasPreKey: lod.hasPreKey,
+					location:  h.location,
+				}, req.avoidCache)
+				if err != nil {
+					return nil, nil, err
+				}
+
+				for _, rows := range m {
+					for i := range rows {
+						ix, ok := tagsToIx[rows[i].tsTags]
+						if !ok {
+							ix = len(ixToTags)
+							tagsToIx[rows[i].tsTags] = ix
+							ixToTags = append(ixToTags, &rows[i].tsTags)
+							ixToLodToRows = append(ixToLodToRows, make([]selectRowsPtr, len(lods)))
+							ixToAmount = append(ixToAmount, 0)
+						}
+						if ixToLodToRows[ix][lodIx] == nil {
+							ixToLodToRows[ix][lodIx] = h.getRowsSlice()
+						}
+						*ixToLodToRows[ix][lodIx] = append(*ixToLodToRows[ix][lodIx], &rows[i])
+						v := math.Abs(selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i]))
+						if q.what.isCumul() {
+							ixToAmount[ix] += v
+						} else {
+							ixToAmount[ix] += v * v * float64(lod.stepSec)
+						}
+					}
+				}
+			}
+
+			sortedIxs := make([]int, 0, len(ixToAmount))
+			for i := range ixToAmount {
+				sortedIxs = append(sortedIxs, i)
+			}
+
+			if numResultsPerShift > 0 {
+				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand)
+				if len(sortedIxs) > numResultsPerShift {
+					sortedIxs = sortedIxs[:numResultsPerShift]
+				}
+			} else if numResultsPerShift < 0 {
+				numResultsPerShift = -numResultsPerShift
+				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand)
+				if len(sortedIxs) > numResultsPerShift {
+					sortedIxs = sortedIxs[:numResultsPerShift]
+				}
+			}
+
+			for _, i := range sortedIxs {
+				tags := ixToTags[i]
+				kvs := make(map[string]SeriesMetaTag, 16)
+				for j := 0; j < format.MaxTags; j++ {
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(j), tags.tag[j])
+				}
+				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
+
+				ts := h.getFloatsSlice(len(allTimes))
+				syncPoolBuffers = append(syncPoolBuffers, ts)
+
+				var maxHosts []string
+				if (req.maxHost || q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && version == Version2 {
+					maxHosts = make([]string, len(*ts))
+				}
+				for i := range *ts {
+					(*ts)[i] = math.NaN() // will become JSON null
+				}
+				base := 0
+				for lodIx, rows := range ixToLodToRows[i] {
+					if rows != nil {
+						lod := lods[lodIx]
+						for _, row := range *rows {
+							lodTimeIx := lod.getIndexForTimestamp(row.time, shiftDelta)
+							(*ts)[base+lodTimeIx] = selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, row)
+							if maxHosts != nil && row.maxHost != 0 {
+								// mapping every time is not optimal, but mapping to store in cache is also not optimal. TODO - optimize?
+								label, err := h.getTagValue(row.maxHost)
+								if err != nil {
+									label = format.CodeTagValue(row.maxHost)
+								}
+								maxHosts[base+lodTimeIx] = label
+							}
+						}
+					}
+					base += len(lodTimes[lodIx])
+				}
+
+				if q.what.isCumul() {
+					// starts from 1 to exclude extra point on the left
+					accumulateSeries((*ts)[1:])
+				} else if q.what.isDerivative() {
+					// Extra point on the left was needed for this case
+					differentiateSeries(*ts)
+
+				}
+
+				// exclude extra point on the left from final slice
+				s := (*ts)[1:]
+				if maxHosts != nil {
+					maxHosts = maxHosts[1:]
+				}
+
+				meta = append(meta, QuerySeriesMetaV2{
+					TimeShift: toSec(shift),
+					Tags:      kvs,
+					MaxHosts:  maxHosts,
+					Name:      req.metricWithNamespace,
+					What:      q.what,
+					Total:     len(tagsToIx),
+				})
+				data = append(data, &s)
+			}
+
+			for _, lodToRows := range ixToLodToRows {
+				for i, s := range lodToRows {
+					if s != nil {
+						h.putRowsSlice(s)
+						lodToRows[i] = nil
+					}
+				}
+			}
+		}
+	}
+	if len(allTimes) > 0 {
+		allTimes = allTimes[1:] // exclude extra point on the left
+	}
+	resp = &SeriesResponse{
+		Series: querySeries{
+			Time:       allTimes,
+			SeriesMeta: meta,
+			SeriesData: data,
+		},
+		DebugQueries: sqlQueries,
+		MetricMeta:   metricMeta,
+		immutable:    to.Before(opt.timeNow.Add(invalidateFrom)),
+		queries:      seriesQueries,
+	}
+	if h.verbose && opt.stat != nil {
+		log.Printf("[debug] handled query (%v series x %v points each) for %q in %v", len(resp.Series.SeriesMeta), len(resp.Series.Time), ai.user, time.Since(opt.stat.startTime))
+	}
+	return resp, freeQueryResp, nil
 }
 
 func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
@@ -2321,7 +2696,7 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 				req.seriesRequest[i].metricWithNamespace = s
 			}})
 		} else {
-			data, cancel, err = h.handlePromqlQuery(ctx, ai, r, seriesRequestOptions{})
+			data, cancel, err = h.handleGetQuery(ctx, ai, r, seriesRequestOptions{})
 		}
 		if err != nil {
 			return nil, false, err
@@ -2552,6 +2927,26 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	}, immutable, nil
 }
 
+func (h *Handler) getRowsSlice() *[]*tsSelectRow {
+	v := h.pointRowsPool.Get()
+	if v == nil {
+		s := make([]*tsSelectRow, 0, maxSlice)
+		v = &s
+	}
+	return v.(*[]*tsSelectRow)
+}
+
+func (h *Handler) putRowsSlice(s *[]*tsSelectRow) {
+	for i := range *s {
+		(*s)[i] = nil // help GC
+	}
+	*s = (*s)[:0]
+
+	if cap(*s) <= maxSlice {
+		h.pointRowsPool.Put(s)
+	}
+}
+
 func getDashboardMetaInfo(d *format.DashboardMeta) DashboardMetaInfo {
 	data := map[string]interface{}{}
 	var description string
@@ -2595,6 +2990,24 @@ func (h *Handler) putFloatsSlice(s *[]float64) {
 
 	if cap(*s) <= maxSlice {
 		h.pointFloatsPool.Put(s)
+	}
+}
+
+func accumulateSeries(s []float64) {
+	acc := 0.0
+	for i, v := range s {
+		if !math.IsNaN(v) {
+			acc += v
+		}
+		s[i] = acc
+	}
+}
+
+func differentiateSeries(s []float64) {
+	prev := math.NaN()
+	for i, v := range s {
+		s[i] = v - prev
+		prev = v
 	}
 }
 
@@ -3065,6 +3478,52 @@ func rowMarkerLessThan(l, r RowMarker) bool {
 	}
 
 	return l.SKey < r.SKey
+}
+
+func getQueryRespEqual(a, b *SeriesResponse) bool {
+	if len(a.Series.Time) != len(b.Series.Time) {
+		return false
+	}
+	if len(a.Series.SeriesMeta) != len(b.Series.SeriesMeta) {
+		return false
+	}
+	if len(a.Series.SeriesData) != len(b.Series.SeriesData) {
+		return false
+	}
+	for i := 0; i < len(a.Series.Time); i++ {
+		if a.Series.Time[i] != b.Series.Time[i] {
+			return false
+		}
+	}
+	for i := 0; i < len(a.Series.SeriesData); i++ {
+		var j int
+		for ; j < len(b.Series.SeriesMeta); j++ {
+			if reflect.DeepEqual(a.Series.SeriesMeta[i], b.Series.SeriesMeta[j]) {
+				break
+			}
+		}
+		if j == len(b.Series.SeriesMeta) {
+			return false
+		}
+		if len(*a.Series.SeriesData[i]) != len(*b.Series.SeriesData[j]) {
+			return false
+		}
+		for k := 0; k < len(*a.Series.SeriesData[i]); k++ {
+			var (
+				v1 = (*a.Series.SeriesData[i])[k]
+				v2 = (*b.Series.SeriesData[j])[k]
+			)
+			if math.IsNaN(v1) && math.IsNaN(v2) {
+				continue
+			}
+			if !(math.Abs(v1-v2) <= math.Max(math.Abs(v1), math.Abs(v2))/100) {
+				// difference is more than a percent!
+				// or one value is NaN
+				return false
+			}
+		}
+	}
+	return true
 }
 
 func limitQueries(q []queryTableRow, from, to RowMarker, fromEnd bool, limit int) (res []queryTableRow, hasMore bool) {
