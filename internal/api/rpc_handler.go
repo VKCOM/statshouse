@@ -385,6 +385,7 @@ func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (req 
 		by:                  q.GroupBy,
 		filterIn:            filterIn,
 		filterNotIn:         filterNotIn,
+		promQL:              q.Promql,
 	}
 	return req, nil
 }
