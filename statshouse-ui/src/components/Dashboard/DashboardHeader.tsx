@@ -4,13 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, PlotNavigate } from '../Plot';
 import {
   selectorDashboardId,
   selectorDashboardLayoutEdit,
   selectorDisabledLive,
   selectorLiveMode,
+  selectorParams,
   selectorSetBaseRange,
   selectorSetDashboardLayoutEdit,
   selectorSetLiveMode,
@@ -21,6 +22,8 @@ import {
 import { ReactComponent as SVGGearFill } from 'bootstrap-icons/icons/gear-fill.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { NavLink } from 'react-router-dom';
+import { getUrlSearch } from '../../common/plotQueryParams';
+import produce from 'immer';
 
 export type DashboardHeaderProps = {};
 export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
@@ -45,6 +48,20 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
     [setDashboardLayoutEdit]
   );
 
+  const params = useStore(selectorParams);
+
+  const copyLink = useMemo(
+    () =>
+      `${document.location.protocol}//${document.location.host}${document.location.pathname}${getUrlSearch(
+        produce((prev) => {
+          prev.dashboard = undefined;
+        }),
+        params,
+        ''
+      )}`,
+    [params]
+  );
+
   return (
     <div className="d-flex flex-row flex-wrap mb-3 container-xl">
       <div className="me-4 mb-2">
@@ -52,6 +69,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
           className="btn-group-sm"
           setTimeRange={setTimeRange}
           live={live}
+          link={copyLink}
           setLive={setLive}
           disabledLive={disabledLive}
         />
