@@ -275,6 +275,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer
 				}
 				in.Delim(']')
 			}
+		case "promqltestfailed":
+			out.DebugPromQLTestFailed = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -349,6 +351,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 			}
 			out.RawByte(']')
 		}
+	}
+	{
+		const prefix string = ",\"promqltestfailed\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.DebugPromQLTestFailed))
 	}
 	out.RawByte('}')
 }
