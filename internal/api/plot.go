@@ -419,7 +419,7 @@ func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 
 	var sortedTagValues []string
 	for _, kv := range sortedTags {
-		sortedTagValues = append(sortedTagValues, formatTagValue(kv.tag.Value, kv.tag.Comment))
+		sortedTagValues = append(sortedTagValues, formatTagValue(kv.tag.Value, kv.tag.Comment, kv.tag.Raw, kv.tag.RawKind))
 	}
 
 	desc := "Value"
@@ -435,13 +435,17 @@ func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 }
 
 // XXX: keep in sync with TypeScript
-func formatTagValue(s string, c string) string {
+func formatTagValue(s string, c string, r bool, k string) string {
 	if c != "" {
 		return c
 	}
 
 	if len(s) < 1 || s[0] != ' ' {
 		return s
+	}
+	if r && len(k) != 0 {
+		i, _ := strconv.Atoi(s)
+		return "⚡ " + convert(k, i)
 	}
 	i, _ := strconv.Atoi(s[1:])
 	switch i {
@@ -451,6 +455,29 @@ func formatTagValue(s string, c string) string {
 		return "⚡ mapping flood"
 	default:
 		return fmt.Sprintf("⚡ %d", i)
+	}
+}
+
+// XXX: keep in sync with TypeScript
+func convert(kind string, input int) string {
+	switch kind {
+	case "hex":
+		return fmt.Sprintf("%08X", input)
+	case "hex_bswap":
+		u := uint(input)
+		return fmt.Sprintf("%02X%02X%02X%02X", u&255, (u>>8)&255, (u>>16)&255, (u>>24)&255)
+	case "timestamp":
+		return time.Unix(int64(input), 0).Format("2006-01-02 15:04:05")
+	case "ip":
+		u := uint(input)
+		return fmt.Sprintf("%d.%d.%d.%d", (u>>24)&255, (u>>16)&255, (u>>8)&255, u&255)
+	case "ip_bswap":
+		u := uint(input)
+		return fmt.Sprintf("%d.%d.%d.%d", u&255, (u>>8)&255, (u>>16)&255, (u>>24)&255)
+	case "uint":
+		return fmt.Sprintf("%d", uint(input))
+	default:
+		return fmt.Sprintf("%d", input)
 	}
 }
 
