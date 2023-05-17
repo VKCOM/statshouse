@@ -70,6 +70,7 @@ export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEvent
   const params = useStore(selectorParams);
   const plot = params.plots[indexPlot];
   const eventsData = useStore(selectorPlotsData);
+  const [plotWidth, setPlotWidth] = useState(width);
 
   const flagWidth = flagHeight * 1.5;
   const [lines, setLines] = useState<Flag[]>([]);
@@ -77,6 +78,7 @@ export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEvent
   const update = useCallback(() => {
     if (uPlotRef.current) {
       setLines(getEventLines(plot.events, eventsData, uPlotRef.current, flagWidth));
+      setPlotWidth(uPlotRef.current?.bbox.width || 0);
     } else {
       setLines([]);
     }
@@ -128,6 +130,7 @@ export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEvent
           {lines.map((r) => (
             <PlotEventFlag
               plot={params.plots[r.plotIndex]}
+              plotWidth={plotWidth}
               range={r.range}
               width={width}
               key={r.key}

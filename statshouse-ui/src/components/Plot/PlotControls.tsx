@@ -295,7 +295,7 @@ export const PlotControls = memo(function PlotControls_(props: {
         </div>
 
         <div className="row mb-3 align-items-baseline">
-          <div className={cn(sel.type === PLOT_TYPE.Metric ? 'col-4' : 'col-8')}>
+          <div className="col-4">
             <select
               className={`form-select ${sel.customAgg > 0 ? 'border-warning' : ''}`}
               value={sel.customAgg}
@@ -316,34 +316,33 @@ export const PlotControls = memo(function PlotControls_(props: {
               <option value={31 * 24 * 60 * 60}>1 month</option>
             </select>
           </div>
-          {sel.type === PLOT_TYPE.Metric && (
-            <div className="col-4">
-              <select className="form-select" value={sel.numSeries} onChange={onNumSeriesChange}>
-                <option value="1">Top 1</option>
-                <option value="2">Top 2</option>
-                <option value="3">Top 3</option>
-                <option value="4">Top 4</option>
-                <option value="5">Top 5</option>
-                <option value="10">Top 10</option>
-                <option value="20">Top 20</option>
-                <option value="30">Top 30</option>
-                <option value="40">Top 40</option>
-                <option value="50">Top 50</option>
-                <option value="100">Top 100</option>
-                <option value="-1">Bottom 1</option>
-                <option value="-2">Bottom 2</option>
-                <option value="-3">Bottom 3</option>
-                <option value="-4">Bottom 4</option>
-                <option value="-5">Bottom 5</option>
-                <option value="-10">Bottom 10</option>
-                <option value="-20">Bottom 20</option>
-                <option value="-30">Bottom 30</option>
-                <option value="-40">Bottom 40</option>
-                <option value="-50">Bottom 50</option>
-                <option value="-100">Bottom 100</option>
-              </select>
-            </div>
-          )}
+          <div className="col-4">
+            <select className="form-select" value={sel.numSeries} onChange={onNumSeriesChange}>
+              <option value="1">Top 1</option>
+              <option value="2">Top 2</option>
+              <option value="3">Top 3</option>
+              <option value="4">Top 4</option>
+              <option value="5">Top 5</option>
+              <option value="10">Top 10</option>
+              <option value="20">Top 20</option>
+              <option value="30">Top 30</option>
+              <option value="40">Top 40</option>
+              <option value="50">Top 50</option>
+              <option value="100">Top 100</option>
+              <option value="-1">Bottom 1</option>
+              <option value="-2">Bottom 2</option>
+              <option value="-3">Bottom 3</option>
+              <option value="-4">Bottom 4</option>
+              <option value="-5">Bottom 5</option>
+              <option value="-10">Bottom 10</option>
+              <option value="-20">Bottom 20</option>
+              <option value="-30">Bottom 30</option>
+              <option value="-40">Bottom 40</option>
+              <option value="-50">Bottom 50</option>
+              <option value="-100">Bottom 100</option>
+            </select>
+          </div>
+
           <div className="col-4 d-flex justify-content-end">
             <div className="form-check form-switch">
               <input

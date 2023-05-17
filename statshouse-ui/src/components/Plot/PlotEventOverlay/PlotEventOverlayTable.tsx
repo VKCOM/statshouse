@@ -1,13 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ApiTable, apiTable, ApiTableRowNormalize } from '../../../api/table';
+import { ApiTable, apiTable, ApiTableRowNormalize, TagKey } from '../../../api/table';
 import { PlotParams } from '../../../common/plotQueryParams';
 import { TimeRange } from '../../../common/TimeRange';
+import cn from 'classnames';
 
 export type PlotEventOverlayTableProps = {
   plot: PlotParams;
   range: TimeRange;
   width: number;
 };
+
+const arr16 = new Array(16).fill(0).map((v, i) => i.toString()) as TagKey[];
+
 export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTableProps) {
   const [chunk, setChunk] = useState<ApiTable>();
   const [loader, setLoader] = useState(false);
@@ -22,6 +26,14 @@ export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTa
   const clearError = useCallback(() => {
     setError(undefined);
   }, []);
+
+  const columns = useMemo<(keyof ApiTableRowNormalize)[]>(
+    () => [
+      // ...plot.what,
+      ...arr16.filter((i) => plot.eventsBy.indexOf(i.toString()) > -1 || plot.groupBy.indexOf(`key${i}`) > -1),
+    ],
+    [plot.eventsBy, plot.groupBy]
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -50,13 +62,12 @@ export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTa
           <button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
         </div>
       )}
-      <table className="table">
+      <table className="table table-sm m-0">
         <tbody>
-          {chunk?.rowsNormalize?.map((row, index) => (
-            <tr key={index}>
-              <td className="text-nowrap">{row.timeString}</td>
-              {(plot.eventsBy as (keyof ApiTableRowNormalize)[]).map((tagKey) => (
-                <td key={tagKey} className="text-nowrap">
+          {chunk?.rowsNormalize?.map((row, indexRow, arr) => (
+            <tr key={indexRow}>
+              {columns.map((tagKey) => (
+                <td key={tagKey} className={cn('text-nowrap', arr.length - 1 === indexRow && 'border-0')}>
                   {row[tagKey]}
                 </td>
               ))}
