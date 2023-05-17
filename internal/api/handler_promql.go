@@ -352,6 +352,11 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 			Offset: t.offset,
 		}
 	)
+	if qry.Options.StepAuto {
+		res.Step = qry.Step
+	} else {
+		res.Step = ll.stepSec
+	}
 	// extend the interval by one from the left so that the
 	// derivative (if any) at the first point can be calculated
 	t.lods[0].fromSec -= t.lods[0].stepSec
@@ -417,6 +422,12 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 		}
 		tx int // time index
 	)
+	var step int64
+	if qry.Range != 0 {
+		step = qry.Range
+	} else {
+		step = qry.Timescale.Step
+	}
 	for _, lod := range lods {
 		li := lodInfo{
 			fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shift, h.location),
@@ -433,10 +444,6 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 		if err != nil {
 			cleanup()
 			return promql.SeriesBag{}, nil, err
-		}
-		factor := qry.Factor
-		if factor == 0 {
-			factor = lod.stepSec
 		}
 		for _, col := range m {
 			for _, d := range col {
@@ -457,7 +464,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 						maxHost = append(maxHost, make([]int32, timeLen))
 					}
 				}
-				(*data[i])[j] = selectTSValue(what, qry.MaxHost, lod.stepSec, factor, &d)
+				(*data[i])[j] = selectTSValue(what, qry.MaxHost, lod.stepSec, step, &d)
 				if qry.MaxHost {
 					maxHost[i][j] = d.maxHost
 				}

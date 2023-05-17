@@ -203,7 +203,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 					s.What = ar.what
 					s.GroupBy = ar.groupBy
 					s.GroupWithout = ar.groupWithout
-					s.Factor = ar.factor
+					s.Range = ar.step
 					s.OmitNameTag = true
 					ars[ar.expr] = s
 					grouped = ar.grouped
@@ -901,7 +901,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				What:       what,
 				Timescale:  ev.t,
 				Offset:     ev.getOffset(ctx, sel),
-				Factor:     sel.Factor,
+				Range:      sel.Range,
 				GroupBy:    groupBy,
 				FilterIn:   filterIn,
 				FilterOut:  filterOut,
