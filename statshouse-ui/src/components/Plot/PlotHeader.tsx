@@ -8,15 +8,34 @@ import React, { Dispatch, memo, SetStateAction, useCallback, useMemo, useState }
 import { metricMeta } from '../../view/api';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
-import { getUrlSearch, lockRange, PlotParams } from '../../common/plotQueryParams';
+import { getUrlSearch, lockRange, PlotParams, PlotType } from '../../common/plotQueryParams';
 import produce from 'immer';
-import { selectorDashboardLayoutEdit, selectorParams, useStore } from '../../store';
+import {
+  getNextState,
+  selectorDashboardLayoutEdit,
+  selectorDevEnabled,
+  selectorParams,
+  useStore,
+  useStoreDev,
+} from '../../store';
 import cn from 'classnames';
 import css from './style.module.css';
 import { PlotHeaderTitle } from './PlotHeaderTitle';
 import { PlotHeaderBadges } from './PlotHeaderBadges';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
+
+const setTypePlot = (indexPlot: number, type: React.SetStateAction<PlotType>) => {
+  useStore.getState().setParams(
+    produce((p) => {
+      const nextType = getNextState(p.plots[indexPlot].type, type);
+      if (p.plots[indexPlot].type !== nextType) {
+        p.plots[indexPlot].type = nextType;
+        p.plots[indexPlot].eventsBy = [];
+      }
+    })
+  );
+};
 
 export type PlotHeaderProps = {
   indexPlot?: number;
@@ -47,6 +66,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
 }) => {
   const params = useStore(selectorParams);
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
+  const devEnabled = useStoreDev(selectorDevEnabled);
 
   const [showTags, setShowTags] = useState(false);
   const toggleShowTags = useCallback(() => {
@@ -68,6 +88,8 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     [indexPlot, params]
   );
 
+  const onSetTypePlot = useMemo(() => setTypePlot.bind(undefined, indexPlot), [indexPlot]);
+
   if (dashboard) {
     return (
       <div className={` overflow-force-wrap font-monospace fw-bold ${compact ? 'text-center' : ''}`}>
@@ -82,6 +104,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             yLock={yLock}
             disabledLive={!sel.useV2}
             link={copyLink}
+            typePlot={devEnabled ? sel.type : undefined}
           />
         )}
         <div
@@ -153,6 +176,8 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             yLock={yLock}
             disabledLive={!sel.useV2}
             link={copyLink}
+            typePlot={devEnabled ? sel.type : undefined}
+            setTypePlot={onSetTypePlot}
           />
         )}
       </div>
