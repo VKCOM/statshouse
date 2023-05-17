@@ -11,6 +11,7 @@ export type PlotEventFlagProps = {
   plot: PlotParams;
   range: TimeRange;
   width: number;
+  plotWidth: number;
   height: number;
   index: number;
   x: number;
@@ -22,7 +23,7 @@ export type PlotEventFlagProps = {
 export function _PlotEventFlag({
   plot,
   range,
-  width,
+  plotWidth,
   x,
   height,
   opacity,
@@ -105,7 +106,7 @@ export function _PlotEventFlag({
           onMouseOut={_onMouseOut}
           onMouseOver={_onMouseOver}
         >
-          <PlotEventOverlayTable plot={plot} range={range} width={width} />
+          <PlotEventOverlayTable plot={plot} range={range} width={plotWidth} />
         </div>
       </Popper>
     </g>

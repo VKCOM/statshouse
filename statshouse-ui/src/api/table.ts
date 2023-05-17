@@ -5,7 +5,7 @@ import { apiGet, fmtInputDateTime, freeKeyPrefix } from '../view/utils';
 
 const abortControllers: Map<unknown, AbortController> = new Map();
 
-type TagKey =
+export type TagKey =
   | 'skey'
   | 'key0'
   | 'key1'
@@ -41,9 +41,9 @@ type TagKey =
   | '14'
   | '15';
 
-type WhatCollection = Record<queryWhat, number>;
+export type WhatCollection = Record<queryWhat, number>;
 
-type TagCollection = Record<TagKey, string>;
+export type TagCollection = Record<TagKey, string>;
 
 export type ApiTableRowNormalize = {
   key: string;
