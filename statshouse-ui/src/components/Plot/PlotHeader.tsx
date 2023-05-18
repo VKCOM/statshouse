@@ -8,9 +8,9 @@ import React, { Dispatch, memo, SetStateAction, useCallback, useMemo, useState }
 import { metricMeta } from '../../view/api';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
-import { getUrlSearch, lockRange, PlotParams, PlotType } from '../../common/plotQueryParams';
+import { getUrlSearch, lockRange, PlotParams } from '../../common/plotQueryParams';
 import produce from 'immer';
-import { getNextState, selectorDashboardLayoutEdit, selectorParams, useStore } from '../../store';
+import { selectorDashboardLayoutEdit, selectorParams, useStore } from '../../store';
 import cn from 'classnames';
 import css from './style.module.css';
 import { PlotHeaderTitle } from './PlotHeaderTitle';
@@ -18,17 +18,7 @@ import { PlotHeaderBadges } from './PlotHeaderBadges';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 
-const setTypePlot = (indexPlot: number, type: React.SetStateAction<PlotType>) => {
-  useStore.getState().setParams(
-    produce((p) => {
-      const nextType = getNextState(p.plots[indexPlot].type, type);
-      if (p.plots[indexPlot].type !== nextType) {
-        p.plots[indexPlot].type = nextType;
-        p.plots[indexPlot].eventsBy = [];
-      }
-    })
-  );
-};
+const setPlotType = useStore.getState().setPlotType;
 
 export type PlotHeaderProps = {
   indexPlot?: number;
@@ -78,7 +68,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     [indexPlot, params]
   );
 
-  const onSetTypePlot = useMemo(() => setTypePlot.bind(undefined, indexPlot), [indexPlot]);
+  const onSetPlotType = useMemo(() => setPlotType.bind(undefined, indexPlot), [indexPlot]);
 
   if (dashboard) {
     return (
@@ -165,7 +155,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             disabledLive={!sel.useV2}
             link={copyLink}
             typePlot={sel.type}
-            setTypePlot={onSetTypePlot}
+            setTypePlot={onSetPlotType}
           />
         )}
       </div>

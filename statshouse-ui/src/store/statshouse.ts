@@ -14,6 +14,7 @@ import {
   getLiveParams,
   PLOT_TYPE,
   PlotParams,
+  PlotType,
   QueryParams,
   readDashboardID,
   setLiveParams,
@@ -33,6 +34,7 @@ import {
   fmtInputDateTime,
   formatLegendValue,
   formatPercent,
+  getTimeShifts,
   normalizeDashboard,
   notNull,
   now,
@@ -41,6 +43,7 @@ import {
   sortByKey,
   timeRangeAbbrev,
   timeRangeAbbrevExpand,
+  timeShiftAbbrevExpand,
   timeShiftToDash,
   uniqueArray,
 } from '../view/utils';
@@ -250,6 +253,7 @@ export type StatsHouseStore = {
     positive: React.SetStateAction<boolean>
   ): void;
   setPlotParamsTagGroupBy(indexPlot: number, keyTag: string, nextState: React.SetStateAction<boolean>): void;
+  setPlotType(indexPlot: number, nextState: React.SetStateAction<PlotType>): void;
   tagsList: metricTagValueInfo[][][]; // [indexPlot][indexTag]
   tagsListSKey: metricTagValueInfo[][]; // [indexPlot]
   tagsListMore: boolean[][]; // [indexPlot][indexTag]
@@ -1249,6 +1253,34 @@ export const statsHouseState: StateCreator<
         }
       })
     );
+  },
+  setPlotType(indexPlot, nextState) {
+    const prev = getState();
+    const prevPlot = getState().params.plots[indexPlot];
+    const nextType = getNextState(prevPlot.type, nextState);
+    if (prevPlot.type !== nextType) {
+      prev.setParams(
+        produce((params) => {
+          params.plots[indexPlot].type = nextType;
+          params.plots[indexPlot].eventsBy = [];
+          switch (params.plots[indexPlot].type) {
+            case PLOT_TYPE.Metric:
+              params.plots[indexPlot].customAgg = 0;
+              break;
+            case PLOT_TYPE.Event:
+              params.plots[indexPlot].customAgg = -1;
+              break;
+          }
+          const timeShiftsSet = getTimeShifts(params.plots[indexPlot].customAgg);
+          const shifts = params.timeShifts.filter(
+            (v) => timeShiftsSet.find((shift) => timeShiftAbbrevExpand(shift) === v) !== undefined
+          );
+          if (!dequal(params.timeShifts, shifts)) {
+            params.timeShifts = shifts;
+          }
+        })
+      );
+    }
   },
   metricsListAbortController: undefined,
   tagsList: [],
