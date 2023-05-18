@@ -35,6 +35,7 @@ type SeriesMeta struct {
 	Tags   map[string]int32
 	STags  map[string]string
 	Metric *format.MetricMetaValue
+	What   string
 }
 
 type seriesGroup struct {

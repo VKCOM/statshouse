@@ -1867,7 +1867,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 		}
 		if i < len(bag.Meta) {
 			s := bag.Meta[i]
-			meta.What, _ = validQueryFn(s.GetMetricName())
+			meta.What, _ = validQueryFn(s.What)
 			meta.TimeShift = -s.GetOffset()
 			meta.Total = s.GetTotal()
 			s.DropMetricName()
