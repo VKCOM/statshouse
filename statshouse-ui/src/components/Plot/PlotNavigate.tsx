@@ -11,7 +11,6 @@ import { ReactComponent as SVGChevronLeft } from 'bootstrap-icons/icons/chevron-
 import { ReactComponent as SVGChevronRight } from 'bootstrap-icons/icons/chevron-right.svg';
 import { ReactComponent as SVGZoomIn } from 'bootstrap-icons/icons/zoom-in.svg';
 import { ReactComponent as SVGZoomOut } from 'bootstrap-icons/icons/zoom-out.svg';
-import { ReactComponent as SVGMap } from 'bootstrap-icons/icons/map.svg';
 import { ReactComponent as SVGLock } from 'bootstrap-icons/icons/lock.svg';
 import { ReactComponent as SVGUnlock } from 'bootstrap-icons/icons/unlock.svg';
 import { ReactComponent as SVGPlayFill } from 'bootstrap-icons/icons/play-fill.svg';
@@ -27,7 +26,6 @@ export type PlotNavigateProps = {
   disabledLive: boolean;
   setTimeRange: (value: SetTimeRangeValue, force?: boolean) => void;
   yLock?: lockRange;
-  onResetZoom?: () => void;
   onYLockChange?: (status: boolean) => void;
   className?: string;
   link?: string;
@@ -40,7 +38,6 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
   setTimeRange,
   yLock = { min: 0, max: 0 },
   disabledLive,
-  onResetZoom,
   onYLockChange,
   className,
   link,
@@ -114,16 +111,11 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
       <button type="button" className="btn btn-outline-primary" title="Zoom out" onClick={zoomOut}>
         <SVGZoomOut />
       </button>
-      {!!onResetZoom && (
-        <button type="button" className="btn btn-outline-primary" title="Reset zoom" onClick={onResetZoom}>
-          <SVGMap />
-        </button>
-      )}
       {typePlot === PLOT_TYPE.Metric && (
         <button
           type="button"
           className="btn btn-outline-primary"
-          title="Change type to Event"
+          title="View events"
           data-value={PLOT_TYPE.Event}
           onClick={onChangeTypePlot}
         >
@@ -134,7 +126,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
         <button
           type="button"
           className="btn btn-outline-primary"
-          title="Change type to Metric"
+          title="View plot"
           data-value={PLOT_TYPE.Metric}
           onClick={onChangeTypePlot}
         >
