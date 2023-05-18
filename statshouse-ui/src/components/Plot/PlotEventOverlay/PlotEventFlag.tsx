@@ -19,6 +19,7 @@ export type PlotEventFlagProps = {
   flagWidth: number;
   flagHeight: number;
   groups: { color: string; idx: number; x: number }[];
+  small?: boolean;
 };
 export function _PlotEventFlag({
   plot,
@@ -30,6 +31,7 @@ export function _PlotEventFlag({
   groups,
   flagWidth,
   flagHeight,
+  small,
 }: PlotEventFlagProps) {
   const refFlag = useRef<SVGRectElement>(null);
   const flagGroup = useMemo(() => {
@@ -54,14 +56,16 @@ export function _PlotEventFlag({
     <g transform={`translate(${x}, 4)`} opacity={opacity}>
       <line x1="0" x2="0" y1="0" y2={height} />
 
-      <g ref={refFlag} className={css.overlayFlag} onMouseOut={_onMouseOut} onMouseOver={_onMouseOver}>
+      <g className={css.overlayFlag} onMouseOut={_onMouseOut} onMouseOver={_onMouseOver}>
         <rect
+          ref={refFlag}
           x="0"
           y="0"
           width={flagWidth}
           height={flagHeight + (flagGroup2.length ? flagHeight + 3 : 0)}
           fill="transparent"
           strokeWidth="0"
+          data-x={x}
         />
         <g clipPath="url(#flag)" strokeWidth="0">
           {flagGroup.map((g, indexG) => (
@@ -91,18 +95,19 @@ export function _PlotEventFlag({
               ))}
             </g>
             <use href="#flagPath" fill="transparent" />
+            <line x1="0" x2="0" y1={flagHeight} y2={flagHeight + 5} />
+            <line x1="0" x2="-3" y1={flagHeight + 5} y2={flagHeight + 10} />
           </g>
         )}
       </g>
-      {!!flagGroup2.length && (
-        <g transform={`translate(3, ${flagHeight + 3}) scale(0.95)`}>
-          <line x1="0" x2="0" y1={flagHeight} y2={flagHeight + 5} />
-          <line x1="0" x2="-3" y1={flagHeight + 5} y2={flagHeight + 10} />
-        </g>
-      )}
       <Popper targetRef={refFlag} horizontal="out-right" vertical="out-bottom" fixed={false} show={debounceHover}>
         <div
-          className={cn('card p-2 overflow-auto d-flex flex-column', css.overlayCardTable)}
+          className={cn(
+            'card overflow-auto d-flex flex-column',
+            css.overlayCardTable,
+            small && css.overlayCardTableSmall,
+            small ? 'p-1' : 'p-2'
+          )}
           onMouseOut={_onMouseOut}
           onMouseOver={_onMouseOver}
         >

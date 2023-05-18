@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiTable, apiTable, ApiTableRowNormalize, TagKey } from '../../../api/table';
 import { PlotParams } from '../../../common/plotQueryParams';
 import { TimeRange } from '../../../common/TimeRange';
-import cn from 'classnames';
 
 export type PlotEventOverlayTableProps = {
   plot: PlotParams;
@@ -50,7 +49,7 @@ export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTa
   }, [plot, range, width]);
 
   return (
-    <div className="position-relative flex-grow-1 d-flex flex-column" style={{ minWidth: 100, minHeight: 50 }}>
+    <div className="position-relative flex-grow-1 d-flex flex-column" style={{ minWidth: 100, minHeight: 20 }}>
       {loader && (
         <div className=" position-absolute top-50 start-50 translate-middle">
           <div className="text-info spinner-border spinner-border-sm " role="status" aria-hidden="true" />
@@ -62,12 +61,12 @@ export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTa
           <button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
         </div>
       )}
-      <table className="table table-sm m-0">
+      <table className="table table-sm m-0 table-borderless">
         <tbody>
-          {chunk?.rowsNormalize?.map((row, indexRow, arr) => (
+          {chunk?.rowsNormalize?.map((row, indexRow) => (
             <tr key={indexRow}>
               {columns.map((tagKey) => (
-                <td key={tagKey} className={cn('text-nowrap', arr.length - 1 === indexRow && 'border-0')}>
+                <td key={tagKey} className="text-nowrap">
                   {row[tagKey]}
                 </td>
               ))}
