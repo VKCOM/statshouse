@@ -187,7 +187,7 @@ type gnuplotTemplateData struct {
 	BlankFrom int64
 	BlankTo   int64
 
-	usedColorIndices map[string]bool
+	usedColorIndices map[string]int
 	uniqueWhat       map[queryFn]struct{}
 	utcOffset        int64
 
@@ -259,9 +259,9 @@ func (d *gnuplotTemplateData) LineColor(meta QuerySeriesMetaV2) string {
 		metricName = meta.Name
 	}
 	if oneGraph {
-		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, label)
+		colorKey = fmt.Sprintf("%d%s%s", prefColor, metricName, label)
 	} else {
-		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, baseLabel)
+		colorKey = fmt.Sprintf("%d%s%s", prefColor, metricName, baseLabel)
 	}
 	return selectColor(colorKey, d.usedColorIndices)
 }
@@ -330,7 +330,7 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 			Data:             data[i],
 			BlankFrom:        blankFrom,
 			BlankTo:          blankTo,
-			usedColorIndices: map[string]bool{},
+			usedColorIndices: map[string]int{},
 			uniqueWhat:       map[queryFn]struct{}{},
 			utcOffset:        utcOffset % (24 * 3600), // ignore the part we use to align start of week
 			wr:               &buf,
@@ -378,20 +378,22 @@ func fnv1aSum(s string) uint32 {
 }
 
 // XXX: keep in sync with TypeScript
-func selectColor(s string, used map[string]bool) string {
-	h := fnv1aSum(s)
-	i := int(h % uint32(len(palette)))
-	if used[palette[i][0]] {
-		for offset := 1; offset < len(palette); offset++ {
-			j := (i + offset) % len(palette)
-			if !used[palette[j][0]] {
-				i = j
-				break
-			}
+func selectColor(s string, used map[string]int) string {
+	var (
+		h = fnv1aSum(s)
+		i = int(h % uint32(len(palette)))
+		v = palette[i]
+	)
+	for offset := 0; offset < len(palette); offset++ {
+		j := (i + offset) % len(palette)
+		if _, ok := used[palette[j][0]]; !ok {
+			v = palette[j]
+			used[v[0]] = -1
+			break
 		}
 	}
-	used[palette[i][0]] = true
-	return palette[i][1]
+	used[v[0]]++
+	return v[1+used[v[0]]%(len(v)-1)]
 }
 
 // XXX: keep in sync with TypeScript
