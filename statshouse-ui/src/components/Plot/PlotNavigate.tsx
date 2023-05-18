@@ -123,7 +123,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
         <button
           type="button"
           className="btn btn-outline-primary"
-          title="Change type to Event"
+          title="View events"
           data-value={PLOT_TYPE.Event}
           onClick={onChangeTypePlot}
         >
@@ -134,7 +134,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
         <button
           type="button"
           className="btn btn-outline-primary"
-          title="Change type to Metric"
+          title="View plot"
           data-value={PLOT_TYPE.Metric}
           onClick={onChangeTypePlot}
         >
