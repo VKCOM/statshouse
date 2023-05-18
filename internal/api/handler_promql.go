@@ -353,9 +353,9 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		}
 	)
 	if qry.Options.StepAuto {
-		res.Step = qry.Step
-	} else {
 		res.Step = ll.stepSec
+	} else {
+		res.Step = qry.Step
 	}
 	// extend the interval by one from the left so that the
 	// derivative (if any) at the first point can be calculated
