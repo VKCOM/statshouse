@@ -17,7 +17,6 @@ function getRect(target: Element, fixed: boolean = false) {
 export function useRectObserver(ref?: RefObject<Element | null | undefined>, fixed: boolean = false) {
   const [rect, setRect] = useState<DOMRect>(new DOMRect());
   const target = ref?.current;
-
   useEffect(() => {
     if (!target) {
       return;
@@ -26,14 +25,17 @@ export function useRectObserver(ref?: RefObject<Element | null | undefined>, fix
       setRect(getRect(target, fixed));
     };
     upd();
-    const o = new ResizeObserver(upd);
+    const r = new ResizeObserver(upd);
+    const m = new MutationObserver(upd);
     window.addEventListener('scroll', upd, { capture: true });
-    o.observe(target);
+    r.observe(target, {});
+    m.observe(target, { attributes: true });
     return () => {
       window.removeEventListener('scroll', upd, { capture: true });
-      o.unobserve(target);
-      o.disconnect();
+      r.unobserve(target);
+      r.disconnect();
+      m.disconnect();
     };
-  }, [fixed, target]);
+  }, [ref, fixed, target]);
   return rect;
 }

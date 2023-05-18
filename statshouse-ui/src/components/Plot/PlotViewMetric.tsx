@@ -376,7 +376,6 @@ export function PlotViewMetric(props: {
               live={live}
               yLock={sel.yLock}
               setTimeRange={setTimeRange}
-              onResetZoom={resetZoom}
               onYLockChange={onYLockChange}
               dashboard={dashboard}
               compact={compact}
@@ -426,6 +425,7 @@ export function PlotViewMetric(props: {
                   indexPlot={indexPlot}
                   hooks={pluginEventOverlayHooks}
                   flagHeight={Math.min(topPad, 10)}
+                  compact={compact}
                 />
               </UPlotPluginPortal>
             </UPlotWrapper>

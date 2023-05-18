@@ -114,6 +114,7 @@ export function _Popper({
     }
     return Math.max(targetRect.x, windowRect.width - (targetRect.x + targetRect.width));
   }, [horizontalClass, targetRect.width, targetRect.x, windowRect.width]);
+
   const maxHeight = useMemo(() => {
     if (verticalClass === POPPER_VERTICAL.middle) {
       const middle = targetRect.y + targetRect.height / 2;
@@ -186,8 +187,6 @@ export function _Popper({
         break;
     }
   }, [horizontal, innerRect, innerVisible, targetRect, vertical, windowRect]);
-
-  useEffect(() => {}, []);
 
   return (
     <Portal id={popperId} className={cn(css.popperGroup, fixed && css.popperGroupFixed)}>

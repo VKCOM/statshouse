@@ -48,7 +48,6 @@ export type PlotHeaderProps = {
   setLive: Dispatch<SetStateAction<boolean>>;
   setTimeRange: (value: SetTimeRangeValue, force?: boolean) => void;
   yLock: lockRange;
-  onResetZoom?: () => void;
   onYLockChange?: (status: boolean) => void;
 };
 export const _PlotHeader: React.FC<PlotHeaderProps> = ({
@@ -57,7 +56,6 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   dashboard,
   sel,
   meta,
-  onResetZoom,
   onYLockChange,
   yLock,
   live,
@@ -97,7 +95,6 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
           <PlotNavigate
             className="btn-group-sm float-end ms-4 mb-2"
             setTimeRange={setTimeRange}
-            onResetZoom={onResetZoom}
             onYLockChange={onYLockChange}
             live={live}
             setLive={setLive}
@@ -169,7 +166,6 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
           <PlotNavigate
             className="btn-group-sm mb-1"
             setTimeRange={setTimeRange}
-            onResetZoom={onResetZoom}
             onYLockChange={onYLockChange}
             live={live}
             setLive={setLive}
