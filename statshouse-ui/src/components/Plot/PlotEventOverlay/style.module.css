@@ -26,7 +26,7 @@
 }
 
 .overlayCardTableSmall td {
-  padding: 0.125rem;
+  padding: 0.125rem 0.25rem;
 }
 
 .overlayCardTable tr:hover {

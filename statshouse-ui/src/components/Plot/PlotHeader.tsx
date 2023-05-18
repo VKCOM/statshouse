@@ -10,14 +10,7 @@ import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
 import { getUrlSearch, lockRange, PlotParams, PlotType } from '../../common/plotQueryParams';
 import produce from 'immer';
-import {
-  getNextState,
-  selectorDashboardLayoutEdit,
-  selectorDevEnabled,
-  selectorParams,
-  useStore,
-  useStoreDev,
-} from '../../store';
+import { getNextState, selectorDashboardLayoutEdit, selectorParams, useStore } from '../../store';
 import cn from 'classnames';
 import css from './style.module.css';
 import { PlotHeaderTitle } from './PlotHeaderTitle';
@@ -64,7 +57,6 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
 }) => {
   const params = useStore(selectorParams);
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
-  const devEnabled = useStoreDev(selectorDevEnabled);
 
   const [showTags, setShowTags] = useState(false);
   const toggleShowTags = useCallback(() => {
@@ -101,7 +93,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             yLock={yLock}
             disabledLive={!sel.useV2}
             link={copyLink}
-            typePlot={devEnabled ? sel.type : undefined}
+            typePlot={sel.type}
           />
         )}
         <div
@@ -172,7 +164,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             yLock={yLock}
             disabledLive={!sel.useV2}
             link={copyLink}
-            typePlot={devEnabled ? sel.type : undefined}
+            typePlot={sel.type}
             setTypePlot={onSetTypePlot}
           />
         )}
