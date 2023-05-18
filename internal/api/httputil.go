@@ -116,7 +116,7 @@ func exportCSV(w http.ResponseWriter, resp *SeriesResponse, metric string, es *e
 			continue
 		}
 
-		label := MetaToLabel(resp.Series.SeriesMeta[li], len(uniqueWhat))
+		label := MetaToLabel(resp.Series.SeriesMeta[li], len(uniqueWhat), 0)
 		for di, p := range *data {
 			if math.IsNaN(p) {
 				continue

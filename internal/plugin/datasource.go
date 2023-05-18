@@ -194,7 +194,7 @@ func (d *Datasource) query(_ context.Context, _ backend.PluginContext, query bac
 	}
 
 	for index, sd := range ar.Series.SeriesData {
-		name := api.MetaToLabel(ar.Series.SeriesMeta[index], len(uniqueWhat))
+		name := api.MetaToLabel(ar.Series.SeriesMeta[index], len(uniqueWhat), 0)
 		frame.Fields = append(frame.Fields, data.NewField(name, nil, sd))
 	}
 
