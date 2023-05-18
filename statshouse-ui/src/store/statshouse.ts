@@ -754,6 +754,7 @@ export const statsHouseState: StateCreator<
           const usedBaseColors = {};
           const baseColors: Record<string, string> = {};
           let changeColor = false;
+          let changeType = prev.lastPlotParams?.type !== lastPlotParams.type;
           const widthLine =
             (width ?? 0) > resp.series.time.length
               ? devicePixelRatio > 1
@@ -962,7 +963,9 @@ export const statsHouseState: StateCreator<
               error: '',
               data: dequal(data, state.plotsData[index]?.data) ? state.plotsData[index]?.data : data,
               series:
-                dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) && !changeColor
+                dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) &&
+                !changeColor &&
+                !changeType
                   ? state.plotsData[index]?.series
                   : series,
               seriesShow: dequal(seriesShow, state.plotsData[index]?.seriesShow)
