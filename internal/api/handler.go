@@ -2116,13 +2116,13 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 			}
 
 			if numResultsPerShift > 0 {
-				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand)
+				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand, nil)
 				if len(sortedIxs) > numResultsPerShift {
 					sortedIxs = sortedIxs[:numResultsPerShift]
 				}
 			} else if numResultsPerShift < 0 {
 				numResultsPerShift = -numResultsPerShift
-				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand)
+				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand, nil)
 				if len(sortedIxs) > numResultsPerShift {
 					sortedIxs = sortedIxs[:numResultsPerShift]
 				}
@@ -2425,13 +2425,13 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 			}
 
 			if numResultsPerShift > 0 {
-				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, r)
+				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, r, nil)
 				if len(sortedIxs) > numResultsPerShift {
 					sortedIxs = sortedIxs[:numResultsPerShift]
 				}
 			} else if numResultsPerShift < 0 {
 				numResultsPerShift = -numResultsPerShift
-				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, r)
+				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, r, nil)
 				if len(sortedIxs) > numResultsPerShift {
 					sortedIxs = sortedIxs[:numResultsPerShift]
 				}

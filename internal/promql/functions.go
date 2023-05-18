@@ -286,9 +286,9 @@ func firstK(ev *evaluator, g seriesGroup, k int, topDown bool) SeriesBag {
 		x[i] = i
 	}
 	if topDown {
-		util.PartialSortIndexByValueDesc(x, w, k, ev.Options.Rand)
+		util.PartialSortIndexByValueDesc(x, w, k, ev.Options.Rand, nil)
 	} else {
-		util.PartialSortIndexByValueAsc(x, w, k, ev.Options.Rand)
+		util.PartialSortIndexByValueAsc(x, w, k, ev.Options.Rand, nil)
 	}
 	res := ev.newSeriesBag(k)
 	res.appendX(g.bag, x[:k]...)
