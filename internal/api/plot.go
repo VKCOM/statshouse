@@ -248,8 +248,8 @@ func (d *gnuplotTemplateData) LineColor(meta QuerySeriesMetaV2) string {
 	var (
 		oneGraph         = d.graphCount() == 1
 		uniqueWhatLength = len(d.GetUniqueWhat())
-		label            = MetaToLabel(meta, uniqueWhatLength)
-		baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength)
+		label            = MetaToLabel(meta, uniqueWhatLength, d.utcOffset)
+		baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength, d.utcOffset)
 		isValue          = strings.Index(baseLabel, "Value") == 0
 		metricName       string
 		prefColor        = 9 // it`s magic prefix
@@ -277,7 +277,7 @@ func (d *gnuplotTemplateData) graphCount() int {
 }
 
 func (d *gnuplotTemplateData) MetaToLabel(meta QuerySeriesMetaV2) string {
-	return MetaToLabel(meta, len(d.GetUniqueWhat()))
+	return MetaToLabel(meta, len(d.GetUniqueWhat()), d.utcOffset)
 }
 
 func plotSize(format string, title bool, width int) (int, int) {
@@ -397,9 +397,9 @@ func selectColor(s string, used map[string]int) string {
 }
 
 // XXX: keep in sync with TypeScript
-func MetaToLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
+func MetaToLabel(meta QuerySeriesMetaV2, uniqueWhatLength int, utcOffset int64) string {
 	var (
-		desc = MetaToBaseLabel(meta, uniqueWhatLength)
+		desc = MetaToBaseLabel(meta, uniqueWhatLength, utcOffset)
 		tsd  = timeShiftDesc(meta.TimeShift)
 	)
 	if tsd == "" {
@@ -408,7 +408,7 @@ func MetaToLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 	return fmt.Sprintf("%s %s", tsd, desc)
 }
 
-func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
+func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int, utcOffset int64) string {
 	type tagEntry struct {
 		key string
 		tag SeriesMetaTag
@@ -421,7 +421,7 @@ func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 
 	var sortedTagValues []string
 	for _, kv := range sortedTags {
-		sortedTagValues = append(sortedTagValues, formatTagValue(kv.tag.Value, kv.tag.Comment, kv.tag.Raw, kv.tag.RawKind))
+		sortedTagValues = append(sortedTagValues, formatTagValue(kv.tag.Value, kv.tag.Comment, kv.tag.Raw, kv.tag.RawKind, utcOffset))
 	}
 
 	desc := "Value"
@@ -437,7 +437,7 @@ func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 }
 
 // XXX: keep in sync with TypeScript
-func formatTagValue(s string, c string, r bool, k string) string {
+func formatTagValue(s string, c string, r bool, k string, utcOffset int64) string {
 	if c != "" {
 		return c
 	}
@@ -446,8 +446,8 @@ func formatTagValue(s string, c string, r bool, k string) string {
 		return s
 	}
 	if r && len(k) != 0 {
-		i, _ := strconv.Atoi(s)
-		return "⚡ " + convert(k, i)
+		i, _ := strconv.Atoi(s[1:])
+		return "⚡ " + convert(k, i, utcOffset)
 	}
 	i, _ := strconv.Atoi(s[1:])
 	switch i {
@@ -461,7 +461,7 @@ func formatTagValue(s string, c string, r bool, k string) string {
 }
 
 // XXX: keep in sync with TypeScript
-func convert(kind string, input int) string {
+func convert(kind string, input int, utcOffset int64) string {
 	switch kind {
 	case "hex":
 		return fmt.Sprintf("%08X", input)
@@ -469,7 +469,7 @@ func convert(kind string, input int) string {
 		u := uint(input)
 		return fmt.Sprintf("%02X%02X%02X%02X", u&255, (u>>8)&255, (u>>16)&255, (u>>24)&255)
 	case "timestamp":
-		return time.Unix(int64(input), 0).Format("2006-01-02 15:04:05")
+		return time.Unix(int64(input)-utcOffset, 0).Format("2006-01-02 15:04:05")
 	case "ip":
 		u := uint(input)
 		return fmt.Sprintf("%d.%d.%d.%d", (u>>24)&255, (u>>16)&255, (u>>8)&255, u&255)
