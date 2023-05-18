@@ -376,7 +376,6 @@ export function PlotViewMetric(props: {
               live={live}
               yLock={sel.yLock}
               setTimeRange={setTimeRange}
-              onResetZoom={resetZoom}
               onYLockChange={onYLockChange}
               dashboard={dashboard}
               compact={compact}
