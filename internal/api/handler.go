@@ -388,8 +388,6 @@ type (
 		Comment string `json:"comment,omitempty"`
 		Raw     bool   `json:"raw,omitempty"`
 		RawKind string `json:"raw_kind,omitempty"`
-		valueID int32
-		isSkey  bool
 	}
 
 	RawTag struct {
@@ -3018,7 +3016,6 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 			metaTag.Comment = tag.ValueComments[metaTag.Value]
 			metaTag.Raw = tag.Raw
 			metaTag.RawKind = tag.RawKind
-			metaTag.valueID = id
 		}
 		m[tagID] = metaTag
 		return true
@@ -3123,7 +3120,7 @@ func maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, 
 	tagValue := skeyFromFixedString(tagValuePtr)
 
 	if containsString(by, tagName) {
-		m[tagName] = SeriesMetaTag{Value: emptyToUnspecified(tagValue), isSkey: true}
+		m[tagName] = SeriesMetaTag{Value: emptyToUnspecified(tagValue)}
 		return tagValue
 	}
 	return ""
