@@ -100,6 +100,10 @@ export function _Popper({
   const visible = useIntersectionObserver(targetRef, threshold);
   const targetRect = useRectObserver(targetRef, fixed);
   const innerRef = useRef<HTMLDivElement>(null);
+  const [, setInner] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    setInner(innerRef.current);
+  }, [visible, show]);
   const innerVisible = useIntersectionObserver(innerRef, threshold);
   const innerRect = useRectObserver(innerRef, fixed);
   const windowRect = useWindowSize();
