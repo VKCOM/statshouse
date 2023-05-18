@@ -19,6 +19,7 @@ export type PlotEventFlagProps = {
   flagWidth: number;
   flagHeight: number;
   groups: { color: string; idx: number; x: number }[];
+  small?: boolean;
 };
 export function _PlotEventFlag({
   plot,
@@ -30,6 +31,7 @@ export function _PlotEventFlag({
   groups,
   flagWidth,
   flagHeight,
+  small,
 }: PlotEventFlagProps) {
   const refFlag = useRef<SVGRectElement>(null);
   const flagGroup = useMemo(() => {
@@ -100,7 +102,12 @@ export function _PlotEventFlag({
       </g>
       <Popper targetRef={refFlag} horizontal="out-right" vertical="out-bottom" fixed={false} show={debounceHover}>
         <div
-          className={cn('card p-2 overflow-auto d-flex flex-column', css.overlayCardTable)}
+          className={cn(
+            'card overflow-auto d-flex flex-column',
+            css.overlayCardTable,
+            small && css.overlayCardTableSmall,
+            small ? 'p-1' : 'p-2'
+          )}
           onMouseOut={_onMouseOut}
           onMouseOver={_onMouseOver}
         >

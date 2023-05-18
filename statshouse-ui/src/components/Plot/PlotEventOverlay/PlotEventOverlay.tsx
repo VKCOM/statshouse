@@ -61,9 +61,10 @@ export type PlotEventOverlayProps = {
   indexPlot: number;
   hooks?: MutableRefObject<EventObserver<keyof UPlotWrapperPropsHooks>>;
   flagHeight?: number;
+  compact?: boolean;
 };
 
-export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEventOverlayProps) {
+export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8, compact }: PlotEventOverlayProps) {
   const uPlotRef = useRef<uPlot>();
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
@@ -141,6 +142,7 @@ export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8 }: PlotEvent
               x={r.x}
               opacity={r.opacity}
               groups={r.groups}
+              small={compact}
             />
           ))}
         </g>

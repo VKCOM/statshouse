@@ -6,7 +6,7 @@
   width: 100%;
   height: calc(100% + var(--plot-padding-top-loc));
   margin-top: calc(-1 * var(--plot-padding-top-loc));
-  /*pointer-events: none;*/
+  pointer-events: none;
   z-index: 100;
 }
 
@@ -16,6 +16,19 @@
 }
 
 .overlayCardTable {
-  max-height: var(--popper-inner-height);
+  max-height: 250px;
   max-width: var(--popper-inner-width);
+  font-size: 14px;
+}
+
+.overlayCardTableSmall {
+  font-size: 12px;
+}
+
+.overlayCardTableSmall td {
+  padding: 0.125rem;
+}
+
+.overlayCardTable tr:hover {
+  background-color: rgba(var(--bs-secondary-bg-rgb), 0.7);
 }
