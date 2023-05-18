@@ -50,7 +50,7 @@ export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTa
   }, [plot, range, width]);
 
   return (
-    <div className="position-relative flex-grow-1 d-flex flex-column" style={{ minWidth: 100, minHeight: 50 }}>
+    <div className="position-relative flex-grow-1 d-flex flex-column" style={{ minWidth: 100, minHeight: 20 }}>
       {loader && (
         <div className=" position-absolute top-50 start-50 translate-middle">
           <div className="text-info spinner-border spinner-border-sm " role="status" aria-hidden="true" />

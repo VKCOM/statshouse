@@ -30,12 +30,6 @@ export function Portal({ children, selector, id, className }: PortalProps) {
     } else {
       setTarget(body);
     }
-    return () => {
-      if (targetById && targetById.childNodes.length === 0 && targetById.parentNode) {
-        targetById.remove();
-        setTarget(null);
-      }
-    };
   }, [className, id, selector]);
 
   if (target) {
