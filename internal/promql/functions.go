@@ -47,9 +47,7 @@ func simpleAggregate(fn func([]*[]float64, int)) aggregateFunc {
 			return ev.newSeriesBag(0)
 		}
 		fn(g.bag.Data, len(g.bag.Time))
-		for i := 1; i < len(g.bag.Data); i++ {
-			ev.free(g.bag.Data[i])
-		}
+		ev.freeSeriesBagData(g.bag.Data, 1)
 		return g.at(0)
 	}
 }
@@ -103,9 +101,7 @@ func funcCountValues(ev *evaluator, g seriesGroup, p parser.Expr) SeriesBag {
 			p.(*parser.StringLiteral).Val: strconv.FormatFloat(v, 'f', -1, 64),
 		})
 	}
-	for _, row := range g.bag.Data {
-		ev.free(row)
-	}
+	ev.freeSeriesBagData(g.bag.Data, 0)
 	return res
 }
 
@@ -177,9 +173,7 @@ func funcQuantile(ev *evaluator, g seriesGroup, p parser.Expr) SeriesBag {
 			res[i] = (*g.bag.Data[x[i1]])[i]*w1 + (*g.bag.Data[x[i2]])[i]*w2
 		}
 	}
-	for i := 1; i < len(g.bag.Data); i++ {
-		ev.free(g.bag.Data[i])
-	}
+	ev.freeSeriesBagData(g.bag.Data, 1)
 	return g.at(0)
 }
 
@@ -233,10 +227,11 @@ func funcTopK(ev *evaluator, g seriesGroup, p parser.Expr) SeriesBag {
 
 func firstK(ev *evaluator, g seriesGroup, k int, topDown bool) SeriesBag {
 	if k <= 0 {
+		ev.freeSeriesBagData(g.bag.Data, 0)
 		return ev.newSeriesBag(0)
 	}
-	if len(g.bag.Data) <= k {
-		return g.bag
+	if len(g.bag.Data) < k {
+		k = len(g.bag.Data)
 	}
 	var (
 		w      = make([]float64, len(g.bag.Data))
@@ -292,9 +287,7 @@ func firstK(ev *evaluator, g seriesGroup, k int, topDown bool) SeriesBag {
 	}
 	res := ev.newSeriesBag(k)
 	res.appendX(g.bag, x[:k]...)
-	for ; k < len(g.bag.Data); k++ {
-		ev.free(g.bag.Data[k])
-	}
+	ev.freeSeriesBagData(g.bag.Data, k)
 	return res
 }
 
@@ -630,9 +623,7 @@ func funcAbsent(ctx context.Context, ev *evaluator, args parser.Expressions) (ba
 				(*s)[i] = NilValue
 			}
 		}
-		for i := 1; i < len(bag.Data); i++ {
-			ev.free(bag.Data[i])
-		}
+		ev.freeSeriesBagData(bag.Data, 1)
 	} else {
 		s = ev.alloc()
 		n = len(*s)
@@ -678,9 +669,7 @@ func funcAbsentOverTime(ctx context.Context, ev *evaluator, args parser.Expressi
 				lastSeen = t
 			}
 		}
-		for i := 1; i < len(bag.Data); i++ {
-			ev.free(bag.Data[i])
-		}
+		ev.freeSeriesBagData(bag.Data, 1)
 	} else {
 		s = ev.alloc()
 		n = len(*s)
@@ -905,9 +894,7 @@ func funcHistogramQuantile(ctx context.Context, ev *evaluator, args parser.Expre
 				s[i] = v
 			}
 		}
-		for i := 1; i < len(d); i++ {
-			ev.free(d[i])
-		}
+		ev.freeSeriesBagData(d, 1)
 		res.append(h.group.at(0))
 	}
 	return res, nil
@@ -1097,9 +1084,7 @@ func funcScalar(ctx context.Context, ev *evaluator, args parser.Expressions) (ba
 	for i := range *bag.Data[0] {
 		(*bag.Data[0])[i] = math.NaN()
 	}
-	for i := 1; i < len(bag.Data); i++ {
-		ev.free(bag.Data[i])
-	}
+	ev.freeSeriesBagData(bag.Data, 1)
 	return bag, nil
 }
 
