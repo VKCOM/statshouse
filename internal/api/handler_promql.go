@@ -855,15 +855,9 @@ func getPromQuery(req seriesRequest) string {
 		default:
 			continue
 		}
-		var (
-			s  []string
-			by = make([]string, 0, len(req.by))
-		)
+		var s []string
 		s = append(s, fmt.Sprintf("__what__=%q", what))
-		for _, v := range req.by {
-			by = append(by, strconv.Itoa(format.ParseTagIDForAPI(v)))
-		}
-		s = append(s, fmt.Sprintf("__by__=%q", strings.Join(by, ",")))
+		s = append(s, fmt.Sprintf("__by__=%q", promqlGetBy(req.by)))
 		for t, in := range req.filterIn {
 			for _, v := range in {
 				s = append(s, fmt.Sprintf("%d=%q", format.ParseTagIDForAPI(t), promqlGetFilterValue(t, v)))
@@ -891,6 +885,29 @@ func getPromQuery(req seriesRequest) string {
 		res = append(res, q)
 	}
 	return strings.Join(res, " or ")
+}
+
+func promqlGetBy(by []string) string {
+	tags := make([]int, format.MaxTags)
+	for _, v := range by {
+		var (
+			i   int
+			err error
+		)
+		if i = format.ParseTagIDForAPI(v); i < 0 {
+			i, err = strconv.Atoi(v)
+		}
+		if 0 <= i && i < format.MaxTags && err == nil {
+			tags[i]++
+		}
+	}
+	by = by[:0]
+	for i, v := range tags {
+		if v > 0 {
+			by = append(by, strconv.Itoa(i))
+		}
+	}
+	return strings.Join(by, ",")
 }
 
 func promqlGetFilterValue(tagID string, s string) string {
