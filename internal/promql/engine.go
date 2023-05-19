@@ -1072,6 +1072,15 @@ func (ev *evaluator) free(s *[]float64) {
 	}
 }
 
+func (ev *evaluator) freeSeriesBagData(data []*[]float64, k int) {
+	if k < 0 {
+		return
+	}
+	for ; k < len(data); k++ {
+		ev.free(data[k])
+	}
+}
+
 func (ev *evaluator) cancel() {
 	for s := range ev.ba {
 		ev.h.Free(s)
