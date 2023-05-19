@@ -4,14 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useEffect, useRef, useState } from 'react';
+import { RefCallback, useCallback, useState } from 'react';
 
-export function useRefState<T>(initialValue: T | null): [T | null, React.RefObject<T>] {
-  const ref = useRef<T>(initialValue);
-  const [value, setValue] = useState(initialValue);
-  useEffect(() => {
-    setValue(ref.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ref.current]);
-  return [value, ref];
+export function useRefState<T = undefined>(initialValue?: T): [T | null, RefCallback<T>] {
+  const [value, setValue] = useState<T | null>(initialValue ?? null);
+  return [value, useCallback<RefCallback<T>>(setValue, [setValue])];
 }

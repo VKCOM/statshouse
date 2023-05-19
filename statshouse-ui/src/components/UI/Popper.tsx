@@ -1,7 +1,14 @@
 import { Portal } from './Portal';
 import css from './style.module.css';
-import React, { memo, ReactNode, RefObject, useEffect, useMemo, useRef, useState } from 'react';
-import { buildThresholdList, useIntersectionObserver, useRectObserver, useWindowSize } from '../../hooks';
+import React, { memo, ReactNode, RefObject, useEffect, useMemo, useState } from 'react';
+import {
+  buildThresholdList,
+  useIntersectionObserver,
+  useRectObserver,
+  useRefState,
+  useWindowSize,
+  WindowSize,
+} from '../../hooks';
 import cn from 'classnames';
 
 const popperId = 'popper-group';
@@ -41,11 +48,11 @@ export type PopperProps = {
 function checkHorizontal(
   targetRect: DOMRect,
   innerRect: DOMRect,
-  windowRect: DOMRect,
+  windowRect: WindowSize,
   horizontal: PopperHorizontal
 ): PopperHorizontal | false {
-  const leftWidth = targetRect.x - windowRect.x;
-  const rightWidth = windowRect.width - (targetRect.x + targetRect.width - windowRect.x);
+  const leftWidth = targetRect.x - windowRect.scrollX;
+  const rightWidth = windowRect.width - (targetRect.x + targetRect.width - windowRect.scrollX);
   switch (horizontal) {
     case POPPER_HORIZONTAL.left:
       return innerRect.width - targetRect.width <= rightWidth && horizontal;
@@ -68,11 +75,11 @@ function checkHorizontal(
 function checkVertical(
   targetRect: DOMRect,
   innerRect: DOMRect,
-  windowRect: DOMRect,
+  windowRect: WindowSize,
   vertical: PopperVertical
 ): PopperVertical | false {
-  const topHeight = targetRect.y - windowRect.y;
-  const bottomHeight = windowRect.height - (targetRect.y + targetRect.height - windowRect.y);
+  const topHeight = targetRect.y - windowRect.scrollY;
+  const bottomHeight = windowRect.height - (targetRect.y + targetRect.height - windowRect.scrollY);
   switch (vertical) {
     case POPPER_VERTICAL.top:
     case POPPER_VERTICAL.bottom:
@@ -97,15 +104,11 @@ export function _Popper({
   show = true,
   fixed = false,
 }: PopperProps) {
-  const visible = useIntersectionObserver(targetRef, threshold);
-  const targetRect = useRectObserver(targetRef, fixed);
-  const innerRef = useRef<HTMLDivElement>(null);
-  const [, setInner] = useState<HTMLDivElement | null>(null);
-  useEffect(() => {
-    setInner(innerRef.current);
-  }, [visible, show]);
-  const innerVisible = useIntersectionObserver(innerRef, threshold);
-  const innerRect = useRectObserver(innerRef, fixed);
+  const visible = useIntersectionObserver(targetRef?.current, threshold);
+  const targetRect = useRectObserver(targetRef?.current, fixed);
+  const [inner, innerRef] = useRefState<HTMLDivElement>();
+  const innerVisible = useIntersectionObserver(inner, threshold);
+  const innerRect = useRectObserver(inner, fixed);
   const windowRect = useWindowSize();
 
   const [horizontalClass, setHorizontalClass] = useState(horizontal);
