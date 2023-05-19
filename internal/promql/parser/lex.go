@@ -471,7 +471,7 @@ func lexInsideBraces(l *Lexer) stateFn {
 		return l.errorf("unexpected end of input inside braces")
 	case isSpace(r):
 		return lexSpace
-	case isAlpha(r):
+	case isAlphaNumeric(r):
 		l.backup()
 		return lexIdentifier
 	case r == ',':
