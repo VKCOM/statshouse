@@ -14,6 +14,7 @@ import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
+import { ReactComponent as SVGFlag } from 'bootstrap-icons/icons/flag.svg';
 import {
   selectorLastError,
   selectorParams,
@@ -394,7 +395,7 @@ export const PlotControls = memo(function PlotControls_(props: {
           />
         )}
         {sel.type === PLOT_TYPE.Metric && !!eventPlotList.length && (
-          <div>
+          <div className="input-group">
             <Select
               value={sel.events.map((e) => e.toString())}
               onChange={eventsChange}
@@ -404,7 +405,11 @@ export const PlotControls = memo(function PlotControls_(props: {
               onceSelectByClick
               multiple
               options={eventPlotList}
+              placeholder="Event"
             />
+            <span className="input-group-text text-primary">
+              <SVGFlag />
+            </span>
           </div>
         )}
       </form>

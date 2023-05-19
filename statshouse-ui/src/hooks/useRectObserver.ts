@@ -1,4 +1,4 @@
-import { RefObject, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 function getRect(target: Element, fixed: boolean = false) {
   let nextRect = target.getBoundingClientRect();
@@ -14,9 +14,8 @@ function getRect(target: Element, fixed: boolean = false) {
   };
 }
 
-export function useRectObserver(ref?: RefObject<Element | null | undefined>, fixed: boolean = false) {
+export function useRectObserver(target?: Element | null, fixed: boolean = false) {
   const [rect, setRect] = useState<DOMRect>(new DOMRect());
-  const target = ref?.current;
   useEffect(() => {
     if (!target) {
       return;
@@ -36,6 +35,6 @@ export function useRectObserver(ref?: RefObject<Element | null | undefined>, fix
       r.disconnect();
       m.disconnect();
     };
-  }, [ref, fixed, target]);
+  }, [fixed, target]);
   return rect;
 }
