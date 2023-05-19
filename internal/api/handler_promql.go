@@ -855,17 +855,23 @@ func getPromQuery(req seriesRequest) string {
 		default:
 			continue
 		}
-		var s []string
+		var (
+			s  []string
+			by = make([]string, 0, len(req.by))
+		)
 		s = append(s, fmt.Sprintf("__what__=%q", what))
-		s = append(s, fmt.Sprintf("__by__=%q", strings.Join(req.by, ",")))
+		for _, v := range req.by {
+			by = append(by, strconv.Itoa(format.ParseTagIDForAPI(v)))
+		}
+		s = append(s, fmt.Sprintf("__by__=%q", strings.Join(by, ",")))
 		for t, in := range req.filterIn {
 			for _, v := range in {
-				s = append(s, fmt.Sprintf("%s=%q", t, promqlGetFilterValue(t, v)))
+				s = append(s, fmt.Sprintf("%d=%q", format.ParseTagIDForAPI(t), promqlGetFilterValue(t, v)))
 			}
 		}
 		for t, out := range req.filterNotIn {
 			for _, v := range out {
-				s = append(s, fmt.Sprintf("%s!=%q", t, promqlGetFilterValue(t, v)))
+				s = append(s, fmt.Sprintf("%d!=%q", format.ParseTagIDForAPI(t), promqlGetFilterValue(t, v)))
 			}
 		}
 		q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
