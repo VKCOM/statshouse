@@ -328,6 +328,8 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 	var newKeys []data_model.Key
 	var usedMetrics []int32
 
+	// We do not want to decompress under lock, so we decompress before ifs, then rarely throw away decompressed data.
+
 	for _, v := range bucket.SampleFactors {
 		sampleFactors[v.Metric] = v.Value
 	}

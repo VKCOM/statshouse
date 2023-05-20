@@ -173,8 +173,9 @@ func appendValueStat(res []byte, key data_model.Key, skey string, v data_model.I
 	res = rowbinary.AppendEmptyUnique(res)
 	res = rowbinary.AppendString(res, skey)
 
-	// many built-in metrics are aggregator-specific and have no hosts set, but we write hosts always, because optimization would be tiny
-	// res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MinHostTag, float32(v.ValueMin))
+	// counters and uniques do not have min host set, but we write them always because we (probably) want to get rid
+	// of min, max columns in the future, and use values stored in min_host, max_host as min, max.
+	// res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MinHostTag, float32(v.ValueMin)) // if you uncomment this line, add min_host to getTableDesc()
 	res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxHostTag, float32(v.ValueMax))
 	return res
 }

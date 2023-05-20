@@ -95,6 +95,7 @@ func (s *MultiValue) TLSizeEstimate() int {
 
 func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor float64, fieldsMask *uint32, marshalBuf *[]byte) {
 	if s.Value.MaxHostTag != 0 {
+		// this value is passed from "_h" tag (if set) in ApplyValue, ApplyUnique, ApplyCount functions
 		item.SetHostTag(s.Value.MaxHostTag, fieldsMask)
 	}
 	if s.HLL.ItemsCount() != 0 {
