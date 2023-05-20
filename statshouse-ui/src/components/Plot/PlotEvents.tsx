@@ -5,10 +5,7 @@ import cn from 'classnames';
 import {
   selectorClearEvents,
   selectorEventsByIndex,
-  selectorLoadEvents,
-  selectorMetricsMetaByName,
   selectorParamsPlotsByIndex,
-  selectorSetParams,
   selectorTimeRange,
   useStore,
 } from '../../store';
@@ -19,6 +16,7 @@ import produce from 'immer';
 import { TimeRange } from '../../common/TimeRange';
 import css from './style.module.css';
 import { PlotEventsSelectColumns } from './PlotEventsSelectColumns';
+import { useEventTagColumns } from '../../hooks/useEventTagColumns';
 
 export type PlotEventsProps = {
   indexPlot: number;
@@ -45,44 +43,30 @@ const mouseOverRowRenderer = (
   );
 };
 
+const setParams = useStore.getState().setParams;
+const loadEvent = useStore.getState().loadEvents;
+
 export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEventsProps) {
   const selectorEvent = useMemo(() => selectorEventsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const event = useStore(selectorEvent);
   const timeRange = useStore(selectorTimeRange);
-  const setParams = useStore(selectorSetParams);
-  const loadEvent = useStore(selectorLoadEvents);
   const clearEvents = useStore(selectorClearEvents);
   const gridRef = useRef<DataGridHandle>(null);
   const [sort, setSort] = useState<SortColumn[]>([]);
   const [eventColumnShow, setEventColumnShow] = useState(false);
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const paramsPlot = useStore(selectorParamsPlot);
-  const selectorMetricsMeta = useMemo(
-    () => selectorMetricsMetaByName.bind(undefined, paramsPlot.metricName),
-    [paramsPlot.metricName]
-  );
-  const meta = useStore(selectorMetricsMeta);
-
+  const eventColumns = useEventTagColumns(paramsPlot, true);
   const columns = useMemo<Column<EventDataRow, unknown>[]>(
     () => [
       ...Object.values(getEventColumnsType(event.what)),
-      ...((meta.tags
-        ?.map((tag, indexTag) => {
-          if (
-            paramsPlot.eventsBy.indexOf(indexTag.toString()) > -1 ||
-            paramsPlot.groupBy.indexOf(`key${indexTag}`) > -1
-          ) {
-            return {
-              ...eventColumnDefault,
-              name: tag.description ? tag.description : tag.name ? tag.name : `tag ${indexTag}`,
-              key: `key${indexTag}`,
-            };
-          }
-          return false;
-        })
-        .filter(Boolean) ?? []) as Column<EventDataRow, unknown>[]),
+      ...(eventColumns.map((tag) => ({
+        ...eventColumnDefault,
+        name: tag.name,
+        key: tag.fullKeyTag,
+      })) as Column<EventDataRow, unknown>[]),
     ],
-    [event.what, meta.tags, paramsPlot.eventsBy, paramsPlot.groupBy]
+    [event.what, eventColumns]
   );
 
   const loadPrev = useCallback(() => {
@@ -99,11 +83,11 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
           }
         })
         .catch(() => undefined);
-  }, [event.chunks, event.prevKey, indexPlot, loadEvent]);
+  }, [event.chunks, event.prevKey, indexPlot]);
 
   const loadNext = useCallback(() => {
     !!event.nextKey && loadEvent(indexPlot, event.nextKey, false).catch(() => undefined);
-  }, [event.nextKey, indexPlot, loadEvent]);
+  }, [event.nextKey, indexPlot]);
 
   const onScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
@@ -139,7 +123,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
         loadPrev();
       }
     },
-    [event.chunks, event.nextAbortController, event.prevAbortController, event.rows, loadNext, loadPrev, setParams]
+    [event.chunks, event.nextAbortController, event.prevAbortController, event.rows, loadNext, loadPrev]
   );
   const clearError = useCallback(() => {
     clearEvents(indexPlot);

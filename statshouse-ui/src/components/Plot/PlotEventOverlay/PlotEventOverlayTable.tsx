@@ -1,15 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ApiTable, apiTable, ApiTableRowNormalize, TagKey } from '../../../api/table';
+import { ApiTable, apiTable } from '../../../api/table';
 import { PlotParams } from '../../../common/plotQueryParams';
 import { TimeRange } from '../../../common/TimeRange';
+import { useEventTagColumns } from '../../../hooks/useEventTagColumns';
 
 export type PlotEventOverlayTableProps = {
   plot: PlotParams;
   range: TimeRange;
   width: number;
 };
-
-const arr16 = new Array(16).fill(0).map((v, i) => i.toString()) as TagKey[];
 
 export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTableProps) {
   const [chunk, setChunk] = useState<ApiTable>();
@@ -26,13 +25,7 @@ export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTa
     setError(undefined);
   }, []);
 
-  const columns = useMemo<(keyof ApiTableRowNormalize)[]>(
-    () => [
-      // ...plot.what,
-      ...arr16.filter((i) => plot.eventsBy.indexOf(i.toString()) > -1 || plot.groupBy.indexOf(`key${i}`) > -1),
-    ],
-    [plot.eventsBy, plot.groupBy]
-  );
+  const columns = useEventTagColumns(plot, true);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -65,9 +58,9 @@ export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTa
         <tbody>
           {chunk?.rowsNormalize?.map((row, indexRow) => (
             <tr key={indexRow}>
-              {columns.map((tagKey) => (
-                <td key={tagKey} className="text-nowrap">
-                  {row[tagKey]}
+              {columns.map((tag) => (
+                <td key={tag.keyTag} className="text-nowrap" title={tag.name}>
+                  {row[tag.keyTag]}
                 </td>
               ))}
             </tr>
