@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import cn from 'classnames';
-import { selectorMetricsMetaByName, selectorParamsPlotsByIndex, useStore } from '../../store';
-import { filterHasTagID } from '../../view/api';
+import { selectorParamsPlotsByIndex, useStore } from '../../store';
 import produce from 'immer';
-import { getTagDescription } from '../../view/utils';
+import { useEventTagColumns } from '../../hooks/useEventTagColumns';
+import { useOnClickOutside } from '../../hooks/useOnClickOutside';
 
 export type PlotEventsSelectColumnsProps = {
   indexPlot: number;
@@ -11,25 +11,11 @@ export type PlotEventsSelectColumnsProps = {
   onClose?: () => void;
 };
 
-const stopPropagation = (e: React.MouseEvent) => {
-  e.stopPropagation();
-};
-
 export function PlotEventsSelectColumns({ indexPlot, className, onClose }: PlotEventsSelectColumnsProps) {
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const paramsPlot = useStore(selectorParamsPlot);
-  const selectorMetricsMeta = useMemo(
-    () => selectorMetricsMetaByName.bind(undefined, paramsPlot.metricName),
-    [paramsPlot.metricName]
-  );
-  const meta = useStore(selectorMetricsMeta);
-  const selectTags = useMemo(
-    () =>
-      meta.tags?.map(
-        (t, i) => paramsPlot.eventsBy.indexOf(i.toString()) > -1 || paramsPlot.groupBy.indexOf(`key${i}`) > -1
-      ) ?? [],
-    [meta.tags, paramsPlot.eventsBy, paramsPlot.groupBy]
-  );
+  const columns = useEventTagColumns(paramsPlot, false);
+
   const onChange = useCallback<React.ChangeEventHandler<HTMLInputElement>>(
     (e) => {
       const tagKey = e.currentTarget.value;
@@ -47,52 +33,27 @@ export function PlotEventsSelectColumns({ indexPlot, className, onClose }: PlotE
     },
     [indexPlot]
   );
-
-  useEffect(() => {
-    const close = () => {
-      onClose?.();
-    };
-    document.addEventListener('click', close, false);
-    return () => {
-      document.removeEventListener('click', close, false);
-    };
-  }, [onClose]);
+  const refOut = useRef<HTMLDivElement>(null);
+  useOnClickOutside(refOut, onClose);
 
   return (
-    <div className={cn('', className)} onClick={stopPropagation}>
-      {meta.tags?.map((tag, indexTag) =>
-        tag.description === '-' && !filterHasTagID(paramsPlot, indexTag) ? null : (
-          <div key={indexTag} className="form-check">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              checked={selectTags[indexTag]}
-              disabled={paramsPlot.groupBy.indexOf(`key${indexTag}`) > -1}
-              onChange={onChange}
-              value={indexTag}
-              id={`flexCheckDefault_${indexTag}`}
-            />
-            <label className="form-check-label text-nowrap" htmlFor={`flexCheckDefault_${indexTag}`}>
-              {getTagDescription(meta, indexTag)}
-            </label>
-          </div>
-        )
-      )}
-      {(meta.string_top_name || meta.string_top_description || filterHasTagID(paramsPlot, -1)) && (
-        <div className="form-check">
+    <div ref={refOut} className={cn('', className)}>
+      {columns.map((tag) => (
+        <div key={tag.keyTag} className="form-check">
           <input
             className="form-check-input"
             type="checkbox"
-            checked={paramsPlot.eventsBy.indexOf('_s') > -1}
+            defaultChecked={tag.selected}
+            disabled={tag.disabled}
             onChange={onChange}
-            value="_s"
-            id={`flexCheckDefault_s`}
+            value={tag.keyTag}
+            id={`flexCheckDefault_${tag.keyTag}`}
           />
-          <label className="form-check-label text-nowrap" htmlFor={`flexCheckDefault_s`}>
-            {getTagDescription(meta, '_s')}
+          <label className="form-check-label text-nowrap" htmlFor={`flexCheckDefault_${tag.keyTag}`}>
+            {tag.name}
           </label>
         </div>
-      )}
+      ))}
     </div>
   );
 }

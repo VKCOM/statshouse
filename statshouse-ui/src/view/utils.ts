@@ -9,7 +9,8 @@ import uPlot from 'uplot';
 import { TimeRange } from '../common/TimeRange';
 import * as api from './api';
 import { DashboardInfo, metricMeta, RawValueKind } from './api';
-import { QueryParams } from '../common/plotQueryParams';
+import { PlotParams, QueryParams } from '../common/plotQueryParams';
+import { UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
@@ -682,15 +683,50 @@ export function freeKeyPrefix(str: string): string {
   return str.replace('skey', '_s').replace('key', '');
 }
 
-export function getTagDescription(meta: metricMeta, indexTag: number | string) {
+export function getTagDescription(meta: metricMeta, indexTag: number | string): string {
   if (typeof indexTag === 'number' && indexTag > -1) {
-    return meta.tags?.[indexTag].description
-      ? meta.tags?.[indexTag].description
-      : meta.tags?.[indexTag].name
-      ? meta.tags?.[indexTag].name
-      : `tag ${indexTag}`;
+    return meta.tags?.[indexTag].description || meta.tags?.[indexTag].name || `tag ${indexTag}`;
   } else if (indexTag === -1 || indexTag === 'skey' || indexTag === '_s') {
-    return meta.string_top_name || meta.string_top_description || 'tag _s';
+    return meta.string_top_description || meta.string_top_name || 'tag _s';
   }
   return `tag ${indexTag}`;
+}
+
+export function getEventTagColumns(plot: PlotParams, meta: metricMeta, selectedOnly: boolean = false) {
+  const columns: UseEventTagColumnReturn[] = (meta.tags ?? [])
+    .map((tag, indexTag) => {
+      const keyTag = indexTag.toString();
+      const fullKeyTag = `key${indexTag}`;
+      const disabled = plot.groupBy.indexOf(fullKeyTag) > -1;
+      const selected = disabled || plot.eventsBy.indexOf(keyTag) > -1;
+      if (
+        (!selectedOnly ||
+          plot.eventsBy.indexOf(indexTag.toString()) > -1 ||
+          plot.groupBy.indexOf(`key${indexTag}`) > -1) &&
+        tag.description !== '-'
+      ) {
+        return {
+          keyTag,
+          fullKeyTag,
+          name: getTagDescription(meta, indexTag),
+          selected,
+          disabled,
+        };
+      } else {
+        return null;
+      }
+    })
+    .filter(Boolean) as UseEventTagColumnReturn[];
+  const disabled_s = plot.groupBy.indexOf('skey') > -1;
+  const selected_s = disabled_s || plot.eventsBy.indexOf('_s') > -1;
+  if ((!selectedOnly || selected_s) && (meta.string_top_name || meta.string_top_description)) {
+    columns.push({
+      keyTag: '_s',
+      fullKeyTag: 'skey',
+      name: getTagDescription(meta, '_s'),
+      selected: selected_s,
+      disabled: disabled_s,
+    });
+  }
+  return columns;
 }
