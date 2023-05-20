@@ -443,9 +443,10 @@ func ValidRawKind(s string) bool {
 	// hex_bswap:       same as hex, but do bswap after interpreting number bits as uint32
 	// timestamp:       UNIX timestamp, show as is (in GMT)
 	// timestamp_local: UNIX timestamp, show local time for this TS
+	// lexenc_float:    See @LexEncode - float encoding that preserves ordering
 	// EMPTY:           decimal number, can be negative
 	switch s {
-	case "", "uint", "ip", "ip_bswap", "hex", "hex_bswap", "timestamp", "timestamp_local":
+	case "", "uint", "ip", "ip_bswap", "hex", "hex_bswap", "timestamp", "timestamp_local", "lexenc_float":
 		return true
 	}
 	return false
