@@ -33,7 +33,7 @@ func getTableDesc() string {
 	for i := 0; i < format.MaxTags; i++ {
 		keysFieldsNamesVec[i] = fmt.Sprintf(`key%d`, i)
 	}
-	return `statshouse_value_incoming_prekey(metric,prekey,prekey_set,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,skey,max_host)`
+	return `statshouse_value_incoming_prekey(metric,prekey,prekey_set,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,skey,min_host,max_host)`
 }
 
 type prekeyIndexCache struct {
@@ -173,9 +173,9 @@ func appendValueStat(res []byte, key data_model.Key, skey string, v data_model.I
 	res = rowbinary.AppendEmptyUnique(res)
 	res = rowbinary.AppendString(res, skey)
 
-	// counters and uniques do not have min host set, but we write them always because we (probably) want to get rid
+	// counters do not have min host set, but we write them always because we (probably) want to get rid
 	// of min, max columns in the future, and use values stored in min_host, max_host as min, max.
-	// res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MinHostTag, float32(v.ValueMin)) // if you uncomment this line, add min_host to getTableDesc()
+	res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MinHostTag, float32(v.ValueMin))
 	res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxHostTag, float32(v.ValueMax))
 	return res
 }
@@ -189,7 +189,13 @@ func multiValueMarshal(res []byte, value *data_model.MultiValue, skey string, sf
 	res = rowbinary.AppendCentroids(res, value.ValueTDigest, sf)
 	res = value.HLL.MarshallAppend(res)
 	res = rowbinary.AppendString(res, skey)
-	res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxHostTag, float32(value.Value.Counter*sf)) // max_host, not always correct, but hopefully good enough
+	if value.Value.ValueSet {
+		res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MinHostTag, float32(value.Value.ValueMin))
+		res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxHostTag, float32(value.Value.ValueMax))
+	} else {
+		res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)                                                     // counters do not have min_host set
+		res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxHostTag, float32(value.Value.Counter*sf)) // max_host, not always correct, but hopefully good enough
+	}
 	return res
 }
 
