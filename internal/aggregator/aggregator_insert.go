@@ -185,7 +185,14 @@ func appendSimpleValueStat(res []byte, key data_model.Key, v float64, count floa
 }
 
 func multiValueMarshal(res []byte, value *data_model.MultiValue, skey string, sf float64) []byte {
-	res = appendAggregates(res, value.Value.Counter*sf, value.Value.ValueMin, value.Value.ValueMax, value.Value.ValueSum*sf, value.Value.ValueSumSquare*sf)
+	counter := value.Value.Counter * sf
+	if value.Value.ValueSet {
+		res = appendAggregates(res, counter, value.Value.ValueMin, value.Value.ValueMax, value.Value.ValueSum*sf, value.Value.ValueSumSquare*sf)
+	} else {
+		// motivation - we set MaxValue to aggregated counter, so this value will be preserved while merging into minute or hour table
+		// later, when selecting, we can sum them individual shards, showing approximately counter/sec spikes
+		res = appendAggregates(res, counter, 0, counter, 0, 0)
+	}
 	res = rowbinary.AppendCentroids(res, value.ValueTDigest, sf)
 	res = value.HLL.MarshallAppend(res)
 	res = rowbinary.AppendString(res, skey)
@@ -193,8 +200,8 @@ func multiValueMarshal(res []byte, value *data_model.MultiValue, skey string, sf
 		res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MinHostTag, float32(value.Value.ValueMin))
 		res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxHostTag, float32(value.Value.ValueMax))
 	} else {
-		res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)                                                     // counters do not have min_host set
-		res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxHostTag, float32(value.Value.Counter*sf)) // max_host, not always correct, but hopefully good enough
+		res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)                                      // counters do not have min_host set
+		res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxHostTag, float32(counter)) // max_host, not always correct, but hopefully good enough
 	}
 	return res
 }
