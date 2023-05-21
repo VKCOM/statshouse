@@ -190,7 +190,8 @@ func multiValueMarshal(res []byte, value *data_model.MultiValue, skey string, sf
 		res = appendAggregates(res, counter, value.Value.ValueMin, value.Value.ValueMax, value.Value.ValueSum*sf, value.Value.ValueSumSquare*sf)
 	} else {
 		// motivation - we set MaxValue to aggregated counter, so this value will be preserved while merging into minute or hour table
-		// later, when selecting, we can sum them individual shards, showing approximately counter/sec spikes
+		// later, when selecting, we can sum them from individual shards, showing approximately counter/sec spikes
+		// https://clickhouse.com/docs/en/engines/table-engines/special/distributed#_shard_num
 		res = appendAggregates(res, counter, 0, counter, 0, 0)
 	}
 	res = rowbinary.AppendCentroids(res, value.ValueTDigest, sf)
