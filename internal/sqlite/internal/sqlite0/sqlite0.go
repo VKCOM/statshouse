@@ -309,6 +309,11 @@ func (s *Stmt) BindInt64(param int, v int64) error {
 	return sqliteErr(rc, s.conn.conn, "sqlite3_bind_int64")
 }
 
+func (s *Stmt) BindFloat64(param int, v float64) error {
+	rc := C.sqlite3_bind_double(s.stmt, C.int(param), C.double(v))
+	return sqliteErr(rc, s.conn.conn, "sqlite3_bind_float64")
+}
+
 // BindBlobConstUnsafe don't copy slice of bytes, expecting v is immutable during the query execution
 func (s *Stmt) BindBlobConstUnsafe(param int, v []byte) error {
 	if s.keepAliveBytes == nil {
@@ -358,6 +363,11 @@ func (s *Stmt) ColumnBlobRaw(i int) ([]byte, error) {
 func (s *Stmt) ColumnInt64(i int) (int64, error) {
 	value := C.sqlite3_column_int64(s.stmt, C.int(i))
 	return int64(value), nil
+}
+
+func (s *Stmt) ColumnFloat64(i int) (float64, error) {
+	value := C.sqlite3_column_double(s.stmt, C.int(i))
+	return float64(value), nil
 }
 
 func (s *Stmt) ColumnBlobRawString(i int) (string, error) {

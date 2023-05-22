@@ -20,6 +20,7 @@ const (
 	argText       = 5
 	argInt64Slice = 6
 	argTextSlice  = 7
+	argFloat64    = 8
 )
 
 type Arg struct {
@@ -28,6 +29,7 @@ type Arg struct {
 	b    []byte
 	s    string
 	n    int64
+	f    float64
 
 	length int
 	ns     []int64
@@ -89,6 +91,14 @@ func TextList(name string, ss []string) Arg {
 		typ:    argTextSlice,
 		ss:     ss,
 		length: len(ss),
+	}
+}
+
+func Float64(name string, f float64) Arg {
+	return Arg{
+		name: name,
+		typ:  argFloat64,
+		f:    f,
 	}
 }
 
