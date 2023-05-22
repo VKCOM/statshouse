@@ -105,10 +105,10 @@ export function _Popper({
   fixed = false,
 }: PopperProps) {
   const visible = useIntersectionObserver(targetRef?.current, threshold);
-  const targetRect = useRectObserver(targetRef?.current, fixed);
+  const [targetRect, updateTargetRect] = useRectObserver(targetRef?.current, fixed);
   const [inner, innerRef] = useRefState<HTMLDivElement>();
   const innerVisible = useIntersectionObserver(inner, threshold);
-  const innerRect = useRectObserver(inner, fixed);
+  const [innerRect] = useRectObserver(inner, fixed);
   const windowRect = useWindowSize();
 
   const [horizontalClass, setHorizontalClass] = useState(horizontal);
@@ -195,6 +195,9 @@ export function _Popper({
     }
   }, [horizontal, innerRect, innerVisible, targetRect, vertical, windowRect]);
 
+  useEffect(() => {
+    updateTargetRect();
+  }, [show, updateTargetRect]);
   return (
     <Portal id={popperId} className={cn(css.popperGroup, fixed && css.popperGroupFixed)}>
       {visible && show && (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 function getRect(target: Element, fixed: boolean = false) {
   let nextRect = target.getBoundingClientRect();
@@ -14,27 +14,32 @@ function getRect(target: Element, fixed: boolean = false) {
   };
 }
 
-export function useRectObserver(target?: Element | null, fixed: boolean = false) {
+export function useRectObserver(target?: Element | null, fixed: boolean = false): [DOMRect, () => void] {
   const [rect, setRect] = useState<DOMRect>(new DOMRect());
+
+  const update = useCallback(() => {
+    if (target) {
+      setRect(getRect(target, fixed));
+    }
+  }, [fixed, target]);
+
   useEffect(() => {
     if (!target) {
       return;
     }
-    const upd = () => {
-      setRect(getRect(target, fixed));
-    };
-    upd();
-    const r = new ResizeObserver(upd);
-    const m = new MutationObserver(upd);
-    window.addEventListener('scroll', upd, { capture: true });
+
+    update();
+    const r = new ResizeObserver(update);
+    const m = new MutationObserver(update);
+    window.addEventListener('scroll', update, { capture: true });
     r.observe(target, {});
     m.observe(target, { attributes: true });
     return () => {
-      window.removeEventListener('scroll', upd, { capture: true });
+      window.removeEventListener('scroll', update, { capture: true });
       r.unobserve(target);
       r.disconnect();
       m.disconnect();
     };
-  }, [fixed, target]);
-  return rect;
+  }, [target, update]);
+  return [rect, update];
 }
