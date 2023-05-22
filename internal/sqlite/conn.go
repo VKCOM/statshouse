@@ -194,6 +194,10 @@ func (r *Rows) ColumnInt64(i int) (int64, error) {
 	return r.s.ColumnInt64(i)
 }
 
+func (r *Rows) ColumnFloat64(i int) (float64, error) {
+	return r.s.ColumnFloat64(i)
+}
+
 func (c Conn) LastInsertRowID() int64 {
 	return c.c.rw.LastInsertRowID()
 }
@@ -290,6 +294,8 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 			err = si.stmt.BindInt64(p, arg.n)
 		case argText:
 			err = si.stmt.BindBlobText(p, arg.s)
+		case argFloat64:
+			err = si.stmt.BindFloat64(p, arg.f)
 		case argInt64Slice:
 			for _, n := range arg.ns {
 				p := si.stmt.ParamBytes(c.c.numParams.nameLocked(start))

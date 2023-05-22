@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/rand"
 	"reflect"
 	"strconv"
@@ -694,4 +695,40 @@ func Test_Engine_Slice_Params(t *testing.T) {
 	})
 	require.Equal(t, 3, count)
 	require.NoError(t, err)
+}
+
+func Test_Engine_Float64(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (val REAL);"
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, NoBinlog, nil)
+	var err error
+	testValues := []float64{1.0, 6.0, math.MaxFloat64}
+
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		for i := 0; i < len(testValues); i++ {
+			_, err = conn.Exec("test", "INSERT INTO test_db(val) VALUES ($value)", Float64("$value", testValues[i]))
+			require.NoError(t, err)
+		}
+
+		return cache, err
+	})
+	require.NoError(t, err)
+	count := 0
+	result := make([]float64, 0, len(testValues))
+	value := 0.0
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT val FROM test_db WHERE val > $num", Float64("$num", 0.0))
+
+		for rows.Next() {
+			count++
+
+			value, err = rows.ColumnFloat64(0)
+			require.NoError(t, err)
+
+			result = append(result, value)
+		}
+		return cache, err
+	})
+	require.Equal(t, len(testValues), len(result))
+	require.Equal(t, testValues, result)
 }
