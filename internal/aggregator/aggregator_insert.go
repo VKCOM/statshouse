@@ -103,9 +103,10 @@ func appendMultiBadge(res []byte, k data_model.Key, v *data_model.MultiItem, pre
 	if k.Metric >= 0 { // fastpath
 		return res
 	}
-	for _, t := range v.Top {
-		res = appendBadge(res, k, t.Value, prekeyIndexes, usedTimestamps)
-	}
+	// TODO - fix sampling
+	// for _, t := range v.Top {
+	//	res = appendBadge(res, k, t.Value, prekeyIndexes, usedTimestamps)
+	// }
 	return appendBadge(res, k, v.Tail.Value, prekeyIndexes, usedTimestamps)
 }
 
@@ -130,7 +131,9 @@ func appendBadge(res []byte, k data_model.Key, v data_model.ItemValue, prekeyInd
 			format.TagValueIDSrcIngestionStatusWarnDeprecatedStop,
 			format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice,
 			format.TagValueIDSrcIngestionStatusWarnOldCounterSemantic:
-			return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionWarnings, k.Keys[1]}}, "", data_model.ItemValue{Counter: v.Counter, MaxHostTag: v.MaxHostTag}, prekeyIndexes, usedTimestamps)
+			return res
+			// TODO - fix sampling, then write those
+			// return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionWarnings, k.Keys[1]}}, "", data_model.ItemValue{Counter: v.Counter, MaxHostTag: v.MaxHostTag}, prekeyIndexes, usedTimestamps)
 		}
 		res = appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionErrorsOld, k.Keys[1]}}, "", data_model.ItemValue{Counter: 1, ValueSum: v.Counter, MaxHostTag: v.MaxHostTag}, prekeyIndexes, usedTimestamps)
 		return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionErrors, k.Keys[1]}}, "", data_model.ItemValue{Counter: v.Counter, MaxHostTag: v.MaxHostTag}, prekeyIndexes, usedTimestamps)
@@ -205,7 +208,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	sizePercentiles := 0
 	sizeUniques := 0
 	sizeStringTops := 0
-	sizeBuiltin := 0
+	resStart := len(res)
 	prekeyIndexes := makePrekeyCache(a.metricStorage)
 	usedTimestamps := map[uint32]struct{}{}
 
@@ -213,12 +216,9 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		resPos := len(res)
 		if !item.Tail.Empty() { // only tail
 			res = appendKeys(res, k, prekeyIndexes, usedTimestamps)
-
 			res = multiValueMarshal(res, &item.Tail, "", sf)
 
-			if k.Metric < 0 {
-				sizeBuiltin += len(res) - resPos
-			} else {
+			if k.Metric >= 0 {
 				switch {
 				case item.Tail.ValueTDigest != nil:
 					sizePercentiles += len(res) - resPos
@@ -237,9 +237,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 			res = appendKeys(res, k, prekeyIndexes, usedTimestamps)
 			res = multiValueMarshal(res, value, skey, sf)
 		}
-		if k.Metric < 0 {
-			sizeBuiltin += len(res) - resPos
-		} else {
+		if k.Metric >= 0 {
 			// TODO - separate into 3 keys - is_string_top/is_builtin and hll/percentile/value/counter
 			sizeStringTops += len(res) - resPos
 		}
@@ -256,9 +254,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		for k, item := range b.shards[si].multiItems {
 			whaleWeight := item.FinishStringTop(a.config.StringTopCountInsert) // all excess items are baked into Tail
 
-			resPos := len(res)
 			res = appendMultiBadge(res, k, item, prekeyIndexes, usedTimestamps)
-			sizeBuiltin += len(res) - resPos
 
 			accountMetric := k.Metric
 			if k.Metric < 0 {
@@ -369,7 +365,6 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	if historic {
 		key1 = format.TagValueIDConveyorHistoric
 	}
-	resPos := len(res)
 	for k, sf := range sampleFactors {
 		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingFactor, [16]int32{0, 0, 0, 0, k, format.TagValueIDAggSamplingFactorReasonInsertSize}, a.aggregatorHost, a.shardKey, a.replicaKey)
 		res = appendBadge(res, key, data_model.ItemValue{Counter: 1, ValueSum: sf}, prekeyIndexes, usedTimestamps)
@@ -392,11 +387,9 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		res = appendSimpleValueStat(res, key, float64(insertTimeUnix)-float64(t), 1, a.aggregatorHost, prekeyIndexes, nil)
 	}
 
-	sizeBuiltin += len(res) - resPos
-	resPos = len(res)
 	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeStringTop},
 		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizeStringTops), 1, a.aggregatorHost, prekeyIndexes, usedTimestamps)
-	sizeBuiltin += (len(res) - resPos) * 2 // hypothesis - next line inserts as many bytes as previous one
+	sizeBuiltin := len(res) - resStart // OK, ignore the size of size. Motivation - everything we forgot goes to builtin size
 	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeBuiltIn},
 		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizeBuiltin), 1, a.aggregatorHost, prekeyIndexes, usedTimestamps)
 	return res
