@@ -29,7 +29,7 @@ function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot,
       for (let s = 0, sMax = data.length; s < sMax; s++) {
         const val = data[s][idx];
         if (val) {
-          const x = Math.min(Number.MAX_VALUE, u.valToPos(time[idx], 'x') ?? 0);
+          const x = Math.round(Math.min(100000, u.valToPos(time[idx], 'x') ?? 0));
           if (flags[prevIdx] && x - flags[prevIdx].x > flagWidth * 1.5) {
             prevIdx = idx;
           }
