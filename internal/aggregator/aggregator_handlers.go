@@ -9,6 +9,7 @@ package aggregator
 import (
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"time"
@@ -242,6 +243,15 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 	host := a.tagsMapper.mapHost(now, args.Header.HostName, format.BuiltinMetricNameBudgetHost, false)
 	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging(args.FieldsMask))
 	buildArch := format.FilterBuildArch(args.Header.BuildArch)
+	var bcStr []byte
+	bcTag := int32(0)
+	if format.ValidStringValue(mem.B(args.BuildCommit)) {
+		bcStr = args.BuildCommit
+		bcStrRaw, _ := hex.DecodeString(string(bcStr))
+		if len(bcStrRaw) >= 4 {
+			bcTag = int32(binary.BigEndian.Uint32(bcStrRaw))
+		}
+	}
 
 	addrIPV4, _ := addrIPString(hctx.RemoteAddr())
 	if args.Header.AgentIp[3] != 0 {
@@ -366,6 +376,7 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 				k.Metric == format.BuiltinMetricIDHeartbeatArgs || k.Metric == format.BuiltinMetricIDHeartbeatArgs2 ||
 				k.Metric == format.BuiltinMetricIDHeartbeatArgs3 || k.Metric == format.BuiltinMetricIDHeartbeatArgs4 {
 				// We need to set IP anyway, so set other keys here, not by source
+				k.Keys[4] = bcTag
 				k.Keys[5] = args.BuildCommitDate
 				k.Keys[6] = args.BuildCommitTs
 				k.Keys[7] = host
@@ -443,18 +454,14 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 		getMultiItem(args.Time, format.BuiltinMetricIDAgentHistoricQueueSizeSum, [16]int32{0, format.TagValueIDHistoricQueueDiskSent}).Tail.AddValueCounterHost(float64(queueSizeDiskSumSent), 1, host)
 	}
 
-	var bcStr []byte
 	componentTag := args.Header.ComponentTag
 	if componentTag != format.TagValueIDComponentAgent && componentTag != format.TagValueIDComponentAggregator &&
 		componentTag != format.TagValueIDComponentIngressProxy && componentTag != format.TagValueIDComponentAPI {
 		// TODO - remove this if after release, because no more agents will send crap here
 		componentTag = format.TagValueIDComponentAgent
 	}
-	if format.ValidStringValue(mem.B(args.BuildCommit)) {
-		bcStr = args.BuildCommit
-	}
 	// This cheap version metric is not affected by agent sampling algorithm in contrast with __heartbeat_version
-	getMultiItem((args.Time/60)*60, format.BuiltinMetricIDVersions, [16]int32{0, 0, componentTag, args.BuildCommitDate, args.BuildCommitTs}).MapStringTopBytes(bcStr, 1).AddCounterHost(1, host)
+	getMultiItem((args.Time/60)*60, format.BuiltinMetricIDVersions, [16]int32{0, 0, componentTag, args.BuildCommitDate, args.BuildCommitTs, bcTag}).MapStringTopBytes(bcStr, 1).AddCounterHost(1, host)
 
 	for _, v := range bucket.SampleFactors {
 		// We probably wish to stop splitting by aggregator, because this metric is taking already too much space - about 2% of all data
