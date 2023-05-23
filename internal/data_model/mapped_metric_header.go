@@ -35,7 +35,11 @@ type MappedMetricHeader struct {
 	NotFoundTagName       []byte // reference to memory inside tlstatshouse.MetricBytes. If more than 1 problem, reports the last one
 	TagSetTwiceKey        int32  // +TagIDShift, as required by "tag_id" in builtin metric. If more than 1, remembers some
 	LegacyCanonicalTagKey int32  // +TagIDShift, as required by "tag_id" in builtin metric. If more than 1, remembers some
+	InvalidRawValue       []byte // reference to memory inside tlstatshouse.MetricBytes. If more than 1 problem, reports the last one
+	InvalidRawTagKey      int32  // key of InvalidRawValue
 }
+
+// TODO - implement InvalidRawValue and InvalidRawTagKey
 
 func (h *MappedMetricHeader) SetKey(index int, id int32, tagIDKey int32) {
 	if index == format.HostTagIndex {
