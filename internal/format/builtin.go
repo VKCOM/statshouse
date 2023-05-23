@@ -594,6 +594,9 @@ Set by aggregator. Max(value)@host shows agent responsible for longest aggregati
 				Description: "-",
 			}, {
 				Description: "-",
+			}, {
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
 			}},
 		},
 		BuiltinMetricIDAgentDiskCacheErrors: {
@@ -1275,9 +1278,10 @@ Set by aggregator.`,
 		},
 		BuiltinMetricIDContributorsLog: {
 			Name: "__contributors_log",
-			Kind: MetricKindCounter,
+			Kind: MetricKindValue,
 			Description: `Used to invalidate API caches.
-Timestamps of all inserted seconds per second are recorded here.
+Timestamps of all inserted seconds per second are recorded here in key1.
+Value is delta between second value and time it was inserted.
 To see which seconds change when, use __contributors_log_rev`,
 			Tags: []MetricMetaTag{{
 				Description: "timestamp",
@@ -1285,9 +1289,11 @@ To see which seconds change when, use __contributors_log_rev`,
 			}},
 		},
 		BuiltinMetricIDContributorsLogRev: {
-			Name:        "__contributors_log_rev",
-			Kind:        MetricKindValue,
-			Description: "Reverse index of __contributors_log, used to invalidate API caches.\nValue (and key1) is UNIX timestamp of second when this second was changed.",
+			Name: "__contributors_log_rev",
+			Kind: MetricKindValue,
+			Description: `Reverse index of __contributors_log, used to invalidate API caches.
+key1 is UNIX timestamp of second when this second was changed.
+Value is delta between second value and time it was inserted.`,
 			Tags: []MetricMetaTag{{
 				Description: "insert_timestamp",
 				RawKind:     "timestamp",
