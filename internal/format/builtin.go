@@ -892,7 +892,8 @@ Set by aggregator.`,
 				Description: "commit_timestamp",
 				RawKind:     "timestamp",
 			}, {
-				Description: "-",
+				Description: "commit_hash",
+				RawKind:     "hex",
 			}, {
 				Description: "-",
 			}},
@@ -1027,7 +1028,8 @@ Set by aggregator.`,
 			}, {
 				Description: "-",
 			}, {
-				Description: "-",
+				Description: "commit_hash",
+				RawKind:     "hex",
 			}, {
 				Description: "commit_date",
 				Raw:         true,
@@ -1504,7 +1506,8 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 		}, {
 			Description: "-",
 		}, {
-			Description: "-",
+			Description: "commit_hash", // this is unrelated to metric keys, this is ingress key ID
+			RawKind:     "hex",
 		}, {
 			Description: "commit_date",
 			Raw:         true,
