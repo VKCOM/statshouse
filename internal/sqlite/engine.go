@@ -538,6 +538,7 @@ func (e *Engine) commitTXAndStartNew(commit, waitBinlogCommit bool) error {
 
 func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, skipUpdateMeta bool) error {
 	var info *committedInfo
+	c.ctx = context.Background()
 	if waitBinlogCommit && e.binlog != nil {
 		info = e.binlogWaitDBSync(c)
 	}
@@ -719,10 +720,10 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	}
 	if e.opt.DurabilityMode == NoBinlog {
 		if e.opt.CommitOnEachWrite {
-			_ = e.commitTXAndStartNewLocked(c, true, false, true)
+			err = e.commitTXAndStartNewLocked(c, true, false, true)
 		}
-		e.rw.spOk = true
-		return nil, nil
+		e.rw.spOk = err == nil
+		return nil, err
 	}
 	shouldWriteBinlog := len(buffer) > 0
 	isReadOp := !shouldWriteBinlog
@@ -755,7 +756,10 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 		e.dbOffset = offsetAfterWrite
 	}
 	if e.opt.CommitOnEachWrite {
-		_ = e.commitTXAndStartNewLocked(c, true, false, true)
+		err = e.commitTXAndStartNewLocked(c, true, false, true)
+		if err != nil {
+			return nil, err
+		}
 		mustCommitNow = false
 	}
 	if waitCommitMode || mustCommitNow {
@@ -779,10 +783,10 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	if mustCommitNow && ch != nil {
 		<-ch
 		ch = nil
-		_ = e.commitTXAndStartNewLocked(c, true, false, false)
+		err = e.commitTXAndStartNewLocked(c, true, false, false)
 	}
-	e.rw.spOk = true
-	return ch, nil
+	e.rw.spOk = err == nil
+	return ch, err
 }
 
 func (e *Engine) Do(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) error {
