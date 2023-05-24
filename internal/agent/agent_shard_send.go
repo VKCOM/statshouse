@@ -924,6 +924,9 @@ func (s *Shard) goEraseHistoric() {
 }
 
 func isShardDeadError(err error) bool {
+	if err == nil {
+		return false
+	}
 	var rpcError rpc.Error
 	if !errors.As(err, &rpcError) {
 		return true
