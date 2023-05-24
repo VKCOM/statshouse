@@ -172,7 +172,7 @@ const (
 	TagValueIDSrcIngestionStatusErrNegativeCounter           = 25
 	TagValueIDSrcIngestionStatusErrMapOther                  = 30 // never written, for historic data
 	TagValueIDSrcIngestionStatusWarnMapTagNameNotFound       = 33
-	TagValueIDSrcIngestionStatusErrMapInvalidRawTagValue     = 34
+	TagValueIDSrcIngestionStatusErrMapInvalidRawTagValue     = 34 // warning now, for historic data
 	TagValueIDSrcIngestionStatusErrMapTagValueCached         = 35
 	TagValueIDSrcIngestionStatusErrMapTagValue               = 36
 	TagValueIDSrcIngestionStatusErrMapGlobalQueueOverload    = 37
@@ -190,6 +190,7 @@ const (
 	TagValueIDSrcIngestionStatusErrMapTagNameEncoding        = 49
 	TagValueIDSrcIngestionStatusErrValueUniqueBothSet        = 50
 	TagValueIDSrcIngestionStatusWarnOldCounterSemantic       = 51 // never written, for historic data
+	TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue    = 52
 
 	TagValueIDPacketFormatLegacy   = 1
 	TagValueIDPacketFormatTL       = 2
@@ -521,6 +522,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 					TagValueIDSrcIngestionStatusErrMapTagNameEncoding:        "err_validate_tag_name_utf8",
 					TagValueIDSrcIngestionStatusErrValueUniqueBothSet:        "err_value_unique_both_set",
 					TagValueIDSrcIngestionStatusWarnOldCounterSemantic:       "warn_deprecated_counter_semantic",
+					TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:    "warn_map_invalid_raw_tag_value",
 				}),
 			}, {
 				Description: "tag_id",

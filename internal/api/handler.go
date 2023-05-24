@@ -1664,6 +1664,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	}
 	// Add badges
 	if qry.verbose && err == nil && badges != nil && len(badges.Series.Time) > 0 {
+		// TODO - skip values outside display range. Badge now does not correspond directly to points displayed.
 		for i, meta := range badges.Series.SeriesMeta {
 			badgeTypeSamplingFactorSrc := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor))
 			badgeTypeSamplingFactorAgg := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor))

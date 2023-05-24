@@ -288,9 +288,10 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 		case tagInfo.Raw:
 			id, ok := format.ContainsRawTagValue(mem.B(v.Value)) // TODO - remove allocation in case of error
 			if !ok {
-				h.SetInvalidString(format.TagValueIDSrcIngestionStatusErrMapInvalidRawTagValue, tagIDKey, v.Value)
-				h.CheckedTagIndex++
-				return true
+				h.InvalidRawValue = v.Value
+				h.InvalidRawTagKey = tagIDKey
+				// We could arguably call h.SetKey, but there is very little difference in semantic to care
+				continue
 			}
 			h.SetKey(tagInfo.Index, id, tagIDKey)
 		case len(v.Value) == 0: // TODO - move knowledge about "" <-> 0 mapping to more general place

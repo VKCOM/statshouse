@@ -371,6 +371,12 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice, h.TagSetTwiceKey},
 		}, 1)
 	}
+	if h.InvalidRawTagKey != 0 {
+		s.AddCounterHostStringBytes(data_model.Key{
+			Metric: format.BuiltinMetricIDIngestionStatus,
+			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue, h.InvalidRawTagKey},
+		}, h.InvalidRawValue, 1, 0, nil)
+	}
 	if h.LegacyCanonicalTagKey != 0 {
 		s.AddCounter(data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,
