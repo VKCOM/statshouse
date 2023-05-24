@@ -94,11 +94,11 @@ func (c Conn) execEndSavepoint() {
 }
 
 func (c Conn) Query(name, sql string, args ...Arg) Rows {
-	return c.query(false, query, name, nil, sql, args...)
+	return c.query(true, false, query, name, nil, sql, args...)
 }
 
 func (c Conn) QueryBytes(name string, sql []byte, args ...Arg) Rows {
-	return c.query(false, query, name, sql, "", args...)
+	return c.query(true, false, query, name, sql, "", args...)
 }
 
 func (c Conn) Exec(name, sql string, args ...Arg) (int64, error) {
@@ -113,14 +113,14 @@ func (c Conn) ExecUnsafe(name, sql string, args ...Arg) (int64, error) {
 	return c.exec(true, name, nil, sql, args...)
 }
 
-func (c Conn) query(allowUnsafe bool, type_, name string, sql []byte, sqlStr string, args ...Arg) Rows {
+func (c Conn) query(isRO, allowUnsafe bool, type_, name string, sql []byte, sqlStr string, args ...Arg) Rows {
 	start := time.Now()
-	s, err := c.doQuery(allowUnsafe, sql, sqlStr, args...)
+	s, err := c.doQuery(isRO, allowUnsafe, sql, sqlStr, args...)
 	return Rows{c.c, s, err, false, c.ctx, name, start, c.stats, type_}
 }
 
 func (c Conn) exec(allowUnsafe bool, name string, sql []byte, sqlStr string, args ...Arg) (int64, error) {
-	rows := c.query(allowUnsafe, exec, name, sql, sqlStr, args...)
+	rows := c.query(false, allowUnsafe, exec, name, sql, sqlStr, args...)
 	for rows.Next() {
 	}
 	return c.LastInsertRowID(), rows.Error()
@@ -211,8 +211,8 @@ func checkSliceParamName(s string) bool {
 }
 
 // if sqlString == "", sqlBytes could be copied to store as map key
-func (c Conn) doQuery(allowUnsafe bool, sqlBytes []byte, sqlString string, args ...Arg) (*sqlite0.Stmt, error) {
-	if c.c.err != nil {
+func (c Conn) doQuery(isRO, allowUnsafe bool, sqlBytes []byte, sqlString string, args ...Arg) (*sqlite0.Stmt, error) {
+	if c.c.err != nil && !isRO {
 		return nil, c.c.err
 	}
 	sqlIsRawBytes := true
@@ -258,6 +258,9 @@ func (c Conn) doQuery(allowUnsafe bool, sqlBytes []byte, sqlString string, args 
 
 	if !allowUnsafe && !si.isSafe {
 		return nil, errUnsafe
+	}
+	if isRO && !si.isSelect {
+		return nil, fmt.Errorf("use Exec instead of Query")
 	}
 	if c.autoSavepoint && (!si.isSelect && !si.isVacuumInto) && !c.c.spIn {
 		err := c.execBeginSavepoint()

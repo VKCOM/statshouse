@@ -732,3 +732,40 @@ func Test_Engine_Float64(t *testing.T) {
 	require.Equal(t, len(testValues), len(result))
 	require.Equal(t, testValues, result)
 }
+
+func Test_Engine_Write_Fail_But_Read_Work(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
+	var id int64
+	var err error
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		buf := make([]byte, 12)
+		_, err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Int64("$id", 1))
+		binary.LittleEndian.PutUint32(buf, magic)
+		binary.LittleEndian.PutUint64(buf[4:], uint64(1))
+		return cache, err
+	})
+	require.NoError(t, err)
+	engine.rw.err = fmt.Errorf("fail")
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT id FROM test_db")
+		for rows.Next() {
+			id, err = rows.ColumnInt64(0)
+			if err != nil {
+				return cache, err
+			}
+		}
+		return cache, err
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(1), id)
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		buf := make([]byte, 12)
+		_, err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Int64("$id", 1))
+		binary.LittleEndian.PutUint32(buf, magic)
+		binary.LittleEndian.PutUint64(buf[4:], uint64(1))
+		return cache, err
+	})
+	require.ErrorIs(t, err, engine.rw.err)
+}
