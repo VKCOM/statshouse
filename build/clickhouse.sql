@@ -361,5 +361,5 @@ CREATE TABLE IF NOT EXISTS statshouse_internal_log_buffer
     `key5`          String,
     `message` String
 )
-ENGINE = Buffer(default, statshouse_internal_log_dist, 2, 120, 120, 10000000, 10000000, 100000000, 100000000)
+ENGINE = Buffer(default, statshouse_internal_log_dist, 2, 120, 120, 10000000, 10000000, 100000000, 100000000);
 
