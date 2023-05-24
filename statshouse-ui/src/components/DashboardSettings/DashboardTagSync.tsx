@@ -19,9 +19,7 @@ import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
 import produce from 'immer';
 import { notNull } from '../../view/utils';
 
-const loadMetricsMeta = useStore.getState().loadMetricsMeta;
-const setParams = useStore.getState().setParams;
-const preSync = useStore.getState().preSync;
+const { loadMetricsMeta, setParams, preSync } = useStore.getState();
 
 export type DashboardTagSyncProp = {};
 export const DashboardTagSync: React.FC<DashboardTagSyncProp> = () => {

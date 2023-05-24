@@ -41,7 +41,7 @@ export const SyncTagGroup: React.FC<SyncTagGroupProps> = ({
     () =>
       plots
         .map((plot, indexPlot) => {
-          if (!edit && syncTags[indexPlot] === null) {
+          if (!edit && (syncTags[indexPlot] === null || syncTags[indexPlot] === undefined)) {
             return null;
           }
           const name = plot.metricName !== promQLMetric ? plot.metricName : plotsData[indexPlot].nameMetric;
