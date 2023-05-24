@@ -132,7 +132,7 @@ func main() {
 	pflag.StringVar(&argv.listenRPCAddr, "listen-rpc-addr", "localhost:13347", "RPC server listen address")
 	pflag.BoolVar(&argv.localMode, "local-mode", false, "set local-mode if you need to have default access without access token")
 	pflag.BoolVar(&argv.insecureMode, "insecure-mode", false, "set insecure-mode if you don't need any access verification")
-	pflag.StringVar(&argv.pidFile, "pid-file", "statshouse_api.pid", "path to PID file")
+	pflag.StringVar(&argv.pidFile, "pid-file", "statshouse_api.pid", "path to PID file") // fpr table flip
 
 	pflag.StringVar(&argv.pprofAddr, "pprof-addr", "", "Go pprof HTTP listen address")
 	pflag.StringSliceVar(&argv.protectedMetricPrefixes, "protected-metric-prefixes", nil, "comma-separated list of metric prefixes that require access bits set")

@@ -72,7 +72,7 @@ const upgradeTimeout = 60 * time.Second
 
 func parseArgs() {
 	pflag.StringVar(&argv.dbPath, "db-path", "", "path to sqlite storage file")
-	pflag.StringVar(&argv.pidFile, "pid-file", "", "path to PID file")
+	pflag.StringVar(&argv.pidFile, "pid-file", "", "path to PID file") // fpr table flip
 	pflag.IntVar(&argv.replacePid, "replace-pid", 0, "specified pid will be killed by SIGTERM after our init")
 
 	pflag.StringVar(&argv.rpcCryptoKeyPath, "rpc-crypto-path", "", "path to RPC crypto key. if empty try to use stdin")
