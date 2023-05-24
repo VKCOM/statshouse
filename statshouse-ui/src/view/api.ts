@@ -687,7 +687,8 @@ export type RawValueKind =
   | 'timestamp_local'
   | 'ip'
   | 'ip_bswap'
-  | 'lexenc_float';
+  | 'lexenc_float'
+  | 'float';
 
 export interface metricMeta {
   readonly name: string;
