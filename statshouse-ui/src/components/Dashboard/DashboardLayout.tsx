@@ -241,7 +241,11 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
                   {params.dashboard?.groupInfo?.[indexGroup]?.show === false ? <SVGChevronRight /> : <SVGChevronDown />}
                 </div>
 
-                <div className="flex-grow-1">{params.dashboard?.groupInfo?.[indexGroup]?.name ?? ' '}</div>
+                <div className="flex-grow-1">
+                  {params.dashboard?.groupInfo?.[indexGroup]?.name || (
+                    <span className="text-body-tertiary">Group {indexGroup + 1}</span>
+                  )}
+                </div>
               </div>
             )}
           </h6>

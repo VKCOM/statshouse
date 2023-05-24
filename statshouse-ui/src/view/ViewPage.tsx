@@ -4,37 +4,41 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { SetStateAction, useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import produce from 'immer';
-import { Dashboard, PlotLayout } from '../components';
-import { PlotParams } from '../common/plotQueryParams';
+import { Dashboard, PlotLayout, PlotView } from '../components';
 import { setBackgroundColor } from '../common/canvasToImage';
 import {
   selectorGlobalNumQueriesPlot,
-  selectorInitSetSearchParams,
   selectorLastError,
   selectorLiveMode,
   selectorLoadMetricsList,
-  selectorLoadMetricsMeta,
   selectorMetricsList,
   selectorMetricsMetaByName,
   selectorParams,
-  selectorPlotActive,
   selectorPreviews,
-  selectorSetBaseRange,
-  selectorSetCompact,
-  selectorSetLastError,
-  selectorSetParams,
-  selectorSetTimeRange,
   selectorTimeRange,
   selectorTitle,
-  selectorUpdateParamsByUrl,
   useStore,
 } from '../store';
-import { PlotView } from '../components';
 import { now } from './utils';
 import { debug } from '../common/debug';
+import { PlotParams } from '../common/plotQueryParams';
+
+const {
+  setPlotParams,
+  setTimeRange,
+  updateParamsByUrl,
+  initSetSearchParams,
+  setBaseRange,
+  setCompact,
+  setLastError,
+  loadMetricsMeta,
+} = useStore.getState();
+
+const clearLastError = () => {
+  setLastError('');
+};
 
 export type ViewPageProps = {
   embed?: boolean;
@@ -44,46 +48,34 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
   const [rawParams, setRawParams] = useSearchParams();
   const title = useStore(selectorTitle);
   const params = useStore(selectorParams);
-  const activePlot = useStore(selectorPlotActive);
-  const setParams = useStore(selectorSetParams);
+  const activePlot: PlotParams | undefined = params.plots[params.tabNum];
   const timeRange = useStore(selectorTimeRange);
-  const setTimeRange = useStore(selectorSetTimeRange);
-  const updateParamsByUrl = useStore(selectorUpdateParamsByUrl);
-  const initSetSearchParams = useStore(selectorInitSetSearchParams);
+
   const live = useStore(selectorLiveMode);
 
   const plotPreviews = useStore(selectorPreviews);
 
-  const setBaseRange = useStore(selectorSetBaseRange);
-
   const numQueries = useStore(selectorGlobalNumQueriesPlot);
-
-  const setCompact = useStore(selectorSetCompact);
 
   const metricsOptions = useStore(selectorMetricsList);
   const loadMetricsList = useStore(selectorLoadMetricsList);
 
   const lastError = useStore(selectorLastError);
-  const setLastError = useStore(selectorSetLastError);
-
-  const clearLastError = useCallback(() => {
-    setLastError('');
-  }, [setLastError]);
+  const plotPreview = plotPreviews[params.tabNum];
 
   const selectorActivePlotMetricsMeta = useMemo(
     () => selectorMetricsMetaByName.bind(undefined, activePlot?.metricName ?? ''),
     [activePlot]
   );
   const meta = useStore(selectorActivePlotMetricsMeta);
-  const loadMetricsMeta = useStore(selectorLoadMetricsMeta);
 
   useEffect(() => {
     initSetSearchParams(setRawParams);
-  }, [initSetSearchParams, setRawParams]);
+  }, [setRawParams]);
 
   useEffect(() => {
     updateParamsByUrl();
-  }, [rawParams, updateParamsByUrl]);
+  }, [rawParams]);
 
   useEffect(() => {
     loadMetricsList();
@@ -93,14 +85,14 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
     if (activePlot?.metricName) {
       loadMetricsMeta(activePlot.metricName);
     }
-  }, [activePlot, loadMetricsMeta]);
+  }, [activePlot]);
 
   useEffect(() => {
     setCompact(!!embed);
-  }, [embed, setCompact]);
+  }, [embed]);
 
   useEffect(() => {
-    setBackgroundColor(plotPreviews[params.tabNum] ?? '', 'rgba(255,255,255,1)', 64).then((data) => {
+    setBackgroundColor(plotPreview ?? '', 'rgba(255,255,255,1)', 64).then((data) => {
       let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
       if (!link) {
         link = document.createElement('link');
@@ -112,21 +104,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
       }
       link.href = data || '/favicon.ico';
     });
-  }, [params.tabNum, plotPreviews]);
-
-  const changeParams = useCallback(
-    (index: number, sel: SetStateAction<PlotParams>, forceReplace?: boolean) => {
-      if (typeof index !== 'undefined') {
-        setParams(
-          produce((p) => {
-            p.plots[index] = (typeof sel === 'function' ? sel(p.plots[index]) : sel) as PlotParams;
-          }),
-          forceReplace
-        );
-      }
-    },
-    [setParams]
-  );
+  }, [params.tabNum, plotPreview]);
 
   useEffect(() => {
     if (title) {
@@ -144,7 +122,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
         true
       );
     }
-  }, [setTimeRange]);
+  }, []);
 
   useEffect(() => {
     if (live) {
@@ -187,7 +165,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
               <PlotLayout
                 embed={embed}
                 indexPlot={params.tabNum}
-                setParams={changeParams}
+                setParams={setPlotParams}
                 metricsOptions={metricsOptions}
                 sel={activePlot}
                 meta={meta}
