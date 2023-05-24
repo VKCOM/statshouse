@@ -593,13 +593,14 @@ export function lexDecode(intval: number): number {
 export function convert(kind: RawValueKind | undefined, input: number): string {
   switch (kind) {
     case 'hex':
-      return `00000000${(input >>> 0).toString(16)}`.slice(-8);
+      return '0x' + `00000000${(input >>> 0).toString(16)}`.slice(-8);
     case 'hex_bswap':
       return (
-        `00${(input & 255).toString(16)}`.slice(-2) +
-        `00${((input >> 8) & 255).toString(16)}`.slice(-2) +
-        `00${((input >> 16) & 255).toString(16)}`.slice(-2) +
-        `00${((input >> 24) & 255).toString(16)}`.slice(-2)
+        '0x' +
+        (`00${(input & 255).toString(16)}`.slice(-2) +
+          `00${((input >> 8) & 255).toString(16)}`.slice(-2) +
+          `00${((input >> 16) & 255).toString(16)}`.slice(-2) +
+          `00${((input >> 24) & 255).toString(16)}`.slice(-2))
       );
     case 'timestamp':
       return fmtInputDateTime(uPlot.tzDate(new Date(input * 1000), 'UTC'));
@@ -613,6 +614,11 @@ export function convert(kind: RawValueKind | undefined, input: number): string {
       return (input >>> 0).toString(10);
     case 'lexenc_float':
       return lexDecode(input).toString(10);
+    case 'float':
+      const buffer = new ArrayBuffer(4);
+      const dataView = new DataView(buffer);
+      dataView.setInt32(0, input, false);
+      return dataView.getFloat32(0, false).toString(10);
     default:
       return input.toString(10);
   }
