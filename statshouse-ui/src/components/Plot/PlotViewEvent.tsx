@@ -214,7 +214,7 @@ export function PlotViewEvent(props: {
         //   prox: Infinity, // always have one series focused
         // },
         sync,
-        // dataIdx: dataIdxNearest,
+        dataIdx: dataIdxNearest,
       },
       focus: {
         alpha: unFocusAlfa, // avoid redrawing unfocused series
@@ -330,7 +330,7 @@ export function PlotViewEvent(props: {
   const [cursorTime, setCursorTime] = useState<number>();
 
   const onSetCursor = useCallback((u: uPlot) => {
-    setCursorTime(u.data[0][u.cursor.idx ?? -1]);
+    setCursorTime(u.data[0][u.legend.idxs?.[0] ?? -1]);
   }, []);
 
   const onCursor = useCallback((time: number) => {
@@ -469,4 +469,54 @@ export function PlotViewEvent(props: {
       </div>
     </div>
   );
+}
+
+// https://leeoniya.github.io/uPlot/demos/nearest-non-null.html
+function dataIdxNearest(self: uPlot, seriesIdx: number, hoveredIdx: number, cursorXVal: number): number {
+  const xValues = self.data[0];
+  const yValues = self.data[seriesIdx];
+
+  // todo: only scan in-view indices
+  const mi = self.scales['x'].min;
+  const ma = self.scales['x'].max;
+
+  if (mi === undefined || ma === undefined || ma <= mi) return hoveredIdx; // not initialized, etc.
+  const fromX = cursorXVal - (ma - mi) / 50; // TODO +- 2% of total area for now
+  const toX = cursorXVal + (ma - mi) / 50; // TODO +- 2% of total area for now
+
+  let nonNullLft = null;
+  let nonNullRgt = null;
+
+  for (let i = hoveredIdx; i-- > 0; ) {
+    // do not include hoveredIdx
+    if (xValues[i] < fromX) {
+      break;
+    }
+    if (yValues[i] != null) {
+      nonNullLft = i;
+      break;
+    }
+  }
+
+  for (let i = hoveredIdx; i < yValues.length; i++) {
+    // include hoveredIdx
+    if (xValues[i] > toX) {
+      break;
+    }
+    if (yValues[i] != null) {
+      nonNullRgt = i;
+      break;
+    }
+  }
+
+  const rgtVal = nonNullRgt == null ? Infinity : xValues[nonNullRgt];
+  const lftVal = nonNullLft == null ? -Infinity : xValues[nonNullLft];
+
+  const lftDelta = cursorXVal - lftVal;
+  const rgtDelta = rgtVal - cursorXVal;
+
+  const idx = lftDelta <= rgtDelta ? nonNullLft : nonNullRgt;
+  if (idx !== null) return idx;
+  // this code path includes returning index where only timestamps are set, but no related data points
+  return hoveredIdx;
 }
