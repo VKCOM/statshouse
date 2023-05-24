@@ -472,6 +472,16 @@ export const statsHouseState: StateCreator<
         if (state.params.tabNum >= 0) {
           state.dashboardLayoutEdit = false;
         }
+        state.params.plots.forEach((plot, indexPlot) => {
+          if (
+            plot.metricName === promQLMetric &&
+            state.params.tagSync.some((g) => g[indexPlot] !== null && g[indexPlot] !== undefined)
+          ) {
+            state.params.tagSync = state.params.tagSync.map((g) =>
+              g.map((tags, plot) => (plot !== indexPlot ? tags : null))
+            );
+          }
+        });
       });
       getState().params.plots.forEach((plot, index) => {
         if (changedTimeRange || changedTimeShifts || prevParams.plots[index] !== plot) {
@@ -491,8 +501,11 @@ export const statsHouseState: StateCreator<
     const noUpdate = changed && dequal({ ...next, customName: '' }, { ...prev, customName: '' });
     if (changed) {
       setState((state) => {
-        if (next.metricName !== prev.metricName) {
-          state.params.tagSync = state.params.tagSync.map((g) => g.filter((tags, plot) => plot !== index));
+        if (
+          next.metricName !== prev.metricName &&
+          state.params.tagSync.some((g) => g[index] !== null && g[index] !== undefined)
+        ) {
+          state.params.tagSync = state.params.tagSync.map((g) => g.map((tags, plot) => (plot !== index ? tags : null)));
         }
         state.params.plots[index] = next;
       });
