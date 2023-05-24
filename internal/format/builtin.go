@@ -1539,8 +1539,8 @@ func init() {
 	}
 	for i := 0; i < MaxTags; i++ {
 		legacyName := tagIDPrefix + strconv.Itoa(i)
-		tagIDs = append(tagIDs, legacyName)
-		newTagIDs = append(newTagIDs, strconv.Itoa(i))
+		tagIDsLegacy = append(tagIDsLegacy, legacyName)
+		tagIDs = append(tagIDs, strconv.Itoa(i))
 		tagIDToIndexForAPI[legacyName] = i
 		tagIDTag2TagID[int32(i+TagIDShiftLegacy)] = legacyName
 		tagIDTag2TagID[int32(i+TagIDShift)] = tagStringForUI + " " + strconv.Itoa(i) // for UI only

@@ -211,7 +211,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 			}
 			if !grouped && !qry.Options.ExplicitGrouping { // then group by all
 				for i := 0; i < format.MaxTags; i++ {
-					s.GroupBy = append(s.GroupBy, format.TagID(i))
+					s.GroupBy = append(s.GroupBy, format.TagIDLegacy(i))
 				}
 			}
 		}
@@ -762,7 +762,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		}
 		for _, tag := range metric.Tags {
 			if !skip[tag.Index] {
-				groupBy = append(groupBy, format.TagID(tag.Index))
+				groupBy = append(groupBy, format.TagIDLegacy(tag.Index))
 				if tag.Name == format.LETagName {
 					histogramQ.restore = true
 				}
@@ -772,7 +772,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		groupBy = make([]string, 0, len(sel.GroupBy))
 		for _, name := range sel.GroupBy {
 			if tag, ok := metric.Name2Tag[name]; ok && 0 <= tag.Index && tag.Index < format.MaxTags {
-				groupBy = append(groupBy, format.TagID(tag.Index))
+				groupBy = append(groupBy, format.TagIDLegacy(tag.Index))
 				if tag.Name == format.LETagName {
 					histogramQ.restore = true
 				}
@@ -892,7 +892,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		}
 	}
 	if histogramQ.filter && !histogramQ.restore {
-		groupBy = append(groupBy, format.TagID(metric.Name2Tag[format.LETagName].Index))
+		groupBy = append(groupBy, format.TagIDLegacy(metric.Name2Tag[format.LETagName].Index))
 		histogramQ.restore = true
 	}
 	return seriesQueryX{

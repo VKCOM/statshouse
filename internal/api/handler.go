@@ -2137,7 +2137,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				tags := ixToTags[i]
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(j), tags.tag[j])
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagIDLegacy(j), tags.tag[j])
 				}
 				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 
@@ -2446,7 +2446,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 				tags := ixToTags[ix]
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(j), tags.tag[j])
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagIDLegacy(j), tags.tag[j])
 				}
 				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 
@@ -2853,7 +2853,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 					tags := &rows[i].tsTags
 					kvs := make(map[string]SeriesMetaTag, 16)
 					for j := 0; j < format.MaxTags; j++ {
-						tagName := format.TagID(j)
+						tagName := format.TagIDLegacy(j)
 						wasAdded := h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, tagName, tags.tag[j])
 						if wasAdded {
 							rowRepr.Tags = append(rowRepr.Tags, RawTag{

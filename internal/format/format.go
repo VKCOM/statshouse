@@ -73,8 +73,8 @@ const (
 )
 
 var (
+	tagIDsLegacy       []string             // initialized in builtin.go due to dependency
 	tagIDs             []string             // initialized in builtin.go due to dependency
-	newTagIDs          []string             // initialized in builtin.go due to dependency
 	tagIDTag2TagID     = map[int32]string{} // initialized in builtin.go due to dependency
 	tagIDToIndexForAPI = map[string]int{}   // initialized in builtin.go due to dependency
 
@@ -290,13 +290,13 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	}
 	for i := range tags {
 		tag := &tags[i]
-		if tag.Name == NewTagID(i) { // remove redundancy
+		if tag.Name == TagID(i) { // remove redundancy
 			tag.Name = ""
 		}
-		if m.PreKeyTagID == TagID(i) && m.PreKeyFrom != 0 {
+		if m.PreKeyTagID == TagIDLegacy(i) && m.PreKeyFrom != 0 {
 			m.PreKeyIndex = i
 		}
-		if m.PreKeyTagID == NewTagID(i) && m.PreKeyFrom != 0 {
+		if m.PreKeyTagID == TagID(i) && m.PreKeyFrom != 0 {
 			m.PreKeyIndex = i
 		}
 		if !ValidRawKind(tag.RawKind) {
@@ -338,16 +338,16 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.setName2Tag(NewHostTagID, hTag, true, false, &err)
 	for i := 0; i < MaxTags; i++ { // separate pass to overwrite potential collisions with canonical names in the loop above
 		if i < len(tags) {
-			m.setName2Tag(NewTagID(i), tags[i], true, false, &err)
-			m.setName2Tag(TagID(i), tags[i], false, true, nil)
+			m.setName2Tag(TagID(i), tags[i], true, false, &err)
+			m.setName2Tag(TagIDLegacy(i), tags[i], false, true, nil)
 			if i == 0 {
 				// we clear name of env (above), it must have exactly one way to refer to it, "0"
 				// but for legacy libraries, we allow to send "env" for now, TODO - remove
 				m.setName2Tag("env", tags[i], false, true, nil)
 			}
 		} else {
-			m.setName2Tag(NewTagID(i), MetricMetaTag{Index: i}, true, false, &err)
-			m.setName2Tag(TagID(i), MetricMetaTag{Index: i}, false, true, nil)
+			m.setName2Tag(TagID(i), MetricMetaTag{Index: i}, true, false, &err)
+			m.setName2Tag(TagIDLegacy(i), MetricMetaTag{Index: i}, false, true, nil)
 			if i == 0 {
 				m.setName2Tag("env", MetricMetaTag{Index: i}, false, true, nil)
 			}
@@ -461,12 +461,12 @@ func ParseTagIDForAPI(tagID string) int {
 	return i
 }
 
-func TagID(i int) string {
-	return tagIDs[i]
+func TagIDLegacy(i int) string {
+	return tagIDsLegacy[i]
 }
 
-func NewTagID(i int) string {
-	return newTagIDs[i]
+func TagID(i int) string {
+	return tagIDs[i]
 }
 
 func AllowedResolution(r int) int {

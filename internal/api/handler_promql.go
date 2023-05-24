@@ -385,7 +385,7 @@ func (h *Handler) GetHostName(hostID int32) string {
 func (h *Handler) GetTagValue(qry promql.TagValueQuery) string {
 	var tagID string
 	if len(qry.TagID) == 0 {
-		tagID = format.TagID(qry.TagIndex)
+		tagID = format.TagIDLegacy(qry.TagIndex)
 	} else {
 		tagID = qry.TagID
 	}
@@ -484,7 +484,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			} else if tag, ok := qry.Metric.Name2Tag[tagID]; ok && tag.Index < len(t.tag) {
 				var name string
 				if len(tag.Name) == 0 {
-					name = format.TagID(tag.Index)
+					name = format.TagIDLegacy(tag.Index)
 				} else {
 					name = tag.Name
 				}
@@ -524,7 +524,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 			version:     version,
 			metricID:    qry.Metric.MetricID,
 			preKeyTagID: qry.Metric.PreKeyTagID,
-			tagID:       format.TagID(qry.TagIndex),
+			tagID:       format.TagIDLegacy(qry.TagIndex),
 			numResults:  math.MaxInt - 1,
 		}
 		tags = make(map[int32]bool)
@@ -620,7 +620,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		filterInM = make(map[string][]any) // mapped
 	)
 	for i, m := range qry.FilterIn {
-		tagID := format.TagID(i)
+		tagID := format.TagIDLegacy(i)
 		for tagValueID, tagValue := range m {
 			filterIn[tagID] = append(filterIn[tagID], tagValue)
 			filterInM[tagID] = append(filterInM[tagID], tagValueID)
@@ -635,7 +635,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		filterOutM = make(map[string][]any) // mapped
 	)
 	for i, m := range qry.FilterOut {
-		tagID := format.TagID(i)
+		tagID := format.TagIDLegacy(i)
 		for tagValueID, tagValue := range m {
 			filterOut[tagID] = append(filterOut[tagID], tagValue)
 			filterOutM[tagID] = append(filterOutM[tagID], tagValueID)
