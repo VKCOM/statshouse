@@ -31,6 +31,7 @@ export type PlotHeaderProps = {
   setLive: Dispatch<SetStateAction<boolean>>;
   setTimeRange: (value: SetTimeRangeValue, force?: boolean) => void;
   yLock: lockRange;
+  onResetZoom?: () => void;
   onYLockChange?: (status: boolean) => void;
 };
 export const _PlotHeader: React.FC<PlotHeaderProps> = ({
@@ -40,6 +41,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   sel,
   meta,
   onYLockChange,
+  onResetZoom,
   yLock,
   live,
   setLive,
@@ -78,6 +80,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             className="btn-group-sm float-end ms-4 mb-2"
             setTimeRange={setTimeRange}
             onYLockChange={onYLockChange}
+            onResetZoom={onResetZoom}
             live={live}
             setLive={setLive}
             yLock={yLock}
@@ -149,6 +152,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             className="btn-group-sm mb-1"
             setTimeRange={setTimeRange}
             onYLockChange={onYLockChange}
+            onResetZoom={onResetZoom}
             live={live}
             setLive={setLive}
             yLock={yLock}
