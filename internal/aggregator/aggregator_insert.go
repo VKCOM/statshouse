@@ -129,7 +129,8 @@ func appendBadge(res []byte, k data_model.Key, v data_model.ItemValue, prekeyInd
 			format.TagValueIDSrcIngestionStatusWarnDeprecatedT,
 			format.TagValueIDSrcIngestionStatusWarnDeprecatedStop,
 			format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice,
-			format.TagValueIDSrcIngestionStatusWarnOldCounterSemantic:
+			format.TagValueIDSrcIngestionStatusWarnOldCounterSemantic,
+			format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:
 			return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionWarnings, k.Keys[1]}}, "", data_model.ItemValue{Counter: v.Counter, MaxHostTag: v.MaxHostTag}, prekeyIndexes, usedTimestamps)
 		}
 		res = appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionErrorsOld, k.Keys[1]}}, "", data_model.ItemValue{Counter: 1, ValueSum: v.Counter, MaxHostTag: v.MaxHostTag}, prekeyIndexes, usedTimestamps)
