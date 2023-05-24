@@ -260,6 +260,7 @@ const (
 	TagValueIDSizeBuiltIn           = 9
 
 	TagValueIDScrapeError = 1
+	TagValueIDScrapeOK    = 2
 
 	TagValueIDCPUUsageUser = 1
 	TagValueIDCPUUsageSys  = 2
@@ -980,11 +981,14 @@ Set by aggregator.`,
 				}, {
 					Description: "job",
 				}, {
-					Description: "instance",
+					Description: "host", // Legacy, see comment in pushScrapeTimeMetric
 				}, {
-					Description: "err",
+					Description: "port", // Legacy, see comment in pushScrapeTimeMetric
+				}, {
+					Description: "scrape_status",
 					ValueComments: convertToValueComments(map[int32]string{
-						TagValueIDScrapeError: "scrape",
+						TagValueIDScrapeError: "error",
+						TagValueIDScrapeOK:    "ok",
 					}),
 				},
 			},

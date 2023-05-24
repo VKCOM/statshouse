@@ -289,7 +289,7 @@ func (s *scrapeLoop) scrapeAndReport(ctx context.Context, when time.Time) error 
 	}
 	s.parseAndReport(buf.Bytes(), contentType)
 	finishTime := nowFunc()
-	s.pushScrapeTimeMetric(when, finishTime.Sub(startTime), 0)
+	s.pushScrapeTimeMetric(when, finishTime.Sub(startTime), format.TagValueIDScrapeOK)
 	return nil
 }
 
@@ -297,9 +297,9 @@ func newTag(k, v string) tl.DictionaryFieldStringBytes {
 	return tl.DictionaryFieldStringBytes{Key: []byte(k), Value: []byte(v)}
 }
 
-func (s *scrapeLoop) pushScrapeTimeMetric(when time.Time, d time.Duration, err int) {
+func (s *scrapeLoop) pushScrapeTimeMetric(when time.Time, d time.Duration, errTagValue int) {
 	tagsCount := 2
-	if err != 0 {
+	if errTagValue != 0 {
 		tagsCount++
 	}
 	if s.pusher.IsLocal() {
@@ -307,12 +307,15 @@ func (s *scrapeLoop) pushScrapeTimeMetric(when time.Time, d time.Duration, err i
 			Tags: make([]tl.DictionaryFieldStringBytes, 0, tagsCount),
 		}
 		metric.Name = []byte(format.BuiltinMetricNamePromScrapeTime)
-		metric.Tags = append(metric.Tags, newTag("key2", s.target.jobName))
-		metric.Tags = append(metric.Tags, newTag("key3", s.target.host))
-		metric.Tags = append(metric.Tags, newTag("key4", s.target.port))
+		metric.Tags = append(metric.Tags, newTag("2", s.target.jobName))
+		// TODO - we do not want to write 'host' because it is IP address of machine from Service Discovery
+		// We do not want to write port, you need service name from Service Discovery, because port is random and changes randomly
+		// If you want to add host back, you should write srvfunc.HostnameForStatshouse() here
+		// metric.Tags = append(metric.Tags, newTag("3", s.target.host))
+		// metric.Tags = append(metric.Tags, newTag("4", s.target.port))
 
-		if err != 0 {
-			metric.Tags = append(metric.Tags, newTag("key5", strconv.Itoa(err)))
+		if errTagValue != 0 {
+			metric.Tags = append(metric.Tags, newTag("5", strconv.Itoa(errTagValue)))
 		}
 		metric.SetValue([]float64{d.Seconds()})
 		metric.SetTs(uint32(when.Unix()))
