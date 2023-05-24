@@ -577,7 +577,7 @@ export function queryTableURL(
   width: number | string,
   key?: string,
   fromEnd: boolean = false,
-  limit: number = 10
+  limit: number = 1000
 ): string {
   let params: string[][];
   if (sel.metricName === promQLMetric) {

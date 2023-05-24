@@ -30,7 +30,7 @@ export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTa
   useEffect(() => {
     const controller = new AbortController();
     setLoader(true);
-    apiTable(plot, range, width, undefined, undefined, 100, controller)
+    apiTable(plot, range, width, undefined, undefined, undefined, controller)
       .then(setChunk)
       .catch(setError)
       .finally(() => setLoader(false));

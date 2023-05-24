@@ -1939,7 +1939,7 @@ export const statsHouseState: StateCreator<
           ? `${Math.floor(width * devicePixelRatio)}`
           : `${prevPlot.customAgg}s`;
 
-      const url = queryTableURL(prevPlot, range, agg, key, fromEnd, 100);
+      const url = queryTableURL(prevPlot, range, agg, key, fromEnd);
       setState((state) => {
         if (fromEnd) {
           state.events[indexPlot].prevAbortController = controller;
