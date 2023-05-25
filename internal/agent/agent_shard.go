@@ -81,6 +81,9 @@ type (
 		lastSendSuccessful []bool
 
 		stats *shardStat
+
+		uniqueValueMu   sync.Mutex
+		uniqueValuePool [][][]int64 // reuse pool
 	}
 
 	BuiltInItemValue struct {
@@ -103,6 +106,30 @@ func (s *ShardReplica) HistoricBucketsDataSizeMemory() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.HistoricBucketsDataSize
+}
+
+func (s *ShardReplica) getUniqueValuesCache(notSkippedShards int) [][]int64 {
+	var uniqueValues [][]int64
+	s.uniqueValueMu.Lock()
+	if l := len(s.uniqueValuePool); l != 0 {
+		uniqueValues = s.uniqueValuePool[l-1]
+		s.uniqueValuePool = s.uniqueValuePool[:l-1]
+	}
+	s.uniqueValueMu.Unlock()
+	if len(uniqueValues) != notSkippedShards {
+		uniqueValues = make([][]int64, notSkippedShards) // We do not care about very rare realloc if notSkippedShards change
+	} else {
+		for i := range uniqueValues {
+			uniqueValues[i] = uniqueValues[i][:0]
+		}
+	}
+	return uniqueValues
+}
+
+func (s *ShardReplica) putUniqueValuesCache(uniqueValues [][]int64) {
+	s.uniqueValueMu.Lock()
+	defer s.uniqueValueMu.Unlock()
+	s.uniqueValuePool = append(s.uniqueValuePool, uniqueValues)
 }
 
 func (s *ShardReplica) FillStats(stats map[string]string) {
@@ -144,7 +171,7 @@ func (s *ShardReplica) resolutionShardFromHashLocked(hash uint64, metricInfo *fo
 		resolution = metricInfo.EffectiveResolution // TODO - better idea?
 	}
 	numShards := uint64(resolution)
-	// lower bits of hash are independent of higher bits used by shardFromHash function
+	// lower bits of hash are independent of higher bits used by shardReplicaFromHash function
 	mul := (hash & 0xFFFFFFFF) * numShards >> 32 // trunc([0..0.9999999] * numShards) in fixed point 32.32
 	return s.CurrentBuckets[resolution][mul], resolution, int(mul)
 }
@@ -297,7 +324,7 @@ func (s *ShardReplica) addBuiltInsLocked(nowUnix uint32) {
 	}
 	// this logic with currentJournalHashSeconds and currentJournalVersion ensures there is exactly 60 samples per minute,
 	// sending is once per minute when no changes, but immediate sending of journal version each second when it changed
-	// standard metrics do not allow this, but heartbeats are magic)
+	// standard metrics do not allow this, but heartbeats are magic.
 	writeJournalVersion := func(version int64, hash string, count float64) {
 		key := s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDJournalVersions, [16]int32{0, s.agent.componentTag, 0, 0, 0, int32(version)})
 		mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, nil)

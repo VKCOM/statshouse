@@ -124,7 +124,7 @@ func argvAddAgentFlags(legacyVerb bool) {
 	flag.IntVar(&argv.configAgent.SampleBudget, "sample-budget", agent.DefaultConfig().SampleBudget, "Statshouse will sample all buckets to contain max this number of bytes.")
 	flag.BoolVar(&argv.configAgent.SampleGroups, "sample-groups", false, "Statshouse will first spread resources between groups, then inside each group.")
 	flag.Int64Var(&argv.configAgent.MaxHistoricDiskSize, "max-disk-size", agent.DefaultConfig().MaxHistoricDiskSize, "Statshouse will use no more than this amount of disk space for storing historic data.")
-	flag.IntVar(&argv.configAgent.SkipFirstNShards, "skip-shards", agent.DefaultConfig().SkipFirstNShards, "Skip first shard*replicas during sharding. When extending cluster, helps prevent filling disks of already full shards.")
+	flag.IntVar(&argv.configAgent.SkipShards, "skip-shards", agent.DefaultConfig().SkipShards, "Skip first shards during sharding. When extending cluster, helps prevent filling disks of already full shards.")
 
 	flag.IntVar(&argv.configAgent.StringTopCapacity, "string-top-capacity", agent.DefaultConfig().StringTopCapacity, "How many different strings per key is stored in string tops.")
 	flag.IntVar(&argv.configAgent.StringTopCountSend, "string-top-send", agent.DefaultConfig().StringTopCountSend, "How many different strings per key is sent in string tops.")

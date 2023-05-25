@@ -15,7 +15,7 @@ import (
 )
 
 func (s *Agent) AutoCreateMetric(ctx context.Context, args tlstatshouse.AutoCreate) error {
-	shard, _ := s.getRandomLiveShards()
+	shard, _ := s.getRandomLiveShardReplicas()
 	if shard == nil {
 		return fmt.Errorf("all aggregators are dead")
 	}
