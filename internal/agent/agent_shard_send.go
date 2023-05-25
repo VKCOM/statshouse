@@ -668,9 +668,6 @@ func (s *ShardReplica) sendSourceBucketCompressed(ctx context.Context, cbd compr
 	} else {
 		args.SetQueueSizeMemorySum(math.MaxInt32)
 	}
-	// TODO - remove lines below after aggregators updated
-	args.ClearQueueSizeDiskUnsent()
-	args.ClearQueueSizeDiskSumUnsent()
 	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
 		if err := s.client.SendSourceBucket2Bytes(ctx, args, &extra, ret); err != nil {
 			return err
