@@ -59,7 +59,7 @@ func (h statsHandler) handleStats(stats map[string]string) {
 	stats["statshouse_rpc_recv_calls_err"] = strconv.FormatUint(h.receiverRPC.StatCallsTotalErr.Load(), 10)
 
 	stats["statshouse_journal_version"] = strconv.FormatInt(h.metricsStorage.Version(), 10)
-	for i, s := range h.sh2.Shards {
+	for i, s := range h.sh2.ShardReplicas {
 		t, u := s.HistoricBucketsDataSizeDisk()
 		stats[fmt.Sprintf("statshouse_queue_size_disk_total_%d", i)] = fmt.Sprintf("%d", t)
 		stats[fmt.Sprintf("statshouse_queue_size_disk_sent_%d", i)] = fmt.Sprintf("%d", t-u)
