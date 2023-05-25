@@ -41,6 +41,7 @@ import { xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
 import { PlotEventOverlay } from './PlotEventOverlay';
 import { useUPlotPluginHooks } from '../../hooks';
+import { dataIdxNearest } from '../../common/dataIdxNearest';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -451,70 +452,4 @@ export function PlotViewMetric(props: {
       </div>
     </div>
   );
-}
-
-// https://leeoniya.github.io/uPlot/demos/nearest-non-null.html
-function dataIdxNearest(self: uPlot, seriesIdx: number, hoveredIdx: number, cursorXVal: number): number {
-  const xValues = self.data[0];
-  const yValues = self.data[seriesIdx];
-
-  // todo: only scan in-view indices
-  const mi = self.scales['x'].min;
-  const ma = self.scales['x'].max;
-
-  if (mi === undefined || ma === undefined || ma <= mi) return hoveredIdx; // not initialized, etc.
-  const fromX = cursorXVal - (ma - mi) / 50; // TODO +- 2% of total area for now
-  const toX = cursorXVal + (ma - mi) / 50; // TODO +- 2% of total area for now
-
-  let nonNullLft = null;
-  let nonNullRgt = null;
-
-  for (let i = hoveredIdx; i-- > 0; ) {
-    // do not include hoveredIdx
-    if (xValues[i] < fromX) {
-      break;
-    }
-    if (yValues[i] != null) {
-      nonNullLft = i;
-      break;
-    }
-    // Optimization, uncomment if 'if' above does not work well
-    // for (let j = 1; j < self.data.length; ++j)
-    //   if (self.data[j][i] != null) {
-    //     nonNullLft = i;
-    //     break;
-    //   }
-    // if (nonNullLft != null)
-    //   break;
-  }
-
-  for (let i = hoveredIdx; i < yValues.length; i++) {
-    // include hoveredIdx
-    if (xValues[i] > toX) {
-      break;
-    }
-    if (yValues[i] != null) {
-      nonNullRgt = i;
-      break;
-    }
-    // Optimization, uncomment if 'if' above does not work well
-    // for (let j = 1; j < self.data.length; ++j)
-    //   if (self.data[j][i] != null) {
-    //     nonNullRgt = i;
-    //     break;
-    //   }
-    // if (nonNullRgt != null)
-    //   break;
-  }
-
-  const rgtVal = nonNullRgt == null ? Infinity : xValues[nonNullRgt];
-  const lftVal = nonNullLft == null ? -Infinity : xValues[nonNullLft];
-
-  const lftDelta = cursorXVal - lftVal;
-  const rgtDelta = rgtVal - cursorXVal;
-
-  const idx = lftDelta <= rgtDelta ? nonNullLft : nonNullRgt;
-  if (idx !== null) return idx;
-  // this code path includes returning index where only timestamps are set, but no related data points
-  return hoveredIdx;
 }
