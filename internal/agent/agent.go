@@ -25,13 +25,13 @@ import (
 	"pgregory.net/rand"
 )
 
-// Agent gets stat, hashes, estimates cardinality and immediately shards result into Shards
+// Agent gets stat, hashes, estimates cardinality and immediately shards result into ShardReplicas
 // No values in this struct are ever changed after initialization, so no locking
 
 type Agent struct {
 	historicBucketsDataSize atomic.Int64 // sum of values for each shard
 
-	Shards          []*Shard                     // Actually those are shard-replicas
+	ShardReplicas   []*ShardReplica              // Actually those are shard-replicas
 	GetConfigResult tlstatshouse.GetConfigResult // for ingress proxy
 
 	diskCache *DiskBucketStorage
@@ -71,7 +71,7 @@ type Agent struct {
 	statLongWindowOverflow          *BuiltInItemValue
 
 	mu                   sync.Mutex
-	loadPromTargetsShard *Shard
+	loadPromTargetsShard *ShardReplica
 }
 
 func SpareShardReplica(shardReplica int, timestamp uint32) int {
@@ -153,9 +153,9 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	}
 	commonSpread := time.Duration(rnd.Int63n(int64(time.Second) / int64(len(config.AggregatorAddresses))))
 	for i, a := range config.AggregatorAddresses {
-		shard := &Shard{
+		shard := &ShardReplica{
 			config:          config,
-			statshouse:      result,
+			agent:           result,
 			ShardReplicaNum: i,
 			timeSpreadDelta: commonSpread + time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
 			CurrentTime:     nowUnix,
@@ -183,7 +183,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		shard.alive.Store(true)
 		shard.cond = sync.NewCond(&shard.mu)
 		shard.condPreprocess = sync.NewCond(&shard.mu)
-		result.Shards = append(result.Shards, shard)
+		result.ShardReplicas = append(result.ShardReplicas, shard)
 
 		// If we write seconds to disk when goSendRecent() receives error, seconds will end up being slightly not in order
 		// We correct for this by looking forward in the disk cache
@@ -208,7 +208,7 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 	s.AggregatorHost = aggHost
 	s.AggregatorShardKey = aggShardKey
 	s.AggregatorReplicaKey = aggReplicaKey
-	for _, shard := range s.Shards {
+	for _, shard := range s.ShardReplicas {
 		go shard.goPreProcess()
 		for j := 0; j < data_model.MaxConveyorDelay; j++ {
 			go shard.goSendRecent()
@@ -229,13 +229,13 @@ func (s *Agent) Close() {
 }
 
 func (s *Agent) NumShardReplicas() int {
-	return len(s.Shards)
+	return len(s.ShardReplicas)
 }
 
 // if first one is nil, second one is also nil
-func (s *Agent) getRandomLiveShards() (*Shard, *Shard) {
-	var liveShards []*Shard
-	for _, shard := range s.Shards {
+func (s *Agent) getRandomLiveShards() (*ShardReplica, *ShardReplica) {
+	var liveShards []*ShardReplica
+	for _, shard := range s.ShardReplicas {
 		if shard.alive.Load() {
 			liveShards = append(liveShards, shard)
 		}
@@ -273,7 +273,7 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	}
 	s.logF("Remote config: updated config from metric %q", data_model.StatshouseAgentRemoteConfigMetric)
 	s.skipFirstNShards.Store(int32(config.SkipFirstNShards))
-	for _, shard := range s.Shards {
+	for _, shard := range s.ShardReplicas {
 		shard.mu.Lock()
 		shard.config = config
 		shard.mu.Unlock()
@@ -288,7 +288,7 @@ func (s *Agent) goFlusher() {
 		if s.beforeFlushBucketFunc != nil {
 			s.beforeFlushBucketFunc(now)
 		}
-		for _, shard := range s.Shards {
+		for _, shard := range s.ShardReplicas {
 			shard.flushBuckets(now)
 		}
 		s.updateConfigRemotelyExperimental()
@@ -326,11 +326,11 @@ func (s *Agent) shardNumFromHash(hash uint64) int {
 	return int(mul)
 }
 
-func (s *Agent) shardFromHash(hash uint64) *Shard {
-	return s.Shards[s.shardNumFromHash(hash)]
+func (s *Agent) shardFromHash(hash uint64) *ShardReplica {
+	return s.ShardReplicas[s.shardNumFromHash(hash)]
 }
 
-// Do not create too many. Shards will iterate through values before flushing bucket
+// Do not create too many. ShardReplicas will iterate through values before flushing bucket
 // Useful for watermark metrics.
 func (s *Agent) CreateBuiltInItemValue(key data_model.Key) *BuiltInItemValue {
 	keyHash := key.Hash()
@@ -526,7 +526,7 @@ func (s *Agent) HistoricBucketsDataSizeDiskSum() (total int64, unsent int64) {
 	if s.diskCache == nil {
 		return 0, 0
 	}
-	for i := range s.Shards {
+	for i := range s.ShardReplicas {
 		t, u := s.diskCache.TotalFileSize(i)
 		total += t
 		unsent += u

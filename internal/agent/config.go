@@ -17,7 +17,7 @@ import (
 
 type Config struct {
 	AggregatorAddresses []string
-	// Shard Sampling Algorithm
+	// ShardReplica Sampling Algorithm
 	SampleBudget        int   // for all shards, in bytes
 	SampleGroups        bool  // use group weights. Experimental, will be turned on unconditionally later
 	MaxHistoricDiskSize int64 // for all shards, in bytes
