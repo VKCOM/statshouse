@@ -3,7 +3,7 @@ set -e
 
 PROFILE=sh
 case $1 in
-  api-off|agent-off|aggregator-off|meta-off)
+  api-off|agent-off|aggregator-off|meta-off|all-in-one)
     PROFILE=$1
     shift
     ;;
