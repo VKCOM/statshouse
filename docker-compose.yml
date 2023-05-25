@@ -5,6 +5,7 @@ services:
     profiles:
       - sh
       - api-off
+      - scrape
     build:
       context: .
       dockerfile: build/statshouse-metadata.Dockerfile
@@ -22,6 +23,7 @@ services:
       - sh
       - kh
       - api-off
+      - scrape
     build:
       context: .
       dockerfile: build/clickhouse.Dockerfile
@@ -41,6 +43,7 @@ services:
     profiles:
       - sh
       - api-off
+      - scrape
     build:
       context: .
       dockerfile: build/statshouse.Dockerfile
@@ -58,6 +61,7 @@ services:
     profiles:
       - sh
       - api-off
+      - scrape
     build:
       context: .
       dockerfile: build/statshouse.Dockerfile
@@ -167,7 +171,22 @@ services:
     network_mode: host
     volumes:
       - kh:/var/lib/clickhouse
+  prometheus:
+    profiles:
+      - scrape
+    image: "prom/prometheus"
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus:/prometheus
+      - type: bind
+        source: ./build/scrape.yml
+        target: /etc/prometheus/prometheus.yml
+    depends_on:
+      - agent
 
 volumes:
   kh:
   metadata:
+  prometheus:
