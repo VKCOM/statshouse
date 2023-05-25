@@ -45,8 +45,8 @@ build-sh-grafana:
 
 build-sh-ui:
 	cd statshouse-ui && npm clean-install && NODE_ENV=production REACT_APP_BUILD_VERSION=$(REACT_APP_BUILD_VERSION) npm run build
-	rm -rf cmd/statshouse-api/build
-	cp -r statshouse-ui/build cmd/statshouse-api/
+	rm -rf cmd/statshouse-api/build || true
+	cp -r statshouse-ui/build cmd/statshouse-api/ || true
 
 build-grafana-ui:
 	cd grafana-plugin-ui && npm clean-install && npm run build
