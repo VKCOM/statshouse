@@ -74,7 +74,21 @@ func runMain() int {
 		printVerbUsage()
 		return 1
 	}
-	if os.Args[1] == "" || os.Args[1][0] == '-' { // legacy flags mode
+	// Motivation - some engine infrastructure cannot add options without dash. so wi allow both
+	// $> statshouse agent -a -b -c
+	// and
+	// $> statshouse -agent -a -b -c
+	if os.Args[1] != "" && os.Args[1][0] == '-' &&
+		os.Args[1] != "-benchmark" && os.Args[1] != "--benchmark" &&
+		os.Args[1] != "-test_map" && os.Args[1] != "--test_map" &&
+		os.Args[1] != "-test_longpoll" && os.Args[1] != "--test_longpoll" &&
+		os.Args[1] != "-simple_fsync" && os.Args[1] != "--simple_fsync" &&
+		os.Args[1] != "-tlclient.api" && os.Args[1] != "--tlclient.api" &&
+		os.Args[1] != "-tlclient" && os.Args[1] != "--tlclient" &&
+		os.Args[1] != "-simulator" && os.Args[1] != "--simulator" &&
+		os.Args[1] != "-agent" && os.Args[1] != "--agent" &&
+		os.Args[1] != "-aggregator" && os.Args[1] != "--aggregator" &&
+		os.Args[1] != "-ingress_proxy" && os.Args[1] != "--ingress_proxy" { // legacy flags mode
 		// TODO - remove this path when all statshouses command lines are updated
 		legacyVerb = true
 
@@ -103,38 +117,38 @@ func runMain() int {
 		copy(os.Args[1:], os.Args[2:])
 		os.Args = os.Args[:len(os.Args)-1]
 		switch verb {
-		case "test_parser":
+		case "test_parser", "-test_parser", "--test_parser":
 			return mainTestParser()
-		case "benchmark":
+		case "benchmark", "-benchmark", "--benchmark":
 			mainBenchmarks()
 			return 0
-		case "test_map":
+		case "test_map", "-test_map", "--test_map":
 			mainTestMap()
 			return 0
-		case "test_longpoll":
+		case "test_longpoll", "-test_longpoll", "--test_longpoll":
 			mainTestLongpoll()
 			return 0
-		case "simple_fsync":
+		case "simple_fsync", "-simple_fsync", "--simple_fsync":
 			mainSimpleFSyncTest()
 			return 0
-		case "tlclient.api":
+		case "tlclient.api", "-tlclient.api", "--tlclient.api":
 			mainTLClientAPI()
 			return 0
-		case "tlclient":
+		case "tlclient", "-tlclient", "--tlclient":
 			mainTLClient()
 			return 0
-		case "simulator":
+		case "simulator", "-simulator", "--simulator":
 			mainSimulator()
 			return 0
-		case "agent":
+		case "agent", "-agent", "--agent":
 			argvAddCommonFlags()
 			argvAddAgentFlags(false)
 			build.FlagParseShowVersionHelp()
-		case "aggregator":
+		case "aggregator", "-aggregator", "--aggregator":
 			argvAddCommonFlags()
 			argvAddAggregatorFlags(false)
 			build.FlagParseShowVersionHelp()
-		case "ingress_proxy":
+		case "ingress_proxy", "-ingress_proxy", "--ingress_proxy":
 			argvAddCommonFlags()
 			argvAddIngressProxyFlags()
 			argv.configAgent = agent.DefaultConfig()
@@ -210,20 +224,22 @@ func runMain() int {
 	}
 
 	switch verb {
-	case "agent":
+	case "agent", "-agent", "--agent":
 		if !legacyVerb && len(argv.configAgent.AggregatorAddresses) != 3 {
 			logErr.Printf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
 			return 1
 		}
 		mainAgent(aesPwd, dc)
-	case "aggregator":
+	case "aggregator", "-aggregator", "--aggregator":
 		mainAggregator(aesPwd, dc)
-	case "ingress_proxy":
+	case "ingress_proxy", "-ingress_proxy", "--ingress_proxy":
 		if len(argv.configAgent.AggregatorAddresses) != 3 {
 			logErr.Printf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
 			return 1
 		}
 		mainIngressProxy(aesPwd)
+	default:
+		logErr.Printf("Wrong command line verb or -new-conveyor argument %q, see --help for valid values", verb)
 	}
 	return 0
 }
