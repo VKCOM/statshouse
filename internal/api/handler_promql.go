@@ -474,21 +474,31 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	}
 	meta := make([]promql.SeriesMeta, len(tagX))
 	for t, i := range tagX {
-		for _, tagID := range qry.GroupBy {
-			if tagID == format.StringTopTagID || tagID == qry.Metric.StringTopName {
-				name := qry.Metric.StringTopName
-				if len(name) == 0 {
-					name = format.StringTopTagID
+		for _, k := range qry.GroupBy {
+			switch k {
+			case format.StringTopTagID, qry.Metric.StringTopName:
+				meta[i].SetTag(promql.SeriesTag{
+					ID:        format.StringTopTagID,
+					Name:      qry.Metric.StringTopName,
+					SValue:    emptyToUnspecified(t.tagStr.String()),
+					SValueSet: true,
+				})
+			case format.ShardTagID:
+				meta[i].SetTag(promql.SeriesTag{
+					ID:       promql.LabelShard,
+					Value:    int32(t.shardNum),
+					ValueSet: true,
+				})
+			default:
+				if m, ok := qry.Metric.Name2Tag[k]; ok && m.Index < len(t.tag) {
+					meta[i].SetTag(promql.SeriesTag{
+						Index:    m.Index + 1,
+						ID:       format.TagID(m.Index),
+						Name:     m.Name,
+						Value:    t.tag[m.Index],
+						ValueSet: true,
+					})
 				}
-				meta[i].SetSTag(name, emptyToUnspecified(t.tagStr.String()))
-			} else if tag, ok := qry.Metric.Name2Tag[tagID]; ok && tag.Index < len(t.tag) {
-				var name string
-				if len(tag.Name) == 0 {
-					name = format.TagIDLegacy(tag.Index)
-				} else {
-					name = tag.Name
-				}
-				meta[i].SetTag(name, t.tag[tag.Index])
 			}
 		}
 	}

@@ -121,7 +121,12 @@ type pointsQueryMeta struct {
 	version string
 }
 
-func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (string, int, error) {
+func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
+	var (
+		version     = pq.version
+		isStringTop = pq.isStringTop
+		kind        = pq.kind
+	)
 	if version == Version1 && isStringTop {
 		return `
   toFloat64(sumMerge(count)) AS _count`, 0, nil // count is the only column available
@@ -131,7 +136,8 @@ func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (s
 	case queryFnKindCount:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
-  toFloat64(sum(1)) AS _val0`, sqlAggFn(version, "sum")), 1, nil
+  toFloat64(sum(1)) AS _val0,
+  toFloat64(%s(max)) AS _val1`, sqlAggFn(version, "sum"), sqlAggFn(version, "max")), 2, nil
 	case queryFnKindValue:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
@@ -174,7 +180,7 @@ func loadPointsSelectWhat(version string, isStringTop bool, kind queryFnKind) (s
 }
 
 func loadPointsQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (string, pointsQueryMeta, error) {
-	what, cnt, err := loadPointsSelectWhat(pq.version, pq.isStringTop, pq.kind)
+	what, cnt, err := loadPointsSelectWhat(pq)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
 	}
@@ -182,7 +188,11 @@ func loadPointsQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (str
 	var commaBy string
 	if len(pq.by) > 0 {
 		for _, b := range pq.by {
-			commaBy += fmt.Sprintf(", %s AS %s", preKeyTagName(lod.hasPreKey, b, pq.preKeyTagID), b)
+			if b == format.ShardTagID {
+				commaBy += ", _shard_num"
+			} else {
+				commaBy += fmt.Sprintf(", %s AS %s", preKeyTagName(lod.hasPreKey, b, pq.preKeyTagID), b)
+			}
 		}
 	}
 
@@ -257,7 +267,7 @@ SETTINGS
 }
 
 func loadPointQuery(pq *preparedPointsQuery, pointQuery pointQuery, utcOffset int64) (string, pointsQueryMeta, error) {
-	what, cnt, err := loadPointsSelectWhat(pq.version, pq.isStringTop, pq.kind)
+	what, cnt, err := loadPointsSelectWhat(pq)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
 	}

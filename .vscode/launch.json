@@ -5,8 +5,9 @@
             "name": "api",
             "type": "go",
             "request": "launch",
-            "mode": "auto",
+            "mode": "debug",
             "cwd": "${workspaceFolder}",
+            "preLaunchTask": "clear_api_cache",
             "program": "${workspaceFolder}/cmd/statshouse-api/",
             "buildFlags": "-ldflags '-X github.com/vkcom/statshouse/internal/vkgo/build.trustedSubnetGroups=0.0.0.0/0'",
             "args": [

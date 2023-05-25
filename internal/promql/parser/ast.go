@@ -190,13 +190,14 @@ type VectorSelector struct {
 
 	MatchingMetrics []*format.MetricMetaValue
 	MatchingNames   []string
+	MetricKindHint  string
 	Range           int64
 	What            string
 	GroupBy         []string
+	GroupByAll      bool
 	GroupWithout    bool
 	MaxHost         bool
 	OmitNameTag     bool
-	PrefixSum       bool
 }
 
 // TestStmt is an internal helper statement that allows execution

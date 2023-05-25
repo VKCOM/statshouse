@@ -1862,7 +1862,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 		meta := QuerySeriesMetaV2{
 			Name:     metricName,
 			Tags:     make(map[string]SeriesMetaTag),
-			MaxHosts: bag.GetSMaxHosts(i, h),
+			MaxHosts: bag.GetSMaxHostsAt(i, h),
 		}
 		if i < len(bag.Meta) {
 			s := bag.Meta[i]
@@ -1870,17 +1870,23 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			meta.TimeShift = -s.GetOffset()
 			meta.Total = s.GetTotal()
 			s.DropMetricName()
-			meta.Tags = make(map[string]SeriesMetaTag, len(s.STags))
-			for name, v := range s.STags {
-				tag := SeriesMetaTag{Value: v}
+			meta.Tags = make(map[string]SeriesMetaTag, len(s.Tags))
+			for id, t := range s.Tags {
+				if !t.SValueSet {
+					continue
+				}
+				if t.Index != 0 {
+					id = format.TagIDLegacy(t.Index - 1)
+				}
+				tag := SeriesMetaTag{Value: t.SValue}
 				if s.Metric != nil {
-					if t, tok := s.Metric.Name2Tag[name]; tok {
-						tag.Comment = t.ValueComments[tag.Value]
-						tag.Raw = t.Raw
-						tag.RawKind = t.RawKind
+					if meta, ok := s.Metric.Name2Tag[id]; ok {
+						tag.Comment = meta.ValueComments[tag.Value]
+						tag.Raw = meta.Raw
+						tag.RawKind = meta.RawKind
 					}
 				}
-				meta.Tags[name] = tag
+				meta.Tags[id] = tag
 			}
 		}
 		res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
@@ -3039,6 +3045,7 @@ type pointsSelectCols struct {
 	tagStr    proto.ColStr
 	maxHostV1 proto.ColUInt8
 	maxHostV2 proto.ColInt32
+	shardNum  proto.ColUInt32
 	res       proto.Results
 }
 
@@ -3056,9 +3063,12 @@ func newPointsSelectCols(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 		}
 	}
 	for _, tag := range meta.tags {
-		if tag == format.StringTopTagID {
+		switch tag {
+		case format.StringTopTagID:
 			c.res = append(c.res, proto.ResultColumn{Name: tag, Data: &c.tagStr})
-		} else {
+		case format.ShardTagID:
+			c.res = append(c.res, proto.ResultColumn{Name: tag, Data: &c.shardNum})
+		default:
 			c.tag = append(c.tag, proto.ColInt32{})
 			c.res = append(c.res, proto.ResultColumn{Name: tag, Data: &c.tag[len(c.tag)-1]})
 			c.tagIx = append(c.tagIx, format.ParseTagIDForAPI(tag))
@@ -3097,6 +3107,9 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 		row.maxHost = c.maxHostV2[i]
 	} else if len(c.maxHostV1) != 0 {
 		row.maxHost = int32(c.maxHostV1[i])
+	}
+	if c.shardNum != nil {
+		row.shardNum = c.shardNum[i]
 	}
 	return row
 }
