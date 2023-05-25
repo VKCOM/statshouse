@@ -165,6 +165,7 @@ type MetricMetaValue struct {
 	EffectiveWeight     int64                    `json:"-"`
 	HasPercentiles      bool                     `json:"-"`
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
+	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	GroupID             int32                    `json:"-"`
 	Group               *MetricsGroup            `json:"-"`
 }
@@ -372,6 +373,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	}
 	m.HasPercentiles = m.Kind == MetricKindValuePercentiles || m.Kind == MetricKindMixedPercentiles
 	m.RoundSampleFactors = strings.Contains(m.Description, "__round_sample_factors") // Experimental
+	m.ShardUniqueValues = strings.Contains(m.Description, "__shard_unique_values")   // Experimental
 	return err
 }
 
