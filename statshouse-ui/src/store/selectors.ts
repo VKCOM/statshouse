@@ -69,8 +69,8 @@ export const selectorSetYLockChange = (s: Store) => s.setYLockChange;
 
 export const selectorMetricsMeta = (s: Store) => s.metricsMeta;
 export const selectorMetricsMetaByName = (name: string, s: Store) => s.metricsMeta[name] ?? s.metricsMeta[''];
-export const selectorLoadMetricsMeta = (s: Store) => s.loadMetricsMeta;
-export const selectorClearMetricsMeta = (s: Store) => s.clearMetricsMeta;
+// export const selectorLoadMetricsMeta = (s: Store) => s.loadMetricsMeta;
+// export const selectorClearMetricsMeta = (s: Store) => s.clearMetricsMeta;
 
 export const selectorParamsTagSync = (s: Store) => s.params.tagSync;
 export const selectorSetTagSync = (s: Store) => s.setTagSync;

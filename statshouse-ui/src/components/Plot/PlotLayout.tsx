@@ -6,9 +6,9 @@
 
 import React, { SetStateAction, useCallback } from 'react';
 import { PlotControls } from './PlotControls';
-import { metricMeta } from '../../view/api';
+import { MetricItem, metricMeta } from '../../view/api';
 import { promQLMetric, timeRangeAbbrev } from '../../view/utils';
-import { MetricItem } from '../../hooks';
+
 import { PlotControlsPromQL } from './PlotControlsPromQL';
 import { PlotParams } from '../../common/plotQueryParams';
 import cn from 'classnames';

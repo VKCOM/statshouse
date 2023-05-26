@@ -240,8 +240,8 @@ export type StatsHouseStore = {
   metricsListAbortController?: AbortController;
   loadMetricsList(): void;
   metricsMeta: Record<string, metricMeta>;
-  metricsMetaAbortController: Record<string, AbortController>;
-  loadMetricsMeta(metricName: string): void;
+  metricsMetaAbortController: Record<string, { request: Promise<void>; controller: AbortController }>;
+  loadMetricsMeta(metricName: string): Promise<void>;
   clearMetricsMeta(metricName: string): void;
   compact: boolean;
   setCompact(compact: boolean): void;
@@ -1037,7 +1037,14 @@ export const statsHouseState: StateCreator<
           prevState.timeRange.from < prevState.params.eventFrom && prevState.timeRange.to > prevState.params.eventFrom
             ? prevState.params.eventFrom
             : undefined;
-        getState().loadEvents(index, undefined, undefined, from).catch(debug.error);
+        getState()
+          .loadMetricsMeta(lastPlotParams.metricName)
+          .then(() => {
+            getState()
+              .loadEvents(index, undefined, undefined, from)
+              .catch(() => undefined);
+          })
+          .catch(() => undefined);
       }
     }
   },
@@ -1122,23 +1129,20 @@ export const statsHouseState: StateCreator<
   metricsMetaAbortController: {},
   loadMetricsMeta(metricName) {
     if (!metricName || metricName === promQLMetric) {
-      return;
+      return Promise.resolve();
     }
     const prevState = getState();
-    if (
-      prevState.metricsMeta[metricName] &&
-      (prevState.metricsMeta[metricName].name || prevState.metricsMetaAbortController[metricName])
-    ) {
-      return;
+    if (prevState.metricsMeta[metricName] && prevState.metricsMeta[metricName].name) {
+      return Promise.resolve();
     }
-    prevState.metricsMetaAbortController[metricName]?.abort();
+    if (prevState.metricsMetaAbortController[metricName]) {
+      return prevState.metricsMetaAbortController[metricName].request;
+    }
+    prevState.metricsMetaAbortController[metricName]?.controller.abort();
     const controller = new AbortController();
-    setState((state) => {
-      state.metricsMetaAbortController[metricName] = controller;
-      state.metricsMeta[metricName] = { name: '', metric_id: 0, kind: 'counter', description: '', tags: [] };
-    });
+
     prevState.setGlobalNumQueriesPlot((n) => n + 1);
-    apiGet<metricResult>(metricURL(metricName), controller.signal, true)
+    const request = apiGet<metricResult>(metricURL(metricName), controller.signal, true)
       .then((response) => {
         debug.log('loading meta for', response.metric.name);
         setState((state) => {
@@ -1164,6 +1168,11 @@ export const statsHouseState: StateCreator<
           delete state.metricsMetaAbortController[metricName];
         });
       });
+    setState((state) => {
+      state.metricsMetaAbortController[metricName] = { request, controller };
+      state.metricsMeta[metricName] = { name: '', metric_id: 0, kind: 'counter', description: '', tags: [] };
+    });
+    return request;
   },
   clearMetricsMeta(metricName) {
     if (getState().metricsMeta[metricName]) {
@@ -1274,17 +1283,27 @@ export const statsHouseState: StateCreator<
     const prev = getState();
     const prevPlot = getState().params.plots[indexPlot];
     const nextType = getNextState(prevPlot.type, nextState);
+    const meta = prev.metricsMeta[prevPlot.metricName];
     if (prevPlot.type !== nextType) {
       prev.setParams(
         produce((params) => {
           params.plots[indexPlot].type = nextType;
-          params.plots[indexPlot].eventsBy = [];
           switch (params.plots[indexPlot].type) {
             case PLOT_TYPE.Metric:
               params.plots[indexPlot].customAgg = 0;
+              params.plots[indexPlot].eventsBy = [];
               break;
             case PLOT_TYPE.Event:
               params.plots[indexPlot].customAgg = -1;
+              params.plots[indexPlot].eventsBy =
+                (meta &&
+                  meta.tags?.reduce((res, tag, index) => {
+                    if (tag.description !== '-') {
+                      res.push(index.toString());
+                    }
+                    return res;
+                  }, [] as string[])) ??
+                [];
               break;
           }
           const timeShiftsSet = getTimeShifts(params.plots[indexPlot].customAgg);
