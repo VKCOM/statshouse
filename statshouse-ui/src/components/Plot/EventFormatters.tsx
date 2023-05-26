@@ -19,3 +19,7 @@ export function EventFormatterDefault({ row, column }: FormatterProps<EventDataR
 export function EventFormatterHeaderDefault({ column }: HeaderRendererProps<EventDataRow>): ReactNode {
   return column.name;
 }
+
+export function EventFormatterHeaderTime({ column }: HeaderRendererProps<EventDataRow>): ReactNode {
+  return <span className="ps-4">{column.name}</span>;
+}

@@ -10,7 +10,11 @@ import { TimeRange } from '../common/TimeRange';
 import { Column } from 'react-data-grid';
 import { EventDataRow } from '../store/statshouse';
 import { PlotParams } from '../common/plotQueryParams';
-import { EventFormatterDefault, EventFormatterHeaderDefault } from '../components/Plot/EventFormatters';
+import {
+  EventFormatterDefault,
+  EventFormatterHeaderDefault,
+  EventFormatterHeaderTime,
+} from '../components/Plot/EventFormatters';
 
 export interface lockRange {
   readonly min: number;
@@ -151,7 +155,7 @@ export const eventColumnDefault: Readonly<Partial<Column<EventDataRow>>> = {
   // headerCellClass: 'no-Focus',
 };
 export const getEventColumnsType = (what: string[] = []): Record<string, Column<EventDataRow>> => ({
-  timeString: { key: 'timeString', name: 'Time', width: 165 },
+  timeString: { key: 'timeString', name: 'Time', width: 165, headerRenderer: EventFormatterHeaderTime },
   ...Object.fromEntries(what.map((key) => [key, { key, name: whatToWhatDesc(key) }])),
   // data: { key: 'data', name: whatLabel ?? 'Value' },
 });

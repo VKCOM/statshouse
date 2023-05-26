@@ -137,22 +137,22 @@ describe('utils', () => {
   test('convert lexenc_float', () => {
     expect(convert('lexenc_float', 0)).toBe('0');
     expect(convert('lexenc_float', Number.NEGATIVE_INFINITY)).toBe('NaN');
-    expect(convert('lexenc_float', -1_139_095_039)).toBe('-458.42181396484375');
-    expect(convert('lexenc_float', 1_139_094_939)).toBe('458.4187927246094');
-    expect(convert('lexenc_float', -8388709)).toBe('-1.1755083638069308e-38');
-    expect(convert('lexenc_float', 8388609)).toBe('1.175494490952134e-38');
+    expect(convert('lexenc_float', -1_139_095_039)).toBe('-458.42181'); // -458.42181396484375
+    expect(convert('lexenc_float', 1_139_094_939)).toBe('458.41879'); // 458.4187927246094
+    expect(convert('lexenc_float', -8388709)).toBe('-1.1755084e-38'); // -1.1755083638069308e-38
+    expect(convert('lexenc_float', 8388609)).toBe('1.1754945e-38'); // 1.175494490952134e-38
   });
 
   test('convert float', () => {
     expect(convert('float', 0)).toBe('0');
     expect(convert('float', -1)).toBe('NaN');
-    expect(convert('float', 1)).toBe('1.401298464324817e-45');
+    expect(convert('float', 1)).toBe('1.4012985e-45'); // 1.401298464324817e-45
     expect(convert('float', 3212836864)).toBe('-1');
     expect(convert('float', 1065353216)).toBe('1');
     expect(convert('float', Number.NEGATIVE_INFINITY)).toBe('0');
-    expect(convert('float', -1_139_095_039)).toBe('-0.00944757554680109');
-    expect(convert('float', 1_139_094_939)).toBe('458.4187927246094');
-    expect(convert('float', -8388709)).toBe('-3.402803183975685e+38');
-    expect(convert('float', 8388609)).toBe('1.175494490952134e-38');
+    expect(convert('float', -1_139_095_039)).toBe('-0.0094475755'); // -0.00944757554680109
+    expect(convert('float', 1_139_094_939)).toBe('458.41879'); // 458.4187927246094
+    expect(convert('float', -8388709)).toBe('-3.4028032e+38'); // -3.402803183975685e+38
+    expect(convert('float', 8388609)).toBe('1.1754945e-38'); // 1.175494490952134e-38
   });
 });

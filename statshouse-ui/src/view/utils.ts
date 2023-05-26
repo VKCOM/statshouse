@@ -613,12 +613,12 @@ export function convert(kind: RawValueKind | undefined, input: number): string {
     case 'uint':
       return (input >>> 0).toString(10);
     case 'lexenc_float':
-      return lexDecode(input).toString(10);
+      return parseFloat(lexDecode(input).toPrecision(8)).toString(10);
     case 'float':
       const buffer = new ArrayBuffer(4);
       const dataView = new DataView(buffer);
       dataView.setInt32(0, input, false);
-      return dataView.getFloat32(0, false).toString(10);
+      return parseFloat(dataView.getFloat32(0, false).toPrecision(8)).toString(10);
     default:
       return input.toString(10);
   }

@@ -1,6 +1,5 @@
 import React, { Key, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DataGrid, { Column, DataGridHandle, Row, RowRendererProps, SortColumn } from 'react-data-grid';
-import { ReactComponent as SVGListCheck } from 'bootstrap-icons/icons/list-check.svg';
 import cn from 'classnames';
 import {
   selectorClearEvents,
@@ -15,8 +14,8 @@ import { eventColumnDefault, getEventColumnsType } from '../../view/api';
 import produce from 'immer';
 import { TimeRange } from '../../common/TimeRange';
 import css from './style.module.css';
-import { PlotEventsSelectColumns } from './PlotEventsSelectColumns';
 import { useEventTagColumns } from '../../hooks/useEventTagColumns';
+import { PlotEventsButtonColumns } from './PlotEventsButtonColumns';
 
 export type PlotEventsProps = {
   indexPlot: number;
@@ -53,7 +52,6 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
   const clearEvents = useStore(selectorClearEvents);
   const gridRef = useRef<DataGridHandle>(null);
   const [sort, setSort] = useState<SortColumn[]>([]);
-  const [eventColumnShow, setEventColumnShow] = useState(false);
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const paramsPlot = useStore(selectorParamsPlot);
   const eventColumns = useEventTagColumns(paramsPlot, true);
@@ -138,11 +136,6 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
 
   const rowRenderer = useMemo(() => mouseOverRowRenderer.bind(undefined, onOverRow), [onOverRow]);
 
-  const toggleEventColumnShow = useCallback((event?: React.MouseEvent) => {
-    setEventColumnShow((s) => !s);
-    event?.stopPropagation();
-  }, []);
-
   const selectedRows = useMemo(() => {
     const selected = new Set<string>();
     if (cursor) {
@@ -178,50 +171,46 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
   }, [event.chunks, event.range.from, loadPrev, timeRange.from]);
 
   return (
-    <div className={cn(className, 'position-relative d-flex flex-column')}>
+    <div className={cn(className, 'd-flex flex-column')}>
       {!!event.error && (
         <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
           <small className="overflow-force-wrap font-monospace">{event.error}</small>
           <button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
         </div>
       )}
-      <div className="position-absolute z-1 top-0 start-0 pt-3 ps-4">
-        {!!event.nextAbortController || !!event.prevAbortController ? (
-          <div className="text-info spinner-border spinner-border-sm m-1" role="status" aria-hidden="true" />
-        ) : (
-          <button className="btn btn-sm" onClick={toggleEventColumnShow} title="select table column">
-            <SVGListCheck />
-          </button>
-        )}
-        {eventColumnShow && (
-          <PlotEventsSelectColumns
-            indexPlot={indexPlot}
-            className={cn('position-absolute card p-2', css.plotEventsSelectColumns)}
-            onClose={toggleEventColumnShow}
-          />
-        )}
-      </div>
-      <div className="d-flex flex-column flex-grow-1">
-        {!!event.rows?.length && (
-          <DataGrid<EventDataRow>
-            className={cn('z-0 flex-grow-1', css.rdgTheme)}
-            style={{ height: '400px' }}
-            ref={gridRef}
-            rowHeight={rowHeight}
-            columns={columns}
-            rows={event.rows}
-            enableVirtualization
-            defaultColumnOptions={eventColumnDefault}
-            rowKeyGetter={rowKeyGetter}
-            onScroll={onScroll}
-            onSortColumnsChange={setSort}
-            sortColumns={sort}
-            selectedRows={selectedRows}
-            renderers={{
-              rowRenderer,
-            }}
-          />
-        )}
+
+      <div className="d-flex flex-column flex-grow-1 w-100 position-relative" style={{ minHeight: '400px' }}>
+        <div className="position-absolute z-1 top-0 start-0">
+          {!!event.rows?.length && (
+            <PlotEventsButtonColumns
+              indexPlot={indexPlot}
+              loader={!!event.nextAbortController || !!event.prevAbortController}
+            />
+          )}
+        </div>
+        <div className="flex-row flex-grow-1 w-100">
+          {!!event.rows?.length ? (
+            <DataGrid<EventDataRow>
+              className={cn('z-0 position-absolute top-0 start-0 w-100 h-100', css.rdgTheme)}
+              ref={gridRef}
+              rowHeight={rowHeight}
+              columns={columns}
+              rows={event.rows}
+              enableVirtualization
+              defaultColumnOptions={eventColumnDefault}
+              rowKeyGetter={rowKeyGetter}
+              onScroll={onScroll}
+              onSortColumnsChange={setSort}
+              sortColumns={sort}
+              selectedRows={selectedRows}
+              renderers={{
+                rowRenderer,
+              }}
+            />
+          ) : (
+            <div className="bg-body-tertiary position-absolute top-0 start-0 w-100 h-100"></div>
+          )}
+        </div>
       </div>
     </div>
   );
