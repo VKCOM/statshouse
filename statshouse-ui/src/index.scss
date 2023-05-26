@@ -36,15 +36,10 @@
 :root {
   --golden-ratio: 1.61803398875;
   --plot-margin: 54px;
+  --plot-margin-right: 20px;
   --plot-padding-top: 8px;
   --plot-padding-top-max: 10px;
   --bs-primary: var(--bs-link-color);
-}
-
-@media screen and (max-width: 767.98px) {
-  :root {
-    --plot-margin: 0;
-  }
 }
 
 [data-bs-theme='dark'] {
@@ -166,7 +161,7 @@ html {
 
 .plot-legend {
   padding-left: var(--plot-margin);
-  padding-right: 20px;
+  padding-right: var(--plot-margin-right);
   font-size: 14px;
 }
 
@@ -304,7 +299,11 @@ input.form-control-safari-fix::-webkit-datetime-edit-meridiem-field {
   min-height: auto;
 }
 
-@include media-breakpoint-down(md) {
+@include media-breakpoint-down(lg) {
+  :root {
+    --plot-margin: 0;
+    --plot-margin-right: 0;
+  }
   .hidden-down-md {
     display: none;
   }

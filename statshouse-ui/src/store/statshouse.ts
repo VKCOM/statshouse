@@ -468,7 +468,7 @@ export const statsHouseState: StateCreator<
         if (changedTimeRange) {
           state.timeRange = new TimeRange(nextParams.timeRange);
         }
-        state.params = nextParams;
+        state.params = { ...nextParams };
         if (state.params.tabNum >= 0) {
           state.dashboardLayoutEdit = false;
         }
