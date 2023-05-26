@@ -420,24 +420,18 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 	if len(m.Unique) != 0 {
 		numShards := s.NumShards
 		if h.MetricInfo != nil && h.MetricInfo.ShardUniqueValues && numShards > 1 {
-			// example, 4 shards with 1 skipped (with 3 replicas each as always)
-			// [ , , ] | [ , , ] [ , , ] [s, , ]
-			// shordReplicaNum------------^
-			// skip
-			// notSkippedShards = 3 - spread uniques through 3 shards
-			// [ , , ] | [1, , ] [2, , ] [0, , ]
-			//            ^-------^-------^--------- v % notSkippedShards
+			// we want unique value sets to have no intersections
+			// so we first shard by unique value, then shard among 3 replicas by keys
 			skipShards := int(s.skipShards.Load())
 			notSkippedShards := numShards
 			if skipShards > 0 && skipShards < numShards { // second condition checked during setting skipShards, but cheap enough
 				notSkippedShards = numShards - skipShards
 			}
+			mul := int((keyHash >> 32) * 3 >> 32) // trunc([0..0.9999999] * 3) in fixed point 32.32
+
 			if len(m.Unique) == 1 { // very common case, optimize
 				uniqueShard := int(m.Unique[0] % int64(notSkippedShards))
-				shordReplicaNum2 := shordReplicaNum + uniqueShard*3
-				if shordReplicaNum2 > s.NumShardReplicas() {
-					shordReplicaNum2 = shordReplicaNum2 - s.NumShardReplicas() + skipShards*3
-				}
+				shordReplicaNum2 := (skipShards+uniqueShard)*3 + mul
 				shard2 := s.ShardReplicas[shordReplicaNum2]
 				shard2.ApplyUnique(h.Key, keyHash, h.SValue, m.Unique, m.Counter, h.HostTag, h.MetricInfo)
 				return
@@ -452,10 +446,7 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 				if len(vv) == 0 {
 					continue
 				}
-				shordReplicaNum2 := shordReplicaNum + uniqueShard*3
-				if shordReplicaNum2 > s.NumShardReplicas() {
-					shordReplicaNum2 = shordReplicaNum2 - s.NumShardReplicas() + skipShards*3
-				}
+				shordReplicaNum2 := (skipShards+uniqueShard)*3 + mul
 				shard2 := s.ShardReplicas[shordReplicaNum2]
 				shard2.ApplyUnique(h.Key, keyHash, h.SValue, vv, m.Counter*float64(len(vv))/float64(len(m.Unique)), h.HostTag, h.MetricInfo)
 			}
