@@ -12,8 +12,8 @@ import (
 	"sort"
 	"unsafe"
 
-	"github.com/dchest/siphash"
 	"github.com/hrissan/tdigest"
+	"github.com/zeebo/xxh3"
 	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse/internal/format"
@@ -59,10 +59,6 @@ type (
 	}
 )
 
-// Randomly selected, do not change. Which keys go to which shard depends on this.
-const sipKeyA = 0x3605bf49d8e3adf2
-const sipKeyB = 0xc302580679a8cef2
-
 func (k Key) WithAgentEnvRouteArch(agentEnvTag int32, routeTag int32, buildArchTag int32) Key {
 	// when aggregator receives metric from an agent inside another aggregator, those keys are already set,
 	// so we simply keep them. AgentEnvTag or RouteTag are always non-zero in this case.
@@ -88,9 +84,7 @@ func (k *Key) ClearedKeys() Key {
 
 func (k *Key) Hash() uint64 {
 	a := (*[unsafe.Sizeof(*k)]byte)(unsafe.Pointer(k))
-	// sum := sha256.Sum256(a[4:])
-	// return binary.LittleEndian.Uint64(sum[:])
-	return siphash.Hash(sipKeyA, sipKeyB, a[4:]) // timestamp is not part of shard
+	return xxh3.Hash(a[4:]) // timestamp is not part of shard
 }
 
 func SimpleItemValue(value float64, count float64, hostTag int32) ItemValue {
