@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"path"
 	"reflect"
 	"strconv"
 	"strings"
@@ -748,15 +749,15 @@ func Test_Engine_Write_Fail_But_Read_Work(t *testing.T) {
 	})
 	require.NoError(t, err)
 	engine.rw.err = fmt.Errorf("fail")
-	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+	err = engine.ViewUncommitted(context.Background(), "test", func(conn Conn) error {
 		rows := conn.Query("test", "SELECT id FROM test_db")
 		for rows.Next() {
 			id, err = rows.ColumnInt64(0)
 			if err != nil {
-				return cache, err
+				return err
 			}
 		}
-		return cache, err
+		return rows.Error()
 	})
 	require.NoError(t, err)
 	require.Equal(t, int64(1), id)
@@ -768,4 +769,40 @@ func Test_Engine_Write_Fail_But_Read_Work(t *testing.T) {
 		return cache, err
 	})
 	require.ErrorIs(t, err, engine.rw.err)
+}
+
+func Test_Engine_Backup(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
+	var id int64
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
+	var err error
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		buf := make([]byte, 12)
+		_, err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Int64("$id", 1))
+		binary.LittleEndian.PutUint32(buf, magic)
+		binary.LittleEndian.PutUint64(buf[4:], uint64(1))
+		return cache, err
+	})
+	require.NoError(t, err)
+	require.NoError(t, engine.commitTXAndStartNew(true, true))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	backupPath, err := engine.Backup(ctx, path.Join(dir, "db1"))
+	require.NoError(t, err)
+	require.NoError(t, engine.Close(ctx))
+	dir, db := path.Split(backupPath)
+	engine, _ = openEngine(t, dir, db, schema, false, false, false, false, WaitCommit, nil)
+	err = engine.Do(context.Background(), "test", func(conn Conn, b []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT id FROM test_db")
+		for rows.Next() {
+			id, err = rows.ColumnInt64(0)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return nil, rows.Error()
+	})
+	require.Equal(t, int64(1), id)
+
 }

@@ -1,21 +1,22 @@
 package sqlite
 
 import (
-	"context"
 	"errors"
 	"time"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 
-type binlogEngineImpl struct {
-	e              *Engine
-	lastCommitTime time.Time
-	applyQueue     *applyQueue
-	state          commitState
-}
+type (
+	binlogEngineReplicaImpl struct {
+		e              *Engine
+		lastCommitTime time.Time
+		applyQueue     *applyQueue
+		state          commitState
+	}
 
-type commitState int
+	commitState int
+)
 
 const (
 	none                 commitState = iota
@@ -24,12 +25,15 @@ const (
 )
 
 // Apply is used when re-reading or when working as a replica
-func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error) {
+func (impl *binlogEngineReplicaImpl) Apply(payload []byte) (newOffset int64, err error) {
 	defer impl.e.opt.StatsOptions.measureActionDurationSince("engine_apply", time.Now())
 	e := impl.e
 	if e.opt.ReadAndExit || e.opt.CommitOnEachWrite {
 		offs, err := impl.apply(payload)
-		e.commitTXAndStartNew(true, false)
+		if err != nil {
+			return offs, err
+		}
+		err = e.commitTXAndStartNew(true, false)
 		return offs, err
 	}
 	if (e.isTest && e.mustWaitCommit) ||
@@ -48,7 +52,7 @@ func (impl *binlogEngineImpl) Apply(payload []byte) (newOffset int64, err error)
 	return impl.apply(payload)
 }
 
-func (impl *binlogEngineImpl) apply(payload []byte) (newOffset int64, err error) {
+func (impl *binlogEngineReplicaImpl) apply(payload []byte) (newOffset int64, err error) {
 	e := impl.e
 	var errToReturn error
 	var n int
@@ -91,7 +95,7 @@ func (impl *binlogEngineImpl) apply(payload []byte) (newOffset int64, err error)
 	return e.dbOffset, errToReturn
 }
 
-func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
+func (impl *binlogEngineReplicaImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
 	defer impl.e.opt.StatsOptions.measureActionDurationSince("engine_commit", time.Now())
 	e := impl.e
 	old := e.committedInfo.Load()
@@ -115,13 +119,9 @@ func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnap
 	// TODO: replace with runtime mode change
 	if waitCommit {
 		start := time.Now()
-		ctx, cancel := context.WithTimeout(context.Background(), commitTXTimeout)
-		c := e.rw.startNewConn(true, ctx, &e.opt.StatsOptions)
-		err := e.commitTXAndStartNewLocked(c, true, false, false)
+		err := e.commitTXAndStartNew(true, false)
 		impl.lastCommitTime = time.Now()
-		c.close()
 		impl.e.opt.StatsOptions.measureActionDurationSince("engine_commit_delayed_tx", start)
-		cancel()
 		if err != nil {
 			return err
 		}
@@ -136,11 +136,11 @@ func (impl *binlogEngineImpl) Commit(offset int64, snapshotMeta []byte, safeSnap
 	return nil
 }
 
-func (impl *binlogEngineImpl) Revert(toOffset int64) (bool, error) {
+func (impl *binlogEngineReplicaImpl) Revert(toOffset int64) (bool, error) {
 	return false, nil
 }
 
-func (impl *binlogEngineImpl) ChangeRole(info binlog2.ChangeRoleInfo) error {
+func (impl *binlogEngineReplicaImpl) ChangeRole(info binlog2.ChangeRoleInfo) error {
 	e := impl.e
 	if info.IsReady {
 		e.readyNotify.Do(func() {
@@ -150,7 +150,7 @@ func (impl *binlogEngineImpl) ChangeRole(info binlog2.ChangeRoleInfo) error {
 	return nil
 }
 
-func (impl *binlogEngineImpl) Skip(skipLen int64) (int64, error) {
+func (impl *binlogEngineReplicaImpl) Skip(skipLen int64) (int64, error) {
 	defer impl.e.opt.StatsOptions.measureActionDurationSince("engine_skip", time.Now())
 	if impl.state == waitToCommit {
 		return impl.applyQueue.addNewSkip(skipLen), nil
@@ -158,7 +158,7 @@ func (impl *binlogEngineImpl) Skip(skipLen int64) (int64, error) {
 	return impl.skip(skipLen)
 }
 
-func (impl *binlogEngineImpl) skip(skipLen int64) (int64, error) {
+func (impl *binlogEngineReplicaImpl) skip(skipLen int64) (int64, error) {
 	var offset int64
 	err := impl.e.do(func(conn Conn) error {
 		impl.e.dbOffset += skipLen

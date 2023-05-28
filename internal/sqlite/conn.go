@@ -34,6 +34,7 @@ type Conn struct {
 	autoSavepoint bool
 	ctx           context.Context
 	stats         *StatsOptions
+	engine        *Engine // not nil for RW conn
 }
 
 func newSqliteConn(rw *sqlite0.Conn, cacheMaxSize int) *sqliteConn {
@@ -52,7 +53,12 @@ func newSqliteConn(rw *sqlite0.Conn, cacheMaxSize int) *sqliteConn {
 
 func (c *sqliteConn) startNewConn(autoSavepoint bool, ctx context.Context, stats *StatsOptions) Conn {
 	c.mu.Lock()
-	return Conn{c, autoSavepoint, ctx, stats}
+	return Conn{c, autoSavepoint, ctx, stats, nil}
+}
+
+func (c *sqliteConn) startNewRWConn(autoSavepoint bool, ctx context.Context, stats *StatsOptions, engine *Engine) Conn {
+	c.mu.Lock()
+	return Conn{c, autoSavepoint, ctx, stats, engine}
 }
 
 func (c *sqliteConn) Close() error {
@@ -65,14 +71,18 @@ func (c *sqliteConn) Close() error {
 	return err
 }
 
-func (c Conn) close() {
-	c.execEndSavepoint()
+func (c Conn) close(commit func(c Conn) error) error {
+	defer c.c.mu.Unlock()
+	canCommit := c.execEndSavepoint()
 	for stmt := range c.c.used {
 		_ = stmt.Reset()
 		delete(c.c.used, stmt)
 	}
 	c.c.cache.closeTx()
-	c.c.mu.Unlock()
+	if commit != nil && canCommit && c.engine != nil {
+		return commit(c)
+	}
+	return c.c.err
 }
 
 func (c Conn) execBeginSavepoint() error {
@@ -82,15 +92,18 @@ func (c Conn) execBeginSavepoint() error {
 	return err
 }
 
-func (c Conn) execEndSavepoint() {
+func (c Conn) execEndSavepoint() (canCommit bool) {
 	if c.c.spIn {
-		if c.c.spOk {
+		ok := c.c.spOk && c.c.err == nil
+		if ok {
 			_, _ = c.ExecUnsafe("__commit_savepoint", c.c.spCommitStmt)
 		} else {
 			_, _ = c.ExecUnsafe("__rollback_savepoint", c.c.spRollbackStmt)
 		}
 		c.c.spIn = false
+		return ok
 	}
+	return false
 }
 
 func (c Conn) Query(name, sql string, args ...Arg) Rows {

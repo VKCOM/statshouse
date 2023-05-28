@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
+	"go.uber.org/multierr"
 )
 
 const (
@@ -114,23 +115,16 @@ func (a *Arg) isSliceArg() bool {
 	return a.typ == argInt64Slice
 }
 
-func doSingleROToWALQuery(path string, f func(*Engine) error) error {
+func doSingleROToWALQuery(path string, f func(conn *sqliteConn) error) (err error) {
 	ro, err := openROWAL(path, false, nil)
 	if err != nil {
 		return err
 	}
-
-	e := &Engine{
-		opt: Options{Path: path, StatsOptions: StatsOptions{}},
-		rw:  newSqliteConn(ro, 10),
-	}
-	err = f(e)
-	e.rw.cache.close(&err)
-	closeErr := ro.Close()
-	if err != nil {
-		return err
-	}
-	return closeErr
+	conn := newSqliteConn(ro, 10)
+	defer func() {
+		err = multierr.Append(err, conn.Close())
+	}()
+	return f(conn)
 }
 
 func doSingleROQuery(path string, f func(*Engine) error) error {

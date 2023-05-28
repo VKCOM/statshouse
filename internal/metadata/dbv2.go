@@ -191,7 +191,7 @@ func OpenDB(
 	return db, nil
 }
 
-func (db *DBV2) backup(ctx context.Context, prefix string) error {
+func (db *DBV2) backup(ctx context.Context, prefix string) (string, error) {
 	return db.eng.Backup(ctx, prefix)
 }
 

@@ -92,78 +92,78 @@ var (
 	safeStatements   = []string{"SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "UPSERT"}
 )
 
-type Engine struct {
-	opt  Options
-	ctx  context.Context
-	stop func()
-	rw   *sqliteConn
-	//	chk *sqlite0.Conn
-	roMx          sync.Mutex
-	roFree        []*sqliteConn
-	roFreeShared  []*sqliteConn
-	roCond        *sync.Cond
-	roCount       int
-	roCountShared int
+type (
+	Engine struct {
+		opt  Options
+		ctx  context.Context
+		stop func()
+		rw   *sqliteConn
+		//	chk *sqlite0.Conn
+		roMx          sync.Mutex
+		roFree        []*sqliteConn
+		roFreeShared  []*sqliteConn
+		roCond        *sync.Cond
+		roCount       int
+		roCountShared int
 
-	mode engineMode
+		mode engineMode
 
-	binlog         binlog2.Binlog
-	dbOffset       int64
-	lastCommitTime time.Time
+		binlog         binlog2.Binlog
+		dbOffset       int64
+		lastCommitTime time.Time
 
-	waitQMx       sync.Mutex
-	waitQ         []waitCommitInfo
-	committedInfo *atomic.Value
+		waitQMx       sync.Mutex
+		waitQ         []waitCommitInfo
+		committedInfo *atomic.Value
 
-	apply                ApplyEventFunction
-	scan                 ApplyEventFunction
-	waitUntilBinlogReady chan struct{}
-	readyNotify          sync.Once
-	commitCh             chan struct{}
+		apply                ApplyEventFunction
+		scan                 ApplyEventFunction
+		waitUntilBinlogReady chan struct{}
+		readyNotify          sync.Once
+		commitCh             chan struct{}
 
-	isTest            bool
-	mustCommitNowFlag bool
-	mustWaitCommit    bool
-}
+		binlogEnd chan struct{}
 
-type Options struct {
-	Path                   string
-	APPID                  int32
-	StatsOptions           StatsOptions
-	Scheme                 string
-	Replica                bool
-	CommitEvery            time.Duration
-	DurabilityMode         DurabilityMode
-	ReadAndExit            bool
-	CommitOnEachWrite      bool // use only to test. If true break binlog + sqlite consistency
-	ProfileCallback        ProfileCallback
-	MaxROConn              int
-	CacheMaxSizePerConnect int
-}
+		isTest            bool
+		mustCommitNowFlag bool
+		mustWaitCommit    bool
+	}
 
-type waitCommitInfo struct {
-	offset   int64
-	readWait bool
-	waitCh   chan struct{}
-}
+	Options struct {
+		Path                   string
+		APPID                  int32
+		StatsOptions           StatsOptions
+		Scheme                 string
+		Replica                bool
+		CommitEvery            time.Duration
+		DurabilityMode         DurabilityMode
+		ReadAndExit            bool
+		CommitOnEachWrite      bool // use only to test. If true break binlog + sqlite consistency
+		ProfileCallback        ProfileCallback
+		MaxROConn              int
+		CacheMaxSizePerConnect int
+	}
+	waitCommitInfo struct {
+		offset   int64
+		readWait bool
+		waitCh   chan struct{}
+	}
+	committedInfo struct {
+		meta   []byte
+		offset int64
+	}
+	stmtInfo struct {
+		stmt         *sqlite0.Stmt
+		isSafe       bool
+		isSelect     bool
+		isVacuumInto bool
+	}
+	ProfileCallback    func(sql, expandedSQL string, duration time.Duration)
+	ApplyEventFunction func(conn Conn, offset int64, cache []byte) (int, error)
 
-type committedInfo struct {
-	meta   []byte
-	offset int64
-}
-
-type stmtInfo struct {
-	stmt         *sqlite0.Stmt
-	isSafe       bool
-	isSelect     bool
-	isVacuumInto bool
-}
-
-type ProfileCallback func(sql, expandedSQL string, duration time.Duration)
-type ApplyEventFunction func(conn Conn, offset int64, cache []byte) (int, error)
-
-type engineMode int
-type DurabilityMode int
+	engineMode     int
+	DurabilityMode int
+)
 
 const (
 	master  engineMode = iota // commit sql tx by timer, to synchronize sqlite and binlog
@@ -191,11 +191,7 @@ func OpenEngine(
 		e.close(false, false)
 		return nil, err
 	}
-	e.mode = master
-	if opt.Replica {
-		e.mode = replica
-	}
-	if e.opt.DurabilityMode == WaitCommit || e.opt.DurabilityMode == NoBinlog {
+	if e.opt.DurabilityMode == WaitCommit {
 		go e.txLoop()
 	}
 	return e, nil
@@ -233,6 +229,10 @@ func openDB(opt Options,
 		waitUntilBinlogReady: make(chan struct{}),
 		commitCh:             make(chan struct{}, 1),
 		mode:                 replica,
+		binlogEnd:            make(chan struct{}),
+	}
+	if !opt.Replica {
+		e.mode = master
 	}
 	e.roCond = sync.NewCond(&e.roMx)
 	if opt.ReadAndExit {
@@ -256,8 +256,8 @@ func (e *Engine) runBinlogAndWaitReady() error {
 	}
 	return nil
 }
-func (e *Engine) binlogRun() (*binlogEngineImpl, error) {
-	impl := &binlogEngineImpl{e: e}
+func (e *Engine) binlogRun() (*binlogEngineReplicaImpl, error) {
+	impl := &binlogEngineReplicaImpl{e: e}
 	e.committedInfo.Store(&committedInfo{})
 	offset, err := e.binlogLoadOrCreatePosition()
 	if err != nil {
@@ -272,6 +272,9 @@ func (e *Engine) binlogRun() (*binlogEngineImpl, error) {
 	}
 	if !e.isTest {
 		go func() {
+			defer func() {
+				close(e.binlogEnd)
+			}()
 			err = e.binlog.Run(offset, meta, impl)
 			if err != nil {
 				e.rw.mu.Lock()
@@ -287,7 +290,7 @@ func (e *Engine) binlogRun() (*binlogEngineImpl, error) {
 	return impl, nil
 }
 
-func (e *Engine) binlogWaitReady(impl *binlogEngineImpl) error {
+func (e *Engine) binlogWaitReady(impl *binlogEngineReplicaImpl) error {
 	startRereadingTime := time.Now()
 	<-e.waitUntilBinlogReady
 	e.opt.StatsOptions.measureActionDurationSince("binlog_reread", startRereadingTime)
@@ -377,8 +380,8 @@ func openRW(open func(path string, flags int, callback ProfileCallback) (*sqlite
 	return conn, nil
 }
 
-//	func openChk(path string) (*sqlite0.Conn, error) {
-//		conn, err := openWAL(path, sqlite0.OpenReadWrite|sqlite0.OpenNoMutex|sqlite0.OpenPrivateCache)
+//	func openChk(pathDB string) (*sqlite0.Conn, error) {
+//		conn, err := openWAL(pathDB, sqlite0.OpenReadWrite|sqlite0.OpenNoMutex|sqlite0.OpenPrivateCache)
 //		if err != nil {
 //			return nil, err
 //		}
@@ -519,28 +522,40 @@ func (e *Engine) txLoop() {
 	}
 }
 
-func (e *Engine) binlogWaitDBSync(conn Conn) *committedInfo {
+func (e *Engine) binlogWaitDBSync(conn Conn) (*committedInfo, error) {
 	defer e.opt.StatsOptions.measureWaitDurationSince(waitBinlogSync, time.Now())
 	info, _ := e.committedInfo.Load().(*committedInfo)
+	binlogFinished := false
 	for info.offset < e.dbOffset {
-		<-e.commitCh
+		if binlogFinished {
+			return nil, fmt.Errorf("binlog closed")
+		}
+		select {
+		case <-e.commitCh:
+		case <-e.binlogEnd:
+			binlogFinished = true
+		}
 		info, _ = e.committedInfo.Load().(*committedInfo)
 	}
-	return info
+	return info, nil
 }
 
 func (e *Engine) commitTXAndStartNew(commit, waitBinlogCommit bool) error {
 	c := e.rw.startNewConn(false, context.Background(), &e.opt.StatsOptions)
-	defer c.close()
-	return e.commitTXAndStartNewLocked(c, commit, waitBinlogCommit, false)
+	defer c.close(nil)
+	return e.commitRWTXAndStartNewLocked(c, commit, waitBinlogCommit, false)
 
 }
 
-func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, skipUpdateMeta bool) error {
+func (e *Engine) commitRWTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, skipUpdateMeta bool) error {
 	var info *committedInfo
+	var err error
 	c.ctx = context.Background()
 	if waitBinlogCommit && e.binlog != nil {
-		info = e.binlogWaitDBSync(c)
+		info, err = e.binlogWaitDBSync(c)
+		if err != nil {
+			return err
+		}
 	}
 	if commit {
 		startCommit := time.Now()
@@ -569,20 +584,20 @@ func (e *Engine) commitTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, ski
 	return e.rw.err
 }
 
-func backupToTemp(ctx context.Context, e *Engine, prefix string) (string, error) {
-	c := e.rw.startNewConn(false, context.Background(), &e.opt.StatsOptions)
-	defer c.close()
+func backupToTemp(ctx context.Context, conn *sqliteConn, prefix string, stats *StatsOptions) (string, error) {
+	c := conn.startNewConn(false, ctx, stats)
+	defer c.close(nil)
 	path := prefix + "." + strconv.FormatUint(rand.Uint64(), 10) + ".tmp"
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 		_, err := c.ExecUnsafe("__vacuum", "VACUUM INTO $to", BlobText("$to", path))
-		e.rw.err = err
+		conn.err = err
 	}
-	return path, e.rw.err
+	return path, conn.err
 }
 
 func getBackupPath(e *Engine, prefix string) (string, error) {
 	c := e.rw.startNewConn(false, context.Background(), &e.opt.StatsOptions)
-	defer c.close()
+	defer c.close(nil)
 	offs, _, err := binlogLoadPosition(c)
 	path := prefix + "." + strconv.FormatInt(offs, 10)
 	return path, err
@@ -603,7 +618,7 @@ func (e *Engine) binlogNotifyWaited(committedOffset int64) {
 
 func (e *Engine) do(fn func(Conn) error) error {
 	c := e.rw.startNewConn(true, context.Background(), &e.opt.StatsOptions)
-	defer c.close()
+	defer c.close(nil)
 	err := fn(c)
 	if err != nil {
 		e.rw.spOk = false
@@ -613,19 +628,19 @@ func (e *Engine) do(fn func(Conn) error) error {
 	return err
 }
 
-func (e *Engine) Backup(ctx context.Context, prefix string) error {
+func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 	defer e.opt.StatsOptions.measureActionDurationSince("backup", time.Now())
 	var path string
-	err := doSingleROToWALQuery(e.opt.Path, func(e *Engine) error {
+	err := doSingleROToWALQuery(e.opt.Path, func(conn *sqliteConn) error {
 		var err error
-		path, err = backupToTemp(ctx, e, prefix)
+		path, err = backupToTemp(ctx, conn, prefix, &e.opt.StatsOptions)
 		return err
 	})
 	defer func() {
 		_ = os.Remove(path)
 	}()
 	if err != nil {
-		return err
+		return "", err
 	}
 	var backupExpectedPath string
 	err = doSingleROQuery(path, func(e *Engine) error {
@@ -633,12 +648,12 @@ func (e *Engine) Backup(ctx context.Context, prefix string) error {
 		return err
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
 	if _, err := os.Stat(backupExpectedPath); os.IsNotExist(err) {
-		return os.Rename(path, backupExpectedPath)
+		return backupExpectedPath, os.Rename(path, backupExpectedPath)
 	}
-	return fmt.Errorf("snapshot %s already exists", backupExpectedPath)
+	return backupExpectedPath, fmt.Errorf("snapshot %s already exists", backupExpectedPath)
 }
 
 // ViewCommitted - can view only committed to sqlite data
@@ -683,7 +698,7 @@ func (e *Engine) view(ctx context.Context, queryName string, fn func(Conn) error
 	}()
 	e.opt.StatsOptions.measureWaitDurationSince(waitView, startTimeBeforeLock)
 	c := conn.startNewConn(false, ctx, &e.opt.StatsOptions)
-	defer c.close()
+	defer c.close(nil)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txView, queryName, time.Now())
 	err := fn(c)
 
@@ -704,25 +719,36 @@ func checkQueryName(qn string) error {
 	return nil
 }
 
-func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) (chan struct{}, error) {
+func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) (_ chan struct{}, err error) {
 	if err := checkQueryName(queryName); err != nil {
 		return nil, err
 	}
 	startTimeBeforeLock := time.Now()
-	c := e.rw.startNewConn(true, ctx, &e.opt.StatsOptions)
-	defer c.close()
+	var commit func(c Conn) error = nil
+	c := e.rw.startNewRWConn(true, ctx, &e.opt.StatsOptions, e)
+	offsetBeforeWrite := e.dbOffset
+	defer func() {
+		if err != nil {
+			e.dbOffset = offsetBeforeWrite
+		}
+	}()
+	defer func() {
+		err1 := c.close(commit)
+		if err == nil {
+			err = err1
+		}
+	}()
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
-	var err error
 	buffer, err := fn(c, nil)
 	if err != nil {
 		return nil, err
 	}
 	if e.opt.DurabilityMode == NoBinlog {
-		if e.opt.CommitOnEachWrite {
-			err = e.commitTXAndStartNewLocked(c, true, false, true)
-		}
 		e.rw.spOk = err == nil
+		commit = func(c Conn) error {
+			return e.commitRWTXAndStartNewLocked(c, true, false, true)
+		}
 		return nil, err
 	}
 	shouldWriteBinlog := len(buffer) > 0
@@ -735,7 +761,6 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	mustCommitNow := e.mustCommitNow(waitCommitMode, isReadOp)
 	var offsetAfterWritePredicted int64
 	if shouldWriteBinlog {
-		offsetBeforeWrite := e.dbOffset
 		offsetAfterWritePredicted = offsetBeforeWrite + int64(fsbinlog.AddPadding(len(buffer)))
 
 		err = binlogUpdateOffset(c, offsetAfterWritePredicted)
@@ -752,13 +777,11 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 		if err != nil {
 			return nil, err
 		}
-		// after this line we can't roll back savepoint
 		e.dbOffset = offsetAfterWrite
 	}
 	if e.opt.CommitOnEachWrite {
-		err = e.commitTXAndStartNewLocked(c, true, false, true)
-		if err != nil {
-			return nil, err
+		commit = func(c Conn) error {
+			return e.commitRWTXAndStartNewLocked(c, true, false, true)
 		}
 		mustCommitNow = false
 	}
@@ -783,7 +806,9 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	if mustCommitNow && ch != nil {
 		<-ch
 		ch = nil
-		err = e.commitTXAndStartNewLocked(c, true, false, false)
+		commit = func(c Conn) error {
+			return e.commitRWTXAndStartNewLocked(c, true, false, false)
+		}
 	}
 	e.rw.spOk = err == nil
 	return ch, err
