@@ -40,7 +40,7 @@ type cacheTestState struct {
 	currentTime int64
 }
 
-func (s *cacheTestState) Init(t *rapid.T) {
+func (s *cacheTestState) init(t *rapid.T) {
 	s.currentTime = 100_000_000
 	now := func() time.Time {
 		return time.Unix(s.currentTime, 0)
@@ -79,5 +79,9 @@ func (s *cacheTestState) Check(r *rapid.T) {
 }
 
 func TestSecondsCache(t *testing.T) {
-	rapid.Check(t, rapid.Run[*cacheTestState]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := cacheTestState{}
+		m.init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }

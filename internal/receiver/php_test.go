@@ -431,6 +431,9 @@ func TestPHPRoundtrip(t *testing.T) {
 	if os.Getenv("STATSHOUSE_RUN_PHP_INTEGRATION_TEST") != "1" {
 		t.Skip("PHP integration test requires configured PHP environment and client source code")
 	}
-
-	rapid.Check(t, rapid.Run[*phpMachine]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := phpMachine{}
+		m.Init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }

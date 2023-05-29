@@ -47,7 +47,7 @@ type heapState struct {
 	pushed []int64
 }
 
-func (s *heapState) Init(t *rapid.T) {
+func (s *heapState) init(t *rapid.T) {
 	s.heap = &heap{}
 	s.pushed = make([]int64, 0, evictSize)
 }
@@ -79,5 +79,9 @@ func (s *heapState) Check(r *rapid.T) {
 }
 
 func TestHeap(t *testing.T) {
-	rapid.Check(t, rapid.Run[*heapState]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := heapState{}
+		m.init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }
