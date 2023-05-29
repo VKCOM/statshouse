@@ -1767,7 +1767,9 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 		res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
 	}
 	// Add badges
+	res.DebugQueries = append(res.DebugQueries, fmt.Sprintf("Verbose %v, badges %v", qry.verbose, badges != nil))
 	if qry.verbose && err == nil && badges != nil && len(badges.Series.Time) > 0 {
+		res.DebugQueries = append(res.DebugQueries, badges.DebugQueries...)
 		// TODO - skip values outside display range. Badge now does not correspond directly to points displayed.
 		for i, meta := range badges.Series.SeriesMeta {
 			badgeTypeSamplingFactorSrc := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor))
@@ -1891,7 +1893,7 @@ func (h *Handler) queryBadgesPromQL(ctx context.Context, ai accessInfo, req seri
 			by:                  []string{"key1", "key2"},
 			filterIn:            map[string][]string{"key2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
 		},
-		seriesRequestOptions{})
+		seriesRequestOptions{debugQueries: true})
 }
 
 func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seriesRequest, opt seriesRequestOptions) (*SeriesResponse, func(), error) {
@@ -1958,6 +1960,10 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if widthKind == widthAutoRes {
 		options.StepAuto = true
 	}
+	var sqlQueries []string
+	if opt.debugQueries {
+		ctx = debugQueriesContext(ctx, &sqlQueries)
+	}
 	parserV, cleanup, err = h.promEngine.Exec(
 		context.WithValue(ctx, accessInfoKey, &ai),
 		promql.Query{
@@ -1980,7 +1986,8 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			SeriesData: bag.Data,
 			SeriesMeta: make([]QuerySeriesMetaV2, 0, len(bag.Data)),
 		},
-		MetricMeta: metricMeta,
+		MetricMeta:   metricMeta,
+		DebugQueries: sqlQueries,
 	}
 	for i := range bag.Data {
 		meta := QuerySeriesMetaV2{
