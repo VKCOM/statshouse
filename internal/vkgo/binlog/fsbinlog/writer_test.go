@@ -36,7 +36,7 @@ func TestSimpleWrite(t *testing.T) {
 	require.NoError(t, err)
 	crcAfterCreate := crc32.Update(0, crc32.IEEETable, fileData)
 
-	fh := fileHeader{FileName: file}
+	fh := FileHeader{FileName: file}
 	err = readBinlogHeaderFile(&fh, 0)
 	require.NoError(t, err)
 
@@ -95,7 +95,7 @@ func TestRotate(t *testing.T) {
 	require.NoError(t, err)
 	crcAfterCreate := crc32.Update(0, crc32.IEEETable, fileData)
 
-	fh := fileHeader{FileName: file}
+	fh := FileHeader{FileName: file}
 	err = readBinlogHeaderFile(&fh, 0)
 	require.NoError(t, err)
 

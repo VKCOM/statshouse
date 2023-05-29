@@ -30,7 +30,7 @@ func (s *Weighted) SetSize(n int64) {
 // ForceAcquire is used when external force can unconditionally acquire semaphore.
 // For example if semaphore limits disk space used by disk queue, the app can start with different limit so that disk used is already over limit
 // In this case we create semaphore with new limit and use ForceAcquire to unconditionally acquire current disk used
-// semaphore will wait until enough disk space released before allowing Acquire to succeed
+// semaphore will wait until enough disk space released before Acquire can succeed
 func (s *Weighted) ForceAcquire(n int64) {
 	if n < 0 {
 		panic("semaphore: force acquire with negative n")

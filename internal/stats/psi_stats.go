@@ -5,8 +5,9 @@ import (
 	"time"
 
 	"github.com/prometheus/procfs"
-	"github.com/vkcom/statshouse/internal/format"
 	"go.uber.org/multierr"
+
+	"github.com/vkcom/statshouse/internal/format"
 )
 
 type PSIStats struct {

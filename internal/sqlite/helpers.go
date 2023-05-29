@@ -9,8 +9,9 @@ package sqlite
 import (
 	"fmt"
 
-	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
 	"go.uber.org/multierr"
+
+	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
 )
 
 const (

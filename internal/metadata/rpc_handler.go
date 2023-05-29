@@ -14,8 +14,9 @@ import (
 
 	"context"
 
-	"github.com/vkcom/statshouse-go"
 	"go.uber.org/atomic"
+
+	"github.com/vkcom/statshouse-go"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"

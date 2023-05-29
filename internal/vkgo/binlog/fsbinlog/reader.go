@@ -34,7 +34,7 @@ type binlogReader struct {
 	fsWatcher           *fsnotify.Watcher
 	stat                *stat
 	readyCallbackCalled bool
-	fileHeaders         []fileHeader
+	fileHeaders         []FileHeader
 	logger              binlog.Logger
 	commitDuration      time.Duration
 	DoNotFSyncOnRead    bool
@@ -72,7 +72,7 @@ func (b *binlogReader) readAllFromPosition(fromPosition int64, prefixPath string
 		}()
 	}
 
-	b.fileHeaders, err = scanForFilesFromPos(0, prefixPath, expectedMagic, nil)
+	b.fileHeaders, err = ScanForFilesFromPos(0, prefixPath, expectedMagic, nil)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to scan directory for binlog files: %w", err)
 	}
@@ -116,6 +116,18 @@ loop:
 			posAfterRead, crcAfterRead = pos, crc
 		}
 
+		fileIndex = len(b.fileHeaders)
+		lastBinlogPosition := b.fileHeaders[fileIndex-1].Position
+
+		newFileHeaders, err := ScanForFilesFromPos(lastBinlogPosition, prefixPath, 0, b.fileHeaders)
+		if err != nil {
+			return posAfterRead, crcAfterRead, fmt.Errorf("ScanForFilesFromPos failed at pos %d: %w", lastBinlogPosition, err)
+		}
+		if len(newFileHeaders) != 0 {
+			b.fileHeaders = append(b.fileHeaders, newFileHeaders...)
+			continue
+		}
+
 		if b.pidChanged == nil && !endlessMode {
 			if rotated {
 				b.logger.Warnf("Binlog reading finished, but last read file (%s) have RotateTo event. "+
@@ -125,10 +137,6 @@ loop:
 			break loop
 		}
 
-		fileIndex = len(b.fileHeaders)
-
-		lastBinlogPosition := b.fileHeaders[fileIndex-1].Position
-		var newFileHeaders []fileHeader
 		newFileHeaders, err = b.waitForNewBinlogFile(lastBinlogPosition, prefixPath, b.fileHeaders)
 		if err != nil {
 			return posAfterRead, crcAfterRead, fmt.Errorf("waitForNewBinlogFile failed at pos %d: %w", lastBinlogPosition, err)
@@ -139,10 +147,10 @@ loop:
 	return posAfterRead, crcAfterRead, nil
 }
 
-func (b *binlogReader) waitForNewBinlogFile(lastBinlogPosition int64, prefixPath string, currHdrs []fileHeader) ([]fileHeader, error) {
+func (b *binlogReader) waitForNewBinlogFile(lastBinlogPosition int64, prefixPath string, currHdrs []FileHeader) ([]FileHeader, error) {
 	for {
 		// no point to specify expected magic, since we already read first file
-		fileHeaders, err := scanForFilesFromPos(lastBinlogPosition, prefixPath, 0, currHdrs)
+		fileHeaders, err := ScanForFilesFromPos(lastBinlogPosition, prefixPath, 0, currHdrs)
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +168,7 @@ func (b *binlogReader) waitForNewBinlogFile(lastBinlogPosition int64, prefixPath
 	}
 }
 
-func (b *binlogReader) readBinlogFromFile(header *fileHeader, fromPos int64, engine binlog.Engine, si *seekInfo, endlessMode bool) (int64, uint32, bool, error) {
+func (b *binlogReader) readBinlogFromFile(header *FileHeader, fromPos int64, engine binlog.Engine, si *seekInfo, endlessMode bool) (int64, uint32, bool, error) {
 	fd, err := os.Open(header.FileName)
 	if err != nil {
 		return 0, 0, false, err
@@ -498,6 +506,9 @@ loop:
 			}
 		}
 	}
+	if err := makeCommit(curPos, curCrc32); err != nil {
+		return curPos, curCrc32, false, err
+	}
 	return curPos, curCrc32, finish, nil
 }
 
@@ -540,7 +551,7 @@ func (b *binlogReader) readAndUpdateCRCIfNeed(r io.Reader, curPos int64, curCrc3
 	return curPos, curCrc32, nil
 }
 
-func readBinlogHeaderFile(header *fileHeader, expectedMagic uint32) error {
+func readBinlogHeaderFile(header *FileHeader, expectedMagic uint32) error {
 	fd, err := os.OpenFile(header.FileName, os.O_RDONLY, defaultFilePerm)
 	if err != nil {
 		return err
@@ -558,7 +569,7 @@ func readBinlogHeaderFile(header *fileHeader, expectedMagic uint32) error {
 	return readBinlogHeader(header, buff, expectedMagic)
 }
 
-func readBinlogHeader(header *fileHeader, buff []byte, expectedMagic uint32) error {
+func readBinlogHeader(header *FileHeader, buff []byte, expectedMagic uint32) error {
 	levType := binary.LittleEndian.Uint32(buff)
 
 	switch levType {

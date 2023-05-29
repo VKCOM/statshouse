@@ -22,20 +22,20 @@ func Max[T constraints.Ordered](x T, y T) T {
 	return y
 }
 
-func MinInt8(x int8, y int8) int8 {
-	if x <= y {
-		return x
+func Clamp[T constraints.Ordered](value T, low T, high T) T {
+	if value <= low {
+		return low
 	}
-
-	return y
+	if value >= high {
+		return high
+	}
+	return value
 }
 
-func MinInt32(x int32, y int32) int32 {
-	if x <= y {
-		return x
+func FillSlice[T any](slice []T, val T) {
+	for i := range slice {
+		slice[i] = val
 	}
-
-	return y
 }
 
 func MinInt64(x int64, y int64) int64 {
@@ -47,38 +47,6 @@ func MinInt64(x int64, y int64) int64 {
 }
 
 func MinInt(x int, y int) int {
-	if x <= y {
-		return x
-	}
-
-	return y
-}
-
-func MinUInt8(x uint8, y uint8) uint8 {
-	if x <= y {
-		return x
-	}
-
-	return y
-}
-
-func MinUInt32(x uint32, y uint32) uint32 {
-	if x <= y {
-		return x
-	}
-
-	return y
-}
-
-func MinUInt64(x uint64, y uint64) uint64 {
-	if x <= y {
-		return x
-	}
-
-	return y
-}
-
-func MinUInt(x uint, y uint) uint {
 	if x <= y {
 		return x
 	}

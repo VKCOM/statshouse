@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/prometheus/procfs/blockdevice"
-	"github.com/vkcom/statshouse/internal/format"
 	"golang.org/x/sys/unix"
+
+	"github.com/vkcom/statshouse/internal/format"
 )
 
 type DiskStats struct {

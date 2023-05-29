@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/prometheus/procfs"
+
 	"github.com/vkcom/statshouse/internal/format"
 )
 

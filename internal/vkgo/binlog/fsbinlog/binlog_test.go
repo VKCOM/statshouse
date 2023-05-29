@@ -19,9 +19,10 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
@@ -174,6 +175,10 @@ func (e *TestEngineImpl) ChangeRole(info binlog.ChangeRoleInfo) error {
 	}
 	e.kindaReady.Store(true)
 	return nil
+}
+
+func (e *TestEngineImpl) StartReindex() error {
+	return nil // TODO - not implemented
 }
 
 func (e *TestEngineImpl) WaitForReadyFlag() {
