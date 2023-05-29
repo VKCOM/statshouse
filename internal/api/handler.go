@@ -1992,6 +1992,9 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			meta.What, _ = validQueryFn(s.GetWhat())
 			meta.TimeShift = -s.GetOffset()
 			meta.Total = s.GetTotal()
+			if meta.Total == 0 {
+				meta.Total = len(bag.Data)
+			}
 			s.DropMetricName()
 			s.DropWhat()
 			meta.Tags = make(map[string]SeriesMetaTag, len(s.Tags))
