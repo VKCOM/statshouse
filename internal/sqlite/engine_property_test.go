@@ -94,7 +94,7 @@ type engineMachineWaitCommitMode struct {
 	committed int64
 }
 
-func (m *engineMachineWaitCommitMode) Init(t *rapid.T) {
+func (m *engineMachineWaitCommitMode) init(t *rapid.T) {
 	e, err := newEngine(t, WaitCommit, "CREATE TABLE IF NOT EXISTS test (value INTEGER)")
 	require.NoError(t, err)
 	if err != nil {
@@ -125,7 +125,11 @@ func (m *engineMachineWaitCommitMode) Check(t *rapid.T) {
 }
 
 func TestWaitCommit(t *testing.T) {
-	rapid.Check(t, rapid.Run[*engineMachineWaitCommitMode]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := engineMachineWaitCommitMode{}
+		m.init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }
 
 type engineMachineNoWaitCommitMode struct {
@@ -134,7 +138,7 @@ type engineMachineNoWaitCommitMode struct {
 	committed int64
 }
 
-func (m *engineMachineNoWaitCommitMode) Init(t *rapid.T) {
+func (m *engineMachineNoWaitCommitMode) init(t *rapid.T) {
 	//todo unify
 	e, err := newEngine(t, NoWaitCommit, "CREATE TABLE IF NOT EXISTS test (value INTEGER)")
 	e.isTest = true
@@ -175,7 +179,11 @@ func (m *engineMachineNoWaitCommitMode) Check(t *rapid.T) {
 }
 
 func TestNoWaitCommit(t *testing.T) {
-	rapid.Check(t, rapid.Run[*engineMachineNoWaitCommitMode]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := engineMachineNoWaitCommitMode{}
+		m.init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }
 
 type engineMachineBinlogRun struct {
@@ -190,7 +198,7 @@ type engineMachineBinlogRun struct {
 	lastCurrentOffsetBeforeWait int64
 }
 
-func (m *engineMachineBinlogRun) Init(t *rapid.T) {
+func (m *engineMachineBinlogRun) init(t *rapid.T) {
 	e, err := newEngine(t, NoWaitCommit, "CREATE TABLE IF NOT EXISTS test (value INTEGER)")
 	e.isTest = true
 	require.NoError(t, err)
@@ -262,7 +270,11 @@ func (m *engineMachineBinlogRun) Check(t *rapid.T) {
 }
 
 func TestApplyCommit(t *testing.T) {
-	rapid.Check(t, rapid.Run[*engineMachineBinlogRun]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := engineMachineBinlogRun{}
+		m.init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }
 
 func openInMemory(path string, flags int, cb ProfileCallback) (*sqlite0.Conn, error) {

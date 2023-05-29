@@ -42,7 +42,7 @@ type packetConnMachine struct {
 	c2 *connEx
 }
 
-func (p *packetConnMachine) Init(t *rapid.T) {
+func (p *packetConnMachine) init(t *rapid.T) {
 	nc1, nc2 := net.Pipe()
 	rb1 := rapid.IntRange(0, 4*aes.BlockSize).Draw(t, "rb1")
 	wb1 := rapid.IntRange(0, 4*aes.BlockSize).Draw(t, "wb1")
@@ -156,6 +156,9 @@ func send(t *rapid.T, from *connEx, to *connEx) {
 
 func TestPacketConn(t *testing.T) {
 	t.Parallel()
-
-	rapid.Check(t, rapid.Run[*packetConnMachine]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := packetConnMachine{}
+		m.init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }
