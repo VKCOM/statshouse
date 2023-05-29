@@ -1751,13 +1751,6 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 	if qry.verbose {
 		var g *errgroup.Group
 		g, ctx = errgroup.WithContext(ctx)
-		if options.testPromql {
-			g.Go(func() error {
-				var err error
-				res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
-				return err
-			})
-		}
 		g.Go(func() error {
 			var err error
 			res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
@@ -1913,8 +1906,10 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if err != nil {
 		return nil, nil, err
 	}
+	var promqlGenerated bool
 	if len(req.promQL) == 0 {
 		req.promQL = getPromQuery(req)
+		promqlGenerated = true
 	}
 	if opt.timeNow.IsZero() {
 		opt.timeNow = time.Now()
@@ -1994,10 +1989,11 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 		}
 		if i < len(bag.Meta) {
 			s := bag.Meta[i]
-			meta.What, _ = validQueryFn(s.What)
+			meta.What, _ = validQueryFn(s.GetWhat())
 			meta.TimeShift = -s.GetOffset()
 			meta.Total = s.GetTotal()
 			s.DropMetricName()
+			s.DropWhat()
 			meta.Tags = make(map[string]SeriesMetaTag, len(s.Tags))
 			for id, t := range s.Tags {
 				if !t.SValueSet {
@@ -2035,6 +2031,9 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 				row[i] = math.MaxFloat32
 			}
 		}
+	}
+	if promqlGenerated {
+		res.PromQL = req.promQL
 	}
 	res.queries = seriesQueries
 	return res, cleanup, nil

@@ -504,7 +504,6 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	}
 	for i := range meta {
 		meta[i].Metric = qry.Metric
-		meta[i].What = what.String()
 	}
 	return promql.SeriesBag{Data: data, Meta: meta, MaxHost: maxHost}, cleanup, nil
 }

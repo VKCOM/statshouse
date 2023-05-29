@@ -200,9 +200,9 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 			if s.GroupBy != nil {
 				grouped = true
 			}
-			if !grouped {
+			if !grouped && len(s.What) <= 1 {
 				if ar, ok := evalReductionRules(s, nodes, stepMin); ok {
-					s.What = ar.what
+					s.What = []string{ar.what}
 					s.GroupBy = ar.groupBy
 					s.GroupWithout = ar.groupWithout
 					s.Range = ar.step
@@ -273,7 +273,7 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, p
 				case MaxHost:
 					sel.MaxHost = true
 				default:
-					sel.What = what
+					sel.What = append(sel.What, what)
 				}
 			}
 		case labelBy:
@@ -618,39 +618,40 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector) (SeriesBag, error) {
 	res := ev.newSeriesBag(0)
 	for i, metric := range sel.MatchingMetrics {
-		qry, err := ev.buildSeriesQuery(ctx, sel, metric)
-		if err != nil {
-			return SeriesBag{}, err
-		}
-		if qry.empty() {
-			continue
-		}
-		bag, cancel, err := ev.h.QuerySeries(ctx, &qry.SeriesQuery)
-		if err != nil {
-			return SeriesBag{}, err
-		}
-		ev.cancellationList = append(ev.cancellationList, cancel)
-		if qry.prefixSum {
-			bag = ev.funcPrefixSum(bag)
-		}
-		if !sel.OmitNameTag {
-			for j := range bag.Meta {
-				bag.Meta[j].setMetricName(sel.MatchingNames[i])
-			}
-		}
-		if ev.Options.TagOffset && qry.Offset != 0 {
-			bag.tagOffset(qry.Offset)
-		}
-		if qry.histogram.restore {
-			bag, err = ev.restoreHistogram(&bag, &qry)
+		for _, what := range sel.What {
+			qry, err := ev.buildSeriesQuery(ctx, sel, metric, what)
 			if err != nil {
 				return SeriesBag{}, err
 			}
+			if qry.empty() {
+				continue
+			}
+			bag, cancel, err := ev.h.QuerySeries(ctx, &qry.SeriesQuery)
+			if err != nil {
+				return SeriesBag{}, err
+			}
+			ev.cancellationList = append(ev.cancellationList, cancel)
+			if qry.prefixSum {
+				bag = ev.funcPrefixSum(bag)
+			}
+			if !sel.OmitNameTag {
+				bag.setSTag(labels.MetricName, sel.MatchingNames[i])
+			}
+			if ev.Options.TagOffset && qry.Offset != 0 {
+				bag.setTag(labelOffset, int32(qry.Offset))
+			}
+			if qry.histogram.restore {
+				bag, err = ev.restoreHistogram(&bag, &qry)
+				if err != nil {
+					return SeriesBag{}, err
+				}
+			}
+			bag.setSTag(labelWhat, what)
+			res.append(bag)
 		}
-		res.append(bag)
 	}
 	if ev.Options.TagTotal {
-		res.tagTotal(len(res.Data))
+		res.setTag(labelTotal, int32(len(res.Data)))
 	}
 	return res, nil
 }
@@ -682,13 +683,13 @@ func (ev *evaluator) restoreHistogram(bag *SeriesBag, qry *seriesQueryX) (Series
 	return res, nil
 }
 
-func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSelector, metric *format.MetricMetaValue) (seriesQueryX, error) {
+func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSelector, metric *format.MetricMetaValue, selWhat string) (seriesQueryX, error) {
 	// what
 	var (
 		what      DigestWhat
 		prefixSum bool
 	)
-	switch sel.What {
+	switch selWhat {
 	case Count:
 		what = DigestCount
 	case CountSec:
