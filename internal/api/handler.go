@@ -1568,6 +1568,10 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	if ai.bitDeveloper {
+		h.handleSeriesQueryPromQL(w, r, sl, ai)
+		return
+	}
 	// Parse request
 	qry, err := h.getSeriesRequest(r)
 	if err != nil {
@@ -1712,6 +1716,112 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request, sl *endpointStat, ai accessInfo) {
+	// Parse request
+	qry, err := h.getSeriesRequest(r)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	if qry.avoidCache && !ai.isAdmin() {
+		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
+		return
+	}
+	// Query series and badges
+	var (
+		ctx, cancel = context.WithTimeout(r.Context(), querySelectTimeout)
+		freeBadges  func()
+		freeRes     func()
+		options     = seriesRequestOptions{
+			debugQueries: true,
+			stat:         sl,
+		}
+		res    *SeriesResponse
+		badges *SeriesResponse
+	)
+	defer func() {
+		cancel()
+		if freeBadges != nil {
+			freeBadges()
+		}
+		if freeRes != nil {
+			freeRes()
+		}
+	}()
+	if qry.verbose {
+		var g *errgroup.Group
+		g, ctx = errgroup.WithContext(ctx)
+		if options.testPromql {
+			g.Go(func() error {
+				var err error
+				res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
+				return err
+			})
+		}
+		g.Go(func() error {
+			var err error
+			res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
+			return err
+		})
+		g.Go(func() error {
+			var err error
+			badges, freeBadges, err = h.queryBadgesPromQL(ctx, ai, qry)
+			return err
+		})
+		err = g.Wait()
+	} else {
+		res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
+	}
+	// Add badges
+	if qry.verbose && err == nil && badges != nil && len(badges.Series.Time) > 0 {
+		// TODO - skip values outside display range. Badge now does not correspond directly to points displayed.
+		for i, meta := range badges.Series.SeriesMeta {
+			badgeTypeSamplingFactorSrc := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor))
+			badgeTypeSamplingFactorAgg := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor))
+			badgeTypeReceiveErrorsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld))
+			badgeTypeMappingFloodEventsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld))
+			badgeTypeReceiveErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors))
+			badgeTypeReceiveWarnings := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionWarnings))
+			badgeTypeMappingErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors))
+			if meta.Tags["key2"].Value == qry.metricWithNamespace {
+				badgeType := meta.Tags["key1"].Value
+				switch {
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorSrc:
+					res.SamplingFactorSrc = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorAgg:
+					res.SamplingFactorAgg = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeReceiveErrorsLegacy:
+					res.ReceiveErrorsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeMappingFloodEventsLegacy:
+					res.MappingFloodEventsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveErrors:
+					res.ReceiveErrors = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveWarnings:
+					res.ReceiveWarnings = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeMappingErrors:
+					res.MappingErrors = sumSeries(badges.Series.SeriesData[i], 0)
+				}
+			}
+			// TODO - show badge if some heuristics on # of contributors is triggered
+			// if format.IsValueCodeZero(metric) && meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeContributors)) {
+			//	sumContributors := sumSeries(respIngestion.Series.SeriesData[i], 0)
+			//	fmt.Printf("contributors sum %f\n", sumContributors)
+			// }
+		}
+	}
+	// Format and write the response
+	switch {
+	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
+		exportCSV(w, res, qry.metricWithNamespace, sl)
+	default:
+		var cache, cacheStale time.Duration
+		if res != nil {
+			cache, cacheStale = queryClientCacheDuration(res.immutable)
+		}
+		respondJSON(w, res, cache, cacheStale, err, h.verbose, ai.user, sl)
+	}
+}
+
 func (h *Handler) getSeriesRequest(r *http.Request) (seriesRequest, error) {
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
 	var (
@@ -1756,6 +1866,24 @@ func (h *Handler) getSeriesRequest(r *http.Request) (seriesRequest, error) {
 
 func (h *Handler) queryBadges(ctx context.Context, ai accessInfo, req seriesRequest) (*SeriesResponse, func(), error) {
 	return h.handleGetQuery(
+		ctx, ai.withBadgesRequest(),
+		seriesRequest{
+			version:             Version2,
+			numResults:          "20",
+			metricWithNamespace: format.BuiltinMetricNameBadges,
+			from:                req.from,
+			to:                  req.to,
+			width:               req.width,
+			widthAgg:            req.widthAgg, // TODO - resolution of badge metric (currently 5s)?
+			what:                []string{ParamQueryFnCount, ParamQueryFnAvg},
+			by:                  []string{"key1", "key2"},
+			filterIn:            map[string][]string{"key2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
+		},
+		seriesRequestOptions{})
+}
+
+func (h *Handler) queryBadgesPromQL(ctx context.Context, ai accessInfo, req seriesRequest) (*SeriesResponse, func(), error) {
+	return h.handlePromqlQuery(
 		ctx, ai.withBadgesRequest(),
 		seriesRequest{
 			version:             Version2,
