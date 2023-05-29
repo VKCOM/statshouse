@@ -13,13 +13,10 @@ import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { resetMetricFlood, saveMetric } from '../api/saveMetric';
 import { formatInputDate, freeKeyPrefix } from '../../view/utils';
 import { IActions } from '../storages/MetricFormValues/reducer';
-import {
-  selectorClearMetricsMeta,
-  selectorListMetricsGroup,
-  selectorLoadListMetricsGroup,
-  useStore,
-} from '../../store';
+import { selectorListMetricsGroup, selectorLoadListMetricsGroup, useStore } from '../../store';
 import { RawValueKind } from '../../view/api';
+
+const { clearMetricsMeta } = useStore.getState();
 
 export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   const { yAxisSize, adminMode } = props;
@@ -580,7 +577,7 @@ function useSubmit(values: IMetric, dispatch: React.Dispatch<IActions>) {
   const [isRunning, setRunning] = React.useState<boolean>(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
-  const clearMetricsMeta = useStore(selectorClearMetricsMeta);
+
   const { metricName } = useParams();
   const navigate = useNavigate();
 
@@ -606,7 +603,7 @@ function useSubmit(values: IMetric, dispatch: React.Dispatch<IActions>) {
         setRunning(false);
         clearMetricsMeta(values.name);
       });
-  }, [clearMetricsMeta, dispatch, metricName, navigate, values]);
+  }, [dispatch, metricName, navigate, values]);
 
   return {
     isRunning,

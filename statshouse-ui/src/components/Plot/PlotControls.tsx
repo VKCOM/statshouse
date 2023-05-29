@@ -7,7 +7,6 @@
 import React, { ChangeEvent, memo, useCallback, useEffect, useMemo } from 'react';
 import * as utils from '../../view/utils';
 import { getTimeShifts, promQLMetric, timeShiftAbbrevExpand } from '../../view/utils';
-import { MetricItem } from '../../hooks';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, Select, SelectOptionProps } from '../index';
 import { TagControl } from '../../view/TagControl';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
@@ -22,17 +21,16 @@ import {
   selectorParamsTimeShifts,
   selectorPlotsData,
   selectorPlotsDataByIndex,
-  selectorSetLastError,
-  selectorSetParams,
-  selectorSetTimeRange,
   selectorTimeRange,
   useStore,
 } from '../../store';
 import { globalSettings } from '../../common/settings';
-import { filterHasTagID, metricKindToWhat, metricMeta, queryWhat, whatToWhatDesc } from '../../view/api';
+import { filterHasTagID, MetricItem, metricKindToWhat, metricMeta, queryWhat, whatToWhatDesc } from '../../view/api';
 import produce from 'immer';
 import { PLOT_TYPE, PlotParams } from '../../common/plotQueryParams';
 import cn from 'classnames';
+
+const { setParams, setTimeRange, setLastError } = useStore.getState();
 
 export const PlotControls = memo(function PlotControls_(props: {
   indexPlot: number;
@@ -48,15 +46,12 @@ export const PlotControls = memo(function PlotControls_(props: {
 
   const timeShifts = useStore(selectorParamsTimeShifts);
   const params = useStore(selectorParams);
-  const setParams = useStore(selectorSetParams);
 
   const timeRange = useStore(selectorTimeRange);
-  const setTimeRange = useStore(selectorSetTimeRange);
 
   const syncTags = useStore(selectorParamsTagSync);
 
   const lastError = useStore(selectorLastError);
-  const setLastError = useStore(selectorSetLastError);
 
   const selectorPlotData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
   const plotData = useStore(selectorPlotData);
@@ -64,7 +59,7 @@ export const PlotControls = memo(function PlotControls_(props: {
 
   const clearLastError = useCallback(() => {
     setLastError('');
-  }, [setLastError]);
+  }, []);
 
   const eventPlotList = useMemo<SelectOptionProps[]>(() => {
     const eventPlots: SelectOptionProps[] = params.plots
@@ -114,7 +109,7 @@ export const PlotControls = memo(function PlotControls_(props: {
         customAgg: customAgg,
       }));
     },
-    [setParams, setSel, timeShifts]
+    [setSel, timeShifts]
   );
 
   const onNumSeriesChange = useCallback(

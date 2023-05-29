@@ -716,6 +716,8 @@ export interface metricTag {
   readonly raw_kind?: RawValueKind;
 }
 
+export type MetricItem = { name: string; value: string };
+
 export function metricURL(metric: string): string {
   const params = [[queryParamMetric, metric]];
 

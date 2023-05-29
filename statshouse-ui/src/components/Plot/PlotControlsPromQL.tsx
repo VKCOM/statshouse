@@ -9,22 +9,16 @@ import produce from 'immer';
 import cn from 'classnames';
 import * as utils from '../../view/utils';
 import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
-import { MetricItem } from '../../hooks';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo } from '../index';
-import {
-  selectorParamsTimeShifts,
-  selectorPlotsDataByIndex,
-  selectorSetParams,
-  selectorSetTimeRange,
-  selectorTimeRange,
-  useStore,
-} from '../../store';
-import { metricKindToWhat, metricMeta, queryWhat } from '../../view/api';
+import { selectorParamsTimeShifts, selectorPlotsDataByIndex, selectorTimeRange, useStore } from '../../store';
+import { MetricItem, metricKindToWhat, metricMeta, queryWhat } from '../../view/api';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { globalSettings } from '../../common/settings';
 import { PlotParams } from '../../common/plotQueryParams';
+
+const { setParams, setTimeRange } = useStore.getState();
 
 export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   indexPlot: number;
@@ -43,10 +37,8 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   const plotData = useStore(selectorPlotsData);
 
   const timeShifts = useStore(selectorParamsTimeShifts);
-  const setParams = useStore(selectorSetParams);
 
   const timeRange = useStore(selectorTimeRange);
-  const setTimeRange = useStore(selectorSetTimeRange);
 
   // keep meta up-to-date when sel.metricName changes (e.g. because of navigation)
   useEffect(() => {
@@ -76,7 +68,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
         customAgg: customAgg,
       }));
     },
-    [setParams, setSel, timeShifts]
+    [setSel, timeShifts]
   );
 
   const onHostChange = useCallback(
