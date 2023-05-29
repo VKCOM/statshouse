@@ -40,7 +40,6 @@ type SeriesMeta struct {
 	Tags     map[string]*SeriesTag // indexed by tag ID (canonical name)
 	Name2Tag map[string]*SeriesTag // indexed by tag optional Name
 	Metric   *format.MetricMetaValue
-	What     string
 }
 
 type SeriesTag struct {
@@ -104,7 +103,7 @@ func (b *SeriesBag) MarshalJSON() ([]byte, error) {
 		if tags := b.getTagsAt(i); len(tags) != 0 {
 			m = make(map[string]string, len(tags))
 			for _, tag := range tags {
-				if !tag.SValueSet || tag.SValue == format.TagValueCodeZero {
+				if !tag.SValueSet || tag.SValue == format.TagValueCodeZero || tag.Name == labelWhat {
 					continue
 				}
 				if len(tag.Name) != 0 {
@@ -376,10 +375,14 @@ func (b *SeriesBag) scalar() bool {
 }
 
 func (b *SeriesBag) setSTag(id, value string) {
-	b.setTag(SeriesTag{ID: id, SValue: value, SValueSet: true})
+	b.setXTag(SeriesTag{ID: id, SValue: value, SValueSet: true})
 }
 
-func (b *SeriesBag) setTag(t SeriesTag) {
+func (b *SeriesBag) setTag(id string, value int32) {
+	b.setXTag(SeriesTag{ID: id, Value: value, ValueSet: true})
+}
+
+func (b *SeriesBag) setXTag(t SeriesTag) {
 	for i := range b.Meta {
 		b.Meta[i].SetTag(t)
 	}
@@ -417,22 +420,6 @@ func (b *SeriesBag) stringifyAt(i int, ev *evaluator) {
 	}
 }
 
-func (b *SeriesBag) tagOffset(offset int64) {
-	b.setTag(SeriesTag{
-		ID:       labelOffset,
-		Value:    int32(offset),
-		ValueSet: true,
-	})
-}
-
-func (b *SeriesBag) tagTotal(total int) {
-	b.setTag(SeriesTag{
-		ID:       labelTotal,
-		Value:    int32(total),
-		ValueSet: true,
-	})
-}
-
 func (b *SeriesBag) trim(start, end int64) {
 	var (
 		lo int
@@ -461,6 +448,10 @@ func (b *SeriesBag) trim(start, end int64) {
 
 func (m *SeriesMeta) DropMetricName() {
 	m.dropTag(labels.MetricName)
+}
+
+func (m *SeriesMeta) DropWhat() {
+	m.dropTag(labelWhat)
 }
 
 func (m *SeriesMeta) GetMetricName() string {
@@ -498,12 +489,9 @@ func (m *SeriesMeta) GetTotal() int {
 	return int(t.Value)
 }
 
-func (m *SeriesMeta) setMetricName(value string) {
-	m.setSTag(labels.MetricName, value)
-}
-
-func (m *SeriesMeta) setSTag(id string, value string) {
-	m.SetTag(SeriesTag{ID: id, SValue: value, SValueSet: true})
+func (m *SeriesMeta) GetWhat() string {
+	t, _ := m.getTag(labelWhat)
+	return t.SValue
 }
 
 func (m *SeriesMeta) SetTag(t SeriesTag) {

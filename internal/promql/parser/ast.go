@@ -192,7 +192,7 @@ type VectorSelector struct {
 	MatchingNames   []string
 	MetricKindHint  string
 	Range           int64
-	What            string
+	What            []string
 	GroupBy         []string
 	GroupByAll      bool
 	GroupWithout    bool
