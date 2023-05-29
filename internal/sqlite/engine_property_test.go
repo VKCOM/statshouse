@@ -17,7 +17,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 
-const path = "test.db"
+const pathDB = "test.db"
 const appID = 123
 
 func increment(r *rapid.T, e *Engine, v int64) {
@@ -289,7 +289,7 @@ func openInMemory(path string, flags int, cb ProfileCallback) (*sqlite0.Conn, er
 }
 
 func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine, error) {
-	rw, err := openRW(openInMemory, path, appID, nil, initOffsetTable, snapshotMetaTable, scheme)
+	rw, err := openRW(openInMemory, pathDB, appID, nil, initOffsetTable, snapshotMetaTable, scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW connection: %w", err)
 	}
@@ -301,7 +301,7 @@ func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine,
 		stop: stop,
 		//	chk:                     chk,
 		opt: Options{
-			Path:                   path,
+			Path:                   pathDB,
 			APPID:                  appID,
 			Scheme:                 "",
 			Replica:                false,
@@ -326,7 +326,7 @@ func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine,
 		_ = e.close(false, false)
 		return nil, fmt.Errorf("failed to start write transaction: %w", err)
 	}
-	binlogEngineImpl := &binlogEngineImpl{e: e}
+	binlogEngineImpl := &binlogEngineReplicaImpl{e: e}
 	e.committedInfo.Store(&committedInfo{})
 	offset, err := e.binlogLoadOrCreatePosition()
 	if err != nil {

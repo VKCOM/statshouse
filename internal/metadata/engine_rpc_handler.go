@@ -45,7 +45,7 @@ func (h *EngineRpcHandler) Backup(ctx context.Context, prefix string) error {
 	h.reindexMx.Lock()
 	h.reindexStatus = tlengine.ReindexStatusRunning{StartTime: int32(time.Now().Unix())}.AsUnion()
 	h.reindexMx.Unlock()
-	err := h.db.backup(ctx, prefix)
+	_, err := h.db.backup(ctx, prefix)
 	h.reindexMx.Lock()
 	defer h.reindexMx.Unlock()
 	if err != nil {
