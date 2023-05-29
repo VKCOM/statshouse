@@ -23,6 +23,7 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/spf13/pflag"
+
 	"github.com/vkcom/statshouse-go"
 
 	"github.com/vkcom/statshouse/internal/vkgo/build"

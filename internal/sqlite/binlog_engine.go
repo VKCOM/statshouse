@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
@@ -166,4 +167,8 @@ func (impl *binlogEngineReplicaImpl) skip(skipLen int64) (int64, error) {
 		return binlogUpdateOffset(conn, impl.e.dbOffset)
 	})
 	return offset, err
+}
+
+func (impl *binlogEngineReplicaImpl) StartReindex() error {
+	return fmt.Errorf("not supported")
 }

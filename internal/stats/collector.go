@@ -6,9 +6,10 @@ import (
 	"log"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/receiver"
-	"golang.org/x/sync/errgroup"
 )
 
 type Collector interface {

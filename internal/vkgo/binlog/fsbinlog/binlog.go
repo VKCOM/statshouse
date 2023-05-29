@@ -72,7 +72,7 @@ type (
 	PositionInfo struct {
 		Offset         int64
 		Crc            uint32
-		LastFileHeader fileHeader
+		LastFileHeader FileHeader
 	}
 
 	fsBinlog struct {
@@ -83,6 +83,7 @@ type (
 		writerInitMu sync.Mutex
 		writer       *binlogWriter
 		stop         chan struct{}
+		stopOnce     sync.Once
 		pidChanged   *chan struct{}
 
 		predict struct {
@@ -487,7 +488,9 @@ func (b *fsBinlog) readAll(fromPosition int64, si *seekInfo) (PositionInfo, erro
 }
 
 func (b *fsBinlog) Shutdown() error {
-	close(b.stop)
+	b.stopOnce.Do(func() {
+		close(b.stop)
+	})
 	return nil
 }
 

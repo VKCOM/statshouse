@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/ch-go/proto"
+
 	"github.com/vkcom/statshouse-go"
 
 	"github.com/vkcom/statshouse/internal/format"

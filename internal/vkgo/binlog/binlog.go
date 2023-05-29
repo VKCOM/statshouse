@@ -92,6 +92,9 @@ type Engine interface {
 	// это поведение экспериментальное,
 	// TODO: подробно описать сценарий
 	ChangeRole(info ChangeRoleInfo) error
+
+	// Experimental for now. TODO - stabilize
+	StartReindex() error
 }
 
 type Binlog interface {

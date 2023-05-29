@@ -27,9 +27,10 @@ import (
 	ttemplate "text/template"
 	"time"
 
-	"github.com/vkcom/statshouse-go"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
+
+	"github.com/vkcom/statshouse-go"
 
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"
