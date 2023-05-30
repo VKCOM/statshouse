@@ -37,7 +37,7 @@ func getTableDesc() string {
 
 type lastMetricData struct {
 	lastMetricPrekey        int
-	lastMetricPrekeyOnly bool
+	lastMetricPrekeyOnly    bool
 	lastMetricSkipMaxHost   bool
 	lastMetricSkipMinHost   bool
 	lastMetricSkipSumSquare bool
@@ -60,6 +60,7 @@ func makeMetricCache(journal *metajournal.MetricsStorage) *metricIndexCache {
 
 	}
 	if bm, ok := format.BuiltinMetrics[format.BuiltinMetricIDIngestionStatus]; ok {
+		result.ingestionStatusData.lastMetricPrekeyOnly = bm.PreKeyOnly
 		result.ingestionStatusData.lastMetricPrekey = bm.PreKeyIndex
 		result.ingestionStatusData.lastMetricSkipMinHost = bm.SkipMinHost
 		result.ingestionStatusData.lastMetricSkipMaxHost = bm.SkipMaxHost
@@ -68,7 +69,7 @@ func makeMetricCache(journal *metajournal.MetricsStorage) *metricIndexCache {
 	return result
 }
 
-func (p *metricIndexCache) getPrekeyIndex(metricID int32)  (int, bool) {
+func (p *metricIndexCache) getPrekeyIndex(metricID int32) (int, bool) {
 	if metricID == format.BuiltinMetricIDIngestionStatus {
 		return p.ingestionStatusData.lastMetricPrekey, false
 	}
@@ -85,14 +86,15 @@ func (p *metricIndexCache) metric(metricID int32) bool {
 	p.lastMetricID = metricID
 	if bm, ok := format.BuiltinMetrics[metricID]; ok {
 		p.lastMetric.lastMetricPrekey = bm.PreKeyIndex
+		p.lastMetric.lastMetricPrekeyOnly = bm.PreKeyOnly
 		p.lastMetric.lastMetricSkipMinHost = bm.SkipMinHost
 		p.lastMetric.lastMetricSkipMaxHost = bm.SkipMaxHost
 		p.lastMetric.lastMetricSkipSumSquare = bm.SkipSumSquare
-
 		return true
 	}
 	if metaMetric := p.journal.GetMetaMetric(metricID); metaMetric != nil {
 		p.lastMetric.lastMetricPrekey = metaMetric.PreKeyIndex
+		p.lastMetric.lastMetricPrekeyOnly = metaMetric.PreKeyOnly
 		p.lastMetric.lastMetricSkipMinHost = metaMetric.SkipMinHost
 		p.lastMetric.lastMetricSkipMaxHost = metaMetric.SkipMaxHost
 		p.lastMetric.lastMetricSkipSumSquare = metaMetric.SkipSumSquare
