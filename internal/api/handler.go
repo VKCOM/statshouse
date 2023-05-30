@@ -1972,9 +1972,10 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if widthKind == widthAutoRes {
 		options.StepAuto = true
 	}
-	var sqlQueries []string
+	var debugLog []string
 	if opt.debugQueries {
-		ctx = debugQueriesContext(ctx, &sqlQueries)
+		ctx = debugQueriesContext(ctx, &debugLog)
+		debugLog = append(debugLog, req.promQL, fmt.Sprintf("promqlGenerated=%v, from=%v, to=%v", promqlGenerated, from.Unix(), to.Unix()))
 	}
 	parserV, cleanup, err = h.promEngine.Exec(
 		withAccessInfo(ctx, &ai),
@@ -1999,7 +2000,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			SeriesMeta: make([]QuerySeriesMetaV2, 0, len(bag.Data)),
 		},
 		MetricMeta:   metricMeta,
-		DebugQueries: sqlQueries,
+		DebugQueries: debugLog,
 	}
 	for i := range bag.Data {
 		meta := QuerySeriesMetaV2{
