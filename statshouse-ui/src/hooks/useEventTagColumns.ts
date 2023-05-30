@@ -10,6 +10,7 @@ export type UseEventTagColumnReturn = {
   name: string;
   selected: boolean;
   disabled: boolean;
+  hide: boolean;
 };
 
 export function useEventTagColumns(plot: PlotParams, selectedOnly: boolean = false): UseEventTagColumnReturn[] {

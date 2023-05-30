@@ -1,4 +1,4 @@
-import { formatTagValue, queryTable, queryTableURL, queryWhat } from '../view/api';
+import { formatTagValue, queryTable, queryTableRow, queryTableURL, queryWhat } from '../view/api';
 import { PlotParams } from '../common/plotQueryParams';
 import { TimeRange } from '../common/TimeRange';
 import { apiGet, fmtInputDateTime, freeKeyPrefix } from '../view/utils';
@@ -113,5 +113,20 @@ export async function apiTable(
     }
   });
 
-  return { ...result, rowsNormalize: apiTableRowNormalize(plot, result) };
+  return {
+    ...result,
+    rows:
+      result.rows?.map(
+        (value) =>
+          ({
+            ...value,
+            tags:
+              value.tags &&
+              Object.fromEntries(
+                Object.entries(value.tags).map(([tagKey, tagValue]) => [freeKeyPrefix(tagKey), tagValue])
+              ),
+          } as queryTableRow)
+      ) ?? null,
+    rowsNormalize: apiTableRowNormalize(plot, result),
+  };
 }

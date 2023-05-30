@@ -666,6 +666,7 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       p.promQL ??= '';
       p.events ??= [];
       p.eventsBy ??= [];
+      p.eventsHide ??= [];
       p.type ??= 0;
       return p;
     }),
@@ -705,18 +706,15 @@ export function getEventTagColumns(plot: PlotParams, meta: metricMeta, selectedO
       const fullKeyTag = `key${indexTag}`;
       const disabled = plot.groupBy.indexOf(fullKeyTag) > -1;
       const selected = disabled || plot.eventsBy.indexOf(keyTag) > -1;
-      if (
-        (!selectedOnly ||
-          plot.eventsBy.indexOf(indexTag.toString()) > -1 ||
-          plot.groupBy.indexOf(`key${indexTag}`) > -1) &&
-        tag.description !== '-'
-      ) {
+      const hide = !selected || plot.eventsHide.indexOf(keyTag) > -1;
+      if ((!selectedOnly || (selected && !hide)) && tag.description !== '-') {
         return {
           keyTag,
           fullKeyTag,
           name: getTagDescription(meta, indexTag),
           selected,
           disabled,
+          hide,
         };
       } else {
         return null;
@@ -725,13 +723,15 @@ export function getEventTagColumns(plot: PlotParams, meta: metricMeta, selectedO
     .filter(Boolean) as UseEventTagColumnReturn[];
   const disabled_s = plot.groupBy.indexOf('skey') > -1;
   const selected_s = disabled_s || plot.eventsBy.indexOf('_s') > -1;
-  if ((!selectedOnly || selected_s) && (meta.string_top_name || meta.string_top_description)) {
+  const hide_s = !selected_s || plot.eventsHide.indexOf('_s') > -1;
+  if ((!selectedOnly || (selected_s && !hide_s)) && (meta.string_top_name || meta.string_top_description)) {
     columns.push({
       keyTag: '_s',
       fullKeyTag: 'skey',
       name: getTagDescription(meta, '_s'),
       selected: selected_s,
       disabled: disabled_s,
+      hide: hide_s,
     });
   }
   return columns;
