@@ -32,11 +32,12 @@ func getTableDesc() string {
 	for i := 0; i < format.MaxTags; i++ {
 		keysFieldsNamesVec[i] = fmt.Sprintf(`key%d`, i)
 	}
-	return `statshouse_value_incoming_prekey3(metric,prekey,prekey_set,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,skey,max_host)`
+	return `statshouse_value_incoming_prekey3(metric,prekey,prekey_set,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,skey,min_host,max_host)`
 }
 
 type lastMetricData struct {
 	lastMetricPrekey        int
+	lastMetricPrekeyOnly bool
 	lastMetricSkipMaxHost   bool
 	lastMetricSkipMinHost   bool
 	lastMetricSkipSumSquare bool
@@ -45,19 +46,18 @@ type lastMetricData struct {
 type metricIndexCache struct {
 	// Motivation - we have statList sorted by metric, except ingestion statuses are interleaved,
 	// because they are credited to the metric. Also, we have small # of builtin metrics inserted, but we do not care about speed for them.
-	journal               *metajournal.MetricsStorage
-	ingestionStatusPrekey int
-	lastMetricID          int32
-	lastMetricPrekey      int
-	lastMetricPrekeyOnly  bool
+	journal             *metajournal.MetricsStorage
+	ingestionStatusData lastMetricData
+	lastMetricID        int32
+	lastMetric          lastMetricData
 }
 
-func makePrekeyCache(journal *metajournal.MetricsStorage) *prekeyIndexCache {
-	result := &prekeyIndexCache{
-		journal:               journal,
-		ingestionStatusPrekey: -1,
-		lastMetricPrekey:      -1, // so if somehow 0 metricID is inserted first, will have no prekey
-		lastMetricPrekeyOnly:  false,
+func makeMetricCache(journal *metajournal.MetricsStorage) *metricIndexCache {
+	result := &metricIndexCache{
+		journal:             journal,
+		ingestionStatusData: lastMetricData{lastMetricPrekey: -1},
+		lastMetric:          lastMetricData{lastMetricPrekey: -1}, // so if somehow 0 metricID is inserted first, will have no prekey
+
 	}
 	if bm, ok := format.BuiltinMetrics[format.BuiltinMetricIDIngestionStatus]; ok {
 		result.ingestionStatusData.lastMetricPrekey = bm.PreKeyIndex
@@ -68,24 +68,12 @@ func makePrekeyCache(journal *metajournal.MetricsStorage) *prekeyIndexCache {
 	return result
 }
 
-func (p *prekeyIndexCache) getPrekeyIndex(metricID int32) (int, bool) {
+func (p *metricIndexCache) getPrekeyIndex(metricID int32)  (int, bool) {
 	if metricID == format.BuiltinMetricIDIngestionStatus {
-		return p.ingestionStatusPrekey, false
+		return p.ingestionStatusData.lastMetricPrekey, false
 	}
-	if metricID == p.lastMetricID {
-		return p.lastMetricPrekey, p.lastMetricPrekeyOnly
-	}
-	p.lastMetricID = metricID
-	if bm, ok := format.BuiltinMetrics[metricID]; ok {
-		p.lastMetricPrekey = bm.PreKeyIndex
-		p.lastMetricPrekeyOnly = bm.PreKeyOnly
-		return bm.PreKeyIndex, bm.PreKeyOnly
-	}
-	if metaMetric := p.journal.GetMetaMetric(metricID); metaMetric != nil {
-		p.lastMetricPrekey = metaMetric.PreKeyIndex
-		p.lastMetricPrekeyOnly = metaMetric.PreKeyOnly
-
-		return metaMetric.PreKeyIndex, metaMetric.PreKeyOnly
+	if p.metric(metricID) {
+		return p.lastMetric.lastMetricPrekey, p.lastMetric.lastMetricPrekeyOnly
 	}
 	return -1, false
 }
@@ -126,7 +114,7 @@ func (p *metricIndexCache) skips(metricID int32) (skipMaxHost bool, skipMinHost 
 func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}) []byte {
 	var tmp [4 + 4 + 1 + 4 + format.MaxTags*4]byte // metric, prekey, prekey_set, time
 	binary.LittleEndian.PutUint32(tmp[0:], uint32(k.Metric))
-	prekeyIndex, prekeyOnly := prekeyIndexes.getPrekeyIndex(k.Metric)
+	prekeyIndex, prekeyOnly := metricCache.getPrekeyIndex(k.Metric)
 	if prekeyIndex >= 0 {
 		binary.LittleEndian.PutUint32(tmp[4:], uint32(k.Keys[prekeyIndex]))
 		if prekeyOnly {
