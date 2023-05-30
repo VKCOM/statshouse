@@ -102,6 +102,13 @@ type histogramQuery struct {
 	le      float32
 }
 
+type contextKey int
+
+const (
+	offsetContextKey contextKey = iota
+	traceContextKey
+)
+
 func NewEngine(h Handler, loc *time.Location) Engine {
 	return Engine{h, loc}
 }
@@ -109,17 +116,24 @@ func NewEngine(h Handler, loc *time.Location) Engine {
 func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel func(), err error) {
 	var ev evaluator
 	defer func() {
+		if err != nil {
+			tracef(ctx, "engine error: %v", err)
+		}
 		if r := recover(); r != nil {
 			err = fmt.Errorf("engine panic: %v", r)
+			trace(ctx, err)
 			ev.cancel()
 		}
 	}()
 	// parse query
+	trace(ctx, qry.Expr)
+	tracef(ctx, "from %d to %d", qry.Start, qry.End)
 	ev, err = ng.newEvaluator(ctx, qry)
 	if err != nil {
 		return nil, nil, err
 	}
 	// evaluate query
+	tracef(ctx, "timescale from %d to %d", ev.t.Start, ev.t.End)
 	switch e := ev.ast.(type) {
 	case *parser.StringLiteral:
 		return String{T: qry.Start, V: e.Val}, func() {}, nil
@@ -136,6 +150,12 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 			bag.trim(qry.Start, qry.End)
 		}
 		bag.stringify(&ev)
+		var from, to int64
+		if len(bag.Time) != 0 {
+			from = bag.Time[0]
+			to = bag.Time[len(bag.Time)-1]
+		}
+		tracef(ctx, "got a %dx%d matrix from %d to %d", len(bag.Meta), len(bag.Time), from, to)
 		return &bag, ev.cancel, nil
 	}
 }
@@ -1007,16 +1027,12 @@ func (ev *evaluator) getOffset(ctx context.Context, sel *parser.VectorSelector) 
 	return sel.OriginalOffset + getOffset(ctx)
 }
 
-type contextKey int
-
-var offsetKey contextKey
-
 func withOffset(ctx context.Context, offset int64) context.Context {
-	return context.WithValue(ctx, offsetKey, offset)
+	return context.WithValue(ctx, offsetContextKey, offset)
 }
 
 func getOffset(ctx context.Context) int64 {
-	if offset, ok := ctx.Value(offsetKey).(int64); ok {
+	if offset, ok := ctx.Value(offsetContextKey).(int64); ok {
 		return offset
 	}
 	return 0
@@ -1091,6 +1107,22 @@ func (ev *evaluator) cancel() {
 
 func (q *seriesQueryX) empty() bool {
 	return q.Metric == nil
+}
+
+func WithTraces(ctx context.Context, t *[]string) context.Context {
+	return context.WithValue(ctx, traceContextKey, t)
+}
+
+func trace(ctx context.Context, v any) {
+	if t, _ := ctx.Value(traceContextKey).(*[]string); t != nil {
+		*t = append(*t, fmt.Sprintf("promql: %v", v))
+	}
+}
+
+func tracef(ctx context.Context, format string, a ...any) {
+	if t, _ := ctx.Value(traceContextKey).(*[]string); t != nil {
+		*t = append(*t, fmt.Sprintf("promql: "+format, a...))
+	}
 }
 
 func evalLiteral(expr parser.Expr) (*parser.NumberLiteral, bool) {

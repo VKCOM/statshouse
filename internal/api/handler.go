@@ -1776,7 +1776,6 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 	}
 	if badges != nil {
 		debugLog = append(debugLog, badges.DebugQueries...)
-		debugLog = append(debugLog, fmt.Sprintf("len(badges.Series.SeriesMeta)=%v, len(badges.Series.Time)=%v", len(badges.Series.SeriesMeta), len(badges.Series.Time)))
 	}
 	// Add badges
 	if qry.verbose && err == nil && badges != nil && len(badges.Series.Time) > 0 {
@@ -1791,7 +1790,7 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 			badgeTypeMappingErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors))
 			if meta.Tags["key2"].Value == qry.metricWithNamespace {
 				badgeType := meta.Tags["key1"].Value
-				debugLog = append(debugLog, meta.What.String(), badgeType)
+				debugLog = append(debugLog, fmt.Sprintf("%s: %s", meta.What.String(), badgeType))
 				switch {
 				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorSrc:
 					res.SamplingFactorSrc = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
@@ -1972,10 +1971,10 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if widthKind == widthAutoRes {
 		options.StepAuto = true
 	}
-	var debugLog []string
+	var traces []string
 	if opt.debugQueries {
-		ctx = debugQueriesContext(ctx, &debugLog)
-		debugLog = append(debugLog, req.promQL, fmt.Sprintf("promqlGenerated=%v, from=%v, to=%v", promqlGenerated, from.Unix(), to.Unix()))
+		ctx = debugQueriesContext(ctx, &traces)
+		ctx = promql.WithTraces(ctx, &traces)
 	}
 	parserV, cleanup, err = h.promEngine.Exec(
 		withAccessInfo(ctx, &ai),
@@ -2000,7 +1999,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			SeriesMeta: make([]QuerySeriesMetaV2, 0, len(bag.Data)),
 		},
 		MetricMeta:   metricMeta,
-		DebugQueries: debugLog,
+		DebugQueries: traces,
 	}
 	for i := range bag.Data {
 		meta := QuerySeriesMetaV2{
