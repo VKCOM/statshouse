@@ -29,8 +29,6 @@ import (
 	"github.com/vkcom/statshouse/internal/promql/parser"
 )
 
-var accessInfoKey contextKey
-
 func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQuery bool) {
 	// parse access token
 	ai, ok := h.parseAccessToken(w, r, nil)
@@ -53,7 +51,7 @@ func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQ
 	// execute query
 	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
 	defer cancel()
-	res, dispose, err := h.promEngine.Exec(context.WithValue(ctx, accessInfoKey, &ai), q)
+	res, dispose, err := h.promEngine.Exec(withAccessInfo(ctx, &ai), q)
 	if err != nil {
 		promRespondError(w, promErrorExec, err)
 		return
@@ -744,13 +742,6 @@ func getHandlerLODs(qry *promql.SeriesQuery, loc *time.Location) []promqlLOD {
 		})
 	}
 	return lods
-}
-
-func getAccessInfo(ctx context.Context) *accessInfo {
-	if ai, ok := ctx.Value(accessInfoKey).(*accessInfo); ok {
-		return ai
-	}
-	return nil
 }
 
 func (h *Handler) Alloc(n int) *[]float64 {

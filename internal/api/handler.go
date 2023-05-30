@@ -1767,7 +1767,6 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 		res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
 	}
 	// Add badges
-	res.DebugQueries = append(res.DebugQueries, fmt.Sprintf("Verbose %v, badges %v", qry.verbose, badges != nil))
 	if qry.verbose && err == nil && badges != nil && len(badges.Series.Time) > 0 {
 		res.DebugQueries = append(res.DebugQueries, badges.DebugQueries...)
 		// TODO - skip values outside display range. Badge now does not correspond directly to points displayed.
@@ -1965,7 +1964,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 		ctx = debugQueriesContext(ctx, &sqlQueries)
 	}
 	parserV, cleanup, err = h.promEngine.Exec(
-		context.WithValue(ctx, accessInfoKey, &ai),
+		withAccessInfo(ctx, &ai),
 		promql.Query{
 			Start:   from.Unix(),
 			End:     to.Unix(),
