@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -38,6 +37,10 @@ import (
 //   - expression types (alphabetical)
 //   - ...
 type Node interface {
+	// String representation of the node that returns the given node when parsed
+	// as part of a valid query.
+	String() string
+
 	// PositionRange returns the position of the AST Node in the query string.
 	PositionRange() PositionRange
 }
@@ -173,6 +176,8 @@ type UnaryExpr struct {
 type StepInvariantExpr struct {
 	Expr Expr
 }
+
+func (e *StepInvariantExpr) String() string { return e.Expr.String() }
 
 func (e *StepInvariantExpr) PositionRange() PositionRange { return e.Expr.PositionRange() }
 
