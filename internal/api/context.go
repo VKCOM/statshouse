@@ -13,7 +13,10 @@ import (
 
 type contextKey int
 
-var debugQueriesContextKey contextKey
+const (
+	debugQueriesContextKey contextKey = iota
+	accessInfoContextKey
+)
 
 func debugQueriesContext(ctx context.Context, queries *[]string) context.Context {
 	return context.WithValue(ctx, debugQueriesContextKey, queries)
@@ -25,4 +28,15 @@ func saveDebugQuery(ctx context.Context, query string) {
 		query = strings.TrimSpace(strings.ReplaceAll(query, "\n", " "))
 		*p = append(*p, query)
 	}
+}
+
+func withAccessInfo(ctx context.Context, ai *accessInfo) context.Context {
+	return context.WithValue(ctx, accessInfoContextKey, ai)
+}
+
+func getAccessInfo(ctx context.Context) *accessInfo {
+	if ai, ok := ctx.Value(accessInfoContextKey).(*accessInfo); ok {
+		return ai
+	}
+	return nil
 }
