@@ -34,6 +34,7 @@ import {
   fmtInputDateTime,
   formatLegendValue,
   formatPercent,
+  freeKeyPrefix,
   getTimeShifts,
   normalizeDashboard,
   notNull,
@@ -76,6 +77,7 @@ import {
   querySeriesMeta,
   querySeriesMetaTag,
   queryTable,
+  queryTableRow,
   queryTableURL,
   queryURL,
   queryWhat,
@@ -406,6 +408,7 @@ export const statsHouseState: StateCreator<
         type: PLOT_TYPE.Metric,
         events: [],
         eventsBy: [],
+        eventsHide: [],
       };
       params.plots = [np];
       reset = true;
@@ -1288,6 +1291,7 @@ export const statsHouseState: StateCreator<
       prev.setParams(
         produce((params) => {
           params.plots[indexPlot].type = nextType;
+          params.plots[indexPlot].eventsHide = [];
           switch (params.plots[indexPlot].type) {
             case PLOT_TYPE.Metric:
               params.plots[indexPlot].customAgg = 0;
@@ -1988,7 +1992,23 @@ export const statsHouseState: StateCreator<
               what: [],
               range: new TimeRange(range.getRangeUrl),
             };
-            const chunk: EventDataChunk = { ...resp, ...range.getRange(), fromEnd };
+            const chunk: EventDataChunk = {
+              ...resp,
+              ...range.getRange(),
+              fromEnd,
+              rows:
+                resp.rows?.map(
+                  (value) =>
+                    ({
+                      ...value,
+                      tags:
+                        value.tags &&
+                        Object.fromEntries(
+                          Object.entries(value.tags).map(([tagKey, tagValue]) => [freeKeyPrefix(tagKey), tagValue])
+                        ),
+                    } as queryTableRow)
+                ) ?? null,
+            };
             if (chunk.more) {
               if (chunk.fromEnd) {
                 chunk.from = chunk.rows?.[0]?.time ?? range.from;

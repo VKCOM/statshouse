@@ -61,7 +61,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
       ...(eventColumns.map((tag) => ({
         ...eventColumnDefault,
         name: tag.name,
-        key: tag.fullKeyTag,
+        key: tag.keyTag,
       })) as Column<EventDataRow, unknown>[]),
     ],
     [event.what, eventColumns]

@@ -1,4 +1,4 @@
-import React, { MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
+import React, { memo, MutableRefObject, useCallback, useEffect, useRef, useState } from 'react';
 import { EventObserver } from '../../../common/EventObserver';
 import { UPlotWrapperPropsHooks } from '../../UPlotWrapper';
 import uPlot from 'uplot';
@@ -64,7 +64,7 @@ export type PlotEventOverlayProps = {
   compact?: boolean;
 };
 
-export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8, compact }: PlotEventOverlayProps) {
+export function _PlotEventOverlay({ indexPlot, hooks, flagHeight = 8, compact }: PlotEventOverlayProps) {
   const uPlotRef = useRef<uPlot>();
   const uRefDiv = useRef<HTMLDivElement>(null);
   const { width, height } = useResizeObserver(uRefDiv);
@@ -150,3 +150,5 @@ export function PlotEventOverlay({ indexPlot, hooks, flagHeight = 8, compact }: 
     </div>
   );
 }
+
+export const PlotEventOverlay = memo(_PlotEventOverlay);

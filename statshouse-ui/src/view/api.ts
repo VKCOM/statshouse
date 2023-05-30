@@ -492,6 +492,7 @@ export const queryParamToRow = 'tr';
 export const queryParamFromEnd = 'fe';
 export const queryParamEventFrom = 'ef';
 export const queryParamEventBy = 'eb';
+export const queryParamEventHide = 'eh';
 export const tabPrefix = 't';
 export const queryDashboardID = 'id';
 export const queryMetricsGroupID = 'id';
@@ -602,7 +603,7 @@ export function queryTableURL(
       // [queryParamVerbose, fetchBadges ? '1' : '0'],
       // ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
       // ...sel.groupBy.map((b) => [queryParamGroupBy, freeKeyPrefix(b)]),
-      ...uniqueArray([...sel.groupBy, ...sel.eventsBy]).map((b) => [queryParamGroupBy, freeKeyPrefix(b)]),
+      ...uniqueArray([...sel.groupBy.map(freeKeyPrefix), ...sel.eventsBy]).map((b) => [queryParamGroupBy, b]),
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
   }

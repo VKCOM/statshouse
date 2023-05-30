@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiTable, apiTable } from '../../../api/table';
 import { PlotParams } from '../../../common/plotQueryParams';
 import { TimeRange } from '../../../common/TimeRange';
@@ -10,7 +10,7 @@ export type PlotEventOverlayTableProps = {
   width: number;
 };
 
-export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTableProps) {
+export function _PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTableProps) {
   const [chunk, setChunk] = useState<ApiTable>();
   const [loader, setLoader] = useState(false);
   const [error, setError] = useState<Error>();
@@ -40,7 +40,6 @@ export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTa
       }
     };
   }, [plot, range, width]);
-
   return (
     <div className="position-relative flex-grow-1 d-flex flex-column" style={{ minWidth: 100, minHeight: 20 }}>
       {loader && (
@@ -56,18 +55,29 @@ export function PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTa
       )}
       <table className="table table-sm m-0 table-borderless">
         <tbody>
-          {chunk?.rowsNormalize?.map((row, indexRow) => (
-            <tr key={indexRow}>
-              {columns.map((tag) => (
-                <td key={tag.keyTag} className="text-nowrap" title={tag.name}>
-                  {row[tag.keyTag]}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {!!columns.length
+            ? chunk?.rowsNormalize?.map((row, indexRow) => (
+                <tr key={indexRow}>
+                  {columns.map((tag) => (
+                    <td key={tag.keyTag} className="text-nowrap" title={tag.name}>
+                      {row[tag.keyTag]}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            : !loader && (
+                <tr>
+                  <td>
+                    <div className="text-danger text-nowrap">no columns for show</div>
+                    <div className="text-body-tertiary text-nowrap">{chunk?.rowsNormalize.length || 'no'} events</div>
+                  </td>
+                </tr>
+              )}
         </tbody>
       </table>
       {chunk?.more && <div className="text-secondary pb-3">more...</div>}
     </div>
   );
 }
+
+export const PlotEventOverlayTable = memo(_PlotEventOverlayTable);
