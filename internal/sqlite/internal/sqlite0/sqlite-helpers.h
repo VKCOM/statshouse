@@ -32,9 +32,7 @@ static inline int _sqlite_enable_logging() {
     return sqlite3_config(SQLITE_CONFIG_LOG, _sqliteLogFunc, NULL);
 }
 
-
-extern int go_trace_callback(unsigned,void*,void*,void*);
-
-static inline int registerProfile(sqlite3* db, void* goConn) {
-   return sqlite3_trace_v2(db, SQLITE_TRACE_PROFILE, go_trace_callback, goConn);
+extern int _sqliteTraceProfileCallback(unsigned traceEvent, void* pCtx, void* pStmt, void* pNano);
+static inline int _sqlite_register_trace_profile(sqlite3* db, void* goConn) {
+   return sqlite3_trace_v2(db, SQLITE_TRACE_PROFILE, _sqliteTraceProfileCallback, goConn);
 }

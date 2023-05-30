@@ -16,16 +16,13 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/multierr"
-
-	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
-	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
-
 	"go.uber.org/atomic"
+	"go.uber.org/multierr"
+	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
-
-	"pgregory.net/rand"
+	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
+	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 )
 
 // TODO: use build of sqlite with custom WAL magic to prevent accidental checkpointing by command-line tools
@@ -143,21 +140,25 @@ type (
 		MaxROConn              int
 		CacheMaxSizePerConnect int
 	}
+
 	waitCommitInfo struct {
 		offset   int64
 		readWait bool
 		waitCh   chan struct{}
 	}
+
 	committedInfo struct {
 		meta   []byte
 		offset int64
 	}
+
 	stmtInfo struct {
 		stmt         *sqlite0.Stmt
 		isSafe       bool
 		isSelect     bool
 		isVacuumInto bool
 	}
+
 	ProfileCallback    func(sql, expandedSQL string, duration time.Duration)
 	ApplyEventFunction func(conn Conn, offset int64, cache []byte) (int, error)
 
@@ -325,7 +326,7 @@ func openWAL(path string, flags int, callback ProfileCallback) (*sqlite0.Conn, e
 	}
 
 	if callback != nil {
-		conn.RegisterCallback(sqlite0.ProfileCallback(callback))
+		conn.SetProfileCallback(sqlite0.ProfileCallback(callback))
 	}
 
 	err = conn.SetBusyTimeout(busyTimeout)
