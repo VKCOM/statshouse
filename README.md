@@ -47,6 +47,7 @@ cases, StatsHouse provides a Grafana data source plugin as well.
 - [Quick start guide](./docs/quickstart.md)
 - [Internals](./docs/internals.ru.md) (in Russian)
 - [Protocol and data format](./docs/protocol.md)
+- [PromQL implementation notes](./docs/promql.ru.md) (in Russian)
 
 ## Presentations
 
