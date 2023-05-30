@@ -120,7 +120,12 @@ func (b *SeriesBag) MarshalJSON() ([]byte, error) {
 }
 
 func (b *SeriesBag) String() string {
-	return fmt.Sprintf("%dx%d", len(b.Data), len(b.Time))
+	var from, to int64
+	if len(b.Time) != 0 {
+		from = b.Time[0]
+		to = b.Time[len(b.Time)-1]
+	}
+	return fmt.Sprintf("%dx%d matrix from %d to %d", len(b.Meta), len(b.Time), from, to)
 }
 
 func (b *SeriesBag) Type() parser.ValueType {

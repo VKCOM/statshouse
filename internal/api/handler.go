@@ -45,7 +45,6 @@ import (
 	"github.com/vkcom/statshouse/internal/promql"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/util"
-	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 
@@ -1738,9 +1737,8 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 			debugQueries: true,
 			stat:         sl,
 		}
-		res      *SeriesResponse
-		badges   *SeriesResponse
-		debugLog []string
+		res    *SeriesResponse
+		badges *SeriesResponse
 	)
 	defer func() {
 		cancel()
@@ -1751,9 +1749,7 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 			freeRes()
 		}
 	}()
-	debugLog = append(debugLog, build.Commit(), strconv.FormatUint(uint64(build.CommitTimestamp()), 10))
 	if qry.verbose {
-		debugLog = append(debugLog, "verbose")
 		var g *errgroup.Group
 		g, ctx = errgroup.WithContext(ctx)
 		g.Go(func() error {
@@ -1768,14 +1764,14 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 		})
 		err = g.Wait()
 	} else {
-		debugLog = append(debugLog, "quiet")
 		res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
 	}
+	var traces []string
 	if res != nil {
-		debugLog = append(debugLog, res.DebugQueries...)
+		traces = append(traces, res.DebugQueries...)
 	}
 	if badges != nil {
-		debugLog = append(debugLog, badges.DebugQueries...)
+		traces = append(traces, badges.DebugQueries...)
 	}
 	// Add badges
 	if qry.verbose && err == nil && badges != nil && len(badges.Series.Time) > 0 {
@@ -1790,7 +1786,6 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 			badgeTypeMappingErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors))
 			if meta.Tags["key2"].Value == qry.metricWithNamespace {
 				badgeType := meta.Tags["key1"].Value
-				debugLog = append(debugLog, fmt.Sprintf("%s: %s", meta.What.String(), badgeType))
 				switch {
 				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorSrc:
 					res.SamplingFactorSrc = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
@@ -1815,7 +1810,7 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 			// }
 		}
 	}
-	res.DebugQueries = debugLog
+	res.DebugQueries = traces
 	// Format and write the response
 	switch {
 	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
