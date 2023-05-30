@@ -43,6 +43,10 @@ export interface IMetric extends IShortMetric {
   readonly visible: boolean;
   readonly pre_key_tag_id?: string;
   readonly pre_key_from?: number;
+  readonly skip_max_host?: boolean;
+  readonly skip_min_host?: boolean;
+  readonly skip_sum_square?: boolean;
+  readonly pre_key_only?: boolean;
   readonly version?: number;
   readonly group_id?: number;
 }
@@ -60,6 +64,10 @@ export interface IBackendMetric {
   readonly visible?: boolean;
   readonly pre_key_tag_id?: string;
   readonly pre_key_from?: number;
+  readonly skip_max_host?: boolean;
+  readonly skip_min_host?: boolean;
+  readonly skip_sum_square?: boolean;
+  readonly pre_key_only?: boolean;
   readonly version?: number;
   readonly group_id?: number;
 }
