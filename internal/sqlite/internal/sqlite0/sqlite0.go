@@ -91,7 +91,7 @@ func Version() string {
 	return C.GoString(C.sqlite3_libversion())
 }
 
-type ProfileCallback func(sql, expandedSQL string, duration time.Duration)
+type ProfileCallback func(sql string, expandedSQL string, dt time.Duration)
 
 type Conn struct {
 	conn   *C.sqlite3
@@ -141,22 +141,24 @@ func (c *Conn) Close() error {
 	return err
 }
 
-//export go_trace_callback
-func go_trace_callback(t C.uint, c unsafe.Pointer, p unsafe.Pointer, x unsafe.Pointer) C.int {
-	duration := (*C.int)(x)
-	durationGO := time.Duration(*duration)
-	sqlExpanded := C.sqlite3_expanded_sql((*C.sqlite3_stmt)(p))
-	sqlGOExpanded := C.GoString(sqlExpanded)
-	sql := C.sqlite3_sql((*C.sqlite3_stmt)(p))
-	sqlGo := C.GoString(sql)
-	conn := (*Conn)(c)
-	conn.cb(sqlGo, sqlGOExpanded, durationGO)
+//export _sqliteTraceProfileCallback
+func _sqliteTraceProfileCallback(_ C.uint, pCtx unsafe.Pointer, pStmt unsafe.Pointer, pNano unsafe.Pointer) C.int {
+	var (
+		conn  = (*Conn)(pCtx)
+		stmt  = (*C.sqlite3_stmt)(pStmt)
+		delta = (*C.longlong)(pNano)
+	)
+
+	sql := C.sqlite3_sql(stmt)
+	expSQL := C.sqlite3_expanded_sql(stmt)
+	conn.cb(C.GoString(sql), C.GoString(expSQL), time.Duration(*delta))
+
 	return C.int(0)
 }
 
-func (c *Conn) RegisterCallback(cb ProfileCallback) {
+func (c *Conn) SetProfileCallback(cb ProfileCallback) {
 	c.cb = cb
-	C.registerProfile(c.conn, unsafe.Pointer(c))
+	C._sqlite_register_trace_profile(c.conn, unsafe.Pointer(c))
 }
 
 func (c *Conn) AutoCommit() bool {
