@@ -265,8 +265,10 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, p
 				return err
 			}
 			if len(metrics) == 0 {
+				tracef(ctx, "no metric matches %s", matcher.String())
 				return nil // metric does not exist, not an error
 			}
+			tracef(ctx, "found %d metrics for %s", len(metrics), matcher.String())
 			for i, m := range metrics {
 				var (
 					curOffset, ok = metricOffset[m]
