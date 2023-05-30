@@ -345,6 +345,7 @@ func (ev *evaluator) eval(ctx context.Context, expr parser.Expr) (res SeriesBag,
 		return SeriesBag{}, ctx.Err()
 	}
 	if e, ok := ev.ars[expr]; ok {
+		tracef(ctx, "replace %s with %s", string(expr.Type()), string(e.Type()))
 		return ev.eval(ctx, e)
 	}
 	switch e := expr.(type) {
@@ -633,6 +634,7 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 
 func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector) (SeriesBag, error) {
 	res := ev.newSeriesBag(0)
+	tracef(ctx, "%d metrics, %d what", len(sel.MatchingMetrics), len(sel.What))
 	for i, metric := range sel.MatchingMetrics {
 		for _, what := range sel.What {
 			tracef(ctx, "#%d request %s: %s", i, metric.Name, what)
