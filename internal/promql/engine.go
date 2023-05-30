@@ -150,12 +150,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 			bag.trim(qry.Start, qry.End)
 		}
 		bag.stringify(&ev)
-		var from, to int64
-		if len(bag.Time) != 0 {
-			from = bag.Time[0]
-			to = bag.Time[len(bag.Time)-1]
-		}
-		tracef(ctx, "got a %dx%d matrix from %d to %d", len(bag.Meta), len(bag.Time), from, to)
+		trace(ctx, bag.String())
 		return &bag, ev.cancel, nil
 	}
 }
@@ -640,11 +635,13 @@ func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector
 	res := ev.newSeriesBag(0)
 	for i, metric := range sel.MatchingMetrics {
 		for _, what := range sel.What {
+			tracef(ctx, "#%d request %s: %s", i, metric.Name, what)
 			qry, err := ev.buildSeriesQuery(ctx, sel, metric, what)
 			if err != nil {
 				return SeriesBag{}, err
 			}
 			if qry.empty() {
+				tracef(ctx, "#%d query is empty", i)
 				continue
 			}
 			bag, cancel, err := ev.h.QuerySeries(ctx, &qry.SeriesQuery)
@@ -652,6 +649,7 @@ func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector
 				return SeriesBag{}, err
 			}
 			ev.cancellationList = append(ev.cancellationList, cancel)
+			tracef(ctx, "#%d series count %d", i, len(bag.Meta))
 			if qry.prefixSum {
 				bag = ev.funcPrefixSum(bag)
 			}
@@ -1028,6 +1026,7 @@ func (ev *evaluator) getOffset(ctx context.Context, sel *parser.VectorSelector) 
 }
 
 func withOffset(ctx context.Context, offset int64) context.Context {
+	tracef(ctx, "offset %d", offset)
 	return context.WithValue(ctx, offsetContextKey, offset)
 }
 
