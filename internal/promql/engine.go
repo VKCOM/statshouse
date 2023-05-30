@@ -104,6 +104,11 @@ type histogramQuery struct {
 
 type contextKey int
 
+type traceContext struct {
+	s *[]string // sink
+	v bool      // verbose
+}
+
 const (
 	offsetContextKey contextKey = iota
 	traceContextKey
@@ -116,24 +121,19 @@ func NewEngine(h Handler, loc *time.Location) Engine {
 func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel func(), err error) {
 	var ev evaluator
 	defer func() {
-		if err != nil {
-			tracef(ctx, "engine error: %v", err)
-		}
 		if r := recover(); r != nil {
 			err = fmt.Errorf("engine panic: %v", r)
-			trace(ctx, err)
 			ev.cancel()
 		}
 	}()
 	// parse query
-	trace(ctx, qry.Expr)
-	tracef(ctx, "from %d to %d", qry.Start, qry.End)
 	ev, err = ng.newEvaluator(ctx, qry)
 	if err != nil {
 		return nil, nil, err
 	}
 	// evaluate query
-	tracef(ctx, "timescale from %d to %d", ev.t.Start, ev.t.End)
+	traceExpr(ctx, &ev)
+	debugTracef(ctx, "requested from %d to %d, timescale from %d to %d", qry.Start, qry.End, ev.t.Start, ev.t.End)
 	switch e := ev.ast.(type) {
 	case *parser.StringLiteral:
 		return String{T: qry.Start, V: e.Val}, func() {}, nil
@@ -150,7 +150,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 			bag.trim(qry.Start, qry.End)
 		}
 		bag.stringify(&ev)
-		trace(ctx, bag.String())
+		debugTracef(ctx, "%v", &bag)
 		return &bag, ev.cancel, nil
 	}
 }
@@ -265,10 +265,10 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, p
 				return err
 			}
 			if len(metrics) == 0 {
-				tracef(ctx, "no metric matches %s", matcher.String())
+				debugTracef(ctx, "no metric matches %v", matcher)
 				return nil // metric does not exist, not an error
 			}
-			tracef(ctx, "found %d metrics for %s", len(metrics), matcher.String())
+			debugTracef(ctx, "found %d metrics for %v", len(metrics), matcher)
 			for i, m := range metrics {
 				var (
 					curOffset, ok = metricOffset[m]
@@ -347,7 +347,7 @@ func (ev *evaluator) eval(ctx context.Context, expr parser.Expr) (res SeriesBag,
 		return SeriesBag{}, ctx.Err()
 	}
 	if e, ok := ev.ars[expr]; ok {
-		tracef(ctx, "replace %s with %s", string(expr.Type()), string(e.Type()))
+		debugTracef(ctx, "replace %s with %s", string(expr.Type()), string(e.Type()))
 		return ev.eval(ctx, e)
 	}
 	switch e := expr.(type) {
@@ -636,16 +636,15 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 
 func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector) (SeriesBag, error) {
 	res := ev.newSeriesBag(0)
-	tracef(ctx, "%d metrics, %d what", len(sel.MatchingMetrics), len(sel.What))
 	for i, metric := range sel.MatchingMetrics {
 		for _, what := range sel.What {
-			tracef(ctx, "#%d request %s: %s", i, metric.Name, what)
+			debugTracef(ctx, "#%d request %s: %s", i, metric.Name, what)
 			qry, err := ev.buildSeriesQuery(ctx, sel, metric, what)
 			if err != nil {
 				return SeriesBag{}, err
 			}
 			if qry.empty() {
-				tracef(ctx, "#%d query is empty", i)
+				debugTracef(ctx, "#%d query is empty", i)
 				continue
 			}
 			bag, cancel, err := ev.h.QuerySeries(ctx, &qry.SeriesQuery)
@@ -653,7 +652,7 @@ func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector
 				return SeriesBag{}, err
 			}
 			ev.cancellationList = append(ev.cancellationList, cancel)
-			tracef(ctx, "#%d series count %d", i, len(bag.Meta))
+			debugTracef(ctx, "#%d series count %d", i, len(bag.Meta))
 			if qry.prefixSum {
 				bag = ev.funcPrefixSum(bag)
 			}
@@ -1030,7 +1029,7 @@ func (ev *evaluator) getOffset(ctx context.Context, sel *parser.VectorSelector) 
 }
 
 func withOffset(ctx context.Context, offset int64) context.Context {
-	tracef(ctx, "offset %d", offset)
+	debugTracef(ctx, "offset %d", offset)
 	return context.WithValue(ctx, offsetContextKey, offset)
 }
 
@@ -1112,19 +1111,23 @@ func (q *seriesQueryX) empty() bool {
 	return q.Metric == nil
 }
 
-func WithTraces(ctx context.Context, t *[]string) context.Context {
-	return context.WithValue(ctx, traceContextKey, t)
+func TraceExprContext(ctx context.Context, s *[]string) context.Context {
+	return context.WithValue(ctx, traceContextKey, &traceContext{s, false})
 }
 
-func trace(ctx context.Context, v any) {
-	if t, _ := ctx.Value(traceContextKey).(*[]string); t != nil {
-		*t = append(*t, fmt.Sprintf("promql: %v", v))
+func DebugTraceContext(ctx context.Context, s *[]string) context.Context {
+	return context.WithValue(ctx, traceContextKey, &traceContext{s, true})
+}
+
+func debugTracef(ctx context.Context, format string, a ...any) {
+	if t, ok := ctx.Value(traceContextKey).(*traceContext); ok && t.v {
+		*t.s = append(*t.s, fmt.Sprintf(format, a...))
 	}
 }
 
-func tracef(ctx context.Context, format string, a ...any) {
-	if t, _ := ctx.Value(traceContextKey).(*[]string); t != nil {
-		*t = append(*t, fmt.Sprintf("promql: "+format, a...))
+func traceExpr(ctx context.Context, ev *evaluator) {
+	if t, ok := ctx.Value(traceContextKey).(*traceContext); ok {
+		*t.s = append(*t.s, ev.ast.String())
 	}
 }
 

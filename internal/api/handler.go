@@ -1970,7 +1970,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	var traces []string
 	if opt.debugQueries {
 		ctx = debugQueriesContext(ctx, &traces)
-		ctx = promql.WithTraces(ctx, &traces)
+		ctx = promql.TraceExprContext(ctx, &traces)
 	}
 	parserV, cleanup, err = h.promEngine.Exec(
 		withAccessInfo(ctx, &ai),
