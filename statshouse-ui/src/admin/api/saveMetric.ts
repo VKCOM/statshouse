@@ -32,6 +32,10 @@ export function saveMetric(metric: IMetric) {
     })),
     pre_key_tag_id: metric.pre_key_tag_id,
     pre_key_from: metric.pre_key_from ? metric.pre_key_from : 0,
+    skip_max_host: !!metric.skip_max_host,
+    skip_min_host: !!metric.skip_min_host,
+    skip_sum_square: !!metric.skip_sum_square,
+    pre_key_only: !!metric.pre_key_only,
     version: metric.version,
     group_id: metric.group_id,
   };

@@ -397,6 +397,28 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
         </div>
         <div className="form-text">Create an additional index with metric data pre-sorted by selected key</div>
       </div>
+      <div className="row align-items-baseline mb-3">
+        <label htmlFor="pre_key_only" className="col-sm-2 col-form-label">
+          Presort key only
+        </label>
+        <div className="col-sm-auto pt-1">
+          <div className="form-check form-switch">
+            <input
+              id="pre_key_only"
+              name="pre_key_only"
+              type="checkbox"
+              className="form-check-input"
+              checked={!!values.pre_key_only}
+              onChange={(e) => dispatch({ pre_key_only: e.target.checked })}
+              disabled={isReadonly || !adminMode}
+            />
+            <label htmlFor="pre_key_only" className="form-check-label">
+              {' '}
+            </label>
+          </div>
+        </div>
+        <div id="pre_key_onlyHelpBlock" className="form-text"></div>
+      </div>
       <div className="row mb-3">
         <label htmlFor="resolution" className="col-sm-2 col-form-label">
           Metrics group
@@ -421,6 +443,73 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
         </div>
         <div className="form-text">Select metrics group</div>
       </div>
+      <div className="row align-items-baseline mb-3">
+        <label htmlFor="skip_max_host" className="col-sm-2 col-form-label">
+          Enable max host
+        </label>
+        <div className="col-sm-auto pt-1">
+          <div className="form-check form-switch">
+            <input
+              id="skip_max_host"
+              name="skip_max_host"
+              type="checkbox"
+              className="form-check-input"
+              checked={!values.skip_max_host}
+              onChange={(e) => dispatch({ skip_max_host: !e.target.checked })}
+              disabled={isReadonly || !adminMode}
+            />
+            <label htmlFor="skip_max_host" className="form-check-label">
+              {' '}
+            </label>
+          </div>
+        </div>
+        <div id="skip_max_hostHelpBlock" className="form-text"></div>
+      </div>
+      <div className="row align-items-baseline mb-3">
+        <label htmlFor="skip_min_host" className="col-sm-2 col-form-label">
+          Enable min host
+        </label>
+        <div className="col-sm-auto pt-1">
+          <div className="form-check form-switch">
+            <input
+              id="skip_min_host"
+              name="skip_min_host"
+              type="checkbox"
+              className="form-check-input"
+              checked={!values.skip_min_host}
+              onChange={(e) => dispatch({ skip_min_host: !e.target.checked })}
+              disabled={isReadonly || !adminMode}
+            />
+            <label htmlFor="skip_min_host" className="form-check-label">
+              {' '}
+            </label>
+          </div>
+        </div>
+        <div id="skip_min_hostHelpBlock" className="form-text"></div>
+      </div>
+      <div className="row align-items-baseline mb-3">
+        <label htmlFor="skip_sum_square" className="col-sm-2 col-form-label">
+          Enable sum square
+        </label>
+        <div className="col-sm-auto pt-1">
+          <div className="form-check form-switch">
+            <input
+              id="skip_sum_square"
+              name="skip_sum_square"
+              type="checkbox"
+              className="form-check-input"
+              checked={!values.skip_sum_square}
+              onChange={(e) => dispatch({ skip_sum_square: !e.target.checked })}
+              disabled={isReadonly || !adminMode}
+            />
+            <label htmlFor="skip_sum_square" className="form-check-label">
+              {' '}
+            </label>
+          </div>
+        </div>
+        <div id="skip_sum_squareHelpBlock" className="form-text"></div>
+      </div>
+
       <div>
         <button type="button" disabled={isRunning || isReadonly} className="btn btn-primary me-3" onClick={onSubmit}>
           Save
