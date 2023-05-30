@@ -340,7 +340,7 @@ export function PlotViewEvent(props: {
 
   useEffect(() => {
     seriesShow.forEach((show, idx) => {
-      if (uPlotRef.current?.series[idx + 1].show !== show) {
+      if (uPlotRef.current?.series[idx + 1]?.show !== show) {
         uPlotRef.current?.setSeries(idx + 1, { show }, true);
       }
     });
