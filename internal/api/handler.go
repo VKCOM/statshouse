@@ -1885,8 +1885,9 @@ func (h *Handler) queryBadges(ctx context.Context, ai accessInfo, req seriesRequ
 }
 
 func (h *Handler) queryBadgesPromQL(ctx context.Context, ai accessInfo, req seriesRequest) (*SeriesResponse, func(), error) {
+	ai.skipBadgesValidation = true
 	return h.handlePromqlQuery(
-		ctx, ai.withBadgesRequest(),
+		ctx, ai,
 		seriesRequest{
 			version:             Version2,
 			numResults:          "20",
