@@ -88,6 +88,7 @@ import { filterPoints } from '../common/filterPoints';
 import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
 import { decodeQueryParams, encodeQueryParams, mergeLeft } from '../common/QueryParamsParser';
 import { getNextState } from '../common/getNextState';
+import { stackData } from '../common/stackData';
 
 export type PlotStore = {
   nameMetric: string;
@@ -766,6 +767,8 @@ export const statsHouseState: StateCreator<
             ...(resp.series.series_data as (number | null)[][]),
           ];
 
+          const stacked = lastPlotParams.type === PLOT_TYPE.Event ? stackData(data) : undefined;
+
           const usedDashes = {};
           const usedBaseColors = {};
           const baseColors: Record<string, string> = {};
@@ -875,10 +878,10 @@ export const statsHouseState: StateCreator<
                     top_max_host_percent: '',
                   };
                 }
-                const rawValue = u.data[seriesIdx]?.[idx] ?? null;
+                const rawValue = data[seriesIdx]?.[idx] ?? null;
                 let total = 0;
                 for (let i = 1; i < u.series.length; i++) {
-                  const v = u.data[i]?.[idx];
+                  const v = data[i]?.[idx];
                   if (v !== null && v !== undefined) {
                     total += v;
                   }
@@ -977,7 +980,9 @@ export const statsHouseState: StateCreator<
               nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
               whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as string[]) : [],
               error: '',
-              data: dequal(data, state.plotsData[index]?.data) ? state.plotsData[index]?.data : data,
+              data: dequal(stacked || data, state.plotsData[index]?.data)
+                ? state.plotsData[index]?.data
+                : stacked || data,
               series:
                 dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) &&
                 !changeColor &&
