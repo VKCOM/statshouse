@@ -11,6 +11,7 @@ import { Column } from 'react-data-grid';
 import { EventDataRow } from '../store/statshouse';
 import { PlotParams } from '../common/plotQueryParams';
 import {
+  EventFormatterData,
   EventFormatterDefault,
   EventFormatterHeaderDefault,
   EventFormatterHeaderTime,
@@ -156,8 +157,7 @@ export const eventColumnDefault: Readonly<Partial<Column<EventDataRow>>> = {
 };
 export const getEventColumnsType = (what: string[] = []): Record<string, Column<EventDataRow>> => ({
   timeString: { key: 'timeString', name: 'Time', width: 165, headerRenderer: EventFormatterHeaderTime },
-  ...Object.fromEntries(what.map((key) => [key, { key, name: whatToWhatDesc(key) }])),
-  // data: { key: 'data', name: whatLabel ?? 'Value' },
+  ...Object.fromEntries(what.map((key) => [key, { key, name: whatToWhatDesc(key), formatter: EventFormatterData }])),
 });
 
 // XXX: keep in sync with Go
