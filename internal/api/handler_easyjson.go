@@ -9,7 +9,6 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-
 	format "github.com/vkcom/statshouse/internal/format"
 )
 
@@ -457,6 +456,12 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 			out.PreKeyTagID = string(in.String())
 		case "pre_key_from":
 			out.PreKeyFrom = uint32(in.Uint32())
+		case "skip_max_host":
+			out.SkipMaxHost = bool(in.Bool())
+		case "skip_min_host":
+			out.SkipMinHost = bool(in.Bool())
+		case "skip_sum_square":
+			out.SkipSumSquare = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -549,6 +554,21 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 		const prefix string = ",\"pre_key_from\":"
 		out.RawString(prefix)
 		out.Uint32(uint32(in.PreKeyFrom))
+	}
+	if in.SkipMaxHost {
+		const prefix string = ",\"skip_max_host\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.SkipMaxHost))
+	}
+	if in.SkipMinHost {
+		const prefix string = ",\"skip_min_host\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.SkipMinHost))
+	}
+	if in.SkipSumSquare {
+		const prefix string = ",\"skip_sum_square\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.SkipSumSquare))
 	}
 	out.RawByte('}')
 }
