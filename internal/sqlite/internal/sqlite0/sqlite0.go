@@ -258,8 +258,22 @@ func (s *Stmt) Close() error {
 	return sqliteErr(rc, s.conn.conn, "sqlite3_finalize")
 }
 
+func (s *Stmt) SQL() string {
+	return C.GoString(C.sqlite3_sql(s.stmt))
+}
+
 func (s *Stmt) NormalizedSQL() string {
 	return C.GoString(C.sqlite3_normalized_sql(s.stmt))
+}
+
+func (s *Stmt) ExpandedSQL() string {
+	cStr := C.sqlite3_expanded_sql(s.stmt)
+	if cStr == nil {
+		return ""
+	}
+	defer C.sqlite3_free(unsafe.Pointer(cStr))
+
+	return C.GoString(cStr)
 }
 
 func (s *Stmt) Reset() error {
