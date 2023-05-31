@@ -123,6 +123,13 @@ func Open(path string, flags int) (*Conn, error) {
 		return nil, err
 	}
 
+	rc = C._sqlite_config_untrusted_schema(cConn)
+	if rc != ok {
+		err := sqliteErr(rc, cConn, "_sqlite_config_untrusted_schema")
+		C.sqlite3_close_v2(cConn)
+		return nil, err
+	}
+
 	return &Conn{
 		conn:   cConn,
 		unlock: C.unlock_alloc(),
