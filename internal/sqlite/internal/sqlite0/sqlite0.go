@@ -367,6 +367,16 @@ func (s *Stmt) ColumnBlobRaw(i int) ([]byte, error) {
 	return unsafeSlice(p, int(n)), nil
 }
 
+func (s *Stmt) ColumnBlobString(i int) (string, error) {
+	b, err := s.ColumnBlobRaw(i)
+	return string(b), err
+}
+
+func (s *Stmt) ColumnBlobRawString(i int) (string, error) {
+	b, err := s.ColumnBlobRaw(i)
+	return unsafeToString(b), err
+}
+
 func (s *Stmt) ColumnInt64(i int) (int64, error) {
 	value := C.sqlite3_column_int64(s.stmt, C.int(i))
 	return int64(value), nil
@@ -377,17 +387,7 @@ func (s *Stmt) ColumnFloat64(i int) (float64, error) {
 	return float64(value), nil
 }
 
-func (s *Stmt) ColumnBlobRawString(i int) (string, error) {
-	b, err := s.ColumnBlobRaw(i)
-	return unsafeToString(b), err
-}
-
 func (s *Stmt) ColumnIsNull(i int) bool {
-	columnTypeCode := C.sqlite3_column_type(s.stmt, C.int(i))
-	return columnTypeCode == C.SQLITE_NULL
-}
-
-func (s *Stmt) ColumnBlobString(i int) (string, error) {
-	b, err := s.ColumnBlobRaw(i)
-	return string(b), err
+	typ := C.sqlite3_column_type(s.stmt, C.int(i))
+	return typ == C.SQLITE_NULL
 }
