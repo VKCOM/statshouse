@@ -129,7 +129,7 @@ func (c *Conn) Close() error {
 		rc := C.sqlite3_close(c.conn)
 		if rc != ok {
 			err = sqliteErr(rc, nil, "sqlite3_close")
-			if rc == Busy {
+			if rc == busy {
 				C.sqlite3_close_v2(c.conn)
 			}
 		}
