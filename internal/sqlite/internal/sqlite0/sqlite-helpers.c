@@ -72,7 +72,6 @@ int _sqlite3_blocking_step(unlock* un, sqlite3_stmt* pStmt) {
         if (rc != SQLITE_OK) {
             break;
         }
-        sqlite3_reset(pStmt);
     }
     return rc;
 }
