@@ -32,11 +32,12 @@ func getTableDesc() string {
 	for i := 0; i < format.MaxTags; i++ {
 		keysFieldsNamesVec[i] = fmt.Sprintf(`key%d`, i)
 	}
-	return `statshouse_value_incoming_prekey(metric,prekey,prekey_set,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,skey,min_host,max_host)`
+	return `statshouse_value_incoming_prekey3(metric,prekey,prekey_set,time,` + strings.Join(keysFieldsNamesVec, `,`) + `,count,min,max,sum,sumsquare,percentiles,uniq_state,skey,min_host,max_host)`
 }
 
 type lastMetricData struct {
 	lastMetricPrekey        int
+	lastMetricPrekeyOnly    bool
 	lastMetricSkipMaxHost   bool
 	lastMetricSkipMinHost   bool
 	lastMetricSkipSumSquare bool
@@ -59,6 +60,7 @@ func makeMetricCache(journal *metajournal.MetricsStorage) *metricIndexCache {
 
 	}
 	if bm, ok := format.BuiltinMetrics[format.BuiltinMetricIDIngestionStatus]; ok {
+		result.ingestionStatusData.lastMetricPrekeyOnly = bm.PreKeyOnly
 		result.ingestionStatusData.lastMetricPrekey = bm.PreKeyIndex
 		result.ingestionStatusData.lastMetricSkipMinHost = bm.SkipMinHost
 		result.ingestionStatusData.lastMetricSkipMaxHost = bm.SkipMaxHost
@@ -67,14 +69,14 @@ func makeMetricCache(journal *metajournal.MetricsStorage) *metricIndexCache {
 	return result
 }
 
-func (p *metricIndexCache) getPrekeyIndex(metricID int32) int {
+func (p *metricIndexCache) getPrekeyIndex(metricID int32) (int, bool) {
 	if metricID == format.BuiltinMetricIDIngestionStatus {
-		return p.ingestionStatusData.lastMetricPrekey
+		return p.ingestionStatusData.lastMetricPrekey, false
 	}
 	if p.metric(metricID) {
-		return p.lastMetric.lastMetricPrekey
+		return p.lastMetric.lastMetricPrekey, p.lastMetric.lastMetricPrekeyOnly
 	}
-	return -1
+	return -1, false
 }
 
 func (p *metricIndexCache) metric(metricID int32) bool {
@@ -84,14 +86,15 @@ func (p *metricIndexCache) metric(metricID int32) bool {
 	p.lastMetricID = metricID
 	if bm, ok := format.BuiltinMetrics[metricID]; ok {
 		p.lastMetric.lastMetricPrekey = bm.PreKeyIndex
+		p.lastMetric.lastMetricPrekeyOnly = bm.PreKeyOnly
 		p.lastMetric.lastMetricSkipMinHost = bm.SkipMinHost
 		p.lastMetric.lastMetricSkipMaxHost = bm.SkipMaxHost
 		p.lastMetric.lastMetricSkipSumSquare = bm.SkipSumSquare
-
 		return true
 	}
 	if metaMetric := p.journal.GetMetaMetric(metricID); metaMetric != nil {
 		p.lastMetric.lastMetricPrekey = metaMetric.PreKeyIndex
+		p.lastMetric.lastMetricPrekeyOnly = metaMetric.PreKeyOnly
 		p.lastMetric.lastMetricSkipMinHost = metaMetric.SkipMinHost
 		p.lastMetric.lastMetricSkipMaxHost = metaMetric.SkipMaxHost
 		p.lastMetric.lastMetricSkipSumSquare = metaMetric.SkipSumSquare
@@ -113,10 +116,14 @@ func (p *metricIndexCache) skips(metricID int32) (skipMaxHost bool, skipMinHost 
 func appendKeys(res []byte, k data_model.Key, metricCache *metricIndexCache, usedTimestamps map[uint32]struct{}) []byte {
 	var tmp [4 + 4 + 1 + 4 + format.MaxTags*4]byte // metric, prekey, prekey_set, time
 	binary.LittleEndian.PutUint32(tmp[0:], uint32(k.Metric))
-	prekeyIndex := metricCache.getPrekeyIndex(k.Metric)
+	prekeyIndex, prekeyOnly := metricCache.getPrekeyIndex(k.Metric)
 	if prekeyIndex >= 0 {
 		binary.LittleEndian.PutUint32(tmp[4:], uint32(k.Keys[prekeyIndex]))
-		tmp[8] = 1
+		if prekeyOnly {
+			tmp[8] = 2
+		} else {
+			tmp[8] = 1
+		}
 	}
 	binary.LittleEndian.PutUint32(tmp[9:], k.Timestamp)
 	if usedTimestamps != nil { // do not update map when writing map itself

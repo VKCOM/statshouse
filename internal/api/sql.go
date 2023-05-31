@@ -389,7 +389,11 @@ func (s *stringFixed) String() string {
 }
 
 func preKeyTableName(lod lodInfo, tagID string, preKeyTagID string, filterIn map[string][]interface{}, filterNotIn map[string][]interface{}) string {
-	usePreKey := lod.hasPreKey && ((tagID != "" && tagID == preKeyTagID) || len(filterIn[preKeyTagID]) > 0 || len(filterNotIn[preKeyTagID]) > 0)
+	usePreKey := (lod.hasPreKey &&
+		(lod.preKeyOnly ||
+			(tagID != "" && tagID == preKeyTagID) ||
+			len(filterIn[preKeyTagID]) > 0 ||
+			len(filterNotIn[preKeyTagID]) > 0))
 	if usePreKey {
 		return preKeyTableNames[lod.table]
 	}

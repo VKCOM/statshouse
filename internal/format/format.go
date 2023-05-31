@@ -16,6 +16,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"go.uber.org/multierr"
 	"go4.org/mem"
 )
 
@@ -161,6 +162,7 @@ type MetricMetaValue struct {
 	SkipMaxHost          bool            `json:"skip_max_host,omitempty"`
 	SkipMinHost          bool            `json:"skip_min_host,omitempty"`
 	SkipSumSquare        bool            `json:"skip_sum_square,omitempty"`
+	PreKeyOnly           bool            `json:"pre_key_only,omitempty"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
@@ -256,7 +258,7 @@ func (m *MetricMetaValue) setName2Tag(name string, sTag MetricMetaTag, canonical
 func (m *MetricMetaValue) RestoreCachedInfo() error {
 	var err error
 	if !ValidMetricName(mem.S(m.Name)) {
-		err = fmt.Errorf("invalid metric name: %q", m.Name)
+		err = multierr.Append(err, fmt.Errorf("invalid metric name: %q", m.Name))
 	}
 
 	if m.Kind == MetricKindStringTopLegacy {
@@ -266,7 +268,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		}
 	}
 	if !ValidMetricKind(m.Kind) {
-		err = fmt.Errorf("invalid metric kind %q", m.Kind)
+		err = multierr.Append(err, fmt.Errorf("invalid metric kind %q", m.Kind))
 	}
 
 	var mask uint32
@@ -291,7 +293,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	tags := m.Tags
 	if len(tags) > MaxTags { // prevent index out of range during mapping
 		tags = tags[:MaxTags]
-		err = fmt.Errorf("too many tags, limit is: %d", MaxTags)
+		err = multierr.Append(err, fmt.Errorf("too many tags, limit is: %d", MaxTags))
 	}
 	for i := range tags {
 		tag := &tags[i]
@@ -305,11 +307,15 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 			m.PreKeyIndex = i
 		}
 		if !ValidRawKind(tag.RawKind) {
-			err = fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i)
+			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
 		}
 	}
 	if m.PreKeyIndex == -1 && m.PreKeyTagID != "" {
-		err = fmt.Errorf("invalid pre_key_tag_id: %q", m.PreKeyTagID)
+		err = multierr.Append(err, fmt.Errorf("invalid pre_key_tag_id: %q", m.PreKeyTagID))
+	}
+	if m.PreKeyOnly && m.PreKeyIndex == -1 {
+		m.PreKeyOnly = false
+		err = multierr.Append(err, fmt.Errorf("pre_key_only is true, but pre_key_tag_id is not defined"))
 	}
 	for i := range tags {
 		tag := &tags[i]
@@ -361,10 +367,10 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.RawTagMask = mask
 	m.EffectiveResolution = AllowedResolution(m.Resolution)
 	if m.EffectiveResolution != m.Resolution {
-		err = fmt.Errorf("resolution %d must be factor of 60", m.Resolution)
+		err = multierr.Append(err, fmt.Errorf("resolution %d must be factor of 60", m.Resolution))
 	}
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
-		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
+		err = multierr.Append(err, fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32))
 		m.EffectiveWeight = EffectiveWeightOne
 	} else {
 		m.EffectiveWeight = int64(m.Weight * EffectiveWeightOne)

@@ -303,6 +303,7 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		return selectQueryLODs(
 			promqlVersionOrDefault(qry.Options.Version),
 			0,
+			false,
 			resolution,
 			false,
 			stringTop,
@@ -428,12 +429,13 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	}
 	for _, lod := range lods {
 		li := lodInfo{
-			fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shift, h.location),
-			toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shift, h.location),
-			stepSec:   lod.stepSec,
-			table:     lod.table,
-			hasPreKey: lod.hasPreKey,
-			location:  lod.location,
+			fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, shift, h.location),
+			toSec:      shiftTimestamp(lod.toSec, lod.stepSec, shift, h.location),
+			stepSec:    lod.stepSec,
+			table:      lod.table,
+			hasPreKey:  lod.hasPreKey,
+			preKeyOnly: lod.preKeyOnly,
+			location:   lod.location,
 		}
 		if qry.Options.SeriesQueryCallback != nil {
 			qry.Options.SeriesQueryCallback(version, qs, &pq, li, qry.Options.AvoidCache)
@@ -518,6 +520,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 		lods    = selectTagValueLODs(
 			version,
 			int64(qry.Metric.PreKeyFrom),
+			qry.Metric.PreKeyOnly,
 			qry.Metric.Resolution,
 			false,
 			qry.Metric.StringTopDescription != "",
@@ -575,6 +578,7 @@ func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery
 		lods    = selectTagValueLODs(
 			version,
 			int64(qry.Metric.PreKeyFrom),
+			qry.Metric.PreKeyOnly,
 			qry.Metric.Resolution,
 			false,
 			qry.Metric.StringTopDescription != "",
@@ -731,12 +735,13 @@ func getHandlerLODs(qry *promql.SeriesQuery, loc *time.Location) []promqlLOD {
 	for _, lod := range qry.Timescale.LODs {
 		lods = append(lods, promqlLOD{
 			lodInfo: lodInfo{
-				fromSec:   lod.Start,
-				toSec:     lod.End,
-				stepSec:   lod.Step,
-				table:     lodTables[promqlVersionOrDefault(qry.Options.Version)][lod.Step],
-				hasPreKey: preKeyFrom < lod.Start,
-				location:  loc,
+				fromSec:    lod.Start,
+				toSec:      lod.End,
+				stepSec:    lod.Step,
+				table:      lodTables[promqlVersionOrDefault(qry.Options.Version)][lod.Step],
+				hasPreKey:  preKeyFrom < lod.Start || qry.Metric.PreKeyOnly,
+				preKeyOnly: qry.Metric.PreKeyOnly,
+				location:   loc,
 			},
 			len: lod.Len,
 		})
