@@ -599,9 +599,32 @@ func backupToTemp(ctx context.Context, conn *sqliteConn, prefix string, stats *S
 func getBackupPath(e *Engine, prefix string) (string, error) {
 	c := e.rw.startNewConn(false, context.Background(), &e.opt.StatsOptions)
 	defer c.close(nil)
-	offs, _, err := binlogLoadPosition(c)
-	path := prefix + "." + strconv.FormatInt(offs, 10)
-	return path, err
+	pos, _, err := binlogLoadPosition(c)
+	if err != nil {
+		return "", err
+	}
+
+	copyPos := pos
+	numLen := -4
+	for copyPos > 0 {
+		numLen++
+		copyPos /= 10
+	}
+	if numLen < 0 {
+		numLen = 0
+	}
+
+	posStr := fmt.Sprintf(`%04d`, pos)
+	prefix = fmt.Sprintf(`%s.%02d`, prefix, numLen)
+
+	for l := 4; l <= len(posStr); l++ {
+		filename := prefix + posStr[:l]
+		if _, err = os.Stat(filename); os.IsNotExist(err) {
+			return filename, nil
+		}
+	}
+
+	return "", fmt.Errorf("can not create backup with pos=%d, probably backup already exist", pos)
 }
 
 func (e *Engine) binlogNotifyWaited(committedOffset int64) {
@@ -651,10 +674,7 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if _, err := os.Stat(backupExpectedPath); os.IsNotExist(err) {
-		return backupExpectedPath, os.Rename(path, backupExpectedPath)
-	}
-	return backupExpectedPath, fmt.Errorf("snapshot %s already exists", backupExpectedPath)
+	return backupExpectedPath, os.Rename(path, backupExpectedPath)
 }
 
 // ViewCommitted - can view only committed to sqlite data
