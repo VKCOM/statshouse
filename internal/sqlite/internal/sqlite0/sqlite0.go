@@ -267,7 +267,7 @@ func (s *Stmt) Reset() error {
 	return sqliteErr(rc, s.conn.conn, "sqlite3_reset")
 }
 
-func (s *Stmt) ClearBindings() error {
+func (s *Stmt) ClearBindings() error { // TODO: use
 	for i := range s.keepAliveStrings {
 		s.keepAliveStrings[i] = ""
 	}
@@ -295,7 +295,7 @@ func (s *Stmt) BindBlob(param int, v []byte) error {
 func (s *Stmt) BindBlobString(param int, v string) error {
 	if v == "" {
 		rc := C.sqlite3_bind_zeroblob(s.stmt, C.int(param), C.int(0))
-		return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob")
+		return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob") // TODO: is this required?
 	}
 	if s.keepAliveStrings == nil {
 		s.keepAliveStrings = make([]string, s.n)
@@ -308,7 +308,7 @@ func (s *Stmt) BindBlobString(param int, v string) error {
 func (s *Stmt) BindBlobText(param int, v string) error {
 	if v == "" {
 		rc := C.sqlite3_bind_zeroblob(s.stmt, C.int(param), C.int(0))
-		return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob")
+		return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob") // TODO: is this required?
 	}
 	if s.keepAliveStrings == nil {
 		s.keepAliveStrings = make([]string, s.n)
