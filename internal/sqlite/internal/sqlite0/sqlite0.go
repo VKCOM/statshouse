@@ -116,6 +116,13 @@ func Open(path string, flags int) (*Conn, error) {
 
 	C.sqlite3_extended_result_codes(cConn, 1)
 
+	rc = C._sqlite_config_defensive(cConn)
+	if rc != ok {
+		err := sqliteErr(rc, cConn, "_sqlite_config_defensive")
+		C.sqlite3_close_v2(cConn)
+		return nil, err
+	}
+
 	return &Conn{
 		conn:   cConn,
 		unlock: C.unlock_alloc(),
