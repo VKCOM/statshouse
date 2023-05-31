@@ -9,10 +9,9 @@ import (
 
 	"go.uber.org/multierr"
 	"go4.org/mem"
+	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
-
-	"pgregory.net/rand"
 )
 
 type sqliteConn struct {
