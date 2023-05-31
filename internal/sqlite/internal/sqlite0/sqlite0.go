@@ -60,7 +60,6 @@ import (
 )
 
 // TODO: schema arguments (now nil)
-// TODO: document thread safety (sqlite3_errcode etc.)
 // TODO: document NULL handling ([]byte(nil) vs []byte{} etc.)
 
 var (

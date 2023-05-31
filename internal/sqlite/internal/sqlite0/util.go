@@ -53,6 +53,7 @@ func (err Error) Error() string {
 	return fmt.Sprintf("%s: %s [%d]", err.from, err.msg, err.rc)
 }
 
+// sqliteErr must be called immediately after the failed operation, without releasing any locks
 func sqliteErr(rc C.int, conn *C.sqlite3, from string) error {
 	switch {
 	case rc == ok:
