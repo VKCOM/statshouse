@@ -314,7 +314,7 @@ func (s *Stmt) BindInt64(param int, v int64) error {
 
 func (s *Stmt) BindFloat64(param int, v float64) error {
 	rc := C.sqlite3_bind_double(s.stmt, C.int(param), C.double(v))
-	return sqliteErr(rc, s.conn.conn, "sqlite3_bind_float64")
+	return sqliteErr(rc, s.conn.conn, "sqlite3_bind_double")
 }
 
 // BindBlobConstUnsafe don't copy slice of bytes, expecting v is immutable during the query execution
