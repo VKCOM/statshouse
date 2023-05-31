@@ -277,7 +277,7 @@ func TestApplyCommit(t *testing.T) {
 	})
 }
 
-func openInMemory(path string, flags int, cb ProfileCallback) (*sqlite0.Conn, error) {
+func openInMemory(path string, flags int) (*sqlite0.Conn, error) {
 	conn, err := sqlite0.Open(path, flags|sqlite0.OpenMemory)
 	if err != nil {
 		return nil, err
@@ -302,7 +302,7 @@ func openInMemory(path string, flags int, cb ProfileCallback) (*sqlite0.Conn, er
 }
 
 func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine, error) {
-	rw, err := openRW(openInMemory, pathDB, appID, nil, initOffsetTable, snapshotMetaTable, scheme)
+	rw, err := openRW(openInMemory, pathDB, appID, initOffsetTable, snapshotMetaTable, scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW connection: %w", err)
 	}

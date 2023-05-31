@@ -90,12 +90,9 @@ func Version() string {
 	return C.GoString(C.sqlite3_libversion())
 }
 
-type ProfileCallback func(sql string, expandedSQL string, dt time.Duration)
-
 type Conn struct {
 	conn   *C.sqlite3
 	unlock *C.unlock
-	cb     ProfileCallback
 }
 
 func Open(path string, flags int) (*Conn, error) {
@@ -152,26 +149,6 @@ func (c *Conn) Close() error {
 		c.unlock = nil
 	}
 	return err
-}
-
-//export _sqliteTraceProfileCallback
-func _sqliteTraceProfileCallback(_ C.uint, pCtx unsafe.Pointer, pStmt unsafe.Pointer, pNano unsafe.Pointer) C.int {
-	var (
-		conn  = (*Conn)(pCtx)
-		stmt  = (*C.sqlite3_stmt)(pStmt)
-		delta = (*C.longlong)(pNano)
-	)
-
-	sql := C.sqlite3_sql(stmt)
-	expSQL := C.sqlite3_expanded_sql(stmt)
-	conn.cb(C.GoString(sql), C.GoString(expSQL), time.Duration(*delta))
-
-	return C.int(0)
-}
-
-func (c *Conn) SetProfileCallback(cb ProfileCallback) {
-	c.cb = cb
-	C._sqlite_register_trace_profile(c.conn, unsafe.Pointer(c))
 }
 
 func (c *Conn) AutoCommit() bool {
@@ -235,6 +212,7 @@ func (c *Conn) Prepare(sql []byte, persistent bool) (*Stmt, []byte, error) {
 			tail = sql[tailOffset:]
 		}
 	}
+
 	n := int(C.sqlite3_bind_parameter_count(cStmt))
 	params := make(map[string]int, n)
 	for i := 0; i < n; i++ {

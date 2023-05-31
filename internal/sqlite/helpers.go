@@ -117,7 +117,7 @@ func (a *Arg) isSliceArg() bool {
 }
 
 func doSingleROToWALQuery(path string, f func(conn *sqliteConn) error) (err error) {
-	ro, err := openROWAL(path, false, nil)
+	ro, err := openROWAL(path, false)
 	if err != nil {
 		return err
 	}
