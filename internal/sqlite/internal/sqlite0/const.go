@@ -19,8 +19,6 @@ const (
 	ok   = C.SQLITE_OK
 	row  = C.SQLITE_ROW
 	done = C.SQLITE_DONE
-
-	preparePersistent = C.SQLITE_PREPARE_PERSISTENT
 )
 
 // https://www.sqlite.org/c3ref/open.html
