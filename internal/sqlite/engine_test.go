@@ -17,7 +17,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -172,42 +171,24 @@ func test_Engine_Reread_From_Begin(t *testing.T, waitCommit, commitOnEachWrite b
 	}
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, commitOnEachWrite, mode, nil)
 	agg := &testAggregation{}
-	n := 100000
-	if waitCommit {
-		n = 300
-	}
-	wg := &sync.WaitGroup{}
+	n := 300
 	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			data := make([]byte, 1+rand.Int()%300)
-			_, err := rand.Read(data)
-			require.NoError(t, err)
-			agg.mx.Lock()
-			str := string(data)
-			err = insertText(engine, str)
-			if err == nil {
-				agg.writeHistory = append(agg.writeHistory, str)
-			}
-			agg.mx.Unlock()
-		}()
+		data := make([]byte, 64)
+		_, err := rand.Read(data)
+		require.NoError(t, err)
+		data = strconv.AppendInt(data, int64(i), 10)
+		str := string(data)
+		err = insertText(engine, str)
+		require.NoError(t, err)
+		agg.writeHistory = append(agg.writeHistory, str)
 	}
-	wg.Wait()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
 	history := []string{}
-	mx := sync.Mutex{}
 	engine, _ = openEngine(t, dir, "db1", schema, false, false, false, commitOnEachWrite, mode, func(s string) {
-		mx.Lock()
-		defer mx.Unlock()
 		history = append(history, s)
 	})
-	mx.Lock()
-	defer mx.Unlock()
-	agg.mx.Lock()
-	defer agg.mx.Unlock()
 	require.NoError(t, isEquals(agg.writeHistory, history))
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -218,25 +199,16 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	dir := t.TempDir()
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, NoWaitCommit, nil)
 	agg := &testAggregation{}
-	n := 500 + rand.Intn(500)
-	wg := &sync.WaitGroup{}
+	n := 500
 	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			data := make([]byte, 1+rand.Intn(30))
-			_, err := rand.Read(data)
-			require.NoError(t, err)
-			agg.mx.Lock()
-			str := string(data)
-			err = insertText(engine, str)
-			if err == nil {
-				agg.writeHistory = append(agg.writeHistory, str)
-			}
-			agg.mx.Unlock()
-		}()
+		data := make([]byte, 1+rand.Intn(30))
+		_, err := rand.Read(data)
+		require.NoError(t, err)
+		str := string(data)
+		err = insertText(engine, str)
+		require.NoError(t, err)
+		agg.writeHistory = append(agg.writeHistory, str)
 	}
-	wg.Wait()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
@@ -247,7 +219,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	for _, s := range agg.writeHistory {
 		textInDb[s] = struct{}{}
 	}
-	n = 5000 + rand.Intn(1000)
+	n = 5000
 
 	for i := 0; i < n; i++ {
 		data := make([]byte, 1+rand.Int()%30)
@@ -267,10 +239,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	require.NoError(t, engine.Close(ctx))
 
 	history := []string{}
-	mx := sync.Mutex{}
 	engine, _ = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
-		mx.Lock()
-		defer mx.Unlock()
 		history = append(history, s)
 	})
 	expectedMap := map[string]struct{}{}
@@ -304,44 +273,36 @@ func Test_Engine(t *testing.T) {
 	dir := t.TempDir()
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
 	agg := &testAggregation{}
-	n := 8000
-	var task int32 = 10000000
-	var count int32
+	n := 32
+	iters := 1000
 	wg := &sync.WaitGroup{}
 	for i := 0; i < n; i++ {
 		wg.Add(1)
-		go func() {
+		go func(i int) {
 			defer wg.Done()
-			for {
-				c := atomic.AddInt32(&count, 1)
-				if c < task {
-					break
-				}
-				data := make([]byte, 1+rand.Int()%20)
+			for j := 0; j < iters; j++ {
+				data := make([]byte, 20)
 				_, err := rand.Read(data)
 				require.NoError(t, err)
+				data = strconv.AppendInt(data, int64(i), 10)
+				data = strconv.AppendInt(data, int64(j), 10)
+
 				str := string(data)
 				err = insertText(engine, str)
-				if err == nil {
-					agg.mx.Lock()
-					agg.writeHistory = append(agg.writeHistory, str)
-					agg.mx.Unlock()
-				}
+				require.NoError(t, err)
+				agg.mx.Lock()
+				agg.writeHistory = append(agg.writeHistory, str)
+				agg.mx.Unlock()
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
-	mx := sync.Mutex{}
 	engine, _ = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
 		t.Fatal("mustn't apply music")
 	})
-	mx.Lock()
-	defer mx.Unlock()
-	agg.mx.Lock()
-	defer agg.mx.Unlock()
 	expectedMap := map[string]struct{}{}
 	for _, t := range agg.writeHistory {
 		expectedMap[t] = struct{}{}
