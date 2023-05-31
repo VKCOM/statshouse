@@ -59,7 +59,6 @@ import (
 	"unsafe"
 )
 
-// TODO: schema arguments (now nil)
 // TODO: document NULL handling ([]byte(nil) vs []byte{} etc.)
 
 var (
