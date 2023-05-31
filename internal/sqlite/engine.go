@@ -135,7 +135,6 @@ type (
 		DurabilityMode         DurabilityMode
 		ReadAndExit            bool
 		CommitOnEachWrite      bool // use only to test. If true break binlog + sqlite consistency
-		ProfileCallback        ProfileCallback
 		MaxROConn              int
 		CacheMaxSizePerConnect int
 	}
@@ -158,7 +157,6 @@ type (
 		isVacuumInto bool
 	}
 
-	ProfileCallback    func(sql, expandedSQL string, duration time.Duration)
 	ApplyEventFunction func(conn Conn, offset int64, cache []byte) (int, error)
 
 	engineMode     int
@@ -207,7 +205,7 @@ func openDB(opt Options,
 	if opt.MaxROConn == 0 {
 		opt.MaxROConn = 100
 	}
-	rw, err := openRW(openWAL, opt.Path, opt.APPID, opt.ProfileCallback, opt.Scheme, initOffsetTable, snapshotMetaTable)
+	rw, err := openRW(openWAL, opt.Path, opt.APPID, opt.Scheme, initOffsetTable, snapshotMetaTable)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW connection: %w", err)
 	}
@@ -309,7 +307,7 @@ func (e *Engine) binlogWaitReady(impl *binlogEngineReplicaImpl) error {
 	return nil
 }
 
-func openWAL(path string, flags int, callback ProfileCallback) (*sqlite0.Conn, error) {
+func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 	conn, err := sqlite0.Open(path, flags)
 	if err != nil {
 		return nil, err
@@ -322,10 +320,6 @@ func openWAL(path string, flags int, callback ProfileCallback) (*sqlite0.Conn, e
 			_ = conn.Close()
 			return nil, fmt.Errorf("failed to disable DB auto-checkpoints: %w", err)
 		}
-	}
-
-	if callback != nil {
-		conn.SetProfileCallback(sqlite0.ProfileCallback(callback))
 	}
 
 	err = conn.SetBusyTimeout(busyTimeout)
@@ -343,8 +337,8 @@ func openWAL(path string, flags int, callback ProfileCallback) (*sqlite0.Conn, e
 	return conn, nil
 }
 
-func openRW(open func(path string, flags int, callback ProfileCallback) (*sqlite0.Conn, error), path string, appID int32, callback ProfileCallback, schemas ...string) (*sqlite0.Conn, error) {
-	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate|sqlite0.OpenNoMutex|sqlite0.OpenSharedCache, callback)
+func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path string, appID int32, schemas ...string) (*sqlite0.Conn, error) {
+	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate|sqlite0.OpenNoMutex|sqlite0.OpenSharedCache)
 	if err != nil {
 		return nil, err
 	}
@@ -388,12 +382,13 @@ func openRW(open func(path string, flags int, callback ProfileCallback) (*sqlite
 //
 //		return conn, nil
 //	}
-func openROWAL(path string, shared bool, callback ProfileCallback) (*sqlite0.Conn, error) {
+
+func openROWAL(path string, shared bool) (*sqlite0.Conn, error) {
 	flags := sqlite0.OpenPrivateCache
 	if shared {
 		flags = sqlite0.OpenSharedCache
 	}
-	conn, err := openWAL(path, flags|sqlite0.OpenReadonly|sqlite0.OpenNoMutex, callback)
+	conn, err := openWAL(path, flags|sqlite0.OpenReadonly|sqlite0.OpenNoMutex)
 	if err != nil {
 		return nil, err
 	}
@@ -698,7 +693,7 @@ func (e *Engine) view(ctx context.Context, queryName string, fn func(Conn) error
 		e.roCond.Wait()
 	}
 	if len(*roFree) == 0 {
-		ro, err := openROWAL(e.opt.Path, shared, e.opt.ProfileCallback)
+		ro, err := openROWAL(e.opt.Path, shared)
 		if err != nil {
 			e.roMx.Unlock()
 			return fmt.Errorf("failed to open RO connection: %w", err)
