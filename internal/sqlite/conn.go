@@ -154,7 +154,7 @@ func (r *Rows) Error() error {
 	return r.err
 }
 
-func (r *Rows) next(setUsed bool) bool {
+func (r *Rows) Next() bool {
 	if r.err != nil {
 		return false
 	}
@@ -164,7 +164,7 @@ func (r *Rows) next(setUsed bool) bool {
 			return false
 		}
 	}
-	if setUsed && !r.used {
+	if !r.used {
 		r.c.used[r.s] = struct{}{}
 		r.used = true
 	}
@@ -176,10 +176,6 @@ func (r *Rows) next(setUsed bool) bool {
 		r.stats.measureSqliteQueryDurationSince(r.type_, r.name, r.start)
 	}
 	return row
-}
-
-func (r *Rows) Next() bool {
-	return r.next(true)
 }
 
 func (r *Rows) ColumnBlob(i int, buf []byte) ([]byte, error) {
