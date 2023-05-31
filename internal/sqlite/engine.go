@@ -29,7 +29,6 @@ import (
 // TODO: check the app ID at startup
 // TODO: check the results of PRAGMA statements
 // TODO: use mmap in all connections?
-// TODO: handle sqlite0.Busy
 // TODO: integrity check
 // TODO: built-in simple migrator
 // TODO: auto-rollback savepoint in case of any SQL-related errors
@@ -73,7 +72,7 @@ const (
 	commitEveryDefault = 1 * time.Second
 	commitTXTimeout    = 10 * time.Second
 
-	beginStmt  = "BEGIN IMMEDIATE" // TODO: not immediate? then SQLITE_BUSY_SNAPSHOT from upgrade is possible
+	beginStmt  = "BEGIN IMMEDIATE" // make sure we don't get SQLITE_BUSY in the middle of transaction
 	commitStmt = "COMMIT"
 	normSelect = "SELECT"
 	normVacuum = "VACUUM INTO"
