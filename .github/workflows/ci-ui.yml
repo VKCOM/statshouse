@@ -1,24 +1,36 @@
+name: Check UI
 on:
   pull_request:
     branches:
       - master
     paths:
       - 'statshouse-ui/**'
+      - '.github/workflows/ci-ui.yml'
 jobs:
   ci-ui:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Check out code
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
-      - uses: actions/setup-node@v3
+      - name: Setup Node
+        uses: actions/setup-node@v3
         with:
           node-version: 18.x
-          cache: 'npm'
-          cache-dependency-path: statshouse-ui/package-lock.json
-      - run: npm ci
+      - name: Cache NPM dependencies
+        uses: actions/cache@v3
+        id: cache-primes
+        with:
+          path: statshouse-ui/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('statshouse-ui/package-lock.json') }}
+      - name: Install
+        if: steps.cache-primes.outputs.cache-hit != 'true'
+        run: npm ci
         working-directory: statshouse-ui
-      - run: npm run build
+      - name: Build
+        run: npm run build
         working-directory: statshouse-ui
-      - run: CI=true npm run test
+      - name: Test
+        run: CI=true npm run test
         working-directory: statshouse-ui
