@@ -292,6 +292,16 @@ func (s *Stmt) BindBlob(param int, v []byte) error {
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
 }
 
+// BindBlobConstUnsafe don't copy slice of bytes, expecting v is immutable during the query execution
+func (s *Stmt) BindBlobConstUnsafe(param int, v []byte) error {
+	if s.keepAliveBytes == nil {
+		s.keepAliveBytes = make([][]byte, s.n)
+	}
+	s.keepAliveBytes[param-1] = v
+	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeSlicePtr(v), C.int(len(v)), 0)
+	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
+}
+
 func (s *Stmt) BindBlobString(param int, v string) error {
 	if v == "" {
 		rc := C.sqlite3_bind_zeroblob(s.stmt, C.int(param), C.int(0))
@@ -327,16 +337,6 @@ func (s *Stmt) BindInt64(param int, v int64) error {
 func (s *Stmt) BindFloat64(param int, v float64) error {
 	rc := C.sqlite3_bind_double(s.stmt, C.int(param), C.double(v))
 	return sqliteErr(rc, s.conn.conn, "sqlite3_bind_double")
-}
-
-// BindBlobConstUnsafe don't copy slice of bytes, expecting v is immutable during the query execution
-func (s *Stmt) BindBlobConstUnsafe(param int, v []byte) error {
-	if s.keepAliveBytes == nil {
-		s.keepAliveBytes = make([][]byte, s.n)
-	}
-	s.keepAliveBytes[param-1] = v
-	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeSlicePtr(v), C.int(len(v)), 0)
-	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
 }
 
 func (s *Stmt) Step() (bool, error) {
