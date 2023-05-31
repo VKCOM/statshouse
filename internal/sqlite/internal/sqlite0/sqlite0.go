@@ -199,7 +199,7 @@ type Stmt struct {
 func (c *Conn) Prepare(sql []byte, persistent bool) (*Stmt, []byte, error) {
 	var flags C.uint
 	if persistent {
-		flags = preparePersistent
+		flags = C.SQLITE_PREPARE_PERSISTENT
 	}
 
 	var cStmt *C.sqlite3_stmt
