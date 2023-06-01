@@ -257,6 +257,9 @@ func (s *Agent) getRandomLiveShardReplicas() (*ShardReplica, *ShardReplica) {
 }
 
 func (s *Agent) updateConfigRemotelyExperimental() {
+	if s.metricStorage == nil { // nil only on ingress proxy for now
+		return
+	}
 	// We'll make this metric invisible for now to avoid being edited by anybody
 	description := ""
 	if mv := s.metricStorage.GetMetaMetricByName(data_model.StatshouseAgentRemoteConfigMetric); mv != nil {
