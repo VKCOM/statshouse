@@ -365,14 +365,6 @@ func (s *Stmt) Step() (bool, error) {
 	}
 }
 
-func (s *Stmt) ColumnBlob(i int, buf []byte) ([]byte, error) {
-	b, err := s.ColumnBlobUnsafe(i)
-	if err != nil {
-		return nil, err
-	}
-	return append(buf, b...), nil
-}
-
 func (s *Stmt) ColumnBlobUnsafe(i int) ([]byte, error) {
 	p := C.sqlite3_column_blob(s.stmt, C.int(i))
 	if p == nil {
@@ -387,6 +379,11 @@ func (s *Stmt) ColumnBlobUnsafe(i int) ([]byte, error) {
 		return nil, nil
 	}
 	return unsafePtrToSlice(p, int(n)), nil
+}
+
+func (s *Stmt) ColumnBlob(i int, buf []byte) ([]byte, error) {
+	b, err := s.ColumnBlobUnsafe(i)
+	return append(buf, b...), err
 }
 
 func (s *Stmt) ColumnBlobString(i int) (string, error) {
@@ -409,7 +406,7 @@ func (s *Stmt) ColumnFloat64(i int) (float64, error) {
 	return float64(value), nil
 }
 
-func (s *Stmt) ColumnIsNull(i int) bool {
+func (s *Stmt) ColumnNull(i int) bool {
 	typ := C.sqlite3_column_type(s.stmt, C.int(i))
 	return typ == C.SQLITE_NULL
 }

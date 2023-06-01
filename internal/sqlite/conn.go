@@ -195,7 +195,7 @@ func (r *Rows) ColumnBlobString(i int) (string, error) {
 }
 
 func (r *Rows) ColumnIsNull(i int) bool {
-	return r.s.ColumnIsNull(i)
+	return r.s.ColumnNull(i)
 }
 
 func (r *Rows) ColumnInt64(i int) (int64, error) {
