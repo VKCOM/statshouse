@@ -765,7 +765,7 @@ func getPromQuery(req seriesRequest, queryFn bool) string {
 		return req.promQL
 	}
 	var res []string
-	for _, fn := range req.what {
+	for i, fn := range req.what {
 		name, ok := validQueryFn(fn)
 		if !ok {
 			continue
@@ -889,6 +889,9 @@ func getPromQuery(req seriesRequest, queryFn bool) string {
 		}
 		if cumul {
 			q = fmt.Sprintf("prefix_sum(%s)", q)
+		}
+		if i > 0 {
+			q = fmt.Sprintf("label_replace(%s, \"__name__\",%q,\"\",\"\")", q, name)
 		}
 		res = append(res, q)
 	}
