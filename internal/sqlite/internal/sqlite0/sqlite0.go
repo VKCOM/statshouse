@@ -278,6 +278,16 @@ func (s *Stmt) ParamBytes(name []byte) int {
 	return s.params[string(name)]
 }
 
+func (s *Stmt) BindNull(param int) error {
+	rc := C.sqlite3_bind_null(s.stmt, C.int(param))
+	return sqliteErr(rc, s.conn.conn, "sqlite3_bind_null")
+}
+
+func (s *Stmt) BindZeroBlob(param int, n int) error {
+	rc := C.sqlite3_bind_zeroblob(s.stmt, C.int(param), C.int(n))
+	return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob")
+}
+
 func (s *Stmt) BindBlob(param int, v []byte) error {
 	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeSlicePtr(v), C.int(len(v)), 1)
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
