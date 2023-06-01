@@ -316,8 +316,7 @@ func (s *Stmt) BindBlobText(param int, v string) error {
 		s.keepAliveStrings = make([]string, s.n)
 	}
 	s.keepAliveStrings[param-1] = v
-	cstr := (*C.char)(unsafeStringPtr(v))
-	rc := C._sqlite3_bind_text(s.stmt, C.int(param), cstr, C.int(len(v)), 0)
+	rc := C._sqlite3_bind_text(s.stmt, C.int(param), unsafeStringCPtr(v), C.int(len(v)), 0)
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_text")
 }
 
