@@ -365,14 +365,15 @@ func (s *Stmt) Step() (bool, error) {
 	}
 }
 
+// ColumnBlobUnsafe can return nil slice both for zero-length BLOB and SQL NULL.
 func (s *Stmt) ColumnBlobUnsafe(i int) ([]byte, error) {
 	p := C.sqlite3_column_blob(s.stmt, C.int(i))
 	if p == nil {
 		rc := C.sqlite3_errcode(s.conn.conn)
 		if rc != ok && rc != row {
-			return nil, sqliteErr(rc, s.conn.conn, "sqlite3_column_blob")
+			return nil, sqliteErr(rc, s.conn.conn, "sqlite3_column_blob") // out-of-memory during format conversion
 		}
-		return nil, nil
+		return nil, nil // zero-length BLOB or SQL NULL
 	}
 	n := C.sqlite3_column_bytes(s.stmt, C.int(i))
 	if n == 0 {

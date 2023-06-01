@@ -8,6 +8,18 @@ package sqlite0
 
 import "testing"
 
+func TestAppendNil(t *testing.T) {
+	var nilBytes []byte
+	s1 := append([]byte(nil), nilBytes...)
+	if s1 != nil {
+		t.Fatalf("nil-nil append is not nil")
+	}
+	s2 := append(emptyBytes, nilBytes...)
+	if s2 == nil {
+		t.Fatalf("empty-nil append is nil")
+	}
+}
+
 func TestUnsafePtrNonNil(t *testing.T) {
 	p1 := unsafeSlicePtr(nil)
 	if p1 == nil {
