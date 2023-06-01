@@ -259,9 +259,9 @@ func (d *gnuplotTemplateData) LineColor(meta QuerySeriesMetaV2) string {
 		metricName = meta.Name
 	}
 	if oneGraph {
-		colorKey = fmt.Sprintf("%d%s%s", prefColor, metricName, label)
+		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, label)
 	} else {
-		colorKey = fmt.Sprintf("%d%s%s", prefColor, metricName, baseLabel)
+		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, baseLabel)
 	}
 	return selectColor(colorKey, d.usedColorIndices)
 }
