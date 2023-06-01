@@ -4,27 +4,30 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { selectorListServerDashboard, selectorLoadListServerDashboard, useStore } from '../store';
+import { DashboardListStore, useDashboardListStore } from '../store';
 import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useStateInput } from '../hooks';
 import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from '../common/toggleKeyboard';
+import { ErrorMessages } from '../components';
 
 export type DashboardListViewProps = {};
 
+const { update } = useDashboardListStore.getState();
+const selectorDashboardList = ({ list }: DashboardListStore) => list;
+
 export const DashboardListView: React.FC<DashboardListViewProps> = () => {
-  const listServerDashboard = useStore(selectorListServerDashboard);
-  const loadListServerDashboard = useStore(selectorLoadListServerDashboard);
+  const list = useDashboardListStore(selectorDashboardList);
   const searchInput = useStateInput('');
   useEffect(() => {
-    loadListServerDashboard();
-  }, [loadListServerDashboard]);
+    update();
+  }, []);
 
   const filterList = useMemo(() => {
     const orig = searchInput.value.toLocaleLowerCase();
     const ru = toggleKeyboard(orig, mapKeyboardEnToRu);
     const en = toggleKeyboard(orig, mapKeyboardRuToEn);
-    const res = listServerDashboard.filter(
+    const res = list.filter(
       (item) =>
         searchInput.value === '' ||
         item.name.toLowerCase().includes(orig) ||
@@ -38,7 +41,7 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
       a.name.toLowerCase() > b.name.toLowerCase() ? 1 : a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 0
     );
     return res;
-  }, [listServerDashboard, searchInput.value]);
+  }, [list, searchInput.value]);
 
   return (
     <div className="container-sm pt-3 pb-3 w-max-720">
@@ -52,6 +55,7 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
           {...searchInput}
         />
       </div>
+      <ErrorMessages />
       <ul className="list-group">
         {filterList.map((item) => (
           <li key={item.id} className="list-group-item">

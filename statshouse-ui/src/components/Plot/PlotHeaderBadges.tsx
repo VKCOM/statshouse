@@ -21,7 +21,7 @@ export function PlotHeaderBadges({ indexPlot, compact, className }: PlotHeaderBa
   const syncTag = useStore(selectorParamsTagSync);
   const filters = useMemo(
     () =>
-      (meta.tags || [])
+      (meta?.tags || [])
         .map((t, index) => ({
           title: t.description,
           in: (params.filterIn[`key${index}`] || [])
@@ -32,11 +32,11 @@ export function PlotHeaderBadges({ indexPlot, compact, className }: PlotHeaderBa
             .join(', '),
         }))
         .filter((f, index) => (f.in || f.notIn) && !syncTag.some((group) => group[indexPlot] === index)),
-    [indexPlot, meta.tags, params.filterIn, params.filterNotIn, syncTag]
+    [indexPlot, meta?.tags, params.filterIn, params.filterNotIn, syncTag]
   );
 
   const syncedTags = useMemo(() => {
-    const sTags = (meta.tags || [])
+    const sTags = (meta?.tags || [])
       .map((t, index) => ({
         title: t.description,
         in: (params.filterIn[`key${index}`] || [])
@@ -57,22 +57,22 @@ export function PlotHeaderBadges({ indexPlot, compact, className }: PlotHeaderBa
         .map((t) => `${t.title}: ${t.notIn}`)
         .join('\n'),
     };
-  }, [indexPlot, meta.tags, params.filterIn, params.filterNotIn, syncTag]);
+  }, [indexPlot, meta?.tags, params.filterIn, params.filterNotIn, syncTag]);
 
   return (
     <>
-      {meta.resolution !== undefined && meta.resolution !== 1 && (
+      {meta?.resolution !== undefined && meta?.resolution !== 1 && (
         <span
           className={cn(
             className,
             'badge',
-            meta.resolution && params.customAgg > 0 && meta.resolution > params.customAgg
+            meta?.resolution && params.customAgg > 0 && meta?.resolution > params.customAgg
               ? 'bg-danger'
               : 'bg-warning text-black'
           )}
           title="Custom resolution"
         >
-          {meta.resolution}s
+          {meta?.resolution}s
         </span>
       )}
       {!params.useV2 && <span className={cn(className, 'badge bg-danger')}>legacy data, production only</span>}

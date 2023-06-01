@@ -5,7 +5,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { Dispatch, memo, SetStateAction, useCallback, useMemo, useState } from 'react';
-import { metricMeta } from '../../view/api';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
 import { getUrlSearch, lockRange, PlotParams } from '../../common/plotQueryParams';
@@ -17,6 +16,7 @@ import { PlotHeaderTitle } from './PlotHeaderTitle';
 import { PlotHeaderBadges } from './PlotHeaderBadges';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
+import { MetricMetaValue } from '../../api/metric';
 
 const setPlotType = useStore.getState().setPlotType;
 
@@ -25,7 +25,7 @@ export type PlotHeaderProps = {
   compact?: boolean;
   dashboard?: boolean;
   sel: PlotParams;
-  meta: metricMeta;
+  meta?: MetricMetaValue;
   live: boolean;
   setParams: (nextState: React.SetStateAction<PlotParams>, replace?: boolean | undefined) => void;
   setLive: Dispatch<SetStateAction<boolean>>;
@@ -129,7 +129,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             className="overflow-force-wrap text-secondary fw-normal font-normal flex-grow-0"
             style={{ whiteSpace: 'pre-wrap' }}
           >
-            {meta.description}
+            {meta?.description}
           </small>
         )}
       </div>
@@ -166,7 +166,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
       {!compact && (
         /*description*/
         <small className="overflow-force-wrap text-secondary flex-grow-0" style={{ whiteSpace: 'pre-wrap' }}>
-          {meta.description}
+          {meta?.description}
         </small>
       )}
     </div>

@@ -8,9 +8,10 @@ import React from 'react';
 import uPlot from 'uplot';
 import { TimeRange } from '../common/TimeRange';
 import * as api from './api';
-import { DashboardInfo, metricMeta, RawValueKind } from './api';
+import { DashboardInfo, RawValueKind } from './api';
 import { PlotParams, QueryParams } from '../common/plotQueryParams';
 import { UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
+import { MetricMetaValue } from '../api/metric';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
@@ -528,15 +529,6 @@ export function useResizeObserver(ref: React.RefObject<HTMLDivElement>) {
   return size;
 }
 
-// https://reactjs.org/docs/hooks-faq.html#how-to-get-the-previous-props-or-state
-export function usePrevious<T>(value: T): T | undefined {
-  const ref = React.useRef<T>();
-  React.useEffect(() => {
-    ref.current = value;
-  });
-  return ref.current;
-}
-
 export function formatLegendValue(value: number | null): string {
   if (value === null) {
     return '';
@@ -624,18 +616,6 @@ export function convert(kind: RawValueKind | undefined, input: number): string {
   }
 }
 
-export const notNull = (s: any) => s !== null;
-
-export function uniqueArray<T>(arr: T[]): T[] {
-  return [...new Set(arr).keys()];
-}
-
-export function getRandomKey(): string {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2);
-}
-
-export const isTest: boolean = process.env.NODE_ENV !== 'production' || window.localStorage.test === '1';
-
 export function sortByKey(key: string, a: Record<string, any>, b: Record<string, any>) {
   return a[key] > b[key] ? 1 : a[key] < b[key] ? -1 : 0;
 }
@@ -690,17 +670,19 @@ export function freeKeyPrefix(str: string): string {
   return str.replace('skey', '_s').replace('key', '');
 }
 
-export function getTagDescription(meta: metricMeta, indexTag: number | string): string {
-  if (typeof indexTag === 'number' && indexTag > -1) {
-    return meta.tags?.[indexTag].description || meta.tags?.[indexTag].name || `tag ${indexTag}`;
-  } else if (indexTag === -1 || indexTag === 'skey' || indexTag === '_s') {
-    return meta.string_top_description || meta.string_top_name || 'tag _s';
+export function getTagDescription(meta: MetricMetaValue | undefined, indexTag: number | string): string {
+  if (meta) {
+    if (typeof indexTag === 'number' && indexTag > -1) {
+      return meta.tags?.[indexTag].description || meta.tags?.[indexTag].name || `tag ${indexTag}`;
+    } else if (indexTag === -1 || indexTag === 'skey' || indexTag === '_s') {
+      return meta.string_top_description || meta.string_top_name || 'tag _s';
+    }
   }
   return `tag ${indexTag}`;
 }
 
-export function getEventTagColumns(plot: PlotParams, meta: metricMeta, selectedOnly: boolean = false) {
-  const columns: UseEventTagColumnReturn[] = (meta.tags ?? [])
+export function getEventTagColumns(plot: PlotParams, meta?: MetricMetaValue, selectedOnly: boolean = false) {
+  const columns: UseEventTagColumnReturn[] = (meta?.tags ?? [])
     .map((tag, indexTag) => {
       const keyTag = indexTag.toString();
       const fullKeyTag = `key${indexTag}`;
@@ -724,7 +706,7 @@ export function getEventTagColumns(plot: PlotParams, meta: metricMeta, selectedO
   const disabled_s = plot.groupBy.indexOf('skey') > -1;
   const selected_s = disabled_s || plot.eventsBy.indexOf('_s') > -1;
   const hide_s = !selected_s || plot.eventsHide.indexOf('_s') > -1;
-  if ((!selectedOnly || (selected_s && !hide_s)) && (meta.string_top_name || meta.string_top_description)) {
+  if ((!selectedOnly || (selected_s && !hide_s)) && (meta?.string_top_name || meta?.string_top_description)) {
     columns.push({
       keyTag: '_s',
       fullKeyTag: 'skey',

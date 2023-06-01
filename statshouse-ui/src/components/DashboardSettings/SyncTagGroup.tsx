@@ -5,11 +5,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useMemo } from 'react';
-import { metricMeta, metricTag, whatToWhatDesc } from '../../view/api';
+import { metricTag, whatToWhatDesc } from '../../view/api';
 import { PlotParams } from '../../common/plotQueryParams';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { promQLMetric } from '../../view/utils';
 import { PlotStore } from '../../store';
+import { MetricMetaValue } from '../../api/metric';
 
 export type SyncTag = {
   namePlot: string;
@@ -21,7 +22,7 @@ export type SyncTag = {
 export type SyncTagGroupProps = {
   indexGroup: number;
   syncTags: (number | null)[];
-  metricsMeta: Record<string, metricMeta>;
+  metricsMeta?: Record<string, MetricMetaValue>;
   plots: PlotParams[];
   plotsData: PlotStore[];
   setTagSync: (indexGroup: number, indexPlot: number, indexTag: number, status: boolean) => void;
@@ -53,7 +54,7 @@ export const SyncTagGroup: React.FC<SyncTagGroupProps> = ({
           return {
             indexPlot: indexPlot,
             namePlot: plot.customName || full,
-            tagList: metricsMeta[plot.metricName]?.tags?.slice() ?? [],
+            tagList: metricsMeta?.[plot.metricName]?.tags?.slice() ?? [],
             tagSelect: syncTags[indexPlot],
           };
         })
