@@ -64,7 +64,7 @@ set yrange [*<-0:*] noextend
 set datafile missing "NaN"
 
 {{range $i, $meta := $d.Data.Series.SeriesMeta -}}
-set style line {{$d.LineStyle $i}} linetype 1 linecolor rgb '{{$d.LineColor $meta}}'
+set style line {{$d.LineStyle $i}} linetype 1 linecolor rgb '{{$meta.Color}}'
 {{end}}
 
 $data << EOD
@@ -244,36 +244,39 @@ func (d *gnuplotTemplateData) Header() string {
 	return fmt.Sprintf("%s: %s", d.Metric, strings.Join(lineFns, ", "))
 }
 
-func (d *gnuplotTemplateData) LineColor(meta QuerySeriesMetaV2) string {
+func (h *Handler) colorize(resp *SeriesResponse) {
 	var (
-		oneGraph         = d.graphCount() == 1
-		uniqueWhatLength = len(d.GetUniqueWhat())
-		label            = MetaToLabel(meta, uniqueWhatLength, d.utcOffset)
-		baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength, d.utcOffset)
-		isValue          = strings.Index(baseLabel, "Value") == 0
-		metricName       string
-		prefColor        = 9 // it`s magic prefix
-		colorKey         string
+		graphCount       int
+		uniqueWhat       = make(map[queryFn]struct{})
+		usedColorIndices = make(map[string]int)
 	)
-	if isValue {
-		metricName = meta.Name
-	}
-	if oneGraph {
-		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, label)
-	} else {
-		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, baseLabel)
-	}
-	return selectColor(colorKey, d.usedColorIndices)
-}
-
-func (d *gnuplotTemplateData) graphCount() int {
-	var res int
-	for _, meta := range d.Data.Series.SeriesMeta {
+	for _, meta := range resp.Series.SeriesMeta {
+		uniqueWhat[meta.What] = struct{}{}
 		if meta.TimeShift == 0 {
-			res++
+			graphCount++
 		}
 	}
-	return res
+	for i, meta := range resp.Series.SeriesMeta {
+		var (
+			oneGraph         = graphCount == 1
+			uniqueWhatLength = len(uniqueWhat)
+			label            = MetaToLabel(meta, uniqueWhatLength, h.utcOffset)
+			baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength, h.utcOffset)
+			isValue          = strings.Index(baseLabel, "Value") == 0
+			metricName       string
+			prefColor        = 9 // it`s magic prefix
+			colorKey         string
+		)
+		if isValue {
+			metricName = meta.Name
+		}
+		if oneGraph {
+			colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, label)
+		} else {
+			colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, baseLabel)
+		}
+		resp.Series.SeriesMeta[i].Color = selectColor(colorKey, usedColorIndices)
+	}
 }
 
 func (d *gnuplotTemplateData) MetaToLabel(meta QuerySeriesMetaV2) string {
