@@ -9,7 +9,7 @@ case $1 in
     ;;
 esac
 
-docker compose --profile "$PROFILE" up -d --remove-orphans $@ # --build --force-recreate
+docker compose -f localrun.yml --profile "$PROFILE" up -d --remove-orphans $@ # --build --force-recreate
 trap "{ docker compose --profile $PROFILE down; exit; }" exit
 echo -n Waiting for services to be ready...
 for c in kh sh; do
