@@ -833,10 +833,10 @@ func isAlpha(r rune) bool {
 
 // isLabel reports whether the string can be used as label.
 func isLabel(s string) bool {
-	if len(s) == 0 || !isAlpha(rune(s[0])) {
+	if len(s) == 0 {
 		return false
 	}
-	for _, c := range s[1:] {
+	for _, c := range s {
 		if !isAlphaNumeric(c) {
 			return false
 		}

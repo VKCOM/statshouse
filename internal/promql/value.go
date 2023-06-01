@@ -104,7 +104,7 @@ func (b *SeriesBag) MarshalJSON() ([]byte, error) {
 		if tags := b.getTagsAt(i); len(tags) != 0 {
 			m = make(map[string]string, len(tags))
 			for _, tag := range tags {
-				if !tag.SValueSet || tag.SValue == format.TagValueCodeZero || tag.Name == labelWhat {
+				if !tag.SValueSet || tag.SValue == format.TagValueCodeZero || tag.ID == labelWhat || tag.ID == LabelFn {
 					continue
 				}
 				if len(tag.Name) != 0 {
@@ -317,7 +317,7 @@ func (b *SeriesBag) hashAt(i int, without bool, by []string, h hash.Hash64) (uin
 	buf := make([]byte, 4)
 	for _, k := range tags {
 		t, ok := b.getTagAt(i, k)
-		if !ok {
+		if !ok || t.ID == LabelFn || t.ID == labelTotal {
 			continue
 		}
 		_, err := h.Write([]byte(k))
@@ -389,6 +389,9 @@ func (b *SeriesBag) setTag(id string, value int32) {
 }
 
 func (b *SeriesBag) setXTag(t SeriesTag) {
+	if !t.ValueSet && (!t.SValueSet || len(t.SValue) == 0) {
+		return // tag value is not set, ignore
+	}
 	for i := range b.Meta {
 		b.Meta[i].SetTag(t)
 	}
@@ -456,10 +459,6 @@ func (m *SeriesMeta) DropMetricName() {
 	m.dropTag(labels.MetricName)
 }
 
-func (m *SeriesMeta) DropWhat() {
-	m.dropTag(labelWhat)
-}
-
 func (m *SeriesMeta) GetMetricName() string {
 	t, _ := m.getTag(labels.MetricName)
 	return t.SValue
@@ -495,8 +494,8 @@ func (m *SeriesMeta) GetTotal() int {
 	return int(t.Value)
 }
 
-func (m *SeriesMeta) GetWhat() string {
-	t, _ := m.getTag(labelWhat)
+func (m *SeriesMeta) GetFn() string {
+	t, _ := m.getTag(LabelFn)
 	return t.SValue
 }
 

@@ -40,7 +40,7 @@ func evalReductionRules(sel *parser.VectorSelector, nodes []parser.Node, step in
 	for i := range curr {
 		curr[i].rule = i
 		if len(sel.What) != 0 {
-			curr[i].what = sel.What[0]
+			curr[i].what = sel.What
 		}
 	}
 	for i := len(nodes); i != 0 && len(curr) != 0; i-- {
