@@ -1001,6 +1001,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi4(in *jlexer.Lexer
 			}
 		case "name":
 			out.Name = string(in.String())
+		case "color":
+			out.Color = string(in.String())
 		case "what":
 			(out.What).UnmarshalEasyJSON(in)
 		case "total":
@@ -1065,6 +1067,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out *jwriter.Wri
 		const prefix string = ",\"name\":"
 		out.RawString(prefix)
 		out.String(string(in.Name))
+	}
+	{
+		const prefix string = ",\"color\":"
+		out.RawString(prefix)
+		out.String(string(in.Color))
 	}
 	{
 		const prefix string = ",\"what\":"
