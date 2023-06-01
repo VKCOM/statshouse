@@ -13,9 +13,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/stretchr/testify/require"
 	"go4.org/mem"
 	"pgregory.net/rapid"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidIdent(t *testing.T) {
