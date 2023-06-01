@@ -30,6 +30,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
 
 	"github.com/ClickHouse/ch-go"
@@ -1663,7 +1664,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 		res, freeRes, err = h.handleGetQuery(ctx, ai, qry, options)
 	}
 	if err == nil && len(qry.promQL) == 0 {
-		res.PromQL = getPromQuery(qry)
+		res.PromQL = getPromQuery(qry, false)
 		res.DebugPromQLTestFailed = options.testPromql && (promqlErr != nil ||
 			!reflect.DeepEqual(res.queries, promqlRes.queries) ||
 			!getQueryRespEqual(res, promqlRes))
@@ -1814,7 +1815,10 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 			// }
 		}
 	}
-	res.DebugQueries = traces
+	if res != nil {
+		res.PromQL = getPromQuery(qry, false)
+		res.DebugQueries = traces
+	}
 	// Format and write the response
 	switch {
 	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
@@ -1922,7 +1926,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	}
 	var promqlGenerated bool
 	if len(req.promQL) == 0 {
-		req.promQL = getPromQuery(req)
+		req.promQL = getPromQuery(req, true)
 		promqlGenerated = true
 	}
 	if opt.timeNow.IsZero() {
@@ -2009,17 +2013,15 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 		}
 		if i < len(bag.Meta) {
 			s := bag.Meta[i]
-			meta.What, _ = validQueryFn(s.GetWhat())
+			meta.What, _ = validQueryFn(s.GetFn())
 			meta.TimeShift = -s.GetOffset()
 			meta.Total = s.GetTotal()
 			if meta.Total == 0 {
 				meta.Total = len(bag.Data)
 			}
-			s.DropMetricName()
-			s.DropWhat()
 			meta.Tags = make(map[string]SeriesMetaTag, len(s.Tags))
 			for id, t := range s.Tags {
-				if !t.SValueSet {
+				if !t.SValueSet || t.ID == labels.MetricName || t.ID == promql.LabelFn {
 					continue
 				}
 				if t.Index != 0 {

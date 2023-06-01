@@ -31,6 +31,7 @@ const (
 	labelOffset = "__offset__"
 	labelTotal  = "__total__"
 	LabelShard  = "__shard__"
+	LabelFn     = "__fn__"
 )
 
 type Query struct {
@@ -218,7 +219,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 			}
 			if !grouped && len(s.What) <= 1 {
 				if ar, ok := evalReductionRules(s, nodes, stepMin); ok {
-					s.What = []string{ar.what}
+					s.What = ar.what
 					s.GroupBy = ar.groupBy
 					s.GroupWithout = ar.groupWithout
 					s.Range = ar.step
@@ -291,7 +292,7 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, p
 				case MaxHost:
 					sel.MaxHost = true
 				default:
-					sel.What = append(sel.What, what)
+					sel.What = what
 				}
 			}
 		case labelBy:
@@ -637,40 +638,43 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 func (ev *evaluator) querySeries(ctx context.Context, sel *parser.VectorSelector) (SeriesBag, error) {
 	res := ev.newSeriesBag(0)
 	for i, metric := range sel.MatchingMetrics {
-		for _, what := range sel.What {
-			debugTracef(ctx, "#%d request %s: %s", i, metric.Name, what)
-			qry, err := ev.buildSeriesQuery(ctx, sel, metric, what)
-			if err != nil {
-				return SeriesBag{}, err
-			}
-			if qry.empty() {
-				debugTracef(ctx, "#%d query is empty", i)
-				continue
-			}
-			bag, cancel, err := ev.h.QuerySeries(ctx, &qry.SeriesQuery)
-			if err != nil {
-				return SeriesBag{}, err
-			}
-			ev.cancellationList = append(ev.cancellationList, cancel)
-			debugTracef(ctx, "#%d series count %d", i, len(bag.Meta))
-			if qry.prefixSum {
-				bag = ev.funcPrefixSum(bag)
-			}
-			if !sel.OmitNameTag {
-				bag.setSTag(labels.MetricName, sel.MatchingNames[i])
-			}
-			if ev.Options.TagOffset && qry.Offset != 0 {
-				bag.setTag(labelOffset, int32(qry.Offset))
-			}
-			if qry.histogram.restore {
-				bag, err = ev.restoreHistogram(&bag, &qry)
-				if err != nil {
-					return SeriesBag{}, err
-				}
-			}
-			bag.setSTag(labelWhat, what)
-			res.append(bag)
+		debugTracef(ctx, "#%d request %s: %s", i, metric.Name, sel.What)
+		qry, err := ev.buildSeriesQuery(ctx, sel, metric, sel.What)
+		if err != nil {
+			return SeriesBag{}, err
 		}
+		if qry.empty() {
+			debugTracef(ctx, "#%d query is empty", i)
+			continue
+		}
+		bag, cancel, err := ev.h.QuerySeries(ctx, &qry.SeriesQuery)
+		if err != nil {
+			return SeriesBag{}, err
+		}
+		ev.cancellationList = append(ev.cancellationList, cancel)
+		debugTracef(ctx, "#%d series count %d", i, len(bag.Meta))
+		if qry.prefixSum {
+			bag = ev.funcPrefixSum(bag)
+		}
+		if !sel.OmitNameTag {
+			bag.setSTag(labels.MetricName, sel.MatchingNames[i])
+		}
+		if ev.Options.TagOffset && qry.Offset != 0 {
+			bag.setTag(labelOffset, int32(qry.Offset))
+		}
+		if qry.histogram.restore {
+			bag, err = ev.restoreHistogram(&bag, &qry)
+			if err != nil {
+				return SeriesBag{}, err
+			}
+		}
+		for _, v := range sel.LabelMatchers {
+			if v.Name == LabelFn {
+				bag.setSTag(LabelFn, v.Value)
+				break
+			}
+		}
+		res.append(bag)
 	}
 	if ev.Options.TagTotal {
 		res.setTag(labelTotal, int32(len(res.Data)))
@@ -821,7 +825,8 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		if strings.HasPrefix(matcher.Name, "__") {
 			continue
 		}
-		if matcher.Name == format.StringTopTagID {
+		switch matcher.Name {
+		case format.StringTopTagID, format.NewStringTopTagID:
 			switch matcher.Type {
 			case labels.MatchEqual:
 				sFilterIn = append(sFilterIn, matcher.Value)
@@ -852,7 +857,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 					}
 				}
 			}
-		} else {
+		default:
 			i := metric.Name2Tag[matcher.Name].Index
 			switch matcher.Type {
 			case labels.MatchEqual:

@@ -760,7 +760,7 @@ func (h *Handler) Free(s *[]float64) {
 	h.putFloatsSlice(s)
 }
 
-func getPromQuery(req seriesRequest) string {
+func getPromQuery(req seriesRequest, queryFn bool) string {
 	if len(req.promQL) != 0 {
 		return req.promQL
 	}
@@ -862,15 +862,18 @@ func getPromQuery(req seriesRequest) string {
 		}
 		var s []string
 		s = append(s, fmt.Sprintf("__what__=%q", what))
+		if queryFn {
+			s = append(s, fmt.Sprintf("__fn__=%q", fn))
+		}
 		s = append(s, fmt.Sprintf("__by__=%q", promqlGetBy(req.by)))
 		for t, in := range req.filterIn {
 			for _, v := range in {
-				s = append(s, fmt.Sprintf("%d=%q", format.ParseTagIDForAPI(t), promqlGetFilterValue(t, v)))
+				s = append(s, fmt.Sprintf("%s=%q", promqlGetFilterKey(t), promqlGetFilterValue(t, v)))
 			}
 		}
 		for t, out := range req.filterNotIn {
 			for _, v := range out {
-				s = append(s, fmt.Sprintf("%d!=%q", format.ParseTagIDForAPI(t), promqlGetFilterValue(t, v)))
+				s = append(s, fmt.Sprintf("%s!=%q", promqlGetFilterKey(t), promqlGetFilterValue(t, v)))
 			}
 		}
 		q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
@@ -915,13 +918,22 @@ func promqlGetBy(by []string) string {
 	return strings.Join(by, ",")
 }
 
-func promqlGetFilterValue(tagID string, s string) string {
-	switch {
-	case tagID == format.StringTopTagID && s == format.TagValueCodeZero:
-		return ""
-	default:
-		return s
+func promqlGetFilterKey(tagID string) string {
+	switch tagID {
+	case format.StringTopTagID, format.NewStringTopTagID:
+		return format.NewStringTopTagID
 	}
+	return strconv.Itoa(format.ParseTagIDForAPI(tagID))
+}
+
+func promqlGetFilterValue(tagID string, s string) string {
+	switch tagID {
+	case format.StringTopTagID, format.NewStringTopTagID:
+		if s == format.TagValueCodeZero {
+			return ""
+		}
+	}
+	return s
 }
 
 func promqlEncodeSTagValue(s string) string {
