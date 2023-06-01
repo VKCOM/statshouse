@@ -183,11 +183,11 @@ func (r *Rows) ColumnBlob(i int, buf []byte) ([]byte, error) {
 }
 
 func (r *Rows) ColumnBlobRaw(i int) ([]byte, error) {
-	return r.s.ColumnBlobRaw(i)
+	return r.s.ColumnBlobUnsafe(i)
 }
 
 func (r *Rows) ColumnBlobRawString(i int) (string, error) {
-	return r.s.ColumnBlobRawString(i)
+	return r.s.ColumnBlobUnsafeString(i)
 }
 
 func (r *Rows) ColumnBlobString(i int) (string, error) {
@@ -195,7 +195,7 @@ func (r *Rows) ColumnBlobString(i int) (string, error) {
 }
 
 func (r *Rows) ColumnIsNull(i int) bool {
-	return r.s.ColumnIsNull(i)
+	return r.s.ColumnNull(i)
 }
 
 func (r *Rows) ColumnInt64(i int) (int64, error) {
@@ -298,13 +298,13 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 		case argByte:
 			err = si.stmt.BindBlob(p, arg.b)
 		case argByteConst:
-			err = si.stmt.BindBlobConstUnsafe(p, arg.b)
+			err = si.stmt.BindBlobUnsafe(p, arg.b)
 		case argString:
 			err = si.stmt.BindBlobString(p, arg.s)
 		case argInt64:
 			err = si.stmt.BindInt64(p, arg.n)
 		case argText:
-			err = si.stmt.BindBlobText(p, arg.s)
+			err = si.stmt.BindTextString(p, arg.s)
 		case argFloat64:
 			err = si.stmt.BindFloat64(p, arg.f)
 		case argInt64Slice:
@@ -319,7 +319,7 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 		case argTextSlice:
 			for _, n := range arg.ss {
 				p := si.stmt.ParamBytes(c.c.numParams.nameLocked(start))
-				err = si.stmt.BindBlobText(p, n)
+				err = si.stmt.BindTextString(p, n)
 				if err != nil {
 					return nil, err
 				}

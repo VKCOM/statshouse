@@ -78,18 +78,7 @@ func ensureZeroTermStr(s string) string {
 	return s
 }
 
-func unsafeStringPtr(s string) unsafe.Pointer {
-	return unsafe.Pointer((*reflect.StringHeader)(unsafe.Pointer(&s)).Data)
-}
-
-func unsafeBytesCPtr(s []byte) *C.char {
-	return (*C.char)(unsafe.Pointer(&s[0]))
-}
-
-func unsafeStringCPtr(s string) *C.char {
-	return (*C.char)(unsafeStringPtr(s))
-}
-
+// unsafeSlicePtr always returns a non-nil pointer.
 func unsafeSlicePtr(b []byte) unsafe.Pointer {
 	if b == nil {
 		b = emptyBytes
@@ -97,7 +86,25 @@ func unsafeSlicePtr(b []byte) unsafe.Pointer {
 	return unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data)
 }
 
-func unsafeSlice(p unsafe.Pointer, n int) (b []byte) {
+// unsafeStringPtr always returns a non-nil pointer.
+func unsafeStringPtr(s string) unsafe.Pointer {
+	if s == "" {
+		return unsafeSlicePtr(nil)
+	}
+	return unsafe.Pointer((*reflect.StringHeader)(unsafe.Pointer(&s)).Data)
+}
+
+// unsafeSliceCPtr always returns a non-nil pointer.
+func unsafeSliceCPtr(s []byte) *C.char {
+	return (*C.char)(unsafeSlicePtr(s))
+}
+
+// unsafeStringCPtr always returns a non-nil pointer.
+func unsafeStringCPtr(s string) *C.char {
+	return (*C.char)(unsafeStringPtr(s))
+}
+
+func unsafePtrToSlice(p unsafe.Pointer, n int) (b []byte) {
 	if n > 0 {
 		h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
 		h.Data = uintptr(p)
@@ -107,7 +114,7 @@ func unsafeSlice(p unsafe.Pointer, n int) (b []byte) {
 	return
 }
 
-func unsafeToString(b []byte) (s string) {
+func unsafeSliceToString(b []byte) (s string) {
 	if len(b) > 0 {
 		h := (*reflect.StringHeader)(unsafe.Pointer(&s))
 		h.Data = (*reflect.SliceHeader)(unsafe.Pointer(&b)).Data

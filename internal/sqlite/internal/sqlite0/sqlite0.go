@@ -59,8 +59,6 @@ import (
 	"unsafe"
 )
 
-// TODO: document NULL handling ([]byte(nil) vs []byte{} etc.)
-
 var (
 	initErr error
 )
@@ -195,7 +193,7 @@ func (c *Conn) Prepare(sql []byte, persistent bool) (*Stmt, []byte, error) {
 	var cStmt *C.sqlite3_stmt
 	var cTail *C.char
 	sql = ensureZeroTerm(sql)
-	cSQL := unsafeBytesCPtr(sql)
+	cSQL := unsafeSliceCPtr(sql)
 	rc := C._sqlite3_blocking_prepare_v3(c.conn, c.unlock, cSQL, C.int(len(sql)), flags, &cStmt, &cTail) //nolint:gocritic // nonsense
 	runtime.KeepAlive(sql)
 	if rc != ok {
@@ -260,13 +258,13 @@ func (s *Stmt) Reset() error {
 }
 
 func (s *Stmt) ClearBindings() error { // TODO: use
+	rc := C.sqlite3_clear_bindings(s.stmt)
 	for i := range s.keepAliveStrings {
 		s.keepAliveStrings[i] = ""
 	}
 	for i := range s.keepAliveBytes {
 		s.keepAliveBytes[i] = nil
 	}
-	rc := C.sqlite3_clear_bindings(s.stmt)
 	return sqliteErr(rc, s.conn.conn, "sqlite3_clear_bindings")
 }
 
@@ -278,14 +276,29 @@ func (s *Stmt) ParamBytes(name []byte) int {
 	return s.params[string(name)]
 }
 
-// BindBlob copy slice of bytes
+func (s *Stmt) BindNull(param int) error {
+	rc := C.sqlite3_bind_null(s.stmt, C.int(param))
+	return sqliteErr(rc, s.conn.conn, "sqlite3_bind_null")
+}
+
+func (s *Stmt) BindZeroBlob(param int, n int) error {
+	rc := C.sqlite3_bind_zeroblob(s.stmt, C.int(param), C.int(n))
+	return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob")
+}
+
 func (s *Stmt) BindBlob(param int, v []byte) error {
+	if len(v) == 0 {
+		return s.BindZeroBlob(param, 0) // micro-optimization
+	}
 	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeSlicePtr(v), C.int(len(v)), 1)
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
 }
 
-// BindBlobConstUnsafe don't copy slice of bytes, expecting v is immutable during the query execution
-func (s *Stmt) BindBlobConstUnsafe(param int, v []byte) error {
+// BindBlobUnsafe caller must ensure that v is immutable during query execution.
+func (s *Stmt) BindBlobUnsafe(param int, v []byte) error {
+	if len(v) == 0 {
+		return s.BindZeroBlob(param, 0) // micro-optimization
+	}
 	if s.keepAliveBytes == nil {
 		s.keepAliveBytes = make([][]byte, s.n)
 	}
@@ -295,9 +308,8 @@ func (s *Stmt) BindBlobConstUnsafe(param int, v []byte) error {
 }
 
 func (s *Stmt) BindBlobString(param int, v string) error {
-	if v == "" {
-		rc := C.sqlite3_bind_zeroblob(s.stmt, C.int(param), C.int(0))
-		return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob") // TODO: is this required?
+	if len(v) == 0 {
+		return s.BindZeroBlob(param, 0) // micro-optimization
 	}
 	if s.keepAliveStrings == nil {
 		s.keepAliveStrings = make([]string, s.n)
@@ -307,17 +319,27 @@ func (s *Stmt) BindBlobString(param int, v string) error {
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
 }
 
-func (s *Stmt) BindBlobText(param int, v string) error {
-	if v == "" {
-		rc := C.sqlite3_bind_zeroblob(s.stmt, C.int(param), C.int(0))
-		return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob") // TODO: is this required?
+func (s *Stmt) BindText(param int, v []byte) error {
+	rc := C._sqlite3_bind_text(s.stmt, C.int(param), unsafeSliceCPtr(v), C.int(len(v)), 1)
+	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_text")
+}
+
+// BindTextUnsafe caller must ensure that v is immutable during query execution.
+func (s *Stmt) BindTextUnsafe(param int, v []byte) error {
+	if s.keepAliveBytes == nil {
+		s.keepAliveBytes = make([][]byte, s.n)
 	}
+	s.keepAliveBytes[param-1] = v
+	rc := C._sqlite3_bind_text(s.stmt, C.int(param), unsafeSliceCPtr(v), C.int(len(v)), 0)
+	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_text")
+}
+
+func (s *Stmt) BindTextString(param int, v string) error {
 	if s.keepAliveStrings == nil {
 		s.keepAliveStrings = make([]string, s.n)
 	}
 	s.keepAliveStrings[param-1] = v
-	cstr := (*C.char)(unsafeStringPtr(v))
-	rc := C._sqlite3_bind_text(s.stmt, C.int(param), cstr, C.int(len(v)), 0)
+	rc := C._sqlite3_bind_text(s.stmt, C.int(param), unsafeStringCPtr(v), C.int(len(v)), 0)
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_text")
 }
 
@@ -343,15 +365,7 @@ func (s *Stmt) Step() (bool, error) {
 	}
 }
 
-func (s *Stmt) ColumnBlob(i int, buf []byte) ([]byte, error) {
-	b, err := s.ColumnBlobRaw(i)
-	if err != nil {
-		return nil, err
-	}
-	return append(buf, b...), nil
-}
-
-func (s *Stmt) ColumnBlobRaw(i int) ([]byte, error) {
+func (s *Stmt) ColumnBlobUnsafe(i int) ([]byte, error) {
 	p := C.sqlite3_column_blob(s.stmt, C.int(i))
 	if p == nil {
 		rc := C.sqlite3_errcode(s.conn.conn)
@@ -364,17 +378,22 @@ func (s *Stmt) ColumnBlobRaw(i int) ([]byte, error) {
 	if n == 0 {
 		return nil, nil
 	}
-	return unsafeSlice(p, int(n)), nil
+	return unsafePtrToSlice(p, int(n)), nil
+}
+
+func (s *Stmt) ColumnBlob(i int, buf []byte) ([]byte, error) {
+	b, err := s.ColumnBlobUnsafe(i)
+	return append(buf, b...), err
 }
 
 func (s *Stmt) ColumnBlobString(i int) (string, error) {
-	b, err := s.ColumnBlobRaw(i)
+	b, err := s.ColumnBlobUnsafe(i)
 	return string(b), err
 }
 
-func (s *Stmt) ColumnBlobRawString(i int) (string, error) {
-	b, err := s.ColumnBlobRaw(i)
-	return unsafeToString(b), err
+func (s *Stmt) ColumnBlobUnsafeString(i int) (string, error) {
+	b, err := s.ColumnBlobUnsafe(i)
+	return unsafeSliceToString(b), err
 }
 
 func (s *Stmt) ColumnInt64(i int) (int64, error) {
@@ -387,7 +406,7 @@ func (s *Stmt) ColumnFloat64(i int) (float64, error) {
 	return float64(value), nil
 }
 
-func (s *Stmt) ColumnIsNull(i int) bool {
+func (s *Stmt) ColumnNull(i int) bool {
 	typ := C.sqlite3_column_type(s.stmt, C.int(i))
 	return typ == C.SQLITE_NULL
 }
