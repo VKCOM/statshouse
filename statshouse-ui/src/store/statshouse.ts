@@ -768,7 +768,6 @@ export const statsHouseState: StateCreator<
           ];
 
           const stacked = lastPlotParams.type === PLOT_TYPE.Event ? stackData(data) : undefined;
-
           const usedDashes = {};
           const usedBaseColors = {};
           const baseColors: Record<string, string> = {};
@@ -856,10 +855,6 @@ export const statsHouseState: StateCreator<
                       filter: filterPoints,
                       size: 5,
                     },
-              // paths: uPlot.paths.bars!({
-              //   size: [5, 5, 5],
-              //   align: 1,
-              // }),
               paths,
               values(u, seriesIdx, idx): PlotValues {
                 if (idx === null) {
@@ -974,16 +969,15 @@ export const statsHouseState: StateCreator<
           const legendMaxDotSpaceWidth =
             Math.max(4, (formatLegendValue(maxLengthValue).split('.', 2)[1]?.length ?? 0) + 2) * pxPerChar;
           const legendPercentWidth = (4 + 2) * pxPerChar; // +2 - focus marker
-
           setState((state) => {
+            const noUpdateData = dequal(stacked || data, state.plotsData[index]?.data);
             state.plotsData[index] = {
               nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
               whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as string[]) : [],
               error: '',
-              data: dequal(stacked || data, state.plotsData[index]?.data)
-                ? state.plotsData[index]?.data
-                : stacked || data,
+              data: noUpdateData ? state.plotsData[index]?.data : stacked || data,
               series:
+                noUpdateData &&
                 dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) &&
                 !changeColor &&
                 !changeType
