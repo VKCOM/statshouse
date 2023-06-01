@@ -59,8 +59,6 @@ import (
 	"unsafe"
 )
 
-// TODO: document NULL handling ([]byte(nil) vs []byte{} etc.)
-
 var (
 	initErr error
 )
@@ -289,12 +287,18 @@ func (s *Stmt) BindZeroBlob(param int, n int) error {
 }
 
 func (s *Stmt) BindBlob(param int, v []byte) error {
+	if len(v) == 0 {
+		return s.BindZeroBlob(param, 0) // micro-optimization
+	}
 	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeSlicePtr(v), C.int(len(v)), 1)
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
 }
 
 // BindBlobUnsafe caller must ensure that v is immutable during query execution.
 func (s *Stmt) BindBlobUnsafe(param int, v []byte) error {
+	if len(v) == 0 {
+		return s.BindZeroBlob(param, 0) // micro-optimization
+	}
 	if s.keepAliveBytes == nil {
 		s.keepAliveBytes = make([][]byte, s.n)
 	}
@@ -304,9 +308,8 @@ func (s *Stmt) BindBlobUnsafe(param int, v []byte) error {
 }
 
 func (s *Stmt) BindBlobString(param int, v string) error {
-	if v == "" {
-		rc := C.sqlite3_bind_zeroblob(s.stmt, C.int(param), C.int(0))
-		return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob") // TODO: is this required?
+	if len(v) == 0 {
+		return s.BindZeroBlob(param, 0) // micro-optimization
 	}
 	if s.keepAliveStrings == nil {
 		s.keepAliveStrings = make([]string, s.n)
@@ -316,11 +319,22 @@ func (s *Stmt) BindBlobString(param int, v string) error {
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
 }
 
-func (s *Stmt) BindBlobText(param int, v string) error {
-	if v == "" {
-		rc := C.sqlite3_bind_zeroblob(s.stmt, C.int(param), C.int(0))
-		return sqliteErr(rc, s.conn.conn, "sqlite3_bind_zeroblob") // TODO: is this required?
+func (s *Stmt) BindText(param int, v []byte) error {
+	rc := C._sqlite3_bind_text(s.stmt, C.int(param), unsafeSliceCPtr(v), C.int(len(v)), 1)
+	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_text")
+}
+
+// BindTextUnsafe caller must ensure that v is immutable during query execution.
+func (s *Stmt) BindTextUnsafe(param int, v []byte) error {
+	if s.keepAliveBytes == nil {
+		s.keepAliveBytes = make([][]byte, s.n)
 	}
+	s.keepAliveBytes[param-1] = v
+	rc := C._sqlite3_bind_text(s.stmt, C.int(param), unsafeSliceCPtr(v), C.int(len(v)), 0)
+	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_text")
+}
+
+func (s *Stmt) BindTextString(param int, v string) error {
 	if s.keepAliveStrings == nil {
 		s.keepAliveStrings = make([]string, s.n)
 	}

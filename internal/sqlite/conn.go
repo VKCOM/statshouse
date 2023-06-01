@@ -304,7 +304,7 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 		case argInt64:
 			err = si.stmt.BindInt64(p, arg.n)
 		case argText:
-			err = si.stmt.BindBlobText(p, arg.s)
+			err = si.stmt.BindTextString(p, arg.s)
 		case argFloat64:
 			err = si.stmt.BindFloat64(p, arg.f)
 		case argInt64Slice:
@@ -319,7 +319,7 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 		case argTextSlice:
 			for _, n := range arg.ss {
 				p := si.stmt.ParamBytes(c.c.numParams.nameLocked(start))
-				err = si.stmt.BindBlobText(p, n)
+				err = si.stmt.BindTextString(p, n)
 				if err != nil {
 					return nil, err
 				}
