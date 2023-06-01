@@ -260,13 +260,13 @@ func (s *Stmt) Reset() error {
 }
 
 func (s *Stmt) ClearBindings() error { // TODO: use
+	rc := C.sqlite3_clear_bindings(s.stmt)
 	for i := range s.keepAliveStrings {
 		s.keepAliveStrings[i] = ""
 	}
 	for i := range s.keepAliveBytes {
 		s.keepAliveBytes[i] = nil
 	}
-	rc := C.sqlite3_clear_bindings(s.stmt)
 	return sqliteErr(rc, s.conn.conn, "sqlite3_clear_bindings")
 }
 
