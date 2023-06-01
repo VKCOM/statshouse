@@ -183,11 +183,11 @@ func (r *Rows) ColumnBlob(i int, buf []byte) ([]byte, error) {
 }
 
 func (r *Rows) ColumnBlobRaw(i int) ([]byte, error) {
-	return r.s.ColumnBlobRaw(i)
+	return r.s.ColumnBlobUnsafe(i)
 }
 
 func (r *Rows) ColumnBlobRawString(i int) (string, error) {
-	return r.s.ColumnBlobRawString(i)
+	return r.s.ColumnBlobUnsafeString(i)
 }
 
 func (r *Rows) ColumnBlobString(i int) (string, error) {
@@ -298,7 +298,7 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 		case argByte:
 			err = si.stmt.BindBlob(p, arg.b)
 		case argByteConst:
-			err = si.stmt.BindBlobConstUnsafe(p, arg.b)
+			err = si.stmt.BindBlobUnsafe(p, arg.b)
 		case argString:
 			err = si.stmt.BindBlobString(p, arg.s)
 		case argInt64:

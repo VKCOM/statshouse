@@ -278,14 +278,13 @@ func (s *Stmt) ParamBytes(name []byte) int {
 	return s.params[string(name)]
 }
 
-// BindBlob copy slice of bytes
 func (s *Stmt) BindBlob(param int, v []byte) error {
 	rc := C._sqlite3_bind_blob(s.stmt, C.int(param), unsafeSlicePtr(v), C.int(len(v)), 1)
 	return sqliteErr(rc, s.conn.conn, "_sqlite3_bind_blob")
 }
 
-// BindBlobConstUnsafe don't copy slice of bytes, expecting v is immutable during the query execution
-func (s *Stmt) BindBlobConstUnsafe(param int, v []byte) error {
+// BindBlobUnsafe caller must ensure that v is immutable during query execution.
+func (s *Stmt) BindBlobUnsafe(param int, v []byte) error {
 	if s.keepAliveBytes == nil {
 		s.keepAliveBytes = make([][]byte, s.n)
 	}
@@ -343,14 +342,14 @@ func (s *Stmt) Step() (bool, error) {
 }
 
 func (s *Stmt) ColumnBlob(i int, buf []byte) ([]byte, error) {
-	b, err := s.ColumnBlobRaw(i)
+	b, err := s.ColumnBlobUnsafe(i)
 	if err != nil {
 		return nil, err
 	}
 	return append(buf, b...), nil
 }
 
-func (s *Stmt) ColumnBlobRaw(i int) ([]byte, error) {
+func (s *Stmt) ColumnBlobUnsafe(i int) ([]byte, error) {
 	p := C.sqlite3_column_blob(s.stmt, C.int(i))
 	if p == nil {
 		rc := C.sqlite3_errcode(s.conn.conn)
@@ -367,12 +366,12 @@ func (s *Stmt) ColumnBlobRaw(i int) ([]byte, error) {
 }
 
 func (s *Stmt) ColumnBlobString(i int) (string, error) {
-	b, err := s.ColumnBlobRaw(i)
+	b, err := s.ColumnBlobUnsafe(i)
 	return string(b), err
 }
 
-func (s *Stmt) ColumnBlobRawString(i int) (string, error) {
-	b, err := s.ColumnBlobRaw(i)
+func (s *Stmt) ColumnBlobUnsafeString(i int) (string, error) {
+	b, err := s.ColumnBlobUnsafe(i)
 	return unsafeToString(b), err
 }
 
