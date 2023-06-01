@@ -78,6 +78,7 @@ func ensureZeroTermStr(s string) string {
 	return s
 }
 
+// unsafeSlicePtr always returns a non-nil pointer.
 func unsafeSlicePtr(b []byte) unsafe.Pointer {
 	if b == nil {
 		b = emptyBytes
@@ -85,14 +86,20 @@ func unsafeSlicePtr(b []byte) unsafe.Pointer {
 	return unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data)
 }
 
+// unsafeStringPtr always returns a non-nil pointer.
 func unsafeStringPtr(s string) unsafe.Pointer {
+	if s == "" {
+		return unsafeSlicePtr(nil)
+	}
 	return unsafe.Pointer((*reflect.StringHeader)(unsafe.Pointer(&s)).Data)
 }
 
+// unsafeSliceCPtr always returns a non-nil pointer.
 func unsafeSliceCPtr(s []byte) *C.char {
 	return (*C.char)(unsafeSlicePtr(s))
 }
 
+// unsafeStringCPtr always returns a non-nil pointer.
 func unsafeStringCPtr(s string) *C.char {
 	return (*C.char)(unsafeStringPtr(s))
 }
