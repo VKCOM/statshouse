@@ -2973,6 +2973,8 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	used := map[int]struct{}{}
 	what := make([]queryFn, 0, len(queries))
 	shouldSort := false
+	var chDuration time.Duration = 0
+	var loopDuration time.Duration = 0
 	for qIndex, q := range queries {
 		what = append(what, q.what)
 		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, true)
@@ -2997,6 +2999,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 		}
 
 		for _, lod := range lods {
+			s := time.Now()
 			m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
 				fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, 0, lod.location),
 				toSec:      shiftTimestamp(lod.toSec, lod.stepSec, 0, lod.location),
@@ -3009,7 +3012,8 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 			if err != nil {
 				return nil, false, err
 			}
-
+			chDuration += time.Since(s)
+			s = time.Now()
 			for _, rows := range m {
 				for i := 0; i < len(rows); i++ {
 					var rowRepr RowMarker
@@ -3055,7 +3059,9 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 					queryRows[ix].Data = append(queryRows[ix].Data, data)
 				}
 			}
+			loopDuration += time.Since(s)
 		}
+		s := time.Now()
 		for _, ix := range rowsIdx {
 			if _, ok := used[ix]; ok {
 				delete(used, ix)
@@ -3063,7 +3069,10 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 				queryRows[ix].Data = append(queryRows[ix].Data, math.NaN())
 			}
 		}
+		loopDuration += time.Since(s)
+
 	}
+	s := time.Now()
 
 	if shouldSort {
 		sort.Slice(queryRows, func(i, j int) bool {
@@ -3084,6 +3093,9 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 			return nil, false, err
 		}
 	}
+	loopDuration += time.Since(s)
+	fmt.Println("ch:", chDuration.Seconds())
+	fmt.Println("loop:", loopDuration.Seconds())
 	immutable = to.Before(time.Now().Add(invalidateFrom))
 	return &GetTableResp{
 		Rows:         queryRows,
@@ -3341,6 +3353,7 @@ func replaceInfNan(v *float64) {
 
 func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod lodInfo, ret [][]tsSelectRow, retStartIx int) (int, error) {
 	query, args, err := loadPointsQuery(pq, lod, h.utcOffset)
+	fmt.Println(query)
 	if err != nil {
 		return 0, err
 	}
