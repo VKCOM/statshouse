@@ -7,6 +7,8 @@
 package agent
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"sync"
 	"syscall"
 	"time"
@@ -62,6 +64,7 @@ type (
 		// only used by single shard randomly selected for sending this infp
 		currentJournalVersion     int64
 		currentJournalHash        string
+		currentJournalHashTag     int32
 		currentJournalHashSeconds float64 // for how many seconds currentJournalHash did not change and was not added to metrics. This saves tons of traffic
 
 		HistoricBucketsToSend   []compressedBucketData // Slightly out of order here
@@ -325,22 +328,30 @@ func (s *ShardReplica) addBuiltInsLocked(nowUnix uint32) {
 	// this logic with currentJournalHashSeconds and currentJournalVersion ensures there is exactly 60 samples per minute,
 	// sending is once per minute when no changes, but immediate sending of journal version each second when it changed
 	// standard metrics do not allow this, but heartbeats are magic.
-	writeJournalVersion := func(version int64, hash string, count float64) {
-		key := s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDJournalVersions, [16]int32{0, s.agent.componentTag, 0, 0, 0, int32(version)})
+	writeJournalVersion := func(version int64, hash string, hashTag int32, count float64) {
+		key := s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDJournalVersions, [16]int32{0, s.agent.componentTag, 0, 0, 0, int32(version), hashTag})
 		mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, nil)
 		mi.MapStringTop(hash, count).AddCounterHost(count, 0)
 	}
 	if s.agent.metricStorage != nil { // nil only on ingress proxy for now
 		metricJournalVersion := s.agent.metricStorage.Version()
 		metricJournalHash := s.agent.metricStorage.StateHash()
+
+		metricJournalHashTag := int32(0)
+		metricJournalHashRaw, _ := hex.DecodeString(metricJournalHash)
+		if len(metricJournalHashRaw) >= 4 {
+			metricJournalHashTag = int32(binary.BigEndian.Uint32(metricJournalHashRaw))
+		}
+
 		if metricJournalHash != s.currentJournalHash {
 			if s.currentJournalHashSeconds != 0 {
-				writeJournalVersion(s.currentJournalVersion, s.currentJournalHash, s.currentJournalHashSeconds)
+				writeJournalVersion(s.currentJournalVersion, s.currentJournalHash, s.currentJournalHashTag, s.currentJournalHashSeconds)
 				s.currentJournalHashSeconds = 0
 			}
 			s.currentJournalVersion = metricJournalVersion
 			s.currentJournalHash = metricJournalHash
-			writeJournalVersion(s.currentJournalVersion, s.currentJournalHash, 1)
+			s.currentJournalHashTag = metricJournalHashTag
+			writeJournalVersion(s.currentJournalVersion, s.currentJournalHash, s.currentJournalHashTag, 1)
 		} else {
 			s.currentJournalHashSeconds++
 		}
@@ -366,7 +377,7 @@ func (s *ShardReplica) addBuiltInsLocked(nowUnix uint32) {
 		return
 	}
 	if s.currentJournalHashSeconds != 0 {
-		writeJournalVersion(s.currentJournalVersion, s.currentJournalHash, s.currentJournalHashSeconds)
+		writeJournalVersion(s.currentJournalVersion, s.currentJournalHash, s.currentJournalHashTag, s.currentJournalHashSeconds)
 		s.currentJournalHashSeconds = 0
 	}
 

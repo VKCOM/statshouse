@@ -932,9 +932,11 @@ Set by aggregator.`,
 			PreKeyTagID: "2",
 		},
 		BuiltinMetricIDAutoConfig: {
-			Name:        "__autoconfig",
-			Kind:        MetricKindCounter,
-			Description: "Status of agent get config message, used to configure sharding on agents.\nSet by aggregator.",
+			Name: "__autoconfig",
+			Kind: MetricKindCounter,
+			Description: `Status of agent getConfig RPC message, used to configure sharding on agents.
+Set by aggregator, max host shows actual host of agent who connected.
+Ingress proxies first proxy request (to record host and IP of agent), then replace response with their own addresses.'`,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -975,6 +977,9 @@ Set by aggregator.`,
 			}, {
 				Description: "version",
 				Raw:         true,
+			}, {
+				Description: "journal_hash",
+				RawKind:     "hex",
 			}},
 		},
 		BuiltinMetricIDPromScrapeTime: {
@@ -1420,6 +1425,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAgentDiskCacheErrors:       true,
 		BuiltinMetricIDTimingErrors:               true,
 		BuiltinMetricIDAgentMapping:               true,
+		BuiltinMetricIDAutoConfig:                 true, // also passed through ingress proxies
 		BuiltinMetricIDJournalVersions:            true,
 		BuiltinMetricIDTLByteSizePerInflightType:  true,
 		BuiltinMetricIDIngestionStatus:            true,
