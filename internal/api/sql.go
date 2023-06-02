@@ -40,7 +40,9 @@ type preparedPointsQuery struct {
 	filterIn    map[string][]interface{}
 	filterNotIn map[string][]interface{}
 
+	// for table view requests
 	orderBy bool
+	desc    bool
 }
 
 type tagValuesQueryMeta struct {
@@ -252,16 +254,22 @@ WHERE
 GROUP BY
   _time%s`, commaBy)
 
+	limit := maxSeriesRows
 	if pq.orderBy {
+		limit = maxTableRows
+		desc := ""
+		if pq.desc {
+			desc = " DESC"
+		}
 		query += fmt.Sprintf(`
 ORDER BY
-  _time%s`, commaBy)
+  _time%s%s`, commaBy, desc)
 	}
 	query += fmt.Sprintf(`
 LIMIT %v
 SETTINGS
   optimize_aggregation_in_order = 1
-`, maxSeriesRows)
+`, limit)
 	q, err := util.BindQuery(query, args...)
 	return q, pointsQueryMeta{vals: cnt, tags: pq.by, maxHost: pq.kind != queryFnKindCount, version: pq.version}, err
 }

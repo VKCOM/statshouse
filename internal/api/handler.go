@@ -110,9 +110,11 @@ const (
 	defTagValues  = 100
 	maxTagValues  = 100_000
 	maxSeriesRows = 10_000_000
-	maxTableRows  = 10_000
-	maxTimeShifts = 10
-	maxFunctions  = 10
+	maxTableRows  = 100_000
+
+	maxTableRowsPage = 10_000
+	maxTimeShifts    = 10
+	maxFunctions     = 10
 
 	cacheInvalidateCheckInterval = 1 * time.Second
 	cacheInvalidateCheckTimeout  = 5 * time.Second
@@ -406,11 +408,6 @@ type (
 	cacheInvalidateLogRow struct {
 		T  int64 `ch:"time"` // time of insert
 		At int64 `ch:"key1"` // seconds inserted (changed), which should be invalidated
-	}
-
-	tableRowKey struct {
-		time int64
-		tsTags
 	}
 )
 
@@ -1525,7 +1522,7 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, fromEnd := r.Form[paramFromEnd]
-	var limit int64 = maxTableRows
+	var limit int64 = maxTableRowsPage
 	if limitStr := r.FormValue(ParamNumResults); limitStr != "" {
 		limit, err = strconv.ParseInt(limitStr, 10, 64)
 		if err != nil {
@@ -2962,117 +2959,44 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 		widthKind,
 		h.location,
 	)
+	desiredStepMul := int64(1)
+	if widthKind == widthLODRes {
+		desiredStepMul = int64(width)
+	} else if len(lods) > 0 {
+		desiredStepMul = lods[len(lods)-1].stepSec
+	}
+
+	if req.fromEnd {
+		for i := 0; i < len(lods)/2; i++ {
+			temp := lods[i]
+			j := len(lods) - i - 1
+			lods[i] = lods[j]
+			lods[j] = temp
+		}
+	}
 
 	var sqlQueries []string
 	if debugQueries {
 		ctx = debugQueriesContext(ctx, &sqlQueries)
 	}
-
-	rowsIdx := make(map[tableRowKey]int)
-	queryRows := make([]queryTableRow, 0)
-	used := map[int]struct{}{}
 	what := make([]queryFn, 0, len(queries))
-	shouldSort := false
-	for qIndex, q := range queries {
+	for _, q := range queries {
 		what = append(what, q.what)
-		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, true)
-		pq := &preparedPointsQuery{
-			user:        ai.user,
-			version:     version,
-			metricID:    metricMeta.MetricID,
-			preKeyTagID: metricMeta.PreKeyTagID,
-			isStringTop: isStringTop,
-			kind:        q.whatKind,
-			by:          q.by,
-			filterIn:    mappedFilterIn,
-			filterNotIn: mappedFilterNotIn,
-			orderBy:     true,
-		}
-
-		desiredStepMul := int64(1)
-		if widthKind == widthLODRes {
-			desiredStepMul = int64(width)
-		} else if len(lods) > 0 {
-			desiredStepMul = lods[len(lods)-1].stepSec
-		}
-
-		for _, lod := range lods {
-			m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
-				fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, 0, lod.location),
-				toSec:      shiftTimestamp(lod.toSec, lod.stepSec, 0, lod.location),
-				stepSec:    lod.stepSec,
-				table:      lod.table,
-				hasPreKey:  lod.hasPreKey,
-				preKeyOnly: lod.preKeyOnly,
-				location:   h.location,
-			}, req.avoidCache)
-			if err != nil {
-				return nil, false, err
-			}
-
-			for _, rows := range m {
-				for i := 0; i < len(rows); i++ {
-					var rowRepr RowMarker
-					rowRepr.Time = rows[i].time
-					rowRepr.Tags = rowRepr.Tags[:0]
-					tags := &rows[i].tsTags
-					kvs := make(map[string]SeriesMetaTag, 16)
-					for j := 0; j < format.MaxTags; j++ {
-						tagName := format.TagIDLegacy(j)
-						wasAdded := h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, tagName, tags.tag[j])
-						if wasAdded {
-							rowRepr.Tags = append(rowRepr.Tags, RawTag{
-								Index: j,
-								Value: tags.tag[j],
-							})
-						}
-					}
-					skey := maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
-					rowRepr.SKey = skey
-					data := selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i])
-					key := tableRowKey{
-						time:   rows[i].time,
-						tsTags: rows[i].tsTags,
-					}
-					var ix int
-					var ok bool
-					if ix, ok = rowsIdx[key]; !ok {
-						ix = len(queryRows)
-						rowsIdx[key] = ix
-						queryRows = append(queryRows, queryTableRow{
-							Time:    rows[i].time,
-							Data:    make([]float64, 0, len(queries)),
-							Tags:    kvs,
-							row:     rows[i],
-							rowRepr: rowRepr,
-						})
-						for j := 0; j < qIndex; j++ {
-							queryRows[ix].Data = append(queryRows[ix].Data, math.NaN())
-						}
-						shouldSort = shouldSort || qIndex > 0
-					}
-					used[ix] = struct{}{}
-					queryRows[ix].Data = append(queryRows[ix].Data, data)
-				}
-			}
-		}
-		for _, ix := range rowsIdx {
-			if _, ok := used[ix]; ok {
-				delete(used, ix)
-			} else {
-				queryRows[ix].Data = append(queryRows[ix].Data, math.NaN())
-			}
-		}
 	}
-
-	if shouldSort {
-		sort.Slice(queryRows, func(i, j int) bool {
-			return rowMarkerLessThan(queryRows[i].rowRepr, queryRows[j].rowRepr)
-		})
+	queryRows, hasMore, err := getTableFromLODs(ctx, lods, tableReqParams{
+		req:               req,
+		queries:           queries,
+		user:              ai.user,
+		metricMeta:        metricMeta,
+		isStringTop:       isStringTop,
+		mappedFilterIn:    mappedFilterIn,
+		mappedFilterNotIn: mappedFilterNotIn,
+		desiredStepMul:    desiredStepMul,
+		location:          h.location,
+	}, h.cache.Get, h.maybeAddQuerySeriesTagValue)
+	if err != nil {
+		return nil, false, err
 	}
-
-	var hasMore bool
-	queryRows, hasMore = limitQueries(queryRows, req.fromRow, req.toRow, req.fromEnd, req.limit)
 	var firstRowStr, lastRowStr string
 	if len(queryRows) > 0 {
 		lastRowStr, err = encodeFromRows(&queryRows[len(queryRows)-1].rowRepr)
@@ -3341,6 +3265,7 @@ func replaceInfNan(v *float64) {
 
 func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod lodInfo, ret [][]tsSelectRow, retStartIx int) (int, error) {
 	query, args, err := loadPointsQuery(pq, lod, h.utcOffset)
+	fmt.Println(query)
 	if err != nil {
 		return 0, err
 	}
@@ -3698,34 +3623,4 @@ func getQueryRespEqual(a, b *SeriesResponse) bool {
 		}
 	}
 	return true
-}
-
-func limitQueries(q []queryTableRow, from, to RowMarker, fromEnd bool, limit int) (res []queryTableRow, hasMore bool) {
-	i := 0
-	n := len(q)
-	// result is : _, _, from, i, _, _, _, to/n, _, _
-	if from.Time != 0 {
-		i = sort.Search(len(q), func(i int) bool {
-			return lessThan(from, q[i].row, skeyFromFixedString(&q[i].row.tsTags.tagStr), false)
-		})
-	}
-	if to.Time != 0 {
-		n = sort.Search(len(q), func(i int) bool {
-			return lessThan(to, q[i].row, skeyFromFixedString(&q[i].row.tsTags.tagStr), true)
-		})
-	}
-	left := i
-	right := n
-	if fromEnd {
-		left = n - limit
-		if left < i {
-			left = i
-		}
-	} else {
-		right = i + limit
-		if right > n {
-			right = n
-		}
-	}
-	return q[left:right], left != i || right != n
 }
