@@ -430,6 +430,7 @@ func mainIngressProxy(aesPwd string) int {
 		return 1
 	}
 	argv.configAgent.Cluster = argv.cluster
+	argv.configIngress.Cluster = argv.cluster
 
 	argv.configIngress.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
 	if len(argv.configIngress.ExternalAddresses) != 3 {

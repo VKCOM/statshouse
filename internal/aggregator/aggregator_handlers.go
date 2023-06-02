@@ -212,10 +212,12 @@ func (a *Aggregator) getAgentEnv(isEnvStaging bool) int32 {
 func (a *Aggregator) handleGetConfig2(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetConfig2) (err error) {
 	now := time.Now()
 	host := a.tagsMapper.mapHost(now, []byte(args.Header.HostName), format.BuiltinMetricNameBudgetHost, false)
-	// hack - we pass host through key0, because we can not yet set per metric host
 	agentEnv := a.getAgentEnv(args.Header.IsSetAgentEnvStaging(args.FieldsMask))
 	buildArch := format.FilterBuildArch(args.Header.BuildArch)
-	route := int32(format.TagValueIDRouteDirect) // all config routes are direct
+	route := int32(format.TagValueIDRouteDirect)
+	if args.Header.IsSetIngressProxy(args.FieldsMask) {
+		route = int32(format.TagValueIDRouteIngressProxy)
+	}
 
 	if args.Cluster != a.config.Cluster {
 		key := data_model.AggKey(0, format.BuiltinMetricIDAutoConfig, [16]int32{0, 0, 0, 0, format.TagValueIDAutoConfigWrongCluster}, a.aggregatorHost, a.shardKey, a.replicaKey)
