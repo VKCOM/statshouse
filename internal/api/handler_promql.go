@@ -899,8 +899,16 @@ func getPromQuery(req seriesRequest, queryFn bool) string {
 }
 
 func promqlGetBy(by []string) string {
-	tags := make([]int, format.MaxTags)
+	var (
+		tags = make([]int, format.MaxTags)
+		skey bool
+	)
 	for _, v := range by {
+		switch v {
+		case format.StringTopTagID, format.NewStringTopTagID:
+			skey = true
+			continue
+		}
 		var (
 			i   int
 			err error
@@ -917,6 +925,9 @@ func promqlGetBy(by []string) string {
 		if v > 0 {
 			by = append(by, strconv.Itoa(i))
 		}
+	}
+	if skey {
+		by = append(by, format.NewStringTopTagID)
 	}
 	return strings.Join(by, ",")
 }
