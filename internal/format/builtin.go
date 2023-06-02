@@ -83,7 +83,9 @@ const (
 	BuiltinMetricIDAgentHistoricQueueSizeSum  = -69
 	BuiltinMetricIDAPISourceSelectRows        = -70
 	BuiltinMetricIDSystemMetricScrapeDuration = -71
-	// [-1000..-1200] reversed by host system metrics
+	BuiltinMetricIDMetaServiceTime            = -72
+	BuiltinMetricIDMetaClientWaits            = -73
+	// [-1000..-1200] reserved by host system metrics
 
 	// metric names used in code directly
 	BuiltinMetricNameAggBucketReceiveDelaySec   = "__agg_bucket_receive_delay_sec"
@@ -94,6 +96,8 @@ const (
 	BuiltinMetricNameBadges                     = "__badges"
 	BuiltinMetricNamePromScrapeTime             = "__prom_scrape_time"
 	BuiltinMetricNameAPIRPCServiceTime          = "__api_rpc_service_time"
+	BuiltinMetricNameMetaServiceTime            = "__meta_rpc_service_time"
+	BuiltinMetricNameMetaClientWaits            = "__meta_load_journal_client_waits"
 	BuiltinMetricNameUsageMemory                = "__usage_mem"
 	BuiltinMetricNameUsageCPU                   = "__usage_cpu"
 	BuiltinMetricNameAPIBRS                     = "__api_big_response_storage_size"
@@ -1087,6 +1091,29 @@ Set by aggregator.`,
 				Description: "host",
 			}},
 		},
+		BuiltinMetricIDMetaServiceTime: { // TODO - harmonize
+			Name:        BuiltinMetricNameMetaServiceTime,
+			Kind:        MetricKindValue,
+			Description: "Time to handle RPC query by meta.",
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}, {
+				Description: "method",
+			}, {
+				Description: "query_type",
+			}, {
+				Description: "status",
+			}},
+		},
+		BuiltinMetricIDMetaClientWaits: { // TODO - harmonize
+			Name:        BuiltinMetricNameMetaClientWaits,
+			Kind:        MetricKindValue,
+			Description: "Number of clients waiting journal updates",
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+
 		BuiltinMetricIDAPIBRS: { // TODO - harmonize
 			Name:        BuiltinMetricNameAPIBRS,
 			Kind:        MetricKindValue,
@@ -1385,6 +1412,8 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPISelectBytes:             true,
 		BuiltinMetricIDAPISelectDuration:          true,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
+		BuiltinMetricIDMetaServiceTime:            true,
+		BuiltinMetricIDMetaClientWaits:            true,
 	}
 
 	MetricsWithAgentEnvRouteArch = map[int32]bool{
