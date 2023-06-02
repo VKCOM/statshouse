@@ -21,9 +21,9 @@ type ProxyHandler struct {
 func (h *ProxyHandler) HandleProxy(name string, f RpcMethod) func(ctx context.Context, hctx *rpc.HandlerContext) error {
 	return func(ctx context.Context, hctx *rpc.HandlerContext) error {
 		start := time.Now()
-		status, err := f(ctx, hctx)
+		queryType, err := f(ctx, hctx)
 		duration := time.Since(start)
-		rpcDurationStat(h.Host, name, duration, err, status)
+		rpcDurationStat(h.Host, name, duration, err, queryType)
 		return err
 	}
 }

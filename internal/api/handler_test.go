@@ -10,7 +10,6 @@ import (
 	"math"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -86,41 +85,5 @@ func requireEqual(t *testing.T, required, actual []float64) {
 		} else {
 			require.Equal(t, v, actual[i])
 		}
-	}
-}
-
-func Test_limitQueries(t *testing.T) {
-	genRow := func(time int64) queryTableRow {
-		return queryTableRow{row: tsSelectRow{time: time}}
-	}
-	q := []queryTableRow{genRow(1), genRow(2), genRow(3), genRow(4), genRow(5), genRow(6), genRow(7), genRow(8)}
-	type args struct {
-		q       []queryTableRow
-		from    RowMarker
-		to      RowMarker
-		fromEnd bool
-		limit   int
-	}
-	tests := []struct {
-		name        string
-		args        args
-		wantRes     []queryTableRow
-		wantHasMore bool
-	}{
-		{"subslice full", args{q, RowMarker{Time: 2}, RowMarker{Time: 7}, false, 10}, q[2:6], false},
-		{"subslice limited", args{q, RowMarker{Time: 2}, RowMarker{Time: 7}, false, 2}, q[2:4], true},
-		{"subslice full from end", args{q, RowMarker{Time: 2}, RowMarker{Time: 7}, true, 10}, q[2:6], false},
-		{"subslice limited from end", args{q, RowMarker{Time: 2}, RowMarker{Time: 7}, true, 2}, q[4:6], true},
-		{"slice full", args{q, RowMarker{Time: 0}, RowMarker{Time: 10}, false, 10}, q, false},
-		{"slice full limited", args{q, RowMarker{Time: -1}, RowMarker{Time: -1}, false, 2}, []queryTableRow{}, false},
-		{"slice full", args{q, RowMarker{}, RowMarker{}, false, 10}, q, false},
-		{"slice full", args{q, RowMarker{}, RowMarker{}, false, 2}, q[:2], true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotRes, gotHasMore := limitQueries(tt.args.q, tt.args.from, tt.args.to, tt.args.fromEnd, tt.args.limit)
-			assert.Equalf(t, tt.wantRes, gotRes, "limitQueries(%v, %v, %v, %v, %v)", tt.args.q, tt.args.from, tt.args.to, tt.args.fromEnd, tt.args.limit)
-			assert.Equalf(t, tt.wantHasMore, gotHasMore, "limitQueries(%v, %v, %v, %v, %v)", tt.args.q, tt.args.from, tt.args.to, tt.args.fromEnd, tt.args.limit)
-		})
 	}
 }

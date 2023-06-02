@@ -14,6 +14,7 @@ import (
 
 	"context"
 
+	"github.com/vkcom/statshouse/internal/format"
 	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse-go"
@@ -135,7 +136,7 @@ func (h *Handler) broadcastJournal(sentToAll bool) {
 
 func (h *Handler) initStats() {
 	statshouse.StartRegularMeasurement(func(registry *statshouse.Registry) {
-		registry.AccessMetricRaw(sqlengineLoadJournalWaitQLen, statshouse.RawTags{Tag1: h.host}).Value(float64(h.getJournalLength.Load()))
+		registry.AccessMetricRaw(format.BuiltinMetricNameMetaClientWaits, statshouse.RawTags{Tag1: h.host}).Value(float64(h.getJournalLength.Load()))
 	})
 }
 
