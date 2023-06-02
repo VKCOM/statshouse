@@ -30,6 +30,8 @@ type (
 		// Never change, so do not require protection
 		agent           *Agent
 		ShardReplicaNum int
+		ShardKey        int32
+		ReplicaKey      int32
 		perm            []int
 
 		mu     sync.Mutex
