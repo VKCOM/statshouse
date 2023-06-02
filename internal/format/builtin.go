@@ -85,6 +85,7 @@ const (
 	BuiltinMetricIDSystemMetricScrapeDuration = -71
 	BuiltinMetricIDMetaServiceTime            = -72
 	BuiltinMetricIDMetaClientWaits            = -73
+	BuiltinMetricIDAgentUDPReceiveBufferSize  = -74
 	// [-1000..-1200] reserved by host system metrics
 
 	// metric names used in code directly
@@ -112,6 +113,7 @@ const (
 	BuiltinMetricNameAPIActiveQueries           = "__api_active_queries"
 	BuiltinMetricNameBudgetUnknownMetric        = "__budget_unknown_metric"
 	BuiltinMetricNameSystemMetricScrapeDuration = "__system_metrics_duration"
+	BuiltinMetricNameAgentUDPReceiveBufferSize  = "__src_udp_receive_buffer_size"
 
 	TagValueIDBadgeIngestionErrorsOld  = -11 // remove from API, then stop writing
 	TagValueIDBadgeAggMappingErrorsOld = -33 // remove from API, then stop writing
@@ -852,6 +854,12 @@ Set by either agent or aggregator, depending on status.`,
 				}),
 			}},
 		},
+		BuiltinMetricIDAgentUDPReceiveBufferSize: {
+			Name:        BuiltinMetricNameAgentUDPReceiveBufferSize,
+			Kind:        MetricKindValue,
+			Resolution:  60,
+			Description: "Size in bytes of agent UDP receive buffer.",
+		},
 		BuiltinMetricIDAggMappingCreated: {
 			Name: BuiltinMetricNameAggMappingCreated,
 			Kind: MetricKindValue,
@@ -1448,6 +1456,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDHeartbeatArgs2:             true,
 		BuiltinMetricIDHeartbeatArgs3:             true,
 		BuiltinMetricIDHeartbeatArgs4:             true,
+		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
 	}
 
 	metricsWithoutAggregatorID = map[int32]bool{
@@ -1473,6 +1482,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDBudgetHost:                 true,
 		BuiltinMetricIDBudgetAggregatorHost:       true,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
+		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
 	}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue

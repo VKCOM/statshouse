@@ -294,7 +294,7 @@ func addrIPString(remoteAddr net.Addr) (uint32, string) {
 	}
 }
 
-func (a *Aggregator) agentBeforeFlushBucketFunc(now time.Time) {
+func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
 	nowUnix := uint32(now.Unix())
 	a.mu.Lock()
 	recentSenders := a.recentSenders
