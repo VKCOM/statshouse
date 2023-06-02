@@ -9,8 +9,8 @@ case $1 in
     ;;
 esac
 
-docker compose -f localrun.yml --profile "$PROFILE" up -d --remove-orphans $@ # --build --force-recreate
-trap "{ docker compose --profile $PROFILE down; exit; }" exit
+docker compose -f localrun.yml --profile $PROFILE up -d --remove-orphans $@ # --build --force-recreate
+trap "{ docker compose -f localrun.yml --profile $PROFILE down; exit; }" exit
 echo -n Waiting for services to be ready...
 for c in kh sh; do
   if [ "$(docker container inspect -f '{{.State.Status}}' $c 2>/dev/null)" = "running" ]; then

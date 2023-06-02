@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/stats"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -262,7 +263,10 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		runtime.GOMAXPROCS(argv.maxCores)
 	}
 
-	metricStorage := metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
+	var (
+		receiversUDP  []*receiver.UDP
+		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
+	)
 	sh2, err := agent.MakeAgent("tcp4",
 		argv.cacheDir,
 		aesPwd,
@@ -271,20 +275,20 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		format.TagValueIDComponentAgent,
 		metricStorage,
 		log.Printf,
-		nil,
+		func(a *agent.Agent, t time.Time) {
+			k := data_model.Key{
+				Timestamp: uint32(t.Unix()),
+				Metric:    format.BuiltinMetricIDAgentUDPReceiveBufferSize,
+			}
+			for _, r := range receiversUDP {
+				v := float64(r.ReceiveBufferSize())
+				a.AddValueCounter(k, v, 1, nil)
+			}
+		},
 		nil)
 	if err != nil {
 		logErr.Printf("error creating Agent instance: %v", err)
 		return 1
-	}
-	sh2.Run(0, 0, 0)
-
-	metricStorage.Journal().Start(sh2, nil, sh2.LoadMetaMetricJournal)
-
-	var ac *mapping.AutoCreate
-	if argv.configAgent.AutoCreate {
-		ac = mapping.NewAutoCreate(metricStorage, sh2.AutoCreateMetric)
-		defer ac.Shutdown()
 	}
 
 	var logPackets func(format string, args ...interface{})
@@ -298,6 +302,25 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		logErr.Printf("--log-level should be either 'trace', 'info' or empty (which is synonym for 'info')")
 		return 1
 	}
+	for i := 0; i < argv.coresUDP; i++ {
+		u, err := receiver.ListenUDP(argv.listenAddr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+		if err != nil {
+			logErr.Printf("ListenUDP: %v", err)
+			return 1
+		}
+		defer func() { _ = u.Close() }()
+		receiversUDP = append(receiversUDP, u)
+	}
+	logOk.Printf("Listen UDP addr %q by %d cores", argv.listenAddr, argv.coresUDP)
+	sh2.Run(0, 0, 0)
+	metricStorage.Journal().Start(sh2, nil, sh2.LoadMetaMetricJournal)
+
+	var ac *mapping.AutoCreate
+	if argv.configAgent.AutoCreate {
+		ac = mapping.NewAutoCreate(metricStorage, sh2.AutoCreateMetric)
+		defer ac.Shutdown()
+	}
+
 	w := startWorker(sh2,
 		metricStorage,
 		sh2.LoadOrCreateMapping,
@@ -324,18 +347,6 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			logOk.Printf("Loaded and set %d boostrap mappings", len(mappings))
 		}
 	}
-
-	var receiversUDP []*receiver.UDP
-	for i := 0; i < argv.coresUDP; i++ {
-		u, err := receiver.ListenUDP(argv.listenAddr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
-		if err != nil {
-			logErr.Printf("ListenUDP: %v", err)
-			return 1
-		}
-		defer func() { _ = u.Close() }()
-		receiversUDP = append(receiversUDP, u)
-	}
-	logOk.Printf("Listen UDP addr %q by %d cores", argv.listenAddr, argv.coresUDP)
 
 	for _, u := range receiversUDP {
 		go func(u *receiver.UDP) {
