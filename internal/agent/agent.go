@@ -62,7 +62,7 @@ type Agent struct {
 	AggregatorReplicaKey int32
 	AggregatorHost       int32
 
-	beforeFlushBucketFunc func(now time.Time) // used by aggregator to add built-in metrics
+	beforeFlushBucketFunc func(s *Agent, now time.Time) // used by aggregator to add built-in metrics
 
 	statErrorsDiskWrite             *BuiltInItemValue
 	statErrorsDiskRead              *BuiltInItemValue
@@ -86,7 +86,7 @@ func SpareShardReplica(shardReplica int, timestamp uint32) int {
 
 // All shard aggregators must be on the same network
 func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface, logF func(format string, args ...interface{}),
-	beforeFlushBucketFunc func(now time.Time), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
+	beforeFlushBucketFunc func(s *Agent, now time.Time), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
 	rpcClient := rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF), rpc.ClientWithPongTimeout(data_model.ClientRPCPongTimeout))
 	rnd := rand.New()
 	result := &Agent{
@@ -159,6 +159,8 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			config:          config,
 			agent:           result,
 			ShardReplicaNum: i,
+			ShardKey:        int32(i/3) + 1,
+			ReplicaKey:      int32(i%3) + 1,
 			timeSpreadDelta: commonSpread + time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
 			CurrentTime:     nowUnix,
 			FutureQueue:     make([][]*data_model.MetricsBucket, 60),
@@ -295,7 +297,7 @@ func (s *Agent) goFlusher() {
 		tick := time.After(data_model.TillStartOfNextSecond(now))
 		now = <-tick // We synchronize with calendar second boundary
 		if s.beforeFlushBucketFunc != nil {
-			s.beforeFlushBucketFunc(now)
+			s.beforeFlushBucketFunc(s, now)
 		}
 		for _, shardReplica := range s.ShardReplicas {
 			shardReplica.flushBuckets(now)

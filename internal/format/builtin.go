@@ -85,6 +85,7 @@ const (
 	BuiltinMetricIDSystemMetricScrapeDuration = -71
 	BuiltinMetricIDMetaServiceTime            = -72
 	BuiltinMetricIDMetaClientWaits            = -73
+	BuiltinMetricIDAgentUDPReceiveBufferSize  = -74
 	// [-1000..-1200] reserved by host system metrics
 
 	// metric names used in code directly
@@ -112,6 +113,7 @@ const (
 	BuiltinMetricNameAPIActiveQueries           = "__api_active_queries"
 	BuiltinMetricNameBudgetUnknownMetric        = "__budget_unknown_metric"
 	BuiltinMetricNameSystemMetricScrapeDuration = "__system_metrics_duration"
+	BuiltinMetricNameAgentUDPReceiveBufferSize  = "__src_udp_receive_buffer_size"
 
 	TagValueIDBadgeIngestionErrorsOld  = -11 // remove from API, then stop writing
 	TagValueIDBadgeAggMappingErrorsOld = -33 // remove from API, then stop writing
@@ -852,6 +854,12 @@ Set by either agent or aggregator, depending on status.`,
 				}),
 			}},
 		},
+		BuiltinMetricIDAgentUDPReceiveBufferSize: {
+			Name:        BuiltinMetricNameAgentUDPReceiveBufferSize,
+			Kind:        MetricKindValue,
+			Resolution:  60,
+			Description: "Size in bytes of agent UDP receive buffer.",
+		},
 		BuiltinMetricIDAggMappingCreated: {
 			Name: BuiltinMetricNameAggMappingCreated,
 			Kind: MetricKindValue,
@@ -932,9 +940,11 @@ Set by aggregator.`,
 			PreKeyTagID: "2",
 		},
 		BuiltinMetricIDAutoConfig: {
-			Name:        "__autoconfig",
-			Kind:        MetricKindCounter,
-			Description: "Status of agent get config message, used to configure sharding on agents.\nSet by aggregator.",
+			Name: "__autoconfig",
+			Kind: MetricKindCounter,
+			Description: `Status of agent getConfig RPC message, used to configure sharding on agents.
+Set by aggregator, max host shows actual host of agent who connected.
+Ingress proxies first proxy request (to record host and IP of agent), then replace response with their own addresses.'`,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -975,6 +985,9 @@ Set by aggregator.`,
 			}, {
 				Description: "version",
 				Raw:         true,
+			}, {
+				Description: "journal_hash",
+				RawKind:     "hex",
 			}},
 		},
 		BuiltinMetricIDPromScrapeTime: {
@@ -1420,6 +1433,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAgentDiskCacheErrors:       true,
 		BuiltinMetricIDTimingErrors:               true,
 		BuiltinMetricIDAgentMapping:               true,
+		BuiltinMetricIDAutoConfig:                 true, // also passed through ingress proxies
 		BuiltinMetricIDJournalVersions:            true,
 		BuiltinMetricIDTLByteSizePerInflightType:  true,
 		BuiltinMetricIDIngestionStatus:            true,
@@ -1442,6 +1456,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDHeartbeatArgs2:             true,
 		BuiltinMetricIDHeartbeatArgs3:             true,
 		BuiltinMetricIDHeartbeatArgs4:             true,
+		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
 	}
 
 	metricsWithoutAggregatorID = map[int32]bool{
@@ -1467,6 +1482,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDBudgetHost:                 true,
 		BuiltinMetricIDBudgetAggregatorHost:       true,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
+		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
 	}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue

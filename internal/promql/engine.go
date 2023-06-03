@@ -803,7 +803,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		groupBy = make([]string, 0, len(sel.GroupBy))
 		for _, k := range sel.GroupBy {
 			switch k {
-			case format.StringTopTagID:
+			case format.StringTopTagID, format.NewStringTopTagID:
 				groupBy = append(groupBy, format.StringTopTagID)
 			case LabelShard:
 				groupBy = append(groupBy, format.ShardTagID)
