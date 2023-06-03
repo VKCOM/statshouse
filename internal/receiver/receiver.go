@@ -21,8 +21,6 @@ import (
 	"github.com/vkcom/statshouse/internal/mapping"
 
 	"go.uber.org/atomic"
-
-	"golang.org/x/sys/unix"
 )
 
 const (
@@ -111,13 +109,7 @@ func listenPacket(address string, fn func(int) error) (conn net.PacketConn, err 
 }
 
 func ListenUDP(address string, bufferSize int, reusePort bool, bm *agent.Agent, logPacket func(format string, args ...interface{})) (*UDP, error) {
-	conn, err := listenPacket(address, func(fd int) error {
-		setSocketReceiveBufferSize(fd, bufferSize)
-		if reusePort {
-			return syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, unix.SO_REUSEPORT, 1)
-		}
-		return nil
-	})
+	conn, err := listenPacket(address, setSocket(bufferSize, reusePort))
 	if err != nil {
 		return nil, err
 	}
