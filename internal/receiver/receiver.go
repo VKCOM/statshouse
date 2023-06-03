@@ -70,6 +70,7 @@ type UDP struct {
 	statBatchesTotalErr atomic.Uint64
 
 	conn      *net.UDPConn
+	rawConn   syscall.RawConn
 	logPacket func(format string, args ...interface{})
 
 	ag                   *agent.Agent
@@ -107,7 +108,6 @@ func listenPacket(address string, fn func(int) error) (conn net.PacketConn, err 
 	}}
 	conn, err = cfg.ListenPacket(context.Background(), "udp", address)
 	return conn, err
-
 }
 
 func ListenUDP(address string, bufferSize int, reusePort bool, bm *agent.Agent, logPacket func(format string, args ...interface{})) (*UDP, error) {
@@ -133,8 +133,14 @@ func ListenUDP(address string, bufferSize int, reusePort bool, bm *agent.Agent, 
 	if err != nil {
 		return nil, err
 	}
+	udpConn := conn.(*net.UDPConn)
+	rawConn, err := udpConn.SyscallConn()
+	if err != nil {
+		return nil, err
+	}
 	return &UDP{
-		conn:                  conn.(*net.UDPConn),
+		conn:                  udpConn,
+		rawConn:               rawConn,
 		logPacket:             logPacket,
 		ag:                    bm,
 		batchSizeTLOK:         createBatchSizeValue(bm, format.TagValueIDPacketFormatTL, format.TagValueIDAgentReceiveStatusOK),
@@ -294,12 +300,9 @@ func (u *UDP) StatBatchesTotalErr() uint64 { return u.statBatchesTotalErr.Load()
 func (u *UDP) StatBytesTotal() uint64      { return u.statBytesTotal.Load() }
 
 func (u *UDP) ReceiveBufferSize() int {
-	var (
-		res    int
-		f, err = u.conn.File()
-	)
-	if err == nil {
-		res, _ = syscall.GetsockoptInt(int(f.Fd()), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
-	}
+	res := -1 // Special valuein case of error
+	_ = u.rawConn.Control(func(fd uintptr) {
+		res, _ = syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+	})
 	return res
 }
