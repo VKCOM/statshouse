@@ -39,7 +39,8 @@ func (s *ShardReplica) flushBuckets(now time.Time) {
 	// We send missed seconds if timestamp "jumps", which are converted  by aggregator into contributors for previous seconds
 	// otherwise #contributors will fluctuate. For this reason we also send empty buckets
 	if s.PreprocessingBuckets != nil {
-		// s.client.Client.Logf("Zatup 1 shard %d  bucket.time %d nowUnix %d", s.ShardReplicaNum, s.CurrentBucket.time, nowUnix)
+		// s.client.Client.Logf("Zatup 1 %d replica %d (shard-replica %d) bucket.time %d nowUnix %d",
+		//	s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, s.CurrentBucket.time, nowUnix)
 		s.MissedSeconds = nowUnix - s.CurrentTime
 		// We continue aggregating if processing conveyor is stalled now
 		return
@@ -590,7 +591,8 @@ func (s *ShardReplica) sendToSenders(bucket *data_model.MetricsBucket, missedSec
 	select {
 	case s.BucketsToSend <- compressedBucketDataOnDisk{compressedBucketData: cbd, onDisk: saveSecondsImmediately}:
 	default:
-		// s.client.Client.Logf("Slowdown: Buckets Channel full for shard %d replica %d (shard-replica %d). Moving bucket %d to Historic Conveyor", s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
+		// s.client.Client.Logf("Slowdown: Buckets Channel full for shard %d replica %d (shard-replica %d). Moving bucket %d to Historic Conveyor",
+		// 	s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
 		if !saveSecondsImmediately {
 			s.diskCachePutWithLog(cbd)
 		}
@@ -768,7 +770,7 @@ func (s *ShardReplica) sendHistoric(cbd compressedBucketData, scratchPad *[]byte
 			spare := SpareShardReplica(s.ShardReplicaNum, cbd.time)
 			if !s.agent.ShardReplicas[spare].alive.Load() {
 				time.Sleep(10 * time.Second) // TODO - better idea?
-				s.client.Client.Logf("both historic shards are dead, shard: %d, time %d, %v",
+				s.client.Client.Logf("both historic shards are dead, shard %d replica %d (shard-replica %d), time %d, %v",
 					s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time, err)
 				continue
 			}
@@ -859,7 +861,7 @@ func (s *ShardReplica) popOldestHistoricSecondLocked() compressedBucketData {
 
 func (s *ShardReplica) checkOutOfWindow(nowUnix uint32, timestamp uint32) bool {
 	if nowUnix >= data_model.MaxHistoricWindow && timestamp < nowUnix-data_model.MaxHistoricWindow { // Not bother sending, will receive error anyway
-		s.client.Client.Logf("Send Disaster: Bucket %d for shard %d replica %d (shard-replica %d) replica %d (shard-replica %d) does not fit into full admission window (now is %d), throwing out",
+		s.client.Client.Logf("Send Disaster: Bucket %d for shard %d replica %d (shard-replica %d) does not fit into full admission window (now is %d), throwing out",
 			timestamp, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, nowUnix)
 		s.agent.statLongWindowOverflow.AddValueCounter(float64(nowUnix)-float64(timestamp), 1)
 
