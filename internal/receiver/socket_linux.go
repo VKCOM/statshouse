@@ -6,7 +6,7 @@ import (
 	"syscall"
 )
 
-func setSocket(fd int, bufferSize int) error {
+func setSocketBufferSize(fd int, bufferSize int) {
 	if syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUFFORCE, bufferSize) != nil {
 		if syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_RCVBUF, bufferSize) != nil {
 			// Either we don't have CAP_NET_ADMIN priviledge to set SO_RCVBUFFORCE
@@ -23,5 +23,4 @@ func setSocket(fd int, bufferSize int) error {
 			}
 		}
 	}
-	return nil
 }

@@ -111,7 +111,7 @@ func listenPacket(address string, fn func(int) error) (conn net.PacketConn, err 
 
 func ListenUDP(address string, bufferSize int, reusePort bool, bm *agent.Agent, logPacket func(format string, args ...interface{})) (*UDP, error) {
 	conn, err := listenPacket(address, func(fd int) error {
-		_ = setSocket(fd, bufferSize)
+		setSocketBufferSize(fd, bufferSize)
 		if reusePort {
 			return syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, unix.SO_REUSEPORT, 1)
 		}
