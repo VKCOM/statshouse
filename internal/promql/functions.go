@@ -55,11 +55,23 @@ func simpleAggregate(fn func([]*[]float64, int)) aggregateFunc {
 
 func funcAvg(data []*[]float64, n int) {
 	for j := 0; j < n; j++ {
-		var res float64
+		var (
+			res float64
+			cnt int
+		)
 		for i := 0; i < len(data); i++ {
-			res += (*data[i])[j]
+			v := (*data[i])[j]
+			if math.IsNaN(v) {
+				continue
+			}
+			res += v
+			cnt++
 		}
-		(*data[0])[j] = res / float64(len(data))
+		if cnt != 0 {
+			(*data[0])[j] = res / float64(cnt)
+		} else {
+			(*data[0])[j] = math.NaN()
+		}
 	}
 }
 
@@ -114,11 +126,18 @@ func funcGroup(data []*[]float64, n int) {
 
 func funcMax(data []*[]float64, n int) {
 	for j := 0; j < n; j++ {
-		res := -math.MaxFloat64
+		var (
+			res = math.NaN()
+			nan = true
+		)
 		for _, row := range data {
 			v := (*row)[j]
-			if res < v {
+			if math.IsNaN(v) {
+				continue
+			}
+			if nan || res < v {
 				res = v
+				nan = false
 			}
 		}
 		(*data[0])[j] = res
@@ -127,11 +146,18 @@ func funcMax(data []*[]float64, n int) {
 
 func funcMin(data []*[]float64, n int) {
 	for j := 0; j < n; j++ {
-		res := math.MaxFloat64
+		var (
+			res = math.NaN()
+			nan = true
+		)
 		for _, row := range data {
 			v := (*row)[j]
-			if v < res {
+			if math.IsNaN(v) {
+				continue
+			}
+			if nan || v < res {
 				res = v
+				nan = false
 			}
 		}
 		(*data[0])[j] = res
@@ -211,10 +237,19 @@ func funcStdVar(data []*[]float64, n int) {
 
 func funcSum(data []*[]float64, n int) {
 	for j := 0; j < n; j++ {
-		var res float64
+		var (
+			res = math.NaN()
+			nan = true
+		)
 		for i := 0; i < len(data); i++ {
 			v := (*data[i])[j]
-			if !math.IsNaN(v) {
+			if math.IsNaN(v) {
+				continue
+			}
+			if nan {
+				res = v
+				nan = false
+			} else {
 				res += v
 			}
 		}
