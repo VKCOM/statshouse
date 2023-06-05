@@ -25,7 +25,7 @@
             ]
         },
         {
-            "name": "remote-api",
+            "name": "api remote",
             "type": "go",
             "request": "attach",
             "mode": "remote",
@@ -73,6 +73,26 @@
                 "--buffer-size-udp=524288000",
                 "-u=root",
                 "-g=root",
+            ],
+        },
+        {
+            "name": "aggregator",
+            "type": "go",
+            "request": "launch",
+            "mode": "auto",
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "clear_cache",
+            "program": "${workspaceFolder}/cmd/statshouse/",
+            "buildFlags": "-ldflags '-X github.com/vkcom/statshouse/internal/vkgo/build.trustedSubnetGroups=0.0.0.0/0'",
+            "args": [
+                "aggregator",
+                "--cluster=test_shard_localhost",
+                "--log-level=trace",
+                "--agg-addr=localhost:13336",
+                "--kh=localhost:8123",
+                "--metadata-addr=localhost:2442",
+                "--auto-create",
+                "--cache-dir=target/run/cache/aggregator",
             ],
         },
     ]
