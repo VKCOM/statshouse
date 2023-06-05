@@ -258,13 +258,36 @@ func parseFromTo(fromTS string, toTS string) (from time.Time, to time.Time, err 
 }
 
 func parseFromToRows(fromTS string, toTS string, f, t RowMarker) (from time.Time, to time.Time, err error) {
-	if f.Time != 0 {
-		fromTS = strconv.FormatInt(f.Time, 10)
+	count := 0
+	fromN := f.Time
+	toN := t.Time
+	if f.Time == 0 {
+		fromN, err = strconv.ParseInt(fromTS, 10, 64)
+		if err != nil {
+			return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
+		}
+		count++
 	}
-	if t.Time != 0 {
-		toTS = strconv.FormatInt(t.Time, 10)
+	if t.Time == 0 {
+		toN, err = strconv.ParseInt(toTS, 10, 64)
+		if err != nil {
+			return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
+		}
+		count++
 	}
-	return parseFromTo(fromTS, toTS)
+
+	to, err = parseUnixTimeTo(toN)
+	if err != nil {
+		return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
+	}
+	from, err = parseUnixTimeFrom(fromN, to)
+	if err != nil {
+		return time.Time{}, time.Time{}, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse UNIX timestamp: %w", err))
+	}
+	if (count%2) == 0 && to.Before(from) {
+		err = httpErr(http.StatusBadRequest, fmt.Errorf("%q %v is before %q %v", ParamToTime, to, ParamFromTime, from))
+	}
+	return
 }
 
 func parseUnixTimeFrom(u int64, to time.Time) (time.Time, error) {
