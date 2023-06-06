@@ -4,10 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-export * from '../common/getNextState';
-export * from './store';
-export * from './selectors';
-export * from './dev';
-export * from './metricsList';
-export * from './dashboardList';
-export * from './errors';
+import { ErrorStore, rootErrorChannel } from './errorStore';
+
+export const selectorError = (channel: string = rootErrorChannel, s: ErrorStore): Error[] | undefined =>
+  s.errors[channel];

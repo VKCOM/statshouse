@@ -5,31 +5,19 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  selectorLastError,
-  selectorLoadPromConfig,
-  selectorPromConfig,
-  selectorSavePromConfig,
-  selectorSetLastError,
-  useStore,
-} from '../../store';
+import { selectorLoadPromConfig, selectorPromConfig, selectorSavePromConfig, useStore } from '../../store';
 import { useStateInput } from '../../hooks';
+import { ErrorMessages } from '../../components';
 
 export type PrometheusPageProps = {};
 export const PrometheusPage: React.FC<PrometheusPageProps> = () => {
   const promConfig = useStore(selectorPromConfig);
   const loadPromConfig = useStore(selectorLoadPromConfig);
   const savePromConfig = useStore(selectorSavePromConfig);
-  const globalError = useStore(selectorLastError);
-  const setGlobalError = useStore(selectorSetLastError);
 
   const configInput = useStateInput(promConfig?.config ?? '');
 
   const [loader, setLoader] = useState(false);
-
-  const errorClear = useCallback(() => {
-    setGlobalError('');
-  }, [setGlobalError]);
 
   useEffect(() => {
     setLoader(true);
@@ -52,12 +40,7 @@ export const PrometheusPage: React.FC<PrometheusPageProps> = () => {
 
   return (
     <div className="flex-grow-1 p-2">
-      {!!globalError && (
-        <div className="alert alert-danger d-flex align-items-center justify-content-between pb-2">
-          <small className="overflow-force-wrap font-monospace">{globalError}</small>
-          <button type="button" className="btn-close" aria-label="Close" onClick={errorClear}></button>
-        </div>
-      )}
+      <ErrorMessages />
       <form onSubmit={onSubmit}>
         <div className="mb-2">
           <textarea className="form-control" rows={20} {...configInput}></textarea>
