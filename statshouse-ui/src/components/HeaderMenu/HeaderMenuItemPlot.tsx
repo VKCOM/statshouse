@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -10,15 +10,7 @@ import { useLocation } from 'react-router-dom';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGXSquare } from 'bootstrap-icons/icons/x-square.svg';
 
-import {
-  selectorNumQueriesPlotByIndex,
-  selectorParamsPlotsByIndex,
-  selectorParamsTabNum,
-  selectorPlotsDataByIndex,
-  selectorPreviewsByIndex,
-  selectorRemovePlot,
-  useStore,
-} from '../../store';
+import { Store, useStore } from '../../store';
 import { PlotLink } from '../Plot/PlotLink';
 import { whatToWhatDesc } from '../../view/api';
 
@@ -26,10 +18,21 @@ import cn from 'classnames';
 import css from './style.module.css';
 import { promQLMetric } from '../../view/utils';
 import { PLOT_TYPE } from '../../common/plotQueryParams';
+import { shallow } from 'zustand/shallow';
 
 export type HeaderMenuItemPlotProps = {
   indexPlot: number;
 };
+
+const { removePlot } = useStore.getState();
+const selectorPlotInfoByIndex = (indexPlot: number, { params, previews, numQueriesPlot, plotsData }: Store) => ({
+  plot: params.plots[indexPlot],
+  preview: previews[indexPlot],
+  numQueries: numQueriesPlot[indexPlot],
+  plotData: plotsData[indexPlot],
+  tabNum: params.tabNum,
+  plotCount: params.plots.length,
+});
 
 export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlot }) => {
   const touchToggle = useRef<HTMLAnchorElement>(null);
@@ -37,35 +40,26 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const isView = location.pathname === '/view';
-  const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
-  const plot = useStore(selectorParamsPlot);
-  const selectorPreview = useMemo(() => selectorPreviewsByIndex.bind(undefined, indexPlot), [indexPlot]);
-  const preview = useStore(selectorPreview);
-  const removePlot = useStore(selectorRemovePlot);
-  const selectorNumQueries = useMemo(() => selectorNumQueriesPlotByIndex.bind(undefined, indexPlot), [indexPlot]);
-  const numQueries = useStore(selectorNumQueries);
-  const selectorData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
-  const data = useStore(selectorData);
+  const selectorPlotInfo = useMemo(() => selectorPlotInfoByIndex.bind(undefined, indexPlot), [indexPlot]);
+  const { plot, preview, numQueries, plotData, tabNum, plotCount } = useStore(selectorPlotInfo, shallow);
 
   const onRemovePlot = useCallback(() => {
     removePlot(indexPlot);
-  }, [indexPlot, removePlot]);
-
-  const tabNum = useStore(selectorParamsTabNum);
+  }, [indexPlot]);
 
   const active = useRef(false);
 
   const metricName = useMemo(
-    () => (plot.metricName !== promQLMetric ? plot.metricName : data.nameMetric),
-    [data.nameMetric, plot.metricName]
+    () => (plot.metricName !== promQLMetric ? plot.metricName : plotData.nameMetric),
+    [plotData.nameMetric, plot.metricName]
   );
 
   const what = useMemo(
     () =>
       plot.metricName === promQLMetric
-        ? data.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
+        ? plotData.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
         : plot.what.map((qw) => whatToWhatDesc(qw)).join(', '),
-    [plot.metricName, plot.what, data.whats]
+    [plot.metricName, plot.what, plotData.whats]
   );
 
   const title = useMemo(
@@ -114,16 +108,16 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
       <PlotLink
         className={cn(
           'nav-link',
-          !data.error403 && ['p-0', css.preview],
+          !plotData.error403 && ['p-0', css.preview],
           plot.type === PLOT_TYPE.Event && css.previewEvent
         )}
         indexPlot={indexPlot}
         title={title}
         ref={touchToggle}
       >
-        {!!data.error403 && <SVGXSquare className={css.icon} />}
-        {!!preview && !data.error403 && <img alt={title} src={preview} className="w-100 h-100" />}
-        {(!preview || numQueries > 0) && !data.error403 && !data.error && (
+        {!!plotData.error403 && <SVGXSquare className={css.icon} />}
+        {!!preview && !plotData.error403 && <img alt={title} src={preview} className="w-100 h-100" />}
+        {(!preview || numQueries > 0) && !plotData.error403 && !plotData.error && (
           <div className="position-absolute top-50 start-50 translate-middle show-delay">
             <div className="spinner-white-bg spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
           </div>
@@ -151,11 +145,13 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
               </>
             )}
           </PlotLink>
-          <span role="button" title="Remove" className="d-block p-2 text-body" onClick={onRemovePlot}>
-            <SVGTrash />
-          </span>
+          {plotCount > 1 && (
+            <span role="button" title="Remove" className="d-block p-2 text-body" onClick={onRemovePlot}>
+              <SVGTrash />
+            </span>
+          )}
         </li>
-        {!!preview && !data.error403 && (
+        {!!preview && !plotData.error403 && (
           <li className="nav-item p-1">
             <img alt={title} src={preview} className={css.bigPreview} />
           </li>

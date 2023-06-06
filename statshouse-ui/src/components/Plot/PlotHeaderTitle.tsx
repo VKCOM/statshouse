@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,19 +7,15 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import cn from 'classnames';
 import produce from 'immer';
+import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { promQLMetric } from '../../view/utils';
 import { whatToWhatDesc } from '../../view/api';
-import {
-  selectorDashboardLayoutEdit,
-  selectorParamsPlotsByIndex,
-  selectorPlotsDataByIndex,
-  selectorSetParamsPlots,
-  useStore,
-} from '../../store';
+import { Store, useStore } from '../../store';
 import { PlotLink } from './PlotLink';
 import css from './style.module.css';
 import { TextEditable } from '../TextEditable';
 import { useDebounceState } from '../../hooks';
+import { shallow } from 'zustand/shallow';
 
 const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
@@ -30,35 +26,36 @@ export type PlotHeaderTitleProps = {
   compact?: boolean;
   dashboard?: boolean;
 };
+
+const { removePlot, setPlotParams } = useStore.getState();
+
+const selectorPlotInfoByIndex = (indexPlot: number, { params, plotsData, dashboardLayoutEdit }: Store) => ({
+  plot: params.plots[indexPlot],
+  plotData: plotsData[indexPlot],
+  dashboardLayoutEdit,
+  plotCount: params.plots.length,
+});
+
 export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTitleProps) {
-  const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
-  const params = useStore(selectorParamsPlot);
-  const setParamsPlots = useStore(selectorSetParamsPlots);
-  const setParams = useMemo(() => setParamsPlots.bind(undefined, indexPlot), [indexPlot, setParamsPlots]);
-  const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
-  const plotData = useStore(selectorPlotsData);
-  const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
+  const selectorPlotInfo = useMemo(() => selectorPlotInfoByIndex.bind(undefined, indexPlot), [indexPlot]);
+  const { plot, plotData, dashboardLayoutEdit, plotCount } = useStore(selectorPlotInfo, shallow);
+  const setParams = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
 
   const metricName = useMemo(
-    () => (params.metricName !== promQLMetric ? params.metricName : plotData.nameMetric),
-    [params.metricName, plotData.nameMetric]
+    () => (plot.metricName !== promQLMetric ? plot.metricName : plotData.nameMetric),
+    [plot.metricName, plotData.nameMetric]
   );
   const what = useMemo(
     () =>
-      params.metricName === promQLMetric
+      plot.metricName === promQLMetric
         ? plotData.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
-        : params.what.map((qw) => whatToWhatDesc(qw)).join(', '),
-    [params.metricName, params.what, plotData.whats]
+        : plot.what.map((qw) => whatToWhatDesc(qw)).join(', '),
+    [plot.metricName, plot.what, plotData.whats]
   );
   const metricFullName = useMemo(() => (metricName ? metricName + (what ? ': ' + what : '') : ''), [metricName, what]);
-  const [customName, debounceCustomName, setCustomName] = useDebounceState(params.customName, 200);
+  const [customName, debounceCustomName, setCustomName] = useDebounceState(plot.customName, 200);
   const editCustomName = useCallback(
     (value: string) => {
-      // setParams(
-      //   produce((p) => {
-      //     p.customName = value !== metricFullName ? value : '';
-      //   })
-      // );
       setCustomName(value !== metricFullName ? value : '');
     },
     [metricFullName, setCustomName]
@@ -72,8 +69,8 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
   }, [debounceCustomName, setParams]);
 
   useEffect(() => {
-    setCustomName(params.customName);
-  }, [params.customName, setCustomName]);
+    setCustomName(plot.customName);
+  }, [plot.customName, setCustomName]);
 
   const onInputCustomInput = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,26 +79,41 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
     },
     [editCustomName, metricFullName]
   );
+  const onRemove = useCallback(() => {
+    removePlot(indexPlot);
+  }, [indexPlot]);
 
   if (dashboard && compact) {
     return dashboardLayoutEdit ? (
-      <input
-        type="text"
-        className={cn(css.plotInputName, 'form-control form-control-sm mb-1')}
-        value={customName || metricFullName}
-        placeholder={metricFullName}
-        onPointerDown={stopPropagation}
-        onInput={onInputCustomInput}
-      />
+      <div className="w-100 d-flex flex-row">
+        <input
+          type="text"
+          className={cn(css.plotInputName, 'form-control form-control-sm mb-1 flex-grow-1')}
+          value={customName || metricFullName}
+          placeholder={metricFullName}
+          onPointerDown={stopPropagation}
+          onInput={onInputCustomInput}
+        />
+        {plotCount > 1 && (
+          <button
+            className={cn(css.plotRemoveBtn, 'btn btn-sm mb-1 ms-1 border-0')}
+            title="Remove"
+            onPointerDown={stopPropagation}
+            onClick={onRemove}
+          >
+            <SVGTrash />
+          </button>
+        )}
+      </div>
     ) : (
       <PlotLink
         className="text-secondary text-decoration-none overflow-hidden w-100"
         indexPlot={indexPlot}
         target={dashboard ? '_self' : '_blank'}
       >
-        {params.customName ? (
-          <span className="text-body me-3 text-truncate" title={params.customName}>
-            {params.customName}
+        {plot.customName ? (
+          <span className="text-body me-3 text-truncate" title={plot.customName}>
+            {plot.customName}
           </span>
         ) : (
           <span className="overflow-hidden d-flex flex-row w-100 justify-content-center" title={metricFullName}>
@@ -130,8 +142,8 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
       indexPlot={indexPlot}
       target={dashboard ? '_self' : '_blank'}
     >
-      {params.customName ? (
-        <span className="text-body me-3">{params.customName}</span>
+      {plot.customName ? (
+        <span className="text-body me-3">{plot.customName}</span>
       ) : (
         <>
           <span className="text-body">{metricName}</span>
@@ -147,9 +159,9 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
   ) : (
     <TextEditable
       className="flex-grow-1"
-      defaultValue={params.customName || metricFullName}
+      defaultValue={plot.customName || metricFullName}
       placeholder={
-        params.customName ||
+        plot.customName ||
         (metricName && (
           <>
             <span>{metricName}</span>

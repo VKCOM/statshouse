@@ -819,7 +819,7 @@ export const statsHouseState: StateCreator<
               ? `${meta.name || (lastPlotParams.metricName !== promQLMetric ? lastPlotParams.metricName : '')}: `
               : '';
             const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
-            const baseColor = baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
+            const baseColor = meta.color ?? baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
             baseColors[colorKey] = baseColor;
             if (baseColor !== getState().plotsData[index]?.series[indexMeta]?.stroke) {
               changeColor = true;

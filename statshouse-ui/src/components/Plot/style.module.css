@@ -80,6 +80,11 @@
 .plotInputName {
   pointer-events: auto;
 }
+
+.plotRemoveBtn {
+  pointer-events: auto;
+}
+
 .badge:empty {
   display: none !important;
 }

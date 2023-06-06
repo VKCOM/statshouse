@@ -182,7 +182,12 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
 
         <div className="row mb-3 align-items-baseline">
           <div className="input-group">
-            <textarea className="form-control font-monospace" rows={8} value={promQL} onInput={inputPromQL}></textarea>
+            <textarea
+              className="form-control font-monospace form-control-sm"
+              rows={10}
+              value={promQL}
+              onInput={inputPromQL}
+            ></textarea>
           </div>
           <div className="d-flex flex-row justify-content-end mt-2">
             <button type="button" className="btn btn-outline-primary me-2" title="Reset PromQL" onClick={resetPromQL}>
