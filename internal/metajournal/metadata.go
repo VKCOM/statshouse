@@ -305,17 +305,20 @@ func (l *MetricMetaLoader) SavePromConfig(ctx context.Context, version int64, co
 	return event, nil
 }
 
-func (l *MetricMetaLoader) ResetFlood(ctx context.Context, metricName string) (bool, error) {
+func (l *MetricMetaLoader) ResetFlood(ctx context.Context, metricName string, value int32) (_ bool, before int32, after int32, _ error) {
 	ctx, cancel := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancel()
 	req := tlmetadata.ResetFlood2{
 		Metric: metricName,
 	}
+	if value > 0 {
+		req.SetValue(value)
+	}
 	resp := tlmetadata.ResetFloodResponse2{}
 	err := l.client.ResetFlood2(ctx, req, nil, &resp)
 	// TODO - return budget before and after in a message to UI
 	if err != nil {
-		return false, err
+		return false, resp.BudgetBefore, resp.BudgetAfter, err
 	}
-	return true, err
+	return true, resp.BudgetBefore, resp.BudgetAfter, err
 }

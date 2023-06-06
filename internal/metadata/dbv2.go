@@ -118,12 +118,13 @@ CREATE TABLE IF NOT EXISTS property
 
 const appId = 0x4d5fa5
 const MaxBudget = 1000
-const GlobalBudget = 1000000
+const GlobalBudget = 1_000_000
 const StepSec = 3600
 const BudgetBonus = 10
 const bootstrapFieldName = "bootstrap"
 const metricCountReadLimit int64 = 1000
 const metricBytesReadLimit int64 = 1024 * 1024
+const maxResetLimit = 100_000
 
 var errInvalidMetricVersion = fmt.Errorf("invalid version")
 
@@ -544,12 +545,40 @@ func getMappingByID(conn sqlite.Conn, id int32) (k string, isExists bool, err er
 	return "", false, nil
 }
 
-func (db *DBV2) ResetFlood(ctx context.Context, metric string) error {
-	return db.eng.Do(ctx, "reset_flood", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-		_, err := conn.Exec("delete_flood_limit", "DELETE FROM flood_limits WHERE metric_name = $name",
-			sqlite.BlobString("$name", metric))
+func (db *DBV2) ResetFlood(ctx context.Context, metric string, limit int64) (before int64, after int64, _ error) {
+	err := db.eng.Do(ctx, "reset_flood", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
+		var err error
+		before, err = db.getFreeCount(conn)
+		if err != nil {
+			return cache, err
+		}
+		if limit <= 0 {
+			after = db.maxBudget
+			_, err = conn.Exec("delete_flood_limit", "DELETE FROM flood_limits WHERE metric_name = $name",
+				sqlite.BlobString("$name", metric))
+		} else {
+			after = limit
+			if after > maxResetLimit {
+				after = maxResetLimit
+			}
+			_, err = conn.Exec("insert_flood_limit", "INSERT OR REPLACE INTO flood_limits (last_time_update, count_free, metric_name) VALUES ($t, $c, $name)",
+				sqlite.Int64("$t", db.now().Unix()),
+				sqlite.Int64("$c", after),
+				sqlite.BlobString("$name", metric))
+		}
 		return cache, err
 	})
+	return before, after, err
+}
+
+func (db *DBV2) getFreeCount(conn sqlite.Conn) (actualLimit int64, _ error) {
+	rows := conn.Query("test", "SELECT count_free FROM flood_limits WHERE metric_name = $m", sqlite.BlobString("$m", "abc2"))
+	if rows.Next() {
+		actualLimit, _ = rows.ColumnInt64(0)
+	} else {
+		actualLimit = db.maxBudget
+	}
+	return actualLimit, rows.Error()
 }
 
 func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) (tlmetadata.GetMappingResponseUnion, error) {

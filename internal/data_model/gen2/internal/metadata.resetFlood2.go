@@ -16,26 +16,54 @@ var _ = basictl.NatWrite
 type MetadataResetFlood2 struct {
 	FieldMask uint32
 	Metric    string
+	Value     int32 // Conditional: item.FieldMask.1
 }
 
 func (MetadataResetFlood2) TLName() string { return "metadata.resetFlood2" }
 func (MetadataResetFlood2) TLTag() uint32  { return 0x88d0fd5e }
 
+func (item *MetadataResetFlood2) SetValue(v int32) {
+	item.Value = v
+	item.FieldMask |= 1 << 1
+}
+func (item *MetadataResetFlood2) ClearValue() {
+	item.Value = 0
+	item.FieldMask &^= 1 << 1
+}
+func (item MetadataResetFlood2) IsSetValue() bool { return item.FieldMask&(1<<1) != 0 }
+
 func (item *MetadataResetFlood2) Reset() {
 	item.FieldMask = 0
 	item.Metric = ""
+	item.Value = 0
 }
 
 func (item *MetadataResetFlood2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldMask); err != nil {
 		return w, err
 	}
-	return basictl.StringRead(w, &item.Metric)
+	if w, err = basictl.StringRead(w, &item.Metric); err != nil {
+		return w, err
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		if w, err = basictl.IntRead(w, &item.Value); err != nil {
+			return w, err
+		}
+	} else {
+		item.Value = 0
+	}
+	return w, nil
 }
 
 func (item *MetadataResetFlood2) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
-	return basictl.StringWrite(w, item.Metric)
+	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
+		return w, err
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		w = basictl.IntWrite(w, item.Value)
+	}
+	return w, nil
 }
 
 func (item *MetadataResetFlood2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -120,8 +148,20 @@ func (item *MetadataResetFlood2) readJSON(j interface{}) error {
 	if err := JsonReadString(_jMetric, &item.Metric); err != nil {
 		return err
 	}
+	_jValue := _jm["value"]
+	delete(_jm, "value")
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.resetFlood2", k)
+	}
+	if _jValue != nil {
+		item.FieldMask |= 1 << 1
+	}
+	if _jValue != nil {
+		if err := JsonReadInt32(_jValue, &item.Value); err != nil {
+			return err
+		}
+	} else {
+		item.Value = 0
 	}
 	return nil
 }
@@ -137,6 +177,13 @@ func (item *MetadataResetFlood2) WriteJSON(w []byte) (_ []byte, err error) {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"metric":`...)
 		w = basictl.JSONWriteString(w, item.Metric)
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		if item.Value != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"value":`...)
+			w = basictl.JSONWriteInt32(w, item.Value)
+		}
 	}
 	return append(w, '}'), nil
 }

@@ -1044,7 +1044,16 @@ func (h *Handler) HandlePostResetFlood(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	del, err := h.metadataLoader.ResetFlood(context.Background(), formValueParamMetric(r))
+	var limit int32
+	if v := r.FormValue("limit"); v != "" {
+		i, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err), h.verbose, ai.user, sl)
+			return
+		}
+		limit = int32(i)
+	}
+	del, _, _, err := h.metadataLoader.ResetFlood(r.Context(), formValueParamMetric(r), limit)
 	if err == nil && !del {
 		err = fmt.Errorf("metric flood counter was empty (no flood)")
 	}
@@ -3269,7 +3278,6 @@ func replaceInfNan(v *float64) {
 
 func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod lodInfo, ret [][]tsSelectRow, retStartIx int) (int, error) {
 	query, args, err := loadPointsQuery(pq, lod, h.utcOffset)
-	fmt.Println(query)
 	if err != nil {
 		return 0, err
 	}

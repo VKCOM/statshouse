@@ -19,6 +19,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/sqlite"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
@@ -338,11 +339,34 @@ func TestDB_ResetFlood(t *testing.T) {
 		resp, err := db.GetOrCreateMapping(context.Background(), "abc2", "k5")
 		require.NoError(t, err)
 		require.True(t, resp.IsFloodLimitError())
-		err = db.ResetFlood(context.Background(), "abc2")
+		before, after, err := db.ResetFlood(context.Background(), "abc2", 0)
 		require.NoError(t, err)
+		require.Equal(t, db.maxBudget, after)
+		require.Equal(t, int64(0), before)
 		mapping1, err := unpackGetMappingUnion(db.GetOrCreateMapping(context.Background(), "abc2", "k5"))
 		require.NoError(t, err)
 		require.Greater(t, mapping1, mapping)
+	})
+}
+
+func TestDB_ResetFlood_With_Limit(t *testing.T) {
+	path := t.TempDir()
+	db, _ := initD1b(t, path, "db", true, nil)
+	t.Run("exceed flood limit", func(t *testing.T) {
+		before, after, err := db.ResetFlood(context.Background(), "abc2", 12345)
+		require.NoError(t, err)
+		require.Equal(t, db.maxBudget, before)
+		require.Equal(t, int64(12345), after)
+		var actualLimit int64
+		err = db.eng.Do(context.Background(), "test", func(conn sqlite.Conn, bytes []byte) ([]byte, error) {
+			rows := conn.Query("test", "SELECT count_free FROM flood_limits WHERE metric_name = $m", sqlite.BlobString("$m", "abc2"))
+			if rows.Next() {
+				actualLimit, _ = rows.ColumnInt64(0)
+			}
+			return nil, rows.Error()
+		})
+		require.NoError(t, err)
+		require.Equal(t, int64(12345), actualLimit)
 	})
 }
 
