@@ -317,7 +317,7 @@ func (b *SeriesBag) hashAt(i int, without bool, by []string, h hash.Hash64) (uin
 	buf := make([]byte, 4)
 	for _, k := range tags {
 		t, ok := b.getTagAt(i, k)
-		if !ok || t.ID == LabelFn || t.ID == labelTotal {
+		if !ok || t.ID == LabelFn || t.ID == labelTotal || t.ID == labelOffset {
 			continue
 		}
 		_, err := h.Write([]byte(k))
