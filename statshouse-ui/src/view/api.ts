@@ -44,6 +44,7 @@ export interface querySeriesMeta {
   readonly max_hosts: null | string[];
   readonly what: queryWhat;
   readonly total: number;
+  readonly color: string;
 }
 
 export interface querySeriesMetaTag {
