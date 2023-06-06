@@ -3278,7 +3278,6 @@ func replaceInfNan(v *float64) {
 
 func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod lodInfo, ret [][]tsSelectRow, retStartIx int) (int, error) {
 	query, args, err := loadPointsQuery(pq, lod, h.utcOffset)
-	fmt.Println(query)
 	if err != nil {
 		return 0, err
 	}

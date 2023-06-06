@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"sort"
 	"time"
@@ -74,7 +73,6 @@ func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableR
 			}
 			var rowRepr RowMarker
 			rows, hasMoreValues := limitQueries(m, req.fromRow, req.toRow, req.fromEnd, req.limit-rowsCount)
-			fmt.Println("len:", len(rows))
 			for i := 0; i < len(rows); i++ {
 				rowsCount++
 				rowRepr.Time = rows[i].time
