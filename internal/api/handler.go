@@ -373,6 +373,7 @@ type (
 		Tags      map[string]SeriesMetaTag `json:"tags"`
 		MaxHosts  []string                 `json:"max_hosts"` // max_host for now
 		Name      string                   `json:"name"`
+		Color     string                   `json:"color"`
 		What      queryFn                  `json:"what"`
 		Total     int                      `json:"total"`
 	}
@@ -1707,6 +1708,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	// Format and write the response
+	h.colorize(res)
 	switch {
 	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
 		exportCSV(w, res, qry.metricWithNamespace, sl)
@@ -1815,6 +1817,7 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 	if res != nil {
 		res.PromQL = getPromQuery(qry, false)
 		res.DebugQueries = traces
+		h.colorize(res)
 	}
 	// Format and write the response
 	switch {
@@ -2871,6 +2874,7 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 			seriesNum += len(data.Series.SeriesMeta)
 			pointsNum += len(data.Series.SeriesMeta) * len(data.Series.Time)
 		}
+		h.colorize(data)
 		s[i] = data
 	}
 

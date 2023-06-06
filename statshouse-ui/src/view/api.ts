@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as utils from './utils';
-import { convert, freeKeyPrefix, promQLMetric, uniqueArray } from './utils';
+import { convert, freeKeyPrefix, promQLMetric } from './utils';
 import { TimeRange } from '../common/TimeRange';
 import { Column } from 'react-data-grid';
 import { EventDataRow } from '../store/statshouse';
@@ -16,30 +16,7 @@ import {
   EventFormatterHeaderDefault,
   EventFormatterHeaderTime,
 } from '../components/Plot/EventFormatters';
-
-export interface lockRange {
-  readonly min: number;
-  readonly max: number;
-}
-
-export interface querySelector {
-  readonly metricName: string;
-  readonly customName: string;
-  readonly promQL: string;
-  readonly what: queryWhat[];
-  readonly customAgg: number;
-  readonly groupBy: readonly string[];
-  readonly filterIn: Readonly<Record<string, readonly string[]>>;
-  readonly filterNotIn: Readonly<Record<string, readonly string[]>>;
-  readonly numSeries: number;
-  /**
-   * @deprecated
-   */
-  readonly timeShifts?: readonly number[];
-  readonly useV2: boolean;
-  readonly yLock: lockRange;
-  readonly maxHost: boolean;
-}
+import { uniqueArray } from '../common/helpers';
 
 export interface queryResult {
   readonly series: querySeries;
@@ -75,16 +52,6 @@ export interface querySeriesMetaTag {
   readonly raw?: boolean;
   readonly raw_kind?: RawValueKind;
 }
-
-export type dashboardShortInfo = {
-  id: number;
-  name: string;
-  description: string;
-};
-
-export type GetDashboardListResp = {
-  dashboards: dashboardShortInfo[] | null;
-};
 
 export interface DashboardInfo {
   dashboard: DashboardMeta;
@@ -238,7 +205,7 @@ export type queryWhat =
   | 'dv_unique'
   | 'dv_unique_norm';
 
-export function metricKindToWhat(kind: metricKind): queryWhat[] {
+export function metricKindToWhat(kind?: metricKind): queryWhat[] {
   switch (kind) {
     case 'counter':
       return [
@@ -626,18 +593,6 @@ export function queryTableURL(
   return `/api/table?${strParams}`;
 }
 
-export interface metricsListResult {
-  readonly metrics: readonly metricShortMeta[];
-}
-
-export interface metricShortMeta {
-  readonly name: string;
-}
-
-export function metricsListURL(): string {
-  return '/api/metrics-list';
-}
-
 export function dashboardURL(id?: number): string {
   if (!id) {
     return `/api/dashboard`;
@@ -645,10 +600,6 @@ export function dashboardURL(id?: number): string {
 
   const strParams = new URLSearchParams([[queryDashboardID, id.toString()]]).toString();
   return `/api/dashboard?${strParams}`;
-}
-
-export function dashboardListURL(): string {
-  return '/api/dashboards-list';
 }
 
 export function metricsGroupListURL(): string {
@@ -666,10 +617,6 @@ export function metricsGroupURL(id?: number): string {
 
 export function promConfigURL(): string {
   return '/api/prometheus';
-}
-
-export interface metricResult {
-  readonly metric: metricMeta;
 }
 
 export type metricKind = 'counter' | 'value' | 'value_p' | 'unique' | 'mixed' | 'mixed_p';
@@ -695,20 +642,6 @@ export type RawValueKind =
   | 'lexenc_float'
   | 'float';
 
-export interface metricMeta {
-  readonly name: string;
-  readonly metric_id: number;
-  readonly kind: metricKind;
-  readonly description?: string;
-  readonly tags?: readonly metricTag[];
-  readonly string_top_name?: string;
-  readonly string_top_description?: string;
-  readonly resolution?: number;
-  readonly pre_key_tag_id?: string;
-  readonly pre_key_from?: number;
-  readonly group_id?: number;
-}
-
 export interface metricTag {
   readonly name: string;
   readonly description?: string;
@@ -717,53 +650,9 @@ export interface metricTag {
   readonly raw_kind?: RawValueKind;
 }
 
-export type MetricItem = { name: string; value: string };
-
-export function metricURL(metric: string): string {
-  const params = [[queryParamMetric, metric]];
-
-  const strParams = new URLSearchParams(params).toString();
-  return `/api/metric?${strParams}`;
-}
-
-export interface metricTagValuesResult {
-  readonly tag_values: readonly metricTagValueInfo[];
-  readonly tag_values_more?: boolean;
-  readonly raw_kind?: RawValueKind;
-}
-
 export interface metricTagValueInfo {
   readonly value: string;
   readonly count: number;
-}
-
-export function metricTagValuesURL(
-  numValues: number,
-  useV2: boolean,
-  metric: string,
-  tagID: string,
-  fromTime: number,
-  toTime: number,
-  what: queryWhat[],
-  filterIn: Record<string, readonly string[]>,
-  filterNotIn: Record<string, readonly string[]>
-): string {
-  const to = toTime <= 0 ? utils.now() + toTime : toTime;
-  const from = fromTime <= 0 ? to + fromTime : fromTime;
-  const params = [
-    [queryParamNumResults, numValues.toString()],
-    [queryParamBackendVersion, v2Value(useV2)],
-    [queryParamMetric, metric],
-    [queryParamTagID, tagID],
-    [queryParamFromTime, from.toString()],
-    [queryParamToTime, (to + 1).toString()],
-    // [queryParamWhat, what],
-    ...what.map((qw) => [queryParamWhat, qw.toString()]),
-    ...filterParams(filterIn, filterNotIn),
-  ];
-
-  const strParams = new URLSearchParams(params).toString();
-  return `/api/metric-tag-values?${strParams}`;
 }
 
 export const filterInSep = '-';
@@ -786,6 +675,18 @@ function filterParams(
   );
   const paramsNotIn = Object.entries(filterNotIn).flatMap(([tagID, tagValues]) =>
     tagValues.map((v) => [queryParamFilter, formatFilterNotIn(tagID, v)])
+  );
+  return [...paramsIn, ...paramsNotIn];
+}
+export function filterParamsArr(
+  filterIn: Record<string, readonly string[]>,
+  filterNotIn: Record<string, readonly string[]>
+): string[] {
+  const paramsIn = Object.entries(filterIn).flatMap(([tagID, tagValues]) =>
+    tagValues.map((v) => formatFilterIn(tagID, v))
+  );
+  const paramsNotIn = Object.entries(filterNotIn).flatMap(([tagID, tagValues]) =>
+    tagValues.map((v) => formatFilterNotIn(tagID, v))
   );
   return [...paramsIn, ...paramsNotIn];
 }

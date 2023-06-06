@@ -6,19 +6,15 @@
 
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Dashboard, PlotLayout, PlotView } from '../components';
+import { Dashboard, ErrorMessages, PlotLayout, PlotView } from '../components';
 import { setBackgroundColor } from '../common/canvasToImage';
 import {
   selectorGlobalNumQueriesPlot,
-  selectorLastError,
   selectorLiveMode,
-  selectorLoadMetricsList,
-  selectorMetricsList,
   selectorMetricsMetaByName,
   selectorParams,
   selectorPreviews,
   selectorTimeRange,
-  selectorTitle,
   useStore,
 } from '../store';
 import { now } from './utils';
@@ -32,13 +28,8 @@ const {
   initSetSearchParams,
   setBaseRange,
   setCompact,
-  setLastError,
   loadMetricsMeta,
 } = useStore.getState();
-
-const clearLastError = () => {
-  setLastError('');
-};
 
 export type ViewPageProps = {
   embed?: boolean;
@@ -46,7 +37,6 @@ export type ViewPageProps = {
 };
 export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => {
   const [rawParams, setRawParams] = useSearchParams();
-  const title = useStore(selectorTitle);
   const params = useStore(selectorParams);
   const activePlot: PlotParams | undefined = params.plots[params.tabNum];
   const timeRange = useStore(selectorTimeRange);
@@ -57,10 +47,6 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
 
   const numQueries = useStore(selectorGlobalNumQueriesPlot);
 
-  const metricsOptions = useStore(selectorMetricsList);
-  const loadMetricsList = useStore(selectorLoadMetricsList);
-
-  const lastError = useStore(selectorLastError);
   const plotPreview = plotPreviews[params.tabNum];
 
   const selectorActivePlotMetricsMeta = useMemo(
@@ -76,10 +62,6 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
   useEffect(() => {
     updateParamsByUrl();
   }, [rawParams]);
-
-  useEffect(() => {
-    loadMetricsList();
-  }, [loadMetricsList]);
 
   useEffect(() => {
     if (activePlot?.metricName) {
@@ -105,12 +87,6 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
       link.href = data || '/favicon.ico';
     });
   }, [params.tabNum, plotPreview]);
-
-  useEffect(() => {
-    if (title) {
-      document.title = title;
-    }
-  }, [title]);
 
   const refresh = useCallback(() => {
     if (document.visibilityState === 'visible') {
@@ -145,16 +121,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
   }, [live, refresh, timeRange.relativeFrom]);
 
   if (params.plots.length === 0) {
-    return (
-      <div
-        hidden={!lastError}
-        className="alert alert-danger d-flex align-items-center justify-content-between"
-        role="alert"
-      >
-        <small className="overflow-force-wrap font-monospace">{lastError}</small>
-        <button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
-      </div>
-    );
+    return <ErrorMessages />;
   }
   return (
     <div className="d-flex flex-column flex-md-row">
@@ -166,7 +133,6 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
                 embed={embed}
                 indexPlot={params.tabNum}
                 setParams={setPlotParams}
-                metricsOptions={metricsOptions}
                 sel={activePlot}
                 meta={meta}
                 numQueries={numQueries}

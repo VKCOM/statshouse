@@ -6,20 +6,19 @@
 
 import React, { SetStateAction, useCallback } from 'react';
 import { PlotControls } from './PlotControls';
-import { MetricItem, metricMeta } from '../../view/api';
 import { promQLMetric, timeRangeAbbrev } from '../../view/utils';
 
 import { PlotControlsPromQL } from './PlotControlsPromQL';
 import { PlotParams } from '../../common/plotQueryParams';
 import cn from 'classnames';
 import css from './style.module.css';
+import { MetricMetaValue } from '../../api/metric';
 
 export type PlotLayoutProps = {
   embed?: boolean;
   children: React.ReactNode;
-  meta: metricMeta;
+  meta?: MetricMetaValue;
   indexPlot: number;
-  metricsOptions: MetricItem[];
   sel: PlotParams;
   setParams: (index: number, params: SetStateAction<PlotParams>, forceReplace?: boolean) => void;
   setBaseRange: React.Dispatch<React.SetStateAction<timeRangeAbbrev>>;
@@ -34,7 +33,6 @@ export const PlotLayout: React.FC<PlotLayoutProps> = ({
   setBaseRange,
   setParams,
   meta,
-  metricsOptions,
   numQueries,
 }) => {
   const setSel = useCallback(
@@ -62,18 +60,14 @@ export const PlotLayout: React.FC<PlotLayoutProps> = ({
             setSel={setSel}
             meta={meta}
             numQueries={numQueries}
-            metricsOptions={metricsOptions}
           />
         ) : (
           <PlotControls
             key={indexPlot}
             indexPlot={indexPlot}
             setBaseRange={setBaseRange}
-            sel={sel}
-            setSel={setSel}
             meta={meta}
             numQueries={numQueries}
-            metricsOptions={metricsOptions}
           />
         )}
       </div>

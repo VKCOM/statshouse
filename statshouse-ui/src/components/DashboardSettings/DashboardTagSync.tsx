@@ -17,7 +17,7 @@ import { ReactComponent as SVGX } from 'bootstrap-icons/icons/x.svg';
 import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg';
 import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
 import produce from 'immer';
-import { notNull } from '../../view/utils';
+import { isNotNil } from '../../common/helpers';
 
 const { loadMetricsMeta, setParams, preSync } = useStore.getState();
 
@@ -62,7 +62,7 @@ export const DashboardTagSync: React.FC<DashboardTagSyncProp> = () => {
 
   const onEdit = useCallback(() => {
     setValueSync(tagsSync);
-    if (!tagsSync.filter((g) => g.filter(notNull).length > 0).length) {
+    if (!tagsSync.filter((g) => g.filter(isNotNil).length > 0).length) {
       onSetTagSync(-1, -1, -1, true);
     }
     setEdit(true);
@@ -71,7 +71,7 @@ export const DashboardTagSync: React.FC<DashboardTagSyncProp> = () => {
   const onApply = useCallback(() => {
     setParams(
       produce((params) => {
-        params.tagSync = valueSync.filter((g) => g.filter(notNull).length > 0);
+        params.tagSync = valueSync.filter((g) => g.filter(isNotNil).length > 0);
       })
     );
     setEdit(false);

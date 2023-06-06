@@ -62,7 +62,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
               metricName:
                 typePlot === undefined || typePlot === p.plots[cloneId].type ? p.plots[cloneId].metricName : '',
               customName: '',
-              promQL: '',
+              promQL: p.plots[cloneId].promQL ?? '',
               what: p.plots[cloneId].what.slice(),
               customAgg: p.plots[cloneId].customAgg,
               groupBy: p.plots[cloneId].groupBy.slice(),

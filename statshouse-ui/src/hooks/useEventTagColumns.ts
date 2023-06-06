@@ -1,6 +1,12 @@
+// Copyright 2023 V Kontakte LLC
+//
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import { PlotParams } from '../common/plotQueryParams';
 import { useMemo } from 'react';
-import { ApiTableRowNormalize } from '../api/table';
+import { ApiTableRowNormalize } from '../api/tableOld';
 import { selectorMetricsMetaByName, useStore } from '../store';
 import { getEventTagColumns } from '../view/utils';
 

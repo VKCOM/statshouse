@@ -10,8 +10,7 @@ import { metricTagValueInfo } from '../view/api';
 import { promQLMetric } from '../view/utils';
 import { TimeRange } from '../common/TimeRange';
 import { EventData } from './statshouse';
-
-export const selectorAll = (s: Store) => s;
+import { MetricMetaValue } from '../api/metric';
 
 export const selectorParams = (s: Store) => s.params;
 export const selectorDefaultParams = (s: Store) => s.defaultParams;
@@ -19,15 +18,12 @@ export const selectorParamsPlots = (s: Store) => s.params.plots;
 export const selectorParamsPlotsByIndex = (index: number, s: Store) => s.params.plots[index];
 export const selectorSetParamsPlots = (s: Store) => s.setPlotParams;
 export const selectorRemovePlot = (s: Store) => s.removePlot;
-export const selectorParamsTimeRange = (s: Store) => s.params.timeRange;
+
 export const selectorParamsTimeShifts = (s: Store) => s.params.timeShifts;
 export const selectorParamsTabNum = (s: Store) => s.params.tabNum;
 export const selectorTimeRange = (s: Store) => s.timeRange;
 export const selectorSetTimeRange = (s: Store) => s.setTimeRange;
-export const selectorUpdateParamsByUrl = (s: Store) => s.updateParamsByUrl;
-export const selectorInitSetSearchParams = (s: Store) => s.initSetSearchParams;
 export const selectorSetParams = (s: Store) => s.setParams;
-export const selectorPlotActive = (s: Store) => s.params.plots[Math.max(0, s.params.tabNum)];
 
 export const selectorLiveMode = (s: Store) => s.liveMode;
 export const selectorSetLiveMode = (s: Store) => s.setLiveMode;
@@ -35,49 +31,25 @@ export const selectorSetLiveMode = (s: Store) => s.setLiveMode;
 export const selectorDisabledLive = (s: Store) => !s.params.plots.every(({ useV2 }) => useV2);
 
 export const selectorGlobalNumQueriesPlot = (s: Store) => s.globalNumQueriesPlot;
-export const selectorSetGlobalNumQueriesPlot = (s: Store) => s.setGlobalNumQueriesPlot;
 
-export const selectorNumQueriesPlot = (s: Store) => s.numQueriesPlot;
 export const selectorNumQueriesPlotByIndex = (index: number, s: Store) => s.numQueriesPlot[index] ?? 0;
-export const selectorSetNumQueriesPlot = (s: Store) => s.setNumQueriesPlot;
 
 export const selectorPreviews = (s: Store) => s.previews;
 export const selectorPreviewsByIndex = (index: number, s: Store) => s.previews[index];
-export const selectorSetPreviews = (s: Store) => s.setPreviews;
 
 export const selectorBaseRange = (s: Store) => s.baseRange;
 export const selectorSetBaseRange = (s: Store) => s.setBaseRange;
 
-export const selectorLastError = (s: Store) => s.lastError;
-export const selectorSetLastError = (s: Store) => s.setLastError;
-
-export const selectorCompact = (s: Store) => s.compact;
-export const selectorSetCompact = (s: Store) => s.setCompact;
-
-export const selectorUPlotsWidth = (s: Store) => s.uPlotsWidth;
 export const selectorUPlotsWidthByIndex = (index: number, s: Store) => s.uPlotsWidth[index];
-export const selectorSetUPlotWidth = (s: Store) => s.setUPlotWidth;
-
-export const selectorMetricsList = (s: Store) => s.metricsList;
-export const selectorLoadMetricsList = (s: Store) => s.loadMetricsList;
 
 export const selectorPlotsData = (s: Store) => s.plotsData;
-export const selectorSetPlotShow = (s: Store) => s.setPlotShow;
 export const selectorPlotsDataByIndex = (index: number, s: Store) => s.plotsData[index] ?? {};
-export const selectorPlotLastError = (s: Store) => s.setPlotLastError;
-export const selectorSetYLockChange = (s: Store) => s.setYLockChange;
 
 export const selectorMetricsMeta = (s: Store) => s.metricsMeta;
-export const selectorMetricsMetaByName = (name: string, s: Store) => s.metricsMeta[name] ?? s.metricsMeta[''];
-// export const selectorLoadMetricsMeta = (s: Store) => s.loadMetricsMeta;
-// export const selectorClearMetricsMeta = (s: Store) => s.clearMetricsMeta;
+export const selectorMetricsMetaByName = (name: string, s: Store): MetricMetaValue | undefined => s.metricsMeta[name];
 
 export const selectorParamsTagSync = (s: Store) => s.params.tagSync;
-export const selectorSetTagSync = (s: Store) => s.setTagSync;
-export const selectorSetPlotParamsTag = (s: Store) => s.setPlotParamsTag;
-export const selectorSetPlotParamsTagGroupBy = (s: Store) => s.setPlotParamsTagGroupBy;
 
-export const selectorTagsList = (s: Store) => s.tagsList;
 export const selectorTagsListByPlotAndTag = (indexPlot: number, indexTag: number, s: Store) =>
   s.tagsList[indexPlot]?.[indexTag] ?? [];
 export const selectorTagsListByPlotAndTagAllSync = (
@@ -98,20 +70,14 @@ export const selectorTagsListByPlotAndTagAllSync = (
   return Object.entries(tagsListObj).map(([value, count]) => ({ value, count }));
 };
 
-export const selectorTagsListSKey = (s: Store) => s.tagsListSKey;
 export const selectorTagsListSKeyByPlot = (indexPlot: number, s: Store) => s.tagsListSKey[indexPlot] ?? [];
 export const selectorTagsListAbortControllerByPlotAndTag = (indexPlot: number, indexTag: number, s: Store) =>
-  s.tagsListAbortController[indexPlot]?.[indexTag] ?? null;
+  s.tagsListLoading[indexPlot]?.[indexTag] ?? null;
 export const selectorTagsSKeyListAbortControllerByPlot = (indexPlot: number, s: Store) =>
-  s.tagsListSKeyAbortController[indexPlot] ?? null;
+  s.tagsListSKeyLoading[indexPlot] ?? null;
 export const selectorTagsListMoreByPlotAndTag = (indexPlot: number, indexTag: number, s: Store) =>
   s.tagsListMore[indexPlot]?.[indexTag] ?? false;
 export const selectorTagsSKeyListMoreByPlot = (indexPlot: number, s: Store) => s.tagsListSKeyMore[indexPlot] ?? false;
-export const selectorTagsListAbortController = (s: Store) => s.tagsListAbortController;
-export const selectorTagsListSKeyAbortController = (s: Store) => s.tagsListSKeyAbortController;
-export const selectorSetTagsList = (s: Store) => s.setTagsList;
-export const selectorLoadTagsList = (s: Store) => s.loadTagsList;
-export const selectorPreSync = (s: Store) => s.preSync;
 
 export const selectorTitle = (s: Store) => {
   switch (s.params.tabNum) {
@@ -150,9 +116,6 @@ export const selectorRemoveServerParams = (s: Store) => s.removeServerParams;
 export const selectorIsServer = (s: Store) => s.params.dashboard?.dashboard_id !== undefined;
 export const selectorDashboardId = (s: Store) => s.params.dashboard?.dashboard_id;
 
-export const selectorListServerDashboard = (s: Store) => s.listServerDashboard;
-export const selectorLoadListServerDashboard = (s: Store) => s.loadListServerDashboard;
-
 export const selectorDashboardPlotList = (s: Store) =>
   s.params.plots.map((plot, indexPlot) => ({
     plot,
@@ -190,12 +153,7 @@ export const selectorSetTheme = (s: Store) => s.theme.setTheme;
 
 export const selectorPromqltestfailed = (s: Store) => s.plotsData.map((d) => d.promqltestfailed).some(Boolean);
 
-export const selectorEvents = (s: Store) => s.events;
 export const selectorEventsByIndex = (index: number, s: Store): EventData =>
   s.events[index] ?? { chunks: [], rows: [], what: [], range: new TimeRange(s.params.timeRange) };
-export const selectorEventsTimeWindowByIndex = (index: number, s: Store): TimeRange => {
-  const { range } = s.events[index] ?? { range: new TimeRange(s.params.timeRange) };
-  return range;
-};
 export const selectorLoadEvents = (s: Store) => s.loadEvents;
 export const selectorClearEvents = (s: Store) => s.clearEvents;
