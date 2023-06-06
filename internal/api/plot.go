@@ -245,6 +245,9 @@ func (d *gnuplotTemplateData) Header() string {
 }
 
 func (h *Handler) colorize(resp *SeriesResponse) {
+	if resp == nil {
+		return
+	}
 	var (
 		graphCount       int
 		uniqueWhat       = make(map[queryFn]struct{})
@@ -271,9 +274,9 @@ func (h *Handler) colorize(resp *SeriesResponse) {
 			metricName = meta.Name
 		}
 		if oneGraph {
-			colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, label)
+			colorKey = fmt.Sprintf("%d%s%s", prefColor, metricName, label)
 		} else {
-			colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, baseLabel)
+			colorKey = fmt.Sprintf("%d%s%s", prefColor, metricName, baseLabel)
 		}
 		resp.Series.SeriesMeta[i].Color = selectColor(colorKey, usedColorIndices)
 	}
