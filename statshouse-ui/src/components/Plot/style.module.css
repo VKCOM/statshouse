@@ -121,6 +121,14 @@
   background-color: rgba(var(--bs-secondary-bg-rgb), 0.7);
 }
 
+.bigControl {
+  color: var(--bs-body-color);
+}
+.bigControl:hover {
+  color: var(--bs-secondary-color);
+  background-color: rgba(var(--bs-secondary-bg-rgb), 0.7);
+}
+
 @media screen and (min-width: 768px) {
   .plotTabMenu li:hover ul {
     display: block;
