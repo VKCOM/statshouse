@@ -55,6 +55,17 @@ func (c *sqliteConn) startNewConn(autoSavepoint bool, ctx context.Context, stats
 	return Conn{c, autoSavepoint, ctx, stats, nil}
 }
 
+func (c *sqliteConn) startNewROConn(ctx context.Context, stats *StatsOptions) (Conn, error) {
+	var err error
+	c.mu.Lock()
+	err = c.rw.Exec("BEGIN")
+	if err != nil {
+		c.mu.Unlock()
+		return Conn{}, err
+	}
+	return Conn{c, false, ctx, stats, nil}, nil
+}
+
 func (c *sqliteConn) startNewRWConn(autoSavepoint bool, ctx context.Context, stats *StatsOptions, engine *Engine) Conn {
 	c.mu.Lock()
 	return Conn{c, autoSavepoint, ctx, stats, engine}
@@ -82,6 +93,17 @@ func (c Conn) close(commit func(c Conn) error) error {
 		return commit(c)
 	}
 	return c.c.err
+}
+
+func (c Conn) closeRO() error {
+	defer c.c.mu.Unlock()
+	for stmt := range c.c.used {
+		_ = stmt.Reset()
+		delete(c.c.used, stmt)
+	}
+	c.c.cache.closeTx()
+	err := c.c.rw.Exec(commitStmt)
+	return multierr.Append(c.c.err, err)
 }
 
 func (c Conn) execBeginSavepoint() error {

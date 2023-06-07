@@ -68,7 +68,7 @@ func fillDB(b *testing.B, engine *Engine, table string, n, m int, gen func(i, j 
 
 func queryLoop(b *testing.B, eng *Engine, query func(c Conn, i int) Rows) {
 	for i := 0; i < b.N; i++ {
-		err := eng.Do(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {
+		err := eng.ViewCommitted(context.Background(), "test", func(c Conn) error {
 			rows := query(c, i)
 			if rows.err != nil {
 				b.Fatal(rows.err)
@@ -76,7 +76,7 @@ func queryLoop(b *testing.B, eng *Engine, query func(c Conn, i int) Rows) {
 			if !rows.Next() {
 				b.Fatal("no rows")
 			}
-			return cache, nil
+			return nil
 		})
 		if err != nil {
 			b.Fatal(err)
