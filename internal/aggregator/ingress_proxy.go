@@ -87,21 +87,22 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 		aesPwd:  aesPwd,
 		clients: map[string]*rpc.Client{},
 		// TODO - server settings must be tuned
-		server: rpc.NewServer(rpc.ServerWithCryptoKeys(config.IngressKeys),
-			rpc.ServerWithForceEncryption(true),
-			rpc.ServerWithLogf(log.Printf),
-			rpc.ServerWithDisableContextTimeout(true),
-			rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
-			rpc.ServerWithVersion(build.Info()),
-			rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
-			rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3), // see server settings in aggregator
-			rpc.ServerWithMaxWorkers(128<<10),
-			rpc.ServerWithResponseBufSize(1024),
-			rpc.ServerWithResponseMemEstimate(1024),
-			rpc.ServerWithRequestMemoryLimit(8<<30)), // see server settings in aggregator. We do not multiply here
 		config: config,
 	}
-	proxy.server.RegisterHandlerFunc(proxy.handler)
+	proxy.server = rpc.NewServer(rpc.ServerWithCryptoKeys(config.IngressKeys),
+		rpc.ServerWithHandler(proxy.handler),
+		rpc.ServerWithForceEncryption(true),
+		rpc.ServerWithLogf(log.Printf),
+		rpc.ServerWithDisableContextTimeout(true),
+		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+		rpc.ServerWithVersion(build.Info()),
+		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
+		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3), // see server settings in aggregator
+		rpc.ServerWithMaxWorkers(128<<10),
+		rpc.ServerWithResponseBufSize(1024),
+		rpc.ServerWithResponseMemEstimate(1024),
+		rpc.ServerWithRequestMemoryLimit(8<<30)) // see server settings in aggregator. We do not multiply here
+
 	log.Printf("Running ingress proxy listening %s with %d crypto keys", config.ListenAddr, len(config.IngressKeys))
 	return proxy.server.ListenAndServe("tcp4", config.ListenAddr)
 }

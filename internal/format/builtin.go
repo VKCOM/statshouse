@@ -1285,23 +1285,14 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "tag",
 				RawKind:     "hex",
 				ValueComments: convertToValueComments(map[int32]string{
-					0x3285ff57: "getConfig", // TODO - remove, legacy
-					0x4285ff57: "getConfig2",
-					0x3285ff54: "getMetrics",  // TODO - remove, legacy
-					0x4285ff54: "getMetrics2", // TODO - remove, legacy
-					0x42855554: "getMetrics3",
-					0x3285ff56: "getTagMapping", // TODO - remove, legacy
-					0x4285ff56: "getTagMapping2",
-					0x75a7f68e: "getTagMappingBootstrap",
-					0x51df72a3: "getTargets", // TODO - remove, legacy
-					0x41df72a3: "getTargets2",
-					0x3285ff53: "sendKeepAlive", // TODO - remove, legacy
-					0x4285ff53: "sendKeepAlive2",
-					// int32(0x94575940): "sendSourceBucket", TODO - remove, legacy (will not compile, stupid golang)
-					0x44575940: "sendSourceBucket2",
-					0x3285ff58: "testConnection", // TODO - remove, legacy
-					0x4285ff58: "testConnection2",
-					0x28bea524: "autoCreate", // TODO - remove, legacy
+					0x4285ff57: "statshouse.getConfig2",
+					0x42855554: "statshouse.getMetrics3",
+					0x4285ff56: "statshouse.getTagMapping2",
+					0x75a7f68e: "statshouse.getTagMappingBootstrap",
+					0x41df72a3: "statshouse.getTargets2",
+					0x4285ff53: "statshouse.sendKeepAlive2",
+					0x44575940: "statshouse.sendSourceBucket2",
+					0x4285ff58: "statshouse.testConnection2",
 				}),
 			}, {
 				Description: "status",

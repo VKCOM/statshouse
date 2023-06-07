@@ -8,11 +8,12 @@ package boundedpool
 
 import "sync"
 
+// LIFO, so last used goroutines tend to be used, greatly increasing speed
 type T struct {
 	mu      sync.Mutex
 	cond    sync.Cond
 	closed  bool
-	free    []interface{}
+	free    []any
 	created int
 	create  int
 
@@ -40,7 +41,7 @@ func (t *T) Close() error {
 	return nil
 }
 
-func (t *T) Get() (interface{}, bool) {
+func (t *T) Get() (any, bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -66,7 +67,7 @@ func (t *T) Get() (interface{}, bool) {
 	return nil, true
 }
 
-func (t *T) Put(v interface{}) {
+func (t *T) Put(v any) {
 	t.mu.Lock()
 	t.free = append(t.free, v)
 	t.mu.Unlock() // unlock without defer to try to reduce lock contention

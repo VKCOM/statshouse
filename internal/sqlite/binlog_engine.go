@@ -2,7 +2,6 @@ package sqlite
 
 import (
 	"errors"
-	"fmt"
 	"time"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
@@ -141,6 +140,10 @@ func (impl *binlogEngineReplicaImpl) Revert(toOffset int64) (bool, error) {
 	return false, nil
 }
 
+func (impl *binlogEngineReplicaImpl) StartReindex() error {
+	return nil // TODO - implement
+}
+
 func (impl *binlogEngineReplicaImpl) ChangeRole(info binlog2.ChangeRoleInfo) error {
 	e := impl.e
 	if info.IsReady {
@@ -167,8 +170,4 @@ func (impl *binlogEngineReplicaImpl) skip(skipLen int64) (int64, error) {
 		return binlogUpdateOffset(conn, impl.e.dbOffset)
 	})
 	return offset, err
-}
-
-func (impl *binlogEngineReplicaImpl) StartReindex() error {
-	return fmt.Errorf("not supported")
 }

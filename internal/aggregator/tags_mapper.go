@@ -10,6 +10,7 @@ import (
 	"context"
 	"log"
 	"strconv"
+	"sync"
 	"time"
 
 	"go4.org/mem"
@@ -31,11 +32,14 @@ type TagsMapper struct {
 
 	metricStorage *metajournal.MetricsStorage // check metric exists to prevent mapping budget mining
 
+	mu         sync.Mutex
+	clientList map[*rpc.HandlerContext]*bool // TODO - remove this, make cancellation token in pcache with callback GetOrLoadCallback
+
 	tagValue *pcache.Cache
 }
 
 func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal.MetricsStorage, dc *pcache.DiskCache, a *Aggregator, loader *metajournal.MetricMetaLoader, suffix string) *TagsMapper {
-	ms := &TagsMapper{agg: agg, sh2: sh2, metricStorage: metricStorage}
+	ms := &TagsMapper{agg: agg, sh2: sh2, metricStorage: metricStorage, clientList: map[*rpc.HandlerContext]*bool{}}
 	ms.tagValue = mapping.NewTagsCache(func(ctx context.Context, askedKey string, extra2 interface{}) (pcache.Value, time.Duration, error) {
 		extra, _ := extra2.(format.CreateMappingExtra)
 		metricName := extra.Metric
@@ -75,6 +79,15 @@ func NewTagsMapper(agg *Aggregator, sh2 *agent.Agent, metricStorage *metajournal
 	}, "_a_"+suffix, dc)
 
 	return ms
+}
+
+func (ms *TagsMapper) CancelHijack(hctx *rpc.HandlerContext) {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	if b, ok := ms.clientList[hctx]; ok {
+		*b = false
+		delete(ms.clientList, hctx)
+	}
 }
 
 func (ms *TagsMapper) getTagOr0LoadLater(now time.Time, str []byte, metricName string, shouldWait bool) int32 {
@@ -175,13 +188,23 @@ func (ms *TagsMapper) handleCreateTagMapping(_ context.Context, hctx *rpc.Handle
 		if args.Header.IsSetIngressProxy(args.FieldsMask) {
 			extra.Route = int32(format.TagValueIDRouteIngressProxy)
 		}
+		b := true
+		bb := &b // Stupid but correct implementation. TODO - improve, remove this crap
+		// For example use normal workers pool from rpc.Server
 		r = ms.tagValue.GetOrLoadCallback(now, string(args.Key), extra, func(v pcache.Result) {
-			key.Keys[5] = format.TagValueIDAggMappingStatusOKUncached
-			err := ms.sendCreateTagMappingResult(hctx, args, v, key)
-			hctx.SendHijackedResponse(err)
+			ms.mu.Lock()
+			defer ms.mu.Unlock()
+			if *bb {
+				key.Keys[5] = format.TagValueIDAggMappingStatusOKUncached
+				err := ms.sendCreateTagMappingResult(hctx, args, v, key)
+				hctx.SendHijackedResponse(err)
+			}
 		})
 		if !r.Found() {
-			return hctx.HijackResponse()
+			ms.mu.Lock()
+			defer ms.mu.Unlock()
+			ms.clientList[hctx] = bb
+			return hctx.HijackResponse(ms)
 		}
 	}
 	return ms.sendCreateTagMappingResult(hctx, args, r, key)

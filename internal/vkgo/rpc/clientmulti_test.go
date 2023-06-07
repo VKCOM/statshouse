@@ -16,7 +16,6 @@ import (
 	"sync"
 	"testing"
 
-	"pgregory.net/rand"
 	"pgregory.net/rapid"
 )
 
@@ -29,7 +28,7 @@ func TestRPCMultiRoundtrip(t *testing.T) {
 }
 
 func testRPCMultiRoundtrip(t *rapid.T) {
-	ln, err := net.Listen("tcp4", listenAddr)
+	ln, err := net.Listen("tcp4", "127.0.0.1:")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,10 +61,9 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 			m := c.Multi(numRequests)
 			defer m.Close()
 
-			queryIDToN := map[int64]int64{}
-			requestToRequestBuf := map[int][]byte{}
+			queryIDs := map[int64]struct{}{}
+			queryIDToRequestBuf := map[int64][]byte{}
 
-			rng := rand.New()
 			for j := 0; j < numRequests; j++ {
 				req := c.GetRequest()
 				req.ActorID = uint64(j % 2)
@@ -74,19 +72,19 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 				}
 
 				buf := make([]byte, binary.MaxVarintLen64)
-				n := (int64(j) << 32) | int64(rng.Int31())
-				buf = buf[:binary.PutVarint(buf, n)]
+				queryID := req.QueryID()
+				buf = buf[:binary.PutVarint(buf, queryID)]
 				buf = append(make([]byte, 4), bytes.Repeat(buf, 4)...) // 4 bytes zero request type + hacky way to make sure request size is divisible by 4
 				binary.LittleEndian.PutUint32(buf, requestType)
 				req.Body = append(req.Body, buf...)
 
-				queryID, err := m.Start(context.Background(), "tcp4", ln.Addr().String(), req)
+				err := m.Start(context.Background(), "tcp4", ln.Addr().String(), req)
 				if err != nil {
 					t.Errorf("failed to start request %v: %v", j, err)
 				}
 
-				queryIDToN[queryID] = n
-				requestToRequestBuf[j] = buf
+				queryIDs[queryID] = struct{}{}
+				queryIDToRequestBuf[queryID] = buf
 			}
 
 			for k := 0; k < numRequests; k++ {
@@ -94,7 +92,7 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 				var resp *Response
 				var err error
 				if k%2 == 0 {
-					for qID := range queryIDToN {
+					for qID := range queryIDs {
 						queryID = qID // get the first request ID from the map
 						break
 					}
@@ -103,16 +101,14 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 					queryID, resp, err = m.WaitAny(context.Background())
 				}
 
-				n := queryIDToN[queryID]
-				j := int(n >> 32)
-				buf := requestToRequestBuf[j]
-				delete(requestToRequestBuf, j)
-				delete(queryIDToN, queryID)
+				buf := queryIDToRequestBuf[queryID]
+				delete(queryIDToRequestBuf, queryID)
+				delete(queryIDs, queryID)
 
-				if n%2 != 0 {
+				if queryID%2 != 0 {
 					refErr := Error{
-						Code:        int32(n),
-						Description: strconv.Itoa(int(n)),
+						Code:        int32(queryID),
+						Description: strconv.Itoa(int(queryID)),
 					}
 
 					if !reflect.DeepEqual(err, refErr) {

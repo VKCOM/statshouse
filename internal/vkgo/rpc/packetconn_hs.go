@@ -52,6 +52,9 @@ func (pc *PacketConn) HandshakeClient(cryptoKey string, trustedSubnetGroups [][]
 	if (hs.Flags & flagCRC32C) != 0 {
 		pc.setCRC32C()
 	}
+	if (hs.Flags & flagCancelReq) != 0 {
+		pc.flagCancelReq = true
+	}
 
 	return nil
 }
@@ -76,6 +79,9 @@ func (pc *PacketConn) HandshakeServer(cryptoKeys []string, trustedSubnetGroups [
 
 	if (clientHandshake.Flags & flagCRC32C) != 0 {
 		pc.setCRC32C()
+	}
+	if (clientHandshake.Flags & flagCancelReq) != 0 {
+		pc.flagCancelReq = true
 	}
 	return nil, clientHandshake.Flags, nil
 }
@@ -272,7 +278,7 @@ func (pc *PacketConn) handshakeExchangeServer(body []byte, startTime int32, hand
 		return nil, body, err
 	}
 
-	server := prepareHandshakeServer(client, pc.conn.LocalAddr(), startTime, (client.Flags&flagCRC32C) != 0)
+	server := prepareHandshakeServer(client, pc.conn.LocalAddr(), startTime)
 
 	body = server.writeTo(body[:0])
 	err = pc.WritePacket(packetTypeRPCHandshake, body, handshakeStepTimeout)
@@ -287,7 +293,7 @@ func prepareHandshakeClient(localAddr net.Addr, startTime int32, flags uint32) h
 	ip, _ := extractIPPort(localAddr) // ignore port as client
 
 	return handshakeMsg{
-		Flags: flags | flagCRC32C,
+		Flags: flags | flagCRC32C | flagCancelReq,
 		SenderPID: NetPID{
 			IP:   ip,
 			PID:  processID,
@@ -296,10 +302,13 @@ func prepareHandshakeClient(localAddr net.Addr, startTime int32, flags uint32) h
 	}
 }
 
-func prepareHandshakeServer(client handshakeMsg, localAddr net.Addr, startTime int32, crc32c bool) handshakeMsg {
+func prepareHandshakeServer(client handshakeMsg, localAddr net.Addr, startTime int32) handshakeMsg {
 	flags := uint32(0)
-	if crc32c {
+	if client.Flags&flagCRC32C != 0 {
 		flags |= flagCRC32C
+	}
+	if client.Flags&flagCancelReq != 0 {
+		flags |= flagCancelReq
 	}
 
 	return handshakeMsg{

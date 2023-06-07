@@ -30,8 +30,6 @@ import (
 
 var errDeadMetrics = errors.New("metrics update from storage is dead")
 
-const longPollTimeout = time.Hour // TODO - remove after rpc.Server tells about disconnected hctx-es
-
 type AggLog func(typ string, key0 string, key1 string, key2 string, key3 string, key4 string, key5 string, message string)
 
 type versionClient struct {
@@ -42,11 +40,6 @@ type versionClient struct {
 type journalEventID struct {
 	typ int32
 	id  int64
-}
-
-type MetricsVersionClient3 struct {
-	args tlstatshouse.GetMetrics3 // We remember both field mask to correctly serialize response and version
-	hctx *rpc.HandlerContext
 }
 
 type MetricsStorageLoader func(ctx context.Context, lastVersion int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error)
@@ -72,7 +65,7 @@ type Journal struct {
 	}
 
 	clientsMu              sync.Mutex // Always taken after mu
-	metricsVersionClients3 []MetricsVersionClient3
+	metricsVersionClients3 map[*rpc.HandlerContext]tlstatshouse.GetMetrics3
 
 	versionClientMu sync.Mutex
 	versionClients  []versionClient
@@ -92,27 +85,26 @@ type Journal struct {
 
 func MakeJournal(namespaceSuffix string, dc *pcache.DiskCache, applyEvent ApplyEvent) *Journal {
 	result := &Journal{
-		dc:             dc,
-		namespace:      data_model.JournalDiskNamespace + namespaceSuffix,
-		applyEvent:     applyEvent,
-		lastUpdateTime: time.Now(),
+		dc:                     dc,
+		namespace:              data_model.JournalDiskNamespace + namespaceSuffix,
+		applyEvent:             applyEvent,
+		metricsVersionClients3: map[*rpc.HandlerContext]tlstatshouse.GetMetrics3{},
+		lastUpdateTime:         time.Now(),
 	}
 	result.parseDiscCache()
 	return result
+}
+
+func (ms *Journal) CancelHijack(hctx *rpc.HandlerContext) {
+	ms.clientsMu.Lock()
+	defer ms.clientsMu.Unlock()
+	delete(ms.metricsVersionClients3, hctx)
 }
 
 func (ms *Journal) Start(sh2 *agent.Agent, aggLog AggLog, metaLoader MetricsStorageLoader) {
 	ms.metaLoader = metaLoader
 	ms.sh2 = sh2
 	go ms.goUpdateMetrics(aggLog)
-	go func() {
-		// long poll termination loop
-		for {
-			<-time.After(longPollTimeout)
-			ms.broadcastJournalRPC(true)
-			ms.broadcastJournalVersionClient()
-		}
-	}()
 }
 
 func (ms *Journal) Version() int64 {
@@ -395,38 +387,36 @@ func (ms *Journal) getJournalDiffLocked3(verNumb int64) tlmetadata.GetJournalRes
 }
 
 func (ms *Journal) broadcastJournal() {
-	ms.broadcastJournalRPC(false)
+	ms.broadcastJournalRPC()
 	ms.broadcastJournalVersionClient()
 }
 
-func (ms *Journal) broadcastJournalRPC(sendToAll bool) {
+func (ms *Journal) broadcastJournalRPC() {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
 	// TODO - most clients wait with the same version, remember response bytes in local map
-	keepPos := 0
-	for _, c := range ms.metricsVersionClients3 {
+	for hctx, args := range ms.metricsVersionClients3 {
 		if ms.metricsDead {
-			c.hctx.SendHijackedResponse(errDeadMetrics)
+			delete(ms.metricsVersionClients3, hctx)
+			hctx.SendHijackedResponse(errDeadMetrics)
 			continue
 		}
-		result := ms.getJournalDiffLocked3(c.args.From)
-		if len(result.Events) == 0 && !sendToAll { // still waiting, copy to start of array
-			ms.metricsVersionClients3[keepPos] = c
-			keepPos++
+		result := ms.getJournalDiffLocked3(args.From)
+		if len(result.Events) == 0 {
 			continue
 		}
+		delete(ms.metricsVersionClients3, hctx)
 		var err error
-		c.hctx.Response, err = c.args.WriteResult(c.hctx.Response, result)
+		hctx.Response, err = args.WriteResult(hctx.Response, result)
 		if err != nil {
 			ms.builtinAddValue(&ms.BuiltinLongPollDelayedError, 0)
 		} else {
 			ms.builtinAddValue(&ms.BuiltinLongPollDelayedOK, float64(len(result.Events)))
 		}
-		c.hctx.SendHijackedResponse(err)
+		hctx.SendHijackedResponse(err)
 	}
-	ms.metricsVersionClients3 = ms.metricsVersionClients3[:keepPos]
 }
 
 func (ms *Journal) broadcastJournalVersionClient() {
@@ -467,9 +457,9 @@ func (ms *Journal) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext
 	}
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
-	ms.metricsVersionClients3 = append(ms.metricsVersionClients3, MetricsVersionClient3{args: args, hctx: hctx})
+	ms.metricsVersionClients3[hctx] = args
 	ms.builtinAddValue(&ms.BuiltinLongPollEnqueue, 1)
-	return hctx.HijackResponse()
+	return hctx.HijackResponse(ms)
 }
 
 func (j *journalEventID) key() string {

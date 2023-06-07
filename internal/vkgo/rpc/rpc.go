@@ -12,17 +12,17 @@ import (
 )
 
 const (
-	flagCRC32C = uint32(0x00000800)
+	flagCRC32C    = uint32(0x00000800) // #define RPC_CRYPTO_USE_CRC32C         0x00000800
+	flagCancelReq = uint32(0x00001000) // #define RPC_CRYPTO_RPC_CANCEL_REQ     0x00001000
+	FlagP2PHijack = uint32(0x40000000) // #define RPC_CRYPTO_P2P_HIJACK         0x40000000
 
-	FlagHijackTransport = uint32(0xDB000000) // Experimental, use same port for RPC and custom transport over PacketConn
-
-	packetTypeRPCNonce     = uint32(0x7acb87aa)
-	packetTypeRPCHandshake = uint32(0x7682eef5)
-	packetTypeRPCPing      = uint32(0x5730a2df)
-	packetTypeRPCPong      = uint32(0x8430eaa7)
-	packetTypeRPCInvokeReq = uint32(0x2374df3d)
-	packetTypeRPCReqResult = uint32(0x63aeda4e)
-	packetTypeRPCReqError  = uint32(0x7ae432f5)
+	packetTypeRPCNonce          = uint32(0x7acb87aa)
+	packetTypeRPCHandshake      = uint32(0x7682eef5)
+	packetTypeRPCInvokeReq      = uint32(0x2374df3d)
+	packetTypeRPCReqResult      = uint32(0x63aeda4e)
+	packetTypeRPCReqError       = uint32(0x7ae432f5)
+	packetTypeRPCCancelReq      = uint32(0x193f1b22)
+	packetTypeRPCServerWantsFin = uint32(0xa8ddbc46)
 
 	destActorTag      = uint32(0x7568aabd) // copy of vktl.MagicTlRpcDestActor
 	destFlagsTag      = uint32(0xe352035e) // copy of vktl.MagicTlRpcDestFlags
@@ -39,10 +39,12 @@ const (
 	goPProfTag            = uint32(0xea2876a6) // copy of vktl.MagicTlGoPprof
 
 	// rpc-error-codes.h
-	tlErrorNoHandler = -2000 // TL_ERROR_UNKNOWN_FUNCTION_ID
-	tlErrorTimeout   = -3000 // TL_ERROR_QUERY_TIMEOUT
-	tlErrorInternal  = -3003 // TL_ERROR_INTERNAL
-	tlErrorUnknown   = -4000 // TL_ERROR_UNKNOWN
+	TLErrorSyntax        = -1000 // TL_ERROR_SYNTAX
+	TlErrorNoHandler     = -2000 // TL_ERROR_UNKNOWN_FUNCTION_ID
+	TlErrorTimeout       = -3000 // TL_ERROR_QUERY_TIMEOUT
+	TLErrorNoConnections = -3002 // TL_ERROR_NO_CONNECTIONS
+	TlErrorInternal      = -3003 // TL_ERROR_INTERNAL
+	TlErrorUnknown       = -4000 // TL_ERROR_UNKNOWN
 
 	clientPingInterval       = 5 * time.Second
 	DefaultClientPongTimeout = 10 * time.Second
@@ -58,7 +60,7 @@ const (
 )
 
 // NoopLogf is a do-nothing log function
-func NoopLogf(string, ...interface{}) {}
+func NoopLogf(string, ...any) {}
 
 type Error struct {
 	Code        int32
@@ -97,4 +99,9 @@ func humanByteCountIEC(b int64) string {
 	}
 	return fmt.Sprintf("%.1f %ciB",
 		float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// rpc-error-codes.h
+func IsUserError(errCode int32) bool {
+	return errCode > -3000 && errCode <= -1000
 }

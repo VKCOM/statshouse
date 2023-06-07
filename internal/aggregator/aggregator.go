@@ -51,16 +51,16 @@ type (
 		time   uint32
 		shards [data_model.AggregationShardsPerSecond]aggregatorShard
 
-		contributors         []*rpc.HandlerContext // protected by aggregator mutex
-		contributorsOriginal data_model.ItemValue  // Not recorded for keep-alive, protected by aggregator mutex
-		contributorsSpare    data_model.ItemValue  // Not recorded for keep-alive, protected by aggregator mutex
+		contributors         map[*rpc.HandlerContext]struct{} // Protected by mu, can be removed if client disconnects
+		contributorsOriginal data_model.ItemValue             // Not recorded for keep-alive, protected by aggregator mutex
+		contributorsSpare    data_model.ItemValue             // Not recorded for keep-alive, protected by aggregator mutex
 
 		usedMetrics map[int32]struct{}
 		mu          sync.Mutex // Protects everything, except shards
 
 		sendMu sync.RWMutex // Used to wait for all aggregating clients to finish before sending
 
-		contributorsSimulatedErrors []*rpc.HandlerContext // put into most future bucket, so receive error after >7 seconds
+		contributorsSimulatedErrors map[*rpc.HandlerContext]struct{} // put into most future bucket, so receive error after >7 seconds
 	}
 	Aggregator struct {
 		recentBuckets   []*aggregatorBucket          // We collect into several buckets before sending
@@ -103,6 +103,13 @@ type (
 		data_model.ItemValue
 	}
 )
+
+func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	delete(b.contributors, hctx)
+	delete(b.contributorsSimulatedErrors, hctx)
+}
 
 func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, aesPwd string, config ConfigAggregator, hostName string, logTrace bool) error {
 	if dc == nil { // TODO - make sure aggregator works without cache dir?
@@ -157,19 +164,8 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	}
 
 	a := &Aggregator{
-		bucketsToSend:   make(chan *aggregatorBucket),
-		historicBuckets: map[uint32]*aggregatorBucket{},
-		server: rpc.NewServer(rpc.ServerWithCryptoKeys([]string{aesPwd}),
-			rpc.ServerWithLogf(log.Printf),
-			rpc.ServerWithMaxWorkers(-1),
-			rpc.ServerWithDisableContextTimeout(true),
-			rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
-			rpc.ServerWithVersion(build.Info()),
-			rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
-			rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3), // *3 is additional load for spares, when original aggregator is down
-			rpc.ServerWithResponseBufSize(1024),
-			rpc.ServerWithResponseMemEstimate(1024),
-			rpc.ServerWithRequestMemoryLimit(2<<30)),
+		bucketsToSend:               make(chan *aggregatorBucket),
+		historicBuckets:             map[uint32]*aggregatorBucket{},
 		config:                      config,
 		hostName:                    format.ForceValidStringValue(hostName), // worse alternative is do not run at all
 		withoutCluster:              withoutCluster,
@@ -179,6 +175,19 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		addresses:                   addresses,
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
 	}
+	a.server = rpc.NewServer(rpc.ServerWithCryptoKeys([]string{aesPwd}),
+		rpc.ServerWithLogf(log.Printf),
+		rpc.ServerWithMaxWorkers(-1),
+		rpc.ServerWithSyncHandler(a.handleClient),
+		rpc.ServerWithDisableContextTimeout(true),
+		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
+		rpc.ServerWithVersion(build.Info()),
+		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
+		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3), // *3 is additional load for spares, when original aggregator is down
+		rpc.ServerWithResponseBufSize(1024),
+		rpc.ServerWithResponseMemEstimate(1024),
+		rpc.ServerWithRequestMemoryLimit(2<<30))
+
 	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	log.Println("starting prom updater")
 	a.promUpdater, err = prometheus.RunPromUpdaterAsync(hostName, logTrace)
@@ -206,7 +215,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	a.aggregatorHost = a.tagsMapper.mapTagAtStartup(a.hostName, format.BuiltinMetricNameBudgetAggregatorHost)
 
 	a.estimator.Init(config.CardinalityWindow, a.config.MaxCardinality/len(addresses))
-	a.server.RegisterHandlerFunc(a.handleClient)
+
 	now := time.Now()
 	a.startTimestamp = uint32(now.Unix())
 	_ = a.advanceRecentBuckets(now, true) // Just create initial set of buckets and set LastHour
@@ -463,8 +472,8 @@ func (a *Aggregator) goSend(senderID int) {
 		bodyStorage = a.RowDataMarshalAppendPositions(aggBucket, rnd, bodyStorage[:0], false)
 		aggBucketsSizes = append(aggBucketsSizes, len(bodyStorage))
 
-		recentContributors := len(aggBucket.contributors)
-		historicContributors := 0
+		recentContributors := aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter
+		historicContributors := 0.0
 		maxHistoricInsertBatch := data_model.MaxHistorySendStreams / (1 + a.config.HistoricInserters)
 		// each historic inserter takes not more than maxHistoricInsertBatch the oldest buckets, so for example with 2 inserters
 		// [a, b, c, d, e, f]               <- this is 6 seconds sent by agent and waiting in historicBuckets to be inserted
@@ -484,14 +493,14 @@ func (a *Aggregator) goSend(senderID int) {
 				break
 			}
 			prevSize := len(bodyStorage)
-			historicContributors += len(historicBucket.contributors)
+			historicContributors += historicBucket.contributorsOriginal.Counter + historicBucket.contributorsSpare.Counter
 
 			aggBuckets = append(aggBuckets, historicBucket)
 			a.estimator.ReportHourCardinality(historicBucket.time, historicBucket.usedMetrics, &historicBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
 			bodyStorage = a.RowDataMarshalAppendPositions(historicBucket, rnd, bodyStorage, true)
 			aggBucketsSizes = append(aggBucketsSizes, len(bodyStorage)-prevSize)
 
-			if historicContributors+recentContributors/2 > recentContributors*data_model.MaxHistoryInsertContributorsScale {
+			if historicContributors > (recentContributors-0.5)*data_model.MaxHistoryInsertContributorsScale {
 				// We cannot compare buckets by size, because we can have very little data now, while waiting historic buckets are large
 				// But number of contributors is more or less stable, so comparison is valid.
 				// As # of contributors fluctuates, we want to stop when # of historic contributors overshoot 3.5
@@ -508,10 +517,11 @@ func (a *Aggregator) goSend(senderID int) {
 		} else {
 			a.recentSenders--
 		}
+		numContributors := int(aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter)
 		a.mu.Unlock()
 
 		if sendErr != nil {
-			comment := fmt.Sprintf("time=%d (delta = %d), contributors %d Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), len(aggBucket.contributors), senderID)
+			comment := fmt.Sprintf("time=%d (delta = %d), contributors %d Sender %d", aggBucket.time, int64(nowUnix)-int64(aggBucket.time), numContributors, senderID)
 			a.appendInternalLog("insert_error", "", strconv.Itoa(status), strconv.Itoa(exception), "statshouse_value_incoming_arg_min_max", "", comment, sendErr.Error())
 			log.Print(sendErr)
 			sendErr = rpc.Error{
@@ -522,10 +532,15 @@ func (a *Aggregator) goSend(senderID int) {
 
 		var args tlstatshouse.SendSourceBucket2 // Dummy
 		for i, b := range aggBuckets {
-			for _, c := range b.contributors {
-				c.Response, _ = args.WriteResult(c.Response, "Dummy historic result")
-				c.SendHijackedResponse(sendErr)
+			b.mu.Lock()
+			for hctx := range b.contributors {
+				hctx.Response, _ = args.WriteResult(hctx.Response, "Dummy historic result")
+				hctx.SendHijackedResponse(sendErr)
 			}
+			for hctx := range b.contributors { // compiles into map_clear
+				delete(b.contributors, hctx)
+			}
+			b.mu.Unlock()
 			// format.BuiltinMetricIDAggInsertSize was added during each bucket marshal
 			a.sh2.AddValueCounterHost(a.reportInsertKeys(b.time, format.BuiltinMetricIDAggInsertTime, i != 0, sendErr, status, exception), dur, 1, 0)
 		}
@@ -534,9 +549,14 @@ func (a *Aggregator) goSend(senderID int) {
 		a.sh2.AddValueCounterHost(a.reportInsertKeys(aggBucket.time, format.BuiltinMetricIDAggInsertTimeReal, willInsertHistoric, sendErr, status, exception), dur, 1, 0)
 
 		sendErr = fmt.Errorf("simulated error")
-		for _, c := range aggBucket.contributorsSimulatedErrors {
-			c.SendHijackedResponse(sendErr)
+		aggBucket.mu.Lock()
+		for hctx := range aggBucket.contributorsSimulatedErrors {
+			hctx.SendHijackedResponse(sendErr)
 		}
+		for hctx := range aggBucket.contributorsSimulatedErrors { // compiles into map_clear
+			delete(aggBucket.contributorsSimulatedErrors, hctx)
+		}
+		aggBucket.mu.Unlock()
 	}
 }
 
@@ -580,13 +600,17 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 	}
 	if len(a.recentBuckets) == 0 { // Jumped into future, also initial state
 		b := &aggregatorBucket{
-			time: nowUnix - uint32(a.config.ShortWindow),
+			time:                        nowUnix - uint32(a.config.ShortWindow),
+			contributors:                map[*rpc.HandlerContext]struct{}{},
+			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
 	for len(a.recentBuckets) < a.config.ShortWindow+data_model.FutureWindow {
 		b := &aggregatorBucket{
-			time: a.recentBuckets[0].time + uint32(len(a.recentBuckets)),
+			time:                        a.recentBuckets[0].time + uint32(len(a.recentBuckets)),
+			contributors:                map[*rpc.HandlerContext]struct{}{},
+			contributorsSimulatedErrors: map[*rpc.HandlerContext]struct{}{},
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
@@ -605,18 +629,24 @@ func (a *Aggregator) goTicker() {
 		now = <-tick // We synchronize with calendar second boundary
 
 		readyBuckets := a.advanceRecentBuckets(now, false)
-		for _, r := range readyBuckets {
-			r.sendMu.Lock()   // Lock/Unlock waits all clients to finish aggregation
-			r.sendMu.Unlock() //lint:ignore SA2001 empty critical section
+		for _, aggBucket := range readyBuckets {
+			aggBucket.sendMu.Lock()   // Lock/Unlock waits all clients to finish aggregation
+			aggBucket.sendMu.Unlock() //lint:ignore SA2001 empty critical section
 			// Here we have exclusive access to bucket, without locks
 			select {
-			case a.bucketsToSend <- r:
+			case a.bucketsToSend <- aggBucket:
 			default:
-				err := fmt.Errorf("insert conveyor is full for Bucket time=%d, contributors %d", r.time, len(r.contributors))
+				numContributors := int(aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter)
+				err := fmt.Errorf("insert conveyor is full for Bucket time=%d, contributors %d", aggBucket.time, numContributors)
 				fmt.Printf("%s\n", err)
-				for _, c := range r.contributors {
-					c.SendHijackedResponse(err)
+				aggBucket.mu.Lock()
+				for hctx := range aggBucket.contributors {
+					hctx.SendHijackedResponse(err)
 				}
+				for hctx := range aggBucket.contributors { // compiles into map_clear
+					delete(aggBucket.contributors, hctx)
+				}
+				aggBucket.mu.Unlock()
 			}
 		}
 		if len(readyBuckets) != 0 && a.recentBuckets[0].time >= data_model.MaxHistoricWindow {
