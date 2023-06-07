@@ -61,6 +61,7 @@ export const PlotLayout: React.FC<PlotLayoutProps> = ({
           onClick={toggleBigControl}
           role="button"
           className={cn(
+            css.bigControl,
             'position-absolute end-0 top-0 h-100 btn p-0 d-none d-lg-flex justify-content-center align-items-center border-0'
           )}
         >
