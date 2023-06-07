@@ -36,7 +36,8 @@ func TestBuildQuery(t *testing.T) {
 			name := "$" + strconv.FormatInt(int64(i), 10) + "$"
 			p.addSliceParam(Arg{
 				name:   name,
-				typ:    argInt64Slice,
+				typ:    argInt64,
+				slice:  true,
 				length: m,
 				ns:     nil,
 			})
