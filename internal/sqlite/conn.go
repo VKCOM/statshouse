@@ -252,7 +252,7 @@ func (c Conn) doQuery(isRO, allowUnsafe bool, sqlBytes []byte, sqlString string,
 	si, ok := c.c.cache.get(sqlString, sqlBytes)
 	if !ok {
 		start := time.Now()
-		si, err = prepare(c.c.rw, sqlBytes, false)
+		si, err = prepare(c.c.rw, sqlBytes)
 		c.stats.measureActionDurationSince("sqlite_prepare", start)
 		if err != nil {
 			return nil, err
@@ -335,8 +335,8 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 	return si.stmt, nil
 }
 
-func prepare(c *sqlite0.Conn, sql []byte, persistent bool) (stmtInfo, error) {
-	s, _, err := c.Prepare(sql, persistent)
+func prepare(c *sqlite0.Conn, sql []byte) (stmtInfo, error) {
+	s, _, err := c.Prepare(sql)
 	if err != nil {
 		return stmtInfo{}, err
 	}
