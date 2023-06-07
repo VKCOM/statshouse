@@ -184,17 +184,12 @@ type Stmt struct {
 	n                int
 }
 
-func (c *Conn) Prepare(sql []byte, persistent bool) (*Stmt, []byte, error) {
-	var flags C.uint
-	if persistent {
-		flags = C.SQLITE_PREPARE_PERSISTENT
-	}
-
+func (c *Conn) Prepare(sql []byte) (*Stmt, []byte, error) {
 	var cStmt *C.sqlite3_stmt
 	var cTail *C.char
 	sql = ensureZeroTerm(sql)
 	cSQL := unsafeSliceCPtr(sql)
-	rc := C._sqlite3_blocking_prepare_v3(c.conn, c.unlock, cSQL, C.int(len(sql)), flags, &cStmt, &cTail) //nolint:gocritic // nonsense
+	rc := C._sqlite3_blocking_prepare_v3(c.conn, c.unlock, cSQL, C.int(len(sql)), 0, &cStmt, &cTail) //nolint:gocritic // nonsense
 	runtime.KeepAlive(sql)
 	if rc != ok {
 		return nil, nil, sqliteErr(rc, c.conn, "_sqlite3_blocking_prepare_v3")
