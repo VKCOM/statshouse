@@ -128,7 +128,7 @@ metadata.createMappingEvent#12345678
     id: int
     key: string
     metric: string // todo use id instead
-    badget: long
+    budget: long
     create: field_mask.0?%True
 	updated_at: #
      = metadata.CreateMappingEvent;
