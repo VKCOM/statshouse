@@ -23,7 +23,7 @@ func Version() string {
 }
 
 func doSingleROToWALQuery(path string, f func(conn *sqliteConn) error) (err error) {
-	ro, err := openROWAL(path, false)
+	ro, err := openROWAL(path)
 	if err != nil {
 		return err
 	}
@@ -35,7 +35,7 @@ func doSingleROToWALQuery(path string, f func(conn *sqliteConn) error) (err erro
 }
 
 func doSingleROQuery(path string, f func(*Engine) error) error {
-	conn, err := sqlite0.Open(path, sqlite0.OpenReadonly|sqlite0.OpenNoMutex|sqlite0.OpenPrivateCache)
+	conn, err := sqlite0.Open(path, sqlite0.OpenReadonly)
 	if err != nil {
 		return err
 	}
