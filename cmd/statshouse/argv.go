@@ -107,7 +107,7 @@ func argvAddCommonFlags() {
 	flag.StringVar(&argv.userLogin, "u", defaultUser, "sets user name to make setuid")
 	flag.StringVar(&argv.userGroup, "g", defaultGroup, "sets user group to make setguid")
 
-	flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address (like :13336)")
+	flag.StringVar(&argv.pprofListenAddr, "pprof", ":13080", "HTTP pprof listen address (like :13336)")
 
 	flag.StringVar(&argv.cacheDir, "cache-dir", "", "Data that cannot be immediately sent will be stored here together with metric metadata cache.")
 

@@ -24,6 +24,7 @@ import (
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/stats"
+	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
@@ -183,8 +184,17 @@ func runMain() int {
 
 	if argv.pprofListenAddr != "" {
 		go func() {
-			logOk.Printf("Start listening pprof HTTP %s", argv.pprofListenAddr)
-			if err := http.ListenAndServe(argv.pprofListenAddr, nil); err != nil {
+			l, err := util.ListenFirstAvailablePort(argv.pprofListenAddr, 2)
+			if err != nil {
+				logErr.Printf("Cannot listen pprof HTTP: %v", err)
+				return
+			}
+			var (
+				a = l.Addr().String()
+				s = http.Server{Addr: a}
+			)
+			logOk.Printf("Start listening pprof HTTP %s", a)
+			if err = s.Serve(l); err != nil {
 				logErr.Printf("Cannot listen pprof HTTP: %v", err)
 			}
 		}()
