@@ -14,11 +14,11 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 )
 
-func (s *Shard) IsAlive() bool {
+func (s *ShardReplica) IsAlive() bool {
 	return s.alive.Load()
 }
 
-func (s *Shard) appendlastSendSuccessfulLocked(success bool) int { // returns how many successes in the list
+func (s *ShardReplica) appendlastSendSuccessfulLocked(success bool) int { // returns how many successes in the list
 	if len(s.lastSendSuccessful) >= s.config.LivenessResponsesWindowLength {
 		s.lastSendSuccessful = append(s.lastSendSuccessful[:0], s.lastSendSuccessful[1:s.config.LivenessResponsesWindowLength]...)
 	}
@@ -32,7 +32,7 @@ func (s *Shard) appendlastSendSuccessfulLocked(success bool) int { // returns ho
 	return succ
 }
 
-func (s *Shard) recordSendResult(success bool) {
+func (s *ShardReplica) recordSendResult(success bool) {
 	if !s.alive.Load() {
 		return
 	}
@@ -46,7 +46,7 @@ func (s *Shard) recordSendResult(success bool) {
 	}
 }
 
-func (s *Shard) recordKeepLiveResult(err error, dur time.Duration) {
+func (s *ShardReplica) recordKeepLiveResult(err error, dur time.Duration) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	success := err == nil && dur < s.config.KeepAliveSuccessTimeout // we require strict response time here
@@ -58,7 +58,7 @@ func (s *Shard) recordKeepLiveResult(err error, dur time.Duration) {
 	}
 }
 
-func (s *Shard) sendKeepLive() error {
+func (s *ShardReplica) sendKeepLive() error {
 	now := time.Now()
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(time.Second*60)) // Relatively large timeout here
 	defer cancel()
@@ -74,7 +74,7 @@ func (s *Shard) sendKeepLive() error {
 	return err
 }
 
-func (s *Shard) goLiveChecker() {
+func (s *ShardReplica) goLiveChecker() {
 	// We have separate loops instead of using flushBuckets agent loop, because sendKeepLive can block on connect for
 	// very long time, and it is convenient if it blocks there
 	now := time.Now()

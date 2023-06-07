@@ -30,6 +30,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
 
 	"github.com/ClickHouse/ch-go"
@@ -109,9 +110,11 @@ const (
 	defTagValues  = 100
 	maxTagValues  = 100_000
 	maxSeriesRows = 10_000_000
-	maxTableRows  = 10_000
-	maxTimeShifts = 10
-	maxFunctions  = 10
+	maxTableRows  = 100_000
+
+	maxTableRowsPage = 10_000
+	maxTimeShifts    = 10
+	maxFunctions     = 10
 
 	cacheInvalidateCheckInterval = 1 * time.Second
 	cacheInvalidateCheckTimeout  = 5 * time.Second
@@ -304,11 +307,12 @@ type (
 		SamplingFactorAgg        float64                 `json:"sampling_factor_agg"`         // average
 		MappingFloodEventsLegacy float64                 `json:"mapping_flood_events_legacy"` // sum of average, legacy
 		ReceiveErrors            float64                 `json:"receive_errors"`              // count/sec
+		ReceiveWarnings          float64                 `json:"receive_warnings"`            // count/sec
 		MappingErrors            float64                 `json:"mapping_errors"`              // count/sec
 		PromQL                   string                  `json:"promql"`                      // equivalent PromQL query
 		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
 		DebugPromQLTestFailed    bool                    `json:"promqltestfailed"`
-		MetricMeta               *format.MetricMetaValue `json:"-"`
+		MetricMeta               *format.MetricMetaValue `json:"metric"`
 		immutable                bool
 		queries                  map[lodInfo]int // not nil if testPromql option set (see getQueryReqOptions)
 	}
@@ -369,6 +373,7 @@ type (
 		Tags      map[string]SeriesMetaTag `json:"tags"`
 		MaxHosts  []string                 `json:"max_hosts"` // max_host for now
 		Name      string                   `json:"name"`
+		Color     string                   `json:"color"`
 		What      queryFn                  `json:"what"`
 		Total     int                      `json:"total"`
 	}
@@ -388,8 +393,6 @@ type (
 		Comment string `json:"comment,omitempty"`
 		Raw     bool   `json:"raw,omitempty"`
 		RawKind string `json:"raw_kind,omitempty"`
-		valueID int32
-		isSkey  bool
 	}
 
 	RawTag struct {
@@ -406,11 +409,6 @@ type (
 	cacheInvalidateLogRow struct {
 		T  int64 `ch:"time"` // time of insert
 		At int64 `ch:"key1"` // seconds inserted (changed), which should be invalidated
-	}
-
-	tableRowKey struct {
-		time int64
-		tsTags
 	}
 )
 
@@ -1046,7 +1044,16 @@ func (h *Handler) HandlePostResetFlood(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	del, err := h.metadataLoader.ResetFlood(context.Background(), formValueParamMetric(r))
+	var limit int32
+	if v := r.FormValue("limit"); v != "" {
+		i, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err), h.verbose, ai.user, sl)
+			return
+		}
+		limit = int32(i)
+	}
+	del, _, _, err := h.metadataLoader.ResetFlood(r.Context(), formValueParamMetric(r), limit)
 	if err == nil && !del {
 		err = fmt.Errorf("metric flood counter was empty (no flood)")
 	}
@@ -1241,6 +1248,9 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 			return format.MetricMetaValue{}, fmt.Errorf("invalid group id: %d", metric.GroupID)
 		}
 	}
+	if metric.PreKeyOnly && (metric.PreKeyFrom == 0 || metric.PreKeyTagID == "") {
+		return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, fmt.Errorf("use prekey_only with non empty prekey_tag_id"))
+	}
 	if create {
 		if !ai.canEditMetric(true, metric, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q", metric.Name))
@@ -1390,6 +1400,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 	lods := selectTagValueLODs(
 		version,
 		int64(metricMeta.PreKeyFrom),
+		metricMeta.PreKeyOnly,
 		metricMeta.Resolution,
 		kind == queryFnKindUnique,
 		metricMeta.StringTopDescription != "",
@@ -1521,7 +1532,7 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, fromEnd := r.Form[paramFromEnd]
-	var limit int64 = maxTableRows
+	var limit int64 = maxTableRowsPage
 	if limitStr := r.FormValue(ParamNumResults); limitStr != "" {
 		limit, err = strconv.ParseInt(limitStr, 10, 64)
 		if err != nil {
@@ -1568,6 +1579,10 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	sl := newEndpointStat(EndpointQuery, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
+		return
+	}
+	if ai.bitDeveloper {
+		h.handleSeriesQueryPromQL(w, r, sl, ai)
 		return
 	}
 	// Parse request
@@ -1656,7 +1671,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 		res, freeRes, err = h.handleGetQuery(ctx, ai, qry, options)
 	}
 	if err == nil && len(qry.promQL) == 0 {
-		res.PromQL = getPromQuery(qry)
+		res.PromQL = getPromQuery(qry, false)
 		res.DebugPromQLTestFailed = options.testPromql && (promqlErr != nil ||
 			!reflect.DeepEqual(res.queries, promqlRes.queries) ||
 			!getQueryRespEqual(res, promqlRes))
@@ -1666,21 +1681,31 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	}
 	// Add badges
 	if qry.verbose && err == nil && badges != nil && len(badges.Series.Time) > 0 {
+		// TODO - skip values outside display range. Badge now does not correspond directly to points displayed.
 		for i, meta := range badges.Series.SeriesMeta {
+			badgeTypeSamplingFactorSrc := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor))
+			badgeTypeSamplingFactorAgg := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor))
+			badgeTypeReceiveErrorsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld))
+			badgeTypeMappingFloodEventsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld))
+			badgeTypeReceiveErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors))
+			badgeTypeReceiveWarnings := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionWarnings))
+			badgeTypeMappingErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors))
 			if meta.Tags["key2"].Value == qry.metricWithNamespace {
 				badgeType := meta.Tags["key1"].Value
 				switch {
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor)):
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorSrc:
 					res.SamplingFactorSrc = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor)):
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorAgg:
 					res.SamplingFactorAgg = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld)):
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeReceiveErrorsLegacy:
 					res.ReceiveErrorsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnAvg && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld)):
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeMappingFloodEventsLegacy:
 					res.MappingFloodEventsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors)):
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveErrors:
 					res.ReceiveErrors = sumSeries(badges.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors)):
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveWarnings:
+					res.ReceiveWarnings = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeMappingErrors:
 					res.MappingErrors = sumSeries(badges.Series.SeriesData[i], 0)
 				}
 			}
@@ -1690,6 +1715,118 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 			//	fmt.Printf("contributors sum %f\n", sumContributors)
 			// }
 		}
+	}
+	// Format and write the response
+	h.colorize(res)
+	switch {
+	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
+		exportCSV(w, res, qry.metricWithNamespace, sl)
+	default:
+		var cache, cacheStale time.Duration
+		if res != nil {
+			cache, cacheStale = queryClientCacheDuration(res.immutable)
+		}
+		respondJSON(w, res, cache, cacheStale, err, h.verbose, ai.user, sl)
+	}
+}
+
+func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request, sl *endpointStat, ai accessInfo) {
+	// Parse request
+	qry, err := h.getSeriesRequest(r)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	if qry.avoidCache && !ai.isAdmin() {
+		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
+		return
+	}
+	// Query series and badges
+	var (
+		ctx, cancel = context.WithTimeout(r.Context(), querySelectTimeout)
+		freeBadges  func()
+		freeRes     func()
+		options     = seriesRequestOptions{
+			debugQueries: true,
+			stat:         sl,
+		}
+		res    *SeriesResponse
+		badges *SeriesResponse
+	)
+	defer func() {
+		cancel()
+		if freeBadges != nil {
+			freeBadges()
+		}
+		if freeRes != nil {
+			freeRes()
+		}
+	}()
+	if qry.verbose {
+		var g *errgroup.Group
+		g, ctx = errgroup.WithContext(ctx)
+		g.Go(func() error {
+			var err error
+			res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
+			return err
+		})
+		g.Go(func() error {
+			var err error
+			badges, freeBadges, err = h.queryBadgesPromQL(ctx, ai, qry)
+			return err
+		})
+		err = g.Wait()
+	} else {
+		res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
+	}
+	var traces []string
+	if res != nil {
+		traces = append(traces, res.DebugQueries...)
+	}
+	if badges != nil {
+		traces = append(traces, badges.DebugQueries...)
+	}
+	// Add badges
+	if qry.verbose && err == nil && badges != nil && len(badges.Series.Time) > 0 {
+		// TODO - skip values outside display range. Badge now does not correspond directly to points displayed.
+		for i, meta := range badges.Series.SeriesMeta {
+			badgeTypeSamplingFactorSrc := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor))
+			badgeTypeSamplingFactorAgg := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor))
+			badgeTypeReceiveErrorsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld))
+			badgeTypeMappingFloodEventsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld))
+			badgeTypeReceiveErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors))
+			badgeTypeReceiveWarnings := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionWarnings))
+			badgeTypeMappingErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors))
+			if meta.Tags["key2"].Value == qry.metricWithNamespace {
+				badgeType := meta.Tags["key1"].Value
+				switch {
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorSrc:
+					res.SamplingFactorSrc = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorAgg:
+					res.SamplingFactorAgg = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeReceiveErrorsLegacy:
+					res.ReceiveErrorsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeMappingFloodEventsLegacy:
+					res.MappingFloodEventsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveErrors:
+					res.ReceiveErrors = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveWarnings:
+					res.ReceiveWarnings = sumSeries(badges.Series.SeriesData[i], 0)
+				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeMappingErrors:
+					res.MappingErrors = sumSeries(badges.Series.SeriesData[i], 0)
+				}
+			}
+			// TODO - show badge if some heuristics on # of contributors is triggered
+			// if format.IsValueCodeZero(metric) && meta.What.String() == ParamQueryFnCountNorm && badgeType == format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeContributors)) {
+			//	sumContributors := sumSeries(respIngestion.Series.SeriesData[i], 0)
+			//	fmt.Printf("contributors sum %f\n", sumContributors)
+			// }
+		}
+	}
+	if res != nil {
+		res.PromQL = getPromQuery(qry, false)
+		res.DebugQueries = traces
+		h.colorize(res)
 	}
 	// Format and write the response
 	switch {
@@ -1757,11 +1894,30 @@ func (h *Handler) queryBadges(ctx context.Context, ai accessInfo, req seriesRequ
 			to:                  req.to,
 			width:               req.width,
 			widthAgg:            req.widthAgg, // TODO - resolution of badge metric (currently 5s)?
-			what:                []string{ParamQueryFnCountNorm, ParamQueryFnAvg},
+			what:                []string{ParamQueryFnCount, ParamQueryFnAvg},
 			by:                  []string{"key1", "key2"},
 			filterIn:            map[string][]string{"key2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
 		},
 		seriesRequestOptions{})
+}
+
+func (h *Handler) queryBadgesPromQL(ctx context.Context, ai accessInfo, req seriesRequest) (*SeriesResponse, func(), error) {
+	ai.skipBadgesValidation = true
+	return h.handlePromqlQuery(
+		ctx, ai,
+		seriesRequest{
+			version:             Version2,
+			numResults:          "20",
+			metricWithNamespace: format.BuiltinMetricNameBadges,
+			from:                req.from,
+			to:                  req.to,
+			width:               req.width,
+			widthAgg:            req.widthAgg, // TODO - resolution of badge metric (currently 5s)?
+			what:                []string{ParamQueryFnCount, ParamQueryFnAvg},
+			by:                  []string{"key1", "key2"},
+			filterIn:            map[string][]string{"key2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
+		},
+		seriesRequestOptions{debugQueries: true})
 }
 
 func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seriesRequest, opt seriesRequestOptions) (*SeriesResponse, func(), error) {
@@ -1777,8 +1933,10 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if err != nil {
 		return nil, nil, err
 	}
+	var promqlGenerated bool
 	if len(req.promQL) == 0 {
-		req.promQL = getPromQuery(req)
+		req.promQL = getPromQuery(req, true)
+		promqlGenerated = true
 	}
 	if opt.timeNow.IsZero() {
 		opt.timeNow = time.Now()
@@ -1799,6 +1957,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	}
 	var (
 		metricName string
+		metricMeta *format.MetricMetaValue
 		options    = promql.Options{
 			Version:             req.version,
 			AvoidCache:          req.avoidCache,
@@ -1811,6 +1970,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			Offsets:             offsets,
 			Rand:                opt.rand,
 			ExprQueriesSingleMetricCallback: func(metric *format.MetricMetaValue) {
+				metricMeta = metric
 				metricName = metric.Name
 				if opt.metricNameCallback != nil {
 					opt.metricNameCallback(metricName)
@@ -1824,8 +1984,13 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if widthKind == widthAutoRes {
 		options.StepAuto = true
 	}
+	var traces []string
+	if opt.debugQueries {
+		ctx = debugQueriesContext(ctx, &traces)
+		ctx = promql.TraceExprContext(ctx, &traces)
+	}
 	parserV, cleanup, err = h.promEngine.Exec(
-		context.WithValue(ctx, accessInfoKey, &ai),
+		withAccessInfo(ctx, &ai),
 		promql.Query{
 			Start:   from.Unix(),
 			End:     to.Unix(),
@@ -1840,34 +2005,46 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if !ok {
 		return nil, nil, fmt.Errorf("string literals are not supported")
 	}
-	res := &SeriesResponse{Series: querySeries{
-		Time:       bag.Time,
-		SeriesData: bag.Data,
-		SeriesMeta: make([]QuerySeriesMetaV2, 0, len(bag.Data)),
-	}}
+	res := &SeriesResponse{
+		Series: querySeries{
+			Time:       bag.Time,
+			SeriesData: bag.Data,
+			SeriesMeta: make([]QuerySeriesMetaV2, 0, len(bag.Data)),
+		},
+		MetricMeta:   metricMeta,
+		DebugQueries: traces,
+	}
 	for i := range bag.Data {
 		meta := QuerySeriesMetaV2{
 			Name:     metricName,
 			Tags:     make(map[string]SeriesMetaTag),
-			MaxHosts: bag.GetSMaxHosts(i, h),
+			MaxHosts: bag.GetSMaxHostsAt(i, h),
 		}
 		if i < len(bag.Meta) {
 			s := bag.Meta[i]
-			meta.What, _ = validQueryFn(s.GetMetricName())
+			meta.What, _ = validQueryFn(s.GetFn())
 			meta.TimeShift = -s.GetOffset()
 			meta.Total = s.GetTotal()
-			s.DropMetricName()
-			meta.Tags = make(map[string]SeriesMetaTag, len(s.STags))
-			for name, v := range s.STags {
-				tag := SeriesMetaTag{Value: v}
+			if meta.Total == 0 {
+				meta.Total = len(bag.Data)
+			}
+			meta.Tags = make(map[string]SeriesMetaTag, len(s.Tags))
+			for id, t := range s.Tags {
+				if !t.SValueSet || t.ID == labels.MetricName || t.ID == promql.LabelFn {
+					continue
+				}
+				if t.Index != 0 {
+					id = format.TagIDLegacy(t.Index - 1)
+				}
+				tag := SeriesMetaTag{Value: t.SValue}
 				if s.Metric != nil {
-					if t, tok := s.Metric.Name2Tag[name]; tok {
-						tag.Comment = t.ValueComments[tag.Value]
-						tag.Raw = t.Raw
-						tag.RawKind = t.RawKind
+					if meta, ok := s.Metric.Name2Tag[id]; ok {
+						tag.Comment = meta.ValueComments[tag.Value]
+						tag.Raw = meta.Raw
+						tag.RawKind = meta.RawKind
 					}
 				}
-				meta.Tags[name] = tag
+				meta.Tags[id] = tag
 			}
 		}
 		res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
@@ -1888,6 +2065,9 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 				row[i] = math.MaxFloat32
 			}
 		}
+	}
+	if promqlGenerated {
+		res.PromQL = req.promQL
 	}
 	res.queries = seriesQueries
 	return res, cleanup, nil
@@ -1966,6 +2146,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 	lods := selectQueryLODs(
 		version,
 		int64(metricMeta.PreKeyFrom),
+		metricMeta.PreKeyOnly,
 		metricMeta.Resolution,
 		isUnique,
 		isStringTop,
@@ -2060,20 +2241,22 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 			for lodIx, lod := range lods {
 				if opt.testPromql {
 					seriesQueries[lodInfo{
-						fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
-						toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
-						stepSec:   lod.stepSec,
-						table:     lod.table,
-						hasPreKey: lod.hasPreKey,
-						location:  h.location}]++
+						fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
+						toSec:      shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
+						stepSec:    lod.stepSec,
+						table:      lod.table,
+						hasPreKey:  lod.hasPreKey,
+						preKeyOnly: lod.preKeyOnly,
+						location:   h.location}]++
 				}
 				m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
-					fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
-					toSec:     shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
-					stepSec:   lod.stepSec,
-					table:     lod.table,
-					hasPreKey: lod.hasPreKey,
-					location:  h.location,
+					fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
+					toSec:      shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
+					stepSec:    lod.stepSec,
+					table:      lod.table,
+					hasPreKey:  lod.hasPreKey,
+					preKeyOnly: lod.preKeyOnly,
+					location:   h.location,
 				}, req.avoidCache)
 				if err != nil {
 					return nil, nil, err
@@ -2109,13 +2292,13 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 			}
 
 			if numResultsPerShift > 0 {
-				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand)
+				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand, nil)
 				if len(sortedIxs) > numResultsPerShift {
 					sortedIxs = sortedIxs[:numResultsPerShift]
 				}
 			} else if numResultsPerShift < 0 {
 				numResultsPerShift = -numResultsPerShift
-				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand)
+				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand, nil)
 				if len(sortedIxs) > numResultsPerShift {
 					sortedIxs = sortedIxs[:numResultsPerShift]
 				}
@@ -2125,7 +2308,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				tags := ixToTags[i]
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(j), tags.tag[j])
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagIDLegacy(j), tags.tag[j])
 				}
 				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 
@@ -2368,6 +2551,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 		qp := selectQueryPoint(
 			version,
 			int64(metricMeta.PreKeyFrom),
+			metricMeta.PreKeyOnly,
 			metricMeta.Resolution,
 			isUnique,
 			isStringTop,
@@ -2418,13 +2602,13 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 			}
 
 			if numResultsPerShift > 0 {
-				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, r)
+				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, r, nil)
 				if len(sortedIxs) > numResultsPerShift {
 					sortedIxs = sortedIxs[:numResultsPerShift]
 				}
 			} else if numResultsPerShift < 0 {
 				numResultsPerShift = -numResultsPerShift
-				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, r)
+				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, r, nil)
 				if len(sortedIxs) > numResultsPerShift {
 					sortedIxs = sortedIxs[:numResultsPerShift]
 				}
@@ -2434,7 +2618,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 				tags := ixToTags[ix]
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagID(j), tags.tag[j])
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagIDLegacy(j), tags.tag[j])
 				}
 				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 
@@ -2699,6 +2883,7 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 			seriesNum += len(data.Series.SeriesMeta)
 			pointsNum += len(data.Series.SeriesMeta) * len(data.Series.Time)
 		}
+		h.colorize(data)
 		s[i] = data
 	}
 
@@ -2775,6 +2960,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	lods := selectQueryLODs(
 		version,
 		int64(metricMeta.PreKeyFrom),
+		metricMeta.PreKeyOnly,
 		metricMeta.Resolution,
 		isUnique,
 		isStringTop,
@@ -2786,116 +2972,44 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 		widthKind,
 		h.location,
 	)
+	desiredStepMul := int64(1)
+	if widthKind == widthLODRes {
+		desiredStepMul = int64(width)
+	} else if len(lods) > 0 {
+		desiredStepMul = lods[len(lods)-1].stepSec
+	}
+
+	if req.fromEnd {
+		for i := 0; i < len(lods)/2; i++ {
+			temp := lods[i]
+			j := len(lods) - i - 1
+			lods[i] = lods[j]
+			lods[j] = temp
+		}
+	}
 
 	var sqlQueries []string
 	if debugQueries {
 		ctx = debugQueriesContext(ctx, &sqlQueries)
 	}
-
-	rowsIdx := make(map[tableRowKey]int)
-	queryRows := make([]queryTableRow, 0)
-	used := map[int]struct{}{}
 	what := make([]queryFn, 0, len(queries))
-	shouldSort := false
-	for qIndex, q := range queries {
+	for _, q := range queries {
 		what = append(what, q.what)
-		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, true)
-		pq := &preparedPointsQuery{
-			user:        ai.user,
-			version:     version,
-			metricID:    metricMeta.MetricID,
-			preKeyTagID: metricMeta.PreKeyTagID,
-			isStringTop: isStringTop,
-			kind:        q.whatKind,
-			by:          q.by,
-			filterIn:    mappedFilterIn,
-			filterNotIn: mappedFilterNotIn,
-			orderBy:     true,
-		}
-
-		desiredStepMul := int64(1)
-		if widthKind == widthLODRes {
-			desiredStepMul = int64(width)
-		} else if len(lods) > 0 {
-			desiredStepMul = lods[len(lods)-1].stepSec
-		}
-
-		for _, lod := range lods {
-			m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
-				fromSec:   shiftTimestamp(lod.fromSec, lod.stepSec, 0, lod.location),
-				toSec:     shiftTimestamp(lod.toSec, lod.stepSec, 0, lod.location),
-				stepSec:   lod.stepSec,
-				table:     lod.table,
-				hasPreKey: lod.hasPreKey,
-				location:  h.location,
-			}, req.avoidCache)
-			if err != nil {
-				return nil, false, err
-			}
-
-			for _, rows := range m {
-				for i := 0; i < len(rows); i++ {
-					var rowRepr RowMarker
-					rowRepr.Time = rows[i].time
-					rowRepr.Tags = rowRepr.Tags[:0]
-					tags := &rows[i].tsTags
-					kvs := make(map[string]SeriesMetaTag, 16)
-					for j := 0; j < format.MaxTags; j++ {
-						tagName := format.TagID(j)
-						wasAdded := h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, tagName, tags.tag[j])
-						if wasAdded {
-							rowRepr.Tags = append(rowRepr.Tags, RawTag{
-								Index: j,
-								Value: tags.tag[j],
-							})
-						}
-					}
-					skey := maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
-					rowRepr.SKey = skey
-					data := selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i])
-					key := tableRowKey{
-						time:   rows[i].time,
-						tsTags: rows[i].tsTags,
-					}
-					var ix int
-					var ok bool
-					if ix, ok = rowsIdx[key]; !ok {
-						ix = len(queryRows)
-						rowsIdx[key] = ix
-						queryRows = append(queryRows, queryTableRow{
-							Time:    rows[i].time,
-							Data:    make([]float64, 0, len(queries)),
-							Tags:    kvs,
-							row:     rows[i],
-							rowRepr: rowRepr,
-						})
-						for j := 0; j < qIndex; j++ {
-							queryRows[ix].Data = append(queryRows[ix].Data, math.NaN())
-						}
-						shouldSort = shouldSort || qIndex > 0
-					}
-					used[ix] = struct{}{}
-					queryRows[ix].Data = append(queryRows[ix].Data, data)
-				}
-			}
-		}
-		for _, ix := range rowsIdx {
-			if _, ok := used[ix]; ok {
-				delete(used, ix)
-			} else {
-				queryRows[ix].Data = append(queryRows[ix].Data, math.NaN())
-			}
-		}
 	}
-
-	if shouldSort {
-		sort.Slice(queryRows, func(i, j int) bool {
-			return rowMarkerLessThan(queryRows[i].rowRepr, queryRows[j].rowRepr)
-		})
+	queryRows, hasMore, err := getTableFromLODs(ctx, lods, tableReqParams{
+		req:               req,
+		queries:           queries,
+		user:              ai.user,
+		metricMeta:        metricMeta,
+		isStringTop:       isStringTop,
+		mappedFilterIn:    mappedFilterIn,
+		mappedFilterNotIn: mappedFilterNotIn,
+		desiredStepMul:    desiredStepMul,
+		location:          h.location,
+	}, h.cache.Get, h.maybeAddQuerySeriesTagValue)
+	if err != nil {
+		return nil, false, err
 	}
-
-	var hasMore bool
-	queryRows, hasMore = limitQueries(queryRows, req.fromRow, req.toRow, req.fromEnd, req.limit)
 	var firstRowStr, lastRowStr string
 	if len(queryRows) > 0 {
 		lastRowStr, err = encodeFromRows(&queryRows[len(queryRows)-1].rowRepr)
@@ -3009,7 +3123,6 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 			metaTag.Comment = tag.ValueComments[metaTag.Value]
 			metaTag.Raw = tag.Raw
 			metaTag.RawKind = tag.RawKind
-			metaTag.valueID = id
 		}
 		m[tagID] = metaTag
 		return true
@@ -3027,6 +3140,7 @@ type pointsSelectCols struct {
 	tagStr    proto.ColStr
 	maxHostV1 proto.ColUInt8
 	maxHostV2 proto.ColInt32
+	shardNum  proto.ColUInt32
 	res       proto.Results
 }
 
@@ -3044,9 +3158,12 @@ func newPointsSelectCols(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 		}
 	}
 	for _, tag := range meta.tags {
-		if tag == format.StringTopTagID {
+		switch tag {
+		case format.StringTopTagID:
 			c.res = append(c.res, proto.ResultColumn{Name: tag, Data: &c.tagStr})
-		} else {
+		case format.ShardTagID:
+			c.res = append(c.res, proto.ResultColumn{Name: tag, Data: &c.shardNum})
+		default:
 			c.tag = append(c.tag, proto.ColInt32{})
 			c.res = append(c.res, proto.ResultColumn{Name: tag, Data: &c.tag[len(c.tag)-1]})
 			c.tagIx = append(c.tagIx, format.ParseTagIDForAPI(tag))
@@ -3086,6 +3203,9 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	} else if len(c.maxHostV1) != 0 {
 		row.maxHost = int32(c.maxHostV1[i])
 	}
+	if c.shardNum != nil {
+		row.shardNum = c.shardNum[i]
+	}
 	return row
 }
 
@@ -3114,7 +3234,7 @@ func maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, 
 	tagValue := skeyFromFixedString(tagValuePtr)
 
 	if containsString(by, tagName) {
-		m[tagName] = SeriesMetaTag{Value: emptyToUnspecified(tagValue), isSkey: true}
+		m[tagName] = SeriesMetaTag{Value: emptyToUnspecified(tagValue)}
 		return tagValue
 	}
 	return ""
@@ -3515,34 +3635,4 @@ func getQueryRespEqual(a, b *SeriesResponse) bool {
 		}
 	}
 	return true
-}
-
-func limitQueries(q []queryTableRow, from, to RowMarker, fromEnd bool, limit int) (res []queryTableRow, hasMore bool) {
-	i := 0
-	n := len(q)
-	// result is : _, _, from, i, _, _, _, to/n, _, _
-	if from.Time != 0 {
-		i = sort.Search(len(q), func(i int) bool {
-			return lessThan(from, q[i].row, skeyFromFixedString(&q[i].row.tsTags.tagStr), false)
-		})
-	}
-	if to.Time != 0 {
-		n = sort.Search(len(q), func(i int) bool {
-			return lessThan(to, q[i].row, skeyFromFixedString(&q[i].row.tsTags.tagStr), true)
-		})
-	}
-	left := i
-	right := n
-	if fromEnd {
-		left = n - limit
-		if left < i {
-			left = i
-		}
-	} else {
-		right = i + limit
-		if right > n {
-			right = n
-		}
-	}
-	return q[left:right], left != i || right != n
 }

@@ -19,8 +19,9 @@ import (
 )
 
 func (a *Aggregator) appendInternalLogLocked(typ string, key0 string, key1 string, key2 string, key3 string, key4 string, key5 string, message string) {
+	nowUnix := uint32(time.Now().Unix())
 	var tmp [4]byte
-	binary.LittleEndian.PutUint32(tmp[0:], a.recentNow)
+	binary.LittleEndian.PutUint32(tmp[0:], nowUnix)
 
 	a.internalLog = append(a.internalLog, tmp[:]...)
 	a.internalLog = rowbinary.AppendString(a.internalLog, srvfunc.HostnameForStatshouse())

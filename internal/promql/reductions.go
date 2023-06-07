@@ -12,7 +12,7 @@ type reduction struct {
 	rule         int
 	expr         parser.Expr
 	what         string
-	factor       int64 // matrix selector range
+	step         int64 // matrix selector range
 	grouped      bool
 	groupBy      []string
 	groupWithout bool
@@ -39,7 +39,9 @@ func evalReductionRules(sel *parser.VectorSelector, nodes []parser.Node, step in
 	)
 	for i := range curr {
 		curr[i].rule = i
-		curr[i].what = sel.What
+		if len(sel.What) != 0 {
+			curr[i].what = sel.What
+		}
 	}
 	for i := len(nodes); i != 0 && len(curr) != 0; i-- {
 		// skip parentheses
@@ -80,7 +82,7 @@ func reduceMatrixSelector(r *reduction, e parser.Expr, step int64) bool {
 	if !ok || sel.Range > step {
 		return false
 	}
-	r.factor = sel.Range
+	r.step = sel.Range
 	return true
 }
 
@@ -89,7 +91,7 @@ func reduceSubQueryExpr(r *reduction, e parser.Expr, step int64) bool {
 	if !ok || sel.Range > step {
 		return false
 	}
-	r.factor = sel.Range
+	r.step = sel.Range
 	return true
 }
 
@@ -111,12 +113,12 @@ func reduceOverTimeCall(r *reduction, e parser.Expr, step int64) bool {
 	case "count_over_time":
 		what = Count
 	case "stddev_over_time":
-		if r.factor != step {
+		if r.step != step {
 			return false
 		}
 		what = StdDev
 	case "stdvar_over_time":
-		if r.factor != step {
+		if r.step != step {
 			return false
 		}
 		what = StdVar

@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { ChangeEvent, memo, useCallback, useId, useMemo, useState } from 'react';
-import { formatTagValue, metricTag, whatToWhatDesc } from './api';
+import { formatTagValue, whatToWhatDesc } from './api';
 import useDeepCompareEffect from 'use-deep-compare-effect';
 import { debug } from '../common/debug';
 import { formatPercent, normalizeTagValues } from './utils';
@@ -13,12 +13,9 @@ import { Select, SelectOptionProps } from '../components';
 import { ReactComponent as SVGSortAlphaDown } from 'bootstrap-icons/icons/sort-alpha-down.svg';
 import { ReactComponent as SVGLayers } from 'bootstrap-icons/icons/layers.svg';
 import {
-  selectorLoadTagsList,
   selectorMetricsMeta,
   selectorParamsPlotsByIndex,
   selectorParamsTagSync,
-  selectorSetPlotParamsTag,
-  selectorSetPlotParamsTagGroupBy,
   selectorTagsListAbortControllerByPlotAndTag,
   selectorTagsListByPlotAndTag,
   selectorTagsListByPlotAndTagAllSync,
@@ -30,9 +27,12 @@ import {
   useStore,
 } from '../store';
 import cn from 'classnames';
+import { MetricMetaTag } from '../api/metric';
+
+const { loadTagsList, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
 
 export const TagControl = memo(function TagControl_(props: {
-  tag: metricTag;
+  tag: MetricMetaTag;
   indexTag: number;
   indexPlot: number;
   tagID: string;
@@ -47,9 +47,6 @@ export const TagControl = memo(function TagControl_(props: {
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
   const [posFilter, setPosFilter] = useState(!sel.filterNotIn[tagID]);
-  const load = useStore(selectorLoadTagsList);
-  const setPlotParamsTagByIndex = useStore(selectorSetPlotParamsTag);
-  const setPlotParamsTagGroupByByIndex = useStore(selectorSetPlotParamsTagGroupBy);
   const timeRange = useStore(selectorTimeRange);
   const tagSync = useStore(selectorParamsTagSync);
   const metricsMeta = useStore(selectorMetricsMeta);
@@ -138,14 +135,14 @@ export const TagControl = memo(function TagControl_(props: {
     if (group) {
       group.forEach((tag, plot) => {
         if (tag !== null) {
-          load(plot, tag);
+          loadTagsList(plot, tag);
         }
       });
     } else {
-      load(indexPlot, indexTag);
+      loadTagsList(indexPlot, indexTag);
     }
   }, [
-    load,
+    loadTagsList,
     indexPlot,
     indexTag,
     sortByCount,
@@ -178,17 +175,17 @@ export const TagControl = memo(function TagControl_(props: {
 
   const onExpandChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
-      setPlotParamsTagGroupByByIndex(indexPlot, tagID, e.target.checked);
+      setPlotParamsTagGroupBy(indexPlot, tagID, e.target.checked);
     },
-    [indexPlot, setPlotParamsTagGroupByByIndex, tagID]
+    [indexPlot, tagID]
   );
 
   const onNegateChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       setPosFilter(!e.target.checked);
-      setPlotParamsTagByIndex(indexPlot, tagID, (s) => s, !e.target.checked);
+      setPlotParamsTag(indexPlot, tagID, (s) => s, !e.target.checked);
     },
-    [indexPlot, setPlotParamsTagByIndex, tagID]
+    [indexPlot, tagID]
   );
 
   // add filter
@@ -196,9 +193,9 @@ export const TagControl = memo(function TagControl_(props: {
     (val?: string | string[]) => {
       debug.log(`add ${posFilter ? 'positive' : 'negative'} filter for`, tagID, val);
       const newValues = Array.isArray(val) ? val : val ? [val] : [];
-      setPlotParamsTagByIndex(indexPlot, tagID, newValues, posFilter);
+      setPlotParamsTag(indexPlot, tagID, newValues, posFilter);
     },
-    [posFilter, tagID, setPlotParamsTagByIndex, indexPlot]
+    [posFilter, tagID, indexPlot]
   );
 
   // remove filter
@@ -206,14 +203,14 @@ export const TagControl = memo(function TagControl_(props: {
     (e: React.MouseEvent<HTMLButtonElement>) => {
       const val = (e.target as HTMLButtonElement).value;
       debug.log('remove filter for', tagID, val);
-      setPlotParamsTagByIndex(
+      setPlotParamsTag(
         indexPlot,
         tagID,
         (s) => s.filter((v) => v !== val),
         (s) => s
       );
     },
-    [tagID, setPlotParamsTagByIndex, indexPlot]
+    [tagID, indexPlot]
   );
 
   const onTagSelectFocus = useCallback(() => {

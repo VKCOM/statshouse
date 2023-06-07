@@ -203,7 +203,15 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
   );
 
   return (
-    <div className={cn(' container-xl', select !== null ? css.cursorDrag : css.cursorDefault, className)} ref={zone}>
+    <div
+      className={cn(
+        ' container-xl',
+        select !== null ? css.cursorDrag : css.cursorDefault,
+        dashboardLayoutEdit && 'dashboard-edit',
+        className
+      )}
+      ref={zone}
+    >
       {itemsGroup.map((group, indexGroup) => (
         <div key={indexGroup} className="pb-5" data-group={indexGroup}>
           <h6
@@ -241,7 +249,11 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
                   {params.dashboard?.groupInfo?.[indexGroup]?.show === false ? <SVGChevronRight /> : <SVGChevronDown />}
                 </div>
 
-                <div className="flex-grow-1">{params.dashboard?.groupInfo?.[indexGroup]?.name ?? ' '}</div>
+                <div className="flex-grow-1">
+                  {params.dashboard?.groupInfo?.[indexGroup]?.name || (
+                    <span className="text-body-tertiary">Group {indexGroup + 1}</span>
+                  )}
+                </div>
               </div>
             )}
           </h6>

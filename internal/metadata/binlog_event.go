@@ -160,7 +160,7 @@ func applyEditEntityEvent(conn sqlite.Conn, event tlmetadata.EditEntityEvent) er
 func applyCreateMappingEvent(conn sqlite.Conn, event tlmetadata.CreateMappingEvent) error {
 	_, err := conn.Exec("insert_flood_limit", "INSERT OR REPLACE INTO flood_limits (last_time_update, count_free, metric_name) VALUES ($t, $c, $name)",
 		sqlite.Int64("$t", int64(event.UpdatedAt)),
-		sqlite.Int64("$c", event.Badget),
+		sqlite.Int64("$c", event.Budget),
 		sqlite.BlobString("$name", event.Metric))
 	if err != nil {
 		return err
@@ -266,7 +266,7 @@ func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, 
 		Key:       key,
 		Metric:    metricName,
 		UpdatedAt: pred,
-		Badget:    countToInsert,
+		Budget:    countToInsert,
 	}
 	event.SetCreate(!metricLimitIsExists)
 	eventBytes, err := event.WriteBoxed(cache)

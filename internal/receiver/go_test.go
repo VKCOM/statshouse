@@ -81,23 +81,21 @@ func tagsArrSlice() *rapid.Generator[[][2]string] {
 }
 
 func tagsSlice() *rapid.Generator[[]tag] {
-	return rapid.Transform(
-		tagsArrSlice(),
-		func(sl [][2]string) []tag {
-			result := make([]tag, 0)
-			already := map[string]bool{}
-			for _, arr := range sl {
-				if already[arr[0]] {
-					continue
-				}
-				already[arr[0]] = true
-				result = append(result, tag{
-					K: arr[0],
-					V: arr[1],
-				})
+	return rapid.Map(tagsArrSlice(), func(sl [][2]string) []tag {
+		result := make([]tag, 0)
+		already := map[string]bool{}
+		for _, arr := range sl {
+			if already[arr[0]] {
+				continue
 			}
-			return result
-		})
+			already[arr[0]] = true
+			result = append(result, tag{
+				K: arr[0],
+				V: arr[1],
+			})
+		}
+		return result
+	})
 }
 
 func toTagsStruct(tags [][2]string, skey string, withEnv bool) []tag {
@@ -171,7 +169,7 @@ type goMachine struct {
 	envIsSet       bool
 }
 
-func (g *goMachine) Init(t *rapid.T) {
+func (g *goMachine) init(t *rapid.T) {
 	g.counterMetrics = floatsMap{}
 	g.valueMetrics = floatsMap{}
 	g.uniqueMetrics = intsMap{}
@@ -372,13 +370,17 @@ func (g *goMachine) Run(t *rapid.T) {
 	require.Equal(t, g.valueMetrics, valueMetrics)
 	require.Equal(t, g.uniqueMetrics, uniqueMetrics)
 
-	g.Init(t)
+	g.init(t)
 }
 
 func (g *goMachine) Check(*rapid.T) {}
 
 func TestGoRoundtrip(t *testing.T) {
-	rapid.Check(t, rapid.Run[*goMachine]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := goMachine{}
+		m.init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }
 
 /* It seems, test above also sets key0 sometimes. So for speed we commented this test out

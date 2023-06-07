@@ -16,6 +16,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"go.uber.org/multierr"
 	"go4.org/mem"
 )
 
@@ -35,6 +36,7 @@ const (
 	// and made shorter new names "0".."15", "_s", "_h"
 	PreKeyTagID    = "prekey"
 	StringTopTagID = "skey"
+	ShardTagID     = "_shard_num"
 	tagIDPrefix    = "key"
 	EnvTagID       = tagIDPrefix + "0"
 	EnvTagName     = "env" // this is legacy name. We want to get rid of all different names for tag 0.
@@ -73,8 +75,8 @@ const (
 )
 
 var (
+	tagIDsLegacy       []string             // initialized in builtin.go due to dependency
 	tagIDs             []string             // initialized in builtin.go due to dependency
-	newTagIDs          []string             // initialized in builtin.go due to dependency
 	tagIDTag2TagID     = map[int32]string{} // initialized in builtin.go due to dependency
 	tagIDToIndexForAPI = map[string]int{}   // initialized in builtin.go due to dependency
 
@@ -157,6 +159,10 @@ type MetricMetaValue struct {
 	StringTopDescription string          `json:"string_top_description,omitempty"` // no invariants
 	PreKeyTagID          string          `json:"pre_key_tag_id,omitempty"`
 	PreKeyFrom           uint32          `json:"pre_key_from,omitempty"`
+	SkipMaxHost          bool            `json:"skip_max_host,omitempty"`
+	SkipMinHost          bool            `json:"skip_min_host,omitempty"`
+	SkipSumSquare        bool            `json:"skip_sum_square,omitempty"`
+	PreKeyOnly           bool            `json:"pre_key_only,omitempty"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
@@ -165,6 +171,7 @@ type MetricMetaValue struct {
 	EffectiveWeight     int64                    `json:"-"`
 	HasPercentiles      bool                     `json:"-"`
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
+	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	GroupID             int32                    `json:"-"`
 	Group               *MetricsGroup            `json:"-"`
 }
@@ -251,7 +258,7 @@ func (m *MetricMetaValue) setName2Tag(name string, sTag MetricMetaTag, canonical
 func (m *MetricMetaValue) RestoreCachedInfo() error {
 	var err error
 	if !ValidMetricName(mem.S(m.Name)) {
-		err = fmt.Errorf("invalid metric name: %q", m.Name)
+		err = multierr.Append(err, fmt.Errorf("invalid metric name: %q", m.Name))
 	}
 
 	if m.Kind == MetricKindStringTopLegacy {
@@ -261,7 +268,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		}
 	}
 	if !ValidMetricKind(m.Kind) {
-		err = fmt.Errorf("invalid metric kind %q", m.Kind)
+		err = multierr.Append(err, fmt.Errorf("invalid metric kind %q", m.Kind))
 	}
 
 	var mask uint32
@@ -286,25 +293,29 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	tags := m.Tags
 	if len(tags) > MaxTags { // prevent index out of range during mapping
 		tags = tags[:MaxTags]
-		err = fmt.Errorf("too many tags, limit is: %d", MaxTags)
+		err = multierr.Append(err, fmt.Errorf("too many tags, limit is: %d", MaxTags))
 	}
 	for i := range tags {
 		tag := &tags[i]
-		if tag.Name == NewTagID(i) { // remove redundancy
+		if tag.Name == TagID(i) { // remove redundancy
 			tag.Name = ""
+		}
+		if m.PreKeyTagID == TagIDLegacy(i) && m.PreKeyFrom != 0 {
+			m.PreKeyIndex = i
 		}
 		if m.PreKeyTagID == TagID(i) && m.PreKeyFrom != 0 {
 			m.PreKeyIndex = i
 		}
-		if m.PreKeyTagID == NewTagID(i) && m.PreKeyFrom != 0 {
-			m.PreKeyIndex = i
-		}
 		if !ValidRawKind(tag.RawKind) {
-			err = fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i)
+			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
 		}
 	}
 	if m.PreKeyIndex == -1 && m.PreKeyTagID != "" {
-		err = fmt.Errorf("invalid pre_key_tag_id: %q", m.PreKeyTagID)
+		err = multierr.Append(err, fmt.Errorf("invalid pre_key_tag_id: %q", m.PreKeyTagID))
+	}
+	if m.PreKeyOnly && m.PreKeyIndex == -1 {
+		m.PreKeyOnly = false
+		err = multierr.Append(err, fmt.Errorf("pre_key_only is true, but pre_key_tag_id is not defined"))
 	}
 	for i := range tags {
 		tag := &tags[i]
@@ -338,16 +349,16 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.setName2Tag(NewHostTagID, hTag, true, false, &err)
 	for i := 0; i < MaxTags; i++ { // separate pass to overwrite potential collisions with canonical names in the loop above
 		if i < len(tags) {
-			m.setName2Tag(NewTagID(i), tags[i], true, false, &err)
-			m.setName2Tag(TagID(i), tags[i], false, true, nil)
+			m.setName2Tag(TagID(i), tags[i], true, false, &err)
+			m.setName2Tag(TagIDLegacy(i), tags[i], false, true, nil)
 			if i == 0 {
 				// we clear name of env (above), it must have exactly one way to refer to it, "0"
 				// but for legacy libraries, we allow to send "env" for now, TODO - remove
 				m.setName2Tag("env", tags[i], false, true, nil)
 			}
 		} else {
-			m.setName2Tag(NewTagID(i), MetricMetaTag{Index: i}, true, false, &err)
-			m.setName2Tag(TagID(i), MetricMetaTag{Index: i}, false, true, nil)
+			m.setName2Tag(TagID(i), MetricMetaTag{Index: i}, true, false, &err)
+			m.setName2Tag(TagIDLegacy(i), MetricMetaTag{Index: i}, false, true, nil)
 			if i == 0 {
 				m.setName2Tag("env", MetricMetaTag{Index: i}, false, true, nil)
 			}
@@ -356,10 +367,10 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.RawTagMask = mask
 	m.EffectiveResolution = AllowedResolution(m.Resolution)
 	if m.EffectiveResolution != m.Resolution {
-		err = fmt.Errorf("resolution %d must be factor of 60", m.Resolution)
+		err = multierr.Append(err, fmt.Errorf("resolution %d must be factor of 60", m.Resolution))
 	}
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
-		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
+		err = multierr.Append(err, fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32))
 		m.EffectiveWeight = EffectiveWeightOne
 	} else {
 		m.EffectiveWeight = int64(m.Weight * EffectiveWeightOne)
@@ -372,6 +383,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	}
 	m.HasPercentiles = m.Kind == MetricKindValuePercentiles || m.Kind == MetricKindMixedPercentiles
 	m.RoundSampleFactors = strings.Contains(m.Description, "__round_sample_factors") // Experimental
+	m.ShardUniqueValues = strings.Contains(m.Description, "__shard_unique_values")   // Experimental
 	return err
 }
 
@@ -443,9 +455,11 @@ func ValidRawKind(s string) bool {
 	// hex_bswap:       same as hex, but do bswap after interpreting number bits as uint32
 	// timestamp:       UNIX timestamp, show as is (in GMT)
 	// timestamp_local: UNIX timestamp, show local time for this TS
+	// lexenc_float:    See @LexEncode - float encoding that preserves ordering
+	// float:           same as float
 	// EMPTY:           decimal number, can be negative
 	switch s {
-	case "", "uint", "ip", "ip_bswap", "hex", "hex_bswap", "timestamp", "timestamp_local":
+	case "", "uint", "ip", "ip_bswap", "hex", "hex_bswap", "timestamp", "timestamp_local", "lexenc_float", "float":
 		return true
 	}
 	return false
@@ -459,12 +473,12 @@ func ParseTagIDForAPI(tagID string) int {
 	return i
 }
 
-func TagID(i int) string {
-	return tagIDs[i]
+func TagIDLegacy(i int) string {
+	return tagIDsLegacy[i]
 }
 
-func NewTagID(i int) string {
-	return newTagIDs[i]
+func TagID(i int) string {
+	return tagIDs[i]
 }
 
 func AllowedResolution(r int) int {

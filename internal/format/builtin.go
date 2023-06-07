@@ -83,7 +83,10 @@ const (
 	BuiltinMetricIDAgentHistoricQueueSizeSum  = -69
 	BuiltinMetricIDAPISourceSelectRows        = -70
 	BuiltinMetricIDSystemMetricScrapeDuration = -71
-	// [-1000..-1200] reversed by host system metrics
+	BuiltinMetricIDMetaServiceTime            = -72
+	BuiltinMetricIDMetaClientWaits            = -73
+	BuiltinMetricIDAgentUDPReceiveBufferSize  = -74
+	// [-1000..-1200] reserved by host system metrics
 
 	// metric names used in code directly
 	BuiltinMetricNameAggBucketReceiveDelaySec   = "__agg_bucket_receive_delay_sec"
@@ -94,6 +97,8 @@ const (
 	BuiltinMetricNameBadges                     = "__badges"
 	BuiltinMetricNamePromScrapeTime             = "__prom_scrape_time"
 	BuiltinMetricNameAPIRPCServiceTime          = "__api_rpc_service_time"
+	BuiltinMetricNameMetaServiceTime            = "__meta_rpc_service_time"
+	BuiltinMetricNameMetaClientWaits            = "__meta_load_journal_client_waits"
 	BuiltinMetricNameUsageMemory                = "__usage_mem"
 	BuiltinMetricNameUsageCPU                   = "__usage_cpu"
 	BuiltinMetricNameAPIBRS                     = "__api_big_response_storage_size"
@@ -108,6 +113,7 @@ const (
 	BuiltinMetricNameAPIActiveQueries           = "__api_active_queries"
 	BuiltinMetricNameBudgetUnknownMetric        = "__budget_unknown_metric"
 	BuiltinMetricNameSystemMetricScrapeDuration = "__system_metrics_duration"
+	BuiltinMetricNameAgentUDPReceiveBufferSize  = "__src_udp_receive_buffer_size"
 
 	TagValueIDBadgeIngestionErrorsOld  = -11 // remove from API, then stop writing
 	TagValueIDBadgeAggMappingErrorsOld = -33 // remove from API, then stop writing
@@ -116,6 +122,7 @@ const (
 	TagValueIDBadgeIngestionErrors     = 1
 	TagValueIDBadgeAggMappingErrors    = 2
 	TagValueIDBadgeContributors        = 3 // # of agents who sent this second. Hyper important to distinguish between holes in your data and problems with agents (no connectivity, etc.).
+	TagValueIDBadgeIngestionWarnings   = 4
 
 	TagValueIDRPCRequestsStatusOK          = 1
 	TagValueIDRPCRequestsStatusErrLocal    = 2
@@ -171,7 +178,7 @@ const (
 	TagValueIDSrcIngestionStatusErrNegativeCounter           = 25
 	TagValueIDSrcIngestionStatusErrMapOther                  = 30 // never written, for historic data
 	TagValueIDSrcIngestionStatusWarnMapTagNameNotFound       = 33
-	TagValueIDSrcIngestionStatusErrMapInvalidRawTagValue     = 34
+	TagValueIDSrcIngestionStatusErrMapInvalidRawTagValue     = 34 // warning now, for historic data
 	TagValueIDSrcIngestionStatusErrMapTagValueCached         = 35
 	TagValueIDSrcIngestionStatusErrMapTagValue               = 36
 	TagValueIDSrcIngestionStatusErrMapGlobalQueueOverload    = 37
@@ -189,6 +196,7 @@ const (
 	TagValueIDSrcIngestionStatusErrMapTagNameEncoding        = 49
 	TagValueIDSrcIngestionStatusErrValueUniqueBothSet        = 50
 	TagValueIDSrcIngestionStatusWarnOldCounterSemantic       = 51 // never written, for historic data
+	TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue    = 52
 
 	TagValueIDPacketFormatLegacy   = 1
 	TagValueIDPacketFormatTL       = 2
@@ -259,6 +267,7 @@ const (
 	TagValueIDSizeBuiltIn           = 9
 
 	TagValueIDScrapeError = 1
+	TagValueIDScrapeOK    = 2
 
 	TagValueIDCPUUsageUser = 1
 	TagValueIDCPUUsageSys  = 2
@@ -519,6 +528,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 					TagValueIDSrcIngestionStatusErrMapTagNameEncoding:        "err_validate_tag_name_utf8",
 					TagValueIDSrcIngestionStatusErrValueUniqueBothSet:        "err_value_unique_both_set",
 					TagValueIDSrcIngestionStatusWarnOldCounterSemantic:       "warn_deprecated_counter_semantic",
+					TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:    "warn_map_invalid_raw_tag_value",
 				}),
 			}, {
 				Description: "tag_id",
@@ -593,6 +603,9 @@ Set by aggregator. Max(value)@host shows agent responsible for longest aggregati
 				Description: "-",
 			}, {
 				Description: "-",
+			}, {
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
 			}},
 		},
 		BuiltinMetricIDAgentDiskCacheErrors: {
@@ -841,6 +854,12 @@ Set by either agent or aggregator, depending on status.`,
 				}),
 			}},
 		},
+		BuiltinMetricIDAgentUDPReceiveBufferSize: {
+			Name:        BuiltinMetricNameAgentUDPReceiveBufferSize,
+			Kind:        MetricKindValue,
+			Resolution:  60,
+			Description: "Size in bytes of agent UDP receive buffer.",
+		},
 		BuiltinMetricIDAggMappingCreated: {
 			Name: BuiltinMetricNameAggMappingCreated,
 			Kind: MetricKindValue,
@@ -891,7 +910,8 @@ Set by aggregator.`,
 				Description: "commit_timestamp",
 				RawKind:     "timestamp",
 			}, {
-				Description: "-",
+				Description: "commit_hash",
+				RawKind:     "hex",
 			}, {
 				Description: "-",
 			}},
@@ -906,9 +926,10 @@ Set by aggregator.`,
 				ValueComments: convertToValueComments(map[int32]string{
 					TagValueIDBadgeIngestionErrorsOld:  "ingestion_errors_legacy",
 					TagValueIDBadgeAggMappingErrorsOld: "mapping_errors_legacy",
-					TagValueIDBadgeAgentSamplingFactor: "agent_sampling_actor",
-					TagValueIDBadgeAggSamplingFactor:   "aggregator_sampling_actor",
+					TagValueIDBadgeAgentSamplingFactor: "agent_sampling_factor",
+					TagValueIDBadgeAggSamplingFactor:   "aggregator_sampling_factor",
 					TagValueIDBadgeIngestionErrors:     "ingestion_errors",
+					TagValueIDBadgeIngestionWarnings:   "ingestion_warnings",
 					TagValueIDBadgeAggMappingErrors:    "mapping_errors",
 					TagValueIDBadgeContributors:        "contributors",
 				}),
@@ -919,9 +940,11 @@ Set by aggregator.`,
 			PreKeyTagID: "2",
 		},
 		BuiltinMetricIDAutoConfig: {
-			Name:        "__autoconfig",
-			Kind:        MetricKindCounter,
-			Description: "Status of agent get config message, used to configure sharding on agents.\nSet by aggregator.",
+			Name: "__autoconfig",
+			Kind: MetricKindCounter,
+			Description: `Status of agent getConfig RPC message, used to configure sharding on agents.
+Set by aggregator, max host shows actual host of agent who connected.
+Ingress proxies first proxy request (to record host and IP of agent), then replace response with their own addresses.'`,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -962,6 +985,9 @@ Set by aggregator.`,
 			}, {
 				Description: "version",
 				Raw:         true,
+			}, {
+				Description: "journal_hash",
+				RawKind:     "hex",
 			}},
 		},
 		BuiltinMetricIDPromScrapeTime: {
@@ -974,11 +1000,14 @@ Set by aggregator.`,
 				}, {
 					Description: "job",
 				}, {
-					Description: "instance",
+					Description: "host", // Legacy, see comment in pushScrapeTimeMetric
 				}, {
-					Description: "err",
+					Description: "port", // Legacy, see comment in pushScrapeTimeMetric
+				}, {
+					Description: "scrape_status",
 					ValueComments: convertToValueComments(map[int32]string{
-						TagValueIDScrapeError: "scrape",
+						TagValueIDScrapeError: "error",
+						TagValueIDScrapeOK:    "ok",
 					}),
 				},
 			},
@@ -1025,7 +1054,8 @@ Set by aggregator.`,
 			}, {
 				Description: "-",
 			}, {
-				Description: "-",
+				Description: "commit_hash",
+				RawKind:     "hex",
 			}, {
 				Description: "commit_date",
 				Raw:         true,
@@ -1074,6 +1104,29 @@ Set by aggregator.`,
 				Description: "host",
 			}},
 		},
+		BuiltinMetricIDMetaServiceTime: { // TODO - harmonize
+			Name:        BuiltinMetricNameMetaServiceTime,
+			Kind:        MetricKindValue,
+			Description: "Time to handle RPC query by meta.",
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}, {
+				Description: "method",
+			}, {
+				Description: "query_type",
+			}, {
+				Description: "status",
+			}},
+		},
+		BuiltinMetricIDMetaClientWaits: { // TODO - harmonize
+			Name:        BuiltinMetricNameMetaClientWaits,
+			Kind:        MetricKindValue,
+			Description: "Number of clients waiting journal updates",
+			Tags: []MetricMetaTag{{
+				Description: "host",
+			}},
+		},
+
 		BuiltinMetricIDAPIBRS: { // TODO - harmonize
 			Name:        BuiltinMetricNameAPIBRS,
 			Kind:        MetricKindValue,
@@ -1262,9 +1315,10 @@ Set by aggregator.`,
 		},
 		BuiltinMetricIDContributorsLog: {
 			Name: "__contributors_log",
-			Kind: MetricKindCounter,
+			Kind: MetricKindValue,
 			Description: `Used to invalidate API caches.
-Timestamps of all inserted seconds per second are recorded here.
+Timestamps of all inserted seconds per second are recorded here in key1.
+Value is delta between second value and time it was inserted.
 To see which seconds change when, use __contributors_log_rev`,
 			Tags: []MetricMetaTag{{
 				Description: "timestamp",
@@ -1272,9 +1326,11 @@ To see which seconds change when, use __contributors_log_rev`,
 			}},
 		},
 		BuiltinMetricIDContributorsLogRev: {
-			Name:        "__contributors_log_rev",
-			Kind:        MetricKindValue,
-			Description: "Reverse index of __contributors_log, used to invalidate API caches.\nValue (and key1) is UNIX timestamp of second when this second was changed.",
+			Name: "__contributors_log_rev",
+			Kind: MetricKindValue,
+			Description: `Reverse index of __contributors_log, used to invalidate API caches.
+key1 is UNIX timestamp of second when this second was changed.
+Value is delta between second value and time it was inserted.`,
 			Tags: []MetricMetaTag{{
 				Description: "insert_timestamp",
 				RawKind:     "timestamp",
@@ -1360,12 +1416,15 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDAPISelectBytes:             true,
 		BuiltinMetricIDAPISelectDuration:          true,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
+		BuiltinMetricIDMetaServiceTime:            true,
+		BuiltinMetricIDMetaClientWaits:            true,
 	}
 
 	MetricsWithAgentEnvRouteArch = map[int32]bool{
 		BuiltinMetricIDAgentDiskCacheErrors:       true,
 		BuiltinMetricIDTimingErrors:               true,
 		BuiltinMetricIDAgentMapping:               true,
+		BuiltinMetricIDAutoConfig:                 true, // also passed through ingress proxies
 		BuiltinMetricIDJournalVersions:            true,
 		BuiltinMetricIDTLByteSizePerInflightType:  true,
 		BuiltinMetricIDIngestionStatus:            true,
@@ -1388,6 +1447,7 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDHeartbeatArgs2:             true,
 		BuiltinMetricIDHeartbeatArgs3:             true,
 		BuiltinMetricIDHeartbeatArgs4:             true,
+		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
 	}
 
 	metricsWithoutAggregatorID = map[int32]bool{
@@ -1413,6 +1473,7 @@ To see which seconds change when, use __contributors_log_rev`,
 		BuiltinMetricIDBudgetHost:                 true,
 		BuiltinMetricIDBudgetAggregatorHost:       true,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
+		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
 	}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue
@@ -1493,7 +1554,8 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 		}, {
 			Description: "-",
 		}, {
-			Description: "-",
+			Description: "commit_hash", // this is unrelated to metric keys, this is ingress key ID
+			RawKind:     "hex",
 		}, {
 			Description: "commit_date",
 			Raw:         true,
@@ -1519,8 +1581,8 @@ func init() {
 	}
 	for i := 0; i < MaxTags; i++ {
 		legacyName := tagIDPrefix + strconv.Itoa(i)
-		tagIDs = append(tagIDs, legacyName)
-		newTagIDs = append(newTagIDs, strconv.Itoa(i))
+		tagIDsLegacy = append(tagIDsLegacy, legacyName)
+		tagIDs = append(tagIDs, strconv.Itoa(i))
 		tagIDToIndexForAPI[legacyName] = i
 		tagIDTag2TagID[int32(i+TagIDShiftLegacy)] = legacyName
 		tagIDTag2TagID[int32(i+TagIDShift)] = tagStringForUI + " " + strconv.Itoa(i) // for UI only

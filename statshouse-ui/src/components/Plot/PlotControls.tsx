@@ -7,63 +7,49 @@
 import React, { ChangeEvent, memo, useCallback, useEffect, useMemo } from 'react';
 import * as utils from '../../view/utils';
 import { getTimeShifts, promQLMetric, timeShiftAbbrevExpand } from '../../view/utils';
-import { MetricItem } from '../../hooks';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, Select, SelectOptionProps } from '../index';
 import { TagControl } from '../../view/TagControl';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
-import {
-  selectorLastError,
-  selectorParams,
-  selectorParamsTagSync,
-  selectorParamsTimeShifts,
-  selectorPlotsData,
-  selectorPlotsDataByIndex,
-  selectorSetLastError,
-  selectorSetParams,
-  selectorSetTimeRange,
-  selectorTimeRange,
-  useStore,
-} from '../../store';
+import { ReactComponent as SVGFlag } from 'bootstrap-icons/icons/flag.svg';
+import { selectorMetricsList, selectorParamsTagSync, Store, useMetricsListStore, useStore } from '../../store';
 import { globalSettings } from '../../common/settings';
-import { filterHasTagID, metricKindToWhat, metricMeta, queryWhat, whatToWhatDesc } from '../../view/api';
+import { filterHasTagID, metricKindToWhat, queryWhat, whatToWhatDesc } from '../../view/api';
 import produce from 'immer';
 import { PLOT_TYPE, PlotParams } from '../../common/plotQueryParams';
 import cn from 'classnames';
+import { ErrorMessages } from '../ErrorMessages';
+import { MetricMetaValue } from '../../api/metric';
+
+const { setParams, setTimeRange, setPlotParams } = useStore.getState();
+
+const selectorControls = ({ params, timeRange, plotsData }: Store) => ({
+  params,
+  timeRange,
+  plotsData,
+});
 
 export const PlotControls = memo(function PlotControls_(props: {
   indexPlot: number;
   setBaseRange: (r: utils.timeRangeAbbrev) => void;
-  sel: PlotParams;
-  setSel: (state: React.SetStateAction<PlotParams>, replaceUrl?: boolean) => void;
-  meta: metricMeta;
+  meta?: MetricMetaValue;
   numQueries: number;
-  metricsOptions: MetricItem[];
   clonePlot?: () => void;
 }) {
-  const { indexPlot, setBaseRange, sel, setSel, meta, numQueries, clonePlot, metricsOptions } = props;
+  const { indexPlot, setBaseRange, meta, numQueries, clonePlot } = props;
+  const metricsList = useMetricsListStore(selectorMetricsList);
+  const metricsOptions = useMemo<SelectOptionProps[]>(
+    () => metricsList.map(({ name }) => ({ name, value: name })),
+    [metricsList]
+  );
 
-  const timeShifts = useStore(selectorParamsTimeShifts);
-  const params = useStore(selectorParams);
-  const setParams = useStore(selectorSetParams);
-
-  const timeRange = useStore(selectorTimeRange);
-  const setTimeRange = useStore(selectorSetTimeRange);
-
+  const { params, timeRange, plotsData } = useStore(selectorControls);
+  const timeShifts = params.timeShifts;
   const syncTags = useStore(selectorParamsTagSync);
-
-  const lastError = useStore(selectorLastError);
-  const setLastError = useStore(selectorSetLastError);
-
-  const selectorPlotData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
-  const plotData = useStore(selectorPlotData);
-  const plotsData = useStore(selectorPlotsData);
-
-  const clearLastError = useCallback(() => {
-    setLastError('');
-  }, [setLastError]);
+  const plotData = plotsData[indexPlot];
+  const plotParams = params.plots[indexPlot];
 
   const eventPlotList = useMemo<SelectOptionProps[]>(() => {
     const eventPlots: SelectOptionProps[] = params.plots
@@ -87,10 +73,11 @@ export const PlotControls = memo(function PlotControls_(props: {
 
   // keep meta up-to-date when sel.metricName changes (e.g. because of navigation)
   useEffect(() => {
-    const whats = metricKindToWhat(meta.kind);
-    if (meta.name === sel.metricName && sel.what.some((qw) => whats.indexOf(qw) === -1)) {
+    const whats = metricKindToWhat(meta?.kind);
+    if (meta?.name === plotParams.metricName && plotParams.what.some((qw) => whats.indexOf(qw) === -1)) {
       // console.log('reset what', meta, sel.metricName, sel.what, whats);
-      setSel(
+      setPlotParams(
+        indexPlot,
         (s) => ({
           ...s,
           what: [whats[0]],
@@ -98,7 +85,7 @@ export const PlotControls = memo(function PlotControls_(props: {
         true
       );
     }
-  }, [meta.kind, meta.name, sel.metricName, sel.what, setSel]);
+  }, [indexPlot, meta?.kind, meta?.name, plotParams.metricName, plotParams.what]);
 
   const onCustomAggChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
@@ -108,41 +95,41 @@ export const PlotControls = memo(function PlotControls_(props: {
         (v) => timeShiftsSet.find((shift) => timeShiftAbbrevExpand(shift) === v) !== undefined
       );
       setParams((p) => ({ ...p, timeShifts: shifts }));
-      setSel((s) => ({
+      setPlotParams(indexPlot, (s) => ({
         ...s,
         customAgg: customAgg,
       }));
     },
-    [setParams, setSel, timeShifts]
+    [indexPlot, timeShifts]
   );
 
   const onNumSeriesChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
-      setSel((s) => ({
+      setPlotParams(indexPlot, (s) => ({
         ...s,
         numSeries: parseInt(e.target.value),
       }));
     },
-    [setSel]
+    [indexPlot]
   );
 
   const onV2Change = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
-      setSel((s) => ({
+      setPlotParams(indexPlot, (s) => ({
         ...s,
         useV2: e.target.checked,
       }));
     },
-    [setSel]
+    [indexPlot]
   );
   const onHostChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
-      setSel((s) => ({
+      setPlotParams(indexPlot, (s) => ({
         ...s,
         maxHost: e.target.checked,
       }));
     },
-    [setSel]
+    [indexPlot]
   );
 
   const onMetricChange = useCallback(
@@ -150,8 +137,8 @@ export const PlotControls = memo(function PlotControls_(props: {
       if (typeof value !== 'string') {
         return;
       }
-      setSel((s) => {
-        const whats = metricKindToWhat(meta.kind);
+      setPlotParams(indexPlot, (s) => {
+        const whats = metricKindToWhat(meta?.kind);
         return {
           ...s,
           metricName: value,
@@ -163,39 +150,40 @@ export const PlotControls = memo(function PlotControls_(props: {
         };
       });
     },
-    [meta.kind, setSel]
+    [indexPlot, meta?.kind]
   );
 
   const onWhatChange = useCallback(
     (value?: string | string[]) => {
       const whatValue = Array.isArray(value) ? value : value ? [value] : [];
       if (!whatValue.length) {
-        const whats = metricKindToWhat(meta.kind);
+        const whats = metricKindToWhat(meta?.kind);
         whatValue.push(whats[0]);
       }
-      setSel((s) => ({
+      setPlotParams(indexPlot, (s) => ({
         ...s,
         what: whatValue as queryWhat[],
       }));
     },
-    [meta.kind, setSel]
+    [indexPlot, meta?.kind]
   );
 
   const whatOption = useMemo(
     () =>
-      metricKindToWhat(meta.kind).map((w) => ({
+      metricKindToWhat(meta?.kind).map((w) => ({
         value: w,
         name: whatToWhatDesc(w),
         disabled: w === '-',
         splitter: w === '-',
       })),
-    [meta.kind]
+    [meta?.kind]
   );
 
   const toPromql = useCallback(() => {
-    setSel(
+    setPlotParams(
+      indexPlot,
       produce((s) => {
-        const whats = metricKindToWhat(meta.kind);
+        const whats = metricKindToWhat(meta?.kind);
 
         s.metricName = promQLMetric;
         s.what = [whats[0]];
@@ -205,35 +193,28 @@ export const PlotControls = memo(function PlotControls_(props: {
         s.promQL = plotData.promQL;
       })
     );
-  }, [meta.kind, plotData.promQL, setSel]);
+  }, [indexPlot, meta?.kind, plotData.promQL]);
 
   const eventsChange = useCallback(
     (value: string | string[] = []) => {
-      setSel(
+      setPlotParams(
+        indexPlot,
         produce((s) => {
           s.events = Array.isArray(value) ? value.map((v) => parseInt(v)) : [parseInt(value)];
         })
       );
     },
-    [setSel]
+    [indexPlot]
   );
 
   return (
     <div>
-      <div
-        className="alert alert-danger d-flex align-items-center justify-content-between"
-        hidden={lastError === ''}
-        role="alert"
-      >
-        <small className="overflow-force-wrap font-monospace">{lastError}</small>
-        <button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
-      </div>
-
+      <ErrorMessages />
       <form spellCheck="false">
         <div className="d-flex mb-2">
           <div className="col input-group">
             <Select
-              value={sel.metricName}
+              value={plotParams.metricName}
               options={metricsOptions}
               onChange={onMetricChange}
               valueToInput={true}
@@ -251,7 +232,7 @@ export const PlotControls = memo(function PlotControls_(props: {
               </button>
             )}
           </div>
-          {sel.type === PLOT_TYPE.Metric && (
+          {plotParams.type === PLOT_TYPE.Metric && (
             <button type="button" className="btn btn-outline-primary ms-3" onClick={toPromql} title="PromQL">
               <SVGCode />
             </button>
@@ -260,22 +241,22 @@ export const PlotControls = memo(function PlotControls_(props: {
         <div className="row mb-3">
           <div className="d-flex align-items-baseline">
             <Select
-              value={sel.what}
+              value={plotParams.what}
               onChange={onWhatChange}
               options={whatOption}
               multiple
               onceSelectByClick
-              className={cn('sh-select form-control', sel.type === PLOT_TYPE.Metric && ' me-4')}
+              className={cn('sh-select form-control', plotParams.type === PLOT_TYPE.Metric && ' me-4')}
               classNameList="dropdown-menu"
             />
-            {sel.type === PLOT_TYPE.Metric && (
+            {plotParams.type === PLOT_TYPE.Metric && (
               <div className="form-check form-switch">
                 <input
                   className="form-check-input"
                   type="checkbox"
                   value=""
                   id="switchMaxHost"
-                  checked={sel.maxHost}
+                  checked={plotParams.maxHost}
                   onChange={onHostChange}
                 />
                 <label className="form-check-label" htmlFor="switchMaxHost" title="Host">
@@ -295,10 +276,10 @@ export const PlotControls = memo(function PlotControls_(props: {
         </div>
 
         <div className="row mb-3 align-items-baseline">
-          <div className={cn(sel.type === PLOT_TYPE.Metric ? 'col-4' : 'col-8')}>
+          <div className="col-4">
             <select
-              className={`form-select ${sel.customAgg > 0 ? 'border-warning' : ''}`}
-              value={sel.customAgg}
+              className={`form-select ${plotParams.customAgg > 0 ? 'border-warning' : ''}`}
+              value={plotParams.customAgg}
               onChange={onCustomAggChange}
             >
               <option value={0}>Auto</option>
@@ -316,34 +297,33 @@ export const PlotControls = memo(function PlotControls_(props: {
               <option value={31 * 24 * 60 * 60}>1 month</option>
             </select>
           </div>
-          {sel.type === PLOT_TYPE.Metric && (
-            <div className="col-4">
-              <select className="form-select" value={sel.numSeries} onChange={onNumSeriesChange}>
-                <option value="1">Top 1</option>
-                <option value="2">Top 2</option>
-                <option value="3">Top 3</option>
-                <option value="4">Top 4</option>
-                <option value="5">Top 5</option>
-                <option value="10">Top 10</option>
-                <option value="20">Top 20</option>
-                <option value="30">Top 30</option>
-                <option value="40">Top 40</option>
-                <option value="50">Top 50</option>
-                <option value="100">Top 100</option>
-                <option value="-1">Bottom 1</option>
-                <option value="-2">Bottom 2</option>
-                <option value="-3">Bottom 3</option>
-                <option value="-4">Bottom 4</option>
-                <option value="-5">Bottom 5</option>
-                <option value="-10">Bottom 10</option>
-                <option value="-20">Bottom 20</option>
-                <option value="-30">Bottom 30</option>
-                <option value="-40">Bottom 40</option>
-                <option value="-50">Bottom 50</option>
-                <option value="-100">Bottom 100</option>
-              </select>
-            </div>
-          )}
+          <div className="col-4">
+            <select className="form-select" value={plotParams.numSeries} onChange={onNumSeriesChange}>
+              <option value="1">Top 1</option>
+              <option value="2">Top 2</option>
+              <option value="3">Top 3</option>
+              <option value="4">Top 4</option>
+              <option value="5">Top 5</option>
+              <option value="10">Top 10</option>
+              <option value="20">Top 20</option>
+              <option value="30">Top 30</option>
+              <option value="40">Top 40</option>
+              <option value="50">Top 50</option>
+              <option value="100">Top 100</option>
+              <option value="-1">Bottom 1</option>
+              <option value="-2">Bottom 2</option>
+              <option value="-3">Bottom 3</option>
+              <option value="-4">Bottom 4</option>
+              <option value="-5">Bottom 5</option>
+              <option value="-10">Bottom 10</option>
+              <option value="-20">Bottom 20</option>
+              <option value="-30">Bottom 30</option>
+              <option value="-40">Bottom 40</option>
+              <option value="-50">Bottom 50</option>
+              <option value="-100">Bottom 100</option>
+            </select>
+          </div>
+
           <div className="col-4 d-flex justify-content-end">
             <div className="form-check form-switch">
               <input
@@ -351,7 +331,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                 type="checkbox"
                 value=""
                 id="useV2Input"
-                checked={sel.useV2}
+                checked={plotParams.useV2}
                 disabled={globalSettings.disabled_v1}
                 onChange={onV2Change}
               />
@@ -369,10 +349,10 @@ export const PlotControls = memo(function PlotControls_(props: {
         )}
 
         {numQueries === 0 &&
-          (meta.tags || []).map((t, index) =>
-            t.description === '-' && !filterHasTagID(sel, index) ? null : (
+          (meta?.tags || []).map((t, index) =>
+            t.description === '-' && !filterHasTagID(plotParams, index) ? null : (
               <TagControl
-                key={`${meta.name} tag${index}`}
+                key={`${meta?.name} tag${index}`}
                 tag={t}
                 indexTag={index}
                 indexPlot={indexPlot}
@@ -382,22 +362,23 @@ export const PlotControls = memo(function PlotControls_(props: {
             )
           )}
 
-        {numQueries === 0 && (meta.string_top_name || meta.string_top_description || filterHasTagID(sel, -1)) && (
-          <TagControl
-            key={`${meta.name} tag_s`}
-            tag={{
-              name: meta.string_top_name ? meta.string_top_name : 'tag_s',
-              description: meta.string_top_description,
-            }}
-            indexTag={-1}
-            indexPlot={indexPlot}
-            tagID={`skey`}
-          />
-        )}
-        {sel.type === PLOT_TYPE.Metric && !!eventPlotList.length && (
-          <div>
+        {numQueries === 0 &&
+          (meta?.string_top_name || meta?.string_top_description || filterHasTagID(plotParams, -1)) && (
+            <TagControl
+              key={`${meta?.name} tag_s`}
+              tag={{
+                name: meta?.string_top_name ? meta?.string_top_name : 'tag_s',
+                description: meta?.string_top_description,
+              }}
+              indexTag={-1}
+              indexPlot={indexPlot}
+              tagID={`skey`}
+            />
+          )}
+        {plotParams.type === PLOT_TYPE.Metric && !!eventPlotList.length && (
+          <div className="input-group">
             <Select
-              value={sel.events.map((e) => e.toString())}
+              value={plotParams.events.map((e) => e.toString())}
               onChange={eventsChange}
               className="sh-select form-control"
               classNameList="dropdown-menu"
@@ -405,7 +386,11 @@ export const PlotControls = memo(function PlotControls_(props: {
               onceSelectByClick
               multiple
               options={eventPlotList}
+              placeholder="Event"
             />
+            <span className="input-group-text text-primary">
+              <SVGFlag />
+            </span>
           </div>
         )}
       </form>

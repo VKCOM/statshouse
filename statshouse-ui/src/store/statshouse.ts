@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -14,6 +14,7 @@ import {
   getLiveParams,
   PLOT_TYPE,
   PlotParams,
+  PlotType,
   QueryParams,
   readDashboardID,
   setLiveParams,
@@ -33,46 +34,41 @@ import {
   fmtInputDateTime,
   formatLegendValue,
   formatPercent,
+  freeKeyPrefix,
+  getTimeShifts,
   normalizeDashboard,
-  notNull,
   now,
   promQLMetric,
   readJSONLD,
   sortByKey,
   timeRangeAbbrev,
   timeRangeAbbrevExpand,
+  timeShiftAbbrevExpand,
   timeShiftToDash,
-  uniqueArray,
 } from '../view/utils';
 import { globalSettings, pxPerChar } from '../common/settings';
 import { debug } from '../common/debug';
 import * as api from '../view/api';
 import {
   DashboardInfo,
-  dashboardListURL,
-  dashboardShortInfo,
   dashboardURL,
-  GetDashboardListResp,
+  filterParamsArr,
   metaToBaseLabel,
   metaToLabel,
-  metricMeta,
-  metricResult,
   MetricsGroup,
   MetricsGroupInfo,
   MetricsGroupInfoList,
   metricsGroupListURL,
   MetricsGroupShort,
   metricsGroupURL,
-  metricsListURL,
   metricTagValueInfo,
-  metricTagValuesURL,
-  metricURL,
   PromConfigInfo,
   promConfigURL,
   queryResult,
   querySeriesMeta,
   querySeriesMetaTag,
   queryTable,
+  queryTableRow,
   queryTableURL,
   queryURL,
   queryWhat,
@@ -83,6 +79,14 @@ import { filterPoints } from '../common/filterPoints';
 import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
 import { decodeQueryParams, encodeQueryParams, mergeLeft } from '../common/QueryParamsParser';
 import { getNextState } from '../common/getNextState';
+import { stackData } from '../common/stackData';
+import { useErrorStore } from './errors';
+import { apiMetricFetch, MetricMetaValue } from '../api/metric';
+import { GetParams, metricValueBackendVersion } from '../api/GetParams';
+import { isNotNil, uniqueArray } from '../common/helpers';
+import { promiseRun } from '../common/promiseRun';
+import { apiMetricTagValuesFetch } from '../api/metricTagValues';
+import { QueryWhat } from '../api/query';
 
 export type PlotStore = {
   nameMetric: string;
@@ -98,6 +102,7 @@ export type PlotStore = {
   lastTimeShifts?: number[];
   lastQuerySeriesMeta?: querySeriesMeta[];
   receiveErrors: number;
+  receiveWarnings: number;
   samplingFactorSrc: number;
   samplingFactorAgg: number;
   mappingFloodEvents: number;
@@ -154,6 +159,7 @@ function getEmptyPlotData(): PlotStore {
     seriesShow: [],
     scales: {},
     receiveErrors: 0,
+    receiveWarnings: 0,
     samplingFactorSrc: 0,
     samplingFactorAgg: 0,
     mappingFloodEvents: 0,
@@ -205,6 +211,7 @@ export type StatsHouseStore = {
   setLiveMode(nextStatus: React.SetStateAction<boolean>): void;
   updateParamsByUrl(): void;
   updateUrl(replace?: boolean): void;
+  updateTitle(): void;
   setTimeRange(value: SetTimeRangeValue, force?: boolean): void;
   setParams(nextState: React.SetStateAction<QueryParams>, replace?: boolean, force?: boolean): void;
   setPlotParams(index: number, nextState: React.SetStateAction<PlotParams>, replace?: boolean): void;
@@ -221,8 +228,6 @@ export type StatsHouseStore = {
   setNumQueriesPlot(index: number, nextState: React.SetStateAction<number>): void;
   baseRange: timeRangeAbbrev;
   setBaseRange(nextState: React.SetStateAction<timeRangeAbbrev>): void;
-  lastError: string;
-  setLastError(nextState: React.SetStateAction<string>): void;
   plotsData: PlotStore[];
   plotsDataAbortController: AbortController[];
   loadPlot(index: number, force?: boolean): void;
@@ -231,12 +236,8 @@ export type StatsHouseStore = {
   uPlotsWidth: number[];
   setUPlotWidth(index: number, weight: number): void;
   setYLockChange(index: number, status: boolean): void;
-  metricsList: { name: string; value: string }[];
-  metricsListAbortController?: AbortController;
-  loadMetricsList(): void;
-  metricsMeta: Record<string, metricMeta>;
-  metricsMetaAbortController: Record<string, AbortController>;
-  loadMetricsMeta(metricName: string): void;
+  metricsMeta: Record<string, MetricMetaValue>;
+  loadMetricsMeta(metricName: string): Promise<void>;
   clearMetricsMeta(metricName: string): void;
   compact: boolean;
   setCompact(compact: boolean): void;
@@ -248,19 +249,20 @@ export type StatsHouseStore = {
     positive: React.SetStateAction<boolean>
   ): void;
   setPlotParamsTagGroupBy(indexPlot: number, keyTag: string, nextState: React.SetStateAction<boolean>): void;
+  setPlotType(indexPlot: number, nextState: React.SetStateAction<PlotType>): void;
   tagsList: metricTagValueInfo[][][]; // [indexPlot][indexTag]
   tagsListSKey: metricTagValueInfo[][]; // [indexPlot]
   tagsListMore: boolean[][]; // [indexPlot][indexTag]
   tagsListSKeyMore: boolean[]; // [indexPlot]
-  tagsListAbortController: (AbortController | null)[][]; // [indexPlot][indexTag]
-  tagsListSKeyAbortController: (AbortController | null)[]; //[indexPlot]
+  tagsListLoading: boolean[][]; // [indexPlot][indexTag]
+  tagsListSKeyLoading: boolean[]; //[indexPlot]
   setTagsList(
     indexPlot: number,
     indexTag: number,
     nextState: React.SetStateAction<metricTagValueInfo[]>,
     more?: boolean
   ): void;
-  loadTagsList(indexPlot: number, indexTag: number, limit?: number): void;
+  loadTagsList(indexPlot: number, indexTag: number, limit?: number): Promise<void>;
   preSync(): void;
   serverParamsAbortController?: AbortController;
   loadServerParams(id: number): Promise<QueryParams>;
@@ -268,9 +270,6 @@ export type StatsHouseStore = {
   removeServerParams(): Promise<QueryParams>;
   saveDashboardParams?: QueryParams;
   setSaveDashboardParams(nextState: React.SetStateAction<QueryParams | undefined>): void;
-  listServerDashboard: dashboardShortInfo[];
-  listServerDashboardAbortController?: AbortController;
-  loadListServerDashboard(): void;
   moveAndResortPlot(indexSelectPlot?: number, indexTargetPlot?: number, indexGroup?: number): void;
   dashboardLayoutEdit: boolean;
   setDashboardLayoutEdit(nextStatus: boolean): void;
@@ -400,6 +399,7 @@ export const statsHouseState: StateCreator<
         type: PLOT_TYPE.Metric,
         events: [],
         eventsBy: [],
+        eventsHide: [],
       };
       params.plots = [np];
       reset = true;
@@ -444,6 +444,7 @@ export const statsHouseState: StateCreator<
         }
       });
     }
+    getState().updateTitle();
     if (reset) {
       getState().updateUrl(true);
     }
@@ -462,10 +463,20 @@ export const statsHouseState: StateCreator<
         if (changedTimeRange) {
           state.timeRange = new TimeRange(nextParams.timeRange);
         }
-        state.params = nextParams;
+        state.params = { ...nextParams };
         if (state.params.tabNum >= 0) {
           state.dashboardLayoutEdit = false;
         }
+        state.params.plots.forEach((plot, indexPlot) => {
+          if (
+            plot.metricName === promQLMetric &&
+            state.params.tagSync.some((g) => g[indexPlot] !== null && g[indexPlot] !== undefined)
+          ) {
+            state.params.tagSync = state.params.tagSync.map((g) =>
+              g.map((tags, plot) => (plot !== indexPlot ? tags : null))
+            );
+          }
+        });
       });
       getState().params.plots.forEach((plot, index) => {
         if (changedTimeRange || changedTimeShifts || prevParams.plots[index] !== plot) {
@@ -485,8 +496,11 @@ export const statsHouseState: StateCreator<
     const noUpdate = changed && dequal({ ...next, customName: '' }, { ...prev, customName: '' });
     if (changed) {
       setState((state) => {
-        if (next.metricName !== prev.metricName) {
-          state.params.tagSync = state.params.tagSync.map((g) => g.filter((tags, plot) => plot !== index));
+        if (
+          next.metricName !== prev.metricName &&
+          state.params.tagSync.some((g) => g[index] !== null && g[index] !== undefined)
+        ) {
+          state.params.tagSync = state.params.tagSync.map((g) => g.map((tags, plot) => (plot !== index ? tags : null)));
         }
         state.params.plots[index] = next;
       });
@@ -582,6 +596,44 @@ export const statsHouseState: StateCreator<
     prevState.setSearchParams?.(p, {
       replace: replace || autoReplace,
     });
+    getState().updateTitle();
+  },
+  updateTitle() {
+    const s = getState();
+    switch (s.params.tabNum) {
+      case -1:
+        if (s.params.dashboard?.dashboard_id !== undefined) {
+          document.title = `${s.params.dashboard?.name} — StatsHouse`;
+        } else {
+          document.title = 'Dashboard — StatsHouse';
+        }
+        break;
+      case -2:
+        document.title = 'Dashboard setting — StatsHouse';
+        break;
+      default:
+        if (s.params.plots[s.params.tabNum] && s.params.plots[s.params.tabNum].metricName === promQLMetric) {
+          if (s.plotsData[s.params.tabNum].nameMetric) {
+            document.title =
+              s.plotsData[s.params.tabNum].nameMetric +
+              (s.plotsData[s.params.tabNum].whats.length
+                ? ': ' + s.plotsData[s.params.tabNum].whats.map((qw) => api.whatToWhatDesc(qw)).join(',')
+                : '') +
+              ' — StatsHouse';
+          } else {
+            document.title = 'StatsHouse';
+          }
+        } else {
+          document.title =
+            (s.params.plots[s.params.tabNum] &&
+              s.params.plots[s.params.tabNum].metricName !== '' &&
+              `${s.params.plots[s.params.tabNum].metricName}: ${s.params.plots[s.params.tabNum].what
+                .map((qw) => api.whatToWhatDesc(qw))
+                .join(',')} — StatsHouse`) ||
+            '';
+        }
+        break;
+    }
   },
   setSearchParams: undefined,
   initSetSearchParams(setSearchParams) {
@@ -630,12 +682,6 @@ export const statsHouseState: StateCreator<
   setBaseRange(nextState) {
     setState((state) => {
       state.baseRange = getNextState(state.baseRange, nextState);
-    });
-  },
-  lastError: '',
-  setLastError(nextState) {
-    setState((state) => {
-      state.lastError = getNextState(state.lastError, nextState);
     });
   },
   plotsData: [],
@@ -744,10 +790,12 @@ export const statsHouseState: StateCreator<
             ...(resp.series.series_data as (number | null)[][]),
           ];
 
+          const stacked = lastPlotParams.type === PLOT_TYPE.Event ? stackData(data) : undefined;
           const usedDashes = {};
           const usedBaseColors = {};
           const baseColors: Record<string, string> = {};
           let changeColor = false;
+          let changeType = prev.lastPlotParams?.type !== lastPlotParams.type;
           const widthLine =
             (width ?? 0) > resp.series.time.length
               ? devicePixelRatio > 1
@@ -771,7 +819,7 @@ export const statsHouseState: StateCreator<
               ? `${meta.name || (lastPlotParams.metricName !== promQLMetric ? lastPlotParams.metricName : '')}: `
               : '';
             const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
-            const baseColor = baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
+            const baseColor = meta.color ?? baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
             baseColors[colorKey] = baseColor;
             if (baseColor !== getState().plotsData[index]?.series[indexMeta]?.stroke) {
               changeColor = true;
@@ -830,10 +878,6 @@ export const statsHouseState: StateCreator<
                       filter: filterPoints,
                       size: 5,
                     },
-              // paths: uPlot.paths.bars!({
-              //   size: [5, 5, 5],
-              //   align: 1,
-              // }),
               paths,
               values(u, seriesIdx, idx): PlotValues {
                 if (idx === null) {
@@ -852,10 +896,10 @@ export const statsHouseState: StateCreator<
                     top_max_host_percent: '',
                   };
                 }
-                const rawValue = u.data[seriesIdx]?.[idx] ?? null;
+                const rawValue = data[seriesIdx]?.[idx] ?? null;
                 let total = 0;
                 for (let i = 1; i < u.series.length; i++) {
-                  const v = u.data[i]?.[idx];
+                  const v = data[i]?.[idx];
                   if (v !== null && v !== undefined) {
                     total += v;
                   }
@@ -948,25 +992,29 @@ export const statsHouseState: StateCreator<
           const legendMaxDotSpaceWidth =
             Math.max(4, (formatLegendValue(maxLengthValue).split('.', 2)[1]?.length ?? 0) + 2) * pxPerChar;
           const legendPercentWidth = (4 + 2) * pxPerChar; // +2 - focus marker
-
           setState((state) => {
+            const noUpdateData = dequal(stacked || data, state.plotsData[index]?.data);
             state.plotsData[index] = {
               nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
               whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as string[]) : [],
               error: '',
-              data: dequal(data, state.plotsData[index]?.data) ? state.plotsData[index]?.data : data,
+              data: noUpdateData ? state.plotsData[index]?.data : stacked || data,
               series:
-                dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) && !changeColor
+                noUpdateData &&
+                dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) &&
+                !changeColor &&
+                !changeType
                   ? state.plotsData[index]?.series
                   : series,
               seriesShow: dequal(seriesShow, state.plotsData[index]?.seriesShow)
                 ? state.plotsData[index]?.seriesShow
                 : seriesShow,
               scales: dequal(scales, state.plotsData[index]?.scales) ? state.plotsData[index]?.scales : scales,
-              receiveErrors: resp.receive_errors_legacy,
+              receiveErrors: resp.receive_errors,
+              receiveWarnings: resp.receive_warnings,
               samplingFactorSrc: resp.sampling_factor_src,
               samplingFactorAgg: resp.sampling_factor_agg,
-              mappingFloodEvents: resp.mapping_flood_events_legacy,
+              mappingFloodEvents: resp.mapping_errors,
               legendValueWidth,
               legendMaxDotSpaceWidth,
               legendNameWidth,
@@ -1008,13 +1056,21 @@ export const statsHouseState: StateCreator<
         })
         .finally(() => {
           getState().setNumQueriesPlot(index, (n) => n - 1);
+          getState().updateTitle();
         });
       if (lastPlotParams.type === PLOT_TYPE.Event) {
         const from =
           prevState.timeRange.from < prevState.params.eventFrom && prevState.timeRange.to > prevState.params.eventFrom
             ? prevState.params.eventFrom
             : undefined;
-        getState().loadEvents(index, undefined, undefined, from).catch(debug.error);
+        getState()
+          .loadMetricsMeta(lastPlotParams.metricName)
+          .then(() => {
+            getState()
+              .loadEvents(index, undefined, undefined, from)
+              .catch(() => undefined);
+          })
+          .catch(() => undefined);
       }
     }
   },
@@ -1066,81 +1122,35 @@ export const statsHouseState: StateCreator<
       );
     }
   },
-  metricsList: [],
-  loadMetricsList() {
-    const prevState = getState();
-    prevState.metricsListAbortController?.abort();
-    const controller = new AbortController();
-    setState((state) => {
-      state.metricsListAbortController = controller;
-    });
-    prevState.setGlobalNumQueriesPlot((n) => n + 1);
-    apiGet<api.metricsListResult>(metricsListURL(), controller.signal, true)
-      .then(
-        (resp) => {
-          setState((state) => {
-            state.metricsList = resp.metrics.map((m) => ({ name: m.name, value: m.name }));
-          });
-        },
-        (err) => {
-          if (err.name !== 'AbortError') {
-            debug.error(err);
-            setState((state) => {
-              state.lastError = err.toString();
-            });
-          }
-        }
-      )
-      .finally(() => {
-        prevState.setGlobalNumQueriesPlot((n) => n - 1);
-      });
-  },
-  metricsMeta: { '': { name: '', metric_id: 0, kind: 'counter', description: '', tags: [] } },
-  metricsMetaAbortController: {},
-  loadMetricsMeta(metricName) {
+  metricsMeta: {},
+  async loadMetricsMeta(metricName) {
     if (!metricName || metricName === promQLMetric) {
       return;
     }
     const prevState = getState();
-    if (
-      prevState.metricsMeta[metricName] &&
-      (prevState.metricsMeta[metricName].name || prevState.metricsMetaAbortController[metricName])
-    ) {
+    if (prevState.metricsMeta[metricName] && prevState.metricsMeta[metricName].name) {
       return;
     }
-    prevState.metricsMetaAbortController[metricName]?.abort();
-    const controller = new AbortController();
-    setState((state) => {
-      state.metricsMetaAbortController[metricName] = controller;
-      state.metricsMeta[metricName] = { name: '', metric_id: 0, kind: 'counter', description: '', tags: [] };
-    });
+    const requestKey = `loadMetricsMeta_${metricName}`;
+    const [request, first] = promiseRun(requestKey, apiMetricFetch, { [GetParams.metricName]: metricName }, requestKey);
+    if (!first) {
+      // if request already then await and skip
+      return;
+    }
     prevState.setGlobalNumQueriesPlot((n) => n + 1);
-    apiGet<metricResult>(metricURL(metricName), controller.signal, true)
-      .then((response) => {
-        debug.log('loading meta for', response.metric.name);
-        setState((state) => {
-          state.lastError = '';
-          state.metricsMeta[response.metric.name] = {
-            ...response.metric,
-            tags: response.metric.tags && [...response.metric.tags],
-          };
-        });
-      })
-      .catch((error) => {
-        if (error instanceof Error403) {
-        } else if (error.name !== 'AbortError') {
-          setState((state) => {
-            state.lastError = error.toString();
-          });
-        }
-        getState().clearMetricsMeta(metricName);
-      })
-      .finally(() => {
-        prevState.setGlobalNumQueriesPlot((n) => n - 1);
-        setState((state) => {
-          delete state.metricsMetaAbortController[metricName];
-        });
+    const { response, error } = await request;
+    if (response) {
+      debug.log('loading meta for', response.data.metric.name);
+      setState((state) => {
+        state.metricsMeta[response.data.metric.name] = response.data.metric;
       });
+    }
+    if (error) {
+      useErrorStore.getState().addError(error);
+    }
+    prevState.setGlobalNumQueriesPlot((n) => n - 1);
+
+    return;
   },
   clearMetricsMeta(metricName) {
     if (getState().metricsMeta[metricName]) {
@@ -1218,7 +1228,6 @@ export const statsHouseState: StateCreator<
     const prevState = getState();
     const prev = prevState.params.plots[indexPlot];
     const next = getNextState(prev.groupBy.includes(keyTag), nextState);
-
     const tagIndex = parseInt(keyTag.match(/\d+/)?.[0] ?? '-1');
     const syncGroups = prevState.params.tagSync.filter((g) => g[indexPlot] === tagIndex);
     getState().setParams(
@@ -1228,27 +1237,72 @@ export const statsHouseState: StateCreator<
             g.forEach((tagKeyIndex, syncPlotIndex) => {
               if (tagKeyIndex !== null && tagKeyIndex !== undefined) {
                 const tagKey = `key${tagKeyIndex}`;
-                params.plots[syncPlotIndex].groupBy = next
+                const nextGroupBy = next
                   ? sortEntity([...params.plots[syncPlotIndex].groupBy, tagKey])
                   : params.plots[syncPlotIndex].groupBy.filter((t) => t !== tagKey);
+                if (!dequal(params.plots[syncPlotIndex].groupBy, nextGroupBy)) {
+                  params.plots[syncPlotIndex].groupBy = nextGroupBy;
+                }
               }
             });
           });
         } else {
-          params.plots[indexPlot].groupBy = next
+          const nextGroupBy = next
             ? sortEntity([...params.plots[indexPlot].groupBy, keyTag])
             : params.plots[indexPlot].groupBy.filter((t) => t !== keyTag);
+          if (!dequal(params.plots[indexPlot].groupBy, nextGroupBy)) {
+            params.plots[indexPlot].groupBy = nextGroupBy;
+          }
         }
       })
     );
+  },
+  setPlotType(indexPlot, nextState) {
+    const prev = getState();
+    const prevPlot = getState().params.plots[indexPlot];
+    const nextType = getNextState(prevPlot.type, nextState);
+    const meta = prev.metricsMeta[prevPlot.metricName];
+    if (prevPlot.type !== nextType) {
+      prev.setParams(
+        produce((params) => {
+          params.plots[indexPlot].type = nextType;
+          params.plots[indexPlot].eventsHide = [];
+          switch (params.plots[indexPlot].type) {
+            case PLOT_TYPE.Metric:
+              params.plots[indexPlot].customAgg = 0;
+              params.plots[indexPlot].eventsBy = [];
+              break;
+            case PLOT_TYPE.Event:
+              params.plots[indexPlot].customAgg = -1;
+              params.plots[indexPlot].eventsBy =
+                (meta &&
+                  meta.tags?.reduce((res, tag, index) => {
+                    if (tag.description !== '-') {
+                      res.push(index.toString());
+                    }
+                    return res;
+                  }, [] as string[])) ??
+                [];
+              break;
+          }
+          const timeShiftsSet = getTimeShifts(params.plots[indexPlot].customAgg);
+          const shifts = params.timeShifts.filter(
+            (v) => timeShiftsSet.find((shift) => timeShiftAbbrevExpand(shift) === v) !== undefined
+          );
+          if (!dequal(params.timeShifts, shifts)) {
+            params.timeShifts = shifts;
+          }
+        })
+      );
+    }
   },
   metricsListAbortController: undefined,
   tagsList: [],
   tagsListSKey: [],
   tagsListMore: [],
   tagsListSKeyMore: [],
-  tagsListAbortController: [],
-  tagsListSKeyAbortController: [],
+  tagsListLoading: [],
+  tagsListSKeyLoading: [],
   setTagsList(indexPlot, indexTag, nextState, more = false) {
     const prevState = getState();
     const next = getNextState(
@@ -1271,64 +1325,58 @@ export const statsHouseState: StateCreator<
       }
     });
   },
-  loadTagsList(indexPlot, indexTag, limit = 20000) {
+  async loadTagsList(indexPlot, indexTag, limit = 20000) {
     const prevState = getState();
     const plot = prevState.params.plots[indexPlot];
     const tag = prevState.metricsMeta[plot.metricName]?.tags?.[indexTag];
+    const tagKey = indexTag === -1 ? '_s' : `${indexTag}`;
+    const requestKey = `${indexPlot}-${plot.metricName}`;
     const tagID = indexTag === -1 ? 'skey' : `key${indexTag}`;
     const otherFilterIn = { ...plot.filterIn };
     delete otherFilterIn[tagID];
     const otherFilterNotIn = { ...plot.filterNotIn };
     delete otherFilterNotIn[tagID];
     if (plot.metricName && (tag || indexTag === -1)) {
-      if (indexTag === -1) {
-        prevState.tagsListSKeyAbortController[indexPlot]?.abort();
-      } else {
-        prevState.tagsListAbortController[indexPlot]?.[indexTag]?.abort();
-      }
-      const controller = new AbortController();
       setState((state) => {
         if (indexTag === -1) {
-          state.tagsListSKeyAbortController[indexPlot] = controller;
+          state.tagsListSKeyLoading[indexPlot] = true;
         } else {
-          if (!state.tagsListAbortController[indexPlot]) {
-            state.tagsListAbortController[indexPlot] = new Array(
+          if (!state.tagsListLoading[indexPlot]) {
+            state.tagsListLoading[indexPlot] = new Array(
               prevState.metricsMeta[plot.metricName]?.tags?.length ?? 0
-            ).fill(null);
+            ).fill(false);
           }
-          state.tagsListAbortController[indexPlot][indexTag] = controller;
+          state.tagsListLoading[indexPlot][indexTag] = true;
         }
       });
-      const url = metricTagValuesURL(
-        limit,
-        globalSettings.disabled_v1 ? true : plot.useV2,
-        plot.metricName,
-        tagID,
-        prevState.timeRange.from,
-        prevState.timeRange.to,
-        plot.what,
-        otherFilterIn,
-        otherFilterNotIn
+      const { response, error } = await apiMetricTagValuesFetch(
+        {
+          [GetParams.metricName]: plot.metricName,
+          [GetParams.metricTagID]: tagKey,
+          [GetParams.version]:
+            globalSettings.disabled_v1 || plot.useV2 ? metricValueBackendVersion.v2 : metricValueBackendVersion.v1,
+          [GetParams.numResults]: limit.toString(),
+          [GetParams.fromTime]: prevState.timeRange.from.toString(),
+          [GetParams.toTime]: (prevState.timeRange.to + 1).toString(),
+          [GetParams.metricFilter]: filterParamsArr(otherFilterIn, otherFilterNotIn),
+          [GetParams.metricWhat]: plot.what.slice() as QueryWhat[],
+        },
+        requestKey
       );
-      apiGet<api.metricTagValuesResult>(url, controller.signal, true)
-        .then((resp) => {
-          getState().setTagsList(indexPlot, indexTag, resp.tag_values.slice(), resp.tag_values_more);
-        })
-        .catch((error) => {
-          if (error.name !== 'AbortError') {
-            debug.error(error);
-            getState().setLastError(error.toString());
-          }
-        })
-        .finally(() => {
-          setState((state) => {
-            if (indexTag === -1) {
-              state.tagsListSKeyAbortController[indexPlot] = null;
-            } else {
-              state.tagsListAbortController[indexPlot][indexTag] = null;
-            }
-          });
-        });
+      if (response) {
+        getState().setTagsList(indexPlot, indexTag, response.data.tag_values.slice(), response.data.tag_values_more);
+      }
+
+      if (error) {
+        useErrorStore.getState().addError(error);
+      }
+      setState((state) => {
+        if (indexTag === -1) {
+          state.tagsListSKeyLoading[indexPlot] = false;
+        } else {
+          state.tagsListLoading[indexPlot][indexTag] = false;
+        }
+      });
     }
   },
   preSync() {
@@ -1340,10 +1388,11 @@ export const statsHouseState: StateCreator<
       const filterNotIn = uniqueArray(
         group.flatMap((tag, indexPlot) => prevState.params.plots[indexPlot].filterNotIn[`key${tag}`] ?? [])
       );
-      const indexPlot = group.findIndex(notNull);
+      const indexPlot = group.findIndex(isNotNil);
       const keyTag = `key${group[indexPlot]}`;
-      const byGroup = prevState.params.plots.some((plot) => plot.groupBy.indexOf(keyTag) >= 0);
-
+      const byGroup = prevState.params.plots.some(
+        (plot, indexPlot) => plot.groupBy.indexOf(keyTag) >= 0 && group[indexPlot] !== null
+      );
       if (filterIn.length) {
         prevState.setPlotParamsTag(indexPlot, keyTag, filterIn, true);
       } else if (filterNotIn.length) {
@@ -1382,10 +1431,7 @@ export const statsHouseState: StateCreator<
         })
         .catch((error) => {
           if (error.name !== 'AbortError') {
-            debug.error(error);
-            setState((state) => {
-              state.lastError = error.toString();
-            });
+            useErrorStore.getState().addError(error);
           }
         })
         .finally(() => {
@@ -1422,7 +1468,6 @@ export const statsHouseState: StateCreator<
       const url = dashboardURL();
       getState().setSaveDashboardParams(undefined);
       getState().setGlobalNumQueriesPlot((s) => s + 1);
-      getState().setLastError('');
       (params.dashboard.dashboard_id !== undefined
         ? apiPost<DashboardInfo>(url, params, controller.signal, true)
         : apiPut<DashboardInfo>(url, params, controller.signal, true)
@@ -1438,10 +1483,7 @@ export const statsHouseState: StateCreator<
         })
         .catch((error) => {
           if (error.name !== 'AbortError') {
-            debug.error(error);
-            setState((state) => {
-              state.lastError = error.toString();
-            });
+            useErrorStore.getState().addError(error);
             reject(error.toString());
           }
         })
@@ -1479,7 +1521,7 @@ export const statsHouseState: StateCreator<
 
       const controller = new AbortController();
       const url = dashboardURL();
-      getState().setLastError('');
+
       getState().setGlobalNumQueriesPlot((s) => s + 1);
       apiPost<DashboardInfo>(url, params, controller.signal, true)
         .then((data) => {
@@ -1491,10 +1533,7 @@ export const statsHouseState: StateCreator<
         })
         .catch((error) => {
           if (error.name !== 'AbortError') {
-            debug.error(error);
-            setState((state) => {
-              state.lastError = error.toString();
-            });
+            useErrorStore.getState().addError(error);
             reject(error.toString());
           }
         })
@@ -1508,30 +1547,6 @@ export const statsHouseState: StateCreator<
     setState((state) => {
       state.saveDashboardParams = getNextState(state.saveDashboardParams, nextState);
     });
-  },
-  listServerDashboard: [],
-  listServerDashboardAbortController: undefined,
-  loadListServerDashboard() {
-    const controller = new AbortController();
-    const url = dashboardListURL();
-    getState().setGlobalNumQueriesPlot((s) => s + 1);
-    apiGet<GetDashboardListResp>(url, controller.signal, true)
-      .then((data) => {
-        setState((state) => {
-          state.listServerDashboard = [...(data?.dashboards ?? [])];
-        });
-      })
-      .catch((error) => {
-        if (error.name !== 'AbortError') {
-          debug.error(error);
-          setState((state) => {
-            state.lastError = error.toString();
-          });
-        }
-      })
-      .finally(() => {
-        getState().setGlobalNumQueriesPlot((s) => s - 1);
-      });
   },
   moveAndResortPlot(indexSelectPlot, indexTargetPlot, indexGroup) {
     const prevState = getState();
@@ -1547,10 +1562,12 @@ export const statsHouseState: StateCreator<
     }
     const normalize = prevState.params.plots.map((plot, indexPlot) => ({
       plot,
+      plotEventLink: plot.events.map((eId) => prevState.params.plots[eId]),
       group: groups[indexPlot] ?? 0,
       tagSync: prevState.params.tagSync.map((group, indexGroup) => ({ indexGroup, indexTag: group[indexPlot] })),
       preview: prevState.previews[indexPlot],
       plotsData: prevState.plotsData[indexPlot],
+      plotsEvent: prevState.events[indexPlot],
     }));
     if (
       typeof indexSelectPlot !== 'undefined' &&
@@ -1564,6 +1581,9 @@ export const statsHouseState: StateCreator<
     const plots = resort.map(({ plot }) => plot);
     const previews = resort.map(({ preview }) => preview);
     const plotsData = resort.map(({ plotsData }) => plotsData);
+    const plotsEvent = resort.map(({ plotsEvent }) => plotsEvent);
+    const plotEventLink = resort.map(({ plotEventLink }) => plotEventLink.map((eP) => plots.indexOf(eP)));
+
     const tagSync = resort.reduce((res, item, indexPlot) => {
       item.tagSync.forEach(({ indexGroup, indexTag }) => {
         res[indexGroup] = res[indexGroup] ?? [];
@@ -1573,7 +1593,7 @@ export const statsHouseState: StateCreator<
     }, [] as (number | null)[][]);
     prevState.setParams(
       produce((params) => {
-        params.plots = plots;
+        params.plots = plots.map((p, indexP) => ({ ...p, events: plotEventLink[indexP].filter((i) => i > -1) ?? [] }));
         params.tagSync = tagSync;
 
         if (params.dashboard && typeof indexGroup !== 'undefined' && indexGroup >= 0) {
@@ -1607,21 +1627,13 @@ export const statsHouseState: StateCreator<
                 }, 0 as number) ?? 0,
             }))
             .filter((g) => g.count > 0);
-          if (
-            params.dashboard.groupInfo &&
-            params.dashboard.groupInfo.length === 1 &&
-            params.dashboard.groupInfo[0].size === 2 &&
-            params.dashboard.groupInfo[0].name === '' &&
-            params.dashboard.groupInfo[0].show === true
-          ) {
-            params.dashboard.groupInfo = [];
-          }
         }
       })
     );
     setState((state) => {
       state.previews = previews;
       state.plotsData = plotsData;
+      state.events = plotsEvent;
     });
   },
   dashboardLayoutEdit: false,
@@ -1701,10 +1713,7 @@ export const statsHouseState: StateCreator<
         })
         .catch((error) => {
           if (error.name !== 'AbortError') {
-            debug.error(error);
-            setState((state) => {
-              state.lastError = error.toString();
-            });
+            useErrorStore.getState().addError(error);
             reject(error);
           }
         })
@@ -1730,10 +1739,7 @@ export const statsHouseState: StateCreator<
         })
         .catch((error) => {
           if (error.name !== 'AbortError') {
-            debug.error(error);
-            setState((state) => {
-              state.lastError = error.toString();
-            });
+            useErrorStore.getState().addError(error);
             reject(error);
           }
         })
@@ -1757,10 +1763,7 @@ export const statsHouseState: StateCreator<
         })
         .catch((error) => {
           if (error.name !== 'AbortError') {
-            debug.error(error);
-            setState((state) => {
-              state.lastError = error.toString();
-            });
+            useErrorStore.getState().addError(error);
             reject(error);
           }
         })
@@ -1787,10 +1790,7 @@ export const statsHouseState: StateCreator<
         })
         .catch((error) => {
           if (error.name !== 'AbortError') {
-            debug.error(error);
-            setState((state) => {
-              state.lastError = error.toString();
-            });
+            useErrorStore.getState().addError(error);
             reject(error);
           }
         })
@@ -1822,10 +1822,7 @@ export const statsHouseState: StateCreator<
         })
         .catch((error) => {
           if (error.name !== 'AbortError') {
-            debug.error(error);
-            setState((state) => {
-              state.lastError = error.toString();
-            });
+            useErrorStore.getState().addError(error);
             reject(error);
           }
         })
@@ -1851,10 +1848,7 @@ export const statsHouseState: StateCreator<
         })
         .catch((error) => {
           if (error.name !== 'AbortError') {
-            debug.error(error);
-            setState((state) => {
-              state.lastError = error.toString();
-            });
+            useErrorStore.getState().addError(error);
             reject(error);
           }
         })
@@ -1898,7 +1892,7 @@ export const statsHouseState: StateCreator<
           ? `${Math.floor(width * devicePixelRatio)}`
           : `${prevPlot.customAgg}s`;
 
-      const url = queryTableURL(prevPlot, range, agg, key, fromEnd, 100);
+      const url = queryTableURL(prevPlot, range, agg, key, fromEnd);
       setState((state) => {
         if (fromEnd) {
           state.events[indexPlot].prevAbortController = controller;
@@ -1915,7 +1909,23 @@ export const statsHouseState: StateCreator<
               what: [],
               range: new TimeRange(range.getRangeUrl),
             };
-            const chunk: EventDataChunk = { ...resp, ...range.getRange(), fromEnd };
+            const chunk: EventDataChunk = {
+              ...resp,
+              ...range.getRange(),
+              fromEnd,
+              rows:
+                resp.rows?.map(
+                  (value) =>
+                    ({
+                      ...value,
+                      tags:
+                        value.tags &&
+                        Object.fromEntries(
+                          Object.entries(value.tags).map(([tagKey, tagValue]) => [freeKeyPrefix(tagKey), tagValue])
+                        ),
+                    } as queryTableRow)
+                ) ?? null,
+            };
             if (chunk.more) {
               if (chunk.fromEnd) {
                 chunk.from = chunk.rows?.[0]?.time ?? range.from;

@@ -7,7 +7,7 @@
 import React, { useMemo } from 'react';
 import { TagControl } from '../../view/TagControl';
 import { selectorMetricsMeta, selectorParamsPlots, selectorParamsTagSync, useStore } from '../../store';
-import { metricTag } from '../../view/api';
+import { MetricMetaTag } from '../../api/metric';
 
 export type DashboardTagControlProps = { className?: string };
 export const DashboardTagControl: React.FC<DashboardTagControlProps> = ({ className }) => {
@@ -15,7 +15,7 @@ export const DashboardTagControl: React.FC<DashboardTagControlProps> = ({ classN
   const metricsMeta = useStore(selectorMetricsMeta);
   const plots = useStore(selectorParamsPlots);
 
-  const tagsList = useMemo<{ tag: metricTag; indexPlot: number; indexTag: number }[]>(
+  const tagsList = useMemo<{ tag: MetricMetaTag; indexPlot: number; indexTag: number }[]>(
     () =>
       tagsSync
         .map((group) => {
@@ -34,7 +34,7 @@ export const DashboardTagControl: React.FC<DashboardTagControlProps> = ({ classN
             indexTag,
           };
         })
-        .filter(Boolean) as { tag: metricTag; indexPlot: number; indexTag: number }[],
+        .filter(Boolean) as { tag: MetricMetaTag; indexPlot: number; indexTag: number }[],
     [metricsMeta, plots, tagsSync]
   );
 

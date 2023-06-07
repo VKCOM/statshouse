@@ -1,14 +1,10 @@
 import React, { Key, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DataGrid, { Column, DataGridHandle, Row, RowRendererProps, SortColumn } from 'react-data-grid';
-import { ReactComponent as SVGListCheck } from 'bootstrap-icons/icons/list-check.svg';
 import cn from 'classnames';
 import {
   selectorClearEvents,
   selectorEventsByIndex,
-  selectorLoadEvents,
-  selectorMetricsMetaByName,
   selectorParamsPlotsByIndex,
-  selectorSetParams,
   selectorTimeRange,
   useStore,
 } from '../../store';
@@ -18,7 +14,8 @@ import { eventColumnDefault, getEventColumnsType } from '../../view/api';
 import produce from 'immer';
 import { TimeRange } from '../../common/TimeRange';
 import css from './style.module.css';
-import { PlotEventsSelectColumns } from './PlotEventsSelectColumns';
+import { useEventTagColumns } from '../../hooks/useEventTagColumns';
+import { PlotEventsButtonColumns } from './PlotEventsButtonColumns';
 
 export type PlotEventsProps = {
   indexPlot: number;
@@ -45,44 +42,29 @@ const mouseOverRowRenderer = (
   );
 };
 
+const setParams = useStore.getState().setParams;
+const loadEvent = useStore.getState().loadEvents;
+
 export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEventsProps) {
   const selectorEvent = useMemo(() => selectorEventsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const event = useStore(selectorEvent);
   const timeRange = useStore(selectorTimeRange);
-  const setParams = useStore(selectorSetParams);
-  const loadEvent = useStore(selectorLoadEvents);
   const clearEvents = useStore(selectorClearEvents);
   const gridRef = useRef<DataGridHandle>(null);
   const [sort, setSort] = useState<SortColumn[]>([]);
-  const [eventColumnShow, setEventColumnShow] = useState(false);
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const paramsPlot = useStore(selectorParamsPlot);
-  const selectorMetricsMeta = useMemo(
-    () => selectorMetricsMetaByName.bind(undefined, paramsPlot.metricName),
-    [paramsPlot.metricName]
-  );
-  const meta = useStore(selectorMetricsMeta);
-
+  const eventColumns = useEventTagColumns(paramsPlot, true);
   const columns = useMemo<Column<EventDataRow, unknown>[]>(
     () => [
       ...Object.values(getEventColumnsType(event.what)),
-      ...((meta.tags
-        ?.map((tag, indexTag) => {
-          if (
-            paramsPlot.eventsBy.indexOf(indexTag.toString()) > -1 ||
-            paramsPlot.groupBy.indexOf(`key${indexTag}`) > -1
-          ) {
-            return {
-              ...eventColumnDefault,
-              name: tag.description ? tag.description : tag.name ? tag.name : `tag ${indexTag}`,
-              key: `key${indexTag}`,
-            };
-          }
-          return false;
-        })
-        .filter(Boolean) ?? []) as Column<EventDataRow, unknown>[]),
+      ...(eventColumns.map((tag) => ({
+        ...eventColumnDefault,
+        name: tag.name,
+        key: tag.keyTag,
+      })) as Column<EventDataRow, unknown>[]),
     ],
-    [event.what, meta.tags, paramsPlot.eventsBy, paramsPlot.groupBy]
+    [event.what, eventColumns]
   );
 
   const loadPrev = useCallback(() => {
@@ -99,11 +81,11 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
           }
         })
         .catch(() => undefined);
-  }, [event.chunks, event.prevKey, indexPlot, loadEvent]);
+  }, [event.chunks, event.prevKey, indexPlot]);
 
   const loadNext = useCallback(() => {
     !!event.nextKey && loadEvent(indexPlot, event.nextKey, false).catch(() => undefined);
-  }, [event.nextKey, indexPlot, loadEvent]);
+  }, [event.nextKey, indexPlot]);
 
   const onScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
@@ -139,7 +121,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
         loadPrev();
       }
     },
-    [event.chunks, event.nextAbortController, event.prevAbortController, event.rows, loadNext, loadPrev, setParams]
+    [event.chunks, event.nextAbortController, event.prevAbortController, event.rows, loadNext, loadPrev]
   );
   const clearError = useCallback(() => {
     clearEvents(indexPlot);
@@ -153,11 +135,6 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
   );
 
   const rowRenderer = useMemo(() => mouseOverRowRenderer.bind(undefined, onOverRow), [onOverRow]);
-
-  const toggleEventColumnShow = useCallback((event?: React.MouseEvent) => {
-    setEventColumnShow((s) => !s);
-    event?.stopPropagation();
-  }, []);
 
   const selectedRows = useMemo(() => {
     const selected = new Set<string>();
@@ -194,50 +171,46 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
   }, [event.chunks, event.range.from, loadPrev, timeRange.from]);
 
   return (
-    <div className={cn(className, 'position-relative d-flex flex-column')}>
+    <div className={cn(className, 'd-flex flex-column')}>
       {!!event.error && (
         <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
           <small className="overflow-force-wrap font-monospace">{event.error}</small>
           <button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
         </div>
       )}
-      <div className="position-absolute z-1 top-0 start-0 pt-3 ps-4">
-        {!!event.nextAbortController || !!event.prevAbortController ? (
-          <div className="text-info spinner-border spinner-border-sm m-1" role="status" aria-hidden="true" />
-        ) : (
-          <button className="btn btn-sm" onClick={toggleEventColumnShow} title="select table column">
-            <SVGListCheck />
-          </button>
-        )}
-        {eventColumnShow && (
-          <PlotEventsSelectColumns
-            indexPlot={indexPlot}
-            className={cn('position-absolute card p-2', css.plotEventsSelectColumns)}
-            onClose={toggleEventColumnShow}
-          />
-        )}
-      </div>
-      <div className="d-flex flex-column flex-grow-1">
-        {!!event.rows?.length && (
-          <DataGrid<EventDataRow>
-            className={cn('z-0 flex-grow-1', css.rdgTheme)}
-            style={{ height: '400px' }}
-            ref={gridRef}
-            rowHeight={rowHeight}
-            columns={columns}
-            rows={event.rows}
-            enableVirtualization
-            defaultColumnOptions={eventColumnDefault}
-            rowKeyGetter={rowKeyGetter}
-            onScroll={onScroll}
-            onSortColumnsChange={setSort}
-            sortColumns={sort}
-            selectedRows={selectedRows}
-            renderers={{
-              rowRenderer,
-            }}
-          />
-        )}
+
+      <div className="d-flex flex-column flex-grow-1 w-100 position-relative" style={{ minHeight: '400px' }}>
+        <div className="position-absolute z-1 top-0 start-0">
+          {!!event.rows?.length && (
+            <PlotEventsButtonColumns
+              indexPlot={indexPlot}
+              loader={!!event.nextAbortController || !!event.prevAbortController}
+            />
+          )}
+        </div>
+        <div className="flex-row flex-grow-1 w-100">
+          {!!event.rows?.length ? (
+            <DataGrid<EventDataRow>
+              className={cn('z-0 position-absolute top-0 start-0 w-100 h-100', css.rdgTheme)}
+              ref={gridRef}
+              rowHeight={rowHeight}
+              columns={columns}
+              rows={event.rows}
+              enableVirtualization
+              defaultColumnOptions={eventColumnDefault}
+              rowKeyGetter={rowKeyGetter}
+              onScroll={onScroll}
+              onSortColumnsChange={setSort}
+              sortColumns={sort}
+              selectedRows={selectedRows}
+              renderers={{
+                rowRenderer,
+              }}
+            />
+          ) : (
+            <div className="bg-body-tertiary position-absolute top-0 start-0 w-100 h-100"></div>
+          )}
+        </div>
       </div>
     </div>
   );

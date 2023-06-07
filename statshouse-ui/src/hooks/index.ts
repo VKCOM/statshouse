@@ -4,10 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-export * from './useMetricMeta';
 export * from './useDebounceState';
-export * from './useMetricList';
 export * from './useStateInput';
 export * from './usePlotLink';
 export * from './useRefState';
 export * from './useUPlotPluginHooks';
+export * from './useIntersectionObserver';
+export * from './useRectObserver';
+export * from './useWindowSize';

@@ -25,11 +25,12 @@ require (
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.39.0
+	github.com/prometheus/procfs v0.9.0
 	github.com/prometheus/prometheus v0.36.2
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
 	github.com/tinylib/msgp v1.1.6
-	github.com/vkcom/statshouse-go v0.0.0-20221129160158-005f723138d1
+	github.com/vkcom/statshouse-go v0.0.0-20230306161352-79292ed2bcfa
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	go.uber.org/atomic v1.10.0
 	go.uber.org/multierr v1.9.0
@@ -44,7 +45,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.24.0
 	pgregory.net/rand v1.0.2
-	pgregory.net/rapid v0.5.3
+	pgregory.net/rapid v0.5.8-0.20230511174411-95d7a399e3d0
 )
 
 require (
@@ -101,7 +102,6 @@ require (
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common/sigv4 v0.1.0 // indirect
-	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/shopspring/decimal v1.3.1 // indirect
 	go.opentelemetry.io/otel v1.12.0 // indirect

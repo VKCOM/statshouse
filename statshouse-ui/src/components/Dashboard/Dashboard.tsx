@@ -11,13 +11,11 @@ import {
   selectorDashboardLayoutEdit,
   selectorGlobalNumQueriesPlot,
   selectorIsServer,
-  selectorLastError,
   selectorParams,
   selectorParamsTabNum,
   selectorParamsTagSync,
   selectorSaveServerParams,
   selectorSetDashboardLayoutEdit,
-  selectorSetLastError,
   useStore,
 } from '../../store';
 import { DashboardHeader } from './DashboardHeader';
@@ -26,6 +24,7 @@ import { DashboardSettings } from '../DashboardSettings';
 import { DashboardTagControl } from '../DashboardTagControl';
 import cn from 'classnames';
 import { PlotLink } from '../Plot/PlotLink';
+import { ErrorMessages } from '../ErrorMessages';
 
 export type DashboardProps = {
   yAxisSize?: number;
@@ -35,8 +34,6 @@ export type DashboardProps = {
 export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize = 54 }) => {
   const params = useStore(selectorParams);
   const numQueries = useStore(selectorGlobalNumQueriesPlot);
-  const lastError = useStore(selectorLastError);
-  const setLastError = useStore(selectorSetLastError);
   const tagsSync = useStore(selectorParamsTagSync);
   const showSyncPanel = useMemo(() => tagsSync.some((group) => group.some((s) => s !== null)), [tagsSync]);
 
@@ -53,19 +50,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
     });
   }, [saveServerParams, setDashboardLayoutEdit]);
 
-  const lastErrorClear = useCallback(() => {
-    setLastError('');
-  }, [setLastError]);
-
   return (
     <div>
       {params.plots.length > 0 && !embed && <DashboardHeader />}
-      {lastError && (
-        <div className="alert alert-danger d-flex align-items-center justify-content-between">
-          <small className="overflow-force-wrap font-monospace">{lastError}</small>
-          <button type="button" className="btn-close" aria-label="Close" onClick={lastErrorClear}></button>
-        </div>
-      )}
+      <ErrorMessages />
       {dashboardLayoutEdit && (
         <ul className="nav nav-tabs mb-4 container-xl">
           <li className="nav-item">

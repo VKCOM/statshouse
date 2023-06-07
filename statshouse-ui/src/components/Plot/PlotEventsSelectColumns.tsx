@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import cn from 'classnames';
-import { selectorMetricsMetaByName, selectorParamsPlotsByIndex, useStore } from '../../store';
-import { filterHasTagID } from '../../view/api';
+import { selectorParamsPlotsByIndex, useStore } from '../../store';
 import produce from 'immer';
+import { useEventTagColumns } from '../../hooks/useEventTagColumns';
+import { useOnClickOutside } from '../../hooks/useOnClickOutside';
+import { ReactComponent as SVGEye } from 'bootstrap-icons/icons/eye.svg';
+import { ReactComponent as SVGEyeSlash } from 'bootstrap-icons/icons/eye-slash.svg';
 
 export type PlotEventsSelectColumnsProps = {
   indexPlot: number;
@@ -10,25 +13,11 @@ export type PlotEventsSelectColumnsProps = {
   onClose?: () => void;
 };
 
-const stopPropagation = (e: React.MouseEvent) => {
-  e.stopPropagation();
-};
-
 export function PlotEventsSelectColumns({ indexPlot, className, onClose }: PlotEventsSelectColumnsProps) {
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const paramsPlot = useStore(selectorParamsPlot);
-  const selectorMetricsMeta = useMemo(
-    () => selectorMetricsMetaByName.bind(undefined, paramsPlot.metricName),
-    [paramsPlot.metricName]
-  );
-  const meta = useStore(selectorMetricsMeta);
-  const selectTags = useMemo(
-    () =>
-      meta.tags?.map(
-        (t, i) => paramsPlot.eventsBy.indexOf(i.toString()) > -1 || paramsPlot.groupBy.indexOf(`key${i}`) > -1
-      ) ?? [],
-    [meta.tags, paramsPlot.eventsBy, paramsPlot.groupBy]
-  );
+  const columns = useEventTagColumns(paramsPlot, false);
+
   const onChange = useCallback<React.ChangeEventHandler<HTMLInputElement>>(
     (e) => {
       const tagKey = e.currentTarget.value;
@@ -40,58 +29,69 @@ export function PlotEventsSelectColumns({ indexPlot, className, onClose }: PlotE
             p.eventsBy = [...p.eventsBy, tagKey];
           } else {
             p.eventsBy = p.eventsBy.filter((b) => b !== tagKey);
+            p.eventsHide = p.eventsHide.filter((b) => b !== tagKey);
           }
         })
       );
     },
     [indexPlot]
   );
-
-  useEffect(() => {
-    const close = () => {
-      onClose?.();
-    };
-    document.addEventListener('click', close, false);
-    return () => {
-      document.removeEventListener('click', close, false);
-    };
-  }, [onClose]);
+  const onChangeHide = useCallback<React.MouseEventHandler<HTMLSpanElement>>(
+    (e) => {
+      const tagKey = e.currentTarget.getAttribute('data-value');
+      const tagStatusHide = !!e.currentTarget.getAttribute('data-status');
+      if (!tagKey) {
+        return;
+      }
+      useStore.getState().setPlotParams(
+        indexPlot,
+        produce((p) => {
+          if (tagStatusHide) {
+            p.eventsHide = p.eventsHide.filter((b) => b !== tagKey);
+            if (p.eventsBy.indexOf(tagKey) < 0) {
+              p.eventsBy = [...p.eventsBy, tagKey];
+            }
+          } else {
+            p.eventsHide = [...p.eventsHide, tagKey];
+          }
+        })
+      );
+      e.stopPropagation();
+    },
+    [indexPlot]
+  );
+  const refOut = useRef<HTMLDivElement>(null);
+  useOnClickOutside(refOut, onClose);
 
   return (
-    <div className={cn('', className)} onClick={stopPropagation}>
-      {meta.tags?.map((tag, indexTag) =>
-        tag.description === '-' && !filterHasTagID(paramsPlot, indexTag) ? null : (
-          <div key={indexTag} className="form-check">
+    <div ref={refOut} className={cn('', className)}>
+      {columns.map((tag) => (
+        <div key={tag.keyTag} className="d-flex flex-row">
+          <span
+            role="button"
+            className={cn('me-2', !tag.selected && 'text-body-tertiary')}
+            data-value={tag.keyTag}
+            data-status={tag.hide || undefined}
+            onClick={onChangeHide}
+          >
+            {tag.hide ? <SVGEyeSlash /> : <SVGEye />}
+          </span>
+          <div className="form-check">
             <input
               className="form-check-input"
               type="checkbox"
-              checked={selectTags[indexTag]}
-              disabled={paramsPlot.groupBy.indexOf(`key${indexTag}`) > -1}
+              checked={tag.selected}
+              disabled={tag.disabled}
               onChange={onChange}
-              value={indexTag}
-              id={`flexCheckDefault_${indexTag}`}
+              value={tag.keyTag}
+              id={`flexCheckDefault_${tag.keyTag}`}
             />
-            <label className="form-check-label text-nowrap" htmlFor={`flexCheckDefault_${indexTag}`}>
-              {tag.description ? tag.description : tag.name ? tag.name : `tag ${indexTag}`}
+            <label className="form-check-label text-nowrap" htmlFor={`flexCheckDefault_${tag.keyTag}`}>
+              {tag.name}
             </label>
           </div>
-        )
-      )}
-      {(meta.string_top_name || meta.string_top_description || filterHasTagID(paramsPlot, -1)) && (
-        <div className="form-check">
-          <input
-            className="form-check-input"
-            type="checkbox"
-            checked={paramsPlot.eventsBy.indexOf('_s') > -1}
-            onChange={onChange}
-            value="_s"
-            id={`flexCheckDefault_s`}
-          />
-          <label className="form-check-label text-nowrap" htmlFor={`flexCheckDefault_s`}>
-            {meta.string_top_name ? meta.string_top_name : 'tag_s'}
-          </label>
         </div>
-      )}
+      ))}
     </div>
   );
 }

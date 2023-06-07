@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -38,6 +37,10 @@ import (
 //   - expression types (alphabetical)
 //   - ...
 type Node interface {
+	// String representation of the node that returns the given node when parsed
+	// as part of a valid query.
+	String() string
+
 	// PositionRange returns the position of the AST Node in the query string.
 	PositionRange() PositionRange
 }
@@ -174,6 +177,8 @@ type StepInvariantExpr struct {
 	Expr Expr
 }
 
+func (e *StepInvariantExpr) String() string { return e.Expr.String() }
+
 func (e *StepInvariantExpr) PositionRange() PositionRange { return e.Expr.PositionRange() }
 
 // VectorSelector represents a Vector selection.
@@ -190,13 +195,14 @@ type VectorSelector struct {
 
 	MatchingMetrics []*format.MetricMetaValue
 	MatchingNames   []string
-	Factor          int64
+	MetricKindHint  string
+	Range           int64
 	What            string
 	GroupBy         []string
+	GroupByAll      bool
 	GroupWithout    bool
 	MaxHost         bool
 	OmitNameTag     bool
-	PrefixSum       bool
 }
 
 // TestStmt is an internal helper statement that allows execution

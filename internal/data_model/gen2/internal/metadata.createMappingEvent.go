@@ -18,7 +18,7 @@ type MetadataCreateMappingEvent struct {
 	Id        int32
 	Key       string
 	Metric    string
-	Badget    int64
+	Budget    int64
 	// Create (TrueType) // Conditional: item.FieldMask.0
 	UpdatedAt uint32
 }
@@ -40,7 +40,7 @@ func (item *MetadataCreateMappingEvent) Reset() {
 	item.Id = 0
 	item.Key = ""
 	item.Metric = ""
-	item.Badget = 0
+	item.Budget = 0
 	item.UpdatedAt = 0
 }
 
@@ -57,7 +57,7 @@ func (item *MetadataCreateMappingEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.Metric); err != nil {
 		return w, err
 	}
-	if w, err = basictl.LongRead(w, &item.Badget); err != nil {
+	if w, err = basictl.LongRead(w, &item.Budget); err != nil {
 		return w, err
 	}
 	return basictl.NatRead(w, &item.UpdatedAt)
@@ -72,7 +72,7 @@ func (item *MetadataCreateMappingEvent) Write(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
 		return w, err
 	}
-	w = basictl.LongWrite(w, item.Badget)
+	w = basictl.LongWrite(w, item.Budget)
 	return basictl.NatWrite(w, item.UpdatedAt), nil
 }
 
@@ -126,7 +126,7 @@ func (item *MetadataCreateMappingEvent) readJSON(j interface{}) error {
 	}
 	_jBadget := _jm["badget"]
 	delete(_jm, "badget")
-	if err := JsonReadInt64(_jBadget, &item.Badget); err != nil {
+	if err := JsonReadInt64(_jBadget, &item.Budget); err != nil {
 		return err
 	}
 	_jCreate := _jm["create"]
@@ -175,10 +175,10 @@ func (item *MetadataCreateMappingEvent) WriteJSON(w []byte) (_ []byte, err error
 		w = append(w, `"metric":`...)
 		w = basictl.JSONWriteString(w, item.Metric)
 	}
-	if item.Badget != 0 {
+	if item.Budget != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"badget":`...)
-		w = basictl.JSONWriteInt64(w, item.Badget)
+		w = basictl.JSONWriteInt64(w, item.Budget)
 	}
 	if item.FieldMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

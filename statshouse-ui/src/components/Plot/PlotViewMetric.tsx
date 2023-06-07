@@ -18,20 +18,11 @@ import {
   PlotValues,
   selectorBaseRange,
   selectorLiveMode,
-  selectorLoadMetricsMeta,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
   selectorParamsPlotsByIndex,
   selectorParamsTimeShifts,
-  selectorPlotLastError,
   selectorPlotsDataByIndex,
-  selectorSetLiveMode,
-  selectorSetParamsPlots,
-  selectorSetPlotShow,
-  selectorSetPreviews,
-  selectorSetTimeRange,
-  selectorSetUPlotWidth,
-  selectorSetYLockChange,
   selectorThemeDark,
   selectorTimeRange,
   selectorUPlotsWidthByIndex,
@@ -41,6 +32,7 @@ import { xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
 import { PlotEventOverlay } from './PlotEventOverlay';
 import { useUPlotPluginHooks } from '../../hooks';
+import { dataIdxNearest } from '../../common/dataIdxNearest';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -55,6 +47,18 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
   return [dataMin, dataMax];
 }
 
+const {
+  loadMetricsMeta,
+  setPlotParams,
+  setTimeRange,
+  setPreviews,
+  setLiveMode,
+  setPlotShow,
+  setYLockChange,
+  setPlotLastError,
+  setUPlotWidth,
+} = useStore.getState();
+
 export function PlotViewMetric(props: {
   indexPlot: number;
   className?: string;
@@ -67,20 +71,15 @@ export function PlotViewMetric(props: {
 
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
-  const setParamsPlots = useStore(selectorSetParamsPlots);
-  const setSel = useMemo(() => setParamsPlots.bind(undefined, indexPlot), [indexPlot, setParamsPlots]);
+  const setSel = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
 
   const timeShifts = useStore(selectorParamsTimeShifts);
 
   const timeRange = useStore(selectorTimeRange);
-  const setTimeRange = useStore(selectorSetTimeRange);
 
   const baseRange = useStore(selectorBaseRange);
 
-  const setPreviewImage = useStore(selectorSetPreviews);
-
   const live = useStore(selectorLiveMode);
-  const setLive = useStore(selectorSetLiveMode);
 
   const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
   const {
@@ -96,30 +95,25 @@ export function PlotViewMetric(props: {
     samplingFactorSrc,
     samplingFactorAgg,
     receiveErrors,
+    receiveWarnings,
     error: lastError,
     error403,
     topInfo,
   } = useStore(selectorPlotsData);
 
-  const setPlotShow = useStore(selectorSetPlotShow);
+  const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
 
-  const setYLockChange = useStore(selectorSetYLockChange);
-  const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot, setYLockChange]);
-
-  const setLastError = useStore(selectorPlotLastError);
   const selectorNumQueries = useMemo(() => selectorNumQueriesPlotByIndex.bind(undefined, indexPlot), [indexPlot]);
   const numQueries = useStore(selectorNumQueries);
 
   const selectorUPlotWidth = useMemo(() => selectorUPlotsWidthByIndex.bind(undefined, indexPlot), [indexPlot]);
   const width = useStore(selectorUPlotWidth);
-  const setUPlotWeight = useStore(selectorSetUPlotWidth);
 
   const selectorPlotMetricsMeta = useMemo(
     () => selectorMetricsMetaByName.bind(undefined, sel.metricName ?? ''),
     [sel.metricName]
   );
   const meta = useStore(selectorPlotMetricsMeta);
-  const loadMetricsMeta = useStore(selectorLoadMetricsMeta);
 
   const themeDark = useStore(selectorThemeDark);
 
@@ -132,11 +126,11 @@ export function PlotViewMetric(props: {
     if (sel.metricName) {
       loadMetricsMeta(sel.metricName);
     }
-  }, [sel.metricName, loadMetricsMeta]);
+  }, [sel.metricName]);
 
   const clearLastError = useCallback(() => {
-    setLastError(indexPlot, '');
-  }, [indexPlot, setLastError]);
+    setPlotLastError(indexPlot, '');
+  }, [indexPlot]);
 
   const resetZoom = useCallback(() => {
     setSel(
@@ -145,7 +139,7 @@ export function PlotViewMetric(props: {
       })
     );
     setTimeRange(timeRangeAbbrevExpand(baseRange, now()));
-  }, [setSel, setTimeRange, baseRange]);
+  }, [setSel, baseRange]);
 
   const topPad = compact ? 8 : 16;
   const xAxisSize = compact ? 32 : 48;
@@ -178,12 +172,12 @@ export function PlotViewMetric(props: {
             })
           );
         } else {
-          setLive(false);
+          setLiveMode(false);
           setTimeRange({ from: Math.floor(xMin), to: Math.ceil(xMax) });
         }
       }
     },
-    [setLive, setSel, setTimeRange]
+    [setSel]
   );
 
   const getAxisStroke = useCallback(() => (themeDark ? grey : black), [themeDark]);
@@ -281,16 +275,16 @@ export function PlotViewMetric(props: {
       if (uPlotRef.current !== u) {
         uPlotRef.current = u;
       }
-      setUPlotWeight(indexPlot, u.bbox.width);
+      setUPlotWidth(indexPlot, u.bbox.width);
       u.over.ondblclick = () => {
         resetZoomRef.current();
       };
       u.setCursor({ top: -10, left: -10 }, false);
     },
-    [indexPlot, setUPlotWeight]
+    [indexPlot]
   );
 
-  const onUpdatePreview = useMemo(() => setPreviewImage?.bind(undefined, indexPlot), [indexPlot, setPreviewImage]);
+  const onUpdatePreview = useMemo(() => setPreviews?.bind(undefined, indexPlot), [indexPlot]);
 
   const [fixHeight, setFixHeight] = useState<number>(0);
   const divOut = useRef<HTMLDivElement>(null);
@@ -314,7 +308,7 @@ export function PlotViewMetric(props: {
     (index: number, show: boolean, single: boolean) => {
       setPlotShow(indexPlot, index - 1, show, single);
     },
-    [indexPlot, setPlotShow]
+    [indexPlot]
   );
   useEffect(() => {
     seriesShow.forEach((show, idx) => {
@@ -370,13 +364,13 @@ export function PlotViewMetric(props: {
               indexPlot={indexPlot}
               sel={sel}
               setParams={setSel}
-              setLive={setLive}
+              setLive={setLiveMode}
               meta={meta}
               live={live}
               yLock={sel.yLock}
               setTimeRange={setTimeRange}
-              onResetZoom={resetZoom}
               onYLockChange={onYLockChange}
+              onResetZoom={resetZoom}
               dashboard={dashboard}
               compact={compact}
             />
@@ -388,6 +382,7 @@ export function PlotViewMetric(props: {
                 timeRange={timeRange}
                 sel={sel}
                 receiveErrors={receiveErrors}
+                receiveWarnings={receiveWarnings}
                 samplingFactorAgg={samplingFactorAgg}
                 samplingFactorSrc={samplingFactorSrc}
               />
@@ -424,6 +419,7 @@ export function PlotViewMetric(props: {
                   indexPlot={indexPlot}
                   hooks={pluginEventOverlayHooks}
                   flagHeight={Math.min(topPad, 10)}
+                  compact={compact}
                 />
               </UPlotPluginPortal>
             </UPlotWrapper>
@@ -448,70 +444,4 @@ export function PlotViewMetric(props: {
       </div>
     </div>
   );
-}
-
-// https://leeoniya.github.io/uPlot/demos/nearest-non-null.html
-function dataIdxNearest(self: uPlot, seriesIdx: number, hoveredIdx: number, cursorXVal: number): number {
-  const xValues = self.data[0];
-  const yValues = self.data[seriesIdx];
-
-  // todo: only scan in-view indices
-  const mi = self.scales['x'].min;
-  const ma = self.scales['x'].max;
-
-  if (mi === undefined || ma === undefined || ma <= mi) return hoveredIdx; // not initialized, etc.
-  const fromX = cursorXVal - (ma - mi) / 50; // TODO +- 2% of total area for now
-  const toX = cursorXVal + (ma - mi) / 50; // TODO +- 2% of total area for now
-
-  let nonNullLft = null;
-  let nonNullRgt = null;
-
-  for (let i = hoveredIdx; i-- > 0; ) {
-    // do not include hoveredIdx
-    if (xValues[i] < fromX) {
-      break;
-    }
-    if (yValues[i] != null) {
-      nonNullLft = i;
-      break;
-    }
-    // Optimization, uncomment if 'if' above does not work well
-    // for (let j = 1; j < self.data.length; ++j)
-    //   if (self.data[j][i] != null) {
-    //     nonNullLft = i;
-    //     break;
-    //   }
-    // if (nonNullLft != null)
-    //   break;
-  }
-
-  for (let i = hoveredIdx; i < yValues.length; i++) {
-    // include hoveredIdx
-    if (xValues[i] > toX) {
-      break;
-    }
-    if (yValues[i] != null) {
-      nonNullRgt = i;
-      break;
-    }
-    // Optimization, uncomment if 'if' above does not work well
-    // for (let j = 1; j < self.data.length; ++j)
-    //   if (self.data[j][i] != null) {
-    //     nonNullRgt = i;
-    //     break;
-    //   }
-    // if (nonNullRgt != null)
-    //   break;
-  }
-
-  const rgtVal = nonNullRgt == null ? Infinity : xValues[nonNullRgt];
-  const lftVal = nonNullLft == null ? -Infinity : xValues[nonNullLft];
-
-  const lftDelta = cursorXVal - lftVal;
-  const rgtDelta = rgtVal - cursorXVal;
-
-  const idx = lftDelta <= rgtDelta ? nonNullLft : nonNullRgt;
-  if (idx !== null) return idx;
-  // this code path includes returning index where only timestamps are set, but no related data points
-  return hoveredIdx;
 }

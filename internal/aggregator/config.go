@@ -80,8 +80,8 @@ func ValidateConfigAggregator(c ConfigAggregator) error {
 		return fmt.Errorf("--max-cardinality (%d) must be >= %d", c.MaxCardinality, data_model.MinMaxCardinality)
 	}
 
-	if c.InsertHistoricWhen < 0 {
-		return fmt.Errorf("--insert-historic-when (%d) must be >= 0", c.InsertHistoricWhen)
+	if c.InsertHistoricWhen < 1 {
+		return fmt.Errorf("--insert-historic-when (%d) must be >= 1", c.InsertHistoricWhen)
 	}
 	if c.RecentInserters < 1 {
 		return fmt.Errorf("--recent-inserters (%d) must be >= 1", c.RecentInserters)

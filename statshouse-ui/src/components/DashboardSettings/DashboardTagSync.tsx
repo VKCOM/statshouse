@@ -9,8 +9,7 @@ import {
   selectorMetricsMeta,
   selectorParamsPlots,
   selectorParamsTagSync,
-  selectorPreSync,
-  selectorSetParams,
+  selectorPlotsData,
   useStore,
 } from '../../store';
 import { SyncTagGroup } from './SyncTagGroup';
@@ -18,16 +17,16 @@ import { ReactComponent as SVGX } from 'bootstrap-icons/icons/x.svg';
 import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg';
 import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
 import produce from 'immer';
-import { notNull } from '../../view/utils';
+import { isNotNil } from '../../common/helpers';
+
+const { loadMetricsMeta, setParams, preSync } = useStore.getState();
 
 export type DashboardTagSyncProp = {};
 export const DashboardTagSync: React.FC<DashboardTagSyncProp> = () => {
   const tagsSync = useStore(selectorParamsTagSync);
   const plots = useStore(selectorParamsPlots);
   const metricsMeta = useStore(selectorMetricsMeta);
-  const setParams = useStore(selectorSetParams);
-  const preSync = useStore(selectorPreSync);
-
+  const plotsData = useStore(selectorPlotsData);
   const [valueSync, setValueSync] = useState(tagsSync);
   const [edit, setEdit] = useState(false);
 
@@ -63,7 +62,7 @@ export const DashboardTagSync: React.FC<DashboardTagSyncProp> = () => {
 
   const onEdit = useCallback(() => {
     setValueSync(tagsSync);
-    if (!tagsSync.filter((g) => g.filter(notNull).length > 0).length) {
+    if (!tagsSync.filter((g) => g.filter(isNotNil).length > 0).length) {
       onSetTagSync(-1, -1, -1, true);
     }
     setEdit(true);
@@ -72,18 +71,24 @@ export const DashboardTagSync: React.FC<DashboardTagSyncProp> = () => {
   const onApply = useCallback(() => {
     setParams(
       produce((params) => {
-        params.tagSync = valueSync.filter((g) => g.filter(notNull).length > 0);
+        params.tagSync = valueSync.filter((g) => g.filter(isNotNil).length > 0);
       })
     );
     setEdit(false);
     setValueSync(tagsSync);
     preSync();
-  }, [preSync, setParams, tagsSync, valueSync]);
+  }, [tagsSync, valueSync]);
 
   const onCancel = useCallback(() => {
     setValueSync(tagsSync);
     setEdit(false);
   }, [tagsSync]);
+
+  useEffect(() => {
+    plots.forEach((p) => {
+      loadMetricsMeta(p.metricName);
+    });
+  }, [plots]);
 
   return (
     <div className="card border-0">
@@ -97,6 +102,7 @@ export const DashboardTagSync: React.FC<DashboardTagSyncProp> = () => {
               syncTags={group}
               setTagSync={onSetTagSync}
               plots={plots}
+              plotsData={plotsData}
               metricsMeta={metricsMeta}
               edit={edit}
             />

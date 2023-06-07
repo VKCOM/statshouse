@@ -156,9 +156,17 @@ func (ai *accessInfo) canEditMetric(create bool, old format.MetricMetaValue, new
 		if old.Weight != new_.Weight && !(old.Weight == 0 && new_.Weight == 1) {
 			return false
 		}
-		if hasPreKey(old) != hasPreKey(new_) {
+		if preKey(old) != preKey(new_) {
 			return false
 		}
+		if preKeyOnly(old) != preKeyOnly(new_) {
+			return false
+		}
+
+		if skips(old) != skips(new_) {
+			return false
+		}
+
 		return true
 	}
 	return false
@@ -185,8 +193,16 @@ func (ai *accessInfo) withBadgesRequest() accessInfo {
 	}
 }
 
-func hasPreKey(m format.MetricMetaValue) bool {
-	return m.PreKeyTagID != "" || m.PreKeyFrom != 0
+func preKey(m format.MetricMetaValue) uint32 {
+	return m.PreKeyFrom
+}
+
+func preKeyOnly(m format.MetricMetaValue) bool {
+	return m.PreKeyOnly
+}
+
+func skips(m format.MetricMetaValue) [3]bool {
+	return [3]bool{m.SkipMaxHost, m.SkipMinHost, m.SkipSumSquare}
 }
 
 func hasPrefixAccess(m map[string]bool, metric string) bool {

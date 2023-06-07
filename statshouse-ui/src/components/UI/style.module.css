@@ -1,0 +1,71 @@
+.popperGroup {
+  --popper-inner-height: auto;
+  --popper-inner-width: auto;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1050;
+}
+.popperGroupFixed {
+  position: fixed;
+}
+
+.popperItem {
+  position: absolute;
+  pointer-events: none;
+  /*background-color: rgba(255, 0, 0, 0.5);*/
+}
+
+.popperItemInner {
+  position: absolute;
+  pointer-events: auto;
+  /*background-color: rgba(0, 255, 0, 0.5);*/
+  max-height: var(--popper-inner-height);
+  max-width: var(--popper-inner-width);
+}
+
+.top {
+  top: 0;
+}
+
+.bottom {
+  bottom: 0;
+}
+
+.middle {
+  top: 50%;
+  transform: translate(0, -50%);
+}
+
+.out-top {
+  bottom: 100%;
+}
+
+.out-bottom {
+  top: 100%;
+}
+
+.left {
+  left: 0;
+}
+
+.right {
+  right: 0;
+}
+
+.center {
+  left: 50%;
+  transform: translate(-50%, 0);
+}
+
+.out-left {
+  right: 100%;
+}
+
+.out-right {
+  left: 100%;
+}
+
+.middle.center {
+  transform: translate(-50%, -50%);
+}

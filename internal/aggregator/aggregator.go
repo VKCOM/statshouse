@@ -64,7 +64,6 @@ type (
 	}
 	Aggregator struct {
 		recentBuckets   []*aggregatorBucket          // We collect into several buckets before sending
-		recentNow       uint32                       // Value used to update recentBuckets
 		historicBuckets map[uint32]*aggregatorBucket // timestamp->bucket. Each agent sends not more than X historic buckets, so size is limited.
 		bucketsToSend   chan *aggregatorBucket
 		mu              sync.Mutex
@@ -86,8 +85,8 @@ type (
 
 		estimator data_model.Estimator
 
-		activeSenders int
-		historicSends int // how many of activeSenders are sending historic data
+		recentSenders   int
+		historicSenders int
 
 		config ConfigAggregator
 
@@ -304,10 +303,11 @@ func addrIPString(remoteAddr net.Addr) (uint32, string) {
 	}
 }
 
-func (a *Aggregator) agentBeforeFlushBucketFunc(now time.Time) {
+func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
 	nowUnix := uint32(now.Unix())
 	a.mu.Lock()
-	activeSenders := a.activeSenders
+	recentSenders := a.recentSenders
+	historicSends := a.historicSenders
 	var original data_model.ItemValue
 	var spare data_model.ItemValue
 	var original_unique data_model.ItemValue
@@ -329,8 +329,10 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(now time.Time) {
 	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorOriginal, &original_unique)
 	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorSpare, &spare_unique)
 
-	key := data_model.AggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{}, a.aggregatorHost, a.shardKey, a.replicaKey)
-	a.sh2.AddValueCounterHost(key, float64(activeSenders), 1, a.aggregatorHost)
+	key := data_model.AggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent}, a.aggregatorHost, a.shardKey, a.replicaKey)
+	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, a.aggregatorHost)
+	key = data_model.AggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric}, a.aggregatorHost, a.shardKey, a.replicaKey)
+	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, a.aggregatorHost)
 
 	/* TODO - replace with direct agent call
 
@@ -455,12 +457,13 @@ func (a *Aggregator) goSend(senderID int) {
 
 		nowUnix := uint32(time.Now().Unix())
 		a.mu.Lock()
-		willInsertHistoric := a.activeSenders <= a.config.InsertHistoricWhen &&
-			a.historicSends < a.config.HistoricInserters &&
+		willInsertHistoric := (a.recentSenders+a.historicSenders) < a.config.InsertHistoricWhen &&
+			a.historicSenders < a.config.HistoricInserters &&
 			len(a.historicBuckets) != 0
-		a.activeSenders++
 		if willInsertHistoric {
-			a.historicSends++
+			a.historicSenders++
+		} else {
+			a.recentSenders++
 		}
 		a.mu.Unlock()
 
@@ -509,9 +512,10 @@ func (a *Aggregator) goSend(senderID int) {
 		// Never empty, because adds value stats
 		status, exception, dur, sendErr := sendToClickhouse(httpClient, a.config.KHAddr, getTableDesc(), bodyStorage)
 		a.mu.Lock()
-		a.activeSenders--
 		if willInsertHistoric {
-			a.historicSends--
+			a.historicSenders--
+		} else {
+			a.recentSenders--
 		}
 		numContributors := int(aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter)
 		a.mu.Unlock()
@@ -610,7 +614,7 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 		}
 		a.recentBuckets = append(a.recentBuckets, b)
 	}
-	if a.recentNow == nowUnix && !initial {
+	if !initial {
 		return readyBuckets
 	}
 	// rest of func runs once per second while everything is working normally

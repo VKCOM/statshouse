@@ -19,19 +19,11 @@ import {
   selectorEventsByIndex,
   selectorLiveMode,
   selectorLoadEvents,
-  selectorLoadMetricsMeta,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
   selectorParamsPlotsByIndex,
   selectorParamsTimeShifts,
-  selectorPlotLastError,
   selectorPlotsDataByIndex,
-  selectorSetLiveMode,
-  selectorSetParamsPlots,
-  selectorSetPreviews,
-  selectorSetTimeRange,
-  selectorSetUPlotWidth,
-  selectorSetYLockChange,
   selectorThemeDark,
   selectorTimeRange,
   selectorUPlotsWidthByIndex,
@@ -42,6 +34,7 @@ import cn from 'classnames';
 import { PlotEvents } from './PlotEvents';
 import { useUPlotPluginHooks } from '../../hooks';
 import { UPlotPluginPortal } from '../UPlotWrapper';
+import { dataIdxNearest } from '../../common/dataIdxNearest';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -56,6 +49,17 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
   return [dataMin, dataMax];
 }
 
+const {
+  loadMetricsMeta,
+  setPlotParams,
+  setTimeRange,
+  setPreviews,
+  setLiveMode,
+  setYLockChange,
+  setPlotLastError,
+  setUPlotWidth,
+} = useStore.getState();
+
 export function PlotViewEvent(props: {
   indexPlot: number;
   className?: string;
@@ -68,8 +72,7 @@ export function PlotViewEvent(props: {
 
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
-  const setParamsPlots = useStore(selectorSetParamsPlots);
-  const setSel = useMemo(() => setParamsPlots.bind(undefined, indexPlot), [indexPlot, setParamsPlots]);
+  const setSel = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
   const selectorEvent = useMemo(() => selectorEventsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const plotEvent = useStore(selectorEvent);
   const [pluginTimeWindow, pluginTimeWindowHooks] = useUPlotPluginHooks();
@@ -77,14 +80,10 @@ export function PlotViewEvent(props: {
   const timeShifts = useStore(selectorParamsTimeShifts);
 
   const timeRange = useStore(selectorTimeRange);
-  const setTimeRange = useStore(selectorSetTimeRange);
 
   const baseRange = useStore(selectorBaseRange);
 
-  const setPreviewImage = useStore(selectorSetPreviews);
-
   const live = useStore(selectorLiveMode);
-  const setLive = useStore(selectorSetLiveMode);
 
   const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
   const {
@@ -100,27 +99,24 @@ export function PlotViewEvent(props: {
     samplingFactorSrc,
     samplingFactorAgg,
     receiveErrors,
+    receiveWarnings,
     error: lastError,
     error403,
   } = useStore(selectorPlotsData);
 
-  const setYLockChange = useStore(selectorSetYLockChange);
-  const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot, setYLockChange]);
+  const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
 
-  const setLastError = useStore(selectorPlotLastError);
   const selectorNumQueries = useMemo(() => selectorNumQueriesPlotByIndex.bind(undefined, indexPlot), [indexPlot]);
   const numQueries = useStore(selectorNumQueries);
 
   const selectorUPlotWidth = useMemo(() => selectorUPlotsWidthByIndex.bind(undefined, indexPlot), [indexPlot]);
   const width = useStore(selectorUPlotWidth);
-  const setUPlotWeight = useStore(selectorSetUPlotWidth);
 
   const selectorPlotMetricsMeta = useMemo(
     () => selectorMetricsMetaByName.bind(undefined, sel.metricName ?? ''),
     [sel.metricName]
   );
   const meta = useStore(selectorPlotMetricsMeta);
-  const loadMetricsMeta = useStore(selectorLoadMetricsMeta);
 
   const loadEvent = useStore(selectorLoadEvents);
 
@@ -132,11 +128,11 @@ export function PlotViewEvent(props: {
     if (sel.metricName) {
       loadMetricsMeta(sel.metricName);
     }
-  }, [sel.metricName, loadMetricsMeta]);
+  }, [sel.metricName]);
 
   const clearLastError = useCallback(() => {
-    setLastError(indexPlot, '');
-  }, [indexPlot, setLastError]);
+    setPlotLastError(indexPlot, '');
+  }, [indexPlot]);
 
   const resetZoom = useCallback(() => {
     setSel(
@@ -145,7 +141,7 @@ export function PlotViewEvent(props: {
       })
     );
     setTimeRange(timeRangeAbbrevExpand(baseRange, now()));
-  }, [setSel, setTimeRange, baseRange]);
+  }, [setSel, baseRange]);
 
   const topPad = compact ? 8 : 16;
   const xAxisSize = compact ? 32 : 48;
@@ -178,12 +174,12 @@ export function PlotViewEvent(props: {
             })
           );
         } else {
-          setLive(false);
+          setLiveMode(false);
           setTimeRange({ from: Math.floor(xMin), to: Math.ceil(xMax) });
         }
       }
     },
-    [setLive, setSel, setTimeRange]
+    [setSel]
   );
 
   const getAxisStroke = useCallback(() => (themeDark ? grey : black), [themeDark]);
@@ -213,7 +209,7 @@ export function PlotViewEvent(props: {
         //   prox: Infinity, // always have one series focused
         // },
         sync,
-        // dataIdx: dataIdxNearest,
+        dataIdx: dataIdxNearest,
       },
       focus: {
         alpha: unFocusAlfa, // avoid redrawing unfocused series
@@ -301,7 +297,7 @@ export function PlotViewEvent(props: {
       if (uPlotRef.current !== u) {
         uPlotRef.current = u;
       }
-      setUPlotWeight(indexPlot, u.bbox.width);
+      setUPlotWidth(indexPlot, u.bbox.width);
       u.over.ondblclick = () => {
         resetZoomRef.current();
       };
@@ -310,10 +306,10 @@ export function PlotViewEvent(props: {
       };
       u.setCursor({ top: -10, left: -10 }, false);
     },
-    [indexPlot, loadEvent, setUPlotWeight]
+    [indexPlot, loadEvent]
   );
 
-  const onUpdatePreview = useMemo(() => setPreviewImage?.bind(undefined, indexPlot), [indexPlot, setPreviewImage]);
+  const onUpdatePreview = useMemo(() => setPreviews?.bind(undefined, indexPlot), [indexPlot]);
 
   const [fixHeight, setFixHeight] = useState<number>(0);
   const divOut = useRef<HTMLDivElement>(null);
@@ -329,7 +325,11 @@ export function PlotViewEvent(props: {
   const [cursorTime, setCursorTime] = useState<number>();
 
   const onSetCursor = useCallback((u: uPlot) => {
-    setCursorTime(u.data[0][u.cursor.idx ?? -1]);
+    if (u.cursor.idx !== null && u.cursor.idx !== undefined) {
+      setCursorTime(u.data[0][u.legend.idxs?.[0] ?? -1]);
+    } else {
+      setCursorTime(undefined);
+    }
   }, []);
 
   const onCursor = useCallback((time: number) => {
@@ -340,7 +340,7 @@ export function PlotViewEvent(props: {
 
   useEffect(() => {
     seriesShow.forEach((show, idx) => {
-      if (uPlotRef.current?.series[idx + 1].show !== show) {
+      if (uPlotRef.current?.series[idx + 1]?.show !== show) {
         uPlotRef.current?.setSeries(idx + 1, { show }, true);
       }
     });
@@ -392,7 +392,7 @@ export function PlotViewEvent(props: {
               indexPlot={indexPlot}
               sel={sel}
               setParams={setSel}
-              setLive={setLive}
+              setLive={setLiveMode}
               meta={meta}
               live={live}
               yLock={sel.yLock}
@@ -410,6 +410,7 @@ export function PlotViewEvent(props: {
                 timeRange={timeRange}
                 sel={sel}
                 receiveErrors={receiveErrors}
+                receiveWarnings={receiveWarnings}
                 samplingFactorAgg={samplingFactorAgg}
                 samplingFactorSrc={samplingFactorSrc}
               />

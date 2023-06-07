@@ -27,14 +27,15 @@ static inline int str_offset(char const* start, char const* p) {
     return (int)(p - start);
 }
 
+static inline int _sqlite_config_defensive(sqlite3* db) {
+    return sqlite3_db_config(db, SQLITE_DBCONFIG_DEFENSIVE, 1, NULL);
+}
+
+static inline int _sqlite_config_untrusted_schema(sqlite3* db) {
+    return sqlite3_db_config(db, SQLITE_DBCONFIG_TRUSTED_SCHEMA, 0, NULL);
+}
+
 extern void _sqliteLogFunc(void* pArg, int code, char* msg);
 static inline int _sqlite_enable_logging() {
     return sqlite3_config(SQLITE_CONFIG_LOG, _sqliteLogFunc, NULL);
-}
-
-
-extern int go_trace_callback(unsigned,void*,void*,void*);
-
-static inline int registerProfile(sqlite3* db, void* goConn) {
-   return sqlite3_trace_v2(db, SQLITE_TRACE_PROFILE, go_trace_callback, goConn);
 }

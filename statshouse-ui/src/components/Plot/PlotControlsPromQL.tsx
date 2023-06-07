@@ -9,31 +9,25 @@ import produce from 'immer';
 import cn from 'classnames';
 import * as utils from '../../view/utils';
 import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
-import { MetricItem } from '../../hooks';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo } from '../index';
-import {
-  selectorParamsTimeShifts,
-  selectorPlotsDataByIndex,
-  selectorSetParams,
-  selectorSetTimeRange,
-  selectorTimeRange,
-  useStore,
-} from '../../store';
-import { metricKindToWhat, metricMeta, queryWhat } from '../../view/api';
+import { selectorParamsTimeShifts, selectorPlotsDataByIndex, selectorTimeRange, useStore } from '../../store';
+import { metricKindToWhat, queryWhat } from '../../view/api';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { globalSettings } from '../../common/settings';
 import { PlotParams } from '../../common/plotQueryParams';
+import { MetricMetaValue } from '../../api/metric';
+
+const { setParams, setTimeRange } = useStore.getState();
 
 export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   indexPlot: number;
   setBaseRange: (r: utils.timeRangeAbbrev) => void;
   sel: PlotParams;
   setSel: (state: React.SetStateAction<PlotParams>, replaceUrl?: boolean) => void;
-  meta: metricMeta;
+  meta?: MetricMetaValue;
   numQueries: number;
-  metricsOptions: MetricItem[];
   clonePlot?: () => void;
 }) {
   const { indexPlot, setBaseRange, sel, setSel, meta } = props;
@@ -43,15 +37,13 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   const plotData = useStore(selectorPlotsData);
 
   const timeShifts = useStore(selectorParamsTimeShifts);
-  const setParams = useStore(selectorSetParams);
 
   const timeRange = useStore(selectorTimeRange);
-  const setTimeRange = useStore(selectorSetTimeRange);
 
   // keep meta up-to-date when sel.metricName changes (e.g. because of navigation)
   useEffect(() => {
-    const whats = metricKindToWhat(meta.kind);
-    if (meta.name === sel.metricName && sel.what.some((qw) => whats.indexOf(qw) === -1)) {
+    const whats = metricKindToWhat(meta?.kind);
+    if (meta?.name === sel.metricName && sel.what.some((qw) => whats.indexOf(qw) === -1)) {
       // console.log('reset what', meta, sel.metricName, sel.what, whats);
       setSel(
         (s) => ({
@@ -61,7 +53,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
         true
       );
     }
-  }, [meta.kind, meta.name, sel.metricName, sel.what, setSel]);
+  }, [meta?.kind, meta?.name, sel.metricName, sel.what, setSel]);
 
   const onCustomAggChange = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => {
@@ -76,7 +68,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
         customAgg: customAgg,
       }));
     },
-    [setParams, setSel, timeShifts]
+    [setSel, timeShifts]
   );
 
   const onHostChange = useCallback(
@@ -190,7 +182,12 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
 
         <div className="row mb-3 align-items-baseline">
           <div className="input-group">
-            <textarea className="form-control font-monospace" rows={8} value={promQL} onInput={inputPromQL}></textarea>
+            <textarea
+              className="form-control font-monospace form-control-sm"
+              rows={10}
+              value={promQL}
+              onInput={inputPromQL}
+            ></textarea>
           </div>
           <div className="d-flex flex-row justify-content-end mt-2">
             <button type="button" className="btn btn-outline-primary me-2" title="Reset PromQL" onClick={resetPromQL}>

@@ -18,7 +18,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 
-const path = "test.db"
+const pathDB = "test.db"
 const appID = 123
 
 func increment(r *rapid.T, e *Engine, v int64) {
@@ -94,7 +94,7 @@ type engineMachineWaitCommitMode struct {
 	committed int64
 }
 
-func (m *engineMachineWaitCommitMode) Init(t *rapid.T) {
+func (m *engineMachineWaitCommitMode) init(t *rapid.T) {
 	e, err := newEngine(t, WaitCommit, "CREATE TABLE IF NOT EXISTS test (value INTEGER)")
 	require.NoError(t, err)
 	if err != nil {
@@ -125,7 +125,11 @@ func (m *engineMachineWaitCommitMode) Check(t *rapid.T) {
 }
 
 func TestWaitCommit(t *testing.T) {
-	rapid.Check(t, rapid.Run[*engineMachineWaitCommitMode]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := engineMachineWaitCommitMode{}
+		m.init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }
 
 type engineMachineNoWaitCommitMode struct {
@@ -134,7 +138,7 @@ type engineMachineNoWaitCommitMode struct {
 	committed int64
 }
 
-func (m *engineMachineNoWaitCommitMode) Init(t *rapid.T) {
+func (m *engineMachineNoWaitCommitMode) init(t *rapid.T) {
 	//todo unify
 	e, err := newEngine(t, NoWaitCommit, "CREATE TABLE IF NOT EXISTS test (value INTEGER)")
 	e.isTest = true
@@ -175,7 +179,11 @@ func (m *engineMachineNoWaitCommitMode) Check(t *rapid.T) {
 }
 
 func TestNoWaitCommit(t *testing.T) {
-	rapid.Check(t, rapid.Run[*engineMachineNoWaitCommitMode]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := engineMachineNoWaitCommitMode{}
+		m.init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }
 
 type engineMachineBinlogRun struct {
@@ -190,7 +198,7 @@ type engineMachineBinlogRun struct {
 	lastCurrentOffsetBeforeWait int64
 }
 
-func (m *engineMachineBinlogRun) Init(t *rapid.T) {
+func (m *engineMachineBinlogRun) init(t *rapid.T) {
 	e, err := newEngine(t, NoWaitCommit, "CREATE TABLE IF NOT EXISTS test (value INTEGER)")
 	e.isTest = true
 	require.NoError(t, err)
@@ -262,10 +270,14 @@ func (m *engineMachineBinlogRun) Check(t *rapid.T) {
 }
 
 func TestApplyCommit(t *testing.T) {
-	rapid.Check(t, rapid.Run[*engineMachineBinlogRun]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := engineMachineBinlogRun{}
+		m.init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }
 
-func openInMemory(path string, flags int, cb ProfileCallback) (*sqlite0.Conn, error) {
+func openInMemory(path string, flags int) (*sqlite0.Conn, error) {
 	conn, err := sqlite0.Open(path, flags|sqlite0.OpenMemory)
 	if err != nil {
 		return nil, err
@@ -290,7 +302,7 @@ func openInMemory(path string, flags int, cb ProfileCallback) (*sqlite0.Conn, er
 }
 
 func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine, error) {
-	rw, err := openRW(openInMemory, path, appID, nil, initOffsetTable, snapshotMetaTable, scheme)
+	rw, err := openRW(openInMemory, pathDB, appID, initOffsetTable, snapshotMetaTable, scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW connection: %w", err)
 	}
@@ -302,7 +314,7 @@ func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine,
 		stop: stop,
 		//	chk:                     chk,
 		opt: Options{
-			Path:                   path,
+			Path:                   pathDB,
 			APPID:                  appID,
 			Scheme:                 "",
 			Replica:                false,
@@ -327,7 +339,7 @@ func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine,
 		_ = e.close(false, false)
 		return nil, fmt.Errorf("failed to start write transaction: %w", err)
 	}
-	binlogEngineImpl := &binlogEngineImpl{e: e}
+	binlogEngineImpl := &binlogEngineReplicaImpl{e: e}
 	e.committedInfo.Store(&committedInfo{})
 	offset, err := e.binlogLoadOrCreatePosition()
 	if err != nil {

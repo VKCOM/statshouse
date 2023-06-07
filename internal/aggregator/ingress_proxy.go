@@ -40,6 +40,7 @@ type IngressProxy struct {
 }
 
 type ConfigIngressProxy struct {
+	Cluster           string
 	Network           string
 	ListenAddr        string
 	ExternalAddresses []string // exactly 3 comma-separated external ingress points
@@ -129,11 +130,18 @@ func (proxy *IngressProxy) handlerImpl(ctx context.Context, hctx *rpc.HandlerCon
 	tag, _ := basictl.NatPeekTag(hctx.Request)
 	switch tag {
 	case constants.StatshouseGetConfig2:
+		// Record metrics on aggregator with correct host, IP, etc.
+		// We do not care if it succeeded or not, we make our own response anyway
+		_, _ = proxy.proxyRequest(tag, ctx, hctx)
+
 		var args tlstatshouse.GetConfig2
 		var ret tlstatshouse.GetConfigResult
 		_, err := args.ReadBoxed(hctx.Request)
 		if err != nil {
 			return true, fmt.Errorf("failed to deserialize statshouse.getConfig2 request: %w", err)
+		}
+		if args.Cluster != proxy.config.Cluster {
+			return true, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, proxy.config.Cluster)
 		}
 		ret.Addresses = proxy.config.ExternalAddresses
 		ret.MaxAddressesCount = proxy.sh2.GetConfigResult.MaxAddressesCount

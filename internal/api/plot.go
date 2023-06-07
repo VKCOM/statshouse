@@ -64,7 +64,7 @@ set yrange [*<-0:*] noextend
 set datafile missing "NaN"
 
 {{range $i, $meta := $d.Data.Series.SeriesMeta -}}
-set style line {{$d.LineStyle $i}} linetype 1 linecolor rgb '{{$d.LineColor $meta}}'
+set style line {{$d.LineStyle $i}} linetype 1 linecolor rgb '{{$meta.Color}}'
 {{end}}
 
 $data << EOD
@@ -187,7 +187,7 @@ type gnuplotTemplateData struct {
 	BlankFrom int64
 	BlankTo   int64
 
-	usedColorIndices map[string]bool
+	usedColorIndices map[string]int
 	uniqueWhat       map[queryFn]struct{}
 	utcOffset        int64
 
@@ -244,40 +244,46 @@ func (d *gnuplotTemplateData) Header() string {
 	return fmt.Sprintf("%s: %s", d.Metric, strings.Join(lineFns, ", "))
 }
 
-func (d *gnuplotTemplateData) LineColor(meta QuerySeriesMetaV2) string {
+func (h *Handler) colorize(resp *SeriesResponse) {
+	if resp == nil {
+		return
+	}
 	var (
-		oneGraph         = d.graphCount() == 1
-		uniqueWhatLength = len(d.GetUniqueWhat())
-		label            = MetaToLabel(meta, uniqueWhatLength)
-		baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength)
-		isValue          = strings.Index(baseLabel, "Value") == 0
-		metricName       string
-		prefColor        = 9 // it`s magic prefix
-		colorKey         string
+		graphCount       int
+		uniqueWhat       = make(map[queryFn]struct{})
+		usedColorIndices = make(map[string]int)
 	)
-	if isValue {
-		metricName = meta.Name
-	}
-	if oneGraph {
-		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, label)
-	} else {
-		colorKey = fmt.Sprintf("%d%s: %s", prefColor, metricName, baseLabel)
-	}
-	return selectColor(colorKey, d.usedColorIndices)
-}
-
-func (d *gnuplotTemplateData) graphCount() int {
-	var res int
-	for _, meta := range d.Data.Series.SeriesMeta {
+	for _, meta := range resp.Series.SeriesMeta {
+		uniqueWhat[meta.What] = struct{}{}
 		if meta.TimeShift == 0 {
-			res++
+			graphCount++
 		}
 	}
-	return res
+	for i, meta := range resp.Series.SeriesMeta {
+		var (
+			oneGraph         = graphCount == 1
+			uniqueWhatLength = len(uniqueWhat)
+			label            = MetaToLabel(meta, uniqueWhatLength, h.utcOffset)
+			baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength, h.utcOffset)
+			isValue          = strings.Index(baseLabel, "Value") == 0
+			metricName       string
+			prefColor        = 9 // it`s magic prefix
+			colorKey         string
+		)
+		if isValue {
+			metricName = meta.Name
+		}
+		if oneGraph {
+			colorKey = fmt.Sprintf("%d%s%s", prefColor, metricName, label)
+		} else {
+			colorKey = fmt.Sprintf("%d%s%s", prefColor, metricName, baseLabel)
+		}
+		resp.Series.SeriesMeta[i].Color = selectColor(colorKey, usedColorIndices)
+	}
 }
 
 func (d *gnuplotTemplateData) MetaToLabel(meta QuerySeriesMetaV2) string {
-	return MetaToLabel(meta, len(d.GetUniqueWhat()))
+	return MetaToLabel(meta, len(d.GetUniqueWhat()), d.utcOffset)
 }
 
 func plotSize(format string, title bool, width int) (int, int) {
@@ -330,7 +336,7 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 			Data:             data[i],
 			BlankFrom:        blankFrom,
 			BlankTo:          blankTo,
-			usedColorIndices: map[string]bool{},
+			usedColorIndices: map[string]int{},
 			uniqueWhat:       map[queryFn]struct{}{},
 			utcOffset:        utcOffset % (24 * 3600), // ignore the part we use to align start of week
 			wr:               &buf,
@@ -378,26 +384,28 @@ func fnv1aSum(s string) uint32 {
 }
 
 // XXX: keep in sync with TypeScript
-func selectColor(s string, used map[string]bool) string {
-	h := fnv1aSum(s)
-	i := int(h % uint32(len(palette)))
-	if used[palette[i][0]] {
-		for offset := 1; offset < len(palette); offset++ {
-			j := (i + offset) % len(palette)
-			if !used[palette[j][0]] {
-				i = j
-				break
-			}
+func selectColor(s string, used map[string]int) string {
+	var (
+		h = fnv1aSum(s)
+		i = int(h % uint32(len(palette)))
+		v = palette[i]
+	)
+	for offset := 0; offset < len(palette); offset++ {
+		j := (i + offset) % len(palette)
+		if _, ok := used[palette[j][0]]; !ok {
+			v = palette[j]
+			used[v[0]] = -1
+			break
 		}
 	}
-	used[palette[i][0]] = true
-	return palette[i][1]
+	used[v[0]]++
+	return v[1+used[v[0]]%(len(v)-1)]
 }
 
 // XXX: keep in sync with TypeScript
-func MetaToLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
+func MetaToLabel(meta QuerySeriesMetaV2, uniqueWhatLength int, utcOffset int64) string {
 	var (
-		desc = MetaToBaseLabel(meta, uniqueWhatLength)
+		desc = MetaToBaseLabel(meta, uniqueWhatLength, utcOffset)
 		tsd  = timeShiftDesc(meta.TimeShift)
 	)
 	if tsd == "" {
@@ -406,7 +414,7 @@ func MetaToLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 	return fmt.Sprintf("%s %s", tsd, desc)
 }
 
-func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
+func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int, utcOffset int64) string {
 	type tagEntry struct {
 		key string
 		tag SeriesMetaTag
@@ -419,7 +427,7 @@ func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 
 	var sortedTagValues []string
 	for _, kv := range sortedTags {
-		sortedTagValues = append(sortedTagValues, formatTagValue(kv.tag.Value, kv.tag.Comment))
+		sortedTagValues = append(sortedTagValues, formatTagValue(kv.tag.Value, kv.tag.Comment, kv.tag.Raw, kv.tag.RawKind, utcOffset))
 	}
 
 	desc := "Value"
@@ -435,13 +443,17 @@ func MetaToBaseLabel(meta QuerySeriesMetaV2, uniqueWhatLength int) string {
 }
 
 // XXX: keep in sync with TypeScript
-func formatTagValue(s string, c string) string {
+func formatTagValue(s string, c string, r bool, k string, utcOffset int64) string {
 	if c != "" {
 		return c
 	}
 
 	if len(s) < 1 || s[0] != ' ' {
 		return s
+	}
+	if r && len(k) != 0 {
+		i, _ := strconv.Atoi(s[1:])
+		return "⚡ " + convert(k, i, utcOffset)
 	}
 	i, _ := strconv.Atoi(s[1:])
 	switch i {
@@ -451,6 +463,29 @@ func formatTagValue(s string, c string) string {
 		return "⚡ mapping flood"
 	default:
 		return fmt.Sprintf("⚡ %d", i)
+	}
+}
+
+// XXX: keep in sync with TypeScript
+func convert(kind string, input int, utcOffset int64) string {
+	switch kind {
+	case "hex":
+		return fmt.Sprintf("%08X", input)
+	case "hex_bswap":
+		u := uint(input)
+		return fmt.Sprintf("%02X%02X%02X%02X", u&255, (u>>8)&255, (u>>16)&255, (u>>24)&255)
+	case "timestamp":
+		return time.Unix(int64(input)-utcOffset, 0).Format("2006-01-02 15:04:05")
+	case "ip":
+		u := uint(input)
+		return fmt.Sprintf("%d.%d.%d.%d", (u>>24)&255, (u>>16)&255, (u>>8)&255, u&255)
+	case "ip_bswap":
+		u := uint(input)
+		return fmt.Sprintf("%d.%d.%d.%d", u&255, (u>>8)&255, (u>>16)&255, (u>>24)&255)
+	case "uint":
+		return fmt.Sprintf("%d", uint(input))
+	default:
+		return fmt.Sprintf("%d", input)
 	}
 }
 

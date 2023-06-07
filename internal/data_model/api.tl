@@ -77,6 +77,7 @@ statshouseApi.query#c9951bb9 fields_mask:#
     group_by: %(Vector string)
     filter: %(Vector %(statshouseApi.Filter))
     time_shift: %(Vector long)
+    promql: fields_mask.0?string
     what: fields_mask.1?%(Vector statshouseApi.Function)
     = statshouseApi.Query;
 

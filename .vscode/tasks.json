@@ -1,0 +1,30 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "clear_cache",
+            "type": "shell",
+            "command": "mkdir -p target/run/cache/aggregator target/run/cache/agent target/run/cache/api && find target/run/cache -type f -delete",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+        },
+        {
+            "label": "build_statshouse_debug",
+            "type": "shell",
+            "command": "go",
+            "args": [
+                "build",
+                "-gcflags=all=-N -l",
+                "-o",
+                "${fileDirname}/statshouse_debug"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/cmd/statshouse"
+            },
+            "dependsOn": [
+                "clear_cache"
+            ]
+        }
+    ]
+}

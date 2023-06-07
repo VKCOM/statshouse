@@ -9,6 +9,8 @@ package sqlite
 import (
 	"fmt"
 
+	"go.uber.org/multierr"
+
 	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
 )
 
@@ -20,6 +22,7 @@ const (
 	argText       = 5
 	argInt64Slice = 6
 	argTextSlice  = 7
+	argFloat64    = 8
 )
 
 type Arg struct {
@@ -28,6 +31,7 @@ type Arg struct {
 	b    []byte
 	s    string
 	n    int64
+	f    float64
 
 	length int
 	ns     []int64
@@ -92,6 +96,14 @@ func TextList(name string, ss []string) Arg {
 	}
 }
 
+func Float64(name string, f float64) Arg {
+	return Arg{
+		name: name,
+		typ:  argFloat64,
+		f:    f,
+	}
+}
+
 func SetLogf(fn func(code int, msg string)) {
 	sqlite0.SetLogf(fn)
 }
@@ -104,23 +116,16 @@ func (a *Arg) isSliceArg() bool {
 	return a.typ == argInt64Slice
 }
 
-func doSingleROToWALQuery(path string, f func(*Engine) error) error {
-	ro, err := openROWAL(path, false, nil)
+func doSingleROToWALQuery(path string, f func(conn *sqliteConn) error) (err error) {
+	ro, err := openROWAL(path, false)
 	if err != nil {
 		return err
 	}
-
-	e := &Engine{
-		opt: Options{Path: path, StatsOptions: StatsOptions{}},
-		rw:  newSqliteConn(ro, 10),
-	}
-	err = f(e)
-	e.rw.cache.close(&err)
-	closeErr := ro.Close()
-	if err != nil {
-		return err
-	}
-	return closeErr
+	conn := newSqliteConn(ro, 10)
+	defer func() {
+		err = multierr.Append(err, conn.Close())
+	}()
+	return f(conn)
 }
 
 func doSingleROQuery(path string, f func(*Engine) error) error {

@@ -2,12 +2,15 @@
 set -e
 
 PROFILE=sh
-if [[ $1 ]]; then
-  PROFILE=$1
-fi
+case $1 in
+  api-off|agent-off|aggregator-off|meta-off|all-in-one|scrape)
+    PROFILE=$1
+    shift
+    ;;
+esac
 
-docker compose --profile "$PROFILE" up -d --build --remove-orphans --force-recreate
-trap "{ docker compose --profile $PROFILE down; exit; }" exit
+docker compose -f localrun.yml --profile $PROFILE up -d --remove-orphans $@ # --build --force-recreate
+trap "{ docker compose -f localrun.yml --profile $PROFILE down; exit; }" exit
 echo -n Waiting for services to be ready...
 for c in kh sh; do
   if [ "$(docker container inspect -f '{{.State.Status}}' $c 2>/dev/null)" = "running" ]; then

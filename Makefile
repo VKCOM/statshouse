@@ -20,13 +20,13 @@ COMMON_LDFLAGS = $(COMMON_BUILD_VARS) -extldflags '-O2'
 .PHONY: all build-go build-ui build-docker \
 	build-sh build-sh-api build-sh-api-embed build-sh-metadata build-sh-grafana \
 	build-sh-ui build-grafana-ui \
-	build-docker-sh build-docker-sh-api build-docker-sh-metadata \
-	copy-sh-ui
+	build-docker-sh build-docker-sh-api build-docker-sh-metadata
 
 all: build-go build-ui build-docker
 build-go: build-sh build-sh-api build-sh-metadata build-sh-grafana
 build-ui: build-sh-ui build-grafana-ui
 build-docker: build-docker-sh build-docker-sh-api build-docker-sh-metadata
+build-main-daemons: build-sh build-sh-api build-sh-metadata
 
 build-sh:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse ./cmd/statshouse
@@ -34,7 +34,7 @@ build-sh:
 build-sh-api:
 	go build -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
 
-build-sh-api-embed: copy-sh-ui
+build-sh-api-embed:
 	go build -tags embed -ldflags "$(COMMON_LDFLAGS)" -buildvcs=false -o target/statshouse-api ./cmd/statshouse-api
 
 build-sh-metadata:
@@ -45,9 +45,8 @@ build-sh-grafana:
 
 build-sh-ui:
 	cd statshouse-ui && npm clean-install && NODE_ENV=production REACT_APP_BUILD_VERSION=$(REACT_APP_BUILD_VERSION) npm run build
-
-copy-sh-ui:
-	cp -r statshouse-ui/build cmd/statshouse-api/
+	rm -rf cmd/statshouse-api/build || true
+	cp -r statshouse-ui/build cmd/statshouse-api/ || true
 
 build-grafana-ui:
 	cd grafana-plugin-ui && npm clean-install && npm run build

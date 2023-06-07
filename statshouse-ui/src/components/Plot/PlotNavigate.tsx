@@ -16,8 +16,10 @@ import { ReactComponent as SVGLock } from 'bootstrap-icons/icons/lock.svg';
 import { ReactComponent as SVGUnlock } from 'bootstrap-icons/icons/unlock.svg';
 import { ReactComponent as SVGPlayFill } from 'bootstrap-icons/icons/play-fill.svg';
 import { ReactComponent as SVGLink } from 'bootstrap-icons/icons/link.svg';
+import { ReactComponent as SVGTable } from 'bootstrap-icons/icons/table.svg';
+import { ReactComponent as SVGGraphUp } from 'bootstrap-icons/icons/graph-up.svg';
 import { debug } from '../../common/debug';
-import { lockRange } from '../../common/plotQueryParams';
+import { lockRange, PLOT_TYPE, PlotType } from '../../common/plotQueryParams';
 
 export type PlotNavigateProps = {
   live: boolean;
@@ -29,6 +31,8 @@ export type PlotNavigateProps = {
   onYLockChange?: (status: boolean) => void;
   className?: string;
   link?: string;
+  typePlot?: PlotType;
+  setTypePlot?: Dispatch<SetStateAction<PlotType>>;
 };
 export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
   live,
@@ -40,6 +44,8 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
   onYLockChange,
   className,
   link,
+  typePlot,
+  setTypePlot,
 }) => {
   const panLeft = useCallback(() => {
     setLive(false);
@@ -84,6 +90,14 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
       debug.log('clipboard ok', link ?? document.location.toString());
     });
   }, [link]);
+
+  const onChangeTypePlot = useCallback(
+    (e: React.MouseEvent) => {
+      const type = (parseInt(e.currentTarget.getAttribute('data-value') ?? '0') ?? 0) as PlotType;
+      setTypePlot?.(type);
+    },
+    [setTypePlot]
+  );
   const id = useId();
 
   return (
@@ -103,6 +117,28 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
       {!!onResetZoom && (
         <button type="button" className="btn btn-outline-primary" title="Reset zoom" onClick={onResetZoom}>
           <SVGMap />
+        </button>
+      )}
+      {typePlot === PLOT_TYPE.Metric && (
+        <button
+          type="button"
+          className="btn btn-outline-primary"
+          title="View events"
+          data-value={PLOT_TYPE.Event}
+          onClick={onChangeTypePlot}
+        >
+          <SVGTable />
+        </button>
+      )}
+      {typePlot === PLOT_TYPE.Event && (
+        <button
+          type="button"
+          className="btn btn-outline-primary"
+          title="View plot"
+          data-value={PLOT_TYPE.Metric}
+          onClick={onChangeTypePlot}
+        >
+          <SVGGraphUp />
         </button>
       )}
       {!!onYLockChange && !!yLock && (

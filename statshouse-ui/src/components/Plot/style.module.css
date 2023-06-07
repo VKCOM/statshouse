@@ -80,6 +80,11 @@
 .plotInputName {
   pointer-events: auto;
 }
+
+.plotRemoveBtn {
+  pointer-events: auto;
+}
+
 .badge:empty {
   display: none !important;
 }
@@ -95,10 +100,6 @@
   box-shadow: var(--bs-secondary-bg) 0 0 10px 0px;
 }
 
-.plotEventsSelectColumns {
-  left: 3.75em;
-  top: 1.25em;
-}
 .plotEventsSelectRow {
   background-color: var(--rdg-row-selected-background-color);
 }
@@ -113,6 +114,19 @@
   --rdg-row-selected-hover-background-color: rgba(var(--bs-secondary-bg-rgb), 0.9);
   --rdg-row-selected-background-color: rgba(var(--bs-secondary-bg-rgb), 0.7);
   --rdg-selection-color: var(--bs-secondary);
+}
+.btnEventsSelectColumns {
+  margin: 1px;
+  padding: calc(var(--bs-btn-padding-y) - 1px) calc(var(--bs-btn-padding-x) - 1px);
+  background-color: rgba(var(--bs-secondary-bg-rgb), 0.7);
+}
+
+.bigControl {
+  color: var(--bs-body-color);
+}
+.bigControl:hover {
+  color: var(--bs-secondary-color);
+  background-color: rgba(var(--bs-secondary-bg-rgb), 0.7);
 }
 
 @media screen and (min-width: 768px) {

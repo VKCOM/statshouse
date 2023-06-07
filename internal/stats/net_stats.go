@@ -190,7 +190,7 @@ func (c *NetStats) writeSNMP(nowUnix int64) error {
 
 func (c *NetStats) writePackets(nowUnix int64, stat netStat) {
 	tcpR := stat.tcp.InSegs - c.oldNetStat.tcp.InSegs
-	tcpO := stat.tcp.InSegs - c.oldNetStat.tcp.OutSegs
+	tcpO := stat.tcp.OutSegs - c.oldNetStat.tcp.OutSegs
 
 	ipR := stat.ip.InReceives - c.oldNetStat.ip.InReceives
 	ipO := stat.ip.OutRequests - c.oldNetStat.ip.OutRequests

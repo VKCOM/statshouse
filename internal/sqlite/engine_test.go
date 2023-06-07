@@ -10,12 +10,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/rand"
+	"path"
 	"reflect"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -170,42 +171,24 @@ func test_Engine_Reread_From_Begin(t *testing.T, waitCommit, commitOnEachWrite b
 	}
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, commitOnEachWrite, mode, nil)
 	agg := &testAggregation{}
-	n := 100000
-	if waitCommit {
-		n = 300
-	}
-	wg := &sync.WaitGroup{}
+	n := 300
 	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			data := make([]byte, 1+rand.Int()%300)
-			_, err := rand.Read(data)
-			require.NoError(t, err)
-			agg.mx.Lock()
-			str := string(data)
-			err = insertText(engine, str)
-			if err == nil {
-				agg.writeHistory = append(agg.writeHistory, str)
-			}
-			agg.mx.Unlock()
-		}()
+		data := make([]byte, 64)
+		_, err := rand.Read(data)
+		require.NoError(t, err)
+		data = strconv.AppendInt(data, int64(i), 10)
+		str := string(data)
+		err = insertText(engine, str)
+		require.NoError(t, err)
+		agg.writeHistory = append(agg.writeHistory, str)
 	}
-	wg.Wait()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
 	history := []string{}
-	mx := sync.Mutex{}
 	engine, _ = openEngine(t, dir, "db1", schema, false, false, false, commitOnEachWrite, mode, func(s string) {
-		mx.Lock()
-		defer mx.Unlock()
 		history = append(history, s)
 	})
-	mx.Lock()
-	defer mx.Unlock()
-	agg.mx.Lock()
-	defer agg.mx.Unlock()
 	require.NoError(t, isEquals(agg.writeHistory, history))
 	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
@@ -216,25 +199,16 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	dir := t.TempDir()
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, NoWaitCommit, nil)
 	agg := &testAggregation{}
-	n := 500 + rand.Intn(500)
-	wg := &sync.WaitGroup{}
+	n := 500
 	for i := 0; i < n; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			data := make([]byte, 1+rand.Intn(30))
-			_, err := rand.Read(data)
-			require.NoError(t, err)
-			agg.mx.Lock()
-			str := string(data)
-			err = insertText(engine, str)
-			if err == nil {
-				agg.writeHistory = append(agg.writeHistory, str)
-			}
-			agg.mx.Unlock()
-		}()
+		data := make([]byte, 1+rand.Intn(30))
+		_, err := rand.Read(data)
+		require.NoError(t, err)
+		str := string(data)
+		err = insertText(engine, str)
+		require.NoError(t, err)
+		agg.writeHistory = append(agg.writeHistory, str)
 	}
-	wg.Wait()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
@@ -245,7 +219,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	for _, s := range agg.writeHistory {
 		textInDb[s] = struct{}{}
 	}
-	n = 5000 + rand.Intn(1000)
+	n = 5000
 
 	for i := 0; i < n; i++ {
 		data := make([]byte, 1+rand.Int()%30)
@@ -265,10 +239,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	require.NoError(t, engine.Close(ctx))
 
 	history := []string{}
-	mx := sync.Mutex{}
 	engine, _ = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
-		mx.Lock()
-		defer mx.Unlock()
 		history = append(history, s)
 	})
 	expectedMap := map[string]struct{}{}
@@ -302,44 +273,36 @@ func Test_Engine(t *testing.T) {
 	dir := t.TempDir()
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
 	agg := &testAggregation{}
-	n := 8000
-	var task int32 = 10000000
-	var count int32
+	n := 32
+	iters := 1000
 	wg := &sync.WaitGroup{}
 	for i := 0; i < n; i++ {
 		wg.Add(1)
-		go func() {
+		go func(i int) {
 			defer wg.Done()
-			for {
-				c := atomic.AddInt32(&count, 1)
-				if c < task {
-					break
-				}
-				data := make([]byte, 1+rand.Int()%20)
+			for j := 0; j < iters; j++ {
+				data := make([]byte, 20)
 				_, err := rand.Read(data)
 				require.NoError(t, err)
+				data = strconv.AppendInt(data, int64(i), 10)
+				data = strconv.AppendInt(data, int64(j), 10)
+
 				str := string(data)
 				err = insertText(engine, str)
-				if err == nil {
-					agg.mx.Lock()
-					agg.writeHistory = append(agg.writeHistory, str)
-					agg.mx.Unlock()
-				}
+				require.NoError(t, err)
+				agg.mx.Lock()
+				agg.writeHistory = append(agg.writeHistory, str)
+				agg.mx.Unlock()
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	require.NoError(t, engine.Close(ctx))
-	mx := sync.Mutex{}
 	engine, _ = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
 		t.Fatal("mustn't apply music")
 	})
-	mx.Lock()
-	defer mx.Unlock()
-	agg.mx.Lock()
-	defer agg.mx.Unlock()
 	expectedMap := map[string]struct{}{}
 	for _, t := range agg.writeHistory {
 		expectedMap[t] = struct{}{}
@@ -694,4 +657,113 @@ func Test_Engine_Slice_Params(t *testing.T) {
 	})
 	require.Equal(t, 3, count)
 	require.NoError(t, err)
+}
+
+func Test_Engine_Float64(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (val REAL);"
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, NoBinlog, nil)
+	var err error
+	testValues := []float64{1.0, 6.0, math.MaxFloat64}
+
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		for i := 0; i < len(testValues); i++ {
+			_, err = conn.Exec("test", "INSERT INTO test_db(val) VALUES ($value)", Float64("$value", testValues[i]))
+			require.NoError(t, err)
+		}
+
+		return cache, err
+	})
+	require.NoError(t, err)
+	count := 0
+	result := make([]float64, 0, len(testValues))
+	value := 0.0
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT val FROM test_db WHERE val > $num", Float64("$num", 0.0))
+
+		for rows.Next() {
+			count++
+
+			value, err = rows.ColumnFloat64(0)
+			require.NoError(t, err)
+
+			result = append(result, value)
+		}
+		return cache, err
+	})
+	require.Equal(t, len(testValues), len(result))
+	require.Equal(t, testValues, result)
+}
+
+func Test_Engine_Write_Fail_But_Read_Work(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
+	var id int64
+	var err error
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		buf := make([]byte, 12)
+		_, err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Int64("$id", 1))
+		binary.LittleEndian.PutUint32(buf, magic)
+		binary.LittleEndian.PutUint64(buf[4:], uint64(1))
+		return cache, err
+	})
+	require.NoError(t, err)
+	engine.rw.err = fmt.Errorf("fail")
+	err = engine.ViewUncommitted(context.Background(), "test", func(conn Conn) error {
+		rows := conn.Query("test", "SELECT id FROM test_db")
+		for rows.Next() {
+			id, err = rows.ColumnInt64(0)
+			if err != nil {
+				return err
+			}
+		}
+		return rows.Error()
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(1), id)
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		buf := make([]byte, 12)
+		_, err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Int64("$id", 1))
+		binary.LittleEndian.PutUint32(buf, magic)
+		binary.LittleEndian.PutUint64(buf[4:], uint64(1))
+		return cache, err
+	})
+	require.ErrorIs(t, err, engine.rw.err)
+}
+
+func Test_Engine_Backup(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
+	var id int64
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
+	var err error
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		buf := make([]byte, 12)
+		_, err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Int64("$id", 1))
+		binary.LittleEndian.PutUint32(buf, magic)
+		binary.LittleEndian.PutUint64(buf[4:], uint64(1))
+		return cache, err
+	})
+	require.NoError(t, err)
+	require.NoError(t, engine.commitTXAndStartNew(true, true))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	backupPath, err := engine.Backup(ctx, path.Join(dir, "db1"))
+	require.NoError(t, err)
+	require.NoError(t, engine.Close(ctx))
+	dir, db := path.Split(backupPath)
+	engine, _ = openEngine(t, dir, db, schema, false, false, false, false, WaitCommit, nil)
+	err = engine.Do(context.Background(), "test", func(conn Conn, b []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT id FROM test_db")
+		for rows.Next() {
+			id, err = rows.ColumnInt64(0)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return nil, rows.Error()
+	})
+	require.Equal(t, int64(1), id)
+
 }

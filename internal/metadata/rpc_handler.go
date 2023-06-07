@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/format"
+
 	"github.com/vkcom/statshouse-go"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -103,7 +105,7 @@ func (h *Handler) initStats() {
 		h.getJournalMx.Lock()
 		qLength := len(h.getJournalClients)
 		h.getJournalMx.Unlock()
-		registry.AccessMetricRaw(sqlengineLoadJournalWaitQLen, statshouse.RawTags{Tag1: h.host}).Value(float64(qLength))
+		registry.AccessMetricRaw(format.BuiltinMetricNameMetaClientWaits, statshouse.RawTags{Tag1: h.host}).Value(float64(qLength))
 	})
 }
 
@@ -226,7 +228,7 @@ func (h *Handler) RawResetFlood(ctx context.Context, hctx *rpc.HandlerContext) (
 		return "", fmt.Errorf("failed to deserialize metadata.resetFlood request: %w", err)
 	}
 
-	err = h.db.ResetFlood(ctx, args.Metric)
+	_, _, err = h.db.ResetFlood(ctx, args.Metric, 0)
 
 	if err != nil {
 		return "", err
@@ -237,7 +239,8 @@ func (h *Handler) RawResetFlood(ctx context.Context, hctx *rpc.HandlerContext) (
 }
 
 func (h *Handler) ResetFlood2(ctx context.Context, args tlmetadata.ResetFlood2) (tlmetadata.ResetFloodResponse2, error) {
-	return tlmetadata.ResetFloodResponse2{}, h.db.ResetFlood(ctx, args.Metric) // TODO - return budgets before and after reset
+	before, after, err := h.db.ResetFlood(ctx, args.Metric, int64(args.Value))
+	return tlmetadata.ResetFloodResponse2{BudgetBefore: int32(before), BudgetAfter: int32(after)}, err
 }
 
 func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.GetTagMappingBootstrap) (tlstatshouse.GetTagMappingBootstrapResult, error) {

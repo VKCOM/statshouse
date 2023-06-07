@@ -9,22 +9,22 @@ import { convert, lexDecode } from './utils';
 
 describe('utils', () => {
   test('convert hex', () => {
-    expect(convert('hex', 0)).toBe('00000000');
-    expect(convert('hex', 1)).toBe('00000001');
-    expect(convert('hex', -1)).toBe('ffffffff');
-    expect(convert('hex', -2147483648)).toBe('80000000');
-    expect(convert('hex', 2147483647)).toBe('7fffffff');
-    expect(convert('hex', -2142740666)).toBe('80485f46');
-    expect(convert('hex', 167901850)).toBe('0a01fa9a');
+    expect(convert('hex', 0)).toBe('0x00000000');
+    expect(convert('hex', 1)).toBe('0x00000001');
+    expect(convert('hex', -1)).toBe('0xffffffff');
+    expect(convert('hex', -2147483648)).toBe('0x80000000');
+    expect(convert('hex', 2147483647)).toBe('0x7fffffff');
+    expect(convert('hex', -2142740666)).toBe('0x80485f46');
+    expect(convert('hex', 167901850)).toBe('0x0a01fa9a');
   });
   test('convert hex_bswap', () => {
-    expect(convert('hex_bswap', 0)).toBe('00000000');
-    expect(convert('hex_bswap', 1)).toBe('01000000');
-    expect(convert('hex_bswap', -1)).toBe('ffffffff');
-    expect(convert('hex_bswap', -2147483648)).toBe('00000080');
-    expect(convert('hex_bswap', 2147483647)).toBe('ffffff7f');
-    expect(convert('hex_bswap', -2142740666)).toBe('465f4880');
-    expect(convert('hex_bswap', 167901850)).toBe('9afa010a');
+    expect(convert('hex_bswap', 0)).toBe('0x00000000');
+    expect(convert('hex_bswap', 1)).toBe('0x01000000');
+    expect(convert('hex_bswap', -1)).toBe('0xffffffff');
+    expect(convert('hex_bswap', -2147483648)).toBe('0x00000080');
+    expect(convert('hex_bswap', 2147483647)).toBe('0xffffff7f');
+    expect(convert('hex_bswap', -2142740666)).toBe('0x465f4880');
+    expect(convert('hex_bswap', 167901850)).toBe('0x9afa010a');
   });
   test('convert undefined', () => {
     expect(convert(undefined, 0)).toBe('0');
@@ -137,9 +137,22 @@ describe('utils', () => {
   test('convert lexenc_float', () => {
     expect(convert('lexenc_float', 0)).toBe('0');
     expect(convert('lexenc_float', Number.NEGATIVE_INFINITY)).toBe('NaN');
-    expect(convert('lexenc_float', -1_139_095_039)).toBe('-458.42181396484375');
-    expect(convert('lexenc_float', 1_139_094_939)).toBe('458.4187927246094');
-    expect(convert('lexenc_float', -8388709)).toBe('-1.1755083638069308e-38');
-    expect(convert('lexenc_float', 8388609)).toBe('1.175494490952134e-38');
+    expect(convert('lexenc_float', -1_139_095_039)).toBe('-458.42181'); // -458.42181396484375
+    expect(convert('lexenc_float', 1_139_094_939)).toBe('458.41879'); // 458.4187927246094
+    expect(convert('lexenc_float', -8388709)).toBe('-1.1755084e-38'); // -1.1755083638069308e-38
+    expect(convert('lexenc_float', 8388609)).toBe('1.1754945e-38'); // 1.175494490952134e-38
+  });
+
+  test('convert float', () => {
+    expect(convert('float', 0)).toBe('0');
+    expect(convert('float', -1)).toBe('NaN');
+    expect(convert('float', 1)).toBe('1.4012985e-45'); // 1.401298464324817e-45
+    expect(convert('float', 3212836864)).toBe('-1');
+    expect(convert('float', 1065353216)).toBe('1');
+    expect(convert('float', Number.NEGATIVE_INFINITY)).toBe('0');
+    expect(convert('float', -1_139_095_039)).toBe('-0.0094475755'); // -0.00944757554680109
+    expect(convert('float', 1_139_094_939)).toBe('458.41879'); // 458.4187927246094
+    expect(convert('float', -8388709)).toBe('-3.4028032e+38'); // -3.402803183975685e+38
+    expect(convert('float', 8388609)).toBe('1.1754945e-38'); // 1.175494490952134e-38
   });
 });

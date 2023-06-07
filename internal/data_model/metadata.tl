@@ -109,6 +109,7 @@ metadata.resetFloodResponse2#9286abef
 @readwrite metadata.resetFlood2#88d0fd5e
     field_mask: #
     metric: string
+    value: field_mask.1?%int
     = metadata.ResetFloodResponse2;
 
 @readwrite metadata.getTagMappingBootstrap#5fc81a9b

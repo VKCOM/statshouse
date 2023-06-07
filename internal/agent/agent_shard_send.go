@@ -27,7 +27,7 @@ import (
 )
 
 // If clients wish periodic measurements, they are advised to send them around the middle of calendar second
-func (s *Shard) flushBuckets(now time.Time) {
+func (s *ShardReplica) flushBuckets(now time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	nowUnix := uint32(now.Unix())
@@ -39,7 +39,8 @@ func (s *Shard) flushBuckets(now time.Time) {
 	// We send missed seconds if timestamp "jumps", which are converted  by aggregator into contributors for previous seconds
 	// otherwise #contributors will fluctuate. For this reason we also send empty buckets
 	if s.PreprocessingBuckets != nil {
-		// s.client.Client.Logf("Zatup 1 shard %d  bucket.time %d nowUnix %d", s.ShardReplicaNum, s.CurrentBucket.time, nowUnix)
+		// s.client.Client.Logf("Zatup 1 %d replica %d (shard-replica %d) bucket.time %d nowUnix %d",
+		//	s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, s.CurrentBucket.time, nowUnix)
 		s.MissedSeconds = nowUnix - s.CurrentTime
 		// We continue aggregating if processing conveyor is stalled now
 		return
@@ -176,7 +177,7 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 	return sb
 }
 
-func (s *Shard) goPreProcess() {
+func (s *ShardReplica) goPreProcess() {
 	rnd := rand.New() // We use distinct rand so that we can use it without locking
 
 	s.mu.Lock()
@@ -204,7 +205,7 @@ func (s *Shard) goPreProcess() {
 	}
 }
 
-func (s *Shard) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_model.MetricsBucket) {
+func (s *ShardReplica) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_model.MetricsBucket) {
 	s.mu.Lock()
 	stringTopCapacity := s.config.StringTopCapacity
 	s.mu.Unlock()
@@ -222,7 +223,7 @@ func (s *Shard) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_m
 }
 
 // this function will be replaced by sampleBucketWithGroups, do not improve
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) map[int32]float64 { // returns sample factors
+func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) map[int32]float64 { // returns sample factors
 	s.mu.Lock()
 	config := s.config
 	s.mu.Unlock()
@@ -257,8 +258,8 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) m
 		samplingMetric, ok := metricsMap[accountMetric]
 		if !ok {
 			var metricInfo *format.MetricMetaValue
-			if s.statshouse.metricStorage != nil {
-				metricInfo = s.statshouse.metricStorage.GetMetaMetric(accountMetric)
+			if s.agent.metricStorage != nil {
+				metricInfo = s.agent.metricStorage.GetMetaMetric(accountMetric)
 			}
 			samplingMetric = &data_model.SamplingMetric{
 				MetricID:     accountMetric,
@@ -282,7 +283,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) m
 		// comparing rational numbers
 		return metricsList[i].SumSize*metricsList[j].MetricWeight < metricsList[j].SumSize*metricsList[i].MetricWeight
 	})
-	numShards := s.statshouse.NumShardReplicas()
+	numShards := s.agent.NumShardReplicas()
 	remainingBudget := int64((config.SampleBudget + numShards - 1) / numShards)
 	if remainingBudget <= 0 { // if happens, will lead to divide by zero below, so we add cheap protection
 		remainingBudget = 1
@@ -432,7 +433,7 @@ func sampleStatItem(bucket *data_model.MetricsBucket, statItem *data_model.Sampl
 }
 
 // relatively new, can contain disastrous bugs, turned off for now
-func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *rand.Rand) map[int32]float64 { // returns sample factors
+func (s *ShardReplica) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *rand.Rand) map[int32]float64 { // returns sample factors
 	s.mu.Lock()
 	config := s.config
 	s.mu.Unlock()
@@ -463,8 +464,8 @@ func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *ra
 		samplingMetric, ok := metricsMap[accountMetric]
 		if !ok {
 			var metricInfo *format.MetricMetaValue
-			if s.statshouse.metricStorage != nil {
-				metricInfo = s.statshouse.metricStorage.GetMetaMetric(accountMetric)
+			if s.agent.metricStorage != nil {
+				metricInfo = s.agent.metricStorage.GetMetaMetric(accountMetric)
 				if metricInfo == nil {
 					metricInfo = format.BuiltinMetrics[accountMetric]
 				}
@@ -482,7 +483,7 @@ func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *ra
 			}
 			samplingGroup, ok := groupsMap[groupID]
 			if !ok {
-				groupInfo := s.statshouse.metricStorage.GetGroup(groupID)
+				groupInfo := s.agent.metricStorage.GetGroup(groupID)
 				samplingGroup = &data_model.SamplingGroup{
 					GroupID:     groupID,
 					GroupWeight: format.EffectiveWeightOne,
@@ -504,7 +505,7 @@ func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *ra
 		totalItemsSize += sz
 	}
 
-	numShards := s.statshouse.NumShardReplicas()
+	numShards := s.agent.NumShardReplicas()
 	remainingGroupBudget := int64((config.SampleBudget + numShards - 1) / numShards)
 	if remainingGroupBudget <= 0 { // if happens, will lead to divide by zero below, so we add cheap protection
 		remainingGroupBudget = 1
@@ -520,10 +521,10 @@ func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *ra
 
 	// We presume we have only a few groups, so reporting sizes are over budget and itself not sampled
 	reportGroupSampling := func(sizeBefore int64, sizeAfter int64, groupID int32, fitTag int32) {
-		key := data_model.Key{Metric: format.BuiltinMetricIDGroupSizeBeforeSampling, Keys: [16]int32{0, s.statshouse.componentTag, groupID, fitTag}}
+		key := data_model.Key{Metric: format.BuiltinMetricIDGroupSizeBeforeSampling, Keys: [16]int32{0, s.agent.componentTag, groupID, fitTag}}
 		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
 		mi.Tail.Value.AddValueCounterHost(float64(sizeBefore), 1, 0)
-		key = data_model.Key{Metric: format.BuiltinMetricIDGroupSizeAfterSampling, Keys: [16]int32{0, s.statshouse.componentTag, groupID, fitTag}}
+		key = data_model.Key{Metric: format.BuiltinMetricIDGroupSizeAfterSampling, Keys: [16]int32{0, s.agent.componentTag, groupID, fitTag}}
 		mi = data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
 		mi.Tail.Value.AddValueCounterHost(float64(sizeAfter), 1, 0)
 	}
@@ -572,12 +573,13 @@ func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *ra
 	return sampleFactors
 }
 
-func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors map[int32]float64) {
+func (s *ShardReplica) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors map[int32]float64) {
 	cbd, err := s.compressBucket(bucket, missedSeconds, sampleFactors)
 
 	if err != nil {
-		s.statshouse.statErrorsDiskCompressFailed.AddValueCounter(0, 1)
-		s.client.Client.Logf("Internal Error: Failed to compress bucket %v for shard %d bucket %d", err, s.ShardReplicaNum, bucket.Time)
+		s.agent.statErrorsDiskCompressFailed.AddValueCounter(0, 1)
+		s.client.Client.Logf("Internal Error: Failed to compress bucket %v for shard %d replica %d (shard-replica %d) bucket %d",
+			err, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, bucket.Time)
 		return
 	}
 	s.mu.Lock()
@@ -589,7 +591,8 @@ func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds ui
 	select {
 	case s.BucketsToSend <- compressedBucketDataOnDisk{compressedBucketData: cbd, onDisk: saveSecondsImmediately}:
 	default:
-		// s.client.Client.Logf("Slowdown: Buckets Channel full for shard %d. Moving bucket %d to Historic Conveyor", s.ShardReplicaNum, cbd.time)
+		// s.client.Client.Logf("Slowdown: Buckets Channel full for shard %d replica %d (shard-replica %d). Moving bucket %d to Historic Conveyor",
+		// 	s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
 		if !saveSecondsImmediately {
 			s.diskCachePutWithLog(cbd)
 		}
@@ -597,7 +600,7 @@ func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds ui
 	}
 }
 
-func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors map[int32]float64) (compressedBucketData, error) {
+func (s *ShardReplica) compressBucket(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors map[int32]float64) (compressedBucketData, error) {
 	cb := compressedBucketData{time: bucket.Time}
 
 	sb := sourceBucketToTL(bucket, s.perm, sampleFactors)
@@ -622,13 +625,13 @@ func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, missedSeconds u
 	return cb, nil
 }
 
-func (s *Shard) sendSourceBucketCompressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, ret *[]byte) error {
+func (s *ShardReplica) sendSourceBucketCompressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, ret *[]byte) error {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	args := tlstatshouse.SendSourceBucket2Bytes{
 		Time:            cbd.time,
 		BuildCommit:     []byte(build.Commit()),
-		BuildCommitDate: s.statshouse.commitDateTag,
-		BuildCommitTs:   s.statshouse.commitTimestamp,
+		BuildCommitDate: s.agent.commitDateTag,
+		BuildCommitTs:   s.agent.commitTimestamp,
 		QueueSizeDisk:   math.MaxInt32,
 		QueueSizeMemory: math.MaxInt32,
 		OriginalSize:    int32(binary.LittleEndian.Uint32(cbd.data)),
@@ -651,7 +654,7 @@ func (s *Shard) sendSourceBucketCompressed(ctx context.Context, cbd compressedBu
 	} else {
 		args.SetQueueSizeDiskUnsent(math.MaxInt32)
 	}
-	sizeDiskSumTotal, sizeDiskSumUnsent := s.statshouse.HistoricBucketsDataSizeDiskSum()
+	sizeDiskSumTotal, sizeDiskSumUnsent := s.agent.HistoricBucketsDataSizeDiskSum()
 	if sizeDiskSumTotal < math.MaxInt32 {
 		args.SetQueueSizeDiskSum(int32(sizeDiskSumTotal))
 	} else {
@@ -662,7 +665,7 @@ func (s *Shard) sendSourceBucketCompressed(ctx context.Context, cbd compressedBu
 	} else {
 		args.SetQueueSizeDiskSumUnsent(math.MaxInt32)
 	}
-	sizeMemSum := s.statshouse.HistoricBucketsDataSizeMemorySum()
+	sizeMemSum := s.agent.HistoricBucketsDataSizeMemorySum()
 	if sizeMemSum < math.MaxInt32 {
 		args.SetQueueSizeMemorySum(int32(sizeMemSum))
 	} else {
@@ -676,7 +679,7 @@ func (s *Shard) sendSourceBucketCompressed(ctx context.Context, cbd compressedBu
 	return nil
 }
 
-func (s *Shard) sendRecent(cbd compressedBucketData) bool {
+func (s *ShardReplica) sendRecent(cbd compressedBucketData) bool {
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	if cbd.time+data_model.MaxShortWindow+data_model.FutureWindow < nowUnix { // Not bother sending, will receive error anyway
@@ -697,15 +700,16 @@ func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 		s.recordSendResult(!isShardDeadError(err))
 	} else {
 		spare := SpareShardReplica(s.ShardReplicaNum, cbd.time)
-		if !s.statshouse.Shards[spare].alive.Load() {
+		if !s.agent.ShardReplicas[spare].alive.Load() {
 			return false
 		}
-		err = s.statshouse.Shards[spare].sendSourceBucketCompressed(ctx, cbd, false, true, &resp)
+		err = s.agent.ShardReplicas[spare].sendSourceBucketCompressed(ctx, cbd, false, true, &resp)
 	}
 	if err != nil {
 		if !data_model.SilentRPCError(err) {
 			s.stats.recentSendFailed.Add(1)
-			s.client.Client.Logf("Send Error: s.client.Do returned error %v, moving bucket %d to historic conveyor for shard %d", err, cbd.time, s.ShardReplicaNum)
+			s.client.Client.Logf("Send Error: s.client.Do returned error %v, moving bucket %d to historic conveyor for shard %d replica %d (shard-replica %d)",
+				err, cbd.time, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum)
 		} else {
 			s.stats.recentSendSkip.Add(1)
 		}
@@ -714,7 +718,7 @@ func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 	return true
 }
 
-func (s *Shard) goSendRecent() {
+func (s *ShardReplica) goSendRecent() {
 	for cbd := range s.BucketsToSend {
 		if s.sendRecent(cbd.compressedBucketData) {
 			s.stats.recentSendSuccess.Add(1)
@@ -728,7 +732,7 @@ func (s *Shard) goSendRecent() {
 	}
 }
 
-func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
+func (s *ShardReplica) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 	var err error
 
 	for {
@@ -738,18 +742,20 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 			return
 		}
 		if len(cbd.data) == 0 { // Read once, if needed, but only after checking timestamp
-			if s.statshouse.diskCache == nil {
-				s.statshouse.statErrorsDiskReadNotConfigured.AddValueCounter(0, 1)
+			if s.agent.diskCache == nil {
+				s.agent.statErrorsDiskReadNotConfigured.AddValueCounter(0, 1)
 				return // No data and no disk storage configured, alas
 			}
-			if cbd.data, err = s.statshouse.diskCache.GetBucket(s.ShardReplicaNum, cbd.time, scratchPad); err != nil {
-				s.client.Client.Logf("Disk Error: diskCache.GetBucket returned error %v for shard %d bucket %d", err, s.ShardReplicaNum, cbd.time)
-				s.statshouse.statErrorsDiskRead.AddValueCounter(0, 1)
+			if cbd.data, err = s.agent.diskCache.GetBucket(s.ShardReplicaNum, cbd.time, scratchPad); err != nil {
+				s.client.Client.Logf("Disk Error: diskCache.GetBucket returned error %v for shard %d replica %d (shard-replica %d) bucket %d",
+					err, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
+				s.agent.statErrorsDiskRead.AddValueCounter(0, 1)
 				return
 			}
 			if len(cbd.data) < 4 {
-				s.client.Client.Logf("Disk Error: diskCache.GetBucket returned compressed bucket data with size %d for shard %d bucket %d", len(cbd.data), s.ShardReplicaNum, cbd.time)
-				s.statshouse.statErrorsDiskRead.AddValueCounter(0, 1)
+				s.client.Client.Logf("Disk Error: diskCache.GetBucket returned compressed bucket data with size %d for shard %d replica %d (shard-replica %d) bucket %d",
+					len(cbd.data), s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
+				s.agent.statErrorsDiskRead.AddValueCounter(0, 1)
 				s.diskCacheEraseWithLog(cbd.time, "after reading tiny")
 				return
 			}
@@ -762,12 +768,13 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 			err = s.sendSourceBucketCompressed(context.Background(), cbd, true, false, &resp)
 		} else {
 			spare := SpareShardReplica(s.ShardReplicaNum, cbd.time)
-			if !s.statshouse.Shards[spare].alive.Load() {
+			if !s.agent.ShardReplicas[spare].alive.Load() {
 				time.Sleep(10 * time.Second) // TODO - better idea?
-				s.client.Client.Logf("both historic shards are dead, shard: %d, time %d, %v", s.ShardReplicaNum, cbd.time, err)
+				s.client.Client.Logf("both historic shards are dead, shard %d replica %d (shard-replica %d), time %d, %v",
+					s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time, err)
 				continue
 			}
-			err = s.statshouse.Shards[spare].sendSourceBucketCompressed(context.Background(), cbd, true, true, &resp)
+			err = s.agent.ShardReplicas[spare].sendSourceBucketCompressed(context.Background(), cbd, true, true, &resp)
 		}
 
 		if err != nil {
@@ -785,51 +792,53 @@ func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 	}
 }
 
-func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) {
-	if s.statshouse.diskCache == nil {
+func (s *ShardReplica) diskCachePutWithLog(cbd compressedBucketData) {
+	if s.agent.diskCache == nil {
 		return
 	}
-	if err := s.statshouse.diskCache.PutBucket(s.ShardReplicaNum, cbd.time, cbd.data); err != nil {
-		s.client.Client.Logf("Disk Error: diskCache.PutBucket returned error %v for shard %d bucket %d", err, s.ShardReplicaNum, cbd.time)
-		s.statshouse.statErrorsDiskWrite.AddValueCounter(0, 1)
+	if err := s.agent.diskCache.PutBucket(s.ShardReplicaNum, cbd.time, cbd.data); err != nil {
+		s.client.Client.Logf("Disk Error: diskCache.PutBucket returned error %v for shard %d replica %d (shard-replica %d) bucket %d",
+			err, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
+		s.agent.statErrorsDiskWrite.AddValueCounter(0, 1)
 	}
 }
 
-func (s *Shard) diskCacheEraseWithLog(time uint32, place string) {
-	if s.statshouse.diskCache == nil {
+func (s *ShardReplica) diskCacheEraseWithLog(time uint32, place string) {
+	if s.agent.diskCache == nil {
 		return
 	}
-	if err := s.statshouse.diskCache.EraseBucket(s.ShardReplicaNum, time); err != nil {
-		s.client.Client.Logf("Disk Error: diskCache.EraseBucket returned error %v for shard %d %s bucket %d", err, s.ShardReplicaNum, place, time)
-		s.statshouse.statErrorsDiskErase.AddValueCounter(0, 1)
+	if err := s.agent.diskCache.EraseBucket(s.ShardReplicaNum, time); err != nil {
+		s.client.Client.Logf("Disk Error: diskCache.EraseBucket returned error %v for shard %d replica %d (shard-replica %d) %s bucket %d",
+			err, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, place, time)
+		s.agent.statErrorsDiskErase.AddValueCounter(0, 1)
 	}
 }
 
-func (s *Shard) appendHistoricBucketsToSend(cbd compressedBucketData) {
+func (s *ShardReplica) appendHistoricBucketsToSend(cbd compressedBucketData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.HistoricBucketsDataSize+len(cbd.data) > data_model.MaxHistoricBucketsMemorySize/s.statshouse.NumShardReplicas() {
+	if s.HistoricBucketsDataSize+len(cbd.data) > data_model.MaxHistoricBucketsMemorySize/s.agent.NumShardReplicas() {
 		cbd.data = nil
 	} else {
 		s.HistoricBucketsDataSize += len(cbd.data)
-		s.statshouse.historicBucketsDataSize.Add(int64(len(cbd.data)))
+		s.agent.historicBucketsDataSize.Add(int64(len(cbd.data)))
 	}
 	s.HistoricBucketsToSend = append(s.HistoricBucketsToSend, cbd)
 	s.cond.Signal()
 }
 
-func (s *Shard) readHistoricSecondLocked() {
-	if s.statshouse.diskCache == nil {
+func (s *ShardReplica) readHistoricSecondLocked() {
+	if s.agent.diskCache == nil {
 		return
 	}
-	sec, ok := s.statshouse.diskCache.ReadNextTailSecond(s.ShardReplicaNum)
+	sec, ok := s.agent.diskCache.ReadNextTailSecond(s.ShardReplicaNum)
 	if !ok {
 		return
 	}
 	s.HistoricBucketsToSend = append(s.HistoricBucketsToSend, compressedBucketData{time: sec}) // HistoricBucketsDataSize does not change
 }
 
-func (s *Shard) popOldestHistoricSecondLocked() compressedBucketData {
+func (s *ShardReplica) popOldestHistoricSecondLocked() compressedBucketData {
 	// Sending the oldest known historic buckets is very important for "herding" strategy
 	// Even tiny imperfectness in sorting explodes number of inserts aggregator makes
 	pos := 0
@@ -843,17 +852,18 @@ func (s *Shard) popOldestHistoricSecondLocked() compressedBucketData {
 	s.HistoricBucketsToSend = s.HistoricBucketsToSend[:len(s.HistoricBucketsToSend)-1]
 
 	s.HistoricBucketsDataSize -= len(cbd.data)
-	s.statshouse.historicBucketsDataSize.Sub(int64(len(cbd.data)))
+	s.agent.historicBucketsDataSize.Sub(int64(len(cbd.data)))
 	if s.HistoricBucketsDataSize < 0 {
 		panic("HistoricBucketsDataSize < 0")
 	}
 	return cbd
 }
 
-func (s *Shard) checkOutOfWindow(nowUnix uint32, timestamp uint32) bool {
+func (s *ShardReplica) checkOutOfWindow(nowUnix uint32, timestamp uint32) bool {
 	if nowUnix >= data_model.MaxHistoricWindow && timestamp < nowUnix-data_model.MaxHistoricWindow { // Not bother sending, will receive error anyway
-		s.client.Client.Logf("Send Disaster: Bucket %d for shard %d does not fit into full admission window (now is %d), throwing out", timestamp, s.ShardReplicaNum, nowUnix)
-		s.statshouse.statLongWindowOverflow.AddValueCounter(float64(nowUnix)-float64(timestamp), 1)
+		s.client.Client.Logf("Send Disaster: Bucket %d for shard %d replica %d (shard-replica %d) does not fit into full admission window (now is %d), throwing out",
+			timestamp, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, nowUnix)
+		s.agent.statLongWindowOverflow.AddValueCounter(float64(nowUnix)-float64(timestamp), 1)
 
 		s.diskCacheEraseWithLog(timestamp, "after throwing out historic")
 		return true
@@ -861,7 +871,7 @@ func (s *Shard) checkOutOfWindow(nowUnix uint32, timestamp uint32) bool {
 	return false
 }
 
-func (s *Shard) goSendHistoric() {
+func (s *ShardReplica) goSendHistoric() {
 	var scratchPad []byte
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -878,12 +888,12 @@ func (s *Shard) goSendHistoric() {
 	}
 }
 
-func (s *Shard) goEraseHistoric() {
+func (s *ShardReplica) goEraseHistoric() {
 	// When all senders are in infinite wait, buckets must still be erased
 	// Also, we delete buckets when disk limit is reached. We cannot promise strict limit, because disk cache design is very loose.
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	diskLimit := s.config.MaxHistoricDiskSize / int64(s.statshouse.NumShardReplicas())
+	diskLimit := s.config.MaxHistoricDiskSize / int64(s.agent.NumShardReplicas())
 	for {
 		s.readHistoricSecondLocked() // if there were unread seconds from disk cache tail, reads one last historic second
 		for len(s.HistoricBucketsToSend) == 0 {
@@ -899,8 +909,9 @@ func (s *Shard) goEraseHistoric() {
 		// seconds held by historic seconds will not be deleted, because they are not popped by popOldestHistoricSecondLocked above,
 		// if all possible seconds are deleted, but we are still over limit, this goroutine will block on s.cond.Wait() above
 		if diskUsed > diskLimit {
-			s.client.Client.Logf("Send Disaster: Bucket %d for shard %d (now is %d) violates disk size limit %d (%d used), throwing out", cbd.time, s.ShardReplicaNum, nowUnix, diskLimit, diskUsed)
-			s.statshouse.statLongWindowOverflow.AddValueCounter(float64(nowUnix)-float64(cbd.time), 1)
+			s.client.Client.Logf("Send Disaster: Bucket %d for shard %d replica %d (shard-replica %d) (now is %d) violates disk size limit %d (%d used), throwing out",
+				cbd.time, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, nowUnix, diskLimit, diskUsed)
+			s.agent.statLongWindowOverflow.AddValueCounter(float64(nowUnix)-float64(cbd.time), 1)
 
 			s.diskCacheEraseWithLog(cbd.time, "after throwing out historic, due to disk limit")
 			time.Sleep(200 * time.Millisecond) // Deleting 5 seconds per second is good for us, and does not spin CPU too much
@@ -921,6 +932,9 @@ func (s *Shard) goEraseHistoric() {
 }
 
 func isShardDeadError(err error) bool {
+	if err == nil {
+		return false
+	}
 	var rpcError rpc.Error
 	if !errors.As(err, &rpcError) {
 		return true

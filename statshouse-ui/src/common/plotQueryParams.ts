@@ -17,6 +17,7 @@ import {
   queryParamEvent,
   queryParamEventBy,
   queryParamEventFrom,
+  queryParamEventHide,
   queryParamFilter,
   queryParamFilterSync,
   queryParamFromTime,
@@ -82,6 +83,7 @@ export type PlotParams = {
   type: PlotType;
   events: number[];
   eventsBy: string[];
+  eventsHide: string[];
 };
 
 export type GroupInfo = {
@@ -430,7 +432,12 @@ export const configParams: ConfigParams = {
         urlKey: queryParamEvent,
       },
       eventsBy: {
-        urlKey: queryParamEventBy, //qb=key0 or t1.qb=key1
+        urlKey: queryParamEventBy, //qb=0 or t1.qb=1
+        default: [] as string[],
+        isArray: true,
+      },
+      eventsHide: {
+        urlKey: queryParamEventHide, //qh=0 or t1.qh=1
         default: [] as string[],
         isArray: true,
       },

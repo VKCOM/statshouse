@@ -32,7 +32,7 @@ func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, isE
 	backoffTimeout := time.Duration(0)
 	for nextAddr := 0; ; nextAddr = (nextAddr + 1) % len(addresses) {
 		addr := addresses[nextAddr]
-		dst, err := clientGetConfig(network, rpcClient, addr, isEnvStaging, componentTag, archTag, cluster)
+		dst, err := clientGetConfig(network, rpcClient, nextAddr, addr, isEnvStaging, componentTag, archTag, cluster)
 		if err == nil {
 			// when running agent from outside run_local docker
 			// for i := range dst.Addresses {
@@ -50,7 +50,7 @@ func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, isE
 	}
 }
 
-func clientGetConfig(network string, rpcClient *rpc.Client, addr string, isEnvStaging bool, componentTag int32, archTag int32, cluster string) (tlstatshouse.GetConfigResult, error) {
+func clientGetConfig(network string, rpcClient *rpc.Client, shardReplicaNum int, addr string, isEnvStaging bool, componentTag int32, archTag int32, cluster string) (tlstatshouse.GetConfigResult, error) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	client := tlstatshouse.Client{
 		Client:  rpcClient,
@@ -58,10 +58,10 @@ func clientGetConfig(network string, rpcClient *rpc.Client, addr string, isEnvSt
 		Address: addr,
 		ActorID: 0,
 	}
-	// the only request which is not proxied, so does not require set shard info
 	args := tlstatshouse.GetConfig2{
 		Cluster: cluster,
 		Header: tlstatshouse.CommonProxyHeader{
+			ShardReplica: int32(shardReplicaNum), // proxies do proxy GetConfig requests to write __autoconfig metric with correct host, which proxy cannot map
 			HostName:     srvfunc.HostnameForStatshouse(),
 			ComponentTag: componentTag,
 			BuildArch:    archTag,
@@ -85,28 +85,28 @@ func (s *Agent) LoadPromTargets(ctxParent context.Context, version string) (res 
 	// make repeated calls between them until we randomly select 2 in a row with the same config.
 	// so we have to remember the last one we used, and try sending to it, if it is alive.
 	s.mu.Lock()
-	if s.loadPromTargetsShard == nil || !s.loadPromTargetsShard.alive.Load() {
-		s.loadPromTargetsShard, _ = s.getRandomLiveShards()
+	if s.loadPromTargetsShardReplica == nil || !s.loadPromTargetsShardReplica.alive.Load() {
+		s.loadPromTargetsShardReplica, _ = s.getRandomLiveShardReplicas()
 	}
 	s.mu.Unlock()
 
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	if s.loadPromTargetsShard == nil {
+	if s.loadPromTargetsShardReplica == nil {
 		return nil, "", fmt.Errorf("cannot load prom groups, all aggregators are dead")
 	}
 	args := tlstatshouse.GetTargets2{
 		PromHostName: srvfunc.Hostname(),
 		OldHash:      version,
 	}
-	s.loadPromTargetsShard.fillProxyHeader(&args.FieldsMask, &args.Header)
+	s.loadPromTargetsShardReplica.fillProxyHeader(&args.FieldsMask, &args.Header)
 
 	var ret tlstatshouse.GetTargetsResult
 
 	// We do not need timeout for long poll, RPC has disconnect detection via ping-pong
-	err = s.loadPromTargetsShard.client.GetTargets2(ctxParent, args, &extra, &ret)
+	err = s.loadPromTargetsShardReplica.client.GetTargets2(ctxParent, args, &extra, &ret)
 	if err != nil {
 		s.mu.Lock()
-		s.loadPromTargetsShard = nil // forget, select random one next time
+		s.loadPromTargetsShardReplica = nil // forget, select random one next time
 		s.mu.Unlock()
 		return nil, "", fmt.Errorf("cannot load prom config - %w", err)
 	}
@@ -117,7 +117,7 @@ func (s *Agent) LoadPromTargets(ctxParent context.Context, version string) (res 
 func (s *Agent) LoadMetaMetricJournal(ctxParent context.Context, version int64, returnIfEmpty bool) ([]tlmetadata.Event, int64, error) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	// Actually use only single aggregator for mapping
-	s0, _ := s.getRandomLiveShards()
+	s0, _ := s.getRandomLiveShardReplicas()
 	// If aggregators cannot insert en masse, system is dead.
 	// On the other hand, if aggregators cannot map, but can insert, system is working
 	// So, we must have separate live-dead status for mappings - TODO
@@ -153,7 +153,7 @@ func (s *Agent) LoadMetaMetricJournal(ctxParent context.Context, version int64, 
 func (s *Agent) LoadOrCreateMapping(ctxParent context.Context, key string, floodLimitKey interface{}) (pcache.Value, time.Duration, error) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	// Use 2 alive random aggregators for mapping
-	s0, s1 := s.getRandomLiveShards()
+	s0, s1 := s.getRandomLiveShardReplicas()
 	if s0 == nil {
 		s.AddValueCounter(data_model.Key{Metric: format.BuiltinMetricIDAgentMapping, Keys: [16]int32{0, format.TagValueIDAggMappingMetaMetrics, format.TagValueIDAgentMappingStatusAllDead}}, 0, 1, nil)
 		return nil, 0, fmt.Errorf("all aggregators are dead")
@@ -205,7 +205,7 @@ func (s *Agent) LoadOrCreateMapping(ctxParent context.Context, key string, flood
 func (s *Agent) GetTagMappingBootstrap(ctxParent context.Context) ([]tlstatshouse.Mapping, time.Duration, error) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	// Use 2 alive random aggregators for mapping
-	s0, s1 := s.getRandomLiveShards()
+	s0, s1 := s.getRandomLiveShardReplicas()
 	if s0 == nil {
 		return nil, 0, fmt.Errorf("all aggregators are dead")
 	}

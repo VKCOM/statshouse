@@ -54,6 +54,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
               type: typePlot ?? PLOT_TYPE.Metric,
               events: [],
               eventsBy: [],
+              eventsHide: [],
             });
           } else {
             const cloneId = p.tabNum < 0 ? p.plots.length - 1 : p.tabNum;
@@ -61,7 +62,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
               metricName:
                 typePlot === undefined || typePlot === p.plots[cloneId].type ? p.plots[cloneId].metricName : '',
               customName: '',
-              promQL: '',
+              promQL: p.plots[cloneId].promQL ?? '',
               what: p.plots[cloneId].what.slice(),
               customAgg: p.plots[cloneId].customAgg,
               groupBy: p.plots[cloneId].groupBy.slice(),
@@ -80,6 +81,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
               type: typePlot === undefined || typePlot === p.plots[cloneId].type ? p.plots[cloneId].type : typePlot,
               events: p.plots[cloneId].events.slice(),
               eventsBy: p.plots[cloneId].eventsBy.slice(),
+              eventsHide: p.plots[cloneId].eventsHide.slice(),
             });
           }
           if (p.dashboard?.groupInfo?.length) {

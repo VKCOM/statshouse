@@ -12,12 +12,13 @@ package sqlite0
 import "C"
 
 const (
-	Busy = C.SQLITE_BUSY
+	// we don't really expect end-users to encounter BUSY, as we should encapsulate all concurrent access properly
+	// see also: https://www.sqlite.org/wal.html#sometimes_queries_return_sqlite_busy_in_wal_mode
+	busy = C.SQLITE_BUSY
+
 	ok   = C.SQLITE_OK
 	row  = C.SQLITE_ROW
 	done = C.SQLITE_DONE
-
-	preparePersistent = C.SQLITE_PREPARE_PERSISTENT
 )
 
 // https://www.sqlite.org/c3ref/open.html

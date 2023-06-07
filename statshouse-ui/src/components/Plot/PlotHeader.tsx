@@ -5,7 +5,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { Dispatch, memo, SetStateAction, useCallback, useMemo, useState } from 'react';
-import { metricMeta } from '../../view/api';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
 import { getUrlSearch, lockRange, PlotParams } from '../../common/plotQueryParams';
@@ -17,13 +16,16 @@ import { PlotHeaderTitle } from './PlotHeaderTitle';
 import { PlotHeaderBadges } from './PlotHeaderBadges';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
+import { MetricMetaValue } from '../../api/metric';
+
+const setPlotType = useStore.getState().setPlotType;
 
 export type PlotHeaderProps = {
   indexPlot?: number;
   compact?: boolean;
   dashboard?: boolean;
   sel: PlotParams;
-  meta: metricMeta;
+  meta?: MetricMetaValue;
   live: boolean;
   setParams: (nextState: React.SetStateAction<PlotParams>, replace?: boolean | undefined) => void;
   setLive: Dispatch<SetStateAction<boolean>>;
@@ -38,8 +40,8 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   dashboard,
   sel,
   meta,
-  onResetZoom,
   onYLockChange,
+  onResetZoom,
   yLock,
   live,
   setLive,
@@ -68,6 +70,8 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     [indexPlot, params]
   );
 
+  const onSetPlotType = useMemo(() => setPlotType.bind(undefined, indexPlot), [indexPlot]);
+
   if (dashboard) {
     return (
       <div className={` overflow-force-wrap font-monospace fw-bold ${compact ? 'text-center' : ''}`}>
@@ -75,13 +79,14 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
           <PlotNavigate
             className="btn-group-sm float-end ms-4 mb-2"
             setTimeRange={setTimeRange}
-            onResetZoom={onResetZoom}
             onYLockChange={onYLockChange}
+            onResetZoom={onResetZoom}
             live={live}
             setLive={setLive}
             yLock={yLock}
             disabledLive={!sel.useV2}
             link={copyLink}
+            typePlot={sel.type}
           />
         )}
         <div
@@ -124,7 +129,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             className="overflow-force-wrap text-secondary fw-normal font-normal flex-grow-0"
             style={{ whiteSpace: 'pre-wrap' }}
           >
-            {meta.description}
+            {meta?.description}
           </small>
         )}
       </div>
@@ -146,20 +151,22 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
           <PlotNavigate
             className="btn-group-sm mb-1"
             setTimeRange={setTimeRange}
-            onResetZoom={onResetZoom}
             onYLockChange={onYLockChange}
+            onResetZoom={onResetZoom}
             live={live}
             setLive={setLive}
             yLock={yLock}
             disabledLive={!sel.useV2}
             link={copyLink}
+            typePlot={sel.type}
+            setTypePlot={onSetPlotType}
           />
         )}
       </div>
       {!compact && (
         /*description*/
         <small className="overflow-force-wrap text-secondary flex-grow-0" style={{ whiteSpace: 'pre-wrap' }}>
-          {meta.description}
+          {meta?.description}
         </small>
       )}
     </div>

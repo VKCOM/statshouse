@@ -70,6 +70,7 @@ type UDP struct {
 	statBatchesTotalErr atomic.Uint64
 
 	conn      *net.UDPConn
+	rawConn   syscall.RawConn
 	logPacket func(format string, args ...interface{})
 
 	ag                   *agent.Agent
@@ -94,42 +95,40 @@ type UDP struct {
 	packetSizeEmptyErr    *agent.BuiltInItemValue
 }
 
-func ControlReusePort(network string, address string, conn syscall.RawConn) error {
-	var operr error
-	if err := conn.Control(func(fd uintptr) {
-		operr = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, unix.SO_REUSEPORT, 1)
-	}); err != nil {
-		return err
-	}
-	return operr
+func listenPacket(address string, fn func(int) error) (conn net.PacketConn, err error) {
+	cfg := &net.ListenConfig{Control: func(network, address string, c syscall.RawConn) error {
+		var err2 error
+		err := c.Control(func(fd uintptr) {
+			err2 = fn(int(fd))
+		})
+		if err != nil {
+			return err
+		}
+		return err2
+	}}
+	conn, err = cfg.ListenPacket(context.Background(), "udp", address)
+	return conn, err
 }
 
 func ListenUDP(address string, bufferSize int, reusePort bool, bm *agent.Agent, logPacket func(format string, args ...interface{})) (*UDP, error) {
-	var conn net.PacketConn
-	var err error
-	if reusePort {
-		config := &net.ListenConfig{Control: ControlReusePort}
-		conn, err = config.ListenPacket(context.Background(), "udp", address)
-	} else {
-		conn, err = net.ListenPacket("udp", address)
-	}
+	conn, err := listenPacket(address, func(fd int) error {
+		setSocketReceiveBufferSize(fd, bufferSize)
+		if reusePort {
+			return syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, unix.SO_REUSEPORT, 1)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
-	uc := conn.(*net.UDPConn)
-
-	for { // On Mac setting too large buffer is error. So we set the largest possible
-		if err = uc.SetReadBuffer(bufferSize); err == nil {
-			break
-		}
-		if bufferSize == 0 {
-			return nil, err
-		}
-		bufferSize /= 2
+	udpConn := conn.(*net.UDPConn)
+	rawConn, err := udpConn.SyscallConn()
+	if err != nil {
+		return nil, err
 	}
-
 	return &UDP{
-		conn:                  uc,
+		conn:                  udpConn,
+		rawConn:               rawConn,
 		logPacket:             logPacket,
 		ag:                    bm,
 		batchSizeTLOK:         createBatchSizeValue(bm, format.TagValueIDPacketFormatTL, format.TagValueIDAgentReceiveStatusOK),
@@ -287,3 +286,11 @@ func (u *UDP) StatPacketsTotal() uint64    { return u.statPacketsTotal.Load() }
 func (u *UDP) StatBatchesTotalOK() uint64  { return u.statBatchesTotalOK.Load() }
 func (u *UDP) StatBatchesTotalErr() uint64 { return u.statBatchesTotalErr.Load() }
 func (u *UDP) StatBytesTotal() uint64      { return u.statBytesTotal.Load() }
+
+func (u *UDP) ReceiveBufferSize() int {
+	res := -1 // Special valuein case of error
+	_ = u.rawConn.Control(func(fd uintptr) {
+		res, _ = syscall.GetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF)
+	})
+	return res
+}

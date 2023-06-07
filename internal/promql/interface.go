@@ -72,6 +72,7 @@ var NilValue = math.Float64frombits(NilValueBits)
 type Timescale struct {
 	Time   []int64
 	LODs   []LOD
+	Step   int64 // aggregation interval requested (former "desiredStepMul")
 	Offset int64 // the offset for which timescale was generated
 	Start  int64 // query start aligned by LOD boundary
 	End    int64 // query end aligned by LOD boundary
@@ -107,7 +108,7 @@ type SeriesQuery struct {
 	SFilterOut []string
 
 	// Transformations
-	Factor     int64
+	Range      int64
 	Accumulate bool
 
 	Options Options

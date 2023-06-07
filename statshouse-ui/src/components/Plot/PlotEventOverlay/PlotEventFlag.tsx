@@ -1,7 +1,17 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { memo, useCallback, useMemo, useRef } from 'react';
 import css from './style.module.css';
+import { Popper } from '../../UI';
+import { useDebounceState } from '../../../hooks';
+import { PlotEventOverlayTable } from './PlotEventOverlayTable';
+import { PlotParams } from '../../../common/plotQueryParams';
+import { TimeRange } from '../../../common/TimeRange';
+import cn from 'classnames';
 
 export type PlotEventFlagProps = {
+  plot: PlotParams;
+  range: TimeRange;
+  width: number;
+  plotWidth: number;
   height: number;
   index: number;
   x: number;
@@ -9,20 +19,21 @@ export type PlotEventFlagProps = {
   flagWidth: number;
   flagHeight: number;
   groups: { color: string; idx: number; x: number }[];
-  onMouseOut?: (index: number) => void;
-  onMouseOver?: (index: number) => void;
+  small?: boolean;
 };
-export function PlotEventFlag({
-  index,
+export function _PlotEventFlag({
+  plot,
+  range,
+  plotWidth,
   x,
   height,
   opacity,
   groups,
   flagWidth,
   flagHeight,
-  onMouseOut,
-  onMouseOver,
+  small,
 }: PlotEventFlagProps) {
+  const refFlag = useRef<SVGRectElement>(null);
   const flagGroup = useMemo(() => {
     const idx = groups[0]?.idx ?? 0;
     return groups.filter((g) => g.idx === idx).slice(0, 5);
@@ -32,12 +43,29 @@ export function PlotEventFlag({
     return groups.filter((g) => g.idx !== idx).slice(0, 5);
   }, [groups]);
   const flagGroupHeight = flagHeight / flagGroup.length;
-  const _onMouseOut = useCallback(() => onMouseOut?.bind(undefined, index), [index, onMouseOut]);
-  const _onMouseOver = useCallback(() => onMouseOver?.bind(undefined, index), [index, onMouseOver]);
+  const flagGroupHeight2 = flagHeight / flagGroup2.length;
+  const [, debounceHover, setHover] = useDebounceState(false, 200);
+  const _onMouseOut = useCallback(() => {
+    setHover(false);
+  }, [setHover]);
+  const _onMouseOver = useCallback(() => {
+    setHover(true);
+  }, [setHover]);
   return (
     <g transform={`translate(${x}, 4)`} opacity={opacity}>
       <line x1="0" x2="0" y1="0" y2={height} />
+
       <g className={css.overlayFlag} onMouseOut={_onMouseOut} onMouseOver={_onMouseOver}>
+        <rect
+          ref={refFlag}
+          x="0"
+          y="0"
+          width={flagWidth}
+          height={flagHeight + (flagGroup2.length ? flagHeight + 3 : 0)}
+          fill="transparent"
+          strokeWidth="0"
+          data-x={x}
+        />
         <g clipPath="url(#flag)" strokeWidth="0">
           {flagGroup.map((g, indexG) => (
             <rect
@@ -58,9 +86,9 @@ export function PlotEventFlag({
                 <rect
                   key={indexG}
                   x="0"
-                  y={flagGroupHeight * indexG}
+                  y={flagGroupHeight2 * indexG}
                   width={flagWidth}
-                  height={flagGroupHeight}
+                  height={flagGroupHeight2}
                   fill={g.color}
                 />
               ))}
@@ -71,6 +99,22 @@ export function PlotEventFlag({
           </g>
         )}
       </g>
+      <Popper targetRef={refFlag} horizontal="out-right" vertical="out-bottom" fixed={false} show={debounceHover}>
+        <div
+          className={cn(
+            'card overflow-auto d-flex flex-column',
+            css.overlayCardTable,
+            small && css.overlayCardTableSmall,
+            small ? 'p-1' : 'p-2'
+          )}
+          onMouseOut={_onMouseOut}
+          onMouseOver={_onMouseOver}
+        >
+          <PlotEventOverlayTable plot={plot} range={range} width={plotWidth} />
+        </div>
+      </Popper>
     </g>
   );
 }
+
+export const PlotEventFlag = memo(_PlotEventFlag);

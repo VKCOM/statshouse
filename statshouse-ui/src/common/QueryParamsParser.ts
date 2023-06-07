@@ -206,18 +206,19 @@ export const TimeToParam: ConfigParam<number | KeysTo | undefined> = {
 /**
  * decode/encode tag sync param
  */
-export const TagSyncParam: ConfigParam<(number | undefined)[]> = {
+export const TagSyncParam: ConfigParam<(number | null)[]> = {
   isArray: true,
-  decode: (s) => [
-    ...s.split('-').reduce((res, t) => {
-      const [plot, tagKey] = t.split('.').map((r) => parseInt(r));
-      res[plot] = tagKey;
-      return res;
-    }, [] as (number | undefined)[]),
-  ],
+  decode: (s) =>
+    [
+      ...s.split('-').reduce((res, t) => {
+        const [plot, tagKey] = t.split('.').map((r) => parseInt(r));
+        res[plot] = tagKey;
+        return res;
+      }, [] as (number | null)[]),
+    ].map((s) => s ?? null),
   encode: (v) =>
     v
-      .map((key, index) => (Number.isInteger(key) ? `${index}.${key}` : undefined))
+      .map((key, index) => (Number.isInteger(key) ? `${index}.${key}` : null))
       .filter((s) => s)
       .join('-'),
 };

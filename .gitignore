@@ -1,5 +1,6 @@
 /.idea/
 /.vscode/
+!/.vscode/*.json
 
 /target/
 /statshouse

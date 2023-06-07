@@ -17,7 +17,7 @@ import (
 
 type Config struct {
 	AggregatorAddresses []string
-	// Shard Sampling Algorithm
+	// Sampling Algorithm
 	SampleBudget        int   // for all shards, in bytes
 	SampleGroups        bool  // use group weights. Experimental, will be turned on unconditionally later
 	MaxHistoricDiskSize int64 // for all shards, in bytes
@@ -34,7 +34,7 @@ type Config struct {
 	SaveSecondsImmediately bool // If false, will only go to disk if first send fails
 	StatsHouseEnv          string
 	Cluster                string
-	SkipFirstNShards       int // if cluster is extended, first shard might be almost full, so we can skip them for some time.
+	SkipShards             int // if cluster is extended, first shard might be almost full, so we can skip them for some time.
 
 	RemoteWriteEnabled bool
 	RemoteWriteAddr    string
@@ -54,7 +54,6 @@ func DefaultConfig() Config {
 		KeepAliveSuccessTimeout:          time.Second * 5, // aggregator puts keep-alive requests in a bucket most soon to be inserted, so this is larger than strictly required
 		SaveSecondsImmediately:           false,
 		StatsHouseEnv:                    "production",
-		SkipFirstNShards:                 -1,
 		RemoteWriteEnabled:               false,
 		RemoteWriteAddr:                  ":13380",
 		RemoteWritePath:                  "/write",
@@ -133,7 +132,7 @@ func (c *Config) updateFromRemoteDescription(description string) error {
 			continue
 		}
 		if suffix, ok := hasKeyGetSuffix(line, "-skip-shards="); ok {
-			if err := parseIntLine(line, suffix, &c.SkipFirstNShards); err != nil {
+			if err := parseIntLine(line, suffix, &c.SkipShards); err != nil {
 				return err
 			}
 			continue

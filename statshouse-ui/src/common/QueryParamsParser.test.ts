@@ -445,8 +445,8 @@ describe('QueryParamsParser', () => {
   });
 
   test('parse TagSyncParam', () => {
-    expect(TagSyncParam.decode?.('0.3-1.3-3.2-4.0-5.0')).toEqual([3, 3, undefined, 2, 0, 0]);
-    expect(TagSyncParam.encode?.([3, 3, undefined, 2, 0, 0])).toBe('0.3-1.3-3.2-4.0-5.0');
+    expect(TagSyncParam.decode?.('0.3-1.3-3.2-4.0-5.0')).toEqual([3, 3, null, 2, 0, 0]);
+    expect(TagSyncParam.encode?.([3, 3, null, 2, 0, 0])).toBe('0.3-1.3-3.2-4.0-5.0');
   });
 
   test('parse FilterParams', () => {

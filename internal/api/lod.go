@@ -43,10 +43,11 @@ const (
 )
 
 type lodSwitch struct {
-	relSwitch int64 // must be properly aligned
-	levels    []int64
-	tables    map[int64]string
-	hasPreKey bool
+	relSwitch  int64 // must be properly aligned
+	levels     []int64
+	tables     map[int64]string
+	hasPreKey  bool
+	preKeyOnly bool
 }
 
 var (
@@ -204,7 +205,7 @@ func roundRange(start int64, end int64, step int64, utcOffset int64, location *t
 	return rStart, rEnd
 }
 
-func calcLevels(version string, preKeyFrom int64, isUnique bool, isStringTop bool, now int64, utcOffset int64, width int) []lodSwitch {
+func calcLevels(version string, preKeyFrom int64, preKeyOnly bool, isUnique bool, isStringTop bool, now int64, utcOffset int64, width int) []lodSwitch {
 	if width == _1M {
 		switch {
 		case version == Version1:
@@ -250,11 +251,13 @@ func calcLevels(version string, preKeyFrom int64, isUnique bool, isStringTop boo
 			levels = append(levels, s1)
 			s2 := s
 			s2.hasPreKey = true
+			s2.preKeyOnly = preKeyOnly
 			levels = append(levels, s2)
 			split = true
 		default:
 			s2 := s
 			s2.hasPreKey = true
+			s2.preKeyOnly = preKeyOnly
 			levels = append(levels, s2)
 		}
 	}
@@ -262,12 +265,13 @@ func calcLevels(version string, preKeyFrom int64, isUnique bool, isStringTop boo
 }
 
 type lodInfo struct {
-	fromSec   int64 // inclusive
-	toSec     int64 // exclusive
-	stepSec   int64
-	table     string // is only here because we can't cleanly deduce it for v1 (unique-related madness etc.)
-	hasPreKey bool
-	location  *time.Location
+	fromSec    int64 // inclusive
+	toSec      int64 // exclusive
+	stepSec    int64
+	table      string // is only here because we can't cleanly deduce it for v1 (unique-related madness etc.)
+	hasPreKey  bool
+	preKeyOnly bool
+	location   *time.Location
 }
 
 func (lod lodInfo) isFast() bool {
@@ -330,15 +334,15 @@ func shiftTimestamp(timestamp, stepSec, shift int64, location *time.Location) in
 	return timestamp + shift
 }
 
-func selectTagValueLODs(version string, preKeyFrom int64, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, location *time.Location) []lodInfo {
-	return selectQueryLODs(version, preKeyFrom, resolution, isUnique, isStringTop, now, from, to, utcOffset, 100, widthAutoRes, location) // really dumb
+func selectTagValueLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, location *time.Location) []lodInfo {
+	return selectQueryLODs(version, preKeyFrom, preKeyOnly, resolution, isUnique, isStringTop, now, from, to, utcOffset, 100, widthAutoRes, location) // really dumb
 }
 
-func selectQueryLODs(version string, preKeyFrom int64, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, width int, widthKind int, location *time.Location) []lodInfo {
+func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, width int, widthKind int, location *time.Location) []lodInfo {
 	var ret []lodInfo
 	pps := float64(width) / float64(to-from+1)
 	lodFrom := from
-	levels := calcLevels(version, preKeyFrom, isUnique, isStringTop, now, utcOffset, width)
+	levels := calcLevels(version, preKeyFrom, preKeyOnly, isUnique, isStringTop, now, utcOffset, width)
 	for _, s := range levels {
 		cut := now - s.relSwitch
 		if cut < lodFrom {
@@ -371,7 +375,7 @@ func mergeLODs(lods []lodInfo) []lodInfo {
 	ret := lods[:1]
 	for _, lod := range lods[1:] {
 		l := ret[len(ret)-1]
-		if l.toSec == lod.fromSec && l.table == lod.table && l.stepSec == lod.stepSec && l.hasPreKey == lod.hasPreKey {
+		if l.toSec == lod.fromSec && l.table == lod.table && l.stepSec == lod.stepSec && l.hasPreKey == lod.hasPreKey && l.preKeyOnly == lod.preKeyOnly {
 			ret[len(ret)-1].toSec = lod.toSec
 		} else {
 			ret = append(ret, lod)
@@ -392,12 +396,13 @@ func selectLastQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOff
 	}
 	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, location)
 	return lodInfo{
-		fromSec:   fromSec,
-		toSec:     toSec,
-		stepSec:   lodLevel,
-		table:     s.tables[lodLevel],
-		hasPreKey: s.hasPreKey,
-		location:  location,
+		fromSec:    fromSec,
+		toSec:      toSec,
+		stepSec:    lodLevel,
+		table:      s.tables[lodLevel],
+		hasPreKey:  s.hasPreKey,
+		preKeyOnly: s.preKeyOnly,
+		location:   location,
 	}
 }
 
@@ -417,12 +422,13 @@ func selectQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset 
 	}
 	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, location)
 	return lodInfo{
-		fromSec:   fromSec,
-		toSec:     toSec,
-		stepSec:   lodLevel,
-		table:     s.tables[lodLevel],
-		hasPreKey: s.hasPreKey,
-		location:  location,
+		fromSec:    fromSec,
+		toSec:      toSec,
+		stepSec:    lodLevel,
+		table:      s.tables[lodLevel],
+		hasPreKey:  s.hasPreKey,
+		preKeyOnly: s.preKeyOnly,
+		location:   location,
 	}
 }
 

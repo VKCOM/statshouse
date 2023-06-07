@@ -6,14 +6,12 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  selectorLastError,
   selectorListMetricsGroup,
   selectorLoadListMetricsGroup,
   selectorLoadMetricsGroup,
   selectorRemoveMetricsGroup,
   selectorSaveMetricsGroup,
   selectorSelectMetricsGroup,
-  selectorSetLastError,
   selectorSetSelectMetricsGroup,
   useStore,
 } from '../../store';
@@ -21,6 +19,7 @@ import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import { useStateInput } from '../../hooks';
 import cn from 'classnames';
 import { sortByKey } from '../utils';
+import { ErrorMessages } from '../../components';
 
 export type GroupPageProps = {};
 export const GroupPage: React.FC<GroupPageProps> = () => {
@@ -33,8 +32,6 @@ export const GroupPage: React.FC<GroupPageProps> = () => {
   const setSelectMetricsGroup = useStore(selectorSetSelectMetricsGroup);
   const nameMetricsGroupInput = useStateInput(selectMetricsGroup?.group.name ?? '');
   const weightMetricsGroupInput = useStateInput(selectMetricsGroup?.group.weight.toString() ?? '');
-  const globalError = useStore(selectorLastError);
-  const setGlobalError = useStore(selectorSetLastError);
   const [saveLoader, setSaveLoader] = useState(false);
   const [loadLoader, setLoadLoader] = useState(false);
 
@@ -141,10 +138,6 @@ export const GroupPage: React.FC<GroupPageProps> = () => {
     );
   }, [selectMetricsGroup?.group.group_id, selectMetricsGroup?.group.weight, sumWeight, weightMetricsGroupInput.value]);
 
-  const errorClear = useCallback(() => {
-    setGlobalError('');
-  }, [setGlobalError]);
-
   useEffect(() => {
     setLoadLoader(true);
     loadListMetricsGroup().finally(() => {
@@ -155,12 +148,7 @@ export const GroupPage: React.FC<GroupPageProps> = () => {
 
   return (
     <div className="flex-grow-1 p-2">
-      {!!globalError && (
-        <div className="alert alert-danger d-flex align-items-center justify-content-between pb-2">
-          <small className="overflow-force-wrap font-monospace">{globalError}</small>
-          <button type="button" className="btn-close" aria-label="Close" onClick={errorClear}></button>
-        </div>
-      )}
+      <ErrorMessages />
       <div className="row">
         <div className={cn('col-md-6 w-max-720', !!selectMetricsGroup && 'hidden-down-md')}>
           <div className="mb-2 d-flex flex-row justify-content-end">

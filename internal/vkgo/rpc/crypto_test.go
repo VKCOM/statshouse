@@ -32,7 +32,7 @@ type cryptoRWMachine struct {
 	encStart int
 }
 
-func (c *cryptoRWMachine) Init(t *rapid.T) {
+func (c *cryptoRWMachine) init(t *rapid.T) {
 	rb := rapid.IntRange(0, 4*des.BlockSize).Draw(t, "rb")
 	wb := rapid.IntRange(0, 4*des.BlockSize).Draw(t, "wb")
 
@@ -131,8 +131,11 @@ func (c *cryptoRWMachine) Flush(t *rapid.T) {
 
 func TestCryptoRWRoundtrip(t *testing.T) {
 	t.Parallel()
-
-	rapid.Check(t, rapid.Run[*cryptoRWMachine]())
+	rapid.Check(t, func(t *rapid.T) {
+		m := cryptoRWMachine{}
+		m.init(t)
+		t.Run(rapid.StateMachineActions(&m))
+	})
 }
 
 func BenchmarkCryptoWriter_Write(b *testing.B) {

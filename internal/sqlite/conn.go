@@ -9,10 +9,9 @@ import (
 
 	"go.uber.org/multierr"
 	"go4.org/mem"
+	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
-
-	"pgregory.net/rand"
 )
 
 type sqliteConn struct {
@@ -34,6 +33,7 @@ type Conn struct {
 	autoSavepoint bool
 	ctx           context.Context
 	stats         *StatsOptions
+	engine        *Engine // not nil for RW conn
 }
 
 func newSqliteConn(rw *sqlite0.Conn, cacheMaxSize int) *sqliteConn {
@@ -52,7 +52,12 @@ func newSqliteConn(rw *sqlite0.Conn, cacheMaxSize int) *sqliteConn {
 
 func (c *sqliteConn) startNewConn(autoSavepoint bool, ctx context.Context, stats *StatsOptions) Conn {
 	c.mu.Lock()
-	return Conn{c, autoSavepoint, ctx, stats}
+	return Conn{c, autoSavepoint, ctx, stats, nil}
+}
+
+func (c *sqliteConn) startNewRWConn(autoSavepoint bool, ctx context.Context, stats *StatsOptions, engine *Engine) Conn {
+	c.mu.Lock()
+	return Conn{c, autoSavepoint, ctx, stats, engine}
 }
 
 func (c *sqliteConn) Close() error {
@@ -65,14 +70,18 @@ func (c *sqliteConn) Close() error {
 	return err
 }
 
-func (c Conn) close() {
-	c.execEndSavepoint()
+func (c Conn) close(commit func(c Conn) error) error {
+	defer c.c.mu.Unlock()
+	canCommit := c.execEndSavepoint()
 	for stmt := range c.c.used {
 		_ = stmt.Reset()
 		delete(c.c.used, stmt)
 	}
 	c.c.cache.closeTx()
-	c.c.mu.Unlock()
+	if commit != nil && canCommit && c.engine != nil {
+		return commit(c)
+	}
+	return c.c.err
 }
 
 func (c Conn) execBeginSavepoint() error {
@@ -82,23 +91,26 @@ func (c Conn) execBeginSavepoint() error {
 	return err
 }
 
-func (c Conn) execEndSavepoint() {
+func (c Conn) execEndSavepoint() (canCommit bool) {
 	if c.c.spIn {
-		if c.c.spOk {
+		ok := c.c.spOk && c.c.err == nil
+		if ok {
 			_, _ = c.ExecUnsafe("__commit_savepoint", c.c.spCommitStmt)
 		} else {
 			_, _ = c.ExecUnsafe("__rollback_savepoint", c.c.spRollbackStmt)
 		}
 		c.c.spIn = false
+		return ok
 	}
+	return false
 }
 
 func (c Conn) Query(name, sql string, args ...Arg) Rows {
-	return c.query(false, query, name, nil, sql, args...)
+	return c.query(true, false, query, name, nil, sql, args...)
 }
 
 func (c Conn) QueryBytes(name string, sql []byte, args ...Arg) Rows {
-	return c.query(false, query, name, sql, "", args...)
+	return c.query(true, false, query, name, sql, "", args...)
 }
 
 func (c Conn) Exec(name, sql string, args ...Arg) (int64, error) {
@@ -113,14 +125,14 @@ func (c Conn) ExecUnsafe(name, sql string, args ...Arg) (int64, error) {
 	return c.exec(true, name, nil, sql, args...)
 }
 
-func (c Conn) query(allowUnsafe bool, type_, name string, sql []byte, sqlStr string, args ...Arg) Rows {
+func (c Conn) query(isRO, allowUnsafe bool, type_, name string, sql []byte, sqlStr string, args ...Arg) Rows {
 	start := time.Now()
-	s, err := c.doQuery(allowUnsafe, sql, sqlStr, args...)
+	s, err := c.doQuery(isRO, allowUnsafe, sql, sqlStr, args...)
 	return Rows{c.c, s, err, false, c.ctx, name, start, c.stats, type_}
 }
 
 func (c Conn) exec(allowUnsafe bool, name string, sql []byte, sqlStr string, args ...Arg) (int64, error) {
-	rows := c.query(allowUnsafe, exec, name, sql, sqlStr, args...)
+	rows := c.query(false, allowUnsafe, exec, name, sql, sqlStr, args...)
 	for rows.Next() {
 	}
 	return c.LastInsertRowID(), rows.Error()
@@ -142,7 +154,7 @@ func (r *Rows) Error() error {
 	return r.err
 }
 
-func (r *Rows) next(setUsed bool) bool {
+func (r *Rows) Next() bool {
 	if r.err != nil {
 		return false
 	}
@@ -152,7 +164,7 @@ func (r *Rows) next(setUsed bool) bool {
 			return false
 		}
 	}
-	if setUsed && !r.used {
+	if !r.used {
 		r.c.used[r.s] = struct{}{}
 		r.used = true
 	}
@@ -166,20 +178,16 @@ func (r *Rows) next(setUsed bool) bool {
 	return row
 }
 
-func (r *Rows) Next() bool {
-	return r.next(true)
-}
-
 func (r *Rows) ColumnBlob(i int, buf []byte) ([]byte, error) {
 	return r.s.ColumnBlob(i, buf)
 }
 
 func (r *Rows) ColumnBlobRaw(i int) ([]byte, error) {
-	return r.s.ColumnBlobRaw(i)
+	return r.s.ColumnBlobUnsafe(i)
 }
 
 func (r *Rows) ColumnBlobRawString(i int) (string, error) {
-	return r.s.ColumnBlobRawString(i)
+	return r.s.ColumnBlobUnsafeString(i)
 }
 
 func (r *Rows) ColumnBlobString(i int) (string, error) {
@@ -187,11 +195,15 @@ func (r *Rows) ColumnBlobString(i int) (string, error) {
 }
 
 func (r *Rows) ColumnIsNull(i int) bool {
-	return r.s.ColumnIsNull(i)
+	return r.s.ColumnNull(i)
 }
 
 func (r *Rows) ColumnInt64(i int) (int64, error) {
 	return r.s.ColumnInt64(i)
+}
+
+func (r *Rows) ColumnFloat64(i int) (float64, error) {
+	return r.s.ColumnFloat64(i)
 }
 
 func (c Conn) LastInsertRowID() int64 {
@@ -207,8 +219,8 @@ func checkSliceParamName(s string) bool {
 }
 
 // if sqlString == "", sqlBytes could be copied to store as map key
-func (c Conn) doQuery(allowUnsafe bool, sqlBytes []byte, sqlString string, args ...Arg) (*sqlite0.Stmt, error) {
-	if c.c.err != nil {
+func (c Conn) doQuery(isRO, allowUnsafe bool, sqlBytes []byte, sqlString string, args ...Arg) (*sqlite0.Stmt, error) {
+	if c.c.err != nil && !isRO {
 		return nil, c.c.err
 	}
 	sqlIsRawBytes := true
@@ -240,7 +252,7 @@ func (c Conn) doQuery(allowUnsafe bool, sqlBytes []byte, sqlString string, args 
 	si, ok := c.c.cache.get(sqlString, sqlBytes)
 	if !ok {
 		start := time.Now()
-		si, err = prepare(c.c.rw, sqlBytes, true)
+		si, err = prepare(c.c.rw, sqlBytes, false)
 		c.stats.measureActionDurationSince("sqlite_prepare", start)
 		if err != nil {
 			return nil, err
@@ -254,6 +266,9 @@ func (c Conn) doQuery(allowUnsafe bool, sqlBytes []byte, sqlString string, args 
 
 	if !allowUnsafe && !si.isSafe {
 		return nil, errUnsafe
+	}
+	if isRO && !si.isSelect {
+		return nil, fmt.Errorf("use Exec instead of Query")
 	}
 	if c.autoSavepoint && (!si.isSelect && !si.isVacuumInto) && !c.c.spIn {
 		err := c.execBeginSavepoint()
@@ -283,13 +298,15 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 		case argByte:
 			err = si.stmt.BindBlob(p, arg.b)
 		case argByteConst:
-			err = si.stmt.BindBlobConstUnsafe(p, arg.b)
+			err = si.stmt.BindBlobUnsafe(p, arg.b)
 		case argString:
 			err = si.stmt.BindBlobString(p, arg.s)
 		case argInt64:
 			err = si.stmt.BindInt64(p, arg.n)
 		case argText:
-			err = si.stmt.BindBlobText(p, arg.s)
+			err = si.stmt.BindTextString(p, arg.s)
+		case argFloat64:
+			err = si.stmt.BindFloat64(p, arg.f)
 		case argInt64Slice:
 			for _, n := range arg.ns {
 				p := si.stmt.ParamBytes(c.c.numParams.nameLocked(start))
@@ -302,7 +319,7 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 		case argTextSlice:
 			for _, n := range arg.ss {
 				p := si.stmt.ParamBytes(c.c.numParams.nameLocked(start))
-				err = si.stmt.BindBlobText(p, n)
+				err = si.stmt.BindTextString(p, n)
 				if err != nil {
 					return nil, err
 				}
@@ -318,8 +335,8 @@ func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 	return si.stmt, nil
 }
 
-func prepare(c *sqlite0.Conn, sql []byte, skipCache bool) (stmtInfo, error) {
-	s, _, err := c.Prepare(sql, !skipCache)
+func prepare(c *sqlite0.Conn, sql []byte, persistent bool) (stmtInfo, error) {
+	s, _, err := c.Prepare(sql, persistent)
 	if err != nil {
 		return stmtInfo{}, err
 	}

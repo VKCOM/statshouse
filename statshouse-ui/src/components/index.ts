@@ -14,3 +14,5 @@ export * from './DashboardTagControl';
 export * from './PlotLegend';
 export { BuildVersion } from './BuildVersion';
 export * from './TextEditable';
+export * from './UI';
+export * from './ErrorMessages';

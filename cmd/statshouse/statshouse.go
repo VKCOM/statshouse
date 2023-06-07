@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/stats"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -74,7 +75,21 @@ func runMain() int {
 		printVerbUsage()
 		return 1
 	}
-	if os.Args[1] == "" || os.Args[1][0] == '-' { // legacy flags mode
+	// Motivation - some engine infrastructure cannot add options without dash. so wi allow both
+	// $> statshouse agent -a -b -c
+	// and
+	// $> statshouse -agent -a -b -c
+	if os.Args[1] != "" && os.Args[1][0] == '-' &&
+		os.Args[1] != "-benchmark" && os.Args[1] != "--benchmark" &&
+		os.Args[1] != "-test_map" && os.Args[1] != "--test_map" &&
+		os.Args[1] != "-test_longpoll" && os.Args[1] != "--test_longpoll" &&
+		os.Args[1] != "-simple_fsync" && os.Args[1] != "--simple_fsync" &&
+		os.Args[1] != "-tlclient.api" && os.Args[1] != "--tlclient.api" &&
+		os.Args[1] != "-tlclient" && os.Args[1] != "--tlclient" &&
+		os.Args[1] != "-simulator" && os.Args[1] != "--simulator" &&
+		os.Args[1] != "-agent" && os.Args[1] != "--agent" &&
+		os.Args[1] != "-aggregator" && os.Args[1] != "--aggregator" &&
+		os.Args[1] != "-ingress_proxy" && os.Args[1] != "--ingress_proxy" { // legacy flags mode
 		// TODO - remove this path when all statshouses command lines are updated
 		legacyVerb = true
 
@@ -103,38 +118,38 @@ func runMain() int {
 		copy(os.Args[1:], os.Args[2:])
 		os.Args = os.Args[:len(os.Args)-1]
 		switch verb {
-		case "test_parser":
+		case "test_parser", "-test_parser", "--test_parser":
 			return mainTestParser()
-		case "benchmark":
+		case "benchmark", "-benchmark", "--benchmark":
 			mainBenchmarks()
 			return 0
-		case "test_map":
+		case "test_map", "-test_map", "--test_map":
 			mainTestMap()
 			return 0
-		case "test_longpoll":
+		case "test_longpoll", "-test_longpoll", "--test_longpoll":
 			mainTestLongpoll()
 			return 0
-		case "simple_fsync":
+		case "simple_fsync", "-simple_fsync", "--simple_fsync":
 			mainSimpleFSyncTest()
 			return 0
-		case "tlclient.api":
+		case "tlclient.api", "-tlclient.api", "--tlclient.api":
 			mainTLClientAPI()
 			return 0
-		case "tlclient":
+		case "tlclient", "-tlclient", "--tlclient":
 			mainTLClient()
 			return 0
-		case "simulator":
+		case "simulator", "-simulator", "--simulator":
 			mainSimulator()
 			return 0
-		case "agent":
+		case "agent", "-agent", "--agent":
 			argvAddCommonFlags()
 			argvAddAgentFlags(false)
 			build.FlagParseShowVersionHelp()
-		case "aggregator":
+		case "aggregator", "-aggregator", "--aggregator":
 			argvAddCommonFlags()
 			argvAddAggregatorFlags(false)
 			build.FlagParseShowVersionHelp()
-		case "ingress_proxy":
+		case "ingress_proxy", "-ingress_proxy", "--ingress_proxy":
 			argvAddCommonFlags()
 			argvAddIngressProxyFlags()
 			argv.configAgent = agent.DefaultConfig()
@@ -210,20 +225,22 @@ func runMain() int {
 	}
 
 	switch verb {
-	case "agent":
+	case "agent", "-agent", "--agent":
 		if !legacyVerb && len(argv.configAgent.AggregatorAddresses) != 3 {
 			logErr.Printf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
 			return 1
 		}
 		mainAgent(aesPwd, dc)
-	case "aggregator":
+	case "aggregator", "-aggregator", "--aggregator":
 		mainAggregator(aesPwd, dc)
-	case "ingress_proxy":
+	case "ingress_proxy", "-ingress_proxy", "--ingress_proxy":
 		if len(argv.configAgent.AggregatorAddresses) != 3 {
 			logErr.Printf("-agg-addr must contain comma-separated list of 3 aggregators (1 shard is recommended)")
 			return 1
 		}
 		mainIngressProxy(aesPwd)
+	default:
+		logErr.Printf("Wrong command line verb or -new-conveyor argument %q, see --help for valid values", verb)
 	}
 	return 0
 }
@@ -246,7 +263,10 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		runtime.GOMAXPROCS(argv.maxCores)
 	}
 
-	metricStorage := metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
+	var (
+		receiversUDP  []*receiver.UDP
+		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
+	)
 	sh2, err := agent.MakeAgent("tcp4",
 		argv.cacheDir,
 		aesPwd,
@@ -255,20 +275,20 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		format.TagValueIDComponentAgent,
 		metricStorage,
 		log.Printf,
-		nil,
+		func(a *agent.Agent, t time.Time) {
+			k := data_model.Key{
+				Timestamp: uint32(t.Unix()),
+				Metric:    format.BuiltinMetricIDAgentUDPReceiveBufferSize,
+			}
+			for _, r := range receiversUDP {
+				v := float64(r.ReceiveBufferSize())
+				a.AddValueCounter(k, v, 1, nil)
+			}
+		},
 		nil)
 	if err != nil {
 		logErr.Printf("error creating Agent instance: %v", err)
 		return 1
-	}
-	sh2.Run(0, 0, 0)
-
-	metricStorage.Journal().Start(sh2, nil, sh2.LoadMetaMetricJournal)
-
-	var ac *mapping.AutoCreate
-	if argv.configAgent.AutoCreate {
-		ac = mapping.NewAutoCreate(metricStorage, sh2.AutoCreateMetric)
-		defer ac.Shutdown()
 	}
 
 	var logPackets func(format string, args ...interface{})
@@ -282,6 +302,25 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		logErr.Printf("--log-level should be either 'trace', 'info' or empty (which is synonym for 'info')")
 		return 1
 	}
+	for i := 0; i < argv.coresUDP; i++ {
+		u, err := receiver.ListenUDP(argv.listenAddr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+		if err != nil {
+			logErr.Printf("ListenUDP: %v", err)
+			return 1
+		}
+		defer func() { _ = u.Close() }()
+		receiversUDP = append(receiversUDP, u)
+	}
+	logOk.Printf("Listen UDP addr %q by %d cores", argv.listenAddr, argv.coresUDP)
+	sh2.Run(0, 0, 0)
+	metricStorage.Journal().Start(sh2, nil, sh2.LoadMetaMetricJournal)
+
+	var ac *mapping.AutoCreate
+	if argv.configAgent.AutoCreate {
+		ac = mapping.NewAutoCreate(metricStorage, sh2.AutoCreateMetric)
+		defer ac.Shutdown()
+	}
+
 	w := startWorker(sh2,
 		metricStorage,
 		sh2.LoadOrCreateMapping,
@@ -308,18 +347,6 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			logOk.Printf("Loaded and set %d boostrap mappings", len(mappings))
 		}
 	}
-
-	var receiversUDP []*receiver.UDP
-	for i := 0; i < argv.coresUDP; i++ {
-		u, err := receiver.ListenUDP(argv.listenAddr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
-		if err != nil {
-			logErr.Printf("ListenUDP: %v", err)
-			return 1
-		}
-		defer func() { _ = u.Close() }()
-		receiversUDP = append(receiversUDP, u)
-	}
-	logOk.Printf("Listen UDP addr %q by %d cores", argv.listenAddr, argv.coresUDP)
 
 	for _, u := range receiversUDP {
 		go func(u *receiver.UDP) {
@@ -414,6 +441,7 @@ func mainIngressProxy(aesPwd string) int {
 		return 1
 	}
 	argv.configAgent.Cluster = argv.cluster
+	argv.configIngress.Cluster = argv.cluster
 
 	argv.configIngress.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
 	if len(argv.configIngress.ExternalAddresses) != 3 {
