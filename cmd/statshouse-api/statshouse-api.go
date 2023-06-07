@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net"
 	"net/http"
 	_ "net/http/pprof" // pprof HTTP handlers
 	"os"
@@ -79,7 +80,7 @@ type args struct {
 	listenRPCAddr            string
 	localMode                bool
 	pidFile                  string
-	pprofAddr                string
+	pprofHTTP                bool
 	protectedMetricPrefixes  []string
 	showInvisible            bool
 	slow                     time.Duration
@@ -135,7 +136,7 @@ func main() {
 	pflag.BoolVar(&argv.insecureMode, "insecure-mode", false, "set insecure-mode if you don't need any access verification")
 	pflag.StringVar(&argv.pidFile, "pid-file", "statshouse_api.pid", "path to PID file") // fpr table flip
 
-	pflag.StringVar(&argv.pprofAddr, "pprof-addr", "", "Go pprof HTTP listen address")
+	pflag.BoolVar(&argv.pprofHTTP, "pprof-http", true, "Serve Go pprof HTTP on RPC port")
 	pflag.StringSliceVar(&argv.protectedMetricPrefixes, "protected-metric-prefixes", nil, "comma-separated list of metric prefixes that require access bits set")
 	pflag.BoolVar(&argv.showInvisible, "show-invisible", false, "show invisible metrics as well")
 	pflag.DurationVar(&argv.slow, "slow", 0, "slow down all HTTP requests by this much")
@@ -186,13 +187,6 @@ func main() {
 
 	if argv.weekStartAt < int(time.Sunday) || argv.weekStartAt > int(time.Saturday) {
 		log.Fatalf("invalid --week-start value, only 0-6 allowed %q given", argv.weekStartAt)
-	}
-
-	if argv.pprofAddr != "" {
-		log.Printf("serving Go pprof at %q", argv.pprofAddr)
-		go func() {
-			log.Println(http.ListenAndServe(argv.pprofAddr, nil))
-		}()
 	}
 
 	err = run(argv, keys)
@@ -415,7 +409,14 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		ReleaseChunks: hr.ReleaseChunks,
 		GetQueryPoint: hr.GetQueryPoint,
 	}
-	srv := rpc.NewServer(rpc.ServerWithLogf(log.Printf),
+	srv := rpc.NewServer(
+		func(opts *rpc.ServerOptions) {
+			if argv.pprofHTTP {
+				// dummy TCP addess is used by RPC server as a flag
+				opts.SocketHijackAddr = &net.TCPAddr{}
+			}
+		},
+		rpc.ServerWithLogf(log.Printf),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
 		rpc.ServerWithCryptoKeys(rpcCryptoKeys))
@@ -432,6 +433,22 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 			log.Fatalln("RPC server failed:", err)
 		}
 	}()
+	if argv.pprofHTTP {
+		go func() { // serve pprof on RPC port
+			m := http.NewServeMux()
+			m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				remoteAddr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
+				if err == nil && remoteAddr.IP.IsLoopback() {
+					http.DefaultServeMux.ServeHTTP(w, r)
+				} else {
+					w.WriteHeader(http.StatusUnauthorized)
+				}
+			})
+			log.Printf("serving Go pprof at %q", argv.listenRPCAddr)
+			s := http.Server{Handler: m}
+			s.Serve(srv)
+		}()
+	}
 
 	err = tf.Ready()
 	if err != nil {

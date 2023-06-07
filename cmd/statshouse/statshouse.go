@@ -11,6 +11,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -180,15 +181,6 @@ func runMain() int {
 	}
 
 	reopenLog()
-
-	if argv.pprofListenAddr != "" {
-		go func() {
-			logOk.Printf("Start listening pprof HTTP %s", argv.pprofListenAddr)
-			if err := http.ListenAndServe(argv.pprofListenAddr, nil); err != nil {
-				logErr.Printf("Cannot listen pprof HTTP: %v", err)
-			}
-		}()
-	}
 
 	if argv.cacheDir != "" {
 		_ = os.Mkdir(argv.cacheDir, os.ModePerm) // create dir, but not parent dirs
@@ -367,7 +359,14 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
 	}
-	srv := rpc.NewServer(rpc.ServerWithLogf(logErr.Printf),
+	srv := rpc.NewServer(
+		func(opts *rpc.ServerOptions) {
+			if argv.pprofHTTP {
+				// dummy TCP addess is used by RPC server as a flag
+				opts.SocketHijackAddr = &net.TCPAddr{}
+			}
+		},
+		rpc.ServerWithLogf(logErr.Printf),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
@@ -379,6 +378,22 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			logErr.Fatalf("RPC server failed: %v", err)
 		}
 	}()
+	if argv.pprofHTTP {
+		go func() { // serve pprof on RPC port
+			m := http.NewServeMux()
+			m.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				remoteAddr, err := net.ResolveTCPAddr("tcp", r.RemoteAddr)
+				if err == nil && remoteAddr.IP.IsLoopback() {
+					http.DefaultServeMux.ServeHTTP(w, r)
+				} else {
+					w.WriteHeader(http.StatusUnauthorized)
+				}
+			})
+			logOk.Printf("Start listening pprof HTTP %q", argv.listenAddr)
+			s := http.Server{Handler: m}
+			s.Serve(srv)
+		}()
+	}
 
 	if !argv.hardwareMetricScrapeDisable {
 		m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, logErr)
