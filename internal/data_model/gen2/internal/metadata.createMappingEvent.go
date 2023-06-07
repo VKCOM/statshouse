@@ -124,9 +124,9 @@ func (item *MetadataCreateMappingEvent) readJSON(j interface{}) error {
 	if err := JsonReadString(_jMetric, &item.Metric); err != nil {
 		return err
 	}
-	_jBadget := _jm["badget"]
-	delete(_jm, "badget")
-	if err := JsonReadInt64(_jBadget, &item.Budget); err != nil {
+	_jBudget := _jm["budget"]
+	delete(_jm, "budget")
+	if err := JsonReadInt64(_jBudget, &item.Budget); err != nil {
 		return err
 	}
 	_jCreate := _jm["create"]
@@ -177,7 +177,7 @@ func (item *MetadataCreateMappingEvent) WriteJSON(w []byte) (_ []byte, err error
 	}
 	if item.Budget != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"badget":`...)
+		w = append(w, `"budget":`...)
 		w = basictl.JSONWriteInt64(w, item.Budget)
 	}
 	if item.FieldMask&(1<<0) != 0 {
