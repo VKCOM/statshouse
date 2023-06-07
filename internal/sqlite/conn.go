@@ -238,7 +238,7 @@ func (c Conn) doQuery(isRO, allowUnsafe bool, sqlBytes []byte, sqlString string,
 		if strings.HasPrefix(arg.name, "$internal") {
 			return nil, fmt.Errorf("prefix $internal is reserved")
 		}
-		if arg.isSliceArg() {
+		if arg.slice {
 			if !checkSliceParamName(arg.name) {
 				return nil, fmt.Errorf("invalid list arg name %s", arg.name)
 			}
@@ -292,44 +292,65 @@ func (c Conn) doQuery(isRO, allowUnsafe bool, sqlBytes []byte, sqlString string,
 func (c Conn) doStmt(si stmtInfo, args ...Arg) (*sqlite0.Stmt, error) {
 	start := 0
 	for _, arg := range args {
-		var err error
-		p := si.stmt.Param(arg.name)
-		switch arg.typ {
-		case argByte:
-			err = si.stmt.BindBlob(p, arg.b)
-		case argByteConst:
-			err = si.stmt.BindBlobUnsafe(p, arg.b)
-		case argString:
-			err = si.stmt.BindBlobString(p, arg.s)
-		case argInt64:
-			err = si.stmt.BindInt64(p, arg.n)
-		case argText:
-			err = si.stmt.BindTextString(p, arg.s)
-		case argFloat64:
-			err = si.stmt.BindFloat64(p, arg.f)
-		case argInt64Slice:
-			for _, n := range arg.ns {
+		if arg.slice {
+			for i := 0; i < arg.length; i++ {
 				p := si.stmt.ParamBytes(c.c.numParams.nameLocked(start))
-				err = si.stmt.BindInt64(p, n)
+				var err error
+				switch arg.typ {
+				case argBlob:
+					err = si.stmt.BindBlob(p, arg.bs[i])
+				case argBlobUnsafe:
+					err = si.stmt.BindBlobUnsafe(p, arg.bs[i])
+				case argBlobString:
+					err = si.stmt.BindBlobString(p, arg.ss[i])
+				case argText:
+					err = si.stmt.BindText(p, arg.bs[i])
+				case argTextUnsafe:
+					err = si.stmt.BindTextUnsafe(p, arg.bs[i])
+				case argTextString:
+					err = si.stmt.BindTextString(p, arg.ss[i])
+				case argInt64:
+					err = si.stmt.BindInt64(p, arg.ns[i])
+				case argFloat64:
+					err = si.stmt.BindFloat64(p, arg.fs[i])
+				default:
+					err = fmt.Errorf("unsupported slice arg type for %q: %v", arg.name, arg.typ)
+				}
 				if err != nil {
 					return nil, err
 				}
 				start++
 			}
-		case argTextSlice:
-			for _, n := range arg.ss {
-				p := si.stmt.ParamBytes(c.c.numParams.nameLocked(start))
-				err = si.stmt.BindTextString(p, n)
-				if err != nil {
-					return nil, err
-				}
-				start++
+		} else {
+			p := si.stmt.Param(arg.name)
+			var err error
+			switch arg.typ {
+			case argNull:
+				err = si.stmt.BindNull(p)
+			case argZeroBlob:
+				err = si.stmt.BindZeroBlob(p, int(arg.n))
+			case argBlob:
+				err = si.stmt.BindBlob(p, arg.b)
+			case argBlobUnsafe:
+				err = si.stmt.BindBlobUnsafe(p, arg.b)
+			case argBlobString:
+				err = si.stmt.BindBlobString(p, arg.s)
+			case argText:
+				err = si.stmt.BindText(p, arg.b)
+			case argTextUnsafe:
+				err = si.stmt.BindTextUnsafe(p, arg.b)
+			case argTextString:
+				err = si.stmt.BindTextString(p, arg.s)
+			case argInt64:
+				err = si.stmt.BindInt64(p, arg.n)
+			case argFloat64:
+				err = si.stmt.BindFloat64(p, arg.f)
+			default:
+				err = fmt.Errorf("unsupported arg type for %q: %v", arg.name, arg.typ)
 			}
-		default:
-			err = fmt.Errorf("unknown arg type for %q: %v", arg.name, arg.typ)
-		}
-		if err != nil {
-			return nil, err
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return si.stmt, nil

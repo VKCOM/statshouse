@@ -144,10 +144,10 @@ func applyEditMetricEvent(conn sqlite.Conn, event tlmetadata.EditMetricEvent) er
 func applyEditEntityEvent(conn sqlite.Conn, event tlmetadata.EditEntityEvent) error {
 	deletedAt := event.Metric.Unused
 	_, err := conn.Exec("edit_entity", "UPDATE metrics_v4 SET version = $newVersion, data = $data, updated_at = $updatedAt, deleted_at = $deletedAt WHERE version = $oldVersion AND name = $name AND id = $id;",
-		sqlite.BlobText("$data", event.Metric.Data),
+		sqlite.TextString("$data", event.Metric.Data),
 		sqlite.Int64("$updatedAt", int64(event.Metric.UpdateTime)),
 		sqlite.Int64("$oldVersion", event.OldVersion),
-		sqlite.BlobText("$name", event.Metric.Name),
+		sqlite.TextString("$name", event.Metric.Name),
 		sqlite.Int64("$id", event.Metric.Id),
 		sqlite.Int64("$newVersion", event.Metric.Version),
 		sqlite.Int64("$deletedAt", int64(deletedAt)))
@@ -188,8 +188,8 @@ func applyCreateMetricEvent(conn sqlite.Conn, event tlmetadata.CreateMetricEvent
 
 func applyCreateEntityEvent(conn sqlite.Conn, event tlmetadata.CreateEntityEvent) error {
 	_, err := conn.Exec("insert_entity", "INSERT INTO metrics_v4 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, $data, $name, $updatedAt, $type, $deletedAt);",
-		sqlite.BlobText("$data", event.Metric.Data),
-		sqlite.BlobText("$name", event.Metric.Name),
+		sqlite.TextString("$data", event.Metric.Data),
+		sqlite.TextString("$name", event.Metric.Name),
 		sqlite.Int64("$updatedAt", int64(event.Metric.UpdateTime)),
 		sqlite.Int64("$id", event.Metric.Id),
 		sqlite.Int64("$version", event.Metric.Version),
@@ -324,8 +324,8 @@ func putEntityWithFixedID(conn sqlite.Conn, cache []byte, name string, id int64,
 	_, err := conn.Exec("insert_metric_fixed", "INSERT INTO metrics_v4 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, $data, $name, $updatedAt, $type, 0);",
 		sqlite.Int64("$id", id),
 		sqlite.Int64("$version", versionToInsert),
-		sqlite.BlobText("$data", newJson),
-		sqlite.BlobText("$name", name),
+		sqlite.TextString("$data", newJson),
+		sqlite.TextString("$name", name),
 		sqlite.Int64("$updatedAt", int64(updateTime)),
 		sqlite.Int64("$type", int64(typ)))
 	if err != nil {

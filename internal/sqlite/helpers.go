@@ -14,106 +14,12 @@ import (
 	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
 )
 
-const (
-	argByte       = 1
-	argByteConst  = 2
-	argString     = 3
-	argInt64      = 4
-	argText       = 5
-	argInt64Slice = 6
-	argTextSlice  = 7
-	argFloat64    = 8
-)
-
-type Arg struct {
-	name string
-	typ  int
-	b    []byte
-	s    string
-	n    int64
-	f    float64
-
-	length int
-	ns     []int64
-	ss     []string
-}
-
-func Blob(name string, b []byte) Arg {
-	return Arg{
-		name: name,
-		typ:  argByte,
-		b:    b,
-	}
-}
-
-func BlobConstUnsafe(name string, b []byte) Arg {
-	return Arg{
-		name: name,
-		typ:  argByteConst,
-		b:    b,
-	}
-}
-
-func BlobString(name string, s string) Arg {
-	return Arg{
-		name: name,
-		typ:  argString,
-		s:    s,
-	}
-}
-
-func BlobText(name string, s string) Arg {
-	return Arg{
-		name: name,
-		typ:  argText,
-		s:    s,
-	}
-}
-
-func Int64(name string, n int64) Arg {
-	return Arg{
-		name: name,
-		typ:  argInt64,
-		n:    n,
-	}
-}
-
-func Int64SList(name string, ns []int64) Arg {
-	return Arg{
-		name:   name,
-		typ:    argInt64Slice,
-		ns:     ns,
-		length: len(ns),
-	}
-}
-
-func TextList(name string, ss []string) Arg {
-	return Arg{
-		name:   name,
-		typ:    argTextSlice,
-		ss:     ss,
-		length: len(ss),
-	}
-}
-
-func Float64(name string, f float64) Arg {
-	return Arg{
-		name: name,
-		typ:  argFloat64,
-		f:    f,
-	}
-}
-
 func SetLogf(fn func(code int, msg string)) {
 	sqlite0.SetLogf(fn)
 }
 
 func Version() string {
 	return sqlite0.Version()
-}
-
-func (a *Arg) isSliceArg() bool {
-	return a.typ == argInt64Slice
 }
 
 func doSingleROToWALQuery(path string, f func(conn *sqliteConn) error) (err error) {

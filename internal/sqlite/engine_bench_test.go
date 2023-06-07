@@ -95,6 +95,6 @@ func BenchmarkReadNumbers(b *testing.B) {
 	queryLoop(b, eng, func(c Conn, i int) Rows {
 		list := list[:0]
 		list = append(list, r[rand.Int()%len(r)].n)
-		return c.Query("select", "SELECT n FROM numbers WHERE n in ($n$)", Int64SList("$n$", list))
+		return c.Query("select", "SELECT n FROM numbers WHERE n in ($n$)", Int64Slice("$n$", list))
 	})
 }

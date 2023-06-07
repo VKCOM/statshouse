@@ -584,7 +584,7 @@ func backupToTemp(ctx context.Context, conn *sqliteConn, prefix string, stats *S
 	defer c.close(nil)
 	path := prefix + "." + strconv.FormatUint(rand.Uint64(), 10) + ".tmp"
 	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
-		_, err := c.ExecUnsafe("__vacuum", "VACUUM INTO $to", BlobText("$to", path))
+		_, err := c.ExecUnsafe("__vacuum", "VACUUM INTO $to", TextString("$to", path))
 		conn.err = err
 	}
 	return path, conn.err
