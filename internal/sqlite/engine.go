@@ -95,12 +95,10 @@ type (
 		stop func()
 		rw   *sqliteConn
 		//	chk *sqlite0.Conn
-		roMx          sync.Mutex
-		roFree        []*sqliteConn
-		roFreeShared  []*sqliteConn
-		roCond        *sync.Cond
-		roCount       int
-		roCountShared int
+		roMx    sync.Mutex
+		roFree  []*sqliteConn
+		roCond  *sync.Cond
+		roCount int
 
 		mode engineMode
 
@@ -338,7 +336,7 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 }
 
 func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path string, appID int32, schemas ...string) (*sqlite0.Conn, error) {
-	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate|sqlite0.OpenNoMutex|sqlite0.OpenSharedCache)
+	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate)
 	if err != nil {
 		return nil, err
 	}
@@ -383,24 +381,8 @@ func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path strin
 //		return conn, nil
 //	}
 
-func openROWAL(path string, shared bool) (*sqlite0.Conn, error) {
-	flags := sqlite0.OpenPrivateCache
-	if shared {
-		flags = sqlite0.OpenSharedCache
-	}
-	conn, err := openWAL(path, flags|sqlite0.OpenReadonly|sqlite0.OpenNoMutex)
-	if err != nil {
-		return nil, err
-	}
-	if shared {
-		err = conn.Exec("PRAGMA read_uncommitted = true;")
-		if err != nil {
-			_ = conn.Close()
-			return nil, fmt.Errorf("failed to enable read uncommitted: %w", err)
-		}
-	}
-
-	return conn, nil
+func openROWAL(path string) (*sqlite0.Conn, error) {
+	return openWAL(path, sqlite0.OpenReadonly)
 }
 
 func (e *Engine) binlogLoadOrCreatePosition() (int64, error) {
@@ -671,43 +653,32 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 	return backupExpectedPath, os.Rename(path, backupExpectedPath)
 }
 
-// ViewCommitted - can view only committed to sqlite data
-// It depends on e.opt.CommitEvery
-func (e *Engine) ViewCommitted(ctx context.Context, queryName string, fn func(Conn) error) error {
-	return e.view(ctx, queryName, fn, false, &e.roFree, &e.roCount)
-}
-
-// TODO support wait for WaitCommit mode
-func (e *Engine) ViewUncommitted(ctx context.Context, queryName string, fn func(Conn) error) error {
-	return e.view(ctx, queryName, fn, true, &e.roFreeShared, &e.roCountShared)
-}
-
-func (e *Engine) view(ctx context.Context, queryName string, fn func(Conn) error, shared bool, roFree *[]*sqliteConn, roCount *int) (err error) {
+func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error) error {
 	if err := checkQueryName(queryName); err != nil {
 		return err
 	}
 	startTimeBeforeLock := time.Now()
 	e.roMx.Lock()
 	var conn *sqliteConn
-	for len(*roFree) == 0 && *roCount >= e.opt.MaxROConn {
+	for len(e.roFree) == 0 && e.roCount >= e.opt.MaxROConn {
 		e.roCond.Wait()
 	}
-	if len(*roFree) == 0 {
-		ro, err := openROWAL(e.opt.Path, shared)
+	if len(e.roFree) == 0 {
+		ro, err := openROWAL(e.opt.Path)
 		if err != nil {
 			e.roMx.Unlock()
 			return fmt.Errorf("failed to open RO connection: %w", err)
 		}
 		conn = newSqliteConn(ro, e.opt.CacheMaxSizePerConnect)
-		*roCount++
+		e.roCount++
 	} else {
-		conn = (*roFree)[0]
-		*roFree = (*roFree)[1:]
+		conn = (e.roFree)[0]
+		e.roFree = (e.roFree)[1:]
 	}
 	e.roMx.Unlock()
 	defer func() {
 		e.roMx.Lock()
-		*roFree = append(*roFree, conn)
+		e.roFree = append(e.roFree, conn)
 		e.roMx.Unlock()
 		e.roCond.Signal()
 	}()

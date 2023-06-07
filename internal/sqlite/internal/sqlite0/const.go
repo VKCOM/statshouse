@@ -23,13 +23,11 @@ const (
 
 // https://www.sqlite.org/c3ref/open.html
 const (
-	OpenReadonly     = C.SQLITE_OPEN_READONLY
-	OpenReadWrite    = C.SQLITE_OPEN_READWRITE
-	OpenCreate       = C.SQLITE_OPEN_CREATE
-	OpenURI          = C.SQLITE_OPEN_URI
-	OpenMemory       = C.SQLITE_OPEN_MEMORY
-	OpenNoMutex      = C.SQLITE_OPEN_NOMUTEX
-	OpenFullMutex    = C.SQLITE_OPEN_FULLMUTEX
-	OpenSharedCache  = C.SQLITE_OPEN_SHAREDCACHE
-	OpenPrivateCache = C.SQLITE_OPEN_PRIVATECACHE
+	OpenReadonly  = C.SQLITE_OPEN_READONLY
+	OpenReadWrite = C.SQLITE_OPEN_READWRITE
+	OpenCreate    = C.SQLITE_OPEN_CREATE
+	OpenMemory    = C.SQLITE_OPEN_MEMORY
+
+	openNoMutex      = C.SQLITE_OPEN_NOMUTEX
+	openPrivateCache = C.SQLITE_OPEN_PRIVATECACHE
 )
