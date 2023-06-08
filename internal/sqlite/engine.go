@@ -682,7 +682,7 @@ func (e *Engine) ViewUncommitted(ctx context.Context, queryName string, fn func(
 	return e.view(ctx, queryName, fn, true, &e.roFreeShared, &e.roCountShared)
 }
 
-func (e *Engine) view(ctx context.Context, queryName string, fn func(Conn) error, shared bool, roFree *[]*sqliteConn, roCount *int) error {
+func (e *Engine) view(ctx context.Context, queryName string, fn func(Conn) error, shared bool, roFree *[]*sqliteConn, roCount *int) (err error) {
 	if err := checkQueryName(queryName); err != nil {
 		return err
 	}
@@ -712,10 +712,15 @@ func (e *Engine) view(ctx context.Context, queryName string, fn func(Conn) error
 		e.roCond.Signal()
 	}()
 	e.opt.StatsOptions.measureWaitDurationSince(waitView, startTimeBeforeLock)
-	c := conn.startNewConn(false, ctx, &e.opt.StatsOptions)
-	defer c.close(nil)
+	c, err := conn.startNewROConn(ctx, &e.opt.StatsOptions)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err = multierr.Append(err, c.closeRO())
+	}()
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txView, queryName, time.Now())
-	err := fn(c)
+	err = fn(c)
 
 	return err
 }
