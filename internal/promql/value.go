@@ -292,7 +292,7 @@ func (b *SeriesBag) hash(without bool, tags []string) (map[uint64]int, error) {
 		h   = fnv.New64()
 		res = make(map[uint64]int, len(b.Meta))
 	)
-	for i := range b.Meta {
+	for i := range b.Data {
 		sum, _, err := b.hashAt(i, without, tags, h)
 		if err != nil {
 			return nil, err
