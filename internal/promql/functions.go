@@ -341,7 +341,7 @@ func init() {
 		"absent":           funcAbsent,
 		"absent_over_time": funcAbsentOverTime,
 		"ceil":             simpleCall(math.Ceil),
-		"changes":          overTimeCall(funcChanges),
+		"changes":          overTimeCall(funcChanges, 0),
 		"clamp":            funcClamp,
 		"clamp_max":        funcClampMax,
 		"clamp_min":        funcClampMin,
@@ -391,14 +391,14 @@ func init() {
 		"timestamp":          bagCall(funcTimestamp),
 		"vector":             funcVector,
 		"year":               timeCall(time.Time.Year),
-		"avg_over_time":      overTimeCall(funcAvgOverTime),
-		"min_over_time":      overTimeCall(funcMinOverTime),
-		"max_over_time":      overTimeCall(funcMaxOverTime),
-		"sum_over_time":      overTimeCall(funcSumOverTime),
-		"count_over_time":    overTimeCall(funcCountOverTime),
+		"avg_over_time":      overTimeCall(funcAvgOverTime, NilValue),
+		"min_over_time":      overTimeCall(funcMinOverTime, NilValue),
+		"max_over_time":      overTimeCall(funcMaxOverTime, NilValue),
+		"sum_over_time":      overTimeCall(funcSumOverTime, NilValue),
+		"count_over_time":    overTimeCall(funcCountOverTime, 0),
 		"quantile_over_time": funcQuantileOverTime,
-		"stddev_over_time":   overTimeCall(funcStdDevOverTime),
-		"stdvar_over_time":   overTimeCall(funcStdVarOverTime),
+		"stddev_over_time":   overTimeCall(funcStdDevOverTime, NilValue),
+		"stdvar_over_time":   overTimeCall(funcStdVarOverTime, NilValue),
 		"last_over_time":     nopCall,
 		"present_over_time":  funcPresentOverTime,
 		"acos":               simpleCall(math.Acos),
@@ -578,7 +578,7 @@ func nopCall(ctx context.Context, ev *evaluator, args parser.Expressions) (bag S
 	return ev.eval(ctx, args[0])
 }
 
-func overTimeCall(fn func(v []float64) float64) callFunc {
+func overTimeCall(fn func(v []float64) float64, nilValue float64) callFunc {
 	return func(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
 		bag, err = ev.eval(ctx, args[0])
 		if err != nil {
@@ -590,7 +590,7 @@ func overTimeCall(fn func(v []float64) float64) callFunc {
 				if wnd.n != 0 {
 					wnd.setValueAtRight(fn((*row)[wnd.l : wnd.r+1]))
 				} else {
-					wnd.setValueAtRight(NilValue)
+					wnd.setValueAtRight(nilValue)
 				}
 			}
 			wnd.fillPrefixWith(NilValue)
@@ -1007,10 +1007,10 @@ func funcLabelReplace(ctx context.Context, ev *evaluator, args parser.Expression
 	if !model.LabelNameRE.MatchString(dst) {
 		return bag, fmt.Errorf("invalid destination label name in label_replace(): %s", dst)
 	}
-	for i, m := range bag.Meta {
+	for i := range bag.Data {
 		var v string
-		if t, ok := m.getTag(src); ok {
-			t.stringify(ev, m.Metric)
+		if t, ok := bag.getTagAt(i, src); ok {
+			t.stringify(ev, bag.Meta[i].Metric)
 			if t.SValueSet {
 				v = t.SValue
 			}
@@ -1020,8 +1020,8 @@ func funcLabelReplace(ctx context.Context, ev *evaluator, args parser.Expression
 			v = string(r.ExpandString([]byte{}, tpl, v, match))
 			if len(v) != 0 {
 				bag.setSTagAt(i, dst, v)
-			} else {
-				m.dropTag(dst)
+			} else if i < len(bag.Meta) {
+				bag.Meta[i].dropTag(dst)
 			}
 		}
 	}
