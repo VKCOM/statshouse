@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -15,6 +15,8 @@ import { metricKindToWhat, queryWhat } from '../../view/api';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
+import { ReactComponent as SVGChevronCompactLeft } from 'bootstrap-icons/icons/chevron-compact-left.svg';
+import { ReactComponent as SVGChevronCompactRight } from 'bootstrap-icons/icons/chevron-compact-right.svg';
 import { globalSettings } from '../../common/settings';
 import { PlotParams } from '../../common/plotQueryParams';
 import { MetricMetaValue } from '../../api/metric';
@@ -29,8 +31,10 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   meta?: MetricMetaValue;
   numQueries: number;
   clonePlot?: () => void;
+  toggleBigControl?: () => void;
+  bigControl?: boolean;
 }) {
-  const { indexPlot, setBaseRange, sel, setSel, meta } = props;
+  const { indexPlot, setBaseRange, sel, setSel, meta, toggleBigControl, bigControl } = props;
   const [promQL, setPromQL] = useState(sel.promQL);
 
   const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
@@ -190,6 +194,13 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
             ></textarea>
           </div>
           <div className="d-flex flex-row justify-content-end mt-2">
+            <button
+              onClick={toggleBigControl}
+              className={cn('btn btn-outline-primary me-2')}
+              title={bigControl ? 'Narrow' : 'Expand'}
+            >
+              {bigControl ? <SVGChevronCompactRight /> : <SVGChevronCompactLeft />}
+            </button>
             <button type="button" className="btn btn-outline-primary me-2" title="Reset PromQL" onClick={resetPromQL}>
               <SVGArrowCounterclockwise />
             </button>

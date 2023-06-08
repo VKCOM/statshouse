@@ -1,12 +1,10 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { SetStateAction, useCallback, useState } from 'react';
-import { ReactComponent as SVGChevronCompactLeft } from 'bootstrap-icons/icons/chevron-compact-left.svg';
-import { ReactComponent as SVGChevronCompactRight } from 'bootstrap-icons/icons/chevron-compact-right.svg';
 import { PlotControls } from './PlotControls';
 import { promQLMetric, timeRangeAbbrev } from '../../view/utils';
 
@@ -48,27 +46,17 @@ export const PlotLayout: React.FC<PlotLayoutProps> = ({
     setBigControl((s) => !s);
   }, []);
 
+  const big = sel.metricName === promQLMetric && bigControl;
+
   if (embed) {
     return <div className="my-2">{children}</div>;
   }
   return (
     <div className="row flex-wrap">
-      <div
-        className={cn(css.plotColumn, 'position-relative mb-3', bigControl ? 'col-lg-5 col-xl-4' : 'col-lg-7 col-xl-8')}
-      >
+      <div className={cn(css.plotColumn, 'position-relative mb-3', big ? 'col-lg-5 col-xl-4' : 'col-lg-7 col-xl-8')}>
         <div className="position-relative flex-grow-1 d-flex flex-column">{children}</div>
-        <div
-          onClick={toggleBigControl}
-          role="button"
-          className={cn(
-            css.bigControl,
-            'position-absolute end-0 top-0 h-100 btn p-0 d-none d-lg-flex justify-content-center align-items-center border-0'
-          )}
-        >
-          {bigControl ? <SVGChevronCompactRight /> : <SVGChevronCompactLeft />}
-        </div>
       </div>
-      <div className={cn('mb-3', bigControl ? 'col-lg-7 col-xl-8' : 'col-lg-5 col-xl-4')}>
+      <div className={cn('mb-3', big ? 'col-lg-7 col-xl-8' : 'col-lg-5 col-xl-4')}>
         {sel.metricName === promQLMetric ? (
           <PlotControlsPromQL
             key={indexPlot}
@@ -78,6 +66,8 @@ export const PlotLayout: React.FC<PlotLayoutProps> = ({
             setSel={setSel}
             meta={meta}
             numQueries={numQueries}
+            bigControl={bigControl}
+            toggleBigControl={toggleBigControl}
           />
         ) : (
           <PlotControls
