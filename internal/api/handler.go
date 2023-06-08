@@ -2582,18 +2582,18 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 			if err != nil {
 				return nil, false, err
 			}
-			for _, row := range pqs {
-				ix, ok := tagsToIx[row.tsTags]
+			for i := range pqs {
+				ix, ok := tagsToIx[pqs[i].tsTags]
 				if !ok {
 					ix = len(ixToTags)
-					tagsToIx[row.tsTags] = ix
-					ixToTags = append(ixToTags, &row.tsTags)
+					tagsToIx[pqs[i].tsTags] = ix
+					ixToTags = append(ixToTags, &pqs[i].tsTags)
 					ixToAmount = append(ixToAmount, 0)
 					ixToRow = append(ixToRow, nil)
 				}
-				v := math.Abs(selectPointValue(q.what, req.maxHost, &row))
+				v := math.Abs(selectPointValue(q.what, req.maxHost, &pqs[i]))
 				ixToAmount[ix] += v * v
-				ixToRow[ix] = append(ixToRow[ix], row)
+				ixToRow[ix] = append(ixToRow[ix], pqs[i])
 			}
 
 			sortedIxs := make([]int, 0, len(ixToAmount))
