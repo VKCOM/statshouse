@@ -69,7 +69,11 @@ func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, logErr
 	if err != nil {
 		return nil, err
 	}
-	collectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats}
+	sockStats, err := NewSocksStats(newWriter())
+	if err != nil {
+		return nil, err
+	}
+	collectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats} // TODO add modules
 	ctx, cancel := context.WithCancel(context.Background())
 	return &CollectorManager{
 		opt:        opt,
