@@ -147,7 +147,9 @@ func (b *SeriesBag) appendSTagged(row *[]float64, stags map[string]string) {
 
 func (b *SeriesBag) appendX(s SeriesBag, x ...int) {
 	for _, i := range x {
-		b.Meta = appendAt(len(b.Data), b.Meta, s.Meta[i])
+		if i < len(s.Meta) {
+			b.Meta = appendAt(len(b.Data), b.Meta, s.Meta[i])
+		}
 		if i < len(s.MaxHost) {
 			b.MaxHost = appendAt(len(b.Data), b.MaxHost, s.MaxHost[i])
 		}
