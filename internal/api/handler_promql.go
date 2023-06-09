@@ -639,6 +639,9 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		filterInM = make(map[string][]any) // mapped
 	)
 	for i, m := range qry.FilterIn {
+		if i == 0 && qry.Options.Version == Version1 {
+			continue
+		}
 		tagID := format.TagIDLegacy(i)
 		for tagValueID, tagValue := range m {
 			filterIn[tagID] = append(filterIn[tagID], tagValue)
@@ -654,6 +657,9 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		filterOutM = make(map[string][]any) // mapped
 	)
 	for i, m := range qry.FilterOut {
+		if i == 0 && qry.Options.Version == Version1 {
+			continue
+		}
 		tagID := format.TagIDLegacy(i)
 		for tagValueID, tagValue := range m {
 			filterOut[tagID] = append(filterOut[tagID], tagValue)
@@ -710,9 +716,21 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 	default:
 		panic(fmt.Errorf("unrecognized what: %v", qry.What))
 	}
+	// grouping
+	var groupBy []string
+	switch qry.Options.Version {
+	case Version1:
+		for _, v := range qry.GroupBy {
+			if v != format.EnvTagID {
+				groupBy = append(groupBy, v)
+			}
+		}
+	default:
+		groupBy = qry.GroupBy
+	}
 	// the rest
 	kind := queryFnToQueryFnKind(what, qry.MaxHost)
-	qs := normalizedQueryString(qry.Metric.Name, kind, qry.GroupBy, filterIn, filterOut, false)
+	qs := normalizedQueryString(qry.Metric.Name, kind, groupBy, filterIn, filterOut, false)
 	pq := preparedPointsQuery{
 		user:        ai.user,
 		version:     promqlVersionOrDefault(qry.Options.Version),
