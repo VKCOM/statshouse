@@ -86,7 +86,7 @@ func (i ItemType) IsComparisonOperator() bool {
 // IsSetOperator returns whether the Item corresponds to a set operator.
 func (i ItemType) IsSetOperator() bool {
 	switch i {
-	case LAND, LOR, LUNLESS:
+	case LAND, LOR, LUNLESS, LDEFAULT:
 		return true
 	}
 	return false
@@ -100,10 +100,11 @@ type ItemType int
 // to avoid misinterpretation of labels as keywords.
 var key = map[string]ItemType{
 	// Operators.
-	"and":    LAND,
-	"or":     LOR,
-	"unless": LUNLESS,
-	"atan2":  ATAN2,
+	"and":     LAND,
+	"default": LDEFAULT,
+	"or":      LOR,
+	"unless":  LUNLESS,
+	"atan2":   ATAN2,
 
 	// Aggregators.
 	"sum":          SUM,

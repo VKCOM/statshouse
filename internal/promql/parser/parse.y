@@ -74,6 +74,7 @@ EQL_REGEX
 GTE
 GTR
 LAND
+LDEFAULT
 LOR
 LSS
 LTE
@@ -154,6 +155,7 @@ START_METRIC_SELECTOR
 %start start
 
 // Operators are listed with increasing precedence.
+%left LDEFAULT
 %left LOR
 %left LAND LUNLESS
 %left EQLC GTE GTR LSS LTE NEQ
@@ -238,22 +240,23 @@ aggregate_modifier:
  */
 
 // Operator precedence only works if each of those is listed separately.
-binary_expr     : expr ADD     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr ATAN2   bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr DIV     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr EQLC    bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr GTE     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr GTR     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr LAND    bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr LOR     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr LSS     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr LTE     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr LUNLESS bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr MOD     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr MUL     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr NEQ     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr POW     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
-                | expr SUB     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+binary_expr     : expr ADD      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr ATAN2    bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr DIV      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr EQLC     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr GTE      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr GTR      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr LAND     bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr LOR      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr LSS      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr LTE      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr LUNLESS  bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr MOD      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr MUL      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr NEQ      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr POW      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr SUB      bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
+                | expr LDEFAULT bin_modifier expr { $$ = yylex.(*parser).newBinaryExpression($1, $2, $3, $4) }
                 ;
 
 // Using left recursion for the modifier rules, helps to keep the parser stack small and

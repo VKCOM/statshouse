@@ -1381,35 +1381,37 @@ type (
 )
 
 var sliceBinaryFuncM = map[parser.ItemType][2]sliceBinaryFunc{
-	parser.ADD:   {sliceAdd},
-	parser.DIV:   {sliceDiv},
-	parser.EQLC:  {sliceFilterEqual, sliceEqual},
-	parser.GTE:   {sliceFilterGreaterOrEqual, sliceGreaterOrEqual},
-	parser.GTR:   {sliceFilterGreater, sliceGreater},
-	parser.LSS:   {sliceFilterLess, sliceLess},
-	parser.LTE:   {sliceFilterLessOrEqual, sliceLessOrEqual},
-	parser.MOD:   {sliceMod},
-	parser.MUL:   {sliceMul},
-	parser.NEQ:   {sliceFilterNotEqual, sliceNotEqual},
-	parser.POW:   {slicePow},
-	parser.SUB:   {sliceSub},
-	parser.ATAN2: {sliceAtan2},
+	parser.ADD:      {sliceAdd},
+	parser.LDEFAULT: {sliceDefault},
+	parser.DIV:      {sliceDiv},
+	parser.EQLC:     {sliceFilterEqual, sliceEqual},
+	parser.GTE:      {sliceFilterGreaterOrEqual, sliceGreaterOrEqual},
+	parser.GTR:      {sliceFilterGreater, sliceGreater},
+	parser.LSS:      {sliceFilterLess, sliceLess},
+	parser.LTE:      {sliceFilterLessOrEqual, sliceLessOrEqual},
+	parser.MOD:      {sliceMod},
+	parser.MUL:      {sliceMul},
+	parser.NEQ:      {sliceFilterNotEqual, sliceNotEqual},
+	parser.POW:      {slicePow},
+	parser.SUB:      {sliceSub},
+	parser.ATAN2:    {sliceAtan2},
 }
 
 var scalarBinaryFuncM = map[parser.ItemType][2]scalarBinaryFunc{
-	parser.ADD:   {scalarAdd},
-	parser.DIV:   {scalarDiv},
-	parser.EQLC:  {scalarFilterEqual, scalarEqual},
-	parser.GTE:   {scalarFilterGreaterOrEqual, scalarGreaterOrEqual},
-	parser.GTR:   {scalarFilterGreater, scalarGreater},
-	parser.LSS:   {scalarFilterLess, scalarLess},
-	parser.LTE:   {scalarFilterLessOrEqual, scalarLessOrEqual},
-	parser.MOD:   {math.Mod},
-	parser.MUL:   {scalarMul},
-	parser.NEQ:   {scalarFilterNotEqual, scalarNotEqual},
-	parser.POW:   {math.Pow},
-	parser.SUB:   {scalarSub},
-	parser.ATAN2: {math.Atan2},
+	parser.ADD:      {scalarAdd},
+	parser.LDEFAULT: {scalarDefault},
+	parser.DIV:      {scalarDiv},
+	parser.EQLC:     {scalarFilterEqual, scalarEqual},
+	parser.GTE:      {scalarFilterGreaterOrEqual, scalarGreaterOrEqual},
+	parser.GTR:      {scalarFilterGreater, scalarGreater},
+	parser.LSS:      {scalarFilterLess, scalarLess},
+	parser.LTE:      {scalarFilterLessOrEqual, scalarLessOrEqual},
+	parser.MOD:      {math.Mod},
+	parser.MUL:      {scalarMul},
+	parser.NEQ:      {scalarFilterNotEqual, scalarNotEqual},
+	parser.POW:      {math.Pow},
+	parser.SUB:      {scalarSub},
+	parser.ATAN2:    {math.Atan2},
 }
 
 var scalarSliceFuncM = map[parser.ItemType][2]scalarSliceFunc{
@@ -1429,19 +1431,20 @@ var scalarSliceFuncM = map[parser.ItemType][2]scalarSliceFunc{
 }
 
 var sliceScalarFuncM = map[parser.ItemType][2]sliceScalarFunc{
-	parser.ADD:   {sliceScalarAdd},
-	parser.DIV:   {sliceScalarDiv},
-	parser.EQLC:  {sliceScalarFilterEqual, sliceScalarEqual},
-	parser.GTE:   {sliceScalarFilterGreaterOrEqual, sliceScalarGreaterOrEqual},
-	parser.GTR:   {sliceScalarFilterGreater, sliceScalarGreater},
-	parser.LSS:   {sliceScalarFilterLess, sliceScalarLess},
-	parser.LTE:   {sliceScalarFilterLessOrEqual, sliceScalarLessOrEqual},
-	parser.MOD:   {sliceScalarMod},
-	parser.MUL:   {sliceScalarMul},
-	parser.NEQ:   {sliceScalarFilterNotEqual, sliceScalarNotEqual},
-	parser.POW:   {sliceScalarPow},
-	parser.SUB:   {sliceScalarSub},
-	parser.ATAN2: {sliceScalarAtan2},
+	parser.ADD:      {sliceScalarAdd},
+	parser.LDEFAULT: {sliceScalarDefault},
+	parser.DIV:      {sliceScalarDiv},
+	parser.EQLC:     {sliceScalarFilterEqual, sliceScalarEqual},
+	parser.GTE:      {sliceScalarFilterGreaterOrEqual, sliceScalarGreaterOrEqual},
+	parser.GTR:      {sliceScalarFilterGreater, sliceScalarGreater},
+	parser.LSS:      {sliceScalarFilterLess, sliceScalarLess},
+	parser.LTE:      {sliceScalarFilterLessOrEqual, sliceScalarLessOrEqual},
+	parser.MOD:      {sliceScalarMod},
+	parser.MUL:      {sliceScalarMul},
+	parser.NEQ:      {sliceScalarFilterNotEqual, sliceScalarNotEqual},
+	parser.POW:      {sliceScalarPow},
+	parser.SUB:      {sliceScalarSub},
+	parser.ATAN2:    {sliceScalarAtan2},
 }
 
 func getBinaryFunc[F sliceBinaryFunc | scalarBinaryFunc | scalarSliceFunc | sliceScalarFunc](m map[parser.ItemType][2]F, op parser.ItemType, b bool) F {
@@ -1456,6 +1459,14 @@ func getBinaryFunc[F sliceBinaryFunc | scalarBinaryFunc | scalarSliceFunc | slic
 func sliceAdd(dst, lhs, rhs []float64) {
 	for i := range lhs {
 		dst[i] = lhs[i] + rhs[i]
+	}
+}
+
+func sliceDefault(dst, lhs, rhs []float64) {
+	for i := range lhs {
+		if math.IsNaN(lhs[i]) {
+			lhs[i] = rhs[i]
+		}
 	}
 }
 
@@ -1617,6 +1628,13 @@ func sliceAtan2(dst, lhs, rhs []float64) {
 
 func scalarAdd(lhs, rhs float64) float64 {
 	return lhs + rhs
+}
+
+func scalarDefault(lhs, rhs float64) float64 {
+	if math.IsNaN(lhs) {
+		return rhs
+	}
+	return lhs
 }
 
 func scalarDiv(lhs, rhs float64) float64 {
@@ -1880,6 +1898,14 @@ func scalarSliceAtan2(lhs float64, rhs []float64) {
 func sliceScalarAdd(lhs []float64, rhs float64) {
 	for i := range lhs {
 		lhs[i] += rhs
+	}
+}
+
+func sliceScalarDefault(lhs []float64, rhs float64) {
+	for i := range lhs {
+		if math.IsNaN(lhs[i]) {
+			lhs[i] = rhs
+		}
 	}
 }
 
