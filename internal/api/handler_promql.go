@@ -401,7 +401,7 @@ func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
 
 func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.SeriesBag, func(), error) {
 	ai := getAccessInfo(ctx)
-	if ai == nil {
+	if ai == nil || !ai.canViewMetric(qry.Metric.Name) {
 		// should not happen, return empty set to not reveal security issue
 		return promql.SeriesBag{}, func() {}, nil
 	}
