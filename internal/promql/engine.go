@@ -614,6 +614,13 @@ func (ev *evaluator) evalBinary(ctx context.Context, expr *parser.BinaryExpr) (r
 					res.appendX(l, xl)
 				}
 			}
+		case parser.LDEFAULT:
+			res = l
+			for h, xl := range mappingL {
+				if xr, ok := mappingR[h]; ok {
+					sliceDefault(*res.Data[xl], *l.Data[xl], *r.Data[xr])
+				}
+			}
 		case parser.LOR:
 			res = l
 			for h, xr := range mappingR {
