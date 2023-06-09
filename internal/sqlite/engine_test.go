@@ -201,10 +201,10 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	agg := &testAggregation{}
 	n := 500
 	for i := 0; i < n; i++ {
-		data := make([]byte, 1+rand.Intn(30))
+		data := make([]byte, 20)
 		_, err := rand.Read(data)
 		require.NoError(t, err)
-		str := string(data)
+		str := strconv.FormatInt(int64(i), 10) + string(data)
 		err = insertText(engine, str)
 		require.NoError(t, err)
 		agg.writeHistory = append(agg.writeHistory, str)
