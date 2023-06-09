@@ -1085,12 +1085,15 @@ func (ev *evaluator) funcPrefixSum(bag SeriesBag) SeriesBag {
 	for t[i] < ev.t.Start {
 		i++
 	}
-	for _, row := range bag.Data {
+	for k, row := range bag.Data {
 		var sum float64
 		for j := i; j < len(*row); j++ {
 			v := (*row)[j]
 			if !math.IsNaN(v) {
 				sum += v
+			}
+			if k < len(bag.MaxHost) && 0 < j && j < len(bag.MaxHost[k]) && bag.MaxHost[k][j] == 0 && bag.MaxHost[k][j-1] != 0 {
+				bag.MaxHost[k][j] = bag.MaxHost[k][j-1]
 			}
 			(*row)[j] = sum
 		}
