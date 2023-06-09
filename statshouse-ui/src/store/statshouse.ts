@@ -1138,7 +1138,7 @@ export const statsHouseState: StateCreator<
       return;
     }
     prevState.setGlobalNumQueriesPlot((n) => n + 1);
-    const { response, error } = await request;
+    const { response, error, status } = await request;
     if (response) {
       debug.log('loading meta for', response.data.metric.name);
       setState((state) => {
@@ -1146,7 +1146,9 @@ export const statsHouseState: StateCreator<
       });
     }
     if (error) {
-      useErrorStore.getState().addError(error);
+      if (status !== 403) {
+        useErrorStore.getState().addError(error);
+      }
     }
     prevState.setGlobalNumQueriesPlot((n) => n - 1);
 
