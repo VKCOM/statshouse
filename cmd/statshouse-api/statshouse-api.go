@@ -80,6 +80,7 @@ type args struct {
 	listenRPCAddr            string
 	localMode                bool
 	pidFile                  string
+	pprofAddr                string
 	pprofHTTP                bool
 	protectedMetricPrefixes  []string
 	showInvisible            bool
@@ -136,6 +137,7 @@ func main() {
 	pflag.BoolVar(&argv.insecureMode, "insecure-mode", false, "set insecure-mode if you don't need any access verification")
 	pflag.StringVar(&argv.pidFile, "pid-file", "statshouse_api.pid", "path to PID file") // fpr table flip
 
+	pflag.StringVar(&argv.pprofAddr, "pprof-addr", "", "Go pprof HTTP listen address (deprecated)")
 	pflag.BoolVar(&argv.pprofHTTP, "pprof-http", true, "Serve Go pprof HTTP on RPC port")
 	pflag.StringSliceVar(&argv.protectedMetricPrefixes, "protected-metric-prefixes", nil, "comma-separated list of metric prefixes that require access bits set")
 	pflag.BoolVar(&argv.showInvisible, "show-invisible", false, "show invisible metrics as well")
