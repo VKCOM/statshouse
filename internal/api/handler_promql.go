@@ -259,7 +259,7 @@ func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]
 	var (
 		s1 []*format.MetricMetaValue // metrics
 		s2 []string                  // metric match names
-		fn = func(metric *format.MetricMetaValue) {
+		fn = func(metric *format.MetricMetaValue) error {
 			var name string
 			switch {
 			case matcher.Matches(metric.Name):
@@ -267,19 +267,25 @@ func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]
 			case matcher.Matches(metric.Name + "_bucket"):
 				name = metric.Name + "_bucket"
 			default:
-				return
+				return nil
 			}
-			if ai.canViewMetric(matcher.Name) {
-				s1 = append(s1, metric)
-				s2 = append(s2, name)
+			if !ai.canViewMetric(metric.Name) {
+				return httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metric.Name))
 			}
+			s1 = append(s1, metric)
+			s2 = append(s2, name)
+			return nil
 		}
 	)
 	for _, m := range format.BuiltinMetrics {
-		fn(m)
+		if err := fn(m); err != nil {
+			return nil, nil, err
+		}
 	}
 	for _, m := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
-		fn(m)
+		if err := fn(m); err != nil {
+			return nil, nil, err
+		}
 	}
 	return s1, s2, nil
 }
@@ -401,9 +407,11 @@ func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
 
 func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.SeriesBag, func(), error) {
 	ai := getAccessInfo(ctx)
-	if ai == nil || !ai.canViewMetric(qry.Metric.Name) {
-		// should not happen, return empty set to not reveal security issue
-		return promql.SeriesBag{}, func() {}, nil
+	if ai == nil {
+		return promql.SeriesBag{}, func() {}, nil // should not happen
+	}
+	if !ai.canViewMetric(qry.Metric.Name) {
+		return promql.SeriesBag{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
 	}
 	var (
 		version       = promqlVersionOrDefault(qry.Options.Version)
