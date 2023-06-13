@@ -7,14 +7,15 @@
 package receiver_test
 
 import (
+	"fmt"
 	"math"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"pgregory.net/rapid"
-
 	"github.com/vkcom/statshouse-go"
+	"pgregory.net/rapid"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -41,26 +42,13 @@ func identOrEmpty() *rapid.Generator[string] {
 	return rapid.OneOf(rapid.Just(""), ident())
 }
 
-func keys() *rapid.Generator[statshouse.RawTags] {
-	return rapid.Custom(func(t *rapid.T) statshouse.RawTags {
-		return statshouse.RawTags{
-			Env:   identOrEmpty().Draw(t, "key0"),
-			Tag1:  identOrEmpty().Draw(t, "key1"),
-			Tag2:  identOrEmpty().Draw(t, "key2"),
-			Tag3:  identOrEmpty().Draw(t, "key3"),
-			Tag4:  identOrEmpty().Draw(t, "key4"),
-			Tag5:  identOrEmpty().Draw(t, "key5"),
-			Tag6:  identOrEmpty().Draw(t, "key6"),
-			Tag7:  identOrEmpty().Draw(t, "key7"),
-			Tag8:  identOrEmpty().Draw(t, "key8"),
-			Tag9:  identOrEmpty().Draw(t, "key9"),
-			Tag10: identOrEmpty().Draw(t, "key10"),
-			Tag11: identOrEmpty().Draw(t, "key11"),
-			Tag12: identOrEmpty().Draw(t, "key12"),
-			Tag13: identOrEmpty().Draw(t, "key13"),
-			Tag14: identOrEmpty().Draw(t, "key14"),
-			Tag15: identOrEmpty().Draw(t, "key15"),
+func keys() *rapid.Generator[statshouse.Tags] {
+	return rapid.Custom(func(t *rapid.T) statshouse.Tags {
+		var tags statshouse.Tags
+		for i := range tags {
+			tags[i] = identOrEmpty().Draw(t, fmt.Sprintf("key%d", i))
 		}
+		return tags
 	})
 }
 
@@ -121,27 +109,14 @@ func toTagsStruct(tags [][2]string, skey string, withEnv bool) []tag {
 	return res
 }
 
-func toTags(ks statshouse.RawTags, skey string, withEnv bool) []tag {
+func toTags(ks statshouse.Tags, skey string, withEnv bool) []tag {
 	m := map[string]string{
-		"0":  ks.Env,
-		"1":  ks.Tag1,
-		"2":  ks.Tag2,
-		"3":  ks.Tag3,
-		"4":  ks.Tag4,
-		"5":  ks.Tag5,
-		"6":  ks.Tag6,
-		"7":  ks.Tag7,
-		"8":  ks.Tag8,
-		"9":  ks.Tag9,
-		"10": ks.Tag10,
-		"11": ks.Tag11,
-		"12": ks.Tag12,
-		"13": ks.Tag13,
-		"14": ks.Tag14,
-		"15": ks.Tag15,
 		"_s": skey,
 	}
-	if withEnv && ks.Env == "" {
+	for i, t := range ks {
+		m[strconv.Itoa(i)] = t
+	}
+	if withEnv && ks[0] == "" {
 		m["0"] = envName
 	}
 	for k, v := range m {
@@ -165,7 +140,7 @@ type goMachine struct {
 	uniqueMetrics  intsMap
 	recv           *receiver.UDP
 	addr           string
-	send           *statshouse.Registry
+	send           *statshouse.Client
 	envIsSet       bool
 }
 
@@ -181,7 +156,7 @@ func (g *goMachine) init(t *rapid.T) {
 	if g.envIsSet {
 		env = envName
 	}
-	g.send = statshouse.NewRegistry(t.Logf, g.addr, env)
+	g.send = statshouse.NewClient(t.Logf, g.addr, env)
 }
 
 func (g *goMachine) Cleanup() {
@@ -201,7 +176,7 @@ func (g *goMachine) Counter(t *rapid.T) {
 		return
 	}
 
-	g.send.AccessMetricRaw(name, ks).Count(value)
+	g.send.Metric(name, ks).Count(value)
 	g.counterMetrics.count(k, value)
 }
 
@@ -216,7 +191,7 @@ func (g *goMachine) CounterNamed(t *rapid.T) {
 	if len(k) > maxTSSize {
 		return
 	}
-	g.send.AccessMetric(name, tags).Count(value)
+	g.send.MetricNamed(name, tags).Count(value)
 	g.counterMetrics.count(k, value)
 }
 
@@ -232,7 +207,7 @@ func (g *goMachine) Values(t *rapid.T) {
 		return
 	}
 
-	g.send.AccessMetricRaw(name, ks).Values(values)
+	g.send.Metric(name, ks).Values(values)
 	g.valueMetrics.merge(k, values)
 }
 
@@ -248,7 +223,7 @@ func (g *goMachine) ValuesNamed(t *rapid.T) {
 		return
 	}
 
-	g.send.AccessMetric(name, tags).Values(values)
+	g.send.MetricNamed(name, tags).Values(values)
 	g.valueMetrics.merge(k, values)
 }
 
@@ -264,7 +239,7 @@ func (g *goMachine) Uniques(t *rapid.T) {
 		return
 	}
 
-	g.send.AccessMetricRaw(name, ks).Uniques(values)
+	g.send.Metric(name, ks).Uniques(values)
 	g.uniqueMetrics.merge(k, values)
 }
 
@@ -280,7 +255,7 @@ func (g *goMachine) UniquesNamed(t *rapid.T) {
 		return
 	}
 
-	g.send.AccessMetric(name, tags).Uniques(values)
+	g.send.MetricNamed(name, tags).Uniques(values)
 	g.uniqueMetrics.merge(k, values)
 }
 
@@ -294,7 +269,7 @@ func (g *goMachine) STops(t *rapid.T) {
 	if len(k) > maxTSSize {
 		return
 	}
-	g.send.AccessMetricRaw(name, ks).StringsTop(values)
+	g.send.Metric(name, ks).StringsTop(values)
 	for _, skey := range values {
 		g.counterMetrics.count(ts(name, toTags(ks, skey, g.envIsSet)), 1)
 	}
@@ -312,7 +287,7 @@ func (g *goMachine) STopsNamed(t *rapid.T) {
 		return
 	}
 
-	g.send.AccessMetric(name, tags).StringsTop(values)
+	g.send.MetricNamed(name, tags).StringsTop(values)
 	for _, skey := range values {
 		g.counterMetrics.count(ts(name, toTagsStruct(tags, skey, g.envIsSet)), 1)
 	}

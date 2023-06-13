@@ -39,8 +39,8 @@ func newApplyQueue(old *applyQueue, dbOffset int64, maxBytes int64, stats *Stats
 			},
 		},
 	}
-	statshouse.StartRegularMeasurement(func(registry *statshouse.Registry) {
-		stats.applyQueueSize(registry, atomic.LoadInt64(&q.qBytes))
+	statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
+		stats.applyQueueSize(client, atomic.LoadInt64(&q.qBytes))
 	})
 	return q
 }
