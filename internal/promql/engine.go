@@ -363,6 +363,9 @@ func (ev *evaluator) eval(ctx context.Context, expr parser.Expr) (res SeriesBag,
 			res, err = ev.eval(ctx, e.RHS)
 			if err == nil {
 				fn := getBinaryFunc(scalarSliceFuncM, e.Op, e.ReturnBool)
+				if fn == nil {
+					return SeriesBag{}, fmt.Errorf("binary operator %q is not defined on (%q, %q) pair", e.Op, e.LHS.Type(), e.RHS.Type())
+				}
 				for _, row := range res.Data {
 					fn(l.Val, *row)
 				}
@@ -373,6 +376,9 @@ func (ev *evaluator) eval(ctx context.Context, expr parser.Expr) (res SeriesBag,
 				res, err = ev.eval(ctx, e.LHS)
 				if err == nil {
 					fn := getBinaryFunc(sliceScalarFuncM, e.Op, e.ReturnBool)
+					if fn == nil {
+						return SeriesBag{}, fmt.Errorf("binary operator %q is not defined on (%q, %q) pair", e.Op, e.LHS.Type(), e.RHS.Type())
+					}
 					for _, row := range res.Data {
 						fn(*row, r.Val)
 					}
