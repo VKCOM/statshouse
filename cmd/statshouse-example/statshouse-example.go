@@ -117,15 +117,15 @@ func recordResponseTime(start time.Time, handler string, err error) {
 		status = "error"
 	}
 
-	statshouse.AccessMetric(responseTimeMetricName,
-		statshouse.Tags{
+	statshouse.MetricNamed(responseTimeMetricName,
+		statshouse.NamedTags{
 			{handlerTag, handler},
 			{statusTag, status},
 		}).
 		Value(time.Since(start).Seconds())
 }
 
-func recordRegular(r *statshouse.Registry) {
+func recordRegular(client *statshouse.Client) {
 	samples := []metrics.Sample{
 		{Name: "/memory/classes/heap/free:bytes"},
 		{Name: "/memory/classes/heap/objects:bytes"},
@@ -144,7 +144,7 @@ func recordRegular(r *statshouse.Registry) {
 	metrics.Read(samples)
 	for _, s := range samples {
 		c := strings.TrimSuffix(strings.TrimPrefix(s.Name, "/memory/classes"), ":bytes")
-		m := r.AccessMetric(runtimeMemoryMetricName, statshouse.Tags{{classTag, c}})
+		m := client.MetricNamed(runtimeMemoryMetricName, statshouse.NamedTags{{classTag, c}})
 		m.Value(float64(s.Value.Uint64()))
 	}
 }

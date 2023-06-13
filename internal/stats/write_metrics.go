@@ -26,8 +26,8 @@ type MetricWriterSHImpl struct {
 	metric   *tlstatshouse.MetricBytes
 }
 
-func buildTags(useHost bool, tags ...int32) statshouse.RawTags {
-	res := statshouse.RawTags{}
+func buildTags(useHost bool, tags ...int32) statshouse.Tags {
+	res := statshouse.Tags{}
 	// Tag1 is reserved for host
 	for index, tagV := range tags {
 		tag := strconv.FormatInt(int64(tagV), 10)
@@ -35,37 +35,8 @@ func buildTags(useHost bool, tags ...int32) statshouse.RawTags {
 		if useHost {
 			i++
 		}
-		switch i {
-		case 0:
-			res.Tag1 = tag
-		case 1:
-			res.Tag2 = tag
-		case 2:
-			res.Tag3 = tag
-		case 3:
-			res.Tag4 = tag
-		case 4:
-			res.Tag5 = tag
-		case 5:
-			res.Tag6 = tag
-		case 6:
-			res.Tag7 = tag
-		case 7:
-			res.Tag8 = tag
-		case 8:
-			res.Tag9 = tag
-		case 9:
-			res.Tag10 = tag
-		case 10:
-			res.Tag11 = tag
-		case 11:
-			res.Tag12 = tag
-		case 12:
-			res.Tag13 = tag
-		case 13:
-			res.Tag14 = tag
-		case 14:
-			res.Tag15 = tag
+		if i+1 < len(res) {
+			res[i+1] = tag
 		}
 	}
 	return res
@@ -89,19 +60,19 @@ func fillTags(metric *tlstatshouse.MetricBytes, reservedKeys int, startFrom int,
 
 func (p *MetricWriterRemoteImpl) WriteSystemMetricValue(nowUnix int64, name string, value float64, tagsList ...int32) {
 	tags := buildTags(true, tagsList...)
-	tags.Tag1 = p.HostName
-	statshouse.AccessMetricRaw(name, tags).Value(value)
+	tags[1] = p.HostName
+	statshouse.Metric(name, tags).Value(value)
 }
 
 func (p *MetricWriterRemoteImpl) WriteSystemMetricValueWithoutHost(nowUnix int64, name string, value float64, tagsList ...int32) {
 	tags := buildTags(false, tagsList...)
-	statshouse.AccessMetricRaw(name, tags).Value(value)
+	statshouse.Metric(name, tags).Value(value)
 }
 
 func (p *MetricWriterRemoteImpl) WriteSystemMetricCount(nowUnix int64, name string, count float64, tagsList ...int32) {
 	tags := buildTags(true, tagsList...)
-	tags.Tag1 = p.HostName
-	statshouse.AccessMetricRaw(name, tags).Count(count)
+	tags[1] = p.HostName
+	statshouse.Metric(name, tags).Count(count)
 }
 
 func (p *MetricWriterSHImpl) fillCommonMetric(m *tlstatshouse.MetricBytes, useHost bool, name string, nowUnix int64, tagsList ...int32) {

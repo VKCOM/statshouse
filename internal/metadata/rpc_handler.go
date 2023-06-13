@@ -101,11 +101,11 @@ func (h *Handler) broadcastJournal() {
 }
 
 func (h *Handler) initStats() {
-	statshouse.StartRegularMeasurement(func(registry *statshouse.Registry) {
+	statshouse.StartRegularMeasurement(func(client *statshouse.Client) {
 		h.getJournalMx.Lock()
 		qLength := len(h.getJournalClients)
 		h.getJournalMx.Unlock()
-		registry.AccessMetricRaw(format.BuiltinMetricNameMetaClientWaits, statshouse.RawTags{Tag1: h.host}).Value(float64(qLength))
+		client.Metric(format.BuiltinMetricNameMetaClientWaits, statshouse.Tags{1: h.host}).Value(float64(qLength))
 	})
 }
 
