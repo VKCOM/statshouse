@@ -45,7 +45,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.24.0
 	pgregory.net/rand v1.0.2
-	pgregory.net/rapid v0.5.8-0.20230511174411-95d7a399e3d0
+	pgregory.net/rapid v1.0.0
 )
 
 require (
