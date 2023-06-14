@@ -183,7 +183,7 @@ const (
     <li>Page render time: {{ .Elapsed }}</li>
   </ul>
   <p>
-    Watch the metrics live: <a href="http://{{ .StatsHouseAddress }}/view?live&f=-300&t=0&tn=-1&s={{ .ResponseTimeMetric }}&t1.s={{ .ResponseTimeMetric }}&t1.qw=avg&t2.s={{ .RuntimeMemoryMetric }}&t2.qw=avg&t2.qb=key1" target="_blank">dashboard</a>.
+    Watch the metrics live: <a href="http://{{ .StatsHouseAddress }}/view?live=1&f=-300&t=0&tn=-1&s={{ .ResponseTimeMetric }}&t1.s={{ .ResponseTimeMetric }}&t1.qw=avg&t2.s={{ .RuntimeMemoryMetric }}&t2.qw=avg&t2.qb=key1" target="_blank">dashboard</a>.
   </p>
 </body>
 </html>
