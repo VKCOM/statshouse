@@ -61,6 +61,7 @@ cases, StatsHouse provides a Grafana data source plugin as well.
 - [Go](https://github.com/VKCOM/statshouse-go)
 - [PHP](https://github.com/VKCOM/statshouse-php)
 - [C++](https://github.com/VKCOM/statshouse-cpp)
+- [Java](https://github.com/VKCOM/statshouse-java)
 - [Python](https://github.com/VKCOM/statshouse-py)
 - [nginx](https://github.com/VKCOM/nginx-statshouse-module)
 
