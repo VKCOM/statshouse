@@ -771,6 +771,8 @@ export const statsHouseState: StateCreator<
             uniqueWhat.add(meta.what);
             meta.name && uniqueName.add(meta.name);
           }
+          const currentPrevState = getState();
+          const currentPrev: PlotStore = getState().plotsData[index];
           if (uniqueName.size === 0 && lastPlotParams.metricName !== promQLMetric) {
             uniqueName.add(lastPlotParams.metricName);
           }
@@ -795,7 +797,7 @@ export const statsHouseState: StateCreator<
           const usedBaseColors = {};
           const baseColors: Record<string, string> = {};
           let changeColor = false;
-          let changeType = prev.lastPlotParams?.type !== lastPlotParams.type;
+          let changeType = currentPrev.lastPlotParams?.type !== lastPlotParams.type;
           const widthLine =
             (width ?? 0) > resp.series.time.length
               ? devicePixelRatio > 1
@@ -809,6 +811,7 @@ export const statsHouseState: StateCreator<
           const maxHostLists: SelectOptionProps[][] = new Array(resp.series.series_meta.length).fill([]);
           const oneGraph = resp.series.series_meta.filter((s) => s.time_shift === 0).length <= 1;
           const seriesShow = new Array(resp.series.series_meta.length).fill(true);
+
           const series: uPlot.Series[] = resp.series.series_meta.map((meta, indexMeta): uPlot.Series => {
             const timeShift = meta.time_shift !== 0;
             const label = metaToLabel(meta, uniqueWhat.size);
@@ -841,7 +844,8 @@ export const statsHouseState: StateCreator<
                 return res;
               }, {} as Record<string, number>) ?? {};
             const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
-            seriesShow[indexMeta] = prev.series[indexMeta]?.label === label ? prev.seriesShow[indexMeta] : true;
+            seriesShow[indexMeta] =
+              currentPrev.series[indexMeta]?.label === label ? currentPrev.seriesShow[indexMeta] : true;
             maxHostLists[indexMeta] = Object.entries(max_host_map)
               .sort(([k, a], [n, b]) => (a > b ? -1 : a < b ? 1 : k > n ? 1 : k < n ? -1 : 0))
               .map(([host, count]) => {
@@ -939,7 +943,7 @@ export const statsHouseState: StateCreator<
             max: Math.max(...Object.values(topInfoTotals)),
           };
           const topInfoFunc = lastPlotParams.what.length;
-          const topInfoShifts = prevState.params.timeShifts.length;
+          const topInfoShifts = currentPrevState.params.timeShifts.length;
           const info: string[] = [];
 
           if (topInfoTop.min !== topInfoTotal.min && topInfoTop.max !== topInfoTotal.max) {
