@@ -21,8 +21,8 @@ type Flag = {
 function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot, flagWidth: number): Flag[] {
   const flags: Record<string, Flag> = {};
   eventsIndex.forEach((indexEvent) => {
-    const time = eventsData[indexEvent].data[0] ?? [];
-    const data = eventsData[indexEvent].data.slice(1);
+    const time = eventsData[indexEvent]?.data[0] ?? [];
+    const data = eventsData[indexEvent]?.data.slice(1) ?? [];
     const maxY = Math.max(...data.flat().filter(Boolean).map(Number));
     let prevIdx = 0;
     for (let idx = 0, iMax = time.length; idx < iMax; idx++) {
