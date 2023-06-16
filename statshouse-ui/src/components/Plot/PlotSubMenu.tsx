@@ -13,6 +13,7 @@ import { PlotParams } from '../../common/plotQueryParams';
 export type PlotSubMenuProps = {
   sel: PlotParams;
   timeRange: TimeRange;
+  metricName?: string;
   receiveErrors: number;
   receiveWarnings: number;
   samplingFactorSrc: number;
@@ -23,6 +24,7 @@ export type PlotSubMenuProps = {
 export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
   timeRange,
   sel,
+  metricName,
   receiveErrors,
   receiveWarnings,
   samplingFactorSrc,
@@ -36,7 +38,9 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
         <Link
           className="nav-link p-0 me-4"
           to={{
-            search: `?s=__src_ingestion_status&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key1-${sel.metricName}&qb=key2&qf=key2~ok_cached&qf=key2~ok_uncached`,
+            search: `?s=__src_ingestion_status&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key1-${
+              metricName ?? sel.metricName
+            }&qb=key2&qf=key2~ok_cached&qf=key2~ok_uncached`,
           }}
         >
           {receiveErrors > 0.5 ? (
@@ -49,7 +53,9 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
         <Link
           className="nav-link p-0 me-4"
           to={{
-            search: `?s=__src_ingestion_status&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key1-${sel.metricName}&qb=key2`,
+            search: `?s=__src_ingestion_status&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key1-${
+              metricName ?? sel.metricName
+            }&qb=key2`,
           }}
         >
           <small>Receive status</small>
@@ -62,7 +68,9 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
         <Link
           className="nav-link d-inline-block p-0"
           to={{
-            search: `?s=__src_sampling_factor&qw=avg&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key1-${sel.metricName}`,
+            search: `?s=__src_sampling_factor&qw=avg&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key1-${
+              metricName ?? sel.metricName
+            }`,
           }}
         >
           {samplingFactorSrc > 5 ? (
@@ -77,7 +85,9 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
         <Link
           className="nav-link d-inline-block p-0"
           to={{
-            search: `?s=__agg_sampling_factor&qw=avg&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${sel.metricName}`,
+            search: `?s=__agg_sampling_factor&qw=avg&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${
+              metricName ?? sel.metricName
+            }`,
           }}
         >
           {samplingFactorAgg > 5 ? (
@@ -94,7 +104,9 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
       <Link
         className="nav-link p-0 me-4"
         to={{
-          search: `?s=__agg_hour_cardinality&qw=sum_norm&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${sel.metricName}`,
+          search: `?s=__agg_hour_cardinality&qw=sum_norm&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${
+            metricName ?? sel.metricName
+          }`,
         }}
       >
         <small>Cardinality</small>
@@ -105,7 +117,9 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
         <Link
           className="nav-link p-0 me-4"
           to={{
-            search: `?s=__agg_mapping_created&qw=count&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${sel.metricName}&qb=key5&qf=key5~created`,
+            search: `?s=__agg_mapping_created&qw=count&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${
+              metricName ?? sel.metricName
+            }&qb=key5&qf=key5~created`,
           }}
         >
           <small className="badge bg-danger">Mapping errors: {utils.formatSI(mappingFloodEvents)}</small>
@@ -114,7 +128,9 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
         <Link
           className="nav-link p-0 me-4"
           to={{
-            search: `?s=__agg_mapping_created&qw=count&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${sel.metricName}&qb=key5`,
+            search: `?s=__agg_mapping_created&qw=count&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${
+              metricName ?? sel.metricName
+            }&qb=key5`,
           }}
         >
           <small>Mapping status</small>
@@ -127,7 +143,7 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
       </Link>
     </li>
     <li className="nav-item">
-      <Link className="nav-link p-0" to={`../admin/edit/${sel.metricName}`}>
+      <Link className="nav-link p-0" to={`../admin/edit/${metricName ?? sel.metricName}`}>
         <small>Edit</small>
       </Link>
     </li>

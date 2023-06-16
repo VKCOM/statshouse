@@ -10,7 +10,7 @@ import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
 import { UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
-import { formatSI, now, timeRangeAbbrevExpand } from '../../view/utils';
+import { formatSI, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { queryURLCSV } from '../../view/api';
 import { black, grey, greyDark } from '../../view/palette';
 import produce from 'immer';
@@ -102,6 +102,7 @@ export function PlotViewEvent(props: {
     receiveWarnings,
     error: lastError,
     error403,
+    nameMetric,
   } = useStore(selectorPlotsData);
 
   const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
@@ -124,11 +125,16 @@ export function PlotViewEvent(props: {
 
   const uPlotRef = useRef<uPlot>();
 
+  const metricName = useMemo(
+    () => (sel.metricName !== promQLMetric ? sel.metricName : nameMetric),
+    [sel.metricName, nameMetric]
+  );
+
   useEffect(() => {
-    if (sel.metricName) {
-      loadMetricsMeta(sel.metricName);
+    if (metricName) {
+      loadMetricsMeta(metricName);
     }
-  }, [sel.metricName]);
+  }, [metricName]);
 
   const clearLastError = useCallback(() => {
     setPlotLastError(indexPlot, '');
@@ -413,6 +419,7 @@ export function PlotViewEvent(props: {
                 receiveWarnings={receiveWarnings}
                 samplingFactorAgg={samplingFactorAgg}
                 samplingFactorSrc={samplingFactorSrc}
+                metricName={metricName}
               />
             )}
           </div>

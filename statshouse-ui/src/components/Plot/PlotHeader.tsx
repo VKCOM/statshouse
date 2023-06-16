@@ -17,6 +17,7 @@ import { PlotHeaderBadges } from './PlotHeaderBadges';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 import { MetricMetaValue } from '../../api/metric';
+import { promQLMetric } from '../../view/utils';
 
 const setPlotType = useStore.getState().setPlotType;
 
@@ -103,7 +104,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
               <div
                 className={cn(
                   css.badge,
-                  'd-flex gap-1 z-1 flex-row',
+                  'd-flex gap-1 z-2 flex-row',
                   showTags
                     ? 'position-absolute bg-body end-0 top-0 flex-wrap align-items-end justify-content-end pt-4 p-1'
                     : 'overflow-hidden  flex-nowrap',
@@ -160,6 +161,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             link={copyLink}
             typePlot={sel.type}
             setTypePlot={onSetPlotType}
+            disabledTypePlot={sel.metricName === promQLMetric}
           />
         )}
       </div>
