@@ -1,20 +1,16 @@
-import React from 'react';
+import React, { useLayoutEffect } from 'react';
 import { Router } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 import { appHistory } from '../../common/appHistory';
 
 export type AppRouterProps = { children?: React.ReactNode };
 export function AppRouter({ children }: AppRouterProps) {
-  const [location, setLocation] = useState(appHistory.location);
-  useEffect(
-    () =>
-      appHistory.listen(({ location }) => {
-        setLocation(location);
-      }),
-    []
-  );
+  let [state, setState] = React.useState({
+    action: appHistory.action,
+    location: appHistory.location,
+  });
+  useLayoutEffect(() => appHistory.listen(setState), []);
   return (
-    <Router location={location} navigator={appHistory}>
+    <Router location={state.location} navigationType={state.action} navigator={appHistory}>
       {children}
     </Router>
   );
