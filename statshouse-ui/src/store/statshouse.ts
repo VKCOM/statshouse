@@ -285,11 +285,11 @@ export const statsHouseState: StateCreator<
   [],
   StatsHouseStore
 > = (setState, getState) => {
-  let prevSearch = appHistory.location.search;
+  let prevLocation = appHistory.location;
   appHistory.listen(({ location }) => {
-    if (prevSearch !== location.search) {
-      prevSearch = location.search;
-      if (location.pathname === '/view' || location.pathname === '/') {
+    if (prevLocation.search !== location.search || prevLocation.pathname !== location.pathname) {
+      prevLocation = location;
+      if (location.pathname === '/view') {
         getState().updateParamsByUrl();
       }
     }
