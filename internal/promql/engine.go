@@ -306,7 +306,7 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, p
 			}
 		}
 	}
-	for i := len(path); len(sel.What) == 0 && i != 0; i-- {
+	for i := len(path); len(sel.MetricKindHint) == 0 && i != 0; i-- {
 		switch e := path[i-1].(type) {
 		case *parser.Call:
 			switch e.Func.Name {
