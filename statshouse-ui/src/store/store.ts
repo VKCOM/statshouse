@@ -14,5 +14,6 @@ export const useStore = create<Store, [['zustand/immer', never]]>(
     ...themeState(...a),
   }))
 );
-
-useStore.getState().updateParamsByUrl();
+if (document.location.pathname === '/view' || document.location.pathname === '/') {
+  useStore.getState().updateParamsByUrl();
+}
