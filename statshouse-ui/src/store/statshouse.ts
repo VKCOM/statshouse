@@ -289,7 +289,9 @@ export const statsHouseState: StateCreator<
   appHistory.listen(({ location }) => {
     if (prevSearch !== location.search) {
       prevSearch = location.search;
-      getState().updateParamsByUrl();
+      if (location.pathname === '/view' || location.pathname === '/') {
+        getState().updateParamsByUrl();
+      }
     }
   });
 
@@ -332,9 +334,6 @@ export const statsHouseState: StateCreator<
       }
     },
     async updateParamsByUrl() {
-      if (document.location.pathname !== '/view') {
-        return;
-      }
       const id = readDashboardID(new URLSearchParams(document.location.search));
       if (id && getState().params.dashboard?.dashboard_id && id !== getState().params.dashboard?.dashboard_id) {
         setState((state) => {
