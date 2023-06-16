@@ -159,6 +159,6 @@ func TestPacketConn(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		m := packetConnMachine{}
 		m.init(t)
-		t.Run(rapid.StateMachineActions(&m))
+		t.Repeat(rapid.StateMachineActions(&m))
 	})
 }

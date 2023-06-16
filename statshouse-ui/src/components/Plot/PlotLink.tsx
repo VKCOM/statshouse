@@ -5,12 +5,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useMemo } from 'react';
-import { selectorDefaultParams, selectorIsServer, selectorSetParams, useStore } from '../../store';
+import { Store, useStore } from '../../store';
 import { Link, To } from 'react-router-dom';
 import { PLOT_TYPE, PlotType, QueryParams } from '../../common/plotQueryParams';
 import produce from 'immer';
 import { usePlotLink } from '../../hooks';
 import { globalSettings } from '../../common/settings';
+import { shallow } from 'zustand/shallow';
 
 export type PlotLinkProps = {
   indexPlot?: number;
@@ -21,17 +22,25 @@ export type PlotLinkProps = {
 } & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, 'href'> &
   React.RefAttributes<HTMLAnchorElement>;
 
+const { setParams, updateUrl } = useStore.getState();
+const selector = ({ params, defaultParams }: Store) => ({
+  isServer: params.dashboard?.dashboard_id !== undefined,
+  defaultParams,
+});
+
 export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.forwardRef<
   HTMLAnchorElement,
   PlotLinkProps
 >(function _PlotLink({ indexPlot, isLink, to, children, typePlot, newPlot, ...attributes }, ref) {
-  const isServer = useStore(selectorIsServer);
-  const setParams = useStore(selectorSetParams);
-  const defaultParams = useStore(selectorDefaultParams);
+  const { isServer, defaultParams } = useStore(selector, shallow);
   const plotSearchFn = useMemo<(value: QueryParams) => QueryParams>(
     () =>
       produce((p) => {
         if (indexPlot !== undefined && p.plots.length > indexPlot) {
+          if (isServer && p.tabNum === indexPlot) {
+            updateUrl();
+            return;
+          }
           p.tabNum = indexPlot;
         } else if (p.plots.length && p.plots.length === indexPlot) {
           if (newPlot) {
@@ -90,12 +99,12 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
           p.tabNum = p.plots.length - 1;
         }
       }),
-    [indexPlot, newPlot, typePlot]
+    [indexPlot, isServer, newPlot, typePlot]
   );
   const plotSearch = usePlotLink(plotSearchFn, defaultParams);
   const onClick = useCallback(() => {
     setParams(plotSearchFn, false, false);
-  }, [plotSearchFn, setParams]);
+  }, [plotSearchFn]);
 
   if (!isLink && isServer && !to) {
     return (

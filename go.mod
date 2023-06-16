@@ -30,7 +30,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
 	github.com/tinylib/msgp v1.1.6
-	github.com/vkcom/statshouse-go v0.0.0-20230306161352-79292ed2bcfa
+	github.com/vkcom/statshouse-go v0.2.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	go.uber.org/atomic v1.10.0
 	go.uber.org/multierr v1.9.0
@@ -45,7 +45,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/apimachinery v0.24.0
 	pgregory.net/rand v1.0.2
-	pgregory.net/rapid v0.5.8-0.20230511174411-95d7a399e3d0
+	pgregory.net/rapid v1.0.0
 )
 
 require (

@@ -128,7 +128,7 @@ func TestWaitCommit(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		m := engineMachineWaitCommitMode{}
 		m.init(t)
-		t.Run(rapid.StateMachineActions(&m))
+		t.Repeat(rapid.StateMachineActions(&m))
 	})
 }
 
@@ -182,7 +182,7 @@ func TestNoWaitCommit(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		m := engineMachineNoWaitCommitMode{}
 		m.init(t)
-		t.Run(rapid.StateMachineActions(&m))
+		t.Repeat(rapid.StateMachineActions(&m))
 	})
 }
 
@@ -273,7 +273,7 @@ func TestApplyCommit(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		m := engineMachineBinlogRun{}
 		m.init(t)
-		t.Run(rapid.StateMachineActions(&m))
+		t.Repeat(rapid.StateMachineActions(&m))
 	})
 }
 

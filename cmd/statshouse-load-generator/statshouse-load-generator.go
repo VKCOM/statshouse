@@ -41,7 +41,7 @@ func main() {
 		case <-c:
 			return
 		default:
-			statshouse.AccessMetric(m, statshouse.Tags{}).Value(float64(i))
+			statshouse.MetricNamed(m, statshouse.NamedTags{}).Value(float64(i))
 		}
 	}
 }

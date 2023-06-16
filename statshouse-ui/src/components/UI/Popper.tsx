@@ -117,7 +117,7 @@ export function _Popper({
   const maxWidth = useMemo(() => {
     if (horizontalClass === POPPER_HORIZONTAL.center) {
       const center = targetRect.x + targetRect.width / 2;
-      return Math.min(center, windowRect.width - center) * 2 + 1;
+      return Math.min(center, windowRect.width - center) * 2;
     }
     return Math.max(targetRect.x, windowRect.width - (targetRect.x + targetRect.width));
   }, [horizontalClass, targetRect.width, targetRect.x, windowRect.width]);
@@ -125,7 +125,7 @@ export function _Popper({
   const maxHeight = useMemo(() => {
     if (verticalClass === POPPER_VERTICAL.middle) {
       const middle = targetRect.y + targetRect.height / 2;
-      return Math.min(middle, windowRect.height - middle) * 2 + 1;
+      return Math.min(middle, windowRect.height - middle) * 2;
     }
     return Math.max(targetRect.y, windowRect.height - (targetRect.y + targetRect.height));
   }, [targetRect.height, targetRect.y, verticalClass, windowRect.height]);

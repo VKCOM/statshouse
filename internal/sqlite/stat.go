@@ -38,33 +38,33 @@ func (s *StatsOptions) measureSqliteQueryDurationSince(typ, name string, start t
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.AccessMetricRaw(queryDurationMetric, statshouse.RawTags{Tag1: s.Service, Tag2: s.Cluster, Tag3: s.DC, Tag4: typ, Tag5: name}).Value(time.Since(start).Seconds())
+	statshouse.Metric(queryDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name}).Value(time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) measureWaitDurationSince(typ string, start time.Time) {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.AccessMetricRaw(waitDurationMetric, statshouse.RawTags{Tag1: s.Service, Tag2: s.Cluster, Tag3: s.DC, Tag4: typ}).Value(time.Since(start).Seconds())
+	statshouse.Metric(waitDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ}).Value(time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) measureActionDurationSince(typ string, start time.Time) {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.AccessMetricRaw(actionDurationMetric, statshouse.RawTags{Tag1: s.Service, Tag2: s.Cluster, Tag3: s.DC, Tag4: typ}).Value(time.Since(start).Seconds())
+	statshouse.Metric(actionDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ}).Value(time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) measureSqliteTxDurationSince(typ, name string, start time.Time) {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.AccessMetricRaw(txDurationMetric, statshouse.RawTags{Tag1: s.Service, Tag2: s.Cluster, Tag3: s.DC, Tag4: typ, Tag5: name}).Value(time.Since(start).Seconds())
+	statshouse.Metric(txDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name}).Value(time.Since(start).Seconds())
 }
 
-func (s *StatsOptions) applyQueueSize(registry *statshouse.Registry, size int64) {
+func (s *StatsOptions) applyQueueSize(registry *statshouse.Client, size int64) {
 	if s.checkEmpty() {
 		return
 	}
-	registry.AccessMetricRaw(applyQueueSizeMetric, statshouse.RawTags{Tag1: s.Service, Tag2: s.Cluster, Tag3: s.DC}).Value(float64(size))
+	registry.Metric(applyQueueSizeMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC}).Value(float64(size))
 }

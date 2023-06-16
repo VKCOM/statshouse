@@ -95,4 +95,4 @@ Assuming that ClickHouse is available on localhost (default ports), follow the s
     ./target/statshouse-api --verbose --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=localhost:9000 --listen-addr=localhost:10888 --disk-cache=$HOME/statshouse/cache/api/mapping_cache.sqlite3 --static-dir=statshouse-ui/build
     ```
 
-5. Open StatsHouse UI: http://localhost:10888/view?live&f=-300&t=0&s=__contributors_log_rev
+5. Open StatsHouse UI: http://localhost:10888/view?live=1&f=-300&t=0&s=__contributors_log_rev
