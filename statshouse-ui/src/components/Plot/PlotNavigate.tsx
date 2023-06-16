@@ -33,6 +33,7 @@ export type PlotNavigateProps = {
   link?: string;
   typePlot?: PlotType;
   setTypePlot?: Dispatch<SetStateAction<PlotType>>;
+  disabledTypePlot?: boolean;
 };
 export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
   live,
@@ -46,6 +47,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
   link,
   typePlot,
   setTypePlot,
+  disabledTypePlot,
 }) => {
   const panLeft = useCallback(() => {
     setLive(false);
@@ -126,6 +128,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
           title="View events"
           data-value={PLOT_TYPE.Event}
           onClick={onChangeTypePlot}
+          disabled={disabledTypePlot}
         >
           <SVGTable />
         </button>
@@ -137,6 +140,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
           title="View plot"
           data-value={PLOT_TYPE.Metric}
           onClick={onChangeTypePlot}
+          disabled={disabledTypePlot}
         >
           <SVGGraphUp />
         </button>

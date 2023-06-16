@@ -14,3 +14,5 @@ export const useStore = create<Store, [['zustand/immer', never]]>(
     ...themeState(...a),
   }))
 );
+
+useStore.getState().updateParamsByUrl();
