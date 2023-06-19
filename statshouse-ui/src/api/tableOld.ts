@@ -87,18 +87,19 @@ export type ApiTable = queryTable & { rowsNormalize: ApiTableRowNormalize[] };
 export async function apiTable(
   plot: PlotParams,
   range: TimeRange,
-  width: number,
+  agg: string,
   key?: string | undefined,
   fromEnd?: boolean,
   limit?: number,
   keyRequest?: unknown
 ): Promise<ApiTable> {
-  const agg =
-    plot.customAgg === -1
-      ? `${Math.floor(width / 4)}`
-      : plot.customAgg === 0
-      ? `${Math.floor(width * devicePixelRatio)}`
-      : `${plot.customAgg}s`;
+  // const agg =
+  //   plot.customAgg === -1
+  //     ? `${Math.floor(width / 4)}`
+  //     : plot.customAgg === 0
+  //     ? `${Math.floor(width * devicePixelRatio)}`
+  //     : `${plot.customAgg}s`;
+  // const agg = `${range.to - range.from}s`;
 
   const url = queryTableURL(plot, range, agg, key, fromEnd, limit);
 

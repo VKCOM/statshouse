@@ -10,6 +10,7 @@ import cn from 'classnames';
 export type PlotEventFlagProps = {
   plot: PlotParams;
   range: TimeRange;
+  agg: string;
   width: number;
   plotWidth: number;
   height: number;
@@ -24,6 +25,7 @@ export type PlotEventFlagProps = {
 export function _PlotEventFlag({
   plot,
   range,
+  agg,
   plotWidth,
   x,
   height,
@@ -110,7 +112,7 @@ export function _PlotEventFlag({
           onMouseOut={_onMouseOut}
           onMouseOver={_onMouseOver}
         >
-          <PlotEventOverlayTable plot={plot} range={range} width={plotWidth} />
+          <PlotEventOverlayTable plot={plot} range={range} agg={agg} width={plotWidth} />
         </div>
       </Popper>
     </g>
