@@ -269,6 +269,7 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 			if metricInfo != nil {
 				samplingMetric.MetricWeight = metricInfo.EffectiveWeight
 				samplingMetric.RoundFactors = metricInfo.RoundSampleFactors
+				samplingMetric.NoSampleAgent = metricInfo.NoSampleAgent
 			}
 			metricsMap[accountMetric] = samplingMetric
 			metricsList = append(metricsList, samplingMetric)
@@ -302,20 +303,9 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 	}
 	for i := pos; i < len(metricsList); i++ {
 		samplingMetric := metricsList[i]
-		metric := samplingMetric.MetricID
-		if metric < 0 {
-			// optimization first. below are list of safe metrics which have very few rows so sampling can be avoided
-			if metric == format.BuiltinMetricIDAgentMapping || metric == format.BuiltinMetricIDJournalVersions ||
-				metric == format.BuiltinMetricIDAgentReceivedPacketSize || metric == format.BuiltinMetricIDAgentReceivedBatchSize ||
-				metric == format.BuiltinMetricIDHeartbeatVersion ||
-				metric == format.BuiltinMetricIDHeartbeatArgs || metric == format.BuiltinMetricIDHeartbeatArgs2 ||
-				metric == format.BuiltinMetricIDHeartbeatArgs3 || metric == format.BuiltinMetricIDHeartbeatArgs4 ||
-				metric == format.BuiltinMetricIDAgentDiskCacheErrors || metric == format.BuiltinMetricIDTimingErrors ||
-				metric == format.BuiltinMetricIDUsageMemory || metric == format.BuiltinMetricIDUsageCPU {
-				continue
-			}
+		if samplingMetric.NoSampleAgent {
+			continue
 		}
-
 		sf := float64(samplingMetric.SumSize*remainingWeight) / float64(samplingMetric.MetricWeight*remainingBudget)
 		if samplingMetric.RoundFactors {
 			sf = data_model.RoundSampleFactor(rnd, sf)
@@ -323,7 +313,7 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 				continue
 			}
 		}
-		sampleFactors[metric] = sf
+		sampleFactors[samplingMetric.MetricID] = sf
 		whalesAllowed := int64(0)
 		if samplingMetric.SumSize*remainingWeight > 0 { // should be never but check is cheap
 			whalesAllowed = int64(len(samplingMetric.Items)) * (samplingMetric.MetricWeight * remainingBudget) / (samplingMetric.SumSize * remainingWeight) / 2 // len(items) / sf / 2
