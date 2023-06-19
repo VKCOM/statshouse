@@ -289,7 +289,7 @@ export const statsHouseState: StateCreator<
   appHistory.listen(({ location }) => {
     if (prevLocation.search !== location.search || prevLocation.pathname !== location.pathname) {
       prevLocation = location;
-      if (location.pathname === '/view') {
+      if (location.pathname === '/view' || location.pathname === '/embed') {
         getState().updateParamsByUrl();
       }
     }
