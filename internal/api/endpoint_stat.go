@@ -52,11 +52,11 @@ type endpointStat struct {
 
 func (es *endpointStat) serviceTime(code int) {
 	LogMetric(format.TagValueIDHTTP, es.user, es.metric)
-	es.logEvent(format.BuiltinMetricNameAPIEndpointServiceTime, code)
+	es.logEvent(format.BuiltinMetricNameAPIServiceTime, code)
 }
 
 func (es *endpointStat) responseTime(code int) {
-	es.logEvent(format.BuiltinMetricNameAPIEndpointResponseTime, code)
+	es.logEvent(format.BuiltinMetricNameAPIResponseTime, code)
 }
 
 func (es *endpointStat) logEvent(statName string, code int) {
@@ -64,12 +64,13 @@ func (es *endpointStat) logEvent(statName string, code int) {
 	statshouse.Metric(
 		statName,
 		statshouse.Tags{
-			1: es.endpoint,
-			2: es.metric,
-			3: strconv.Itoa(code),
-			4: es.tokenName,
-			5: es.dataFormat,
-			6: es.method,
+			1: strconv.Itoa(int(format.TagValueIDHTTP)),
+			2: es.dataFormat,
+			3: es.method,
+			4: strconv.Itoa(code),
+			5: es.metric,
+			6: es.tokenName,
+			7: es.endpoint,
 		},
 	).Value(v)
 }
@@ -102,7 +103,7 @@ type rpcMethodStat struct {
 	startTime time.Time
 }
 
-func (ms *rpcMethodStat) serviceTime(ai accessInfo, err error) {
+func (ms *rpcMethodStat) serviceTime(ai accessInfo, meta *format.MetricMetaValue, err error) {
 	var errorCode string
 	switch e := err.(type) {
 	case rpc.Error:
@@ -112,16 +113,21 @@ func (ms *rpcMethodStat) serviceTime(ai accessInfo, err error) {
 	default:
 		errorCode = "-1"
 	}
-	v := time.Since(ms.startTime).Seconds()
-	statshouse.Metric(
-		format.BuiltinMetricNameAPIRPCServiceTime,
-		statshouse.Tags{
-			1: ms.method,
-			2: errorCode,
-			3: getStatTokenName(ai.user),
-			4: srvfunc.HostnameForStatshouse(),
-		},
-	).Value(v)
+	var (
+		v = time.Since(ms.startTime).Seconds()
+		t = statshouse.Tags{
+			1: strconv.Itoa(int(format.TagValueIDRPC)),
+			2: "TL",
+			3: ms.method,
+			4: errorCode,
+			6: getStatTokenName(ai.user),
+			7: srvfunc.HostnameForStatshouse(),
+		}
+	)
+	if meta != nil {
+		t[5] = strconv.Itoa(int(meta.MetricID))
+	}
+	statshouse.Metric(format.BuiltinMetricNameAPIServiceTime, t).Value(v)
 }
 
 func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
