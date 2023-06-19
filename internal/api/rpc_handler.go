@@ -155,7 +155,7 @@ func (h *RPCHandler) GetQueryPoint(ctx context.Context, args tlstatshouseApi.Get
 	)
 
 	defer func(ms *rpcMethodStat) {
-		ms.serviceTime(ai, err)
+		ms.serviceTime(ai, metricMeta, err)
 	}(&rpcMethodStat{args.TLName(), time.Now()})
 
 	metricMeta, ai, err = h.prepareQuery(args.Query.MetricName, args.AccessToken)
@@ -195,13 +195,14 @@ func (h *RPCHandler) GetQueryPoint(ctx context.Context, args tlstatshouseApi.Get
 
 func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery) (tlstatshouseApi.GetQueryResponse, error) {
 	var (
-		ai       accessInfo
-		response tlstatshouseApi.GetQueryResponse
-		err      error
+		ai         accessInfo
+		response   tlstatshouseApi.GetQueryResponse
+		metricMeta *format.MetricMetaValue
+		err        error
 	)
 
 	defer func(ms *rpcMethodStat) {
-		ms.serviceTime(ai, err)
+		ms.serviceTime(ai, metricMeta, err)
 	}(&rpcMethodStat{args.TLName(), time.Now()})
 
 	ai, err = h.parseAccessToken(args.AccessToken)
@@ -210,7 +211,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		return response, err
 	}
 
-	metricMeta, err := h.ah.getMetricMeta(ai, args.Query.MetricName)
+	metricMeta, err = h.ah.getMetricMeta(ai, args.Query.MetricName)
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeUnknownMetric, Description: fmt.Sprintf("can't get metric's meta: %v", err)}
 		return response, err
@@ -281,7 +282,7 @@ func (h *RPCHandler) GetChunk(_ context.Context, args tlstatshouseApi.GetChunk) 
 	)
 
 	defer func(ms *rpcMethodStat) {
-		ms.serviceTime(ai, err)
+		ms.serviceTime(ai, nil, err)
 	}(&rpcMethodStat{args.TLName(), time.Now()})
 
 	ai, err = h.parseAccessToken(args.AccessToken)
@@ -322,7 +323,7 @@ func (h *RPCHandler) ReleaseChunks(_ context.Context, args tlstatshouseApi.Relea
 	)
 
 	defer func(ms *rpcMethodStat) {
-		ms.serviceTime(ai, err)
+		ms.serviceTime(ai, nil, err)
 	}(&rpcMethodStat{args.TLName(), time.Now()})
 
 	ai, err = h.parseAccessToken(args.AccessToken)

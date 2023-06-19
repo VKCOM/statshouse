@@ -1102,6 +1102,9 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "token_name",
 			}, {
 				Description: "host",
+			}, {
+				Description: "metric",
+				IsMetric:    true,
 			}},
 		},
 		BuiltinMetricIDMetaServiceTime: { // TODO - harmonize

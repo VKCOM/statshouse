@@ -99,7 +99,7 @@ type rpcMethodStat struct {
 	startTime time.Time
 }
 
-func (ms *rpcMethodStat) serviceTime(ai accessInfo, err error) {
+func (ms *rpcMethodStat) serviceTime(ai accessInfo, meta *format.MetricMetaValue, err error) {
 	var errorCode string
 	switch e := err.(type) {
 	case rpc.Error:
@@ -109,16 +109,19 @@ func (ms *rpcMethodStat) serviceTime(ai accessInfo, err error) {
 	default:
 		errorCode = "-1"
 	}
-	v := time.Since(ms.startTime).Seconds()
-	statshouse.Metric(
-		format.BuiltinMetricNameAPIRPCServiceTime,
-		statshouse.Tags{
+	var (
+		v = time.Since(ms.startTime).Seconds()
+		t = statshouse.Tags{
 			1: ms.method,
 			2: errorCode,
 			3: getStatTokenName(ai.user),
 			4: srvfunc.HostnameForStatshouse(),
-		},
-	).Value(v)
+		}
+	)
+	if meta != nil {
+		t[5] = strconv.Itoa(int(meta.MetricID))
+	}
+	statshouse.Metric(format.BuiltinMetricNameAPIRPCServiceTime, t).Value(v)
 }
 
 func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
