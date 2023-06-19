@@ -221,6 +221,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		err = rpc.Error{Code: rpcErrorCodeQueryParsingFailed, Description: fmt.Sprintf("can't transform query: %v", err)}
 		return response, err
 	}
+	LogMetric(format.TagValueIDRPC, ai.user, strconv.FormatInt(int64(metricMeta.MetricID), 10))
 
 	res, _, err := h.ah.handleGetQuery(ctx, ai, req, seriesRequestOptions{})
 	if err != nil {
