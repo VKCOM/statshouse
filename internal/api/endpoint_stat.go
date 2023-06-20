@@ -46,10 +46,12 @@ type endpointStat struct {
 	metric     string
 	startTime  time.Time
 	tokenName  string
+	user       string
 	dataFormat string
 }
 
 func (es *endpointStat) serviceTime(code int) {
+	LogMetric(format.TagValueIDHTTP, es.user, es.metric)
 	es.logEvent(format.BuiltinMetricNameAPIEndpointServiceTime, code)
 }
 
@@ -74,6 +76,7 @@ func (es *endpointStat) logEvent(statName string, code int) {
 
 func (es *endpointStat) setTokenName(user string) {
 	es.tokenName = getStatTokenName(user)
+	es.user = user
 }
 
 func getStatTokenName(user string) string {
@@ -201,4 +204,15 @@ func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
 			4: kind,
 		},
 	).Value(float64(chRows))
+}
+
+func LogMetric(type_ int64, user string, metricID string) {
+	statshouse.Metric(
+		format.BuiltinMetricNameAPIMetricUsage,
+		statshouse.Tags{
+			1: strconv.FormatInt(type_, 10),
+			2: user,
+			3: metricID,
+		},
+	).Count(1)
 }

@@ -1134,6 +1134,9 @@ func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, confi
 }
 
 func (h *Handler) handleGetDashboard(ai accessInfo, id int32) (*DashboardInfo, time.Duration, error) {
+	if dash, ok := format.BuiltinDashboardByID[id]; ok {
+		return &DashboardInfo{Dashboard: getDashboardMetaInfo(dash)}, defaultCacheTTL, nil
+	}
 	dash := h.metricsStorage.GetDashboardMeta(id)
 	if dash == nil {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("dashboard %d not found", id))
@@ -1143,6 +1146,9 @@ func (h *Handler) handleGetDashboard(ai accessInfo, id int32) (*DashboardInfo, t
 
 func (h *Handler) handleGetDashboardList(ai accessInfo) (*GetDashboardListResp, time.Duration, error) {
 	dashs := h.metricsStorage.GetDashboardList()
+	for _, meta := range format.BuiltinDashboardByID {
+		dashs = append(dashs, meta)
+	}
 	resp := &GetDashboardListResp{}
 	for _, dash := range dashs {
 		description := ""
@@ -1161,6 +1167,9 @@ func (h *Handler) handleGetDashboardList(ai accessInfo) (*GetDashboardListResp, 
 
 func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash DashboardMetaInfo, create, delete bool) (*DashboardInfo, error) {
 	if !create {
+		if _, ok := format.BuiltinDashboardByID[dash.DashboardID]; ok {
+			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't edit builtin dashboard %d", dash.DashboardID))
+		}
 		if h.metricsStorage.GetDashboardMeta(dash.DashboardID) == nil {
 			return &DashboardInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("dashboard %d not found", dash.DashboardID))
 		}

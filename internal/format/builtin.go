@@ -86,7 +86,10 @@ const (
 	BuiltinMetricIDMetaServiceTime            = -72
 	BuiltinMetricIDMetaClientWaits            = -73
 	BuiltinMetricIDAgentUDPReceiveBufferSize  = -74
-	// [-1000..-1200] reserved by host system metrics
+	BuiltinMetricIDAPIMetricUsage             = -75
+
+	// [-1000..-2000] reserved by host system metrics
+	// [-10000..-12000] reserved by builtin dashboard
 
 	// metric names used in code directly
 	BuiltinMetricNameAggBucketReceiveDelaySec   = "__agg_bucket_receive_delay_sec"
@@ -114,6 +117,7 @@ const (
 	BuiltinMetricNameBudgetUnknownMetric        = "__budget_unknown_metric"
 	BuiltinMetricNameSystemMetricScrapeDuration = "__system_metrics_duration"
 	BuiltinMetricNameAgentUDPReceiveBufferSize  = "__src_udp_receive_buffer_size"
+	BuiltinMetricNameAPIMetricUsage             = "__api_metric_usage"
 
 	TagValueIDBadgeIngestionErrorsOld  = -11 // remove from API, then stop writing
 	TagValueIDBadgeAggMappingErrorsOld = -33 // remove from API, then stop writing
@@ -285,6 +289,9 @@ const (
 	TagValueIDSystemMetricMemory = 3
 	TagValueIDSystemMetricNet    = 4
 	TagValueIDSystemMetricPSI    = 5
+
+	TagValueIDRPC  = 1
+	TagValueIDHTTP = 2
 )
 
 var (
@@ -1393,6 +1400,28 @@ Value is delta between second value and time it was inserted.`,
 				}),
 			}},
 		},
+		BuiltinMetricIDAPIMetricUsage: {
+			Name:        BuiltinMetricNameAPIMetricUsage,
+			Resolution:  60,
+			Kind:        MetricKindCounter,
+			Description: "Metric usage",
+			Tags: []MetricMetaTag{
+				{
+					Description: "type",
+					ValueComments: convertToValueComments(map[int32]string{
+						TagValueIDRPC:  "RPC",
+						TagValueIDHTTP: "http",
+					}),
+				},
+				{
+					Description: "user",
+				},
+				{
+					Description: "metric",
+					IsMetric:    true,
+				},
+			},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -1418,6 +1447,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
 		BuiltinMetricIDMetaServiceTime:            true,
 		BuiltinMetricIDMetaClientWaits:            true,
+		BuiltinMetricIDAPIMetricUsage:             true,
 	}
 
 	MetricsWithAgentEnvRouteArch = map[int32]bool{
@@ -1474,6 +1504,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDBudgetAggregatorHost:       true,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
 		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
+		BuiltinMetricIDAPIMetricUsage:             true,
 	}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue
