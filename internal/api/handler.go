@@ -31,6 +31,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/prometheus/prometheus/model/labels"
+
 	"github.com/vkcom/statshouse-go"
 
 	"github.com/ClickHouse/ch-go"

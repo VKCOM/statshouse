@@ -18,10 +18,6 @@ import (
 	"pgregory.net/rapid"
 )
 
-var (
-	_ *packetConnMachine // for staticcheck: type packetConnMachine is unused (U1000)
-)
-
 const (
 	rwTimeout = 1000 * time.Millisecond // shorter timeout is better for shrinking, but can lead to flaky tests
 )
@@ -75,7 +71,7 @@ func (p *packetConnMachine) init(t *rapid.T) {
 	}
 }
 
-func (p *packetConnMachine) Cleanup() {
+func (p *packetConnMachine) cleanup() {
 	_ = p.c1.pc.Close()
 	_ = p.c2.pc.Close()
 }
@@ -156,9 +152,11 @@ func send(t *rapid.T, from *connEx, to *connEx) {
 
 func TestPacketConn(t *testing.T) {
 	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
-		m := packetConnMachine{}
+		var m packetConnMachine
 		m.init(t)
+		defer m.cleanup()
 		t.Repeat(rapid.StateMachineActions(&m))
 	})
 }

@@ -31,7 +31,7 @@ func ParseTrustedSubnets(groups [][]string) (trustedSubnetGroups [][]*net.IPNet,
 	return trustedSubnetGroups, errs
 }
 
-func (pc *PacketConn) HandshakeClient(cryptoKey string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, startTime int32, flags uint32, handshakeStepTimeout time.Duration) error {
+func (pc *PacketConn) HandshakeClient(cryptoKey string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, startTime uint32, flags uint32, handshakeStepTimeout time.Duration) error {
 	body, keys, err := pc.nonceExchangeClient(nil, cryptoKey, trustedSubnetGroups, forceEncryption, handshakeStepTimeout)
 	if err != nil {
 		return fmt.Errorf("nonce exchange failed: %w", err)
@@ -59,7 +59,7 @@ func (pc *PacketConn) HandshakeClient(cryptoKey string, trustedSubnetGroups [][]
 	return nil
 }
 
-func (pc *PacketConn) HandshakeServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, startTime int32, handshakeStepTimeout time.Duration) ([]byte, uint32, error) {
+func (pc *PacketConn) HandshakeServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, startTime uint32, handshakeStepTimeout time.Duration) ([]byte, uint32, error) {
 	magicHead, keys, body, err := pc.nonceExchangeServer(nil, cryptoKeys, trustedSubnetGroups, forceEncryption, handshakeStepTimeout)
 	if err != nil {
 		return magicHead, 0, fmt.Errorf("nonce exchange failed: %w", err)
@@ -241,7 +241,7 @@ func (pc *PacketConn) deriveKeysServer(cryptoKey string, clientTime int32, clien
 		serverNonce, serverIP, serverPort)
 }
 
-func (pc *PacketConn) handshakeExchangeClient(body []byte, startTime int32, flags uint32, handshakeStepTimeout time.Duration) ([]byte, *handshakeMsg, error) {
+func (pc *PacketConn) handshakeExchangeClient(body []byte, startTime uint32, flags uint32, handshakeStepTimeout time.Duration) ([]byte, *handshakeMsg, error) {
 	client := prepareHandshakeClient(pc.conn.LocalAddr(), startTime, flags)
 
 	body = client.writeTo(body[:0])
@@ -267,7 +267,7 @@ func (pc *PacketConn) handshakeExchangeClient(body []byte, startTime int32, flag
 	}, nil
 }
 
-func (pc *PacketConn) handshakeExchangeServer(body []byte, startTime int32, handshakeStepTimeout time.Duration) (*handshakeMsg, []byte, error) {
+func (pc *PacketConn) handshakeExchangeServer(body []byte, startTime uint32, handshakeStepTimeout time.Duration) (*handshakeMsg, []byte, error) {
 	reqType, body, err := pc.ReadPacket(body, handshakeStepTimeout)
 	if err != nil {
 		return nil, body, err
@@ -289,20 +289,20 @@ func (pc *PacketConn) handshakeExchangeServer(body []byte, startTime int32, hand
 	return &client, body, nil
 }
 
-func prepareHandshakeClient(localAddr net.Addr, startTime int32, flags uint32) handshakeMsg {
+func prepareHandshakeClient(localAddr net.Addr, startTime uint32, flags uint32) handshakeMsg {
 	ip, _ := extractIPPort(localAddr) // ignore port as client
 
 	return handshakeMsg{
 		Flags: flags | flagCRC32C | flagCancelReq,
 		SenderPID: NetPID{
-			IP:   ip,
-			PID:  processID,
-			Time: startTime,
+			Ip:      ip,
+			PortPid: asPortPid(0, processID),
+			Utime:   startTime,
 		},
 	}
 }
 
-func prepareHandshakeServer(client handshakeMsg, localAddr net.Addr, startTime int32) handshakeMsg {
+func prepareHandshakeServer(client handshakeMsg, localAddr net.Addr, startTime uint32) handshakeMsg {
 	flags := uint32(0)
 	if client.Flags&flagCRC32C != 0 {
 		flags |= flagCRC32C
@@ -318,13 +318,12 @@ func prepareHandshakeServer(client handshakeMsg, localAddr net.Addr, startTime i
 	}
 }
 
-func prepareHandshakePIDServer(localAddr net.Addr, startTime int32) NetPID {
+func prepareHandshakePIDServer(localAddr net.Addr, startTime uint32) NetPID {
 	ip, port := extractIPPort(localAddr)
 
 	return NetPID{
-		IP:   ip,
-		Port: port,
-		PID:  processID,
-		Time: startTime,
+		Ip:      ip,
+		PortPid: asPortPid(port, processID),
+		Utime:   startTime,
 	}
 }
