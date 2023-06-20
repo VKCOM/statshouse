@@ -58,25 +58,28 @@ func getOpenGraphInfo(r *http.Request, origPath string) (*openGraphInfo, error) 
 		}
 
 		var (
-			paramVersion     = p + ParamVersion
-			paramNumResults  = p + ParamNumResults
-			paramQueryBy     = p + ParamQueryBy
-			paramQueryFilter = p + ParamQueryFilter
-			paramTimeShift   = p + ParamTimeShift
-			paramWidthAgg    = p + ParamWidthAgg
-			paramWidth       = p + ParamWidth
-			paramQueryWhat   = p + ParamQueryWhat
-			paramPromQuery   = p + paramPromQuery
+			paramVersion       = p + ParamVersion
+			paramNumResults    = p + ParamNumResults
+			paramQueryBy       = p + ParamQueryBy
+			paramQueryFilter   = p + ParamQueryFilter
+			paramTimeShift     = p + ParamTimeShift
+			paramWidthAgg      = p + ParamWidthAgg
+			paramWidth         = p + ParamWidth
+			paramQueryWhat     = p + ParamQueryWhat
+			paramPromQuery     = p + paramPromQuery
+			paramNoStrictRange = p + paramNoStrictRange
 		)
 
 		// Build query
 		v.Set(paramMetric, metric)
 		v.Set(paramVersion, value(r, paramVersion, "2"))
 		v.Set(paramNumResults, value(r, paramNumResults, "5"))
+		v.Set(paramNoStrictRange, "") // always add nsr to be consistent with web
 		v[paramQueryBy] = r.Form[paramQueryBy]
 		v[paramQueryFilter] = r.Form[paramQueryFilter]
 		v[paramTimeShift] = r.Form[paramTimeShift]
 		v[paramPromQuery] = r.Form[paramPromQuery]
+
 		//-- width
 		widthAgg := r.FormValue(paramWidthAgg)
 		if widthAgg != "" {

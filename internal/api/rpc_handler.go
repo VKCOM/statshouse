@@ -387,6 +387,7 @@ func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (req 
 		filterIn:            filterIn,
 		filterNotIn:         filterNotIn,
 		promQL:              q.Promql,
+		noStrictRange:       false, // TODO add rpc flag
 	}
 	return req, nil
 }

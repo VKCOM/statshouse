@@ -79,25 +79,26 @@ const (
 	ParamMetric     = "s"
 	ParamID         = "id"
 
-	ParamTagID        = "k"
-	ParamFromTime     = "f"
-	ParamToTime       = "t"
-	ParamWidth        = "w"
-	ParamWidthAgg     = "g" // supported only for better compatibility between UI and API URLs
-	ParamTimeShift    = "ts"
-	ParamQueryWhat    = "qw"
-	ParamQueryBy      = "qb"
-	ParamQueryFilter  = "qf"
-	ParamQueryVerbose = "qv"
-	ParamAvoidCache   = "ac"
-	paramRenderWidth  = "rw"
-	paramDataFormat   = "df"
-	paramTabNumber    = "tn"
-	paramMaxHost      = "mh"
-	paramFromRow      = "fr"
-	paramToRow        = "tr"
-	paramPromQuery    = "q"
-	paramFromEnd      = "fe"
+	ParamTagID         = "k"
+	ParamFromTime      = "f"
+	ParamToTime        = "t"
+	ParamWidth         = "w"
+	ParamWidthAgg      = "g" // supported only for better compatibility between UI and API URLs
+	ParamTimeShift     = "ts"
+	ParamQueryWhat     = "qw"
+	ParamQueryBy       = "qb"
+	ParamQueryFilter   = "qf"
+	ParamQueryVerbose  = "qv"
+	ParamAvoidCache    = "ac"
+	paramRenderWidth   = "rw"
+	paramDataFormat    = "df"
+	paramTabNumber     = "tn"
+	paramMaxHost       = "mh"
+	paramFromRow       = "fr"
+	paramToRow         = "tr"
+	paramPromQuery     = "q"
+	paramFromEnd       = "fe"
+	paramNoStrictRange = "nsr" // if set add extra right point
 
 	Version1       = "1"
 	Version2       = "2"
@@ -253,6 +254,7 @@ type (
 		to                  string
 		what                string
 		filter              []string
+		noStrictRange       bool
 	}
 
 	//easyjson:json
@@ -283,6 +285,7 @@ type (
 		maxHost             bool
 		avoidCache          bool
 		verbose             bool
+		noStrictRange       bool
 
 		// get table fields
 		fromEnd bool
@@ -1303,6 +1306,7 @@ func (h *Handler) HandleGetMetricTagValues(w http.ResponseWriter, r *http.Reques
 	defer cancel()
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
+	_, noStrictRange := r.Form[paramNoStrictRange]
 	resp, immutable, err := h.handleGetMetricTagValues(
 		ctx,
 		getMetricTagValuesReq{
@@ -1315,6 +1319,7 @@ func (h *Handler) HandleGetMetricTagValues(w http.ResponseWriter, r *http.Reques
 			to:                  r.FormValue(ParamToTime),
 			what:                r.FormValue(ParamQueryWhat),
 			filter:              r.Form[ParamQueryFilter],
+			noStrictRange:       noStrictRange,
 		})
 
 	cache, cacheStale := queryClientCacheDuration(immutable)
@@ -1418,6 +1423,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		from.Unix(),
 		to.Unix(),
 		h.utcOffset,
+		req.noStrictRange,
 		h.location,
 	)
 	pq := &preparedTagValuesQuery{
@@ -1542,6 +1548,7 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, fromEnd := r.Form[paramFromEnd]
+	_, noStrictRange := r.Form[paramNoStrictRange]
 	var limit int64 = maxTableRowsPage
 	if limitStr := r.FormValue(ParamNumResults); limitStr != "" {
 		limit, err = strconv.ParseInt(limitStr, 10, 64)
@@ -1571,6 +1578,7 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 			toRow:               toRow,
 			fromEnd:             fromEnd,
 			limit:               int(limit),
+			noStrictRange:       noStrictRange,
 		},
 		seriesRequestOptions{
 			debugQueries: true,
@@ -1870,8 +1878,9 @@ func (h *Handler) getSeriesRequest(r *http.Request) (seriesRequest, error) {
 		return seriesRequest{}, err
 	}
 	var (
-		_, avoidCache = r.Form[ParamAvoidCache]
-		_, maxHost    = r.Form[paramMaxHost]
+		_, avoidCache    = r.Form[ParamAvoidCache]
+		_, maxHost       = r.Form[paramMaxHost]
+		_, noStrictRange = r.Form[paramNoStrictRange]
 	)
 	return seriesRequest{
 		avoidCache:          avoidCache,
@@ -1890,6 +1899,7 @@ func (h *Handler) getSeriesRequest(r *http.Request) (seriesRequest, error) {
 		what:                r.Form[ParamQueryWhat],
 		width:               r.FormValue(ParamWidth),
 		widthAgg:            r.FormValue(ParamWidthAgg),
+		noStrictRange:       noStrictRange,
 	}, nil
 }
 
@@ -1907,6 +1917,7 @@ func (h *Handler) queryBadges(ctx context.Context, ai accessInfo, req seriesRequ
 			what:                []string{ParamQueryFnCount, ParamQueryFnAvg},
 			by:                  []string{"key1", "key2"},
 			filterIn:            map[string][]string{"key2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
+			noStrictRange:       req.noStrictRange,
 		},
 		seriesRequestOptions{})
 }
@@ -1926,6 +1937,7 @@ func (h *Handler) queryBadgesPromQL(ctx context.Context, ai accessInfo, req seri
 			what:                []string{ParamQueryFnCount, ParamQueryFnAvg},
 			by:                  []string{"key1", "key2"},
 			filterIn:            map[string][]string{"key2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
+			noStrictRange:       req.noStrictRange,
 		},
 		seriesRequestOptions{debugQueries: true})
 }
@@ -1971,6 +1983,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 		options    = promql.Options{
 			Version:             req.version,
 			AvoidCache:          req.avoidCache,
+			NoStrictRange:       req.noStrictRange,
 			TimeNow:             opt.timeNow.Unix(),
 			ExpandToLODBoundary: true,
 			TagOffset:           true,
@@ -2166,6 +2179,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 		h.utcOffset,
 		width,
 		widthKind,
+		req.noStrictRange,
 		h.location,
 	)
 
@@ -2427,6 +2441,7 @@ func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, avoidCache := r.Form[ParamAvoidCache]
+	_, noStrictRange := r.Form[paramNoStrictRange]
 	if avoidCache && !ai.isAdmin() {
 		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
 	}
@@ -2454,6 +2469,7 @@ func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
 			filterNotIn:         filterNotIn,
 			avoidCache:          avoidCache,
 			maxHost:             maxHost,
+			noStrictRange:       noStrictRange,
 		})
 
 	switch {
@@ -2569,6 +2585,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 			shiftTimestamp(from.Unix(), -1, toSec(oldestShift), h.location),
 			shiftTimestamp(to.Unix(), -1, toSec(oldestShift), h.location),
 			h.utcOffset,
+			req.noStrictRange,
 			h.location,
 		)
 
@@ -2720,6 +2737,8 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		_, noStrictRange := r.Form[paramNoStrictRange]
+
 		var (
 			paramVersion    = p + ParamVersion
 			paramNumResults = p + ParamNumResults
@@ -2744,6 +2763,7 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 			filterIn:            filterIn,
 			filterNotIn:         filterNotIn,
 			promQL:              r.FormValue(paramPromQuery),
+			noStrictRange:       noStrictRange,
 		})
 	}
 
@@ -2980,6 +3000,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 		h.utcOffset,
 		width,
 		widthKind,
+		req.noStrictRange,
 		h.location,
 	)
 	desiredStepMul := int64(1)

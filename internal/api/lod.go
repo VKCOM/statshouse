@@ -176,7 +176,7 @@ func roundTime(t int64, step int64, utcOffset int64) int64 {
 }
 
 // resulting range covers every point in input range (which we assume has 1-second step), but is properly aligned
-func roundRange(start int64, end int64, step int64, utcOffset int64, location *time.Location) (int64, int64) {
+func roundRange(start int64, end int64, step int64, utcOffset int64, noStrictRange bool, location *time.Location) (int64, int64) {
 	if step == _1M {
 		startTime := time.Unix(start, 0).In(location)
 		endTime := time.Unix(end, 0).In(location)
@@ -198,8 +198,16 @@ func roundRange(start int64, end int64, step int64, utcOffset int64, location *t
 	rStart := roundTime(start, step, utcOffset)
 	rEnd := roundTime(end, step, utcOffset)
 	if end != start {
-		for rEnd-step < end-1 {
-			rEnd += step
+		if noStrictRange {
+			for rEnd-step < end-1 {
+				rEnd += step
+			}
+		} else {
+			if rEnd != end {
+				for rEnd < end {
+					rEnd += step
+				}
+			}
 		}
 	}
 	return rStart, rEnd
@@ -334,11 +342,11 @@ func shiftTimestamp(timestamp, stepSec, shift int64, location *time.Location) in
 	return timestamp + shift
 }
 
-func selectTagValueLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, location *time.Location) []lodInfo {
-	return selectQueryLODs(version, preKeyFrom, preKeyOnly, resolution, isUnique, isStringTop, now, from, to, utcOffset, 100, widthAutoRes, location) // really dumb
+func selectTagValueLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, noStrictRange bool, location *time.Location) []lodInfo {
+	return selectQueryLODs(version, preKeyFrom, preKeyOnly, resolution, isUnique, isStringTop, now, from, to, utcOffset, 100, widthAutoRes, noStrictRange, location) // really dumb
 }
 
-func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, width int, widthKind int, location *time.Location) []lodInfo {
+func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, width int, widthKind int, noStrictRange bool, location *time.Location) []lodInfo {
 	var ret []lodInfo
 	pps := float64(width) / float64(to-from+1)
 	lodFrom := from
@@ -355,9 +363,9 @@ func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resoluti
 		var lod lodInfo
 		switch widthKind {
 		case widthAutoRes:
-			lod = selectQueryLOD(s, lodFrom, lodTo, int64(resolution), utcOffset, location, pps)
+			lod = selectQueryLOD(s, lodFrom, lodTo, int64(resolution), utcOffset, noStrictRange, location, pps)
 		default:
-			lod = selectLastQueryLOD(s, lodFrom, lodTo, int64(width), utcOffset, location)
+			lod = selectLastQueryLOD(s, lodFrom, lodTo, int64(width), utcOffset, noStrictRange, location)
 		}
 		ret = append(ret, lod)
 		if lodTo == to || lod.toSec >= to {
@@ -384,17 +392,17 @@ func mergeLODs(lods []lodInfo) []lodInfo {
 	return ret
 }
 
-func selectLastQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset int64, location *time.Location) lodInfo {
+func selectLastQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset int64, noStrictRange bool, location *time.Location) lodInfo {
 	lodLevel := s.levels[0]
 	for _, stepSec := range s.levels {
-		fromSec, toSec := roundRange(from, to, stepSec, utcOffset, location)
+		fromSec, toSec := roundRange(from, to, stepSec, utcOffset, noStrictRange, location)
 		n := (toSec - fromSec) / stepSec
 		if stepSec < minStep || n > maxPoints {
 			break
 		}
 		lodLevel = stepSec
 	}
-	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, location)
+	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, noStrictRange, location)
 	return lodInfo{
 		fromSec:    fromSec,
 		toSec:      toSec,
@@ -406,11 +414,11 @@ func selectLastQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOff
 	}
 }
 
-func selectQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset int64, location *time.Location, pps float64) lodInfo {
+func selectQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset int64, noStrictRange bool, location *time.Location, pps float64) lodInfo {
 	lodLevel := s.levels[0]
 	points := int64(math.Ceil(pps * float64(to-from)))
 	for _, stepSec := range s.levels {
-		fromSec, toSec := roundRange(from, to, stepSec, utcOffset, location)
+		fromSec, toSec := roundRange(from, to, stepSec, utcOffset, noStrictRange, location)
 		n := (toSec - fromSec) / stepSec
 		if stepSec < minStep || n > maxPoints {
 			break
@@ -420,7 +428,7 @@ func selectQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset 
 			break
 		}
 	}
-	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, location)
+	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, noStrictRange, location)
 	return lodInfo{
 		fromSec:    fromSec,
 		toSec:      toSec,

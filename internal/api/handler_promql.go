@@ -319,6 +319,7 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 			h.utcOffset,
 			int(qry.Step),
 			widthKind,
+			qry.Options.NoStrictRange,
 			h.location)
 	}
 	type timescale struct {
@@ -536,6 +537,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 			shiftTimestamp(fl.Start, fl.Step, qry.Offset, h.location),
 			shiftTimestamp(ll.End, ll.Step, qry.Offset, h.location),
 			h.utcOffset,
+			qry.Options.NoStrictRange,
 			h.location,
 		)
 		pq = &preparedTagValuesQuery{
@@ -594,6 +596,7 @@ func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery
 			shiftTimestamp(fl.Start, fl.Step, qry.Offset, h.location),
 			shiftTimestamp(ll.End, ll.Step, qry.Offset, h.location),
 			h.utcOffset,
+			qry.Options.NoStrictRange,
 			h.location,
 		)
 		pq = &preparedTagValuesQuery{

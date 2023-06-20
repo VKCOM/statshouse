@@ -47,6 +47,7 @@ type Query struct {
 type Options struct {
 	Version             string
 	AvoidCache          bool
+	NoStrictRange       bool
 	TimeNow             int64
 	StepAuto            bool
 	ExpandToLODBoundary bool

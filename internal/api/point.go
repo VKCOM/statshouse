@@ -16,10 +16,10 @@ func (pq pointQuery) isFast() bool {
 	return pq.fromSec+fastQueryTimeInterval >= pq.toSec
 }
 
-func selectQueryPoint(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, location *time.Location) *pointQuery {
+func selectQueryPoint(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, noStrictRange bool, location *time.Location) *pointQuery {
 	var lods []lodInfo
-	lods = selectQueryLODs(version, preKeyFrom, preKeyOnly, resolution, isUnique, isStringTop, now, from, to, utcOffset, resolution, widthLODRes, location)
-	lods = mergeForPointQuery(mergeLODs(lods), utcOffset, location)
+	lods = selectQueryLODs(version, preKeyFrom, preKeyOnly, resolution, isUnique, isStringTop, now, from, to, utcOffset, resolution, widthLODRes, noStrictRange, location)
+	lods = mergeForPointQuery(mergeLODs(lods), utcOffset, noStrictRange, location)
 	if len(lods) == 0 {
 		return nil
 	}
@@ -33,7 +33,7 @@ func selectQueryPoint(version string, preKeyFrom int64, preKeyOnly bool, resolut
 	}
 }
 
-func mergeForPointQuery(lods []lodInfo, utcOffset int64, location *time.Location) []lodInfo {
+func mergeForPointQuery(lods []lodInfo, utcOffset int64, noStrictRange bool, location *time.Location) []lodInfo {
 	if len(lods) <= 1 {
 		return lods
 	}
@@ -45,7 +45,7 @@ func mergeForPointQuery(lods []lodInfo, utcOffset int64, location *time.Location
 		hasPreKey = hasPreKey && lod.hasPreKey
 		to = lod.toSec
 	}
-	fromSec, toSec := roundRange(from, to, lods[0].stepSec, utcOffset, location)
+	fromSec, toSec := roundRange(from, to, lods[0].stepSec, utcOffset, noStrictRange, location)
 	lods = lods[:1]
 	lods[0].hasPreKey = hasPreKey
 	lods[0].preKeyOnly = preKeyOnly
