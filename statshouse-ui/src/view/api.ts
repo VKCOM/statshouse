@@ -469,7 +469,7 @@ export const queryDashboardGroupInfoName = 't';
 export const queryDashboardGroupInfoShow = 'v';
 export const queryDashboardGroupInfoCount = 'n';
 export const queryDashboardGroupInfoSize = 's';
-export const queryNoStrictRange = 'nsp';
+export const queryNoStrictRange = 'nsr';
 
 export const queryValueBackendVersion1 = '1';
 export const queryValueBackendVersion2 = '2';

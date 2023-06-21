@@ -45,7 +45,7 @@ export enum GetParams {
   dashboardGroupInfoSize = 's',
   metricLive = 'live',
   avoidCache = 'ac',
-  queryNoStrictRange = 'nsp',
+  queryNoStrictRange = 'nsr',
 }
 
 export enum metricValueBackendVersion {
