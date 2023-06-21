@@ -9,6 +9,8 @@ package rpc
 import (
 	"fmt"
 	"time"
+
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/constants"
 )
 
 const (
@@ -18,22 +20,30 @@ const (
 
 	packetTypeRPCNonce          = uint32(0x7acb87aa)
 	packetTypeRPCHandshake      = uint32(0x7682eef5)
-	packetTypeRPCInvokeReq      = uint32(0x2374df3d)
-	packetTypeRPCReqResult      = uint32(0x63aeda4e)
-	packetTypeRPCReqError       = uint32(0x7ae432f5)
-	packetTypeRPCCancelReq      = uint32(0x193f1b22)
-	packetTypeRPCServerWantsFin = uint32(0xa8ddbc46)
+	packetTypeRPCInvokeReq      = constants.RpcInvokeReqHeader
+	packetTypeRPCReqResult      = constants.RpcReqResultHeader
+	packetTypeRPCReqError       = constants.RpcReqResultError
+	packetTypeRPCCancelReq      = constants.RpcCancelReq
+	packetTypeRPCServerWantsFin = constants.RpcServerWantsFin
 
-	destActorTag      = uint32(0x7568aabd) // copy of vktl.MagicTlRpcDestActor
-	destFlagsTag      = uint32(0xe352035e) // copy of vktl.MagicTlRpcDestFlags
-	destActorFlagsTag = uint32(0xf0a5acf7) // copy of vktl.MagicTlRpcDestActorFlags
+	PacketTypeRPCPing = constants.RpcPing
+	PacketTypeRPCPong = constants.RpcPong
+	// contains 8 byte payload
+	// client sends PacketTypeRPCPing periodically, with pingID (int64) it increments
+	// server respond with the same payload
 
-	reqResultHeaderTag       = uint32(0x8cc84ce1) // copy of  vktl.MagicTlReqResultHeader
+	destActorTag      = constants.RpcDestActor
+	destFlagsTag      = constants.RpcDestFlags
+	destActorFlagsTag = constants.RpcDestActorFlags
+
+	reqResultHeaderTag       = constants.ReqResultHeader
 	reqResultErrorTag        = packetTypeRPCReqError
 	reqResultErrorWrappedTag = packetTypeRPCReqError + 1 // RPC_REQ_ERROR_WRAPPED
+	reqErrorTag              = constants.ReqError
 
 	enginePIDTag          = uint32(0x559d6e36) // copy of vktl.MagicTlEnginePid
 	engineStatTag         = uint32(0xefb3c36b) // copy of vktl.MagicTlEngineStat
+	engineFilteredStatTag = uint32(0x594870d6)
 	engineVersionTag      = uint32(0x1a2e06fa) // copy of vktl.MagicTlEngineVersion
 	engineSetVerbosityTag = uint32(0x9d980926) // copy of vktl.MagicTlEngineSetVerbosity
 	goPProfTag            = uint32(0xea2876a6) // copy of vktl.MagicTlGoPprof

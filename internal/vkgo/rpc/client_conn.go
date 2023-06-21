@@ -525,13 +525,13 @@ func writeRequestUnlocked(conn *PacketConn, req *Request, deadline time.Time, wr
 	}
 	headerBuf := basictl.LongWrite(conn.headerWriteBuf, req.queryID) // move to local var, then back for speed
 	switch {
-	case req.ActorID != 0 && req.Extra.flags != 0:
+	case req.ActorID != 0 && req.Extra.Flags != 0:
 		headerBuf = basictl.NatWrite(headerBuf, destActorFlagsTag)
 		headerBuf = basictl.LongWrite(headerBuf, int64(req.ActorID))
 		if headerBuf, err = req.Extra.Write(headerBuf); err != nil {
 			return fmt.Errorf("failed to write extra: %w", err)
 		}
-	case req.Extra.flags != 0:
+	case req.Extra.Flags != 0:
 		headerBuf = basictl.NatWrite(headerBuf, destFlagsTag)
 		if headerBuf, err = req.Extra.Write(headerBuf); err != nil {
 			return fmt.Errorf("failed to write extra: %w", err)

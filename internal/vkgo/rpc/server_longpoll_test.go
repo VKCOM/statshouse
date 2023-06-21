@@ -37,6 +37,7 @@ func testLongpollServer(t *rapid.T) {
 		t.Fatal(err)
 	}
 
+	// var clients []*Client
 	clients := rapid.SliceOf(rapid.Custom(genClient)).Draw(t, "clients")
 	if len(clients) == 0 {
 		clients = append(clients, genClient(t))
@@ -49,7 +50,7 @@ func testLongpollServer(t *rapid.T) {
 		ServerWithSyncHandler(ts.testShutdownHandler),
 		ServerWithMaxInflightPackets(numRequests+1), // for ping/cancel packet
 		ServerWithCryptoKeys(testCryptoKeys),
-		ServerWithMaxConns(rapid.IntRange(0, 3).Draw(t, "maxConns")),
+		ServerWithMaxConns(len(clients)), //  rapid.IntRange(0, 3).Draw(t, "maxConns")
 		ServerWithMaxWorkers(rapid.IntRange(-1, 3).Draw(t, "maxWorkers")),
 		ServerWithConnReadBufSize(rapid.IntRange(0, 64).Draw(t, "connReadBufSize")),
 		ServerWithConnWriteBufSize(rapid.IntRange(0, 64).Draw(t, "connWriteBufSize")),

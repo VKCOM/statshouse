@@ -18,13 +18,12 @@ import (
 func TestNetPIDRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		pid1 := NetPID{
-			IP:   rapid.Uint32().Draw(t, "ip"),
-			Port: rapid.Uint16().Draw(t, "port"),
-			PID:  rapid.Uint16().Draw(t, "pid"),
-			Time: rapid.Int32().Draw(t, "time"),
+			Ip:      rapid.Uint32().Draw(t, "ip"),
+			PortPid: rapid.Uint32().Draw(t, "portPid"),
+			Utime:   rapid.Uint32().Draw(t, "time"),
 		}
 
-		b1 := pid1.write(nil)
+		b1, _ := pid1.Write(nil)
 
 		var b2 bytes.Buffer
 		err := binary.Write(&b2, binary.LittleEndian, pid1)
@@ -36,7 +35,7 @@ func TestNetPIDRoundtrip(t *testing.T) {
 		}
 
 		var pid2 NetPID
-		_, err = pid2.read(b1)
+		_, err = pid2.Read(b1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -80,10 +79,10 @@ func TestInvokeExtraRoundtrip(t *testing.T) {
 			extra1.SetRandomDelay(rapid.Float64().Draw(t, "RandomDelay"))
 		}
 		if rapid.Bool().Draw(t, "ReturnBinlogPos") {
-			extra1.SetReturnBinlogPos()
+			extra1.SetReturnBinlogPos(true)
 		}
 		if rapid.Bool().Draw(t, "NoResult") {
-			extra1.SetNoResult()
+			extra1.SetNoResult(true)
 		}
 
 		b1, _ := extra1.Write(nil)
@@ -101,10 +100,9 @@ func TestInvokeExtraRoundtrip(t *testing.T) {
 func TestResultExtraRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		pid1 := NetPID{
-			IP:   rapid.Uint32().Draw(t, "ip"),
-			Port: rapid.Uint16().Draw(t, "port"),
-			PID:  rapid.Uint16().Draw(t, "pid"),
-			Time: rapid.Int32().Draw(t, "time"),
+			Ip:      rapid.Uint32().Draw(t, "ip"),
+			PortPid: rapid.Uint32().Draw(t, "portPid"),
+			Utime:   rapid.Uint32().Draw(t, "time"),
 		}
 
 		extra1 := ReqResultExtra{}
@@ -115,7 +113,7 @@ func TestResultExtraRoundtrip(t *testing.T) {
 			extra1.SetBinlogTime(rapid.Int64().Draw(t, "BinlogTime"))
 		}
 		if rapid.Bool().Draw(t, "EnginePID") {
-			extra1.SetEnginePID(pid1)
+			extra1.SetEnginePid(pid1)
 		}
 		if rapid.Bool().Draw(t, "SetRequestSize") {
 			extra1.SetRequestSize(rapid.Int32().Draw(t, "SetRequestSize"))
@@ -132,7 +130,13 @@ func TestResultExtraRoundtrip(t *testing.T) {
 		if rapid.Bool().Draw(t, "SetStats") {
 			extra1.SetStats(rapid.MapOfN(rapid.String(), rapid.String(), 0, 2).Draw(t, "SetStats"))
 			if len(extra1.Stats) == 0 {
-				extra1.Stats = map[string]string{}
+				extra1.Stats = nil // canonical form
+			}
+		}
+		if rapid.Bool().Draw(t, "SetViewNumber") {
+			extra1.SetViewNumber(rapid.Int64Min(0).Draw(t, "SetViewNumber"))
+			if rapid.Bool().Draw(t, "SetEpochNumber") {
+				extra1.EpochNumber = rapid.Int64Min(0).Draw(t, "SetEpochNumber")
 			}
 		}
 

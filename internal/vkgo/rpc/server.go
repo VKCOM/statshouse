@@ -140,7 +140,9 @@ func NewServer(options ...ServerOptionsFunc) *Server {
 	s.opts.noopHooks()
 
 	s.workerPool = workerPoolNew(s.opts.MaxWorkers, func() {
-		s.rareLog(&s.lastWorkerWaitLog, "rpc: waiting to acquire worker; consider increasing Server.MaxWorkers")
+		if s.opts.MaxWorkers == DefaultMaxWorkers {
+			s.rareLog(&s.lastWorkerWaitLog, "rpc: waiting to acquire worker; consider increasing Server.MaxWorkers")
+		}
 	})
 
 	s.closeCtx, s.cancelCloseCtx = context.WithCancel(context.Background())
@@ -187,7 +189,7 @@ type Server struct {
 	reqBufPool     sync.Pool
 	respBufPool    sync.Pool
 
-	startTime int32
+	startTime uint32
 
 	rareLogMu             sync.Mutex
 	lastReqMemWaitLog     time.Time
@@ -196,6 +198,18 @@ type Server struct {
 	lastWorkerWaitLog     time.Time
 	lastDuplicateExtraLog time.Time
 	lastHijackWarningLog  time.Time
+
+	tracingMu  sync.Mutex
+	tracingLog []string
+}
+
+func (s *Server) addTrace(str string) {
+	if !debugTrace {
+		return
+	}
+	s.tracingMu.Lock()
+	defer s.tracingMu.Unlock()
+	s.tracingLog = append(s.tracingLog, str)
 }
 
 func (s *Server) RegisterHandlerFunc(h HandlerFunc) {
@@ -382,33 +396,33 @@ func (s *Server) acquireResponseBuf(ctx context.Context) (*[]byte, int, error) {
 
 func (s *Server) accountResponseMem(ctx context.Context, taken int, respBodySizeEstimate int, force bool) (int, error) {
 	need := s.responseBufTake(respBodySizeEstimate)
-	if need > taken {
-		want := int64(need - taken)
-		var ok bool
-		if force {
-			s.respMemSem.ForceAcquire(want)
-			ok = true
-		} else {
-			ok = s.respMemSem.TryAcquire(want)
-		}
-		if !ok {
-			cur, size := s.respMemSem.Observe()
-			s.rareLog(&s.lastRespMemWaitLog,
-				"rpc: waiting to acquire response memory (want %d, mem %s, limit %s, %d conns, %d reqs); consider increasing Server.ResponseMemoryLimit",
-				want,
-				humanByteCountIEC(cur),
-				humanByteCountIEC(size),
-				s.statConnectionsCurrent.Load(),
-				s.statRequestsCurrent.Load(),
-			)
-			err := s.respMemSem.Acquire(ctx, want)
-			if err != nil {
-				return taken, err
-			}
-		}
-	} else {
+	if need == taken {
+		return need, nil
+	}
+	if need < taken {
 		dontNeed := int64(taken - need)
 		s.respMemSem.Release(dontNeed)
+		return need, nil
+	}
+	want := int64(need - taken)
+	if force {
+		s.respMemSem.ForceAcquire(want)
+		return need, nil
+	}
+	if !s.respMemSem.TryAcquire(want) {
+		cur, size := s.respMemSem.Observe()
+		s.rareLog(&s.lastRespMemWaitLog,
+			"rpc: waiting to acquire response memory (want %d, mem %s, limit %s, %d conns, %d reqs); consider increasing Server.ResponseMemoryLimit",
+			want,
+			humanByteCountIEC(cur),
+			humanByteCountIEC(size),
+			s.statConnectionsCurrent.Load(),
+			s.statRequestsCurrent.Load(),
+		)
+		err := s.respMemSem.Acquire(ctx, want)
+		if err != nil {
+			return taken, err
+		}
 	}
 	return need, nil
 }
@@ -669,7 +683,7 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 		}
 		requestTime := time.Now()
 
-		hctx, ok := sc.acquireHandlerCtx(s.opts.Hooks.InitState)
+		hctx, ok := sc.acquireHandlerCtx(header.tip, s.opts.Hooks.InitState)
 		if !ok {
 			return nil, ErrServerClosed
 		}
@@ -682,7 +696,6 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 
 		req, reqTaken, err := s.acquireRequestBuf(sc.closeCtx, int(hctx.reqHeader.length))
 		if err != nil {
-			s.statRequestsCurrent.Dec()
 			return hctx, err
 		}
 		hctx.request = req
@@ -695,7 +708,6 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 			*hctx.request = hctx.Request[:0] // prepare for reuse immediately
 		}
 		if err != nil {
-			s.statRequestsCurrent.Dec()
 			if !sc.closed() && (!commonConnCloseError(err) || s.opts.LogCommonNetworkErrors) {
 				s.opts.Logf("rpc: error reading packet body from %v, disconnecting: %v", sc.conn.remoteAddr, err)
 			}
@@ -704,7 +716,6 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 
 		resp, respTaken, err := s.acquireResponseBuf(sc.closeCtx)
 		if err != nil {
-			s.statRequestsCurrent.Dec()
 			return hctx, err
 		}
 		hctx.response = resp
@@ -719,7 +730,6 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 			} else {
 				w := s.acquireWorker()
 				if w == nil {
-					s.statRequestsCurrent.Dec()
 					return hctx, ErrServerClosed
 				}
 				w.ch <- hctx
@@ -738,55 +748,60 @@ func (s *Server) sendLoop(sc *serverConn, wg *WaitGroup) {
 }
 
 func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns contexts to release
-	buf := make([]*HandlerContext, 0, s.opts.maxInflightPacketsPreAlloc())
-	writeLetsFin := false
+	writeQ := make([]*HandlerContext, 0, s.opts.maxInflightPacketsPreAlloc())
+	sent := false // true if there is data to flush
 
 	for {
-		buf, writeLetsFin = sc.acquireWriteQ(buf[:0])
-		if len(buf) == 0 && !writeLetsFin {
+		sc.mu.Lock()
+		for !(sent || sc.writeLetsFin || len(sc.writeQ) != 0 || sc.closedFlag || (sc.readFINFlag && sc.hctxCreated == len(sc.hctxPool))) {
+			sc.cond.Wait()
+		}
+
+		if sc.closedFlag || (sc.readFINFlag && sc.hctxCreated == len(sc.hctxPool)) {
+			sc.mu.Unlock()
+			if sent {
+				sent = false
+				if err := sc.flush(); err != nil {
+					return nil
+				}
+			}
 			if debugPrint {
 				fmt.Printf("%v server %p conn %p sendLoop stop\n", time.Now(), s, sc)
 			}
 			return nil
 		}
-
-		sent := false
+		writeLetsFin := sc.writeLetsFin
+		sc.writeLetsFin = false
+		writeQ, sc.writeQ = sc.writeQ, writeQ[:0]
+		sc.mu.Unlock()
+		if !writeLetsFin && len(writeQ) == 0 { // implies the only true condition above is sent == true, so we flush
+			sent = false
+			if err := sc.flush(); err != nil {
+				return nil
+			}
+			continue
+		}
+		sent = true
 		if writeLetsFin {
 			if debugPrint {
 				fmt.Printf("%v server %p conn %p writes Let's FIN\n", time.Now(), s, sc)
 			}
 			if err := sc.conn.startWritePacketUnlocked(packetTypeRPCServerWantsFin, maxPacketRWTime); err != nil {
-				return buf
+				return writeQ // release remaining contexts
 			}
 			if err := sc.conn.writeSimplePacketUnlocked(nil); err != nil {
-				return buf
+				return writeQ // release remaining contexts
 			}
-			sent = true
 		}
-		for i, hctx := range buf {
-			if !hctx.noResult {
-				err := sc.writeResponseUnlocked(hctx, maxPacketRWTime)
-				if err != nil {
-					if !sc.closed() && (!commonConnCloseError(err) || s.opts.LogCommonNetworkErrors) {
-						s.opts.Logf("rpc: error writing packet 0x%x#0x%x to %v, disconnecting: %v", hctx.respPacketType, hctx.reqType, sc.conn.remoteAddr, err)
-					}
-					return buf[i:] // release remaining contexts
-				}
-				sent = true
-			}
-
-			s.opts.Hooks.ResetState(hctx.hooksState)
-			sc.releaseHandlerCtx(hctx)
-		}
-
-		if sent && sc.writeQueueShouldFlush() { // TODO - excess lock
-			err := sc.conn.writeFlushUnlocked()
+		for i, hctx := range writeQ {
+			err := sc.writeResponseUnlocked(hctx, maxPacketRWTime)
 			if err != nil {
 				if !sc.closed() && (!commonConnCloseError(err) || s.opts.LogCommonNetworkErrors) {
-					s.opts.Logf("rpc: error flushing packet to %v, disconnecting: %v", sc.conn.remoteAddr, err)
+					s.opts.Logf("rpc: error writing packet 0x%x#0x%x to %v, disconnecting: %v", hctx.respPacketType, hctx.reqType, sc.conn.remoteAddr, err)
 				}
-				return nil
+				return writeQ[i:] // release remaining contexts
 			}
+			sc.releaseHandlerCtx(hctx)
 		}
 	}
 }
@@ -841,7 +856,9 @@ func (s *Server) handle(hctx *HandlerContext) {
 }
 
 func (s *Server) pushResponse(hctx *HandlerContext, isLongpoll bool) {
-	hctx.respTaken, _ = s.accountResponseMem(hctx.serverConn.closeCtx, hctx.respTaken, cap(hctx.Response), true)
+	if !hctx.noResult { // do not spend time for accounting, will release anyway couple lines below
+		hctx.respTaken, _ = s.accountResponseMem(hctx.serverConn.closeCtx, hctx.respTaken, cap(hctx.Response), true)
+	}
 	hctx.serverConn.push(hctx, isLongpoll)
 }
 
@@ -916,7 +933,9 @@ func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err err
 	case enginePIDTag:
 		return s.handleEnginePID(hctx)
 	case engineStatTag:
-		return s.handleEngineStat(hctx)
+		return s.handleEngineStat(hctx, false)
+	case engineFilteredStatTag:
+		return s.handleEngineStat(hctx, true)
 	case engineVersionTag:
 		return s.handleEngineVersion(hctx)
 	case engineSetVerbosityTag:

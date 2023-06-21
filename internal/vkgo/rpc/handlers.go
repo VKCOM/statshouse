@@ -71,8 +71,8 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	m["current_time"] = strconv.Itoa(int(now))
 	m["start_time"] = strconv.Itoa(int(s.startTime))
 	m["uptime"] = strconv.Itoa(int(uptime))
-	m["pid"] = strconv.Itoa(int(pid.PID))
-	m["PID"] = pid.asTextStat()
+	m["pid"] = strconv.Itoa(int(pidFromPortPid(pid.PortPid)))
+	m["PID"] = asTextStat(pid)
 
 	m["qps"] = "0" // memcached protocol
 	m["rpc_qps"] = strconv.FormatInt(rps, 10)
@@ -111,13 +111,22 @@ func readCommandLine() string {
 func (s *Server) handleEnginePID(hctx *HandlerContext) error {
 	pid := prepareHandshakePIDServer(hctx.localAddr, s.startTime)
 	hctx.Response = basictl.NatWrite(hctx.Response, tlNetPIDTag)
-	hctx.Response = pid.write(hctx.Response)
+	hctx.Response, _ = pid.Write(hctx.Response)
 	return nil
 }
 
-func (s *Server) handleEngineStat(hctx *HandlerContext) error {
+func (s *Server) handleEngineStat(hctx *HandlerContext, isFiltered bool) error {
 	stats := s.collectStats(hctx.localAddr)
 	keys := sortedStatKeys(stats)
+
+	if isFiltered {
+		statNames, err := parseStatNames(hctx)
+		if err != nil {
+			return fmt.Errorf("failed to parse stat names: %w", err)
+		}
+
+		keys = filterStatKeys(keys, statNames)
+	}
 
 	hctx.Response = basictl.NatWrite(hctx.Response, tlStatTag)
 	hctx.Response = basictl.NatWrite(hctx.Response, uint32(len(keys)))
@@ -127,6 +136,29 @@ func (s *Server) handleEngineStat(hctx *HandlerContext) error {
 	}
 
 	return nil
+}
+
+func parseStatNames(hctx *HandlerContext) ([]string, error) {
+	var (
+		l   uint32
+		err error
+	)
+
+	_, hctx.Request, _ = basictl.NatReadTag(hctx.Request)
+	if hctx.Request, err = basictl.NatRead(hctx.Request, &l); err != nil {
+		return nil, err
+	}
+	if err = basictl.CheckLengthSanity(hctx.Request, l, 4); err != nil {
+		return nil, err
+	}
+
+	vector := make([]string, l)
+	for i := range vector {
+		if hctx.Request, err = basictl.StringRead(hctx.Request, &vector[i]); err != nil {
+			return nil, err
+		}
+	}
+	return vector, nil
 }
 
 func (s *Server) handleEngineVersion(hctx *HandlerContext) error {
@@ -197,6 +229,21 @@ func sortedStatKeys(stats map[string]string) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func filterStatKeys(keys []string, names []string) []string {
+	m := map[string]struct{}{}
+	for _, name := range names {
+		m[name] = struct{}{}
+	}
+
+	var result []string
+	for _, key := range keys {
+		if _, ok := m[key]; ok {
+			result = append(result, key)
+		}
+	}
+	return result
 }
 
 func marshalMemcachedStats(stats map[string]string) []byte {

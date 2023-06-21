@@ -18,6 +18,7 @@ import (
 	"go.uber.org/atomic"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
 const (
@@ -52,8 +53,8 @@ func SchemaToString(schema int32) string {
 }
 
 // dirty hack to try to give everyone realistically-looking but unique PID (which C implementation requires)
-func uniqueStartTime() int32 {
-	return processStartTime.Dec()
+func uniqueStartTime() uint32 {
+	return uint32(processStartTime.Dec())
 }
 
 type nonceMsg struct {
@@ -104,17 +105,31 @@ type handshakeMsg struct {
 	PeerPID   NetPID
 }
 
-type NetPID struct {
-	IP   uint32
-	Port uint16
-	PID  uint16
-	Time int32 // TODO - uint32, because Y2038
+type NetPID = tl.NetPID
+
+func asTextStat(m NetPID) string {
+	var ip [4]byte
+	binary.BigEndian.PutUint32(ip[:], m.Ip)
+	return fmt.Sprintf("[%d.%d.%d.%d:%d:%d:%d]", ip[0], ip[1], ip[2], ip[3], portFromPortPid(m.PortPid), pidFromPortPid(m.PortPid), m.Utime)
+}
+
+func asPortPid(port uint16, PID uint16) uint32 {
+	return uint32(PID)<<16 | uint32(port)
+}
+
+func portFromPortPid(portPid uint32) uint16 {
+	return uint16(portPid)
+}
+
+func pidFromPortPid(portPid uint32) uint16 {
+	return uint16(portPid >> 16)
 }
 
 func (m *handshakeMsg) writeTo(buf []byte) []byte {
 	buf = basictl.NatWrite(buf, m.Flags)
-	buf = m.SenderPID.write(buf)
-	return m.PeerPID.write(buf)
+	buf, _ = m.SenderPID.Write(buf)
+	buf, _ = m.PeerPID.Write(buf)
+	return buf
 }
 
 func (m *handshakeMsg) readFrom(packetType uint32, body []byte) (_ []byte, err error) {
@@ -125,42 +140,16 @@ func (m *handshakeMsg) readFrom(packetType uint32, body []byte) (_ []byte, err e
 	if body, err = basictl.NatRead(body, &m.Flags); err != nil {
 		return body, fmt.Errorf("failed to read handshake data: %w", err)
 	}
-	if body, err = m.SenderPID.read(body); err != nil {
+	if body, err = m.SenderPID.Read(body); err != nil {
 		return body, fmt.Errorf("failed to read handshake data: %w", err)
 	}
-	if body, err = m.PeerPID.read(body); err != nil {
+	if body, err = m.PeerPID.Read(body); err != nil {
 		return body, fmt.Errorf("failed to read handshake data: %w", err)
 	}
 	if len(body) != 0 {
 		return body, fmt.Errorf("extra %v bytes in handshake packet", len(body))
 	}
 	return body, nil
-}
-
-func (m *NetPID) read(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatRead(w, &m.IP); err != nil {
-		return w, err
-	}
-	var portPID uint32
-	if w, err = basictl.NatRead(w, &portPID); err != nil {
-		return w, err
-	}
-	m.PID = uint16(portPID >> 16)
-	m.Port = uint16(portPID)
-	return basictl.IntRead(w, &m.Time)
-}
-
-func (m *NetPID) write(buf []byte) []byte {
-	buf = basictl.NatWrite(buf, m.IP)
-	portPID := uint32(m.PID)<<16 | uint32(m.Port)
-	buf = basictl.NatWrite(buf, portPID)
-	return basictl.IntWrite(buf, m.Time)
-}
-
-func (m NetPID) asTextStat() string {
-	var ip [4]byte
-	binary.BigEndian.PutUint32(ip[:], m.IP)
-	return fmt.Sprintf("[%d.%d.%d.%d:%d:%d:%d]", ip[0], ip[1], ip[2], ip[3], m.Port, m.PID, m.Time)
 }
 
 type cryptoKeys struct {
