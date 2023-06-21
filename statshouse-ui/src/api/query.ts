@@ -37,6 +37,7 @@ export type ApiQueryGet = {
   [GetParams.metricVerbose]?: GetBoolean.true;
   [GetParams.dataFormat]?: string;
   [GetParams.avoidCache]?: string;
+  [GetParams.queryNoStrictRange]?: GetBoolean.true;
   // [GetParams.metricFromEnd]?:string;
   // [GetParams.metricFromRow]?:string;
   // [GetParams.metricToRow]?:string;
