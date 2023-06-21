@@ -53,10 +53,12 @@ type endpointStat struct {
 func (es *endpointStat) serviceTime(code int) {
 	LogMetric(format.TagValueIDHTTP, es.user, es.metric)
 	es.logEvent(format.BuiltinMetricNameAPIServiceTime, code)
+	es.logDeprecatedEvent(format.BuiltinMetricNameAPIEndpointServiceTime, code)
 }
 
 func (es *endpointStat) responseTime(code int) {
 	es.logEvent(format.BuiltinMetricNameAPIResponseTime, code)
+	es.logDeprecatedEvent(format.BuiltinMetricNameAPIEndpointResponseTime, code)
 }
 
 func (es *endpointStat) logEvent(statName string, code int) {
@@ -71,6 +73,21 @@ func (es *endpointStat) logEvent(statName string, code int) {
 			5: es.metric,
 			6: es.tokenName,
 			7: es.endpoint,
+		},
+	).Value(v)
+}
+
+func (es *endpointStat) logDeprecatedEvent(statName string, code int) {
+	v := time.Since(es.startTime).Seconds()
+	statshouse.Metric(
+		statName,
+		statshouse.Tags{
+			1: es.endpoint,
+			2: es.metric,
+			3: strconv.Itoa(code),
+			4: es.tokenName,
+			5: es.dataFormat,
+			6: es.method,
 		},
 	).Value(v)
 }
@@ -128,6 +145,28 @@ func (ms *rpcMethodStat) serviceTime(ai accessInfo, meta *format.MetricMetaValue
 		t[5] = strconv.Itoa(int(meta.MetricID))
 	}
 	statshouse.Metric(format.BuiltinMetricNameAPIServiceTime, t).Value(v)
+}
+
+func (ms *rpcMethodStat) serviceTimeDeprecated(ai accessInfo, err error) {
+	var errorCode string
+	switch e := err.(type) {
+	case rpc.Error:
+		errorCode = strconv.FormatInt(int64(e.Code), 10)
+	case nil:
+		errorCode = "0"
+	default:
+		errorCode = "-1"
+	}
+	v := time.Since(ms.startTime).Seconds()
+	statshouse.Metric(
+		format.BuiltinMetricNameAPIRPCServiceTime,
+		statshouse.Tags{
+			1: ms.method,
+			2: errorCode,
+			3: getStatTokenName(ai.user),
+			4: srvfunc.HostnameForStatshouse(),
+		},
+	).Value(v)
 }
 
 func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
