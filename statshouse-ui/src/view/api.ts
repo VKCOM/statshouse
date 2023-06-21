@@ -469,6 +469,7 @@ export const queryDashboardGroupInfoName = 't';
 export const queryDashboardGroupInfoShow = 'v';
 export const queryDashboardGroupInfoCount = 'n';
 export const queryDashboardGroupInfoSize = 's';
+export const queryNoStrictRange = 'nsr';
 
 export const queryValueBackendVersion1 = '1';
 export const queryValueBackendVersion2 = '2';
@@ -512,7 +513,7 @@ export function queryURL(
   if (sel.maxHost) {
     params.push([queryParamMaxHost, '1']);
   }
-
+  params.push([queryNoStrictRange, '1']);
   const strParams = new URLSearchParams(params).toString();
   return `/api/query?${strParams}`;
 }

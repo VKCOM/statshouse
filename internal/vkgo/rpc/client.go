@@ -25,7 +25,8 @@ const (
 	minReconnectDelay = 200 * time.Millisecond // same as TCP_RTO_MIN
 	maxReconnectDelay = 5 * time.Second
 
-	debugPrint = false // TODO - remove after testing using custom scheduler
+	debugPrint = false // turn on during testing using custom scheduler
+	debugTrace = false // turn on during rapid testing to have trace stored in Server
 )
 
 var (

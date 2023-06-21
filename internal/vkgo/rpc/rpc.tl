@@ -2,13 +2,15 @@
 // This file is used to generate "extra" code (cd pkg/vktl && make gen_rpc)
 // then this code is slightly edited and updated
 
+// TODO - replace definitions in combined.tl with definitions here
+
 vector#1cb5c415 {t:Type} # [t] = Vector t;
 tuple#9770768a {t:Type} {n:#} [t] = Tuple t n;
 
 dictionaryField {t:Type} key:string value:t = DictionaryField t;
 dictionary#1f4c618f {t:Type} %(Vector %(DictionaryField t)) = Dictionary t;
 
-netPID ip:int port_pid:int utime:int = NetPID;
+netPID ip:# port_pid:# utime:# = NetPID;
 
 true = True;
 
@@ -31,6 +33,7 @@ rpcInvokeReqExtra#f3ef81a9
   custom_timeout_ms:flags.23?int  // Custom timeout for query
   supported_compression_version:flags.25?int // note, that client support compression, to possibly compress answers
   random_delay:flags.26?double // starting query would be delayed by random number, not grater than given
+  return_view_number:flags.27?%True // GMS2 related parameter: return view number in response
   = RpcInvokeReqExtra;
 
 rpcReqResultExtra#c5011709
@@ -42,24 +45,33 @@ rpcReqResultExtra#c5011709
     failed_subqueries:flags.4?int
     compression_version:flags.5?int
     stats:flags.6?%(Dictionary string)
+    view_number:flags.27?%long
     = RpcReqResultExtra;
 
-reqError#b527877d {X:Type} error_code:int error:string = ReqResult X;
-reqResultHeader#8cc84ce1 {X:Type} flags:# extra:%(RpcReqResultExtra flags) result:X = ReqResult X;
+reqError#b527877d error_code:int error:string = ReqError;
+reqResultHeader#8cc84ce1 extra:%RpcReqResultExtra = ReqResultHeader;
 //reqResultFalse {X:Type} = ReqResult X;
-_ {X:Type} result:X = ReqResult X;
+//_ {X:Type} result:X = ReqResult X;
 
-rpcReqResult#63aeda4e {X:Type} query_id:long result:(ReqResult X) = RpcReqResult X;
-
+rpcReqResultHeader#63aeda4e query_id:long = RpcReqResultHeader;
 rpcReqResultError#7ae432f5 query_id:long error_code:int error:string = RpcReqResultError;
 
 rpcPong#8430eaa7 ping_id:long = RpcPong;
+rpcPing#5730a2df ping_id:long = RpcPing;
 
 rpcDestFlags#e352035e extra:%(RpcInvokeReqExtra) = RpcDestFlags;
 rpcDestActor#7568aabd actor_id:long = RpcDestActor;
 rpcDestActorFlags#f0a5acf7 actor_id:long extra:%(RpcInvokeReqExtra) = RpcDestActorFlags;
 
----functions---
+rpcInvokeReqHeader#2374df3d query_id:long = RpcInvokeReqHeader;
 
-@any @internal rpcPing#5730a2df ping_id:long = RpcPong;
-@any rpcInvokeReq#2374df3d {X:Type} query_id:long = RpcReqResult X;
+// Experimental. Top-level packet magic. Client sends on request cancel, so server can free context associated with request.
+// No response from server is sent. Required for correctly cancelling long poll requests.
+// Supported by vkgo rpc.Server/rpc.Client for now. Support is advertised during PacketConn handshake with flag bit.
+rpcCancelReq#193f1b22 query_id:long = RpcCancelReq;
+
+// Experimental. Top-level packet magic. Server sends once per connection to ask for gracefully close connection.
+// No response from client is sent. Client should finish sending last request and then send FIN (::shutdown(SHUT_WR)).
+// Server will send all responses, then close connection. Client will send all new requests to a new connection.
+// Supported by vkgo rpc.Server/rpc.Client for now. Support is advertised during PacketConn handshake with flag bit.
+rpcServerWantsFin#a8ddbc46 = RpcServerWantsFin;

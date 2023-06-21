@@ -14,8 +14,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse-go"
 	"pgregory.net/rapid"
+
+	"github.com/vkcom/statshouse-go"
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
