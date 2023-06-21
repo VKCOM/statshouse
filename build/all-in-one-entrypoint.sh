@@ -14,8 +14,10 @@ if [ -z "$AGENT_OFF" ]; then
     --agg-addr='127.0.0.1:13336,127.0.0.1:13336,127.0.0.1:13336' --cache-dir=/var/lib/statshouse/cache/agent \
     -u=root -g=root &
 fi
-/bin/statshouse-api --verbose --insecure-mode --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=127.0.0.1:9000 \
-  --listen-addr=:10888 --statshouse-addr=127.0.0.1:13337 --disk-cache=/var/lib/statshouse/cache/api/mapping_cache.sqlite3 \
-  --static-dir=/usr/lib/statshouse-api/statshouse-ui/ &
+if [ -z "$API_OFF" ]; then
+  /bin/statshouse-api --verbose --insecure-mode --local-mode --access-log --clickhouse-v1-addrs= --clickhouse-v2-addrs=127.0.0.1:9000 \
+    --listen-addr=:10888 --statshouse-addr=127.0.0.1:13337 --disk-cache=/var/lib/statshouse/cache/api/mapping_cache.sqlite3 \
+    --static-dir=/usr/lib/statshouse-api/statshouse-ui/ &
+fi
 wait -n
 exit $?
