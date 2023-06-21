@@ -877,9 +877,10 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				id, err := ev.getTagValueID(metric, i, matcher.Value)
 				if err != nil {
 					if err == ErrNotFound {
-						continue // ignore values with no mapping
+						return seriesQueryX{}, nil // string is not mapped, result is guaranteed to be empty
+					} else {
+						return seriesQueryX{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
 					}
-					return seriesQueryX{}, err
 				}
 				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
 					histogramQ.filter = true
