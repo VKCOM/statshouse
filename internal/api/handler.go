@@ -127,8 +127,8 @@ const (
 	queryClientCacheImmutable      = 7 * 24 * time.Hour
 	queryClientCacheStaleImmutable = 0
 
-	querySelectTimeout    = 60 * time.Second // TODO: querySelectTimeout must be longer than the longest normal query.
-	fastQueryTimeInterval = (86400 + 3600) * 2
+	QuerySelectTimeoutDefault = 55 * time.Second // TODO: querySelectTimeout must be longer than the longest normal query. And must be consistent with NGINX's or another reverse proxy's timeout
+	fastQueryTimeInterval     = (86400 + 3600) * 2
 
 	maxMetricHTTPBodySize     = 64 << 10
 	maxPromConfigHTTPBodySize = 500 * 1024
@@ -183,6 +183,7 @@ type (
 		rmID                  int
 		promEngine            promql.Engine
 		accessManager         *accessManager
+		querySelectTimeout    time.Duration
 	}
 
 	//easyjson:json
@@ -413,7 +414,7 @@ type (
 	}
 )
 
-func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedPrefixes []string, showInvisible bool, utcOffsetSec int64, approxCacheMaxSize int, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, location *time.Location, localMode, readOnly, insecureMode bool) (*Handler, error) {
+func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedPrefixes []string, showInvisible bool, utcOffsetSec int64, approxCacheMaxSize int, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, location *time.Location, localMode, readOnly, insecureMode bool, querySelectTimeout time.Duration) (*Handler, error) {
 	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	diskCacheSuffix := metadataClient.Address // TODO - use cluster name or something here
 
@@ -487,6 +488,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		readOnly:              readOnly,
 		insecureMode:          insecureMode,
 		accessManager:         &accessManager{metricStorage.GetGroupByMetricName},
+		querySelectTimeout:    querySelectTimeout,
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
@@ -1299,7 +1301,7 @@ func (h *Handler) HandleGetMetricTagValues(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
@@ -1507,7 +1509,7 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
@@ -1607,7 +1609,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	}
 	// Query series and badges
 	var (
-		ctx, cancel   = context.WithTimeout(r.Context(), querySelectTimeout)
+		ctx, cancel   = context.WithTimeout(r.Context(), h.querySelectTimeout)
 		freeBadges    func()
 		freePromqlRes func()
 		freeRes       func()
@@ -1753,7 +1755,7 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 	}
 	// Query series and badges
 	var (
-		ctx, cancel = context.WithTimeout(r.Context(), querySelectTimeout)
+		ctx, cancel = context.WithTimeout(r.Context(), h.querySelectTimeout)
 		freeBadges  func()
 		freeRes     func()
 		options     = seriesRequestOptions{
@@ -2415,7 +2417,7 @@ func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
@@ -2680,7 +2682,7 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
