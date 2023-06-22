@@ -4,8 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import * as utils from './utils';
-import { convert, freeKeyPrefix, promQLMetric } from './utils';
+import { convert, freeKeyPrefix, promQLMetric, timeShiftDesc } from './utils';
 import { TimeRange } from '../common/TimeRange';
 import { Column } from 'react-data-grid';
 import { EventDataRow } from '../store/statshouse';
@@ -17,6 +16,7 @@ import {
   EventFormatterHeaderTime,
 } from '../components/Plot/EventFormatters';
 import { uniqueArray } from '../common/helpers';
+import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector } from '../api/enum';
 
 export interface queryResult {
   readonly series: querySeries;
@@ -42,7 +42,7 @@ export interface querySeriesMeta {
   readonly time_shift: number;
   readonly tags: Readonly<Record<string, querySeriesMetaTag>>;
   readonly max_hosts: null | string[];
-  readonly what: queryWhat;
+  readonly what: QueryWhat;
   readonly total: number;
   readonly color: string;
 }
@@ -63,7 +63,7 @@ export type queryTableRow = {
   time: number;
   data: number[];
   tags: Record<string, querySeriesMetaTag>;
-  what?: queryWhat;
+  what?: QueryWhat;
 };
 
 export type queryTable = {
@@ -71,7 +71,7 @@ export type queryTable = {
   from_row: string;
   to_row: string;
   more: boolean;
-  what: queryWhat[];
+  what: QueryWhat[];
 };
 
 export interface DashboardMeta {
@@ -165,48 +165,11 @@ export function metaToBaseLabel(meta: querySeriesMeta, uniqueWhatLength: number)
 // XXX: keep in sync with Go
 export function metaToLabel(meta: querySeriesMeta, uniqueWhatLength: number): string {
   const desc = metaToBaseLabel(meta, uniqueWhatLength);
-  const tsd = utils.timeShiftDesc(meta.time_shift);
+  const tsd = timeShiftDesc(meta.time_shift);
   return tsd !== '' ? `${tsd} ${desc}` : desc;
 }
 
-export type queryWhat =
-  | '-'
-  | 'count'
-  | 'count_norm'
-  | 'cu_count'
-  | 'cardinality'
-  | 'cardinality_norm'
-  | 'cu_cardinality'
-  | 'min'
-  | 'max'
-  | 'avg'
-  | 'cu_avg'
-  | 'sum'
-  | 'sum_norm'
-  | 'cu_sum'
-  | 'stddev'
-  | 'max_host'
-  | 'max_count_host'
-  | 'p25'
-  | 'p50'
-  | 'p75'
-  | 'p90'
-  | 'p95'
-  | 'p99'
-  | 'p999'
-  | 'unique'
-  | 'unique_norm'
-  | 'dv_count'
-  | 'dv_count_norm'
-  | 'dv_sum'
-  | 'dv_sum_norm'
-  | 'dv_avg'
-  | 'dv_min'
-  | 'dv_max'
-  | 'dv_unique'
-  | 'dv_unique_norm';
-
-export function metricKindToWhat(kind?: metricKind): queryWhat[] {
+export function metricKindToWhat(kind?: metricKind): QueryWhatSelector[] {
   switch (kind) {
     case 'counter':
       return [
@@ -385,7 +348,7 @@ export function metricKindToWhat(kind?: metricKind): queryWhat[] {
 }
 
 // XXX: keep in sync with Go
-export function whatToWhatDesc(what: queryWhat | string): string {
+export function whatToWhatDesc(what: QueryWhat | string): string {
   switch (what) {
     case 'p999':
       return 'p99.9';
@@ -432,52 +395,8 @@ export function whatToWhatDesc(what: queryWhat | string): string {
   }
 }
 
-export const queryParamNumResults = 'n';
-export const queryParamBackendVersion = 'v';
-export const queryParamMetric = 's';
-export const queryParamCustomName = 'cn';
-export const queryParamFromTime = 'f';
-export const queryParamToTime = 't';
-export const queryParamWidth = 'w';
-export const queryParamWhat = 'qw';
-export const queryParamTimeShifts = 'ts';
-export const queryParamGroupBy = 'qb';
-export const queryParamFilter = 'qf';
-export const queryParamFilterSync = 'fs';
-export const queryParamVerbose = 'qv';
-export const queryParamTagID = 'k';
-export const queryParamDownloadFile = 'df';
-export const queryParamTabNum = 'tn';
-export const queryParamLockMin = 'yl';
-export const queryParamLockMax = 'yh';
-export const queryParamMaxHost = 'mh';
-export const queryParamAgg = 'g';
-export const queryParamPromQL = 'q';
-export const queryParamType = 'qt';
-export const queryParamEvent = 'qe';
-export const queryParamFromRow = 'fr';
-export const queryParamToRow = 'tr';
-export const queryParamFromEnd = 'fe';
-export const queryParamEventFrom = 'ef';
-export const queryParamEventBy = 'eb';
-export const queryParamEventHide = 'eh';
-export const tabPrefix = 't';
-export const queryDashboardID = 'id';
-export const queryMetricsGroupID = 'id';
-export const queryDashboardGroupInfoPrefix = 'g';
-export const queryDashboardGroupInfoName = 't';
-export const queryDashboardGroupInfoShow = 'v';
-export const queryDashboardGroupInfoCount = 'n';
-export const queryDashboardGroupInfoSize = 's';
-export const queryNoStrictRange = 'nsr';
-
-export const queryValueBackendVersion1 = '1';
-export const queryValueBackendVersion2 = '2';
-
-export const queryParamLive = 'live';
-
 export function v2Value(useV2: boolean): string {
-  return useV2 ? queryValueBackendVersion2 : queryValueBackendVersion1;
+  return useV2 ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1;
 }
 
 export function queryURL(
@@ -490,30 +409,30 @@ export function queryURL(
   let params: string[][];
   if (sel.metricName === promQLMetric) {
     params = [
-      [queryParamFromTime, timeRange.from.toString()],
-      [queryParamToTime, (timeRange.to + 1).toString()],
-      [queryParamWidth, width.toString()],
-      ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
+      [GET_PARAMS.fromTime, timeRange.from.toString()],
+      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
+      [GET_PARAMS.width, width.toString()],
+      ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
     ];
   } else {
     params = [
-      [queryParamNumResults, sel.numSeries.toString()],
-      [queryParamBackendVersion, v2Value(sel.useV2)],
-      [queryParamMetric, sel.metricName],
-      [queryParamFromTime, timeRange.from.toString()],
-      [queryParamToTime, (timeRange.to + 1).toString()],
-      [queryParamWidth, width.toString()],
-      ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
-      [queryParamVerbose, fetchBadges ? '1' : '0'],
-      ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
-      ...sel.groupBy.map((b) => [queryParamGroupBy, freeKeyPrefix(b)]),
+      [GET_PARAMS.numResults, sel.numSeries.toString()],
+      [GET_PARAMS.version, v2Value(sel.useV2)],
+      [GET_PARAMS.metricName, sel.metricName],
+      [GET_PARAMS.fromTime, timeRange.from.toString()],
+      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
+      [GET_PARAMS.width, width.toString()],
+      ...sel.what.map((qw) => [GET_PARAMS.metricWhat, qw.toString()]),
+      [GET_PARAMS.metricVerbose, fetchBadges ? '1' : '0'],
+      ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
+      ...sel.groupBy.map((b) => [GET_PARAMS.metricGroupBy, freeKeyPrefix(b)]),
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
   }
   if (sel.maxHost) {
-    params.push([queryParamMaxHost, '1']);
+    params.push([GET_PARAMS.metricMaxHost, '1']);
   }
-  params.push([queryNoStrictRange, '1']);
+  params.push([GET_PARAMS.noStrictRange, '1']);
   const strParams = new URLSearchParams(params).toString();
   return `/api/query?${strParams}`;
 }
@@ -525,20 +444,20 @@ export function queryURLCSV(
   width: number | string
 ): string {
   const params = [
-    [queryParamNumResults, sel.numSeries.toString()],
-    [queryParamBackendVersion, v2Value(sel.useV2)],
-    [queryParamMetric, sel.metricName],
-    [queryParamFromTime, timeRange.from.toString()],
-    [queryParamToTime, (timeRange.to + 1).toString()],
-    [queryParamWidth, width.toString()],
-    ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
-    ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
-    ...sel.groupBy.map((b) => [queryParamGroupBy, b]),
+    [GET_PARAMS.numResults, sel.numSeries.toString()],
+    [GET_PARAMS.version, v2Value(sel.useV2)],
+    [GET_PARAMS.metricName, sel.metricName],
+    [GET_PARAMS.fromTime, timeRange.from.toString()],
+    [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
+    [GET_PARAMS.width, width.toString()],
+    ...sel.what.map((qw) => [GET_PARAMS.metricWhat, qw.toString()]),
+    ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
+    ...sel.groupBy.map((b) => [GET_PARAMS.metricGroupBy, b]),
     ...filterParams(sel.filterIn, sel.filterNotIn),
-    [queryParamDownloadFile, 'csv'],
+    [GET_PARAMS.metricDownloadFile, 'csv'],
   ];
   if (sel.maxHost) {
-    params.push([queryParamMaxHost, '1']);
+    params.push([GET_PARAMS.metricMaxHost, '1']);
   }
 
   const strParams = new URLSearchParams(params).toString();
@@ -556,40 +475,40 @@ export function queryTableURL(
   let params: string[][];
   if (sel.metricName === promQLMetric) {
     params = [
-      [queryParamFromTime, timeRange.from.toString()],
-      [queryParamToTime, (timeRange.to + 1).toString()],
-      [queryParamWidth, width.toString()],
+      [GET_PARAMS.fromTime, timeRange.from.toString()],
+      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
+      [GET_PARAMS.width, width.toString()],
       // ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
     ];
   } else {
     params = [
-      [queryParamBackendVersion, v2Value(sel.useV2)],
-      [queryParamMetric, sel.metricName],
-      [queryParamFromTime, timeRange.from.toString()],
-      [queryParamToTime, (timeRange.to + 1).toString()],
-      [queryParamWidth, width.toString()],
-      ...sel.what.map((qw) => [queryParamWhat, qw.toString()]),
+      [GET_PARAMS.version, v2Value(sel.useV2)],
+      [GET_PARAMS.metricName, sel.metricName],
+      [GET_PARAMS.fromTime, timeRange.from.toString()],
+      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
+      [GET_PARAMS.width, width.toString()],
+      ...sel.what.map((qw) => [GET_PARAMS.metricWhat, qw.toString()]),
       // [queryParamVerbose, fetchBadges ? '1' : '0'],
       // ...timeShifts.map((ts) => [queryParamTimeShifts, ts.toString()]),
       // ...sel.groupBy.map((b) => [queryParamGroupBy, freeKeyPrefix(b)]),
-      ...uniqueArray([...sel.groupBy.map(freeKeyPrefix), ...sel.eventsBy]).map((b) => [queryParamGroupBy, b]),
+      ...uniqueArray([...sel.groupBy.map(freeKeyPrefix), ...sel.eventsBy]).map((b) => [GET_PARAMS.metricGroupBy, b]),
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
   }
   if (sel.maxHost) {
-    params.push([queryParamMaxHost, '1']);
+    params.push([GET_PARAMS.metricMaxHost, '1']);
   }
   if (fromEnd) {
-    params.push([queryParamFromEnd, '1']);
+    params.push([GET_PARAMS.metricFromEnd, '1']);
   }
   if (key) {
     if (fromEnd) {
-      params.push([queryParamToRow, key]);
+      params.push([GET_PARAMS.metricToRow, key]);
     } else {
-      params.push([queryParamFromRow, key]);
+      params.push([GET_PARAMS.metricFromRow, key]);
     }
   }
-  params.push([queryParamNumResults, limit.toString()]);
+  params.push([GET_PARAMS.numResults, limit.toString()]);
 
   const strParams = new URLSearchParams(params).toString();
   return `/api/table?${strParams}`;
@@ -600,7 +519,7 @@ export function dashboardURL(id?: number): string {
     return `/api/dashboard`;
   }
 
-  const strParams = new URLSearchParams([[queryDashboardID, id.toString()]]).toString();
+  const strParams = new URLSearchParams([[GET_PARAMS.dashboardID, id.toString()]]).toString();
   return `/api/dashboard?${strParams}`;
 }
 
@@ -613,7 +532,7 @@ export function metricsGroupURL(id?: number): string {
     return `/api/group`;
   }
 
-  const strParams = new URLSearchParams([[queryMetricsGroupID, id.toString()]]).toString();
+  const strParams = new URLSearchParams([[GET_PARAMS.metricsGroupID, id.toString()]]).toString();
   return `/api/group?${strParams}`;
 }
 
@@ -673,10 +592,10 @@ function filterParams(
   filterNotIn: Record<string, readonly string[]>
 ): string[][] {
   const paramsIn = Object.entries(filterIn).flatMap(([tagID, tagValues]) =>
-    tagValues.map((v) => [queryParamFilter, formatFilterIn(tagID, v)])
+    tagValues.map((v) => [GET_PARAMS.metricFilter, formatFilterIn(tagID, v)])
   );
   const paramsNotIn = Object.entries(filterNotIn).flatMap(([tagID, tagValues]) =>
-    tagValues.map((v) => [queryParamFilter, formatFilterNotIn(tagID, v)])
+    tagValues.map((v) => [GET_PARAMS.metricFilter, formatFilterNotIn(tagID, v)])
   );
   return [...paramsIn, ...paramsNotIn];
 }

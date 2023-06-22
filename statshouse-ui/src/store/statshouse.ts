@@ -70,7 +70,6 @@ import {
   queryTableRow,
   queryTableURL,
   queryURL,
-  queryWhat,
 } from '../view/api';
 import { calcYRange2 } from '../common/calcYRange';
 import { rgba, selectColor } from '../view/palette';
@@ -81,16 +80,15 @@ import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
-import { GetParams, metricValueBackendVersion } from '../api/GetParams';
+import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat } from '../api/enum';
 import { isNotNil, uniqueArray } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { apiMetricTagValuesFetch } from '../api/metricTagValues';
-import { QueryWhat } from '../api/query';
 import { appHistory } from '../common/appHistory';
 
 export type PlotStore = {
   nameMetric: string;
-  whats: string[];
+  whats: QueryWhat[];
   error: string;
   error403?: string;
   data: uPlot.AlignedData;
@@ -182,7 +180,7 @@ export type EventDataRow = {
 export type EventData = {
   chunks: EventDataChunk[];
   rows: EventDataRow[];
-  what: queryWhat[];
+  what: QueryWhat[];
   nextKey?: string;
   prevKey?: string;
   range: TimeRange;
@@ -1012,7 +1010,7 @@ export const statsHouseState: StateCreator<
               const noUpdateData = dequal(stacked || data, state.plotsData[index]?.data);
               state.plotsData[index] = {
                 nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
-                whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as string[]) : [],
+                whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as QueryWhat[]) : [],
                 error: '',
                 data: noUpdateData ? state.plotsData[index]?.data : stacked || data,
                 series:
@@ -1151,7 +1149,7 @@ export const statsHouseState: StateCreator<
       const [request, first] = promiseRun(
         requestKey,
         apiMetricFetch,
-        { [GetParams.metricName]: metricName },
+        { [GET_PARAMS.metricName]: metricName },
         requestKey
       );
       if (!first) {
@@ -1374,15 +1372,17 @@ export const statsHouseState: StateCreator<
         });
         const { response, error } = await apiMetricTagValuesFetch(
           {
-            [GetParams.metricName]: plot.metricName,
-            [GetParams.metricTagID]: tagKey,
-            [GetParams.version]:
-              globalSettings.disabled_v1 || plot.useV2 ? metricValueBackendVersion.v2 : metricValueBackendVersion.v1,
-            [GetParams.numResults]: limit.toString(),
-            [GetParams.fromTime]: prevState.timeRange.from.toString(),
-            [GetParams.toTime]: (prevState.timeRange.to + 1).toString(),
-            [GetParams.metricFilter]: filterParamsArr(otherFilterIn, otherFilterNotIn),
-            [GetParams.metricWhat]: plot.what.slice() as QueryWhat[],
+            [GET_PARAMS.metricName]: plot.metricName,
+            [GET_PARAMS.metricTagID]: tagKey,
+            [GET_PARAMS.version]:
+              globalSettings.disabled_v1 || plot.useV2
+                ? METRIC_VALUE_BACKEND_VERSION.v2
+                : METRIC_VALUE_BACKEND_VERSION.v1,
+            [GET_PARAMS.numResults]: limit.toString(),
+            [GET_PARAMS.fromTime]: prevState.timeRange.from.toString(),
+            [GET_PARAMS.toTime]: (prevState.timeRange.to + 1).toString(),
+            [GET_PARAMS.metricFilter]: filterParamsArr(otherFilterIn, otherFilterNotIn),
+            [GET_PARAMS.metricWhat]: plot.what.slice() as QueryWhat[],
           },
           requestKey
         );

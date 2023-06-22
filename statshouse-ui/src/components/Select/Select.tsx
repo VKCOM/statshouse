@@ -258,19 +258,25 @@ export const Select: FC<SelectProps> = ({
     let start = 0;
     let result;
     let filtered = options;
+    setShowCursor(false);
     if (searchValueDebounce && !noSearch) {
       const orig = searchValueDebounce.toLocaleLowerCase();
       const ru = toggleKeyboard(orig, mapKeyboardEnToRu);
       const en = toggleKeyboard(orig, mapKeyboardRuToEn);
-      filtered = options.filter(
-        (item) =>
+      filtered = options.filter((item) => {
+        if (orig === item.value.toLocaleLowerCase()) {
+          setCursor(item.value);
+          setShowCursor(true);
+        }
+        return (
           item.name.toLocaleLowerCase().includes(orig) ||
           item.value.toLocaleLowerCase().includes(orig) ||
           item.name.toLocaleLowerCase().includes(ru) ||
           item.value.toLocaleLowerCase().includes(ru) ||
           item.name.toLocaleLowerCase().includes(en) ||
           item.value.toLocaleLowerCase().includes(en)
-      );
+        );
+      });
       result = filtered.slice(start, start + maxOptions);
     } else {
       if (valuesInput.length > 0 && options?.length > maxOptions) {
@@ -511,7 +517,7 @@ export const Select: FC<SelectProps> = ({
   const onHover = useCallback<React.MouseEventHandler<HTMLDivElement>>((event) => {
     const t = (event.target as HTMLElement).closest(`.${css.option}`) as HTMLElement;
     if (t && t.dataset.value && !t.dataset.disabled) {
-      setShowCursor(false);
+      setShowCursor(true);
       setCursor(t.dataset.value);
     }
   }, []);
@@ -639,7 +645,6 @@ export const Select: FC<SelectProps> = ({
   useEffect(() => {
     updateClass(list.current, values, css.selected);
     updateCheck(list.current);
-    setCursor(values[0]);
   }, [values, filterOptions]);
 
   useEffect(() => {

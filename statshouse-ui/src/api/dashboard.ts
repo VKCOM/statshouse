@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { GetParams } from './GetParams';
+import { GET_PARAMS } from './enum';
 import { apiFetch } from './api';
 
 const ApiDashboardEndpoint = '/api/dashboard';
@@ -20,7 +20,7 @@ export type ApiDashboard = {
  * Get params endpoint api/dashboard
  */
 export type ApiDashboardGet = {
-  [GetParams.dashboardID]: string;
+  [GET_PARAMS.dashboardID]: string;
 };
 
 /**

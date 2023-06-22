@@ -5,14 +5,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { hasOwn, toFlatPairs, toString } from '../common/helpers';
+import { API_FETCH_OPT_METHODS, ApiFetchOptMethods } from './enum';
 
 export type ApiFetchParam = Record<string, any | any[]>;
-
-export enum ApiFetchOptMethods {
-  get = 'GET',
-  post = 'POST',
-  put = 'PUT',
-}
 
 export type ApiFetchOpt<G, P> = {
   url: string;
@@ -39,7 +34,7 @@ export async function apiFetch<R = unknown, G = ApiFetchParam, P = ApiFetchParam
   keyRequest,
 }: ApiFetchOpt<G, P>): Promise<ApiFetchResponse<R>> {
   const result: ApiFetchResponse<R> = { ok: false, status: 0 };
-  method ??= post ? ApiFetchOptMethods.post : ApiFetchOptMethods.get;
+  method ??= post ? API_FETCH_OPT_METHODS.post : API_FETCH_OPT_METHODS.get;
   const search = get ? '?' + new URLSearchParams(toFlatPairs(get, toString)).toString() : '';
   const fullUrl = url + search;
   const headers: HeadersInit = {};
