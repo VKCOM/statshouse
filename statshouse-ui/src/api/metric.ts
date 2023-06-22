@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { GetParams } from './GetParams';
+import { GET_PARAMS, MetricMetaKind, MetricMetaTagRawKind } from './enum';
 import { apiFetch } from './api';
 
 const ApiMetricEndpoint = '/api/metric';
@@ -19,7 +19,7 @@ export type ApiMetric = {
  * Get params endpoint api/metric
  */
 export type ApiMetricGet = {
-  [GetParams.metricName]: string;
+  [GET_PARAMS.metricName]: string;
 };
 
 /**
@@ -62,27 +62,6 @@ export type MetricMetaTag = {
   id2value?: Record<number, string>;
   value_comments?: Record<string, string>;
 };
-
-export enum MetricMetaKind {
-  counter = 'counter',
-  value = 'value',
-  valueP = 'value_p',
-  unique = 'unique',
-  mixed = 'mixed',
-  mixedP = 'mixed_p',
-}
-
-export enum MetricMetaTagRawKind {
-  uint = 'uint',
-  hex = 'hex',
-  hexBswap = 'hex_bswap',
-  timestamp = 'timestamp',
-  timestampLocal = 'timestamp_local',
-  ip = 'ip',
-  ipBswap = 'ip_bswap',
-  lexencFloat = 'lexenc_float',
-  float = 'float',
-}
 
 export async function apiMetricFetch(params: ApiMetricGet, keyRequest?: unknown) {
   return await apiFetch<ApiMetric>({ url: ApiMetricEndpoint, get: params, keyRequest });

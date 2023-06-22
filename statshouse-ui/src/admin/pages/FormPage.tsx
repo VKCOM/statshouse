@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import * as React from 'react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { IBackendMetric, IKind, IMetric, ITag, ITagAlias } from '../models/metric';
 import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/MetricFormValues';
@@ -117,7 +117,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
   }, [loadListMetricsGroup]);
 
   return (
-    <form>
+    <form key={values.version}>
       <div className="row mb-3">
         <label htmlFor="metricName" className="col-sm-2 col-form-label">
           Name
@@ -527,6 +527,10 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
     </form>
   );
 }
+type SortCustomMappingItem = {
+  mapping: { readonly from: string; readonly to: string };
+  index: number;
+};
 
 function AliasField(props: {
   value: ITagAlias;
@@ -537,7 +541,37 @@ function AliasField(props: {
   disabled?: boolean;
 }) {
   const { value, onChange, tagNumber, disabled, onChangeCustomMapping } = props;
-
+  const [sortCustomMapping, setSortCustomMapping] = useState<SortCustomMappingItem[]>([]);
+  useEffect(() => {
+    setSortCustomMapping((prevState) => {
+      if (prevState.length) {
+        const nextState = [...prevState];
+        const map: Record<string, SortCustomMappingItem> = prevState.reduce((res, item) => {
+          res[item.index] = item;
+          return res;
+        }, {} as Record<string, SortCustomMappingItem>);
+        value.customMapping.forEach((mapping, index) => {
+          if (map[index]) {
+            map[index].mapping = mapping;
+          } else {
+            nextState.push({ mapping, index });
+          }
+        });
+        return nextState;
+      } else {
+        const nextState = value.customMapping.map((mapping, index) => ({ mapping, index }));
+        nextState.sort((a, b) => {
+          if (a.mapping.from < b.mapping.from) {
+            return -1;
+          } else if (a.mapping.from === b.mapping.from) {
+            return 0;
+          }
+          return 1;
+        });
+        return nextState;
+      }
+    });
+  }, [value.customMapping]);
   return (
     <div className="row mt-3">
       <label htmlFor={`tag${tagNumber}`} className="col-sm-2 col-lg-1 col-form-label font-monospace">
@@ -608,8 +642,8 @@ function AliasField(props: {
           </div>
         </div>
         <>
-          {value.customMapping.map((mapping, ind) => (
-            <div className="row mt-3" key={ind}>
+          {sortCustomMapping.map(({ mapping, index }) => (
+            <div className="row mt-3" key={index}>
               <div className="col-sm-8">
                 <div className="row">
                   <div className="col-sm-4">
@@ -618,9 +652,9 @@ function AliasField(props: {
                       className="form-control"
                       placeholder="Value"
                       onChange={(e) =>
-                        onChangeCustomMapping(ind, value.isRaw ? ` ${e.target.value}` : e.target.value, undefined)
+                        onChangeCustomMapping(index, value.isRaw ? ` ${e.target.value}` : e.target.value, undefined)
                       }
-                      value={value.isRaw ? mapping.from.trimStart() : mapping.from}
+                      defaultValue={value.isRaw ? mapping.from.trimStart() : mapping.from}
                       disabled={disabled}
                     />
                   </div>
@@ -629,8 +663,8 @@ function AliasField(props: {
                       type="text"
                       className="form-control"
                       placeholder="Comment"
-                      onChange={(e) => onChangeCustomMapping(ind, undefined, e.target.value)}
-                      value={mapping.to}
+                      onChange={(e) => onChangeCustomMapping(index, undefined, e.target.value)}
+                      defaultValue={mapping.to}
                       disabled={disabled}
                     />
                   </div>
@@ -638,7 +672,7 @@ function AliasField(props: {
                     <button
                       className="btn btn-outline-warning"
                       type="button"
-                      onClick={() => onChangeCustomMapping(ind, undefined, undefined)}
+                      onClick={() => onChangeCustomMapping(index, undefined, undefined)}
                       disabled={disabled}
                     >
                       <SVGTrash />

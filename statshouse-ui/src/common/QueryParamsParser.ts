@@ -6,9 +6,10 @@
 
 import { dequal } from 'dequal/lite';
 import { KeysTo, TIME_RANGE_KEYS_TO } from './TimeRange';
-import { filterInSep, filterNotInSep, queryValueBackendVersion1, queryValueBackendVersion2 } from '../view/api';
+import { filterInSep, filterNotInSep } from '../view/api';
 import produce from 'immer';
 import { deepClone, freeKeyPrefix } from '../view/utils';
+import { METRIC_VALUE_BACKEND_VERSION } from '../api/enum';
 
 const maxPrefixArray = 100;
 const removeValueChar = String.fromCharCode(7);
@@ -262,8 +263,8 @@ export const GroupByParams: ConfigParam<string> = {
  * decode/encode v2 param
  */
 export const UseV2Param: ConfigParam<boolean> = {
-  encode: (s) => (s ? queryValueBackendVersion2 : queryValueBackendVersion1),
-  decode: (s) => s === queryValueBackendVersion2,
+  encode: (s) => (s ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1),
+  decode: (s) => s === METRIC_VALUE_BACKEND_VERSION.v2,
 };
 
 function valueToArray<T extends Record<string, unknown>>(

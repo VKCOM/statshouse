@@ -4,8 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { GetParams, metricValueBackendVersion } from './GetParams';
-import { QueryWhat } from './query';
+import { GET_PARAMS, MetricValueBackendVersion, QueryWhat } from './enum';
 import { apiFetch } from './api';
 
 const ApiMetricTagValuesEndpoint = '/api/metric-tag-values';
@@ -21,14 +20,14 @@ export type ApiMetricTagValues = {
  * Get params endpoint api/metric-tag-values
  */
 export type ApiMetricTagValuesGet = {
-  [GetParams.metricName]: string;
-  [GetParams.metricTagID]: string;
-  [GetParams.version]?: metricValueBackendVersion;
-  [GetParams.numResults]?: string;
-  [GetParams.toTime]: string;
-  [GetParams.fromTime]: string;
-  [GetParams.metricFilter]?: string[];
-  [GetParams.metricWhat]: QueryWhat[];
+  [GET_PARAMS.metricName]: string;
+  [GET_PARAMS.metricTagID]: string;
+  [GET_PARAMS.version]?: MetricValueBackendVersion;
+  [GET_PARAMS.numResults]?: string;
+  [GET_PARAMS.toTime]: string;
+  [GET_PARAMS.fromTime]: string;
+  [GET_PARAMS.metricFilter]?: string[];
+  [GET_PARAMS.metricWhat]: QueryWhat[];
 };
 
 export type GetMetricTagValuesResp = {

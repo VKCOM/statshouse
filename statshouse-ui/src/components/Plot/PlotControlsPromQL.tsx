@@ -11,7 +11,7 @@ import * as utils from '../../view/utils';
 import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo } from '../index';
 import { selectorParamsTimeShifts, selectorPlotsDataByIndex, selectorTimeRange, useStore } from '../../store';
-import { metricKindToWhat, queryWhat } from '../../view/api';
+import { metricKindToWhat } from '../../view/api';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGFilter } from 'bootstrap-icons/icons/filter.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
@@ -20,6 +20,7 @@ import { ReactComponent as SVGChevronCompactRight } from 'bootstrap-icons/icons/
 import { globalSettings } from '../../common/settings';
 import { PlotParams } from '../../common/plotQueryParams';
 import { MetricMetaValue } from '../../api/metric';
+import { QueryWhat } from '../../api/enum';
 
 const { setParams, setTimeRange } = useStore.getState();
 
@@ -52,7 +53,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
       setSel(
         (s) => ({
           ...s,
-          what: [whats[0]],
+          what: [whats[0] as QueryWhat],
         }),
         true
       );
@@ -98,9 +99,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
       produce((s) => {
         if (plotData.nameMetric) {
           s.metricName = plotData.nameMetric;
-          s.what = (
-            plotData.whats?.length ? plotData.whats.slice() : globalSettings.default_metric_what.slice()
-          ) as queryWhat[];
+          s.what = plotData.whats?.length ? plotData.whats.slice() : globalSettings.default_metric_what.slice();
           s.groupBy = [];
           s.filterIn = {};
           s.filterNotIn = {};
