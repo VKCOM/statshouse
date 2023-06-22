@@ -1504,6 +1504,22 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPIMetricUsage:             true,
 	}
 
+	builtinMetricsNoSamplingAgent = map[int32]bool{
+		BuiltinMetricIDAgentMapping:            true,
+		BuiltinMetricIDJournalVersions:         true,
+		BuiltinMetricIDAgentReceivedPacketSize: true,
+		BuiltinMetricIDAgentReceivedBatchSize:  true,
+		BuiltinMetricIDHeartbeatVersion:        true,
+		BuiltinMetricIDHeartbeatArgs:           true,
+		BuiltinMetricIDHeartbeatArgs2:          true,
+		BuiltinMetricIDHeartbeatArgs3:          true,
+		BuiltinMetricIDHeartbeatArgs4:          true,
+		BuiltinMetricIDAgentDiskCacheErrors:    true,
+		BuiltinMetricIDTimingErrors:            true,
+		BuiltinMetricIDUsageMemory:             true,
+		BuiltinMetricIDUsageCPU:                true,
+	}
+
 	MetricsWithAgentEnvRouteArch = map[int32]bool{
 		BuiltinMetricIDAgentDiskCacheErrors:       true,
 		BuiltinMetricIDTimingErrors:               true,

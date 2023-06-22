@@ -357,6 +357,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 				if metricInfo != nil {
 					samplingMetric.MetricWeight = metricInfo.EffectiveWeight
 					samplingMetric.RoundFactors = metricInfo.RoundSampleFactors
+					samplingMetric.NoSampleAgent = metricInfo.NoSampleAgent
 				}
 				metricsMap[accountMetric] = samplingMetric
 				metricsList = append(metricsList, samplingMetric)
