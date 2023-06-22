@@ -600,15 +600,12 @@ export const statsHouseState: StateCreator<
         prevState.defaultParams,
         setLiveParams(live, new URLSearchParams())
       );
-      // prevState.setSearchParams?.(p, {
-      //   replace: replace || autoReplace,
-      // });
       const search = '?' + p.toString();
       if (document.location.search !== search) {
         if (replace || autoReplace) {
-          appHistory.replace({ pathname: '/view', search });
+          appHistory.replace({ search });
         } else {
-          appHistory.push({ pathname: '/view', search });
+          appHistory.push({ search });
         }
       }
       getState().updateTitle();
