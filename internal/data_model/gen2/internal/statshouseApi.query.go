@@ -27,7 +27,12 @@ type StatshouseApiQuery struct {
 	TimeShift  []int64
 	Promql     string                  // Conditional: item.FieldsMask.0
 	What       []StatshouseApiFunction // Conditional: item.FieldsMask.1
-	// ExcessPoints (TrueType) // Conditional: item.FieldsMask.2
+	// ExcessPointsFlag (TrueType) // Conditional: item.FieldsMask.2
+	WidthAgg string // Conditional: item.FieldsMask.3
+	// NameFlag (TrueType) // Conditional: item.FieldsMask.4
+	// ColorFlag (TrueType) // Conditional: item.FieldsMask.5
+	// TotalFlag (TrueType) // Conditional: item.FieldsMask.6
+	// MaxHostFlag (TrueType) // Conditional: item.FieldsMask.7
 }
 
 func (StatshouseApiQuery) TLName() string { return "statshouseApi.query" }
@@ -53,14 +58,60 @@ func (item *StatshouseApiQuery) ClearWhat() {
 }
 func (item StatshouseApiQuery) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
 
-func (item *StatshouseApiQuery) SetExcessPoints(v bool) {
+func (item *StatshouseApiQuery) SetExcessPointsFlag(v bool) {
 	if v {
 		item.FieldsMask |= 1 << 2
 	} else {
 		item.FieldsMask &^= 1 << 2
 	}
 }
-func (item StatshouseApiQuery) IsSetExcessPoints() bool { return item.FieldsMask&(1<<2) != 0 }
+func (item StatshouseApiQuery) IsSetExcessPointsFlag() bool { return item.FieldsMask&(1<<2) != 0 }
+
+func (item *StatshouseApiQuery) SetWidthAgg(v string) {
+	item.WidthAgg = v
+	item.FieldsMask |= 1 << 3
+}
+func (item *StatshouseApiQuery) ClearWidthAgg() {
+	item.WidthAgg = ""
+	item.FieldsMask &^= 1 << 3
+}
+func (item StatshouseApiQuery) IsSetWidthAgg() bool { return item.FieldsMask&(1<<3) != 0 }
+
+func (item *StatshouseApiQuery) SetNameFlag(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 4
+	} else {
+		item.FieldsMask &^= 1 << 4
+	}
+}
+func (item StatshouseApiQuery) IsSetNameFlag() bool { return item.FieldsMask&(1<<4) != 0 }
+
+func (item *StatshouseApiQuery) SetColorFlag(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 5
+	} else {
+		item.FieldsMask &^= 1 << 5
+	}
+}
+func (item StatshouseApiQuery) IsSetColorFlag() bool { return item.FieldsMask&(1<<5) != 0 }
+
+func (item *StatshouseApiQuery) SetTotalFlag(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 6
+	} else {
+		item.FieldsMask &^= 1 << 6
+	}
+}
+func (item StatshouseApiQuery) IsSetTotalFlag() bool { return item.FieldsMask&(1<<6) != 0 }
+
+func (item *StatshouseApiQuery) SetMaxHostFlag(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 7
+	} else {
+		item.FieldsMask &^= 1 << 7
+	}
+}
+func (item StatshouseApiQuery) IsSetMaxHostFlag() bool { return item.FieldsMask&(1<<7) != 0 }
 
 func (item *StatshouseApiQuery) Reset() {
 	item.FieldsMask = 0
@@ -76,6 +127,7 @@ func (item *StatshouseApiQuery) Reset() {
 	item.TimeShift = item.TimeShift[:0]
 	item.Promql = ""
 	item.What = item.What[:0]
+	item.WidthAgg = ""
 }
 
 func (item *StatshouseApiQuery) Read(w []byte) (_ []byte, err error) {
@@ -126,6 +178,13 @@ func (item *StatshouseApiQuery) Read(w []byte) (_ []byte, err error) {
 	} else {
 		item.What = item.What[:0]
 	}
+	if item.FieldsMask&(1<<3) != 0 {
+		if w, err = basictl.StringRead(w, &item.WidthAgg); err != nil {
+			return w, err
+		}
+	} else {
+		item.WidthAgg = ""
+	}
 	return w, nil
 }
 
@@ -160,6 +219,11 @@ func (item *StatshouseApiQuery) Write(w []byte) (_ []byte, err error) {
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = VectorStatshouseApiFunctionBoxed0Write(w, item.What); err != nil {
+			return w, err
+		}
+	}
+	if item.FieldsMask&(1<<3) != 0 {
+		if w, err = basictl.StringWrite(w, item.WidthAgg); err != nil {
 			return w, err
 		}
 	}
@@ -241,8 +305,18 @@ func (item *StatshouseApiQuery) readJSON(j interface{}) error {
 	delete(_jm, "promql")
 	_jWhat := _jm["what"]
 	delete(_jm, "what")
-	_jExcessPoints := _jm["excess_points"]
-	delete(_jm, "excess_points")
+	_jExcessPointsFlag := _jm["excess_points_flag"]
+	delete(_jm, "excess_points_flag")
+	_jWidthAgg := _jm["widthAgg"]
+	delete(_jm, "widthAgg")
+	_jNameFlag := _jm["name_flag"]
+	delete(_jm, "name_flag")
+	_jColorFlag := _jm["color_flag"]
+	delete(_jm, "color_flag")
+	_jTotalFlag := _jm["total_flag"]
+	delete(_jm, "total_flag")
+	_jMaxHostFlag := _jm["max_host_flag"]
+	delete(_jm, "max_host_flag")
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouseApi.query", k)
 	}
@@ -252,15 +326,62 @@ func (item *StatshouseApiQuery) readJSON(j interface{}) error {
 	if _jWhat != nil {
 		item.FieldsMask |= 1 << 1
 	}
-	if _jExcessPoints != nil {
+	if _jExcessPointsFlag != nil {
 		_bit := false
-		if err := JsonReadBool(_jExcessPoints, &_bit); err != nil {
+		if err := JsonReadBool(_jExcessPointsFlag, &_bit); err != nil {
 			return err
 		}
 		if _bit {
 			item.FieldsMask |= 1 << 2
 		} else {
 			item.FieldsMask &^= 1 << 2
+		}
+	}
+	if _jWidthAgg != nil {
+		item.FieldsMask |= 1 << 3
+	}
+	if _jNameFlag != nil {
+		_bit := false
+		if err := JsonReadBool(_jNameFlag, &_bit); err != nil {
+			return err
+		}
+		if _bit {
+			item.FieldsMask |= 1 << 4
+		} else {
+			item.FieldsMask &^= 1 << 4
+		}
+	}
+	if _jColorFlag != nil {
+		_bit := false
+		if err := JsonReadBool(_jColorFlag, &_bit); err != nil {
+			return err
+		}
+		if _bit {
+			item.FieldsMask |= 1 << 5
+		} else {
+			item.FieldsMask &^= 1 << 5
+		}
+	}
+	if _jTotalFlag != nil {
+		_bit := false
+		if err := JsonReadBool(_jTotalFlag, &_bit); err != nil {
+			return err
+		}
+		if _bit {
+			item.FieldsMask |= 1 << 6
+		} else {
+			item.FieldsMask &^= 1 << 6
+		}
+	}
+	if _jMaxHostFlag != nil {
+		_bit := false
+		if err := JsonReadBool(_jMaxHostFlag, &_bit); err != nil {
+			return err
+		}
+		if _bit {
+			item.FieldsMask |= 1 << 7
+		} else {
+			item.FieldsMask &^= 1 << 7
 		}
 	}
 	if err := StatshouseApiFunction__ReadJSON(&item.Function, _jFunction); err != nil {
@@ -288,6 +409,13 @@ func (item *StatshouseApiQuery) readJSON(j interface{}) error {
 		}
 	} else {
 		item.What = item.What[:0]
+	}
+	if _jWidthAgg != nil {
+		if err := JsonReadString(_jWidthAgg, &item.WidthAgg); err != nil {
+			return err
+		}
+	} else {
+		item.WidthAgg = ""
 	}
 	return nil
 }
@@ -373,7 +501,30 @@ func (item *StatshouseApiQuery) WriteJSON(w []byte) (_ []byte, err error) {
 	}
 	if item.FieldsMask&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"excess_points":true`...)
+		w = append(w, `"excess_points_flag":true`...)
+	}
+	if item.FieldsMask&(1<<3) != 0 {
+		if len(item.WidthAgg) != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"widthAgg":`...)
+			w = basictl.JSONWriteString(w, item.WidthAgg)
+		}
+	}
+	if item.FieldsMask&(1<<4) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"name_flag":true`...)
+	}
+	if item.FieldsMask&(1<<5) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"color_flag":true`...)
+	}
+	if item.FieldsMask&(1<<6) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"total_flag":true`...)
+	}
+	if item.FieldsMask&(1<<7) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"max_host_flag":true`...)
 	}
 	return append(w, '}'), nil
 }

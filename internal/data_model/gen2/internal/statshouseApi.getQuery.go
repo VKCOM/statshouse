@@ -59,22 +59,22 @@ func (item *StatshouseApiGetQuery) WriteBoxed(w []byte) ([]byte, error) {
 }
 
 func (item *StatshouseApiGetQuery) ReadResult(w []byte, ret *StatshouseApiGetQueryResponse) (_ []byte, err error) {
-	return ret.ReadBoxed(w)
+	return ret.ReadBoxed(w, item.FieldsMask)
 }
 
 func (item *StatshouseApiGetQuery) WriteResult(w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
-	return ret.WriteBoxed(w)
+	return ret.WriteBoxed(w, item.FieldsMask)
 }
 
 func (item *StatshouseApiGetQuery) ReadResultJSON(j interface{}, ret *StatshouseApiGetQueryResponse) error {
-	if err := StatshouseApiGetQueryResponse__ReadJSON(ret, j); err != nil {
+	if err := StatshouseApiGetQueryResponse__ReadJSON(ret, j, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseApiGetQuery) WriteResultJSON(w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	if w, err = ret.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil

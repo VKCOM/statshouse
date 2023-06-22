@@ -58,14 +58,14 @@ func (item *StatshouseApiGetQueryResponse) Reset() {
 	item.ResponseId = 0
 }
 
-func (item *StatshouseApiGetQueryResponse) Read(w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetQueryResponse) Read(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
 	if w, err = item.Series.Read(w); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseApiSeriesMeta0Read(w, &item.SeriesMeta); err != nil {
+	if w, err = VectorStatshouseApiSeriesMeta0Read(w, &item.SeriesMeta, nat_query_fields_mask); err != nil {
 		return w, err
 	}
 	if w, err = VectorInt0Read(w, &item.ChunkIds); err != nil {
@@ -80,12 +80,12 @@ func (item *StatshouseApiGetQueryResponse) Read(w []byte) (_ []byte, err error) 
 	return w, nil
 }
 
-func (item *StatshouseApiGetQueryResponse) Write(w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetQueryResponse) Write(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	if w, err = item.Series.Write(w); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseApiSeriesMeta0Write(w, item.SeriesMeta); err != nil {
+	if w, err = VectorStatshouseApiSeriesMeta0Write(w, item.SeriesMeta, nat_query_fields_mask); err != nil {
 		return w, err
 	}
 	if w, err = VectorInt0Write(w, item.ChunkIds); err != nil {
@@ -96,30 +96,22 @@ func (item *StatshouseApiGetQueryResponse) Write(w []byte) (_ []byte, err error)
 	return w, nil
 }
 
-func (item *StatshouseApiGetQueryResponse) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetQueryResponse) ReadBoxed(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x4487e49a); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.Read(w, nat_query_fields_mask)
 }
 
-func (item *StatshouseApiGetQueryResponse) WriteBoxed(w []byte) ([]byte, error) {
+func (item *StatshouseApiGetQueryResponse) WriteBoxed(w []byte, nat_query_fields_mask uint32) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x4487e49a)
-	return item.Write(w)
+	return item.Write(w, nat_query_fields_mask)
 }
 
-func (item StatshouseApiGetQueryResponse) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+func StatshouseApiGetQueryResponse__ReadJSON(item *StatshouseApiGetQueryResponse, j interface{}, nat_query_fields_mask uint32) error {
+	return item.readJSON(j, nat_query_fields_mask)
 }
-
-func StatshouseApiGetQueryResponse__ReadJSON(item *StatshouseApiGetQueryResponse, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiGetQueryResponse) readJSON(j interface{}) error {
+func (item *StatshouseApiGetQueryResponse) readJSON(j interface{}, nat_query_fields_mask uint32) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("statshouseApi.queryResponse", "expected json object")
@@ -177,7 +169,7 @@ func (item *StatshouseApiGetQueryResponse) readJSON(j interface{}) error {
 	if err := StatshouseApiSeries__ReadJSON(&item.Series, _jSeries); err != nil {
 		return err
 	}
-	if err := VectorStatshouseApiSeriesMeta0ReadJSON(_jSeriesMeta, &item.SeriesMeta); err != nil {
+	if err := VectorStatshouseApiSeriesMeta0ReadJSON(_jSeriesMeta, &item.SeriesMeta, nat_query_fields_mask); err != nil {
 		return err
 	}
 	if err := VectorInt0ReadJSON(_jChunkIds, &item.ChunkIds); err != nil {
@@ -186,7 +178,7 @@ func (item *StatshouseApiGetQueryResponse) readJSON(j interface{}) error {
 	return nil
 }
 
-func (item *StatshouseApiGetQueryResponse) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetQueryResponse) WriteJSON(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -201,7 +193,7 @@ func (item *StatshouseApiGetQueryResponse) WriteJSON(w []byte) (_ []byte, err er
 	if len(item.SeriesMeta) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"series_meta":`...)
-		if w, err = VectorStatshouseApiSeriesMeta0WriteJSON(w, item.SeriesMeta); err != nil {
+		if w, err = VectorStatshouseApiSeriesMeta0WriteJSON(w, item.SeriesMeta, nat_query_fields_mask); err != nil {
 			return w, err
 		}
 	}
@@ -231,19 +223,4 @@ func (item *StatshouseApiGetQueryResponse) WriteJSON(w []byte) (_ []byte, err er
 		w = append(w, `"excess_point_right":true`...)
 	}
 	return append(w, '}'), nil
-}
-
-func (item *StatshouseApiGetQueryResponse) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *StatshouseApiGetQueryResponse) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.queryResponse", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("statshouseApi.queryResponse", err.Error())
-	}
-	return nil
 }
