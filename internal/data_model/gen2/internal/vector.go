@@ -1017,67 +1017,45 @@ func (item *VectorStatshouseApiSeriesMeta) Reset() {
 	*ptr = (*ptr)[:0]
 }
 
-func (item *VectorStatshouseApiSeriesMeta) Read(w []byte) (_ []byte, err error) {
+func (item *VectorStatshouseApiSeriesMeta) Read(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
-	return VectorStatshouseApiSeriesMeta0Read(w, ptr)
+	return VectorStatshouseApiSeriesMeta0Read(w, ptr, nat_t)
 }
 
-func (item *VectorStatshouseApiSeriesMeta) Write(w []byte) (_ []byte, err error) {
+func (item *VectorStatshouseApiSeriesMeta) Write(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
-	return VectorStatshouseApiSeriesMeta0Write(w, *ptr)
+	return VectorStatshouseApiSeriesMeta0Write(w, *ptr, nat_t)
 }
 
-func (item *VectorStatshouseApiSeriesMeta) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *VectorStatshouseApiSeriesMeta) ReadBoxed(w []byte, nat_t uint32) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
 		return w, err
 	}
-	return item.Read(w)
+	return item.Read(w, nat_t)
 }
 
-func (item *VectorStatshouseApiSeriesMeta) WriteBoxed(w []byte) ([]byte, error) {
+func (item *VectorStatshouseApiSeriesMeta) WriteBoxed(w []byte, nat_t uint32) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x1cb5c415)
-	return item.Write(w)
+	return item.Write(w, nat_t)
 }
 
-func (item VectorStatshouseApiSeriesMeta) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
+func VectorStatshouseApiSeriesMeta__ReadJSON(item *VectorStatshouseApiSeriesMeta, j interface{}, nat_t uint32) error {
+	return item.readJSON(j, nat_t)
 }
-
-func VectorStatshouseApiSeriesMeta__ReadJSON(item *VectorStatshouseApiSeriesMeta, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *VectorStatshouseApiSeriesMeta) readJSON(j interface{}) error {
+func (item *VectorStatshouseApiSeriesMeta) readJSON(j interface{}, nat_t uint32) error {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
-	if err := VectorStatshouseApiSeriesMeta0ReadJSON(j, ptr); err != nil {
+	if err := VectorStatshouseApiSeriesMeta0ReadJSON(j, ptr, nat_t); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *VectorStatshouseApiSeriesMeta) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *VectorStatshouseApiSeriesMeta) WriteJSON(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
-	if w, err = VectorStatshouseApiSeriesMeta0WriteJSON(w, *ptr); err != nil {
+	if w, err = VectorStatshouseApiSeriesMeta0WriteJSON(w, *ptr, nat_t); err != nil {
 		return w, err
 	}
 	return w, nil
-}
-func (item *VectorStatshouseApiSeriesMeta) MarshalJSON() ([]byte, error) {
-	return item.WriteJSON(nil)
-}
-
-func (item *VectorStatshouseApiSeriesMeta) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	return nil
 }
 
 type VectorStatshouseApiTagValue []StatshouseApiTagValue

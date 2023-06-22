@@ -238,6 +238,10 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		m := tlstatshouseApi.SeriesMeta{
 			TimeShift: meta.TimeShift,
 			Tags:      map[string]string{},
+			Name:      meta.Name,
+			Color:     meta.Color,
+			MaxHosts:  meta.MaxHosts,
+			Total:     int32(meta.Total),
 		}
 		for k, v := range meta.Tags {
 			m.Tags[k] = v.Value
@@ -386,12 +390,14 @@ func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (req 
 		from:                strconv.FormatInt(q.TimeFrom, 10),
 		to:                  strconv.FormatInt(q.TimeTo, 10),
 		width:               q.Interval,
+		widthAgg:            q.WidthAgg,
 		timeShifts:          timeShifts,
 		what:                what,
 		by:                  q.GroupBy,
 		filterIn:            filterIn,
 		filterNotIn:         filterNotIn,
 		promQL:              q.Promql,
+		maxHost:             q.IsSetMaxHostFlag(),
 	}
 	return req, nil
 }
