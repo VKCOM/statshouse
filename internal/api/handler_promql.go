@@ -49,7 +49,7 @@ func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQ
 	}
 	q.End++ // handler expects half open interval [start, end)
 	// execute query
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 	res, dispose, err := h.promEngine.Exec(withAccessInfo(ctx, &ai), q)
 	if err != nil {
