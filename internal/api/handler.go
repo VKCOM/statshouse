@@ -98,6 +98,7 @@ const (
 	paramToRow        = "tr"
 	paramPromQuery    = "q"
 	paramFromEnd      = "fe"
+	paramExcessPoints = "ep"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -314,6 +315,8 @@ type (
 		PromQL                   string                  `json:"promql"`                      // equivalent PromQL query
 		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
 		DebugPromQLTestFailed    bool                    `json:"promqltestfailed"`
+		ExcessPointLeft          bool                    `json:"excess_point_left"`
+		ExcessPointRight         bool                    `json:"excess_point_right"`
 		MetricMeta               *format.MetricMetaValue `json:"metric"`
 		immutable                bool
 		queries                  map[lodInfo]int // not nil if testPromql option set (see getQueryReqOptions)
