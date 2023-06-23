@@ -27,6 +27,7 @@ type StatshouseApiQuery struct {
 	TimeShift  []int64
 	Promql     string                  // Conditional: item.FieldsMask.0
 	What       []StatshouseApiFunction // Conditional: item.FieldsMask.1
+	// ExcessPoints (TrueType) // Conditional: item.FieldsMask.2
 }
 
 func (StatshouseApiQuery) TLName() string { return "statshouseApi.query" }
@@ -51,6 +52,15 @@ func (item *StatshouseApiQuery) ClearWhat() {
 	item.FieldsMask &^= 1 << 1
 }
 func (item StatshouseApiQuery) IsSetWhat() bool { return item.FieldsMask&(1<<1) != 0 }
+
+func (item *StatshouseApiQuery) SetExcessPoints(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 2
+	} else {
+		item.FieldsMask &^= 1 << 2
+	}
+}
+func (item StatshouseApiQuery) IsSetExcessPoints() bool { return item.FieldsMask&(1<<2) != 0 }
 
 func (item *StatshouseApiQuery) Reset() {
 	item.FieldsMask = 0
@@ -231,6 +241,8 @@ func (item *StatshouseApiQuery) readJSON(j interface{}) error {
 	delete(_jm, "promql")
 	_jWhat := _jm["what"]
 	delete(_jm, "what")
+	_jExcessPoints := _jm["excess_points"]
+	delete(_jm, "excess_points")
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouseApi.query", k)
 	}
@@ -239,6 +251,17 @@ func (item *StatshouseApiQuery) readJSON(j interface{}) error {
 	}
 	if _jWhat != nil {
 		item.FieldsMask |= 1 << 1
+	}
+	if _jExcessPoints != nil {
+		_bit := false
+		if err := JsonReadBool(_jExcessPoints, &_bit); err != nil {
+			return err
+		}
+		if _bit {
+			item.FieldsMask |= 1 << 2
+		} else {
+			item.FieldsMask &^= 1 << 2
+		}
 	}
 	if err := StatshouseApiFunction__ReadJSON(&item.Function, _jFunction); err != nil {
 		return err
@@ -347,6 +370,10 @@ func (item *StatshouseApiQuery) WriteJSON(w []byte) (_ []byte, err error) {
 				return w, err
 			}
 		}
+	}
+	if item.FieldsMask&(1<<2) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"excess_points":true`...)
 	}
 	return append(w, '}'), nil
 }

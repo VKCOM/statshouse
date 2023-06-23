@@ -79,6 +79,7 @@ statshouseApi.query#c9951bb9 fields_mask:#
     time_shift: %(Vector long)
     promql: fields_mask.0?string
     what: fields_mask.1?%(Vector statshouseApi.Function)
+    excess_points: fields_mask.2?true
     = statshouseApi.Query;
 
 statshouseApi.queryPoint#c9951bbb fields_mask:#
@@ -100,6 +101,8 @@ statshouseApi.queryResponse#4487e49a fields_mask:#
     chunk_ids: %(Vector int)
     total_time_points: int
     response_id: long
+    excess_point_left: fields_mask.0?true
+    excess_point_right: fields_mask.1?true
     = statshouseApi.GetQueryResponse;
 
 
