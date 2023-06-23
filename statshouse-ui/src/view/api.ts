@@ -432,7 +432,7 @@ export function queryURL(
   if (sel.maxHost) {
     params.push([GET_PARAMS.metricMaxHost, '1']);
   }
-  params.push([GET_PARAMS.noStrictRange, '1']);
+  params.push([GET_PARAMS.excessPoints, '1']);
   const strParams = new URLSearchParams(params).toString();
   return `/api/query?${strParams}`;
 }

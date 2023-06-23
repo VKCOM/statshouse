@@ -47,7 +47,7 @@ export const GET_PARAMS = {
   dashboardGroupInfoSize: 's',
   metricLive: 'live',
   avoidCache: 'ac',
-  noStrictRange: 'nsr',
+  excessPoints: 'ep',
 } as const;
 export type GetParams = Enum<typeof GET_PARAMS>;
 

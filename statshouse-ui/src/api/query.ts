@@ -37,7 +37,7 @@ export type ApiQueryGet = {
   [GET_PARAMS.metricVerbose]?: typeof GET_BOOLEAN.true;
   [GET_PARAMS.dataFormat]?: string;
   [GET_PARAMS.avoidCache]?: string;
-  [GET_PARAMS.noStrictRange]?: typeof GET_BOOLEAN.true;
+  [GET_PARAMS.excessPoints]?: typeof GET_BOOLEAN.true;
   // [GetParams.metricFromEnd]?:string;
   // [GetParams.metricFromRow]?:string;
   // [GetParams.metricToRow]?:string;
