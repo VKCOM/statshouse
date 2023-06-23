@@ -2239,8 +2239,6 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 		desiredStepMul := int64(1)
 		if widthKind == widthLODRes {
 			desiredStepMul = int64(width)
-		} else if len(lods) > 0 {
-			desiredStepMul = lods[len(lods)-1].stepSec
 		}
 
 		for _, shift := range shifts {
@@ -2276,7 +2274,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				if err != nil {
 					return nil, nil, err
 				}
-
+				reqRaw := widthKind == widthAutoRes || lod.stepSec == _1M
 				for _, rows := range m {
 					for i := range rows {
 						ix, ok := tagsToIx[rows[i].tsTags]
@@ -2291,7 +2289,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 							ixToLodToRows[ix][lodIx] = h.getRowsSlice()
 						}
 						*ixToLodToRows[ix][lodIx] = append(*ixToLodToRows[ix][lodIx], &rows[i])
-						v := math.Abs(selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, &rows[i]))
+						v := math.Abs(selectTSValue(q.what, req.maxHost, reqRaw, desiredStepMul, &rows[i]))
 						if q.what.isCumul() {
 							ixToAmount[ix] += v
 						} else {
@@ -2341,9 +2339,10 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				for lodIx, rows := range ixToLodToRows[i] {
 					if rows != nil {
 						lod := lods[lodIx]
+						reqRaw := lod.stepSec == _1M || widthKind == widthAutoRes
 						for _, row := range *rows {
 							lodTimeIx := lod.getIndexForTimestamp(row.time, shiftDelta)
-							(*ts)[base+lodTimeIx] = selectTSValue(q.what, req.maxHost, lod.stepSec, desiredStepMul, row)
+							(*ts)[base+lodTimeIx] = selectTSValue(q.what, req.maxHost, reqRaw, desiredStepMul, row)
 							if maxHosts != nil && row.maxHost != 0 {
 								// mapping every time is not optimal, but mapping to store in cache is also not optimal. TODO - optimize?
 								label, err := h.getTagValue(row.maxHost)
@@ -2990,8 +2989,6 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	desiredStepMul := int64(1)
 	if widthKind == widthLODRes {
 		desiredStepMul = int64(width)
-	} else if len(lods) > 0 {
-		desiredStepMul = lods[len(lods)-1].stepSec
 	}
 
 	if req.fromEnd {
@@ -3019,6 +3016,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 		isStringTop:       isStringTop,
 		mappedFilterIn:    mappedFilterIn,
 		mappedFilterNotIn: mappedFilterNotIn,
+		rawValue:          widthKind == widthAutoRes || width == _1M,
 		desiredStepMul:    desiredStepMul,
 		location:          h.location,
 	}, h.cache.Get, h.maybeAddQuerySeriesTagValue)
@@ -3424,12 +3422,12 @@ func stableMulDiv(v float64, mul int64, div int64) float64 {
 	return v * float64(mul) / float64(div)
 }
 
-func selectTSValue(what queryFn, maxHost bool, stepMul int64, desiredStepMul int64, row *tsSelectRow) float64 {
-	if stepMul == _1M {
-		desiredStepMul = row.stepSec
-	}
+func selectTSValue(what queryFn, maxHost bool, raw bool, desiredStepMul int64, row *tsSelectRow) float64 {
 	switch what {
 	case queryFnCount, queryFnMaxCountHost, queryFnDerivativeCount:
+		if raw {
+			return row.countNorm
+		}
 		return stableMulDiv(row.countNorm, desiredStepMul, row.stepSec)
 	case queryFnCountNorm, queryFnDerivativeCountNorm:
 		return row.countNorm / float64(row.stepSec)
@@ -3437,7 +3435,13 @@ func selectTSValue(what queryFn, maxHost bool, stepMul int64, desiredStepMul int
 		return row.countNorm
 	case queryFnCardinality:
 		if maxHost {
+			if raw {
+				return row.val[5]
+			}
 			return stableMulDiv(row.val[5], desiredStepMul, row.stepSec)
+		}
+		if raw {
+			return row.val[0]
 		}
 		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
 	case queryFnCardinalityNorm:
@@ -3457,6 +3461,9 @@ func selectTSValue(what queryFn, maxHost bool, stepMul int64, desiredStepMul int
 	case queryFnAvg, queryFnCumulAvg, queryFnDerivativeAvg:
 		return row.val[2]
 	case queryFnSum, queryFnDerivativeSum:
+		if raw {
+			return row.val[3]
+		}
 		return stableMulDiv(row.val[3], desiredStepMul, row.stepSec)
 	case queryFnSumNorm, queryFnDerivativeSumNorm:
 		return row.val[3] / float64(row.stepSec)
@@ -3481,6 +3488,9 @@ func selectTSValue(what queryFn, maxHost bool, stepMul int64, desiredStepMul int
 	case queryFnP999:
 		return row.val[6]
 	case queryFnUnique, queryFnDerivativeUnique:
+		if raw {
+			return row.val[0]
+		}
 		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
 	case queryFnUniqueNorm, queryFnDerivativeUniqueNorm:
 		return row.val[0] / float64(row.stepSec)

@@ -435,6 +435,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	} else {
 		step = qry.Timescale.Step
 	}
+	qryRaw := qry.Options.StepAuto || step == _1M
 	for _, lod := range lods {
 		li := lodInfo{
 			fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, shift, h.location),
@@ -472,7 +473,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 						maxHost = append(maxHost, make([]int32, timeLen))
 					}
 				}
-				(*data[i])[j] = selectTSValue(what, qry.MaxHost, lod.stepSec, step, &d)
+				(*data[i])[j] = selectTSValue(what, qry.MaxHost, qryRaw, step, &d)
 				if qry.MaxHost {
 					maxHost[i][j] = d.maxHost
 				}
