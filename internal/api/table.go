@@ -18,6 +18,7 @@ type (
 		isStringTop       bool
 		mappedFilterIn    map[string][]interface{}
 		mappedFilterNotIn map[string][]interface{}
+		rawValue          bool
 		desiredStepMul    int64
 		location          *time.Location
 	}
@@ -91,7 +92,7 @@ func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableR
 				}
 				skey := maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 				rowRepr.SKey = skey
-				data := selectTSValue(q.what, req.maxHost, lod.stepSec, tableReqParams.desiredStepMul, &rows[i])
+				data := selectTSValue(q.what, req.maxHost, tableReqParams.rawValue, tableReqParams.desiredStepMul, &rows[i])
 				key := tableRowKey{
 					time:   rows[i].time,
 					tsTags: rows[i].tsTags,
