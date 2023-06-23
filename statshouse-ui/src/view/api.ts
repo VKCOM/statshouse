@@ -343,7 +343,7 @@ export function metricKindToWhat(kind?: metricKind): QueryWhatSelector[] {
         'cu_cardinality',
       ];
     default:
-      return [];
+      return ['count_norm'];
   }
 }
 
