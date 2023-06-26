@@ -22,7 +22,7 @@ func (*SocksStats) Name() string {
 }
 
 func (c *SocksStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricCPU)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricSocksStat)
 }
 
 func NewSocksStats(writer MetricWriter) (*SocksStats, error) {
@@ -41,17 +41,14 @@ func (c *SocksStats) WriteMetrics(nowUnix int64) error {
 	if err != nil {
 		return fmt.Errorf("failed to get socks stats: %w", err)
 	}
-	c.writeSockstat(nowUnix, stat)
+	c.writeTCPSockstat(nowUnix, stat)
 	if err != nil {
 		return fmt.Errorf("failed to update cpu stats: %w", err)
 	}
 	return nil
 }
 
-func (c *SocksStats) writeSockstat(nowUnix int64, stat *procfs.NetSockstat) {
-	if stat.Used != nil {
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSocketUsed, float64(*stat.Used))
-	}
+func (c *SocksStats) writeTCPSockstat(nowUnix int64, stat *procfs.NetSockstat) {
 	for _, p := range stat.Protocols {
 		protocol := p.Protocol
 		alloc := p.Alloc
@@ -59,27 +56,24 @@ func (c *SocksStats) writeSockstat(nowUnix int64, stat *procfs.NetSockstat) {
 		orphan := p.Orphan
 		timewait := p.TW
 		mem := p.Mem
-		var protocolFlag int32
 		switch protocol {
 		case "TCP":
-			protocolFlag = format.RawIDTagTCP
-		case "UDP":
-			protocolFlag = format.RawIDTagUDP
 		default:
 			continue
 		}
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSocketStatus, float64(inuse), protocolFlag, format.RawIDTagInUse)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameTCPSocketStatus, float64(inuse), format.RawIDTagInUse)
 		if alloc != nil {
-			c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSocketStatus, float64(*alloc), protocolFlag, format.RawIDTagAlloc)
+			c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameTCPSocketStatus, float64(*alloc), format.RawIDTagAlloc)
 		}
 		if orphan != nil {
-			c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSocketStatus, float64(*orphan), protocolFlag, format.RawIDTagOrphan)
+			c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameTCPSocketStatus, float64(*orphan), format.RawIDTagOrphan)
 		}
 		if timewait != nil {
-			c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSocketStatus, float64(*timewait), protocolFlag, format.RawIDTagTW)
+			c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameTCPSocketStatus, float64(*timewait), format.RawIDTagTW)
 		}
 		if mem != nil {
-			c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSocketMemory, float64(*mem*pageSize), protocolFlag)
+			c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameTCPSocketMemory, float64(*mem*pageSize))
 		}
+
 	}
 }

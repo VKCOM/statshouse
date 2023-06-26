@@ -159,11 +159,16 @@ func (c *NetStats) writeNetDev(nowUnix int64) error {
 	total := dev.Total()
 
 	if len(c.oldNetDev) > 0 {
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameNetBandwidth, float64(total.RxBytes-c.oldNetDevTotal.RxBytes), format.RawIDTagReceived)
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameNetBandwidth, float64(total.TxBytes-c.oldNetDevTotal.TxBytes), format.RawIDTagSent)
-
-		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetBandwidth, float64(total.RxPackets-c.oldNetDevTotal.RxPackets), format.RawIDTagReceived)
-		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetBandwidth, float64(total.TxPackets-c.oldNetDevTotal.TxPackets), format.RawIDTagSent)
+		rxBytes := total.RxBytes - c.oldNetDevTotal.RxBytes
+		rxCount := total.RxPackets - c.oldNetDevTotal.RxPackets
+		txBytes := total.TxBytes - c.oldNetDevTotal.TxBytes
+		txCount := total.TxPackets - c.oldNetDevTotal.TxPackets
+		if rxCount > 0 {
+			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameNetBandwidth, float64(rxCount), float64(rxBytes)/float64(rxCount), format.RawIDTagReceived)
+		}
+		if txCount > 0 {
+			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameNetBandwidth, float64(txCount), float64(txBytes)/float64(txCount), format.RawIDTagSent)
+		}
 	}
 
 	c.oldNetDev = dev

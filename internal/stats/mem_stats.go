@@ -37,41 +37,24 @@ func NewMemoryStats(writer MetricWriter) (*MemStats, error) {
 }
 
 func (c *MemStats) WriteMetrics(nowUnix int64) error {
+	const mult = 1024
 	stat, err := c.fs.Meminfo()
 	if err != nil {
 		return fmt.Errorf("failed to get meminfo: %w", err)
 	}
-	var total uint64
-	var free uint64
-	var buffers uint64
-	var cached uint64
-	var sreclaimable uint64
-	var shmem uint64
 
-	if stat.MemTotal != nil {
-		total = *stat.MemTotal
-	}
 	if stat.MemFree != nil {
-		free = *stat.MemFree
+		c.writer.WriteSystemMetricValue(nowUnix, mem, float64(*stat.MemFree*mult), format.RawIDTagFree)
 	}
 	if stat.Buffers != nil {
-		buffers = *stat.Buffers
+		c.writer.WriteSystemMetricValue(nowUnix, mem, float64(*stat.Buffers*mult), format.RawIDTagBuffers)
 	}
-	if stat.Cached != nil {
-		cached = *stat.Cached
+	if stat.MemTotal != nil && stat.Buffers != nil && stat.Cached != nil && stat.SReclaimable != nil && stat.Shmem != nil && stat.MemFree != nil {
+		cached := *stat.Cached + *stat.SReclaimable - *stat.Shmem
+		used := *stat.MemTotal - *stat.MemFree - *stat.Buffers - cached
+		c.writer.WriteSystemMetricValue(nowUnix, mem, float64(used*mult), format.RawIDTagUsed)
+		c.writer.WriteSystemMetricValue(nowUnix, mem, float64(cached*mult), format.RawIDTagCached)
 	}
-	if stat.SReclaimable != nil {
-		sreclaimable = *stat.SReclaimable
-	}
-	if stat.Shmem != nil {
-		shmem = *stat.Shmem
-	}
-	cached = cached + sreclaimable - shmem
-	used := total - free - buffers - cached
-	c.writer.WriteSystemMetricValue(nowUnix, mem, float64(free), format.RawIDTagFree)
-	c.writer.WriteSystemMetricValue(nowUnix, mem, float64(used), format.RawIDTagUsed)
 
-	c.writer.WriteSystemMetricValue(nowUnix, mem, float64(buffers), format.RawIDTagBuffers)
-	c.writer.WriteSystemMetricValue(nowUnix, mem, float64(cached), format.RawIDTagCached)
 	return nil
 }
