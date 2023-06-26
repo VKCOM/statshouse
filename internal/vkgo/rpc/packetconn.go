@@ -33,12 +33,6 @@ const (
 	memcachedStatsReqN   = "stats\n"
 	memcachedGetStatsReq = "get stats\r\n"
 	memcachedVersionReq  = "version\r\n"
-
-	PacketTypeRPCPing = uint32(0x5730a2df)
-	PacketTypeRPCPong = uint32(0x8430eaa7)
-	// contains 8 byte payload
-	// client sends PacketTypeRPCPing periodically, with pingID (int64) it increments
-	// server respond with the same payload
 )
 
 var (

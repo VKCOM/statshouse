@@ -15,6 +15,7 @@ package sqlite0
 #cgo CFLAGS: -DSQLITE_DIRECT_OVERFLOW_READ
 #cgo CFLAGS: -DSQLITE_DEFAULT_WAL_SYNCHRONOUS=1
 #cgo CFLAGS: -DSQLITE_USE_ALLOCA
+#cgo CFLAGS: -DHAVE_MALLOC_USABLE_SIZE=1
 #cgo CFLAGS: -DHAVE_FDATASYNC=1
 #cgo CFLAGS: -DHAVE_USLEEP=1
 #cgo CFLAGS: -DSQLITE_DQS=0
@@ -35,7 +36,7 @@ package sqlite0
 #cgo CFLAGS: -DSQLITE_OMIT_DEPRECATED
 #cgo CFLAGS: -DSQLITE_OMIT_LOAD_EXTENSION
 #cgo CFLAGS: -DSQLITE_OMIT_PROGRESS_CALLBACK
-//#cgo CFLAGS: -DSQLITE_OMIT_SHARED_CACHE
+#cgo CFLAGS: -DSQLITE_OMIT_SHARED_CACHE
 #cgo CFLAGS: -DSQLITE_OMIT_UTF16
 #cgo CFLAGS: -DSQLITE_MAX_MMAP_SIZE=35184372088832ll
 
@@ -96,6 +97,13 @@ type Conn struct {
 func Open(path string, flags int) (*Conn, error) {
 	if initErr != nil {
 		return nil, initErr
+	}
+
+	cFlags := openNoMutex | openPrivateCache
+	for _, f := range []int{OpenReadonly, OpenReadWrite, OpenCreate, OpenMemory} {
+		if flags&f != 0 {
+			cFlags |= f
+		}
 	}
 
 	var cConn *C.sqlite3

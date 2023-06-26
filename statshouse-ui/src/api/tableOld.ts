@@ -4,52 +4,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { formatTagValue, queryTable, queryTableRow, queryTableURL, queryWhat } from '../view/api';
+import { formatTagValue, queryTable, queryTableRow, queryTableURL } from '../view/api';
 import { PlotParams } from '../common/plotQueryParams';
 import { TimeRange } from '../common/TimeRange';
 import { apiGet, fmtInputDateTime, freeKeyPrefix } from '../view/utils';
+import { QueryWhat, TagKeyAll } from './enum';
 
 const abortControllers: Map<unknown, AbortController> = new Map();
+export type WhatCollection = Record<QueryWhat, number>;
 
-export type TagKey =
-  | 'skey'
-  | 'key0'
-  | 'key1'
-  | 'key2'
-  | 'key3'
-  | 'key4'
-  | 'key5'
-  | 'key6'
-  | 'key7'
-  | 'key8'
-  | 'key9'
-  | 'key10'
-  | 'key11'
-  | 'key12'
-  | 'key13'
-  | 'key14'
-  | 'key15'
-  | '_s'
-  | '0'
-  | '1'
-  | '2'
-  | '3'
-  | '4'
-  | '5'
-  | '6'
-  | '7'
-  | '8'
-  | '9'
-  | '10'
-  | '11'
-  | '12'
-  | '13'
-  | '14'
-  | '15';
-
-export type WhatCollection = Record<queryWhat, number>;
-
-export type TagCollection = Record<TagKey, string>;
+export type TagCollection = Record<TagKeyAll, string>;
 
 export type ApiTableRowNormalize = {
   key: string;
@@ -87,18 +51,19 @@ export type ApiTable = queryTable & { rowsNormalize: ApiTableRowNormalize[] };
 export async function apiTable(
   plot: PlotParams,
   range: TimeRange,
-  width: number,
+  agg: string,
   key?: string | undefined,
   fromEnd?: boolean,
   limit?: number,
   keyRequest?: unknown
 ): Promise<ApiTable> {
-  const agg =
-    plot.customAgg === -1
-      ? `${Math.floor(width / 4)}`
-      : plot.customAgg === 0
-      ? `${Math.floor(width * devicePixelRatio)}`
-      : `${plot.customAgg}s`;
+  // const agg =
+  //   plot.customAgg === -1
+  //     ? `${Math.floor(width / 4)}`
+  //     : plot.customAgg === 0
+  //     ? `${Math.floor(width * devicePixelRatio)}`
+  //     : `${plot.customAgg}s`;
+  // const agg = `${range.to - range.from}s`;
 
   const url = queryTableURL(plot, range, agg, key, fromEnd, limit);
 

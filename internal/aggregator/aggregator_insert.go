@@ -19,12 +19,13 @@ import (
 	"strings"
 	"time"
 
+	"pgregory.net/rand"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/vkgo/rowbinary"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"pgregory.net/rand"
 )
 
 func getTableDesc() string {
@@ -356,6 +357,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 				if metricInfo != nil {
 					samplingMetric.MetricWeight = metricInfo.EffectiveWeight
 					samplingMetric.RoundFactors = metricInfo.RoundSampleFactors
+					samplingMetric.NoSampleAgent = metricInfo.NoSampleAgent
 				}
 				metricsMap[accountMetric] = samplingMetric
 				metricsList = append(metricsList, samplingMetric)

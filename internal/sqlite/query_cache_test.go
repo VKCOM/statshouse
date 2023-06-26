@@ -82,6 +82,6 @@ func TestHeap(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		m := heapState{}
 		m.init(t)
-		t.Run(rapid.StateMachineActions(&m))
+		t.Repeat(rapid.StateMachineActions(&m))
 	})
 }

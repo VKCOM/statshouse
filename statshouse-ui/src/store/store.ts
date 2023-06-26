@@ -14,3 +14,6 @@ export const useStore = create<Store, [['zustand/immer', never]]>(
     ...themeState(...a),
   }))
 );
+if (document.location.pathname === '/view' || document.location.pathname === '/embed') {
+  useStore.getState().updateParamsByUrl();
+}

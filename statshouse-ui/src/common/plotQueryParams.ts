@@ -4,39 +4,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import {
-  queryDashboardGroupInfoCount,
-  queryDashboardGroupInfoName,
-  queryDashboardGroupInfoPrefix,
-  queryDashboardGroupInfoShow,
-  queryDashboardGroupInfoSize,
-  queryDashboardID,
-  queryParamAgg,
-  queryParamBackendVersion,
-  queryParamCustomName,
-  queryParamEvent,
-  queryParamEventBy,
-  queryParamEventFrom,
-  queryParamEventHide,
-  queryParamFilter,
-  queryParamFilterSync,
-  queryParamFromTime,
-  queryParamGroupBy,
-  queryParamLive,
-  queryParamLockMax,
-  queryParamLockMin,
-  queryParamMaxHost,
-  queryParamMetric,
-  queryParamNumResults,
-  queryParamPromQL,
-  queryParamTabNum,
-  queryParamTimeShifts,
-  queryParamToTime,
-  queryParamType,
-  queryParamWhat,
-  queryWhat,
-  tabPrefix,
-} from '../view/api';
 import { defaultTimeRange, KeysTo, TIME_RANGE_KEYS_TO } from './TimeRange';
 import {
   BooleanParam,
@@ -52,6 +19,7 @@ import {
 } from './QueryParamsParser';
 import { getNextState } from '../store';
 import React from 'react';
+import { GET_PARAMS, QueryWhat } from '../api/enum';
 
 export interface lockRange {
   readonly min: number;
@@ -67,7 +35,7 @@ export type PlotType = (typeof PLOT_TYPE)[keyof typeof PLOT_TYPE];
 export type PlotParams = {
   metricName: string;
   customName: string;
-  what: queryWhat[];
+  what: QueryWhat[];
   customAgg: number;
   groupBy: string[];
   filterIn: Record<string, string[]>;
@@ -193,7 +161,7 @@ export const configDashboardId: ConfigParams = {
     ...NumberParam,
     always: true,
     default: undefined,
-    urlKey: queryDashboardID,
+    urlKey: GET_PARAMS.dashboardID,
   },
 };
 
@@ -205,7 +173,7 @@ export const configLive: ConfigParams = {
   liveMode: {
     ...BooleanParam,
     default: false,
-    urlKey: queryParamLive,
+    urlKey: GET_PARAMS.metricLive,
   },
 };
 /**
@@ -222,7 +190,7 @@ export const configParams: ConfigParams = {
      */
     ...NumberParam,
     default: 0,
-    urlKey: queryParamTabNum,
+    urlKey: GET_PARAMS.metricTabNum,
   },
   dashboard: {
     /**
@@ -238,7 +206,7 @@ export const configParams: ConfigParams = {
         ...NumberParam,
         always: true,
         default: undefined,
-        urlKey: queryDashboardID,
+        urlKey: GET_PARAMS.dashboardID,
       },
       /**
        * dashboard name
@@ -270,26 +238,26 @@ export const configParams: ConfigParams = {
         default: [],
         isArray: true,
         struct: true,
-        prefixArray: (i) => `${queryDashboardGroupInfoPrefix}${i}.`, // first group not num prefix
+        prefixArray: (i) => `${GET_PARAMS.dashboardGroupInfoPrefix}${i}.`, // first group not num prefix
         params: {
           name: {
             required: true,
-            urlKey: queryDashboardGroupInfoName,
+            urlKey: GET_PARAMS.dashboardGroupInfoName,
           },
           show: {
             ...BooleanParam,
             default: true,
-            urlKey: queryDashboardGroupInfoShow,
+            urlKey: GET_PARAMS.dashboardGroupInfoShow,
           },
           count: {
             ...NumberParam,
             default: 0,
-            urlKey: queryDashboardGroupInfoCount,
+            urlKey: GET_PARAMS.dashboardGroupInfoCount,
           },
           size: {
             ...NumberParam,
             default: 2,
-            urlKey: queryDashboardGroupInfoSize,
+            urlKey: GET_PARAMS.dashboardGroupInfoSize,
           },
         },
       },
@@ -315,7 +283,7 @@ export const configParams: ConfigParams = {
          */
         ...TimeToParam,
         default: TIME_RANGE_KEYS_TO.default,
-        urlKey: queryParamToTime,
+        urlKey: GET_PARAMS.toTime,
       },
       from: {
         /**
@@ -324,14 +292,14 @@ export const configParams: ConfigParams = {
          */
         ...NumberParam,
         default: 0,
-        urlKey: queryParamFromTime,
+        urlKey: GET_PARAMS.fromTime,
       },
     },
   },
   eventFrom: {
     ...NumberParam,
     default: 0,
-    urlKey: queryParamEventFrom,
+    urlKey: GET_PARAMS.metricEventFrom,
   },
   plots: {
     /**
@@ -341,42 +309,42 @@ export const configParams: ConfigParams = {
     default: [],
     isArray: true,
     struct: true,
-    prefixArray: (i) => (i ? `${tabPrefix}${i}.` : ''), //first plot not prefix
+    prefixArray: (i) => (i ? `${GET_PARAMS.plotPrefix}${i}.` : ''), //first plot not prefix
     params: {
       metricName: {
-        urlKey: queryParamMetric, // s=metric or t1.s=metric2
+        urlKey: GET_PARAMS.metricName, // s=metric or t1.s=metric2
         required: true,
       },
       customName: {
-        urlKey: queryParamCustomName,
+        urlKey: GET_PARAMS.metricCustomName,
         default: '',
       },
       what: {
-        urlKey: queryParamWhat, // qw=avg or qw=count
-        default: ['count_norm'] as queryWhat[],
+        urlKey: GET_PARAMS.metricWhat, // qw=avg or qw=count
+        default: ['count_norm'] as QueryWhat[],
         isArray: true,
       },
       customAgg: {
         ...NumberParam,
-        urlKey: queryParamAgg, // g=1 or t1.g=5
+        urlKey: GET_PARAMS.metricAgg, // g=1 or t1.g=5
         default: 0,
       },
       groupBy: {
         ...GroupByParams,
-        urlKey: queryParamGroupBy, //qb=key0 or t1.qb=key1
+        urlKey: GET_PARAMS.metricGroupBy, //qb=key0 or t1.qb=key1
         default: [] as string[],
         isArray: true,
       },
       filterIn: {
         ...FilterParams(),
-        urlKey: queryParamFilter, //qf=0-tag_value or t1.qf=1-tag_value2
+        urlKey: GET_PARAMS.metricFilter, //qf=0-tag_value or t1.qf=1-tag_value2
         isArray: true,
         fromEntries: true,
         default: {} as Record<string, string[]>,
       },
       filterNotIn: {
         ...FilterParams(true),
-        urlKey: queryParamFilter, //qf=0~tag_value or t1.qf=1~tag_value2
+        urlKey: GET_PARAMS.metricFilter, //qf=0~tag_value or t1.qf=1~tag_value2
         isArray: true,
         fromEntries: true,
         default: {} as Record<string, string[]>,
@@ -386,7 +354,7 @@ export const configParams: ConfigParams = {
          * top N series
          */
         ...NumberParam,
-        urlKey: queryParamNumResults, //n=5 or t1.n=10
+        urlKey: GET_PARAMS.numResults, //n=5 or t1.n=10
         default: 5,
       },
       useV2: {
@@ -394,7 +362,7 @@ export const configParams: ConfigParams = {
          * api version
          */
         ...UseV2Param,
-        urlKey: queryParamBackendVersion, // v=2 or t1.v=1
+        urlKey: GET_PARAMS.version, // v=2 or t1.v=1
         default: true,
       },
       yLock: {
@@ -404,40 +372,40 @@ export const configParams: ConfigParams = {
         params: {
           min: {
             ...NumberParam,
-            urlKey: queryParamLockMin, // yl=1010322.5806451612 or t1.yl=1010322.5806451612
+            urlKey: GET_PARAMS.metricLockMin, // yl=1010322.5806451612 or t1.yl=1010322.5806451612
             default: 0,
           },
           max: {
             ...NumberParam,
-            urlKey: queryParamLockMax, // yh=1637419.3548387096 or t1.yh=1637419.3548387096
+            urlKey: GET_PARAMS.metricLockMax, // yh=1637419.3548387096 or t1.yh=1637419.3548387096
             default: 0,
           },
         },
       },
       maxHost: {
         ...BooleanParam,
-        urlKey: queryParamMaxHost,
+        urlKey: GET_PARAMS.metricMaxHost,
         default: false,
       },
-      promQL: { default: '', urlKey: queryParamPromQL },
+      promQL: { default: '', urlKey: GET_PARAMS.metricPromQL },
       type: {
         ...NumberParam,
         default: PLOT_TYPE.Metric,
-        urlKey: queryParamType,
+        urlKey: GET_PARAMS.metricType,
       },
       events: {
         ...NumberParam,
         isArray: true,
         default: [],
-        urlKey: queryParamEvent,
+        urlKey: GET_PARAMS.metricEvent,
       },
       eventsBy: {
-        urlKey: queryParamEventBy, //qb=0 or t1.qb=1
+        urlKey: GET_PARAMS.metricEventBy, //eb=0 or t1.eb=1
         default: [] as string[],
         isArray: true,
       },
       eventsHide: {
-        urlKey: queryParamEventHide, //qh=0 or t1.qh=1
+        urlKey: GET_PARAMS.metricEventHide, //eh=0 or t1.eh=1
         default: [] as string[],
         isArray: true,
       },
@@ -448,7 +416,7 @@ export const configParams: ConfigParams = {
      * add time shift all series
      */
     ...NumberParam,
-    urlKey: queryParamTimeShifts, //ts=-86400 or t1.ts=-172800
+    urlKey: GET_PARAMS.metricTimeShifts, //ts=-86400 or t1.ts=-172800
     default: [] as number[],
     isArray: true,
   },
@@ -459,7 +427,7 @@ export const configParams: ConfigParams = {
      * [plot id].[tag index]-[plot id].[tag index]
      */
     ...TagSyncParam,
-    urlKey: queryParamFilterSync, // fs=0.0-1.0
+    urlKey: GET_PARAMS.metricFilterSync, // fs=0.0-1.0
     default: [],
   },
 };

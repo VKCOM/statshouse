@@ -100,6 +100,7 @@ type args struct {
 	metadataNet              string
 	readOnly                 bool
 	insecureMode             bool
+	querySelectTimeout       time.Duration
 }
 
 func main() {
@@ -157,6 +158,7 @@ func main() {
 	pflag.Uint64Var(&argv.metadataActorID, "metadata-actor-id", 0, "metadata engine actor id")
 	pflag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "metadata engine address")
 	pflag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "metadata engine network")
+	pflag.DurationVar(&argv.querySelectTimeout, "query-select-timeout", api.QuerySelectTimeoutDefault, "query select timeout")
 	pflag.Parse()
 
 	if argv.help {
@@ -337,6 +339,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		argv.localMode,
 		argv.readOnly,
 		argv.insecureMode,
+		argv.querySelectTimeout,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create handler: %w", err)

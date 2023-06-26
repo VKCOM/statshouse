@@ -19,7 +19,7 @@ import {
   UseV2Param,
 } from './QueryParamsParser';
 import { KeysTo, TIME_RANGE_KEYS_TO } from './TimeRange';
-import { queryValueBackendVersion1, queryValueBackendVersion2 } from '../view/api';
+import { METRIC_VALUE_BACKEND_VERSION } from '../api/enum';
 
 let locationSearch = '';
 // window.location search mock
@@ -551,10 +551,10 @@ describe('QueryParamsParser', () => {
   });
 
   test('parse UseV2Param', () => {
-    expect(UseV2Param.decode?.(queryValueBackendVersion2)).toBe(true);
-    expect(UseV2Param.decode?.(queryValueBackendVersion1)).toBe(false);
-    expect(UseV2Param.encode?.(true)).toBe(queryValueBackendVersion2);
-    expect(UseV2Param.encode?.(false)).toBe(queryValueBackendVersion1);
+    expect(UseV2Param.decode?.(METRIC_VALUE_BACKEND_VERSION.v2)).toBe(true);
+    expect(UseV2Param.decode?.(METRIC_VALUE_BACKEND_VERSION.v1)).toBe(false);
+    expect(UseV2Param.encode?.(true)).toBe(METRIC_VALUE_BACKEND_VERSION.v2);
+    expect(UseV2Param.encode?.(false)).toBe(METRIC_VALUE_BACKEND_VERSION.v1);
   });
 
   test('parse ObjectsParam', () => {

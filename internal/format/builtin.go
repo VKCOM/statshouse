@@ -60,10 +60,10 @@ const (
 	BuiltinMetricIDGeneratorSinCounter        = -46
 	BuiltinMetricIDHeartbeatVersion           = -47
 	BuiltinMetricIDHeartbeatArgs              = -48 // this metric was writing larger than allowed strings to DB in the past
-	BuiltinMetricIDAPIRPCServiceTime          = -49 // TODO - harmonize 3 timing API metrics into single new one with protocol
+	BuiltinMetricIDAPIRPCServiceTime          = -49 // TODO: delete when agents & aggregators get "__api_service_time" builtin
 	BuiltinMetricIDAPIBRS                     = -50
-	BuiltinMetricIDAPIEndpointResponseTime    = -51
-	BuiltinMetricIDAPIEndpointServiceTime     = -52
+	BuiltinMetricIDAPIEndpointResponseTime    = -51 // TODO: delete when agents & aggregators get "__api_response_time" builtin
+	BuiltinMetricIDAPIEndpointServiceTime     = -52 // TODO: delete when agents & aggregators get "__api_service_time" builtin
 	BuiltinMetricIDBudgetHost                 = -53 // these 2 metrics are invisible, but host mapping is flood-protected by their names
 	BuiltinMetricIDBudgetAggregatorHost       = -54 // we want to see limits properly credited in flood meta metric tags
 	BuiltinMetricIDAPIActiveQueries           = -55
@@ -86,7 +86,12 @@ const (
 	BuiltinMetricIDMetaServiceTime            = -72
 	BuiltinMetricIDMetaClientWaits            = -73
 	BuiltinMetricIDAgentUDPReceiveBufferSize  = -74
-	// [-1000..-1200] reserved by host system metrics
+	BuiltinMetricIDAPIMetricUsage             = -75
+	BuiltinMetricIDAPIServiceTime             = -76
+	BuiltinMetricIDAPIResponseTime            = -77
+
+	// [-1000..-2000] reserved by host system metrics
+	// [-10000..-12000] reserved by builtin dashboard
 
 	// metric names used in code directly
 	BuiltinMetricNameAggBucketReceiveDelaySec   = "__agg_bucket_receive_delay_sec"
@@ -96,7 +101,7 @@ const (
 	BuiltinMetricNameAggMappingCreated          = "__agg_mapping_created"
 	BuiltinMetricNameBadges                     = "__badges"
 	BuiltinMetricNamePromScrapeTime             = "__prom_scrape_time"
-	BuiltinMetricNameAPIRPCServiceTime          = "__api_rpc_service_time"
+	BuiltinMetricNameAPIRPCServiceTime          = "__api_rpc_service_time" // TODO: delete when agents & aggregators get "__api_service_time" builtin
 	BuiltinMetricNameMetaServiceTime            = "__meta_rpc_service_time"
 	BuiltinMetricNameMetaClientWaits            = "__meta_load_journal_client_waits"
 	BuiltinMetricNameUsageMemory                = "__usage_mem"
@@ -106,14 +111,17 @@ const (
 	BuiltinMetricNameAPISelectRows              = "__api_ch_select_rows"
 	BuiltinMetricNameAPISourceSelectRows        = "__api_ch_source_select_rows"
 	BuiltinMetricNameAPISelectDuration          = "__api_ch_select_duration"
-	BuiltinMetricNameAPIEndpointResponseTime    = "__api_endpoint_response_time"
-	BuiltinMetricNameAPIEndpointServiceTime     = "__api_endpoint_service_time"
+	BuiltinMetricNameAPIEndpointResponseTime    = "__api_endpoint_response_time" // TODO: delete when agents & aggregators get "__api_response_time" builtin
+	BuiltinMetricNameAPIEndpointServiceTime     = "__api_endpoint_service_time"  // TODO: delete when agents & aggregators get "__api_service_time" builtin
 	BuiltinMetricNameBudgetHost                 = "__budget_host"
 	BuiltinMetricNameBudgetAggregatorHost       = "__budget_aggregator_host"
 	BuiltinMetricNameAPIActiveQueries           = "__api_active_queries"
 	BuiltinMetricNameBudgetUnknownMetric        = "__budget_unknown_metric"
 	BuiltinMetricNameSystemMetricScrapeDuration = "__system_metrics_duration"
 	BuiltinMetricNameAgentUDPReceiveBufferSize  = "__src_udp_receive_buffer_size"
+	BuiltinMetricNameAPIMetricUsage             = "__api_metric_usage"
+	BuiltinMetricNameAPIServiceTime             = "__api_service_time"
+	BuiltinMetricNameAPIResponseTime            = "__api_response_time"
 
 	TagValueIDBadgeIngestionErrorsOld  = -11 // remove from API, then stop writing
 	TagValueIDBadgeAggMappingErrorsOld = -33 // remove from API, then stop writing
@@ -287,6 +295,9 @@ const (
 	TagValueIDSystemMetricPSI       = 5
 	TagValueIDSystemMetricSocksStat = 6
 	TagValueIDSystemMetricProtocols = 7
+
+	TagValueIDRPC  = 1
+	TagValueIDHTTP = 2
 )
 
 var (
@@ -1091,7 +1102,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Description: "Test counter generated on the fly by sine function",
 			Tags:        []MetricMetaTag{},
 		},
-		BuiltinMetricIDAPIRPCServiceTime: { // TODO - harmonize
+		BuiltinMetricIDAPIRPCServiceTime: { // TODO: delete when agents & aggregators get "__api_service_time" builtin
 			Name:        BuiltinMetricNameAPIRPCServiceTime,
 			Kind:        MetricKindValue,
 			Description: "Time to handle RPC query by API.",
@@ -1106,7 +1117,96 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "host",
 			}},
 		},
-		BuiltinMetricIDMetaServiceTime: { // TODO - harmonize
+		BuiltinMetricIDAPIEndpointResponseTime: { // TODO: delete when agents & aggregators get "__api_response_time" builtin
+			Name:        BuiltinMetricNameAPIEndpointResponseTime,
+			Kind:        MetricKindValue,
+			Description: "Time to handle and respond to HTTP query by API",
+			Tags: []MetricMetaTag{{
+				Description: "endpoint",
+			}, {
+				Description: "metric",
+				IsMetric:    true,
+			}, {
+				Description: "http_code",
+			}, {
+				Description: "token_name",
+			}, {
+				Description: "data_format",
+			}, {
+				Description: "method",
+			}},
+		},
+		BuiltinMetricIDAPIEndpointServiceTime: { // TODO: delete when agents & aggregators get "__api_service_time" builtin
+			Name:        BuiltinMetricNameAPIEndpointServiceTime,
+			Kind:        MetricKindValue,
+			Description: "Time to handle HTTP query by API",
+			Tags: []MetricMetaTag{{
+				Description: "endpoint",
+			}, {
+				Description: "metric",
+				IsMetric:    true,
+			}, {
+				Description: "http_code",
+			}, {
+				Description: "token_name",
+			}, {
+				Description: "data_format",
+			}, {
+				Description: "method",
+			}},
+		},
+		BuiltinMetricIDAPIServiceTime: {
+			Name:        BuiltinMetricNameAPIServiceTime,
+			Kind:        MetricKindValue,
+			Description: "Time to handle API query.",
+			Tags: []MetricMetaTag{{
+				Description: "protocol",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDRPC:  "RPC",
+					TagValueIDHTTP: "HTTP",
+				}),
+			}, {
+				Description: "data_format",
+			}, {
+				Description: "method",
+			}, {
+				Description: "response_code",
+				Raw:         true,
+			}, {
+				Description: "metric",
+				IsMetric:    true,
+			}, {
+				Description: "token_name",
+			}, {
+				Description: "host",
+			}},
+		},
+		BuiltinMetricIDAPIResponseTime: {
+			Name:        BuiltinMetricNameAPIResponseTime,
+			Kind:        MetricKindValue,
+			Description: "Time to handle and respond to query by API",
+			Tags: []MetricMetaTag{{
+				Description: "protocol",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDRPC:  "RPC",
+					TagValueIDHTTP: "HTTP",
+				}),
+			}, {
+				Description: "data_format",
+			}, {
+				Description: "method",
+			}, {
+				Description: "response_code",
+				Raw:         true,
+			}, {
+				Description: "metric",
+				IsMetric:    true,
+			}, {
+				Description: "token_name",
+			}, {
+				Description: "host",
+			}},
+		}, BuiltinMetricIDMetaServiceTime: { // TODO - harmonize
 			Name:        BuiltinMetricNameMetaServiceTime,
 			Kind:        MetricKindValue,
 			Description: "Time to handle RPC query by meta.",
@@ -1128,7 +1228,6 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "host",
 			}},
 		},
-
 		BuiltinMetricIDAPIBRS: { // TODO - harmonize
 			Name:        BuiltinMetricNameAPIBRS,
 			Kind:        MetricKindValue,
@@ -1137,45 +1236,6 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "host",
 			}},
 		},
-		BuiltinMetricIDAPIEndpointResponseTime: { // TODO - harmonize
-			Name:        BuiltinMetricNameAPIEndpointResponseTime,
-			Kind:        MetricKindValue,
-			Description: "Time to handle and respond to HTTP query by API",
-			Tags: []MetricMetaTag{{
-				Description: "endpoint",
-			}, {
-				Description: "metric",
-				IsMetric:    true,
-			}, {
-				Description: "http_code",
-			}, {
-				Description: "token_name",
-			}, {
-				Description: "data_format",
-			}, {
-				Description: "method",
-			}},
-		},
-		BuiltinMetricIDAPIEndpointServiceTime: {
-			Name:        BuiltinMetricNameAPIEndpointServiceTime,
-			Kind:        MetricKindValue,
-			Description: "Time to handle HTTP query by API",
-			Tags: []MetricMetaTag{{
-				Description: "endpoint",
-			}, {
-				Description: "metric",
-				IsMetric:    true,
-			}, {
-				Description: "http_code",
-			}, {
-				Description: "token_name",
-			}, {
-				Description: "data_format",
-			}, {
-				Description: "method",
-			}},
-		},
-
 		BuiltinMetricIDAPISelectBytes: {
 			Name: BuiltinMetricNameAPISelectBytes,
 			Kind: MetricKindValue,
@@ -1397,6 +1457,28 @@ Value is delta between second value and time it was inserted.`,
 				}),
 			}},
 		},
+		BuiltinMetricIDAPIMetricUsage: {
+			Name:        BuiltinMetricNameAPIMetricUsage,
+			Resolution:  60,
+			Kind:        MetricKindCounter,
+			Description: "Metric usage",
+			Tags: []MetricMetaTag{
+				{
+					Description: "type",
+					ValueComments: convertToValueComments(map[int32]string{
+						TagValueIDRPC:  "RPC",
+						TagValueIDHTTP: "http",
+					}),
+				},
+				{
+					Description: "user",
+				},
+				{
+					Description: "metric",
+					IsMetric:    true,
+				},
+			},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -1409,10 +1491,11 @@ Value is delta between second value and time it was inserted.`,
 	builtinMetricsAllowedToReceive = map[int32]bool{
 		BuiltinMetricIDTimingErrors:               true,
 		BuiltinMetricIDPromScrapeTime:             true,
-		BuiltinMetricIDAPIRPCServiceTime:          true,
 		BuiltinMetricIDAPIBRS:                     true,
 		BuiltinMetricIDAPIEndpointResponseTime:    true,
 		BuiltinMetricIDAPIEndpointServiceTime:     true,
+		BuiltinMetricIDAPIServiceTime:             true,
+		BuiltinMetricIDAPIResponseTime:            true,
 		BuiltinMetricIDUsageMemory:                true,
 		BuiltinMetricIDUsageCPU:                   true,
 		BuiltinMetricIDAPIActiveQueries:           true,
@@ -1422,6 +1505,23 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
 		BuiltinMetricIDMetaServiceTime:            true,
 		BuiltinMetricIDMetaClientWaits:            true,
+		BuiltinMetricIDAPIMetricUsage:             true,
+	}
+
+	builtinMetricsNoSamplingAgent = map[int32]bool{
+		BuiltinMetricIDAgentMapping:            true,
+		BuiltinMetricIDJournalVersions:         true,
+		BuiltinMetricIDAgentReceivedPacketSize: true,
+		BuiltinMetricIDAgentReceivedBatchSize:  true,
+		BuiltinMetricIDHeartbeatVersion:        true,
+		BuiltinMetricIDHeartbeatArgs:           true,
+		BuiltinMetricIDHeartbeatArgs2:          true,
+		BuiltinMetricIDHeartbeatArgs3:          true,
+		BuiltinMetricIDHeartbeatArgs4:          true,
+		BuiltinMetricIDAgentDiskCacheErrors:    true,
+		BuiltinMetricIDTimingErrors:            true,
+		BuiltinMetricIDUsageMemory:             true,
+		BuiltinMetricIDUsageCPU:                true,
 	}
 
 	MetricsWithAgentEnvRouteArch = map[int32]bool{
@@ -1466,18 +1566,20 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDPromScrapeTime:             true,
 		BuiltinMetricIDGeneratorConstCounter:      true,
 		BuiltinMetricIDGeneratorSinCounter:        true,
-		BuiltinMetricIDAPIRPCServiceTime:          true,
 		BuiltinMetricIDAPIBRS:                     true,
 		BuiltinMetricIDAPISelectRows:              true,
 		BuiltinMetricIDAPISelectBytes:             true,
 		BuiltinMetricIDAPISelectDuration:          true,
 		BuiltinMetricIDAPIEndpointResponseTime:    true,
 		BuiltinMetricIDAPIEndpointServiceTime:     true,
+		BuiltinMetricIDAPIServiceTime:             true,
+		BuiltinMetricIDAPIResponseTime:            true,
 		BuiltinMetricIDAPIActiveQueries:           true,
 		BuiltinMetricIDBudgetHost:                 true,
 		BuiltinMetricIDBudgetAggregatorHost:       true,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
 		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
+		BuiltinMetricIDAPIMetricUsage:             true,
 	}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue

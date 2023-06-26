@@ -155,7 +155,8 @@ func (h *RPCHandler) GetQueryPoint(ctx context.Context, args tlstatshouseApi.Get
 	)
 
 	defer func(ms *rpcMethodStat) {
-		ms.serviceTime(ai, err)
+		ms.serviceTime(ai, metricMeta, err)
+		ms.serviceTimeDeprecated(ai, err)
 	}(&rpcMethodStat{args.TLName(), time.Now()})
 
 	metricMeta, ai, err = h.prepareQuery(args.Query.MetricName, args.AccessToken)
@@ -195,13 +196,15 @@ func (h *RPCHandler) GetQueryPoint(ctx context.Context, args tlstatshouseApi.Get
 
 func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery) (tlstatshouseApi.GetQueryResponse, error) {
 	var (
-		ai       accessInfo
-		response tlstatshouseApi.GetQueryResponse
-		err      error
+		ai         accessInfo
+		response   tlstatshouseApi.GetQueryResponse
+		metricMeta *format.MetricMetaValue
+		err        error
 	)
 
 	defer func(ms *rpcMethodStat) {
-		ms.serviceTime(ai, err)
+		ms.serviceTime(ai, metricMeta, err)
+		ms.serviceTimeDeprecated(ai, err)
 	}(&rpcMethodStat{args.TLName(), time.Now()})
 
 	ai, err = h.parseAccessToken(args.AccessToken)
@@ -210,7 +213,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		return response, err
 	}
 
-	metricMeta, err := h.ah.getMetricMeta(ai, args.Query.MetricName)
+	metricMeta, err = h.ah.getMetricMeta(ai, args.Query.MetricName)
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeUnknownMetric, Description: fmt.Sprintf("can't get metric's meta: %v", err)}
 		return response, err
@@ -221,6 +224,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		err = rpc.Error{Code: rpcErrorCodeQueryParsingFailed, Description: fmt.Sprintf("can't transform query: %v", err)}
 		return response, err
 	}
+	LogMetric(format.TagValueIDRPC, ai.user, strconv.FormatInt(int64(metricMeta.MetricID), 10))
 
 	res, _, err := h.ah.handleGetQuery(ctx, ai, req, seriesRequestOptions{})
 	if err != nil {
@@ -281,7 +285,8 @@ func (h *RPCHandler) GetChunk(_ context.Context, args tlstatshouseApi.GetChunk) 
 	)
 
 	defer func(ms *rpcMethodStat) {
-		ms.serviceTime(ai, err)
+		ms.serviceTime(ai, nil, err)
+		ms.serviceTimeDeprecated(ai, err)
 	}(&rpcMethodStat{args.TLName(), time.Now()})
 
 	ai, err = h.parseAccessToken(args.AccessToken)
@@ -322,7 +327,8 @@ func (h *RPCHandler) ReleaseChunks(_ context.Context, args tlstatshouseApi.Relea
 	)
 
 	defer func(ms *rpcMethodStat) {
-		ms.serviceTime(ai, err)
+		ms.serviceTime(ai, nil, err)
+		ms.serviceTimeDeprecated(ai, err)
 	}(&rpcMethodStat{args.TLName(), time.Now()})
 
 	ai, err = h.parseAccessToken(args.AccessToken)

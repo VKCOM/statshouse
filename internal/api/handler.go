@@ -31,6 +31,7 @@ import (
 	"golang.org/x/sync/semaphore"
 
 	"github.com/prometheus/prometheus/model/labels"
+
 	"github.com/vkcom/statshouse-go"
 
 	"github.com/ClickHouse/ch-go"
@@ -97,6 +98,7 @@ const (
 	paramToRow        = "tr"
 	paramPromQuery    = "q"
 	paramFromEnd      = "fe"
+	paramExcessPoints = "ep"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -126,8 +128,8 @@ const (
 	queryClientCacheImmutable      = 7 * 24 * time.Hour
 	queryClientCacheStaleImmutable = 0
 
-	querySelectTimeout    = 60 * time.Second // TODO: querySelectTimeout must be longer than the longest normal query.
-	fastQueryTimeInterval = (86400 + 3600) * 2
+	QuerySelectTimeoutDefault = 55 * time.Second // TODO: querySelectTimeout must be longer than the longest normal query. And must be consistent with NGINX's or another reverse proxy's timeout
+	fastQueryTimeInterval     = (86400 + 3600) * 2
 
 	maxMetricHTTPBodySize     = 64 << 10
 	maxPromConfigHTTPBodySize = 500 * 1024
@@ -182,6 +184,7 @@ type (
 		rmID                  int
 		promEngine            promql.Engine
 		accessManager         *accessManager
+		querySelectTimeout    time.Duration
 	}
 
 	//easyjson:json
@@ -312,6 +315,8 @@ type (
 		PromQL                   string                  `json:"promql"`                      // equivalent PromQL query
 		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
 		DebugPromQLTestFailed    bool                    `json:"promqltestfailed"`
+		ExcessPointLeft          bool                    `json:"excess_point_left"`
+		ExcessPointRight         bool                    `json:"excess_point_right"`
 		MetricMeta               *format.MetricMetaValue `json:"metric"`
 		immutable                bool
 		queries                  map[lodInfo]int // not nil if testPromql option set (see getQueryReqOptions)
@@ -412,7 +417,7 @@ type (
 	}
 )
 
-func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedPrefixes []string, showInvisible bool, utcOffsetSec int64, approxCacheMaxSize int, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, location *time.Location, localMode, readOnly, insecureMode bool) (*Handler, error) {
+func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedPrefixes []string, showInvisible bool, utcOffsetSec int64, approxCacheMaxSize int, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, location *time.Location, localMode, readOnly, insecureMode bool, querySelectTimeout time.Duration) (*Handler, error) {
 	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	diskCacheSuffix := metadataClient.Address // TODO - use cluster name or something here
 
@@ -486,6 +491,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		readOnly:              readOnly,
 		insecureMode:          insecureMode,
 		accessManager:         &accessManager{metricStorage.GetGroupByMetricName},
+		querySelectTimeout:    querySelectTimeout,
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
@@ -1134,6 +1140,9 @@ func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, confi
 }
 
 func (h *Handler) handleGetDashboard(ai accessInfo, id int32) (*DashboardInfo, time.Duration, error) {
+	if dash, ok := format.BuiltinDashboardByID[id]; ok {
+		return &DashboardInfo{Dashboard: getDashboardMetaInfo(dash)}, defaultCacheTTL, nil
+	}
 	dash := h.metricsStorage.GetDashboardMeta(id)
 	if dash == nil {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("dashboard %d not found", id))
@@ -1143,6 +1152,9 @@ func (h *Handler) handleGetDashboard(ai accessInfo, id int32) (*DashboardInfo, t
 
 func (h *Handler) handleGetDashboardList(ai accessInfo) (*GetDashboardListResp, time.Duration, error) {
 	dashs := h.metricsStorage.GetDashboardList()
+	for _, meta := range format.BuiltinDashboardByID {
+		dashs = append(dashs, meta)
+	}
 	resp := &GetDashboardListResp{}
 	for _, dash := range dashs {
 		description := ""
@@ -1161,6 +1173,9 @@ func (h *Handler) handleGetDashboardList(ai accessInfo) (*GetDashboardListResp, 
 
 func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash DashboardMetaInfo, create, delete bool) (*DashboardInfo, error) {
 	if !create {
+		if _, ok := format.BuiltinDashboardByID[dash.DashboardID]; ok {
+			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't edit builtin dashboard %d", dash.DashboardID))
+		}
 		if h.metricsStorage.GetDashboardMeta(dash.DashboardID) == nil {
 			return &DashboardInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("dashboard %d not found", dash.DashboardID))
 		}
@@ -1289,7 +1304,7 @@ func (h *Handler) HandleGetMetricTagValues(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
@@ -1497,7 +1512,7 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
@@ -1597,7 +1612,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	}
 	// Query series and badges
 	var (
-		ctx, cancel   = context.WithTimeout(r.Context(), querySelectTimeout)
+		ctx, cancel   = context.WithTimeout(r.Context(), h.querySelectTimeout)
 		freeBadges    func()
 		freePromqlRes func()
 		freeRes       func()
@@ -1743,7 +1758,7 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 	}
 	// Query series and badges
 	var (
-		ctx, cancel = context.WithTimeout(r.Context(), querySelectTimeout)
+		ctx, cancel = context.WithTimeout(r.Context(), h.querySelectTimeout)
 		freeBadges  func()
 		freeRes     func()
 		options     = seriesRequestOptions{
@@ -2405,7 +2420,7 @@ func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
@@ -2670,7 +2685,7 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), querySelectTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too

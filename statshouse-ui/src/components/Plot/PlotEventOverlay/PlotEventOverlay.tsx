@@ -14,6 +14,7 @@ type Flag = {
   key: string;
   opacity: number;
   range: TimeRange;
+  agg: string;
   plotIndex: number;
   groups: { color: string; idx: number; x: number }[];
 };
@@ -21,8 +22,8 @@ type Flag = {
 function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot, flagWidth: number): Flag[] {
   const flags: Record<string, Flag> = {};
   eventsIndex.forEach((indexEvent) => {
-    const time = eventsData[indexEvent].data[0] ?? [];
-    const data = eventsData[indexEvent].data.slice(1);
+    const time = eventsData[indexEvent]?.data[0] ?? [];
+    const data = eventsData[indexEvent]?.data.slice(1) ?? [];
     const maxY = Math.max(...data.flat().filter(Boolean).map(Number));
     let prevIdx = 0;
     for (let idx = 0, iMax = time.length; idx < iMax; idx++) {
@@ -40,14 +41,15 @@ function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot,
             opacity: 0.3,
             x,
             plotIndex: indexEvent,
-            range: new TimeRange({ from: time[idx], to: time[idx] }),
+            range: new TimeRange({ from: time[idx], to: time[idx + 1] }),
+            agg: `${time[idx + 1] - time[idx]}s`,
           };
           flags[prevIdx].groups.push({
             color: eventsData[indexEvent].series[s].stroke?.toString() ?? '',
             idx,
             x,
           });
-          flags[prevIdx].range.setRange({ from: flags[prevIdx].range.from, to: time[idx] });
+          flags[prevIdx].range.setRange({ from: flags[prevIdx].range.from, to: time[idx + 1] });
           const opacity = Math.max(0.3, val / maxY);
           flags[prevIdx].opacity = Math.min(1, Math.max(flags[prevIdx].opacity, opacity));
         }
@@ -133,6 +135,7 @@ export function _PlotEventOverlay({ indexPlot, hooks, flagHeight = 8, compact }:
               plot={params.plots[r.plotIndex]}
               plotWidth={plotWidth}
               range={r.range}
+              agg={r.agg}
               width={width}
               key={r.key}
               index={r.idx}

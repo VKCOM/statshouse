@@ -17,10 +17,6 @@ import (
 	"pgregory.net/rapid"
 )
 
-var (
-	_ *cryptoRWMachine // for staticcheck: type cryptoRWMachine is unused (U1000)
-)
-
 type cryptoRWMachine struct {
 	buf      *bytes.Buffer
 	r        *cryptoReader
@@ -131,10 +127,11 @@ func (c *cryptoRWMachine) Flush(t *rapid.T) {
 
 func TestCryptoRWRoundtrip(t *testing.T) {
 	t.Parallel()
+
 	rapid.Check(t, func(t *rapid.T) {
-		m := cryptoRWMachine{}
+		var m cryptoRWMachine
 		m.init(t)
-		t.Run(rapid.StateMachineActions(&m))
+		t.Repeat(rapid.StateMachineActions(&m))
 	})
 }
 

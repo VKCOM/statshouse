@@ -36,7 +36,7 @@ export const dashboardListState: StateCreator<
       const { response, error } = await apiDashboardListFetch('dashboardListState');
       if (response) {
         setState((state) => {
-          state.list = response.data.dashboards;
+          state.list = response.data.dashboards ?? [];
         });
       }
       if (error) {

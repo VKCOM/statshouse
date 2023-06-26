@@ -62,7 +62,11 @@ export const microTask =
   typeof queueMicrotask === 'undefined' ? (fn: () => void) => Promise.resolve().then(fn) : queueMicrotask;
 
 function readLegend(u: uPlot): LegendItem[] {
-  const lastTimestamp = (u.data?.[0] && u.data[0][u.data[0].length - 1]) ?? 0;
+  let lastIdx = (u.data?.[0]?.length ?? 0) - 1;
+  const xMax = u.scales.x?.max ?? 0;
+  while (lastIdx >= 0 && u.data?.[0]?.[lastIdx] > xMax) {
+    lastIdx--;
+  }
   return u.series.map((s, index) => {
     let idx = u.legend.idxs?.[index];
     let lastTime = '';
@@ -70,13 +74,13 @@ function readLegend(u: uPlot): LegendItem[] {
     let noFocus = false;
     if (idx === null && u.data?.[index]?.length) {
       noFocus = true;
-      let lastIndex = u.data[index].length - 1;
+      let lastIndex = lastIdx;
       while (typeof u.data[index][lastIndex] !== 'number' && lastIndex > 0) {
         lastIndex--;
       }
       idx = lastIndex;
       if (idx / u.data[index].length < 0.9) {
-        deltaTime = (u.data?.[0] && u.data[0][idx] - lastTimestamp) ?? 0;
+        deltaTime = ((u.data?.[0] && u.data[0][idx]) ?? 0) - xMax;
       }
       if (index === 0) {
         lastTime =

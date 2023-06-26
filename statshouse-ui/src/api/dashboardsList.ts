@@ -16,7 +16,7 @@ export type ApiDashboardList = {
 };
 
 export type GetDashboardListResp = {
-  dashboards: DashboardShortInfo[];
+  dashboards: DashboardShortInfo[] | null;
 };
 
 export type DashboardShortInfo = {

@@ -198,6 +198,6 @@ func (hctx *HandlerContext) parseInvokeReq(s *Server) (err error) {
 	hctx.respPacketType = packetTypeRPCReqResult
 
 	hctx.noResult = hctx.RequestExtra.IsSetNoResult()
-	hctx.requestExtraFieldsmask = hctx.RequestExtra.flags
+	hctx.requestExtraFieldsmask = hctx.RequestExtra.Flags
 	return nil
 }

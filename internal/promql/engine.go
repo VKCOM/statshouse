@@ -306,7 +306,7 @@ func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, p
 			}
 		}
 	}
-	for i := len(path); len(sel.What) == 0 && i != 0; i-- {
+	for i := len(path); len(sel.MetricKindHint) == 0 && i != 0; i-- {
 		switch e := path[i-1].(type) {
 		case *parser.Call:
 			switch e.Func.Name {
@@ -877,9 +877,10 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				id, err := ev.getTagValueID(metric, i, matcher.Value)
 				if err != nil {
 					if err == ErrNotFound {
-						continue // ignore values with no mapping
+						return seriesQueryX{}, nil // string is not mapped, result is guaranteed to be empty
+					} else {
+						return seriesQueryX{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
 					}
-					return seriesQueryX{}, err
 				}
 				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
 					histogramQ.filter = true

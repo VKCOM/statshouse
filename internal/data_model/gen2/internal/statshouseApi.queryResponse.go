@@ -20,10 +20,34 @@ type StatshouseApiGetQueryResponse struct {
 	ChunkIds        []int32
 	TotalTimePoints int32
 	ResponseId      int64
+	// ExcessPointLeft (TrueType) // Conditional: item.FieldsMask.0
+	// ExcessPointRight (TrueType) // Conditional: item.FieldsMask.1
 }
 
 func (StatshouseApiGetQueryResponse) TLName() string { return "statshouseApi.queryResponse" }
 func (StatshouseApiGetQueryResponse) TLTag() uint32  { return 0x4487e49a }
+
+func (item *StatshouseApiGetQueryResponse) SetExcessPointLeft(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 0
+	} else {
+		item.FieldsMask &^= 1 << 0
+	}
+}
+func (item StatshouseApiGetQueryResponse) IsSetExcessPointLeft() bool {
+	return item.FieldsMask&(1<<0) != 0
+}
+
+func (item *StatshouseApiGetQueryResponse) SetExcessPointRight(v bool) {
+	if v {
+		item.FieldsMask |= 1 << 1
+	} else {
+		item.FieldsMask &^= 1 << 1
+	}
+}
+func (item StatshouseApiGetQueryResponse) IsSetExcessPointRight() bool {
+	return item.FieldsMask&(1<<1) != 0
+}
 
 func (item *StatshouseApiGetQueryResponse) Reset() {
 	item.FieldsMask = 0
@@ -50,7 +74,10 @@ func (item *StatshouseApiGetQueryResponse) Read(w []byte) (_ []byte, err error) 
 	if w, err = basictl.IntRead(w, &item.TotalTimePoints); err != nil {
 		return w, err
 	}
-	return basictl.LongRead(w, &item.ResponseId)
+	if w, err = basictl.LongRead(w, &item.ResponseId); err != nil {
+		return w, err
+	}
+	return w, nil
 }
 
 func (item *StatshouseApiGetQueryResponse) Write(w []byte) (_ []byte, err error) {
@@ -65,7 +92,8 @@ func (item *StatshouseApiGetQueryResponse) Write(w []byte) (_ []byte, err error)
 		return w, err
 	}
 	w = basictl.IntWrite(w, item.TotalTimePoints)
-	return basictl.LongWrite(w, item.ResponseId), nil
+	w = basictl.LongWrite(w, item.ResponseId)
+	return w, nil
 }
 
 func (item *StatshouseApiGetQueryResponse) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -117,8 +145,34 @@ func (item *StatshouseApiGetQueryResponse) readJSON(j interface{}) error {
 	if err := JsonReadInt64(_jResponseId, &item.ResponseId); err != nil {
 		return err
 	}
+	_jExcessPointLeft := _jm["excess_point_left"]
+	delete(_jm, "excess_point_left")
+	_jExcessPointRight := _jm["excess_point_right"]
+	delete(_jm, "excess_point_right")
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouseApi.queryResponse", k)
+	}
+	if _jExcessPointLeft != nil {
+		_bit := false
+		if err := JsonReadBool(_jExcessPointLeft, &_bit); err != nil {
+			return err
+		}
+		if _bit {
+			item.FieldsMask |= 1 << 0
+		} else {
+			item.FieldsMask &^= 1 << 0
+		}
+	}
+	if _jExcessPointRight != nil {
+		_bit := false
+		if err := JsonReadBool(_jExcessPointRight, &_bit); err != nil {
+			return err
+		}
+		if _bit {
+			item.FieldsMask |= 1 << 1
+		} else {
+			item.FieldsMask &^= 1 << 1
+		}
 	}
 	if err := StatshouseApiSeries__ReadJSON(&item.Series, _jSeries); err != nil {
 		return err
@@ -167,6 +221,14 @@ func (item *StatshouseApiGetQueryResponse) WriteJSON(w []byte) (_ []byte, err er
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"response_id":`...)
 		w = basictl.JSONWriteInt64(w, item.ResponseId)
+	}
+	if item.FieldsMask&(1<<0) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"excess_point_left":true`...)
+	}
+	if item.FieldsMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"excess_point_right":true`...)
 	}
 	return append(w, '}'), nil
 }

@@ -12,11 +12,12 @@ import { useEventTagColumns } from '../../../hooks/useEventTagColumns';
 
 export type PlotEventOverlayTableProps = {
   plot: PlotParams;
+  agg: string;
   range: TimeRange;
   width: number;
 };
 
-export function _PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayTableProps) {
+export function _PlotEventOverlayTable({ plot, range, agg }: PlotEventOverlayTableProps) {
   const [chunk, setChunk] = useState<ApiTable>();
   const [loader, setLoader] = useState(false);
   const [error, setError] = useState<Error>();
@@ -36,7 +37,7 @@ export function _PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayT
   useEffect(() => {
     const controller = new AbortController();
     setLoader(true);
-    apiTable(plot, range, width, undefined, undefined, undefined, controller)
+    apiTable(plot, range, agg, undefined, undefined, undefined, controller)
       .then(setChunk)
       .catch(setError)
       .finally(() => setLoader(false));
@@ -45,7 +46,7 @@ export function _PlotEventOverlayTable({ plot, width, range }: PlotEventOverlayT
         controller.abort();
       }
     };
-  }, [plot, range, width]);
+  }, [plot, range, agg]);
   return (
     <div className="position-relative flex-grow-1 d-flex flex-column" style={{ minWidth: 100, minHeight: 20 }}>
       {loader && (

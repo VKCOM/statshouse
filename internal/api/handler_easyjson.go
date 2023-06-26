@@ -9,7 +9,6 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-
 	format "github.com/vkcom/statshouse/internal/format"
 )
 
@@ -278,6 +277,10 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer
 			}
 		case "promqltestfailed":
 			out.DebugPromQLTestFailed = bool(in.Bool())
+		case "excess_point_left":
+			out.ExcessPointLeft = bool(in.Bool())
+		case "excess_point_right":
+			out.ExcessPointRight = bool(in.Bool())
 		case "metric":
 			if in.IsNull() {
 				in.Skip()
@@ -367,6 +370,16 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 		const prefix string = ",\"promqltestfailed\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.DebugPromQLTestFailed))
+	}
+	{
+		const prefix string = ",\"excess_point_left\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.ExcessPointLeft))
+	}
+	{
+		const prefix string = ",\"excess_point_right\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.ExcessPointRight))
 	}
 	{
 		const prefix string = ",\"metric\":"
@@ -463,6 +476,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 			out.SkipMinHost = bool(in.Bool())
 		case "skip_sum_square":
 			out.SkipSumSquare = bool(in.Bool())
+		case "pre_key_only":
+			out.PreKeyOnly = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -570,6 +585,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 		const prefix string = ",\"skip_sum_square\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.SkipSumSquare))
+	}
+	if in.PreKeyOnly {
+		const prefix string = ",\"pre_key_only\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.PreKeyOnly))
 	}
 	out.RawByte('}')
 }

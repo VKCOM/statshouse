@@ -46,18 +46,38 @@ type endpointStat struct {
 	metric     string
 	startTime  time.Time
 	tokenName  string
+	user       string
 	dataFormat string
 }
 
 func (es *endpointStat) serviceTime(code int) {
-	es.logEvent(format.BuiltinMetricNameAPIEndpointServiceTime, code)
+	LogMetric(format.TagValueIDHTTP, es.user, es.metric)
+	es.logEvent(format.BuiltinMetricNameAPIServiceTime, code)
+	es.logDeprecatedEvent(format.BuiltinMetricNameAPIEndpointServiceTime, code)
 }
 
 func (es *endpointStat) responseTime(code int) {
-	es.logEvent(format.BuiltinMetricNameAPIEndpointResponseTime, code)
+	es.logEvent(format.BuiltinMetricNameAPIResponseTime, code)
+	es.logDeprecatedEvent(format.BuiltinMetricNameAPIEndpointResponseTime, code)
 }
 
 func (es *endpointStat) logEvent(statName string, code int) {
+	v := time.Since(es.startTime).Seconds()
+	statshouse.Metric(
+		statName,
+		statshouse.Tags{
+			1: strconv.Itoa(int(format.TagValueIDHTTP)),
+			2: es.dataFormat,
+			3: es.method,
+			4: strconv.Itoa(code),
+			5: es.metric,
+			6: es.tokenName,
+			7: es.endpoint,
+		},
+	).Value(v)
+}
+
+func (es *endpointStat) logDeprecatedEvent(statName string, code int) {
 	v := time.Since(es.startTime).Seconds()
 	statshouse.Metric(
 		statName,
@@ -74,6 +94,7 @@ func (es *endpointStat) logEvent(statName string, code int) {
 
 func (es *endpointStat) setTokenName(user string) {
 	es.tokenName = getStatTokenName(user)
+	es.user = user
 }
 
 func getStatTokenName(user string) string {
@@ -99,7 +120,34 @@ type rpcMethodStat struct {
 	startTime time.Time
 }
 
-func (ms *rpcMethodStat) serviceTime(ai accessInfo, err error) {
+func (ms *rpcMethodStat) serviceTime(ai accessInfo, meta *format.MetricMetaValue, err error) {
+	var errorCode string
+	switch e := err.(type) {
+	case rpc.Error:
+		errorCode = strconv.FormatInt(int64(e.Code), 10)
+	case nil:
+		errorCode = "0"
+	default:
+		errorCode = "-1"
+	}
+	var (
+		v = time.Since(ms.startTime).Seconds()
+		t = statshouse.Tags{
+			1: strconv.Itoa(int(format.TagValueIDRPC)),
+			2: "TL",
+			3: ms.method,
+			4: errorCode,
+			6: getStatTokenName(ai.user),
+			7: srvfunc.HostnameForStatshouse(),
+		}
+	)
+	if meta != nil {
+		t[5] = strconv.Itoa(int(meta.MetricID))
+	}
+	statshouse.Metric(format.BuiltinMetricNameAPIServiceTime, t).Value(v)
+}
+
+func (ms *rpcMethodStat) serviceTimeDeprecated(ai accessInfo, err error) {
 	var errorCode string
 	switch e := err.(type) {
 	case rpc.Error:
@@ -201,4 +249,15 @@ func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
 			4: kind,
 		},
 	).Value(float64(chRows))
+}
+
+func LogMetric(type_ int64, user string, metricID string) {
+	statshouse.Metric(
+		format.BuiltinMetricNameAPIMetricUsage,
+		statshouse.Tags{
+			1: strconv.FormatInt(type_, 10),
+			2: user,
+			3: metricID,
+		},
+	).Count(1)
 }

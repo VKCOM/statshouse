@@ -77,7 +77,7 @@ func (cctx *callContext) parseResponse(resp *Response, toplevelError bool, logf 
 			return err
 		}
 	}
-	if tag == reqResultErrorTag || tag == reqResultErrorWrappedTag {
+	if tag == reqErrorTag || tag == reqResultErrorTag || tag == reqResultErrorWrappedTag {
 		var rpcErr Error
 		if resp.Body, err = basictl.IntRead(afterTag, &rpcErr.Code); err != nil {
 			return err

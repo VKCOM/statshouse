@@ -20,10 +20,11 @@ type (
 	}
 
 	SamplingMetric struct {
-		MetricID     int32
-		MetricWeight int64 // actually, effective weight
-		RoundFactors bool
-		Group        *SamplingGroup // never nil when running group sampling algorithm, nil for sampling without groups
+		MetricID      int32
+		MetricWeight  int64 // actually, effective weight
+		RoundFactors  bool
+		NoSampleAgent bool
+		Group         *SamplingGroup // never nil when running group sampling algorithm, nil for sampling without groups
 
 		SumSize int64
 		Items   []SamplingMultiItemPair

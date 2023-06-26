@@ -28,6 +28,10 @@ func AppendDateTime(buf []byte, v time.Time) []byte {
 	return AppendUint32(buf, uint32(v.Unix()))
 }
 
+func AppendDateTime64(buf []byte, v time.Time) []byte {
+	return AppendInt64(buf, v.UnixMicro())
+}
+
 func AppendBool(buf []byte, v bool) []byte {
 	if v {
 		buf = append(buf, 1)
@@ -204,4 +208,26 @@ func AppendArgMinMaxInt32Float32(buf []byte, arg int32, v float32) []byte { // s
 	encoding.PutUint32(tmp2[1:], uint32(arg))
 	encoding.PutUint32(tmp2[6:], math.Float32bits(v))
 	return append(buf, tmp2[:]...)
+}
+
+func appendLengthOfArrOrMap(buf []byte, len int) []byte {
+	var tmp [binary.MaxVarintLen64]byte
+	return append(buf, tmp[:binary.PutUvarint(tmp[:], uint64(len))]...)
+}
+
+func AppendArray[V any](buf []byte, in []V, onEachItem func(buf []byte, v V) []byte) []byte {
+	buf = appendLengthOfArrOrMap(buf, len(in))
+	for _, v := range in {
+		buf = onEachItem(buf, v)
+	}
+	return buf
+}
+
+func AppendMap[K comparable, V any](buf []byte, in map[K]V, onEachKey func(buf []byte, k K) []byte, onEachValue func(buf []byte, v V) []byte) []byte {
+	buf = appendLengthOfArrOrMap(buf, len(in))
+	for k, v := range in {
+		buf = onEachKey(buf, k)
+		buf = onEachValue(buf, v)
+	}
+	return buf
 }

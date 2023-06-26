@@ -1,73 +1,38 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useCallback, useEffect } from 'react';
 import { Dashboard, ErrorMessages, PlotLayout, PlotView } from '../components';
 import { setBackgroundColor } from '../common/canvasToImage';
-import {
-  selectorGlobalNumQueriesPlot,
-  selectorLiveMode,
-  selectorMetricsMetaByName,
-  selectorParams,
-  selectorPreviews,
-  selectorTimeRange,
-  useStore,
-} from '../store';
+import { Store, useStore } from '../store';
 import { now } from './utils';
 import { debug } from '../common/debug';
-import { PlotParams } from '../common/plotQueryParams';
+import { shallow } from 'zustand/shallow';
 
-const {
-  setPlotParams,
-  setTimeRange,
-  updateParamsByUrl,
-  initSetSearchParams,
-  setBaseRange,
-  setCompact,
-  loadMetricsMeta,
-} = useStore.getState();
+const { setPlotParams, setTimeRange, setBaseRange, setCompact } = useStore.getState();
 
 export type ViewPageProps = {
   embed?: boolean;
   yAxisSize?: number;
 };
+
+const selector = ({ params, liveMode, metricsMeta, previews, timeRange, globalNumQueriesPlot }: Store) => ({
+  params,
+  activePlot: params.plots[params.tabNum],
+  liveMode,
+  activePlotMeta: metricsMeta[params.plots[params.tabNum]?.metricName ?? ''] ?? undefined,
+  plotPreview: previews[params.tabNum],
+  globalNumQueriesPlot,
+  timeRange,
+});
 export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => {
-  const [rawParams, setRawParams] = useSearchParams();
-  const params = useStore(selectorParams);
-  const activePlot: PlotParams | undefined = params.plots[params.tabNum];
-  const timeRange = useStore(selectorTimeRange);
-
-  const live = useStore(selectorLiveMode);
-
-  const plotPreviews = useStore(selectorPreviews);
-
-  const numQueries = useStore(selectorGlobalNumQueriesPlot);
-
-  const plotPreview = plotPreviews[params.tabNum];
-
-  const selectorActivePlotMetricsMeta = useMemo(
-    () => selectorMetricsMetaByName.bind(undefined, activePlot?.metricName ?? ''),
-    [activePlot]
+  const { params, activePlotMeta, activePlot, plotPreview, liveMode, timeRange, globalNumQueriesPlot } = useStore(
+    selector,
+    shallow
   );
-  const meta = useStore(selectorActivePlotMetricsMeta);
-
-  useEffect(() => {
-    initSetSearchParams(setRawParams);
-  }, [setRawParams]);
-
-  useEffect(() => {
-    updateParamsByUrl();
-  }, [rawParams]);
-
-  useEffect(() => {
-    if (activePlot?.metricName) {
-      loadMetricsMeta(activePlot.metricName);
-    }
-  }, [activePlot]);
 
   useEffect(() => {
     setCompact(!!embed);
@@ -101,7 +66,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
   }, []);
 
   useEffect(() => {
-    if (live) {
+    if (liveMode) {
       refresh();
       const refreshSec =
         -timeRange.relativeFrom <= 2 * 3600
@@ -118,7 +83,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
         clearInterval(id);
       };
     }
-  }, [live, refresh, timeRange.relativeFrom]);
+  }, [liveMode, refresh, timeRange.relativeFrom]);
 
   if (params.plots.length === 0) {
     return <ErrorMessages />;
@@ -134,8 +99,8 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
                 indexPlot={params.tabNum}
                 setParams={setPlotParams}
                 sel={activePlot}
-                meta={meta}
-                numQueries={numQueries}
+                meta={activePlotMeta}
+                numQueries={globalNumQueriesPlot}
                 setBaseRange={setBaseRange}
               >
                 {params.plots.map((plot, index) => (
