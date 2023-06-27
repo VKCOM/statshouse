@@ -12,6 +12,7 @@ metadata.event#9286affa
     field_mask: #
     id: long
     name: string
+    namespace_id: field_mask.0?long // empty or 0 namespace is default namepsace
     event_type: int
     unused: # // not this is always 0
     version: long

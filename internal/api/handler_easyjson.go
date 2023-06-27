@@ -423,6 +423,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 		switch key {
 		case "metric_id":
 			out.MetricID = int32(in.Int32())
+		case "namespace_id":
+			out.NamespaceID = int32(in.Int32())
 		case "name":
 			out.Name = string(in.String())
 		case "version":
@@ -496,6 +498,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 		const prefix string = ",\"metric_id\":"
 		out.RawString(prefix[1:])
 		out.Int32(int32(in.MetricID))
+	}
+	{
+		const prefix string = ",\"namespace_id\":"
+		out.RawString(prefix)
+		out.Int32(int32(in.NamespaceID))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -1106,7 +1113,143 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out *jwriter.Wri
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi5(in *jlexer.Lexer, out *MetricsGroupInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi5(in *jlexer.Lexer, out *NamespaceInfo) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "namespace":
+			easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in, &out.Namespace)
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi5(out *jwriter.Writer, in NamespaceInfo) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"namespace\":"
+		out.RawString(prefix[1:])
+		easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out, in.Namespace)
+	}
+	out.RawByte('}')
+}
+
+// MarshalEasyJSON supports easyjson.Marshaler interface
+func (v NamespaceInfo) MarshalEasyJSON(w *jwriter.Writer) {
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi5(w, v)
+}
+
+// UnmarshalEasyJSON supports easyjson.Unmarshaler interface
+func (v *NamespaceInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi5(l, v)
+}
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Lexer, out *format.NamespaceMeta) {
+	isTopLevel := in.IsStart()
+	if in.IsNull() {
+		if isTopLevel {
+			in.Consumed()
+		}
+		in.Skip()
+		return
+	}
+	in.Delim('{')
+	for !in.IsDelim('}') {
+		key := in.UnsafeFieldName(false)
+		in.WantColon()
+		if in.IsNull() {
+			in.Skip()
+			in.WantComma()
+			continue
+		}
+		switch key {
+		case "namespace_id":
+			out.ID = int32(in.Int32())
+		case "name":
+			out.Name = string(in.String())
+		case "version":
+			out.Version = int64(in.Int64())
+		case "update_time":
+			out.UpdateTime = uint32(in.Uint32())
+		case "delete_time":
+			out.DeleteTime = uint32(in.Uint32())
+		case "weight":
+			out.Weight = float64(in.Float64())
+		case "visible":
+			out.Visible = bool(in.Bool())
+		default:
+			in.SkipRecursive()
+		}
+		in.WantComma()
+	}
+	in.Delim('}')
+	if isTopLevel {
+		in.Consumed()
+	}
+}
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.Writer, in format.NamespaceMeta) {
+	out.RawByte('{')
+	first := true
+	_ = first
+	{
+		const prefix string = ",\"namespace_id\":"
+		out.RawString(prefix[1:])
+		out.Int32(int32(in.ID))
+	}
+	{
+		const prefix string = ",\"name\":"
+		out.RawString(prefix)
+		out.String(string(in.Name))
+	}
+	{
+		const prefix string = ",\"version\":"
+		out.RawString(prefix)
+		out.Int64(int64(in.Version))
+	}
+	{
+		const prefix string = ",\"update_time\":"
+		out.RawString(prefix)
+		out.Uint32(uint32(in.UpdateTime))
+	}
+	{
+		const prefix string = ",\"delete_time\":"
+		out.RawString(prefix)
+		out.Uint32(uint32(in.DeleteTime))
+	}
+	{
+		const prefix string = ",\"weight\":"
+		out.RawString(prefix)
+		out.Float64(float64(in.Weight))
+	}
+	{
+		const prefix string = ",\"visible\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.Visible))
+	}
+	out.RawByte('}')
+}
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(in *jlexer.Lexer, out *MetricsGroupInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1126,7 +1269,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi5(in *jlexer.Lexer
 		}
 		switch key {
 		case "group":
-			easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in, &out.Group)
+			easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat3(in, &out.Group)
 		case "metrics":
 			if in.IsNull() {
 				in.Skip()
@@ -1160,14 +1303,14 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi5(in *jlexer.Lexer
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi5(out *jwriter.Writer, in MetricsGroupInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi6(out *jwriter.Writer, in MetricsGroupInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
 		const prefix string = ",\"group\":"
 		out.RawString(prefix[1:])
-		easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out, in.Group)
+		easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat3(out, in.Group)
 	}
 	{
 		const prefix string = ",\"metrics\":"
@@ -1190,14 +1333,14 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi5(out *jwriter.Wri
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v MetricsGroupInfo) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi5(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi6(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *MetricsGroupInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi5(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(l, v)
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Lexer, out *format.MetricsGroup) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat3(in *jlexer.Lexer, out *format.MetricsGroup) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1218,6 +1361,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Le
 		switch key {
 		case "group_id":
 			out.ID = int32(in.Int32())
+		case "namespace_id":
+			out.NamespaceID = int32(in.Int32())
 		case "name":
 			out.Name = string(in.String())
 		case "version":
@@ -1242,7 +1387,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Le
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.Writer, in format.MetricsGroup) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat3(out *jwriter.Writer, in format.MetricsGroup) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1250,6 +1395,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.
 		const prefix string = ",\"group_id\":"
 		out.RawString(prefix[1:])
 		out.Int32(int32(in.ID))
+	}
+	{
+		const prefix string = ",\"namespace_id\":"
+		out.RawString(prefix)
+		out.Int32(int32(in.NamespaceID))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -1288,7 +1438,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(in *jlexer.Lexer, out *MetricInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi7(in *jlexer.Lexer, out *MetricInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1319,7 +1469,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(in *jlexer.Lexer
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi6(out *jwriter.Writer, in MetricInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi7(out *jwriter.Writer, in MetricInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1333,14 +1483,14 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi6(out *jwriter.Wri
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v MetricInfo) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi6(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi7(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *MetricInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi6(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi7(l, v)
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi7(in *jlexer.Lexer, out *GetTableResp) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(in *jlexer.Lexer, out *GetTableResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1444,7 +1594,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi7(in *jlexer.Lexer
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi7(out *jwriter.Writer, in GetTableResp) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi8(out *jwriter.Writer, in GetTableResp) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1516,14 +1666,14 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi7(out *jwriter.Wri
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v GetTableResp) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi7(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi8(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *GetTableResp) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi7(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(l, v)
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(in *jlexer.Lexer, out *GetPointResp) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi9(in *jlexer.Lexer, out *GetPointResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1559,7 +1709,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(in *jlexer.Lexer
 				}
 				for !in.IsDelim(']') {
 					var v45 QueryPointsMeta
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi9(in, &v45)
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(in, &v45)
 					out.PointMeta = append(out.PointMeta, v45)
 					in.WantComma()
 				}
@@ -1621,7 +1771,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(in *jlexer.Lexer
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi8(out *jwriter.Writer, in GetPointResp) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi9(out *jwriter.Writer, in GetPointResp) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1636,7 +1786,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi8(out *jwriter.Wri
 				if v48 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi9(out, v49)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(out, v49)
 			}
 			out.RawByte(']')
 		}
@@ -1682,14 +1832,14 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi8(out *jwriter.Wri
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v GetPointResp) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi8(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi9(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *GetPointResp) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi9(l, v)
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi9(in *jlexer.Lexer, out *QueryPointsMeta) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(in *jlexer.Lexer, out *QueryPointsMeta) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1746,7 +1896,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi9(in *jlexer.Lexer
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi9(out *jwriter.Writer, in QueryPointsMeta) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(out *jwriter.Writer, in QueryPointsMeta) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1803,7 +1953,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi9(out *jwriter.Wri
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(in *jlexer.Lexer, out *GetMetricsListResp) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi11(in *jlexer.Lexer, out *GetMetricsListResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1839,7 +1989,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(in *jlexer.Lexe
 				}
 				for !in.IsDelim(']') {
 					var v56 metricShortInfo
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi11(in, &v56)
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(in, &v56)
 					out.Metrics = append(out.Metrics, v56)
 					in.WantComma()
 				}
@@ -1855,7 +2005,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(out *jwriter.Writer, in GetMetricsListResp) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi11(out *jwriter.Writer, in GetMetricsListResp) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1870,7 +2020,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(out *jwriter.Wr
 				if v57 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi11(out, v58)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(out, v58)
 			}
 			out.RawByte(']')
 		}
@@ -1880,14 +2030,14 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(out *jwriter.Wr
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v GetMetricsListResp) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi11(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *GetMetricsListResp) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi11(l, v)
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi11(in *jlexer.Lexer, out *metricShortInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(in *jlexer.Lexer, out *metricShortInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1918,7 +2068,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi11(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi11(out *jwriter.Writer, in metricShortInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(out *jwriter.Writer, in metricShortInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1929,7 +2079,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi11(out *jwriter.Wr
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(in *jlexer.Lexer, out *GetMetricTagValuesResp) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi13(in *jlexer.Lexer, out *GetMetricTagValuesResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -1965,7 +2115,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(in *jlexer.Lexe
 				}
 				for !in.IsDelim(']') {
 					var v59 MetricTagValueInfo
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi13(in, &v59)
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi14(in, &v59)
 					out.TagValues = append(out.TagValues, v59)
 					in.WantComma()
 				}
@@ -1983,7 +2133,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(out *jwriter.Writer, in GetMetricTagValuesResp) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi13(out *jwriter.Writer, in GetMetricTagValuesResp) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -1998,7 +2148,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(out *jwriter.Wr
 				if v60 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi13(out, v61)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi14(out, v61)
 			}
 			out.RawByte(']')
 		}
@@ -2013,14 +2163,14 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(out *jwriter.Wr
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v GetMetricTagValuesResp) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi13(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *GetMetricTagValuesResp) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi13(l, v)
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi13(in *jlexer.Lexer, out *MetricTagValueInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi14(in *jlexer.Lexer, out *MetricTagValueInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -2053,7 +2203,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi13(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi13(out *jwriter.Writer, in MetricTagValueInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi14(out *jwriter.Writer, in MetricTagValueInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -2069,7 +2219,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi13(out *jwriter.Wr
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi14(in *jlexer.Lexer, out *GetGroupListResp) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi15(in *jlexer.Lexer, out *GetGroupListResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -2105,7 +2255,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi14(in *jlexer.Lexe
 				}
 				for !in.IsDelim(']') {
 					var v62 groupShortInfo
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi15(in, &v62)
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi16(in, &v62)
 					out.Groups = append(out.Groups, v62)
 					in.WantComma()
 				}
@@ -2121,7 +2271,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi14(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi14(out *jwriter.Writer, in GetGroupListResp) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi15(out *jwriter.Writer, in GetGroupListResp) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -2136,7 +2286,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi14(out *jwriter.Wr
 				if v63 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi15(out, v64)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi16(out, v64)
 			}
 			out.RawByte(']')
 		}
@@ -2146,14 +2296,14 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi14(out *jwriter.Wr
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v GetGroupListResp) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi14(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi15(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *GetGroupListResp) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi14(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi15(l, v)
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi15(in *jlexer.Lexer, out *groupShortInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi16(in *jlexer.Lexer, out *groupShortInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -2188,7 +2338,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi15(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi15(out *jwriter.Writer, in groupShortInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi16(out *jwriter.Writer, in groupShortInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -2209,7 +2359,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi15(out *jwriter.Wr
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi16(in *jlexer.Lexer, out *GetDashboardListResp) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi17(in *jlexer.Lexer, out *GetDashboardListResp) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -2245,7 +2395,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi16(in *jlexer.Lexe
 				}
 				for !in.IsDelim(']') {
 					var v65 dashboardShortInfo
-					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi17(in, &v65)
+					easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(in, &v65)
 					out.Dashboards = append(out.Dashboards, v65)
 					in.WantComma()
 				}
@@ -2261,7 +2411,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi16(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi16(out *jwriter.Writer, in GetDashboardListResp) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi17(out *jwriter.Writer, in GetDashboardListResp) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -2276,7 +2426,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi16(out *jwriter.Wr
 				if v66 > 0 {
 					out.RawByte(',')
 				}
-				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi17(out, v67)
+				easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi18(out, v67)
 			}
 			out.RawByte(']')
 		}
@@ -2286,14 +2436,14 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi16(out *jwriter.Wr
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v GetDashboardListResp) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi16(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi17(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *GetDashboardListResp) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi16(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi17(l, v)
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi17(in *jlexer.Lexer, out *dashboardShortInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(in *jlexer.Lexer, out *dashboardShortInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -2328,7 +2478,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi17(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi17(out *jwriter.Writer, in dashboardShortInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi18(out *jwriter.Writer, in dashboardShortInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
@@ -2349,7 +2499,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi17(out *jwriter.Wr
 	}
 	out.RawByte('}')
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(in *jlexer.Lexer, out *DashboardInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi19(in *jlexer.Lexer, out *DashboardInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -2369,7 +2519,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(in *jlexer.Lexe
 		}
 		switch key {
 		case "dashboard":
-			easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi19(in, &out.Dashboard)
+			easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi20(in, &out.Dashboard)
 		case "delete_mark":
 			out.Delete = bool(in.Bool())
 		default:
@@ -2382,14 +2532,14 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi18(out *jwriter.Writer, in DashboardInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi19(out *jwriter.Writer, in DashboardInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first
 	{
 		const prefix string = ",\"dashboard\":"
 		out.RawString(prefix[1:])
-		easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi19(out, in.Dashboard)
+		easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi20(out, in.Dashboard)
 	}
 	{
 		const prefix string = ",\"delete_mark\":"
@@ -2401,14 +2551,14 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi18(out *jwriter.Wr
 
 // MarshalEasyJSON supports easyjson.Marshaler interface
 func (v DashboardInfo) MarshalEasyJSON(w *jwriter.Writer) {
-	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi18(w, v)
+	easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi19(w, v)
 }
 
 // UnmarshalEasyJSON supports easyjson.Unmarshaler interface
 func (v *DashboardInfo) UnmarshalEasyJSON(l *jlexer.Lexer) {
-	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(l, v)
+	easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi19(l, v)
 }
-func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi19(in *jlexer.Lexer, out *DashboardMetaInfo) {
+func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi20(in *jlexer.Lexer, out *DashboardMetaInfo) {
 	isTopLevel := in.IsStart()
 	if in.IsNull() {
 		if isTopLevel {
@@ -2471,7 +2621,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi19(in *jlexer.Lexe
 		in.Consumed()
 	}
 }
-func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi19(out *jwriter.Writer, in DashboardMetaInfo) {
+func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi20(out *jwriter.Writer, in DashboardMetaInfo) {
 	out.RawByte('{')
 	first := true
 	_ = first

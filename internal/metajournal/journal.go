@@ -322,12 +322,15 @@ func (ms *Journal) updateJournal(aggLog AggLog) error {
 
 func updateEntriesJournal(oldJournal, newEntries []tlmetadata.Event) []tlmetadata.Event {
 	var result []tlmetadata.Event
-	newEntriesMap := map[journalEventID]struct{}{}
+	newEntriesMap := map[journalEventID]int64{}
 	for _, entry := range newEntries {
-		newEntriesMap[journalEventID{
+		key := journalEventID{
 			typ: entry.EventType,
 			id:  entry.Id,
-		}] = struct{}{}
+		}
+		if old, ok := newEntriesMap[key]; !ok || (ok && old < entry.Version) {
+			newEntriesMap[key] = entry.Version
+		}
 	}
 	for _, entry := range oldJournal {
 		if _, ok := newEntriesMap[journalEventID{
@@ -337,7 +340,15 @@ func updateEntriesJournal(oldJournal, newEntries []tlmetadata.Event) []tlmetadat
 			result = append(result, entry)
 		}
 	}
-	result = append(result, newEntries...)
+	for _, entry := range newEntries {
+		key := journalEventID{
+			typ: entry.EventType,
+			id:  entry.Id,
+		}
+		if v, ok := newEntriesMap[key]; ok && entry.Version == v {
+			result = append(result, entry)
+		}
+	}
 	return result
 }
 
