@@ -540,11 +540,11 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 			h.location,
 		)
 		pq = &preparedTagValuesQuery{
-			version:     version,
-			metricID:    qry.Metric.MetricID,
-			preKeyTagID: qry.Metric.PreKeyTagID,
-			tagID:       format.TagIDLegacy(qry.TagIndex),
-			numResults:  math.MaxInt - 1,
+			version:       version,
+			metricID:      qry.Metric.MetricID,
+			preKeyTagName: qry.Metric.PreKeyTagName,
+			tagID:         format.TagIDLegacy(qry.TagIndex),
+			numResults:    math.MaxInt - 1,
 		}
 		tags = make(map[int32]bool)
 	)
@@ -598,11 +598,11 @@ func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery
 			h.location,
 		)
 		pq = &preparedTagValuesQuery{
-			version:     version,
-			metricID:    qry.Metric.MetricID,
-			preKeyTagID: qry.Metric.PreKeyTagID,
-			tagID:       format.StringTopTagID,
-			numResults:  math.MaxInt - 1,
+			version:       version,
+			metricID:      qry.Metric.MetricID,
+			preKeyTagName: qry.Metric.PreKeyTagName,
+			tagID:         format.StringTopTagID,
+			numResults:    math.MaxInt - 1,
 		}
 		tags = make(map[string]bool)
 	)
@@ -733,15 +733,15 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 	kind := queryFnToQueryFnKind(what, qry.MaxHost)
 	qs := normalizedQueryString(qry.Metric.Name, kind, groupBy, filterIn, filterOut, false)
 	pq := preparedPointsQuery{
-		user:        ai.user,
-		version:     promqlVersionOrDefault(qry.Options.Version),
-		metricID:    qry.Metric.MetricID,
-		preKeyTagID: qry.Metric.PreKeyTagID,
-		isStringTop: qry.Metric.StringTopDescription != "",
-		kind:        kind,
-		by:          qry.GroupBy,
-		filterIn:    filterInM,
-		filterNotIn: filterOutM,
+		user:          ai.user,
+		version:       promqlVersionOrDefault(qry.Options.Version),
+		metricID:      qry.Metric.MetricID,
+		preKeyTagName: qry.Metric.PreKeyTagName,
+		isStringTop:   qry.Metric.StringTopDescription != "",
+		kind:          kind,
+		by:            qry.GroupBy,
+		filterIn:      filterInM,
+		filterNotIn:   filterOutM,
 	}
 	return what, qs, pq
 }

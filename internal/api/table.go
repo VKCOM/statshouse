@@ -46,17 +46,17 @@ func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableR
 		rowsCount := 0
 		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, true)
 		pq := &preparedPointsQuery{
-			user:        tableReqParams.user,
-			version:     req.version,
-			metricID:    metricMeta.MetricID,
-			preKeyTagID: metricMeta.PreKeyTagID,
-			isStringTop: tableReqParams.isStringTop,
-			kind:        q.whatKind,
-			by:          q.by,
-			filterIn:    tableReqParams.mappedFilterIn,
-			filterNotIn: tableReqParams.mappedFilterNotIn,
-			orderBy:     true,
-			desc:        req.fromEnd,
+			user:          tableReqParams.user,
+			version:       req.version,
+			metricID:      metricMeta.MetricID,
+			preKeyTagName: metricMeta.PreKeyTagName,
+			isStringTop:   tableReqParams.isStringTop,
+			kind:          q.whatKind,
+			by:            q.by,
+			filterIn:      tableReqParams.mappedFilterIn,
+			filterNotIn:   tableReqParams.mappedFilterNotIn,
+			orderBy:       true,
+			desc:          req.fromEnd,
 		}
 
 		for _, lod := range lods {

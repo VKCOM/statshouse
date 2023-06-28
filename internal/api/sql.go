@@ -16,13 +16,13 @@ import (
 )
 
 type preparedTagValuesQuery struct {
-	version     string
-	metricID    int32
-	preKeyTagID string
-	tagID       string
-	numResults  int
-	filterIn    map[string][]interface{}
-	filterNotIn map[string][]interface{}
+	version       string
+	metricID      int32
+	preKeyTagName string
+	tagID         string
+	numResults    int
+	filterIn      map[string][]interface{}
+	filterNotIn   map[string][]interface{}
 }
 
 func (q *preparedTagValuesQuery) stringTag() bool {
@@ -30,15 +30,15 @@ func (q *preparedTagValuesQuery) stringTag() bool {
 }
 
 type preparedPointsQuery struct {
-	user        string
-	version     string
-	metricID    int32
-	preKeyTagID string
-	isStringTop bool
-	kind        queryFnKind
-	by          []string
-	filterIn    map[string][]interface{}
-	filterNotIn map[string][]interface{}
+	user          string
+	version       string
+	metricID      int32
+	preKeyTagName string
+	isStringTop   bool
+	kind          queryFnKind
+	by            []string
+	filterIn      map[string][]interface{}
+	filterNotIn   map[string][]interface{}
 
 	// for table view requests
 	orderBy bool
@@ -70,10 +70,10 @@ FROM
 WHERE
   %s = ?
   AND time >= ? AND time < ?%s`,
-		preKeyTagName(lod.hasPreKey, pq.tagID, pq.preKeyTagID),
+		preKeyTagName(lod.hasPreKey, pq.tagID, pq.preKeyTagName),
 		valueName,
 		sqlAggFn(pq.version, "sum"),
-		preKeyTableName(lod, pq.tagID, pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
+		preKeyTableName(lod, pq.tagID, pq.preKeyTagName, pq.filterIn, pq.filterNotIn),
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
@@ -84,7 +84,7 @@ WHERE
 	for k, ids := range pq.filterIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s IN (%s)`, preKeyTagName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s IN (%s)`, preKeyTagName(lod.hasPreKey, k, pq.preKeyTagName), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -94,7 +94,7 @@ WHERE
 	for k, ids := range pq.filterNotIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s NOT IN (%s)`, preKeyTagName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s NOT IN (%s)`, preKeyTagName(lod.hasPreKey, k, pq.preKeyTagName), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -110,7 +110,7 @@ ORDER BY
 LIMIT %v
 SETTINGS
   optimize_aggregation_in_order = 1
-`, preKeyTagName(lod.hasPreKey, pq.tagID, pq.preKeyTagID), valueName, pq.numResults+1) // +1 so we can set "more":true
+`, preKeyTagName(lod.hasPreKey, pq.tagID, pq.preKeyTagName), valueName, pq.numResults+1) // +1 so we can set "more":true
 
 	q, err := util.BindQuery(query, args...)
 	return q, meta, err
@@ -193,7 +193,7 @@ func loadPointsQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (str
 			if b == format.ShardTagID {
 				commaBy += ", _shard_num"
 			} else {
-				commaBy += fmt.Sprintf(", %s AS %s", preKeyTagName(lod.hasPreKey, b, pq.preKeyTagID), b)
+				commaBy += fmt.Sprintf(", %s AS %s", preKeyTagName(lod.hasPreKey, b, pq.preKeyTagName), b)
 			}
 		}
 	}
@@ -221,7 +221,7 @@ WHERE
 		timeInterval,
 		commaBy,
 		what,
-		preKeyTableName(lod, "", pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
+		preKeyTableName(lod, "", pq.preKeyTagName, pq.filterIn, pq.filterNotIn),
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
@@ -232,7 +232,7 @@ WHERE
 	for k, ids := range pq.filterIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s IN (%s)`, preKeyTagName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s IN (%s)`, preKeyTagName(lod.hasPreKey, k, pq.preKeyTagName), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -242,7 +242,7 @@ WHERE
 	for k, ids := range pq.filterNotIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s NOT IN (%s)`, preKeyTagName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s NOT IN (%s)`, preKeyTagName(lod.hasPreKey, k, pq.preKeyTagName), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -284,9 +284,9 @@ func loadPointQuery(pq *preparedPointsQuery, pointQuery pointQuery, utcOffset in
 	if len(pq.by) > 0 {
 		for i, b := range pq.by {
 			if i == 0 {
-				commaBy += fmt.Sprintf("%s AS %s", preKeyTagName(pointQuery.hasPreKey, b, pq.preKeyTagID), b)
+				commaBy += fmt.Sprintf("%s AS %s", preKeyTagName(pointQuery.hasPreKey, b, pq.preKeyTagName), b)
 			} else {
-				commaBy += fmt.Sprintf(", %s AS %s", preKeyTagName(pointQuery.hasPreKey, b, pq.preKeyTagID), b)
+				commaBy += fmt.Sprintf(", %s AS %s", preKeyTagName(pointQuery.hasPreKey, b, pq.preKeyTagName), b)
 			}
 		}
 	}
@@ -306,7 +306,7 @@ WHERE
   AND time >= ? AND time < ?%s`,
 		commaBySelect,
 		what,
-		preKeyTableNameFromPoint(pointQuery, "", pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
+		preKeyTableNameFromPoint(pointQuery, "", pq.preKeyTagName, pq.filterIn, pq.filterNotIn),
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
@@ -317,7 +317,7 @@ WHERE
 	for k, ids := range pq.filterIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s IN (%s)`, preKeyTagName(pointQuery.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s IN (%s)`, preKeyTagName(pointQuery.hasPreKey, k, pq.preKeyTagName), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -327,7 +327,7 @@ WHERE
 	for k, ids := range pq.filterNotIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s NOT IN (%s)`, preKeyTagName(pointQuery.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s NOT IN (%s)`, preKeyTagName(pointQuery.hasPreKey, k, pq.preKeyTagName), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `

@@ -175,6 +175,7 @@ type MetricMetaValue struct {
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
 	GroupID             int32                    `json:"-"`
 	Group               *MetricsGroup            `json:"-"`
+	PreKeyTagName       string                   `json:"-"` // Prekey name according to CH column
 }
 
 type MetricMetaValueOld struct {
@@ -303,9 +304,11 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		}
 		if m.PreKeyTagID == TagIDLegacy(i) && m.PreKeyFrom != 0 {
 			m.PreKeyIndex = i
+			m.PreKeyTagName = TagIDLegacy(i)
 		}
 		if m.PreKeyTagID == TagID(i) && m.PreKeyFrom != 0 {
 			m.PreKeyIndex = i
+			m.PreKeyTagName = TagIDLegacy(i)
 		}
 		if !ValidRawKind(tag.RawKind) {
 			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))

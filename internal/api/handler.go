@@ -1426,13 +1426,13 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		h.location,
 	)
 	pq := &preparedTagValuesQuery{
-		version:     version,
-		metricID:    metricMeta.MetricID,
-		preKeyTagID: metricMeta.PreKeyTagID,
-		tagID:       tagID,
-		numResults:  numResults,
-		filterIn:    mappedFilterIn,
-		filterNotIn: mappedFilterNotIn,
+		version:       version,
+		metricID:      metricMeta.MetricID,
+		preKeyTagName: metricMeta.PreKeyTagName,
+		tagID:         tagID,
+		numResults:    numResults,
+		filterIn:      mappedFilterIn,
+		filterNotIn:   mappedFilterNotIn,
 	}
 
 	tagInfo := map[selectRow]float64{}
@@ -2225,15 +2225,15 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 	for _, q := range queries {
 		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, false)
 		pq := &preparedPointsQuery{
-			user:        ai.user,
-			version:     version,
-			metricID:    metricMeta.MetricID,
-			preKeyTagID: metricMeta.PreKeyTagID,
-			isStringTop: isStringTop,
-			kind:        q.whatKind,
-			by:          q.by,
-			filterIn:    mappedFilterIn,
-			filterNotIn: mappedFilterNotIn,
+			user:          ai.user,
+			version:       version,
+			metricID:      metricMeta.MetricID,
+			preKeyTagName: metricMeta.PreKeyTagName,
+			isStringTop:   isStringTop,
+			kind:          q.whatKind,
+			by:            q.by,
+			filterIn:      mappedFilterIn,
+			filterNotIn:   mappedFilterNotIn,
 		}
 
 		desiredStepMul := int64(1)
@@ -2551,15 +2551,15 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 	for _, q := range queries {
 		queryKey := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, false)
 		pq := &preparedPointsQuery{
-			user:        ai.user,
-			version:     version,
-			metricID:    metricMeta.MetricID,
-			preKeyTagID: metricMeta.PreKeyTagID,
-			isStringTop: isStringTop,
-			kind:        q.whatKind,
-			by:          q.by,
-			filterIn:    mappedFilterIn,
-			filterNotIn: mappedFilterNotIn,
+			user:          ai.user,
+			version:       version,
+			metricID:      metricMeta.MetricID,
+			preKeyTagName: metricMeta.PreKeyTagName,
+			isStringTop:   isStringTop,
+			kind:          q.whatKind,
+			by:            q.by,
+			filterIn:      mappedFilterIn,
+			filterNotIn:   mappedFilterNotIn,
 		}
 
 		qp := selectQueryPoint(
