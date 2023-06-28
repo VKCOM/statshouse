@@ -17,6 +17,10 @@ type SocksStats struct {
 
 var pageSize = os.Getpagesize()
 
+func (c *SocksStats) Skip() bool {
+	return false
+}
+
 func (*SocksStats) Name() string {
 	return "socks_stats"
 }

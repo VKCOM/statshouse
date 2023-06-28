@@ -14,8 +14,12 @@ type ProtocolsStats struct {
 	writer MetricWriter
 }
 
+func (c *ProtocolsStats) Skip() bool {
+	return false
+}
+
 func (*ProtocolsStats) Name() string {
-	return "socks_stats"
+	return "protocols_stats"
 }
 
 func (c *ProtocolsStats) PushDuration(now int64, d time.Duration) {

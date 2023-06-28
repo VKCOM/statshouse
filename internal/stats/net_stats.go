@@ -118,6 +118,10 @@ type icmp struct {
 	OutAddrMaskReps  *float64
 }
 
+func (c *NetStats) Skip() bool {
+	return false
+}
+
 func (*NetStats) Name() string {
 	return "net_stats"
 }

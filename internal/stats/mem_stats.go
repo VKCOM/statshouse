@@ -17,6 +17,10 @@ type MemStats struct {
 
 const mem = format.BuiltinMetricNameMemUsage
 
+func (c *MemStats) Skip() bool {
+	return false
+}
+
 func (*MemStats) Name() string {
 	return "mem_stats"
 }
