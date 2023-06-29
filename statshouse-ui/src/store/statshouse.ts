@@ -1069,20 +1069,23 @@ export const statsHouseState: StateCreator<
             getState().setNumQueriesPlot(index, (n) => n - 1);
             getState().updateTitle();
           });
-        if (lastPlotParams.type === PLOT_TYPE.Event) {
-          const from =
-            prevState.timeRange.from < prevState.params.eventFrom && prevState.timeRange.to > prevState.params.eventFrom
-              ? prevState.params.eventFrom
-              : undefined;
-          getState()
-            .loadMetricsMeta(lastPlotParams.metricName)
-            .then(() => {
+
+        getState()
+          .loadMetricsMeta(lastPlotParams.metricName)
+          .then(() => {
+            if (lastPlotParams.type === PLOT_TYPE.Event) {
+              const prevState = getState();
+              const from =
+                prevState.timeRange.from < prevState.params.eventFrom &&
+                prevState.timeRange.to > prevState.params.eventFrom
+                  ? prevState.params.eventFrom
+                  : undefined;
               getState()
                 .loadEvents(index, undefined, undefined, from)
                 .catch(() => undefined);
-            })
-            .catch(() => undefined);
-        }
+            }
+          })
+          .catch(() => undefined);
       }
     },
     setPlotShow(indexPlot, idx, show, single) {
