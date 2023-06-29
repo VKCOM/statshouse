@@ -2,6 +2,7 @@ package stats
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/prometheus/procfs"
@@ -11,8 +12,8 @@ import (
 )
 
 type PSIStats struct {
-	fs procfs.FS
-
+	fs     procfs.FS
+	skip   bool
 	stats  map[string]procfs.PSIStats
 	writer MetricWriter
 }
@@ -27,13 +28,20 @@ func (c *PSIStats) PushDuration(now int64, d time.Duration) {
 	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricPSI)
 }
 
+func (c *PSIStats) Skip() bool {
+	return c.skip
+}
+
 func NewPSI(writer MetricWriter) (*PSIStats, error) {
+	_, err := os.Stat(procfs.DefaultMountPoint + "/pressure")
+	skip := os.IsNotExist(err)
 	fs, err := procfs.NewFS(procfs.DefaultMountPoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize procfs: %w", err)
 	}
 	return &PSIStats{
 		fs:     fs,
+		skip:   skip,
 		stats:  map[string]procfs.PSIStats{},
 		writer: writer,
 	}, nil

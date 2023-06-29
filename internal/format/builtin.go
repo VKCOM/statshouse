@@ -288,11 +288,13 @@ const (
 	TagValueIDBuildArchARM64 = 3
 	TagValueIDBuildArchARM   = 4
 
-	TagValueIDSystemMetricCPU    = 1
-	TagValueIDSystemMetricDisk   = 2
-	TagValueIDSystemMetricMemory = 3
-	TagValueIDSystemMetricNet    = 4
-	TagValueIDSystemMetricPSI    = 5
+	TagValueIDSystemMetricCPU       = 1
+	TagValueIDSystemMetricDisk      = 2
+	TagValueIDSystemMetricMemory    = 3
+	TagValueIDSystemMetricNet       = 4
+	TagValueIDSystemMetricPSI       = 5
+	TagValueIDSystemMetricSocksStat = 6
+	TagValueIDSystemMetricProtocols = 7
 
 	TagValueIDRPC  = 1
 	TagValueIDHTTP = 2
@@ -1445,11 +1447,13 @@ Value is delta between second value and time it was inserted.`,
 			Tags: []MetricMetaTag{{
 				Description: "collector",
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDSystemMetricCPU:    "cpu",
-					TagValueIDSystemMetricDisk:   "disk",
-					TagValueIDSystemMetricMemory: "memory",
-					TagValueIDSystemMetricNet:    "net",
-					TagValueIDSystemMetricPSI:    "psi",
+					TagValueIDSystemMetricCPU:       "cpu",
+					TagValueIDSystemMetricDisk:      "disk",
+					TagValueIDSystemMetricMemory:    "memory",
+					TagValueIDSystemMetricNet:       "net",
+					TagValueIDSystemMetricPSI:       "psi",
+					TagValueIDSystemMetricSocksStat: "socks",
+					TagValueIDSystemMetricProtocols: "protocols",
 				}),
 			}},
 		},

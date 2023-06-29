@@ -24,6 +24,10 @@ const (
 	cs   = ""
 )
 
+func (c *CPUStats) Skip() bool {
+	return false
+}
+
 func (*CPUStats) Name() string {
 	return "cpu_stats"
 }

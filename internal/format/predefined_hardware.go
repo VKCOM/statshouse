@@ -1,20 +1,24 @@
 package format
 
 const (
-	BuiltinMetricIDCPUUsage       = -1000
-	BuiltinMetricIDSystemUptime   = -1001
-	BuiltinMetricIDProcessCreated = -1002
-	BuiltinMetricIDProcessRunning = -1003
-	BuiltinMetricIDMemUsage       = -1004
-	BuiltinMetricIDBlockIOTime    = -1005
-	BuiltinMetricIDPSICPU         = -1006
-	BuiltinMetricIDPSIMem         = -1007
-	BuiltinMetricIDPSIIO          = -1008
-	BuiltinMetricIDNetBandwidth   = -1009
-	BuiltinMetricIDNetPacket      = -1010
-	BuiltinMetricIDNetError       = -1011
-	BuiltinMetricIDDiskUsage      = -1012
-	BuiltinMetricIDINodeUsage     = -1013
+	BuiltinMetricIDCPUUsage        = -1000
+	BuiltinMetricIDSystemUptime    = -1001
+	BuiltinMetricIDProcessCreated  = -1002
+	BuiltinMetricIDProcessRunning  = -1003
+	BuiltinMetricIDMemUsage        = -1004
+	BuiltinMetricIDBlockIOTime     = -1005
+	BuiltinMetricIDPSICPU          = -1006
+	BuiltinMetricIDPSIMem          = -1007
+	BuiltinMetricIDPSIIO           = -1008
+	BuiltinMetricIDNetBandwidth    = -1009
+	BuiltinMetricIDNetPacket       = -1010
+	BuiltinMetricIDNetError        = -1011
+	BuiltinMetricIDDiskUsage       = -1012
+	BuiltinMetricIDINodeUsage      = -1013
+	BuiltinMetricIDSocketMemory    = -1016
+	BuiltinMetricIDTCPSocketStatus = -1017
+	BuiltinMetricIDSocketUsed      = -1018
+	BuiltinMetricIDTCPSocketMemory = -1019
 
 	BuiltinMetricNameCpuUsage    = "host_cpu_usage"
 	BuiltinMetricNameMemUsage    = "host_mem_usage"
@@ -33,6 +37,11 @@ const (
 	BuiltinMetricNameNetBandwidth = "host_net_bandwidth"
 	BuiltinMetricNameNetPacket    = "host_net_packet"
 	BuiltinMetricNameNetError     = "host_net_error"
+
+	BuiltinMetricNameSocketMemory    = "host_socket_memory"
+	BuiltinMetricNameTCPSocketStatus = "host_tcp_socket_status"
+	BuiltinMetricNameTCPSocketMemory = "host_tcp_socket_memory"
+	BuiltinMetricNameSocketUsedv2    = "host_socket_used"
 
 	RawIDTagNice    = 1
 	RawIDTagSystem  = 2
@@ -61,11 +70,14 @@ const (
 	RawIDTagReceived = 1
 	RawIDTagSent     = 2
 
-	RawIDTagTCP   = 1
-	RawIDTagUDP   = 2
-	RawIDTagICMP  = 3
-	RawIDTagOther = 4
-	RawIDTagIP    = 5
+	RawIDTagTCP     = 1
+	RawIDTagUDP     = 2
+	RawIDTagICMP    = 3
+	RawIDTagOther   = 4
+	RawIDTagIP      = 5
+	RawIDTagUnix    = 6
+	RawIDTagNetlink = 7
+	RawIDTagUDPLite = 8
 
 	RawIDTagInHdrError     = 1
 	RawIDTagInDiscard      = 2
@@ -76,6 +88,11 @@ const (
 	RawIDTagInErr          = 7
 	RawIDTagInCsumErr      = 8
 	RawIDTagRetransSeg     = 9
+
+	RawIDTagInUse  = 1
+	RawIDTagOrphan = 2
+	RawIDTagAlloc  = 3
+	RawIDTagTW     = 4
 
 	// don't use key tags greater than 11. 12..15 reserved by builtin metrics
 	HostDCTag = 11
@@ -260,6 +277,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 					RawIDTagTCP:   "tcp",
 					RawIDTagUDP:   "udp",
 					RawIDTagICMP:  "icmp",
+					RawIDTagIP:    "ip",
 					RawIDTagOther: "other",
 				}),
 			}},
@@ -297,5 +315,65 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			{
 				Description: "device",
 			}},
+	},
+
+	BuiltinMetricIDTCPSocketStatus: {
+		Name:        BuiltinMetricNameTCPSocketStatus,
+		Kind:        MetricKindValue,
+		Description: "The number of TCP socket grouped by state",
+		Tags: []MetricMetaTag{
+			{
+				Description: "state",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagInUse:  "inuse",
+					RawIDTagOrphan: "orphan",
+					RawIDTagTW:     "timewait",
+					RawIDTagAlloc:  "alloc",
+				}),
+			},
+		},
+	},
+	BuiltinMetricIDTCPSocketMemory: {
+		Name:        BuiltinMetricNameTCPSocketMemory,
+		Kind:        MetricKindValue,
+		Description: "The amount of memory used by TCP sockets in all states",
+		Tags:        []MetricMetaTag{},
+	},
+	BuiltinMetricIDSocketMemory: {
+		Name:        BuiltinMetricNameSocketMemory,
+		Kind:        MetricKindValue,
+		Description: "The amount of memory used by sockets",
+		Tags: []MetricMetaTag{
+			{
+				Description: "protocol",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagTCP:     "tcp",
+					RawIDTagUDP:     "udp",
+					RawIDTagUnix:    "unix",
+					RawIDTagNetlink: "netlink",
+					RawIDTagUDPLite: "udp-lite",
+				}),
+			},
+		},
+	},
+	BuiltinMetricIDSocketUsed: {
+		Name:        BuiltinMetricNameSocketUsedv2,
+		Kind:        MetricKindValue,
+		Description: "The number of socket in inuse state grouped by protocol",
+		Tags: []MetricMetaTag{
+			{
+				Description: "protocol",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagTCP:     "tcp",
+					RawIDTagUDP:     "udp",
+					RawIDTagUnix:    "unix",
+					RawIDTagNetlink: "netlink",
+					RawIDTagUDPLite: "udp-lite",
+				}),
+			},
+		},
 	},
 }

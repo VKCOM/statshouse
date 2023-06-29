@@ -6,16 +6,16 @@ import (
 	"log"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/receiver"
+	"golang.org/x/sync/errgroup"
 )
 
 type Collector interface {
 	Name() string
 	WriteMetrics(nowUnix int64) error
 	PushDuration(now int64, d time.Duration)
+	Skip() bool
 }
 
 type CollectorManagerOptions struct {
@@ -69,7 +69,23 @@ func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, logErr
 	if err != nil {
 		return nil, err
 	}
-	collectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats}
+	sockStats, err := NewSocksStats(newWriter())
+	if err != nil {
+		return nil, err
+	}
+	protocolsStats, err := NewProtocolsStats(newWriter())
+	if err != nil {
+		return nil, err
+	}
+	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats} // TODO add modules
+	var collectors []Collector
+	for _, collector := range allCollectors {
+		if !collector.Skip() {
+			collectors = append(collectors, collector)
+		} else {
+			logErr.Printf("skip: %s collector", collector.Name())
+		}
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	return &CollectorManager{
 		opt:        opt,
@@ -95,9 +111,10 @@ func (m *CollectorManager) RunCollector() error {
 				err := collector.WriteMetrics(now.Unix())
 				if err != nil {
 					m.logErr.Printf("failed to write metrics: %v (collector: %s)", err, c.Name())
+				} else {
+					d := time.Since(now)
+					collector.PushDuration(now.Unix(), d)
 				}
-				d := time.Since(now)
-				collector.PushDuration(now.Unix(), d)
 				select {
 				case <-time.After(tillNextHalfPeriod(time.Now())):
 				case <-m.ctx.Done():

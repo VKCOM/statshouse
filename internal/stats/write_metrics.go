@@ -12,6 +12,7 @@ import (
 type MetricWriter interface {
 	WriteSystemMetricValue(nowUnix int64, name string, value float64, tagsList ...int32)
 	WriteSystemMetricCount(nowUnix int64, name string, count float64, tagsList ...int32)
+	WriteSystemMetricCountValue(nowUnix int64, name string, count, value float64, tagsList ...int32)
 	WriteSystemMetricValueWithoutHost(nowUnix int64, name string, value float64, tagsList ...int32)
 }
 
@@ -64,6 +65,13 @@ func (p *MetricWriterRemoteImpl) WriteSystemMetricValue(nowUnix int64, name stri
 	statshouse.Metric(name, tags).Value(value)
 }
 
+func (p *MetricWriterRemoteImpl) WriteSystemMetricCountValue(nowUnix int64, name string, count, value float64, tagsList ...int32) {
+	tags := buildTags(true, tagsList...)
+	tags[1] = p.HostName
+	statshouse.Metric(name, tags).Count(count)
+	statshouse.Metric(name, tags).Value(value)
+}
+
 func (p *MetricWriterRemoteImpl) WriteSystemMetricValueWithoutHost(nowUnix int64, name string, value float64, tagsList ...int32) {
 	tags := buildTags(false, tagsList...)
 	statshouse.Metric(name, tags).Value(value)
@@ -101,6 +109,14 @@ func (p *MetricWriterSHImpl) fillCommonMetric(m *tlstatshouse.MetricBytes, useHo
 func (p *MetricWriterSHImpl) WriteSystemMetricValue(nowUnix int64, name string, value float64, tagsList ...int32) {
 	m := p.metric
 	p.fillCommonMetric(m, true, name, nowUnix, tagsList...)
+	m.Value = append(m.Value, value)
+	_, _ = p.handler.HandleMetrics(m, nil)
+}
+
+func (p *MetricWriterSHImpl) WriteSystemMetricCountValue(nowUnix int64, name string, count, value float64, tagsList ...int32) {
+	m := p.metric
+	p.fillCommonMetric(m, true, name, nowUnix, tagsList...)
+	m.Counter = count
 	m.Value = append(m.Value, value)
 	_, _ = p.handler.HandleMetrics(m, nil)
 }
