@@ -16,23 +16,38 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-type DiskStats struct {
-	fs blockdevice.FS
+type (
+	DiskStats struct {
+		fs blockdevice.FS
 
-	writer                     MetricWriter
-	old                        map[string]blockdevice.Diskstats
-	excludedMountPointsPattern *regexp.Regexp
-	excludedFSTypesPattern     *regexp.Regexp
-	logErr                     *log.Logger
-}
+		writer                     MetricWriter
+		old                        map[string]blockdevice.Diskstats
+		types                      map[string]deviceType
+		excludedMountPointsPattern *regexp.Regexp
+		excludedFSTypesPattern     *regexp.Regexp
+		excludedDevicePattern      *regexp.Regexp
+		logErr                     *log.Logger
+	}
 
-type mount struct {
-	device, mountPoint, fsType, options string
-}
+	mount struct {
+		device, mountPoint, fsType, options string
+	}
+
+	deviceType int
+)
+
+const (
+	unknown   deviceType = iota
+	physical  deviceType = iota
+	partition deviceType = iota
+	virtual   deviceType = iota
+)
 
 const (
 	defMountPointsExcluded = "^/(dev|proc|run/credentials/.+|sys|var/lib/docker/.+|var/lib/containers/storage/.+)($|/)"
 	defFSTypesExcluded     = "^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$"
+	deviceExcluded         = "(loop\\d+)"
+	sectorSize             = 512
 )
 
 func (c *DiskStats) Skip() bool {
@@ -53,9 +68,12 @@ func NewDiskStats(writer MetricWriter, logErr *log.Logger) (*DiskStats, error) {
 	}
 	return &DiskStats{
 		fs:                         fs,
+		old:                        map[string]blockdevice.Diskstats{},
+		types:                      map[string]deviceType{},
 		writer:                     writer,
 		excludedMountPointsPattern: regexp.MustCompile(defMountPointsExcluded),
 		excludedFSTypesPattern:     regexp.MustCompile(defFSTypesExcluded),
+		excludedDevicePattern:      regexp.MustCompile(deviceExcluded),
 		logErr:                     logErr,
 	}, nil
 }
@@ -66,27 +84,53 @@ func (c *DiskStats) WriteMetrics(nowUnix int64) error {
 		return fmt.Errorf("failed to get disk stats: %w", err)
 	}
 	for _, stat := range stats {
+		if c.excludedDevicePattern.MatchString(stat.DeviceName) {
+			continue
+		}
 		device := stat.DeviceName
 		oldStat, ok := c.old[device]
 		c.old[device] = stat
 		if !ok {
 			continue
 		}
-		readIO := stat.ReadIOs - oldStat.ReadIOs
-		writeIO := stat.WriteIOs - oldStat.WriteIOs
-		discardIO := stat.DiscardIOs - oldStat.DiscardIOs
+		deviceType, ok := c.types[device]
+		if !ok {
+			deviceType, err = getDeviceType(stat)
+			if err != nil {
+				c.logErr.Println("failed to get device type", err)
+				continue
+			}
+			c.types[device] = deviceType
+		}
+		if deviceType != physical {
+			continue
+		}
+		readIO := float64(stat.ReadIOs - oldStat.ReadIOs)
+		writeIO := float64(stat.WriteIOs - oldStat.WriteIOs)
+		discardIO := float64(stat.DiscardIOs - oldStat.DiscardIOs)
 
-		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameBlockIOTime, float64(readIO), format.RawIDTagRead)
-		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameBlockIOTime, float64(writeIO), format.RawIDTagWrite)
-		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameBlockIOTime, float64(discardIO), format.RawIDTagDiscard)
+		readIOTicks := float64(stat.ReadTicks-oldStat.ReadTicks) / 1000 / readIO
+		writeIOTicks := float64(stat.WriteTicks-oldStat.WriteTicks) / 1000 / writeIO
+		discardIOTicks := float64(stat.DiscardTicks-oldStat.DiscardTicks) / 1000 / discardIO
 
-		readIOTicks := float64(stat.ReadTicks-oldStat.ReadTicks) / 1000
-		writeIOTicks := float64(stat.WriteTicks-oldStat.WriteTicks) / 1000
-		discardIOTicks := float64(stat.DiscardTicks-oldStat.DiscardTicks) / 1000
+		readIOSize := float64(stat.ReadSectors-oldStat.ReadSectors) * sectorSize / readIO
+		writeIOSize := float64(stat.WriteSectors-oldStat.WriteSectors) * sectorSize / writeIO
+		discardIOSize := float64(stat.DiscardSectors-oldStat.DiscardSectors) * sectorSize / discardIO
 
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameBlockIOTime, readIOTicks, format.RawIDTagRead)
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameBlockIOTime, writeIOTicks, format.RawIDTagWrite)
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameBlockIOTime, discardIOTicks, format.RawIDTagDiscard)
+		if readIO > 0 {
+			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameBlockIOTime, readIO, readIOTicks, 0, format.RawIDTagRead)
+			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameBlockIOSize, readIO, readIOSize, 0, format.RawIDTagRead)
+
+		}
+		if writeIO > 0 {
+			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameBlockIOTime, writeIO, writeIOTicks, 0, format.RawIDTagWrite)
+			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameBlockIOSize, writeIO, writeIOSize, 0, format.RawIDTagWrite)
+		}
+		if discardIO > 0 {
+			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameBlockIOTime, discardIO, discardIOTicks, 0, format.RawIDTagDiscard)
+			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameBlockIOSize, discardIO, discardIOSize, 0, format.RawIDTagDiscard)
+		}
+
 	}
 	err = c.writeFSStats(nowUnix)
 	return err
@@ -162,4 +206,53 @@ func parseMounts() ([]mount, error) {
 	}
 
 	return mounts, scanner.Err()
+}
+
+func pathIsExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
+}
+
+func getDeviceType(device blockdevice.Diskstats) (deviceType, error) {
+	res := unknown
+	isExists, err := pathIsExists("/sys/block/" + device.DeviceName)
+	if err != nil {
+		return res, err
+	}
+	if isExists {
+		res = physical
+	}
+
+	isExists, err = pathIsExists(fmt.Sprintf("/sys/dev/block/%d:%d/partition", device.MajorNumber, device.MinorNumber))
+	if err != nil {
+		return res, err
+	}
+	if isExists {
+		res = partition
+	} else {
+		isExists, err = pathIsExists("/sys/devices/virtual/" + device.DeviceName)
+		if err != nil {
+			return res, err
+		}
+		if isExists {
+			res = virtual
+		} else {
+			dirs, err := os.ReadDir(fmt.Sprintf("/sys/dev/block/%d:%d/slaves", device.MajorNumber, device.MinorNumber))
+			if err != nil && !os.IsNotExist(err) {
+				return res, err
+			}
+			if len(dirs) > 0 {
+				res = virtual
+			}
+		}
+	}
+
+	return res, nil
 }

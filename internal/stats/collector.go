@@ -103,6 +103,7 @@ func (m *CollectorManager) RunCollector() error {
 		errGroup.Go(func() (err error) {
 			defer func() {
 				if r := recover(); r != nil {
+					m.logErr.Println(r)
 					err = fmt.Errorf("panic during to write system metrics: %s", r)
 				}
 			}()
