@@ -14,23 +14,35 @@ import (
 var _ = basictl.NatWrite
 
 type MetadataEvent struct {
-	FieldMask  uint32
-	Id         int64
-	Name       string
-	EventType  int32
-	Unused     uint32
-	Version    int64
-	UpdateTime uint32
-	Data       string
+	FieldMask   uint32
+	Id          int64
+	Name        string
+	NamespaceId int64 // Conditional: item.FieldMask.0
+	EventType   int32
+	Unused      uint32
+	Version     int64
+	UpdateTime  uint32
+	Data        string
 }
 
 func (MetadataEvent) TLName() string { return "metadata.event" }
 func (MetadataEvent) TLTag() uint32  { return 0x9286affa }
 
+func (item *MetadataEvent) SetNamespaceId(v int64) {
+	item.NamespaceId = v
+	item.FieldMask |= 1 << 0
+}
+func (item *MetadataEvent) ClearNamespaceId() {
+	item.NamespaceId = 0
+	item.FieldMask &^= 1 << 0
+}
+func (item MetadataEvent) IsSetNamespaceId() bool { return item.FieldMask&(1<<0) != 0 }
+
 func (item *MetadataEvent) Reset() {
 	item.FieldMask = 0
 	item.Id = 0
 	item.Name = ""
+	item.NamespaceId = 0
 	item.EventType = 0
 	item.Unused = 0
 	item.Version = 0
@@ -47,6 +59,13 @@ func (item *MetadataEvent) Read(w []byte) (_ []byte, err error) {
 	}
 	if w, err = basictl.StringRead(w, &item.Name); err != nil {
 		return w, err
+	}
+	if item.FieldMask&(1<<0) != 0 {
+		if w, err = basictl.LongRead(w, &item.NamespaceId); err != nil {
+			return w, err
+		}
+	} else {
+		item.NamespaceId = 0
 	}
 	if w, err = basictl.IntRead(w, &item.EventType); err != nil {
 		return w, err
@@ -68,6 +87,9 @@ func (item *MetadataEvent) Write(w []byte) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.Id)
 	if w, err = basictl.StringWrite(w, item.Name); err != nil {
 		return w, err
+	}
+	if item.FieldMask&(1<<0) != 0 {
+		w = basictl.LongWrite(w, item.NamespaceId)
 	}
 	w = basictl.IntWrite(w, item.EventType)
 	w = basictl.NatWrite(w, item.Unused)
@@ -117,6 +139,8 @@ func (item *MetadataEvent) readJSON(j interface{}) error {
 	if err := JsonReadString(_jName, &item.Name); err != nil {
 		return err
 	}
+	_jNamespaceId := _jm["namespace_id"]
+	delete(_jm, "namespace_id")
 	_jEventType := _jm["event_type"]
 	delete(_jm, "event_type")
 	if err := JsonReadInt32(_jEventType, &item.EventType); err != nil {
@@ -145,6 +169,16 @@ func (item *MetadataEvent) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.event", k)
 	}
+	if _jNamespaceId != nil {
+		item.FieldMask |= 1 << 0
+	}
+	if _jNamespaceId != nil {
+		if err := JsonReadInt64(_jNamespaceId, &item.NamespaceId); err != nil {
+			return err
+		}
+	} else {
+		item.NamespaceId = 0
+	}
 	return nil
 }
 
@@ -164,6 +198,13 @@ func (item *MetadataEvent) WriteJSON(w []byte) (_ []byte, err error) {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"name":`...)
 		w = basictl.JSONWriteString(w, item.Name)
+	}
+	if item.FieldMask&(1<<0) != 0 {
+		if item.NamespaceId != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"namespace_id":`...)
+			w = basictl.JSONWriteInt64(w, item.NamespaceId)
+		}
 	}
 	if item.EventType != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -209,23 +250,35 @@ func (item *MetadataEvent) UnmarshalJSON(b []byte) error {
 }
 
 type MetadataEventBytes struct {
-	FieldMask  uint32
-	Id         int64
-	Name       []byte
-	EventType  int32
-	Unused     uint32
-	Version    int64
-	UpdateTime uint32
-	Data       []byte
+	FieldMask   uint32
+	Id          int64
+	Name        []byte
+	NamespaceId int64 // Conditional: item.FieldMask.0
+	EventType   int32
+	Unused      uint32
+	Version     int64
+	UpdateTime  uint32
+	Data        []byte
 }
 
 func (MetadataEventBytes) TLName() string { return "metadata.event" }
 func (MetadataEventBytes) TLTag() uint32  { return 0x9286affa }
 
+func (item *MetadataEventBytes) SetNamespaceId(v int64) {
+	item.NamespaceId = v
+	item.FieldMask |= 1 << 0
+}
+func (item *MetadataEventBytes) ClearNamespaceId() {
+	item.NamespaceId = 0
+	item.FieldMask &^= 1 << 0
+}
+func (item MetadataEventBytes) IsSetNamespaceId() bool { return item.FieldMask&(1<<0) != 0 }
+
 func (item *MetadataEventBytes) Reset() {
 	item.FieldMask = 0
 	item.Id = 0
 	item.Name = item.Name[:0]
+	item.NamespaceId = 0
 	item.EventType = 0
 	item.Unused = 0
 	item.Version = 0
@@ -242,6 +295,13 @@ func (item *MetadataEventBytes) Read(w []byte) (_ []byte, err error) {
 	}
 	if w, err = basictl.StringReadBytes(w, &item.Name); err != nil {
 		return w, err
+	}
+	if item.FieldMask&(1<<0) != 0 {
+		if w, err = basictl.LongRead(w, &item.NamespaceId); err != nil {
+			return w, err
+		}
+	} else {
+		item.NamespaceId = 0
 	}
 	if w, err = basictl.IntRead(w, &item.EventType); err != nil {
 		return w, err
@@ -263,6 +323,9 @@ func (item *MetadataEventBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.Id)
 	if w, err = basictl.StringWriteBytes(w, item.Name); err != nil {
 		return w, err
+	}
+	if item.FieldMask&(1<<0) != 0 {
+		w = basictl.LongWrite(w, item.NamespaceId)
 	}
 	w = basictl.IntWrite(w, item.EventType)
 	w = basictl.NatWrite(w, item.Unused)
@@ -314,6 +377,8 @@ func (item *MetadataEventBytes) readJSON(j interface{}) error {
 	if err := JsonReadStringBytes(_jName, &item.Name); err != nil {
 		return err
 	}
+	_jNamespaceId := _jm["namespace_id"]
+	delete(_jm, "namespace_id")
 	_jEventType := _jm["event_type"]
 	delete(_jm, "event_type")
 	if err := JsonReadInt32(_jEventType, &item.EventType); err != nil {
@@ -342,6 +407,16 @@ func (item *MetadataEventBytes) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.event", k)
 	}
+	if _jNamespaceId != nil {
+		item.FieldMask |= 1 << 0
+	}
+	if _jNamespaceId != nil {
+		if err := JsonReadInt64(_jNamespaceId, &item.NamespaceId); err != nil {
+			return err
+		}
+	} else {
+		item.NamespaceId = 0
+	}
 	return nil
 }
 
@@ -361,6 +436,13 @@ func (item *MetadataEventBytes) WriteJSON(w []byte) (_ []byte, err error) {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"name":`...)
 		w = basictl.JSONWriteStringBytes(w, item.Name)
+	}
+	if item.FieldMask&(1<<0) != 0 {
+		if item.NamespaceId != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"namespace_id":`...)
+			w = basictl.JSONWriteInt64(w, item.NamespaceId)
+		}
 	}
 	if item.EventType != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

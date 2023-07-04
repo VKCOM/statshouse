@@ -237,6 +237,11 @@ type (
 		Metrics []string            `json:"metrics"`
 	}
 
+	//easyjson:json
+	NamespaceInfo struct {
+		Namespace format.NamespaceMeta `json:"namespace"`
+	}
+
 	DashboardMetaInfo struct {
 		DashboardID int32                  `json:"dashboard_id"`
 		Name        string                 `json:"name"`
@@ -1018,8 +1023,8 @@ func (h *Handler) HandlePostMetric(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, &MetricInfo{Metric: m}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
 }
 
-func (h *Handler) HandlePutPostGroup(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointGroup, r.Method, 0, "")
+func handlePostEntity[T easyjson.Unmarshaler](h *Handler, w http.ResponseWriter, r *http.Request, endpoint string, entity T, handleCallback func(ctx context.Context, ai accessInfo, entity T, create bool) (resp interface{}, versionToWait int64, err error)) {
+	sl := newEndpointStat(endpoint, r.Method, 0, "")
 	if h.checkReadOnlyMode(w, r) {
 		return
 	}
@@ -1038,21 +1043,42 @@ func (h *Handler) HandlePutPostGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(res) >= maxMetricHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("group body too big. Max size is %d bytes", maxMetricHTTPBodySize)), h.verbose, ai.user, sl)
+		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("entity body too big. Max size is %d bytes", maxMetricHTTPBodySize)), h.verbose, ai.user, sl)
 		return
 	}
-	var groupInfo MetricsGroupInfo
-	if err := easyjson.Unmarshal(res, &groupInfo); err != nil {
+	if err := easyjson.Unmarshal(res, entity); err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	d, err := h.handlePostGroup(r.Context(), ai, groupInfo.Group, r.Method == http.MethodPut)
+	d, version, err := handleCallback(r.Context(), ai, entity, r.Method == http.MethodPut)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	err = h.waitVersionUpdate(r.Context(), d.Group.Version)
+	err = h.waitVersionUpdate(r.Context(), version)
 	respondJSON(w, d, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
+}
+
+func (h *Handler) HandlePutPostGroup(w http.ResponseWriter, r *http.Request) {
+	var groupInfo MetricsGroupInfo
+	handlePostEntity(h, w, r, EndpointGroup, &groupInfo, func(ctx context.Context, ai accessInfo, entity *MetricsGroupInfo, create bool) (resp interface{}, versionToWait int64, err error) {
+		response, err := h.handlePostGroup(ctx, ai, entity.Group, create)
+		if err != nil {
+			return nil, 0, err
+		}
+		return response, response.Group.Version, nil
+	})
+}
+
+func (h *Handler) HandlePostNamespace(w http.ResponseWriter, r *http.Request) {
+	var namespaceInfo NamespaceInfo
+	handlePostEntity(h, w, r, EndpointNamespace, &namespaceInfo, func(ctx context.Context, ai accessInfo, entity *NamespaceInfo, create bool) (resp interface{}, versionToWait int64, err error) {
+		response, err := h.handlePostNamespace(ctx, ai, entity.Namespace, create)
+		if err != nil {
+			return nil, 0, err
+		}
+		return response, response.Namespace.Version, nil
+	})
 }
 
 func (h *Handler) HandlePostResetFlood(w http.ResponseWriter, r *http.Request) {
@@ -1243,6 +1269,30 @@ func (h *Handler) handleGetGroupsList(ai accessInfo) (*GetGroupListResp, time.Du
 		})
 	}
 	return resp, defaultCacheTTL, nil
+}
+
+func (h *Handler) handlePostNamespace(ctx context.Context, ai accessInfo, namespace format.NamespaceMeta, create bool) (*NamespaceInfo, error) {
+	if !ai.isAdmin() {
+		return nil, httpErr(http.StatusNotFound, fmt.Errorf("namespace %s not found", namespace.Name))
+	}
+	if !create {
+		if h.metricsStorage.GetNamespace(namespace.ID) == nil {
+			return &NamespaceInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("namespace %d not found", namespace.ID))
+		}
+	}
+	namespace, err := h.metadataLoader.SaveNamespace(ctx, namespace, create)
+	if err != nil {
+		s := "edit"
+		if create {
+			s = "create"
+		}
+		errReturn := fmt.Errorf("can't %s namespace: %w", s, err)
+		if metajournal.IsUserRequestError(err) {
+			return &NamespaceInfo{}, httpErr(http.StatusBadRequest, errReturn)
+		}
+		return &NamespaceInfo{}, errReturn
+	}
+	return &NamespaceInfo{Namespace: namespace}, nil
 }
 
 func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group format.MetricsGroup, create bool) (*MetricsGroupInfo, error) {
@@ -2839,40 +2889,14 @@ func (h *Handler) HandleGetDashboardList(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) HandlePutPostDashboard(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointDashboard, r.Method, 0, "")
-	if h.checkReadOnlyMode(w, r) {
-		return
-	}
-	ai, ok := h.parseAccessToken(w, r, nil)
-	if !ok {
-		return
-	}
-	rd := &io.LimitedReader{
-		R: r.Body,
-		N: maxMetricHTTPBodySize,
-	}
-	defer func() { _ = r.Body.Close() }()
-	res, err := io.ReadAll(rd)
-	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-		return
-	}
-	if len(res) >= maxMetricHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("metric body too big. Max size is %d bytes", maxMetricHTTPBodySize)), h.verbose, ai.user, sl)
-		return
-	}
 	var dashboard DashboardInfo
-	if err := easyjson.Unmarshal(res, &dashboard); err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-		return
-	}
-	d, err := h.handlePostDashboard(r.Context(), ai, dashboard.Dashboard, r.Method == http.MethodPut, dashboard.Delete)
-	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-		return
-	}
-	err = h.waitVersionUpdate(r.Context(), d.Dashboard.Version)
-	respondJSON(w, d, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
+	handlePostEntity(h, w, r, EndpointDashboard, &dashboard, func(ctx context.Context, ai accessInfo, entity *DashboardInfo, create bool) (resp interface{}, versionToWait int64, err error) {
+		response, err := h.handlePostDashboard(ctx, ai, entity.Dashboard, create, entity.Delete)
+		if err != nil {
+			return nil, 0, err
+		}
+		return response, response.Dashboard.Version, nil
+	})
 }
 
 func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req renderRequest) (*renderResponse, bool, error) {

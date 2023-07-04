@@ -114,7 +114,21 @@ const (
 	DashboardEvent    int32 = 1
 	MetricsGroupEvent int32 = 2
 	PromConfigEvent   int32 = 3
+	NamespaceEvent    int32 = 4
 )
+
+type NamespaceMeta struct {
+	ID         int32  `json:"namespace_id"`
+	Name       string `json:"name"`
+	Version    int64  `json:"version"`
+	UpdateTime uint32 `json:"update_time"`
+	DeleteTime uint32 `json:"delete_time"`
+
+	Weight  float64 `json:"weight"`
+	Visible bool    `json:"visible"`
+
+	EffectiveWeight int64 `json:"-"`
+}
 
 // This struct is immutable, it is accessed by mapping code without any locking
 type DashboardMeta struct {
@@ -129,25 +143,28 @@ type DashboardMeta struct {
 
 // This struct is immutable, it is accessed by mapping code without any locking
 type MetricsGroup struct {
-	ID         int32  `json:"group_id"`
-	Name       string `json:"name"`
-	Version    int64  `json:"version"`
-	UpdateTime uint32 `json:"update_time"`
+	ID          int32  `json:"group_id"`
+	NamespaceID int32  `json:"namespace_id"`
+	Name        string `json:"name"`
+	Version     int64  `json:"version"`
+	UpdateTime  uint32 `json:"update_time"`
 
 	Weight            float64 `json:"weight,omitempty"`
 	Visible           bool    `json:"visible,omitempty"`
 	IsWeightEffective bool    `json:"is_weight_effective,omitempty"`
 	Protected         bool    `json:"protected,omitempty"`
 
-	EffectiveWeight int64 `json:"-"`
+	EffectiveWeight int64          `json:"-"`
+	Namespace       *NamespaceMeta `json:"-"`
 }
 
 // This struct is immutable, it is accessed by mapping code without any locking
 type MetricMetaValue struct {
-	MetricID   int32  `json:"metric_id"`
-	Name       string `json:"name"`
-	Version    int64  `json:"version,omitempty"`
-	UpdateTime uint32 `json:"update_time"`
+	MetricID    int32  `json:"metric_id"`
+	NamespaceID int32  `json:"namespace_id"`
+	Name        string `json:"name"`
+	Version     int64  `json:"version,omitempty"`
+	UpdateTime  uint32 `json:"update_time"`
 
 	Description          string          `json:"description,omitempty"`
 	Tags                 []MetricMetaTag `json:"tags,omitempty"`
@@ -175,6 +192,7 @@ type MetricMetaValue struct {
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
 	GroupID             int32                    `json:"-"`
 	Group               *MetricsGroup            `json:"-"`
+	Namespace           *NamespaceMeta           `json:"-"`
 }
 
 type MetricMetaValueOld struct {
@@ -390,11 +408,32 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	return err
 }
 
-// Always restores maximum info, if error is returned, metric is non-canonical and should not be saved
+// Always restores maximum info, if error is returned, group is non-canonical and should not be saved
 func (m *MetricsGroup) RestoreCachedInfo() error {
 	var err error
 	if !ValidGroupName(m.Name) {
-		err = fmt.Errorf("invalid metric name: %q", m.Name)
+		err = fmt.Errorf("invalid group name: %q", m.Name)
+	}
+	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
+		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
+	}
+	rw := m.Weight * EffectiveWeightOne
+	if rw < 1 {
+		m.EffectiveWeight = 1
+	}
+	if rw > MaxEffectiveWeight {
+		m.EffectiveWeight = MaxEffectiveWeight
+	}
+	m.EffectiveWeight = int64(rw)
+
+	return err
+}
+
+// Always restores maximum info, if error is returned, group is non-canonical and should not be saved
+func (m *NamespaceMeta) RestoreCachedInfo() error {
+	var err error
+	if !ValidGroupName(m.Name) {
+		err = fmt.Errorf("invalid namespace name: %q", m.Name)
 	}
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
 		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)

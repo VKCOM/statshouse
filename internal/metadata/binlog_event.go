@@ -143,20 +143,22 @@ func applyEditMetricEvent(conn sqlite.Conn, event tlmetadata.EditMetricEvent) er
 
 func applyEditEntityEvent(conn sqlite.Conn, event tlmetadata.EditEntityEvent) error {
 	deletedAt := event.Metric.Unused
-	_, err := conn.Exec("edit_entity", "UPDATE metrics_v4 SET version = $newVersion, data = $data, updated_at = $updatedAt, deleted_at = $deletedAt WHERE version = $oldVersion AND name = $name AND id = $id;",
+	_, err := conn.Exec("edit_entity", "UPDATE metrics_v5 SET version = $newVersion, data = $data, updated_at = $updatedAt, deleted_at = $deletedAt, namespace_id = $namespaceId WHERE version = $oldVersion AND name = $name AND id = $id;",
 		sqlite.TextString("$data", event.Metric.Data),
 		sqlite.Int64("$updatedAt", int64(event.Metric.UpdateTime)),
 		sqlite.Int64("$oldVersion", event.OldVersion),
 		sqlite.TextString("$name", event.Metric.Name),
 		sqlite.Int64("$id", event.Metric.Id),
 		sqlite.Int64("$newVersion", event.Metric.Version),
-		sqlite.Int64("$deletedAt", int64(deletedAt)))
+		sqlite.Int64("$deletedAt", int64(deletedAt)),
+		sqlite.Int64("$namespaceId", event.Metric.NamespaceId))
 	if err != nil {
 		return fmt.Errorf("failed to update metric: %w", err)
 	}
 	return nil
 }
 
+// todo support metric namespacing
 func applyCreateMappingEvent(conn sqlite.Conn, event tlmetadata.CreateMappingEvent) error {
 	_, err := conn.Exec("insert_flood_limit", "INSERT OR REPLACE INTO flood_limits (last_time_update, count_free, metric_name) VALUES ($t, $c, $name)",
 		sqlite.Int64("$t", int64(event.UpdatedAt)),
@@ -187,14 +189,15 @@ func applyCreateMetricEvent(conn sqlite.Conn, event tlmetadata.CreateMetricEvent
 }
 
 func applyCreateEntityEvent(conn sqlite.Conn, event tlmetadata.CreateEntityEvent) error {
-	_, err := conn.Exec("insert_entity", "INSERT INTO metrics_v4 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, $data, $name, $updatedAt, $type, $deletedAt);",
+	_, err := conn.Exec("insert_entity", "INSERT INTO metrics_v5 (id, version, data, name, updated_at, type, deleted_at, namespace_id) VALUES ($id, $version, $data, $name, $updatedAt, $type, $deletedAt, $namespaceId);",
 		sqlite.TextString("$data", event.Metric.Data),
 		sqlite.TextString("$name", event.Metric.Name),
 		sqlite.Int64("$updatedAt", int64(event.Metric.UpdateTime)),
 		sqlite.Int64("$id", event.Metric.Id),
 		sqlite.Int64("$version", event.Metric.Version),
 		sqlite.Int64("$type", int64(event.Metric.EventType)),
-		sqlite.Int64("$deletedAt", int64(event.Metric.Unused)))
+		sqlite.Int64("$deletedAt", int64(event.Metric.Unused)),
+		sqlite.Int64("$namespaceId", event.Metric.NamespaceId))
 	if err != nil {
 		return fmt.Errorf("failed to put new metric: %w", err)
 	}
@@ -317,31 +320,4 @@ func applyPutBootstrap(conn sqlite.Conn, cache []byte, mappings []tlstatshouse.M
 	}
 	cache, err = event.WriteBoxed(cache)
 	return int32(len(filteredMappings)), cache, err
-}
-
-func putEntityWithFixedID(conn sqlite.Conn, cache []byte, name string, id int64, versionToInsert int64, newJson string, updateTime uint32, typ int32) (tlmetadata.Event, []byte, error) {
-	result := tlmetadata.Event{}
-	_, err := conn.Exec("insert_metric_fixed", "INSERT INTO metrics_v4 (id, version, data, name, updated_at, type, deleted_at) VALUES ($id, $version, $data, $name, $updatedAt, $type, 0);",
-		sqlite.Int64("$id", id),
-		sqlite.Int64("$version", versionToInsert),
-		sqlite.TextString("$data", newJson),
-		sqlite.TextString("$name", name),
-		sqlite.Int64("$updatedAt", int64(updateTime)),
-		sqlite.Int64("$type", int64(typ)))
-	if err != nil {
-		return result, cache, err
-	}
-	result = tlmetadata.Event{
-		Id:         id,
-		Version:    versionToInsert,
-		Data:       newJson,
-		Name:       name,
-		UpdateTime: updateTime,
-		EventType:  typ,
-	}
-	tlEvent := tlmetadata.CreateEntityEvent{
-		Metric: result,
-	}
-	cache, err = tlEvent.WriteBoxed(cache)
-	return result, cache, err
 }

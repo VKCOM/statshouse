@@ -116,6 +116,7 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 			Data:      string(groupBytes),
 		},
 	}
+	// todo add namespace after meta release
 	editMetricReq.SetCreate(create)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
@@ -130,6 +131,51 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 	err = json.Unmarshal([]byte(event.Data), &g)
 	if err != nil {
 		return format.MetricsGroup{}, fmt.Errorf("failed to deserialize json group: %w", err)
+	}
+	g.Version = event.Version
+	g.Name = event.Name
+	g.UpdateTime = event.UpdateTime
+	g.ID = int32(event.Id)
+	return g, nil
+}
+
+func (l *MetricMetaLoader) SaveNamespace(ctx context.Context, value format.NamespaceMeta, create bool) (g format.NamespaceMeta, _ error) {
+	if err := value.RestoreCachedInfo(); err != nil {
+		return g, err
+	}
+	var err error
+	if !format.ValidMetricName(mem.S(value.Name)) {
+		return g, fmt.Errorf("invalid namespace name %w: %q", errorInvalidUserRequest, value.Name)
+	}
+
+	namespaceBytes, err := json.Marshal(value)
+	if err != nil {
+		return format.NamespaceMeta{}, fmt.Errorf("faield to serialize namespace: %w", err)
+	}
+	editMetricReq := tlmetadata.EditEntitynew{
+		Event: tlmetadata.Event{
+			Id:        int64(value.ID),
+			Name:      value.Name,
+			EventType: format.NamespaceEvent,
+			Version:   value.Version,
+			Data:      string(namespaceBytes),
+		},
+	}
+	// todo add namespace after meta release
+	editMetricReq.SetCreate(create)
+	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
+	defer cancelFunc()
+	event := tlmetadata.Event{}
+	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
+	if err != nil {
+		return format.NamespaceMeta{}, fmt.Errorf("failed to edit group: %w", err)
+	}
+	if event.Id < math.MinInt32 || event.Id > math.MaxInt32 {
+		return g, fmt.Errorf("namespace ID %d assigned by metaengine does not fit into int32 for group %q", event.Id, event.Name)
+	}
+	err = json.Unmarshal([]byte(event.Data), &g)
+	if err != nil {
+		return format.NamespaceMeta{}, fmt.Errorf("failed to deserialize json namespace: %w", err)
 	}
 	g.Version = event.Version
 	g.Name = event.Name
@@ -154,6 +200,7 @@ func (l *MetricMetaLoader) SaveMetric(ctx context.Context, value format.MetricMe
 			Data:      string(metricBytes),
 		},
 	}
+	// todo add namespace after meta release
 	editMetricReq.SetCreate(create)
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
