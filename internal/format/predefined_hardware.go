@@ -19,10 +19,22 @@ const (
 	BuiltinMetricIDTCPSocketStatus = -1017
 	BuiltinMetricIDSocketUsed      = -1018
 	BuiltinMetricIDTCPSocketMemory = -1019
+	BuiltinMetricIDSoftIRQ         = -1020
+	BuiltinMetricIDIRQ             = -1021
+	BuiltinMetricIDContextSwitch   = -1022
+	BuiltinMetricIDWriteback       = -1023
+	BuiltinMetricIDBlockIOSize     = -1024
 
-	BuiltinMetricNameCpuUsage    = "host_cpu_usage"
-	BuiltinMetricNameMemUsage    = "host_mem_usage"
+	BuiltinMetricNameCpuUsage      = "host_cpu_usage"
+	BuiltinMetricNameSoftIRQ       = "host_softirq"
+	BuiltinMetricNameIRQ           = "host_irq"
+	BuiltinMetricNameContextSwitch = "host_context_switch"
+
+	BuiltinMetricNameMemUsage  = "host_mem_usage"
+	BuiltinMetricNameWriteback = "host_mem_writeback"
+
 	BuiltinMetricNameBlockIOTime = "host_block_io_time"
+	BuiltinMetricNameBlockIOSize = "host_block_io_size"
 	BuiltinMetricNameDiskUsage   = "host_disk_usage"
 	BuiltinMetricNameINodeUsage  = "host_inode_usage"
 
@@ -94,6 +106,20 @@ const (
 	RawIDTagAlloc  = 3
 	RawIDTagTW     = 4
 
+	RawIDTagHI          = 1
+	RawIDTagTimer       = 2
+	RawIDTagNetTx       = 3
+	RawIDTagNetRx       = 4
+	RawIDTagBlock       = 5
+	RawIDTagBlockIOPoll = 6
+	RawIDTagTasklet     = 7
+	RawIDTagScheduler   = 8
+	RawIDTagHRTimer     = 9
+	RawIDTagRCU         = 10
+
+	RawIDTagDirty     = 1
+	RawIDTagWriteback = 2
+
 	// don't use key tags greater than 11. 12..15 reserved by builtin metrics
 	HostDCTag = 11
 )
@@ -136,17 +162,21 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	},
 	BuiltinMetricIDBlockIOTime: {
 		Name:        BuiltinMetricNameBlockIOTime,
-		Kind:        MetricKindMixed,
-		Description: "The amount of data transferred to and from disk. Count - number of operations, Value - number of bytes",
-		Tags: []MetricMetaTag{{
-			Description: "type",
-			Raw:         true,
-			ValueComments: convertToValueComments(map[int32]string{
-				RawIDTagRead:    "read",
-				RawIDTagWrite:   "write",
-				RawIDTagDiscard: "discard",
-			}),
-		}},
+		Kind:        MetricKindValue,
+		Description: "The amount of time to transfer data to and from disk. Count - number of operations, Value - wait time for handle operations",
+		Tags: []MetricMetaTag{
+			{
+				Description: "device",
+			},
+			{
+				Description: "type",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagRead:    "read",
+					RawIDTagWrite:   "write",
+					RawIDTagDiscard: "discard",
+				}),
+			}},
 	},
 	BuiltinMetricIDProcessCreated: {
 		Name:        BuiltinMetricNameProcessCreated,
@@ -375,5 +405,73 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				}),
 			},
 		},
+	},
+	BuiltinMetricIDSoftIRQ: {
+		Name:        BuiltinMetricNameSoftIRQ, // TODO add total time spend with eBPF
+		Kind:        MetricKindValue,
+		Description: "Total number of software interrupts in the system",
+		Tags: []MetricMetaTag{
+			{
+				Description: "type",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagHI:          "HI",
+					RawIDTagTimer:       "Timer",
+					RawIDTagNetTx:       "NetTX",
+					RawIDTagNetRx:       "NetRX",
+					RawIDTagBlock:       "Block",
+					RawIDTagBlockIOPoll: "BlockIOPoll",
+					RawIDTagTasklet:     "Tasklet",
+					RawIDTagScheduler:   "Scheduler",
+					RawIDTagHRTimer:     "HRTimer",
+					RawIDTagRCU:         "RCU",
+				}),
+			},
+		},
+	},
+	BuiltinMetricIDIRQ: {
+		Name:        BuiltinMetricNameIRQ, // TODO add total time spend with eBPF
+		Kind:        MetricKindCounter,
+		Description: "Total number of interrupts in the system",
+		Tags:        []MetricMetaTag{},
+	},
+	BuiltinMetricIDContextSwitch: {
+		Name:        BuiltinMetricNameContextSwitch,
+		Kind:        MetricKindCounter,
+		Description: "Total number of context switch in the system",
+		Tags:        []MetricMetaTag{},
+	},
+	BuiltinMetricIDWriteback: {
+		Name:        BuiltinMetricNameWriteback,
+		Kind:        MetricKindValue,
+		Description: "Writeback/Dirty memory",
+		Tags: []MetricMetaTag{
+			{
+				Description: "type",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagDirty: "dirty",
+					RawIDTagWrite: "writeback",
+				}),
+			},
+		},
+	},
+	BuiltinMetricIDBlockIOSize: {
+		Name:        BuiltinMetricNameBlockIOSize,
+		Kind:        MetricKindValue,
+		Description: "The amount of data transferred to and from disk. Count - number of operations, Value - size",
+		Tags: []MetricMetaTag{
+			{
+				Description: "device",
+			},
+			{
+				Description: "type",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagRead:    "read",
+					RawIDTagWrite:   "write",
+					RawIDTagDiscard: "discard",
+				}),
+			}},
 	},
 }

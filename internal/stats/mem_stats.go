@@ -60,5 +60,10 @@ func (c *MemStats) WriteMetrics(nowUnix int64) error {
 		c.writer.WriteSystemMetricValue(nowUnix, mem, float64(cached*mult), format.RawIDTagCached)
 	}
 
+	if stat.Writeback != nil && stat.Dirty != nil {
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameWriteback, float64(*stat.Writeback*mult), format.RawIDTagWriteback)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameWriteback, float64(*stat.Dirty*mult), format.RawIDTagDirty)
+	}
+
 	return nil
 }
