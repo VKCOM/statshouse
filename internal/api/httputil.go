@@ -144,6 +144,9 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 	}
 
 	if err != nil {
+		if code == 500 {
+			log.Println("[error]", err.Error())
+		}
 		r.Error = err.Error()
 	} else {
 		r.Data = resp
