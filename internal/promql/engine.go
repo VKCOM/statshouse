@@ -1029,6 +1029,9 @@ func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tag
 	if format.HasRawValuePrefix(tagV) {
 		return format.ParseCodeTagValue(tagV)
 	}
+	if tagX < 0 || len(metric.Tags) <= tagX {
+		return 0, ErrNotFound
+	}
 	t := metric.Tags[tagX]
 	if t.Name == labels.BucketLabel && t.Raw {
 		if v, err := strconv.ParseFloat(tagV, 32); err == nil {
