@@ -8,6 +8,7 @@ package promql
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -17,7 +18,6 @@ import (
 
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
@@ -876,7 +876,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchEqual:
 				id, err := ev.getTagValueID(metric, i, matcher.Value)
 				if err != nil {
-					if err == ErrNotFound {
+					if errors.Is(err, ErrNotFound) {
 						return seriesQueryX{}, nil // string is not mapped, result is guaranteed to be empty
 					} else {
 						return seriesQueryX{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
@@ -894,7 +894,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchNotEqual:
 				id, err := ev.getTagValueID(metric, i, matcher.Value)
 				if err != nil {
-					if err == ErrNotFound {
+					if errors.Is(err, ErrNotFound) {
 						continue // ignore values with no mapping
 					}
 					return seriesQueryX{}, err

@@ -9,6 +9,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -398,8 +399,11 @@ func (h *Handler) GetTagValue(qry promql.TagValueQuery) string {
 
 func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
 	res, err := h.getRichTagValueID(&qry.Metric.Tags[qry.TagIndex], qry.Version, qry.TagValue)
-	if err != nil && httpCode(err) == http.StatusNotFound {
-		err = promql.ErrNotFound
+	if err != nil {
+		var httpErr httpError
+		if errors.As(err, &httpErr) && httpErr.code == http.StatusNotFound {
+			err = promql.ErrNotFound
+		}
 	}
 	return res, err
 }

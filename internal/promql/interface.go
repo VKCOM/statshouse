@@ -137,9 +137,6 @@ type TagValuesQuery struct {
 	Options   Options
 }
 
-// Used by 'Handler' implementation to signal that entity requested was just not found (not an error)
-var ErrNotFound = fmt.Errorf("not found")
-
 type Handler interface {
 	//
 	// # Tag mapping
@@ -172,6 +169,10 @@ type Handler interface {
 	Free(*[]float64)
 }
 
+// Used by 'Handler' implementation to signal that entity requested was just not found
+var ErrNotFound = fmt.Errorf("not found")
+
+// Wrapper for errors returned by 'Exec'
 type Error struct {
 	what  any
 	panic bool
