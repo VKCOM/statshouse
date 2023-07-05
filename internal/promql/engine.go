@@ -123,14 +123,14 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 	var ev evaluator
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("engine panic: %v", r)
+			err = Error{what: r, panic: true}
 			ev.cancel()
 		}
 	}()
 	// parse query
 	ev, err = ng.newEvaluator(ctx, qry)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, Error{what: err}
 	}
 	// evaluate query
 	traceExpr(ctx, &ev)
@@ -143,7 +143,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 		bag, err = ev.exec(ctx)
 		if err != nil {
 			ev.cancel()
-			return nil, nil, err
+			return nil, nil, Error{what: err}
 		}
 		if qry.Options.ExpandToLODBoundary {
 			bag.trim(ev.t.Start, ev.t.End)

@@ -22,6 +22,7 @@ import (
 	"github.com/mailru/easyjson/jwriter"
 
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/promql"
 )
 
 const (
@@ -62,11 +63,18 @@ func httpCode(err error) int {
 	code := http.StatusOK
 	if err != nil {
 		var httpErr httpError
+		var promErr promql.Error
 		switch {
 		case errors.As(err, &httpErr):
 			code = httpErr.code
 		case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
 			code = http.StatusGatewayTimeout // 504
+		case errors.As(err, &promErr):
+			if promErr.EngineFailure() {
+				code = http.StatusInternalServerError
+			} else {
+				code = http.StatusBadRequest
+			}
 		default:
 			code = http.StatusInternalServerError // 500
 		}
