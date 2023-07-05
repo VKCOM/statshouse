@@ -1,36 +1,60 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, memo, useCallback, useEffect, useMemo } from 'react';
+import React, { ChangeEvent, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import * as utils from '../../view/utils';
-import { getTimeShifts, promQLMetric, timeShiftAbbrevExpand } from '../../view/utils';
-import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, Select, SelectOptionProps } from '../index';
-import { TagControl } from '../../view/TagControl';
+import {
+  getTagDescription,
+  getTimeShifts,
+  isTagEnabled,
+  promQLMetric,
+  timeShiftAbbrevExpand,
+  toKeyTag,
+} from '../../view/utils';
+import {
+  PlotControlFrom,
+  PlotControlTimeShifts,
+  PlotControlTo,
+  Select,
+  SelectOptionProps,
+  VariableControl,
+} from '../index';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
 import { ReactComponent as SVGFlag } from 'bootstrap-icons/icons/flag.svg';
-import { selectorMetricsList, selectorParamsTagSync, Store, useMetricsListStore, useStore } from '../../store';
+import {
+  selectorMetricsList,
+  setUpdatedTag,
+  Store,
+  useMetricsListStore,
+  useStore,
+  useVariableListStore,
+} from '../../store';
 import { globalSettings } from '../../common/settings';
 import { filterHasTagID, metricKindToWhat, whatToWhatDesc } from '../../view/api';
 import produce from 'immer';
-import { PLOT_TYPE, PlotParams } from '../../common/plotQueryParams';
+import { PLOT_TYPE, PlotParams, VariableParams } from '../../common/plotQueryParams';
 import cn from 'classnames';
 import { ErrorMessages } from '../ErrorMessages';
 import { MetricMetaValue } from '../../api/metric';
 import { QueryWhat } from '../../api/enum';
+import { debug } from '../../common/debug';
+import { shallow } from 'zustand/shallow';
 
-const { setParams, setTimeRange, setPlotParams } = useStore.getState();
+const { setParams, setTimeRange, setPlotParams, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
 
 const selectorControls = ({ params, timeRange, plotsData }: Store) => ({
   params,
   timeRange,
   plotsData,
 });
+
+const emptyTagsList = {};
 
 export const PlotControls = memo(function PlotControls_(props: {
   indexPlot: number;
@@ -40,17 +64,125 @@ export const PlotControls = memo(function PlotControls_(props: {
   clonePlot?: () => void;
 }) {
   const { indexPlot, setBaseRange, meta, numQueries, clonePlot } = props;
+  const tagsList = useVariableListStore((s) => s.tags[indexPlot] ?? emptyTagsList);
   const metricsList = useMetricsListStore(selectorMetricsList);
   const metricsOptions = useMemo<SelectOptionProps[]>(
     () => metricsList.map(({ name }) => ({ name, value: name })),
     [metricsList]
   );
-
-  const { params, timeRange, plotsData } = useStore(selectorControls);
+  const [negativeTags, setNegativeTags] = useState<Record<string, boolean>>({});
+  const [variableTags, setVariableTags] = useState<Record<string, VariableParams>>({});
+  const { params, timeRange, plotsData } = useStore(selectorControls, shallow);
   const timeShifts = params.timeShifts;
-  const syncTags = useStore(selectorParamsTagSync);
   const plotData = plotsData[indexPlot];
   const plotParams = params.plots[indexPlot];
+
+  useEffect(() => {
+    setNegativeTags({});
+  }, [indexPlot]);
+
+  useEffect(() => {
+    setNegativeTags(
+      produce((n) => {
+        Object.keys(plotParams.filterIn).forEach((k) => {
+          n[k] = false;
+        });
+        Object.keys(plotParams.filterNotIn).forEach((k) => {
+          n[k] = true;
+        });
+      })
+    );
+  }, [plotParams.filterIn, plotParams.filterNotIn]);
+
+  useEffect(() => {
+    setVariableTags(
+      produce((n) => {
+        params.variables.forEach((variable) => {
+          variable.link.forEach(([iPlot, iTag]) => {
+            if (iPlot === indexPlot && iTag != null) {
+              n[iTag] = variable;
+            }
+          });
+        });
+      })
+    );
+  }, [indexPlot, params.variables]);
+
+  const onSetNegativeTag = useCallback(
+    (indexTag: number | undefined, value: boolean) => {
+      if (indexTag == null) {
+        return;
+      }
+      const variable = variableTags[indexTag];
+      if (variable) {
+        setParams(
+          produce((p) => {
+            const i = p.variables.findIndex((v) => v.name === variable.name);
+            if (i > -1) {
+              p.variables[i].args.negative = value;
+            }
+          })
+        );
+      } else {
+        const keyTag = toKeyTag(indexTag, true);
+        setNegativeTags(
+          produce((n) => {
+            n[keyTag] = value;
+          })
+        );
+        setPlotParamsTag(indexPlot, keyTag, (s) => s, !value);
+      }
+    },
+    [indexPlot, variableTags]
+  );
+
+  const onFilterChange = useCallback(
+    (indexTag: number | undefined, values: string[]) => {
+      if (indexTag == null) {
+        return;
+      }
+      const variable = variableTags[indexTag];
+      if (variable) {
+        setParams(
+          produce((p) => {
+            const i = p.variables.findIndex((v) => v.name === variable.name);
+            if (i > -1) {
+              p.variables[i].values = values;
+            }
+          })
+        );
+      } else {
+        const keyTag = toKeyTag(indexTag, true);
+        const negative = negativeTags[keyTag];
+        debug.log(`add ${negative ? 'negative' : 'positive'} filter for`, keyTag, values);
+        setPlotParamsTag(indexPlot, keyTag, values, !negative);
+      }
+    },
+    [variableTags, negativeTags, indexPlot]
+  );
+
+  const onSetGroupBy = useCallback(
+    (indexTag: number | undefined, value: boolean) => {
+      if (indexTag == null) {
+        return;
+      }
+      const variable = variableTags[indexTag];
+      if (variable) {
+        setParams(
+          produce((p) => {
+            const i = p.variables.findIndex((v) => v.name === variable.name);
+            if (i > -1) {
+              p.variables[i].args.groupBy = value;
+            }
+          })
+        );
+      } else {
+        const keyTag = toKeyTag(indexTag, true);
+        setPlotParamsTagGroupBy(indexPlot, keyTag, value);
+      }
+    },
+    [indexPlot, variableTags]
+  );
 
   const eventPlotList = useMemo<SelectOptionProps[]>(() => {
     const eventPlots: SelectOptionProps[] = params.plots
@@ -208,6 +340,13 @@ export const PlotControls = memo(function PlotControls_(props: {
     [indexPlot]
   );
 
+  const onSetUpdateTag = useCallback(
+    (indexTag: number | undefined, value: boolean) => {
+      setUpdatedTag(indexPlot, indexTag, value);
+    },
+    [indexPlot]
+  );
+
   return (
     <div>
       <ErrorMessages />
@@ -350,34 +489,81 @@ export const PlotControls = memo(function PlotControls_(props: {
                 <div className="text-info spinner-border spinner-border-sm m-5" role="status" aria-hidden="true" />
               </div>
             )}
-
-            {numQueries === 0 &&
-              (meta?.tags || []).map((t, index) =>
-                t.description === '-' && !filterHasTagID(plotParams, index) ? null : (
-                  <TagControl
-                    key={`${meta?.name} tag${index}`}
-                    tag={t}
-                    indexTag={index}
-                    indexPlot={indexPlot}
-                    tagID={`key${index}`}
-                    sync={syncTags.some((g) => g[indexPlot] === index)}
+            {numQueries === 0 && (
+              <div>
+                {(meta?.tags || []).map((t, indexTag) => {
+                  const keyTag = toKeyTag(indexTag, true);
+                  return !isTagEnabled(meta, indexTag) && !filterHasTagID(plotParams, indexTag) ? null : (
+                    <VariableControl<number>
+                      className="mb-3"
+                      key={indexTag}
+                      target={indexTag}
+                      placeholder={getTagDescription(meta, indexTag)}
+                      negative={variableTags[indexTag]?.args.negative ?? negativeTags[keyTag] ?? false}
+                      setNegative={onSetNegativeTag}
+                      groupBy={variableTags[indexTag]?.args.groupBy ?? plotParams.groupBy.indexOf(keyTag) > -1}
+                      setGroupBy={onSetGroupBy}
+                      values={
+                        variableTags[indexTag]?.values ?? plotParams.filterIn[keyTag] ?? plotParams.filterNotIn[keyTag]
+                      }
+                      onChange={onFilterChange}
+                      tagMeta={tagsList[indexTag]?.tagMeta ?? t}
+                      setOpen={onSetUpdateTag}
+                      list={tagsList[indexTag]?.list}
+                      loaded={tagsList[indexTag]?.loaded}
+                      more={tagsList[indexTag]?.more}
+                      customBadge={
+                        variableTags[indexTag] && (
+                          <span
+                            title={`is variable: ${variableTags[indexTag].description || variableTags[indexTag].name}`}
+                            className={cn(
+                              'input-group-text bg-transparent text-nowrap pt-0 pb-0 mt-2 me-2',
+                              variableTags[indexTag]?.args.negative ?? negativeTags[keyTag]
+                                ? 'border-danger text-danger'
+                                : 'border-success text-success'
+                            )}
+                          >
+                            <span className="small">{variableTags[indexTag].name}</span>
+                          </span>
+                        )
+                      }
+                    />
+                  );
+                })}
+                {!isTagEnabled(meta, -1) && !filterHasTagID(plotParams, -1) ? null : (
+                  <VariableControl<number>
+                    className="mb-3"
+                    target={-1}
+                    placeholder={getTagDescription(meta, -1)}
+                    negative={variableTags[-1]?.args.negative ?? negativeTags['skey'] ?? false}
+                    setNegative={onSetNegativeTag}
+                    groupBy={variableTags[-1]?.args.groupBy ?? plotParams.groupBy.indexOf('skey') > -1}
+                    setGroupBy={onSetGroupBy}
+                    values={variableTags[-1]?.values ?? plotParams.filterIn['skey'] ?? plotParams.filterNotIn['skey']}
+                    onChange={onFilterChange}
+                    setOpen={onSetUpdateTag}
+                    list={tagsList[-1]?.list}
+                    loaded={tagsList[-1]?.loaded}
+                    more={tagsList[-1]?.more}
+                    customBadge={
+                      variableTags[-1] && (
+                        <span
+                          title={`is variable: ${variableTags[-1].description || variableTags[-1].name}`}
+                          className={cn(
+                            'input-group-text bg-transparent text-nowrap pt-0 pb-0 mt-2 me-2',
+                            variableTags[-1]?.args.negative ?? negativeTags['skey']
+                              ? 'border-danger text-danger'
+                              : 'border-success text-success'
+                          )}
+                        >
+                          <span className="small">{variableTags[-1].name}</span>
+                        </span>
+                      )
+                    }
                   />
-                )
-              )}
-
-            {numQueries === 0 &&
-              (meta?.string_top_name || meta?.string_top_description || filterHasTagID(plotParams, -1)) && (
-                <TagControl
-                  key={`${meta?.name} tag_s`}
-                  tag={{
-                    name: meta?.string_top_name ? meta?.string_top_name : 'tag_s',
-                    description: meta?.string_top_description,
-                  }}
-                  indexTag={-1}
-                  indexPlot={indexPlot}
-                  tagID={`skey`}
-                />
-              )}
+                )}
+              </div>
+            )}
             {plotParams.type === PLOT_TYPE.Metric && !!eventPlotList.length && (
               <div className="input-group">
                 <Select

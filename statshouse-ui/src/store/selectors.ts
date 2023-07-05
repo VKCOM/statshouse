@@ -5,19 +5,13 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { type Store } from './store';
-import * as api from '../view/api';
-import { metricTagValueInfo } from '../view/api';
-import { promQLMetric } from '../view/utils';
 import { TimeRange } from '../common/TimeRange';
 import { EventData } from './statshouse';
 import { MetricMetaValue } from '../api/metric';
 
 export const selectorParams = (s: Store) => s.params;
-export const selectorDefaultParams = (s: Store) => s.defaultParams;
 export const selectorParamsPlots = (s: Store) => s.params.plots;
 export const selectorParamsPlotsByIndex = (index: number, s: Store) => s.params.plots[index];
-export const selectorSetParamsPlots = (s: Store) => s.setPlotParams;
-export const selectorRemovePlot = (s: Store) => s.removePlot;
 
 export const selectorParamsTimeShifts = (s: Store) => s.params.timeShifts;
 export const selectorParamsTabNum = (s: Store) => s.params.tabNum;
@@ -34,9 +28,6 @@ export const selectorGlobalNumQueriesPlot = (s: Store) => s.globalNumQueriesPlot
 
 export const selectorNumQueriesPlotByIndex = (index: number, s: Store) => s.numQueriesPlot[index] ?? 0;
 
-export const selectorPreviews = (s: Store) => s.previews;
-export const selectorPreviewsByIndex = (index: number, s: Store) => s.previews[index];
-
 export const selectorBaseRange = (s: Store) => s.baseRange;
 export const selectorSetBaseRange = (s: Store) => s.setBaseRange;
 
@@ -49,67 +40,6 @@ export const selectorMetricsMeta = (s: Store) => s.metricsMeta;
 export const selectorMetricsMetaByName = (name: string, s: Store): MetricMetaValue | undefined => s.metricsMeta[name];
 
 export const selectorParamsTagSync = (s: Store) => s.params.tagSync;
-
-export const selectorTagsListByPlotAndTag = (indexPlot: number, indexTag: number, s: Store) =>
-  s.tagsList[indexPlot]?.[indexTag] ?? [];
-export const selectorTagsListByPlotAndTagAllSync = (
-  indexPlot: number,
-  indexTag: number,
-  s: Store
-): metricTagValueInfo[] => {
-  const group = s.params.tagSync.find((group) => group[indexPlot] === indexTag) ?? [];
-  const tagsListObj: Record<string, number> = {};
-  group.forEach((tag, plot) => {
-    if (tag !== null) {
-      const nextList = s.tagsList[plot]?.[tag] ?? [];
-      nextList.forEach(({ value, count }) => {
-        tagsListObj[value] = (tagsListObj[value] ?? 0) + count;
-      });
-    }
-  });
-  return Object.entries(tagsListObj).map(([value, count]) => ({ value, count }));
-};
-
-export const selectorTagsListSKeyByPlot = (indexPlot: number, s: Store) => s.tagsListSKey[indexPlot] ?? [];
-export const selectorTagsListAbortControllerByPlotAndTag = (indexPlot: number, indexTag: number, s: Store) =>
-  s.tagsListLoading[indexPlot]?.[indexTag] ?? null;
-export const selectorTagsSKeyListAbortControllerByPlot = (indexPlot: number, s: Store) =>
-  s.tagsListSKeyLoading[indexPlot] ?? null;
-export const selectorTagsListMoreByPlotAndTag = (indexPlot: number, indexTag: number, s: Store) =>
-  s.tagsListMore[indexPlot]?.[indexTag] ?? false;
-export const selectorTagsSKeyListMoreByPlot = (indexPlot: number, s: Store) => s.tagsListSKeyMore[indexPlot] ?? false;
-
-export const selectorTitle = (s: Store) => {
-  switch (s.params.tabNum) {
-    case -1:
-      if (s.params.dashboard?.dashboard_id !== undefined) {
-        return `${s.params.dashboard?.name} — StatsHouse`;
-      }
-      return 'Dashboard — StatsHouse';
-    case -2:
-      return 'Dashboard setting — StatsHouse';
-  }
-  if (s.params.plots[s.params.tabNum] && s.params.plots[s.params.tabNum].metricName === promQLMetric) {
-    if (!s.plotsData[s.params.tabNum].nameMetric) {
-      return 'StatsHouse';
-    }
-    return (
-      s.plotsData[s.params.tabNum].nameMetric +
-      (s.plotsData[s.params.tabNum].whats.length
-        ? ': ' + s.plotsData[s.params.tabNum].whats.map((qw) => api.whatToWhatDesc(qw)).join(',')
-        : '') +
-      ' — StatsHouse'
-    );
-  }
-  return (
-    (s.params.plots[s.params.tabNum] &&
-      s.params.plots[s.params.tabNum].metricName !== '' &&
-      `${s.params.plots[s.params.tabNum].metricName}: ${s.params.plots[s.params.tabNum].what
-        .map((qw) => api.whatToWhatDesc(qw))
-        .join(',')} — StatsHouse`) ||
-    ''
-  );
-};
 
 export const selectorSaveServerParams = (s: Store) => s.saveServerParams;
 export const selectorRemoveServerParams = (s: Store) => s.removeServerParams;

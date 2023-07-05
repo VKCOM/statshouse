@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,9 +8,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 export function useStateInput(initialState: string | (() => string)) {
   const [value, setValue] = useState(initialState);
-  const onInput = useCallback((event: React.FormEvent) => {
-    // @ts-ignore
-    const nextValue = event.currentTarget?.value ?? '';
+  const onInput = useCallback((event: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const nextValue = event.currentTarget.value;
     setValue(nextValue);
   }, []);
   useEffect(() => {

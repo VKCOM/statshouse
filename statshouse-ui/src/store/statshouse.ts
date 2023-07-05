@@ -12,6 +12,8 @@ import {
   configParams,
   defaultParams,
   getLiveParams,
+  middlewareDecode,
+  middlewareEncode,
   PLOT_TYPE,
   PlotParams,
   PlotType,
@@ -19,10 +21,11 @@ import {
   readDashboardID,
   setLiveParams,
   sortEntity,
+  VariableParams,
 } from '../common/plotQueryParams';
 import { dequal } from 'dequal/lite';
 import React from 'react';
-import produce from 'immer';
+import produce, { setAutoFreeze } from 'immer';
 import {
   apiGet,
   apiPost,
@@ -35,11 +38,14 @@ import {
   formatPercent,
   freeKeyPrefix,
   getTimeShifts,
+  loadAllMeta,
   normalizeDashboard,
   now,
   promQLMetric,
   readJSONLD,
+  replaceVariable,
   sortByKey,
+  tagSyncToVariableConvert,
   timeRangeAbbrev,
   timeRangeAbbrevExpand,
   timeShiftAbbrevExpand,
@@ -197,7 +203,7 @@ export type StatsHouseStore = {
   params: QueryParams;
   liveMode: boolean;
   setLiveMode(nextStatus: React.SetStateAction<boolean>): void;
-  updateParamsByUrl(): void;
+  updateParamsByUrl(abortSignal?: AbortSignal): void;
   updateUrl(replace?: boolean): void;
   updateTitle(): void;
   setTimeRange(value: SetTimeRangeValue, force?: boolean): void;
@@ -284,11 +290,14 @@ export const statsHouseState: StateCreator<
   StatsHouseStore
 > = (setState, getState) => {
   let prevLocation = appHistory.location;
+  let controller: AbortController;
   appHistory.listen(({ location }) => {
     if (prevLocation.search !== location.search || prevLocation.pathname !== location.pathname) {
       prevLocation = location;
       if (location.pathname === '/view' || location.pathname === '/embed') {
-        getState().updateParamsByUrl();
+        controller?.abort();
+        controller = new AbortController();
+        getState().updateParamsByUrl(controller.signal);
       }
     }
   });
@@ -309,6 +318,7 @@ export const statsHouseState: StateCreator<
       plots: [],
       timeShifts: [],
       tabNum: 0,
+      variables: [],
     },
     setTimeRange(value, force?) {
       const tr = new TimeRange(getState().params.timeRange);
@@ -331,7 +341,7 @@ export const statsHouseState: StateCreator<
         );
       }
     },
-    async updateParamsByUrl() {
+    async updateParamsByUrl(abortSignal: AbortSignal) {
       const id = readDashboardID(new URLSearchParams(document.location.search));
       if (id && getState().params.dashboard?.dashboard_id && id !== getState().params.dashboard?.dashboard_id) {
         setState((state) => {
@@ -342,7 +352,7 @@ export const statsHouseState: StateCreator<
         });
       }
       const saveParams = id ? await getState().loadServerParams(id) : undefined;
-      getState().setDefaultParams({
+      const localDefaultParams: QueryParams = {
         ...(saveParams ?? defaultParams),
         timeRange: {
           to:
@@ -353,18 +363,39 @@ export const statsHouseState: StateCreator<
               : defaultParams.timeRange.to,
           from: saveParams?.timeRange.from ?? defaultParams.timeRange.from,
         },
-      });
+      };
 
-      const params = decodeQueryParams<QueryParams>(
+      let decodeParams = decodeQueryParams<QueryParams>(
         configParams,
-        getState().defaultParams,
-        new URLSearchParams(window.location.search)
+        localDefaultParams,
+        new URLSearchParams(window.location.search),
+        middlewareDecode
       );
-      if (!params) {
+
+      if (!decodeParams) {
         return;
       }
+      let params = decodeParams;
+      if (decodeParams.tagSync.length) {
+        await loadAllMeta(decodeParams, getState().loadMetricsMeta);
+        const metricsMeta = getState().metricsMeta;
+        setAutoFreeze(false);
+        params = tagSyncToVariableConvert(decodeParams, metricsMeta);
+        setAutoFreeze(true);
+      }
+
+      getState().setDefaultParams(localDefaultParams);
+      if (abortSignal?.aborted) {
+        return;
+      }
+
       let reset = false;
       const nowTime = now();
+
+      if (!dequal(params.variables, decodeParams.variables)) {
+        reset = true;
+      }
+
       if (params.tabNum >= 0 && !params.plots[params.tabNum]) {
         params.tabNum = getState().defaultParams.tabNum;
         reset = true;
@@ -483,8 +514,21 @@ export const statsHouseState: StateCreator<
             }
           });
         });
+        const changedVariablesPlot: Set<number | null> = new Set();
+        getState().params.variables.forEach((variable, indexVariable) => {
+          if (prevParams.variables[indexVariable] !== variable) {
+            variable.link.forEach(([iPlot]) => {
+              changedVariablesPlot.add(iPlot);
+            });
+          }
+        });
         getState().params.plots.forEach((plot, index) => {
-          if (changedTimeRange || changedTimeShifts || prevParams.plots[index] !== plot) {
+          if (
+            changedTimeRange ||
+            changedTimeShifts ||
+            prevParams.plots[index] !== plot ||
+            changedVariablesPlot.has(index)
+          ) {
             getState().loadPlot(index, force);
           }
         });
@@ -557,6 +601,17 @@ export const statsHouseState: StateCreator<
                 }))
                 .filter((g) => g.count > 0);
             }
+            params.variables = params.variables
+              .map((variable) => ({
+                ...variable,
+                link: variable.link
+                  .filter(([indexP]) => indexP !== index)
+                  .map(
+                    ([indexP, indexT]) =>
+                      [indexP != null && indexP > index ? indexP - 1 : indexP, indexT] as [number | null, number | null]
+                  ),
+              }))
+              .filter(({ link }) => link.length);
           }
           if (params.tabNum > index) {
             params.tabNum--;
@@ -598,7 +653,8 @@ export const statsHouseState: StateCreator<
         configParams,
         prevState.params,
         prevState.defaultParams,
-        setLiveParams(live, new URLSearchParams())
+        setLiveParams(live, new URLSearchParams()),
+        middlewareEncode
       );
       const search = '?' + p.toString();
       let pathname = document.location.pathname;
@@ -712,7 +768,11 @@ export const statsHouseState: StateCreator<
       }
       const width = prevState.uPlotsWidth[index] ?? prevState.uPlotsWidth.find((w) => w && w > 0);
       const compact = prevState.compact;
-      const lastPlotParams: PlotParams | undefined = prevState.params.plots[index];
+      const lastPlotParams: PlotParams | undefined = replaceVariable(
+        index,
+        prevState.params.plots[index],
+        prevState.params.variables
+      );
       const prev: PlotStore = prevState.plotsData[index];
       if (lastPlotParams.metricName === '') {
         return;
@@ -1157,12 +1217,13 @@ export const statsHouseState: StateCreator<
         { [GET_PARAMS.metricName]: metricName },
         requestKey
       );
+      prevState.setGlobalNumQueriesPlot((n) => n + 1);
+      const { response, error, status } = await request;
+      prevState.setGlobalNumQueriesPlot((n) => n - 1);
       if (!first) {
         // if request already then await and skip
         return;
       }
-      prevState.setGlobalNumQueriesPlot((n) => n + 1);
-      const { response, error, status } = await request;
       if (response) {
         debug.log('loading meta for', response.data.metric.name);
         setState((state) => {
@@ -1174,8 +1235,6 @@ export const statsHouseState: StateCreator<
           useErrorStore.getState().addError(error);
         }
       }
-      prevState.setGlobalNumQueriesPlot((n) => n - 1);
-
       return;
     },
     clearMetricsMeta(metricName) {
@@ -1596,6 +1655,7 @@ export const statsHouseState: StateCreator<
         preview: prevState.previews[indexPlot],
         plotsData: prevState.plotsData[indexPlot],
         plotsEvent: prevState.events[indexPlot],
+        oldIndex: indexPlot,
       }));
       if (
         typeof indexSelectPlot !== 'undefined' &&
@@ -1615,7 +1675,14 @@ export const statsHouseState: StateCreator<
       const plotsData = resort.map(({ plotsData }) => plotsData);
       const plotsEvent = resort.map(({ plotsEvent }) => plotsEvent);
       const plotEventLink = resort.map(({ plotEventLink }) => plotEventLink.map((eP) => plots.indexOf(eP)));
-
+      const remapIndexPlot = resort.reduce((res, { oldIndex }, newIndex) => {
+        res[oldIndex] = newIndex;
+        return res;
+      }, {} as Record<string, number>);
+      const variables: VariableParams[] = prevState.params.variables.map((variable) => ({
+        ...variable,
+        link: variable.link.map(([indexP, indexT]) => [indexP == null ? indexP : remapIndexPlot[indexP], indexT]),
+      }));
       const tagSync = resort.reduce((res, item, indexPlot) => {
         item.tagSync.forEach(({ indexGroup, indexTag }) => {
           res[indexGroup] = res[indexGroup] ?? [];
@@ -1630,7 +1697,7 @@ export const statsHouseState: StateCreator<
             events: plotEventLink[indexP].filter((i) => i > -1) ?? [],
           }));
           params.tagSync = tagSync;
-
+          params.variables = variables;
           if (params.dashboard && typeof indexGroup !== 'undefined' && indexGroup >= 0) {
             params.dashboard.groupInfo = params.dashboard.groupInfo ?? [];
             params.dashboard.groupInfo[indexGroup] = params.dashboard.groupInfo[indexGroup] ?? {

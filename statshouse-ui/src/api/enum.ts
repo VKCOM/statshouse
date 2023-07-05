@@ -48,6 +48,16 @@ export const GET_PARAMS = {
   metricLive: 'live',
   avoidCache: 'ac',
   excessPoints: 'ep',
+  variablePrefix: 'v',
+  variableName: 'n',
+  variableNamePrefix: 'var',
+  variableDescription: 'd',
+  variableValue: 'v',
+  variableValuePrefix: 'v.',
+  variableLinkPlot: 'l',
+  variableSource: 's',
+  variableGroupBy: 'g',
+  variableNegative: 'nv',
 } as const;
 export type GetParams = Enum<typeof GET_PARAMS>;
 

@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,10 +8,15 @@ import React from 'react';
 import uPlot from 'uplot';
 import { TimeRange } from '../common/TimeRange';
 import * as api from './api';
-import { DashboardInfo, RawValueKind } from './api';
-import { PlotParams, QueryParams } from '../common/plotQueryParams';
+import { DashboardInfo, RawValueKind, whatToWhatDesc } from './api';
+import { PlotParams, QueryParams, VariableParams } from '../common/plotQueryParams';
 import { UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
 import { MetricMetaValue } from '../api/metric';
+import { PlotStore } from '../store';
+import produce from 'immer';
+import { isNotNil, uniqueArray } from '../common/helpers';
+import { GET_PARAMS } from '../api/enum';
+import { getEmptyVariableParams } from '../common/getEmptyVariableParams';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
@@ -659,6 +664,7 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       description: data.dashboard?.description ?? '',
       version: data.dashboard.version,
     },
+    variables: params.variables ?? [],
   };
 }
 
@@ -670,6 +676,27 @@ export function freeKeyPrefix(str: string): string {
   return str.replace('skey', '_s').replace('key', '');
 }
 
+export function toIndexTag(str: string): number | null {
+  const shortKey = freeKeyPrefix(str);
+  return shortKey === '_s' ? -1 : +shortKey;
+}
+export function toKeyTag(indexTag: number, full?: boolean) {
+  if (full) {
+    return indexTag === -1 ? 'skey' : `key${indexTag}`;
+  }
+  return indexTag === -1 ? '_s' : indexTag.toString();
+}
+
+export function isTagEnabled(meta: MetricMetaValue | undefined, indexTag: number | string): boolean {
+  if (meta) {
+    if (typeof indexTag === 'number' && indexTag > -1) {
+      return meta.tags?.[indexTag].description !== '-';
+    } else if (indexTag === -1 || indexTag === 'skey' || indexTag === '_s') {
+      return !!meta.string_top_description || !!meta.string_top_name;
+    }
+  }
+  return false;
+}
 export function getTagDescription(meta: MetricMetaValue | undefined, indexTag: number | string): string {
   if (meta) {
     if (typeof indexTag === 'number' && indexTag > -1) {
@@ -679,6 +706,25 @@ export function getTagDescription(meta: MetricMetaValue | undefined, indexTag: n
     }
   }
   return `tag ${indexTag}`;
+}
+
+export function getMetricName(plot: PlotParams, plotData: PlotStore) {
+  return plot.metricName !== promQLMetric ? plot.metricName : plotData.nameMetric;
+}
+
+export function getMetricWhat(plot: PlotParams, plotData: PlotStore) {
+  return plot.metricName === promQLMetric
+    ? plotData.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
+    : plot.what.map((qw) => whatToWhatDesc(qw)).join(', ');
+}
+
+export function getMetricFullName(plot: PlotParams, plotData: PlotStore) {
+  if (plot.customName) {
+    return plot.customName;
+  }
+  const metricName = getMetricName(plot, plotData);
+  const metricWhat = getMetricWhat(plot, plotData);
+  return metricName ? `${metricName}${!!metricWhat && ': ' + metricWhat}` : '';
 }
 
 export function getEventTagColumns(plot: PlotParams, meta?: MetricMetaValue, selectedOnly: boolean = false) {
@@ -717,4 +763,145 @@ export function getEventTagColumns(plot: PlotParams, meta?: MetricMetaValue, sel
     });
   }
   return columns;
+}
+
+/**
+ * replace filter value by variable
+ *
+ * @param indexPlot
+ * @param plot
+ * @param variables
+ */
+export function replaceVariable(indexPlot: number, plot: PlotParams, variables: VariableParams[]): PlotParams {
+  return produce(plot, (p) => {
+    variables.forEach(({ link, values, args }) => {
+      const [, indexTag] = link.find(([iPlot]) => iPlot === indexPlot) ?? [];
+      if (indexTag != null) {
+        const keyTag = toKeyTag(indexTag, true);
+        const ind = p.groupBy.indexOf(keyTag);
+        if (args.groupBy) {
+          if (ind === -1) {
+            p.groupBy.push(keyTag);
+          }
+        } else {
+          if (ind > -1) {
+            p.groupBy.splice(ind, 1);
+          }
+        }
+        if (args.negative) {
+          delete p.filterIn[keyTag];
+          p.filterNotIn[keyTag] = values.slice();
+        } else {
+          delete p.filterNotIn[keyTag];
+          p.filterIn[keyTag] = values.slice();
+        }
+      }
+    });
+  });
+}
+
+export function isValidVariableName(name: string): boolean {
+  const regex = /^[a-z][a-z0-9_]*$/gi;
+  return regex.test(name);
+}
+
+export function getAutoNamStartIndex(variables: VariableParams[]): number {
+  let maxIndex = 0;
+  variables.forEach(({ name }) => {
+    if (name[0] === 'v') {
+      const index = +name.slice(1);
+      if (!isNaN(index) && index > maxIndex) {
+        maxIndex = index;
+      }
+    }
+  });
+  return maxIndex + 1;
+}
+
+export async function loadAllMeta(params: QueryParams, loadMetricsMeta: (metricName: string) => Promise<void>) {
+  await Promise.all(
+    params.plots.map(({ metricName }) =>
+      metricName === promQLMetric ? Promise.resolve() : loadMetricsMeta(metricName)
+    )
+  );
+  return;
+}
+
+export function tagSyncToVariableConvert(
+  params: QueryParams,
+  metricsMeta: Record<string, MetricMetaValue>
+): QueryParams {
+  return produce(params, (p) => {
+    const startIndex = getAutoNamStartIndex(p.variables);
+    const addVariables: VariableParams[] = p.tagSync
+      .map((group, index) => {
+        const link: [number, number][] = [];
+        group.forEach((iTag, iPlot) => {
+          if (iTag != null) {
+            link.push([iPlot, iTag]);
+          }
+        });
+        if (link.length) {
+          const description = getTagDescription(metricsMeta?.[params.plots[link[0][0]]?.metricName], link[0][1]);
+          const name = isValidVariableName(description)
+            ? description
+            : `${GET_PARAMS.variableNamePrefix}${startIndex + index}`;
+          return {
+            ...getEmptyVariableParams(),
+            name,
+            link,
+            description: description === name ? '' : description,
+          };
+        }
+        return null;
+      })
+      .filter(isNotNil);
+    p.tagSync = [];
+    const updateParams = paramToVariable({ ...p, variables: addVariables });
+    p.plots = updateParams.plots;
+    p.variables = [...p.variables, ...updateParams.variables];
+  });
+}
+
+export function paramToVariable(params: QueryParams): QueryParams {
+  return produce(params, (p) => {
+    p.variables = p.variables.map((variable) => {
+      let groupBy = variable.args.groupBy;
+      let negative = variable.args.negative;
+      let values: string[] = variable.values;
+      if (variable.link.length) {
+        const [iPlot0, iTag0] = variable.link[0];
+        if (iPlot0 != null && iTag0 != null) {
+          const keyTag0 = toKeyTag(iTag0, true);
+          groupBy = groupBy || p.plots[iPlot0]?.groupBy?.indexOf(keyTag0) > -1;
+          negative = negative || p.plots[iPlot0]?.filterNotIn[keyTag0]?.length > 0;
+          values = uniqueArray([
+            ...values,
+            ...variable.link
+              .map(([iPlot, iTag]) => {
+                if (iPlot != null && iTag != null) {
+                  const keyTag = toKeyTag(iTag, true);
+                  const values =
+                    (negative ? p.plots[iPlot]?.filterNotIn[keyTag] : p.plots[iPlot]?.filterIn[keyTag]) ?? [];
+                  delete p.plots[iPlot].filterIn[keyTag];
+                  delete p.plots[iPlot].filterNotIn[keyTag];
+                  return values;
+                }
+                return [];
+              })
+              .flat(),
+          ]);
+        }
+      }
+      return {
+        ...variable,
+        args: {
+          ...variable.args,
+          groupBy,
+          negative,
+        },
+        values,
+      };
+    });
+  });
 }

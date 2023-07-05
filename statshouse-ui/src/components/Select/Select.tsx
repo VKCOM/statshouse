@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -66,6 +66,8 @@ const POSITION_SCROLL = {
 } as const;
 
 export type PositionScroll = (typeof POSITION_SCROLL)[keyof typeof POSITION_SCROLL];
+
+const defaultOptions: SelectOptionProps[] = [];
 
 function appendItems(target: HTMLElement, items: SelectOptionProps[], multiple: boolean = false): void {
   target.append(
@@ -209,7 +211,7 @@ function scrollToElement(
 
 export const Select: FC<SelectProps> = ({
   value,
-  options = [],
+  options = defaultOptions,
   className = '',
   role,
   classNameList = '',
