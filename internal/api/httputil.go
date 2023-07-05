@@ -65,10 +65,10 @@ func httpCode(err error) int {
 		var httpErr httpError
 		var promErr promql.Error
 		switch {
-		case errors.As(err, &httpErr):
-			code = httpErr.code
 		case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
 			code = http.StatusGatewayTimeout // 504
+		case errors.As(err, &httpErr):
+			code = httpErr.code
 		case errors.As(err, &promErr):
 			if promErr.EngineFailure() {
 				code = http.StatusInternalServerError
