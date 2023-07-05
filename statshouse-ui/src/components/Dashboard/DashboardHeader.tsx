@@ -54,7 +54,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
     () =>
       `${document.location.protocol}//${document.location.host}${document.location.pathname}${getUrlSearch(
         produce((prev) => {
-          prev.dashboard = undefined;
+          if (prev.dashboard?.dashboard_id) {
+            prev.dashboard.dashboard_id = undefined;
+          }
         }),
         params,
         ''

@@ -601,11 +601,16 @@ export const statsHouseState: StateCreator<
         setLiveParams(live, new URLSearchParams())
       );
       const search = '?' + p.toString();
+      let pathname = document.location.pathname;
+
+      if (pathname !== '/view' && pathname !== '/embed') {
+        pathname = '/view';
+      }
       if (document.location.search !== search) {
         if (replace || autoReplace) {
-          appHistory.replace({ search });
+          appHistory.replace({ search, pathname });
         } else {
-          appHistory.push({ search });
+          appHistory.push({ search, pathname });
         }
       }
       getState().updateTitle();
