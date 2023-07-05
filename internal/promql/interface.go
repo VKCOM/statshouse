@@ -12,7 +12,6 @@ import (
 	"math"
 
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -138,6 +137,7 @@ type TagValuesQuery struct {
 	Options   Options
 }
 
+// Used by 'Handler' implementation to signal that entity requested was just not found (not an error)
 var ErrNotFound = fmt.Errorf("not found")
 
 type Handler interface {
@@ -170,4 +170,24 @@ type Handler interface {
 
 	Alloc(int) *[]float64
 	Free(*[]float64)
+}
+
+type Error struct {
+	what  any
+	panic bool
+}
+
+func (e Error) Error() string {
+	return fmt.Sprintf("PromQL: %v", e.what)
+}
+
+func (e Error) Unwrap() error {
+	if err, ok := e.what.(error); ok {
+		return err
+	}
+	return nil
+}
+
+func (e Error) EngineFailure() bool {
+	return e.panic
 }

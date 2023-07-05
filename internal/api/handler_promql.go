@@ -253,8 +253,7 @@ func promRespondError(w http.ResponseWriter, typ promErrorType, err error) {
 func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, []string, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
-		// should not happen, return empty set to not reveal security issue
-		return nil, nil, nil
+		panic("metric access violation") // should not happen
 	}
 	var (
 		s1 []*format.MetricMetaValue // metrics
@@ -408,7 +407,7 @@ func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
 func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.SeriesBag, func(), error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
-		return promql.SeriesBag{}, func() {}, nil // should not happen
+		panic("metric access violation") // should not happen
 	}
 	if !ai.canViewMetric(qry.Metric.Name) {
 		return promql.SeriesBag{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
@@ -520,7 +519,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
-		return nil, fmt.Errorf("tag not found")
+		panic("metric access violation") // should not happen
 	}
 	var (
 		version = promqlVersionOrDefault(qry.Version)
@@ -578,7 +577,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery) ([]string, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
-		return nil, fmt.Errorf("tag not found")
+		panic("metric access violation") // should not happen
 	}
 	var (
 		version = promqlVersionOrDefault(qry.Version)
@@ -778,7 +777,7 @@ func getHandlerLODs(qry *promql.SeriesQuery, loc *time.Location) []promqlLOD {
 
 func (h *Handler) Alloc(n int) *[]float64 {
 	if n > maxSlice {
-		panic(fmt.Errorf("exceeded maximum resolution of %d points per timeseries. Try decreasing the query resolution (?step=XX)", maxSlice))
+		panic(httpErr(http.StatusBadRequest, fmt.Errorf("exceeded maximum resolution of %d points per timeseries. Try decreasing the query resolution (?step=XX)", maxSlice)))
 	}
 	return h.getFloatsSlice(n)
 }
