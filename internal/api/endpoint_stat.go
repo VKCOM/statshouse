@@ -35,6 +35,7 @@ const (
 	EndpointDashboardList   = "dashboards-list"
 	EndpointGroup           = "group"
 	EndpointNamespace       = "namespace"
+	EndpointNamespaceList   = "namespace-list"
 	EndpointGroupList       = "group-list"
 	EndpointPrometheus      = "prometheus"
 
