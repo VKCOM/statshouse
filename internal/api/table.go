@@ -11,7 +11,7 @@ import (
 
 type (
 	tableReqParams struct {
-		req               seriesRequest
+		req               tableRequest
 		queries           []*query
 		user              string
 		metricMeta        *format.MetricMetaValue

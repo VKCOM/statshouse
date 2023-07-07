@@ -368,9 +368,17 @@ func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (req 
 		return req, fmt.Errorf("can't parse filter: %v", err)
 	}
 
-	timeShifts := make([]string, 0, len(q.TimeShift))
+	width, widthKind, err := parseWidth(q.Interval, q.WidthAgg)
+	if err != nil {
+		return req, fmt.Errorf("can't parse interval: %v", err)
+	}
+
+	timeShifts := make([]time.Duration, 0, len(q.TimeShift))
 	for _, ts := range q.TimeShift {
-		timeShifts = append(timeShifts, strconv.FormatInt(ts, 10))
+		if width == _1M && ts%_1M != 0 {
+			return req, fmt.Errorf("time shift %d can't be used with month interval", ts)
+		}
+		timeShifts = append(timeShifts, time.Duration(ts)*time.Second)
 	}
 
 	var what []string
@@ -385,13 +393,13 @@ func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (req 
 
 	req = seriesRequest{
 		version:             strconv.FormatInt(int64(q.Version), 10),
-		numResults:          strconv.FormatInt(int64(q.TopN), 10),
+		numResults:          int(q.TopN),
 		metricWithNamespace: q.MetricName,
-		from:                strconv.FormatInt(q.TimeFrom, 10),
-		to:                  strconv.FormatInt(q.TimeTo, 10),
-		width:               q.Interval,
-		widthAgg:            q.WidthAgg,
-		timeShifts:          timeShifts,
+		from:                time.Unix(q.TimeFrom, 0),
+		to:                  time.Unix(q.TimeTo, 0),
+		width:               width,
+		widthKind:           widthKind,
+		shifts:              timeShifts,
 		what:                what,
 		by:                  q.GroupBy,
 		filterIn:            filterIn,
@@ -408,9 +416,9 @@ func transformPointQuery(q tlstatshouseApi.QueryPoint, meta *format.MetricMetaVa
 		return req, fmt.Errorf("can't parse filter: %v", err)
 	}
 
-	timeShifts := make([]string, 0, len(q.TimeShift))
+	timeShifts := make([]time.Duration, 0, len(q.TimeShift))
 	for _, ts := range q.TimeShift {
-		timeShifts = append(timeShifts, strconv.FormatInt(ts, 10))
+		timeShifts = append(timeShifts, time.Duration(ts)*time.Second)
 	}
 
 	var what []string
@@ -425,11 +433,11 @@ func transformPointQuery(q tlstatshouseApi.QueryPoint, meta *format.MetricMetaVa
 
 	req = seriesRequest{
 		version:             strconv.FormatInt(int64(q.Version), 10),
-		numResults:          strconv.FormatInt(int64(q.TopN), 10),
+		numResults:          int(q.TopN),
 		metricWithNamespace: q.MetricName,
-		from:                strconv.FormatInt(q.TimeFrom, 10),
-		to:                  strconv.FormatInt(q.TimeTo, 10),
-		timeShifts:          timeShifts,
+		from:                time.Unix(q.TimeFrom, 0),
+		to:                  time.Unix(q.TimeTo, 0),
+		shifts:              timeShifts,
 		what:                what,
 		by:                  q.GroupBy,
 		filterIn:            filterIn,

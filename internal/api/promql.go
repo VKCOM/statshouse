@@ -907,12 +907,10 @@ func getPromQuery(req seriesRequest, queryFn bool) string {
 			}
 		}
 		q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
-		if numResults, err := strconv.ParseInt(req.numResults, 10, 32); err == nil {
-			if numResults < 0 {
-				q = fmt.Sprintf("bottomk(%d,%s)", -numResults, q)
-			} else {
-				q = fmt.Sprintf("topk(%d,%s)", numResults, q)
-			}
+		if req.numResults < 0 {
+			q = fmt.Sprintf("bottomk(%d,%s)", -req.numResults, q)
+		} else {
+			q = fmt.Sprintf("topk(%d,%s)", req.numResults, q)
 		}
 		if deriv {
 			q = fmt.Sprintf("idelta(%s)", q)
