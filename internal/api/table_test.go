@@ -17,7 +17,7 @@ func Test_getTableFromLODs(t *testing.T) {
 	return
 	l, _ := time.LoadLocation("")
 	p := tableReqParams{
-		req: seriesRequest{limit: 100},
+		req: tableRequest{limit: 100},
 		queries: []*query{{
 			what:     queryFnCount,
 			whatKind: queryFnKindCount,

@@ -344,7 +344,7 @@ func parseWidth(w string, g string) (int, int, error) {
 	return int(u), widthKind, nil
 }
 
-func parseTimeShifts(ts []string, width int) ([]time.Duration, error) {
+func parseTimeShifts(ts []string) ([]time.Duration, error) {
 	ds := []time.Duration{0} // implicit 0s
 	for _, s := range ts {
 		d, err := strconv.ParseInt(s, 10, 32)
@@ -353,9 +353,6 @@ func parseTimeShifts(ts []string, width int) ([]time.Duration, error) {
 		}
 		if d >= 0 {
 			return nil, httpErr(http.StatusBadRequest, fmt.Errorf("time shift %q is not negative", s))
-		}
-		if width == _1M && d%_1M != 0 {
-			return nil, httpErr(http.StatusBadRequest, fmt.Errorf("time shift %q can't be used with month interval", s))
 		}
 		ds = append(ds, time.Duration(d)*time.Second)
 	}

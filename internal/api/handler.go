@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -45,7 +46,6 @@ import (
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/promql"
-	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
@@ -275,16 +275,35 @@ type (
 		Count float64 `json:"count"`
 	}
 
-	seriesRequest struct {
+	tableRequest struct {
 		version             string
-		numResults          string
 		metricWithNamespace string
 		from                string
 		to                  string
 		width               string
 		widthAgg            string
+		what                []string
+		by                  []string
+		filterIn            map[string][]string
+		filterNotIn         map[string][]string
+		maxHost             bool
+		avoidCache          bool
+		fromEnd             bool
+		fromRow             RowMarker
+		toRow               RowMarker
+		limit               int
+	}
+
+	seriesRequest struct {
+		version             string
+		numResults          int
+		metricWithNamespace string
+		from                time.Time
+		to                  time.Time
+		width               int
+		widthKind           int
 		promQL              string
-		timeShifts          []string
+		shifts              []time.Duration
 		what                []string
 		by                  []string
 		filterIn            map[string][]string
@@ -292,12 +311,7 @@ type (
 		maxHost             bool
 		avoidCache          bool
 		verbose             bool
-
-		// get table fields
-		fromEnd bool
-		fromRow RowMarker
-		toRow   RowMarker
-		limit   int
+		format              string
 	}
 
 	seriesRequestOptions struct {
@@ -1629,7 +1643,7 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 		ctx,
 		ai,
 		true,
-		seriesRequest{
+		tableRequest{
 			version:             r.FormValue(ParamVersion),
 			metricWithNamespace: metricWithNamespace,
 			from:                r.FormValue(ParamFromTime),
@@ -1670,13 +1684,9 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Parse request
-	qry, err := h.getSeriesRequest(r)
+	qry, err := seriesRequestParser.parseHTTPRequest(r)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-		return
-	}
-	if qry.avoidCache && !ai.isAdmin() {
-		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
 		return
 	}
 	// Query series and badges
@@ -1803,7 +1813,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	// Format and write the response
 	h.colorize(res)
 	switch {
-	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
+	case err == nil && qry.format == dataFormatCSV:
 		exportCSV(w, res, qry.metricWithNamespace, sl)
 	default:
 		var cache, cacheStale time.Duration
@@ -1816,13 +1826,14 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request, sl *endpointStat, ai accessInfo) {
 	// Parse request
-	qry, err := h.getSeriesRequest(r)
+	qry, err := seriesRequestParser.parseHTTPRequest(r)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	if qry.avoidCache && !ai.isAdmin() {
-		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
+	err = qry.validate(ai)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
 	// Query series and badges
@@ -1830,12 +1841,8 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 		ctx, cancel = context.WithTimeout(r.Context(), h.querySelectTimeout)
 		freeBadges  func()
 		freeRes     func()
-		options     = seriesRequestOptions{
-			debugQueries: true,
-			stat:         sl,
-		}
-		res    *SeriesResponse
-		badges *SeriesResponse
+		res         *SeriesResponse
+		badges      *SeriesResponse
 	)
 	defer func() {
 		cancel()
@@ -1851,17 +1858,26 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 		g, ctx = errgroup.WithContext(ctx)
 		g.Go(func() error {
 			var err error
-			res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
-			return err
-		})
-		g.Go(func() error {
-			var err error
-			badges, freeBadges, err = h.queryBadgesPromQL(ctx, ai, qry)
+			res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, seriesRequestOptions{
+				debugQueries: true,
+				stat:         sl,
+				metricNameCallback: func(name string) {
+					qry.metricWithNamespace = name
+					g.Go(func() error {
+						var err error
+						badges, freeBadges, err = h.queryBadgesPromQL(ctx, ai, qry)
+						return err
+					})
+				},
+			})
 			return err
 		})
 		err = g.Wait()
 	} else {
-		res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
+		res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, seriesRequestOptions{
+			debugQueries: true,
+			stat:         sl,
+		})
 	}
 	var traces []string
 	if res != nil {
@@ -1925,59 +1941,17 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 	}
 }
 
-func (h *Handler) getSeriesRequest(r *http.Request) (seriesRequest, error) {
-	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
-	var (
-		verbose bool
-		metric  = formValueParamMetric(r)
-	)
-	if _, ok := format.BuiltinMetricByName[metric]; !ok && r.FormValue(ParamQueryVerbose) == "1" {
-		verbose = true
-	}
-	var (
-		err         error
-		filterIn    map[string][]string
-		filterNotIn map[string][]string
-	)
-	filterIn, filterNotIn, err = parseQueryFilter(r.Form[ParamQueryFilter])
-	if err != nil {
-		return seriesRequest{}, err
-	}
-	var (
-		_, avoidCache = r.Form[ParamAvoidCache]
-		_, maxHost    = r.Form[paramMaxHost]
-	)
-	return seriesRequest{
-		avoidCache:          avoidCache,
-		by:                  r.Form[ParamQueryBy],
-		filterIn:            filterIn,
-		filterNotIn:         filterNotIn,
-		from:                r.FormValue(ParamFromTime),
-		maxHost:             maxHost,
-		metricWithNamespace: metric,
-		numResults:          r.FormValue(ParamNumResults),
-		promQL:              r.FormValue(paramPromQuery),
-		timeShifts:          r.Form[ParamTimeShift],
-		to:                  r.FormValue(ParamToTime),
-		verbose:             verbose,
-		version:             r.FormValue(ParamVersion),
-		what:                r.Form[ParamQueryWhat],
-		width:               r.FormValue(ParamWidth),
-		widthAgg:            r.FormValue(ParamWidthAgg),
-	}, nil
-}
-
 func (h *Handler) queryBadges(ctx context.Context, ai accessInfo, req seriesRequest) (*SeriesResponse, func(), error) {
 	return h.handleGetQuery(
 		ctx, ai.withBadgesRequest(),
 		seriesRequest{
 			version:             Version2,
-			numResults:          "20",
+			numResults:          20,
 			metricWithNamespace: format.BuiltinMetricNameBadges,
 			from:                req.from,
 			to:                  req.to,
 			width:               req.width,
-			widthAgg:            req.widthAgg, // TODO - resolution of badge metric (currently 5s)?
+			widthKind:           req.widthKind, // TODO - resolution of badge metric (currently 5s)?
 			what:                []string{ParamQueryFnCount, ParamQueryFnAvg},
 			by:                  []string{"key1", "key2"},
 			filterIn:            map[string][]string{"key2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
@@ -1991,12 +1965,12 @@ func (h *Handler) queryBadgesPromQL(ctx context.Context, ai accessInfo, req seri
 		ctx, ai,
 		seriesRequest{
 			version:             Version2,
-			numResults:          "20",
+			numResults:          20,
 			metricWithNamespace: format.BuiltinMetricNameBadges,
 			from:                req.from,
 			to:                  req.to,
 			width:               req.width,
-			widthAgg:            req.widthAgg, // TODO - resolution of badge metric (currently 5s)?
+			widthKind:           req.widthKind, // TODO - resolution of badge metric (currently 5s)?
 			what:                []string{ParamQueryFnCount, ParamQueryFnAvg},
 			by:                  []string{"key1", "key2"},
 			filterIn:            map[string][]string{"key2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
@@ -2005,15 +1979,7 @@ func (h *Handler) queryBadgesPromQL(ctx context.Context, ai accessInfo, req seri
 }
 
 func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seriesRequest, opt seriesRequestOptions) (*SeriesResponse, func(), error) {
-	from, to, err := parseFromTo(req.from, req.to)
-	if err != nil {
-		return nil, nil, err
-	}
-	width, widthKind, err := parseWidth(req.width, req.widthAgg)
-	if err != nil {
-		return nil, nil, err
-	}
-	shifts, err := parseTimeShifts(req.timeShifts, width)
+	err := req.validate(ai)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2035,8 +2001,8 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			seriesQueries[lod.(lodInfo)]++
 		}
 	}
-	var offsets = make([]int64, 0, len(shifts))
-	for _, v := range shifts {
+	var offsets = make([]int64, 0, len(req.shifts))
+	for _, v := range req.shifts {
 		offsets = append(offsets, -toSec(v))
 	}
 	var (
@@ -2062,10 +2028,8 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			},
 			SeriesQueryCallback: seriesQueryCallback,
 		}
-		parserV parser.Value
-		cleanup func()
 	)
-	if widthKind == widthAutoRes {
+	if req.widthKind == widthAutoRes {
 		options.StepAuto = true
 	}
 	var traces []string
@@ -2073,12 +2037,12 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 		ctx = debugQueriesContext(ctx, &traces)
 		ctx = promql.TraceExprContext(ctx, &traces)
 	}
-	parserV, cleanup, err = h.promEngine.Exec(
+	parserV, cleanup, err := h.promEngine.Exec(
 		withAccessInfo(ctx, &ai),
 		promql.Query{
-			Start:   from.Unix(),
-			End:     to.Unix(),
-			Step:    int64(width),
+			Start:   req.from.Unix(),
+			End:     req.to.Unix(),
+			Step:    int64(req.width),
 			Expr:    req.promQL,
 			Options: options,
 		})
@@ -2158,22 +2122,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 }
 
 func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesRequest, opt seriesRequestOptions) (resp *SeriesResponse, cleanup func(), err error) {
-	version, err := parseVersion(req.version)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	from, to, err := parseFromTo(req.from, req.to)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	width, widthKind, err := parseWidth(req.width, req.widthAgg)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	shifts, err := parseTimeShifts(req.timeShifts, width)
+	err = req.validate(ai)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -2191,55 +2140,46 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 		return nil, nil, err
 	}
 
-	err = validateQuery(metricMeta, version)
+	err = validateQuery(metricMeta, req.version)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	numResultsPerShift, err := parseNumResults(
-		req.numResults,
-		defSeries,
-		maxSeries/len(shifts),
-	)
+	queries, err := parseQueries(req.version, req.what, req.by, req.maxHost)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	queries, err := parseQueries(version, req.what, req.by, req.maxHost)
+	mappedFilterIn, err := h.resolveFilter(metricMeta, req.version, req.filterIn)
+	if err != nil {
+		return nil, nil, err
+	}
+	mappedFilterNotIn, err := h.resolveFilter(metricMeta, req.version, req.filterNotIn)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
-	if err != nil {
-		return nil, nil, err
-	}
-	mappedFilterNotIn, err := h.resolveFilter(metricMeta, version, req.filterNotIn)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	oldestShift := shifts[0]
+	oldestShift := req.shifts[0]
 	isStringTop := metricMeta.StringTopDescription != ""
 
 	isUnique := false // this parameter has meaning only for the version 1, in other cases it does nothing
-	if version == Version1 {
+	if req.version == Version1 {
 		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
 	}
 
 	lods := selectQueryLODs(
-		version,
+		req.version,
 		int64(metricMeta.PreKeyFrom),
 		metricMeta.PreKeyOnly,
 		metricMeta.Resolution,
 		isUnique,
 		isStringTop,
 		opt.timeNow.Unix(),
-		shiftTimestamp(from.Unix(), int64(width), toSec(oldestShift), h.location),
-		shiftTimestamp(to.Unix(), int64(width), toSec(oldestShift), h.location),
+		shiftTimestamp(req.from.Unix(), int64(req.width), toSec(oldestShift), h.location),
+		shiftTimestamp(req.to.Unix(), int64(req.width), toSec(oldestShift), h.location),
 		h.utcOffset,
-		width,
-		widthKind,
+		req.width,
+		req.widthKind,
 		h.location,
 	)
 
@@ -2249,12 +2189,12 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 		lods[0].fromSec -= lods[0].stepSec
 
 		// ensure that we can right-shift the oldest LOD to cover other shifts
-		if width != _1M {
+		if req.width != _1M {
 			step := lods[0].stepSec
-			for _, shift := range shifts[1:] {
+			for _, shift := range req.shifts[1:] {
 				shiftDelta := toSec(shift - oldestShift)
 				if shiftDelta%step != 0 {
-					return nil, nil, httpErr(http.StatusBadRequest, fmt.Errorf("invalid time shift sequence %v (shift %v not divisible by %v)", shifts, shift, time.Duration(step)*time.Second))
+					return nil, nil, httpErr(http.StatusBadRequest, fmt.Errorf("invalid time shift sequence %v (shift %v not divisible by %v)", req.shifts, shift, time.Duration(step)*time.Second))
 				}
 			}
 		}
@@ -2295,7 +2235,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, false)
 		pq := &preparedPointsQuery{
 			user:        ai.user,
-			version:     version,
+			version:     req.version,
 			metricID:    metricMeta.MetricID,
 			preKeyTagID: metricMeta.PreKeyTagID,
 			isStringTop: isStringTop,
@@ -2306,11 +2246,11 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 		}
 
 		desiredStepMul := int64(1)
-		if widthKind == widthLODRes {
-			desiredStepMul = int64(width)
+		if req.widthKind == widthLODRes {
+			desiredStepMul = int64(req.width)
 		}
 
-		for _, shift := range shifts {
+		for _, shift := range req.shifts {
 			type selectRowsPtr *[]*tsSelectRow
 			var ( // initialized to suppress Goland's invalid "may be nil" warnings
 				tagsToIx      = map[tsTags]int{}           // tags => index
@@ -2331,7 +2271,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 						preKeyOnly: lod.preKeyOnly,
 						location:   h.location}]++
 				}
-				m, err := h.cache.Get(ctx, version, qs, pq, lodInfo{
+				m, err := h.cache.Get(ctx, req.version, qs, pq, lodInfo{
 					fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, shiftDelta, lod.location),
 					toSec:      shiftTimestamp(lod.toSec, lod.stepSec, shiftDelta, lod.location),
 					stepSec:    lod.stepSec,
@@ -2343,7 +2283,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				if err != nil {
 					return nil, nil, err
 				}
-				reqRaw := widthKind == widthAutoRes || lod.stepSec == _1M
+				reqRaw := req.widthKind == widthAutoRes || lod.stepSec == _1M
 				for _, rows := range m {
 					for i := range rows {
 						ix, ok := tagsToIx[rows[i].tsTags]
@@ -2373,16 +2313,16 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				sortedIxs = append(sortedIxs, i)
 			}
 
-			if numResultsPerShift > 0 {
-				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand, nil)
-				if len(sortedIxs) > numResultsPerShift {
-					sortedIxs = sortedIxs[:numResultsPerShift]
+			if req.numResults > 0 {
+				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, req.numResults, opt.rand, nil)
+				if len(sortedIxs) > req.numResults {
+					sortedIxs = sortedIxs[:req.numResults]
 				}
-			} else if numResultsPerShift < 0 {
-				numResultsPerShift = -numResultsPerShift
-				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, opt.rand, nil)
-				if len(sortedIxs) > numResultsPerShift {
-					sortedIxs = sortedIxs[:numResultsPerShift]
+			} else if req.numResults < 0 {
+				req.numResults = -req.numResults
+				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, req.numResults, opt.rand, nil)
+				if len(sortedIxs) > req.numResults {
+					sortedIxs = sortedIxs[:req.numResults]
 				}
 			}
 
@@ -2390,7 +2330,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				tags := ixToTags[i]
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagIDLegacy(j), tags.tag[j])
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, format.TagIDLegacy(j), tags.tag[j])
 				}
 				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 
@@ -2398,7 +2338,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				syncPoolBuffers = append(syncPoolBuffers, ts)
 
 				var maxHosts []string
-				if (req.maxHost || q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && version == Version2 {
+				if (req.maxHost || q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && req.version == Version2 {
 					maxHosts = make([]string, len(*ts))
 				}
 				for i := range *ts {
@@ -2408,7 +2348,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				for lodIx, rows := range ixToLodToRows[i] {
 					if rows != nil {
 						lod := lods[lodIx]
-						reqRaw := lod.stepSec == _1M || widthKind == widthAutoRes
+						reqRaw := lod.stepSec == _1M || req.widthKind == widthAutoRes
 						for _, row := range *rows {
 							lodTimeIx := lod.getIndexForTimestamp(row.time, shiftDelta)
 							(*ts)[base+lodTimeIx] = selectTSValue(q.what, req.maxHost, reqRaw, desiredStepMul, row)
@@ -2472,7 +2412,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 		},
 		DebugQueries: sqlQueries,
 		MetricMeta:   metricMeta,
-		immutable:    to.Before(opt.timeNow.Add(invalidateFrom)),
+		immutable:    req.to.Before(opt.timeNow.Add(invalidateFrom)),
 		queries:      seriesQueries,
 	}
 	if h.verbose && opt.stat != nil {
@@ -2491,43 +2431,17 @@ func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
-	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
-	metricWithNamespace := formValueParamMetric(r)
-
-	filterIn, filterNotIn, err := parseQueryFilter(r.Form[ParamQueryFilter])
+	req, err := seriesRequestParser.parseHTTPRequest(r)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	_, avoidCache := r.Form[ParamAvoidCache]
-	if avoidCache && !ai.isAdmin() {
-		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
-	}
-	_, maxHost := r.Form[paramMaxHost]
-
 	options := seriesRequestOptions{
 		debugQueries: true,
 		stat:         sl,
 	}
 
-	resp, immutable, err := h.handleGetPoint(
-		ctx, ai, options,
-		seriesRequest{
-			version:             r.FormValue(ParamVersion),
-			numResults:          r.FormValue(ParamNumResults),
-			metricWithNamespace: metricWithNamespace,
-			from:                r.FormValue(ParamFromTime),
-			to:                  r.FormValue(ParamToTime),
-			width:               r.FormValue(ParamWidth),
-			widthAgg:            r.FormValue(ParamWidthAgg),
-			timeShifts:          r.Form[ParamTimeShift],
-			what:                r.Form[ParamQueryWhat],
-			by:                  r.Form[ParamQueryBy],
-			filterIn:            filterIn,
-			filterNotIn:         filterNotIn,
-			avoidCache:          avoidCache,
-			maxHost:             maxHost,
-		})
+	resp, immutable, err := h.handleGetPoint(ctx, ai, options, req)
 
 	switch {
 	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
@@ -2539,7 +2453,7 @@ func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesRequestOptions, req seriesRequest) (resp *GetPointResp, immutable bool, err error) {
-	version, err := parseVersion(req.version)
+	err = req.validate(ai)
 	if err != nil {
 		return nil, false, err
 	}
@@ -2549,31 +2463,12 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 		return nil, false, err
 	}
 
-	err = validateQuery(metricMeta, version)
+	err = validateQuery(metricMeta, req.version)
 	if err != nil {
 		return nil, false, err
 	}
 
-	from, to, err := parseFromTo(req.from, req.to)
-	if err != nil {
-		return nil, false, err
-	}
-
-	shifts, err := parseTimeShifts(req.timeShifts, -1)
-	if err != nil {
-		return nil, false, err
-	}
-
-	numResultsPerShift, err := parseNumResults(
-		req.numResults,
-		defSeries,
-		maxSeries/len(shifts),
-	)
-	if err != nil {
-		return nil, false, err
-	}
-
-	queries, err := parseQueries(version, req.what, req.by, req.maxHost)
+	queries, err := parseQueries(req.version, req.what, req.by, req.maxHost)
 	if err != nil {
 		return nil, false, err
 	}
@@ -2584,20 +2479,20 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 		}
 	}
 
-	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
+	mappedFilterIn, err := h.resolveFilter(metricMeta, req.version, req.filterIn)
 	if err != nil {
 		return nil, false, err
 	}
-	mappedFilterNotIn, err := h.resolveFilter(metricMeta, version, req.filterNotIn)
+	mappedFilterNotIn, err := h.resolveFilter(metricMeta, req.version, req.filterNotIn)
 	if err != nil {
 		return nil, false, err
 	}
 
-	oldestShift := shifts[0]
+	oldestShift := req.shifts[0]
 	isStringTop := metricMeta.StringTopDescription != ""
 
 	isUnique := false // this parameter has meaning only for the version 1, in other cases it does nothing
-	if version == Version1 {
+	if req.version == Version1 {
 		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
 	}
 
@@ -2621,7 +2516,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 		queryKey := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, false)
 		pq := &preparedPointsQuery{
 			user:        ai.user,
-			version:     version,
+			version:     req.version,
 			metricID:    metricMeta.MetricID,
 			preKeyTagID: metricMeta.PreKeyTagID,
 			isStringTop: isStringTop,
@@ -2632,20 +2527,20 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 		}
 
 		qp := selectQueryPoint(
-			version,
+			req.version,
 			int64(metricMeta.PreKeyFrom),
 			metricMeta.PreKeyOnly,
 			metricMeta.Resolution,
 			isUnique,
 			isStringTop,
 			now.Unix(),
-			shiftTimestamp(from.Unix(), -1, toSec(oldestShift), h.location),
-			shiftTimestamp(to.Unix(), -1, toSec(oldestShift), h.location),
+			shiftTimestamp(req.from.Unix(), -1, toSec(oldestShift), h.location),
+			shiftTimestamp(req.to.Unix(), -1, toSec(oldestShift), h.location),
 			h.utcOffset,
 			h.location,
 		)
 
-		for _, shift := range shifts {
+		for _, shift := range req.shifts {
 			var (
 				tagsToIx   = map[tsTags]int{}        // tags => index
 				ixToTags   = make([]*tsTags, 0)      // index => tags
@@ -2684,16 +2579,16 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 				sortedIxs = append(sortedIxs, i)
 			}
 
-			if numResultsPerShift > 0 {
-				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, numResultsPerShift, r, nil)
-				if len(sortedIxs) > numResultsPerShift {
-					sortedIxs = sortedIxs[:numResultsPerShift]
+			if req.numResults > 0 {
+				util.PartialSortIndexByValueDesc(sortedIxs, ixToAmount, req.numResults, r, nil)
+				if len(sortedIxs) > req.numResults {
+					sortedIxs = sortedIxs[:req.numResults]
 				}
-			} else if numResultsPerShift < 0 {
-				numResultsPerShift = -numResultsPerShift
-				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, numResultsPerShift, r, nil)
-				if len(sortedIxs) > numResultsPerShift {
-					sortedIxs = sortedIxs[:numResultsPerShift]
+			} else if req.numResults < 0 {
+				req.numResults = -req.numResults
+				util.PartialSortIndexByValueAsc(sortedIxs, ixToAmount, req.numResults, r, nil)
+				if len(sortedIxs) > req.numResults {
+					sortedIxs = sortedIxs[:req.numResults]
 				}
 			}
 
@@ -2701,13 +2596,13 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 				tags := ixToTags[ix]
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, version, q.by, format.TagIDLegacy(j), tags.tag[j])
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, format.TagIDLegacy(j), tags.tag[j])
 				}
 				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 
 				maxHost := ""
 				showMaxHost := false
-				if (req.maxHost || q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && version == Version2 {
+				if (req.maxHost || q.what == queryFnMaxHost || q.what == queryFnMaxCountHost) && req.version == Version2 {
 					showMaxHost = true
 				}
 
@@ -2737,7 +2632,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 		}
 	}
 
-	immutable = to.Before(time.Now().Add(invalidateFrom))
+	immutable = req.to.Before(time.Now().Add(invalidateFrom))
 	resp = &GetPointResp{
 		PointMeta:    meta,
 		PointData:    data,
@@ -2756,68 +2651,10 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
-	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
-	var (
-		from  = r.FormValue(ParamFromTime)
-		to    = r.FormValue(ParamToTime)
-		s     []seriesRequest
-		tabTo = 12 // maximum number of tabs to render
-	)
-	tabFrom, err := strconv.Atoi(r.FormValue(paramTabNumber))
+	s, err := seriesRequestParser.parseHTTPRequestS(r, 12)
 	if err != nil {
-		tabFrom = 0 // tab isn't specified, assume first
-	}
-	if tabFrom != -1 {
-		tabTo = tabFrom + 1 // render single tab
-	} else {
-		tabFrom = 0 // render all tabs, tabTo remains intact
-	}
-	for i := tabFrom; i < tabTo; i++ {
-		var p string
-		if i == 0 {
-			p = ""
-		} else {
-			p = fmt.Sprintf("t%d.", i)
-		}
-
-		paramMetric := p + ParamMetric
-		metricWithNamespace := r.FormValue(paramMetric)
-		if metricWithNamespace == "" {
-			break
-		}
-
-		paramQueryFilter := p + ParamQueryFilter
-		filterIn, filterNotIn, err := parseQueryFilter(r.Form[paramQueryFilter])
-		if err != nil {
-			respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-			return
-		}
-
-		var (
-			paramVersion    = p + ParamVersion
-			paramNumResults = p + ParamNumResults
-			paramQueryBy    = p + ParamQueryBy
-			paramTimeShift  = p + ParamTimeShift
-			paramWidthAgg   = p + ParamWidthAgg
-			paramWidth      = p + ParamWidth
-			paramQueryWhat  = p + ParamQueryWhat
-			paramPromQuery  = p + paramPromQuery
-		)
-		s = append(s, seriesRequest{
-			version:             r.FormValue(paramVersion),
-			numResults:          r.FormValue(paramNumResults),
-			metricWithNamespace: metricWithNamespace,
-			from:                from,
-			to:                  to,
-			width:               r.FormValue(paramWidth),
-			widthAgg:            r.FormValue(paramWidthAgg),
-			timeShifts:          r.Form[paramTimeShift],
-			what:                r.Form[paramQueryWhat],
-			by:                  r.Form[paramQueryBy],
-			filterIn:            filterIn,
-			filterNotIn:         filterNotIn,
-			promQL:              r.FormValue(paramPromQuery),
-		})
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
 	}
 
 	resp, immutable, err := h.handleGetRender(
@@ -2968,7 +2805,7 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 	}, immutable, nil
 }
 
-func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQueries bool, req seriesRequest, opt seriesRequestOptions) (resp *GetTableResp, immutable bool, err error) {
+func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQueries bool, req tableRequest, opt seriesRequestOptions) (resp *GetTableResp, immutable bool, err error) {
 	version, err := parseVersion(req.version)
 	if err != nil {
 		return nil, false, err
@@ -3703,4 +3540,203 @@ func getQueryRespEqual(a, b *SeriesResponse) bool {
 		}
 	}
 	return true
+}
+
+type seriesRequestParserOptions struct {
+	numResultsDefault int
+	numResultsMax     int
+}
+
+var seriesRequestParser = seriesRequestParserOptions{
+	numResultsDefault: defSeries,
+	numResultsMax:     maxSeries,
+}
+
+func (p *seriesRequestParserOptions) parseHTTPRequest(r *http.Request) (seriesRequest, error) {
+	res, err := p.parseHTTPRequestS(r, 1)
+	if err != nil {
+		return seriesRequest{}, err
+	}
+	if len(res) == 0 {
+		return seriesRequest{}, httpErr(http.StatusBadRequest, fmt.Errorf("request is empty"))
+	}
+	return res[0], nil
+}
+
+func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesRequest, err error) {
+	defer func() {
+		var dummy httpError
+		if err != nil && !errors.As(err, &dummy) {
+			err = httpErr(http.StatusBadRequest, err)
+		}
+	}()
+	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors
+	type seriesRequestEx struct {
+		seriesRequest
+		strFrom       string
+		strTo         string
+		strWidth      string
+		strWidthAgg   string
+		strNumResults string
+	}
+	var (
+		tabs      = make([]seriesRequestEx, 0, maxTabs)
+		tabX      = -1
+		parseTabX = func(s string) (int, error) {
+			var i int
+			if i, err = strconv.Atoi(s); err != nil {
+				return 0, fmt.Errorf("invalid tab index %q", s)
+			}
+			return i, nil
+		}
+		first = func(s []string) string {
+			if len(s) != 0 {
+				return s[0]
+			}
+			return ""
+		}
+	)
+	for k, v := range r.Form {
+		var i int
+		if strings.HasPrefix(k, "t") {
+			var dotX int
+			if dotX = strings.Index(k, "."); dotX != -1 {
+				var j int
+				if j, err = parseTabX(k[1:dotX]); err == nil && j > 0 {
+					i = j
+					k = k[dotX+1:]
+				}
+			}
+		}
+		if i >= cap(tabs) {
+			continue
+		}
+		for j := len(tabs) - 1; j < i; j++ {
+			tabs = append(tabs, seriesRequestEx{seriesRequest: seriesRequest{
+				version:   Version2,
+				width:     1,
+				widthKind: widthLODRes,
+			}})
+		}
+		t := &tabs[i]
+		switch k {
+		case paramTabNumber:
+			tabX, err = parseTabX(first(v))
+		case ParamAvoidCache:
+			t.avoidCache = true
+		case ParamFromTime:
+			t.strFrom = first(v)
+		case ParamMetric:
+			const formerBuiltin = "__builtin_" // we renamed builtin metrics, removing prefix
+			name := first(v)
+			if strings.HasPrefix(name, formerBuiltin) {
+				name = "__" + name[len(formerBuiltin):]
+			}
+			t.metricWithNamespace = name
+		case ParamNumResults:
+			t.strNumResults = first(v)
+		case ParamQueryBy:
+			t.by = v
+		case ParamQueryFilter:
+			t.filterIn, t.filterNotIn, err = parseQueryFilter(v)
+		case ParamQueryVerbose:
+			t.verbose = first(v) == "1"
+		case ParamQueryWhat:
+			t.what = v
+		case ParamTimeShift:
+			t.shifts, err = parseTimeShifts(v)
+		case ParamToTime:
+			t.strTo = first(v)
+		case ParamVersion:
+			s := first(v)
+			switch s {
+			case Version1, Version2:
+				t.version = s
+			default:
+				return nil, fmt.Errorf("invalid version: %q", s)
+			}
+		case ParamWidth:
+			t.strWidth = first(v)
+		case ParamWidthAgg:
+			t.strWidthAgg = first(v)
+		case paramMaxHost:
+			t.maxHost = true
+		case paramPromQuery:
+			t.promQL = first(v)
+		case paramDataFormat:
+			t.format = first(v)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(tabs) == 0 {
+		return nil, nil
+	}
+	// parse dependent paramemeters
+	var (
+		t0       = &tabs[0]
+		finalize = func(t *seriesRequestEx) error {
+			t.numResults, err = parseNumResults(t.strNumResults, p.numResultsDefault, p.numResultsMax/len(t.shifts))
+			if err != nil {
+				return err
+			}
+			if _, ok := format.BuiltinMetricByName[t.metricWithNamespace]; ok {
+				t.verbose = false
+			}
+			if len(t.strWidth) != 0 || len(t.strWidthAgg) != 0 {
+				t.width, t.widthKind, err = parseWidth(t.strWidth, t.strWidthAgg)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	)
+	t0.from, t0.to, err = parseFromTo(t0.strFrom, t0.strTo)
+	if err != nil {
+		return nil, err
+	}
+	if len(t0.shifts) == 0 {
+		t0.shifts = []time.Duration{0}
+	}
+	err = finalize(t0)
+	if err != nil {
+		return nil, err
+	}
+	for i := range tabs[1:] {
+		t := &tabs[i+1]
+		t.from = t0.from
+		t.to = t0.to
+		t.shifts = t0.shifts
+		err = finalize(t)
+		if err != nil {
+			return nil, err
+		}
+	}
+	// build resulting slice
+	if tabX != -1 {
+		return []seriesRequest{tabs[tabX].seriesRequest}, nil
+	}
+	res = make([]seriesRequest, 0, len(tabs))
+	for _, t := range tabs {
+		if len(t.metricWithNamespace) != 0 || len(t.promQL) != 0 {
+			res = append(res, t.seriesRequest)
+		}
+	}
+	return res, nil
+}
+
+func (r *seriesRequest) validate(ai accessInfo) error {
+	if r.avoidCache && !ai.isAdmin() {
+		return httpErr(404, fmt.Errorf(""))
+	}
+	if r.width == _1M {
+		for _, v := range r.shifts {
+			if (v/time.Second)%_1M != 0 {
+				return httpErr(http.StatusBadRequest, fmt.Errorf("time shift %v can't be used with month interval", v))
+			}
+		}
+	}
+	return nil
 }
