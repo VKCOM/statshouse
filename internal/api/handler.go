@@ -2159,6 +2159,9 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 		return nil, nil, err
 	}
 
+	if len(req.shifts) == 0 {
+		req.shifts = []time.Duration{0}
+	}
 	oldestShift := req.shifts[0]
 	isStringTop := metricMeta.StringTopDescription != ""
 
@@ -2488,6 +2491,9 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 		return nil, false, err
 	}
 
+	if len(req.shifts) == 0 {
+		req.shifts = []time.Duration{0}
+	}
 	oldestShift := req.shifts[0]
 	isStringTop := metricMeta.StringTopDescription != ""
 
@@ -3677,7 +3683,11 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 	var (
 		t0       = &tabs[0]
 		finalize = func(t *seriesRequestEx) error {
-			t.numResults, err = parseNumResults(t.strNumResults, p.numResultsDefault, p.numResultsMax/len(t.shifts))
+			numResultsMax := p.numResultsMax
+			if len(t.shifts) != 0 {
+				numResultsMax /= len(t.shifts)
+			}
+			t.numResults, err = parseNumResults(t.strNumResults, p.numResultsDefault, numResultsMax)
 			if err != nil {
 				return err
 			}
@@ -3697,9 +3707,6 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 	if err != nil {
 		return nil, err
 	}
-	if len(t0.shifts) == 0 {
-		t0.shifts = []time.Duration{0}
-	}
 	err = finalize(t0)
 	if err != nil {
 		return nil, err
@@ -3708,7 +3715,6 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 		t := &tabs[i+1]
 		t.from = t0.from
 		t.to = t0.to
-		t.shifts = t0.shifts
 		err = finalize(t)
 		if err != nil {
 			return nil, err
