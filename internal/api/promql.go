@@ -398,7 +398,7 @@ func (h *Handler) GetHostName(hostID int32) string {
 func (h *Handler) GetTagValue(qry promql.TagValueQuery) string {
 	var tagID string
 	if len(qry.TagID) == 0 {
-		tagID = format.TagIDLegacy(qry.TagIndex)
+		tagID = format.TagID(qry.TagIndex)
 	} else {
 		tagID = qry.TagID
 	}
@@ -560,7 +560,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 			version:     version,
 			metricID:    qry.Metric.MetricID,
 			preKeyTagID: qry.Metric.PreKeyTagID,
-			tagID:       format.TagIDLegacy(qry.TagIndex),
+			tagID:       format.TagID(qry.TagIndex),
 			numResults:  math.MaxInt - 1,
 		}
 		tags = make(map[int32]bool)
@@ -660,7 +660,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		if i == 0 && qry.Options.Version == Version1 {
 			continue
 		}
-		tagID := format.TagIDLegacy(i)
+		tagID := format.TagID(i)
 		for tagValueID, tagValue := range m {
 			filterIn[tagID] = append(filterIn[tagID], tagValue)
 			filterInM[tagID] = append(filterInM[tagID], tagValueID)
@@ -678,7 +678,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		if i == 0 && qry.Options.Version == Version1 {
 			continue
 		}
-		tagID := format.TagIDLegacy(i)
+		tagID := format.TagID(i)
 		for tagValueID, tagValue := range m {
 			filterOut[tagID] = append(filterOut[tagID], tagValue)
 			filterOutM[tagID] = append(filterOutM[tagID], tagValueID)
@@ -928,12 +928,12 @@ func getPromQuery(req seriesRequest, queryFn bool) string {
 		s = append(s, fmt.Sprintf("__by__=%q", promqlGetBy(req.by)))
 		for t, in := range req.filterIn {
 			for _, v := range in {
-				s = append(s, fmt.Sprintf("%s=%q", promqlGetFilterKey(t), promqlGetFilterValue(t, v)))
+				s = append(s, fmt.Sprintf("%s=%q", t, promqlGetFilterValue(t, v)))
 			}
 		}
 		for t, out := range req.filterNotIn {
 			for _, v := range out {
-				s = append(s, fmt.Sprintf("%s!=%q", promqlGetFilterKey(t), promqlGetFilterValue(t, v)))
+				s = append(s, fmt.Sprintf("%s!=%q", t, promqlGetFilterValue(t, v)))
 			}
 		}
 		q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
@@ -962,19 +962,11 @@ func promqlGetBy(by []string) string {
 		skey bool
 	)
 	for _, v := range by {
-		switch v {
-		case format.StringTopTagID, format.NewStringTopTagID:
+		if v == format.StringTopTagID {
 			skey = true
 			continue
 		}
-		var (
-			i   int
-			err error
-		)
-		if i = format.ParseTagIDForAPI(v); i < 0 {
-			i, err = strconv.Atoi(v)
-		}
-		if 0 <= i && i < format.MaxTags && err == nil {
+		if i := format.TagIndex(v); 0 <= i && i < format.MaxTags {
 			tags[i]++
 		}
 	}
@@ -985,25 +977,14 @@ func promqlGetBy(by []string) string {
 		}
 	}
 	if skey {
-		by = append(by, format.NewStringTopTagID)
+		by = append(by, format.StringTopTagID)
 	}
 	return strings.Join(by, ",")
 }
 
-func promqlGetFilterKey(tagID string) string {
-	switch tagID {
-	case format.StringTopTagID, format.NewStringTopTagID:
-		return format.NewStringTopTagID
-	}
-	return strconv.Itoa(format.ParseTagIDForAPI(tagID))
-}
-
 func promqlGetFilterValue(tagID string, s string) string {
-	switch tagID {
-	case format.StringTopTagID, format.NewStringTopTagID:
-		if s == format.TagValueCodeZero {
-			return ""
-		}
+	if tagID == format.StringTopTagID && s == format.TagValueCodeZero {
+		return ""
 	}
 	return s
 }
