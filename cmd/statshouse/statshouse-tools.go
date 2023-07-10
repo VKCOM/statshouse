@@ -387,7 +387,7 @@ func mainTLClientAPI() {
 	query := tlstatshouseApi.Query{
 		Version:    2,
 		TopN:       -1,
-		MetricName: "vkcc_full_stats",
+		MetricName: "__agg_bucket_receive_delay_sec",
 		TimeFrom:   1649764763,
 		TimeTo:     1658404763,
 		Interval:   "86400s",
