@@ -423,7 +423,6 @@ export function queryURL(
       [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
       [GET_PARAMS.width, width.toString()],
       ...sel.what.map((qw) => [GET_PARAMS.metricWhat, qw.toString()]),
-      [GET_PARAMS.metricVerbose, fetchBadges ? '1' : '0'],
       ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
       ...sel.groupBy.map((b) => [GET_PARAMS.metricGroupBy, freeKeyPrefix(b)]),
       ...filterParams(sel.filterIn, sel.filterNotIn),
@@ -433,6 +432,7 @@ export function queryURL(
     params.push([GET_PARAMS.metricMaxHost, '1']);
   }
   params.push([GET_PARAMS.excessPoints, '1']);
+  params.push([GET_PARAMS.metricVerbose, fetchBadges ? '1' : '0']);
   const strParams = new URLSearchParams(params).toString();
   return `/api/query?${strParams}`;
 }
