@@ -31,10 +31,11 @@ const (
 	queryFilterInSep    = "-"
 	queryFilterNotInSep = "~"
 
-	queryFnKindCount       = queryFnKind("count")
-	queryFnKindValue       = queryFnKind("value")
-	queryFnKindPercentiles = queryFnKind("percentiles")
-	queryFnKindUnique      = queryFnKind("unique")
+	queryFnKindCount          = queryFnKind("count")
+	queryFnKindValue          = queryFnKind("value")
+	queryFnKindPercentiles    = queryFnKind("percentiles")
+	queryFnKindPercentilesLow = queryFnKind("percentiles_low")
+	queryFnKindUnique         = queryFnKind("unique")
 )
 
 const (
@@ -54,6 +55,12 @@ const (
 	queryFnCumulSum
 	queryFnStddev
 	queryFnStdvar
+	queryFnP0_001
+	queryFnP0_01
+	queryFnP0_1
+	queryFnP1
+	queryFnP5
+	queryFnP10
 	queryFnP25
 	queryFnP50
 	queryFnP75
@@ -89,6 +96,12 @@ const (
 	ParamQueryFnSumNorm              = "sum_norm"
 	ParamQueryFnCumulSum             = "cu_sum"
 	ParamQueryFnStddev               = "stddev"
+	ParamQueryFnP0_001               = "p0_001"
+	ParamQueryFnP0_01                = "p0_01"
+	ParamQueryFnP0_1                 = "p0_1"
+	ParamQueryFnP1                   = "p1"
+	ParamQueryFnP5                   = "p5"
+	ParamQueryFnP10                  = "p10"
 	ParamQueryFnP25                  = "p25"
 	ParamQueryFnP50                  = "p50"
 	ParamQueryFnP75                  = "p75"
@@ -141,6 +154,18 @@ func validQueryFn(fn string) (queryFn, bool) {
 		return queryFnCumulSum, true
 	case ParamQueryFnStddev:
 		return queryFnStddev, true
+	case ParamQueryFnP0_001:
+		return queryFnP0_001, true
+	case ParamQueryFnP0_01:
+		return queryFnP0_01, true
+	case ParamQueryFnP0_1:
+		return queryFnP0_1, true
+	case ParamQueryFnP1:
+		return queryFnP1, true
+	case ParamQueryFnP5:
+		return queryFnP5, true
+	case ParamQueryFnP10:
+		return queryFnP10, true
 	case ParamQueryFnP25:
 		return queryFnP25, true
 	case ParamQueryFnP50:
@@ -199,6 +224,8 @@ func queryFnToQueryFnKind(fn queryFn, maxHost bool) queryFnKind {
 		queryFnSum, queryFnSumNorm, queryFnCumulSum, queryFnDerivativeSum, queryFnDerivativeSumNorm,
 		queryFnStddev, queryFnMaxCountHost, queryFnMaxHost:
 		return queryFnKindValue
+	case queryFnP0_001, queryFnP0_01, queryFnP0_1, queryFnP1, queryFnP5, queryFnP10:
+		return queryFnKindPercentilesLow
 	case queryFnP25, queryFnP50, queryFnP75, queryFnP90, queryFnP95, queryFnP99, queryFnP999:
 		return queryFnKindPercentiles
 	case queryFnUnique, queryFnUniqueNorm, queryFnDerivativeUnique, queryFnDerivativeUniqueNorm:

@@ -695,6 +695,18 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		what = queryFnStddev
 	case promql.DigestStdVar:
 		what = queryFnStdvar
+	case promql.DigestP0_001:
+		what = queryFnP0_001
+	case promql.DigestP0_01:
+		what = queryFnP0_01
+	case promql.DigestP0_1:
+		what = queryFnP0_1
+	case promql.DigestP1:
+		what = queryFnP1
+	case promql.DigestP5:
+		what = queryFnP5
+	case promql.DigestP10:
+		what = queryFnP10
 	case promql.DigestP25:
 		what = queryFnP25
 	case promql.DigestP50:
@@ -838,6 +850,18 @@ func getPromQuery(req seriesRequest, queryFn bool) string {
 			cumul = true
 		case queryFnStddev:
 			what = promql.StdDev
+		case queryFnP0_001:
+			what = promql.P0_001
+		case queryFnP0_01:
+			what = promql.P0_01
+		case queryFnP0_1:
+			what = promql.P0_1
+		case queryFnP1:
+			what = promql.P1
+		case queryFnP5:
+			what = promql.P5
+		case queryFnP10:
+			what = promql.P10
 		case queryFnP25:
 			what = promql.P25
 		case queryFnP50:
