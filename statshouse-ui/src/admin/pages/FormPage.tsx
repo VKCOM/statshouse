@@ -544,7 +544,7 @@ function AliasField(props: {
   const [sortCustomMapping, setSortCustomMapping] = useState<SortCustomMappingItem[]>([]);
   useEffect(() => {
     setSortCustomMapping((prevState) => {
-      if (prevState.length) {
+      if (prevState.length && prevState.length <= value.customMapping.length) {
         const nextState = [...prevState];
         const map: Record<string, SortCustomMappingItem> = prevState.reduce((res, item) => {
           res[item.index] = item;
@@ -672,7 +672,9 @@ function AliasField(props: {
                     <button
                       className="btn btn-outline-warning"
                       type="button"
-                      onClick={() => onChangeCustomMapping(index, undefined, undefined)}
+                      onClick={() => {
+                        onChangeCustomMapping(index, undefined, undefined);
+                      }}
                       disabled={disabled}
                     >
                       <SVGTrash />
