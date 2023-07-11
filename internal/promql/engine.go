@@ -747,10 +747,6 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		what = DigestStdDev
 	case StdVar:
 		what = DigestStdVar
-	case P0_001:
-		what = DigestP0_001
-	case P0_01:
-		what = DigestP0_01
 	case P0_1:
 		what = DigestP0_1
 	case P1:

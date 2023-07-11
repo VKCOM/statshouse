@@ -55,8 +55,6 @@ const (
 	queryFnCumulSum
 	queryFnStddev
 	queryFnStdvar
-	queryFnP0_001
-	queryFnP0_01
 	queryFnP0_1
 	queryFnP1
 	queryFnP5
@@ -96,8 +94,6 @@ const (
 	ParamQueryFnSumNorm              = "sum_norm"
 	ParamQueryFnCumulSum             = "cu_sum"
 	ParamQueryFnStddev               = "stddev"
-	ParamQueryFnP0_001               = "p0_001"
-	ParamQueryFnP0_01                = "p0_01"
 	ParamQueryFnP0_1                 = "p0_1"
 	ParamQueryFnP1                   = "p1"
 	ParamQueryFnP5                   = "p5"
@@ -154,10 +150,6 @@ func validQueryFn(fn string) (queryFn, bool) {
 		return queryFnCumulSum, true
 	case ParamQueryFnStddev:
 		return queryFnStddev, true
-	case ParamQueryFnP0_001:
-		return queryFnP0_001, true
-	case ParamQueryFnP0_01:
-		return queryFnP0_01, true
 	case ParamQueryFnP0_1:
 		return queryFnP0_1, true
 	case ParamQueryFnP1:
@@ -224,7 +216,7 @@ func queryFnToQueryFnKind(fn queryFn, maxHost bool) queryFnKind {
 		queryFnSum, queryFnSumNorm, queryFnCumulSum, queryFnDerivativeSum, queryFnDerivativeSumNorm,
 		queryFnStddev, queryFnMaxCountHost, queryFnMaxHost:
 		return queryFnKindValue
-	case queryFnP0_001, queryFnP0_01, queryFnP0_1, queryFnP1, queryFnP5, queryFnP10:
+	case queryFnP0_1, queryFnP1, queryFnP5, queryFnP10:
 		return queryFnKindPercentilesLow
 	case queryFnP25, queryFnP50, queryFnP75, queryFnP90, queryFnP95, queryFnP99, queryFnP999:
 		return queryFnKindPercentiles
@@ -456,6 +448,14 @@ func (fn queryFn) String() string {
 		return ParamQueryFnCumulSum
 	case queryFnStddev:
 		return ParamQueryFnStddev
+	case queryFnP0_1:
+		return "p0.1"
+	case queryFnP1:
+		return ParamQueryFnP1
+	case queryFnP5:
+		return ParamQueryFnP5
+	case queryFnP10:
+		return ParamQueryFnP10
 	case queryFnP25:
 		return ParamQueryFnP25
 	case queryFnP50:
