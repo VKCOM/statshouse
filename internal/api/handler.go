@@ -556,23 +556,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		writeActiveQuieries(chV2, "2")
 	})
 	h.promEngine = promql.NewEngine(h, location)
-	if chV2 != nil {
-		var (
-			col         proto.ColStr
-			ctx, cancel = context.WithTimeout(context.Background(), time.Minute)
-		)
-		defer cancel()
-		chV2.Select(ctx, true, true, ch.Query{
-			Body:   "select cluster from system.clusters where is_local",
-			Result: proto.Results{{Data: &col}}})
-		if col.Rows() != 0 {
-			clusterName := col.Row(0)
-			if clusterName == "statlogs2" {
-				h.promEngineOn = true
-			}
-			log.Printf("[debug] cluster name %q, PromQL %t", clusterName, h.promEngineOn)
-		}
-	}
+	h.promEngineOn = true
 	return h, nil
 }
 
