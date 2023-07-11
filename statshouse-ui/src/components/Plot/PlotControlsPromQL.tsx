@@ -104,6 +104,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
           s.filterIn = {};
           s.filterNotIn = {};
           s.promQL = '';
+          s.numSeries = globalSettings.default_num_series;
         } else {
           s.metricName = globalSettings.default_metric;
           s.what = globalSettings.default_metric_what.slice();
@@ -112,6 +113,7 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
           s.filterIn = { ...globalSettings.default_metric_filter_in };
           s.filterNotIn = { ...globalSettings.default_metric_filter_not_in };
           s.promQL = '';
+          s.numSeries = globalSettings.default_num_series;
         }
       })
     );

@@ -53,7 +53,7 @@ export const PlotLink: React.ForwardRefExoticComponent<PlotLinkProps> = React.fo
               groupBy: [],
               filterIn: {},
               filterNotIn: {},
-              numSeries: 5,
+              numSeries: globalSettings.default_num_series,
               useV2: true,
               yLock: {
                 min: 0,
