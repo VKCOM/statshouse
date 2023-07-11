@@ -73,7 +73,7 @@ WHERE
 		preKeyTagName(lod.hasPreKey, pq.tagID, pq.preKeyTagID),
 		valueName,
 		sqlAggFn(pq.version, "sum"),
-		preKeyTableName(lod, pq.tagID, pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
+		pq.preKeyTableName(lod),
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
@@ -229,7 +229,7 @@ WHERE
 		timeInterval,
 		commaBy,
 		what,
-		preKeyTableName(lod, "", pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
+		pq.preKeyTableName(lod),
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
@@ -404,12 +404,33 @@ func (s *stringFixed) String() string {
 	}
 }
 
-func preKeyTableName(lod lodInfo, tagID string, preKeyTagID string, filterIn map[string][]interface{}, filterNotIn map[string][]interface{}) string {
+func (pq *preparedPointsQuery) preKeyTableName(lod lodInfo) string {
+	var usePreKey bool
+	if lod.hasPreKey {
+		usePreKey = lod.preKeyOnly ||
+			len(pq.filterIn[pq.preKeyTagID]) > 0 ||
+			len(pq.filterNotIn[pq.preKeyTagID]) > 0
+		if !usePreKey {
+			for _, v := range pq.by {
+				if v == pq.preKeyTagID {
+					usePreKey = true
+					break
+				}
+			}
+		}
+	}
+	if usePreKey {
+		return preKeyTableNames[lod.table]
+	}
+	return lod.table
+}
+
+func (pq *preparedTagValuesQuery) preKeyTableName(lod lodInfo) string {
 	usePreKey := (lod.hasPreKey &&
 		(lod.preKeyOnly ||
-			(tagID != "" && tagID == preKeyTagID) ||
-			len(filterIn[preKeyTagID]) > 0 ||
-			len(filterNotIn[preKeyTagID]) > 0))
+			(pq.tagID != "" && pq.tagID == pq.preKeyTagID) ||
+			len(pq.filterIn[pq.preKeyTagID]) > 0 ||
+			len(pq.filterNotIn[pq.preKeyTagID]) > 0))
 	if usePreKey {
 		return preKeyTableNames[lod.table]
 	}
