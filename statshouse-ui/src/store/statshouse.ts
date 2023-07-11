@@ -394,7 +394,7 @@ export const statsHouseState: StateCreator<
           what: [...globalSettings.default_metric_what],
           customAgg: 0,
           filterNotIn: { ...globalSettings.default_metric_filter_not_in },
-          numSeries: 5,
+          numSeries: globalSettings.default_num_series,
           useV2: true,
           yLock: {
             min: 0,

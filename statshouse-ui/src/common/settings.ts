@@ -13,6 +13,7 @@ export interface settings {
   readonly default_metric_filter_in: Readonly<Record<string, string[]>>;
   readonly default_metric_filter_not_in: Readonly<Record<string, string[]>>;
   readonly default_metric_what: readonly QueryWhat[];
+  readonly default_num_series: number;
   readonly disabled_v1: boolean;
 }
 
@@ -23,6 +24,7 @@ const defaultSettings: settings = {
   default_metric_filter_in: {},
   default_metric_filter_not_in: {},
   default_metric_what: ['count_norm'],
+  default_num_series: 5,
   disabled_v1: false,
 };
 
@@ -37,6 +39,9 @@ if (meta !== null) {
       default_metric_what: serverConfig.default_metric_what.length
         ? serverConfig.default_metric_what
         : defaultSettings.default_metric_what,
+      default_num_series: serverConfig.default_num_series
+        ? serverConfig.default_num_series
+        : defaultSettings.default_num_series,
     } as settings;
   } catch (e) {}
 }

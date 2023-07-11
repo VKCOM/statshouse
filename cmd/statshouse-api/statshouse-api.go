@@ -74,6 +74,7 @@ type args struct {
 	defaultMetricFilterNotIn []string
 	defaultMetricWhat        []string
 	defaultMetricGroupBy     []string
+	defaultNumSeries         int
 	diskCache                string
 	help                     bool
 	listenHTTPAddr           string
@@ -130,6 +131,7 @@ func main() {
 	pflag.StringSliceVar(&argv.defaultMetricFilterNotIn, "default-metric-filter-not-in", []string{}, "default metric filter not in <key0>:value")
 	pflag.StringSliceVar(&argv.defaultMetricWhat, "default-metric-filter-what", []string{}, "default metric function")
 	pflag.StringSliceVar(&argv.defaultMetricGroupBy, "default-metric-group-by", []string{"key1"}, "default metric group by tags")
+	pflag.IntVar(&argv.defaultNumSeries, "default-num-series", 5, "default series number to request")
 	pflag.StringVar(&argv.diskCache, "disk-cache", "statshouse_api_cache.db", "disk cache filename")
 	pflag.BoolVarP(&argv.help, "help", "h", false, "print usage instructions and exit")
 	pflag.StringVar(&argv.listenHTTPAddr, "listen-addr", "localhost:8080", "web server listen address")
@@ -312,6 +314,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		DefaultMetricWhat:        argv.defaultMetricWhat,
 		DefaultMetricFilterIn:    defaultMetricFilterIn,
 		DefaultMetricFilterNotIn: defaultMetricFilterNotIn,
+		DefaultNumSeries:         argv.defaultNumSeries,
 		DisableV1:                len(argv.chV1Addrs) == 0,
 	}
 	if argv.localMode {
