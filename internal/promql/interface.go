@@ -25,8 +25,6 @@ const (
 	SumSec         = "sumsec"
 	StdDev         = "stddev"
 	StdVar         = "stdvar"
-	P0_001         = "p0_001"
-	P0_01          = "p0_01"
 	P0_1           = "p0_1"
 	P1             = "p1"
 	P5             = "p5"
@@ -57,8 +55,6 @@ const (
 	DigestMin
 	DigestSum
 	DigestSumSec
-	DigestP0_001
-	DigestP0_01
 	DigestP0_1
 	DigestP1
 	DigestP5

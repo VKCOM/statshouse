@@ -80,8 +80,6 @@ export const QUERY_WHAT = {
   stddev: 'stddev',
   maxHost: 'max_host',
   maxCountHost: 'max_count_host',
-  p0_001: 'p0_001',
-  p0_01: 'p0_01',
   p0_1: 'p0_1',
   p1: 'p1',
   p5: 'p5',
