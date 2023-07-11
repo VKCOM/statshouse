@@ -3359,6 +3359,18 @@ func selectTSValue(what queryFn, maxHost bool, raw bool, desiredStepMul int64, r
 		return row.val[4]
 	case queryFnStdvar:
 		return row.val[4] * row.val[4]
+	case queryFnP0_001:
+		return row.val[0]
+	case queryFnP0_01:
+		return row.val[1]
+	case queryFnP0_1:
+		return row.val[2]
+	case queryFnP1:
+		return row.val[3]
+	case queryFnP5:
+		return row.val[4]
+	case queryFnP10:
+		return row.val[5]
 	case queryFnP25:
 		return row.val[0]
 	case queryFnP50:
@@ -3397,6 +3409,18 @@ func selectPointValue(what queryFn, maxHost bool, row *pSelectRow) float64 {
 		return row.val[2]
 	case queryFnSum:
 		return row.val[3]
+	case queryFnP0_001:
+		return row.val[0]
+	case queryFnP0_01:
+		return row.val[1]
+	case queryFnP0_1:
+		return row.val[2]
+	case queryFnP1:
+		return row.val[3]
+	case queryFnP5:
+		return row.val[4]
+	case queryFnP10:
+		return row.val[5]
 	case queryFnP25:
 		return row.val[0]
 	case queryFnP50:

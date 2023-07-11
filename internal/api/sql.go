@@ -158,6 +158,18 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
 			// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance, "Naïve algorithm", poor numeric stability
 			sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"),
 			sqlMaxHost(version)), 6, nil
+	case queryFnKindPercentilesLow:
+		return fmt.Sprintf(`
+	  toFloat64(%s(count)) AS _count,
+	  toFloat64((quantilesTDigestMerge(0.00001, 0.0001, 0.001, 0.01, 0.05, 0.1)(percentiles) AS digest)[1]) AS _val0,
+	  toFloat64(digest[2]) AS _val1,
+	  toFloat64(digest[3]) AS _val2,
+	  toFloat64(digest[4]) AS _val3,
+	  toFloat64(digest[5]) AS _val4,
+	  toFloat64(digest[6]) AS _val5,
+	  toFloat64(0) AS _val6,
+	  %s as _maxHost`,
+			sqlAggFn(version, "sum"), sqlMaxHost(version)), 7, nil
 	case queryFnKindPercentiles:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
