@@ -226,6 +226,12 @@ export function metricKindToWhat(kind?: metricKind): QueryWhatSelector[] {
         'cu_sum',
         'cu_count',
         '-',
+        'p0_001',
+        'p0_01',
+        'p0_1',
+        'p1',
+        'p5',
+        'p10',
         'p25',
         'p50',
         'p75',
@@ -320,6 +326,12 @@ export function metricKindToWhat(kind?: metricKind): QueryWhatSelector[] {
         'cu_avg',
         'cu_sum',
         '-',
+        'p0_001',
+        'p0_01',
+        'p0_1',
+        'p1',
+        'p5',
+        'p10',
         'p25',
         'p50',
         'p75',
@@ -350,6 +362,12 @@ export function metricKindToWhat(kind?: metricKind): QueryWhatSelector[] {
 // XXX: keep in sync with Go
 export function whatToWhatDesc(what: QueryWhat | string): string {
   switch (what) {
+    case 'p0_001':
+      return 'p0.001';
+    case 'p0_01':
+      return 'p0.01';
+    case 'p0_1':
+      return 'p0.1';
     case 'p999':
       return 'p99.9';
     case 'count_norm':
