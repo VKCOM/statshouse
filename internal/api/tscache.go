@@ -8,6 +8,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -155,7 +156,7 @@ func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, 
 	realLoadFrom := lod.fromSec
 	realLoadTo := lod.toSec
 	if !avoidCache {
-		realLoadFrom, realLoadTo = c.loadCached(key, lod.fromSec, lod.toSec, ret, 0, lod.location, &cachedRows)
+		realLoadFrom, realLoadTo = c.loadCached(ctx, key, lod.fromSec, lod.toSec, ret, 0, lod.location, &cachedRows)
 		if realLoadFrom == 0 && realLoadTo == 0 {
 			ChCacheRate(cachedRows, 0, pq.metricID, lod.table, string(pq.kind))
 			return ret, nil
@@ -238,7 +239,7 @@ func (c *tsCache) invalidate(times []int64) {
 	}
 }
 
-func (c *tsCache) loadCached(key string, fromSec int64, toSec int64, ret [][]tsSelectRow, retStartIx int, location *time.Location, rows *int) (int64, int64) {
+func (c *tsCache) loadCached(ctx context.Context, key string, fromSec int64, toSec int64, ret [][]tsSelectRow, retStartIx int, location *time.Location, rows *int) (int64, int64) {
 	c.cacheMu.RLock()
 	defer c.cacheMu.RUnlock()
 
@@ -250,6 +251,7 @@ func (c *tsCache) loadCached(key string, fromSec int64, toSec int64, ret [][]tsS
 	e.lru.Store(time.Now().UnixNano())
 
 	var loadFrom, loadTo int64
+	var hit int
 	for t, ix := fromSec, retStartIx; t < toSec; ix++ {
 		var nextStartFrom int64
 		if c.stepSec == _1M {
@@ -262,6 +264,7 @@ func (c *tsCache) loadCached(key string, fromSec int64, toSec int64, ret [][]tsS
 		if ok && cached.loadedAtNano >= c.invalidatedAtNano[t]+int64(invalidateLinger) {
 			ret[ix] = cached.rows
 			*rows += len(cached.rows)
+			hit++
 		} else {
 			if loadFrom == 0 {
 				loadFrom = t
@@ -271,6 +274,11 @@ func (c *tsCache) loadCached(key string, fromSec int64, toSec int64, ret [][]tsS
 		}
 
 		t = nextStartFrom
+	}
+
+	if p, ok := ctx.Value(debugQueriesContextKey).(*[]string); ok {
+		reqCount := (toSec - fromSec) / c.stepSec
+		*p = append(*p, fmt.Sprintf("CACHE step %d, count %d, range [%d,%d), hit %d, miss [%d,%d), key %q", c.stepSec, reqCount, fromSec, toSec, hit, loadFrom, loadTo, key))
 	}
 
 	return loadFrom, loadTo
