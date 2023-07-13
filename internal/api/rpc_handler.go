@@ -213,21 +213,20 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		return response, err
 	}
 
-	if len(args.Query.MetricName) != 0 {
-		metricMeta, err = h.ah.getMetricMeta(ai, args.Query.MetricName)
-		if err != nil {
-			err = rpc.Error{Code: rpcErrorCodeUnknownMetric, Description: fmt.Sprintf("can't get metric's meta: %v", err)}
-			return response, err
-		}
-		LogMetric(format.TagValueIDRPC, ai.user, strconv.FormatInt(int64(metricMeta.MetricID), 10))
+	metricMeta, err = h.ah.getMetricMeta(ai, args.Query.MetricName)
+	if err != nil {
+		err = rpc.Error{Code: rpcErrorCodeUnknownMetric, Description: fmt.Sprintf("can't get metric's meta: %v", err)}
+		return response, err
 	}
+
 	req, err := transformQuery(args.Query, metricMeta)
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryParsingFailed, Description: fmt.Sprintf("can't transform query: %v", err)}
 		return response, err
 	}
+	LogMetric(format.TagValueIDRPC, ai.user, strconv.FormatInt(int64(metricMeta.MetricID), 10))
 
-	res, _, err := h.ah.handlePromqlQuery(ctx, ai, req, seriesRequestOptions{})
+	res, _, err := h.ah.handleGetQuery(ctx, ai, req, seriesRequestOptions{})
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
 		return response, err
@@ -364,14 +363,9 @@ func (h *RPCHandler) parseAccessToken(token string) (accessInfo, error) {
 }
 
 func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (req seriesRequest, err error) {
-	var filterIn, filterNotIn map[string][]string
-	if meta != nil {
-		filterIn, filterNotIn, err = parseFilterValues(q.Filter, meta)
-		if err != nil {
-			return req, fmt.Errorf("can't parse filter: %v", err)
-		}
-	} else if len(q.Promql) == 0 {
-		return req, fmt.Errorf("neither metric name nor PromQL expression specified")
+	filterIn, filterNotIn, err := parseFilterValues(q.Filter, meta)
+	if err != nil {
+		return req, fmt.Errorf("can't parse filter: %v", err)
 	}
 
 	width, widthKind, err := parseWidth(q.Interval, q.WidthAgg)
