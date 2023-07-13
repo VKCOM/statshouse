@@ -733,6 +733,8 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		what = DigestCount
 	case CountSec:
 		what = DigestCountSec
+	case CountRaw:
+		what = DigestCountRaw
 	case Min:
 		what = DigestMin
 	case Max:
@@ -741,6 +743,8 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		what = DigestSum
 	case SumSec:
 		what = DigestSumSec
+	case SumRaw:
+		what = DigestSumRaw
 	case Avg:
 		what = DigestAvg
 	case StdDev:
@@ -773,13 +777,15 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		what = DigestCardinality
 	case CardinalitySec:
 		what = DigestCardinalitySec
+	case CardinalityRaw:
+		what = DigestCardinalityRaw
 	case Unique:
 		what = DigestUnique
 	case UniqueSec:
 		what = DigestUniqueSec
 	case "":
 		if metric.Kind == format.MetricKindCounter || sel.MetricKindHint == format.MetricKindCounter {
-			what = DigestCount
+			what = DigestCountRaw
 			prefixSum = true
 		} else {
 			what = DigestAvg

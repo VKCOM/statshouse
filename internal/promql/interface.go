@@ -19,10 +19,12 @@ const (
 	Avg            = "avg"
 	Count          = "count"
 	CountSec       = "countsec"
+	CountRaw       = "countraw"
 	Max            = "max"
 	Min            = "min"
 	Sum            = "sum"
 	SumSec         = "sumsec"
+	SumRaw         = "sumraw"
 	StdDev         = "stddev"
 	StdVar         = "stdvar"
 	P0_1           = "p0_1"
@@ -38,6 +40,7 @@ const (
 	P999           = "p999"
 	Cardinality    = "cardinality"
 	CardinalitySec = "cardinalitysec"
+	CardinalityRaw = "cardinalityraw"
 	Unique         = "unique"
 	UniqueSec      = "uniquesec"
 	MaxHost        = "maxhost"
@@ -51,10 +54,12 @@ const (
 	DigestAvg DigestWhat = iota + 1
 	DigestCount
 	DigestCountSec
+	DigestCountRaw
 	DigestMax
 	DigestMin
 	DigestSum
 	DigestSumSec
+	DigestSumRaw
 	DigestP0_1
 	DigestP1
 	DigestP5
@@ -70,6 +75,7 @@ const (
 	DigestStdVar
 	DigestCardinality
 	DigestCardinalitySec
+	DigestCardinalityRaw
 	DigestUnique
 	DigestUniqueSec
 )

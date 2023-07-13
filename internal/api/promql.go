@@ -438,7 +438,13 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	} else {
 		step = qry.Timescale.Step
 	}
-	qryRaw := qry.Options.StepAuto || step == _1M
+	var qryRaw bool
+	switch qry.What {
+	case promql.DigestCountRaw, promql.DigestSumRaw, promql.DigestCardinalityRaw:
+		qryRaw = true
+	default:
+		qryRaw = qry.Options.StepAuto || step == _1M
+	}
 	for _, lod := range lods {
 		li := lodInfo{
 			fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, shift, h.location),
@@ -677,7 +683,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 	// get "queryFn"
 	var what queryFn
 	switch qry.What {
-	case promql.DigestCount:
+	case promql.DigestCount, promql.DigestCountRaw:
 		what = queryFnCount
 	case promql.DigestCountSec:
 		what = queryFnCountNorm
@@ -685,7 +691,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		what = queryFnMin
 	case promql.DigestMax:
 		what = queryFnMax
-	case promql.DigestSum:
+	case promql.DigestSum, promql.DigestSumRaw:
 		what = queryFnSum
 	case promql.DigestSumSec:
 		what = queryFnSumNorm
@@ -717,7 +723,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) (queryFn, string, p
 		what = queryFnP99
 	case promql.DigestP999:
 		what = queryFnP999
-	case promql.DigestCardinality:
+	case promql.DigestCardinality, promql.DigestCardinalityRaw:
 		what = queryFnCardinality
 	case promql.DigestCardinalitySec:
 		what = queryFnCardinalityNorm
@@ -819,14 +825,14 @@ func getPromQuery(req seriesRequest, queryFn bool) string {
 		case queryFnCountNorm:
 			what = promql.CountSec
 		case queryFnCumulCount:
-			what = promql.Count
+			what = promql.CountRaw
 			cumul = true
 		case queryFnCardinality:
 			what = promql.Cardinality
 		case queryFnCardinalityNorm:
 			what = promql.CardinalitySec
 		case queryFnCumulCardinality:
-			what = promql.Cardinality
+			what = promql.CardinalityRaw
 			cumul = true
 		case queryFnMin:
 			what = promql.Min
@@ -842,7 +848,7 @@ func getPromQuery(req seriesRequest, queryFn bool) string {
 		case queryFnSumNorm:
 			what = promql.SumSec
 		case queryFnCumulSum:
-			what = promql.Sum
+			what = promql.SumRaw
 			cumul = true
 		case queryFnStddev:
 			what = promql.StdDev
