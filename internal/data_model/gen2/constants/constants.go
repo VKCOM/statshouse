@@ -162,7 +162,11 @@ const (
 	StatshouseApiFnMaxCountHost                  = 0x885e665b // statshouseApi.fnMaxCountHost
 	StatshouseApiFnMaxHost                       = 0xb4790064 // statshouseApi.fnMaxHost
 	StatshouseApiFnMin                           = 0xb4cb2644 // statshouseApi.fnMin
+	StatshouseApiFnP01                           = 0x381b1cee // statshouseApi.fnP01
+	StatshouseApiFnP1                            = 0xbbb36a23 // statshouseApi.fnP1
+	StatshouseApiFnP10                           = 0x56071d39 // statshouseApi.fnP10
 	StatshouseApiFnP25                           = 0xcf9ad7bf // statshouseApi.fnP25
+	StatshouseApiFnP5                            = 0xbcdeae3a // statshouseApi.fnP5
 	StatshouseApiFnP50                           = 0x77c5de5c // statshouseApi.fnP50
 	StatshouseApiFnP75                           = 0x0e674272 // statshouseApi.fnP75
 	StatshouseApiFnP90                           = 0xd4c8c793 // statshouseApi.fnP90

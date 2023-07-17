@@ -25,55 +25,63 @@ func StatshouseApiFnCumulCount() StatshouseApiFunction { return StatshouseApiFun
 
 func StatshouseApiFnCumulSum() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(9) }
 
-func StatshouseApiFnDerivativeAvg() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(24) }
+func StatshouseApiFnDerivativeAvg() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(28) }
 
 func StatshouseApiFnDerivativeCount() StatshouseApiFunction {
-	return StatshouseApiFunction__MakeEnum(25)
-}
-
-func StatshouseApiFnDerivativeCountNorm() StatshouseApiFunction {
-	return StatshouseApiFunction__MakeEnum(26)
-}
-
-func StatshouseApiFnDerivativeMax() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(23) }
-
-func StatshouseApiFnDerivativeMin() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(22) }
-
-func StatshouseApiFnDerivativeSum() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(27) }
-
-func StatshouseApiFnDerivativeSumNorm() StatshouseApiFunction {
-	return StatshouseApiFunction__MakeEnum(28)
-}
-
-func StatshouseApiFnDerivativeUnique() StatshouseApiFunction {
 	return StatshouseApiFunction__MakeEnum(29)
 }
 
-func StatshouseApiFnDerivativeUniqueNorm() StatshouseApiFunction {
+func StatshouseApiFnDerivativeCountNorm() StatshouseApiFunction {
 	return StatshouseApiFunction__MakeEnum(30)
+}
+
+func StatshouseApiFnDerivativeMax() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(27) }
+
+func StatshouseApiFnDerivativeMin() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(26) }
+
+func StatshouseApiFnDerivativeSum() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(31) }
+
+func StatshouseApiFnDerivativeSumNorm() StatshouseApiFunction {
+	return StatshouseApiFunction__MakeEnum(32)
+}
+
+func StatshouseApiFnDerivativeUnique() StatshouseApiFunction {
+	return StatshouseApiFunction__MakeEnum(33)
+}
+
+func StatshouseApiFnDerivativeUniqueNorm() StatshouseApiFunction {
+	return StatshouseApiFunction__MakeEnum(34)
 }
 
 func StatshouseApiFnMax() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(4) }
 
-func StatshouseApiFnMaxCountHost() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(21) }
+func StatshouseApiFnMaxCountHost() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(25) }
 
-func StatshouseApiFnMaxHost() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(20) }
+func StatshouseApiFnMaxHost() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(24) }
 
 func StatshouseApiFnMin() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(3) }
 
-func StatshouseApiFnP25() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(11) }
+func StatshouseApiFnP01() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(11) }
 
-func StatshouseApiFnP50() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(12) }
+func StatshouseApiFnP1() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(12) }
 
-func StatshouseApiFnP75() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(13) }
+func StatshouseApiFnP10() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(14) }
 
-func StatshouseApiFnP90() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(14) }
+func StatshouseApiFnP25() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(15) }
 
-func StatshouseApiFnP95() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(15) }
+func StatshouseApiFnP5() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(13) }
 
-func StatshouseApiFnP99() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(16) }
+func StatshouseApiFnP50() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(16) }
 
-func StatshouseApiFnP999() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(17) }
+func StatshouseApiFnP75() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(17) }
+
+func StatshouseApiFnP90() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(18) }
+
+func StatshouseApiFnP95() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(19) }
+
+func StatshouseApiFnP99() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(20) }
+
+func StatshouseApiFnP999() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(21) }
 
 func StatshouseApiFnStddev() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(10) }
 
@@ -81,11 +89,11 @@ func StatshouseApiFnSum() StatshouseApiFunction { return StatshouseApiFunction__
 
 func StatshouseApiFnSumNorm() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(8) }
 
-func StatshouseApiFnUnique() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(18) }
+func StatshouseApiFnUnique() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(22) }
 
-func StatshouseApiFnUniqueNorm() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(19) }
+func StatshouseApiFnUniqueNorm() StatshouseApiFunction { return StatshouseApiFunction__MakeEnum(23) }
 
-var _StatshouseApiFunction = [31]UnionElement{
+var _StatshouseApiFunction = [35]UnionElement{
 	{TLTag: 0x89689775, TLName: "statshouseApi.fnCount", TLString: "statshouseApi.fnCount#89689775"},
 	{TLTag: 0x60e68b5c, TLName: "statshouseApi.fnCountNorm", TLString: "statshouseApi.fnCountNorm#60e68b5c"},
 	{TLTag: 0x871201c4, TLName: "statshouseApi.fnCumulCount", TLString: "statshouseApi.fnCumulCount#871201c4"},
@@ -97,6 +105,10 @@ var _StatshouseApiFunction = [31]UnionElement{
 	{TLTag: 0x361963d5, TLName: "statshouseApi.fnSumNorm", TLString: "statshouseApi.fnSumNorm#361963d5"},
 	{TLTag: 0x42fc39b6, TLName: "statshouseApi.fnCumulSum", TLString: "statshouseApi.fnCumulSum#42fc39b6"},
 	{TLTag: 0x2043e480, TLName: "statshouseApi.fnStddev", TLString: "statshouseApi.fnStddev#2043e480"},
+	{TLTag: 0x381b1cee, TLName: "statshouseApi.fnP01", TLString: "statshouseApi.fnP01#381b1cee"},
+	{TLTag: 0xbbb36a23, TLName: "statshouseApi.fnP1", TLString: "statshouseApi.fnP1#bbb36a23"},
+	{TLTag: 0xbcdeae3a, TLName: "statshouseApi.fnP5", TLString: "statshouseApi.fnP5#bcdeae3a"},
+	{TLTag: 0x56071d39, TLName: "statshouseApi.fnP10", TLString: "statshouseApi.fnP10#56071d39"},
 	{TLTag: 0xcf9ad7bf, TLName: "statshouseApi.fnP25", TLString: "statshouseApi.fnP25#cf9ad7bf"},
 	{TLTag: 0x77c5de5c, TLName: "statshouseApi.fnP50", TLString: "statshouseApi.fnP50#77c5de5c"},
 	{TLTag: 0xe674272, TLName: "statshouseApi.fnP75", TLString: "statshouseApi.fnP75#0e674272"},
@@ -166,65 +178,77 @@ func (item *StatshouseApiFunction) SetFnCumulSum()     { item.index = 9 }
 func (item *StatshouseApiFunction) IsFnStddev() bool { return item.index == 10 }
 func (item *StatshouseApiFunction) SetFnStddev()     { item.index = 10 }
 
-func (item *StatshouseApiFunction) IsFnP25() bool { return item.index == 11 }
-func (item *StatshouseApiFunction) SetFnP25()     { item.index = 11 }
+func (item *StatshouseApiFunction) IsFnP01() bool { return item.index == 11 }
+func (item *StatshouseApiFunction) SetFnP01()     { item.index = 11 }
 
-func (item *StatshouseApiFunction) IsFnP50() bool { return item.index == 12 }
-func (item *StatshouseApiFunction) SetFnP50()     { item.index = 12 }
+func (item *StatshouseApiFunction) IsFnP1() bool { return item.index == 12 }
+func (item *StatshouseApiFunction) SetFnP1()     { item.index = 12 }
 
-func (item *StatshouseApiFunction) IsFnP75() bool { return item.index == 13 }
-func (item *StatshouseApiFunction) SetFnP75()     { item.index = 13 }
+func (item *StatshouseApiFunction) IsFnP5() bool { return item.index == 13 }
+func (item *StatshouseApiFunction) SetFnP5()     { item.index = 13 }
 
-func (item *StatshouseApiFunction) IsFnP90() bool { return item.index == 14 }
-func (item *StatshouseApiFunction) SetFnP90()     { item.index = 14 }
+func (item *StatshouseApiFunction) IsFnP10() bool { return item.index == 14 }
+func (item *StatshouseApiFunction) SetFnP10()     { item.index = 14 }
 
-func (item *StatshouseApiFunction) IsFnP95() bool { return item.index == 15 }
-func (item *StatshouseApiFunction) SetFnP95()     { item.index = 15 }
+func (item *StatshouseApiFunction) IsFnP25() bool { return item.index == 15 }
+func (item *StatshouseApiFunction) SetFnP25()     { item.index = 15 }
 
-func (item *StatshouseApiFunction) IsFnP99() bool { return item.index == 16 }
-func (item *StatshouseApiFunction) SetFnP99()     { item.index = 16 }
+func (item *StatshouseApiFunction) IsFnP50() bool { return item.index == 16 }
+func (item *StatshouseApiFunction) SetFnP50()     { item.index = 16 }
 
-func (item *StatshouseApiFunction) IsFnP999() bool { return item.index == 17 }
-func (item *StatshouseApiFunction) SetFnP999()     { item.index = 17 }
+func (item *StatshouseApiFunction) IsFnP75() bool { return item.index == 17 }
+func (item *StatshouseApiFunction) SetFnP75()     { item.index = 17 }
 
-func (item *StatshouseApiFunction) IsFnUnique() bool { return item.index == 18 }
-func (item *StatshouseApiFunction) SetFnUnique()     { item.index = 18 }
+func (item *StatshouseApiFunction) IsFnP90() bool { return item.index == 18 }
+func (item *StatshouseApiFunction) SetFnP90()     { item.index = 18 }
 
-func (item *StatshouseApiFunction) IsFnUniqueNorm() bool { return item.index == 19 }
-func (item *StatshouseApiFunction) SetFnUniqueNorm()     { item.index = 19 }
+func (item *StatshouseApiFunction) IsFnP95() bool { return item.index == 19 }
+func (item *StatshouseApiFunction) SetFnP95()     { item.index = 19 }
 
-func (item *StatshouseApiFunction) IsFnMaxHost() bool { return item.index == 20 }
-func (item *StatshouseApiFunction) SetFnMaxHost()     { item.index = 20 }
+func (item *StatshouseApiFunction) IsFnP99() bool { return item.index == 20 }
+func (item *StatshouseApiFunction) SetFnP99()     { item.index = 20 }
 
-func (item *StatshouseApiFunction) IsFnMaxCountHost() bool { return item.index == 21 }
-func (item *StatshouseApiFunction) SetFnMaxCountHost()     { item.index = 21 }
+func (item *StatshouseApiFunction) IsFnP999() bool { return item.index == 21 }
+func (item *StatshouseApiFunction) SetFnP999()     { item.index = 21 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeMin() bool { return item.index == 22 }
-func (item *StatshouseApiFunction) SetFnDerivativeMin()     { item.index = 22 }
+func (item *StatshouseApiFunction) IsFnUnique() bool { return item.index == 22 }
+func (item *StatshouseApiFunction) SetFnUnique()     { item.index = 22 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeMax() bool { return item.index == 23 }
-func (item *StatshouseApiFunction) SetFnDerivativeMax()     { item.index = 23 }
+func (item *StatshouseApiFunction) IsFnUniqueNorm() bool { return item.index == 23 }
+func (item *StatshouseApiFunction) SetFnUniqueNorm()     { item.index = 23 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeAvg() bool { return item.index == 24 }
-func (item *StatshouseApiFunction) SetFnDerivativeAvg()     { item.index = 24 }
+func (item *StatshouseApiFunction) IsFnMaxHost() bool { return item.index == 24 }
+func (item *StatshouseApiFunction) SetFnMaxHost()     { item.index = 24 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeCount() bool { return item.index == 25 }
-func (item *StatshouseApiFunction) SetFnDerivativeCount()     { item.index = 25 }
+func (item *StatshouseApiFunction) IsFnMaxCountHost() bool { return item.index == 25 }
+func (item *StatshouseApiFunction) SetFnMaxCountHost()     { item.index = 25 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeCountNorm() bool { return item.index == 26 }
-func (item *StatshouseApiFunction) SetFnDerivativeCountNorm()     { item.index = 26 }
+func (item *StatshouseApiFunction) IsFnDerivativeMin() bool { return item.index == 26 }
+func (item *StatshouseApiFunction) SetFnDerivativeMin()     { item.index = 26 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeSum() bool { return item.index == 27 }
-func (item *StatshouseApiFunction) SetFnDerivativeSum()     { item.index = 27 }
+func (item *StatshouseApiFunction) IsFnDerivativeMax() bool { return item.index == 27 }
+func (item *StatshouseApiFunction) SetFnDerivativeMax()     { item.index = 27 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeSumNorm() bool { return item.index == 28 }
-func (item *StatshouseApiFunction) SetFnDerivativeSumNorm()     { item.index = 28 }
+func (item *StatshouseApiFunction) IsFnDerivativeAvg() bool { return item.index == 28 }
+func (item *StatshouseApiFunction) SetFnDerivativeAvg()     { item.index = 28 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeUnique() bool { return item.index == 29 }
-func (item *StatshouseApiFunction) SetFnDerivativeUnique()     { item.index = 29 }
+func (item *StatshouseApiFunction) IsFnDerivativeCount() bool { return item.index == 29 }
+func (item *StatshouseApiFunction) SetFnDerivativeCount()     { item.index = 29 }
 
-func (item *StatshouseApiFunction) IsFnDerivativeUniqueNorm() bool { return item.index == 30 }
-func (item *StatshouseApiFunction) SetFnDerivativeUniqueNorm()     { item.index = 30 }
+func (item *StatshouseApiFunction) IsFnDerivativeCountNorm() bool { return item.index == 30 }
+func (item *StatshouseApiFunction) SetFnDerivativeCountNorm()     { item.index = 30 }
+
+func (item *StatshouseApiFunction) IsFnDerivativeSum() bool { return item.index == 31 }
+func (item *StatshouseApiFunction) SetFnDerivativeSum()     { item.index = 31 }
+
+func (item *StatshouseApiFunction) IsFnDerivativeSumNorm() bool { return item.index == 32 }
+func (item *StatshouseApiFunction) SetFnDerivativeSumNorm()     { item.index = 32 }
+
+func (item *StatshouseApiFunction) IsFnDerivativeUnique() bool { return item.index == 33 }
+func (item *StatshouseApiFunction) SetFnDerivativeUnique()     { item.index = 33 }
+
+func (item *StatshouseApiFunction) IsFnDerivativeUniqueNorm() bool { return item.index == 34 }
+func (item *StatshouseApiFunction) SetFnDerivativeUniqueNorm()     { item.index = 34 }
 
 func (item *StatshouseApiFunction) ReadBoxed(w []byte) (_ []byte, err error) {
 	var tag uint32
@@ -265,65 +289,77 @@ func (item *StatshouseApiFunction) ReadBoxed(w []byte) (_ []byte, err error) {
 	case 0x2043e480:
 		item.index = 10
 		return w, nil
-	case 0xcf9ad7bf:
+	case 0x381b1cee:
 		item.index = 11
 		return w, nil
-	case 0x77c5de5c:
+	case 0xbbb36a23:
 		item.index = 12
 		return w, nil
-	case 0xe674272:
+	case 0xbcdeae3a:
 		item.index = 13
 		return w, nil
-	case 0xd4c8c793:
+	case 0x56071d39:
 		item.index = 14
 		return w, nil
-	case 0x9a92b76f:
+	case 0xcf9ad7bf:
 		item.index = 15
 		return w, nil
-	case 0x71992e9a:
+	case 0x77c5de5c:
 		item.index = 16
 		return w, nil
-	case 0xa3434c26:
+	case 0xe674272:
 		item.index = 17
 		return w, nil
-	case 0xf20fb854:
+	case 0xd4c8c793:
 		item.index = 18
 		return w, nil
-	case 0x9ceb6f68:
+	case 0x9a92b76f:
 		item.index = 19
 		return w, nil
-	case 0xb4790064:
+	case 0x71992e9a:
 		item.index = 20
 		return w, nil
-	case 0x885e665b:
+	case 0xa3434c26:
 		item.index = 21
 		return w, nil
-	case 0x4817df2b:
+	case 0xf20fb854:
 		item.index = 22
 		return w, nil
-	case 0x43eeb810:
+	case 0x9ceb6f68:
 		item.index = 23
 		return w, nil
-	case 0x60d2b603:
+	case 0xb4790064:
 		item.index = 24
 		return w, nil
-	case 0xe617771c:
+	case 0x885e665b:
 		item.index = 25
 		return w, nil
-	case 0xbfb5f7fc:
+	case 0x4817df2b:
 		item.index = 26
 		return w, nil
-	case 0xa3a43781:
+	case 0x43eeb810:
 		item.index = 27
 		return w, nil
-	case 0x96683390:
+	case 0x60d2b603:
 		item.index = 28
 		return w, nil
-	case 0x5745a0a3:
+	case 0xe617771c:
 		item.index = 29
 		return w, nil
-	case 0x4bd4f327:
+	case 0xbfb5f7fc:
 		item.index = 30
+		return w, nil
+	case 0xa3a43781:
+		item.index = 31
+		return w, nil
+	case 0x96683390:
+		item.index = 32
+		return w, nil
+	case 0x5745a0a3:
+		item.index = 33
+		return w, nil
+	case 0x4bd4f327:
+		item.index = 34
 		return w, nil
 	default:
 		return w, ErrorInvalidUnionTag("statshouseApi.Function", tag)
@@ -380,65 +416,77 @@ func (item *StatshouseApiFunction) readJSON(j interface{}) error {
 	case "statshouseApi.fnStddev#2043e480", "statshouseApi.fnStddev", "#2043e480":
 		item.index = 10
 		return nil
-	case "statshouseApi.fnP25#cf9ad7bf", "statshouseApi.fnP25", "#cf9ad7bf":
+	case "statshouseApi.fnP01#381b1cee", "statshouseApi.fnP01", "#381b1cee":
 		item.index = 11
 		return nil
-	case "statshouseApi.fnP50#77c5de5c", "statshouseApi.fnP50", "#77c5de5c":
+	case "statshouseApi.fnP1#bbb36a23", "statshouseApi.fnP1", "#bbb36a23":
 		item.index = 12
 		return nil
-	case "statshouseApi.fnP75#0e674272", "statshouseApi.fnP75", "#0e674272":
+	case "statshouseApi.fnP5#bcdeae3a", "statshouseApi.fnP5", "#bcdeae3a":
 		item.index = 13
 		return nil
-	case "statshouseApi.fnP90#d4c8c793", "statshouseApi.fnP90", "#d4c8c793":
+	case "statshouseApi.fnP10#56071d39", "statshouseApi.fnP10", "#56071d39":
 		item.index = 14
 		return nil
-	case "statshouseApi.fnP95#9a92b76f", "statshouseApi.fnP95", "#9a92b76f":
+	case "statshouseApi.fnP25#cf9ad7bf", "statshouseApi.fnP25", "#cf9ad7bf":
 		item.index = 15
 		return nil
-	case "statshouseApi.fnP99#71992e9a", "statshouseApi.fnP99", "#71992e9a":
+	case "statshouseApi.fnP50#77c5de5c", "statshouseApi.fnP50", "#77c5de5c":
 		item.index = 16
 		return nil
-	case "statshouseApi.fnP999#a3434c26", "statshouseApi.fnP999", "#a3434c26":
+	case "statshouseApi.fnP75#0e674272", "statshouseApi.fnP75", "#0e674272":
 		item.index = 17
 		return nil
-	case "statshouseApi.fnUnique#f20fb854", "statshouseApi.fnUnique", "#f20fb854":
+	case "statshouseApi.fnP90#d4c8c793", "statshouseApi.fnP90", "#d4c8c793":
 		item.index = 18
 		return nil
-	case "statshouseApi.fnUniqueNorm#9ceb6f68", "statshouseApi.fnUniqueNorm", "#9ceb6f68":
+	case "statshouseApi.fnP95#9a92b76f", "statshouseApi.fnP95", "#9a92b76f":
 		item.index = 19
 		return nil
-	case "statshouseApi.fnMaxHost#b4790064", "statshouseApi.fnMaxHost", "#b4790064":
+	case "statshouseApi.fnP99#71992e9a", "statshouseApi.fnP99", "#71992e9a":
 		item.index = 20
 		return nil
-	case "statshouseApi.fnMaxCountHost#885e665b", "statshouseApi.fnMaxCountHost", "#885e665b":
+	case "statshouseApi.fnP999#a3434c26", "statshouseApi.fnP999", "#a3434c26":
 		item.index = 21
 		return nil
-	case "statshouseApi.fnDerivativeMin#4817df2b", "statshouseApi.fnDerivativeMin", "#4817df2b":
+	case "statshouseApi.fnUnique#f20fb854", "statshouseApi.fnUnique", "#f20fb854":
 		item.index = 22
 		return nil
-	case "statshouseApi.fnDerivativeMax#43eeb810", "statshouseApi.fnDerivativeMax", "#43eeb810":
+	case "statshouseApi.fnUniqueNorm#9ceb6f68", "statshouseApi.fnUniqueNorm", "#9ceb6f68":
 		item.index = 23
 		return nil
-	case "statshouseApi.fnDerivativeAvg#60d2b603", "statshouseApi.fnDerivativeAvg", "#60d2b603":
+	case "statshouseApi.fnMaxHost#b4790064", "statshouseApi.fnMaxHost", "#b4790064":
 		item.index = 24
 		return nil
-	case "statshouseApi.fnDerivativeCount#e617771c", "statshouseApi.fnDerivativeCount", "#e617771c":
+	case "statshouseApi.fnMaxCountHost#885e665b", "statshouseApi.fnMaxCountHost", "#885e665b":
 		item.index = 25
 		return nil
-	case "statshouseApi.fnDerivativeCountNorm#bfb5f7fc", "statshouseApi.fnDerivativeCountNorm", "#bfb5f7fc":
+	case "statshouseApi.fnDerivativeMin#4817df2b", "statshouseApi.fnDerivativeMin", "#4817df2b":
 		item.index = 26
 		return nil
-	case "statshouseApi.fnDerivativeSum#a3a43781", "statshouseApi.fnDerivativeSum", "#a3a43781":
+	case "statshouseApi.fnDerivativeMax#43eeb810", "statshouseApi.fnDerivativeMax", "#43eeb810":
 		item.index = 27
 		return nil
-	case "statshouseApi.fnDerivativeSumNorm#96683390", "statshouseApi.fnDerivativeSumNorm", "#96683390":
+	case "statshouseApi.fnDerivativeAvg#60d2b603", "statshouseApi.fnDerivativeAvg", "#60d2b603":
 		item.index = 28
 		return nil
-	case "statshouseApi.fnDerivativeUnique#5745a0a3", "statshouseApi.fnDerivativeUnique", "#5745a0a3":
+	case "statshouseApi.fnDerivativeCount#e617771c", "statshouseApi.fnDerivativeCount", "#e617771c":
 		item.index = 29
 		return nil
-	case "statshouseApi.fnDerivativeUniqueNorm#4bd4f327", "statshouseApi.fnDerivativeUniqueNorm", "#4bd4f327":
+	case "statshouseApi.fnDerivativeCountNorm#bfb5f7fc", "statshouseApi.fnDerivativeCountNorm", "#bfb5f7fc":
 		item.index = 30
+		return nil
+	case "statshouseApi.fnDerivativeSum#a3a43781", "statshouseApi.fnDerivativeSum", "#a3a43781":
+		item.index = 31
+		return nil
+	case "statshouseApi.fnDerivativeSumNorm#96683390", "statshouseApi.fnDerivativeSumNorm", "#96683390":
+		item.index = 32
+		return nil
+	case "statshouseApi.fnDerivativeUnique#5745a0a3", "statshouseApi.fnDerivativeUnique", "#5745a0a3":
+		item.index = 33
+		return nil
+	case "statshouseApi.fnDerivativeUniqueNorm#4bd4f327", "statshouseApi.fnDerivativeUniqueNorm", "#4bd4f327":
+		item.index = 34
 		return nil
 	default:
 		return ErrorInvalidEnumTagJSON("statshouseApi.Function", _jtype)
