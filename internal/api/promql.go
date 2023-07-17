@@ -331,6 +331,9 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 	} else {
 		res := make([]timescale, 0, len(offsets))
 		for metric, offset := range offsets {
+			if offset%qry.Step != 0 {
+				return promql.Timescale{}, fmt.Errorf("timeshift %ds is not multiple of step %ds", offset, qry.Step)
+			}
 			if s := getLODs(metric, offset); len(s) != 0 {
 				res = append(res, timescale{s, offset})
 			}
