@@ -57,7 +57,11 @@ func FnMax() Function                  { return internal.StatshouseApiFnMax() }
 func FnMaxCountHost() Function         { return internal.StatshouseApiFnMaxCountHost() }
 func FnMaxHost() Function              { return internal.StatshouseApiFnMaxHost() }
 func FnMin() Function                  { return internal.StatshouseApiFnMin() }
+func FnP01() Function                  { return internal.StatshouseApiFnP01() }
+func FnP1() Function                   { return internal.StatshouseApiFnP1() }
+func FnP10() Function                  { return internal.StatshouseApiFnP10() }
 func FnP25() Function                  { return internal.StatshouseApiFnP25() }
+func FnP5() Function                   { return internal.StatshouseApiFnP5() }
 func FnP50() Function                  { return internal.StatshouseApiFnP50() }
 func FnP75() Function                  { return internal.StatshouseApiFnP75() }
 func FnP90() Function                  { return internal.StatshouseApiFnP90() }
