@@ -295,7 +295,12 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 	if qry.Options.StepAuto {
 		widthKind = widthAutoRes
 	} else {
-		widthKind = widthLODRes
+		switch qry.Step {
+		case _1s, _5s, _15s, _1m, _5m, _15m, _1h, _4h, _24h, _7d, _1M:
+			widthKind = widthLODRes
+		default:
+			return promql.Timescale{}, fmt.Errorf("invalid step %d (allowed step values 1, 5, 15, 60, 300, 900, 3600, 14400, 86400, 604800, 2678400)", qry.Step)
+		}
 	}
 	getLODs := func(metric *format.MetricMetaValue, offset int64) []lodInfo {
 		var (
@@ -331,7 +336,7 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 	} else {
 		res := make([]timescale, 0, len(offsets))
 		for metric, offset := range offsets {
-			if offset%qry.Step != 0 {
+			if !(qry.Options.StepAuto || offset%qry.Step == 0) {
 				return promql.Timescale{}, fmt.Errorf("timeshift %ds is not multiple of step %ds", offset, qry.Step)
 			}
 			if s := getLODs(metric, offset); len(s) != 0 {
