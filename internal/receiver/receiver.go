@@ -9,9 +9,9 @@ package receiver
 import (
 	"bytes"
 	"context"
+	"errors"
 	"math"
 	"net"
-	"strings"
 	"syscall"
 
 	"github.com/vkcom/statshouse/internal/agent"
@@ -27,8 +27,6 @@ import (
 
 const (
 	DefaultConnBufSize = 16 * 1024 * 1024
-
-	errClosed = "use of closed network connection" // TODO: migrate to net.ErrClosed for Go 1.16+
 )
 
 var (
@@ -167,7 +165,7 @@ outer:
 	for {
 		pktLen, readErr := u.conn.Read(data)
 		if readErr != nil {
-			if strings.Contains(readErr.Error(), errClosed) {
+			if errors.Is(readErr, net.ErrClosed) {
 				return nil
 			}
 			return readErr
