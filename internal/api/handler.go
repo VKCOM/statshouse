@@ -2146,6 +2146,11 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 
 	if len(req.shifts) == 0 {
 		req.shifts = []time.Duration{0}
+	} else {
+		sort.Slice(req.shifts, func(i, j int) bool { return req.shifts[i] < req.shifts[j] })
+		if req.shifts[len(req.shifts)-1] != 0 {
+			req.shifts = append(req.shifts, 0)
+		}
 	}
 	oldestShift := req.shifts[0]
 	isStringTop := metricMeta.StringTopDescription != ""
