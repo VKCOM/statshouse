@@ -87,7 +87,6 @@ type diskCacheShard struct {
 // When all seconds in a file not needed, file is deleted
 
 // We use hardware-optimized polynomial for max speed
-// workaround for https://github.com/golang/go/issues/41911, before we use Go 1.16 everywhere
 var castagnoliTable = crc32.MakeTable(crc32.Castagnoli)
 
 func MakeDiskBucketStorage(dirPath string, numShards int, logf func(format string, args ...interface{})) (*DiskBucketStorage, error) {
