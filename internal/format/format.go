@@ -422,6 +422,18 @@ func (m *MetricMetaValue) APICompatGetTag(tagNameOrID string) (tag MetricMetaTag
 	return MetricMetaTag{}, false, false
 }
 
+// 'APICompat' functions are expected to be used to handle user input, exists for backward compatibility
+func (m *MetricMetaValue) APICompatGetTagFromBytes(tagNameOrID []byte) (tag MetricMetaTag, ok bool, legacyName bool) {
+	if res, ok := m.Name2Tag[string(tagNameOrID)]; ok {
+		return res, true, false
+	}
+	if tagID, ok := apiCompatTagID[string(tagNameOrID)]; ok {
+		tag, ok = m.Name2Tag[tagID]
+		return tag, ok, true
+	}
+	return MetricMetaTag{}, false, false
+}
+
 // Always restores maximum info, if error is returned, group is non-canonical and should not be saved
 func (m *MetricsGroup) RestoreCachedInfo() error {
 	var err error
@@ -860,8 +872,8 @@ func APICompatNormalizeTagID(tagID string) (string, error) {
 }
 
 // 'APICompat' functions are expected to be used to handle user input, exists for backward compatibility
-func APICompatIsEnvTagID(tagID string) bool {
-	switch tagID {
+func APICompatIsEnvTagID(tagID []byte) bool {
+	switch string(tagID) {
 	case EnvTagID, "key0", "env":
 		return true
 	default:
