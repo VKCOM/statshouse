@@ -33,6 +33,7 @@ import (
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/receiver"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
 func mainBenchmarks() {
@@ -520,4 +521,49 @@ func mainSimulator() {
 		go aggregator.RunSimulator(i, metricStorage, argv.cacheDir, cryptoKey, argv.configAgent)
 	}
 	aggregator.RunSimulator(0, metricStorage, argv.cacheDir, cryptoKey, argv.configAgent)
+}
+
+func mainTagMapping() {
+	// Parse command line tags
+	var (
+		metric          string
+		tags            string
+		metadataNet     string
+		metadataAddr    string
+		metadataActorID uint64
+	)
+	flag.StringVar(&metric, "metric", "", "metric name, if specified then strings are considered metric tags")
+	flag.StringVar(&tags, "tag", "", "string to be searched for a int32 mapping")
+	flag.Uint64Var(&metadataActorID, "metadata-actor-id", 0, "")
+	flag.StringVar(&metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
+	flag.StringVar(&metadataNet, "metadata-net", "tcp4", "")
+	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
+	build.FlagParseShowVersionHelp()
+	flag.Parse()
+	// Create metadata client
+	var (
+		aesPwd = readAESPwd()
+		client = tlmetadata.Client{
+			Client:  rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
+			Network: metadataNet,
+			Address: metadataAddr,
+			ActorID: metadataActorID,
+		}
+	)
+	// Run queries
+	for _, tag := range strings.Split(tags, ",") {
+		var (
+			qry = tlmetadata.GetMapping{Metric: metric, Key: tag}
+			ret tlmetadata.GetMappingResponseUnion
+			err = client.GetMapping(context.Background(), qry, nil, &ret)
+		)
+		if err != nil {
+			fmt.Printf("%q ERROR <%v>", tag, err)
+		} else if res, ok := ret.AsGetMappingResponse(); ok {
+			fmt.Printf("%q -> %d", tag, res.Id)
+		} else {
+			fmt.Printf("%q NOT FOUND", tag)
+		}
+		fmt.Println()
+	}
 }

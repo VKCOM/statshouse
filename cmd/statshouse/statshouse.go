@@ -155,6 +155,9 @@ func runMain() int {
 			argvAddIngressProxyFlags()
 			argv.configAgent = agent.DefaultConfig()
 			build.FlagParseShowVersionHelp()
+		case "tag_mapping", "-tag_mapping", "--tag_mapping":
+			mainTagMapping()
+			return 0
 		default:
 			_, _ = fmt.Fprintf(os.Stderr, "Unknown verb %q:\n", verb)
 			printVerbUsage()
