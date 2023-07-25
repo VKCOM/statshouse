@@ -14,6 +14,8 @@ type ProtocolsStats struct {
 	writer MetricWriter
 }
 
+const mult = 4096
+
 func (c *ProtocolsStats) Skip() bool {
 	return false
 }
@@ -69,6 +71,6 @@ func (c *ProtocolsStats) writeProtocols(nowUnix int64, stat procfs.NetProtocolSt
 			memory = 0
 		}
 		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSocketUsedv2, float64(sockets), protocol)
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSocketMemory, float64(memory), protocol)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSocketMemory, float64(memory*mult), protocol)
 	}
 }
