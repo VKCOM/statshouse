@@ -14,8 +14,6 @@ type ProtocolsStats struct {
 	writer MetricWriter
 }
 
-const mult = 4096
-
 func (c *ProtocolsStats) Skip() bool {
 	return false
 }
@@ -49,6 +47,7 @@ func (c *ProtocolsStats) WriteMetrics(nowUnix int64) error {
 }
 
 func (c *ProtocolsStats) writeProtocols(nowUnix int64, stat procfs.NetProtocolStats) {
+	const mult = 4096
 	for protocolName, stat := range stat {
 		var protocol int32
 		switch protocolName {

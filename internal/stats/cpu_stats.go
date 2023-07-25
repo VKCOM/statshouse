@@ -110,7 +110,7 @@ func (c *CPUStats) writeSystem(nowUnix int64, stat procfs.Stat) error {
 	c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesRunning), format.RawIDTagRunning)
 	c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesBlocked), format.RawIDTagBlocked)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameProcessCreated, float64(stat.ProcessCreated-c.stat.ProcessCreated))
-	c.writer.WriteSystemMetricCount(nowUnix, cs, float64(stat.ContextSwitches-c.stat.ContextSwitches))
+	c.writer.WriteSystemMetricCount(nowUnix, cs, diff(stat.ContextSwitches, c.stat.ContextSwitches))
 	return nil
 }
 
