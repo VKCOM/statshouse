@@ -697,5 +697,42 @@ func Test_Engine_Backup(t *testing.T) {
 		return nil, rows.Error()
 	})
 	require.Equal(t, int64(1), id)
+}
 
+func Test_Engine_RO(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
+	var id int64
+	dir := t.TempDir()
+	dbfile := "db"
+	engine, _ := openEngine(t, dir, dbfile, schema, true, false, false, false, WaitCommit, nil)
+	var err error
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		buf := make([]byte, 12)
+		_, err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Int64("$id", 1))
+		binary.LittleEndian.PutUint32(buf, magic)
+		binary.LittleEndian.PutUint64(buf[4:], uint64(1))
+		return cache, err
+	})
+	require.NoError(t, err)
+	require.NoError(t, engine.commitTXAndStartNew(true, true))
+	engineRO, err := OpenRO(Options{
+		Path:                   dir + "/" + dbfile,
+		APPID:                  32,
+		Scheme:                 schema,
+		CacheMaxSizePerConnect: 999,
+	})
+	require.NoError(t, err)
+	err = engineRO.View(context.Background(), "test", func(conn Conn) error {
+		rows := conn.Query("test", "SELECT id FROM test_db")
+		for rows.Next() {
+			id, err = rows.ColumnInt64(0)
+			if err != nil {
+				return err
+			}
+		}
+		return rows.Error()
+	})
+	require.Equal(t, int64(1), id)
+	require.NoError(t, engine.Close(context.Background()))
+	require.NoError(t, engineRO.Close(context.Background()))
 }
