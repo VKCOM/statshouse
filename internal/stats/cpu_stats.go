@@ -90,16 +90,17 @@ func (c *CPUStats) writeCPU(nowUnix int64, stat procfs.Stat) error {
 
 	sirqs := stat.SoftIRQ
 	sirqsOld := c.stat.SoftIRQ
-	c.writer.WriteSystemMetricValue(nowUnix, sirq, float64(sirqs.Hi-sirqsOld.Hi), format.RawIDTagHI)
-	c.writer.WriteSystemMetricValue(nowUnix, sirq, float64(sirqs.Timer-sirqsOld.Timer), format.RawIDTagTimer)
-	c.writer.WriteSystemMetricValue(nowUnix, sirq, float64(sirqs.NetTx-sirqsOld.NetTx), format.RawIDTagNetTx)
-	c.writer.WriteSystemMetricValue(nowUnix, sirq, float64(sirqs.NetRx-sirqsOld.NetRx), format.RawIDTagNetRx)
-	c.writer.WriteSystemMetricValue(nowUnix, sirq, float64(sirqs.Block-sirqsOld.Block), format.RawIDTagBlock)
-	c.writer.WriteSystemMetricValue(nowUnix, sirq, float64(sirqs.BlockIoPoll-sirqsOld.BlockIoPoll), format.RawIDTagBlockIOPoll)
-	c.writer.WriteSystemMetricValue(nowUnix, sirq, float64(sirqs.Tasklet-sirqsOld.Tasklet), format.RawIDTagTasklet)
-	c.writer.WriteSystemMetricValue(nowUnix, sirq, float64(sirqs.Sched-sirqsOld.Sched), format.RawIDTagScheduler)
-	c.writer.WriteSystemMetricValue(nowUnix, sirq, float64(sirqs.Hrtimer-sirqsOld.Hrtimer), format.RawIDTagHRTimer)
-	c.writer.WriteSystemMetricValue(nowUnix, sirq, float64(sirqs.Rcu-sirqsOld.Rcu), format.RawIDTagRCU)
+
+	c.writer.WriteSystemMetricValue(nowUnix, sirq, diff(sirqs.Hi, sirqsOld.Hi), format.RawIDTagHI)
+	c.writer.WriteSystemMetricValue(nowUnix, sirq, diff(sirqs.Timer, sirqsOld.Timer), format.RawIDTagTimer)
+	c.writer.WriteSystemMetricValue(nowUnix, sirq, diff(sirqs.NetTx, sirqsOld.NetTx), format.RawIDTagNetTx)
+	c.writer.WriteSystemMetricValue(nowUnix, sirq, diff(sirqs.NetRx, sirqsOld.NetRx), format.RawIDTagNetRx)
+	c.writer.WriteSystemMetricValue(nowUnix, sirq, diff(sirqs.Block, sirqsOld.Block), format.RawIDTagBlock)
+	c.writer.WriteSystemMetricValue(nowUnix, sirq, diff(sirqs.BlockIoPoll, sirqsOld.BlockIoPoll), format.RawIDTagBlockIOPoll)
+	c.writer.WriteSystemMetricValue(nowUnix, sirq, diff(sirqs.Tasklet, sirqsOld.Tasklet), format.RawIDTagTasklet)
+	c.writer.WriteSystemMetricValue(nowUnix, sirq, diff(sirqs.Sched, sirqsOld.Sched), format.RawIDTagScheduler)
+	c.writer.WriteSystemMetricValue(nowUnix, sirq, diff(sirqs.Hrtimer, sirqsOld.Hrtimer), format.RawIDTagHRTimer)
+	c.writer.WriteSystemMetricValue(nowUnix, sirq, diff(sirqs.Rcu, sirqsOld.Rcu), format.RawIDTagRCU)
 
 	return nil
 }
