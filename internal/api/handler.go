@@ -132,7 +132,7 @@ const (
 	QuerySelectTimeoutDefault = 55 * time.Second // TODO: querySelectTimeout must be longer than the longest normal query. And must be consistent with NGINX's or another reverse proxy's timeout
 	fastQueryTimeInterval     = (86400 + 3600) * 2
 
-	maxMetricHTTPBodySize     = 64 << 10
+	maxEntityHTTPBodySize     = 256 << 10
 	maxPromConfigHTTPBodySize = 500 * 1024
 
 	defaultCacheTTL = 1 * time.Second
@@ -996,7 +996,7 @@ func (h *Handler) HandlePostMetric(w http.ResponseWriter, r *http.Request) {
 	}
 	rd := &io.LimitedReader{
 		R: r.Body,
-		N: maxMetricHTTPBodySize,
+		N: maxEntityHTTPBodySize,
 	}
 	defer func() { _ = r.Body.Close() }()
 	res, err := io.ReadAll(rd)
@@ -1004,8 +1004,8 @@ func (h *Handler) HandlePostMetric(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	if len(res) >= maxMetricHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("metric body too big. Max size is %d bytes", maxMetricHTTPBodySize)), h.verbose, ai.user, sl)
+	if len(res) >= maxEntityHTTPBodySize {
+		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("metric body too big. Max size is %d bytes", maxEntityHTTPBodySize)), h.verbose, ai.user, sl)
 		return
 	}
 	var metric MetricInfo
@@ -1033,7 +1033,7 @@ func handlePostEntity[T easyjson.Unmarshaler](h *Handler, w http.ResponseWriter,
 	}
 	rd := &io.LimitedReader{
 		R: r.Body,
-		N: maxMetricHTTPBodySize,
+		N: maxEntityHTTPBodySize,
 	}
 	defer func() { _ = r.Body.Close() }()
 	res, err := io.ReadAll(rd)
@@ -1041,8 +1041,8 @@ func handlePostEntity[T easyjson.Unmarshaler](h *Handler, w http.ResponseWriter,
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	if len(res) >= maxMetricHTTPBodySize {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("entity body too big. Max size is %d bytes", maxMetricHTTPBodySize)), h.verbose, ai.user, sl)
+	if len(res) >= maxEntityHTTPBodySize {
+		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("entity body too big. Max size is %d bytes", maxEntityHTTPBodySize)), h.verbose, ai.user, sl)
 		return
 	}
 	if err := easyjson.Unmarshal(res, entity); err != nil {
