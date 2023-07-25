@@ -69,6 +69,8 @@ func httpCode(err error) int {
 			code = http.StatusGatewayTimeout // 504
 		case errors.As(err, &httpErr):
 			code = httpErr.code
+		case errors.Is(err, errTooManyRows):
+			code = http.StatusBadRequest
 		case errors.As(err, &promErr):
 			if promErr.EngineFailure() {
 				code = http.StatusInternalServerError
