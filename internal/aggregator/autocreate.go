@@ -148,7 +148,7 @@ tagMappingLoop:
 			continue // already mapped
 		}
 		if tagName == format.LETagName {
-			i := format.MaxTags - 1
+			i := format.LETagIndex
 			if i >= len(value.Tags) || len(value.Tags[i].Name) == 0 {
 				for j := len(value.Tags); j < i; j++ {
 					value.Tags = append(value.Tags, format.MetricMetaTag{Description: "-"})

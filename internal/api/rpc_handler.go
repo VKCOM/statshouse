@@ -487,13 +487,17 @@ func parseFilterValues(filter []tlstatshouseApi.Filter, meta *format.MetricMetaV
 	filterIn := map[string][]string{}
 	filterNotIn := map[string][]string{}
 	for _, f := range filter {
+		tid, err := format.APICompatNormalizeTagID(f.Key)
+		if err != nil {
+			return nil, nil, err
+		}
 		for _, fv := range f.Values {
 			tagValue := fv.Value
 			switch fv.Flag {
 			case tlstatshouseApi.FlagRaw():
 				tagValue = format.AddRawValuePrefix(tagValue)
 			case tlstatshouseApi.FlagAuto():
-				tag, ok := meta.Name2Tag[f.Key]
+				tag, ok := meta.Name2Tag[tid]
 				if !ok {
 					return nil, nil, fmt.Errorf("tag with name %q not found", f.Key)
 				}
@@ -514,9 +518,9 @@ func parseFilterValues(filter []tlstatshouseApi.Filter, meta *format.MetricMetaV
 			}
 
 			if fv.In {
-				filterIn[f.Key] = append(filterIn[f.Key], tagValue)
+				filterIn[tid] = append(filterIn[tid], tagValue)
 			} else {
-				filterNotIn[f.Key] = append(filterNotIn[f.Key], tagValue)
+				filterNotIn[tid] = append(filterNotIn[tid], tagValue)
 			}
 		}
 	}

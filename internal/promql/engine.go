@@ -799,7 +799,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		metricH    = what == DigestCount && metric.Name2Tag[format.LETagName].Raw
 		histogramQ histogramQuery
 		addGroupBy = func(t format.MetricMetaTag) {
-			groupBy = append(groupBy, format.TagIDLegacy(t.Index))
+			groupBy = append(groupBy, format.TagID(t.Index))
 			if t.Name == format.LETagName {
 				histogramQ.restore = true
 			}
@@ -816,7 +816,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	} else if sel.GroupWithout {
 		skip := make(map[int]bool)
 		for _, name := range sel.GroupBy {
-			t, ok := metric.Name2Tag[name]
+			t, ok, _ := metric.APICompatGetTag(name)
 			if ok {
 				skip[t.Index] = true
 			}
@@ -829,13 +829,12 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	} else if len(sel.GroupBy) != 0 {
 		groupBy = make([]string, 0, len(sel.GroupBy))
 		for _, k := range sel.GroupBy {
-			switch k {
-			case format.StringTopTagID, format.NewStringTopTagID:
-				groupBy = append(groupBy, format.StringTopTagID)
-			case LabelShard:
+			if k == LabelShard {
 				groupBy = append(groupBy, format.ShardTagID)
-			default:
-				if t, ok := metric.Name2Tag[k]; ok && 0 <= t.Index && t.Index < format.MaxTags {
+			} else if t, ok, _ := metric.APICompatGetTag(k); ok {
+				if t.Index == format.StringTopTagIndex {
+					groupBy = append(groupBy, format.StringTopTagID)
+				} else {
 					addGroupBy(t)
 				}
 			}
@@ -853,8 +852,11 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		if strings.HasPrefix(matcher.Name, "__") {
 			continue
 		}
-		switch matcher.Name {
-		case format.StringTopTagID, format.NewStringTopTagID:
+		tag, ok, _ := metric.APICompatGetTag(matcher.Name)
+		if !ok {
+			return seriesQueryX{}, fmt.Errorf("not found tag %q", matcher.Name)
+		}
+		if tag.Index == format.StringTopTagIndex {
 			switch matcher.Type {
 			case labels.MatchEqual:
 				sFilterIn = append(sFilterIn, matcher.Value)
@@ -888,8 +890,8 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 					}
 				}
 			}
-		default:
-			i := metric.Name2Tag[matcher.Name].Index
+		} else {
+			i := tag.Index
 			switch matcher.Type {
 			case labels.MatchEqual:
 				id, err := ev.getTagValueID(metric, i, matcher.Value)
@@ -977,7 +979,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		}
 	}
 	if histogramQ.filter && !histogramQ.restore {
-		groupBy = append(groupBy, format.TagIDLegacy(metric.Name2Tag[format.LETagName].Index))
+		groupBy = append(groupBy, format.TagID(format.LETagIndex))
 		histogramQ.restore = true
 	}
 	return seriesQueryX{

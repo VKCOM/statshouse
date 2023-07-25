@@ -69,7 +69,7 @@ func mainTestParser() int {
 	}
 	logOk.Printf("Listen UDP addr %q by 1 core", argv.listenAddr)
 
-	miniHelp := `You can send packets using command: echo '{"metrics":[{"name":"sentry_issues","tags":{"env":"dev","key1":"ok","key2":"unknown"},"counter":1}]}' | nc -u 127.0.0.1 13337`
+	miniHelp := `You can send packets using command: echo '{"metrics":[{"name":"sentry_issues","tags":{"env":"dev","1":"ok","2":"unknown"},"counter":1}]}' | nc -u 127.0.0.1 13337`
 	miniHelp2 := `You can resend packet printed in hex using command: echo "39025856..00001840" | xxd -r -p - | nc -u 127.0.0.1 13337`
 
 	logOk.Printf("%s", miniHelp)
@@ -272,11 +272,11 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 			Metrics: []tlstatshouse.MetricBytes{{
 				FieldsMask: 0,
 				Name:       []byte("metric1"),
-				Tags: []tl.DictionaryFieldStringBytes{{Key: []byte("key1"), Value: []byte(keyPrefix + "1")},
-					{Key: []byte("k2"), Value: []byte(keyPrefix + "2")},
-					{Key: []byte("key3"), Value: []byte(keyPrefix + "3")},
-					{Key: []byte("key4"), Value: []byte("404")},
-					{Key: []byte("key5"), Value: []byte(keyPrefix + "5")},
+				Tags: []tl.DictionaryFieldStringBytes{{Key: []byte("1"), Value: []byte(keyPrefix + "1")},
+					{Key: []byte("2"), Value: []byte(keyPrefix + "2")},
+					{Key: []byte("3"), Value: []byte(keyPrefix + "3")},
+					{Key: []byte("4"), Value: []byte("404")},
+					{Key: []byte("5"), Value: []byte(keyPrefix + "5")},
 				},
 			}},
 		}
@@ -351,7 +351,7 @@ func mainTLClient() {
 	client, _ := argvCreateClient()
 
 	// use like this
-	// echo '{"metrics":[{"name":"gbuteyko_investigation","tags":{"env":"dev","key1":"I_test_statshouse","key2":"1"},"counter":1}]}' | /usr/share/engine/bin/statshouse --new-conveyor=tlclient --statshouse-addr=localhost:13333
+	// echo '{"metrics":[{"name":"gbuteyko_investigation","tags":{"env":"dev","1":"I_test_statshouse","2":"1"},"counter":1}]}' | /usr/share/engine/bin/statshouse --new-conveyor=tlclient --statshouse-addr=localhost:13333
 	tlclient := tlstatshouse.Client{
 		Client:  client,
 		Network: statshouseNet,
@@ -400,13 +400,13 @@ func mainTLClientAPI() {
 	}
 	requests = append(requests, rr)
 
-	rr.Query.GroupBy = []string{"key2", "key3", "key4", "key5", "key6"}
+	rr.Query.GroupBy = []string{"2", "3", "4", "5", "6"}
 	// requests = append(requests, rr)
 
 	// rr.Query.TimeShift = []int64{-86400}
 	rr.Query.Filter = []tlstatshouseApi.Filter{
 		{
-			Key: "key1",
+			Key: "1",
 			Values: []tlstatshouseApi.TagValue{
 				{
 					In:    true,

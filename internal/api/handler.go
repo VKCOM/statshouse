@@ -1784,8 +1784,8 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 		res, freeRes, err = h.handleGetQuery(ctx, ai, qry, options)
 	}
 	if err == nil && len(qry.promQL) == 0 {
-		res.PromQL = getPromQuery(qry, false)
-		res.DebugPromQLTestFailed = options.testPromql && (promqlErr != nil ||
+		res.PromQL, err = getPromQuery(qry, false)
+		res.DebugPromQLTestFailed = options.testPromql && (err != nil || promqlErr != nil ||
 			!reflect.DeepEqual(res.queries, promqlRes.queries) ||
 			!getQueryRespEqual(res, promqlRes))
 		if res.DebugPromQLTestFailed {
@@ -1943,7 +1943,7 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 		}
 	}
 	if res != nil {
-		res.PromQL = getPromQuery(qry, false)
+		res.PromQL, _ = getPromQuery(qry, false)
 		res.DebugQueries = traces
 		h.colorize(res)
 	}
@@ -1972,8 +1972,8 @@ func (h *Handler) queryBadges(ctx context.Context, ai accessInfo, req seriesRequ
 			width:               req.width,
 			widthKind:           req.widthKind, // TODO - resolution of badge metric (currently 5s)?
 			what:                []string{ParamQueryFnCount, ParamQueryFnAvg},
-			by:                  []string{"key1", "key2"},
-			filterIn:            map[string][]string{"key2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
+			by:                  []string{"1", "2"},
+			filterIn:            map[string][]string{"2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
 		},
 		seriesRequestOptions{})
 }
@@ -1991,8 +1991,8 @@ func (h *Handler) queryBadgesPromQL(ctx context.Context, ai accessInfo, req seri
 			width:               req.width,
 			widthKind:           req.widthKind, // TODO - resolution of badge metric (currently 5s)?
 			what:                []string{ParamQueryFnCount, ParamQueryFnAvg},
-			by:                  []string{"key1", "key2"},
-			filterIn:            map[string][]string{"key2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
+			by:                  []string{"1", "2"},
+			filterIn:            map[string][]string{"2": {req.metricWithNamespace, format.AddRawValuePrefix("0")}},
 		},
 		seriesRequestOptions{debugQueries: true})
 }
@@ -2004,7 +2004,10 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	}
 	var promqlGenerated bool
 	if len(req.promQL) == 0 {
-		req.promQL = getPromQuery(req, true)
+		req.promQL, err = getPromQuery(req, true)
+		if err != nil {
+			return nil, nil, httpErr(http.StatusBadRequest, err)
+		}
 		promqlGenerated = true
 	}
 	if opt.timeNow.IsZero() {
@@ -2357,7 +2360,7 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				tags := ixToTags[i]
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, format.TagIDLegacy(j), tags.tag[j])
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, format.TagID(j), tags.tag[j])
 				}
 				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 
@@ -2626,7 +2629,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 				tags := ixToTags[ix]
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, format.TagIDLegacy(j), tags.tag[j])
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, format.TagID(j), tags.tag[j])
 				}
 				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
 
@@ -3078,16 +3081,16 @@ func newPointsSelectCols(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 			{Name: "_stepSec", Data: &c.step},
 		}
 	}
-	for _, tag := range meta.tags {
-		switch tag {
+	for _, id := range meta.tags {
+		switch id {
 		case format.StringTopTagID:
-			c.res = append(c.res, proto.ResultColumn{Name: tag, Data: &c.tagStr})
+			c.res = append(c.res, proto.ResultColumn{Name: "key_s", Data: &c.tagStr})
 		case format.ShardTagID:
-			c.res = append(c.res, proto.ResultColumn{Name: tag, Data: &c.shardNum})
+			c.res = append(c.res, proto.ResultColumn{Name: "key_shard_num", Data: &c.shardNum})
 		default:
 			c.tag = append(c.tag, proto.ColInt32{})
-			c.res = append(c.res, proto.ResultColumn{Name: tag, Data: &c.tag[len(c.tag)-1]})
-			c.tagIx = append(c.tagIx, format.ParseTagIDForAPI(tag))
+			c.res = append(c.res, proto.ResultColumn{Name: "key" + id, Data: &c.tag[len(c.tag)-1]})
+			c.tagIx = append(c.tagIx, format.TagIndex(id))
 		}
 	}
 	c.res = append(c.res, proto.ResultColumn{Name: "_count", Data: &c.cnt})
@@ -3680,7 +3683,14 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 		case ParamNumResults:
 			t.strNumResults = first(v)
 		case ParamQueryBy:
-			t.by = v
+			for _, s := range v {
+				var tid string
+				tid, err = parseTagID(s)
+				if err != nil {
+					return nil, err
+				}
+				t.by = append(t.by, tid)
+			}
 		case ParamQueryFilter:
 			t.filterIn, t.filterNotIn, err = parseQueryFilter(v)
 		case ParamQueryVerbose:
