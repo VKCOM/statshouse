@@ -416,7 +416,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.protectedMetricPrefixes, argv.localMode, argv.insecureMode)
 	handlerRPC := &tlstatshouseApi.Handler{
 		GetChunk:      hr.GetChunk,
-		GetQuery:      hr.GetQuery,
+		RawGetQuery:   hr.RawGetQuery,
 		ReleaseChunks: hr.ReleaseChunks,
 		GetQueryPoint: hr.GetQueryPoint,
 	}

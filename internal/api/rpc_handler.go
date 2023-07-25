@@ -194,14 +194,37 @@ func (h *RPCHandler) GetQueryPoint(ctx context.Context, args tlstatshouseApi.Get
 	return response, nil
 }
 
-func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery) (tlstatshouseApi.GetQueryResponse, error) {
+func (h *RPCHandler) RawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) error {
+	var (
+		args   tlstatshouseApi.GetQuery
+		resp   tlstatshouseApi.GetQueryResponse
+		cancel func()
+		err    error
+	)
+	if _, err = args.Read(hctx.Request); err != nil {
+		return fmt.Errorf("failed to deserialize statshouseApi.getQuery request: %w", err)
+	}
+	if resp, cancel, err = h.GetQuery(hctx.WithContext(ctx), args); err != nil {
+		return err
+	}
+	defer cancel()
+	if hctx.Response, err = args.WriteResult(hctx.Response, resp); err != nil {
+		return fmt.Errorf("failed to serialize statshouseApi.getQuery response: %w", err)
+	}
+	return nil
+}
+
+func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery) (response tlstatshouseApi.GetQueryResponse, cancel func(), err error) {
 	var (
 		ai         accessInfo
-		response   tlstatshouseApi.GetQueryResponse
 		metricMeta *format.MetricMetaValue
-		err        error
 	)
 
+	defer func() {
+		if cancel != nil && err != nil {
+			cancel()
+		}
+	}()
 	defer func(ms *rpcMethodStat) {
 		ms.serviceTime(ai, metricMeta, err)
 		ms.serviceTimeDeprecated(ai, err)
@@ -210,26 +233,27 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 	ai, err = h.parseAccessToken(args.AccessToken)
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
-		return response, err
+		return response, cancel, err
 	}
-
-	metricMeta, err = h.ah.getMetricMeta(ai, args.Query.MetricName)
-	if err != nil {
-		err = rpc.Error{Code: rpcErrorCodeUnknownMetric, Description: fmt.Sprintf("can't get metric's meta: %v", err)}
-		return response, err
+	if len(args.Query.Promql) == 0 {
+		metricMeta, err = h.ah.getMetricMeta(ai, args.Query.MetricName)
+		if err != nil {
+			err = rpc.Error{Code: rpcErrorCodeUnknownMetric, Description: fmt.Sprintf("can't get metric's meta: %v", err)}
+			return response, cancel, err
+		}
+		LogMetric(format.TagValueIDRPC, ai.user, strconv.FormatInt(int64(metricMeta.MetricID), 10))
 	}
 
 	req, err := transformQuery(args.Query, metricMeta)
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryParsingFailed, Description: fmt.Sprintf("can't transform query: %v", err)}
-		return response, err
+		return response, cancel, err
 	}
-	LogMetric(format.TagValueIDRPC, ai.user, strconv.FormatInt(int64(metricMeta.MetricID), 10))
 
-	res, _, err := h.ah.handleGetQuery(ctx, ai, req, seriesRequestOptions{})
+	res, cancel, err := h.ah.handlePromqlQuery(ctx, ai, req, seriesRequestOptions{})
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
-		return response, err
+		return response, cancel, err
 	}
 
 	response.TotalTimePoints = int32(len(res.Series.Time))
@@ -258,7 +282,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 			response.Series.SeriesData = append(response.Series.SeriesData, *data)
 		}
 
-		return response, nil
+		return response, cancel, nil
 	}
 
 	chunks := chunkResponse(res, columnSize, totalSize, metaSize)
@@ -269,7 +293,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 	err = h.brs.Set(ctx, rid, ai.user, chunks[1:], bigResponseTTL)
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeChunkStorageFailed, Description: fmt.Sprintf("can't save chunks: %v", err)}
-		return response, err
+		return response, cancel, err
 	}
 
 	response.ResponseId = rid
@@ -278,7 +302,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		response.ChunkIds = append(response.ChunkIds, int32(i-1))
 	}
 
-	return response, nil
+	return response, cancel, nil
 }
 
 func (h *RPCHandler) GetChunk(_ context.Context, args tlstatshouseApi.GetChunk) (tlstatshouseApi.GetChunkResponse, error) {
@@ -363,9 +387,14 @@ func (h *RPCHandler) parseAccessToken(token string) (accessInfo, error) {
 }
 
 func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (req seriesRequest, err error) {
-	filterIn, filterNotIn, err := parseFilterValues(q.Filter, meta)
-	if err != nil {
-		return req, fmt.Errorf("can't parse filter: %v", err)
+	var filterIn, filterNotIn map[string][]string
+	if meta != nil {
+		filterIn, filterNotIn, err = parseFilterValues(q.Filter, meta)
+		if err != nil {
+			return req, fmt.Errorf("can't parse filter: %v", err)
+		}
+	} else if len(q.Promql) == 0 {
+		return req, fmt.Errorf("neither metric name nor PromQL expression specified")
 	}
 
 	width, widthKind, err := parseWidth(q.Interval, q.WidthAgg)
