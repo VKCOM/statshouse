@@ -49,7 +49,7 @@ func (h *Handler) HandleLegacyRedirect(w http.ResponseWriter, r *http.Request) {
 		keys:        map[string]string{},
 	}
 	for i := 1; i < format.MaxTags; i++ {
-		req.keys[format.TagIDLegacy(i)] = strings.TrimSpace(r.FormValue(format.TagIDLegacy(i)))
+		req.keys[format.TagID(i)] = strings.TrimSpace(r.FormValue(format.TagIDLegacy(i)))
 	}
 
 	u := h.handleLegacyRedirect(req)
@@ -94,7 +94,7 @@ func (h *Handler) handleLegacyRedirect(req legacyRedirectReq) *url.URL {
 		}
 	}
 	if req.devStaging != "" {
-		values.Add(ParamQueryFilter, format.TagIDLegacy(0)+queryFilterInSep+"staging")
+		values.Add(ParamQueryFilter, format.TagID(0)+queryFilterInSep+"staging")
 	}
 	// do not add 'production' because legacy production shows sum of staging and production
 

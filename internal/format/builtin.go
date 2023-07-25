@@ -1708,16 +1708,22 @@ func init() {
 		metricsWithoutAggregatorID[k] = true
 	}
 	for i := 0; i < MaxTags; i++ {
-		legacyName := tagIDPrefix + strconv.Itoa(i)
+		name := strconv.Itoa(i)
+		legacyName := legacyTagIDPrefix + name
 		tagIDsLegacy = append(tagIDsLegacy, legacyName)
-		tagIDs = append(tagIDs, strconv.Itoa(i))
-		tagIDToIndexForAPI[legacyName] = i
+		tagIDs = append(tagIDs, name)
+		tagIDToIndex[name] = i
+		apiCompatTagID[name] = name
+		apiCompatTagID[legacyName] = name
 		tagIDTag2TagID[int32(i+TagIDShiftLegacy)] = legacyName
 		tagIDTag2TagID[int32(i+TagIDShift)] = tagStringForUI + " " + strconv.Itoa(i) // for UI only
 	}
+	apiCompatTagID[legacyEnvTagName] = "0"
+	apiCompatTagID[StringTopTagID] = StringTopTagID
+	apiCompatTagID[legacyStringTopTagID] = StringTopTagID
 	tagIDTag2TagID[TagIDShiftLegacy-1] = StringTopTagID
-	tagIDTag2TagID[TagIDShift-1] = tagStringForUI + " " + NewStringTopTagID // for UI only
-	tagIDTag2TagID[TagIDShift-2] = tagStringForUI + " " + NewHostTagID      // for UI only
+	tagIDTag2TagID[TagIDShift-1] = tagStringForUI + " " + StringTopTagID // for UI only
+	tagIDTag2TagID[TagIDShift-2] = tagStringForUI + " " + HostTagID      // for UI only
 
 	BuiltinMetricByName = make(map[string]*MetricMetaValue, len(BuiltinMetrics))
 	BuiltinMetricAllowedToReceive = make(map[string]*MetricMetaValue, len(BuiltinMetrics))

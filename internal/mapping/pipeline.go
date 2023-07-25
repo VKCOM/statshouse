@@ -249,7 +249,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 	// We do not validate metric name or tag keys, because they will be searched in finite maps
 	for ; h.CheckedTagIndex < len(metric.Tags); h.CheckedTagIndex++ {
 		v := &metric.Tags[h.CheckedTagIndex]
-		tagInfo, ok := h.MetricInfo.Name2Tag[string(v.Key)]
+		tagInfo, ok, legacyName := h.MetricInfo.APICompatGetTagFromBytes(v.Key)
 		if !ok {
 			if mp.autoCreate != nil && format.ValidMetricName(mem.B(v.Key)) {
 				// before normalizing v.Key, so we do not fill auto create data structures with invalid key names
@@ -267,7 +267,7 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 			continue
 		}
 		tagIDKey := int32(tagInfo.Index + format.TagIDShift)
-		if tagInfo.LegacyName {
+		if legacyName {
 			h.LegacyCanonicalTagKey = tagIDKey
 		}
 		validValue, err := format.AppendValidStringValue(v.Value[:0], v.Value)
@@ -363,7 +363,7 @@ func (mp *mapPipeline) mapEnvironment(h *data_model.MappedMetricHeader, metric *
 	// must not change h.CheckedTagIndex or h.IsKeySet because mapTags will be called after this func by mapping queue in slow path
 	for i := h.CheckedTagIndex; i < len(metric.Tags); i++ {
 		v := &metric.Tags[i]
-		if string(v.Key) != format.EnvTagID && string(v.Key) != format.EnvTagName && string(v.Key) != "0" {
+		if !format.APICompatIsEnvTagID(v.Key) {
 			// TODO - remove extra checks after all libraries use new canonical name
 			continue
 		}
