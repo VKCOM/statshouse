@@ -439,6 +439,8 @@ type (
 	}
 )
 
+var errTooManyRows = fmt.Errorf("can't fetch more than %v rows", maxSeriesRows)
+
 func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedPrefixes []string, showInvisible bool, utcOffsetSec int64, approxCacheMaxSize int, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, location *time.Location, localMode, readOnly, insecureMode bool, querySelectTimeout time.Duration) (*Handler, error) {
 	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	diskCacheSuffix := metadataClient.Address // TODO - use cluster name or something here
@@ -3212,7 +3214,7 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 	}
 
 	if rows == maxSeriesRows {
-		return rows, fmt.Errorf("can't fetch more than %v rows", maxSeriesRows) // prevent cache being populated by incomplete data
+		return rows, errTooManyRows // prevent cache being populated by incomplete data
 	}
 	if h.verbose {
 		log.Printf("[debug] loaded %v rows from %v (%v timestamps, %v to %v step %v) for %q in %v",
@@ -3272,7 +3274,7 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, pointQ
 	}
 
 	if rows == maxSeriesRows {
-		return ret, fmt.Errorf("can't fetch more than %v rows", maxSeriesRows) // prevent cache being populated by incomplete data
+		return ret, errTooManyRows // prevent cache being populated by incomplete data
 	}
 	if h.verbose {
 		log.Printf("[debug] loaded %v rows from %v (%v to %v) for %q in %v",
