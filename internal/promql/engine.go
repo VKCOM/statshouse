@@ -846,7 +846,6 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		filterOut  [format.MaxTags]map[int32]string // as above
 		sFilterIn  []string
 		sFilterOut []string
-		emptyCount int // number of "MatchEqual" or "MatchRegexp" filters which are guaranteed to yield empty response
 	)
 	for _, matcher := range sel.LabelMatchers {
 		if strings.HasPrefix(matcher.Name, "__") {
@@ -867,17 +866,14 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				if err != nil {
 					return seriesQueryX{}, err
 				}
-				var n int
 				for _, str := range strTop {
 					if matcher.Matches(str) {
 						sFilterIn = append(sFilterIn, str)
-						n++
 					}
 				}
-				if n == 0 {
+				if len(sFilterIn) == 0 {
 					// there no data satisfying the filter
-					emptyCount++
-					continue
+					return seriesQueryX{}, nil
 				}
 			case labels.MatchNotRegexp:
 				strTop, err := ev.getSTagValues(ctx, metric, ev.getOffset(ctx, sel))
@@ -897,9 +893,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				id, err := ev.getTagValueID(metric, i, matcher.Value)
 				if err != nil {
 					if errors.Is(err, ErrNotFound) {
-						// string is not mapped, result is guaranteed to be empty
-						emptyCount++
-						continue
+						return seriesQueryX{}, nil // string is not mapped, result is guaranteed to be empty
 					} else {
 						return seriesQueryX{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
 					}
@@ -943,8 +937,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				}
 				if len(in) == 0 {
 					// there no data satisfying the filter
-					emptyCount++
-					continue
+					return seriesQueryX{}, nil
 				}
 				filterIn[i] = in
 			case labels.MatchNotRegexp:
@@ -961,11 +954,6 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				filterOut[i] = out
 			}
 		}
-	}
-	if emptyCount != 0 && len(filterIn) == 0 && len(sFilterIn) == 0 {
-		// All "MatchEqual" and "MatchRegexp" filters give an empty result and
-		// there are no other such filters, overall result is guaranteed to be empty
-		return seriesQueryX{}, nil
 	}
 	if histogramQ.filter && !histogramQ.restore {
 		groupBy = append(groupBy, format.TagID(metric.Name2Tag[format.LETagName].Index))
