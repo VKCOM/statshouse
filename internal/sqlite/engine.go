@@ -86,6 +86,7 @@ var (
 	errAlreadyClosed = errors.New("sqlite-engine: already closed")
 	errUnsafe        = errors.New("sqlite-engine: unsafe SQL")
 	safeStatements   = []string{"SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "UPSERT"}
+	errReadOnly      = errors.New("sqlite-engine: engine is readonly")
 )
 
 type (
@@ -121,6 +122,7 @@ type (
 		isTest            bool
 		mustCommitNowFlag bool
 		mustWaitCommit    bool
+		readOnlyEngine    bool
 	}
 
 	Options struct {
@@ -171,6 +173,28 @@ const (
 	NoWaitCommit DurabilityMode = iota // Do not wait for commit to finish before returning from Do()
 	NoBinlog     DurabilityMode = iota // Do not use binlog, just commit to sqlite
 )
+
+func OpenRO(opt Options) (*Engine, error) {
+	ro, err := openROWAL(opt.Path)
+	if err != nil {
+		return nil, err
+	}
+	conn := newSqliteConn(ro, opt.CacheMaxSizePerConnect)
+
+	ctx, stop := context.WithCancel(context.Background())
+	e := &Engine{
+		rw:             nil,
+		ctx:            ctx,
+		stop:           stop,
+		opt:            opt,
+		roFree:         []*sqliteConn{conn},
+		roCount:        1,
+		mode:           replica,
+		readOnlyEngine: true,
+	}
+	e.roCond = sync.NewCond(&e.roMx)
+	return e, nil
+}
 
 func OpenEngine(
 	opt Options,
@@ -463,15 +487,17 @@ func (e *Engine) close(shouldCommit, waitCommitBinlog bool) error {
 			multierr.AppendInto(&error, err)
 		}
 	}
-	if shouldCommit && error == nil {
-		err := e.commitTXAndStartNew(true, waitCommitBinlog)
-		if err != nil {
-			multierr.AppendInto(&error, fmt.Errorf("failed to commit before close: %w", err))
+	if !e.readOnlyEngine {
+		if shouldCommit && error == nil {
+			err := e.commitTXAndStartNew(true, waitCommitBinlog)
+			if err != nil {
+				multierr.AppendInto(&error, fmt.Errorf("failed to commit before close: %w", err))
+			}
 		}
-	}
-	err := e.rw.Close()
-	if err != nil {
-		multierr.AppendInto(&error, fmt.Errorf("failed to close RW connection: %w", err))
+		err := e.rw.Close()
+		if err != nil {
+			multierr.AppendInto(&error, fmt.Errorf("failed to close RW connection: %w", err))
+		}
 	}
 	for _, conn := range e.roFree {
 		err := conn.Close()
@@ -806,6 +832,9 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 }
 
 func (e *Engine) Do(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) error {
+	if e.readOnlyEngine {
+		return errReadOnly
+	}
 	ch, err := e.doWithoutWait(ctx, queryName, fn)
 	if err != nil {
 		return err
