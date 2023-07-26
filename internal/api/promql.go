@@ -464,7 +464,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 		m, err := h.cache.Get(ctx, version, qs, &pq, li, qry.Options.AvoidCache)
 		if err != nil {
 			cleanup()
-			return promql.SeriesBag{}, nil, httpErr(http.StatusInternalServerError, err)
+			return promql.SeriesBag{}, nil, err
 		}
 		for _, col := range m {
 			for _, d := range col {
@@ -563,7 +563,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 	for _, lod := range lods {
 		body, args, err := tagValuesQuery(pq, lod)
 		if err != nil {
-			return nil, httpErr(http.StatusInternalServerError, err)
+			return nil, err
 		}
 		cols := newTagValuesSelectCols(args)
 		isFast := lod.fromSec+fastQueryTimeInterval >= lod.toSec
@@ -577,7 +577,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 				return nil
 			}})
 		if err != nil {
-			return nil, httpErr(http.StatusInternalServerError, err)
+			return nil, err
 		}
 	}
 	res := make([]int32, 0, len(tags))
@@ -621,7 +621,7 @@ func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery
 	for _, lod := range lods {
 		body, args, err := tagValuesQuery(pq, lod)
 		if err != nil {
-			return nil, httpErr(http.StatusInternalServerError, err)
+			return nil, err
 		}
 		cols := newTagValuesSelectCols(args)
 		isFast := lod.fromSec+fastQueryTimeInterval >= lod.toSec
@@ -635,7 +635,7 @@ func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery
 				return nil
 			}})
 		if err != nil {
-			return nil, httpErr(http.StatusInternalServerError, err)
+			return nil, err
 		}
 	}
 	ret := make([]string, 0, len(tags))
