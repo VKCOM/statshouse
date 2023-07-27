@@ -388,11 +388,16 @@ func parseNumResults(s string, def int, max int) (int, error) {
 }
 
 func parseTagID(tagID string) (string, error) {
-	res, err := format.APICompatNormalizeTagID(tagID)
-	if err == nil {
-		return res, nil
+	if tagID == format.StringTopTagID || format.ParseTagIDForAPI(tagID) >= 0 {
+		return tagID, nil
 	}
-	return "", httpErr(http.StatusBadRequest, err)
+	if tagID == format.NewStringTopTagID {
+		return format.StringTopTagID, nil
+	}
+	if i, err := strconv.Atoi(tagID); err == nil && 0 <= i && i < format.MaxTags {
+		return format.TagIDLegacy(i), nil
+	}
+	return "", httpErr(http.StatusBadRequest, fmt.Errorf("invalid tag ID: %q", tagID))
 }
 
 func parseVersion(s string) (string, error) {

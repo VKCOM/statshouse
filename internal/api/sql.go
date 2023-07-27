@@ -73,7 +73,7 @@ WHERE
 		preKeyTagName(lod.hasPreKey, pq.tagID, pq.preKeyTagID),
 		valueName,
 		sqlAggFn(pq.version, "sum"),
-		pq.preKeyTableName(lod),
+		preKeyTableName(lod, pq.tagID, pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
@@ -202,7 +202,11 @@ func loadPointsQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (str
 	var commaBy string
 	if len(pq.by) > 0 {
 		for _, b := range pq.by {
-			commaBy += fmt.Sprintf(", %s AS _key%s", preKeyTagName(lod.hasPreKey, b, pq.preKeyTagID), b)
+			if b == format.ShardTagID {
+				commaBy += ", _shard_num"
+			} else {
+				commaBy += fmt.Sprintf(", %s AS %s", preKeyTagName(lod.hasPreKey, b, pq.preKeyTagID), b)
+			}
 		}
 	}
 
@@ -229,7 +233,7 @@ WHERE
 		timeInterval,
 		commaBy,
 		what,
-		pq.preKeyTableName(lod),
+		preKeyTableName(lod, "", pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
@@ -292,9 +296,9 @@ func loadPointQuery(pq *preparedPointsQuery, pointQuery pointQuery, utcOffset in
 	if len(pq.by) > 0 {
 		for i, b := range pq.by {
 			if i == 0 {
-				commaBy += fmt.Sprintf("%s AS _key%s", preKeyTagName(pointQuery.hasPreKey, b, pq.preKeyTagID), b)
+				commaBy += fmt.Sprintf("%s AS %s", preKeyTagName(pointQuery.hasPreKey, b, pq.preKeyTagID), b)
 			} else {
-				commaBy += fmt.Sprintf(", %s AS _key%s", preKeyTagName(pointQuery.hasPreKey, b, pq.preKeyTagID), b)
+				commaBy += fmt.Sprintf(", %s AS %s", preKeyTagName(pointQuery.hasPreKey, b, pq.preKeyTagID), b)
 			}
 		}
 	}
@@ -404,33 +408,12 @@ func (s *stringFixed) String() string {
 	}
 }
 
-func (pq *preparedPointsQuery) preKeyTableName(lod lodInfo) string {
-	var usePreKey bool
-	if lod.hasPreKey {
-		usePreKey = lod.preKeyOnly ||
-			len(pq.filterIn[pq.preKeyTagID]) > 0 ||
-			len(pq.filterNotIn[pq.preKeyTagID]) > 0
-		if !usePreKey {
-			for _, v := range pq.by {
-				if v == pq.preKeyTagID {
-					usePreKey = true
-					break
-				}
-			}
-		}
-	}
-	if usePreKey {
-		return preKeyTableNames[lod.table]
-	}
-	return lod.table
-}
-
-func (pq *preparedTagValuesQuery) preKeyTableName(lod lodInfo) string {
+func preKeyTableName(lod lodInfo, tagID string, preKeyTagID string, filterIn map[string][]interface{}, filterNotIn map[string][]interface{}) string {
 	usePreKey := (lod.hasPreKey &&
 		(lod.preKeyOnly ||
-			(pq.tagID != "" && pq.tagID == pq.preKeyTagID) ||
-			len(pq.filterIn[pq.preKeyTagID]) > 0 ||
-			len(pq.filterNotIn[pq.preKeyTagID]) > 0))
+			(tagID != "" && tagID == preKeyTagID) ||
+			len(filterIn[preKeyTagID]) > 0 ||
+			len(filterNotIn[preKeyTagID]) > 0))
 	if usePreKey {
 		return preKeyTableNames[lod.table]
 	}
@@ -446,21 +429,10 @@ func preKeyTableNameFromPoint(point pointQuery, tagID string, preKeyTagID string
 }
 
 func preKeyTagName(hasPreKey bool, tagID string, preKeyTagID string) string {
-	// intentionally not using constants from 'format' package,
-	// because it is a table column name, not an external contract
-	switch tagID {
-	case format.StringTopTagID:
-		return "skey"
-	case format.ShardTagID:
-		return "_shard_num"
-	default:
-		if hasPreKey && tagID == preKeyTagID {
-			return "prekey"
-		}
-		// here 'tagID' assumed to be a number from 0 to 15,
-		// dont't verify (ClickHouse just won't find a column)
-		return "key" + tagID
+	if hasPreKey && tagID == preKeyTagID {
+		return format.PreKeyTagID
 	}
+	return tagID
 }
 
 func expandBindVars(n int) string {
