@@ -1784,8 +1784,8 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 		res, freeRes, err = h.handleGetQuery(ctx, ai, qry, options)
 	}
 	if err == nil && len(qry.promQL) == 0 {
-		res.PromQL = getPromQuery(qry, false)
-		res.DebugPromQLTestFailed = options.testPromql && (promqlErr != nil ||
+		res.PromQL, err = getPromQuery(qry, false)
+		res.DebugPromQLTestFailed = options.testPromql && (err != nil || promqlErr != nil ||
 			!reflect.DeepEqual(res.queries, promqlRes.queries) ||
 			!getQueryRespEqual(res, promqlRes))
 		if res.DebugPromQLTestFailed {
@@ -1943,7 +1943,7 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 		}
 	}
 	if res != nil {
-		res.PromQL = getPromQuery(qry, false)
+		res.PromQL, _ = getPromQuery(qry, false)
 		res.DebugQueries = traces
 		h.colorize(res)
 	}
@@ -2004,7 +2004,10 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	}
 	var promqlGenerated bool
 	if len(req.promQL) == 0 {
-		req.promQL = getPromQuery(req, true)
+		req.promQL, err = getPromQuery(req, true)
+		if err != nil {
+			return nil, nil, httpErr(http.StatusBadRequest, err)
+		}
 		promqlGenerated = true
 	}
 	if opt.timeNow.IsZero() {
@@ -3681,7 +3684,14 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 		case ParamNumResults:
 			t.strNumResults = first(v)
 		case ParamQueryBy:
-			t.by = v
+			for _, s := range v {
+				var tid string
+				tid, err = parseTagID(s)
+				if err != nil {
+					return nil, err
+				}
+				t.by = append(t.by, tid)
+			}
 		case ParamQueryFilter:
 			t.filterIn, t.filterNotIn, err = parseQueryFilter(v)
 		case ParamQueryVerbose:
