@@ -807,15 +807,15 @@ func (h *Handler) Free(s *[]float64) {
 	h.putFloatsSlice(s)
 }
 
-func getPromQuery(req seriesRequest, queryFn bool) (string, error) {
+func getPromQuery(req seriesRequest, queryFn bool) string {
 	if len(req.promQL) != 0 {
-		return req.promQL, nil
+		return req.promQL
 	}
 	var res []string
 	for i, fn := range req.what {
 		name, ok := validQueryFn(fn)
 		if !ok {
-			return "", fmt.Errorf("invalid %q value: %q", ParamQueryWhat, fn)
+			continue
 		}
 		var (
 			what  string
@@ -920,29 +920,15 @@ func getPromQuery(req seriesRequest, queryFn bool) (string, error) {
 		if queryFn {
 			s = append(s, fmt.Sprintf("__fn__=%q", fn))
 		}
-		if len(req.by) != 0 {
-			by, err := promqlGetBy(req.by)
-			if err != nil {
-				return "", err
-			}
-			s = append(s, fmt.Sprintf("__by__=%q", by))
-		}
+		s = append(s, fmt.Sprintf("__by__=%q", promqlGetBy(req.by)))
 		for t, in := range req.filterIn {
 			for _, v := range in {
-				tid, err := format.APICompatNormalizeTagID(t)
-				if err != nil {
-					return "", err
-				}
-				s = append(s, fmt.Sprintf("%s=%q", tid, promqlGetFilterValue(tid, v)))
+				s = append(s, fmt.Sprintf("%s=%q", t, promqlGetFilterValue(t, v)))
 			}
 		}
 		for t, out := range req.filterNotIn {
 			for _, v := range out {
-				tid, err := format.APICompatNormalizeTagID(t)
-				if err != nil {
-					return "", err
-				}
-				s = append(s, fmt.Sprintf("%s!=%q", tid, promqlGetFilterValue(tid, v)))
+				s = append(s, fmt.Sprintf("%s!=%q", t, promqlGetFilterValue(t, v)))
 			}
 		}
 		q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
@@ -962,24 +948,20 @@ func getPromQuery(req seriesRequest, queryFn bool) (string, error) {
 		}
 		res = append(res, q)
 	}
-	return strings.Join(res, " or "), nil
+	return strings.Join(res, " or ")
 }
 
-func promqlGetBy(by []string) (string, error) {
+func promqlGetBy(by []string) string {
 	var (
 		tags = make([]int, format.MaxTags)
 		skey bool
 	)
 	for _, v := range by {
-		tid, err := format.APICompatNormalizeTagID(v)
-		if err != nil {
-			return "", err
-		}
-		if tid == format.StringTopTagID {
+		if v == format.StringTopTagID {
 			skey = true
 			continue
 		}
-		if i := format.TagIndex(tid); 0 <= i && i < format.MaxTags {
+		if i := format.TagIndex(v); 0 <= i && i < format.MaxTags {
 			tags[i]++
 		}
 	}
@@ -992,7 +974,7 @@ func promqlGetBy(by []string) (string, error) {
 	if skey {
 		by = append(by, format.StringTopTagID)
 	}
-	return strings.Join(by, ","), nil
+	return strings.Join(by, ",")
 }
 
 func promqlGetFilterValue(tagID string, s string) string {
