@@ -81,7 +81,7 @@ func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableR
 				tags := &rows[i].tsTags
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					tagName := format.TagID(j)
+					tagName := format.TagIDLegacy(j)
 					wasAdded := maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, tagName, tags.tag[j])
 					if wasAdded {
 						rowRepr.Tags = append(rowRepr.Tags, RawTag{

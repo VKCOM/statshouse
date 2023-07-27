@@ -32,14 +32,19 @@ const (
 	EffectiveWeightOne = 128                      // metric.Weight is multiplied by this and rounded. Do not make too big or metric with weight set to 0 will disappear completely.
 	MaxEffectiveWeight = 100 * EffectiveWeightOne // do not make too high, we multiply this by sum of metric serialized length during sampling
 
+	// we deprecated legacy canonical names "key0".."key15", "skey"
+	// and made shorter new names "0".."15", "_s", "_h"
 	PreKeyTagID    = "prekey"
-	StringTopTagID = "_s"
-	HostTagID      = "_h"
+	StringTopTagID = "skey"
 	ShardTagID     = "_shard_num"
-	EnvTagID       = "0"
+	tagIDPrefix    = "key"
+	EnvTagID       = tagIDPrefix + "0"
+	EnvTagName     = "env" // this is legacy name. We want to get rid of all different names for tag 0.
 	LETagName      = "le"
 
-	LETagIndex        = 15
+	NewStringTopTagID = "_s"
+	NewHostTagID      = "_h"
+
 	StringTopTagIndex = -1 // used as flag during mapping
 	HostTagIndex      = -2 // used as flag during mapping
 
@@ -64,32 +69,19 @@ const (
 	MetricKindValue            = "value"
 	MetricKindValuePercentiles = "value_p"
 	MetricKindUnique           = "unique"
+	MetricKindStringTopLegacy  = "stop" // Legacy, not valid. Converted into counter during RestoreMetricInfo
 	MetricKindMixed            = "mixed"
 	MetricKindMixedPercentiles = "mixed_p"
 )
 
-// Legacy, left for API backward compatibility
-const (
-	legacyStringTopTagID      = "skey"
-	legacyTagIDPrefix         = "key"
-	legacyEnvTagID            = legacyTagIDPrefix + "0"
-	legacyEnvTagName          = "env"
-	legacyMetricKindStringTop = "stop" // converted into counter during RestoreMetricInfo
-)
-
 var (
-	tagIDs         []string             // initialized in builtin.go due to dependency
-	tagIDTag2TagID = map[int32]string{} // initialized in builtin.go due to dependency
-	tagIDToIndex   = map[string]int{}   // initialized in builtin.go due to dependency
+	tagIDsLegacy       []string             // initialized in builtin.go due to dependency
+	tagIDs             []string             // initialized in builtin.go due to dependency
+	tagIDTag2TagID     = map[int32]string{} // initialized in builtin.go due to dependency
+	tagIDToIndexForAPI = map[string]int{}   // initialized in builtin.go due to dependency
 
 	errInvalidCodeTagValue = fmt.Errorf("invalid code tag value") // must be fast
 	errBadEncoding         = fmt.Errorf("bad utf-8 encoding")     // must be fast
-)
-
-// Legacy, left for API backward compatibility
-var (
-	tagIDsLegacy   []string              // initialized in builtin.go due to dependency
-	apiCompatTagID = map[string]string{} // initialized in builtin.go due to dependency
 )
 
 type MetricKind int
@@ -114,6 +106,7 @@ type MetricMetaTag struct {
 	Comment2Value map[string]string `json:"-"` // Should be restored from ValueComments after reading
 	IsMetric      bool              `json:"-"` // Only for built-in metrics so never saved or parsed
 	Index         int               `json:"-"` // Should be restored from position in MetricMetaValue.Tags
+	LegacyName    bool              `json:"-"` // Set for "key0".."key15", "env", "skey" to generate ingestion warning
 }
 
 const (
@@ -261,7 +254,7 @@ func (m *DashboardMeta) UnmarshalBinary(data []byte) error {
 }
 
 // updates error if name collision happens
-func (m *MetricMetaValue) setName2Tag(name string, sTag MetricMetaTag, canonical bool, err *error) {
+func (m *MetricMetaValue) setName2Tag(name string, sTag MetricMetaTag, canonical bool, legacyName bool, err *error) {
 	if name == "" {
 		return
 	}
@@ -269,7 +262,6 @@ func (m *MetricMetaValue) setName2Tag(name string, sTag MetricMetaTag, canonical
 		if err != nil {
 			*err = fmt.Errorf("invalid tag name %q", name)
 		}
-		// return ???
 	}
 	if _, ok := m.Name2Tag[name]; ok {
 		if err != nil {
@@ -277,6 +269,7 @@ func (m *MetricMetaValue) setName2Tag(name string, sTag MetricMetaTag, canonical
 		}
 		return
 	}
+	sTag.LegacyName = legacyName
 	m.Name2Tag[name] = sTag
 }
 
@@ -287,7 +280,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		err = multierr.Append(err, fmt.Errorf("invalid metric name: %q", m.Name))
 	}
 
-	if m.Kind == legacyMetricKindStringTop {
+	if m.Kind == MetricKindStringTopLegacy {
 		m.Kind = MetricKindCounter
 		if m.StringTopName == "" && m.StringTopDescription == "" { // UI displayed string tag on condition of "kind string top or any of this two set"
 			m.StringTopDescription = "string_top"
@@ -300,7 +293,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	var mask uint32
 	m.Name2Tag = map[string]MetricMetaTag{}
 
-	if m.StringTopName == StringTopTagID { // remove redundancy
+	if m.StringTopName == NewStringTopTagID { // remove redundancy
 		m.StringTopName = ""
 	}
 	sTag := MetricMetaTag{
@@ -308,7 +301,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		Description: m.StringTopDescription,
 		Index:       StringTopTagIndex,
 	}
-	m.setName2Tag(m.StringTopName, sTag, false, &err)
+	m.setName2Tag(m.StringTopName, sTag, false, false, &err)
 	if len(m.Tags) != 0 {
 		// for mast metrics in database, this name is set to "env". We do not want to continue using it.
 		// We want mapEnvironment() to work even when metric is not found, so we must not allow users to
@@ -322,21 +315,15 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		err = multierr.Append(err, fmt.Errorf("too many tags, limit is: %d", MaxTags))
 	}
 	for i := range tags {
-		var (
-			tag   = &tags[i]
-			tagID = TagID(i)
-		)
-		if tag.Name == tagID { // remove redundancy
+		tag := &tags[i]
+		if tag.Name == TagID(i) { // remove redundancy
 			tag.Name = ""
 		}
-		if m.PreKeyFrom != 0 { // restore prekey index
-			switch m.PreKeyTagID {
-			case tagID:
-				m.PreKeyIndex = i
-			case TagIDLegacy(i):
-				m.PreKeyIndex = i
-				m.PreKeyTagID = tagID // fix legacy name
-			}
+		if m.PreKeyTagID == TagIDLegacy(i) && m.PreKeyFrom != 0 {
+			m.PreKeyIndex = i
+		}
+		if m.PreKeyTagID == TagID(i) && m.PreKeyFrom != 0 {
+			m.PreKeyIndex = i
 		}
 		if !ValidRawKind(tag.RawKind) {
 			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
@@ -369,20 +356,31 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		tag.Comment2Value = c2v
 		tag.Index = i
 
-		m.setName2Tag(tag.Name, *tag, false, &err)
+		m.setName2Tag(tag.Name, *tag, false, false, &err)
 	}
-	m.setName2Tag(StringTopTagID, sTag, true, &err)
+	m.setName2Tag(StringTopTagID, sTag, false, true, nil)
+	m.setName2Tag(NewStringTopTagID, sTag, true, false, &err)
 	hTag := MetricMetaTag{
 		Name:        "",
 		Description: "",
 		Index:       HostTagIndex,
 	}
-	m.setName2Tag(HostTagID, hTag, true, &err)
+	m.setName2Tag(NewHostTagID, hTag, true, false, &err)
 	for i := 0; i < MaxTags; i++ { // separate pass to overwrite potential collisions with canonical names in the loop above
 		if i < len(tags) {
-			m.setName2Tag(TagID(i), tags[i], true, &err)
+			m.setName2Tag(TagID(i), tags[i], true, false, &err)
+			m.setName2Tag(TagIDLegacy(i), tags[i], false, true, nil)
+			if i == 0 {
+				// we clear name of env (above), it must have exactly one way to refer to it, "0"
+				// but for legacy libraries, we allow to send "env" for now, TODO - remove
+				m.setName2Tag("env", tags[i], false, true, nil)
+			}
 		} else {
-			m.setName2Tag(TagID(i), MetricMetaTag{Index: i}, true, &err)
+			m.setName2Tag(TagID(i), MetricMetaTag{Index: i}, true, false, &err)
+			m.setName2Tag(TagIDLegacy(i), MetricMetaTag{Index: i}, false, true, nil)
+			if i == 0 {
+				m.setName2Tag("env", MetricMetaTag{Index: i}, false, true, nil)
+			}
 		}
 	}
 	m.RawTagMask = mask
@@ -408,30 +406,6 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 
 	m.NoSampleAgent = builtinMetricsNoSamplingAgent[m.MetricID]
 	return err
-}
-
-// 'APICompat' functions are expected to be used to handle user input, exists for backward compatibility
-func (m *MetricMetaValue) APICompatGetTag(tagNameOrID string) (tag MetricMetaTag, ok bool, legacyName bool) {
-	if res, ok := m.Name2Tag[tagNameOrID]; ok {
-		return res, true, false
-	}
-	if tagID, ok := apiCompatTagID[tagNameOrID]; ok {
-		tag, ok = m.Name2Tag[tagID]
-		return tag, ok, true
-	}
-	return MetricMetaTag{}, false, false
-}
-
-// 'APICompat' functions are expected to be used to handle user input, exists for backward compatibility
-func (m *MetricMetaValue) APICompatGetTagFromBytes(tagNameOrID []byte) (tag MetricMetaTag, ok bool, legacyName bool) {
-	if res, ok := m.Name2Tag[string(tagNameOrID)]; ok {
-		return res, true, false
-	}
-	if tagID, ok := apiCompatTagID[string(tagNameOrID)]; ok {
-		tag, ok = m.Name2Tag[tagID]
-		return tag, ok, true
-	}
-	return MetricMetaTag{}, false, false
 }
 
 // Always restores maximum info, if error is returned, group is non-canonical and should not be saved
@@ -533,8 +507,8 @@ func ValidRawKind(s string) bool {
 	return false
 }
 
-func TagIndex(tagID string) int { // inverse of 'TagID'
-	i, ok := tagIDToIndex[tagID]
+func ParseTagIDForAPI(tagID string) int {
+	i, ok := tagIDToIndexForAPI[tagID]
 	if !ok {
 		return -1
 	}
@@ -860,25 +834,6 @@ func AddRawValuePrefix(s string) string {
 
 func IsValueCodeZero(s string) bool {
 	return TagValueCodeZero == s
-}
-
-// 'APICompat' functions are expected to be used to handle user input, exists for backward compatibility
-func APICompatNormalizeTagID(tagID string) (string, error) {
-	res, ok := apiCompatTagID[tagID]
-	if ok {
-		return res, nil
-	}
-	return "", fmt.Errorf("invalid tag ID %q", tagID)
-}
-
-// 'APICompat' functions are expected to be used to handle user input, exists for backward compatibility
-func APICompatIsEnvTagID(tagID []byte) bool {
-	switch string(tagID) {
-	case EnvTagID, "key0", "env":
-		return true
-	default:
-		return false
-	}
 }
 
 func convertToValueComments(id2value map[int32]string) map[string]string {
