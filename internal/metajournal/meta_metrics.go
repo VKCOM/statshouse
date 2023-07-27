@@ -171,6 +171,16 @@ func (ms *MetricsStorage) GetNamespace(id int32) *format.NamespaceMeta {
 	return ms.namespaceByID[id]
 }
 
+func (ms *MetricsStorage) GetNamespaceList() []*format.NamespaceMeta {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	var namespaces []*format.NamespaceMeta
+	for _, namespace := range ms.namespaceByID {
+		namespaces = append(namespaces, namespace)
+	}
+	return namespaces
+}
+
 func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	// This code operates on immutable structs, it should not change any stored object, except of map
 	promConfigSet := false

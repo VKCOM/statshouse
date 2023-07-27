@@ -369,6 +369,8 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	a.Path("/" + api.EndpointGroupList).Methods("GET").HandlerFunc(f.HandleGetGroupsList)
 	a.Path("/"+api.EndpointGroup).Methods("POST", "PUT").HandlerFunc(f.HandlePutPostGroup)
 	a.Path("/"+api.EndpointNamespace).Methods("POST", "PUT").HandlerFunc(f.HandlePostNamespace)
+	a.Path("/" + api.EndpointNamespace).Methods("GET").HandlerFunc(f.HandleGetNamespace)
+	a.Path("/" + api.EndpointNamespaceList).Methods("GET").HandlerFunc(f.HandleGetNamespaceList)
 	a.Path("/" + api.EndpointPrometheus).Methods("GET").HandlerFunc(f.HandleGetPromConfig)
 	a.Path("/" + api.EndpointPrometheus).Methods("POST").HandlerFunc(f.HandlePostPromConfig)
 	m.Path("/prom/api/v1/query").Methods("POST").HandlerFunc(f.HandlePromInstantQuery)

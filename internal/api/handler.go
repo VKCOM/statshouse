@@ -205,6 +205,11 @@ type (
 		Groups []groupShortInfo `json:"groups"`
 	}
 
+	//easyjson:json
+	GetNamespaceListResp struct {
+		Namespaces []namespaceShortInfo `json:"namespaces"`
+	}
+
 	metricShortInfo struct {
 		Name string `json:"name"`
 	}
@@ -216,6 +221,12 @@ type (
 	}
 
 	groupShortInfo struct {
+		Id     int32   `json:"id"`
+		Name   string  `json:"name"`
+		Weight float64 `json:"weight"`
+	}
+
+	namespaceShortInfo struct {
 		Id     int32   `json:"id"`
 		Name   string  `json:"name"`
 		Weight float64 `json:"weight"`
@@ -1270,6 +1281,27 @@ func (h *Handler) handleGetGroupsList(ai accessInfo) (*GetGroupListResp, time.Du
 		})
 	}
 	return resp, defaultCacheTTL, nil
+}
+
+func (h *Handler) handleGetNamespace(ai accessInfo, id int32) (*NamespaceInfo, time.Duration, error) {
+	namespace := h.metricsStorage.GetNamespace(id)
+	if namespace == nil {
+		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("namespace %d not found", id))
+	}
+	return &NamespaceInfo{Namespace: *namespace}, defaultCacheTTL, nil
+}
+
+func (h *Handler) handleGetNamespaceList(ai accessInfo) (*GetNamespaceListResp, time.Duration, error) {
+	namespaces := h.metricsStorage.GetNamespaceList()
+	var namespacesResp []namespaceShortInfo
+	for _, namespace := range namespaces {
+		namespacesResp = append(namespacesResp, namespaceShortInfo{
+			Id:     namespace.ID,
+			Name:   namespace.Name,
+			Weight: namespace.Weight,
+		})
+	}
+	return &GetNamespaceListResp{Namespaces: namespacesResp}, defaultCacheTTL, nil
 }
 
 func (h *Handler) handlePostNamespace(ctx context.Context, ai accessInfo, namespace format.NamespaceMeta, create bool) (*NamespaceInfo, error) {
@@ -2671,8 +2703,8 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 	respondPlot(w, resp.format, resp.data, cache, cacheStale, h.verbose, ai.user, sl)
 }
 
-func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointDashboard, r.Method, 0, "")
+func HandleGetEntity[T any](w http.ResponseWriter, r *http.Request, h *Handler, endpointName string, handle func(ai accessInfo, id int32) (T, time.Duration, error)) {
+	sl := newEndpointStat(endpointName, r.Method, 0, "")
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
@@ -2683,44 +2715,42 @@ func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err), h.verbose, ai.user, sl)
 		return
 	}
-	resp, cache, err := h.handleGetDashboard(ai, int32(id))
+	resp, cache, err := handle(ai, int32(id))
 	respondJSON(w, resp, cache, 0, err, h.verbose, ai.user, sl)
 }
 
+func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
+	HandleGetEntity(w, r, h, EndpointDashboard, h.handleGetDashboard)
+}
+
 func (h *Handler) HandleGetGroup(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointGroup, r.Method, 0, "")
+	HandleGetEntity(w, r, h, EndpointGroup, h.handleGetGroup)
+}
+
+func (h *Handler) HandleGetNamespace(w http.ResponseWriter, r *http.Request) {
+	HandleGetEntity(w, r, h, EndpointNamespace, h.handleGetNamespace)
+}
+
+func HandleGetEntityList[T any](w http.ResponseWriter, r *http.Request, h *Handler, endpointName string, handle func(ai accessInfo) (T, time.Duration, error)) {
+	sl := newEndpointStat(endpointName, r.Method, 0, "")
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
 	}
-	idStr := r.FormValue(ParamID)
-	id, err := strconv.ParseInt(idStr, 10, 32)
-	if err != nil {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err), h.verbose, ai.user, sl)
-		return
-	}
-	resp, cache, err := h.handleGetGroup(ai, int32(id))
+	resp, cache, err := handle(ai)
 	respondJSON(w, resp, cache, 0, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) HandleGetGroupsList(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointGroup, r.Method, 0, "")
-	ai, ok := h.parseAccessToken(w, r, sl)
-	if !ok {
-		return
-	}
-	resp, cache, err := h.handleGetGroupsList(ai)
-	respondJSON(w, resp, cache, 0, err, h.verbose, ai.user, sl)
+	HandleGetEntityList(w, r, h, EndpointGroup, h.handleGetGroupsList)
 }
 
 func (h *Handler) HandleGetDashboardList(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStat(EndpointDashboard, r.Method, 0, "")
-	ai, ok := h.parseAccessToken(w, r, sl)
-	if !ok {
-		return
-	}
-	resp, cache, err := h.handleGetDashboardList(ai)
-	respondJSON(w, resp, cache, 0, err, h.verbose, ai.user, sl)
+	HandleGetEntityList(w, r, h, EndpointDashboard, h.handleGetDashboardList)
+}
+
+func (h *Handler) HandleGetNamespaceList(w http.ResponseWriter, r *http.Request) {
+	HandleGetEntityList(w, r, h, EndpointNamespace, h.handleGetNamespaceList)
 }
 
 func (h *Handler) HandlePutPostDashboard(w http.ResponseWriter, r *http.Request) {
