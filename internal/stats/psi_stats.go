@@ -65,12 +65,12 @@ func (c *PSIStats) WriteMetrics(nowUnix int64) error {
 		case "io":
 			metricName = format.BuiltinMetricNamePSIIO
 		}
-		some := 1000 * time.Duration(psi.Some.Total-old.Some.Total)
-		full := 1000 * time.Duration(psi.Full.Total-old.Full.Total)
 		if ok && psi.Some != nil && old.Some != nil {
+			some := 1000 * time.Duration(psi.Some.Total-old.Some.Total)
 			c.writer.WriteSystemMetricValue(nowUnix, metricName, some.Seconds(), format.RawIDTagSome)
 		}
 		if ok && psi.Full != nil && old.Full != nil {
+			full := 1000 * time.Duration(psi.Full.Total-old.Full.Total)
 			c.writer.WriteSystemMetricValue(nowUnix, metricName, full.Seconds(), format.RawIDTagFull)
 		}
 		c.stats[resource] = psi
