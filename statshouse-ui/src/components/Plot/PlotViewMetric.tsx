@@ -47,6 +47,18 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
   return [dataMin, dataMax];
 }
 
+function dateRangeFormat(self: uPlot, rawValue: number, seriesIdx: number, idx: number | null): string | number {
+  if (idx === null) {
+    return rawValue;
+  }
+  const xValues = self.data[0];
+  const nextValue = xValues[idx + 1];
+  let fmt = uPlot.fmtDate('{YYYY}-{MM}-{DD} {HH}:{mm}:{ss}');
+  let tzDate = (ts: number) => uPlot.tzDate(new Date(ts * 1e3), 'Europe/Moscow'); // TODO - where is our TZ?
+  const suffix = nextValue === undefined || nextValue - rawValue === 1 ? '' : '  ...  +' + (nextValue - rawValue) + 's';
+  return fmt(tzDate(rawValue)) + suffix;
+}
+
 const {
   loadMetricsMeta,
   setPlotParams,
@@ -252,7 +264,7 @@ export function PlotViewMetric(props: {
       },
       series: [
         {
-          value: '{DD}/{MM}/{YY} {H}:{mm}:{ss}',
+          value: dateRangeFormat,
         },
       ],
       legend: {
