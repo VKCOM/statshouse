@@ -74,13 +74,13 @@ $data << EOD
 {{end}}
 EOD
 
+set xrange [{{$d.TimeFrom}}:{{$d.TimeTo}}]
 {{if $d.Data.Series.SeriesMeta -}}
 plot for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with fillsteps notitle               linestyle (10+n), \
      for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with points notitle columnheader(1) linestyle (10+n) linewidth 0.7 pointtype 7 pointsize 0.2, \
      for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with steps title columnheader(1) linestyle (10+n) linewidth 0.7
 {{else -}}
 set key off
-set xrange [{{$d.BlankFrom}}:{{$d.BlankTo}}]
 set yrange [0:100]
 plot 1/0
 {{end}}
@@ -177,15 +177,15 @@ var (
 )
 
 type gnuplotTemplateData struct {
-	Format    string
-	Title     bool
-	Metric    string
-	Width     int
-	Height    int
-	Ratio     float64
-	Data      *SeriesResponse
-	BlankFrom int64
-	BlankTo   int64
+	Format   string
+	Title    bool
+	Metric   string
+	Width    int
+	Height   int
+	Ratio    float64
+	Data     *SeriesResponse
+	TimeFrom int64
+	TimeTo   int64
 
 	usedColorIndices map[string]int
 	uniqueWhat       map[queryFn]struct{}
@@ -319,12 +319,13 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 		buf bytes.Buffer
 		td  = make([]*gnuplotTemplateData, len(data))
 	)
+	utcOffset %= (24 * 3600) // ignore the part we use to align start of week
 	for i := 0; i < len(data); i++ {
-		blankFrom := time.Now().Add(-blankRenderInterval).Unix()
-		blankTo := time.Now().Unix()
+		timeFrom := time.Now().Add(-blankRenderInterval).Unix()
+		timeTo := time.Now().Unix()
 		if len(data[i].Series.Time) > 1 {
-			blankFrom = data[i].Series.Time[0]
-			blankTo = data[i].Series.Time[len(data[i].Series.Time)-1]
+			timeFrom = data[i].Series.Time[0]
+			timeTo = data[i].Series.Time[len(data[i].Series.Time)-1]
 		}
 		td[i] = &gnuplotTemplateData{
 			Format:           format,
@@ -334,11 +335,11 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 			Height:           height,
 			Ratio:            1 / goldenRatio,
 			Data:             data[i],
-			BlankFrom:        blankFrom,
-			BlankTo:          blankTo,
+			TimeFrom:         timeFrom + utcOffset,
+			TimeTo:           timeTo + utcOffset,
 			usedColorIndices: map[string]int{},
 			uniqueWhat:       map[queryFn]struct{}{},
-			utcOffset:        utcOffset % (24 * 3600), // ignore the part we use to align start of week
+			utcOffset:        utcOffset,
 			wr:               &buf,
 		}
 	}
