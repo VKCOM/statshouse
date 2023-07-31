@@ -67,6 +67,8 @@ export type ConfigParam<T = any, T2 = T> = {
   decode?: (value: string) => T2 | undefined;
 };
 export type ConfigParams = Record<string, ConfigParam>;
+export type MiddlewareDecode<T> = (param: T | null, urlSearchParams: URLSearchParams, defaultParam?: T) => T | null;
+export type MiddlewareEncode<T> = (urlSearchParams: URLSearchParams, value: T, defaultParam?: T) => URLSearchParams;
 
 function getDecode<T, T2 = T>(values: string[], config: ConfigParam<T, T2>): T2 | (T2 | undefined)[] | undefined {
   const { decode = (s) => s as T2 } = config;
@@ -354,6 +356,7 @@ function valueToArray<T extends Record<string, unknown>>(
  * @param value - value for encode
  * @param defaultParams - default value, if equal param not write
  * @param {URLSearchParams} urlSearchParams - source URLSearchParams for change
+ * @param middlewares
  *
  * @return {URLSearchParams}
  */
@@ -361,9 +364,10 @@ export function encodeQueryParams<T extends Record<string, unknown>>(
   configParams: ConfigParams,
   value: T,
   defaultParams?: T,
-  urlSearchParams?: URLSearchParams
+  urlSearchParams?: URLSearchParams,
+  middlewares?: MiddlewareEncode<T>[]
 ): URLSearchParams {
-  const nextParams = new URLSearchParams(urlSearchParams ?? window.location.search);
+  let nextParams = new URLSearchParams(urlSearchParams ?? window.location.search);
   const updMap: Record<string, boolean> = {};
   valueToArray(configParams, value, defaultParams, urlSearchParams).forEach(([key, v]) => {
     if (key === '') {
@@ -377,6 +381,11 @@ export function encodeQueryParams<T extends Record<string, unknown>>(
       nextParams.append(key, v);
     }
   });
+  if (middlewares) {
+    middlewares.forEach((middleware) => {
+      nextParams = middleware(nextParams, value, defaultParams);
+    });
+  }
   return nextParams;
 }
 
@@ -386,13 +395,15 @@ export function encodeQueryParams<T extends Record<string, unknown>>(
  * @param configParams - parse config
  * @param defaultParams default value if not find in url
  * @param urlSearchParams - source URLSearchParams for change
+ * @param middlewares
  *
  * @return - parse object
  */
 export function decodeQueryParams<T extends Record<string, unknown>>(
   configParams: ConfigParams,
   defaultParams?: T,
-  urlSearchParams: URLSearchParams = new URLSearchParams(window.location.search)
+  urlSearchParams: URLSearchParams = new URLSearchParams(window.location.search),
+  middlewares?: MiddlewareDecode<T>[]
 ): T | null {
   try {
     const res = Object.entries(configParams).map(([key, config]) => {
@@ -479,7 +490,13 @@ export function decodeQueryParams<T extends Record<string, unknown>>(
       }
       return [key, getDecode(values, { ...config, default: defaultParams?.[key] ?? config.default })];
     });
-    return Object.fromEntries(res);
+    let param = Object.fromEntries(res);
+    if (middlewares) {
+      middlewares.forEach((middleware) => {
+        param = middleware(param, urlSearchParams, defaultParams);
+      });
+    }
+    return param;
   } catch (e) {
     return null;
   }

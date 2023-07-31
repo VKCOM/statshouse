@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -12,14 +12,17 @@ import {
   encodeQueryParams,
   FilterParams,
   GroupByParams,
+  MiddlewareDecode,
+  MiddlewareEncode,
   NumberParam,
   TagSyncParam,
   TimeToParam,
   UseV2Param,
 } from './QueryParamsParser';
-import { getNextState } from '../store';
 import React from 'react';
 import { GET_PARAMS, QueryWhat } from '../api/enum';
+import { getNextState } from './getNextState';
+import { dequal } from 'dequal/lite';
 
 export interface lockRange {
   readonly min: number;
@@ -73,6 +76,18 @@ export type DashboardParams = {
   groupInfo?: GroupInfo[];
 };
 
+export type VariableParams = {
+  name: string;
+  description: string;
+  values: string[];
+  link: [number | null, number | null][];
+  args: {
+    groupBy?: boolean;
+    negative?: boolean;
+  };
+  // source: string;
+};
+
 export type QueryParams = {
   ['@type']?: 'QueryParams'; // ld-json
   dashboard?: DashboardParams;
@@ -82,6 +97,7 @@ export type QueryParams = {
   tabNum: number;
   tagSync: (number | null)[][]; // [group][page_plot][tag_index]
   plots: PlotParams[];
+  variables: VariableParams[];
 };
 
 export const defaultParams: Readonly<QueryParams> = {
@@ -110,10 +126,11 @@ export const defaultParams: Readonly<QueryParams> = {
     //   },
     // },
   ],
+  variables: [],
 };
 
 export function parseParamsFromUrl(url: string): QueryParams {
-  return decodeQueryParams(configParams, defaultParams, new URLSearchParams(new URL(url).search))!;
+  return decodeQueryParams(configParams, defaultParams, new URLSearchParams(new URL(url).search), middlewareDecode)!;
 }
 
 export function getUrlSearch(
@@ -123,10 +140,12 @@ export function getUrlSearch(
   defaultP?: QueryParams
 ) {
   const params = new URLSearchParams(baseLink ?? window.location.search);
-  const prevState = prev ?? decodeQueryParams(configParams, defaultP ?? defaultParams, params);
+  const prevState = prev ?? decodeQueryParams(configParams, defaultP ?? defaultParams, params, middlewareDecode);
   if (prevState) {
     const newState = getNextState(prevState, nextState);
-    return '?' + encodeQueryParams(configParams, newState, defaultP ?? defaultParams, params).toString();
+    return (
+      '?' + encodeQueryParams(configParams, newState, defaultP ?? defaultParams, params, middlewareEncode).toString()
+    );
   }
   return '?' + params.toString();
 }
@@ -430,4 +449,121 @@ export const configParams: ConfigParams = {
     urlKey: GET_PARAMS.metricFilterSync, // fs=0.0-1.0
     default: [],
   },
+  variables: {
+    default: [],
+    isArray: true,
+    struct: true,
+    prefixArray: (i) => `${GET_PARAMS.variablePrefix}${i}.`,
+    params: {
+      name: {
+        urlKey: GET_PARAMS.variableName,
+        default: '',
+        required: true,
+      },
+      description: {
+        urlKey: GET_PARAMS.variableDescription,
+        default: '',
+      },
+      values: {
+        decode: () => null,
+        encode: () => undefined,
+        isArray: true,
+        urlKey: GET_PARAMS.variableValue,
+        default: [],
+      },
+      link: {
+        decode: (s) => s.split('_').map((v) => v.split('.', 2).map((s) => (s && !isNaN(+s) ? +s : null))),
+        encode: (s: [number, number][]) => s.map((v) => v.join('.')).join('_'),
+        urlKey: GET_PARAMS.variableLinkPlot, // v0.l=0.0_1.0
+        default: [],
+      },
+      args: {
+        params: {
+          groupBy: {
+            decode: () => null,
+            encode: () => undefined,
+            // ...BooleanParam,
+            urlKey: GET_PARAMS.variableGroupBy,
+            default: false,
+          },
+          negative: {
+            decode: () => null,
+            encode: () => undefined,
+            // ...BooleanParam,
+            urlKey: GET_PARAMS.variableNegative,
+            default: false,
+          },
+        },
+      },
+
+      // source: {
+      //   urlKey: GET_PARAMS.variableSource,
+      //   default: '',
+      // },
+    },
+  },
 };
+
+export const middlewareEncode: MiddlewareEncode<QueryParams>[] = [
+  (urlSearchParams, param, defaultParam) => {
+    if (param.variables.length && !dequal(defaultParam?.variables, param.variables)) {
+      param.variables.forEach((variable, indexVariable) => {
+        const variableName = `${GET_PARAMS.variableValuePrefix}${variable.name}`;
+        urlSearchParams.delete(`${GET_PARAMS.variablePrefix}${indexVariable}.${GET_PARAMS.variableValue}`);
+        urlSearchParams.delete(variableName);
+        variable.values.forEach((value) => {
+          urlSearchParams.append(variableName, value);
+        });
+        const variableGroupBy = `${variableName}.${GET_PARAMS.variableGroupBy}`;
+        const variableNegative = `${variableName}.${GET_PARAMS.variableNegative}`;
+        urlSearchParams.delete(`${GET_PARAMS.variablePrefix}${indexVariable}.${GET_PARAMS.variableGroupBy}`);
+        urlSearchParams.delete(`${GET_PARAMS.variablePrefix}${indexVariable}.${GET_PARAMS.variableNegative}`);
+        if (variable.args.groupBy) {
+          urlSearchParams.set(variableGroupBy, '1');
+        } else {
+          urlSearchParams.delete(variableGroupBy);
+        }
+        if (variable.args.negative) {
+          urlSearchParams.set(variableNegative, '1');
+        } else {
+          urlSearchParams.delete(variableNegative);
+        }
+      });
+    }
+    return urlSearchParams;
+  },
+];
+export const middlewareDecode: MiddlewareDecode<QueryParams>[] = [
+  (param, urlSearchParams) => {
+    if (param?.variables.length) {
+      const variables = param.variables.map((variable, indexVariable) => {
+        const variableNameParam = urlSearchParams.get(
+          `${GET_PARAMS.variablePrefix}${indexVariable}.${GET_PARAMS.variableName}`
+        );
+        if (variableNameParam != null) {
+          const variableName = `${GET_PARAMS.variableValuePrefix}${variable.name}`;
+          const values = urlSearchParams.getAll(variableName);
+          const variableGroupBy = `${variableName}.${GET_PARAMS.variableGroupBy}`;
+          const variableNegative = `${variableName}.${GET_PARAMS.variableNegative}`;
+          const groupBy = urlSearchParams.get(variableGroupBy) === '1';
+          const negative = urlSearchParams.get(variableNegative) === '1';
+          return {
+            ...variable,
+            values,
+            args: {
+              ...variable.args,
+              groupBy,
+              negative,
+            },
+          };
+        }
+        return variable;
+      });
+      return {
+        ...param,
+        variables,
+      };
+    }
+    return param;
+  },
+];

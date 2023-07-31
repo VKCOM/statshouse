@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -10,10 +10,11 @@ export * from './HeaderMenu';
 export * from './UPlotWrapper';
 export * from './Dashboard';
 export * from './DashboardSettings';
-export * from './DashboardTagControl';
 export * from './PlotLegend';
 export { BuildVersion } from './BuildVersion';
 export * from './TextEditable';
 export * from './UI';
 export * from './ErrorMessages';
 export * from './AppRouter';
+export * from './TagSelect';
+export * from './VariableControl';
