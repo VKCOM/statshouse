@@ -9,7 +9,9 @@ package api
 import (
 	"context"
 	"fmt"
+	"log"
 	"math"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -222,15 +224,63 @@ func (h *RPCHandler) RawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) 
 	return nil
 }
 
+func getQueryURI(args tlstatshouseApi.GetQuery, meta *format.MetricMetaValue) string {
+	var (
+		q                        = args.Query
+		res                      = url.Values{}
+		filterIn, filterNotIn, _ = parseFilterValues(q.Filter, meta)
+	)
+	res.Set(ParamMetric, q.MetricName)
+	res.Set(ParamFromTime, strconv.FormatInt(q.TimeFrom, 10))
+	res.Set(ParamToTime, strconv.FormatInt(q.TimeTo, 10))
+	res.Set(ParamWidth, q.Interval)
+	res.Set(ParamWidthAgg, q.WidthAgg)
+	if q.IsSetWhat() {
+		for _, qw := range q.What {
+			res.Add(ParamQueryWhat, fnToString[qw])
+		}
+	} else {
+		res.Add(ParamQueryWhat, fnToString[q.Function])
+	}
+	if q.IsSetMaxHostFlag() {
+		res.Set(paramMaxHost, "1")
+	}
+	for k, s := range filterIn {
+		for _, v := range s {
+			res.Add(ParamQueryFilter, fmt.Sprintf("%s-%s", k, v))
+		}
+	}
+	for k, s := range filterNotIn {
+		for _, v := range s {
+			res.Add(ParamQueryFilter, fmt.Sprintf("%s~%s", k, v))
+		}
+	}
+	for _, v := range q.GroupBy {
+		res.Add(ParamQueryBy, v)
+	}
+	for _, v := range q.TimeShift {
+		res.Add(ParamTimeShift, strconv.FormatInt(v, 10))
+	}
+	return fmt.Sprintf("view?%s", res.Encode())
+}
+
 func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery) (response tlstatshouseApi.GetQueryResponse, cancel func(), err error) {
 	var (
 		ai         accessInfo
 		metricMeta *format.MetricMetaValue
+		res        *SeriesResponse
 	)
 
 	defer func() {
 		if cancel != nil && err != nil {
 			cancel()
+		}
+		log.Printf("DEBUG PROMQL qry %s\n", getQueryURI(args, metricMeta))
+		log.Printf("DEBUG PROMQL err %v\n", err)
+		if res != nil {
+			for _, line := range res.DebugQueries {
+				log.Printf("DEBUG PROMQL %s\n", line)
+			}
 		}
 	}()
 	defer func(ms *rpcMethodStat) {
@@ -258,7 +308,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		return response, cancel, err
 	}
 
-	res, cancel, err := h.ah.handlePromqlQuery(ctx, ai, req, seriesRequestOptions{})
+	res, cancel, err = h.ah.handlePromqlQuery(ctx, ai, req, seriesRequestOptions{debugQueries: true})
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
 		return response, cancel, err
