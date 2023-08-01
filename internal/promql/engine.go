@@ -960,10 +960,19 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			}
 		}
 	}
-	if emptyCount != 0 && len(filterIn) == 0 && len(sFilterIn) == 0 {
-		// All "MatchEqual" and "MatchRegexp" filters give an empty result and
-		// there are no other such filters, overall result is guaranteed to be empty
-		return seriesQueryX{}, nil
+	if emptyCount != 0 {
+		var filterInSet bool
+		for _, v := range filterIn {
+			if len(v) != 0 {
+				filterInSet = true
+				break
+			}
+		}
+		if !filterInSet && len(sFilterIn) == 0 {
+			// All "MatchEqual" and "MatchRegexp" filters give an empty result and
+			// there are no other such filters, overall result is guaranteed to be empty
+			return seriesQueryX{}, nil
+		}
 	}
 	if histogramQ.filter && !histogramQ.restore {
 		groupBy = append(groupBy, format.TagIDLegacy(metric.Name2Tag[format.LETagName].Index))
