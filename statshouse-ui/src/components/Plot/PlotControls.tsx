@@ -6,14 +6,7 @@
 
 import React, { ChangeEvent, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import * as utils from '../../view/utils';
-import {
-  getTagDescription,
-  getTimeShifts,
-  isTagEnabled,
-  promQLMetric,
-  timeShiftAbbrevExpand,
-  toKeyTag,
-} from '../../view/utils';
+import { getTagDescription, getTimeShifts, isTagEnabled, promQLMetric, timeShiftAbbrevExpand } from '../../view/utils';
 import {
   PlotControlFrom,
   PlotControlTimeShifts,
@@ -38,13 +31,13 @@ import {
 import { globalSettings } from '../../common/settings';
 import { filterHasTagID, metricKindToWhat, whatToWhatDesc } from '../../view/api';
 import produce from 'immer';
-import { PLOT_TYPE, PlotParams, VariableParams } from '../../common/plotQueryParams';
 import cn from 'classnames';
 import { ErrorMessages } from '../ErrorMessages';
 import { MetricMetaValue } from '../../api/metric';
 import { QueryWhat } from '../../api/enum';
 import { debug } from '../../common/debug';
 import { shallow } from 'zustand/shallow';
+import { PLOT_TYPE, PlotParams, toKeyTag, VariableParams } from '../../url/queryParams';
 
 const { setParams, setTimeRange, setPlotParams, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
 

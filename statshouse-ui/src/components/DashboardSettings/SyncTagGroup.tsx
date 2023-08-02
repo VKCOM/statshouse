@@ -6,11 +6,11 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { metricTag, whatToWhatDesc } from '../../view/api';
-import { PlotParams } from '../../common/plotQueryParams';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { promQLMetric } from '../../view/utils';
 import { PlotStore } from '../../store';
 import { MetricMetaValue } from '../../api/metric';
+import { PlotParams } from '../../url/queryParams';
 
 export type SyncTag = {
   namePlot: string;

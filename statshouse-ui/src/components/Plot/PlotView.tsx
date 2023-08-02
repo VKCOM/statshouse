@@ -7,7 +7,7 @@
 import React, { memo } from 'react';
 import { PlotViewMetric, PlotViewEvent } from '../index';
 
-import { PLOT_TYPE, PlotType } from '../../common/plotQueryParams';
+import { PLOT_TYPE, PlotType } from '../../url/queryParams';
 
 type PlotViewProps = {
   indexPlot: number;

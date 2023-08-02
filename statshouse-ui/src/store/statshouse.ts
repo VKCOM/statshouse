@@ -13,15 +13,9 @@ import {
   defaultParams,
   getLiveParams,
   middlewareDecode,
-  middlewareEncode,
-  PLOT_TYPE,
-  PlotParams,
-  PlotType,
-  QueryParams,
   readDashboardID,
   setLiveParams,
   sortEntity,
-  VariableParams,
 } from '../common/plotQueryParams';
 import { dequal } from 'dequal/lite';
 import React from 'react';
@@ -30,13 +24,11 @@ import {
   apiGet,
   apiPost,
   apiPut,
-  deepClone,
   defaultBaseRange,
   Error403,
   fmtInputDateTime,
   formatLegendValue,
   formatPercent,
-  freeKeyPrefix,
   getTimeShifts,
   loadAllMeta,
   normalizeDashboard,
@@ -81,16 +73,25 @@ import { calcYRange2 } from '../common/calcYRange';
 import { rgba, selectColor } from '../view/palette';
 import { filterPoints } from '../common/filterPoints';
 import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
-import { decodeQueryParams, encodeQueryParams, mergeLeft } from '../common/QueryParamsParser';
+import { decodeQueryParams, mergeLeft } from '../common/QueryParamsParser';
 import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat } from '../api/enum';
-import { isNotNil, uniqueArray } from '../common/helpers';
+import { deepClone, isNotNil, uniqueArray } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { apiMetricTagValuesFetch } from '../api/metricTagValues';
 import { appHistory } from '../common/appHistory';
+import {
+  encodeParams,
+  freeKeyPrefix,
+  PLOT_TYPE,
+  PlotParams,
+  PlotType,
+  QueryParams,
+  VariableParams,
+} from '../url/queryParams';
 
 export type PlotStore = {
   nameMetric: string;
@@ -312,6 +313,7 @@ export const statsHouseState: StateCreator<
     },
     timeRange: new TimeRange({ to: TIME_RANGE_KEYS_TO.default, from: 0 }),
     params: {
+      dashboard: undefined,
       timeRange: { to: TIME_RANGE_KEYS_TO.default, from: 0 },
       eventFrom: 0,
       tagSync: [],
@@ -649,13 +651,8 @@ export const statsHouseState: StateCreator<
         prevState.timeRange.from > now();
 
       const live = getLiveParams(new URLSearchParams(document.location.search)); // save live param in url
-      const p = encodeQueryParams(
-        configParams,
-        prevState.params,
-        prevState.defaultParams,
-        setLiveParams(live, new URLSearchParams()),
-        middlewareEncode
-      );
+      let p = encodeParams(prevState.params, prevState.defaultParams);
+      p = setLiveParams(live, p);
       const search = '?' + p.toString();
       let pathname = document.location.pathname;
 

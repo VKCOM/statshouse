@@ -6,10 +6,10 @@
 
 import { dequal } from 'dequal/lite';
 import { KeysTo, TIME_RANGE_KEYS_TO } from './TimeRange';
-import { filterInSep, filterNotInSep } from '../view/api';
 import produce from 'immer';
-import { deepClone, freeKeyPrefix } from '../view/utils';
 import { METRIC_VALUE_BACKEND_VERSION } from '../api/enum';
+import { filterInSep, filterNotInSep, freeKeyPrefix } from '../url/queryParams';
+import { deepClone } from './helpers';
 
 const maxPrefixArray = 100;
 const removeValueChar = String.fromCharCode(7);

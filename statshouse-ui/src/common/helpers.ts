@@ -56,10 +56,44 @@ export function toString(item: unknown): string {
   return '';
 }
 
+export function toNumber(item: unknown): number | null {
+  switch (typeof item) {
+    case 'number':
+      return item;
+    case 'boolean':
+      return +item;
+    case 'string':
+      const n = +item;
+      return item && !isNaN(n) ? n : null;
+    case 'undefined':
+    case 'function':
+    case 'object':
+      return null;
+  }
+  return null;
+}
+
 export function uniqueArray<T>(arr: T[]): T[] {
   return [...new Set(arr).keys()];
 }
 
 export function getRandomKey(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+export function deepClone<T>(item: T): T {
+  if (item == null) {
+    return item;
+  }
+  switch (typeof item) {
+    case 'function':
+      return item;
+    case 'object':
+      if (Array.isArray(item)) {
+        return item.map(deepClone) as T;
+      } else {
+        return Object.fromEntries(Object.entries(item).map(([key, value]) => [key, deepClone(value)])) as T;
+      }
+  }
+  return item;
 }

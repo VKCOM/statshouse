@@ -3,9 +3,9 @@ import css from './style.module.css';
 import { Popper } from '../../UI';
 import { useDebounceState } from '../../../hooks';
 import { PlotEventOverlayTable } from './PlotEventOverlayTable';
-import { PlotParams } from '../../../common/plotQueryParams';
 import { TimeRange } from '../../../common/TimeRange';
 import cn from 'classnames';
+import { PlotParams } from '../../../url/queryParams';
 
 export type PlotEventFlagProps = {
   plot: PlotParams;

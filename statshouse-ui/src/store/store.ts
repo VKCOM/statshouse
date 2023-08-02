@@ -3,8 +3,8 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { statsHouseState, type StatsHouseStore } from './statshouse';
 import produce from 'immer';
-import { VariableParams } from '../common/plotQueryParams';
-import { paramToVariable, toKeyTag } from '../view/utils';
+import { paramToVariable } from '../view/utils';
+import { toKeyTag, VariableParams } from '../url/queryParams';
 
 export type { StatsHouseStore, PlotStore, PlotValues, TopInfo } from './statshouse';
 export type { ThemeStore, Theme } from './theme/themeStore';

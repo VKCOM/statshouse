@@ -4,11 +4,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { convert, freeKeyPrefix, promQLMetric, timeShiftDesc } from './utils';
+import { convert, promQLMetric, timeShiftDesc } from './utils';
 import { TimeRange } from '../common/TimeRange';
 import { Column } from 'react-data-grid';
 import { EventDataRow } from '../store/statshouse';
-import { PlotParams } from '../common/plotQueryParams';
 import {
   EventFormatterData,
   EventFormatterDefault,
@@ -17,6 +16,7 @@ import {
 } from '../components/Plot/EventFormatters';
 import { uniqueArray } from '../common/helpers';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector } from '../api/enum';
+import { filterInSep, filterNotInSep, freeKeyPrefix, PlotParams } from '../url/queryParams';
 
 export interface queryResult {
   readonly series: querySeries;
@@ -585,9 +585,6 @@ export interface metricTagValueInfo {
   readonly value: string;
   readonly count: number;
 }
-
-export const filterInSep = '-';
-export const filterNotInSep = '~';
 
 export function formatFilterIn(tagID: string, tagValue: string): string {
   return `${freeKeyPrefix(tagID)}${filterInSep}${tagValue}`;

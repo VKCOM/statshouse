@@ -9,10 +9,10 @@ import { PlotControls } from './PlotControls';
 import { promQLMetric, timeRangeAbbrev } from '../../view/utils';
 
 import { PlotControlsPromQL } from './PlotControlsPromQL';
-import { PlotParams } from '../../common/plotQueryParams';
 import cn from 'classnames';
 import css from './style.module.css';
 import { MetricMetaValue } from '../../api/metric';
+import { PlotParams } from '../../url/queryParams';
 
 export type PlotLayoutProps = {
   embed?: boolean;

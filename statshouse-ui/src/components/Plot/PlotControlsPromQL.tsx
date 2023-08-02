@@ -18,9 +18,9 @@ import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icon
 import { ReactComponent as SVGChevronCompactLeft } from 'bootstrap-icons/icons/chevron-compact-left.svg';
 import { ReactComponent as SVGChevronCompactRight } from 'bootstrap-icons/icons/chevron-compact-right.svg';
 import { globalSettings } from '../../common/settings';
-import { PlotParams } from '../../common/plotQueryParams';
 import { MetricMetaValue } from '../../api/metric';
 import { QueryWhat } from '../../api/enum';
+import { PlotParams } from '../../url/queryParams';
 
 const { setParams, setTimeRange } = useStore.getState();
 

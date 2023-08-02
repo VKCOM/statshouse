@@ -7,7 +7,6 @@
 import produce from 'immer';
 import { getMetricFullName, isValidVariableName } from '../../view/utils';
 import React, { useCallback, useEffect, useState } from 'react';
-import { PlotParams, VariableParams } from '../../common/plotQueryParams';
 import { PlotStore } from '../../store';
 import { MetricMetaValue } from '../../api/metric';
 import { isNil, isNotNil } from '../../common/helpers';
@@ -17,6 +16,7 @@ import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ToggleButton } from '../UI';
 import cn from 'classnames';
+import { PlotParams, VariableParams } from '../../url/queryParams';
 
 export type VariableCardProps = {
   indexVariable: number;

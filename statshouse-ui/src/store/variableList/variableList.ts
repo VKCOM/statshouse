@@ -15,7 +15,6 @@ import {
   promQLMetric,
   replaceVariable,
 } from '../../view/utils';
-import { VariableParams } from '../../common/plotQueryParams';
 import { apiMetricTagValuesFetch, MetricTagValueInfo } from '../../api/metricTagValues';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat } from '../../api/enum';
 import { globalSettings } from '../../common/settings';
@@ -24,6 +23,7 @@ import { useErrorStore } from '../errors';
 import { isNotNil } from '../../common/helpers';
 import { MetricMetaTag } from '../../api/metric';
 import { getEmptyVariableParams } from '../../common/getEmptyVariableParams';
+import { VariableParams } from '../../url/queryParams';
 
 export function getEmptyVariable(): VariableItem {
   return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined };

@@ -5,10 +5,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { formatTagValue, queryTable, queryTableRow, queryTableURL } from '../view/api';
-import { PlotParams } from '../common/plotQueryParams';
 import { TimeRange } from '../common/TimeRange';
-import { apiGet, fmtInputDateTime, freeKeyPrefix } from '../view/utils';
+import { apiGet, fmtInputDateTime } from '../view/utils';
 import { QueryWhat, TagKeyAll } from './enum';
+import { freeKeyPrefix, PlotParams } from '../url/queryParams';
 
 const abortControllers: Map<unknown, AbortController> = new Map();
 export type WhatCollection = Record<QueryWhat, number>;

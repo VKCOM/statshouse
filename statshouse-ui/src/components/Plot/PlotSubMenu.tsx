@@ -8,7 +8,7 @@ import React, { memo } from 'react';
 import * as utils from '../../view/utils';
 import { TimeRange } from '../../common/TimeRange';
 import { Link } from 'react-router-dom';
-import { PlotParams } from '../../common/plotQueryParams';
+import { PlotParams } from '../../url/queryParams';
 
 export type PlotSubMenuProps = {
   sel: PlotParams;

@@ -15,11 +15,11 @@ import { ReactComponent as SVGSearch } from 'bootstrap-icons/icons/search.svg';
 
 import { getAutoSearchSyncFilter, setVariable, Store, useStore } from '../../store';
 import { VariableCard } from './VariableCard';
-import { VariableParams } from '../../common/plotQueryParams';
 import { getAutoNamStartIndex } from '../../view/utils';
 import { GET_PARAMS } from '../../api/enum';
 import { getEmptyVariableParams } from '../../common/getEmptyVariableParams';
 import { getNextState } from '../../common/getNextState';
+import { VariableParams } from '../../url/queryParams';
 
 const selector = ({ params: { variables, plots }, plotsData, metricsMeta }: Store) => ({
   variables,
