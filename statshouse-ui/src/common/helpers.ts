@@ -56,23 +56,6 @@ export function toString(item: unknown): string {
   return '';
 }
 
-export function toNumber(item: unknown): number | null {
-  switch (typeof item) {
-    case 'number':
-      return item;
-    case 'boolean':
-      return +item;
-    case 'string':
-      const n = +item;
-      return item && !isNaN(n) ? n : null;
-    case 'undefined':
-    case 'function':
-    case 'object':
-      return null;
-  }
-  return null;
-}
-
 export function uniqueArray<T>(arr: T[]): T[] {
   return [...new Set(arr).keys()];
 }

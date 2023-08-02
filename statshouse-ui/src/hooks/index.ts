@@ -6,6 +6,7 @@
 
 export * from './useDebounceState';
 export * from './useStateInput';
+export * from './usePlotLink';
 export * from './useRefState';
 export * from './useUPlotPluginHooks';
 export * from './useIntersectionObserver';

@@ -5,7 +5,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { TimeHelper } from './TimeHelper';
-import { toNumber } from './helpers';
 
 export const TIME_RANGE_KEYS_TO = {
   Now: '0',
@@ -27,17 +26,6 @@ function constToTime(now: number, value: KeysTo, ms?: boolean) {
     default:
       return TimeHelper.getNow(now, ms);
   }
-}
-
-export function stringToTime(str: string) {
-  let to = toNumber(str);
-  if (to != null) {
-    return to;
-  }
-  if (str && Object.values(TIME_RANGE_KEYS_TO).includes(str as KeysTo)) {
-    return str as KeysTo;
-  }
-  return null;
 }
 
 export type TimeRangeData = {
