@@ -847,7 +847,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		filterOut  [format.MaxTags]map[int32]string // as above
 		sFilterIn  []string
 		sFilterOut []string
-		emptyCount int // number of "MatchEqual" or "MatchRegexp" filters which are guaranteed to yield empty response
+		emptyCount [format.MaxTags + 1]int // number of "MatchEqual" or "MatchRegexp" filters which are guaranteed to yield empty response
 	)
 	for _, matcher := range sel.LabelMatchers {
 		if strings.HasPrefix(matcher.Name, "__") {
@@ -874,7 +874,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				}
 				if n == 0 {
 					// there no data satisfying the filter
-					emptyCount++
+					emptyCount[format.MaxTags]++
 					continue
 				}
 			case labels.MatchNotRegexp:
@@ -896,7 +896,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				if err != nil {
 					if errors.Is(err, ErrNotFound) {
 						// string is not mapped, result is guaranteed to be empty
-						emptyCount++
+						emptyCount[i]++
 						continue
 					} else {
 						return seriesQueryX{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
@@ -941,7 +941,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				}
 				if len(in) == 0 {
 					// there no data satisfying the filter
-					emptyCount++
+					emptyCount[i]++
 					continue
 				}
 				filterIn[i] = in
@@ -960,15 +960,17 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			}
 		}
 	}
-	if emptyCount != 0 {
-		var filterInSet bool
-		for _, v := range filterIn {
-			if len(v) != 0 {
-				filterInSet = true
-				break
-			}
+	for i, n := range emptyCount {
+		if n == 0 {
+			continue
 		}
-		if !filterInSet && len(sFilterIn) == 0 {
+		var m int
+		if i == format.MaxTags {
+			m = len(sFilterIn)
+		} else {
+			m = len(filterIn[i])
+		}
+		if m == 0 {
 			// All "MatchEqual" and "MatchRegexp" filters give an empty result and
 			// there are no other such filters, overall result is guaranteed to be empty
 			return seriesQueryX{}, nil
