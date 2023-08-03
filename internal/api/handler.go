@@ -688,6 +688,7 @@ func (h *Handler) doSelect(ctx context.Context, isFast, isLight bool, user strin
 	saveDebugQuery(ctx, query.Body)
 
 	start := time.Now()
+	endpointStatSetQueryKind(ctx, isFast, isLight)
 	info, err := h.ch[version].Select(ctx, isFast, isLight, query)
 	duration := time.Since(start)
 	if h.verbose {
@@ -1739,7 +1740,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	if len(qry.promQL) != 0 {
 		// PromQL request
 		if !qry.verbose {
-			res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
+			res, freeRes, err = h.handlePromqlQuery(withHTTPEndpointStat(ctx, sl), ai, qry, options)
 		} else {
 			var g *errgroup.Group
 			g, ctx = errgroup.WithContext(ctx)
@@ -1753,7 +1754,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 			}
 			g.Go(func() error {
 				var err error
-				res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, options)
+				res, freeRes, err = h.handlePromqlQuery(withHTTPEndpointStat(ctx, sl), ai, qry, options)
 				return err
 			})
 			err = g.Wait()
@@ -1771,7 +1772,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 		}
 		g.Go(func() error {
 			var err error
-			res, freeRes, err = h.handleGetQuery(ctx, ai, qry, options)
+			res, freeRes, err = h.handleGetQuery(withHTTPEndpointStat(ctx, sl), ai, qry, options)
 			return err
 		})
 		g.Go(func() error {
@@ -1781,7 +1782,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 		})
 		err = g.Wait()
 	} else {
-		res, freeRes, err = h.handleGetQuery(ctx, ai, qry, options)
+		res, freeRes, err = h.handleGetQuery(withHTTPEndpointStat(ctx, sl), ai, qry, options)
 	}
 	if err == nil && len(qry.promQL) == 0 {
 		res.PromQL = getPromQuery(qry, false)
@@ -1877,7 +1878,7 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 		g, ctx = errgroup.WithContext(ctx)
 		g.Go(func() error {
 			var err error
-			res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, seriesRequestOptions{
+			res, freeRes, err = h.handlePromqlQuery(withHTTPEndpointStat(ctx, sl), ai, qry, seriesRequestOptions{
 				debugQueries: true,
 				stat:         sl,
 				metricNameCallback: func(name string) {
@@ -1893,7 +1894,7 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 		})
 		err = g.Wait()
 	} else {
-		res, freeRes, err = h.handlePromqlQuery(ctx, ai, qry, seriesRequestOptions{
+		res, freeRes, err = h.handlePromqlQuery(withHTTPEndpointStat(ctx, sl), ai, qry, seriesRequestOptions{
 			debugQueries: true,
 			stat:         sl,
 		})

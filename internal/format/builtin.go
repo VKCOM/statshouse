@@ -1160,25 +1160,35 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Kind:        MetricKindValue,
 			Description: "Time to handle API query.",
 			Tags: []MetricMetaTag{{
+				Description: "endpoint",
+			}, {
 				Description: "protocol",
 				ValueComments: convertToValueComments(map[int32]string{
 					TagValueIDRPC:  "RPC",
 					TagValueIDHTTP: "HTTP",
 				}),
 			}, {
+				Description: "method",
+			}, {
 				Description: "data_format",
 			}, {
-				Description: "method",
+				Description: "lane",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDAPILaneFastLight: "fastlight",
+					TagValueIDAPILaneFastHeavy: "fastheavy",
+					TagValueIDAPILaneSlowLight: "slowlight",
+					TagValueIDAPILaneSlowHeavy: "slowheavy"}),
+			}, {
+				Description: "host",
+			}, {
+				Description: "token_name",
 			}, {
 				Description: "response_code",
 				Raw:         true,
 			}, {
 				Description: "metric",
 				IsMetric:    true,
-			}, {
-				Description: "token_name",
-			}, {
-				Description: "host",
 			}},
 		},
 		BuiltinMetricIDAPIResponseTime: {
@@ -1186,25 +1196,35 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Kind:        MetricKindValue,
 			Description: "Time to handle and respond to query by API",
 			Tags: []MetricMetaTag{{
+				Description: "endpoint",
+			}, {
 				Description: "protocol",
 				ValueComments: convertToValueComments(map[int32]string{
 					TagValueIDRPC:  "RPC",
 					TagValueIDHTTP: "HTTP",
 				}),
 			}, {
+				Description: "method",
+			}, {
 				Description: "data_format",
 			}, {
-				Description: "method",
+				Description: "lane",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDAPILaneFastLight: "fastlight",
+					TagValueIDAPILaneFastHeavy: "fastheavy",
+					TagValueIDAPILaneSlowLight: "slowlight",
+					TagValueIDAPILaneSlowHeavy: "slowheavy"}),
+			}, {
+				Description: "host",
+			}, {
+				Description: "token_name",
 			}, {
 				Description: "response_code",
 				Raw:         true,
 			}, {
 				Description: "metric",
 				IsMetric:    true,
-			}, {
-				Description: "token_name",
-			}, {
-				Description: "host",
 			}},
 		}, BuiltinMetricIDMetaServiceTime: { // TODO - harmonize
 			Name:        BuiltinMetricNameMetaServiceTime,

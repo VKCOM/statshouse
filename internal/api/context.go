@@ -8,7 +8,10 @@ package api
 
 import (
 	"context"
+	"strconv"
 	"strings"
+
+	"github.com/vkcom/statshouse/internal/util"
 )
 
 type contextKey int
@@ -16,6 +19,7 @@ type contextKey int
 const (
 	debugQueriesContextKey contextKey = iota
 	accessInfoContextKey
+	endpointStatContextKey
 )
 
 func debugQueriesContext(ctx context.Context, queries *[]string) context.Context {
@@ -39,4 +43,21 @@ func getAccessInfo(ctx context.Context) *accessInfo {
 		return ai
 	}
 	return nil
+}
+
+func withHTTPEndpointStat(ctx context.Context, es *endpointStat) context.Context {
+	return context.WithValue(ctx, endpointStatContextKey, es)
+}
+
+func withRPCEndpointStat(ctx context.Context, ms *rpcMethodStat) context.Context {
+	return context.WithValue(ctx, endpointStatContextKey, ms)
+}
+
+func endpointStatSetQueryKind(ctx context.Context, isFast, isLight bool) {
+	switch s := ctx.Value(endpointStatContextKey).(type) {
+	case *endpointStat:
+		s.lane = strconv.Itoa(util.QueryKind(isFast, isLight))
+	case *rpcMethodStat:
+		s.lane = strconv.Itoa(util.QueryKind(isFast, isLight))
+	}
 }
