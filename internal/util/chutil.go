@@ -101,7 +101,7 @@ func (ch *ClickHouse) SemaphoreCountFastHeavy() int64 {
 	return cur
 }
 
-func queryKind(isFast, isLight bool) int {
+func QueryKind(isFast, isLight bool) int {
 	if isFast {
 		if isLight {
 			return fastLight
@@ -119,7 +119,7 @@ func (ch *ClickHouse) Select(ctx context.Context, isFast, isLight bool, query ch
 		profile = p
 		return nil
 	}
-	pool := ch.pools[queryKind(isFast, isLight)]
+	pool := ch.pools[QueryKind(isFast, isLight)]
 	servers := append(make([]*chpool.Pool, 0, len(pool.servers)), pool.servers...)
 	for safetyCounter := 0; safetyCounter < len(pool.servers); safetyCounter++ {
 		var i int

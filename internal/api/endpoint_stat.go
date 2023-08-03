@@ -38,6 +38,7 @@ const (
 	EndpointNamespaceList   = "namespace-list"
 	EndpointGroupList       = "group-list"
 	EndpointPrometheus      = "prometheus"
+	endpointChunk           = "chunk"
 
 	userTokenName = "user"
 )
@@ -50,6 +51,7 @@ type endpointStat struct {
 	tokenName  string
 	user       string
 	dataFormat string
+	lane       string
 }
 
 func (es *endpointStat) serviceTime(code int) {
@@ -64,19 +66,21 @@ func (es *endpointStat) responseTime(code int) {
 }
 
 func (es *endpointStat) logEvent(statName string, code int) {
-	v := time.Since(es.startTime).Seconds()
-	statshouse.Metric(
-		statName,
-		statshouse.Tags{
-			1: strconv.Itoa(int(format.TagValueIDHTTP)),
-			2: es.dataFormat,
+	var (
+		v = time.Since(es.startTime).Seconds()
+		t = statshouse.Tags{
+			1: es.endpoint,
+			2: strconv.Itoa(int(format.TagValueIDHTTP)),
 			3: es.method,
-			4: strconv.Itoa(code),
-			5: es.metric,
-			6: es.tokenName,
-			7: es.endpoint,
-		},
-	).Value(v)
+			4: es.dataFormat,
+			5: es.lane,
+			6: srvfunc.HostnameForStatshouse(),
+			7: es.tokenName,
+			8: strconv.Itoa(code),
+			9: es.metric,
+		}
+	)
+	statshouse.Metric(statName, t).Value(v)
 }
 
 func (es *endpointStat) logDeprecatedEvent(statName string, code int) {
@@ -118,8 +122,14 @@ func newEndpointStat(endpoint, method string, metricID int32, dataFormat string)
 }
 
 type rpcMethodStat struct {
-	method    string
 	startTime time.Time
+	endpoint  string
+	method    string
+	lane      string
+}
+
+func newRPCMethodStat(endpoint, method string) *rpcMethodStat {
+	return &rpcMethodStat{startTime: time.Now(), endpoint: endpoint, method: method}
 }
 
 func (ms *rpcMethodStat) serviceTime(ai accessInfo, meta *format.MetricMetaValue, err error) {
@@ -135,16 +145,18 @@ func (ms *rpcMethodStat) serviceTime(ai accessInfo, meta *format.MetricMetaValue
 	var (
 		v = time.Since(ms.startTime).Seconds()
 		t = statshouse.Tags{
-			1: strconv.Itoa(int(format.TagValueIDRPC)),
-			2: "TL",
+			1: ms.endpoint,
+			2: strconv.Itoa(int(format.TagValueIDRPC)),
 			3: ms.method,
-			4: errorCode,
-			6: getStatTokenName(ai.user),
-			7: srvfunc.HostnameForStatshouse(),
+			4: "TL",
+			5: ms.lane,
+			6: srvfunc.HostnameForStatshouse(),
+			7: getStatTokenName(ai.user),
+			8: errorCode,
 		}
 	)
 	if meta != nil {
-		t[5] = strconv.Itoa(int(meta.MetricID))
+		t[9] = strconv.Itoa(int(meta.MetricID))
 	}
 	statshouse.Metric(format.BuiltinMetricNameAPIServiceTime, t).Value(v)
 }

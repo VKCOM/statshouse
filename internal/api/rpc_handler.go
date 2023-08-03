@@ -160,12 +160,13 @@ func (h *RPCHandler) GetQueryPoint(ctx context.Context, args tlstatshouseApi.Get
 		response   tlstatshouseApi.GetQueryPointResponse
 		metricMeta *format.MetricMetaValue
 		err        error
+		ms         = newRPCMethodStat(EndpointPoint, args.TLName())
 	)
 
-	defer func(ms *rpcMethodStat) {
+	defer func() {
 		ms.serviceTime(ai, metricMeta, err)
 		ms.serviceTimeDeprecated(ai, err)
-	}(&rpcMethodStat{args.TLName(), time.Now()})
+	}()
 
 	metricMeta, ai, err = h.prepareQuery(args.Query.MetricName, args.AccessToken)
 	if err != nil {
@@ -177,7 +178,7 @@ func (h *RPCHandler) GetQueryPoint(ctx context.Context, args tlstatshouseApi.Get
 		return response, err
 	}
 
-	r, _, err := h.ah.handleGetPoint(ctx, ai, seriesRequestOptions{}, req)
+	r, _, err := h.ah.handleGetPoint(withRPCEndpointStat(ctx, ms), ai, seriesRequestOptions{}, req)
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
 		return response, err
@@ -226,6 +227,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 	var (
 		ai         accessInfo
 		metricMeta *format.MetricMetaValue
+		ms         = newRPCMethodStat(EndpointQuery, args.TLName())
 	)
 
 	defer func() {
@@ -233,10 +235,10 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 			cancel()
 		}
 	}()
-	defer func(ms *rpcMethodStat) {
+	defer func() {
 		ms.serviceTime(ai, metricMeta, err)
 		ms.serviceTimeDeprecated(ai, err)
-	}(&rpcMethodStat{args.TLName(), time.Now()})
+	}()
 
 	ai, err = h.parseAccessToken(args.AccessToken)
 	if err != nil {
@@ -258,7 +260,7 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		return response, cancel, err
 	}
 
-	res, cancel, err := h.ah.handlePromqlQuery(ctx, ai, req, seriesRequestOptions{})
+	res, cancel, err := h.ah.handlePromqlQuery(withRPCEndpointStat(ctx, ms), ai, req, seriesRequestOptions{})
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeQueryHandlingFailed, Description: fmt.Sprintf("can't handle query: %v", err)}
 		return response, cancel, err
@@ -323,7 +325,7 @@ func (h *RPCHandler) GetChunk(_ context.Context, args tlstatshouseApi.GetChunk) 
 	defer func(ms *rpcMethodStat) {
 		ms.serviceTime(ai, nil, err)
 		ms.serviceTimeDeprecated(ai, err)
-	}(&rpcMethodStat{args.TLName(), time.Now()})
+	}(newRPCMethodStat(endpointChunk, args.TLName()))
 
 	ai, err = h.parseAccessToken(args.AccessToken)
 	if err != nil {
@@ -365,7 +367,7 @@ func (h *RPCHandler) ReleaseChunks(_ context.Context, args tlstatshouseApi.Relea
 	defer func(ms *rpcMethodStat) {
 		ms.serviceTime(ai, nil, err)
 		ms.serviceTimeDeprecated(ai, err)
-	}(&rpcMethodStat{args.TLName(), time.Now()})
+	}(newRPCMethodStat(endpointChunk, args.TLName()))
 
 	ai, err = h.parseAccessToken(args.AccessToken)
 	if err != nil {
