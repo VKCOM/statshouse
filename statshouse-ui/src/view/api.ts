@@ -17,6 +17,7 @@ import {
 import { uniqueArray } from '../common/helpers';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector } from '../api/enum';
 import { filterInSep, filterNotInSep, freeKeyPrefix, PlotParams } from '../url/queryParams';
+import { MetricMetaValue } from '../api/metric';
 
 export interface queryResult {
   readonly series: querySeries;
@@ -29,6 +30,7 @@ export interface queryResult {
   readonly mapping_flood_events_legacy: number;
   readonly promqltestfailed?: boolean; // only dev param
   readonly promql: string;
+  readonly metric: MetricMetaValue;
 }
 
 export interface querySeries {

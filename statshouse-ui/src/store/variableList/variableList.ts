@@ -45,13 +45,32 @@ export type VariableListStore = {
 };
 
 export const useVariableListStore = create<VariableListStore>()(
-  immer(() => {
+  immer((setState, getState) => {
     let prevParams = useStore.getState().params;
+    let metricsMeta = useStore.getState().metricsMeta;
     useStore.subscribe((state) => {
       if (prevParams !== state.params) {
         prevParams = state.params;
         updateVariables(state);
         updateTags(state);
+      }
+      if (metricsMeta !== state.metricsMeta) {
+        metricsMeta = state.metricsMeta;
+        const variableItems = getState().variables;
+        state.params.variables.forEach((variable) => {
+          if (!variableItems[variable.name].tagMeta) {
+            variable.link.forEach(([iPlot, iTag]) => {
+              if (iPlot != null && iTag != null) {
+                const meta = metricsMeta[state.params.plots[iPlot].metricName];
+                setState((variableState) => {
+                  if (variableState.variables[variable.name]) {
+                    variableState.variables[variable.name].tagMeta = meta?.tags?.[iTag];
+                  }
+                });
+              }
+            });
+          }
+        });
       }
     });
     return {

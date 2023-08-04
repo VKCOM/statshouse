@@ -69,7 +69,7 @@
 .value {
   text-align: end;
   white-space: nowrap;
-  width: calc(var(--legend-value-width) + 2.3em);
+  width: calc(var(--legend-value-width) + var(--legend-dot-space-width) + 2.3em);
 }
 
 .percent {

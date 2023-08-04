@@ -18,7 +18,7 @@ import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 import { MetricMetaValue } from '../../api/metric';
 import { promQLMetric } from '../../view/utils';
-import { lockRange, PlotParams } from '../../url/queryParams';
+import { lockRange, PlotParams, toKeyTag } from '../../url/queryParams';
 
 const setPlotType = useStore.getState().setPlotType;
 
@@ -61,10 +61,25 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     () =>
       `${document.location.protocol}//${document.location.host}${document.location.pathname}${getUrlSearch(
         produce((prev) => {
+          const plot = prev.plots[indexPlot];
+          prev.variables.forEach((variable) => {
+            variable.link.forEach(([iPlot, iTag]) => {
+              if (iPlot === indexPlot && iTag != null) {
+                const tagKey = toKeyTag(iTag, true);
+                if (variable.args.negative) {
+                  plot.filterNotIn[tagKey] = variable.values.slice();
+                } else {
+                  plot.filterIn[tagKey] = variable.values.slice();
+                }
+              }
+            });
+          });
+
           prev.dashboard = undefined;
           prev.tabNum = 0;
-          prev.plots = [prev.plots[indexPlot]].filter(Boolean);
+          prev.plots = [plot].filter(Boolean);
           prev.tagSync = [];
+          prev.variables = [];
         }),
         params,
         ''

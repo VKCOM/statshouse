@@ -48,7 +48,6 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
 }
 
 const {
-  loadMetricsMeta,
   setPlotParams,
   setTimeRange,
   setPreviews,
@@ -127,12 +126,6 @@ export function PlotViewMetric(props: {
     () => (sel.metricName !== promQLMetric ? sel.metricName : nameMetric),
     [sel.metricName, nameMetric]
   );
-
-  useEffect(() => {
-    if (metricName) {
-      loadMetricsMeta(metricName);
-    }
-  }, [metricName]);
 
   const clearLastError = useCallback(() => {
     setPlotLastError(indexPlot, '');
