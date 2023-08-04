@@ -76,9 +76,10 @@ EOD
 
 set xrange [{{$d.TimeFrom}}:{{$d.TimeTo}}]
 {{if $d.Data.Series.SeriesMeta -}}
-plot for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with fillsteps notitle               linestyle (10+n), \
-     for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with points notitle columnheader(1) linestyle (10+n) linewidth 0.7 pointtype 7 pointsize 0.2, \
-     for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with steps title columnheader(1) linestyle (10+n) linewidth 0.7
+plot for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with fillsteps notitle linestyle (10+n), \
+     for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with points notitle linestyle (10+n) linewidth 0.7 pointtype 7 pointsize 0.2, \
+     for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with steps notitle linestyle (10+n) linewidth 0.7 \
+     {{range $i, $meta := $d.Data.Series.SeriesMeta -}}, NaN with points pt 5 ps 2 lc rgb "{{$meta.Color}}" title "{{$d.MetaToLabel $meta}}"{{end}}
 {{else -}}
 set key off
 set yrange [0:100]
