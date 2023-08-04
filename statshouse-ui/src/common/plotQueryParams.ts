@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { defaultTimeRange, KeysTo, TIME_RANGE_KEYS_TO } from './TimeRange';
+import { defaultTimeRange, TIME_RANGE_KEYS_TO } from './TimeRange';
 import {
   BooleanParam,
   ConfigParams,
@@ -19,86 +19,11 @@ import {
   TimeToParam,
   UseV2Param,
 } from './QueryParamsParser';
-import React from 'react';
 import { GET_PARAMS, QueryWhat } from '../api/enum';
 import { getNextState } from './getNextState';
 import { dequal } from 'dequal/lite';
-
-export interface lockRange {
-  readonly min: number;
-  readonly max: number;
-}
-
-export const PLOT_TYPE = {
-  Metric: 0,
-  Event: 1,
-} as const;
-export type PlotType = (typeof PLOT_TYPE)[keyof typeof PLOT_TYPE];
-
-export type PlotParams = {
-  metricName: string;
-  customName: string;
-  what: QueryWhat[];
-  customAgg: number;
-  groupBy: string[];
-  filterIn: Record<string, string[]>;
-  filterNotIn: Record<string, string[]>;
-  numSeries: number;
-  useV2: boolean;
-  yLock: {
-    min: number;
-    max: number;
-  };
-  maxHost: boolean;
-  promQL: string;
-  type: PlotType;
-  events: number[];
-  eventsBy: string[];
-  eventsHide: string[];
-};
-
-export type GroupInfo = {
-  name: string;
-  show: boolean;
-  count: number;
-  size: number;
-};
-
-export type DashboardParams = {
-  dashboard_id?: number;
-  name?: string;
-  description?: string;
-  version?: number;
-  /**
-   * @deprecated not use
-   */
-  groups?: (number | null)[]; // [page_plot]
-  groupInfo?: GroupInfo[];
-};
-
-export type VariableParams = {
-  name: string;
-  description: string;
-  values: string[];
-  link: [number | null, number | null][];
-  args: {
-    groupBy?: boolean;
-    negative?: boolean;
-  };
-  // source: string;
-};
-
-export type QueryParams = {
-  ['@type']?: 'QueryParams'; // ld-json
-  dashboard?: DashboardParams;
-  timeRange: { to: number | KeysTo; from: number };
-  eventFrom: number;
-  timeShifts: number[];
-  tabNum: number;
-  tagSync: (number | null)[][]; // [group][page_plot][tag_index]
-  plots: PlotParams[];
-  variables: VariableParams[];
-};
+import { toNumber } from './helpers';
+import { isNotNilVariableLink, PLOT_TYPE, QueryParams, toIndexTag, toKeyTag } from '../url/queryParams';
 
 export const defaultParams: Readonly<QueryParams> = {
   dashboard: {
@@ -472,8 +397,19 @@ export const configParams: ConfigParams = {
         default: [],
       },
       link: {
-        decode: (s) => s.split('_').map((v) => v.split('.', 2).map((s) => (s && !isNaN(+s) ? +s : null))),
-        encode: (s: [number, number][]) => s.map((v) => v.join('.')).join('_'),
+        decode: (s) =>
+          s
+            .split('-')
+            .map((s) => {
+              const [p, t] = s.split('.', 2);
+              return [toNumber(p), toIndexTag(t)];
+            })
+            .filter(isNotNilVariableLink),
+        encode: (s: [number, number][]) =>
+          s
+            .filter(isNotNilVariableLink)
+            .map(([p, t]) => `${p}.${toKeyTag(t)}`)
+            .join('-'),
         urlKey: GET_PARAMS.variableLinkPlot, // v0.l=0.0_1.0
         default: [],
       },

@@ -17,8 +17,8 @@ import { whatToWhatDesc } from '../../view/api';
 import cn from 'classnames';
 import css from './style.module.css';
 import { promQLMetric } from '../../view/utils';
-import { PLOT_TYPE } from '../../common/plotQueryParams';
 import { shallow } from 'zustand/shallow';
+import { PLOT_TYPE } from '../../url/queryParams';
 
 export type HeaderMenuItemPlotProps = {
   indexPlot: number;

@@ -11,10 +11,11 @@ import { IBackendMetric, IKind, IMetric, ITag, ITagAlias } from '../models/metri
 import { MetricFormValuesContext, MetricFormValuesStorage } from '../storages/MetricFormValues';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { resetMetricFlood, saveMetric } from '../api/saveMetric';
-import { formatInputDate, freeKeyPrefix } from '../../view/utils';
+import { formatInputDate } from '../../view/utils';
 import { IActions } from '../storages/MetricFormValues/reducer';
 import { selectorListMetricsGroup, selectorLoadListMetricsGroup, useStore } from '../../store';
 import { RawValueKind } from '../../view/api';
+import { freeKeyPrefix } from '../../url/queryParams';
 
 const { clearMetricsMeta } = useStore.getState();
 

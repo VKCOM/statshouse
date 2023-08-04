@@ -1,4 +1,4 @@
-import { VariableParams } from './plotQueryParams';
+import { VariableParams } from '../url/queryParams';
 
 export function getEmptyVariableParams(): VariableParams {
   return {

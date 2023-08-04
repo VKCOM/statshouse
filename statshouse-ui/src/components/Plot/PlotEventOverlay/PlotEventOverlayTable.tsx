@@ -6,9 +6,9 @@
 
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ApiTable, apiTable } from '../../../api/tableOld';
-import { PlotParams } from '../../../common/plotQueryParams';
 import { TimeRange } from '../../../common/TimeRange';
 import { useEventTagColumns } from '../../../hooks/useEventTagColumns';
+import { PlotParams } from '../../../url/queryParams';
 
 export type PlotEventOverlayTableProps = {
   plot: PlotParams;

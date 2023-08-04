@@ -7,7 +7,7 @@
 import React, { Dispatch, memo, SetStateAction, useCallback, useMemo, useState } from 'react';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
-import { getUrlSearch, lockRange, PlotParams } from '../../common/plotQueryParams';
+import { getUrlSearch } from '../../common/plotQueryParams';
 import produce from 'immer';
 import { selectorDashboardLayoutEdit, selectorParams, useStore } from '../../store';
 import cn from 'classnames';
@@ -18,6 +18,7 @@ import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 import { MetricMetaValue } from '../../api/metric';
 import { promQLMetric } from '../../view/utils';
+import { lockRange, PlotParams } from '../../url/queryParams';
 
 const setPlotType = useStore.getState().setPlotType;
 

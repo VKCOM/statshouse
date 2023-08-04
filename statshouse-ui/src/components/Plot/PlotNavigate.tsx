@@ -19,7 +19,7 @@ import { ReactComponent as SVGLink } from 'bootstrap-icons/icons/link.svg';
 import { ReactComponent as SVGTable } from 'bootstrap-icons/icons/table.svg';
 import { ReactComponent as SVGGraphUp } from 'bootstrap-icons/icons/graph-up.svg';
 import { debug } from '../../common/debug';
-import { lockRange, PLOT_TYPE, PlotType } from '../../common/plotQueryParams';
+import { lockRange, PLOT_TYPE, PlotType } from '../../url/queryParams';
 
 export type PlotNavigateProps = {
   live: boolean;

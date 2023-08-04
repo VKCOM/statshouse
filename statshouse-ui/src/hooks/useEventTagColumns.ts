@@ -4,11 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { PlotParams } from '../common/plotQueryParams';
 import { useMemo } from 'react';
 import { ApiTableRowNormalize } from '../api/tableOld';
 import { selectorMetricsMetaByName, useStore } from '../store';
 import { getEventTagColumns } from '../view/utils';
+import { PlotParams } from '../url/queryParams';
 
 export type UseEventTagColumnReturn = {
   keyTag: keyof ApiTableRowNormalize;

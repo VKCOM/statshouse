@@ -9,7 +9,6 @@ import uPlot from 'uplot';
 import { TimeRange } from '../common/TimeRange';
 import * as api from './api';
 import { DashboardInfo, RawValueKind, whatToWhatDesc } from './api';
-import { PlotParams, QueryParams, VariableParams } from '../common/plotQueryParams';
 import { UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
 import { MetricMetaValue } from '../api/metric';
 import { PlotStore } from '../store';
@@ -17,6 +16,7 @@ import produce from 'immer';
 import { isNotNil, uniqueArray } from '../common/helpers';
 import { GET_PARAMS } from '../api/enum';
 import { getEmptyVariableParams } from '../common/getEmptyVariableParams';
+import { PlotParams, QueryParams, toKeyTag, VariableParams } from '../url/queryParams';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
@@ -666,25 +666,6 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
     },
     variables: params.variables ?? [],
   };
-}
-
-export function deepClone<T>(data: T): T {
-  return JSON.parse(JSON.stringify(data)) as T;
-}
-
-export function freeKeyPrefix(str: string): string {
-  return str.replace('skey', '_s').replace('key', '');
-}
-
-export function toIndexTag(str: string): number | null {
-  const shortKey = freeKeyPrefix(str);
-  return shortKey === '_s' ? -1 : +shortKey;
-}
-export function toKeyTag(indexTag: number, full?: boolean) {
-  if (full) {
-    return indexTag === -1 ? 'skey' : `key${indexTag}`;
-  }
-  return indexTag === -1 ? '_s' : indexTag.toString();
 }
 
 export function isTagEnabled(meta: MetricMetaValue | undefined, indexTag: number | string): boolean {

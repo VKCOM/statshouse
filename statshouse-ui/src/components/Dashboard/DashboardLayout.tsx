@@ -19,9 +19,9 @@ import {
   selectorSetGroupSize,
   useStore,
 } from '../../store';
-import { PlotParams } from '../../common/plotQueryParams';
 
 import css from './style.module.css';
+import { PlotParams } from '../../url/queryParams';
 
 function getStylePreview(
   targetRect: DOMRect,
