@@ -49,16 +49,8 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
   return [dataMin, dataMax];
 }
 
-const {
-  loadMetricsMeta,
-  setPlotParams,
-  setTimeRange,
-  setPreviews,
-  setLiveMode,
-  setYLockChange,
-  setPlotLastError,
-  setUPlotWidth,
-} = useStore.getState();
+const { setPlotParams, setTimeRange, setPreviews, setLiveMode, setYLockChange, setPlotLastError, setUPlotWidth } =
+  useStore.getState();
 
 export function PlotViewEvent(props: {
   indexPlot: number;
@@ -129,12 +121,6 @@ export function PlotViewEvent(props: {
     () => (sel.metricName !== promQLMetric ? sel.metricName : nameMetric),
     [sel.metricName, nameMetric]
   );
-
-  useEffect(() => {
-    if (metricName) {
-      loadMetricsMeta(metricName);
-    }
-  }, [metricName]);
 
   const clearLastError = useCallback(() => {
     setPlotLastError(indexPlot, '');

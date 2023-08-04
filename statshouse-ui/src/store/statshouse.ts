@@ -1067,6 +1067,7 @@ export const statsHouseState: StateCreator<
             const legendPercentWidth = (4 + 2) * pxPerChar; // +2 - focus marker
             setState((state) => {
               const noUpdateData = dequal(stacked || data, state.plotsData[index]?.data);
+              state.metricsMeta[resp.metric.name] ??= resp.metric;
               state.plotsData[index] = {
                 nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
                 whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as QueryWhat[]) : [],
@@ -1132,22 +1133,21 @@ export const statsHouseState: StateCreator<
             getState().updateTitle();
           });
 
-        getState()
-          .loadMetricsMeta(lastPlotParams.metricName)
-          .then(() => {
-            if (lastPlotParams.type === PLOT_TYPE.Event) {
-              const prevState = getState();
-              const from =
-                prevState.timeRange.from < prevState.params.eventFrom &&
-                prevState.timeRange.to > prevState.params.eventFrom
-                  ? prevState.params.eventFrom
-                  : undefined;
-              getState()
-                .loadEvents(index, undefined, undefined, from)
-                .catch(() => undefined);
-            }
-          })
-          .catch(() => undefined);
+        // getState()
+        //   .loadMetricsMeta(lastPlotParams.metricName)
+        //   .then(() => {
+        if (lastPlotParams.type === PLOT_TYPE.Event) {
+          const prevState = getState();
+          const from =
+            prevState.timeRange.from < prevState.params.eventFrom && prevState.timeRange.to > prevState.params.eventFrom
+              ? prevState.params.eventFrom
+              : undefined;
+          getState()
+            .loadEvents(index, undefined, undefined, from)
+            .catch(() => undefined);
+        }
+        // })
+        // .catch(() => undefined);
       }
     },
     setPlotShow(indexPlot, idx, show, single) {
@@ -1200,6 +1200,7 @@ export const statsHouseState: StateCreator<
     },
     metricsMeta: {},
     async loadMetricsMeta(metricName) {
+      // console.warn('loadMetricsMeta', metricName);
       if (!metricName || metricName === promQLMetric) {
         return;
       }
