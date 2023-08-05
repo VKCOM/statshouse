@@ -30,7 +30,7 @@ export interface queryResult {
   readonly mapping_flood_events_legacy: number;
   readonly promqltestfailed?: boolean; // only dev param
   readonly promql: string;
-  readonly metric: MetricMetaValue;
+  readonly metric: MetricMetaValue | null;
 }
 
 export interface querySeries {
