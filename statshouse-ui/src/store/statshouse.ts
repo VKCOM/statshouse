@@ -1067,7 +1067,9 @@ export const statsHouseState: StateCreator<
             const legendPercentWidth = (4 + 2) * pxPerChar; // +2 - focus marker
             setState((state) => {
               const noUpdateData = dequal(stacked || data, state.plotsData[index]?.data);
-              state.metricsMeta[resp.metric.name] ??= resp.metric;
+              if (resp.metric != null && !dequal(state.metricsMeta[resp.metric.name], resp.metric)) {
+                state.metricsMeta[resp.metric.name] = resp.metric;
+              }
               state.plotsData[index] = {
                 nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
                 whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as QueryWhat[]) : [],
@@ -1200,7 +1202,6 @@ export const statsHouseState: StateCreator<
     },
     metricsMeta: {},
     async loadMetricsMeta(metricName) {
-      // console.warn('loadMetricsMeta', metricName);
       if (!metricName || metricName === promQLMetric) {
         return;
       }
