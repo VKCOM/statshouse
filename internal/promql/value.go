@@ -43,8 +43,10 @@ type SeriesMeta struct {
 	Metric   *format.MetricMetaValue
 }
 
+const SeriesTagIndexOffset = 2
+
 type SeriesTag struct {
-	Index     int    // shifted by one, zero means not set
+	Index     int    // shifted by "SeriesTagIndexOffset", zero means not set
 	ID        string // canonical name, always set
 	Name      string // optional custom name
 	Value     int32

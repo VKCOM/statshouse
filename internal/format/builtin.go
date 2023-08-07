@@ -1740,7 +1740,7 @@ func init() {
 	}
 	apiCompatTagID[legacyEnvTagName] = "0"
 	apiCompatTagID[StringTopTagID] = StringTopTagID
-	apiCompatTagID[legacyStringTopTagID] = StringTopTagID
+	apiCompatTagID[LegacyStringTopTagID] = StringTopTagID
 	tagIDTag2TagID[TagIDShiftLegacy-1] = StringTopTagID
 	tagIDTag2TagID[TagIDShift-1] = tagStringForUI + " " + StringTopTagID // for UI only
 	tagIDTag2TagID[TagIDShift-2] = tagStringForUI + " " + HostTagID      // for UI only

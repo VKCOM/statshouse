@@ -499,6 +499,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			switch k {
 			case format.StringTopTagID, qry.Metric.StringTopName:
 				meta[i].SetTag(promql.SeriesTag{
+					Index:     format.StringTopTagIndex + promql.SeriesTagIndexOffset,
 					ID:        format.StringTopTagID,
 					Name:      qry.Metric.StringTopName,
 					SValue:    emptyToUnspecified(t.tagStr.String()),
@@ -513,7 +514,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			default:
 				if m, ok := qry.Metric.Name2Tag[k]; ok && m.Index < len(t.tag) {
 					meta[i].SetTag(promql.SeriesTag{
-						Index:    m.Index + 1,
+						Index:    m.Index + promql.SeriesTagIndexOffset,
 						ID:       format.TagID(m.Index),
 						Name:     m.Name,
 						Value:    t.tag[m.Index],
