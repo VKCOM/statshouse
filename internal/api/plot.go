@@ -481,7 +481,7 @@ func formatTagValue(s string, c string, r bool, k string, utcOffset int64) strin
 func convert(kind string, input int, utcOffset int64) string {
 	switch kind {
 	case "hex":
-		return fmt.Sprintf("%08X", input)
+		return fmt.Sprintf("%#08X", uint32(input))
 	case "hex_bswap":
 		u := uint(input)
 		return fmt.Sprintf("%02X%02X%02X%02X", u&255, (u>>8)&255, (u>>16)&255, (u>>24)&255)
