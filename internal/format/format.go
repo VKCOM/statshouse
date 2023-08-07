@@ -70,7 +70,7 @@ const (
 
 // Legacy, left for API backward compatibility
 const (
-	legacyStringTopTagID      = "skey"
+	LegacyStringTopTagID      = "skey"
 	legacyTagIDPrefix         = "key"
 	legacyEnvTagID            = legacyTagIDPrefix + "0"
 	legacyEnvTagName          = "env"

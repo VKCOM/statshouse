@@ -2104,18 +2104,29 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 				if !t.SValueSet || t.ID == labels.MetricName || t.ID == promql.LabelFn {
 					continue
 				}
-				if t.Index != 0 {
-					id = format.TagIDLegacy(t.Index - 1)
-				}
-				tag := SeriesMetaTag{Value: t.SValue}
-				if s.Metric != nil {
-					if meta, ok := s.Metric.Name2Tag[id]; ok {
+				var (
+					key = id
+					tag = SeriesMetaTag{Value: t.SValue}
+				)
+				if s.Metric != nil && t.Index != 0 {
+					var (
+						name  string
+						index = t.Index - promql.SeriesTagIndexOffset
+					)
+					if index == format.StringTopTagIndex {
+						key = format.LegacyStringTopTagID
+						name = format.StringTopTagID
+					} else {
+						key = format.TagIDLegacy(index)
+						name = format.TagID(index)
+					}
+					if meta, ok := s.Metric.Name2Tag[name]; ok {
 						tag.Comment = meta.ValueComments[tag.Value]
 						tag.Raw = meta.Raw
 						tag.RawKind = meta.RawKind
 					}
 				}
-				meta.Tags[id] = tag
+				meta.Tags[key] = tag
 			}
 		}
 		res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
