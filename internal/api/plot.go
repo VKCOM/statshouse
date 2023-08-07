@@ -79,7 +79,7 @@ set xrange [{{$d.TimeFrom}}:{{$d.TimeTo}}]
 plot for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with fillsteps notitle linestyle (10+n), \
      for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with points notitle linestyle (10+n) linewidth 0.7 pointtype 7 pointsize 0.2, \
      for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with steps notitle linestyle (10+n) linewidth 0.7 \
-     {{range $i, $meta := $d.Data.Series.SeriesMeta -}}, NaN with points pt 5 ps 2 lc rgb "{{$meta.Color}}" title "{{$d.MetaToLabel $meta}}"{{end}}
+     {{range $i, $meta := $d.Legend -}}, NaN with points pt 5 ps 2 lc rgb "{{$meta.Color}}" title "{{$d.MetaToLabel $meta}}"{{end}}
 {{else -}}
 set key off
 set yrange [0:100]
@@ -185,6 +185,7 @@ type gnuplotTemplateData struct {
 	Height   int
 	Ratio    float64
 	Data     *SeriesResponse
+	Legend   []QuerySeriesMetaV2
 	TimeFrom int64
 	TimeTo   int64
 
@@ -328,6 +329,13 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 			timeFrom = data[i].Series.Time[0]
 			timeTo = data[i].Series.Time[len(data[i].Series.Time)-1]
 		}
+		var (
+			legend       = data[i].Series.SeriesMeta
+			legendMaxLen = 15
+		)
+		if len(legend) > legendMaxLen {
+			legend = data[i].Series.SeriesMeta[:legendMaxLen]
+		}
 		td[i] = &gnuplotTemplateData{
 			Format:           format,
 			Title:            title,
@@ -338,6 +346,7 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 			Data:             data[i],
 			TimeFrom:         timeFrom + utcOffset,
 			TimeTo:           timeTo + utcOffset,
+			Legend:           legend,
 			usedColorIndices: map[string]int{},
 			uniqueWhat:       map[queryFn]struct{}{},
 			utcOffset:        utcOffset,
