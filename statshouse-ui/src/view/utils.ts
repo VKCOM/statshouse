@@ -434,6 +434,9 @@ export async function apiPost<T>(
     throw new Error(`${resp.status}: ${text.substring(0, 255)}`);
   }
   const json = (await resp.json()) as apiResponse<T>;
+  if (resp.status === 403) {
+    throw new Error403(`${resp.status}: ${json.error}`);
+  }
   if (!resp.ok || json.error) {
     throw new Error(`${resp.status}: ${json.error}`);
   }

@@ -53,6 +53,9 @@ export function getLinkById(indexPlot: number, params: QueryParams, defaultParam
 export function getAddNewPlotLink(params: QueryParams, defaultParams: QueryParams) {
   let tabNum = params.tabNum < 0 ? params.plots.length - 1 : params.tabNum;
   const copyPlot = deepClone(params.plots[tabNum]) ?? getNewPlot();
-  const s = encodeParams({ ...params, plots: [...params.plots, { ...copyPlot }] }, defaultParams);
+  const s = encodeParams(
+    { ...params, plots: [...params.plots, { ...copyPlot }], tabNum: params.plots.length },
+    defaultParams
+  );
   return '?' + s.toString();
 }

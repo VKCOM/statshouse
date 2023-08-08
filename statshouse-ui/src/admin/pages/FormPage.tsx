@@ -283,7 +283,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
               <div className="row align-items-baseline">
                 <div className="col-sm-2 col-lg-1 form-text">Tag ID</div>
                 <div className="col-sm-2 form-text">Name</div>
-                <div className="col-sm-5 form-text">Description (for UI only)</div>
+                <div className="col-sm-5 form-text">Description (for UI only), single dash (-) to hide tag from UI</div>
               </div>
             </div>
           </div>

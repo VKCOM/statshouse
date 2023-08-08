@@ -20,7 +20,6 @@ import {
   UseV2Param,
 } from './QueryParamsParser';
 import { GET_PARAMS, QueryWhat } from '../api/enum';
-import { getNextState } from './getNextState';
 import { dequal } from 'dequal/lite';
 import { toNumber } from './helpers';
 import { isNotNilVariableLink, PLOT_TYPE, QueryParams, toIndexTag, toKeyTag } from '../url/queryParams';
@@ -53,27 +52,6 @@ export const defaultParams: Readonly<QueryParams> = {
   ],
   variables: [],
 };
-
-export function parseParamsFromUrl(url: string): QueryParams {
-  return decodeQueryParams(configParams, defaultParams, new URLSearchParams(new URL(url).search), middlewareDecode)!;
-}
-
-export function getUrlSearch(
-  nextState: React.SetStateAction<QueryParams>,
-  prev?: QueryParams,
-  baseLink?: string,
-  defaultP?: QueryParams
-) {
-  const params = new URLSearchParams(baseLink ?? window.location.search);
-  const prevState = prev ?? decodeQueryParams(configParams, defaultP ?? defaultParams, params, middlewareDecode);
-  if (prevState) {
-    const newState = getNextState(prevState, nextState);
-    return (
-      '?' + encodeQueryParams(configParams, newState, defaultP ?? defaultParams, params, middlewareEncode).toString()
-    );
-  }
-  return '?' + params.toString();
-}
 
 export function sortEntity<T extends number | string>(arr: T[]): T[] {
   return [...arr].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));

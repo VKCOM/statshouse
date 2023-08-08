@@ -22,8 +22,8 @@ import {
 import { ReactComponent as SVGGearFill } from 'bootstrap-icons/icons/gear-fill.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { NavLink } from 'react-router-dom';
-import { getUrlSearch } from '../../common/plotQueryParams';
 import produce from 'immer';
+import { encodeParams } from '../../url/queryParams';
 
 export type DashboardHeaderProps = {};
 export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
@@ -50,19 +50,16 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
 
   const params = useStore(selectorParams);
 
-  const copyLink = useMemo(
-    () =>
-      `${document.location.protocol}//${document.location.host}${document.location.pathname}${getUrlSearch(
-        produce((prev) => {
-          if (prev.dashboard?.dashboard_id) {
-            prev.dashboard.dashboard_id = undefined;
-          }
-        }),
-        params,
-        ''
-      )}`,
-    [params]
-  );
+  const copyLink = useMemo(() => {
+    const search = encodeParams(
+      produce(params, (p) => {
+        if (p.dashboard?.dashboard_id) {
+          p.dashboard.dashboard_id = undefined;
+        }
+      })
+    );
+    return `${document.location.protocol}//${document.location.host}${document.location.pathname}?${search.toString()}`;
+  }, [params]);
 
   return (
     <div className="d-flex flex-row flex-wrap mb-3 container-xl">
