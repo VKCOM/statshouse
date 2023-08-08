@@ -7,7 +7,6 @@
 import React, { Dispatch, memo, SetStateAction, useCallback, useMemo, useState } from 'react';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
-import { getUrlSearch } from '../../common/plotQueryParams';
 import produce from 'immer';
 import { selectorDashboardLayoutEdit, selectorParams, useStore } from '../../store';
 import cn from 'classnames';
@@ -18,7 +17,7 @@ import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 import { MetricMetaValue } from '../../api/metric';
 import { promQLMetric } from '../../view/utils';
-import { lockRange, PlotParams, toKeyTag } from '../../url/queryParams';
+import { encodeParams, lockRange, PlotParams, toKeyTag } from '../../url/queryParams';
 
 const setPlotType = useStore.getState().setPlotType;
 
@@ -57,35 +56,32 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     setShowTags((s) => !s);
   }, []);
 
-  const copyLink = useMemo(
-    () =>
-      `${document.location.protocol}//${document.location.host}${document.location.pathname}${getUrlSearch(
-        produce((prev) => {
-          const plot = prev.plots[indexPlot];
-          prev.variables.forEach((variable) => {
-            variable.link.forEach(([iPlot, iTag]) => {
-              if (iPlot === indexPlot && iTag != null) {
-                const tagKey = toKeyTag(iTag, true);
-                if (variable.args.negative) {
-                  plot.filterNotIn[tagKey] = variable.values.slice();
-                } else {
-                  plot.filterIn[tagKey] = variable.values.slice();
-                }
+  const copyLink = useMemo(() => {
+    const search = encodeParams(
+      produce(params, (prev) => {
+        const plot = prev.plots[indexPlot];
+        prev.variables.forEach((variable) => {
+          variable.link.forEach(([iPlot, iTag]) => {
+            if (iPlot === indexPlot && iTag != null) {
+              const tagKey = toKeyTag(iTag, true);
+              if (variable.args.negative) {
+                plot.filterNotIn[tagKey] = variable.values.slice();
+              } else {
+                plot.filterIn[tagKey] = variable.values.slice();
               }
-            });
+            }
           });
+        });
 
-          prev.dashboard = undefined;
-          prev.tabNum = 0;
-          prev.plots = [plot].filter(Boolean);
-          prev.tagSync = [];
-          prev.variables = [];
-        }),
-        params,
-        ''
-      )}`,
-    [indexPlot, params]
-  );
+        prev.dashboard = undefined;
+        prev.tabNum = 0;
+        prev.plots = [plot].filter(Boolean);
+        prev.tagSync = [];
+        prev.variables = [];
+      })
+    );
+    return `${document.location.protocol}//${document.location.host}${document.location.pathname}?${search.toString()}`;
+  }, [indexPlot, params]);
 
   const onSetPlotType = useMemo(() => setPlotType.bind(undefined, indexPlot), [indexPlot]);
 

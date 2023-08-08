@@ -450,7 +450,7 @@ export function decodeParams(urlSearchParams: URLSearchParams, defaultParams?: Q
     const what: QueryWhat[] = urlParams[prefix + GET_PARAMS.metricWhat]?.filter(isQueryWhat) ?? ['count_norm'];
     const customAgg = toNumber(urlParams[prefix + GET_PARAMS.metricAgg]?.[0]) ?? 0;
     const groupBy: string[] =
-      urlParams[prefix + GET_PARAMS.metricGroupBy].map((s) => {
+      urlParams[prefix + GET_PARAMS.metricGroupBy]?.map((s) => {
         const indexTag = freeKeyPrefix(s);
         return '_s' === indexTag ? 'skey' : `key${indexTag}`;
       }) ?? [];

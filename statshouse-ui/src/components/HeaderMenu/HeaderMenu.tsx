@@ -34,7 +34,7 @@ import {
 import { currentAccessInfo, logoutURL } from '../../common/access';
 import { HeaderMenuItemPlot } from './HeaderMenuItemPlot';
 import css from './style.module.css';
-import { parseParamsFromUrl } from '../../common/plotQueryParams';
+import { decodeParams } from '../../url/queryParams';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -70,7 +70,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   const onPasteClipboard = useCallback(() => {
     (navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.reject())
       .then((url) => {
-        const parseParams = parseParamsFromUrl(url);
+        const parseParams = decodeParams(new URLSearchParams(url));
         if (parseParams.plots.length) {
           setParams(
             produce((p) => {
@@ -81,7 +81,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
       })
       .catch(() => {
         const url = prompt('Paste url') ?? '';
-        const parseParams = parseParamsFromUrl(url);
+        const parseParams = decodeParams(new URLSearchParams(url));
         if (parseParams.plots.length) {
           setParams(
             produce((p) => {

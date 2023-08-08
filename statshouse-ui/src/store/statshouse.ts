@@ -8,15 +8,7 @@ import { StateCreator } from 'zustand';
 import uPlot from 'uplot';
 
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
-import {
-  configParams,
-  defaultParams,
-  getLiveParams,
-  middlewareDecode,
-  readDashboardID,
-  setLiveParams,
-  sortEntity,
-} from '../common/plotQueryParams';
+import { defaultParams, getLiveParams, readDashboardID, setLiveParams, sortEntity } from '../common/plotQueryParams';
 import { dequal } from 'dequal/lite';
 import React from 'react';
 import produce, { setAutoFreeze } from 'immer';
@@ -73,7 +65,7 @@ import { calcYRange2 } from '../common/calcYRange';
 import { rgba, selectColor } from '../view/palette';
 import { filterPoints } from '../common/filterPoints';
 import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
-import { decodeQueryParams, mergeLeft } from '../common/QueryParamsParser';
+import { mergeLeft } from '../common/QueryParamsParser';
 import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { useErrorStore } from './errors';
@@ -84,6 +76,7 @@ import { promiseRun } from '../common/promiseRun';
 import { apiMetricTagValuesFetch } from '../api/metricTagValues';
 import { appHistory } from '../common/appHistory';
 import {
+  decodeParams,
   encodeParams,
   freeKeyPrefix,
   PLOT_TYPE,
@@ -367,22 +360,17 @@ export const statsHouseState: StateCreator<
         },
       };
 
-      let decodeParams = decodeQueryParams<QueryParams>(
-        configParams,
-        localDefaultParams,
-        new URLSearchParams(window.location.search),
-        middlewareDecode
-      );
+      let decodeP = decodeParams(new URLSearchParams(window.location.search), localDefaultParams);
 
-      if (!decodeParams) {
+      if (!decodeP) {
         return;
       }
-      let params = decodeParams;
-      if (decodeParams.tagSync.length) {
-        await loadAllMeta(decodeParams, getState().loadMetricsMeta);
+      let params = decodeP;
+      if (decodeP.tagSync.length) {
+        await loadAllMeta(decodeP, getState().loadMetricsMeta);
         const metricsMeta = getState().metricsMeta;
         setAutoFreeze(false);
-        params = tagSyncToVariableConvert(decodeParams, metricsMeta);
+        params = tagSyncToVariableConvert(decodeP, metricsMeta);
         setAutoFreeze(true);
       }
 
@@ -394,7 +382,7 @@ export const statsHouseState: StateCreator<
       let reset = false;
       const nowTime = now();
 
-      if (!dequal(params.variables, decodeParams.variables)) {
+      if (!dequal(params.variables, decodeP.variables)) {
         reset = true;
       }
 

@@ -33,6 +33,7 @@ import cn from 'classnames';
 import { PlotEventOverlay } from './PlotEventOverlay';
 import { useUPlotPluginHooks } from '../../hooks';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
+import { shallow } from 'zustand/shallow';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -99,7 +100,7 @@ export function PlotViewMetric(props: {
     error403,
     topInfo,
     nameMetric,
-  } = useStore(selectorPlotsData);
+  } = useStore(selectorPlotsData, shallow);
 
   const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
 
@@ -311,7 +312,7 @@ export function PlotViewMetric(props: {
   );
   useEffect(() => {
     seriesShow.forEach((show, idx) => {
-      if (uPlotRef.current?.series[idx + 1].show !== show) {
+      if (uPlotRef.current?.series[idx + 1] && uPlotRef.current?.series[idx + 1].show !== show) {
         uPlotRef.current?.setSeries(idx + 1, { show }, true);
       }
     });
