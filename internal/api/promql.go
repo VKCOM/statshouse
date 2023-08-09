@@ -947,16 +947,16 @@ func getPromQuery(req seriesRequest, queryFn bool) (string, error) {
 			}
 		}
 		q := fmt.Sprintf("%s{%s}", req.metricWithNamespace, strings.Join(s, ","))
-		if req.numResults < 0 {
-			q = fmt.Sprintf("bottomk(%d,%s)", -req.numResults, q)
-		} else {
-			q = fmt.Sprintf("topk(%d,%s)", req.numResults, q)
-		}
 		if deriv {
 			q = fmt.Sprintf("idelta(%s)", q)
 		}
 		if cumul {
 			q = fmt.Sprintf("prefix_sum(%s)", q)
+		}
+		if req.numResults < 0 {
+			q = fmt.Sprintf("bottomk(%d,%s)", -req.numResults, q)
+		} else if req.numResults > 0 {
+			q = fmt.Sprintf("topk(%d,%s)", req.numResults, q)
 		}
 		if i > 0 {
 			q = fmt.Sprintf("label_replace(%s, \"__name__\",%q,\"\",\"\")", q, name)

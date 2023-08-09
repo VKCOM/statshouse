@@ -1086,8 +1086,12 @@ func (ev *evaluator) funcPrefixSum(bag SeriesBag) SeriesBag {
 		i++
 	}
 	for k, row := range bag.Data {
+		var j int
+		for ; j < i && j < len(*row); j++ {
+			(*row)[j] = 0
+		}
 		var sum float64
-		for j := i; j < len(*row); j++ {
+		for ; j < len(*row); j++ {
 			v := (*row)[j]
 			if !math.IsNaN(v) {
 				sum += v
