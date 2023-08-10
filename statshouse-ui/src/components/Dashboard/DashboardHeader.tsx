@@ -23,7 +23,7 @@ import { ReactComponent as SVGGearFill } from 'bootstrap-icons/icons/gear-fill.s
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { NavLink } from 'react-router-dom';
 import produce from 'immer';
-import { encodeParams } from '../../url/queryParams';
+import { encodeParams, fixMessageTrouble } from '../../url/queryParams';
 
 export type DashboardHeaderProps = {};
 export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
@@ -58,7 +58,9 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
         }
       })
     );
-    return `${document.location.protocol}//${document.location.host}${document.location.pathname}?${search.toString()}`;
+    return `${document.location.protocol}//${document.location.host}${document.location.pathname}?${fixMessageTrouble(
+      search.toString()
+    )}`;
   }, [params]);
 
   return (
@@ -69,6 +71,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
           setTimeRange={setTimeRange}
           live={live}
           link={copyLink}
+          outerLink={copyLink}
           setLive={setLive}
           disabledLive={disabledLive}
         />

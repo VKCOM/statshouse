@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { useStore } from '../store';
-import { encodeParams, getNewPlot, QueryParams } from '../../url/queryParams';
+import { encodeParams, fixMessageTrouble, getNewPlot, QueryParams } from '../../url/queryParams';
 import { deepClone } from '../../common/helpers';
 
 export type LinkListStore = {
@@ -47,7 +47,7 @@ export function getLinks(params: QueryParams, defaultParams: QueryParams): Recor
 
 export function getLinkById(indexPlot: number, params: QueryParams, defaultParams: QueryParams) {
   const s = encodeParams({ ...params, tabNum: indexPlot }, defaultParams);
-  return '?' + s.toString();
+  return '?' + fixMessageTrouble(s.toString());
 }
 
 export function getAddNewPlotLink(params: QueryParams, defaultParams: QueryParams) {
@@ -57,5 +57,5 @@ export function getAddNewPlotLink(params: QueryParams, defaultParams: QueryParam
     { ...params, plots: [...params.plots, { ...copyPlot }], tabNum: params.plots.length },
     defaultParams
   );
-  return '?' + s.toString();
+  return '?' + fixMessageTrouble(s.toString());
 }

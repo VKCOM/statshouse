@@ -78,6 +78,7 @@ import { appHistory } from '../common/appHistory';
 import {
   decodeParams,
   encodeParams,
+  fixMessageTrouble,
   freeKeyPrefix,
   PLOT_TYPE,
   PlotParams,
@@ -647,7 +648,7 @@ export const statsHouseState: StateCreator<
       const live = getLiveParams(new URLSearchParams(document.location.search)); // save live param in url
       let p = encodeParams(prevState.params, prevState.defaultParams);
       p = setLiveParams(live, p);
-      const search = '?' + p.toString();
+      const search = '?' + fixMessageTrouble(p.toString());
       let pathname = document.location.pathname;
 
       if (pathname !== '/view' && pathname !== '/embed') {
