@@ -6,7 +6,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { Store, useStore } from '../store';
+import { Store, useStore } from '../statshouse';
 import {
   getTagDescription,
   isTagEnabled,

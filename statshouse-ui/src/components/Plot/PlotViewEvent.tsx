@@ -24,10 +24,10 @@ import {
   selectorParamsPlotsByIndex,
   selectorParamsTimeShifts,
   selectorPlotsDataByIndex,
-  selectorThemeDark,
   selectorTimeRange,
   selectorUPlotsWidthByIndex,
   useStore,
+  useThemeStore,
 } from '../../store';
 import { xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
@@ -113,7 +113,7 @@ export function PlotViewEvent(props: {
 
   const loadEvent = useStore(selectorLoadEvents);
 
-  const themeDark = useStore(selectorThemeDark);
+  const themeDark = useThemeStore((s) => s.dark);
 
   const uPlotRef = useRef<uPlot>();
 

@@ -6,7 +6,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { useStore } from '../store';
+import { useStore } from '../statshouse';
 import { encodeParams, fixMessageTrouble, getNewPlot, QueryParams } from '../../url/queryParams';
 import { deepClone } from '../../common/helpers';
 

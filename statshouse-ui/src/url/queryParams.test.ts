@@ -23,6 +23,8 @@ describe('queryParams.ts', () => {
 
   test('encodeParams -> decodeParams base', () => {
     const testParam: QueryParams = {
+      live: false,
+      theme: undefined,
       dashboard: {
         dashboard_id: undefined,
         groupInfo: [],
@@ -46,6 +48,8 @@ describe('queryParams.ts', () => {
 
   test('encodeParams -> decodeParams default', () => {
     const defaultParam: QueryParams = {
+      live: false,
+      theme: undefined,
       dashboard: {
         dashboard_id: undefined,
         groupInfo: [{ name: 'qwe', count: 2, show: true, size: 3 }],
@@ -118,6 +122,7 @@ describe('queryParams.ts', () => {
       ],
     };
     const testParam: QueryParams = {
+      live: false,
       dashboard: {
         dashboard_id: undefined,
         groupInfo: [{ name: 'qwe', count: 2, show: true, size: 2 }],

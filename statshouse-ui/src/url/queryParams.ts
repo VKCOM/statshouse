@@ -108,6 +108,8 @@ export type VariableParams = {
 };
 export type QueryParams = {
   ['@type']?: 'QueryParams'; // ld-json
+  live: boolean;
+  theme?: string;
   dashboard?: DashboardParams;
   timeRange: { to: number | KeysTo; from: number };
   eventFrom: number;
@@ -117,6 +119,28 @@ export type QueryParams = {
   plots: PlotParams[];
   variables: VariableParams[];
 };
+
+export function getDefaultParams(): QueryParams {
+  return {
+    live: false,
+    theme: undefined,
+    dashboard: {
+      dashboard_id: undefined,
+      groupInfo: [],
+      description: '',
+      name: '',
+      version: undefined,
+    },
+    timeRange: { to: TIME_RANGE_KEYS_TO.default, from: 0 },
+    eventFrom: 0,
+    tagSync: [],
+    plots: [],
+    timeShifts: [],
+    tabNum: 0,
+    variables: [],
+  };
+}
+
 export const PlotTypeValues: Set<number> = new Set(Object.values(PLOT_TYPE));
 export function isPlotType(s: number): s is PlotType {
   return PlotTypeValues.has(s);
@@ -179,6 +203,16 @@ export function fixMessageTrouble(search: string): string {
 
 export function encodeParams(value: QueryParams, defaultParams?: QueryParams): URLSearchParams {
   const search: string[][] = [];
+
+  //live
+  if (value.live) {
+    search.push([GET_PARAMS.metricLive, '1']);
+  }
+
+  //theme
+  if (value.theme) {
+    search.push([GET_PARAMS.theme, value.theme]);
+  }
 
   // tabNum
   if (value.tabNum !== (defaultParams?.tabNum ?? 0)) {
@@ -404,6 +438,11 @@ export function decodeParams(urlSearchParams: URLSearchParams, defaultParams?: Q
     res[key].push(value);
     return res;
   }, {} as Record<string, string[]>);
+
+  const live = urlParams[GET_PARAMS.metricLive]?.[0] === '1';
+
+  const theme = urlParams[GET_PARAMS.theme]?.[0];
+
   const tabNum = toNumber(urlParams[GET_PARAMS.metricTabNum]?.[0]) ?? defaultParams?.tabNum ?? 0;
 
   const groupInfo: GroupInfo[] = [];
@@ -587,6 +626,8 @@ export function decodeParams(urlSearchParams: URLSearchParams, defaultParams?: Q
   }
 
   return {
+    live,
+    theme,
     tabNum,
     dashboard,
     timeRange: {
@@ -599,4 +640,8 @@ export function decodeParams(urlSearchParams: URLSearchParams, defaultParams?: Q
     tagSync,
     variables,
   };
+}
+
+export function decodeDashboardIdParam(urlSearchParams: URLSearchParams) {
+  return toNumber(urlSearchParams.get(GET_PARAMS.dashboardID));
 }

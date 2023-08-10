@@ -16,7 +16,7 @@ import produce from 'immer';
 import { isNotNil, uniqueArray } from '../common/helpers';
 import { GET_PARAMS } from '../api/enum';
 import { getEmptyVariableParams } from '../common/getEmptyVariableParams';
-import { PlotParams, QueryParams, toKeyTag, VariableParams } from '../url/queryParams';
+import { getDefaultParams, PlotParams, QueryParams, toKeyTag, VariableParams } from '../url/queryParams';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
@@ -646,7 +646,10 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
   // @ts-ignore
   const timeShifts = params.timeShifts ?? params.plots[0]?.timeShifts ?? [];
   return {
+    ...getDefaultParams(),
     ...params,
+    live: getDefaultParams().live,
+    theme: getDefaultParams().theme,
     plots: params.plots.map((p) => {
       // @ts-ignore
       delete p.timeShifts;
