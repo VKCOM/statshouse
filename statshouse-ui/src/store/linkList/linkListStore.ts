@@ -46,7 +46,7 @@ export function getLinks(params: QueryParams, defaultParams: QueryParams): Recor
 }
 
 export function getLinkById(indexPlot: number, params: QueryParams, defaultParams: QueryParams) {
-  const s = encodeParams({ ...params, tabNum: indexPlot }, defaultParams);
+  const s = encodeParams({ ...params, theme: undefined, tabNum: indexPlot }, defaultParams);
   return '?' + fixMessageTrouble(s.toString());
 }
 
@@ -54,7 +54,12 @@ export function getAddNewPlotLink(params: QueryParams, defaultParams: QueryParam
   let tabNum = params.tabNum < 0 ? params.plots.length - 1 : params.tabNum;
   const copyPlot = deepClone(params.plots[tabNum]) ?? getNewPlot();
   const s = encodeParams(
-    { ...params, plots: [...params.plots, { ...copyPlot }], tabNum: params.plots.length },
+    {
+      ...params,
+      theme: undefined,
+      plots: [...params.plots, { ...copyPlot }],
+      tabNum: params.plots.length,
+    },
     defaultParams
   );
   return '?' + fixMessageTrouble(s.toString());

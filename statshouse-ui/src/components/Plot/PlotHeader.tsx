@@ -72,7 +72,8 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             }
           });
         });
-
+        prev.live = false;
+        prev.theme = undefined;
         prev.dashboard = undefined;
         prev.tabNum = 0;
         prev.plots = [plot].filter(Boolean);
