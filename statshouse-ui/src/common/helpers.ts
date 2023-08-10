@@ -4,6 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import produce from 'immer';
+
 export function isArray(item: unknown): item is unknown[] {
   return Array.isArray(item);
 }
@@ -96,4 +98,46 @@ export function deepClone<T>(item: T): T {
       }
   }
   return item;
+}
+
+export function sortEntity<T extends number | string>(arr: T[]): T[] {
+  return [...arr].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+}
+
+export function mergeLeft<T>(targetMerge: T, valueMerge: T): T {
+  if (targetMerge === valueMerge) {
+    return targetMerge;
+  }
+  if (isArray(targetMerge) && isArray(valueMerge)) {
+    if (targetMerge.length === valueMerge.length) {
+      return produce(targetMerge, (s) => {
+        for (let i = 0, max = s.length; i < max; i++) {
+          const v = mergeLeft(s[i], valueMerge[i]);
+          if (s[i] !== v) {
+            s[i] = v;
+          }
+        }
+      });
+    }
+    return valueMerge;
+  }
+  if (isObject(targetMerge) && isObject(valueMerge)) {
+    const tKey = Object.keys(targetMerge);
+    const vKey = new Set(Object.keys(valueMerge));
+    return produce(targetMerge, (s) => {
+      tKey.forEach((key) => {
+        const v = mergeLeft(s[key], valueMerge[key]);
+        if (!valueMerge.hasOwnProperty(key)) {
+          delete s[key];
+        } else if (s[key] !== v) {
+          Object.assign(s, { [key]: v });
+        }
+        vKey.delete(key);
+      });
+      [...vKey].forEach((key) => {
+        Object.assign(s, { [key]: valueMerge[key] });
+      });
+    });
+  }
+  return valueMerge;
 }

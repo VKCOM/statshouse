@@ -25,11 +25,11 @@ import {
   selectorPlotList,
   selectorPromqltestfailed,
   selectorSetParams,
-  selectorSetTheme,
-  selectorThemeName,
+  setTheme,
   THEMES,
   useStore,
   useStoreDev,
+  useThemeStore,
 } from '../../store';
 import { currentAccessInfo, logoutURL } from '../../common/access';
 import { HeaderMenuItemPlot } from './HeaderMenuItemPlot';
@@ -58,8 +58,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   const location = useLocation();
   const ai = currentAccessInfo();
 
-  const themeName = useStore(selectorThemeName);
-  const setTheme = useStore(selectorSetTheme);
+  const themeName = useThemeStore((s) => s.theme);
 
   const promqltestfailed = useStore(selectorPromqltestfailed);
 
@@ -94,13 +93,20 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
 
   const onDark = useCallback(() => {
     setTheme(THEMES.Dark);
-  }, [setTheme]);
+  }, []);
   const onLight = useCallback(() => {
     setTheme(THEMES.Light);
-  }, [setTheme]);
+  }, []);
   const onAuto = useCallback(() => {
     setTheme(THEMES.Auto);
-  }, [setTheme]);
+  }, []);
+  const onResetTheme = useCallback(() => {
+    useStore.getState().setParams(
+      produce((p) => {
+        p.theme = undefined;
+      })
+    );
+  }, []);
 
   return (
     <div className={cn('sticky-top align-self-start', css.navOuter, className)}>
@@ -179,6 +185,16 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
         </HeaderMenuItem>
         <HeaderMenuItem icon={themeIcon[themeName] ?? SVGBrightnessHighFill} title="Theme">
           <li className={css.splitter}></li>
+          {!!params.theme && (
+            <>
+              <li className={cn('nav-item bg-primary-subtle')}>
+                <span role="button" className="nav-link" title="Reset url theme" onClick={onResetTheme}>
+                  Reset
+                </span>
+              </li>
+              <li className={css.splitter}></li>
+            </>
+          )}
           <li className={cn('nav-item', themeName === THEMES.Dark && 'bg-primary-subtle')}>
             <span role="button" className="nav-link" title="Set dark theme" onClick={onDark}>
               Dark

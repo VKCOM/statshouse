@@ -8,7 +8,6 @@ import { StateCreator } from 'zustand';
 import uPlot from 'uplot';
 
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
-import { defaultParams, getLiveParams, readDashboardID, setLiveParams, sortEntity } from '../common/plotQueryParams';
 import { dequal } from 'dequal/lite';
 import React from 'react';
 import produce, { setAutoFreeze } from 'immer';
@@ -25,6 +24,7 @@ import {
   loadAllMeta,
   normalizeDashboard,
   now,
+  paramToVariable,
   promQLMetric,
   readJSONLD,
   replaceVariable,
@@ -65,27 +65,31 @@ import { calcYRange2 } from '../common/calcYRange';
 import { rgba, selectColor } from '../view/palette';
 import { filterPoints } from '../common/filterPoints';
 import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
-import { mergeLeft } from '../common/QueryParamsParser';
 import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat } from '../api/enum';
-import { deepClone, isNotNil, uniqueArray } from '../common/helpers';
+import { deepClone, isNotNil, mergeLeft, sortEntity, uniqueArray } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { apiMetricTagValuesFetch } from '../api/metricTagValues';
 import { appHistory } from '../common/appHistory';
 import {
+  decodeDashboardIdParam,
   decodeParams,
   encodeParams,
   fixMessageTrouble,
   freeKeyPrefix,
+  getDefaultParams,
   PLOT_TYPE,
   PlotParams,
   PlotType,
   QueryParams,
+  toKeyTag,
   VariableParams,
 } from '../url/queryParams';
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
 
 export type PlotStore = {
   nameMetric: string;
@@ -298,7 +302,7 @@ export const statsHouseState: StateCreator<
   });
 
   return {
-    defaultParams: { ...defaultParams },
+    defaultParams: getDefaultParams(),
     setDefaultParams(nextState) {
       const nextDefaultParams = getNextState(getState().defaultParams, nextState);
       setState((state) => {
@@ -306,16 +310,7 @@ export const statsHouseState: StateCreator<
       });
     },
     timeRange: new TimeRange({ to: TIME_RANGE_KEYS_TO.default, from: 0 }),
-    params: {
-      dashboard: undefined,
-      timeRange: { to: TIME_RANGE_KEYS_TO.default, from: 0 },
-      eventFrom: 0,
-      tagSync: [],
-      plots: [],
-      timeShifts: [],
-      tabNum: 0,
-      variables: [],
-    },
+    params: getDefaultParams(),
     setTimeRange(value, force?) {
       const tr = new TimeRange(getState().params.timeRange);
       tr.setRange(value);
@@ -338,36 +333,31 @@ export const statsHouseState: StateCreator<
       }
     },
     async updateParamsByUrl(abortSignal: AbortSignal) {
-      const id = readDashboardID(new URLSearchParams(document.location.search));
+      const urlSearchParams = new URLSearchParams(document.location.search);
+      const id = decodeDashboardIdParam(urlSearchParams);
       if (id && getState().params.dashboard?.dashboard_id && id !== getState().params.dashboard?.dashboard_id) {
         setState((state) => {
           state.params.plots = [];
-          state.params.dashboard = {
-            dashboard_id: undefined,
-            groupInfo: [],
-            description: '',
-            name: '',
-            version: undefined,
-          };
+          state.params.dashboard = getDefaultParams().dashboard;
           state.params.tagSync = [];
           state.params.eventFrom = 0;
         });
       }
       const saveParams = id ? await getState().loadServerParams(id) : undefined;
       const localDefaultParams: QueryParams = {
-        ...(saveParams ?? defaultParams),
+        ...(saveParams ?? getDefaultParams()),
         timeRange: {
           to:
             saveParams && !(typeof saveParams?.timeRange.to === 'number' && saveParams.timeRange.to > 0)
               ? saveParams.timeRange.to
               : id
               ? 0
-              : defaultParams.timeRange.to,
-          from: saveParams?.timeRange.from ?? defaultParams.timeRange.from,
+              : getDefaultParams().timeRange.to,
+          from: saveParams?.timeRange.from ?? getDefaultParams().timeRange.from,
         },
       };
 
-      let decodeP = decodeParams(new URLSearchParams(window.location.search), localDefaultParams);
+      let decodeP = decodeParams(urlSearchParams, localDefaultParams);
 
       if (!decodeP) {
         return;
@@ -481,7 +471,7 @@ export const statsHouseState: StateCreator<
       if (reset) {
         getState().updateUrl(true);
       }
-      if (getLiveParams(new URLSearchParams(document.location.search))) {
+      if (params.live) {
         getState().setLiveMode(true);
       }
     },
@@ -645,9 +635,7 @@ export const statsHouseState: StateCreator<
         prevState.liveMode ||
         prevState.timeRange.from > now();
 
-      const live = getLiveParams(new URLSearchParams(document.location.search)); // save live param in url
-      let p = encodeParams(prevState.params, prevState.defaultParams);
-      p = setLiveParams(live, p);
+      const p = encodeParams(prevState.params, prevState.defaultParams);
       const search = '?' + fixMessageTrouble(p.toString());
       let pathname = document.location.pathname;
 
@@ -709,16 +697,19 @@ export const statsHouseState: StateCreator<
     error: '',
     liveMode: false,
     setLiveMode(nextStatus) {
+      const nextState = getNextState(getState().liveMode, nextStatus);
       setState((state) => {
-        const nextState = getNextState(state.liveMode, nextStatus);
         if (state.liveMode !== nextState) {
           state.liveMode = nextState;
-          if (!state.liveMode) {
-            const p = setLiveParams(state.liveMode, new URLSearchParams(document.location.search));
-            appHistory.push({ search: p.toString() });
-          }
         }
       });
+      if (!nextState) {
+        getState().setParams(
+          produce((param) => {
+            param.live = false;
+          })
+        );
+      }
     },
     previews: [],
     setPreviews: (index, link) => {
@@ -1525,6 +1516,8 @@ export const statsHouseState: StateCreator<
         const to = getState().params.timeRange.to;
         const paramsData: QueryParams = {
           ...getState().params,
+          live: getDefaultParams().live,
+          theme: getDefaultParams().theme,
           tabNum: -1,
           dashboard: {
             name: '',
@@ -2114,3 +2107,79 @@ export const statsHouseState: StateCreator<
     },
   };
 };
+export type Store = StatsHouseStore;
+export const useStore = create<Store, [['zustand/immer', never]]>(
+  immer((...a) => ({
+    ...statsHouseState(...a),
+  }))
+);
+
+export function setValuesVariable(nameVariable: string | undefined, values: string[]) {
+  useStore.getState().setParams(
+    produce((p) => {
+      const i = p.variables.findIndex((v) => v.name === nameVariable);
+      if (i > -1) {
+        p.variables[i].values = values;
+      }
+    })
+  );
+}
+
+export function setGroupByVariable(nameVariable: string | undefined, value: boolean) {
+  useStore.getState().setParams(
+    produce((p) => {
+      const i = p.variables.findIndex((v) => v.name === nameVariable);
+      if (i > -1) {
+        p.variables[i].args.groupBy = value;
+      }
+    })
+  );
+}
+
+export function setNegativeVariable(nameVariable: string | undefined, value: boolean) {
+  useStore.getState().setParams(
+    produce((p) => {
+      const i = p.variables.findIndex((v) => v.name === nameVariable);
+      if (i > -1) {
+        p.variables[i].args.negative = value;
+      }
+    })
+  );
+}
+
+export function setVariable(variables: VariableParams[]) {
+  useStore.getState().setParams(
+    produce((p) => {
+      const newVariable = variables.reduce((res, { name }) => {
+        res[name] = true;
+        return res;
+      }, {} as Record<string, boolean>);
+      p.variables.forEach((variable) => {
+        if (!newVariable[variable.name]) {
+          variable.link.forEach(([iPlot, iTag]) => {
+            if (iPlot != null && iTag != null) {
+              const keyTag = toKeyTag(iTag, true);
+              if (variable.args.groupBy) {
+                p.plots[iPlot].groupBy = [...p.plots[iPlot].groupBy, keyTag];
+              } else {
+                p.plots[iPlot].groupBy = p.plots[iPlot].groupBy.filter((tag) => tag !== keyTag);
+              }
+              if (variable.args.negative) {
+                p.plots[iPlot].filterNotIn[keyTag] = variable.values;
+              } else {
+                p.plots[iPlot].filterIn[keyTag] = variable.values;
+              }
+            }
+          });
+        }
+      });
+      const updateParam = paramToVariable({ ...p, variables: variables });
+      p.variables = updateParam.variables;
+      p.plots = updateParam.plots;
+    })
+  );
+}
+
+if (document.location.pathname === '/view' || document.location.pathname === '/embed') {
+  useStore.getState().updateParamsByUrl();
+}

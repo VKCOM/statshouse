@@ -1,4 +1,8 @@
-import { StateCreator } from 'zustand';
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
+import { useStore } from '../statshouse';
+import produce from 'immer';
+
 export const THEMES = {
   Dark: 'dark',
   Light: 'light',
@@ -7,16 +11,33 @@ export const THEMES = {
 
 export type Theme = (typeof THEMES)[keyof typeof THEMES];
 
-export function getSystemTheme() {
+export const ThemeValues: Set<string> = new Set(Object.values(THEMES));
+export function isTheme(s: string = ''): s is Theme {
+  return ThemeValues.has(s);
+}
+export function toTheme(s: unknown): Theme | null;
+export function toTheme(s: unknown, defaultTheme: Theme): Theme;
+export function toTheme(s: unknown, defaultTheme?: Theme): Theme | null {
+  switch (typeof s) {
+    case 'string':
+      if (isTheme(s)) {
+        return s;
+      }
+  }
+  return defaultTheme ?? null;
+}
+
+export function getSystemTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? THEMES.Dark : THEMES.Light;
 }
 
-export function getStorageTheme() {
-  //for embed mode only Light theme
-  if (window.location.pathname === '/embed') {
-    return THEMES.Light;
+export function getStorageTheme(): Theme {
+  //for embed mode by link or Light theme
+  const inLink = toTheme(useStore.getState().params.theme);
+  if (window.location.pathname === '/embed' || inLink) {
+    return inLink ?? THEMES.Light;
   }
-  return (window.localStorage.getItem('theme') as Theme) ?? THEMES.Light;
+  return toTheme(window.localStorage.getItem('theme'), THEMES.Light);
 }
 
 export function setStorageTheme(theme: Theme) {
@@ -44,62 +65,48 @@ export function setDarkTheme(dark: boolean) {
 }
 
 export type ThemeStore = {
-  theme: {
-    system: Theme;
-    dark: boolean;
-    theme: Theme;
-    setTheme(theme: Theme): void;
-  };
+  dark: boolean;
+  theme: Theme;
 };
 
-export const themeState: StateCreator<
-  ThemeStore,
-  [['zustand/subscribeWithSelector', never], ['zustand/immer', never]],
-  [],
-  ThemeStore
-> = (setState, getState, store) => {
-  window.addEventListener(
-    'DOMContentLoaded',
-    () => {
-      setState((state) => {
-        state.theme.system = getSystemTheme();
-        state.theme.dark = getDark();
-        state.theme.theme = getStorageTheme();
-        setDarkTheme(state.theme.dark);
-      });
-    },
-    false
-  );
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener(
-    'change',
-    () => {
-      setState((state) => {
-        state.theme.system = getSystemTheme();
-        state.theme.dark = getDark();
-        state.theme.theme = getStorageTheme();
-      });
-    },
-    false
-  );
-
-  store.subscribe((state, prevState) => {
-    if (state.theme.dark !== prevState.theme.dark) {
-      setDarkTheme(state.theme.dark);
-    }
-  });
-  return {
-    theme: {
-      system: getSystemTheme(),
+export const useThemeStore = create<ThemeStore>()(
+  immer((setState, getState, store) => {
+    window.addEventListener('DOMContentLoaded', updateTheme, false);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme, false);
+    store.subscribe((state, prevState) => {
+      if (state.dark !== prevState.dark) {
+        setDarkTheme(state.dark);
+      }
+    });
+    useStore.subscribe((store, prevStore) => {
+      if (store.params.theme !== prevStore.params.theme) {
+        updateTheme();
+      }
+    });
+    return {
       dark: getDark(),
       theme: getStorageTheme(),
-      setTheme(theme) {
-        setState((state) => {
-          setStorageTheme(theme);
-          state.theme.system = getSystemTheme();
-          state.theme.dark = getDark();
-          state.theme.theme = getStorageTheme();
-        });
-      },
-    },
-  };
-};
+    };
+  })
+);
+
+export function updateTheme() {
+  useThemeStore.setState((state) => {
+    state.dark = getDark();
+    state.theme = getStorageTheme();
+  });
+}
+
+export function setTheme(theme: Theme) {
+  if (useStore.getState().params.theme) {
+    useStore.getState().setParams(
+      produce((p) => {
+        p.theme = undefined;
+      })
+    );
+  }
+  setStorageTheme(theme);
+  updateTheme();
+}
+
+setDarkTheme(getDark());

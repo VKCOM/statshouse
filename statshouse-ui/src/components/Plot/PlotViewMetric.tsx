@@ -23,10 +23,10 @@ import {
   selectorParamsPlotsByIndex,
   selectorParamsTimeShifts,
   selectorPlotsDataByIndex,
-  selectorThemeDark,
   selectorTimeRange,
   selectorUPlotsWidthByIndex,
   useStore,
+  useThemeStore,
 } from '../../store';
 import { xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
@@ -116,7 +116,7 @@ export function PlotViewMetric(props: {
   );
   const meta = useStore(selectorPlotMetricsMeta);
 
-  const themeDark = useStore(selectorThemeDark);
+  const themeDark = useThemeStore((s) => s.dark);
 
   const uPlotRef = useRef<uPlot>();
   const [legend, setLegend] = useState<LegendItem[]>([]);
