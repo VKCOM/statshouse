@@ -85,6 +85,12 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
     }
   }, [liveMode, refresh, timeRange.relativeFrom]);
 
+  useEffect(() => {
+    if (params.tabNum >= 0) {
+      window.scrollTo(0, 0);
+    }
+  }, [params.tabNum]);
+
   if (params.plots.length === 0) {
     return <ErrorMessages />;
   }
