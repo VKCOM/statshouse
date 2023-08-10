@@ -30,7 +30,7 @@ type (
 )
 
 type loadPoints func(ctx context.Context, version string, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([][]tsSelectRow, error)
-type maybeAddQuerySeriesTagValue func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagID string, id int32) bool
+type maybeAddQuerySeriesTagValue func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int32) bool
 
 func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableReqParams,
 	loadPoints loadPoints,
@@ -81,8 +81,7 @@ func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableR
 				tags := &rows[i].tsTags
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					tagName := format.TagID(j)
-					wasAdded := maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, tagName, tags.tag[j])
+					wasAdded := maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, j, tags.tag[j])
 					if wasAdded {
 						rowRepr.Tags = append(rowRepr.Tags, RawTag{
 							Index: j,
@@ -90,7 +89,7 @@ func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableR
 						})
 					}
 				}
-				skey := maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
+				skey := maybeAddQuerySeriesTagValueString(kvs, q.by, &tags.tagStr)
 				rowRepr.SKey = skey
 				data := selectTSValue(q.what, req.maxHost, tableReqParams.rawValue, tableReqParams.desiredStepMul, &rows[i])
 				key := tableRowKey{

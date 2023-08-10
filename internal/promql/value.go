@@ -472,20 +472,18 @@ func (m *SeriesMeta) dropTag(k string) {
 	if m.Tags == nil {
 		return
 	}
-	if t, ok := m.Tags[k]; ok {
-		if 0 < t.Index && t.Index <= format.MaxTags {
-			delete(m.Name2Tag, t.Name)
-			delete(m.Name2Tag, format.TagID(t.Index-1))
-		}
-		delete(m.Tags, k)
-	} else if m.Name2Tag != nil {
-		if t, ok := m.Name2Tag[k]; ok {
-			// k == t.Name || k == format.TagID(t.Index-1)
-			delete(m.Name2Tag, t.Name)
-			delete(m.Name2Tag, format.TagIDLegacy(t.Index-1))
-			delete(m.Tags, format.TagID(t.Index-1))
-		}
+	t := m.Tags[k]
+	if t == nil && m.Name2Tag != nil {
+		t = m.Name2Tag[k]
 	}
+	if t == nil {
+		return
+	}
+	if _, id, ok := decodeTagIndexLegacy(t.Index); ok {
+		delete(m.Name2Tag, id)
+	}
+	delete(m.Name2Tag, t.Name)
+	delete(m.Tags, t.ID)
 }
 
 func (m *SeriesMeta) GetOffset() int64 {
@@ -517,7 +515,9 @@ func (m *SeriesMeta) SetTag(t SeriesTag) {
 		if len(t.Name) != 0 {
 			m.Name2Tag[t.Name] = &t
 		}
-		m.Name2Tag[format.TagIDLegacy(t.Index-1)] = &t
+		if _, id, ok := decodeTagIndexLegacy(t.Index); ok {
+			m.Name2Tag[id] = &t
+		}
 	}
 }
 
@@ -582,6 +582,19 @@ func (g *seriesGroup) at(i int) SeriesBag {
 		Meta:    appendAt(0, nil, g.meta),
 		MaxHost: appendAt(0, nil, g.maxHost),
 	}
+}
+
+func decodeTagIndexLegacy(i int) (ix int, id string, ok bool) {
+	if i <= 0 {
+		return 0, "", false
+	}
+	ix = i - SeriesTagIndexOffset
+	if 0 <= ix && ix < format.MaxTags {
+		id, ok = format.TagIDLegacy(ix), true
+	} else if i == format.StringTopTagIndex {
+		id, ok = format.LegacyStringTopTagID, true
+	}
+	return ix, id, ok
 }
 
 func appendAt[T any](n int, dst []T, src ...T) []T {
