@@ -341,7 +341,13 @@ export const statsHouseState: StateCreator<
       if (id && getState().params.dashboard?.dashboard_id && id !== getState().params.dashboard?.dashboard_id) {
         setState((state) => {
           state.params.plots = [];
-          state.params.dashboard = undefined;
+          state.params.dashboard = {
+            dashboard_id: undefined,
+            groupInfo: [],
+            description: '',
+            name: '',
+            version: undefined,
+          };
           state.params.tagSync = [];
           state.params.eventFrom = 0;
         });

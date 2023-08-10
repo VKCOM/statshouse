@@ -23,6 +23,13 @@ describe('queryParams.ts', () => {
 
   test('encodeParams -> decodeParams base', () => {
     const testParam: QueryParams = {
+      dashboard: {
+        dashboard_id: undefined,
+        groupInfo: [],
+        description: '',
+        name: '',
+        version: undefined,
+      },
       tabNum: 0,
       plots: [],
       timeRange: { to: TIME_RANGE_KEYS_TO.default, from: 0 },
@@ -39,7 +46,13 @@ describe('queryParams.ts', () => {
 
   test('encodeParams -> decodeParams default', () => {
     const defaultParam: QueryParams = {
-      dashboard: undefined,
+      dashboard: {
+        dashboard_id: undefined,
+        groupInfo: [{ name: 'qwe', count: 2, show: true, size: 3 }],
+        description: '',
+        name: '',
+        version: undefined,
+      },
       tabNum: -1,
       plots: [
         {
@@ -105,7 +118,13 @@ describe('queryParams.ts', () => {
       ],
     };
     const testParam: QueryParams = {
-      dashboard: undefined,
+      dashboard: {
+        dashboard_id: undefined,
+        groupInfo: [{ name: 'qwe', count: 2, show: true, size: 2 }],
+        description: '',
+        name: '',
+        version: undefined,
+      },
       tabNum: -1,
       plots: [
         {
@@ -187,6 +206,8 @@ describe('queryParams.ts', () => {
     };
     const p = encodeParams(testParam, defaultParam);
     expect([...p.entries()]).toEqual([
+      ['g0.t', 'qwe'],
+      ['g0.n', '2'],
       ['t', 'ed'],
       ['f', '1800'],
       ['s', 'test'],
@@ -243,7 +264,7 @@ describe('queryParams.ts', () => {
       ['v.var2', '4'],
     ]);
     expect(p.toString()).toEqual(
-      't=ed&f=1800&s=test&cn=test+name&qw=count_norm&qw=avg&g=1&qb=_s&qb=1&qf=1-p&qf=1-a&qf=1-s&qf=2%7Es&qf=2%7Er&yl=10&yh=1000&qe=1&eb=0&eb=1&eh=1&t1.s=test&t1.cn=test+name+2&t1.qw=count_norm&t1.qw=avg&t1.g=1&t1.qb=_s&t1.qb=1&t1.qf=1-p&t1.qf=1-a&t1.qf=2%7Es&t1.qf=2%7Er&t1.yl=10&t1.yh=1000&t1.mh=1&t1.qe=1&t1.eb=0&t1.eb=1&t1.eh=1&ts=3600&ts=1800&fs=0.1-1.2-2.3&fs=0.2-2.4&v0.n=var1&v0.d=variable&v0.l=0.3-1.2-2._s&v.var1=1&v.var1=2&v.var1.g=1&v.var1.nv=1&v1.n=var2&v1.d=variable2&v1.l=3.3-3.2-3._s&v.var2=3&v.var2=4'
+      'g0.t=qwe&g0.n=2&t=ed&f=1800&s=test&cn=test+name&qw=count_norm&qw=avg&g=1&qb=_s&qb=1&qf=1-p&qf=1-a&qf=1-s&qf=2%7Es&qf=2%7Er&yl=10&yh=1000&qe=1&eb=0&eb=1&eh=1&t1.s=test&t1.cn=test+name+2&t1.qw=count_norm&t1.qw=avg&t1.g=1&t1.qb=_s&t1.qb=1&t1.qf=1-p&t1.qf=1-a&t1.qf=2%7Es&t1.qf=2%7Er&t1.yl=10&t1.yh=1000&t1.mh=1&t1.qe=1&t1.eb=0&t1.eb=1&t1.eh=1&ts=3600&ts=1800&fs=0.1-1.2-2.3&fs=0.2-2.4&v0.n=var1&v0.d=variable&v0.l=0.3-1.2-2._s&v.var1=1&v.var1=2&v.var1.g=1&v.var1.nv=1&v1.n=var2&v1.d=variable2&v1.l=3.3-3.2-3._s&v.var2=3&v.var2=4'
     );
     const s = decodeParams(p, defaultParam);
     expect(s).toEqual(testParam);

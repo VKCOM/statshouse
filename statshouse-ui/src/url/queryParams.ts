@@ -185,19 +185,29 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams) {
 
   // groupInfo
   if (value.dashboard?.groupInfo?.length && !dequal(value.dashboard?.groupInfo, defaultParams?.dashboard?.groupInfo)) {
-    value.dashboard.groupInfo.forEach(({ name, show, count, size }, indexGroup) => {
-      const prefix = toGroupInfoPrefix(indexGroup);
-      search.push([prefix + GET_PARAMS.dashboardGroupInfoName, name]);
-      if (!show) {
-        search.push([prefix + GET_PARAMS.dashboardGroupInfoShow, '0']);
-      }
-      if (count) {
-        search.push([prefix + GET_PARAMS.dashboardGroupInfoCount, count.toString()]);
-      }
-      if (size !== 2) {
-        search.push([prefix + GET_PARAMS.dashboardGroupInfoSize, size.toString()]);
-      }
-    });
+    if (
+      !(
+        value.dashboard?.groupInfo?.length === 1 &&
+        value.dashboard?.groupInfo[0].name === '' &&
+        value.dashboard?.groupInfo[0].size === 2 &&
+        value.dashboard?.groupInfo[0].show === true &&
+        !defaultParams?.dashboard?.groupInfo?.length
+      )
+    ) {
+      value.dashboard.groupInfo.forEach(({ name, show, count, size }, indexGroup) => {
+        const prefix = toGroupInfoPrefix(indexGroup);
+        search.push([prefix + GET_PARAMS.dashboardGroupInfoName, name]);
+        if (!show) {
+          search.push([prefix + GET_PARAMS.dashboardGroupInfoShow, '0']);
+        }
+        if (count) {
+          search.push([prefix + GET_PARAMS.dashboardGroupInfoCount, count.toString()]);
+        }
+        if (size !== 2) {
+          search.push([prefix + GET_PARAMS.dashboardGroupInfoSize, size.toString()]);
+        }
+      });
+    }
   } else if (!value.dashboard?.groupInfo?.length && defaultParams?.dashboard?.groupInfo?.length) {
     search.push([toGroupInfoPrefix(0) + GET_PARAMS.dashboardGroupInfoName, removeValueChar]);
   }
@@ -389,39 +399,35 @@ export function decodeParams(urlSearchParams: URLSearchParams, defaultParams?: Q
   }, {} as Record<string, string[]>);
   const tabNum = toNumber(urlParams[GET_PARAMS.metricTabNum]?.[0]) ?? defaultParams?.tabNum ?? 0;
 
-  let dashboard: DashboardParams | undefined = undefined;
+  const groupInfo: GroupInfo[] = [];
 
-  const dashboard_id =
-    toNumber(urlParams[GET_PARAMS.dashboardID]?.[0]) ?? defaultParams?.dashboard?.dashboard_id ?? undefined;
+  let dashboard: DashboardParams = {
+    dashboard_id:
+      toNumber(urlParams[GET_PARAMS.dashboardID]?.[0]) ?? defaultParams?.dashboard?.dashboard_id ?? undefined,
+    name: defaultParams?.dashboard?.name ?? '',
+    description: defaultParams?.dashboard?.description ?? '',
+    groupInfo,
+    version: defaultParams?.dashboard?.version,
+  };
 
-  if (dashboard_id != null) {
-    const groupInfo: GroupInfo[] = [];
-    dashboard = {
-      dashboard_id,
-      name: defaultParams?.dashboard?.name ?? '',
-      description: defaultParams?.dashboard?.description ?? '',
-      groupInfo,
-      version: defaultParams?.dashboard?.version,
-    };
-    for (let i = 0; i < maxPrefixArray; i++) {
-      const prefix = toGroupInfoPrefix(i);
+  for (let i = 0; i < maxPrefixArray; i++) {
+    const prefix = toGroupInfoPrefix(i);
 
-      const name = urlParams[prefix + GET_PARAMS.dashboardGroupInfoName]?.[0];
+    const name = urlParams[prefix + GET_PARAMS.dashboardGroupInfoName]?.[0];
 
-      if (name == null) {
-        if (defaultParams?.dashboard?.groupInfo?.length && i === 0) {
-          groupInfo.push(...defaultParams.dashboard.groupInfo.map((g) => ({ ...g })));
-        }
-        break;
+    if (name == null) {
+      if (defaultParams?.dashboard?.groupInfo?.length && i === 0) {
+        groupInfo.push(...defaultParams.dashboard.groupInfo.map((g) => ({ ...g })));
       }
-      if (name === removeValueChar) {
-        break;
-      }
-      const show = urlParams[prefix + GET_PARAMS.dashboardGroupInfoShow]?.[0] !== '0';
-      const count = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoCount]?.[0]) ?? 0;
-      const size = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoSize]?.[0]) ?? 2;
-      groupInfo.push({ name, show, count, size });
+      break;
     }
+    if (name === removeValueChar) {
+      break;
+    }
+    const show = urlParams[prefix + GET_PARAMS.dashboardGroupInfoShow]?.[0] !== '0';
+    const count = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoCount]?.[0]) ?? 0;
+    const size = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoSize]?.[0]) ?? 2;
+    groupInfo.push({ name, show, count, size });
   }
 
   const timeRangeTo =

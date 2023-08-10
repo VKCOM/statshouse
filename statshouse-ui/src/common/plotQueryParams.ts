@@ -27,6 +27,10 @@ import { isNotNilVariableLink, PLOT_TYPE, QueryParams, toIndexTag, toKeyTag } fr
 export const defaultParams: Readonly<QueryParams> = {
   dashboard: {
     dashboard_id: undefined,
+    groupInfo: [],
+    description: '',
+    name: '',
+    version: undefined,
   },
   timeRange: { ...defaultTimeRange },
   eventFrom: 0,
