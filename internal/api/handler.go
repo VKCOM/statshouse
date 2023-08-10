@@ -2372,9 +2372,9 @@ func (h *Handler) handleGetQuery(ctx context.Context, ai accessInfo, req seriesR
 				tags := ixToTags[i]
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, format.TagID(j), tags.tag[j])
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, j, tags.tag[j])
 				}
-				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
+				maybeAddQuerySeriesTagValueString(kvs, q.by, &tags.tagStr)
 
 				ts := h.getFloatsSlice(len(allTimes))
 				syncPoolBuffers = append(syncPoolBuffers, ts)
@@ -2641,9 +2641,9 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 				tags := ixToTags[ix]
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, format.TagID(j), tags.tag[j])
+					h.maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, j, tags.tag[j])
 				}
-				maybeAddQuerySeriesTagValueString(kvs, q.by, format.StringTopTagID, &tags.tagStr)
+				maybeAddQuerySeriesTagValueString(kvs, q.by, &tags.tagStr)
 
 				maxHost := ""
 				showMaxHost := false
@@ -3052,18 +3052,19 @@ func differentiateSeries(s []float64) {
 	}
 }
 
-func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagID string, id int32) bool {
-	if containsString(by, tagID) {
-		metaTag := SeriesMetaTag{Value: h.getRichTagValue(metricMeta, version, tagID, id)}
-		if tag, ok := metricMeta.Name2Tag[tagID]; ok {
-			metaTag.Comment = tag.ValueComments[metaTag.Value]
-			metaTag.Raw = tag.Raw
-			metaTag.RawKind = tag.RawKind
-		}
-		m[tagID] = metaTag
-		return true
+func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, tagValueID int32) bool {
+	tagID := format.TagID(tagIndex)
+	if !containsString(by, tagID) {
+		return false
 	}
-	return false
+	metaTag := SeriesMetaTag{Value: h.getRichTagValue(metricMeta, version, tagID, tagValueID)}
+	if tag, ok := metricMeta.Name2Tag[tagID]; ok {
+		metaTag.Comment = tag.ValueComments[metaTag.Value]
+		metaTag.Raw = tag.Raw
+		metaTag.RawKind = tag.RawKind
+	}
+	m[format.TagIDLegacy(tagIndex)] = metaTag
+	return true
 }
 
 type pointsSelectCols struct {
@@ -3166,11 +3167,11 @@ func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
 	return row
 }
 
-func maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, tagName string, tagValuePtr *stringFixed) string {
+func maybeAddQuerySeriesTagValueString(m map[string]SeriesMetaTag, by []string, tagValuePtr *stringFixed) string {
 	tagValue := skeyFromFixedString(tagValuePtr)
 
-	if containsString(by, tagName) {
-		m[tagName] = SeriesMetaTag{Value: emptyToUnspecified(tagValue)}
+	if containsString(by, format.StringTopTagID) {
+		m[format.LegacyStringTopTagID] = SeriesMetaTag{Value: emptyToUnspecified(tagValue)}
 		return tagValue
 	}
 	return ""
