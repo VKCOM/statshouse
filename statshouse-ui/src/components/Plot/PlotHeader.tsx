@@ -17,7 +17,7 @@ import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 import { MetricMetaValue } from '../../api/metric';
 import { promQLMetric } from '../../view/utils';
-import { encodeParams, lockRange, PlotParams, toKeyTag } from '../../url/queryParams';
+import { encodeParams, fixMessageTrouble, lockRange, PlotParams, toKeyTag } from '../../url/queryParams';
 
 const setPlotType = useStore.getState().setPlotType;
 
@@ -80,7 +80,9 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         prev.variables = [];
       })
     );
-    return `${document.location.protocol}//${document.location.host}${document.location.pathname}?${search.toString()}`;
+    return `${document.location.protocol}//${document.location.host}${document.location.pathname}?${fixMessageTrouble(
+      search.toString()
+    )}`;
   }, [indexPlot, params]);
 
   const onSetPlotType = useMemo(() => setPlotType.bind(undefined, indexPlot), [indexPlot]);
@@ -109,7 +111,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
           )}
         >
           <div className="flex-grow-1 text-truncate w-50 overflow-hidden px-1 d-flex text-nowrap">
-            <PlotHeaderTitle indexPlot={indexPlot} compact={compact} dashboard={dashboard} />
+            <PlotHeaderTitle indexPlot={indexPlot} compact={compact} dashboard={dashboard} outerLink={copyLink} />
           </div>
           {!dashboardLayoutEdit && !sel.customName && (
             <>
@@ -157,7 +159,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         <h6
           className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 mb-1`}
         >
-          <PlotHeaderTitle indexPlot={indexPlot} compact={compact} dashboard={dashboard} />
+          <PlotHeaderTitle indexPlot={indexPlot} compact={compact} dashboard={dashboard} outerLink={copyLink} />
           <PlotHeaderBadges indexPlot={indexPlot} compact={compact} dashboard={dashboard} />
         </h6>
         {!compact && (

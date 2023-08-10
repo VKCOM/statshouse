@@ -18,8 +18,10 @@ import { ReactComponent as SVGPlayFill } from 'bootstrap-icons/icons/play-fill.s
 import { ReactComponent as SVGLink } from 'bootstrap-icons/icons/link.svg';
 import { ReactComponent as SVGTable } from 'bootstrap-icons/icons/table.svg';
 import { ReactComponent as SVGGraphUp } from 'bootstrap-icons/icons/graph-up.svg';
+import { ReactComponent as SVGBoxArrowUpRight } from 'bootstrap-icons/icons/box-arrow-up-right.svg';
 import { debug } from '../../common/debug';
 import { lockRange, PLOT_TYPE, PlotType } from '../../url/queryParams';
+import { Link } from 'react-router-dom';
 
 export type PlotNavigateProps = {
   live: boolean;
@@ -31,6 +33,7 @@ export type PlotNavigateProps = {
   onYLockChange?: (status: boolean) => void;
   className?: string;
   link?: string;
+  outerLink?: string;
   typePlot?: PlotType;
   setTypePlot?: Dispatch<SetStateAction<PlotType>>;
   disabledTypePlot?: boolean;
@@ -45,6 +48,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
   onYLockChange,
   className,
   link,
+  outerLink,
   typePlot,
   setTypePlot,
   disabledTypePlot,
@@ -164,6 +168,11 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
         <button type="button" className="btn btn-outline-primary" title="Copy link to clipboard" onClick={copyLink}>
           <SVGLink />
         </button>
+      )}
+      {!!outerLink && (
+        <Link to={outerLink} target="_blank" role="button" className="btn btn-outline-primary" title="Open link">
+          <SVGBoxArrowUpRight />
+        </Link>
       )}
       <input
         type="checkbox"

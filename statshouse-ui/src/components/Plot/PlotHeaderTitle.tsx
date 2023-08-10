@@ -8,6 +8,7 @@ import React, { useCallback, useEffect, useMemo } from 'react';
 import cn from 'classnames';
 import produce from 'immer';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
+import { ReactComponent as SVGBoxArrowUpRight } from 'bootstrap-icons/icons/box-arrow-up-right.svg';
 import { promQLMetric } from '../../view/utils';
 import { whatToWhatDesc } from '../../view/api';
 import { Store, useStore } from '../../store';
@@ -16,6 +17,8 @@ import css from './style.module.css';
 import { TextEditable } from '../TextEditable';
 import { useDebounceState } from '../../hooks';
 import { shallow } from 'zustand/shallow';
+import { PlotName } from './PlotName';
+import { Link } from 'react-router-dom';
 
 const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
@@ -25,6 +28,7 @@ export type PlotHeaderTitleProps = {
   indexPlot: number;
   compact?: boolean;
   dashboard?: boolean;
+  outerLink?: string;
 };
 
 const { removePlot, setPlotParams } = useStore.getState();
@@ -36,7 +40,7 @@ const selectorPlotInfoByIndex = (indexPlot: number, { params, plotsData, dashboa
   plotCount: params.plots.length,
 });
 
-export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTitleProps) {
+export function PlotHeaderTitle({ indexPlot, compact, dashboard, outerLink }: PlotHeaderTitleProps) {
   const selectorPlotInfo = useMemo(() => selectorPlotInfoByIndex.bind(undefined, indexPlot), [indexPlot]);
   const { plot, plotData, dashboardLayoutEdit, plotCount } = useStore(selectorPlotInfo, shallow);
   const setParams = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
@@ -106,72 +110,45 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard }: PlotHeaderTit
         )}
       </div>
     ) : (
-      <PlotLink
-        className="text-secondary text-decoration-none overflow-hidden w-100"
-        indexPlot={indexPlot}
-        target={dashboard ? '_self' : '_blank'}
-      >
-        {plot.customName ? (
-          <span className="text-body me-3 text-truncate" title={plot.customName}>
-            {plot.customName}
-          </span>
-        ) : (
-          <span className="overflow-hidden d-flex flex-row w-100 justify-content-center" title={metricFullName}>
-            {metricName ? (
-              <>
-                <span className="text-body text-truncate">{metricName}</span>
-                {!!what && (
-                  <>
-                    <span>:&nbsp;</span>
-                    <span className="me-3 text-truncate">{what}</span>
-                  </>
-                )}
-              </>
-            ) : (
-              <span>&nbsp;</span>
-            )}
-          </span>
+      <div className="me-3 d-flex w-100">
+        <PlotLink
+          className="text-decoration-none overflow-hidden"
+          title={customName || metricFullName}
+          indexPlot={indexPlot}
+          target={dashboard ? '_self' : '_blank'}
+        >
+          <PlotName plot={plot} plotData={plotData} />
+        </PlotLink>
+        {!!outerLink && (
+          <Link to={outerLink} target="_blank" className="ms-2">
+            <SVGBoxArrowUpRight width={10} height={10} />
+          </Link>
         )}
-      </PlotLink>
+      </div>
     );
   }
 
   return compact ? (
     <PlotLink
-      className="text-secondary text-decoration-none"
+      className="text-secondary text-decoration-none me-3"
       indexPlot={indexPlot}
       target={dashboard ? '_self' : '_blank'}
     >
-      {plot.customName ? (
-        <span className="text-body me-3">{plot.customName}</span>
-      ) : (
-        <>
-          <span className="text-body">{metricName}</span>
-          {!!what && (
-            <>
-              <span>:&nbsp;</span>
-              <span className="me-3">{what}</span>
-            </>
-          )}
-        </>
-      )}
+      <PlotName plot={plot} plotData={plotData} />
     </PlotLink>
   ) : (
     <TextEditable
       className="flex-grow-1"
       defaultValue={plot.customName || metricFullName}
       placeholder={
-        plot.customName ||
-        (metricName && (
-          <>
-            <span>{metricName}</span>
-            {!!what && (
-              <>
-                :<span className="text-secondary"> {what}</span>
-              </>
-            )}
-          </>
-        )) || <span>&nbsp;</span>
+        <span>
+          <PlotName plot={plot} plotData={plotData} />
+          {!!outerLink && (
+            <Link to={outerLink} target="_blank" className="ms-2">
+              <SVGBoxArrowUpRight width={10} height={10} />
+            </Link>
+          )}
+        </span>
       }
       inputPlaceholder={metricFullName}
       onSave={editCustomName}

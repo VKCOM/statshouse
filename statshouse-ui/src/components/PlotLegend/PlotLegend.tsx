@@ -96,7 +96,7 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({
                 onMouseOut={onFocus}
                 onMouseOver={onFocus}
               >
-                <td colSpan={index === 0 ? 2 : 1} data-index={index} onClick={onShow}>
+                <td colSpan={index === 0 ? 3 : 1} data-index={index} onClick={onShow}>
                   <div className={cn(css.labelOuter, index === 0 && css.time)}>
                     <div
                       className={css.marker}
