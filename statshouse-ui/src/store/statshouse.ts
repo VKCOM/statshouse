@@ -17,6 +17,7 @@ import {
   apiPut,
   defaultBaseRange,
   Error403,
+  Error504,
   fmtInputDateTime,
   formatLegendValue,
   formatPercent,
@@ -96,6 +97,7 @@ export type PlotStore = {
   whats: QueryWhat[];
   error: string;
   error403?: string;
+  errorCount504: number;
   data: uPlot.AlignedData;
   series: uPlot.Series[];
   seriesShow: boolean[];
@@ -147,6 +149,7 @@ function getEmptyPlotData(): PlotStore {
     nameMetric: '',
     whats: [],
     error: '',
+    errorCount504: 0,
     data: [[]],
     series: [],
     seriesShow: [],
@@ -1060,6 +1063,7 @@ export const statsHouseState: StateCreator<
                 nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
                 whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as QueryWhat[]) : [],
                 error: '',
+                errorCount504: 0,
                 data: noUpdateData ? state.plotsData[index]?.data : stacked || data,
                 series:
                   noUpdateData &&
@@ -1095,7 +1099,17 @@ export const statsHouseState: StateCreator<
             });
           })
           .catch((error) => {
-            if (error instanceof Error403) {
+            if (error instanceof Error504) {
+              setState((state) => {
+                state.plotsData[index] ??= getEmptyPlotData();
+                state.plotsData[index].errorCount504++;
+                if (!state.liveMode || state.plotsData[index].errorCount504 > 10) {
+                  state.plotsData[index].error = error.toString();
+                  delete state.previews[index];
+                  state.liveMode = false;
+                }
+              });
+            } else if (error instanceof Error403) {
               setState((state) => {
                 state.plotsData[index] = {
                   ...getEmptyPlotData(),

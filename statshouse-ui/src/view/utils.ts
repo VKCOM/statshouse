@@ -385,6 +385,7 @@ type apiResponse<T> = {
 };
 
 export class Error403 extends Error {}
+export class Error504 extends Error {}
 
 export async function apiGet<T>(url: string, signal: AbortSignal, promptReloadOn401: boolean): Promise<T> {
   const resp = await fetch(url, { signal });
@@ -392,6 +393,9 @@ export async function apiGet<T>(url: string, signal: AbortSignal, promptReloadOn
     if (window.confirm("API server has returned '401 Unauthorized' code. Reload the page to authorize?")) {
       window.location.reload();
     }
+  }
+  if (resp.status === 504) {
+    throw new Error504(`${resp.status}: Gateway Timeout`);
   }
   if (resp.headers.get('Content-Type') !== 'application/json') {
     const text = await resp.text();
@@ -428,6 +432,9 @@ export async function apiPost<T>(
     if (window.confirm("API server has returned '401 Unauthorized' code. Reload the page to authorize?")) {
       window.location.reload();
     }
+  }
+  if (resp.status === 504) {
+    throw new Error504(`${resp.status}: Gateway Timeout`);
   }
   if (resp.headers.get('Content-Type') !== 'application/json') {
     const text = await resp.text();
