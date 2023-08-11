@@ -35,6 +35,7 @@ import { PlotEvents } from './PlotEvents';
 import { useUPlotPluginHooks } from '../../hooks';
 import { UPlotPluginPortal } from '../UPlotWrapper';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
+import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -49,8 +50,16 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
   return [dataMin, dataMax];
 }
 
-const { setPlotParams, setTimeRange, setPreviews, setLiveMode, setYLockChange, setPlotLastError, setUPlotWidth } =
-  useStore.getState();
+const {
+  setPlotParams,
+  setTimeRange,
+  setPreviews,
+  setLiveMode,
+  setYLockChange,
+  setPlotLastError,
+  setUPlotWidth,
+  loadPlot,
+} = useStore.getState();
 
 export function PlotViewEvent(props: {
   indexPlot: number;
@@ -124,6 +133,11 @@ export function PlotViewEvent(props: {
 
   const clearLastError = useCallback(() => {
     setPlotLastError(indexPlot, '');
+  }, [indexPlot]);
+
+  const reload = useCallback(() => {
+    setPlotLastError(indexPlot, '');
+    loadPlot(indexPlot);
   }, [indexPlot]);
 
   const resetZoom = useCallback(() => {
@@ -376,6 +390,9 @@ export function PlotViewEvent(props: {
             {/*last error*/}
             {!!lastError && (
               <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
+                <button type="button" className="btn" aria-label="Reload" onClick={reload}>
+                  <SVGArrowCounterclockwise />
+                </button>
                 <small className="overflow-force-wrap font-monospace">{lastError}</small>
                 <button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
               </div>

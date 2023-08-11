@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -7,7 +7,7 @@
 import { convert, promQLMetric, timeShiftDesc } from './utils';
 import { TimeRange } from '../common/TimeRange';
 import { Column } from 'react-data-grid';
-import { EventDataRow } from '../store/statshouse';
+import { EventDataRow } from '../store';
 import {
   EventFormatterData,
   EventFormatterDefault,
@@ -16,7 +16,7 @@ import {
 } from '../components/Plot/EventFormatters';
 import { uniqueArray } from '../common/helpers';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector } from '../api/enum';
-import { filterInSep, filterNotInSep, freeKeyPrefix, PlotParams } from '../url/queryParams';
+import { filterInSep, filterNotInSep, freeKeyPrefix, PlotParams, toIndexTag } from '../url/queryParams';
 import { MetricMetaValue } from '../api/metric';
 
 export interface queryResult {
@@ -152,10 +152,22 @@ export function formatTagValue(value: string, comment?: string, raw?: boolean, k
   return `⚡ ${i}`;
 }
 
+export function sortTagEntries([a]: [string, querySeriesMetaTag], [b]: [string, querySeriesMetaTag]) {
+  let a0 = toIndexTag(a) ?? 0;
+  let b0 = toIndexTag(b) ?? 0;
+  if (a0 > 0) {
+    a0 += 999999;
+  }
+  if (b0 > 0) {
+    b0 += 999999;
+  }
+  return a0 - b0;
+}
+
 export function metaToBaseLabel(meta: querySeriesMeta, uniqueWhatLength: number): string {
   let desc =
     Object.entries(meta.tags)
-      .sort(([a], [b]) => (a > b ? 1 : a < b ? -1 : 0))
+      .sort(sortTagEntries)
       .map(([, metaTag]) => formatTagValue(metaTag.value, metaTag.comment, metaTag.raw, metaTag.raw_kind))
       .join(', ') || 'Value';
   if (uniqueWhatLength > 1) {
