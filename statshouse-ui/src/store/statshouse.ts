@@ -17,7 +17,7 @@ import {
   apiPut,
   defaultBaseRange,
   Error403,
-  Error504,
+  ErrorSkip,
   fmtInputDateTime,
   formatLegendValue,
   formatPercent,
@@ -97,7 +97,7 @@ export type PlotStore = {
   whats: QueryWhat[];
   error: string;
   error403?: string;
-  errorCount504: number;
+  errorSkipCount: number;
   data: uPlot.AlignedData;
   series: uPlot.Series[];
   seriesShow: boolean[];
@@ -149,7 +149,7 @@ function getEmptyPlotData(): PlotStore {
     nameMetric: '',
     whats: [],
     error: '',
-    errorCount504: 0,
+    errorSkipCount: 0,
     data: [[]],
     series: [],
     seriesShow: [],
@@ -1063,7 +1063,7 @@ export const statsHouseState: StateCreator<
                 nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
                 whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as QueryWhat[]) : [],
                 error: '',
-                errorCount504: 0,
+                errorSkipCount: 0,
                 data: noUpdateData ? state.plotsData[index]?.data : stacked || data,
                 series:
                   noUpdateData &&
@@ -1099,11 +1099,11 @@ export const statsHouseState: StateCreator<
             });
           })
           .catch((error) => {
-            if (error instanceof Error504) {
+            if (error instanceof ErrorSkip) {
               setState((state) => {
                 state.plotsData[index] ??= getEmptyPlotData();
-                state.plotsData[index].errorCount504++;
-                if (!state.liveMode || state.plotsData[index].errorCount504 > 10) {
+                state.plotsData[index].errorSkipCount++;
+                if (!state.liveMode || state.plotsData[index].errorSkipCount > globalSettings.skip_error_count) {
                   state.plotsData[index].error = error.toString();
                   delete state.previews[index];
                   state.liveMode = false;

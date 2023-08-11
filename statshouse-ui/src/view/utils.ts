@@ -17,6 +17,7 @@ import { isNotNil, uniqueArray } from '../common/helpers';
 import { GET_PARAMS } from '../api/enum';
 import { getEmptyVariableParams } from '../common/getEmptyVariableParams';
 import { getDefaultParams, PlotParams, QueryParams, toKeyTag, VariableParams } from '../url/queryParams';
+import { globalSettings } from '../common/settings';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
@@ -385,7 +386,7 @@ type apiResponse<T> = {
 };
 
 export class Error403 extends Error {}
-export class Error504 extends Error {}
+export class ErrorSkip extends Error {}
 
 export async function apiGet<T>(url: string, signal: AbortSignal, promptReloadOn401: boolean): Promise<T> {
   const resp = await fetch(url, { signal });
@@ -394,8 +395,9 @@ export async function apiGet<T>(url: string, signal: AbortSignal, promptReloadOn
       window.location.reload();
     }
   }
-  if (resp.status === 504) {
-    throw new Error504(`${resp.status}: Gateway Timeout`);
+  if (globalSettings.skip_error_code.indexOf(resp.status) > -1) {
+    const text = await resp.clone().text();
+    throw new ErrorSkip(`${resp.status}: ${text.substring(0, 255)}`);
   }
   if (resp.headers.get('Content-Type') !== 'application/json') {
     const text = await resp.text();
@@ -433,8 +435,9 @@ export async function apiPost<T>(
       window.location.reload();
     }
   }
-  if (resp.status === 504) {
-    throw new Error504(`${resp.status}: Gateway Timeout`);
+  if (globalSettings.skip_error_code.indexOf(resp.status) > -1) {
+    const text = await resp.clone().text();
+    throw new ErrorSkip(`${resp.status}: ${text.substring(0, 255)}`);
   }
   if (resp.headers.get('Content-Type') !== 'application/json') {
     const text = await resp.text();
