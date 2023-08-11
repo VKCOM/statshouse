@@ -15,6 +15,8 @@ export interface settings {
   readonly default_metric_what: readonly QueryWhat[];
   readonly default_num_series: number;
   readonly disabled_v1: boolean;
+  readonly skip_error_code: number[];
+  readonly skip_error_count: number;
 }
 
 const defaultSettings: settings = {
@@ -26,6 +28,8 @@ const defaultSettings: settings = {
   default_metric_what: ['count_norm'],
   default_num_series: 5,
   disabled_v1: false,
+  skip_error_code: [504, 502],
+  skip_error_count: 10,
 };
 
 const meta = document.querySelector('meta[name="settings"]');
