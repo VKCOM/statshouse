@@ -34,6 +34,7 @@ import { PlotEventOverlay } from './PlotEventOverlay';
 import { useUPlotPluginHooks } from '../../hooks';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
 import { shallow } from 'zustand/shallow';
+import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -57,6 +58,7 @@ const {
   setYLockChange,
   setPlotLastError,
   setUPlotWidth,
+  loadPlot,
 } = useStore.getState();
 
 export function PlotViewMetric(props: {
@@ -130,6 +132,11 @@ export function PlotViewMetric(props: {
 
   const clearLastError = useCallback(() => {
     setPlotLastError(indexPlot, '');
+  }, [indexPlot]);
+
+  const reload = useCallback(() => {
+    setPlotLastError(indexPlot, '');
+    loadPlot(indexPlot);
   }, [indexPlot]);
 
   const resetZoom = useCallback(() => {
@@ -356,6 +363,9 @@ export function PlotViewMetric(props: {
             {/*last error*/}
             {!!lastError && (
               <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
+                <button type="button" className="btn" aria-label="Reload" onClick={reload}>
+                  <SVGArrowCounterclockwise />
+                </button>
                 <small className="overflow-force-wrap font-monospace">{lastError}</small>
                 <button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
               </div>
