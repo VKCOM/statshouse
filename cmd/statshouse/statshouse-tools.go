@@ -338,7 +338,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 	}
 }
 
-func mainTLClient() {
+func mainTLClient() int {
 	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")
 
 	var statshouseAddr string
@@ -359,17 +359,21 @@ func mainTLClient() {
 	}
 	pkt, err := io.ReadAll(os.Stdin)
 	if err != nil && err != io.EOF {
-		log.Fatalf("Read JSON from stdin failed - %v", err)
+		_, _ = fmt.Fprintf(os.Stderr, "read JSON from stdin failed - %v", err)
+		return 1
 	}
 	var batch tlstatshouse.AddMetricsBatchBytes
 	if err := batch.UnmarshalJSON(pkt); err != nil {
-		log.Fatalf("Parsing metric batch failed - %v", err)
+		_, _ = fmt.Fprintf(os.Stderr, "parsing metric batch failed - %v", err)
+		return 1
 	}
 	var ret tl.True
 	if err := tlclient.AddMetricsBatchBytes(context.Background(), batch, nil, &ret); err != nil {
-		log.Fatalf("AddMetricsBatch failed - %v", err)
+		_, _ = fmt.Fprintf(os.Stderr, "addMetricsBatch failed - %v", err)
+		return 1
 	}
 	log.Printf("Success")
+	return 0
 }
 
 func mainTLClientAPI() {

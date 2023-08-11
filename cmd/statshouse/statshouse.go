@@ -137,8 +137,7 @@ func runMain() int {
 			mainTLClientAPI()
 			return 0
 		case "tlclient", "-tlclient", "--tlclient":
-			mainTLClient()
-			return 0
+			return mainTLClient()
 		case "simulator", "-simulator", "--simulator":
 			mainSimulator()
 			return 0
