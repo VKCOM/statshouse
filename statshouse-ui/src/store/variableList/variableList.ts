@@ -187,7 +187,7 @@ export async function loadValuableList(variableParam: VariableParams) {
   return lists.filter(isNotNil);
 }
 
-export async function loadTagList(indexPlot: number | null, indexTag: number | null, limit = 20000) {
+export async function loadTagList(indexPlot: number | null, indexTag: number | null, limit = 25000) {
   const store = useStore.getState();
   if (indexPlot == null || indexTag == null || store.params.plots[indexPlot]?.metricName === promQLMetric) {
     return undefined;

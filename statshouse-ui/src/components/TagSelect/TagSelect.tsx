@@ -56,6 +56,7 @@ export function _TagSelect({
         onceSelectByClick
         moreItems={moreOption}
         showCountItems
+        customValue={moreOption}
         onChange={onChange}
         onFocus={onFocus}
         onBlur={onBlur}
