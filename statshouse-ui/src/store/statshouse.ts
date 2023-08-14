@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { StateCreator } from 'zustand';
+import { create, StateCreator } from 'zustand';
 import uPlot from 'uplot';
 
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
@@ -42,7 +42,6 @@ import * as api from '../view/api';
 import {
   DashboardInfo,
   dashboardURL,
-  filterParamsArr,
   metaToBaseLabel,
   metaToLabel,
   MetricsGroup,
@@ -51,7 +50,6 @@ import {
   metricsGroupListURL,
   MetricsGroupShort,
   metricsGroupURL,
-  metricTagValueInfo,
   PromConfigInfo,
   promConfigURL,
   queryResult,
@@ -70,10 +68,9 @@ import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat } from '../api/enum';
-import { deepClone, isNotNil, mergeLeft, sortEntity, uniqueArray } from '../common/helpers';
+import { GET_PARAMS, QueryWhat } from '../api/enum';
+import { deepClone, mergeLeft, sortEntity } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
-import { apiMetricTagValuesFetch } from '../api/metricTagValues';
 import { appHistory } from '../common/appHistory';
 import {
   decodeDashboardIdParam,
@@ -89,7 +86,6 @@ import {
   toKeyTag,
   VariableParams,
 } from '../url/queryParams';
-import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 
 export type PlotStore = {
@@ -235,7 +231,6 @@ export type StatsHouseStore = {
   clearMetricsMeta(metricName: string): void;
   compact: boolean;
   setCompact(compact: boolean): void;
-  setTagSync(indexGroup: number, indexPlot: number, indexTag: number, status: boolean): void;
   setPlotParamsTag(
     indexPlot: number,
     keyTag: string,
@@ -244,20 +239,6 @@ export type StatsHouseStore = {
   ): void;
   setPlotParamsTagGroupBy(indexPlot: number, keyTag: string, nextState: React.SetStateAction<boolean>): void;
   setPlotType(indexPlot: number, nextState: React.SetStateAction<PlotType>): void;
-  tagsList: metricTagValueInfo[][][]; // [indexPlot][indexTag]
-  tagsListSKey: metricTagValueInfo[][]; // [indexPlot]
-  tagsListMore: boolean[][]; // [indexPlot][indexTag]
-  tagsListSKeyMore: boolean[]; // [indexPlot]
-  tagsListLoading: boolean[][]; // [indexPlot][indexTag]
-  tagsListSKeyLoading: boolean[]; //[indexPlot]
-  setTagsList(
-    indexPlot: number,
-    indexTag: number,
-    nextState: React.SetStateAction<metricTagValueInfo[]>,
-    more?: boolean
-  ): void;
-  loadTagsList(indexPlot: number, indexTag: number, limit?: number): Promise<void>;
-  preSync(): void;
   serverParamsAbortController?: AbortController;
   loadServerParams(id: number): Promise<QueryParams>;
   saveServerParams(): Promise<QueryParams>;
@@ -615,7 +596,6 @@ export const statsHouseState: StateCreator<
         })
       );
       setState((state) => {
-        state.tagsList = [];
         state.plotsData.splice(index, 1);
         URL.revokeObjectURL(state.previews[index]);
         state.previews.splice(index, 1);
@@ -1249,27 +1229,6 @@ export const statsHouseState: StateCreator<
         state.compact = compact;
       });
     },
-    setTagSync(indexGroup, indexPlot, indexTag, status) {
-      if (indexGroup >= 0 && indexPlot >= 0 && indexTag >= 0) {
-        getState().setParams(
-          produce((params) => {
-            params.tagSync[indexGroup][indexPlot] = status ? indexTag : null;
-          })
-        );
-      } else if (indexGroup === -1 && indexPlot === -1 && indexTag === -1 && status) {
-        getState().setParams(
-          produce((params) => {
-            params.tagSync.push([]);
-          })
-        );
-      } else if (indexGroup >= 0 && indexPlot === -1 && indexTag === -1 && !status) {
-        getState().setParams(
-          produce((params) => {
-            params.tagSync.splice(indexGroup, 1);
-          })
-        );
-      }
-    },
     setPlotParamsTag(indexPlot, keyTag, nextState, nextPositive) {
       const prevState = getState();
       const prev = prevState.params.plots[indexPlot];
@@ -1381,112 +1340,6 @@ export const statsHouseState: StateCreator<
       }
     },
     metricsListAbortController: undefined,
-    tagsList: [],
-    tagsListSKey: [],
-    tagsListMore: [],
-    tagsListSKeyMore: [],
-    tagsListLoading: [],
-    tagsListSKeyLoading: [],
-    setTagsList(indexPlot, indexTag, nextState, more = false) {
-      const prevState = getState();
-      const next = getNextState(
-        indexPlot === -1 ? prevState.tagsListSKey[indexPlot] : prevState.tagsList[indexPlot]?.[indexTag] ?? [],
-        nextState
-      );
-      setState((state) => {
-        if (indexTag === -1) {
-          state.tagsListSKey[indexPlot] = next;
-          state.tagsListSKeyMore[indexPlot] = more;
-        } else {
-          if (!state.tagsList[indexPlot]) {
-            state.tagsList[indexPlot] = new Array(state.params.plots.length ?? 0).fill([]);
-          }
-          if (!state.tagsListMore[indexPlot]) {
-            state.tagsListMore[indexPlot] = new Array(state.params.plots.length ?? 0).fill(false);
-          }
-          state.tagsList[indexPlot][indexTag] = next;
-          state.tagsListMore[indexPlot][indexTag] = more;
-        }
-      });
-    },
-    async loadTagsList(indexPlot, indexTag, limit = 20000) {
-      const prevState = getState();
-      const plot = prevState.params.plots[indexPlot];
-      const tag = prevState.metricsMeta[plot.metricName]?.tags?.[indexTag];
-      const tagKey = indexTag === -1 ? '_s' : `${indexTag}`;
-      const requestKey = `${indexPlot}-${plot.metricName}`;
-      const tagID = indexTag === -1 ? 'skey' : `key${indexTag}`;
-      const otherFilterIn = { ...plot.filterIn };
-      delete otherFilterIn[tagID];
-      const otherFilterNotIn = { ...plot.filterNotIn };
-      delete otherFilterNotIn[tagID];
-      if (plot.metricName && (tag || indexTag === -1)) {
-        setState((state) => {
-          if (indexTag === -1) {
-            state.tagsListSKeyLoading[indexPlot] = true;
-          } else {
-            if (!state.tagsListLoading[indexPlot]) {
-              state.tagsListLoading[indexPlot] = new Array(
-                prevState.metricsMeta[plot.metricName]?.tags?.length ?? 0
-              ).fill(false);
-            }
-            state.tagsListLoading[indexPlot][indexTag] = true;
-          }
-        });
-        const { response, error } = await apiMetricTagValuesFetch(
-          {
-            [GET_PARAMS.metricName]: plot.metricName,
-            [GET_PARAMS.metricTagID]: tagKey,
-            [GET_PARAMS.version]:
-              globalSettings.disabled_v1 || plot.useV2
-                ? METRIC_VALUE_BACKEND_VERSION.v2
-                : METRIC_VALUE_BACKEND_VERSION.v1,
-            [GET_PARAMS.numResults]: limit.toString(),
-            [GET_PARAMS.fromTime]: prevState.timeRange.from.toString(),
-            [GET_PARAMS.toTime]: (prevState.timeRange.to + 1).toString(),
-            [GET_PARAMS.metricFilter]: filterParamsArr(otherFilterIn, otherFilterNotIn),
-            [GET_PARAMS.metricWhat]: plot.what.slice() as QueryWhat[],
-          },
-          requestKey
-        );
-        if (response) {
-          getState().setTagsList(indexPlot, indexTag, response.data.tag_values.slice(), response.data.tag_values_more);
-        }
-
-        if (error) {
-          useErrorStore.getState().addError(error);
-        }
-        setState((state) => {
-          if (indexTag === -1) {
-            state.tagsListSKeyLoading[indexPlot] = false;
-          } else {
-            state.tagsListLoading[indexPlot][indexTag] = false;
-          }
-        });
-      }
-    },
-    preSync() {
-      const prevState = getState();
-      prevState.params.tagSync.forEach((group) => {
-        const filterIn = uniqueArray(
-          group.flatMap((tag, indexPlot) => prevState.params.plots[indexPlot].filterIn[`key${tag}`] ?? [])
-        );
-        const filterNotIn = uniqueArray(
-          group.flatMap((tag, indexPlot) => prevState.params.plots[indexPlot].filterNotIn[`key${tag}`] ?? [])
-        );
-        const indexPlot = group.findIndex(isNotNil);
-        const keyTag = `key${group[indexPlot]}`;
-        const byGroup = prevState.params.plots.some(
-          (plot, indexPlot) => plot.groupBy.indexOf(keyTag) >= 0 && group[indexPlot] !== null
-        );
-        if (filterIn.length) {
-          prevState.setPlotParamsTag(indexPlot, keyTag, filterIn, true);
-        } else if (filterNotIn.length) {
-          prevState.setPlotParamsTag(indexPlot, keyTag, filterNotIn, false);
-        }
-        prevState.setPlotParamsTagGroupBy(indexPlot, keyTag, byGroup);
-      });
-    },
     loadServerParams(id) {
       return new Promise((resolve) => {
         const paramsLD = readJSONLD<QueryParams>('QueryParams');
