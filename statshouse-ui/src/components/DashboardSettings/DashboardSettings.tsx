@@ -6,28 +6,18 @@
 
 import React from 'react';
 import { DashboardInfo } from './DashboardInfo';
-import { DashboardTagSync } from './DashboardTagSync';
-import { selectorDevEnabled, useStoreDev } from '../../store';
 import { DashboardVariable } from './DashboardVariable';
 
 export type DashboardSettingsProps = {};
-export const DashboardSettings: React.FC<DashboardSettingsProps> = () => {
-  const devEnabled = useStoreDev(selectorDevEnabled);
-  return (
-    <div className="w-max-720 mx-auto">
-      <div className="">
-        <div className="mb-4">
-          <DashboardInfo />
-        </div>
-        <div className="mb-4">
-          <DashboardVariable />
-        </div>
-        {devEnabled && (
-          <div className="mb-4">
-            <DashboardTagSync />
-          </div>
-        )}
+export const DashboardSettings: React.FC<DashboardSettingsProps> = () => (
+  <div className="w-max-720 mx-auto">
+    <div className="">
+      <div className="mb-4">
+        <DashboardInfo />
+      </div>
+      <div className="mb-4">
+        <DashboardVariable />
       </div>
     </div>
-  );
-};
+  </div>
+);
