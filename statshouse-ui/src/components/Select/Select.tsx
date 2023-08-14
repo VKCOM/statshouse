@@ -44,11 +44,13 @@ export type SelectProps = {
   moreItems?: boolean;
   showCountItems?: boolean;
   onceSelectByClick?: boolean;
+  customValue?: boolean;
   listOnlyOpen?: boolean;
   onChange?: (value?: string | string[], name?: string) => void;
   onFocus?: () => void;
   onBlur?: () => void;
   role?: string;
+  onSearch?: (values: SelectOptionProps[]) => void;
 };
 
 const KEY: Record<string, string> = {
@@ -209,6 +211,8 @@ function scrollToElement(
   }
 }
 
+const emptyFn = () => undefined;
+
 export const Select: FC<SelectProps> = ({
   value,
   options = defaultOptions,
@@ -227,9 +231,11 @@ export const Select: FC<SelectProps> = ({
   onceSelectByClick = false,
   listOnlyOpen = false,
   valueToInput = false,
-  onChange = () => undefined,
-  onFocus = () => undefined,
-  onBlur = () => undefined,
+  customValue = false,
+  onChange = emptyFn,
+  onFocus = emptyFn,
+  onBlur = emptyFn,
+  onSearch = emptyFn,
 }) => {
   const valuesInput = useMemo<string[]>(() => (Array.isArray(value) ? value : value ? [value] : []), [value]);
   const [values, setValues] = useState(valuesInput);
@@ -308,6 +314,9 @@ export const Select: FC<SelectProps> = ({
     } else if (moreItems && options?.length) {
       result.push({ value: '', disabled: true, name: `>${options?.length} items, truncated` });
     }
+    if (customValue && !resultLength) {
+      result.push({ value: searchValueDebounce, name: searchValueDebounce });
+    }
     return result;
   }, [
     options,
@@ -316,10 +325,20 @@ export const Select: FC<SelectProps> = ({
     maxOptions,
     showCountItems,
     moreItems,
+    customValue,
     valuesInput,
-    maxToggleFiltered,
     multiple,
+    maxToggleFiltered,
   ]);
+
+  useDeepCompareEffect(() => {
+    const cancel = setTimeout(() => {
+      onSearch(filterOptions);
+    }, 500);
+    return () => {
+      clearTimeout(cancel);
+    };
+  }, [filterOptions, onSearch]);
 
   const onInputSearch = useCallback<React.FormEventHandler<HTMLInputElement>>(
     (event) => {

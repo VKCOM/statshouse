@@ -1089,6 +1089,9 @@ export const statsHouseState: StateCreator<
             });
           })
           .catch((error) => {
+            if (!getState().metricsMeta[lastPlotParams.metricName]) {
+              getState().loadMetricsMeta(lastPlotParams.metricName);
+            }
             if (error instanceof ErrorSkip) {
               setState((state) => {
                 state.plotsData[index] ??= getEmptyPlotData();

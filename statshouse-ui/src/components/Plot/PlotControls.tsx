@@ -21,9 +21,9 @@ import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display
 import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
 import { ReactComponent as SVGFlag } from 'bootstrap-icons/icons/flag.svg';
 import {
-  selectorMetricsList,
   setUpdatedTag,
   Store,
+  updateMetricsList,
   useMetricsListStore,
   useStore,
   useVariableListStore,
@@ -58,7 +58,7 @@ export const PlotControls = memo(function PlotControls_(props: {
 }) {
   const { indexPlot, setBaseRange, meta, numQueries, clonePlot } = props;
   const tagsList = useVariableListStore((s) => s.tags[indexPlot] ?? emptyTagsList);
-  const metricsList = useMetricsListStore(selectorMetricsList);
+  const { list: metricsList, loading: loadingMetricsList } = useMetricsListStore();
   const metricsOptions = useMemo<SelectOptionProps[]>(
     () => metricsList.map(({ name }) => ({ name, value: name })),
     [metricsList]
@@ -153,6 +153,12 @@ export const PlotControls = memo(function PlotControls_(props: {
     },
     [variableTags, negativeTags, indexPlot]
   );
+
+  const onSearchMetrics = useCallback((values: SelectOptionProps[]) => {
+    if (values.length === 0 && !useMetricsListStore.getState().loading) {
+      updateMetricsList();
+    }
+  }, []);
 
   const onSetGroupBy = useCallback(
     (indexTag: number | undefined, value: boolean) => {
@@ -353,6 +359,8 @@ export const PlotControls = memo(function PlotControls_(props: {
               valueToInput={true}
               className="sh-select form-control"
               classNameList="dropdown-menu"
+              onSearch={onSearchMetrics}
+              loading={loadingMetricsList}
             />
             {!!clonePlot && (
               <button
