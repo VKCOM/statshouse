@@ -679,6 +679,13 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       name: data.dashboard.name,
       description: data.dashboard?.description ?? '',
       version: data.dashboard.version,
+      groupInfo:
+        params.dashboard?.groupInfo?.map((g) => ({
+          name: g.name ?? '',
+          count: g.count ?? 0,
+          show: g.show ?? true,
+          size: g.size ?? 2,
+        })) ?? [],
     },
     variables: params.variables ?? [],
   };

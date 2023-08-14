@@ -66,7 +66,7 @@ import { filterPoints } from '../common/filterPoints';
 import { SelectOptionProps, UPlotWrapperPropsScales } from '../components';
 import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
-import { useErrorStore } from './errors';
+import { ErrorCustom, useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
 import { GET_PARAMS, QueryWhat } from '../api/enum';
 import { deepClone, mergeLeft, sortEntity } from '../common/helpers';
@@ -348,6 +348,16 @@ export const statsHouseState: StateCreator<
       }
       let params = decodeP;
       if (decodeP.tagSync.length) {
+        if (!decodeP.dashboard?.dashboard_id) {
+          useErrorStore
+            .getState()
+            .addError(
+              new ErrorCustom(
+                'Возможно вы перешли по сохранённой ссылке, которая имеет старый формат,мы обновили ссылку в адресной строке браузера, пожалуйста пересохраните ссылку в закладках',
+                'Link format deprecated'
+              )
+            );
+        }
         await loadAllMeta(decodeP, getState().loadMetricsMeta);
         const metricsMeta = getState().metricsMeta;
         setAutoFreeze(false);
