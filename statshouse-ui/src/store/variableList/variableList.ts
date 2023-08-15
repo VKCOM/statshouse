@@ -29,8 +29,6 @@ export function getEmptyVariable(): VariableItem {
   return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined };
 }
 
-export const emptyVariableItem: Readonly<VariableItem> = getEmptyVariable();
-
 export type VariableItem = {
   list: MetricTagValueInfo[];
   updated: boolean;
@@ -128,9 +126,16 @@ export function setUpdatedTag(indexPlot: number, indexTag: number | undefined, t
     updateTag(indexPlot, indexTag);
   }
 }
+
 export function clearTags(indexPlot: number) {
   useVariableListStore.setState((state) => {
     delete state.tags[indexPlot];
+  });
+}
+
+export function clearTagsAll() {
+  useVariableListStore.setState((state) => {
+    state.tags = {};
   });
 }
 

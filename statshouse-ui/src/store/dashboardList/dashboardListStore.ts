@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { create, StateCreator } from 'zustand';
+import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { useErrorStore } from '../errors';
 import { apiDashboardListFetch, DashboardShortInfo } from '../../api/dashboardsList';
@@ -15,42 +15,33 @@ export type DashboardListStore = {
   update(): Promise<void>;
 };
 
-export const dashboardListState: StateCreator<
-  DashboardListStore,
-  [['zustand/immer', never]],
-  [],
-  DashboardListStore
-> = (setState) => {
-  let errorRemove: (() => void) | undefined;
-  return {
-    list: [],
-    loading: false,
-    async update() {
-      if (errorRemove) {
-        errorRemove();
-        errorRemove = undefined;
-      }
-      setState((state) => {
-        state.loading = true;
-      });
-      const { response, error } = await apiDashboardListFetch('dashboardListState');
-      if (response) {
+export const useDashboardListStore = create<DashboardListStore>()(
+  immer((setState) => {
+    let errorRemove: (() => void) | undefined;
+    return {
+      list: [],
+      loading: false,
+      async update() {
+        if (errorRemove) {
+          errorRemove();
+          errorRemove = undefined;
+        }
         setState((state) => {
-          state.list = response.data.dashboards ?? [];
+          state.loading = true;
         });
-      }
-      if (error) {
-        errorRemove = useErrorStore.getState().addError(error);
-      }
-      setState((state) => {
-        state.loading = false;
-      });
-    },
-  };
-};
-
-export const useDashboardListStore = create<DashboardListStore, [['zustand/immer', never]]>(
-  immer((...a) => ({
-    ...dashboardListState(...a),
-  }))
+        const { response, error } = await apiDashboardListFetch('dashboardListState');
+        if (response) {
+          setState((state) => {
+            state.list = response.data.dashboards ?? [];
+          });
+        }
+        if (error) {
+          errorRemove = useErrorStore.getState().addError(error);
+        }
+        setState((state) => {
+          state.loading = false;
+        });
+      },
+    };
+  })
 );
