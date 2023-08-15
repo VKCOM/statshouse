@@ -47,6 +47,12 @@ export const useVariableListStore = create<VariableListStore>()(
     let prevParams = useStore.getState().params;
     let metricsMeta = useStore.getState().metricsMeta;
     useStore.subscribe((state) => {
+      if (
+        prevParams.dashboard?.dashboard_id !== state.params.dashboard?.dashboard_id ||
+        prevParams.plots !== state.params.plots
+      ) {
+        clearTagsAll();
+      }
       if (prevParams !== state.params) {
         prevParams = state.params;
         updateVariables(state);

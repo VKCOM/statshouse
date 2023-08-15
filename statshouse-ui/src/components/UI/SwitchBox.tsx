@@ -13,10 +13,19 @@ export type SwitchBoxProps = {
   onChange?: (value: boolean) => void;
   children?: React.ReactNode;
   className?: string;
+  disabled?: boolean;
   title?: string;
 };
 
-export function _SwitchBox({ children, className, defaultChecked, checked, title, onChange }: SwitchBoxProps) {
+export function _SwitchBox({
+  children,
+  className,
+  defaultChecked,
+  checked,
+  title,
+  onChange,
+  disabled,
+}: SwitchBoxProps) {
   const uid = useId();
   const change = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -34,6 +43,7 @@ export function _SwitchBox({ children, className, defaultChecked, checked, title
         role="switch"
         id={`switch-box-${uid}`}
         onChange={change}
+        disabled={disabled}
       />
       {!!children && (
         <label className="form-check-label ms-2" htmlFor={`switch-box-${uid}`}>
