@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React from 'react';
-import { create, StateCreator } from 'zustand';
+import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { getNextState } from '../../common/getNextState';
@@ -26,24 +26,21 @@ function DevStoreEqual(store: DevStore): boolean {
   return store.enabled === getDefault().enabled;
 }
 
-export const devState: StateCreator<DevStore, [['zustand/immer', never]], [['zustand/persist', DevStore]], DevStore> =
-  persist(
-    (setState) => ({
-      ...getDefault(),
-      setEnabled(nextState) {
-        setState((state) => {
-          state.enabled = getNextState(state.enabled, nextState);
-        });
-      },
-    }),
-    {
-      name: 'sh-dev',
-      storage: localStorageDefault(DevStoreEqual),
-    }
-  );
-
-export const useStoreDev = create<DevStore, [['zustand/immer', never], ['zustand/persist', never]]>(
-  immer((...a) => ({
-    ...devState(...a),
-  }))
+export const useStoreDev = create<DevStore>()(
+  immer(
+    persist(
+      (setState) => ({
+        ...getDefault(),
+        setEnabled(nextState) {
+          setState((state) => {
+            state.enabled = getNextState(state.enabled, nextState);
+          });
+        },
+      }),
+      {
+        name: 'sh-dev',
+        storage: localStorageDefault(DevStoreEqual),
+      }
+    )
+  )
 );
