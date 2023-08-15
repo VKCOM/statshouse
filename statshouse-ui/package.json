@@ -10,8 +10,8 @@
     "@types/node": "^18.13.0",
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.10",
-    "bootstrap": "^5.3.0-alpha1",
-    "bootstrap-icons": "^1.10.3",
+    "bootstrap": "^5.3.1",
+    "bootstrap-icons": "^1.10.5",
     "classnames": "^2.3.2",
     "dequal": "^2.0.3",
     "history": "^5.3.0",
@@ -23,10 +23,10 @@
     "react-scripts": "^5.0.1",
     "sass": "^1.58.0",
     "typescript": "^4.9.5",
-    "uplot": "^1.6.24",
+    "uplot": "^1.6.25",
     "use-deep-compare-effect": "^1.8.1",
     "web-vitals": "^3.1.1",
-    "zustand": "^4.3.3"
+    "zustand": "^4.4.1"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.51.0",
