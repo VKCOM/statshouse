@@ -141,3 +141,9 @@ export function mergeLeft<T>(targetMerge: T, valueMerge: T): T {
   }
   return valueMerge;
 }
+
+export function escapeHTML(str: string): string {
+  const d = window.document.createElement('DIV');
+  d.textContent = str;
+  return d.innerHTML;
+}

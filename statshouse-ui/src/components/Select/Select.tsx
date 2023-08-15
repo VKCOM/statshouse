@@ -92,7 +92,12 @@ function appendItems(target: HTMLElement, items: SelectOptionProps[], multiple: 
       if (item.disabled) {
         elem.dataset.disabled = '';
       }
-      label.innerHTML = item.html || item.name;
+      if (item.html) {
+        label.innerHTML = item.html;
+      } else {
+        label.append(document.createTextNode(item.name));
+      }
+
       if (item.title) {
         elem.title = item.title;
       } else {
