@@ -13,6 +13,7 @@ import {
   PlotControlTo,
   Select,
   SelectOptionProps,
+  SwitchBox,
   VariableControl,
 } from '../index';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
@@ -246,10 +247,10 @@ export const PlotControls = memo(function PlotControls_(props: {
   );
 
   const onV2Change = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
+    (value: boolean) => {
       setPlotParams(indexPlot, (s) => ({
         ...s,
-        useV2: e.target.checked,
+        useV2: value,
       }));
     },
     [indexPlot]
@@ -418,8 +419,8 @@ export const PlotControls = memo(function PlotControls_(props: {
               <PlotControlTimeShifts className="w-100 mt-2" />
             </div>
 
-            <div className="row mb-3 align-items-baseline">
-              <div className="col-4">
+            <div className="mb-3 d-flex">
+              <div className="d-flex me-4 gap-3 flex-grow-1">
                 <select
                   className={`form-select ${plotParams.customAgg > 0 ? 'border-warning' : ''}`}
                   value={plotParams.customAgg}
@@ -439,8 +440,6 @@ export const PlotControls = memo(function PlotControls_(props: {
                   <option value={7 * 24 * 60 * 60}>7 days</option>
                   <option value={31 * 24 * 60 * 60}>1 month</option>
                 </select>
-              </div>
-              <div className="col-4">
                 <select className="form-select" value={plotParams.numSeries} onChange={onNumSeriesChange}>
                   <option value="1">Top 1</option>
                   <option value="2">Top 2</option>
@@ -467,22 +466,9 @@ export const PlotControls = memo(function PlotControls_(props: {
                 </select>
               </div>
 
-              <div className="col-4 d-flex justify-content-end">
-                <div className="form-check form-switch">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    value=""
-                    id="useV2Input"
-                    checked={plotParams.useV2}
-                    disabled={globalSettings.disabled_v1}
-                    onChange={onV2Change}
-                  />
-                  <label className="form-check-label" htmlFor="useV2Input" title="Use StatsHouse v2">
-                    <SVGLightning />
-                  </label>
-                </div>
-              </div>
+              <SwitchBox checked={plotParams.useV2} disabled={globalSettings.disabled_v1} onChange={onV2Change}>
+                <SVGLightning />
+              </SwitchBox>
             </div>
 
             {numQueries !== 0 && (
