@@ -30,9 +30,9 @@ func value(r *http.Request, v string, d string) string {
 	return values
 }
 
-func getOpenGraphInfo(r *http.Request, origPath string) (*openGraphInfo, error) {
+func getOpenGraphInfo(r *http.Request, origPath string) *openGraphInfo {
 	if origPath != viewPath {
-		return nil, nil // path does not generate image
+		return nil // path does not generate image
 	}
 
 	var (
@@ -41,6 +41,7 @@ func getOpenGraphInfo(r *http.Request, origPath string) (*openGraphInfo, error) 
 		v             = url.Values{}
 		width, height = plotSize(dataFormatPNG, true, defaultRenderWidth)
 		tab           = 0
+		dashboardID   string
 	)
 	for ; ; tab++ {
 		var p string
@@ -95,13 +96,26 @@ func getOpenGraphInfo(r *http.Request, origPath string) (*openGraphInfo, error) 
 		metrics = append(metrics, metric)
 		whats = append(whats, what)
 	}
-
-	if len(v) == 0 {
-		return nil, fmt.Errorf("no metric specified: %q", r.Form)
+	if dashboardID = r.FormValue(paramDashboardID); len(dashboardID) != 0 {
+		v.Set(paramDashboardID, dashboardID)
 	}
-	v.Set(ParamFromTime, r.FormValue(ParamFromTime))
-	v.Set(ParamToTime, r.FormValue(ParamToTime))
-
+	if len(v) == 0 {
+		return nil
+	}
+	if t := r.FormValue(ParamFromTime); len(t) != 0 {
+		v.Set(ParamFromTime, t)
+	}
+	if t := r.FormValue(ParamToTime); len(t) != 0 {
+		v.Set(ParamToTime, t)
+	}
+	// forward variables as is
+	for k, s := range r.Form {
+		if strings.HasPrefix(k, "v") {
+			for _, vv := range s {
+				v.Add(k, vv)
+			}
+		}
+	}
 	// Active tab number, total image height
 	tn, err := strconv.Atoi(r.FormValue(paramTabNumber))
 	if err != nil {
@@ -128,13 +142,15 @@ func getOpenGraphInfo(r *http.Request, origPath string) (*openGraphInfo, error) 
 			}
 		}
 		title = fmt.Sprintf("%s: %s", metrics[tn], strings.Join(what, ", "))
-	} else {
+	} else if len(metrics) != 0 {
 		title = strings.Join(metrics, ", ")
+	} else if len(dashboardID) != 0 {
+		title = "Dashboard — StatsHouse"
 	}
 	return &openGraphInfo{
 		Title:       title,
 		Image:       u.String(),
 		ImageWidth:  width,
 		ImageHeight: height,
-	}, nil
+	}
 }

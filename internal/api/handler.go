@@ -100,6 +100,8 @@ const (
 	paramFromEnd      = "fe"
 	paramExcessPoints = "ep"
 	paramLegacyEngine = "legacy"
+	paramQueryType    = "qt"
+	paramDashboardID  = "id"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -263,6 +265,47 @@ type (
 		Description string                 `json:"description"`
 		JSONData    map[string]interface{} `json:"data"`
 	}
+
+	//easyjson:json
+	DashboardData struct {
+		Plots      []DashboardPlot     `json:"plots"`
+		Vars       []DashboardVar      `json:"variables"`
+		TabNum     int                 `json:"tabNum"`
+		TimeRange  DashboardTimeRange  `json:"timeRange"`
+		TimeShifts DashboardTimeShifts `json:"timeShifts"`
+	}
+
+	DashboardPlot struct {
+		UseV2       bool                `json:"useV2"`
+		NumSeries   int                 `json:"numSeries"`
+		MetricName  string              `json:"metricName"`
+		Width       int                 `json:"customAgg"`
+		PromQL      string              `json:"promQL"`
+		What        []string            `json:"what"`
+		GroupBy     []string            `json:"groupBy"`
+		FilterIn    map[string][]string `json:"filterIn"`
+		FilterNotIn map[string][]string `json:"filterNotIn"`
+		MaxHost     bool                `json:"maxHost"`
+		Type        int                 `json:"type"`
+	}
+
+	DashboardVar struct {
+		Args DashboardVarArgs `json:"args"`
+		Vals []string         `json:"values"`
+		Link [][]int          `json:"link"`
+	}
+
+	DashboardVarArgs struct {
+		Group  bool `json:"groupBy"`
+		Negate bool `json:"negative"`
+	}
+
+	DashboardTimeRange struct {
+		From int64
+		To   string
+	}
+
+	DashboardTimeShifts []string
 
 	getMetricTagValuesReq struct {
 		ai                  accessInfo
@@ -918,16 +961,14 @@ func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.URL.Path == "/" {
-		og, err := getOpenGraphInfo(r, origPath)
-		if err != nil {
-			log.Printf("[error] failed to generate opengraph tags for index.html: %v", err)
-		}
 		data := struct {
 			OpenGraph *openGraphInfo
 			Settings  string
-		}{og, h.indexSettings}
-		err = h.indexTemplate.Execute(w, data)
-		if err != nil {
+		}{
+			getOpenGraphInfo(r, origPath),
+			h.indexSettings,
+		}
+		if err := h.indexTemplate.Execute(w, data); err != nil {
 			log.Printf("[error] failed to write index.html: %v", err)
 		}
 	} else {
@@ -1704,7 +1745,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Parse request
-	qry, err := seriesRequestParser.parseHTTPRequest(r)
+	qry, err := h.parseHTTPRequest(r)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
@@ -1846,7 +1887,7 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request, sl *endpointStat, ai accessInfo) {
 	// Parse request
-	qry, err := seriesRequestParser.parseHTTPRequest(r)
+	qry, err := h.parseHTTPRequest(r)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
@@ -2473,7 +2514,7 @@ func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
-	req, err := seriesRequestParser.parseHTTPRequest(r)
+	req, err := h.parseHTTPRequest(r)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
@@ -2696,7 +2737,7 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
-	s, err := seriesRequestParser.parseHTTPRequestS(r, 12)
+	s, err := h.parseHTTPRequestS(r, 12)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
@@ -3602,18 +3643,8 @@ func getQueryRespEqual(a, b *SeriesResponse) bool {
 	return true
 }
 
-type seriesRequestParserOptions struct {
-	numResultsDefault int
-	numResultsMax     int
-}
-
-var seriesRequestParser = seriesRequestParserOptions{
-	numResultsDefault: defSeries,
-	numResultsMax:     maxSeries,
-}
-
-func (p *seriesRequestParserOptions) parseHTTPRequest(r *http.Request) (seriesRequest, error) {
-	res, err := p.parseHTTPRequestS(r, 1)
+func (h *Handler) parseHTTPRequest(r *http.Request) (seriesRequest, error) {
+	res, err := h.parseHTTPRequestS(r, 1)
 	if err != nil {
 		return seriesRequest{}, err
 	}
@@ -3623,14 +3654,13 @@ func (p *seriesRequestParserOptions) parseHTTPRequest(r *http.Request) (seriesRe
 	return res[0], nil
 }
 
-func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesRequest, err error) {
+func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesRequest, err error) {
 	defer func() {
 		var dummy httpError
 		if err != nil && !errors.As(err, &dummy) {
 			err = httpErr(http.StatusBadRequest, err)
 		}
 	}()
-	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors
 	type seriesRequestEx struct {
 		seriesRequest
 		strFrom       string
@@ -3638,10 +3668,179 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 		strWidth      string
 		strWidthAgg   string
 		strNumResults string
+		strType       string
 	}
 	var (
-		tabs      = make([]seriesRequestEx, 0, maxTabs)
-		tabX      = -1
+		dash  DashboardData
+		first = func(s []string) string {
+			if len(s) != 0 {
+				return s[0]
+			}
+			return ""
+		}
+		tabs  = make([]seriesRequestEx, 1, maxTabs)
+		tabX  = -1
+		tab0  = &tabs[0]
+		tabAt = func(i int) *seriesRequestEx {
+			if i >= cap(tabs) {
+				return nil
+			}
+			for j := len(tabs) - 1; j < i; j++ {
+				tabs = append(tabs, seriesRequestEx{seriesRequest: seriesRequest{
+					version:   Version2,
+					width:     1,
+					widthKind: widthLODRes,
+				}})
+			}
+			return &tabs[i]
+		}
+	)
+	// parse dashboard
+	if id, err := strconv.Atoi(first(r.Form[paramDashboardID])); err == nil {
+		var v *format.DashboardMeta
+		if v = format.BuiltinDashboardByID[int32(id)]; v == nil {
+			v = h.metricsStorage.GetDashboardMeta(int32(id))
+		}
+		if v != nil {
+			// Ugly, but there is no other way because "metricsStorage" stores partially parsed dashboard!
+			// TODO: either fully parse and validate dashboard JSON or store JSON string blindly.
+			if bs, err := json.Marshal(v.JSONData); err == nil {
+				easyjson.Unmarshal(bs, &dash)
+			}
+		}
+	}
+	var n int
+	for i, v := range dash.Plots {
+		tab := tabAt(i)
+		if tab == nil {
+			continue
+		}
+		if v.UseV2 {
+			tab.version = Version2
+		} else {
+			tab.version = Version1
+		}
+		tab.numResults = v.NumSeries
+		tab.metricWithNamespace = v.MetricName
+		if v.Width > 0 {
+			tab.strWidth = fmt.Sprintf("%ds", v.Width)
+		}
+		if v.Width > 0 {
+			tab.width = v.Width
+		} else {
+			tab.width = 1
+		}
+		tab.widthKind = widthLODRes
+		tab.promQL = v.PromQL
+		tab.what = v.What
+		tab.strType = strconv.Itoa(v.Type)
+		for _, v := range v.GroupBy {
+			if tid, err := parseTagID(v); err == nil {
+				tab.by = append(tab.by, tid)
+			}
+		}
+		if len(v.FilterIn) != 0 {
+			tab.filterIn = make(map[string][]string)
+			for k, v := range v.FilterIn {
+				if tid, err := parseTagID(k); err == nil {
+					tab.filterIn[tid] = v
+				}
+			}
+		}
+		if len(v.FilterNotIn) != 0 {
+			tab.filterNotIn = make(map[string][]string)
+			for k, v := range v.FilterNotIn {
+				if tid, err := parseTagID(k); err == nil {
+					tab.filterNotIn[tid] = v
+				}
+			}
+		}
+		tab.maxHost = v.MaxHost
+		n++
+	}
+	for _, v := range dash.Vars {
+		for _, link := range v.Link {
+			if len(link) != 2 {
+				continue
+			}
+			tabX := link[0]
+			if tabX < 0 || len(tabs) <= tabX {
+				continue
+			}
+			var (
+				tagX  = link[1]
+				tagID string
+			)
+			if tagX < 0 {
+				tagID = format.StringTopTagID
+			} else if 0 <= tagX && tagX < format.MaxTags {
+				tagID = format.TagID(tagX)
+			} else {
+				continue
+			}
+			tab := &tabs[tabX]
+			if v.Args.Group {
+				tab.by = append(tab.by, tagID)
+			}
+			if tab.filterIn != nil {
+				delete(tab.filterIn, tagID)
+			}
+			if tab.filterNotIn != nil {
+				delete(tab.filterNotIn, tagID)
+			}
+			if len(v.Vals) != 0 {
+				if v.Args.Negate {
+					if tab.filterNotIn == nil {
+						tab.filterNotIn = make(map[string][]string)
+					}
+					tab.filterNotIn[tagID] = v.Vals
+				} else {
+					if tab.filterIn == nil {
+						tab.filterIn = make(map[string][]string)
+					}
+					tab.filterIn[tagID] = v.Vals
+				}
+			}
+		}
+	}
+	if n != 0 {
+		switch dash.TimeRange.To {
+		case "ed": // end of day
+			year, month, day := time.Now().In(h.location).Date()
+			tab0.to = time.Date(year, month, day, 0, 0, 0, 0, h.location).Add(24 * time.Hour).UTC()
+		case "ew": // end of week
+			var (
+				year, month, day = time.Now().In(h.location).Date()
+				dateNow          = time.Date(year, month, day, 0, 0, 0, 0, h.location)
+				offset           = time.Duration(((time.Sunday - dateNow.Weekday() + 7) % 7) + 1)
+			)
+			tab0.to = dateNow.Add(offset * 24 * time.Hour).UTC()
+		default:
+			if n, err := strconv.ParseInt(dash.TimeRange.To, 10, 64); err == nil {
+				if to, err := parseUnixTimeTo(n); err == nil {
+					tab0.to = to
+				}
+			}
+		}
+		if from, err := parseUnixTimeFrom(dash.TimeRange.From, tab0.to); err == nil {
+			tab0.from = from
+		}
+		tab0.shifts, _ = parseTimeShifts(dash.TimeShifts)
+	}
+	// parse URL
+	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors
+	type (
+		dashboardVar struct {
+			name string
+			link [][]int
+		}
+		dashboardVarM struct {
+			val    []string
+			group  string
+			negate string
+		}
+	)
+	var (
 		parseTabX = func(s string) (int, error) {
 			var i int
 			if i, err = strconv.Atoi(s); err != nil {
@@ -3649,11 +3848,20 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 			}
 			return i, nil
 		}
-		first = func(s []string) string {
-			if len(s) != 0 {
-				return s[0]
+		vars  []dashboardVar
+		varM  = make(map[string]*dashboardVarM)
+		varAt = func(i int) *dashboardVar {
+			for j := len(vars) - 1; j < i; j++ {
+				vars = append(vars, dashboardVar{})
 			}
-			return ""
+			return &vars[i]
+		}
+		varByName = func(s string) (v *dashboardVarM) {
+			if v = varM[s]; v == nil {
+				v = &dashboardVarM{}
+				varM[s] = v
+			}
+			return v
 		}
 	)
 	for k, v := range r.Form {
@@ -3667,18 +3875,54 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 					k = k[dotX+1:]
 				}
 			}
-		}
-		if i >= cap(tabs) {
+		} else if strings.HasPrefix(k, "v") {
+			var dotX int
+			if dotX = strings.Index(k, "."); dotX != -1 {
+				switch dotX {
+				case 1: // e.g. "v.environment.g=1"
+					s := strings.Split(k[dotX+1:], ".")
+					switch len(s) {
+					case 1:
+						vv := varByName(s[0])
+						vv.val = append(vv.val, v...)
+					case 2:
+						switch s[1] {
+						case "g":
+							varByName(s[0]).group = first(v)
+						case "nk":
+							varByName(s[0]).negate = first(v)
+						}
+					}
+				default: // e.g. "v0.n=environment" or "v0.l=0.0-1.0"
+					if varX, err := strconv.Atoi(k[1:dotX]); err == nil {
+						vv := varAt(varX)
+						switch k[dotX+1:] {
+						case "n":
+							vv.name = first(v)
+						case "l":
+							for _, s1 := range strings.Split(first(v), "-") {
+								links := make([]int, 0, 2)
+								for _, s2 := range strings.Split(s1, ".") {
+									if n, err := strconv.Atoi(s2); err == nil {
+										links = append(links, n)
+									} else {
+										break
+									}
+								}
+								if len(links) == 2 {
+									vv.link = append(vv.link, links)
+								}
+							}
+						}
+					}
+				}
+			}
 			continue
 		}
-		for j := len(tabs) - 1; j < i; j++ {
-			tabs = append(tabs, seriesRequestEx{seriesRequest: seriesRequest{
-				version:   Version2,
-				width:     1,
-				widthKind: widthLODRes,
-			}})
+		t := tabAt(i)
+		if t == nil {
+			continue
 		}
-		t := &tabs[i]
 		switch k {
 		case paramTabNumber:
 			tabX, err = parseTabX(first(v))
@@ -3732,6 +3976,8 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 			t.promQL = first(v)
 		case paramDataFormat:
 			t.format = first(v)
+		case paramQueryType:
+			t.strType = first(v)
 		}
 		if err != nil {
 			return nil, err
@@ -3740,15 +3986,63 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 	if len(tabs) == 0 {
 		return nil, nil
 	}
+	for _, v := range vars {
+		vv := varM[v.name]
+		if vv == nil {
+			continue
+		}
+		for _, link := range v.link {
+			if len(link) != 2 {
+				continue
+			}
+			tabX := link[0]
+			if tabX < 0 || len(tabs) <= tabX {
+				continue
+			}
+			var (
+				tagX  = link[1]
+				tagID string
+			)
+			if tagX < 0 {
+				tagID = format.StringTopTagID
+			} else if 0 <= tagX && tagX < format.MaxTags {
+				tagID = format.TagID(tagX)
+			} else {
+				continue
+			}
+			tab := &tabs[tabX]
+			if vv.group == "1" {
+				tab.by = append(tab.by, tagID)
+			}
+			if tab.filterIn != nil {
+				delete(tab.filterIn, tagID)
+			}
+			if tab.filterNotIn != nil {
+				delete(tab.filterNotIn, tagID)
+			}
+			if len(vv.val) != 0 {
+				if vv.negate == "1" {
+					if tab.filterNotIn == nil {
+						tab.filterNotIn = make(map[string][]string)
+					}
+					tab.filterNotIn[tagID] = vv.val
+				} else {
+					if tab.filterIn == nil {
+						tab.filterIn = make(map[string][]string)
+					}
+					tab.filterIn[tagID] = vv.val
+				}
+			}
+		}
+	}
 	// parse dependent paramemeters
 	var (
-		t0       = &tabs[0]
 		finalize = func(t *seriesRequestEx) error {
-			numResultsMax := p.numResultsMax
+			numResultsMax := maxSeries
 			if len(t.shifts) != 0 {
 				numResultsMax /= len(t.shifts)
 			}
-			t.numResults, err = parseNumResults(t.strNumResults, p.numResultsDefault, numResultsMax)
+			t.numResults, err = parseNumResults(t.strNumResults, defSeries, numResultsMax)
 			if err != nil {
 				return err
 			}
@@ -3764,18 +4058,20 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 			return nil
 		}
 	)
-	t0.from, t0.to, err = parseFromTo(t0.strFrom, t0.strTo)
-	if err != nil {
-		return nil, err
+	if len(tab0.strFrom) != 0 || len(tab0.strTo) != 0 {
+		tab0.from, tab0.to, err = parseFromTo(tab0.strFrom, tab0.strTo)
+		if err != nil {
+			return nil, err
+		}
 	}
-	err = finalize(t0)
+	err = finalize(tab0)
 	if err != nil {
 		return nil, err
 	}
 	for i := range tabs[1:] {
 		t := &tabs[i+1]
-		t.from = t0.from
-		t.to = t0.to
+		t.from = tab0.from
+		t.to = tab0.to
 		err = finalize(t)
 		if err != nil {
 			return nil, err
@@ -3783,15 +4079,51 @@ func (p *seriesRequestParserOptions) parseHTTPRequestS(r *http.Request, maxTabs 
 	}
 	// build resulting slice
 	if tabX != -1 {
+		if tabs[tabX].strType == "1" {
+			return nil, nil
+		}
 		return []seriesRequest{tabs[tabX].seriesRequest}, nil
 	}
 	res = make([]seriesRequest, 0, len(tabs))
 	for _, t := range tabs {
+		if t.strType == "1" {
+			continue
+		}
 		if len(t.metricWithNamespace) != 0 || len(t.promQL) != 0 {
 			res = append(res, t.seriesRequest)
 		}
 	}
 	return res, nil
+}
+
+func (r *DashboardTimeRange) UnmarshalJSON(bs []byte) error {
+	var m map[string]any
+	if err := json.Unmarshal(bs, &m); err != nil {
+		return err
+	}
+	if from, ok := m["from"].(float64); ok {
+		r.From = int64(from)
+	}
+	switch to := m["to"].(type) {
+	case float64:
+		r.To = strconv.Itoa(int(to))
+	case string:
+		r.To = to
+	}
+	return nil
+}
+
+func (r *DashboardTimeShifts) UnmarshalJSON(bs []byte) error {
+	var s []any
+	if err := json.Unmarshal(bs, &s); err != nil {
+		return err
+	}
+	for _, v := range s {
+		if n, ok := v.(float64); ok {
+			*r = append(*r, strconv.Itoa(int(n)))
+		}
+	}
+	return nil
 }
 
 func (r *seriesRequest) validate(ai accessInfo) error {
