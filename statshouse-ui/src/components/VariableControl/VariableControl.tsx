@@ -15,6 +15,7 @@ import { SelectOptionProps } from '../Select';
 import { formatPercent, normalizeTagValues } from '../../view/utils';
 import { MetricMetaTag } from '../../api/metric';
 import { MetricTagValueInfo } from '../../api/metricTagValues';
+import { escapeHTML } from '../../common/helpers';
 
 const emptyListArray: MetricTagValueInfo[] = [];
 
@@ -64,9 +65,12 @@ export function VariableControl<T>({
         const title = tagMeta?.value_comments?.[v.value]
           ? `${name} (${formatTagValue(v.value, undefined, tagMeta?.raw, tagMeta?.raw_kind)}): ${percent}`
           : `${name}: ${percent}`;
+
         return {
           name: name,
-          html: `<div class="d-flex"><div class="flex-grow-1 me-2 overflow-hidden text-nowrap">${name}</div><div class="text-end">${percent}</div></div>`,
+          html: `<div class="d-flex"><div class="flex-grow-1 me-2 overflow-hidden text-nowrap">${escapeHTML(
+            name
+          )}</div><div class="text-end">${escapeHTML(percent)}</div></div>`,
           value: v.value,
           title: title,
         };
