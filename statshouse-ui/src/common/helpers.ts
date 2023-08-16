@@ -143,7 +143,13 @@ export function mergeLeft<T>(targetMerge: T, valueMerge: T): T {
 }
 
 export function escapeHTML(str: string): string {
-  const d = window.document.createElement('DIV');
-  d.textContent = str;
-  return d.innerHTML;
+  const htmlEscapes: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  };
+  const reUnescapedHtml = /[&<>"']/g;
+  return str.replace(reUnescapedHtml, (chr) => htmlEscapes[chr]);
 }
