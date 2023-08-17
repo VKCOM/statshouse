@@ -786,6 +786,12 @@ func (s *ShardReplica) diskCachePutWithLog(cbd compressedBucketData) {
 	if s.agent.diskCache == nil {
 		return
 	}
+	s.mu.Lock()
+	maxHistoricDiskSize := s.config.MaxHistoricDiskSize
+	s.mu.Unlock()
+	if maxHistoricDiskSize <= 0 {
+		return
+	}
 	if err := s.agent.diskCache.PutBucket(s.ShardReplicaNum, cbd.time, cbd.data); err != nil {
 		s.client.Client.Logf("Disk Error: diskCache.PutBucket returned error %v for shard %d replica %d (shard-replica %d) bucket %d",
 			err, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
