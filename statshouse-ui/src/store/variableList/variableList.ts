@@ -51,7 +51,14 @@ export const useVariableListStore = create<VariableListStore>()(
         prevParams.dashboard?.dashboard_id !== state.params.dashboard?.dashboard_id ||
         prevParams.plots !== state.params.plots
       ) {
-        clearTagsAll();
+        if (
+          prevParams.plots.some(
+            (plot, indexPlot) =>
+              !state.params.plots[indexPlot] || plot.metricName !== state.params.plots[indexPlot]?.metricName
+          )
+        ) {
+          clearTagsAll();
+        }
       }
       if (prevParams !== state.params) {
         prevParams = state.params;
