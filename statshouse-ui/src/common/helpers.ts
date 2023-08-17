@@ -153,3 +153,13 @@ export function escapeHTML(str: string): string {
   const reUnescapedHtml = /[&<>"']/g;
   return str.replace(reUnescapedHtml, (chr) => htmlEscapes[chr]);
 }
+
+export function isEnum<T>(obj: Record<string, string>) {
+  const values = new Set(Object.values(obj));
+  return (s: unknown): s is T => {
+    if (typeof s === 'string') {
+      return values.has(s);
+    }
+    return false;
+  };
+}

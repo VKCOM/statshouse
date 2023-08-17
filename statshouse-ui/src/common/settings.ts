@@ -4,14 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { QueryWhat } from '../api/enum';
+import { QueryWhat, TagKey } from '../api/enum';
 
 export interface settings {
   readonly vkuth_app_name?: string;
   readonly default_metric: string;
   readonly default_metric_group_by: readonly string[];
-  readonly default_metric_filter_in: Readonly<Record<string, string[]>>;
-  readonly default_metric_filter_not_in: Readonly<Record<string, string[]>>;
+  readonly default_metric_filter_in: Readonly<Partial<Record<TagKey, string[]>>>;
+  readonly default_metric_filter_not_in: Readonly<Partial<Record<TagKey, string[]>>>;
   readonly default_metric_what: readonly QueryWhat[];
   readonly default_num_series: number;
   readonly disabled_v1: boolean;
