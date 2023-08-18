@@ -8,6 +8,7 @@ package aggregator
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"time"
@@ -19,6 +20,8 @@ import (
 )
 
 const MaxTestResponseSize = 10 << 20
+const MinTestResponseSize = 10
+
 const MaxTestResponseTimeoutSec = 86400
 
 var testResponse = make([]byte, MaxTestResponseSize)
@@ -74,7 +77,13 @@ func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.Hand
 		return fmt.Errorf("max supported response_timeout_sec is %d", MaxTestResponseTimeoutSec)
 	}
 	if args.ResponseTimeoutSec <= 0 {
-		hctx.Response, err = args.WriteResult(hctx.Response, testResponse[:args.ResponseSize])
+		var buf []byte
+		if args.ResponseSize >= MinTestResponseSize {
+			buf = binary.AppendVarint(buf, time.Now().UnixNano())
+			args.ResponseSize -= int32(len(buf))
+		}
+		buf = append(buf, testResponse[:args.ResponseSize]...)
+		hctx.Response, err = args.WriteResult(hctx.Response, buf)
 		return err
 	}
 	ms.clientsMu.Lock()

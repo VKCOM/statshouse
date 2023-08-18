@@ -89,7 +89,8 @@ const (
 	BuiltinMetricIDAPIMetricUsage             = -75
 	BuiltinMetricIDAPIServiceTime             = -76
 	BuiltinMetricIDAPIResponseTime            = -77
-
+	BuiltinMetricIDSrcTestConnection          = -78
+	BuiltinMetricIDAggTimeDiff                = -79
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -122,6 +123,8 @@ const (
 	BuiltinMetricNameAPIMetricUsage             = "__api_metric_usage"
 	BuiltinMetricNameAPIServiceTime             = "__api_service_time"
 	BuiltinMetricNameAPIResponseTime            = "__api_response_time"
+	BuiltinMetricNameSrcTestConnection          = "__src_test_connection"
+	BuiltinMetricNameAggTimeDiff                = "__src_agg_time_diff"
 
 	TagValueIDBadgeIngestionErrorsOld  = -11 // remove from API, then stop writing
 	TagValueIDBadgeAggMappingErrorsOld = -33 // remove from API, then stop writing
@@ -298,6 +301,12 @@ const (
 
 	TagValueIDRPC  = 1
 	TagValueIDHTTP = 2
+
+	TagOKConnection = 1
+	TagNoConnection = 2
+	TagOtherError   = 3
+	TagRPCError     = 4
+	TagTimeoutError = 5
 )
 
 var (
@@ -1474,6 +1483,29 @@ Value is delta between second value and time it was inserted.`,
 					TagValueIDSystemMetricPSI:       "psi",
 					TagValueIDSystemMetricSocksStat: "socks",
 					TagValueIDSystemMetricProtocols: "protocols",
+				}),
+			}},
+		},
+		BuiltinMetricIDAggTimeDiff: {
+			Name:        BuiltinMetricNameAggTimeDiff,
+			Kind:        MetricKindValue,
+			Resolution:  60,
+			Description: "Aggregator time - agent time when start testConnection",
+			Tags:        []MetricMetaTag{},
+		},
+		BuiltinMetricIDSrcTestConnection: {
+			Name:        BuiltinMetricNameSrcTestConnection,
+			Kind:        MetricKindValue,
+			Resolution:  60,
+			Description: "Duration of call test connection rpc method",
+			Tags: []MetricMetaTag{{
+				Description: "status",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagOKConnection: "ok",
+					TagOtherError:   "other",
+					TagRPCError:     "rpc-error",
+					TagNoConnection: "no-connection",
+					TagTimeoutError: "timeout",
 				}),
 			}},
 		},

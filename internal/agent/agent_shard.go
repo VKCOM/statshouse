@@ -7,8 +7,11 @@
 package agent
 
 import (
+	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"sync"
 	"syscall"
 	"time"
@@ -17,8 +20,8 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-
 	"go.uber.org/atomic"
 )
 
@@ -89,6 +92,13 @@ type (
 
 		uniqueValueMu   sync.Mutex
 		uniqueValuePool [][][]int64 // reuse pool
+
+		successTestConnectionDurationBucket      *BuiltInItemValue
+		aggTimeDiffBucket                        *BuiltInItemValue
+		noConnectionTestConnectionDurationBucket *BuiltInItemValue
+		failedTestConnectionDurationBucket       *BuiltInItemValue
+		rpcErrorTestConnectionDurationBucket     *BuiltInItemValue
+		timeoutTestConnectionDurationBucket      *BuiltInItemValue
 	}
 
 	BuiltInItemValue struct {
@@ -106,6 +116,33 @@ type (
 		onDisk bool // config.SaveSecondsImmediately can change while in flight
 	}
 )
+
+func (s *ShardReplica) InitBuiltInMetric() {
+	s.successTestConnectionDurationBucket = s.CreateBuiltInItemValue(data_model.Key{
+		Metric: format.BuiltinMetricIDSrcTestConnection,
+		Keys:   [16]int32{0, format.TagOKConnection},
+	})
+	s.noConnectionTestConnectionDurationBucket = s.CreateBuiltInItemValue(data_model.Key{
+		Metric: format.BuiltinMetricIDSrcTestConnection,
+		Keys:   [16]int32{0, format.TagNoConnection},
+	})
+	s.failedTestConnectionDurationBucket = s.CreateBuiltInItemValue(data_model.Key{
+		Metric: format.BuiltinMetricIDSrcTestConnection,
+		Keys:   [16]int32{0, format.TagOtherError},
+	})
+	s.rpcErrorTestConnectionDurationBucket = s.CreateBuiltInItemValue(data_model.Key{
+		Metric: format.BuiltinMetricIDSrcTestConnection,
+		Keys:   [16]int32{0, format.TagRPCError},
+	})
+	s.timeoutTestConnectionDurationBucket = s.CreateBuiltInItemValue(data_model.Key{
+		Metric: format.BuiltinMetricIDSrcTestConnection,
+		Keys:   [16]int32{0, format.TagTimeoutError},
+	})
+	s.aggTimeDiffBucket = s.CreateBuiltInItemValue(data_model.Key{
+		Metric: format.BuiltinMetricIDAggTimeDiff,
+		Keys:   [16]int32{},
+	})
+}
 
 func (s *ShardReplica) HistoricBucketsDataSizeMemory() int {
 	s.mu.Lock()
@@ -434,4 +471,61 @@ func (s *ShardReplica) fillProxyHeaderBytes(fieldsMask *uint32, header *tlstatsh
 		BuildArch:         s.agent.buildArchTag,
 	}
 	header.SetAgentEnvStaging(s.agent.isEnvStaging, fieldsMask)
+}
+
+func (s *ShardReplica) goTestConnectionLoop() {
+	calcHalfOfMinute := func() time.Duration {
+		n := time.Now()
+		return n.Truncate(time.Minute).Add(time.Minute + s.timeSpreadDelta*60).Sub(n)
+	}
+	for {
+		time.Sleep(calcHalfOfMinute()) // todo graceful
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		aggTimeDiff, duration, err := s.doTestConnection(ctx)
+		cancel()
+		seconds := duration.Seconds()
+		if err == nil {
+			s.successTestConnectionDurationBucket.SetValueCounter(seconds, 1)
+			if aggTimeDiff != 0 {
+				s.aggTimeDiffBucket.SetValueCounter(aggTimeDiff.Seconds(), 1)
+			}
+		} else {
+			var rpcError rpc.Error
+			if errors.Is(err, rpc.ErrClientConnClosedNoSideEffect) || errors.Is(err, rpc.ErrClientConnClosedSideEffect) || errors.Is(err, rpc.ErrClientClosed) {
+				s.noConnectionTestConnectionDurationBucket.SetValueCounter(seconds, 1)
+			} else if errors.Is(err, &rpcError) {
+				s.rpcErrorTestConnectionDurationBucket.SetValueCounter(seconds, 1)
+			} else if errors.Is(err, context.DeadlineExceeded) {
+				s.timeoutTestConnectionDurationBucket.SetValueCounter(seconds, 1)
+			} else {
+				s.failedTestConnectionDurationBucket.SetValueCounter(seconds, 1)
+
+			}
+		}
+	}
+}
+func (s *ShardReplica) doTestConnection(ctx context.Context) (aggTimeDiff time.Duration, duration time.Duration, err error) {
+	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
+	args := tlstatshouse.TestConnection2Bytes{
+		ResponseSize: 10,
+	}
+	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header)
+
+	var ret []byte
+
+	start := time.Now()
+	err = s.client.TestConnection2Bytes(ctx, args, &extra, &ret)
+	finish := time.Now()
+	duration = finish.Sub(start)
+	if err == nil {
+		resp, _ := binary.ReadVarint(bytes.NewReader(ret))
+		aggTime := time.Unix(0, resp)
+		if aggTime.Before(start) {
+			aggTimeDiff = start.Sub(aggTime)
+		} else if aggTime.After(finish) {
+			aggTimeDiff = aggTime.Sub(finish)
+		}
+	}
+	return aggTimeDiff, duration, err
+
 }
