@@ -50,6 +50,11 @@ func newSqliteConn(rw *sqlite0.Conn, cacheMaxSize int) *sqliteConn {
 	}
 }
 
+func (c Conn) withoutTimeout() Conn {
+	c.ctx = context.Background()
+	return c
+}
+
 func (c *sqliteConn) startNewConn(autoSavepoint bool, ctx context.Context, stats *StatsOptions) Conn {
 	c.mu.Lock()
 	return Conn{c, autoSavepoint, ctx, stats, nil}
@@ -83,6 +88,7 @@ func (c *sqliteConn) Close() error {
 
 func (c Conn) close(commit func(c Conn) error) error {
 	defer c.c.mu.Unlock()
+	c = c.withoutTimeout()
 	canCommit := c.execEndSavepoint()
 	for stmt := range c.c.used {
 		_ = stmt.Reset()
