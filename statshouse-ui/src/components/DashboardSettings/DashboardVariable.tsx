@@ -55,7 +55,7 @@ export function DashboardVariable() {
   const addVariable = useCallback(() => {
     setLocalVariable(
       produce((v) => {
-        const name = `${GET_PARAMS.variableNamePrefix}${v.length}`;
+        const name = `${GET_PARAMS.variableNamePrefix}${getAutoNamStartIndex(v)}`;
         v.push({
           ...getEmptyVariableParams(),
           name,

@@ -14,9 +14,17 @@ import { MetricMetaValue } from '../api/metric';
 import { PlotStore } from '../store';
 import produce from 'immer';
 import { isNotNil, uniqueArray } from '../common/helpers';
-import { GET_PARAMS } from '../api/enum';
+import { GET_PARAMS, TAG_KEY, TagKey } from '../api/enum';
 import { getEmptyVariableParams } from '../common/getEmptyVariableParams';
-import { getDefaultParams, PlotParams, QueryParams, toKeyTag, VariableParams } from '../url/queryParams';
+import {
+  getDefaultParams,
+  isTagKey,
+  PlotParams,
+  QueryParams,
+  toKeyTag,
+  toTagKey,
+  VariableParams,
+} from '../url/queryParams';
 import { globalSettings } from '../common/settings';
 
 export const goldenRatio = 1.61803398875;
@@ -637,7 +645,19 @@ export function convert(kind: RawValueKind | undefined, input: number): string {
 export function sortByKey(key: string, a: Record<string, any>, b: Record<string, any>) {
   return a[key] > b[key] ? 1 : a[key] < b[key] ? -1 : 0;
 }
-
+export function normalizeFilterKey(filter: Record<string, string[]>): Partial<Record<TagKey, string[]>> {
+  return Object.fromEntries(
+    Object.entries(filter)
+      .map(([key, values]) => {
+        const tagKey = toTagKey(key);
+        if (tagKey) {
+          return [tagKey, values];
+        }
+        return null;
+      })
+      .filter(isNotNil)
+  );
+}
 export function normalizeDashboard(data: DashboardInfo): QueryParams {
   const params = data.dashboard.data as QueryParams;
   if (params.dashboard?.groups) {
@@ -669,6 +689,9 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       p.eventsBy ??= [];
       p.eventsHide ??= [];
       p.type ??= 0;
+      p.filterIn = normalizeFilterKey(p.filterIn);
+      p.filterNotIn = normalizeFilterKey(p.filterNotIn);
+      p.groupBy = p.groupBy.map((g) => toTagKey(g)).filter(isNotNil);
       return p;
     }),
     timeShifts,
@@ -691,25 +714,31 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
   };
 }
 
-export function isTagEnabled(meta: MetricMetaValue | undefined, indexTag: number | string): boolean {
-  if (meta) {
-    if (typeof indexTag === 'number' && indexTag > -1) {
-      return meta.tags?.[indexTag].description !== '-';
-    } else if (indexTag === -1 || indexTag === 'skey' || indexTag === '_s') {
+export function isTagEnabled(meta: MetricMetaValue | undefined, tagKey: TagKey | null): boolean {
+  if (meta && tagKey != null) {
+    if (tagKey === TAG_KEY._s) {
       return !!meta.string_top_description || !!meta.string_top_name;
+    } else {
+      return meta.tags?.[+tagKey].description !== '-';
     }
   }
   return false;
 }
-export function getTagDescription(meta: MetricMetaValue | undefined, indexTag: number | string): string {
-  if (meta) {
-    if (typeof indexTag === 'number' && indexTag > -1) {
-      return meta.tags?.[indexTag].description || meta.tags?.[indexTag].name || `tag ${indexTag}`;
-    } else if (indexTag === -1 || indexTag === 'skey' || indexTag === '_s') {
+export function getTagDescription(meta: MetricMetaValue | undefined, tagKey: number | string | TagKey | null): string {
+  if (meta && tagKey != null) {
+    if (tagKey === -1 || tagKey === 'skey' || tagKey === TAG_KEY._s) {
       return meta.string_top_description || meta.string_top_name || 'tag _s';
     }
+
+    if (isTagKey(tagKey)) {
+      return meta.tags?.[+tagKey].description || meta.tags?.[+tagKey].name || `tag ${tagKey}`;
+    }
+
+    if (typeof tagKey === 'number' && tagKey > -1) {
+      return meta.tags?.[tagKey].description || meta.tags?.[tagKey].name || `tag ${tagKey}`;
+    }
   }
-  return `tag ${indexTag}`;
+  return `tag ${tagKey}`;
 }
 
 export function getMetricName(plot: PlotParams, plotData: PlotStore) {
@@ -734,33 +763,32 @@ export function getMetricFullName(plot: PlotParams, plotData: PlotStore) {
 export function getEventTagColumns(plot: PlotParams, meta?: MetricMetaValue, selectedOnly: boolean = false) {
   const columns: UseEventTagColumnReturn[] = (meta?.tags ?? [])
     .map((tag, indexTag) => {
-      const keyTag = indexTag.toString();
-      const fullKeyTag = `key${indexTag}`;
-      const disabled = plot.groupBy.indexOf(fullKeyTag) > -1;
-      const selected = disabled || plot.eventsBy.indexOf(keyTag) > -1;
-      const hide = !selected || plot.eventsHide.indexOf(keyTag) > -1;
-      if ((!selectedOnly || (selected && !hide)) && tag.description !== '-') {
-        return {
-          keyTag,
-          fullKeyTag,
-          name: getTagDescription(meta, indexTag),
-          selected,
-          disabled,
-          hide,
-        };
-      } else {
-        return null;
+      const tagKey = toTagKey(indexTag.toString());
+      if (tagKey) {
+        const disabled = plot.groupBy.indexOf(tagKey) > -1;
+        const selected = disabled || plot.eventsBy.indexOf(tagKey) > -1;
+        const hide = !selected || plot.eventsHide.indexOf(tagKey) > -1;
+        if ((!selectedOnly || (selected && !hide)) && tag.description !== '-') {
+          return {
+            keyTag: tagKey,
+            name: getTagDescription(meta, indexTag),
+            selected,
+            disabled,
+            hide,
+          };
+        }
       }
+      return null;
     })
     .filter(Boolean) as UseEventTagColumnReturn[];
-  const disabled_s = plot.groupBy.indexOf('skey') > -1;
-  const selected_s = disabled_s || plot.eventsBy.indexOf('_s') > -1;
-  const hide_s = !selected_s || plot.eventsHide.indexOf('_s') > -1;
+  const disabled_s = plot.groupBy.indexOf(TAG_KEY._s) > -1;
+  const selected_s = disabled_s || plot.eventsBy.indexOf(TAG_KEY._s) > -1;
+  const hide_s = !selected_s || plot.eventsHide.indexOf(TAG_KEY._s) > -1;
   if ((!selectedOnly || (selected_s && !hide_s)) && (meta?.string_top_name || meta?.string_top_description)) {
     columns.push({
-      keyTag: '_s',
+      keyTag: TAG_KEY._s,
       fullKeyTag: 'skey',
-      name: getTagDescription(meta, '_s'),
+      name: getTagDescription(meta, TAG_KEY._s),
       selected: selected_s,
       disabled: disabled_s,
       hide: hide_s,
@@ -780,8 +808,11 @@ export function replaceVariable(indexPlot: number, plot: PlotParams, variables: 
   return produce(plot, (p) => {
     variables.forEach(({ link, values, args }) => {
       const [, indexTag] = link.find(([iPlot]) => iPlot === indexPlot) ?? [];
-      if (indexTag != null) {
-        const keyTag = toKeyTag(indexTag, true);
+      if (indexTag == null) {
+        return;
+      }
+      const keyTag = toKeyTag(indexTag);
+      if (keyTag) {
         const ind = p.groupBy.indexOf(keyTag);
         if (args.groupBy) {
           if (ind === -1) {
@@ -792,11 +823,11 @@ export function replaceVariable(indexPlot: number, plot: PlotParams, variables: 
             p.groupBy.splice(ind, 1);
           }
         }
+        delete p.filterIn[keyTag];
+        delete p.filterNotIn[keyTag];
         if (args.negative) {
-          delete p.filterIn[keyTag];
           p.filterNotIn[keyTag] = values.slice();
         } else {
-          delete p.filterNotIn[keyTag];
           p.filterIn[keyTag] = values.slice();
         }
       }
@@ -812,8 +843,8 @@ export function isValidVariableName(name: string): boolean {
 export function getAutoNamStartIndex(variables: VariableParams[]): number {
   let maxIndex = 0;
   variables.forEach(({ name }) => {
-    if (name[0] === 'v') {
-      const index = +name.slice(1);
+    if (name.indexOf(GET_PARAMS.variableNamePrefix) === 0) {
+      const index = +name.slice(GET_PARAMS.variableNamePrefix.length);
       if (!isNaN(index) && index > maxIndex) {
         maxIndex = index;
       }
@@ -876,25 +907,30 @@ export function paramToVariable(params: QueryParams): QueryParams {
       if (variable.link.length) {
         const [iPlot0, iTag0] = variable.link[0];
         if (iPlot0 != null && iTag0 != null) {
-          const keyTag0 = toKeyTag(iTag0, true);
-          groupBy = groupBy || p.plots[iPlot0]?.groupBy?.indexOf(keyTag0) > -1;
-          negative = negative || p.plots[iPlot0]?.filterNotIn[keyTag0]?.length > 0;
-          values = uniqueArray([
-            ...values,
-            ...variable.link
-              .map(([iPlot, iTag]) => {
-                if (iPlot != null && iTag != null) {
-                  const keyTag = toKeyTag(iTag, true);
-                  const values =
-                    (negative ? p.plots[iPlot]?.filterNotIn[keyTag] : p.plots[iPlot]?.filterIn[keyTag]) ?? [];
-                  delete p.plots[iPlot].filterIn[keyTag];
-                  delete p.plots[iPlot].filterNotIn[keyTag];
-                  return values;
-                }
-                return [];
-              })
-              .flat(),
-          ]);
+          const keyTag0 = toKeyTag(iTag0);
+          if (keyTag0 != null) {
+            groupBy = groupBy || p.plots[iPlot0]?.groupBy?.indexOf(keyTag0) > -1;
+            negative = negative || !p.plots[iPlot0]?.filterNotIn[keyTag0]?.length;
+            values = uniqueArray([
+              ...values,
+              ...variable.link
+                .map(([iPlot, iTag]) => {
+                  if (iPlot != null && iTag != null) {
+                    const keyTag = toKeyTag(iTag);
+                    if (keyTag) {
+                      const values =
+                        (negative ? p.plots[iPlot]?.filterNotIn[keyTag] : p.plots[iPlot]?.filterIn[keyTag]) ?? [];
+                      delete p.plots[iPlot].filterIn[keyTag];
+                      delete p.plots[iPlot].filterNotIn[keyTag];
+                      p.plots[iPlot].groupBy = p.plots[iPlot].groupBy.filter((f) => f !== keyTag);
+                      return values;
+                    }
+                  }
+                  return [];
+                })
+                .flat(),
+            ]);
+          }
         }
       }
       return {

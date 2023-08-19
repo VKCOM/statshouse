@@ -15,7 +15,7 @@ import {
   EventFormatterHeaderTime,
 } from '../components/Plot/EventFormatters';
 import { uniqueArray } from '../common/helpers';
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector } from '../api/enum';
+import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector, TagKey } from '../api/enum';
 import { filterInSep, filterNotInSep, freeKeyPrefix, PlotParams, toIndexTag } from '../url/queryParams';
 import { MetricMetaValue } from '../api/metric';
 
@@ -633,11 +633,10 @@ export function filterParamsArr(
   return [...paramsIn, ...paramsNotIn];
 }
 
-export function filterHasTagID(sel: PlotParams, indexTag: number): boolean {
-  const tagID = indexTag === -1 ? 'skey' : `key${indexTag}`;
+export function filterHasTagID(sel: PlotParams, tagKey: TagKey): boolean {
   return (
-    (sel.filterIn[tagID] !== undefined && sel.filterIn[tagID].length !== 0) ||
-    (sel.filterNotIn[tagID] !== undefined && sel.filterNotIn[tagID].length !== 0) ||
-    sel.groupBy.indexOf(tagID) >= 0
+    (sel.filterIn[tagKey] !== undefined && sel.filterIn[tagKey]?.length !== 0) ||
+    (sel.filterNotIn[tagKey] !== undefined && sel.filterNotIn[tagKey]?.length !== 0) ||
+    sel.groupBy.indexOf(tagKey) >= 0
   );
 }

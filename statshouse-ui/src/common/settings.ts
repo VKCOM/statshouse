@@ -5,11 +5,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { QueryWhat, TagKey } from '../api/enum';
+import { normalizeFilterKey } from '../view/utils';
 
 export interface settings {
   readonly vkuth_app_name?: string;
   readonly default_metric: string;
-  readonly default_metric_group_by: readonly string[];
+  readonly default_metric_group_by: readonly TagKey[];
   readonly default_metric_filter_in: Readonly<Partial<Record<TagKey, string[]>>>;
   readonly default_metric_filter_not_in: Readonly<Partial<Record<TagKey, string[]>>>;
   readonly default_metric_what: readonly QueryWhat[];
@@ -40,17 +41,23 @@ if (meta !== null) {
     metaSettings = {
       ...metaSettings,
       ...serverConfig,
+      default_metric_filter_in: serverConfig.default_metric_filter_in
+        ? normalizeFilterKey(serverConfig.default_metric_filter_in)
+        : defaultSettings.default_metric_filter_in,
+      default_metric_filter_not_in: serverConfig.default_metric_filter_not_in
+        ? normalizeFilterKey(serverConfig.default_metric_filter_not_in)
+        : defaultSettings.default_metric_filter_not_in,
       default_metric_what: serverConfig.default_metric_what.length
         ? serverConfig.default_metric_what
         : defaultSettings.default_metric_what,
       default_num_series: serverConfig.default_num_series
         ? serverConfig.default_num_series
         : defaultSettings.default_num_series,
-    } as settings;
+    };
   } catch (e) {}
 }
 
-export const globalSettings: settings = metaSettings!;
+export const globalSettings: settings = metaSettings;
 export const pxPerChar = 8;
 
 export const buildVersion = document.querySelector('meta[name="build-version"]')?.getAttribute('content') ?? null;

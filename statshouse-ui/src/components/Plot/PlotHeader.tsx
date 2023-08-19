@@ -63,11 +63,13 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         prev.variables.forEach((variable) => {
           variable.link.forEach(([iPlot, iTag]) => {
             if (iPlot === indexPlot && iTag != null) {
-              const tagKey = toKeyTag(iTag, true);
-              if (variable.args.negative) {
-                plot.filterNotIn[tagKey] = variable.values.slice();
-              } else {
-                plot.filterIn[tagKey] = variable.values.slice();
+              const tagKey = toKeyTag(iTag);
+              if (tagKey) {
+                if (variable.args.negative) {
+                  plot.filterNotIn[tagKey] = variable.values.slice();
+                } else {
+                  plot.filterIn[tagKey] = variable.values.slice();
+                }
               }
             }
           });

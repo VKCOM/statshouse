@@ -7,6 +7,8 @@
 import React, { useCallback } from 'react';
 import { getTagDescription, isTagEnabled } from '../../view/utils';
 import { MetricMetaValue } from '../../api/metric';
+import { toKeyTag } from '../../url/queryParams';
+import { TAG_KEY } from '../../api/enum';
 
 export type VariablePlotLinkSelectProps = {
   indexPlot: number;
@@ -27,13 +29,13 @@ export function VariablePlotLinkSelect({ indexPlot, selectTag, metricMeta, onCha
       <option value="null">-</option>
       {metricMeta?.tags?.map(
         (tag, indexTag) =>
-          isTagEnabled(metricMeta, indexTag) && (
+          isTagEnabled(metricMeta, toKeyTag(indexTag)) && (
             <option key={indexTag} value={indexTag}>
               {getTagDescription(metricMeta, indexTag)}
             </option>
           )
       )}
-      {isTagEnabled(metricMeta, -1) && <option value="-1">{getTagDescription(metricMeta, -1)}</option>}
+      {isTagEnabled(metricMeta, TAG_KEY._s) && <option value="-1">{getTagDescription(metricMeta, -1)}</option>}
     </select>
   );
 }

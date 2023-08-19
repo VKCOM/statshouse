@@ -35,10 +35,10 @@ import produce from 'immer';
 import cn from 'classnames';
 import { ErrorMessages } from '../ErrorMessages';
 import { MetricMetaValue } from '../../api/metric';
-import { QueryWhat } from '../../api/enum';
+import { QueryWhat, TAG_KEY, TagKey } from '../../api/enum';
 import { debug } from '../../common/debug';
 import { shallow } from 'zustand/shallow';
-import { PLOT_TYPE, PlotParams, toKeyTag, VariableParams } from '../../url/queryParams';
+import { isTagKey, PLOT_TYPE, PlotParams, toKeyTag, VariableParams } from '../../url/queryParams';
 
 const { setParams, setTimeRange, setPlotParams, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
 
@@ -64,7 +64,7 @@ export const PlotControls = memo(function PlotControls_(props: {
     () => metricsList.map(({ name }) => ({ name, value: name })),
     [metricsList]
   );
-  const [negativeTags, setNegativeTags] = useState<Record<string, boolean>>({});
+  const [negativeTags, setNegativeTags] = useState<Partial<Record<TagKey, boolean>>>({});
   const [variableTags, setVariableTags] = useState<Record<string, VariableParams>>({});
   const { params, timeRange, plotsData } = useStore(selectorControls, shallow);
   const timeShifts = params.timeShifts;
@@ -79,10 +79,14 @@ export const PlotControls = memo(function PlotControls_(props: {
     setNegativeTags(
       produce((n) => {
         Object.keys(plotParams.filterIn).forEach((k) => {
-          n[k] = false;
+          if (isTagKey(k)) {
+            n[k] = false;
+          }
         });
         Object.keys(plotParams.filterNotIn).forEach((k) => {
-          n[k] = true;
+          if (isTagKey(k)) {
+            n[k] = true;
+          }
         });
       })
     );
@@ -118,13 +122,15 @@ export const PlotControls = memo(function PlotControls_(props: {
           })
         );
       } else {
-        const keyTag = toKeyTag(indexTag, true);
-        setNegativeTags(
-          produce((n) => {
-            n[keyTag] = value;
-          })
-        );
-        setPlotParamsTag(indexPlot, keyTag, (s) => s, !value);
+        const keyTag = toKeyTag(indexTag);
+        if (keyTag) {
+          setNegativeTags(
+            produce((n) => {
+              n[keyTag] = value;
+            })
+          );
+          setPlotParamsTag(indexPlot, keyTag, (s) => s, !value);
+        }
       }
     },
     [indexPlot, variableTags]
@@ -146,10 +152,12 @@ export const PlotControls = memo(function PlotControls_(props: {
           })
         );
       } else {
-        const keyTag = toKeyTag(indexTag, true);
-        const negative = negativeTags[keyTag];
-        debug.log(`add ${negative ? 'negative' : 'positive'} filter for`, keyTag, values);
-        setPlotParamsTag(indexPlot, keyTag, values, !negative);
+        const keyTag = toKeyTag(indexTag);
+        if (keyTag) {
+          const negative = negativeTags[keyTag];
+          debug.log(`add ${negative ? 'negative' : 'positive'} filter for`, keyTag, values);
+          setPlotParamsTag(indexPlot, keyTag, values, !negative);
+        }
       }
     },
     [variableTags, negativeTags, indexPlot]
@@ -177,8 +185,10 @@ export const PlotControls = memo(function PlotControls_(props: {
           })
         );
       } else {
-        const keyTag = toKeyTag(indexTag, true);
-        setPlotParamsTagGroupBy(indexPlot, keyTag, value);
+        const keyTag = toKeyTag(indexTag);
+        if (keyTag) {
+          setPlotParamsTagGroupBy(indexPlot, keyTag, value);
+        }
       }
     },
     [indexPlot, variableTags]
@@ -479,8 +489,8 @@ export const PlotControls = memo(function PlotControls_(props: {
             {numQueries === 0 && (
               <div>
                 {(meta?.tags || []).map((t, indexTag) => {
-                  const keyTag = toKeyTag(indexTag, true);
-                  return !isTagEnabled(meta, indexTag) && !filterHasTagID(plotParams, indexTag) ? null : (
+                  const keyTag = toKeyTag(indexTag);
+                  return !keyTag || (!isTagEnabled(meta, keyTag) && !filterHasTagID(plotParams, keyTag)) ? null : (
                     <VariableControl<number>
                       className="mb-3"
                       key={indexTag}
@@ -517,16 +527,18 @@ export const PlotControls = memo(function PlotControls_(props: {
                     />
                   );
                 })}
-                {!isTagEnabled(meta, -1) && !filterHasTagID(plotParams, -1) ? null : (
+                {!isTagEnabled(meta, TAG_KEY._s) && !filterHasTagID(plotParams, TAG_KEY._s) ? null : (
                   <VariableControl<number>
                     className="mb-3"
                     target={-1}
                     placeholder={getTagDescription(meta, -1)}
-                    negative={variableTags[-1]?.args.negative ?? negativeTags['skey'] ?? false}
+                    negative={variableTags[-1]?.args.negative ?? negativeTags[TAG_KEY._s] ?? false}
                     setNegative={onSetNegativeTag}
-                    groupBy={variableTags[-1]?.args.groupBy ?? plotParams.groupBy.indexOf('skey') > -1}
+                    groupBy={variableTags[-1]?.args.groupBy ?? plotParams.groupBy.indexOf(TAG_KEY._s) > -1}
                     setGroupBy={onSetGroupBy}
-                    values={variableTags[-1]?.values ?? plotParams.filterIn['skey'] ?? plotParams.filterNotIn['skey']}
+                    values={
+                      variableTags[-1]?.values ?? plotParams.filterIn[TAG_KEY._s] ?? plotParams.filterNotIn[TAG_KEY._s]
+                    }
                     onChange={onFilterChange}
                     setOpen={onSetUpdateTag}
                     list={tagsList[-1]?.list}
@@ -538,7 +550,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                           title={`is variable: ${variableTags[-1].description || variableTags[-1].name}`}
                           className={cn(
                             'input-group-text bg-transparent text-nowrap pt-0 pb-0 mt-2 me-2',
-                            variableTags[-1]?.args.negative ?? negativeTags['skey']
+                            variableTags[-1]?.args.negative ?? negativeTags[TAG_KEY._s]
                               ? 'border-danger text-danger'
                               : 'border-success text-success'
                           )}

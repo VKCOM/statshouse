@@ -68,12 +68,12 @@ describe('queryParams.ts', () => {
           promQL: '',
           maxHost: false,
           customAgg: 1,
-          groupBy: ['skey', 'key1'],
+          groupBy: ['_s', '1'],
           filterIn: {
-            key1: ['p', 'a'],
+            1: ['p', 'a'],
           },
           filterNotIn: {
-            key2: ['s', 'r'],
+            2: ['s', 'r'],
           },
           useV2: true,
           yLock: { min: 10, max: 1000 },
@@ -90,12 +90,12 @@ describe('queryParams.ts', () => {
           promQL: '',
           maxHost: false,
           customAgg: 1,
-          groupBy: ['skey', 'key1'],
+          groupBy: ['_s', '1'],
           filterIn: {
-            key1: ['p', 'a'],
+            1: ['p', 'a'],
           },
           filterNotIn: {
-            key2: ['s', 'r'],
+            2: ['s', 'r'],
           },
           useV2: true,
           yLock: { min: 10, max: 1000 },
@@ -141,12 +141,12 @@ describe('queryParams.ts', () => {
           promQL: '',
           maxHost: false,
           customAgg: 1,
-          groupBy: ['skey', 'key1'],
+          groupBy: ['_s', '1'],
           filterIn: {
-            key1: ['p', 'a', 's'],
+            1: ['p', 'a', 's'],
           },
           filterNotIn: {
-            key2: ['s', 'r'],
+            2: ['s', 'r'],
           },
           useV2: true,
           yLock: { min: 10, max: 1000 },
@@ -163,12 +163,12 @@ describe('queryParams.ts', () => {
           promQL: '',
           maxHost: true,
           customAgg: 1,
-          groupBy: ['skey', 'key1'],
+          groupBy: ['_s', '1'],
           filterIn: {
-            key1: ['p', 'a'],
+            1: ['p', 'a'],
           },
           filterNotIn: {
-            key2: ['s', 'r'],
+            2: ['s', 'r'],
           },
           useV2: true,
           yLock: { min: 10, max: 1000 },
