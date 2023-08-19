@@ -910,7 +910,7 @@ export function paramToVariable(params: QueryParams): QueryParams {
           const keyTag0 = toKeyTag(iTag0);
           if (keyTag0 != null) {
             groupBy = groupBy || p.plots[iPlot0]?.groupBy?.indexOf(keyTag0) > -1;
-            negative = negative || !p.plots[iPlot0]?.filterNotIn[keyTag0]?.length;
+            negative = negative || !!p.plots[iPlot0]?.filterNotIn[keyTag0]?.length;
             values = uniqueArray([
               ...values,
               ...variable.link

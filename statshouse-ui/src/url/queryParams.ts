@@ -20,6 +20,9 @@ export const toGroupInfoPrefix = (i: number) => `${GET_PARAMS.dashboardGroupInfo
 export const toPlotPrefix = (i: number) => (i ? `${GET_PARAMS.plotPrefix}${i}.` : '');
 export const toVariablePrefix = (i: number) => `${GET_PARAMS.variablePrefix}${i}.`;
 
+export const toVariableConfig = ({ name, description, link }: VariableParams) => ({ name, description, link });
+export const toVariableValue = ({ values, args }: VariableParams) => ({ values, args });
+
 export const parseTagSync = (s?: string) => {
   if (s == null) {
     return null;
@@ -417,12 +420,13 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): U
     search.push([GET_PARAMS.metricFilterSync, removeValueChar]);
   }
 
-  // variables
-  if (value.variables.length && !dequal(value.variables, defaultParams?.variables)) {
+  // variables config
+  if (
+    value.variables.length &&
+    !dequal(value.variables.map(toVariableConfig), defaultParams?.variables.map(toVariableConfig))
+  ) {
     value.variables.forEach((variable, indexVariable) => {
       const prefix = toVariablePrefix(indexVariable);
-      const variableName = `${GET_PARAMS.variableValuePrefix}${variable.name}`;
-
       search.push([prefix + GET_PARAMS.variableName, variable.name]);
 
       if (variable.description) {
@@ -438,23 +442,35 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): U
             .join('-'),
         ]);
       }
-
-      if (variable.values.length) {
-        variable.values.forEach((value) => {
-          search.push([variableName, value]);
-        });
-      }
-
-      if (variable.args.groupBy) {
-        search.push([`${variableName}.${GET_PARAMS.variableGroupBy}`, '1']);
-      }
-
-      if (variable.args.negative) {
-        search.push([`${variableName}.${GET_PARAMS.variableNegative}`, '1']);
-      }
     });
   } else if (!value.variables.length && defaultParams?.variables.length) {
     search.push([toVariablePrefix(0) + GET_PARAMS.variableName, removeValueChar]);
+  }
+
+  // variables values
+  if (
+    value.variables.length &&
+    !dequal(value.variables.map(toVariableValue), defaultParams?.variables.map(toVariableValue))
+  ) {
+    value.variables.forEach((variable, indexVariable) => {
+      const variableName = `${GET_PARAMS.variableValuePrefix}${variable.name}`;
+
+      if (variable.values.length && !dequal(variable.values, defaultParams?.variables[indexVariable]?.values ?? [])) {
+        variable.values.forEach((value) => {
+          search.push([variableName, value]);
+        });
+      } else if (!variable.values.length && defaultParams?.variables[indexVariable]?.values.length) {
+        search.push([variableName, removeValueChar]);
+      }
+
+      if (variable.args.groupBy !== (defaultParams?.variables[indexVariable]?.args.groupBy ?? false)) {
+        search.push([`${variableName}.${GET_PARAMS.variableGroupBy}`, variable.args.groupBy ? '1' : '0']);
+      }
+
+      if (variable.args.negative !== (defaultParams?.variables[indexVariable]?.args.negative ?? false)) {
+        search.push([`${variableName}.${GET_PARAMS.variableNegative}`, variable.args.negative ? '1' : '0']);
+      }
+    });
   }
 
   return new URLSearchParams(search);
@@ -634,17 +650,32 @@ export function decodeParams(urlSearchParams: URLSearchParams, defaultParams?: Q
         })
         .filter(isNotNilVariableLink) ?? [];
 
-    const variableName = `${GET_PARAMS.variableValuePrefix}${name}`;
-
     const description = urlParams[prefix + GET_PARAMS.variableDescription]?.[0] ?? '';
 
-    const values = (urlParams[variableName]?.[0] === removeValueChar ? [] : urlParams[variableName]) ?? [];
-
-    const groupBy = urlParams[`${variableName}.${GET_PARAMS.variableGroupBy}`]?.[0] === '1';
-    const negative = urlParams[`${variableName}.${GET_PARAMS.variableNegative}`]?.[0] === '1';
-
-    variables.push({ name, description, link, values, args: { groupBy, negative } });
+    variables.push({
+      name,
+      description,
+      link,
+      values: defaultParams?.variables[i]?.values ?? [],
+      args: {
+        groupBy: defaultParams?.variables[i]?.args.groupBy ?? false,
+        negative: defaultParams?.variables[i]?.args.negative ?? false,
+      },
+    });
   }
+
+  variables.forEach((variable) => {
+    const variableName = `${GET_PARAMS.variableValuePrefix}${variable.name}`;
+    if (urlParams[variableName]?.length) {
+      variable.values = (urlParams[variableName]?.[0] === removeValueChar ? [] : urlParams[variableName]) ?? [];
+    }
+    if (urlParams[`${variableName}.${GET_PARAMS.variableGroupBy}`]?.length) {
+      variable.args.groupBy = urlParams[`${variableName}.${GET_PARAMS.variableGroupBy}`]?.[0] === '1';
+    }
+    if (urlParams[`${variableName}.${GET_PARAMS.variableNegative}`]?.length) {
+      variable.args.negative = urlParams[`${variableName}.${GET_PARAMS.variableNegative}`]?.[0] === '1';
+    }
+  });
 
   return {
     live,
