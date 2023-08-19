@@ -8,7 +8,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { dequal } from 'dequal/lite';
 import produce from 'immer';
-import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg'; //bi bi-arrow-counterclockwise
+import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg';
 import { ReactComponent as SVGPlusLg } from 'bootstrap-icons/icons/plus-lg.svg';
 import { ReactComponent as SVGSearch } from 'bootstrap-icons/icons/search.svg';
