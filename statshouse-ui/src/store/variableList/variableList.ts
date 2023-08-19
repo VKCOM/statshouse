@@ -16,14 +16,14 @@ import {
   replaceVariable,
 } from '../../view/utils';
 import { apiMetricTagValuesFetch, MetricTagValueInfo } from '../../api/metricTagValues';
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat } from '../../api/enum';
+import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, TAG_KEY } from '../../api/enum';
 import { globalSettings } from '../../common/settings';
 import { filterParamsArr } from '../../view/api';
 import { useErrorStore } from '../errors';
 import { isNotNil } from '../../common/helpers';
 import { MetricMetaTag } from '../../api/metric';
 import { getEmptyVariableParams } from '../../common/getEmptyVariableParams';
-import { VariableParams } from '../../url/queryParams';
+import { toKeyTag, VariableParams } from '../../url/queryParams';
 
 export function getEmptyVariable(): VariableItem {
   return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined };
@@ -210,13 +210,15 @@ export async function loadTagList(indexPlot: number | null, indexTag: number | n
   if (indexPlot == null || indexTag == null || store.params.plots[indexPlot]?.metricName === promQLMetric) {
     return undefined;
   }
-  const tagKey = indexTag === -1 ? '_s' : `${indexTag}`;
+  const tagKey = toKeyTag(indexTag);
+  if (!tagKey) {
+    return undefined;
+  }
   const plot = replaceVariable(indexPlot, store.params.plots[indexPlot], store.params.variables);
-  const tagID = indexTag === -1 ? 'skey' : `key${indexTag}`;
   const otherFilterIn = { ...plot.filterIn };
-  delete otherFilterIn[tagID];
+  delete otherFilterIn[tagKey];
   const otherFilterNotIn = { ...plot.filterNotIn };
-  delete otherFilterNotIn[tagID];
+  delete otherFilterNotIn[tagKey];
   const requestKey = `variable_${indexPlot}-${plot.metricName}`;
   await store.loadMetricsMeta(plot.metricName);
   const tagMeta = useStore.getState().metricsMeta[plot.metricName]?.tags?.[indexTag];
@@ -272,14 +274,15 @@ export async function getAutoSearchSyncFilter(startIndex: number = 0) {
       return;
     }
     meta.tags?.forEach((tag, indexTag) => {
-      if (isTagEnabled(meta, indexTag)) {
+      const tagKey = toKeyTag(indexTag);
+      if (tagKey && isTagEnabled(meta, tagKey)) {
         const tagName = getTagDescription(meta, indexTag);
         variablesLink[tagName] ??= [];
         variablesLink[tagName].push([indexPlot, indexTag]);
       }
     });
-    if (isTagEnabled(meta, -1)) {
-      const tagName = getTagDescription(meta, -1);
+    if (isTagEnabled(meta, TAG_KEY._s)) {
+      const tagName = getTagDescription(meta, TAG_KEY._s);
       variablesLink[tagName] ??= [];
       variablesLink[tagName].push([indexPlot, -1]);
     }

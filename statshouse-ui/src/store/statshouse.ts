@@ -68,7 +68,7 @@ import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
-import { GET_PARAMS, QueryWhat } from '../api/enum';
+import { GET_PARAMS, QueryWhat, TagKey } from '../api/enum';
 import { deepClone, mergeLeft, sortEntity } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { appHistory } from '../common/appHistory';
@@ -233,11 +233,11 @@ export type StatsHouseStore = {
   setCompact(compact: boolean): void;
   setPlotParamsTag(
     indexPlot: number,
-    keyTag: string,
+    tagKey: TagKey,
     nextState: React.SetStateAction<string[]>,
     positive: React.SetStateAction<boolean>
   ): void;
-  setPlotParamsTagGroupBy(indexPlot: number, keyTag: string, nextState: React.SetStateAction<boolean>): void;
+  setPlotParamsTagGroupBy(indexPlot: number, tagKey: TagKey, nextState: React.SetStateAction<boolean>): void;
   setPlotType(indexPlot: number, nextState: React.SetStateAction<PlotType>): void;
   serverParamsAbortController?: AbortController;
   loadServerParams(id: number): Promise<QueryParams>;
@@ -1246,73 +1246,38 @@ export const useStore = create<Store>()(
           state.compact = compact;
         });
       },
-      setPlotParamsTag(indexPlot, keyTag, nextState, nextPositive) {
+      setPlotParamsTag(indexPlot, tagKey, nextState, nextPositive) {
         const prevState = getState();
         const prev = prevState.params.plots[indexPlot];
         const next = sortEntity(
-          getNextState([...(prev.filterNotIn[keyTag] ?? []), ...(prev.filterIn[keyTag] ?? [])], nextState)
+          getNextState([...(prev.filterNotIn[tagKey] ?? []), ...(prev.filterIn[tagKey] ?? [])], nextState)
         );
-        const positive = getNextState(!prev.filterNotIn[keyTag]?.length, nextPositive);
-        const indexTag = parseInt(keyTag.match(/\d+/)?.[0] ?? '-1');
-        const syncGroups = prevState.params.tagSync.filter((g) => g[indexPlot] === indexTag);
+        const positive = getNextState(!prev.filterNotIn[tagKey]?.length, nextPositive);
         prevState.setParams(
           produce((params) => {
             const nonEmpty = positive ? 'filterIn' : 'filterNotIn';
             const empty = positive ? 'filterNotIn' : 'filterIn';
-            if (syncGroups.length) {
-              syncGroups.forEach((g) => {
-                g.forEach((tagKeyIndex, syncPlotIndex) => {
-                  if (tagKeyIndex !== null && tagKeyIndex !== undefined) {
-                    const tagKey = `key${tagKeyIndex}`;
-                    if (next.length) {
-                      params.plots[syncPlotIndex][nonEmpty][tagKey] = next;
-                    } else {
-                      delete params.plots[syncPlotIndex][nonEmpty][tagKey];
-                    }
-                    delete params.plots[syncPlotIndex][empty][tagKey];
-                  }
-                });
-              });
+
+            if (next.length) {
+              params.plots[indexPlot][nonEmpty][tagKey] = next;
             } else {
-              if (next.length) {
-                params.plots[indexPlot][nonEmpty][keyTag] = next;
-              } else {
-                delete params.plots[indexPlot][nonEmpty][keyTag];
-              }
-              delete params.plots[indexPlot][empty][keyTag];
+              delete params.plots[indexPlot][nonEmpty][tagKey];
             }
+            delete params.plots[indexPlot][empty][tagKey];
           })
         );
       },
-      setPlotParamsTagGroupBy(indexPlot, keyTag, nextState) {
+      setPlotParamsTagGroupBy(indexPlot, tagKey, nextState) {
         const prevState = getState();
         const prev = prevState.params.plots[indexPlot];
-        const next = getNextState(prev.groupBy.includes(keyTag), nextState);
-        const tagIndex = parseInt(keyTag.match(/\d+/)?.[0] ?? '-1');
-        const syncGroups = prevState.params.tagSync.filter((g) => g[indexPlot] === tagIndex);
+        const next = getNextState(prev.groupBy.includes(tagKey), nextState);
         getState().setParams(
           produce((params) => {
-            if (syncGroups.length) {
-              syncGroups.forEach((g) => {
-                g.forEach((tagKeyIndex, syncPlotIndex) => {
-                  if (tagKeyIndex !== null && tagKeyIndex !== undefined) {
-                    const tagKey = `key${tagKeyIndex}`;
-                    const nextGroupBy = next
-                      ? sortEntity([...params.plots[syncPlotIndex].groupBy, tagKey])
-                      : params.plots[syncPlotIndex].groupBy.filter((t) => t !== tagKey);
-                    if (!dequal(params.plots[syncPlotIndex].groupBy, nextGroupBy)) {
-                      params.plots[syncPlotIndex].groupBy = nextGroupBy;
-                    }
-                  }
-                });
-              });
-            } else {
-              const nextGroupBy = next
-                ? sortEntity([...params.plots[indexPlot].groupBy, keyTag])
-                : params.plots[indexPlot].groupBy.filter((t) => t !== keyTag);
-              if (!dequal(params.plots[indexPlot].groupBy, nextGroupBy)) {
-                params.plots[indexPlot].groupBy = nextGroupBy;
-              }
+            const nextGroupBy = next
+              ? sortEntity([...params.plots[indexPlot].groupBy, tagKey])
+              : params.plots[indexPlot].groupBy.filter((t) => t !== tagKey);
+            if (!dequal(params.plots[indexPlot].groupBy, nextGroupBy)) {
+              params.plots[indexPlot].groupBy = nextGroupBy;
             }
           })
         );
@@ -2042,16 +2007,18 @@ export function setVariable(variables: VariableParams[]) {
         if (!newVariable[variable.name]) {
           variable.link.forEach(([iPlot, iTag]) => {
             if (iPlot != null && iTag != null) {
-              const keyTag = toKeyTag(iTag, true);
-              if (variable.args.groupBy) {
-                p.plots[iPlot].groupBy = [...p.plots[iPlot].groupBy, keyTag];
-              } else {
-                p.plots[iPlot].groupBy = p.plots[iPlot].groupBy.filter((tag) => tag !== keyTag);
-              }
-              if (variable.args.negative) {
-                p.plots[iPlot].filterNotIn[keyTag] = variable.values;
-              } else {
-                p.plots[iPlot].filterIn[keyTag] = variable.values;
+              const keyTag = toKeyTag(iTag);
+              if (keyTag) {
+                if (variable.args.groupBy) {
+                  p.plots[iPlot].groupBy = [...p.plots[iPlot].groupBy, keyTag];
+                } else {
+                  p.plots[iPlot].groupBy = p.plots[iPlot].groupBy.filter((tag) => tag !== keyTag);
+                }
+                if (variable.args.negative) {
+                  p.plots[iPlot].filterNotIn[keyTag] = variable.values;
+                } else {
+                  p.plots[iPlot].filterIn[keyTag] = variable.values;
+                }
               }
             }
           });

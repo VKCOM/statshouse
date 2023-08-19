@@ -41,11 +41,12 @@ export function toFlatPairs<C>(
   return res;
 }
 
-export function toString(item: unknown): string {
+export function toString(item: unknown, defaultSting?: string): string {
   switch (typeof item) {
     case 'undefined':
       return 'undefined';
     case 'string':
+      return item;
     case 'number':
     case 'boolean':
     case 'function':
@@ -55,10 +56,12 @@ export function toString(item: unknown): string {
         return 'null';
       }
   }
-  return '';
+  return defaultSting ?? '';
 }
 
-export function toNumber(item: unknown): number | null {
+export function toNumber(item: unknown): number | null;
+export function toNumber(item: unknown, defaultNumber: number): number;
+export function toNumber(item: unknown, defaultNumber?: number): number | null {
   switch (typeof item) {
     case 'number':
       return item;
@@ -66,13 +69,13 @@ export function toNumber(item: unknown): number | null {
       return +item;
     case 'string':
       const n = +item;
-      return item && !isNaN(n) ? n : null;
+      return item && !isNaN(n) ? n : defaultNumber ?? null;
     case 'undefined':
     case 'function':
     case 'object':
-      return null;
+      return defaultNumber ?? null;
   }
-  return null;
+  return defaultNumber ?? null;
 }
 
 export function uniqueArray<T>(arr: T[]): T[] {
@@ -152,4 +155,14 @@ export function escapeHTML(str: string): string {
   };
   const reUnescapedHtml = /[&<>"']/g;
   return str.replace(reUnescapedHtml, (chr) => htmlEscapes[chr]);
+}
+
+export function isEnum<T>(obj: Record<string, string>) {
+  const values = new Set(Object.values(obj));
+  return (s: unknown): s is T => {
+    if (typeof s === 'string') {
+      return values.has(s);
+    }
+    return false;
+  };
 }

@@ -4,10 +4,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QUERY_WHAT, QueryWhat, TAG_KEY, TagKey } from '../api/enum';
+import { Enum, GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QUERY_WHAT, QueryWhat, TAG_KEY, TagKey } from '../api/enum';
 import { KeysTo, stringToTime, TIME_RANGE_KEYS_TO } from '../common/TimeRange';
 import { dequal } from 'dequal/lite';
-import { deepClone, isNotNil, toNumber } from '../common/helpers';
+import { deepClone, isEnum, isNotNil, toNumber, toString } from '../common/helpers';
 import { globalSettings } from '../common/settings';
 
 export const filterInSep = '-';
@@ -37,14 +37,17 @@ export function isNotNilVariableLink(link: (number | null)[]): link is [number, 
   return link[0] != null && link[1] != null;
 }
 
-export const QueryWhatValues: Set<string> = new Set(Object.values(QUERY_WHAT));
-export function isQueryWhat(s: string): s is QueryWhat {
-  return QueryWhatValues.has(s);
-}
+export const isQueryWhat = isEnum<QueryWhat>(QUERY_WHAT);
+export const isTagKey = isEnum<TagKey>(TAG_KEY);
 
-export const TagKeyValues: Set<string> = new Set(Object.values(TAG_KEY));
-export function isTagKey(s: string): s is TagKey {
-  return TagKeyValues.has(s);
+export function toTagKey(s: unknown): TagKey | null;
+export function toTagKey(s: unknown, defaultTagKey: TagKey): TagKey;
+export function toTagKey(s: unknown, defaultTagKey?: TagKey): TagKey | null {
+  const str = freeKeyPrefix(toString(s));
+  if (isTagKey(str)) {
+    return str;
+  }
+  return defaultTagKey ?? null;
 }
 
 export interface lockRange {
@@ -56,15 +59,33 @@ export const PLOT_TYPE = {
   Metric: 0,
   Event: 1,
 } as const;
-export type PlotType = (typeof PLOT_TYPE)[keyof typeof PLOT_TYPE];
+
+export type PlotType = Enum<typeof PLOT_TYPE>;
+
+export type PlotKey = number;
+
+export function isPlotKey(s: unknown): s is PlotKey {
+  return typeof s === 'number';
+}
+
+export function toPlotKey(s: unknown): PlotKey | null;
+export function toPlotKey(s: unknown, defaultPlotKey: PlotKey): PlotKey;
+export function toPlotKey(s: unknown, defaultPlotKey?: PlotKey): PlotKey | null {
+  const n = toNumber(s);
+  if (isPlotKey(n)) {
+    return n;
+  }
+  return defaultPlotKey ?? null;
+}
+
 export type PlotParams = {
   metricName: string;
   customName: string;
   what: QueryWhat[];
   customAgg: number;
-  groupBy: string[];
-  filterIn: Record<string, string[]>;
-  filterNotIn: Record<string, string[]>;
+  groupBy: TagKey[];
+  filterIn: Partial<Record<TagKey, string[]>>;
+  filterNotIn: Partial<Record<TagKey, string[]>>;
   numSeries: number;
   useV2: boolean;
   yLock: {
@@ -78,12 +99,14 @@ export type PlotParams = {
   eventsBy: string[];
   eventsHide: string[];
 };
+
 export type GroupInfo = {
   name: string;
   show: boolean;
   count: number;
   size: number;
 };
+
 export type DashboardParams = {
   dashboard_id?: number;
   name?: string;
@@ -95,17 +118,21 @@ export type DashboardParams = {
   groups?: (number | null)[]; // [page_plot]
   groupInfo?: GroupInfo[];
 };
+
+export type VariableParamsLink = [number | null, number | null];
+
 export type VariableParams = {
   name: string;
   description: string;
   values: string[];
-  link: [number | null, number | null][];
+  link: VariableParamsLink[];
   args: {
     groupBy?: boolean;
     negative?: boolean;
   };
   // source: string;
 };
+
 export type QueryParams = {
   ['@type']?: 'QueryParams'; // ld-json
   live: boolean;
@@ -154,12 +181,13 @@ export function toIndexTag(str: string): number | null {
   const shortKey = freeKeyPrefix(str);
   return shortKey === '_s' ? -1 : toNumber(shortKey);
 }
-
-export function toKeyTag(indexTag: number, full?: boolean): string {
+export function toKeyTag(indexTag: number): TagKey | null;
+export function toKeyTag(indexTag: number, full: boolean): string;
+export function toKeyTag(indexTag: number, full?: boolean): TagKey | string | null {
   if (full) {
     return indexTag === -1 ? 'skey' : `key${indexTag}`;
   }
-  return indexTag === -1 ? '_s' : indexTag.toString();
+  return indexTag === -1 ? TAG_KEY._s : toTagKey(indexTag);
 }
 
 export function getNewPlot(): PlotParams {
@@ -501,29 +529,28 @@ export function decodeParams(urlSearchParams: URLSearchParams, defaultParams?: Q
     const customName = urlParams[prefix + GET_PARAMS.metricCustomName]?.[0] ?? '';
     const what: QueryWhat[] = urlParams[prefix + GET_PARAMS.metricWhat]?.filter(isQueryWhat) ?? ['count_norm'];
     const customAgg = toNumber(urlParams[prefix + GET_PARAMS.metricAgg]?.[0]) ?? 0;
-    const groupBy: string[] =
-      urlParams[prefix + GET_PARAMS.metricGroupBy]?.map((s) => {
-        const indexTag = freeKeyPrefix(s);
-        return '_s' === indexTag ? 'skey' : `key${indexTag}`;
-      }) ?? [];
+    const groupBy: TagKey[] =
+      urlParams[prefix + GET_PARAMS.metricGroupBy]?.map((s) => toTagKey(s)).filter(isNotNil) ?? [];
 
-    const filterIn: Record<string, string[]> = {};
-    const filterNotIn: Record<string, string[]> = {};
+    const filterIn: Partial<Record<TagKey, string[]>> = {};
+    const filterNotIn: Partial<Record<TagKey, string[]>> = {};
     urlParams[prefix + GET_PARAMS.metricFilter]?.forEach((s) => {
       const pos = s.indexOf(filterInSep);
       const pos2 = s.indexOf(filterNotInSep);
       if (pos2 === -1 || (pos2 > pos && pos > -1)) {
-        const indexTag = freeKeyPrefix(s.substring(0, pos));
-        const tagID = '_s' === indexTag ? 'skey' : `key${indexTag}`;
+        const tagKey = toTagKey(s.substring(0, pos));
         const tagValue = s.substring(pos + 1);
-        filterIn[tagID] ??= [];
-        filterIn[tagID].push(tagValue);
+        if (tagKey && tagValue) {
+          filterIn[tagKey] ??= [];
+          filterIn[tagKey]?.push(tagValue);
+        }
       } else if (pos === -1 || (pos > pos2 && pos2 > -1)) {
-        const indexTag = freeKeyPrefix(s.substring(0, pos2));
-        const tagID = '_s' === indexTag ? 'skey' : `key${indexTag}`;
+        const tagKey = toTagKey(s.substring(0, pos2));
         const tagValue = s.substring(pos2 + 1);
-        filterNotIn[tagID] ??= [];
-        filterNotIn[tagID].push(tagValue);
+        if (tagKey && tagValue) {
+          filterNotIn[tagKey] ??= [];
+          filterNotIn[tagKey]?.push(tagValue);
+        }
       }
     });
 
@@ -590,13 +617,7 @@ export function decodeParams(urlSearchParams: URLSearchParams, defaultParams?: Q
     const name = urlParams[prefix + GET_PARAMS.variableName]?.[0];
     if (name == null) {
       if (defaultParams?.variables.length && i === 0) {
-        variables.push(
-          ...defaultParams.variables.map((v) => ({
-            ...v,
-            link: v.link.map(([p, t]) => [p, t] as [number | null, number | null]),
-            args: { ...v.args },
-          }))
-        );
+        variables.push(...deepClone(defaultParams.variables));
       }
       break;
     }
