@@ -10,7 +10,7 @@ import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
 import { LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
-import { formatSI, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
+import { fmtInputDateTime, formatSI, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { queryURLCSV } from '../../view/api';
 import { black, grey, greyDark } from '../../view/palette';
 import produce from 'immer';
@@ -47,6 +47,16 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
     return [t - 3600, t];
   }
   return [dataMin, dataMax];
+}
+
+function dateRangeFormat(self: uPlot, rawValue: number, seriesIdx: number, idx: number | null): string | number {
+  if (idx === null) {
+    return rawValue;
+  }
+  const xValues = self.data[0];
+  const nextValue = xValues[idx + 1];
+  const suffix = nextValue === undefined || nextValue - rawValue === 1 ? '' : '  Δ' + (nextValue - rawValue) + 's';
+  return fmtInputDateTime(new Date(rawValue * 1000)) + suffix;
 }
 
 const {
@@ -253,7 +263,7 @@ export function PlotViewMetric(props: {
       },
       series: [
         {
-          value: '{DD}/{MM}/{YY} {H}:{mm}:{ss}',
+          value: dateRangeFormat, //'{DD}/{MM}/{YY} {H}:{mm}:{ss}',
         },
       ],
       legend: {
