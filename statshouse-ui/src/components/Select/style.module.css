@@ -7,10 +7,10 @@
 
 :root {
   --selectLoaderColor: var(--bs-primary);
-  --selectBgColor: var(--bs-form-control-bg);
+  --selectBgColor: var(--bs-body-bg);
   --selectColor: var(--bs-body-color);
-  --selectStickyBgColor: var(--bs-form-control-bg);
-  --selectChevronBgColor: var(--bs-form-control-bg);
+  --selectStickyBgColor: var(--bs-body-bg);
+  --selectChevronBgColor: var(--bs-body-bg);
   --selectSelectedBgColor: var(--bs-primary-bg-subtle);
   --selectCursorBgColor: var(--bs-secondary-bg);
   --selectDisabledColor: var(--bs-tertiary-color);
