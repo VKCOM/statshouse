@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { QueryWhat, TagKey } from '../api/enum';
-import { normalizeFilterKey } from '../view/utils';
+import { normalizeFilterKey } from '../url/queryParams';
 
 export interface settings {
   readonly vkuth_app_name?: string;

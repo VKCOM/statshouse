@@ -4,10 +4,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { Enum, GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QUERY_WHAT, QueryWhat, TAG_KEY, TagKey } from '../api/enum';
+import {
+  Enum,
+  GET_PARAMS,
+  isQueryWhat,
+  isTagKey,
+  METRIC_VALUE_BACKEND_VERSION,
+  QueryWhat,
+  TAG_KEY,
+  TagKey,
+} from '../api/enum';
 import { KeysTo, stringToTime, TIME_RANGE_KEYS_TO } from '../common/TimeRange';
 import { dequal } from 'dequal/lite';
-import { deepClone, isEnum, isNotNil, toNumber, toString } from '../common/helpers';
+import { deepClone, isNotNil, toNumber, toString } from '../common/helpers';
 import { globalSettings } from '../common/settings';
 
 export const filterInSep = '-';
@@ -40,9 +49,6 @@ export function isNotNilVariableLink(link: (number | null)[]): link is [number, 
   return link[0] != null && link[1] != null;
 }
 
-export const isQueryWhat = isEnum<QueryWhat>(QUERY_WHAT);
-export const isTagKey = isEnum<TagKey>(TAG_KEY);
-
 export function toTagKey(s: unknown): TagKey | null;
 export function toTagKey(s: unknown, defaultTagKey: TagKey): TagKey;
 export function toTagKey(s: unknown, defaultTagKey?: TagKey): TagKey | null {
@@ -51,6 +57,20 @@ export function toTagKey(s: unknown, defaultTagKey?: TagKey): TagKey | null {
     return str;
   }
   return defaultTagKey ?? null;
+}
+
+export function normalizeFilterKey(filter: Record<string, string[]>): Partial<Record<TagKey, string[]>> {
+  return Object.fromEntries(
+    Object.entries(filter)
+      .map(([key, values]) => {
+        const tagKey = toTagKey(key);
+        if (tagKey) {
+          return [tagKey, values];
+        }
+        return null;
+      })
+      .filter(isNotNil)
+  );
 }
 
 export interface lockRange {

@@ -14,11 +14,11 @@ import { MetricMetaValue } from '../api/metric';
 import { PlotStore } from '../store';
 import produce from 'immer';
 import { isNotNil, uniqueArray } from '../common/helpers';
-import { GET_PARAMS, TAG_KEY, TagKey } from '../api/enum';
+import { GET_PARAMS, isTagKey, TAG_KEY, TagKey } from '../api/enum';
 import { getEmptyVariableParams } from '../common/getEmptyVariableParams';
 import {
   getDefaultParams,
-  isTagKey,
+  normalizeFilterKey,
   PlotParams,
   QueryParams,
   toKeyTag,
@@ -644,19 +644,6 @@ export function convert(kind: RawValueKind | undefined, input: number): string {
 
 export function sortByKey(key: string, a: Record<string, any>, b: Record<string, any>) {
   return a[key] > b[key] ? 1 : a[key] < b[key] ? -1 : 0;
-}
-export function normalizeFilterKey(filter: Record<string, string[]>): Partial<Record<TagKey, string[]>> {
-  return Object.fromEntries(
-    Object.entries(filter)
-      .map(([key, values]) => {
-        const tagKey = toTagKey(key);
-        if (tagKey) {
-          return [tagKey, values];
-        }
-        return null;
-      })
-      .filter(isNotNil)
-  );
 }
 export function normalizeDashboard(data: DashboardInfo): QueryParams {
   const params = data.dashboard.data as QueryParams;
