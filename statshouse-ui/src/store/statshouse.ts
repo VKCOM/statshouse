@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { create } from 'zustand';
+import { createWithEqualityFn } from 'zustand/traditional';
 import uPlot from 'uplot';
 
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
@@ -267,7 +267,7 @@ export type StatsHouseStore = {
 };
 
 export type Store = StatsHouseStore;
-export const useStore = create<Store>()(
+export const useStore = createWithEqualityFn<Store>()(
   immer((setState, getState) => {
     let prevLocation = appHistory.location;
     let controller: AbortController;
@@ -1960,7 +1960,8 @@ export const useStore = create<Store>()(
         });
       },
     };
-  })
+  }),
+  Object.is
 );
 
 export function setValuesVariable(nameVariable: string | undefined, values: string[]) {
