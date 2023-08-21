@@ -59,7 +59,7 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
       <ul className="list-group">
         {filterList.map((item) => (
           <li key={item.id} className="list-group-item">
-            <Link to={`/view?id=${item.id}`} className="text-black text-decoration-none">
+            <Link to={`/view?id=${item.id}`} className="text-body text-decoration-none">
               <h6 className="m-0">{item.name}</h6>
               {!!item.description && <div className="small text-secondary mt-2">{item.description}</div>}
             </Link>
