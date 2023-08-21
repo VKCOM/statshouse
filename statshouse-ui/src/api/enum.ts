@@ -4,6 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { isEnum } from '../common/helpers';
+
 export type Enum<T> = T[keyof T];
 
 export const GET_PARAMS = {
@@ -191,3 +193,6 @@ export const API_FETCH_OPT_METHODS = {
   put: 'PUT',
 } as const;
 export type ApiFetchOptMethods = Enum<typeof API_FETCH_OPT_METHODS>;
+
+export const isQueryWhat = isEnum<QueryWhat>(QUERY_WHAT);
+export const isTagKey = isEnum<TagKey>(TAG_KEY);

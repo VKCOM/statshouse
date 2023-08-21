@@ -35,10 +35,10 @@ import produce from 'immer';
 import cn from 'classnames';
 import { ErrorMessages } from '../ErrorMessages';
 import { MetricMetaValue } from '../../api/metric';
-import { QueryWhat, TAG_KEY, TagKey } from '../../api/enum';
+import { isTagKey, QueryWhat, TAG_KEY, TagKey } from '../../api/enum';
 import { debug } from '../../common/debug';
 import { shallow } from 'zustand/shallow';
-import { isTagKey, PLOT_TYPE, PlotParams, toKeyTag, VariableParams } from '../../url/queryParams';
+import { PLOT_TYPE, PlotParams, toKeyTag, VariableParams } from '../../url/queryParams';
 
 const { setParams, setTimeRange, setPlotParams, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
 
