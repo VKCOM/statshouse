@@ -283,6 +283,10 @@ func (h *RPCHandler) GetQuery(ctx context.Context, args tlstatshouseApi.GetQuery
 		m.SetWhat(whatToFn[meta.What])
 		response.SeriesMeta = append(response.SeriesMeta, m)
 	}
+	if args.Query.IsSetExcessPointsFlag() {
+		response.SetExcessPointLeft(res.ExcessPointLeft)
+		response.SetExcessPointRight(res.ExcessPointRight)
+	}
 
 	columnSize, totalSize, metaSize := estimateResponseSize(res)
 	if totalSize <= chunkMaxSize {
@@ -445,6 +449,7 @@ func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (req 
 		filterNotIn:         filterNotIn,
 		promQL:              q.Promql,
 		maxHost:             q.IsSetMaxHostFlag(),
+		expandToLODBoundary: q.IsSetExcessPointsFlag(),
 	}
 	return req, nil
 }
