@@ -2844,13 +2844,9 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 			err    error
 			start  = time.Now()
 		)
-		if len(r.promQL) != 0 {
-			data, cancel, err = h.handlePromqlQuery(ctx, ai, r, seriesRequestOptions{metricNameCallback: func(s string) {
-				req.seriesRequest[i].metricWithNamespace = s
-			}})
-		} else {
-			data, cancel, err = h.handleGetQuery(ctx, ai, r, seriesRequestOptions{})
-		}
+		data, cancel, err = h.handlePromqlQuery(ctx, ai, r, seriesRequestOptions{metricNameCallback: func(s string) {
+			req.seriesRequest[i].metricWithNamespace = s
+		}})
 		if err != nil {
 			return nil, false, err
 		}
