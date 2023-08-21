@@ -553,7 +553,7 @@ func (e *Engine) commitTXAndStartNew(commit, waitBinlogCommit bool) error {
 func (e *Engine) commitRWTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, skipUpdateMeta bool) error {
 	var info *committedInfo
 	var err error
-	c.ctx = context.Background()
+	c = c.withoutTimeout()
 	if waitBinlogCommit && e.binlog != nil {
 		info, err = e.binlogWaitDBSync(c)
 		if err != nil {
@@ -794,6 +794,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 		if err != nil {
 			return nil, err
 		}
+		// after this line can't rollback tx!!!!!!
 		e.dbOffset = offsetAfterWrite
 	}
 	if e.opt.CommitOnEachWrite {
