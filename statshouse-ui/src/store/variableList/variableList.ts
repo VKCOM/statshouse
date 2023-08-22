@@ -20,13 +20,13 @@ import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, TAG_KEY } from '..
 import { globalSettings } from '../../common/settings';
 import { filterParamsArr } from '../../view/api';
 import { useErrorStore } from '../errors';
-import { isNotNil } from '../../common/helpers';
+import { deepClone, isNotNil } from '../../common/helpers';
 import { MetricMetaTag } from '../../api/metric';
 import { getEmptyVariableParams } from '../../common/getEmptyVariableParams';
 import { toKeyTag, VariableParams } from '../../url/queryParams';
 
 export function getEmptyVariable(): VariableItem {
-  return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined };
+  return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined, keyLastRequest: '' };
 }
 
 export type VariableItem = {
@@ -35,6 +35,7 @@ export type VariableItem = {
   loaded: boolean;
   more: boolean;
   tagMeta?: MetricMetaTag;
+  keyLastRequest: string;
 };
 
 export type VariableListStore = {
@@ -122,6 +123,7 @@ export async function updateTag(indexPlot: number, indexTag: number) {
       state.tags[indexPlot][indexTag].more = listTag?.more ?? false;
       state.tags[indexPlot][indexTag].tagMeta = listTag?.tagMeta;
       state.tags[indexPlot][indexTag].loaded = false;
+      state.tags[indexPlot][indexTag].keyLastRequest = listTag?.keyLastRequest ?? '';
     }
   });
 }
@@ -174,6 +176,22 @@ export async function updateVariable(variableParam: VariableParams) {
     }
   });
   const lists = await loadValuableList(variableParam);
+  lists.forEach((listTag) => {
+    if (listTag) {
+      useVariableListStore.setState((state) => {
+        const { indexPlot, indexTag } = listTag;
+        state.tags[indexPlot] ??= {};
+        state.tags[indexPlot][indexTag] ??= getEmptyVariable();
+        if (state.tags[indexPlot]?.[indexTag]) {
+          state.tags[indexPlot][indexTag].list = deepClone(listTag?.values ?? []);
+          state.tags[indexPlot][indexTag].more = listTag?.more ?? false;
+          state.tags[indexPlot][indexTag].tagMeta = deepClone(listTag?.tagMeta);
+          state.tags[indexPlot][indexTag].loaded = false;
+          state.tags[indexPlot][indexTag].keyLastRequest = listTag?.keyLastRequest ?? '';
+        }
+      });
+    }
+  });
   const more = lists.some((l) => l.more);
   const tagMeta = lists[0]?.tagMeta;
   const list = Object.values(
@@ -183,7 +201,7 @@ export async function updateVariable(variableParam: VariableParams) {
         if (res[t.value]) {
           res[t.value].count += t.count;
         } else {
-          res[t.value] = t;
+          res[t.value] = { ...t };
         }
         return res;
       }, {} as Record<string, MetricTagValueInfo>)
@@ -222,22 +240,35 @@ export async function loadTagList(indexPlot: number | null, indexTag: number | n
   const requestKey = `variable_${indexPlot}-${plot.metricName}`;
   await store.loadMetricsMeta(plot.metricName);
   const tagMeta = useStore.getState().metricsMeta[plot.metricName]?.tags?.[indexTag];
-  const { response, error } = await apiMetricTagValuesFetch(
-    {
-      [GET_PARAMS.metricName]: plot.metricName,
-      [GET_PARAMS.metricTagID]: tagKey,
-      [GET_PARAMS.version]:
-        globalSettings.disabled_v1 || plot.useV2 ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1,
-      [GET_PARAMS.numResults]: limit.toString(),
-      [GET_PARAMS.fromTime]: store.timeRange.from.toString(),
-      [GET_PARAMS.toTime]: (store.timeRange.to + 1).toString(),
-      [GET_PARAMS.metricFilter]: filterParamsArr(otherFilterIn, otherFilterNotIn),
-      [GET_PARAMS.metricWhat]: plot.what.slice() as QueryWhat[],
-    },
-    requestKey
-  );
+  const params = {
+    [GET_PARAMS.metricName]: plot.metricName,
+    [GET_PARAMS.metricTagID]: tagKey,
+    [GET_PARAMS.version]:
+      globalSettings.disabled_v1 || plot.useV2 ? METRIC_VALUE_BACKEND_VERSION.v2 : METRIC_VALUE_BACKEND_VERSION.v1,
+    [GET_PARAMS.numResults]: limit.toString(),
+    [GET_PARAMS.fromTime]: store.timeRange.from.toString(),
+    [GET_PARAMS.toTime]: (store.timeRange.to + 1).toString(),
+    [GET_PARAMS.metricFilter]: filterParamsArr(otherFilterIn, otherFilterNotIn),
+    [GET_PARAMS.metricWhat]: plot.what.slice() as QueryWhat[],
+  };
+  const keyLastRequest = JSON.stringify(params);
+  const lastTag = useVariableListStore.getState().tags[indexPlot]?.[indexTag];
+  if (lastTag && lastTag.keyLastRequest === keyLastRequest) {
+    return {
+      indexPlot,
+      indexTag,
+      keyLastRequest: lastTag.keyLastRequest,
+      values: lastTag.list,
+      more: lastTag.more,
+      tagMeta: lastTag.tagMeta,
+    };
+  }
+  const { response, error } = await apiMetricTagValuesFetch(params, requestKey);
   if (response) {
     return {
+      indexPlot,
+      indexTag,
+      keyLastRequest,
       values: response.data.tag_values.slice(),
       more: response.data.tag_values_more,
       tagMeta,
