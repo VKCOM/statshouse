@@ -43,7 +43,8 @@ export function DashboardVariablesControl({ className }: DashboardVariablesContr
           groupBy={variable.args.groupBy}
           setGroupBy={setGroupByVariable}
           className={''}
-          values={variable.values}
+          values={!variable.args.negative ? variable.values : undefined}
+          notValues={variable.args.negative ? variable.values : undefined}
           onChange={setValuesVariable}
           setOpen={setUpdatedVariable}
           small

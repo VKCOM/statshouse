@@ -501,7 +501,14 @@ export const PlotControls = memo(function PlotControls_(props: {
                       groupBy={variableTags[indexTag]?.args.groupBy ?? plotParams.groupBy.indexOf(keyTag) > -1}
                       setGroupBy={onSetGroupBy}
                       values={
-                        variableTags[indexTag]?.values ?? plotParams.filterIn[keyTag] ?? plotParams.filterNotIn[keyTag]
+                        (variableTags[indexTag] && !variableTags[indexTag].args.negative
+                          ? variableTags[indexTag].values
+                          : undefined) ?? plotParams.filterIn[keyTag]
+                      }
+                      notValues={
+                        (variableTags[indexTag] && variableTags[indexTag].args.negative
+                          ? variableTags[indexTag].values
+                          : undefined) ?? plotParams.filterNotIn[keyTag]
                       }
                       onChange={onFilterChange}
                       tagMeta={tagsList[indexTag]?.tagMeta ?? t}
@@ -537,7 +544,12 @@ export const PlotControls = memo(function PlotControls_(props: {
                     groupBy={variableTags[-1]?.args.groupBy ?? plotParams.groupBy.indexOf(TAG_KEY._s) > -1}
                     setGroupBy={onSetGroupBy}
                     values={
-                      variableTags[-1]?.values ?? plotParams.filterIn[TAG_KEY._s] ?? plotParams.filterNotIn[TAG_KEY._s]
+                      (variableTags[-1] && !variableTags[-1].args.negative ? variableTags[-1].values : undefined) ??
+                      plotParams.filterIn[TAG_KEY._s]
+                    }
+                    notValues={
+                      (variableTags[-1] && variableTags[-1].args.negative ? variableTags[-1].values : undefined) ??
+                      plotParams.filterNotIn[TAG_KEY._s]
                     }
                     onChange={onFilterChange}
                     setOpen={onSetUpdateTag}

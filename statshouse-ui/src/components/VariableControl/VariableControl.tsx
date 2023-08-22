@@ -18,6 +18,7 @@ import { MetricTagValueInfo } from '../../api/metricTagValues';
 import { escapeHTML } from '../../common/helpers';
 
 const emptyListArray: MetricTagValueInfo[] = [];
+const emptyValues: string[] = [];
 
 export type VariableControlProps<T> = {
   target?: T;
@@ -27,7 +28,8 @@ export type VariableControlProps<T> = {
   groupBy?: boolean;
   setGroupBy: (name: T | undefined, value: boolean) => void;
   className?: string;
-  values: string[];
+  values?: string[];
+  notValues?: string[];
   onChange: (name: T | undefined, value: string[]) => void;
   tagMeta?: MetricMetaTag;
   more?: boolean;
@@ -45,7 +47,8 @@ export function VariableControl<T>({
   setNegative,
   groupBy = false,
   setGroupBy,
-  values,
+  values = emptyValues,
+  notValues = emptyValues,
   onChange,
   list = emptyListArray,
   loaded,
@@ -56,6 +59,8 @@ export function VariableControl<T>({
   customBadge,
 }: VariableControlProps<T>) {
   const [sortByName, setSortByName] = useState(false);
+
+  const allValues = useMemo(() => [...values, ...notValues], [notValues, values]);
 
   const listSort = useMemo<SelectOptionProps[]>(
     () =>
@@ -110,17 +115,17 @@ export function VariableControl<T>({
       const value = event.currentTarget.getAttribute('data-value');
       onChange(
         target,
-        values.filter((v) => v !== value)
+        allValues.filter((v) => v !== value)
       );
     },
-    [target, onChange, values]
+    [target, onChange, allValues]
   );
   return (
     <div className={className}>
       <div className="d-flex align-items-center">
         <div className={cn('input-group flex-nowrap w-100', small ? 'input-group-sm me-2' : 'input-group  me-4')}>
           <TagSelect
-            values={values}
+            values={allValues}
             placeholder={placeholder}
             loading={loaded}
             onChange={onChangeFilter}
@@ -145,10 +150,19 @@ export function VariableControl<T>({
             type="button"
             key={v}
             data-value={v}
-            className={cn(
-              'overflow-force-wrap btn btn-sm pt-0 pb-0 mt-2 me-2',
-              negative ? 'btn-danger' : 'btn-success'
-            )}
+            className="overflow-force-wrap btn btn-sm pt-0 pb-0 mt-2 me-2 btn-success"
+            style={{ userSelect: 'text' }}
+            onClick={onRemoveFilter}
+          >
+            {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
+          </button>
+        ))}
+        {notValues?.map((v) => (
+          <button
+            type="button"
+            key={v}
+            data-value={v}
+            className="overflow-force-wrap btn btn-sm pt-0 pb-0 mt-2 me-2 btn-danger"
             style={{ userSelect: 'text' }}
             onClick={onRemoveFilter}
           >
