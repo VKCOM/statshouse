@@ -130,7 +130,7 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreate) error {
 	} else {
 		value = format.MetricMetaValue{
 			Name:       args.Metric,
-			Tags:       []format.MetricMetaTag{{}},
+			Tags:       make([]format.MetricMetaTag, format.MaxTags),
 			Visible:    true,
 			Kind:       args.Kind,
 			Resolution: 1,
