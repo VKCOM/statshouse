@@ -146,7 +146,7 @@ func (proxy *IngressProxy) handlerImpl(ctx context.Context, hctx *rpc.HandlerCon
 		ret.Addresses = proxy.config.ExternalAddresses
 		ret.MaxAddressesCount = proxy.sh2.GetConfigResult.MaxAddressesCount
 		ret.PreviousAddresses = proxy.sh2.GetConfigResult.PreviousAddresses
-		hctx.Response, err = args.WriteResult(hctx.Response, ret)
+		hctx.Response, err = args.WriteResult(hctx.Response[:0], ret)
 		return true, err
 	case constants.StatshouseGetTagMapping2,
 		constants.StatshouseSendKeepAlive2, constants.StatshouseSendSourceBucket2,
