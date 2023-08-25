@@ -26,6 +26,7 @@ import {
   normalizeDashboard,
   now,
   paramToVariable,
+  plotLoadPrioritySort,
   promQLMetric,
   readJSONLD,
   replaceVariable,
@@ -87,6 +88,8 @@ import {
   VariableParams,
 } from '../url/queryParams';
 import { immer } from 'zustand/middleware/immer';
+import { clearPlotVisibility, resortPlotVisibility, usePlotVisibilityStore } from './plot/plotVisibilityStore';
+import { clearAllPlotPreview, clearPlotPreview, resortPlotPreview } from './plot/plotPreview';
 
 export type PlotStore = {
   nameMetric: string;
@@ -452,9 +455,12 @@ export const useStore = createWithEqualityFn<Store>()(
               store.dashboardLayoutEdit = false;
             }
           });
-          getState().params.plots.forEach((plot, index) => {
-            if (changedTimeRange || changedTimeShifts || prevParams.plots[index] !== plot) {
-              getState().loadPlot(index);
+          if (resetPlot) {
+            clearAllPlotPreview();
+          }
+          plotLoadPrioritySort(getState().params).forEach(({ plot, indexPlot }) => {
+            if (changedTimeRange || changedTimeShifts || prevParams.plots[indexPlot] !== plot) {
+              getState().loadPlot(indexPlot);
             }
           });
         }
@@ -500,14 +506,14 @@ export const useStore = createWithEqualityFn<Store>()(
               });
             }
           });
-          getState().params.plots.forEach((plot, index) => {
+          plotLoadPrioritySort(getState().params).forEach(({ plot, indexPlot }) => {
             if (
               changedTimeRange ||
               changedTimeShifts ||
-              prevParams.plots[index] !== plot ||
-              changedVariablesPlot.has(index)
+              prevParams.plots[indexPlot] !== plot ||
+              changedVariablesPlot.has(indexPlot)
             ) {
-              getState().loadPlot(index, force);
+              getState().loadPlot(indexPlot, force);
             }
           });
           if (getState().params.plots.some(({ useV2 }) => !useV2) && getState().liveMode) {
@@ -549,6 +555,18 @@ export const useStore = createWithEqualityFn<Store>()(
         }
       },
       removePlot(index) {
+        setState((state) => {
+          state.plotsData.splice(index, 1);
+          URL.revokeObjectURL(state.previews[index]);
+          state.previews.splice(index, 1);
+          state.plotsData = state.plotsData.slice(0, state.params.plots.length);
+          state.previews.slice(state.params.plots.length).forEach((url) => {
+            URL.revokeObjectURL(url);
+          });
+          state.previews = state.previews.slice(0, state.params.plots.length);
+        });
+        clearPlotPreview(index, true);
+        clearPlotVisibility(index, true);
         getState().setParams(
           produce((params) => {
             const groups = params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
@@ -605,16 +623,6 @@ export const useStore = createWithEqualityFn<Store>()(
             }
           })
         );
-        setState((state) => {
-          state.plotsData.splice(index, 1);
-          URL.revokeObjectURL(state.previews[index]);
-          state.previews.splice(index, 1);
-          state.plotsData = state.plotsData.slice(0, state.params.plots.length);
-          state.previews.slice(state.params.plots.length).forEach((url) => {
-            URL.revokeObjectURL(url);
-          });
-          state.previews = state.previews.slice(0, state.params.plots.length);
-        });
         const metrics = getState().params.plots.map(({ metricName }) => metricName);
         Object.keys(getState().metricsMeta)
           .filter((name) => name && !metrics.includes(name))
@@ -742,6 +750,14 @@ export const useStore = createWithEqualityFn<Store>()(
         if (prevState.numQueriesPlot[index] > 0 && prevState.liveMode) {
           return;
         }
+
+        if (
+          !usePlotVisibilityStore.getState().visibilityList[index] &&
+          !usePlotVisibilityStore.getState().previewList[index]
+        ) {
+          return;
+        }
+
         const width = prevState.uPlotsWidth[index] ?? prevState.uPlotsWidth.find((w) => w && w > 0);
         const compact = prevState.compact;
         const lastPlotParams: PlotParams | undefined = replaceVariable(
@@ -750,13 +766,31 @@ export const useStore = createWithEqualityFn<Store>()(
           prevState.params.variables
         );
         const prev: PlotStore = prevState.plotsData[index];
-        if (lastPlotParams.metricName === '') {
+
+        const deltaTime = Math.floor((prevState.timeRange.to - prevState.timeRange.from) / 5);
+
+        if (
+          !usePlotVisibilityStore.getState().visibilityList[index] &&
+          usePlotVisibilityStore.getState().previewList[index] &&
+          prev.lastTimeRange &&
+          Math.abs(prev.lastTimeRange.to - prevState.timeRange.to) < deltaTime &&
+          Math.abs(prev.lastTimeRange.from - prevState.timeRange.from) < deltaTime
+        ) {
+          setState((state) => {
+            if (state.plotsData[index].scales.x) {
+              state.plotsData[index].scales.x = { min: prevState.timeRange.from, max: prevState.timeRange.to };
+            }
+          });
+          return;
+        }
+
+        if (lastPlotParams.metricName === '' && lastPlotParams.promQL === '') {
           return;
         }
         if (
           width &&
           lastPlotParams &&
-          (lastPlotParams !== prev.lastPlotParams ||
+          (!dequal(lastPlotParams, prev.lastPlotParams) ||
             prevState.timeRange !== prev.lastTimeRange ||
             prevState.params.timeShifts !== prev.lastTimeShifts ||
             force)
@@ -803,6 +837,7 @@ export const useStore = createWithEqualityFn<Store>()(
               delete state.previews[index];
               state.liveMode = false;
             });
+            clearPlotPreview(index);
             getState().setNumQueriesPlot(index, (n) => n - 1);
             return;
           }
@@ -1125,6 +1160,7 @@ export const useStore = createWithEqualityFn<Store>()(
                   state.liveMode = false;
                 });
               }
+              clearPlotPreview(index);
             })
             .finally(() => {
               getState().setNumQueriesPlot(index, (n) => n - 1);
@@ -1526,6 +1562,13 @@ export const useStore = createWithEqualityFn<Store>()(
           });
           return res;
         }, [] as (number | null)[][]);
+        resortPlotPreview(remapIndexPlot);
+        resortPlotVisibility(remapIndexPlot);
+        setState((state) => {
+          state.previews = previews;
+          state.plotsData = plotsData;
+          state.events = plotsEvent;
+        });
         prevState.setParams(
           produce((params) => {
             params.plots = plots.map((p, indexP) => ({
@@ -1568,11 +1611,6 @@ export const useStore = createWithEqualityFn<Store>()(
             }
           })
         );
-        setState((state) => {
-          state.previews = previews;
-          state.plotsData = plotsData;
-          state.events = plotsEvent;
-        });
       },
       dashboardLayoutEdit: false,
       setDashboardLayoutEdit(nextStatus: boolean) {

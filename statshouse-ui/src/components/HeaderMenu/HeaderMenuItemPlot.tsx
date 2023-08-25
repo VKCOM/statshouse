@@ -19,15 +19,19 @@ import css from './style.module.css';
 import { promQLMetric } from '../../view/utils';
 import { shallow } from 'zustand/shallow';
 import { PLOT_TYPE } from '../../url/queryParams';
+import { setPlotVisibility, setPreviewVisibility, usePlotVisibilityStore } from '../../store/plot/plotVisibilityStore';
+import { buildThresholdList, useIntersectionObserver } from '../../hooks';
+import { usePlotPreview } from '../../store/plot/plotPreview';
+
+const threshold = buildThresholdList(1);
 
 export type HeaderMenuItemPlotProps = {
   indexPlot: number;
 };
 
 const { removePlot } = useStore.getState();
-const selectorPlotInfoByIndex = (indexPlot: number, { params, previews, numQueriesPlot, plotsData }: Store) => ({
+const selectorPlotInfoByIndex = (indexPlot: number, { params, numQueriesPlot, plotsData }: Store) => ({
   plot: params.plots[indexPlot],
-  preview: previews[indexPlot],
   numQueries: numQueriesPlot[indexPlot],
   plotData: plotsData[indexPlot],
   tabNum: params.tabNum,
@@ -37,12 +41,15 @@ const selectorPlotInfoByIndex = (indexPlot: number, { params, previews, numQueri
 export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlot }) => {
   const touchToggle = useRef<HTMLAnchorElement>(null);
   const sub = useRef<HTMLUListElement>(null);
+  const itemRef = useRef(null);
+  const visible = useIntersectionObserver(itemRef.current, threshold, undefined, 0);
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const isView = location.pathname === '/view';
   const selectorPlotInfo = useMemo(() => selectorPlotInfoByIndex.bind(undefined, indexPlot), [indexPlot]);
-  const { plot, preview, numQueries, plotData, tabNum, plotCount } = useStore(selectorPlotInfo, shallow);
-
+  const { plot, numQueries, plotData, tabNum, plotCount } = useStore(selectorPlotInfo, shallow);
+  const preview = usePlotPreview((s) => s.previewList[indexPlot]);
+  const lastVisiblePlot = useRef(false);
   const onRemovePlot = useCallback(() => {
     removePlot(indexPlot);
   }, [indexPlot]);
@@ -98,12 +105,26 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
     };
   }, []);
 
+  useEffect(() => {
+    setPreviewVisibility(indexPlot, visible > 0);
+  }, [indexPlot, tabNum, visible]);
+
+  useEffect(() => {
+    if (open) {
+      lastVisiblePlot.current = usePlotVisibilityStore.getState().visibilityList[indexPlot];
+      setPlotVisibility(indexPlot, true);
+    } else {
+      setPlotVisibility(indexPlot, lastVisiblePlot.current);
+    }
+  }, [indexPlot, open]);
+
   return (
     <li
       className={cn('position-relative', css.plotItem, indexPlot === tabNum && isView && css.activePlotItem)}
       onMouseOver={onOpen}
       onMouseOut={onClose}
       onClick={onClose}
+      ref={itemRef}
     >
       <PlotLink
         className={cn(
@@ -117,7 +138,7 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
       >
         {!!plotData.error403 && <SVGXSquare className={css.icon} />}
         {!!preview && !plotData.error403 && <img alt={title} src={preview} className="w-100 h-100" />}
-        {(!preview || numQueries > 0) && !plotData.error403 && !plotData.error && (
+        {numQueries > 0 && !plotData.error403 && !plotData.error && (
           <div className="position-absolute top-50 start-50 translate-middle show-delay">
             <div className="spinner-white-bg spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
           </div>

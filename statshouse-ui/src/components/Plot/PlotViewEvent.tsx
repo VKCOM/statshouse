@@ -32,15 +32,19 @@ import {
 import { xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
 import { PlotEvents } from './PlotEvents';
-import { useUPlotPluginHooks } from '../../hooks';
+import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '../../hooks';
 import { UPlotPluginPortal } from '../UPlotWrapper';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
+import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
+import { createPlotPreview } from '../../store/plot/plotPreview';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
 const font =
   '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
+
+const threshold = buildThresholdList(1);
 
 function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null): [number, number] {
   if (dataMin === null || dataMax === null) {
@@ -50,16 +54,8 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
   return [dataMin, dataMax];
 }
 
-const {
-  setPlotParams,
-  setTimeRange,
-  setPreviews,
-  setLiveMode,
-  setYLockChange,
-  setPlotLastError,
-  setUPlotWidth,
-  loadPlot,
-} = useStore.getState();
+const { setPlotParams, setTimeRange, setLiveMode, setYLockChange, setPlotLastError, setUPlotWidth, loadPlot } =
+  useStore.getState();
 
 export function PlotViewEvent(props: {
   indexPlot: number;
@@ -315,10 +311,16 @@ export function PlotViewEvent(props: {
     [indexPlot, loadEvent]
   );
 
-  const onUpdatePreview = useMemo(() => setPreviews?.bind(undefined, indexPlot), [indexPlot]);
+  const onUpdatePreview = useCallback(
+    (u: uPlot) => {
+      createPlotPreview(indexPlot, u);
+    },
+    [indexPlot]
+  );
 
   const [fixHeight, setFixHeight] = useState<number>(0);
   const divOut = useRef<HTMLDivElement>(null);
+  const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
   const onMouseOver = useCallback(() => {
     if (divOut.current) {
       setFixHeight(divOut.current.getBoundingClientRect().height);
@@ -351,6 +353,10 @@ export function PlotViewEvent(props: {
       }
     });
   }, [seriesShow]);
+
+  useEffect(() => {
+    setPlotVisibility(indexPlot, visible > 0);
+  }, [indexPlot, visible]);
 
   return (
     <div
