@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"errors"
+	"io"
 	"time"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
@@ -24,8 +25,19 @@ const (
 	maxReplicaQueueBytes             = 1 << 30 // 1GB
 )
 
+func isEOFErr(err error) bool {
+	return errors.Is(err, binlog2.ErrorNotEnoughData) ||
+		errors.Is(err, io.EOF) ||
+		errors.Is(err, io.ErrUnexpectedEOF)
+}
+
+func isExpectedError(err error) bool {
+	return errors.Is(err, binlog2.ErrorUnknownMagic) || isEOFErr(err)
+}
+
 // Apply is used when re-reading or when working as a replica
 func (impl *binlogEngineReplicaImpl) Apply(payload []byte) (newOffset int64, err error) {
+	impl.e.rareLog("[sqlite] apply payload (len: %d)", len(payload))
 	defer impl.e.opt.StatsOptions.measureActionDurationSince("engine_apply", time.Now())
 	e := impl.e
 	if e.opt.ReadAndExit || e.opt.CommitOnEachWrite {
@@ -33,6 +45,7 @@ func (impl *binlogEngineReplicaImpl) Apply(payload []byte) (newOffset int64, err
 		if err != nil {
 			return offs, err
 		}
+		impl.e.rareLog("[sqlite] commit applied payload (new offset: %d)", offs)
 		err = e.commitTXAndStartNew(true, false)
 		return offs, err
 	}
@@ -83,7 +96,7 @@ func (impl *binlogEngineReplicaImpl) apply(payload []byte) (newOffset int64, err
 		err1 := binlogUpdateOffset(conn, newOffset)
 		if err != nil {
 			errToReturn = err
-			if !errors.Is(err, binlog2.ErrorUnknownMagic) && !errors.Is(err, binlog2.ErrorNotEnoughData) {
+			if !isExpectedError(err) {
 				return err
 			}
 		}
@@ -169,5 +182,6 @@ func (impl *binlogEngineReplicaImpl) skip(skipLen int64) (int64, error) {
 		offset = impl.e.dbOffset
 		return binlogUpdateOffset(conn, impl.e.dbOffset)
 	})
+	impl.e.rareLog("[sqlite] skip offset (new offset: %d)", offset)
 	return offset, err
 }

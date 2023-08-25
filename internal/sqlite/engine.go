@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -123,6 +124,9 @@ type (
 		mustCommitNowFlag bool
 		mustWaitCommit    bool
 		readOnlyEngine    bool
+
+		logMx       sync.Mutex
+		nextLogTime time.Time
 	}
 
 	Options struct {
@@ -285,12 +289,14 @@ func (e *Engine) binlogRun() (*binlogEngineReplicaImpl, error) {
 		return nil, fmt.Errorf("failed to load binlog position: %w", err)
 	}
 	e.dbOffset = offset
+	log.Println("[sqlite] read from db binlog position: ", e.dbOffset)
 	meta, err := e.binlogLoadOrCreateMeta()
 	if err != nil {
 		_ = e.close(false, false)
 		return nil, fmt.Errorf("failed to load snapshot meta: %w", err)
 	}
 	if !e.isTest {
+		log.Println("[sqlite] starting binlog")
 		go func() {
 			defer func() {
 				close(e.binlogEnd)
@@ -844,6 +850,16 @@ func (e *Engine) Do(ctx context.Context, queryName string, fn func(Conn, []byte)
 		<-ch
 	}
 	return nil
+}
+
+func (e *Engine) rareLog(format string, v ...any) {
+	e.logMx.Lock()
+	defer e.logMx.Unlock()
+	now := time.Now()
+	if now.After(e.nextLogTime) {
+		log.Printf(format, v...)
+		e.nextLogTime = now.Add(time.Second * 10)
+	}
 }
 
 func binlogUpdateOffset(c Conn, offset int64) error {
