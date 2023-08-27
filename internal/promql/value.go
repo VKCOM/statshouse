@@ -17,7 +17,6 @@ import (
 	"strconv"
 
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
@@ -28,7 +27,6 @@ type SeriesBag struct {
 	Data    []*[]float64
 	Meta    []SeriesMeta
 	MaxHost [][]int32
-	Range   int64
 }
 
 // NB! It is tempting to move MetricMetaValue into SeriesBag
@@ -38,9 +36,11 @@ type SeriesBag struct {
 // series. Besides that it is convient to have "append" method defined
 // on SeriesBag, so you can build it lazily starting from SeriesBag{}.
 type SeriesMeta struct {
-	Tags     map[string]*SeriesTag // indexed by tag ID (canonical name)
-	Name2Tag map[string]*SeriesTag // indexed by tag optional Name
-	Metric   *format.MetricMetaValue
+	Tags       map[string]*SeriesTag // indexed by tag ID (canonical name)
+	Name2Tag   map[string]*SeriesTag // indexed by tag optional Name
+	Metric     *format.MetricMetaValue
+	hashSum    uint64
+	hashSumSet bool
 }
 
 const SeriesTagIndexOffset = 2
@@ -91,10 +91,13 @@ func (b *SeriesBag) MarshalJSON() ([]byte, error) {
 		M map[string]string `json:"metric,omitempty"`
 		V [][2]any          `json:"values,omitempty"`
 	}
-	s := make([]series, 0, len(b.Data))
+	var (
+		s = make([]series, 0, len(b.Data))
+		t = b.Time
+	)
 	for i, row := range b.Data {
-		v := make([][2]any, 0, len(b.Time))
-		for j, t := range b.Time {
+		v := make([][2]any, 0, len(t))
+		for j, t := range t {
 			if math.Float64bits((*row)[j]) != NilValueBits {
 				v = append(v, [2]any{t, strconv.FormatFloat((*row)[j], 'f', -1, 64)})
 			}
@@ -122,12 +125,16 @@ func (b *SeriesBag) MarshalJSON() ([]byte, error) {
 }
 
 func (b *SeriesBag) String() string {
-	var from, to int64
-	if len(b.Time) != 0 {
-		from = b.Time[0]
-		to = b.Time[len(b.Time)-1]
+	var (
+		t    = b.Time
+		from int64
+		to   int64
+	)
+	if len(t) != 0 {
+		from = t[0]
+		to = t[len(t)-1]
 	}
-	return fmt.Sprintf("%dx%d matrix from %d to %d", len(b.Meta), len(b.Time), from, to)
+	return fmt.Sprintf("%dx%d matrix from %d to %d", len(b.Meta), len(t), from, to)
 }
 
 func (b *SeriesBag) Type() parser.ValueType {
@@ -161,7 +168,6 @@ func (b *SeriesBag) appendX(s SeriesBag, x ...int) {
 
 func (b *SeriesBag) at(i int) SeriesBag {
 	return SeriesBag{
-		Time:    b.Time,
 		Data:    safeSlice(b.Data, i, i+1),
 		Meta:    safeSlice(b.Meta, i, i+1),
 		MaxHost: safeSlice(b.MaxHost, i, i+1),
@@ -170,6 +176,12 @@ func (b *SeriesBag) at(i int) SeriesBag {
 
 func (b *SeriesBag) dropMetricName() {
 	b.dropTag(labels.MetricName)
+}
+
+func dropMetricName(s []SeriesBag) {
+	for i := range s {
+		s[i].dropMetricName()
+	}
 }
 
 func (b *SeriesBag) dropTag(k string) {
@@ -192,16 +204,9 @@ func (b *SeriesBag) getTagsAt(i int) map[string]*SeriesTag {
 	return nil
 }
 
-func (b *SeriesBag) getTagsAtWithout(i int, tags []string) []string {
-	if i < len(b.Meta) {
-		return b.Meta[i].getTagsWithout(tags)
-	}
-	return nil
-}
-
 func (b *SeriesBag) group(ev *evaluator, without bool, by []string) ([]seriesGroup, error) {
 	if len(by) == 0 && !without {
-		return []seriesGroup{{bag: *b, maxHost: b.groupMaxHost()}}, nil
+		return []seriesGroup{{bag: *b, maxHost: b.groupMaxHost(ev)}}, nil
 	}
 	var (
 		h              = fnv.New64()
@@ -209,7 +214,7 @@ func (b *SeriesBag) group(ev *evaluator, without bool, by []string) ([]seriesGro
 		metricMismatch bool
 	)
 	for i, m := range b.Meta {
-		sum, tags, err := b.hashAt(i, without, by, h)
+		sum, tags, err := b.hashAt(i, without, by, h, true)
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +225,6 @@ func (b *SeriesBag) group(ev *evaluator, without bool, by []string) ([]seriesGro
 		if g, ok = groups[sum]; !ok {
 			g = &seriesGroup{
 				hash: sum,
-				bag:  SeriesBag{Time: b.Time},
 				meta: SeriesMeta{Metric: m.Metric},
 			}
 			for _, k := range tags {
@@ -237,17 +241,16 @@ func (b *SeriesBag) group(ev *evaluator, without bool, by []string) ([]seriesGro
 			metricMismatch = true
 		}
 		g.bag.appendX(*b, i)
-		h.Reset()
 	}
 	res := make([]seriesGroup, 0, len(groups))
 	for _, g := range groups {
-		g.maxHost = g.bag.groupMaxHost()
+		g.maxHost = g.bag.groupMaxHost(ev)
 		res = append(res, *g)
 	}
 	return res, nil
 }
 
-func (b *SeriesBag) groupMaxHost() []int32 {
+func (b *SeriesBag) groupMaxHost(ev *evaluator) []int32 {
 	if len(b.MaxHost) == 0 {
 		return nil
 	}
@@ -257,17 +260,18 @@ func (b *SeriesBag) groupMaxHost() []int32 {
 	var (
 		i int
 		s []int32
+		t = ev.time()
 	)
 	for ; i < len(b.MaxHost); i++ {
 		if len(b.MaxHost[i]) != 0 {
-			s = make([]int32, 0, len(b.Time))
+			s = make([]int32, 0, len(t))
 			break
 		}
 	}
 	if s == nil {
 		return nil
 	}
-	for j := 0; j < len(b.Time); j++ {
+	for j := 0; j < len(t); j++ {
 		var (
 			v = b.MaxHost[i][j]
 			k = i + 1
@@ -297,7 +301,7 @@ func (b *SeriesBag) hash(without bool, tags []string) (map[uint64]int, error) {
 		res = make(map[uint64]int, len(b.Meta))
 	)
 	for i := range b.Data {
-		sum, _, err := b.hashAt(i, without, tags, h)
+		sum, _, err := b.hashAt(i, without, tags, h, false)
 		if err != nil {
 			return nil, err
 		}
@@ -310,10 +314,25 @@ func (b *SeriesBag) hash(without bool, tags []string) (map[uint64]int, error) {
 	return res, nil
 }
 
-func (b *SeriesBag) hashAt(i int, without bool, by []string, h hash.Hash64) (uint64, []string, error) {
-	var tags []string
+func (b *SeriesBag) hashAt(i int, without bool, by []string, h hash.Hash64, getTags bool) (uint64, []string, error) {
+	var (
+		tags  []string
+		cache bool
+	)
 	if without {
-		tags = b.getTagsAtWithout(i, by)
+		if i < len(b.Meta) {
+			if len(by) == 0 {
+				if b.Meta[i].hashSumSet {
+					if getTags {
+						tags = b.Meta[i].getTagsWithout(tags)
+					}
+					return b.Meta[i].hashSum, tags, nil
+				} else {
+					cache = true
+				}
+			}
+			tags = b.Meta[i].getTagsWithout(tags)
+		}
 	} else {
 		tags = append(tags, by...)
 	}
@@ -340,7 +359,13 @@ func (b *SeriesBag) hashAt(i int, without bool, by []string, h hash.Hash64) (uin
 			return 0, nil, err
 		}
 	}
-	return h.Sum64(), tags, nil
+	sum := h.Sum64()
+	h.Reset()
+	if cache {
+		b.Meta[i].hashSum = sum
+		b.Meta[i].hashSumSet = true
+	}
+	return sum, tags, nil
 }
 
 func (b *SeriesBag) histograms(ev *evaluator) ([]histogram, error) {
@@ -435,17 +460,18 @@ func (b *SeriesBag) stringifyAt(i int, ev *evaluator) {
 
 func (b *SeriesBag) trim(start, end int64) {
 	var (
+		t  = b.Time
 		lo int
-		hi = len(b.Time)
+		hi = len(t)
 	)
-	for lo < len(b.Time) && b.Time[lo] < start {
+	for lo < len(t) && t[lo] < start {
 		lo++
 	}
-	for lo < hi-1 && end <= b.Time[hi-1] {
+	for lo < hi-1 && end <= t[hi-1] {
 		hi--
 	}
-	if lo != 0 || hi != len(b.Time) {
-		b.Time = b.Time[lo:hi]
+	if lo != 0 || hi != len(t) {
+		b.Time = t[lo:hi]
 		for j := 0; j < len(b.Data); j++ {
 			s := (*b.Data[j])[lo:hi]
 			b.Data[j] = &s
@@ -484,6 +510,7 @@ func (m *SeriesMeta) dropTag(k string) {
 	}
 	delete(m.Name2Tag, t.Name)
 	delete(m.Tags, t.ID)
+	m.hashSumSet = false // tags changed, previously computed hash sum is no longer valid
 }
 
 func (m *SeriesMeta) GetOffset() int64 {
@@ -519,6 +546,7 @@ func (m *SeriesMeta) SetTag(t SeriesTag) {
 			m.Name2Tag[id] = &t
 		}
 	}
+	m.hashSumSet = false // tags changed, previously computed hash sum is no longer valid
 }
 
 func (m *SeriesMeta) getTag(k string) (SeriesTag, bool) {
@@ -577,7 +605,6 @@ func (tag *SeriesTag) stringify(ev *evaluator, metric *format.MetricMetaValue) {
 
 func (g *seriesGroup) at(i int) SeriesBag {
 	return SeriesBag{
-		Time:    g.bag.Time,
 		Data:    []*[]float64{g.bag.Data[i]},
 		Meta:    appendAt(0, nil, g.meta),
 		MaxHost: appendAt(0, nil, g.maxHost),
