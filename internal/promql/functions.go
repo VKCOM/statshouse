@@ -7,8 +7,8 @@
 package promql
 
 import (
-	"context"
 	"fmt"
+	"hash/fnv"
 	"math"
 	"regexp"
 	"sort"
@@ -18,36 +18,65 @@ import (
 
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/util"
 )
 
 // region AggregateExpr
 
-type aggregateFunc func(*evaluator, seriesGroup, parser.Expr) SeriesBag
+type aggregateFunc func(*evaluator, *parser.AggregateExpr) ([]SeriesBag, error)
+type seriesGroupFunc func(*evaluator, seriesGroup, parser.Expr) SeriesBag
 
-var aggregates = map[parser.ItemType]aggregateFunc{
-	parser.AVG:          simpleAggregate(funcAvg),
-	parser.BOTTOMK:      funcBottomK,
-	parser.COUNT:        simpleAggregate(funcCount),
-	parser.COUNT_VALUES: funcCountValues,
-	parser.GROUP:        simpleAggregate(funcGroup),
-	parser.MAX:          simpleAggregate(funcMax),
-	parser.MIN:          simpleAggregate(funcMin),
-	parser.QUANTILE:     funcQuantile,
-	parser.STDDEV:       simpleAggregate(funcStdDev),
-	parser.STDVAR:       simpleAggregate(funcStdVar),
-	parser.SUM:          simpleAggregate(funcSum),
-	parser.TOPK:         funcTopK,
+var aggregates map[parser.ItemType]aggregateFunc
+
+func init() {
+	aggregates = map[parser.ItemType]aggregateFunc{
+		parser.AVG:          evalAndGroup(simpleAggregate(funcAvg)),
+		parser.BOTTOMK:      funcTopK,
+		parser.COUNT:        evalAndGroup(simpleAggregate(funcCount)),
+		parser.COUNT_VALUES: evalAndGroup(funcCountValues),
+		parser.GROUP:        evalAndGroup(simpleAggregate(funcGroup)),
+		parser.MAX:          evalAndGroup(simpleAggregate(funcMax)),
+		parser.MIN:          evalAndGroup(simpleAggregate(funcMin)),
+		parser.QUANTILE:     evalAndGroup(funcQuantile),
+		parser.STDDEV:       evalAndGroup(simpleAggregate(funcStdDev)),
+		parser.STDVAR:       evalAndGroup(simpleAggregate(funcStdVar)),
+		parser.SUM:          evalAndGroup(simpleAggregate(funcSum)),
+		parser.TOPK:         funcTopK,
+	}
 }
 
-func simpleAggregate(fn func([]*[]float64, int)) aggregateFunc {
+func evalAndGroup(fn seriesGroupFunc) aggregateFunc {
+	return func(ev *evaluator, expr *parser.AggregateExpr) ([]SeriesBag, error) {
+		bag, err := ev.eval(expr.Expr)
+		if err != nil {
+			return nil, err
+		}
+		for x := range bag {
+			if len(bag[x].Data) == 0 {
+				continue
+			}
+			var groups []seriesGroup
+			groups, err := bag[x].group(ev, expr.Without, expr.Grouping)
+			if err != nil {
+				return nil, err
+			}
+			res := ev.newSeriesBag(len(groups))
+			for _, g := range groups {
+				res.append(fn(ev, g, expr.Param))
+			}
+			bag[x] = res
+		}
+		return bag, nil
+	}
+}
+
+func simpleAggregate(fn func([]*[]float64, int)) seriesGroupFunc {
 	return func(ev *evaluator, g seriesGroup, _ parser.Expr) SeriesBag {
 		if len(g.bag.Data) == 0 {
-			return ev.newSeriesBag(0)
+			return SeriesBag{}
 		}
-		fn(g.bag.Data, len(g.bag.Time))
+		fn(g.bag.Data, len(ev.time()))
 		ev.freeSeriesBagData(g.bag.Data, 1)
 		return g.at(0)
 	}
@@ -75,10 +104,6 @@ func funcAvg(data []*[]float64, n int) {
 	}
 }
 
-func funcBottomK(ev *evaluator, g seriesGroup, p parser.Expr) SeriesBag {
-	return firstK(ev, g, int(p.(*parser.NumberLiteral).Val), false)
-}
-
 func funcCount(data []*[]float64, n int) {
 	for j := 0; j < n; j++ {
 		var res int
@@ -103,7 +128,7 @@ func funcCountValues(ev *evaluator, g seriesGroup, p parser.Expr) SeriesBag {
 			(*s)[i]++
 		}
 	}
-	res := SeriesBag{Time: ev.time()}
+	var res SeriesBag
 	for v, s := range m {
 		for i := range *s {
 			if (*s)[i] == 0 {
@@ -178,9 +203,12 @@ func funcQuantile(ev *evaluator, g seriesGroup, p parser.Expr) SeriesBag {
 	} else {
 		valid = true
 	}
-	res := *g.bag.Data[0]
+	var (
+		res = *g.bag.Data[0]
+		t   = ev.time()
+	)
 	if !valid {
-		for i := 0; i < len(g.bag.Time); i++ {
+		for i := 0; i < len(t); i++ {
 			res[i] = q
 		}
 	} else {
@@ -195,7 +223,7 @@ func funcQuantile(ev *evaluator, g seriesGroup, p parser.Expr) SeriesBag {
 		for i := range x {
 			x[i] = i
 		}
-		for i := 0; i < len(g.bag.Time); i++ {
+		for i := 0; i < len(t); i++ {
 			sort.Slice(x, func(j, k int) bool { return (*g.bag.Data[x[j]])[i] < (*g.bag.Data[x[k]])[i] })
 			res[i] = (*g.bag.Data[x[i1]])[i]*w1 + (*g.bag.Data[x[i2]])[i]*w2
 		}
@@ -257,81 +285,144 @@ func funcSum(data []*[]float64, n int) {
 	}
 }
 
-func funcTopK(ev *evaluator, g seriesGroup, p parser.Expr) SeriesBag {
-	return firstK(ev, g, int(p.(*parser.NumberLiteral).Val), true)
-}
-
-func firstK(ev *evaluator, g seriesGroup, k int, topDown bool) SeriesBag {
+func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]SeriesBag, error) {
+	k := int(expr.Param.(*parser.NumberLiteral).Val)
 	if k <= 0 {
-		ev.freeSeriesBagData(g.bag.Data, 0)
-		return ev.newSeriesBag(0)
+		return make([]SeriesBag, len(ev.opt.Offsets)), nil
 	}
-	if len(g.bag.Data) < k {
-		k = len(g.bag.Data)
+	bags, err := ev.eval(expr.Expr)
+	if err != nil {
+		return nil, err
 	}
-	var (
-		w      = make([]float64, len(g.bag.Data))
-		nodecN int // number of non-decreasing series
+	type (
+		sortedSeriesBag struct {
+			SeriesBag
+			k int
+			w []float64 // weights, not sorted
+			x []int     // index, sorted according to weights
+		}
+		bucket struct {
+			topK map[uint64][]int
+			bags []sortedSeriesBag
+		}
 	)
-	for i, data := range g.bag.Data {
-		var (
-			j     int
-			acc   float64
-			prev  = -math.MaxFloat64
-			nodec = true // non-decreasing
-		)
-		for _, lod := range ev.t.LODs {
-			for m := 0; m < lod.Len; m++ {
-				v := (*data)[j+m]
-				if !math.IsNaN(v) {
-					acc += v * v * float64(lod.Step)
-					if v < prev {
-						nodec = false
+	var (
+		h       = fnv.New64()
+		buckets = make(map[uint64]*bucket)
+		desc    bool
+		sort    = func(bag SeriesBag) sortedSeriesBag {
+			var (
+				w = ev.weightData(bag.Data)
+				x = make([]int, len(bag.Data))
+				n = k
+			)
+			if len(bag.Data) < n {
+				n = len(bag.Data)
+			}
+			for i := range x {
+				x[i] = i
+			}
+			if desc {
+				util.PartialSortIndexByValueDesc(x, w, n, ev.opt.Rand, nil)
+			} else {
+				util.PartialSortIndexByValueAsc(x, w, n, ev.opt.Rand, nil)
+			}
+			return sortedSeriesBag{bag, n, w, x}
+		}
+		swap = func(bag *sortedSeriesBag, i, j int) {
+			bag.x[i], bag.x[j] = bag.x[j], bag.x[i]
+		}
+		less = func(bag *sortedSeriesBag, i, j int) bool {
+			if desc {
+				return bag.w[bag.x[i]] > bag.w[bag.x[j]]
+			} else {
+				return bag.w[bag.x[i]] < bag.w[bag.x[j]]
+			}
+		}
+	)
+	if expr.Op == parser.TOPK {
+		desc = true
+	}
+	for x := range bags {
+		if len(bags[x].Data) == 0 {
+			continue
+		}
+		var groups []seriesGroup
+		groups, err := bags[x].group(ev, expr.Without, expr.Grouping)
+		if err != nil {
+			return nil, err
+		}
+		for _, g := range groups {
+			b := buckets[g.hash]
+			if b == nil {
+				b = &bucket{
+					topK: make(map[uint64][]int),
+					bags: make([]sortedSeriesBag, len(bags)),
+				}
+				buckets[g.hash] = b
+			}
+			b.bags[x] = sort(g.bag)
+			for i := 0; i < b.bags[x].k; i++ {
+				sum, _, err := b.bags[x].hashAt(b.bags[x].x[i], true, nil, h, false)
+				if err != nil {
+					return nil, err
+				}
+				y := b.topK[sum]
+				if y == nil {
+					y = make([]int, len(bags))
+					b.topK[sum] = y
+				}
+				y[x]++
+			}
+		}
+	}
+	for _, bucket := range buckets {
+		if len(bucket.topK) <= k {
+			// top is consistent across shifts
+			continue
+		}
+		for sum, xs := range bucket.topK {
+			for x := range bucket.bags {
+				if xs[x] != 0 {
+					// top is within shift top
+					continue
+				}
+				for i := bucket.bags[x].k; bucket.bags[x].k < len(bucket.topK) && i < len(bucket.bags[x].Data); i++ {
+					v, _, err := bucket.bags[x].hashAt(bucket.bags[x].x[i], true, nil, h, false)
+					if err != nil {
+						return nil, err
 					}
-					prev = v
+					if v == sum {
+						// found top from another shift
+						swap(&bucket.bags[x], bucket.bags[x].k, i)
+						// keep ordering
+						for j := bucket.bags[x].k; j > k && less(&bucket.bags[x], j, j-1); j-- {
+							swap(&bucket.bags[x], j, j-1)
+						}
+						// bump number of sorted series
+						bucket.bags[x].k++
+					}
 				}
 			}
-			j += lod.Len
-		}
-		w[i] = acc
-		if nodec {
-			nodecN++
 		}
 	}
-	if nodecN == len(w) {
-		// all series are non-decreasing, sort by last value
-		for i, data := range g.bag.Data {
-			last := -math.MaxFloat64
-			for i := len(*data); i != 0; i-- {
-				v := (*data)[i-1]
-				if !math.IsNaN(v) {
-					last = v
-					break
-				}
-			}
-			w[i] = last
+	for x := range bags {
+		bags[x] = SeriesBag{}
+	}
+	for i := range buckets {
+		for x, bag := range buckets[i].bags {
+			bags[x].appendX(bag.SeriesBag, bag.x[:bag.k]...)
+			ev.freeSeriesBagData(bag.Data, bag.k)
 		}
 	}
-	x := make([]int, len(g.bag.Data))
-	for i := range x {
-		x[i] = i
-	}
-	if topDown {
-		util.PartialSortIndexByValueDesc(x, w, k, ev.Options.Rand, nil)
-	} else {
-		util.PartialSortIndexByValueAsc(x, w, k, ev.Options.Rand, nil)
-	}
-	res := ev.newSeriesBag(k)
-	res.appendX(g.bag, x[:k]...)
-	ev.freeSeriesBagData(g.bag.Data, k)
-	return res
+	return bags, nil
 }
 
 // endregion AggregateExpr
 
 // region Call
 
-type callFunc func(context.Context, *evaluator, parser.Expressions) (SeriesBag, error)
+type callFunc func(*evaluator, parser.Expressions) ([]SeriesBag, error)
 
 var calls map[string]callFunc
 
@@ -558,56 +649,67 @@ func (wnd *window) fillPrefixWith(v float64) {
 	}
 }
 
-func bagCall(fn func(SeriesBag) SeriesBag) callFunc {
-	return func(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
-		bag, err = ev.eval(ctx, args[0])
+func bagCall(fn func(*evaluator, SeriesBag) SeriesBag) callFunc {
+	return func(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
+		bag, err := ev.eval(args[0])
 		if err != nil {
-			return SeriesBag{}, err
+			return nil, err
 		}
-		return fn(bag), nil
+		for x := range bag {
+			bag[x] = fn(ev, bag[x])
+		}
+		return bag, nil
 	}
 }
 
 func generatorCall(fn func(ev *evaluator, args parser.Expressions) SeriesBag) callFunc {
-	return func(_ context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
-		return fn(ev, args), nil
+	return func(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
+		bag := make([]SeriesBag, len(ev.opt.Offsets))
+		for x := range ev.opt.Offsets {
+			bag[x] = fn(ev, args)
+		}
+		return bag, nil
 	}
 }
 
-func nopCall(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
-	return ev.eval(ctx, args[0])
+func nopCall(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
+	return ev.eval(args[0])
 }
 
 func overTimeCall(fn func(v []float64) float64, nilValue float64) callFunc {
-	return func(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
-		bag, err = ev.eval(ctx, args[0])
+	return func(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
+		bag, err := ev.eval(args[0])
 		if err != nil {
-			return SeriesBag{}, err
+			return nil, err
 		}
-		for _, row := range bag.Data {
-			wnd := newWindow(bag.Time, *row, bag.Range, true)
-			for wnd.moveOneLeft() {
-				if wnd.n != 0 {
-					wnd.setValueAtRight(fn((*row)[wnd.l : wnd.r+1]))
-				} else {
-					wnd.setValueAtRight(nilValue)
+		for x := range bag {
+			for _, row := range bag[x].Data {
+				wnd := ev.newWindow(*row, true)
+				for wnd.moveOneLeft() {
+					if wnd.n != 0 {
+						wnd.setValueAtRight(fn((*row)[wnd.l : wnd.r+1]))
+					} else {
+						wnd.setValueAtRight(nilValue)
+					}
 				}
+				wnd.fillPrefixWith(NilValue)
 			}
-			wnd.fillPrefixWith(NilValue)
 		}
 		return bag, nil
 	}
 }
 
 func simpleCall(fn func(float64) float64) callFunc {
-	return func(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
-		bag, err = ev.eval(ctx, args[0])
+	return func(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
+		bag, err := ev.eval(args[0])
 		if err != nil {
-			return SeriesBag{}, err
+			return nil, err
 		}
-		for _, row := range bag.Data {
-			for i := range *row {
-				(*row)[i] = fn((*row)[i])
+		for x := range bag {
+			for _, row := range bag[x].Data {
+				for i := range *row {
+					(*row)[i] = fn((*row)[i])
+				}
 			}
 		}
 		return bag, nil
@@ -615,122 +717,129 @@ func simpleCall(fn func(float64) float64) callFunc {
 }
 
 func timeCall[V int | time.Weekday | time.Month](fn func(time.Time) V) callFunc {
-	return func(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+	return func(ev *evaluator, args parser.Expressions) (bag []SeriesBag, err error) {
 		if len(args) != 0 {
-			bag, err = ev.eval(ctx, args[0])
+			bag, err = ev.eval(args[0])
 			if err != nil {
-				return SeriesBag{}, err
+				return nil, err
 			}
 		}
-		if bag.Data == nil {
-			bag = funcTime(ev, args)
-		}
-		for _, row := range bag.Data {
-			for j, v := range *row {
-				(*row)[j] = float64(fn(time.Unix(int64(v), 0).In(ev.loc)))
+		for x := range bag {
+			if bag[x].Data == nil {
+				bag[x] = funcTime(ev, args)
+			}
+			for _, row := range bag[x].Data {
+				for i, v := range *row {
+					(*row)[i] = float64(fn(time.Unix(int64(v), 0).In(ev.loc)))
+				}
 			}
 		}
 		return bag, nil
 	}
 }
 
-func funcAbsent(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+func funcAbsent(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 1 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in absent(): expected 1, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in absent(): expected 1, got %d", len(args))
 	}
-	bag, err = ev.eval(ctx, args[0])
+	bag, err := ev.eval(args[0])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
-	var (
-		s *[]float64 // absent row
-		n int        // absent count
-	)
-	if len(bag.Data) != 0 {
-		s = bag.Data[0]
-		for i := range bag.Time {
-			var m int
-			for _, row := range bag.Data {
-				if math.Float64bits((*row)[i]) != NilValueBits {
-					m++
+	for x := range bag {
+		var (
+			s *[]float64 // absent row
+			n int        // absent count
+		)
+		if len(bag[x].Data) != 0 {
+			s = bag[x].Data[0]
+			for i := range ev.time() {
+				var m int
+				for _, row := range bag[i].Data {
+					if math.Float64bits((*row)[i]) != NilValueBits {
+						m++
+					}
+				}
+				if m == 0 {
+					(*s)[i] = 1
+					n++
+				} else {
+					(*s)[i] = NilValue
 				}
 			}
-			if m == 0 {
+			ev.freeSeriesBagData(bag[x].Data, 1)
+		} else {
+			s = ev.alloc()
+			n = len(*s)
+			for i := range *s {
 				(*s)[i] = 1
-				n++
-			} else {
-				(*s)[i] = NilValue
 			}
 		}
-		ev.freeSeriesBagData(bag.Data, 1)
-	} else {
-		s = ev.alloc()
-		n = len(*s)
-		for i := range *s {
-			(*s)[i] = 1
-		}
-	}
-	stags := make(map[string]string)
-	if sel, ok := args[0].(*parser.VectorSelector); ok && n != 0 {
-		for _, m := range sel.LabelMatchers {
-			if m.Type == labels.MatchEqual {
-				stags[m.Name] = m.Value
+		stags := make(map[string]string)
+		if sel, ok := args[0].(*parser.VectorSelector); ok && n != 0 {
+			for _, m := range sel.LabelMatchers {
+				if m.Type == labels.MatchEqual {
+					stags[m.Name] = m.Value
+				}
 			}
 		}
+		bag[x] = SeriesBag{Data: []*[]float64{s}}
 	}
-	return SeriesBag{Time: ev.time(), Data: []*[]float64{s}}, nil
+	return bag, nil
 }
 
-func funcAbsentOverTime(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+func funcAbsentOverTime(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 1 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in absent_over_time(): expected 1, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in absent_over_time(): expected 1, got %d", len(args))
 	}
-	bag, err = ev.eval(ctx, args[0])
+	bag, err := ev.eval(args[0])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
-	var (
-		s *[]float64 // absent row
-		n int        // absent count
-	)
-	if len(bag.Data) != 0 {
-		s = bag.Data[0]
-		lastSeen := int64(math.MinInt64)
-		for i, t := range bag.Time {
-			var m int
-			for _, row := range bag.Data {
-				if math.Float64bits((*row)[i]) != NilValueBits {
-					m++
+	for x := range bag {
+		var (
+			s *[]float64 // absent row
+			n int        // absent count
+		)
+		if len(bag[x].Data) != 0 {
+			s = bag[x].Data[0]
+			lastSeen := int64(math.MinInt64)
+			for i, t := range ev.time() {
+				var m int
+				for _, row := range bag[x].Data {
+					if math.Float64bits((*row)[i]) != NilValueBits {
+						m++
+					}
+				}
+				if m == 0 && lastSeen < t-ev.r {
+					(*s)[i] = 1
+					n++
+				} else {
+					(*s)[i] = NilValue
+					lastSeen = t
 				}
 			}
-			if m == 0 && lastSeen < t-bag.Range {
+			ev.freeSeriesBagData(bag[x].Data, 1)
+		} else {
+			s = ev.alloc()
+			n = len(*s)
+			for i := range *s {
 				(*s)[i] = 1
-				n++
-			} else {
-				(*s)[i] = NilValue
-				lastSeen = t
 			}
 		}
-		ev.freeSeriesBagData(bag.Data, 1)
-	} else {
-		s = ev.alloc()
-		n = len(*s)
-		for i := range *s {
-			(*s)[i] = 1
+		res := SeriesBag{
+			Data: []*[]float64{s},
 		}
-	}
-	res := SeriesBag{
-		Time: ev.time(),
-		Data: []*[]float64{s},
-	}
-	if sel, ok := args[0].(*parser.VectorSelector); ok && n != 0 {
-		for _, m := range sel.LabelMatchers {
-			if m.Type == labels.MatchEqual {
-				res.setSTag(m.Name, m.Value)
+		if sel, ok := args[0].(*parser.VectorSelector); ok && n != 0 {
+			for _, m := range sel.LabelMatchers {
+				if m.Type == labels.MatchEqual {
+					res.setSTag(m.Name, m.Value)
+				}
 			}
 		}
+		bag[x] = res
 	}
-	return res, nil
+	return bag, nil
 }
 
 func funcChanges(v []float64) float64 {
@@ -750,116 +859,131 @@ func funcChanges(v []float64) float64 {
 	return float64(res)
 }
 
-func funcClamp(ctx context.Context, ev *evaluator, args parser.Expressions) (bag SeriesBag, err error) {
+func funcClamp(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 3 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in clamp(): expected 3, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in clamp(): expected 3, got %d", len(args))
 	}
-	bag, err = ev.eval(ctx, args[0])
+	bag, err := ev.eval(args[0])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
 	min := args[1].(*parser.NumberLiteral).Val
 	max := args[2].(*parser.NumberLiteral).Val
 	// return NaN if min or max is NaN
 	if math.IsNaN(min) || math.IsNaN(max) {
-		for _, row := range bag.Data {
-			for i := range *row {
-				(*row)[i] = math.NaN()
+		for x := range bag {
+			for _, row := range bag[x].Data {
+				for i := range *row {
+					(*row)[i] = math.NaN()
+				}
 			}
 		}
 		return bag, nil
 	}
 	// return an empty vector if min > max
 	if min > max {
-		return SeriesBag{Time: bag.Time}, nil
+		for x := range bag {
+			ev.freeSeriesBagData(bag[x].Data, 0)
+		}
+		return bag, nil
 	}
-	for _, row := range bag.Data {
-		for i := range *row {
-			if (*row)[i] < min {
-				(*row)[i] = min
-			} else if (*row)[i] > max {
-				(*row)[i] = max
+	for x := range bag {
+		for _, row := range bag[x].Data {
+			for i := range *row {
+				if (*row)[i] < min {
+					(*row)[i] = min
+				} else if (*row)[i] > max {
+					(*row)[i] = max
+				}
+				// else { min <= row[i] <= max }
 			}
-			// else { min <= row[i] <= max }
 		}
 	}
 	return bag, nil
 }
 
-func funcClampMax(ctx context.Context, ev *evaluator, args parser.Expressions) (SeriesBag, error) {
+func funcClampMax(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 2 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in clamp_max(): expected 2, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in clamp_max(): expected 2, got %d", len(args))
 	}
-	bag, err := ev.eval(ctx, args[0])
+	bag, err := ev.eval(args[0])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
 	max := args[1].(*parser.NumberLiteral).Val
 	// return NaN if max is NaN
 	if math.IsNaN(max) {
-		for _, row := range bag.Data {
-			for i := range *row {
-				(*row)[i] = math.NaN()
+		for x := range bag {
+			for _, row := range bag[x].Data {
+				for i := range *row {
+					(*row)[i] = math.NaN()
+				}
 			}
 		}
 		return bag, nil
 	}
-	for _, row := range bag.Data {
-		for i := range *row {
-			if (*row)[i] > max {
-				(*row)[i] = max
+	for x := range bag {
+		for _, row := range bag[x].Data {
+			for i := range *row {
+				if (*row)[i] > max {
+					(*row)[i] = max
+				}
+				// else { row[i] <= max }
 			}
-			// else { row[i] <= max }
 		}
 	}
 	return bag, nil
 }
 
-func funcClampMin(ctx context.Context, ev *evaluator, args parser.Expressions) (SeriesBag, error) {
+func funcClampMin(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 2 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in clamp_min(): expected 2, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in clamp_min(): expected 2, got %d", len(args))
 	}
-	bag, err := ev.eval(ctx, args[0])
+	bag, err := ev.eval(args[0])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
 	min := args[1].(*parser.NumberLiteral).Val
 	// return NaN if min is NaN
 	if math.IsNaN(min) {
-		for _, row := range bag.Data {
-			for i := range *row {
-				(*row)[i] = math.NaN()
+		for x := range bag {
+			for _, row := range bag[x].Data {
+				for i := range *row {
+					(*row)[i] = math.NaN()
+				}
 			}
 		}
 		return bag, nil
 	}
-	for _, row := range bag.Data {
-		for i := range *row {
-			if (*row)[i] < min {
-				(*row)[i] = min
+	for x := range bag {
+		for _, row := range bag[x].Data {
+			for i := range *row {
+				if (*row)[i] < min {
+					(*row)[i] = min
+				}
+				// else { row[i] >= min }
 			}
-			// else { row[i] >= min }
 		}
 	}
 	return bag, nil
 }
 
-func funcDelta(bag SeriesBag) SeriesBag {
-	bag = funcRate(bag)
-	if bag.Range == 0 {
+func funcDelta(ev *evaluator, bag SeriesBag) SeriesBag {
+	bag = funcRate(ev, bag)
+	if ev.r == 0 {
 		return bag
 	}
 	for _, row := range bag.Data {
 		for i := range *row {
-			(*row)[i] *= float64(bag.Range)
+			(*row)[i] *= float64(ev.r)
 		}
 	}
 	return bag
 }
 
-func funcDeriv(bag SeriesBag) SeriesBag {
+func funcDeriv(ev *evaluator, bag SeriesBag) SeriesBag {
 	for _, row := range bag.Data {
-		wnd := newWindow(bag.Time, *row, bag.Range, false)
+		wnd := ev.newWindow(*row, false)
 		for wnd.moveOneLeft() {
 			if wnd.n != 0 {
 				slope, _ := linearRegression(wnd.get())
@@ -873,7 +997,7 @@ func funcDeriv(bag SeriesBag) SeriesBag {
 	return bag
 }
 
-func funcIdelta(bag SeriesBag) SeriesBag {
+func funcIdelta(ev *evaluator, bag SeriesBag) SeriesBag {
 	for _, row := range bag.Data {
 		for i := len(*row) - 1; i > 0; i-- {
 			(*row)[i] = (*row)[i] - (*row)[i-1]
@@ -883,83 +1007,87 @@ func funcIdelta(bag SeriesBag) SeriesBag {
 	return bag
 }
 
-func funcIrate(bag SeriesBag) SeriesBag {
+func funcIrate(ev *evaluator, bag SeriesBag) SeriesBag {
+	t := ev.time()
 	for _, row := range bag.Data {
 		for i := len(*row) - 1; i > 0; i-- {
-			(*row)[i] = ((*row)[i] - (*row)[i-1]) / float64(bag.Time[i]-bag.Time[i-1])
+			(*row)[i] = ((*row)[i] - (*row)[i-1]) / float64(t[i]-t[i-1])
 		}
 		(*row)[0] = NilValue
 	}
 	return bag
 }
 
-func funcHistogramQuantile(ctx context.Context, ev *evaluator, args parser.Expressions) (SeriesBag, error) {
+func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 2 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in histogram_quantile(): expected 2, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in histogram_quantile(): expected 2, got %d", len(args))
 	}
-	bag, err := ev.eval(ctx, args[1])
+	bag, err := ev.eval(args[1])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
-	hs, err := bag.histograms(ev)
-	if err != nil {
-		return SeriesBag{}, err
-	}
-	res := ev.newSeriesBag(len(hs))
-	for _, h := range hs {
-		d := h.group.bag.Data
-		s := *d[0]
-		if len(h.buckets) < 2 {
-			for i := range s {
-				s[i] = NilValue
-			}
-		} else {
-			q := args[0].(*parser.NumberLiteral).Val // quantile
-			for i := range s {
-				total := (*d[h.buckets[len(h.buckets)-1].x])[i]
-				if total == 0 {
-					s[i] = NilValue
-					continue
-				}
-				rank := q * total
-				var j int // upper bound index
-				for j < len(h.buckets)-1 && (*d[h.buckets[j].x])[i] < rank {
-					j++
-				}
-				var v float64
-				switch j {
-				case 0: // lower bound is -inf
-					v = float64(h.buckets[0].le)
-				case len(h.buckets) - 1: // upper bound is +inf
-					v = float64(h.buckets[len(h.buckets)-2].le)
-				default:
-					var (
-						lo    = h.buckets[j-1].le         // lower bound
-						count = (*d[h.buckets[j-1].x])[i] // lower bound count
-					)
-					if rank == count {
-						v = float64(lo)
-					} else {
-						hi := h.buckets[j].le // upper bound
-						v = float64(lo) + float64(hi-lo)/(rank-count)
-					}
-				}
-				s[i] = v
-			}
+	for x := range bag {
+		hs, err := bag[x].histograms(ev)
+		if err != nil {
+			return nil, err
 		}
-		ev.freeSeriesBagData(d, 1)
-		res.append(h.group.at(0))
+		res := ev.newSeriesBag(len(hs))
+		for _, h := range hs {
+			d := h.group.bag.Data
+			s := *d[0]
+			if len(h.buckets) < 2 {
+				for i := range s {
+					s[i] = NilValue
+				}
+			} else {
+				q := args[0].(*parser.NumberLiteral).Val // quantile
+				for i := range s {
+					total := (*d[h.buckets[len(h.buckets)-1].x])[i]
+					if total == 0 {
+						s[i] = NilValue
+						continue
+					}
+					rank := q * total
+					var j int // upper bound index
+					for j < len(h.buckets)-1 && (*d[h.buckets[j].x])[i] < rank {
+						j++
+					}
+					var v float64
+					switch j {
+					case 0: // lower bound is -inf
+						v = float64(h.buckets[0].le)
+					case len(h.buckets) - 1: // upper bound is +inf
+						v = float64(h.buckets[len(h.buckets)-2].le)
+					default:
+						var (
+							lo    = h.buckets[j-1].le         // lower bound
+							count = (*d[h.buckets[j-1].x])[i] // lower bound count
+						)
+						if rank == count {
+							v = float64(lo)
+						} else {
+							hi := h.buckets[j].le // upper bound
+							v = float64(lo) + float64(hi-lo)/(rank-count)
+						}
+					}
+					s[i] = v
+				}
+			}
+			ev.freeSeriesBagData(d, 1)
+			res.append(h.group.at(0))
+		}
+		bag[x] = res
 	}
-	return res, nil
+	return bag, nil
 }
 
-func funcLabelJoin(ctx context.Context, ev *evaluator, args parser.Expressions) (SeriesBag, error) {
+func funcLabelJoin(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) < 3 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in label_join(): expected at least 3, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in label_join(): expected at least 3, got %d", len(args))
 	}
-	bag, err := ev.eval(ctx, args[0])
+	bag, err := ev.eval(args[0])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
 	var (
 		dst = args[1].(*parser.StringLiteral).Val
@@ -969,30 +1097,32 @@ func funcLabelJoin(ctx context.Context, ev *evaluator, args parser.Expressions) 
 	for i := 3; i < len(args); i++ {
 		src[args[i].(*parser.StringLiteral).Val] = true
 	}
-	for i, m := range bag.Meta {
-		var s []string
-		for k := range src {
-			if t, ok := m.getTag(k); ok {
-				t.stringify(ev, m.Metric)
-				if t.SValueSet {
-					s = append(s, t.SValue)
+	for x := range bag {
+		for i, m := range bag[x].Meta {
+			var s []string
+			for k := range src {
+				if t, ok := m.getTag(k); ok {
+					t.stringify(ev, m.Metric)
+					if t.SValueSet {
+						s = append(s, t.SValue)
+					}
 				}
 			}
-		}
-		if len(s) != 0 {
-			bag.setSTagAt(i, dst, strings.Join(s, sep))
+			if len(s) != 0 {
+				bag[x].setSTagAt(i, dst, strings.Join(s, sep))
+			}
 		}
 	}
 	return bag, nil
 }
 
-func funcLabelReplace(ctx context.Context, ev *evaluator, args parser.Expressions) (SeriesBag, error) {
+func funcLabelReplace(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 5 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in label_replace(): expected 5, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in label_replace(): expected 5, got %d", len(args))
 	}
-	bag, err := ev.eval(ctx, args[0])
+	bag, err := ev.eval(args[0])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
 	var (
 		dst = args[1].(*parser.StringLiteral).Val
@@ -1002,79 +1132,90 @@ func funcLabelReplace(ctx context.Context, ev *evaluator, args parser.Expression
 	)
 	r, err = regexp.Compile("^(?:" + args[4].(*parser.StringLiteral).Val + ")$")
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
 	if !model.LabelNameRE.MatchString(dst) {
 		return bag, fmt.Errorf("invalid destination label name in label_replace(): %s", dst)
 	}
-	for i := range bag.Data {
-		var v string
-		if t, ok := bag.getTagAt(i, src); ok {
-			t.stringify(ev, bag.Meta[i].Metric)
-			if t.SValueSet {
-				v = t.SValue
+	for x := range bag {
+		for i := range bag[x].Data {
+			var v string
+			if t, ok := bag[x].getTagAt(i, src); ok {
+				t.stringify(ev, bag[x].Meta[i].Metric)
+				if t.SValueSet {
+					v = t.SValue
+				}
 			}
-		}
-		match := r.FindStringSubmatchIndex(v)
-		if len(match) != 0 {
-			v = string(r.ExpandString([]byte{}, tpl, v, match))
-			if len(v) != 0 {
-				bag.setSTagAt(i, dst, v)
-			} else if i < len(bag.Meta) {
-				bag.Meta[i].dropTag(dst)
+			match := r.FindStringSubmatchIndex(v)
+			if len(match) != 0 {
+				v = string(r.ExpandString([]byte{}, tpl, v, match))
+				if len(v) != 0 {
+					bag[x].setSTagAt(i, dst, v)
+				} else if i < len(bag[x].Meta) {
+					bag[x].Meta[i].dropTag(dst)
+				}
 			}
 		}
 	}
 	return bag, nil
 }
 
-func funcLODStepSec(_ context.Context, ev *evaluator, _ parser.Expressions) (SeriesBag, error) {
-	var (
-		i int
-		s = ev.alloc()
-	)
-	for _, lod := range ev.t.LODs {
-		for j := 0; j < lod.Len; j++ {
-			(*s)[i+j] = float64(lod.Step)
+func funcLODStepSec(ev *evaluator, _ parser.Expressions) ([]SeriesBag, error) {
+	bag := make([]SeriesBag, len(ev.opt.Offsets))
+	for x := range ev.opt.Offsets {
+		var (
+			i int
+			s = ev.alloc()
+		)
+		for _, lod := range ev.t.LODs {
+			for k := 0; k < lod.Len; k++ {
+				(*s)[i+k] = float64(lod.Step)
+			}
+			i += lod.Len
 		}
-		i += lod.Len
+		bag[x] = SeriesBag{Data: []*[]float64{s}}
 	}
-	return SeriesBag{Time: ev.time(), Data: []*[]float64{s}}, nil
+	return bag, nil
 }
 
-func funcPredictLinear(ctx context.Context, ev *evaluator, args parser.Expressions) (SeriesBag, error) {
+func funcPredictLinear(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 2 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in predict_linear(): expected 2, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in predict_linear(): expected 2, got %d", len(args))
 	}
-	bag, err := ev.eval(ctx, args[0])
+	bag, err := ev.eval(args[0])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
 	d := args[1].(*parser.NumberLiteral).Val // duration
-	for _, row := range bag.Data {
-		wnd := newWindow(bag.Time, *row, bag.Range, false)
-		for wnd.moveOneLeft() {
-			if wnd.n != 0 {
-				slope, intercept := linearRegression(wnd.get())
-				wnd.setValueAtRight(slope*d + intercept)
-			} else {
-				wnd.setValueAtRight(NilValue)
+	for x := range bag {
+		for _, row := range bag[x].Data {
+			wnd := ev.newWindow(*row, false)
+			for wnd.moveOneLeft() {
+				if wnd.n != 0 {
+					slope, intercept := linearRegression(wnd.get())
+					wnd.setValueAtRight(slope*d + intercept)
+				} else {
+					wnd.setValueAtRight(NilValue)
+				}
 			}
+			wnd.fillPrefixWith(NilValue)
 		}
-		wnd.fillPrefixWith(NilValue)
 	}
 	return bag, nil
 }
 
-func funcPrefixSum(ctx context.Context, ev *evaluator, args parser.Expressions) (SeriesBag, error) {
+func funcPrefixSum(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 1 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in prefix_sum(): expected 1, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in prefix_sum(): expected 1, got %d", len(args))
 	}
-	bag, err := ev.eval(ctx, args[0])
+	bag, err := ev.eval(args[0])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
-	return ev.funcPrefixSum(bag), nil
+	for x := range bag {
+		bag[x] = ev.funcPrefixSum(bag[x])
+	}
+	return bag, nil
 }
 
 func (ev *evaluator) funcPrefixSum(bag SeriesBag) SeriesBag {
@@ -1105,13 +1246,14 @@ func (ev *evaluator) funcPrefixSum(bag SeriesBag) SeriesBag {
 	return bag
 }
 
-func funcRate(bag SeriesBag) SeriesBag {
+func funcRate(ev *evaluator, bag SeriesBag) SeriesBag {
+	t := ev.time()
 	for _, row := range bag.Data {
-		wnd := newWindow(bag.Time, *row, bag.Range, false)
+		wnd := ev.newWindow(*row, false)
 		for wnd.moveOneLeft() {
 			if 1 < wnd.n {
 				delta := (*row)[wnd.r] - (*row)[wnd.l]
-				wnd.setValueAtRight(delta / float64(bag.Time[wnd.r]-bag.Time[wnd.l]))
+				wnd.setValueAtRight(delta / float64(t[wnd.r]-t[wnd.l]))
 			} else {
 				wnd.setValueAtRight(NilValue)
 			}
@@ -1121,7 +1263,7 @@ func funcRate(bag SeriesBag) SeriesBag {
 	return bag
 }
 
-func funcResets(bag SeriesBag) SeriesBag {
+func funcResets(ev *evaluator, bag SeriesBag) SeriesBag {
 	for _, row := range bag.Data {
 		for i := range *row {
 			(*row)[i] = 0
@@ -1130,25 +1272,27 @@ func funcResets(bag SeriesBag) SeriesBag {
 	return bag
 }
 
-func funcScalar(ctx context.Context, ev *evaluator, args parser.Expressions) (SeriesBag, error) {
+func funcScalar(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 1 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in scalar(): expected 1, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in scalar(): expected 1, got %d", len(args))
 	}
-	bag, err := ev.eval(ctx, args[0])
+	bag, err := ev.eval(args[0])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
-	if len(bag.Data) == 1 {
-		return bag, nil
+	for x := range bag {
+		if len(bag[x].Data) == 1 {
+			continue
+		}
+		if len(bag[x].Data) == 0 {
+			bag[x].Data = append(bag[x].Data, ev.alloc())
+			bag[x].Meta = append(bag[x].Meta, SeriesMeta{})
+		}
+		for i := range *bag[x].Data[0] {
+			(*bag[x].Data[0])[i] = math.NaN()
+		}
+		ev.freeSeriesBagData(bag[x].Data, 1)
 	}
-	if len(bag.Data) == 0 {
-		bag.Data = append(bag.Data, ev.alloc())
-		bag.Meta = append(bag.Meta, SeriesMeta{})
-	}
-	for i := range *bag.Data[0] {
-		(*bag.Data[0])[i] = math.NaN()
-	}
-	ev.freeSeriesBagData(bag.Data, 1)
 	return bag, nil
 }
 
@@ -1160,23 +1304,23 @@ func funcTime(ev *evaluator, _ parser.Expressions) SeriesBag {
 	for i := range *v {
 		(*v)[i] = float64(t[i])
 	}
-	return SeriesBag{Time: t, Data: []*[]float64{v}}
+	return SeriesBag{Data: []*[]float64{v}}
 }
 
-func funcTimestamp(bag SeriesBag) SeriesBag {
+func funcTimestamp(ev *evaluator, bag SeriesBag) SeriesBag {
 	for i := range bag.Data {
-		for j, t := range bag.Time {
+		for j, t := range ev.time() {
 			(*bag.Data[i])[j] = float64(t)
 		}
 	}
 	return bag
 }
 
-func funcVector(ctx context.Context, ev *evaluator, args parser.Expressions) (SeriesBag, error) {
+func funcVector(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 1 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in vector(): expected 1, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in vector(): expected 1, got %d", len(args))
 	}
-	return ev.eval(ctx, args[0])
+	return ev.eval(args[0])
 }
 
 func funcAvgOverTime(s []float64) float64 {
@@ -1266,13 +1410,13 @@ func funcCountOverTime(s []float64) float64 {
 	return res
 }
 
-func funcQuantileOverTime(ctx context.Context, ev *evaluator, args parser.Expressions) (SeriesBag, error) {
+func funcQuantileOverTime(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 2 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in quantile_over_time(): expected 1, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in quantile_over_time(): expected 1, got %d", len(args))
 	}
-	bag, err := ev.eval(ctx, args[1])
+	bag, err := ev.eval(args[1])
 	if err != nil {
-		return SeriesBag{}, err
+		return nil, err
 	}
 	var (
 		q = args[0].(*parser.NumberLiteral).Val
@@ -1286,55 +1430,61 @@ func funcQuantileOverTime(ctx context.Context, ev *evaluator, args parser.Expres
 		v = math.Inf(1)
 	}
 	if v != 0 {
-		for _, row := range bag.Data {
-			for i := range *row {
-				(*row)[i] = v
+		for x := range bag {
+			for _, row := range bag[x].Data {
+				for i := range *row {
+					(*row)[i] = v
+				}
 			}
 		}
 		return bag, nil
 	}
-	for _, row := range bag.Data {
-		wnd := newWindow(bag.Time, *row, bag.Range, true)
-		for wnd.moveOneLeft() {
-			if wnd.n != 0 {
-				vs := wnd.getCopyOfValues()
-				sort.Float64s(vs)
-				var (
-					ix = q * (float64(len(vs)) - 1)
-					i1 = int(math.Floor(ix))
-					i2 = int(math.Min(float64(len(vs)-1), float64(i1+1)))
-					w1 = float64(i2) - ix
-					w2 = 1 - w1
-				)
-				wnd.setValueAtRight(vs[i1]*w1 + vs[i2]*w2)
-			} else {
-				wnd.setValueAtRight(NilValue)
+	for x := range bag {
+		for _, row := range bag[x].Data {
+			wnd := ev.newWindow(*row, true)
+			for wnd.moveOneLeft() {
+				if wnd.n != 0 {
+					vs := wnd.getCopyOfValues()
+					sort.Float64s(vs)
+					var (
+						ix = q * (float64(len(vs)) - 1)
+						i1 = int(math.Floor(ix))
+						i2 = int(math.Min(float64(len(vs)-1), float64(i1+1)))
+						w1 = float64(i2) - ix
+						w2 = 1 - w1
+					)
+					wnd.setValueAtRight(vs[i1]*w1 + vs[i2]*w2)
+				} else {
+					wnd.setValueAtRight(NilValue)
+				}
 			}
+			wnd.fillPrefixWith(NilValue)
 		}
-		wnd.fillPrefixWith(NilValue)
 	}
 	return bag, nil
 }
 
-func funcPresentOverTime(ctx context.Context, ev *evaluator, args parser.Expressions) (SeriesBag, error) {
+func funcPresentOverTime(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	if len(args) != 1 {
-		return SeriesBag{}, fmt.Errorf("invalid argument count in present_over_time(): expected 1, got %d", len(args))
+		return nil, fmt.Errorf("invalid argument count in present_over_time(): expected 1, got %d", len(args))
 	}
-	bag, err := ev.eval(ctx, args[0])
-	if err != nil || len(bag.Data) == 0 {
-		return bag, err
+	bag, err := ev.eval(args[0])
+	if err != nil {
+		return nil, err
 	}
-	for _, row := range bag.Data {
-		lastSeen := int64(math.MinInt64)
-		for i, t := range bag.Time {
-			p := math.Float64bits((*row)[i]) != NilValueBits
-			if p || lastSeen < t-bag.Range {
-				(*row)[i] = 1
-				if p {
-					lastSeen = t
+	for x := range bag {
+		for _, row := range bag[x].Data {
+			lastSeen := int64(math.MinInt64)
+			for i, t := range ev.time() {
+				p := math.Float64bits((*row)[i]) != NilValueBits
+				if p || lastSeen < t-ev.r {
+					(*row)[i] = 1
+					if p {
+						lastSeen = t
+					}
+				} else {
+					(*row)[i] = NilValue
 				}
-			} else {
-				(*row)[i] = NilValue
 			}
 		}
 	}
@@ -1370,7 +1520,7 @@ func funcPi(ev *evaluator, _ parser.Expressions) SeriesBag {
 	for i := range *row {
 		(*row)[i] = math.Pi
 	}
-	return SeriesBag{Time: ev.time(), Data: []*[]float64{row}}
+	return SeriesBag{Data: []*[]float64{row}}
 }
 
 // endregion Call

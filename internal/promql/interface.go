@@ -143,7 +143,6 @@ type TagValueIDQuery struct {
 }
 
 type TagValuesQuery struct {
-	Version   string
 	Metric    *format.MetricMetaValue
 	TagIndex  int
 	Timescale Timescale
