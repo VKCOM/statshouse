@@ -932,3 +932,17 @@ export function paramToVariable(params: QueryParams): QueryParams {
     });
   });
 }
+
+export function plotLoadPrioritySort(params: QueryParams) {
+  const plots = params.plots.map((plot, indexPlot) => ({ indexPlot, plot }));
+  plots.sort((a, b) => {
+    if (a.indexPlot === params.tabNum) {
+      return -1;
+    }
+    if (b.indexPlot === params.tabNum) {
+      return 1;
+    }
+    return a.indexPlot - b.indexPlot;
+  });
+  return plots;
+}

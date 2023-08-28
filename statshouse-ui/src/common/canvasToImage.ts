@@ -45,20 +45,9 @@ export async function canvasToImageData(
   const ext_width = result_width ?? width;
   const ext_height = result_height ?? (result_width ? Math.round((result_width / width) * height) : height);
   const ext = createCanvas(ext_width, ext_height);
-  const blob = await toBlob(canvas);
-  if (!blob) {
-    return '';
-  }
-  const url = URL.createObjectURL(blob);
-  const imgElement = await linkToImage(url);
-  URL.revokeObjectURL(url);
-  if (!imgElement) {
-    return '';
-  }
-
   const ctx = ext.getContext('2d') as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
   if (ctx) {
-    ctx.drawImage(imgElement, x, y, width, height, 0, 0, ext_width, ext_height);
+    ctx.drawImage(canvas, x, y, width, height, 0, 0, ext_width, ext_height);
   }
   const blobExt = await toBlob(ext);
   if (!blobExt) {

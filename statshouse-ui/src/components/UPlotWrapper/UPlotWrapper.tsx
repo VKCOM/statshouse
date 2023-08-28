@@ -7,7 +7,6 @@
 import React, { memo, ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import uPlot from 'uplot';
 import { useResizeObserver } from '../../view/utils';
-import { canvasToImageData } from '../../common/canvasToImage';
 import { debug } from '../../common/debug';
 
 export type LegendItem<T = Object> = {
@@ -52,7 +51,7 @@ export type UPlotWrapperProps = {
   scales?: UPlotWrapperPropsScales;
   series?: uPlot.Series[];
   legendTarget?: HTMLDivElement | null;
-  onUpdatePreview?: React.Dispatch<React.SetStateAction<string>>;
+  onUpdatePreview?: (u: uPlot) => void;
   onUpdateLegend?: React.Dispatch<React.SetStateAction<LegendItem[]>>;
   className?: string;
   children?: ReactNode;
@@ -181,18 +180,6 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
     onDraw,
     onSetSelect,
   ]);
-  const getPreview = useCallback(
-    async (u: uPlot) =>
-      canvasToImageData(
-        u.ctx.canvas,
-        u.bbox.left,
-        u.bbox.top,
-        u.bbox.width,
-        u.bbox.height,
-        devicePixelRatio ? devicePixelRatio * 300 : 300
-      ),
-    []
-  );
 
   const updateScales = useCallback((scales?: UPlotWrapperPropsScales) => {
     if (scales && uRef.current) {
@@ -394,32 +381,12 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
   }, [series, updateSeries]);
 
   useEffect(() => {
-    if (!onUpdatePreview) {
-      return;
+    if (data[0]?.length && series.length && uRef.current) {
+      microTask(() => {
+        uRef.current && onUpdatePreview?.(uRef.current);
+      });
     }
-    const controller = new AbortController();
-    const timer = setTimeout(
-      () =>
-        microTask(() =>
-          uRef.current?.batch(async (u: uPlot) => {
-            const url = await getPreview(u);
-            if (!controller.signal.aborted) {
-              onUpdatePreview?.((old = '') => {
-                if (old.slice(0, 5) === 'blob:' && old !== url) {
-                  URL.revokeObjectURL(old);
-                }
-                return url;
-              });
-            }
-          })
-        ),
-      200
-    );
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [getPreview, series, data, scales, width, height, onUpdatePreview]);
+  }, [series, data, scales, width, height, onUpdatePreview]);
 
   return (
     <div className={className} ref={uRefDiv}>

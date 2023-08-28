@@ -31,15 +31,19 @@ import {
 import { xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
 import { PlotEventOverlay } from './PlotEventOverlay';
-import { useUPlotPluginHooks } from '../../hooks';
+import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '../../hooks';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
 import { shallow } from 'zustand/shallow';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
+import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
+import { createPlotPreview } from '../../store/plot/plotPreview';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
 const font =
   '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
+
+const threshold = buildThresholdList(1);
 
 function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null): [number, number] {
   if (dataMin === null || dataMax === null) {
@@ -62,7 +66,6 @@ function dateRangeFormat(self: uPlot, rawValue: number, seriesIdx: number, idx: 
 const {
   setPlotParams,
   setTimeRange,
-  setPreviews,
   setLiveMode,
   setPlotShow,
   setYLockChange,
@@ -301,10 +304,16 @@ export function PlotViewMetric(props: {
     [indexPlot]
   );
 
-  const onUpdatePreview = useMemo(() => setPreviews?.bind(undefined, indexPlot), [indexPlot]);
+  const onUpdatePreview = useCallback(
+    (u: uPlot) => {
+      createPlotPreview(indexPlot, u);
+    },
+    [indexPlot]
+  );
 
   const [fixHeight, setFixHeight] = useState<number>(0);
   const divOut = useRef<HTMLDivElement>(null);
+  const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
   const onMouseOver = useCallback(() => {
     if (divOut.current) {
       setFixHeight(divOut.current.getBoundingClientRect().height);
@@ -334,6 +343,10 @@ export function PlotViewMetric(props: {
       }
     });
   }, [seriesShow]);
+
+  useEffect(() => {
+    setPlotVisibility(indexPlot, visible > 0);
+  }, [indexPlot, visible]);
 
   return (
     <div

@@ -11,9 +11,10 @@ export function buildThresholdList(step: number = 0.5) {
 export function useIntersectionObserver(
   target?: Element | null,
   threshold: number | number[] = 0.5,
-  root?: RefObject<Element | null | undefined>
+  root?: RefObject<Element | null | undefined>,
+  initVisible: number = 1
 ) {
-  const [visible, setVisible] = useState<number>(1);
+  const [visible, setVisible] = useState<number>(initVisible);
 
   useEffect(() => {
     if (!target || target instanceof SVGElement) {

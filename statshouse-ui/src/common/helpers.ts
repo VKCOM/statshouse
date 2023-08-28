@@ -166,3 +166,19 @@ export function isEnum<T>(obj: Record<string, string>) {
     return false;
   };
 }
+
+export function objectRemoveKeyShift<T = unknown>(obj: Record<string, T>, index: number) {
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => {
+      let nKey = toNumber(key);
+      if (nKey && nKey > index) {
+        return [nKey - 1, value];
+      }
+      return [key, value];
+    })
+  );
+}
+
+export function resortObjectKey<T = unknown>(obj: Record<string, T>, nextIndex: Record<string, string | number>) {
+  return Object.fromEntries(Object.entries(obj).map(([key, value]) => [nextIndex[key] ?? key, value]));
+}
