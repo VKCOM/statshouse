@@ -467,19 +467,31 @@ export function queryURLCSV(
   timeShifts: number[],
   width: number | string
 ): string {
-  const params = [
-    [GET_PARAMS.numResults, sel.numSeries.toString()],
-    [GET_PARAMS.version, v2Value(sel.useV2)],
-    [GET_PARAMS.metricName, sel.metricName],
-    [GET_PARAMS.fromTime, timeRange.from.toString()],
-    [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
-    [GET_PARAMS.width, width.toString()],
-    ...sel.what.map((qw) => [GET_PARAMS.metricWhat, qw.toString()]),
-    ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
-    ...sel.groupBy.map((b) => [GET_PARAMS.metricGroupBy, b]),
-    ...filterParams(sel.filterIn, sel.filterNotIn),
-    [GET_PARAMS.metricDownloadFile, 'csv'],
-  ];
+  let params: string[][];
+  if (sel.metricName === promQLMetric) {
+    params = [
+      [GET_PARAMS.fromTime, timeRange.from.toString()],
+      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
+      [GET_PARAMS.width, width.toString()],
+      [GET_PARAMS.metricPromQL, sel.promQL],
+      ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
+      [GET_PARAMS.metricDownloadFile, 'csv'],
+    ];
+  } else {
+    params = [
+      [GET_PARAMS.numResults, sel.numSeries.toString()],
+      [GET_PARAMS.version, v2Value(sel.useV2)],
+      [GET_PARAMS.metricName, sel.metricName],
+      [GET_PARAMS.fromTime, timeRange.from.toString()],
+      [GET_PARAMS.toTime, (timeRange.to + 1).toString()],
+      [GET_PARAMS.width, width.toString()],
+      ...sel.what.map((qw) => [GET_PARAMS.metricWhat, qw.toString()]),
+      ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
+      ...sel.groupBy.map((b) => [GET_PARAMS.metricGroupBy, b]),
+      ...filterParams(sel.filterIn, sel.filterNotIn),
+      [GET_PARAMS.metricDownloadFile, 'csv'],
+    ];
+  }
   if (sel.maxHost) {
     params.push([GET_PARAMS.metricMaxHost, '1']);
   }
