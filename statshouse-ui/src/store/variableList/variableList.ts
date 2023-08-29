@@ -45,15 +45,13 @@ export type VariableListStore = {
 
 export const useVariableListStore = create<VariableListStore>()(
   immer((setState, getState) => {
-    let prevParams = useStore.getState().params;
-    let metricsMeta = useStore.getState().metricsMeta;
-    useStore.subscribe((state) => {
+    useStore.subscribe((state, prevState) => {
       if (
-        prevParams.dashboard?.dashboard_id !== state.params.dashboard?.dashboard_id ||
-        prevParams.plots !== state.params.plots
+        prevState.params.dashboard?.dashboard_id !== state.params.dashboard?.dashboard_id ||
+        prevState.params.plots !== state.params.plots
       ) {
         if (
-          prevParams.plots.some(
+          prevState.params.plots.some(
             (plot, indexPlot) =>
               !state.params.plots[indexPlot] || plot.metricName !== state.params.plots[indexPlot]?.metricName
           )
@@ -61,19 +59,17 @@ export const useVariableListStore = create<VariableListStore>()(
           clearTagsAll();
         }
       }
-      if (prevParams !== state.params) {
-        prevParams = state.params;
+      if (prevState.params !== state.params) {
         updateVariables(state);
         updateTags(state);
       }
-      if (metricsMeta !== state.metricsMeta) {
-        metricsMeta = state.metricsMeta;
+      if (prevState.metricsMeta !== state.metricsMeta) {
         const variableItems = getState().variables;
         state.params.variables.forEach((variable) => {
           if (!variableItems[variable.name].tagMeta) {
             variable.link.forEach(([iPlot, iTag]) => {
               if (iPlot != null && iTag != null) {
-                const meta = metricsMeta[state.params.plots[iPlot].metricName];
+                const meta = prevState.metricsMeta[state.params.plots[iPlot].metricName];
                 setState((variableState) => {
                   if (variableState.variables[variable.name]) {
                     variableState.variables[variable.name].tagMeta = meta?.tags?.[iTag];

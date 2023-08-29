@@ -38,6 +38,7 @@ import { dataIdxNearest } from '../../common/dataIdxNearest';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
 import { createPlotPreview } from '../../store/plot/plotPreview';
+import { shallow } from 'zustand/shallow';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -100,7 +101,7 @@ export function PlotViewEvent(props: {
     error: lastError,
     error403,
     nameMetric,
-  } = useStore(selectorPlotsData);
+  } = useStore(selectorPlotsData, shallow);
 
   const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
 

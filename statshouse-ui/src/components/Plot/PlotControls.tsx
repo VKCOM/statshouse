@@ -39,6 +39,7 @@ import { isTagKey, QueryWhat, TAG_KEY, TagKey } from '../../api/enum';
 import { debug } from '../../common/debug';
 import { shallow } from 'zustand/shallow';
 import { PLOT_TYPE, PlotParams, toKeyTag, VariableParams } from '../../url/queryParams';
+import { dequal } from 'dequal/lite';
 
 const { setParams, setTimeRange, setPlotParams, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
 
@@ -93,17 +94,21 @@ export const PlotControls = memo(function PlotControls_(props: {
   }, [plotParams.filterIn, plotParams.filterNotIn]);
 
   useEffect(() => {
-    setVariableTags(
-      produce((n) => {
-        params.variables.forEach((variable) => {
-          variable.link.forEach(([iPlot, iTag]) => {
-            if (iPlot === indexPlot && iTag != null) {
-              n[iTag] = variable;
-            }
-          });
-        });
-      })
-    );
+    const next: Record<string, VariableParams> = {};
+    params.variables.forEach((variable) => {
+      variable.link.forEach(([iPlot, iTag]) => {
+        if (iPlot === indexPlot && iTag != null) {
+          next[iTag] = variable;
+        }
+      });
+    });
+
+    setVariableTags((n) => {
+      if (dequal(n, next)) {
+        return n;
+      }
+      return next;
+    });
   }, [indexPlot, params.variables]);
 
   const onSetNegativeTag = useCallback(
