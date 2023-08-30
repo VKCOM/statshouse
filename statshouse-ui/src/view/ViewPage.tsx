@@ -11,6 +11,7 @@ import { Store, useStore } from '../store';
 import { now } from './utils';
 import { debug } from '../common/debug';
 import { shallow } from 'zustand/shallow';
+import { usePlotPreview } from '../store/plot/plotPreview';
 
 const { setPlotParams, setTimeRange, setBaseRange, setCompact } = useStore.getState();
 
@@ -19,20 +20,17 @@ export type ViewPageProps = {
   yAxisSize?: number;
 };
 
-const selector = ({ params, liveMode, metricsMeta, previews, timeRange, globalNumQueriesPlot }: Store) => ({
+const selector = ({ params, liveMode, metricsMeta, timeRange, globalNumQueriesPlot }: Store) => ({
   params,
   activePlot: params.plots[params.tabNum],
   liveMode,
   activePlotMeta: metricsMeta[params.plots[params.tabNum]?.metricName ?? ''] ?? undefined,
-  plotPreview: previews[params.tabNum],
   globalNumQueriesPlot,
   timeRange,
 });
 export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => {
-  const { params, activePlotMeta, activePlot, plotPreview, liveMode, timeRange, globalNumQueriesPlot } = useStore(
-    selector,
-    shallow
-  );
+  const { params, activePlotMeta, activePlot, liveMode, timeRange, globalNumQueriesPlot } = useStore(selector, shallow);
+  const plotPreview = usePlotPreview((state) => state.previewList[params.tabNum]);
 
   useEffect(() => {
     setCompact(!!embed);
@@ -45,9 +43,6 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
         link = document.createElement('link');
         link.rel = 'icon';
         document.getElementsByTagName('head')[0].appendChild(link);
-      }
-      if (link.href.slice(0, 5) === 'blob:' && link.href !== data) {
-        URL.revokeObjectURL(link.href);
       }
       link.href = data || '/favicon.ico';
     });

@@ -106,11 +106,15 @@ function readLegend(u: uPlot): LegendItem[] {
   });
 }
 
+const defaultData: uPlot.AlignedData = [[]];
+const defaultSeries: uPlot.Series[] = [];
+const defaultScales: UPlotWrapperPropsScales = {};
+
 export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
   opts,
-  data = [[]],
-  series = [],
-  scales = {},
+  data = defaultData,
+  series = defaultSeries,
+  scales = defaultScales,
   legendTarget,
   onUpdatePreview,
   onUpdateLegend,

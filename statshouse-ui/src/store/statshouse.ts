@@ -213,8 +213,6 @@ export type StatsHouseStore = {
   removePlot(index: number): void;
   setTabNum(id: number): void;
   error: string;
-  previews: string[];
-  setPreviews(index: number, link: React.SetStateAction<string>): void;
   globalNumQueriesPlot: number;
   setGlobalNumQueriesPlot(nextState: React.SetStateAction<number>): void;
   numQueriesPlot: number[];
@@ -445,7 +443,6 @@ export const useStore = createWithEqualityFn<Store>()(
             store.params = mergeLeft(store.params, params);
             if (resetPlot) {
               store.plotsData = [];
-              store.previews = [];
               store.dashboardLayoutEdit = false;
             }
             if (store.params.tabNum < -1) {
@@ -488,6 +485,14 @@ export const useStore = createWithEqualityFn<Store>()(
               state.dashboardLayoutEdit = false;
             }
             state.params.plots.forEach((plot, indexPlot) => {
+              if (plot.metricName === promQLMetric || plot.metricName !== prevParams.plots[indexPlot].metricName) {
+                state.params.variables.forEach((variable) => {
+                  const nextLinks = variable.link.filter(([iPlot]) => iPlot !== indexPlot);
+                  if (variable.link.length !== nextLinks.length) {
+                    variable.link = nextLinks;
+                  }
+                });
+              }
               if (
                 plot.metricName === promQLMetric &&
                 state.params.tagSync.some((g) => g[indexPlot] !== null && g[indexPlot] !== undefined)
@@ -538,6 +543,14 @@ export const useStore = createWithEqualityFn<Store>()(
               );
             }
             state.params.plots[index] = next;
+            if (next.metricName === promQLMetric || next.metricName !== prev.metricName) {
+              state.params.variables.forEach((variable) => {
+                const nextLinks = variable.link.filter(([iPlot]) => iPlot !== index);
+                if (variable.link.length !== nextLinks.length) {
+                  variable.link = nextLinks;
+                }
+              });
+            }
           });
           if (!noUpdate) {
             getState().loadPlot(index);
@@ -557,13 +570,7 @@ export const useStore = createWithEqualityFn<Store>()(
       removePlot(index) {
         setState((state) => {
           state.plotsData.splice(index, 1);
-          URL.revokeObjectURL(state.previews[index]);
-          state.previews.splice(index, 1);
           state.plotsData = state.plotsData.slice(0, state.params.plots.length);
-          state.previews.slice(state.params.plots.length).forEach((url) => {
-            URL.revokeObjectURL(url);
-          });
-          state.previews = state.previews.slice(0, state.params.plots.length);
         });
         clearPlotPreview(index, true);
         clearPlotVisibility(index, true);
@@ -712,12 +719,6 @@ export const useStore = createWithEqualityFn<Store>()(
           );
         }
       },
-      previews: [],
-      setPreviews: (index, link) => {
-        setState((state) => {
-          state.previews[index] = getNextState(state.previews[index], link);
-        });
-      },
       globalNumQueriesPlot: 0,
       setGlobalNumQueriesPlot(nextState) {
         setState((state) => {
@@ -814,6 +815,9 @@ export const useStore = createWithEqualityFn<Store>()(
             Math.round(-prevState.timeRange.relativeFrom),
             lastPlotParams.maxHost
           );
+          if (!getState().metricsMeta[lastPlotParams.metricName]) {
+            getState().loadMetricsMeta(lastPlotParams.metricName);
+          }
           prevState.setNumQueriesPlot(index, (n) => n + 1);
           const controller = new AbortController();
           const isPromQl = lastPlotParams.metricName === promQLMetric;
@@ -834,7 +838,6 @@ export const useStore = createWithEqualityFn<Store>()(
           if (isPromQl && !lastPlotParams.promQL) {
             setState((state) => {
               state.plotsData[index] = getEmptyPlotData();
-              delete state.previews[index];
               state.liveMode = false;
             });
             clearPlotPreview(index);
@@ -1136,7 +1139,6 @@ export const useStore = createWithEqualityFn<Store>()(
                   state.plotsData[index].errorSkipCount++;
                   if (!state.liveMode || state.plotsData[index].errorSkipCount > globalSettings.skip_error_count) {
                     state.plotsData[index].error = error.toString();
-                    delete state.previews[index];
                     state.liveMode = false;
                   }
                 });
@@ -1146,7 +1148,6 @@ export const useStore = createWithEqualityFn<Store>()(
                     ...getEmptyPlotData(),
                     error403: error.toString(),
                   };
-                  delete state.previews[index];
                   state.liveMode = false;
                 });
               } else if (error.name !== 'AbortError') {
@@ -1156,7 +1157,6 @@ export const useStore = createWithEqualityFn<Store>()(
                     ...getEmptyPlotData(),
                     error: error.toString(),
                   };
-                  delete state.previews[index];
                   state.liveMode = false;
                 });
               }
@@ -1524,7 +1524,6 @@ export const useStore = createWithEqualityFn<Store>()(
           plotEventLink: plot.events.map((eId) => prevState.params.plots[eId]),
           group: groups[indexPlot] ?? 0,
           tagSync: prevState.params.tagSync.map((group, indexGroup) => ({ indexGroup, indexTag: group[indexPlot] })),
-          preview: prevState.previews[indexPlot],
           plotsData: prevState.plotsData[indexPlot],
           plotsEvent: prevState.events[indexPlot],
           oldIndex: indexPlot,
@@ -1543,7 +1542,6 @@ export const useStore = createWithEqualityFn<Store>()(
         }
         const resort = normalize.sort(sortByKey.bind(undefined, 'group'));
         const plots = resort.map(({ plot }) => plot);
-        const previews = resort.map(({ preview }) => preview);
         const plotsData = resort.map(({ plotsData }) => plotsData);
         const plotsEvent = resort.map(({ plotsEvent }) => plotsEvent);
         const plotEventLink = resort.map(({ plotEventLink }) => plotEventLink.map((eP) => plots.indexOf(eP)));
@@ -1565,7 +1563,6 @@ export const useStore = createWithEqualityFn<Store>()(
         resortPlotPreview(remapIndexPlot);
         resortPlotVisibility(remapIndexPlot);
         setState((state) => {
-          state.previews = previews;
           state.plotsData = plotsData;
           state.events = plotsEvent;
         });
