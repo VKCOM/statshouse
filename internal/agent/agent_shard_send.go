@@ -787,7 +787,7 @@ func (s *ShardReplica) diskCachePutWithLog(cbd compressedBucketData) {
 		return
 	}
 	// Motivation - we want to set limit dynamically.
-	// Also, if limit is set ti 0, we want to gradually erase all seconds.
+	// Also, if limit is set to 0, we want to gradually erase all seconds.
 	// That's why we create diskCache always
 	s.mu.Lock()
 	maxHistoricDiskSize := s.config.MaxHistoricDiskSize
