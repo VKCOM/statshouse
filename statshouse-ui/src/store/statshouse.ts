@@ -480,12 +480,15 @@ export const useStore = createWithEqualityFn<Store>()(
             if (changedTimeRange) {
               state.timeRange = new TimeRange(nextParams.timeRange);
             }
-            state.params = { ...nextParams };
+            state.params = { ...nextParams, variables: nextParams.variables.map((v) => ({ ...v })) };
             if (state.params.tabNum >= 0) {
               state.dashboardLayoutEdit = false;
             }
             state.params.plots.forEach((plot, indexPlot) => {
-              if (plot.metricName === promQLMetric || plot.metricName !== prevParams.plots[indexPlot].metricName) {
+              if (
+                (plot.metricName === promQLMetric || plot.metricName !== prevParams.plots[indexPlot].metricName) &&
+                state.params.variables === prevParams.variables
+              ) {
                 state.params.variables.forEach((variable) => {
                   const nextLinks = variable.link.filter(([iPlot]) => iPlot !== indexPlot);
                   if (variable.link.length !== nextLinks.length) {
