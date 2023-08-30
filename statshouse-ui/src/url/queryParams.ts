@@ -32,6 +32,9 @@ export const toVariablePrefix = (i: number) => `${GET_PARAMS.variablePrefix}${i}
 export const toVariableConfig = ({ name, description, link }: VariableParams) => ({ name, description, link });
 export const toVariableValue = ({ values, args }: VariableParams) => ({ values, args });
 
+export const toGroupInfoConfig = ({ name, count, size }: GroupInfo) => ({ name, count, size });
+export const toGroupInfoValue = ({ show }: GroupInfo) => ({ show });
+
 export const parseTagSync = (s?: string) => {
   if (s == null) {
     return null;
@@ -275,8 +278,14 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): U
     search.push([GET_PARAMS.dashboardID, value.dashboard.dashboard_id.toString()]);
   }
 
-  // groupInfo
-  if (value.dashboard?.groupInfo?.length && !dequal(value.dashboard?.groupInfo, defaultParams?.dashboard?.groupInfo)) {
+  // groupInfo config
+  if (
+    value.dashboard?.groupInfo?.length &&
+    !dequal(
+      value.dashboard?.groupInfo?.map(toGroupInfoConfig),
+      defaultParams?.dashboard?.groupInfo?.map(toGroupInfoConfig)
+    )
+  ) {
     if (
       !(
         value.dashboard?.groupInfo?.length === 1 &&
@@ -289,9 +298,6 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): U
       value.dashboard.groupInfo.forEach(({ name, show, count, size }, indexGroup) => {
         const prefix = toGroupInfoPrefix(indexGroup);
         search.push([prefix + GET_PARAMS.dashboardGroupInfoName, name]);
-        if (!show) {
-          search.push([prefix + GET_PARAMS.dashboardGroupInfoShow, '0']);
-        }
         if (count) {
           search.push([prefix + GET_PARAMS.dashboardGroupInfoCount, count.toString()]);
         }
@@ -302,6 +308,22 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): U
     }
   } else if (!value.dashboard?.groupInfo?.length && defaultParams?.dashboard?.groupInfo?.length) {
     search.push([toGroupInfoPrefix(0) + GET_PARAMS.dashboardGroupInfoName, removeValueChar]);
+  }
+
+  // groupInfo show value
+  if (
+    value.dashboard?.groupInfo?.length &&
+    !dequal(
+      value.dashboard?.groupInfo?.map(toGroupInfoValue),
+      defaultParams?.dashboard?.groupInfo?.map(toGroupInfoValue)
+    )
+  ) {
+    value.dashboard.groupInfo.forEach(({ show }, indexGroup) => {
+      const prefix = toGroupInfoPrefix(indexGroup);
+      if (show !== (defaultParams?.dashboard?.groupInfo?.[indexGroup]?.show ?? true)) {
+        search.push([prefix + GET_PARAMS.dashboardGroupInfoShow, show ? '1' : '0']);
+      }
+    });
   }
 
   // timeRange to
@@ -534,11 +556,16 @@ export function decodeParams(urlSearchParams: URLSearchParams, defaultParams?: Q
     if (name === removeValueChar) {
       break;
     }
-    const show = urlParams[prefix + GET_PARAMS.dashboardGroupInfoShow]?.[0] !== '0';
     const count = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoCount]?.[0]) ?? 0;
     const size = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoSize]?.[0]) ?? 2;
-    groupInfo.push({ name, show, count, size });
+    groupInfo.push({ name, show: defaultParams?.dashboard?.groupInfo?.[i]?.show ?? true, count, size });
   }
+  groupInfo.forEach((group, indexGroup) => {
+    const prefix = toGroupInfoPrefix(indexGroup);
+    if (urlParams[prefix + GET_PARAMS.dashboardGroupInfoShow]?.length) {
+      group.show = urlParams[prefix + GET_PARAMS.dashboardGroupInfoShow]?.[0] !== '0';
+    }
+  });
 
   const timeRangeTo =
     stringToTime(urlParams[GET_PARAMS.toTime]?.[0]) ?? defaultParams?.timeRange.to ?? TIME_RANGE_KEYS_TO.default;
