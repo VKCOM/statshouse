@@ -197,7 +197,7 @@ func (s *ShardReplica) goPreProcess() {
 		s.PreprocessingBucketTime = 0
 		s.mu.Unlock()
 
-		s.mergeBuckets(bucket, buckets)
+		s.mergeBuckets(bucket, buckets) // TODO - why we merge instead of passing array to sampleBucket
 		sampleFactors := s.sampleBucket(bucket, rnd)
 		s.sendToSenders(bucket, missedSeconds, sampleFactors)
 
