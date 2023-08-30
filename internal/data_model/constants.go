@@ -44,10 +44,10 @@ const (
 	AgentPercentileCompression      = 40 // TODO - will typically have 20-30 centroids for compression 40
 	AggregatorPercentileCompression = 80 // TODO - clickhouse has compression of 256 by default
 
-	MaxShortWindow       = 5     // Must be >= 2, 5 seconds to send recent data, if too late - send as historic
-	FutureWindow         = 2     // Allow a couple of seconds clocks difference on clients
-	MaxHistoricWindow    = 86400 // 1 day to send historic data, then drop
-	MaxHistoricWindowLag = 100   // Clients try to delete old data themselves, we allow some lag for those who already sent us data
+	MaxShortWindow       = 5    // Must be >= 2, 5 seconds to send recent data, if too late - send as historic
+	FutureWindow         = 2    // Allow a couple of seconds clocks difference on clients
+	MaxHistoricWindow    = 7200 // 1 day to send historic data, then drop
+	MaxHistoricWindowLag = 100  // Clients try to delete old data themselves, we allow some lag for those who already sent us data
 
 	BelieveTimestampWindow = 86400 + 2*3600 // Margin for crons running once per day.
 	// Parts are quickly merged, so all timestamps in [-day..0] will be quickly and thoroughly optimized.
