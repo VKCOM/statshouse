@@ -366,7 +366,6 @@ type (
 		maxHost             bool
 		avoidCache          bool
 		verbose             bool
-		expandToLODBoundary bool
 		format              string
 	}
 
@@ -2524,9 +2523,6 @@ func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	if req.version == "" {
-		req.version = "2"
-	}
 	options := seriesRequestOptions{
 		debugQueries: true,
 		stat:         sl,
@@ -2631,7 +2627,6 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 			shiftTimestamp(req.from.Unix(), -1, toSec(oldestShift), h.location),
 			shiftTimestamp(req.to.Unix(), -1, toSec(oldestShift), h.location),
 			h.utcOffset,
-			req.expandToLODBoundary,
 			h.location,
 		)
 

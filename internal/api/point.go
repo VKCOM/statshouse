@@ -16,12 +16,14 @@ func (pq pointQuery) isFast() bool {
 	return pq.fromSec+fastQueryTimeInterval >= pq.toSec
 }
 
-func selectQueryPoint(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, excessPoints bool, location *time.Location) *pointQuery {
-	lods := selectQueryLODs(version, preKeyFrom, preKeyOnly, resolution, isUnique, isStringTop, now, from, to, utcOffset, resolution, widthLODRes, location)
-	lod := mergeForPointQuery(from, to, mergeLODs(lods), utcOffset, excessPoints)
+func selectQueryPoint(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, location *time.Location) *pointQuery {
+	var lods []lodInfo
+	lods = selectQueryLODs(version, preKeyFrom, preKeyOnly, resolution, isUnique, isStringTop, now, from, to, utcOffset, resolution, widthLODRes, location)
+	lods = mergeForPointQuery(mergeLODs(lods), utcOffset, location)
 	if len(lods) == 0 {
 		return nil
 	}
+	lod := lods[0]
 	return &pointQuery{
 		fromSec:   lod.fromSec,
 		toSec:     lod.toSec,
@@ -31,31 +33,23 @@ func selectQueryPoint(version string, preKeyFrom int64, preKeyOnly bool, resolut
 	}
 }
 
-func roundRangeForPoint(start int64, end int64, step int64, utcOffset int64, round bool) (int64, int64) {
-	rStart := roundTime(start, step, utcOffset)
-	rEnd := roundTime(end, step, utcOffset)
-	if end != start {
-		if rStart < start && !round {
-			rStart += step
-		}
-		if rEnd < end && round {
-			rEnd += step
-		}
+func mergeForPointQuery(lods []lodInfo, utcOffset int64, location *time.Location) []lodInfo {
+	if len(lods) <= 1 {
+		return lods
 	}
-	return rStart, rEnd
-}
-
-func mergeForPointQuery(reqFrom, reqTo int64, lods []lodInfo, utcOffset int64, excessPoints bool) lodInfo {
 	hasPreKey := lods[0].hasPreKey
 	preKeyOnly := lods[0].preKeyOnly
+	from := lods[0].fromSec
+	to := lods[0].toSec
 	for _, lod := range lods {
 		hasPreKey = hasPreKey && lod.hasPreKey
+		to = lod.toSec
 	}
-	fromSec, toSec := roundRangeForPoint(reqFrom, reqTo, lods[0].stepSec, utcOffset, excessPoints)
-	lod := lods[0]
-	lod.hasPreKey = hasPreKey
-	lod.preKeyOnly = preKeyOnly
-	lod.fromSec = fromSec
-	lod.toSec = toSec
-	return lod
+	fromSec, toSec := roundRange(from, to, lods[0].stepSec, utcOffset, location)
+	lods = lods[:1]
+	lods[0].hasPreKey = hasPreKey
+	lods[0].preKeyOnly = preKeyOnly
+	lods[0].fromSec = fromSec
+	lods[0].toSec = toSec
+	return lods
 }
