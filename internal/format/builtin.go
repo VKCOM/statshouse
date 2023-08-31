@@ -1380,6 +1380,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "tag",
 				RawKind:     "hex",
 				ValueComments: convertToValueComments(map[int32]string{
+					0x28bea524: "statshouse.autoCreate",
 					0x4285ff57: "statshouse.getConfig2",
 					0x42855554: "statshouse.getMetrics3",
 					0x4285ff56: "statshouse.getTagMapping2",
@@ -1495,7 +1496,10 @@ Value is delta between second value and time it was inserted.`,
 			Kind:        MetricKindValue,
 			Resolution:  60,
 			Description: "Aggregator time - agent time when start testConnection",
-			Tags:        []MetricMetaTag{},
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}},
 		},
 		BuiltinMetricIDSrcTestConnection: {
 			Name:        BuiltinMetricNameSrcTestConnection,
@@ -1503,6 +1507,9 @@ Value is delta between second value and time it was inserted.`,
 			Resolution:  60,
 			Description: "Duration of call test connection rpc method",
 			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}, {
 				Description: "status",
 				ValueComments: convertToValueComments(map[int32]string{
 					TagOKConnection: "ok",

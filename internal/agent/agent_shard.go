@@ -7,7 +7,6 @@
 package agent
 
 import (
-	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/hex"
@@ -16,13 +15,14 @@ import (
 	"syscall"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
-	"go.uber.org/atomic"
 )
 
 type (
@@ -118,30 +118,26 @@ type (
 )
 
 func (s *ShardReplica) InitBuiltInMetric() {
-	s.successTestConnectionDurationBucket = s.CreateBuiltInItemValue(data_model.Key{
-		Metric: format.BuiltinMetricIDSrcTestConnection,
-		Keys:   [16]int32{0, format.TagOKConnection},
-	})
-	s.noConnectionTestConnectionDurationBucket = s.CreateBuiltInItemValue(data_model.Key{
-		Metric: format.BuiltinMetricIDSrcTestConnection,
-		Keys:   [16]int32{0, format.TagNoConnection},
-	})
-	s.failedTestConnectionDurationBucket = s.CreateBuiltInItemValue(data_model.Key{
-		Metric: format.BuiltinMetricIDSrcTestConnection,
-		Keys:   [16]int32{0, format.TagOtherError},
-	})
-	s.rpcErrorTestConnectionDurationBucket = s.CreateBuiltInItemValue(data_model.Key{
-		Metric: format.BuiltinMetricIDSrcTestConnection,
-		Keys:   [16]int32{0, format.TagRPCError},
-	})
-	s.timeoutTestConnectionDurationBucket = s.CreateBuiltInItemValue(data_model.Key{
-		Metric: format.BuiltinMetricIDSrcTestConnection,
-		Keys:   [16]int32{0, format.TagTimeoutError},
-	})
-	s.aggTimeDiffBucket = s.CreateBuiltInItemValue(data_model.Key{
-		Metric: format.BuiltinMetricIDAggTimeDiff,
-		Keys:   [16]int32{},
-	})
+	// Unfortunately we do not know aggregator host tag.
+	s.successTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDSrcTestConnection,
+		[16]int32{0, s.agent.componentTag, format.TagOKConnection}, 0, s.ShardKey, s.ReplicaKey))
+	s.noConnectionTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDSrcTestConnection,
+		[16]int32{0, s.agent.componentTag, format.TagNoConnection}, 0, s.ShardKey, s.ReplicaKey))
+	s.failedTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDSrcTestConnection,
+		[16]int32{0, s.agent.componentTag, format.TagOtherError}, 0, s.ShardKey, s.ReplicaKey))
+	s.rpcErrorTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDSrcTestConnection,
+		[16]int32{0, s.agent.componentTag, format.TagRPCError}, 0, s.ShardKey, s.ReplicaKey))
+	s.timeoutTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDSrcTestConnection,
+		[16]int32{0, s.agent.componentTag, format.TagTimeoutError}, 0, s.ShardKey, s.ReplicaKey))
+
+	s.aggTimeDiffBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDAggTimeDiff,
+		[16]int32{0, s.agent.componentTag}, 0, s.ShardKey, s.ReplicaKey))
 }
 
 func (s *ShardReplica) HistoricBucketsDataSizeMemory() int {
@@ -485,30 +481,28 @@ func (s *ShardReplica) goTestConnectionLoop() {
 		cancel()
 		seconds := duration.Seconds()
 		if err == nil {
-			s.successTestConnectionDurationBucket.SetValueCounter(seconds, 1)
+			s.successTestConnectionDurationBucket.AddValueCounter(seconds, 1)
 			if aggTimeDiff != 0 {
-				s.aggTimeDiffBucket.SetValueCounter(aggTimeDiff.Seconds(), 1)
+				s.aggTimeDiffBucket.AddValueCounter(aggTimeDiff.Seconds(), 1)
 			}
 		} else {
 			var rpcError rpc.Error
 			if errors.Is(err, rpc.ErrClientConnClosedNoSideEffect) || errors.Is(err, rpc.ErrClientConnClosedSideEffect) || errors.Is(err, rpc.ErrClientClosed) {
-				s.noConnectionTestConnectionDurationBucket.SetValueCounter(seconds, 1)
+				s.noConnectionTestConnectionDurationBucket.AddValueCounter(seconds, 1)
 			} else if errors.Is(err, &rpcError) {
-				s.rpcErrorTestConnectionDurationBucket.SetValueCounter(seconds, 1)
+				s.rpcErrorTestConnectionDurationBucket.AddValueCounter(seconds, 1)
 			} else if errors.Is(err, context.DeadlineExceeded) {
-				s.timeoutTestConnectionDurationBucket.SetValueCounter(seconds, 1)
+				s.timeoutTestConnectionDurationBucket.AddValueCounter(seconds, 1)
 			} else {
-				s.failedTestConnectionDurationBucket.SetValueCounter(seconds, 1)
-
+				s.failedTestConnectionDurationBucket.AddValueCounter(seconds, 1)
 			}
 		}
 	}
 }
+
 func (s *ShardReplica) doTestConnection(ctx context.Context) (aggTimeDiff time.Duration, duration time.Duration, err error) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	args := tlstatshouse.TestConnection2Bytes{
-		ResponseSize: 10,
-	}
+	args := tlstatshouse.TestConnection2Bytes{}
 	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header)
 
 	var ret []byte
@@ -517,15 +511,14 @@ func (s *ShardReplica) doTestConnection(ctx context.Context) (aggTimeDiff time.D
 	err = s.client.TestConnection2Bytes(ctx, args, &extra, &ret)
 	finish := time.Now()
 	duration = finish.Sub(start)
-	if err == nil {
-		resp, _ := binary.ReadVarint(bytes.NewReader(ret))
-		aggTime := time.Unix(0, resp)
+	if err == nil && len(ret) >= 8 {
+		unixNano := int64(binary.LittleEndian.Uint64(ret))
+		aggTime := time.Unix(0, unixNano)
 		if aggTime.Before(start) {
-			aggTimeDiff = start.Sub(aggTime)
+			aggTimeDiff = aggTime.Sub(start) // negative
 		} else if aggTime.After(finish) {
 			aggTimeDiff = aggTime.Sub(finish)
 		}
 	}
 	return aggTimeDiff, duration, err
-
 }

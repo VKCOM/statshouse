@@ -69,22 +69,19 @@ func (ms *TestConnection) broadcastResponses() {
 	}
 }
 
-func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.TestConnection2Bytes) (err error) {
+func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.TestConnection2Bytes) error {
 	if args.ResponseSize > MaxTestResponseSize {
 		return fmt.Errorf("max supported response_size is %d", MaxTestResponseSize)
 	}
 	if args.ResponseTimeoutSec > MaxTestResponseTimeoutSec {
 		return fmt.Errorf("max supported response_timeout_sec is %d", MaxTestResponseTimeoutSec)
 	}
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], uint64(hctx.RequestTime.UnixNano()))
+	hctx.Response, _ = args.WriteResult(hctx.Response, buf[:])
+	hctx.Response = append(hctx.Response, testResponse[:args.ResponseSize]...) // approximate
 	if args.ResponseTimeoutSec <= 0 {
-		var buf []byte
-		if args.ResponseSize >= MinTestResponseSize {
-			buf = binary.AppendVarint(buf, time.Now().UnixNano())
-			args.ResponseSize -= int32(len(buf))
-		}
-		buf = append(buf, testResponse[:args.ResponseSize]...)
-		hctx.Response, err = args.WriteResult(hctx.Response, buf)
-		return err
+		return nil
 	}
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()
