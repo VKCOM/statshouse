@@ -367,6 +367,7 @@ type (
 		avoidCache          bool
 		verbose             bool
 		format              string
+		expandToLODBoundary bool
 	}
 
 	seriesRequestOptions struct {
