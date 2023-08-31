@@ -3876,7 +3876,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 					k = k[dotX+1:]
 				}
 			}
-		} else if strings.HasPrefix(k, "v") {
+		} else if len(k) > 1 && k[0] == 'v' { // variables, not version
 			var dotX int
 			if dotX = strings.Index(k, "."); dotX != -1 {
 				switch dotX {
