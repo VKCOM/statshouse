@@ -174,6 +174,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 			perm:  rnd.Perm(data_model.AggregationShardsPerSecond),
 			stats: &shardStat{shardReplicaNum: strconv.FormatInt(int64(i), 10)},
 		}
+		shard.InitBuiltInMetric()
 		shard.CurrentBuckets = make([][]*data_model.MetricsBucket, 61)
 		for r := range shard.CurrentBuckets {
 			if r != format.AllowedResolution(r) {
@@ -224,6 +225,7 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 			go shard.goLiveChecker()
 		}
 		go shard.goEraseHistoric()
+		go shard.goTestConnectionLoop()
 	}
 	go s.goFlusher()
 }
