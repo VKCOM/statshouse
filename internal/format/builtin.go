@@ -155,12 +155,14 @@ const (
 	TagValueIDAggregatorOriginal = 1
 	TagValueIDAggregatorSpare    = 2
 
-	TagValueIDTimingFutureBucketRecent         = 1
-	TagValueIDTimingFutureBucketHistoric       = 2
-	TagValueIDTimingLateRecent                 = 3
-	TagValueIDTimingLongWindowThrownAgent      = 4
-	TagValueIDTimingLongWindowThrownAggregator = 5
-	TagValueIDTimingMissedSeconds              = 6
+	TagValueIDTimingFutureBucketRecent              = 1
+	TagValueIDTimingFutureBucketHistoric            = 2
+	TagValueIDTimingLateRecent                      = 3
+	TagValueIDTimingLongWindowThrownAgent           = 4
+	TagValueIDTimingLongWindowThrownAggregator      = 5
+	TagValueIDTimingMissedSeconds                   = 6
+	TagValueIDTimingLongWindowThrownAggregatorLater = 7
+	TagValueIDTimingDiskOverflowThrownAgent         = 8
 
 	TagValueIDRouteDirect       = 1
 	TagValueIDRouteIngressProxy = 2
@@ -653,12 +655,14 @@ Set by either agent or aggregator, depending on status.`,
 			Tags: []MetricMetaTag{{
 				Description: "status",
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDTimingFutureBucketRecent:         "clock_future_recent",
-					TagValueIDTimingFutureBucketHistoric:       "clock_future_historic",
-					TagValueIDTimingLateRecent:                 "late_recent",
-					TagValueIDTimingLongWindowThrownAgent:      "out_of_window_agent",
-					TagValueIDTimingLongWindowThrownAggregator: "out_of_window_aggregator",
-					TagValueIDTimingMissedSeconds:              "missed_seconds",
+					TagValueIDTimingFutureBucketRecent:              "clock_future_recent",
+					TagValueIDTimingFutureBucketHistoric:            "clock_future_historic",
+					TagValueIDTimingLateRecent:                      "late_recent",
+					TagValueIDTimingLongWindowThrownAgent:           "out_of_window_agent",
+					TagValueIDTimingLongWindowThrownAggregator:      "out_of_window_aggregator",
+					TagValueIDTimingMissedSeconds:                   "missed_seconds",
+					TagValueIDTimingLongWindowThrownAggregatorLater: "out_of_window_aggregator_later",
+					TagValueIDTimingDiskOverflowThrownAgent:         "out_of_disk_space_agent",
 				}),
 			}, {
 				Description: "-",

@@ -32,7 +32,6 @@ const (
 	EffectiveWeightOne = 128                      // metric.Weight is multiplied by this and rounded. Do not make too big or metric with weight set to 0 will disappear completely.
 	MaxEffectiveWeight = 100 * EffectiveWeightOne // do not make too high, we multiply this by sum of metric serialized length during sampling
 
-	PreKeyTagID    = "prekey"
 	StringTopTagID = "_s"
 	HostTagID      = "_h"
 	ShardTagID     = "_shard_num"

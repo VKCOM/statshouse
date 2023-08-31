@@ -91,6 +91,9 @@ func (ms *TagsMapper) CancelHijack(hctx *rpc.HandlerContext) {
 }
 
 func (ms *TagsMapper) getTagOr0LoadLater(now time.Time, str []byte, metricName string, shouldWait bool) int32 {
+	if len(str) == 0 {
+		return 0
+	}
 	r := ms.tagValue.GetCached(now, str)
 	if !r.Found() {
 		extra := format.CreateMappingExtra{
@@ -120,31 +123,33 @@ func (ms *TagsMapper) getTagOr0LoadLater(now time.Time, str []byte, metricName s
 }
 
 func (ms *TagsMapper) mapTagAtStartup(tagName []byte, metricName string) int32 {
-	if !format.ValidStringValue(mem.B(tagName)) {
-		return 0
-	}
-	if len(tagName) == 0 {
-		return 0
+	if !format.ValidStringValue(mem.B(tagName)) || len(tagName) == 0 {
+		panic("conditions checked above")
 	}
 	for {
 		ret := ms.getTagOr0LoadLater(time.Now(), tagName, metricName, true)
 		if ret != 0 {
 			return ret
 		}
-		log.Printf("failed to map mandatory string at startup %q. Will retry in 1 second", tagName)
+		log.Printf("failed to map mandatory string %q at startup. Will retry in 1 second", tagName)
 		time.Sleep(time.Second)
 		// Repeat until mapped. Will hang forever if no value in cache and meta is unavailable
 	}
 }
 
 func (ms *TagsMapper) mapHost(now time.Time, hostName []byte, metricName string, shouldWait bool) int32 {
+	// All hosts must be valid and non-empty
+	// if aggregator fails to map agent host, then sets as a max host for some built-in metric, then
+	// when agent sends to another aggregator, max host will be set to original aggregator host, not to "empty" (unknown).
+	// This is why we set to invalid "Mapping Flood" value. This is not perfect, but better.
 	if !format.ValidStringValue(mem.B(hostName)) {
-		return 0
+		return format.TagValueIDMappingFlood
 	}
-	if len(hostName) == 0 {
-		return 0
+	ret := ms.getTagOr0LoadLater(now, hostName, metricName, shouldWait)
+	if ret != 0 {
+		return ret
 	}
-	return ms.getTagOr0LoadLater(now, hostName, metricName, shouldWait)
+	return format.TagValueIDMappingFlood
 }
 
 // safe only to access fields mask in args, other fields point to reused memory

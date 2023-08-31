@@ -11,10 +11,10 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
 	"time"
 
 	"go4.org/mem"
+	"pgregory.net/rand"
 
 	"github.com/pierrec/lz4"
 
@@ -152,7 +152,7 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 			if err != nil {
 				return fmt.Errorf("failed to deserialize statshouse.sourceBucket2: %w", err)
 			}
-			return a.handleClientBucket2(ctx, hctx, ud.sendSourceBucket2, true, ud.sourceBucket2, rawSize)
+			return a.handleClientBucket(ctx, hctx, ud.sendSourceBucket2, true, ud.sourceBucket2, rawSize)
 		}
 	case constants.StatshouseTestConnection2:
 		{
@@ -232,14 +232,7 @@ func (a *Aggregator) handleGetConfig2(_ context.Context, hctx *rpc.HandlerContex
 	return err
 }
 
-func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, setShardReplica bool, bucket tlstatshouse.SourceBucket2Bytes, rawSize int) (err error) {
-	if !args.IsSetHistoric() && a.config.SimulateRandomErrors > 0 && rand.Float64() < a.config.SimulateRandomErrors { // SimulateRandomErrors > 0 is optimization
-		a.mu.Lock()
-		defer a.mu.Unlock()
-		aggBucket := a.recentBuckets[len(a.recentBuckets)-1]
-		aggBucket.contributorsSimulatedErrors[hctx] = struct{}{}
-		return hctx.HijackResponse(aggBucket)
-	}
+func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.SendSourceBucket2Bytes, setShardReplica bool, bucket tlstatshouse.SourceBucket2Bytes, rawSize int) (err error) {
 	now := time.Now()
 	receiveDelay := now.Sub(time.Unix(int64(args.Time), 0)).Seconds()
 	host := a.tagsMapper.mapHost(now, args.Header.HostName, format.BuiltinMetricNameBudgetHost, false)
@@ -272,26 +265,34 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 		}
 	}
 
-	OldestTime := a.recentBuckets[0].time
-	NewestTime := a.recentBuckets[len(a.recentBuckets)-1].time
+	oldestTime := a.recentBuckets[0].time
+	newestTime := a.recentBuckets[len(a.recentBuckets)-1].time
+
+	// Each of 3 replicas are responsible for inserting each consecutive second.
+	// If primary replica for the second is unavailable, agent sends bucket to spare replica responsible for the next second, so we must round up here.
+	// Also, old agents send all buckets to each replica.
+	roundedToOurTime := args.Time
+	for roundedToOurTime%3 != uint32(a.replicaKey-1) {
+		roundedToOurTime++
+	}
 
 	if args.IsSetHistoric() {
-		if args.Time > NewestTime {
+		if roundedToOurTime > newestTime {
 			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketHistoric}, a.aggregatorHost, a.shardKey, a.replicaKey)
 			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(args.Time-NewestTime), 1, host)
+			a.sh2.AddValueCounterHost(key, float64(args.Time-newestTime), 1, host)
 			// We discard, because otherwise clients will flood aggregators with this data
 			hctx.Response, err = args.WriteResult(hctx.Response, []byte("historic bucket time is too far in the future"))
 			return err
 		}
-		if OldestTime >= data_model.MaxHistoricWindow+data_model.MaxHistoricWindowLag && args.Time < OldestTime-data_model.MaxHistoricWindow-data_model.MaxHistoricWindowLag {
+		if oldestTime >= data_model.MaxHistoricWindow && roundedToOurTime < oldestTime-data_model.MaxHistoricWindow {
 			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregator}, a.aggregatorHost, a.shardKey, a.replicaKey)
 			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(NewestTime-args.Time), 1, host)
+			a.sh2.AddValueCounterHost(key, float64(newestTime-args.Time), 1, host)
 			hctx.Response, err = args.WriteResult(hctx.Response, []byte("Successfully discarded historic bucket beyond historic window"))
 			return err
 		}
-		if args.Time < OldestTime {
+		if roundedToOurTime < oldestTime {
 			aggBucket = a.historicBuckets[args.Time]
 			if aggBucket == nil {
 				aggBucket = &aggregatorBucket{
@@ -304,27 +305,38 @@ func (a *Aggregator) handleClientBucket2(_ context.Context, hctx *rpc.HandlerCon
 		} else {
 			// If source receives error from recent conveyor quickly, it will come to spare while bucket is still recent
 			// This is useful optimization, because can save half inserts
-			aggBucket = a.recentBuckets[args.Time-OldestTime]
+			aggBucket = a.recentBuckets[roundedToOurTime-oldestTime]
 		}
 	} else {
-		if args.Time > NewestTime { // AgentShard too far in a future
+		if roundedToOurTime > newestTime { // AgentShard too far in a future
 			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketRecent}, a.aggregatorHost, a.shardKey, a.replicaKey)
 			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(args.Time-NewestTime), 1, host)
+			a.sh2.AddValueCounterHost(key, float64(args.Time-newestTime), 1, host)
 			// We discard, because otherwise clients will flood aggregators with this data
 			hctx.Response, err = args.WriteResult(hctx.Response, []byte("bucket time is too far in the future"))
 			return err
 		}
-		if args.Time < OldestTime {
+		if roundedToOurTime < oldestTime {
 			key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLateRecent}, a.aggregatorHost, a.shardKey, a.replicaKey)
 			a.mu.Unlock()
-			a.sh2.AddValueCounterHost(key, float64(NewestTime-args.Time), 1, host)
+			a.sh2.AddValueCounterHost(key, float64(newestTime-args.Time), 1, host)
 			return rpc.Error{
 				Code:        data_model.RPCErrorMissedRecentConveyor,
 				Description: "bucket time is too far in the past for recent conveyor",
 			}
 		}
-		aggBucket = a.recentBuckets[args.Time-OldestTime]
+		aggBucket = a.recentBuckets[roundedToOurTime-oldestTime]
+		if a.config.SimulateRandomErrors > 0 && rand.Float64() < a.config.SimulateRandomErrors { // SimulateRandomErrors > 0 is optimization
+			// repeat lock dance in aggregation code below
+			aggBucket.sendMu.RLock()
+			a.mu.Unlock()
+			defer aggBucket.sendMu.RUnlock()
+			aggBucket.mu.Lock()
+			defer aggBucket.mu.Unlock()
+
+			aggBucket.contributorsSimulatedErrors[hctx] = struct{}{} // must be under bucket lock
+			return hctx.HijackResponse(aggBucket)                    // must be under bucket lock
+		}
 	}
 
 	aggBucket.sendMu.RLock()
@@ -515,7 +527,12 @@ func (a *Aggregator) handleKeepAlive2(_ context.Context, hctx *rpc.HandlerContex
 		a.sh2.AddCounterHost(key, 1, host, nil)
 		return err
 	}
-	aggBucket := a.recentBuckets[0] // Most ready for insert
+	oldestTime := a.recentBuckets[0].time // Most ready for insert
+	roundedToOurTime := oldestTime
+	for roundedToOurTime%3 != uint32(a.replicaKey-1) {
+		roundedToOurTime++
+	}
+	aggBucket := a.recentBuckets[roundedToOurTime-oldestTime]
 	aggBucket.sendMu.RLock()
 	// This lock order ensures, that if sender gets a.mu.Lock(), then all aggregating clients already have aggBucket.sendMu.RLock()
 	aggHost := a.aggregatorHost

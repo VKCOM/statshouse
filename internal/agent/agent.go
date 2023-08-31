@@ -70,6 +70,7 @@ type Agent struct {
 	statErrorsDiskReadNotConfigured *BuiltInItemValue
 	statErrorsDiskCompressFailed    *BuiltInItemValue
 	statLongWindowOverflow          *BuiltInItemValue
+	statDiskOverflow                *BuiltInItemValue
 
 	mu                          sync.Mutex
 	loadPromTargetsShardReplica *ShardReplica
@@ -203,6 +204,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	result.statErrorsDiskReadNotConfigured = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Keys: [16]int32{0, format.TagValueIDDiskCacheErrorReadNotConfigured}})
 	result.statErrorsDiskCompressFailed = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Keys: [16]int32{0, format.TagValueIDDiskCacheErrorCompressFailed}})
 	result.statLongWindowOverflow = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Keys: [16]int32{0, format.TagValueIDTimingLongWindowThrownAgent}})
+	result.statDiskOverflow = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Keys: [16]int32{0, format.TagValueIDTimingLongWindowThrownAgent}})
 
 	result.updateConfigRemotelyExperimental() // first update from stored in sqlite
 	return result, nil

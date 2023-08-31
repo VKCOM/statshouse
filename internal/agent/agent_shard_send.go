@@ -910,7 +910,7 @@ func (s *ShardReplica) goEraseHistoric() {
 		if diskUsed > diskLimit {
 			s.client.Client.Logf("Send Disaster: Bucket %d for shard %d replica %d (shard-replica %d) (now is %d) violates disk size limit %d (%d used), throwing out",
 				cbd.time, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, nowUnix, diskLimit, diskUsed)
-			s.agent.statLongWindowOverflow.AddValueCounter(float64(nowUnix)-float64(cbd.time), 1)
+			s.agent.statDiskOverflow.AddValueCounter(float64(nowUnix)-float64(cbd.time), 1)
 
 			s.diskCacheEraseWithLog(cbd.time, "after throwing out historic, due to disk limit")
 			time.Sleep(200 * time.Millisecond) // Deleting 5 seconds per second is good for us, and does not spin CPU too much
