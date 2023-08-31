@@ -170,6 +170,7 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	fieldsMask |= (1 << 31) // args.SetIngressProxy(true)
 	binary.LittleEndian.PutUint32(hctx.Request[4:], fieldsMask)
 	binary.LittleEndian.PutUint32(hctx.Request[28:], addrIPV4) // source_ip[3] in header. TODO - ipv6
+	// We override this field if set by previous proxy. Because we do not care about agent IPs in their cuber/internal networks
 
 	// Motivation of % len - we pass through badly configured requests for now, so aggregators will record them in builtin metric
 	// TODO - collect metric, send to aggregator, reply with error to clients

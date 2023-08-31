@@ -294,13 +294,14 @@ func run() error {
 		RawGetInvertMapping: proxy.HandleProxy("getMappingByID", handler.RawGetMappingByID),
 		RawResetFlood:       proxy.HandleProxy("resetFlood", handler.RawResetFlood),
 
-		RawGetJournalnew:       proxy.HandleProxy("getJournal", handler.RawGetJournal),
 		RawEditEntitynew:       proxy.HandleProxy("editEntity", handler.RawEditEntity),
 		PutTagMappingBootstrap: handler.PutTagMappingBootstrap,
 		GetTagMappingBootstrap: handler.GetTagMappingBootstrap,
 		ResetFlood2:            handler.ResetFlood2,
 	}
-
+	sh := &tlmetadata.Handler{
+		RawGetJournalnew: proxy.HandleProxy("getJournal", handler.RawGetJournal),
+	}
 	engineRPCHandler := metadata.NewEngineRpcHandler(argv.binlogPrefix, db)
 	engineHandler := &tlengine.Handler{
 		SendSignal:        engineRPCHandler.SendSignal,
@@ -309,6 +310,7 @@ func run() error {
 	}
 	server := rpc.NewServer(
 		rpc.ServerWithHandler(rpc.ChainHandler(h.Handle, engineHandler.Handle)),
+		rpc.ServerWithSyncHandler(sh.Handle),
 		rpc.ServerWithLogf(log.Printf),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithCryptoKeys(rpcCryptoKeys))

@@ -175,6 +175,9 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		addresses:                   addresses,
 		tagMappingBootstrapResponse: tagMappingBootstrapResponse,
 	}
+	if len(a.hostName) == 0 {
+		return fmt.Errorf("failed configuration - aggregator machine must have valid non-empty host name")
+	}
 	a.server = rpc.NewServer(rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithLogf(log.Printf),
 		rpc.ServerWithMaxWorkers(-1),
@@ -448,15 +451,15 @@ func (a *Aggregator) goSend(senderID int) {
 
 	var aggBuckets []*aggregatorBucket
 	var bodyStorage []byte
-	var aggBucketsSizes []int
 
 	for aggBucket := range a.bucketsToSend {
 		aggBuckets = aggBuckets[:0]
 		bodyStorage = bodyStorage[:0]
-		aggBucketsSizes = aggBucketsSizes[:0]
 
 		nowUnix := uint32(time.Now().Unix())
 		a.mu.Lock()
+		oldestTime := a.recentBuckets[0].time
+		newestTime := a.recentBuckets[len(a.recentBuckets)-1].time
 		willInsertHistoric := (a.recentSenders+a.historicSenders) < a.config.InsertHistoricWhen &&
 			a.historicSenders < a.config.HistoricInserters &&
 			len(a.historicBuckets) != 0
@@ -470,14 +473,13 @@ func (a *Aggregator) goSend(senderID int) {
 		aggBuckets = append(aggBuckets, aggBucket) // first bucket is always recent
 		a.estimator.ReportHourCardinality(aggBucket.time, aggBucket.usedMetrics, &aggBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
 		bodyStorage = a.RowDataMarshalAppendPositions(aggBucket, rnd, bodyStorage[:0], false)
-		aggBucketsSizes = append(aggBucketsSizes, len(bodyStorage))
 
 		recentContributors := aggBucket.contributorsOriginal.Counter + aggBucket.contributorsSpare.Counter
 		historicContributors := 0.0
 		maxHistoricInsertBatch := data_model.MaxHistorySendStreams / (1 + a.config.HistoricInserters)
 		// each historic inserter takes not more than maxHistoricInsertBatch the oldest buckets, so for example with 2 inserters
 		// [a, b, c, d, e, f]               <- this is 6 seconds sent by agent and waiting in historicBuckets to be inserted
-		// [a, b, c, d, e, f]               <- first inserter takes [a, b] and starts inserting
+		//       [c, d, e, f]               <- first inserter takes [a, b] and starts inserting
 		//             [e, f]               <- second inserter takes [c, d] and starts inserting
 		// Client sends no more historic seconds because it did not receive responses yet.
 		// As soon as one of the inserters finish, it sends back responses and there must be 2 seconds available without delay.
@@ -487,18 +489,31 @@ func (a *Aggregator) goSend(senderID int) {
 		// In case both inserters finish at the same time, this rolling algorithm will perform non-ideal insert, but that is good enough for us.
 		// Note: Each historic second in the diagram is aggregation of many agents , each one receiving copy of the response
 		// Note: In the worst case, amount of memory is approx. MaxHistorySendStreams * agent insert budget per shard * # of agents
+		var args tlstatshouse.SendSourceBucket2 // Dummy
+
 		for willInsertHistoric && len(aggBuckets) < 1+maxHistoricInsertBatch {
-			historicBucket := a.getOldestHistoricBucket()
+			historicBucket, staleBuckets := a.popOldestHistoricBucket(oldestTime)
+			for _, b := range staleBuckets {
+				b.mu.Lock()
+				for hctx := range b.contributors {
+					hctx.Response, _ = args.WriteResult(hctx.Response, "Successfully discarded historic bucket later beyond historic window")
+					hctx.SendHijackedResponse(nil)
+				}
+				for hctx := range b.contributors { // compiles into map_clear
+					delete(b.contributors, hctx)
+				}
+				b.mu.Unlock()
+				key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater}, a.aggregatorHost, a.shardKey, a.replicaKey)
+				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, a.aggregatorHost) // This bucket is combination of many hosts
+			}
 			if historicBucket == nil {
 				break
 			}
-			prevSize := len(bodyStorage)
 			historicContributors += historicBucket.contributorsOriginal.Counter + historicBucket.contributorsSpare.Counter
 
 			aggBuckets = append(aggBuckets, historicBucket)
 			a.estimator.ReportHourCardinality(historicBucket.time, historicBucket.usedMetrics, &historicBucket.shards[0].multiItems, a.aggregatorHost, a.shardKey, a.replicaKey, len(a.addresses))
 			bodyStorage = a.RowDataMarshalAppendPositions(historicBucket, rnd, bodyStorage, true)
-			aggBucketsSizes = append(aggBucketsSizes, len(bodyStorage)-prevSize)
 
 			if historicContributors > (recentContributors-0.5)*data_model.MaxHistoryInsertContributorsScale {
 				// We cannot compare buckets by size, because we can have very little data now, while waiting historic buckets are large
@@ -530,7 +545,6 @@ func (a *Aggregator) goSend(senderID int) {
 			}
 		}
 
-		var args tlstatshouse.SendSourceBucket2 // Dummy
 		for i, b := range aggBuckets {
 			b.mu.Lock()
 			for hctx := range b.contributors {
@@ -561,27 +575,35 @@ func (a *Aggregator) goSend(senderID int) {
 }
 
 // returns bucket with exclusive ownership requiring no locks to access
-func (a *Aggregator) getOldestHistoricBucket() *aggregatorBucket {
+func (a *Aggregator) popOldestHistoricBucket(oldestTime uint32) (aggBucket *aggregatorBucket, staleBuckets []*aggregatorBucket) {
 	a.mu.Lock()
-	var aggBucket *aggregatorBucket
 	for _, v := range a.historicBuckets { // Find oldest bucket
+		if oldestTime >= data_model.MaxHistoricWindow && v.time < oldestTime-data_model.MaxHistoricWindow {
+			staleBuckets = append(staleBuckets, v)
+			delete(a.historicBuckets, v.time)
+			continue
+		}
 		if aggBucket == nil || v.time < aggBucket.time {
 			aggBucket = v
 		}
 	}
-	if aggBucket == nil { // out of historic buckets
-		a.mu.Unlock()
-		return nil
-	}
-	delete(a.historicBuckets, aggBucket.time)
-	if len(aggBucket.contributorsSimulatedErrors) != 0 {
-		panic("len(aggBucket.contributorsSimulatedErrors) != 0 in goSendHistoric")
+	if aggBucket != nil {
+		delete(a.historicBuckets, aggBucket.time)
+		if len(aggBucket.contributorsSimulatedErrors) != 0 {
+			panic("len(aggBucket.contributorsSimulatedErrors) != 0 in goSendHistoric")
+		}
 	}
 	a.mu.Unlock()
-	aggBucket.sendMu.Lock()   // Lock/Unlock waits all clients to finish aggregation
-	aggBucket.sendMu.Unlock() //lint:ignore SA2001 empty critical section
-	// Here we have exclusive access to bucket, without locks
-	return aggBucket
+	if aggBucket != nil {
+		aggBucket.sendMu.Lock()   // Lock/Unlock waits all clients to finish aggregation
+		aggBucket.sendMu.Unlock() //lint:ignore SA2001 empty critical section
+	}
+	for _, b := range staleBuckets {
+		b.sendMu.Lock()   // Lock/Unlock waits all clients to finish aggregation
+		b.sendMu.Unlock() //lint:ignore SA2001 empty critical section
+	}
+	// Here we have exclusive access to buckets, without locks
+	return
 }
 
 func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggregatorBucket {
@@ -590,9 +612,6 @@ func (a *Aggregator) advanceRecentBuckets(now time.Time, initial bool) []*aggreg
 	// As quickly as possible select which buckets should be sent
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.aggregatorHost == 0 { // Repeat periodically, like we do for incoming hosts
-		a.aggregatorHost = a.tagsMapper.mapHost(now, a.hostName, format.BuiltinMetricNameBudgetAggregatorHost, false)
-	}
 
 	for len(a.recentBuckets) != 0 && nowUnix > a.recentBuckets[0].time+uint32(a.config.ShortWindow) {
 		readyBuckets = append(readyBuckets, a.recentBuckets[0])
@@ -633,6 +652,12 @@ func (a *Aggregator) goTicker() {
 			aggBucket.sendMu.Lock()   // Lock/Unlock waits all clients to finish aggregation
 			aggBucket.sendMu.Unlock() //lint:ignore SA2001 empty critical section
 			// Here we have exclusive access to bucket, without locks
+			if aggBucket.time%3 != uint32(a.replicaKey-1) { // must be empty
+				if len(aggBucket.contributors) != 0 || len(aggBucket.contributorsSimulatedErrors) != 0 {
+					log.Panicf("not our (%d) bucket %d has %d (%d) contributors", a.replicaKey, aggBucket.time, len(aggBucket.contributors), len(aggBucket.contributorsSimulatedErrors))
+				}
+				continue
+			}
 			select {
 			case a.bucketsToSend <- aggBucket:
 			default:
@@ -649,8 +674,8 @@ func (a *Aggregator) goTicker() {
 				aggBucket.mu.Unlock()
 			}
 		}
-		if len(readyBuckets) != 0 && a.recentBuckets[0].time >= data_model.MaxHistoricWindow {
-			oldestTime := a.recentBuckets[0].time - data_model.MaxHistoricWindow
+		if len(readyBuckets) != 0 && readyBuckets[0].time >= data_model.MaxHistoricWindow {
+			oldestTime := readyBuckets[0].time - data_model.MaxHistoricWindow
 			a.estimator.GarbageCollect(oldestTime)
 		}
 	}
