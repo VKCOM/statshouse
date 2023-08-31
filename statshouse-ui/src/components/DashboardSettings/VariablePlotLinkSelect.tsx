@@ -8,13 +8,13 @@ import React, { useCallback } from 'react';
 import { getTagDescription, isTagEnabled } from '../../view/utils';
 import { MetricMetaValue } from '../../api/metric';
 import { toKeyTag } from '../../url/queryParams';
-import { TAG_KEY } from '../../api/enum';
+import { TAG_KEY, TagKey } from '../../api/enum';
 
 export type VariablePlotLinkSelectProps = {
   indexPlot: number;
-  selectTag?: number;
+  selectTag?: TagKey;
   metricMeta?: MetricMetaValue;
-  onChange?: (indexPlot: number, selectTag?: number) => void;
+  onChange?: (indexPlot: number, selectTag?: TagKey) => void;
 };
 export function VariablePlotLinkSelect({ indexPlot, selectTag, metricMeta, onChange }: VariablePlotLinkSelectProps) {
   const changeTag = useCallback(

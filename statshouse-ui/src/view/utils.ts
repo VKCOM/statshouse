@@ -13,17 +13,21 @@ import { UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
 import { MetricMetaValue } from '../api/metric';
 import { PlotStore } from '../store';
 import produce from 'immer';
-import { isNotNil, uniqueArray } from '../common/helpers';
+import { isNotNil, toNumber, uniqueArray } from '../common/helpers';
 import { GET_PARAMS, isTagKey, TAG_KEY, TagKey } from '../api/enum';
 import { getEmptyVariableParams } from '../common/getEmptyVariableParams';
 import {
   getDefaultParams,
+  isNotNilVariableLink,
   normalizeFilterKey,
+  PlotKey,
   PlotParams,
   QueryParams,
   toKeyTag,
+  toPlotKey,
   toTagKey,
   VariableParams,
+  VariableParamsLink,
 } from '../url/queryParams';
 import { globalSettings } from '../common/settings';
 
@@ -697,7 +701,11 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
           size: g.size ?? 2,
         })) ?? [],
     },
-    variables: params.variables ?? [],
+    variables:
+      params.variables.map((v) => ({
+        ...v,
+        link: v.link.map(([plot, tag]) => [toPlotKey(plot), toTagKey(tag)]).filter(isNotNilVariableLink),
+      })) ?? [],
   };
 }
 
@@ -787,35 +795,34 @@ export function getEventTagColumns(plot: PlotParams, meta?: MetricMetaValue, sel
 /**
  * replace filter value by variable
  *
- * @param indexPlot
+ * @param plotKey
  * @param plot
  * @param variables
  */
-export function replaceVariable(indexPlot: number, plot: PlotParams, variables: VariableParams[]): PlotParams {
+export function replaceVariable(plotKey: PlotKey, plot: PlotParams, variables: VariableParams[]): PlotParams {
   return produce(plot, (p) => {
     variables.forEach(({ link, values, args }) => {
-      const [, indexTag] = link.find(([iPlot]) => iPlot === indexPlot) ?? [];
-      if (indexTag == null) {
+      const [, tagKey] = link.find(([iPlot]) => iPlot === plotKey) ?? [];
+      if (tagKey == null) {
         return;
       }
-      const keyTag = toKeyTag(indexTag);
-      if (keyTag) {
-        const ind = p.groupBy.indexOf(keyTag);
+      if (tagKey) {
+        const ind = p.groupBy.indexOf(tagKey);
         if (args.groupBy) {
           if (ind === -1) {
-            p.groupBy.push(keyTag);
+            p.groupBy.push(tagKey);
           }
         } else {
           if (ind > -1) {
             p.groupBy.splice(ind, 1);
           }
         }
-        delete p.filterIn[keyTag];
-        delete p.filterNotIn[keyTag];
+        delete p.filterIn[tagKey];
+        delete p.filterNotIn[tagKey];
         if (args.negative) {
-          p.filterNotIn[keyTag] = values.slice();
+          p.filterNotIn[tagKey] = values.slice();
         } else {
-          p.filterIn[keyTag] = values.slice();
+          p.filterIn[tagKey] = values.slice();
         }
       }
     });
@@ -857,23 +864,27 @@ export function tagSyncToVariableConvert(
     const startIndex = getAutoNamStartIndex(p.variables);
     const addVariables: VariableParams[] = p.tagSync
       .map((group, index) => {
-        const link: [number, number][] = [];
+        const link: VariableParamsLink[] = [];
         group.forEach((iTag, iPlot) => {
-          if (iTag != null) {
-            link.push([iPlot, iTag]);
+          const l = [toPlotKey(iPlot), toTagKey(iTag !== null ? toKeyTag(iTag) : iTag)];
+          if (isNotNilVariableLink(l)) {
+            link.push(l);
           }
         });
         if (link.length) {
-          const description = getTagDescription(metricsMeta?.[params.plots[link[0][0]]?.metricName], link[0][1]);
-          const name = isValidVariableName(description)
-            ? description
-            : `${GET_PARAMS.variableNamePrefix}${startIndex + index}`;
-          return {
-            ...getEmptyVariableParams(),
-            name,
-            link,
-            description: description === name ? '' : description,
-          };
+          const indexPlot = toNumber(link[0][0]);
+          if (indexPlot != null) {
+            const description = getTagDescription(metricsMeta?.[params.plots[indexPlot]?.metricName], link[0][1]);
+            const name = isValidVariableName(description)
+              ? description
+              : `${GET_PARAMS.variableNamePrefix}${startIndex + index}`;
+            return {
+              ...getEmptyVariableParams(),
+              name,
+              link,
+              description: description === name ? '' : description,
+            };
+          }
         }
         return null;
       })
@@ -892,26 +903,24 @@ export function paramToVariable(params: QueryParams): QueryParams {
       let negative = variable.args.negative;
       let values: string[] = variable.values;
       if (variable.link.length) {
-        const [iPlot0, iTag0] = variable.link[0];
-        if (iPlot0 != null && iTag0 != null) {
-          const keyTag0 = toKeyTag(iTag0);
+        const [keyPlot0, keyTag0] = variable.link[0];
+        const iPlot0 = toNumber(keyPlot0);
+        if (iPlot0 != null) {
           if (keyTag0 != null) {
             groupBy = groupBy || p.plots[iPlot0]?.groupBy?.indexOf(keyTag0) > -1;
             negative = negative || !!p.plots[iPlot0]?.filterNotIn[keyTag0]?.length;
             values = uniqueArray([
               ...values,
               ...variable.link
-                .map(([iPlot, iTag]) => {
-                  if (iPlot != null && iTag != null) {
-                    const keyTag = toKeyTag(iTag);
-                    if (keyTag) {
-                      const values =
-                        (negative ? p.plots[iPlot]?.filterNotIn[keyTag] : p.plots[iPlot]?.filterIn[keyTag]) ?? [];
-                      delete p.plots[iPlot].filterIn[keyTag];
-                      delete p.plots[iPlot].filterNotIn[keyTag];
-                      p.plots[iPlot].groupBy = p.plots[iPlot].groupBy.filter((f) => f !== keyTag);
-                      return values;
-                    }
+                .map(([keyPlot, keyTag]) => {
+                  const iPlot = toNumber(keyPlot);
+                  if (iPlot != null) {
+                    const values =
+                      (negative ? p.plots[iPlot]?.filterNotIn[keyTag] : p.plots[iPlot]?.filterIn[keyTag]) ?? [];
+                    delete p.plots[iPlot].filterIn[keyTag];
+                    delete p.plots[iPlot].filterNotIn[keyTag];
+                    p.plots[iPlot].groupBy = p.plots[iPlot].groupBy.filter((f) => f !== keyTag);
+                    return values;
                   }
                   return [];
                 })

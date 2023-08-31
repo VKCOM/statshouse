@@ -20,8 +20,15 @@ export function setPlotVisibility(indexPlot: number, toggle: boolean) {
     usePlotVisibilityStore.setState((state) => {
       state.visibilityList[indexPlot] = toggle;
     });
-    if (toggle && !useStore.getState().numQueriesPlot[indexPlot]) {
-      useStore.getState().loadPlot(indexPlot);
+    if (toggle) {
+      if (!useStore.getState().numQueriesPlot[indexPlot]) {
+        useStore.getState().loadPlot(indexPlot);
+      }
+      useStore.getState().params.plots[indexPlot]?.events.forEach((iPlot) => {
+        if (!useStore.getState().numQueriesPlot[iPlot]) {
+          useStore.getState().loadPlot(iPlot);
+        }
+      });
     }
   }
 }

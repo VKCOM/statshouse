@@ -65,8 +65,9 @@ export function PlotViewEvent(props: {
   compact: boolean;
   yAxisSize: number;
   group?: string;
+  embed?: boolean;
 }) {
-  const { indexPlot, compact, yAxisSize, dashboard, className, group } = props;
+  const { indexPlot, compact, yAxisSize, dashboard, className, group, embed } = props;
 
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
@@ -417,6 +418,7 @@ export function PlotViewEvent(props: {
               onYLockChange={onYLockChange}
               dashboard={dashboard}
               compact={compact}
+              embed={embed}
             />
             {!compact && (
               /*meta*/

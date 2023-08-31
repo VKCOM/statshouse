@@ -94,6 +94,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
       <DashboardLayout
         yAxisSize={yAxisSize}
         className={cn('z-10', params.tabNum === -1 ? 'position-relative' : 'hidden-dashboard')}
+        embed={embed}
       />
       {params.tabNum === -2 && <DashboardSettings />}
     </div>

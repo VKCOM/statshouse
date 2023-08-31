@@ -70,7 +70,7 @@ import { stackData } from '../common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
 import { GET_PARAMS, QueryWhat, TagKey } from '../api/enum';
-import { deepClone, mergeLeft, sortEntity } from '../common/helpers';
+import { deepClone, mergeLeft, sortEntity, toNumber } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { appHistory } from '../common/appHistory';
 import {
@@ -80,11 +80,13 @@ import {
   fixMessageTrouble,
   freeKeyPrefix,
   getDefaultParams,
+  isNotNilVariableLink,
   PLOT_TYPE,
   PlotParams,
   PlotType,
   QueryParams,
-  toKeyTag,
+  toIndexTag,
+  toPlotKey,
   VariableParams,
 } from '../url/queryParams';
 import { immer } from 'zustand/middleware/immer';
@@ -316,6 +318,7 @@ export const useStore = createWithEqualityFn<Store>()(
       },
       async updateParamsByUrl(abortSignal: AbortSignal) {
         const urlSearchParams = new URLSearchParams(document.location.search);
+        const searchParams = [...urlSearchParams.entries()];
         const id = decodeDashboardIdParam(urlSearchParams);
         if (id && getState().params.dashboard?.dashboard_id && id !== getState().params.dashboard?.dashboard_id) {
           setState((state) => {
@@ -339,7 +342,7 @@ export const useStore = createWithEqualityFn<Store>()(
           },
         };
 
-        let decodeP = decodeParams(urlSearchParams, localDefaultParams);
+        let decodeP = decodeParams(searchParams, localDefaultParams);
 
         if (!decodeP) {
           return;
@@ -486,15 +489,19 @@ export const useStore = createWithEqualityFn<Store>()(
             }
             state.params.plots.forEach((plot, indexPlot) => {
               if (
+                state.params.plots.length === prevParams.plots.length &&
                 (plot.metricName === promQLMetric || plot.metricName !== prevParams.plots[indexPlot].metricName) &&
                 state.params.variables === prevParams.variables
               ) {
-                state.params.variables.forEach((variable) => {
-                  const nextLinks = variable.link.filter(([iPlot]) => iPlot !== indexPlot);
-                  if (variable.link.length !== nextLinks.length) {
-                    variable.link = nextLinks;
-                  }
-                });
+                const plotKey = toPlotKey(indexPlot);
+                if (plotKey != null) {
+                  state.params.variables.forEach((variable) => {
+                    const nextLinks = variable.link.filter(([iPlot]) => iPlot !== plotKey);
+                    if (variable.link.length !== nextLinks.length) {
+                      variable.link = nextLinks;
+                    }
+                  });
+                }
               }
               if (
                 plot.metricName === promQLMetric &&
@@ -510,7 +517,7 @@ export const useStore = createWithEqualityFn<Store>()(
           getState().params.variables.forEach((variable, indexVariable) => {
             if (prevParams.variables[indexVariable] !== variable) {
               variable.link.forEach(([iPlot]) => {
-                changedVariablesPlot.add(iPlot);
+                changedVariablesPlot.add(toNumber(iPlot));
               });
             }
           });
@@ -546,9 +553,10 @@ export const useStore = createWithEqualityFn<Store>()(
               );
             }
             state.params.plots[index] = next;
-            if (next.metricName === promQLMetric || next.metricName !== prev.metricName) {
+            const plotKey = toPlotKey(index);
+            if ((next.metricName === promQLMetric || next.metricName !== prev.metricName) && plotKey != null) {
               state.params.variables.forEach((variable) => {
-                const nextLinks = variable.link.filter(([iPlot]) => iPlot !== index);
+                const nextLinks = variable.link.filter(([iPlot]) => iPlot !== plotKey);
                 if (variable.link.length !== nextLinks.length) {
                   variable.link = nextLinks;
                 }
@@ -571,6 +579,10 @@ export const useStore = createWithEqualityFn<Store>()(
         }
       },
       removePlot(index) {
+        const plotKey = toPlotKey(index);
+        if (plotKey == null) {
+          return;
+        }
         setState((state) => {
           state.plotsData.splice(index, 1);
           state.plotsData = state.plotsData.slice(0, state.params.plots.length);
@@ -611,14 +623,12 @@ export const useStore = createWithEqualityFn<Store>()(
                 .map((variable) => ({
                   ...variable,
                   link: variable.link
-                    .filter(([indexP]) => indexP !== index)
-                    .map(
-                      ([indexP, indexT]) =>
-                        [indexP != null && indexP > index ? indexP - 1 : indexP, indexT] as [
-                          number | null,
-                          number | null
-                        ]
-                    ),
+                    .filter(([keyP]) => keyP !== plotKey)
+                    .map(([keyP, keyT]) => {
+                      const indexP = toNumber(keyP, 0);
+                      return [toPlotKey(indexP > index ? indexP - 1 : indexP, keyP), keyT];
+                    })
+                    .filter(isNotNilVariableLink),
                 }))
                 .filter(({ link }) => link.length);
             }
@@ -647,7 +657,7 @@ export const useStore = createWithEqualityFn<Store>()(
           prevState.timeRange.from > now();
 
         const p = encodeParams(prevState.params, prevState.defaultParams);
-        const search = '?' + fixMessageTrouble(p.toString());
+        const search = '?' + fixMessageTrouble(new URLSearchParams(p).toString());
         let pathname = document.location.pathname;
 
         if (pathname !== '/view' && pathname !== '/embed') {
@@ -743,6 +753,7 @@ export const useStore = createWithEqualityFn<Store>()(
       plotsData: [],
       plotsDataAbortController: [],
       loadPlot(index, force: boolean = false) {
+        const plotKey = toPlotKey(index);
         if (!getState().plotsData[index]) {
           setState((state) => {
             state.plotsData[index] = getEmptyPlotData();
@@ -754,18 +765,24 @@ export const useStore = createWithEqualityFn<Store>()(
         if (prevState.numQueriesPlot[index] > 0 && prevState.liveMode) {
           return;
         }
+        const isSubVisible = prevState.params.plots.some(
+          (plot, iPlot) => plot.events.indexOf(index) > -1 && usePlotVisibilityStore.getState().visibilityList[iPlot]
+        );
 
         if (
+          !isSubVisible &&
           !usePlotVisibilityStore.getState().visibilityList[index] &&
           !usePlotVisibilityStore.getState().previewList[index]
         ) {
           return;
         }
-
+        if (plotKey == null) {
+          return;
+        }
         const width = prevState.uPlotsWidth[index] ?? prevState.uPlotsWidth.find((w) => w && w > 0);
         const compact = prevState.compact;
         const lastPlotParams: PlotParams | undefined = replaceVariable(
-          index,
+          plotKey,
           prevState.params.plots[index],
           prevState.params.variables
         );
@@ -1402,7 +1419,7 @@ export const useStore = createWithEqualityFn<Store>()(
       saveServerParams() {
         return new Promise((resolve, reject) => {
           const to = getState().params.timeRange.to;
-          const paramsData: QueryParams = {
+          const paramsData: Record<string, unknown> = {
             ...getState().params,
             live: getDefaultParams().live,
             theme: getDefaultParams().theme,
@@ -1416,14 +1433,20 @@ export const useStore = createWithEqualityFn<Store>()(
               ...getState().params.timeRange,
               to: typeof to === 'number' && to > 0 ? 0 : to,
             },
+            variables: getState().params.variables.map((v) => ({
+              ...v,
+              link: v.link
+                .map(([plotKey, tagKey]) => [toNumber(plotKey), toIndexTag(tagKey)])
+                .filter(([p, t]) => p != null && t != null),
+            })),
           };
           const params: DashboardInfo = {
             dashboard: {
-              dashboard_id: paramsData.dashboard?.dashboard_id,
-              name: paramsData.dashboard?.name ?? '',
-              description: paramsData.dashboard?.description ?? '',
-              version: paramsData.dashboard?.version ?? 0,
-              data: paramsData,
+              dashboard_id: getState().params.dashboard?.dashboard_id,
+              name: getState().params.dashboard?.name ?? '',
+              description: getState().params.dashboard?.description ?? '',
+              version: getState().params.dashboard?.version ?? 0,
+              data: { ...paramsData, searchParams: encodeParams(getState().params, getState().defaultParams) },
             },
           };
           const controller = new AbortController();
@@ -1554,7 +1577,10 @@ export const useStore = createWithEqualityFn<Store>()(
         }, {} as Record<string, number>);
         const variables: VariableParams[] = prevState.params.variables.map((variable) => ({
           ...variable,
-          link: variable.link.map(([indexP, indexT]) => [indexP == null ? indexP : remapIndexPlot[indexP], indexT]),
+          link: variable.link.map(([plotKey, tagKey]) => {
+            let indexP = toNumber(plotKey);
+            return [toPlotKey(indexP == null ? indexP : remapIndexPlot[indexP]) ?? plotKey, tagKey];
+          }),
         }));
         const tagSync = resort.reduce((res, item, indexPlot) => {
           item.tagSync.forEach(({ indexGroup, indexTag }) => {
@@ -2044,20 +2070,19 @@ export function setVariable(variables: VariableParams[]) {
       }, {} as Record<string, boolean>);
       p.variables.forEach((variable) => {
         if (!newVariable[variable.name]) {
-          variable.link.forEach(([iPlot, iTag]) => {
+          variable.link.forEach(([plotKey, tagKey]) => {
+            const iPlot = toNumber(plotKey);
+            const iTag = toIndexTag(tagKey);
             if (iPlot != null && iTag != null) {
-              const keyTag = toKeyTag(iTag);
-              if (keyTag) {
-                if (variable.args.groupBy) {
-                  p.plots[iPlot].groupBy = [...p.plots[iPlot].groupBy, keyTag];
-                } else {
-                  p.plots[iPlot].groupBy = p.plots[iPlot].groupBy.filter((tag) => tag !== keyTag);
-                }
-                if (variable.args.negative) {
-                  p.plots[iPlot].filterNotIn[keyTag] = variable.values;
-                } else {
-                  p.plots[iPlot].filterIn[keyTag] = variable.values;
-                }
+              if (variable.args.groupBy) {
+                p.plots[iPlot].groupBy = [...p.plots[iPlot].groupBy, tagKey];
+              } else {
+                p.plots[iPlot].groupBy = p.plots[iPlot].groupBy.filter((tag) => tag !== tagKey);
+              }
+              if (variable.args.negative) {
+                p.plots[iPlot].filterNotIn[tagKey] = variable.values;
+              } else {
+                p.plots[iPlot].filterIn[tagKey] = variable.values;
               }
             }
           });

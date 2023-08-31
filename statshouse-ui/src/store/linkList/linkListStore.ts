@@ -47,7 +47,7 @@ export function getLinks(params: QueryParams, defaultParams: QueryParams): Recor
 
 export function getLinkById(indexPlot: number, params: QueryParams, defaultParams: QueryParams) {
   const s = encodeParams({ ...params, theme: undefined, tabNum: indexPlot }, defaultParams);
-  return '?' + fixMessageTrouble(s.toString());
+  return '?' + fixMessageTrouble(new URLSearchParams(s).toString());
 }
 
 export function getAddNewPlotLink(params: QueryParams, defaultParams: QueryParams) {
@@ -62,5 +62,5 @@ export function getAddNewPlotLink(params: QueryParams, defaultParams: QueryParam
     },
     defaultParams
   );
-  return '?' + fixMessageTrouble(s.toString());
+  return '?' + fixMessageTrouble(new URLSearchParams(s).toString());
 }

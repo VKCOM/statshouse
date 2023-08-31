@@ -29,6 +29,7 @@ export type PlotHeaderTitleProps = {
   compact?: boolean;
   dashboard?: boolean;
   outerLink?: string;
+  embed?: boolean;
 };
 
 const { removePlot, setPlotParams } = useStore.getState();
@@ -40,7 +41,7 @@ const selectorPlotInfoByIndex = (indexPlot: number, { params, plotsData, dashboa
   plotCount: params.plots.length,
 });
 
-export function PlotHeaderTitle({ indexPlot, compact, dashboard, outerLink }: PlotHeaderTitleProps) {
+export function PlotHeaderTitle({ indexPlot, compact, dashboard, outerLink, embed }: PlotHeaderTitleProps) {
   const selectorPlotInfo = useMemo(() => selectorPlotInfoByIndex.bind(undefined, indexPlot), [indexPlot]);
   const { plot, plotData, dashboardLayoutEdit, plotCount } = useStore(selectorPlotInfo, shallow);
   const setParams = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
@@ -87,7 +88,7 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard, outerLink }: Pl
     removePlot(indexPlot);
   }, [indexPlot]);
 
-  if (dashboard && compact) {
+  if (dashboard && compact && !embed) {
     return dashboardLayoutEdit ? (
       <div className="w-100 d-flex flex-row">
         <input
@@ -120,7 +121,7 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard, outerLink }: Pl
           <PlotName plot={plot} plotData={plotData} />
         </PlotLink>
         {!!outerLink && (
-          <Link to={outerLink} target="_blank" className="ms-2">
+          <Link to={outerLink} className="ms-2">
             <SVGBoxArrowUpRight width={10} height={10} />
           </Link>
         )}
@@ -132,7 +133,7 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard, outerLink }: Pl
     <PlotLink
       className="text-secondary text-decoration-none me-3"
       indexPlot={indexPlot}
-      target={dashboard ? '_self' : '_blank'}
+      target={embed ? '_blank' : '_self'}
     >
       <PlotName plot={plot} plotData={plotData} />
     </PlotLink>
@@ -144,7 +145,7 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard, outerLink }: Pl
         <span>
           <PlotName plot={plot} plotData={plotData} />
           {!!outerLink && (
-            <Link to={outerLink} target="_blank" className="ms-2">
+            <Link to={outerLink} className="ms-2">
               <SVGBoxArrowUpRight width={10} height={10} />
             </Link>
           )}

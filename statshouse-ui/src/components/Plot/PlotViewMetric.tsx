@@ -81,8 +81,9 @@ export function PlotViewMetric(props: {
   compact: boolean;
   yAxisSize: number;
   group?: string;
+  embed?: boolean;
 }) {
-  const { indexPlot, compact, yAxisSize, dashboard, className, group } = props;
+  const { indexPlot, compact, yAxisSize, dashboard, className, group, embed } = props;
 
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
@@ -406,6 +407,7 @@ export function PlotViewMetric(props: {
               onResetZoom={resetZoom}
               dashboard={dashboard}
               compact={compact}
+              embed={embed}
             />
             {!compact && (
               /*meta*/
