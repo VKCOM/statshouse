@@ -48,8 +48,8 @@ export const parseTagSync = (s?: string) => {
   ].map((s) => s ?? null);
 };
 
-export function isNotNilVariableLink(link: (number | null)[]): link is [number, number] {
-  return link[0] != null && link[1] != null;
+export function isNotNilVariableLink(link: (string | null)[]): link is VariableParamsLink {
+  return toPlotKey(link[0]) != null && toTagKey(link[1]) != null;
 }
 
 export function toTagKey(s: unknown): TagKey | null;
@@ -88,18 +88,17 @@ export const PLOT_TYPE = {
 
 export type PlotType = Enum<typeof PLOT_TYPE>;
 
-export type PlotKey = number;
+export type PlotKey = string;
 
 export function isPlotKey(s: unknown): s is PlotKey {
-  return typeof s === 'number';
+  return (typeof s === 'string' || typeof s === 'number') && toNumber(s) != null;
 }
 
 export function toPlotKey(s: unknown): PlotKey | null;
 export function toPlotKey(s: unknown, defaultPlotKey: PlotKey): PlotKey;
 export function toPlotKey(s: unknown, defaultPlotKey?: PlotKey): PlotKey | null {
-  const n = toNumber(s);
-  if (isPlotKey(n)) {
-    return n;
+  if (isPlotKey(s)) {
+    return toString(s);
   }
   return defaultPlotKey ?? null;
 }
@@ -145,7 +144,7 @@ export type DashboardParams = {
   groupInfo?: GroupInfo[];
 };
 
-export type VariableParamsLink = [number | null, number | null];
+export type VariableParamsLink = [PlotKey, TagKey];
 
 export type VariableParams = {
   name: string;
@@ -168,6 +167,7 @@ export type QueryParams = {
   eventFrom: number;
   timeShifts: number[];
   tabNum: number;
+  /** @deprecated */
   tagSync: (number | null)[][]; // [group][page_plot][tag_index]
   plots: PlotParams[];
   variables: VariableParams[];
@@ -255,8 +255,8 @@ export function fixMessageTrouble(search: string): string {
   return search.replace(/\+/gi, '%20').replace(/\.$/gi, '%2E');
 }
 
-export function encodeParams(value: QueryParams, defaultParams?: QueryParams): URLSearchParams {
-  const search: string[][] = [];
+export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [string, string][] {
+  const search: [string, string][] = [];
 
   //live
   if (value.live) {
@@ -480,7 +480,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): U
           prefix + GET_PARAMS.variableLinkPlot,
           variable.link
             .filter(isNotNilVariableLink)
-            .map(([p, t]) => `${p}.${toKeyTag(t)}`)
+            .map(([p, t]) => `${p}.${t}`)
             .join('-'),
         ]);
       }
@@ -514,12 +514,11 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): U
       }
     });
   }
-
-  return new URLSearchParams(search);
+  return search;
 }
 
-export function decodeParams(urlSearchParams: URLSearchParams, defaultParams?: QueryParams): QueryParams {
-  const urlParams = [...urlSearchParams.entries()].reduce((res, [key, value]) => {
+export function decodeParams(searchParams: [string, string][], defaultParams?: QueryParams): QueryParams {
+  const urlParams = searchParams.reduce((res, [key, value]) => {
     res[key] ??= [];
     res[key].push(value);
     return res;
@@ -693,7 +692,7 @@ export function decodeParams(urlSearchParams: URLSearchParams, defaultParams?: Q
         ?.split('-')
         .map((s) => {
           const [p, t] = s.split('.', 2);
-          return [toNumber(p), toIndexTag(t)];
+          return [toPlotKey(p), toTagKey(t)];
         })
         .filter(isNotNilVariableLink) ?? [];
 

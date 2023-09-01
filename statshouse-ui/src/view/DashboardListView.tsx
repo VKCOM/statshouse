@@ -7,9 +7,10 @@
 import { DashboardListStore, useDashboardListStore } from '../store';
 import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useStateInput } from '../hooks';
+import { useStateInput, useWindowSize } from '../hooks';
 import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from '../common/toggleKeyboard';
 import { ErrorMessages } from '../components';
+import cn from 'classnames';
 
 export type DashboardListViewProps = {};
 
@@ -18,6 +19,7 @@ const selectorDashboardList = ({ list }: DashboardListStore) => list;
 
 export const DashboardListView: React.FC<DashboardListViewProps> = () => {
   const list = useDashboardListStore(selectorDashboardList);
+  const scrollY = useWindowSize((s) => s.scrollY > 16);
   const searchInput = useStateInput('');
   useEffect(() => {
     update();
@@ -45,12 +47,12 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
 
   return (
     <div className="container-sm pt-3 pb-3 w-max-720">
-      <div className="mb-2">
+      <div className={cn('mb-2 ', scrollY && 'sticky-top')}>
         <input
           id="dashboard-list-search"
           type="search"
           placeholder="Search"
-          className="form-control"
+          className={cn('form-control', scrollY && 'shadow')}
           aria-label="search"
           {...searchInput}
         />

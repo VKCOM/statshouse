@@ -16,14 +16,14 @@ import {
   replaceVariable,
 } from '../../view/utils';
 import { apiMetricTagValuesFetch, MetricTagValueInfo } from '../../api/metricTagValues';
-import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, TAG_KEY } from '../../api/enum';
+import { GET_PARAMS, isTagKey, METRIC_VALUE_BACKEND_VERSION, QueryWhat, TAG_KEY, TagKey } from '../../api/enum';
 import { globalSettings } from '../../common/settings';
 import { filterParamsArr } from '../../view/api';
 import { useErrorStore } from '../errors';
-import { deepClone, isNotNil } from '../../common/helpers';
+import { deepClone, isNotNil, toNumber } from '../../common/helpers';
 import { MetricMetaTag } from '../../api/metric';
 import { getEmptyVariableParams } from '../../common/getEmptyVariableParams';
-import { toKeyTag, VariableParams } from '../../url/queryParams';
+import { PlotKey, toIndexTag, toKeyTag, toPlotKey, VariableParams, VariableParamsLink } from '../../url/queryParams';
 
 export function getEmptyVariable(): VariableItem {
   return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined, keyLastRequest: '' };
@@ -40,7 +40,7 @@ export type VariableItem = {
 
 export type VariableListStore = {
   variables: Record<string, VariableItem>;
-  tags: Record<string, Record<string, VariableItem>>;
+  tags: Record<PlotKey, Record<TagKey, VariableItem>>;
 };
 
 export const useVariableListStore = create<VariableListStore>()(
@@ -67,12 +67,14 @@ export const useVariableListStore = create<VariableListStore>()(
         const variableItems = getState().variables;
         state.params.variables.forEach((variable) => {
           if (!variableItems[variable.name].tagMeta) {
-            variable.link.forEach(([iPlot, iTag]) => {
-              if (iPlot != null && iTag != null) {
-                const meta = prevState.metricsMeta[state.params.plots[iPlot].metricName];
+            variable.link.forEach(([plotKey, tagKey]) => {
+              const indexPlot = toNumber(plotKey);
+              const indexTag = toIndexTag(tagKey);
+              if (indexPlot != null && indexTag != null) {
+                const meta = prevState.metricsMeta[state.params.plots[indexPlot].metricName];
                 setState((variableState) => {
                   if (variableState.variables[variable.name]) {
-                    variableState.variables[variable.name].tagMeta = meta?.tags?.[iTag];
+                    variableState.variables[variable.name].tagMeta = meta?.tags?.[indexTag];
                   }
                 });
               }
@@ -88,53 +90,53 @@ export const useVariableListStore = create<VariableListStore>()(
   })
 );
 export function updateTags(state: Store) {
-  const indexPlot = state.params.tabNum;
-  const updated: number[] = [];
-  if (indexPlot > -1) {
+  const plotKey = toPlotKey(state.params.tabNum);
+  const updated: TagKey[] = [];
+  if (plotKey != null) {
     const tags = useVariableListStore.getState().tags;
-    if (tags[indexPlot]) {
-      Object.entries(tags[indexPlot]).forEach(([indexTag, tagInfo]) => {
-        if (tagInfo.updated) {
-          updated.push(+indexTag);
+    if (tags[plotKey]) {
+      Object.entries(tags[plotKey]).forEach(([indexTag, tagInfo]) => {
+        if (tagInfo.updated && isTagKey(indexTag)) {
+          updated.push(indexTag);
         }
       });
     }
+    updated.forEach((indexTag) => {
+      updateTag(plotKey, indexTag);
+    });
   }
-  updated.forEach((indexTag) => {
-    updateTag(indexPlot, indexTag);
-  });
 }
-export async function updateTag(indexPlot: number, indexTag: number) {
+export async function updateTag(plotKey: PlotKey, tagKey: TagKey) {
   useVariableListStore.setState((state) => {
-    state.tags[indexPlot] ??= {};
-    state.tags[indexPlot][indexTag] ??= getEmptyVariable();
-    if (state.tags[indexPlot]?.[indexTag]) {
-      state.tags[indexPlot][indexTag].loaded = true;
+    state.tags[plotKey] ??= {} as Record<TagKey, VariableItem>;
+    state.tags[plotKey][tagKey] ??= getEmptyVariable();
+    if (state.tags[plotKey]?.[tagKey]) {
+      state.tags[plotKey][tagKey].loaded = true;
     }
   });
-  const listTag = await loadTagList(indexPlot, indexTag);
+  const listTag = await loadTagList(plotKey, tagKey);
   useVariableListStore.setState((state) => {
-    if (state.tags[indexPlot]?.[indexTag]) {
-      state.tags[indexPlot][indexTag].list = listTag?.values ?? [];
-      state.tags[indexPlot][indexTag].more = listTag?.more ?? false;
-      state.tags[indexPlot][indexTag].tagMeta = listTag?.tagMeta;
-      state.tags[indexPlot][indexTag].loaded = false;
-      state.tags[indexPlot][indexTag].keyLastRequest = listTag?.keyLastRequest ?? '';
+    if (state.tags[plotKey]?.[tagKey]) {
+      state.tags[plotKey][tagKey].list = listTag?.values ?? [];
+      state.tags[plotKey][tagKey].more = listTag?.more ?? false;
+      state.tags[plotKey][tagKey].tagMeta = listTag?.tagMeta;
+      state.tags[plotKey][tagKey].loaded = false;
+      state.tags[plotKey][tagKey].keyLastRequest = listTag?.keyLastRequest ?? '';
     }
   });
 }
 
-export function setUpdatedTag(indexPlot: number, indexTag: number | undefined, toggle: boolean) {
-  if (indexTag == null) {
+export function setUpdatedTag(plotKey: PlotKey, tagKey: TagKey | undefined, toggle: boolean) {
+  if (tagKey == null) {
     return;
   }
   useVariableListStore.setState((state) => {
-    state.tags[indexPlot] ??= {};
-    state.tags[indexPlot][indexTag] ??= getEmptyVariable();
-    state.tags[indexPlot][indexTag].updated = toggle;
+    state.tags[plotKey] ??= {} as Record<TagKey, VariableItem>;
+    state.tags[plotKey][tagKey] ??= getEmptyVariable();
+    state.tags[plotKey][tagKey].updated = toggle;
   });
   if (toggle) {
-    updateTag(indexPlot, indexTag);
+    updateTag(plotKey, tagKey);
   }
 }
 
@@ -175,15 +177,15 @@ export async function updateVariable(variableParam: VariableParams) {
   lists.forEach((listTag) => {
     if (listTag) {
       useVariableListStore.setState((state) => {
-        const { indexPlot, indexTag } = listTag;
-        state.tags[indexPlot] ??= {};
-        state.tags[indexPlot][indexTag] ??= getEmptyVariable();
-        if (state.tags[indexPlot]?.[indexTag]) {
-          state.tags[indexPlot][indexTag].list = deepClone(listTag?.values ?? []);
-          state.tags[indexPlot][indexTag].more = listTag?.more ?? false;
-          state.tags[indexPlot][indexTag].tagMeta = deepClone(listTag?.tagMeta);
-          state.tags[indexPlot][indexTag].loaded = false;
-          state.tags[indexPlot][indexTag].keyLastRequest = listTag?.keyLastRequest ?? '';
+        const { plotKey, tagKey } = listTag;
+        state.tags[plotKey] ??= {} as Record<TagKey, VariableItem>;
+        state.tags[plotKey][tagKey] ??= getEmptyVariable();
+        if (state.tags[plotKey]?.[tagKey]) {
+          state.tags[plotKey][tagKey].list = deepClone(listTag?.values ?? []);
+          state.tags[plotKey][tagKey].more = listTag?.more ?? false;
+          state.tags[plotKey][tagKey].tagMeta = deepClone(listTag?.tagMeta);
+          state.tags[plotKey][tagKey].loaded = false;
+          state.tags[plotKey][tagKey].keyLastRequest = listTag?.keyLastRequest ?? '';
         }
       });
     }
@@ -219,16 +221,22 @@ export async function loadValuableList(variableParam: VariableParams) {
   return lists.filter(isNotNil);
 }
 
-export async function loadTagList(indexPlot: number | null, indexTag: number | null, limit = 25000) {
+export async function loadTagList(plotKey: PlotKey, tagKey: TagKey, limit = 25000) {
+  const indexPlot = toNumber(plotKey);
+  const indexTag = toIndexTag(tagKey);
   const store = useStore.getState();
-  if (indexPlot == null || indexTag == null || store.params.plots[indexPlot]?.metricName === promQLMetric) {
+  if (
+    indexPlot == null ||
+    indexTag == null ||
+    !store.params.plots[indexPlot] ||
+    store.params.plots[indexPlot]?.metricName === promQLMetric
+  ) {
     return undefined;
   }
-  const tagKey = toKeyTag(indexTag);
   if (!tagKey) {
     return undefined;
   }
-  const plot = replaceVariable(indexPlot, store.params.plots[indexPlot], store.params.variables);
+  const plot = replaceVariable(plotKey, store.params.plots[indexPlot], store.params.variables);
   const otherFilterIn = { ...plot.filterIn };
   delete otherFilterIn[tagKey];
   const otherFilterNotIn = { ...plot.filterNotIn };
@@ -248,11 +256,11 @@ export async function loadTagList(indexPlot: number | null, indexTag: number | n
     [GET_PARAMS.metricWhat]: plot.what.slice() as QueryWhat[],
   };
   const keyLastRequest = JSON.stringify(params);
-  const lastTag = useVariableListStore.getState().tags[indexPlot]?.[indexTag];
+  const lastTag = useVariableListStore.getState().tags[plotKey]?.[tagKey];
   if (lastTag && lastTag.keyLastRequest === keyLastRequest) {
     return {
-      indexPlot,
-      indexTag,
+      plotKey,
+      tagKey,
       keyLastRequest: lastTag.keyLastRequest,
       values: lastTag.list,
       more: lastTag.more,
@@ -262,8 +270,8 @@ export async function loadTagList(indexPlot: number | null, indexTag: number | n
   const { response, error } = await apiMetricTagValuesFetch(params, requestKey);
   if (response) {
     return {
-      indexPlot,
-      indexTag,
+      plotKey,
+      tagKey,
       keyLastRequest,
       values: response.data.tag_values.slice(),
       more: response.data.tag_values_more,
@@ -291,9 +299,10 @@ export async function getAutoSearchSyncFilter(startIndex: number = 0) {
   const { params, loadMetricsMeta } = useStore.getState();
   await loadAllMeta(params, loadMetricsMeta);
   const { metricsMeta } = useStore.getState();
-  const variablesLink: Record<string, [number, number][]> = {};
+  const variablesLink: Record<string, VariableParamsLink[]> = {};
   params.plots.forEach(({ metricName }, indexPlot) => {
-    if (metricName === promQLMetric) {
+    const keyPlot = toPlotKey(indexPlot);
+    if (metricName === promQLMetric || keyPlot == null) {
       return;
     }
     const meta = metricsMeta[metricName];
@@ -305,13 +314,13 @@ export async function getAutoSearchSyncFilter(startIndex: number = 0) {
       if (tagKey && isTagEnabled(meta, tagKey)) {
         const tagName = getTagDescription(meta, indexTag);
         variablesLink[tagName] ??= [];
-        variablesLink[tagName].push([indexPlot, indexTag]);
+        variablesLink[tagName].push([keyPlot, tagKey]);
       }
     });
     if (isTagEnabled(meta, TAG_KEY._s)) {
       const tagName = getTagDescription(meta, TAG_KEY._s);
       variablesLink[tagName] ??= [];
-      variablesLink[tagName].push([indexPlot, -1]);
+      variablesLink[tagName].push([keyPlot, TAG_KEY._s]);
     }
   });
   const addVariables: VariableParams[] = Object.entries(variablesLink)

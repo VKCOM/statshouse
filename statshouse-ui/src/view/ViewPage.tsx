@@ -110,6 +110,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
                     indexPlot={index}
                     type={plot.type}
                     compact={!!embed}
+                    embed={embed}
                     className={index === params.tabNum ? '' : 'hidden-dashboard'}
                     yAxisSize={yAxisSize}
                     dashboard={false}
