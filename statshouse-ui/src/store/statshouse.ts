@@ -1446,7 +1446,7 @@ export const useStore = createWithEqualityFn<Store>()(
               name: getState().params.dashboard?.name ?? '',
               description: getState().params.dashboard?.description ?? '',
               version: getState().params.dashboard?.version ?? 0,
-              data: { ...paramsData, searchParams: encodeParams(getState().params, getState().defaultParams) },
+              data: { ...paramsData, searchParams: encodeParams(getState().params) },
             },
           };
           const controller = new AbortController();
