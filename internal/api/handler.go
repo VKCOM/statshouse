@@ -2703,7 +2703,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 
 				rows := ixToRow[ix]
 				row := rows[0]
-				value := math.Abs(selectPointValue(q.what, req.maxHost, &row))
+				value := selectPointValue(q.what, req.maxHost, &row)
 				if showMaxHost && row.maxHost != 0 {
 					// mapping every time is not optimal, but mapping to store in cache is also not optimal. TODO - optimize?
 					label, err := h.getTagValue(row.maxHost)
@@ -3331,6 +3331,7 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, pointQ
 	ret := make([]pSelectRow, 0)
 	rows := 0
 	cols := newPointsSelectCols(args, false)
+	fmt.Println(*cols)
 	isFast := pointQuery.isFast()
 	isLight := pq.isLight()
 	metric := pq.metricID
@@ -3347,9 +3348,9 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, pointQ
 				}
 			}()
 			for i := 0; i < block.Rows; i++ {
-				//todo check
 				replaceInfNan(&cols.cnt[i])
 				for j := 0; j < len(cols.val); j++ {
+					fmt.Println(cols.val[j][i])
 					replaceInfNan(&cols.val[j][i])
 				}
 				row := cols.rowAtPoint(i)
