@@ -85,10 +85,7 @@ const (
 )
 
 var (
-	errAlreadyClosed = errors.New("sqlite-engine: already closed")
-	errUnsafe        = errors.New("sqlite-engine: unsafe SQL")
-	safeStatements   = []string{"SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "UPSERT"}
-	errReadOnly      = errors.New("sqlite-engine: engine is readonly")
+	safeStatements = []string{"SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "UPSERT"}
 )
 
 type (
@@ -704,8 +701,8 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 	return backupExpectedPath, os.Rename(path, backupExpectedPath)
 }
 
-func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error) error {
-	if err := checkQueryName(queryName); err != nil {
+func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error) (err error) {
+	if err = checkQueryName(queryName); err != nil {
 		return err
 	}
 	startTimeBeforeLock := time.Now()
@@ -736,7 +733,7 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 	e.opt.StatsOptions.measureWaitDurationSince(waitView, startTimeBeforeLock)
 	c, err := conn.startNewROConn(ctx, &e.opt.StatsOptions)
 	if err != nil {
-		return err
+		return ErrEngineBroken
 	}
 	defer func() {
 		err = multierr.Append(err, c.closeRO())
@@ -769,7 +766,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	var commit func(c Conn) error = nil
 	c, err := e.rw.startNewRWConn(true, ctx, &e.opt.StatsOptions, e)
 	if err != nil {
-		return nil, err
+		return nil, ErrEngineBroken
 	}
 	offsetBeforeWrite := e.dbOffset
 	defer func() {
@@ -858,9 +855,10 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	return ch, err
 }
 
+// Do require handle of ErrEngineBroken
 func (e *Engine) Do(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) error {
 	if e.readOnlyEngine {
-		return errReadOnly
+		return ErrReadOnly
 	}
 	ch, err := e.doWithoutWait(ctx, queryName, fn)
 	if err != nil {

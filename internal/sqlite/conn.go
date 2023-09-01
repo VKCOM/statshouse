@@ -61,9 +61,12 @@ func (c *sqliteConn) startNewConn(autoSavepoint bool, ctx context.Context, stats
 }
 
 func (c *sqliteConn) startNewROConn(ctx context.Context, stats *StatsOptions) (Conn, error) {
-	var err error
 	c.mu.Lock()
-	err = c.rw.Exec("BEGIN")
+	if c.err != nil {
+		c.mu.Unlock()
+		return Conn{}, c.err
+	}
+	err := c.rw.Exec("BEGIN")
 	if err != nil {
 		c.mu.Unlock()
 		return Conn{}, err
