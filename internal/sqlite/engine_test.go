@@ -63,10 +63,14 @@ func genBinlogEvent(s string, cache []byte) []byte {
 	return append(cache, []byte(s)...)
 }
 
-func insertText(e *Engine, s string) error {
+var errTest = fmt.Errorf("test error")
+
+func insertText(e *Engine, s string, failAfterExec bool) error {
 	return e.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
 		_, err := conn.Exec("test", "INSERT INTO test_db(t) VALUES ($t)", BlobString("$t", s))
-
+		if failAfterExec {
+			return genBinlogEvent(s, cache), errTest
+		}
 		return genBinlogEvent(s, cache), err
 	})
 }
@@ -178,7 +182,7 @@ func test_Engine_Reread_From_Begin(t *testing.T, waitCommit, commitOnEachWrite b
 		require.NoError(t, err)
 		data = strconv.AppendInt(data, int64(i), 10)
 		str := string(data)
-		err = insertText(engine, str)
+		err = insertText(engine, str, false)
 		require.NoError(t, err)
 		agg.writeHistory = append(agg.writeHistory, str)
 	}
@@ -205,7 +209,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 		_, err := rand.Read(data)
 		require.NoError(t, err)
 		str := strconv.FormatInt(int64(i), 10) + string(data)
-		err = insertText(engine, str)
+		err = insertText(engine, str, false)
 		require.NoError(t, err)
 		agg.writeHistory = append(agg.writeHistory, str)
 	}
@@ -288,7 +292,10 @@ func Test_Engine(t *testing.T) {
 				data = strconv.AppendInt(data, int64(j), 10)
 
 				str := string(data)
-				err = insertText(engine, str)
+				err = insertText(engine, str, j%10 == 0)
+				if err == errTest {
+					continue
+				}
 				require.NoError(t, err)
 				agg.mx.Lock()
 				agg.writeHistory = append(agg.writeHistory, str)
@@ -470,7 +477,7 @@ func Test_ReplicaMode(t *testing.T) {
 	engineMaster, _ := openEngine(t, dir, "db1", schema, true, false, false, false, NoWaitCommit, nil)
 	engineRepl, _ := openEngine(t, dir, "db", schema, false, true, false, false, NoWaitCommit, nil)
 	for i := 0; i < n; i++ {
-		err := insertText(engineMaster, strconv.Itoa(i))
+		err := insertText(engineMaster, strconv.Itoa(i), false)
 		require.NoError(t, err)
 	}
 	time.Sleep(5 * time.Second)
@@ -572,7 +579,7 @@ func Test_ReadAndExit(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			err := insertText(engineMaster, strconv.Itoa(i))
+			err := insertText(engineMaster, strconv.Itoa(i), false)
 			require.NoError(t, err)
 		}(i)
 	}

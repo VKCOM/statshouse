@@ -26,6 +26,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
 )
 
+// TODO: explicit blocking Engine.Run to run binlog
 // TODO: use build of sqlite with custom WAL magic to prevent accidental checkpointing by command-line tools
 // TODO: check the app ID at startup
 // TODO: check the results of PRAGMA statements
@@ -114,7 +115,7 @@ type (
 
 		apply                ApplyEventFunction
 		scan                 ApplyEventFunction
-		waitUntilBinlogReady chan struct{}
+		waitUntilBinlogReady chan error
 		readyNotify          sync.Once
 		commitCh             chan struct{}
 
@@ -250,7 +251,7 @@ func openDB(opt Options,
 		committedInfo:        &atomic.Value{},
 		dbOffset:             0,
 		readyNotify:          sync.Once{},
-		waitUntilBinlogReady: make(chan struct{}),
+		waitUntilBinlogReady: make(chan error, 1),
 		commitCh:             make(chan struct{}, 1),
 		mode:                 replica,
 		binlogEnd:            make(chan struct{}),
@@ -298,17 +299,24 @@ func (e *Engine) binlogRun() (*binlogEngineReplicaImpl, error) {
 	if !e.isTest {
 		log.Println("[sqlite] starting binlog")
 		go func() {
+			var err error
 			defer func() {
 				close(e.binlogEnd)
+			}()
+			defer func() {
+				if e.opt.ReadAndExit || err != nil {
+					e.readyNotify.Do(func() {
+						e.waitUntilBinlogReady <- err
+						close(e.waitUntilBinlogReady)
+					})
+
+				}
 			}()
 			err = e.binlog.Run(offset, meta, impl)
 			if err != nil {
 				e.rw.mu.Lock()
 				e.rw.err = err
 				e.rw.mu.Unlock()
-			}
-			if e.opt.ReadAndExit {
-				close(e.waitUntilBinlogReady)
 			}
 
 		}()
@@ -318,7 +326,10 @@ func (e *Engine) binlogRun() (*binlogEngineReplicaImpl, error) {
 
 func (e *Engine) binlogWaitReady(impl *binlogEngineReplicaImpl) error {
 	startRereadingTime := time.Now()
-	<-e.waitUntilBinlogReady
+	err := <-e.waitUntilBinlogReady
+	if err != nil {
+		return err
+	}
 	e.opt.StatsOptions.measureActionDurationSince("binlog_reread", startRereadingTime)
 	// in master mode we need to apply all queued events, before handling queries
 	// in replica mode it's not needed, because we are getting apply events from binlog
@@ -469,11 +480,11 @@ func binlogLoadPosition(conn Conn) (offset int64, isExists bool, err error) {
 
 func (e *Engine) Close(ctx context.Context) error {
 	ch := make(chan error, 1)
-	defer close(ch)
 	go func() {
 		err := e.close(true, e.opt.DurabilityMode != NoBinlog)
 		select {
 		case ch <- err:
+			close(ch)
 		default:
 		}
 	}()
@@ -504,6 +515,11 @@ func (e *Engine) close(shouldCommit, waitCommitBinlog bool) error {
 		if err != nil {
 			multierr.AppendInto(&error, fmt.Errorf("failed to close RW connection: %w", err))
 		}
+	}
+	e.roMx.Lock()
+	defer e.roMx.Unlock()
+	if len(e.roFree) != e.roCount {
+		log.Println("[sqlite] don't use RO connections when close engine")
 	}
 	for _, conn := range e.roFree {
 		err := conn.Close()
@@ -560,6 +576,9 @@ func (e *Engine) commitRWTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, s
 	var info *committedInfo
 	var err error
 	c = c.withoutTimeout()
+	defer func() {
+		c.c.spIn = false
+	}()
 	if waitBinlogCommit && e.binlog != nil {
 		info, err = e.binlogWaitDBSync(c)
 		if err != nil {
@@ -748,17 +767,18 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	}
 	startTimeBeforeLock := time.Now()
 	var commit func(c Conn) error = nil
-	c := e.rw.startNewRWConn(true, ctx, &e.opt.StatsOptions, e)
+	c, err := e.rw.startNewRWConn(true, ctx, &e.opt.StatsOptions, e)
+	if err != nil {
+		return nil, err
+	}
 	offsetBeforeWrite := e.dbOffset
 	defer func() {
 		if err != nil {
 			e.dbOffset = offsetBeforeWrite
 		}
-	}()
-	defer func() {
 		err1 := c.close(commit)
-		if err == nil {
-			err = err1
+		if err1 != nil {
+			err = multierr.Append(err, err1)
 		}
 	}()
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
