@@ -71,9 +71,13 @@ func (c *sqliteConn) startNewROConn(ctx context.Context, stats *StatsOptions) (C
 	return Conn{c, false, ctx, stats, nil}, nil
 }
 
-func (c *sqliteConn) startNewRWConn(autoSavepoint bool, ctx context.Context, stats *StatsOptions, engine *Engine) Conn {
+func (c *sqliteConn) startNewRWConn(autoSavepoint bool, ctx context.Context, stats *StatsOptions, engine *Engine) (_ Conn, err error) {
 	c.mu.Lock()
-	return Conn{c, autoSavepoint, ctx, stats, engine}
+	if c.err != nil {
+		err = c.err
+		c.mu.Unlock()
+	}
+	return Conn{c, autoSavepoint, ctx, stats, engine}, err
 }
 
 func (c *sqliteConn) Close() error {
@@ -122,13 +126,17 @@ func (c Conn) execBeginSavepoint() error {
 func (c Conn) execEndSavepoint() (canCommit bool) {
 	if c.c.spIn {
 		ok := c.c.spOk && c.c.err == nil
+		var err error
 		if ok {
-			_, _ = c.ExecUnsafe("__commit_savepoint", c.c.spCommitStmt)
+			_, err = c.ExecUnsafe("__commit_savepoint", c.c.spCommitStmt)
 		} else {
-			_, _ = c.ExecUnsafe("__rollback_savepoint", c.c.spRollbackStmt)
+			_, err = c.ExecUnsafe("__rollback_savepoint", c.c.spRollbackStmt)
+		}
+		if err != nil {
+			c.c.err = err // if fail db is readonly
 		}
 		c.c.spIn = false
-		return ok
+		return ok && c.c.err == nil
 	}
 	return false
 }

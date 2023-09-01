@@ -328,7 +328,7 @@ func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine,
 		committedInfo:        &atomic.Value{},
 		dbOffset:             0,
 		readyNotify:          sync.Once{},
-		waitUntilBinlogReady: make(chan struct{}),
+		waitUntilBinlogReady: make(chan error),
 		commitCh:             make(chan struct{}, 1),
 		mode:                 master,
 	}
