@@ -702,7 +702,7 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
         })) ?? [],
     },
     variables:
-      params.variables.map((v) => ({
+      params.variables?.map((v) => ({
         ...v,
         link: v.link.map(([plot, tag]) => [toPlotKey(plot), toTagKey(tag)]).filter(isNotNilVariableLink),
       })) ?? [],
