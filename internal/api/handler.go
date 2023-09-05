@@ -733,7 +733,11 @@ func (h *Handler) doSelect(ctx context.Context, isFast, isLight bool, user strin
 
 	start := time.Now()
 	endpointStatSetQueryKind(ctx, isFast, isLight)
-	info, err := h.ch[version].Select(ctx, isFast, isLight, query)
+	info, err := h.ch[version].Select(ctx, util.QueryMetaInto{
+		IsFast:  isFast,
+		IsLight: isLight,
+		User:    user,
+	}, query)
 	duration := time.Since(start)
 	if h.verbose {
 		log.Printf("[debug] SQL for %q done in %v, err: %v", user, duration, err)
