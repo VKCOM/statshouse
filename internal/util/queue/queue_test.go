@@ -1,4 +1,4 @@
-package util
+package queue
 
 import (
 	"context"
@@ -10,43 +10,52 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"go.uber.org/atomic"
 	"golang.org/x/sync/errgroup"
 	rand2 "k8s.io/apimachinery/pkg/util/rand"
 	"pgregory.net/rand"
 )
 
 // n горутин, захватывают и отпускают блокировку
-func Queue_Race(t *testing.T, q Queue, perClient int) {
+func Queue_Race(t *testing.T, q *Queue, max, perClient int) {
 	//q := NewQ(2)
 	wg := sync.WaitGroup{}
 	n := runtime.GOMAXPROCS(0)
-	clients := n * perClient
+	clients := 2 * perClient
 	loops := 10000 / n
+	currentActive := atomic.NewInt64(0)
 	for i := 0; i < n; i++ {
 		wg.Add(1)
 		go func(token string) {
 			defer wg.Done()
 			for i := 0; i < loops; i++ {
 				qry, err := q.Acquire(context.Background(), token)
-				time.Sleep(time.Duration(1000000 + rand.Int63n(int64(time.Millisecond))))
 				if err != nil {
 					t.Errorf(err.Error())
 				}
+				currentActive.Add(1)
+				require.LessOrEqual(t, currentActive.Load(), int64(max))
+				time.Sleep(time.Duration(10000 + rand.Int63n(int64(time.Millisecond))))
+				currentActive.Add(-1)
 				q.Release(qry)
 			}
 		}(strconv.FormatInt(int64(i%clients), 10))
 	}
 	wg.Wait()
+	require.Equal(t, 0, q.activeQuery)
+	require.Equal(t, 0, len(q.waitingUsersByName))
+	require.Equal(t, 0, q.waitingUsersByPriority.Len())
 }
 
 // n горутин, захватывают и отпускают блокировку, некоторые таймаутят
-func Queue_Random_Timeout_Race(t *testing.T, q Queue, perClient int) {
+func Queue_Random_Timeout_Race(t *testing.T, q *Queue, max, perClient int) {
 	//q := NewQ(2)
 	wg := sync.WaitGroup{}
 	n := runtime.GOMAXPROCS(0)
 	loops := 10000 / n
-	clients := n * perClient
+	clients := 2 * perClient
 	mx := sync.Mutex{}
+	currentActive := atomic.NewInt64(0)
 	ctxMap := map[context.Context]func(){}
 	for i := 0; i < n; i++ {
 		wg.Add(1)
@@ -68,7 +77,9 @@ func Queue_Random_Timeout_Race(t *testing.T, q Queue, perClient int) {
 					releaseCtx()
 					continue
 				}
-				time.Sleep(1000000 + time.Duration(rand.Int63n(int64(time.Millisecond))))
+				currentActive.Add(1)
+				require.LessOrEqual(t, currentActive.Load(), int64(max))
+				time.Sleep(10000 + time.Duration(rand.Int63n(int64(time.Millisecond))))
 				if rand2.Intn(10) < 3 {
 					mx.Lock()
 					for _, c := range ctxMap {
@@ -80,6 +91,7 @@ func Queue_Random_Timeout_Race(t *testing.T, q Queue, perClient int) {
 
 				}
 				time.Sleep(time.Duration(rand.Int63n(int64(time.Millisecond))))
+				currentActive.Add(-1)
 				q.Release(qry)
 				releaseCtx()
 
@@ -87,6 +99,10 @@ func Queue_Random_Timeout_Race(t *testing.T, q Queue, perClient int) {
 		}(strconv.FormatInt(int64(i%clients), 10))
 	}
 	wg.Wait()
+	require.Equal(t, 0, q.activeQuery)
+	require.Equal(t, 0, len(q.waitingUsersByName))
+	require.Equal(t, 0, q.waitingUsersByPriority.Len())
+
 }
 
 func timeoutCtx(duration time.Duration) context.Context {
@@ -94,7 +110,7 @@ func timeoutCtx(duration time.Duration) context.Context {
 	return ctx
 }
 
-func Timeout(t *testing.T, q Queue) {
+func Timeout(t *testing.T, q *Queue) {
 	//q := NewQ(1)
 	qry, err := q.Acquire(context.Background(), "0")
 	defer q.Release(qry)
@@ -103,7 +119,44 @@ func Timeout(t *testing.T, q Queue) {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
-func Timeout1(t *testing.T, q Queue) {
+func TimeoutSeveral(t *testing.T, q *Queue) {
+	//q := NewQ(1)
+	qry, err := q.Acquire(context.Background(), "0")
+	defer q.Release(qry)
+	require.NoError(t, err)
+	errGroup, _ := errgroup.WithContext(context.Background())
+	errGroup.Go(func() error {
+		_, err := q.Acquire(timeoutCtx(time.Second), "0")
+		return err
+	})
+	errGroup.Go(func() error {
+		_, err := q.Acquire(timeoutCtx(time.Second), "0")
+		return err
+	})
+	require.ErrorIs(t, errGroup.Wait(), context.DeadlineExceeded)
+}
+
+func PushNewQuery(t *testing.T, q *Queue) {
+	//q := NewQ(1)
+	qry, err := q.Acquire(context.Background(), "0")
+	require.NoError(t, err)
+	errGroup, _ := errgroup.WithContext(context.Background())
+	errGroup.Go(func() error {
+		_, err := q.Acquire(context.Background(), "0")
+		return err
+	})
+	errGroup.Go(func() error {
+		_, err := q.Acquire(context.Background(), "0")
+		return err
+	})
+	time.Sleep(time.Second)
+	q.Release(qry)
+	time.Sleep(time.Second)
+	q.Release(nil)
+	require.NoError(t, errGroup.Wait())
+}
+
+func Timeout1(t *testing.T, q *Queue) {
 	//q := NewQ(1)
 	qry, err := q.Acquire(context.Background(), "0")
 	defer q.Release(qry)
