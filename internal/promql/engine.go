@@ -28,6 +28,7 @@ import (
 const (
 	labelWhat   = "__what__"
 	labelBy     = "__by__"
+	labelBind   = "__bind__"
 	labelOffset = "__offset__"
 	labelTotal  = "__total__"
 	LabelShard  = "__shard__"
@@ -56,6 +57,7 @@ type Options struct {
 	MaxHost             bool
 	Offsets             []int64
 	Rand                *rand.Rand
+	Vars                map[string]Variable
 
 	ExprQueriesSingleMetricCallback MetricMetaValueCallback
 	SeriesQueryCallback             SeriesQueryCallback
@@ -65,6 +67,12 @@ type (
 	MetricMetaValueCallback func(*format.MetricMetaValue)
 	SeriesQueryCallback     func(version string, key string, pq any, lod any, avoidCache bool)
 )
+
+type Variable struct {
+	Value  []string
+	Group  bool
+	Negate bool
+}
 
 type Engine struct {
 	h   Handler
@@ -190,7 +198,9 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	parser.Inspect(ast, func(node parser.Node, path []parser.Node) error {
 		switch e := node.(type) {
 		case *parser.VectorSelector:
-			err = ng.matchMetrics(ctx, e, path, metricOffset, offsets[0])
+			if err = ng.bindVariables(e, qry.Options.Vars); err == nil {
+				err = ng.matchMetrics(ctx, e, path, metricOffset, offsets[0])
+			}
 		case *parser.MatrixSelector:
 			if maxRange < e.Range {
 				maxRange = e.Range
@@ -262,6 +272,55 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 		ba:     make(map[*[]float64]bool),
 		br:     make(map[*[]float64]bool),
 	}, nil
+}
+
+func (ng Engine) bindVariables(sel *parser.VectorSelector, vars map[string]Variable) error {
+	var s []*labels.Matcher
+	for _, matcher := range sel.LabelMatchers {
+		if matcher.Name == labelBind {
+			if matcher.Type != labels.MatchEqual {
+				return fmt.Errorf("%s supports only strict equality", matcher.Name)
+			}
+			s = append(s, matcher)
+		}
+	}
+	for _, matcher := range s {
+		for _, bind := range strings.Split(matcher.Value, ",") {
+			s := strings.Split(bind, ":")
+			if len(s) != 2 || len(s[0]) == 0 || len(s[1]) == 0 {
+				return fmt.Errorf("%s invalid value format: expected \"tag:var\", got %q", matcher.Name, bind)
+			}
+			var (
+				vn = s[1]   // variable name
+				vv Variable // variable value
+				ok bool
+			)
+			if vv, ok = vars[vn]; !ok {
+				return fmt.Errorf("variable %q not specified", vn)
+			}
+			var mt labels.MatchType
+			if vv.Negate {
+				mt = labels.MatchNotEqual
+			} else {
+				mt = labels.MatchEqual
+			}
+			var (
+				tn  = s[0] // tag name
+				m   *labels.Matcher
+				err error
+			)
+			for _, v := range vv.Value {
+				if m, err = labels.NewMatcher(mt, tn, v); err != nil {
+					return err
+				}
+				sel.LabelMatchers = append(sel.LabelMatchers, m)
+			}
+			if vv.Group {
+				sel.GroupBy = append(sel.GroupBy, tn)
+			}
+		}
+	}
+	return nil
 }
 
 func (ng Engine) matchMetrics(ctx context.Context, sel *parser.VectorSelector, path []parser.Node, metricOffset map[*format.MetricMetaValue]int64, offset int64) error {
