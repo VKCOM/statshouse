@@ -43,9 +43,6 @@ var parserPool = sync.Pool{
 type parser struct {
 	lex Lexer
 
-	inject    ItemType
-	injecting bool
-
 	// Everytime an Item is lexed that could be the end
 	// of certain expressions its end position is stored here.
 	lastClosing Pos
@@ -112,10 +109,9 @@ func ParseExpr(input string) (expr Expr, err error) {
 	defer parserPool.Put(p)
 	defer p.recover(&err)
 
-	parseResult := p.parseGenerated(START_EXPRESSION)
-
-	if parseResult != nil {
-		expr = parseResult.(Expr)
+	p.yyParser.Parse(p)
+	if p.generatedParserResult != nil {
+		expr = p.generatedParserResult.(Expr)
 	}
 
 	if len(p.parseErrors) != 0 {
@@ -129,7 +125,6 @@ func ParseExpr(input string) (expr Expr, err error) {
 func newParser(input string) *parser {
 	p := parserPool.Get().(*parser)
 
-	p.injecting = false
 	p.parseErrors = nil
 	p.generatedParserResult = nil
 
@@ -139,24 +134,6 @@ func newParser(input string) *parser {
 		state: lexStatements,
 	}
 	return p
-}
-
-// SequenceValue is an omittable value in a sequence of time series values.
-type SequenceValue struct {
-	Value   float64
-	Omitted bool
-}
-
-func (v SequenceValue) String() string {
-	if v.Omitted {
-		return "_"
-	}
-	return fmt.Sprintf("%f", v.Value)
-}
-
-type seriesDescription struct {
-	labels labels.Labels
-	values []SequenceValue
 }
 
 // addParseErrf formats the error and appends it to the list of parsing errors.
@@ -231,10 +208,6 @@ func (p *parser) recover(errp *error) {
 func (p *parser) Lex(lval *yySymType) int {
 	var typ ItemType
 
-	if p.injecting {
-		p.injecting = false
-		return int(p.inject)
-	}
 	// Skip comments.
 	for {
 		p.lex.NextItem(&lval.item)
@@ -254,9 +227,6 @@ func (p *parser) Lex(lval *yySymType) int {
 
 		// Tells yacc that this is the end of input.
 		return 0
-	case EOF:
-		lval.item.Typ = EOF
-		p.InjectItem(0)
 	case RIGHT_BRACE, RIGHT_PAREN, RIGHT_BRACKET, DURATION, NUMBER:
 		p.lastClosing = lval.item.Pos + Pos(len(lval.item.Val))
 	}
@@ -270,26 +240,6 @@ func (p *parser) Lex(lval *yySymType) int {
 // by mechanisms that allow more fine-grained control
 // For more information, see https://pkg.go.dev/golang.org/x/tools/cmd/goyacc.
 func (p *parser) Error(e string) {
-}
-
-// InjectItem allows injecting a single Item at the beginning of the token stream
-// consumed by the generated parser.
-// This allows having multiple start symbols as described in
-// https://www.gnu.org/software/bison/manual/html_node/Multiple-start_002dsymbols.html .
-// Only the Lex function used by the generated parser is affected by this injected Item.
-// Trying to inject when a previously injected Item has not yet been consumed will panic.
-// Only Item types that are supposed to be used as start symbols are allowed as an argument.
-func (p *parser) InjectItem(typ ItemType) {
-	if p.injecting {
-		panic("cannot inject multiple Items into the token stream")
-	}
-
-	if typ != 0 && (typ <= startSymbolsStart || typ >= startSymbolsEnd) {
-		panic("cannot inject symbol that isn't start symbol")
-	}
-
-	p.inject = typ
-	p.injecting = true
 }
 
 func (p *parser) newBinaryExpression(lhs Node, op Item, modifiers, rhs Node) *BinaryExpr {
@@ -377,17 +327,6 @@ func parseDuration(ds string) (int64, error) {
 		return 0, errors.New("duration must be greater than 0")
 	}
 	return int64(math.Round(float64(dur) / float64(time.Second))), nil
-}
-
-// parseGenerated invokes the yacc generated parser.
-// The generated parser gets the provided startSymbol injected into
-// the lexer stream, based on which grammar will be used.
-func (p *parser) parseGenerated(startSymbol ItemType) interface{} {
-	p.InjectItem(startSymbol)
-
-	p.yyParser.Parse(p)
-
-	return p.generatedParserResult
 }
 
 func (p *parser) newLabelMatcher(label, operator, value Item) *labels.Matcher {

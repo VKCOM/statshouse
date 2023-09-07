@@ -17,12 +17,7 @@
 package parser
 
 import (
-        "math"
-        "sort"
-        "strconv"
-
         "github.com/prometheus/prometheus/model/labels"
-        "github.com/prometheus/prometheus/model/value"
 )
 %}
 
@@ -31,11 +26,7 @@ import (
     item      Item
     matchers  []*labels.Matcher
     matcher   *labels.Matcher
-    label     labels.Label
-    labels    labels.Labels
     strings   []string
-    series    []SequenceValue
-    uint      uint64
     float     float64
     duration  int64
 }
@@ -127,28 +118,14 @@ END
 %token preprocessorEnd
 
 
-// Start symbols for the generated parser.
-%token	startSymbolsStart
-%token
-START_METRIC
-START_SERIES_DESCRIPTION
-START_EXPRESSION
-START_METRIC_SELECTOR
-%token	startSymbolsEnd
-
-
 // Type definitions for grammar rules.
 %type <matchers> label_match_list
 %type <matcher> label_matcher
 
 %type <item> aggregate_op grouping_label match_op maybe_label metric_identifier unary_op at_modifier_preprocessors
 
-%type <labels> label_set label_set_list metric
-%type <label> label_set_item
 %type <strings> grouping_label_list grouping_labels maybe_grouping_labels
-%type <series> series_item series_values
-%type <uint> uint
-%type <float> number series_value signed_number signed_or_unsigned_number
+%type <float> number signed_number signed_or_unsigned_number
 %type <node> step_invariant_expr aggregate_expr aggregate_modifier bin_modifier binary_expr bool_modifier expr function_call function_call_args function_call_body group_modifiers label_matchers matrix_selector number_literal offset_expr on_or_ignoring paren_expr string_literal subquery_expr unary_expr vector_selector
 %type <duration> duration maybe_duration
 
@@ -172,17 +149,10 @@ START_METRIC_SELECTOR
 
 %%
 
-start           :
-                START_METRIC metric
-                        { yylex.(*parser).generatedParserResult = $2 }
-                | START_SERIES_DESCRIPTION series_description
-                | START_EXPRESSION /* empty */ EOF
+start           : expr
+                        { yylex.(*parser).generatedParserResult = $1 }
+                | /* empty */ EOF
                         { yylex.(*parser).addParseErrf(PositionRange{}, "no expression found in input")}
-                | START_EXPRESSION expr
-                        { yylex.(*parser).generatedParserResult = $2 }
-                | START_METRIC_SELECTOR vector_selector
-                        { yylex.(*parser).generatedParserResult = $2 }
-                | start EOF
                 | error /* If none of the more detailed error messages are triggered, we fall back to this. */
                         { yylex.(*parser).unexpected("","") }
                 ;
@@ -570,108 +540,7 @@ label_matcher   : IDENTIFIER match_op STRING
  * Metric descriptions.
  */
 
-metric          : metric_identifier label_set
-                        { $$ = append($2, labels.Label{Name: labels.MetricName, Value: $1.Val}); sort.Sort($$) }
-                | label_set
-                        {$$ = $1}
-                ;
-
-
-metric_identifier: AVG | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | IDENTIFIER |  LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | QUANTILE | STDDEV | STDVAR | SUM | TOPK | WITHOUT | START | END;
-
-label_set       : LEFT_BRACE label_set_list RIGHT_BRACE
-                        { $$ = labels.New($2...) }
-                | LEFT_BRACE label_set_list COMMA RIGHT_BRACE
-                        { $$ = labels.New($2...) }
-                | LEFT_BRACE RIGHT_BRACE
-                        { $$ = labels.New() }
-                | /* empty */
-                        { $$ = labels.New() }
-                ;
-
-label_set_list  : label_set_list COMMA label_set_item
-                        { $$ = append($1, $3) }
-                | label_set_item
-                        { $$ = []labels.Label{$1} }
-                | label_set_list error
-                        { yylex.(*parser).unexpected("label set", "\",\" or \"}\"", ); $$ = $1 }
-
-                ;
-
-label_set_item  : IDENTIFIER EQL STRING
-                        { $$ = labels.Label{Name: $1.Val, Value: yylex.(*parser).unquoteString($3.Val) } }
-                | IDENTIFIER EQL error
-                        { yylex.(*parser).unexpected("label set", "string"); $$ = labels.Label{}}
-                | IDENTIFIER error
-                        { yylex.(*parser).unexpected("label set", "\"=\""); $$ = labels.Label{}}
-                | error
-                        { yylex.(*parser).unexpected("label set", "identifier or \"}\""); $$ = labels.Label{} }
-                ;
-
-/*
- * Series descriptions (only used by unit tests).
- */
-
-series_description: metric series_values
-                        {
-                        yylex.(*parser).generatedParserResult = &seriesDescription{
-                                labels: $1,
-                                values: $2,
-                        }
-                        }
-                ;
-
-series_values   : /*empty*/
-                        { $$ = []SequenceValue{} }
-                | series_values SPACE series_item
-                        { $$ = append($1, $3...) }
-                | series_values SPACE
-                        { $$ = $1 }
-                | error
-                        { yylex.(*parser).unexpected("series values", ""); $$ = nil }
-                ;
-
-series_item     : BLANK
-                        { $$ = []SequenceValue{{Omitted: true}}}
-                | BLANK TIMES uint
-                        {
-                        $$ = []SequenceValue{}
-                        for i:=uint64(0); i < $3; i++{
-                                $$ = append($$, SequenceValue{Omitted: true})
-                        }
-                        }
-                | series_value
-                        { $$ = []SequenceValue{{Value: $1}}}
-                | series_value TIMES uint
-                        {
-                        $$ = []SequenceValue{}
-                        for i:=uint64(0); i <= $3; i++{
-                                $$ = append($$, SequenceValue{Value: $1})
-                        }
-                        }
-                | series_value signed_number TIMES uint
-                        {
-                        $$ = []SequenceValue{}
-                        for i:=uint64(0); i <= $4; i++{
-                                $$ = append($$, SequenceValue{Value: $1})
-                                $1 += $2
-                        }
-                        }
-                ;
-
-series_value    : IDENTIFIER
-                        {
-                        if $1.Val != "stale" {
-                                yylex.(*parser).unexpected("series values", "number or \"stale\"")
-                        }
-                        $$ = math.Float64frombits(value.StaleNaN)
-                        }
-                | number
-                | signed_number
-                ;
-
-
-
+metric_identifier: AVG | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | IDENTIFIER |  LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | QUANTILE | STDDEV | STDVAR | SUM | TOPK | WITHOUT;
 
 /*
  * Keyword lists.
@@ -680,7 +549,7 @@ series_value    : IDENTIFIER
 aggregate_op    : AVG | BOTTOMK | COUNT | COUNT_VALUES | GROUP | MAX | MIN | QUANTILE | STDDEV | STDVAR | SUM | TOPK ;
 
 // inside of grouping options label names can be recognized as keywords by the lexer. This is a list of keywords that could also be a label name.
-maybe_label     : AVG | BOOL | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | GROUP_LEFT | GROUP_RIGHT | IDENTIFIER | IGNORING | LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | ON | QUANTILE | STDDEV | STDVAR | SUM | TOPK | START | END | ATAN2 | NUMBER;
+maybe_label     : AVG | BOOL | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | GROUP_LEFT | GROUP_RIGHT | IDENTIFIER | IGNORING | LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | ON | QUANTILE | STDDEV | STDVAR | SUM | TOPK | ATAN2 | NUMBER;
 
 unary_op        : ADD | SUB;
 
@@ -706,16 +575,6 @@ signed_number   : ADD number { $$ = $2 }
                 ;
 
 signed_or_unsigned_number: number | signed_number ;
-
-uint            : NUMBER
-                        {
-                        var err error
-                        $$, err = strconv.ParseUint($1.Val, 10, 64)
-                        if err != nil {
-                                yylex.(*parser).addParseErrf($1.PositionRange(), "invalid repetition in series values: %s", err)
-                        }
-                        }
-                ;
 
 duration        : DURATION
                         {
