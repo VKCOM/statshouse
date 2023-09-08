@@ -33,6 +33,7 @@ export type VariableControlProps<T> = {
   onChange: (name: T | undefined, value: string[]) => void;
   tagMeta?: MetricMetaTag;
   more?: boolean;
+  customValue?: boolean;
   loaded?: boolean;
   list?: MetricTagValueInfo[];
   small?: boolean;
@@ -53,6 +54,7 @@ export function VariableControl<T>({
   list = emptyListArray,
   loaded,
   more,
+  customValue,
   tagMeta,
   small,
   setOpen,
@@ -130,6 +132,7 @@ export function VariableControl<T>({
             loading={loaded}
             onChange={onChangeFilter}
             moreOption={more}
+            customValue={customValue}
             options={listSort}
             onFocus={onSelectFocus}
             onBlur={onSelectBlur}

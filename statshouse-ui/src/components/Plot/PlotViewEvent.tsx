@@ -21,6 +21,7 @@ import {
   selectorLoadEvents,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
+  selectorParams,
   selectorParamsPlotsByIndex,
   selectorParamsTimeShifts,
   selectorPlotsDataByIndex,
@@ -68,7 +69,7 @@ export function PlotViewEvent(props: {
   embed?: boolean;
 }) {
   const { indexPlot, compact, yAxisSize, dashboard, className, group, embed } = props;
-
+  const params = useStore(selectorParams);
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
   const setSel = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
@@ -293,8 +294,8 @@ export function PlotViewEvent(props: {
         : sel.customAgg === 0
         ? `${Math.floor(width * devicePixelRatio)}`
         : `${sel.customAgg}s`;
-    return queryURLCSV(sel, timeRange, timeShifts, agg);
-  }, [sel, timeRange, timeShifts, width]);
+    return queryURLCSV(sel, timeRange, timeShifts, agg, params);
+  }, [params, sel, timeRange, timeShifts, width]);
 
   const onReady = useCallback(
     (u: uPlot) => {

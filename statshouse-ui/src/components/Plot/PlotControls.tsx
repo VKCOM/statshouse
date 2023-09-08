@@ -518,6 +518,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                       list={tagsList[tagKey]?.list}
                       loaded={tagsList[tagKey]?.loaded}
                       more={tagsList[tagKey]?.more}
+                      customValue={tagsList[tagKey]?.more}
                       customBadge={
                         variableTags[tagKey] && (
                           <span
@@ -560,6 +561,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                     list={tagsList[TAG_KEY._s]?.list}
                     loaded={tagsList[TAG_KEY._s]?.loaded}
                     more={tagsList[TAG_KEY._s]?.more}
+                    customValue={tagsList[TAG_KEY._s]?.more}
                     customBadge={
                       variableTags[TAG_KEY._s] && (
                         <span
