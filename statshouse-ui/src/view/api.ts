@@ -17,6 +17,7 @@ import {
 import { uniqueArray } from '../common/helpers';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector, TagKey } from '../api/enum';
 import {
+  encodeVariableConfig,
   encodeVariableValues,
   filterInSep,
   filterNotInSep,
@@ -463,6 +464,7 @@ export function queryURL(
   }
   if (allParams) {
     params.push(...encodeVariableValues(allParams));
+    params.push(...encodeVariableConfig(allParams));
   }
   if (sel.maxHost) {
     params.push([GET_PARAMS.metricMaxHost, '1']);
@@ -507,6 +509,7 @@ export function queryURLCSV(
   }
   if (allParams) {
     params.push(...encodeVariableValues(allParams));
+    params.push(...encodeVariableConfig(allParams));
   }
   if (sel.maxHost) {
     params.push([GET_PARAMS.metricMaxHost, '1']);
