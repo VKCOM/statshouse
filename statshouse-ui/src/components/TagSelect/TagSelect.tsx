@@ -17,6 +17,7 @@ export type TagSelectProps = {
   onBlur?: () => void;
   options?: SelectOptionProps[];
   moreOption?: boolean;
+  customValue?: boolean;
   groupBy?: boolean;
   setGroupBy?: (value: boolean) => void;
   sort?: boolean;
@@ -33,6 +34,7 @@ export function _TagSelect({
   onFocus,
   options,
   moreOption,
+  customValue,
   sort,
   negative,
   groupBy,
@@ -56,7 +58,7 @@ export function _TagSelect({
         onceSelectByClick
         moreItems={moreOption}
         showCountItems
-        customValue={moreOption}
+        customValue={customValue}
         onChange={onChange}
         onFocus={onFocus}
         onBlur={onBlur}

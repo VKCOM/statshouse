@@ -844,7 +844,14 @@ export const useStore = createWithEqualityFn<Store>()(
 
           const promQLForm = new FormData();
           promQLForm.append('q', lastPlotParams.promQL);
-          const url = queryURL(lastPlotParams, prevState.timeRange, prevState.params.timeShifts, agg, !compact);
+          const url = queryURL(
+            lastPlotParams,
+            prevState.timeRange,
+            prevState.params.timeShifts,
+            agg,
+            !compact,
+            prevState.params
+          );
           prevState.plotsDataAbortController[index]?.abort();
           setState((state) => {
             state.plotsDataAbortController[index] = controller;

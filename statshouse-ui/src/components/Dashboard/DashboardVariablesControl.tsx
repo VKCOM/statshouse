@@ -38,6 +38,7 @@ export function DashboardVariablesControl({ className }: DashboardVariablesContr
           loaded={variableItems[variable.name].loaded}
           tagMeta={variableItems[variable.name].tagMeta}
           more={variableItems[variable.name].more}
+          customValue={variableItems[variable.name].more || !variableItems[variable.name].list.length}
           negative={variable.args.negative}
           setNegative={setNegativeVariable}
           groupBy={variable.args.groupBy}

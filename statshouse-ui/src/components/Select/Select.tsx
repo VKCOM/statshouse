@@ -319,7 +319,7 @@ export const Select: FC<SelectProps> = ({
     } else if (moreItems && options?.length) {
       result.push({ value: '', disabled: true, name: `>${options?.length} items, truncated` });
     }
-    if (customValue && !resultLength) {
+    if (customValue && !resultLength && searchValueDebounce) {
       result.push({ value: searchValueDebounce, name: searchValueDebounce });
     }
     return result;
