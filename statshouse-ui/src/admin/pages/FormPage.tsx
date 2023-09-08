@@ -16,8 +16,11 @@ import { IActions } from '../storages/MetricFormValues/reducer';
 import { selectorListMetricsGroup, selectorLoadListMetricsGroup, useStore } from '../../store';
 import { RawValueKind } from '../../view/api';
 import { freeKeyPrefix } from '../../url/queryParams';
+import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType } from '../../api/enum';
 
 const { clearMetricsMeta } = useStore.getState();
+
+const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE) as MetricType[];
 
 export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   const { yAxisSize, adminMode } = props;
@@ -53,11 +56,12 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
           tagsSize: String(metric.tags.length),
           pre_key_tag_id: metric.pre_key_tag_id && freeKeyPrefix(metric.pre_key_tag_id),
           pre_key_from: metric.pre_key_from,
+          metric_type: metric.metric_type,
           version: metric.version,
           group_id: metric.group_id,
         })
       );
-  }, [metricName, setInitMetric]);
+  }, [metricName]);
 
   // update document title
   React.useEffect(() => {
@@ -226,6 +230,31 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
           resolution might render with surprises in UI.
         </div>
       </div>
+      {adminMode && (
+        <div className="row mb-3">
+          <label htmlFor="unit" className="col-sm-2 col-form-label">
+            Unit
+          </label>
+          <div className="col-sm-auto">
+            <select
+              id="unit"
+              className="form-select"
+              value={values.metric_type}
+              onChange={(e) => dispatch({ metric_type: e.target.value })}
+              disabled={isReadonly}
+            >
+              {METRIC_TYPE_KEYS.map((unit_type) => (
+                <option key={unit_type} value={unit_type}>
+                  {METRIC_TYPE_DESCRIPTION[unit_type]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div id="unitHelpBlock" className="form-text">
+            The unit in which the metric is written
+          </div>
+        </div>
+      )}
       <div className="row mb-3">
         <label htmlFor="weight" className="col-sm-2 col-form-label">
           Weight

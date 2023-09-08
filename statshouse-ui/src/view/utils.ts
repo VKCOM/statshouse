@@ -30,6 +30,7 @@ import {
   VariableParamsLink,
 } from '../url/queryParams';
 import { globalSettings } from '../common/settings';
+import { formatFixed } from '../common/formatFixed';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
@@ -67,11 +68,6 @@ export function parseInputTime(v: string): [number, number, number] {
   return [h, m, s];
 }
 
-export function formatFixed(n: number, maxFrac: number): string {
-  const k = Math.pow(10, maxFrac);
-  return (Math.round(n * k) / k).toString();
-}
-
 export function formatNumberDigit(n: string | number): string {
   const z = n.toString().split('.');
   z[0] = z[0].replace(/(\d)(?=(\d\d\d)+([^\d]|$))/g, '$1 ');
@@ -85,22 +81,6 @@ export function formatPercent(n: number): string {
   n *= 100;
   const frac = n < 0.1 ? 3 : n < 1 ? 2 : n < 10 ? 1 : 0;
   return formatFixed(n, frac) + '%';
-}
-
-const siPrefixes = ['y', 'z', 'a', 'f', 'p', 'n', 'μ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
-
-export function formatSI(n: number): string {
-  if (n === 0) {
-    return n.toString();
-  }
-  const base = Math.floor(Math.log10(Math.abs(n)));
-  const siBase = base < 0 ? Math.ceil(base / 3) : Math.floor(base / 3);
-  if (siBase === 0) {
-    return formatFixed(n, 3);
-  }
-  const baseNum = formatFixed(n / Math.pow(10, siBase * 3), 3);
-  const prefix = siPrefixes[siBase + 8];
-  return `${baseNum}${prefix}`;
 }
 
 export interface timeRange {
