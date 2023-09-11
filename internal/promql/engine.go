@@ -130,6 +130,15 @@ func NewEngine(h Handler, loc *time.Location) Engine {
 }
 
 func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel func(), err error) {
+	if qry.Options.TimeNow == 0 {
+		// fix the time "now"
+		qry.Options.TimeNow = time.Now().Unix()
+	}
+	if qry.Options.TimeNow < qry.Start {
+		// the future is unknown
+		return &SeriesBag{Time: []int64{}}, func() {}, nil
+	}
+	// register panic handler
 	var ev evaluator
 	defer func() {
 		if r := recover(); r != nil {
@@ -167,9 +176,6 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 }
 
 func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error) {
-	if qry.Options.TimeNow == 0 {
-		qry.Options.TimeNow = time.Now().Unix()
-	}
 	ast, err := parser.ParseExpr(qry.Expr)
 	if err != nil {
 		return evaluator{}, err
