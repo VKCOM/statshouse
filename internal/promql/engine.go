@@ -198,7 +198,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	parser.Inspect(ast, func(node parser.Node, path []parser.Node) error {
 		switch e := node.(type) {
 		case *parser.VectorSelector:
-			if err = ng.bindVariables(e, qry.Options.Vars); err == nil {
+			if err = ng.bindVariables(ctx, e, qry.Options.Vars); err == nil {
 				err = ng.matchMetrics(ctx, e, path, metricOffset, offsets[0])
 			}
 		case *parser.MatrixSelector:
@@ -274,7 +274,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	}, nil
 }
 
-func (ng Engine) bindVariables(sel *parser.VectorSelector, vars map[string]Variable) error {
+func (ng Engine) bindVariables(ctx context.Context, sel *parser.VectorSelector, vars map[string]Variable) error {
 	var s []*labels.Matcher
 	for _, matcher := range sel.LabelMatchers {
 		if matcher.Name == labelBind {
@@ -296,7 +296,8 @@ func (ng Engine) bindVariables(sel *parser.VectorSelector, vars map[string]Varia
 				ok bool
 			)
 			if vv, ok = vars[vn]; !ok {
-				return fmt.Errorf("variable %q not specified", vn)
+				debugTracef(ctx, "variable %q not specified", vn)
+				continue
 			}
 			var mt labels.MatchType
 			if vv.Negate {
