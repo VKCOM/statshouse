@@ -85,7 +85,7 @@ const (
 )
 
 var (
-	safeStatements   = []string{"SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "UPSERT"}
+	safeStatements = []string{"SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "UPSERT"}
 )
 
 type (
