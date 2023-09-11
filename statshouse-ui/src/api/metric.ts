@@ -52,6 +52,7 @@ export type MetricMetaValue = {
   skip_min_host?: boolean;
   skip_sum_square?: boolean;
   pre_key_only?: boolean;
+  metric_type?: string;
 };
 
 export type MetricMetaTag = {

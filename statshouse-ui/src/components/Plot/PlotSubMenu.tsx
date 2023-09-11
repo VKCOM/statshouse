@@ -5,10 +5,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo } from 'react';
-import * as utils from '../../view/utils';
 import { TimeRange } from '../../common/TimeRange';
 import { Link } from 'react-router-dom';
 import { PlotParams } from '../../url/queryParams';
+import { formatSI } from '../../common/formatByMetricType';
 
 export type PlotSubMenuProps = {
   sel: PlotParams;
@@ -44,9 +44,9 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
           }}
         >
           {receiveErrors > 0.5 ? (
-            <small className="badge bg-danger">Receive errors: {utils.formatSI(receiveErrors)}</small>
+            <small className="badge bg-danger">Receive errors: {formatSI(receiveErrors)}</small>
           ) : (
-            <small className="badge bg-warning text-dark">Receive warnings: {utils.formatSI(receiveWarnings)}</small>
+            <small className="badge bg-warning text-dark">Receive warnings: {formatSI(receiveWarnings)}</small>
           )}
         </Link>
       ) : (
@@ -122,7 +122,7 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
             }&qb=key5&qf=key5~created`,
           }}
         >
-          <small className="badge bg-danger">Mapping errors: {utils.formatSI(mappingFloodEvents)}</small>
+          <small className="badge bg-danger">Mapping errors: {formatSI(mappingFloodEvents)}</small>
         </Link>
       ) : (
         <Link

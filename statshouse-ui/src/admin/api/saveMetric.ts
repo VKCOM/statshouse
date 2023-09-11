@@ -36,6 +36,7 @@ export function saveMetric(metric: IMetric) {
     skip_min_host: !!metric.skip_min_host,
     skip_sum_square: !!metric.skip_sum_square,
     pre_key_only: !!metric.pre_key_only,
+    metric_type: metric.metric_type,
     version: metric.version,
     group_id: metric.group_id,
   };
