@@ -536,7 +536,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 		panic("metric access violation") // should not happen
 	}
 	var (
-		version = promqlVersionOrDefault(qry.Version)
+		version = promqlVersionOrDefault(qry.Options.Version)
 		fl      = qry.Timescale.LODs[0]                         // first LOD
 		ll      = qry.Timescale.LODs[len(qry.Timescale.LODs)-1] // last LOD
 		lods    = selectTagValueLODs(
@@ -594,7 +594,7 @@ func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery
 		panic("metric access violation") // should not happen
 	}
 	var (
-		version = promqlVersionOrDefault(qry.Version)
+		version = promqlVersionOrDefault(qry.Options.Version)
 		fl      = qry.Timescale.LODs[0]                         // first LOD
 		ll      = qry.Timescale.LODs[len(qry.Timescale.LODs)-1] // last LOD
 		lods    = selectTagValueLODs(
