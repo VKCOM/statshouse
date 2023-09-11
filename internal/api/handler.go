@@ -366,6 +366,7 @@ type (
 		maxHost             bool
 		avoidCache          bool
 		verbose             bool
+		expandToLODBoundary bool
 		format              string
 	}
 
@@ -732,7 +733,11 @@ func (h *Handler) doSelect(ctx context.Context, isFast, isLight bool, user strin
 
 	start := time.Now()
 	endpointStatSetQueryKind(ctx, isFast, isLight)
-	info, err := h.ch[version].Select(ctx, isFast, isLight, query)
+	info, err := h.ch[version].Select(ctx, util.QueryMetaInto{
+		IsFast:  isFast,
+		IsLight: isLight,
+		User:    user,
+	}, query)
 	duration := time.Since(start)
 	if h.verbose {
 		log.Printf("[debug] SQL for %q done in %v, err: %v", user, duration, err)
@@ -2076,7 +2081,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			Version:             req.version,
 			AvoidCache:          req.avoidCache,
 			TimeNow:             opt.timeNow.Unix(),
-			ExpandToLODBoundary: true,
+			ExpandToLODBoundary: req.expandToLODBoundary,
 			TagOffset:           true,
 			TagTotal:            true,
 			ExplicitGrouping:    true,
@@ -2171,6 +2176,10 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			}
 		}
 		res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
+	}
+	if len(bag.Time) != 0 {
+		res.ExcessPointLeft = bag.Time[0] < req.from.Unix()
+		res.ExcessPointRight = req.to.Unix() < bag.Time[len(bag.Time)-1]
 	}
 	if res.Series.SeriesData == nil {
 		// frontend expects not "null" value
@@ -3871,7 +3880,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 					k = k[dotX+1:]
 				}
 			}
-		} else if strings.HasPrefix(k, "v") {
+		} else if len(k) > 1 && k[0] == 'v' { // variables, not version
 			var dotX int
 			if dotX = strings.Index(k, "."); dotX != -1 {
 				switch dotX {
@@ -3974,6 +3983,8 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			t.format = first(v)
 		case paramQueryType:
 			t.strType = first(v)
+		case paramExcessPoints:
+			t.expandToLODBoundary = true
 		}
 		if err != nil {
 			return nil, err

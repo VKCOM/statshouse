@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import produce from 'immer';
-import { getMetricFullName, isValidVariableName } from '../../view/utils';
+import { getMetricFullName, isValidVariableName, promQLMetric } from '../../view/utils';
 import React, { useCallback, useEffect, useState } from 'react';
 import { PlotStore } from '../../store';
 import { MetricMetaValue } from '../../api/metric';
@@ -16,7 +16,8 @@ import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ToggleButton } from '../UI';
 import cn from 'classnames';
-import { PlotParams, VariableParams } from '../../url/queryParams';
+import { PlotParams, toPlotKey, VariableParams } from '../../url/queryParams';
+import { TagKey } from '../../api/enum';
 
 export type VariableCardProps = {
   indexVariable: number;
@@ -81,22 +82,25 @@ export function VariableCard({
   }, [indexVariable, setVariable]);
 
   const plotLink = useCallback(
-    (indexPlot: number, selectTag?: number) => {
+    (indexPlot: number, selectTag?: TagKey) => {
       setVariable?.(
         indexVariable,
         produce((v) => {
-          const indexLink = v.link.findIndex(([iPlot]) => indexPlot === iPlot);
-          if (indexLink > -1) {
-            if (isNil(selectTag)) {
-              v.link.splice(indexLink, 1);
-            } else {
-              v.link[indexLink] = [indexPlot, selectTag];
+          const plotKey = toPlotKey(indexPlot);
+          if (plotKey != null) {
+            const indexLink = v.link.findIndex(([kPlot]) => plotKey === kPlot);
+            if (indexLink > -1) {
+              if (isNil(selectTag)) {
+                v.link.splice(indexLink, 1);
+              } else {
+                v.link[indexLink] = [plotKey, selectTag];
+              }
+            } else if (isNotNil(selectTag)) {
+              v.link.push([plotKey, selectTag]);
             }
-          } else if (isNotNil(selectTag)) {
-            v.link.push([indexPlot, selectTag]);
-          }
-          if (v.link.length === 0) {
-            v.args = { groupBy: false, negative: false };
+            if (v.link.length === 0) {
+              v.args = { groupBy: false, negative: false };
+            }
           }
         })
       );
@@ -149,19 +153,26 @@ export function VariableCard({
           <div>
             <table className="table align-middle table-borderless">
               <tbody className="mb-2 border-bottom-1">
-                {plots.map((plot, indexPlot) => (
-                  <tr key={indexPlot}>
-                    <td className="text-end pb-0 ps-0">{getMetricFullName(plot, plotsData[indexPlot])}</td>
-                    <td className="pb-0 pe-0">
-                      <VariablePlotLinkSelect
-                        indexPlot={indexPlot}
-                        selectTag={variable.link.find(([p]) => p === indexPlot)?.[1] ?? undefined}
-                        metricMeta={metricsMeta[plot.metricName]}
-                        onChange={plotLink}
-                      />
-                    </td>
-                  </tr>
-                ))}
+                {plots.map((plot, indexPlot) => {
+                  const plotKey = toPlotKey(indexPlot);
+                  return (
+                    <tr key={indexPlot}>
+                      <td className="text-end pb-0 ps-0">{getMetricFullName(plot, plotsData[indexPlot])}</td>
+                      <td className="pb-0 pe-0">
+                        {plot.metricName === promQLMetric ? (
+                          <div className="form-control form-control-sm text-secondary">promQL</div>
+                        ) : (
+                          <VariablePlotLinkSelect
+                            indexPlot={indexPlot}
+                            selectTag={variable.link.find(([p]) => p === plotKey)?.[1] ?? undefined}
+                            metricMeta={metricsMeta[plot.metricName]}
+                            onChange={plotLink}
+                          />
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

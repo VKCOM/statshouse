@@ -42,9 +42,10 @@ function getStylePreview(
 export type DashboardLayoutProps = {
   yAxisSize?: number;
   className?: string;
+  embed?: boolean;
 };
 
-export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutProps) {
+export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardLayoutProps) {
   const params = useStore(selectorParams);
   const dashboardPlots = useStore(selectorDashboardPlotList);
   const moveAndResortPlot = useStore(selectorMoveAndResortPlot);
@@ -215,7 +216,12 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
       {itemsGroup.map((group, indexGroup) => (
         <div key={indexGroup} className="pb-5" data-group={indexGroup}>
           <h6
-            hidden={itemsGroup.length <= 1 && !dashboardLayoutEdit && !params.dashboard?.groupInfo?.[indexGroup]?.name}
+            hidden={
+              itemsGroup.length <= 1 &&
+              params.dashboard?.groupInfo?.[indexGroup]?.show !== false &&
+              !dashboardLayoutEdit &&
+              !params.dashboard?.groupInfo?.[indexGroup]?.name
+            }
             className="border-bottom pb-1"
           >
             {dashboardLayoutEdit ? (
@@ -277,6 +283,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
                     indexPlot={value.indexPlot}
                     type={value.plot.type}
                     compact={true}
+                    embed={embed}
                     yAxisSize={yAxisSize}
                     dashboard={true}
                     group="1"
@@ -302,6 +309,7 @@ export function DashboardLayout({ yAxisSize = 54, className }: DashboardLayoutPr
               indexPlot={select}
               type={params.plots[select].type}
               compact={true}
+              embed={embed}
               yAxisSize={yAxisSize}
               dashboard={true}
               group="1"

@@ -69,7 +69,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   const onPasteClipboard = useCallback(() => {
     (navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.reject())
       .then((url) => {
-        const parseParams = decodeParams(new URLSearchParams(url));
+        const parseParams = decodeParams([...new URLSearchParams(url).entries()]);
         if (parseParams.plots.length) {
           setParams(
             produce((p) => {
@@ -80,7 +80,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
       })
       .catch(() => {
         const url = prompt('Paste url') ?? '';
-        const parseParams = decodeParams(new URLSearchParams(url));
+        const parseParams = decodeParams([...new URLSearchParams(url).entries()]);
         if (parseParams.plots.length) {
           setParams(
             produce((p) => {

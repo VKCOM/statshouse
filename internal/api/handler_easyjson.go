@@ -480,6 +480,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 			out.SkipSumSquare = bool(in.Bool())
 		case "pre_key_only":
 			out.PreKeyOnly = bool(in.Bool())
+		case "metric_type":
+			out.MetricType = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -597,6 +599,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 		const prefix string = ",\"pre_key_only\":"
 		out.RawString(prefix)
 		out.Bool(bool(in.PreKeyOnly))
+	}
+	{
+		const prefix string = ",\"metric_type\":"
+		out.RawString(prefix)
+		out.String(string(in.MetricType))
 	}
 	out.RawByte('}')
 }

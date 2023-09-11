@@ -216,6 +216,7 @@ func runMain() int {
 
 	if argv.customHostName == "" {
 		argv.customHostName = srvfunc.HostnameForStatshouse()
+		logOk.Printf("detected statshouse hostname as %q from OS hostname %q\n", argv.customHostName, srvfunc.Hostname())
 	}
 
 	switch verb {

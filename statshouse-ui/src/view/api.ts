@@ -16,7 +16,16 @@ import {
 } from '../components/Plot/EventFormatters';
 import { uniqueArray } from '../common/helpers';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector, TagKey } from '../api/enum';
-import { filterInSep, filterNotInSep, freeKeyPrefix, PlotParams, toIndexTag } from '../url/queryParams';
+import {
+  encodeVariableConfig,
+  encodeVariableValues,
+  filterInSep,
+  filterNotInSep,
+  freeKeyPrefix,
+  PlotParams,
+  QueryParams,
+  toIndexTag,
+} from '../url/queryParams';
 import { MetricMetaValue } from '../api/metric';
 
 export interface queryResult {
@@ -428,7 +437,8 @@ export function queryURL(
   timeRange: TimeRange,
   timeShifts: number[],
   width: number | string,
-  fetchBadges: boolean
+  fetchBadges: boolean,
+  allParams?: QueryParams
 ): string {
   let params: string[][];
   if (sel.metricName === promQLMetric) {
@@ -452,6 +462,10 @@ export function queryURL(
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
   }
+  if (allParams) {
+    params.push(...encodeVariableValues(allParams));
+    params.push(...encodeVariableConfig(allParams));
+  }
   if (sel.maxHost) {
     params.push([GET_PARAMS.metricMaxHost, '1']);
   }
@@ -465,7 +479,8 @@ export function queryURLCSV(
   sel: PlotParams,
   timeRange: TimeRange,
   timeShifts: number[],
-  width: number | string
+  width: number | string,
+  allParams?: QueryParams
 ): string {
   let params: string[][];
   if (sel.metricName === promQLMetric) {
@@ -491,6 +506,10 @@ export function queryURLCSV(
       ...filterParams(sel.filterIn, sel.filterNotIn),
       [GET_PARAMS.metricDownloadFile, 'csv'],
     ];
+  }
+  if (allParams) {
+    params.push(...encodeVariableValues(allParams));
+    params.push(...encodeVariableConfig(allParams));
   }
   if (sel.maxHost) {
     params.push([GET_PARAMS.metricMaxHost, '1']);

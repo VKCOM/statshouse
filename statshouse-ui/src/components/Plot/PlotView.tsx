@@ -17,6 +17,7 @@ type PlotViewProps = {
   compact: boolean;
   yAxisSize: number;
   group?: string;
+  embed?: boolean;
 };
 
 function _PlotView({ type, ...props }: PlotViewProps) {

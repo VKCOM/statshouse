@@ -17,7 +17,7 @@ import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 import { MetricMetaValue } from '../../api/metric';
 import { promQLMetric } from '../../view/utils';
-import { encodeParams, fixMessageTrouble, lockRange, PlotParams, toKeyTag } from '../../url/queryParams';
+import { encodeParams, fixMessageTrouble, lockRange, PlotParams, toPlotKey } from '../../url/queryParams';
 
 const setPlotType = useStore.getState().setPlotType;
 
@@ -34,6 +34,7 @@ export type PlotHeaderProps = {
   yLock: lockRange;
   onResetZoom?: () => void;
   onYLockChange?: (status: boolean) => void;
+  embed?: boolean;
 };
 export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   indexPlot = 0,
@@ -47,6 +48,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   live,
   setLive,
   setTimeRange,
+  embed,
 }) => {
   const params = useStore(selectorParams);
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
@@ -60,15 +62,22 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     const search = encodeParams(
       produce(params, (prev) => {
         const plot = prev.plots[indexPlot];
+        const plotKey = toPlotKey(indexPlot, '0');
         prev.variables.forEach((variable) => {
-          variable.link.forEach(([iPlot, iTag]) => {
-            if (iPlot === indexPlot && iTag != null) {
-              const tagKey = toKeyTag(iTag);
-              if (tagKey) {
-                if (variable.args.negative) {
-                  plot.filterNotIn[tagKey] = variable.values.slice();
-                } else {
-                  plot.filterIn[tagKey] = variable.values.slice();
+          variable.link.forEach(([iPlot, keyTag]) => {
+            if (iPlot === plotKey) {
+              if (variable.args.negative) {
+                plot.filterNotIn[keyTag] = variable.values.slice();
+              } else {
+                plot.filterIn[keyTag] = variable.values.slice();
+              }
+              if (variable.args.groupBy) {
+                if (plot.groupBy.indexOf(keyTag) < 0) {
+                  plot.groupBy.push(keyTag);
+                }
+              } else {
+                if (plot.groupBy.indexOf(keyTag) > -1) {
+                  plot.groupBy = plot.groupBy.filter((g) => g !== keyTag);
                 }
               }
             }
@@ -84,7 +93,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
       })
     );
     return `${document.location.protocol}//${document.location.host}${document.location.pathname}?${fixMessageTrouble(
-      search.toString()
+      new URLSearchParams(search).toString()
     )}`;
   }, [indexPlot, params]);
 
@@ -114,7 +123,13 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
           )}
         >
           <div className="flex-grow-1 text-truncate w-50 overflow-hidden px-1 d-flex text-nowrap">
-            <PlotHeaderTitle indexPlot={indexPlot} compact={compact} dashboard={dashboard} outerLink={copyLink} />
+            <PlotHeaderTitle
+              indexPlot={indexPlot}
+              compact={compact}
+              dashboard={dashboard}
+              outerLink={copyLink}
+              embed={embed}
+            />
           </div>
           {!dashboardLayoutEdit && !sel.customName && (
             <>
@@ -162,7 +177,13 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         <h6
           className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 mb-1`}
         >
-          <PlotHeaderTitle indexPlot={indexPlot} compact={compact} dashboard={dashboard} outerLink={copyLink} />
+          <PlotHeaderTitle
+            indexPlot={indexPlot}
+            compact={compact}
+            dashboard={dashboard}
+            outerLink={copyLink}
+            embed={embed}
+          />
           <PlotHeaderBadges indexPlot={indexPlot} compact={compact} dashboard={dashboard} />
         </h6>
         {!compact && (

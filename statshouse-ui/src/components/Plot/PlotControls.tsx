@@ -38,7 +38,7 @@ import { MetricMetaValue } from '../../api/metric';
 import { isTagKey, QueryWhat, TAG_KEY, TagKey } from '../../api/enum';
 import { debug } from '../../common/debug';
 import { shallow } from 'zustand/shallow';
-import { PLOT_TYPE, PlotParams, toKeyTag, VariableParams } from '../../url/queryParams';
+import { PLOT_TYPE, PlotParams, toPlotKey, toTagKey, VariableParams } from '../../url/queryParams';
 import { dequal } from 'dequal/lite';
 
 const { setParams, setTimeRange, setPlotParams, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
@@ -66,7 +66,7 @@ export const PlotControls = memo(function PlotControls_(props: {
     [metricsList]
   );
   const [negativeTags, setNegativeTags] = useState<Partial<Record<TagKey, boolean>>>({});
-  const [variableTags, setVariableTags] = useState<Record<string, VariableParams>>({});
+  const [variableTags, setVariableTags] = useState<Partial<Record<TagKey, VariableParams>>>({});
   const { params, timeRange, plotsData } = useStore(selectorControls, shallow);
   const timeShifts = params.timeShifts;
   const plotData = plotsData[indexPlot];
@@ -94,29 +94,32 @@ export const PlotControls = memo(function PlotControls_(props: {
   }, [plotParams.filterIn, plotParams.filterNotIn]);
 
   useEffect(() => {
-    const next: Record<string, VariableParams> = {};
-    params.variables.forEach((variable) => {
-      variable.link.forEach(([iPlot, iTag]) => {
-        if (iPlot === indexPlot && iTag != null) {
-          next[iTag] = variable;
-        }
+    const next: Partial<Record<TagKey, VariableParams>> = {};
+    const plotKey = toPlotKey(indexPlot);
+    if (plotKey != null) {
+      params.variables.forEach((variable) => {
+        variable.link.forEach(([iPlot, iTag]) => {
+          if (iPlot === plotKey && iTag != null) {
+            next[iTag] = variable;
+          }
+        });
       });
-    });
 
-    setVariableTags((n) => {
-      if (dequal(n, next)) {
-        return n;
-      }
-      return next;
-    });
+      setVariableTags((n) => {
+        if (dequal(n, next)) {
+          return n;
+        }
+        return next;
+      });
+    }
   }, [indexPlot, params.variables]);
 
   const onSetNegativeTag = useCallback(
-    (indexTag: number | undefined, value: boolean) => {
-      if (indexTag == null) {
+    (tagKey: TagKey | undefined, value: boolean) => {
+      if (tagKey == null) {
         return;
       }
-      const variable = variableTags[indexTag];
+      const variable = variableTags[tagKey];
       if (variable) {
         setParams(
           produce((p) => {
@@ -127,26 +130,23 @@ export const PlotControls = memo(function PlotControls_(props: {
           })
         );
       } else {
-        const keyTag = toKeyTag(indexTag);
-        if (keyTag) {
-          setNegativeTags(
-            produce((n) => {
-              n[keyTag] = value;
-            })
-          );
-          setPlotParamsTag(indexPlot, keyTag, (s) => s, !value);
-        }
+        setNegativeTags(
+          produce((n) => {
+            n[tagKey] = value;
+          })
+        );
+        setPlotParamsTag(indexPlot, tagKey, (s) => s, !value);
       }
     },
     [indexPlot, variableTags]
   );
 
   const onFilterChange = useCallback(
-    (indexTag: number | undefined, values: string[]) => {
-      if (indexTag == null) {
+    (tagKey: TagKey | undefined, values: string[]) => {
+      if (tagKey == null) {
         return;
       }
-      const variable = variableTags[indexTag];
+      const variable = variableTags[tagKey];
       if (variable) {
         setParams(
           produce((p) => {
@@ -157,12 +157,9 @@ export const PlotControls = memo(function PlotControls_(props: {
           })
         );
       } else {
-        const keyTag = toKeyTag(indexTag);
-        if (keyTag) {
-          const negative = negativeTags[keyTag];
-          debug.log(`add ${negative ? 'negative' : 'positive'} filter for`, keyTag, values);
-          setPlotParamsTag(indexPlot, keyTag, values, !negative);
-        }
+        const negative = negativeTags[tagKey];
+        debug.log(`add ${negative ? 'negative' : 'positive'} filter for`, tagKey, values);
+        setPlotParamsTag(indexPlot, tagKey, values, !negative);
       }
     },
     [variableTags, negativeTags, indexPlot]
@@ -175,11 +172,11 @@ export const PlotControls = memo(function PlotControls_(props: {
   }, []);
 
   const onSetGroupBy = useCallback(
-    (indexTag: number | undefined, value: boolean) => {
-      if (indexTag == null) {
+    (tagKey: TagKey | undefined, value: boolean) => {
+      if (tagKey == null) {
         return;
       }
-      const variable = variableTags[indexTag];
+      const variable = variableTags[tagKey];
       if (variable) {
         setParams(
           produce((p) => {
@@ -190,10 +187,7 @@ export const PlotControls = memo(function PlotControls_(props: {
           })
         );
       } else {
-        const keyTag = toKeyTag(indexTag);
-        if (keyTag) {
-          setPlotParamsTagGroupBy(indexPlot, keyTag, value);
-        }
+        setPlotParamsTagGroupBy(indexPlot, tagKey, value);
       }
     },
     [indexPlot, variableTags]
@@ -356,8 +350,11 @@ export const PlotControls = memo(function PlotControls_(props: {
   );
 
   const onSetUpdateTag = useCallback(
-    (indexTag: number | undefined, value: boolean) => {
-      setUpdatedTag(indexPlot, indexTag, value);
+    (tagKey: TagKey | undefined, value: boolean) => {
+      const plotKey = toPlotKey(indexPlot);
+      if (plotKey != null) {
+        setUpdatedTag(plotKey, tagKey, value);
+      }
     },
     [indexPlot]
   );
@@ -494,45 +491,46 @@ export const PlotControls = memo(function PlotControls_(props: {
             {numQueries === 0 && (
               <div>
                 {(meta?.tags || []).map((t, indexTag) => {
-                  const keyTag = toKeyTag(indexTag);
-                  return !keyTag || (!isTagEnabled(meta, keyTag) && !filterHasTagID(plotParams, keyTag)) ? null : (
-                    <VariableControl<number>
+                  const tagKey = toTagKey(indexTag);
+                  return !tagKey || (!isTagEnabled(meta, tagKey) && !filterHasTagID(plotParams, tagKey)) ? null : (
+                    <VariableControl<TagKey>
                       className="mb-3"
                       key={indexTag}
-                      target={indexTag}
+                      target={tagKey}
                       placeholder={getTagDescription(meta, indexTag)}
-                      negative={variableTags[indexTag]?.args.negative ?? negativeTags[keyTag] ?? false}
+                      negative={variableTags[tagKey]?.args.negative ?? negativeTags[tagKey] ?? false}
                       setNegative={onSetNegativeTag}
-                      groupBy={variableTags[indexTag]?.args.groupBy ?? plotParams.groupBy.indexOf(keyTag) > -1}
+                      groupBy={variableTags[tagKey]?.args.groupBy ?? plotParams.groupBy.indexOf(tagKey) > -1}
                       setGroupBy={onSetGroupBy}
                       values={
-                        (variableTags[indexTag] && !variableTags[indexTag].args.negative
-                          ? variableTags[indexTag].values
-                          : undefined) ?? plotParams.filterIn[keyTag]
+                        (variableTags[tagKey] && !variableTags[tagKey]?.args.negative
+                          ? variableTags[tagKey]?.values
+                          : undefined) ?? plotParams.filterIn[tagKey]
                       }
                       notValues={
-                        (variableTags[indexTag] && variableTags[indexTag].args.negative
-                          ? variableTags[indexTag].values
-                          : undefined) ?? plotParams.filterNotIn[keyTag]
+                        (variableTags[tagKey] && variableTags[tagKey]?.args.negative
+                          ? variableTags[tagKey]?.values
+                          : undefined) ?? plotParams.filterNotIn[tagKey]
                       }
                       onChange={onFilterChange}
-                      tagMeta={tagsList[indexTag]?.tagMeta ?? t}
+                      tagMeta={tagsList[tagKey]?.tagMeta ?? t}
                       setOpen={onSetUpdateTag}
-                      list={tagsList[indexTag]?.list}
-                      loaded={tagsList[indexTag]?.loaded}
-                      more={tagsList[indexTag]?.more}
+                      list={tagsList[tagKey]?.list}
+                      loaded={tagsList[tagKey]?.loaded}
+                      more={tagsList[tagKey]?.more}
+                      customValue={tagsList[tagKey]?.more}
                       customBadge={
-                        variableTags[indexTag] && (
+                        variableTags[tagKey] && (
                           <span
-                            title={`is variable: ${variableTags[indexTag].description || variableTags[indexTag].name}`}
+                            title={`is variable: ${variableTags[tagKey]?.description || variableTags[tagKey]?.name}`}
                             className={cn(
                               'input-group-text bg-transparent text-nowrap pt-0 pb-0 mt-2 me-2',
-                              variableTags[indexTag]?.args.negative ?? negativeTags[keyTag]
+                              variableTags[tagKey]?.args.negative ?? negativeTags[tagKey]
                                 ? 'border-danger text-danger'
                                 : 'border-success text-success'
                             )}
                           >
-                            <span className="small">{variableTags[indexTag].name}</span>
+                            <span className="small">{variableTags[tagKey]?.name}</span>
                           </span>
                         )
                       }
@@ -540,39 +538,44 @@ export const PlotControls = memo(function PlotControls_(props: {
                   );
                 })}
                 {!isTagEnabled(meta, TAG_KEY._s) && !filterHasTagID(plotParams, TAG_KEY._s) ? null : (
-                  <VariableControl<number>
+                  <VariableControl<TagKey>
                     className="mb-3"
-                    target={-1}
+                    target={TAG_KEY._s}
                     placeholder={getTagDescription(meta, -1)}
-                    negative={variableTags[-1]?.args.negative ?? negativeTags[TAG_KEY._s] ?? false}
+                    negative={variableTags[TAG_KEY._s]?.args.negative ?? negativeTags[TAG_KEY._s] ?? false}
                     setNegative={onSetNegativeTag}
-                    groupBy={variableTags[-1]?.args.groupBy ?? plotParams.groupBy.indexOf(TAG_KEY._s) > -1}
+                    groupBy={variableTags[TAG_KEY._s]?.args.groupBy ?? plotParams.groupBy.indexOf(TAG_KEY._s) > -1}
                     setGroupBy={onSetGroupBy}
                     values={
-                      (variableTags[-1] && !variableTags[-1].args.negative ? variableTags[-1].values : undefined) ??
-                      plotParams.filterIn[TAG_KEY._s]
+                      (variableTags[TAG_KEY._s] && !variableTags[TAG_KEY._s]?.args.negative
+                        ? variableTags[TAG_KEY._s]?.values
+                        : undefined) ?? plotParams.filterIn[TAG_KEY._s]
                     }
                     notValues={
-                      (variableTags[-1] && variableTags[-1].args.negative ? variableTags[-1].values : undefined) ??
-                      plotParams.filterNotIn[TAG_KEY._s]
+                      (variableTags[TAG_KEY._s] && variableTags[TAG_KEY._s]?.args.negative
+                        ? variableTags[TAG_KEY._s]?.values
+                        : undefined) ?? plotParams.filterNotIn[TAG_KEY._s]
                     }
                     onChange={onFilterChange}
                     setOpen={onSetUpdateTag}
-                    list={tagsList[-1]?.list}
-                    loaded={tagsList[-1]?.loaded}
-                    more={tagsList[-1]?.more}
+                    list={tagsList[TAG_KEY._s]?.list}
+                    loaded={tagsList[TAG_KEY._s]?.loaded}
+                    more={tagsList[TAG_KEY._s]?.more}
+                    customValue={tagsList[TAG_KEY._s]?.more}
                     customBadge={
-                      variableTags[-1] && (
+                      variableTags[TAG_KEY._s] && (
                         <span
-                          title={`is variable: ${variableTags[-1].description || variableTags[-1].name}`}
+                          title={`is variable: ${
+                            variableTags[TAG_KEY._s]?.description || variableTags[TAG_KEY._s]?.name
+                          }`}
                           className={cn(
                             'input-group-text bg-transparent text-nowrap pt-0 pb-0 mt-2 me-2',
-                            variableTags[-1]?.args.negative ?? negativeTags[TAG_KEY._s]
+                            variableTags[TAG_KEY._s]?.args.negative ?? negativeTags[TAG_KEY._s]
                               ? 'border-danger text-danger'
                               : 'border-success text-success'
                           )}
                         >
-                          <span className="small">{variableTags[-1].name}</span>
+                          <span className="small">{variableTags[TAG_KEY._s]?.name}</span>
                         </span>
                       )
                     }

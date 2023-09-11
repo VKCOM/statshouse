@@ -8,6 +8,7 @@ package aggregator
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
 	"sync"
 	"time"
@@ -19,6 +20,8 @@ import (
 )
 
 const MaxTestResponseSize = 10 << 20
+const MinTestResponseSize = 10
+
 const MaxTestResponseTimeoutSec = 86400
 
 var testResponse = make([]byte, MaxTestResponseSize)
@@ -66,16 +69,19 @@ func (ms *TestConnection) broadcastResponses() {
 	}
 }
 
-func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.TestConnection2Bytes) (err error) {
+func (ms *TestConnection) handleTestConnection(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.TestConnection2Bytes) error {
 	if args.ResponseSize > MaxTestResponseSize {
 		return fmt.Errorf("max supported response_size is %d", MaxTestResponseSize)
 	}
 	if args.ResponseTimeoutSec > MaxTestResponseTimeoutSec {
 		return fmt.Errorf("max supported response_timeout_sec is %d", MaxTestResponseTimeoutSec)
 	}
+	var buf [8]byte
+	binary.LittleEndian.PutUint64(buf[:], uint64(hctx.RequestTime.UnixNano()))
+	hctx.Response, _ = args.WriteResult(hctx.Response, buf[:])
+	hctx.Response = append(hctx.Response, testResponse[:args.ResponseSize]...) // approximate
 	if args.ResponseTimeoutSec <= 0 {
-		hctx.Response, err = args.WriteResult(hctx.Response, testResponse[:args.ResponseSize])
-		return err
+		return nil
 	}
 	ms.clientsMu.Lock()
 	defer ms.clientsMu.Unlock()

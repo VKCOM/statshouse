@@ -59,7 +59,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
       })
     );
     return `${document.location.protocol}//${document.location.host}${document.location.pathname}?${fixMessageTrouble(
-      search.toString()
+      new URLSearchParams(search).toString()
     )}`;
   }, [params]);
 

@@ -70,6 +70,7 @@ type Agent struct {
 	statErrorsDiskReadNotConfigured *BuiltInItemValue
 	statErrorsDiskCompressFailed    *BuiltInItemValue
 	statLongWindowOverflow          *BuiltInItemValue
+	statDiskOverflow                *BuiltInItemValue
 
 	mu                          sync.Mutex
 	loadPromTargetsShardReplica *ShardReplica
@@ -202,6 +203,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	result.statErrorsDiskReadNotConfigured = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Keys: [16]int32{0, format.TagValueIDDiskCacheErrorReadNotConfigured}})
 	result.statErrorsDiskCompressFailed = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDAgentDiskCacheErrors, Keys: [16]int32{0, format.TagValueIDDiskCacheErrorCompressFailed}})
 	result.statLongWindowOverflow = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Keys: [16]int32{0, format.TagValueIDTimingLongWindowThrownAgent}})
+	result.statDiskOverflow = result.CreateBuiltInItemValue(data_model.Key{Metric: format.BuiltinMetricIDTimingErrors, Keys: [16]int32{0, format.TagValueIDTimingLongWindowThrownAgent}})
 
 	result.updateConfigRemotelyExperimental() // first update from stored in sqlite
 	return result, nil
@@ -213,6 +215,8 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 	s.AggregatorShardKey = aggShardKey
 	s.AggregatorReplicaKey = aggReplicaKey
 	for _, shard := range s.ShardReplicas {
+		shard.InitBuiltInMetric()
+
 		go shard.goPreProcess()
 		for j := 0; j < data_model.MaxConveyorDelay; j++ {
 			go shard.goSendRecent()
@@ -224,6 +228,7 @@ func (s *Agent) Run(aggHost int32, aggShardKey int32, aggReplicaKey int32) {
 			go shard.goLiveChecker()
 		}
 		go shard.goEraseHistoric()
+		go shard.goTestConnectionLoop()
 	}
 	go s.goFlusher()
 }

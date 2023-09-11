@@ -32,7 +32,6 @@ const (
 	EffectiveWeightOne = 128                      // metric.Weight is multiplied by this and rounded. Do not make too big or metric with weight set to 0 will disappear completely.
 	MaxEffectiveWeight = 100 * EffectiveWeightOne // do not make too high, we multiply this by sum of metric serialized length during sampling
 
-	PreKeyTagID    = "prekey"
 	StringTopTagID = "_s"
 	HostTagID      = "_h"
 	ShardTagID     = "_shard_num"
@@ -66,6 +65,24 @@ const (
 	MetricKindUnique           = "unique"
 	MetricKindMixed            = "mixed"
 	MetricKindMixedPercentiles = "mixed_p"
+)
+
+const (
+	MetricSecond      = "second"
+	MetricMillisecond = "millisecond"
+	MetricMicrosecond = "microsecond"
+	MetricNanosecond  = "nanosecond"
+
+	MetricByte = "byte"
+	/*
+		MetricBit = "bit"
+		MetricKilobyte = "kilobyte"
+		MetricMegabyte = "megabyte"
+		MetricGigabyte = "gigabyte"
+
+		MetricKibibyte = "kibibyte"
+		MetricMebibyte = "mebibyte"
+	*/
 )
 
 // Legacy, left for API backward compatibility
@@ -187,6 +204,7 @@ type MetricMetaValue struct {
 	SkipMinHost          bool            `json:"skip_min_host,omitempty"`
 	SkipSumSquare        bool            `json:"skip_sum_square,omitempty"`
 	PreKeyOnly           bool            `json:"pre_key_only,omitempty"`
+	MetricType           string          `json:"metric_type"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
@@ -284,6 +302,10 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	var err error
 	if !ValidMetricName(mem.S(m.Name)) {
 		err = multierr.Append(err, fmt.Errorf("invalid metric name: %q", m.Name))
+	}
+	if !IsValidMetricType(m.MetricType) {
+		err = multierr.Append(err, fmt.Errorf("invalid metric type: %s", m.MetricType))
+		m.MetricType = ""
 	}
 
 	if m.Kind == legacyMetricKindStringTop {
@@ -901,4 +923,12 @@ func ISO8601Date2BuildDateKey(str string) int32 {
 		return 0
 	}
 	return int32(n) // Will always fit
+}
+
+func IsValidMetricType(typ_ string) bool {
+	switch typ_ {
+	case MetricSecond, MetricMillisecond, MetricMicrosecond, MetricNanosecond, MetricByte, "":
+		return true
+	}
+	return false
 }

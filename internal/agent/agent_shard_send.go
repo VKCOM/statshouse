@@ -197,7 +197,7 @@ func (s *ShardReplica) goPreProcess() {
 		s.PreprocessingBucketTime = 0
 		s.mu.Unlock()
 
-		s.mergeBuckets(bucket, buckets)
+		s.mergeBuckets(bucket, buckets) // TODO - why we merge instead of passing array to sampleBucket
 		sampleFactors := s.sampleBucket(bucket, rnd)
 		s.sendToSenders(bucket, missedSeconds, sampleFactors)
 
@@ -786,6 +786,15 @@ func (s *ShardReplica) diskCachePutWithLog(cbd compressedBucketData) {
 	if s.agent.diskCache == nil {
 		return
 	}
+	// Motivation - we want to set limit dynamically.
+	// Also, if limit is set to 0, we want to gradually erase all seconds.
+	// That's why we create diskCache always
+	s.mu.Lock()
+	maxHistoricDiskSize := s.config.MaxHistoricDiskSize
+	s.mu.Unlock()
+	if maxHistoricDiskSize <= 0 {
+		return
+	}
 	if err := s.agent.diskCache.PutBucket(s.ShardReplicaNum, cbd.time, cbd.data); err != nil {
 		s.client.Client.Logf("Disk Error: diskCache.PutBucket returned error %v for shard %d replica %d (shard-replica %d) bucket %d",
 			err, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
@@ -901,7 +910,7 @@ func (s *ShardReplica) goEraseHistoric() {
 		if diskUsed > diskLimit {
 			s.client.Client.Logf("Send Disaster: Bucket %d for shard %d replica %d (shard-replica %d) (now is %d) violates disk size limit %d (%d used), throwing out",
 				cbd.time, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, nowUnix, diskLimit, diskUsed)
-			s.agent.statLongWindowOverflow.AddValueCounter(float64(nowUnix)-float64(cbd.time), 1)
+			s.agent.statDiskOverflow.AddValueCounter(float64(nowUnix)-float64(cbd.time), 1)
 
 			s.diskCacheEraseWithLog(cbd.time, "after throwing out historic, due to disk limit")
 			time.Sleep(200 * time.Millisecond) // Deleting 5 seconds per second is good for us, and does not spin CPU too much
