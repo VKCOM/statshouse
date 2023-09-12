@@ -435,16 +435,10 @@ func (s *ShardReplica) addBuiltInsHeartbeatsLocked(resolutionShard *data_model.M
 	mi := data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, nil)
 	mi.MapStringTop(build.Commit(), count).AddValueCounterHost(uptimeSec, count, 0)
 
-	heartbitIDs := []int32{format.BuiltinMetricIDHeartbeatArgs, format.BuiltinMetricIDHeartbeatArgs2, format.BuiltinMetricIDHeartbeatArgs3, format.BuiltinMetricIDHeartbeatArgs4}
-	// if command line is short, we send format.BuiltinMetricIDHeartbeatArgs only
-	for i, args := range s.agent.args {
-		if i >= len(heartbitIDs) {
-			break
-		}
-		key = s.agent.AggKey(resolutionShard.Time, heartbitIDs[i], [16]int32{0, s.agent.componentTag, s.agent.heartBeatEventType})
-		mi = data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, nil)
-		mi.MapStringTopBytes(args, count).AddValueCounterHost(uptimeSec, count, 0)
-	}
+	// we send format.BuiltinMetricIDHeartbeatArgs only. Args1, Args2, Args3 are deprecated
+	key = s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDHeartbeatArgs, [16]int32{0, s.agent.componentTag, s.agent.heartBeatEventType, s.agent.argsHash, 0, 0, 0, 0, 0, s.agent.argsLen})
+	mi = data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, nil)
+	mi.MapStringTop(s.agent.args, count).AddValueCounterHost(uptimeSec, count, 0)
 }
 
 func (s *ShardReplica) fillProxyHeader(fieldsMask *uint32, header *tlstatshouse.CommonProxyHeader) {

@@ -69,9 +69,9 @@ const (
 	BuiltinMetricIDAPIActiveQueries           = -55
 	BuiltinMetricIDRPCRequests                = -56
 	BuiltinMetricIDBudgetUnknownMetric        = -57
-	BuiltinMetricIDHeartbeatArgs2             = -58 // if args do not fit into BuiltinMetricIDHeartbeatArgs, we put tail here.
-	BuiltinMetricIDHeartbeatArgs3             = -59 // ...
-	BuiltinMetricIDHeartbeatArgs4             = -60 // OK, enough!
+	BuiltinMetricIDHeartbeatArgs2             = -58 // TODO: not recorded any more, remove later
+	BuiltinMetricIDHeartbeatArgs3             = -59 // TODO: not recorded any more, remove later
+	BuiltinMetricIDHeartbeatArgs4             = -60 // TODO: not recorded any more, remove later
 	BuiltinMetricIDContributorsLog            = -61
 	BuiltinMetricIDContributorsLogRev         = -62
 	BuiltinMetricIDGeneratorGapsCounter       = -63
@@ -1743,7 +1743,8 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 				TagValueIDHeartbeatEventStart:     "start",
 				TagValueIDHeartbeatEventHeartbeat: "heartbeat"}),
 		}, {
-			Description: "-",
+			Description: "arguments_hash",
+			RawKind:     "hex",
 		}, {
 			Description: "commit_hash", // this is unrelated to metric keys, this is ingress key ID
 			RawKind:     "hex",
@@ -1758,6 +1759,9 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 		}, {
 			Description: "remote_ip",
 			RawKind:     "ip",
+		}, {
+			Description: "arguments_length",
+			RawKind:     "int",
 		}},
 	}
 }
