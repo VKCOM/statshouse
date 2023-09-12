@@ -448,6 +448,10 @@ export function queryURL(
       [GET_PARAMS.width, width.toString()],
       ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
     ];
+    if (allParams) {
+      params.push(...encodeVariableValues(allParams));
+      params.push(...encodeVariableConfig(allParams));
+    }
   } else {
     params = [
       [GET_PARAMS.numResults, sel.numSeries.toString()],
@@ -462,10 +466,7 @@ export function queryURL(
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
   }
-  if (allParams) {
-    params.push(...encodeVariableValues(allParams));
-    params.push(...encodeVariableConfig(allParams));
-  }
+
   if (sel.maxHost) {
     params.push([GET_PARAMS.metricMaxHost, '1']);
   }
@@ -492,6 +493,10 @@ export function queryURLCSV(
       ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
       [GET_PARAMS.metricDownloadFile, 'csv'],
     ];
+    if (allParams) {
+      params.push(...encodeVariableValues(allParams));
+      params.push(...encodeVariableConfig(allParams));
+    }
   } else {
     params = [
       [GET_PARAMS.numResults, sel.numSeries.toString()],
@@ -506,10 +511,6 @@ export function queryURLCSV(
       ...filterParams(sel.filterIn, sel.filterNotIn),
       [GET_PARAMS.metricDownloadFile, 'csv'],
     ];
-  }
-  if (allParams) {
-    params.push(...encodeVariableValues(allParams));
-    params.push(...encodeVariableConfig(allParams));
   }
   if (sel.maxHost) {
     params.push([GET_PARAMS.metricMaxHost, '1']);
