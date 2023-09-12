@@ -12,9 +12,10 @@ import (
 	"sort"
 	"unsafe"
 
+	"pgregory.net/rand"
+
 	"github.com/dchest/siphash"
 	"github.com/hrissan/tdigest"
-	"pgregory.net/rand"
 
 	"github.com/vkcom/statshouse/internal/format"
 )
@@ -149,6 +150,10 @@ func (s *ItemValue) TLSizeEstimate() int {
 }
 
 func (s *ItemValue) Merge(s2 *ItemValue) {
+	if !s2.ValueSet {
+		s.AddCounterHost(s2.Counter, s2.MaxHostTag)
+		return
+	}
 	s.ValueSum += s2.ValueSum
 	s.ValueSumSquare += s2.ValueSumSquare
 
@@ -295,9 +300,8 @@ func (s *MultiItem) RowBinarySizeEstimate() int {
 	return size
 }
 
-// TODO - deal with empty items. Do not allow them to exist?
 func (s *MultiValue) Empty() bool {
-	return s.HLL.ItemsCount() == 0 && s.ValueTDigest == nil && !s.Value.ValueSet && s.Value.Counter == 0
+	return s.Value.Counter <= 0
 }
 
 func (s *MultiValue) AddCounterHost(count float64, hostTag int32) {

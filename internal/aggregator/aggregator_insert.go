@@ -305,6 +305,9 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		}
 		resPos = len(res)
 		for skey, value := range item.Top {
+			if value.Empty() { // must be never, but check is cheap
+				continue
+			}
 			// We have no badges for string tops
 			res = appendKeys(res, k, metricCache, usedTimestamps)
 			res = multiValueMarshal(k.Metric, metricCache, res, value, skey, sf)
