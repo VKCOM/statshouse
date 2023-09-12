@@ -30,8 +30,10 @@ type connPool struct {
 	servers []*chpool.Pool
 	sem     *semaphore.Weighted
 
-	user map[string]int
-	mx   sync.Mutex
+	userActive map[string]int
+	mx         sync.Mutex
+	userWait   map[string]int
+	waitMx     sync.Mutex
 }
 
 type ClickHouse struct {
@@ -57,10 +59,10 @@ func OpenClickHouse(fastSlowMaxConns, lightHeavyMaxConns int, addrs []string, us
 	}
 
 	result := &ClickHouse{[4]*connPool{
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(fastSlowMaxConns)), map[string]int{}, sync.Mutex{}},   // fastLight
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(lightHeavyMaxConns)), map[string]int{}, sync.Mutex{}}, // fastHeavy
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(fastSlowMaxConns)), map[string]int{}, sync.Mutex{}},   // slowLight
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(lightHeavyMaxConns)), map[string]int{}, sync.Mutex{}}, // slowHeavy
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(fastSlowMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},   // fastLight
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(lightHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // fastHeavy
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(fastSlowMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},   // slowLight
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(lightHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // slowHeavy
 	}}
 	for _, addr := range addrs {
 		for _, pool := range result.pools {
@@ -85,9 +87,9 @@ func OpenClickHouse(fastSlowMaxConns, lightHeavyMaxConns int, addrs []string, us
 	return result, nil
 }
 
-func (c *connPool) countOfReqLocked() int {
+func (c *connPool) countOfReqLocked(m map[string]int) int {
 	r := 0
-	for _, v := range c.user {
+	for _, v := range m {
 		r += v
 	}
 	return r
@@ -148,22 +150,38 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 		if err != nil {
 			return profile, err
 		}
+		startTime := time.Now()
+		pool.waitMx.Lock()
+		pool.userWait[meta.User]++
+		uniqWait := len(pool.userWait)
+		allWait := pool.countOfReqLocked(pool.userWait)
+		statshouse.Metric("statshouse_unique_wait_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "uniq"}).Value(float64(uniqWait))
+		statshouse.Metric("statshouse_unique_wait_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "all"}).Value(float64(allWait))
+		pool.waitMx.Unlock()
 		err = pool.sem.Acquire(ctx, 1)
+		waitLockDuration := time.Since(startTime)
+		pool.waitMx.Lock()
+		pool.userWait[meta.User]--
+		if c := pool.userWait[meta.User]; c == 0 {
+			delete(pool.userWait, meta.User)
+		}
+		pool.waitMx.Unlock()
+		statshouse.Metric("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10)}).Value(waitLockDuration.Seconds())
 		if err != nil {
 			return profile, err
 		}
 		pool.mx.Lock()
-		pool.user[meta.User]++
-		uniq := len(pool.servers)
-		all := pool.countOfReqLocked()
+		pool.userActive[meta.User]++
+		uniq := len(pool.userActive)
+		all := pool.countOfReqLocked(pool.userActive)
 		pool.mx.Unlock()
 		statshouse.Metric("statshouse_unique_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "uniq"}).Value(float64(uniq))
 		statshouse.Metric("statshouse_unique_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "all"}).Value(float64(all))
 		err = servers[i].Do(ctx, query)
 		pool.mx.Lock()
-		pool.user[meta.User]--
-		if c := pool.user[meta.User]; c == 0 {
-			delete(pool.user, meta.User)
+		pool.userActive[meta.User]--
+		if c := pool.userActive[meta.User]; c == 0 {
+			delete(pool.userActive, meta.User)
 		}
 		pool.mx.Unlock()
 		pool.sem.Release(1)
