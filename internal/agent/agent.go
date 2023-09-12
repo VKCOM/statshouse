@@ -7,10 +7,13 @@
 package agent
 
 import (
+	"crypto/sha1"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -37,7 +40,9 @@ type Agent struct {
 
 	diskCache *DiskBucketStorage
 	hostName  []byte
-	args      [][]byte // split into ValidString chunks
+	argsHash  int32
+	argsLen   int32
+	args      string
 	config    Config
 	logF      rpc.LoggerFunc
 
@@ -90,6 +95,9 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	beforeFlushBucketFunc func(s *Agent, now time.Time), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
 	rpcClient := rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF), rpc.ClientWithPongTimeout(data_model.ClientRPCPongTimeout))
 	rnd := rand.New()
+	allArgs := strings.Join(os.Args[1:], " ")
+	argsHash := sha1.Sum([]byte(allArgs))
+
 	result := &Agent{
 		hostName:              format.ForceValidStringValue(hostName), // worse alternative is do not run at all
 		componentTag:          componentTag,
@@ -97,30 +105,15 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		heartBeatSecondBucket: rnd.Intn(60),
 		heartBeatReplicaNum:   rnd.Intn(3),
 		config:                config,
+		argsHash:              int32(binary.BigEndian.Uint32(argsHash[:])),
+		argsLen:               int32(len(allArgs)),
+		args:                  string(format.ForceValidStringValue(allArgs)), // if single arg is too big, it is truncated here
 		logF:                  logF,
 		commitDateTag:         format.ISO8601Date2BuildDateKey(time.Unix(int64(build.CommitTimestamp()), 0).Format(time.RFC3339)),
 		commitTimestamp:       int32(build.CommitTimestamp()),
 		buildArchTag:          format.GetBuildArchKey(runtime.GOARCH),
 		metricStorage:         metricStorage,
 		beforeFlushBucketFunc: beforeFlushBucketFunc,
-	}
-	var arg []byte
-	for i := 1; i < len(os.Args); i++ {
-		w := format.ForceValidStringValue(os.Args[i]) // if single arg is too big, it is truncated here
-		if len(w) == 0 {
-			continue // preserve single space between args property
-		}
-		if len(arg) != 0 && len(arg)+1+len(w) > format.MaxStringLen { // if len(arg) == 0. we don't need ' ' and w always fits
-			result.args = append(result.args, arg)
-			arg = nil
-		}
-		if len(arg) != 0 {
-			arg = append(arg, ' ')
-		}
-		arg = append(arg, w...)
-	}
-	if len(arg) != 0 || len(result.args) == 0 {
-		result.args = append(result.args, arg) // at least single empty value
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &result.rUsage)
 
