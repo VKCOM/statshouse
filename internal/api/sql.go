@@ -69,6 +69,7 @@ FROM
   %s
 WHERE
   %s = ?
+  AND count > 0
   AND time >= ? AND time < ?%s`,
 		columnName(lod.hasPreKey, pq.tagID, pq.preKeyTagID),
 		valueName,
@@ -225,6 +226,7 @@ FROM
   %s
 WHERE
   %s = ?
+  AND count > 0
   AND time >= ? AND time < ?%s`,
 		timeInterval,
 		commaBy,
@@ -311,6 +313,7 @@ FROM
   %s
 WHERE
   %s = ?
+  AND count > 0
   AND time >= ? AND time < ?%s`,
 		commaBySelect,
 		what,
