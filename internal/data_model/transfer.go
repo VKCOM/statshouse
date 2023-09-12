@@ -94,6 +94,10 @@ func (s *MultiValue) TLSizeEstimate() int {
 }
 
 func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor float64, fieldsMask *uint32, marshalBuf *[]byte) {
+	cou := s.Value.Counter * sampleFactor
+	if cou <= 0 {
+		return
+	}
 	if s.Value.MaxHostTag != 0 {
 		// this value is passed from "_h" tag (if set) in ApplyValue, ApplyUnique, ApplyCount functions
 		item.SetHostTag(s.Value.MaxHostTag, fieldsMask)
@@ -111,13 +115,10 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 			item.SetCentroids(cc, fieldsMask) // TODO - do not set percentiles if v.ValueMin == v.ValueMax, restore on other side
 		}
 	}
-	cou := s.Value.Counter * sampleFactor
-	if cou != 0 {
-		if cou == 1 {
-			item.SetCounterEq1(true, fieldsMask)
-		} else {
-			item.SetCounter(cou, fieldsMask)
-		}
+	if cou == 1 {
+		item.SetCounterEq1(true, fieldsMask)
+	} else {
+		item.SetCounter(cou, fieldsMask)
 	}
 	if !s.Value.ValueSet {
 		return
@@ -140,6 +141,9 @@ func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_ma
 	}
 	if s2.IsSetCounter(fields_mask) {
 		counter = s2.Counter
+	}
+	if counter <= 0 {
+		return
 	}
 	if !s2.IsSetValueSet(fields_mask) {
 		s.AddCounterHost(counter, hostTag)

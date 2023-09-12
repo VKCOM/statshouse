@@ -16,7 +16,7 @@ func PartialSortIndexByValueAsc(idx []int, val []float64, n int, rnd *rand.Rand,
 	}
 	buf = append(buf[:0], idx...) // "buf" is used to stable sort
 	partialQuickSortIndexByValue(idx, val, 0, len(idx), n, -1, rnd, buf)
-	return buf // let user reuse "buf"
+	return buf // let userActive reuse "buf"
 }
 
 func PartialSortIndexByValueDesc(idx []int, val []float64, n int, rnd *rand.Rand, buf []int) []int {
@@ -25,7 +25,7 @@ func PartialSortIndexByValueDesc(idx []int, val []float64, n int, rnd *rand.Rand
 	}
 	buf = append(buf[:0], idx...) // "buf" is used to stable sort
 	partialQuickSortIndexByValue(idx, val, 0, len(idx), n, 1, rnd, buf)
-	return buf // let user reuse "buf"
+	return buf // let userActive reuse "buf"
 }
 
 func partialQuickSortIndexByValue(idx []int, val []float64, lo, hi, n int, m float64, rnd *rand.Rand, buf []int) {

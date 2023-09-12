@@ -514,10 +514,18 @@ export const useStore = createWithEqualityFn<Store>()(
             });
           });
           const changedVariablesPlot: Set<number | null> = new Set();
+          const plotsPromQL = getState()
+            .params.plots.map((plot, indexPlot) => ({ plot, indexPlot }))
+            .filter(({ plot }) => plot.promQL.indexOf('__bind__') > -1);
           getState().params.variables.forEach((variable, indexVariable) => {
             if (prevParams.variables[indexVariable] !== variable) {
               variable.link.forEach(([iPlot]) => {
                 changedVariablesPlot.add(toNumber(iPlot));
+              });
+              plotsPromQL.forEach(({ plot, indexPlot }) => {
+                if (plot.promQL.indexOf(variable.name) > -1) {
+                  changedVariablesPlot.add(indexPlot);
+                }
               });
             }
           });
@@ -804,7 +812,6 @@ export const useStore = createWithEqualityFn<Store>()(
           });
           return;
         }
-
         if (lastPlotParams.metricName === '' && lastPlotParams.promQL === '') {
           return;
         }
@@ -814,6 +821,7 @@ export const useStore = createWithEqualityFn<Store>()(
           (!dequal(lastPlotParams, prev.lastPlotParams) ||
             prevState.timeRange !== prev.lastTimeRange ||
             prevState.params.timeShifts !== prev.lastTimeShifts ||
+            (lastPlotParams.promQL && lastPlotParams.promQL.indexOf('__bind__') > -1) ||
             force)
         ) {
           const agg =
@@ -844,7 +852,14 @@ export const useStore = createWithEqualityFn<Store>()(
 
           const promQLForm = new FormData();
           promQLForm.append('q', lastPlotParams.promQL);
-          const url = queryURL(lastPlotParams, prevState.timeRange, prevState.params.timeShifts, agg, !compact);
+          const url = queryURL(
+            lastPlotParams,
+            prevState.timeRange,
+            prevState.params.timeShifts,
+            agg,
+            !compact,
+            prevState.params
+          );
           prevState.plotsDataAbortController[index]?.abort();
           setState((state) => {
             state.plotsDataAbortController[index] = controller;

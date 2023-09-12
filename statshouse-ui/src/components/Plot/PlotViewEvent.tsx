@@ -10,7 +10,7 @@ import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
 import { UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
-import { formatSI, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
+import { now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { queryURLCSV } from '../../view/api';
 import { black, grey, greyDark } from '../../view/palette';
 import produce from 'immer';
@@ -21,6 +21,7 @@ import {
   selectorLoadEvents,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
+  selectorParams,
   selectorParamsPlotsByIndex,
   selectorParamsTimeShifts,
   selectorPlotsDataByIndex,
@@ -39,6 +40,8 @@ import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icon
 import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
 import { createPlotPreview } from '../../store/plot/plotPreview';
 import { shallow } from 'zustand/shallow';
+import { METRIC_TYPE, toMetricType } from '../../api/enum';
+import { formatByMetricType, splitByMetricType } from '../../common/formatByMetricType';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -68,7 +71,7 @@ export function PlotViewEvent(props: {
   embed?: boolean;
 }) {
   const { indexPlot, compact, yAxisSize, dashboard, className, group, embed } = props;
-
+  const params = useStore(selectorParams);
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
   const setSel = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
@@ -198,6 +201,7 @@ export function PlotViewEvent(props: {
           key: group,
         }
       : undefined;
+    const metricType = toMetricType(meta?.metric_type, METRIC_TYPE.none);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -230,10 +234,11 @@ export function PlotViewEvent(props: {
         {
           grid: grid,
           ticks: grid,
-          values: (_, splits) => splits.map(formatSI),
+          values: (_, splits) => splits.map(formatByMetricType(metricType)),
           size: yAxisSize,
           font: font,
           stroke: getAxisStroke,
+          splits: !meta?.metric_type ? undefined : splitByMetricType(metricType),
         },
       ],
       scales: {
@@ -264,7 +269,7 @@ export function PlotViewEvent(props: {
       },
       plugins: [pluginTimeWindow],
     };
-  }, [compact, getAxisStroke, group, pluginTimeWindow, themeDark, topPad, xAxisSize, yAxisSize]);
+  }, [compact, getAxisStroke, group, meta?.metric_type, pluginTimeWindow, themeDark, topPad, xAxisSize, yAxisSize]);
 
   const timeWindow = useMemo(() => {
     let leftWidth = 0;
@@ -293,8 +298,8 @@ export function PlotViewEvent(props: {
         : sel.customAgg === 0
         ? `${Math.floor(width * devicePixelRatio)}`
         : `${sel.customAgg}s`;
-    return queryURLCSV(sel, timeRange, timeShifts, agg);
-  }, [sel, timeRange, timeShifts, width]);
+    return queryURLCSV(sel, timeRange, timeShifts, agg, params);
+  }, [params, sel, timeRange, timeShifts, width]);
 
   const onReady = useCallback(
     (u: uPlot) => {

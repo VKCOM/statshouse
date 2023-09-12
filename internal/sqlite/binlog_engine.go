@@ -118,8 +118,10 @@ func (impl *binlogEngineReplicaImpl) Commit(offset int64, snapshotMeta []byte, s
 			return
 		}
 	}
+	snapshotMetaCpy := make([]byte, len(snapshotMeta))
+	copy(snapshotMetaCpy, snapshotMeta)
 	e.committedInfo.Store(&committedInfo{
-		meta:   snapshotMeta,
+		meta:   snapshotMetaCpy,
 		offset: offset,
 	})
 

@@ -10,7 +10,7 @@ import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
 import { LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
-import { fmtInputDateTime, formatSI, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
+import { fmtInputDateTime, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { queryURLCSV } from '../../view/api';
 import { black, grey, greyDark } from '../../view/palette';
 import produce from 'immer';
@@ -20,6 +20,7 @@ import {
   selectorLiveMode,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
+  selectorParams,
   selectorParamsPlotsByIndex,
   selectorParamsTimeShifts,
   selectorPlotsDataByIndex,
@@ -37,11 +38,13 @@ import { shallow } from 'zustand/shallow';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
 import { createPlotPreview } from '../../store/plot/plotPreview';
+import { METRIC_TYPE, toMetricType } from '../../api/enum';
+import { formatByMetricType, splitByMetricType } from '../../common/formatByMetricType';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
 const font =
-  '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
+  '11px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
 
 const threshold = buildThresholdList(1);
 
@@ -85,6 +88,7 @@ export function PlotViewMetric(props: {
 }) {
   const { indexPlot, compact, yAxisSize, dashboard, className, group, embed } = props;
 
+  const params = useStore(selectorParams);
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
   const setSel = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
@@ -213,6 +217,7 @@ export function PlotViewMetric(props: {
           key: group,
         }
       : undefined;
+    const metricType = toMetricType(meta?.metric_type, METRIC_TYPE.none);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -245,10 +250,11 @@ export function PlotViewMetric(props: {
         {
           grid: grid,
           ticks: grid,
-          values: (_, splits) => splits.map(formatSI),
+          values: (_, splits) => splits.map(formatByMetricType(metricType)),
           size: yAxisSize,
           font: font,
           stroke: getAxisStroke,
+          splits: !meta?.metric_type ? undefined : splitByMetricType(metricType),
         },
       ],
       scales: {
@@ -279,7 +285,7 @@ export function PlotViewMetric(props: {
       },
       plugins: [pluginEventOverlay],
     };
-  }, [compact, getAxisStroke, group, pluginEventOverlay, themeDark, topPad, xAxisSize, yAxisSize]);
+  }, [compact, getAxisStroke, group, meta?.metric_type, pluginEventOverlay, themeDark, topPad, xAxisSize, yAxisSize]);
 
   const linkCSV = useMemo(() => {
     const agg =
@@ -288,8 +294,8 @@ export function PlotViewMetric(props: {
         : sel.customAgg === 0
         ? `${Math.floor(width * devicePixelRatio)}`
         : `${sel.customAgg}s`;
-    return queryURLCSV(sel, timeRange, timeShifts, agg);
-  }, [sel, timeRange, timeShifts, width]);
+    return queryURLCSV(sel, timeRange, timeShifts, agg, params);
+  }, [params, sel, timeRange, timeShifts, width]);
 
   const onReady = useCallback(
     (u: uPlot) => {

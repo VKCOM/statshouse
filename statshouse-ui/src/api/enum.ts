@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { isEnum } from '../common/helpers';
+import { isEnum, toEnum } from '../common/helpers';
 
 export type Enum<T> = T[keyof T];
 
@@ -138,31 +138,23 @@ export const TAG_KEY = {
   _13: '13',
   _14: '14',
   _15: '15',
+  _16: '16',
+  _17: '17',
+  _18: '18',
+  _19: '19',
+  _20: '20',
+  _21: '21',
+  _23: '22',
+  _24: '24',
+  _25: '25',
+  _26: '26',
+  _27: '27',
+  _28: '28',
+  _29: '29',
+  _30: '30',
+  _31: '31',
 } as const;
 export type TagKey = Enum<typeof TAG_KEY>;
-
-export const TAG_KEY_OLD = {
-  skey: 'skey',
-  key0: 'key0',
-  key1: 'key1',
-  key2: 'key2',
-  key3: 'key3',
-  key4: 'key4',
-  key5: 'key5',
-  key6: 'key6',
-  key7: 'key7',
-  key8: 'key8',
-  key9: 'key9',
-  key10: 'key10',
-  key11: 'key11',
-  key12: 'key12',
-  key13: 'key13',
-  key14: 'key14',
-  key15: 'key15',
-} as const;
-export type TagKeyOld = Enum<typeof TAG_KEY_OLD>;
-
-export type TagKeyAll = TagKey | TagKeyOld;
 
 export const METRIC_META_KIND = {
   counter: 'counter',
@@ -196,3 +188,28 @@ export type ApiFetchOptMethods = Enum<typeof API_FETCH_OPT_METHODS>;
 
 export const isQueryWhat = isEnum<QueryWhat>(QUERY_WHAT);
 export const isTagKey = isEnum<TagKey>(TAG_KEY);
+
+/**
+ * metric unit type
+ */
+export const METRIC_TYPE = {
+  none: '',
+  // time
+  second: 'second',
+  millisecond: 'millisecond',
+  microsecond: 'microsecond',
+  nanosecond: 'nanosecond',
+  // data size
+  byte: 'byte',
+} as const;
+export type MetricType = Enum<typeof METRIC_TYPE>;
+export const isMetricType = isEnum<MetricType>(METRIC_TYPE);
+export const toMetricType = toEnum(isMetricType);
+export const METRIC_TYPE_DESCRIPTION: Record<MetricType, string> = {
+  [METRIC_TYPE.none]: 'no unit',
+  [METRIC_TYPE.second]: 'second',
+  [METRIC_TYPE.millisecond]: 'millisecond',
+  [METRIC_TYPE.microsecond]: 'microsecond',
+  [METRIC_TYPE.nanosecond]: 'nanosecond',
+  [METRIC_TYPE.byte]: 'byte',
+};

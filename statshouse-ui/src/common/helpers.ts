@@ -167,6 +167,20 @@ export function isEnum<T>(obj: Record<string, string>) {
   };
 }
 
+export function toEnum<T>(itemIsEnum: (s: unknown) => s is T, preConvert: (s: unknown) => unknown = toString) {
+  function toEnumFull(s: unknown): T | null;
+  function toEnumFull(s: unknown, defaultValue: T): T;
+  function toEnumFull(s: unknown, defaultValue?: T): T | null {
+    const str = preConvert(s);
+    if (itemIsEnum(str)) {
+      return str;
+    }
+    return defaultValue ?? null;
+  }
+
+  return toEnumFull;
+}
+
 export function objectRemoveKeyShift<T = unknown>(obj: Record<string, T>, index: number) {
   return Object.fromEntries(
     Object.entries(obj).map(([key, value]) => {
@@ -181,4 +195,10 @@ export function objectRemoveKeyShift<T = unknown>(obj: Record<string, T>, index:
 
 export function resortObjectKey<T = unknown>(obj: Record<string, T>, nextIndex: Record<string, string | number>) {
   return Object.fromEntries(Object.entries(obj).map(([key, value]) => [nextIndex[key] ?? key, value]));
+}
+
+export function roundDec(val: number, dec: number = 0, radix: number = 10) {
+  // if (Number.isInteger(val)) return val;
+  let p = Math.pow(radix, dec);
+  return Math.round(val * p * (1 + Number.EPSILON)) / p;
 }

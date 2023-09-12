@@ -569,9 +569,8 @@ func (e *Engine) commitTXAndStartNew(commit, waitBinlogCommit bool) error {
 
 }
 
-func (e *Engine) commitRWTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, skipUpdateMeta bool) error {
+func (e *Engine) commitRWTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, skipUpdateMeta bool) (err error) {
 	var info *committedInfo
-	var err error
 	c = c.withoutTimeout()
 	defer func() {
 		c.c.spIn = false
@@ -771,10 +770,14 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	offsetBeforeWrite := e.dbOffset
 	defer func() {
 		if err != nil {
+			log.Println("[sqlite] return err to user", err.Error(), "offsetBeforeWrite:", offsetBeforeWrite, "offsetAfterWrite:", e.dbOffset)
 			e.dbOffset = offsetBeforeWrite
 		}
 		err1 := c.close(commit)
-		if err1 != nil {
+		if err == nil {
+			if err1 != nil {
+				log.Println("[sqlite] got error during to close: ", err1.Error())
+			}
 			err = multierr.Append(err, err1)
 		}
 	}()
@@ -805,6 +808,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 
 		err = binlogUpdateOffset(c, offsetAfterWritePredicted)
 		if err != nil {
+			log.Println("[sqlite] failed to update binlog position:", err.Error())
 			return nil, err
 		}
 
@@ -815,6 +819,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 			offsetAfterWrite, err = e.binlog.Append(e.dbOffset, buffer)
 		}
 		if err != nil {
+			log.Println("[sqlite] got error from binlog:", err.Error())
 			return nil, err
 		}
 		// after this line can't rollback tx!!!!!!
