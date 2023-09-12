@@ -35,7 +35,7 @@ export interface IMetric extends IShortMetric {
   readonly kind: IKind;
   readonly withPercentiles: boolean;
   readonly tags: ITagAlias[];
-  readonly tagsSize: string;
+  readonly tagsSize: number;
   readonly stringTopName: string;
   readonly stringTopDescription: string;
   readonly weight: number;

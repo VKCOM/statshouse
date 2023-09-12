@@ -8,6 +8,8 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { IMetric } from '../models/metric';
 import { saveMetric } from '../api/saveMetric';
+import { maxTagsSize } from '../../common/settings';
+import { getDefaultTag } from '../storages/MetricFormValues/reducer';
 
 export function CreatePage(props: { yAxisSize: number }) {
   const { yAxisSize } = props;
@@ -33,7 +35,8 @@ export function EditFormCreate() {
   return (
     <form>
       <div className="col-sm-5 mb-3 form-text">
-        Metric will be created with all 16 keys visible. To hide excess keys, please use <b>Edit</b> button above plot.
+        Metric will be created with all {maxTagsSize} keys visible. To hide excess keys, please use <b>Edit</b> button
+        above plot.
       </div>
       <div className="row mb-3">
         <label htmlFor="name" className="col-sm-2 col-form-label">
@@ -94,23 +97,9 @@ function useSubmitCreate(name: string) {
       visible: true,
       tags: [
         { name: '', alias: 'environment', customMapping: [] }, // env
-        { name: '', alias: '', customMapping: [] }, // key1
-        { name: '', alias: '', customMapping: [] }, // key2
-        { name: '', alias: '', customMapping: [] }, // key3
-        { name: '', alias: '', customMapping: [] }, // key4
-        { name: '', alias: '', customMapping: [] }, // key5
-        { name: '', alias: '', customMapping: [] }, // key6
-        { name: '', alias: '', customMapping: [] }, // key7
-        { name: '', alias: '', customMapping: [] }, // key8
-        { name: '', alias: '', customMapping: [] }, // key9
-        { name: '', alias: '', customMapping: [] }, // key10
-        { name: '', alias: '', customMapping: [] }, // key11
-        { name: '', alias: '', customMapping: [] }, // key12
-        { name: '', alias: '', customMapping: [] }, // key13
-        { name: '', alias: '', customMapping: [] }, // key14
-        { name: '', alias: '', customMapping: [] }, // key15
+        ...new Array(maxTagsSize - 1).fill({}).map(() => getDefaultTag()),
       ],
-      tagsSize: '16', // TODO - const
+      tagsSize: maxTagsSize,
     };
     saveMetric(values)
       .then(() => {

@@ -7,13 +7,13 @@
 import { formatTagValue, queryTable, queryTableRow, queryTableURL } from '../view/api';
 import { TimeRange } from '../common/TimeRange';
 import { apiGet, fmtInputDateTime } from '../view/utils';
-import { QueryWhat, TagKeyAll } from './enum';
+import { QueryWhat, TagKey } from './enum';
 import { freeKeyPrefix, PlotParams } from '../url/queryParams';
 
 const abortControllers: Map<unknown, AbortController> = new Map();
 export type WhatCollection = Record<QueryWhat, number>;
 
-export type TagCollection = Record<TagKeyAll, string>;
+export type TagCollection = Record<TagKey, string>;
 
 export type ApiTableRowNormalize = {
   key: string;
