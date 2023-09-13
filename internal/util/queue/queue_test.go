@@ -29,7 +29,7 @@ func Queue_Race(t *testing.T, q *Queue, max, perClient int) {
 		go func(token string) {
 			defer wg.Done()
 			for i := 0; i < loops; i++ {
-				qry, err := q.Acquire(context.Background(), token)
+				err := q.Acquire(context.Background(), token)
 				if err != nil {
 					t.Errorf(err.Error())
 				}
@@ -37,12 +37,12 @@ func Queue_Race(t *testing.T, q *Queue, max, perClient int) {
 				require.LessOrEqual(t, currentActive.Load(), int64(max))
 				time.Sleep(time.Duration(10000 + rand.Int63n(int64(time.Millisecond))))
 				currentActive.Add(-1)
-				q.Release(qry)
+				q.Release()
 			}
 		}(strconv.FormatInt(int64(i%clients), 10))
 	}
 	wg.Wait()
-	require.Equal(t, 0, q.activeQuery)
+	require.Equal(t, int64(0), q.activeQuery)
 	require.Equal(t, 0, len(q.waitingUsersByName))
 	require.Equal(t, 0, q.waitingUsersByPriority.Len())
 }
@@ -71,7 +71,7 @@ func Queue_Random_Timeout_Race(t *testing.T, q *Queue, max, perClient int) {
 					delete(ctxMap, ctx)
 					mx.Unlock()
 				}
-				qry, err := q.Acquire(ctx, token)
+				err := q.Acquire(ctx, token)
 				if err != nil {
 					require.ErrorIs(t, err, context.Canceled)
 					releaseCtx()
@@ -92,7 +92,7 @@ func Queue_Random_Timeout_Race(t *testing.T, q *Queue, max, perClient int) {
 				}
 				time.Sleep(time.Duration(rand.Int63n(int64(time.Millisecond))))
 				currentActive.Add(-1)
-				q.Release(qry)
+				q.Release()
 				releaseCtx()
 
 			}
@@ -112,25 +112,25 @@ func timeoutCtx(duration time.Duration) context.Context {
 
 func Timeout(t *testing.T, q *Queue) {
 	//q := NewQ(1)
-	qry, err := q.Acquire(context.Background(), "0")
-	defer q.Release(qry)
+	err := q.Acquire(context.Background(), "0")
+	defer q.Release()
 	require.NoError(t, err)
-	_, err = q.Acquire(timeoutCtx(time.Second), "0")
+	err = q.Acquire(timeoutCtx(time.Second), "0")
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 func TimeoutSeveral(t *testing.T, q *Queue) {
 	//q := NewQ(1)
-	qry, err := q.Acquire(context.Background(), "0")
-	defer q.Release(qry)
+	err := q.Acquire(context.Background(), "0")
+	defer q.Release()
 	require.NoError(t, err)
 	errGroup, _ := errgroup.WithContext(context.Background())
 	errGroup.Go(func() error {
-		_, err := q.Acquire(timeoutCtx(time.Second), "0")
+		err := q.Acquire(timeoutCtx(time.Second), "0")
 		return err
 	})
 	errGroup.Go(func() error {
-		_, err := q.Acquire(timeoutCtx(time.Second), "0")
+		err := q.Acquire(timeoutCtx(time.Second), "0")
 		return err
 	})
 	require.ErrorIs(t, errGroup.Wait(), context.DeadlineExceeded)
@@ -138,45 +138,45 @@ func TimeoutSeveral(t *testing.T, q *Queue) {
 
 func PushNewQuery(t *testing.T, q *Queue) {
 	//q := NewQ(1)
-	qry, err := q.Acquire(context.Background(), "0")
+	err := q.Acquire(context.Background(), "0")
 	require.NoError(t, err)
 	errGroup, _ := errgroup.WithContext(context.Background())
 	errGroup.Go(func() error {
-		_, err := q.Acquire(context.Background(), "0")
+		err := q.Acquire(context.Background(), "0")
 		return err
 	})
 	errGroup.Go(func() error {
-		_, err := q.Acquire(context.Background(), "0")
+		err := q.Acquire(context.Background(), "0")
 		return err
 	})
 	time.Sleep(time.Second)
-	q.Release(qry)
+	q.Release()
 	time.Sleep(time.Second)
-	q.Release(nil)
+	q.Release()
 	require.NoError(t, errGroup.Wait())
 }
 
 func Timeout1(t *testing.T, q *Queue) {
 	//q := NewQ(1)
-	qry, err := q.Acquire(context.Background(), "0")
-	defer q.Release(qry)
+	err := q.Acquire(context.Background(), "0")
+	defer q.Release()
 	require.NoError(t, err)
 	ctx, cancel := context.WithCancel(context.Background())
 	group, _ := errgroup.WithContext(timeoutCtx(time.Second * 10))
 	group.Go(func() error {
-		_, err := q.Acquire(ctx, "0")
+		err := q.Acquire(ctx, "0")
 		if errors.Is(err, context.Canceled) {
 			return nil
 		}
 		return err
 	})
 	group.Go(func() error {
-		_, err := q.Acquire(context.Background(), "1")
+		err := q.Acquire(context.Background(), "1")
 		return err
 	})
 	time.Sleep(time.Millisecond * 5)
 	cancel()
 	time.Sleep(time.Millisecond * 5)
-	q.Release(qry)
+	q.Release()
 	require.NoError(t, group.Wait())
 }

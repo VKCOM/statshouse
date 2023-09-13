@@ -20,15 +20,14 @@ import (
 	"github.com/ClickHouse/ch-go/proto"
 	_ "github.com/ClickHouse/clickhouse-go/v2" // to access clickhouse.bind
 	"github.com/vkcom/statshouse-go"
+	"github.com/vkcom/statshouse/internal/util/queue"
 	"pgregory.net/rand"
-
-	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 )
 
 type connPool struct {
 	rnd     *rand.Rand
 	servers []*chpool.Pool
-	sem     *semaphore.Weighted
+	sem     *queue.Queue
 
 	userActive map[string]int
 	mx         sync.Mutex
@@ -59,10 +58,10 @@ func OpenClickHouse(fastSlowMaxConns, lightHeavyMaxConns int, addrs []string, us
 	}
 
 	result := &ClickHouse{[4]*connPool{
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(fastSlowMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},   // fastLight
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(lightHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // fastHeavy
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(fastSlowMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},   // slowLight
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), semaphore.NewWeighted(int64(lightHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // slowHeavy
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), queue.NewQueue(int64(fastSlowMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},   // fastLight
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), queue.NewQueue(int64(lightHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // fastHeavy
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), queue.NewQueue(int64(fastSlowMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},   // slowLight
+		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), queue.NewQueue(int64(lightHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // slowHeavy
 	}}
 	for _, addr := range addrs {
 		for _, pool := range result.pools {
@@ -158,7 +157,7 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 		statshouse.Metric("statshouse_unique_wait_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "uniq"}).Value(float64(uniqWait))
 		statshouse.Metric("statshouse_unique_wait_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "all"}).Value(float64(allWait))
 		pool.waitMx.Unlock()
-		err = pool.sem.Acquire(ctx, 1)
+		err = pool.sem.Acquire(ctx, meta.User)
 		waitLockDuration := time.Since(startTime)
 		pool.waitMx.Lock()
 		pool.userWait[meta.User]--
@@ -184,7 +183,7 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 			delete(pool.userActive, meta.User)
 		}
 		pool.mx.Unlock()
-		pool.sem.Release(1)
+		pool.sem.Release()
 		if err == nil {
 			return // succeeded
 		}
