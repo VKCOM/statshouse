@@ -23,6 +23,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse/internal/util"
 	"golang.org/x/exp/slices"
 
 	"github.com/vkcom/statshouse/internal/format"
@@ -568,7 +569,14 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 		}
 		cols := newTagValuesSelectCols(args)
 		isFast := lod.fromSec+fastQueryTimeInterval >= lod.toSec
-		err = h.doSelect(ctx, isFast, true, ai.user, Version2, ch.Query{
+		err = h.doSelect(ctx, util.QueryMetaInto{
+			IsFast:  isFast,
+			IsLight: true,
+			User:    ai.user,
+			Metric:  qry.Metric.MetricID,
+			Table:   lod.table,
+			Kind:    "load_tags",
+		}, Version2, ch.Query{
 			Body:   body,
 			Result: cols.res,
 			OnResult: func(_ context.Context, b proto.Block) error {
@@ -626,7 +634,14 @@ func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery
 		}
 		cols := newTagValuesSelectCols(args)
 		isFast := lod.fromSec+fastQueryTimeInterval >= lod.toSec
-		err = h.doSelect(ctx, isFast, true, ai.user, Version2, ch.Query{
+		err = h.doSelect(ctx, util.QueryMetaInto{
+			IsFast:  isFast,
+			IsLight: true,
+			User:    ai.user,
+			Metric:  qry.Metric.MetricID,
+			Table:   lod.table,
+			Kind:    "load_stag",
+		}, Version2, ch.Query{
 			Body:   body,
 			Result: cols.res,
 			OnResult: func(_ context.Context, b proto.Block) error {

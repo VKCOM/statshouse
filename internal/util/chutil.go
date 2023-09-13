@@ -43,6 +43,14 @@ type QueryMetaInto struct {
 	IsFast  bool
 	IsLight bool
 	User    string
+	Metric  int32
+	Table   string
+	Kind    string
+}
+
+type QueryHandleInfo struct {
+	Duration time.Duration
+	Profile  proto.Profile
 }
 
 const (
@@ -135,9 +143,9 @@ func QueryKind(isFast, isLight bool) int {
 	return slowHeavy
 }
 
-func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Query) (profile proto.Profile, err error) {
+func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Query) (info QueryHandleInfo, err error) {
 	query.OnProfile = func(_ context.Context, p proto.Profile) error {
-		profile = p
+		info.Profile = p
 		return nil
 	}
 	kind := QueryKind(meta.IsFast, meta.IsLight)
@@ -147,7 +155,7 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 		var i int
 		i, err = pickRandomServer(servers, pool.rnd)
 		if err != nil {
-			return profile, err
+			return info, err
 		}
 		startTime := time.Now()
 		pool.waitMx.Lock()
@@ -167,7 +175,7 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 		pool.waitMx.Unlock()
 		statshouse.Metric("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10)}).Value(waitLockDuration.Seconds())
 		if err != nil {
-			return profile, err
+			return info, err
 		}
 		pool.mx.Lock()
 		pool.userActive[meta.User]++
@@ -176,7 +184,10 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 		pool.mx.Unlock()
 		statshouse.Metric("statshouse_unique_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "uniq"}).Value(float64(uniq))
 		statshouse.Metric("statshouse_unique_test", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: "all"}).Value(float64(all))
+
+		start := time.Now()
 		err = servers[i].Do(ctx, query)
+		info.Duration = time.Since(start)
 		pool.mx.Lock()
 		pool.userActive[meta.User]--
 		if c := pool.userActive[meta.User]; c == 0 {
@@ -194,7 +205,7 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 		// keep searching alive server
 		servers = append(servers[:i], servers[i+1:]...)
 	}
-	return profile, err
+	return info, err
 }
 
 func pickRandomServer(s []*chpool.Pool, r *rand.Rand) (int, error) {

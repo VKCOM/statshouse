@@ -685,7 +685,14 @@ SETTINGS
 		todo    = map[int64][]int64{}
 		newSeen = map[cacheInvalidateLogRow]struct{}{}
 	)
-	err = h.doSelect(ctx, true, true, "cache-update", Version2, ch.Query{
+	err = h.doSelect(ctx, util.QueryMetaInto{
+		IsFast:  true,
+		IsLight: true,
+		User:    "cache-update",
+		Metric:  format.BuiltinMetricIDContributorsLog,
+		Table:   _1sTableSH2,
+		Kind:    "cache-update",
+	}, Version2, ch.Query{
 		Body: queryBody,
 		Result: proto.Results{
 			{Name: "time", Data: &time},
@@ -727,7 +734,7 @@ SETTINGS
 	return from, newSeen
 }
 
-func (h *Handler) doSelect(ctx context.Context, isFast, isLight bool, user string, version string, query ch.Query) error {
+func (h *Handler) doSelect(ctx context.Context, meta util.QueryMetaInto, version string, query ch.Query) error {
 	if version == Version1 && h.ch[version] == nil {
 		return fmt.Errorf("legacy ClickHouse database is disabled")
 	}
@@ -735,18 +742,15 @@ func (h *Handler) doSelect(ctx context.Context, isFast, isLight bool, user strin
 	saveDebugQuery(ctx, query.Body)
 
 	start := time.Now()
-	endpointStatSetQueryKind(ctx, isFast, isLight)
-	info, err := h.ch[version].Select(ctx, util.QueryMetaInto{
-		IsFast:  isFast,
-		IsLight: isLight,
-		User:    user,
-	}, query)
+	endpointStatSetQueryKind(ctx, meta.IsFast, meta.IsLight)
+	info, err := h.ch[version].Select(ctx, meta, query)
 	duration := time.Since(start)
 	if h.verbose {
-		log.Printf("[debug] SQL for %q done in %v, err: %v", user, duration, err)
+		log.Printf("[debug] SQL for %q done in %v, err: %v", meta.User, duration, err)
 	}
 
-	ChSelectProfile(isFast, isLight, info, err)
+	ChSelectMetricDuration(info.Duration, meta.Metric, meta.User, meta.Table, meta.Kind, meta.IsFast, meta.IsLight, err)
+	ChSelectProfile(meta.IsFast, meta.IsLight, info.Profile, err)
 
 	return err
 }
@@ -1596,10 +1600,16 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 			if err != nil {
 				return nil, false, err
 			}
-
 			cols := newTagValuesSelectCols(args)
 			isFast := lod.fromSec+fastQueryTimeInterval >= lod.toSec
-			err = h.doSelect(ctx, isFast, true, req.ai.user, version, ch.Query{
+			err = h.doSelect(ctx, util.QueryMetaInto{
+				IsFast:  isFast,
+				IsLight: true,
+				User:    req.ai.user,
+				Metric:  metricMeta.MetricID,
+				Table:   lod.table,
+				Kind:    "get_mapping",
+			}, version, ch.Query{
 				Body:   query,
 				Result: cols.res,
 				OnResult: func(_ context.Context, b proto.Block) error {
@@ -3283,7 +3293,14 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 	table := lod.table
 	kind := pq.kind
 	start := time.Now()
-	err = h.doSelect(ctx, isFast, isLight, pq.user, pq.version, ch.Query{
+	err = h.doSelect(ctx, util.QueryMetaInto{
+		IsFast:  isFast,
+		IsLight: isLight,
+		User:    pq.user,
+		Metric:  metric,
+		Table:   table,
+		Kind:    string(kind),
+	}, pq.version, ch.Query{
 		Body:   query,
 		Result: cols.res,
 		OnResult: func(_ context.Context, block proto.Block) (err error) {
@@ -3309,7 +3326,6 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 			return nil
 		}})
 	duration := time.Since(start)
-	ChSelectMetricDuration(duration, metric, table, string(kind), isFast, isLight, err)
 	if err != nil {
 		return 0, err
 	}
@@ -3346,8 +3362,14 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, pointQ
 	metric := pq.metricID
 	table := pointQuery.table
 	kind := pq.kind
-	start := time.Now()
-	err = h.doSelect(ctx, isFast, isLight, pq.user, pq.version, ch.Query{
+	err = h.doSelect(ctx, util.QueryMetaInto{
+		IsFast:  isFast,
+		IsLight: isLight,
+		User:    pq.user,
+		Metric:  metric,
+		Table:   table,
+		Kind:    string(kind),
+	}, pq.version, ch.Query{
 		Body:   query,
 		Result: cols.res,
 		OnResult: func(_ context.Context, block proto.Block) (err error) {
@@ -3368,8 +3390,6 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, pointQ
 			rows += block.Rows
 			return nil
 		}})
-	duration := time.Since(start)
-	ChSelectMetricDuration(duration, metric, table, string(kind), isFast, isLight, err)
 	if err != nil {
 		return nil, err
 	}
@@ -3378,13 +3398,12 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, pointQ
 		return ret, errTooManyRows // prevent cache being populated by incomplete data
 	}
 	if h.verbose {
-		log.Printf("[debug] loaded %v rows from %v (%v to %v) for %q in %v",
+		log.Printf("[debug] loaded %v rows from %v (%v to %v) for %q in",
 			rows,
 			pointQuery.table,
 			time.Unix(pointQuery.fromSec, 0),
 			time.Unix(pointQuery.toSec, 0),
 			pq.user,
-			duration,
 		)
 	}
 
