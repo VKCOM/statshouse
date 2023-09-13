@@ -99,7 +99,7 @@ func Queue_Random_Timeout_Race(t *testing.T, q *Queue, max, perClient int) {
 		}(strconv.FormatInt(int64(i%clients), 10))
 	}
 	wg.Wait()
-	require.Equal(t, 0, q.activeQuery)
+	require.Equal(t, int64(0), q.activeQuery)
 	require.Equal(t, 0, len(q.waitingUsersByName))
 	require.Equal(t, 0, q.waitingUsersByPriority.Len())
 
