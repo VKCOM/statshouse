@@ -22,6 +22,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/mailru/easyjson v0.7.7
 	github.com/mattn/go-sqlite3 v1.14.16
+	github.com/petar/GoLLRB v0.0.0-20210522233825-ae3b015fd3e9
 	github.com/pierrec/lz4 v2.6.1+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/common v0.39.0
