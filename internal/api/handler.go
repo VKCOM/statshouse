@@ -1170,11 +1170,14 @@ func (h *Handler) HandlePostResetFlood(w http.ResponseWriter, r *http.Request) {
 		}
 		limit = int32(i)
 	}
-	del, _, _, err := h.metadataLoader.ResetFlood(r.Context(), formValueParamMetric(r), limit)
+	del, before, after, err := h.metadataLoader.ResetFlood(r.Context(), formValueParamMetric(r), limit)
 	if err == nil && !del {
 		err = fmt.Errorf("metric flood counter was empty (no flood)")
 	}
-	respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+	respondJSON(w, &struct {
+		Before int32 `json:"before"`
+		After  int32 `json:"after"`
+	}{Before: before, After: after}, 0, 0, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
