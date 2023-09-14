@@ -124,7 +124,6 @@ func argvAddCommonFlags() {
 
 func argvAddAgentFlags(legacyVerb bool) {
 	flag.IntVar(&argv.configAgent.SampleBudget, "sample-budget", agent.DefaultConfig().SampleBudget, "Statshouse will sample all buckets to contain max this number of bytes.")
-	flag.BoolVar(&argv.configAgent.SampleGroups, "sample-groups", false, "Statshouse will first spread resources between groups, then inside each group.")
 	flag.Int64Var(&argv.configAgent.MaxHistoricDiskSize, "max-disk-size", agent.DefaultConfig().MaxHistoricDiskSize, "Statshouse will use no more than this amount of disk space for storing historic data.")
 	flag.IntVar(&argv.configAgent.SkipShards, "skip-shards", agent.DefaultConfig().SkipShards, "Skip first shards during sharding. When extending cluster, helps prevent filling disks of already full shards.")
 
@@ -168,7 +167,6 @@ func argvAddAggregatorFlags(legacyVerb bool) {
 	flag.IntVar(&argv.configAggregator.InsertBudget100, "insert-budget-100", aggregator.DefaultConfigAggregator().InsertBudget100, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # ~ 100.")
 	flag.IntVar(&argv.configAggregator.CardinalityWindow, "cardinality-window", aggregator.DefaultConfigAggregator().CardinalityWindow, "Aggregator will use this window (seconds) to estimate cardinality")
 	flag.IntVar(&argv.configAggregator.MaxCardinality, "max-cardinality", aggregator.DefaultConfigAggregator().MaxCardinality, "Aggregator will sample metrics which cardinality estimates are higher")
-
 	flag.IntVar(&argv.configAggregator.StringTopCountInsert, "string-top-insert", aggregator.DefaultConfigAggregator().StringTopCountInsert, "How many different strings per key is inserted by aggregator in string tops.")
 
 	flag.Float64Var(&argv.configAggregator.SimulateRandomErrors, "simulate-errors-random", aggregator.DefaultConfigAggregator().SimulateRandomErrors, "Probability of errors for recent buckets from 0.0 (no errors) to 1.0 (all errors)")

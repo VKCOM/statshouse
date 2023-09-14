@@ -14,7 +14,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -329,12 +328,15 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 			sizeStringTops += len(res) - resPos
 		}
 	}
-
-	metricsMap := map[int32]*data_model.SamplingMetric{}
-	var metricsList []*data_model.SamplingMetric
-	totalItemsSize := 0
-	var remainingWeight int64
-
+	var seriesCount int
+	for si := 0; si < len(b.shards); si++ {
+		seriesCount += len(b.shards[si].multiItems)
+	}
+	sampler := data_model.NewSampler(seriesCount, data_model.SamplerConfig{
+		Meta:  a.metricStorage,
+		Rand:  rnd,
+		KeepF: func(k data_model.Key, item *data_model.MultiItem) { insertItem(k, item, item.SF) },
+	})
 	// First, sample with global sampling factors, depending on cardinality. Collect relative sizes for 2nd stage sampling below.
 	// TODO - actual sampleFactors are empty due to code commented out in estimator.go
 	for si := 0; si < len(b.shards); si++ {
@@ -359,33 +361,16 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 				}
 			}
 			sz := item.RowBinarySizeEstimate()
-			samplingMetric, ok := metricsMap[accountMetric]
-			if !ok {
-				metricInfo := a.metricStorage.GetMetaMetric(accountMetric)
-				samplingMetric = &data_model.SamplingMetric{
-					MetricID:     accountMetric,
-					MetricWeight: format.EffectiveWeightOne,
-					RoundFactors: false, // default is no rounding
-				}
-				if metricInfo != nil {
-					samplingMetric.MetricWeight = metricInfo.EffectiveWeight
-					samplingMetric.RoundFactors = metricInfo.RoundSampleFactors
-					samplingMetric.NoSampleAgent = metricInfo.NoSampleAgent
-				}
-				metricsMap[accountMetric] = samplingMetric
-				metricsList = append(metricsList, samplingMetric)
-				remainingWeight += samplingMetric.MetricWeight
-			}
-			samplingMetric.SumSize += int64(sz)
-			samplingMetric.Items = append(samplingMetric.Items, data_model.SamplingMultiItemPair{Key: k, Item: item, WhaleWeight: whaleWeight})
-			totalItemsSize += sz
+			sampler.Add(data_model.SamplingMultiItemPair{
+				Key:         k,
+				Item:        item,
+				WhaleWeight: whaleWeight,
+				Size:        sz,
+				MetricID:    accountMetric,
+			})
 		}
 	}
 
-	sort.Slice(metricsList, func(i, j int) bool {
-		// comparing rational numbers
-		return metricsList[i].SumSize*metricsList[j].MetricWeight < metricsList[j].SumSize*metricsList[i].MetricWeight
-	})
 	// 50K + 2.5K * min(sqrt(x*100),100) + 0.5K * x, you can check curve here https://www.desmos.com/calculator?lang=ru
 	numContributors := int(b.contributorsOriginal.Counter + b.contributorsSpare.Counter)
 	// Account for the fact that when # of contributors is very small, they will have very bad aggregation
@@ -399,67 +384,20 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	remainingBudget += int64(a.config.InsertBudget * numContributors) // fixed part + longterm part
 	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
-	pos := 0
-	for ; pos < len(metricsList) && metricsList[pos].SumSize*remainingWeight <= remainingBudget*metricsList[pos].MetricWeight; pos++ { // statIdCount <= totalBudget/remainedStats
-		samplingMetric := metricsList[pos]
-		// No sampling for this stat - do not add to samplingThresholds
-		remainingBudget -= samplingMetric.SumSize
-		remainingWeight -= samplingMetric.MetricWeight
-		for _, v := range samplingMetric.Items {
-			insertItem(v.Key, v.Item, 1)
-		}
-	}
-	sampleFactors := map[int32]float64{}
-	for i := pos; i < len(metricsList); i++ {
-		samplingMetric := metricsList[i]
-		metric := samplingMetric.MetricID
-		sf := float64(samplingMetric.SumSize*remainingWeight) / float64(samplingMetric.MetricWeight*remainingBudget)
-		if samplingMetric.RoundFactors {
-			sf = data_model.RoundSampleFactor(rnd, sf)
-			if sf <= 1 { // Many sample factors are between 1 and 2, so this is worthy optimization
-				for _, v := range samplingMetric.Items {
-					insertItem(v.Key, v.Item, sf)
-				}
-				continue
-			}
-		}
-		sampleFactors[metric] = sf
-		whalesAllowed := int64(0)
-		if samplingMetric.SumSize*remainingWeight > 0 { // should be never but check is cheap
-			whalesAllowed = int64(len(samplingMetric.Items)) * (samplingMetric.MetricWeight * remainingBudget) / (samplingMetric.SumSize * remainingWeight) / 2 // len(items) / sf / 2
-		}
-		// Motivation - often we have a few rows with dominating counts (whales). If we randomly discard those rows, we get wild fluctuation
-		// of sums. On the other hand if we systematically discard rows with small counts, rare events, like errors cannot get through.
-		// So we allow half of sampling budget for whales, and the other half is spread fairly between other events.
-		// TODO - model this approach. Adjust algorithm parameters.
-		if whalesAllowed > 0 {
-			if whalesAllowed > int64(len(samplingMetric.Items)) { // should be never but check is cheap
-				whalesAllowed = int64(len(samplingMetric.Items))
-			}
-			sort.Slice(samplingMetric.Items, func(i, j int) bool {
-				return samplingMetric.Items[i].WhaleWeight > samplingMetric.Items[j].WhaleWeight
-			})
-			for _, v := range samplingMetric.Items[:whalesAllowed] {
-				insertItem(v.Key, v.Item, 1)
-			}
-			samplingMetric.Items = samplingMetric.Items[whalesAllowed:]
-		}
-		sf *= 2 // half of space is occupied by whales now. TODO - we can be more exact here, and save lots of rnd calls
-		for _, v := range samplingMetric.Items {
-			if rnd.Float64()*sf < 1 {
-				insertItem(v.Key, v.Item, sf)
-			}
-		}
-	}
+	samplerStat := sampler.Run(remainingBudget, 1)
 	key1 := int32(format.TagValueIDConveyorRecent)
 	if historic {
 		key1 = format.TagValueIDConveyorHistoric
 	}
 	resPos := len(res)
-	for k, sf := range sampleFactors {
-		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingFactor, [16]int32{0, 0, 0, 0, k, format.TagValueIDAggSamplingFactorReasonInsertSize}, a.aggregatorHost, a.shardKey, a.replicaKey)
-		res = appendBadge(res, key, data_model.ItemValue{Counter: 1, ValueSum: sf}, metricCache, usedTimestamps)
-		res = appendSimpleValueStat(res, key, sf, 1, a.aggregatorHost, metricCache, usedTimestamps)
+	for _, s := range samplerStat.Steps {
+		for _, item := range s.Groups {
+			k := item.MetricID
+			sf := item.SF
+			key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingFactor, [16]int32{0, 0, 0, 0, k, format.TagValueIDAggSamplingFactorReasonInsertSize}, a.aggregatorHost, a.shardKey, a.replicaKey)
+			res = appendBadge(res, key, data_model.ItemValue{Counter: 1, ValueSum: sf}, metricCache, usedTimestamps)
+			res = appendSimpleValueStat(res, key, sf, 1, a.aggregatorHost, metricCache, usedTimestamps)
+		}
 	}
 	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeCounter},
 		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizeCounters), 1, a.aggregatorHost, metricCache, usedTimestamps)

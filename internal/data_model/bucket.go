@@ -264,11 +264,14 @@ type multiItemPair struct {
 }
 
 func (s *MultiItem) FinishStringTop(capacity int) float64 {
+	whaleWeight := s.Tail.Value.Counter
+	if len(s.Top) == 0 {
+		return whaleWeight
+	}
 	if capacity < 0 {
 		capacity = 0 // only prevent panic below
 	}
 	result := make([]multiItemPair, 0, len(s.Top))
-	whaleWeight := s.Tail.Value.Counter
 	for k, v := range s.Top {
 		result = append(result, multiItemPair{k: k, v: v})
 		whaleWeight += v.Value.Counter

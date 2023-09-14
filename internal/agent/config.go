@@ -19,7 +19,6 @@ type Config struct {
 	AggregatorAddresses []string
 	// Sampling Algorithm
 	SampleBudget        int   // for all shards, in bytes
-	SampleGroups        bool  // use group weights. Experimental, will be turned on unconditionally later
 	MaxHistoricDiskSize int64 // for all shards, in bytes
 
 	// How much strings (per key) is stored and sent to aggregator
@@ -115,12 +114,6 @@ func (c *Config) updateFromRemoteDescription(description string) error {
 		// all non-empty non-comment lines must have valid settings
 		if suffix, ok := hasKeyGetSuffix(line, "-sample-budget="); ok {
 			if err := parseIntLine(line, suffix, &c.SampleBudget); err != nil {
-				return err
-			}
-			continue
-		}
-		if suffix, ok := hasKeyGetSuffix(line, "-sample-groups="); ok {
-			if err := parseBoolLine(line, suffix, &c.SampleGroups); err != nil {
 				return err
 			}
 			continue

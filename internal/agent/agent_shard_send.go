@@ -14,14 +14,13 @@ import (
 	"sort"
 	"time"
 
-	"pgregory.net/rand"
-
 	"github.com/pierrec/lz4"
-
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+
+	"pgregory.net/rand"
 )
 
 // If clients wish periodic measurements, they are advised to send them around the middle of calendar second
@@ -101,7 +100,7 @@ func lessByShard(a *tlstatshouse.MultiItem, b *tlstatshouse.MultiItem, perm []in
 	return a.Metric < b.Metric
 }
 
-func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactors map[int32]float64) tlstatshouse.SourceBucket2 {
+func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactors []tlstatshouse.SampleFactor) tlstatshouse.SourceBucket2 {
 	var marshalBuf []byte
 	var sizeBuf []byte
 	sb := tlstatshouse.SourceBucket2{}
@@ -154,12 +153,7 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 	addSizeByTypeMetric(&sb, format.TagValueIDSizeCounter, sizeCounter)
 	addSizeByTypeMetric(&sb, format.TagValueIDSizeStringTop, sizeStringTop)
 
-	for k, v := range sampleFactors {
-		sb.SampleFactors = append(sb.SampleFactors, tlstatshouse.SampleFactor{
-			Metric: k,
-			Value:  float32(v),
-		})
-	}
+	sb.SampleFactors = append(sb.SampleFactors, sampleFactors...)
 
 	sbSizeCalc := tlstatshouse.SourceBucket2{SampleFactors: sb.SampleFactors}
 	sizeBuf, _ = sbSizeCalc.Write(sizeBuf[:0])
@@ -220,22 +214,17 @@ func (s *Shard) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_m
 	}
 }
 
-// this function will be replaced by sampleBucketWithGroups, do not improve
-func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) map[int32]float64 { // returns sample factors
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) []tlstatshouse.SampleFactor {
 	s.mu.Lock()
 	config := s.config
 	s.mu.Unlock()
 
-	if config.SampleGroups {
-		return s.sampleBucketWithGroups(bucket, rnd)
-	}
-
-	// Same algorithm as in aggregator, but instead of inserting selected, we remove items which were not selected by sampling algorithm
-	metricsMap := map[int32]*data_model.SamplingMetric{}
-	var metricsList []*data_model.SamplingMetric
-	totalItemsSize := 0
-	var remainingWeight int64
-
+	sampler := data_model.NewSampler(len(bucket.MultiItems), data_model.SamplerConfig{
+		ModeAgent: true,
+		Meta:      s.agent.metricStorage,
+		Rand:      rnd,
+		DiscardF:  func(key data_model.Key, _ *data_model.MultiItem) { delete(bucket.MultiItems, key) }, // remove from map
+	})
 	for k, item := range bucket.MultiItems {
 		whaleWeight := item.FinishStringTop(config.StringTopCountSend) // all excess items are baked into Tail
 		accountMetric := k.Metric
@@ -252,316 +241,35 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) m
 				sz = 3 * 4 // see statshouse.ingestion_status2
 			}
 		}
-
-		samplingMetric, ok := metricsMap[accountMetric]
-		if !ok {
-			var metricInfo *format.MetricMetaValue
-			if s.agent.metricStorage != nil {
-				metricInfo = s.agent.metricStorage.GetMetaMetric(accountMetric)
-			}
-			samplingMetric = &data_model.SamplingMetric{
-				MetricID:     accountMetric,
-				MetricWeight: format.EffectiveWeightOne,
-				RoundFactors: false, // default is no rounding
-			}
-			if metricInfo != nil {
-				samplingMetric.MetricWeight = metricInfo.EffectiveWeight
-				samplingMetric.RoundFactors = metricInfo.RoundSampleFactors
-				samplingMetric.NoSampleAgent = metricInfo.NoSampleAgent
-			}
-			metricsMap[accountMetric] = samplingMetric
-			metricsList = append(metricsList, samplingMetric)
-			remainingWeight += samplingMetric.MetricWeight
-		}
-		samplingMetric.SumSize += int64(sz)
-		samplingMetric.Items = append(samplingMetric.Items, data_model.SamplingMultiItemPair{Key: k, Item: item, WhaleWeight: whaleWeight})
-		totalItemsSize += sz
+		sampler.Add(data_model.SamplingMultiItemPair{
+			Key:         k,
+			Item:        item,
+			WhaleWeight: whaleWeight,
+			Size:        sz,
+			MetricID:    accountMetric,
+		})
 	}
-
-	sort.Slice(metricsList, func(i, j int) bool {
-		// comparing rational numbers
-		return metricsList[i].SumSize*metricsList[j].MetricWeight < metricsList[j].SumSize*metricsList[i].MetricWeight
-	})
 	numShards := s.agent.NumShards()
 	remainingBudget := int64((config.SampleBudget + numShards - 1) / numShards)
-	if remainingBudget <= 0 { // if happens, will lead to divide by zero below, so we add cheap protection
-		remainingBudget = 1
-	}
-	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
-		remainingBudget = data_model.MaxUncompressedBucketSize / 2
-	}
-	sampleFactors := map[int32]float64{}
-	pos := 0
-	for ; pos < len(metricsList) && metricsList[pos].SumSize*remainingWeight <= remainingBudget*metricsList[pos].MetricWeight; pos++ { // statIdCount <= totalBudget/remainedStats
-		samplingMetric := metricsList[pos]
-		// No sampling for this stat - do not add to samplingThresholds
-		remainingBudget -= samplingMetric.SumSize
-		remainingWeight -= samplingMetric.MetricWeight
-		// Keep all elements in bucket
-	}
-	for i := pos; i < len(metricsList); i++ {
-		samplingMetric := metricsList[i]
-		if samplingMetric.NoSampleAgent {
-			continue
+	samplerStat := sampler.Run(remainingBudget, 1)
+	sampleFactors := make([]tlstatshouse.SampleFactor, 0, samplerStat.Count)
+	for _, s := range samplerStat.Steps {
+		if s.StartPos < len(s.Groups) {
+			value := float64(s.BudgetNum) / float64(s.BudgetDenom) / float64(s.SumWeight)
+			key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetPerMetric}}
+			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
+			mi.Tail.Value.AddValueCounterHost(value, 1, 0)
+		} else {
+			key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetUnused}}
+			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
+			mi.Tail.Value.AddValueCounterHost(float64(s.BudgetNum)/float64(s.BudgetDenom), 1, 0)
 		}
-		sf := float64(samplingMetric.SumSize*remainingWeight) / float64(samplingMetric.MetricWeight*remainingBudget)
-		if samplingMetric.RoundFactors {
-			sf = data_model.RoundSampleFactor(rnd, sf)
-			if sf <= 1 { // Many sample factors are between 1 and 2, so this is worthy optimization
-				continue
-			}
-		}
-		sampleFactors[samplingMetric.MetricID] = sf
-		whalesAllowed := int64(0)
-		if samplingMetric.SumSize*remainingWeight > 0 { // should be never but check is cheap
-			whalesAllowed = int64(len(samplingMetric.Items)) * (samplingMetric.MetricWeight * remainingBudget) / (samplingMetric.SumSize * remainingWeight) / 2 // len(items) / sf / 2
-		}
-		// Motivation - often we have a few rows with dominating counts (whales). If we randomly discard those rows, we get wild fluctuation
-		// of sums. On the other hand if we systematically discard rows with small counts, rare events, like errors cannot get through.
-		// So we allow half of sampling budget for whales, and the other half is spread fairly between other events.
-		// TODO - model this approach. Adjust algorithm parameters.
-		if whalesAllowed > 0 {
-			if whalesAllowed > int64(len(samplingMetric.Items)) { // should be never but check is cheap
-				whalesAllowed = int64(len(samplingMetric.Items))
-			}
-			sort.Slice(samplingMetric.Items, func(i, j int) bool {
-				return samplingMetric.Items[i].WhaleWeight > samplingMetric.Items[j].WhaleWeight
-			})
-			// Keep all whale elements in bucket
-			samplingMetric.Items = samplingMetric.Items[whalesAllowed:]
-		}
-		sf *= 2 // half of space is occupied by whales now. TODO - we can be more exact here, make permutations and take as many elements as we need, saving lots of rnd calls
-		for _, v := range samplingMetric.Items {
-			if rnd.Float64()*sf < 1 {
-				v.Item.SF = sf // communicate selected factor to next step of processing
-				continue
-			}
-			delete(bucket.MultiItems, v.Key)
-		}
-	}
-	if pos < len(metricsList) {
-		value := float64(remainingBudget) / float64(remainingWeight)
-		key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetPerMetric}}
-		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
-		mi.Tail.Value.AddValueCounterHost(value, 1, 0)
-	} else {
-		key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetUnused}}
-		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
-		mi.Tail.Value.AddValueCounterHost(float64(remainingBudget), 1, 0)
+		sampleFactors = s.GetSampleFactors(sampleFactors)
 	}
 	return sampleFactors
 }
 
-// contents of statItem.Items will be destructively modified after this function
-func sampleStatItem(bucket *data_model.MetricsBucket, statItem *data_model.SamplingMetric, sf float64, rnd *rand.Rand) bool { // returns if we decided to sample
-	metric := statItem.MetricID
-	if metric < 0 {
-		// optimization first. below are list of safe metrics which have very few rows so sampling can be avoided
-		if metric == format.BuiltinMetricIDAgentMapping || metric == format.BuiltinMetricIDJournalVersions ||
-			metric == format.BuiltinMetricIDAgentReceivedPacketSize || metric == format.BuiltinMetricIDAgentReceivedBatchSize ||
-			metric == format.BuiltinMetricIDHeartbeatVersion ||
-			metric == format.BuiltinMetricIDHeartbeatArgs || metric == format.BuiltinMetricIDHeartbeatArgs2 ||
-			metric == format.BuiltinMetricIDHeartbeatArgs3 || metric == format.BuiltinMetricIDHeartbeatArgs4 ||
-			metric == format.BuiltinMetricIDAgentDiskCacheErrors || metric == format.BuiltinMetricIDTimingErrors ||
-			metric == format.BuiltinMetricIDUsageMemory || metric == format.BuiltinMetricIDUsageCPU {
-			return false
-		}
-	}
-
-	if statItem.RoundFactors {
-		sf = data_model.RoundSampleFactor(rnd, sf)
-	}
-	if sf <= 1 { // Many sample factors will be between 1 RoundSampleFactor, plus this protects code below from overflow
-		return false
-	}
-	// Motivation - often we have a few rows with dominating counts (whales). If we randomly discard those rows, we get wild fluctuation
-	// of sums. On the other hand if we systematically discard rows with small counts, rare events, like errors cannot get through.
-	// So we allow half of sampling budget for whales, and the other half is spread fairly between other events.
-	// TODO - model this approach. Adjust algorithm parameters. Seems working great in the wild, though.
-	items := statItem.Items
-	itemsAllowedF := float64(len(items)) / sf
-	// for very tight squeezes when itemsAllowedF < 1, probabilistic rounding will allow items to pass through with right chance
-	itemsAllowed := int(data_model.RoundSampleFactor(rnd, itemsAllowedF))
-	if itemsAllowed < 0 { // should be never but check is cheap
-		itemsAllowed = 0
-	}
-	if itemsAllowed > len(items) { // should be never but check is cheap
-		itemsAllowed = len(items)
-	}
-	whalesAllowed := itemsAllowed / 2 // if single slot, do not want to keep single whale, so not (itemsAllowed + 1) / 2
-	if whalesAllowed > 0 {
-		sort.Slice(items, func(i, j int) bool {
-			return items[i].WhaleWeight > items[j].WhaleWeight
-		})
-		// Keep all whale elements in bucket
-		items = items[whalesAllowed:]
-		itemsAllowed -= whalesAllowed
-	}
-	// Old algorithm
-	// sf *= 2 // half of space is occupied by whales now. TODO - we can be more exact here, make permutations and take as many elements as we need, saving lots of rnd calls
-	// for _, v := range items {
-	//	if rnd.Float64()*sf < 1 {
-	//		v.Item.SF = sf // communicate selected factor to next step of processing
-	//		continue
-	//	}
-	//	delete(bucket.MultiItems, v.Key)
-	// }
-	// remove from items everything we want to keep
-	for ; itemsAllowed > 0; itemsAllowed-- {
-		l := len(items)
-		index := rnd.Intn(l)
-		items[index] = items[l-1]
-		items = items[:l-1]
-	}
-	// so this steps keeps in bucket.MultiItems items we removed above
-	for _, v := range items {
-		delete(bucket.MultiItems, v.Key)
-	}
-	return true
-}
-
-// relatively new, can contain disastrous bugs, turned off for now
-func (s *Shard) sampleBucketWithGroups(bucket *data_model.MetricsBucket, rnd *rand.Rand) map[int32]float64 { // returns sample factors
-	s.mu.Lock()
-	config := s.config
-	s.mu.Unlock()
-
-	// Same algorithm as in aggregator, but instead of inserting selected, we remove items which were not selected by sampling algorithm
-	metricsMap := map[int32]*data_model.SamplingMetric{}
-	groupsMap := map[int32]*data_model.SamplingGroup{}
-	var groupsList []*data_model.SamplingGroup
-	totalItemsSize := 0
-	var remainingGroupWeight int64
-
-	for k, item := range bucket.MultiItems {
-		whaleWeight := item.FinishStringTop(config.StringTopCountSend) // all excess items are baked into Tail
-		accountMetric := k.Metric
-		sz := k.TLSizeEstimate(bucket.Time) + item.TLSizeEstimate()
-		if k.Metric == format.BuiltinMetricIDIngestionStatus {
-			if k.Keys[1] != 0 {
-				// Ingestion status and other unlimited per-metric built-ins should use its metric budget
-				// So metrics are better isolated
-				accountMetric = k.Keys[1]
-			}
-			if k.Keys[2] == format.TagValueIDSrcIngestionStatusOKCached {
-				// These are so common, we have transfer optimization for them
-				sz = 3 * 4 // see statshouse.ingestion_status2
-			}
-		}
-
-		samplingMetric, ok := metricsMap[accountMetric]
-		if !ok {
-			var metricInfo *format.MetricMetaValue
-			if s.agent.metricStorage != nil {
-				metricInfo = s.agent.metricStorage.GetMetaMetric(accountMetric)
-				if metricInfo == nil {
-					metricInfo = format.BuiltinMetrics[accountMetric]
-				}
-			}
-			samplingMetric = &data_model.SamplingMetric{
-				MetricID:     accountMetric,
-				MetricWeight: format.EffectiveWeightOne,
-				RoundFactors: false, // default is no rounding
-			}
-			groupID := int32(format.BuiltinGroupIDDefault)
-			if metricInfo != nil {
-				samplingMetric.MetricWeight = metricInfo.EffectiveWeight
-				samplingMetric.RoundFactors = metricInfo.RoundSampleFactors
-				groupID = metricInfo.GroupID
-			}
-			samplingGroup, ok := groupsMap[groupID]
-			if !ok {
-				groupInfo := s.agent.metricStorage.GetGroup(groupID)
-				samplingGroup = &data_model.SamplingGroup{
-					GroupID:     groupID,
-					GroupWeight: format.EffectiveWeightOne,
-				}
-				if groupInfo != nil {
-					samplingGroup.GroupWeight = groupInfo.EffectiveWeight
-				}
-				groupsMap[groupID] = samplingGroup
-				groupsList = append(groupsList, samplingGroup)
-				remainingGroupWeight += samplingGroup.GroupWeight
-			}
-			metricsMap[accountMetric] = samplingMetric
-			samplingGroup.MetricList = append(samplingGroup.MetricList, samplingMetric)
-			samplingGroup.SumMetricWeight += samplingMetric.MetricWeight
-		}
-		samplingMetric.SumSize += int64(sz)
-		samplingMetric.Group.SumSize += int64(sz)
-		samplingMetric.Items = append(samplingMetric.Items, data_model.SamplingMultiItemPair{Key: k, Item: item, WhaleWeight: whaleWeight})
-		totalItemsSize += sz
-	}
-
-	numShards := s.agent.NumShards()
-	remainingGroupBudget := int64((config.SampleBudget + numShards - 1) / numShards)
-	if remainingGroupBudget <= 0 { // if happens, will lead to divide by zero below, so we add cheap protection
-		remainingGroupBudget = 1
-	}
-	if remainingGroupBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
-		remainingGroupBudget = data_model.MaxUncompressedBucketSize / 2
-	}
-
-	sort.Slice(groupsList, func(i, j int) bool {
-		// comparing rational numbers
-		return groupsList[i].SumSize*groupsList[j].GroupWeight < groupsList[j].SumSize*groupsList[i].GroupWeight
-	})
-
-	// We presume we have only a few groups, so reporting sizes are over budget and itself not sampled
-	reportGroupSampling := func(sizeBefore int64, sizeAfter int64, groupID int32, fitTag int32) {
-		key := data_model.Key{Metric: format.BuiltinMetricIDGroupSizeBeforeSampling, Keys: [16]int32{0, s.agent.componentTag, groupID, fitTag}}
-		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
-		mi.Tail.Value.AddValueCounterHost(float64(sizeBefore), 1, 0)
-		key = data_model.Key{Metric: format.BuiltinMetricIDGroupSizeAfterSampling, Keys: [16]int32{0, s.agent.componentTag, groupID, fitTag}}
-		mi = data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
-		mi.Tail.Value.AddValueCounterHost(float64(sizeAfter), 1, 0)
-	}
-	gpos := 0
-	for ; gpos < len(groupsList) && groupsList[gpos].SumSize*remainingGroupWeight <= remainingGroupBudget*groupsList[gpos].GroupWeight; gpos++ { // statIdCount <= totalBudget/remainedStats
-		// No sampling for this group
-		samplingGroup := groupsList[gpos]
-
-		remainingGroupBudget -= samplingGroup.SumSize
-		remainingGroupWeight -= samplingGroup.GroupWeight
-
-		reportGroupSampling(samplingGroup.SumSize, samplingGroup.SumSize, samplingGroup.GroupID, format.TagValueIDGroupSizeSamplingFit)
-	}
-	sampleFactors := map[int32]float64{}
-	for ; gpos < len(groupsList); gpos++ {
-		samplingGroup := groupsList[gpos]
-
-		remainingWeight := samplingGroup.SumMetricWeight
-		remainingBudget := remainingGroupBudget * samplingGroup.GroupWeight / remainingGroupWeight // lose up to byte of budget per iteration, this is ok for simplicity
-		metricsList := samplingGroup.MetricList
-
-		reportGroupSampling(samplingGroup.SumSize, remainingBudget, samplingGroup.GroupID, format.TagValueIDGroupSizeSamplingSampled)
-
-		sort.Slice(metricsList, func(i, j int) bool {
-			// comparing rational numbers
-			return metricsList[i].SumSize*metricsList[j].MetricWeight < metricsList[j].SumSize*metricsList[i].MetricWeight
-		})
-
-		pos := 0
-		for ; pos < len(metricsList) && metricsList[pos].SumSize*remainingWeight <= remainingBudget*metricsList[pos].MetricWeight; pos++ { // statIdCount <= totalBudget/remainedStats
-			samplingMetric := metricsList[pos]
-			// No sampling for this stat - do not add to samplingThresholds
-			remainingBudget -= samplingMetric.SumSize
-			remainingWeight -= samplingMetric.MetricWeight
-			// Keep all elements in bucket
-		}
-		for ; pos < len(metricsList); pos++ {
-			samplingMetric := metricsList[pos]
-			sf := float64(samplingMetric.SumSize*remainingWeight) / float64(samplingMetric.MetricWeight*remainingBudget)
-			if sampleStatItem(bucket, samplingMetric, sf, rnd) {
-				sampleFactors[samplingMetric.MetricID] = sf
-			}
-		}
-	}
-	// TODO - collect more information about sampling of individual metrics
-	return sampleFactors
-}
-
-func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors map[int32]float64) {
+func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors []tlstatshouse.SampleFactor) {
 	cbd, err := s.compressBucket(bucket, missedSeconds, sampleFactors)
 
 	if err != nil {
@@ -588,7 +296,7 @@ func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds ui
 	}
 }
 
-func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors map[int32]float64) (compressedBucketData, error) {
+func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors []tlstatshouse.SampleFactor) (compressedBucketData, error) {
 	cb := compressedBucketData{time: bucket.Time}
 
 	sb := sourceBucketToTL(bucket, s.perm, sampleFactors)

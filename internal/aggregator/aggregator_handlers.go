@@ -352,15 +352,11 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	defer aggBucket.sendMu.RUnlock()
 
 	lockedShard := -1
-	sampleFactors := map[int32]float32{}
 	var newKeys []data_model.Key
 	var usedMetrics []int32
 
 	// We do not want to decompress under lock, so we decompress before ifs, then rarely throw away decompressed data.
 
-	for _, v := range bucket.SampleFactors {
-		sampleFactors[v.Metric] = v.Value
-	}
 	conveyor := int32(format.TagValueIDConveyorRecent)
 	if args.IsSetHistoric() {
 		conveyor = format.TagValueIDConveyorHistoric
