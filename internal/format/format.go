@@ -24,10 +24,11 @@ const (
 	MaxTags      = 16
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)
 
-	tagValueCodePrefix     = " " // regular tag values can't start with whitespace
-	TagValueCodeZero       = tagValueCodePrefix + "0"
-	TagValueIDUnspecified  = 0
-	TagValueIDMappingFlood = -1
+	tagValueCodePrefix      = " " // regular tag values can't start with whitespace
+	TagValueCodeZero        = tagValueCodePrefix + "0"
+	TagValueIDUnspecified   = 0
+	TagValueIDMappingFlood  = -1
+	FairKeyIndexUnspecified = -1
 
 	EffectiveWeightOne = 128                      // metric.Weight is multiplied by this and rounded. Do not make too big or metric with weight set to 0 will disappear completely.
 	MaxEffectiveWeight = 100 * EffectiveWeightOne // do not make too high, we multiply this by sum of metric serialized length during sampling
@@ -210,6 +211,7 @@ type MetricMetaValue struct {
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
 	EffectiveResolution int                      `json:"-"` // Should be restored from Tags after reading
 	PreKeyIndex         int                      `json:"-"` // index of tag which goes to 'prekey' column, or <0 if no tag goes
+	FairKeyIndex        int                      `json:"-"`
 	EffectiveWeight     int64                    `json:"-"`
 	HasPercentiles      bool                     `json:"-"`
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
@@ -370,6 +372,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		m.PreKeyOnly = false
 		err = multierr.Append(err, fmt.Errorf("pre_key_only is true, but pre_key_tag_id is not defined"))
 	}
+	m.FairKeyIndex = FairKeyIndexUnspecified // TODO: read from meta
 	for i := range tags {
 		tag := &tags[i]
 		if tag.Raw {
