@@ -532,12 +532,14 @@ func mainTagMapping() {
 	var (
 		metric          string
 		tags            string
+		budget          int
 		metadataNet     string
 		metadataAddr    string
 		metadataActorID uint64
 	)
 	flag.StringVar(&metric, "metric", "", "metric name, if specified then strings are considered metric tags")
 	flag.StringVar(&tags, "tag", "", "string to be searched for a int32 mapping")
+	flag.IntVar(&budget, "budget", 0, "mapping budget to set")
 	flag.Uint64Var(&metadataActorID, "metadata-actor-id", 0, "")
 	flag.StringVar(&metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
 	flag.StringVar(&metadataNet, "metadata-net", "tcp4", "")
@@ -554,20 +556,38 @@ func mainTagMapping() {
 			ActorID: metadataActorID,
 		}
 	)
-	// Run queries
+	// Run tag mapping queries
 	for _, tag := range strings.Split(tags, ",") {
+		if len(tag) == 0 {
+			continue
+		}
 		var (
 			qry = tlmetadata.GetMapping{Metric: metric, Key: tag}
 			ret tlmetadata.GetMappingResponseUnion
 			err = client.GetMapping(context.Background(), qry, nil, &ret)
 		)
 		if err != nil {
-			fmt.Printf("%q ERROR <%v>", tag, err)
+			fmt.Printf("%q ERROR <%v>\n", tag, err)
 		} else if res, ok := ret.AsGetMappingResponse(); ok {
-			fmt.Printf("%q -> %d", tag, res.Id)
+			fmt.Printf("%q -> %d\n", tag, res.Id)
 		} else {
-			fmt.Printf("%q NOT FOUND", tag)
+			fmt.Printf("%q NOT FOUND\n", tag)
 		}
 		fmt.Println()
+	}
+	if budget != 0 {
+		var ( // Set mapping budget
+			arg = tlmetadata.ResetFlood2{Metric: metric}
+			res tlmetadata.ResetFloodResponse2
+		)
+		if budget > 0 {
+			arg.SetValue(int32(budget))
+		}
+		err := client.ResetFlood2(context.Background(), arg, nil, &res)
+		if err == nil {
+			fmt.Printf("%q set mapping budget %d, was %d, now %d\n", metric, budget, res.BudgetBefore, res.BudgetAfter)
+		} else {
+			fmt.Printf("%q ERROR <%v> setting mapping budget %d\n", metric, err, budget)
+		}
 	}
 }
