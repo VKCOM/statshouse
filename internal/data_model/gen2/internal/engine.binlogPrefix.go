@@ -85,6 +85,9 @@ func (item *EngineBinlogPrefix) readJSON(j interface{}) error {
 }
 
 func (item *EngineBinlogPrefix) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineBinlogPrefix) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.BinlogPrefix) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -164,10 +167,13 @@ func VectorEngineBinlogPrefix0ReadJSON(j interface{}, vec *[]EngineBinlogPrefix)
 }
 
 func VectorEngineBinlogPrefix0WriteJSON(w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
+	return VectorEngineBinlogPrefix0WriteJSONOpt(false, w, vec)
+}
+func VectorEngineBinlogPrefix0WriteJSONOpt(short bool, w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}

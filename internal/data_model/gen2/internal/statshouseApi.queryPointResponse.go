@@ -96,6 +96,9 @@ func (item *StatshouseApiGetQueryPointResponse) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseApiGetQueryPointResponse) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseApiGetQueryPointResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -105,14 +108,14 @@ func (item *StatshouseApiGetQueryPointResponse) WriteJSON(w []byte) (_ []byte, e
 	if len(item.Data) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"data":`...)
-		if w, err = VectorDouble0WriteJSON(w, item.Data); err != nil {
+		if w, err = VectorDouble0WriteJSONOpt(short, w, item.Data); err != nil {
 			return w, err
 		}
 	}
 	if len(item.Meta) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"meta":`...)
-		if w, err = VectorStatshouseApiPointMeta0WriteJSON(w, item.Meta); err != nil {
+		if w, err = VectorStatshouseApiPointMeta0WriteJSONOpt(short, w, item.Meta); err != nil {
 			return w, err
 		}
 	}

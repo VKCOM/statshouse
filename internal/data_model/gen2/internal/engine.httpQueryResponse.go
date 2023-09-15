@@ -218,6 +218,9 @@ func (item *EngineHttpQueryResponse) readJSON(j interface{}) error {
 }
 
 func (item *EngineHttpQueryResponse) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineHttpQueryResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -249,7 +252,7 @@ func (item *EngineHttpQueryResponse) WriteJSON(w []byte) (_ []byte, err error) {
 		if len(item.AdditionalHeaders) != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
 			w = append(w, `"additional_headers":`...)
-			if w, err = VectorDictionaryFieldString0WriteJSON(w, item.AdditionalHeaders); err != nil {
+			if w, err = VectorDictionaryFieldString0WriteJSONOpt(short, w, item.AdditionalHeaders); err != nil {
 				return w, err
 			}
 		}

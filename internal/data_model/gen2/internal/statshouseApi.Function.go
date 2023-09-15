@@ -494,10 +494,12 @@ func (item *StatshouseApiFunction) readJSON(j interface{}) error {
 }
 
 func (item StatshouseApiFunction) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item StatshouseApiFunction) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '"')
 	w = append(w, _StatshouseApiFunction[item.index].TLString...)
 	return append(w, '"'), nil
-
 }
 
 func (item StatshouseApiFunction) String() string {
@@ -558,10 +560,13 @@ func VectorStatshouseApiFunctionBoxed0ReadJSON(j interface{}, vec *[]StatshouseA
 }
 
 func VectorStatshouseApiFunctionBoxed0WriteJSON(w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
+	return VectorStatshouseApiFunctionBoxed0WriteJSONOpt(false, w, vec)
+}
+func VectorStatshouseApiFunctionBoxed0WriteJSONOpt(short bool, w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}

@@ -88,6 +88,10 @@ func (item *EnginePushStat) ReadResultJSON(j interface{}, ret *bool) error {
 }
 
 func (item *EnginePushStat) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *EnginePushStat) writeResultJSON(short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -98,6 +102,15 @@ func (item *EnginePushStat) ReadResultWriteResultJSON(r []byte, w []byte) (_ []b
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *EnginePushStat) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret bool
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -152,6 +165,9 @@ func (item *EnginePushStat) readJSON(j interface{}) error {
 }
 
 func (item *EnginePushStat) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EnginePushStat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -162,7 +178,7 @@ func (item *EnginePushStat) WriteJSON(w []byte) (_ []byte, err error) {
 		if len(item.Stat) != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
 			w = append(w, `"stat":`...)
-			if w, err = item.Stat.WriteJSON(w); err != nil {
+			if w, err = item.Stat.WriteJSONOpt(short, w); err != nil {
 				return w, err
 			}
 		}

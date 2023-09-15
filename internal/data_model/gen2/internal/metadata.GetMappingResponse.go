@@ -71,6 +71,9 @@ func (item *MetadataGetMappingResponse) readJSON(j interface{}, nat_field_mask u
 }
 
 func (item *MetadataGetMappingResponse) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataGetMappingResponse) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Id != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -138,6 +141,9 @@ func (item *MetadataGetMappingResponseCreated) readJSON(j interface{}, nat_field
 }
 
 func (item *MetadataGetMappingResponseCreated) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataGetMappingResponseCreated) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Id != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -191,6 +197,9 @@ func (item *MetadataGetMappingResponseFloodLimitError) readJSON(j interface{}, n
 }
 
 func (item *MetadataGetMappingResponseFloodLimitError) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataGetMappingResponseFloodLimitError) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -239,6 +248,9 @@ func (item *MetadataGetMappingResponseKeyNotExists) readJSON(j interface{}, nat_
 }
 
 func (item *MetadataGetMappingResponseKeyNotExists) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataGetMappingResponseKeyNotExists) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -394,10 +406,13 @@ func (item *MetadataGetMappingResponseUnion) readJSON(j interface{}, nat_field_m
 }
 
 func (item *MetadataGetMappingResponseUnion) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataGetMappingResponseUnion) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	switch item.index {
 	case 0:
 		w = append(w, `{"type":"metadata.getMappingResponse#9286abfc","value":`...)
-		if w, err = item.valueGetMappingResponse.WriteJSON(w, nat_field_mask); err != nil {
+		if w, err = item.valueGetMappingResponse.WriteJSONOpt(short, w, nat_field_mask); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
@@ -407,7 +422,7 @@ func (item *MetadataGetMappingResponseUnion) WriteJSON(w []byte, nat_field_mask 
 		return append(w, `{"type":"metadata.getMappingResponseKeyNotExists#9286abff"}`...), nil
 	case 3:
 		w = append(w, `{"type":"metadata.getMappingResponseCreated#9286abbb","value":`...)
-		if w, err = item.valueCreated.WriteJSON(w, nat_field_mask); err != nil {
+		if w, err = item.valueCreated.WriteJSONOpt(short, w, nat_field_mask); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil

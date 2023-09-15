@@ -141,6 +141,9 @@ func (item *EngineReadWriteMode) readJSON(j interface{}, nat_fields_mask uint32)
 }
 
 func (item *EngineReadWriteMode) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_fields_mask)
+}
+func (item *EngineReadWriteMode) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		if item.ReadEnabled {

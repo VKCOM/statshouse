@@ -85,6 +85,9 @@ func (item *StatshouseMapping) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseMapping) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseMapping) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Str) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -186,6 +189,9 @@ func (item *StatshouseMappingBytes) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseMappingBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseMappingBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Str) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -265,10 +271,13 @@ func VectorStatshouseMapping0ReadJSON(j interface{}, vec *[]StatshouseMapping) e
 }
 
 func VectorStatshouseMapping0WriteJSON(w []byte, vec []StatshouseMapping) (_ []byte, err error) {
+	return VectorStatshouseMapping0WriteJSONOpt(false, w, vec)
+}
+func VectorStatshouseMapping0WriteJSONOpt(short bool, w []byte, vec []StatshouseMapping) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}
@@ -325,10 +334,13 @@ func VectorStatshouseMapping0BytesReadJSON(j interface{}, vec *[]StatshouseMappi
 }
 
 func VectorStatshouseMapping0BytesWriteJSON(w []byte, vec []StatshouseMappingBytes) (_ []byte, err error) {
+	return VectorStatshouseMapping0BytesWriteJSONOpt(false, w, vec)
+}
+func VectorStatshouseMapping0BytesWriteJSONOpt(short bool, w []byte, vec []StatshouseMappingBytes) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}

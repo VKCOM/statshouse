@@ -74,7 +74,11 @@ func (item *MetadataPutMapping) ReadResultJSON(j interface{}, ret *MetadataPutMa
 }
 
 func (item *MetadataPutMapping) WriteResultJSON(w []byte, ret MetadataPutMappingResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *MetadataPutMapping) writeResultJSON(short bool, w []byte, ret MetadataPutMappingResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -86,6 +90,15 @@ func (item *MetadataPutMapping) ReadResultWriteResultJSON(r []byte, w []byte) (_
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *MetadataPutMapping) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret MetadataPutMappingResponse
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -140,6 +153,9 @@ func (item *MetadataPutMapping) readJSON(j interface{}) error {
 }
 
 func (item *MetadataPutMapping) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataPutMapping) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -149,14 +165,14 @@ func (item *MetadataPutMapping) WriteJSON(w []byte) (_ []byte, err error) {
 	if len(item.Keys) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"keys":`...)
-		if w, err = VectorString0WriteJSON(w, item.Keys); err != nil {
+		if w, err = VectorString0WriteJSONOpt(short, w, item.Keys); err != nil {
 			return w, err
 		}
 	}
 	if len(item.Value) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"value":`...)
-		if w, err = VectorInt0WriteJSON(w, item.Value); err != nil {
+		if w, err = VectorInt0WriteJSONOpt(short, w, item.Value); err != nil {
 			return w, err
 		}
 	}

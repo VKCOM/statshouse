@@ -45,6 +45,10 @@ func (item *EngineIsProduction) ReadResultJSON(j interface{}, ret *bool) error {
 }
 
 func (item *EngineIsProduction) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *EngineIsProduction) writeResultJSON(short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -55,6 +59,15 @@ func (item *EngineIsProduction) ReadResultWriteResultJSON(r []byte, w []byte) (_
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *EngineIsProduction) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret bool
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -94,6 +107,9 @@ func (item *EngineIsProduction) readJSON(j interface{}) error {
 }
 
 func (item *EngineIsProduction) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineIsProduction) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }

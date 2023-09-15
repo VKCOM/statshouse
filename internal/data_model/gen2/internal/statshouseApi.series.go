@@ -96,6 +96,9 @@ func (item *StatshouseApiSeries) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseApiSeries) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseApiSeries) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -105,14 +108,14 @@ func (item *StatshouseApiSeries) WriteJSON(w []byte) (_ []byte, err error) {
 	if len(item.SeriesData) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"series_data":`...)
-		if w, err = VectorVectorDouble0WriteJSON(w, item.SeriesData); err != nil {
+		if w, err = VectorVectorDouble0WriteJSONOpt(short, w, item.SeriesData); err != nil {
 			return w, err
 		}
 	}
 	if len(item.Time) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"time":`...)
-		if w, err = VectorLong0WriteJSON(w, item.Time); err != nil {
+		if w, err = VectorLong0WriteJSONOpt(short, w, item.Time); err != nil {
 			return w, err
 		}
 	}
