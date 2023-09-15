@@ -695,6 +695,9 @@ func (db *DBV2) PutBootstrap(ctx context.Context, mappings []tlstatshouse.Mappin
 }
 
 func calcBudget(oldBudget, expense int64, lastTimeUpdate, now uint32, max, bonusToStep int64, stepSec uint32) int64 {
+	if oldBudget > max {
+		return oldBudget - expense
+	}
 	res := oldBudget - expense + int64((now-lastTimeUpdate)/stepSec)*bonusToStep
 	if res >= max {
 		res = max - expense
