@@ -1046,12 +1046,6 @@
           },
           "mapping_errors": {
             "type": "number"
-          },
-          "mapping_flood_events_legacy": {
-            "type": "number"
-          },
-          "receive_errors_legacy": {
-            "type": "number"
           }
         },
         "required": [

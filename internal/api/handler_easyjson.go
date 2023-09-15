@@ -236,14 +236,10 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer
 		switch key {
 		case "series":
 			easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi3(in, &out.Series)
-		case "receive_errors_legacy":
-			out.ReceiveErrorsLegacy = float64(in.Float64())
 		case "sampling_factor_src":
 			out.SamplingFactorSrc = float64(in.Float64())
 		case "sampling_factor_agg":
 			out.SamplingFactorAgg = float64(in.Float64())
-		case "mapping_flood_events_legacy":
-			out.MappingFloodEventsLegacy = float64(in.Float64())
 		case "receive_errors":
 			out.ReceiveErrors = float64(in.Float64())
 		case "receive_warnings":
@@ -311,11 +307,6 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 		easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi3(out, in.Series)
 	}
 	{
-		const prefix string = ",\"receive_errors_legacy\":"
-		out.RawString(prefix)
-		out.Float64(float64(in.ReceiveErrorsLegacy))
-	}
-	{
 		const prefix string = ",\"sampling_factor_src\":"
 		out.RawString(prefix)
 		out.Float64(float64(in.SamplingFactorSrc))
@@ -324,11 +315,6 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 		const prefix string = ",\"sampling_factor_agg\":"
 		out.RawString(prefix)
 		out.Float64(float64(in.SamplingFactorAgg))
-	}
-	{
-		const prefix string = ",\"mapping_flood_events_legacy\":"
-		out.RawString(prefix)
-		out.Float64(float64(in.MappingFloodEventsLegacy))
 	}
 	{
 		const prefix string = ",\"receive_errors\":"
