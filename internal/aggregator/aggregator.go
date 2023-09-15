@@ -316,6 +316,7 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
 	var original_unique data_model.ItemValue
 	var spare_unique data_model.ItemValue
 	for _, v := range a.historicBuckets {
+		// v.contributorsOriginal and v.contributorsSpare are counters, while ItemValues above are values
 		original.AddValueCounterHost(float64(nowUnix-v.time), v.contributorsOriginal.Counter, v.contributorsOriginal.MaxCounterHostTag)
 		spare.AddValueCounterHost(float64(nowUnix-v.time), v.contributorsSpare.Counter, v.contributorsSpare.MaxCounterHostTag)
 		original_unique.AddValueCounterHost(float64(nowUnix-v.time), 1, v.contributorsOriginal.MaxCounterHostTag)

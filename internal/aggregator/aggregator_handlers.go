@@ -342,9 +342,9 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	aggBucket.sendMu.RLock()
 	// This lock order ensures, that if sender gets a.mu.Lock(), then all aggregating clients already have aggBucket.sendMu.RLock()
 	if args.IsSetSpare() {
-		aggBucket.contributorsSpare.AddValueCounterHost(0, 1, host) // protected by a.mu
+		aggBucket.contributorsSpare.AddCounterHost(1, host) // protected by a.mu
 	} else {
-		aggBucket.contributorsOriginal.AddValueCounterHost(0, 1, host) // protected by a.mu
+		aggBucket.contributorsOriginal.AddCounterHost(1, host) // protected by a.mu
 	}
 	aggHost := a.aggregatorHost
 	a.mu.Unlock()
