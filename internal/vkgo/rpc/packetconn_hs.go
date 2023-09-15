@@ -44,7 +44,7 @@ func (pc *PacketConn) HandshakeClient(cryptoKey string, trustedSubnetGroups [][]
 		}
 	}
 
-	_, hs, err := pc.handshakeExchangeClient(body, startTime, flags, handshakeStepTimeout)
+	hs, _, err := pc.handshakeExchangeClient(body, startTime, flags, handshakeStepTimeout)
 	if err != nil {
 		return fmt.Errorf("handshake exchange failed between %v (local) and %v: %w", pc.conn.LocalAddr(), pc.conn.RemoteAddr(), err)
 	}
@@ -108,11 +108,11 @@ func (pc *PacketConn) nonceExchangeClient(body []byte, cryptoKey string, trusted
 		return body, nil, err
 	}
 
-	if client.Schema == cryptoSchemaAES && server.Schema != cryptoSchemaAES {
+	if client.LegacySchema() == cryptoSchemaAES && server.LegacySchema() != cryptoSchemaAES {
 		return body, nil, fmt.Errorf("refusing to setup unencrypted connection between %v (local) and %v, server schema is %s", pc.conn.LocalAddr(), pc.conn.RemoteAddr(), SchemaToString(server.Schema))
 	}
 
-	if server.Schema == cryptoSchemaAES {
+	if server.LegacySchema() == cryptoSchemaAES {
 		key, err := pc.deriveKeysClient(cryptoKey, client.Time, client.Nonce, server.Time, server.Nonce)
 		if err == nil {
 			pc.keyID = server.KeyID
@@ -145,7 +145,7 @@ func (pc *PacketConn) nonceExchangeServer(body []byte, cryptoKeys []string, trus
 		return nil, nil, body, err
 	}
 
-	if server.Schema == cryptoSchemaAES {
+	if server.LegacySchema() == cryptoSchemaAES {
 		keys, err := pc.deriveKeysServer(cryptoKey, client.Time, client.Nonce, server.Time, server.Nonce)
 		if err == nil {
 			pc.keyID = server.KeyID
@@ -160,7 +160,7 @@ func prepareNonceClient(cryptoKey string, trustedSubnetGroups [][]*net.IPNet, fo
 	m := &nonceMsg{
 		KeyID:  KeyIDFromCryptoKey(cryptoKey),
 		Schema: cryptoSchemaNoneOrAES,
-		Time:   int32(time.Now().Unix()),
+		Time:   uint32(time.Now().Unix()),
 	}
 
 	_, err := cryptorand.Read(m.Nonce[:])
@@ -176,8 +176,8 @@ func prepareNonceClient(cryptoKey string, trustedSubnetGroups [][]*net.IPNet, fo
 }
 
 func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, client nonceMsg, localAddr net.Addr, remoteAddr net.Addr) (*nonceMsg, string, error) {
-	clientRequiresEncryption := client.Schema == cryptoSchemaAES
-	clientSupportsEncryption := client.Schema != cryptoSchemaNone
+	clientRequiresEncryption := client.LegacySchema() == cryptoSchemaAES
+	clientSupportsEncryption := client.LegacySchema() != cryptoSchemaNone
 	requireEncryption := forceEncryption || !(sameMachine(localAddr, remoteAddr) || sameSubnetGroup(localAddr, remoteAddr, trustedSubnetGroups))
 
 	if !clientRequiresEncryption && !requireEncryption {
@@ -188,7 +188,7 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 	}
 	m := &nonceMsg{
 		Schema: cryptoSchemaAES,
-		Time:   int32(time.Now().Unix()),
+		Time:   uint32(time.Now().Unix()),
 	}
 	cryptoKey := "" // We disallow empty crypto keys as protection against misconfigurations, when key is empty because error reading key file is ignored
 	for _, c := range cryptoKeys {
@@ -213,7 +213,7 @@ func prepareNonceServer(cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet,
 	return m, cryptoKey, nil
 }
 
-func (pc *PacketConn) deriveKeysClient(cryptoKey string, clientTime int32, clientNonce [16]byte, serverTime int32, serverNonce [16]byte) (*cryptoKeys, error) {
+func (pc *PacketConn) deriveKeysClient(cryptoKey string, clientTime uint32, clientNonce [16]byte, serverTime uint32, serverNonce [16]byte) (*cryptoKeys, error) {
 	dt := (time.Duration(clientTime) - time.Duration(serverTime)) * time.Second
 	if dt < -cryptoMaxTimeDelta || dt > cryptoMaxTimeDelta {
 		return nil, fmt.Errorf("client-server time delta %v is more than maximum %v", dt, cryptoMaxTimeDelta)
@@ -224,10 +224,10 @@ func (pc *PacketConn) deriveKeysClient(cryptoKey string, clientTime int32, clien
 
 	return deriveCryptoKeys(true, cryptoKey, clientTime,
 		clientNonce, clientIP, clientPort,
-		serverNonce, serverIP, serverPort)
+		serverNonce, serverIP, serverPort), nil
 }
 
-func (pc *PacketConn) deriveKeysServer(cryptoKey string, clientTime int32, clientNonce [16]byte, serverTime int32, serverNonce [16]byte) (*cryptoKeys, error) {
+func (pc *PacketConn) deriveKeysServer(cryptoKey string, clientTime uint32, clientNonce [16]byte, serverTime uint32, serverNonce [16]byte) (*cryptoKeys, error) {
 	dt := (time.Duration(clientTime) - time.Duration(serverTime)) * time.Second
 	if dt < -cryptoMaxTimeDelta || dt > cryptoMaxTimeDelta {
 		return nil, fmt.Errorf("client-server time delta %v is more than maximum %v", dt, cryptoMaxTimeDelta)
@@ -238,33 +238,33 @@ func (pc *PacketConn) deriveKeysServer(cryptoKey string, clientTime int32, clien
 
 	return deriveCryptoKeys(false, cryptoKey, clientTime,
 		clientNonce, clientIP, clientPort,
-		serverNonce, serverIP, serverPort)
+		serverNonce, serverIP, serverPort), nil
 }
 
-func (pc *PacketConn) handshakeExchangeClient(body []byte, startTime uint32, flags uint32, handshakeStepTimeout time.Duration) ([]byte, *handshakeMsg, error) {
+func (pc *PacketConn) handshakeExchangeClient(body []byte, startTime uint32, flags uint32, handshakeStepTimeout time.Duration) (*handshakeMsg, []byte, error) {
 	client := prepareHandshakeClient(pc.conn.LocalAddr(), startTime, flags)
 
 	body = client.writeTo(body[:0])
 	err := pc.WritePacket(packetTypeRPCHandshake, body, handshakeStepTimeout)
 	if err != nil {
-		return body, nil, err
+		return nil, body, err
 	}
 
 	respType, body, err := pc.ReadPacket(body, handshakeStepTimeout)
 	if err != nil {
-		return body, nil, err
+		return nil, body, err
 	}
 	var server handshakeMsg
 	body, err = server.readFrom(respType, body)
 	if err != nil {
-		return body, nil, err
+		return nil, body, err
 	}
 
-	return body, &handshakeMsg{
+	return &handshakeMsg{
 		Flags:     server.Flags,
 		SenderPID: client.SenderPID,
 		PeerPID:   server.SenderPID,
-	}, nil
+	}, body, nil
 }
 
 func (pc *PacketConn) handshakeExchangeServer(body []byte, startTime uint32, handshakeStepTimeout time.Duration) (*handshakeMsg, []byte, error) {

@@ -242,7 +242,7 @@ func (b *fsBinlog) WriteLoop(ri PositionInfo) (PositionInfo, error) {
 		return ri, fmt.Errorf("ChangeRole return error: %w", err)
 	}
 
-	return b.writer.loop()
+	return b.writer.loop(ri.Offset)
 }
 
 func (b *fsBinlog) Run(offset int64, snapshotMeta []byte, engine binlog.Engine) error {

@@ -87,9 +87,7 @@ func dorequest(t *rapid.T, c *Client, addr string) {
 	req.Body = append(req.Body, buf...)
 
 	resp, err := c.Do(context.Background(), "tcp4", addr, req)
-	if resp != nil {
-		defer c.PutResponse(resp)
-	}
+	defer c.PutResponse(resp)
 
 	if n%2 != 0 {
 		refErr := Error{

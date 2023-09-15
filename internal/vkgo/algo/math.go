@@ -32,20 +32,6 @@ func Clamp[T constraints.Ordered](value T, low T, high T) T {
 	return value
 }
 
-func FillSlice[T any](slice []T, val T) {
-	for i := range slice {
-		slice[i] = val
-	}
-}
-
-func MinInt64(x int64, y int64) int64 {
-	if x <= y {
-		return x
-	}
-
-	return y
-}
-
 func MinInt(x int, y int) int {
 	if x <= y {
 		return x

@@ -96,9 +96,10 @@ func stripFullBit(fullBit string, appName string) string {
 }
 
 type Data struct {
-	Bits []string `json:"bits"`
-	User string   `json:"user"`
-	VkID *int64   `json:"vk_id"`
+	Bits      []string `json:"bits"`
+	User      string   `json:"user"`
+	VkID      *int64   `json:"vk_id"`
+	IsService bool     `json:"is_service"`
 }
 type Claims struct {
 	*jwt.RegisteredClaims
@@ -114,9 +115,10 @@ type JWTHelper struct {
 }
 
 type AccessData struct {
-	Bits map[string]struct{} // bits without namespace and only for appName service
-	User string
-	VkID *int64
+	Bits      map[string]struct{} // bits without namespace and only for appName service
+	User      string
+	VkID      *int64
+	IsService bool
 }
 
 func NewJWTHelper(publicKeys map[string][]byte, appName string) *JWTHelper {
@@ -195,8 +197,9 @@ func (helper *JWTHelper) ParseVkuthData(accessToken string) (*AccessData, error)
 		}
 	}
 	return &AccessData{
-		Bits: bits,
-		User: claims.Data.User,
-		VkID: claims.Data.VkID,
+		Bits:      bits,
+		User:      claims.Data.User,
+		VkID:      claims.Data.VkID,
+		IsService: claims.Data.IsService,
 	}, nil
 }

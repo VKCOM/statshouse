@@ -12,7 +12,10 @@ import (
 	"sync"
 	"time"
 
+	"pgregory.net/rand"
+
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
 
@@ -51,21 +54,22 @@ func (pc *clientConn) close() error {
 
 // if multiResult is used for many requests, it must contain enough space so that no receiver is blocked
 func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiResult chan *callContext) (*callContext, error) {
-
 	cctx := pc.getCallContext()
 	cctx.queryID = req.QueryID()
 	if multiResult != nil {
 		cctx.result = multiResult // overrides single-result channel
 	}
 	cctx.failIfNoConnection = req.Extra.FailIfNoConnection
+	cctx.readonly = req.ReadOnly
+	cctx.hookState, req.hookState = req.hookState, cctx.hookState // transfer ownership of "dirty" hook state to cctx
 
 	if pc.closeCC == nil {
-		putCallContext(cctx)
+		pc.client.putCallContext(cctx)
 		return nil, ErrClientClosed
 	}
 
 	if req.Extra.FailIfNoConnection && pc.waitingToReconnect {
-		putCallContext(cctx)
+		pc.client.putCallContext(cctx)
 		return nil, ErrClientConnClosedNoSideEffect
 	}
 	if debugPrint {
@@ -78,7 +82,9 @@ func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiRes
 
 	// Here cctx is owned by both writeQ and calls map
 
-	pc.client.opts.Hooks.Request.BeforeSend(cctx.hooksState, req)
+	if cctx.hookState != nil {
+		cctx.hookState.BeforeSend(req)
+	}
 
 	return cctx, nil
 }
@@ -89,7 +95,7 @@ func (pc *clientConn) cancelCall(cctx *callContext, unblockWaitersError error) {
 			cctx.err = unblockWaitersError
 			cctx.result <- cctx // cctx owned by channel
 		} else {
-			putCallContext(cctx)
+			pc.client.putCallContext(cctx)
 		}
 	}
 }
@@ -107,7 +113,7 @@ func (pc *clientConn) cancelCallImpl(cctx *callContext) (shouldRelease bool) {
 		cctx.stale = true // exclusive ownership of cctx by writeQ now, will be released
 		return false
 	}
-	if pc.conn != nil {
+	if pc.conn != nil && pc.conn.FlagCancelReq() {
 		pc.writeQ = append(pc.writeQ, writeReq{customPacketType: packetTypeRPCCancelReq, customPacketData: queryID})
 		pc.writeQCond.Signal() // Better move out of the lock, for now it is good enough, as cancels are rare
 	}
@@ -184,7 +190,7 @@ func (pc *clientConn) continueRunning(previousGoodHandshake bool) bool {
 }
 
 func (pc *clientConn) putStaleRequest(wr writeReq) {
-	putCallContext(wr.cctx)
+	pc.client.putCallContext(wr.cctx)
 	pc.client.putRequest(wr.req)
 }
 
@@ -271,6 +277,8 @@ func (pc *clientConn) goConnect(closeCC <-chan struct{}) {
 				reconnectDelay = maxReconnectDelay
 			}
 		}
+		// "Full jitter" from https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+		reconnectDelay = time.Duration(rand.Uint64n(uint64(reconnectDelay)))
 		pc.client.opts.Logf("rpc: reconnecting to %v in %v", pc.address, reconnectDelay)
 	}
 }
@@ -385,7 +393,7 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 		}
 
 		if writeFin || pc.writeQFlush() { // before writeFIN we must flush regardless of policy set by writeQFlush
-			if err := conn.writeFlushUnlocked(); err != nil {
+			if err := conn.FlushUnlocked(); err != nil {
 				if !commonConnCloseError(err) {
 					pc.client.opts.Logf("rpc: failed to flush packets to %v, disconnecting: %v", conn.remoteAddr, err)
 				}
@@ -411,22 +419,22 @@ func (pc *clientConn) receiveLoop(conn *PacketConn, pong chan<- int64) {
 	defer pc.dropClientConn(false)
 
 	for {
-		pkt := pc.client.getResponse() // we use Response as a scratch space for incoming (even non-response) packet here
+		resp := pc.client.getResponse() // we use Response as a scratch space for incoming (even non-response) packet here
 		var typ uint32
 		var err error
-		typ, pkt.Body, err = conn.ReadPacket(pkt.body, maxIdleDuration+maxPacketRWTime)
-		pkt.body = pkt.Body[:0] // prepare for reuse immediately
+		typ, resp.Body, err = conn.ReadPacket(resp.body, maxIdleDuration+maxPacketRWTime)
+		resp.body = resp.Body[:0] // prepare for reuse immediately
 		if err != nil {
-			pc.client.PutResponse(pkt)
+			pc.client.PutResponse(resp)
 			if !commonConnCloseError(err) {
 				pc.client.opts.Logf("rpc: error reading packet from %v, disconnecting: %v", conn.remoteAddr, err)
 			}
 			return
 		}
-		pkt.responseType = typ
-		put, err := pc.handlePacket(pkt, pong)
+		resp.responseType = typ
+		put, err := pc.handlePacket(resp, pong)
 		if put {
-			pc.client.PutResponse(pkt)
+			pc.client.PutResponse(resp)
 		}
 		if err != nil {
 			pc.client.opts.Logf("rpc: failed to handle packet from %v, disconnecting: %v", conn.remoteAddr, err)
@@ -435,29 +443,29 @@ func (pc *clientConn) receiveLoop(conn *PacketConn, pong chan<- int64) {
 	}
 }
 
-func (pc *clientConn) handlePacket(pkt *Response, pongCC chan<- int64) (put bool, _ error) {
-	switch pkt.responseType {
+func (pc *clientConn) handlePacket(resp *Response, pongCC chan<- int64) (put bool, _ error) {
+	switch resp.responseType {
 	case PacketTypeRPCPing:
-		var pongID int64
-		req, err := basictl.LongRead(pkt.Body, &pongID)
+		var ping tl.RpcPing
+		req, err := ping.Read(resp.Body)
 		if err != nil {
-			return true, fmt.Errorf("error reading ping: %w", err)
+			return true, fmt.Errorf("failed to parse ping packet %w", err)
 		}
 		if len(req) != 0 {
 			return true, fmt.Errorf("excess %d bytes in ping packet", len(req))
 		}
-		pc.writeQPush(writeReq{customPacketType: PacketTypeRPCPong, customPacketData: pongID})
+		pc.writeQPush(writeReq{customPacketType: PacketTypeRPCPong, customPacketData: ping.PingId})
 		return true, nil
 	case PacketTypeRPCPong:
-		var pongID int64
-		req, err := basictl.LongRead(pkt.Body, &pongID)
+		var pong tl.RpcPong
+		req, err := pong.Read(resp.Body)
 		if err != nil {
-			return true, fmt.Errorf("error reading pong: %w", err)
+			return true, fmt.Errorf("failed to parse pong packet %w", err)
 		}
 		if len(req) != 0 {
 			return true, fmt.Errorf("excess %d bytes in pong packet", len(req))
 		}
-		pongCC <- pongID
+		pongCC <- pong.PingId
 		return true, nil
 	case packetTypeRPCServerWantsFin:
 		if debugPrint {
@@ -473,13 +481,14 @@ func (pc *clientConn) handlePacket(pkt *Response, pongCC chan<- int64) (put bool
 	case packetTypeRPCReqResult, packetTypeRPCReqError:
 		var queryID int64
 		var err error
-		pkt.Body, err = basictl.LongRead(pkt.Body, &queryID)
+		resp.Body, err = basictl.LongRead(resp.Body, &queryID)
 		if err != nil {
 			return true, fmt.Errorf("failed to read response query ID: %w", err)
 		}
-		return pc.handleResponse(queryID, pkt, pkt.responseType == packetTypeRPCReqError), nil
+		return pc.handleResponse(queryID, resp, resp.responseType == packetTypeRPCReqError), nil
 	default:
-		return true, fmt.Errorf("unexpected packet type 0x%x", pkt.responseType)
+		pc.client.opts.Logf("unknown packet type 0x%x", resp.responseType)
+		return true, nil
 	}
 }
 
@@ -491,13 +500,14 @@ func (pc *clientConn) handleResponse(queryID int64, resp *Response, toplevelErro
 	}
 
 	cctx.err = cctx.parseResponse(resp, toplevelError, pc.client.opts.Logf)
+	cctx.resp = resp
 
-	put = cctx.resp == nil // we do not own cctx after <-
-
-	pc.client.opts.Hooks.Request.AfterReceive(cctx.hooksState, cctx.resp, cctx.err)
+	if cctx.hookState != nil {
+		cctx.hookState.AfterReceive(cctx.resp, cctx.err)
+	}
 
 	cctx.result <- cctx
-	return
+	return false
 }
 
 func writeCustomPacketUnlocked(conn *PacketConn, packetType uint32, pingPong int64, writeTimeout time.Duration) error {

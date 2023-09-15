@@ -166,7 +166,7 @@ func (e *TestEngineImpl) Skip(skipLen int64) (int64, error) {
 }
 
 func (e *TestEngineImpl) Revert(toOffset int64) (bool, error) {
-	panic("not implemented")
+	return false, nil
 }
 
 func (e *TestEngineImpl) ChangeRole(info binlog.ChangeRoleInfo) error {

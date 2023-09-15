@@ -105,6 +105,9 @@ func (item *FsbinlogLevUpgradeToGms) readJSON(j interface{}) error {
 }
 
 func (item *FsbinlogLevUpgradeToGms) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *FsbinlogLevUpgradeToGms) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

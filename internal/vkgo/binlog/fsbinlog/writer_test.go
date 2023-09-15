@@ -50,7 +50,7 @@ func TestSimpleWrite(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_, err = bw.loop()
+		_, err = bw.loop(0)
 		assert.NoError(t, err)
 	}()
 
@@ -108,7 +108,7 @@ func TestRotate(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		_, err = bw.loop()
+		_, err = bw.loop(0)
 		assert.NoError(t, err)
 	}()
 

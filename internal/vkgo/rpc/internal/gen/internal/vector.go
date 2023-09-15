@@ -86,6 +86,77 @@ func (item *VectorDictionaryFieldString) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+type VectorInt []int32
+
+func (VectorInt) TLName() string { return "vector" }
+func (VectorInt) TLTag() uint32  { return 0x1cb5c415 }
+
+func (item *VectorInt) Reset() {
+	ptr := (*[]int32)(item)
+	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorInt) Read(w []byte) (_ []byte, err error) {
+	ptr := (*[]int32)(item)
+	return VectorInt0Read(w, ptr)
+}
+
+func (item *VectorInt) Write(w []byte) (_ []byte, err error) {
+	ptr := (*[]int32)(item)
+	return VectorInt0Write(w, *ptr)
+}
+
+func (item *VectorInt) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+func (item *VectorInt) WriteBoxed(w []byte) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x1cb5c415)
+	return item.Write(w)
+}
+
+func (item VectorInt) String() string {
+	w, err := item.WriteJSON(nil)
+	if err != nil {
+		return err.Error()
+	}
+	return string(w)
+}
+
+func VectorInt__ReadJSON(item *VectorInt, j interface{}) error { return item.readJSON(j) }
+func (item *VectorInt) readJSON(j interface{}) error {
+	ptr := (*[]int32)(item)
+	if err := VectorInt0ReadJSON(j, ptr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (item *VectorInt) WriteJSON(w []byte) (_ []byte, err error) {
+	ptr := (*[]int32)(item)
+	if w, err = VectorInt0WriteJSON(w, *ptr); err != nil {
+		return w, err
+	}
+	return w, nil
+}
+func (item *VectorInt) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil)
+}
+
+func (item *VectorInt) UnmarshalJSON(b []byte) error {
+	j, err := JsonBytesToInterface(b)
+	if err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	if err = item.readJSON(j); err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	return nil
+}
+
 type VectorLong []int64
 
 func (VectorLong) TLName() string { return "vector" }

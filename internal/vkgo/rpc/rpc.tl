@@ -75,3 +75,24 @@ rpcCancelReq#193f1b22 query_id:long = RpcCancelReq;
 // Server will send all responses, then close connection. Client will send all new requests to a new connection.
 // Supported by vkgo rpc.Server/rpc.Client for now. Support is advertised during PacketConn handshake with flag bit.
 rpcServerWantsFin#a8ddbc46 = RpcServerWantsFin;
+
+netUdpPacket.unencHeader#00a8e945
+  flags:#
+  remote_pid:flags.0?%NetPID local_pid:flags.0?%NetPID generation:flags.0?int
+  pid_hash:flags.2?long
+  crypto_init:flags.3?int
+  random_key:flags.5?%(Tuple # 8)
+  = netUdpPacket.UnencHeader;
+
+netUdpPacket.encHeader#251a7bfd
+  flags:#
+  time:flags.9?int
+  version:flags.10?int
+  packet_ack_prefix:flags.13?int
+  packet_ack_from:flags.14?int packet_ack_to:flags.14?int
+  packet_ack_set:flags.15?%(Vector int)
+  packet_num:flags.20?int
+  packets_from:flags.21?int packets_to:flags.21?int
+  prev_parts:flags.22?int
+  next_parts:flags.23?int
+  = netUdpPacket.EncHeader;

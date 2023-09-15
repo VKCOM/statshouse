@@ -29,7 +29,11 @@ type serverConn struct {
 
 	longpollResponses map[int64]hijackedResponse
 
-	hctxPool     []*HandlerContext
+	userData any // single common instance for handlers called from receiveLoopImpl
+	// We swap userData back here from contexts, because often sync handler and normal handlers set different
+	// parts of user data. If we disallow mixing them, they will use less memory
+
+	hctxPool     []*HandlerContext // TODO - move to Server?
 	hctxCreated  int
 	readFINFlag  bool // reader quit, writer continues until hctxCreated == len(hctxPool) and empty queue
 	closedFlag   bool
@@ -81,7 +85,7 @@ func (sc *serverConn) push(hctx *HandlerContext, isLongpoll bool) {
 
 func (sc *serverConn) sendLetsFin() {
 	if !sc.conn.FlagCancelReq() {
-		return
+		return // TODO - close connection here?
 	}
 	sc.mu.Lock()
 	if sc.closedFlag || sc.readFINFlag {
@@ -94,9 +98,9 @@ func (sc *serverConn) sendLetsFin() {
 }
 
 func (sc *serverConn) flush() error {
-	err := sc.conn.writeFlushUnlocked()
+	err := sc.conn.FlushUnlocked()
 	if err != nil {
-		if !sc.closed() && (!commonConnCloseError(err) || sc.server.opts.LogCommonNetworkErrors) {
+		if !sc.closed() && !commonConnCloseError(err) {
 			sc.server.opts.Logf("rpc: error flushing packet to %v, disconnecting: %v", sc.conn.remoteAddr, err)
 		}
 	}
@@ -176,7 +180,7 @@ func (sc *serverConn) writeResponseUnlocked(hctx *HandlerContext, timeout time.D
 	return sc.conn.writeSimplePacketUnlocked(hctx.Response)
 }
 
-func (sc *serverConn) acquireHandlerCtx(tip uint32, stateInit func() any) (*HandlerContext, bool) {
+func (sc *serverConn) acquireHandlerCtx(tip uint32, stateInit func() ServerHookState) (*HandlerContext, bool) {
 	sc.mu.Lock()
 	for !(sc.closedFlag || len(sc.hctxPool) > 0 || sc.hctxCreated < sc.maxInflight) {
 		sc.server.rareLog(&sc.server.lastHctxWaitLog, "rpc: waiting to acquire handler context; consider increasing Server.MaxInflightPackets")
@@ -215,8 +219,6 @@ func (sc *serverConn) acquireHandlerCtx(tip uint32, stateInit func() any) (*Hand
 }
 
 func (sc *serverConn) releaseHandlerCtx(hctx *HandlerContext) {
-	sc.server.opts.Hooks.ResetState(hctx.hooksState)
-
 	hctx.releaseRequest()
 	hctx.releaseResponse()
 	hctx.reset()

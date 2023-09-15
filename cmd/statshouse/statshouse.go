@@ -362,23 +362,32 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
 	}
+
+	var hijackListener *rpc.HijackListener
 	srv := rpc.NewServer(
-		func(opts *rpc.ServerOptions) {
-			if argv.pprofHTTP {
-				// dummy TCP addess is used by RPC server as a flag
-				opts.SocketHijackAddr = &net.TCPAddr{}
-			}
-		},
+		rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
+			hijackListener.AddConnection(conn)
+		}),
 		rpc.ServerWithLogf(logErr.Printf),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithCryptoKeys([]string{aesPwd}),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
 		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats))
+	defer func() { _ = srv.Close() }()
+
+	rpcLn, err := srv.Listen("tcp4", argv.listenAddr)
+	if err != nil {
+		logErr.Fatalf("RPC listen failed: %v", err)
+	}
+
+	hijackListener = rpc.NewHijackListener(rpcLn.Addr())
+	defer func() { _ = hijackListener.Close() }()
+
 	go func() {
-		err := srv.ListenAndServe("tcp4", argv.listenAddr)
-		if err != nil {
-			logErr.Fatalf("RPC server failed: %v", err)
+		err = srv.Serve(rpcLn)
+		if err != nil && err != rpc.ErrServerClosed {
+			log.Fatalln("RPC server failed:", err)
 		}
 	}()
 	if argv.pprofHTTP {
@@ -394,8 +403,10 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			})
 			logOk.Printf("Start listening pprof HTTP %q", argv.listenAddr)
 			s := http.Server{Handler: m}
-			s.Serve(srv)
+			_ = s.Serve(hijackListener)
 		}()
+	} else {
+		_ = hijackListener.Close() // will close all incoming connections
 	}
 
 	if !argv.hardwareMetricScrapeDisable {

@@ -105,8 +105,12 @@ func send(t *rapid.T, from *connEx, to *connEx) {
 	t.Helper()
 
 	pc := packetContent{
-		packetType: rapid.Uint32().Draw(t, "type"),
-		body:       bytes.Repeat(rapid.SliceOf(rapid.Byte()).Draw(t, "body"), 4),
+		body: bytes.Repeat(rapid.SliceOf(rapid.Byte()).Draw(t, "body"), 4),
+	}
+	if from.pc.writeSeqNum == startSeqNum {
+		pc.packetType = packetTypeRPCNonce
+	} else {
+		pc.packetType = rapid.Uint32().Draw(t, "type")
 	}
 
 	var wg sync.WaitGroup

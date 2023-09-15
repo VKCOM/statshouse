@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/constants"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlnetUdpPacket"
 )
 
 const (
@@ -68,6 +69,9 @@ const (
 	// almost all deadlines (see PacketConn.timeoutAccuracy)
 	maxPacketRWTime = maxIdleDuration
 )
+
+type UnencHeader = tlnetUdpPacket.UnencHeader // TODO - move to better place when UDP impl is ready
+type EncHeader = tlnetUdpPacket.EncHeader     // TODO - move to better place when UDP impl is ready
 
 // NoopLogf is a do-nothing log function
 func NoopLogf(string, ...any) {}

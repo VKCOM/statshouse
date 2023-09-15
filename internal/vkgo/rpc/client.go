@@ -23,7 +23,7 @@ const (
 	DefaultClientConnWriteBufSize = maxGoAllocSizeClass
 
 	minReconnectDelay = 200 * time.Millisecond // same as TCP_RTO_MIN
-	maxReconnectDelay = 5 * time.Second
+	maxReconnectDelay = 10 * time.Second
 
 	debugPrint = false // turn on during testing using custom scheduler
 	debugTrace = false // turn on during rapid testing to have trace stored in Server
@@ -33,22 +33,26 @@ var (
 	ErrClientClosed                 = errors.New("rpc: Client closed")
 	ErrClientConnClosedSideEffect   = errors.New("rpc: client connection closed after request sent")
 	ErrClientConnClosedNoSideEffect = errors.New("rpc: client connection closed (or connect failed) before request sent")
-
-	callCtxPool sync.Pool
 )
 
 type Request struct {
-	Body     []byte
-	ActorID  uint64
-	Extra    InvokeReqExtra
-	HookArgs any
+	Body    []byte
+	ActorID uint64
+	Extra   InvokeReqExtra
 
-	queryID int64 // unique per client, assigned by client
+	ReadOnly bool // no side effects, can be retried by client
+
+	queryID   int64           // unique per client, assigned by client
+	hookState ClientHookState // can be nil
 }
 
-// Never zero, assigned in GetRequest()
+// QueryID is always non-zero (guaranteed by [Client.GetRequest]).
 func (req *Request) QueryID() int64 {
 	return req.queryID
+}
+
+func (req *Request) HookState() ClientHookState {
+	return req.hookState
 }
 
 type Response struct {
@@ -86,6 +90,7 @@ type Client struct {
 
 	requestPool  sync.Pool
 	responsePool sync.Pool
+	callCtxPool  sync.Pool
 
 	wg sync.WaitGroup
 }
@@ -96,16 +101,7 @@ func NewClient(options ...ClientOptionsFunc) *Client {
 		ConnReadBufSize:  DefaultClientConnReadBufSize,
 		ConnWriteBufSize: DefaultClientConnWriteBufSize,
 		PongTimeout:      DefaultClientPongTimeout,
-		Hooks: ClientHooks{
-			InitState:  func() any { return nil },
-			ResetState: func(state any) {},
-			Request: RequestHooks{
-				InitArguments:  func() any { return 0 },
-				ResetArguments: func(state any) {},
-				BeforeSend:     func(state any, req *Request) {},
-				AfterReceive:   func(state any, resp *Response, err error) {},
-			},
-		},
+		Hooks:            func() ClientHookState { return nil },
 	}
 	for _, opt := range options {
 		opt(&opts)
@@ -124,18 +120,10 @@ func NewClient(options ...ClientOptionsFunc) *Client {
 	return c
 }
 
-type ClientHooks struct {
-	InitState  func() any
-	ResetState func(state any)
-	Request    RequestHooks
-}
-
-type RequestHooks struct {
-	InitArguments  func() any
-	ResetArguments func(args any)
-
-	BeforeSend   func(state any, req *Request)
-	AfterReceive func(state any, resp *Response, err error)
+type ClientHookState interface {
+	Reset()
+	BeforeSend(req *Request)
+	AfterReceive(resp *Response, err error)
 }
 
 // Client is used by other components of your app.
@@ -174,7 +162,7 @@ func (c *Client) Do(ctx context.Context, network string, address string, req *Re
 		pc.cancelCall(cctx, nil) // do not unblock, reuse normally
 		return nil, ctx.Err()
 	case r := <-cctx.result: // got ownership of cctx
-		defer putCallContext(cctx)
+		defer c.putCallContext(cctx)
 		return r.resp, r.err
 	}
 }
@@ -194,12 +182,20 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 	deadline, _ := ctx.Deadline()
 
 	c.mu.RLock()
-	pc := c.conns[address]
-	closed := c.closed
-	if closed {
+	// ------ to test RACE detector, replace lines below
+	if c.closed {
 		c.mu.RUnlock()
 		return nil, nil, ErrClientClosed
 	}
+	pc := c.conns[address]
+	// ------ with
+	// pc := c.conns[address]
+	// closed := c.closed
+	// if closed {
+	//	c.mu.RUnlock()
+	//	return nil, nil, ErrClientClosed
+	// }
+	// ------
 	if pc != nil {
 		pc.mu.Lock()
 		c.mu.RUnlock() // Do not hold while working with pc
@@ -210,7 +206,7 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 	}
 	c.mu.RUnlock()
 
-	if address.Network != "tcp4" && address.Network != "unix" {
+	if address.Network != "tcp4" && address.Network != "unix" { // optimization: check only if not found in c.conns
 		return nil, nil, fmt.Errorf("unsupported network type %q", address.Network)
 	}
 
@@ -293,12 +289,14 @@ func (c *Client) getRequest() *Request {
 	if v != nil {
 		return v.(*Request)
 	}
-	return &Request{HookArgs: c.opts.Hooks.Request.InitArguments()}
+	return &Request{hookState: c.opts.Hooks()}
 }
 
 func (c *Client) putRequest(req *Request) {
-	c.opts.Hooks.Request.ResetArguments(req.HookArgs)
-	*req = Request{Body: req.Body[:0], HookArgs: req.HookArgs}
+	if req.hookState != nil {
+		req.hookState.Reset()
+	}
+	*req = Request{Body: req.Body[:0], hookState: req.hookState}
 
 	c.requestPool.Put(req)
 }
@@ -314,7 +312,7 @@ func (c *Client) getResponse() *Response {
 
 func (c *Client) PutResponse(resp *Response) {
 	if resp == nil {
-		// be forgiving and do not blow up everything in the rare case of RPC error
+		// We sometimes return both error and response, so user can inspect Extra, if parsed successfully
 		return
 	}
 
@@ -325,23 +323,27 @@ func (c *Client) PutResponse(resp *Response) {
 }
 
 func (pc *clientConn) getCallContext() *callContext {
-	v := callCtxPool.Get()
+	v := pc.client.callCtxPool.Get()
 	if v != nil {
 		return v.(*callContext)
 	}
 	cctx := &callContext{
 		singleResult: make(chan *callContext, 1),
-		hooksState:   pc.client.opts.Hooks.InitState(),
+		hookState:    pc.client.opts.Hooks(),
 	}
 	cctx.result = cctx.singleResult
 	return cctx
 }
 
-func putCallContext(cctx *callContext) {
+func (c *Client) putCallContext(cctx *callContext) {
+	if cctx.hookState != nil {
+		cctx.hookState.Reset()
+	}
 	*cctx = callContext{
 		singleResult: cctx.singleResult,
 		result:       cctx.singleResult,
+		hookState:    cctx.hookState,
 	}
 
-	callCtxPool.Put(cctx)
+	c.callCtxPool.Put(cctx)
 }

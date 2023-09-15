@@ -26,6 +26,8 @@ import (
 	"golang.org/x/net/netutil"
 	"golang.org/x/sys/unix"
 
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
+
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
@@ -55,16 +57,16 @@ const (
 	DefaultResponseMemoryLimit    = 2048 * 1024 * 1024
 	DefaultServerConnReadBufSize  = maxGoAllocSizeClass
 	DefaultServerConnWriteBufSize = maxGoAllocSizeClass
-	DefaultServerRequestBufSize   = 4096                // TODO: should be at least bytes.MinRead for now
-	DefaultServerResponseBufSize  = maxGoAllocSizeClass // TODO: should be at least bytes.MinRead for now
-	DefaultResponseMemEstimate    = 1024 * 1024         // we likely over-account unknown response length before the handler has finished
+	DefaultServerRequestBufSize   = 4096 // we expect shorter requests on average
+	DefaultServerResponseBufSize  = maxGoAllocSizeClass
+	DefaultResponseMemEstimate    = 1024 * 1024 // we likely over-account unknown response length before the handler has finished
 
 	minAcceptDelay  = 5 * time.Millisecond
 	maxAcceptDelay  = 1 * time.Second
 	rpsCalcInterval = 5 * time.Second
 	rareLogInterval = 1 * time.Second
 
-	maxGoAllocSizeClass = 32768
+	maxGoAllocSizeClass = 32768 // from here: https://go.dev/src/runtime/mksizeclasses.go
 	tracebackBufSize    = 65536
 )
 
@@ -97,6 +99,7 @@ func ChainHandler(ff ...HandlerFunc) HandlerFunc {
 func NewServer(options ...ServerOptionsFunc) *Server {
 	opts := ServerOptions{
 		Logf:                   log.Printf,
+		Hooks:                  func() ServerHookState { return nil },
 		MaxConns:               DefaultMaxConns,
 		MaxWorkers:             DefaultMaxWorkers,
 		MaxInflightPackets:     DefaultMaxInflightPackets,
@@ -135,12 +138,9 @@ func NewServer(options ...ServerOptionsFunc) *Server {
 		startTime:    uniqueStartTime(),
 		statHostname: host,
 	}
-	s.cond = sync.NewCond(&s.mu)
-
-	s.opts.noopHooks()
 
 	s.workerPool = workerPoolNew(s.opts.MaxWorkers, func() {
-		if s.opts.MaxWorkers == DefaultMaxWorkers {
+		if s.opts.MaxWorkers == DefaultMaxWorkers { // print only if user did not change default value
 			s.rareLog(&s.lastWorkerWaitLog, "rpc: waiting to acquire worker; consider increasing Server.MaxWorkers")
 		}
 	})
@@ -171,13 +171,11 @@ type Server struct {
 
 	opts ServerOptions
 
-	mu            sync.Mutex
-	cond          *sync.Cond // wakes Accept of socketHijacks
-	serverStatus  int
-	socketHijacks []net.Conn
-	listeners     []net.Listener // will close after
-	conns         map[*serverConn]struct{}
-	connGroup     WaitGroup
+	mu           sync.Mutex
+	serverStatus int
+	listeners    []net.Listener // will close after
+	conns        map[*serverConn]struct{}
+	connGroup    WaitGroup
 
 	workerPool   *workerPool
 	workersGroup WaitGroup
@@ -198,6 +196,7 @@ type Server struct {
 	lastWorkerWaitLog     time.Time
 	lastDuplicateExtraLog time.Time
 	lastHijackWarningLog  time.Time
+	lastPacketTypeLog     time.Time
 
 	tracingMu  sync.Mutex
 	tracingLog []string
@@ -256,12 +255,6 @@ func (s *Server) Shutdown() {
 		_ = ln.Close() // We do not care
 	}
 	s.listeners = s.listeners[:0]
-
-	for _, c := range s.socketHijacks {
-		_ = c.Close()
-	}
-	s.socketHijacks = s.socketHijacks[:0]
-	s.cond.Broadcast() // wake up all goroutines waiting on Accept, so they can return errors
 }
 
 // Waits for all requests to be handled and responses sent
@@ -437,10 +430,10 @@ func (s *Server) releaseResponseBuf(taken int, buf *[]byte) { // buf is never ni
 	}
 }
 
-// ListenAndServe supports only "tcp4" and "unix" networks
-func (s *Server) ListenAndServe(network string, address string) error {
+// With optional reuse port
+func (s *Server) Listen(network string, address string) (net.Listener, error) {
 	if network != "tcp4" && network != "unix" {
-		return fmt.Errorf("unsupported network type %q", network)
+		return nil, fmt.Errorf("unsupported network type %q", network)
 	}
 
 	var lc net.ListenConfig
@@ -448,7 +441,12 @@ func (s *Server) ListenAndServe(network string, address string) error {
 		lc.Control = controlSetTCPReuseAddr
 	}
 
-	ln, err := lc.Listen(context.Background(), network, address)
+	return lc.Listen(context.Background(), network, address)
+}
+
+// ListenAndServe supports only "tcp4" and "unix" networks
+func (s *Server) ListenAndServe(network string, address string) error {
+	ln, err := s.Listen(network, address)
 	if err != nil {
 		return err
 	}
@@ -508,38 +506,6 @@ func (s *Server) Serve(ln net.Listener) error {
 	}
 }
 
-type wrapConnection struct {
-	magic []byte
-	net.Conn
-}
-
-func (w *wrapConnection) Read(p []byte) (int, error) {
-	if len(w.magic) != 0 {
-		n := copy(p, w.magic)
-		w.magic = w.magic[n:]
-		return n, nil
-	}
-	return w.Conn.Read(p)
-}
-
-func (s *Server) Accept() (net.Conn, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for !(s.serverStatus >= serverStatusShutdown || len(s.socketHijacks) != 0) {
-		s.cond.Wait()
-	}
-	if s.serverStatus >= serverStatusShutdown {
-		return nil, net.ErrClosed
-	}
-	c := s.socketHijacks[0]
-	s.socketHijacks = s.socketHijacks[1:] // naive queue is ok for us
-	return c, nil
-}
-
-func (s *Server) Addr() net.Addr {
-	return s.opts.SocketHijackAddr
-}
-
 func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 	defer s.statConnectionsCurrent.Dec()
 	defer wg.Done()
@@ -552,22 +518,14 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 		case memcachedVersionReq:
 			s.respondWithMemcachedVersion(conn)
 		default:
-			if len(magicHead) != 0 && s.opts.SocketHijackAddr != nil {
+			if len(magicHead) != 0 && s.opts.SocketHijackHandler != nil {
 				_ = conn.setReadTimeoutUnlocked(0)
 				_ = conn.setWriteTimeoutUnlocked(0)
-				s.mu.Lock()
-				if s.serverStatus < serverStatusShutdown {
-					s.socketHijacks = append(s.socketHijacks, &wrapConnection{magic: append(magicHead, conn.r.buf[conn.r.begin:conn.r.end]...), Conn: conn.conn})
-					// We do not close connection, ownership is moved to listener of Server
-					s.mu.Unlock()
-					s.cond.Signal()
-					return
-				}
-				s.mu.Unlock()
-				_ = conn.Close()
+				// We do not close connection, ownership is moved to SocketHijackHandler
+				s.opts.SocketHijackHandler(&HijackConnection{Magic: append(magicHead, conn.r.buf[conn.r.begin:conn.r.end]...), Conn: conn.conn})
 				return
 			}
-			if !commonConnCloseError(err) || s.opts.LogCommonNetworkErrors {
+			if !commonConnCloseError(err) {
 				s.opts.Logf("rpc: failed to handshake with %v, disconnecting: %v, magic head: %+q", conn.remoteAddr, err, magicHead)
 			}
 		}
@@ -676,22 +634,20 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 				sc.SetReadFIN()
 				return nil, nil // clean shutdown, finish writing then close
 			}
-			if (len(head) > 0 && !sc.closed() && !commonConnCloseError(err)) || s.opts.LogCommonNetworkErrors {
+			if len(head) > 0 && !sc.closed() && !commonConnCloseError(err) {
 				s.opts.Logf("rpc: error reading packet header from %v, disconnecting: %v, head: %+q", sc.conn.remoteAddr, err, head)
 			}
 			return nil, err
 		}
 		requestTime := time.Now()
 
-		hctx, ok := sc.acquireHandlerCtx(header.tip, s.opts.Hooks.InitState)
+		hctx, ok := sc.acquireHandlerCtx(header.tip, s.opts.Hooks)
 		if !ok {
 			return nil, ErrServerClosed
 		}
 		s.statRequestsCurrent.Inc()
 
 		hctx.RequestTime = requestTime
-		hctx.defaultTimeout = s.opts.DefaultResponseTimeout
-		hctx.timeoutAdjust = s.opts.ResponseTimeoutAdjust
 		hctx.reqHeader = header
 
 		req, reqTaken, err := s.acquireRequestBuf(sc.closeCtx, int(hctx.reqHeader.length))
@@ -708,7 +664,7 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 			*hctx.request = hctx.Request[:0] // prepare for reuse immediately
 		}
 		if err != nil {
-			if !sc.closed() && (!commonConnCloseError(err) || s.opts.LogCommonNetworkErrors) {
+			if !sc.closed() && !commonConnCloseError(err) {
 				s.opts.Logf("rpc: error reading packet body from %v, disconnecting: %v", sc.conn.remoteAddr, err)
 			}
 			return hctx, err
@@ -724,9 +680,11 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 
 		s.statRequestsTotal.Inc()
 
-		if !s.syncHandler(hctx) {
-			if s.opts.MaxWorkers == 0 {
-				s.handle(hctx)
+		if !s.syncHandler(sc, hctx) {
+			if s.opts.MaxWorkers <= 0 {
+				// We keep this code, because in many projects maxWorkers are cmd argument,
+				// and they want to disable worker pool sometimes with this argument
+				s.legacySyncHandler(sc, hctx)
 			} else {
 				w := s.acquireWorker()
 				if w == nil {
@@ -796,7 +754,7 @@ func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns con
 		for i, hctx := range writeQ {
 			err := sc.writeResponseUnlocked(hctx, maxPacketRWTime)
 			if err != nil {
-				if !sc.closed() && (!commonConnCloseError(err) || s.opts.LogCommonNetworkErrors) {
+				if !sc.closed() && !commonConnCloseError(err) {
 					s.opts.Logf("rpc: error writing packet 0x%x#0x%x to %v, disconnecting: %v", hctx.respPacketType, hctx.reqType, sc.conn.remoteAddr, err)
 				}
 				return writeQ[i:] // release remaining contexts
@@ -806,15 +764,19 @@ func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns con
 	}
 }
 
-func (s *Server) syncHandler(hctx *HandlerContext) bool {
+func (s *Server) syncHandler(sc *serverConn, hctx *HandlerContext) bool {
+	hctx.UserData, sc.userData = sc.userData, hctx.UserData
 	err := s.doSyncHandler(hctx.serverConn.closeCtx, hctx)
 	if err == ErrNoHandler {
+		hctx.UserData, sc.userData = sc.userData, hctx.UserData
 		return false
 	}
 	if err == errHijackResponse {
+		// We must not touch hctx.UserData here because it can be released already in SendHijackResponse
 		// User is now responsible for calling hctx.SendHijackedResponse
 		return true
 	}
+	hctx.UserData, sc.userData = sc.userData, hctx.UserData
 	hctx.releaseRequest()
 	hctx.prepareResponse(err)
 	s.pushResponse(hctx, false)
@@ -822,34 +784,63 @@ func (s *Server) syncHandler(hctx *HandlerContext) bool {
 }
 
 func (s *Server) doSyncHandler(ctx context.Context, hctx *HandlerContext) error {
-	if hctx.reqHeader.tip == packetTypeRPCCancelReq {
+	switch hctx.reqHeader.tip {
+	case packetTypeRPCCancelReq:
 		var queryID int64
 		if _, err := basictl.LongRead(hctx.Request, &queryID); err != nil {
 			return err
 		}
 		hctx.noResult = true
-		hctx.Response = append(hctx.Response, 0) // only to avoid logging in prepareResponse. Nothing is sent.
+		hctx.Response = append(hctx.Response, 0) // only to prevent logging in prepareResponse. Nothing is sent.
 		hctx.serverConn.cancelLongpollResponse(queryID)
 		return nil
+	case PacketTypeRPCPing:
+		var ping tl.RpcPing
+		req, err := ping.Read(hctx.Request)
+		if err != nil {
+			return fmt.Errorf("failed to parse ping packet %w", err)
+		}
+		if len(req) != 0 {
+			return fmt.Errorf("excess %d bytes in ping packet", len(req))
+		}
+		pong := tl.RpcPong{PingId: ping.PingId} //lint:ignore S1016 "we do not want conversion semantic here"
+		hctx.Response, _ = pong.Write(hctx.Response)
+		hctx.respPacketType = PacketTypeRPCPong
+		return nil
+	case packetTypeRPCInvokeReq:
+		if s.opts.SyncHandler == nil {
+			return ErrNoHandler
+		}
+		err := hctx.parseInvokeReq(s)
+		if err != nil {
+			return err
+		}
+		// No deadline on sync handler context, too costly
+		return s.opts.SyncHandler(ctx, hctx)
 	}
-	if hctx.reqHeader.tip != packetTypeRPCInvokeReq || s.opts.SyncHandler == nil {
-		return ErrNoHandler
-	}
-	err := hctx.parseInvokeReq(s)
-	if err != nil {
-		return err
-	}
-	// No deadline on sync handler
-	return s.opts.SyncHandler(ctx, hctx)
+	hctx.noResult = true
+	hctx.Response = append(hctx.Response, 0) // only to prevent logging in prepareResponse. Nothing is sent.
+	s.rareLog(&s.lastPacketTypeLog, "unknown packet type 0x%x", hctx.reqHeader.tip)
+	return nil
 }
 
 func (s *Server) handle(hctx *HandlerContext) {
 	err := s.doHandle(hctx.serverConn.closeCtx, hctx)
 	if err == errHijackResponse {
-		// User is now responsible for calling hctx.SendHijackedResponse
-		s.rareLog(&s.lastHijackWarningLog, "you must hijack responses from SyncHandler, not from normal handler")
-		return
+		panic("you must hijack responses from SyncHandler, not from normal handler")
 	}
+	hctx.releaseRequest()
+	hctx.prepareResponse(err)
+	s.pushResponse(hctx, false)
+}
+
+func (s *Server) legacySyncHandler(sc *serverConn, hctx *HandlerContext) { // same as handle, but with swapping userData
+	hctx.UserData, sc.userData = sc.userData, hctx.UserData
+	err := s.doHandle(hctx.serverConn.closeCtx, hctx)
+	if err == errHijackResponse {
+		panic("you must hijack responses from SyncHandler, not from normal handler")
+	}
+	hctx.UserData, sc.userData = sc.userData, hctx.UserData
 	hctx.releaseRequest()
 	hctx.prepareResponse(err)
 	s.pushResponse(hctx, false)
@@ -863,24 +854,15 @@ func (s *Server) pushResponse(hctx *HandlerContext, isLongpoll bool) {
 }
 
 func (s *Server) doHandle(ctx context.Context, hctx *HandlerContext) error {
-	switch hctx.reqHeader.tip {
-	case PacketTypeRPCPing:
-		if len(hctx.Request) != 8 { // we enforce 8 byte size
-			return fmt.Errorf("ping packet wrong length %d", len(hctx.Request))
-		}
-		hctx.respPacketType = PacketTypeRPCPong
-		hctx.Response = append(hctx.Response, hctx.Request...)
-		return nil
-	case packetTypeRPCInvokeReq:
-		if s.opts.SyncHandler == nil { // otherwise already passed in connection loop
-			if err := hctx.parseInvokeReq(s); err != nil {
-				return err
-			}
-		}
-		return s.callHandler(ctx, hctx)
-	default:
-		return fmt.Errorf("unexpected packet type 0x%x", hctx.reqHeader.tip)
+	if hctx.reqHeader.tip != packetTypeRPCInvokeReq {
+		panic("doHandle - forgot to handle new packet type in doSyncHandler")
 	}
+	if s.opts.SyncHandler == nil { // otherwise already passed in connection loop
+		if err := hctx.parseInvokeReq(s); err != nil {
+			return err
+		}
+	}
+	return s.callHandler(ctx, hctx)
 }
 
 func (hctx *HandlerContext) prepareResponse(err error) {
@@ -900,7 +882,7 @@ func (hctx *HandlerContext) prepareResponse(err error) {
 		// OK, forward the error as-is
 	case errors.Is(err, context.DeadlineExceeded):
 		respErr.Code = TlErrorTimeout
-		respErr.Description = fmt.Sprintf("%s (request timeout was %v)", err.Error(), hctx.timeout())
+		respErr.Description = fmt.Sprintf("%s (server-adjusted request timeout was %v)", err.Error(), hctx.timeout)
 	default:
 		respErr.Code = TlErrorUnknown
 		respErr.Description = err.Error()
@@ -926,7 +908,9 @@ func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err err
 			s.opts.Logf("rpc: panic serving %v: %v\n%s", hctx.remoteAddr.String(), r, buf)
 			err = &Error{Code: TlErrorInternal, Description: fmt.Sprintf("rpc: HandlerFunc panic: %v serving %v", r, hctx.remoteAddr.String())}
 		}
-		s.opts.Hooks.Handler.AfterCall(hctx.hooksState, hctx, err)
+		if hctx.hooksState != nil {
+			hctx.hooksState.AfterCall(hctx, err)
+		}
 	}()
 
 	switch hctx.reqType {
@@ -943,8 +927,8 @@ func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err err
 	case goPProfTag:
 		return s.handleGoPProf(hctx)
 	default:
-		deadline := hctx.deadline()
-		if !deadline.IsZero() {
+		if hctx.timeout != 0 {
+			deadline := hctx.RequestTime.Add(hctx.timeout)
 			dt := time.Since(deadline)
 			if dt >= 0 {
 				return Error{
@@ -960,7 +944,9 @@ func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err err
 			}
 		}
 
-		s.opts.Hooks.Handler.BeforeCall(hctx.hooksState, hctx)
+		if hctx.hooksState != nil {
+			hctx.hooksState.BeforeCall(hctx)
+		}
 		err = s.opts.Handler(ctx, hctx)
 		return err
 	}
