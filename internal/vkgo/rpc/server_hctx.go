@@ -37,7 +37,7 @@ type HandlerContext struct {
 	// UserData allows caching common state between different requests.
 	UserData any
 
-	hooksState any
+	hooksState ServerHookState // can be nil
 
 	serverConn     *serverConn
 	reqHeader      packetHeader
@@ -47,8 +47,8 @@ type HandlerContext struct {
 	respPacketType uint32
 	noResult       bool  // defensive copy
 	queryID        int64 // defensive copy
-	defaultTimeout time.Duration
-	timeoutAdjust  time.Duration
+
+	timeout time.Duration // 0 means infinite, for this, both client and server must have infinite timeout
 }
 
 type handlerContextKey struct{}
@@ -67,28 +67,6 @@ func (hctx *HandlerContext) KeyID() [4]byte       { return hctx.keyID }
 func (hctx *HandlerContext) ListenAddr() net.Addr { return hctx.remoteAddr }
 func (hctx *HandlerContext) LocalAddr() net.Addr  { return hctx.localAddr }
 func (hctx *HandlerContext) RemoteAddr() net.Addr { return hctx.remoteAddr }
-
-func (hctx *HandlerContext) timeout() time.Duration {
-	timeout := hctx.defaultTimeout
-	if hctx.RequestExtra.IsSetCustomTimeoutMs() {
-		curTimeout := time.Duration(hctx.RequestExtra.CustomTimeoutMs) * time.Millisecond
-		if timeout == hctx.defaultTimeout || timeout > curTimeout {
-			timeout = curTimeout
-		}
-	}
-	if timeout > hctx.timeoutAdjust {
-		timeout -= hctx.timeoutAdjust
-	}
-	return timeout
-}
-
-func (hctx *HandlerContext) deadline() time.Time {
-	timeout := hctx.timeout()
-	if timeout != 0 {
-		return hctx.RequestTime.Add(timeout)
-	}
-	return time.Time{}
-}
 
 func (hctx *HandlerContext) releaseRequest() {
 	hctx.serverConn.server.releaseRequestBuf(hctx.reqTaken, hctx.request)
@@ -112,6 +90,10 @@ func (hctx *HandlerContext) releaseResponse() {
 }
 
 func (hctx *HandlerContext) reset() {
+	if hctx.hooksState != nil {
+		hctx.hooksState.Reset()
+	}
+
 	// We do not preserve map in ResponseExtra because strings will not be reused anyway
 	*hctx = HandlerContext{
 		UserData: hctx.UserData,
@@ -132,12 +114,14 @@ func (hctx *HandlerContext) AccountResponseMem(respBodySizeEstimate int) error {
 	return err
 }
 
-// HijackResponse releases Request bytes for reuse, so must be called only after Request processing is complete
+// HijackResponse releases Request bytes (and UserData) for reuse, so must be called only after Request processing is complete
 // You must return result of this call from your handler
 // After Hijack you are responsible for (whatever happens first)
 // 1) forget about hctx if canceller method is called (so you must update your data structures strictly after call HijackResponse finished)
 // 2) if 1) did not yet happen, can at any moment in the future call SendHijackedResponse
 func (hctx *HandlerContext) HijackResponse(canceller HijackResponseCanceller) error {
+	sc := hctx.serverConn
+	hctx.UserData, sc.userData = sc.userData, hctx.UserData
 	hctx.releaseRequest()
 	hctx.serverConn.makeLongpollResponse(hctx, canceller)
 	return errHijackResponse
@@ -199,5 +183,21 @@ func (hctx *HandlerContext) parseInvokeReq(s *Server) (err error) {
 
 	hctx.noResult = hctx.RequestExtra.IsSetNoResult()
 	hctx.requestExtraFieldsmask = hctx.RequestExtra.Flags
+
+	timeout := s.opts.DefaultResponseTimeout
+
+	// We calculate timeout before handler can change hctx.RequestExtra
+	if hctx.RequestExtra.CustomTimeoutMs > 0 { // implies hctx.RequestExtra.IsSetCustomTimeoutMs()
+		// CustomTimeoutMs <= 0 means forever/maximum. TODO - harmonize condition with C engines
+		clientTimeout := time.Duration(hctx.RequestExtra.CustomTimeoutMs)*time.Millisecond - s.opts.ResponseTimeoutAdjust
+		if clientTimeout < time.Millisecond {
+			clientTimeout = time.Millisecond
+		}
+		if timeout == 0 || clientTimeout < timeout {
+			timeout = clientTimeout
+		}
+	}
+
+	hctx.timeout = timeout
 	return nil
 }

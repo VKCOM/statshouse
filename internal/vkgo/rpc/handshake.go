@@ -7,7 +7,6 @@
 package rpc
 
 import (
-	"bytes"
 	"crypto/md5"
 	"crypto/sha1"
 	"encoding/binary"
@@ -39,7 +38,7 @@ var (
 	processStartTime = atomic.NewInt32(int32(time.Now().Unix()))
 )
 
-func SchemaToString(schema int32) string {
+func SchemaToString(schema uint32) string {
 	switch schema {
 	case cryptoSchemaNone:
 		return "None"
@@ -48,7 +47,7 @@ func SchemaToString(schema int32) string {
 	case cryptoSchemaNoneOrAES:
 		return "NoneOrAES"
 	default:
-		return fmt.Sprintf("Unknown (%d)", schema)
+		return fmt.Sprintf("Unknown (0x%x)", schema)
 	}
 }
 
@@ -59,9 +58,17 @@ func uniqueStartTime() uint32 {
 
 type nonceMsg struct {
 	KeyID  [4]byte
-	Schema int32
-	Time   int32 // TODO - uint32, because Y2038
+	Schema uint32
+	Time   uint32
 	Nonce  [16]byte
+}
+
+func (m *nonceMsg) LegacySchema() int {
+	return int(m.Schema & 0xFF)
+}
+
+func (m *nonceMsg) Protocol() int {
+	return int((m.Schema >> 8) & 0xFF)
 }
 
 // first 4 bytes of cryptoKey are identifier. This is not a problem because arbitrary long keys are allowed.
@@ -72,30 +79,32 @@ func KeyIDFromCryptoKey(cryptoKey string) (keyID [4]byte) {
 
 func (m *nonceMsg) writeTo(buf []byte) []byte {
 	buf = append(buf, m.KeyID[:]...)
-	buf = basictl.IntWrite(buf, m.Schema)
-	buf = basictl.IntWrite(buf, m.Time)
+	buf = basictl.NatWrite(buf, m.Schema)
+	buf = basictl.NatWrite(buf, m.Time)
 	return append(buf, m.Nonce[:]...)
 }
 
 func (m *nonceMsg) readFrom(packetType uint32, body []byte) (_ []byte, err error) {
+	wasSize := len(body)
 	if packetType != packetTypeRPCNonce {
 		return body, fmt.Errorf("nonce packet type 0x%x instead of 0x%x", packetType, packetTypeRPCNonce)
 	}
 	if len(body) < len(m.KeyID) {
-		return body, fmt.Errorf("nonce packet too short")
+		return body, fmt.Errorf("nonce packet too short (%d) bytes", wasSize)
 	}
 	copy(m.KeyID[:], body)
 	body = body[len(m.KeyID):]
-	if body, err = basictl.IntRead(body, &m.Schema); err != nil {
+	if body, err = basictl.NatRead(body, &m.Schema); err != nil {
 		return body, fmt.Errorf("nonce packet too short: %w", err)
 	}
-	if body, err = basictl.IntRead(body, &m.Time); err != nil {
+	if body, err = basictl.NatRead(body, &m.Time); err != nil {
 		return body, fmt.Errorf("nonce packet too short: %w", err)
 	}
-	if len(body) != len(m.Nonce) {
-		return body, fmt.Errorf("nonce packet size mismatch")
+	if len(body) < len(m.Nonce) {
+		return body, fmt.Errorf("nonce packet too short (%d) bytes", wasSize)
 	}
 	copy(m.Nonce[:], body)
+	// We expect future protocol extensions to have additional fields here
 	return body, nil
 }
 
@@ -146,9 +155,7 @@ func (m *handshakeMsg) readFrom(packetType uint32, body []byte) (_ []byte, err e
 	if body, err = m.PeerPID.Read(body); err != nil {
 		return body, fmt.Errorf("failed to read handshake data: %w", err)
 	}
-	if len(body) != 0 {
-		return body, fmt.Errorf("extra %v bytes in handshake packet", len(body))
-	}
+	// We expect future protocol extensions to have additional fields here
 	return body, nil
 }
 
@@ -159,14 +166,11 @@ type cryptoKeys struct {
 	writeIV  [16]byte
 }
 
-func deriveCryptoKeys(client bool, key string, clientTime int32,
+func deriveCryptoKeys(client bool, key string, clientTime uint32,
 	clientNonce [16]byte, clientIP uint32, clientPort uint16,
 	serverNonce [16]byte, serverIP uint32, serverPort uint16,
-) (*cryptoKeys, error) {
-	w, err := writeCryptoInitMsg(client, key, clientTime, clientNonce, clientIP, clientPort, serverNonce, serverIP, serverPort)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize write key derivation data: %w", err)
-	}
+) *cryptoKeys {
+	w := writeCryptoInitMsg(client, key, clientTime, clientNonce, clientIP, clientPort, serverNonce, serverIP, serverPort)
 
 	var keys cryptoKeys
 	w1 := md5.Sum(w[1:])
@@ -176,10 +180,7 @@ func deriveCryptoKeys(client bool, key string, clientTime int32,
 	copy(keys.writeKey[12:], w2[:])
 	copy(keys.writeIV[:], w3[:])
 
-	r, err := writeCryptoInitMsg(!client, key, clientTime, clientNonce, clientIP, clientPort, serverNonce, serverIP, serverPort)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize read key derivation data: %w", err)
-	}
+	r := writeCryptoInitMsg(!client, key, clientTime, clientNonce, clientIP, clientPort, serverNonce, serverIP, serverPort)
 
 	r1 := md5.Sum(r[1:])
 	r2 := sha1.Sum(r)
@@ -188,49 +189,33 @@ func deriveCryptoKeys(client bool, key string, clientTime int32,
 	copy(keys.readKey[12:], r2[:])
 	copy(keys.readIV[:], r3[:])
 
-	return &keys, nil
+	return &keys
 }
 
-func writeCryptoInitMsg(client bool, key string, clientTime int32,
+func writeUint16(buf []byte, v uint16) []byte {
+	return append(buf, byte(v&0xFF), byte((v>>8)&0xFF))
+}
+
+func writeCryptoInitMsg(client bool, key string, clientTime uint32,
 	clientNonce [16]byte, clientIP uint32, clientPort uint16,
 	serverNonce [16]byte, serverIP uint32, serverPort uint16,
-) ([]byte, error) {
-	buf := &bytes.Buffer{}
-	side := map[bool][]byte{true: []byte("CLIENT"), false: []byte("SERVER")}
+) []byte {
+	var message []byte
+	message = append(message, serverNonce[:]...)
+	message = append(message, clientNonce[:]...)
+	message = basictl.NatWrite(message, clientTime)
+	message = basictl.NatWrite(message, serverIP)
+	message = writeUint16(message, clientPort)
+	if client {
+		message = append(message, "CLIENT"...)
+	} else {
+		message = append(message, "SERVER"...)
+	}
+	message = basictl.NatWrite(message, clientIP)
+	message = writeUint16(message, serverPort)
+	message = append(message, key...)
+	message = append(message, serverNonce[:]...)
+	message = append(message, clientNonce[:]...)
 
-	if err := binary.Write(buf, binary.LittleEndian, serverNonce); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.LittleEndian, clientNonce); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.LittleEndian, clientTime); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.LittleEndian, serverIP); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.LittleEndian, clientPort); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.LittleEndian, side[client]); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.LittleEndian, clientIP); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.LittleEndian, serverPort); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.LittleEndian, []byte(key)); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.LittleEndian, serverNonce); err != nil {
-		return nil, err
-	}
-	if err := binary.Write(buf, binary.LittleEndian, clientNonce); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
+	return message
 }

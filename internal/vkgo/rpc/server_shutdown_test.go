@@ -123,9 +123,7 @@ func testShutdownClient(t *rapid.T) {
 					req.Body = basictl.IntWrite(req.Body, n)
 
 					resp, _ := c.Do(context.Background(), "tcp4", ln.Addr().String(), req)
-					if resp != nil {
-						defer c.PutResponse(resp)
-					}
+					defer c.PutResponse(resp)
 				}(j)
 			}
 

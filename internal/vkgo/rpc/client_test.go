@@ -15,12 +15,6 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	hooks := ClientHooks{
-		InitState: func() any {
-			return "init-state"
-		},
-	}
-
 	var logStr string
 	c := NewClient(
 		ClientWithLogf(func(format string, args ...any) {
@@ -28,14 +22,12 @@ func TestNewClient(t *testing.T) {
 		}),
 		ClientWithForceEncryption(true),
 		ClientWithCryptoKey("crypto-key"),
-		ClientWithHooks(hooks),
 		ClientWithConnReadBufSize(123),
 		ClientWithConnWriteBufSize(456),
 		ClientWithPongTimeout(2*time.Second),
 		ClientWithTrustedSubnetGroups([][]string{{"10.32.0.0/11"}}),
 	)
 
-	require.Equal(t, "init-state", c.opts.Hooks.InitState())
 	require.Equal(t, 123, c.opts.ConnReadBufSize)
 	require.Equal(t, 456, c.opts.ConnWriteBufSize)
 	require.Equal(t, 2*time.Second, c.opts.PongTimeout)

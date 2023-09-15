@@ -3,13 +3,13 @@
 //line parse.y:17
 package parser
 
-import __yyfmt__ "fmt"
-
-//line parse.y:17
-
 import (
+	__yyfmt__ "fmt"
+
 	"github.com/prometheus/prometheus/model/labels"
 )
+
+//line parse.y:17
 
 //line parse.y:24
 type yySymType struct {

@@ -12,6 +12,7 @@ import (
 	"math"
 
 	"github.com/prometheus/prometheus/model/labels"
+
 	"github.com/vkcom/statshouse/internal/format"
 )
 

@@ -93,9 +93,7 @@ func testLongpollServer(t *rapid.T) {
 					}
 					sendWG.Done()
 					resp, _ := c.Do(ctx, "tcp4", ln.Addr().String(), req)
-					if resp != nil {
-						defer c.PutResponse(resp)
-					}
+					defer c.PutResponse(resp)
 					receiveWG.Done()
 				}()
 			}

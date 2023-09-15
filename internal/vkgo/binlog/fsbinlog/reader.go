@@ -232,7 +232,7 @@ func readToAndUpdateCrc(r io.Reader, bytes int64, crc uint32) (uint32, error) {
 	const bufSize = 64 * 1024
 	buff := make([]byte, bufSize)
 	for bytes > 0 {
-		to := algo.MinInt64(bytes, bufSize)
+		to := algo.Min(bytes, bufSize)
 		n, err := r.Read(buff[:to])
 		if err != nil {
 			// if we seek, file should already exist. EOF is an error

@@ -30,7 +30,9 @@ type (
 	RpcReqResultHeader          = internal.RpcReqResultHeader
 	RpcServerWantsFin           = internal.RpcServerWantsFin
 	True                        = internal.True
+	Tuple8                      = internal.Tuple8
 	VectorDictionaryFieldString = internal.VectorDictionaryFieldString
+	VectorInt                   = internal.VectorInt
 	VectorLong                  = internal.VectorLong
 	VectorString                = internal.VectorString
 )

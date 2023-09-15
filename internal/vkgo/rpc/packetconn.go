@@ -243,6 +243,9 @@ func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout tim
 	if header.seqNum != uint32(pc.readSeqNum) {
 		return pc.headerReadBuf[:12], fmt.Errorf("seqnum mismatch: read %v, expected %v", header.seqNum, pc.readSeqNum)
 	}
+	if pc.readSeqNum == startSeqNum && header.tip != packetTypeRPCNonce { // this check is in nonceExchangeServer, but repeated here to detect non-RPC protocol earlier for connection hijack
+		return pc.headerReadBuf[:12], fmt.Errorf("nonce packet type 0x%x instead of 0x%x", header.tip, packetTypeRPCNonce)
+	}
 	pc.readSeqNum++
 
 	return nil, nil
@@ -296,14 +299,18 @@ func (pc *PacketConn) WritePacket(packetType uint32, body []byte, timeout time.D
 	if err := pc.writeSimplePacketUnlocked(body); err != nil {
 		return err
 	}
-	return pc.writeFlushUnlocked()
+	return pc.FlushUnlocked()
 }
 
-// TODO - benchmark Barsic without locking in 2 functions below
 func (pc *PacketConn) WritePacketNoFlush(packetType uint32, body []byte, timeout time.Duration) error {
 	pc.writeMu.Lock()
 	defer pc.writeMu.Unlock()
 
+	return pc.WritePacketNoFlushUnlocked(packetType, body, timeout)
+}
+
+// If all writing is performed from the same goroutine, you can call Unlocked version of Write and Flush
+func (pc *PacketConn) WritePacketNoFlushUnlocked(packetType uint32, body []byte, timeout time.Duration) error {
 	if err := pc.startWritePacketUnlocked(packetType, timeout); err != nil {
 		return err
 	}
@@ -317,7 +324,12 @@ func (pc *PacketConn) Flush() error {
 	pc.writeMu.Lock()
 	defer pc.writeMu.Unlock()
 
-	return pc.writeFlushUnlocked()
+	return pc.FlushUnlocked()
+}
+
+// If all writing is performed from the same goroutine, you can call Unlocked version of Write and Flush
+func (pc *PacketConn) FlushUnlocked() error {
+	return pc.w.Flush()
 }
 
 type closeWriter interface {
@@ -393,10 +405,6 @@ func (pc *PacketConn) writePacketTrailerUnlocked(crc uint32, packetBodyLen int) 
 		return err
 	}
 	return nil
-}
-
-func (pc *PacketConn) writeFlushUnlocked() error {
-	return pc.w.Flush()
 }
 
 func (pc *PacketConn) updateCRC(crc uint32, data []byte) uint32 {

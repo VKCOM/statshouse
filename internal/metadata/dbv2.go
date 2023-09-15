@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/sqlite"
 

@@ -140,7 +140,7 @@ func (m *Multi) Wait(ctx context.Context, queryID int64) (*Response, error) {
 			return nil, ctx.Err()
 		case cs := <-m.multiResult: // got ownership of cctx
 			qID, resp, err := cs.queryID, cs.resp, cs.err
-			putCallContext(cs)
+			m.c.putCallContext(cs)
 
 			m.mu.Lock()
 			m.teardownCallStateLocked(qID)
@@ -182,7 +182,7 @@ func (m *Multi) WaitAny(ctx context.Context) (int64, *Response, error) {
 		return 0, nil, ctx.Err()
 	case cs := <-m.multiResult:
 		qID, resp, err := cs.queryID, cs.resp, cs.err
-		putCallContext(cs)
+		m.c.putCallContext(cs)
 
 		m.mu.Lock()
 		m.teardownCallStateLocked(qID)

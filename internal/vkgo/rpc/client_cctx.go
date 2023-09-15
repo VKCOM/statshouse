@@ -22,6 +22,7 @@ import "github.com/vkcom/statshouse/internal/vkgo/basictl"
 type callContext struct {
 	queryID            int64
 	failIfNoConnection bool // set in setupCall call and never changes. Allows to quickly try multiple servers without waiting timeout
+	readonly           bool // set in setupCall call and never changes. TODO - implement logic
 
 	sent  bool
 	stale bool // Was cancelled before sending. Instead of removing from the write queue, we set the flag
@@ -33,7 +34,7 @@ type callContext struct {
 	resp *Response // if set, has priority
 	err  error     // otherwise err must be set. May point to rpcErr
 
-	hooksState any
+	hookState ClientHookState // can be nil
 }
 
 func (cctx *callContext) parseResponse(resp *Response, toplevelError bool, logf LoggerFunc) (err error) {
@@ -87,6 +88,5 @@ func (cctx *callContext) parseResponse(resp *Response, toplevelError bool, logf 
 		}
 		return rpcErr
 	}
-	cctx.resp = resp
 	return nil
 }

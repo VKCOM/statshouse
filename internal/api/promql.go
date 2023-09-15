@@ -23,8 +23,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
-	"github.com/vkcom/statshouse/internal/util"
 	"golang.org/x/exp/slices"
+
+	"github.com/vkcom/statshouse/internal/util"
 
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"

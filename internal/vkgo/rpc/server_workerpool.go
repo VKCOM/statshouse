@@ -40,6 +40,9 @@ type workerPool struct {
 }
 
 func workerPoolNew(create int, beforeWait func()) *workerPool {
+	if create < 1 {
+		create = 1 // We never want server that cannot do any work
+	}
 	t := &workerPool{
 		create:     create,
 		beforeWait: beforeWait,

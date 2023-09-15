@@ -9,11 +9,67 @@ package rpc
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/hex"
 	"reflect"
 	"testing"
 
 	"pgregory.net/rapid"
 )
+
+func TestDeriveCryptoKeys(t *testing.T) {
+	clientNonce := [16]byte{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'}
+	serverNonce := [16]byte{'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P'}
+	keys := deriveCryptoKeys(false, "hren", 0x01020304,
+		clientNonce, 0x05060708, 0x090a,
+		serverNonce, 0x0d0e0f10, 0x1112)
+	if hex.EncodeToString(keys.readKey[:]) != "28b5a5313b3ea9e2f6f0293e0748b2f743b0e112779faa77a3ee9d71ae70dda6" {
+		t.Fatalf("readKey")
+	}
+	if hex.EncodeToString(keys.readIV[:]) != "80387128489168b336d998762bce6fef" {
+		t.Fatalf("readIV")
+	}
+	if hex.EncodeToString(keys.writeKey[:]) != "e3cf8557ea4ad963c3b637d466388403841d2e989a1fc684ac691c44b05ac9bb" {
+		t.Fatalf("writeKey")
+	}
+	if hex.EncodeToString(keys.writeIV[:]) != "1efd4c8aa43a87d1ea5488a1bc669269" {
+		t.Fatalf("writeIV")
+	}
+	keys = deriveCryptoKeys(true, "hren", 0x01020304,
+		clientNonce, 0x05060708, 0x090a,
+		serverNonce, 0x0d0e0f10, 0x1112)
+	if hex.EncodeToString(keys.readKey[:]) != "e3cf8557ea4ad963c3b637d466388403841d2e989a1fc684ac691c44b05ac9bb" {
+		t.Fatalf("readKey")
+	}
+	if hex.EncodeToString(keys.readIV[:]) != "1efd4c8aa43a87d1ea5488a1bc669269" {
+		t.Fatalf("readIV")
+	}
+	if hex.EncodeToString(keys.writeKey[:]) != "28b5a5313b3ea9e2f6f0293e0748b2f743b0e112779faa77a3ee9d71ae70dda6" {
+		t.Fatalf("writeKey")
+	}
+	if hex.EncodeToString(keys.writeIV[:]) != "80387128489168b336d998762bce6fef" {
+		t.Fatalf("writeIV")
+	}
+}
+
+func TestDeriveCryptoKeysUDP(t *testing.T) {
+	localPID := NetPID{
+		Ip:      0x01020304,
+		PortPid: 0x05060708,
+		Utime:   0x090a0b0c,
+	}
+	remotePID := NetPID{
+		Ip:      0x11121314,
+		PortPid: 0x15161718,
+		Utime:   0x191a1b1c,
+	}
+	keys := DeriveCryptoKeysUdp("hren", &localPID, &remotePID, 0x20212223)
+	if hex.EncodeToString(keys.ReadKey[:]) != "be5a0ca85071077fb48f030ab7627f88bf6c4ac3dc4c2c72b96d12692f4c33cf" {
+		t.Fatalf("ReadKey")
+	}
+	if hex.EncodeToString(keys.WriteKey[:]) != "ff861195b0cffc0562e10667acd5ee3b7d884fb2bdcd63a68e03a7294c18be60" {
+		t.Fatalf("WriteKey")
+	}
+}
 
 func TestNetPIDRoundtrip(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {

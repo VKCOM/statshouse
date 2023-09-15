@@ -12,31 +12,27 @@ import (
 	"time"
 )
 
-type ServerHooks struct {
-	InitState  func() any
-	ResetState func(any)
-	Handler    HandlerHooks
-}
-
-type HandlerHooks struct {
-	BeforeCall func(state any, hctx *HandlerContext)
-	AfterCall  func(state any, hctx *HandlerContext, err error)
+type ServerHookState interface {
+	Reset()
+	BeforeCall(hctx *HandlerContext)
+	AfterCall(hctx *HandlerContext, err error)
 }
 
 type ServerOptions struct {
 	Logf                   LoggerFunc // defaults to log.Printf; set to NoopLogf to disable all logging
-	Hooks                  ServerHooks
+	Hooks                  func() ServerHookState
 	SyncHandler            HandlerFunc
 	Handler                HandlerFunc
 	StatsHandler           StatsHandlerFunc
 	VerbosityHandler       VerbosityHandlerFunc
 	Version                string
 	TransportHijackHandler func(conn *PacketConn) // Experimental, server handles connection to this function if FlagP2PHijack client flag set
+	SocketHijackHandler    func(conn *HijackConnection)
 	TrustedSubnetGroups    [][]*net.IPNet
 	ForceEncryption        bool
 	CryptoKeys             []string
 	MaxConns               int           // defaults to DefaultMaxConns
-	MaxWorkers             int           // defaults to DefaultMaxWorkers; negative values disable worker pool completely
+	MaxWorkers             int           // defaults to DefaultMaxWorkers; <= value disables worker pool completely
 	MaxInflightPackets     int           // defaults to DefaultMaxInflightPackets
 	RequestMemoryLimit     int           // defaults to DefaultRequestMemoryLimit
 	ResponseMemoryLimit    int           // defaults to DefaultResponseMemoryLimit
@@ -45,19 +41,17 @@ type ServerOptions struct {
 	RequestBufSize         int           // defaults to DefaultServerRequestBufSize
 	ResponseBufSize        int           // defaults to DefaultServerResponseBufSize
 	ResponseMemEstimate    int           // defaults to DefaultResponseMemEstimate; must be greater than ResponseBufSize
-	DefaultResponseTimeout time.Duration // defaults to no timeout
+	DefaultResponseTimeout time.Duration // defaults to no timeout (0)
 	ResponseTimeoutAdjust  time.Duration
 	DisableContextTimeout  bool
 	DisableTCPReuseAddr    bool
-	LogCommonNetworkErrors bool
-	SocketHijackAddr       net.Addr
 
 	trustedSubnetGroupsParseErrors []error
 }
 
 type ServerOptionsFunc func(*ServerOptions)
 
-func ServerWithHooks(hooks ServerHooks) ServerOptionsFunc {
+func ServerWithHooks(hooks func() ServerHookState) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		opts.Hooks = hooks
 	}
@@ -77,7 +71,8 @@ func ServerWithHandler(handler HandlerFunc) ServerOptionsFunc {
 
 // syncHandler is called directly from receive loop and must not wait anything
 // if syncHandler returns ErrNoHandler, normal handler will be called from worker
-// Only syncHandler can hujack responses for later processing
+// Only syncHandler can hujack longpoll responses for later processing
+// You must not use Request or UserData after return from sync hanlder, they are reused by other calls
 func ServerWithSyncHandler(syncHandler HandlerFunc) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		opts.SyncHandler = syncHandler
@@ -138,11 +133,7 @@ func ServerWithMaxConns(maxConns int) ServerOptionsFunc {
 
 func ServerWithMaxWorkers(maxWorkers int) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
-		if maxWorkers > 0 {
-			opts.MaxWorkers = maxWorkers
-		} else {
-			opts.MaxWorkers = 0
-		}
+		opts.MaxWorkers = maxWorkers
 	}
 }
 
@@ -190,6 +181,8 @@ func ServerWithRequestBufSize(size int) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		if size > bytes.MinRead {
 			opts.RequestBufSize = size
+		} else {
+			opts.RequestBufSize = bytes.MinRead
 		}
 	}
 }
@@ -198,6 +191,8 @@ func ServerWithResponseBufSize(size int) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		if size > bytes.MinRead {
 			opts.ResponseBufSize = size
+		} else {
+			opts.ResponseBufSize = bytes.MinRead
 		}
 	}
 }
@@ -206,7 +201,7 @@ func ServerWithResponseMemEstimate(size int) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		if size > 0 {
 			opts.ResponseMemEstimate = size
-		} else if size == -1 {
+		} else {
 			opts.ResponseMemEstimate = 0
 		}
 	}
@@ -220,6 +215,7 @@ func ServerWithDefaultResponseTimeout(timeout time.Duration) ServerOptionsFunc {
 	}
 }
 
+// Reduces client timeout, compensating for network latecny
 func ServerWithResponseTimeoutAdjust(adjust time.Duration) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		if adjust > 0 {
@@ -240,31 +236,11 @@ func ServerWithDisableTCPReuseAddr() ServerOptionsFunc {
 	}
 }
 
-func ServerWithLogCommonNetworkErrors(status bool) ServerOptionsFunc {
+// All connections not classified as PacketConn are passed here. You can then insert them into HijackListener
+// If you have more than 1 protocol in your app, You can examine HijackConnection.Magic in your handler to classify connection
+func ServerWithSocketHijackHandler(handler func(conn *HijackConnection)) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
-		opts.LogCommonNetworkErrors = status
-	}
-}
-
-// Experimental - you must use server as net.Listener, otherwise it will block on accepting new connections
-func ServerWithSocketHijackAddr(addr net.Addr) ServerOptionsFunc {
-	return func(opts *ServerOptions) {
-		opts.SocketHijackAddr = addr
-	}
-}
-
-func (opts *ServerOptions) noopHooks() {
-	if opts.Hooks.InitState == nil {
-		opts.Hooks.InitState = func() any { return nil }
-	}
-	if opts.Hooks.ResetState == nil {
-		opts.Hooks.ResetState = func(any) {}
-	}
-	if opts.Hooks.Handler.BeforeCall == nil {
-		opts.Hooks.Handler.BeforeCall = func(any, *HandlerContext) {}
-	}
-	if opts.Hooks.Handler.AfterCall == nil {
-		opts.Hooks.Handler.AfterCall = func(any, *HandlerContext, error) {}
+		opts.SocketHijackHandler = handler
 	}
 }
 

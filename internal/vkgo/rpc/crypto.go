@@ -129,32 +129,37 @@ func (w *cryptoWriter) Write(p []byte) (int, error) {
 		if len(p) == 0 {
 			return total, nil
 		}
-		if err := w.flush(); err != nil {
+		if _, err := w.flush(); err != nil {
 			return 0, err
 		}
 	}
 }
 
-func (w *cryptoWriter) flush() error {
+func (w *cryptoWriter) flush() (shouldFlushSocket bool, _ error) {
 	n := w.encStart + roundDownPow2(len(w.buf)-w.encStart, w.blockSize)
+	if n == 0 {
+		return false, nil
+	}
+	// we may perform single extra socket flush when encryption was just turned on (encStart != 0)
 	if w.enc != nil {
 		w.enc.CryptBlocks(w.buf[w.encStart:n], w.buf[w.encStart:n])
 		w.encStart = 0
 	}
 	if _, err := w.w.Write(w.buf[:n]); err != nil {
 		w.buf = w.buf[:0]
-		return err
+		return true, err
 	}
 	tail := copy(w.buf, w.buf[n:])
 	w.buf = w.buf[:tail]
-	return nil
+	return true, nil
 }
 
 func (w *cryptoWriter) Flush() error {
-	if err := w.flush(); err != nil {
+	shouldFlushSocket, err := w.flush()
+	if err != nil {
 		return err
 	}
-	if w.f == nil {
+	if !shouldFlushSocket || w.f == nil {
 		return nil
 	}
 	return w.f.Flush()
