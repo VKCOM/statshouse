@@ -126,8 +126,6 @@ const (
 	BuiltinMetricNameSrcTestConnection          = "__src_test_connection"
 	BuiltinMetricNameAggTimeDiff                = "__src_agg_time_diff"
 
-	TagValueIDBadgeIngestionErrorsOld  = -11 // remove from API, then stop writing
-	TagValueIDBadgeAggMappingErrorsOld = -33 // remove from API, then stop writing
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
 	TagValueIDBadgeIngestionErrors     = 1
@@ -950,8 +948,6 @@ Set by aggregator.`,
 			Tags: []MetricMetaTag{{
 				Description: "badge",
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDBadgeIngestionErrorsOld:  "ingestion_errors_legacy",
-					TagValueIDBadgeAggMappingErrorsOld: "mapping_errors_legacy",
 					TagValueIDBadgeAgentSamplingFactor: "agent_sampling_factor",
 					TagValueIDBadgeAggSamplingFactor:   "aggregator_sampling_factor",
 					TagValueIDBadgeIngestionErrors:     "ingestion_errors",
