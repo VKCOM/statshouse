@@ -385,9 +385,9 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	defer func() { _ = hijackListener.Close() }()
 
 	go func() {
-		err = srv.Serve(rpcLn)
+		err := srv.Serve(rpcLn)
 		if err != nil && err != rpc.ErrServerClosed {
-			log.Fatalln("RPC server failed:", err)
+			logErr.Fatalf("RPC server failed: %v", err)
 		}
 	}()
 	if argv.pprofHTTP {

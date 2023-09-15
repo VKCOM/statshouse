@@ -439,7 +439,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	hijackListener = rpc.NewHijackListener(rpcLn.Addr())
 	defer func() { _ = hijackListener.Close() }()
 	go func() {
-		err = srv.Serve(rpcLn)
+		err := srv.Serve(rpcLn)
 		if err != nil && err != rpc.ErrServerClosed {
 			log.Fatalln("RPC server failed:", err)
 		}
