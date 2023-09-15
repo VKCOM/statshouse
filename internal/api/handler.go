@@ -383,22 +383,20 @@ type (
 
 	//easyjson:json
 	SeriesResponse struct {
-		Series                   querySeries             `json:"series"`
-		ReceiveErrorsLegacy      float64                 `json:"receive_errors_legacy"`       // sum of average, legacy
-		SamplingFactorSrc        float64                 `json:"sampling_factor_src"`         // average
-		SamplingFactorAgg        float64                 `json:"sampling_factor_agg"`         // average
-		MappingFloodEventsLegacy float64                 `json:"mapping_flood_events_legacy"` // sum of average, legacy
-		ReceiveErrors            float64                 `json:"receive_errors"`              // count/sec
-		ReceiveWarnings          float64                 `json:"receive_warnings"`            // count/sec
-		MappingErrors            float64                 `json:"mapping_errors"`              // count/sec
-		PromQL                   string                  `json:"promql"`                      // equivalent PromQL query
-		DebugQueries             []string                `json:"__debug_queries"`             // private, unstable: SQL queries executed
-		DebugPromQLTestFailed    bool                    `json:"promqltestfailed"`
-		ExcessPointLeft          bool                    `json:"excess_point_left"`
-		ExcessPointRight         bool                    `json:"excess_point_right"`
-		MetricMeta               *format.MetricMetaValue `json:"metric"`
-		immutable                bool
-		queries                  map[lodInfo]int // not nil if testPromql option set (see getQueryReqOptions)
+		Series                querySeries             `json:"series"`
+		SamplingFactorSrc     float64                 `json:"sampling_factor_src"` // average
+		SamplingFactorAgg     float64                 `json:"sampling_factor_agg"` // average
+		ReceiveErrors         float64                 `json:"receive_errors"`      // count/sec
+		ReceiveWarnings       float64                 `json:"receive_warnings"`    // count/sec
+		MappingErrors         float64                 `json:"mapping_errors"`      // count/sec
+		PromQL                string                  `json:"promql"`              // equivalent PromQL query
+		DebugQueries          []string                `json:"__debug_queries"`     // private, unstable: SQL queries executed
+		DebugPromQLTestFailed bool                    `json:"promqltestfailed"`
+		ExcessPointLeft       bool                    `json:"excess_point_left"`
+		ExcessPointRight      bool                    `json:"excess_point_right"`
+		MetricMeta            *format.MetricMetaValue `json:"metric"`
+		immutable             bool
+		queries               map[lodInfo]int // not nil if testPromql option set (see getQueryReqOptions)
 	}
 
 	//easyjson:json
@@ -1861,8 +1859,6 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 		for i, meta := range badges.Series.SeriesMeta {
 			badgeTypeSamplingFactorSrc := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor))
 			badgeTypeSamplingFactorAgg := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor))
-			badgeTypeReceiveErrorsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld))
-			badgeTypeMappingFloodEventsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld))
 			badgeTypeReceiveErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors))
 			badgeTypeReceiveWarnings := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionWarnings))
 			badgeTypeMappingErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors))
@@ -1873,10 +1869,6 @@ func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 					res.SamplingFactorSrc = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
 				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorAgg:
 					res.SamplingFactorAgg = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
-				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeReceiveErrorsLegacy:
-					res.ReceiveErrorsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeMappingFloodEventsLegacy:
-					res.MappingFloodEventsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
 				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveErrors:
 					res.ReceiveErrors = sumSeries(badges.Series.SeriesData[i], 0)
 				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveWarnings:
@@ -1976,8 +1968,6 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 		for i, meta := range badges.Series.SeriesMeta {
 			badgeTypeSamplingFactorSrc := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAgentSamplingFactor))
 			badgeTypeSamplingFactorAgg := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggSamplingFactor))
-			badgeTypeReceiveErrorsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrorsOld))
-			badgeTypeMappingFloodEventsLegacy := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrorsOld))
 			badgeTypeReceiveErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionErrors))
 			badgeTypeReceiveWarnings := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeIngestionWarnings))
 			badgeTypeMappingErrors := format.AddRawValuePrefix(strconv.Itoa(format.TagValueIDBadgeAggMappingErrors))
@@ -1988,10 +1978,6 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 					res.SamplingFactorSrc = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
 				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeSamplingFactorAgg:
 					res.SamplingFactorAgg = sumSeries(badges.Series.SeriesData[i], 1) / float64(len(badges.Series.Time))
-				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeReceiveErrorsLegacy:
-					res.ReceiveErrorsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
-				case meta.What.String() == ParamQueryFnAvg && badgeType == badgeTypeMappingFloodEventsLegacy:
-					res.MappingFloodEventsLegacy = sumSeries(badges.Series.SeriesData[i], 0)
 				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveErrors:
 					res.ReceiveErrors = sumSeries(badges.Series.SeriesData[i], 0)
 				case meta.What.String() == ParamQueryFnCount && badgeType == badgeTypeReceiveWarnings:
