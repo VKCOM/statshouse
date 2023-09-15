@@ -90,6 +90,9 @@ func (item *EngineReindexStatusDone) readJSON(j interface{}) error {
 }
 
 func (item *EngineReindexStatusDone) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineReindexStatusDone) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FinishTime != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -185,6 +188,9 @@ func (item *EngineReindexStatusDoneOld) readJSON(j interface{}) error {
 }
 
 func (item *EngineReindexStatusDoneOld) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineReindexStatusDoneOld) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FinishTime != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -286,6 +292,9 @@ func (item *EngineReindexStatusFailed) readJSON(j interface{}) error {
 }
 
 func (item *EngineReindexStatusFailed) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineReindexStatusFailed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.ExitCode != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -361,6 +370,9 @@ func (item *EngineReindexStatusNever) readJSON(j interface{}) error {
 }
 
 func (item *EngineReindexStatusNever) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineReindexStatusNever) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -459,11 +471,14 @@ func (item *EngineReindexStatusRunning) readJSON(j interface{}) error {
 }
 
 func (item *EngineReindexStatusRunning) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineReindexStatusRunning) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Pids) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"pids":`...)
-		if w, err = VectorInt0WriteJSON(w, item.Pids); err != nil {
+		if w, err = VectorInt0WriteJSONOpt(short, w, item.Pids); err != nil {
 			return w, err
 		}
 	}
@@ -567,6 +582,9 @@ func (item *EngineReindexStatusRunningOld) readJSON(j interface{}) error {
 }
 
 func (item *EngineReindexStatusRunningOld) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineReindexStatusRunningOld) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Pid != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -673,6 +691,9 @@ func (item *EngineReindexStatusSignaled) readJSON(j interface{}) error {
 }
 
 func (item *EngineReindexStatusSignaled) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineReindexStatusSignaled) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Signal != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -960,42 +981,45 @@ func (item *EngineReindexStatusUnion) readJSON(j interface{}) error {
 }
 
 func (item *EngineReindexStatusUnion) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineReindexStatusUnion) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	switch item.index {
 	case 0:
 		return append(w, `{"type":"engine.reindexStatusNever#7f6a89b9"}`...), nil
 	case 1:
 		w = append(w, `{"type":"engine.reindexStatusRunningOld#ac530b46","value":`...)
-		if w, err = item.valueRunningOld.WriteJSON(w); err != nil {
+		if w, err = item.valueRunningOld.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 2:
 		w = append(w, `{"type":"engine.reindexStatusRunning#fa198b59","value":`...)
-		if w, err = item.valueRunning.WriteJSON(w); err != nil {
+		if w, err = item.valueRunning.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 3:
 		w = append(w, `{"type":"engine.reindexStatusFailed#10533721","value":`...)
-		if w, err = item.valueFailed.WriteJSON(w); err != nil {
+		if w, err = item.valueFailed.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 4:
 		w = append(w, `{"type":"engine.reindexStatusSignaled#756e878b","value":`...)
-		if w, err = item.valueSignaled.WriteJSON(w); err != nil {
+		if w, err = item.valueSignaled.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 5:
 		w = append(w, `{"type":"engine.reindexStatusDoneOld#afdbd505","value":`...)
-		if w, err = item.valueDoneOld.WriteJSON(w); err != nil {
+		if w, err = item.valueDoneOld.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 6:
 		w = append(w, `{"type":"engine.reindexStatusDone#0f67569a","value":`...)
-		if w, err = item.valueDone.WriteJSON(w); err != nil {
+		if w, err = item.valueDone.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil

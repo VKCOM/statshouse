@@ -61,6 +61,9 @@ func VectorLong0ReadJSON(j interface{}, vec *[]int64) error {
 }
 
 func VectorLong0WriteJSON(w []byte, vec []int64) (_ []byte, err error) {
+	return VectorLong0WriteJSONOpt(false, w, vec)
+}
+func VectorLong0WriteJSONOpt(short bool, w []byte, vec []int64) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -68,7 +68,11 @@ func (item *EngineSetPersistentConfigArray) ReadResultJSON(j interface{}, ret *T
 }
 
 func (item *EngineSetPersistentConfigArray) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *EngineSetPersistentConfigArray) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -80,6 +84,15 @@ func (item *EngineSetPersistentConfigArray) ReadResultWriteResultJSON(r []byte, 
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *EngineSetPersistentConfigArray) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret True
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -129,6 +142,9 @@ func (item *EngineSetPersistentConfigArray) readJSON(j interface{}) error {
 }
 
 func (item *EngineSetPersistentConfigArray) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineSetPersistentConfigArray) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Name) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -138,7 +154,7 @@ func (item *EngineSetPersistentConfigArray) WriteJSON(w []byte) (_ []byte, err e
 	if len(item.Values) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"values":`...)
-		if w, err = VectorInt0WriteJSON(w, item.Values); err != nil {
+		if w, err = VectorInt0WriteJSONOpt(short, w, item.Values); err != nil {
 			return w, err
 		}
 	}

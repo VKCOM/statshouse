@@ -94,6 +94,9 @@ func (item *EngineMetafilesOneMemoryStat) readJSON(j interface{}) error {
 }
 
 func (item *EngineMetafilesOneMemoryStat) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineMetafilesOneMemoryStat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.MemoryMegabytes != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -178,10 +181,13 @@ func VectorEngineMetafilesOneMemoryStat0ReadJSON(j interface{}, vec *[]EngineMet
 }
 
 func VectorEngineMetafilesOneMemoryStat0WriteJSON(w []byte, vec []EngineMetafilesOneMemoryStat) (_ []byte, err error) {
+	return VectorEngineMetafilesOneMemoryStat0WriteJSONOpt(false, w, vec)
+}
+func VectorEngineMetafilesOneMemoryStat0WriteJSONOpt(short bool, w []byte, vec []EngineMetafilesOneMemoryStat) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}

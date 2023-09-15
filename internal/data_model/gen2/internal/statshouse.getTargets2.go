@@ -82,7 +82,11 @@ func (item *StatshouseGetTargets2) ReadResultJSON(j interface{}, ret *Statshouse
 }
 
 func (item *StatshouseGetTargets2) WriteResultJSON(w []byte, ret StatshouseGetTargetsResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w, item.FieldsMask); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *StatshouseGetTargets2) writeResultJSON(short bool, w []byte, ret StatshouseGetTargetsResult) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -94,6 +98,15 @@ func (item *StatshouseGetTargets2) ReadResultWriteResultJSON(r []byte, w []byte)
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *StatshouseGetTargets2) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseGetTargetsResult
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -153,6 +166,9 @@ func (item *StatshouseGetTargets2) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseGetTargets2) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseGetTargets2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -161,7 +177,7 @@ func (item *StatshouseGetTargets2) WriteJSON(w []byte) (_ []byte, err error) {
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if len(item.PromHostName) != 0 {
@@ -261,7 +277,11 @@ func (item *StatshouseGetTargets2Bytes) ReadResultJSON(j interface{}, ret *Stats
 }
 
 func (item *StatshouseGetTargets2Bytes) WriteResultJSON(w []byte, ret StatshouseGetTargetsResultBytes) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w, item.FieldsMask); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *StatshouseGetTargets2Bytes) writeResultJSON(short bool, w []byte, ret StatshouseGetTargetsResultBytes) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -273,6 +293,15 @@ func (item *StatshouseGetTargets2Bytes) ReadResultWriteResultJSON(r []byte, w []
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *StatshouseGetTargets2Bytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseGetTargetsResultBytes
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -332,6 +361,9 @@ func (item *StatshouseGetTargets2Bytes) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseGetTargets2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseGetTargets2Bytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -340,7 +372,7 @@ func (item *StatshouseGetTargets2Bytes) WriteJSON(w []byte) (_ []byte, err error
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if len(item.PromHostName) != 0 {

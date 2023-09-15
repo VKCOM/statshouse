@@ -70,10 +70,10 @@ func (c *Client) EditEntitynew(ctx context.Context, args EditEntitynew, extra *r
 		return internal.ErrorClientWrite("metadata.editEntitynew", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.editEntitynew", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.editEntitynew", c.Network, c.ActorID, c.Address, err)
@@ -93,10 +93,10 @@ func (c *Client) GetInvertMapping(ctx context.Context, args GetInvertMapping, ex
 		return internal.ErrorClientWrite("metadata.getInvertMapping", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getInvertMapping", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getInvertMapping", c.Network, c.ActorID, c.Address, err)
@@ -116,10 +116,10 @@ func (c *Client) GetJournalnew(ctx context.Context, args GetJournalnew, extra *r
 		return internal.ErrorClientWrite("metadata.getJournalnew", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getJournalnew", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getJournalnew", c.Network, c.ActorID, c.Address, err)
@@ -139,10 +139,10 @@ func (c *Client) GetMapping(ctx context.Context, args GetMapping, extra *rpc.Inv
 		return internal.ErrorClientWrite("metadata.getMapping", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getMapping", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getMapping", c.Network, c.ActorID, c.Address, err)
@@ -162,10 +162,10 @@ func (c *Client) GetMetrics(ctx context.Context, args GetMetrics, extra *rpc.Inv
 		return internal.ErrorClientWrite("metadata.getMetrics", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getMetrics", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getMetrics", c.Network, c.ActorID, c.Address, err)
@@ -185,10 +185,10 @@ func (c *Client) GetTagMappingBootstrap(ctx context.Context, args GetTagMappingB
 		return internal.ErrorClientWrite("metadata.getTagMappingBootstrap", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
@@ -208,10 +208,10 @@ func (c *Client) PutMapping(ctx context.Context, args PutMapping, extra *rpc.Inv
 		return internal.ErrorClientWrite("metadata.putMapping", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.putMapping", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.putMapping", c.Network, c.ActorID, c.Address, err)
@@ -231,10 +231,10 @@ func (c *Client) PutTagMappingBootstrap(ctx context.Context, args PutTagMappingB
 		return internal.ErrorClientWrite("metadata.putTagMappingBootstrap", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.putTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.putTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
@@ -254,10 +254,10 @@ func (c *Client) ResetFlood(ctx context.Context, args ResetFlood, extra *rpc.Inv
 		return internal.ErrorClientWrite("metadata.resetFlood", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.resetFlood", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.resetFlood", c.Network, c.ActorID, c.Address, err)
@@ -277,10 +277,10 @@ func (c *Client) ResetFlood2(ctx context.Context, args ResetFlood2, extra *rpc.I
 		return internal.ErrorClientWrite("metadata.resetFlood2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.resetFlood2", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.resetFlood2", c.Network, c.ActorID, c.Address, err)

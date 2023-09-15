@@ -75,6 +75,9 @@ func (item *MetadataGetJournalResponsenew) readJSON(j interface{}, nat_field_mas
 }
 
 func (item *MetadataGetJournalResponsenew) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataGetJournalResponsenew) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.CurrentVersion != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -84,7 +87,7 @@ func (item *MetadataGetJournalResponsenew) WriteJSON(w []byte, nat_field_mask ui
 	if len(item.Events) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"events":`...)
-		if w, err = VectorMetadataEvent0WriteJSON(w, item.Events); err != nil {
+		if w, err = VectorMetadataEvent0WriteJSONOpt(short, w, item.Events); err != nil {
 			return w, err
 		}
 	}
@@ -153,6 +156,9 @@ func (item *MetadataGetJournalResponsenewBytes) readJSON(j interface{}, nat_fiel
 }
 
 func (item *MetadataGetJournalResponsenewBytes) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.CurrentVersion != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -162,7 +168,7 @@ func (item *MetadataGetJournalResponsenewBytes) WriteJSON(w []byte, nat_field_ma
 	if len(item.Events) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"events":`...)
-		if w, err = VectorMetadataEvent0BytesWriteJSON(w, item.Events); err != nil {
+		if w, err = VectorMetadataEvent0BytesWriteJSONOpt(short, w, item.Events); err != nil {
 			return w, err
 		}
 	}

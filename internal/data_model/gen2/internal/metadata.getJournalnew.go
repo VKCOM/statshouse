@@ -86,7 +86,11 @@ func (item *MetadataGetJournalnew) ReadResultJSON(j interface{}, ret *MetadataGe
 }
 
 func (item *MetadataGetJournalnew) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w, item.FieldMask); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *MetadataGetJournalnew) writeResultJSON(short bool, w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w, item.FieldMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -98,6 +102,15 @@ func (item *MetadataGetJournalnew) ReadResultWriteResultJSON(r []byte, w []byte)
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *MetadataGetJournalnew) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret MetadataGetJournalResponsenew
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -165,6 +178,9 @@ func (item *MetadataGetJournalnew) readJSON(j interface{}) error {
 }
 
 func (item *MetadataGetJournalnew) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataGetJournalnew) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -183,6 +183,9 @@ func (item *MetadataEvent) readJSON(j interface{}) error {
 }
 
 func (item *MetadataEvent) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -421,6 +424,9 @@ func (item *MetadataEventBytes) readJSON(j interface{}) error {
 }
 
 func (item *MetadataEventBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataEventBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -537,10 +543,13 @@ func VectorMetadataEvent0ReadJSON(j interface{}, vec *[]MetadataEvent) error {
 }
 
 func VectorMetadataEvent0WriteJSON(w []byte, vec []MetadataEvent) (_ []byte, err error) {
+	return VectorMetadataEvent0WriteJSONOpt(false, w, vec)
+}
+func VectorMetadataEvent0WriteJSONOpt(short bool, w []byte, vec []MetadataEvent) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}
@@ -597,10 +606,13 @@ func VectorMetadataEvent0BytesReadJSON(j interface{}, vec *[]MetadataEventBytes)
 }
 
 func VectorMetadataEvent0BytesWriteJSON(w []byte, vec []MetadataEventBytes) (_ []byte, err error) {
+	return VectorMetadataEvent0BytesWriteJSONOpt(false, w, vec)
+}
+func VectorMetadataEvent0BytesWriteJSONOpt(short bool, w []byte, vec []MetadataEventBytes) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}

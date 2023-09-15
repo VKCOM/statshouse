@@ -60,7 +60,11 @@ func (item *MetadataResetFlood) ReadResultJSON(j interface{}, ret *MetadataReset
 }
 
 func (item *MetadataResetFlood) WriteResultJSON(w []byte, ret MetadataResetFloodResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *MetadataResetFlood) writeResultJSON(short bool, w []byte, ret MetadataResetFloodResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -72,6 +76,15 @@ func (item *MetadataResetFlood) ReadResultWriteResultJSON(r []byte, w []byte) (_
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *MetadataResetFlood) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret MetadataResetFloodResponse
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -116,6 +129,9 @@ func (item *MetadataResetFlood) readJSON(j interface{}) error {
 }
 
 func (item *MetadataResetFlood) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataResetFlood) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Metric) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -161,6 +161,9 @@ func (item *StatshouseCommonProxyHeader) readJSON(j interface{}, nat_fields_mask
 }
 
 func (item *StatshouseCommonProxyHeader) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_fields_mask)
+}
+func (item *StatshouseCommonProxyHeader) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.ShardReplica != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -174,7 +177,7 @@ func (item *StatshouseCommonProxyHeader) WriteJSON(w []byte, nat_fields_mask uin
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"agent_ip":`...)
-	if w, err = TupleInt4WriteJSON(w, &item.AgentIp); err != nil {
+	if w, err = TupleInt4WriteJSONOpt(short, w, &item.AgentIp); err != nil {
 		return w, err
 	}
 	if len(item.HostName) != 0 {
@@ -343,6 +346,9 @@ func (item *StatshouseCommonProxyHeaderBytes) readJSON(j interface{}, nat_fields
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_fields_mask)
+}
+func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.ShardReplica != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -356,7 +362,7 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteJSON(w []byte, nat_fields_mas
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"agent_ip":`...)
-	if w, err = TupleInt4WriteJSON(w, &item.AgentIp); err != nil {
+	if w, err = TupleInt4WriteJSONOpt(short, w, &item.AgentIp); err != nil {
 		return w, err
 	}
 	if len(item.HostName) != 0 {

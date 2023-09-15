@@ -52,6 +52,9 @@ func (item *MetadataPutMappingResponse) readJSON(j interface{}) error {
 }
 
 func (item *MetadataPutMappingResponse) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataPutMappingResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }

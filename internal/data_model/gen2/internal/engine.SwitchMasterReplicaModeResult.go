@@ -59,6 +59,9 @@ func (item *EngineAlreadyInMasterMode) readJSON(j interface{}) error {
 }
 
 func (item *EngineAlreadyInMasterMode) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineAlreadyInMasterMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -124,6 +127,9 @@ func (item *EngineAlreadyInReplicaMode) readJSON(j interface{}) error {
 }
 
 func (item *EngineAlreadyInReplicaMode) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineAlreadyInReplicaMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -209,6 +215,9 @@ func (item *EngineFailedToSwitchMode) readJSON(j interface{}) error {
 }
 
 func (item *EngineFailedToSwitchMode) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineFailedToSwitchMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Error) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -430,6 +439,9 @@ func (item *EngineSwitchMasterReplicaModeResultUnion) readJSON(j interface{}) er
 }
 
 func (item *EngineSwitchMasterReplicaModeResultUnion) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineSwitchMasterReplicaModeResultUnion) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	switch item.index {
 	case 0:
 		return append(w, `{"type":"engine.switchedToMasterMode#95b13964"}`...), nil
@@ -441,13 +453,13 @@ func (item *EngineSwitchMasterReplicaModeResultUnion) WriteJSON(w []byte) (_ []b
 		return append(w, `{"type":"engine.alreadyInReplicaMode#ebd80142"}`...), nil
 	case 4:
 		w = append(w, `{"type":"engine.switchedToMasterModeForcefully#ec61b4be","value":`...)
-		if w, err = item.valueSwitchedToMasterModeForcefully.WriteJSON(w); err != nil {
+		if w, err = item.valueSwitchedToMasterModeForcefully.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 5:
 		w = append(w, `{"type":"engine.failedToSwitchMode#17418662","value":`...)
-		if w, err = item.valueFailedToSwitchMode.WriteJSON(w); err != nil {
+		if w, err = item.valueFailedToSwitchMode.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
@@ -510,6 +522,9 @@ func (item *EngineSwitchedToMasterMode) readJSON(j interface{}) error {
 }
 
 func (item *EngineSwitchedToMasterMode) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineSwitchedToMasterMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -597,6 +612,9 @@ func (item *EngineSwitchedToMasterModeForcefully) readJSON(j interface{}) error 
 }
 
 func (item *EngineSwitchedToMasterModeForcefully) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineSwitchedToMasterModeForcefully) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.BytesTruncated != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -667,6 +685,9 @@ func (item *EngineSwitchedToReplicaMode) readJSON(j interface{}) error {
 }
 
 func (item *EngineSwitchedToReplicaMode) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineSwitchedToReplicaMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }

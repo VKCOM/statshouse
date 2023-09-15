@@ -92,10 +92,10 @@ func (c *Client) GetChunk(ctx context.Context, args GetChunk, extra *rpc.InvokeR
 		return internal.ErrorClientWrite("statshouseApi.getChunk", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.getChunk", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.getChunk", c.Network, c.ActorID, c.Address, err)
@@ -115,10 +115,10 @@ func (c *Client) GetQuery(ctx context.Context, args GetQuery, extra *rpc.InvokeR
 		return internal.ErrorClientWrite("statshouseApi.getQuery", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.getQuery", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.getQuery", c.Network, c.ActorID, c.Address, err)
@@ -138,10 +138,10 @@ func (c *Client) GetQueryPoint(ctx context.Context, args GetQueryPoint, extra *r
 		return internal.ErrorClientWrite("statshouseApi.getQueryPoint", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.getQueryPoint", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.getQueryPoint", c.Network, c.ActorID, c.Address, err)
@@ -161,10 +161,10 @@ func (c *Client) ReleaseChunks(ctx context.Context, args ReleaseChunks, extra *r
 		return internal.ErrorClientWrite("statshouseApi.releaseChunks", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouseApi.releaseChunks", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouseApi.releaseChunks", c.Network, c.ActorID, c.Address, err)
