@@ -32,9 +32,10 @@ type (
 
 	ItemValue struct {
 		Counter                      float64
+		MaxCounterHostTag            int32   // Mapped hostname who provided most of the counter
 		ValueMin, ValueMax, ValueSum float64 // Aggregates of Value
 		ValueSumSquare               float64 // Aggregates of Value
-		MinHostTag, MaxHostTag       int32   // Mapped hostname responsible for ValueMin and ValueMax. MinHostTag is not inserted in clickhouse for now
+		MinHostTag, MaxHostTag       int32   // Mapped hostname responsible for ValueMin and ValueMax
 		ValueSet                     bool    // first value is assigned to Min&Max
 	}
 
@@ -102,9 +103,9 @@ func SimpleItemValue(value float64, count float64, hostTag int32) ItemValue {
 
 func (s *ItemValue) AddCounterHost(count float64, hostTag int32) {
 	if count > s.Counter {
-		s.MaxHostTag = hostTag
-	} else if count == s.Counter && bits.OnesCount64(math.Float64bits(count)+uint64(hostTag+s.MaxHostTag))&1 == 0 {
-		s.MaxHostTag = hostTag // Motivation - max jitter for equal counts, so more hosts have chance to appear
+		s.MaxCounterHostTag = hostTag
+	} else if count == s.Counter && bits.OnesCount64(math.Float64bits(count)+uint64(hostTag+s.MaxCounterHostTag))&1 == 0 {
+		s.MaxCounterHostTag = hostTag // Motivation - max jitter for equal counts (like 1), so more hosts have chance to appear
 	}
 	s.Counter += count
 }
@@ -118,6 +119,7 @@ func (s *ItemValue) AddValueCounter(value float64, count float64) {
 }
 
 func (s *ItemValue) AddValueCounterHost(value float64, count float64, hostTag int32) {
+	s.AddCounterHost(count, hostTag)
 	s.ValueSum += value * count
 	s.ValueSumSquare += value * value * count
 
@@ -130,7 +132,6 @@ func (s *ItemValue) AddValueCounterHost(value float64, count float64, hostTag in
 		s.MaxHostTag = hostTag
 	}
 	s.ValueSet = true
-	s.Counter += count
 }
 
 func (s *ItemValue) AddValueArrayHost(values []float64, mult float64, hostTag int32) {
@@ -150,8 +151,8 @@ func (s *ItemValue) TLSizeEstimate() int {
 }
 
 func (s *ItemValue) Merge(s2 *ItemValue) {
+	s.AddCounterHost(s2.Counter, s2.MaxCounterHostTag)
 	if !s2.ValueSet {
-		s.AddCounterHost(s2.Counter, s2.MaxHostTag)
 		return
 	}
 	s.ValueSum += s2.ValueSum
@@ -166,7 +167,6 @@ func (s *ItemValue) Merge(s2 *ItemValue) {
 		s.MaxHostTag = s2.MaxHostTag
 	}
 	s.ValueSet = true
-	s.Counter += s2.Counter
 }
 
 func (b *MetricsBucket) Empty() bool {

@@ -31,10 +31,10 @@ statshouse.multi_value#0c803e06 {fields_mask:#}
     centroids: fields_mask.6?(vector statshouse.centroid)
 
     // we need hosts to pass through agent sending on behalf of aggregator. Or from clients using _h tag
-    host_tag: fields_mask.7?int
+    max_host_tag: fields_mask.7?int
     // optimization for single values: if max_host_tag is set and *_host_tag below is not set, it is equal to max_host_tag
-    // min_host_tag: fields_mask.8?int
-    // max_counter_host_tag: fields_mask.9?int
+    min_host_tag: fields_mask.8?int
+    max_counter_host_tag: fields_mask.9?int
     = statshouse.MultiValue fields_mask;
 
 statshouse.top_element key:string fields_mask:# value:(statshouse.multi_value fields_mask) = statshouse.TopElement;
