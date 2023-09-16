@@ -812,7 +812,7 @@ export const useStore = createWithEqualityFn<Store>()(
           });
           return;
         }
-        if (lastPlotParams.metricName === '' && lastPlotParams.promQL === '') {
+        if (lastPlotParams && lastPlotParams.metricName === '' && lastPlotParams.promQL === '') {
           return;
         }
         if (

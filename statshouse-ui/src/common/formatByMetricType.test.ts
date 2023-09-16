@@ -1,4 +1,4 @@
-import { formatByMetricType } from './formatByMetricType';
+import { formatByMetricType, splitByMetricType } from './formatByMetricType';
 import { METRIC_TYPE } from '../api/enum';
 
 describe('formatByMetricType', () => {
@@ -206,5 +206,129 @@ describe('formatByMetricType', () => {
     expect(formatter(172799000000000)).toEqual('48h');
     expect(formatter(172800000000000)).toEqual('2d');
     expect(formatter(1111000000000000)).toEqual('12.9d');
+  });
+  test('splitByMetricType second', () => {
+    const split = splitByMetricType(METRIC_TYPE.second);
+    const p = 1;
+    expect(split(null, 1, -p, p, 0.2 * p, 0)).toEqual(
+      [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 120 * p, 10 * p, 0)).toEqual([0, 30, 60, 90, 120].map((n) => n * p));
+    expect(split(null, 1, 0, p, 0.1 * p, 0)).toEqual(
+      [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 30 * p, 2 * p, 0)).toEqual(
+      [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 50 * p, 5 * p, 0)).toEqual([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((n) => n * p));
+    expect(split(null, 1, 0, 120 * p, 39 * p, 0)).toEqual([0, 30, 60, 90, 120].map((n) => n * p));
+    expect(split(null, 1, -0.777 * p, 0.12 * p, 0.1 * p, 0)).toEqual(
+      [-0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 345.6 * p, 25 * p, 0)).toEqual(
+      [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 34560 * p, 2500 * p, 0)).toEqual(
+      [0, 3600, 7200, 10800, 14400, 18000, 21600, 25200, 28800, 32400, 36000].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 345600 * p, 25000 * p, 0)).toEqual(
+      [0, 43200, 86400, 129600, 172800, 216000, 259200, 302400, 345600].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 242291.38 * p, 20000 * p, 0)).toEqual(
+      [0, 43200, 86400, 129600, 172800, 216000, 259200].map((n) => n * p)
+    );
+  });
+  test('splitByMetricType millisecond', () => {
+    const split = splitByMetricType(METRIC_TYPE.millisecond);
+    const p = 1000;
+    expect(split(null, 1, -p, p, 0.2 * p, 0)).toEqual(
+      [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 120 * p, 10 * p, 0)).toEqual([0, 30, 60, 90, 120].map((n) => n * p));
+    expect(split(null, 1, 0, p, 0.1 * p, 0)).toEqual(
+      [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 30 * p, 2 * p, 0)).toEqual(
+      [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 50 * p, 5 * p, 0)).toEqual([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((n) => n * p));
+    expect(split(null, 1, 0, 120 * p, 39 * p, 0)).toEqual([0, 30, 60, 90, 120].map((n) => n * p));
+    expect(split(null, 1, -0.777 * p, 0.12 * p, 0.1 * p, 0)).toEqual(
+      [-0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 345.6 * p, 25 * p, 0)).toEqual(
+      [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 34560 * p, 2500 * p, 0)).toEqual(
+      [0, 3600, 7200, 10800, 14400, 18000, 21600, 25200, 28800, 32400, 36000].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 345600 * p, 25000 * p, 0)).toEqual(
+      [0, 43200, 86400, 129600, 172800, 216000, 259200, 302400, 345600].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 242291.38 * p, 20000 * p, 0)).toEqual(
+      [0, 43200, 86400, 129600, 172800, 216000, 259200].map((n) => n * p)
+    );
+  });
+  test('splitByMetricType microsecond', () => {
+    const split = splitByMetricType(METRIC_TYPE.microsecond);
+    const p = 1000000;
+    expect(split(null, 1, -p, p, 0.2 * p, 0)).toEqual(
+      [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 120 * p, 10 * p, 0)).toEqual([0, 30, 60, 90, 120].map((n) => n * p));
+    expect(split(null, 1, 0, p, 0.1 * p, 0)).toEqual(
+      [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 30 * p, 2 * p, 0)).toEqual(
+      [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 50 * p, 5 * p, 0)).toEqual([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((n) => n * p));
+    expect(split(null, 1, 0, 120 * p, 39 * p, 0)).toEqual([0, 30, 60, 90, 120].map((n) => n * p));
+    expect(split(null, 1, -0.777 * p, 0.12 * p, 0.1 * p, 0)).toEqual(
+      [-0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 345.6 * p, 25 * p, 0)).toEqual(
+      [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 34560 * p, 2500 * p, 0)).toEqual(
+      [0, 3600, 7200, 10800, 14400, 18000, 21600, 25200, 28800, 32400, 36000].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 345600 * p, 25000 * p, 0)).toEqual(
+      [0, 43200, 86400, 129600, 172800, 216000, 259200, 302400, 345600].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 242291.38 * p, 20000 * p, 0)).toEqual(
+      [0, 43200, 86400, 129600, 172800, 216000, 259200].map((n) => n * p)
+    );
+  });
+  test('splitByMetricType nanosecond', () => {
+    const split = splitByMetricType(METRIC_TYPE.nanosecond);
+    const p = 1000000000;
+    expect(split(null, 1, -p, p, 0.2 * p, 0)).toEqual(
+      [-1, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 120 * p, 10 * p, 0)).toEqual([0, 30, 60, 90, 120].map((n) => n * p));
+    expect(split(null, 1, 0, p, 0.1 * p, 0)).toEqual(
+      [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 30 * p, 2 * p, 0)).toEqual(
+      [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30].map((n) => n * p)
+    );
+    expect(split(null, 1, 0, 50 * p, 5 * p, 0)).toEqual([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((n) => n * p));
+    expect(split(null, 1, 0, 120 * p, 39 * p, 0)).toEqual([0, 30, 60, 90, 120].map((n) => n * p));
+    expect(split(null, 1, -0.777 * p, 0.12 * p, 0.1 * p, 0)).toEqual(
+      [-0.7, -0.6, -0.5, -0.4, -0.3, -0.2, -0.1, 0, 0.1].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 345.6 * p, 25 * p, 0)).toEqual(
+      [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 34560 * p, 2500 * p, 0)).toEqual(
+      [0, 3600, 7200, 10800, 14400, 18000, 21600, 25200, 28800, 32400, 36000].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 345600 * p, 25000 * p, 0)).toEqual(
+      [0, 43200, 86400, 129600, 172800, 216000, 259200, 302400, 345600].map((n) => n * p)
+    );
+    expect(split(null, 1, -0.777 * p, 242291.38 * p, 20000 * p, 0)).toEqual(
+      [0, 43200, 86400, 129600, 172800, 216000, 259200].map((n) => n * p)
+    );
   });
 });

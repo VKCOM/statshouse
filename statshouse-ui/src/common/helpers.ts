@@ -197,8 +197,8 @@ export function resortObjectKey<T = unknown>(obj: Record<string, T>, nextIndex: 
   return Object.fromEntries(Object.entries(obj).map(([key, value]) => [nextIndex[key] ?? key, value]));
 }
 
-export function roundDec(val: number, dec: number = 0, radix: number = 10) {
-  // if (Number.isInteger(val)) return val;
+export function round(val: number, dec: number = 0, radix: number = 10) {
+  if (Number.isInteger(val) && dec >= 0 && radix === 10) return val;
   let p = Math.pow(radix, dec);
   return Math.round(val * p * (1 + Number.EPSILON)) / p;
 }

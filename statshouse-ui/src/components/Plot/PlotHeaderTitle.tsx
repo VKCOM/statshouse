@@ -121,7 +121,7 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard, outerLink, embe
           <PlotName plot={plot} plotData={plotData} />
         </PlotLink>
         {!!outerLink && (
-          <Link to={outerLink} className="ms-2">
+          <Link to={outerLink} target="_blank" className="ms-2">
             <SVGBoxArrowUpRight width={10} height={10} />
           </Link>
         )}
@@ -145,7 +145,7 @@ export function PlotHeaderTitle({ indexPlot, compact, dashboard, outerLink, embe
         <span>
           <PlotName plot={plot} plotData={plotData} />
           {!!outerLink && (
-            <Link to={outerLink} className="ms-2">
+            <Link to={outerLink} target="_blank" className="ms-2">
               <SVGBoxArrowUpRight width={10} height={10} />
             </Link>
           )}

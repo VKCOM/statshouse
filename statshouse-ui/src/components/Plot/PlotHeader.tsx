@@ -62,6 +62,9 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     const search = encodeParams(
       produce(params, (prev) => {
         const plot = prev.plots[indexPlot];
+        if (plot) {
+          plot.events = [];
+        }
         const plotKey = toPlotKey(indexPlot, '0');
         prev.variables.forEach((variable) => {
           variable.link.forEach(([iPlot, keyTag]) => {

@@ -1,7 +1,6 @@
 import { formatFixed } from './formatFixed';
 import { METRIC_TYPE, MetricType } from '../api/enum';
-import { roundDec } from './helpers';
-import uPlot from 'uplot';
+import { round } from './helpers';
 
 const siPrefixes = ['y', 'z', 'a', 'f', 'p', 'n', 'μ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
 
@@ -37,7 +36,7 @@ const baseMetricTypeSi: ConfigConvertMetric = {
   },
   format(n) {
     const base = this.getBase(n);
-    return roundDec(n / Math.pow(10, base * 3), 3) + (this.suffix[base] ?? '');
+    return round(n / Math.pow(10, base * 3), 3) + (this.suffix[base] ?? '');
   },
   suffix: {
     '-8': 'y',
@@ -62,9 +61,15 @@ const baseMetricTypeSi: ConfigConvertMetric = {
 const baseMetricTypeSecond: ConfigConvertMetric = {
   baseOffset: 0,
   getBase(n) {
-    const an = Math.abs(n);
+    const p =
+      this.baseOffset < 0
+        ? Math.pow(10, this.baseOffset * 3)
+        : this.baseOffset === 3
+        ? 86400
+        : Math.pow(60, this.baseOffset);
+    const an = Math.abs(n * p);
     if (an < 1) {
-      const base = Math.floor(Math.log10(Math.abs(n))) - 2;
+      const base = Math.floor(Math.log10(an)) - 2;
       return Math.max(-3, Math.ceil(base / 3));
     } else if (an >= 172800) {
       // 2 * 60 * 60 * 24, >2 days
@@ -88,13 +93,13 @@ const baseMetricTypeSecond: ConfigConvertMetric = {
         : Math.pow(60, this.baseOffset);
 
     const normalizeN = n * p;
-    const base = this.getBase(normalizeN);
+    const base = this.getBase(n);
     if (base < 0) {
-      return roundDec(normalizeN / Math.pow(10, base * 3), 3) + (this.suffix[base] ?? '');
+      return round(normalizeN / Math.pow(10, base * 3), 3) + (this.suffix[base] ?? '');
     } else if (base === 3) {
-      return roundDec(normalizeN / 86400, 1) + (this.suffix[base] ?? '');
+      return round(normalizeN / 86400, 1) + (this.suffix[base] ?? '');
     } else {
-      return roundDec(normalizeN / Math.pow(60, base), 1) + (this.suffix[base] ?? '');
+      return round(normalizeN / Math.pow(60, base), 1) + (this.suffix[base] ?? '');
     }
   },
   suffix: {
@@ -115,7 +120,7 @@ const baseMetricTypeByte: ConfigConvertMetric = {
   },
   format(n) {
     const base = this.getBase(n);
-    return roundDec(n / Math.pow(1024, base), 1) + (this.suffix[base] ?? '');
+    return round(n / Math.pow(1024, base), 1) + (this.suffix[base] ?? '');
   },
   suffix: {
     '0': 'b',
@@ -165,7 +170,7 @@ export function formatByMetricType(metricType: MetricType): (n: number) => strin
 
 export function splitByMetricType(metricType: MetricType) {
   return (
-    self: uPlot,
+    self: unknown, //uPlot
     axisIdx: number,
     scaleMin: number,
     scaleMax: number,
@@ -174,26 +179,42 @@ export function splitByMetricType(metricType: MetricType) {
   ): number[] => {
     let splits: number[] = [];
     const conf = suffixesByMetricType[metricType];
-    const base = conf.getBase(Math.max(Math.abs(scaleMin), Math.abs(scaleMax))) + conf.baseOffset;
-    const fixFloat = (v: number) => roundDec(v, 14);
+
+    const base = conf.getBase(Math.max(Math.abs(scaleMin), Math.abs(scaleMax)));
+    function fixFloat(v: number) {
+      return round(v, 14);
+    }
     function incrRoundUp(num: number, incr: number) {
       return fixFloat(Math.ceil(fixFloat(num / incr)) * incr);
     }
-    let incr = foundIncr;
+    let p = 1;
+    switch (metricType) {
+      case METRIC_TYPE.nanosecond:
+        p = 0.000000001;
+        break;
+      case METRIC_TYPE.microsecond:
+        p = 0.000001;
+        break;
+      case METRIC_TYPE.millisecond:
+        p = 0.001;
+        break;
+    }
+    let incr = fixFloat(foundIncr);
     let start = incrRoundUp(scaleMin, incr);
+    let end = scaleMax + incr / 2;
     switch (metricType) {
       case METRIC_TYPE.nanosecond:
       case METRIC_TYPE.microsecond:
       case METRIC_TYPE.millisecond:
       case METRIC_TYPE.second:
-        if (base < 0) {
-          start = incrRoundUp(scaleMin, incr);
-        } else if (base === 3) {
-          incr = roundDec(foundIncr, -1, 43200);
-          start = roundDec(incrRoundUp(roundDec(scaleMin, -1, 86400), incr));
-        } else {
-          incr = roundDec(foundIncr, -base, 30);
-          start = roundDec(incrRoundUp(roundDec(scaleMin, -base, 60), incr));
+        if (base === 3) {
+          incr = round(foundIncr * p, -1, 43200) / p || round(2 * foundIncr * p, -1, 43200) / p;
+          start = round(incrRoundUp(round(scaleMin * p, -1, 86400), incr)) / p;
+          end = scaleMax + incr / 2;
+        } else if (base > 0) {
+          incr = round(foundIncr * p, -base, 30 * base) / p || round(2 * foundIncr * p, -base, 30 * base) / p;
+          start = round(incrRoundUp(round(scaleMin * p, -base, 60), incr)) / p;
+          end = scaleMax + incr / 2;
         }
         break;
       case METRIC_TYPE.byte:
@@ -201,8 +222,9 @@ export function splitByMetricType(metricType: MetricType) {
         break;
     }
     if (incr > 0) {
-      for (let val = start; val <= scaleMax; val = val + incr) {
-        splits.push(val === -0 ? 0 : val);
+      for (let val = start; val <= end; val = val + incr) {
+        const pos = round(val, 10);
+        splits.push(pos === -0 ? 0 : pos);
       }
     }
     return splits;
