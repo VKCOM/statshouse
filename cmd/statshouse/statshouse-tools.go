@@ -561,11 +561,11 @@ func mainTagMapping() {
 		if len(tag) == 0 {
 			continue
 		}
-		var (
-			qry = tlmetadata.GetMapping{Metric: metric, Key: tag}
-			ret tlmetadata.GetMappingResponseUnion
-			err = client.GetMapping(context.Background(), qry, nil, &ret)
-		)
+		qry := tlmetadata.GetMapping{Metric: metric, Key: tag}
+		qry.SetCreateIfAbsent(true)
+
+		var ret tlmetadata.GetMappingResponseUnion
+		err := client.GetMapping(context.Background(), qry, nil, &ret)
 		if err != nil {
 			fmt.Printf("%q ERROR <%v>\n", tag, err)
 		} else if res, ok := ret.AsGetMappingResponse(); ok {
