@@ -1,6 +1,8 @@
 import { formatFixed } from './formatFixed';
-import { METRIC_TYPE, MetricType } from '../api/enum';
+import { METRIC_TYPE, MetricType, QUERY_WHAT, QueryWhat, toMetricType } from '../api/enum';
 import { round } from './helpers';
+import { PlotParams } from '../url/queryParams';
+import { MetricMetaValue } from '../api/metric';
 
 const siPrefixes = ['y', 'z', 'a', 'f', 'p', 'n', 'μ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
 
@@ -200,7 +202,7 @@ export function splitByMetricType(metricType: MetricType) {
     }
     let incr = fixFloat(foundIncr);
     let start = incrRoundUp(scaleMin, incr);
-    let end = scaleMax + incr / 2;
+    let end = scaleMax + incr / 100;
     switch (metricType) {
       case METRIC_TYPE.nanosecond:
       case METRIC_TYPE.microsecond:
@@ -209,11 +211,11 @@ export function splitByMetricType(metricType: MetricType) {
         if (base === 3) {
           incr = round(foundIncr * p, -1, 43200) / p || round(2 * foundIncr * p, -1, 43200) / p;
           start = round(incrRoundUp(round(scaleMin * p, -1, 86400), incr)) / p;
-          end = scaleMax + incr / 2;
+          end = scaleMax + incr / 100;
         } else if (base > 0) {
           incr = round(foundIncr * p, -base, 30 * base) / p || round(2 * foundIncr * p, -base, 30 * base) / p;
           start = round(incrRoundUp(round(scaleMin * p, -base, 60), incr)) / p;
-          end = scaleMax + incr / 2;
+          end = scaleMax + incr / 100;
         }
         break;
       case METRIC_TYPE.byte:
@@ -223,7 +225,7 @@ export function splitByMetricType(metricType: MetricType) {
         const radix = Math.abs(foundIncr - r1) < Math.abs(foundIncr - r2) ? r1 : r2;
         incr = round(foundIncr * p, -1, radix) / p || round(2 * foundIncr * p, -1, radix) / p;
         start = round(incrRoundUp(round(scaleMin * p, -1, radix), incr)) / p;
-        end = scaleMax + incr / 2;
+        end = scaleMax + incr / 100;
         break;
     }
     if (incr > 0) {
@@ -234,4 +236,29 @@ export function splitByMetricType(metricType: MetricType) {
     }
     return splits;
   };
+}
+
+/**
+ * count
+ * count/sec
+ * count cumul
+ * cardinality*
+ * count derivative
+ * count/sec derivative
+ */
+const excludeWhat: QueryWhat[] = [
+  QUERY_WHAT.count,
+  QUERY_WHAT.countNorm,
+  QUERY_WHAT.cuCount,
+  QUERY_WHAT.dvCount,
+  QUERY_WHAT.dvCountNorm,
+  QUERY_WHAT.cardinality,
+  QUERY_WHAT.cardinalityNorm,
+  QUERY_WHAT.cuCardinality,
+];
+export function getMetricType(plot: PlotParams, meta?: MetricMetaValue) {
+  if (plot.what.some((w) => excludeWhat.indexOf(w) > -1)) {
+    return METRIC_TYPE.none;
+  }
+  return toMetricType(meta?.metric_type, METRIC_TYPE.none);
 }
