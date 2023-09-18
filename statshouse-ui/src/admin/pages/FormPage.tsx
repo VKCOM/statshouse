@@ -231,31 +231,31 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
           resolution might render with surprises in UI.
         </div>
       </div>
-      {adminMode && (
-        <div className="row mb-3">
-          <label htmlFor="unit" className="col-sm-2 col-form-label">
-            Unit
-          </label>
-          <div className="col-sm-auto">
-            <select
-              id="unit"
-              className="form-select"
-              value={values.metric_type}
-              onChange={(e) => dispatch({ metric_type: e.target.value })}
-              disabled={isReadonly}
-            >
-              {METRIC_TYPE_KEYS.map((unit_type) => (
-                <option key={unit_type} value={unit_type}>
-                  {METRIC_TYPE_DESCRIPTION[unit_type]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div id="unitHelpBlock" className="form-text">
-            The unit in which the metric is written
-          </div>
+
+      <div className="row mb-3">
+        <label htmlFor="unit" className="col-sm-2 col-form-label">
+          Unit
+        </label>
+        <div className="col-sm-auto">
+          <select
+            id="unit"
+            className="form-select"
+            value={values.metric_type}
+            onChange={(e) => dispatch({ metric_type: e.target.value })}
+            disabled={isReadonly}
+          >
+            {METRIC_TYPE_KEYS.map((unit_type) => (
+              <option key={unit_type} value={unit_type}>
+                {METRIC_TYPE_DESCRIPTION[unit_type]}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
+        <div id="unitHelpBlock" className="form-text">
+          The unit in which the metric is written
+        </div>
+      </div>
+
       <div className="row mb-3">
         <label htmlFor="weight" className="col-sm-2 col-form-label">
           Weight
