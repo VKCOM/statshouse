@@ -56,6 +56,7 @@ func (cache *queryCache) get(key string, keyBytes []byte) (res stmtInfo, ok bool
 	return stmtInfo{}, false
 }
 
+// check evictSampleSize stmts and delete evictSize of them
 func (cache *queryCache) evictCacheLocked() {
 	h := heap{}
 	i := 0

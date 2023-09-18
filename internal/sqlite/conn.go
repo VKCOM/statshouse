@@ -123,6 +123,7 @@ func (c Conn) execBeginSavepoint() error {
 	c.c.spIn = true
 	c.c.spOk = false
 	_, err := c.ExecUnsafe("__begin_savepoint", c.c.spBeginStmt)
+	c.c.spIn = err == nil
 	return err
 }
 
