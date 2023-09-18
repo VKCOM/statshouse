@@ -97,7 +97,7 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
-		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3), // see server settings in aggregator
+		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3*30), // see server settings in aggregator
 		rpc.ServerWithMaxWorkers(128<<10),
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
