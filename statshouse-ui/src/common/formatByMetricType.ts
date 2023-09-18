@@ -238,14 +238,6 @@ export function splitByMetricType(metricType: MetricType) {
   };
 }
 
-/**
- * count
- * count/sec
- * count cumul
- * cardinality*
- * count derivative
- * count/sec derivative
- */
 const excludeWhat: QueryWhat[] = [
   QUERY_WHAT.count,
   QUERY_WHAT.countNorm,
@@ -255,6 +247,11 @@ const excludeWhat: QueryWhat[] = [
   QUERY_WHAT.cardinality,
   QUERY_WHAT.cardinalityNorm,
   QUERY_WHAT.cuCardinality,
+  QUERY_WHAT.maxCountHost,
+  QUERY_WHAT.unique,
+  QUERY_WHAT.uniqueNorm,
+  QUERY_WHAT.dvUnique,
+  QUERY_WHAT.dvUniqueNorm,
 ];
 export function getMetricType(plot: PlotParams, meta?: MetricMetaValue) {
   if (plot.what.some((w) => excludeWhat.indexOf(w) > -1)) {
