@@ -32,14 +32,15 @@ func initServer(t *testing.T, now func() time.Time) (net.Listener, *rpc.Server, 
 	handler := NewHandler(db, "abc", log.Printf)
 	proxy := ProxyHandler{}
 	h := tlmetadata.Handler{
-		RawGetMapping:          proxy.HandleProxy("", handler.RawGetMappingByValue),
-		RawGetInvertMapping:    proxy.HandleProxy("", handler.RawGetMappingByID),
-		RawEditEntitynew:       proxy.HandleProxy("", handler.RawEditEntity),
-		RawGetJournalnew:       proxy.HandleProxy("", handler.RawGetJournal),
+		RawGetMapping:       proxy.HandleProxy("", handler.RawGetMappingByValue),
+		RawGetInvertMapping: proxy.HandleProxy("", handler.RawGetMappingByID),
+		RawEditEntitynew:    proxy.HandleProxy("", handler.RawEditEntity),
+
 		PutTagMappingBootstrap: handler.PutTagMappingBootstrap,
 		GetTagMappingBootstrap: handler.GetTagMappingBootstrap,
 	}
-	server := rpc.NewServer(rpc.ServerWithHandler(h.Handle), rpc.ServerWithLogf(log.Printf))
+	sh := tlmetadata.Handler{RawGetJournalnew: proxy.HandleProxy("", handler.RawGetJournal)}
+	server := rpc.NewServer(rpc.ServerWithHandler(h.Handle), rpc.ServerWithSyncHandler(sh.Handle), rpc.ServerWithLogf(log.Printf))
 	t.Cleanup(func() {
 		server.Close()
 	})
