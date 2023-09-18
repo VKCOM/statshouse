@@ -38,8 +38,7 @@ import { shallow } from 'zustand/shallow';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
 import { createPlotPreview } from '../../store/plot/plotPreview';
-import { METRIC_TYPE, toMetricType } from '../../api/enum';
-import { formatByMetricType, splitByMetricType } from '../../common/formatByMetricType';
+import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -217,7 +216,7 @@ export function PlotViewMetric(props: {
           key: group,
         }
       : undefined;
-    const metricType = toMetricType(meta?.metric_type, METRIC_TYPE.none);
+    const metricType = getMetricType(sel, meta);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -285,7 +284,7 @@ export function PlotViewMetric(props: {
       },
       plugins: [pluginEventOverlay],
     };
-  }, [compact, getAxisStroke, group, meta?.metric_type, pluginEventOverlay, themeDark, topPad, xAxisSize, yAxisSize]);
+  }, [compact, getAxisStroke, group, meta, pluginEventOverlay, sel, themeDark, topPad, xAxisSize, yAxisSize]);
 
   const linkCSV = useMemo(() => {
     const agg =
