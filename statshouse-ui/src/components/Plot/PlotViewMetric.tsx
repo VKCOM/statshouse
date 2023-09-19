@@ -39,6 +39,7 @@ import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icon
 import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
 import { createPlotPreview } from '../../store/plot/plotPreview';
 import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
+import { METRIC_TYPE } from '../../api/enum';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -253,7 +254,7 @@ export function PlotViewMetric(props: {
           size: yAxisSize,
           font: font,
           stroke: getAxisStroke,
-          splits: !meta?.metric_type ? undefined : splitByMetricType(metricType),
+          splits: metricType === METRIC_TYPE.none ? undefined : splitByMetricType(metricType),
         },
       ],
       scales: {
