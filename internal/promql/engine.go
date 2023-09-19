@@ -1103,9 +1103,11 @@ func (ev *evaluator) weightData(data []*[]float64) []float64 {
 		for _, lod := range ev.t.LODs {
 			for m := 0; m < lod.Len; m++ {
 				k := j + m
-				if ev.t.Time[k] >= ev.t.Start {
-					// points outside requested interval aren't contribute to series weight
-					continue
+				if ev.t.Time[k] < ev.t.Start {
+					continue // skip points before requested interval start
+				}
+				if ev.t.End <= ev.t.Time[k] {
+					break // discard points after requested interval end
 				}
 				v := (*data)[k]
 				if !math.IsNaN(v) {
