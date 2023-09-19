@@ -11,7 +11,7 @@
     "@types/react": "^18.0.28",
     "@types/react-dom": "^18.0.10",
     "bootstrap": "^5.3.1",
-    "bootstrap-icons": "^1.10.5",
+    "bootstrap-icons": "^1.11.1",
     "classnames": "^2.3.2",
     "dequal": "^2.0.3",
     "history": "^5.3.0",
