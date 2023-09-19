@@ -805,7 +805,6 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	var offsetAfterWritePredicted int64
 	if shouldWriteBinlog {
 		offsetAfterWritePredicted = offsetBeforeWrite + int64(fsbinlog.AddPadding(len(buffer)))
-
 		err = binlogUpdateOffset(c, offsetAfterWritePredicted)
 		if err != nil {
 			log.Println("[sqlite] failed to update binlog position:", err.Error())

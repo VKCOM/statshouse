@@ -9,7 +9,6 @@ package metadata
 import (
 	"context"
 	"fmt"
-	"log"
 	"math"
 	"sync"
 	"time"
@@ -55,33 +54,27 @@ func NewHandler(db *DBV2, host string, log func(s string, args ...interface{})) 
 func (h *Handler) CancelHijack(hctx *rpc.HandlerContext) {
 	h.getJournalMx.Lock()
 	defer h.getJournalMx.Unlock()
-	log.Println("client", hctx.RemoteAddr().String(), "cancel hijack")
 	delete(h.getJournalClients, hctx)
 }
 
 func (h *Handler) broadcastJournal() {
-	log.Println("starting broadcast")
 	h.getJournalMx.Lock()
 	qLength := len(h.getJournalClients)
 	h.getJournalMx.Unlock()
 	if qLength == 0 {
-		log.Println("clients map is empty")
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	journalNew, err := h.db.JournalEvents(ctx, h.minVersion, 100)
 	cancel()
 	if err != nil {
-		log.Println("[error] failed to load journal from broadcast", err)
 		return
 	}
 	if len(journalNew) == 0 {
-		log.Println("[info] broadcast journal is empty")
 		return
 	}
 	h.getJournalMx.Lock()
 	defer h.getJournalMx.Unlock()
-	version := journalNew[len(journalNew)-1].Version
 	eventsToClient := make([]tlmetadata.Event, 0)
 	clientGotResponseCount := 0
 	var newMinimum int64 = math.MaxInt64
@@ -93,7 +86,6 @@ func (h *Handler) broadcastJournal() {
 			if args.From < newMinimum {
 				newMinimum = args.From
 			}
-			log.Println("[info] skip client", "last version is", version, "bit client version is", args.From)
 			continue
 		}
 		delete(h.getJournalClients, hctx)
@@ -139,7 +131,6 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 	if h.minVersion > args.From {
 		h.minVersion = args.From
 	}
-	log.Println("hijack client with version", args.From)
 	return "", hctx.HijackResponse(h)
 }
 

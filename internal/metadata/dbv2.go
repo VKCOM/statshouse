@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/sqlite"
 
@@ -221,7 +220,7 @@ func (db *DBV2) Close() error {
 	defer cancel()
 	err := db.eng.Close(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to close db")
+		return fmt.Errorf("failed to close db: %w", err)
 	}
 	db.cancel()
 	return nil

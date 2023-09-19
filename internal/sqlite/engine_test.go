@@ -532,9 +532,16 @@ func Test_Engine_Slice_Params(t *testing.T) {
 		for rows.Next() {
 			count++
 		}
+		rows = conn.Query("test", "SELECT oid FROM test_db WHERE oid in($ids$) or oid in($ids1$)",
+			Int64Slice("$ids$", []int64{1, 2, 3}),
+			Int64Slice("$ids1$", []int64{3}))
+
+		for rows.Next() {
+			count++
+		}
 		return cache, err
 	})
-	require.Equal(t, 3, count)
+	require.Equal(t, 3*2, count)
 	require.NoError(t, err)
 }
 
