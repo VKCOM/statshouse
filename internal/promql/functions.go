@@ -413,7 +413,7 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]SeriesBag, error) {
 	for i := range buckets {
 		for x, bag := range buckets[i].bags {
 			bags[x].appendX(bag.SeriesBag, bag.x[:bag.k]...)
-			ev.freeSeriesBagData(bag.Data, bag.k)
+			ev.freeSeriesBagDataX(bag.Data, bag.x[bag.k:]...)
 		}
 	}
 	return bags, nil

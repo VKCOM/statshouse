@@ -1102,7 +1102,12 @@ func (ev *evaluator) weightData(data []*[]float64) []float64 {
 		)
 		for _, lod := range ev.t.LODs {
 			for m := 0; m < lod.Len; m++ {
-				v := (*data)[j+m]
+				k := j + m
+				if ev.t.Time[k] >= ev.t.Start {
+					// points outside requested interval aren't contribute to series weight
+					continue
+				}
+				v := (*data)[k]
 				if !math.IsNaN(v) {
 					acc += v * v * float64(lod.Step)
 					if v < prev {
@@ -1258,6 +1263,13 @@ func (ev *evaluator) freeSeriesBagData(data []*[]float64, k int) {
 	for ; k < len(data); k++ {
 		ev.free(data[k])
 		data[k] = nil
+	}
+}
+
+func (ev *evaluator) freeSeriesBagDataX(data []*[]float64, x ...int) {
+	for _, i := range x {
+		ev.free(data[i])
+		data[i] = nil
 	}
 }
 
