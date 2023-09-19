@@ -41,11 +41,12 @@ import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
 import { createPlotPreview } from '../../store/plot/plotPreview';
 import { shallow } from 'zustand/shallow';
 import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
+import { METRIC_TYPE } from '../../api/enum';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
 const font =
-  '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
+  '11px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
 
 const threshold = buildThresholdList(1);
 
@@ -237,7 +238,7 @@ export function PlotViewEvent(props: {
           size: yAxisSize,
           font: font,
           stroke: getAxisStroke,
-          splits: !meta?.metric_type ? undefined : splitByMetricType(metricType),
+          splits: metricType === METRIC_TYPE.none ? undefined : splitByMetricType(metricType),
         },
       ],
       scales: {
