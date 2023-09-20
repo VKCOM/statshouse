@@ -612,6 +612,16 @@ func ValidFloatValue(f float64) bool {
 	return !math.IsNaN(f) && !math.IsInf(f, 0)
 }
 
+func ClampFloatValue(f float64) float64 {
+	if f > math.MaxFloat32 {
+		return math.MaxFloat32
+	}
+	if f < -math.MaxFloat32 {
+		return -math.MaxFloat32
+	}
+	return f
+}
+
 // Legacy rules replaced non-printables including whitespaces (except ASCII space) into roadsigns
 // This was found to be not ideal set of rules, so they were changed
 func ValidStringValueLegacy(s mem.RO) bool {
