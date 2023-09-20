@@ -532,9 +532,16 @@ func Test_Engine_Slice_Params(t *testing.T) {
 		for rows.Next() {
 			count++
 		}
+		rows = conn.Query("test", "SELECT oid FROM test_db WHERE oid in($ids$) or oid in($ids1$)",
+			Int64Slice("$ids$", []int64{1, 2, 3}),
+			Int64Slice("$ids1$", []int64{3}))
+
+		for rows.Next() {
+			count++
+		}
 		return cache, err
 	})
-	require.Equal(t, 3, count)
+	require.Equal(t, 3*2, count)
 	require.NoError(t, err)
 }
 
@@ -645,4 +652,25 @@ func Test_Engine_RO(t *testing.T) {
 	require.Equal(t, int64(1), id)
 	require.NoError(t, engine.Close(context.Background()))
 	require.NoError(t, engineRO.Close(context.Background()))
+}
+
+func Test_Engine_Bad_Context(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
+	dir := t.TempDir()
+	dbfile := "db"
+	engine, _ := openEngine(t, dir, dbfile, schema, true, false, false, false, WaitCommit, nil)
+	var err error
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err = engine.Do(ctx, "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Int64("$id", 1))
+		return cache, err
+	})
+	require.Error(t, err)
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Int64("$id", 1))
+		return cache, err
+	})
+	require.NoError(t, err)
+	require.NoError(t, engine.Close(context.Background()))
 }

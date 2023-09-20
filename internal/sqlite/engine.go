@@ -732,7 +732,7 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 	e.opt.StatsOptions.measureWaitDurationSince(waitView, startTimeBeforeLock)
 	c, err := conn.startNewROConn(ctx, &e.opt.StatsOptions)
 	if err != nil {
-		return ErrEngineBroken
+		return multierr.Append(ErrEngineBroken, err)
 	}
 	defer func() {
 		err = multierr.Append(err, c.closeRO())
@@ -765,7 +765,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	var commit func(c Conn) error = nil
 	c, err := e.rw.startNewRWConn(true, ctx, &e.opt.StatsOptions, e)
 	if err != nil {
-		return nil, ErrEngineBroken
+		return nil, multierr.Append(ErrEngineBroken, err)
 	}
 	offsetBeforeWrite := e.dbOffset
 	defer func() {
@@ -805,7 +805,6 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	var offsetAfterWritePredicted int64
 	if shouldWriteBinlog {
 		offsetAfterWritePredicted = offsetBeforeWrite + int64(fsbinlog.AddPadding(len(buffer)))
-
 		err = binlogUpdateOffset(c, offsetAfterWritePredicted)
 		if err != nil {
 			log.Println("[sqlite] failed to update binlog position:", err.Error())
