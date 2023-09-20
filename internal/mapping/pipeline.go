@@ -343,11 +343,13 @@ func (mp *mapPipeline) mapTags(h *data_model.MappedMetricHeader, metric *tlstats
 		h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrNanInfCounter
 		return true
 	}
-	for _, v := range metric.Value {
+	metric.Counter = format.ClampFloatValue(metric.Counter)
+	for i, v := range metric.Value {
 		if !format.ValidFloatValue(v) {
 			h.IngestionStatus = format.TagValueIDSrcIngestionStatusErrNanInfValue
 			return true
 		}
+		metric.Value[i] = format.ClampFloatValue(v)
 	}
 	return true
 }

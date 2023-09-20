@@ -8,6 +8,7 @@ package data_model
 
 import (
 	"bytes"
+	"math"
 
 	"github.com/hrissan/tdigest"
 
@@ -155,13 +156,17 @@ func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_ma
 	if s2.IsSetCounter(fields_mask) {
 		counter = s2.Counter
 	}
-	if counter <= 0 {
+	if counter <= 0 || math.IsNaN(counter) { // sanity check/check for empty String Top tail
 		return
+	}
+	if counter > math.MaxFloat32 { // agents do similar check. Code here is for old agents without this check. TODO - remove after July 2024
+		counter = math.MaxFloat32
 	}
 	s.AddCounterHost(counter, s2.MaxCounterHostTag)
 	if !s2.IsSetValueSet(fields_mask) {
 		return
 	}
+	// We do not care checking values for NaN/Inf here
 	if !s2.IsSetValueMax(fields_mask) {
 		s2.ValueSum = s2.ValueMin * counter
 		s2.ValueSumSquare = s2.ValueSum * s2.ValueMin
