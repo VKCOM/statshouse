@@ -17,7 +17,6 @@ import (
 	"strconv"
 
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
@@ -471,19 +470,46 @@ func (b *SeriesBag) trim(start, end int64) {
 	for lo < hi-1 && end <= t[hi-1] {
 		hi--
 	}
-	if lo != 0 || hi != len(t) {
-		b.Time = t[lo:hi]
-		for j := 0; j < len(b.Data); j++ {
-			s := (*b.Data[j])[lo:hi]
-			b.Data[j] = &s
+	// remove series with no data within [start, end), update total
+	var (
+		res   SeriesBag
+		total int32
+	)
+	if t, ok := b.getTagAt(0, labelTotal); ok {
+		total = t.Value
+	} else {
+		total = int32(len(b.Data))
+	}
+	for i := range b.Data {
+		var keep bool
+		for j := lo; j < hi; j++ {
+			if !math.IsNaN((*b.Data[i])[j]) {
+				keep = true
+				break
+			}
 		}
-		for j := 0; j < len(b.MaxHost); j++ {
-			s := b.MaxHost[j]
+		if keep {
+			res.appendX(*b, i)
+		} else {
+			total--
+		}
+	}
+	res.setTag(labelTotal, total)
+	// trim time outside [start, end)
+	if lo != 0 || hi != len(t) {
+		res.Time = t[lo:hi]
+		for i := range res.Data {
+			s := (*res.Data[i])[lo:hi]
+			res.Data[i] = &s
+		}
+		for i := range res.MaxHost {
+			s := res.MaxHost[i]
 			if len(s) != 0 {
-				b.MaxHost[j] = s[lo:hi]
+				res.MaxHost[i] = s[lo:hi]
 			}
 		}
 	}
+	*b = res
 }
 
 func (m *SeriesMeta) DropMetricName() {
