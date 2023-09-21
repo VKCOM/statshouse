@@ -18,7 +18,6 @@ import (
 
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
@@ -37,8 +36,8 @@ const (
 )
 
 type Query struct {
-	Start int64
-	End   int64
+	Start int64 // inclusive
+	End   int64 // exclusive
 	Step  int64
 	Expr  string
 
@@ -164,11 +163,6 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 		if err != nil {
 			ev.cancel()
 			return nil, nil, Error{what: err}
-		}
-		if qry.Options.ExpandToLODBoundary {
-			bag.trim(ev.t.Start, ev.t.End)
-		} else {
-			bag.trim(qry.Start, qry.End)
 		}
 		bag.stringify(&ev)
 		debugTracef(ctx, "%v", &bag)
@@ -406,10 +400,13 @@ func (ev *evaluator) exec() (SeriesBag, error) {
 	if err != nil {
 		return SeriesBag{}, err
 	}
+	bag[0].Time = ev.time()
+	bag[0].trim(ev.t.Start, ev.t.End)
 	for x := 1; x < len(bag); x++ {
+		bag[x].Time = ev.time()
+		bag[x].trim(ev.t.Start, ev.t.End)
 		bag[0].append(bag[x])
 	}
-	bag[0].Time = ev.time()
 	return bag[0], nil
 }
 

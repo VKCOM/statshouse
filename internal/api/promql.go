@@ -23,13 +23,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
-	"golang.org/x/exp/slices"
-
-	"github.com/vkcom/statshouse/internal/util"
-
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
 	"github.com/vkcom/statshouse/internal/promql/parser"
+	"github.com/vkcom/statshouse/internal/util"
+
+	"golang.org/x/exp/slices"
 )
 
 func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQuery bool) {
@@ -356,12 +355,12 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 	var (
 		fl  = t.lods[0]             // first LOD
 		ll  = t.lods[len(t.lods)-1] // last LOD
-		res = promql.Timescale{
-			Start:  shiftTimestamp(fl.fromSec, fl.stepSec, t.offset, h.location),   // inclusive
-			End:    shiftTimestamp(ll.toSec, ll.stepSec, t.offset, h.location) + 1, // exclusive
-			Offset: t.offset,
-		}
+		res = promql.Timescale{Start: qry.Start, End: qry.End, Offset: t.offset}
 	)
+	if qry.Options.ExpandToLODBoundary {
+		res.Start = shiftTimestamp(fl.fromSec, fl.stepSec, t.offset, h.location) // inclusive
+		res.End = shiftTimestamp(ll.toSec, ll.stepSec, t.offset, h.location) + 1 // exclusive
+	}
 	if qry.Options.StepAuto {
 		res.Step = ll.stepSec
 	} else {
