@@ -1,12 +1,15 @@
 import uPlot from 'uplot';
 
-function getMinDeltaY(lines: ((number | null | undefined)[] | uPlot.TypedArray | number[])[], idx: number, y: number) {
+function getMinDeltaYValue(
+  lines: ((number | null | undefined)[] | uPlot.TypedArray | number[])[],
+  idx: number,
+  y: number
+) {
   return lines.reduce((res, s) => {
     const v = s[idx];
     if (v != null) {
-      const d = Math.abs(v - y);
-      if (res > d) {
-        return d;
+      if (Math.abs(res - y) > Math.abs(v - y)) {
+        return v;
       }
     }
     return res;
@@ -16,26 +19,30 @@ function getMinDeltaY(lines: ((number | null | undefined)[] | uPlot.TypedArray |
 export function dataIdxNearest(self: uPlot, seriesIdx: number, hoveredIdx: number): number {
   const max = self.scales['x']?.max ?? 0;
   const min = self.scales['x']?.min ?? 0;
-  const yCursorValue = self.posToVal(self.cursor.top ?? 0, 'y');
+  const yCursor = self.cursor.top ?? 0;
+  const yCursorValue = self.posToVal(yCursor, 'y');
   const timeLine = self.data[0] ?? [];
   const onlyLines = self.data.slice(1);
   const length = self.data[0]?.length ?? 0;
   const delta = Math.round(length * 0.02); //delta 2%;
 
   let resIdx = hoveredIdx;
-  let deltaY = getMinDeltaY(onlyLines, hoveredIdx, yCursorValue);
+  let resY = self.valToPos(getMinDeltaYValue(onlyLines, hoveredIdx, yCursorValue), 'y');
   for (let i = 0; i <= delta; i++) {
+    if (Math.abs(yCursor - resY) < i) {
+      break;
+    }
     if (hoveredIdx - i >= 0 && onlyLines.some((series) => series[hoveredIdx - i] != null)) {
-      const dY = getMinDeltaY(onlyLines, hoveredIdx - i, yCursorValue);
-      if (deltaY > dY) {
-        deltaY = dY;
+      const hY = self.valToPos(getMinDeltaYValue(onlyLines, hoveredIdx - i, yCursorValue), 'y');
+      if (Math.abs(yCursor - resY) > Math.abs(yCursor - hY)) {
+        resY = hY;
         resIdx = hoveredIdx - i;
       }
     }
     if (hoveredIdx + i < length && onlyLines.some((series) => series[hoveredIdx + i] != null)) {
-      const dY = getMinDeltaY(onlyLines, hoveredIdx + i, yCursorValue);
-      if (deltaY > dY) {
-        deltaY = dY;
+      const hY = self.valToPos(getMinDeltaYValue(onlyLines, hoveredIdx + i, yCursorValue), 'y');
+      if (Math.abs(yCursor - resY) > Math.abs(yCursor - hY)) {
+        resY = hY;
         resIdx = hoveredIdx + i;
       }
     }
