@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { isEnum, toEnum } from '../common/helpers';
+import { isEnum, toEnum, toNumber } from '../common/helpers';
 
 export type Enum<T> = T[keyof T];
 
@@ -212,4 +212,42 @@ export const METRIC_TYPE_DESCRIPTION: Record<MetricType, string> = {
   [METRIC_TYPE.microsecond]: 'microsecond',
   [METRIC_TYPE.nanosecond]: 'nanosecond',
   [METRIC_TYPE.byte]: 'byte',
+};
+
+/**
+ * metric aggregation
+ */
+export const METRIC_AGGREGATION = {
+  auto: 0,
+  autoLow: -1,
+  second1: 1,
+  second5: 5,
+  second15: 15,
+  minute1: 60,
+  minute5: 5 * 60,
+  minute15: 15 * 60,
+  hour1: 60 * 60,
+  hour4: 4 * 60 * 60,
+  hour24: 24 * 60 * 60,
+  day7: 7 * 24 * 60 * 60,
+  month1: 31 * 24 * 60 * 60,
+} as const;
+export type MetricAggregation = Enum<typeof METRIC_AGGREGATION>;
+export const isMetricAggregation = isEnum<MetricAggregation, number>(METRIC_AGGREGATION);
+export const toMetricAggregation = toEnum(isMetricAggregation, toNumber);
+
+export const METRIC_AGGREGATION_DESCRIPTION: Record<MetricAggregation, string> = {
+  [METRIC_AGGREGATION.auto]: 'Auto',
+  [METRIC_AGGREGATION.autoLow]: 'Auto (low)',
+  [METRIC_AGGREGATION.second1]: '1 second',
+  [METRIC_AGGREGATION.second5]: '5 seconds',
+  [METRIC_AGGREGATION.second15]: '15 seconds',
+  [METRIC_AGGREGATION.minute1]: '1 minute',
+  [METRIC_AGGREGATION.minute5]: '5 minutes',
+  [METRIC_AGGREGATION.minute15]: '15 minutes',
+  [METRIC_AGGREGATION.hour1]: '1 hour',
+  [METRIC_AGGREGATION.hour4]: '4 hours',
+  [METRIC_AGGREGATION.hour24]: '24 hours',
+  [METRIC_AGGREGATION.day7]: '7 days',
+  [METRIC_AGGREGATION.month1]: '1 month',
 };

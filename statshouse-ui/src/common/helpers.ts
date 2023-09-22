@@ -157,14 +157,9 @@ export function escapeHTML(str: string): string {
   return str.replace(reUnescapedHtml, (chr) => htmlEscapes[chr]);
 }
 
-export function isEnum<T>(obj: Record<string, string>) {
+export function isEnum<T, V = string>(obj: Record<string, V>) {
   const values = new Set(Object.values(obj));
-  return (s: unknown): s is T => {
-    if (typeof s === 'string') {
-      return values.has(s);
-    }
-    return false;
-  };
+  return (s: unknown): s is T => values.has(s as V);
 }
 
 export function toEnum<T>(itemIsEnum: (s: unknown) => s is T, preConvert: (s: unknown) => unknown = toString) {
