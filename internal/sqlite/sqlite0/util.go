@@ -65,13 +65,13 @@ func sqliteErr(rc C.int, conn *C.sqlite3, from string) error {
 	}
 }
 
-func ensureZeroTerm(s []byte) []byte {
+func EnsureZeroTerm(s []byte) []byte {
 	if len(s) == 0 || s[len(s)-1] != 0 {
 		return append(s, '\x00')
 	}
 	return s
 }
-func ensureZeroTermStr(s string) string {
+func EnsureZeroTermStr(s string) string {
 	if len(s) == 0 || s[len(s)-1] != 0 {
 		s += "\x00"
 	}

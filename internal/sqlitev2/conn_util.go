@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 )
-import "github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
+import "github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 
 const (
 	busyTimeout = 5 * time.Second
@@ -12,7 +12,7 @@ const (
 	mmapSize    = 8 * 1024 * 1024 * 1024 * 1024 // 8TB
 )
 
-func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path string, appID int32, schemas ...string) (*sqlite0.Conn, error) {
+func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path string, appID int32) (*sqlite0.Conn, error) {
 	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate)
 	if err != nil {
 		return nil, err
@@ -36,14 +36,6 @@ func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path strin
 	if err != nil {
 		_ = conn.Close()
 		return nil, fmt.Errorf("failed to set DB app ID %d: %w", appID, err)
-	}
-
-	for _, schema := range schemas {
-		err = conn.Exec(schema)
-		if err != nil {
-			_ = conn.Close()
-			return nil, fmt.Errorf("failed to setup DB schema: %w", err)
-		}
 	}
 
 	return conn, nil

@@ -7,7 +7,7 @@
 package sqlitev2
 
 import "fmt"
-import "github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
+import "github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 
 const (
 	argNull = iota
@@ -30,8 +30,6 @@ type Arg struct {
 	s string
 	n int64
 	f float64
-
-	length int
 }
 
 func Null(name string) Arg {

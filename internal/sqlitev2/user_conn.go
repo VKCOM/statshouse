@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 )
-import "github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
+import "github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 
 type Conn = userConn
 type internalConn = userConn
@@ -54,9 +54,9 @@ func (c Conn) LastInsertRowID() int64 {
 	return c.conn.LastInsertRowID()
 }
 
-func (c Conn) CacheSize() int {
-	return c.cache.size()
-}
+//func (c Conn) CacheSize() int {
+//	return c.cache.size()
+//}
 
 func (r *Rows) Error() error {
 	return r.err
@@ -76,9 +76,12 @@ func (r *Rows) Next() bool {
 	if err != nil {
 		r.err = err
 	}
-	if !row {
-		// todo retrun to cache
-	}
+	//if !row {
+	//	err = r.s.Close()
+	//	if err != nil && r.err == nil {
+	//		r.err = err
+	//	}
+	//}
 	return row
 }
 
@@ -90,17 +93,17 @@ func newUserConn(sqliteConn *sqliteRWConn, ctx context.Context) Conn {
 }
 
 func (c Conn) Query(name, sql string, args ...Arg) Rows {
-	return c.query(true, false, query, name, nil, sql, args...)
+	return c.conn.queryLocked(c.ctx, name, nil, sql, args...)
 }
 
 func (c Conn) QueryBytes(name string, sql []byte, args ...Arg) Rows {
-	return c.query(true, false, query, name, sql, "", args...)
+	return c.conn.queryLocked(c.ctx, name, sql, "", args...)
 }
 
 func (c Conn) Exec(name, sql string, args ...Arg) (int64, error) {
-	return c.exec(false, name, nil, sql, args...)
+	return c.conn.execLockedArgs(c.ctx, name, nil, sql, args...)
 }
 
 func (c Conn) ExecBytes(name string, sql []byte, args ...Arg) (int64, error) {
-	return c.exec(false, name, sql, "", args...)
+	return c.conn.execLockedArgs(c.ctx, name, sql, "", args...)
 }

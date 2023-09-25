@@ -31,6 +31,7 @@ func newBinlogEngine(e *Engine, applyFunction ApplyEventFunction) *binlogEngineR
 }
 
 func (b binlogEngineReplicaImpl) Apply(payload []byte) (newOffset int64, errToReturn error) {
+
 	err := b.e.internalDo("apply", func(c Conn) error {
 		readLen, err := b.applyFunction(c, payload)
 		newOffset = b.e.rw.dbOffset + int64(readLen)
@@ -45,18 +46,19 @@ func (b binlogEngineReplicaImpl) Apply(payload []byte) (newOffset int64, errToRe
 	})
 	if err != nil {
 		return newOffset, b.e.rw.setError(err)
-	} else {
-		b.e.rw.dbOffset = newOffset
 	}
+	b.e.rw.dbOffset = newOffset
 	return newOffset, errToReturn
 }
 
 func (b binlogEngineReplicaImpl) Skip(skipLen int64) (newOffset int64, err error) {
 	err = b.e.internalDo("skip", func(c Conn) error {
-		b.e.rw.dbOffset += skipLen
-		newOffset = b.e.rw.dbOffset
+		newOffset = b.e.rw.dbOffset + skipLen
 		return b.e.rw.saveBinlogOffsetLocked(newOffset)
 	})
+	if err == nil {
+		b.e.rw.dbOffset = newOffset
+	}
 	return newOffset, b.e.rw.setError(err)
 }
 
@@ -72,8 +74,12 @@ func (b binlogEngineReplicaImpl) Revert(toOffset int64) (bool, error) {
 }
 
 func (b binlogEngineReplicaImpl) ChangeRole(info binlog.ChangeRoleInfo) error {
-	//TODO implement me
-	panic("implement me")
+	if info.IsReady {
+		b.e.readyNotify.Do(func() {
+			close(b.e.readyCh)
+		})
+	}
+	return nil
 }
 
 func (b binlogEngineReplicaImpl) StartReindex() error {
