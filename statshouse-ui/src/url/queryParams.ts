@@ -129,7 +129,7 @@ export type GroupInfo = {
   name: string;
   show: boolean;
   count: number;
-  size: number;
+  size: string;
 };
 
 export type DashboardParams = {
@@ -355,7 +355,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
       !(
         value.dashboard?.groupInfo?.length === 1 &&
         value.dashboard?.groupInfo[0].name === '' &&
-        value.dashboard?.groupInfo[0].size === 2 &&
+        value.dashboard?.groupInfo[0].size === '2' &&
         value.dashboard?.groupInfo[0].show === true &&
         !defaultParams?.dashboard?.groupInfo?.length
       )
@@ -366,7 +366,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         if (count) {
           search.push([prefix + GET_PARAMS.dashboardGroupInfoCount, count.toString()]);
         }
-        if (size !== 2) {
+        if (size !== '2') {
           search.push([prefix + GET_PARAMS.dashboardGroupInfoSize, size.toString()]);
         }
       });
@@ -571,7 +571,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       break;
     }
     const count = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoCount]?.[0]) ?? 0;
-    const size = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoSize]?.[0]) ?? 2;
+    const size = urlParams[prefix + GET_PARAMS.dashboardGroupInfoSize]?.[0] ?? '2';
     groupInfo.push({ name, show: defaultParams?.dashboard?.groupInfo?.[i]?.show ?? true, count, size });
   }
   groupInfo.forEach((group, indexGroup) => {

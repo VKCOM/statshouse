@@ -253,7 +253,7 @@ export type StatsHouseStore = {
   setDashboardLayoutEdit(nextStatus: boolean): void;
   setGroupName(indexGroup: number, name: string): void;
   setGroupShow(indexGroup: number, show: React.SetStateAction<boolean>): void;
-  setGroupSize(indexGroup: number, size: React.SetStateAction<number>): void;
+  setGroupSize(indexGroup: number, size: React.SetStateAction<string>): void;
   listMetricsGroup: MetricsGroupShort[];
   loadListMetricsGroup(): Promise<MetricsGroupShort[]>;
   saveMetricsGroup(metricsGroup: MetricsGroup): Promise<MetricsGroupInfo | undefined>;
@@ -1632,7 +1632,7 @@ export const useStore = createWithEqualityFn<Store>()(
                     name: '',
                     count: 0,
                     show: true,
-                    size: 2,
+                    size: '2',
                   };
                 }
               }
@@ -1670,7 +1670,7 @@ export const useStore = createWithEqualityFn<Store>()(
               if (state.dashboard.groupInfo[indexGroup]) {
                 state.dashboard.groupInfo[indexGroup].name = name;
               } else {
-                state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: 2 };
+                state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: '2' };
               }
             }
           })
@@ -1689,7 +1689,7 @@ export const useStore = createWithEqualityFn<Store>()(
                   show: nextShow,
                   name: '',
                   count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
-                  size: 2,
+                  size: '2',
                 };
               }
             }
@@ -1697,7 +1697,7 @@ export const useStore = createWithEqualityFn<Store>()(
         );
       },
       setGroupSize(indexGroup, size) {
-        const nextSize = getNextState(getState().params.dashboard?.groupInfo?.[indexGroup]?.size ?? 2, size);
+        const nextSize = getNextState(getState().params.dashboard?.groupInfo?.[indexGroup]?.size ?? '2', size);
         getState().setParams(
           produce<QueryParams>((state) => {
             if (state.dashboard) {

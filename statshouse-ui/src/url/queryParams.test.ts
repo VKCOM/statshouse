@@ -52,7 +52,7 @@ describe('queryParams.ts', () => {
       theme: undefined,
       dashboard: {
         dashboard_id: undefined,
-        groupInfo: [{ name: 'qwe', count: 2, show: true, size: 3 }],
+        groupInfo: [{ name: 'qwe', count: 2, show: true, size: '3' }],
         description: '',
         name: '',
         version: undefined,
@@ -126,7 +126,7 @@ describe('queryParams.ts', () => {
       theme: undefined,
       dashboard: {
         dashboard_id: undefined,
-        groupInfo: [{ name: 'qwe', count: 2, show: true, size: 2 }],
+        groupInfo: [{ name: 'qwe', count: 2, show: true, size: '2' }],
         description: '',
         name: '',
         version: undefined,
