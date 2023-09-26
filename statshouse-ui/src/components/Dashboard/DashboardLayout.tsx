@@ -22,6 +22,8 @@ import {
 
 import css from './style.module.css';
 import { PlotParams } from '../../url/queryParams';
+import { toNumber } from '../../common/helpers';
+import { useResizeObserver } from '../../view/utils';
 
 function getStylePreview(
   targetRect: DOMRect,
@@ -37,6 +39,42 @@ function getStylePreview(
     height: targetRect.height,
     transform: `matrix(${scale},0,0,${scale},${o.left * scale},${o.top * scale})`,
   };
+}
+
+function getClassRow(size?: string) {
+  const col = toNumber(size);
+  if (col != null) {
+    return `col-${Math.round(12 / (col ?? 2))}`;
+  }
+  if (size) {
+    return css[`dashRowSize_${size}`];
+  }
+  return css.dashRowSize_2;
+}
+
+function getGroupStyle(width: number, size?: string): React.CSSProperties {
+  const w = Math.min(width, 1320);
+  let cols = 2;
+  switch (size) {
+    case 'l':
+      cols = 2;
+      break;
+    case 'm':
+      cols = 3;
+      break;
+    case 's':
+      cols = 4;
+      break;
+  }
+  const col = toNumber(size);
+  if (col != null) {
+    cols = col;
+  }
+  let maxCols = Math.floor(width / (w / cols));
+  return {
+    '--base-cols': cols,
+    '--max-cols': maxCols,
+  } as React.CSSProperties;
 }
 
 export type DashboardLayoutProps = {
@@ -55,6 +93,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
   const setGroupSize = useStore(selectorSetGroupSize);
   const preview = useRef<HTMLDivElement>(null);
   const zone = useRef<HTMLDivElement>(null);
+  const { width: zoneWidth } = useResizeObserver(zone);
   const [select, setSelect] = useState<number | null>(null);
   const [selectTarget, setSelectTarget] = useState<number | null>(null);
   const [selectTargetGroup, setSelectTargetGroup] = useState<number | null>(null);
@@ -197,125 +236,152 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
   const onEditGroupSize = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const index = parseInt(e.currentTarget.getAttribute('data-group') ?? '0');
-      const size = parseInt(e.currentTarget.value ?? '2');
+      const size = e.currentTarget.value ?? '2';
       setGroupSize(index, size);
     },
     [setGroupSize]
   );
 
   return (
-    <div
-      className={cn(
-        ' container-xl',
-        select !== null ? css.cursorDrag : css.cursorDefault,
-        dashboardLayoutEdit && 'dashboard-edit',
-        className
-      )}
-      ref={zone}
-    >
-      {itemsGroup.map((group, indexGroup) => (
-        <div key={indexGroup} className="pb-5" data-group={indexGroup}>
-          <h6
-            hidden={
-              itemsGroup.length <= 1 &&
-              params.dashboard?.groupInfo?.[indexGroup]?.show !== false &&
-              !dashboardLayoutEdit &&
-              !params.dashboard?.groupInfo?.[indexGroup]?.name
-            }
-            className="border-bottom pb-1"
-          >
-            {dashboardLayoutEdit ? (
-              <div className="d-flex">
-                <button className="btn me-2" onClick={onGroupShowToggle} data-group={indexGroup}>
-                  {params.dashboard?.groupInfo?.[indexGroup]?.show === false ? <SVGChevronRight /> : <SVGChevronDown />}
-                </button>
-                <div className="input-group">
-                  <input
-                    className="form-control"
-                    data-group={indexGroup.toString()}
-                    value={params.dashboard?.groupInfo?.[indexGroup]?.name ?? ''}
-                    onInput={onEditGroupName}
-                    placeholder="Enter group name"
-                  />
-                  <select
-                    className="form-select flex-grow-0 w-auto"
-                    data-group={indexGroup.toString()}
-                    value={params.dashboard?.groupInfo?.[indexGroup]?.size?.toString() || '2'}
-                    onChange={onEditGroupSize}
-                  >
-                    <option value="2">2 plots per row</option>
-                    <option value="3">3 plots per row</option>
-                    <option value="4">4 plots per row</option>
-                  </select>
+    <div className="container-fluid">
+      <div
+        className={cn(
+          select !== null ? css.cursorDrag : css.cursorDefault,
+          dashboardLayoutEdit && 'dashboard-edit',
+          className
+        )}
+        ref={zone}
+      >
+        {itemsGroup.map((group, indexGroup) => (
+          <div key={indexGroup} className="pb-5" data-group={indexGroup}>
+            <h6
+              hidden={
+                itemsGroup.length <= 1 &&
+                params.dashboard?.groupInfo?.[indexGroup]?.show !== false &&
+                !dashboardLayoutEdit &&
+                !params.dashboard?.groupInfo?.[indexGroup]?.name
+              }
+              className="border-bottom pb-1"
+            >
+              {dashboardLayoutEdit ? (
+                <div className="d-flex p-0 container-xl">
+                  <button className="btn me-2" onClick={onGroupShowToggle} data-group={indexGroup}>
+                    {params.dashboard?.groupInfo?.[indexGroup]?.show === false ? (
+                      <SVGChevronRight />
+                    ) : (
+                      <SVGChevronDown />
+                    )}
+                  </button>
+                  <div className="input-group">
+                    <input
+                      className="form-control"
+                      data-group={indexGroup.toString()}
+                      value={params.dashboard?.groupInfo?.[indexGroup]?.name ?? ''}
+                      onInput={onEditGroupName}
+                      placeholder="Enter group name"
+                    />
+                    <select
+                      className="form-select flex-grow-0 w-auto"
+                      data-group={indexGroup.toString()}
+                      value={params.dashboard?.groupInfo?.[indexGroup]?.size?.toString() || '2'}
+                      onChange={onEditGroupSize}
+                    >
+                      <option value="2">L, 2 per row</option>
+                      <option value="l">L, full width</option>
+                      <option value="3">M, 3 per row</option>
+                      <option value="m">M, full width</option>
+                      <option value="4">S, 4 per row</option>
+                      <option value="s">S, full width</option>
+                    </select>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="d-flex flex-row" role="button" onClick={onGroupShowToggle} data-group={indexGroup}>
-                <div className="me-2">
-                  {params.dashboard?.groupInfo?.[indexGroup]?.show === false ? <SVGChevronRight /> : <SVGChevronDown />}
-                </div>
+              ) : (
+                <div
+                  className="d-flex container-xl flex-row"
+                  role="button"
+                  onClick={onGroupShowToggle}
+                  data-group={indexGroup}
+                >
+                  <div className="me-2">
+                    {params.dashboard?.groupInfo?.[indexGroup]?.show === false ? (
+                      <SVGChevronRight />
+                    ) : (
+                      <SVGChevronDown />
+                    )}
+                  </div>
 
-                <div className="flex-grow-1">
-                  {params.dashboard?.groupInfo?.[indexGroup]?.name || (
-                    <span className="text-body-tertiary">Group {indexGroup + 1}</span>
+                  <div className="flex-grow-1">
+                    {params.dashboard?.groupInfo?.[indexGroup]?.name || (
+                      <span className="text-body-tertiary">Group {indexGroup + 1}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </h6>
+            {params.dashboard?.groupInfo?.[indexGroup]?.show !== false && (
+              <div
+                className={cn('mx-auto', css.dashRowWidth)}
+                style={getGroupStyle(zoneWidth, params.dashboard?.groupInfo?.[indexGroup]?.size)}
+              >
+                <div
+                  className={cn(
+                    'd-flex flex-row flex-wrap p-0',
+                    toNumber(params.dashboard?.groupInfo?.[indexGroup]?.size ?? '2') != null ? 'container-xl' : null
                   )}
+                >
+                  {group.map((value) => (
+                    <div
+                      key={value.indexPlot}
+                      className={cn(
+                        'plot-item p-1',
+                        getClassRow(params.dashboard?.groupInfo?.[indexGroup]?.size),
+                        select === value.indexPlot && 'opacity-50',
+                        dashboardLayoutEdit && css.cursorMove
+                      )}
+                      data-index={value.indexPlot}
+                      onPointerDown={dashboardLayoutEdit ? onDown : undefined}
+                    >
+                      <PlotView
+                        className={cn(dashboardLayoutEdit && css.pointerEventsNone)}
+                        key={value.indexPlot}
+                        indexPlot={value.indexPlot}
+                        type={value.plot.type}
+                        compact={true}
+                        embed={embed}
+                        yAxisSize={yAxisSize}
+                        dashboard={true}
+                        group="1"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
-          </h6>
-          {params.dashboard?.groupInfo?.[indexGroup]?.show !== false && (
-            <div className="d-flex flex-row flex-wrap">
-              {group.map((value) => (
-                <div
-                  key={value.indexPlot}
-                  className={cn(
-                    'plot-item p-1',
-                    `col-${Math.round(12 / (params.dashboard?.groupInfo?.[indexGroup]?.size ?? 2))}`,
-                    select === value.indexPlot && 'opacity-50',
-                    dashboardLayoutEdit && css.cursorMove
-                  )}
-                  data-index={value.indexPlot}
-                  onPointerDown={dashboardLayoutEdit ? onDown : undefined}
-                >
-                  <PlotView
-                    className={cn(dashboardLayoutEdit && css.pointerEventsNone)}
-                    key={value.indexPlot}
-                    indexPlot={value.indexPlot}
-                    type={value.plot.type}
-                    compact={true}
-                    embed={embed}
-                    yAxisSize={yAxisSize}
-                    dashboard={true}
-                    group="1"
-                  />
-                </div>
-              ))}
+          </div>
+        ))}
+        {select !== null && maxGroup + 1 === itemsGroup.length && (
+          <div className="pb-5" data-group={maxGroup + 1}>
+            <h6 className="border-bottom"> </h6>
+            <div className="text-center text-secondary py-4">Drop here for create new group</div>
+          </div>
+        )}
+        <div hidden={select === null} className="position-fixed opacity-75 top-0 start-0" ref={preview}>
+          {select !== null && (
+            <div style={stylePreview}>
+              <PlotView
+                className={css.pointerEventsNone}
+                key={select}
+                indexPlot={select}
+                type={params.plots[select].type}
+                compact={true}
+                embed={embed}
+                yAxisSize={yAxisSize}
+                dashboard={true}
+                group="1"
+              />
             </div>
           )}
         </div>
-      ))}
-      {select !== null && maxGroup + 1 === itemsGroup.length && (
-        <div className="pb-5" data-group={maxGroup + 1}>
-          <h6 className="border-bottom"> </h6>
-          <div className="text-center text-secondary py-4">Drop here for create new group</div>
-        </div>
-      )}
-      <div hidden={select === null} className="position-fixed opacity-75 top-0 start-0" ref={preview}>
-        {select !== null && (
-          <div style={stylePreview}>
-            <PlotView
-              className={css.pointerEventsNone}
-              key={select}
-              indexPlot={select}
-              type={params.plots[select].type}
-              compact={true}
-              embed={embed}
-              yAxisSize={yAxisSize}
-              dashboard={true}
-              group="1"
-            />
-          </div>
-        )}
       </div>
     </div>
   );

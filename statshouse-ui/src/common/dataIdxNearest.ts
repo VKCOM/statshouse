@@ -25,23 +25,27 @@ export function dataIdxNearest(self: uPlot, seriesIdx: number, hoveredIdx: numbe
   const onlyLines = self.data.slice(1);
   const length = self.data[0]?.length ?? 0;
   const delta = Math.round(length * 0.02); //delta 2%;
+  const deltaY = self.bbox.height * 0.01; //deltaY 1%;
 
   let resIdx = hoveredIdx;
   let resY = self.valToPos(getMinDeltaYValue(onlyLines, hoveredIdx, yCursorValue), 'y');
+  let force = !onlyLines.some((series) => series[hoveredIdx] != null);
   for (let i = 0; i <= delta; i++) {
     if (Math.abs(yCursor - resY) < i) {
       break;
     }
     if (hoveredIdx - i >= 0 && onlyLines.some((series) => series[hoveredIdx - i] != null)) {
       const hY = self.valToPos(getMinDeltaYValue(onlyLines, hoveredIdx - i, yCursorValue), 'y');
-      if (Math.abs(yCursor - resY) > Math.abs(yCursor - hY)) {
+      if (force || (Math.abs(yCursor - resY) > Math.abs(yCursor - hY) && Math.abs(yCursor - hY) < deltaY)) {
+        force = false;
         resY = hY;
         resIdx = hoveredIdx - i;
       }
     }
     if (hoveredIdx + i < length && onlyLines.some((series) => series[hoveredIdx + i] != null)) {
       const hY = self.valToPos(getMinDeltaYValue(onlyLines, hoveredIdx + i, yCursorValue), 'y');
-      if (Math.abs(yCursor - resY) > Math.abs(yCursor - hY)) {
+      if (force || (Math.abs(yCursor - resY) > Math.abs(yCursor - hY) && Math.abs(yCursor - hY) < deltaY)) {
+        force = false;
         resY = hY;
         resIdx = hoveredIdx + i;
       }

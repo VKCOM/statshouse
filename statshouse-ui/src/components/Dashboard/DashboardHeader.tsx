@@ -64,7 +64,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
   }, [params]);
 
   return (
-    <div className="d-flex flex-row flex-wrap mb-3 container-xl">
+    <div className="d-flex flex-row flex-wrap mb-3 p-0 container-xl">
       <div className="me-4 mb-2">
         <PlotNavigate
           className="btn-group-sm"
