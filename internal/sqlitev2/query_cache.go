@@ -13,7 +13,6 @@ const evictSampleSize = 100
 const evictSize = 10
 
 type queryCache struct {
-	used         map[string]*cachedStmtInfo
 	queryCache   map[string]*cachedStmtInfo
 	cacheMaxSize int
 }

@@ -18,15 +18,15 @@ import (
 type (
 	Engine struct {
 		opt               Options
-		rw                *sqliteRWConn
+		rw                *sqliteConn
 		binlog            binlog.Binlog
-		binlogEngine      *binlogEngineReplicaImpl
+		binlogEngine      *binlogEngine
 		finishBinlogRunCh chan struct{}
 		readyCh           chan error
 		readOnly          bool
 
 		roMx    sync.Mutex
-		roFree  []*sqliteRWConn
+		roFree  []*sqliteConn
 		roCond  *sync.Cond
 		roCount int
 
@@ -34,16 +34,16 @@ type (
 	}
 
 	Options struct {
-		Path                   string
-		APPID                  int32
-		Scheme                 string
-		Replica                bool
-		ReadAndExit            bool
-		MaxROConn              int
-		CacheMaxSizePerConnect int
-		ShowLastInsertID       bool
+		Path                         string
+		APPID                        int32
+		Scheme                       string
+		Replica                      bool
+		ReadAndExit                  bool
+		MaxROConn                    int
+		CacheApproxMaxSizePerConnect int
+		ShowLastInsertID             bool
 	}
-	ApplyEventFunction func(conn Conn, cache []byte) (int, error)
+	ApplyEventFunction func(conn Conn, payload []byte) (int, error)
 )
 
 const (
@@ -64,30 +64,44 @@ func OpenRO(opt Options) (*Engine, error) {
 	return e, nil
 }
 
-func OpenEngine(opt Options, binlog binlog.Binlog) (*Engine, error) {
+/*
+engine := OpenEngine(...)
+can use engine as sqlite wrapper
+
+go engine.Run(...)
+can't use engine
+
+engine.WaitReady()
+can use engine as sqlite + binlog wrapper
+*/
+func OpenEngine(opt Options) (*Engine, error) {
 	if opt.MaxROConn <= 0 {
 		opt.MaxROConn = 128
 	}
-	rw, err := newSqliteRWWALConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheMaxSizePerConnect, initOffsetTable, snapshotMetaTable, opt.Scheme)
+	rw, err := newSqliteRWWALConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect)
 	if err != nil {
 		return nil, err
+	}
+	err = rw.applyScheme(initOffsetTable, snapshotMetaTable, opt.Scheme)
+	if err != nil {
+		err1 := rw.Close()
+		return nil, fmt.Errorf("failed to apply acheme: %w", multierr.Append(err, err1))
 	}
 	e := &Engine{
 		opt:               opt,
 		rw:                rw,
 		finishBinlogRunCh: make(chan struct{}),
 		readyCh:           make(chan error, 1),
-		binlog:            binlog,
 	}
 	e.roCond = sync.NewCond(&e.roMx)
 	return e, nil
 }
 
 /*
-binlog - будет закрыт внутри Engine при вызове Close
+binlog - will be closed during to Engine.Close
 */
-// todo вернуть бинлог в параметр
-func (e *Engine) Run(applyEventFunction ApplyEventFunction) (err error) {
+func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction) (err error) {
+	e.binlog = binlog
 	defer func() { close(e.finishBinlogRunCh) }()
 	e.rw.dbOffset, err = e.binlogLoadOrCreatePosition()
 	if err != nil {
@@ -96,7 +110,6 @@ func (e *Engine) Run(applyEventFunction ApplyEventFunction) (err error) {
 			e.readyCh <- err
 			close(e.readyCh)
 		})
-
 		return err
 	}
 	meta, err := e.binlogLoadOrCreateMeta()
@@ -110,8 +123,12 @@ func (e *Engine) Run(applyEventFunction ApplyEventFunction) (err error) {
 	}
 	e.binlogEngine = newBinlogEngine(e, applyEventFunction)
 	err = e.rw.setError(e.binlog.Run(e.rw.dbOffset, meta, e.binlogEngine))
+	e.rw.mu.Lock()
+	defer e.rw.mu.Unlock()
+	e.binlog = nil
 	if err != nil {
 		err = fmt.Errorf("failed run binlog: %w", err)
+		e.rw.connError = multierr.Append(e.rw.connError, err)
 		e.readyNotify.Do(func() {
 			e.readyCh <- err
 			close(e.readyCh)
@@ -125,9 +142,6 @@ func (e *Engine) Run(applyEventFunction ApplyEventFunction) (err error) {
 }
 
 func (e *Engine) WaitReady() error {
-	if e.binlog == nil {
-		return nil
-	}
 	return <-e.readyCh
 }
 
@@ -155,7 +169,7 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 		}
 	}
 
-	conn1, err := newSqliteROWALConn(path, 1)
+	conn1, err := newSqliteROConn(path)
 	if err != nil {
 		return "", fmt.Errorf("failed to open RO connection to rename backup: %w", err)
 	}
@@ -167,7 +181,6 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get backup path: %w", err)
 	}
-	_ = conn1.Close()
 	return expectedPath, os.Rename(path, expectedPath)
 }
 
@@ -208,12 +221,12 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 		return err
 	}
 	e.roMx.Lock()
-	var conn *sqliteRWConn
+	var conn *sqliteConn
 	for len(e.roFree) == 0 && e.roCount >= e.opt.MaxROConn {
 		e.roCond.Wait()
 	}
 	if len(e.roFree) == 0 {
-		conn, err = newSqliteROWALConn(e.opt.Path, e.opt.CacheMaxSizePerConnect)
+		conn, err = newSqliteROWALConn(e.opt.Path, e.opt.CacheApproxMaxSizePerConnect)
 		if err != nil {
 			e.roMx.Unlock()
 			return fmt.Errorf("failed to open RO connection: %w", err)
@@ -268,6 +281,9 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 	}
 	if len(bytes) == 0 {
 		return e.rw.nonBinlogCommitTxLocked(txId)
+	}
+	if e.binlog == nil {
+		return fmt.Errorf("can't write binlog event: binlog is nil")
 	}
 	offsetAfterWrite, err := e.binlog.Append(e.rw.dbOffset, bytes)
 	if err != nil {
@@ -333,7 +349,7 @@ func (e *Engine) binlogLoadOrCreatePosition() (int64, error) {
 }
 
 func (e *Engine) Close(ctx context.Context) error {
-	return e.close(ctx, e.binlog != nil)
+	return e.close(ctx, e.binlog != nil && !e.opt.ReadAndExit)
 }
 
 func (e *Engine) close(ctx context.Context, waitCommitBinlog bool) error {
@@ -367,8 +383,6 @@ func (e *Engine) close(ctx context.Context, waitCommitBinlog bool) error {
 			multierr.AppendInto(&error, fmt.Errorf("failed to close RO connection: %w", err))
 		}
 	}
-	// multierr.AppendInto(&err, e.chk.Close())
-	// multierr.AppendInto(&err, e.ro.Close()) // close RO one last to prevent checkpoint-on-close logic in other connections
 	return error
 }
 

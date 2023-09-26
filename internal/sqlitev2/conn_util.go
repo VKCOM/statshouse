@@ -3,8 +3,9 @@ package sqlitev2
 import (
 	"fmt"
 	"time"
+
+	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 )
-import "github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 
 const (
 	busyTimeout = 5 * time.Second
@@ -41,7 +42,7 @@ func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path strin
 	return conn, nil
 }
 
-func openWAL(path string, flags int) (*sqlite0.Conn, error) {
+func open(path string, flags int) (*sqlite0.Conn, error) {
 	conn, err := sqlite0.Open(path, flags)
 	if err != nil {
 		return nil, err
@@ -61,12 +62,19 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 		_ = conn.Close()
 		return nil, fmt.Errorf("failed to set DB busy timeout to %v: %w", busyTimeout, err)
 	}
+	return conn, nil
+}
+
+func openWAL(path string, flags int) (*sqlite0.Conn, error) {
+	conn, err := open(path, flags)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open sqlite conn: %w", err)
+	}
 
 	err = conn.Exec("PRAGMA journal_mode=WAL2")
 	if err != nil {
 		_ = conn.Close()
 		return nil, fmt.Errorf("failed to enable DB WAL mode: %w", err)
 	}
-
 	return conn, nil
 }

@@ -3,19 +3,20 @@ package sqlitev2
 import (
 	"context"
 	"time"
+
+	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 )
-import "github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 
 type Conn = userConn
 type internalConn = userConn
 type userConn struct {
 	ctx  context.Context
-	conn *sqliteRWConn
+	conn *sqliteConn
 }
 
 type Rows struct {
 	ctx   context.Context
-	c     *sqliteRWConn
+	c     *sqliteConn
 	s     *sqlite0.Stmt
 	err   error
 	name  string
@@ -76,16 +77,10 @@ func (r *Rows) Next() bool {
 	if err != nil {
 		r.err = err
 	}
-	//if !row {
-	//	err = r.s.Close()
-	//	if err != nil && r.err == nil {
-	//		r.err = err
-	//	}
-	//}
 	return row
 }
 
-func newUserConn(sqliteConn *sqliteRWConn, ctx context.Context) Conn {
+func newUserConn(sqliteConn *sqliteConn, ctx context.Context) Conn {
 	return Conn{
 		ctx:  ctx,
 		conn: sqliteConn,
@@ -106,4 +101,8 @@ func (c Conn) Exec(name, sql string, args ...Arg) (int64, error) {
 
 func (c Conn) ExecBytes(name string, sql []byte, args ...Arg) (int64, error) {
 	return c.conn.execLockedArgs(c.ctx, name, sql, "", args...)
+}
+
+func (c Conn) CacheSize() int {
+	return c.conn.cache.size()
 }

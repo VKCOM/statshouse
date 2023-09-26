@@ -6,8 +6,11 @@
 
 package sqlitev2
 
-import "fmt"
-import "github.com/vkcom/statshouse/internal/sqlite/sqlite0"
+import (
+	"fmt"
+
+	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
+)
 
 const (
 	argNull = iota

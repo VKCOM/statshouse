@@ -195,7 +195,7 @@ type Stmt struct {
 func (c *Conn) Prepare(sql []byte) (*Stmt, []byte, error) {
 	var cStmt *C.sqlite3_stmt
 	var cTail *C.char
-	sql = EnsureZeroTerm(sql)
+	sql = ensureZeroTerm(sql)
 	cSQL := unsafeSliceCPtr(sql)
 	rc := C._sqlite3_blocking_prepare_v3(c.conn, c.unlock, cSQL, C.int(len(sql)), 0, &cStmt, &cTail) //nolint:gocritic // nonsense
 	runtime.KeepAlive(sql)

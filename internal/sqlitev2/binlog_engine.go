@@ -8,7 +8,7 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
 
-type binlogEngineReplicaImpl struct {
+type binlogEngine struct {
 	e             *Engine
 	applyFunction ApplyEventFunction
 }
@@ -23,15 +23,14 @@ func isExpectedError(err error) bool {
 	return errors.Is(err, binlog.ErrorUnknownMagic) || isEOFErr(err)
 }
 
-func newBinlogEngine(e *Engine, applyFunction ApplyEventFunction) *binlogEngineReplicaImpl {
-	return &binlogEngineReplicaImpl{
+func newBinlogEngine(e *Engine, applyFunction ApplyEventFunction) *binlogEngine {
+	return &binlogEngine{
 		e:             e,
 		applyFunction: applyFunction,
 	}
 }
 
-func (b binlogEngineReplicaImpl) Apply(payload []byte) (newOffset int64, errToReturn error) {
-
+func (b binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error) {
 	err := b.e.internalDo("apply", func(c Conn) error {
 		readLen, err := b.applyFunction(c, payload)
 		newOffset = b.e.rw.dbOffset + int64(readLen)
@@ -51,7 +50,7 @@ func (b binlogEngineReplicaImpl) Apply(payload []byte) (newOffset int64, errToRe
 	return newOffset, errToReturn
 }
 
-func (b binlogEngineReplicaImpl) Skip(skipLen int64) (newOffset int64, err error) {
+func (b binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
 	err = b.e.internalDo("skip", func(c Conn) error {
 		newOffset = b.e.rw.dbOffset + skipLen
 		return b.e.rw.saveBinlogOffsetLocked(newOffset)
@@ -63,17 +62,17 @@ func (b binlogEngineReplicaImpl) Skip(skipLen int64) (newOffset int64, err error
 }
 
 // База может обгонять бинлог. Никак не учитываем toOffset
-func (b binlogEngineReplicaImpl) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
+func (b binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
 	return b.e.internalDo("save-meta", func(conn internalConn) error {
 		return b.e.rw.saveBinlogMetaLocked(snapshotMeta)
 	})
 }
 
-func (b binlogEngineReplicaImpl) Revert(toOffset int64) (bool, error) {
+func (b binlogEngine) Revert(toOffset int64) (bool, error) {
 	return false, nil
 }
 
-func (b binlogEngineReplicaImpl) ChangeRole(info binlog.ChangeRoleInfo) error {
+func (b binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
 	if info.IsReady {
 		b.e.readyNotify.Do(func() {
 			close(b.e.readyCh)
@@ -82,6 +81,6 @@ func (b binlogEngineReplicaImpl) ChangeRole(info binlog.ChangeRoleInfo) error {
 	return nil
 }
 
-func (b binlogEngineReplicaImpl) StartReindex() error {
+func (b binlogEngine) StartReindex() error {
 	return fmt.Errorf("implement")
 }

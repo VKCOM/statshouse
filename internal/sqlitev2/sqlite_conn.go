@@ -10,7 +10,7 @@ import (
 	"go.uber.org/multierr"
 )
 
-type sqliteRWConn struct {
+type sqliteConn struct {
 	conn             *sqlite0.Conn
 	mu               sync.Mutex
 	dbOffset         int64
@@ -20,35 +20,53 @@ type sqliteRWConn struct {
 	connError        error
 	currentTx        int64
 	showLastInsertID bool
+
+	beginStmt string
 }
 
 var (
-	beginStmt    = sqlite0.EnsureZeroTermStr("BEGIN IMMEDIATE") // make sure we don't get SQLITE_BUSY in the middle of transaction
-	commitStmt   = sqlite0.EnsureZeroTermStr("COMMIT")
-	rollbackStmt = sqlite0.EnsureZeroTermStr("ROLLBACK")
+	beginImmediateStmt = sqlite0.EnsureZeroTermStr("BEGIN IMMEDIATE") // make sure we don't get SQLITE_BUSY in the middle of transaction
+	beginDeferredStmt  = sqlite0.EnsureZeroTermStr("BEGIN")
+	commitStmt         = sqlite0.EnsureZeroTermStr("COMMIT")
+	rollbackStmt       = sqlite0.EnsureZeroTermStr("ROLLBACK")
 )
 
 var innerCtx = context.Background()
 
-func newSqliteROWALConn(path string, cacheSize int) (*sqliteRWConn, error) {
+// use only for snapshots
+func newSqliteROConn(path string) (*sqliteConn, error) {
+	conn, err := open(path, sqlite0.OpenReadonly)
+	if err != nil {
+		return nil, fmt.Errorf("failed to openRO conn: %w", err)
+	}
+	return &sqliteConn{
+		conn:      conn,
+		mu:        sync.Mutex{},
+		cache:     newQueryCache(1),
+		beginStmt: beginDeferredStmt,
+	}, nil
+}
+
+func newSqliteROWALConn(path string, cacheSize int) (*sqliteConn, error) {
 	conn, err := openROWAL(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RO connL %w", err)
 	}
-	return &sqliteRWConn{
+	return &sqliteConn{
 		conn:      conn,
 		mu:        sync.Mutex{},
 		connError: nil,
 		currentTx: 0,
 		cache:     newQueryCache(cacheSize),
+		beginStmt: beginDeferredStmt,
 	}, nil
 }
-func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSize int) (*sqliteRWConn, error) {
+func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSize int) (*sqliteConn, error) {
 	conn, err := openRW(openWAL, path, appid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW conn: %w", err)
 	}
-	return &sqliteRWConn{
+	return &sqliteConn{
 		conn:             conn,
 		mu:               sync.Mutex{},
 		dbOffset:         0,
@@ -57,20 +75,21 @@ func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSi
 		currentTx:        0,
 		showLastInsertID: showLastInsertID,
 		cache:            newQueryCache(cacheSize),
+		beginStmt:        beginImmediateStmt,
 	}, nil
 }
 
-func (c *sqliteRWConn) applyScheme(schemas ...string) error {
+func (c *sqliteConn) applyScheme(schemas ...string) error {
 	for _, schema := range schemas {
 		err := c.execLocked(schema)
 		if err != nil {
-			_ = c.Close()
 			return fmt.Errorf("failed to setup DB schema: %w", err)
 		}
 	}
+	return nil
 }
 
-func (c *sqliteRWConn) setError(err error) error {
+func (c *sqliteConn) setError(err error) error {
 	if err == nil {
 		return err
 	}
@@ -79,7 +98,7 @@ func (c *sqliteRWConn) setError(err error) error {
 	return c.setErrorLocked(err)
 }
 
-func (c *sqliteRWConn) setErrorLocked(err error) error {
+func (c *sqliteConn) setErrorLocked(err error) error {
 	if c.connError != nil {
 		return err
 	}
@@ -87,13 +106,12 @@ func (c *sqliteRWConn) setErrorLocked(err error) error {
 	return err
 }
 
-func (c *sqliteRWConn) execLocked(sql string) error {
-	//fmt.Println(sql)
+func (c *sqliteConn) execLocked(sql string) error {
 	err := c.conn.Exec(sql)
 	return err
 }
 
-func (c *sqliteRWConn) nonBinlogCommitTxLocked(txID int64) error {
+func (c *sqliteConn) nonBinlogCommitTxLocked(txID int64) error {
 	if c.currentTx != txID {
 		return nil
 	}
@@ -106,15 +124,15 @@ func (c *sqliteRWConn) nonBinlogCommitTxLocked(txID int64) error {
 	return err
 }
 
-func (c *sqliteRWConn) beginTxLocked() (txID int64, _ error) {
+func (c *sqliteConn) beginTxLocked() (txID int64, _ error) {
 	if c.connError != nil {
 		return 0, c.connError
 	}
-	return c.currentTx, c.execLocked(beginStmt)
+	return c.currentTx, c.execLocked(c.beginStmt)
 }
 
 // если не смогли закомитить, движок находится в неконсистентном состоянии. Запрещаем запись
-func (c *sqliteRWConn) binlogCommitTxLocked(txID, newOffset int64) error {
+func (c *sqliteConn) binlogCommitTxLocked(txID, newOffset int64) error {
 	if c.currentTx != txID {
 		return nil
 	}
@@ -136,7 +154,7 @@ func (c *sqliteRWConn) binlogCommitTxLocked(txID, newOffset int64) error {
 }
 
 // если не смогли откатиться, движок находится в неконсистентном состоянии. Запрещаем запись
-func (c *sqliteRWConn) rollbackLocked(txID int64) error {
+func (c *sqliteConn) rollbackLocked(txID int64) error {
 	if c.currentTx != txID {
 		return nil
 	}
@@ -150,7 +168,7 @@ func (c *sqliteRWConn) rollbackLocked(txID int64) error {
 }
 
 // if sqlString == "", sqlBytes could be copied to store as map key
-func (c *sqliteRWConn) initStmt(sqlBytes []byte, sqlString string, args ...Arg) (*sqlite0.Stmt, error) {
+func (c *sqliteConn) initStmt(sqlBytes []byte, sqlString string, args ...Arg) (*sqlite0.Stmt, error) {
 	sqlIsRawBytes := len(sqlBytes) > 0
 	if sqlIsRawBytes {
 		c.queryBuffer = append(c.queryBuffer[:0], sqlBytes...)
@@ -182,7 +200,7 @@ func (c *sqliteRWConn) initStmt(sqlBytes []byte, sqlString string, args ...Arg) 
 	return stmt, err
 }
 
-func (c *sqliteRWConn) execLockedArgs(ctx context.Context, name string, sql []byte, sqlStr string, args ...Arg) (int64, error) {
+func (c *sqliteConn) execLockedArgs(ctx context.Context, name string, sql []byte, sqlStr string, args ...Arg) (int64, error) {
 	rows := c.queryLocked(ctx, name, sql, sqlStr, args...)
 	for rows.Next() {
 	}
@@ -191,10 +209,9 @@ func (c *sqliteRWConn) execLockedArgs(ctx context.Context, name string, sql []by
 		id = c.LastInsertRowID()
 	}
 	return id, rows.Error()
-
 }
 
-func (c *sqliteRWConn) queryLocked(ctx context.Context, name string, sql []byte, sqlStr string, args ...Arg) Rows {
+func (c *sqliteConn) queryLocked(ctx context.Context, name string, sql []byte, sqlStr string, args ...Arg) Rows {
 	start := time.Now()
 	s, err := c.initStmt(sql, sqlStr, args...)
 	return Rows{ctx, c, s, err, name, start}
@@ -208,21 +225,21 @@ func prepare(c *sqlite0.Conn, sql []byte) (*sqlite0.Stmt, error) {
 	return s, nil
 }
 
-func (c *sqliteRWConn) saveBinlogOffsetLocked(newOffset int64) error {
+func (c *sqliteConn) saveBinlogOffsetLocked(newOffset int64) error {
 	_, err := c.execLockedArgs(innerCtx, "__update_binlog_pos", nil, "UPDATE __binlog_offset set offset = $offset;", Int64("$offset", newOffset))
 	return err
 }
 
-func (c *sqliteRWConn) saveBinlogMetaLocked(meta []byte) error {
+func (c *sqliteConn) saveBinlogMetaLocked(meta []byte) error {
 	_, err := c.execLockedArgs(innerCtx, "__update_meta", nil, "UPDATE __snapshot_meta SET meta = $meta;", Blob("$meta", meta))
 	return err
 }
 
-func (c *sqliteRWConn) LastInsertRowID() int64 {
+func (c *sqliteConn) LastInsertRowID() int64 {
 	return c.conn.LastInsertRowID()
 }
 
-func (c *sqliteRWConn) Close() error {
+func (c *sqliteConn) Close() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	err := c.connError
