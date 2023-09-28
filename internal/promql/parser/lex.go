@@ -129,6 +129,10 @@ var key = map[string]ItemType{
 	"group_left":  GROUP_LEFT,
 	"group_right": GROUP_RIGHT,
 	"bool":        BOOL,
+
+	// Preprocessors.
+	"start": START,
+	"end":   END,
 }
 
 // ItemTypeStr is the default string representations for common Items. It does not
@@ -162,6 +166,7 @@ var ItemTypeStr = map[ItemType]string{
 	EQL_REGEX: "=~",
 	NEQ_REGEX: "!~",
 	POW:       "^",
+	BIND:      "<-",
 }
 
 func init() {
@@ -505,6 +510,15 @@ func lexInsideBraces(l *Lexer) stateFn {
 			return lexValueSequence
 		}
 		return lexStatements
+	case r == '<':
+		if t := l.peek(); t == '-' {
+			l.next()
+			l.emit(BIND)
+		}
+	case r == '$':
+		l.emit(DOLLAR)
+	case r == '@':
+		l.emit(AT)
 	default:
 		return l.errorf("unexpected character inside braces: %q", r)
 	}

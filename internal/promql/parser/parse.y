@@ -38,6 +38,7 @@ BLANK
 COLON
 COMMA
 COMMENT
+DOLLAR
 DURATION
 EOF
 ERROR
@@ -59,6 +60,7 @@ TIMES
 %token	operatorsStart
 %token <item>
 ADD
+BIND
 DIV
 EQLC
 EQL_REGEX
@@ -141,7 +143,7 @@ END
 %right POW
 
 // Offset modifiers do not have associativity.
-%nonassoc OFFSET
+%nonassoc OFFSET BIND
 
 // This ensures that it is always attempted to parse range or subquery selectors when a left
 // bracket is encountered.
@@ -149,10 +151,12 @@ END
 
 %%
 
-start           : expr
-                        { yylex.(*parser).generatedParserResult = $1 }
+start           :
                 | /* empty */ EOF
                         { yylex.(*parser).addParseErrf(PositionRange{}, "no expression found in input")}
+                | expr
+                        { yylex.(*parser).generatedParserResult = $1 }
+                | start EOF
                 | error /* If none of the more detailed error messages are triggered, we fall back to this. */
                         { yylex.(*parser).unexpected("","") }
                 ;
@@ -526,7 +530,11 @@ label_match_list: label_match_list COMMA label_matcher
                         { yylex.(*parser).unexpected("label matching", "\",\" or \"}\""); $$ = $1 }
                 ;
 
-label_matcher   : IDENTIFIER match_op STRING
+label_matcher   : AT IDENTIFIER EQL STRING
+                        { $$ = yylex.(*parser).newLabelMatcherInternal($2, $4);  }
+                | IDENTIFIER BIND DOLLAR IDENTIFIER
+                        { $$ = yylex.(*parser).newVariableBinding($1, $4);  }
+                | IDENTIFIER match_op STRING
                         { $$ = yylex.(*parser).newLabelMatcher($1, $2, $3);  }
                 | IDENTIFIER match_op error
                         { yylex.(*parser).unexpected("label matching", "string"); $$ = nil}
@@ -540,7 +548,7 @@ label_matcher   : IDENTIFIER match_op STRING
  * Metric descriptions.
  */
 
-metric_identifier: AVG | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | IDENTIFIER |  LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | QUANTILE | STDDEV | STDVAR | SUM | TOPK | WITHOUT;
+metric_identifier: AVG | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | IDENTIFIER |  LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | QUANTILE | STDDEV | STDVAR | SUM | TOPK | WITHOUT | START | END;
 
 /*
  * Keyword lists.
@@ -549,7 +557,7 @@ metric_identifier: AVG | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | IDENTIFIE
 aggregate_op    : AVG | BOTTOMK | COUNT | COUNT_VALUES | GROUP | MAX | MIN | QUANTILE | STDDEV | STDVAR | SUM | TOPK ;
 
 // inside of grouping options label names can be recognized as keywords by the lexer. This is a list of keywords that could also be a label name.
-maybe_label     : AVG | BOOL | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | GROUP_LEFT | GROUP_RIGHT | IDENTIFIER | IGNORING | LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | ON | QUANTILE | STDDEV | STDVAR | SUM | TOPK | ATAN2 | NUMBER;
+maybe_label     : AVG | BOOL | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | GROUP_LEFT | GROUP_RIGHT | IDENTIFIER | IGNORING | LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | ON | QUANTILE | STDDEV | STDVAR | SUM | TOPK | START | END | ATAN2 | NUMBER;
 
 unary_op        : ADD | SUB;
 
