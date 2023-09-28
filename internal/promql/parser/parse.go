@@ -43,6 +43,9 @@ var parserPool = sync.Pool{
 type parser struct {
 	lex Lexer
 
+	inject    ItemType
+	injecting bool
+
 	// Everytime an Item is lexed that could be the end
 	// of certain expressions its end position is stored here.
 	lastClosing Pos
@@ -125,6 +128,7 @@ func ParseExpr(input string) (expr Expr, err error) {
 func newParser(input string) *parser {
 	p := parserPool.Get().(*parser)
 
+	p.injecting = false
 	p.parseErrors = nil
 	p.generatedParserResult = nil
 
@@ -208,6 +212,10 @@ func (p *parser) recover(errp *error) {
 func (p *parser) Lex(lval *yySymType) int {
 	var typ ItemType
 
+	if p.injecting {
+		p.injecting = false
+		return int(p.inject)
+	}
 	// Skip comments.
 	for {
 		p.lex.NextItem(&lval.item)
@@ -227,6 +235,9 @@ func (p *parser) Lex(lval *yySymType) int {
 
 		// Tells yacc that this is the end of input.
 		return 0
+	case EOF:
+		lval.item.Typ = EOF
+		p.InjectItem(0)
 	case RIGHT_BRACE, RIGHT_PAREN, RIGHT_BRACKET, DURATION, NUMBER:
 		p.lastClosing = lval.item.Pos + Pos(len(lval.item.Val))
 	}
@@ -240,6 +251,26 @@ func (p *parser) Lex(lval *yySymType) int {
 // by mechanisms that allow more fine-grained control
 // For more information, see https://pkg.go.dev/golang.org/x/tools/cmd/goyacc.
 func (p *parser) Error(e string) {
+}
+
+// InjectItem allows injecting a single Item at the beginning of the token stream
+// consumed by the generated parser.
+// This allows having multiple start symbols as described in
+// https://www.gnu.org/software/bison/manual/html_node/Multiple-start_002dsymbols.html .
+// Only the Lex function used by the generated parser is affected by this injected Item.
+// Trying to inject when a previously injected Item has not yet been consumed will panic.
+// Only Item types that are supposed to be used as start symbols are allowed as an argument.
+func (p *parser) InjectItem(typ ItemType) {
+	if p.injecting {
+		panic("cannot inject multiple Items into the token stream")
+	}
+
+	if typ != 0 {
+		panic("cannot inject symbol that isn't start symbol")
+	}
+
+	p.inject = typ
+	p.injecting = true
 }
 
 func (p *parser) newBinaryExpression(lhs Node, op Item, modifiers, rhs Node) *BinaryExpr {
@@ -355,6 +386,24 @@ func (p *parser) newLabelMatcher(label, operator, value Item) *labels.Matcher {
 		p.addParseErr(mergeRanges(&label, &value), err)
 	}
 
+	return m
+}
+
+func (p *parser) newLabelMatcherInternal(label, value Item) *labels.Matcher {
+	val := p.unquoteString(value.Val)
+	m, err := labels.NewMatcher(labels.MatchEqual, "__"+label.Val+"__", val)
+	if err != nil {
+		p.addParseErr(mergeRanges(&label, &value), err)
+	}
+	return m
+}
+
+func (p *parser) newVariableBinding(label, value Item) *labels.Matcher {
+	val := value.Val
+	m, err := labels.NewMatcher(labels.MatchEqual, "__bind__", label.Val+":"+val)
+	if err != nil {
+		p.addParseErr(mergeRanges(&label, &value), err)
+	}
 	return m
 }
 
