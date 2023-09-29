@@ -27,6 +27,7 @@ const selector = ({ params: { variables, plots }, plotsData, metricsMeta }: Stor
   plotsData,
   metricsMeta,
 });
+const { loadMetricsMeta } = useStore.getState();
 
 export type DashboardVariableProps = {};
 export function DashboardVariable() {
@@ -81,6 +82,12 @@ export function DashboardVariable() {
     });
     setAutoLoader(false);
   }, [localVariable]);
+
+  useEffect(() => {
+    plots.forEach(({ metricName }) => {
+      loadMetricsMeta(metricName);
+    });
+  }, [metricsMeta, plots]);
 
   return (
     <div className="card border-0">

@@ -1,7 +1,6 @@
 import { formatFixed } from './formatFixed';
 import { METRIC_TYPE, MetricType, QUERY_WHAT, QueryWhat, toMetricType } from '../api/enum';
 import { round } from './helpers';
-import { PlotParams } from '../url/queryParams';
 import { MetricMetaValue } from '../api/metric';
 
 const siPrefixes = ['y', 'z', 'a', 'f', 'p', 'n', 'μ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
@@ -253,8 +252,8 @@ const excludeWhat: QueryWhat[] = [
   QUERY_WHAT.dvUnique,
   QUERY_WHAT.dvUniqueNorm,
 ];
-export function getMetricType(plot: PlotParams, meta?: MetricMetaValue) {
-  if (plot.what.some((w) => excludeWhat.indexOf(w) > -1)) {
+export function getMetricType(whats: QueryWhat[], meta?: MetricMetaValue) {
+  if (whats.some((w) => excludeWhat.indexOf(w) > -1)) {
     return METRIC_TYPE.none;
   }
   return toMetricType(meta?.metric_type, METRIC_TYPE.none);

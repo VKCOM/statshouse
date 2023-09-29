@@ -655,6 +655,7 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       // @ts-ignore
       delete p.timeShifts;
       p.customName ??= '';
+      p.customDescription ??= '';
       p.promQL ??= '';
       p.events ??= [];
       p.eventsBy ??= [];

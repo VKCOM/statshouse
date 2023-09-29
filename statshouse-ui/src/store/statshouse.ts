@@ -69,7 +69,7 @@ import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
-import { GET_PARAMS, QueryWhat, TagKey } from '../api/enum';
+import { GET_PARAMS, isQueryWhat, QueryWhat, TagKey } from '../api/enum';
 import { deepClone, mergeLeft, sortEntity, toNumber } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { appHistory } from '../common/appHistory';
@@ -400,6 +400,7 @@ export const useStore = createWithEqualityFn<Store>()(
         if (params.plots.length === 0) {
           const np: PlotParams = {
             metricName: globalSettings.default_metric,
+            customDescription: '',
             promQL: '',
             customName: '',
             groupBy: [...globalSettings.default_metric_group_by],
@@ -886,10 +887,12 @@ export const useStore = createWithEqualityFn<Store>()(
           )
             .then((resp) => {
               const promqltestfailed = !!resp?.promqltestfailed;
-              const uniqueWhat = new Set();
+              const uniqueWhat: Set<QueryWhat> = new Set();
               const uniqueName = new Set();
               for (const meta of resp?.series.series_meta ?? []) {
-                uniqueWhat.add(meta.what);
+                if (isQueryWhat(meta.what)) {
+                  uniqueWhat.add(meta.what);
+                }
                 meta.name && uniqueName.add(meta.name);
               }
               const currentPrevState = getState();
@@ -1127,7 +1130,7 @@ export const useStore = createWithEqualityFn<Store>()(
                 }
                 state.plotsData[index] = {
                   nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
-                  whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as QueryWhat[]) : [],
+                  whats: uniqueName.size === 1 ? [...uniqueWhat.keys()] : [],
                   error: '',
                   errorSkipCount: 0,
                   data: noUpdateData ? state.plotsData[index]?.data : stacked || data,
@@ -1658,6 +1661,9 @@ export const useStore = createWithEqualityFn<Store>()(
         setState((state) => {
           state.dashboardLayoutEdit = nextStatus;
         });
+        if (nextStatus) {
+          getState().setLiveMode(false);
+        }
         if (!nextStatus && getState().params.tabNum < -1) {
           getState().setTabNum(-1);
         }

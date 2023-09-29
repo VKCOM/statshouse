@@ -287,11 +287,11 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                       onChange={onEditGroupSize}
                     >
                       <option value="2">L, 2 per row</option>
-                      <option value="l">L, full width</option>
+                      <option value="l">L, auto width</option>
                       <option value="3">M, 3 per row</option>
-                      <option value="m">M, full width</option>
+                      <option value="m">M, auto width</option>
                       <option value="4">S, 4 per row</option>
-                      <option value="s">S, full width</option>
+                      <option value="s">S, auto width</option>
                     </select>
                   </div>
                 </div>

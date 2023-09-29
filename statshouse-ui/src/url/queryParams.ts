@@ -106,6 +106,7 @@ export function toPlotKey(s: unknown, defaultPlotKey?: PlotKey): PlotKey | null 
 export type PlotParams = {
   metricName: string;
   customName: string;
+  customDescription: string;
   what: QueryWhat[];
   customAgg: number;
   groupBy: TagKey[];
@@ -220,6 +221,7 @@ export function getNewPlot(): PlotParams {
   return {
     metricName: globalSettings.default_metric,
     customName: '',
+    customDescription: '',
     promQL: '',
     what: globalSettings.default_metric_what.slice(),
     customAgg: 0,
@@ -416,6 +418,10 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         search.push([prefix + GET_PARAMS.metricCustomName, plot.customName]);
       }
 
+      if (plot.customDescription) {
+        search.push([prefix + GET_PARAMS.metricCustomDescription, plot.customDescription]);
+      }
+
       if (!(plot.what.length === 1 && plot.what[0] === 'count_norm') && plot.what.length) {
         plot.what.forEach((w) => {
           search.push([prefix + GET_PARAMS.metricWhat, w]);
@@ -604,6 +610,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       break;
     }
     const customName = urlParams[prefix + GET_PARAMS.metricCustomName]?.[0] ?? '';
+    const customDescription = urlParams[prefix + GET_PARAMS.metricCustomDescription]?.[0] ?? '';
     const what: QueryWhat[] = urlParams[prefix + GET_PARAMS.metricWhat]?.filter(isQueryWhat) ?? ['count_norm'];
     const customAgg = toNumber(urlParams[prefix + GET_PARAMS.metricAgg]?.[0]) ?? 0;
     const groupBy: TagKey[] =
@@ -653,6 +660,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     plots.push({
       metricName,
       customName,
+      customDescription,
       what,
       customAgg,
       groupBy,
