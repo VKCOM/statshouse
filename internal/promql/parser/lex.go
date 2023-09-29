@@ -510,11 +510,8 @@ func lexInsideBraces(l *Lexer) stateFn {
 			return lexValueSequence
 		}
 		return lexStatements
-	case r == '<':
-		if t := l.peek(); t == '-' {
-			l.next()
-			l.emit(BIND)
-		}
+	case r == ':':
+		l.emit(BIND)
 	case r == '$':
 		l.emit(DOLLAR)
 	case r == '@':
