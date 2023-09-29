@@ -40,7 +40,8 @@ const (
 
 const (
 	// consecutive integer values for fast selectTSValue
-	queryFnCount = queryFn(iota)
+	queryFnUnspecified = queryFn(iota)
+	queryFnCount
 	queryFnCountNorm
 	queryFnCumulCount
 	queryFnCardinality
@@ -199,7 +200,7 @@ func validQueryFn(fn string) (queryFn, bool) {
 	case ParamQueryFnDerivativeUniqueNorm:
 		return queryFnDerivativeUniqueNorm, true
 	default:
-		return 0, false
+		return queryFnUnspecified, false
 	}
 }
 
@@ -420,6 +421,8 @@ func parseQueryFilter(filter []string) (map[string][]string, map[string][]string
 
 func (fn queryFn) String() string {
 	switch fn {
+	case queryFnUnspecified:
+		return ""
 	case queryFnCount:
 		return ParamQueryFnCount
 	case queryFnCountNorm:

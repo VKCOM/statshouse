@@ -62,9 +62,9 @@ func evalAndGroup(fn seriesGroupFunc) aggregateFunc {
 			if err != nil {
 				return nil, err
 			}
-			res := ev.newSeriesBag(len(groups))
+			res := ev.newSeriesBag(bag[x].Query, len(groups))
 			for _, g := range groups {
-				res.append(fn(ev, g, expr.Param))
+				res = ev.append(res, fn(ev, g, expr.Param))
 			}
 			bag[x] = res
 		}
@@ -75,7 +75,7 @@ func evalAndGroup(fn seriesGroupFunc) aggregateFunc {
 func simpleAggregate(fn func([]*[]float64, int)) seriesGroupFunc {
 	return func(ev *evaluator, g seriesGroup, _ parser.Expr) SeriesBag {
 		if len(g.bag.Data) == 0 {
-			return SeriesBag{}
+			return ev.newSeriesBag(g.bag.Query, 0)
 		}
 		fn(g.bag.Data, len(ev.time()))
 		ev.freeSeriesBagData(g.bag.Data, 1)
@@ -313,7 +313,7 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]SeriesBag, error) {
 		desc    bool
 		sort    = func(bag SeriesBag) sortedSeriesBag {
 			var (
-				w = ev.weightData(bag.Data)
+				w = ev.weight(bag)
 				x = make([]int, len(bag.Data))
 				n = k
 			)
@@ -408,11 +408,11 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]SeriesBag, error) {
 		}
 	}
 	for x := range bags {
-		bags[x] = SeriesBag{}
+		bags[x] = ev.newSeriesBag(bags[x].Query, 0)
 	}
 	for i := range buckets {
 		for x, bag := range buckets[i].bags {
-			bags[x].appendX(bag.SeriesBag, bag.x[:bag.k]...)
+			bags[x] = ev.appendX(bags[x], bag.SeriesBag, bag.x[:bag.k]...)
 			ev.freeSeriesBagDataX(bag.Data, bag.x[bag.k:]...)
 		}
 	}
@@ -1032,7 +1032,7 @@ func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]SeriesBag,
 		if err != nil {
 			return nil, err
 		}
-		res := ev.newSeriesBag(len(hs))
+		res := ev.newSeriesBag(bag[x].Query, len(hs))
 		for _, h := range hs {
 			d := h.group.bag.Data
 			s := *d[0]
@@ -1075,7 +1075,7 @@ func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]SeriesBag,
 				}
 			}
 			ev.freeSeriesBagData(d, 1)
-			res.append(h.group.at(0))
+			res = ev.append(res, h.group.at(0))
 		}
 		bag[x] = res
 	}
@@ -1103,7 +1103,7 @@ func funcLabelJoin(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) 
 			var s []string
 			for k := range src {
 				if t, ok := m.getTag(k); ok {
-					t.stringify(ev, m.Metric)
+					t.stringify(ev, bag[x].Query.Metric)
 					if t.SValueSet {
 						s = append(s, t.SValue)
 					}
@@ -1142,7 +1142,7 @@ func funcLabelReplace(ev *evaluator, args parser.Expressions) ([]SeriesBag, erro
 		for i := range bag[x].Data {
 			var v string
 			if t, ok := bag[x].getTagAt(i, src); ok {
-				t.stringify(ev, bag[x].Meta[i].Metric)
+				t.stringify(ev, bag[x].Query.Metric)
 				if t.SValueSet {
 					v = t.SValue
 				}
