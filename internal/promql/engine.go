@@ -26,13 +26,10 @@ import (
 )
 
 const (
-	labelWhat   = "__what__"
-	labelBy     = "__by__"
-	labelBind   = "__bind__"
-	labelOffset = "__offset__"
-	labelTotal  = "__total__"
-	LabelShard  = "__shard__"
-	LabelFn     = "__fn__"
+	labelWhat  = "__what__"
+	labelBy    = "__by__"
+	labelBind  = "__bind__"
+	LabelShard = "__shard__"
 )
 
 type Query struct {
@@ -400,12 +397,9 @@ func (ev *evaluator) exec() (SeriesBag, error) {
 	if err != nil {
 		return SeriesBag{}, err
 	}
-	bag[0].Time = ev.time()
-	bag[0].trim(ev.t.Start, ev.t.End)
-	for x := 1; x < len(bag); x++ {
-		bag[x].Time = ev.time()
-		bag[x].trim(ev.t.Start, ev.t.End)
-		bag[0].append(bag[x])
+	bag[0] = ev.trim(bag[0])
+	for i := 1; i < len(bag); i++ {
+		bag[0] = ev.append(bag[0], ev.trim(bag[i]))
 	}
 	return bag[0], nil
 }
@@ -550,7 +544,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]SeriesBag, error) {
 				for i := range l.Data {
 					fn(*l.Data[i], *l.Data[i], *r.Data[0])
 				}
-				res[x] = l
+				res[x] = ev.mergeQueryMeta(l, r.Query)
 				ev.free(r.Data[0])
 			} else if l.scalar() {
 				op := expr.Op
@@ -583,7 +577,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]SeriesBag, error) {
 						fn(*r.Data[i], *l.Data[0], *r.Data[i])
 					}
 				}
-				res[x] = r
+				res[x] = ev.mergeQueryMeta(r, l.Query)
 				ev.free(l.Data[0])
 			} else {
 				var mappingL map[uint64]int
@@ -596,11 +590,11 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]SeriesBag, error) {
 				if err != nil {
 					return nil, err
 				}
-				res[x] = ev.newSeriesBag(len(mappingL))
+				res[x] = ev.newSeriesBag(mergeQueryMeta(l.Query, r.Query), len(mappingL))
 				for h, xl := range mappingL {
 					if xr, ok := mappingR[h]; ok {
 						fn(*l.Data[xl], *l.Data[xl], *r.Data[xr])
-						res[x].appendX(l, xl)
+						res[x] = ev.appendX(res[x], l, xl)
 					} else {
 						ev.free(l.Data[xl])
 					}
@@ -623,7 +617,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]SeriesBag, error) {
 			if err != nil {
 				return nil, err
 			}
-			res[x] = ev.newSeriesBag(len(groups))
+			res[x] = ev.newSeriesBag(mergeQueryMeta(bags[0][x].Query, bags[1][x].Query), len(groups))
 			for _, many := range groups {
 				if oneX, ok := oneM[many.hash]; ok {
 					for manyX, manyRow := range many.bag.Data {
@@ -633,7 +627,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]SeriesBag, error) {
 								many.bag.setTagAt(manyX, t)
 							}
 						}
-						res[x].appendX(many.bag, manyX)
+						res[x] = ev.appendX(res[x], many.bag, manyX)
 					}
 				}
 			}
@@ -651,7 +645,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]SeriesBag, error) {
 			if err != nil {
 				return nil, err
 			}
-			res[x] = ev.newSeriesBag(len(groups))
+			res[x] = ev.newSeriesBag(mergeQueryMeta(bags[0][x].Query, bags[1][x].Query), len(groups))
 			for _, many := range groups {
 				if oneX, ok := oneM[many.hash]; ok {
 					for manyX, manyRow := range many.bag.Data {
@@ -661,7 +655,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]SeriesBag, error) {
 								many.bag.setTagAt(manyX, t)
 							}
 						}
-						res[x].appendX(many.bag, manyX)
+						res[x] = ev.appendX(res[x], many.bag, manyX)
 					}
 				}
 			}
@@ -682,31 +676,31 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]SeriesBag, error) {
 			}
 			switch expr.Op {
 			case parser.LAND:
-				res[x] = ev.newSeriesBag(len(mappingL))
+				res[x] = ev.newSeriesBag(mergeQueryMeta(l.Query, r.Query), len(mappingL))
 				for h, xl := range mappingL {
 					if _, ok := mappingR[h]; ok {
-						res[x].appendX(l, xl)
+						res[x] = ev.appendX(res[x], l, xl)
 					}
 				}
 			case parser.LDEFAULT:
-				res[x] = l
+				res[x] = ev.mergeQueryMeta(l, r.Query)
 				for h, xl := range mappingL {
 					if xr, ok := mappingR[h]; ok {
 						sliceDefault(*res[x].Data[xl], *l.Data[xl], *r.Data[xr])
 					}
 				}
 			case parser.LOR:
-				res[x] = l
+				res[x] = ev.mergeQueryMeta(l, r.Query)
 				for h, xr := range mappingR {
 					if _, ok := mappingL[h]; !ok {
-						res[x].appendX(r, xr)
+						res[x] = ev.appendX(res[x], r, xr)
 					}
 				}
 			case parser.LUNLESS:
-				res[x] = ev.newSeriesBag(len(mappingL))
+				res[x] = ev.newSeriesBag(l.Query, len(mappingL))
 				for h, xl := range mappingL {
 					if _, ok := mappingR[h]; !ok {
-						res[x].appendX(l, xl)
+						res[x] = ev.appendX(res[x], l, xl)
 					}
 				}
 			default:
@@ -742,33 +736,27 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]SeriesBag, error
 			if !sel.OmitNameTag {
 				bag.setSTag(labels.MetricName, sel.MatchingNames[i])
 			}
-			if ev.opt.TagOffset && offset != 0 {
-				bag.setTag(labelOffset, int32(offset))
+			for i := range bag.Meta {
+				bag.Meta[i].Offset = offset
+				bag.Meta[i].Total = len(bag.Data)
 			}
 			if qry.histogram.restore {
-				bag, err = ev.restoreHistogram(&bag, &qry)
+				bag, err = ev.restoreHistogram(bag, qry)
 				if err != nil {
 					return nil, err
 				}
 			}
-			for _, v := range sel.LabelMatchers {
-				if v.Name == LabelFn {
-					bag.setSTag(LabelFn, v.Value)
-					break
-				}
+			if x == 0 {
+				res[0] = bag
+			} else {
+				res[x] = ev.append(res[x], bag)
 			}
-			res[x].append(bag)
-		}
-	}
-	if ev.opt.TagTotal {
-		for x := range res {
-			res[x].setTag(labelTotal, int32(len(res[x].Data)))
 		}
 	}
 	return res, nil
 }
 
-func (ev *evaluator) restoreHistogram(bag *SeriesBag, qry *seriesQueryX) (SeriesBag, error) {
+func (ev *evaluator) restoreHistogram(bag SeriesBag, qry seriesQueryX) (SeriesBag, error) {
 	s, err := bag.histograms(ev)
 	if err != nil {
 		return SeriesBag{}, err
@@ -781,13 +769,13 @@ func (ev *evaluator) restoreHistogram(bag *SeriesBag, qry *seriesQueryX) (Series
 		}
 	}
 	if !qry.histogram.filter {
-		return *bag, nil
+		return bag, nil
 	}
-	res := ev.newSeriesBag(len(bag.Meta))
+	res := ev.newSeriesBag(bag.Query, len(bag.Meta))
 	for _, h := range s {
 		for _, b := range h.buckets {
 			if qry.histogram.le == b.le == qry.histogram.compare {
-				res.append(h.group.bag.at(b.x))
+				res = ev.append(res, h.group.bag.at(b.x))
 				break
 			}
 		}
@@ -1075,22 +1063,23 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		nil
 }
 
-func (ev *evaluator) newSeriesBag(capacity int) SeriesBag {
+func (ev *evaluator) newSeriesBag(meta SeriesQueryMeta, capacity int) SeriesBag {
 	if capacity == 0 {
-		return SeriesBag{}
+		return SeriesBag{Query: meta}
 	}
 	return SeriesBag{
-		Data: make([]*[]float64, 0, capacity),
-		Meta: make([]SeriesMeta, 0, capacity),
+		Data:  make([]*[]float64, 0, capacity),
+		Meta:  make([]SeriesMeta, 0, capacity),
+		Query: meta,
 	}
 }
 
-func (ev *evaluator) weightData(data []*[]float64) []float64 {
+func (ev *evaluator) weight(b SeriesBag) []float64 {
 	var (
-		w      = make([]float64, len(data))
+		w      = make([]float64, len(b.Data))
 		nodecN int // number of non-decreasing series
 	)
-	for i, data := range data {
+	for i, data := range b.Data {
 		var (
 			j     int
 			acc   float64
@@ -1124,7 +1113,7 @@ func (ev *evaluator) weightData(data []*[]float64) []float64 {
 	}
 	if nodecN == len(w) {
 		// all series are non-decreasing, weight is a last value
-		for i, data := range data {
+		for i, data := range b.Data {
 			last := -math.MaxFloat64
 			for i := len(*data); i != 0; i-- {
 				v := (*data)[i-1]
@@ -1137,6 +1126,102 @@ func (ev *evaluator) weightData(data []*[]float64) []float64 {
 		}
 	}
 	return w
+}
+
+func (ev *evaluator) append(a SeriesBag, b SeriesBag) SeriesBag {
+	if a.Query.Metric != b.Query.Metric && b.Query.Metric != nil {
+		b.stringify(ev)
+	}
+	a.Meta = appendAt(len(a.Data), a.Meta, b.Meta...)
+	a.MaxHost = appendAt(len(a.Data), a.MaxHost, b.MaxHost...)
+	a.Data = append(a.Data, b.Data...)
+	return a
+}
+
+func (ev *evaluator) appendX(a SeriesBag, b SeriesBag, x ...int) SeriesBag {
+	if a.Query.Metric != b.Query.Metric && b.Query.Metric != nil {
+		for _, i := range x {
+			b.stringifyAt(i, ev)
+		}
+	}
+	for _, i := range x {
+		if i < len(b.Meta) {
+			a.Meta = appendAt(len(a.Data), a.Meta, b.Meta[i])
+		}
+		if i < len(b.MaxHost) {
+			a.MaxHost = appendAt(len(a.Data), a.MaxHost, b.MaxHost[i])
+		}
+		a.Data = append(a.Data, b.Data[i])
+	}
+	return a
+}
+
+func (ev *evaluator) mergeQueryMeta(b SeriesBag, q SeriesQueryMeta) SeriesBag {
+	res := mergeQueryMeta(b.Query, q)
+	if b.Query.Metric != nil && res.Metric == nil {
+		b.stringify(ev)
+	}
+	b.Query = res
+	return b
+}
+
+func (ev *evaluator) trim(b SeriesBag) SeriesBag {
+	var (
+		start = ev.t.Start
+		end   = ev.t.End
+		t     = ev.time()
+		lo    int
+		hi    = len(t)
+	)
+	for lo < len(t) && t[lo] < start {
+		lo++
+	}
+	for lo < hi-1 && end <= t[hi-1] {
+		hi--
+	}
+	// remove series with no data within [start, end), update total
+	var total int
+	if len(b.Meta) != 0 {
+		total = b.Meta[0].Total
+	} else {
+		total = len(b.Data)
+	}
+	res := ev.newSeriesBag(b.Query, len(b.Data))
+	for i := range b.Data {
+		var keep bool
+		for j := lo; j < hi; j++ {
+			if !math.IsNaN((*b.Data[i])[j]) {
+				keep = true
+				break
+			}
+		}
+		if keep {
+			res = ev.appendX(res, b, i)
+		} else {
+			total--
+		}
+	}
+	// update total
+	for i := range res.Meta {
+		res.Meta[i].Total = total
+	}
+	// trim time outside [start, end)
+	if lo != 0 || hi != len(t) {
+		res.Time = t[lo:hi]
+		for i := range res.Data {
+			s := (*res.Data[i])[lo:hi]
+			res.Data[i] = &s
+		}
+		for i := range res.MaxHost {
+			s := res.MaxHost[i]
+			if len(s) != 0 {
+				res.MaxHost[i] = s[lo:hi]
+			}
+		}
+	} else {
+		res.Time = t
+	}
+	return res
 }
 
 func (ev *evaluator) getTagValue(metric *format.MetricMetaValue, tagName string, tagValueID int32) string {

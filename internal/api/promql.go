@@ -525,10 +525,16 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			}
 		}
 	}
-	for i := range meta {
-		meta[i].Metric = qry.Metric
+	res := promql.SeriesBag{
+		Data:    data,
+		Meta:    meta,
+		MaxHost: maxHost,
+		Query: promql.SeriesQueryMeta{
+			Metric: qry.Metric,
+			What:   int(what),
+		},
 	}
-	return promql.SeriesBag{Data: data, Meta: meta, MaxHost: maxHost}, cleanup, nil
+	return res, cleanup, nil
 }
 
 func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
@@ -932,16 +938,13 @@ func getPromQuery(req seriesRequest, queryFn bool) (string, error) {
 			continue
 		}
 		var s []string
-		s = append(s, fmt.Sprintf("__what__=%q", what))
-		if queryFn {
-			s = append(s, fmt.Sprintf("__fn__=%q", fn))
-		}
+		s = append(s, fmt.Sprintf("@what=%q", what))
 		if len(req.by) != 0 {
 			by, err := promqlGetBy(req.by)
 			if err != nil {
 				return "", err
 			}
-			s = append(s, fmt.Sprintf("__by__=%q", by))
+			s = append(s, fmt.Sprintf("@by=%q", by))
 		}
 		for t, in := range req.filterIn {
 			for _, v := range in {

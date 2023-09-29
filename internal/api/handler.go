@@ -452,13 +452,14 @@ type (
 	}
 
 	QuerySeriesMetaV2 struct {
-		TimeShift int64                    `json:"time_shift"`
-		Tags      map[string]SeriesMetaTag `json:"tags"`
-		MaxHosts  []string                 `json:"max_hosts"` // max_host for now
-		Name      string                   `json:"name"`
-		Color     string                   `json:"color"`
-		What      queryFn                  `json:"what"`
-		Total     int                      `json:"total"`
+		TimeShift  int64                    `json:"time_shift"`
+		Tags       map[string]SeriesMetaTag `json:"tags"`
+		MaxHosts   []string                 `json:"max_hosts"` // max_host for now
+		Name       string                   `json:"name"`
+		Color      string                   `json:"color"`
+		What       queryFn                  `json:"what"`
+		Total      int                      `json:"total"`
+		MetricType string                   `json:"metric_type"`
 	}
 
 	QueryPointsMeta struct {
@@ -2086,8 +2087,6 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			AvoidCache:          req.avoidCache,
 			TimeNow:             opt.timeNow.Unix(),
 			ExpandToLODBoundary: req.expandToLODBoundary,
-			TagOffset:           true,
-			TagTotal:            true,
 			ExplicitGrouping:    true,
 			MaxHost:             req.maxHost,
 			Offsets:             offsets,
@@ -2144,22 +2143,25 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 		}
 		if i < len(bag.Meta) {
 			s := bag.Meta[i]
-			meta.What, _ = validQueryFn(s.GetFn())
-			meta.TimeShift = -s.GetOffset()
-			meta.Total = s.GetTotal()
+			meta.What = queryFn(bag.Query.What)
+			meta.TimeShift = -s.Offset
+			meta.Total = s.Total
+			if bag.Query.Metric != nil {
+				meta.MetricType = bag.Query.Metric.MetricType
+			}
 			if meta.Total == 0 {
 				meta.Total = len(bag.Data)
 			}
 			meta.Tags = make(map[string]SeriesMetaTag, len(s.Tags))
 			for id, t := range s.Tags {
-				if !t.SValueSet || t.ID == labels.MetricName || t.ID == promql.LabelFn {
+				if !t.SValueSet || t.ID == labels.MetricName {
 					continue
 				}
 				var (
 					key = id
 					tag = SeriesMetaTag{Value: t.SValue}
 				)
-				if s.Metric != nil && t.Index != 0 {
+				if bag.Query.Metric != nil && t.Index != 0 {
 					var (
 						name  string
 						index = t.Index - promql.SeriesTagIndexOffset
@@ -2171,7 +2173,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 						key = format.TagIDLegacy(index)
 						name = format.TagID(index)
 					}
-					if meta, ok := s.Metric.Name2Tag[name]; ok {
+					if meta, ok := bag.Query.Metric.Name2Tag[name]; ok {
 						tag.Comment = meta.ValueComments[tag.Value]
 						tag.Raw = meta.Raw
 						tag.RawKind = meta.RawKind

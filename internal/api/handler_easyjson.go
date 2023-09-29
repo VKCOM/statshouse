@@ -1029,6 +1029,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi4(in *jlexer.Lexer
 			(out.What).UnmarshalEasyJSON(in)
 		case "total":
 			out.Total = int(in.Int())
+		case "metric_type":
+			out.MetricType = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -1104,6 +1106,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out *jwriter.Wri
 		const prefix string = ",\"total\":"
 		out.RawString(prefix)
 		out.Int(int(in.Total))
+	}
+	{
+		const prefix string = ",\"metric_type\":"
+		out.RawString(prefix)
+		out.String(string(in.MetricType))
 	}
 	out.RawByte('}')
 }
