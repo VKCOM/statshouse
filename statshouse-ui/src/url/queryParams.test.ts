@@ -62,6 +62,7 @@ describe('queryParams.ts', () => {
         {
           metricName: 'test',
           customName: 'test name',
+          customDescription: '',
           what: ['count_norm', 'avg'],
           type: 0,
           numSeries: 5,
@@ -84,6 +85,7 @@ describe('queryParams.ts', () => {
         {
           metricName: 'test',
           customName: 'test name 2',
+          customDescription: '',
           what: ['count_norm', 'avg'],
           type: 0,
           numSeries: 5,
@@ -136,6 +138,7 @@ describe('queryParams.ts', () => {
         {
           metricName: 'test',
           customName: 'test name',
+          customDescription: '',
           what: ['count_norm', 'avg'],
           type: 0,
           numSeries: 5,
@@ -158,6 +161,7 @@ describe('queryParams.ts', () => {
         {
           metricName: 'test',
           customName: 'test name 2',
+          customDescription: '',
           what: ['count_norm', 'avg'],
           type: 0,
           numSeries: 5,

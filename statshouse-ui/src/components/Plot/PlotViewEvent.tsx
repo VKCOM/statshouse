@@ -42,6 +42,7 @@ import { createPlotPreview } from '../../store/plot/plotPreview';
 import { shallow } from 'zustand/shallow';
 import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
 import { METRIC_TYPE } from '../../api/enum';
+import css from './style.module.css';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -105,6 +106,7 @@ export function PlotViewEvent(props: {
     error: lastError,
     error403,
     nameMetric,
+    whats,
   } = useStore(selectorPlotsData, shallow);
 
   const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
@@ -120,6 +122,8 @@ export function PlotViewEvent(props: {
     [sel.metricName]
   );
   const meta = useStore(selectorPlotMetricsMeta);
+
+  const [cursorLock, setCursorLock] = useState(false);
 
   const loadEvent = useStore(selectorLoadEvents);
 
@@ -201,7 +205,7 @@ export function PlotViewEvent(props: {
           key: group,
         }
       : undefined;
-    const metricType = getMetricType(sel, meta);
+    const metricType = getMetricType(whats?.length ? whats : sel.what, meta);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -269,7 +273,7 @@ export function PlotViewEvent(props: {
       },
       plugins: [pluginTimeWindow],
     };
-  }, [compact, getAxisStroke, group, meta, pluginTimeWindow, sel, themeDark, topPad, xAxisSize, yAxisSize]);
+  }, [compact, getAxisStroke, group, meta, pluginTimeWindow, sel.what, themeDark, topPad, whats, xAxisSize, yAxisSize]);
 
   const timeWindow = useMemo(() => {
     let leftWidth = 0;
@@ -312,6 +316,8 @@ export function PlotViewEvent(props: {
       };
       u.over.onclick = () => {
         loadEvent(indexPlot, undefined, false, u.data[0]?.[u.cursor.idx ?? 0]).catch(() => undefined);
+        // @ts-ignore
+        setCursorLock(u.cursor._lock);
       };
       u.setCursor({ top: -10, left: -10 }, false);
     },
@@ -412,7 +418,6 @@ export function PlotViewEvent(props: {
             )}
             <PlotHeader
               indexPlot={indexPlot}
-              sel={sel}
               setParams={setSel}
               setLive={setLiveMode}
               meta={meta}
@@ -464,7 +469,7 @@ export function PlotViewEvent(props: {
               onSetSelect={onSetSelect}
               onUpdatePreview={onUpdatePreview}
               onSetCursor={onSetCursor}
-              className="w-100 h-100 position-absolute top-0 start-0"
+              className={cn('w-100 h-100 position-absolute top-0 start-0', cursorLock && css.cursorLock)}
             >
               {!compact && (
                 <UPlotPluginPortal zone="over" hooks={pluginTimeWindowHooks}>

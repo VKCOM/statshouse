@@ -40,6 +40,7 @@ import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
 import { createPlotPreview } from '../../store/plot/plotPreview';
 import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
 import { METRIC_TYPE } from '../../api/enum';
+import css from './style.module.css';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -120,6 +121,7 @@ export function PlotViewMetric(props: {
     error403,
     topInfo,
     nameMetric,
+    whats,
   } = useStore(selectorPlotsData, shallow);
 
   const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
@@ -135,6 +137,7 @@ export function PlotViewMetric(props: {
     [sel.metricName]
   );
   const meta = useStore(selectorPlotMetricsMeta);
+  const [cursorLock, setCursorLock] = useState(false);
 
   const themeDark = useThemeStore((s) => s.dark);
 
@@ -217,7 +220,7 @@ export function PlotViewMetric(props: {
           key: group,
         }
       : undefined;
-    const metricType = getMetricType(sel, meta);
+    const metricType = getMetricType(whats?.length ? whats : sel.what, meta);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -285,7 +288,19 @@ export function PlotViewMetric(props: {
       },
       plugins: [pluginEventOverlay],
     };
-  }, [compact, getAxisStroke, group, meta, pluginEventOverlay, sel, themeDark, topPad, xAxisSize, yAxisSize]);
+  }, [
+    compact,
+    getAxisStroke,
+    group,
+    meta,
+    pluginEventOverlay,
+    sel.what,
+    themeDark,
+    topPad,
+    whats,
+    xAxisSize,
+    yAxisSize,
+  ]);
 
   const linkCSV = useMemo(() => {
     const agg =
@@ -303,6 +318,10 @@ export function PlotViewMetric(props: {
         uPlotRef.current = u;
       }
       setUPlotWidth(indexPlot, u.bbox.width);
+      u.over.onclick = () => {
+        // @ts-ignore
+        setCursorLock(u.cursor._lock);
+      };
       u.over.ondblclick = () => {
         resetZoomRef.current();
       };
@@ -402,7 +421,6 @@ export function PlotViewMetric(props: {
             )}
             <PlotHeader
               indexPlot={indexPlot}
-              sel={sel}
               setParams={setSel}
               setLive={setLiveMode}
               meta={meta}
@@ -453,7 +471,7 @@ export function PlotViewMetric(props: {
               onReady={onReady}
               onSetSelect={onSetSelect}
               onUpdatePreview={onUpdatePreview}
-              className="w-100 h-100 position-absolute top-0 start-0"
+              className={cn('w-100 h-100 position-absolute top-0 start-0', cursorLock && css.cursorLock)}
               onUpdateLegend={setLegend}
             >
               <UPlotPluginPortal hooks={pluginEventOverlayHooks} zone="over">
