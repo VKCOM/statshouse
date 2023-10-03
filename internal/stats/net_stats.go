@@ -78,13 +78,13 @@ type tcp struct {
 type udp struct {
 	scrapeResult
 	InDatagrams  float64
-	NoPorts      *float64
-	InErrors     *float64
+	NoPorts      float64
+	InErrors     float64
 	OutDatagrams float64
-	RcvbufErrors *float64
-	SndbufErrors *float64
-	InCsumErrors *float64
-	IgnoredMulti *float64
+	RcvbufErrors float64
+	SndbufErrors float64
+	InCsumErrors float64
+	IgnoredMulti float64
 }
 
 type icmp struct {
@@ -192,6 +192,7 @@ func (c *NetStats) writeSNMP(nowUnix int64) error {
 	}
 	c.writeIP(nowUnix, netstat)
 	c.writeTCP(nowUnix, netstat)
+	c.writeUDP(nowUnix, netstat)
 	c.writePackets(nowUnix, netstat)
 	c.oldNetStat = netstat
 	return nil
@@ -263,6 +264,22 @@ func (c *NetStats) writeTCP(nowUnix int64, stat netStat) {
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, inCsumError, format.RawIDTagInCsumErr, format.RawIDTagTCP)
 	retransSegs := stat.tcp.RetransSegs - c.oldNetStat.tcp.RetransSegs
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, retransSegs, format.RawIDTagRetransSeg, format.RawIDTagTCP)
+}
+
+func (c *NetStats) writeUDP(nowUnix int64, stat netStat) {
+	if !c.oldNetStat.udp.isSuccess {
+		return
+	}
+	inErrs := stat.udp.InErrors - c.oldNetStat.udp.InErrors
+	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, inErrs, format.RawIDTagInErrors, format.RawIDTagUDP)
+	inCsumError := stat.udp.InCsumErrors - c.oldNetStat.udp.InCsumErrors
+	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, inCsumError, format.RawIDTagInCsumErrors, format.RawIDTagUDP)
+	rcvbufErrors := stat.udp.RcvbufErrors - c.oldNetStat.udp.RcvbufErrors
+	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, rcvbufErrors, format.RawIDTagRcvbufErrors, format.RawIDTagUDP)
+	sndbufErrors := stat.udp.SndbufErrors - c.oldNetStat.udp.SndbufErrors
+	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, sndbufErrors, format.RawIDTagSndbufErrors, format.RawIDTagUDP)
+	noPorts := stat.udp.NoPorts - c.oldNetStat.udp.NoPorts
+	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNetError, noPorts, format.RawIDTagNoPorts, format.RawIDTagUDP)
 }
 
 func parseNetstat(reader io.Reader) (netStat, error) {
@@ -405,19 +422,19 @@ func parseUDP(names, values []string) (udp, error) {
 		case "InDatagrams":
 			udp.InDatagrams = value
 		case "NoPorts":
-			udp.NoPorts = &value
+			udp.NoPorts = value
 		case "InErrors":
-			udp.InErrors = &value
+			udp.InErrors = value
 		case "OutDatagrams":
 			udp.OutDatagrams = value
 		case "RcvbufErrors":
-			udp.RcvbufErrors = &value
+			udp.RcvbufErrors = value
 		case "SndbufErrors":
-			udp.SndbufErrors = &value
+			udp.SndbufErrors = value
 		case "InCsumErrors":
-			udp.InCsumErrors = &value
+			udp.InCsumErrors = value
 		case "IgnoredMulti":
-			udp.IgnoredMulti = &value
+			udp.IgnoredMulti = value
 		}
 	}
 	udp.isSuccess = true
