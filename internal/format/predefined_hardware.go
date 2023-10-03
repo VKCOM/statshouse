@@ -100,6 +100,11 @@ const (
 	RawIDTagInErr          = 7
 	RawIDTagInCsumErr      = 8
 	RawIDTagRetransSeg     = 9
+	RawIDTagInErrors       = 10
+	RawIDTagRcvbufErrors   = 11
+	RawIDTagSndbufErrors   = 12
+	RawIDTagInCsumErrors   = 13
+	RawIDTagNoPorts        = 14
 
 	RawIDTagInUse  = 1
 	RawIDTagOrphan = 2
@@ -298,6 +303,11 @@ var hostMetrics = map[int32]*MetricMetaValue{
 					RawIDTagInErr:          "InErr",
 					RawIDTagInCsumErr:      "InCsumError",
 					RawIDTagRetransSeg:     "RetransSeg",
+					RawIDTagInErrors:       "InErrors",
+					RawIDTagRcvbufErrors:   "RcvbufErrors",
+					RawIDTagSndbufErrors:   "SndbufErrors",
+					RawIDTagInCsumErrors:   "InCsumErrors",
+					RawIDTagNoPorts:        "NoPorts",
 				}),
 			},
 			{
