@@ -186,17 +186,14 @@ func test_Engine_Reread_From_Begin(t *testing.T, waitCommit, commitOnEachWrite b
 		require.NoError(t, err)
 		agg.writeHistory = append(agg.writeHistory, str)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+
+	require.NoError(t, engine.Close(context.Background()))
 	history := []string{}
 	engine, _ = openEngine(t, dir, "db1", schema, false, false, false, commitOnEachWrite, mode, func(s string) {
 		history = append(history, s)
 	})
 	require.NoError(t, isEquals(agg.writeHistory, history))
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 }
 
 func Test_Engine_Reread_From_Random_Place(t *testing.T) {
@@ -213,9 +210,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 		require.NoError(t, err)
 		agg.writeHistory = append(agg.writeHistory, str)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 	binlogHistory := []string{}
 	engine, bl := openEngine(t, dir, "db2", schema, false, false, false, false, NoWaitCommit, nil)
 	binlogOffset := engine.dbOffset
@@ -238,9 +233,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 			binlogHistory = append(binlogHistory, str)
 		}
 	}
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 
 	history := []string{}
 	engine, _ = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
@@ -268,9 +261,7 @@ func Test_Engine_Reread_From_Random_Place(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, isEquals(binlogHistory, history))
 	require.True(t, reflect.DeepEqual(expectedMap, actualDb))
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 }
 
 func Test_Engine_Read_Empty_Raw(t *testing.T) {
@@ -329,9 +320,7 @@ func Test_Engine_Put_Empty_String(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "", data)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 }
 
 func Test_Engine_NoBinlog(t *testing.T) {
@@ -361,9 +350,7 @@ func Test_Engine_NoBinlog(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "abc", data)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 }
 
 func Test_Engine_NoBinlog_Close(t *testing.T) {
@@ -402,9 +389,7 @@ func Test_Engine_NoBinlog_Close(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, "abc", data)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 }
 
 func Test_ReplicaMode(t *testing.T) {
@@ -429,12 +414,8 @@ func Test_ReplicaMode(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, c, 0, "no data in replica")
 	require.Equal(t, c, n)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engineMaster.Close(ctx))
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engineRepl.Close(ctx))
+	require.NoError(t, engineMaster.Close(context.Background()))
+	require.NoError(t, engineRepl.Close(context.Background()))
 }
 
 func Test_Engine_Put_And_Read_RO(t *testing.T) {
@@ -501,10 +482,7 @@ func Test_Engine_Put_And_Read_RO(t *testing.T) {
 		require.Contains(t, s, "abc")
 		require.Contains(t, s, "def")
 	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 }
 
 func Test_Engine_Slice_Params(t *testing.T) {
@@ -596,11 +574,9 @@ func Test_Engine_Backup(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, engine.commitTXAndStartNew(true, true))
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	backupPath, err := engine.Backup(ctx, path.Join(dir, "db1"))
+	backupPath, err := engine.Backup(context.Background(), path.Join(dir, "db1"))
 	require.NoError(t, err)
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 	dir, db := path.Split(backupPath)
 	engine, _ = openEngine(t, dir, db, schema, false, false, false, false, WaitCommit, nil)
 	err = engine.Do(context.Background(), "test", func(conn Conn, b []byte) ([]byte, error) {

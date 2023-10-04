@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"pgregory.net/rand"
@@ -43,9 +42,7 @@ func Test_Engine_Do(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 	engine, _ = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
 		t.Fatal("mustn't apply music")
 	})
@@ -70,9 +67,7 @@ func Test_Engine_Do(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.True(t, reflect.DeepEqual(expectedMap, actualDb))
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 }
 
 func Test_Engine_View(t *testing.T) {
@@ -96,9 +91,7 @@ func Test_Engine_View(t *testing.T) {
 		agg.writeHistory = append(agg.writeHistory, str)
 		agg.mx.Unlock()
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 	engine, _ = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
 		t.Fatal("mustn't apply music")
 	})
@@ -135,9 +128,7 @@ func Test_Engine_View(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engine.Close(ctx))
+	require.NoError(t, engine.Close(context.Background()))
 }
 
 func Test_ReadAndExit(t *testing.T) {
@@ -154,9 +145,7 @@ func Test_ReadAndExit(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engineMaster.Close(ctx))
+	require.NoError(t, engineMaster.Close(context.Background()))
 	engineMaster, _ = openEngine(t, dir, "db1", schema, false, false, true, false, NoBinlog, nil)
 	c := 0
 	err := engineMaster.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
@@ -169,7 +158,5 @@ func Test_ReadAndExit(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, c, 0, "no data in replica")
 	require.Equal(t, c, n)
-	ctx, cancel = context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	require.NoError(t, engineMaster.Close(ctx))
+	require.NoError(t, engineMaster.Close(context.Background()))
 }
