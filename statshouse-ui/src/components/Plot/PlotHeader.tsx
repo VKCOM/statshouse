@@ -241,8 +241,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
                   value={plot.customName || metricFullName}
                   placeholder={metricFullName}
                   onPointerDown={stopPropagation}
-                  onInput={setCustomName}
-                  debounceInput={200}
+                  onChange={setCustomName}
                 />
                 {canRemove && (
                   <button
@@ -411,7 +410,6 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             value={localCustomDescription}
             placeholder={meta?.description ?? ''}
             onInput={setLocalCustomDescription}
-            debounceInput={200}
             autoHeight
           />
         ) : (
