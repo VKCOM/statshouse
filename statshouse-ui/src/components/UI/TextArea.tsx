@@ -1,6 +1,15 @@
 import React, { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import cn from 'classnames';
-import { useDebounceState } from '../../hooks';
+
+function getTextAreaHeight(hiddenInput: HTMLTextAreaElement) {
+  const ta = hiddenInput.previousSibling;
+  if (ta instanceof HTMLTextAreaElement) {
+    hiddenInput.style.width = ta.offsetWidth + 'px';
+    return hiddenInput.scrollHeight + hiddenInput.offsetHeight - hiddenInput.clientHeight;
+  } else {
+    return undefined;
+  }
+}
 
 export type TextAreaProps = {
   value?: string;
@@ -8,24 +17,35 @@ export type TextAreaProps = {
   defaultValue?: string;
   onInput?: (value: string) => void;
   onChange?: (value: string) => void;
-  debounceInput?: number;
 } & Omit<React.InputHTMLAttributes<HTMLTextAreaElement>, 'onInput' | 'onChange' | 'value' | 'defaultValue'>;
 
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
-  { debounceInput = 0, onInput, onChange, className, value, defaultValue, autoHeight = false, style, ...props },
+  { onInput, onChange, className, value, defaultValue, autoHeight = false, style, ...props },
   ref
 ) {
   const [height, setHeight] = useState<number | undefined>(undefined);
   const hiddenInput = useRef<HTMLTextAreaElement>(null);
-  const [localValue, localDebounceValue, setLocalValue] = useDebounceState(value ?? defaultValue ?? '', debounceInput);
 
   const onInputHandle = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       const v = event.currentTarget.value;
-      setLocalValue(v);
+      if (autoHeight && hiddenInput.current) {
+        hiddenInput.current.value = v;
+        setHeight(getTextAreaHeight(hiddenInput.current));
+      } else {
+        setHeight(undefined);
+      }
+      onInput?.(v);
     },
-    [setLocalValue]
+    [autoHeight, onInput]
   );
+
+  useEffect(() => {
+    if (autoHeight && hiddenInput.current) {
+      hiddenInput.current.value = value ?? defaultValue ?? '';
+      setHeight(getTextAreaHeight(hiddenInput.current));
+    }
+  }, [autoHeight, defaultValue, value]);
 
   const onChangeHandle = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -35,26 +55,6 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
     [onChange]
   );
 
-  useEffect(() => {
-    onInput?.(localDebounceValue);
-  }, [localDebounceValue, onInput]);
-
-  useEffect(() => {
-    if (autoHeight && hiddenInput.current) {
-      hiddenInput.current.value = localValue;
-      const ta = hiddenInput.current.previousSibling;
-      if (ta instanceof HTMLTextAreaElement) {
-        hiddenInput.current.style.width = ta.offsetWidth + 'px';
-        setHeight(
-          hiddenInput.current.scrollHeight + hiddenInput.current.offsetHeight - hiddenInput.current.clientHeight
-        );
-      } else {
-        setHeight(undefined);
-      }
-    } else {
-      setHeight(undefined);
-    }
-  }, [autoHeight, localValue]);
   const localStyle = useMemo<React.CSSProperties>(() => {
     if (autoHeight) {
       return {
@@ -74,7 +74,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
           ...style,
           ...localStyle,
         }}
-        value={localValue}
+        value={value}
         defaultValue={defaultValue}
         onInput={onInputHandle}
         onChange={onChangeHandle}
