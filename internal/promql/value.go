@@ -35,6 +35,7 @@ type SeriesMeta struct {
 	Name2Tag   map[string]*SeriesTag // indexed by tag optional Name
 	Offset     int64
 	Total      int
+	What       int
 	hashSum    uint64
 	hashSumSet bool
 }

@@ -739,6 +739,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]SeriesBag, error
 			for i := range bag.Meta {
 				bag.Meta[i].Offset = offset
 				bag.Meta[i].Total = len(bag.Data)
+				bag.Meta[i].What = bag.Query.What
 			}
 			if qry.histogram.restore {
 				bag, err = ev.restoreHistogram(bag, qry)
