@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { Dispatch, memo, SetStateAction, useCallback, useId, useMemo, useRef, useState } from 'react';
+import React, { Dispatch, memo, SetStateAction, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
 import produce from 'immer';
@@ -35,7 +35,6 @@ const { removePlot, setPlotParams, setPlotType } = useStore.getState();
 const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
 };
-
 function setPlotCustomNameAndDescription(indexPlot: number, customName: string, customDescription?: string) {
   setPlotParams(
     indexPlot,
@@ -109,15 +108,23 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
 
   const metricFullName = useMemo(() => (metricName ? metricName + (what ? ': ' + what : '') : ''), [metricName, what]);
 
-  const [localCustomName, setLocalCustomName] = useState(metricFullName);
+  const [localCustomName, setLocalCustomName] = useState(plot.customName || metricFullName);
   const [localCustomDescription, setLocalCustomDescription] = useState(plot.customDescription);
-
+  const autoSaveTimer = useRef<NodeJS.Timeout>();
   const setCustomName = useCallback(
     (customName: string) => {
-      setPlotCustomNameAndDescription(indexPlot, customName === metricFullName ? '' : customName);
+      setLocalCustomName(customName);
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = setTimeout(() => {
+        setPlotCustomNameAndDescription(indexPlot, customName === metricFullName ? '' : customName);
+      }, 400);
     },
     [indexPlot, metricFullName]
   );
+
+  useEffect(() => {
+    setLocalCustomName(plot.customName || metricFullName);
+  }, [metricFullName, plot.customName]);
 
   const copyLink = useMemo(() => {
     const search = encodeParams(
@@ -238,10 +245,10 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
               <div className="w-100 d-flex flex-row">
                 <InputText
                   className={cn(css.plotInputName, 'form-control-sm flex-grow-1')}
-                  value={plot.customName || metricFullName}
+                  value={localCustomName}
                   placeholder={metricFullName}
                   onPointerDown={stopPropagation}
-                  onChange={setCustomName}
+                  onInput={setCustomName}
                 />
                 {canRemove && (
                   <button
