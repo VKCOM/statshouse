@@ -56,6 +56,7 @@ export interface querySeriesMeta {
   readonly what: QueryWhat;
   readonly total: number;
   readonly color: string;
+  readonly metric_type?: string;
 }
 
 export interface querySeriesMetaTag {

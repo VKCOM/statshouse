@@ -96,6 +96,7 @@ import { clearAllPlotPreview, clearPlotPreview, resortPlotPreview } from './plot
 export type PlotStore = {
   nameMetric: string;
   whats: QueryWhat[];
+  metricType: string;
   error: string;
   error403?: string;
   errorSkipCount: number;
@@ -149,6 +150,7 @@ function getEmptyPlotData(): PlotStore {
   return {
     nameMetric: '',
     whats: [],
+    metricType: '',
     error: '',
     errorSkipCount: 0,
     data: [[]],
@@ -890,17 +892,22 @@ export const useStore = createWithEqualityFn<Store>()(
               const promqltestfailed = !!resp?.promqltestfailed;
               const uniqueWhat: Set<QueryWhat> = new Set();
               const uniqueName = new Set();
+              const uniqueMetricType: Set<string> = new Set();
               for (const meta of resp?.series.series_meta ?? []) {
                 if (isQueryWhat(meta.what)) {
                   uniqueWhat.add(meta.what);
                 }
                 meta.name && uniqueName.add(meta.name);
+                if (meta.metric_type) {
+                  uniqueMetricType.add(meta.metric_type);
+                }
               }
               const currentPrevState = getState();
               const currentPrev: PlotStore = getState().plotsData[index];
               if (uniqueName.size === 0 && lastPlotParams.metricName !== promQLMetric) {
                 uniqueName.add(lastPlotParams.metricName);
               }
+              const metricType = uniqueMetricType.size === 1 ? [...uniqueMetricType.keys()][0] : '';
 
               const maxLabelLength = Math.max(
                 'Time'.length,
@@ -1132,6 +1139,7 @@ export const useStore = createWithEqualityFn<Store>()(
                 state.plotsData[index] = {
                   nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
                   whats: uniqueName.size === 1 ? [...uniqueWhat.keys()] : [],
+                  metricType,
                   error: '',
                   errorSkipCount: 0,
                   data: noUpdateData ? state.plotsData[index]?.data : stacked || data,

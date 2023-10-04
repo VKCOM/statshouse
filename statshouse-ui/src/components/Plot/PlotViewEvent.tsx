@@ -105,6 +105,7 @@ export function PlotViewEvent(props: {
     error403,
     nameMetric,
     whats,
+    metricType: metaMetricType,
   } = useStore(selectorPlotsData, shallow);
 
   const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
@@ -203,7 +204,7 @@ export function PlotViewEvent(props: {
           key: group,
         }
       : undefined;
-    const metricType = getMetricType(whats?.length ? whats : sel.what, meta);
+    const metricType = getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -271,7 +272,20 @@ export function PlotViewEvent(props: {
       },
       plugins: [pluginTimeWindow],
     };
-  }, [compact, getAxisStroke, group, meta, pluginTimeWindow, sel.what, themeDark, topPad, whats, xAxisSize, yAxisSize]);
+  }, [
+    compact,
+    getAxisStroke,
+    group,
+    meta?.metric_type,
+    metaMetricType,
+    pluginTimeWindow,
+    sel.what,
+    themeDark,
+    topPad,
+    whats,
+    xAxisSize,
+    yAxisSize,
+  ]);
 
   const timeWindow = useMemo(() => {
     let leftWidth = 0;

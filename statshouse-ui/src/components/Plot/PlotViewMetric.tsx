@@ -120,6 +120,7 @@ export function PlotViewMetric(props: {
     topInfo,
     nameMetric,
     whats,
+    metricType: metaMetricType,
   } = useStore(selectorPlotsData, shallow);
 
   const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
@@ -218,7 +219,7 @@ export function PlotViewMetric(props: {
           key: group,
         }
       : undefined;
-    const metricType = getMetricType(whats?.length ? whats : sel.what, meta);
+    const metricType = getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -290,7 +291,8 @@ export function PlotViewMetric(props: {
     compact,
     getAxisStroke,
     group,
-    meta,
+    meta?.metric_type,
+    metaMetricType,
     pluginEventOverlay,
     sel.what,
     themeDark,
