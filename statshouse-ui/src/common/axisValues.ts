@@ -4,11 +4,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import uPlot from 'uplot';
+
 // see https://github.com/leeoniya/uPlot/tree/master/docs#axis--grid-opts:
 // [0]:   minimum num secs in found axis split (tick incr)
 // [1]:   default tick format
 // [2-7]: rollover tick formats
 // [8]:   mode: 0: replace [1] -> [2-7], 1: concat [1] + [2-7]
+
 export const xAxisValues = [
   // tick incr            default            year                               month day                         hour  min               sec   mode
   [
@@ -169,3 +172,24 @@ export const xAxisValuesCompact = [
     1,
   ],
 ];
+
+export const font =
+  '11px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
+
+export function getYAxisSize(minSize: number) {
+  return function yAxisSize(self: uPlot, values: string[], axisIdx: number, cycleNum: number): number {
+    let axis = self.axes[axisIdx];
+    if (cycleNum > 1) {
+      // @ts-ignore
+      return Math.max(minSize, axis._size);
+    }
+    let axisSize = (axis.ticks?.size ?? 0) + (axis.gap ?? 0);
+    let longestVal = (values ?? []).reduce((acc, val) => (val.length > acc.length ? val : acc), '');
+    if (longestVal !== '') {
+      self.ctx.font = axis.font?.[0] ?? font;
+      axisSize += self.ctx.measureText(longestVal).width / devicePixelRatio;
+    }
+
+    return Math.max(minSize, Math.ceil(axisSize));
+  };
+}

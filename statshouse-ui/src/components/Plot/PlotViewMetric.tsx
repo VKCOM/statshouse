@@ -29,7 +29,7 @@ import {
   useStore,
   useThemeStore,
 } from '../../store';
-import { xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
+import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
 import { PlotEventOverlay } from './PlotEventOverlay';
 import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '../../hooks';
@@ -44,8 +44,6 @@ import css from './style.module.css';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
-const font =
-  '11px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
 
 const threshold = buildThresholdList(1);
 
@@ -254,7 +252,7 @@ export function PlotViewMetric(props: {
           grid: grid,
           ticks: grid,
           values: (_, splits) => splits.map(formatByMetricType(metricType)),
-          size: yAxisSize,
+          size: getYAxisSize(yAxisSize),
           font: font,
           stroke: getAxisStroke,
           splits: metricType === METRIC_TYPE.none ? undefined : splitByMetricType(metricType),

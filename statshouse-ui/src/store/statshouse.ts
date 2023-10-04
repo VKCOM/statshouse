@@ -517,14 +517,14 @@ export const useStore = createWithEqualityFn<Store>()(
           const changedVariablesPlot: Set<number | null> = new Set();
           const plotsPromQL = getState()
             .params.plots.map((plot, indexPlot) => ({ plot, indexPlot }))
-            .filter(({ plot }) => plot.promQL.indexOf('__bind__') > -1);
+            .filter(({ plot }) => plot.promQL.indexOf('$') > -1);
           getState().params.variables.forEach((variable, indexVariable) => {
             if (prevParams.variables[indexVariable] !== variable) {
               variable.link.forEach(([iPlot]) => {
                 changedVariablesPlot.add(toNumber(iPlot));
               });
               plotsPromQL.forEach(({ plot, indexPlot }) => {
-                if (plot.promQL.indexOf(variable.name) > -1) {
+                if (plot.promQL.indexOf('$' + variable.name) > -1) {
                   changedVariablesPlot.add(indexPlot);
                 }
               });
@@ -822,7 +822,8 @@ export const useStore = createWithEqualityFn<Store>()(
           (!dequal(lastPlotParams, prev.lastPlotParams) ||
             prevState.timeRange !== prev.lastTimeRange ||
             prevState.params.timeShifts !== prev.lastTimeShifts ||
-            (lastPlotParams.promQL && lastPlotParams.promQL.indexOf('__bind__') > -1) ||
+            (lastPlotParams.promQL &&
+              prevState.params.variables.some(({ name }) => lastPlotParams.promQL.indexOf(name) > -1)) ||
             force)
         ) {
           const agg =
