@@ -285,6 +285,7 @@ export const PlotControls = memo(function PlotControls_(props: {
           ...s,
           metricName: value,
           customName: '',
+          customDescription: '',
           what: s.what.some((qw) => whats.indexOf(qw) === -1) ? [whats[0] as QueryWhat] : s.what,
           groupBy: [],
           filterIn: {},
