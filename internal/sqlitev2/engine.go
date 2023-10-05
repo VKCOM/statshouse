@@ -123,12 +123,11 @@ func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction
 	}
 	e.binlogEngine = newBinlogEngine(e, applyEventFunction)
 	err = e.rw.setError(e.binlog.Run(e.rw.dbOffset, meta, e.binlogEngine))
+	// TODO race?
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
 	e.binlog = nil
 	if err != nil {
-		err = fmt.Errorf("failed run binlog: %w", err)
-		e.rw.connError = multierr.Append(e.rw.connError, err)
 		e.readyNotify.Do(func() {
 			e.readyCh <- err
 			close(e.readyCh)
@@ -269,6 +268,9 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 	// todo calc wait lock duration
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
+	if e.readOnly {
+		return ErrReadOnly
+	}
 	txId, err := e.rw.beginTxLocked()
 	if err != nil {
 		return fmt.Errorf("failed to begin tx: %w", err)
@@ -348,36 +350,37 @@ func (e *Engine) binlogLoadOrCreatePosition() (int64, error) {
 	return offset, err
 }
 
-func (e *Engine) Close(ctx context.Context) error {
-	return e.close(ctx, e.binlog != nil && !e.opt.ReadAndExit)
+func (e *Engine) Close() error {
+	return e.close(e.binlog != nil && !e.opt.ReadAndExit)
 }
 
-func (e *Engine) close(ctx context.Context, waitCommitBinlog bool) error {
+func (e *Engine) close(waitCommitBinlog bool) error {
+	if !e.readOnly {
+		e.rw.mu.Lock()
+		e.readOnly = true
+		e.rw.mu.Unlock()
+	}
 	var error error
 	if waitCommitBinlog {
 		err := e.binlog.Shutdown()
 		if err != nil {
 			multierr.AppendInto(&error, err)
 		}
-		select {
-		case <-e.finishBinlogRunCh:
-		case <-ctx.Done():
-		}
+		<-e.finishBinlogRunCh
 	}
 	if !e.readOnly {
-		e.rw.cache.close(&error)
 		err := e.rw.Close()
 		if err != nil {
 			multierr.AppendInto(&error, fmt.Errorf("failed to close RW connection: %w", err))
 		}
 	}
+	//todo wait when read is finish?
 	e.roMx.Lock()
 	defer e.roMx.Unlock()
 	if len(e.roFree) != e.roCount {
 		log.Println("[sqlite] don't use RO connections when close engine")
 	}
 	for _, conn := range e.roFree {
-		conn.cache.close(&error)
 		err := conn.Close()
 		if err != nil {
 			multierr.AppendInto(&error, fmt.Errorf("failed to close RO connection: %w", err))
