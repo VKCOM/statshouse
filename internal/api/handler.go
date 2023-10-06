@@ -2539,6 +2539,9 @@ func (h *Handler) HandleGetPoint(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
+	if req.version == "" {
+		req.version = "2"
+	}
 	options := seriesRequestOptions{
 		debugQueries: true,
 		stat:         sl,
@@ -2643,6 +2646,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 			shiftTimestamp(req.from.Unix(), -1, toSec(oldestShift), h.location),
 			shiftTimestamp(req.to.Unix(), -1, toSec(oldestShift), h.location),
 			h.utcOffset,
+			req.expandToLODBoundary,
 			h.location,
 		)
 
@@ -2714,7 +2718,7 @@ func (h *Handler) handleGetPoint(ctx context.Context, ai accessInfo, opt seriesR
 
 				rows := ixToRow[ix]
 				row := rows[0]
-				value := math.Abs(selectPointValue(q.what, req.maxHost, &row))
+				value := selectPointValue(q.what, req.maxHost, &row)
 				if showMaxHost && row.maxHost != 0 {
 					// mapping every time is not optimal, but mapping to store in cache is also not optimal. TODO - optimize?
 					label, err := h.getTagValue(row.maxHost)
