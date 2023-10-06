@@ -16,7 +16,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
 
 	"github.com/vkcom/statshouse/internal/promql/parser"
@@ -1135,7 +1134,7 @@ func funcLabelReplace(ev *evaluator, args parser.Expressions) ([]SeriesBag, erro
 	if err != nil {
 		return nil, err
 	}
-	if !model.LabelNameRE.MatchString(dst) {
+	if len(dst) == 0 {
 		return bag, fmt.Errorf("invalid destination label name in label_replace(): %s", dst)
 	}
 	for x := range bag {
