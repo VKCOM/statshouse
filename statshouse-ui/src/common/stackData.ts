@@ -16,5 +16,5 @@ export function stackData(data: uPlot.AlignedData): uPlot.AlignedData {
     data2.unshift(s);
   }
 
-  return [data[0], ...data2];
+  return [data[0].slice(), ...data2];
 }

@@ -91,7 +91,7 @@ export function PlotViewEvent(props: {
     scales,
     series,
     seriesShow,
-    data,
+    stacked,
     legendNameWidth,
     legendValueWidth,
     legendMaxDotSpaceWidth,
@@ -474,7 +474,7 @@ export function PlotViewEvent(props: {
           ) : (
             <UPlotWrapper
               opts={opts}
-              data={data}
+              data={stacked}
               series={series}
               scales={scales}
               onReady={onReady}

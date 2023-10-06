@@ -7,6 +7,7 @@ export class Queue {
       let t: QueueTask;
       const remove = (e: Event) => {
         this.remove(t);
+        signal?.removeEventListener('abort', remove);
         reject(e);
       };
       t = async () => {

@@ -3,6 +3,8 @@ import { createWithEqualityFn } from 'zustand/traditional';
 import { devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 
+const enabled = false;
+
 export function createStore<T, Mos extends [StoreMutatorIdentifier, T][] = []>(
   store: StateCreator<T, [['zustand/immer', never]], Mos, T>,
   name: string = ''
@@ -15,6 +17,7 @@ export function createStore<T, Mos extends [StoreMutatorIdentifier, T][] = []>(
         trace: true,
         store: store.name || name,
         anonymousActionType: 'setState',
+        enabled,
       })
     );
   }
@@ -32,6 +35,7 @@ export function createStoreWithEqualityFn<T, Mos extends [StoreMutatorIdentifier
         trace: true,
         store: store.name || name,
         anonymousActionType: 'setState',
+        enabled,
       }),
       Object.is
     );
