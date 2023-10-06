@@ -4,8 +4,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
 import { Store, useStore } from '../statshouse';
 import {
   getTagDescription,
@@ -24,6 +22,7 @@ import { deepClone, isNotNil, toNumber } from '../../common/helpers';
 import { MetricMetaTag } from '../../api/metric';
 import { getEmptyVariableParams } from '../../common/getEmptyVariableParams';
 import { PlotKey, toIndexTag, toKeyTag, toPlotKey, VariableParams, VariableParamsLink } from '../../url/queryParams';
+import { createStore } from '../createStore';
 
 export function getEmptyVariable(): VariableItem {
   return { list: [], updated: false, loaded: false, more: false, tagMeta: undefined, keyLastRequest: '' };
@@ -43,52 +42,50 @@ export type VariableListStore = {
   tags: Record<PlotKey, Record<TagKey, VariableItem>>;
 };
 
-export const useVariableListStore = create<VariableListStore>()(
-  immer((setState, getState) => {
-    useStore.subscribe((state, prevState) => {
+export const useVariableListStore = createStore<VariableListStore>((setState, getState) => {
+  useStore.subscribe((state, prevState) => {
+    if (
+      prevState.params.dashboard?.dashboard_id !== state.params.dashboard?.dashboard_id ||
+      prevState.params.plots !== state.params.plots
+    ) {
       if (
-        prevState.params.dashboard?.dashboard_id !== state.params.dashboard?.dashboard_id ||
-        prevState.params.plots !== state.params.plots
+        prevState.params.plots.some(
+          (plot, indexPlot) =>
+            !state.params.plots[indexPlot] || plot.metricName !== state.params.plots[indexPlot]?.metricName
+        )
       ) {
-        if (
-          prevState.params.plots.some(
-            (plot, indexPlot) =>
-              !state.params.plots[indexPlot] || plot.metricName !== state.params.plots[indexPlot]?.metricName
-          )
-        ) {
-          clearTagsAll();
+        clearTagsAll();
+      }
+    }
+    if (prevState.params !== state.params) {
+      updateVariables(state);
+      updateTags(state);
+    }
+    if (prevState.metricsMeta !== state.metricsMeta) {
+      const variableItems = getState().variables;
+      state.params.variables.forEach((variable) => {
+        if (!variableItems[variable.name].tagMeta) {
+          variable.link.forEach(([plotKey, tagKey]) => {
+            const indexPlot = toNumber(plotKey);
+            const indexTag = toIndexTag(tagKey);
+            if (indexPlot != null && indexTag != null) {
+              const meta = prevState.metricsMeta[state.params.plots[indexPlot].metricName];
+              setState((variableState) => {
+                if (variableState.variables[variable.name]) {
+                  variableState.variables[variable.name].tagMeta = meta?.tags?.[indexTag];
+                }
+              });
+            }
+          });
         }
-      }
-      if (prevState.params !== state.params) {
-        updateVariables(state);
-        updateTags(state);
-      }
-      if (prevState.metricsMeta !== state.metricsMeta) {
-        const variableItems = getState().variables;
-        state.params.variables.forEach((variable) => {
-          if (!variableItems[variable.name].tagMeta) {
-            variable.link.forEach(([plotKey, tagKey]) => {
-              const indexPlot = toNumber(plotKey);
-              const indexTag = toIndexTag(tagKey);
-              if (indexPlot != null && indexTag != null) {
-                const meta = prevState.metricsMeta[state.params.plots[indexPlot].metricName];
-                setState((variableState) => {
-                  if (variableState.variables[variable.name]) {
-                    variableState.variables[variable.name].tagMeta = meta?.tags?.[indexTag];
-                  }
-                });
-              }
-            });
-          }
-        });
-      }
-    });
-    return {
-      variables: {},
-      tags: {},
-    };
-  })
-);
+      });
+    }
+  });
+  return {
+    variables: {},
+    tags: {},
+  };
+}, 'VariableListStore');
 export function updateTags(state: Store) {
   const plotKey = toPlotKey(state.params.tabNum);
   const updated: TagKey[] = [];

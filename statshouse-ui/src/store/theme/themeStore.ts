@@ -1,7 +1,6 @@
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
 import { useStore } from '../statshouse';
 import produce from 'immer';
+import { createStore } from '../createStore';
 
 export const THEMES = {
   Dark: 'dark',
@@ -69,26 +68,24 @@ export type ThemeStore = {
   theme: Theme;
 };
 
-export const useThemeStore = create<ThemeStore>()(
-  immer((setState, getState, store) => {
-    window.addEventListener('DOMContentLoaded', updateTheme, false);
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme, false);
-    store.subscribe((state, prevState) => {
-      if (state.dark !== prevState.dark) {
-        setDarkTheme(state.dark);
-      }
-    });
-    useStore.subscribe((store, prevStore) => {
-      if (store.params.theme !== prevStore.params.theme) {
-        updateTheme();
-      }
-    });
-    return {
-      dark: getDark(),
-      theme: getStorageTheme(),
-    };
-  })
-);
+export const useThemeStore = createStore<ThemeStore>((setState, getState, store) => {
+  window.addEventListener('DOMContentLoaded', updateTheme, false);
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateTheme, false);
+  store.subscribe((state, prevState) => {
+    if (state.dark !== prevState.dark) {
+      setDarkTheme(state.dark);
+    }
+  });
+  useStore.subscribe((store, prevStore) => {
+    if (store.params.theme !== prevStore.params.theme) {
+      updateTheme();
+    }
+  });
+  return {
+    dark: getDark(),
+    theme: getStorageTheme(),
+  };
+}, 'ThemeStore');
 
 export function updateTheme() {
   useThemeStore.setState((state) => {

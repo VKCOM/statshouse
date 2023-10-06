@@ -4,35 +4,32 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
 import { useStore } from '../statshouse';
 import { encodeParams, fixMessageTrouble, getNewPlot, QueryParams } from '../../url/queryParams';
 import { deepClone } from '../../common/helpers';
+import { createStore } from '../createStore';
 
 export type LinkListStore = {
   links: Record<string, string>;
 };
 
-export const useLinkListStore = create<LinkListStore>()(
-  immer(() => {
-    let prevParams = useStore.getState().params;
-    let defaultParams = useStore.getState().defaultParams;
-    useStore.subscribe((state) => {
-      if (prevParams !== state.params) {
-        prevParams = state.params;
-        defaultParams = state.defaultParams;
-        useLinkListStore.setState((linksState) => {
-          linksState.links = getLinks(prevParams, defaultParams);
-        });
-      }
-    });
-    const links = getLinks(prevParams, defaultParams);
-    return {
-      links,
-    };
-  })
-);
+export const useLinkListStore = createStore<LinkListStore>((setState) => {
+  let prevParams = useStore.getState().params;
+  let defaultParams = useStore.getState().defaultParams;
+  useStore.subscribe((state) => {
+    if (prevParams !== state.params) {
+      prevParams = state.params;
+      defaultParams = state.defaultParams;
+      setState((linksState) => {
+        linksState.links = getLinks(prevParams, defaultParams);
+      });
+    }
+  });
+  const links = getLinks(prevParams, defaultParams);
+  return {
+    links,
+  };
+}, 'LinkListStore');
 
 export function getLinks(params: QueryParams, defaultParams: QueryParams): Record<string, string> {
   return {

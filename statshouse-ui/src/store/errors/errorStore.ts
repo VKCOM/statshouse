@@ -4,9 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
 import { debug } from '../../common/debug';
+import { createStore } from '../createStore';
 
 export type ErrorStore = {
   errors: Record<string, Error[]>;
@@ -17,8 +16,8 @@ export type ErrorStore = {
 
 export const rootErrorChannel = 'root';
 
-export const useErrorStore = create<ErrorStore>()(
-  immer((setState, getState) => ({
+export const useErrorStore = createStore<ErrorStore>(
+  (setState, getState) => ({
     errors: {},
     addError(error, channel = rootErrorChannel) {
       debug.error(channel, error);
@@ -45,7 +44,8 @@ export const useErrorStore = create<ErrorStore>()(
         state.errors[channel] = [];
       });
     },
-  }))
+  }),
+  'ErrorStore'
 );
 
 export class ErrorCustom extends Error {

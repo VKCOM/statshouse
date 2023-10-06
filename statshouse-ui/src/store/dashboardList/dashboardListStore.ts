@@ -4,10 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
 import { useErrorStore } from '../errors';
 import { apiDashboardListFetch, DashboardShortInfo } from '../../api/dashboardsList';
+import { createStore } from '../createStore';
 
 export type DashboardListStore = {
   list: DashboardShortInfo[];
@@ -15,33 +14,31 @@ export type DashboardListStore = {
   update(): Promise<void>;
 };
 
-export const useDashboardListStore = create<DashboardListStore>()(
-  immer((setState) => {
-    let errorRemove: (() => void) | undefined;
-    return {
-      list: [],
-      loading: false,
-      async update() {
-        if (errorRemove) {
-          errorRemove();
-          errorRemove = undefined;
-        }
+export const useDashboardListStore = createStore<DashboardListStore>((setState) => {
+  let errorRemove: (() => void) | undefined;
+  return {
+    list: [],
+    loading: false,
+    async update() {
+      if (errorRemove) {
+        errorRemove();
+        errorRemove = undefined;
+      }
+      setState((state) => {
+        state.loading = true;
+      });
+      const { response, error } = await apiDashboardListFetch('dashboardListState');
+      if (response) {
         setState((state) => {
-          state.loading = true;
+          state.list = response.data.dashboards ?? [];
         });
-        const { response, error } = await apiDashboardListFetch('dashboardListState');
-        if (response) {
-          setState((state) => {
-            state.list = response.data.dashboards ?? [];
-          });
-        }
-        if (error) {
-          errorRemove = useErrorStore.getState().addError(error);
-        }
-        setState((state) => {
-          state.loading = false;
-        });
-      },
-    };
-  })
-);
+      }
+      if (error) {
+        errorRemove = useErrorStore.getState().addError(error);
+      }
+      setState((state) => {
+        state.loading = false;
+      });
+    },
+  };
+}, 'DashboardListStore');
