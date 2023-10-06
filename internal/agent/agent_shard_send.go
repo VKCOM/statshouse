@@ -208,7 +208,7 @@ func (s *Shard) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_m
 	}
 	for _, b := range buckets {
 		for k, v := range b.MultiItems {
-			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, k, stringTopCapacity, nil)
+			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, k, stringTopCapacity, nil, nil)
 			mi.Merge(v)
 		}
 	}
@@ -257,11 +257,11 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 		if s.StartPos < len(s.Groups) {
 			value := float64(s.BudgetNum) / float64(s.BudgetDenom) / float64(s.SumWeight)
 			key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetPerMetric}}
-			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
+			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
 			mi.Tail.Value.AddValueCounterHost(value, 1, 0)
 		} else {
 			key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetUnused}}
-			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil)
+			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
 			mi.Tail.Value.AddValueCounterHost(float64(s.BudgetNum)/float64(s.BudgetDenom), 1, 0)
 		}
 		sampleFactors = s.GetSampleFactors(sampleFactors)

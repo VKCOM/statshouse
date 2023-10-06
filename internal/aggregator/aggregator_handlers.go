@@ -402,7 +402,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 		}
 		s := aggBucket.lockShard(&lockedShard, sID)
 		created := false
-		mi := data_model.MapKeyItemMultiItem(&s.multiItems, k, data_model.AggregatorStringTopCapacity, &created)
+		mi := data_model.MapKeyItemMultiItem(&s.multiItems, k, data_model.AggregatorStringTopCapacity, nil, &created)
 		mi.MergeWithTLMultiItem(&item, host)
 		if created {
 			if !args.IsSetSpare() { // Data from spares should not affect cardinality estimations
@@ -435,7 +435,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 	s := aggBucket.lockShard(&lockedShard, 0)
 	getMultiItem := func(t uint32, m int32, keys [16]int32) *data_model.MultiItem {
 		key := data_model.AggKey(t, m, keys, aggHost, a.shardKey, a.replicaKey).WithAgentEnvRouteArch(agentEnv, route, buildArch)
-		return data_model.MapKeyItemMultiItem(&s.multiItems, key, data_model.AggregatorStringTopCapacity, nil)
+		return data_model.MapKeyItemMultiItem(&s.multiItems, key, data_model.AggregatorStringTopCapacity, nil, nil)
 	}
 	getMultiItem(args.Time, format.BuiltinMetricIDAggSizeCompressed, [16]int32{0, 0, 0, 0, conveyor, spare}).Tail.AddValueCounterHost(float64(rawSize), 1, host)
 
@@ -486,7 +486,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 		getMultiItem(args.Time, format.BuiltinMetricIDAgentSamplingFactor, [16]int32{0, v.Metric}).Tail.AddValueCounterHost(float64(v.Value), 1, host)
 	}
 	ingestionStatus := func(env int32, metricID int32, status int32, value float32) {
-		data_model.MapKeyItemMultiItem(&s.multiItems, (data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Keys: [16]int32{env, metricID, status}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil).Tail.AddCounterHost(float64(value), host)
+		data_model.MapKeyItemMultiItem(&s.multiItems, (data_model.Key{Timestamp: args.Time, Metric: format.BuiltinMetricIDIngestionStatus, Keys: [16]int32{env, metricID, status}}).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil, nil).Tail.AddCounterHost(float64(value), host)
 	}
 	for _, v := range bucket.IngestionStatusOk {
 		// We do not split by aggregator, because this metric is taking already too much space - about 1% of all data
@@ -549,7 +549,7 @@ func (a *Aggregator) handleKeepAlive2(_ context.Context, hctx *rpc.HandlerContex
 	lockedShard := -1
 	s := aggBucket.lockShard(&lockedShard, 0)
 	// Counters can contain this metrics while # of contributors is 0. We compensate by adding small fixed budget.
-	data_model.MapKeyItemMultiItem(&s.multiItems, data_model.AggKey(aggBucket.time, format.BuiltinMetricIDAggKeepAlive, [16]int32{}, aggHost, a.shardKey, a.replicaKey).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil).Tail.AddCounterHost(1, host)
+	data_model.MapKeyItemMultiItem(&s.multiItems, data_model.AggKey(aggBucket.time, format.BuiltinMetricIDAggKeepAlive, [16]int32{}, aggHost, a.shardKey, a.replicaKey).WithAgentEnvRouteArch(agentEnv, route, buildArch), data_model.AggregatorStringTopCapacity, nil, nil).Tail.AddCounterHost(1, host)
 	aggBucket.lockShard(&lockedShard, -1)
 
 	return errHijack

@@ -76,7 +76,7 @@ type (
 
 	SamplerStatistics struct {
 		Count int           // number of metrics with SF > 1
-		Steps []SamplerStep // steps contributed to "MetricCount"
+		Steps []SamplerStep // steps contributed to "Count"
 	}
 )
 
@@ -112,7 +112,11 @@ func (h *Sampler) Add(p SamplingMultiItemPair) {
 	if p.Size <= 0 { // size can't be zero or less, sanity check
 		return
 	}
-	p.metric = h.getMetricMeta(p.MetricID)
+	if p.Item.MetricMeta != nil {
+		p.metric = p.Item.MetricMeta
+	} else {
+		p.metric = h.getMetricMeta(p.MetricID)
+	}
 	if h.config.SampleGroups {
 		p.group = h.getGroupMeta(p.metric.GroupID)
 	} else {
