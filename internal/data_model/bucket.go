@@ -52,6 +52,7 @@ type (
 		sampleFactorLog2 int
 		Capacity         int     // algorithm supports changing on the fly, <2 means DefaultStringTopCapacity
 		SF               float64 // set when Marshalling/Sampling
+		MetricMeta       *format.MetricMetaValue
 	}
 
 	MetricsBucket struct {
@@ -173,13 +174,13 @@ func (b *MetricsBucket) Empty() bool {
 	return len(b.MultiItems) == 0
 }
 
-func MapKeyItemMultiItem(other *map[Key]*MultiItem, key Key, stringTopCapacity int, created *bool) *MultiItem {
+func MapKeyItemMultiItem(other *map[Key]*MultiItem, key Key, stringTopCapacity int, metricInfo *format.MetricMetaValue, created *bool) *MultiItem {
 	if *other == nil {
 		*other = map[Key]*MultiItem{}
 	}
 	item, ok := (*other)[key]
 	if !ok {
-		item = &MultiItem{Capacity: stringTopCapacity, SF: 1}
+		item = &MultiItem{Capacity: stringTopCapacity, SF: 1, MetricMeta: metricInfo}
 		(*other)[key] = item
 	}
 	if created != nil {
