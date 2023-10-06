@@ -6,9 +6,25 @@
 
 package algo
 
-func ValueOrDefaultInt(value, def int) int {
-	if value != 0 {
+func ValueOrDefault[T comparable](value, def T) T {
+	var zero T
+	if value != zero {
 		return value
 	}
 	return def
+}
+
+func ResizeSlice(s []byte, size int) []byte {
+	if cap(s) < size {
+		s = append(s, make([]byte, size-len(s))...)
+	} else {
+		s = s[:size]
+	}
+	return s
+}
+
+func FillSlice[T any](slice []T, val T) {
+	for i := range slice {
+		slice[i] = val
+	}
 }

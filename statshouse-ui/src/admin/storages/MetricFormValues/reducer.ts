@@ -5,6 +5,11 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { IMetric, ITagAlias } from '../../models/metric';
+import { maxTagsSize } from '../../../common/settings';
+
+export function getDefaultTag() {
+  return { name: '', alias: '', customMapping: [] };
+}
 
 export const initialValues: IMetric = {
   id: 0,
@@ -17,8 +22,8 @@ export const initialValues: IMetric = {
   resolution: 1,
   withPercentiles: false,
   visible: true,
-  tags: [{ name: 'skey', alias: 'environment', customMapping: [] }],
-  tagsSize: '1',
+  tags: [getDefaultTag()],
+  tagsSize: 1,
 };
 
 export type IActions =
@@ -35,14 +40,14 @@ export function reducer(state: IMetric, data: IActions): IMetric {
   }
 
   if (data.type === 'numTags') {
-    const valueAsNumber = Math.min(Math.max(1, Number(data.num)), 16);
+    const valueAsNumber = Math.min(Math.max(1, Number(data.num)), maxTagsSize);
 
     const newTags = new Array(data.num ? valueAsNumber : 1);
     for (let i = 0; i < newTags.length; i++) {
-      newTags[i] = state.tags[i] || { alias: '', customMapping: [] };
+      newTags[i] = state.tags[i] || getDefaultTag();
     }
 
-    return { ...state, tagsSize: data.num ? String(valueAsNumber) : '', tags: newTags };
+    return { ...state, tagsSize: data.num ? valueAsNumber : 1, tags: newTags };
   }
 
   if (data.type === 'alias') {

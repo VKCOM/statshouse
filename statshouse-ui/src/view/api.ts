@@ -16,7 +16,16 @@ import {
 } from '../components/Plot/EventFormatters';
 import { uniqueArray } from '../common/helpers';
 import { GET_PARAMS, METRIC_VALUE_BACKEND_VERSION, QueryWhat, QueryWhatSelector, TagKey } from '../api/enum';
-import { filterInSep, filterNotInSep, freeKeyPrefix, PlotParams, toIndexTag } from '../url/queryParams';
+import {
+  encodeVariableConfig,
+  encodeVariableValues,
+  filterInSep,
+  filterNotInSep,
+  freeKeyPrefix,
+  PlotParams,
+  QueryParams,
+  toIndexTag,
+} from '../url/queryParams';
 import { MetricMetaValue } from '../api/metric';
 
 export interface queryResult {
@@ -47,6 +56,7 @@ export interface querySeriesMeta {
   readonly what: QueryWhat;
   readonly total: number;
   readonly color: string;
+  readonly metric_type?: string;
 }
 
 export interface querySeriesMetaTag {
@@ -428,7 +438,8 @@ export function queryURL(
   timeRange: TimeRange,
   timeShifts: number[],
   width: number | string,
-  fetchBadges: boolean
+  fetchBadges: boolean,
+  allParams?: QueryParams
 ): string {
   let params: string[][];
   if (sel.metricName === promQLMetric) {
@@ -438,6 +449,10 @@ export function queryURL(
       [GET_PARAMS.width, width.toString()],
       ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
     ];
+    if (allParams) {
+      params.push(...encodeVariableValues(allParams));
+      params.push(...encodeVariableConfig(allParams));
+    }
   } else {
     params = [
       [GET_PARAMS.numResults, sel.numSeries.toString()],
@@ -452,6 +467,7 @@ export function queryURL(
       ...filterParams(sel.filterIn, sel.filterNotIn),
     ];
   }
+
   if (sel.maxHost) {
     params.push([GET_PARAMS.metricMaxHost, '1']);
   }
@@ -465,7 +481,8 @@ export function queryURLCSV(
   sel: PlotParams,
   timeRange: TimeRange,
   timeShifts: number[],
-  width: number | string
+  width: number | string,
+  allParams?: QueryParams
 ): string {
   let params: string[][];
   if (sel.metricName === promQLMetric) {
@@ -477,6 +494,10 @@ export function queryURLCSV(
       ...timeShifts.map((ts) => [GET_PARAMS.metricTimeShifts, ts.toString()]),
       [GET_PARAMS.metricDownloadFile, 'csv'],
     ];
+    if (allParams) {
+      params.push(...encodeVariableValues(allParams));
+      params.push(...encodeVariableConfig(allParams));
+    }
   } else {
     params = [
       [GET_PARAMS.numResults, sel.numSeries.toString()],

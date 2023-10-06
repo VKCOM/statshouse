@@ -86,7 +86,7 @@ func (bw *binlogWriter) initChunk(createNew bool, filename string, expectedSize 
 	return nil
 }
 
-func (bw *binlogWriter) loop() (PositionInfo, error) {
+func (bw *binlogWriter) loop(lastFsyncPos int64) (PositionInfo, error) {
 	var rd replaceData
 	flushCh := time.NewTimer(flushInterval)
 	buff := make([]byte, 0, defaultBuffSize)
@@ -148,6 +148,11 @@ loop:
 		buff, rd = bw.buffEx.replaceBuff(buff)
 		if len(buff) != 0 {
 			if err := bw.writeBuffer(buff, &rd); err != nil {
+				_ = bw.engine.ChangeRole(binlog.ChangeRoleInfo{
+					IsMaster: false,
+					IsReady:  false,
+				})
+				_, _ = bw.engine.Revert(lastFsyncPos)
 				loopErr = err
 				break loop
 			}
@@ -162,10 +167,19 @@ loop:
 
 			if err != nil {
 				if bw.logger != nil {
-					bw.logger.Warnf("Binlog: cannot fsync: %s", err)
+					bw.logger.Errorf("Binlog: abort binlog writing, cannot fsync, error: %q, last fsync position: %d", err, lastFsyncPos)
 				}
+				// on this stage we do not care about errors anymore
+				_ = bw.engine.ChangeRole(binlog.ChangeRoleInfo{
+					IsMaster: false,
+					IsReady:  false,
+				})
+				_, _ = bw.engine.Revert(lastFsyncPos)
+				loopErr = fmt.Errorf("fsync error: %w", err)
+				break loop
 			} else {
 				bw.stat.lastPosition.Store(rd.offsetGlobal)
+				lastFsyncPos = rd.offsetGlobal
 				snapData := prepareSnapMeta(rd.offsetGlobal, rd.crc, bw.stat.lastTimestamp.Load())
 				if err := bw.engine.Commit(rd.offsetGlobal, snapData, rd.offsetGlobal); err != nil {
 					loopErr = err

@@ -45,7 +45,11 @@ func (item *EnginePid) ReadResultJSON(j interface{}, ret *NetPid) error {
 }
 
 func (item *EnginePid) WriteResultJSON(w []byte, ret NetPid) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *EnginePid) writeResultJSON(short bool, w []byte, ret NetPid) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -57,6 +61,15 @@ func (item *EnginePid) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, 
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *EnginePid) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret NetPid
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -94,6 +107,9 @@ func (item *EnginePid) readJSON(j interface{}) error {
 }
 
 func (item *EnginePid) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EnginePid) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }

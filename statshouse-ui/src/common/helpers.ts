@@ -157,14 +157,23 @@ export function escapeHTML(str: string): string {
   return str.replace(reUnescapedHtml, (chr) => htmlEscapes[chr]);
 }
 
-export function isEnum<T>(obj: Record<string, string>) {
+export function isEnum<T, V = string>(obj: Record<string, V>) {
   const values = new Set(Object.values(obj));
-  return (s: unknown): s is T => {
-    if (typeof s === 'string') {
-      return values.has(s);
+  return (s: unknown): s is T => values.has(s as V);
+}
+
+export function toEnum<T>(itemIsEnum: (s: unknown) => s is T, preConvert: (s: unknown) => unknown = toString) {
+  function toEnumFull(s: unknown): T | null;
+  function toEnumFull(s: unknown, defaultValue: T): T;
+  function toEnumFull(s: unknown, defaultValue?: T): T | null {
+    const str = preConvert(s);
+    if (itemIsEnum(str)) {
+      return str;
     }
-    return false;
-  };
+    return defaultValue ?? null;
+  }
+
+  return toEnumFull;
 }
 
 export function objectRemoveKeyShift<T = unknown>(obj: Record<string, T>, index: number) {
@@ -181,4 +190,10 @@ export function objectRemoveKeyShift<T = unknown>(obj: Record<string, T>, index:
 
 export function resortObjectKey<T = unknown>(obj: Record<string, T>, nextIndex: Record<string, string | number>) {
   return Object.fromEntries(Object.entries(obj).map(([key, value]) => [nextIndex[key] ?? key, value]));
+}
+
+export function round(val: number, dec: number = 0, radix: number = 10) {
+  if (Number.isInteger(val) && dec >= 0 && radix === 10) return val;
+  let p = Math.pow(radix, dec);
+  return Math.round(val * p * (1 + Number.EPSILON)) / p;
 }

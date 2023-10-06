@@ -112,10 +112,9 @@ func ParseExpr(input string) (expr Expr, err error) {
 	defer parserPool.Put(p)
 	defer p.recover(&err)
 
-	parseResult := p.parseGenerated(START_EXPRESSION)
-
-	if parseResult != nil {
-		expr = parseResult.(Expr)
+	p.yyParser.Parse(p)
+	if p.generatedParserResult != nil {
+		expr = p.generatedParserResult.(Expr)
 	}
 
 	if len(p.parseErrors) != 0 {
@@ -139,24 +138,6 @@ func newParser(input string) *parser {
 		state: lexStatements,
 	}
 	return p
-}
-
-// SequenceValue is an omittable value in a sequence of time series values.
-type SequenceValue struct {
-	Value   float64
-	Omitted bool
-}
-
-func (v SequenceValue) String() string {
-	if v.Omitted {
-		return "_"
-	}
-	return fmt.Sprintf("%f", v.Value)
-}
-
-type seriesDescription struct {
-	labels labels.Labels
-	values []SequenceValue
 }
 
 // addParseErrf formats the error and appends it to the list of parsing errors.
@@ -284,7 +265,7 @@ func (p *parser) InjectItem(typ ItemType) {
 		panic("cannot inject multiple Items into the token stream")
 	}
 
-	if typ != 0 && (typ <= startSymbolsStart || typ >= startSymbolsEnd) {
+	if typ != 0 {
 		panic("cannot inject symbol that isn't start symbol")
 	}
 
@@ -379,17 +360,6 @@ func parseDuration(ds string) (int64, error) {
 	return int64(math.Round(float64(dur) / float64(time.Second))), nil
 }
 
-// parseGenerated invokes the yacc generated parser.
-// The generated parser gets the provided startSymbol injected into
-// the lexer stream, based on which grammar will be used.
-func (p *parser) parseGenerated(startSymbol ItemType) interface{} {
-	p.InjectItem(startSymbol)
-
-	p.yyParser.Parse(p)
-
-	return p.generatedParserResult
-}
-
 func (p *parser) newLabelMatcher(label, operator, value Item) *labels.Matcher {
 	op := operator.Typ
 	val := p.unquoteString(value.Val)
@@ -416,6 +386,24 @@ func (p *parser) newLabelMatcher(label, operator, value Item) *labels.Matcher {
 		p.addParseErr(mergeRanges(&label, &value), err)
 	}
 
+	return m
+}
+
+func (p *parser) newLabelMatcherInternal(label, value Item) *labels.Matcher {
+	val := p.unquoteString(value.Val)
+	m, err := labels.NewMatcher(labels.MatchEqual, "__"+label.Val+"__", val)
+	if err != nil {
+		p.addParseErr(mergeRanges(&label, &value), err)
+	}
+	return m
+}
+
+func (p *parser) newVariableBinding(label, value Item) *labels.Matcher {
+	val := value.Val
+	m, err := labels.NewMatcher(labels.MatchEqual, "__bind__", label.Val+":"+val)
+	if err != nil {
+		p.addParseErr(mergeRanges(&label, &value), err)
+	}
 	return m
 }
 

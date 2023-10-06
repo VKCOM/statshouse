@@ -129,9 +129,11 @@ function updateClass(list?: HTMLElement | null, values?: string[], className?: s
   if (className && list) {
     list.querySelectorAll(`.${className}`).forEach((elem) => elem.classList.remove(className));
     values?.forEach((value) => {
-      list
-        .querySelectorAll(`[data-value="${value?.replace(/"/g, '&quot;')}"]`)
-        .forEach((elem) => elem.classList.add(className));
+      list.querySelectorAll('[data-value]').forEach((elem) => {
+        if (elem.getAttribute('data-value') === value) {
+          elem.classList.add(className);
+        }
+      });
     });
   }
 }
@@ -319,7 +321,7 @@ export const Select: FC<SelectProps> = ({
     } else if (moreItems && options?.length) {
       result.push({ value: '', disabled: true, name: `>${options?.length} items, truncated` });
     }
-    if (customValue && !resultLength) {
+    if (customValue && !resultLength && searchValueDebounce) {
       result.push({ value: searchValueDebounce, name: searchValueDebounce });
     }
     return result;

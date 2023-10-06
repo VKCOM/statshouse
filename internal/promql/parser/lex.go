@@ -166,6 +166,7 @@ var ItemTypeStr = map[ItemType]string{
 	EQL_REGEX: "=~",
 	NEQ_REGEX: "!~",
 	POW:       "^",
+	BIND:      "<-",
 }
 
 func init() {
@@ -509,6 +510,12 @@ func lexInsideBraces(l *Lexer) stateFn {
 			return lexValueSequence
 		}
 		return lexStatements
+	case r == ':':
+		l.emit(BIND)
+	case r == '$':
+		l.emit(DOLLAR)
+	case r == '@':
+		l.emit(AT)
 	default:
 		return l.errorf("unexpected character inside braces: %q", r)
 	}

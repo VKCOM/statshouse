@@ -63,6 +63,10 @@ func (item *String) readJSON(j interface{}) error {
 }
 
 func (item *String) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *String) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*string)(item)
 	w = basictl.JSONWriteString(w, *ptr)
 	return w, nil
@@ -132,6 +136,10 @@ func (item *StringBytes) readJSON(j interface{}) error {
 }
 
 func (item *StringBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *StringBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]byte)(item)
 	w = basictl.JSONWriteStringBytes(w, *ptr)
 	return w, nil
@@ -201,6 +209,9 @@ func VectorString0ReadJSON(j interface{}, vec *[]string) error {
 }
 
 func VectorString0WriteJSON(w []byte, vec []string) (_ []byte, err error) {
+	return VectorString0WriteJSONOpt(false, w, vec)
+}
+func VectorString0WriteJSONOpt(short bool, w []byte, vec []string) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -259,6 +270,9 @@ func VectorString0BytesReadJSON(j interface{}, vec *[][]byte) error {
 }
 
 func VectorString0BytesWriteJSON(w []byte, vec [][]byte) (_ []byte, err error) {
+	return VectorString0BytesWriteJSONOpt(false, w, vec)
+}
+func VectorString0BytesWriteJSONOpt(short bool, w []byte, vec [][]byte) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

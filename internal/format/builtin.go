@@ -69,9 +69,9 @@ const (
 	BuiltinMetricIDAPIActiveQueries           = -55
 	BuiltinMetricIDRPCRequests                = -56
 	BuiltinMetricIDBudgetUnknownMetric        = -57
-	BuiltinMetricIDHeartbeatArgs2             = -58 // if args do not fit into BuiltinMetricIDHeartbeatArgs, we put tail here.
-	BuiltinMetricIDHeartbeatArgs3             = -59 // ...
-	BuiltinMetricIDHeartbeatArgs4             = -60 // OK, enough!
+	BuiltinMetricIDHeartbeatArgs2             = -58 // TODO: not recorded any more, remove later
+	BuiltinMetricIDHeartbeatArgs3             = -59 // TODO: not recorded any more, remove later
+	BuiltinMetricIDHeartbeatArgs4             = -60 // TODO: not recorded any more, remove later
 	BuiltinMetricIDContributorsLog            = -61
 	BuiltinMetricIDContributorsLogRev         = -62
 	BuiltinMetricIDGeneratorGapsCounter       = -63
@@ -126,8 +126,6 @@ const (
 	BuiltinMetricNameSrcTestConnection          = "__src_test_connection"
 	BuiltinMetricNameAggTimeDiff                = "__src_agg_time_diff"
 
-	TagValueIDBadgeIngestionErrorsOld  = -11 // remove from API, then stop writing
-	TagValueIDBadgeAggMappingErrorsOld = -33 // remove from API, then stop writing
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
 	TagValueIDBadgeIngestionErrors     = 1
@@ -155,12 +153,14 @@ const (
 	TagValueIDAggregatorOriginal = 1
 	TagValueIDAggregatorSpare    = 2
 
-	TagValueIDTimingFutureBucketRecent         = 1
-	TagValueIDTimingFutureBucketHistoric       = 2
-	TagValueIDTimingLateRecent                 = 3
-	TagValueIDTimingLongWindowThrownAgent      = 4
-	TagValueIDTimingLongWindowThrownAggregator = 5
-	TagValueIDTimingMissedSeconds              = 6
+	TagValueIDTimingFutureBucketRecent              = 1
+	TagValueIDTimingFutureBucketHistoric            = 2
+	TagValueIDTimingLateRecent                      = 3
+	TagValueIDTimingLongWindowThrownAgent           = 4
+	TagValueIDTimingLongWindowThrownAggregator      = 5
+	TagValueIDTimingMissedSeconds                   = 6
+	TagValueIDTimingLongWindowThrownAggregatorLater = 7
+	TagValueIDTimingDiskOverflowThrownAgent         = 8
 
 	TagValueIDRouteDirect       = 1
 	TagValueIDRouteIngressProxy = 2
@@ -653,12 +653,14 @@ Set by either agent or aggregator, depending on status.`,
 			Tags: []MetricMetaTag{{
 				Description: "status",
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDTimingFutureBucketRecent:         "clock_future_recent",
-					TagValueIDTimingFutureBucketHistoric:       "clock_future_historic",
-					TagValueIDTimingLateRecent:                 "late_recent",
-					TagValueIDTimingLongWindowThrownAgent:      "out_of_window_agent",
-					TagValueIDTimingLongWindowThrownAggregator: "out_of_window_aggregator",
-					TagValueIDTimingMissedSeconds:              "missed_seconds",
+					TagValueIDTimingFutureBucketRecent:              "clock_future_recent",
+					TagValueIDTimingFutureBucketHistoric:            "clock_future_historic",
+					TagValueIDTimingLateRecent:                      "late_recent",
+					TagValueIDTimingLongWindowThrownAgent:           "out_of_window_agent",
+					TagValueIDTimingLongWindowThrownAggregator:      "out_of_window_aggregator",
+					TagValueIDTimingMissedSeconds:                   "missed_seconds",
+					TagValueIDTimingLongWindowThrownAggregatorLater: "out_of_window_aggregator_later",
+					TagValueIDTimingDiskOverflowThrownAgent:         "out_of_disk_space_agent",
 				}),
 			}, {
 				Description: "-",
@@ -946,8 +948,6 @@ Set by aggregator.`,
 			Tags: []MetricMetaTag{{
 				Description: "badge",
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDBadgeIngestionErrorsOld:  "ingestion_errors_legacy",
-					TagValueIDBadgeAggMappingErrorsOld: "mapping_errors_legacy",
 					TagValueIDBadgeAgentSamplingFactor: "agent_sampling_factor",
 					TagValueIDBadgeAggSamplingFactor:   "aggregator_sampling_factor",
 					TagValueIDBadgeIngestionErrors:     "ingestion_errors",
@@ -1376,6 +1376,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "tag",
 				RawKind:     "hex",
 				ValueComments: convertToValueComments(map[int32]string{
+					0x28bea524: "statshouse.autoCreate",
 					0x4285ff57: "statshouse.getConfig2",
 					0x42855554: "statshouse.getMetrics3",
 					0x4285ff56: "statshouse.getTagMapping2",
@@ -1491,7 +1492,10 @@ Value is delta between second value and time it was inserted.`,
 			Kind:        MetricKindValue,
 			Resolution:  60,
 			Description: "Aggregator time - agent time when start testConnection",
-			Tags:        []MetricMetaTag{},
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}},
 		},
 		BuiltinMetricIDSrcTestConnection: {
 			Name:        BuiltinMetricNameSrcTestConnection,
@@ -1499,6 +1503,9 @@ Value is delta between second value and time it was inserted.`,
 			Resolution:  60,
 			Description: "Duration of call test connection rpc method",
 			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}, {
 				Description: "status",
 				ValueComments: convertToValueComments(map[int32]string{
 					TagOKConnection: "ok",
@@ -1732,7 +1739,8 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 				TagValueIDHeartbeatEventStart:     "start",
 				TagValueIDHeartbeatEventHeartbeat: "heartbeat"}),
 		}, {
-			Description: "-",
+			Description: "arguments_hash",
+			RawKind:     "hex",
 		}, {
 			Description: "commit_hash", // this is unrelated to metric keys, this is ingress key ID
 			RawKind:     "hex",
@@ -1747,6 +1755,9 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 		}, {
 			Description: "remote_ip",
 			RawKind:     "ip",
+		}, {
+			Description: "arguments_length",
+			RawKind:     "int",
 		}},
 	}
 }

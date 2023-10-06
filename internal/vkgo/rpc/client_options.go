@@ -13,7 +13,7 @@ import (
 
 type ClientOptions struct {
 	Logf                LoggerFunc // defaults to log.Printf; set to NoopLogf to disable all logging
-	Hooks               ClientHooks
+	Hooks               func() ClientHookState
 	TrustedSubnetGroups [][]*net.IPNet
 	ForceEncryption     bool
 	CryptoKey           string
@@ -32,7 +32,7 @@ func ClientWithLogf(f LoggerFunc) ClientOptionsFunc {
 	}
 }
 
-func ClientWithHooks(hooks ClientHooks) ClientOptionsFunc {
+func ClientWithHooks(hooks func() ClientHookState) ClientOptionsFunc {
 	return func(o *ClientOptions) {
 		o.Hooks = hooks
 	}

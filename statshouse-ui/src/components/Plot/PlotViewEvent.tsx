@@ -10,7 +10,7 @@ import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
 import { UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
-import { formatSI, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
+import { now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { queryURLCSV } from '../../view/api';
 import { black, grey, greyDark } from '../../view/palette';
 import produce from 'immer';
@@ -21,6 +21,7 @@ import {
   selectorLoadEvents,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
+  selectorParams,
   selectorParamsPlotsByIndex,
   selectorParamsTimeShifts,
   selectorPlotsDataByIndex,
@@ -29,7 +30,7 @@ import {
   useStore,
   useThemeStore,
 } from '../../store';
-import { xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
+import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
 import { PlotEvents } from './PlotEvents';
 import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '../../hooks';
@@ -39,11 +40,12 @@ import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icon
 import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
 import { createPlotPreview } from '../../store/plot/plotPreview';
 import { shallow } from 'zustand/shallow';
+import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
+import { METRIC_TYPE } from '../../api/enum';
+import css from './style.module.css';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
-const font =
-  '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
 
 const threshold = buildThresholdList(1);
 
@@ -68,7 +70,7 @@ export function PlotViewEvent(props: {
   embed?: boolean;
 }) {
   const { indexPlot, compact, yAxisSize, dashboard, className, group, embed } = props;
-
+  const params = useStore(selectorParams);
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
   const setSel = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
@@ -102,6 +104,8 @@ export function PlotViewEvent(props: {
     error: lastError,
     error403,
     nameMetric,
+    whats,
+    metricType: metaMetricType,
   } = useStore(selectorPlotsData, shallow);
 
   const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
@@ -117,6 +121,8 @@ export function PlotViewEvent(props: {
     [sel.metricName]
   );
   const meta = useStore(selectorPlotMetricsMeta);
+
+  const [cursorLock, setCursorLock] = useState(false);
 
   const loadEvent = useStore(selectorLoadEvents);
 
@@ -198,6 +204,7 @@ export function PlotViewEvent(props: {
           key: group,
         }
       : undefined;
+    const metricType = getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -230,10 +237,11 @@ export function PlotViewEvent(props: {
         {
           grid: grid,
           ticks: grid,
-          values: (_, splits) => splits.map(formatSI),
-          size: yAxisSize,
+          values: (_, splits) => splits.map(formatByMetricType(metricType)),
+          size: getYAxisSize(yAxisSize),
           font: font,
           stroke: getAxisStroke,
+          splits: metricType === METRIC_TYPE.none ? undefined : splitByMetricType(metricType),
         },
       ],
       scales: {
@@ -264,7 +272,20 @@ export function PlotViewEvent(props: {
       },
       plugins: [pluginTimeWindow],
     };
-  }, [compact, getAxisStroke, group, pluginTimeWindow, themeDark, topPad, xAxisSize, yAxisSize]);
+  }, [
+    compact,
+    getAxisStroke,
+    group,
+    meta?.metric_type,
+    metaMetricType,
+    pluginTimeWindow,
+    sel.what,
+    themeDark,
+    topPad,
+    whats,
+    xAxisSize,
+    yAxisSize,
+  ]);
 
   const timeWindow = useMemo(() => {
     let leftWidth = 0;
@@ -293,8 +314,8 @@ export function PlotViewEvent(props: {
         : sel.customAgg === 0
         ? `${Math.floor(width * devicePixelRatio)}`
         : `${sel.customAgg}s`;
-    return queryURLCSV(sel, timeRange, timeShifts, agg);
-  }, [sel, timeRange, timeShifts, width]);
+    return queryURLCSV(sel, timeRange, timeShifts, agg, params);
+  }, [params, sel, timeRange, timeShifts, width]);
 
   const onReady = useCallback(
     (u: uPlot) => {
@@ -307,6 +328,8 @@ export function PlotViewEvent(props: {
       };
       u.over.onclick = () => {
         loadEvent(indexPlot, undefined, false, u.data[0]?.[u.cursor.idx ?? 0]).catch(() => undefined);
+        // @ts-ignore
+        setCursorLock(u.cursor._lock);
       };
       u.setCursor({ top: -10, left: -10 }, false);
     },
@@ -407,7 +430,6 @@ export function PlotViewEvent(props: {
             )}
             <PlotHeader
               indexPlot={indexPlot}
-              sel={sel}
               setParams={setSel}
               setLive={setLiveMode}
               meta={meta}
@@ -459,7 +481,7 @@ export function PlotViewEvent(props: {
               onSetSelect={onSetSelect}
               onUpdatePreview={onUpdatePreview}
               onSetCursor={onSetCursor}
-              className="w-100 h-100 position-absolute top-0 start-0"
+              className={cn('w-100 h-100 position-absolute top-0 start-0', cursorLock && css.cursorLock)}
             >
               {!compact && (
                 <UPlotPluginPortal zone="over" hooks={pluginTimeWindowHooks}>

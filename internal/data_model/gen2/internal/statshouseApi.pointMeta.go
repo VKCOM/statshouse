@@ -158,6 +158,9 @@ func (item *StatshouseApiPointMeta) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseApiPointMeta) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseApiPointMeta) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -182,14 +185,14 @@ func (item *StatshouseApiPointMeta) WriteJSON(w []byte) (_ []byte, err error) {
 	if len(item.Tags) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"tags":`...)
-		if w, err = VectorDictionaryFieldString0WriteJSON(w, item.Tags); err != nil {
+		if w, err = VectorDictionaryFieldString0WriteJSONOpt(short, w, item.Tags); err != nil {
 			return w, err
 		}
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		if w, err = item.What.WriteJSON(w); err != nil {
+		if w, err = item.What.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}
@@ -261,10 +264,13 @@ func VectorStatshouseApiPointMeta0ReadJSON(j interface{}, vec *[]StatshouseApiPo
 }
 
 func VectorStatshouseApiPointMeta0WriteJSON(w []byte, vec []StatshouseApiPointMeta) (_ []byte, err error) {
+	return VectorStatshouseApiPointMeta0WriteJSONOpt(false, w, vec)
+}
+func VectorStatshouseApiPointMeta0WriteJSONOpt(short bool, w []byte, vec []StatshouseApiPointMeta) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}

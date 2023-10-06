@@ -50,10 +50,8 @@ export type ApiQueryPost = Partial<ApiQueryGet>;
 
 export type SeriesResponse = {
   series: QuerySeries;
-  receive_errors_legacy: number;
   sampling_factor_src: number;
   sampling_factor_agg: number;
-  mapping_flood_events_legacy: number;
   receive_errors: number;
   receive_warnings: number;
   mapping_errors: number;

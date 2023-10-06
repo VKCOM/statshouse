@@ -118,9 +118,7 @@ func testRPCMultiRoundtrip(t *rapid.T) {
 					t.Errorf("sent %q, got back %v (%v)", buf, resp, err)
 				}
 
-				if resp != nil {
-					c.PutResponse(resp)
-				}
+				c.PutResponse(resp)
 			}
 
 			err := c.Close()

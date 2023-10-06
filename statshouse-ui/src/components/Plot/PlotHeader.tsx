@@ -4,28 +4,53 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { Dispatch, memo, SetStateAction, useCallback, useMemo, useState } from 'react';
+import React, { Dispatch, memo, SetStateAction, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
 import produce from 'immer';
-import { selectorDashboardLayoutEdit, selectorParams, useStore } from '../../store';
+import { useStore } from '../../store';
 import cn from 'classnames';
 import css from './style.module.css';
-import { PlotHeaderTitle } from './PlotHeaderTitle';
 import { PlotHeaderBadges } from './PlotHeaderBadges';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
+import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg';
+import { ReactComponent as SVGX } from 'bootstrap-icons/icons/x.svg';
+import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
 import { MetricMetaValue } from '../../api/metric';
 import { promQLMetric } from '../../view/utils';
 import { encodeParams, fixMessageTrouble, lockRange, PlotParams, toPlotKey } from '../../url/queryParams';
+import { TextArea } from '../UI/TextArea';
+import { whatToWhatDesc } from '../../view/api';
+import { shallow } from 'zustand/shallow';
+import { PlotName } from './PlotName';
+import { PlotLink } from './PlotLink';
+import { Link } from 'react-router-dom';
+import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
+import { ReactComponent as SVGBoxArrowUpRight } from 'bootstrap-icons/icons/box-arrow-up-right.svg';
+import { InputText } from '../UI/InputText';
+import { useOnClickOutside } from '../../hooks/useOnClickOutside';
 
-const setPlotType = useStore.getState().setPlotType;
+const { removePlot, setPlotParams, setPlotType } = useStore.getState();
+const stopPropagation = (e: React.MouseEvent) => {
+  e.stopPropagation();
+};
+function setPlotCustomNameAndDescription(indexPlot: number, customName: string, customDescription?: string) {
+  setPlotParams(
+    indexPlot,
+    produce((p) => {
+      p.customName = customName;
+      if (customDescription != null) {
+        p.customDescription = customDescription;
+      }
+    })
+  );
+}
 
 export type PlotHeaderProps = {
   indexPlot?: number;
   compact?: boolean;
   dashboard?: boolean;
-  sel: PlotParams;
   meta?: MetricMetaValue;
   live: boolean;
   setParams: (nextState: React.SetStateAction<PlotParams>, replace?: boolean | undefined) => void;
@@ -40,7 +65,6 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   indexPlot = 0,
   compact,
   dashboard,
-  sel,
   meta,
   onYLockChange,
   onResetZoom,
@@ -50,18 +74,65 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   setTimeRange,
   embed,
 }) => {
-  const params = useStore(selectorParams);
-  const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
-
+  const id = useId();
+  const { params, plot, plotData, metricName, what, dashboardLayoutEdit, canRemove } = useStore(
+    ({ params, plotsData, dashboardLayoutEdit }) => {
+      const plot = params.plots[indexPlot];
+      const plotData = plotsData[indexPlot];
+      return {
+        params,
+        plot,
+        plotData,
+        metricName: (plot?.metricName !== promQLMetric ? plot?.metricName : plotData?.nameMetric) ?? '',
+        what:
+          (plot?.metricName === promQLMetric
+            ? plotData?.whats.map((qw) => whatToWhatDesc(qw)).join(', ')
+            : plot?.what.map((qw) => whatToWhatDesc(qw)).join(', ')) ?? '',
+        dashboardLayoutEdit,
+        canRemove: params.plots.length > 1,
+      };
+    },
+    shallow
+  );
+  const [editTitle, setEditTitle] = useState(false);
   const [showTags, setShowTags] = useState(false);
+
   const toggleShowTags = useCallback(() => {
     setShowTags((s) => !s);
   }, []);
+
+  const formRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const formTextAreaRef = useRef(null);
+  const formRefs = useMemo(() => [formRef, formTextAreaRef], [formRef, formTextAreaRef]);
+
+  const metricFullName = useMemo(() => (metricName ? metricName + (what ? ': ' + what : '') : ''), [metricName, what]);
+
+  const [localCustomName, setLocalCustomName] = useState(plot.customName || metricFullName);
+  const [localCustomDescription, setLocalCustomDescription] = useState(plot.customDescription);
+  const autoSaveTimer = useRef<NodeJS.Timeout>();
+  const setCustomName = useCallback(
+    (customName: string) => {
+      setLocalCustomName(customName);
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = setTimeout(() => {
+        setPlotCustomNameAndDescription(indexPlot, customName === metricFullName ? '' : customName);
+      }, 400);
+    },
+    [indexPlot, metricFullName]
+  );
+
+  useEffect(() => {
+    setLocalCustomName(plot.customName || metricFullName);
+  }, [metricFullName, plot.customName]);
 
   const copyLink = useMemo(() => {
     const search = encodeParams(
       produce(params, (prev) => {
         const plot = prev.plots[indexPlot];
+        if (plot) {
+          plot.events = [];
+        }
         const plotKey = toPlotKey(indexPlot, '0');
         prev.variables.forEach((variable) => {
           variable.link.forEach(([iPlot, keyTag]) => {
@@ -98,10 +169,57 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   }, [indexPlot, params]);
 
   const onSetPlotType = useMemo(() => setPlotType.bind(undefined, indexPlot), [indexPlot]);
+  const onRemove = useMemo(() => removePlot.bind(undefined, indexPlot), [indexPlot]);
+  const onEdit = useCallback(
+    (e: React.MouseEvent) => {
+      setLocalCustomName(plot.customName || metricFullName);
+      setLocalCustomDescription(plot.customDescription || meta?.description || '');
+      setEditTitle(true);
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          inputRef.current.select();
+        }
+      }, 0);
+      e.stopPropagation();
+    },
+    [meta?.description, metricFullName, plot.customDescription, plot.customName]
+  );
+
+  const onSave = useCallback(
+    (e: React.FormEvent) => {
+      setPlotCustomNameAndDescription(
+        indexPlot,
+        localCustomName === metricFullName ? '' : localCustomName,
+        localCustomDescription === meta?.description ? '' : localCustomDescription
+      );
+      setEditTitle(false);
+      e.preventDefault();
+    },
+    [indexPlot, localCustomDescription, localCustomName, meta?.description, metricFullName]
+  );
+
+  const onClose = useCallback(() => {
+    setEditTitle(false);
+  }, []);
+
+  useOnClickOutside(formRefs, () => {
+    setEditTitle(false);
+  });
+
+  const plotNameTooltip = useMemo(() => {
+    let label = plot.customName || metricFullName;
+    const desc = plot.customDescription || meta?.description || '';
+    if (desc) {
+      return label + '\r\n\r\n' + desc;
+    }
+
+    return label;
+  }, [meta?.description, metricFullName, plot.customDescription, plot.customName]);
 
   if (dashboard) {
     return (
-      <div className={` overflow-force-wrap font-monospace fw-bold ${compact ? 'text-center' : ''}`}>
+      <div className={`font-monospace fw-bold ${compact ? 'text-center' : ''}`}>
         {!compact && (
           <PlotNavigate
             className="btn-group-sm float-end ms-4 mb-2"
@@ -111,27 +229,57 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             live={live}
             setLive={setLive}
             yLock={yLock}
-            disabledLive={!sel.useV2}
+            disabledLive={!plot.useV2}
             link={copyLink}
-            typePlot={sel.type}
+            typePlot={plot.type}
           />
         )}
         <div
           className={cn(
             'd-flex position-relative w-100',
-            !dashboardLayoutEdit && !sel.customName && !showTags && 'pe-4'
+            !dashboardLayoutEdit && !plot.customName && !showTags && 'pe-4'
           )}
         >
-          <div className="flex-grow-1 text-truncate w-50 overflow-hidden px-1 d-flex text-nowrap">
-            <PlotHeaderTitle
-              indexPlot={indexPlot}
-              compact={compact}
-              dashboard={dashboard}
-              outerLink={copyLink}
-              embed={embed}
-            />
+          <div className="flex-grow-1 w-50 px-1 d-flex">
+            {dashboardLayoutEdit ? (
+              <div className="w-100 d-flex flex-row">
+                <InputText
+                  className={cn(css.plotInputName, 'form-control-sm flex-grow-1')}
+                  value={localCustomName}
+                  placeholder={metricFullName}
+                  onPointerDown={stopPropagation}
+                  onInput={setCustomName}
+                />
+                {canRemove && (
+                  <button
+                    className={cn(css.plotRemoveBtn, 'btn btn-sm ms-1 border-0')}
+                    title="Remove"
+                    onPointerDown={stopPropagation}
+                    onClick={onRemove}
+                  >
+                    <SVGTrash />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <PlotLink
+                  className="text-decoration-none overflow-hidden text-nowrap"
+                  title={plotNameTooltip}
+                  indexPlot={indexPlot}
+                  target={embed ? '_blank' : '_self'}
+                >
+                  <PlotName plot={plot} plotData={plotData} />
+                </PlotLink>
+                {!embed && (
+                  <Link to={copyLink} target="_blank" className="ms-2">
+                    <SVGBoxArrowUpRight width={10} height={10} />
+                  </Link>
+                )}
+              </>
+            )}
           </div>
-          {!dashboardLayoutEdit && !sel.customName && (
+          {!dashboardLayoutEdit && !plot.customName && (
             <>
               <div
                 className={cn(
@@ -162,13 +310,33 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             className="overflow-force-wrap text-secondary fw-normal font-normal flex-grow-0"
             style={{ whiteSpace: 'pre-wrap' }}
           >
-            {meta?.description}
+            {plot.customDescription || meta?.description}
           </small>
         )}
       </div>
     );
   }
-
+  if (embed) {
+    return (
+      <div
+        className={cn('d-flex flex-grow-1 flex-wrap ', compact ? 'justify-content-around' : 'justify-content-between')}
+      >
+        <h6
+          className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 mb-1`}
+        >
+          <PlotLink
+            className="text-secondary text-decoration-none me-3"
+            indexPlot={indexPlot}
+            target={embed ? '_blank' : '_self'}
+            title={plotNameTooltip}
+          >
+            <PlotName plot={plot} plotData={plotData} />
+          </PlotLink>
+          <PlotHeaderBadges indexPlot={indexPlot} compact={compact} dashboard={dashboard} />
+        </h6>
+      </div>
+    );
+  }
   return (
     <div>
       {/*title + controls*/}
@@ -177,13 +345,49 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         <h6
           className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 mb-1`}
         >
-          <PlotHeaderTitle
-            indexPlot={indexPlot}
-            compact={compact}
-            dashboard={dashboard}
-            outerLink={copyLink}
-            embed={embed}
-          />
+          <div className="flex-grow-1">
+            {editTitle ? (
+              <form ref={formRef} id={`form_${id}`} onSubmit={onSave} className="input-group">
+                <InputText
+                  ref={inputRef}
+                  className="form-control-sm"
+                  value={localCustomName}
+                  placeholder={metricFullName}
+                  onInput={setLocalCustomName}
+                />
+                <button className="btn btn-sm btn-outline-primary" type="submit">
+                  <SVGCheckLg />
+                </button>
+                <button className="btn btn-sm btn-outline-primary" type="reset" onClick={onClose}>
+                  <SVGX />
+                </button>
+              </form>
+            ) : (
+              <div className="d-flex align-items-center w-100">
+                <div className="overflow-force-wrap flex-grow-1">
+                  <PlotLink
+                    className="text-decoration-none overflow-hidden"
+                    title={plotNameTooltip}
+                    indexPlot={indexPlot}
+                    target={dashboard ? '_self' : '_blank'}
+                  >
+                    <PlotName plot={plot} plotData={plotData} />
+                  </PlotLink>
+                  <Link to={copyLink} target="_blank" className="ms-2">
+                    <SVGBoxArrowUpRight width={10} height={10} />
+                  </Link>
+                </div>
+                <button
+                  ref={formRef}
+                  className="btn btn-sm btn-outline-primary border-0"
+                  type="button"
+                  onClick={onEdit}
+                >
+                  <SVGPencil />
+                </button>
+              </div>
+            )}
+          </div>
           <PlotHeaderBadges indexPlot={indexPlot} compact={compact} dashboard={dashboard} />
         </h6>
         {!compact && (
@@ -195,20 +399,31 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             live={live}
             setLive={setLive}
             yLock={yLock}
-            disabledLive={!sel.useV2}
+            disabledLive={!plot.useV2}
             link={copyLink}
-            typePlot={sel.type}
+            typePlot={plot.type}
             setTypePlot={onSetPlotType}
-            disabledTypePlot={sel.metricName === promQLMetric}
+            disabledTypePlot={plot.metricName === promQLMetric}
           />
         )}
       </div>
-      {!compact && (
+      {!compact &&
         /*description*/
-        <small className="overflow-force-wrap text-secondary flex-grow-0" style={{ whiteSpace: 'pre-wrap' }}>
-          {meta?.description}
-        </small>
-      )}
+        (editTitle ? (
+          <TextArea
+            ref={formTextAreaRef}
+            form={`form_${id}`}
+            className="form-control-sm"
+            value={localCustomDescription}
+            placeholder={meta?.description ?? ''}
+            onInput={setLocalCustomDescription}
+            autoHeight
+          />
+        ) : (
+          <small className="overflow-force-wrap text-secondary flex-grow-0" style={{ whiteSpace: 'pre-wrap' }}>
+            {plot.customDescription || meta?.description}
+          </small>
+        ))}
     </div>
   );
 };

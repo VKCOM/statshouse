@@ -372,14 +372,11 @@ func TestDB_ResetFlood(t *testing.T) {
 
 func TestDB_ResetFlood_With_Limit(t *testing.T) {
 	path := t.TempDir()
+	const limit = 12345
 	db, _ := initD1b(t, path, "db", true, nil)
-	t.Run("exceed flood limit", func(t *testing.T) {
-		before, after, err := db.ResetFlood(context.Background(), "abc2", 12345)
-		require.NoError(t, err)
-		require.Equal(t, db.maxBudget, before)
-		require.Equal(t, int64(12345), after)
+	checkLimit := func(limit int64) {
 		var actualLimit int64
-		err = db.eng.Do(context.Background(), "test", func(conn sqlite.Conn, bytes []byte) ([]byte, error) {
+		err := db.eng.Do(context.Background(), "test", func(conn sqlite.Conn, bytes []byte) ([]byte, error) {
 			rows := conn.Query("test", "SELECT count_free FROM flood_limits WHERE metric_name = $m", sqlite.BlobString("$m", "abc2"))
 			if rows.Next() {
 				actualLimit, _ = rows.ColumnInt64(0)
@@ -387,7 +384,20 @@ func TestDB_ResetFlood_With_Limit(t *testing.T) {
 			return nil, rows.Error()
 		})
 		require.NoError(t, err)
-		require.Equal(t, int64(12345), actualLimit)
+		require.Equal(t, int64(limit), actualLimit)
+	}
+	t.Run("exceed flood limit", func(t *testing.T) {
+		before, after, err := db.ResetFlood(context.Background(), "abc2", limit)
+		require.NoError(t, err)
+		require.Equal(t, db.maxBudget, before)
+		require.Equal(t, int64(12345), after)
+		checkLimit(limit)
+	})
+	t.Run("create mapping when limit greater than max", func(t *testing.T) {
+		resp, err := db.GetOrCreateMapping(context.Background(), "abc2", "aaaa")
+		require.NoError(t, err)
+		require.True(t, resp.IsCreated())
+		checkLimit(limit - 1)
 	})
 }
 
@@ -505,6 +515,7 @@ func Test_calcBudget(t *testing.T) {
 		{name: "", args: args{oldBudget: 2, expense: 1, lastTimeUpdate: 100, now: 102, max: 500, stepSec: 5, bonusToStep: 5}, want: 1},
 		{name: "", args: args{oldBudget: 1, expense: 1, lastTimeUpdate: 100, now: 103, max: 500, stepSec: 5, bonusToStep: 5}, want: 0},
 		{name: "", args: args{oldBudget: 0, expense: 1, lastTimeUpdate: 100, now: 105, max: 500, stepSec: 5, bonusToStep: 5}, want: 4},
+		{name: "", args: args{oldBudget: 1000, expense: 1, lastTimeUpdate: 100, now: 110, max: 500, stepSec: 5, bonusToStep: 5}, want: 999},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

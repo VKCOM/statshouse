@@ -420,13 +420,11 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		ReleaseChunks: hr.ReleaseChunks,
 		GetQueryPoint: hr.GetQueryPoint,
 	}
+	var hijackListener *rpc.HijackListener
 	srv := rpc.NewServer(
-		func(opts *rpc.ServerOptions) {
-			if argv.pprofHTTP {
-				// dummy TCP addess is used by RPC server as a flag
-				opts.SocketHijackAddr = &net.TCPAddr{}
-			}
-		},
+		rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
+			hijackListener.AddConnection(conn)
+		}),
 		rpc.ServerWithLogf(log.Printf),
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithHandler(handlerRPC.Handle),
@@ -438,8 +436,10 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		return fmt.Errorf("could not listen RPC: %w", err)
 	}
 
+	hijackListener = rpc.NewHijackListener(rpcLn.Addr())
+	defer func() { _ = hijackListener.Close() }()
 	go func() {
-		err = srv.Serve(rpcLn)
+		err := srv.Serve(rpcLn)
 		if err != nil && err != rpc.ErrServerClosed {
 			log.Fatalln("RPC server failed:", err)
 		}
@@ -457,10 +457,11 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 			})
 			log.Printf("serving Go pprof at %q", argv.listenRPCAddr)
 			s := http.Server{Handler: m}
-			s.Serve(srv)
+			_ = s.Serve(hijackListener)
 		}()
+	} else {
+		_ = hijackListener.Close() // will close all incoming connections
 	}
-
 	err = tf.Ready()
 	if err != nil {
 		return fmt.Errorf("failed to become ready: %w", err)

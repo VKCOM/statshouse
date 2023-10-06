@@ -194,7 +194,7 @@ func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
 	}
 }
 
-func ChSelectMetricDuration(duration time.Duration, metricID int32, table, kind string, isFast, isLight bool, err error) {
+func ChSelectMetricDuration(duration time.Duration, metricID int32, token, table, kind string, isFast, isLight bool, err error) {
 	ok := "ok"
 	if err != nil {
 		ok = "error"
@@ -207,6 +207,8 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, table, kind 
 			3: table,
 			4: kind,
 			5: ok,
+			6: getStatTokenName(token),
+			7: token,
 		},
 	).Value(duration.Seconds())
 }

@@ -9,7 +9,7 @@ Homepage: https://github.com/VKCOM/statshouse
 Package: statshouse
 Architecture: amd64 arm64
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: statshouse provides the main daemon of the StatsHouse monitoring system.
+Description: statshouse provides the Agent daemon of the StatsHouse monitoring system.
 
 Package: statshouse-api
 Architecture: amd64 arm64
@@ -25,3 +25,13 @@ Package: statshouse-metadata
 Architecture: amd64
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: statshouse-metadata provides storage of metadata for StatsHouse.
+
+Package: statshouse-igp
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: statshouse-igp provides the Ingress Proxy daemon of the StatsHouse monitoring system.
+
+Package: statshouse-agg
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: statshouse-agg provides the Aggregator daemon of the StatsHouse monitoring system.

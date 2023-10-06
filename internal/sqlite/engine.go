@@ -85,10 +85,7 @@ const (
 )
 
 var (
-	errAlreadyClosed = errors.New("sqlite-engine: already closed")
-	errUnsafe        = errors.New("sqlite-engine: unsafe SQL")
-	safeStatements   = []string{"SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "UPSERT"}
-	errReadOnly      = errors.New("sqlite-engine: engine is readonly")
+	safeStatements = []string{"SELECT", "INSERT", "UPDATE", "DELETE", "REPLACE", "UPSERT"}
 )
 
 type (
@@ -572,9 +569,8 @@ func (e *Engine) commitTXAndStartNew(commit, waitBinlogCommit bool) error {
 
 }
 
-func (e *Engine) commitRWTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, skipUpdateMeta bool) error {
+func (e *Engine) commitRWTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, skipUpdateMeta bool) (err error) {
 	var info *committedInfo
-	var err error
 	c = c.withoutTimeout()
 	defer func() {
 		c.c.spIn = false
@@ -704,8 +700,8 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 	return backupExpectedPath, os.Rename(path, backupExpectedPath)
 }
 
-func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error) error {
-	if err := checkQueryName(queryName); err != nil {
+func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error) (err error) {
+	if err = checkQueryName(queryName); err != nil {
 		return err
 	}
 	startTimeBeforeLock := time.Now()
@@ -736,7 +732,7 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 	e.opt.StatsOptions.measureWaitDurationSince(waitView, startTimeBeforeLock)
 	c, err := conn.startNewROConn(ctx, &e.opt.StatsOptions)
 	if err != nil {
-		return err
+		return multierr.Append(ErrEngineBroken, err)
 	}
 	defer func() {
 		err = multierr.Append(err, c.closeRO())
@@ -769,15 +765,19 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	var commit func(c Conn) error = nil
 	c, err := e.rw.startNewRWConn(true, ctx, &e.opt.StatsOptions, e)
 	if err != nil {
-		return nil, err
+		return nil, multierr.Append(ErrEngineBroken, err)
 	}
 	offsetBeforeWrite := e.dbOffset
 	defer func() {
 		if err != nil {
+			log.Println("[sqlite] return err to user", err.Error(), "offsetBeforeWrite:", offsetBeforeWrite, "offsetAfterWrite:", e.dbOffset)
 			e.dbOffset = offsetBeforeWrite
 		}
 		err1 := c.close(commit)
-		if err1 != nil {
+		if err == nil {
+			if err1 != nil {
+				log.Println("[sqlite] got error during to close: ", err1.Error())
+			}
 			err = multierr.Append(err, err1)
 		}
 	}()
@@ -805,9 +805,9 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	var offsetAfterWritePredicted int64
 	if shouldWriteBinlog {
 		offsetAfterWritePredicted = offsetBeforeWrite + int64(fsbinlog.AddPadding(len(buffer)))
-
 		err = binlogUpdateOffset(c, offsetAfterWritePredicted)
 		if err != nil {
+			log.Println("[sqlite] failed to update binlog position:", err.Error())
 			return nil, err
 		}
 
@@ -818,6 +818,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 			offsetAfterWrite, err = e.binlog.Append(e.dbOffset, buffer)
 		}
 		if err != nil {
+			log.Println("[sqlite] got error from binlog:", err.Error())
 			return nil, err
 		}
 		// after this line can't rollback tx!!!!!!
@@ -858,9 +859,10 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	return ch, err
 }
 
+// Do require handle of ErrEngineBroken
 func (e *Engine) Do(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) error {
 	if e.readOnlyEngine {
-		return errReadOnly
+		return ErrReadOnly
 	}
 	ch, err := e.doWithoutWait(ctx, queryName, fn)
 	if err != nil {

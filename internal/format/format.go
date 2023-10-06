@@ -32,7 +32,6 @@ const (
 	EffectiveWeightOne = 128                      // metric.Weight is multiplied by this and rounded. Do not make too big or metric with weight set to 0 will disappear completely.
 	MaxEffectiveWeight = 100 * EffectiveWeightOne // do not make too high, we multiply this by sum of metric serialized length during sampling
 
-	PreKeyTagID    = "prekey"
 	StringTopTagID = "_s"
 	HostTagID      = "_h"
 	ShardTagID     = "_shard_num"
@@ -611,6 +610,16 @@ func validIdent(s mem.RO) bool {
 
 func ValidFloatValue(f float64) bool {
 	return !math.IsNaN(f) && !math.IsInf(f, 0)
+}
+
+func ClampFloatValue(f float64) float64 {
+	if f > math.MaxFloat32 {
+		return math.MaxFloat32
+	}
+	if f < -math.MaxFloat32 {
+		return -math.MaxFloat32
+	}
+	return f
 }
 
 // Legacy rules replaced non-printables including whitespaces (except ASCII space) into roadsigns

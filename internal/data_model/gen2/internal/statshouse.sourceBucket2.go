@@ -133,25 +133,28 @@ func (item *StatshouseSourceBucket2) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseSourceBucket2) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseSourceBucket2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Metrics) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"metrics":`...)
-		if w, err = VectorStatshouseMultiItem0WriteJSON(w, item.Metrics); err != nil {
+		if w, err = VectorStatshouseMultiItem0WriteJSONOpt(short, w, item.Metrics); err != nil {
 			return w, err
 		}
 	}
 	if len(item.SampleFactors) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"sample_factors":`...)
-		if w, err = VectorStatshouseSampleFactor0WriteJSON(w, item.SampleFactors); err != nil {
+		if w, err = VectorStatshouseSampleFactor0WriteJSONOpt(short, w, item.SampleFactors); err != nil {
 			return w, err
 		}
 	}
 	if len(item.IngestionStatusOk) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"ingestion_status_ok":`...)
-		if w, err = VectorStatshouseSampleFactor0WriteJSON(w, item.IngestionStatusOk); err != nil {
+		if w, err = VectorStatshouseSampleFactor0WriteJSONOpt(short, w, item.IngestionStatusOk); err != nil {
 			return w, err
 		}
 	}
@@ -168,7 +171,7 @@ func (item *StatshouseSourceBucket2) WriteJSON(w []byte) (_ []byte, err error) {
 	if len(item.IngestionStatusOk2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"ingestion_status_ok2":`...)
-		if w, err = VectorStatshouseIngestionStatus20WriteJSON(w, item.IngestionStatusOk2); err != nil {
+		if w, err = VectorStatshouseIngestionStatus20WriteJSONOpt(short, w, item.IngestionStatusOk2); err != nil {
 			return w, err
 		}
 	}
@@ -310,25 +313,28 @@ func (item *StatshouseSourceBucket2Bytes) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseSourceBucket2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseSourceBucket2Bytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Metrics) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"metrics":`...)
-		if w, err = VectorStatshouseMultiItem0BytesWriteJSON(w, item.Metrics); err != nil {
+		if w, err = VectorStatshouseMultiItem0BytesWriteJSONOpt(short, w, item.Metrics); err != nil {
 			return w, err
 		}
 	}
 	if len(item.SampleFactors) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"sample_factors":`...)
-		if w, err = VectorStatshouseSampleFactor0WriteJSON(w, item.SampleFactors); err != nil {
+		if w, err = VectorStatshouseSampleFactor0WriteJSONOpt(short, w, item.SampleFactors); err != nil {
 			return w, err
 		}
 	}
 	if len(item.IngestionStatusOk) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"ingestion_status_ok":`...)
-		if w, err = VectorStatshouseSampleFactor0WriteJSON(w, item.IngestionStatusOk); err != nil {
+		if w, err = VectorStatshouseSampleFactor0WriteJSONOpt(short, w, item.IngestionStatusOk); err != nil {
 			return w, err
 		}
 	}
@@ -345,7 +351,7 @@ func (item *StatshouseSourceBucket2Bytes) WriteJSON(w []byte) (_ []byte, err err
 	if len(item.IngestionStatusOk2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"ingestion_status_ok2":`...)
-		if w, err = VectorStatshouseIngestionStatus20WriteJSON(w, item.IngestionStatusOk2); err != nil {
+		if w, err = VectorStatshouseIngestionStatus20WriteJSONOpt(short, w, item.IngestionStatusOk2); err != nil {
 			return w, err
 		}
 	}

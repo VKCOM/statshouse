@@ -23,11 +23,12 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
-	"golang.org/x/exp/slices"
-
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
 	"github.com/vkcom/statshouse/internal/promql/parser"
+	"github.com/vkcom/statshouse/internal/util"
+
+	"golang.org/x/exp/slices"
 )
 
 func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQuery bool) {
@@ -354,12 +355,12 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 	var (
 		fl  = t.lods[0]             // first LOD
 		ll  = t.lods[len(t.lods)-1] // last LOD
-		res = promql.Timescale{
-			Start:  shiftTimestamp(fl.fromSec, fl.stepSec, t.offset, h.location),   // inclusive
-			End:    shiftTimestamp(ll.toSec, ll.stepSec, t.offset, h.location) + 1, // exclusive
-			Offset: t.offset,
-		}
+		res = promql.Timescale{Start: qry.Start, End: qry.End, Offset: t.offset}
 	)
+	if qry.Options.ExpandToLODBoundary {
+		res.Start = shiftTimestamp(fl.fromSec, fl.stepSec, t.offset, h.location) // inclusive
+		res.End = shiftTimestamp(ll.toSec, ll.stepSec, t.offset, h.location) + 1 // exclusive
+	}
 	if qry.Options.StepAuto {
 		res.Step = ll.stepSec
 	} else {
@@ -524,10 +525,16 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			}
 		}
 	}
-	for i := range meta {
-		meta[i].Metric = qry.Metric
+	res := promql.SeriesBag{
+		Data:    data,
+		Meta:    meta,
+		MaxHost: maxHost,
+		Query: promql.SeriesQueryMeta{
+			Metric: qry.Metric,
+			What:   int(what),
+		},
 	}
-	return promql.SeriesBag{Data: data, Meta: meta, MaxHost: maxHost}, cleanup, nil
+	return res, cleanup, nil
 }
 
 func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
@@ -536,7 +543,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 		panic("metric access violation") // should not happen
 	}
 	var (
-		version = promqlVersionOrDefault(qry.Version)
+		version = promqlVersionOrDefault(qry.Options.Version)
 		fl      = qry.Timescale.LODs[0]                         // first LOD
 		ll      = qry.Timescale.LODs[len(qry.Timescale.LODs)-1] // last LOD
 		lods    = selectTagValueLODs(
@@ -568,7 +575,14 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 		}
 		cols := newTagValuesSelectCols(args)
 		isFast := lod.fromSec+fastQueryTimeInterval >= lod.toSec
-		err = h.doSelect(ctx, isFast, true, ai.user, Version2, ch.Query{
+		err = h.doSelect(ctx, util.QueryMetaInto{
+			IsFast:  isFast,
+			IsLight: true,
+			User:    ai.user,
+			Metric:  qry.Metric.MetricID,
+			Table:   lod.table,
+			Kind:    "load_tags",
+		}, Version2, ch.Query{
 			Body:   body,
 			Result: cols.res,
 			OnResult: func(_ context.Context, b proto.Block) error {
@@ -594,7 +608,7 @@ func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery
 		panic("metric access violation") // should not happen
 	}
 	var (
-		version = promqlVersionOrDefault(qry.Version)
+		version = promqlVersionOrDefault(qry.Options.Version)
 		fl      = qry.Timescale.LODs[0]                         // first LOD
 		ll      = qry.Timescale.LODs[len(qry.Timescale.LODs)-1] // last LOD
 		lods    = selectTagValueLODs(
@@ -626,7 +640,14 @@ func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery
 		}
 		cols := newTagValuesSelectCols(args)
 		isFast := lod.fromSec+fastQueryTimeInterval >= lod.toSec
-		err = h.doSelect(ctx, isFast, true, ai.user, Version2, ch.Query{
+		err = h.doSelect(ctx, util.QueryMetaInto{
+			IsFast:  isFast,
+			IsLight: true,
+			User:    ai.user,
+			Metric:  qry.Metric.MetricID,
+			Table:   lod.table,
+			Kind:    "load_stag",
+		}, Version2, ch.Query{
 			Body:   body,
 			Result: cols.res,
 			OnResult: func(_ context.Context, b proto.Block) error {
@@ -917,16 +938,13 @@ func getPromQuery(req seriesRequest, queryFn bool) (string, error) {
 			continue
 		}
 		var s []string
-		s = append(s, fmt.Sprintf("__what__=%q", what))
-		if queryFn {
-			s = append(s, fmt.Sprintf("__fn__=%q", fn))
-		}
+		s = append(s, fmt.Sprintf("@what=%q", what))
 		if len(req.by) != 0 {
 			by, err := promqlGetBy(req.by)
 			if err != nil {
 				return "", err
 			}
-			s = append(s, fmt.Sprintf("__by__=%q", by))
+			s = append(s, fmt.Sprintf("@by=%q", by))
 		}
 		for t, in := range req.filterIn {
 			for _, v := range in {

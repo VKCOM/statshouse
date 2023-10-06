@@ -37,7 +37,7 @@ function App() {
         {/*<Route path="prometheus" element={<PrometheusPage />} />*/}
         {/*</Route>*/}
 
-        <Route path="view" element={<ViewPage />} />
+        <Route path="view" element={<ViewPage yAxisSize={yAxisSize} />} />
         <Route path="dash-list" element={<DashboardListView />} />
         <Route path="*" element={<NotFound />} />
       </Route>

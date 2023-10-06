@@ -173,10 +173,9 @@ func appendBadge(res []byte, k data_model.Key, v data_model.ItemValue, metricCac
 			format.TagValueIDSrcIngestionStatusWarnMapTagSetTwice,
 			format.TagValueIDSrcIngestionStatusWarnOldCounterSemantic,
 			format.TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:
-			return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionWarnings, k.Keys[1]}}, "", data_model.ItemValue{Counter: v.Counter, MaxHostTag: v.MaxHostTag}, metricCache, usedTimestamps)
+			return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionWarnings, k.Keys[1]}}, "", v, metricCache, usedTimestamps)
 		}
-		res = appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionErrorsOld, k.Keys[1]}}, "", data_model.ItemValue{Counter: 1, ValueSum: v.Counter, MaxHostTag: v.MaxHostTag}, metricCache, usedTimestamps)
-		return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionErrors, k.Keys[1]}}, "", data_model.ItemValue{Counter: v.Counter, MaxHostTag: v.MaxHostTag}, metricCache, usedTimestamps)
+		return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeIngestionErrors, k.Keys[1]}}, "", v, metricCache, usedTimestamps)
 	case format.BuiltinMetricIDAgentSamplingFactor:
 		return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeAgentSamplingFactor, k.Keys[1]}}, "", v, metricCache, usedTimestamps)
 	case format.BuiltinMetricIDAggSamplingFactor:
@@ -186,10 +185,9 @@ func appendBadge(res []byte, k data_model.Key, v data_model.ItemValue, metricCac
 			k.Keys[5] == format.TagValueIDAggMappingCreatedStatusCreated {
 			return res
 		}
-		res = appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeAggMappingErrorsOld, k.Keys[4]}}, "", data_model.ItemValue{Counter: 1, ValueSum: v.Counter, MaxHostTag: v.MaxHostTag}, metricCache, usedTimestamps)
-		return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeAggMappingErrors, k.Keys[4]}}, "", data_model.ItemValue{Counter: v.Counter, MaxHostTag: v.MaxHostTag}, metricCache, usedTimestamps)
+		return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeAggMappingErrors, k.Keys[4]}}, "", v, metricCache, usedTimestamps)
 	case format.BuiltinMetricIDAggBucketReceiveDelaySec:
-		return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeContributors, 0}}, "", data_model.ItemValue{Counter: v.Counter, MaxHostTag: v.MaxHostTag}, metricCache, usedTimestamps)
+		return appendValueStat(res, data_model.Key{Timestamp: ts, Metric: format.BuiltinMetricIDBadges, Keys: [16]int32{0, format.TagValueIDBadgeContributors, 0}}, "", v, metricCache, usedTimestamps)
 	}
 	return res
 }
@@ -208,25 +206,37 @@ func appendValueStat(res []byte, key data_model.Key, skey string, v data_model.I
 	if v.Counter <= 0 { // We have lots of built-in  counters which are normally 0
 		return res
 	}
+	// for explanation of insert logic, see multiValueMarshal below
 	res = appendKeys(res, key, cache, usedTimestamps)
 	skipMaxHost, skipMinHost, skipSumSquare := cache.skips(key.Metric)
-	res = appendAggregates(res, v.Counter, v.ValueMin, v.ValueMax, v.ValueSum, zeroIfTrue(v.ValueSumSquare, skipSumSquare))
+	if v.ValueSet {
+		res = appendAggregates(res, v.Counter, v.ValueMin, v.ValueMax, v.ValueSum, zeroIfTrue(v.ValueSumSquare, skipSumSquare))
+	} else {
+		res = appendAggregates(res, v.Counter, 0, v.Counter, 0, 0)
+	}
 
 	res = rowbinary.AppendEmptyCentroids(res)
 	res = rowbinary.AppendEmptyUnique(res)
 	res = rowbinary.AppendString(res, skey)
 
-	// counters do not have min host set, but we write them always because we (probably) want to get rid
-	// of min, max columns in the future, and use values stored in min_host, max_host as min, max.
-	if skipMinHost {
-		res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
+	if v.ValueSet {
+		if skipMinHost {
+			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
+		} else {
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MinHostTag, float32(v.ValueMin))
+		}
+		if skipMaxHost {
+			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
+		} else {
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxHostTag, float32(v.ValueMax))
+		}
 	} else {
-		res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MinHostTag, float32(v.ValueMin))
-	}
-	if skipMaxHost {
 		res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
-	} else {
-		res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxHostTag, float32(v.ValueMax))
+		if skipMaxHost {
+			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
+		} else {
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, v.MaxCounterHostTag, float32(v.Counter))
+		}
 	}
 	return res
 }
@@ -265,7 +275,7 @@ func multiValueMarshal(metricID int32, cache *metricIndexCache, res []byte, valu
 		if skipMaxHost {
 			res = rowbinary.AppendArgMinMaxInt32Float32Empty(res)
 		} else {
-			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxHostTag, float32(counter)) // max_host, not always correct, but hopefully good enough
+			res = rowbinary.AppendArgMinMaxInt32Float32(res, value.Value.MaxCounterHostTag, float32(counter)) // max_counter_host, not always correct, but hopefully good enough
 		}
 	}
 	return res
@@ -305,6 +315,9 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		}
 		resPos = len(res)
 		for skey, value := range item.Top {
+			if value.Empty() { // must be never, but check is cheap
+				continue
+			}
 			// We have no badges for string tops
 			res = appendKeys(res, k, metricCache, usedTimestamps)
 			res = multiValueMarshal(k.Metric, metricCache, res, value, skey, sf)

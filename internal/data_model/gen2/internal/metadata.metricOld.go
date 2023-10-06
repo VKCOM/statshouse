@@ -190,6 +190,9 @@ func (item *MetadataMetricOld) readJSON(j interface{}, nat_field_mask uint32) er
 }
 
 func (item *MetadataMetricOld) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataMetricOld) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Id != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -283,10 +286,13 @@ func VectorMetadataMetricOld0ReadJSON(j interface{}, vec *[]MetadataMetricOld, n
 }
 
 func VectorMetadataMetricOld0WriteJSON(w []byte, vec []MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
+	return VectorMetadataMetricOld0WriteJSONOpt(false, w, vec, nat_t)
+}
+func VectorMetadataMetricOld0WriteJSONOpt(short bool, w []byte, vec []MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w, nat_t); err != nil {
+		if w, err = elem.WriteJSONOpt(short, w, nat_t); err != nil {
 			return w, err
 		}
 	}

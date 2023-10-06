@@ -97,7 +97,7 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
-		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3), // see server settings in aggregator
+		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3*30), // see server settings in aggregator
 		rpc.ServerWithMaxWorkers(128<<10),
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
@@ -170,6 +170,7 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	fieldsMask |= (1 << 31) // args.SetIngressProxy(true)
 	binary.LittleEndian.PutUint32(hctx.Request[4:], fieldsMask)
 	binary.LittleEndian.PutUint32(hctx.Request[28:], addrIPV4) // source_ip[3] in header. TODO - ipv6
+	// We override this field if set by previous proxy. Because we do not care about agent IPs in their cuber/internal networks
 
 	// Motivation of % len - we pass through badly configured requests for now, so aggregators will record them in builtin metric
 	// TODO - collect metric, send to aggregator, reply with error to clients

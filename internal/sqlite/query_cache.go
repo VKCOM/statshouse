@@ -42,13 +42,9 @@ func (cache *queryCache) put(key string, stmt stmtInfo) {
 	cache.queryCache[key] = &cachedStmtInfo{key, time.Now().Unix(), stmt}
 }
 
-func (cache *queryCache) get(key string, keyBytes []byte) (res stmtInfo, ok bool) {
+func (cache *queryCache) get(keyBytes []byte) (res stmtInfo, ok bool) {
 	var cachedStmt *cachedStmtInfo
-	if len(key) > 0 {
-		cachedStmt, ok = cache.queryCache[key]
-	} else {
-		cachedStmt, ok = cache.queryCache[string(keyBytes)]
-	}
+	cachedStmt, ok = cache.queryCache[string(keyBytes)]
 	if ok {
 		cachedStmt.lastTouch = time.Now().Unix()
 		return cachedStmt.stmt, ok
@@ -56,6 +52,7 @@ func (cache *queryCache) get(key string, keyBytes []byte) (res stmtInfo, ok bool
 	return stmtInfo{}, false
 }
 
+// check evictSampleSize stmts and delete evictSize of them
 func (cache *queryCache) evictCacheLocked() {
 	h := heap{}
 	i := 0

@@ -9,6 +9,7 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
+
 	format "github.com/vkcom/statshouse/internal/format"
 )
 
@@ -236,14 +237,10 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer
 		switch key {
 		case "series":
 			easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi3(in, &out.Series)
-		case "receive_errors_legacy":
-			out.ReceiveErrorsLegacy = float64(in.Float64())
 		case "sampling_factor_src":
 			out.SamplingFactorSrc = float64(in.Float64())
 		case "sampling_factor_agg":
 			out.SamplingFactorAgg = float64(in.Float64())
-		case "mapping_flood_events_legacy":
-			out.MappingFloodEventsLegacy = float64(in.Float64())
 		case "receive_errors":
 			out.ReceiveErrors = float64(in.Float64())
 		case "receive_warnings":
@@ -311,11 +308,6 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 		easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi3(out, in.Series)
 	}
 	{
-		const prefix string = ",\"receive_errors_legacy\":"
-		out.RawString(prefix)
-		out.Float64(float64(in.ReceiveErrorsLegacy))
-	}
-	{
 		const prefix string = ",\"sampling_factor_src\":"
 		out.RawString(prefix)
 		out.Float64(float64(in.SamplingFactorSrc))
@@ -324,11 +316,6 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 		const prefix string = ",\"sampling_factor_agg\":"
 		out.RawString(prefix)
 		out.Float64(float64(in.SamplingFactorAgg))
-	}
-	{
-		const prefix string = ",\"mapping_flood_events_legacy\":"
-		out.RawString(prefix)
-		out.Float64(float64(in.MappingFloodEventsLegacy))
 	}
 	{
 		const prefix string = ",\"receive_errors\":"
@@ -1042,6 +1029,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi4(in *jlexer.Lexer
 			(out.What).UnmarshalEasyJSON(in)
 		case "total":
 			out.Total = int(in.Int())
+		case "metric_type":
+			out.MetricType = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -1117,6 +1106,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out *jwriter.Wri
 		const prefix string = ",\"total\":"
 		out.RawString(prefix)
 		out.Int(int(in.Total))
+	}
+	{
+		const prefix string = ",\"metric_type\":"
+		out.RawString(prefix)
+		out.String(string(in.MetricType))
 	}
 	out.RawByte('}')
 }

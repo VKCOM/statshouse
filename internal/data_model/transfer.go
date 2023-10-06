@@ -8,6 +8,7 @@ package data_model
 
 import (
 	"bytes"
+	"math"
 
 	"github.com/hrissan/tdigest"
 
@@ -75,6 +76,12 @@ func (s *MultiValue) TLSizeEstimate() int {
 	if s.Value.MaxHostTag != 0 {
 		sz += 4
 	}
+	if s.Value.MinHostTag != s.Value.MaxHostTag {
+		sz += 4
+	}
+	if s.Value.MaxCounterHostTag != s.Value.MaxHostTag {
+		sz += 4
+	}
 	if s.HLL.ItemsCount() != 0 {
 		sz += s.HLL.MarshallAppendEstimatedSize()
 	}
@@ -94,10 +101,21 @@ func (s *MultiValue) TLSizeEstimate() int {
 }
 
 func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor float64, fieldsMask *uint32, marshalBuf *[]byte) {
-	if s.Value.MaxHostTag != 0 {
-		// this value is passed from "_h" tag (if set) in ApplyValue, ApplyUnique, ApplyCount functions
-		item.SetHostTag(s.Value.MaxHostTag, fieldsMask)
+	cou := s.Value.Counter * sampleFactor
+	if cou <= 0 {
+		return
 	}
+	// host tags are passed from "_h" tag (if set) in ApplyValue, ApplyUnique, ApplyCount functions
+	if s.Value.MaxHostTag != 0 {
+		item.SetMaxHostTag(s.Value.MaxHostTag, fieldsMask)
+	}
+	// TODO - uncomment after aggregators deplayed
+	// if s.Value.MinHostTag != s.Value.MaxHostTag {
+	//	item.SetMinHostTag(s.Value.MinHostTag, fieldsMask)
+	// }
+	// if s.Value.MaxCounterHostTag != s.Value.MaxHostTag {
+	//	item.SetMaxCounterHostTag(s.Value.MaxCounterHostTag, fieldsMask)
+	// }
 	if s.HLL.ItemsCount() != 0 {
 		*marshalBuf = s.HLL.MarshallAppend((*marshalBuf)[:0])
 		item.SetUniques(string(*marshalBuf), fieldsMask)
@@ -111,13 +129,10 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 			item.SetCentroids(cc, fieldsMask) // TODO - do not set percentiles if v.ValueMin == v.ValueMax, restore on other side
 		}
 	}
-	cou := s.Value.Counter * sampleFactor
-	if cou != 0 {
-		if cou == 1 {
-			item.SetCounterEq1(true, fieldsMask)
-		} else {
-			item.SetCounter(cou, fieldsMask)
-		}
+	if cou == 1 {
+		item.SetCounterEq1(true, fieldsMask)
+	} else {
+		item.SetCounter(cou, fieldsMask)
 	}
 	if !s.Value.ValueSet {
 		return
@@ -133,7 +148,7 @@ func (s *MultiValue) MultiValueToTL(item *tlstatshouse.MultiValue, sampleFactor 
 	}
 }
 
-func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_mask uint32, hostTag int32) {
+func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_mask uint32) {
 	counter := float64(0)
 	if s2.IsSetCounterEq1(fields_mask) {
 		counter = 1
@@ -141,11 +156,17 @@ func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_ma
 	if s2.IsSetCounter(fields_mask) {
 		counter = s2.Counter
 	}
-	if !s2.IsSetValueSet(fields_mask) {
-		s.AddCounterHost(counter, hostTag)
+	if counter <= 0 || math.IsNaN(counter) { // sanity check/check for empty String Top tail
 		return
 	}
-	s.Counter += counter
+	if counter > math.MaxFloat32 { // agents do similar check. Code here is for old agents without this check. TODO - remove after July 2024
+		counter = math.MaxFloat32
+	}
+	s.AddCounterHost(counter, s2.MaxCounterHostTag)
+	if !s2.IsSetValueSet(fields_mask) {
+		return
+	}
+	// We do not care checking values for NaN/Inf here
 	if !s2.IsSetValueMax(fields_mask) {
 		s2.ValueSum = s2.ValueMin * counter
 		s2.ValueSumSquare = s2.ValueSum * s2.ValueMin
@@ -156,11 +177,11 @@ func (s *ItemValue) MergeWithTLItem2(s2 *tlstatshouse.MultiValueBytes, fields_ma
 
 	if !s.ValueSet || s2.ValueMin < s.ValueMin {
 		s.ValueMin = s2.ValueMin
-		s.MinHostTag = hostTag
+		s.MinHostTag = s2.MinHostTag
 	}
 	if !s.ValueSet || s2.ValueMax > s.ValueMax {
 		s.ValueMax = s2.ValueMax
-		s.MaxHostTag = hostTag
+		s.MaxHostTag = s2.MaxHostTag
 	}
 	s.ValueSet = true
 }
@@ -195,8 +216,14 @@ func (s *MultiValue) MergeWithTL2(s2 *tlstatshouse.MultiValueBytes, fields_mask 
 			s.ValueTDigest.Add(float64(c.Value), float64(c.Weight))
 		}
 	}
-	if s2.IsSetHostTag(fields_mask) {
-		hostTag = s2.HostTag
+	if !s2.IsSetMaxHostTag(fields_mask) {
+		s2.MaxHostTag = hostTag
 	}
-	s.Value.MergeWithTLItem2(s2, fields_mask, hostTag)
+	if !s2.IsSetMinHostTag(fields_mask) {
+		s2.MinHostTag = s2.MaxHostTag // either original or set above
+	}
+	if !s2.IsSetMaxCounterHostTag(fields_mask) {
+		s2.MaxCounterHostTag = s2.MaxHostTag // either original or set above
+	}
+	s.Value.MergeWithTLItem2(s2, fields_mask)
 }

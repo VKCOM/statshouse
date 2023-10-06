@@ -35,6 +35,9 @@ type Function interface {
 
 	ReadResultWriteResultJSON(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResult(r) + WriteResultJSON(w). Returns new r, new w, plus error
 	ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) // combination of ReadResultJSON(r) + WriteResult(w). Returns new r, new w, plus error
+
+	// For transcoding short-long version during Long ID transition
+	ReadResultWriteResultJSONShort(r []byte, w []byte) ([]byte, []byte, error)
 }
 
 // for quick one-liners
@@ -76,18 +79,23 @@ func CreateObjectFromName(name string) Object {
 }
 
 type TLItem struct {
-	tag            uint32
-	tlName         string
-	createFunction func() Function
-	createObject   func() Object
+	tag                uint32
+	tlName             string
+	createFunction     func() Function
+	createFunctionLong func() Function
+	createObject       func() Object
 	// TODO - annotations, etc
 }
 
-func (item TLItem) IsFunction() bool         { return item.createFunction != nil }
 func (item TLItem) TLTag() uint32            { return item.tag }
 func (item TLItem) TLName() string           { return item.tlName }
-func (item TLItem) CreateFunction() Function { return item.createFunction() }
 func (item TLItem) CreateObject() Object     { return item.createObject() }
+func (item TLItem) IsFunction() bool         { return item.createFunction != nil }
+func (item TLItem) CreateFunction() Function { return item.createFunction() }
+
+// For transcoding short-long version during Long ID transition
+func (item TLItem) HasFunctionLong() bool        { return item.createFunctionLong != nil }
+func (item TLItem) CreateFunctionLong() Function { return item.createFunctionLong() }
 
 // TLItem serves as a single type for all enum values
 func (item *TLItem) Reset()                              {}
@@ -142,13 +150,14 @@ var itemsByTag = map[uint32]*TLItem{}
 
 var itemsByName = map[string]*TLItem{}
 
-func SetGlobalFactoryCreateForFunction(itemTag uint32, createObject func() Object, createFunction func() Function) {
+func SetGlobalFactoryCreateForFunction(itemTag uint32, createObject func() Object, createFunction func() Function, createFunctionLong func() Function) {
 	item := itemsByTag[itemTag]
 	if item == nil {
 		panic(fmt.Sprintf("factory cannot find function tag #%08x to set", itemTag))
 	}
 	item.createObject = createObject
 	item.createFunction = createFunction
+	item.createFunctionLong = createFunctionLong
 }
 
 func SetGlobalFactoryCreateForObject(itemTag uint32, createObject func() Object) {

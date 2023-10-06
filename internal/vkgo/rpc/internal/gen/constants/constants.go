@@ -8,24 +8,26 @@
 package constants
 
 const (
-	Dictionary         = 0x1f4c618f // dictionary
-	DictionaryField    = 0x239c1b62 // dictionaryField
-	NetPID             = 0x723c414d // netPID
-	ReqError           = 0xb527877d // reqError
-	ReqResultHeader    = 0x8cc84ce1 // reqResultHeader
-	RpcCancelReq       = 0x193f1b22 // rpcCancelReq
-	RpcDestActor       = 0x7568aabd // rpcDestActor
-	RpcDestActorFlags  = 0xf0a5acf7 // rpcDestActorFlags
-	RpcDestFlags       = 0xe352035e // rpcDestFlags
-	RpcInvokeReqExtra  = 0xf3ef81a9 // rpcInvokeReqExtra
-	RpcInvokeReqHeader = 0x2374df3d // rpcInvokeReqHeader
-	RpcPing            = 0x5730a2df // rpcPing
-	RpcPong            = 0x8430eaa7 // rpcPong
-	RpcReqResultError  = 0x7ae432f5 // rpcReqResultError
-	RpcReqResultExtra  = 0xc5011709 // rpcReqResultExtra
-	RpcReqResultHeader = 0x63aeda4e // rpcReqResultHeader
-	RpcServerWantsFin  = 0xa8ddbc46 // rpcServerWantsFin
-	True               = 0x3fedd339 // true
-	Tuple              = 0x9770768a // tuple
-	Vector             = 0x1cb5c415 // vector
+	Dictionary              = 0x1f4c618f // dictionary
+	DictionaryField         = 0x239c1b62 // dictionaryField
+	NetPID                  = 0x723c414d // netPID
+	NetUdpPacketEncHeader   = 0x251a7bfd // netUdpPacket.encHeader
+	NetUdpPacketUnencHeader = 0x00a8e945 // netUdpPacket.unencHeader
+	ReqError                = 0xb527877d // reqError
+	ReqResultHeader         = 0x8cc84ce1 // reqResultHeader
+	RpcCancelReq            = 0x193f1b22 // rpcCancelReq
+	RpcDestActor            = 0x7568aabd // rpcDestActor
+	RpcDestActorFlags       = 0xf0a5acf7 // rpcDestActorFlags
+	RpcDestFlags            = 0xe352035e // rpcDestFlags
+	RpcInvokeReqExtra       = 0xf3ef81a9 // rpcInvokeReqExtra
+	RpcInvokeReqHeader      = 0x2374df3d // rpcInvokeReqHeader
+	RpcPing                 = 0x5730a2df // rpcPing
+	RpcPong                 = 0x8430eaa7 // rpcPong
+	RpcReqResultError       = 0x7ae432f5 // rpcReqResultError
+	RpcReqResultExtra       = 0xc5011709 // rpcReqResultExtra
+	RpcReqResultHeader      = 0x63aeda4e // rpcReqResultHeader
+	RpcServerWantsFin       = 0xa8ddbc46 // rpcServerWantsFin
+	True                    = 0x3fedd339 // true
+	Tuple                   = 0x9770768a // tuple
+	Vector                  = 0x1cb5c415 // vector
 )

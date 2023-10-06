@@ -10,7 +10,7 @@ import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
 import { LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
-import { fmtInputDateTime, formatSI, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
+import { fmtInputDateTime, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { queryURLCSV } from '../../view/api';
 import { black, grey, greyDark } from '../../view/palette';
 import produce from 'immer';
@@ -20,6 +20,7 @@ import {
   selectorLiveMode,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
+  selectorParams,
   selectorParamsPlotsByIndex,
   selectorParamsTimeShifts,
   selectorPlotsDataByIndex,
@@ -28,7 +29,7 @@ import {
   useStore,
   useThemeStore,
 } from '../../store';
-import { xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
+import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '../../common/axisValues';
 import cn from 'classnames';
 import { PlotEventOverlay } from './PlotEventOverlay';
 import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '../../hooks';
@@ -37,11 +38,12 @@ import { shallow } from 'zustand/shallow';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
 import { createPlotPreview } from '../../store/plot/plotPreview';
+import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
+import { METRIC_TYPE } from '../../api/enum';
+import css from './style.module.css';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
-const font =
-  '12px system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans", sans-serif'; // keep in sync with $font-family-sans-serif
 
 const threshold = buildThresholdList(1);
 
@@ -85,6 +87,7 @@ export function PlotViewMetric(props: {
 }) {
   const { indexPlot, compact, yAxisSize, dashboard, className, group, embed } = props;
 
+  const params = useStore(selectorParams);
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
   const setSel = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
@@ -116,6 +119,8 @@ export function PlotViewMetric(props: {
     error403,
     topInfo,
     nameMetric,
+    whats,
+    metricType: metaMetricType,
   } = useStore(selectorPlotsData, shallow);
 
   const onYLockChange = useMemo(() => setYLockChange?.bind(undefined, indexPlot), [indexPlot]);
@@ -131,6 +136,7 @@ export function PlotViewMetric(props: {
     [sel.metricName]
   );
   const meta = useStore(selectorPlotMetricsMeta);
+  const [cursorLock, setCursorLock] = useState(false);
 
   const themeDark = useThemeStore((s) => s.dark);
 
@@ -213,6 +219,7 @@ export function PlotViewMetric(props: {
           key: group,
         }
       : undefined;
+    const metricType = getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -245,10 +252,11 @@ export function PlotViewMetric(props: {
         {
           grid: grid,
           ticks: grid,
-          values: (_, splits) => splits.map(formatSI),
-          size: yAxisSize,
+          values: (_, splits) => splits.map(formatByMetricType(metricType)),
+          size: getYAxisSize(yAxisSize),
           font: font,
           stroke: getAxisStroke,
+          splits: metricType === METRIC_TYPE.none ? undefined : splitByMetricType(metricType),
         },
       ],
       scales: {
@@ -279,7 +287,20 @@ export function PlotViewMetric(props: {
       },
       plugins: [pluginEventOverlay],
     };
-  }, [compact, getAxisStroke, group, pluginEventOverlay, themeDark, topPad, xAxisSize, yAxisSize]);
+  }, [
+    compact,
+    getAxisStroke,
+    group,
+    meta?.metric_type,
+    metaMetricType,
+    pluginEventOverlay,
+    sel.what,
+    themeDark,
+    topPad,
+    whats,
+    xAxisSize,
+    yAxisSize,
+  ]);
 
   const linkCSV = useMemo(() => {
     const agg =
@@ -288,8 +309,8 @@ export function PlotViewMetric(props: {
         : sel.customAgg === 0
         ? `${Math.floor(width * devicePixelRatio)}`
         : `${sel.customAgg}s`;
-    return queryURLCSV(sel, timeRange, timeShifts, agg);
-  }, [sel, timeRange, timeShifts, width]);
+    return queryURLCSV(sel, timeRange, timeShifts, agg, params);
+  }, [params, sel, timeRange, timeShifts, width]);
 
   const onReady = useCallback(
     (u: uPlot) => {
@@ -297,6 +318,10 @@ export function PlotViewMetric(props: {
         uPlotRef.current = u;
       }
       setUPlotWidth(indexPlot, u.bbox.width);
+      u.over.onclick = () => {
+        // @ts-ignore
+        setCursorLock(u.cursor._lock);
+      };
       u.over.ondblclick = () => {
         resetZoomRef.current();
       };
@@ -396,7 +421,6 @@ export function PlotViewMetric(props: {
             )}
             <PlotHeader
               indexPlot={indexPlot}
-              sel={sel}
               setParams={setSel}
               setLive={setLiveMode}
               meta={meta}
@@ -447,7 +471,7 @@ export function PlotViewMetric(props: {
               onReady={onReady}
               onSetSelect={onSetSelect}
               onUpdatePreview={onUpdatePreview}
-              className="w-100 h-100 position-absolute top-0 start-0"
+              className={cn('w-100 h-100 position-absolute top-0 start-0', cursorLock && css.cursorLock)}
               onUpdateLegend={setLegend}
             >
               <UPlotPluginPortal hooks={pluginEventOverlayHooks} zone="over">

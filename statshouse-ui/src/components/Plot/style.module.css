@@ -128,6 +128,9 @@
   color: var(--bs-secondary-color);
   background-color: rgba(var(--bs-secondary-bg-rgb), 0.7);
 }
+.cursorLock {
+  cursor: crosshair;
+}
 
 @media screen and (min-width: 768px) {
   .plotTabMenu li:hover ul {

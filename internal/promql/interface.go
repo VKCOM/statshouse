@@ -12,6 +12,7 @@ import (
 	"math"
 
 	"github.com/prometheus/prometheus/model/labels"
+
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -87,8 +88,8 @@ type Timescale struct {
 	LODs   []LOD
 	Step   int64 // aggregation interval requested (former "desiredStepMul")
 	Offset int64 // the offset for which timescale was generated
-	Start  int64 // query start aligned by LOD boundary
-	End    int64 // query end aligned by LOD boundary
+	Start  int64 // query start
+	End    int64 // query end
 }
 
 type LOD struct {
@@ -143,7 +144,6 @@ type TagValueIDQuery struct {
 }
 
 type TagValuesQuery struct {
-	Version   string
 	Metric    *format.MetricMetaValue
 	TagIndex  int
 	Timescale Timescale

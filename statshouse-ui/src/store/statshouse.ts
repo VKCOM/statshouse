@@ -69,7 +69,7 @@ import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
-import { GET_PARAMS, QueryWhat, TagKey } from '../api/enum';
+import { GET_PARAMS, isQueryWhat, QueryWhat, TagKey } from '../api/enum';
 import { deepClone, mergeLeft, sortEntity, toNumber } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { appHistory } from '../common/appHistory';
@@ -96,6 +96,7 @@ import { clearAllPlotPreview, clearPlotPreview, resortPlotPreview } from './plot
 export type PlotStore = {
   nameMetric: string;
   whats: QueryWhat[];
+  metricType: string;
   error: string;
   error403?: string;
   errorSkipCount: number;
@@ -149,6 +150,7 @@ function getEmptyPlotData(): PlotStore {
   return {
     nameMetric: '',
     whats: [],
+    metricType: '',
     error: '',
     errorSkipCount: 0,
     data: [[]],
@@ -253,7 +255,7 @@ export type StatsHouseStore = {
   setDashboardLayoutEdit(nextStatus: boolean): void;
   setGroupName(indexGroup: number, name: string): void;
   setGroupShow(indexGroup: number, show: React.SetStateAction<boolean>): void;
-  setGroupSize(indexGroup: number, size: React.SetStateAction<number>): void;
+  setGroupSize(indexGroup: number, size: React.SetStateAction<string>): void;
   listMetricsGroup: MetricsGroupShort[];
   loadListMetricsGroup(): Promise<MetricsGroupShort[]>;
   saveMetricsGroup(metricsGroup: MetricsGroup): Promise<MetricsGroupInfo | undefined>;
@@ -400,6 +402,7 @@ export const useStore = createWithEqualityFn<Store>()(
         if (params.plots.length === 0) {
           const np: PlotParams = {
             metricName: globalSettings.default_metric,
+            customDescription: '',
             promQL: '',
             customName: '',
             groupBy: [...globalSettings.default_metric_group_by],
@@ -514,10 +517,18 @@ export const useStore = createWithEqualityFn<Store>()(
             });
           });
           const changedVariablesPlot: Set<number | null> = new Set();
+          const plotsPromQL = getState()
+            .params.plots.map((plot, indexPlot) => ({ plot, indexPlot }))
+            .filter(({ plot }) => plot.promQL.indexOf('$') > -1);
           getState().params.variables.forEach((variable, indexVariable) => {
             if (prevParams.variables[indexVariable] !== variable) {
               variable.link.forEach(([iPlot]) => {
                 changedVariablesPlot.add(toNumber(iPlot));
+              });
+              plotsPromQL.forEach(({ plot, indexPlot }) => {
+                if (plot.promQL.indexOf('$' + variable.name) > -1) {
+                  changedVariablesPlot.add(indexPlot);
+                }
               });
             }
           });
@@ -804,8 +815,7 @@ export const useStore = createWithEqualityFn<Store>()(
           });
           return;
         }
-
-        if (lastPlotParams.metricName === '' && lastPlotParams.promQL === '') {
+        if (lastPlotParams && lastPlotParams.metricName === '' && lastPlotParams.promQL === '') {
           return;
         }
         if (
@@ -814,6 +824,8 @@ export const useStore = createWithEqualityFn<Store>()(
           (!dequal(lastPlotParams, prev.lastPlotParams) ||
             prevState.timeRange !== prev.lastTimeRange ||
             prevState.params.timeShifts !== prev.lastTimeShifts ||
+            (lastPlotParams.promQL &&
+              prevState.params.variables.some(({ name }) => lastPlotParams.promQL.indexOf(name) > -1)) ||
             force)
         ) {
           const agg =
@@ -844,7 +856,14 @@ export const useStore = createWithEqualityFn<Store>()(
 
           const promQLForm = new FormData();
           promQLForm.append('q', lastPlotParams.promQL);
-          const url = queryURL(lastPlotParams, prevState.timeRange, prevState.params.timeShifts, agg, !compact);
+          const url = queryURL(
+            lastPlotParams,
+            prevState.timeRange,
+            prevState.params.timeShifts,
+            agg,
+            !compact,
+            prevState.params
+          );
           prevState.plotsDataAbortController[index]?.abort();
           setState((state) => {
             state.plotsDataAbortController[index] = controller;
@@ -871,17 +890,24 @@ export const useStore = createWithEqualityFn<Store>()(
           )
             .then((resp) => {
               const promqltestfailed = !!resp?.promqltestfailed;
-              const uniqueWhat = new Set();
+              const uniqueWhat: Set<QueryWhat> = new Set();
               const uniqueName = new Set();
+              const uniqueMetricType: Set<string> = new Set();
               for (const meta of resp?.series.series_meta ?? []) {
-                uniqueWhat.add(meta.what);
+                if (isQueryWhat(meta.what)) {
+                  uniqueWhat.add(meta.what);
+                }
                 meta.name && uniqueName.add(meta.name);
+                if (meta.metric_type) {
+                  uniqueMetricType.add(meta.metric_type);
+                }
               }
               const currentPrevState = getState();
               const currentPrev: PlotStore = getState().plotsData[index];
               if (uniqueName.size === 0 && lastPlotParams.metricName !== promQLMetric) {
                 uniqueName.add(lastPlotParams.metricName);
               }
+              const metricType = uniqueMetricType.size === 1 ? [...uniqueMetricType.keys()][0] : '';
 
               const maxLabelLength = Math.max(
                 'Time'.length,
@@ -1112,7 +1138,8 @@ export const useStore = createWithEqualityFn<Store>()(
                 }
                 state.plotsData[index] = {
                   nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
-                  whats: uniqueName.size === 1 ? ([...uniqueWhat.keys()] as QueryWhat[]) : [],
+                  whats: uniqueName.size === 1 ? [...uniqueWhat.keys()] : [],
+                  metricType,
                   error: '',
                   errorSkipCount: 0,
                   data: noUpdateData ? state.plotsData[index]?.data : stacked || data,
@@ -1617,7 +1644,7 @@ export const useStore = createWithEqualityFn<Store>()(
                     name: '',
                     count: 0,
                     show: true,
-                    size: 2,
+                    size: '2',
                   };
                 }
               }
@@ -1643,6 +1670,9 @@ export const useStore = createWithEqualityFn<Store>()(
         setState((state) => {
           state.dashboardLayoutEdit = nextStatus;
         });
+        if (nextStatus) {
+          getState().setLiveMode(false);
+        }
         if (!nextStatus && getState().params.tabNum < -1) {
           getState().setTabNum(-1);
         }
@@ -1655,7 +1685,7 @@ export const useStore = createWithEqualityFn<Store>()(
               if (state.dashboard.groupInfo[indexGroup]) {
                 state.dashboard.groupInfo[indexGroup].name = name;
               } else {
-                state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: 2 };
+                state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: '2' };
               }
             }
           })
@@ -1674,7 +1704,7 @@ export const useStore = createWithEqualityFn<Store>()(
                   show: nextShow,
                   name: '',
                   count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
-                  size: 2,
+                  size: '2',
                 };
               }
             }
@@ -1682,7 +1712,7 @@ export const useStore = createWithEqualityFn<Store>()(
         );
       },
       setGroupSize(indexGroup, size) {
-        const nextSize = getNextState(getState().params.dashboard?.groupInfo?.[indexGroup]?.size ?? 2, size);
+        const nextSize = getNextState(getState().params.dashboard?.groupInfo?.[indexGroup]?.size ?? '2', size);
         getState().setParams(
           produce<QueryParams>((state) => {
             if (state.dashboard) {

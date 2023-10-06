@@ -40,6 +40,7 @@ import { debug } from '../../common/debug';
 import { shallow } from 'zustand/shallow';
 import { PLOT_TYPE, PlotParams, toPlotKey, toTagKey, VariableParams } from '../../url/queryParams';
 import { dequal } from 'dequal/lite';
+import { PlotControlAggregation } from './PlotControlAggregation';
 
 const { setParams, setTimeRange, setPlotParams, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
 
@@ -230,8 +231,7 @@ export const PlotControls = memo(function PlotControls_(props: {
   }, [indexPlot, meta?.kind, meta?.name, plotParams.metricName, plotParams.what]);
 
   const onCustomAggChange = useCallback(
-    (e: ChangeEvent<HTMLSelectElement>) => {
-      const customAgg = parseInt(e.target.value);
+    (customAgg: number) => {
       const timeShiftsSet = getTimeShifts(customAgg);
       const shifts = timeShifts.filter(
         (v) => timeShiftsSet.find((shift) => timeShiftAbbrevExpand(shift) === v) !== undefined
@@ -285,6 +285,7 @@ export const PlotControls = memo(function PlotControls_(props: {
           ...s,
           metricName: value,
           customName: '',
+          customDescription: '',
           what: s.what.some((qw) => whats.indexOf(qw) === -1) ? [whats[0] as QueryWhat] : s.what,
           groupBy: [],
           filterIn: {},
@@ -433,25 +434,7 @@ export const PlotControls = memo(function PlotControls_(props: {
 
             <div className="mb-3 d-flex">
               <div className="d-flex me-4 gap-3 flex-grow-1">
-                <select
-                  className={`form-select ${plotParams.customAgg > 0 ? 'border-warning' : ''}`}
-                  value={plotParams.customAgg}
-                  onChange={onCustomAggChange}
-                >
-                  <option value={0}>Auto</option>
-                  <option value={-1}>Auto (low)</option>
-                  <option value={1}>1 second</option>
-                  <option value={5}>5 seconds</option>
-                  <option value={15}>15 seconds</option>
-                  <option value={60}>1 minute</option>
-                  <option value={5 * 60}>5 minutes</option>
-                  <option value={15 * 60}>15 minutes</option>
-                  <option value={60 * 60}>1 hour</option>
-                  <option value={4 * 60 * 60}>4 hours</option>
-                  <option value={24 * 60 * 60}>24 hours</option>
-                  <option value={7 * 24 * 60 * 60}>7 days</option>
-                  <option value={31 * 24 * 60 * 60}>1 month</option>
-                </select>
+                <PlotControlAggregation value={plotParams.customAgg} onChange={onCustomAggChange} />
                 <select className="form-select" value={plotParams.numSeries} onChange={onNumSeriesChange}>
                   <option value="1">Top 1</option>
                   <option value="2">Top 2</option>
@@ -518,6 +501,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                       list={tagsList[tagKey]?.list}
                       loaded={tagsList[tagKey]?.loaded}
                       more={tagsList[tagKey]?.more}
+                      customValue={tagsList[tagKey]?.more}
                       customBadge={
                         variableTags[tagKey] && (
                           <span
@@ -560,6 +544,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                     list={tagsList[TAG_KEY._s]?.list}
                     loaded={tagsList[TAG_KEY._s]?.loaded}
                     more={tagsList[TAG_KEY._s]?.more}
+                    customValue={tagsList[TAG_KEY._s]?.more}
                     customBadge={
                       variableTags[TAG_KEY._s] && (
                         <span

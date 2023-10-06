@@ -106,6 +106,7 @@ export function toPlotKey(s: unknown, defaultPlotKey?: PlotKey): PlotKey | null 
 export type PlotParams = {
   metricName: string;
   customName: string;
+  customDescription: string;
   what: QueryWhat[];
   customAgg: number;
   groupBy: TagKey[];
@@ -129,7 +130,7 @@ export type GroupInfo = {
   name: string;
   show: boolean;
   count: number;
-  size: number;
+  size: string;
 };
 
 export type DashboardParams = {
@@ -220,6 +221,7 @@ export function getNewPlot(): PlotParams {
   return {
     metricName: globalSettings.default_metric,
     customName: '',
+    customDescription: '',
     promQL: '',
     what: globalSettings.default_metric_what.slice(),
     customAgg: 0,
@@ -253,6 +255,71 @@ export function fixMessageTrouble(search: string): string {
     return search.replaceAll('+', '%20').replace(/\.$/gi, '%2E');
   }
   return search.replace(/\+/gi, '%20').replace(/\.$/gi, '%2E');
+}
+
+export function encodeVariableConfig(value: QueryParams, defaultParams?: QueryParams): [string, string][] {
+  const search: [string, string][] = [];
+
+  // variables config
+  if (
+    value.variables.length &&
+    !dequal(value.variables.map(toVariableConfig), defaultParams?.variables.map(toVariableConfig))
+  ) {
+    value.variables.forEach((variable, indexVariable) => {
+      const prefix = toVariablePrefix(indexVariable);
+      search.push([prefix + GET_PARAMS.variableName, variable.name]);
+
+      if (variable.description) {
+        search.push([prefix + GET_PARAMS.variableDescription, variable.description]);
+      }
+
+      if (variable.link.length) {
+        search.push([
+          prefix + GET_PARAMS.variableLinkPlot,
+          variable.link
+            .filter(isNotNilVariableLink)
+            .map(([p, t]) => `${p}.${t}`)
+            .join('-'),
+        ]);
+      }
+    });
+  } else if (!value.variables.length && defaultParams?.variables.length) {
+    search.push([toVariablePrefix(0) + GET_PARAMS.variableName, removeValueChar]);
+  }
+
+  return search;
+}
+
+export function encodeVariableValues(value: QueryParams, defaultParams?: QueryParams): [string, string][] {
+  const search: [string, string][] = [];
+
+  // variables values
+  if (
+    value.variables.length &&
+    !dequal(value.variables.map(toVariableValue), defaultParams?.variables.map(toVariableValue))
+  ) {
+    value.variables.forEach((variable, indexVariable) => {
+      const variableName = `${GET_PARAMS.variableValuePrefix}${variable.name}`;
+
+      if (variable.values.length && !dequal(variable.values, defaultParams?.variables[indexVariable]?.values ?? [])) {
+        variable.values.forEach((value) => {
+          search.push([variableName, value]);
+        });
+      } else if (!variable.values.length && defaultParams?.variables[indexVariable]?.values.length) {
+        search.push([variableName, removeValueChar]);
+      }
+
+      if (variable.args.groupBy !== (defaultParams?.variables[indexVariable]?.args.groupBy ?? false)) {
+        search.push([`${variableName}.${GET_PARAMS.variableGroupBy}`, variable.args.groupBy ? '1' : '0']);
+      }
+
+      if (variable.args.negative !== (defaultParams?.variables[indexVariable]?.args.negative ?? false)) {
+        search.push([`${variableName}.${GET_PARAMS.variableNegative}`, variable.args.negative ? '1' : '0']);
+      }
+    });
+  }
+
+  return search;
 }
 
 export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [string, string][] {
@@ -290,7 +357,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
       !(
         value.dashboard?.groupInfo?.length === 1 &&
         value.dashboard?.groupInfo[0].name === '' &&
-        value.dashboard?.groupInfo[0].size === 2 &&
+        value.dashboard?.groupInfo[0].size === '2' &&
         value.dashboard?.groupInfo[0].show === true &&
         !defaultParams?.dashboard?.groupInfo?.length
       )
@@ -301,7 +368,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         if (count) {
           search.push([prefix + GET_PARAMS.dashboardGroupInfoCount, count.toString()]);
         }
-        if (size !== 2) {
+        if (size !== '2') {
           search.push([prefix + GET_PARAMS.dashboardGroupInfoSize, size.toString()]);
         }
       });
@@ -349,6 +416,10 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
 
       if (plot.customName) {
         search.push([prefix + GET_PARAMS.metricCustomName, plot.customName]);
+      }
+
+      if (plot.customDescription) {
+        search.push([prefix + GET_PARAMS.metricCustomDescription, plot.customDescription]);
       }
 
       if (!(plot.what.length === 1 && plot.what[0] === 'count_norm') && plot.what.length) {
@@ -462,67 +533,17 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
     search.push([GET_PARAMS.metricFilterSync, removeValueChar]);
   }
 
-  // variables config
-  if (
-    value.variables.length &&
-    !dequal(value.variables.map(toVariableConfig), defaultParams?.variables.map(toVariableConfig))
-  ) {
-    value.variables.forEach((variable, indexVariable) => {
-      const prefix = toVariablePrefix(indexVariable);
-      search.push([prefix + GET_PARAMS.variableName, variable.name]);
-
-      if (variable.description) {
-        search.push([prefix + GET_PARAMS.variableDescription, variable.description]);
-      }
-
-      if (variable.link.length) {
-        search.push([
-          prefix + GET_PARAMS.variableLinkPlot,
-          variable.link
-            .filter(isNotNilVariableLink)
-            .map(([p, t]) => `${p}.${t}`)
-            .join('-'),
-        ]);
-      }
-    });
-  } else if (!value.variables.length && defaultParams?.variables.length) {
-    search.push([toVariablePrefix(0) + GET_PARAMS.variableName, removeValueChar]);
-  }
-
-  // variables values
-  if (
-    value.variables.length &&
-    !dequal(value.variables.map(toVariableValue), defaultParams?.variables.map(toVariableValue))
-  ) {
-    value.variables.forEach((variable, indexVariable) => {
-      const variableName = `${GET_PARAMS.variableValuePrefix}${variable.name}`;
-
-      if (variable.values.length && !dequal(variable.values, defaultParams?.variables[indexVariable]?.values ?? [])) {
-        variable.values.forEach((value) => {
-          search.push([variableName, value]);
-        });
-      } else if (!variable.values.length && defaultParams?.variables[indexVariable]?.values.length) {
-        search.push([variableName, removeValueChar]);
-      }
-
-      if (variable.args.groupBy !== (defaultParams?.variables[indexVariable]?.args.groupBy ?? false)) {
-        search.push([`${variableName}.${GET_PARAMS.variableGroupBy}`, variable.args.groupBy ? '1' : '0']);
-      }
-
-      if (variable.args.negative !== (defaultParams?.variables[indexVariable]?.args.negative ?? false)) {
-        search.push([`${variableName}.${GET_PARAMS.variableNegative}`, variable.args.negative ? '1' : '0']);
-      }
-    });
-  }
+  search.push(...encodeVariableConfig(value, defaultParams));
+  search.push(...encodeVariableValues(value, defaultParams));
   return search;
 }
 
 export function decodeParams(searchParams: [string, string][], defaultParams?: QueryParams): QueryParams {
   const urlParams = searchParams.reduce((res, [key, value]) => {
     res[key] ??= [];
-    res[key].push(value);
+    res[key]?.push(value);
     return res;
-  }, {} as Record<string, string[]>);
+  }, {} as Partial<Record<string, string[]>>);
 
   const live = urlParams[GET_PARAMS.metricLive]?.[0] === '1';
 
@@ -556,7 +577,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       break;
     }
     const count = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoCount]?.[0]) ?? 0;
-    const size = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoSize]?.[0]) ?? 2;
+    const size = urlParams[prefix + GET_PARAMS.dashboardGroupInfoSize]?.[0] ?? '2';
     groupInfo.push({ name, show: defaultParams?.dashboard?.groupInfo?.[i]?.show ?? true, count, size });
   }
   groupInfo.forEach((group, indexGroup) => {
@@ -567,7 +588,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
   });
 
   const timeRangeTo =
-    stringToTime(urlParams[GET_PARAMS.toTime]?.[0]) ?? defaultParams?.timeRange.to ?? TIME_RANGE_KEYS_TO.default;
+    stringToTime(urlParams[GET_PARAMS.toTime]?.[0] ?? '') ?? defaultParams?.timeRange.to ?? TIME_RANGE_KEYS_TO.default;
 
   const timeRangeFrom = toNumber(urlParams[GET_PARAMS.fromTime]?.[0]) ?? defaultParams?.timeRange.from ?? 0;
 
@@ -589,6 +610,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       break;
     }
     const customName = urlParams[prefix + GET_PARAMS.metricCustomName]?.[0] ?? '';
+    const customDescription = urlParams[prefix + GET_PARAMS.metricCustomDescription]?.[0] ?? '';
     const what: QueryWhat[] = urlParams[prefix + GET_PARAMS.metricWhat]?.filter(isQueryWhat) ?? ['count_norm'];
     const customAgg = toNumber(urlParams[prefix + GET_PARAMS.metricAgg]?.[0]) ?? 0;
     const groupBy: TagKey[] =
@@ -638,6 +660,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     plots.push({
       metricName,
       customName,
+      customDescription,
       what,
       customAgg,
       groupBy,
@@ -688,7 +711,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     }
 
     const link =
-      urlParams[prefix + GET_PARAMS.variableLinkPlot][0]
+      urlParams[prefix + GET_PARAMS.variableLinkPlot]?.[0]
         ?.split('-')
         .map((s) => {
           const [p, t] = s.split('.', 2);

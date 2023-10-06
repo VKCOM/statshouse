@@ -105,6 +105,9 @@ func (item *FsbinlogSnapshotMeta) readJSON(j interface{}) error {
 }
 
 func (item *FsbinlogSnapshotMeta) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *FsbinlogSnapshotMeta) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

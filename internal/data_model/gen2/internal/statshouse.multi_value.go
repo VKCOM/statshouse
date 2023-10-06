@@ -17,13 +17,15 @@ type StatshouseMultiValue struct {
 	Counter float64 // Conditional: nat_fields_mask.0
 	// CounterEq1 (TrueType) // Conditional: nat_fields_mask.1
 	// ValueSet (TrueType) // Conditional: nat_fields_mask.2
-	ValueMin       float64              // Conditional: nat_fields_mask.3
-	ValueMax       float64              // Conditional: nat_fields_mask.4
-	ValueSum       float64              // Conditional: nat_fields_mask.4
-	ValueSumSquare float64              // Conditional: nat_fields_mask.4
-	Uniques        string               // Conditional: nat_fields_mask.5
-	Centroids      []StatshouseCentroid // Conditional: nat_fields_mask.6
-	HostTag        int32                // Conditional: nat_fields_mask.7
+	ValueMin          float64              // Conditional: nat_fields_mask.3
+	ValueMax          float64              // Conditional: nat_fields_mask.4
+	ValueSum          float64              // Conditional: nat_fields_mask.4
+	ValueSumSquare    float64              // Conditional: nat_fields_mask.4
+	Uniques           string               // Conditional: nat_fields_mask.5
+	Centroids         []StatshouseCentroid // Conditional: nat_fields_mask.6
+	MaxHostTag        int32                // Conditional: nat_fields_mask.7
+	MinHostTag        int32                // Conditional: nat_fields_mask.8
+	MaxCounterHostTag int32                // Conditional: nat_fields_mask.9
 }
 
 func (StatshouseMultiValue) TLName() string { return "statshouse.multi_value" }
@@ -167,20 +169,52 @@ func (item StatshouseMultiValue) IsSetCentroids(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<6) != 0
 }
 
-func (item *StatshouseMultiValue) SetHostTag(v int32, nat_fields_mask *uint32) {
-	item.HostTag = v
+func (item *StatshouseMultiValue) SetMaxHostTag(v int32, nat_fields_mask *uint32) {
+	item.MaxHostTag = v
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 7
 	}
 }
-func (item *StatshouseMultiValue) ClearHostTag(nat_fields_mask *uint32) {
-	item.HostTag = 0
+func (item *StatshouseMultiValue) ClearMaxHostTag(nat_fields_mask *uint32) {
+	item.MaxHostTag = 0
 	if nat_fields_mask != nil {
 		*nat_fields_mask &^= 1 << 7
 	}
 }
-func (item StatshouseMultiValue) IsSetHostTag(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValue) IsSetMaxHostTag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<7) != 0
+}
+
+func (item *StatshouseMultiValue) SetMinHostTag(v int32, nat_fields_mask *uint32) {
+	item.MinHostTag = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 8
+	}
+}
+func (item *StatshouseMultiValue) ClearMinHostTag(nat_fields_mask *uint32) {
+	item.MinHostTag = 0
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 8
+	}
+}
+func (item StatshouseMultiValue) IsSetMinHostTag(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<8) != 0
+}
+
+func (item *StatshouseMultiValue) SetMaxCounterHostTag(v int32, nat_fields_mask *uint32) {
+	item.MaxCounterHostTag = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 9
+	}
+}
+func (item *StatshouseMultiValue) ClearMaxCounterHostTag(nat_fields_mask *uint32) {
+	item.MaxCounterHostTag = 0
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 9
+	}
+}
+func (item StatshouseMultiValue) IsSetMaxCounterHostTag(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<9) != 0
 }
 
 func (item *StatshouseMultiValue) Reset() {
@@ -191,7 +225,9 @@ func (item *StatshouseMultiValue) Reset() {
 	item.ValueSumSquare = 0
 	item.Uniques = ""
 	item.Centroids = item.Centroids[:0]
-	item.HostTag = 0
+	item.MaxHostTag = 0
+	item.MinHostTag = 0
+	item.MaxCounterHostTag = 0
 }
 
 func (item *StatshouseMultiValue) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -245,11 +281,25 @@ func (item *StatshouseMultiValue) Read(w []byte, nat_fields_mask uint32) (_ []by
 		item.Centroids = item.Centroids[:0]
 	}
 	if nat_fields_mask&(1<<7) != 0 {
-		if w, err = basictl.IntRead(w, &item.HostTag); err != nil {
+		if w, err = basictl.IntRead(w, &item.MaxHostTag); err != nil {
 			return w, err
 		}
 	} else {
-		item.HostTag = 0
+		item.MaxHostTag = 0
+	}
+	if nat_fields_mask&(1<<8) != 0 {
+		if w, err = basictl.IntRead(w, &item.MinHostTag); err != nil {
+			return w, err
+		}
+	} else {
+		item.MinHostTag = 0
+	}
+	if nat_fields_mask&(1<<9) != 0 {
+		if w, err = basictl.IntRead(w, &item.MaxCounterHostTag); err != nil {
+			return w, err
+		}
+	} else {
+		item.MaxCounterHostTag = 0
 	}
 	return w, nil
 }
@@ -281,7 +331,13 @@ func (item *StatshouseMultiValue) Write(w []byte, nat_fields_mask uint32) (_ []b
 		}
 	}
 	if nat_fields_mask&(1<<7) != 0 {
-		w = basictl.IntWrite(w, item.HostTag)
+		w = basictl.IntWrite(w, item.MaxHostTag)
+	}
+	if nat_fields_mask&(1<<8) != 0 {
+		w = basictl.IntWrite(w, item.MinHostTag)
+	}
+	if nat_fields_mask&(1<<9) != 0 {
+		w = basictl.IntWrite(w, item.MaxCounterHostTag)
 	}
 	return w, nil
 }
@@ -324,8 +380,12 @@ func (item *StatshouseMultiValue) readJSON(j interface{}, nat_fields_mask uint32
 	delete(_jm, "uniques")
 	_jCentroids := _jm["centroids"]
 	delete(_jm, "centroids")
-	_jHostTag := _jm["host_tag"]
-	delete(_jm, "host_tag")
+	_jMaxHostTag := _jm["max_host_tag"]
+	delete(_jm, "max_host_tag")
+	_jMinHostTag := _jm["min_host_tag"]
+	delete(_jm, "min_host_tag")
+	_jMaxCounterHostTag := _jm["max_counter_host_tag"]
+	delete(_jm, "max_counter_host_tag")
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouse.multi_value", k)
 	}
@@ -356,8 +416,14 @@ func (item *StatshouseMultiValue) readJSON(j interface{}, nat_fields_mask uint32
 	if nat_fields_mask&(1<<6) == 0 && _jCentroids != nil {
 		return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
 	}
-	if nat_fields_mask&(1<<7) == 0 && _jHostTag != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+	if nat_fields_mask&(1<<7) == 0 && _jMaxHostTag != nil {
+		return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+	}
+	if nat_fields_mask&(1<<8) == 0 && _jMinHostTag != nil {
+		return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+	}
+	if nat_fields_mask&(1<<9) == 0 && _jMaxCounterHostTag != nil {
+		return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
 	}
 	if nat_fields_mask&(1<<0) != 0 {
 		if err := JsonReadFloat64(_jCounter, &item.Counter); err != nil {
@@ -409,16 +475,33 @@ func (item *StatshouseMultiValue) readJSON(j interface{}, nat_fields_mask uint32
 		item.Centroids = item.Centroids[:0]
 	}
 	if nat_fields_mask&(1<<7) != 0 {
-		if err := JsonReadInt32(_jHostTag, &item.HostTag); err != nil {
+		if err := JsonReadInt32(_jMaxHostTag, &item.MaxHostTag); err != nil {
 			return err
 		}
 	} else {
-		item.HostTag = 0
+		item.MaxHostTag = 0
+	}
+	if nat_fields_mask&(1<<8) != 0 {
+		if err := JsonReadInt32(_jMinHostTag, &item.MinHostTag); err != nil {
+			return err
+		}
+	} else {
+		item.MinHostTag = 0
+	}
+	if nat_fields_mask&(1<<9) != 0 {
+		if err := JsonReadInt32(_jMaxCounterHostTag, &item.MaxCounterHostTag); err != nil {
+			return err
+		}
+	} else {
+		item.MaxCounterHostTag = 0
 	}
 	return nil
 }
 
 func (item *StatshouseMultiValue) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_fields_mask)
+}
+func (item *StatshouseMultiValue) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		if item.Counter != 0 {
@@ -466,16 +549,30 @@ func (item *StatshouseMultiValue) WriteJSON(w []byte, nat_fields_mask uint32) (_
 		if len(item.Centroids) != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
 			w = append(w, `"centroids":`...)
-			if w, err = VectorStatshouseCentroid0WriteJSON(w, item.Centroids); err != nil {
+			if w, err = VectorStatshouseCentroid0WriteJSONOpt(short, w, item.Centroids); err != nil {
 				return w, err
 			}
 		}
 	}
 	if nat_fields_mask&(1<<7) != 0 {
-		if item.HostTag != 0 {
+		if item.MaxHostTag != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"host_tag":`...)
-			w = basictl.JSONWriteInt32(w, item.HostTag)
+			w = append(w, `"max_host_tag":`...)
+			w = basictl.JSONWriteInt32(w, item.MaxHostTag)
+		}
+	}
+	if nat_fields_mask&(1<<8) != 0 {
+		if item.MinHostTag != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"min_host_tag":`...)
+			w = basictl.JSONWriteInt32(w, item.MinHostTag)
+		}
+	}
+	if nat_fields_mask&(1<<9) != 0 {
+		if item.MaxCounterHostTag != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"max_counter_host_tag":`...)
+			w = basictl.JSONWriteInt32(w, item.MaxCounterHostTag)
 		}
 	}
 	return append(w, '}'), nil
@@ -485,13 +582,15 @@ type StatshouseMultiValueBytes struct {
 	Counter float64 // Conditional: nat_fields_mask.0
 	// CounterEq1 (TrueType) // Conditional: nat_fields_mask.1
 	// ValueSet (TrueType) // Conditional: nat_fields_mask.2
-	ValueMin       float64              // Conditional: nat_fields_mask.3
-	ValueMax       float64              // Conditional: nat_fields_mask.4
-	ValueSum       float64              // Conditional: nat_fields_mask.4
-	ValueSumSquare float64              // Conditional: nat_fields_mask.4
-	Uniques        []byte               // Conditional: nat_fields_mask.5
-	Centroids      []StatshouseCentroid // Conditional: nat_fields_mask.6
-	HostTag        int32                // Conditional: nat_fields_mask.7
+	ValueMin          float64              // Conditional: nat_fields_mask.3
+	ValueMax          float64              // Conditional: nat_fields_mask.4
+	ValueSum          float64              // Conditional: nat_fields_mask.4
+	ValueSumSquare    float64              // Conditional: nat_fields_mask.4
+	Uniques           []byte               // Conditional: nat_fields_mask.5
+	Centroids         []StatshouseCentroid // Conditional: nat_fields_mask.6
+	MaxHostTag        int32                // Conditional: nat_fields_mask.7
+	MinHostTag        int32                // Conditional: nat_fields_mask.8
+	MaxCounterHostTag int32                // Conditional: nat_fields_mask.9
 }
 
 func (StatshouseMultiValueBytes) TLName() string { return "statshouse.multi_value" }
@@ -635,20 +734,52 @@ func (item StatshouseMultiValueBytes) IsSetCentroids(nat_fields_mask uint32) boo
 	return nat_fields_mask&(1<<6) != 0
 }
 
-func (item *StatshouseMultiValueBytes) SetHostTag(v int32, nat_fields_mask *uint32) {
-	item.HostTag = v
+func (item *StatshouseMultiValueBytes) SetMaxHostTag(v int32, nat_fields_mask *uint32) {
+	item.MaxHostTag = v
 	if nat_fields_mask != nil {
 		*nat_fields_mask |= 1 << 7
 	}
 }
-func (item *StatshouseMultiValueBytes) ClearHostTag(nat_fields_mask *uint32) {
-	item.HostTag = 0
+func (item *StatshouseMultiValueBytes) ClearMaxHostTag(nat_fields_mask *uint32) {
+	item.MaxHostTag = 0
 	if nat_fields_mask != nil {
 		*nat_fields_mask &^= 1 << 7
 	}
 }
-func (item StatshouseMultiValueBytes) IsSetHostTag(nat_fields_mask uint32) bool {
+func (item StatshouseMultiValueBytes) IsSetMaxHostTag(nat_fields_mask uint32) bool {
 	return nat_fields_mask&(1<<7) != 0
+}
+
+func (item *StatshouseMultiValueBytes) SetMinHostTag(v int32, nat_fields_mask *uint32) {
+	item.MinHostTag = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 8
+	}
+}
+func (item *StatshouseMultiValueBytes) ClearMinHostTag(nat_fields_mask *uint32) {
+	item.MinHostTag = 0
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 8
+	}
+}
+func (item StatshouseMultiValueBytes) IsSetMinHostTag(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<8) != 0
+}
+
+func (item *StatshouseMultiValueBytes) SetMaxCounterHostTag(v int32, nat_fields_mask *uint32) {
+	item.MaxCounterHostTag = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 9
+	}
+}
+func (item *StatshouseMultiValueBytes) ClearMaxCounterHostTag(nat_fields_mask *uint32) {
+	item.MaxCounterHostTag = 0
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 9
+	}
+}
+func (item StatshouseMultiValueBytes) IsSetMaxCounterHostTag(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<9) != 0
 }
 
 func (item *StatshouseMultiValueBytes) Reset() {
@@ -659,7 +790,9 @@ func (item *StatshouseMultiValueBytes) Reset() {
 	item.ValueSumSquare = 0
 	item.Uniques = item.Uniques[:0]
 	item.Centroids = item.Centroids[:0]
-	item.HostTag = 0
+	item.MaxHostTag = 0
+	item.MinHostTag = 0
+	item.MaxCounterHostTag = 0
 }
 
 func (item *StatshouseMultiValueBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -713,11 +846,25 @@ func (item *StatshouseMultiValueBytes) Read(w []byte, nat_fields_mask uint32) (_
 		item.Centroids = item.Centroids[:0]
 	}
 	if nat_fields_mask&(1<<7) != 0 {
-		if w, err = basictl.IntRead(w, &item.HostTag); err != nil {
+		if w, err = basictl.IntRead(w, &item.MaxHostTag); err != nil {
 			return w, err
 		}
 	} else {
-		item.HostTag = 0
+		item.MaxHostTag = 0
+	}
+	if nat_fields_mask&(1<<8) != 0 {
+		if w, err = basictl.IntRead(w, &item.MinHostTag); err != nil {
+			return w, err
+		}
+	} else {
+		item.MinHostTag = 0
+	}
+	if nat_fields_mask&(1<<9) != 0 {
+		if w, err = basictl.IntRead(w, &item.MaxCounterHostTag); err != nil {
+			return w, err
+		}
+	} else {
+		item.MaxCounterHostTag = 0
 	}
 	return w, nil
 }
@@ -749,7 +896,13 @@ func (item *StatshouseMultiValueBytes) Write(w []byte, nat_fields_mask uint32) (
 		}
 	}
 	if nat_fields_mask&(1<<7) != 0 {
-		w = basictl.IntWrite(w, item.HostTag)
+		w = basictl.IntWrite(w, item.MaxHostTag)
+	}
+	if nat_fields_mask&(1<<8) != 0 {
+		w = basictl.IntWrite(w, item.MinHostTag)
+	}
+	if nat_fields_mask&(1<<9) != 0 {
+		w = basictl.IntWrite(w, item.MaxCounterHostTag)
 	}
 	return w, nil
 }
@@ -792,8 +945,12 @@ func (item *StatshouseMultiValueBytes) readJSON(j interface{}, nat_fields_mask u
 	delete(_jm, "uniques")
 	_jCentroids := _jm["centroids"]
 	delete(_jm, "centroids")
-	_jHostTag := _jm["host_tag"]
-	delete(_jm, "host_tag")
+	_jMaxHostTag := _jm["max_host_tag"]
+	delete(_jm, "max_host_tag")
+	_jMinHostTag := _jm["min_host_tag"]
+	delete(_jm, "min_host_tag")
+	_jMaxCounterHostTag := _jm["max_counter_host_tag"]
+	delete(_jm, "max_counter_host_tag")
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouse.multi_value", k)
 	}
@@ -824,8 +981,14 @@ func (item *StatshouseMultiValueBytes) readJSON(j interface{}, nat_fields_mask u
 	if nat_fields_mask&(1<<6) == 0 && _jCentroids != nil {
 		return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
 	}
-	if nat_fields_mask&(1<<7) == 0 && _jHostTag != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+	if nat_fields_mask&(1<<7) == 0 && _jMaxHostTag != nil {
+		return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+	}
+	if nat_fields_mask&(1<<8) == 0 && _jMinHostTag != nil {
+		return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+	}
+	if nat_fields_mask&(1<<9) == 0 && _jMaxCounterHostTag != nil {
+		return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
 	}
 	if nat_fields_mask&(1<<0) != 0 {
 		if err := JsonReadFloat64(_jCounter, &item.Counter); err != nil {
@@ -877,16 +1040,33 @@ func (item *StatshouseMultiValueBytes) readJSON(j interface{}, nat_fields_mask u
 		item.Centroids = item.Centroids[:0]
 	}
 	if nat_fields_mask&(1<<7) != 0 {
-		if err := JsonReadInt32(_jHostTag, &item.HostTag); err != nil {
+		if err := JsonReadInt32(_jMaxHostTag, &item.MaxHostTag); err != nil {
 			return err
 		}
 	} else {
-		item.HostTag = 0
+		item.MaxHostTag = 0
+	}
+	if nat_fields_mask&(1<<8) != 0 {
+		if err := JsonReadInt32(_jMinHostTag, &item.MinHostTag); err != nil {
+			return err
+		}
+	} else {
+		item.MinHostTag = 0
+	}
+	if nat_fields_mask&(1<<9) != 0 {
+		if err := JsonReadInt32(_jMaxCounterHostTag, &item.MaxCounterHostTag); err != nil {
+			return err
+		}
+	} else {
+		item.MaxCounterHostTag = 0
 	}
 	return nil
 }
 
 func (item *StatshouseMultiValueBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_fields_mask)
+}
+func (item *StatshouseMultiValueBytes) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		if item.Counter != 0 {
@@ -934,16 +1114,30 @@ func (item *StatshouseMultiValueBytes) WriteJSON(w []byte, nat_fields_mask uint3
 		if len(item.Centroids) != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
 			w = append(w, `"centroids":`...)
-			if w, err = VectorStatshouseCentroid0WriteJSON(w, item.Centroids); err != nil {
+			if w, err = VectorStatshouseCentroid0WriteJSONOpt(short, w, item.Centroids); err != nil {
 				return w, err
 			}
 		}
 	}
 	if nat_fields_mask&(1<<7) != 0 {
-		if item.HostTag != 0 {
+		if item.MaxHostTag != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"host_tag":`...)
-			w = basictl.JSONWriteInt32(w, item.HostTag)
+			w = append(w, `"max_host_tag":`...)
+			w = basictl.JSONWriteInt32(w, item.MaxHostTag)
+		}
+	}
+	if nat_fields_mask&(1<<8) != 0 {
+		if item.MinHostTag != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"min_host_tag":`...)
+			w = basictl.JSONWriteInt32(w, item.MinHostTag)
+		}
+	}
+	if nat_fields_mask&(1<<9) != 0 {
+		if item.MaxCounterHostTag != 0 {
+			w = basictl.JSONAddCommaIfNeeded(w)
+			w = append(w, `"max_counter_host_tag":`...)
+			w = basictl.JSONWriteInt32(w, item.MaxCounterHostTag)
 		}
 	}
 	return append(w, '}'), nil

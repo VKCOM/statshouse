@@ -35,7 +35,7 @@ export interface IMetric extends IShortMetric {
   readonly kind: IKind;
   readonly withPercentiles: boolean;
   readonly tags: ITagAlias[];
-  readonly tagsSize: string;
+  readonly tagsSize: number;
   readonly stringTopName: string;
   readonly stringTopDescription: string;
   readonly weight: number;
@@ -47,6 +47,7 @@ export interface IMetric extends IShortMetric {
   readonly skip_min_host?: boolean;
   readonly skip_sum_square?: boolean;
   readonly pre_key_only?: boolean;
+  readonly metric_type?: string;
   readonly version?: number;
   readonly group_id?: number;
 }
@@ -68,6 +69,7 @@ export interface IBackendMetric {
   readonly skip_min_host?: boolean;
   readonly skip_sum_square?: boolean;
   readonly pre_key_only?: boolean;
+  readonly metric_type?: string;
   readonly version?: number;
   readonly group_id?: number;
 }

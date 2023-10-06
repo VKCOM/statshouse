@@ -18,7 +18,7 @@ type sqliteConn struct {
 	rw             *sqlite0.Conn
 	mu             sync.Mutex
 	cache          *queryCache
-	used           map[*sqlite0.Stmt]struct{}
+	used           map[*sqlite0.Stmt]struct{} // TODO move to query cache
 	err            error
 	spIn           bool
 	spOk           bool
@@ -61,9 +61,12 @@ func (c *sqliteConn) startNewConn(autoSavepoint bool, ctx context.Context, stats
 }
 
 func (c *sqliteConn) startNewROConn(ctx context.Context, stats *StatsOptions) (Conn, error) {
-	var err error
 	c.mu.Lock()
-	err = c.rw.Exec("BEGIN")
+	if c.err != nil {
+		c.mu.Unlock()
+		return Conn{}, c.err
+	}
+	err := c.rw.Exec("BEGIN")
 	if err != nil {
 		c.mu.Unlock()
 		return Conn{}, err
@@ -120,6 +123,7 @@ func (c Conn) execBeginSavepoint() error {
 	c.c.spIn = true
 	c.c.spOk = false
 	_, err := c.ExecUnsafe("__begin_savepoint", c.c.spBeginStmt)
+	c.c.spIn = err == nil
 	return err
 }
 
@@ -259,22 +263,21 @@ func (c Conn) doQuery(isRO, allowUnsafe bool, sqlBytes []byte, sqlString string,
 	if c.c.err != nil && !isRO {
 		return nil, c.c.err
 	}
-	sqlIsRawBytes := true
-	if len(sqlBytes) == 0 {
-		sqlIsRawBytes = false
-	}
+	useSQLRawBytes := len(sqlBytes) > 0
 	var sqlRO mem.RO
-	if sqlIsRawBytes {
+	if useSQLRawBytes {
 		sqlRO = mem.B(sqlBytes)
 	} else {
 		sqlRO = mem.S(sqlString)
 	}
 	c.c.numParams.reset(sqlRO)
+	hasSliceParam := false
 	for _, arg := range args {
 		if strings.HasPrefix(arg.name, "$internal") {
 			return nil, fmt.Errorf("prefix $internal is reserved")
 		}
 		if arg.slice {
+			hasSliceParam = true
 			if !checkSliceParamName(arg.name) {
 				return nil, fmt.Errorf("invalid list arg name %s", arg.name)
 			}
@@ -282,10 +285,13 @@ func (c Conn) doQuery(isRO, allowUnsafe bool, sqlBytes []byte, sqlString string,
 		}
 	}
 	sqlBytes, err := c.c.numParams.buildQueryLocked()
+	if hasSliceParam {
+		useSQLRawBytes = true // can't use sqlString as a cache key
+	}
 	if err != nil {
 		return nil, err
 	}
-	si, ok := c.c.cache.get(sqlString, sqlBytes)
+	si, ok := c.c.cache.get(sqlBytes)
 	if !ok {
 		start := time.Now()
 		si, err = prepare(c.c.rw, sqlBytes)
@@ -293,10 +299,10 @@ func (c Conn) doQuery(isRO, allowUnsafe bool, sqlBytes []byte, sqlString string,
 		if err != nil {
 			return nil, err
 		}
-		if sqlIsRawBytes {
+		if useSQLRawBytes {
 			c.c.cache.put(string(sqlBytes), si)
 		} else {
-			c.c.cache.put(sqlString, si)
+			c.c.cache.put(sqlString, si) // use user string to avoid alloc
 		}
 	}
 
@@ -320,6 +326,7 @@ func (c Conn) doQuery(isRO, allowUnsafe bool, sqlBytes []byte, sqlString string,
 			return nil, err
 		}
 	}
+	// TODO add used immediately
 
 	stmt, err := c.doStmt(si, args...)
 	return stmt, err

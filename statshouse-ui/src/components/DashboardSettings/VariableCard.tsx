@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import produce from 'immer';
-import { getMetricFullName, isValidVariableName } from '../../view/utils';
+import { getMetricFullName, isValidVariableName, promQLMetric } from '../../view/utils';
 import React, { useCallback, useEffect, useState } from 'react';
 import { PlotStore } from '../../store';
 import { MetricMetaValue } from '../../api/metric';
@@ -159,12 +159,16 @@ export function VariableCard({
                     <tr key={indexPlot}>
                       <td className="text-end pb-0 ps-0">{getMetricFullName(plot, plotsData[indexPlot])}</td>
                       <td className="pb-0 pe-0">
-                        <VariablePlotLinkSelect
-                          indexPlot={indexPlot}
-                          selectTag={variable.link.find(([p]) => p === plotKey)?.[1] ?? undefined}
-                          metricMeta={metricsMeta[plot.metricName]}
-                          onChange={plotLink}
-                        />
+                        {plot.metricName === promQLMetric ? (
+                          <div className="form-control form-control-sm text-secondary">promQL</div>
+                        ) : (
+                          <VariablePlotLinkSelect
+                            indexPlot={indexPlot}
+                            selectTag={variable.link.find(([p]) => p === plotKey)?.[1] ?? undefined}
+                            metricMeta={metricsMeta[plot.metricName]}
+                            onChange={plotLink}
+                          />
+                        )}
                       </td>
                     </tr>
                   );

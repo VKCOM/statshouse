@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { isEnum } from '../common/helpers';
+import { isEnum, toEnum, toNumber } from '../common/helpers';
 
 export type Enum<T> = T[keyof T];
 
@@ -13,6 +13,7 @@ export const GET_PARAMS = {
   version: 'v',
   metricName: 's',
   metricCustomName: 'cn',
+  metricCustomDescription: 'cd',
   fromTime: 'f',
   toTime: 't',
   width: 'w',
@@ -138,31 +139,23 @@ export const TAG_KEY = {
   _13: '13',
   _14: '14',
   _15: '15',
+  _16: '16',
+  _17: '17',
+  _18: '18',
+  _19: '19',
+  _20: '20',
+  _21: '21',
+  _23: '22',
+  _24: '24',
+  _25: '25',
+  _26: '26',
+  _27: '27',
+  _28: '28',
+  _29: '29',
+  _30: '30',
+  _31: '31',
 } as const;
 export type TagKey = Enum<typeof TAG_KEY>;
-
-export const TAG_KEY_OLD = {
-  skey: 'skey',
-  key0: 'key0',
-  key1: 'key1',
-  key2: 'key2',
-  key3: 'key3',
-  key4: 'key4',
-  key5: 'key5',
-  key6: 'key6',
-  key7: 'key7',
-  key8: 'key8',
-  key9: 'key9',
-  key10: 'key10',
-  key11: 'key11',
-  key12: 'key12',
-  key13: 'key13',
-  key14: 'key14',
-  key15: 'key15',
-} as const;
-export type TagKeyOld = Enum<typeof TAG_KEY_OLD>;
-
-export type TagKeyAll = TagKey | TagKeyOld;
 
 export const METRIC_META_KIND = {
   counter: 'counter',
@@ -196,3 +189,66 @@ export type ApiFetchOptMethods = Enum<typeof API_FETCH_OPT_METHODS>;
 
 export const isQueryWhat = isEnum<QueryWhat>(QUERY_WHAT);
 export const isTagKey = isEnum<TagKey>(TAG_KEY);
+
+/**
+ * metric unit type
+ */
+export const METRIC_TYPE = {
+  none: '',
+  // time
+  second: 'second',
+  millisecond: 'millisecond',
+  microsecond: 'microsecond',
+  nanosecond: 'nanosecond',
+  // data size
+  byte: 'byte',
+} as const;
+export type MetricType = Enum<typeof METRIC_TYPE>;
+export const isMetricType = isEnum<MetricType>(METRIC_TYPE);
+export const toMetricType = toEnum(isMetricType);
+export const METRIC_TYPE_DESCRIPTION: Record<MetricType, string> = {
+  [METRIC_TYPE.none]: 'no unit',
+  [METRIC_TYPE.second]: 'second',
+  [METRIC_TYPE.millisecond]: 'millisecond',
+  [METRIC_TYPE.microsecond]: 'microsecond',
+  [METRIC_TYPE.nanosecond]: 'nanosecond',
+  [METRIC_TYPE.byte]: 'byte',
+};
+
+/**
+ * metric aggregation
+ */
+export const METRIC_AGGREGATION = {
+  auto: 0,
+  autoLow: -1,
+  second1: 1,
+  second5: 5,
+  second15: 15,
+  minute1: 60,
+  minute5: 5 * 60,
+  minute15: 15 * 60,
+  hour1: 60 * 60,
+  hour4: 4 * 60 * 60,
+  hour24: 24 * 60 * 60,
+  day7: 7 * 24 * 60 * 60,
+  month1: 31 * 24 * 60 * 60,
+} as const;
+export type MetricAggregation = Enum<typeof METRIC_AGGREGATION>;
+export const isMetricAggregation = isEnum<MetricAggregation, number>(METRIC_AGGREGATION);
+export const toMetricAggregation = toEnum(isMetricAggregation, toNumber);
+
+export const METRIC_AGGREGATION_DESCRIPTION: Record<MetricAggregation, string> = {
+  [METRIC_AGGREGATION.auto]: 'Auto',
+  [METRIC_AGGREGATION.autoLow]: 'Auto (low)',
+  [METRIC_AGGREGATION.second1]: '1 second',
+  [METRIC_AGGREGATION.second5]: '5 seconds',
+  [METRIC_AGGREGATION.second15]: '15 seconds',
+  [METRIC_AGGREGATION.minute1]: '1 minute',
+  [METRIC_AGGREGATION.minute5]: '5 minutes',
+  [METRIC_AGGREGATION.minute15]: '15 minutes',
+  [METRIC_AGGREGATION.hour1]: '1 hour',
+  [METRIC_AGGREGATION.hour4]: '4 hours',
+  [METRIC_AGGREGATION.hour24]: '24 hours',
+  [METRIC_AGGREGATION.day7]: '7 days',
+  [METRIC_AGGREGATION.month1]: '1 month',
+};
