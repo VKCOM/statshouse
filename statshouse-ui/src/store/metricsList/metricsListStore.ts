@@ -4,21 +4,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
 import { apiMetricListFetch, MetricShortInfo } from '../../api/metricList';
 import { useErrorStore } from '../errors';
+import { createStore } from '../createStore';
 
 export type MetricsListStore = {
   list: MetricShortInfo[];
   loading: boolean;
 };
 
-export const useMetricsListStore = create<MetricsListStore>()(
-  immer((setState) => ({
+export const useMetricsListStore = createStore<MetricsListStore>(
+  () => ({
     list: [],
     loading: false,
-  }))
+  }),
+  'MetricsListStore'
 );
 
 let errorRemove: (() => void) | undefined;

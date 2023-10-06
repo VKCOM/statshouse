@@ -1,10 +1,9 @@
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
 import uPlot from 'uplot';
 import { canvasToImageData } from '../../common/canvasToImage';
 import { useStore } from '../statshouse';
 import { Queue } from '../../common/Queue';
 import { objectRemoveKeyShift, resortObjectKey } from '../../common/helpers';
+import { createStore } from '../createStore';
 
 const queuePreview = new Queue();
 
@@ -13,11 +12,12 @@ export type PlotPreview = {
   previewAbortController: Record<string, AbortController>;
 };
 
-export const usePlotPreview = create<PlotPreview>()(
-  immer((setState) => ({
+export const usePlotPreview = createStore<PlotPreview>(
+  () => ({
     previewList: {},
     previewAbortController: {},
-  }))
+  }),
+  'PlotPreview'
 );
 
 export async function createPlotPreview(indexPlot: number, u: uPlot, width: number = 300) {

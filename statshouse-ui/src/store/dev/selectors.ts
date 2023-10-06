@@ -7,4 +7,3 @@
 import { type DevStore } from './devStore';
 
 export const selectorDevEnabled = (s: DevStore) => s.enabled;
-export const selectorDevSetEnabled = (s: DevStore) => s.setEnabled;

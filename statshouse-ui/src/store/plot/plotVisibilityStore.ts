@@ -1,17 +1,17 @@
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
 import { useStore } from '../statshouse';
 import { objectRemoveKeyShift, resortObjectKey } from '../../common/helpers';
+import { createStore } from '../createStore';
 
 export type PlotVisibilityStore = {
   visibilityList: Record<string, boolean>;
   previewList: Record<string, boolean>;
 };
-export const usePlotVisibilityStore = create<PlotVisibilityStore>()(
-  immer((setState) => ({
+export const usePlotVisibilityStore = createStore<PlotVisibilityStore>(
+  () => ({
     visibilityList: {},
     previewList: {},
-  }))
+  }),
+  'PlotVisibilityStore'
 );
 
 export function setPlotVisibility(indexPlot: number, toggle: boolean) {

@@ -4,7 +4,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { createWithEqualityFn } from 'zustand/traditional';
 import uPlot from 'uplot';
 
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
@@ -89,9 +88,9 @@ import {
   toPlotKey,
   VariableParams,
 } from '../url/queryParams';
-import { immer } from 'zustand/middleware/immer';
 import { clearPlotVisibility, resortPlotVisibility, usePlotVisibilityStore } from './plot/plotVisibilityStore';
 import { clearAllPlotPreview, clearPlotPreview, resortPlotPreview } from './plot/plotPreview';
+import { createStoreWithEqualityFn } from './createStore';
 
 export type PlotStore = {
   nameMetric: string;
@@ -272,1383 +271,350 @@ export type StatsHouseStore = {
 };
 
 export type Store = StatsHouseStore;
-export const useStore = createWithEqualityFn<Store>()(
-  immer((setState, getState) => {
-    let prevLocation = appHistory.location;
-    let controller: AbortController;
-    appHistory.listen(({ location }) => {
-      if (prevLocation.search !== location.search || prevLocation.pathname !== location.pathname) {
-        prevLocation = location;
-        if (location.pathname === '/view' || location.pathname === '/embed') {
-          controller?.abort();
-          controller = new AbortController();
-          getState().updateParamsByUrl(controller.signal);
-        }
+export const useStore = createStoreWithEqualityFn<Store>((setState, getState) => {
+  let prevLocation = appHistory.location;
+  let controller: AbortController;
+  appHistory.listen(({ location }) => {
+    if (prevLocation.search !== location.search || prevLocation.pathname !== location.pathname) {
+      prevLocation = location;
+      if (location.pathname === '/view' || location.pathname === '/embed') {
+        controller?.abort();
+        controller = new AbortController();
+        getState().updateParamsByUrl(controller.signal);
       }
-    });
+    }
+  });
 
-    return {
-      defaultParams: getDefaultParams(),
-      setDefaultParams(nextState) {
-        const nextDefaultParams = getNextState(getState().defaultParams, nextState);
+  return {
+    defaultParams: getDefaultParams(),
+    setDefaultParams(nextState) {
+      const nextDefaultParams = getNextState(getState().defaultParams, nextState);
+      setState((state) => {
+        state.defaultParams = nextDefaultParams;
+      });
+    },
+    timeRange: new TimeRange({ to: TIME_RANGE_KEYS_TO.default, from: 0 }),
+    params: getDefaultParams(),
+    setTimeRange(value, force?) {
+      const tr = new TimeRange(getState().params.timeRange);
+      tr.setRange(value);
+      const nextTimeRange = tr.getRangeUrl();
+      if (
+        force ||
+        nextTimeRange.to !== getState().params.timeRange.to ||
+        nextTimeRange.from !== getState().params.timeRange.from
+      ) {
+        getState().setParams(
+          produce((params) => {
+            params.timeRange = nextTimeRange;
+            if (nextTimeRange.from < params.eventFrom && nextTimeRange.to > params.eventFrom) {
+              params.eventFrom = 0;
+            }
+          }),
+          false,
+          force
+        );
+      }
+    },
+    async updateParamsByUrl(abortSignal: AbortSignal) {
+      const urlSearchParams = new URLSearchParams(document.location.search);
+      const searchParams = [...urlSearchParams.entries()];
+      const id = decodeDashboardIdParam(urlSearchParams);
+      if (id && getState().params.dashboard?.dashboard_id && id !== getState().params.dashboard?.dashboard_id) {
         setState((state) => {
-          state.defaultParams = nextDefaultParams;
+          state.params.plots = [];
+          state.params.dashboard = getDefaultParams().dashboard;
+          state.params.tagSync = [];
+          state.params.eventFrom = 0;
         });
-      },
-      timeRange: new TimeRange({ to: TIME_RANGE_KEYS_TO.default, from: 0 }),
-      params: getDefaultParams(),
-      setTimeRange(value, force?) {
-        const tr = new TimeRange(getState().params.timeRange);
-        tr.setRange(value);
-        const nextTimeRange = tr.getRangeUrl();
-        if (
-          force ||
-          nextTimeRange.to !== getState().params.timeRange.to ||
-          nextTimeRange.from !== getState().params.timeRange.from
-        ) {
-          getState().setParams(
-            produce((params) => {
-              params.timeRange = nextTimeRange;
-              if (nextTimeRange.from < params.eventFrom && nextTimeRange.to > params.eventFrom) {
-                params.eventFrom = 0;
-              }
-            }),
-            false,
-            force
-          );
+      }
+      const saveParams = id ? await getState().loadServerParams(id) : undefined;
+      const localDefaultParams: QueryParams = {
+        ...(saveParams ?? getDefaultParams()),
+        timeRange: {
+          to:
+            saveParams && !(typeof saveParams?.timeRange.to === 'number' && saveParams.timeRange.to > 0)
+              ? saveParams.timeRange.to
+              : id
+              ? 0
+              : getDefaultParams().timeRange.to,
+          from: saveParams?.timeRange.from ?? getDefaultParams().timeRange.from,
+        },
+      };
+
+      let decodeP = decodeParams(searchParams, localDefaultParams);
+
+      if (!decodeP) {
+        return;
+      }
+      let params = decodeP;
+      if (decodeP.tagSync.length) {
+        if (!decodeP.dashboard?.dashboard_id) {
+          useErrorStore
+            .getState()
+            .addError(
+              new ErrorCustom(
+                'Возможно вы перешли по сохранённой ссылке, которая имеет старый формат,мы обновили ссылку в адресной строке браузера, пожалуйста пересохраните ссылку в закладках',
+                'Link format deprecated'
+              )
+            );
         }
-      },
-      async updateParamsByUrl(abortSignal: AbortSignal) {
-        const urlSearchParams = new URLSearchParams(document.location.search);
-        const searchParams = [...urlSearchParams.entries()];
-        const id = decodeDashboardIdParam(urlSearchParams);
-        if (id && getState().params.dashboard?.dashboard_id && id !== getState().params.dashboard?.dashboard_id) {
-          setState((state) => {
-            state.params.plots = [];
-            state.params.dashboard = getDefaultParams().dashboard;
-            state.params.tagSync = [];
-            state.params.eventFrom = 0;
-          });
-        }
-        const saveParams = id ? await getState().loadServerParams(id) : undefined;
-        const localDefaultParams: QueryParams = {
-          ...(saveParams ?? getDefaultParams()),
-          timeRange: {
-            to:
-              saveParams && !(typeof saveParams?.timeRange.to === 'number' && saveParams.timeRange.to > 0)
-                ? saveParams.timeRange.to
-                : id
-                ? 0
-                : getDefaultParams().timeRange.to,
-            from: saveParams?.timeRange.from ?? getDefaultParams().timeRange.from,
-          },
+        await loadAllMeta(decodeP, getState().loadMetricsMeta);
+        const metricsMeta = getState().metricsMeta;
+        setAutoFreeze(false);
+        params = tagSyncToVariableConvert(decodeP, metricsMeta);
+        setAutoFreeze(true);
+      }
+
+      getState().setDefaultParams(localDefaultParams);
+      if (abortSignal?.aborted) {
+        return;
+      }
+
+      let reset = false;
+      const nowTime = now();
+
+      if (!dequal(params.variables, decodeP.variables)) {
+        reset = true;
+      }
+
+      if (params.tabNum >= 0 && !params.plots[params.tabNum]) {
+        params.tabNum = getState().defaultParams.tabNum;
+        reset = true;
+      }
+
+      if (params.timeRange.from === defaultTimeRange.from && params.timeRange.to === defaultTimeRange.to) {
+        params.timeRange = timeRangeAbbrevExpand(defaultBaseRange, nowTime);
+        reset = true;
+      } else if (params.timeRange.to === defaultTimeRange.to) {
+        params.timeRange.to = nowTime;
+        reset = true;
+      } else if (params.timeRange.from > nowTime) {
+        params.timeRange = {
+          to: nowTime,
+          from: new TimeRange(params.timeRange).relativeFrom,
         };
+        reset = true;
+      }
 
-        let decodeP = decodeParams(searchParams, localDefaultParams);
+      if (params.plots.length === 0) {
+        const np: PlotParams = {
+          metricName: globalSettings.default_metric,
+          customDescription: '',
+          promQL: '',
+          customName: '',
+          groupBy: [...globalSettings.default_metric_group_by],
+          filterIn: { ...globalSettings.default_metric_filter_in },
+          what: [...globalSettings.default_metric_what],
+          customAgg: 0,
+          filterNotIn: { ...globalSettings.default_metric_filter_not_in },
+          numSeries: globalSettings.default_num_series,
+          useV2: true,
+          yLock: {
+            min: 0,
+            max: 0,
+          },
+          maxHost: false,
+          type: PLOT_TYPE.Metric,
+          events: [],
+          eventsBy: [],
+          eventsHide: [],
+        };
+        params.plots = [np];
+        reset = true;
+      }
 
-        if (!decodeP) {
-          return;
-        }
-        let params = decodeP;
-        if (decodeP.tagSync.length) {
-          if (!decodeP.dashboard?.dashboard_id) {
-            useErrorStore
-              .getState()
-              .addError(
-                new ErrorCustom(
-                  'Возможно вы перешли по сохранённой ссылке, которая имеет старый формат,мы обновили ссылку в адресной строке браузера, пожалуйста пересохраните ссылку в закладках',
-                  'Link format deprecated'
-                )
-              );
+      if (globalSettings.disabled_v1) {
+        params.plots = params.plots.map((item) => (item.useV2 ? item : { ...item, useV2: true }));
+        reset = true;
+      }
+
+      const resetPlot = params.dashboard?.dashboard_id !== getState().params.dashboard?.dashboard_id;
+      const prevParams = getState().params;
+      const changed = !dequal(params, prevParams);
+      const changedTimeRange = !dequal(params.timeRange, prevParams.timeRange);
+
+      const changedTimeShifts = !dequal(params.timeShifts, prevParams.timeShifts);
+      if (changed) {
+        debug.log('updateParamsByUrl', deepClone(params), deepClone(getState().params));
+        setState((store) => {
+          if (
+            store.params.timeRange.to !== params.timeRange.to ||
+            store.params.timeRange.from !== params.timeRange.from
+          ) {
+            store.timeRange = new TimeRange(params.timeRange);
           }
-          await loadAllMeta(decodeP, getState().loadMetricsMeta);
-          const metricsMeta = getState().metricsMeta;
-          setAutoFreeze(false);
-          params = tagSyncToVariableConvert(decodeP, metricsMeta);
-          setAutoFreeze(true);
-        }
-
-        getState().setDefaultParams(localDefaultParams);
-        if (abortSignal?.aborted) {
-          return;
-        }
-
-        let reset = false;
-        const nowTime = now();
-
-        if (!dequal(params.variables, decodeP.variables)) {
-          reset = true;
-        }
-
-        if (params.tabNum >= 0 && !params.plots[params.tabNum]) {
-          params.tabNum = getState().defaultParams.tabNum;
-          reset = true;
-        }
-
-        if (params.timeRange.from === defaultTimeRange.from && params.timeRange.to === defaultTimeRange.to) {
-          params.timeRange = timeRangeAbbrevExpand(defaultBaseRange, nowTime);
-          reset = true;
-        } else if (params.timeRange.to === defaultTimeRange.to) {
-          params.timeRange.to = nowTime;
-          reset = true;
-        } else if (params.timeRange.from > nowTime) {
-          params.timeRange = {
-            to: nowTime,
-            from: new TimeRange(params.timeRange).relativeFrom,
-          };
-          reset = true;
-        }
-
-        if (params.plots.length === 0) {
-          const np: PlotParams = {
-            metricName: globalSettings.default_metric,
-            customDescription: '',
-            promQL: '',
-            customName: '',
-            groupBy: [...globalSettings.default_metric_group_by],
-            filterIn: { ...globalSettings.default_metric_filter_in },
-            what: [...globalSettings.default_metric_what],
-            customAgg: 0,
-            filterNotIn: { ...globalSettings.default_metric_filter_not_in },
-            numSeries: globalSettings.default_num_series,
-            useV2: true,
-            yLock: {
-              min: 0,
-              max: 0,
-            },
-            maxHost: false,
-            type: PLOT_TYPE.Metric,
-            events: [],
-            eventsBy: [],
-            eventsHide: [],
-          };
-          params.plots = [np];
-          reset = true;
-        }
-
-        if (globalSettings.disabled_v1) {
-          params.plots = params.plots.map((item) => (item.useV2 ? item : { ...item, useV2: true }));
-          reset = true;
-        }
-
-        const resetPlot = params.dashboard?.dashboard_id !== getState().params.dashboard?.dashboard_id;
-        const prevParams = getState().params;
-        const changed = !dequal(params, prevParams);
-        const changedTimeRange = !dequal(params.timeRange, prevParams.timeRange);
-
-        const changedTimeShifts = !dequal(params.timeShifts, prevParams.timeShifts);
-        if (changed) {
-          debug.log('updateParamsByUrl', deepClone(params), deepClone(getState().params));
-          setState((store) => {
-            if (
-              store.params.timeRange.to !== params.timeRange.to ||
-              store.params.timeRange.from !== params.timeRange.from
-            ) {
-              store.timeRange = new TimeRange(params.timeRange);
-            }
-            store.params = mergeLeft(store.params, params);
-            if (resetPlot) {
-              store.plotsData = [];
-              store.dashboardLayoutEdit = false;
-            }
-            if (store.params.tabNum < -1) {
-              store.dashboardLayoutEdit = true;
-            }
-            if (store.params.tabNum >= 0) {
-              store.dashboardLayoutEdit = false;
-            }
-          });
+          store.params = mergeLeft(store.params, params);
           if (resetPlot) {
-            clearAllPlotPreview();
+            store.plotsData = [];
+            store.dashboardLayoutEdit = false;
           }
-          plotLoadPrioritySort(getState().params).forEach(({ plot, indexPlot }) => {
-            if (changedTimeRange || changedTimeShifts || prevParams.plots[indexPlot] !== plot) {
-              getState().loadPlot(indexPlot);
-            }
-          });
+          if (store.params.tabNum < -1) {
+            store.dashboardLayoutEdit = true;
+          }
+          if (store.params.tabNum >= 0) {
+            store.dashboardLayoutEdit = false;
+          }
+        });
+        if (resetPlot) {
+          clearAllPlotPreview();
         }
-        getState().updateTitle();
-        if (reset) {
-          getState().updateUrl(true);
-        }
-        if (params.live) {
-          getState().setLiveMode(true);
-        }
-      },
-      setParams(nextState, replace?, force?) {
-        const prevParams = getState().params;
-        const nextParams = getNextState(prevParams, nextState);
-        const changed = force || !dequal(nextParams, prevParams);
-        const changedTimeRange = force || !dequal(nextParams.timeRange, prevParams.timeRange);
-        const changedTimeShifts = !dequal(nextParams.timeShifts, prevParams.timeShifts);
-        if (changed) {
-          setState((state) => {
-            if (changedTimeRange) {
-              state.timeRange = new TimeRange(nextParams.timeRange);
-            }
-            state.params = { ...nextParams, variables: nextParams.variables.map((v) => ({ ...v })) };
-            if (state.params.tabNum >= 0) {
-              state.dashboardLayoutEdit = false;
-            }
-            state.params.plots.forEach((plot, indexPlot) => {
-              if (
-                state.params.plots.length === prevParams.plots.length &&
-                (plot.metricName === promQLMetric || plot.metricName !== prevParams.plots[indexPlot].metricName) &&
-                state.params.variables === prevParams.variables
-              ) {
-                const plotKey = toPlotKey(indexPlot);
-                if (plotKey != null) {
-                  state.params.variables.forEach((variable) => {
-                    const nextLinks = variable.link.filter(([iPlot]) => iPlot !== plotKey);
-                    if (variable.link.length !== nextLinks.length) {
-                      variable.link = nextLinks;
-                    }
-                  });
-                }
-              }
-              if (
-                plot.metricName === promQLMetric &&
-                state.params.tagSync.some((g) => g[indexPlot] !== null && g[indexPlot] !== undefined)
-              ) {
-                state.params.tagSync = state.params.tagSync.map((g) =>
-                  g.map((tags, plot) => (plot !== indexPlot ? tags : null))
-                );
-              }
-            });
-          });
-          const changedVariablesPlot: Set<number | null> = new Set();
-          const plotsPromQL = getState()
-            .params.plots.map((plot, indexPlot) => ({ plot, indexPlot }))
-            .filter(({ plot }) => plot.promQL.indexOf('$') > -1);
-          getState().params.variables.forEach((variable, indexVariable) => {
-            if (prevParams.variables[indexVariable] !== variable) {
-              variable.link.forEach(([iPlot]) => {
-                changedVariablesPlot.add(toNumber(iPlot));
-              });
-              plotsPromQL.forEach(({ plot, indexPlot }) => {
-                if (plot.promQL.indexOf('$' + variable.name) > -1) {
-                  changedVariablesPlot.add(indexPlot);
-                }
-              });
-            }
-          });
-          plotLoadPrioritySort(getState().params).forEach(({ plot, indexPlot }) => {
+        plotLoadPrioritySort(getState().params).forEach(({ plot, indexPlot }) => {
+          if (changedTimeRange || changedTimeShifts || prevParams.plots[indexPlot] !== plot) {
+            getState().loadPlot(indexPlot);
+          }
+        });
+      }
+      getState().updateTitle();
+      if (reset) {
+        getState().updateUrl(true);
+      }
+      if (params.live) {
+        getState().setLiveMode(true);
+      }
+    },
+    setParams(nextState, replace?, force?) {
+      const prevParams = getState().params;
+      const nextParams = getNextState(prevParams, nextState);
+      const changed = force || !dequal(nextParams, prevParams);
+      const changedTimeRange = force || !dequal(nextParams.timeRange, prevParams.timeRange);
+      const changedTimeShifts = !dequal(nextParams.timeShifts, prevParams.timeShifts);
+      if (changed) {
+        setState((state) => {
+          if (changedTimeRange) {
+            state.timeRange = new TimeRange(nextParams.timeRange);
+          }
+          state.params = { ...nextParams, variables: nextParams.variables.map((v) => ({ ...v })) };
+          if (state.params.tabNum >= 0) {
+            state.dashboardLayoutEdit = false;
+          }
+          state.params.plots.forEach((plot, indexPlot) => {
             if (
-              changedTimeRange ||
-              changedTimeShifts ||
-              prevParams.plots[indexPlot] !== plot ||
-              changedVariablesPlot.has(indexPlot)
+              state.params.plots.length === prevParams.plots.length &&
+              (plot.metricName === promQLMetric || plot.metricName !== prevParams.plots[indexPlot].metricName) &&
+              state.params.variables === prevParams.variables
             ) {
-              getState().loadPlot(indexPlot, force);
+              const plotKey = toPlotKey(indexPlot);
+              if (plotKey != null) {
+                state.params.variables.forEach((variable) => {
+                  const nextLinks = variable.link.filter(([iPlot]) => iPlot !== plotKey);
+                  if (variable.link.length !== nextLinks.length) {
+                    variable.link = nextLinks;
+                  }
+                });
+              }
             }
-          });
-          if (getState().params.plots.some(({ useV2 }) => !useV2) && getState().liveMode) {
-            getState().setLiveMode(false);
-          }
-          getState().updateUrl(replace);
-        }
-      },
-      setPlotParams(index, nextState, replace?) {
-        const prev = getState().params.plots[index];
-        const next = getNextState(prev, nextState);
-        const changed = !dequal(next, prev);
-        const noUpdate = changed && dequal({ ...next, customName: '' }, { ...prev, customName: '' });
-        if (changed) {
-          setState((state) => {
             if (
-              next.metricName !== prev.metricName &&
-              state.params.tagSync.some((g) => g[index] !== null && g[index] !== undefined)
+              plot.metricName === promQLMetric &&
+              state.params.tagSync.some((g) => g[indexPlot] !== null && g[indexPlot] !== undefined)
             ) {
               state.params.tagSync = state.params.tagSync.map((g) =>
-                g.map((tags, plot) => (plot !== index ? tags : null))
+                g.map((tags, plot) => (plot !== indexPlot ? tags : null))
               );
             }
-            state.params.plots[index] = next;
-            const plotKey = toPlotKey(index);
-            if ((next.metricName === promQLMetric || next.metricName !== prev.metricName) && plotKey != null) {
-              state.params.variables.forEach((variable) => {
-                const nextLinks = variable.link.filter(([iPlot]) => iPlot !== plotKey);
-                if (variable.link.length !== nextLinks.length) {
-                  variable.link = nextLinks;
-                }
-              });
-            }
           });
-          if (!noUpdate) {
-            getState().loadPlot(index);
-          }
-          if (!next.useV2 && getState().liveMode) {
-            getState().setLiveMode(false);
-          }
-          if (next.metricName !== prev.metricName) {
-            const metrics = getState().params.plots.map(({ metricName }) => metricName);
-            Object.keys(getState().metricsMeta)
-              .filter((name) => name && !metrics.includes(name))
-              .forEach(getState().clearMetricsMeta);
-          }
-          getState().updateUrl(replace);
-        }
-      },
-      removePlot(index) {
-        const plotKey = toPlotKey(index);
-        if (plotKey == null) {
-          return;
-        }
-        setState((state) => {
-          state.plotsData.splice(index, 1);
-          state.plotsData = state.plotsData.slice(0, state.params.plots.length);
         });
-        clearPlotPreview(index, true);
-        clearPlotVisibility(index, true);
-        getState().setParams(
-          produce((params) => {
-            const groups = params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
-            if (groups.length !== params.plots.length) {
-              while (groups.length < params.plots.length) {
-                groups.push(Math.max(0, (params.dashboard?.groupInfo?.length ?? 0) - 1));
-              }
-            }
-            if (params.plots.length > 1) {
-              params.plots.splice(index, 1);
-              params.plots = params.plots.map((p) => ({
-                ...p,
-                events: p.events.filter((v) => v !== index).map((v) => (v > index ? v - 1 : v)),
-              }));
-              params.tagSync = params.tagSync.map((g) => g.filter((tags, plot) => plot !== index));
-              groups.splice(index, 1);
-              if (params.dashboard?.groupInfo?.length) {
-                params.dashboard.groupInfo = params.dashboard.groupInfo
-                  .map((g, index) => ({
-                    ...g,
-                    count:
-                      groups.reduce((res: number, item) => {
-                        if (item === index) {
-                          res = res + 1;
-                        }
-                        return res;
-                      }, 0 as number) ?? 0,
-                  }))
-                  .filter((g) => g.count > 0);
-              }
-              params.variables = params.variables
-                .map((variable) => ({
-                  ...variable,
-                  link: variable.link
-                    .filter(([keyP]) => keyP !== plotKey)
-                    .map(([keyP, keyT]) => {
-                      const indexP = toNumber(keyP, 0);
-                      return [toPlotKey(indexP > index ? indexP - 1 : indexP, keyP), keyT];
-                    })
-                    .filter(isNotNilVariableLink),
-                }))
-                .filter(({ link }) => link.length);
-            }
-            if (params.tabNum > index) {
-              params.tabNum--;
-            }
-            if (params.tabNum === index && params.plots.length - 1 < params.tabNum) {
-              params.tabNum--;
-            }
-            if (params.tabNum === -1 && params.plots.length === 1) {
-              params.tabNum = 0;
-            }
-          })
-        );
-        const metrics = getState().params.plots.map(({ metricName }) => metricName);
-        Object.keys(getState().metricsMeta)
-          .filter((name) => name && !metrics.includes(name))
-          .forEach(getState().clearMetricsMeta);
-      },
-      updateUrl(replace?: boolean) {
-        const prevState = getState();
-        const autoReplace =
-          prevState.params.timeRange.from === defaultTimeRange.from ||
-          prevState.params.timeRange.to === defaultTimeRange.to ||
-          prevState.liveMode ||
-          prevState.timeRange.from > now();
-
-        const p = encodeParams(prevState.params, prevState.defaultParams);
-        const search = '?' + fixMessageTrouble(new URLSearchParams(p).toString());
-        let pathname = document.location.pathname;
-
-        if (pathname !== '/view' && pathname !== '/embed') {
-          pathname = '/view';
-        }
-        if (document.location.search !== search) {
-          if (replace || autoReplace) {
-            appHistory.replace({ search, pathname });
-          } else {
-            appHistory.push({ search, pathname });
-          }
-        }
-        getState().updateTitle();
-      },
-      updateTitle() {
-        const s = getState();
-        switch (s.params.tabNum) {
-          case -1:
-            if (s.params.dashboard?.dashboard_id !== undefined) {
-              document.title = `${s.params.dashboard?.name} — StatsHouse`;
-            } else {
-              document.title = 'Dashboard — StatsHouse';
-            }
-            break;
-          case -2:
-            document.title = 'Dashboard setting — StatsHouse';
-            break;
-          default:
-            if (s.params.plots[s.params.tabNum] && s.params.plots[s.params.tabNum].metricName === promQLMetric) {
-              if (s.plotsData[s.params.tabNum].nameMetric) {
-                document.title =
-                  s.plotsData[s.params.tabNum].nameMetric +
-                  (s.plotsData[s.params.tabNum].whats.length
-                    ? ': ' + s.plotsData[s.params.tabNum].whats.map((qw) => api.whatToWhatDesc(qw)).join(',')
-                    : '') +
-                  ' — StatsHouse';
-              } else {
-                document.title = 'StatsHouse';
-              }
-            } else {
-              document.title =
-                (s.params.plots[s.params.tabNum] &&
-                  s.params.plots[s.params.tabNum].metricName !== '' &&
-                  `${s.params.plots[s.params.tabNum].metricName}: ${s.params.plots[s.params.tabNum].what
-                    .map((qw) => api.whatToWhatDesc(qw))
-                    .join(',')} — StatsHouse`) ||
-                '';
-            }
-            break;
-        }
-      },
-      setTabNum(id) {
-        setState((store) => {
-          store.params.tabNum = id;
-        });
-        getState().updateUrl();
-      },
-      error: '',
-      liveMode: false,
-      setLiveMode(nextStatus) {
-        const nextState = getNextState(getState().liveMode, nextStatus);
-        setState((state) => {
-          if (state.liveMode !== nextState) {
-            state.liveMode = nextState;
-          }
-        });
-        if (!nextState) {
-          getState().setParams(
-            produce((param) => {
-              param.live = false;
-            })
-          );
-        }
-      },
-      globalNumQueriesPlot: 0,
-      setGlobalNumQueriesPlot(nextState) {
-        setState((state) => {
-          state.globalNumQueriesPlot = getNextState(state.globalNumQueriesPlot, nextState);
-        });
-      },
-      numQueriesPlot: [],
-      setNumQueriesPlot(index, nextState) {
-        setState((state) => {
-          state.numQueriesPlot[index] = getNextState(state.numQueriesPlot[index] ?? 0, nextState);
-        });
-      },
-      baseRange: defaultBaseRange,
-      setBaseRange(nextState) {
-        setState((state) => {
-          state.baseRange = getNextState(state.baseRange, nextState);
-        });
-      },
-      plotsData: [],
-      plotsDataAbortController: [],
-      loadPlot(index, force: boolean = false) {
-        const plotKey = toPlotKey(index);
-        if (!getState().plotsData[index]) {
-          setState((state) => {
-            state.plotsData[index] = getEmptyPlotData();
-          });
-        }
-        const prevState = getState();
-
-        // if liveMode and there is a queries then wait request
-        if (prevState.numQueriesPlot[index] > 0 && prevState.liveMode) {
-          return;
-        }
-        const isSubVisible = prevState.params.plots.some(
-          (plot, iPlot) => plot.events.indexOf(index) > -1 && usePlotVisibilityStore.getState().visibilityList[iPlot]
-        );
-
-        if (
-          !isSubVisible &&
-          !usePlotVisibilityStore.getState().visibilityList[index] &&
-          !usePlotVisibilityStore.getState().previewList[index]
-        ) {
-          return;
-        }
-        if (plotKey == null) {
-          return;
-        }
-        const width = prevState.uPlotsWidth[index] ?? prevState.uPlotsWidth.find((w) => w && w > 0);
-        const compact = prevState.compact;
-        const lastPlotParams: PlotParams | undefined = replaceVariable(
-          plotKey,
-          prevState.params.plots[index],
-          prevState.params.variables
-        );
-        const prev: PlotStore = prevState.plotsData[index];
-
-        const deltaTime = Math.floor((prevState.timeRange.to - prevState.timeRange.from) / 5);
-
-        if (
-          !usePlotVisibilityStore.getState().visibilityList[index] &&
-          usePlotVisibilityStore.getState().previewList[index] &&
-          prev.lastTimeRange &&
-          Math.abs(prev.lastTimeRange.to - prevState.timeRange.to) < deltaTime &&
-          Math.abs(prev.lastTimeRange.from - prevState.timeRange.from) < deltaTime
-        ) {
-          setState((state) => {
-            if (state.plotsData[index].scales.x) {
-              state.plotsData[index].scales.x = { min: prevState.timeRange.from, max: prevState.timeRange.to };
-            }
-          });
-          return;
-        }
-        if (lastPlotParams && lastPlotParams.metricName === '' && lastPlotParams.promQL === '') {
-          return;
-        }
-        if (
-          width &&
-          lastPlotParams &&
-          (!dequal(lastPlotParams, prev.lastPlotParams) ||
-            prevState.timeRange !== prev.lastTimeRange ||
-            prevState.params.timeShifts !== prev.lastTimeShifts ||
-            (lastPlotParams.promQL &&
-              prevState.params.variables.some(({ name }) => lastPlotParams.promQL.indexOf(name) > -1)) ||
-            force)
-        ) {
-          const agg =
-            lastPlotParams.customAgg === -1
-              ? `${Math.floor(width / 4)}`
-              : lastPlotParams.customAgg === 0
-              ? `${Math.floor(width * devicePixelRatio)}`
-              : `${lastPlotParams.customAgg}s`;
-          debug.log(
-            '%crequesting data for %s %s %d %o %O %o %o %d',
-            'color:green',
-            lastPlotParams.useV2,
-            lastPlotParams.metricName,
-            agg,
-            lastPlotParams.what,
-            lastPlotParams.groupBy,
-            lastPlotParams.filterIn,
-            lastPlotParams.filterNotIn,
-            Math.round(-prevState.timeRange.relativeFrom),
-            lastPlotParams.maxHost
-          );
-          if (!getState().metricsMeta[lastPlotParams.metricName]) {
-            getState().loadMetricsMeta(lastPlotParams.metricName);
-          }
-          prevState.setNumQueriesPlot(index, (n) => n + 1);
-          const controller = new AbortController();
-          const isPromQl = lastPlotParams.metricName === promQLMetric;
-
-          const promQLForm = new FormData();
-          promQLForm.append('q', lastPlotParams.promQL);
-          const url = queryURL(
-            lastPlotParams,
-            prevState.timeRange,
-            prevState.params.timeShifts,
-            agg,
-            !compact,
-            prevState.params
-          );
-          prevState.plotsDataAbortController[index]?.abort();
-          setState((state) => {
-            state.plotsDataAbortController[index] = controller;
-            const scales: UPlotWrapperPropsScales = {};
-            scales.x = { min: getState().timeRange.from, max: getState().timeRange.to };
-            if (lastPlotParams.yLock.min !== 0 || lastPlotParams.yLock.max !== 0) {
-              scales.y = { ...lastPlotParams.yLock };
-            }
-            state.plotsData[index].scales = scales;
-          });
-          if (isPromQl && !lastPlotParams.promQL) {
-            setState((state) => {
-              state.plotsData[index] = getEmptyPlotData();
-              state.liveMode = false;
+        const changedVariablesPlot: Set<number | null> = new Set();
+        const plotsPromQL = getState()
+          .params.plots.map((plot, indexPlot) => ({ plot, indexPlot }))
+          .filter(({ plot }) => plot.promQL.indexOf('$') > -1);
+        getState().params.variables.forEach((variable, indexVariable) => {
+          if (prevParams.variables[indexVariable] !== variable) {
+            variable.link.forEach(([iPlot]) => {
+              changedVariablesPlot.add(toNumber(iPlot));
             });
-            clearPlotPreview(index);
-            getState().setNumQueriesPlot(index, (n) => n - 1);
-            return;
-          }
-
-          (isPromQl
-            ? apiPost<queryResult>(url, promQLForm, controller.signal, true)
-            : apiGet<queryResult>(url, controller.signal, true)
-          )
-            .then((resp) => {
-              const promqltestfailed = !!resp?.promqltestfailed;
-              const uniqueWhat: Set<QueryWhat> = new Set();
-              const uniqueName = new Set();
-              const uniqueMetricType: Set<string> = new Set();
-              for (const meta of resp?.series.series_meta ?? []) {
-                if (isQueryWhat(meta.what)) {
-                  uniqueWhat.add(meta.what);
-                }
-                meta.name && uniqueName.add(meta.name);
-                if (meta.metric_type) {
-                  uniqueMetricType.add(meta.metric_type);
-                }
+            plotsPromQL.forEach(({ plot, indexPlot }) => {
+              if (plot.promQL.indexOf('$' + variable.name) > -1) {
+                changedVariablesPlot.add(indexPlot);
               }
-              const currentPrevState = getState();
-              const currentPrev: PlotStore = getState().plotsData[index];
-              if (uniqueName.size === 0 && lastPlotParams.metricName !== promQLMetric) {
-                uniqueName.add(lastPlotParams.metricName);
-              }
-              const metricType = uniqueMetricType.size === 1 ? [...uniqueMetricType.keys()][0] : '';
-
-              const maxLabelLength = Math.max(
-                'Time'.length,
-                ...(resp?.series.series_meta ?? []).map((meta) => {
-                  const label = metaToLabel(meta, uniqueWhat.size);
-                  return label.length;
-                })
-              );
-              const legendNameWidth =
-                (resp?.series.series_meta.length ?? 0) > 5 ? maxLabelLength * pxPerChar : 1_000_000;
-              let legendMaxHostWidth = 0;
-              const legendMaxHostPercentWidth = 0;
-              const data: uPlot.AlignedData = [
-                resp.series.time as number[],
-                ...(resp.series.series_data as (number | null)[][]),
-              ];
-
-              const stacked = lastPlotParams.type === PLOT_TYPE.Event ? stackData(data) : undefined;
-              const usedDashes = {};
-              const usedBaseColors = {};
-              const baseColors: Record<string, string> = {};
-              let changeColor = false;
-              let changeType = currentPrev.lastPlotParams?.type !== lastPlotParams.type;
-              const widthLine =
-                (width ?? 0) > resp.series.time.length
-                  ? devicePixelRatio > 1
-                    ? 2 / devicePixelRatio
-                    : 1
-                  : 1 / devicePixelRatio;
-
-              const topInfoCounts: Record<string, number> = {};
-              const topInfoTotals: Record<string, number> = {};
-              let topInfo: TopInfo | undefined = undefined;
-              const maxHostLists: SelectOptionProps[][] = new Array(resp.series.series_meta.length).fill([]);
-              const oneGraph = resp.series.series_meta.filter((s) => s.time_shift === 0).length <= 1;
-              const seriesShow = new Array(resp.series.series_meta.length).fill(true);
-
-              const series: uPlot.Series[] = resp.series.series_meta.map((meta, indexMeta): uPlot.Series => {
-                const timeShift = meta.time_shift !== 0;
-                const label = metaToLabel(meta, uniqueWhat.size);
-                const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
-                const isValue = baseLabel.indexOf('Value') === 0;
-                const prefColor = '9'; // it`s magic prefix
-                const metricName = isValue
-                  ? `${meta.name || (lastPlotParams.metricName !== promQLMetric ? lastPlotParams.metricName : '')}: `
-                  : '';
-                const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
-                const baseColor = meta.color ?? baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
-                baseColors[colorKey] = baseColor;
-                if (baseColor !== getState().plotsData[index]?.series[indexMeta]?.stroke) {
-                  changeColor = true;
-                }
-                if (meta.max_hosts) {
-                  const max_hosts_l = meta.max_hosts
-                    .map((host) => host.length * pxPerChar * 1.25 + 65)
-                    .filter(Boolean)
-                    .sort();
-                  const full = max_hosts_l[0] ?? 0;
-                  const p75 = max_hosts_l[Math.floor(max_hosts_l.length * 0.25)] ?? 0;
-                  legendMaxHostWidth = Math.max(legendMaxHostWidth, full - p75 > 20 ? p75 : full);
-                }
-                const max_host_map =
-                  meta.max_hosts?.reduce((res, host) => {
-                    if (host) {
-                      res[host] = (res[host] ?? 0) + 1;
-                    }
-                    return res;
-                  }, {} as Record<string, number>) ?? {};
-                const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
-                seriesShow[indexMeta] =
-                  currentPrev.series[indexMeta]?.label === label ? currentPrev.seriesShow[indexMeta] : true;
-                maxHostLists[indexMeta] = Object.entries(max_host_map)
-                  .sort(([k, a], [n, b]) => (a > b ? -1 : a < b ? 1 : k > n ? 1 : k < n ? -1 : 0))
-                  .map(([host, count]) => {
-                    const percent = formatPercent(count / max_host_total);
-                    return {
-                      value: host,
-                      title: `${host}: ${percent}`,
-                      name: `${host}: ${percent}`,
-                      html: `<div class="d-flex"><div class="flex-grow-1 me-2 overflow-hidden text-nowrap">${host}</div><div class="text-end">${percent}</div></div>`,
-                    };
-                  });
-                const key = `${meta.what}|${meta.time_shift}`;
-                topInfoCounts[key] = (topInfoCounts[key] ?? 0) + 1;
-                topInfoTotals[key] = meta.total;
-                const paths =
-                  lastPlotParams.type === PLOT_TYPE.Event
-                    ? uPlot.paths.bars!({ size: [0.7], gap: 0, align: 1 })
-                    : uPlot.paths.stepped!({
-                        align: 1,
-                      });
-
-                return {
-                  show: seriesShow[indexMeta] ?? true,
-                  auto: false, // we control the scaling manually
-                  label,
-                  stroke: baseColor,
-                  width: widthLine,
-                  dash: timeShift ? timeShiftToDash(meta.time_shift, usedDashes) : undefined,
-                  fill: rgba(baseColor, timeShift ? 0.1 : 0.15),
-                  points:
-                    lastPlotParams.type === PLOT_TYPE.Event
-                      ? { show: false, size: 0 }
-                      : {
-                          filter: filterPoints,
-                          size: 5,
-                        },
-                  paths,
-                  values(u, seriesIdx, idx): PlotValues {
-                    if (idx === null) {
-                      return {
-                        metricName: '',
-                        rawValue: null,
-                        value: '',
-                        label: '',
-                        baseLabel: '',
-                        timeShift: 0,
-                        max_host: '',
-                        total: 0,
-                        percent: '',
-                        max_host_percent: '',
-                        top_max_host: '',
-                        top_max_host_percent: '',
-                      };
-                    }
-                    const rawValue = data[seriesIdx]?.[idx] ?? null;
-                    let total = 0;
-                    for (let i = 1; i < u.series.length; i++) {
-                      const v = data[i]?.[idx];
-                      if (v !== null && v !== undefined) {
-                        total += v;
-                      }
-                    }
-                    const value = formatLegendValue(rawValue);
-                    const max_host = meta.max_hosts !== null && idx < meta.max_hosts.length ? meta.max_hosts[idx] : '';
-
-                    const max_host_percent =
-                      meta.max_hosts !== null && max_host_map && meta.max_hosts[idx]
-                        ? formatPercent((max_host_map[meta.max_hosts[idx]] ?? 0) / max_host_total)
-                        : '';
-                    const percent = rawValue !== null ? formatPercent(rawValue / total) : '';
-                    return {
-                      metricName,
-                      rawValue,
-                      value,
-                      label,
-                      baseLabel,
-                      timeShift: meta.time_shift,
-                      max_host,
-                      total,
-                      percent,
-                      max_host_percent,
-                      top_max_host: maxHostLists[indexMeta]?.[0]?.value ?? '',
-                      top_max_host_percent: maxHostLists[indexMeta]?.[0]?.title ?? '',
-                    };
-                  },
-                };
-              });
-
-              const topInfoTop = {
-                min: Math.min(...Object.values(topInfoCounts)),
-                max: Math.max(...Object.values(topInfoCounts)),
-              };
-              const topInfoTotal = {
-                min: Math.min(...Object.values(topInfoTotals)),
-                max: Math.max(...Object.values(topInfoTotals)),
-              };
-              const topInfoFunc = lastPlotParams.what.length;
-              const topInfoShifts = currentPrevState.params.timeShifts.length;
-              const info: string[] = [];
-
-              if (topInfoTop.min !== topInfoTotal.min && topInfoTop.max !== topInfoTotal.max) {
-                if (topInfoFunc > 1) {
-                  info.push(`${topInfoFunc} functions`);
-                }
-                if (topInfoShifts > 0) {
-                  info.push(`${topInfoShifts} time-shift${topInfoShifts > 1 ? 's' : ''}`);
-                }
-                topInfo = {
-                  top:
-                    topInfoTop.max === topInfoTop.min
-                      ? topInfoTop.max.toString()
-                      : `${topInfoTop.min}-${topInfoTop.max}`,
-                  total:
-                    topInfoTotal.max === topInfoTotal.min
-                      ? topInfoTotal.max.toString()
-                      : `${topInfoTotal.min}-${topInfoTotal.max}`,
-                  info: info.length ? ` (${info.join(',')})` : '',
-                };
-              }
-
-              const scales: UPlotWrapperPropsScales = {};
-              scales.x = { min: getState().timeRange.from, max: getState().timeRange.to };
-              if (lastPlotParams.yLock.min !== 0 || lastPlotParams.yLock.max !== 0) {
-                scales.y = { ...lastPlotParams.yLock };
-              }
-
-              const maxLengthValue = series.reduce((res, s, indexSeries) => {
-                if (s.show) {
-                  const v =
-                    (data[indexSeries + 1] as (number | null)[] | undefined)?.reduce((res2, d) => {
-                      if (d && (res2?.toString().length ?? 0) < d.toString().length) {
-                        return d;
-                      }
-                      return res2;
-                    }, null as null | number) ?? null;
-                  if (v && (v.toString().length ?? 0) > (res?.toString().length ?? 0)) {
-                    return v;
-                  }
-                }
-                return res;
-              }, null as null | number);
-
-              const [yMinAll, yMaxAll] = calcYRange2(series, data, false);
-              const legendExampleValue = Math.max(
-                Math.abs(Math.floor(yMinAll) - 0.001),
-                Math.abs(Math.ceil(yMaxAll) + 0.001)
-              );
-              const legendValueWidth = (formatLegendValue(legendExampleValue).length + 2) * pxPerChar; // +2 - focus marker
-
-              const legendMaxDotSpaceWidth =
-                Math.max(4, (formatLegendValue(maxLengthValue).split('.', 2)[1]?.length ?? 0) + 2) * pxPerChar;
-              const legendPercentWidth = (4 + 2) * pxPerChar; // +2 - focus marker
-              setState((state) => {
-                const noUpdateData = dequal(stacked || data, state.plotsData[index]?.data);
-                if (resp.metric != null && !dequal(state.metricsMeta[resp.metric.name], resp.metric)) {
-                  state.metricsMeta[resp.metric.name] = resp.metric;
-                }
-                state.plotsData[index] = {
-                  nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
-                  whats: uniqueName.size === 1 ? [...uniqueWhat.keys()] : [],
-                  metricType,
-                  error: '',
-                  errorSkipCount: 0,
-                  data: noUpdateData ? state.plotsData[index]?.data : stacked || data,
-                  series:
-                    noUpdateData &&
-                    dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) &&
-                    !changeColor &&
-                    !changeType
-                      ? state.plotsData[index]?.series
-                      : series,
-                  seriesShow: dequal(seriesShow, state.plotsData[index]?.seriesShow)
-                    ? state.plotsData[index]?.seriesShow
-                    : seriesShow,
-                  scales: dequal(scales, state.plotsData[index]?.scales) ? state.plotsData[index]?.scales : scales,
-                  receiveErrors: resp.receive_errors,
-                  receiveWarnings: resp.receive_warnings,
-                  samplingFactorSrc: resp.sampling_factor_src,
-                  samplingFactorAgg: resp.sampling_factor_agg,
-                  mappingFloodEvents: resp.mapping_errors,
-                  legendValueWidth,
-                  legendMaxDotSpaceWidth,
-                  legendNameWidth,
-                  legendPercentWidth,
-                  legendMaxHostWidth,
-                  legendMaxHostPercentWidth,
-                  lastPlotParams,
-                  lastQuerySeriesMeta: [...resp.series.series_meta],
-                  lastTimeRange: getState().timeRange,
-                  lastTimeShifts: getState().params.timeShifts,
-                  topInfo,
-                  maxHostLists,
-                  promqltestfailed,
-                  promQL: resp.promql ?? '',
-                };
-              });
-            })
-            .catch((error) => {
-              if (!getState().metricsMeta[lastPlotParams.metricName]) {
-                getState().loadMetricsMeta(lastPlotParams.metricName);
-              }
-              if (error instanceof ErrorSkip) {
-                setState((state) => {
-                  state.plotsData[index] ??= getEmptyPlotData();
-                  state.plotsData[index].errorSkipCount++;
-                  if (!state.liveMode || state.plotsData[index].errorSkipCount > globalSettings.skip_error_count) {
-                    state.plotsData[index].error = error.toString();
-                    state.liveMode = false;
-                  }
-                });
-              } else if (error instanceof Error403) {
-                setState((state) => {
-                  state.plotsData[index] = {
-                    ...getEmptyPlotData(),
-                    error403: error.toString(),
-                  };
-                  state.liveMode = false;
-                });
-              } else if (error.name !== 'AbortError') {
-                debug.error(error);
-                setState((state) => {
-                  state.plotsData[index] = {
-                    ...getEmptyPlotData(),
-                    error: error.toString(),
-                  };
-                  state.liveMode = false;
-                });
-              }
-              clearPlotPreview(index);
-            })
-            .finally(() => {
-              getState().setNumQueriesPlot(index, (n) => n - 1);
-              getState().updateTitle();
             });
-
-          // getState()
-          //   .loadMetricsMeta(lastPlotParams.metricName)
-          //   .then(() => {
-          if (lastPlotParams.type === PLOT_TYPE.Event) {
-            const prevState = getState();
-            const from =
-              prevState.timeRange.from < prevState.params.eventFrom &&
-              prevState.timeRange.to > prevState.params.eventFrom
-                ? prevState.params.eventFrom
-                : undefined;
-            getState()
-              .loadEvents(index, undefined, undefined, from)
-              .catch(() => undefined);
           }
-          // })
-          // .catch(() => undefined);
+        });
+        plotLoadPrioritySort(getState().params).forEach(({ plot, indexPlot }) => {
+          if (
+            changedTimeRange ||
+            changedTimeShifts ||
+            prevParams.plots[indexPlot] !== plot ||
+            changedVariablesPlot.has(indexPlot)
+          ) {
+            getState().loadPlot(indexPlot, force);
+          }
+        });
+        if (getState().params.plots.some(({ useV2 }) => !useV2) && getState().liveMode) {
+          getState().setLiveMode(false);
         }
-      },
-      setPlotShow(indexPlot, idx, show, single) {
+        getState().updateUrl(replace);
+      }
+    },
+    setPlotParams(index, nextState, replace?) {
+      const prev = getState().params.plots[index];
+      const next = getNextState(prev, nextState);
+      const changed = !dequal(next, prev);
+      const noUpdate = changed && dequal({ ...next, customName: '' }, { ...prev, customName: '' });
+      if (changed) {
         setState((state) => {
-          if (single) {
-            const otherShow = state.plotsData[indexPlot].seriesShow.some((_show, indexSeries) =>
-              indexSeries === idx ? false : _show
+          if (
+            next.metricName !== prev.metricName &&
+            state.params.tagSync.some((g) => g[index] !== null && g[index] !== undefined)
+          ) {
+            state.params.tagSync = state.params.tagSync.map((g) =>
+              g.map((tags, plot) => (plot !== index ? tags : null))
             );
-            state.plotsData[indexPlot].seriesShow = state.plotsData[indexPlot].seriesShow.map((s, indexSeries) =>
-              indexSeries === idx ? true : !otherShow
-            );
-          } else {
-            state.plotsData[indexPlot].seriesShow[idx] = show ?? !state.plotsData[indexPlot].seriesShow[idx];
+          }
+          state.params.plots[index] = next;
+          const plotKey = toPlotKey(index);
+          if ((next.metricName === promQLMetric || next.metricName !== prev.metricName) && plotKey != null) {
+            state.params.variables.forEach((variable) => {
+              const nextLinks = variable.link.filter(([iPlot]) => iPlot !== plotKey);
+              if (variable.link.length !== nextLinks.length) {
+                variable.link = nextLinks;
+              }
+            });
           }
         });
-      },
-      setPlotLastError(index, error) {
-        setState((state) => {
-          if (state.plotsData[index]) {
-            state.plotsData[index].error = error;
-          }
-        });
-      },
-      uPlotsWidth: [],
-      setUPlotWidth(index, weight) {
-        if (getState().uPlotsWidth[index] !== weight) {
-          setState((state) => {
-            state.uPlotsWidth[index] = weight;
-          });
+        if (!noUpdate) {
           getState().loadPlot(index);
         }
-      },
-      setYLockChange(index, status) {
-        const prevYLock = getState().params.plots[index].yLock;
-        const prevPlotData = getState().plotsData[index];
-        const prevStatus = prevYLock.max !== 0 || prevYLock.min !== 0;
-        if (prevStatus !== status) {
-          let next = { min: 0, max: 0 };
-          if (status) {
-            const [min, max] = calcYRange2(prevPlotData.series, prevPlotData.data, true);
-            next = { min, max };
-          }
-          getState().setPlotParams(
-            index,
-            produce((state) => {
-              state.yLock = next;
-            })
-          );
+        if (!next.useV2 && getState().liveMode) {
+          getState().setLiveMode(false);
         }
-      },
-      metricsMeta: {},
-      async loadMetricsMeta(metricName) {
-        if (!metricName || metricName === promQLMetric) {
-          return;
+        if (next.metricName !== prev.metricName) {
+          const metrics = getState().params.plots.map(({ metricName }) => metricName);
+          Object.keys(getState().metricsMeta)
+            .filter((name) => name && !metrics.includes(name))
+            .forEach(getState().clearMetricsMeta);
         }
-        const prevState = getState();
-        if (prevState.metricsMeta[metricName] && prevState.metricsMeta[metricName].name) {
-          return;
-        }
-        const requestKey = `loadMetricsMeta_${metricName}`;
-        const [request, first] = promiseRun(
-          requestKey,
-          apiMetricFetch,
-          { [GET_PARAMS.metricName]: metricName },
-          requestKey
-        );
-        prevState.setGlobalNumQueriesPlot((n) => n + 1);
-        const { response, error, status } = await request;
-        prevState.setGlobalNumQueriesPlot((n) => n - 1);
-        if (!first) {
-          // if request already then await and skip
-          return;
-        }
-        if (response) {
-          debug.log('loading meta for', response.data.metric.name);
-          setState((state) => {
-            state.metricsMeta[response.data.metric.name] = response.data.metric;
-          });
-        }
-        if (error) {
-          if (status !== 403) {
-            useErrorStore.getState().addError(error);
-          }
-        }
+        getState().updateUrl(replace);
+      }
+    },
+    removePlot(index) {
+      const plotKey = toPlotKey(index);
+      if (plotKey == null) {
         return;
-      },
-      clearMetricsMeta(metricName) {
-        if (getState().metricsMeta[metricName]) {
-          setState((state) => {
-            delete state.metricsMeta[metricName];
-          });
-        }
-      },
-      compact: false,
-      setCompact(compact) {
-        setState((state) => {
-          state.compact = compact;
-        });
-      },
-      setPlotParamsTag(indexPlot, tagKey, nextState, nextPositive) {
-        const prevState = getState();
-        const prev = prevState.params.plots[indexPlot];
-        const next = sortEntity(
-          getNextState([...(prev.filterNotIn[tagKey] ?? []), ...(prev.filterIn[tagKey] ?? [])], nextState)
-        );
-        const positive = getNextState(!prev.filterNotIn[tagKey]?.length, nextPositive);
-        prevState.setParams(
-          produce((params) => {
-            const nonEmpty = positive ? 'filterIn' : 'filterNotIn';
-            const empty = positive ? 'filterNotIn' : 'filterIn';
-
-            if (next.length) {
-              params.plots[indexPlot][nonEmpty][tagKey] = next;
-            } else {
-              delete params.plots[indexPlot][nonEmpty][tagKey];
+      }
+      setState((state) => {
+        state.plotsData.splice(index, 1);
+        state.plotsData = state.plotsData.slice(0, state.params.plots.length);
+      });
+      clearPlotPreview(index, true);
+      clearPlotVisibility(index, true);
+      getState().setParams(
+        produce((params) => {
+          const groups = params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
+          if (groups.length !== params.plots.length) {
+            while (groups.length < params.plots.length) {
+              groups.push(Math.max(0, (params.dashboard?.groupInfo?.length ?? 0) - 1));
             }
-            delete params.plots[indexPlot][empty][tagKey];
-          })
-        );
-      },
-      setPlotParamsTagGroupBy(indexPlot, tagKey, nextState) {
-        const prevState = getState();
-        const prev = prevState.params.plots[indexPlot];
-        const next = getNextState(prev.groupBy.includes(tagKey), nextState);
-        getState().setParams(
-          produce((params) => {
-            const nextGroupBy = next
-              ? sortEntity([...params.plots[indexPlot].groupBy, tagKey])
-              : params.plots[indexPlot].groupBy.filter((t) => t !== tagKey);
-            if (!dequal(params.plots[indexPlot].groupBy, nextGroupBy)) {
-              params.plots[indexPlot].groupBy = nextGroupBy;
-            }
-          })
-        );
-      },
-      setPlotType(indexPlot, nextState) {
-        const prev = getState();
-        const prevPlot = getState().params.plots[indexPlot];
-        const nextType = getNextState(prevPlot.type, nextState);
-        const meta = prev.metricsMeta[prevPlot.metricName];
-        if (prevPlot.type !== nextType && prevPlot.metricName !== promQLMetric) {
-          prev.setParams(
-            produce((params) => {
-              params.plots[indexPlot].type = nextType;
-              params.plots[indexPlot].eventsHide = [];
-              switch (params.plots[indexPlot].type) {
-                case PLOT_TYPE.Metric:
-                  params.plots[indexPlot].customAgg = 0;
-                  params.plots[indexPlot].eventsBy = [];
-                  break;
-                case PLOT_TYPE.Event:
-                  params.plots[indexPlot].customAgg = -1;
-                  params.plots[indexPlot].eventsBy =
-                    (meta &&
-                      meta.tags?.reduce((res, tag, index) => {
-                        if (tag.description !== '-') {
-                          res.push(index.toString());
-                        }
-                        return res;
-                      }, [] as string[])) ??
-                    [];
-                  break;
-              }
-              const timeShiftsSet = getTimeShifts(params.plots[indexPlot].customAgg);
-              const shifts = params.timeShifts.filter(
-                (v) => timeShiftsSet.find((shift) => timeShiftAbbrevExpand(shift) === v) !== undefined
-              );
-              if (!dequal(params.timeShifts, shifts)) {
-                params.timeShifts = shifts;
-              }
-            })
-          );
-        }
-      },
-      metricsListAbortController: undefined,
-      loadServerParams(id) {
-        return new Promise((resolve) => {
-          const paramsLD = readJSONLD<QueryParams>('QueryParams');
-          if (paramsLD?.dashboard?.dashboard_id && paramsLD.dashboard.dashboard_id === id) {
-            resolve(paramsLD);
-            return;
           }
-          const cache = getState().saveDashboardParams;
-          if (cache?.dashboard?.dashboard_id === id) {
-            resolve(deepClone(cache));
-            return;
-          }
-          getState().setSaveDashboardParams(undefined);
-          const url = dashboardURL(id);
-          getState().serverParamsAbortController?.abort();
-          const controller = new AbortController();
-          setState((state) => {
-            state.serverParamsAbortController = controller;
-          });
-          getState().setGlobalNumQueriesPlot((s) => s + 1);
-          apiGet<DashboardInfo>(url, controller.signal, true)
-            .then((data) => {
-              if (data) {
-                const p = normalizeDashboard(data);
-                getState().setSaveDashboardParams(p);
-                resolve(deepClone(p));
-              }
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError') {
-                useErrorStore.getState().addError(error);
-              }
-            })
-            .finally(() => {
-              getState().setGlobalNumQueriesPlot((s) => s - 1);
-            });
-        });
-      },
-      saveServerParams() {
-        return new Promise((resolve, reject) => {
-          const to = getState().params.timeRange.to;
-          const paramsData: Record<string, unknown> = {
-            ...getState().params,
-            live: getDefaultParams().live,
-            theme: getDefaultParams().theme,
-            tabNum: -1,
-            dashboard: {
-              name: '',
-              description: '',
-              ...getState().params.dashboard,
-            },
-            timeRange: {
-              ...getState().params.timeRange,
-              to: typeof to === 'number' && to > 0 ? 0 : to,
-            },
-            variables: getState().params.variables.map((v) => ({
-              ...v,
-              link: v.link
-                .map(([plotKey, tagKey]) => [toNumber(plotKey), toIndexTag(tagKey)])
-                .filter(([p, t]) => p != null && t != null),
-            })),
-          };
-          const params: DashboardInfo = {
-            dashboard: {
-              dashboard_id: getState().params.dashboard?.dashboard_id,
-              name: getState().params.dashboard?.name ?? '',
-              description: getState().params.dashboard?.description ?? '',
-              version: getState().params.dashboard?.version ?? 0,
-              data: { ...paramsData, searchParams: encodeParams(getState().params) },
-            },
-          };
-          const controller = new AbortController();
-          const url = dashboardURL();
-          getState().setSaveDashboardParams(undefined);
-          getState().setGlobalNumQueriesPlot((s) => s + 1);
-          (params.dashboard.dashboard_id !== undefined
-            ? apiPost<DashboardInfo>(url, params, controller.signal, true)
-            : apiPut<DashboardInfo>(url, params, controller.signal, true)
-          )
-            .then((data) => {
-              if (data) {
-                const nextParams = normalizeDashboard(data);
-                getState().setSaveDashboardParams(nextParams);
-                getState().setDefaultParams(deepClone(nextParams));
-                getState().setParams(deepClone(nextParams));
-                resolve(deepClone(nextParams));
-              }
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError') {
-                useErrorStore.getState().addError(error);
-                reject(error.toString());
-              }
-            })
-            .finally(() => {
-              getState().setGlobalNumQueriesPlot((s) => s - 1);
-            });
-        });
-      },
-      removeServerParams() {
-        return new Promise((resolve, reject) => {
-          const paramsData: QueryParams = {
-            ...getState().params,
-            tabNum: -1,
-            dashboard: {
-              name: '',
-              description: '',
-              ...getState().params.dashboard,
-            },
-          };
-          const params: DashboardInfo = {
-            dashboard: {
-              dashboard_id: paramsData.dashboard?.dashboard_id,
-              name: paramsData.dashboard?.name ?? '',
-              description: paramsData.dashboard?.description ?? '',
-              version: paramsData.dashboard?.version ?? 0,
-              data: paramsData,
-            },
-            delete_mark: true,
-          };
-
-          if (params.dashboard.dashboard_id === undefined) {
-            reject('no dashboard');
-            return;
-          }
-
-          const controller = new AbortController();
-          const url = dashboardURL();
-
-          getState().setGlobalNumQueriesPlot((s) => s + 1);
-          apiPost<DashboardInfo>(url, params, controller.signal, true)
-            .then((data) => {
-              if (data) {
-                const nextParams = normalizeDashboard(data);
-                getState().setParams(nextParams);
-                resolve(nextParams);
-              }
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError') {
-                useErrorStore.getState().addError(error);
-                reject(error.toString());
-              }
-            })
-            .finally(() => {
-              getState().setGlobalNumQueriesPlot((s) => s - 1);
-            });
-        });
-      },
-      saveDashboardParams: undefined,
-      setSaveDashboardParams(nextState) {
-        setState((state) => {
-          state.saveDashboardParams = getNextState(state.saveDashboardParams, nextState);
-        });
-      },
-      moveAndResortPlot(indexSelectPlot, indexTargetPlot, indexGroup) {
-        const prevState = getState();
-        const groups: number[] =
-          prevState.params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
-        if (groups.length !== prevState.params.plots.length) {
-          while (groups.length < prevState.params.plots.length) {
-            groups.push(Math.max(0, (prevState.params.dashboard?.groupInfo?.length ?? 0) - 1));
-          }
-        }
-        if (typeof indexSelectPlot !== 'undefined' && typeof indexGroup !== 'undefined' && indexGroup >= 0) {
-          groups[indexSelectPlot] = indexGroup;
-        }
-        const normalize = prevState.params.plots.map((plot, indexPlot) => ({
-          plot,
-          plotEventLink: plot.events.map((eId) => prevState.params.plots[eId]),
-          group: groups[indexPlot] ?? 0,
-          tagSync: prevState.params.tagSync.map((group, indexGroup) => ({ indexGroup, indexTag: group[indexPlot] })),
-          plotsData: prevState.plotsData[indexPlot],
-          plotsEvent: prevState.events[indexPlot],
-          oldIndex: indexPlot,
-        }));
-        if (
-          typeof indexSelectPlot !== 'undefined' &&
-          typeof indexTargetPlot !== 'undefined' &&
-          indexSelectPlot !== indexTargetPlot
-        ) {
-          const [drop] = normalize.splice(indexSelectPlot, 1);
-          normalize.splice(
-            indexSelectPlot < indexTargetPlot ? Math.max(0, indexTargetPlot - 1) : indexTargetPlot,
-            0,
-            drop
-          );
-        }
-        const resort = normalize.sort(sortByKey.bind(undefined, 'group'));
-        const plots = resort.map(({ plot }) => plot);
-        const plotsData = resort.map(({ plotsData }) => plotsData);
-        const plotsEvent = resort.map(({ plotsEvent }) => plotsEvent);
-        const plotEventLink = resort.map(({ plotEventLink }) => plotEventLink.map((eP) => plots.indexOf(eP)));
-        const remapIndexPlot = resort.reduce((res, { oldIndex }, newIndex) => {
-          res[oldIndex] = newIndex;
-          return res;
-        }, {} as Record<string, number>);
-        const variables: VariableParams[] = prevState.params.variables.map((variable) => ({
-          ...variable,
-          link: variable.link.map(([plotKey, tagKey]) => {
-            let indexP = toNumber(plotKey);
-            return [toPlotKey(indexP == null ? indexP : remapIndexPlot[indexP]) ?? plotKey, tagKey];
-          }),
-        }));
-        const tagSync = resort.reduce((res, item, indexPlot) => {
-          item.tagSync.forEach(({ indexGroup, indexTag }) => {
-            res[indexGroup] = res[indexGroup] ?? [];
-            res[indexGroup][indexPlot] = indexTag;
-          });
-          return res;
-        }, [] as (number | null)[][]);
-        resortPlotPreview(remapIndexPlot);
-        resortPlotVisibility(remapIndexPlot);
-        setState((state) => {
-          state.plotsData = plotsData;
-          state.events = plotsEvent;
-        });
-        prevState.setParams(
-          produce((params) => {
-            params.plots = plots.map((p, indexP) => ({
+          if (params.plots.length > 1) {
+            params.plots.splice(index, 1);
+            params.plots = params.plots.map((p) => ({
               ...p,
-              events: plotEventLink[indexP].filter((i) => i > -1) ?? [],
+              events: p.events.filter((v) => v !== index).map((v) => (v > index ? v - 1 : v)),
             }));
-            params.tagSync = tagSync;
-            params.variables = variables;
-            if (params.dashboard && typeof indexGroup !== 'undefined' && indexGroup >= 0) {
-              params.dashboard.groupInfo = params.dashboard.groupInfo ?? [];
-              params.dashboard.groupInfo[indexGroup] = params.dashboard.groupInfo[indexGroup] ?? {
-                name: '',
-                count: 0,
-                show: true,
-                size: 2,
-              };
-              for (let i = 0, max = params.dashboard.groupInfo.length; i < max; i++) {
-                if (!params.dashboard.groupInfo[i]) {
-                  params.dashboard.groupInfo[i] = {
-                    name: '',
-                    count: 0,
-                    show: true,
-                    size: '2',
-                  };
-                }
-              }
-
+            params.tagSync = params.tagSync.map((g) => g.filter((tags, plot) => plot !== index));
+            groups.splice(index, 1);
+            if (params.dashboard?.groupInfo?.length) {
               params.dashboard.groupInfo = params.dashboard.groupInfo
                 .map((g, index) => ({
                   ...g,
@@ -1662,238 +628,1393 @@ export const useStore = createWithEqualityFn<Store>()(
                 }))
                 .filter((g) => g.count > 0);
             }
+            params.variables = params.variables
+              .map((variable) => ({
+                ...variable,
+                link: variable.link
+                  .filter(([keyP]) => keyP !== plotKey)
+                  .map(([keyP, keyT]) => {
+                    const indexP = toNumber(keyP, 0);
+                    return [toPlotKey(indexP > index ? indexP - 1 : indexP, keyP), keyT];
+                  })
+                  .filter(isNotNilVariableLink),
+              }))
+              .filter(({ link }) => link.length);
+          }
+          if (params.tabNum > index) {
+            params.tabNum--;
+          }
+          if (params.tabNum === index && params.plots.length - 1 < params.tabNum) {
+            params.tabNum--;
+          }
+          if (params.tabNum === -1 && params.plots.length === 1) {
+            params.tabNum = 0;
+          }
+        })
+      );
+      const metrics = getState().params.plots.map(({ metricName }) => metricName);
+      Object.keys(getState().metricsMeta)
+        .filter((name) => name && !metrics.includes(name))
+        .forEach(getState().clearMetricsMeta);
+    },
+    updateUrl(replace?: boolean) {
+      const prevState = getState();
+      const autoReplace =
+        prevState.params.timeRange.from === defaultTimeRange.from ||
+        prevState.params.timeRange.to === defaultTimeRange.to ||
+        prevState.liveMode ||
+        prevState.timeRange.from > now();
+
+      const p = encodeParams(prevState.params, prevState.defaultParams);
+      const search = '?' + fixMessageTrouble(new URLSearchParams(p).toString());
+      let pathname = document.location.pathname;
+
+      if (pathname !== '/view' && pathname !== '/embed') {
+        pathname = '/view';
+      }
+      if (document.location.search !== search) {
+        if (replace || autoReplace) {
+          appHistory.replace({ search, pathname });
+        } else {
+          appHistory.push({ search, pathname });
+        }
+      }
+      getState().updateTitle();
+    },
+    updateTitle() {
+      const s = getState();
+      switch (s.params.tabNum) {
+        case -1:
+          if (s.params.dashboard?.dashboard_id !== undefined) {
+            document.title = `${s.params.dashboard?.name} — StatsHouse`;
+          } else {
+            document.title = 'Dashboard — StatsHouse';
+          }
+          break;
+        case -2:
+          document.title = 'Dashboard setting — StatsHouse';
+          break;
+        default:
+          if (s.params.plots[s.params.tabNum] && s.params.plots[s.params.tabNum].metricName === promQLMetric) {
+            if (s.plotsData[s.params.tabNum].nameMetric) {
+              document.title =
+                s.plotsData[s.params.tabNum].nameMetric +
+                (s.plotsData[s.params.tabNum].whats.length
+                  ? ': ' + s.plotsData[s.params.tabNum].whats.map((qw) => api.whatToWhatDesc(qw)).join(',')
+                  : '') +
+                ' — StatsHouse';
+            } else {
+              document.title = 'StatsHouse';
+            }
+          } else {
+            document.title =
+              (s.params.plots[s.params.tabNum] &&
+                s.params.plots[s.params.tabNum].metricName !== '' &&
+                `${s.params.plots[s.params.tabNum].metricName}: ${s.params.plots[s.params.tabNum].what
+                  .map((qw) => api.whatToWhatDesc(qw))
+                  .join(',')} — StatsHouse`) ||
+              '';
+          }
+          break;
+      }
+    },
+    setTabNum(id) {
+      setState((store) => {
+        store.params.tabNum = id;
+      });
+      getState().updateUrl();
+    },
+    error: '',
+    liveMode: false,
+    setLiveMode(nextStatus) {
+      const nextState = getNextState(getState().liveMode, nextStatus);
+      setState((state) => {
+        if (state.liveMode !== nextState) {
+          state.liveMode = nextState;
+        }
+      });
+      if (!nextState) {
+        getState().setParams(
+          produce((param) => {
+            param.live = false;
           })
         );
-      },
-      dashboardLayoutEdit: false,
-      setDashboardLayoutEdit(nextStatus: boolean) {
+      }
+    },
+    globalNumQueriesPlot: 0,
+    setGlobalNumQueriesPlot(nextState) {
+      setState((state) => {
+        state.globalNumQueriesPlot = getNextState(state.globalNumQueriesPlot, nextState);
+      });
+    },
+    numQueriesPlot: [],
+    setNumQueriesPlot(index, nextState) {
+      setState((state) => {
+        state.numQueriesPlot[index] = getNextState(state.numQueriesPlot[index] ?? 0, nextState);
+      });
+    },
+    baseRange: defaultBaseRange,
+    setBaseRange(nextState) {
+      setState((state) => {
+        state.baseRange = getNextState(state.baseRange, nextState);
+      });
+    },
+    plotsData: [],
+    plotsDataAbortController: [],
+    loadPlot(index, force: boolean = false) {
+      const plotKey = toPlotKey(index);
+      if (!getState().plotsData[index]) {
         setState((state) => {
-          state.dashboardLayoutEdit = nextStatus;
+          state.plotsData[index] = getEmptyPlotData();
         });
-        if (nextStatus) {
-          getState().setLiveMode(false);
+      }
+      const prevState = getState();
+
+      // if liveMode and there is a queries then wait request
+      if (prevState.numQueriesPlot[index] > 0 && prevState.liveMode) {
+        return;
+      }
+      const isSubVisible = prevState.params.plots.some(
+        (plot, iPlot) => plot.events.indexOf(index) > -1 && usePlotVisibilityStore.getState().visibilityList[iPlot]
+      );
+
+      if (
+        !isSubVisible &&
+        !usePlotVisibilityStore.getState().visibilityList[index] &&
+        !usePlotVisibilityStore.getState().previewList[index]
+      ) {
+        return;
+      }
+      if (plotKey == null) {
+        return;
+      }
+      const width = prevState.uPlotsWidth[index] ?? prevState.uPlotsWidth.find((w) => w && w > 0);
+      const compact = prevState.compact;
+      const lastPlotParams: PlotParams | undefined = replaceVariable(
+        plotKey,
+        prevState.params.plots[index],
+        prevState.params.variables
+      );
+      const prev: PlotStore = prevState.plotsData[index];
+
+      const deltaTime = Math.floor((prevState.timeRange.to - prevState.timeRange.from) / 5);
+
+      if (
+        !usePlotVisibilityStore.getState().visibilityList[index] &&
+        usePlotVisibilityStore.getState().previewList[index] &&
+        prev.lastTimeRange &&
+        Math.abs(prev.lastTimeRange.to - prevState.timeRange.to) < deltaTime &&
+        Math.abs(prev.lastTimeRange.from - prevState.timeRange.from) < deltaTime
+      ) {
+        setState((state) => {
+          if (state.plotsData[index].scales.x) {
+            state.plotsData[index].scales.x = { min: prevState.timeRange.from, max: prevState.timeRange.to };
+          }
+        });
+        return;
+      }
+      if (lastPlotParams && lastPlotParams.metricName === '' && lastPlotParams.promQL === '') {
+        return;
+      }
+      if (
+        width &&
+        lastPlotParams &&
+        (!dequal(lastPlotParams, prev.lastPlotParams) ||
+          prevState.timeRange !== prev.lastTimeRange ||
+          prevState.params.timeShifts !== prev.lastTimeShifts ||
+          (lastPlotParams.promQL &&
+            prevState.params.variables.some(({ name }) => lastPlotParams.promQL.indexOf(name) > -1)) ||
+          force)
+      ) {
+        const agg =
+          lastPlotParams.customAgg === -1
+            ? `${Math.floor(width / 4)}`
+            : lastPlotParams.customAgg === 0
+            ? `${Math.floor(width * devicePixelRatio)}`
+            : `${lastPlotParams.customAgg}s`;
+        debug.log(
+          '%crequesting data for %s %s %d %o %O %o %o %d',
+          'color:green',
+          lastPlotParams.useV2,
+          lastPlotParams.metricName,
+          agg,
+          lastPlotParams.what,
+          lastPlotParams.groupBy,
+          lastPlotParams.filterIn,
+          lastPlotParams.filterNotIn,
+          Math.round(-prevState.timeRange.relativeFrom),
+          lastPlotParams.maxHost
+        );
+        if (!getState().metricsMeta[lastPlotParams.metricName]) {
+          getState().loadMetricsMeta(lastPlotParams.metricName);
         }
-        if (!nextStatus && getState().params.tabNum < -1) {
-          getState().setTabNum(-1);
+        prevState.setNumQueriesPlot(index, (n) => n + 1);
+        const controller = new AbortController();
+        const isPromQl = lastPlotParams.metricName === promQLMetric;
+
+        const promQLForm = new FormData();
+        promQLForm.append('q', lastPlotParams.promQL);
+        const url = queryURL(
+          lastPlotParams,
+          prevState.timeRange,
+          prevState.params.timeShifts,
+          agg,
+          !compact,
+          prevState.params
+        );
+        prevState.plotsDataAbortController[index]?.abort();
+        setState((state) => {
+          state.plotsDataAbortController[index] = controller;
+          const scales: UPlotWrapperPropsScales = {};
+          scales.x = { min: getState().timeRange.from, max: getState().timeRange.to };
+          if (lastPlotParams.yLock.min !== 0 || lastPlotParams.yLock.max !== 0) {
+            scales.y = { ...lastPlotParams.yLock };
+          }
+          state.plotsData[index].scales = scales;
+        });
+        if (isPromQl && !lastPlotParams.promQL) {
+          setState((state) => {
+            state.plotsData[index] = getEmptyPlotData();
+            state.liveMode = false;
+          });
+          clearPlotPreview(index);
+          getState().setNumQueriesPlot(index, (n) => n - 1);
+          return;
         }
-      },
-      setGroupName(indexGroup, name) {
-        getState().setParams(
-          produce<QueryParams>((state) => {
-            if (state.dashboard) {
-              state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
-              if (state.dashboard.groupInfo[indexGroup]) {
-                state.dashboard.groupInfo[indexGroup].name = name;
-              } else {
-                state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: '2' };
+
+        (isPromQl
+          ? apiPost<queryResult>(url, promQLForm, controller.signal, true)
+          : apiGet<queryResult>(url, controller.signal, true)
+        )
+          .then((resp) => {
+            const promqltestfailed = !!resp?.promqltestfailed;
+            const uniqueWhat: Set<QueryWhat> = new Set();
+            const uniqueName = new Set();
+            const uniqueMetricType: Set<string> = new Set();
+            for (const meta of resp?.series.series_meta ?? []) {
+              if (isQueryWhat(meta.what)) {
+                uniqueWhat.add(meta.what);
               }
+              meta.name && uniqueName.add(meta.name);
+              if (meta.metric_type) {
+                uniqueMetricType.add(meta.metric_type);
+              }
+            }
+            const currentPrevState = getState();
+            const currentPrev: PlotStore = getState().plotsData[index];
+            if (uniqueName.size === 0 && lastPlotParams.metricName !== promQLMetric) {
+              uniqueName.add(lastPlotParams.metricName);
+            }
+            const metricType = uniqueMetricType.size === 1 ? [...uniqueMetricType.keys()][0] : '';
+
+            const maxLabelLength = Math.max(
+              'Time'.length,
+              ...(resp?.series.series_meta ?? []).map((meta) => {
+                const label = metaToLabel(meta, uniqueWhat.size);
+                return label.length;
+              })
+            );
+            const legendNameWidth = (resp?.series.series_meta.length ?? 0) > 5 ? maxLabelLength * pxPerChar : 1_000_000;
+            let legendMaxHostWidth = 0;
+            const legendMaxHostPercentWidth = 0;
+            const data: uPlot.AlignedData = [
+              resp.series.time as number[],
+              ...(resp.series.series_data as (number | null)[][]),
+            ];
+
+            const stacked = lastPlotParams.type === PLOT_TYPE.Event ? stackData(data) : undefined;
+            const usedDashes = {};
+            const usedBaseColors = {};
+            const baseColors: Record<string, string> = {};
+            let changeColor = false;
+            let changeType = currentPrev.lastPlotParams?.type !== lastPlotParams.type;
+            const widthLine =
+              (width ?? 0) > resp.series.time.length
+                ? devicePixelRatio > 1
+                  ? 2 / devicePixelRatio
+                  : 1
+                : 1 / devicePixelRatio;
+
+            const topInfoCounts: Record<string, number> = {};
+            const topInfoTotals: Record<string, number> = {};
+            let topInfo: TopInfo | undefined = undefined;
+            const maxHostLists: SelectOptionProps[][] = new Array(resp.series.series_meta.length).fill([]);
+            const oneGraph = resp.series.series_meta.filter((s) => s.time_shift === 0).length <= 1;
+            const seriesShow = new Array(resp.series.series_meta.length).fill(true);
+
+            const series: uPlot.Series[] = resp.series.series_meta.map((meta, indexMeta): uPlot.Series => {
+              const timeShift = meta.time_shift !== 0;
+              const label = metaToLabel(meta, uniqueWhat.size);
+              const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
+              const isValue = baseLabel.indexOf('Value') === 0;
+              const prefColor = '9'; // it`s magic prefix
+              const metricName = isValue
+                ? `${meta.name || (lastPlotParams.metricName !== promQLMetric ? lastPlotParams.metricName : '')}: `
+                : '';
+              const colorKey = `${prefColor}${metricName}${oneGraph ? label : baseLabel}`;
+              const baseColor = meta.color ?? baseColors[colorKey] ?? selectColor(colorKey, usedBaseColors);
+              baseColors[colorKey] = baseColor;
+              if (baseColor !== getState().plotsData[index]?.series[indexMeta]?.stroke) {
+                changeColor = true;
+              }
+              if (meta.max_hosts) {
+                const max_hosts_l = meta.max_hosts
+                  .map((host) => host.length * pxPerChar * 1.25 + 65)
+                  .filter(Boolean)
+                  .sort();
+                const full = max_hosts_l[0] ?? 0;
+                const p75 = max_hosts_l[Math.floor(max_hosts_l.length * 0.25)] ?? 0;
+                legendMaxHostWidth = Math.max(legendMaxHostWidth, full - p75 > 20 ? p75 : full);
+              }
+              const max_host_map =
+                meta.max_hosts?.reduce((res, host) => {
+                  if (host) {
+                    res[host] = (res[host] ?? 0) + 1;
+                  }
+                  return res;
+                }, {} as Record<string, number>) ?? {};
+              const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
+              seriesShow[indexMeta] =
+                currentPrev.series[indexMeta]?.label === label ? currentPrev.seriesShow[indexMeta] : true;
+              maxHostLists[indexMeta] = Object.entries(max_host_map)
+                .sort(([k, a], [n, b]) => (a > b ? -1 : a < b ? 1 : k > n ? 1 : k < n ? -1 : 0))
+                .map(([host, count]) => {
+                  const percent = formatPercent(count / max_host_total);
+                  return {
+                    value: host,
+                    title: `${host}: ${percent}`,
+                    name: `${host}: ${percent}`,
+                    html: `<div class="d-flex"><div class="flex-grow-1 me-2 overflow-hidden text-nowrap">${host}</div><div class="text-end">${percent}</div></div>`,
+                  };
+                });
+              const key = `${meta.what}|${meta.time_shift}`;
+              topInfoCounts[key] = (topInfoCounts[key] ?? 0) + 1;
+              topInfoTotals[key] = meta.total;
+              const paths =
+                lastPlotParams.type === PLOT_TYPE.Event
+                  ? uPlot.paths.bars!({ size: [0.7], gap: 0, align: 1 })
+                  : uPlot.paths.stepped!({
+                      align: 1,
+                    });
+
+              return {
+                show: seriesShow[indexMeta] ?? true,
+                auto: false, // we control the scaling manually
+                label,
+                stroke: baseColor,
+                width: widthLine,
+                dash: timeShift ? timeShiftToDash(meta.time_shift, usedDashes) : undefined,
+                fill: rgba(baseColor, timeShift ? 0.1 : 0.15),
+                points:
+                  lastPlotParams.type === PLOT_TYPE.Event
+                    ? { show: false, size: 0 }
+                    : {
+                        filter: filterPoints,
+                        size: 5,
+                      },
+                paths,
+                values(u, seriesIdx, idx): PlotValues {
+                  if (idx === null) {
+                    return {
+                      metricName: '',
+                      rawValue: null,
+                      value: '',
+                      label: '',
+                      baseLabel: '',
+                      timeShift: 0,
+                      max_host: '',
+                      total: 0,
+                      percent: '',
+                      max_host_percent: '',
+                      top_max_host: '',
+                      top_max_host_percent: '',
+                    };
+                  }
+                  const rawValue = data[seriesIdx]?.[idx] ?? null;
+                  let total = 0;
+                  for (let i = 1; i < u.series.length; i++) {
+                    const v = data[i]?.[idx];
+                    if (v !== null && v !== undefined) {
+                      total += v;
+                    }
+                  }
+                  const value = formatLegendValue(rawValue);
+                  const max_host = meta.max_hosts !== null && idx < meta.max_hosts.length ? meta.max_hosts[idx] : '';
+
+                  const max_host_percent =
+                    meta.max_hosts !== null && max_host_map && meta.max_hosts[idx]
+                      ? formatPercent((max_host_map[meta.max_hosts[idx]] ?? 0) / max_host_total)
+                      : '';
+                  const percent = rawValue !== null ? formatPercent(rawValue / total) : '';
+                  return {
+                    metricName,
+                    rawValue,
+                    value,
+                    label,
+                    baseLabel,
+                    timeShift: meta.time_shift,
+                    max_host,
+                    total,
+                    percent,
+                    max_host_percent,
+                    top_max_host: maxHostLists[indexMeta]?.[0]?.value ?? '',
+                    top_max_host_percent: maxHostLists[indexMeta]?.[0]?.title ?? '',
+                  };
+                },
+              };
+            });
+
+            const topInfoTop = {
+              min: Math.min(...Object.values(topInfoCounts)),
+              max: Math.max(...Object.values(topInfoCounts)),
+            };
+            const topInfoTotal = {
+              min: Math.min(...Object.values(topInfoTotals)),
+              max: Math.max(...Object.values(topInfoTotals)),
+            };
+            const topInfoFunc = lastPlotParams.what.length;
+            const topInfoShifts = currentPrevState.params.timeShifts.length;
+            const info: string[] = [];
+
+            if (topInfoTop.min !== topInfoTotal.min && topInfoTop.max !== topInfoTotal.max) {
+              if (topInfoFunc > 1) {
+                info.push(`${topInfoFunc} functions`);
+              }
+              if (topInfoShifts > 0) {
+                info.push(`${topInfoShifts} time-shift${topInfoShifts > 1 ? 's' : ''}`);
+              }
+              topInfo = {
+                top:
+                  topInfoTop.max === topInfoTop.min ? topInfoTop.max.toString() : `${topInfoTop.min}-${topInfoTop.max}`,
+                total:
+                  topInfoTotal.max === topInfoTotal.min
+                    ? topInfoTotal.max.toString()
+                    : `${topInfoTotal.min}-${topInfoTotal.max}`,
+                info: info.length ? ` (${info.join(',')})` : '',
+              };
+            }
+
+            const scales: UPlotWrapperPropsScales = {};
+            scales.x = { min: getState().timeRange.from, max: getState().timeRange.to };
+            if (lastPlotParams.yLock.min !== 0 || lastPlotParams.yLock.max !== 0) {
+              scales.y = { ...lastPlotParams.yLock };
+            }
+
+            const maxLengthValue = series.reduce((res, s, indexSeries) => {
+              if (s.show) {
+                const v =
+                  (data[indexSeries + 1] as (number | null)[] | undefined)?.reduce((res2, d) => {
+                    if (d && (res2?.toString().length ?? 0) < d.toString().length) {
+                      return d;
+                    }
+                    return res2;
+                  }, null as null | number) ?? null;
+                if (v && (v.toString().length ?? 0) > (res?.toString().length ?? 0)) {
+                  return v;
+                }
+              }
+              return res;
+            }, null as null | number);
+
+            const [yMinAll, yMaxAll] = calcYRange2(series, data, false);
+            const legendExampleValue = Math.max(
+              Math.abs(Math.floor(yMinAll) - 0.001),
+              Math.abs(Math.ceil(yMaxAll) + 0.001)
+            );
+            const legendValueWidth = (formatLegendValue(legendExampleValue).length + 2) * pxPerChar; // +2 - focus marker
+
+            const legendMaxDotSpaceWidth =
+              Math.max(4, (formatLegendValue(maxLengthValue).split('.', 2)[1]?.length ?? 0) + 2) * pxPerChar;
+            const legendPercentWidth = (4 + 2) * pxPerChar; // +2 - focus marker
+            setState((state) => {
+              const noUpdateData = dequal(stacked || data, state.plotsData[index]?.data);
+              if (resp.metric != null && !dequal(state.metricsMeta[resp.metric.name], resp.metric)) {
+                state.metricsMeta[resp.metric.name] = resp.metric;
+              }
+              state.plotsData[index] = {
+                nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
+                whats: uniqueName.size === 1 ? [...uniqueWhat.keys()] : [],
+                metricType,
+                error: '',
+                errorSkipCount: 0,
+                data: noUpdateData ? state.plotsData[index]?.data : stacked || data,
+                series:
+                  noUpdateData &&
+                  dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) &&
+                  !changeColor &&
+                  !changeType
+                    ? state.plotsData[index]?.series
+                    : series,
+                seriesShow: dequal(seriesShow, state.plotsData[index]?.seriesShow)
+                  ? state.plotsData[index]?.seriesShow
+                  : seriesShow,
+                scales: dequal(scales, state.plotsData[index]?.scales) ? state.plotsData[index]?.scales : scales,
+                receiveErrors: resp.receive_errors,
+                receiveWarnings: resp.receive_warnings,
+                samplingFactorSrc: resp.sampling_factor_src,
+                samplingFactorAgg: resp.sampling_factor_agg,
+                mappingFloodEvents: resp.mapping_errors,
+                legendValueWidth,
+                legendMaxDotSpaceWidth,
+                legendNameWidth,
+                legendPercentWidth,
+                legendMaxHostWidth,
+                legendMaxHostPercentWidth,
+                lastPlotParams,
+                lastQuerySeriesMeta: [...resp.series.series_meta],
+                lastTimeRange: getState().timeRange,
+                lastTimeShifts: getState().params.timeShifts,
+                topInfo,
+                maxHostLists,
+                promqltestfailed,
+                promQL: resp.promql ?? '',
+              };
+            });
+          })
+          .catch((error) => {
+            if (!getState().metricsMeta[lastPlotParams.metricName]) {
+              getState().loadMetricsMeta(lastPlotParams.metricName);
+            }
+            if (error instanceof ErrorSkip) {
+              setState((state) => {
+                state.plotsData[index] ??= getEmptyPlotData();
+                state.plotsData[index].errorSkipCount++;
+                if (!state.liveMode || state.plotsData[index].errorSkipCount > globalSettings.skip_error_count) {
+                  state.plotsData[index].error = error.toString();
+                  state.liveMode = false;
+                }
+              });
+            } else if (error instanceof Error403) {
+              setState((state) => {
+                state.plotsData[index] = {
+                  ...getEmptyPlotData(),
+                  error403: error.toString(),
+                };
+                state.liveMode = false;
+              });
+            } else if (error.name !== 'AbortError') {
+              debug.error(error);
+              setState((state) => {
+                state.plotsData[index] = {
+                  ...getEmptyPlotData(),
+                  error: error.toString(),
+                };
+                state.liveMode = false;
+              });
+            }
+            clearPlotPreview(index);
+          })
+          .finally(() => {
+            getState().setNumQueriesPlot(index, (n) => n - 1);
+            getState().updateTitle();
+          });
+
+        // getState()
+        //   .loadMetricsMeta(lastPlotParams.metricName)
+        //   .then(() => {
+        if (lastPlotParams.type === PLOT_TYPE.Event) {
+          const prevState = getState();
+          const from =
+            prevState.timeRange.from < prevState.params.eventFrom && prevState.timeRange.to > prevState.params.eventFrom
+              ? prevState.params.eventFrom
+              : undefined;
+          getState()
+            .loadEvents(index, undefined, undefined, from)
+            .catch(() => undefined);
+        }
+        // })
+        // .catch(() => undefined);
+      }
+    },
+    setPlotShow(indexPlot, idx, show, single) {
+      setState((state) => {
+        if (single) {
+          const otherShow = state.plotsData[indexPlot].seriesShow.some((_show, indexSeries) =>
+            indexSeries === idx ? false : _show
+          );
+          state.plotsData[indexPlot].seriesShow = state.plotsData[indexPlot].seriesShow.map((s, indexSeries) =>
+            indexSeries === idx ? true : !otherShow
+          );
+        } else {
+          state.plotsData[indexPlot].seriesShow[idx] = show ?? !state.plotsData[indexPlot].seriesShow[idx];
+        }
+      });
+    },
+    setPlotLastError(index, error) {
+      setState((state) => {
+        if (state.plotsData[index]) {
+          state.plotsData[index].error = error;
+        }
+      });
+    },
+    uPlotsWidth: [],
+    setUPlotWidth(index, weight) {
+      if (getState().uPlotsWidth[index] !== weight) {
+        setState((state) => {
+          state.uPlotsWidth[index] = weight;
+        });
+        getState().loadPlot(index);
+      }
+    },
+    setYLockChange(index, status) {
+      const prevYLock = getState().params.plots[index].yLock;
+      const prevPlotData = getState().plotsData[index];
+      const prevStatus = prevYLock.max !== 0 || prevYLock.min !== 0;
+      if (prevStatus !== status) {
+        let next = { min: 0, max: 0 };
+        if (status) {
+          const [min, max] = calcYRange2(prevPlotData.series, prevPlotData.data, true);
+          next = { min, max };
+        }
+        getState().setPlotParams(
+          index,
+          produce((state) => {
+            state.yLock = next;
+          })
+        );
+      }
+    },
+    metricsMeta: {},
+    async loadMetricsMeta(metricName) {
+      if (!metricName || metricName === promQLMetric) {
+        return;
+      }
+      const prevState = getState();
+      if (prevState.metricsMeta[metricName] && prevState.metricsMeta[metricName].name) {
+        return;
+      }
+      const requestKey = `loadMetricsMeta_${metricName}`;
+      const [request, first] = promiseRun(
+        requestKey,
+        apiMetricFetch,
+        { [GET_PARAMS.metricName]: metricName },
+        requestKey
+      );
+      prevState.setGlobalNumQueriesPlot((n) => n + 1);
+      const { response, error, status } = await request;
+      prevState.setGlobalNumQueriesPlot((n) => n - 1);
+      if (!first) {
+        // if request already then await and skip
+        return;
+      }
+      if (response) {
+        debug.log('loading meta for', response.data.metric.name);
+        setState((state) => {
+          state.metricsMeta[response.data.metric.name] = response.data.metric;
+        });
+      }
+      if (error) {
+        if (status !== 403) {
+          useErrorStore.getState().addError(error);
+        }
+      }
+      return;
+    },
+    clearMetricsMeta(metricName) {
+      if (getState().metricsMeta[metricName]) {
+        setState((state) => {
+          delete state.metricsMeta[metricName];
+        });
+      }
+    },
+    compact: false,
+    setCompact(compact) {
+      setState((state) => {
+        state.compact = compact;
+      });
+    },
+    setPlotParamsTag(indexPlot, tagKey, nextState, nextPositive) {
+      const prevState = getState();
+      const prev = prevState.params.plots[indexPlot];
+      const next = sortEntity(
+        getNextState([...(prev.filterNotIn[tagKey] ?? []), ...(prev.filterIn[tagKey] ?? [])], nextState)
+      );
+      const positive = getNextState(!prev.filterNotIn[tagKey]?.length, nextPositive);
+      prevState.setParams(
+        produce((params) => {
+          const nonEmpty = positive ? 'filterIn' : 'filterNotIn';
+          const empty = positive ? 'filterNotIn' : 'filterIn';
+
+          if (next.length) {
+            params.plots[indexPlot][nonEmpty][tagKey] = next;
+          } else {
+            delete params.plots[indexPlot][nonEmpty][tagKey];
+          }
+          delete params.plots[indexPlot][empty][tagKey];
+        })
+      );
+    },
+    setPlotParamsTagGroupBy(indexPlot, tagKey, nextState) {
+      const prevState = getState();
+      const prev = prevState.params.plots[indexPlot];
+      const next = getNextState(prev.groupBy.includes(tagKey), nextState);
+      getState().setParams(
+        produce((params) => {
+          const nextGroupBy = next
+            ? sortEntity([...params.plots[indexPlot].groupBy, tagKey])
+            : params.plots[indexPlot].groupBy.filter((t) => t !== tagKey);
+          if (!dequal(params.plots[indexPlot].groupBy, nextGroupBy)) {
+            params.plots[indexPlot].groupBy = nextGroupBy;
+          }
+        })
+      );
+    },
+    setPlotType(indexPlot, nextState) {
+      const prev = getState();
+      const prevPlot = getState().params.plots[indexPlot];
+      const nextType = getNextState(prevPlot.type, nextState);
+      const meta = prev.metricsMeta[prevPlot.metricName];
+      if (prevPlot.type !== nextType && prevPlot.metricName !== promQLMetric) {
+        prev.setParams(
+          produce((params) => {
+            params.plots[indexPlot].type = nextType;
+            params.plots[indexPlot].eventsHide = [];
+            switch (params.plots[indexPlot].type) {
+              case PLOT_TYPE.Metric:
+                params.plots[indexPlot].customAgg = 0;
+                params.plots[indexPlot].eventsBy = [];
+                break;
+              case PLOT_TYPE.Event:
+                params.plots[indexPlot].customAgg = -1;
+                params.plots[indexPlot].eventsBy =
+                  (meta &&
+                    meta.tags?.reduce((res, tag, index) => {
+                      if (tag.description !== '-') {
+                        res.push(index.toString());
+                      }
+                      return res;
+                    }, [] as string[])) ??
+                  [];
+                break;
+            }
+            const timeShiftsSet = getTimeShifts(params.plots[indexPlot].customAgg);
+            const shifts = params.timeShifts.filter(
+              (v) => timeShiftsSet.find((shift) => timeShiftAbbrevExpand(shift) === v) !== undefined
+            );
+            if (!dequal(params.timeShifts, shifts)) {
+              params.timeShifts = shifts;
             }
           })
         );
-      },
-      setGroupShow(indexGroup, show) {
-        const nextShow = getNextState(getState().params.dashboard?.groupInfo?.[indexGroup]?.show ?? true, show);
-        getState().setParams(
-          produce<QueryParams>((state) => {
-            if (state.dashboard) {
-              state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
-              if (state.dashboard.groupInfo[indexGroup]) {
-                state.dashboard.groupInfo[indexGroup].show = nextShow;
-              } else {
-                state.dashboard.groupInfo[indexGroup] = {
-                  show: nextShow,
+      }
+    },
+    metricsListAbortController: undefined,
+    loadServerParams(id) {
+      return new Promise((resolve) => {
+        const paramsLD = readJSONLD<QueryParams>('QueryParams');
+        if (paramsLD?.dashboard?.dashboard_id && paramsLD.dashboard.dashboard_id === id) {
+          resolve(paramsLD);
+          return;
+        }
+        const cache = getState().saveDashboardParams;
+        if (cache?.dashboard?.dashboard_id === id) {
+          resolve(deepClone(cache));
+          return;
+        }
+        getState().setSaveDashboardParams(undefined);
+        const url = dashboardURL(id);
+        getState().serverParamsAbortController?.abort();
+        const controller = new AbortController();
+        setState((state) => {
+          state.serverParamsAbortController = controller;
+        });
+        getState().setGlobalNumQueriesPlot((s) => s + 1);
+        apiGet<DashboardInfo>(url, controller.signal, true)
+          .then((data) => {
+            if (data) {
+              const p = normalizeDashboard(data);
+              getState().setSaveDashboardParams(p);
+              resolve(deepClone(p));
+            }
+          })
+          .catch((error) => {
+            if (error.name !== 'AbortError') {
+              useErrorStore.getState().addError(error);
+            }
+          })
+          .finally(() => {
+            getState().setGlobalNumQueriesPlot((s) => s - 1);
+          });
+      });
+    },
+    saveServerParams() {
+      return new Promise((resolve, reject) => {
+        const to = getState().params.timeRange.to;
+        const paramsData: Record<string, unknown> = {
+          ...getState().params,
+          live: getDefaultParams().live,
+          theme: getDefaultParams().theme,
+          tabNum: -1,
+          dashboard: {
+            name: '',
+            description: '',
+            ...getState().params.dashboard,
+          },
+          timeRange: {
+            ...getState().params.timeRange,
+            to: typeof to === 'number' && to > 0 ? 0 : to,
+          },
+          variables: getState().params.variables.map((v) => ({
+            ...v,
+            link: v.link
+              .map(([plotKey, tagKey]) => [toNumber(plotKey), toIndexTag(tagKey)])
+              .filter(([p, t]) => p != null && t != null),
+          })),
+        };
+        const params: DashboardInfo = {
+          dashboard: {
+            dashboard_id: getState().params.dashboard?.dashboard_id,
+            name: getState().params.dashboard?.name ?? '',
+            description: getState().params.dashboard?.description ?? '',
+            version: getState().params.dashboard?.version ?? 0,
+            data: { ...paramsData, searchParams: encodeParams(getState().params) },
+          },
+        };
+        const controller = new AbortController();
+        const url = dashboardURL();
+        getState().setSaveDashboardParams(undefined);
+        getState().setGlobalNumQueriesPlot((s) => s + 1);
+        (params.dashboard.dashboard_id !== undefined
+          ? apiPost<DashboardInfo>(url, params, controller.signal, true)
+          : apiPut<DashboardInfo>(url, params, controller.signal, true)
+        )
+          .then((data) => {
+            if (data) {
+              const nextParams = normalizeDashboard(data);
+              getState().setSaveDashboardParams(nextParams);
+              getState().setDefaultParams(deepClone(nextParams));
+              getState().setParams(deepClone(nextParams));
+              resolve(deepClone(nextParams));
+            }
+          })
+          .catch((error) => {
+            if (error.name !== 'AbortError') {
+              useErrorStore.getState().addError(error);
+              reject(error.toString());
+            }
+          })
+          .finally(() => {
+            getState().setGlobalNumQueriesPlot((s) => s - 1);
+          });
+      });
+    },
+    removeServerParams() {
+      return new Promise((resolve, reject) => {
+        const paramsData: QueryParams = {
+          ...getState().params,
+          tabNum: -1,
+          dashboard: {
+            name: '',
+            description: '',
+            ...getState().params.dashboard,
+          },
+        };
+        const params: DashboardInfo = {
+          dashboard: {
+            dashboard_id: paramsData.dashboard?.dashboard_id,
+            name: paramsData.dashboard?.name ?? '',
+            description: paramsData.dashboard?.description ?? '',
+            version: paramsData.dashboard?.version ?? 0,
+            data: paramsData,
+          },
+          delete_mark: true,
+        };
+
+        if (params.dashboard.dashboard_id === undefined) {
+          reject('no dashboard');
+          return;
+        }
+
+        const controller = new AbortController();
+        const url = dashboardURL();
+
+        getState().setGlobalNumQueriesPlot((s) => s + 1);
+        apiPost<DashboardInfo>(url, params, controller.signal, true)
+          .then((data) => {
+            if (data) {
+              const nextParams = normalizeDashboard(data);
+              getState().setParams(nextParams);
+              resolve(nextParams);
+            }
+          })
+          .catch((error) => {
+            if (error.name !== 'AbortError') {
+              useErrorStore.getState().addError(error);
+              reject(error.toString());
+            }
+          })
+          .finally(() => {
+            getState().setGlobalNumQueriesPlot((s) => s - 1);
+          });
+      });
+    },
+    saveDashboardParams: undefined,
+    setSaveDashboardParams(nextState) {
+      setState((state) => {
+        state.saveDashboardParams = getNextState(state.saveDashboardParams, nextState);
+      });
+    },
+    moveAndResortPlot(indexSelectPlot, indexTargetPlot, indexGroup) {
+      const prevState = getState();
+      const groups: number[] =
+        prevState.params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
+      if (groups.length !== prevState.params.plots.length) {
+        while (groups.length < prevState.params.plots.length) {
+          groups.push(Math.max(0, (prevState.params.dashboard?.groupInfo?.length ?? 0) - 1));
+        }
+      }
+      if (typeof indexSelectPlot !== 'undefined' && typeof indexGroup !== 'undefined' && indexGroup >= 0) {
+        groups[indexSelectPlot] = indexGroup;
+      }
+      const normalize = prevState.params.plots.map((plot, indexPlot) => ({
+        plot,
+        plotEventLink: plot.events.map((eId) => prevState.params.plots[eId]),
+        group: groups[indexPlot] ?? 0,
+        tagSync: prevState.params.tagSync.map((group, indexGroup) => ({ indexGroup, indexTag: group[indexPlot] })),
+        plotsData: prevState.plotsData[indexPlot],
+        plotsEvent: prevState.events[indexPlot],
+        oldIndex: indexPlot,
+      }));
+      if (
+        typeof indexSelectPlot !== 'undefined' &&
+        typeof indexTargetPlot !== 'undefined' &&
+        indexSelectPlot !== indexTargetPlot
+      ) {
+        const [drop] = normalize.splice(indexSelectPlot, 1);
+        normalize.splice(
+          indexSelectPlot < indexTargetPlot ? Math.max(0, indexTargetPlot - 1) : indexTargetPlot,
+          0,
+          drop
+        );
+      }
+      const resort = normalize.sort(sortByKey.bind(undefined, 'group'));
+      const plots = resort.map(({ plot }) => plot);
+      const plotsData = resort.map(({ plotsData }) => plotsData);
+      const plotsEvent = resort.map(({ plotsEvent }) => plotsEvent);
+      const plotEventLink = resort.map(({ plotEventLink }) => plotEventLink.map((eP) => plots.indexOf(eP)));
+      const remapIndexPlot = resort.reduce((res, { oldIndex }, newIndex) => {
+        res[oldIndex] = newIndex;
+        return res;
+      }, {} as Record<string, number>);
+      const variables: VariableParams[] = prevState.params.variables.map((variable) => ({
+        ...variable,
+        link: variable.link.map(([plotKey, tagKey]) => {
+          let indexP = toNumber(plotKey);
+          return [toPlotKey(indexP == null ? indexP : remapIndexPlot[indexP]) ?? plotKey, tagKey];
+        }),
+      }));
+      const tagSync = resort.reduce((res, item, indexPlot) => {
+        item.tagSync.forEach(({ indexGroup, indexTag }) => {
+          res[indexGroup] = res[indexGroup] ?? [];
+          res[indexGroup][indexPlot] = indexTag;
+        });
+        return res;
+      }, [] as (number | null)[][]);
+      resortPlotPreview(remapIndexPlot);
+      resortPlotVisibility(remapIndexPlot);
+      setState((state) => {
+        state.plotsData = plotsData;
+        state.events = plotsEvent;
+      });
+      prevState.setParams(
+        produce((params) => {
+          params.plots = plots.map((p, indexP) => ({
+            ...p,
+            events: plotEventLink[indexP].filter((i) => i > -1) ?? [],
+          }));
+          params.tagSync = tagSync;
+          params.variables = variables;
+          if (params.dashboard && typeof indexGroup !== 'undefined' && indexGroup >= 0) {
+            params.dashboard.groupInfo = params.dashboard.groupInfo ?? [];
+            params.dashboard.groupInfo[indexGroup] = params.dashboard.groupInfo[indexGroup] ?? {
+              name: '',
+              count: 0,
+              show: true,
+              size: 2,
+            };
+            for (let i = 0, max = params.dashboard.groupInfo.length; i < max; i++) {
+              if (!params.dashboard.groupInfo[i]) {
+                params.dashboard.groupInfo[i] = {
                   name: '',
-                  count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
+                  count: 0,
+                  show: true,
                   size: '2',
                 };
               }
             }
+
+            params.dashboard.groupInfo = params.dashboard.groupInfo
+              .map((g, index) => ({
+                ...g,
+                count:
+                  groups.reduce((res: number, item) => {
+                    if (item === index) {
+                      res = res + 1;
+                    }
+                    return res;
+                  }, 0 as number) ?? 0,
+              }))
+              .filter((g) => g.count > 0);
+          }
+        })
+      );
+    },
+    dashboardLayoutEdit: false,
+    setDashboardLayoutEdit(nextStatus: boolean) {
+      setState((state) => {
+        state.dashboardLayoutEdit = nextStatus;
+      });
+      if (nextStatus) {
+        getState().setLiveMode(false);
+      }
+      if (!nextStatus && getState().params.tabNum < -1) {
+        getState().setTabNum(-1);
+      }
+    },
+    setGroupName(indexGroup, name) {
+      getState().setParams(
+        produce<QueryParams>((state) => {
+          if (state.dashboard) {
+            state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
+            if (state.dashboard.groupInfo[indexGroup]) {
+              state.dashboard.groupInfo[indexGroup].name = name;
+            } else {
+              state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: '2' };
+            }
+          }
+        })
+      );
+    },
+    setGroupShow(indexGroup, show) {
+      const nextShow = getNextState(getState().params.dashboard?.groupInfo?.[indexGroup]?.show ?? true, show);
+      getState().setParams(
+        produce<QueryParams>((state) => {
+          if (state.dashboard) {
+            state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
+            if (state.dashboard.groupInfo[indexGroup]) {
+              state.dashboard.groupInfo[indexGroup].show = nextShow;
+            } else {
+              state.dashboard.groupInfo[indexGroup] = {
+                show: nextShow,
+                name: '',
+                count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
+                size: '2',
+              };
+            }
+          }
+        })
+      );
+    },
+    setGroupSize(indexGroup, size) {
+      const nextSize = getNextState(getState().params.dashboard?.groupInfo?.[indexGroup]?.size ?? '2', size);
+      getState().setParams(
+        produce<QueryParams>((state) => {
+          if (state.dashboard) {
+            state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
+            if (state.dashboard.groupInfo[indexGroup]) {
+              state.dashboard.groupInfo[indexGroup].size = nextSize;
+            } else {
+              state.dashboard.groupInfo[indexGroup] = {
+                show: true,
+                name: '',
+                count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
+                size: nextSize,
+              };
+            }
+          }
+        })
+      );
+    },
+    listMetricsGroup: [],
+    loadListMetricsGroup() {
+      return new Promise((resolve, reject) => {
+        const controller = new AbortController();
+        const url = metricsGroupListURL();
+        getState().setGlobalNumQueriesPlot((s) => s + 1);
+        apiGet<MetricsGroupInfoList>(url, controller.signal, true)
+          .then((data) => {
+            setState((state) => {
+              state.listMetricsGroup = [...(data?.groups ?? [])];
+            });
           })
-        );
-      },
-      setGroupSize(indexGroup, size) {
-        const nextSize = getNextState(getState().params.dashboard?.groupInfo?.[indexGroup]?.size ?? '2', size);
-        getState().setParams(
-          produce<QueryParams>((state) => {
-            if (state.dashboard) {
-              state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
-              if (state.dashboard.groupInfo[indexGroup]) {
-                state.dashboard.groupInfo[indexGroup].size = nextSize;
-              } else {
-                state.dashboard.groupInfo[indexGroup] = {
-                  show: true,
-                  name: '',
-                  count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
-                  size: nextSize,
-                };
-              }
+          .catch((error) => {
+            if (error.name !== 'AbortError') {
+              useErrorStore.getState().addError(error);
+              reject(error);
             }
           })
-        );
-      },
-      listMetricsGroup: [],
-      loadListMetricsGroup() {
-        return new Promise((resolve, reject) => {
-          const controller = new AbortController();
-          const url = metricsGroupListURL();
-          getState().setGlobalNumQueriesPlot((s) => s + 1);
-          apiGet<MetricsGroupInfoList>(url, controller.signal, true)
-            .then((data) => {
-              setState((state) => {
-                state.listMetricsGroup = [...(data?.groups ?? [])];
-              });
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError') {
-                useErrorStore.getState().addError(error);
-                reject(error);
-              }
-            })
-            .finally(() => {
-              getState().setGlobalNumQueriesPlot((s) => s - 1);
-              resolve(getState().listMetricsGroup);
+          .finally(() => {
+            getState().setGlobalNumQueriesPlot((s) => s - 1);
+            resolve(getState().listMetricsGroup);
+          });
+      });
+    },
+    saveMetricsGroup(metricsGroup) {
+      return new Promise((resolve, reject) => {
+        const controller = new AbortController();
+        const url = metricsGroupURL();
+        getState().setGlobalNumQueriesPlot((s) => s + 1);
+        (typeof metricsGroup.group_id !== 'undefined'
+          ? apiPost<MetricsGroupInfo>(url, { group: metricsGroup }, controller.signal, true)
+          : apiPut<MetricsGroupInfo>(url, { group: metricsGroup }, controller.signal, true)
+        )
+          .then((data) => {
+            setState((state) => {
+              state.selectMetricsGroup = data;
             });
-        });
-      },
-      saveMetricsGroup(metricsGroup) {
-        return new Promise((resolve, reject) => {
-          const controller = new AbortController();
-          const url = metricsGroupURL();
-          getState().setGlobalNumQueriesPlot((s) => s + 1);
-          (typeof metricsGroup.group_id !== 'undefined'
-            ? apiPost<MetricsGroupInfo>(url, { group: metricsGroup }, controller.signal, true)
-            : apiPut<MetricsGroupInfo>(url, { group: metricsGroup }, controller.signal, true)
-          )
-            .then((data) => {
-              setState((state) => {
-                state.selectMetricsGroup = data;
-              });
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError') {
-                useErrorStore.getState().addError(error);
-                reject(error);
-              }
-            })
-            .finally(() => {
-              getState().setGlobalNumQueriesPlot((s) => s - 1);
-              resolve(getState().selectMetricsGroup);
-            });
-        });
-      },
-      removeMetricsGroup(metricsGroup) {
-        return new Promise((resolve, reject) => {
-          const controller = new AbortController();
-          const url = metricsGroupURL();
+          })
+          .catch((error) => {
+            if (error.name !== 'AbortError') {
+              useErrorStore.getState().addError(error);
+              reject(error);
+            }
+          })
+          .finally(() => {
+            getState().setGlobalNumQueriesPlot((s) => s - 1);
+            resolve(getState().selectMetricsGroup);
+          });
+      });
+    },
+    removeMetricsGroup(metricsGroup) {
+      return new Promise((resolve, reject) => {
+        const controller = new AbortController();
+        const url = metricsGroupURL();
 
-          getState().setGlobalNumQueriesPlot((s) => s + 1);
-          apiPost<MetricsGroupInfo>(url, { group: metricsGroup, delete_mark: true }, controller.signal, true)
-            .then((data) => {
-              setState((state) => {
-                state.selectMetricsGroup = data;
-              });
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError') {
-                useErrorStore.getState().addError(error);
-                reject(error);
-              }
-            })
-            .finally(() => {
-              getState().setGlobalNumQueriesPlot((s) => s - 1);
-              resolve(getState().selectMetricsGroup);
+        getState().setGlobalNumQueriesPlot((s) => s + 1);
+        apiPost<MetricsGroupInfo>(url, { group: metricsGroup, delete_mark: true }, controller.signal, true)
+          .then((data) => {
+            setState((state) => {
+              state.selectMetricsGroup = data;
             });
-        });
-      },
-      selectMetricsGroup: undefined,
-      loadMetricsGroup(id) {
-        return new Promise((resolve, reject) => {
-          const controller = new AbortController();
-          const url = metricsGroupURL(id);
-          setState((state) => {
-            state.selectMetricsGroup = undefined;
+          })
+          .catch((error) => {
+            if (error.name !== 'AbortError') {
+              useErrorStore.getState().addError(error);
+              reject(error);
+            }
+          })
+          .finally(() => {
+            getState().setGlobalNumQueriesPlot((s) => s - 1);
+            resolve(getState().selectMetricsGroup);
           });
-          getState().setGlobalNumQueriesPlot((s) => s + 1);
-          apiGet<MetricsGroupInfo>(url, controller.signal, true)
-            .then((data) => {
-              setState((state) => {
-                state.selectMetricsGroup = data;
-              });
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError') {
-                useErrorStore.getState().addError(error);
-                reject(error);
-              }
-            })
-            .finally(() => {
-              getState().setGlobalNumQueriesPlot((s) => s - 1);
-              resolve(getState().selectMetricsGroup);
-            });
-        });
-      },
-      setSelectMetricsGroup(metricsGroup) {
+      });
+    },
+    selectMetricsGroup: undefined,
+    loadMetricsGroup(id) {
+      return new Promise((resolve, reject) => {
+        const controller = new AbortController();
+        const url = metricsGroupURL(id);
         setState((state) => {
-          state.selectMetricsGroup = metricsGroup;
+          state.selectMetricsGroup = undefined;
         });
-      },
-      promConfig: undefined,
-      loadPromConfig() {
-        return new Promise((resolve, reject) => {
-          const controller = new AbortController();
-          const url = promConfigURL();
-          setState((state) => {
-            state.selectMetricsGroup = undefined;
-          });
-          getState().setGlobalNumQueriesPlot((s) => s + 1);
-          apiGet<PromConfigInfo>(url, controller.signal, true)
-            .then((data) => {
-              setState((state) => {
-                state.promConfig = data;
-              });
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError') {
-                useErrorStore.getState().addError(error);
-                reject(error);
-              }
-            })
-            .finally(() => {
-              getState().setGlobalNumQueriesPlot((s) => s - 1);
-              resolve(getState().promConfig);
+        getState().setGlobalNumQueriesPlot((s) => s + 1);
+        apiGet<MetricsGroupInfo>(url, controller.signal, true)
+          .then((data) => {
+            setState((state) => {
+              state.selectMetricsGroup = data;
             });
-        });
-      },
-      savePromConfig(nextPromConfig) {
-        return new Promise((resolve, reject) => {
-          const controller = new AbortController();
-          const url = promConfigURL();
-          setState((state) => {
-            state.selectMetricsGroup = undefined;
+          })
+          .catch((error) => {
+            if (error.name !== 'AbortError') {
+              useErrorStore.getState().addError(error);
+              reject(error);
+            }
+          })
+          .finally(() => {
+            getState().setGlobalNumQueriesPlot((s) => s - 1);
+            resolve(getState().selectMetricsGroup);
           });
-          getState().setGlobalNumQueriesPlot((s) => s + 1);
-          apiPost<PromConfigInfo>(url, nextPromConfig, controller.signal, true)
-            .then((data) => {
-              setState((state) => {
-                state.promConfig = data;
-              });
-            })
-            .catch((error) => {
-              if (error.name !== 'AbortError') {
-                useErrorStore.getState().addError(error);
-                reject(error);
-              }
-            })
-            .finally(() => {
-              getState().setGlobalNumQueriesPlot((s) => s - 1);
-              resolve(getState().promConfig);
-            });
+      });
+    },
+    setSelectMetricsGroup(metricsGroup) {
+      setState((state) => {
+        state.selectMetricsGroup = metricsGroup;
+      });
+    },
+    promConfig: undefined,
+    loadPromConfig() {
+      return new Promise((resolve, reject) => {
+        const controller = new AbortController();
+        const url = promConfigURL();
+        setState((state) => {
+          state.selectMetricsGroup = undefined;
         });
-      },
-      events: [],
-      loadEvents(indexPlot, key, fromEnd = false, from) {
-        return new Promise((resolve, reject) => {
-          if (!getState().events[indexPlot]) {
+        getState().setGlobalNumQueriesPlot((s) => s + 1);
+        apiGet<PromConfigInfo>(url, controller.signal, true)
+          .then((data) => {
+            setState((state) => {
+              state.promConfig = data;
+            });
+          })
+          .catch((error) => {
+            if (error.name !== 'AbortError') {
+              useErrorStore.getState().addError(error);
+              reject(error);
+            }
+          })
+          .finally(() => {
+            getState().setGlobalNumQueriesPlot((s) => s - 1);
+            resolve(getState().promConfig);
+          });
+      });
+    },
+    savePromConfig(nextPromConfig) {
+      return new Promise((resolve, reject) => {
+        const controller = new AbortController();
+        const url = promConfigURL();
+        setState((state) => {
+          state.selectMetricsGroup = undefined;
+        });
+        getState().setGlobalNumQueriesPlot((s) => s + 1);
+        apiPost<PromConfigInfo>(url, nextPromConfig, controller.signal, true)
+          .then((data) => {
+            setState((state) => {
+              state.promConfig = data;
+            });
+          })
+          .catch((error) => {
+            if (error.name !== 'AbortError') {
+              useErrorStore.getState().addError(error);
+              reject(error);
+            }
+          })
+          .finally(() => {
+            getState().setGlobalNumQueriesPlot((s) => s - 1);
+            resolve(getState().promConfig);
+          });
+      });
+    },
+    events: [],
+    loadEvents(indexPlot, key, fromEnd = false, from) {
+      return new Promise((resolve, reject) => {
+        if (!getState().events[indexPlot]) {
+          setState((state) => {
+            state.events[indexPlot] = {
+              chunks: [],
+              rows: [],
+              what: [],
+              range: new TimeRange(state.params.timeRange),
+            };
+          });
+        }
+        const prevState = getState();
+        const prevEvent = prevState.events[indexPlot];
+        const prevPlot = prevState.params.plots[indexPlot];
+        const compact = prevState.compact;
+        if (compact || prevPlot.type !== PLOT_TYPE.Event || prevPlot.metricName === promQLMetric) {
+          resolve(null);
+          return;
+        }
+        if (fromEnd) {
+          prevEvent.prevAbortController?.abort();
+        } else {
+          prevEvent.nextAbortController?.abort();
+        }
+        const controller = new AbortController();
+        const range = new TimeRange(prevState.timeRange.getRangeUrl());
+        if (from) {
+          range.setRange(({ to }) => ({ to, from }));
+        }
+        const width = prevState.uPlotsWidth[indexPlot] ?? prevState.uPlotsWidth.find((w) => w && w > 0);
+        const agg =
+          prevPlot.customAgg === -1
+            ? `${Math.floor(width / 4)}`
+            : prevPlot.customAgg === 0
+            ? `${Math.floor(width * devicePixelRatio)}`
+            : `${prevPlot.customAgg}s`;
+
+        const url = queryTableURL(prevPlot, range, agg, key, fromEnd);
+        setState((state) => {
+          if (fromEnd) {
+            state.events[indexPlot].prevAbortController = controller;
+          } else {
+            state.events[indexPlot].nextAbortController = controller;
+          }
+        });
+        apiGet<queryTable>(url, controller.signal, true)
+          .then((resp) => {
+            setState((state) => {
+              state.events[indexPlot] ??= {
+                chunks: [],
+                rows: [],
+                what: [],
+                range: new TimeRange(range.getRangeUrl),
+              };
+              const chunk: EventDataChunk = {
+                ...resp,
+                ...range.getRange(),
+                fromEnd,
+                rows:
+                  resp.rows?.map(
+                    (value) =>
+                      ({
+                        ...value,
+                        tags:
+                          value.tags &&
+                          Object.fromEntries(
+                            Object.entries(value.tags).map(([tagKey, tagValue]) => [freeKeyPrefix(tagKey), tagValue])
+                          ),
+                      } as queryTableRow)
+                  ) ?? null,
+              };
+              if (chunk.more) {
+                if (chunk.fromEnd) {
+                  chunk.from = chunk.rows?.[0]?.time ?? range.from;
+                } else {
+                  chunk.to = chunk.rows?.[chunk.rows?.length - 1]?.time ?? range.to;
+                }
+              }
+              if (key) {
+                if (fromEnd) {
+                  state.events[indexPlot].chunks.unshift(chunk);
+                } else {
+                  state.events[indexPlot].chunks.push(chunk);
+                }
+              } else {
+                state.events[indexPlot].chunks = [chunk];
+              }
+              state.events[indexPlot].what = chunk.what;
+              state.events[indexPlot].rows = state.events[indexPlot].chunks.flatMap(
+                (chunk, idChunk) =>
+                  chunk.rows?.map(
+                    (row, index): EventDataRow =>
+                      ({
+                        key: `${chunk.from_row}_${index}`,
+                        idChunk,
+                        timeString: fmtInputDateTime(new Date(row.time * 1000)),
+                        data: row.data,
+                        time: row.time,
+                        ...Object.fromEntries(
+                          state.events[indexPlot].what.map((whatKey, indexWhat) => [whatKey, row.data[indexWhat]])
+                        ),
+                        ...row.tags,
+                      } as EventDataRow)
+                  ) ?? []
+              );
+
+              const first = state.events[indexPlot].chunks[0];
+              if ((first?.more && first?.fromEnd) || from) {
+                state.events[indexPlot].prevKey = first?.from_row;
+              } else {
+                state.events[indexPlot].prevKey = undefined;
+              }
+              const last = state.events[indexPlot].chunks[state.events[indexPlot].chunks.length - 1];
+              if (last?.more && !last?.fromEnd) {
+                state.events[indexPlot].nextKey = last?.to_row;
+              } else {
+                state.events[indexPlot].nextKey = undefined;
+              }
+
+              state.events[indexPlot].range = new TimeRange({
+                from: state.events[indexPlot].chunks[0]?.from ?? range.from,
+                to: state.events[indexPlot].chunks[state.events[indexPlot].chunks.length - 1]?.to ?? range.to,
+              });
+              state.events[indexPlot].error = undefined;
+              state.events[indexPlot].error403 = undefined;
+            });
+            resolve(getState().events[indexPlot]);
+          })
+          .catch((error) => {
             setState((state) => {
               state.events[indexPlot] = {
                 chunks: [],
@@ -1901,162 +2022,33 @@ export const useStore = createWithEqualityFn<Store>()(
                 what: [],
                 range: new TimeRange(state.params.timeRange),
               };
+              if (error instanceof Error403) {
+                state.events[indexPlot].error403 = error.toString();
+              } else if (error.name !== 'AbortError') {
+                debug.error(error);
+                state.events[indexPlot].error = error.toString();
+              }
             });
-          }
-          const prevState = getState();
-          const prevEvent = prevState.events[indexPlot];
-          const prevPlot = prevState.params.plots[indexPlot];
-          const compact = prevState.compact;
-          if (compact || prevPlot.type !== PLOT_TYPE.Event || prevPlot.metricName === promQLMetric) {
-            resolve(null);
-            return;
-          }
-          if (fromEnd) {
-            prevEvent.prevAbortController?.abort();
-          } else {
-            prevEvent.nextAbortController?.abort();
-          }
-          const controller = new AbortController();
-          const range = new TimeRange(prevState.timeRange.getRangeUrl());
-          if (from) {
-            range.setRange(({ to }) => ({ to, from }));
-          }
-          const width = prevState.uPlotsWidth[indexPlot] ?? prevState.uPlotsWidth.find((w) => w && w > 0);
-          const agg =
-            prevPlot.customAgg === -1
-              ? `${Math.floor(width / 4)}`
-              : prevPlot.customAgg === 0
-              ? `${Math.floor(width * devicePixelRatio)}`
-              : `${prevPlot.customAgg}s`;
-
-          const url = queryTableURL(prevPlot, range, agg, key, fromEnd);
-          setState((state) => {
-            if (fromEnd) {
-              state.events[indexPlot].prevAbortController = controller;
-            } else {
-              state.events[indexPlot].nextAbortController = controller;
-            }
+            reject();
+          })
+          .finally(() => {
+            setState((state) => {
+              if (fromEnd) {
+                state.events[indexPlot].prevAbortController = undefined;
+              } else {
+                state.events[indexPlot].nextAbortController = undefined;
+              }
+            });
           });
-          apiGet<queryTable>(url, controller.signal, true)
-            .then((resp) => {
-              setState((state) => {
-                state.events[indexPlot] ??= {
-                  chunks: [],
-                  rows: [],
-                  what: [],
-                  range: new TimeRange(range.getRangeUrl),
-                };
-                const chunk: EventDataChunk = {
-                  ...resp,
-                  ...range.getRange(),
-                  fromEnd,
-                  rows:
-                    resp.rows?.map(
-                      (value) =>
-                        ({
-                          ...value,
-                          tags:
-                            value.tags &&
-                            Object.fromEntries(
-                              Object.entries(value.tags).map(([tagKey, tagValue]) => [freeKeyPrefix(tagKey), tagValue])
-                            ),
-                        } as queryTableRow)
-                    ) ?? null,
-                };
-                if (chunk.more) {
-                  if (chunk.fromEnd) {
-                    chunk.from = chunk.rows?.[0]?.time ?? range.from;
-                  } else {
-                    chunk.to = chunk.rows?.[chunk.rows?.length - 1]?.time ?? range.to;
-                  }
-                }
-                if (key) {
-                  if (fromEnd) {
-                    state.events[indexPlot].chunks.unshift(chunk);
-                  } else {
-                    state.events[indexPlot].chunks.push(chunk);
-                  }
-                } else {
-                  state.events[indexPlot].chunks = [chunk];
-                }
-                state.events[indexPlot].what = chunk.what;
-                state.events[indexPlot].rows = state.events[indexPlot].chunks.flatMap(
-                  (chunk, idChunk) =>
-                    chunk.rows?.map(
-                      (row, index): EventDataRow =>
-                        ({
-                          key: `${chunk.from_row}_${index}`,
-                          idChunk,
-                          timeString: fmtInputDateTime(new Date(row.time * 1000)),
-                          data: row.data,
-                          time: row.time,
-                          ...Object.fromEntries(
-                            state.events[indexPlot].what.map((whatKey, indexWhat) => [whatKey, row.data[indexWhat]])
-                          ),
-                          ...row.tags,
-                        } as EventDataRow)
-                    ) ?? []
-                );
-
-                const first = state.events[indexPlot].chunks[0];
-                if ((first?.more && first?.fromEnd) || from) {
-                  state.events[indexPlot].prevKey = first?.from_row;
-                } else {
-                  state.events[indexPlot].prevKey = undefined;
-                }
-                const last = state.events[indexPlot].chunks[state.events[indexPlot].chunks.length - 1];
-                if (last?.more && !last?.fromEnd) {
-                  state.events[indexPlot].nextKey = last?.to_row;
-                } else {
-                  state.events[indexPlot].nextKey = undefined;
-                }
-
-                state.events[indexPlot].range = new TimeRange({
-                  from: state.events[indexPlot].chunks[0]?.from ?? range.from,
-                  to: state.events[indexPlot].chunks[state.events[indexPlot].chunks.length - 1]?.to ?? range.to,
-                });
-                state.events[indexPlot].error = undefined;
-                state.events[indexPlot].error403 = undefined;
-              });
-              resolve(getState().events[indexPlot]);
-            })
-            .catch((error) => {
-              setState((state) => {
-                state.events[indexPlot] = {
-                  chunks: [],
-                  rows: [],
-                  what: [],
-                  range: new TimeRange(state.params.timeRange),
-                };
-                if (error instanceof Error403) {
-                  state.events[indexPlot].error403 = error.toString();
-                } else if (error.name !== 'AbortError') {
-                  debug.error(error);
-                  state.events[indexPlot].error = error.toString();
-                }
-              });
-              reject();
-            })
-            .finally(() => {
-              setState((state) => {
-                if (fromEnd) {
-                  state.events[indexPlot].prevAbortController = undefined;
-                } else {
-                  state.events[indexPlot].nextAbortController = undefined;
-                }
-              });
-            });
-        });
-      },
-      clearEvents(indexPlot) {
-        setState((state) => {
-          state.events[indexPlot] = { chunks: [], rows: [], what: [], range: new TimeRange(state.params.timeRange) };
-        });
-      },
-    };
-  }),
-  Object.is
-);
+      });
+    },
+    clearEvents(indexPlot) {
+      setState((state) => {
+        state.events[indexPlot] = { chunks: [], rows: [], what: [], range: new TimeRange(state.params.timeRange) };
+      });
+    },
+  };
+}, 'StatsHouseStore');
 
 export function setValuesVariable(nameVariable: string | undefined, values: string[]) {
   useStore.getState().setParams(
