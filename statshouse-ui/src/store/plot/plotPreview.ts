@@ -23,20 +23,25 @@ export const usePlotPreview = createStore<PlotPreview>(
 export async function createPlotPreview(indexPlot: number, u: uPlot, width: number = 300) {
   const plotData = useStore.getState().plotsData[indexPlot];
   if (plotData?.data[0]?.length && plotData?.series.length) {
-    usePlotPreview.getState().previewAbortController[indexPlot]?.abort();
     const controller = new AbortController();
     usePlotPreview.setState((state) => {
+      state.previewAbortController[indexPlot]?.abort();
       state.previewAbortController[indexPlot] = controller;
     });
     try {
+      const canvas = u.ctx.canvas;
+      const canvasLeft = u.bbox.left;
+      const canvasTop = u.bbox.top;
+      const canvasWidth = u.bbox.width;
+      const canvasHeight = u.bbox.height;
       const url = await queuePreview.add(
         () =>
           canvasToImageData(
-            u.ctx.canvas,
-            u.bbox.left,
-            u.bbox.top,
-            u.bbox.width,
-            u.bbox.height,
+            canvas,
+            canvasLeft,
+            canvasTop,
+            canvasWidth,
+            canvasHeight,
             devicePixelRatio ? devicePixelRatio * width : width
           ),
         controller.signal

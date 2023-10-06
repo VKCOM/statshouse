@@ -336,6 +336,17 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
     onUpdateLegend?.(legendF);
   }, [legend, seriesFocus, onUpdateLegend]);
 
+  useLayoutEffect(
+    () => () => {
+      if (uRef.current) {
+        debug.log('%cUPlotWrapper destroy', 'color:blue;');
+        uRef.current?.destroy();
+        uRef.current = undefined;
+      }
+    },
+    [opts]
+  );
+
   useLayoutEffect(() => {
     if (width === 0 || uRef.current) {
       return;

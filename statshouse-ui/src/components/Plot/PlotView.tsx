@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { memo } from 'react';
-import { PlotViewMetric, PlotViewEvent } from '../index';
+import { PlotViewEvent, PlotViewMetric } from '../index';
 
 import { PLOT_TYPE, PlotType } from '../../url/queryParams';
 
