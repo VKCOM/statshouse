@@ -870,8 +870,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
           !compact,
           getState().params
         );
-        getState().plotsDataAbortController[index]?.abort();
         setState((state) => {
+          state.plotsDataAbortController[index]?.abort();
           state.plotsDataAbortController[index] = controller;
           const scales: UPlotWrapperPropsScales = {};
           scales.x = { min: getState().timeRange.from, max: getState().timeRange.to };
@@ -1138,6 +1138,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
               Math.max(4, (formatLegendValue(maxLengthValue).split('.', 2)[1]?.length ?? 0) + 2) * pxPerChar;
             const legendPercentWidth = (4 + 2) * pxPerChar; // +2 - focus marker
             setState((state) => {
+              delete state.plotsDataAbortController[index];
               const noUpdateData = dequal(
                 stacked || data,
                 state.plotsData[index]?.stacked || state.plotsData[index]?.data
