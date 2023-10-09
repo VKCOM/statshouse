@@ -104,7 +104,7 @@ func calcTrendValue(i int, tf, s0, s1, b float64) float64 {
 // data. A lower smoothing factor increases the influence of historical data. The trend factor (0 < tf < 1) affects
 // how trends in historical data will affect the current data. A higher trend factor increases the influence.
 // of trends. Algorithm taken from https://en.wikipedia.org/wiki/Exponential_smoothing titled: "Double exponential smoothing".
-func funcHoltWinters(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
+func funcHoltWinters(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	bag, err := ev.eval(args[0])
 	if err != nil {
 		return nil, err
@@ -118,8 +118,8 @@ func funcHoltWinters(ev *evaluator, args parser.Expressions) ([]SeriesBag, error
 		return nil, fmt.Errorf("invalid trend factor. Expected: 0 < tf < 1, got: %f", tf)
 	}
 	for x := range bag {
-		for _, row := range bag[x].Data {
-			wnd := ev.newWindow(*row, false)
+		for _, s := range bag[x].Data {
+			wnd := ev.newWindow(*s.Values, false)
 			for wnd.moveOneLeft() {
 				v := wnd.getValues()
 				if len(v) < 2 {
@@ -147,7 +147,7 @@ func funcHoltWinters(ev *evaluator, args parser.Expressions) ([]SeriesBag, error
 	return bag, nil
 }
 
-func funcRound(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
+func funcRound(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	bag, err := ev.eval(args[0])
 	if err != nil {
 		return nil, err
@@ -164,10 +164,9 @@ func funcRound(ev *evaluator, args parser.Expressions) ([]SeriesBag, error) {
 	toNearestInverse := 1.0 / toNearest
 
 	for x := range bag {
-		for _, p := range bag[x].Data {
-			row := *p
-			for i := range row {
-				row[i] = math.Floor(row[i]*toNearestInverse+0.5) / toNearestInverse
+		for _, s := range bag[x].Data {
+			for i := range *s.Values {
+				(*s.Values)[i] = math.Floor((*s.Values)[i]*toNearestInverse+0.5) / toNearestInverse
 			}
 		}
 	}

@@ -2108,7 +2108,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	var traces []string
 	if opt.debugQueries {
 		ctx = debugQueriesContext(ctx, &traces)
-		ctx = promql.TraceExprContext(ctx, &traces)
+		ctx = promql.TraceContext(ctx, &traces)
 	}
 	parserV, cleanup, err := h.promEngine.Exec(
 		withAccessInfo(ctx, &ai),
@@ -2122,75 +2122,72 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if err != nil {
 		return nil, nil, err
 	}
-	bag, ok := parserV.(*promql.SeriesBag)
+	ts, ok := parserV.(*promql.TimeSeries)
 	if !ok {
 		return nil, nil, fmt.Errorf("string literals are not supported")
 	}
 	res := &SeriesResponse{
 		Series: querySeries{
-			Time:       bag.Time,
-			SeriesData: bag.Data,
-			SeriesMeta: make([]QuerySeriesMetaV2, 0, len(bag.Data)),
+			Time:       ts.Time,
+			SeriesData: make([]*[]float64, 0, len(ts.Series.Data)),
+			SeriesMeta: make([]QuerySeriesMetaV2, 0, len(ts.Series.Data)),
 		},
 		MetricMeta:   metricMeta,
 		DebugQueries: traces,
 	}
-	for i := range bag.Data {
+	for _, s := range ts.Series.Data {
 		meta := QuerySeriesMetaV2{
-			Name:     metricName,
-			Tags:     make(map[string]SeriesMetaTag),
-			MaxHosts: bag.GetSMaxHostsAt(i, h),
+			Name:      metricName,
+			Tags:      make(map[string]SeriesMetaTag, len(s.Tags.ID2Tag)),
+			MaxHosts:  s.Tags.GetSMaxHosts(h),
+			TimeShift: -s.Offset,
+			Total:     ts.Series.Meta.Total,
 		}
-		if i < len(bag.Meta) {
-			s := bag.Meta[i]
-			if promqlGenerated {
-				meta.What = queryFn(s.What)
-			} else {
-				meta.What = queryFn(bag.Query.What)
+		if promqlGenerated {
+			meta.What = queryFn(s.What)
+		} else {
+			meta.What = queryFn(ts.Series.Meta.What)
+		}
+		if ts.Series.Meta.Metric != nil {
+			meta.MetricType = ts.Series.Meta.Metric.MetricType
+		}
+		if meta.Total == 0 {
+			meta.Total = len(ts.Series.Data)
+		}
+		for id, tag := range s.Tags.ID2Tag {
+			if len(tag.SValue) == 0 || tag.ID == labels.MetricName {
+				continue
 			}
-			meta.TimeShift = -s.Offset
-			meta.Total = s.Total
-			if bag.Query.Metric != nil {
-				meta.MetricType = bag.Query.Metric.MetricType
-			}
-			if meta.Total == 0 {
-				meta.Total = len(bag.Data)
-			}
-			meta.Tags = make(map[string]SeriesMetaTag, len(s.Tags))
-			for id, t := range s.Tags {
-				if !t.SValueSet || t.ID == labels.MetricName {
-					continue
-				}
+			var (
+				k = id
+				v = SeriesMetaTag{Value: tag.SValue}
+			)
+			if ts.Series.Meta.Metric != nil && tag.Index != 0 {
 				var (
-					key = id
-					tag = SeriesMetaTag{Value: t.SValue}
+					name  string
+					index = tag.Index - promql.SeriesTagIndexOffset
 				)
-				if bag.Query.Metric != nil && t.Index != 0 {
-					var (
-						name  string
-						index = t.Index - promql.SeriesTagIndexOffset
-					)
-					if index == format.StringTopTagIndex {
-						key = format.LegacyStringTopTagID
-						name = format.StringTopTagID
-					} else {
-						key = format.TagIDLegacy(index)
-						name = format.TagID(index)
-					}
-					if meta, ok := bag.Query.Metric.Name2Tag[name]; ok {
-						tag.Comment = meta.ValueComments[tag.Value]
-						tag.Raw = meta.Raw
-						tag.RawKind = meta.RawKind
-					}
+				if index == format.StringTopTagIndex {
+					k = format.LegacyStringTopTagID
+					name = format.StringTopTagID
+				} else {
+					k = format.TagIDLegacy(index)
+					name = format.TagID(index)
 				}
-				meta.Tags[key] = tag
+				if meta, ok := ts.Series.Meta.Metric.Name2Tag[name]; ok {
+					v.Comment = meta.ValueComments[v.Value]
+					v.Raw = meta.Raw
+					v.RawKind = meta.RawKind
+				}
 			}
+			meta.Tags[k] = v
 		}
 		res.Series.SeriesMeta = append(res.Series.SeriesMeta, meta)
+		res.Series.SeriesData = append(res.Series.SeriesData, s.Values)
 	}
-	if len(bag.Time) != 0 {
-		res.ExcessPointLeft = bag.Time[0] < req.from.Unix()
-		res.ExcessPointRight = req.to.Unix() < bag.Time[len(bag.Time)-1]
+	if len(ts.Time) != 0 {
+		res.ExcessPointLeft = ts.Time[0] < req.from.Unix()
+		res.ExcessPointRight = req.to.Unix() < ts.Time[len(ts.Time)-1]
 	}
 	if res.Series.SeriesData == nil {
 		// frontend expects not "null" value
