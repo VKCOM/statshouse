@@ -218,12 +218,14 @@ export function splitByMetricType(metricType: MetricType) {
         break;
       case METRIC_TYPE.byte:
       default:
-        const r1 = Math.pow(2, 10 * base - base - 1);
-        const r2 = Math.pow(2, 10 * base);
-        const radix = Math.abs(foundIncr - r1) < Math.abs(foundIncr - r2) ? r1 : r2;
-        incr = round(foundIncr * p, -1, radix) / p || round(2 * foundIncr * p, -1, radix) / p;
-        start = round(incrRoundUp(round(scaleMin * p, -1, radix), incr)) / p;
-        end = scaleMax + incr / 100;
+        if (base > 0) {
+          const r1 = Math.pow(2, 10 * base - base - 1); //?
+          const r2 = Math.pow(2, 10 * base); //?
+          const radix = Math.abs(foundIncr - r1) < Math.abs(foundIncr - r2) ? r1 : r2; //?
+          incr = round(foundIncr * p, -1, radix) / p || round(2 * foundIncr * p, -1, radix) / p; //?
+          start = round(incrRoundUp(round(scaleMin * p, -1, radix), incr)) / p; //?
+          end = scaleMax + incr / 100; //?
+        }
         break;
     }
     if (incr > 0) {
