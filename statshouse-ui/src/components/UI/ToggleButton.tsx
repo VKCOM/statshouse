@@ -4,24 +4,33 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, memo, useCallback, useId } from 'react';
+import React, { ChangeEvent, useCallback, useId } from 'react';
 
-export type ToggleButtonProps = {
+export type ToggleButtonProps<T> = {
   checked?: boolean;
   defaultChecked?: boolean;
-  onChange?: (value: boolean) => void;
+  onChange?: (status: boolean, value?: T) => void;
   children?: React.ReactNode;
   className?: string;
   title?: string;
+  value?: T;
 };
 
-export function _ToggleButton({ checked, defaultChecked, onChange, children, className, title }: ToggleButtonProps) {
+export function ToggleButton<T = unknown>({
+  checked,
+  defaultChecked,
+  onChange,
+  children,
+  className,
+  title,
+  value,
+}: ToggleButtonProps<T>) {
   const uid = useId();
   const change = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
-      onChange?.(e.currentTarget.checked);
+      onChange?.(e.currentTarget.checked, value);
     },
-    [onChange]
+    [onChange, value]
   );
   return (
     <>
@@ -42,5 +51,3 @@ export function _ToggleButton({ checked, defaultChecked, onChange, children, cla
     </>
   );
 }
-
-export const ToggleButton = memo(_ToggleButton);
