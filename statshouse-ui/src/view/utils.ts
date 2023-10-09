@@ -354,7 +354,6 @@ export function timeShiftDesc(ts: number): string {
       return minusSignChar + '1Y';
     default:
       return minusSignChar + secondsRangeToString(Math.abs(ts), true);
-    // return `${ts}s`.replaceAll('-', minusSignChar);
   }
 }
 

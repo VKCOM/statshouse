@@ -4,11 +4,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, Fragment, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import cn from 'classnames';
 
-import * as utils from '../../view/utils';
 import { selectorParamsPlots, selectorParamsTimeShifts, selectorSetParams, useStore } from '../../store';
+import { getTimeShifts, timeShiftAbbrevExpand, timeShiftDesc } from '../../view/utils';
+import { ToggleButton } from '../UI';
+import produce from 'immer';
 
 export type PlotControlTimeShiftsProps = {
   className?: string;
@@ -21,42 +23,51 @@ export function PlotControlTimeShifts({ className }: PlotControlTimeShiftsProps)
 
   const customAgg = useMemo(() => Math.max(0, ...plots.map((p) => p.customAgg)), [plots]);
 
-  const onTimeShiftChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const ts = parseInt(e.target.value);
-      let shifts = timeShifts.filter((v) => v !== ts);
-      if (e.target.checked) {
-        shifts.push(ts);
+  const onChange = useCallback(
+    (status: boolean, value?: number) => {
+      if (value != null) {
+        setParams(
+          produce((p) => {
+            if (status) {
+              p.timeShifts.push(value);
+            } else {
+              p.timeShifts = p.timeShifts.filter((t) => t !== value);
+            }
+          })
+        );
       }
-      setParams((p) => ({
-        ...p,
-        timeShifts: shifts,
-      }));
     },
-    [setParams, timeShifts]
+    [setParams]
   );
+  const list = useMemo(() => {
+    const shifts = getTimeShifts(customAgg).map(timeShiftAbbrevExpand);
+    const l = shifts.map((value) => ({
+      value,
+      name: timeShiftDesc(value),
+      title: timeShiftDesc(value),
+      checked: timeShifts.indexOf(value) > -1,
+    }));
+    const other = timeShifts.filter((t) => shifts.indexOf(t) < 0);
+    if (other.length) {
+      l.push({ value: other[0], name: '?', title: 'other TimeShift', checked: true });
+    }
+    return l;
+  }, [customAgg, timeShifts]);
 
   return (
     <div className={cn('btn-group btn-group-sm', className)} role="group">
-      {utils.getTimeShifts(customAgg).map((ts) => {
-        const dt = utils.timeShiftAbbrevExpand(ts);
-        return (
-          <Fragment key={ts}>
-            <input
-              type="checkbox"
-              className="btn-check"
-              id={`compare${ts}`}
-              autoComplete="off"
-              value={dt}
-              checked={timeShifts.indexOf(dt) !== -1}
-              onChange={onTimeShiftChange}
-            />
-            <label className="btn btn-outline-primary" htmlFor={`compare${ts}`}>
-              {utils.timeShiftDesc(utils.timeShiftAbbrevExpand(ts))}
-            </label>
-          </Fragment>
-        );
-      })}
+      {list.map(({ name, value, checked, title }) => (
+        <ToggleButton<number>
+          key={value}
+          className="btn btn-outline-primary"
+          checked={checked}
+          value={value}
+          title={title}
+          onChange={onChange}
+        >
+          {name}
+        </ToggleButton>
+      ))}
     </div>
   );
 }
