@@ -333,6 +333,8 @@ describe('formatByMetricType', () => {
   });
   test('splitByMetricType byte', () => {
     const split = splitByMetricType(METRIC_TYPE.byte);
+    expect(split(null, 1, 0, 1, 0.1, 0)).toEqual([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]);
+    expect(split(null, 1, 0, 2, 0.25, 0)).toEqual([0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]);
     expect(split(null, 1, 0, 10, 1, 0)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(split(null, 1, 0, 120, 10, 0)).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]);
     expect(split(null, 1, 0, 1024, 100, 0)).toEqual([0, 256, 512, 768, 1024]);
