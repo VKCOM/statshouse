@@ -250,8 +250,8 @@ func (h *Sampler) sampleGroup(g *SamplerGroup, budgetNum, budgetDenom, sumWeight
 				h.config.KeepF(items[i].Key, items[i].Item)
 			}
 		}
-		items = items[pos:]
 		sf *= float64(len(items)) / float64(pos) // space has been taken by whales
+		items = items[pos:]
 	}
 	// Sample tail
 	pos = h.config.SelectF(items, sf, h.config.Rand)
