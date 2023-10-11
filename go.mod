@@ -33,6 +33,7 @@ require (
 	github.com/tinylib/msgp v1.1.6
 	github.com/vkcom/statshouse-go v0.2.0
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
+	github.com/zeebo/xxh3 v1.0.2
 	go.uber.org/atomic v1.10.0
 	go.uber.org/multierr v1.9.0
 	go4.org/mem v0.0.0-20220726221520-4f986261bf13
@@ -84,6 +85,7 @@ require (
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.15.15 // indirect
+	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/mattetti/filebuffer v1.0.1 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect

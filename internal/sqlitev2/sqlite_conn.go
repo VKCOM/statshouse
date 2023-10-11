@@ -10,19 +10,21 @@ import (
 	"go.uber.org/multierr"
 )
 
-type sqliteConn struct {
-	conn             *sqlite0.Conn
-	mu               sync.Mutex
-	dbOffset         int64
-	binlogCache      []byte
-	cache            *queryCache
-	queryBuffer      []byte
-	connError        error
-	currentTx        int64
-	showLastInsertID bool
+type (
+	sqliteConn struct {
+		conn             *sqlite0.Conn
+		mu               sync.Mutex
+		dbOffset         int64
+		binlogCache      []byte
+		cache            *queryCachev2
+		queryBuffer      []byte
+		connError        error
+		showLastInsertID bool
+		beginStmt        string
 
-	beginStmt string
-}
+		committed bool
+	}
+)
 
 var (
 	beginImmediateStmt = sqlite0.EnsureZeroTermStr("BEGIN IMMEDIATE") // make sure we don't get SQLITE_BUSY in the middle of transaction
@@ -42,7 +44,7 @@ func newSqliteROConn(path string) (*sqliteConn, error) {
 	return &sqliteConn{
 		conn:      conn,
 		mu:        sync.Mutex{},
-		cache:     newQueryCache(1),
+		cache:     newQueryCachev2(1),
 		beginStmt: beginDeferredStmt,
 	}, nil
 }
@@ -56,8 +58,7 @@ func newSqliteROWALConn(path string, cacheSize int) (*sqliteConn, error) {
 		conn:      conn,
 		mu:        sync.Mutex{},
 		connError: nil,
-		currentTx: 0,
-		cache:     newQueryCache(cacheSize),
+		cache:     newQueryCachev2(cacheSize),
 		beginStmt: beginDeferredStmt,
 	}, nil
 }
@@ -72,9 +73,8 @@ func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSi
 		dbOffset:         0,
 		binlogCache:      make([]byte, 0),
 		connError:        nil,
-		currentTx:        0,
 		showLastInsertID: showLastInsertID,
-		cache:            newQueryCache(cacheSize),
+		cache:            newQueryCachev2(cacheSize),
 		beginStmt:        beginImmediateStmt,
 	}, nil
 }
@@ -111,11 +111,11 @@ func (c *sqliteConn) execLocked(sql string) error {
 	return err
 }
 
-func (c *sqliteConn) nonBinlogCommitTxLocked(txID int64) error {
-	if c.currentTx != txID {
+func (c *sqliteConn) nonBinlogCommitTxLocked() error {
+	if c.committed {
 		return nil
 	}
-	c.currentTx++
+	c.committed = true
 	c.cache.closeTx()
 	err := c.execLocked(commitStmt)
 	if err != nil {
@@ -124,19 +124,20 @@ func (c *sqliteConn) nonBinlogCommitTxLocked(txID int64) error {
 	return err
 }
 
-func (c *sqliteConn) beginTxLocked() (txID int64, _ error) {
+func (c *sqliteConn) beginTxLocked() error {
 	if c.connError != nil {
-		return 0, c.connError
+		return c.connError
 	}
-	return c.currentTx, c.execLocked(c.beginStmt)
+	c.committed = false
+	return c.execLocked(c.beginStmt)
 }
 
 // если не смогли закомитить, движок находится в неконсистентном состоянии. Запрещаем запись
-func (c *sqliteConn) binlogCommitTxLocked(txID, newOffset int64) error {
-	if c.currentTx != txID {
+func (c *sqliteConn) binlogCommitTxLocked(newOffset int64) error {
+	if c.committed {
 		return nil
 	}
-	c.currentTx++
+	c.committed = true
 	err := c.saveBinlogOffsetLocked(newOffset)
 	if err != nil {
 		c.connError = err
@@ -154,11 +155,11 @@ func (c *sqliteConn) binlogCommitTxLocked(txID, newOffset int64) error {
 }
 
 // если не смогли откатиться, движок находится в неконсистентном состоянии. Запрещаем запись
-func (c *sqliteConn) rollbackLocked(txID int64) error {
-	if c.currentTx != txID {
+func (c *sqliteConn) rollbackLocked() error {
+	if c.committed {
 		return nil
 	}
-	c.currentTx++
+	c.committed = true
 	c.cache.closeTx()
 	err := c.execLocked(rollbackStmt)
 	if err != nil {
@@ -178,17 +179,14 @@ func (c *sqliteConn) initStmt(sqlBytes []byte, sqlString string, args ...Arg) (*
 	var si *sqlite0.Stmt
 	var err error
 	var ok bool
-	si, ok = c.cache.get(c.queryBuffer)
+	key := calcHashBytes(c.queryBuffer)
+	si, ok = c.cache.get(key)
 	if !ok {
 		si, err = prepare(c.conn, c.queryBuffer)
 		if err != nil {
 			return nil, fmt.Errorf("failed to prepare stmt: %w", err)
 		}
-		if sqlIsRawBytes {
-			c.cache.put(string(c.queryBuffer), si)
-		} else {
-			c.cache.put(sqlString, si)
-		}
+		c.cache.put(key, si)
 	} else {
 		err := si.Reset()
 		if err != nil {

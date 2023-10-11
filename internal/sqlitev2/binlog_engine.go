@@ -31,7 +31,7 @@ func newBinlogEngine(e *Engine, applyFunction ApplyEventFunction) *binlogEngine 
 }
 
 func (b binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error) {
-	err := b.e.internalDo("apply", func(c Conn) error {
+	err := b.e.internalDo("__apply_binlog", func(c Conn) error {
 		readLen, err := b.applyFunction(c, payload)
 		newOffset = b.e.rw.dbOffset + int64(readLen)
 		if opErr := b.e.rw.saveBinlogOffsetLocked(newOffset); opErr != nil {
@@ -51,7 +51,7 @@ func (b binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error)
 }
 
 func (b binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
-	err = b.e.internalDo("skip", func(c Conn) error {
+	err = b.e.internalDo("__skip_binlog", func(c Conn) error {
 		newOffset = b.e.rw.dbOffset + skipLen
 		return b.e.rw.saveBinlogOffsetLocked(newOffset)
 	})
@@ -63,7 +63,7 @@ func (b binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
 
 // База может обгонять бинлог. Никак не учитываем toOffset
 func (b binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
-	return b.e.internalDo("save-meta", func(conn internalConn) error {
+	return b.e.internalDo("__commit_save_meta", func(conn internalConn) error {
 		return b.e.rw.saveBinlogMetaLocked(snapshotMeta)
 	})
 }

@@ -5,145 +5,91 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
+	"github.com/zeebo/xxh3"
 	"go.uber.org/multierr"
 )
 
-const cacheMaxSizeDefault = 3000
-const evictSampleSize = 100
-const evictSize = 10
-
-type queryCache struct {
-	queryCache   map[string]*cachedStmtInfo
+type queryCachev2 struct {
+	queryCache   map[hash]int
+	h            *minHeap
 	cacheMaxSize int
 }
 
+type hash struct {
+	low  uint64
+	high uint64
+}
+
 type cachedStmtInfo struct {
-	key       string
+	key       hash
 	lastTouch int64
 	stmt      *sqlite0.Stmt
 }
 
-func newQueryCache(cacheMaxSize int) *queryCache {
+const cacheMaxSizeDefault = 3000
+
+func newQueryCachev2(cacheMaxSize int) *queryCachev2 {
 	if cacheMaxSize == 0 {
 		cacheMaxSize = cacheMaxSizeDefault
 	}
-	return &queryCache{
-		queryCache:   make(map[string]*cachedStmtInfo),
+	cache := &queryCachev2{
+		queryCache:   make(map[hash]int),
 		cacheMaxSize: cacheMaxSize,
 	}
+	cache.h = newHeap(func(a, b hash, i, j int) {
+		cache.queryCache[a] = i
+		cache.queryCache[b] = j
+	})
+	return cache
 }
 
-func (cache *queryCache) closeTx() {
-	for len(cache.queryCache) >= cache.cacheMaxSize {
-		cache.evictCacheLocked()
+func (cache *queryCachev2) closeTx() {
+	if len(cache.queryCache) > cache.cacheMaxSize {
+		cache.evictCacheLocked(len(cache.queryCache) - cache.cacheMaxSize)
 	}
 }
 
-func (cache *queryCache) put(key string, stmt *sqlite0.Stmt) {
-	cache.queryCache[key] = &cachedStmtInfo{key, time.Now().Unix(), stmt}
+func (cache *queryCachev2) put(key hash, stmt *sqlite0.Stmt) {
+	stmtInfo := &cachedStmtInfo{key: key, lastTouch: time.Now().Unix(), stmt: stmt}
+	ix := cache.h.put(stmtInfo)
+	cache.queryCache[key] = ix
 }
 
-func (cache *queryCache) get(keyBytes []byte) (res *sqlite0.Stmt, ok bool) {
-	var cachedStmt *cachedStmtInfo
-	cachedStmt, ok = cache.queryCache[string(keyBytes)]
+func (cache *queryCachev2) get(key hash) (res *sqlite0.Stmt, ok bool) {
+	ix, ok := cache.queryCache[key]
 	if ok {
+		cachedStmt := cache.h.get(ix)
 		cachedStmt.lastTouch = time.Now().Unix()
 		return cachedStmt.stmt, ok
 	}
 	return nil, false
 }
 
-func (cache *queryCache) evictCacheLocked() {
-	h := heap{}
-	i := 0
-	for _, v := range cache.queryCache {
-		h.put(v)
-		i++
-		if i >= evictSampleSize {
-			break
-		}
-	}
-	for h.size > 0 {
-		stmt := h.pop()
+func (cache *queryCachev2) evictCacheLocked(count int) {
+	for i := 0; i < count; i++ {
+		stmt := cache.h.pop()
 		err := stmt.stmt.Close()
 		if err != nil {
-			log.Println("failed to close SQLite statement: ", err.Error())
+			log.Println("[error] failed to close cached stmt:", err.Error())
 		}
 		delete(cache.queryCache, stmt.key)
 	}
 }
 
-func (cache *queryCache) close(err *error) {
-	for _, stmt := range cache.queryCache {
-		multierr.AppendInto(err, stmt.stmt.Close())
+func (cache *queryCachev2) close(err *error) {
+	for _, ix := range cache.queryCache {
+		multierr.AppendInto(err, cache.h.heap[ix].stmt.Close())
 	}
 }
 
-func (cache *queryCache) size() int {
+func (cache *queryCachev2) size() int {
 	return len(cache.queryCache)
 }
 
-const root = 1
-
-type heap struct {
-	heap [evictSize + 1]*cachedStmtInfo
-	size int
-}
-
-func (h *heap) swap(i, j int) {
-	h.heap[i], h.heap[j] = h.heap[j], h.heap[i]
-}
-
-func (h *heap) put(stmt *cachedStmtInfo) {
-	if h.size == evictSize && stmt.lastTouch >= h.peek().lastTouch {
-		return
+func calcHashBytes(key []byte) hash {
+	h := xxh3.Hash128(key)
+	return hash{
+		low:  h.Lo,
+		high: h.Hi,
 	}
-	if h.size == evictSize {
-		h.pop()
-	}
-	putPos := h.size + 1
-	h.heap[putPos] = stmt
-	current := putPos
-	h.size++
-	for current != root {
-		parent := current / 2
-		if h.heap[parent].lastTouch < h.heap[current].lastTouch {
-			h.swap(parent, current)
-			current = parent
-		} else {
-			return
-		}
-	}
-}
-
-func (h *heap) peek() *cachedStmtInfo {
-	return h.heap[root]
-}
-
-func (h *heap) pop() *cachedStmtInfo {
-	res := h.heap[root]
-	h.heap[root] = h.heap[h.size]
-	h.heap[h.size] = nil
-	h.size--
-	current := root
-	for {
-		l := current * 2
-		r := current*2 + 1
-		if l > h.size {
-			break
-		}
-		child := l
-		if r <= h.size {
-			if h.heap[r].lastTouch > h.heap[child].lastTouch {
-				child = r
-			}
-		}
-		if h.heap[child].lastTouch > h.heap[current].lastTouch {
-			h.swap(child, current)
-			current = child
-		} else {
-			break
-		}
-	}
-	return res
 }

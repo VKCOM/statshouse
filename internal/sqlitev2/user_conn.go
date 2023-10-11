@@ -27,11 +27,11 @@ func (r *Rows) ColumnBlob(i int, buf []byte) ([]byte, error) {
 	return r.s.ColumnBlob(i, buf)
 }
 
-func (r *Rows) ColumnBlobRaw(i int) ([]byte, error) {
+func (r *Rows) ColumnBlobUnsafe(i int) ([]byte, error) {
 	return r.s.ColumnBlobUnsafe(i)
 }
 
-func (r *Rows) ColumnBlobRawString(i int) (string, error) {
+func (r *Rows) ColumnBlobUnsafeString(i int) (string, error) {
 	return r.s.ColumnBlobUnsafeString(i)
 }
 
@@ -43,11 +43,11 @@ func (r *Rows) ColumnIsNull(i int) bool {
 	return r.s.ColumnNull(i)
 }
 
-func (r *Rows) ColumnInt64(i int) (int64, error) {
+func (r *Rows) ColumnInt64(i int) int64 {
 	return r.s.ColumnInt64(i)
 }
 
-func (r *Rows) ColumnFloat64(i int) (float64, error) {
+func (r *Rows) ColumnFloat64(i int) float64 {
 	return r.s.ColumnFloat64(i)
 }
 

@@ -402,14 +402,14 @@ func (s *Stmt) ColumnBlobUnsafeString(i int) (string, error) {
 	return unsafeSliceToString(b), err
 }
 
-func (s *Stmt) ColumnInt64(i int) (int64, error) {
+func (s *Stmt) ColumnInt64(i int) int64 {
 	value := C.sqlite3_column_int64(s.stmt, C.int(i))
-	return int64(value), nil
+	return int64(value)
 }
 
-func (s *Stmt) ColumnFloat64(i int) (float64, error) {
+func (s *Stmt) ColumnFloat64(i int) float64 {
 	value := C.sqlite3_column_double(s.stmt, C.int(i))
-	return float64(value), nil
+	return float64(value)
 }
 
 func (s *Stmt) ColumnNull(i int) bool {
