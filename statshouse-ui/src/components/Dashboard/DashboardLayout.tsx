@@ -8,11 +8,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import cn from 'classnames';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ReactComponent as SVGChevronRight } from 'bootstrap-icons/icons/chevron-right.svg';
+import { ReactComponent as SVGChevronCompactUp } from 'bootstrap-icons/icons/chevron-compact-up.svg';
+import { ReactComponent as SVGChevronCompactDown } from 'bootstrap-icons/icons/chevron-compact-down.svg';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import { PlotView } from '../Plot';
 import {
   addDashboardGroup,
+  moveGroup,
   removeDashboardGroup,
   selectorDashboardLayoutEdit,
   selectorMoveAndResortPlot,
@@ -302,6 +305,14 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
     const index = parseInt(e.currentTarget.getAttribute('data-index-group') ?? '0');
     removeDashboardGroup(index);
   }, []);
+  const onMoveGroupUp = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const index = parseInt(e.currentTarget.getAttribute('data-index-group') ?? '0');
+    moveGroup(index, -1);
+  }, []);
+  const onMoveGroupDown = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const index = parseInt(e.currentTarget.getAttribute('data-index-group') ?? '0');
+    moveGroup(index, 1);
+  }, []);
 
   return (
     <div className="container-fluid">
@@ -345,24 +356,28 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                       <option value="4">S, 4 per row</option>
                       <option value="s">S, auto width</option>
                     </select>
-                    {/*<div className="d-flex flex-column">*/}
-                    {/*  <button*/}
-                    {/*    className="btn btn-sm btn-outline-primary py-0 rounded-0"*/}
-                    {/*    style={{ height: 19 }}*/}
-                    {/*    title="Group move up"*/}
-                    {/*    disabled={indexGroup === 0}*/}
-                    {/*  >*/}
-                    {/*    <SVGChevronCompactUp className="align-baseline" />*/}
-                    {/*  </button>*/}
-                    {/*  <button*/}
-                    {/*    className="btn btn-sm btn-outline-primary py-0 rounded-0 border-top-0"*/}
-                    {/*    style={{ height: 19 }}*/}
-                    {/*    title="Group move down"*/}
-                    {/*    disabled={indexGroup === itemsGroup2.length - 1}*/}
-                    {/*  >*/}
-                    {/*    <SVGChevronCompactDown className="align-baseline" />*/}
-                    {/*  </button>*/}
-                    {/*</div>*/}
+                    <div className="d-flex flex-column">
+                      <button
+                        className="btn btn-sm btn-outline-primary py-0 rounded-0"
+                        style={{ height: 19 }}
+                        title="Group move up"
+                        data-index-group={indexGroup}
+                        disabled={indexGroup === 0}
+                        onClick={onMoveGroupUp}
+                      >
+                        <SVGChevronCompactUp className="align-baseline" />
+                      </button>
+                      <button
+                        className="btn btn-sm btn-outline-primary py-0 rounded-0 border-top-0"
+                        style={{ height: 19 }}
+                        title="Group move down"
+                        data-index-group={indexGroup}
+                        disabled={indexGroup === itemsGroup.length - 1}
+                        onClick={onMoveGroupDown}
+                      >
+                        <SVGChevronCompactDown className="align-baseline" />
+                      </button>
+                    </div>
                     <button
                       className="btn btn-outline-primary px-1"
                       title="Add group before this"
