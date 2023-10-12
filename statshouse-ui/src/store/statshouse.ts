@@ -252,7 +252,7 @@ export type StatsHouseStore = {
   removeServerParams(): Promise<QueryParams>;
   saveDashboardParams?: QueryParams;
   setSaveDashboardParams(nextState: React.SetStateAction<QueryParams | undefined>): void;
-  moveAndResortPlot(indexSelectPlot?: number, indexTargetPlot?: number, indexGroup?: number): void;
+  moveAndResortPlot(indexSelectPlot?: number | null, indexTargetPlot?: number | null, indexGroup?: number | null): void;
   dashboardLayoutEdit: boolean;
   setDashboardLayoutEdit(nextStatus: boolean): void;
   setGroupName(indexGroup: number, name: string): void;
@@ -1550,7 +1550,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
           groups.push(Math.max(0, (prevState.params.dashboard?.groupInfo?.length ?? 0) - 1));
         }
       }
-      if (typeof indexSelectPlot !== 'undefined' && typeof indexGroup !== 'undefined' && indexGroup >= 0) {
+      if (indexSelectPlot != null && indexGroup != null) {
         groups[indexSelectPlot] = indexGroup;
       }
       const normalize = prevState.params.plots.map((plot, indexPlot) => ({
@@ -1562,17 +1562,16 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         plotsEvent: prevState.events[indexPlot],
         oldIndex: indexPlot,
       }));
-      if (
-        typeof indexSelectPlot !== 'undefined' &&
-        typeof indexTargetPlot !== 'undefined' &&
-        indexSelectPlot !== indexTargetPlot
-      ) {
+      if (indexSelectPlot != null && indexTargetPlot != null && indexSelectPlot !== indexTargetPlot) {
         const [drop] = normalize.splice(indexSelectPlot, 1);
         normalize.splice(
           indexSelectPlot < indexTargetPlot ? Math.max(0, indexTargetPlot - 1) : indexTargetPlot,
           0,
           drop
         );
+      } else if (indexSelectPlot != null && indexTargetPlot == null) {
+        const [drop] = normalize.splice(indexSelectPlot, 1);
+        normalize.push(drop);
       }
       const resort = normalize.sort(sortByKey.bind(undefined, 'group'));
       const plots = resort.map(({ plot }) => plot);
@@ -1611,7 +1610,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
           }));
           params.tagSync = tagSync;
           params.variables = variables;
-          if (params.dashboard && typeof indexGroup !== 'undefined' && indexGroup >= 0) {
+          if (params.dashboard && indexGroup != null) {
             params.dashboard.groupInfo = params.dashboard.groupInfo ?? [];
             params.dashboard.groupInfo[indexGroup] = params.dashboard.groupInfo[indexGroup] ?? {
               name: '',
