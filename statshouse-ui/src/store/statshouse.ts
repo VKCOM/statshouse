@@ -79,6 +79,7 @@ import {
   fixMessageTrouble,
   freeKeyPrefix,
   getDefaultParams,
+  getNewPlot,
   isNotNilVariableLink,
   PLOT_TYPE,
   PlotParams,
@@ -400,28 +401,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
       }
 
       if (params.plots.length === 0) {
-        const np: PlotParams = {
-          metricName: globalSettings.default_metric,
-          customDescription: '',
-          promQL: '',
-          customName: '',
-          groupBy: [...globalSettings.default_metric_group_by],
-          filterIn: { ...globalSettings.default_metric_filter_in },
-          what: [...globalSettings.default_metric_what],
-          customAgg: 0,
-          filterNotIn: { ...globalSettings.default_metric_filter_not_in },
-          numSeries: globalSettings.default_num_series,
-          useV2: true,
-          yLock: {
-            min: 0,
-            max: 0,
-          },
-          maxHost: false,
-          type: PLOT_TYPE.Metric,
-          events: [],
-          eventsBy: [],
-          eventsHide: [],
-        };
+        const np: PlotParams = getNewPlot();
         params.plots = [np];
         reset = true;
       }
@@ -617,18 +597,16 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
             params.tagSync = params.tagSync.map((g) => g.filter((tags, plot) => plot !== index));
             groups.splice(index, 1);
             if (params.dashboard?.groupInfo?.length) {
-              params.dashboard.groupInfo = params.dashboard.groupInfo
-                .map((g, index) => ({
-                  ...g,
-                  count:
-                    groups.reduce((res: number, item) => {
-                      if (item === index) {
-                        res = res + 1;
-                      }
-                      return res;
-                    }, 0 as number) ?? 0,
-                }))
-                .filter((g) => g.count > 0);
+              params.dashboard.groupInfo = params.dashboard.groupInfo.map((g, index) => ({
+                ...g,
+                count:
+                  groups.reduce((res: number, item) => {
+                    if (item === index) {
+                      res = res + 1;
+                    }
+                    return res;
+                  }, 0 as number) ?? 0,
+              }));
             }
             params.variables = params.variables
               .map((variable) => ({
@@ -1652,18 +1630,16 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
               }
             }
 
-            params.dashboard.groupInfo = params.dashboard.groupInfo
-              .map((g, index) => ({
-                ...g,
-                count:
-                  groups.reduce((res: number, item) => {
-                    if (item === index) {
-                      res = res + 1;
-                    }
-                    return res;
-                  }, 0 as number) ?? 0,
-              }))
-              .filter((g) => g.count > 0);
+            params.dashboard.groupInfo = params.dashboard.groupInfo.map((g, index) => ({
+              ...g,
+              count:
+                groups.reduce((res: number, item) => {
+                  if (item === index) {
+                    res = res + 1;
+                  }
+                  return res;
+                }, 0 as number) ?? 0,
+            }));
           }
         })
       );
@@ -2122,6 +2098,38 @@ export function setVariable(variables: VariableParams[]) {
       const updateParam = paramToVariable({ ...p, variables: variables });
       p.variables = updateParam.variables;
       p.plots = updateParam.plots;
+    })
+  );
+}
+
+export function addDashboardGroup(indexGroup: number) {
+  useStore.getState().setParams(
+    produce((p) => {
+      if (p.dashboard) {
+        p.dashboard.groupInfo ??= [];
+        if (p.dashboard.groupInfo.length === 0) {
+          p.dashboard.groupInfo.push({ name: '', count: p.plots.length, show: true, size: '2' });
+        }
+        if (indexGroup >= p.dashboard.groupInfo.length) {
+          p.dashboard.groupInfo.push({ name: '', count: 0, show: true, size: '2' });
+        } else {
+          p.dashboard.groupInfo.splice(indexGroup, 0, { name: '', count: 0, show: true, size: '2' });
+        }
+      }
+    })
+  );
+}
+
+export function removeDashboardGroup(indexGroup: number) {
+  useStore.getState().setParams(
+    produce((p) => {
+      if (p.dashboard) {
+        p.dashboard.groupInfo ??= [];
+        if (p.dashboard.groupInfo.length === 0) {
+          p.dashboard.groupInfo.push({ name: '', count: p.plots.length, show: true, size: '2' });
+        }
+        p.dashboard.groupInfo.splice(indexGroup, 1);
+      }
     })
   );
 }
