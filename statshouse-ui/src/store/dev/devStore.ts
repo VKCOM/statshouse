@@ -12,7 +12,6 @@ import { createStore } from '../createStore';
 
 export type DevStore = {
   enabled: boolean;
-  setEnabled(nextState: React.SetStateAction<boolean>): void;
 };
 
 function getDefault() {
@@ -27,13 +26,8 @@ function DevStoreEqual(store: DevStore): boolean {
 
 export const useStoreDev = createStore<DevStore, [['zustand/persist', DevStore]]>(
   persist(
-    (setState) => ({
+    () => ({
       ...getDefault(),
-      setEnabled(nextState) {
-        setState((state) => {
-          state.enabled = getNextState(state.enabled, nextState);
-        });
-      },
     }),
     {
       name: 'sh-dev',
@@ -42,3 +36,9 @@ export const useStoreDev = createStore<DevStore, [['zustand/persist', DevStore]]
   ),
   'DevStore'
 );
+
+export function setDevEnabled(nextState: React.SetStateAction<boolean>) {
+  useStoreDev.setState((state) => {
+    state.enabled = getNextState(state.enabled, nextState);
+  });
+}

@@ -408,27 +408,29 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
   }
 
   // plots
+  const defaultPlot = getNewPlot();
+
   if (value.plots.length && !dequal(value.plots, defaultParams?.plots)) {
     value.plots.forEach((plot, indexPlot) => {
       const prefix = toPlotPrefix(indexPlot);
 
       search.push([prefix + GET_PARAMS.metricName, plot.metricName]);
 
-      if (plot.customName) {
+      if (plot.customName !== defaultPlot.customName) {
         search.push([prefix + GET_PARAMS.metricCustomName, plot.customName]);
       }
 
-      if (plot.customDescription) {
+      if (plot.customDescription !== defaultPlot.customDescription) {
         search.push([prefix + GET_PARAMS.metricCustomDescription, plot.customDescription]);
       }
 
-      if (!(plot.what.length === 1 && plot.what[0] === 'count_norm') && plot.what.length) {
+      if (!dequal(plot.what, defaultPlot.what) && plot.what.length) {
         plot.what.forEach((w) => {
           search.push([prefix + GET_PARAMS.metricWhat, w]);
         });
       }
 
-      if (plot.customAgg) {
+      if (plot.customAgg !== defaultPlot.customAgg) {
         search.push([prefix + GET_PARAMS.metricAgg, plot.customAgg.toString()]);
       }
 
@@ -456,7 +458,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         });
       }
 
-      if (plot.numSeries !== 5) {
+      if (plot.numSeries !== defaultPlot.numSeries) {
         search.push([prefix + GET_PARAMS.numResults, plot.numSeries.toString()]);
       }
 
@@ -467,11 +469,11 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         ]);
       }
 
-      if (plot.yLock.min) {
+      if (plot.yLock.min !== defaultPlot.yLock.min) {
         search.push([prefix + GET_PARAMS.metricLockMin, plot.yLock.min.toString()]);
       }
 
-      if (plot.yLock.max) {
+      if (plot.yLock.max !== defaultPlot.yLock.max) {
         search.push([prefix + GET_PARAMS.metricLockMax, plot.yLock.max.toString()]);
       }
 
@@ -483,7 +485,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         search.push([prefix + GET_PARAMS.metricPromQL, plot.promQL]);
       }
 
-      if (plot.type !== PLOT_TYPE.Metric) {
+      if (plot.type !== defaultPlot.type) {
         search.push([prefix + GET_PARAMS.metricType, plot.type.toString()]);
       }
 
@@ -595,7 +597,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
   const eventFrom = toNumber(urlParams[GET_PARAMS.metricEventFrom]?.[0]) ?? defaultParams?.eventFrom ?? 0;
 
   const plots: PlotParams[] = [];
-
+  const defaultPlot = getNewPlot();
   for (let i = 0; i < maxPrefixArray; i++) {
     const prefix = toPlotPrefix(i);
 
@@ -609,10 +611,12 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     if (metricName === removeValueChar) {
       break;
     }
-    const customName = urlParams[prefix + GET_PARAMS.metricCustomName]?.[0] ?? '';
-    const customDescription = urlParams[prefix + GET_PARAMS.metricCustomDescription]?.[0] ?? '';
-    const what: QueryWhat[] = urlParams[prefix + GET_PARAMS.metricWhat]?.filter(isQueryWhat) ?? ['count_norm'];
-    const customAgg = toNumber(urlParams[prefix + GET_PARAMS.metricAgg]?.[0]) ?? 0;
+    const customName = urlParams[prefix + GET_PARAMS.metricCustomName]?.[0] ?? defaultPlot.customName;
+    const customDescription =
+      urlParams[prefix + GET_PARAMS.metricCustomDescription]?.[0] ?? defaultPlot.customDescription;
+    const what: QueryWhat[] =
+      urlParams[prefix + GET_PARAMS.metricWhat]?.filter(isQueryWhat) ?? defaultPlot.what.slice();
+    const customAgg = toNumber(urlParams[prefix + GET_PARAMS.metricAgg]?.[0]) ?? defaultPlot.customAgg;
     const groupBy: TagKey[] =
       urlParams[prefix + GET_PARAMS.metricGroupBy]?.map((s) => toTagKey(s)).filter(isNotNil) ?? [];
 
@@ -638,18 +642,18 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       }
     });
 
-    const numSeries = toNumber(urlParams[prefix + GET_PARAMS.numResults]?.[0]) ?? 5;
+    const numSeries = toNumber(urlParams[prefix + GET_PARAMS.numResults]?.[0]) ?? defaultPlot.numSeries;
 
     const useV2 = urlParams[prefix + GET_PARAMS.version]?.[0] !== METRIC_VALUE_BACKEND_VERSION.v1;
 
-    const yLockMin = toNumber(urlParams[prefix + GET_PARAMS.metricLockMin]?.[0]) ?? 0;
-    const yLockMax = toNumber(urlParams[prefix + GET_PARAMS.metricLockMax]?.[0]) ?? 0;
+    const yLockMin = toNumber(urlParams[prefix + GET_PARAMS.metricLockMin]?.[0]) ?? defaultPlot.yLock.min;
+    const yLockMax = toNumber(urlParams[prefix + GET_PARAMS.metricLockMax]?.[0]) ?? defaultPlot.yLock.max;
 
     const maxHost = urlParams[prefix + GET_PARAMS.metricMaxHost]?.[0] === '1';
 
     const promQL = urlParams[prefix + GET_PARAMS.metricPromQL]?.[0] ?? '';
 
-    const type = toPlotType(urlParams[prefix + GET_PARAMS.metricType]?.[0]) ?? PLOT_TYPE.Metric;
+    const type = toPlotType(urlParams[prefix + GET_PARAMS.metricType]?.[0]) ?? defaultPlot.type;
 
     const events = urlParams[prefix + GET_PARAMS.metricEvent]?.map(toNumber).filter(isNotNil) ?? [];
 

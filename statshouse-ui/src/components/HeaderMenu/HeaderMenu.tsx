@@ -25,6 +25,7 @@ import {
   selectorPlotList,
   selectorPromqltestfailed,
   selectorSetParams,
+  setDevEnabled,
   setTheme,
   THEMES,
   useStore,
@@ -47,7 +48,7 @@ export type HeaderMenuProps = {
 };
 
 const toggleDevEnabled = () => {
-  useStoreDev.getState().setEnabled((s) => !s);
+  setDevEnabled((s) => !s);
 };
 
 export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
@@ -74,6 +75,9 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
           setParams(
             produce((p) => {
               p.plots = [...p.plots, ...parseParams.plots];
+              if (p.dashboard?.groupInfo?.length) {
+                p.dashboard.groupInfo[p.dashboard.groupInfo.length - 1].count++;
+              }
             })
           );
         }
@@ -85,6 +89,9 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
           setParams(
             produce((p) => {
               p.plots = [...p.plots, ...parseParams.plots];
+              if (p.dashboard?.groupInfo?.length) {
+                p.dashboard.groupInfo[p.dashboard.groupInfo.length - 1].count++;
+              }
             })
           );
         }

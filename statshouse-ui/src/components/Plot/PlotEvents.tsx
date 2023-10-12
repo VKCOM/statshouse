@@ -6,10 +6,10 @@ import {
   selectorEventsByIndex,
   selectorParamsPlotsByIndex,
   selectorTimeRange,
+  EventDataRow,
   useStore,
 } from '../../store';
 import 'react-data-grid/lib/styles.css';
-import { EventDataRow } from '../../store/statshouse';
 import { eventColumnDefault, getEventColumnsType } from '../../view/api';
 import produce from 'immer';
 import { TimeRange } from '../../common/TimeRange';
