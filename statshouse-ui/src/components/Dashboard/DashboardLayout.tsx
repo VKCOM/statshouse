@@ -132,27 +132,25 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
         plots: [],
       };
     }
-    if (select != null && selectTarget != null) {
+    if (select != null) {
       let drop = indexPlotMap.get(select);
-      let dropTarget = indexPlotMap.get(selectTarget);
-      if (
-        drop != null &&
-        dropTarget != null &&
-        selectTargetGroup != null &&
-        itemsG[selectTargetGroup] &&
-        itemsG[drop.indexGroup]
-      ) {
+      if (drop != null && selectTargetGroup != null && itemsG[selectTargetGroup] && itemsG[drop.indexGroup]) {
         const moveItem = itemsG[drop.indexGroup].plots.splice(drop.indexPlotInGroup, 1)[0];
-        if (dropTarget.indexGroup !== selectTargetGroup) {
-          itemsG[selectTargetGroup].plots.push(moveItem);
+        if (selectTarget != null) {
+          let dropTarget = indexPlotMap.get(selectTarget);
+          if (dropTarget?.indexGroup !== selectTargetGroup) {
+            itemsG[selectTargetGroup].plots.push(moveItem);
+          } else {
+            itemsG[selectTargetGroup].plots.splice(
+              select < selectTarget && drop.indexGroup === selectTargetGroup
+                ? Math.max(0, dropTarget.indexPlotInGroup - 1)
+                : dropTarget.indexPlotInGroup,
+              0,
+              moveItem
+            );
+          }
         } else {
-          itemsG[selectTargetGroup].plots.splice(
-            select < selectTarget && drop.indexGroup === selectTargetGroup
-              ? Math.max(0, dropTarget.indexPlotInGroup - 1)
-              : dropTarget.indexPlotInGroup,
-            0,
-            moveItem
-          );
+          itemsG[selectTargetGroup].plots.push(moveItem);
         }
       }
     }
@@ -172,7 +170,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
   }, [params.dashboard?.groupInfo, params.plots.length]);
 
   const save = useCallback(
-    (index: number, indexTarget: number, indexGroup: number) => {
+    (index: number | null, indexTarget: number | null, indexGroup: number | null) => {
       moveAndResortPlot(index, indexTarget, indexGroup);
     },
     [moveAndResortPlot]
@@ -191,7 +189,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
         preview.current.style.transform = `matrix(1,0,0,1,${e.clientX},${e.clientY})`;
       }
       let index = parseInt(target.getAttribute('data-index') ?? '-1');
-      let indexTarget = index;
+      let indexTarget: number | null = index;
       let indexGroup = -1;
 
       setSelect(index);
@@ -205,13 +203,16 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
         if (elem) {
           const indexT = parseInt(elem.getAttribute('data-index') ?? '-1');
           if (indexT !== index) {
-            if (indexT < indexTarget) {
+            if (indexT < (indexTarget ?? 0)) {
               indexTarget = Math.max(0, indexT);
             } else {
               indexTarget = Math.max(0, indexT + 1);
             }
             setSelectTarget(indexTarget);
           }
+        } else {
+          indexTarget = null;
+          setSelectTarget(indexTarget);
         }
         indexGroup = parseInt(
           dropElement.find((e) => e.getAttribute('data-group'))?.getAttribute('data-group') ?? '-1'
