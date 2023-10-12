@@ -390,14 +390,12 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		key1 = format.TagValueIDConveyorHistoric
 	}
 	resPos := len(res)
-	for _, s := range samplerStat.Steps {
-		for _, item := range s.Groups {
-			k := item.MetricID
-			sf := item.SF
-			key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingFactor, [16]int32{0, 0, 0, 0, k, format.TagValueIDAggSamplingFactorReasonInsertSize}, a.aggregatorHost, a.shardKey, a.replicaKey)
-			res = appendBadge(res, key, data_model.ItemValue{Counter: 1, ValueSum: sf}, metricCache, usedTimestamps)
-			res = appendSimpleValueStat(res, key, sf, 1, a.aggregatorHost, metricCache, usedTimestamps)
-		}
+	for _, s := range samplerStat.GetSampleFactors(nil) {
+		k := s.Metric
+		sf := float64(s.Value)
+		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingFactor, [16]int32{0, 0, 0, 0, k, format.TagValueIDAggSamplingFactorReasonInsertSize}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		res = appendBadge(res, key, data_model.ItemValue{Counter: 1, ValueSum: sf}, metricCache, usedTimestamps)
+		res = appendSimpleValueStat(res, key, sf, 1, a.aggregatorHost, metricCache, usedTimestamps)
 	}
 	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeCounter},
 		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizeCounters), 1, a.aggregatorHost, metricCache, usedTimestamps)
