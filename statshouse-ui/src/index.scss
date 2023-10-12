@@ -76,7 +76,7 @@ html {
 }
 
 .font-normal {
-  font-family: $font-family-sans-serif !important;
+  font-family: var(--bs-font-sans-serif) !important;
 }
 
 .build-version {
@@ -99,7 +99,7 @@ html {
   }
 
   mark {
-    font-family: $font-family-monospace;
+    font-family: var(--bs-font-monospace);
     font-size: 0.875em;
     color: var(--bs-secondary-text);
     background-color: var(--bs-secondary-bg);
@@ -299,7 +299,7 @@ input.form-control-safari-fix::-webkit-datetime-edit-meridiem-field {
   min-height: auto;
 }
 
-@include media-breakpoint-down(lg) {
+@media (max-width: 991.98px) {
   :root {
     --plot-margin: 0;
     --plot-margin-right: 0;
