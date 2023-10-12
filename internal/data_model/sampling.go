@@ -85,7 +85,7 @@ func NewSampler(capacity int, config SamplerConfig) Sampler {
 		config.RoundF = RoundSampleFactor
 	}
 	if config.SelectF == nil {
-		config.SelectF = selectRandom
+		config.SelectF = SelectRandom
 	}
 	h := Sampler{
 		items:  make([]SamplingMultiItemPair, 0, capacity),
@@ -250,7 +250,7 @@ func (h *Sampler) sampleGroup(g *SamplerGroup, budgetNum, budgetDenom, sumWeight
 				h.config.KeepF(items[i].Key, items[i].Item)
 			}
 		}
-		sf *= float64(len(items)) / float64(pos) // space has been taken by whales
+		sf *= 2 // space has been taken by whales
 		items = items[pos:]
 	}
 	// Sample tail
@@ -409,6 +409,12 @@ func (h *Sampler) getGroupMeta(groupID int32) *format.MetricsGroup {
 }
 
 func (s SamplerStatistics) GetSampleFactors(sf []tlstatshouse.SampleFactor) []tlstatshouse.SampleFactor {
+	if s.Count == 0 {
+		return sf
+	}
+	if sf == nil {
+		sf = make([]tlstatshouse.SampleFactor, 0, s.Count)
+	}
 	for _, step := range s.Steps {
 		sf = step.GetSampleFactors(sf)
 	}
@@ -427,7 +433,21 @@ func (s SamplerStep) GetSampleFactors(sf []tlstatshouse.SampleFactor) []tlstatsh
 	return sf
 }
 
-func selectRandom(s []SamplingMultiItemPair, sf float64, r *rand.Rand) int {
+func SelectRandom(s []SamplingMultiItemPair, sf float64, r *rand.Rand) int {
+	if sf <= 1 {
+		return len(s)
+	}
+	n := 0
+	for i := range s {
+		if r.Float64()*sf < 1 {
+			s[i], s[n] = s[n], s[i]
+			n++
+		}
+	}
+	return n
+}
+
+func SelectRandom2(s []SamplingMultiItemPair, sf float64, r *rand.Rand) int { // experimental
 	if sf <= 1 {
 		return len(s)
 	}
