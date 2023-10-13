@@ -251,6 +251,9 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 	}
 	numShards := s.agent.NumShards()
 	remainingBudget := int64((config.SampleBudget + numShards - 1) / numShards)
+	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
+		remainingBudget = data_model.MaxUncompressedBucketSize / 2
+	}
 	samplerStat := sampler.Run(remainingBudget, 1)
 	sampleFactors := make([]tlstatshouse.SampleFactor, 0, samplerStat.Count)
 	for _, s := range samplerStat.Steps {
