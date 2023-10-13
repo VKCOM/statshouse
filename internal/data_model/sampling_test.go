@@ -75,7 +75,7 @@ func TestSampling(t *testing.T) {
 			}
 			v.size += int64(samplingTestSizeOf(k, item))
 		}
-		budget := rapid.Int64Range(0, b.sumSize*2).Draw(t, "budget")
+		budget := rapid.Int64Range(20, 20+b.sumSize*2).Draw(t, "budget")
 		metricCount := len(b.series)
 		samplerStat := b.run(&s, budget, 1)
 		require.LessOrEqual(t, keepSumSize, budget)
@@ -172,32 +172,44 @@ func TestCompareSampleFactors(t *testing.T) {
 			minMetricSize:  rapid.IntRange(28, 256).Draw(t, "min metric size"),
 			maxMetricSize:  rapid.IntRange(512, 1024).Draw(t, "max metric size"),
 		})
+		var sumSize int
+		for k, v := range b.series {
+			sumSize += samplingTestSizeOf(k, v)
+		}
 		bucket := MetricsBucket{MultiItems: b.series}
 		config := samplerConfigEx{
-			SamplerConfig:      SamplerConfig{Rand: rand.New()},
+			SamplerConfig: SamplerConfig{
+				SelectF: func(s []SamplingMultiItemPair, sf float64, r *rand.Rand) int {
+					return len(s) / int(sf)
+				},
+			},
 			stringTopCountSend: 20,
 			numShards:          1,
-			sampleBudget:       10,
+			sampleBudget:       rapid.IntRange(20, 20+sumSize*2).Draw(t, "max metric count"),
 		}
-		sampleFactors := sampleBucket(&bucket, config)
-		sampleFactorsLegacy := sampleBucketLegacy(&bucket, config)
-		require.Equal(t, len(sampleFactors), len(sampleFactorsLegacy))
-		for metricID, sf := range sampleFactors {
-			sfLegacy, ok := sampleFactorsLegacy[metricID]
-			require.True(t, ok)
-			require.Equal(t, sfLegacy, sf)
+		sizeSum := map[int]int{}
+		config.KeepF = func(k Key, v *MultiItem) {
+			sizeSum[int(k.Metric)] += samplingTestSizeOf(k, v)
 		}
+		sf := sampleBucket(&bucket, config)
+		sizeSumLegacy := map[int]int{}
+		config.KeepF = func(k Key, v *MultiItem) {
+			sizeSumLegacy[int(k.Metric)] += samplingTestSizeOf(k, v)
+		}
+		sfLegacy := sampleBucketLegacy(&bucket, config)
+		require.Equalf(t, sfLegacy, sf, "Sample factors mistmatch!")
+		require.Equalf(t, sizeSumLegacy, sizeSum, "Size sum mistmatch!")
 	})
 }
 
 func TestSelectRandom(t *testing.T) {
 	if os.Getenv("STATSHOUSE_TEST_SELECT_RANDOM") == "1" {
-		testSelectRandom(t, SelectRandom)
+		testSelectRandom(t, selectRandom)
 	}
 }
 
 func TestSelectRandom2(t *testing.T) {
-	testSelectRandom(t, SelectRandom2)
+	testSelectRandom(t, selectRandom)
 }
 
 func testSelectRandom(t *testing.T, fn func([]SamplingMultiItemPair, float64, *rand.Rand) int) {
@@ -330,26 +342,6 @@ func (s *samplingTestStat) aggregate(item *MultiItem) {
 
 func (s *samplingTestStat) stdDev() float64 {
 	return math.Sqrt(s.sumSq / float64(s.n)) // assumed mean = 0
-}
-
-func (*samplingTestBucket) Version() int64 {
-	return 0
-}
-
-func (*samplingTestBucket) StateHash() string {
-	return ""
-}
-
-func (*samplingTestBucket) GetMetaMetric(metricID int32) *format.MetricMetaValue {
-	return nil
-}
-
-func (*samplingTestBucket) GetMetaMetricByName(metricName string) *format.MetricMetaValue {
-	return nil
-}
-
-func (*samplingTestBucket) GetGroup(id int32) *format.MetricsGroup {
-	return nil
 }
 
 type samplerConfigEx struct {
@@ -510,16 +502,31 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 		remainingBudget -= samplingMetric.sumSize
 		remainingWeight -= samplingMetric.metricWeight
 		// Keep all elements in bucket
+		if config.KeepF != nil {
+			for _, v := range samplingMetric.items {
+				config.KeepF(v.Key, v.Item)
+			}
+		}
 	}
 	for i := pos; i < len(metricsList); i++ {
 		samplingMetric := metricsList[i]
 		if samplingMetric.noSampleAgent {
+			if config.KeepF != nil {
+				for _, v := range samplingMetric.items {
+					config.KeepF(v.Key, v.Item)
+				}
+			}
 			continue
 		}
 		sf := float64(samplingMetric.sumSize*remainingWeight) / float64(samplingMetric.metricWeight*remainingBudget)
 		if samplingMetric.roundFactors {
-			sf = RoundSampleFactor(sf, config.Rand)
+			sf = roundSampleFactor(sf, config.Rand)
 			if sf <= 1 { // Many sample factors are between 1 and 2, so this is worthy optimization
+				if config.KeepF != nil {
+					for _, v := range samplingMetric.items {
+						config.KeepF(v.Key, v.Item)
+					}
+				}
 				continue
 			}
 		}
@@ -540,15 +547,26 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 				return samplingMetric.items[i].WhaleWeight > samplingMetric.items[j].WhaleWeight
 			})
 			// Keep all whale elements in bucket
+			if config.KeepF != nil {
+				for _, v := range samplingMetric.items[:whalesAllowed] {
+					config.KeepF(v.Key, v.Item)
+				}
+			}
+			sf *= 2 // half of space is occupied by whales now. TODO - we can be more exact here, make permutations and take as many elements as we need, saving lots of rnd calls
 			samplingMetric.items = samplingMetric.items[whalesAllowed:]
 		}
-		sf *= 2 // half of space is occupied by whales now. TODO - we can be more exact here, make permutations and take as many elements as we need, saving lots of rnd calls
-		for _, v := range samplingMetric.items {
-			if config.Rand.Float64()*sf < 1 {
-				v.Item.SF = sf // communicate selected factor to next step of processing
-				continue
+		pos := config.SelectF(samplingMetric.items, sf, config.Rand)
+		for _, v := range samplingMetric.items[:pos] {
+			v.Item.SF = sf // communicate selected factor to next step of processing
+			if config.KeepF != nil {
+				config.KeepF(v.Key, v.Item)
 			}
-			// delete(bucket.MultiItems, v.Key)
+		}
+		for _, v := range samplingMetric.items[pos:] {
+			v.Item.SF = sf // communicate selected factor to next step of processing
+			if config.DiscardF != nil {
+				config.DiscardF(v.Key, v.Item)
+			}
 		}
 	}
 	return sampleFactors

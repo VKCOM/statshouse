@@ -82,10 +82,10 @@ type (
 
 func NewSampler(capacity int, config SamplerConfig) Sampler {
 	if config.RoundF == nil {
-		config.RoundF = RoundSampleFactor
+		config.RoundF = roundSampleFactor
 	}
 	if config.SelectF == nil {
-		config.SelectF = SelectRandom
+		config.SelectF = selectRandom
 	}
 	h := Sampler{
 		items:  make([]SamplingMultiItemPair, 0, capacity),
@@ -132,16 +132,6 @@ func (h *Sampler) Add(p SamplingMultiItemPair) {
 }
 
 func (h *Sampler) Run(budgetNum, budgetDenom int64) SamplerStatistics {
-	// The following two cases should not happen, but if they do, it will cause panic
-	if budgetDenom <= 0 {
-		budgetDenom = 1
-	}
-	if budgetNum <= 0 {
-		budgetNum = 1
-	} else if budgetNum > budgetDenom*MaxUncompressedBucketSize/2 {
-		// Limit the budget from above
-		budgetNum = budgetDenom * MaxUncompressedBucketSize / 2 // algorithm is not exact
-	}
 	// Partition by group/metric/key and run
 	sort.Slice(h.items, func(i, j int) bool {
 		if h.items[i].group.ID != h.items[j].group.ID {
@@ -158,6 +148,13 @@ func (h *Sampler) Run(budgetNum, budgetDenom int64) SamplerStatistics {
 }
 
 func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDenom int64, stat *SamplerStatistics) {
+	// The following two cases should not happen, but if they do, it will cause panic
+	if budgetNum < 1 {
+		budgetNum = 1
+	}
+	if budgetDenom < 1 {
+		budgetDenom = 1
+	}
 	// Partition, then sort groups by sumSize/weight ratio
 	groups, sumWeight := h.partF[depth](s)
 	sort.Slice(groups, func(i, j int) bool {
@@ -172,20 +169,20 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 		}
 		budgetNum -= g.sumSize * budgetDenom
 		sumWeight -= g.weight
-		h.keepGroup(g)
+		h.keep(g)
 		pos++
 	}
 	// Sample remaining groups who didn't fit into the budget
-	n := 0                                        // number of "sampleGroup" calls
-	d := budgetDenom * (int64(len(groups) - pos)) // group budget denominator
+	n := 0 // number of "sample" calls with g.SF > 1
 	for i := pos; i < len(groups); i++ {
 		g := &groups[i]
 		if g.noSampleAgent && h.config.ModeAgent {
-			h.keepGroup(g)
+			h.keep(g)
 		} else if depth < len(h.partF)-1 {
+			d := budgetDenom * (int64(len(groups) - pos)) // group budget denominator
 			h.run(g.items, depth+1, budgetNum, d, stat)
 		} else {
-			h.sampleGroup(g, budgetNum, budgetDenom, sumWeight)
+			h.sample(g, budgetNum, budgetDenom, sumWeight)
 			if g.SF > 1 {
 				n++
 			}
@@ -204,7 +201,7 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 	}
 }
 
-func (h *Sampler) keepGroup(g *SamplerGroup) {
+func (h *Sampler) keep(g *SamplerGroup) {
 	if h.config.KeepF == nil {
 		return
 	}
@@ -214,18 +211,26 @@ func (h *Sampler) keepGroup(g *SamplerGroup) {
 	}
 }
 
-func (h *Sampler) sampleGroup(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int64) {
+func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int64) {
 	var (
 		sfNum   = g.sumSize * budgetDenom * sumWeight
 		sfDenom = budgetNum * g.weight
-		sf      = float64(sfNum) / float64(sfDenom)
 	)
+	if sfNum < 1 {
+		sfNum = 1
+	}
+	if sfDenom < 1 {
+		sfDenom = 1
+	}
+	sf := float64(sfNum) / float64(sfDenom)
 	if g.roundFactors {
 		sf = h.config.RoundF(sf, h.config.Rand)
 		if sf <= 1 { // many sample factors are between 1 and 2, so this is worthy optimization
-			h.keepGroup(g)
+			h.keep(g)
 			return
 		}
+		sfNum = int64(sf)
+		sfDenom = 1
 	}
 	g.SF = sf
 	// Keep whales
@@ -235,7 +240,7 @@ func (h *Sampler) sampleGroup(g *SamplerGroup, budgetNum, budgetDenom, sumWeight
 	// So we allow half of sampling budget for whales, and the other half is spread fairly between other events.
 	var (
 		items = g.items
-		pos   = int(int64(len(items)) * sfDenom / (sfNum * 2)) // len(items) / sf / 2
+		pos   = int(int64(len(items)) * sfDenom / sfNum / 2) // len(items) / sf / 2
 	)
 	if pos > 0 {
 		if pos > len(items) { // should always hold but checking is cheap
@@ -274,15 +279,15 @@ func partitionByGroup(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 		return nil, 0
 	}
 	newSamplerGroup := func(p SamplingMultiItemPair, items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
-		b := SamplerGroup{
-			weight:  p.group.EffectiveWeight,
+		weight := p.group.EffectiveWeight
+		if weight < 1 { // weight can't be zero or less, sanity check
+			weight = 1
+		}
+		return SamplerGroup{
+			weight:  weight,
 			items:   items,
 			sumSize: sumSize,
 		}
-		if b.weight <= 0 { // weight can't be zero or less, sanity check
-			b.weight = int64(format.EffectiveWeightOne)
-		}
-		return b
 	}
 	var res []SamplerGroup
 	var sumWeight int64
@@ -311,18 +316,18 @@ func partitionByMetric(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 		return nil, 0
 	}
 	newSamplerGroup := func(p SamplingMultiItemPair, items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
-		res := SamplerGroup{
+		weight := p.metric.EffectiveWeight
+		if weight < 1 { // weight can't be zero or less, sanity check
+			weight = 1
+		}
+		return SamplerGroup{
 			MetricID:      p.MetricID,
-			weight:        p.metric.EffectiveWeight,
+			weight:        weight,
 			items:         items,
 			sumSize:       sumSize,
 			roundFactors:  p.metric.RoundSampleFactors,
 			noSampleAgent: p.metric.NoSampleAgent,
 		}
-		if res.weight <= 0 { // weight can't be zero or less, sanity check
-			res.weight = int64(format.EffectiveWeightOne)
-		}
-		return res
 	}
 	var res []SamplerGroup
 	var sumWeight int64
@@ -356,15 +361,14 @@ func partitionByKey(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 		return []SamplerGroup{{weight: weight, items: s}}, weight
 	}
 	newSamplerGroup := func(p SamplingMultiItemPair, items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
-		b := SamplerGroup{
+		return SamplerGroup{
 			MetricID:      p.MetricID,
-			weight:        int64(format.EffectiveWeightOne),
+			weight:        1,
 			items:         items,
 			sumSize:       sumSize,
 			roundFactors:  p.metric.RoundSampleFactors,
 			noSampleAgent: p.metric.NoSampleAgent,
 		}
-		return b
 	}
 	var res []SamplerGroup
 	var sumWeight int64
@@ -433,21 +437,7 @@ func (s SamplerStep) GetSampleFactors(sf []tlstatshouse.SampleFactor) []tlstatsh
 	return sf
 }
 
-func SelectRandom(s []SamplingMultiItemPair, sf float64, r *rand.Rand) int {
-	if sf <= 1 {
-		return len(s)
-	}
-	n := 0
-	for i := range s {
-		if r.Float64()*sf < 1 {
-			s[i], s[n] = s[n], s[i]
-			n++
-		}
-	}
-	return n
-}
-
-func SelectRandom2(s []SamplingMultiItemPair, sf float64, r *rand.Rand) int { // experimental
+func selectRandom(s []SamplingMultiItemPair, sf float64, r *rand.Rand) int {
 	if sf <= 1 {
 		return len(s)
 	}
@@ -486,7 +476,7 @@ func SampleFactor(rnd *rand.Rand, sampleFactors map[int32]float64, metric int32)
 	return 0, false
 }
 
-func RoundSampleFactor(sf float64, rnd *rand.Rand) float64 {
+func roundSampleFactor(sf float64, rnd *rand.Rand) float64 {
 	floor := math.Floor(sf)
 	delta := sf - floor
 	if rnd.Float64() < delta {
