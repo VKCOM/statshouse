@@ -4,7 +4,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        debian_release: [jessie, stretch, buster, bullseye]
+        debian_release: [buster, bullseye]
     steps:
       - uses: actions/checkout@v3
         with:
