@@ -410,6 +410,11 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         params.plots = params.plots.map((item) => (item.useV2 ? item : { ...item, useV2: true }));
         reset = true;
       }
+      const paramsFix = normalizeParamsGroupCount(params);
+      if (params.dashboard !== paramsFix.dashboard) {
+        params = paramsFix;
+        reset = true;
+      }
 
       const resetPlot = params.dashboard?.dashboard_id !== getState().params.dashboard?.dashboard_id;
       const prevParams = getState().params;
@@ -1547,105 +1552,16 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         store: { plotsData, events, params },
         remapIndexPlot,
       } = moveAndResortPlot(getState(), indexSelectPlot, indexTargetPlot, indexGroup);
-      // const groups: number[] =
-      //   prevState.params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
-      // if (groups.length !== prevState.params.plots.length) {
-      //   while (groups.length < prevState.params.plots.length) {
-      //     groups.push(Math.max(0, (prevState.params.dashboard?.groupInfo?.length ?? 0) - 1));
-      //   }
-      // }
-      // if (indexSelectPlot != null && indexGroup != null) {
-      //   groups[indexSelectPlot] = indexGroup;
-      // }
-      // const normalize = prevState.params.plots.map((plot, indexPlot) => ({
-      //   plot,
-      //   plotEventLink: plot.events.map((eId) => prevState.params.plots[eId]),
-      //   group: groups[indexPlot] ?? 0,
-      //   tagSync: prevState.params.tagSync.map((group, indexGroup) => ({ indexGroup, indexTag: group[indexPlot] })),
-      //   plotsData: prevState.plotsData[indexPlot],
-      //   plotsEvent: prevState.events[indexPlot],
-      //   oldIndex: indexPlot,
-      // }));
-      // if (indexSelectPlot != null && indexTargetPlot != null && indexSelectPlot !== indexTargetPlot) {
-      //   const [drop] = normalize.splice(indexSelectPlot, 1);
-      //   normalize.splice(
-      //     indexSelectPlot < indexTargetPlot ? Math.max(0, indexTargetPlot - 1) : indexTargetPlot,
-      //     0,
-      //     drop
-      //   );
-      // } else if (indexSelectPlot != null && indexTargetPlot == null) {
-      //   const [drop] = normalize.splice(indexSelectPlot, 1);
-      //   normalize.push(drop);
-      // }
-      // const resort = normalize.sort(sortByKey.bind(undefined, 'group'));
-      // const plots = resort.map(({ plot }) => plot);
-      // const plotsData = resort.map(({ plotsData }) => plotsData);
-      // const plotsEvent = resort.map(({ plotsEvent }) => plotsEvent);
-      // const plotEventLink = resort.map(({ plotEventLink }) => plotEventLink.map((eP) => plots.indexOf(eP)));
-      // const remapIndexPlot = resort.reduce((res, { oldIndex }, newIndex) => {
-      //   res[oldIndex] = newIndex;
-      //   return res;
-      // }, {} as Record<string, number>);
-      // const variables: VariableParams[] = prevState.params.variables.map((variable) => ({
-      //   ...variable,
-      //   link: variable.link.map(([plotKey, tagKey]) => {
-      //     let indexP = toNumber(plotKey);
-      //     return [toPlotKey(indexP == null ? indexP : remapIndexPlot[indexP]) ?? plotKey, tagKey];
-      //   }),
-      // }));
-      // const tagSync = resort.reduce((res, item, indexPlot) => {
-      //   item.tagSync.forEach(({ indexGroup, indexTag }) => {
-      //     res[indexGroup] = res[indexGroup] ?? [];
-      //     res[indexGroup][indexPlot] = indexTag;
-      //   });
-      //   return res;
-      // }, [] as (number | null)[][]);
-      resortPlotPreview(remapIndexPlot);
-      resortPlotVisibility(remapIndexPlot);
+
+      if (remapIndexPlot) {
+        resortPlotPreview(remapIndexPlot);
+        resortPlotVisibility(remapIndexPlot);
+      }
       setState((state) => {
         state.plotsData = plotsData;
         state.events = events;
       });
       prevState.setParams(params);
-
-      // produce((params) => {
-      //   params.plots = plots.map((p, indexP) => ({
-      //     ...p,
-      //     events: plotEventLink[indexP].filter((i) => i > -1) ?? [],
-      //   }));
-      //   params.tagSync = tagSync;
-      //   params.variables = variables;
-      //   if (params.dashboard && indexGroup != null) {
-      //     params.dashboard.groupInfo = params.dashboard.groupInfo ?? [];
-      //     params.dashboard.groupInfo[indexGroup] = params.dashboard.groupInfo[indexGroup] ?? {
-      //       name: '',
-      //       count: 0,
-      //       show: true,
-      //       size: 2,
-      //     };
-      //     for (let i = 0, max = params.dashboard.groupInfo.length; i < max; i++) {
-      //       if (!params.dashboard.groupInfo[i]) {
-      //         params.dashboard.groupInfo[i] = {
-      //           name: '',
-      //           count: 0,
-      //           show: true,
-      //           size: '2',
-      //         };
-      //       }
-      //     }
-      //
-      //     params.dashboard.groupInfo = params.dashboard.groupInfo.map((g, index) => ({
-      //       ...g,
-      //       count:
-      //         groups.reduce((res: number, item) => {
-      //           if (item === index) {
-      //             res = res + 1;
-      //           }
-      //           return res;
-      //         }, 0 as number) ?? 0,
-      //     }));
-      //   }
-      // })
     },
     dashboardLayoutEdit: false,
     setDashboardLayoutEdit(nextStatus: boolean) {
@@ -2146,6 +2062,9 @@ export function moveAndResortPlot(
 ) {
   //normalize group length
   prevState = normalizeGroupCount(prevState);
+  if (indexGroup != null && indexGroup < 0) {
+    return { store: prevState, remapIndexPlot: remapIndexPlot };
+  }
   const groups: number[] =
     prevState.params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
   if (groups.length !== prevState.params.plots.length) {
@@ -2258,29 +2177,33 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
   const count = group.count ?? 0;
   const targetCount = targetGroup.count ?? 0;
   if (targetCount === 0) {
-    useStore.getState().setParams(
-      produce((p) => {
-        if (p.dashboard?.groupInfo) {
-          const g = p.dashboard.groupInfo[indexGroup];
-          p.dashboard.groupInfo[indexGroup] = { ...p.dashboard.groupInfo[indexGroup + direction], count: 0 };
-          p.dashboard.groupInfo[indexGroup + direction] = g;
-        }
-      })
-    );
+    store = produce(store, (p) => {
+      if (p.params.dashboard?.groupInfo) {
+        const g = p.params.dashboard.groupInfo[indexGroup];
+        p.params.dashboard.groupInfo[indexGroup] = {
+          ...p.params.dashboard.groupInfo[indexGroup + direction],
+          count: 0,
+        };
+        p.params.dashboard.groupInfo[indexGroup + direction] = g;
+      }
+    });
+    useStore.getState().setParams(store.params);
   } else if (count === 0) {
-    useStore.getState().setParams(
-      produce((p) => {
-        if (p.dashboard?.groupInfo) {
-          const g = p.dashboard.groupInfo[indexGroup + direction];
-          p.dashboard.groupInfo[indexGroup + direction] = { ...p.dashboard.groupInfo[indexGroup], count: 0 };
-          p.dashboard.groupInfo[indexGroup] = g;
-        }
-      })
-    );
+    store = produce(store, (p) => {
+      if (p.params.dashboard?.groupInfo) {
+        const g = p.params.dashboard.groupInfo[indexGroup + direction];
+        p.params.dashboard.groupInfo[indexGroup + direction] = {
+          ...p.params.dashboard.groupInfo[indexGroup],
+          count: 0,
+        };
+        p.params.dashboard.groupInfo[indexGroup] = g;
+      }
+    });
+    useStore.getState().setParams(store.params);
   } else if (group && targetGroup && count && targetCount) {
     let remapIndexPlot: Record<string, number> | undefined = undefined;
     let startIndex = groups.slice(0, indexGroup).reduce((res, { count }) => res + count, 0);
-    const targetGroupIndex = Math.max(0, indexGroup + direction * 2);
+    const targetGroupIndex = Math.max(0, indexGroup + (direction > 0 ? direction * 2 : direction));
     // add new group
     store = produce(store, (p) => {
       if (p.params.dashboard) {
@@ -2331,23 +2254,32 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
     // moveAndResortPlot(store);
   }
 }
-
-function normalizeGroupCount(prevState: Store) {
+function normalizeParamsGroupCount(prevState: QueryParams) {
   return produce(prevState, (p) => {
-    const count = p.params.plots.length;
-    if (p.params.dashboard?.groupInfo) {
-      let deltaCount = p.params.dashboard.groupInfo.reduce((res, { count }) => res + count, 0) - count;
-      let i = p.params.dashboard.groupInfo.length - 1;
+    const count = p.plots.length;
+    if (p.dashboard?.groupInfo) {
+      let deltaCount = p.dashboard.groupInfo.reduce((res, { count }) => res + count, 0) - count;
+      let i = p.dashboard.groupInfo.length - 1;
       if (deltaCount) {
-        while (deltaCount > 0 && i >= 0) {
-          const g = p.params.dashboard.groupInfo[i];
-          const c = Math.max(0, g.count - deltaCount);
-          deltaCount -= g.count;
-          g.count = c;
-          i--;
+        if (deltaCount < 0) {
+          const g = p.dashboard.groupInfo[i];
+          g.count -= deltaCount;
+        } else {
+          while (deltaCount > 0 && i >= 0) {
+            const g = p.dashboard.groupInfo[i];
+            const c = Math.max(0, g.count - deltaCount);
+            deltaCount -= g.count;
+            g.count = c;
+            i--;
+          }
         }
       }
     }
+  });
+}
+function normalizeGroupCount(prevState: Store) {
+  return produce(prevState, (p) => {
+    p.params = normalizeParamsGroupCount(p.params);
   });
 }
 
