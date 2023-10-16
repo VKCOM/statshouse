@@ -1,1 +1,2 @@
-../target/statshouse usr/share/engine/bin/statshouse-agg
+#!/usr/bin/dh-exec
+../target/statshouse => usr/share/engine/bin/statshouse-agg
