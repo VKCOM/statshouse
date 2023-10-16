@@ -2257,7 +2257,7 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
 function normalizeParamsGroupCount(prevState: QueryParams) {
   return produce(prevState, (p) => {
     const count = p.plots.length;
-    if (p.dashboard?.groupInfo) {
+    if (p.dashboard?.groupInfo?.length) {
       let deltaCount = p.dashboard.groupInfo.reduce((res, { count }) => res + count, 0) - count;
       let i = p.dashboard.groupInfo.length - 1;
       if (deltaCount) {
