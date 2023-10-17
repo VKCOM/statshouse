@@ -552,10 +552,13 @@ export const Select: FC<SelectProps> = ({
 
   const keyMap = useMemo<Record<string, SelectOptionProps>>(
     () =>
-      options.reduce((res, option) => {
-        res[option.value] = option;
-        return res;
-      }, {} as Record<string, SelectOptionProps>) ?? {},
+      options.reduce(
+        (res, option) => {
+          res[option.value] = option;
+          return res;
+        },
+        {} as Record<string, SelectOptionProps>
+      ) ?? {},
     [options]
   );
 

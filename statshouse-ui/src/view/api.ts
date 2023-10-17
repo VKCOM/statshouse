@@ -129,14 +129,14 @@ export const eventColumnDefault: Readonly<Partial<Column<EventDataRow>>> = {
   minWidth: 20,
   maxWidth: 300,
   resizable: true,
-  headerRenderer: EventFormatterHeaderDefault,
+  renderHeaderCell: EventFormatterHeaderDefault,
   width: 'auto',
-  formatter: EventFormatterDefault,
+  renderCell: EventFormatterDefault,
   // sortable: true,
   // headerCellClass: 'no-Focus',
 };
 export const getEventColumnsType = (what: string[] = []): Record<string, Column<EventDataRow>> => ({
-  timeString: { key: 'timeString', name: 'Time', width: 165, headerRenderer: EventFormatterHeaderTime },
+  timeString: { key: 'timeString', name: 'Time', width: 165, renderHeaderCell: EventFormatterHeaderTime },
   ...Object.fromEntries(what.map((key) => [key, { key, name: whatToWhatDesc(key), formatter: EventFormatterData }])),
 });
 

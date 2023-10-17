@@ -24,10 +24,13 @@ export function saveMetric(metric: IMetric) {
       raw_kind: tag.raw_kind,
       value_comments:
         tag.customMapping.length > 0
-          ? tag.customMapping.reduce((acc, map) => {
-              acc[map.from] = map.to;
-              return acc;
-            }, {} as Record<string, string>)
+          ? tag.customMapping.reduce(
+              (acc, map) => {
+                acc[map.from] = map.to;
+                return acc;
+              },
+              {} as Record<string, string>
+            )
           : undefined,
     })),
     pre_key_tag_id: metric.pre_key_tag_id,

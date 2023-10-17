@@ -40,11 +40,14 @@ export const parseTagSync = (s?: string) => {
     return null;
   }
   return [
-    ...s.split('-').reduce((res, t) => {
-      const [plot, tagKey] = t.split('.').map((r) => parseInt(r));
-      res[plot] = tagKey;
-      return res;
-    }, [] as (number | null)[]),
+    ...s.split('-').reduce(
+      (res, t) => {
+        const [plot, tagKey] = t.split('.').map((r) => parseInt(r));
+        res[plot] = tagKey;
+        return res;
+      },
+      [] as (number | null)[]
+    ),
   ].map((s) => s ?? null);
 };
 
@@ -541,11 +544,14 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
 }
 
 export function decodeParams(searchParams: [string, string][], defaultParams?: QueryParams): QueryParams {
-  const urlParams = searchParams.reduce((res, [key, value]) => {
-    res[key] ??= [];
-    res[key]?.push(value);
-    return res;
-  }, {} as Partial<Record<string, string[]>>);
+  const urlParams = searchParams.reduce(
+    (res, [key, value]) => {
+      res[key] ??= [];
+      res[key]?.push(value);
+      return res;
+    },
+    {} as Partial<Record<string, string[]>>
+  );
 
   const live = urlParams[GET_PARAMS.metricLive]?.[0] === '1';
 

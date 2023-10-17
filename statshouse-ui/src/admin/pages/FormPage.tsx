@@ -578,10 +578,13 @@ function AliasField(props: {
     setSortCustomMapping((prevState) => {
       if (prevState.length && prevState.length <= value.customMapping.length) {
         const nextState = [...prevState];
-        const map: Record<string, SortCustomMappingItem> = prevState.reduce((res, item) => {
-          res[item.index] = item;
-          return res;
-        }, {} as Record<string, SortCustomMappingItem>);
+        const map: Record<string, SortCustomMappingItem> = prevState.reduce(
+          (res, item) => {
+            res[item.index] = item;
+            return res;
+          },
+          {} as Record<string, SortCustomMappingItem>
+        );
         value.customMapping.forEach((mapping, index) => {
           if (map[index]) {
             map[index].mapping = mapping;
