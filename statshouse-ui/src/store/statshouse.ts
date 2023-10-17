@@ -961,12 +961,15 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                 legendMaxHostWidth = Math.max(legendMaxHostWidth, full - p75 > 20 ? p75 : full);
               }
               const max_host_map =
-                meta.max_hosts?.reduce((res, host) => {
-                  if (host) {
-                    res[host] = (res[host] ?? 0) + 1;
-                  }
-                  return res;
-                }, {} as Record<string, number>) ?? {};
+                meta.max_hosts?.reduce(
+                  (res, host) => {
+                    if (host) {
+                      res[host] = (res[host] ?? 0) + 1;
+                    }
+                    return res;
+                  },
+                  {} as Record<string, number>
+                ) ?? {};
               const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
               seriesShow[indexMeta] =
                 currentPrevSeries[indexMeta]?.label === label ? currentPrevSeriesShow[indexMeta] : true;
@@ -1094,21 +1097,27 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
               scales.y = { ...lastPlotParams.yLock };
             }
 
-            const maxLengthValue = series.reduce((res, s, indexSeries) => {
-              if (s.show) {
-                const v =
-                  (data[indexSeries + 1] as (number | null)[] | undefined)?.reduce((res2, d) => {
-                    if (d && (res2?.toString().length ?? 0) < d.toString().length) {
-                      return d;
-                    }
-                    return res2;
-                  }, null as null | number) ?? null;
-                if (v && (v.toString().length ?? 0) > (res?.toString().length ?? 0)) {
-                  return v;
+            const maxLengthValue = series.reduce(
+              (res, s, indexSeries) => {
+                if (s.show) {
+                  const v =
+                    (data[indexSeries + 1] as (number | null)[] | undefined)?.reduce(
+                      (res2, d) => {
+                        if (d && (res2?.toString().length ?? 0) < d.toString().length) {
+                          return d;
+                        }
+                        return res2;
+                      },
+                      null as null | number
+                    ) ?? null;
+                  if (v && (v.toString().length ?? 0) > (res?.toString().length ?? 0)) {
+                    return v;
+                  }
                 }
-              }
-              return res;
-            }, null as null | number);
+                return res;
+              },
+              null as null | number
+            );
 
             const [yMinAll, yMaxAll] = calcYRange2(series, data, false);
             const legendExampleValue = Math.max(
@@ -1858,7 +1867,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                           Object.fromEntries(
                             Object.entries(value.tags).map(([tagKey, tagValue]) => [freeKeyPrefix(tagKey), tagValue])
                           ),
-                      } as queryTableRow)
+                      }) as queryTableRow
                   ) ?? null,
               };
               if (chunk.more) {
@@ -1892,7 +1901,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                           state.events[indexPlot].what.map((whatKey, indexWhat) => [whatKey, row.data[indexWhat]])
                         ),
                         ...row.tags,
-                      } as EventDataRow)
+                      }) as EventDataRow
                   ) ?? []
               );
 
@@ -1990,10 +1999,13 @@ export function setNegativeVariable(nameVariable: string | undefined, value: boo
 export function setVariable(variables: VariableParams[]) {
   useStore.getState().setParams(
     produce((p) => {
-      const newVariable = variables.reduce((res, { name }) => {
-        res[name] = true;
-        return res;
-      }, {} as Record<string, boolean>);
+      const newVariable = variables.reduce(
+        (res, { name }) => {
+          res[name] = true;
+          return res;
+        },
+        {} as Record<string, boolean>
+      );
       p.variables.forEach((variable) => {
         if (!newVariable[variable.name]) {
           variable.link.forEach(([plotKey, tagKey]) => {
@@ -2101,14 +2113,20 @@ export function moveAndResortPlot(
   const plotsData = resort.map(({ plotsData }) => plotsData);
   const plotsEvent = resort.map(({ plotsEvent }) => plotsEvent);
   const plotEventLink = resort.map(({ plotEventLink }) => plotEventLink.map((eP) => plots.indexOf(eP)));
-  const localRemapIndexPlot = resort.reduce((res, { oldIndex }, newIndex) => {
-    res[oldIndex] = newIndex;
-    return res;
-  }, {} as Record<string, number>);
-  const globalRemapIndexPlot = resort.reduce((res, { remapIndex }, newIndex) => {
-    res[remapIndex] = newIndex;
-    return res;
-  }, {} as Record<string, number>);
+  const localRemapIndexPlot = resort.reduce(
+    (res, { oldIndex }, newIndex) => {
+      res[oldIndex] = newIndex;
+      return res;
+    },
+    {} as Record<string, number>
+  );
+  const globalRemapIndexPlot = resort.reduce(
+    (res, { remapIndex }, newIndex) => {
+      res[remapIndex] = newIndex;
+      return res;
+    },
+    {} as Record<string, number>
+  );
   const variables: VariableParams[] = prevState.params.variables.map((variable) => ({
     ...variable,
     link: variable.link.map(([plotKey, tagKey]) => {
@@ -2116,13 +2134,16 @@ export function moveAndResortPlot(
       return [toPlotKey(indexP == null ? indexP : localRemapIndexPlot[indexP]) ?? plotKey, tagKey];
     }),
   }));
-  const tagSync = resort.reduce((res, item, indexPlot) => {
-    item.tagSync.forEach(({ indexGroup, indexTag }) => {
-      res[indexGroup] = res[indexGroup] ?? [];
-      res[indexGroup][indexPlot] = indexTag;
-    });
-    return res;
-  }, [] as (number | null)[][]);
+  const tagSync = resort.reduce(
+    (res, item, indexPlot) => {
+      item.tagSync.forEach(({ indexGroup, indexTag }) => {
+        res[indexGroup] = res[indexGroup] ?? [];
+        res[indexGroup][indexPlot] = indexTag;
+      });
+      return res;
+    },
+    [] as (number | null)[][]
+  );
   // resortPlotPreview(remapIndexPlot);
   // resortPlotVisibility(remapIndexPlot);
   const nextStore = produce(prevState, (state) => {
