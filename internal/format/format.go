@@ -217,9 +217,12 @@ type MetricMetaValue struct {
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
-	GroupID             int32                    `json:"-"`
-	Group               *MetricsGroup            `json:"-"`
-	Namespace           *NamespaceMeta           `json:"-"`
+
+	// must be restored with RestoreInternalInfo
+	GroupID        int32          `json:"-"`
+	Group          *MetricsGroup  `json:"-"`
+	Namespace      *NamespaceMeta `json:"-"`
+	NamespacedName string         `json:"-"`
 }
 
 type MetricMetaValueOld struct {
@@ -301,6 +304,9 @@ func (m *MetricMetaValue) setName2Tag(name string, sTag MetricMetaTag, canonical
 
 // Always restores maximum info, if error is returned, metric is non-canonical and should not be saved
 func (m *MetricMetaValue) RestoreCachedInfo() error {
+	if m.NamespacedName == "" {
+		m.NamespacedName = m.Name
+	}
 	var err error
 	if !ValidMetricName(mem.S(m.Name)) {
 		err = multierr.Append(err, fmt.Errorf("invalid metric name: %q", m.Name))
@@ -500,8 +506,11 @@ func (m *NamespaceMeta) RestoreCachedInfo() error {
 	return err
 }
 
-func (m *MetricsGroup) MetricIn(metric string) bool {
-	return strings.HasPrefix(metric, m.Name+"_")
+func (m *MetricsGroup) MetricIn(metric *MetricMetaValue) bool {
+	if metric.NamespaceID != m.NamespaceID {
+		return false
+	}
+	return strings.HasPrefix(metric.Name, m.Name+"_")
 }
 
 func ValidMetricName(s mem.RO) bool {
