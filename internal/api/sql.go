@@ -69,7 +69,6 @@ FROM
   %s
 WHERE
   %s = ?
-  AND count > 0
   AND time >= ? AND time < ?%s`,
 		columnName(lod.hasPreKey, pq.tagID, pq.preKeyTagID),
 		valueName,
@@ -105,6 +104,7 @@ WHERE
 	query += fmt.Sprintf(`
 GROUP BY
   %s
+HAVING _count > 0
 ORDER BY
   _count DESC,
   %s
@@ -226,7 +226,6 @@ FROM
   %s
 WHERE
   %s = ?
-  AND count > 0
   AND time >= ? AND time < ?%s`,
 		timeInterval,
 		commaBy,
@@ -272,6 +271,7 @@ GROUP BY
 			desc = " DESC"
 		}
 		query += fmt.Sprintf(`
+HAVING _count > 0
 ORDER BY
   _time%s%s`, commaBy, desc)
 	}
@@ -313,7 +313,6 @@ FROM
   %s
 WHERE
   %s = ?
-  AND count > 0
   AND time >= ? AND time < ?%s`,
 		commaBySelect,
 		what,
@@ -352,6 +351,7 @@ GROUP BY %s
 `, commaBy)
 	}
 	query += fmt.Sprintf(`
+HAVING _count > 0
 LIMIT %v
 SETTINGS
   optimize_aggregation_in_order = 1
