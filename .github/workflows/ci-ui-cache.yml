@@ -1,6 +1,6 @@
 name: Update cache UI
 on:
-  pull_request_target:
+  push:
     branches:
       - master
     paths:
