@@ -1,8 +1,5 @@
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - 'malpinskiy/deb'
 jobs:
   env:
     runs-on: ubuntu-latest
@@ -109,4 +106,4 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: deb-${{ matrix.debian_release }}
-        path: *.deb
+        path: ./*.deb
