@@ -13,7 +13,7 @@ import { UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
 import { now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { queryURLCSV } from '../../view/api';
 import { black, grey, greyDark } from '../../view/palette';
-import produce from 'immer';
+import { produce } from 'immer';
 import {
   selectorBaseRange,
   selectorEventsByIndex,

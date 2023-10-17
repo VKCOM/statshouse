@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useRef } from 'react';
 import cn from 'classnames';
 import { selectorParamsPlotsByIndex, useStore } from '../../store';
-import produce from 'immer';
+import { produce } from 'immer';
 import { useEventTagColumns } from '../../hooks/useEventTagColumns';
 import { useOnClickOutside } from '../../hooks/useOnClickOutside';
 import { ReactComponent as SVGEye } from 'bootstrap-icons/icons/eye.svg';
