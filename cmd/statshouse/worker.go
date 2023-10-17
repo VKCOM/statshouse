@@ -52,8 +52,7 @@ func (w *worker) HandleMetrics(m *tlstatshouse.MetricBytes, cb mapping.MapCallba
 	if w.logPackets != nil {
 		w.logPackets("Parsed metric: %s\n", m.String())
 	}
-	// TODO namespace
-	h, done = w.mapper.Map(m, w.metricStorage.GetMetaMetricByNameBytes(m.Name, 0), cb)
+	h, done = w.mapper.Map(m, w.metricStorage.GetMetaMetricByNameBytes(m.Name), cb)
 	if done {
 		if w.logPackets != nil {
 			w.printMetric("cached", *m, h)

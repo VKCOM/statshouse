@@ -78,7 +78,6 @@ const (
 	ParamNumResults = "n"
 	ParamMetric     = "s"
 	ParamID         = "id"
-	ParamNamespace  = "namespace"
 
 	ParamTagID        = "k"
 	ParamFromTime     = "f"
@@ -572,7 +571,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		location:              location,
 		readOnly:              readOnly,
 		insecureMode:          insecureMode,
-		accessManager:         &accessManager{metricStorage.RestoreInternalInfo},
+		accessManager:         &accessManager{metricStorage.GetGroupByMetricName},
 		querySelectTimeout:    querySelectTimeout,
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
@@ -789,7 +788,7 @@ func (h *Handler) getMetricMeta(ai accessInfo, metricWithNamespace string) (*for
 	if v == nil {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found", metricWithNamespace))
 	}
-	if !ai.CanViewMetric(*v) { // We are OK with sharing this bit of information with clients
+	if !ai.canViewMetric(metricWithNamespace) { // We are OK with sharing this bit of information with clients
 		return nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metricWithNamespace))
 	}
 	return v, nil
@@ -1007,11 +1006,11 @@ func (h *Handler) HandleGetMetricsList(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	resp, cache, err := h.handleGetMetricsList(ai, r.FormValue(ParamNamespace))
+	resp, cache, err := h.handleGetMetricsList(ai)
 	respondJSON(w, resp, cache, queryClientCacheStale, err, h.verbose, ai.user, sl)
 }
 
-func (h *Handler) handleGetMetricsList(ai accessInfo, namespace string) (*GetMetricsListResp, time.Duration, error) {
+func (h *Handler) handleGetMetricsList(ai accessInfo) (*GetMetricsListResp, time.Duration, error) {
 	ret := &GetMetricsListResp{
 		Metrics: []metricShortInfo{},
 	}
@@ -1021,8 +1020,8 @@ func (h *Handler) handleGetMetricsList(ai accessInfo, namespace string) (*GetMet
 		}
 		ret.Metrics = append(ret.Metrics, metricShortInfo{Name: m.Name})
 	}
-	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible, namespace) {
-		if ai.CanViewMetric(*v) {
+	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
+		if ai.canViewMetric(v.Name) {
 			ret.Metrics = append(ret.Metrics, metricShortInfo{Name: v.Name})
 		}
 	}
@@ -1426,7 +1425,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, fmt.Errorf("use prekey_only with non empty prekey_tag_id"))
 	}
 	if create {
-		if !ai.CanEditMetric(true, metric, metric) {
+		if !ai.canEditMetric(true, metric, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q", metric.Name))
 		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric)
@@ -1443,7 +1442,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		if old == nil {
 			return format.MetricMetaValue{}, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found (id %d)", metric.Name, metric.MetricID))
 		}
-		if !ai.CanEditMetric(false, *old, metric) {
+		if !ai.canEditMetric(false, *old, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q", old.Name))
 		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric)

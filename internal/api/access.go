@@ -15,10 +15,8 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-// DON'T USE Name TO CHECK ACCESS. USE NamespacedName INSTEAD
-
 type accessManager struct {
-	loadInternalData func(metaValue format.MetricMetaValue) format.MetricMetaValue
+	getGroupByMetricName func(string) *format.MetricsGroup
 }
 
 type accessInfo struct {
@@ -97,43 +95,41 @@ func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	return ai, nil
 }
 
-func (ai *accessInfo) protectedMetric(metric format.MetricMetaValue) bool {
-	group := metric.Group
+func (ai *accessInfo) protectedMetric(metric string) bool {
+	group := ai.accessManager.getGroupByMetricName(metric)
 	if group != nil {
 		return group.Protected
 	}
+	// todo remove
 	for _, p := range ai.protectedPrefixes {
-		if strings.HasPrefix(metric.NamespacedName, p) {
+		if strings.HasPrefix(metric, p) {
 			return true
 		}
 	}
 	return false
 }
 
-func (ai *accessInfo) CanViewMetric(metric format.MetricMetaValue) bool {
-	if metric.Name == format.BuiltinMetricNameBadges && ai.skipBadgesValidation {
+func (ai *accessInfo) canViewMetric(metric string) bool {
+	if metric == format.BuiltinMetricNameBadges && ai.skipBadgesValidation {
 		return true
 	}
 	if ai.insecureMode {
 		return true
 	}
-	_ = metric.RestoreCachedInfo()
-	metric = ai.accessManager.loadInternalData(metric)
-	name := metric.NamespacedName
 
-	return ai.bitViewMetric[name] ||
-		hasPrefixAccess(ai.bitViewPrefix, name) ||
+	return ai.bitViewMetric[metric] ||
+		hasPrefixAccess(ai.bitViewPrefix, metric) ||
 		(ai.bitViewDefault && !ai.protectedMetric(metric))
 }
 
-func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
+func (ai *accessInfo) canChangeMetricByName(create bool, oldName, newName string) bool {
 	if ai.insecureMode || ai.bitAdmin {
 		return true
 	}
 
 	if !create {
-		oldGroup := old.Group
-		newGroup := new_.Group
+		oldGroup := ai.accessManager.getGroupByMetricName(oldName)
+		newGroup := ai.accessManager.getGroupByMetricName(newName)
 		if oldGroup != nil && newGroup != nil {
 			if oldGroup.ID != newGroup.ID {
 				return false
@@ -142,24 +138,18 @@ func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaVa
 			return false
 		}
 	}
-	oldName := old.NamespacedName
-	newName := new_.NamespacedName
 
 	// we expect that oldName and newName both are in the same group
 	return ai.bitEditMetric[oldName] && ai.bitEditMetric[newName] ||
 		(hasPrefixAccess(ai.bitEditPrefix, oldName) && hasPrefixAccess(ai.bitEditPrefix, newName)) ||
-		(ai.bitEditDefault && !ai.protectedMetric(old) && !ai.protectedMetric(new_))
+		(ai.bitEditDefault && !ai.protectedMetric(oldName) && !ai.protectedMetric(newName))
 }
 
-func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
+func (ai *accessInfo) canEditMetric(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
 	if ai.insecureMode {
 		return true
 	}
-	_ = old.RestoreCachedInfo()
-	_ = new_.RestoreCachedInfo()
-	new_ = ai.accessManager.loadInternalData(new_)
-	old = ai.accessManager.loadInternalData(old)
-	if ai.canChangeMetricByName(create, old, new_) {
+	if ai.canChangeMetricByName(create, old.Name, new_.Name) {
 		if ai.bitAdmin {
 			return true
 		}
