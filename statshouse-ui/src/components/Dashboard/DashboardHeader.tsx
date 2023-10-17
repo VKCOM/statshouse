@@ -22,7 +22,7 @@ import {
 import { ReactComponent as SVGGearFill } from 'bootstrap-icons/icons/gear-fill.svg';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { NavLink } from 'react-router-dom';
-import produce from 'immer';
+import { produce } from 'immer';
 import { encodeParams, fixMessageTrouble } from '../../url/queryParams';
 
 export type DashboardHeaderProps = {};

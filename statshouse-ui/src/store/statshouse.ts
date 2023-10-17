@@ -9,7 +9,7 @@ import uPlot from 'uplot';
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
 import { dequal } from 'dequal/lite';
 import React from 'react';
-import produce, { setAutoFreeze } from 'immer';
+import { produce, setAutoFreeze } from 'immer';
 import {
   apiGet,
   apiPost,

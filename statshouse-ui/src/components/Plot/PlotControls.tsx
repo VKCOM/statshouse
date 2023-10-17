@@ -31,7 +31,7 @@ import {
 } from '../../store';
 import { globalSettings } from '../../common/settings';
 import { filterHasTagID, metricKindToWhat, whatToWhatDesc } from '../../view/api';
-import produce from 'immer';
+import { produce } from 'immer';
 import cn from 'classnames';
 import { ErrorMessages } from '../ErrorMessages';
 import { MetricMetaValue } from '../../api/metric';

@@ -12,7 +12,7 @@ import { DashboardInfo, RawValueKind, whatToWhatDesc } from './api';
 import { UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
 import { MetricMetaValue } from '../api/metric';
 import { PlotStore } from '../store';
-import produce from 'immer';
+import { produce } from 'immer';
 import { isNotNil, toNumber, uniqueArray } from '../common/helpers';
 import { GET_PARAMS, isTagKey, TAG_KEY, TagKey } from '../api/enum';
 import { getEmptyVariableParams } from '../common/getEmptyVariableParams';

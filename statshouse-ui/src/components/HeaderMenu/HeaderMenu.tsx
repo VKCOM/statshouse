@@ -16,7 +16,7 @@ import { ReactComponent as SVGCircleHalf } from 'bootstrap-icons/icons/circle-ha
 import { ReactComponent as SVGLightbulbFill } from 'bootstrap-icons/icons/lightbulb-fill.svg';
 // import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
 import cn from 'classnames';
-import produce from 'immer';
+import { produce } from 'immer';
 
 import { HeaderMenuItem } from './HeaderMenuItem';
 import {
