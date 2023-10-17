@@ -1,16 +1,108 @@
 on: workflow_dispatch
 jobs:
-  debian:
+  env:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - id: main
+      run: |
+        BUILD_COMMIT=$(git log --format="%H" -n 1)
+        BUILD_COMMIT_TS=$(git log --format="%ct" -n 1)
+        BUILD_TIME=$(date +%FT%T%z)
+        BUILD_VERSION=$(git describe --tags --always --dirty)
+        BUILD_VERSION=${BUILD_VERSION#v}
+        echo "BUILD_COMMIT=$BUILD_COMMIT" >> "$GITHUB_OUTPUT"
+        echo "BUILD_COMMIT_TS=$BUILD_COMMIT_TS" >> "$GITHUB_OUTPUT"
+        echo "BUILD_TIME=$BUILD_TIME" >> "$GITHUB_OUTPUT"
+        echo "BUILD_VERSION=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
+    outputs:
+      BUILD_COMMIT: ${{ steps.main.outputs.BUILD_COMMIT }}
+      BUILD_COMMIT_TS: ${{ steps.main.outputs.BUILD_COMMIT_TS }}
+      BUILD_TIME: ${{ steps.main.outputs.BUILD_TIME }}
+      BUILD_VERSION: ${{ steps.main.outputs.BUILD_VERSION }}
+      REACT_APP_BUILD_VERSION: ${{ steps.main.outputs.REACT_APP_BUILD_VERSION }}
+  back:
+    needs: env
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        debian_release: [jessie, stretch, buster, bullseye]
+        debian_release: [buster, bullseye]
+    container:
+      image: golang:1.19-${{ matrix.debian_release }}
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-      - run: ./build/makedeb.sh ${{ matrix.debian_release }}
-      - uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.debian_release }}
-          path: ./target/*.deb
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    - run: git config --system --add safe.directory /__w/statshouse/statshouse
+    - run: |
+        BUILD_TIME=${{needs.env.outputs.BUILD_TIME}}
+        BUILD_COMMIT=${{needs.env.outputs.BUILD_COMMIT}}
+        BUILD_COMMIT_TS=${{needs.env.outputs.BUILD_COMMIT_TS}}
+        BUILD_MACHINE=$(uname -n -m -r -s)
+        BUILD_VERSION=${{needs.env.outputs.BUILD_VERSION}}
+        make build-sh build-sh-metadata build-sh-api build-sh-grafana
+    - uses: actions/upload-artifact@v3
+      with:
+        name: bin-${{ matrix.debian_release }}
+        path: target
+  front:
+    needs: env
+    runs-on: ubuntu-latest
+    container:
+      image: node:18
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    - run: |
+        REACT_APP_BUILD_VERSION=${{needs.env.outputs.BUILD_VERSION}}-${{needs.env.outputs.BUILD_TIME}}
+        make build-sh-ui
+    - uses: actions/upload-artifact@v3
+      with:
+        name: statshouse-ui
+        path: cmd/statshouse-api/build
+    - run: make build-grafana-ui
+    - uses: actions/upload-artifact@v3
+      with:
+        name: grafana-plugin-ui
+        path: grafana-plugin-ui/dist
+  deb:
+    needs: [env, back, front]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        debian_release: [buster, bullseye]
+    container:
+      image: debian:${{ matrix.debian_release }}
+    steps:
+    - run: |
+        apt-get update
+        DEBIAN_FRONTEND=noninteractive apt-get install -y devscripts build-essential dh-exec
+        rm -rf /var/lib/apt/lists/*
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    - uses: actions/download-artifact@master
+      with:
+        name: bin-${{ matrix.debian_release }}
+        path: target
+    - uses: actions/download-artifact@master
+      with:
+        name: statshouse-ui
+        path: statshouse-ui/build
+    - uses: actions/download-artifact@master
+      with:
+        name: grafana-plugin-ui
+        path: grafana-plugin-ui/dist
+    - working-directory: build
+      run: |
+        rm -f changelog
+        VERSION=1:${{needs.env.outputs.BUILD_VERSION}}-${{ matrix.debian_release }}
+        dch --create --distribution stable --package statshouse --newversion "$VERSION" "up to version $VERSION"
+        debuild --no-lintian -us -uc -b
+    - uses: actions/upload-artifact@v3
+      with:
+        name: deb-${{ matrix.debian_release }}
+        path: *.deb
