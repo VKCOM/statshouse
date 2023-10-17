@@ -1,5 +1,8 @@
-name: Build
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'malpinskiy/deb'
 jobs:
   env:
     runs-on: ubuntu-latest
