@@ -1,11 +1,11 @@
 name: Update cache UI
 on:
-  push:
+  pull_request_target:
     branches:
       - master
     paths:
       - 'statshouse-ui/**'
-      - '.github/workflows/ci-ui.yml'
+      - '.github/workflows/ci-ui-cache.yml'
 jobs:
   ci-ui:
     runs-on: ubuntu-latest
