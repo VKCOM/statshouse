@@ -211,12 +211,12 @@ func TestAccessInfo(t *testing.T) {
 					return metaValue
 				}},
 			}
-			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc"}, format.MetricMetaValue{Name: "foo_bar"}))
-			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar"}, format.MetricMetaValue{Name: "abc"}))
-			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_buzz"}, format.MetricMetaValue{Name: "foo_bar"}))
+			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc", NamespacedName: "abc"}, format.MetricMetaValue{Name: "foo_bar", NamespacedName: "foo_bar"}))
+			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar", NamespacedName: "foo_bar"}, format.MetricMetaValue{Name: "abc", NamespacedName: "abc"}))
+			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_buzz", NamespacedName: "foo_buzz"}, format.MetricMetaValue{Name: "foo_bar", NamespacedName: "foo_bar"}))
 			ai.bitAdmin = true
-			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc"}, format.MetricMetaValue{Name: "foo_bar"}))
-			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar"}, format.MetricMetaValue{Name: "abc"}))
+			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc", NamespacedName: "abc"}, format.MetricMetaValue{Name: "foo_bar", NamespacedName: "foo_bar"}))
+			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar", NamespacedName: "foo_bar"}, format.MetricMetaValue{Name: "abc", NamespacedName: "abc"}))
 		})
 	})
 }

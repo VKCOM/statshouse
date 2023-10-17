@@ -117,7 +117,6 @@ func (ai *accessInfo) CanViewMetric(metric format.MetricMetaValue) bool {
 	if ai.insecureMode {
 		return true
 	}
-	_ = metric.RestoreCachedInfo()
 	metric = ai.accessManager.loadInternalData(metric)
 	name := metric.NamespacedName
 
@@ -155,8 +154,6 @@ func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new
 	if ai.insecureMode {
 		return true
 	}
-	_ = old.RestoreCachedInfo()
-	_ = new_.RestoreCachedInfo()
 	new_ = ai.accessManager.loadInternalData(new_)
 	old = ai.accessManager.loadInternalData(old)
 	if ai.canChangeMetricByName(create, old, new_) {
