@@ -54,7 +54,7 @@ const (
 	DefaultMaxConns               = 131072 // note, this number of connections will require 10+ GB of memory
 	DefaultMaxInflightPackets     = 256
 	DefaultRequestMemoryLimit     = 256 * 1024 * 1024
-	DefaultResponseMemoryLimit    = 2048 * 1024 * 1024
+	DefaultResponseMemoryLimit    = 2048*1024*1024 - 1
 	DefaultServerConnReadBufSize  = maxGoAllocSizeClass
 	DefaultServerConnWriteBufSize = maxGoAllocSizeClass
 	DefaultServerRequestBufSize   = 4096 // we expect shorter requests on average
@@ -94,6 +94,19 @@ func ChainHandler(ff ...HandlerFunc) HandlerFunc {
 		}
 		return ErrNoHandler
 	}
+}
+
+func Listen(network, address string, disableTCPReuseAddr bool) (net.Listener, error) {
+	if network != "tcp4" && network != "unix" {
+		return nil, fmt.Errorf("unsupported network type %q", network)
+	}
+
+	var lc net.ListenConfig
+	if !disableTCPReuseAddr {
+		lc.Control = controlSetTCPReuseAddr
+	}
+
+	return lc.Listen(context.Background(), network, address)
 }
 
 func NewServer(options ...ServerOptionsFunc) *Server {
@@ -430,27 +443,12 @@ func (s *Server) releaseResponseBuf(taken int, buf *[]byte) { // buf is never ni
 	}
 }
 
-// With optional reuse port
-func (s *Server) Listen(network string, address string) (net.Listener, error) {
-	if network != "tcp4" && network != "unix" {
-		return nil, fmt.Errorf("unsupported network type %q", network)
-	}
-
-	var lc net.ListenConfig
-	if !s.opts.DisableTCPReuseAddr {
-		lc.Control = controlSetTCPReuseAddr
-	}
-
-	return lc.Listen(context.Background(), network, address)
-}
-
 // ListenAndServe supports only "tcp4" and "unix" networks
 func (s *Server) ListenAndServe(network string, address string) error {
-	ln, err := s.Listen(network, address)
+	ln, err := Listen(network, address, s.opts.DisableTCPReuseAddr)
 	if err != nil {
 		return err
 	}
-
 	return s.Serve(ln)
 }
 
@@ -555,6 +553,7 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 	}
 	sc.cond.L = &sc.mu
 	sc.writeQCond.L = &sc.mu
+	sc.closeWaitCond.L = &sc.mu
 
 	if !s.trackConn(sc) {
 		_ = conn.Close()
@@ -709,50 +708,33 @@ func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns con
 	writeQ := make([]*HandlerContext, 0, s.opts.maxInflightPacketsPreAlloc())
 	sent := false // true if there is data to flush
 
+	sc.mu.Lock()
 	for {
-		sc.mu.Lock()
-		for !(sent || sc.writeLetsFin || len(sc.writeQ) != 0 || sc.closedFlag || (sc.readFINFlag && sc.hctxCreated == len(sc.hctxPool))) {
-			sc.cond.Wait()
+		shouldStop := sc.closedFlag || (sc.readFINFlag && sc.hctxCreated == len(sc.hctxPool))
+		if !(sent || sc.writeLetsFin || len(sc.writeQ) != 0 || shouldStop) {
+			sc.writeQCond.Wait()
+			continue
 		}
 
-		if sc.closedFlag || (sc.readFINFlag && sc.hctxCreated == len(sc.hctxPool)) {
-			sc.mu.Unlock()
-			if sent {
-				sent = false
-				if err := sc.flush(); err != nil {
-					return nil
-				}
-			}
-			if debugPrint {
-				fmt.Printf("%v server %p conn %p sendLoop stop\n", time.Now(), s, sc)
-			}
-			return nil
-		}
 		writeLetsFin := sc.writeLetsFin
 		sc.writeLetsFin = false
 		writeQ, sc.writeQ = sc.writeQ, writeQ[:0]
 		sc.mu.Unlock()
-		if !writeLetsFin && len(writeQ) == 0 { // implies the only true condition above is sent == true, so we flush
-			sent = false
-			if err := sc.flush(); err != nil {
-				return nil
-			}
-			continue
-		}
-		sent = true
+		sentNow := false
 		if writeLetsFin {
 			if debugPrint {
 				fmt.Printf("%v server %p conn %p writes Let's FIN\n", time.Now(), s, sc)
 			}
-			if err := sc.conn.startWritePacketUnlocked(packetTypeRPCServerWantsFin, maxPacketRWTime); err != nil {
+			sentNow = true
+			crc, err := sc.conn.writePacketHeaderUnlocked(packetTypeRPCServerWantsFin, 0, maxPacketRWTime)
+			if err != nil {
 				return writeQ // release remaining contexts
 			}
-			if err := sc.conn.writeSimplePacketUnlocked(nil); err != nil {
-				return writeQ // release remaining contexts
-			}
+			sc.conn.writePacketTrailerUnlocked(crc)
 		}
 		for i, hctx := range writeQ {
-			err := sc.writeResponseUnlocked(hctx, maxPacketRWTime)
+			sentNow = true
+			err := writeResponseUnlocked(sc.conn, hctx, maxPacketRWTime)
 			if err != nil {
 				if !sc.closed() && !commonConnCloseError(err) {
 					s.opts.Logf("rpc: error writing packet 0x%x#0x%x to %v, disconnecting: %v", hctx.respPacketType, hctx.reqType, sc.conn.remoteAddr, err)
@@ -761,6 +743,19 @@ func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns con
 			}
 			sc.releaseHandlerCtx(hctx)
 		}
+		if (sent && !sentNow) || shouldStop {
+			if err := sc.flush(); err != nil {
+				return nil
+			}
+			if shouldStop {
+				if debugPrint {
+					fmt.Printf("%v server %p conn %p sendLoop stop\n", time.Now(), s, sc)
+				}
+				return nil
+			}
+		}
+		sent = sentNow
+		sc.mu.Lock()
 	}
 }
 
@@ -791,7 +786,6 @@ func (s *Server) doSyncHandler(ctx context.Context, hctx *HandlerContext) error 
 			return err
 		}
 		hctx.noResult = true
-		hctx.Response = append(hctx.Response, 0) // only to prevent logging in prepareResponse. Nothing is sent.
 		hctx.serverConn.cancelLongpollResponse(queryID)
 		return nil
 	case PacketTypeRPCPing:
@@ -819,7 +813,6 @@ func (s *Server) doSyncHandler(ctx context.Context, hctx *HandlerContext) error 
 		return s.opts.SyncHandler(ctx, hctx)
 	}
 	hctx.noResult = true
-	hctx.Response = append(hctx.Response, 0) // only to prevent logging in prepareResponse. Nothing is sent.
 	s.rareLog(&s.lastPacketTypeLog, "unknown packet type 0x%x", hctx.reqHeader.tip)
 	return nil
 }
@@ -866,38 +859,63 @@ func (s *Server) doHandle(ctx context.Context, hctx *HandlerContext) error {
 }
 
 func (hctx *HandlerContext) prepareResponse(err error) {
-	if err == nil {
-		if len(hctx.Response) == 0 {
-			// Handler should return ErrNoHandler if it does not know how to return response
-			hctx.serverConn.server.opts.Logf("rpc: handler returned empty response with no error query #%v to 0x%x", hctx.queryID, hctx.reqType)
+	if err = hctx.prepareResponseBody(err); err == nil {
+		return
+	}
+	// Too large packet. Very rare.
+	hctx.Response = hctx.Response[:0]
+	if err = hctx.prepareResponseBody(err); err != nil {
+		panic("prepareResponse with too large error is too large")
+	}
+}
+
+func (hctx *HandlerContext) prepareResponseBody(err error) error {
+	resp := hctx.Response
+	if err != nil {
+		respErr := Error{}
+		switch {
+		case err == ErrNoHandler: // this case is only to include reqType into description
+			respErr.Code = TlErrorNoHandler
+			respErr.Description = fmt.Sprintf("RPC handler for #%08x not found", hctx.reqType)
+		case errors.As(err, &respErr):
+			// OK, forward the error as-is
+		case errors.Is(err, context.DeadlineExceeded):
+			respErr.Code = TlErrorTimeout
+			respErr.Description = fmt.Sprintf("%s (server-adjusted request timeout was %v)", err.Error(), hctx.timeout)
+		default:
+			respErr.Code = TlErrorUnknown
+			respErr.Description = err.Error()
 		}
-		return
-	}
-	respErr := Error{}
-	switch {
-	case err == ErrNoHandler: // this case is only to include reqType into description
-		respErr.Code = TlErrorNoHandler
-		respErr.Description = fmt.Sprintf("RPC handler for #%08x not found", hctx.reqType)
-	case errors.As(err, &respErr):
-		// OK, forward the error as-is
-	case errors.Is(err, context.DeadlineExceeded):
-		respErr.Code = TlErrorTimeout
-		respErr.Description = fmt.Sprintf("%s (server-adjusted request timeout was %v)", err.Error(), hctx.timeout)
-	default:
-		respErr.Code = TlErrorUnknown
-		respErr.Description = err.Error()
-	}
 
-	if hctx.noResult {
-		hctx.serverConn.server.opts.Logf("rpc: failed to handle no_result query #%v to 0x%x: %s", hctx.queryID, hctx.reqType, respErr.Error())
-		return
-	}
+		if hctx.noResult {
+			hctx.serverConn.server.opts.Logf("rpc: failed to handle no_result query #%v to 0x%x: %s", hctx.queryID, hctx.reqType, respErr.Error())
+			return nil
+		}
 
-	resp := hctx.Response[:0]
-	resp = basictl.NatWrite(resp, reqResultErrorTag) // vkext compatibility hack instead of
-	resp = basictl.LongWrite(resp, hctx.queryID)     // packetTypeRPCReqError in packet header
-	resp = basictl.IntWrite(resp, respErr.Code)
-	hctx.Response = basictl.StringWriteTruncated(resp, respErr.Description)
+		resp = resp[:0]
+		resp = basictl.NatWrite(resp, reqResultErrorTag) // vkext compatibility hack instead of
+		resp = basictl.LongWrite(resp, hctx.queryID)     // packetTypeRPCReqError in packet header
+		resp = basictl.IntWrite(resp, respErr.Code)
+		resp = basictl.StringWriteTruncated(resp, respErr.Description)
+	}
+	if hctx.noResult { //We do not care what is in Response, might be any trash
+		return nil
+	}
+	if len(resp) == 0 {
+		// Handler should return ErrNoHandler if it does not know how to return response
+		hctx.serverConn.server.opts.Logf("rpc: handler returned empty response with no error query #%v to 0x%x", hctx.queryID, hctx.reqType)
+	}
+	hctx.extraStart = len(resp)
+	if hctx.respPacketType == packetTypeRPCReqResult || hctx.respPacketType == packetTypeRPCReqError {
+		resp = basictl.LongWrite(resp, hctx.queryID)
+		hctx.ResponseExtra.Flags &= hctx.requestExtraFieldsmask // return only fields they understand
+		if hctx.respPacketType == packetTypeRPCReqResult && hctx.ResponseExtra.Flags != 0 {
+			resp = basictl.NatWrite(resp, reqResultHeaderTag)
+			resp, _ = hctx.ResponseExtra.Write(resp) // should be no errors during writing, though
+		}
+	}
+	hctx.Response = resp
+	return validBodyLen(len(resp))
 }
 
 func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err error) {

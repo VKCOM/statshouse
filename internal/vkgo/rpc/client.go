@@ -40,6 +40,8 @@ type Request struct {
 	ActorID uint64
 	Extra   InvokeReqExtra
 
+	extraStart int // We serialize extra after body into Body, then write into reversed order
+
 	ReadOnly bool // no side effects, can be retried by client
 
 	queryID   int64           // unique per client, assigned by client
@@ -174,12 +176,11 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 		// We consider it antipattern
 		return nil, nil, fmt.Errorf("sending no_result requests is not supported")
 	}
+	deadline, _ := ctx.Deadline()
 
-	if err := validPacketBodyLen(len(req.Body)); err != nil {
+	if err := preparePacket(req, deadline); err != nil {
 		return nil, nil, err
 	}
-
-	deadline, _ := ctx.Deadline()
 
 	c.mu.RLock()
 	// ------ to test RACE detector, replace lines below

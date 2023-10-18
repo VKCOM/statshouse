@@ -12,6 +12,7 @@ import (
 	"syscall"
 )
 
+// We want to dynamically set traffic class in Barsic and other projects, hence optimization with pc.tcpconn_fd
 func (pc *PacketConn) TCPSetsockoptInt(level int, opt int, value int) error {
 	if pc.tcpconn_fd == nil {
 		return nil
