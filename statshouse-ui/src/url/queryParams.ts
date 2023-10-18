@@ -16,7 +16,7 @@ import {
 } from '../api/enum';
 import { KeysTo, stringToTime, TIME_RANGE_KEYS_TO } from '../common/TimeRange';
 import { dequal } from 'dequal/lite';
-import { deepClone, isNotNil, toNumber, toString } from '../common/helpers';
+import { deepClone, isNotNil, sortEntity, toNumber, toString, uniqueArray } from '../common/helpers';
 import { globalSettings } from '../common/settings';
 
 export const filterInSep = '-';
@@ -635,15 +635,13 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
         const tagKey = toTagKey(s.substring(0, pos));
         const tagValue = s.substring(pos + 1);
         if (tagKey && tagValue) {
-          filterIn[tagKey] ??= [];
-          filterIn[tagKey]?.push(tagValue);
+          filterIn[tagKey] = sortEntity(uniqueArray([...(filterIn[tagKey] ?? []), tagValue]));
         }
       } else if (pos === -1 || (pos > pos2 && pos2 > -1)) {
         const tagKey = toTagKey(s.substring(0, pos2));
         const tagValue = s.substring(pos2 + 1);
         if (tagKey && tagValue) {
-          filterNotIn[tagKey] ??= [];
-          filterNotIn[tagKey]?.push(tagValue);
+          filterNotIn[tagKey] = sortEntity(uniqueArray([...(filterNotIn[tagKey] ?? []), tagValue]));
         }
       }
     });
