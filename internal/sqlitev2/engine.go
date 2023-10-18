@@ -25,6 +25,8 @@ type (
 
 		roConnPool  *connPool
 		readyNotify sync.Once
+
+		testOptions *testOptions
 	}
 
 	Options struct {
@@ -40,6 +42,9 @@ type (
 	BinlogOptions struct {
 		Replica     bool
 		ReadAndExit bool
+	}
+	testOptions struct {
+		sleep func()
 	}
 	ApplyEventFunction func(conn Conn, payload []byte) (int, error)
 )
@@ -255,9 +260,15 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 		return err
 	}
 	// todo calc wait lock duration
+	if e.testOptions != nil {
+		e.testOptions.sleep()
+	}
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
-	if e.readOnly {
+	if e.testOptions != nil {
+		e.testOptions.sleep()
+	}
+	if e.readOnly || e.opt.Replica {
 		return ErrReadOnly
 	}
 	err = e.rw.beginTxLocked()
@@ -284,6 +295,9 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 	offsetAfterWrite, err := e.binlog.Append(e.rw.dbOffset, bytes)
 	if err != nil {
 		return fmt.Errorf("binlog Append return error: %w", err)
+	}
+	if e.testOptions != nil {
+		e.testOptions.sleep()
 	}
 	return e.rw.binlogCommitTxLocked(offsetAfterWrite)
 }

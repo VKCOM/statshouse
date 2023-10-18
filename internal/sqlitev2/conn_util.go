@@ -9,8 +9,7 @@ import (
 
 const (
 	busyTimeout = 5 * time.Second
-	cacheKB     = 65536                         // 64MB
-	mmapSize    = 8 * 1024 * 1024 * 1024 * 1024 // 8TB
+	cacheKB     = 65536 // 64MB
 )
 
 func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path string, appID int32) (*sqlite0.Conn, error) {
@@ -23,14 +22,6 @@ func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path strin
 	if err != nil {
 		_ = conn.Close()
 		return nil, fmt.Errorf("failed to change DB cache size to %dKB: %w", cacheKB, err)
-	}
-
-	if false {
-		err = conn.Exec(fmt.Sprintf("PRAGMA mmap_size=%d", mmapSize))
-		if err != nil {
-			_ = conn.Close()
-			return nil, fmt.Errorf("failed to set DB mmap size to %d: %w", mmapSize, err)
-		}
 	}
 
 	err = conn.Exec(fmt.Sprintf("PRAGMA application_id=%d", appID)) // make DB ready to use snapshots
@@ -46,15 +37,6 @@ func open(path string, flags int) (*sqlite0.Conn, error) {
 	conn, err := sqlite0.Open(path, flags)
 	if err != nil {
 		return nil, err
-	}
-
-	// todo make checkpoint manually
-	if false {
-		err = conn.SetAutoCheckpoint(0)
-		if err != nil {
-			_ = conn.Close()
-			return nil, fmt.Errorf("failed to disable DB auto-checkpoints: %w", err)
-		}
 	}
 
 	err = conn.SetBusyTimeout(busyTimeout)
