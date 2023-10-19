@@ -6,6 +6,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
+        repository: VKCOM/statshouse
         fetch-depth: 0
     - id: main
       run: |
@@ -24,8 +25,35 @@ jobs:
       BUILD_TIME: ${{ steps.main.outputs.BUILD_TIME }}
       BUILD_VERSION: ${{ steps.main.outputs.BUILD_VERSION }}
       REACT_APP_BUILD_VERSION: ${{ steps.main.outputs.REACT_APP_BUILD_VERSION }}
-  back:
+  front:
     needs: env
+    runs-on: ubuntu-latest
+    container:
+      image: node:18
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        repository: VKCOM/statshouse
+        ref: ${{needs.env.outputs.BUILD_COMMIT}}
+        fetch-depth: 0
+    - run: |
+        REACT_APP_BUILD_VERSION=${{needs.env.outputs.BUILD_VERSION}}-${{needs.env.outputs.BUILD_TIME}}
+        make build-sh-ui
+    - uses: actions/upload-artifact@v3
+      with:
+        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-ui
+        path: |
+          statshouse-ui/build
+          .dummy_preserves_directory_structure
+    - run: make build-grafana-ui
+    - uses: actions/upload-artifact@v3
+      with:
+        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-ui
+        path: |
+          grafana-plugin-ui/dist
+          .dummy_preserves_directory_structure
+  back:
+    needs: [env, front]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -35,40 +63,24 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 1
-    - run: git config --system --add safe.directory /__w/statshouse/statshouse
+        repository: VKCOM/statshouse
+        ref: ${{needs.env.outputs.BUILD_COMMIT}}
+        fetch-depth: 0
+    - uses: actions/download-artifact@master
+      with:
+        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-ui
     - run: |
         BUILD_TIME=${{needs.env.outputs.BUILD_TIME}}
         BUILD_COMMIT=${{needs.env.outputs.BUILD_COMMIT}}
         BUILD_COMMIT_TS=${{needs.env.outputs.BUILD_COMMIT_TS}}
         BUILD_MACHINE=$(uname -n -m -r -s)
         BUILD_VERSION=${{needs.env.outputs.BUILD_VERSION}}
+        cp -r statshouse-ui/build cmd/statshouse-api/
         make build-sh build-sh-metadata build-sh-api build-sh-grafana
     - uses: actions/upload-artifact@v3
       with:
-        name: bin-${{ matrix.debian_release }}
+        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-${{ matrix.debian_release }}_amd64-bin
         path: target
-  front:
-    needs: env
-    runs-on: ubuntu-latest
-    container:
-      image: node:18
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
-    - run: |
-        REACT_APP_BUILD_VERSION=${{needs.env.outputs.BUILD_VERSION}}-${{needs.env.outputs.BUILD_TIME}}
-        make build-sh-ui
-    - uses: actions/upload-artifact@v3
-      with:
-        name: statshouse-ui
-        path: cmd/statshouse-api/build
-    - run: make build-grafana-ui
-    - uses: actions/upload-artifact@v3
-      with:
-        name: grafana-plugin-ui
-        path: grafana-plugin-ui/dist
   deb:
     needs: [env, back, front]
     runs-on: ubuntu-latest
@@ -84,19 +96,16 @@ jobs:
         rm -rf /var/lib/apt/lists/*
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 1
+        repository: VKCOM/statshouse
+        ref: ${{needs.env.outputs.BUILD_COMMIT}}
+        fetch-depth: 0
     - uses: actions/download-artifact@master
       with:
-        name: bin-${{ matrix.debian_release }}
+        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-${{ matrix.debian_release }}_amd64-bin
         path: target
     - uses: actions/download-artifact@master
       with:
-        name: statshouse-ui
-        path: statshouse-ui/build
-    - uses: actions/download-artifact@master
-      with:
-        name: grafana-plugin-ui
-        path: grafana-plugin-ui/dist
+        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-ui
     - working-directory: build
       run: |
         rm -f changelog
@@ -105,5 +114,8 @@ jobs:
         debuild --no-lintian -us -uc -b
     - uses: actions/upload-artifact@v3
       with:
-        name: deb-${{ matrix.debian_release }}
-        path: ./*.deb
+        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-${{ matrix.debian_release }}_amd64-deb
+        path: |
+          statshouse_*.deb
+          statshouse-api_*.deb
+          statshouse-metadata_*.deb
