@@ -6,7 +6,14 @@
 
 import React, { ChangeEvent, memo, useCallback, useEffect, useMemo, useState } from 'react';
 import * as utils from '../../view/utils';
-import { getTagDescription, getTimeShifts, isTagEnabled, promQLMetric, timeShiftAbbrevExpand } from '../../view/utils';
+import {
+  getMetricFullName,
+  getTagDescription,
+  getTimeShifts,
+  isTagEnabled,
+  promQLMetric,
+  timeShiftAbbrevExpand,
+} from '../../view/utils';
 import {
   PlotControlFrom,
   PlotControlTimeShifts,
@@ -38,9 +45,10 @@ import { MetricMetaValue } from '../../api/metric';
 import { isTagKey, QueryWhat, TAG_KEY, TagKey } from '../../api/enum';
 import { debug } from '../../common/debug';
 import { shallow } from 'zustand/shallow';
-import { PLOT_TYPE, PlotParams, toPlotKey, toTagKey, VariableParams } from '../../url/queryParams';
+import { decodeParams, PLOT_TYPE, PlotParams, toPlotKey, toTagKey, VariableParams } from '../../url/queryParams';
 import { dequal } from 'dequal/lite';
 import { PlotControlAggregation } from './PlotControlAggregation';
+import { isNotNil, toNumber } from '../../common/helpers';
 
 const { setParams, setTimeRange, setPlotParams, setPlotParamsTag, setPlotParamsTagGroupBy } = useStore.getState();
 
@@ -51,6 +59,22 @@ const selectorControls = ({ params, timeRange, plotsData }: Store) => ({
 });
 
 const emptyTagsList = {};
+
+const eventPreset: SelectOptionProps[] = globalSettings.event_preset
+  .map((url, index) => {
+    const parseParams = decodeParams([...new URLSearchParams(url).entries()]);
+    if (parseParams.plots.length) {
+      const p = parseParams.plots[0];
+      const fullName =
+        p.metricName !== promQLMetric
+          ? p.metricName + ': ' + p.what.map((qw) => whatToWhatDesc(qw)).join(', ')
+          : `preset #${index}`;
+      const name = p.customName || fullName;
+      return { value: url, name };
+    }
+    return null;
+  })
+  .filter(isNotNil);
 
 export const PlotControls = memo(function PlotControls_(props: {
   indexPlot: number;
@@ -195,24 +219,30 @@ export const PlotControls = memo(function PlotControls_(props: {
   );
 
   const eventPlotList = useMemo<SelectOptionProps[]>(() => {
+    const eventPresetFilter = eventPreset.filter(({ value }) => {
+      const presetPlot = decodeParams([...new URLSearchParams(value).entries()]).plots[0];
+      if (presetPlot) {
+        let index = params.plots.findIndex((plot) => dequal(plot, presetPlot));
+        return index < 0;
+      }
+      return false;
+    });
     const eventPlots: SelectOptionProps[] = params.plots
       .map((p, indexP) => [p, indexP] as [PlotParams, number])
       .filter(([p]) => p.type === PLOT_TYPE.Event && p.metricName !== '')
       .map(([p, indexP]) => {
-        const metricName =
-          p.customName || (p.metricName !== promQLMetric ? p.metricName : plotsData[indexP].nameMetric);
-        const what =
-          p.metricName === promQLMetric
-            ? plotsData[indexP].whats.map((qw) => whatToWhatDesc(qw)).join(', ')
-            : p.what.map((qw) => whatToWhatDesc(qw)).join(', ');
-        const name = metricName + (what ? ': ' + what : '');
+        const name = getMetricFullName(p, plotData);
         return {
           value: indexP.toString(),
           name,
         };
       });
+    if (eventPlots.length && eventPresetFilter.length) {
+      eventPlots.unshift({ splitter: true, value: '', name: '', disabled: true });
+    }
+    eventPlots.unshift(...eventPresetFilter);
     return eventPlots;
-  }, [params.plots, plotsData]);
+  }, [params.plots, plotData]);
 
   // keep meta up-to-date when sel.metricName changes (e.g. because of navigation)
   useEffect(() => {
@@ -340,10 +370,29 @@ export const PlotControls = memo(function PlotControls_(props: {
 
   const eventsChange = useCallback(
     (value: string | string[] = []) => {
-      setPlotParams(
-        indexPlot,
-        produce((s) => {
-          s.events = Array.isArray(value) ? value.map((v) => parseInt(v)) : [parseInt(value)];
+      const valuesEvent: number[] = [];
+      const valuesEventPreset: PlotParams[] = [];
+
+      (Array.isArray(value) ? value : [value]).forEach((v) => {
+        const iPlot = toNumber(v);
+        if (iPlot != null) {
+          valuesEvent.push(iPlot);
+        } else {
+          valuesEventPreset.push(decodeParams([...new URLSearchParams(v).entries()]).plots[0]);
+        }
+      });
+      setParams(
+        produce((p) => {
+          valuesEventPreset.forEach((preset) => {
+            let index = p.plots.findIndex((plot) => dequal(plot, preset));
+            if (index < 0) {
+              index = p.plots.push(preset) - 1;
+            }
+            valuesEvent.push(index);
+          });
+          if (p.plots[indexPlot]) {
+            p.plots[indexPlot].events = [...valuesEvent];
+          }
         })
       );
     },
