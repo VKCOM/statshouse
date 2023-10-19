@@ -22,6 +22,7 @@ import { PLOT_TYPE } from '../../url/queryParams';
 import { setPlotVisibility, setPreviewVisibility, usePlotVisibilityStore } from '../../store/plot/plotVisibilityStore';
 import { buildThresholdList, useIntersectionObserver } from '../../hooks';
 import { usePlotPreview } from '../../store/plot/plotPreview';
+import { Popper } from '../UI';
 
 const threshold = buildThresholdList(1);
 
@@ -144,40 +145,41 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
           </div>
         )}
       </PlotLink>
-
-      <ul hidden={!open} className={cn(`nav d-flex flex-column position-absolute start-100 top-0`, css.sub)} ref={sub}>
-        <li className={cn('nav-item d-flex flex-row', css.bigPreview)}>
-          <PlotLink
-            className="nav-link text-nowrap flex-grow-1 text-body fw-bold font-monospace text-decoration-none d-flex flex-row w-0"
-            indexPlot={indexPlot}
-            title={title}
-          >
-            {plot.customName ? (
-              <span className="text-truncate">{plot.customName}</span>
-            ) : (
-              <>
-                <span className="text-truncate">{metricName}</span>
-                {!!metricName && !!what && (
-                  <>
-                    <span className="pe-1">:</span>
-                    <span className="text-secondary text-truncate">{what}</span>
-                  </>
-                )}
-              </>
+      <Popper targetRef={itemRef} fixed={false} horizontal={'out-right'} vertical={'top'} show={open}>
+        <ul className={cn(`nav d-flex flex-column`, css.sub)} ref={sub}>
+          <li className={cn('nav-item d-flex flex-row', css.bigPreview)}>
+            <PlotLink
+              className="nav-link text-nowrap flex-grow-1 text-body fw-bold font-monospace text-decoration-none d-flex flex-row w-0"
+              indexPlot={indexPlot}
+              title={title}
+            >
+              {plot.customName ? (
+                <span className="text-truncate">{plot.customName}</span>
+              ) : (
+                <>
+                  <span className="text-truncate">{metricName}</span>
+                  {!!metricName && !!what && (
+                    <>
+                      <span className="pe-1">:</span>
+                      <span className="text-secondary text-truncate">{what}</span>
+                    </>
+                  )}
+                </>
+              )}
+            </PlotLink>
+            {plotCount > 1 && (
+              <span role="button" title="Remove" className="d-block p-2 text-body" onClick={onRemovePlot}>
+                <SVGTrash />
+              </span>
             )}
-          </PlotLink>
-          {plotCount > 1 && (
-            <span role="button" title="Remove" className="d-block p-2 text-body" onClick={onRemovePlot}>
-              <SVGTrash />
-            </span>
-          )}
-        </li>
-        {!!preview && !plotData.error403 && (
-          <li className="nav-item p-1">
-            <img alt={title} src={preview} className={css.bigPreview} />
           </li>
-        )}
-      </ul>
+          {!!preview && !plotData.error403 && (
+            <li className="nav-item p-1">
+              <img alt={title} src={preview} className={css.bigPreview} />
+            </li>
+          )}
+        </ul>
+      </Popper>
     </li>
   );
 };

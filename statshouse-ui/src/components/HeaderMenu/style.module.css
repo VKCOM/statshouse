@@ -20,8 +20,9 @@
 }
 
 .navOuter {
-  min-height: 100vh;
+  height: 100vh;
   background-color: var(--headerMenuColorBg);
+  max-width: 60px;
 }
 
 .nav {
@@ -48,9 +49,14 @@
 }
 
 .plotItem {
+  transform: translate3d(0, 0, 0);
   margin-bottom: -1px;
+  width: 100%;
   border-bottom: var(--bs-border-width) var(--bs-border-style) var(--headerMenuColorBorder);
   border-top: var(--bs-border-width) var(--bs-border-style) var(--headerMenuColorBorder);
+}
+.plotItem:last-child {
+  margin-bottom: 0;
 }
 
 .activePlotItem {
@@ -66,11 +72,17 @@
 }
 
 .preview {
+  display: block;
   height: 37px;
-  width: 60px;
+  width: 100%;
+  max-width: 100%;
   margin-top: 5px;
   margin-bottom: 4px;
 }
+
+.preview {
+}
+
 .previewEvent {
 }
 
@@ -89,6 +101,26 @@
 
 .secondDanger {
   --bs-secondary-rgb: var(--bs-danger-rgb);
+}
+.scrollStyle {
+  --scroll-size: 4px;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+.scrollStyle::-webkit-scrollbar {
+  height: var(--scroll-size);
+  width: var(--scroll-size);
+  background: transparent;
+}
+.scrollStyle::-webkit-scrollbar-thumb {
+  background: var(--bs-tertiary-color);
+  border-radius: calc(var(--scroll-size) / 2);
+}
+.scrollStyle::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollStyle::-webkit-scrollbar-corner {
+  background-color: var(--bs-tertiary-color);
 }
 
 @media screen and (max-width: 767.98px) {

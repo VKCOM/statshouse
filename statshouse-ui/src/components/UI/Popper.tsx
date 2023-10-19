@@ -80,11 +80,18 @@ function checkVertical(
 ): PopperVertical | false {
   const topHeight = targetRect.y - windowRect.scrollY;
   const bottomHeight = windowRect.height - (targetRect.y + targetRect.height - windowRect.scrollY);
+
   switch (vertical) {
-    case POPPER_VERTICAL.top:
-    case POPPER_VERTICAL.bottom:
     case POPPER_VERTICAL.middle:
-      return vertical;
+      return (
+        (innerRect.height - targetRect.height) / 2 <= bottomHeight &&
+        (innerRect.height - targetRect.height) / 2 <= topHeight &&
+        vertical
+      );
+    case POPPER_VERTICAL.top:
+      return innerRect.height - targetRect.height <= bottomHeight && vertical;
+    case POPPER_VERTICAL.bottom:
+      return innerRect.height - targetRect.height <= topHeight && vertical;
     case POPPER_VERTICAL.outTop:
       return innerRect.height <= topHeight && vertical;
     case POPPER_VERTICAL.outBottom:
@@ -181,10 +188,20 @@ export function _Popper({
     }
 
     switch (vertical) {
-      case POPPER_VERTICAL.top:
-      case POPPER_VERTICAL.bottom:
       case POPPER_VERTICAL.middle:
-        setVerticalClass(vertical);
+        setVerticalClass(
+          checkV(POPPER_VERTICAL.middle) || checkV(POPPER_VERTICAL.top) || checkV(POPPER_VERTICAL.bottom) || vertical
+        );
+        break;
+      case POPPER_VERTICAL.top:
+        setVerticalClass(
+          checkV(POPPER_VERTICAL.top) || checkV(POPPER_VERTICAL.middle) || checkV(POPPER_VERTICAL.bottom) || vertical
+        );
+        break;
+      case POPPER_VERTICAL.bottom:
+        setVerticalClass(
+          checkV(POPPER_VERTICAL.bottom) || checkV(POPPER_VERTICAL.middle) || checkV(POPPER_VERTICAL.top) || vertical
+        );
         break;
       case POPPER_VERTICAL.outTop:
         setVerticalClass(checkV(POPPER_VERTICAL.outTop) || checkV(POPPER_VERTICAL.outBottom) || vertical);
