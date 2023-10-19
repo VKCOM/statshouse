@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import produce from 'immer';
+import { produce } from 'immer';
 import { getMetricFullName, isValidVariableName, promQLMetric } from '../../view/utils';
 import React, { useCallback, useEffect, useState } from 'react';
 import { PlotStore } from '../../store';

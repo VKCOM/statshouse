@@ -13,7 +13,7 @@ import { LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPr
 import { fmtInputDateTime, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { queryURLCSV } from '../../view/api';
 import { black, grey, greyDark } from '../../view/palette';
-import produce from 'immer';
+import { produce } from 'immer';
 import {
   PlotValues,
   selectorBaseRange,

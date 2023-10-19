@@ -14,7 +14,7 @@ import {
   selectorSetParams,
   useStore,
 } from '../../store';
-import produce from 'immer';
+import { produce } from 'immer';
 import { useNavigate } from 'react-router-dom';
 
 export type DashboardInfoProps = {};

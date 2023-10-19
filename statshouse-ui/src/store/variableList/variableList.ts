@@ -192,14 +192,17 @@ export async function updateVariable(variableParam: VariableParams) {
   const list = Object.values(
     lists
       .flatMap((l) => l.values)
-      .reduce((res, t) => {
-        if (res[t.value]) {
-          res[t.value].count += t.count;
-        } else {
-          res[t.value] = { ...t };
-        }
-        return res;
-      }, {} as Record<string, MetricTagValueInfo>)
+      .reduce(
+        (res, t) => {
+          if (res[t.value]) {
+            res[t.value].count += t.count;
+          } else {
+            res[t.value] = { ...t };
+          }
+          return res;
+        },
+        {} as Record<string, MetricTagValueInfo>
+      )
   );
   useVariableListStore.setState((state) => {
     if (state.variables[variableParam.name]) {

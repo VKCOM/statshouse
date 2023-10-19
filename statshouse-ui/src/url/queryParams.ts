@@ -16,7 +16,7 @@ import {
 } from '../api/enum';
 import { KeysTo, stringToTime, TIME_RANGE_KEYS_TO } from '../common/TimeRange';
 import { dequal } from 'dequal/lite';
-import { deepClone, isNotNil, toNumber, toString } from '../common/helpers';
+import { deepClone, isNotNil, sortEntity, toNumber, toString, uniqueArray } from '../common/helpers';
 import { globalSettings } from '../common/settings';
 
 export const filterInSep = '-';
@@ -40,11 +40,14 @@ export const parseTagSync = (s?: string) => {
     return null;
   }
   return [
-    ...s.split('-').reduce((res, t) => {
-      const [plot, tagKey] = t.split('.').map((r) => parseInt(r));
-      res[plot] = tagKey;
-      return res;
-    }, [] as (number | null)[]),
+    ...s.split('-').reduce(
+      (res, t) => {
+        const [plot, tagKey] = t.split('.').map((r) => parseInt(r));
+        res[plot] = tagKey;
+        return res;
+      },
+      [] as (number | null)[]
+    ),
   ].map((s) => s ?? null);
 };
 
@@ -541,11 +544,14 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
 }
 
 export function decodeParams(searchParams: [string, string][], defaultParams?: QueryParams): QueryParams {
-  const urlParams = searchParams.reduce((res, [key, value]) => {
-    res[key] ??= [];
-    res[key]?.push(value);
-    return res;
-  }, {} as Partial<Record<string, string[]>>);
+  const urlParams = searchParams.reduce(
+    (res, [key, value]) => {
+      res[key] ??= [];
+      res[key]?.push(value);
+      return res;
+    },
+    {} as Partial<Record<string, string[]>>
+  );
 
   const live = urlParams[GET_PARAMS.metricLive]?.[0] === '1';
 
@@ -629,15 +635,13 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
         const tagKey = toTagKey(s.substring(0, pos));
         const tagValue = s.substring(pos + 1);
         if (tagKey && tagValue) {
-          filterIn[tagKey] ??= [];
-          filterIn[tagKey]?.push(tagValue);
+          filterIn[tagKey] = sortEntity(uniqueArray([...(filterIn[tagKey] ?? []), tagValue]));
         }
       } else if (pos === -1 || (pos > pos2 && pos2 > -1)) {
         const tagKey = toTagKey(s.substring(0, pos2));
         const tagValue = s.substring(pos2 + 1);
         if (tagKey && tagValue) {
-          filterNotIn[tagKey] ??= [];
-          filterNotIn[tagKey]?.push(tagValue);
+          filterNotIn[tagKey] = sortEntity(uniqueArray([...(filterNotIn[tagKey] ?? []), tagValue]));
         }
       }
     });

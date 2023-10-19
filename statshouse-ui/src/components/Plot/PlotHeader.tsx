@@ -7,7 +7,7 @@
 import React, { Dispatch, memo, SetStateAction, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
-import produce from 'immer';
+import { produce } from 'immer';
 import { useStore } from '../../store';
 import cn from 'classnames';
 import css from './style.module.css';

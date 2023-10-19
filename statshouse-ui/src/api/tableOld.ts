@@ -96,7 +96,7 @@ export async function apiTable(
               Object.fromEntries(
                 Object.entries(value.tags).map(([tagKey, tagValue]) => [freeKeyPrefix(tagKey), tagValue])
               ),
-          } as queryTableRow)
+          }) as queryTableRow
       ) ?? null,
     rowsNormalize: apiTableRowNormalize(plot, result),
   };

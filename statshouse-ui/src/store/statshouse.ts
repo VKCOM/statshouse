@@ -9,7 +9,7 @@ import uPlot from 'uplot';
 import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
 import { dequal } from 'dequal/lite';
 import React from 'react';
-import produce, { setAutoFreeze } from 'immer';
+import { produce, setAutoFreeze } from 'immer';
 import {
   apiGet,
   apiPost,
@@ -408,6 +408,11 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
 
       if (globalSettings.disabled_v1) {
         params.plots = params.plots.map((item) => (item.useV2 ? item : { ...item, useV2: true }));
+        reset = true;
+      }
+      const paramsFix = normalizeParamsGroupCount(params);
+      if (params.dashboard !== paramsFix.dashboard) {
+        params = paramsFix;
         reset = true;
       }
 
@@ -956,12 +961,15 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                 legendMaxHostWidth = Math.max(legendMaxHostWidth, full - p75 > 20 ? p75 : full);
               }
               const max_host_map =
-                meta.max_hosts?.reduce((res, host) => {
-                  if (host) {
-                    res[host] = (res[host] ?? 0) + 1;
-                  }
-                  return res;
-                }, {} as Record<string, number>) ?? {};
+                meta.max_hosts?.reduce(
+                  (res, host) => {
+                    if (host) {
+                      res[host] = (res[host] ?? 0) + 1;
+                    }
+                    return res;
+                  },
+                  {} as Record<string, number>
+                ) ?? {};
               const max_host_total = meta.max_hosts?.filter(Boolean).length ?? 1;
               seriesShow[indexMeta] =
                 currentPrevSeries[indexMeta]?.label === label ? currentPrevSeriesShow[indexMeta] : true;
@@ -1089,21 +1097,27 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
               scales.y = { ...lastPlotParams.yLock };
             }
 
-            const maxLengthValue = series.reduce((res, s, indexSeries) => {
-              if (s.show) {
-                const v =
-                  (data[indexSeries + 1] as (number | null)[] | undefined)?.reduce((res2, d) => {
-                    if (d && (res2?.toString().length ?? 0) < d.toString().length) {
-                      return d;
-                    }
-                    return res2;
-                  }, null as null | number) ?? null;
-                if (v && (v.toString().length ?? 0) > (res?.toString().length ?? 0)) {
-                  return v;
+            const maxLengthValue = series.reduce(
+              (res, s, indexSeries) => {
+                if (s.show) {
+                  const v =
+                    (data[indexSeries + 1] as (number | null)[] | undefined)?.reduce(
+                      (res2, d) => {
+                        if (d && (res2?.toString().length ?? 0) < d.toString().length) {
+                          return d;
+                        }
+                        return res2;
+                      },
+                      null as null | number
+                    ) ?? null;
+                  if (v && (v.toString().length ?? 0) > (res?.toString().length ?? 0)) {
+                    return v;
+                  }
                 }
-              }
-              return res;
-            }, null as null | number);
+                return res;
+              },
+              null as null | number
+            );
 
             const [yMinAll, yMaxAll] = calcYRange2(series, data, false);
             const legendExampleValue = Math.max(
@@ -1547,105 +1561,16 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         store: { plotsData, events, params },
         remapIndexPlot,
       } = moveAndResortPlot(getState(), indexSelectPlot, indexTargetPlot, indexGroup);
-      // const groups: number[] =
-      //   prevState.params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
-      // if (groups.length !== prevState.params.plots.length) {
-      //   while (groups.length < prevState.params.plots.length) {
-      //     groups.push(Math.max(0, (prevState.params.dashboard?.groupInfo?.length ?? 0) - 1));
-      //   }
-      // }
-      // if (indexSelectPlot != null && indexGroup != null) {
-      //   groups[indexSelectPlot] = indexGroup;
-      // }
-      // const normalize = prevState.params.plots.map((plot, indexPlot) => ({
-      //   plot,
-      //   plotEventLink: plot.events.map((eId) => prevState.params.plots[eId]),
-      //   group: groups[indexPlot] ?? 0,
-      //   tagSync: prevState.params.tagSync.map((group, indexGroup) => ({ indexGroup, indexTag: group[indexPlot] })),
-      //   plotsData: prevState.plotsData[indexPlot],
-      //   plotsEvent: prevState.events[indexPlot],
-      //   oldIndex: indexPlot,
-      // }));
-      // if (indexSelectPlot != null && indexTargetPlot != null && indexSelectPlot !== indexTargetPlot) {
-      //   const [drop] = normalize.splice(indexSelectPlot, 1);
-      //   normalize.splice(
-      //     indexSelectPlot < indexTargetPlot ? Math.max(0, indexTargetPlot - 1) : indexTargetPlot,
-      //     0,
-      //     drop
-      //   );
-      // } else if (indexSelectPlot != null && indexTargetPlot == null) {
-      //   const [drop] = normalize.splice(indexSelectPlot, 1);
-      //   normalize.push(drop);
-      // }
-      // const resort = normalize.sort(sortByKey.bind(undefined, 'group'));
-      // const plots = resort.map(({ plot }) => plot);
-      // const plotsData = resort.map(({ plotsData }) => plotsData);
-      // const plotsEvent = resort.map(({ plotsEvent }) => plotsEvent);
-      // const plotEventLink = resort.map(({ plotEventLink }) => plotEventLink.map((eP) => plots.indexOf(eP)));
-      // const remapIndexPlot = resort.reduce((res, { oldIndex }, newIndex) => {
-      //   res[oldIndex] = newIndex;
-      //   return res;
-      // }, {} as Record<string, number>);
-      // const variables: VariableParams[] = prevState.params.variables.map((variable) => ({
-      //   ...variable,
-      //   link: variable.link.map(([plotKey, tagKey]) => {
-      //     let indexP = toNumber(plotKey);
-      //     return [toPlotKey(indexP == null ? indexP : remapIndexPlot[indexP]) ?? plotKey, tagKey];
-      //   }),
-      // }));
-      // const tagSync = resort.reduce((res, item, indexPlot) => {
-      //   item.tagSync.forEach(({ indexGroup, indexTag }) => {
-      //     res[indexGroup] = res[indexGroup] ?? [];
-      //     res[indexGroup][indexPlot] = indexTag;
-      //   });
-      //   return res;
-      // }, [] as (number | null)[][]);
-      resortPlotPreview(remapIndexPlot);
-      resortPlotVisibility(remapIndexPlot);
+
+      if (remapIndexPlot) {
+        resortPlotPreview(remapIndexPlot);
+        resortPlotVisibility(remapIndexPlot);
+      }
       setState((state) => {
         state.plotsData = plotsData;
         state.events = events;
       });
       prevState.setParams(params);
-
-      // produce((params) => {
-      //   params.plots = plots.map((p, indexP) => ({
-      //     ...p,
-      //     events: plotEventLink[indexP].filter((i) => i > -1) ?? [],
-      //   }));
-      //   params.tagSync = tagSync;
-      //   params.variables = variables;
-      //   if (params.dashboard && indexGroup != null) {
-      //     params.dashboard.groupInfo = params.dashboard.groupInfo ?? [];
-      //     params.dashboard.groupInfo[indexGroup] = params.dashboard.groupInfo[indexGroup] ?? {
-      //       name: '',
-      //       count: 0,
-      //       show: true,
-      //       size: 2,
-      //     };
-      //     for (let i = 0, max = params.dashboard.groupInfo.length; i < max; i++) {
-      //       if (!params.dashboard.groupInfo[i]) {
-      //         params.dashboard.groupInfo[i] = {
-      //           name: '',
-      //           count: 0,
-      //           show: true,
-      //           size: '2',
-      //         };
-      //       }
-      //     }
-      //
-      //     params.dashboard.groupInfo = params.dashboard.groupInfo.map((g, index) => ({
-      //       ...g,
-      //       count:
-      //         groups.reduce((res: number, item) => {
-      //           if (item === index) {
-      //             res = res + 1;
-      //           }
-      //           return res;
-      //         }, 0 as number) ?? 0,
-      //     }));
-      //   }
-      // })
     },
     dashboardLayoutEdit: false,
     setDashboardLayoutEdit(nextStatus: boolean) {
@@ -1942,7 +1867,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                           Object.fromEntries(
                             Object.entries(value.tags).map(([tagKey, tagValue]) => [freeKeyPrefix(tagKey), tagValue])
                           ),
-                      } as queryTableRow)
+                      }) as queryTableRow
                   ) ?? null,
               };
               if (chunk.more) {
@@ -1976,7 +1901,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                           state.events[indexPlot].what.map((whatKey, indexWhat) => [whatKey, row.data[indexWhat]])
                         ),
                         ...row.tags,
-                      } as EventDataRow)
+                      }) as EventDataRow
                   ) ?? []
               );
 
@@ -2074,10 +1999,13 @@ export function setNegativeVariable(nameVariable: string | undefined, value: boo
 export function setVariable(variables: VariableParams[]) {
   useStore.getState().setParams(
     produce((p) => {
-      const newVariable = variables.reduce((res, { name }) => {
-        res[name] = true;
-        return res;
-      }, {} as Record<string, boolean>);
+      const newVariable = variables.reduce(
+        (res, { name }) => {
+          res[name] = true;
+          return res;
+        },
+        {} as Record<string, boolean>
+      );
       p.variables.forEach((variable) => {
         if (!newVariable[variable.name]) {
           variable.link.forEach(([plotKey, tagKey]) => {
@@ -2146,6 +2074,9 @@ export function moveAndResortPlot(
 ) {
   //normalize group length
   prevState = normalizeGroupCount(prevState);
+  if (indexGroup != null && indexGroup < 0) {
+    return { store: prevState, remapIndexPlot: remapIndexPlot };
+  }
   const groups: number[] =
     prevState.params.dashboard?.groupInfo?.flatMap((g, indexG) => new Array(g.count).fill(indexG)) ?? [];
   if (groups.length !== prevState.params.plots.length) {
@@ -2182,14 +2113,20 @@ export function moveAndResortPlot(
   const plotsData = resort.map(({ plotsData }) => plotsData);
   const plotsEvent = resort.map(({ plotsEvent }) => plotsEvent);
   const plotEventLink = resort.map(({ plotEventLink }) => plotEventLink.map((eP) => plots.indexOf(eP)));
-  const localRemapIndexPlot = resort.reduce((res, { oldIndex }, newIndex) => {
-    res[oldIndex] = newIndex;
-    return res;
-  }, {} as Record<string, number>);
-  const globalRemapIndexPlot = resort.reduce((res, { remapIndex }, newIndex) => {
-    res[remapIndex] = newIndex;
-    return res;
-  }, {} as Record<string, number>);
+  const localRemapIndexPlot = resort.reduce(
+    (res, { oldIndex }, newIndex) => {
+      res[oldIndex] = newIndex;
+      return res;
+    },
+    {} as Record<string, number>
+  );
+  const globalRemapIndexPlot = resort.reduce(
+    (res, { remapIndex }, newIndex) => {
+      res[remapIndex] = newIndex;
+      return res;
+    },
+    {} as Record<string, number>
+  );
   const variables: VariableParams[] = prevState.params.variables.map((variable) => ({
     ...variable,
     link: variable.link.map(([plotKey, tagKey]) => {
@@ -2197,13 +2134,16 @@ export function moveAndResortPlot(
       return [toPlotKey(indexP == null ? indexP : localRemapIndexPlot[indexP]) ?? plotKey, tagKey];
     }),
   }));
-  const tagSync = resort.reduce((res, item, indexPlot) => {
-    item.tagSync.forEach(({ indexGroup, indexTag }) => {
-      res[indexGroup] = res[indexGroup] ?? [];
-      res[indexGroup][indexPlot] = indexTag;
-    });
-    return res;
-  }, [] as (number | null)[][]);
+  const tagSync = resort.reduce(
+    (res, item, indexPlot) => {
+      item.tagSync.forEach(({ indexGroup, indexTag }) => {
+        res[indexGroup] = res[indexGroup] ?? [];
+        res[indexGroup][indexPlot] = indexTag;
+      });
+      return res;
+    },
+    [] as (number | null)[][]
+  );
   // resortPlotPreview(remapIndexPlot);
   // resortPlotVisibility(remapIndexPlot);
   const nextStore = produce(prevState, (state) => {
@@ -2258,29 +2198,33 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
   const count = group.count ?? 0;
   const targetCount = targetGroup.count ?? 0;
   if (targetCount === 0) {
-    useStore.getState().setParams(
-      produce((p) => {
-        if (p.dashboard?.groupInfo) {
-          const g = p.dashboard.groupInfo[indexGroup];
-          p.dashboard.groupInfo[indexGroup] = { ...p.dashboard.groupInfo[indexGroup + direction], count: 0 };
-          p.dashboard.groupInfo[indexGroup + direction] = g;
-        }
-      })
-    );
+    store = produce(store, (p) => {
+      if (p.params.dashboard?.groupInfo) {
+        const g = p.params.dashboard.groupInfo[indexGroup];
+        p.params.dashboard.groupInfo[indexGroup] = {
+          ...p.params.dashboard.groupInfo[indexGroup + direction],
+          count: 0,
+        };
+        p.params.dashboard.groupInfo[indexGroup + direction] = g;
+      }
+    });
+    useStore.getState().setParams(store.params);
   } else if (count === 0) {
-    useStore.getState().setParams(
-      produce((p) => {
-        if (p.dashboard?.groupInfo) {
-          const g = p.dashboard.groupInfo[indexGroup + direction];
-          p.dashboard.groupInfo[indexGroup + direction] = { ...p.dashboard.groupInfo[indexGroup], count: 0 };
-          p.dashboard.groupInfo[indexGroup] = g;
-        }
-      })
-    );
+    store = produce(store, (p) => {
+      if (p.params.dashboard?.groupInfo) {
+        const g = p.params.dashboard.groupInfo[indexGroup + direction];
+        p.params.dashboard.groupInfo[indexGroup + direction] = {
+          ...p.params.dashboard.groupInfo[indexGroup],
+          count: 0,
+        };
+        p.params.dashboard.groupInfo[indexGroup] = g;
+      }
+    });
+    useStore.getState().setParams(store.params);
   } else if (group && targetGroup && count && targetCount) {
     let remapIndexPlot: Record<string, number> | undefined = undefined;
     let startIndex = groups.slice(0, indexGroup).reduce((res, { count }) => res + count, 0);
-    const targetGroupIndex = Math.max(0, indexGroup + direction * 2);
+    const targetGroupIndex = Math.max(0, indexGroup + (direction > 0 ? direction * 2 : direction));
     // add new group
     store = produce(store, (p) => {
       if (p.params.dashboard) {
@@ -2331,23 +2275,32 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
     // moveAndResortPlot(store);
   }
 }
-
-function normalizeGroupCount(prevState: Store) {
+function normalizeParamsGroupCount(prevState: QueryParams) {
   return produce(prevState, (p) => {
-    const count = p.params.plots.length;
-    if (p.params.dashboard?.groupInfo) {
-      let deltaCount = p.params.dashboard.groupInfo.reduce((res, { count }) => res + count, 0) - count;
-      let i = p.params.dashboard.groupInfo.length - 1;
+    const count = p.plots.length;
+    if (p.dashboard?.groupInfo?.length) {
+      let deltaCount = p.dashboard.groupInfo.reduce((res, { count }) => res + count, 0) - count;
+      let i = p.dashboard.groupInfo.length - 1;
       if (deltaCount) {
-        while (deltaCount > 0 && i >= 0) {
-          const g = p.params.dashboard.groupInfo[i];
-          const c = Math.max(0, g.count - deltaCount);
-          deltaCount -= g.count;
-          g.count = c;
-          i--;
+        if (deltaCount < 0) {
+          const g = p.dashboard.groupInfo[i];
+          g.count -= deltaCount;
+        } else {
+          while (deltaCount > 0 && i >= 0) {
+            const g = p.dashboard.groupInfo[i];
+            const c = Math.max(0, g.count - deltaCount);
+            deltaCount -= g.count;
+            g.count = c;
+            i--;
+          }
         }
       }
     }
+  });
+}
+function normalizeGroupCount(prevState: Store) {
+  return produce(prevState, (p) => {
+    p.params = normalizeParamsGroupCount(p.params);
   });
 }
 

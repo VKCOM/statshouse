@@ -5,7 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { ChangeEvent, memo, useCallback, useEffect, useMemo, useState } from 'react';
-import produce from 'immer';
+import { produce } from 'immer';
 import cn from 'classnames';
 import * as utils from '../../view/utils';
 import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
