@@ -74,6 +74,7 @@ type args struct {
 	defaultMetricFilterNotIn []string
 	defaultMetricWhat        []string
 	defaultMetricGroupBy     []string
+	eventPreset              []string
 	defaultNumSeries         int
 	diskCache                string
 	help                     bool
@@ -131,6 +132,7 @@ func main() {
 	pflag.StringSliceVar(&argv.defaultMetricFilterNotIn, "default-metric-filter-not-in", []string{}, "default metric filter not in <key0>:value")
 	pflag.StringSliceVar(&argv.defaultMetricWhat, "default-metric-filter-what", []string{}, "default metric function")
 	pflag.StringSliceVar(&argv.defaultMetricGroupBy, "default-metric-group-by", []string{"1"}, "default metric group by tags")
+	pflag.StringSliceVar(&argv.eventPreset, "event-preset", []string{}, "event preset")
 	pflag.IntVar(&argv.defaultNumSeries, "default-num-series", 5, "default series number to request")
 	pflag.StringVar(&argv.diskCache, "disk-cache", "statshouse_api_cache.db", "disk cache filename")
 	pflag.BoolVarP(&argv.help, "help", "h", false, "print usage instructions and exit")
@@ -314,6 +316,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		DefaultMetricWhat:        argv.defaultMetricWhat,
 		DefaultMetricFilterIn:    defaultMetricFilterIn,
 		DefaultMetricFilterNotIn: defaultMetricFilterNotIn,
+		EventPreset:              argv.eventPreset,
 		DefaultNumSeries:         argv.defaultNumSeries,
 		DisableV1:                len(argv.chV1Addrs) == 0,
 	}
