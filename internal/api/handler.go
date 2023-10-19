@@ -154,6 +154,7 @@ type (
 		DefaultMetricFilterNotIn map[string][]string `json:"default_metric_filter_not_in"`
 		DefaultMetricWhat        []string            `json:"default_metric_what"`
 		DefaultMetricGroupBy     []string            `json:"default_metric_group_by"`
+		EventPreset              []string            `json:"event_preset"`
 		DefaultNumSeries         int                 `json:"default_num_series"`
 		DisableV1                bool                `json:"disabled_v1"`
 	}
