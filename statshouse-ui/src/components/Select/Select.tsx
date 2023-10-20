@@ -51,6 +51,7 @@ export type SelectProps = {
   onBlur?: () => void;
   role?: string;
   onSearch?: (values: SelectOptionProps[]) => void;
+  valueSync?: boolean;
 };
 
 const KEY: Record<string, string> = {
@@ -243,6 +244,7 @@ export const Select: FC<SelectProps> = ({
   onFocus = emptyFn,
   onBlur = emptyFn,
   onSearch = emptyFn,
+  valueSync = false,
 }) => {
   const valuesInput = useMemo<string[]>(() => (Array.isArray(value) ? value : value ? [value] : []), [value]);
   const [values, setValues] = useState(valuesInput);
@@ -264,10 +266,10 @@ export const Select: FC<SelectProps> = ({
   const prevFilterOptions = useRef<SelectOptionProps[]>([]);
 
   useEffect(() => {
-    if (!meOpen) {
+    if (!meOpen || valueSync) {
       setValues(valuesInput);
     }
-  }, [meOpen, valuesInput]);
+  }, [meOpen, valueSync, valuesInput]);
 
   const filterOptions = useMemo(() => {
     let start = 0;

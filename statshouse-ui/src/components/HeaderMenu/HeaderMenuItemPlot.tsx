@@ -9,6 +9,7 @@ import { useLocation } from 'react-router-dom';
 
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGXSquare } from 'bootstrap-icons/icons/x-square.svg';
+import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 
 import { Store, useStore } from '../../store';
 import { PlotLink } from '../Plot/PlotLink';
@@ -144,6 +145,7 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
             <div className="spinner-white-bg spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
           </div>
         )}
+        {plot.type === PLOT_TYPE.Event && <SVGFlagFill className="position-absolute top-0 start-0 ms-1 mt-1" />}
       </PlotLink>
       <Popper targetRef={itemRef} fixed={false} horizontal={'out-right'} vertical={'top'} show={open}>
         <ul className={cn(`nav d-flex flex-column`, css.sub)} ref={sub}>
