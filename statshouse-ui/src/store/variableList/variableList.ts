@@ -69,7 +69,7 @@ export const useVariableListStore = createStore<VariableListStore>((setState, ge
             const indexPlot = toNumber(plotKey);
             const indexTag = toIndexTag(tagKey);
             if (indexPlot != null && indexTag != null) {
-              const meta = prevState.metricsMeta[state.params.plots[indexPlot].metricName];
+              const meta = state.metricsMeta[state.params.plots[indexPlot].metricName];
               setState((variableState) => {
                 if (variableState.variables[variable.name]) {
                   variableState.variables[variable.name].tagMeta = meta?.tags?.[indexTag];
