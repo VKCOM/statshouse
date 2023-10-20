@@ -1,139 +1,107 @@
 package sqlitev2
 
 import (
-	"math/rand"
-	"sort"
+	"log"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/slices"
 	"pgregory.net/rapid"
 )
 
-func Test_heap_put(t *testing.T) {
-	h := newHeap(func(a, b hash, i, j int) {})
-	const n = 10000
-	for i := 0; i <= n; i++ {
-		h.put(&cachedStmtInfo{lastTouch: int64(i)})
-	}
-	for i := 0; i <= n; i++ {
-		require.Greater(t, h.size, 0)
-		require.Equal(t, int64(i), h.peek().lastTouch)
-		require.Equal(t, int64(i), h.pop().lastTouch)
-	}
-	require.Equal(t, 0, h.size)
+type cacheState struct {
+	cache    *queryCachev2
+	pushed   []*cachedStmtInfo
+	maxSize  int
+	now      int64
+	usedHash map[hash]bool
 }
 
-func Test_heap_put_random(t *testing.T) {
-	h := newHeap(func(a, b hash, i, j int) {})
-	const n = 10000
-	arr := []int{}
-	for i := 0; i <= n; i++ {
-		x := rand.Intn(50)
-		arr = append(arr, x)
-		h.put(&cachedStmtInfo{lastTouch: int64(x)})
-	}
-	sort.Ints(arr)
-	for i := 0; i <= n; i++ {
-		require.Greater(t, h.size, 0)
-		require.Equal(t, int64(arr[i]), h.peek().lastTouch)
-		require.Equal(t, int64(arr[i]), h.pop().lastTouch)
-	}
-	require.Equal(t, 0, h.size)
+func (s *cacheState) init(t *rapid.T) {
+	s.maxSize = 5
+	s.cache = newQueryCachev2(s.maxSize, log.New(os.Stdout, "[sqlite-engine]", log.LstdFlags))
+	s.usedHash = map[hash]bool{}
+
 }
 
-type heapState struct {
-	heap   *minHeap
-	pushed []*cachedStmtInfo
-	vToI   map[hash]int
-
-	usedTS map[int64]bool
-}
-
-func (s *heapState) init(t *rapid.T) {
-	s.vToI = map[hash]int{}
-	s.heap = newHeap(func(a, b hash, i, j int) {
-		s.vToI[a] = i
-		s.vToI[b] = j
-	})
-	s.usedTS = map[int64]bool{}
-	s.pushed = make([]*cachedStmtInfo, 0)
-}
-func (s *heapState) Push(r *rapid.T) {
+func (s *cacheState) Put(r *rapid.T) {
 	lo := rapid.Uint64().Draw(r, "lo")
 	hi := rapid.Uint64().Draw(r, "hi")
-	n := rapid.Int64().Draw(r, "push value")
-	if s.usedTS[n] {
+	s.now++
+	h, t := hash{low: lo, high: hi}, time.Unix(s.now, 0)
+	if s.usedHash[h] {
 		r.SkipNow()
 		return
 	}
-	s.usedTS[n] = true
-	stmt := &cachedStmtInfo{key: hash{
-		low:  lo,
-		high: hi,
-	}, lastTouch: n}
-	if _, ok := s.vToI[stmt.key]; ok {
-		r.SkipNow()
-		return
-	}
-	s.pushed = append(s.pushed, stmt)
-	ix := s.heap.put(stmt)
-	s.vToI[stmt.key] = ix
+	s.usedHash[h] = true
+	s.cache.put(h, t, nil)
+	s.pushed = append(s.pushed, &cachedStmtInfo{
+		key:       h,
+		lastTouch: t.Unix(),
+		stmt:      nil,
+	})
 	slices.SortFunc(s.pushed, func(a, b *cachedStmtInfo) bool {
 		return a.lastTouch < b.lastTouch
 	})
 }
 
-func (s *heapState) Extract(r *rapid.T) {
-	if s.heap.size == 0 {
+func checkIsExists(r *rapid.T, s *cacheState, stmt *cachedStmtInfo) {
+	i, ok := s.cache.queryCache[stmt.key]
+	actualStmt := s.cache.h.heap[i]
+	require.True(r, ok)
+	require.Equal(r, *stmt, *actualStmt)
+}
+
+func (s *cacheState) Get(r *rapid.T) {
+	s.now++
+	if s.cache.size() == 0 {
 		r.SkipNow()
 		return
 	}
-	i := rapid.IntRange(0, len(s.pushed)-1).Draw(r, "index_to_delete")
-	elToDelete := s.pushed[i]
-	ixToDelete := s.vToI[elToDelete.key]
-	deleted := s.heap.extract(ixToDelete)
-	delete(s.vToI, deleted.key)
-	require.Equal(r, *elToDelete, *deleted)
-	s.pushed = slices.Delete(s.pushed, i, i+1)
+	i := rapid.IntRange(0, len(s.pushed)-1).Draw(r, "index_to_get")
+	stmt := s.pushed[i]
+	r.Log("key to get: ", stmt.key)
+	t := time.Unix(s.now, 0)
+	actualStmt, ok := s.cache.get(stmt.key, t)
+	stmt.lastTouch = t.Unix()
+	slices.SortFunc(s.pushed, func(a, b *cachedStmtInfo) bool {
+		return a.lastTouch < b.lastTouch
+	})
+	require.True(r, ok)
+	require.Equal(r, stmt.stmt, actualStmt)
 }
 
-func (s *heapState) Pop(r *rapid.T) {
-	if s.heap.size == 0 {
-		r.SkipNow()
-		return
+func (s *cacheState) CloseTx(r *rapid.T) {
+	oldSizeExpected := len(s.pushed)
+	require.Equal(r, oldSizeExpected, s.cache.size())
+	newExpectedSize := oldSizeExpected
+	howManyDelete := oldSizeExpected - s.maxSize
+	if howManyDelete < 0 {
+		howManyDelete = 0
 	}
-	rootExpected := s.pushed[0]
-	s.pushed = s.pushed[1:]
-	rootActual := s.heap.pop()
-	delete(s.vToI, rootActual.key)
-	require.Equal(r, *rootExpected, *rootActual)
+	if oldSizeExpected > s.maxSize {
+		newExpectedSize = s.maxSize
+	}
+	s.cache.closeTx()
+	require.Equal(r, newExpectedSize, s.cache.size())
+	for i := 0; i < howManyDelete; i++ {
+		r.Log("DELETE", s.pushed[i].key)
+	}
+	s.pushed = s.pushed[howManyDelete:]
 }
 
-func (s *heapState) Check(r *rapid.T) {
-	require.Equal(r, len(s.pushed), s.heap.size)
-	require.Equal(r, s.heap.size, len(s.vToI))
-	for i := range s.heap.heap {
-		if i >= root && i <= s.heap.size {
-			require.NotNil(r, s.heap.heap[i])
-		} else {
-			require.Nil(r, s.heap.heap[i])
-		}
-	}
-	for i := root; i <= s.heap.size; i++ {
-
-	}
-	if len(s.pushed) > 0 {
-		last := s.pushed[0]
-		root := s.heap.peek()
-		require.Equal(r, 1, s.vToI[root.key])
-		require.Equal(r, *last, *root)
+func (s *cacheState) Check(r *rapid.T) {
+	for _, stmt := range s.pushed {
+		checkIsExists(r, s, stmt)
 	}
 }
 
-func TestHeap(t *testing.T) {
+func TestCache(t *testing.T) {
+	isTest = true
 	rapid.Check(t, func(t *rapid.T) {
-		m := heapState{}
+		m := cacheState{}
 		m.init(t)
 		t.Repeat(rapid.StateMachineActions(&m))
 	})

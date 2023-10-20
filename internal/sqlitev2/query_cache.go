@@ -31,6 +31,8 @@ type cachedStmtInfo struct {
 	stmt      *sqlite0.Stmt
 }
 
+var isTest = false
+
 const cacheMaxSizeDefault = 3000
 
 func newQueryCachev2(cacheMaxSize int, logger *log.Logger) *queryCachev2 {
@@ -55,17 +57,16 @@ func (cache *queryCachev2) closeTx() {
 	}
 }
 
-func (cache *queryCachev2) put(key hash, stmt *sqlite0.Stmt) {
-	stmtInfo := &cachedStmtInfo{key: key, lastTouch: time.Now().Unix(), stmt: stmt}
+func (cache *queryCachev2) put(key hash, t time.Time, stmt *sqlite0.Stmt) {
+	stmtInfo := &cachedStmtInfo{key: key, lastTouch: t.Unix(), stmt: stmt}
 	ix := cache.h.put(stmtInfo)
 	cache.queryCache[key] = ix
 }
 
-func (cache *queryCachev2) get(key hash) (res *sqlite0.Stmt, ok bool) {
+func (cache *queryCachev2) get(key hash, t time.Time) (res *sqlite0.Stmt, ok bool) {
 	ix, ok := cache.queryCache[key]
 	if ok {
-		cachedStmt := cache.h.get(ix)
-		cachedStmt.lastTouch = time.Now().Unix()
+		cachedStmt := cache.h.getAndUpdate(ix, t.Unix())
 		return cachedStmt.stmt, ok
 	}
 	return nil, false
@@ -74,11 +75,14 @@ func (cache *queryCachev2) get(key hash) (res *sqlite0.Stmt, ok bool) {
 func (cache *queryCachev2) evictCacheLocked(count int) {
 	for i := 0; i < count; i++ {
 		stmt := cache.h.pop()
+		delete(cache.queryCache, stmt.key)
+		if stmt.stmt == nil && isTest {
+			continue
+		}
 		err := stmt.stmt.Close()
 		if err != nil {
 			cache.logger.Println("[error] failed to close cached stmt:", err.Error())
 		}
-		delete(cache.queryCache, stmt.key)
 	}
 }
 

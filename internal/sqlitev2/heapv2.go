@@ -23,10 +23,6 @@ func (h *minHeap) swap(i, j int) {
 	h.swapParent(iKey, jKey, j, i)
 }
 
-func (h *minHeap) get(i int) *cachedStmtInfo {
-	return h.heap[i]
-}
-
 func (h *minHeap) put(stmt *cachedStmtInfo) int {
 	putPos := h.size + 1
 	if putPos >= len(h.heap) {
@@ -72,6 +68,13 @@ func (h *minHeap) siftDown(current int) {
 			break
 		}
 	}
+}
+func (h *minHeap) getAndUpdate(i int, nowUnix int64) *cachedStmtInfo {
+	stmt := h.heap[i]
+	h.extract(i)
+	stmt.lastTouch = nowUnix
+	h.put(stmt)
+	return stmt
 }
 
 func (h *minHeap) extract(i int) *cachedStmtInfo {

@@ -181,13 +181,13 @@ func (c *sqliteConn) initStmt(sqlBytes []byte, sqlString string, args ...Arg) (*
 	var err error
 	var ok bool
 	key := calcHashBytes(c.queryBuffer)
-	si, ok = c.cache.get(key)
+	si, ok = c.cache.get(key, time.Now())
 	if !ok {
 		si, err = prepare(c.conn, c.queryBuffer)
 		if err != nil {
 			return nil, fmt.Errorf("failed to prepare stmt: %w", err)
 		}
-		c.cache.put(key, si)
+		c.cache.put(key, time.Now(), si)
 	} else {
 		err := si.Reset()
 		if err != nil {
