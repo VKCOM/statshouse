@@ -9,7 +9,7 @@ Homepage: https://github.com/VKCOM/statshouse
 Package: statshouse
 Architecture: amd64 arm64
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: statshouse provides the Agent daemon of the StatsHouse monitoring system.
+Description: statshouse provides the main daemon of the StatsHouse monitoring system.
 
 Package: statshouse-api
 Architecture: amd64 arm64
