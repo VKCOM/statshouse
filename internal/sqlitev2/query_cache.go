@@ -9,10 +9,15 @@ import (
 	"go.uber.org/multierr"
 )
 
+/*
+Этот кэш может стать проблемой в случаях когда много запросов, мы будем просто зря занимать память дял каждого sqlite соединения
+Решение: пользователь явно выбирает что кешировать а что нет
+*/
 type queryCachev2 struct {
 	queryCache   map[hash]int
 	h            *minHeap
 	cacheMaxSize int
+	logger       *log.Logger
 }
 
 type hash struct {
@@ -28,13 +33,14 @@ type cachedStmtInfo struct {
 
 const cacheMaxSizeDefault = 3000
 
-func newQueryCachev2(cacheMaxSize int) *queryCachev2 {
+func newQueryCachev2(cacheMaxSize int, logger *log.Logger) *queryCachev2 {
 	if cacheMaxSize == 0 {
 		cacheMaxSize = cacheMaxSizeDefault
 	}
 	cache := &queryCachev2{
 		queryCache:   make(map[hash]int),
 		cacheMaxSize: cacheMaxSize,
+		logger:       logger,
 	}
 	cache.h = newHeap(func(a, b hash, i, j int) {
 		cache.queryCache[a] = i
@@ -70,7 +76,7 @@ func (cache *queryCachev2) evictCacheLocked(count int) {
 		stmt := cache.h.pop()
 		err := stmt.stmt.Close()
 		if err != nil {
-			log.Println("[error] failed to close cached stmt:", err.Error())
+			cache.logger.Println("[error] failed to close cached stmt:", err.Error())
 		}
 		delete(cache.queryCache, stmt.key)
 	}

@@ -42,7 +42,6 @@ func initDb(b *testing.B, scheme, prefix string, dbFile string, useBinlog bool) 
 
 // TODO: use stable and bigger dataset for benchmarks
 func fillDB(b *testing.B, engine *Engine, table string, n, m int, gen func(i, j int) Arg) []Arg {
-	b.Helper()
 	res := make([]Arg, 0, n*m)
 	for i := 0; i < n; i++ {
 		err := engine.Do(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {

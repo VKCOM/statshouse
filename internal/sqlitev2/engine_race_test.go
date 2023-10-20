@@ -125,7 +125,7 @@ func Test_Engine_View(t *testing.T) {
 		agg.mx.Unlock()
 	}
 	require.NoError(t, engine.Close())
-	engine, _ = openEngine(t, dir, "db", schema, false, false, false, func(s string) {
+	engine, _ = openEngine(t, dir, "db", schema, false, true, false, func(s string) {
 		t.Fatal("mustn't apply music")
 	})
 	expectedMap := map[string]struct{}{}

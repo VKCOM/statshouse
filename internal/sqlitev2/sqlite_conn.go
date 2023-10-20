@@ -3,6 +3,7 @@ package sqlitev2
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -21,8 +22,8 @@ type (
 		connError        error
 		showLastInsertID bool
 		beginStmt        string
-
-		committed bool
+		committed        bool
+		stats            StatsOptions
 	}
 )
 
@@ -36,7 +37,7 @@ var (
 var innerCtx = context.Background()
 
 // use only for snapshots
-func newSqliteROConn(path string) (*sqliteConn, error) {
+func newSqliteROConn(path string, logger *log.Logger) (*sqliteConn, error) {
 	conn, err := open(path, sqlite0.OpenReadonly)
 	if err != nil {
 		return nil, fmt.Errorf("failed to openRO conn: %w", err)
@@ -44,12 +45,12 @@ func newSqliteROConn(path string) (*sqliteConn, error) {
 	return &sqliteConn{
 		conn:      conn,
 		mu:        sync.Mutex{},
-		cache:     newQueryCachev2(1),
+		cache:     newQueryCachev2(1, logger),
 		beginStmt: beginDeferredStmt,
 	}, nil
 }
 
-func newSqliteROWALConn(path string, cacheSize int) (*sqliteConn, error) {
+func newSqliteROWALConn(path string, cacheSize int, logger *log.Logger) (*sqliteConn, error) {
 	conn, err := openROWAL(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RO connL %w", err)
@@ -58,11 +59,11 @@ func newSqliteROWALConn(path string, cacheSize int) (*sqliteConn, error) {
 		conn:      conn,
 		mu:        sync.Mutex{},
 		connError: nil,
-		cache:     newQueryCachev2(cacheSize),
+		cache:     newQueryCachev2(cacheSize, logger),
 		beginStmt: beginDeferredStmt,
 	}, nil
 }
-func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSize int) (*sqliteConn, error) {
+func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSize int, logger *log.Logger) (*sqliteConn, error) {
 	conn, err := openRW(openWAL, path, appid)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW conn: %w", err)
@@ -74,7 +75,7 @@ func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSi
 		binlogCache:      make([]byte, 0),
 		connError:        nil,
 		showLastInsertID: showLastInsertID,
-		cache:            newQueryCachev2(cacheSize),
+		cache:            newQueryCachev2(cacheSize, logger),
 		beginStmt:        beginImmediateStmt,
 	}, nil
 }
@@ -199,7 +200,7 @@ func (c *sqliteConn) initStmt(sqlBytes []byte, sqlString string, args ...Arg) (*
 }
 
 func (c *sqliteConn) execLockedArgs(ctx context.Context, name string, sql []byte, sqlStr string, args ...Arg) (int64, error) {
-	rows := c.queryLocked(ctx, name, sql, sqlStr, args...)
+	rows := c.queryLocked(ctx, exec, name, sql, sqlStr, args...)
 	for rows.Next() {
 	}
 	var id int64
@@ -209,10 +210,10 @@ func (c *sqliteConn) execLockedArgs(ctx context.Context, name string, sql []byte
 	return id, rows.Error()
 }
 
-func (c *sqliteConn) queryLocked(ctx context.Context, name string, sql []byte, sqlStr string, args ...Arg) Rows {
+func (c *sqliteConn) queryLocked(ctx context.Context, type_, name string, sql []byte, sqlStr string, args ...Arg) Rows {
 	start := time.Now()
 	s, err := c.initStmt(sql, sqlStr, args...)
-	return Rows{ctx, c, s, err, name, start}
+	return Rows{ctx, c, s, err, name, start, type_}
 }
 
 func prepare(c *sqlite0.Conn, sql []byte) (*sqlite0.Stmt, error) {

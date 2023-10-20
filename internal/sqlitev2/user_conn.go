@@ -7,9 +7,11 @@ import (
 	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 )
 
-type Conn = userConn
-type internalConn = userConn
-type userConn struct {
+type internalConn struct {
+	Conn
+}
+
+type Conn struct {
 	ctx  context.Context
 	conn *sqliteConn
 }
@@ -21,6 +23,7 @@ type Rows struct {
 	err   error
 	name  string
 	start time.Time
+	type_ string
 }
 
 func (r *Rows) ColumnBlob(i int, buf []byte) ([]byte, error) {
@@ -55,10 +58,6 @@ func (c Conn) LastInsertRowID() int64 {
 	return c.conn.LastInsertRowID()
 }
 
-//func (c Conn) CacheSize() int {
-//	return c.cache.size()
-//}
-
 func (r *Rows) Error() error {
 	return r.err
 }
@@ -77,6 +76,9 @@ func (r *Rows) Next() bool {
 	if err != nil {
 		r.err = err
 	}
+	if !row {
+		r.c.stats.measureSqliteQueryDurationSince(r.type_, r.name, r.start)
+	}
 	return row
 }
 
@@ -87,12 +89,21 @@ func newUserConn(sqliteConn *sqliteConn, ctx context.Context) Conn {
 	}
 }
 
+func newInternalConn(sqliteConn *sqliteConn) internalConn {
+	return internalConn{
+		Conn{
+			ctx:  context.Background(),
+			conn: sqliteConn,
+		},
+	}
+}
+
 func (c Conn) Query(name, sql string, args ...Arg) Rows {
-	return c.conn.queryLocked(c.ctx, name, nil, sql, args...)
+	return c.conn.queryLocked(c.ctx, query, name, nil, sql, args...)
 }
 
 func (c Conn) QueryBytes(name string, sql []byte, args ...Arg) Rows {
-	return c.conn.queryLocked(c.ctx, name, sql, "", args...)
+	return c.conn.queryLocked(c.ctx, query, name, sql, "", args...)
 }
 
 func (c Conn) Exec(name, sql string, args ...Arg) (int64, error) {

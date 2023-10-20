@@ -34,7 +34,6 @@ func (p *connPool) get() (*sqliteConn, error) {
 		p.roCond.Wait()
 	}
 	if len(p.roFree) == 0 {
-		//conn, err = newSqliteROWALConn(e.opt.Path, e.opt.CacheApproxMaxSizePerConnect)
 		conn, err = p.newConn()
 		if err != nil {
 			p.roMx.Unlock()
