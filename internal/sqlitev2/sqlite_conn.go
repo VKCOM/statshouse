@@ -21,8 +21,8 @@ type (
 		connError        error
 		showLastInsertID bool
 		beginStmt        string
-
-		committed bool
+		committed        bool
+		stats            StatsOptions
 	}
 )
 
@@ -199,7 +199,7 @@ func (c *sqliteConn) initStmt(sqlBytes []byte, sqlString string, args ...Arg) (*
 }
 
 func (c *sqliteConn) execLockedArgs(ctx context.Context, name string, sql []byte, sqlStr string, args ...Arg) (int64, error) {
-	rows := c.queryLocked(ctx, name, sql, sqlStr, args...)
+	rows := c.queryLocked(ctx, exec, name, sql, sqlStr, args...)
 	for rows.Next() {
 	}
 	var id int64
@@ -209,10 +209,10 @@ func (c *sqliteConn) execLockedArgs(ctx context.Context, name string, sql []byte
 	return id, rows.Error()
 }
 
-func (c *sqliteConn) queryLocked(ctx context.Context, name string, sql []byte, sqlStr string, args ...Arg) Rows {
+func (c *sqliteConn) queryLocked(ctx context.Context, type_, name string, sql []byte, sqlStr string, args ...Arg) Rows {
 	start := time.Now()
 	s, err := c.initStmt(sql, sqlStr, args...)
-	return Rows{ctx, c, s, err, name, start}
+	return Rows{ctx, c, s, err, name, start, type_}
 }
 
 func prepare(c *sqlite0.Conn, sql []byte) (*sqlite0.Stmt, error) {

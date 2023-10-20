@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 )
@@ -31,8 +32,10 @@ func newBinlogEngine(e *Engine, applyFunction ApplyEventFunction) *binlogEngine 
 }
 
 func (b binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error) {
-	err := b.e.internalDo("__apply_binlog", func(c Conn) error {
-		readLen, err := b.applyFunction(c, payload)
+	b.e.rareLog("apply payload (len: %d)", len(payload))
+	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_apply", time.Now())
+	err := b.e.internalDo("__apply_binlog", func(c internalConn) error {
+		readLen, err := b.applyFunction(c.Conn, payload)
 		newOffset = b.e.rw.dbOffset + int64(readLen)
 		if opErr := b.e.rw.saveBinlogOffsetLocked(newOffset); opErr != nil {
 			return b.e.rw.setErrorLocked(opErr)
@@ -51,13 +54,15 @@ func (b binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error)
 }
 
 func (b binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
-	err = b.e.internalDo("__skip_binlog", func(c Conn) error {
+	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_skip", time.Now())
+	err = b.e.internalDo("__skip_binlog", func(c internalConn) error {
 		newOffset = b.e.rw.dbOffset + skipLen
 		return b.e.rw.saveBinlogOffsetLocked(newOffset)
 	})
 	if err == nil {
 		b.e.rw.dbOffset = newOffset
 	}
+	b.e.rareLog("[sqlite] skip offset (new offset: %d)", newOffset)
 	return newOffset, b.e.rw.setError(err)
 }
 
@@ -66,6 +71,8 @@ func (b binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOf
 	if b.e.testOptions != nil {
 		b.e.testOptions.sleep()
 	}
+	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_commit", time.Now())
+	b.e.rareLog("commit toOffset: %d, safeSnapshotOffset: %d", toOffset, safeSnapshotOffset)
 	return b.e.internalDo("__commit_save_meta", func(conn internalConn) error {
 		return b.e.rw.saveBinlogMetaLocked(snapshotMeta)
 	})
@@ -76,6 +83,7 @@ func (b binlogEngine) Revert(toOffset int64) (bool, error) {
 }
 
 func (b binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
+	b.e.logger.Printf("change role: %+v", info)
 	if info.IsReady {
 		b.e.readyNotify.Do(func() {
 			close(b.e.readyCh)

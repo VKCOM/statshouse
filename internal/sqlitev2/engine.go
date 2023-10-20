@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"go.uber.org/multierr"
@@ -27,6 +29,10 @@ type (
 		readyNotify sync.Once
 
 		testOptions *testOptions
+
+		logMx       sync.Mutex
+		logger      *log.Logger
+		nextLogTime time.Time
 	}
 
 	Options struct {
@@ -37,6 +43,7 @@ type (
 		MaxROConn                    int
 		CacheApproxMaxSizePerConnect int
 		ShowLastInsertID             bool
+		StatsOptions                 StatsOptions
 		BinlogOptions
 	}
 	BinlogOptions struct {
@@ -56,12 +63,14 @@ const (
 )
 
 func openRO(opt Options) (*Engine, error) {
+
 	e := &Engine{
 		opt:      opt,
 		readOnly: true,
 		roConnPool: newConnPool(opt.MaxROConn, func() (*sqliteConn, error) {
 			return newSqliteROWALConn(opt.Path, opt.CacheApproxMaxSizePerConnect)
 		}),
+		logger: log.New(os.Stdout, "[sqlite-engine]", log.LstdFlags),
 	}
 	return e, nil
 }
@@ -97,6 +106,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 		roConnPool: newConnPool(opt.MaxROConn, func() (*sqliteConn, error) {
 			return newSqliteROWALConn(opt.Path, opt.CacheApproxMaxSizePerConnect)
 		}),
+		logger: log.New(os.Stdout, "[sqlite-engine]", log.LstdFlags),
 	}
 	return e, nil
 }
@@ -108,6 +118,7 @@ func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction
 	e.binlog = binlog
 	defer func() { close(e.finishBinlogRunCh) }()
 	e.rw.dbOffset, err = e.binlogLoadOrCreatePosition()
+	e.logger.Printf("load binlog position: %d", e.rw.dbOffset)
 	if err != nil {
 		err = fmt.Errorf("failed to load binlog position during to start run: %w", err)
 		e.readyNotify.Do(func() {
@@ -152,6 +163,8 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 	if prefix == "" {
 		return "", fmt.Errorf("backup prefix is empty")
 	}
+	startTime := time.Now()
+	defer e.opt.StatsOptions.measureActionDurationSince("backup", startTime)
 	conn, err := newSqliteROWALConn(e.opt.Path, 1)
 	if err != nil {
 		return "", fmt.Errorf("failed to open RO connection to backup: %w", err)
@@ -182,11 +195,12 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 	defer func() {
 		_ = conn1.Close()
 	}()
-	c1 := newUserConn(conn1, ctx)
+	c1 := newInternalConn(conn1)
 	expectedPath, err := getBackupPath(c1, prefix)
 	if err != nil {
 		return "", fmt.Errorf("failed to get backup path: %w", err)
 	}
+	log.Printf("finish backup syccessfuly in %f seconds", time.Since(startTime).Seconds())
 	return expectedPath, os.Rename(path, expectedPath)
 }
 
@@ -227,12 +241,15 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 		return err
 	}
 
+	startTimeBeforeLock := time.Now()
 	conn, err := e.roConnPool.get()
 	if err != nil {
 		return fmt.Errorf("faield to get RO conn: %w", err)
 	}
 	defer e.roConnPool.put(conn)
 
+	e.opt.StatsOptions.measureWaitDurationSince(waitView, startTimeBeforeLock)
+	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txView, queryName, time.Now())
 	err = conn.beginTxLocked()
 	if err != nil {
 		return fmt.Errorf("failed to begon RO tx: %w", err)
@@ -263,8 +280,11 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 	if e.testOptions != nil {
 		e.testOptions.sleep()
 	}
+	startTimeBeforeLock := time.Now()
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
+	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
+	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
 	if e.testOptions != nil {
 		e.testOptions.sleep()
 	}
@@ -303,13 +323,16 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 }
 
 // В случае возникновения ошибки двиожк считается сломаным
-func (e *Engine) internalDo(name string, do func(c internalConn) error) error {
-	if err := checkInternalQueryName(name); err != nil {
+func (e *Engine) internalDo(queryName string, do func(c internalConn) error) error {
+	if err := checkInternalQueryName(queryName); err != nil {
 		return err
 	}
+	startTimeBeforeLock := time.Now()
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
-	err := e.internalDoLocked(name, do)
+	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
+	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
+	err := e.internalDoLocked(queryName, do)
 	return e.rw.setErrorLocked(err)
 }
 func (e *Engine) internalDoLocked(name string, do func(c internalConn) error) (err error) {
@@ -323,7 +346,7 @@ func (e *Engine) internalDoLocked(name string, do func(c internalConn) error) (e
 			err = multierr.Append(err, errRollback)
 		}
 	}()
-	conn := newUserConn(e.rw, context.Background()) // внутренние запросы не таймаутят
+	conn := newInternalConn(e.rw)
 	err = do(conn)
 	if err != nil {
 		return fmt.Errorf("user logic error: %w", err)
@@ -333,7 +356,7 @@ func (e *Engine) internalDoLocked(name string, do func(c internalConn) error) (e
 
 func (e *Engine) binlogLoadOrCreateMeta() ([]byte, error) {
 	var meta []byte
-	err := e.internalDo("__load_binlog", func(conn Conn) error {
+	err := e.internalDo("__load_binlog", func(conn internalConn) error {
 		rows := conn.Query("__select_meta", "SELECT meta from __snapshot_meta")
 		if rows.err != nil {
 			return rows.err
@@ -350,7 +373,7 @@ func (e *Engine) binlogLoadOrCreateMeta() ([]byte, error) {
 
 func (e *Engine) binlogLoadOrCreatePosition() (int64, error) {
 	var offset int64
-	err := e.internalDo("__load_binlog", func(conn Conn) error {
+	err := e.internalDo("__load_binlog", func(conn internalConn) error {
 		var isExists bool
 		var err error
 		offset, isExists, err = binlogLoadPosition(conn)
@@ -371,6 +394,8 @@ func (e *Engine) Close() error {
 }
 
 func (e *Engine) close(waitCommitBinlog bool) error {
+	e.logger.Println("starting close")
+	defer e.opt.StatsOptions.measureActionDurationSince(closeEngine, time.Now())
 	if !e.readOnly {
 		e.rw.mu.Lock()
 		e.readOnly = true
@@ -419,4 +444,14 @@ func checkInternalQueryName(qn string) error {
 		return nil
 	}
 	return fmt.Errorf("use prefix %s for internal query, got: %s", internalQueryPrefix, qn)
+}
+
+func (e *Engine) rareLog(format string, v ...any) {
+	e.logMx.Lock()
+	defer e.logMx.Unlock()
+	now := time.Now()
+	if now.After(e.nextLogTime) {
+		e.logger.Printf(format, v...)
+		e.nextLogTime = now.Add(time.Second * 10)
+	}
 }
