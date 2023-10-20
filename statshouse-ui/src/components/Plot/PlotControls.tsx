@@ -27,7 +27,7 @@ import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
-import { ReactComponent as SVGFlag } from 'bootstrap-icons/icons/flag.svg';
+import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 import {
   setUpdatedTag,
   Store,
@@ -473,14 +473,32 @@ export const PlotControls = memo(function PlotControls_(props: {
               </div>
             </div>
 
-            <div className="row mb-3 align-items-baseline">
+            <div className="row mb-2 align-items-baseline">
               <PlotControlFrom timeRange={timeRange} setTimeRange={setTimeRange} setBaseRange={setBaseRange} />
               <div className="align-items-baseline mt-2">
                 <PlotControlTo timeRange={timeRange} setTimeRange={setTimeRange} />
               </div>
               <PlotControlTimeShifts className="w-100 mt-2" />
             </div>
-
+            {plotParams.type === PLOT_TYPE.Metric && !!eventPlotList.length && (
+              <div className="input-group input-group-sm mb-3">
+                <Select
+                  value={plotParams.events.map((e) => e.toString())}
+                  onChange={eventsChange}
+                  className="sh-select form-control"
+                  classNameList="dropdown-menu"
+                  showSelected={true}
+                  onceSelectByClick
+                  multiple
+                  options={eventPlotList}
+                  placeholder="Event overlay"
+                  valueSync
+                />
+                <span className="input-group-text text-primary">
+                  <SVGFlagFill />
+                </span>
+              </div>
+            )}
             <div className="mb-3 d-flex">
               <div className="d-flex me-4 gap-3 flex-grow-1">
                 <PlotControlAggregation value={plotParams.customAgg} onChange={onCustomAggChange} />
@@ -514,7 +532,6 @@ export const PlotControls = memo(function PlotControls_(props: {
                 <SVGLightning />
               </SwitchBox>
             </div>
-
             {numQueries !== 0 && (
               <div className="text-center">
                 <div className="text-info spinner-border spinner-border-sm m-5" role="status" aria-hidden="true" />
@@ -613,24 +630,6 @@ export const PlotControls = memo(function PlotControls_(props: {
                     }
                   />
                 )}
-              </div>
-            )}
-            {plotParams.type === PLOT_TYPE.Metric && !!eventPlotList.length && (
-              <div className="input-group">
-                <Select
-                  value={plotParams.events.map((e) => e.toString())}
-                  onChange={eventsChange}
-                  className="sh-select form-control"
-                  classNameList="dropdown-menu"
-                  showSelected={true}
-                  onceSelectByClick
-                  multiple
-                  options={eventPlotList}
-                  placeholder="Event"
-                />
-                <span className="input-group-text text-primary">
-                  <SVGFlag />
-                </span>
               </div>
             )}
           </>

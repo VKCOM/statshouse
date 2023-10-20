@@ -7,10 +7,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import cn from 'classnames';
 import { TagSelect } from '../TagSelect';
-import { SwitchBox } from '../UI';
+// import { SwitchBox } from '../UI';
 import { formatTagValue } from '../../view/api';
 
-import { ReactComponent as SVGLayers } from 'bootstrap-icons/icons/layers.svg';
+// import { ReactComponent as SVGLayers } from 'bootstrap-icons/icons/layers.svg';
 import { SelectOptionProps } from '../Select';
 import { formatPercent, normalizeTagValues } from '../../view/utils';
 import { MetricMetaTag } from '../../api/metric';
@@ -125,7 +125,7 @@ export function VariableControl<T>({
   return (
     <div className={className}>
       <div className="d-flex align-items-center">
-        <div className={cn('input-group flex-nowrap w-100', small ? 'input-group-sm me-2' : 'input-group  me-4')}>
+        <div className={cn('input-group flex-nowrap w-100', small ? 'input-group-sm' : 'input-group')}>
           <TagSelect
             values={allValues}
             placeholder={placeholder}
@@ -140,11 +140,13 @@ export function VariableControl<T>({
             setNegative={onSetNegative}
             sort={sortByName}
             setSort={setSortByName}
+            groupBy={groupBy}
+            setGroupBy={onSetGroupBy}
           />
         </div>
-        <SwitchBox title="Group by" checked={groupBy} onChange={onSetGroupBy}>
-          <SVGLayers />
-        </SwitchBox>
+        {/*<SwitchBox title="Group by" checked={groupBy} onChange={onSetGroupBy}>*/}
+        {/*  <SVGLayers />*/}
+        {/*</SwitchBox>*/}
       </div>
       <div className="d-flex flex-wrap">
         {customBadge}
