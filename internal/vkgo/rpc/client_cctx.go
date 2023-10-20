@@ -6,7 +6,12 @@
 
 package rpc
 
-import "github.com/vkcom/statshouse/internal/vkgo/basictl"
+import (
+	"fmt"
+	"time"
+
+	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+)
 
 // Lifecycle of call context:
 // After setupCall, context is owned both by 'calls' and 'writeQ': sent=false, stale=false
@@ -35,6 +40,42 @@ type callContext struct {
 	err  error     // otherwise err must be set. May point to rpcErr
 
 	hookState ClientHookState // can be nil
+}
+
+func preparePacket(req *Request, deadline time.Time) error {
+	if !deadline.IsZero() && !req.Extra.IsSetCustomTimeoutMs() {
+		// Not as close to actual writing as possible (we want that due to time.Until)
+		// If negative already, so be it.
+		req.Extra.SetCustomTimeoutMs(int32(time.Until(deadline).Milliseconds()))
+	}
+
+	headerBuf := req.Body // move to local var, then back for speed
+	req.extraStart = len(headerBuf)
+
+	headerBuf = basictl.LongWrite(headerBuf, req.queryID)
+	switch {
+	case req.ActorID != 0 && req.Extra.Flags != 0:
+		headerBuf = basictl.NatWrite(headerBuf, destActorFlagsTag)
+		headerBuf = basictl.LongWrite(headerBuf, int64(req.ActorID))
+		var err error
+		if headerBuf, err = req.Extra.Write(headerBuf); err != nil {
+			return fmt.Errorf("failed to write extra: %w", err)
+		}
+	case req.Extra.Flags != 0:
+		headerBuf = basictl.NatWrite(headerBuf, destFlagsTag)
+		var err error
+		if headerBuf, err = req.Extra.Write(headerBuf); err != nil {
+			return fmt.Errorf("failed to write extra: %w", err)
+		}
+	case req.ActorID != 0:
+		headerBuf = basictl.NatWrite(headerBuf, destActorTag)
+		headerBuf = basictl.LongWrite(headerBuf, int64(req.ActorID))
+	}
+	if err := validBodyLen(len(headerBuf)); err != nil { // exact
+		return err
+	}
+	req.Body = headerBuf
+	return nil
 }
 
 func (cctx *callContext) parseResponse(resp *Response, toplevelError bool, logf LoggerFunc) (err error) {

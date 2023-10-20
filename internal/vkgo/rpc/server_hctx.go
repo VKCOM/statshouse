@@ -30,6 +30,8 @@ type HandlerContext struct {
 	response *[]byte // pointer for reuse. Holds allocated slice which will be put into sync pool, has always len 0
 	Response []byte
 
+	extraStart int // We serialize extra after body into Body, then write into reversed order
+
 	RequestExtra           InvokeReqExtra // every proxy adds bits it needs to client extra, sends it to server, then clears all bits in response so client can interpret all bits
 	ResponseExtra          ReqResultExtra // everything we set here will be sent if client requested it (bit of RequestExtra.flags set)
 	requestExtraFieldsmask uint32         // defensive copy
@@ -120,6 +122,7 @@ func (hctx *HandlerContext) AccountResponseMem(respBodySizeEstimate int) error {
 // 1) forget about hctx if canceller method is called (so you must update your data structures strictly after call HijackResponse finished)
 // 2) if 1) did not yet happen, can at any moment in the future call SendHijackedResponse
 func (hctx *HandlerContext) HijackResponse(canceller HijackResponseCanceller) error {
+	// if hctx.noResult - we cannot return any other error from here because caller already updated its state. TODO - cancel immediately
 	sc := hctx.serverConn
 	hctx.UserData, sc.userData = sc.userData, hctx.UserData
 	hctx.releaseRequest()
@@ -184,20 +187,16 @@ func (hctx *HandlerContext) parseInvokeReq(s *Server) (err error) {
 	hctx.noResult = hctx.RequestExtra.IsSetNoResult()
 	hctx.requestExtraFieldsmask = hctx.RequestExtra.Flags
 
-	timeout := s.opts.DefaultResponseTimeout
-
 	// We calculate timeout before handler can change hctx.RequestExtra
 	if hctx.RequestExtra.CustomTimeoutMs > 0 { // implies hctx.RequestExtra.IsSetCustomTimeoutMs()
 		// CustomTimeoutMs <= 0 means forever/maximum. TODO - harmonize condition with C engines
-		clientTimeout := time.Duration(hctx.RequestExtra.CustomTimeoutMs)*time.Millisecond - s.opts.ResponseTimeoutAdjust
-		if clientTimeout < time.Millisecond {
-			clientTimeout = time.Millisecond
+		customTimeout := time.Duration(hctx.RequestExtra.CustomTimeoutMs)*time.Millisecond - s.opts.ResponseTimeoutAdjust
+		if customTimeout < time.Millisecond { // TODO - adjustable minimum timeout
+			customTimeout = time.Millisecond
 		}
-		if timeout == 0 || clientTimeout < timeout {
-			timeout = clientTimeout
-		}
+		hctx.timeout = customTimeout
+	} else {
+		hctx.timeout = s.opts.DefaultResponseTimeout
 	}
-
-	hctx.timeout = timeout
 	return nil
 }

@@ -9,6 +9,7 @@ package fsbinlog
 import (
 	"crypto/md5"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -96,6 +97,8 @@ type (
 		buffEx *buffExchange
 	}
 )
+
+var _ binlog.Binlog = &fsBinlog{}
 
 // BinlogReadWrite is an internal interface for migration
 // TODO: move this interface to internal folder
@@ -247,7 +250,7 @@ func (b *fsBinlog) WriteLoop(ri PositionInfo) (PositionInfo, error) {
 
 func (b *fsBinlog) Run(offset int64, snapshotMeta []byte, engine binlog.Engine) error {
 	readInfo, err := b.ReadAll(offset, snapshotMeta, engine)
-	if err == errStopped {
+	if errors.Is(err, errStopped) {
 		return nil
 	}
 	if err != nil {

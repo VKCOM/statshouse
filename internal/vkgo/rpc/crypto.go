@@ -118,6 +118,9 @@ func (w *cryptoWriter) encrypt(enc cipher.BlockMode) {
 	if cap(w.buf) < w.blockSize {
 		w.buf = append(make([]byte, 0, w.blockSize), w.buf...)
 	}
+	if w.blockSize&(w.blockSize-1) != 0 { // Padding and roundDownPow2 functions expect this
+		panic("cryptoWriter: block size not power of 2")
+	}
 }
 
 func (w *cryptoWriter) Write(p []byte) (int, error) {
@@ -163,6 +166,10 @@ func (w *cryptoWriter) Flush() error {
 		return nil
 	}
 	return w.f.Flush()
+}
+
+func (w *cryptoWriter) Padding(afterNext int) int {
+	return -(len(w.buf) + afterNext - w.encStart) & (w.blockSize - 1)
 }
 
 func roundDownPow2(i int, multiple int) int {

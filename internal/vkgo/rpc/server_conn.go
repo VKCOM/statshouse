@@ -12,8 +12,6 @@ import (
 	"net"
 	"sync"
 	"time"
-
-	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 )
 
 type serverConn struct {
@@ -26,6 +24,8 @@ type serverConn struct {
 
 	mu   sync.Mutex
 	cond sync.Cond
+
+	closeWaitCond sync.Cond
 
 	longpollResponses map[int64]hijackedResponse
 
@@ -77,10 +77,13 @@ func (sc *serverConn) push(hctx *HandlerContext, isLongpoll bool) {
 	if debugTrace {
 		sc.server.addTrace(fmt.Sprintf("push %p", hctx))
 	}
+	wasLen := len(sc.writeQ)
 	sc.writeQ = append(sc.writeQ, hctx)
 	sc.mu.Unlock()
 
-	sc.cond.Broadcast()
+	if wasLen == 0 {
+		sc.writeQCond.Signal()
+	}
 }
 
 func (sc *serverConn) sendLetsFin() {
@@ -94,7 +97,7 @@ func (sc *serverConn) sendLetsFin() {
 	}
 	sc.writeLetsFin = true
 	sc.mu.Unlock()
-	sc.cond.Broadcast()
+	sc.writeQCond.Signal()
 }
 
 func (sc *serverConn) flush() error {
@@ -111,7 +114,7 @@ func (sc *serverConn) SetReadFIN() {
 	sc.mu.Lock()
 	sc.readFINFlag = true
 	sc.mu.Unlock()
-	sc.cond.Broadcast()
+	sc.writeQCond.Signal()
 }
 
 func (sc *serverConn) Close() error {
@@ -139,7 +142,8 @@ func (sc *serverConn) Close() error {
 		hctx.releaseResponse()
 	}
 
-	sc.cond.Broadcast() // wake up everybody who waits hctx or writeQ
+	sc.cond.Broadcast()    // wake up everyone who waits on !sc.closedFlag
+	sc.writeQCond.Signal() // or writeQ
 	return nil
 }
 
@@ -148,7 +152,7 @@ func (sc *serverConn) WaitClosed() error {
 	defer sc.mu.Unlock()
 
 	for sc.hctxCreated != len(sc.hctxPool) {
-		sc.cond.Wait()
+		sc.closeWaitCond.Wait()
 	}
 	if len(sc.writeQ) != 0 {
 		sc.server.opts.Logf("connection write queue length (%d) invariant violated", len(sc.writeQ))
@@ -162,22 +166,25 @@ func (sc *serverConn) closed() bool {
 	return sc.closedFlag
 }
 
-func (sc *serverConn) writeResponseUnlocked(hctx *HandlerContext, timeout time.Duration) (err error) {
-	if err := sc.conn.startWritePacketUnlocked(hctx.respPacketType, timeout); err != nil {
+func writeResponseUnlocked(conn *PacketConn, hctx *HandlerContext, timeout time.Duration) error {
+	resp := hctx.Response
+	extraStart := hctx.extraStart
+
+	crc, err := conn.writePacketHeaderUnlocked(hctx.respPacketType, len(resp), timeout)
+	if err != nil {
 		return err
 	}
-	if hctx.respPacketType == packetTypeRPCReqResult || hctx.respPacketType == packetTypeRPCReqError {
-		sc.conn.headerWriteBuf = basictl.LongWrite(sc.conn.headerWriteBuf, hctx.queryID)
-		hctx.ResponseExtra.Flags &= hctx.requestExtraFieldsmask // return only fields they understand
-		if hctx.respPacketType == packetTypeRPCReqResult && hctx.ResponseExtra.Flags != 0 {
-			sc.conn.headerWriteBuf = basictl.NatWrite(sc.conn.headerWriteBuf, reqResultHeaderTag)
-
-			if sc.conn.headerWriteBuf, err = hctx.ResponseExtra.Write(sc.conn.headerWriteBuf); err != nil {
-				return err // should be no errors during writing, though
-			}
-		}
+	// we serialize Extra after Body, so we have to twist spacetime a bit
+	crc, err = conn.writePacketBodyUnlocked(crc, resp[extraStart:])
+	if err != nil {
+		return err
 	}
-	return sc.conn.writeSimplePacketUnlocked(hctx.Response)
+	crc, err = conn.writePacketBodyUnlocked(crc, resp[:extraStart])
+	if err != nil {
+		return err
+	}
+	conn.writePacketTrailerUnlocked(crc)
+	return nil
 }
 
 func (sc *serverConn) acquireHandlerCtx(tip uint32, stateInit func() ServerHookState) (*HandlerContext, bool) {
@@ -227,10 +234,21 @@ func (sc *serverConn) releaseHandlerCtx(hctx *HandlerContext) {
 	if debugTrace {
 		sc.server.addTrace(fmt.Sprintf("releaseHandlerCtx %p", hctx))
 	}
+	wakeupAcquireHandlerCtx := len(sc.hctxPool) == 0
 	sc.hctxPool = append(sc.hctxPool, hctx)
+	wasReadFINFlag := sc.readFINFlag
+	wakeupWaitClosed := sc.hctxCreated == len(sc.hctxPool)
 	sc.mu.Unlock() // unlock without defer to try to reduce lock contention
 
-	sc.cond.Broadcast()
+	if wakeupAcquireHandlerCtx {
+		sc.cond.Signal()
+	}
+	if wakeupWaitClosed {
+		sc.closeWaitCond.Signal()
+	}
+	if wasReadFINFlag { // wake up writer for condition (sc.readFINFlag && sc.hctxCreated == len(sc.hctxPool)
+		sc.writeQCond.Signal()
+	}
 
 	sc.server.statRequestsCurrent.Dec()
 }

@@ -237,7 +237,10 @@ func (pc *clientConn) goConnect(closeCC <-chan struct{}) {
 	var reconnectDelay time.Duration
 	for {
 		if reconnectDelay > 0 {
-			reconnectTimer.Reset(reconnectDelay)
+			// "Full jitter" from https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+			reconnectDelayJitter := time.Duration(rand.Uint64n(uint64(reconnectDelay)))
+			pc.client.opts.Logf("rpc: reconnecting to %v in %v", pc.address, reconnectDelayJitter)
+			reconnectTimer.Reset(reconnectDelayJitter)
 			select {
 			case <-reconnectTimer.C:
 				break
@@ -269,7 +272,7 @@ func (pc *clientConn) goConnect(closeCC <-chan struct{}) {
 		switch {
 		case goodHandshake:
 			reconnectDelay = 0
-		case reconnectDelay < minReconnectDelay:
+		case reconnectDelay == 0:
 			reconnectDelay = minReconnectDelay
 		default:
 			reconnectDelay *= 2
@@ -277,9 +280,6 @@ func (pc *clientConn) goConnect(closeCC <-chan struct{}) {
 				reconnectDelay = maxReconnectDelay
 			}
 		}
-		// "Full jitter" from https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
-		reconnectDelay = time.Duration(rand.Uint64n(uint64(reconnectDelay)))
-		pc.client.opts.Logf("rpc: reconnecting to %v in %v", pc.address, reconnectDelay)
 	}
 }
 
@@ -365,6 +365,7 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 	}
 	var buf []writeReq
 	writeFin := false
+	var customBody []byte
 	for {
 		writeFin, buf = pc.writeQAcquire(buf[:0])
 		if !writeFin && len(buf) == 0 {
@@ -373,7 +374,8 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 
 		for _, wr := range buf {
 			if wr.customPacketType != 0 {
-				err := writeCustomPacketUnlocked(conn, wr.customPacketType, wr.customPacketData, DefaultClientPongTimeout)
+				customBody = basictl.LongWrite(customBody[:0], wr.customPacketData)
+				err := writeCustomPacketUnlocked(conn, wr.customPacketType, customBody, DefaultClientPongTimeout)
 				if err != nil {
 					if !commonConnCloseError(err) {
 						pc.client.opts.Logf("rpc: failed to send ping/pong to %v, disconnecting: %v", conn.remoteAddr, err)
@@ -381,7 +383,7 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 					return err
 				}
 			} else { // here wr.cctx != nil && wr.req != nil
-				err := writeRequestUnlocked(conn, wr.req, wr.deadline, maxPacketRWTime)
+				err := writeRequestUnlocked(conn, wr.req, maxPacketRWTime)
 				pc.client.putRequest(wr.req)
 				if err != nil {
 					if !commonConnCloseError(err) {
@@ -392,7 +394,8 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 			}
 		}
 
-		if writeFin || pc.writeQFlush() { // before writeFIN we must flush regardless of policy set by writeQFlush
+		// TODO - use sent flag instead, like in rpc.Server
+		if pc.writeQFlush() { // before writeFIN we must flush regardless of policy set by writeQFlush
 			if err := conn.FlushUnlocked(); err != nil {
 				if !commonConnCloseError(err) {
 					pc.client.opts.Logf("rpc: failed to flush packets to %v, disconnecting: %v", conn.remoteAddr, err)
@@ -510,48 +513,35 @@ func (pc *clientConn) handleResponse(queryID int64, resp *Response, toplevelErro
 	return false
 }
 
-func writeCustomPacketUnlocked(conn *PacketConn, packetType uint32, pingPong int64, writeTimeout time.Duration) error {
-	if err := conn.startWritePacketUnlocked(packetType, writeTimeout); err != nil {
-		return err
-	}
-	conn.headerWriteBuf = basictl.LongWrite(conn.headerWriteBuf, pingPong)
-	crc, err := conn.writePacketHeaderUnlocked(0)
+func writeCustomPacketUnlocked(conn *PacketConn, packetType uint32, customBody []byte, writeTimeout time.Duration) error {
+	crc, err := conn.writePacketHeaderUnlocked(packetType, len(customBody), writeTimeout)
 	if err != nil {
 		return err
 	}
-	// body is empty
-	return conn.writePacketTrailerUnlocked(crc, 0)
-}
-
-func writeRequestUnlocked(conn *PacketConn, req *Request, deadline time.Time, writeTimeout time.Duration) (err error) {
-	if !deadline.IsZero() && !req.Extra.IsSetCustomTimeoutMs() {
-		// As close to actual writing as possible, due to time.Until
-		// If negative already, so be it.
-		req.Extra.SetCustomTimeoutMs(int32(time.Until(deadline).Milliseconds()))
-	}
-
-	if err = conn.startWritePacketUnlocked(packetTypeRPCInvokeReq, writeTimeout); err != nil {
+	crc, err = conn.writePacketBodyUnlocked(crc, customBody)
+	if err != nil {
 		return err
 	}
-	headerBuf := basictl.LongWrite(conn.headerWriteBuf, req.queryID) // move to local var, then back for speed
-	switch {
-	case req.ActorID != 0 && req.Extra.Flags != 0:
-		headerBuf = basictl.NatWrite(headerBuf, destActorFlagsTag)
-		headerBuf = basictl.LongWrite(headerBuf, int64(req.ActorID))
-		if headerBuf, err = req.Extra.Write(headerBuf); err != nil {
-			return fmt.Errorf("failed to write extra: %w", err)
-		}
-	case req.Extra.Flags != 0:
-		headerBuf = basictl.NatWrite(headerBuf, destFlagsTag)
-		if headerBuf, err = req.Extra.Write(headerBuf); err != nil {
-			return fmt.Errorf("failed to write extra: %w", err)
-		}
-	case req.ActorID != 0:
-		headerBuf = basictl.NatWrite(headerBuf, destActorTag)
-		headerBuf = basictl.LongWrite(headerBuf, int64(req.ActorID))
+	conn.writePacketTrailerUnlocked(crc)
+	return nil
+}
+
+func writeRequestUnlocked(conn *PacketConn, req *Request, writeTimeout time.Duration) (err error) {
+	crc, err := conn.writePacketHeaderUnlocked(packetTypeRPCInvokeReq, len(req.Body), writeTimeout)
+	if err != nil {
+		return err
 	}
-	conn.headerWriteBuf = headerBuf
-	return conn.writeSimplePacketUnlocked(req.Body)
+	// we serialize Extra after Body, so we have to twist spacetime a bit
+	crc, err = conn.writePacketBodyUnlocked(crc, req.Body[req.extraStart:])
+	if err != nil {
+		return err
+	}
+	crc, err = conn.writePacketBodyUnlocked(crc, req.Body[:req.extraStart])
+	if err != nil {
+		return err
+	}
+	conn.writePacketTrailerUnlocked(crc)
+	return nil
 }
 
 func (pc *clientConn) writeQPush(wr writeReq) {
@@ -566,30 +556,36 @@ func (pc *clientConn) writeQAcquire(q []writeReq) (writeFin bool, _ []writeReq) 
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 
-	for !(pc.conn == nil || len(pc.writeQ) != 0 || pc.writeFin) {
-		pc.writeQCond.Wait()
-	}
-
-	if pc.conn == nil {
-		return false, nil
-	}
-
-	ret := q
-	for i, wr := range pc.writeQ {
-		if wr.cctx != nil {
-			if wr.cctx.stale {
-				pc.putStaleRequest(wr) // avoid sending stale requests
-				pc.writeQ[i] = writeReq{}
-				continue
-			}
-			wr.cctx.sent = true // point of potential side effect
+	for {
+		if !(pc.conn == nil || len(pc.writeQ) != 0 || pc.writeFin) {
+			pc.writeQCond.Wait()
+			continue
 		}
-		pc.writeQ[i] = writeReq{}
-		ret = append(ret, wr)
-	}
-	pc.writeQ = pc.writeQ[:0]
 
-	return pc.writeFin, ret // We do not clear writeFin, because it must be cleared on reconnect anyway
+		if pc.conn == nil {
+			return false, nil
+		}
+
+		ret := q
+		for i, wr := range pc.writeQ {
+			if wr.cctx != nil {
+				if wr.cctx.stale {
+					pc.putStaleRequest(wr) // avoid sending stale requests
+					pc.writeQ[i] = writeReq{}
+					continue
+				}
+				wr.cctx.sent = true // point of potential side effect
+				// TODO - we want to move side effect just before WritePacket, but this would require
+			}
+			pc.writeQ[i] = writeReq{}
+			ret = append(ret, wr)
+		}
+		pc.writeQ = pc.writeQ[:0]
+		if pc.writeFin || len(ret) != 0 {
+			return pc.writeFin, ret // We do not clear writeFin, because it must be cleared on reconnect anyway
+		}
+		// All requests were stale, wait for more requests
+	}
 }
 
 func (pc *clientConn) writeQFlush() bool {

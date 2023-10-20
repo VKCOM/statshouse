@@ -375,8 +375,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		rpc.ServerWithHandler(handlerRPC.Handle),
 		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats))
 	defer func() { _ = srv.Close() }()
-
-	rpcLn, err := srv.Listen("tcp4", argv.listenAddr)
+	rpcLn, err := net.Listen("tcp4", argv.listenAddr)
 	if err != nil {
 		logErr.Fatalf("RPC listen failed: %v", err)
 	}

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/vkcom/statshouse/internal/format"
 
 	"pgregory.net/rand"

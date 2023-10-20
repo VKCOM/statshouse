@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/pierrec/lz4"
+
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"

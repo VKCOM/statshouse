@@ -26,9 +26,15 @@ var (
 )
 
 type ChangeRoleInfo struct {
-	IsMaster   bool
-	IsReady    bool
-	ViewNumber int64
+	IsMaster    bool
+	IsReady     bool
+	ViewNumber  int64
+	EpochNumber int64
+}
+
+func CompareEpochNumberViewNumber(e1, v1, e2, v2 int64) bool {
+	return e1 < e2 ||
+		e1 == e2 && v1 < v2
 }
 
 func (c ChangeRoleInfo) IsReadyMaster() bool { return c.IsMaster && c.IsReady }
@@ -151,7 +157,7 @@ func (c ChangeRoleInfo) ValidateWriteRequest(hctx *rpc.HandlerContext) error {
 	if !c.IsReadyMaster() {
 		return rpc.Error{
 			Code:        BarsicNotAMasterRPCError,
-			Description: fmt.Sprintf("%d not master", c.ViewNumber),
+			Description: fmt.Sprintf("%d:%d not master", c.EpochNumber, c.ViewNumber),
 		}
 	}
 	return nil
@@ -161,5 +167,6 @@ func (c ChangeRoleInfo) ValidateWriteRequest(hctx *rpc.HandlerContext) error {
 func (c ChangeRoleInfo) ValidateReadRequest(hctx *rpc.HandlerContext) {
 	if hctx != nil {
 		hctx.ResponseExtra.SetViewNumber(c.ViewNumber)
+		hctx.ResponseExtra.EpochNumber = c.EpochNumber
 	}
 }
