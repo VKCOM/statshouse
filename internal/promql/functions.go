@@ -63,8 +63,9 @@ func evalAndGroup(fn seriesGroupFunc) aggregateFunc {
 				return nil, err
 			}
 			res := ev.newSeries(len(groups))
-			for _, g := range groups {
+			for i, g := range groups {
 				res.append(fn(ev, g, expr.Param))
+				res.Data[i].MaxHost = g.groupMaxHost(ev)
 			}
 			bag[x] = res
 		}
@@ -1240,8 +1241,8 @@ func (ev *evaluator) funcPrefixSum(bag Series) Series {
 			if !math.IsNaN(v) {
 				sum += v
 			}
-			if 0 < j && j < len(s.Tags.MaxHost) && s.Tags.MaxHost[j] == 0 && s.Tags.MaxHost[j-1] != 0 {
-				s.Tags.MaxHost[j] = s.Tags.MaxHost[j-1]
+			if 0 < j && j < len(s.MaxHost) && s.MaxHost[j] == 0 && s.MaxHost[j-1] != 0 {
+				s.MaxHost[j] = s.MaxHost[j-1]
 			}
 			(*s.Values)[j] = sum
 		}

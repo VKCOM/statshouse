@@ -484,7 +484,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					buffers = append(buffers, values)
 					data := promql.SeriesData{Values: values}
 					if qry.MaxHost {
-						data.Tags.MaxHost = make([]int32, timeLen)
+						data.MaxHost = make([]int32, timeLen)
 					}
 					for k := range *data.Values {
 						(*data.Values)[k] = promql.NilValue
@@ -493,7 +493,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				}
 				(*res.Data[i].Values)[j] = selectTSValue(what, qry.MaxHost, qryRaw, step, &d)
 				if qry.MaxHost {
-					res.Data[i].Tags.MaxHost[j] = d.maxHost
+					res.Data[i].MaxHost[j] = d.maxHost
 				}
 			}
 		}

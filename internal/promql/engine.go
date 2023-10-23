@@ -460,6 +460,9 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 		for i := range ss.Data {
 			s := (*ss.Data[i].Values)[lo:hi]
 			ss.Data[i].Values = &s
+			if len(ss.Data[i].MaxHost) != 0 {
+				ss.Data[i].MaxHost = ss.Data[i].MaxHost[lo:hi]
+			}
 		}
 		res.Series.append(ss)
 	}

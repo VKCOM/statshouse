@@ -2140,7 +2140,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 		meta := QuerySeriesMetaV2{
 			Name:      metricName,
 			Tags:      make(map[string]SeriesMetaTag, len(s.Tags.ID2Tag)),
-			MaxHosts:  s.Tags.GetSMaxHosts(h),
+			MaxHosts:  s.GetSMaxHosts(h),
 			TimeShift: -s.Offset,
 			Total:     ts.Series.Meta.Total,
 		}

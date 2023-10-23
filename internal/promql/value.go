@@ -33,10 +33,11 @@ type Series struct {
 }
 
 type SeriesData struct {
-	Values *[]float64
-	Tags   SeriesTags
-	Offset int64
-	What   int
+	Values  *[]float64
+	MaxHost []int32
+	Tags    SeriesTags
+	Offset  int64
+	What    int
 }
 
 type SeriesMeta struct {
@@ -49,7 +50,6 @@ type SeriesMeta struct {
 type SeriesTags struct {
 	ID2Tag       map[string]*SeriesTag // indexed by tag ID (canonical name)
 	Name2Tag     map[string]*SeriesTag // indexed by tag optional Name
-	MaxHost      []int32
 	hashSum      uint64
 	hashSumValid bool
 }
@@ -144,7 +144,6 @@ func (ss *Series) group(ev *evaluator, opt hashOptions) ([]seriesGroup, error) {
 	}
 	res := make([]seriesGroup, 0, len(groups))
 	for _, g := range groups {
-		g.tags.MaxHost = g.groupMaxHost(ev)
 		res = append(res, *g)
 	}
 	return res, nil
@@ -155,7 +154,7 @@ func (ss *Series) groupMaxHost(ev *evaluator) []int32 {
 		return nil
 	}
 	if len(ss.Data) == 1 {
-		return ss.Data[0].Tags.MaxHost
+		return ss.Data[0].MaxHost
 	}
 	var (
 		i int
@@ -163,7 +162,7 @@ func (ss *Series) groupMaxHost(ev *evaluator) []int32 {
 		t = ev.time()
 	)
 	for ; i < len(ss.Data); i++ {
-		if len(ss.Data[i].Tags.MaxHost) != 0 {
+		if len(ss.Data[i].MaxHost) != 0 {
 			s = make([]int32, 0, len(t))
 			break
 		}
@@ -173,13 +172,13 @@ func (ss *Series) groupMaxHost(ev *evaluator) []int32 {
 	}
 	for j := 0; j < len(t); j++ {
 		var (
-			v = ss.Data[i].Tags.MaxHost[j]
+			v = ss.Data[i].MaxHost[j]
 			k = i + 1
 		)
 		for ; k < len(ss.Data); k++ {
-			if k < len(ss.Data) && ss.Data[k].Tags.MaxHost[j] != 0 && ss.Data[k].Tags.MaxHost[j] != v {
+			if k < len(ss.Data) && ss.Data[k].MaxHost[j] != 0 && ss.Data[k].MaxHost[j] != v {
 				if v == 0 {
-					v = ss.Data[k].Tags.MaxHost[j]
+					v = ss.Data[k].MaxHost[j]
 				} else {
 					v = 0
 					break
@@ -405,7 +404,7 @@ func (ts *SeriesTags) remove(t string) {
 	ts.hashSumValid = false // tags changed, previously computed hash sum is no longer valid
 }
 
-func (ts *SeriesTags) GetSMaxHosts(h Handler) []string {
+func (ts *SeriesData) GetSMaxHosts(h Handler) []string {
 	res := make([]string, len(ts.MaxHost))
 	for j, id := range ts.MaxHost {
 		if id != 0 {
