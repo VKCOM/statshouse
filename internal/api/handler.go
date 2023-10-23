@@ -1528,8 +1528,10 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		return nil, false, err
 	}
 
-	numResults, err := parseNumResults(req.numResults, defTagValues, maxTagValues)
-	if err != nil {
+	var numResults int
+	if req.numResults == "" || req.numResults == "0" {
+		numResults = defTagValues
+	} else if numResults, err = parseNumResults(req.numResults, defTagValues, maxTagValues); err != nil {
 		return nil, false, err
 	}
 
@@ -4086,8 +4088,9 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			if len(t.shifts) != 0 {
 				numResultsMax /= len(t.shifts)
 			}
-			t.numResults, err = parseNumResults(t.strNumResults, defSeries, numResultsMax)
-			if err != nil {
+			if t.strNumResults == "" {
+				t.numResults = defSeries
+			} else if t.numResults, err = parseNumResults(t.strNumResults, defSeries, numResultsMax); err != nil {
 				return err
 			}
 			if _, ok := format.BuiltinMetricByName[t.metricWithNamespace]; ok {
