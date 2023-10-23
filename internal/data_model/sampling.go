@@ -112,7 +112,7 @@ func (h *Sampler) Add(p SamplingMultiItemPair) {
 	if p.Size <= 0 { // size can't be zero or less, sanity check
 		return
 	}
-	if p.Item.MetricMeta != nil {
+	if p.Item.MetricMeta != nil && p.MetricID == p.Item.MetricMeta.MetricID {
 		p.metric = p.Item.MetricMeta
 	} else {
 		p.metric = h.getMetricMeta(p.MetricID)
