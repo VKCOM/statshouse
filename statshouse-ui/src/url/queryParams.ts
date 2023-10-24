@@ -663,7 +663,8 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     const type = toPlotType(urlParams[prefix + GET_PARAMS.metricType]?.[0]) ?? defaultPlot.type;
 
     const numSeries =
-      toNumber(urlParams[prefix + GET_PARAMS.numResults]?.[0]) ?? type === PLOT_TYPE.Event ? 0 : defaultPlot.numSeries;
+      toNumber(urlParams[prefix + GET_PARAMS.numResults]?.[0]) ??
+      (type === PLOT_TYPE.Event ? 0 : defaultPlot.numSeries);
 
     const events = urlParams[prefix + GET_PARAMS.metricEvent]?.map(toNumber).filter(isNotNil) ?? [];
 
