@@ -119,8 +119,20 @@ type testEngineOptions struct {
 	create      bool
 	replica     bool
 	readAndExit bool
-	applyF      func(string)
+	applyF      ApplyEventFunction
 	testOptions *testOptions
+	maxRoConn   int
+}
+
+func defaultTestEngineOptions(prefix string) testEngineOptions {
+	return testEngineOptions{
+		prefix:      prefix,
+		dbFile:      "db",
+		scheme:      "",
+		applyF:      nil,
+		testOptions: nil,
+		maxRoConn:   0,
+	}
 }
 
 func openEngine1(t *testing.T, opt testEngineOptions) (*Engine, binlog2.Binlog) {
@@ -146,11 +158,12 @@ func openEngine1(t *testing.T, opt testEngineOptions) (*Engine, binlog2.Binlog) 
 		},
 		CacheApproxMaxSizePerConnect: 1,
 		ShowLastInsertID:             true,
+		MaxROConn:                    opt.maxRoConn,
 	})
 	engine.testOptions = opt.testOptions
 	require.NoError(t, err)
 	go func() {
-		require.NoError(t, engine.Run(bl, apply(t, opt.applyF)))
+		require.NoError(t, engine.Run(bl, opt.applyF))
 	}()
 	require.NoError(t, engine.WaitReady())
 	return engine, bl
@@ -627,4 +640,128 @@ func Test_Engine_RO(t *testing.T) {
 	require.Equal(t, int64(1), id)
 	require.NoError(t, engine.Close())
 	require.NoError(t, engineRO.Close())
+}
+
+func TestReplicaCantWrite(t *testing.T) {
+	d := t.TempDir()
+	eng := createEngMaster(t, defaultTestEngineOptions(d))
+	defer eng.mustCloseGoodEngine(t)
+	eng = openEngReplica(t, d)
+	defer eng.mustCloseGoodEngine(t)
+	err := eng.put(context.Background(), 0, 0)
+	require.ErrorIs(t, err, ErrReadOnly)
+}
+
+func TestBrokenEngineCantWrite(t *testing.T) {
+	d := t.TempDir()
+	eng := createEngMaster(t, defaultTestEngineOptions(d))
+	expectedErr := fmt.Errorf("some bad action")
+	err := eng.engine.internalDo("__do", func(c internalConn) error {
+		return expectedErr
+	})
+	require.Error(t, err)
+	err = eng.put(context.Background(), 0, 0)
+	require.ErrorIs(t, err, expectedErr)
+	err = eng.engine.internalDo("__check", func(c internalConn) error {
+		return nil
+	})
+	require.ErrorIs(t, err, expectedErr)
+	require.ErrorIs(t, eng.engine.Close(), expectedErr)
+}
+
+func TestCanWriteAfterPanic(t *testing.T) {
+	d := t.TempDir()
+	eng := createEngMaster(t, defaultTestEngineOptions(d))
+	defer eng.mustCloseGoodEngine(t)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	var k int64 = 1
+	var v int64 = 2
+	go func() {
+		defer wg.Done()
+		defer func() {
+			require.NotNil(t, recover())
+		}()
+		_ = eng.engine.Do(context.Background(), "panic", func(c Conn, cache []byte) ([]byte, error) {
+			_, _ = putConn(c, cache, k, 1)
+			panic("oops")
+		})
+	}()
+	wg.Wait()
+	_, ok, err := eng.get(context.Background(), k)
+	require.NoError(t, err)
+	require.False(t, ok)
+	require.NoError(t, eng.put(context.Background(), k, v))
+	actualV, ok, err := eng.get(context.Background(), k)
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, v, actualV)
+}
+
+func TestCanReadAfterPanic(t *testing.T) {
+	d := t.TempDir()
+	opt := defaultTestEngineOptions(d)
+	opt.maxRoConn = 1
+	eng := createEngMaster(t, opt)
+	defer eng.mustCloseGoodEngine(t)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer func() {
+			require.NotNil(t, recover())
+		}()
+		_ = eng.engine.View(context.Background(), "panic", func(c Conn) error {
+			panic("oops")
+		})
+	}()
+	wg.Wait()
+	_, ok, err := eng.get(context.Background(), 0)
+	require.NoError(t, err)
+	require.False(t, ok)
+}
+
+func TestCanWriteAfterInternalPanic(t *testing.T) {
+	d := t.TempDir()
+	eng := createEngMaster(t, defaultTestEngineOptions(d))
+	defer eng.mustCloseErrorEngine(t, errEnginePanic)
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	var k int64 = 1
+	go func() {
+		defer wg.Done()
+		defer func() {
+			require.NotNil(t, recover())
+		}()
+		_ = eng.engine.internalDo("__panic", func(c internalConn) error {
+			_, _ = putConn(c.Conn, nil, k, 1)
+			panic("oops")
+		})
+	}()
+	wg.Wait()
+	_, ok, err := eng.get(context.Background(), k)
+	require.NoError(t, err)
+	require.False(t, ok)
+	err = eng.put(context.Background(), 0, 0)
+	require.Error(t, err)
+}
+
+func TestInternalDoMustErrorWithBadName(t *testing.T) {
+	d := t.TempDir()
+	eng := createEngMaster(t, defaultTestEngineOptions(d))
+	defer eng.mustCloseGoodEngine(t)
+	err := eng.engine.internalDo("a", func(c internalConn) error {
+		return nil
+	})
+	require.Error(t, err)
+}
+
+func TestDoMustErrorWithBadName(t *testing.T) {
+	d := t.TempDir()
+	eng := createEngMaster(t, defaultTestEngineOptions(d))
+	defer eng.mustCloseGoodEngine(t)
+	err := eng.engine.Do(context.Background(), "__a", func(c Conn, cache []byte) ([]byte, error) {
+		return cache, nil
+	})
+	require.Error(t, err)
 }

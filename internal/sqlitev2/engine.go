@@ -2,6 +2,7 @@ package sqlitev2
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log"
@@ -36,18 +37,34 @@ type (
 	}
 
 	Options struct {
-		Path                         string
-		APPID                        int32
-		Scheme                       string
-		ReadOnly                     bool
-		MaxROConn                    int
+		// Path to db file
+		Path string
+
+		// Use this to specify your SQLITE db format
+		APPID int32
+
+		// User table scheme
+		Scheme string
+
+		// Open db in readonly mode. Don't use binlog in this mode
+		ReadOnly bool
+
+		// ReadOnly connection pool max size
+		MaxROConn int
+
+		// Prepared statement's cache max size (soft)
 		CacheApproxMaxSizePerConnect int
-		ShowLastInsertID             bool
-		StatsOptions                 StatsOptions
+
+		// avoid 1 cgo call
+		ShowLastInsertID bool
+		StatsOptions     StatsOptions
+
 		BinlogOptions
 	}
 	BinlogOptions struct {
-		Replica     bool
+		// Set true if binlog created in replica mode
+		Replica bool
+		// Set true if binlog created in ReadAndExit mode
 		ReadAndExit bool
 	}
 	testOptions struct {
@@ -60,36 +77,39 @@ const (
 	initOffsetTable     = "CREATE TABLE IF NOT EXISTS __binlog_offset (offset INTEGER);"
 	snapshotMetaTable   = "CREATE TABLE IF NOT EXISTS __snapshot_meta (meta BLOB);"
 	internalQueryPrefix = "__"
+	logPrefix           = "[sqlite-engine]"
 )
 
 func openRO(opt Options) (*Engine, error) {
-	logger := log.New(os.Stdout, "[sqlite-engine]", log.LstdFlags)
+	logger := log.New(os.Stdout, logPrefix, log.LstdFlags)
 	e := &Engine{
 		opt:      opt,
 		readOnly: true,
 		roConnPool: newConnPool(opt.MaxROConn, func() (*sqliteConn, error) {
 			return newSqliteROWALConn(opt.Path, opt.CacheApproxMaxSizePerConnect, logger)
 		}),
-		logger: log.New(os.Stdout, "[sqlite-engine]", log.LstdFlags),
+		logger: logger,
 	}
 	return e, nil
 }
 
 /*
-engine := OpenEngine(...)
-can use engine as sqlite wrapper
+OpenEngine open or create SQLite db file.
 
-go engine.Run(...)
-can't use engine
+	engine := OpenEngine(...)
+	can use engine as sqlite wrapper
 
-engine.WaitReady()
-can use engine as sqlite + binlog wrapper
+	go engine.Run(...)
+	can use View, can't use Do
+
+	engine.WaitReady()
+	can use engine as sqlite + binlog wrapper
 */
 func OpenEngine(opt Options) (*Engine, error) {
 	if opt.ReadOnly {
 		return openRO(opt)
 	}
-	logger := log.New(os.Stdout, "[sqlite-engine]", log.LstdFlags)
+	logger := log.New(os.Stdout, logPrefix, log.LstdFlags)
 	rw, err := newSqliteRWWALConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, logger)
 	if err != nil {
 		return nil, err
@@ -137,7 +157,9 @@ func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction
 		})
 		return err
 	}
+	e.logger.Printf("load snapshot meta: %s", hex.EncodeToString(meta))
 	e.binlogEngine = newBinlogEngine(e, applyEventFunction)
+	e.logger.Printf("running binlog")
 	err = e.rw.setError(e.binlog.Run(e.rw.dbOffset, meta, e.binlogEngine))
 	// TODO race?
 	e.rw.mu.Lock()
@@ -164,9 +186,10 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 	if prefix == "" {
 		return "", fmt.Errorf("backup prefix is empty")
 	}
+	e.logger.Printf("starting backup")
 	startTime := time.Now()
 	defer e.opt.StatsOptions.measureActionDurationSince("backup", startTime)
-	conn, err := newSqliteROWALConn(e.opt.Path, 1, e.logger)
+	conn, err := newSqliteROWALConn(e.opt.Path, 10, e.logger)
 	if err != nil {
 		return "", fmt.Errorf("failed to open RO connection to backup: %w", err)
 	}
@@ -201,7 +224,7 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to get backup path: %w", err)
 	}
-	log.Printf("finish backup syccessfuly in %f seconds", time.Since(startTime).Seconds())
+	e.logger.Printf("finish backup successfuly in %f seconds", time.Since(startTime).Seconds())
 	return expectedPath, os.Rename(path, expectedPath)
 }
 
@@ -243,6 +266,9 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 	}
 
 	startTimeBeforeLock := time.Now()
+	if e.testOptions != nil {
+		e.testOptions.sleep()
+	}
 	conn, err := e.roConnPool.get()
 	if err != nil {
 		return fmt.Errorf("faield to get RO conn: %w", err)
@@ -277,23 +303,23 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 	if err := checkUserQueryName(queryName); err != nil {
 		return err
 	}
-	// todo calc wait lock duration
 	if e.testOptions != nil {
 		e.testOptions.sleep()
 	}
 	startTimeBeforeLock := time.Now()
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
-	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
-	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
 	if e.testOptions != nil {
 		e.testOptions.sleep()
 	}
+	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
+	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
 	if e.readOnly || e.opt.Replica {
 		return ErrReadOnly
 	}
 	err = e.rw.beginTxLocked()
 	if err != nil {
+		e.opt.StatsOptions.engineBrokenEvent()
 		return fmt.Errorf("failed to begin tx: %w", err)
 	}
 	defer func() {
@@ -329,16 +355,34 @@ func (e *Engine) internalDo(queryName string, do func(c internalConn) error) err
 		return err
 	}
 	startTimeBeforeLock := time.Now()
+	if e.testOptions != nil {
+		e.testOptions.sleep()
+	}
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
+	defer func() {
+		err := recover()
+		if err != nil {
+			_ = e.rw.setErrorLocked(errEnginePanic)
+			panic(err)
+		}
+	}()
+	if e.testOptions != nil {
+		e.testOptions.sleep()
+	}
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
-	err := e.internalDoLocked(queryName, do)
+	err := e.internalDoLocked(do)
+	if e.testOptions != nil {
+		e.testOptions.sleep()
+	}
 	return e.rw.setErrorLocked(err)
 }
-func (e *Engine) internalDoLocked(name string, do func(c internalConn) error) (err error) {
+
+func (e *Engine) internalDoLocked(do func(c internalConn) error) (err error) {
 	err = e.rw.beginTxLocked()
 	if err != nil {
+		e.opt.StatsOptions.engineBrokenEvent()
 		return fmt.Errorf("failed to begin tx: %w", err)
 	}
 	defer func() {
@@ -395,28 +439,31 @@ func (e *Engine) Close() error {
 }
 
 func (e *Engine) close(waitCommitBinlog bool) error {
-	e.logger.Println("starting close")
+	e.logger.Printf("starting close, waitCommitBinlog: %t", waitCommitBinlog)
 	defer e.opt.StatsOptions.measureActionDurationSince(closeEngine, time.Now())
-	if !e.readOnly {
+	readOnly := e.readOnly
+	if !readOnly {
 		e.rw.mu.Lock()
+		e.logger.Println("set readOnly")
 		e.readOnly = true
 		e.rw.mu.Unlock()
 	}
 	var error error
 	if waitCommitBinlog {
+		e.logger.Println("calling binlog.Shutdown")
 		err := e.binlog.Shutdown()
 		if err != nil {
 			multierr.AppendInto(&error, err)
 		}
 		<-e.finishBinlogRunCh
 	}
-	if !e.readOnly {
+	if !readOnly {
 		err := e.rw.Close()
 		if err != nil {
 			multierr.AppendInto(&error, fmt.Errorf("failed to close RW connection: %w", err))
 		}
 	}
-	//todo wait when read is finish?
+	// todo wait when read is finish?
 	e.roConnPool.close(&error)
 	return error
 }

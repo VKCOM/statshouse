@@ -17,7 +17,7 @@ const (
 	waitDurationMetric   = "sqlite_wait_duration"
 	txDurationMetric     = "sqlite_tx_duration"
 	actionDurationMetric = "sqlite_action_duration"
-	applyQueueSizeMetric = "sqlite_apply_queue_size"
+	engineBrokenMetric   = "sqlite_engine_broken_event"
 
 	txDo   = "sqlite_tx_do"
 	txView = "sqlite_tx_view"
@@ -59,4 +59,11 @@ func (s *StatsOptions) measureSqliteTxDurationSince(typ, name string, start time
 		return
 	}
 	statshouse.Metric(txDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name}).Value(time.Since(start).Seconds())
+}
+
+func (s *StatsOptions) engineBrokenEvent() {
+	if s.checkEmpty() {
+		return
+	}
+	statshouse.Metric(engineBrokenMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC}).Count(1)
 }
