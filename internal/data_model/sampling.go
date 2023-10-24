@@ -278,8 +278,8 @@ func partitionByGroup(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	if len(s) == 0 {
 		return nil, 0
 	}
-	newSamplerGroup := func(p SamplingMultiItemPair, items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
-		weight := p.group.EffectiveWeight
+	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
+		weight := items[0].group.EffectiveWeight
 		if weight < 1 { // weight can't be zero or less, sanity check
 			weight = 1
 		}
@@ -295,7 +295,7 @@ func partitionByGroup(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	sumSize := int64(s[0].Size)
 	for j = 1; j < len(s); j++ {
 		if s[i].group.ID != s[j].group.ID {
-			v := newSamplerGroup(s[i], s[i:j], sumSize)
+			v := newSamplerGroup(s[i:j], sumSize)
 			res = append(res, v)
 			sumWeight += v.weight
 			i = j
@@ -303,11 +303,9 @@ func partitionByGroup(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 		}
 		sumSize += int64(s[j].Size)
 	}
-	if i != j {
-		v := newSamplerGroup(s[i], s[i:j], sumSize)
-		res = append(res, v)
-		sumWeight += v.weight
-	}
+	v := newSamplerGroup(s[i:j], sumSize)
+	res = append(res, v)
+	sumWeight += v.weight
 	return res, sumWeight
 }
 
@@ -315,18 +313,18 @@ func partitionByMetric(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	if len(s) == 0 {
 		return nil, 0
 	}
-	newSamplerGroup := func(p SamplingMultiItemPair, items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
-		weight := p.metric.EffectiveWeight
+	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
+		weight := items[0].metric.EffectiveWeight
 		if weight < 1 { // weight can't be zero or less, sanity check
 			weight = 1
 		}
 		return SamplerGroup{
-			MetricID:      p.MetricID,
+			MetricID:      items[0].MetricID,
 			weight:        weight,
 			items:         items,
 			sumSize:       sumSize,
-			roundFactors:  p.metric.RoundSampleFactors,
-			noSampleAgent: p.metric.NoSampleAgent,
+			roundFactors:  items[0].metric.RoundSampleFactors,
+			noSampleAgent: items[0].metric.NoSampleAgent,
 		}
 	}
 	var res []SamplerGroup
@@ -335,7 +333,7 @@ func partitionByMetric(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	sumSize := int64(s[0].Size)
 	for j = 1; j < len(s); j++ {
 		if s[i].MetricID != s[j].MetricID {
-			v := newSamplerGroup(s[i], s[i:j], sumSize)
+			v := newSamplerGroup(s[i:j], sumSize)
 			res = append(res, v)
 			sumWeight += v.weight
 			i = j
@@ -343,11 +341,9 @@ func partitionByMetric(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 		}
 		sumSize += int64(s[j].Size)
 	}
-	if i != j {
-		v := newSamplerGroup(s[i], s[i:j], sumSize)
-		res = append(res, v)
-		sumWeight += v.weight
-	}
+	v := newSamplerGroup(s[i:j], sumSize)
+	res = append(res, v)
+	sumWeight += v.weight
 	return res, sumWeight
 }
 
@@ -360,14 +356,14 @@ func partitionByKey(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 		weight := int64(format.EffectiveWeightOne)
 		return []SamplerGroup{{weight: weight, items: s}}, weight
 	}
-	newSamplerGroup := func(p SamplingMultiItemPair, items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
+	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
 		return SamplerGroup{
-			MetricID:      p.MetricID,
+			MetricID:      items[0].MetricID,
 			weight:        1,
 			items:         items,
 			sumSize:       sumSize,
-			roundFactors:  p.metric.RoundSampleFactors,
-			noSampleAgent: p.metric.NoSampleAgent,
+			roundFactors:  items[0].metric.RoundSampleFactors,
+			noSampleAgent: items[0].metric.NoSampleAgent,
 		}
 	}
 	var res []SamplerGroup
@@ -376,7 +372,7 @@ func partitionByKey(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	sumSize := int64(s[0].Size)
 	for j = 1; j < len(s); j++ {
 		if s[i].fairKey != s[j].fairKey {
-			v := newSamplerGroup(s[i], s[i:j], sumSize)
+			v := newSamplerGroup(s[i:j], sumSize)
 			res = append(res, v)
 			sumWeight += v.weight
 			i = j
@@ -384,11 +380,9 @@ func partitionByKey(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 		}
 		sumSize += int64(s[j].Size)
 	}
-	if i != j {
-		v := newSamplerGroup(s[i], s[i:j], sumSize)
-		res = append(res, v)
-		sumWeight += v.weight
-	}
+	v := newSamplerGroup(s[i:j], sumSize)
+	res = append(res, v)
+	sumWeight += v.weight
 	return res, sumWeight
 }
 
