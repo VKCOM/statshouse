@@ -514,6 +514,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                   <option value="40">Top 40</option>
                   <option value="50">Top 50</option>
                   <option value="100">Top 100</option>
+                  <option value="0">All</option>
                   <option value="-1">Bottom 1</option>
                   <option value="-2">Bottom 2</option>
                   <option value="-3">Bottom 3</option>
