@@ -147,7 +147,7 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
         )}
         {plot.type === PLOT_TYPE.Event && <SVGFlagFill className="position-absolute top-0 start-0 ms-1 mt-1" />}
       </PlotLink>
-      <Popper targetRef={itemRef} fixed={false} horizontal={'out-right'} vertical={'top'} show={open}>
+      <Popper targetRef={itemRef} fixed={false} horizontal={'out-right'} vertical={'top'} show={open} always>
         <ul className={cn(`nav d-flex flex-column`, css.sub)} ref={sub}>
           <li className={cn('nav-item d-flex flex-row', css.bigPreview)}>
             <PlotLink

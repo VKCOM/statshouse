@@ -8,3 +8,8 @@ export * from './Popper';
 export * from './Portal';
 export * from './ToggleButton';
 export * from './SwitchBox';
+export * from './Tooltip';
+export * from './Button';
+export * from './InputText';
+export * from './TextArea';
+export * from './TooltipTitleContent';

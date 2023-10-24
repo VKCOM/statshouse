@@ -12,6 +12,7 @@ import { useStore } from '../../store';
 import cn from 'classnames';
 import css from './style.module.css';
 import { PlotHeaderBadges } from './PlotHeaderBadges';
+import { Button, InputText, TextArea, Tooltip } from '../UI';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 import { ReactComponent as SVGCheckLg } from 'bootstrap-icons/icons/check-lg.svg';
@@ -20,7 +21,6 @@ import { ReactComponent as SVGPencil } from 'bootstrap-icons/icons/pencil.svg';
 import { MetricMetaValue } from '../../api/metric';
 import { promQLMetric } from '../../view/utils';
 import { encodeParams, fixMessageTrouble, lockRange, PlotParams, toPlotKey } from '../../url/queryParams';
-import { TextArea } from '../UI/TextArea';
 import { whatToWhatDesc } from '../../view/api';
 import { shallow } from 'zustand/shallow';
 import { PlotName } from './PlotName';
@@ -28,8 +28,8 @@ import { PlotLink } from './PlotLink';
 import { Link } from 'react-router-dom';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGBoxArrowUpRight } from 'bootstrap-icons/icons/box-arrow-up-right.svg';
-import { InputText } from '../UI/InputText';
 import { useOnClickOutside } from '../../hooks/useOnClickOutside';
+import { PlotHeaderTooltipContent } from './PlotHeaderTooltipContent';
 
 const { removePlot, setPlotParams, setPlotType } = useStore.getState();
 const stopPropagation = (e: React.MouseEvent) => {
@@ -207,15 +207,10 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
     setEditTitle(false);
   });
 
-  const plotNameTooltip = useMemo(() => {
-    let label = plot.customName || metricFullName;
+  const plotTooltip = useMemo(() => {
     const desc = plot.customDescription || meta?.description || '';
-    if (desc) {
-      return label + '\r\n\r\n' + desc;
-    }
-
-    return label;
-  }, [meta?.description, metricFullName, plot.customDescription, plot.customName]);
+    return <PlotHeaderTooltipContent name={<PlotName plot={plot} plotData={plotData} />} description={desc} />;
+  }, [meta?.description, plot, plotData]);
 
   if (dashboard) {
     return (
@@ -251,26 +246,24 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
                   onInput={setCustomName}
                 />
                 {canRemove && (
-                  <button
+                  <Button
                     className={cn(css.plotRemoveBtn, 'btn btn-sm ms-1 border-0')}
                     title="Remove"
                     onPointerDown={stopPropagation}
                     onClick={onRemove}
+                    type="button"
                   >
                     <SVGTrash />
-                  </button>
+                  </Button>
                 )}
               </div>
             ) : (
               <>
-                <PlotLink
-                  className="text-decoration-none overflow-hidden text-nowrap"
-                  title={plotNameTooltip}
-                  indexPlot={indexPlot}
-                  target={embed ? '_blank' : '_self'}
-                >
-                  <PlotName plot={plot} plotData={plotData} />
-                </PlotLink>
+                <Tooltip as="span" className="text-decoration-none overflow-hidden text-nowrap" title={plotTooltip}>
+                  <PlotLink className="text-decoration-none" indexPlot={indexPlot} target={embed ? '_blank' : '_self'}>
+                    <PlotName plot={plot} plotData={plotData} />
+                  </PlotLink>
+                </Tooltip>
                 {!embed && (
                   <Link to={copyLink} target="_blank" className="ms-2">
                     <SVGBoxArrowUpRight width={10} height={10} />
@@ -319,19 +312,20 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
   if (embed) {
     return (
       <div
-        className={cn('d-flex flex-grow-1 flex-wrap ', compact ? 'justify-content-around' : 'justify-content-between')}
+        className={cn('d-flex flex-grow-1 flex-wrap', compact ? 'justify-content-around' : 'justify-content-between')}
       >
         <h6
-          className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 mb-1`}
+          className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 gap-1 mb-1`}
         >
-          <PlotLink
-            className="text-secondary text-decoration-none me-3"
-            indexPlot={indexPlot}
-            target={embed ? '_blank' : '_self'}
-            title={plotNameTooltip}
-          >
-            <PlotName plot={plot} plotData={plotData} />
-          </PlotLink>
+          <Tooltip title={plotTooltip}>
+            <PlotLink
+              className="text-secondary text-decoration-none"
+              indexPlot={indexPlot}
+              target={embed ? '_blank' : '_self'}
+            >
+              <PlotName plot={plot} plotData={plotData} />
+            </PlotLink>
+          </Tooltip>
           <PlotHeaderBadges indexPlot={indexPlot} compact={compact} dashboard={dashboard} />
         </h6>
       </div>
@@ -355,36 +349,38 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
                   placeholder={metricFullName}
                   onInput={setLocalCustomName}
                 />
-                <button className="btn btn-sm btn-outline-primary" type="submit">
+                <Button className="btn btn-sm btn-outline-primary" type="submit">
                   <SVGCheckLg />
-                </button>
-                <button className="btn btn-sm btn-outline-primary" type="reset" onClick={onClose}>
+                </Button>
+                <Button className="btn btn-sm btn-outline-primary" type="reset" onClick={onClose}>
                   <SVGX />
-                </button>
+                </Button>
               </form>
             ) : (
               <div className="d-flex align-items-center w-100">
                 <div className="overflow-force-wrap flex-grow-1">
-                  <PlotLink
-                    className="text-decoration-none overflow-hidden"
-                    title={plotNameTooltip}
-                    indexPlot={indexPlot}
-                    target={dashboard ? '_self' : '_blank'}
-                  >
-                    <PlotName plot={plot} plotData={plotData} />
-                  </PlotLink>
+                  <Tooltip as="span" className="text-decoration-none overflow-hidden" title={plotTooltip}>
+                    <PlotLink
+                      className="text-decoration-none overflow-hidden"
+                      indexPlot={indexPlot}
+                      target={dashboard ? '_self' : '_blank'}
+                    >
+                      <PlotName plot={plot} plotData={plotData} />
+                    </PlotLink>
+                  </Tooltip>
                   <Link to={copyLink} target="_blank" className="ms-2">
                     <SVGBoxArrowUpRight width={10} height={10} />
                   </Link>
                 </div>
-                <button
+                <Button
                   ref={formRef}
                   className="btn btn-sm btn-outline-primary border-0"
                   type="button"
                   onClick={onEdit}
+                  title="edit plot name"
                 >
                   <SVGPencil />
-                </button>
+                </Button>
               </div>
             )}
           </div>
