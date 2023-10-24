@@ -125,6 +125,7 @@ const (
 	BuiltinMetricNameAPIResponseTime            = "__api_response_time"
 	BuiltinMetricNameSrcTestConnection          = "__src_test_connection"
 	BuiltinMetricNameAggTimeDiff                = "__src_agg_time_diff"
+	BuiltinMetricNameHeartbeatVersion           = "__heartbeat_version"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -1060,7 +1061,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			}},
 		},
 		BuiltinMetricIDHeartbeatVersion: {
-			Name:                 "__heartbeat_version",
+			Name:                 BuiltinMetricNameHeartbeatVersion,
 			Kind:                 MetricKindValue,
 			Description:          "Heartbeat value is uptime",
 			StringTopDescription: "Build Commit",
@@ -1565,6 +1566,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDMetaServiceTime:            true,
 		BuiltinMetricIDMetaClientWaits:            true,
 		BuiltinMetricIDAPIMetricUsage:             true,
+		BuiltinMetricIDHeartbeatVersion:           true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{

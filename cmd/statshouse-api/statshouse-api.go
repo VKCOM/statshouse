@@ -416,6 +416,13 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	chunksCountMeasurementID := statshouse.StartRegularMeasurement(api.CurrentChunksCount(brs))
 	defer statshouse.StopRegularMeasurement(chunksCountMeasurementID)
 
+	startTimestamp := time.Now().Unix()
+	statshouse.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: "4", 2: "1"}).Value(0)
+	defer statshouse.StopRegularMeasurement(statshouse.StartRegularMeasurement(func(c *statshouse.Client) {
+		uptime := float64(time.Now().Unix() - startTimestamp)
+		c.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: "4", 2: "2"}).Value(uptime)
+	}))
+
 	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.protectedMetricPrefixes, argv.localMode, argv.insecureMode)
 	handlerRPC := &tlstatshouseApi.Handler{
 		GetChunk:      hr.GetChunk,
