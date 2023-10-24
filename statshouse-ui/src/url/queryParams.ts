@@ -460,9 +460,14 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
           });
         });
       }
-
-      if (plot.numSeries !== defaultPlot.numSeries) {
-        search.push([prefix + GET_PARAMS.numResults, plot.numSeries.toString()]);
+      if (plot.type === PLOT_TYPE.Event) {
+        if (plot.numSeries !== 0) {
+          search.push([prefix + GET_PARAMS.numResults, plot.numSeries.toString()]);
+        }
+      } else {
+        if (plot.numSeries !== defaultPlot.numSeries) {
+          search.push([prefix + GET_PARAMS.numResults, plot.numSeries.toString()]);
+        }
       }
 
       if (!plot.useV2) {
@@ -646,8 +651,6 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       }
     });
 
-    const numSeries = toNumber(urlParams[prefix + GET_PARAMS.numResults]?.[0]) ?? defaultPlot.numSeries;
-
     const useV2 = urlParams[prefix + GET_PARAMS.version]?.[0] !== METRIC_VALUE_BACKEND_VERSION.v1;
 
     const yLockMin = toNumber(urlParams[prefix + GET_PARAMS.metricLockMin]?.[0]) ?? defaultPlot.yLock.min;
@@ -658,6 +661,9 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     const promQL = urlParams[prefix + GET_PARAMS.metricPromQL]?.[0] ?? '';
 
     const type = toPlotType(urlParams[prefix + GET_PARAMS.metricType]?.[0]) ?? defaultPlot.type;
+
+    const numSeries =
+      toNumber(urlParams[prefix + GET_PARAMS.numResults]?.[0]) ?? type === PLOT_TYPE.Event ? 0 : defaultPlot.numSeries;
 
     const events = urlParams[prefix + GET_PARAMS.metricEvent]?.map(toNumber).filter(isNotNil) ?? [];
 
