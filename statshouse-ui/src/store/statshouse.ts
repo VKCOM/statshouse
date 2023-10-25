@@ -882,7 +882,29 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
             const uniqueWhat: Set<QueryWhat> = new Set();
             const uniqueName = new Set();
             const uniqueMetricType: Set<string> = new Set();
-            for (const meta of resp?.series.series_meta ?? []) {
+            let series_meta = [...resp?.series.series_meta] ?? [];
+            let series_data = ([...resp.series.series_data] as (number | null)[][]) ?? [];
+            if (lastPlotParams.type === PLOT_TYPE.Event) {
+              series_meta = [];
+              series_data = [];
+              const colorIndex = new Map<string, number>();
+              resp?.series.series_meta.forEach((series, indexSeries) => {
+                const indexColor = colorIndex.get(series.color);
+                if (series.color && indexColor != null) {
+                  resp.series.series_data[indexSeries].forEach((value, indexValue) => {
+                    if (value != null) {
+                      series_data[indexColor][indexValue] = (series_data[indexColor][indexValue] ?? 0) + value;
+                    }
+                  });
+                } else {
+                  const index = series_meta.push(series) - 1;
+                  series_data.push(resp.series.series_data[indexSeries] as (number | null)[]);
+                  colorIndex.set(series.color, index);
+                }
+              });
+            }
+
+            for (const meta of series_meta) {
               if (isQueryWhat(meta.what)) {
                 uniqueWhat.add(meta.what);
               }
@@ -903,18 +925,15 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
 
             const maxLabelLength = Math.max(
               'Time'.length,
-              ...(resp?.series.series_meta ?? []).map((meta) => {
+              ...series_meta.map((meta) => {
                 const label = metaToLabel(meta, uniqueWhat.size);
                 return label.length;
               })
             );
-            const legendNameWidth = (resp?.series.series_meta.length ?? 0) > 5 ? maxLabelLength * pxPerChar : 1_000_000;
+            const legendNameWidth = (series_meta.length ?? 0) > 5 ? maxLabelLength * pxPerChar : 1_000_000;
             let legendMaxHostWidth = 0;
             const legendMaxHostPercentWidth = 0;
-            const data: uPlot.AlignedData = [
-              resp.series.time as number[],
-              ...(resp.series.series_data as (number | null)[][]),
-            ];
+            const data: uPlot.AlignedData = [resp.series.time as number[], ...series_data];
 
             const stacked = lastPlotParams.type === PLOT_TYPE.Event ? stackData(data) : undefined;
             const usedDashes = {};
@@ -932,11 +951,11 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
             const topInfoCounts: Record<string, number> = {};
             const topInfoTotals: Record<string, number> = {};
             let topInfo: TopInfo | undefined = undefined;
-            const maxHostLists: SelectOptionProps[][] = new Array(resp.series.series_meta.length).fill([]);
-            const oneGraph = resp.series.series_meta.filter((s) => s.time_shift === 0).length <= 1;
-            const seriesShow = new Array(resp.series.series_meta.length).fill(true);
+            const maxHostLists: SelectOptionProps[][] = new Array(series_meta.length).fill([]);
+            const oneGraph = series_meta.filter((s) => s.time_shift === 0).length <= 1;
+            const seriesShow: boolean[] = new Array(series_meta.length).fill(true);
 
-            const series: uPlot.Series[] = resp.series.series_meta.map((meta, indexMeta): uPlot.Series => {
+            const series: uPlot.Series[] = series_meta.map((meta, indexMeta): uPlot.Series => {
               const timeShift = meta.time_shift !== 0;
               const label = metaToLabel(meta, uniqueWhat.size);
               const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
