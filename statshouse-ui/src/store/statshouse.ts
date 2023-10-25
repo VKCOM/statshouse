@@ -898,7 +898,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                   });
                 } else {
                   const index = series_meta.push(series) - 1;
-                  series_data.push(resp.series.series_data[indexSeries] as (number | null)[]);
+                  series_data.push([...(resp.series.series_data[indexSeries] as (number | null)[])]);
                   colorIndex.set(series.color, index);
                 }
               });
