@@ -108,17 +108,18 @@ func (m *CollectorManager) RunCollector() error {
 					err = fmt.Errorf("panic during to write system metrics: %s", r)
 				}
 			}()
+			now := time.Now()
 			for {
-				now := time.Now()
+				startTime := time.Now()
 				err := collector.WriteMetrics(now.Unix())
 				if err != nil {
 					m.logErr.Printf("failed to write metrics: %v (collector: %s)", err, c.Name())
 				} else {
-					d := time.Since(now)
+					d := time.Since(startTime)
 					collector.PushDuration(now.Unix(), d)
 				}
 				select {
-				case <-time.After(tillNextHalfPeriod(time.Now())):
+				case now = <-time.After(tillNextHalfPeriod(now)):
 				case <-m.ctx.Done():
 					return nil
 				}
