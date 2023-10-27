@@ -8,8 +8,8 @@ import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from 're
 import css from './style.module.css';
 import { useDebounceState } from '../../hooks';
 import useDeepCompareEffect from 'use-deep-compare-effect';
-import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from '../../common/toggleKeyboard';
 import cn from 'classnames';
+import { SearchFabric } from '../../common/helpers';
 
 export const SELECT_OPTION_ACTION = {
   ToggleFiltered: 'ToggleFiltered',
@@ -277,23 +277,7 @@ export const Select: FC<SelectProps> = ({
     let filtered = options;
     setShowCursor(false);
     if (searchValueDebounce && !noSearch) {
-      const orig = searchValueDebounce.toLocaleLowerCase();
-      const ru = toggleKeyboard(orig, mapKeyboardEnToRu);
-      const en = toggleKeyboard(orig, mapKeyboardRuToEn);
-      filtered = options.filter((item) => {
-        if (orig === item.value.toLocaleLowerCase()) {
-          setCursor(item.value);
-          setShowCursor(true);
-        }
-        return (
-          item.name.toLocaleLowerCase().includes(orig) ||
-          item.value.toLocaleLowerCase().includes(orig) ||
-          item.name.toLocaleLowerCase().includes(ru) ||
-          item.value.toLocaleLowerCase().includes(ru) ||
-          item.name.toLocaleLowerCase().includes(en) ||
-          item.value.toLocaleLowerCase().includes(en)
-        );
-      });
+      filtered = options.filter(SearchFabric(searchValueDebounce, ['name', 'value']));
       result = filtered.slice(start, start + maxOptions);
     } else {
       if (valuesInput.length > 0 && options?.length > maxOptions) {
