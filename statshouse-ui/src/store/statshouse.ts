@@ -1045,7 +1045,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                       top_max_host_percent: '',
                     };
                   }
-                  const localData = stacked ? getState().plotsData[index]?.data : u.data;
+                  const localData = (stacked ? getState().plotsData[index]?.data : u.data) ?? [];
                   const rawValue = localData[seriesIdx]?.[idx] ?? null;
                   let total = 0;
                   for (let i = 1; i < u.series.length; i++) {

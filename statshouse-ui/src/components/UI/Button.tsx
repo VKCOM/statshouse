@@ -1,6 +1,5 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Tooltip } from './Tooltip';
-import { TooltipTitleContent } from './TooltipTitleContent';
 
 export type ButtonProps = {
   children: React.ReactNode;
@@ -11,9 +10,8 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
   { children, title, ...props }: ButtonProps,
   ref
 ) {
-  const titleContent = useMemo(() => <TooltipTitleContent>{title}</TooltipTitleContent>, [title]);
   return (
-    <Tooltip<'button'> {...props} title={titleContent} ref={ref} as="button">
+    <Tooltip<'button'> {...props} title={title} ref={ref} as="button">
       {children}
     </Tooltip>
   );

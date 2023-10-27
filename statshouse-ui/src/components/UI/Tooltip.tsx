@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Popper } from './Popper';
 import { type JSX } from 'react/jsx-runtime';
+import { TooltipTitleContent } from './TooltipTitleContent';
 
 const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
@@ -65,7 +66,7 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
         <Popper targetRef={targetRef} fixed={false} horizontal={'center'} vertical={'out-top'} show={open}>
           <div className="card" onClick={stopPropagation}>
             <div className="card-body p-1" style={{ minHeight, minWidth, maxHeight, maxWidth }}>
-              {title}
+              <TooltipTitleContent>{title}</TooltipTitleContent>
             </div>
           </div>
         </Popper>
