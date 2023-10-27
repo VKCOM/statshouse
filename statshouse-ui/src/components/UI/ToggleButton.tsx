@@ -4,7 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, useCallback, useId } from 'react';
+import React, { ChangeEvent, useCallback, useId, useMemo } from 'react';
+import { Tooltip } from './Tooltip';
+import { TooltipTitleContent } from './TooltipTitleContent';
 
 export type ToggleButtonProps<T> = {
   checked?: boolean;
@@ -32,6 +34,7 @@ export function ToggleButton<T = unknown>({
     },
     [onChange, value]
   );
+  const titleContent = useMemo(() => <TooltipTitleContent>{title}</TooltipTitleContent>, [title]);
   return (
     <>
       <input
@@ -44,9 +47,9 @@ export function ToggleButton<T = unknown>({
         onChange={change}
       />
       {!!children && (
-        <label className={className} htmlFor={`toggle-button-${uid}`} title={title}>
+        <Tooltip as="label" className={className} htmlFor={`toggle-button-${uid}`} title={titleContent}>
           {children}
-        </label>
+        </Tooltip>
       )}
     </>
   );
