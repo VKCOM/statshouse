@@ -5,6 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { produce } from 'immer';
+import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from './toggleKeyboard';
 
 export function isArray(item: unknown): item is unknown[] {
   return Array.isArray(item);
@@ -196,4 +197,23 @@ export function round(val: number, dec: number = 0, radix: number = 10) {
   if (Number.isInteger(val) && dec >= 0 && radix === 10) return val;
   let p = Math.pow(radix, dec);
   return Math.round(val * p * (1 + Number.EPSILON)) / p;
+}
+
+export function prepareSearchStr(str: string) {
+  return str.replace(/(\s+|_+)/gi, '');
+}
+
+export function SearchFabric<T extends string | Record<string, unknown>>(filterString: string, props?: string[]) {
+  const orig = prepareSearchStr(filterString.toLocaleLowerCase());
+  const ru = toggleKeyboard(orig, mapKeyboardEnToRu);
+  const en = toggleKeyboard(orig, mapKeyboardRuToEn);
+  const getListValues = props
+    ? (item: T) =>
+        props?.map((p) =>
+          prepareSearchStr(toString((typeof item === 'object' && item != null && item[p]) ?? '').toLocaleLowerCase())
+        )
+    : (item: T) => [prepareSearchStr(toString(item).toLocaleLowerCase())];
+  return function (item: T) {
+    return !!item && getListValues(item).some((v) => v.indexOf(orig) > -1 || v.indexOf(ru) > -1 || v.indexOf(en) > -1);
+  };
 }
