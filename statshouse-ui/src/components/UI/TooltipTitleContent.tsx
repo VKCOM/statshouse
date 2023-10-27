@@ -3,7 +3,7 @@ import React from 'react';
 export type TitleContentProps = {
   children?: React.ReactNode;
 };
-export function TooltipTitleContent({ children }: TitleContentProps) {
+export const TooltipTitleContent = React.memo(function TooltipTitleContent({ children }: TitleContentProps) {
   if (!children) {
     return null;
   }
@@ -11,4 +11,4 @@ export function TooltipTitleContent({ children }: TitleContentProps) {
     return <pre className="m-0 small text-secondary">{children}</pre>;
   }
   return <>{children}</>;
-}
+});
