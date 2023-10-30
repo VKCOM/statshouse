@@ -64,7 +64,7 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
       {children}
       {!!title && (
         <Popper targetRef={targetRef} fixed={false} horizontal={'center'} vertical={'out-top'} show={open}>
-          <div className="card" onClick={stopPropagation}>
+          <div className="card overflow-auto" onClick={stopPropagation}>
             <div className="card-body p-1" style={{ minHeight, minWidth, maxHeight, maxWidth }}>
               <TooltipTitleContent>{title}</TooltipTitleContent>
             </div>

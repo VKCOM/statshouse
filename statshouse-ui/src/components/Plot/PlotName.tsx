@@ -24,7 +24,7 @@ export function PlotName({ plot, plotData, className }: PlotNameProps) {
   );
 
   if (plot.customName) {
-    return <span className={cn(className, 'text-body')}>{plot.customName}</span>;
+    return <span className={cn(className, 'text-body text-truncate')}>{plot.customName}</span>;
   }
   if (metricName) {
     return (
