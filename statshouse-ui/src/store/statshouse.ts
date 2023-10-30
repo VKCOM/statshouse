@@ -504,14 +504,17 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         const changedVariablesPlot: Set<number | null> = new Set();
         const plotsPromQL = getState()
           .params.plots.map((plot, indexPlot) => ({ plot, indexPlot }))
-          .filter(({ plot }) => plot.promQL.indexOf('$') > -1);
+          .filter(({ plot }) => plot.promQL.indexOf('$') > -1 || plot.promQL.indexOf('__bind__') > -1);
         getState().params.variables.forEach((variable, indexVariable) => {
           if (prevParams.variables[indexVariable] !== variable) {
             variable.link.forEach(([iPlot]) => {
               changedVariablesPlot.add(toNumber(iPlot));
             });
             plotsPromQL.forEach(({ plot, indexPlot }) => {
-              if (plot.promQL.indexOf('$' + variable.name) > -1) {
+              if (
+                plot.promQL.indexOf('$' + variable.name) > -1 ||
+                (plot.promQL.indexOf('__bind__') > -1 && plot.promQL.indexOf(variable.name) > -1)
+              ) {
                 changedVariablesPlot.add(indexPlot);
               }
             });
