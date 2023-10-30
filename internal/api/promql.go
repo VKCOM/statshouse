@@ -316,8 +316,8 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 			false,
 			stringTop,
 			qry.Options.TimeNow,
-			shiftTimestamp(qry.Start, qry.Step, -offset, h.location),
-			shiftTimestamp(qry.End, qry.Step, -offset, h.location),
+			shiftTimestamp(qry.Start, qry.Step, -offset, h.location), // inclusive
+			shiftTimestamp(qry.End, qry.Step, -offset, h.location)+1, // exclusive
 			h.utcOffset,
 			int(qry.Step),
 			widthKind,
