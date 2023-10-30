@@ -106,6 +106,7 @@ export function _Popper({
   always = false,
   fixed = false,
 }: PopperProps) {
+  const [firstInit, setFirstInit] = useState(false);
   const visible = useIntersectionObserver(targetRef?.current, threshold);
   const [targetRect, updateTargetRect] = useRectObserver(targetRef?.current, fixed);
   const [innerRef, setInnerRef] = useState<HTMLDivElement | null>(null);
@@ -206,6 +207,7 @@ export function _Popper({
         setVerticalClass(checkV(POPPER_VERTICAL.outBottom) || checkV(POPPER_VERTICAL.outTop) || vertical);
         break;
     }
+    setFirstInit(true);
   }, [always, horizontal, innerRect, innerVisible, targetRect, vertical, windowRect]);
 
   useEffect(() => {
@@ -215,7 +217,7 @@ export function _Popper({
     <Portal id={popperId} className={cn(css.popperGroup, fixed && css.popperGroupFixed)}>
       {visible && show && (
         <div
-          className={cn(css.popperItem, className)}
+          className={cn(css.popperItem, !firstInit && 'visually-hidden', className)}
           style={
             {
               height: targetRect.height,

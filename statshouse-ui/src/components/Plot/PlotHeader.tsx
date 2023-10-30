@@ -363,7 +363,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
                     <PlotLink
                       className="text-decoration-none overflow-hidden"
                       indexPlot={indexPlot}
-                      target={dashboard ? '_self' : '_blank'}
+                      target={embed ? '_blank' : '_self'}
                     >
                       <PlotName plot={plot} plotData={plotData} />
                     </PlotLink>
