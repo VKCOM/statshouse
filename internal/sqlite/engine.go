@@ -72,7 +72,6 @@ const (
 	cacheKB            = 65536                         // 64MB
 	mmapSize           = 8 * 1024 * 1024 * 1024 * 1024 // 8TB
 	commitEveryDefault = 1 * time.Second
-	commitTXTimeout    = 10 * time.Second
 
 	beginStmt  = "BEGIN IMMEDIATE" // make sure we don't get SQLITE_BUSY in the middle of transaction
 	commitStmt = "COMMIT"
