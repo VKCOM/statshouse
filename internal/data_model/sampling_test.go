@@ -115,6 +115,59 @@ func TestSampling(t *testing.T) {
 	})
 }
 
+func TestSamplingWithNilKeepF(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		b := newSamplingTestBucket()
+		b.generateSeriesSize(t, samplingTestSpec{
+			maxMetricCount: rapid.IntRange(1, 1024).Draw(t, "max metric count"),
+			minMetricSize:  rapid.IntRange(28, 256).Draw(t, "min metric size"),
+			maxMetricSize:  rapid.IntRange(512, 1024).Draw(t, "max metric size"),
+		})
+		s := NewSampler(len(b.series), SamplerConfig{
+			KeepF: nil, // agent doesn't set it
+			DiscardF: func(k Key, item *MultiItem) {
+				delete(b.series, k)
+			},
+			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
+				return int(float64(len(s)) / sf)
+			},
+			RoundF: func(sf float64, _ *rand.Rand) float64 {
+				floor := math.Floor(sf)
+				delta := sf - floor
+				if rapid.Float64Range(0, 1).Draw(t, "RoundF") < delta {
+					return floor + 1
+				}
+				return floor
+			},
+		})
+		budget := rapid.Int64Range(20, 20+b.sumSize*2).Draw(t, "budget")
+		samplerStat := b.run(&s, budget, 1)
+		require.Equal(t, samplerStat.Count, len(samplerStat.GetSampleFactors(nil)))
+		if b.sumSize <= budget {
+			require.Zero(t, samplerStat.Count)
+		} else {
+			require.NotZero(t, samplerStat.Count)
+		}
+		m := map[int32]float64{}
+		for k, v := range b.series {
+			require.Less(t, 0., v.SF)
+			if v.SF < m[k.Metric] {
+				m[k.Metric] = v.SF
+			}
+		}
+		for _, v := range samplerStat.GetSampleFactors(nil) {
+			if sf, ok := m[v.Metric]; ok {
+				require.Truef(t, v.Value == float32(sf), "Item SF %v, metric SF %v", sf, v.Value)
+				delete(m, v.Metric)
+			}
+			require.Less(t, float32(1), v.Value, "SF less or equal one should not be reported")
+		}
+		for _, v := range b.series {
+			require.LessOrEqual(t, 1., v.SF)
+		}
+	})
+}
+
 func TestNoSamplingWhenFitBudget(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		b := newSamplingTestBucket()

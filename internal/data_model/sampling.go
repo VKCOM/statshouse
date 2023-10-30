@@ -134,13 +134,14 @@ func (h *Sampler) Add(p SamplingMultiItemPair) {
 func (h *Sampler) Run(budgetNum, budgetDenom int64) SamplerStatistics {
 	// Partition by group/metric/key and run
 	sort.Slice(h.items, func(i, j int) bool {
-		if h.items[i].group.ID != h.items[j].group.ID {
-			return h.items[i].group.ID < h.items[j].group.ID
+		var lhs, rhs *SamplingMultiItemPair = &h.items[i], &h.items[j]
+		if lhs.group.ID != rhs.group.ID {
+			return lhs.group.ID < rhs.group.ID
 		}
-		if h.items[i].MetricID != h.items[j].MetricID {
-			return h.items[i].MetricID < h.items[j].MetricID
+		if lhs.MetricID != rhs.MetricID {
+			return lhs.MetricID < rhs.MetricID
 		}
-		return h.items[i].fairKey < h.items[j].fairKey
+		return lhs.fairKey < rhs.fairKey
 	})
 	var stat SamplerStatistics
 	h.run(h.items, 0, budgetNum, budgetDenom, &stat)
@@ -158,7 +159,8 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 	// Partition, then sort groups by sumSize/weight ratio
 	groups, sumWeight := h.partF[depth](s)
 	sort.Slice(groups, func(i, j int) bool {
-		return groups[i].sumSize*groups[j].weight < groups[j].sumSize*groups[i].weight // comparing rational numbers
+		var lhs, rhs *SamplerGroup = &groups[i], &groups[j]
+		return lhs.sumSize*rhs.weight < rhs.sumSize*lhs.weight // comparing rational numbers
 	})
 	// Groups smaller than the budget aren't sampled
 	pos := 0
@@ -202,12 +204,12 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 }
 
 func (h *Sampler) keep(g *SamplerGroup) {
-	if h.config.KeepF == nil {
-		return
-	}
-	for _, v := range g.items {
-		v.Item.SF = 1 // communicate selected factor to next step of processing
-		h.config.KeepF(v.Key, v.Item)
+	for i := range g.items {
+		p := &g.items[i]
+		p.Item.SF = 1 // communicate selected factor to next step of processing
+		if h.config.KeepF != nil {
+			h.config.KeepF(p.Key, p.Item)
+		}
 	}
 }
 
@@ -249,10 +251,11 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 		sort.Slice(items, func(i, j int) bool {
 			return items[i].WhaleWeight > items[j].WhaleWeight
 		})
-		if h.config.KeepF != nil {
-			for i := 0; i < pos; i++ {
-				items[i].Item.SF = 1 // communicate selected factor to next step of processing
-				h.config.KeepF(items[i].Key, items[i].Item)
+		for i := 0; i < pos; i++ {
+			p := &items[i]
+			p.Item.SF = 1 // communicate selected factor to next step of processing
+			if h.config.KeepF != nil {
+				h.config.KeepF(p.Key, p.Item)
 			}
 		}
 		sf *= 2 // space has been taken by whales
@@ -260,15 +263,17 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 	}
 	// Sample tail
 	pos = h.config.SelectF(items, sf, h.config.Rand)
-	if h.config.KeepF != nil {
-		for _, p := range items[:pos] {
-			p.Item.SF = sf // communicate selected factor to next step of processing
+	for i := 0; i < pos; i++ {
+		p := &items[i]
+		p.Item.SF = sf // communicate selected factor to next step of processing
+		if h.config.KeepF != nil {
 			h.config.KeepF(p.Key, p.Item)
 		}
 	}
-	if h.config.DiscardF != nil {
-		for _, p := range items[pos:] {
-			p.Item.SF = sf // communicate selected factor to next step of processing
+	for i := pos; i < len(items); i++ {
+		p := &items[i]
+		p.Item.SF = sf // communicate selected factor to next step of processing
+		if h.config.DiscardF != nil {
 			h.config.DiscardF(p.Key, p.Item)
 		}
 	}
