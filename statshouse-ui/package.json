@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@preact/signals-core": "^1.5.0",
+    "@preact/signals-react": "^1.3.6",
     "@sindresorhus/fnv1a": "^2.0.1",
     "@testing-library/jest-dom": "^6.1.4",
     "@testing-library/react": "^14.0.0",
@@ -11,7 +13,7 @@
     "bootstrap-icons": "^1.11.1",
     "classnames": "^2.3.2",
     "dequal": "^2.0.3",
-    "eslint": "^8.51.0",
+    "eslint": "^8.52.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-config-react-app": "^7.0.1",
     "eslint-plugin-prettier": "^5.0.1",
@@ -24,12 +26,12 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.17.0",
     "react-scripts": "^5.0.1",
-    "sass": "^1.69.3",
+    "sass": "^1.69.5",
     "typescript": "^4.9.5",
-    "uplot": "^1.6.26",
+    "uplot": "^1.6.27",
     "use-deep-compare-effect": "^1.8.1",
     "web-vitals": "^3.5.0",
-    "zustand": "^4.4.3"
+    "zustand": "^4.4.4"
   },
   "devDependencies": {
     "@types/jest": "^29.5.5",
