@@ -390,6 +390,16 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		key1 = format.TagValueIDConveyorHistoric
 	}
 	resPos := len(res)
+	for k, v := range samplerStat.Items {
+		// keep bytes
+		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, key1, format.TagValueIDSamplingDecisionKeep, k[0], k[1], k[2]}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		mi := data_model.MultiItem{Tail: data_model.MultiValue{Value: v.SumSizeKeep}}
+		insertItem(key, &mi, 1)
+		// discard bytes
+		key = data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, key1, format.TagValueIDSamplingDecisionDiscard, k[0], k[1], k[2]}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		mi = data_model.MultiItem{Tail: data_model.MultiValue{Value: v.SumSizeDiscard}}
+		insertItem(key, &mi, 1)
+	}
 	for _, s := range samplerStat.GetSampleFactors(nil) {
 		k := s.Metric
 		sf := float64(s.Value)
@@ -397,6 +407,8 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		res = appendBadge(res, key, data_model.ItemValue{Counter: 1, ValueSum: sf}, metricCache, usedTimestamps)
 		res = appendSimpleValueStat(res, key, sf, 1, a.aggregatorHost, metricCache, usedTimestamps)
 	}
+	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingMetricCount, [16]int32{0, key1},
+		a.aggregatorHost, a.shardKey, a.replicaKey), float64(len(samplerStat.Metrics)), 1, a.aggregatorHost, metricCache, usedTimestamps)
 	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeCounter},
 		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizeCounters), 1, a.aggregatorHost, metricCache, usedTimestamps)
 	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeValue},

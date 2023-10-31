@@ -272,6 +272,20 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 		}
 		sampleFactors = s.GetSampleFactors(sampleFactors)
 	}
+	for k, v := range samplerStat.Items {
+		// keep bytes
+		key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Keys: [16]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionKeep, k[0], k[1], k[2]}}
+		mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
+		mi.Tail.Value.Merge(&v.SumSizeKeep)
+		// discard bytes
+		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Keys: [16]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, k[0], k[1], k[2]}}
+		mi = data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
+		mi.Tail.Value.Merge(&v.SumSizeDiscard)
+	}
+	// metric count
+	key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingMetricCount, Keys: [16]int32{0, s.agent.componentTag}}
+	mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
+	mi.Tail.Value.AddValueCounterHost(float64(len(samplerStat.Metrics)), 1, 0)
 	return sampleFactors
 }
 
