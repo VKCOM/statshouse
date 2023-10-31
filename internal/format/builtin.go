@@ -91,6 +91,10 @@ const (
 	BuiltinMetricIDAPIResponseTime            = -77
 	BuiltinMetricIDSrcTestConnection          = -78
 	BuiltinMetricIDAggTimeDiff                = -79
+	BuiltinMetricIDSrcSamplingMetricCount     = -80
+	BuiltinMetricIDAggSamplingMetricCount     = -81
+	BuiltinMetricIDSrcSamplingSizeBytes       = -82
+	BuiltinMetricIDAggSamplingSizeBytes       = -83
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -308,6 +312,9 @@ const (
 	TagOtherError   = 3
 	TagRPCError     = 4
 	TagTimeoutError = 5
+
+	TagValueIDSamplingDecisionKeep    = -1
+	TagValueIDSamplingDecisionDiscard = -2
 )
 
 var (
@@ -1539,6 +1546,78 @@ Value is delta between second value and time it was inserted.`,
 				},
 			},
 		},
+		BuiltinMetricIDSrcSamplingMetricCount: {
+			Name:        "__src_sampling_metric_count",
+			Kind:        MetricKindValue,
+			Description: `Metric count processed by sampler on agent.`,
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}},
+		},
+		BuiltinMetricIDAggSamplingMetricCount: {
+			Name:        "__agg_sampling_metric_count",
+			Kind:        MetricKindValue,
+			Description: `Metric count processed by sampler on aggregator.`,
+			Tags: []MetricMetaTag{{
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}},
+		},
+		BuiltinMetricIDSrcSamplingSizeBytes: {
+			Name:        "__src_sampling_size_bytes",
+			Kind:        MetricKindValue,
+			Description: `Size in bytes processed by sampler on agent.`,
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}, {
+				Description: "sampling_decision",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDSamplingDecisionKeep:    "keep",
+					TagValueIDSamplingDecisionDiscard: "discard",
+				}),
+			}, {
+				Description: "namespace",
+				Raw:         true,
+			}, {
+				Description: "group",
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinGroupIDDefault: "default",
+					BuiltinGroupIDBuiltin: "builtin",
+				}),
+			}, {
+				Description:   "metric_kind",
+				ValueComments: convertToValueComments(insertKindToValue),
+			}},
+		},
+		BuiltinMetricIDAggSamplingSizeBytes: {
+			Name:        "__agg_sampling_size_bytes",
+			Kind:        MetricKindValue,
+			Description: `Size in bytes processed by sampler on aggregator.`,
+			Tags: []MetricMetaTag{{
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}, {
+				Description: "sampling_decision",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDSamplingDecisionKeep:    "keep",
+					TagValueIDSamplingDecisionDiscard: "discard",
+				}),
+			}, {
+				Description: "namespace",
+				Raw:         true,
+			}, {
+				Description: "group",
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinGroupIDDefault: "default",
+					BuiltinGroupIDBuiltin: "builtin",
+				}),
+			}, {
+				Description:   "metric_kind",
+				ValueComments: convertToValueComments(insertKindToValue),
+			}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -1663,6 +1742,8 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
 		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
 		BuiltinMetricIDAPIMetricUsage:             true,
+		BuiltinMetricIDSrcSamplingMetricCount:     true,
+		BuiltinMetricIDSrcSamplingSizeBytes:       true,
 	}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue
