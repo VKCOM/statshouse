@@ -60,11 +60,7 @@ func (item *EngineRegisterDynamicLib) ReadResultJSON(j interface{}, ret *BoolSta
 }
 
 func (item *EngineRegisterDynamicLib) WriteResultJSON(w []byte, ret BoolStat) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *EngineRegisterDynamicLib) writeResultJSON(short bool, w []byte, ret BoolStat) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+	if w, err = ret.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -76,15 +72,6 @@ func (item *EngineRegisterDynamicLib) ReadResultWriteResultJSON(r []byte, w []by
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *EngineRegisterDynamicLib) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret BoolStat
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -129,9 +116,6 @@ func (item *EngineRegisterDynamicLib) readJSON(j interface{}) error {
 }
 
 func (item *EngineRegisterDynamicLib) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineRegisterDynamicLib) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.LibId) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -83,9 +83,6 @@ func (item *StatshouseGetTagMappingResult) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseGetTagMappingResult) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseGetTagMappingResult) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Value != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -72,14 +72,11 @@ func (item *EngineMetafilesStat) readJSON(j interface{}) error {
 }
 
 func (item *EngineMetafilesStat) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineMetafilesStat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Data) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"data":`...)
-		if w, err = VectorEngineMetafilesOneMemoryStat0WriteJSONOpt(short, w, item.Data); err != nil {
+		if w, err = VectorEngineMetafilesOneMemoryStat0WriteJSON(w, item.Data); err != nil {
 			return w, err
 		}
 	}

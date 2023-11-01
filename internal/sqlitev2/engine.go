@@ -48,6 +48,8 @@ type (
 
 		// Open db in readonly mode. Don't use binlog in this mode
 		ReadOnly bool
+		// Advanced RO mode, DONT USE
+		NotUseWALROMMode bool
 
 		// ReadOnly connection pool max size
 		MaxROConn int
@@ -86,7 +88,11 @@ func openRO(opt Options) (*Engine, error) {
 		opt:      opt,
 		readOnly: true,
 		roConnPool: newConnPool(opt.MaxROConn, func() (*sqliteConn, error) {
-			return newSqliteROWALConn(opt.Path, opt.CacheApproxMaxSizePerConnect, logger)
+			if !opt.NotUseWALROMMode {
+				return newSqliteROWALConn(opt.Path, opt.CacheApproxMaxSizePerConnect, logger)
+			} else {
+				return newSqliteROConn(opt.Path, logger)
+			}
 		}),
 		logger: logger,
 	}
@@ -110,6 +116,12 @@ func OpenEngine(opt Options) (*Engine, error) {
 		return openRO(opt)
 	}
 	logger := log.New(os.Stdout, logPrefix, log.LstdFlags)
+	stat, _ := os.Stat(opt.Path)
+	var size int64
+	if stat != nil {
+		size = stat.Size()
+	}
+	logger.Printf("OPEN DB path: %s size: %d", opt.Path, size)
 	rw, err := newSqliteRWWALConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, logger)
 	if err != nil {
 		return nil, err
@@ -178,20 +190,24 @@ func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction
 	return nil
 }
 
+func (e *Engine) ReadyCh() <-chan error {
+	return e.readyCh
+}
+
 func (e *Engine) WaitReady() error {
 	return <-e.readyCh
 }
 
-func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
+func (e *Engine) Backup(ctx context.Context, prefix string) (string, int64, error) {
 	if prefix == "" {
-		return "", fmt.Errorf("backup prefix is empty")
+		return "", 0, fmt.Errorf("backup prefix is empty")
 	}
 	e.logger.Printf("starting backup")
 	startTime := time.Now()
 	defer e.opt.StatsOptions.measureActionDurationSince("backup", startTime)
 	conn, err := newSqliteROWALConn(e.opt.Path, 10, e.logger)
 	if err != nil {
-		return "", fmt.Errorf("failed to open RO connection to backup: %w", err)
+		return "", 0, fmt.Errorf("failed to open RO connection to backup: %w", err)
 	}
 	defer func() {
 		_ = conn.Close()
@@ -205,36 +221,52 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, error) {
 		if errors.Is(err, os.ErrNotExist) {
 			_, err := c.Exec("__vacuum", "VACUUM INTO $to", TextString("$to", path))
 			if err != nil {
-				return path, err
+				return path, 0, err
 			}
 		} else {
-			return path, fmt.Errorf("os.Stats failed: %w", err)
+			return path, 0, fmt.Errorf("os.Stats failed: %w", err)
 		}
 	}
 
 	conn1, err := newSqliteROConn(path, e.logger)
 	if err != nil {
-		return "", fmt.Errorf("failed to open RO connection to rename backup: %w", err)
+		return "", 0, fmt.Errorf("failed to open RO connection to rename backup: %w", err)
 	}
 	defer func() {
 		_ = conn1.Close()
 	}()
 	c1 := newInternalConn(conn1)
-	expectedPath, err := getBackupPath(c1, prefix)
+	expectedPath, binlogPos, err := getBackupPath(c1, prefix)
 	if err != nil {
-		return "", fmt.Errorf("failed to get backup path: %w", err)
+		return "", 0, fmt.Errorf("failed to get backup path: %w", err)
 	}
-	e.logger.Printf("finish backup successfuly in %f seconds", time.Since(startTime).Seconds())
-	return expectedPath, os.Rename(path, expectedPath)
+	for i := 0; ; i++ {
+		e.rw.mu.Lock()
+		offs := e.rw.committedOffset
+		e.rw.mu.Unlock()
+		if offs >= binlogPos {
+			break
+		}
+		if i%10 == 0 {
+			e.logger.Printf("wait binlog commit to save backup, expectedPos: %d, currentPos: %d", binlogPos, offs)
+		}
+		if i > 10*60 {
+			return "", 0, fmt.Errorf("failed to wait binlog commit position, expectedPos: %d, currentPos: %d", binlogPos, offs)
+		}
+		time.Sleep(time.Millisecond * 100)
+	}
+	stat, _ := os.Stat(path)
+	e.logger.Printf("finish backup successfully in %f seconds, path: %s, pos: %d, size: %d", time.Since(startTime).Seconds(), expectedPath, binlogPos, stat.Size())
+	return expectedPath, binlogPos, os.Rename(path, expectedPath)
 }
 
-func getBackupPath(conn internalConn, prefix string) (string, error) {
+func getBackupPath(conn internalConn, prefix string) (string, int64, error) {
 	pos, isExists, err := binlogLoadPosition(conn)
 	if err != nil {
-		return "", fmt.Errorf("failed to load binlog position from backup: %w", err)
+		return "", pos, fmt.Errorf("failed to load binlog position from backup: %w", err)
 	}
 	if !isExists {
-		return "", fmt.Errorf("failed to load binlog position: db is empty")
+		return "", pos, fmt.Errorf("failed to load binlog position: db is empty")
 	}
 
 	copyPos := pos
@@ -253,11 +285,11 @@ func getBackupPath(conn internalConn, prefix string) (string, error) {
 	for l := 4; l <= len(posStr); l++ {
 		filename := prefix + posStr[:l]
 		if _, err = os.Stat(filename); os.IsNotExist(err) {
-			return filename, nil
+			return filename, pos, nil
 		}
 	}
 
-	return "", fmt.Errorf("can not create backup with pos=%d, probably backup already exist", pos)
+	return "", pos, fmt.Errorf("can not create backup with pos=%d, probably backup already exist", pos)
 }
 
 func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error) (err error) {
@@ -299,9 +331,10 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 	return err
 }
 
-func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache []byte) ([]byte, error)) (err error) {
+// todo make META param
+func (e *Engine) DoWithOffset(ctx context.Context, queryName string, do func(c Conn, cache []byte) ([]byte, error)) (dbOffset int64, commitOffset int64, err error) {
 	if err := checkUserQueryName(queryName); err != nil {
-		return err
+		return 0, 0, err
 	}
 	if e.testOptions != nil {
 		e.testOptions.sleep()
@@ -315,12 +348,12 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
 	if e.readOnly || e.opt.Replica {
-		return ErrReadOnly
+		return e.rw.dbOffset, e.rw.committedOffset, ErrReadOnly
 	}
 	err = e.rw.beginTxLocked()
 	if err != nil {
 		e.opt.StatsOptions.engineBrokenEvent()
-		return fmt.Errorf("failed to begin tx: %w", err)
+		return e.rw.dbOffset, e.rw.committedOffset, fmt.Errorf("failed to begin tx: %w", err)
 	}
 	defer func() {
 		errRollback := e.rw.rollbackLocked()
@@ -331,22 +364,28 @@ func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache
 	conn := newUserConn(e.rw, ctx)
 	bytes, err := do(conn, e.rw.binlogCache[:0])
 	if err != nil {
-		return fmt.Errorf("user error: %w", err)
+		return e.rw.dbOffset, e.rw.committedOffset, fmt.Errorf("user error: %w", err)
 	}
 	if len(bytes) == 0 {
-		return e.rw.nonBinlogCommitTxLocked()
+		return e.rw.dbOffset, e.rw.committedOffset, e.rw.nonBinlogCommitTxLocked()
 	}
 	if e.binlog == nil {
-		return fmt.Errorf("can't write binlog event: binlog is nil")
+		return e.rw.dbOffset, e.rw.committedOffset, fmt.Errorf("can't write binlog event: binlog is nil")
 	}
 	offsetAfterWrite, err := e.binlog.Append(e.rw.dbOffset, bytes)
 	if err != nil {
-		return fmt.Errorf("binlog Append return error: %w", err)
+		return e.rw.dbOffset, e.rw.committedOffset, fmt.Errorf("binlog Append return error: %w", err)
 	}
 	if e.testOptions != nil {
 		e.testOptions.sleep()
 	}
-	return e.rw.binlogCommitTxLocked(offsetAfterWrite)
+	err = e.rw.binlogCommitTxLocked(offsetAfterWrite)
+	return e.rw.dbOffset, e.rw.committedOffset, err
+}
+
+func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache []byte) ([]byte, error)) (err error) {
+	_, _, err = e.DoWithOffset(ctx, queryName, do)
+	return err
 }
 
 // В случае возникновения ошибки двиожк считается сломаным

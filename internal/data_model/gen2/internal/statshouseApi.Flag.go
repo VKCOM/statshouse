@@ -92,12 +92,10 @@ func (item *StatshouseApiFlag) readJSON(j interface{}) error {
 }
 
 func (item StatshouseApiFlag) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item StatshouseApiFlag) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '"')
 	w = append(w, _StatshouseApiFlag[item.index].TLString...)
 	return append(w, '"'), nil
+
 }
 
 func (item StatshouseApiFlag) String() string {

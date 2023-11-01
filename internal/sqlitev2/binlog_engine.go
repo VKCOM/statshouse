@@ -68,13 +68,18 @@ func (b binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
 
 // База может обгонять бинлог. Никак не учитываем toOffset
 func (b binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
+	fmt.Println("COMMIT")
 	if b.e.testOptions != nil {
 		b.e.testOptions.sleep()
 	}
 	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_commit", time.Now())
 	b.e.rareLog("commit toOffset: %d, safeSnapshotOffset: %d", toOffset, safeSnapshotOffset)
 	return b.e.internalDo("__commit_save_meta", func(conn internalConn) error {
-		return b.e.rw.saveBinlogMetaLocked(snapshotMeta)
+		err := b.e.rw.saveBinlogMetaLocked(snapshotMeta)
+		if err == nil {
+			b.e.rw.committedOffset = toOffset
+		}
+		return err
 	})
 }
 

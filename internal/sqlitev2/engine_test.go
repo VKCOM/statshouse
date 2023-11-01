@@ -586,7 +586,7 @@ func Test_Engine_Backup(t *testing.T) {
 		return cache, err
 	})
 	require.NoError(t, err)
-	backupPath, err := engine.Backup(context.Background(), path.Join(dir, "db1"))
+	backupPath, _, err := engine.Backup(context.Background(), path.Join(dir, "db1"))
 	require.NoError(t, err)
 	require.NoError(t, engine.Close())
 	dir, db := path.Split(backupPath)

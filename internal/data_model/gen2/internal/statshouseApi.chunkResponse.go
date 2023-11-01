@@ -96,9 +96,6 @@ func (item *StatshouseApiGetChunkResponse) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseApiGetChunkResponse) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseApiGetChunkResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -107,7 +104,7 @@ func (item *StatshouseApiGetChunkResponse) WriteJSONOpt(short bool, w []byte) (_
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"series":`...)
-	if w, err = item.Series.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Series.WriteJSON(w); err != nil {
 		return w, err
 	}
 	if item.Index != 0 {

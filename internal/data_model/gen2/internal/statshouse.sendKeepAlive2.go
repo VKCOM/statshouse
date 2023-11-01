@@ -70,10 +70,6 @@ func (item *StatshouseSendKeepAlive2) ReadResultJSON(j interface{}, ret *string)
 }
 
 func (item *StatshouseSendKeepAlive2) WriteResultJSON(w []byte, ret string) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *StatshouseSendKeepAlive2) writeResultJSON(short bool, w []byte, ret string) (_ []byte, err error) {
 	w = basictl.JSONWriteString(w, ret)
 	return w, nil
 }
@@ -84,15 +80,6 @@ func (item *StatshouseSendKeepAlive2) ReadResultWriteResultJSON(r []byte, w []by
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseSendKeepAlive2) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret string
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -142,9 +129,6 @@ func (item *StatshouseSendKeepAlive2) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseSendKeepAlive2) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseSendKeepAlive2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -153,7 +137,7 @@ func (item *StatshouseSendKeepAlive2) WriteJSONOpt(short bool, w []byte) (_ []by
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil
@@ -231,10 +215,6 @@ func (item *StatshouseSendKeepAlive2Bytes) ReadResultJSON(j interface{}, ret *[]
 }
 
 func (item *StatshouseSendKeepAlive2Bytes) WriteResultJSON(w []byte, ret []byte) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *StatshouseSendKeepAlive2Bytes) writeResultJSON(short bool, w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.JSONWriteStringBytes(w, ret)
 	return w, nil
 }
@@ -245,15 +225,6 @@ func (item *StatshouseSendKeepAlive2Bytes) ReadResultWriteResultJSON(r []byte, w
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseSendKeepAlive2Bytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret []byte
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -303,9 +274,6 @@ func (item *StatshouseSendKeepAlive2Bytes) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseSendKeepAlive2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseSendKeepAlive2Bytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -314,7 +282,7 @@ func (item *StatshouseSendKeepAlive2Bytes) WriteJSONOpt(short bool, w []byte) (_
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil

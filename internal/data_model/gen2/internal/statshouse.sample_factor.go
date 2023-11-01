@@ -83,9 +83,6 @@ func (item *StatshouseSampleFactor) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseSampleFactor) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseSampleFactor) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Metric != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -165,13 +162,10 @@ func VectorStatshouseSampleFactor0ReadJSON(j interface{}, vec *[]StatshouseSampl
 }
 
 func VectorStatshouseSampleFactor0WriteJSON(w []byte, vec []StatshouseSampleFactor) (_ []byte, err error) {
-	return VectorStatshouseSampleFactor0WriteJSONOpt(false, w, vec)
-}
-func VectorStatshouseSampleFactor0WriteJSONOpt(short bool, w []byte, vec []StatshouseSampleFactor) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSON(w); err != nil {
 			return w, err
 		}
 	}

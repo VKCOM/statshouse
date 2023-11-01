@@ -16,6 +16,7 @@ type (
 		conn             *sqlite0.Conn
 		mu               sync.Mutex
 		dbOffset         int64
+		committedOffset  int64
 		binlogCache      []byte
 		cache            *queryCachev2
 		queryBuffer      []byte
@@ -45,7 +46,7 @@ func newSqliteROConn(path string, logger *log.Logger) (*sqliteConn, error) {
 	return &sqliteConn{
 		conn:      conn,
 		mu:        sync.Mutex{},
-		cache:     newQueryCachev2(1, logger),
+		cache:     newQueryCachev2(10, logger),
 		beginStmt: beginDeferredStmt,
 	}, nil
 }
@@ -225,6 +226,7 @@ func prepare(c *sqlite0.Conn, sql []byte) (*sqlite0.Stmt, error) {
 }
 
 func (c *sqliteConn) saveBinlogOffsetLocked(newOffset int64) error {
+	fmt.Println("SAVE BINLOG OFFSET:", newOffset)
 	_, err := c.execLockedArgs(innerCtx, "__update_binlog_pos", nil, "UPDATE __binlog_offset set offset = $offset;", Int64("$offset", newOffset))
 	return err
 }

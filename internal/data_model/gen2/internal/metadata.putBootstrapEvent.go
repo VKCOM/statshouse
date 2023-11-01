@@ -83,9 +83,6 @@ func (item *MetadataPutBootstrapEvent) readJSON(j interface{}) error {
 }
 
 func (item *MetadataPutBootstrapEvent) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *MetadataPutBootstrapEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -95,7 +92,7 @@ func (item *MetadataPutBootstrapEvent) WriteJSONOpt(short bool, w []byte) (_ []b
 	if len(item.Mappings) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"mappings":`...)
-		if w, err = VectorStatshouseMapping0WriteJSONOpt(short, w, item.Mappings); err != nil {
+		if w, err = VectorStatshouseMapping0WriteJSON(w, item.Mappings); err != nil {
 			return w, err
 		}
 	}
