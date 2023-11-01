@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } 
 import { Popper } from './Popper';
 import { type JSX } from 'react/jsx-runtime';
 import { TooltipTitleContent } from './TooltipTitleContent';
+import cn from 'classnames';
+
+import css from './style.module.css';
 
 const stopPropagation = (e: React.MouseEvent) => {
   e.stopPropagation();
@@ -9,6 +12,8 @@ const stopPropagation = (e: React.MouseEvent) => {
 
 export type TooltipProps<T extends keyof JSX.IntrinsicElements> = {
   as?: T;
+  hover?: boolean;
+  titleClassName?: string;
   title?: React.ReactNode;
   children?: React.ReactNode;
   minHeight?: string | number;
@@ -20,7 +25,7 @@ export type TooltipProps<T extends keyof JSX.IntrinsicElements> = {
 declare function TooltipFn<T extends keyof JSX.IntrinsicElements>(props: TooltipProps<T>): JSX.Element;
 
 export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Tooltip(
-  { as: Tag = 'div', title, children, minHeight, minWidth, maxHeight, maxWidth, ...props },
+  { as: Tag = 'div', title, children, minHeight, minWidth, maxHeight, maxWidth, hover, titleClassName, ...props },
   ref
 ) {
   const [localRef, setLocalRef] = useState<Element | null>(null);
@@ -63,8 +68,15 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
     <Tag {...props} ref={setLocalRef} onMouseOver={onMouseOver} onMouseOut={onMouseOut} onClick={onClick}>
       {children}
       {!!title && (
-        <Popper targetRef={targetRef} fixed={false} horizontal={'center'} vertical={'out-top'} show={open}>
-          <div className="card overflow-auto" onClick={stopPropagation}>
+        <Popper
+          className={cn(!hover && css.pointerNone)}
+          targetRef={targetRef}
+          fixed={false}
+          horizontal={'center'}
+          vertical={'out-top'}
+          show={open}
+        >
+          <div className={cn(titleClassName, 'card overflow-auto')} onClick={stopPropagation}>
             <div className="card-body p-1" style={{ minHeight, minWidth, maxHeight, maxWidth }}>
               <TooltipTitleContent>{title}</TooltipTitleContent>
             </div>

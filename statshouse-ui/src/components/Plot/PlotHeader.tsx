@@ -259,7 +259,12 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
               </div>
             ) : (
               <>
-                <Tooltip as="span" className="text-decoration-none overflow-hidden text-nowrap" title={plotTooltip}>
+                <Tooltip
+                  hover
+                  as="span"
+                  className="text-decoration-none overflow-hidden text-nowrap"
+                  title={plotTooltip}
+                >
                   <PlotLink className="text-decoration-none" indexPlot={indexPlot} target={embed ? '_blank' : '_self'}>
                     <PlotName plot={plot} plotData={plotData} />
                   </PlotLink>
@@ -317,7 +322,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         <h6
           className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 gap-1 mb-1`}
         >
-          <Tooltip title={plotTooltip}>
+          <Tooltip hover title={plotTooltip}>
             <PlotLink
               className="text-secondary text-decoration-none"
               indexPlot={indexPlot}
@@ -359,7 +364,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             ) : (
               <div className="d-flex align-items-center w-100">
                 <div className="overflow-force-wrap flex-grow-1">
-                  <Tooltip as="span" className="text-decoration-none overflow-hidden" title={plotTooltip}>
+                  <Tooltip hover as="span" className="text-decoration-none overflow-hidden" title={plotTooltip}>
                     <PlotLink
                       className="text-decoration-none overflow-hidden"
                       indexPlot={indexPlot}

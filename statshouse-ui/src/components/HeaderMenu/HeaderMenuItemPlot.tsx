@@ -23,7 +23,7 @@ import { PLOT_TYPE } from '../../url/queryParams';
 import { setPlotVisibility, setPreviewVisibility, usePlotVisibilityStore } from '../../store/plot/plotVisibilityStore';
 import { buildThresholdList, useIntersectionObserver } from '../../hooks';
 import { usePlotPreview } from '../../store/plot/plotPreview';
-import { Popper } from '../UI';
+import { Popper, Tooltip } from '../UI';
 
 const threshold = buildThresholdList(1);
 
@@ -135,7 +135,6 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
           plot.type === PLOT_TYPE.Event && css.previewEvent
         )}
         indexPlot={indexPlot}
-        title={title}
         ref={touchToggle}
       >
         {!!plotData.error403 && <SVGXSquare className={css.icon} />}
@@ -153,7 +152,6 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
             <PlotLink
               className="nav-link text-nowrap flex-grow-1 text-body fw-bold font-monospace text-decoration-none d-flex flex-row w-0"
               indexPlot={indexPlot}
-              title={title}
             >
               {plot.customName ? (
                 <span className="text-truncate">{plot.customName}</span>
@@ -170,9 +168,9 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
               )}
             </PlotLink>
             {plotCount > 1 && (
-              <span role="button" title="Remove" className="d-block p-2 text-body" onClick={onRemovePlot}>
+              <Tooltip role="button" title="Remove" className="d-block p-2 text-body" onClick={onRemovePlot}>
                 <SVGTrash />
-              </span>
+              </Tooltip>
             )}
           </li>
           {!!preview && !plotData.error403 && (

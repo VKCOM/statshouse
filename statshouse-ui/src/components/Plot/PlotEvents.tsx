@@ -16,6 +16,7 @@ import { TimeRange } from '../../common/TimeRange';
 import css from './style.module.css';
 import { useEventTagColumns } from '../../hooks/useEventTagColumns';
 import { PlotEventsButtonColumns } from './PlotEventsButtonColumns';
+import { Button } from '../UI';
 
 export type PlotEventsProps = {
   indexPlot: number;
@@ -175,7 +176,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
       {!!event.error && (
         <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
           <small className="overflow-force-wrap font-monospace">{event.error}</small>
-          <button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
+          <Button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
         </div>
       )}
 

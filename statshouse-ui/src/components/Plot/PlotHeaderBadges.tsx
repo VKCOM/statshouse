@@ -8,6 +8,7 @@ import { selectorMetricsMetaByName, selectorParamsPlotsByIndex, selectorParamsTa
 import { formatTagValue } from '../../view/api';
 import cn from 'classnames';
 import { toKeyTag } from '../../url/queryParams';
+import { Tooltip } from '../UI';
 
 export type PlotHeaderBadgesProps = { indexPlot: number; compact?: boolean; dashboard?: boolean; className?: string };
 
@@ -42,7 +43,8 @@ export function PlotHeaderBadges({ indexPlot, compact, className }: PlotHeaderBa
   return (
     <>
       {meta?.resolution !== undefined && meta?.resolution !== 1 && (
-        <span
+        <Tooltip<'span'>
+          as="span"
           className={cn(
             className,
             'badge',
@@ -53,7 +55,7 @@ export function PlotHeaderBadges({ indexPlot, compact, className }: PlotHeaderBa
           title="Custom resolution"
         >
           {meta?.resolution}s
-        </span>
+        </Tooltip>
       )}
       {!params.useV2 && <span className={cn(className, 'badge bg-danger')}>legacy data, production only</span>}
       {compact && (
@@ -63,20 +65,22 @@ export function PlotHeaderBadges({ indexPlot, compact, className }: PlotHeaderBa
             filters.map((f, i) => (
               <React.Fragment key={i}>
                 {f.in && (
-                  <span
+                  <Tooltip<'span'>
+                    as="span"
                     title={f.title}
                     className={cn(className, 'badge border border-success text-success font-normal fw-normal')}
                   >
                     {f.in}
-                  </span>
+                  </Tooltip>
                 )}
                 {f.notIn && (
-                  <span
+                  <Tooltip<'span'>
+                    as="span"
                     title={f.title}
                     className={cn(className, 'badge border border-danger text-danger font-normal fw-normal')}
                   >
                     {f.notIn}
-                  </span>
+                  </Tooltip>
                 )}
               </React.Fragment>
             ))

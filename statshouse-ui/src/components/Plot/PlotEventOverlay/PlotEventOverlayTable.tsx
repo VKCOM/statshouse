@@ -9,6 +9,7 @@ import { ApiTable, apiTable } from '../../../api/tableOld';
 import { TimeRange } from '../../../common/TimeRange';
 import { useEventTagColumns } from '../../../hooks/useEventTagColumns';
 import { PlotParams } from '../../../url/queryParams';
+import { Button } from '../../UI';
 
 export type PlotEventOverlayTableProps = {
   plot: PlotParams;
@@ -57,7 +58,7 @@ export function _PlotEventOverlayTable({ plot, range, agg }: PlotEventOverlayTab
       {!!errorText && (
         <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
           <small className="overflow-force-wrap font-monospace">{errorText}</small>
-          <button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
+          <Button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
         </div>
       )}
       <table className="table table-sm m-0 table-borderless">

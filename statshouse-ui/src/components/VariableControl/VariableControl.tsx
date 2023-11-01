@@ -16,6 +16,7 @@ import { formatPercent, normalizeTagValues } from '../../view/utils';
 import { MetricMetaTag } from '../../api/metric';
 import { MetricTagValueInfo } from '../../api/metricTagValues';
 import { escapeHTML } from '../../common/helpers';
+import { Button } from '../UI';
 
 const emptyListArray: MetricTagValueInfo[] = [];
 const emptyValues: string[] = [];
@@ -151,7 +152,7 @@ export function VariableControl<T>({
       <div className="d-flex flex-wrap">
         {customBadge}
         {values?.map((v) => (
-          <button
+          <Button
             type="button"
             key={v}
             data-value={v}
@@ -160,10 +161,10 @@ export function VariableControl<T>({
             onClick={onRemoveFilter}
           >
             {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
-          </button>
+          </Button>
         ))}
         {notValues?.map((v) => (
-          <button
+          <Button
             type="button"
             key={v}
             data-value={v}
@@ -172,7 +173,7 @@ export function VariableControl<T>({
             onClick={onRemoveFilter}
           >
             {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
-          </button>
+          </Button>
         ))}
       </div>
     </div>
