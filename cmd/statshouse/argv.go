@@ -56,9 +56,11 @@ var (
 
 		configAggregator aggregator.ConfigAggregator
 
-		configIngress  aggregator.ConfigIngressProxy
-		ingressExtAddr string
-		ingressPwdDir  string
+		configIngress           aggregator.ConfigIngressProxy
+		ingressExtAddr          string
+		ingressPwdDir           string
+		ingressMaxConn          int
+		ingressDeleteSampleSize int
 
 		// for old mode
 		historicStorageDir string
@@ -198,6 +200,10 @@ func argvAddIngressProxyFlags() {
 	flag.StringVar(&argv.configIngress.ListenAddr, "ingress-addr", "", "Listen address of ingress proxy")
 	flag.StringVar(&argv.ingressExtAddr, "ingress-external-addr", "", "Comma-separate list of 3 external addresses of ingress proxies.")
 	flag.StringVar(&argv.ingressPwdDir, "ingress-pwd-dir", "", "path to AES passwords dir for clients of ingress proxy.")
+
+	flag.IntVar(&argv.ingressMaxConn, "ingress-max-conn", 1000, "")
+	flag.IntVar(&argv.ingressDeleteSampleSize, "ingress-delete-sample-size", 50, "")
+
 }
 
 func printVerbUsage() {
