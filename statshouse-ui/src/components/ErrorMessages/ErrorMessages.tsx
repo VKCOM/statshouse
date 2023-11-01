@@ -7,6 +7,7 @@
 import React, { useCallback } from 'react';
 import { useError } from '../../hooks/useError';
 import { useErrorStore } from '../../store';
+import { Button } from '../UI';
 
 export type ErrorMessagesProps = {
   channel?: string;
@@ -31,7 +32,7 @@ export function ErrorMessages({ channel }: ErrorMessagesProps) {
           </div>
         ))}
       </div>
-      <button type="button" className="btn-close" aria-label="Close" onClick={onRemoveAll} />
+      <Button type="button" className="btn-close" aria-label="Close" onClick={onRemoveAll} />
     </div>
   );
 }

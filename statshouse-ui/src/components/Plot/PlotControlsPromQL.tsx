@@ -9,7 +9,7 @@ import { produce } from 'immer';
 import cn from 'classnames';
 import * as utils from '../../view/utils';
 import { getTimeShifts, timeShiftAbbrevExpand } from '../../view/utils';
-import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo } from '../index';
+import { Button, PlotControlFrom, PlotControlTimeShifts, PlotControlTo, SwitchBox } from '../index';
 import { selectorParamsTimeShifts, selectorPlotsDataByIndex, selectorTimeRange, useStore } from '../../store';
 import { metricKindToWhat } from '../../view/api';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
@@ -75,12 +75,11 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
     },
     [setSel, timeShifts]
   );
-
   const onHostChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
+    (status: boolean) => {
       setSel((s) => ({
         ...s,
-        maxHost: e.target.checked,
+        maxHost: status,
       }));
     },
     [setSel]
@@ -138,8 +137,8 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   return (
     <div>
       <div>
-        <div className="row mb-3 align-items-baseline">
-          <div className="col-12 d-flex align-items-baseline">
+        <div className="row mb-3">
+          <div className="col-12 d-flex">
             <select
               className={cn('form-select me-4', sel.customAgg > 0 && 'border-warning')}
               value={sel.customAgg}
@@ -159,22 +158,12 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
               <option value={7 * 24 * 60 * 60}>7 days</option>
               <option value={31 * 24 * 60 * 60}>1 month</option>
             </select>
-            <div className="form-check form-switch">
-              <input
-                className="form-check-input"
-                type="checkbox"
-                value=""
-                id="switchMaxHost"
-                checked={sel.maxHost}
-                onChange={onHostChange}
-              />
-              <label className="form-check-label" htmlFor="switchMaxHost" title="Host">
-                <SVGPcDisplay />
-              </label>
-            </div>
-            <button type="button" className="btn btn-outline-primary ms-3" title="Filter" onClick={toFilter}>
+            <SwitchBox title="Host" checked={sel.maxHost} onChange={onHostChange}>
+              <SVGPcDisplay />
+            </SwitchBox>
+            <Button type="button" className="btn btn-outline-primary ms-3" title="Filter" onClick={toFilter}>
               <SVGFilter />
-            </button>
+            </Button>
           </div>
         </div>
         <div className="row mb-3 align-items-baseline">
@@ -195,20 +184,20 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
             ></textarea>
           </div>
           <div className="d-flex flex-row justify-content-end mt-2">
-            <button
+            <Button
               onClick={toggleBigControl}
               className={cn('btn btn-outline-primary me-2')}
               title={bigControl ? 'Narrow' : 'Expand'}
             >
               {bigControl ? <SVGChevronCompactRight /> : <SVGChevronCompactLeft />}
-            </button>
-            <button type="button" className="btn btn-outline-primary me-2" title="Reset PromQL" onClick={resetPromQL}>
+            </Button>
+            <Button type="button" className="btn btn-outline-primary me-2" title="Reset PromQL" onClick={resetPromQL}>
               <SVGArrowCounterclockwise />
-            </button>
+            </Button>
             <span className="flex-grow-1"></span>
-            <button type="button" className="btn btn-outline-primary" onClick={sendPromQL}>
+            <Button type="button" className="btn btn-outline-primary" onClick={sendPromQL}>
               Run
-            </button>
+            </Button>
           </div>
         </div>
       </div>

@@ -152,7 +152,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
         </Button>
       )}
       {!!outerLink && (
-        <Tooltip as="span" role="button" className="btn btn-outline-primary p-0" title="Open link">
+        <Tooltip<'span'> as="span" role="button" className="btn btn-outline-primary p-0" title="Open link">
           <Link to={outerLink} className="d-block px-2 py-1" target="_blank">
             <SVGBoxArrowUpRight />
           </Link>

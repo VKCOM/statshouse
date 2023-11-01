@@ -6,6 +6,7 @@
 
 import React, { ChangeEvent, memo, useCallback, useId } from 'react';
 import cn from 'classnames';
+import { Tooltip } from './Tooltip';
 
 export type SwitchBoxProps = {
   checked?: boolean;
@@ -34,7 +35,11 @@ export function _SwitchBox({
     [onChange]
   );
   return (
-    <div className={cn('form-check form-switch d-flex align-items-center ps-0', className)} title={title}>
+    <Tooltip<'div'>
+      as="div"
+      className={cn('form-check form-switch d-flex align-items-center ps-0', className)}
+      title={title}
+    >
       <input
         className="form-check-input ms-0"
         type="checkbox"
@@ -50,7 +55,7 @@ export function _SwitchBox({
           {children}
         </label>
       )}
-    </div>
+    </Tooltip>
   );
 }
 

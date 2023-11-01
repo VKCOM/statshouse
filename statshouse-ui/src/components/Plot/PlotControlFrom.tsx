@@ -9,6 +9,7 @@ import { SetTimeRange, TIME_RANGE_KEYS_TO, TimeRange } from '../../common/TimeRa
 import { TimeHelper } from '../../common/TimeHelper';
 import { now, timeRangeAbbrev, timeRangeAbbrevExpand, timeRangeString, timeRangeToAbbrev } from '../../view/utils';
 import cn from 'classnames';
+import { Button } from '../UI';
 
 export type PlotControlFromProps = {
   timeRange: TimeRange;
@@ -90,12 +91,12 @@ export const _PlotControlFrom: React.FC<PlotControlFromProps> = ({
         <option value="last-2y">Last 2 years</option>
       </select>
 
-      <button className="btn btn-outline-primary" type="button" onClick={onTodayClick} disabled={disableTodayClick}>
+      <Button className="btn btn-outline-primary" type="button" onClick={onTodayClick} disabled={disableTodayClick}>
         Today
-      </button>
-      <button className="btn btn-outline-primary" type="button" onClick={onWeekClick} disabled={disableWeekClick}>
+      </Button>
+      <Button className="btn btn-outline-primary" type="button" onClick={onWeekClick} disabled={disableWeekClick}>
         Week
-      </button>
+      </Button>
     </div>
   );
 };
