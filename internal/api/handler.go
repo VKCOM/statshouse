@@ -42,6 +42,7 @@ import (
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
@@ -2013,6 +2014,43 @@ func (h *Handler) handleSeriesQueryPromQL(w http.ResponseWriter, r *http.Request
 		}
 		respondJSON(w, res, cache, cacheStale, err, h.verbose, ai.user, sl)
 	}
+}
+
+func (h *Handler) HandleFrontendStat(w http.ResponseWriter, r *http.Request) {
+	ai, ok := h.parseAccessToken(w, r, nil)
+	if !ok {
+		return
+	}
+	if ai.service {
+		// statistics from bots isn't welcome
+		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, nil)
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+	}
+	var batch tlstatshouse.AddMetricsBatchBytes
+	err = batch.UnmarshalJSON(body)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+	}
+	for _, v := range batch.Metrics {
+		// TODO: metric whitelist
+		tags := make(statshouse.NamedTags, 0, len(v.Tags))
+		for _, v := range v.Tags {
+			tags = append(tags, [2]string{string(v.Key), string(v.Value)})
+		}
+		metric := statshouse.MetricNamed(string(v.Name), tags)
+		switch {
+		case v.IsSetUnique():
+			metric.Uniques(v.Unique)
+		case v.IsSetValue():
+			metric.Values(v.Value)
+		default:
+			metric.Count(v.Counter)
+		}
+	}
+	respondJSON(w, nil, 0, 0, nil, h.verbose, ai.user, nil)
 }
 
 func (h *Handler) queryBadges(ctx context.Context, ai accessInfo, req seriesRequest) (*SeriesResponse, func(), error) {
