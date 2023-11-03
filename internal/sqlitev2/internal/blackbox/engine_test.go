@@ -1,25 +1,112 @@
 package blackbox
 
 import (
-	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"path"
+	"sync"
 	"testing"
-	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlkv_engine"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"pgregory.net/rapid"
 )
 
 type engineState struct {
-	e           *engine
-	testCase    *Case
-	backupIndex int
+	testCase *Case
+	clients  []*client
+	pushers  []*client // эти клиенты не проверяют консистентность, нужны для того чтобы создать большую хаотичность в работе движка
+	eng      *engine
 }
 
-func (s *engineState) init(tempDir string) {
+type client struct {
+	r           *rapid.T
+	start       chan struct{}
+	restart     chan *sync.WaitGroup
+	stop        chan struct{}
+	offset      chan int64 // revert offset
+	testCase    *Case
+	shouldCheck bool
+}
+
+func (s *engineState) revertClient(offset int64) {
+	for _, c := range s.clients {
+		c.offset <- offset
+	}
+}
+
+func (s *engineState) wakeupClients() {
+	for _, c := range s.clients {
+		c.start <- struct{}{}
+	}
+}
+
+func (s *engineState) sleepAndWaitClients() {
+	wg := &sync.WaitGroup{}
+	wg.Add(len(s.clients))
+	for _, c := range s.clients {
+		c.restart <- wg
+	}
+	wg.Wait()
+}
+
+func (c *client) clientLoop() {
+	for {
+		_ = c.testCase.Put()
+		if !c.shouldCheck {
+			select {
+			case <-c.stop:
+				return
+			default:
+				continue
+			}
+		}
+		select {
+		case <-c.stop:
+			return
+		case wg := <-c.restart:
+			wg.Done()
+		default:
+			continue
+		}
+		offset := <-c.offset
+		c.testCase.Revert(c.r, offset)
+		<-c.start
+		c.testCase.Check(c.r)
+	}
+}
+
+const n = 5
+const k = 5
+
+func (s *engineState) init(r *rapid.T, tempDir string) {
+	var i int64
+	for i = 1; i <= n+k; i++ {
+		c := rpc.NewClient(rpc.ClientWithLogf(func(format string, args ...any) {
+			// log.Printf("CLIENT"+strconv.FormatInt(i, 10)+": "+format, args)
+		}))
+		cc := &tlkv_engine.Client{
+			Client:  c,
+			Network: "tcp4",
+			Address: "127.0.0.1:2442",
+		}
+		tc := NewCase(i*10, i*10+10, tempDir, &kvEngine{client: cc})
+		client := &client{
+			offset:   make(chan int64, 1),
+			restart:  make(chan *sync.WaitGroup, 1),
+			start:    make(chan struct{}, 1),
+			stop:     make(chan struct{}),
+			testCase: tc,
+			r:        r,
+		}
+		if i <= n {
+			client.shouldCheck = true
+			s.clients = append(s.clients, client)
+		} else {
+			client.stop = make(chan struct{}, 1)
+			s.pushers = append(s.pushers, client)
+		}
+	}
 	prefix := tempDir
 	if err := createBinlog(prefix, "1,0"); err != nil {
 		panic(err)
@@ -29,77 +116,95 @@ func (s *engineState) init(tempDir string) {
 	if err != nil {
 		panic(err)
 	}
-	s.e = e
+	s.eng = e
 	c := rpc.NewClient(rpc.ClientWithLogf(log.Printf))
 	client := &tlkv_engine.Client{
 		Client:  c,
 		Network: "tcp4",
 		Address: "127.0.0.1:2442",
 	}
-	s.testCase = NewCase(tempDir, &kvEngine{client: client})
+	s.testCase = NewCase(0, 10, tempDir, &kvEngine{client: client})
+	for _, c := range s.clients {
+		go c.clientLoop()
+	}
+	for _, c := range s.pushers {
+		go c.clientLoop()
+	}
 }
 
 const BinlogMagic = 123
 
-func (s *engineState) clientLoop() {
-	for {
-		n := rand.Int() % 4
-		switch n {
-		case 0:
-			fmt.Println("PUT")
-			s.testCase.Put()
-		case 1:
-			fmt.Println("INCR")
-			s.testCase.Incr()
-		case 2:
-			s.testCase.Backup()
-		case 3:
-			if s.testCase.LastBackupPath == "" || s.testCase.log[len(s.testCase.log)-1].offset == s.testCase.lastBackupOffset {
-				continue
-			}
-			fmt.Println("KILL")
-
-			_, err := s.e.kill()
-			if err != nil {
-				panic(err)
-			}
-			if s.testCase.LastBackupPath != "" {
-				//s.e.db = s.testCase.LastBackupPath
-				sOld, _ := os.Stat(s.e.db)
-				fmt.Println("DB SIZE BEFORE REPLACE", sOld.Size())
-				content, err := os.ReadFile(s.testCase.LastBackupPath)
-				if err != nil {
-					panic(err)
-				}
-				err = os.WriteFile(s.e.db, content, 0)
-				if err != nil {
-					panic(err)
-				}
-				fmt.Println("COPY", s.testCase.LastBackupPath, "TO", s.e.db)
-				s1, _ := os.Stat(s.e.db)
-				fmt.Println("DB SIZE", s1.Size())
-				s2, _ := os.Stat(s.testCase.LastBackupPath)
-				fmt.Println("SNAPSHOT SIZE", s2.Size())
-				_ = os.Remove(s.e.db + "-shm")
-				_ = os.Remove(s.e.db + "-wal")
-				_ = os.Remove(s.e.db + "-wal2")
-			}
-			binlogPosition := getBinlogPosition(s.e.prefix, BinlogMagic)
-			s.testCase.Revert(binlogPosition)
-			err = s.e.restart(s.e.db)
-			if err != nil {
-				panic(err)
-			}
-		}
-		s.testCase.Check()
-		time.Sleep(time.Millisecond)
+func (s *engineState) Put(r *rapid.T) {
+	err := s.testCase.Put()
+	if err != nil {
+		r.Errorf(err.Error())
 	}
 }
 
+func (s *engineState) Incr(r *rapid.T) {
+	//s.testCase.Incr(r)
+}
+
+func (s *engineState) Backup(r *rapid.T) {
+	s.testCase.Backup(r)
+}
+
+func (s *engineState) Kill(r *rapid.T) {
+	s.sleepAndWaitClients()
+	_, err := s.eng.kill()
+	if err != nil {
+		r.Errorf(err.Error())
+		return
+	}
+	_ = os.Remove(s.eng.db + "-shm")
+	_ = os.Remove(s.eng.db + "-wal")
+	_ = os.Remove(s.eng.db + "-wal2")
+	if s.testCase.LastBackupPath != "" {
+		content, err := os.ReadFile(s.testCase.LastBackupPath)
+		if err != nil {
+			r.Errorf(err.Error())
+			return
+		}
+		err = os.WriteFile(s.eng.db, content, 0)
+		if err != nil {
+			r.Errorf(err.Error())
+			return
+		}
+	} else {
+		_ = os.Remove(s.eng.db)
+	}
+	binlogPosition := getBinlogPosition(s.eng.prefix, BinlogMagic)
+	s.testCase.Revert(r, binlogPosition)
+	err = s.eng.restart(s.eng.db)
+	if err != nil {
+		panic(err)
+	}
+	s.revertClient(binlogPosition)
+	s.wakeupClients()
+}
+
+func (s *engineState) Check(r *rapid.T) {
+	s.testCase.Check(r)
+}
+
+func (s *engineState) stop() {
+	for _, c := range s.clients {
+		c.stop <- struct{}{}
+	}
+	for _, c := range s.pushers {
+		c.stop <- struct{}{}
+	}
+	_, _ = s.eng.kill()
+}
+
 func TestEngine(t *testing.T) {
-	dir := t.TempDir()
-	s := engineState{}
-	s.init(dir)
-	time.Sleep(time.Second)
-	s.clientLoop()
+	rapid.Check(t, func(r *rapid.T) {
+		state := &engineState{}
+		defer func() {
+			state.stop()
+		}()
+		dir := t.TempDir()
+		state.init(r, dir)
+		r.Repeat(rapid.StateMachineActions(state))
+	})
 }

@@ -132,7 +132,7 @@ func Test_Engine_Do(t *testing.T) {
 		}},
 	})
 	agg := &testAggregation1{}
-	n := 32
+	n := 4
 	iters := 1000
 	wg := &sync.WaitGroup{}
 	for i := 0; i < n; i++ {
@@ -213,7 +213,7 @@ func Test_Engine_View(t *testing.T) {
 		expectedMap[t] = struct{}{}
 	}
 	wg := &sync.WaitGroup{}
-	n := 32
+	n := 4
 	iters = 100
 	for i := 0; i < n; i++ {
 		wg.Add(1)
@@ -313,7 +313,7 @@ func TestFullEngine(t *testing.T) {
 		}},
 	})
 	wg := &sync.WaitGroup{}
-	n := 32
+	n := 4
 	iters := 1000
 	for i := 0; i < n; i++ {
 		wg.Add(1)

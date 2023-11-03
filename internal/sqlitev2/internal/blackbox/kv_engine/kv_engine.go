@@ -48,32 +48,7 @@ func processCreateBinlogParam(createBinlog string) (engineID uint64, clusterSize
 	return engineID, clusterSize, nil
 }
 
-const snapshotAfterBinlog = 32
 const BinlogMagic = 123
-
-//func main1() {
-//	const BinlogMagic = 123
-//	engineID, clusterSize, err := processCreateBinlogParam("1,0")
-//	if err != nil {
-//		panic(err)
-//	}
-//	_, err = fsbinlog.CreateEmptyFsBinlog(binlog.Options{
-//		PrefixPath:        ".",
-//		Magic:             BinlogMagic,
-//		EngineIDInCluster: uint(engineID),
-//		ClusterSize:       uint(clusterSize),
-//	})
-//	if err != nil {
-//		panic(err)
-//	}
-//	bl, err := fsbinlog.NewFsBinlog(nil, binlog.Options{
-//		PrefixPath: ".",
-//		Magic:      BinlogMagic,
-//	})
-//	go func() {
-//		bl.Run(0, nil,)
-//	}()
-//}]
 
 func main() {
 	parseArgs()

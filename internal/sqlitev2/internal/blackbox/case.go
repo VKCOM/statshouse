@@ -7,6 +7,7 @@ import (
 
 	"github.com/vkcom/statshouse/internal/sqlitev2"
 	"pgregory.net/rand"
+	"pgregory.net/rapid"
 )
 
 type logEntry struct {
@@ -22,35 +23,45 @@ type Case struct {
 	log              []logEntry
 	LastBackupPath   string
 	lastBackupOffset int64
+	minValue         int64
+	maxValue         int64
+	commitDBOffset   int64
 }
 
-const maxValue = 10
-
-func NewCase(tempDir string, client KVEngineClient) *Case {
+func NewCase(minValue, maxValue int64, tempDir string, client KVEngineClient) *Case {
 	return &Case{
-		tempDir: tempDir,
-		kv:      map[int64]int64{},
-		client:  client,
+		tempDir:  tempDir,
+		kv:       map[int64]int64{},
+		client:   client,
+		minValue: minValue,
+		maxValue: maxValue,
 	}
 }
 
-func (c *Case) Put() {
-	k := rand.Int63n(maxValue)
-	v := rand.Int63n(maxValue)
+func (c *Case) randValue() int64 {
+	return c.minValue + rand.Int63n(c.maxValue-c.minValue)
+}
+
+func (c *Case) Put() error {
+	k := c.randValue()
+	v := c.randValue()
 	resp, err := c.client.Put(k, v)
 	if err != nil {
-		panic(err)
+		return err
 	}
 	c.kv[k] = resp.NewValue
+	c.commitDBOffset = resp.Meta.CommittedOffset
 	c.log = append(c.log, logEntry{
 		k:      k,
 		v:      resp.NewValue,
 		offset: resp.Meta.DbOffset,
 	})
+	return nil
 }
 
-func (c *Case) Incr() {
+func (c *Case) Incr(r *rapid.T) {
 	if len(c.kv) == 0 {
+		r.SkipNow()
 		return
 	}
 	var k int64
@@ -58,12 +69,13 @@ func (c *Case) Incr() {
 		k = k1
 		break
 	}
-	v := rand.Int63n(maxValue)
+	v := c.randValue()
 	resp, err := c.client.Incr(k, v)
 	if err != nil {
 		panic(err)
 	}
 	c.kv[k] = resp.NewValue
+	c.commitDBOffset = resp.Meta.CommittedOffset
 	c.log = append(c.log, logEntry{
 		k:      k,
 		v:      resp.NewValue,
@@ -71,14 +83,14 @@ func (c *Case) Incr() {
 	})
 }
 
-func (c *Case) Backup() {
+func (c *Case) Backup(r *rapid.T) {
 	if len(c.log) == 0 {
+		r.SkipNow()
 		return
 	}
 	if c.log[len(c.log)-1].offset == c.lastBackupOffset {
 		return
 	}
-	fmt.Println("backup")
 	resp, err := c.client.Backup(c.tempDir)
 	if err != nil {
 		panic(err)
@@ -89,17 +101,24 @@ func (c *Case) Backup() {
 			panic(err)
 		}
 	}
+	r.Log("Last backup path", resp.Path)
+	r.Log("Last backup offset", resp.Offset)
 	c.lastBackupOffset = resp.Offset
 	c.LastBackupPath = resp.Path
 }
 
-func (c *Case) Revert(toOffset int64) {
-	fmt.Println("REVERT TO", toOffset)
+func (c *Case) Revert(r *rapid.T, toOffset int64) {
+	r.Log("REVERT TO", toOffset)
+	if toOffset < c.commitDBOffset {
+		r.Errorf("try to revert to offset: %d, committedOffset: %d", toOffset, c.commitDBOffset)
+		return
+	}
+
 	kv := map[int64]int64{}
-	var ix int
+	var ix int = len(c.log)
 	for i, e := range c.log {
-		ix = i
 		if e.offset > toOffset {
+			ix = i
 			break
 		}
 		kv[e.k] = e.v
@@ -108,14 +127,14 @@ func (c *Case) Revert(toOffset int64) {
 	c.kv = kv
 }
 
-func (c *Case) Check() {
+func (c *Case) Check(r *rapid.T) {
 	ok, err := c.client.Check(c.kv)
 	if err != nil {
 		panic(err)
 	}
 	if !ok {
-		fmt.Println("CHECK FAILED client", c.kv)
-		panic("engine is not consistent")
+		r.Errorf("CHECK FAILED client %v", c.kv)
+		return
 	}
 	if c.LastBackupPath != "" {
 		ro, err := sqlitev2.OpenEngine(sqlitev2.Options{
@@ -142,12 +161,14 @@ func (c *Case) Check() {
 			}
 			return fmt.Errorf("binlog position not found")
 		})
+
 		if err != nil {
-			panic(err)
+			r.Error(err.Error())
+			return
 		}
-		fmt.Println("CHECK BACKUP OFFSET" + fmt.Sprintf("expect backup offset: %d, got: %d", c.lastBackupOffset, backupOffset))
 		if backupOffset != c.lastBackupOffset {
-			panic(fmt.Sprintf("expect backup offset: %d, got: %d", c.lastBackupOffset, backupOffset))
+			r.Errorf("expect backup offset: %d, got: %d", c.lastBackupOffset, backupOffset)
+			return
 		}
 	}
 }

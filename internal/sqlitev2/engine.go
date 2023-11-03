@@ -379,8 +379,8 @@ func (e *Engine) DoWithOffset(ctx context.Context, queryName string, do func(c C
 	if e.testOptions != nil {
 		e.testOptions.sleep()
 	}
-	err = e.rw.binlogCommitTxLocked(offsetAfterWrite)
-	return e.rw.dbOffset, e.rw.committedOffset, err
+	dbOffset, err = e.rw.binlogCommitTxLocked(offsetAfterWrite)
+	return dbOffset, e.rw.committedOffset, err
 }
 
 func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache []byte) ([]byte, error)) (err error) {

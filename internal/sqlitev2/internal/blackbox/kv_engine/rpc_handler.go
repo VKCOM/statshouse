@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"reflect"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlkv_engine"
 	"github.com/vkcom/statshouse/internal/sqlitev2"
@@ -41,7 +40,7 @@ func apply(conn sqlitev2.Conn, payload []byte) (int, error) {
 		if mark != magic {
 			return fsbinlog.AddPadding(read), binlog2.ErrorUnknownMagic
 		}
-		if len(payload) < 8 {
+		if len(payload) < 20 {
 			return fsbinlog.AddPadding(read), binlog2.ErrorNotEnoughData
 		}
 		k := binary.LittleEndian.Uint64(payload[4:12])
@@ -157,15 +156,17 @@ func (h *rpc_handler) Check(ctx context.Context, args tlkv_engine.Check) (bool, 
 	if err != nil {
 		return false, err
 	}
-	ok := reflect.DeepEqual(expectedMap, actualMap)
-	if !ok {
-		fmt.Println("CHECK FAILED", actualMap, expectedMap)
+	for k, v := range expectedMap {
+		v1 := actualMap[k]
+		if v != v1 {
+			fmt.Println("check failed, expected submap", expectedMap, "actual", actualMap)
+			return false, nil
+		}
 	}
-	return ok, nil
+	return true, nil
 }
 
 func (h *rpc_handler) backup(ctx context.Context, args tlkv_engine.Backup) (tlkv_engine.BackupResponse, error) {
-	fmt.Println("STARTING BACKUP")
 	path, offs, err := h.engine.Backup(ctx, args.Prefix)
 	return tlkv_engine.BackupResponse{
 		Path:   path,

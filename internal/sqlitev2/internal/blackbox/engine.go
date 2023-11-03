@@ -28,7 +28,7 @@ func createBinlog(prefix, createBinlog string) error {
 	cmd := exec.Command("./kv_engine", "--binlog-prefix="+prefix, "--create-binlog="+createBinlog)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Dir = "/Users/e.martyn/Documents/vk/statshouse/internal/sqlitev2/internal/blackbox/kv_engine"
+	cmd.Dir = "./kv_engine"
 	return cmd.Run()
 }
 
@@ -36,8 +36,7 @@ func run(dbPath, prefix string) (*exec.Cmd, error) {
 	cmd := exec.Command("./kv_engine", "--db-path="+dbPath, "--binlog-prefix="+prefix)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Dir = "/Users/e.martyn/Documents/vk/statshouse/internal/sqlitev2/internal/blackbox/kv_engine"
-	fmt.Println(cmd.Path)
+	cmd.Dir = "./kv_engine"
 	err := cmd.Start()
 	if err != nil {
 		return nil, err

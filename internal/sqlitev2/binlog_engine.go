@@ -68,7 +68,6 @@ func (b binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
 
 // База может обгонять бинлог. Никак не учитываем toOffset
 func (b binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
-	fmt.Println("COMMIT")
 	if b.e.testOptions != nil {
 		b.e.testOptions.sleep()
 	}
@@ -91,6 +90,9 @@ func (b binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
 	b.e.logger.Printf("change role: %+v", info)
 	if info.IsReady {
 		b.e.readyNotify.Do(func() {
+			b.e.rw.mu.Lock()
+			defer b.e.rw.mu.Unlock()
+			b.e.logger.Printf("engine is ready, currentDbOffset: %d", b.e.rw.dbOffset)
 			close(b.e.readyCh)
 		})
 	}

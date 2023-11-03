@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlkv_engine"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 )
 
 type KVEngineClient interface {
@@ -24,7 +25,8 @@ func (k kvEngine) Get(key int64) (resp tlkv_engine.GetResponse, _ error) {
 }
 
 func (k kvEngine) Put(key int64, value int64) (resp tlkv_engine.ChangeResponse, _ error) {
-	err := k.client.Put(context.Background(), tlkv_engine.Put{Key: key, Value: value}, nil, &resp)
+	extra := &rpc.InvokeReqExtra{FailIfNoConnection: true}
+	err := k.client.Put(context.Background(), tlkv_engine.Put{Key: key, Value: value}, extra, &resp)
 	return resp, err
 }
 

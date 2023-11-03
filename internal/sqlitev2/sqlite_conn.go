@@ -135,25 +135,25 @@ func (c *sqliteConn) beginTxLocked() error {
 }
 
 // если не смогли закомитить, движок находится в неконсистентном состоянии. Запрещаем запись
-func (c *sqliteConn) binlogCommitTxLocked(newOffset int64) error {
+func (c *sqliteConn) binlogCommitTxLocked(newOffset int64) (int64, error) {
 	if c.committed {
-		return nil
+		return c.dbOffset, nil
 	}
 	c.committed = true
 	err := c.saveBinlogOffsetLocked(newOffset)
 	if err != nil {
 		c.connError = err
-		return fmt.Errorf("failed to save binlog offset: %w", err)
+		return c.dbOffset, fmt.Errorf("failed to save binlog offset: %w", err)
 	}
 	c.cache.closeTx()
 	err = c.execLocked(commitStmt)
 	if err != nil {
 		c.connError = err
-		return fmt.Errorf("failed to commit TX: %w", err)
+		return c.dbOffset, fmt.Errorf("failed to commit TX: %w", err)
 	} else {
 		c.dbOffset = newOffset
 	}
-	return nil
+	return c.dbOffset, nil
 }
 
 // если не смогли откатиться, движок находится в неконсистентном состоянии. Запрещаем запись
@@ -226,7 +226,6 @@ func prepare(c *sqlite0.Conn, sql []byte) (*sqlite0.Stmt, error) {
 }
 
 func (c *sqliteConn) saveBinlogOffsetLocked(newOffset int64) error {
-	fmt.Println("SAVE BINLOG OFFSET:", newOffset)
 	_, err := c.execLockedArgs(innerCtx, "__update_binlog_pos", nil, "UPDATE __binlog_offset set offset = $offset;", Int64("$offset", newOffset))
 	return err
 }
