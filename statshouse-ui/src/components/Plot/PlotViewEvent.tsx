@@ -330,10 +330,10 @@ export function PlotViewEvent(props: {
   const divOut = useRef<HTMLDivElement>(null);
   const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
   const onMouseOver = useCallback(() => {
-    if (divOut.current) {
+    if (divOut.current && !embed) {
       setFixHeight(divOut.current.getBoundingClientRect().height);
     }
-  }, []);
+  }, [embed]);
   const onMouseOut = useCallback(() => {
     setFixHeight(0);
   }, []);

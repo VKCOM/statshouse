@@ -326,7 +326,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
         ref={zone}
       >
         {itemsGroup.map(({ group, indexGroup, plots }) => (
-          <div key={indexGroup} className="pb-5" data-group={indexGroup}>
+          <div key={indexGroup} className={cn(!embed ? 'pb-5' : 'pb-2')} data-group={indexGroup}>
             <h6
               hidden={itemsGroup.length <= 1 && group.show !== false && !dashboardLayoutEdit && !group.name}
               className="border-bottom pb-1"
@@ -419,7 +419,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                 <div
                   className={cn(
                     'd-flex flex-row flex-wrap',
-                    !plots.length && !dashboardLayoutEdit ? 'pb-0' : 'pb-5',
+                    (!plots.length && !dashboardLayoutEdit) || embed ? 'pb-0' : 'pb-5',
                     toNumber(group.size ?? '2') != null ? 'container-xl' : null
                   )}
                 >
