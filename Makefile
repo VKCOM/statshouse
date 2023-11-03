@@ -99,4 +99,3 @@ gen:
 lint:
 	staticcheck -version
 	staticcheck ./...
-

@@ -1,0 +1,69 @@
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        required: false
+        default: ubuntu-latest
+      container_json:
+        type: string
+        required: true
+      run:
+        type: string
+        required: false
+        default: ''
+      setup-go:
+        type: boolean
+        required: false
+        default: false
+      ref:
+        type: string
+        required: true
+      ref_timestamp:
+        type: string
+        required: true
+      timestamp:
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+      name:
+        type: string
+        required: true
+      release:
+        type: string
+        required: true
+    outputs:
+      artifact:
+        value: statshouse-${{inputs.version}}-${{inputs.name}}_${{inputs.release}}-bin
+jobs:
+  binaries:
+    runs-on: ${{inputs.runs-on}}
+    container: ${{fromJSON(inputs.container_json)}}
+    steps:
+      - run: ${{inputs.run}}
+        if: ${{inputs.run != ''}}
+      - uses: actions/checkout@v4
+        with:
+          repository: VKCOM/statshouse
+          ref: ${{inputs.ref}}
+          fetch-depth: 0
+      - uses: actions/setup-go@v4
+        if: ${{inputs.setup-go}}
+        with:
+          go-version: '1.19'
+      - uses: actions/download-artifact@master
+        with:
+          name: statshouse-${{inputs.version}}-ui
+      - run: |
+          echo "BUILD_TIME=${{inputs.timestamp}}" >> $GITHUB_ENV
+          echo "BUILD_COMMIT=${{inputs.ref}}" >> $GITHUB_ENV
+          echo "BUILD_COMMIT_TS=${{inputs.ref_timestamp}}" >> $GITHUB_ENV
+          echo "BUILD_MACHINE=$(uname -n -m -r -s)" >> $GITHUB_ENV
+          echo "BUILD_VERSION=${{inputs.version}}" >> $GITHUB_ENV
+      - run: make build-sh build-sh-metadata build-sh-api build-sh-grafana
+      - uses: actions/upload-artifact@v3
+        with:
+          name: statshouse-${{inputs.version}}-${{inputs.name}}_${{inputs.release}}-bin
+          path: target
