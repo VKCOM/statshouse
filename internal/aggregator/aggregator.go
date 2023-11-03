@@ -294,13 +294,13 @@ func addrIPString(remoteAddr net.Addr) (uint32, string) {
 		if len(addr.IP) >= 4 {
 			v = binary.BigEndian.Uint32(addr.IP[len(addr.IP)-4:])
 		}
-		return v, addr.IP.String()
+		return v, addr.String()
 	case *net.TCPAddr:
 		var v uint32
 		if len(addr.IP) >= 4 {
 			v = binary.BigEndian.Uint32(addr.IP[len(addr.IP)-4:])
 		}
-		return v, addr.IP.String()
+		return v, addr.String()
 	default:
 		return 0, addr.String()
 	}
