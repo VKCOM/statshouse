@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Dashboard, ErrorMessages, PlotLayout, PlotView } from '../components';
 import { setBackgroundColor } from '../common/canvasToImage';
 import { Store, useStore } from '../store';
@@ -12,6 +12,7 @@ import { now } from './utils';
 import { debug } from '../common/debug';
 import { shallow } from 'zustand/shallow';
 import { usePlotPreview } from '../store/plot/plotPreview';
+import { useRectObserver } from '../hooks';
 
 const { setPlotParams, setTimeRange, setBaseRange, setCompact } = useStore.getState();
 
@@ -31,6 +32,13 @@ const selector = ({ params, liveMode, metricsMeta, timeRange, globalNumQueriesPl
 export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => {
   const { params, activePlotMeta, activePlot, liveMode, timeRange, globalNumQueriesPlot } = useStore(selector, shallow);
   const plotPreview = usePlotPreview((state) => state.previewList[params.tabNum]);
+  const [refPage, setRefPage] = useState<HTMLDivElement | null>(null);
+  const [{ width, height }] = useRectObserver(refPage, true);
+  useEffect(() => {
+    if (embed) {
+      window.top?.postMessage({ source: 'statshouse', payload: { width, height } }, '*');
+    }
+  }, [embed, height, width]);
 
   useEffect(() => {
     setCompact(!!embed);
@@ -90,7 +98,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
     return <ErrorMessages />;
   }
   return (
-    <div className="d-flex flex-column flex-md-row">
+    <div ref={setRefPage} className="d-flex flex-column flex-md-row">
       <div className={embed ? 'flex-grow-1' : 'flex-grow-1 pt-3 pb-3'}>
         <div className="tab-content position-relative">
           {params.tabNum >= 0 && (

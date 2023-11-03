@@ -145,18 +145,15 @@ export function VariableControl<T>({
             setGroupBy={onSetGroupBy}
           />
         </div>
-        {/*<SwitchBox title="Group by" checked={groupBy} onChange={onSetGroupBy}>*/}
-        {/*  <SVGLayers />*/}
-        {/*</SwitchBox>*/}
       </div>
-      <div className="d-flex flex-wrap">
+      <div className="d-flex flex-wrap gap-2 my-2">
         {customBadge}
         {values?.map((v) => (
           <Button
             type="button"
             key={v}
             data-value={v}
-            className="overflow-force-wrap btn btn-sm pt-0 pb-0 mt-2 me-2 btn-success"
+            className="overflow-force-wrap btn btn-sm py-0 btn-success"
             style={{ userSelect: 'text' }}
             onClick={onRemoveFilter}
           >
@@ -168,7 +165,7 @@ export function VariableControl<T>({
             type="button"
             key={v}
             data-value={v}
-            className="overflow-force-wrap btn btn-sm pt-0 pb-0 mt-2 me-2 btn-danger"
+            className="overflow-force-wrap btn btn-sm py-0 btn-danger"
             style={{ userSelect: 'text' }}
             onClick={onRemoveFilter}
           >
