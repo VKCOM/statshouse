@@ -21,6 +21,7 @@ type accessManager struct {
 
 type accessInfo struct {
 	user                 string
+	service              bool
 	insecureMode         bool // full access to everything; can not be obtained from bits
 	protectedPrefixes    []string
 	bitAdmin             bool
@@ -61,6 +62,7 @@ func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	}
 	ai := accessInfo{
 		user:              data.User,
+		service:           data.IsService,
 		protectedPrefixes: protectedPrefixes,
 		bitViewPrefix:     map[string]bool{},
 		bitEditPrefix:     map[string]bool{},
