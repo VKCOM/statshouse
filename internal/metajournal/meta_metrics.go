@@ -24,16 +24,11 @@ type GroupWithMetricsList struct {
 
 type ApplyPromConfig func(configString string, version int64)
 
-type namespacedName struct {
-	namespace int32 // use 0 for default namespace
-	name      string
-}
-
 type MetricsStorage struct {
 	mu sync.RWMutex
 
 	metricsByID   map[int32]*format.MetricMetaValue
-	metricsByName map[namespacedName]*format.MetricMetaValue // only because IDs are not unique and can lead to infinite update cycle
+	metricsByName map[string]*format.MetricMetaValue
 
 	dashboardByID map[int32]*format.DashboardMeta
 
@@ -53,7 +48,7 @@ type MetricsStorage struct {
 func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromConfig ApplyPromConfig) *MetricsStorage {
 	result := &MetricsStorage{
 		metricsByID:         map[int32]*format.MetricMetaValue{},
-		metricsByName:       map[namespacedName]*format.MetricMetaValue{},
+		metricsByName:       map[string]*format.MetricMetaValue{},
 		dashboardByID:       map[int32]*format.DashboardMeta{},
 		groupsByID:          map[int32]*format.MetricsGroup{},
 		metricsNamesByGroup: map[int32]map[int32]string{},
@@ -83,28 +78,21 @@ func (ms *MetricsStorage) GetMetaMetric(metricID int32) *format.MetricMetaValue 
 	return ms.metricsByID[metricID]
 }
 
-func (ms *MetricsStorage) GetMetaMetricByName(metricNameNamespaced string) *format.MetricMetaValue {
+func (ms *MetricsStorage) GetMetaMetricByName(metricName string) *format.MetricMetaValue {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	metricName, namespace := splitNamespace(metricNameNamespaced)
-	return ms.getMetaMetricByNameLocked(metricName, namespaceID(ms.namespaceByName[namespace]))
+	return ms.getMetaMetricByNameLocked(metricName)
 
 }
-func (ms *MetricsStorage) getMetaMetricByNameLocked(metricName string, namespace int32) *format.MetricMetaValue {
-	return ms.metricsByName[namespacedName{
-		namespace: namespace,
-		name:      metricName,
-	}]
+func (ms *MetricsStorage) getMetaMetricByNameLocked(metricName string) *format.MetricMetaValue {
+	return ms.metricsByName[metricName]
 }
 
 // TODO some fixes to avoid allocation
-func (ms *MetricsStorage) GetMetaMetricByNameBytes(metric []byte, namespace int32) *format.MetricMetaValue {
+func (ms *MetricsStorage) GetMetaMetricByNameBytes(metric []byte) *format.MetricMetaValue {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	return ms.metricsByName[namespacedName{
-		namespace: namespace,
-		name:      string(metric),
-	}]
+	return ms.metricsByName[string(metric)]
 }
 
 func (ms *MetricsStorage) GetMetaMetricList(includeInvisible bool, namespace string) []*format.MetricMetaValue {
@@ -124,20 +112,16 @@ func (ms *MetricsStorage) GetMetaMetricList(includeInvisible bool, namespace str
 	return li
 }
 
-func (ms *MetricsStorage) GetGroupByMetricName(nameNamespaced string) *format.MetricsGroup {
+func (ms *MetricsStorage) GetGroupByMetricName(name string) *format.MetricsGroup {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	name, namespace := splitNamespace(nameNamespaced)
-	return ms.getGroupByMetricNameLocked(name, namespaceID(ms.namespaceByName[namespace]))
+	return ms.getGroupByMetricNameLocked(name)
 }
 
-func (ms *MetricsStorage) getGroupByMetricNameLocked(name string, namespace int32) *format.MetricsGroup {
+func (ms *MetricsStorage) getGroupByMetricNameLocked(name string) *format.MetricsGroup {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	if m, ok := ms.metricsByName[namespacedName{
-		namespace: namespace,
-		name:      name,
-	}]; !ok {
+	if m, ok := ms.metricsByName[name]; !ok {
 		return m.Group
 	}
 	return nil
@@ -218,7 +202,7 @@ func (ms *MetricsStorage) RestoreInternalInfo(metric format.MetricMetaValue) for
 	if namespace != nil {
 		namespaceName = namespace.Name
 	}
-	metric.NamespacedName = NamespaceName(namespaceName, metric.Name)
+	metric.NamespacedName = format.NamespaceName(namespaceName, metric.Name)
 	group := ms.GetGroupByMetricName(metric.NamespacedName)
 	metric.Group = group
 	if group != nil {
@@ -249,21 +233,12 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			_ = value.RestoreCachedInfo()
 			valueOld, ok := ms.metricsByID[value.MetricID]
 			if ok && valueOld.Name != value.Name {
-				delete(ms.metricsByName, namespacedName{
-					namespace: value.NamespaceID,
-					name:      valueOld.Name,
-				})
+				delete(ms.metricsByName, valueOld.Name)
 			}
 			if ok && valueOld.NamespaceID != value.NamespaceID {
-				delete(ms.metricsByName, namespacedName{
-					namespace: valueOld.NamespaceID,
-					name:      value.Name,
-				})
+				delete(ms.metricsByName, value.Name)
 			}
-			ms.metricsByName[namespacedName{
-				namespace: value.NamespaceID,
-				name:      value.Name,
-			}] = value
+			ms.metricsByName[value.Name] = value
 			ms.metricsByID[value.MetricID] = value
 			ms.calcGroupForMetricLocked(value)
 			ms.calcNamespaceForMetricLocked(value)
@@ -336,12 +311,9 @@ func (ms *MetricsStorage) calcNamespaceForMetricsAndGroupsLocked(new *format.Nam
 		if m.NamespaceID == new.ID {
 			mCopy := *m
 			mCopy.Namespace = new
-			mCopy.NamespacedName = NamespaceName(new.Name, mCopy.Name)
+			mCopy.NamespacedName = format.NamespaceName(new.Name, mCopy.Name)
 			ms.metricsByID[m.MetricID] = &mCopy
-			ms.metricsByName[namespacedName{
-				namespace: m.NamespaceID,
-				name:      m.Name,
-			}] = &mCopy
+			ms.metricsByName[m.Name] = &mCopy
 		}
 	}
 
@@ -359,7 +331,7 @@ func (ms *MetricsStorage) calcNamespaceForMetricLocked(new *format.MetricMetaVal
 	if new.NamespaceID != 0 {
 		if n, ok := ms.namespaceByID[new.NamespaceID]; ok {
 			new.Namespace = n
-			new.NamespacedName = NamespaceName(n.Name, new.Name)
+			new.NamespacedName = format.NamespaceName(n.Name, new.Name)
 		}
 	}
 }
@@ -383,10 +355,7 @@ func (ms *MetricsStorage) calcGroupForMetricsLocked(old, new *format.MetricsGrou
 				m.GroupID = 0
 				m.Group = nil
 				ms.metricsByID[m.MetricID] = &mCopy
-				ms.metricsByName[namespacedName{
-					namespace: m.NamespaceID,
-					name:      m.Name,
-				}] = &mCopy
+				ms.metricsByName[m.Name] = &mCopy
 			}
 		}
 		delete(ms.metricsNamesByGroup, old.ID)
@@ -459,21 +428,4 @@ func namespaceID(namespace *format.NamespaceMeta) int32 {
 		return 0
 	}
 	return namespace.ID
-}
-
-const namespaceSeparator = "."
-
-func NamespaceName(namespace string, name string) string {
-	if namespace == "" {
-		return name
-	}
-	return namespace + namespaceSeparator + name
-}
-
-func splitNamespace(metricName string) (string, string) {
-	ix := strings.Index(metricName, namespaceSeparator)
-	if ix == -1 {
-		return metricName, ""
-	}
-	return metricName[ix+1:], metricName[:ix]
 }

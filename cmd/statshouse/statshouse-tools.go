@@ -316,7 +316,7 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 					return h, true
 				}
 				// TODO namespace
-				h, done = mapper.Map(m, metricStorage.GetMetaMetricByNameBytes(m.Name, 0), cb)
+				h, done = mapper.Map(m, metricStorage.GetMetaMetricByNameBytes(m.Name), cb)
 				if done {
 					handleMappedMetric(*m, h)
 				}

@@ -103,7 +103,7 @@ func TestAccessInfo(t *testing.T) {
 		})
 		t.Run("namespaced metric", func(t *testing.T) {
 			ai := &accessInfo{
-				bitViewMetric: map[string]bool{"abc.foo_bar": true},
+				bitViewMetric: map[string]bool{"abc@foo_bar": true},
 				accessManager: nop,
 			}
 			require.True(t, canViewMetricNamespaced(ai, "foo_bar", "abc"))

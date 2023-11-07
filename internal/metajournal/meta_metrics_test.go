@@ -109,10 +109,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 1)
 			require.Len(t, m.metricsByName, 1)
 			require.Equal(t, *metric, *m.metricsByID[metric.MetricID])
-			require.Equal(t, *metric, *m.metricsByName[namespacedName{
-				namespace: 0,
-				name:      metric.Name,
-			}])
+			require.Equal(t, *metric, *m.metricsByName[metric.Name])
 		})
 
 		t.Run("edit metric", func(t *testing.T) {
@@ -141,10 +138,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 1)
 			require.Len(t, m.metricsByName, 1)
 			require.Equal(t, *metric, *m.metricsByID[metric.MetricID])
-			require.Equal(t, *metric, *m.metricsByName[namespacedName{
-				namespace: 0,
-				name:      metric.Name,
-			}])
+			require.Equal(t, *metric, *m.metricsByName[metric.Name])
 		})
 
 		t.Run("rename metric", func(t *testing.T) {
@@ -175,10 +169,7 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByID, 1)
 			require.Len(t, m.metricsByName, 1)
 			require.Equal(t, *metric, *m.metricsByID[metric.MetricID])
-			require.Equal(t, *metric, *m.metricsByName[namespacedName{
-				namespace: 0,
-				name:      metric.Name,
-			}])
+			require.Equal(t, *metric, *m.metricsByName[metric.Name])
 		})
 
 		t.Run("create dashboard", func(t *testing.T) {

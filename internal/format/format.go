@@ -56,6 +56,8 @@ const (
 	TagValueNullLegacy           = "null"     // see TagValueIDNull
 	TagValueIDMappingFloodLegacy = 22136242   // STATLOGS_KEY_KEYOVERFLOW_INT
 	TagValueIDRawDeltaLegacy     = 10_000_000 // STATLOGS_INT_NOCONVERT
+
+	NamespaceSeparator = "@"
 )
 
 // Do not change values, they are stored in DB
@@ -176,8 +178,8 @@ type MetricsGroup struct {
 
 	Weight            float64 `json:"weight,omitempty"`
 	Visible           bool    `json:"visible,omitempty"`
+	Disable           bool    `json:"disable,omitempty"`
 	IsWeightEffective bool    `json:"is_weight_effective,omitempty"`
-	Protected         bool    `json:"protected,omitempty"`
 
 	EffectiveWeight int64          `json:"-"`
 	Namespace       *NamespaceMeta `json:"-"`
@@ -953,4 +955,19 @@ func IsValidMetricType(typ_ string) bool {
 		return true
 	}
 	return false
+}
+
+func NamespaceName(namespace string, name string) string {
+	if namespace == "" {
+		return name
+	}
+	return namespace + NamespaceSeparator + name
+}
+
+func splitNamespace(metricName string) (string, string) {
+	ix := strings.Index(metricName, NamespaceSeparator)
+	if ix == -1 {
+		return metricName, ""
+	}
+	return metricName[ix+1:], metricName[:ix]
 }
