@@ -1878,6 +1878,7 @@ func init() {
 		m.GroupID = BuiltinGroupIDBuiltin
 		m.Visible = !builtinMetricsInvisible[id]
 		m.PreKeyFrom = math.MaxInt32 // allow writing, but not yet selecting
+		m.Weight = 1
 
 		BuiltinMetricByName[m.Name] = m
 
