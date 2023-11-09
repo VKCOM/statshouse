@@ -18,7 +18,8 @@ const (
 	tagStringForUI = "tag"
 
 	BuiltinGroupIDDefault = -1 // for all metrics with group not known. We want to edit it in the future, so not 0
-	BuiltinGroupIDBuiltin = -2 // for all built in metrics
+	BuiltinGroupIDBuiltin = -2 // for all built in metrics except host
+	BuiltinGroupIDHost    = -3 // host built in metrics
 
 	BuiltinMetricIDAgentSamplingFactor        = -1
 	BuiltinMetricIDAggBucketReceiveDelaySec   = -2 // Also approximates insert delay, interesting for historic buckets
@@ -1585,6 +1586,7 @@ Value is delta between second value and time it was inserted.`,
 				ValueComments: convertToValueComments(map[int32]string{
 					BuiltinGroupIDDefault: "default",
 					BuiltinGroupIDBuiltin: "builtin",
+					BuiltinGroupIDHost:    "host",
 				}),
 			}, {
 				Description:   "metric_kind",
@@ -1612,6 +1614,7 @@ Value is delta between second value and time it was inserted.`,
 				ValueComments: convertToValueComments(map[int32]string{
 					BuiltinGroupIDDefault: "default",
 					BuiltinGroupIDBuiltin: "builtin",
+					BuiltinGroupIDHost:    "host",
 				}),
 			}, {
 				Description:   "metric_kind",
@@ -1849,6 +1852,7 @@ func init() {
 	for k, v := range hostMetrics {
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
 		v.Resolution = 60
+		v.GroupID = BuiltinGroupIDHost
 		BuiltinMetrics[k] = v
 		builtinMetricsAllowedToReceive[k] = true
 		metricsWithoutAggregatorID[k] = true
@@ -1875,7 +1879,9 @@ func init() {
 	BuiltinMetricAllowedToReceive = make(map[string]*MetricMetaValue, len(BuiltinMetrics))
 	for id, m := range BuiltinMetrics {
 		m.MetricID = id
-		m.GroupID = BuiltinGroupIDBuiltin
+		if m.GroupID == 0 {
+			m.GroupID = BuiltinGroupIDBuiltin
+		}
 		m.Visible = !builtinMetricsInvisible[id]
 		m.PreKeyFrom = math.MaxInt32 // allow writing, but not yet selecting
 		m.Weight = 1
