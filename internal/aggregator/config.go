@@ -46,6 +46,8 @@ type ConfigAggregator struct {
 	PreviousNumShards int
 	ExternalPort      string
 
+	LocalReplica int
+
 	AutoCreate          bool
 	DisableRemoteConfig bool
 }
