@@ -96,6 +96,7 @@ const (
 	BuiltinMetricIDAggSamplingMetricCount     = -81
 	BuiltinMetricIDSrcSamplingSizeBytes       = -82
 	BuiltinMetricIDAggSamplingSizeBytes       = -83
+	BuiltinMetricIDUIErrors                   = -84
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -1621,6 +1622,12 @@ Value is delta between second value and time it was inserted.`,
 				ValueComments: convertToValueComments(insertKindToValue),
 			}},
 		},
+		BuiltinMetricIDUIErrors: {
+			Name:                 "__ui_errors",
+			Kind:                 MetricKindValue,
+			Description:          `Errors on the frontend.`,
+			StringTopDescription: "error_string",
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -1649,6 +1656,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDMetaClientWaits:            true,
 		BuiltinMetricIDAPIMetricUsage:             true,
 		BuiltinMetricIDHeartbeatVersion:           true,
+		BuiltinMetricIDUIErrors:                   true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
@@ -1747,6 +1755,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPIMetricUsage:             true,
 		BuiltinMetricIDSrcSamplingMetricCount:     true,
 		BuiltinMetricIDSrcSamplingSizeBytes:       true,
+		BuiltinMetricIDUIErrors:                   true,
 	}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue
