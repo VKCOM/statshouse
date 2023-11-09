@@ -762,7 +762,7 @@ func funcAbsent(ev *evaluator, args parser.Expressions) ([]Series, error) {
 			s = bag[x].Data[0]
 			for i := range ev.time() {
 				var m int
-				for _, s := range bag[i].Data {
+				for _, s := range bag[x].Data {
 					if math.Float64bits((*s.Values)[i]) != NilValueBits {
 						m++
 					}
