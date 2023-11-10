@@ -437,7 +437,7 @@ func (ts *SeriesTags) hash(ev *evaluator, opt hashOptions, listTags bool) (uint6
 		var nots []string // not "s"
 		for id, tag := range ts.ID2Tag {
 			var found bool
-			for _, v := range s { // "s" is expected to be short, no need to build a map
+			for _, v := range opt.tags { // "tags" expected to be short, no need to build a map
 				if len(v) == 0 {
 					continue
 				}

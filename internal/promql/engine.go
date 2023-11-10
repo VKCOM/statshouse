@@ -695,8 +695,6 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			}
 			var rhsM map[uint64]int
 			rhsM, err = rhs.hash(ev, hashOptions{
-				on:    expr.VectorMatching.On,
-				tags:  expr.VectorMatching.MatchingLabels,
 				stags: lhs.Meta.STags,
 			})
 			if err != nil {
@@ -722,8 +720,6 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 		case parser.CardOneToMany:
 			var lhsM map[uint64]int
 			lhsM, err = lhs.hash(ev, hashOptions{
-				on:    expr.VectorMatching.On,
-				tags:  expr.VectorMatching.MatchingLabels,
 				stags: rhs.Meta.STags,
 			})
 			if err != nil {
