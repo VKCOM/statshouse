@@ -197,7 +197,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
         </div>
         <div id="kindHelpBlock" className="form-text">
           Aggregation defines which functions (count, avg, sum, etc.) are available in UI. Mixed allows all functions.
-          Enabling percentiles greatly increase data volume collected, so can be enabled only by administrator.
+          Enabling percentiles greatly increase data volume collected.
         </div>
       </div>
       <div className="row mb-3">

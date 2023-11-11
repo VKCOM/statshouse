@@ -12,3 +12,5 @@ export * from './dashboardList';
 export * from './errors';
 export * from './variableList';
 export * from './theme';
+export * from './group';
+export * from './namespace';

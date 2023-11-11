@@ -32,7 +32,7 @@ export const InputText = forwardRef<HTMLInputElement, InputTextProps>(function I
     <input
       ref={ref}
       className={cn('form-control', className)}
-      type="text"
+      type={type}
       value={value}
       defaultValue={defaultValue}
       onInput={onInputHandle}

@@ -43,6 +43,8 @@ export const GET_PARAMS = {
   plotPrefix: 't',
   dashboardID: 'id',
   metricsGroupID: 'id',
+  metricsNamespacesID: 'id',
+  metricsListAndDisabled: 'sd',
   dashboardGroupInfoPrefix: 'g',
   dashboardGroupInfoName: 't',
   dashboardGroupInfoShow: 'v',
