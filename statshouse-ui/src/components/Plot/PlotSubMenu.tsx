@@ -37,6 +37,7 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
       {receiveErrors > 0.5 || receiveWarnings > 0.5 ? (
         <Link
           className="nav-link p-0 me-4"
+          target="_blank"
           to={{
             search: `?s=__src_ingestion_status&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key1-${
               metricName ?? sel.metricName
@@ -52,6 +53,7 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
       ) : (
         <Link
           className="nav-link p-0 me-4"
+          target="_blank"
           to={{
             search: `?s=__src_ingestion_status&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key1-${
               metricName ?? sel.metricName
@@ -67,6 +69,7 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
         Sampling:{' '}
         <Link
           className="nav-link d-inline-block p-0"
+          target="_blank"
           to={{
             search: `?s=__src_sampling_factor&qw=avg&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key1-${
               metricName ?? sel.metricName
@@ -84,6 +87,7 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
         /{' '}
         <Link
           className="nav-link d-inline-block p-0"
+          target="_blank"
           to={{
             search: `?s=__agg_sampling_factor&qw=avg&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${
               metricName ?? sel.metricName
@@ -103,6 +107,7 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
     <li className="nav-item">
       <Link
         className="nav-link p-0 me-4"
+        target="_blank"
         to={{
           search: `?s=__agg_hour_cardinality&qw=sum_norm&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${
             metricName ?? sel.metricName
@@ -116,6 +121,7 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
       {mappingFloodEvents > 0.5 ? (
         <Link
           className="nav-link p-0 me-4"
+          target="_blank"
           to={{
             search: `?s=__agg_mapping_created&qw=count&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${
               metricName ?? sel.metricName
@@ -127,6 +133,7 @@ export const _PlotSubMenu: React.FC<PlotSubMenuProps> = ({
       ) : (
         <Link
           className="nav-link p-0 me-4"
+          target="_blank"
           to={{
             search: `?s=__agg_mapping_created&qw=count&f=${timeRange.relativeFrom}&t=${timeRange.to}&qf=key4-${
               metricName ?? sel.metricName
