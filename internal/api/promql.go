@@ -23,6 +23,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
+
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
 	"github.com/vkcom/statshouse/internal/promql/parser"
@@ -86,7 +87,6 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 	for _, m := range format.BuiltinMetrics {
 		s = append(s, m.Name)
 	}
-	// TODO add namespace
 	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
 		if ai.CanViewMetric(*v) {
 			s = append(s, v.Name)
@@ -284,7 +284,6 @@ func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]
 			return nil, nil, err
 		}
 	}
-	// TODO add namespace
 	for _, m := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
 		if err := fn(m); err != nil {
 			return nil, nil, err
@@ -317,8 +316,8 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 			false,
 			stringTop,
 			qry.Options.TimeNow,
-			shiftTimestamp(qry.Start, qry.Step, -offset, h.location),
-			shiftTimestamp(qry.End, qry.Step, -offset, h.location),
+			shiftTimestamp(qry.Start, qry.Step, -offset, h.location), // inclusive
+			shiftTimestamp(qry.End, qry.Step, -offset, h.location)+1, // exclusive
 			h.utcOffset,
 			int(qry.Step),
 			widthKind,
@@ -414,29 +413,32 @@ func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
 	return res, err
 }
 
-func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.SeriesBag, func(), error) {
+func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.Series, func(), error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
 		panic("metric access violation") // should not happen
 	}
-	if !ai.CanViewMetric(*qry.Metric) {
-		return promql.SeriesBag{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
+	if !ai.canViewMetric(qry.Metric.Name) {
+		return promql.Series{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
 	}
 	var (
-		version       = promqlVersionOrDefault(qry.Options.Version)
-		what, qs, pq  = getHandlerArgs(qry, ai)
-		lods          = getHandlerLODs(qry, h.location)
-		shift         = qry.Timescale.Offset - qry.Offset
-		timeLen       = len(qry.Timescale.Time)
-		data, buffers []*[]float64
-		maxHost       [][]int32
-		tagX          = make(map[tsTags]int, len(qry.GroupBy))
-		cleanup       = func() {
+		version      = promqlVersionOrDefault(qry.Options.Version)
+		what, qs, pq = getHandlerArgs(qry, ai)
+		lods         = getHandlerLODs(qry, h.location)
+		shift        = qry.Timescale.Offset - qry.Offset
+		timeLen      = len(qry.Timescale.Time)
+		buffers      []*[]float64
+		tagX         = make(map[tsTags]int, len(qry.GroupBy))
+		cleanup      = func() {
 			for _, s := range buffers {
 				h.putFloatsSlice(s)
 			}
 		}
-		tx int // time index
+		tx  int // time index
+		res = promql.Series{Meta: promql.SeriesMeta{
+			Metric: qry.Metric,
+			What:   int(what),
+		}}
 	)
 	var step int64
 	if qry.Range != 0 {
@@ -467,7 +469,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 		m, err := h.cache.Get(ctx, version, qs, &pq, li, qry.Options.AvoidCache)
 		if err != nil {
 			cleanup()
-			return promql.SeriesBag{}, nil, err
+			return promql.Series{}, nil, err
 		}
 		for _, col := range m {
 			for _, d := range col {
@@ -476,66 +478,58 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					j     = tx + lod.lodInfo.getIndexForTimestamp(d.time, shift)
 				)
 				if !ok {
-					i = len(data)
+					i = len(res.Data)
 					tagX[d.tsTags] = i
-					s := h.getFloatsSlice(timeLen)
-					for k := range *s {
-						(*s)[k] = promql.NilValue
-					}
-					buffers = append(buffers, s)
-					data = append(data, s)
+					values := h.getFloatsSlice(timeLen)
+					buffers = append(buffers, values)
+					data := promql.SeriesData{Values: values}
 					if qry.MaxHost {
-						maxHost = append(maxHost, make([]int32, timeLen))
+						data.MaxHost = make([]int32, timeLen)
 					}
+					for k := range *data.Values {
+						(*data.Values)[k] = promql.NilValue
+					}
+					res.Data = append(res.Data, data)
 				}
-				(*data[i])[j] = selectTSValue(what, qry.MaxHost, qryRaw, step, &d)
+				(*res.Data[i].Values)[j] = selectTSValue(what, qry.MaxHost, qryRaw, step, &d)
 				if qry.MaxHost {
-					maxHost[i][j] = d.maxHost
+					res.Data[i].MaxHost[j] = d.maxHost
 				}
 			}
 		}
 		tx += lod.len
 	}
-	meta := make([]promql.SeriesMeta, len(tagX))
 	for t, i := range tagX {
 		for _, k := range qry.GroupBy {
 			switch k {
 			case format.StringTopTagID, qry.Metric.StringTopName:
-				meta[i].SetTag(promql.SeriesTag{
-					Index:     format.StringTopTagIndex + promql.SeriesTagIndexOffset,
-					ID:        format.StringTopTagID,
-					Name:      qry.Metric.StringTopName,
-					SValue:    emptyToUnspecified(t.tagStr.String()),
-					SValueSet: true,
+				res.AddTagAt(i, &promql.SeriesTag{
+					Metric: qry.Metric,
+					Index:  format.StringTopTagIndex + promql.SeriesTagIndexOffset,
+					ID:     format.StringTopTagID,
+					Name:   qry.Metric.StringTopName,
+					SValue: emptyToUnspecified(t.tagStr.String()),
 				})
 			case format.ShardTagID:
-				meta[i].SetTag(promql.SeriesTag{
-					ID:       promql.LabelShard,
-					Value:    int32(t.shardNum),
-					ValueSet: true,
+				res.AddTagAt(i, &promql.SeriesTag{
+					Metric: qry.Metric,
+					ID:     promql.LabelShard,
+					Value:  int32(t.shardNum),
 				})
 			default:
 				if m, ok := qry.Metric.Name2Tag[k]; ok && m.Index < len(t.tag) {
-					meta[i].SetTag(promql.SeriesTag{
-						Index:    m.Index + promql.SeriesTagIndexOffset,
-						ID:       format.TagID(m.Index),
-						Name:     m.Name,
-						Value:    t.tag[m.Index],
-						ValueSet: true,
+					res.AddTagAt(i, &promql.SeriesTag{
+						Metric: qry.Metric,
+						Index:  m.Index + promql.SeriesTagIndexOffset,
+						ID:     format.TagID(m.Index),
+						Name:   m.Name,
+						Value:  t.tag[m.Index],
 					})
 				}
 			}
 		}
 	}
-	res := promql.SeriesBag{
-		Data:    data,
-		Meta:    meta,
-		MaxHost: maxHost,
-		Query: promql.SeriesQueryMeta{
-			Metric: qry.Metric,
-			What:   int(what),
-		},
-	}
+	res.Meta.Total = len(res.Data)
 	return res, cleanup, nil
 }
 
@@ -604,7 +598,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 	return res, nil
 }
 
-func (h *Handler) QuerySTagValues(ctx context.Context, qry promql.TagValuesQuery) ([]string, error) {
+func (h *Handler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery) ([]string, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
 		panic("metric access violation") // should not happen

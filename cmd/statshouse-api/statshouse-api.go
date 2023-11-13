@@ -74,6 +74,7 @@ type args struct {
 	defaultMetricFilterNotIn []string
 	defaultMetricWhat        []string
 	defaultMetricGroupBy     []string
+	eventPreset              []string
 	defaultNumSeries         int
 	diskCache                string
 	help                     bool
@@ -131,6 +132,7 @@ func main() {
 	pflag.StringSliceVar(&argv.defaultMetricFilterNotIn, "default-metric-filter-not-in", []string{}, "default metric filter not in <key0>:value")
 	pflag.StringSliceVar(&argv.defaultMetricWhat, "default-metric-filter-what", []string{}, "default metric function")
 	pflag.StringSliceVar(&argv.defaultMetricGroupBy, "default-metric-group-by", []string{"1"}, "default metric group by tags")
+	pflag.StringSliceVar(&argv.eventPreset, "event-preset", []string{}, "event preset")
 	pflag.IntVar(&argv.defaultNumSeries, "default-num-series", 5, "default series number to request")
 	pflag.StringVar(&argv.diskCache, "disk-cache", "statshouse_api_cache.db", "disk cache filename")
 	pflag.BoolVarP(&argv.help, "help", "h", false, "print usage instructions and exit")
@@ -314,6 +316,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		DefaultMetricWhat:        argv.defaultMetricWhat,
 		DefaultMetricFilterIn:    defaultMetricFilterIn,
 		DefaultMetricFilterNotIn: defaultMetricFilterNotIn,
+		EventPreset:              argv.eventPreset,
 		DefaultNumSeries:         argv.defaultNumSeries,
 		DisableV1:                len(argv.chV1Addrs) == 0,
 	}
@@ -373,6 +376,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	a.Path("/" + api.EndpointNamespaceList).Methods("GET").HandlerFunc(f.HandleGetNamespaceList)
 	a.Path("/" + api.EndpointPrometheus).Methods("GET").HandlerFunc(f.HandleGetPromConfig)
 	a.Path("/" + api.EndpointPrometheus).Methods("POST").HandlerFunc(f.HandlePostPromConfig)
+	a.Path("/" + api.EndpointStatistics).Methods("POST").HandlerFunc(f.HandleFrontendStat)
 	m.Path("/prom/api/v1/query").Methods("POST").HandlerFunc(f.HandlePromInstantQuery)
 	m.Path("/prom/api/v1/query_range").Methods("POST").HandlerFunc(f.HandlePromRangeQuery)
 	m.Path("/prom/api/v1/label/{name}/values").Methods("GET").HandlerFunc(f.HandlePromLabelValuesQuery)
@@ -412,6 +416,13 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 
 	chunksCountMeasurementID := statshouse.StartRegularMeasurement(api.CurrentChunksCount(brs))
 	defer statshouse.StopRegularMeasurement(chunksCountMeasurementID)
+
+	startTimestamp := time.Now().Unix()
+	statshouse.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: "4", 2: "1"}).Value(0)
+	defer statshouse.StopRegularMeasurement(statshouse.StartRegularMeasurement(func(c *statshouse.Client) {
+		uptime := float64(time.Now().Unix() - startTimestamp)
+		c.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: "4", 2: "2"}).Value(uptime)
+	}))
 
 	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.protectedMetricPrefixes, argv.localMode, argv.insecureMode)
 	handlerRPC := &tlstatshouseApi.Handler{

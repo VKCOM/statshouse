@@ -8,8 +8,9 @@ import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from 're
 import css from './style.module.css';
 import { useDebounceState } from '../../hooks';
 import useDeepCompareEffect from 'use-deep-compare-effect';
-import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from '../../common/toggleKeyboard';
 import cn from 'classnames';
+import { SearchFabric } from '../../common/helpers';
+import { Button } from '../UI';
 
 export const SELECT_OPTION_ACTION = {
   ToggleFiltered: 'ToggleFiltered',
@@ -51,6 +52,7 @@ export type SelectProps = {
   onBlur?: () => void;
   role?: string;
   onSearch?: (values: SelectOptionProps[]) => void;
+  valueSync?: boolean;
 };
 
 const KEY: Record<string, string> = {
@@ -243,6 +245,7 @@ export const Select: FC<SelectProps> = ({
   onFocus = emptyFn,
   onBlur = emptyFn,
   onSearch = emptyFn,
+  valueSync = false,
 }) => {
   const valuesInput = useMemo<string[]>(() => (Array.isArray(value) ? value : value ? [value] : []), [value]);
   const [values, setValues] = useState(valuesInput);
@@ -264,10 +267,10 @@ export const Select: FC<SelectProps> = ({
   const prevFilterOptions = useRef<SelectOptionProps[]>([]);
 
   useEffect(() => {
-    if (!meOpen) {
+    if (!meOpen || valueSync) {
       setValues(valuesInput);
     }
-  }, [meOpen, valuesInput]);
+  }, [meOpen, valueSync, valuesInput]);
 
   const filterOptions = useMemo(() => {
     let start = 0;
@@ -275,23 +278,7 @@ export const Select: FC<SelectProps> = ({
     let filtered = options;
     setShowCursor(false);
     if (searchValueDebounce && !noSearch) {
-      const orig = searchValueDebounce.toLocaleLowerCase();
-      const ru = toggleKeyboard(orig, mapKeyboardEnToRu);
-      const en = toggleKeyboard(orig, mapKeyboardRuToEn);
-      filtered = options.filter((item) => {
-        if (orig === item.value.toLocaleLowerCase()) {
-          setCursor(item.value);
-          setShowCursor(true);
-        }
-        return (
-          item.name.toLocaleLowerCase().includes(orig) ||
-          item.value.toLocaleLowerCase().includes(orig) ||
-          item.name.toLocaleLowerCase().includes(ru) ||
-          item.value.toLocaleLowerCase().includes(ru) ||
-          item.name.toLocaleLowerCase().includes(en) ||
-          item.value.toLocaleLowerCase().includes(en)
-        );
-      });
+      filtered = options.filter(SearchFabric(searchValueDebounce, ['name', 'value']));
       result = filtered.slice(start, start + maxOptions);
     } else {
       if (valuesInput.length > 0 && options?.length > maxOptions) {
@@ -552,10 +539,13 @@ export const Select: FC<SelectProps> = ({
 
   const keyMap = useMemo<Record<string, SelectOptionProps>>(
     () =>
-      options.reduce((res, option) => {
-        res[option.value] = option;
-        return res;
-      }, {} as Record<string, SelectOptionProps>) ?? {},
+      options.reduce(
+        (res, option) => {
+          res[option.value] = option;
+          return res;
+        },
+        {} as Record<string, SelectOptionProps>
+      ) ?? {},
     [options]
   );
 
@@ -692,7 +682,7 @@ export const Select: FC<SelectProps> = ({
       onMouseMove={onHover}
       ref={select}
     >
-      <button type="button" aria-label="Close" className={`btn ${css.close}`} onClick={onClose}></button>
+      <Button type="button" aria-label="Close" className={`btn ${css.close}`} onClick={onClose}></Button>
       <input
         ref={input}
         className={`w-100 ${css.input} ${meFocusDebounce ? css.focus : ''}  ${classNameInput}`}
@@ -703,7 +693,7 @@ export const Select: FC<SelectProps> = ({
         placeholder={placeholderInput}
       />
       <ul ref={list} onClick={onClickSelect} onInput={onChangeSelect} className={`${css.list} ${classNameList}`} />
-      <button type="button" className={css.chevron} onFocus={onFocusChevron} onClick={onClickChevron}></button>
+      <Button type="button" className={css.chevron} onFocus={onFocusChevron} onClick={onClickChevron}></Button>
     </div>
   );
 };

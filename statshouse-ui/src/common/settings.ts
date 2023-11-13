@@ -18,6 +18,7 @@ export interface settings {
   readonly disabled_v1: boolean;
   readonly skip_error_code: number[];
   readonly skip_error_count: number;
+  readonly event_preset: string[];
 }
 
 const defaultSettings: settings = {
@@ -31,6 +32,7 @@ const defaultSettings: settings = {
   disabled_v1: false,
   skip_error_code: [504, 502],
   skip_error_count: 10,
+  event_preset: [],
 };
 
 const meta = document.querySelector('meta[name="settings"]');
@@ -53,6 +55,7 @@ if (meta !== null) {
       default_num_series: serverConfig.default_num_series
         ? serverConfig.default_num_series
         : defaultSettings.default_num_series,
+      event_preset: serverConfig.event_preset ? serverConfig.event_preset : defaultSettings.event_preset.slice(),
     };
   } catch (e) {}
 }

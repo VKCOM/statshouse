@@ -43,8 +43,9 @@ var (
 		memcachedVersionReq,
 	}
 
-	// workaround for https://github.com/golang/go/issues/41911, before we use Go 1.16 everywhere
 	castagnoliTable = crc32.MakeTable(crc32.Castagnoli)
+
+	ErrInvalidPacketLength = fmt.Errorf("invalid packet length")
 )
 
 // transport stream, encrypted using standard VK rpc scheme
@@ -64,16 +65,14 @@ type PacketConn struct {
 	headerReadBuf [packetOverhead - 4]byte
 	readSeqNum    int64
 
-	writeMu         sync.Mutex
-	w               *cryptoWriter
-	wDeadline       time.Time
-	headerWriteBuf  []byte
-	trailerWriteBuf [4 + blockSize]byte // CRC + optional padding
-	writeSeqNum     int64
+	writeMu        sync.Mutex
+	w              *cryptoWriter
+	wDeadline      time.Time
+	headerWriteBuf []byte // contains either crc from previous packet or nothing after flush
+	writeSeqNum    int64
 
-	encrypted bool
-	keyID     [4]byte // to identify clients for Server with more than 1 crypto key
-	table     *crc32.Table
+	keyID [4]byte // to identify clients for Server with more than 1 crypto key
+	table *crc32.Table
 
 	closeOnce sync.Once
 	closeErr  error
@@ -91,7 +90,6 @@ func NewPacketConn(c net.Conn, readBufSize int, writeBufSize int, timeoutAccurac
 		writeSeqNum:     startSeqNum,
 		table:           crc32.IEEETable,
 	}
-	copy(pc.trailerWriteBuf[4:], []byte{padVal, 0, 0, 0, padVal, 0, 0, 0, padVal, 0, 0, 0, padVal, 0, 0, 0})
 
 	if tcpconn, ok := c.(*net.TCPConn); ok { // pay cast and dup() const only on start
 		if fd, err := tcpconn.File(); err == nil { // ok, will work as not a tcp connection
@@ -293,12 +291,15 @@ func (pc *PacketConn) WritePacket(packetType uint32, body []byte, timeout time.D
 	pc.writeMu.Lock()
 	defer pc.writeMu.Unlock()
 
-	if err := pc.startWritePacketUnlocked(packetType, timeout); err != nil {
+	crc, err := pc.writePacketHeaderUnlocked(packetType, len(body), timeout)
+	if err != nil {
 		return err
 	}
-	if err := pc.writeSimplePacketUnlocked(body); err != nil {
+	crc, err = pc.writePacketBodyUnlocked(crc, body)
+	if err != nil {
 		return err
 	}
+	pc.writePacketTrailerUnlocked(crc)
 	return pc.FlushUnlocked()
 }
 
@@ -311,12 +312,15 @@ func (pc *PacketConn) WritePacketNoFlush(packetType uint32, body []byte, timeout
 
 // If all writing is performed from the same goroutine, you can call Unlocked version of Write and Flush
 func (pc *PacketConn) WritePacketNoFlushUnlocked(packetType uint32, body []byte, timeout time.Duration) error {
-	if err := pc.startWritePacketUnlocked(packetType, timeout); err != nil {
+	crc, err := pc.writePacketHeaderUnlocked(packetType, len(body), timeout)
+	if err != nil {
 		return err
 	}
-	if err := pc.writeSimplePacketUnlocked(body); err != nil {
+	crc, err = pc.writePacketBodyUnlocked(crc, body)
+	if err != nil {
 		return err
 	}
+	pc.writePacketTrailerUnlocked(crc)
 	return nil
 }
 
@@ -329,6 +333,20 @@ func (pc *PacketConn) Flush() error {
 
 // If all writing is performed from the same goroutine, you can call Unlocked version of Write and Flush
 func (pc *PacketConn) FlushUnlocked() error {
+	prevBytes := len(pc.headerWriteBuf)
+	toWrite := prevBytes + pc.w.Padding(prevBytes)
+	if toWrite != 0 {
+		if toWrite&3 != 0 { // if p < 0 || p > 12, will panic in [] below
+			panic(fmt.Sprintf("invalid crypto padding toWrite=%d", toWrite))
+		}
+		const padding = "\x04\x00\x00\x00\x04\x00\x00\x00\x04\x00\x00\x00" // []byte{padVal, 0, 0, 0, padVal, 0, 0, 0, padVal, 0, 0, 0}
+		pc.headerWriteBuf = append(pc.headerWriteBuf, padding...)
+
+		if _, err := pc.w.Write(pc.headerWriteBuf[:toWrite]); err != nil {
+			return err
+		}
+		pc.headerWriteBuf = pc.headerWriteBuf[:0]
+	}
 	return pc.w.Flush()
 }
 
@@ -339,6 +357,9 @@ type closeWriter interface {
 // Motivation - you call ShutdownWrite, and your blocking ReadPacket* will stop after receiveing FIN with compatible sockets
 // if you receive error for this method, you should call Close()
 func (pc *PacketConn) ShutdownWrite() error {
+	if err := pc.Flush(); err != nil { // Rare, so no problem to make excess locked call
+		return err
+	}
 	cw, ok := pc.conn.(closeWriter) // UnixConn, TCPConn, and any other
 	if !ok {
 		return io.ErrShortWrite // TODO - better error
@@ -347,44 +368,29 @@ func (pc *PacketConn) ShutdownWrite() error {
 }
 
 // how to use:
-// first call startWritePacketUnlocked, which will fill initial pc.headerWriteBuf
-// then optionally append any packet body prefix to pc.headerWriteBuf
-// then call writePacketHeaderUnlocked with sum of all body chunk lengths you are going to write on the next step
+// first call writePacketHeaderUnlocked with sum of all body chunk lengths you are going to write on the next step
 // then call writePacketBodyUnlocked 0 or more times
 // then call writePacketTrailerUnlocked
-func (pc *PacketConn) startWritePacketUnlocked(packetType uint32, timeout time.Duration) error {
-	if err := pc.setWriteTimeoutUnlocked(timeout); err != nil {
-		return err
-	}
-
-	buf := basictl.NatWrite(pc.headerWriteBuf[:0], 0) // PacketLen will be filled later
-	buf = basictl.NatWrite(buf, uint32(pc.writeSeqNum))
-	pc.headerWriteBuf = basictl.NatWrite(buf, packetType)
-	pc.writeSeqNum++
-	return nil
-}
-
-// If you have single body chunk, you can use writeSimplePacketUnlocked to combine last 3 steps in comment above
-func (pc *PacketConn) writeSimplePacketUnlocked(body []byte) error {
-	crc, err := pc.writePacketHeaderUnlocked(len(body))
-	if err != nil {
-		return err
-	}
-	crc, err = pc.writePacketBodyUnlocked(crc, body)
-	if err != nil {
-		return err
-	}
-	return pc.writePacketTrailerUnlocked(crc, len(body))
-}
-
-func (pc *PacketConn) writePacketHeaderUnlocked(packetBodyLen int) (uint32, error) {
-	packetLen := len(pc.headerWriteBuf) + packetBodyLen + 4 // + CRC
-	if err := validPacketBodyLen(packetBodyLen); err != nil {
+func (pc *PacketConn) writePacketHeaderUnlocked(packetType uint32, packetBodyLen int, timeout time.Duration) (uint32, error) {
+	if err := validBodyLen(packetBodyLen); err != nil {
 		return 0, err
 	}
-	binary.LittleEndian.PutUint32(pc.headerWriteBuf[:4], uint32(packetLen))
+	if err := pc.setWriteTimeoutUnlocked(timeout); err != nil {
+		return 0, err
+	}
+	prevBytes := len(pc.headerWriteBuf)
+	buf := pc.headerWriteBuf
 
-	return pc.writePacketBodyUnlocked(0, pc.headerWriteBuf)
+	buf = basictl.NatWrite(buf, uint32(packetBodyLen+packetOverhead))
+	buf = basictl.NatWrite(buf, uint32(pc.writeSeqNum))
+	buf = basictl.NatWrite(buf, packetType)
+	pc.headerWriteBuf = buf[:0] // reuse, prepare to accept crc32
+	pc.writeSeqNum++
+
+	if _, err := pc.w.Write(buf); err != nil { // with prevBytes
+		return 0, err
+	}
+	return pc.updateCRC(0, buf[prevBytes:]), nil // without prevBytes
 }
 
 func (pc *PacketConn) writePacketBodyUnlocked(crc uint32, body []byte) (uint32, error) {
@@ -394,17 +400,8 @@ func (pc *PacketConn) writePacketBodyUnlocked(crc uint32, body []byte) (uint32, 
 	return pc.updateCRC(crc, body), nil
 }
 
-func (pc *PacketConn) writePacketTrailerUnlocked(crc uint32, packetBodyLen int) error {
-	binary.LittleEndian.PutUint32(pc.trailerWriteBuf[:4], crc)
-	trailerLen := 4
-	if pc.encrypted {
-		packetLen := len(pc.headerWriteBuf) + packetBodyLen + 4 // + CRC
-		trailerLen += int(-uint(packetLen) % blockSize)
-	}
-	if _, err := pc.w.Write(pc.trailerWriteBuf[:trailerLen]); err != nil {
-		return err
-	}
-	return nil
+func (pc *PacketConn) writePacketTrailerUnlocked(crc uint32) {
+	pc.headerWriteBuf = binary.LittleEndian.AppendUint32(pc.headerWriteBuf, crc)
 }
 
 func (pc *PacketConn) updateCRC(crc uint32, data []byte) uint32 {
@@ -431,24 +428,31 @@ func (pc *PacketConn) encrypt(readKey []byte, readIV []byte, writeKey []byte, wr
 	if len(readIV) != blockSize {
 		return fmt.Errorf("read IV size must be %v, not %v", blockSize, len(readIV))
 	}
-
 	if len(writeIV) != blockSize {
 		return fmt.Errorf("write IV size must be %v, not %v", blockSize, len(writeIV))
 	}
 
-	pc.r.encrypt(cipher.NewCBCDecrypter(rc, readIV))
-	pc.w.encrypt(cipher.NewCBCEncrypter(wc, writeIV))
-	pc.encrypted = true
+	rcbc := cipher.NewCBCDecrypter(rc, readIV)
+	wcbc := cipher.NewCBCEncrypter(wc, writeIV)
+	if rcbc.BlockSize() != blockSize {
+		return fmt.Errorf("CBC read decrypter BlockSize must be %v, not %v", blockSize, rcbc.BlockSize())
+	}
+	if wcbc.BlockSize() != blockSize {
+		return fmt.Errorf("CBC write decrypter BlockSize must be %v, not %v", blockSize, wcbc.BlockSize())
+	}
+
+	pc.r.encrypt(rcbc)
+	pc.w.encrypt(wcbc)
 
 	return nil
 }
 
-func validPacketBodyLen(n int) error {
+func validBodyLen(n int) error { // Motivation - high byte was used for some flags, we must not use it
 	if n > maxPacketLen-packetOverhead {
-		return fmt.Errorf("packet body size %v exceeds maximum %v", n, maxPacketLen-packetOverhead)
+		return fmt.Errorf("packet size (metadata+extra+request) %v exceeds maximum %v: %w", n, maxPacketLen, ErrInvalidPacketLength)
 	}
 	if n%4 != 0 {
-		return fmt.Errorf("packet body size %v must be a multiple of 4", n)
+		return fmt.Errorf("packet size %v must be a multiple of 4: %w", n, ErrInvalidPacketLength)
 	}
 	return nil
 }

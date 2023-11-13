@@ -366,10 +366,6 @@ func parseTimeShifts(ts []string) ([]time.Duration, error) {
 }
 
 func parseNumResults(s string, def int, max int) (int, error) {
-	if s == "" || s == "0" {
-		return def, nil
-	}
-
 	u, err := strconv.ParseInt(s, 10, 32)
 	if err != nil {
 		return 0, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse number of results: %w", err))

@@ -29,14 +29,23 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-type IngressProxy struct {
-	sh2 *agent.Agent
+type cachedClient struct {
+	client   *rpc.Client
+	useCount int
+}
 
-	mu      sync.Mutex
+type clientPool struct {
 	aesPwd  string
-	clients map[string]*rpc.Client // client per incoming IP
-	server  *rpc.Server
+	mu      sync.Mutex
+	clients map[string]*cachedClient // client per incoming IP:port
 	config  ConfigIngressProxy
+}
+
+type IngressProxy struct {
+	sh2    *agent.Agent
+	pool   *clientPool
+	server *rpc.Server
+	config ConfigIngressProxy
 }
 
 type ConfigIngressProxy struct {
@@ -45,6 +54,8 @@ type ConfigIngressProxy struct {
 	ListenAddr        string
 	ExternalAddresses []string // exactly 3 comma-separated external ingress points
 	IngressKeys       []string
+	MaxConnection     int
+	DeleteSampleSize  int
 }
 
 func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
@@ -83,9 +94,12 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 	}
 
 	proxy := &IngressProxy{
-		sh2:     sh2,
-		aesPwd:  aesPwd,
-		clients: map[string]*rpc.Client{},
+		sh2: sh2,
+		pool: &clientPool{
+			aesPwd:  aesPwd,
+			clients: map[string]*cachedClient{},
+			config:  config,
+		},
 		// TODO - server settings must be tuned
 		config: config,
 	}
@@ -98,7 +112,7 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
 		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3*100000), // see server settings in aggregator
-		rpc.ServerWithMaxWorkers(128<<10),
+		rpc.ServerWithMaxWorkers(128<<13),
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(8<<30)) // see server settings in aggregator. We do not multiply here
@@ -163,7 +177,7 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	if len(hctx.Request) < 32 {
 		return true, fmt.Errorf("ingress proxy query with tag 0x%x is too short - %d bytes", tag, len(hctx.Request))
 	}
-	addrIPV4, remoteAddress := addrIPString(hctx.RemoteAddr()) // without port, so per machine
+	addrIPV4, remoteAddressPort := addrIPString(hctx.RemoteAddr())
 
 	fieldsMask := binary.LittleEndian.Uint32(hctx.Request[4:])
 	shardReplica := binary.LittleEndian.Uint32(hctx.Request[8:])
@@ -176,16 +190,12 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	// TODO - collect metric, send to aggregator, reply with error to clients
 	address := proxy.sh2.GetConfigResult.Addresses[shardReplica%uint32(len(proxy.sh2.GetConfigResult.Addresses))]
 
-	proxy.mu.Lock()
-	client, ok := proxy.clients[remoteAddress]
+	cachedClient, ok := proxy.pool.getClient(remoteAddressPort)
+	defer proxy.pool.releaseClient(cachedClient)
 	if !ok {
-		client = rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(proxy.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
-		proxy.clients[remoteAddress] = client
+		log.Printf("First connection from %s", remoteAddressPort)
 	}
-	proxy.mu.Unlock()
-	if !ok {
-		log.Printf("First connection from %s", remoteAddress)
-	}
+	client := cachedClient.client
 	req := client.GetRequest()
 	req.Body = append(req.Body, hctx.Request...)
 	req.Extra.FailIfNoConnection = true
@@ -199,4 +209,51 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	hctx.Response = append(hctx.Response, resp.Body...)
 
 	return false, nil
+}
+
+func (pool *clientPool) getClient(addr string) (*cachedClient, bool) {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	client, ok := pool.clients[addr]
+	if !ok {
+		client = &cachedClient{
+			client: rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
+		}
+		pool.clients[addr] = client
+	}
+	client.useCount++
+
+	return client, ok
+}
+
+func (pool *clientPool) releaseClient(client *cachedClient) {
+	pool.mu.Lock()
+	client.useCount--
+	pool.mu.Unlock()
+	res := pool.collectClientsToDelete()
+	for _, c := range res {
+		_ = c.client.Close()
+	}
+}
+
+func (pool *clientPool) collectClientsToDelete() (res []*cachedClient) {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+
+	if len(pool.clients) <= pool.config.MaxConnection {
+		return nil
+	}
+	i := 0
+	for k, client := range pool.clients {
+		if i >= pool.config.DeleteSampleSize {
+			break
+		}
+		if client.useCount > 0 {
+			continue
+		}
+		delete(pool.clients, k)
+		res = append(res, client)
+		i++
+	}
+	return res
 }

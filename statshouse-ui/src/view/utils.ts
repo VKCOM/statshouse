@@ -12,7 +12,7 @@ import { DashboardInfo, RawValueKind, whatToWhatDesc } from './api';
 import { UseEventTagColumnReturn } from '../hooks/useEventTagColumns';
 import { MetricMetaValue } from '../api/metric';
 import { PlotStore } from '../store';
-import produce from 'immer';
+import { produce } from 'immer';
 import { isNotNil, toNumber, uniqueArray } from '../common/helpers';
 import { GET_PARAMS, isTagKey, TAG_KEY, TagKey } from '../api/enum';
 import { getEmptyVariableParams } from '../common/getEmptyVariableParams';
@@ -514,14 +514,14 @@ export function range0(r: [number | null, number | null]): [number | null, numbe
   return [min, max];
 }
 
-export function useResizeObserver(ref: React.RefObject<HTMLDivElement>) {
+export function useResizeObserver(ref: React.RefObject<HTMLDivElement>, noRound?: boolean) {
   const [size, setSize] = React.useState({ width: 0, height: 0 });
 
   React.useLayoutEffect(() => {
     const obs = new ResizeObserver((entries) => {
       entries.forEach((entry) => {
-        const w = Math.round(entry.contentRect.width);
-        const h = Math.round(entry.contentRect.height);
+        const w = noRound ? entry.contentRect.width : Math.round(entry.contentRect.width);
+        const h = noRound ? entry.contentRect.height : Math.round(entry.contentRect.height);
         setSize({ width: w, height: h });
       });
     });
@@ -533,7 +533,7 @@ export function useResizeObserver(ref: React.RefObject<HTMLDivElement>) {
       obs.unobserve(cur);
       obs.disconnect();
     };
-  }, [ref]);
+  }, [noRound, ref]);
 
   return size;
 }

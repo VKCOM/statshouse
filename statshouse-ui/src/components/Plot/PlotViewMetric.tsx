@@ -9,23 +9,19 @@ import uPlot from 'uplot';
 import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
-import { LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
+import { Button, LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
 import { fmtInputDateTime, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
-import { queryURLCSV } from '../../view/api';
 import { black, grey, greyDark } from '../../view/palette';
-import produce from 'immer';
+import { produce } from 'immer';
 import {
   PlotValues,
   selectorBaseRange,
   selectorLiveMode,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
-  selectorParams,
   selectorParamsPlotsByIndex,
-  selectorParamsTimeShifts,
   selectorPlotsDataByIndex,
   selectorTimeRange,
-  selectorUPlotsWidthByIndex,
   useStore,
   useThemeStore,
 } from '../../store';
@@ -41,6 +37,7 @@ import { createPlotPreview } from '../../store/plot/plotPreview';
 import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
 import { METRIC_TYPE } from '../../api/enum';
 import css from './style.module.css';
+import { useLinkCSV } from '../../hooks/useLinkCSV';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -87,12 +84,9 @@ export function PlotViewMetric(props: {
 }) {
   const { indexPlot, compact, yAxisSize, dashboard, className, group, embed } = props;
 
-  const params = useStore(selectorParams);
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
   const setSel = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
-
-  const timeShifts = useStore(selectorParamsTimeShifts);
 
   const timeRange = useStore(selectorTimeRange);
 
@@ -127,9 +121,6 @@ export function PlotViewMetric(props: {
 
   const selectorNumQueries = useMemo(() => selectorNumQueriesPlotByIndex.bind(undefined, indexPlot), [indexPlot]);
   const numQueries = useStore(selectorNumQueries);
-
-  const selectorUPlotWidth = useMemo(() => selectorUPlotsWidthByIndex.bind(undefined, indexPlot), [indexPlot]);
-  const width = useStore(selectorUPlotWidth);
 
   const selectorPlotMetricsMeta = useMemo(
     () => selectorMetricsMetaByName.bind(undefined, sel.metricName ?? ''),
@@ -302,15 +293,7 @@ export function PlotViewMetric(props: {
     yAxisSize,
   ]);
 
-  const linkCSV = useMemo(() => {
-    const agg =
-      sel.customAgg === -1
-        ? `${Math.floor(width / 2)}`
-        : sel.customAgg === 0
-        ? `${Math.floor(width * devicePixelRatio)}`
-        : `${sel.customAgg}s`;
-    return queryURLCSV(sel, timeRange, timeShifts, agg, params);
-  }, [params, sel, timeRange, timeShifts, width]);
+  const linkCSV = useLinkCSV(indexPlot);
 
   const onReady = useCallback(
     (u: uPlot) => {
@@ -341,10 +324,10 @@ export function PlotViewMetric(props: {
   const divOut = useRef<HTMLDivElement>(null);
   const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
   const onMouseOver = useCallback(() => {
-    if (divOut.current) {
+    if (divOut.current && !embed) {
       setFixHeight(divOut.current.getBoundingClientRect().height);
     }
-  }, []);
+  }, [embed]);
   const onMouseOut = useCallback(() => {
     setFixHeight(0);
   }, []);
@@ -412,11 +395,11 @@ export function PlotViewMetric(props: {
             {/*last error*/}
             {!!lastError && (
               <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
-                <button type="button" className="btn" aria-label="Reload" onClick={reload}>
+                <Button type="button" className="btn" aria-label="Reload" onClick={reload}>
                   <SVGArrowCounterclockwise />
-                </button>
+                </Button>
                 <small className="overflow-force-wrap font-monospace">{lastError}</small>
-                <button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
+                <Button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
               </div>
             )}
             <PlotHeader

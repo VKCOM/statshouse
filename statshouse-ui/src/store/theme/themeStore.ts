@@ -1,5 +1,5 @@
 import { useStore } from '../statshouse';
-import produce from 'immer';
+import { produce } from 'immer';
 import { createStore } from '../createStore';
 
 export const THEMES = {

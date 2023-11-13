@@ -7,15 +7,16 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import cn from 'classnames';
 import { TagSelect } from '../TagSelect';
-import { SwitchBox } from '../UI';
+// import { SwitchBox } from '../UI';
 import { formatTagValue } from '../../view/api';
 
-import { ReactComponent as SVGLayers } from 'bootstrap-icons/icons/layers.svg';
+// import { ReactComponent as SVGLayers } from 'bootstrap-icons/icons/layers.svg';
 import { SelectOptionProps } from '../Select';
 import { formatPercent, normalizeTagValues } from '../../view/utils';
 import { MetricMetaTag } from '../../api/metric';
 import { MetricTagValueInfo } from '../../api/metricTagValues';
 import { escapeHTML } from '../../common/helpers';
+import { Button } from '../UI';
 
 const emptyListArray: MetricTagValueInfo[] = [];
 const emptyValues: string[] = [];
@@ -125,7 +126,7 @@ export function VariableControl<T>({
   return (
     <div className={className}>
       <div className="d-flex align-items-center">
-        <div className={cn('input-group flex-nowrap w-100', small ? 'input-group-sm me-2' : 'input-group  me-4')}>
+        <div className={cn('input-group flex-nowrap w-100', small ? 'input-group-sm' : 'input-group')}>
           <TagSelect
             values={allValues}
             placeholder={placeholder}
@@ -140,37 +141,36 @@ export function VariableControl<T>({
             setNegative={onSetNegative}
             sort={sortByName}
             setSort={setSortByName}
+            groupBy={groupBy}
+            setGroupBy={onSetGroupBy}
           />
         </div>
-        <SwitchBox title="Group by" checked={groupBy} onChange={onSetGroupBy}>
-          <SVGLayers />
-        </SwitchBox>
       </div>
-      <div className="d-flex flex-wrap">
+      <div className="d-flex flex-wrap gap-2 my-2">
         {customBadge}
         {values?.map((v) => (
-          <button
+          <Button
             type="button"
             key={v}
             data-value={v}
-            className="overflow-force-wrap btn btn-sm pt-0 pb-0 mt-2 me-2 btn-success"
+            className="overflow-force-wrap btn btn-sm py-0 btn-success"
             style={{ userSelect: 'text' }}
             onClick={onRemoveFilter}
           >
             {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
-          </button>
+          </Button>
         ))}
         {notValues?.map((v) => (
-          <button
+          <Button
             type="button"
             key={v}
             data-value={v}
-            className="overflow-force-wrap btn btn-sm pt-0 pb-0 mt-2 me-2 btn-danger"
+            className="overflow-force-wrap btn btn-sm py-0 btn-danger"
             style={{ userSelect: 'text' }}
             onClick={onRemoveFilter}
           >
             {formatTagValue(v, tagMeta?.value_comments?.[v], tagMeta?.raw, tagMeta?.raw_kind)}
-          </button>
+          </Button>
         ))}
       </div>
     </div>

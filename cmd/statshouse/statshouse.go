@@ -375,8 +375,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		rpc.ServerWithHandler(handlerRPC.Handle),
 		rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats))
 	defer func() { _ = srv.Close() }()
-
-	rpcLn, err := srv.Listen("tcp4", argv.listenAddr)
+	rpcLn, err := net.Listen("tcp4", argv.listenAddr)
 	if err != nil {
 		logErr.Fatalf("RPC listen failed: %v", err)
 	}
@@ -471,7 +470,8 @@ func mainIngressProxy(aesPwd string) int {
 	}
 	argv.configAgent.Cluster = argv.cluster
 	argv.configIngress.Cluster = argv.cluster
-
+	argv.configIngress.MaxConnection = argv.ingressMaxConn
+	argv.configIngress.DeleteSampleSize = argv.ingressDeleteSampleSize
 	argv.configIngress.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
 	if len(argv.configIngress.ExternalAddresses) != 3 {
 		logErr.Printf("-ingress-external-addr must contain comma-separated list of 3 external ingress proxy addresses")

@@ -10,7 +10,7 @@ import cn from 'classnames';
 import { selectorParamsPlots, selectorParamsTimeShifts, selectorSetParams, useStore } from '../../store';
 import { getTimeShifts, timeShiftAbbrevExpand, timeShiftDesc } from '../../view/utils';
 import { ToggleButton } from '../UI';
-import produce from 'immer';
+import { produce } from 'immer';
 
 export type PlotControlTimeShiftsProps = {
   className?: string;

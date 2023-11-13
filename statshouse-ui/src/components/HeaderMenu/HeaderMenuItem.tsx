@@ -10,6 +10,7 @@ import cn from 'classnames';
 
 import css from './style.module.css';
 import { PlotLink } from '../Plot/PlotLink';
+import { Popper } from '../UI';
 
 export type HeaderMenuItemProps = {
   children?: React.ReactNode;
@@ -30,6 +31,7 @@ export const HeaderMenuItem: React.FC<HeaderMenuItemProps> = ({
   description,
   className,
 }) => {
+  const itemRef = useRef(null);
   const touchToggle = useRef<HTMLAnchorElement>(null);
   const sub = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false);
@@ -72,9 +74,15 @@ export const HeaderMenuItem: React.FC<HeaderMenuItemProps> = ({
   }, []);
 
   return (
-    <li className={cn('position-relative', className)} onMouseOver={onOpen} onMouseOut={onClose} onClick={onClose}>
+    <li
+      ref={itemRef}
+      className={cn('position-relative', className)}
+      onMouseOver={onOpen}
+      onMouseOut={onClose}
+      onClick={onClose}
+    >
       {to || indexPlot !== undefined ? (
-        <PlotLink className="nav-link" to={to} indexPlot={indexPlot} title={title} ref={touchToggle}>
+        <PlotLink className="nav-link" to={to} indexPlot={indexPlot} ref={touchToggle}>
           <Icon className={css.icon} />
         </PlotLink>
       ) : (
@@ -82,25 +90,22 @@ export const HeaderMenuItem: React.FC<HeaderMenuItemProps> = ({
           <Icon className={css.icon} />
         </span>
       )}
-
-      <ul
-        hidden={!open}
-        className={cn(`nav d-flex flex-column position-absolute start-100 top-0`, css.nav, css.sub)}
-        ref={sub}
-      >
-        {to || indexPlot !== undefined ? (
-          <li className="nav-item">
-            <PlotLink className="nav-link text-nowrap" to={to} indexPlot={indexPlot} title={title}>
-              {description ?? title}
-            </PlotLink>
-          </li>
-        ) : (
-          <li className="nav-item">
-            <span className={cn('nav-link text-secondary text-nowrap')}>{description ?? title}</span>
-          </li>
-        )}
-        {children}
-      </ul>
+      <Popper targetRef={itemRef} fixed={false} horizontal={'out-right'} vertical={'top'} show={open} always>
+        <ul className={cn(`nav d-flex flex-column`, css.nav, css.sub)} ref={sub}>
+          {to || indexPlot !== undefined ? (
+            <li className="nav-item">
+              <PlotLink className="nav-link text-nowrap" to={to} indexPlot={indexPlot}>
+                {description ?? title}
+              </PlotLink>
+            </li>
+          ) : (
+            <li className="nav-item">
+              <span className={cn('nav-link text-secondary text-nowrap')}>{description ?? title}</span>
+            </li>
+          )}
+          {children}
+        </ul>
+      </Popper>
     </li>
   );
 };

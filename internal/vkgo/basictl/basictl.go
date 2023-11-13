@@ -234,8 +234,8 @@ func paddingLen(l int) int {
 }
 
 func writeString(w []byte, v string) []byte {
-	l := len(v)
-	var p int
+	l := int64(len(v))
+	var p int64
 	switch {
 	case l <= tinyStringLen:
 		w = append(w, byte(l))
@@ -265,8 +265,8 @@ func writeString(w []byte, v string) []byte {
 }
 
 func writeStringBytes(w []byte, v []byte) []byte {
-	l := len(v)
-	var p int
+	l := int64(len(v))
+	var p int64
 	switch {
 	case l <= tinyStringLen:
 		w = append(w, byte(l))

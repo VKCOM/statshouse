@@ -106,14 +106,12 @@ type SeriesQuery struct {
 	// What
 	Metric  *format.MetricMetaValue
 	What    DigestWhat
+	GroupBy []string
 	MaxHost bool
 
 	// When
 	Timescale Timescale
 	Offset    int64
-
-	// Grouping
-	GroupBy []string
 
 	// Filtering
 	FilterIn   [format.MaxTags]map[int32]string // tag index -> tag value ID -> tag value
@@ -171,9 +169,9 @@ type Handler interface {
 	// # Storage
 	//
 
-	QuerySeries(ctx context.Context, qry *SeriesQuery) (SeriesBag, func(), error)
+	QuerySeries(ctx context.Context, qry *SeriesQuery) (Series, func(), error)
 	QueryTagValueIDs(ctx context.Context, qry TagValuesQuery) ([]int32, error)
-	QuerySTagValues(ctx context.Context, qry TagValuesQuery) ([]string, error)
+	QueryStringTop(ctx context.Context, qry TagValuesQuery) ([]string, error)
 
 	//
 	// # Allocator

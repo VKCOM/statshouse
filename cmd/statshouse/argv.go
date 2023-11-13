@@ -56,9 +56,11 @@ var (
 
 		configAggregator aggregator.ConfigAggregator
 
-		configIngress  aggregator.ConfigIngressProxy
-		ingressExtAddr string
-		ingressPwdDir  string
+		configIngress           aggregator.ConfigIngressProxy
+		ingressExtAddr          string
+		ingressPwdDir           string
+		ingressMaxConn          int
+		ingressDeleteSampleSize int
 
 		// for old mode
 		historicStorageDir string
@@ -186,7 +188,6 @@ func argvAddAggregatorFlags(legacyVerb bool) {
 
 	flag.StringVar(&argv.configAggregator.ExternalPort, "agg-external-port", aggregator.DefaultConfigAggregator().ExternalPort, "external port for aggregator autoconfiguration if different from port set in agg-addr")
 	flag.IntVar(&argv.configAggregator.PreviousNumShards, "previous-shards", aggregator.DefaultConfigAggregator().PreviousNumShards, "Previous number of shard*replicas in cluster. During transition, clients with previous configuration are also allowed to send data.")
-	flag.IntVar(&argv.configAggregator.LocalReplica, "local-replica", aggregator.DefaultConfigAggregator().LocalReplica, "Replica number for local test cluster [1..3]")
 
 	flag.Uint64Var(&argv.configAggregator.MetadataActorID, "metadata-actor-id", aggregator.DefaultConfigAggregator().MetadataActorID, "")
 	flag.StringVar(&argv.configAggregator.MetadataAddr, "metadata-addr", aggregator.DefaultConfigAggregator().MetadataAddr, "")
@@ -199,6 +200,10 @@ func argvAddIngressProxyFlags() {
 	flag.StringVar(&argv.configIngress.ListenAddr, "ingress-addr", "", "Listen address of ingress proxy")
 	flag.StringVar(&argv.ingressExtAddr, "ingress-external-addr", "", "Comma-separate list of 3 external addresses of ingress proxies.")
 	flag.StringVar(&argv.ingressPwdDir, "ingress-pwd-dir", "", "path to AES passwords dir for clients of ingress proxy.")
+
+	flag.IntVar(&argv.ingressMaxConn, "ingress-max-conn", 1000, "")
+	flag.IntVar(&argv.ingressDeleteSampleSize, "ingress-delete-sample-size", 50, "")
+
 }
 
 func printVerbUsage() {

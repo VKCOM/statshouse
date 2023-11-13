@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { ChangeEvent, Dispatch, memo, SetStateAction, useCallback, useId } from 'react';
+import React, { Dispatch, memo, SetStateAction, useCallback } from 'react';
 import { SetTimeRangeValue } from '../../common/TimeRange';
 import { timeRangePanLeft, timeRangePanRight, timeRangeZoomIn, timeRangeZoomOut } from '../../view/utils';
 import { ReactComponent as SVGChevronLeft } from 'bootstrap-icons/icons/chevron-left.svg';
@@ -22,6 +22,7 @@ import { ReactComponent as SVGBoxArrowUpRight } from 'bootstrap-icons/icons/box-
 import { debug } from '../../common/debug';
 import { lockRange, PLOT_TYPE, PlotType } from '../../url/queryParams';
 import { Link } from 'react-router-dom';
+import { Button, ToggleButton, Tooltip } from '../UI';
 
 export type PlotNavigateProps = {
   live: boolean;
@@ -77,20 +78,7 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
     setLive(false);
     setTimeRange((r) => timeRangeZoomOut(r));
   }, [setLive, setTimeRange]);
-  const yLockChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const lock = e.target.checked;
-      onYLockChange?.(lock);
-    },
-    [onYLockChange]
-  );
 
-  const onLiveChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      setLive(e.target.checked);
-    },
-    [setLive]
-  );
   const copyLink = useCallback(() => {
     window.navigator.clipboard.writeText(link ?? document.location.toString()).then(() => {
       debug.log('clipboard ok', link ?? document.location.toString());
@@ -104,29 +92,28 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
     },
     [setTypePlot]
   );
-  const id = useId();
 
   return (
     <div className={`btn-group ${className}`} role="group">
-      <button type="button" className="btn btn-outline-primary" title="Pan left" onClick={panLeft}>
+      <Button type="button" className="btn btn-outline-primary" title="Pan left" onClick={panLeft}>
         <SVGChevronLeft />
-      </button>
-      <button type="button" className="btn btn-outline-primary" title="Pan right" onClick={panRight}>
+      </Button>
+      <Button type="button" className="btn btn-outline-primary" title="Pan right" onClick={panRight}>
         <SVGChevronRight />
-      </button>
-      <button type="button" className="btn btn-outline-primary" title="Zoom in" onClick={zoomIn}>
+      </Button>
+      <Button type="button" className="btn btn-outline-primary" title="Zoom in" onClick={zoomIn}>
         <SVGZoomIn />
-      </button>
-      <button type="button" className="btn btn-outline-primary" title="Zoom out" onClick={zoomOut}>
+      </Button>
+      <Button type="button" className="btn btn-outline-primary" title="Zoom out" onClick={zoomOut}>
         <SVGZoomOut />
-      </button>
+      </Button>
       {!!onResetZoom && (
-        <button type="button" className="btn btn-outline-primary" title="Reset zoom" onClick={onResetZoom}>
+        <Button type="button" className="btn btn-outline-primary" title="Reset zoom" onClick={onResetZoom}>
           <SVGMap />
-        </button>
+        </Button>
       )}
       {typePlot === PLOT_TYPE.Metric && (
-        <button
+        <Button
           type="button"
           className="btn btn-outline-primary"
           title="View events"
@@ -135,10 +122,10 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
           disabled={disabledTypePlot}
         >
           <SVGTable />
-        </button>
+        </Button>
       )}
       {typePlot === PLOT_TYPE.Event && (
-        <button
+        <Button
           type="button"
           className="btn btn-outline-primary"
           title="View plot"
@@ -147,45 +134,40 @@ export const _PlotNavigate: React.FC<PlotNavigateProps> = ({
           disabled={disabledTypePlot}
         >
           <SVGGraphUp />
-        </button>
+        </Button>
       )}
       {!!onYLockChange && !!yLock && (
-        <>
-          <input
-            type="checkbox"
-            className="btn-check"
-            id={`toggle-y-lock-${id}`}
-            autoComplete="off"
-            checked={yLock.min !== 0 || yLock.max !== 0}
-            onChange={yLockChange}
-          />
-          <label className="btn btn-outline-primary" htmlFor={`toggle-y-lock-${id}`} title="Lock Y scale">
-            {yLock ? <SVGLock /> : <SVGUnlock />}
-          </label>
-        </>
+        <ToggleButton
+          className="btn btn-outline-primary"
+          checked={yLock.min !== 0 || yLock.max !== 0}
+          title="Lock Y scale"
+          onChange={onYLockChange}
+        >
+          {yLock ? <SVGLock /> : <SVGUnlock />}
+        </ToggleButton>
       )}
       {!!link && (
-        <button type="button" className="btn btn-outline-primary" title="Copy link to clipboard" onClick={copyLink}>
+        <Button type="button" className="btn btn-outline-primary" title="Copy link to clipboard" onClick={copyLink}>
           <SVGLink />
-        </button>
+        </Button>
       )}
       {!!outerLink && (
-        <Link to={outerLink} target="_blank" role="button" className="btn btn-outline-primary" title="Open link">
-          <SVGBoxArrowUpRight />
-        </Link>
+        <Tooltip<'span'> as="span" role="button" className="btn btn-outline-primary p-0" title="Open link">
+          <Link to={outerLink} className="d-block px-2 py-1" target="_blank">
+            <SVGBoxArrowUpRight />
+          </Link>
+        </Tooltip>
       )}
-      <input
-        type="checkbox"
-        className="btn-check"
-        id={`toggle-live-${id}`}
-        autoComplete="off"
+
+      <ToggleButton
+        className="btn btn-outline-primary"
+        title="Follow live"
         checked={live}
-        onChange={onLiveChange}
+        onChange={setLive}
         disabled={disabledLive}
-      />
-      <label className="btn btn-outline-primary" htmlFor={`toggle-live-${id}`} title="Follow live">
+      >
         <SVGPlayFill />
-      </label>
+      </ToggleButton>
     </div>
   );
 };

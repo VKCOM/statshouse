@@ -1,16 +1,107 @@
-on: workflow_dispatch
+on:
+  workflow_dispatch:
 jobs:
-  debian:
+  env:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        debian_release: [buster, bullseye]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-      - run: ./build/makedeb.sh ${{ matrix.debian_release }}
+          repository: VKCOM/statshouse
+          fetch-depth: 0
+      - id: main
+        run: |
+          BUILD_COMMIT=$(git log --format="%H" -n 1)
+          BUILD_COMMIT_TS=$(git log --format="%ct" -n 1)
+          BUILD_TIME=$(date +%FT%T%z)
+          BUILD_VERSION=$(git describe --tags --always --dirty)
+          BUILD_VERSION=${BUILD_VERSION#v}
+          echo "BUILD_COMMIT=$BUILD_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "BUILD_COMMIT_TS=$BUILD_COMMIT_TS" >> "$GITHUB_OUTPUT"
+          echo "BUILD_TIME=$BUILD_TIME" >> "$GITHUB_OUTPUT"
+          echo "BUILD_VERSION=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
+    outputs:
+      BUILD_COMMIT: ${{ steps.main.outputs.BUILD_COMMIT }}
+      BUILD_COMMIT_TS: ${{ steps.main.outputs.BUILD_COMMIT_TS }}
+      BUILD_TIME: ${{ steps.main.outputs.BUILD_TIME }}
+      BUILD_VERSION: ${{ steps.main.outputs.BUILD_VERSION }}
+      REACT_APP_BUILD_VERSION: ${{ steps.main.outputs.REACT_APP_BUILD_VERSION }}
+  front:
+    needs: env
+    runs-on: ubuntu-latest
+    container:
+      image: node:18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: VKCOM/statshouse
+          ref: ${{needs.env.outputs.BUILD_COMMIT}}
+          fetch-depth: 0
+      - run: |
+          REACT_APP_BUILD_VERSION=${{needs.env.outputs.BUILD_VERSION}}-${{needs.env.outputs.BUILD_TIME}}
+          make build-sh-ui
       - uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.debian_release }}
-          path: ./target/*.deb
+          name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-ui
+          path: |
+            statshouse-ui/build
+            .dummy_preserves_directory_structure
+      - run: make build-grafana-ui
+      - uses: actions/upload-artifact@v3
+        with:
+          name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-ui
+          path: |
+            grafana-plugin-ui/dist
+            .dummy_preserves_directory_structure
+  debian:
+    strategy:
+      matrix:
+        release: [buster, bullseye]
+    needs: [env, front]
+    uses: alpinskiy/statshouse-ppa/.github/workflows/build_deb.yml@master
+    with:
+      build_time: ${{needs.env.outputs.BUILD_TIME}}
+      build_commit: ${{needs.env.outputs.BUILD_COMMIT}}
+      build_commit_ts: ${{needs.env.outputs.BUILD_COMMIT_TS}}
+      build_version: ${{needs.env.outputs.BUILD_VERSION}}
+      build_container: '{"image": "golang:1.19-${{matrix.release}}"}'
+      os_name: 'debian'
+      os_release: ${{matrix.release}}
+    secrets: inherit
+  ubuntu_jammy:
+    needs: [env, front]
+    uses: alpinskiy/statshouse-ppa/.github/workflows/build_deb.yml@master
+    with:
+      build_time: ${{needs.env.outputs.BUILD_TIME}}
+      build_commit: ${{needs.env.outputs.BUILD_COMMIT}}
+      build_commit_ts: ${{needs.env.outputs.BUILD_COMMIT_TS}}
+      build_version: ${{needs.env.outputs.BUILD_VERSION}}
+      build_machine: ubuntu-22.04
+      os_name: ubuntu
+      os_release: jammy
+    secrets: inherit
+  ubuntu_focal:
+    needs: [env, front]
+    uses: alpinskiy/statshouse-ppa/.github/workflows/build_deb.yml@master
+    with:
+      build_time: ${{needs.env.outputs.BUILD_TIME}}
+      build_commit: ${{needs.env.outputs.BUILD_COMMIT}}
+      build_commit_ts: ${{needs.env.outputs.BUILD_COMMIT_TS}}
+      build_version: ${{needs.env.outputs.BUILD_VERSION}}
+      build_machine: ubuntu-20.04
+      os_name: ubuntu
+      os_release: focal
+    secrets: inherit
+  draft_release:
+    needs: [env, debian, ubuntu_jammy, ubuntu_focal]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: VKCOM/statshouse
+          fetch-depth: 0
+      - uses: actions/download-artifact@master
+        with:
+          name: statshouse-${{needs.env.outputs.BUILD_VERSION}}_amd64-deb
+      - run: gh release create --draft --generate-notes --title "Release ${{needs.env.outputs.BUILD_VERSION}}" $(find -type f -name *.deb)
+        env:
+          GITHUB_TOKEN: ${{secrets.DEVTOOLS_GITHUB_TOKEN}}

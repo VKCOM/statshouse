@@ -1,0 +1,96 @@
+on:
+  workflow_call:
+    inputs:
+      build_time:
+        required: true
+        type: string
+      build_commit:
+        required: true
+        type: string
+      build_commit_ts:
+        required: true
+        type: string
+      build_version:
+        required: true
+        type: string
+      build_machine:
+        required: false
+        type: string
+        default: ubuntu-22.04
+      build_container:
+        required: false
+        type: string
+        default: '{"image":null}'
+      os_name:
+        required: true
+        type: string
+      os_release:
+        required: true
+        type: string
+jobs:
+  binary:
+    runs-on: ${{inputs.build_machine}}
+    container: ${{fromJSON(inputs.build_container)}}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: VKCOM/statshouse
+          ref: ${{inputs.build_commit}}
+          fetch-depth: 0
+      - uses: actions/setup-go@v4
+        if: inputs.build_container == '{"image":null}'
+        with:
+          go-version: '1.19'
+      - uses: actions/download-artifact@master
+        with:
+          name: statshouse-${{inputs.build_version}}-ui
+      - run: |
+          BUILD_TIME=${{inputs.build_time}}
+          BUILD_COMMIT=${{inputs.build_commit}}
+          BUILD_COMMIT_TS=${{inputs.build_commit_ts}}
+          BUILD_MACHINE=$(uname -n -m -r -s)
+          BUILD_VERSION=${{inputs.build_version}}
+          cp -r statshouse-ui/build cmd/statshouse-api/
+          make build-sh build-sh-metadata build-sh-api build-sh-grafana
+      - uses: actions/upload-artifact@v3
+        with:
+          name: statshouse-${{inputs.build_version}}-${{inputs.os_name}}_${{inputs.os_release}}_amd64-bin
+          path: target
+  package:
+    needs: [binary]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          sudo apt-get update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y devscripts build-essential dh-exec
+          sudo rm -rf /var/lib/apt/lists/*
+      - uses: actions/checkout@v4
+        with:
+          repository: VKCOM/statshouse
+          ref: ${{inputs.build_commit}}
+          fetch-depth: 0
+      - uses: actions/download-artifact@master
+        with:
+          name: statshouse-${{inputs.build_version}}-${{inputs.os_name}}_${{inputs.os_release}}_amd64-bin
+          path: target
+      - run: chmod +x target/*
+      - uses: actions/download-artifact@master
+        with:
+          name: statshouse-${{inputs.build_version}}-ui
+      - working-directory: build
+        run: |
+          rm -f changelog
+          VERSION=1:${{inputs.build_version}}-${{inputs.os_release}}
+          dch --create --distribution stable --package statshouse --newversion "$VERSION" "up to version $VERSION"
+          debuild --no-lintian -us -uc -b
+      - run: |
+          mkdir -p ${{inputs.os_name}}/${{inputs.os_release}}
+          mv *.deb ${{inputs.os_name}}/${{inputs.os_release}}
+      - uses: actions/upload-artifact@v3
+        with:
+          name: statshouse-${{inputs.build_version}}_amd64-deb
+          path: |
+            ${{inputs.os_name}}/${{inputs.os_release}}/statshouse_*
+            ${{inputs.os_name}}/${{inputs.os_release}}/statshouse-api_*
+            ${{inputs.os_name}}/${{inputs.os_release}}/statshouse-metadata_*
+            .dummy_preserves_directory_structure

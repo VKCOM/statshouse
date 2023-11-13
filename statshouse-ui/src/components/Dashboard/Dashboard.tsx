@@ -24,6 +24,7 @@ import cn from 'classnames';
 import { PlotLink } from '../Plot/PlotLink';
 import { ErrorMessages } from '../ErrorMessages';
 import { DashboardVariablesControl } from './DashboardVariablesControl';
+import { Button, Tooltip } from '../UI';
 
 export type DashboardProps = {
   yAxisSize?: number;
@@ -66,8 +67,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
 
           <li className="nav-item flex-grow-1"></li>
 
-          <li className="nav-item">
-            <button
+          <Tooltip<'li'>
+            as="li"
+            className="nav-item "
+            titleClassName="bg-warning-subtle"
+            title={!params.dashboard?.name && 'Required name dashboard'}
+          >
+            <Button
               type="button"
               className="nav-link"
               disabled={numQueries > 0 || !params.dashboard?.name}
@@ -80,8 +86,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
                 <SVGCloudArrowUp className="mx-1" />
               )}
               {isServer ? 'Save' : 'Create'}
-            </button>
-          </li>
+            </Button>
+          </Tooltip>
         </ul>
       )}
       {params.variables.length > 0 && tabNum === -1 && (
@@ -89,6 +95,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
           className={cn(
             'd-flex flex-grow-1 flex-row gap-3 flex-wrap col-12 justify-content-start container-xl mb-3 z-100 position-relative'
           )}
+          embed={embed}
         />
       )}
       <DashboardLayout

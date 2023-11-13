@@ -1,5 +1,5 @@
 import React, { Key, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import DataGrid, { Column, DataGridHandle, Row, RowRendererProps, SortColumn } from 'react-data-grid';
+import DataGrid, { Column, DataGridHandle, Row, RenderRowProps, SortColumn } from 'react-data-grid';
 import cn from 'classnames';
 import {
   selectorClearEvents,
@@ -11,11 +11,12 @@ import {
 } from '../../store';
 import 'react-data-grid/lib/styles.css';
 import { eventColumnDefault, getEventColumnsType } from '../../view/api';
-import produce from 'immer';
+import { produce } from 'immer';
 import { TimeRange } from '../../common/TimeRange';
 import css from './style.module.css';
 import { useEventTagColumns } from '../../hooks/useEventTagColumns';
 import { PlotEventsButtonColumns } from './PlotEventsButtonColumns';
+import { Button } from '../UI';
 
 export type PlotEventsProps = {
   indexPlot: number;
@@ -29,7 +30,7 @@ const rowHeight = 28;
 const mouseOverRowRenderer = (
   onMouseOver: (row: EventDataRow, event: React.MouseEvent) => void,
   key: Key,
-  props: RowRendererProps<EventDataRow>
+  props: RenderRowProps<EventDataRow>
 ) => {
   const onMouseOverBind = onMouseOver.bind(undefined, props.row);
   return (
@@ -134,7 +135,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
     [onCursor]
   );
 
-  const rowRenderer = useMemo(() => mouseOverRowRenderer.bind(undefined, onOverRow), [onOverRow]);
+  const renderRow = useMemo(() => mouseOverRowRenderer.bind(undefined, onOverRow), [onOverRow]);
 
   const selectedRows = useMemo(() => {
     const selected = new Set<string>();
@@ -175,7 +176,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
       {!!event.error && (
         <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
           <small className="overflow-force-wrap font-monospace">{event.error}</small>
-          <button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
+          <Button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
         </div>
       )}
 
@@ -204,7 +205,7 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
               sortColumns={sort}
               selectedRows={selectedRows}
               renderers={{
-                rowRenderer,
+                renderRow,
               }}
             />
           ) : (

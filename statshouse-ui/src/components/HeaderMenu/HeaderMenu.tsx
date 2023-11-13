@@ -16,7 +16,7 @@ import { ReactComponent as SVGCircleHalf } from 'bootstrap-icons/icons/circle-ha
 import { ReactComponent as SVGLightbulbFill } from 'bootstrap-icons/icons/lightbulb-fill.svg';
 // import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
 import cn from 'classnames';
-import produce from 'immer';
+import { produce } from 'immer';
 
 import { HeaderMenuItem } from './HeaderMenuItem';
 import {
@@ -117,7 +117,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
 
   return (
     <div className={cn('sticky-top align-self-start', css.navOuter, className)}>
-      <ul className={`nav pb-5  d-flex flex-column ${css.nav}`}>
+      <ul className={cn('nav pb-2 h-100 d-flex flex-column flex-nowrap ', css.nav)}>
         <HeaderMenuItem icon={SVGLightning} title="Home" to="/view" description="StatsHouse">
           <li className={css.splitter}></li>
           <li className="nav-item">
@@ -245,9 +245,13 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             </PlotLink>
           </li>*/}
         </HeaderMenuItem>
-        {menuPlots.map((item) => (
-          <HeaderMenuItemPlot key={item.indexPlot} indexPlot={item.indexPlot} />
-        ))}
+        <li className={cn('flex-grow-0 w-100 overflow-auto', css.scrollStyle)}>
+          <ul className={cn('nav d-flex flex-column', css.nav)}>
+            {menuPlots.map((item) => (
+              <HeaderMenuItemPlot key={item.indexPlot} indexPlot={item.indexPlot} />
+            ))}
+          </ul>
+        </li>
         <HeaderMenuItem icon={SVGPlus} indexPlot={params.plots.length} title="Duplicate plot to new tab">
           <li className={css.splitter}></li>
           <li className="nav-item">
