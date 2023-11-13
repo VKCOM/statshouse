@@ -490,7 +490,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 	{
 		const prefix string = ",\"namespace_id\":"
 		out.RawString(prefix)
-		out.Int64(int64(in.NamespaceID))
+		out.Int32(int32(in.NamespaceID))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -1215,7 +1215,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.
 	{
 		const prefix string = ",\"namespace_id\":"
 		out.RawString(prefix[1:])
-		out.Int64(int64(in.ID))
+		out.Int32(int32(in.ID))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -1390,12 +1390,12 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat3(out *jwriter.
 	{
 		const prefix string = ",\"group_id\":"
 		out.RawString(prefix[1:])
-		out.Int64(int64(in.ID))
+		out.Int32(int32(in.ID))
 	}
 	{
 		const prefix string = ",\"namespace_id\":"
 		out.RawString(prefix)
-		out.Int64(int64(in.NamespaceID))
+		out.Int32(int32(in.NamespaceID))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -2065,7 +2065,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(out *jwriter.Wr
 	{
 		const prefix string = ",\"id\":"
 		out.RawString(prefix[1:])
-		out.Int64(int64(in.Id))
+		out.Int32(int32(in.Id))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -2372,7 +2372,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi17(in *jlexer.Lexe
 				in.Delim('[')
 				if out.Groups == nil {
 					if !in.IsDelim(']') {
-						out.Groups = make([]groupShortInfo, 0, 2)
+						out.Groups = make([]groupShortInfo, 0, 1)
 					} else {
 						out.Groups = []groupShortInfo{}
 					}
@@ -2454,6 +2454,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(in *jlexer.Lexe
 			out.Name = string(in.String())
 		case "weight":
 			out.Weight = float64(in.Float64())
+		case "disable":
+			out.Disable = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -2471,7 +2473,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi18(out *jwriter.Wr
 	{
 		const prefix string = ",\"id\":"
 		out.RawString(prefix[1:])
-		out.Int64(int64(in.Id))
+		out.Int32(int32(in.Id))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -2482,6 +2484,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi18(out *jwriter.Wr
 		const prefix string = ",\"weight\":"
 		out.RawString(prefix)
 		out.Float64(float64(in.Weight))
+	}
+	{
+		const prefix string = ",\"disable\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.Disable))
 	}
 	out.RawByte('}')
 }
