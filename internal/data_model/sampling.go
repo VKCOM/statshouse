@@ -402,7 +402,7 @@ func (h *Sampler) getMetricMeta(metricID int32) *format.MetricMetaValue {
 	return &h.nilMetric
 }
 
-func (h *Sampler) getGroupMeta(groupID int32) *format.MetricsGroup {
+func (h *Sampler) getGroupMeta(groupID int64) *format.MetricsGroup {
 	if groupID == format.BuiltinGroupIDBuiltin || h.config.Meta == nil {
 		return &h.nilGroup
 	}

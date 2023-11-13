@@ -57,7 +57,8 @@ const (
 	TagValueIDMappingFloodLegacy = 22136242   // STATLOGS_KEY_KEYOVERFLOW_INT
 	TagValueIDRawDeltaLegacy     = 10_000_000 // STATLOGS_INT_NOCONVERT
 
-	NamespaceSeparator = "@"
+	NamespaceSeparator     = ":"
+	NamespaceSeparatorRune = ':'
 )
 
 // Do not change values, they are stored in DB
@@ -119,7 +120,7 @@ type MetaStorageInterface interface { // agent uses this to avoid circular depen
 	StateHash() string
 	GetMetaMetric(metricID int32) *MetricMetaValue
 	GetMetaMetricByName(metricName string) *MetricMetaValue
-	GetGroup(id int32) *MetricsGroup
+	GetGroup(id int64) *MetricsGroup
 }
 
 // This struct is immutable, it is accessed by mapping code without any locking
@@ -145,14 +146,14 @@ const (
 )
 
 type NamespaceMeta struct {
-	ID         int32  `json:"namespace_id"`
+	ID         int64  `json:"namespace_id"`
 	Name       string `json:"name"`
 	Version    int64  `json:"version"`
 	UpdateTime uint32 `json:"update_time"`
 	DeleteTime uint32 `json:"delete_time"`
 
 	Weight  float64 `json:"weight"`
-	Visible bool    `json:"visible"`
+	Disable bool    `json:"disable"`
 
 	EffectiveWeight int64 `json:"-"`
 }
@@ -170,16 +171,14 @@ type DashboardMeta struct {
 
 // This struct is immutable, it is accessed by mapping code without any locking
 type MetricsGroup struct {
-	ID          int32  `json:"group_id"`
-	NamespaceID int32  `json:"namespace_id"`
+	ID          int64  `json:"group_id"`
+	NamespaceID int64  `json:"namespace_id"`
 	Name        string `json:"name"`
 	Version     int64  `json:"version"`
 	UpdateTime  uint32 `json:"update_time"`
 
-	Weight            float64 `json:"weight,omitempty"`
-	Visible           bool    `json:"visible,omitempty"`
-	Disable           bool    `json:"disable,omitempty"`
-	IsWeightEffective bool    `json:"is_weight_effective,omitempty"`
+	Weight  float64 `json:"weight,omitempty"`
+	Disable bool    `json:"disable,omitempty"`
 
 	EffectiveWeight int64          `json:"-"`
 	Namespace       *NamespaceMeta `json:"-"`
@@ -188,7 +187,7 @@ type MetricsGroup struct {
 // This struct is immutable, it is accessed by mapping code without any locking
 type MetricMetaValue struct {
 	MetricID    int32  `json:"metric_id"`
-	NamespaceID int32  `json:"namespace_id"`
+	NamespaceID int64  `json:"namespace_id"`
 	Name        string `json:"name"`
 	Version     int64  `json:"version,omitempty"`
 	UpdateTime  uint32 `json:"update_time"`
@@ -221,10 +220,9 @@ type MetricMetaValue struct {
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
 
 	// must be restored with RestoreInternalInfo
-	GroupID        int32          `json:"-"`
-	Group          *MetricsGroup  `json:"-"`
-	Namespace      *NamespaceMeta `json:"-"`
-	NamespacedName string         `json:"-"`
+	GroupID   int64          `json:"-"`
+	Group     *MetricsGroup  `json:"-"`
+	Namespace *NamespaceMeta `json:"-"`
 }
 
 type MetricMetaValueOld struct {
@@ -306,9 +304,6 @@ func (m *MetricMetaValue) setName2Tag(name string, sTag MetricMetaTag, canonical
 
 // Always restores maximum info, if error is returned, metric is non-canonical and should not be saved
 func (m *MetricMetaValue) RestoreCachedInfo() error {
-	if m.NamespacedName == "" {
-		m.NamespacedName = m.Name
-	}
 	var err error
 	if !ValidMetricName(mem.S(m.Name)) {
 		err = multierr.Append(err, fmt.Errorf("invalid metric name: %q", m.Name))
@@ -509,18 +504,32 @@ func (m *NamespaceMeta) RestoreCachedInfo() error {
 }
 
 func (m *MetricsGroup) MetricIn(metric *MetricMetaValue) bool {
-	if metric.NamespaceID != m.NamespaceID {
-		return false
-	}
-	return strings.HasPrefix(metric.Name, m.Name+"_")
+	return strings.HasPrefix(metric.Name, m.Name)
 }
 
 func ValidMetricName(s mem.RO) bool {
-	return validIdent(s)
+	if s.Len() == 0 || s.Len() > MaxStringLen || !isLetter(s.At(0)) {
+		return false
+	}
+	namespaceSepCount := 0
+	for i := 1; i < s.Len(); i++ {
+		c := s.At(i)
+		if c == NamespaceSeparatorRune {
+			if namespaceSepCount > 0 {
+				return false
+			}
+			namespaceSepCount++
+			continue
+		}
+		if !isLetter(c) && c != '_' && !(c >= '0' && c <= '9') {
+			return false
+		}
+	}
+	return true
 }
 
 func ValidGroupName(s string) bool {
-	return validIdent(mem.S(s))
+	return ValidMetricName(mem.S(s))
 }
 
 func ValidDashboardName(s string) bool {
@@ -964,10 +973,27 @@ func NamespaceName(namespace string, name string) string {
 	return namespace + NamespaceSeparator + name
 }
 
-func splitNamespace(metricName string) (string, string) {
+func SplitNamespace(metricName string) (string, string) {
 	ix := strings.Index(metricName, NamespaceSeparator)
 	if ix == -1 {
 		return metricName, ""
 	}
 	return metricName[ix+1:], metricName[:ix]
+}
+
+func EventTypeToName(typ int32) string {
+	switch typ {
+	case MetricEvent:
+		return "metric"
+	case DashboardEvent:
+		return "dashboard"
+	case MetricsGroupEvent:
+		return "group"
+	case PromConfigEvent:
+		return "prom-config"
+	case NamespaceEvent:
+		return "namespace"
+	default:
+		return "unknown"
+	}
 }

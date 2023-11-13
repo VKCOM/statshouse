@@ -9,7 +9,6 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-
 	format "github.com/vkcom/statshouse/internal/format"
 )
 
@@ -411,7 +410,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 		case "metric_id":
 			out.MetricID = int32(in.Int32())
 		case "namespace_id":
-			out.NamespaceID = int32(in.Int32())
+			out.NamespaceID = int64(in.Int64())
 		case "name":
 			out.Name = string(in.String())
 		case "version":
@@ -491,7 +490,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 	{
 		const prefix string = ",\"namespace_id\":"
 		out.RawString(prefix)
-		out.Int32(int32(in.NamespaceID))
+		out.Int64(int64(in.NamespaceID))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -1186,7 +1185,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Le
 		}
 		switch key {
 		case "namespace_id":
-			out.ID = int32(in.Int32())
+			out.ID = int64(in.Int64())
 		case "name":
 			out.Name = string(in.String())
 		case "version":
@@ -1197,8 +1196,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Le
 			out.DeleteTime = uint32(in.Uint32())
 		case "weight":
 			out.Weight = float64(in.Float64())
-		case "visible":
-			out.Visible = bool(in.Bool())
+		case "disable":
+			out.Disable = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -1216,7 +1215,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.
 	{
 		const prefix string = ",\"namespace_id\":"
 		out.RawString(prefix[1:])
-		out.Int32(int32(in.ID))
+		out.Int64(int64(in.ID))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -1244,9 +1243,9 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.
 		out.Float64(float64(in.Weight))
 	}
 	{
-		const prefix string = ",\"visible\":"
+		const prefix string = ",\"disable\":"
 		out.RawString(prefix)
-		out.Bool(bool(in.Visible))
+		out.Bool(bool(in.Disable))
 	}
 	out.RawByte('}')
 }
@@ -1361,9 +1360,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat3(in *jlexer.Le
 		}
 		switch key {
 		case "group_id":
-			out.ID = int32(in.Int32())
+			out.ID = int64(in.Int64())
 		case "namespace_id":
-			out.NamespaceID = int32(in.Int32())
+			out.NamespaceID = int64(in.Int64())
 		case "name":
 			out.Name = string(in.String())
 		case "version":
@@ -1372,12 +1371,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat3(in *jlexer.Le
 			out.UpdateTime = uint32(in.Uint32())
 		case "weight":
 			out.Weight = float64(in.Float64())
-		case "visible":
-			out.Visible = bool(in.Bool())
-		case "is_weight_effective":
-			out.IsWeightEffective = bool(in.Bool())
-		case "protected":
-			out.Protected = bool(in.Bool())
+		case "disable":
+			out.Disable = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -1395,12 +1390,12 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat3(out *jwriter.
 	{
 		const prefix string = ",\"group_id\":"
 		out.RawString(prefix[1:])
-		out.Int32(int32(in.ID))
+		out.Int64(int64(in.ID))
 	}
 	{
 		const prefix string = ",\"namespace_id\":"
 		out.RawString(prefix)
-		out.Int32(int32(in.NamespaceID))
+		out.Int64(int64(in.NamespaceID))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -1422,20 +1417,10 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat3(out *jwriter.
 		out.RawString(prefix)
 		out.Float64(float64(in.Weight))
 	}
-	if in.Visible {
-		const prefix string = ",\"visible\":"
+	if in.Disable {
+		const prefix string = ",\"disable\":"
 		out.RawString(prefix)
-		out.Bool(bool(in.Visible))
-	}
-	if in.IsWeightEffective {
-		const prefix string = ",\"is_weight_effective\":"
-		out.RawString(prefix)
-		out.Bool(bool(in.IsWeightEffective))
-	}
-	if in.Protected {
-		const prefix string = ",\"protected\":"
-		out.RawString(prefix)
-		out.Bool(bool(in.Protected))
+		out.Bool(bool(in.Disable))
 	}
 	out.RawByte('}')
 }
@@ -2058,7 +2043,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(in *jlexer.Lexe
 		}
 		switch key {
 		case "id":
-			out.Id = int32(in.Int32())
+			out.Id = int64(in.Int64())
 		case "name":
 			out.Name = string(in.String())
 		case "weight":
@@ -2080,7 +2065,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi12(out *jwriter.Wr
 	{
 		const prefix string = ",\"id\":"
 		out.RawString(prefix[1:])
-		out.Int32(int32(in.Id))
+		out.Int64(int64(in.Id))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -2464,7 +2449,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(in *jlexer.Lexe
 		}
 		switch key {
 		case "id":
-			out.Id = int32(in.Int32())
+			out.Id = int64(in.Int64())
 		case "name":
 			out.Name = string(in.String())
 		case "weight":
@@ -2486,7 +2471,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi18(out *jwriter.Wr
 	{
 		const prefix string = ",\"id\":"
 		out.RawString(prefix[1:])
-		out.Int32(int32(in.Id))
+		out.Int64(int64(in.Id))
 	}
 	{
 		const prefix string = ",\"name\":"
@@ -2875,7 +2860,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi23(in *jlexer.Lexe
 				in.Delim('[')
 				if out.Vars == nil {
 					if !in.IsDelim(']') {
-						out.Vars = make([]DashboardVar, 0, 1)
+						out.Vars = make([]DashboardVar, 0, 0)
 					} else {
 						out.Vars = []DashboardVar{}
 					}
@@ -3052,6 +3037,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi25(in *jlexer.Lexe
 			continue
 		}
 		switch key {
+		case "name":
+			out.Name = string(in.String())
 		case "args":
 			easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi27(in, &out.Args)
 		case "values":
@@ -3136,8 +3123,13 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi25(out *jwriter.Wr
 	first := true
 	_ = first
 	{
-		const prefix string = ",\"args\":"
+		const prefix string = ",\"name\":"
 		out.RawString(prefix[1:])
+		out.String(string(in.Name))
+	}
+	{
+		const prefix string = ",\"args\":"
+		out.RawString(prefix)
 		easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi27(out, in.Args)
 	}
 	{

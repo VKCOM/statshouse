@@ -7,18 +7,14 @@
 package api
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/vkcom/statshouse/internal/metajournal"
 
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-var nop = &accessManager{func(metaValue format.MetricMetaValue) format.MetricMetaValue {
-	return metaValue
-}}
+var nop = &accessManager{}
 
 func TestAccessInfo(t *testing.T) {
 	t.Run("view", func(t *testing.T) {
@@ -70,30 +66,11 @@ func TestAccessInfo(t *testing.T) {
 		t.Run("protected_metric_by_group", func(t *testing.T) {
 			ai := &accessInfo{
 				bitViewPrefix: map[string]bool{"foo_": true},
-				accessManager: &accessManager{func(metaValue format.MetricMetaValue) format.MetricMetaValue {
-					metaValue.Group = &format.MetricsGroup{
-						Name:      "foo",
-						Protected: true,
-					}
-					return metaValue
-				}},
+				accessManager: &accessManager{},
 			}
 			require.True(t, canViewMetric(ai, "foo_bar"))
 		})
 
-		t.Run("protected_metric_by_group", func(t *testing.T) {
-			ai := &accessInfo{
-				bitViewDefault: true,
-				accessManager: &accessManager{func(metaValue format.MetricMetaValue) format.MetricMetaValue {
-					metaValue.Group = &format.MetricsGroup{
-						Name:      "foo",
-						Protected: true,
-					}
-					return metaValue
-				}},
-			}
-			require.False(t, canViewMetric(ai, "foo_bar"))
-		})
 		t.Run("namespaced metric", func(t *testing.T) {
 			ai := &accessInfo{
 				bitViewMetric: map[string]bool{"foo_bar": true},
@@ -156,81 +133,31 @@ func TestAccessInfo(t *testing.T) {
 			}
 			require.True(t, canBasicEdit(&ai, "foo_bar", false))
 		})
-		t.Run("protected_metric_by_group", func(t *testing.T) {
-			ai := accessInfo{
-				bitEditPrefix: map[string]bool{"foo_": true},
-				accessManager: &accessManager{func(metaValue format.MetricMetaValue) format.MetricMetaValue {
-					metaValue.Group = &format.MetricsGroup{
-						Name:      "foo",
-						Protected: true,
-					}
-					return metaValue
-				}},
-			}
-			require.True(t, canBasicEdit(&ai, "foo_bar", true))
-		})
-
-		t.Run("protected_metric_by_group", func(t *testing.T) {
-			ai := accessInfo{
-				bitEditDefault: true,
-				accessManager: &accessManager{func(metaValue format.MetricMetaValue) format.MetricMetaValue {
-					metaValue.Group = &format.MetricsGroup{
-						Name:      "foo",
-						Protected: true,
-					}
-					return metaValue
-				}},
-			}
-			require.False(t, canBasicEdit(&ai, "foo_bar", true))
-		})
-
-		t.Run("protected_metric_by_group", func(t *testing.T) {
-			ai := accessInfo{
-				bitEditDefault: true,
-				accessManager: &accessManager{func(metaValue format.MetricMetaValue) format.MetricMetaValue {
-					metaValue.Group = &format.MetricsGroup{
-						Name:      "foo",
-						Protected: true,
-					}
-					return metaValue
-				}},
-			}
-			require.False(t, canBasicEdit(&ai, "foo_bar", true))
-		})
 
 		t.Run("protected_metric_by_group rename", func(t *testing.T) {
 			ai := accessInfo{
 				bitEditPrefix: map[string]bool{"foo_": true},
-				accessManager: &accessManager{func(metaValue format.MetricMetaValue) format.MetricMetaValue {
-					if strings.HasPrefix(metaValue.NamespacedName, "foo_") {
-						metaValue.Group = &format.MetricsGroup{
-							Name:      "foo",
-							Protected: true,
-						}
-					}
-					return metaValue
-				}},
+				accessManager: &accessManager{},
 			}
-			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc", NamespacedName: "abc"}, format.MetricMetaValue{Name: "foo_bar", NamespacedName: "foo_bar"}))
-			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar", NamespacedName: "foo_bar"}, format.MetricMetaValue{Name: "abc", NamespacedName: "abc"}))
-			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_buzz", NamespacedName: "foo_buzz"}, format.MetricMetaValue{Name: "foo_bar", NamespacedName: "foo_bar"}))
+			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc"}, format.MetricMetaValue{Name: "foo_bar"}))
+			require.False(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar"}, format.MetricMetaValue{Name: "abc"}))
+			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_buzz"}, format.MetricMetaValue{Name: "foo_bar"}))
 			ai.bitAdmin = true
-			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc", NamespacedName: "abc"}, format.MetricMetaValue{Name: "foo_bar", NamespacedName: "foo_bar"}))
-			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar", NamespacedName: "foo_bar"}, format.MetricMetaValue{Name: "abc", NamespacedName: "abc"}))
+			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "abc"}, format.MetricMetaValue{Name: "foo_bar"}))
+			require.True(t, ai.CanEditMetric(false, format.MetricMetaValue{Name: "foo_bar"}, format.MetricMetaValue{Name: "abc"}))
 		})
 	})
 }
 
 func canViewMetric(ai *accessInfo, metric string) bool {
-	return ai.CanViewMetric(format.MetricMetaValue{Name: metric, NamespacedName: metric})
+	return ai.CanViewMetric(format.MetricMetaValue{Name: metric})
 }
 
 func canViewMetricNamespaced(ai *accessInfo, metric, namespace string) bool {
-	m := format.MetricMetaValue{Name: metric}
-	m.NamespacedName = metajournal.NamespaceName(namespace, metric)
+	m := format.MetricMetaValue{Name: namespace + format.NamespaceSeparator + metric}
 	return ai.CanViewMetric(m)
 }
 
 func canBasicEdit(ai *accessInfo, metric string, create bool) bool {
-	return ai.CanEditMetric(create, format.MetricMetaValue{Name: metric, NamespacedName: metric}, format.MetricMetaValue{Name: metric, NamespacedName: metric})
+	return ai.CanEditMetric(create, format.MetricMetaValue{Name: metric}, format.MetricMetaValue{Name: metric})
 }

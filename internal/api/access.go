@@ -15,10 +15,7 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-// DON'T USE Name TO CHECK ACCESS. USE NamespacedName INSTEAD
-
 type accessManager struct {
-	loadInternalData func(metaValue format.MetricMetaValue) format.MetricMetaValue
 }
 
 type accessInfo struct {
@@ -98,12 +95,8 @@ func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
 }
 
 func (ai *accessInfo) protectedMetric(metric format.MetricMetaValue) bool {
-	group := metric.Group
-	if group != nil {
-		return group.Protected
-	}
 	for _, p := range ai.protectedPrefixes {
-		if strings.HasPrefix(metric.NamespacedName, p) {
+		if strings.HasPrefix(metric.Name, p) {
 			return true
 		}
 	}
@@ -117,8 +110,7 @@ func (ai *accessInfo) CanViewMetric(metric format.MetricMetaValue) bool {
 	if ai.insecureMode {
 		return true
 	}
-	metric = ai.accessManager.loadInternalData(metric)
-	name := metric.NamespacedName
+	name := metric.Name
 
 	return ai.bitViewMetric[name] ||
 		hasPrefixAccess(ai.bitViewPrefix, name) ||
@@ -141,8 +133,8 @@ func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaVa
 			return false
 		}
 	}
-	oldName := old.NamespacedName
-	newName := new_.NamespacedName
+	oldName := old.Name
+	newName := new_.Name
 
 	// we expect that oldName and newName both are in the same group
 	return ai.bitEditMetric[oldName] && ai.bitEditMetric[newName] ||
@@ -154,8 +146,6 @@ func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new
 	if ai.insecureMode {
 		return true
 	}
-	new_ = ai.accessManager.loadInternalData(new_)
-	old = ai.accessManager.loadInternalData(old)
 	if ai.canChangeMetricByName(create, old, new_) {
 		if ai.bitAdmin {
 			return true
@@ -169,7 +159,6 @@ func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new
 		if preKeyOnly(old) != preKeyOnly(new_) {
 			return false
 		}
-
 		if skips(old) != skips(new_) {
 			return false
 		}

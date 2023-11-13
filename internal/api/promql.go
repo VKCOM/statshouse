@@ -87,7 +87,7 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 		s = append(s, m.Name)
 	}
 	// TODO add namespace
-	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible, "") {
+	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
 		if ai.CanViewMetric(*v) {
 			s = append(s, v.Name)
 		}
@@ -285,7 +285,7 @@ func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]
 		}
 	}
 	// TODO add namespace
-	for _, m := range h.metricsStorage.GetMetaMetricList(h.showInvisible, "") {
+	for _, m := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
 		if err := fn(m); err != nil {
 			return nil, nil, err
 		}

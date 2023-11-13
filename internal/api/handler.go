@@ -103,6 +103,7 @@ const (
 	paramLegacyEngine = "legacy"
 	paramQueryType    = "qt"
 	paramDashboardID  = "id"
+	paramShowDisabled = "sd“"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -224,13 +225,13 @@ type (
 	}
 
 	groupShortInfo struct {
-		Id     int32   `json:"id"`
+		Id     int64   `json:"id"`
 		Name   string  `json:"name"`
 		Weight float64 `json:"weight"`
 	}
 
 	namespaceShortInfo struct {
-		Id     int32   `json:"id"`
+		Id     int64   `json:"id"`
 		Name   string  `json:"name"`
 		Weight float64 `json:"weight"`
 	}
@@ -572,7 +573,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		location:              location,
 		readOnly:              readOnly,
 		insecureMode:          insecureMode,
-		accessManager:         &accessManager{metricStorage.RestoreInternalInfo},
+		accessManager:         &accessManager{},
 		querySelectTimeout:    querySelectTimeout,
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
@@ -911,7 +912,8 @@ func formValueParamMetric(r *http.Request) string {
 	if strings.HasPrefix(str, formerBuiltin) {
 		str = "__" + str[len(formerBuiltin):]
 	}
-	return str
+	ns := r.FormValue(ParamNamespace)
+	return mergeMetricNamespace(ns, str)
 }
 
 func (h *Handler) resolveFilter(metricMeta *format.MetricMetaValue, version string, f map[string][]string) (map[string][]interface{}, error) {
@@ -1007,11 +1009,11 @@ func (h *Handler) HandleGetMetricsList(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	resp, cache, err := h.handleGetMetricsList(ai, r.FormValue(ParamNamespace))
+	resp, cache, err := h.handleGetMetricsList(ai)
 	respondJSON(w, resp, cache, queryClientCacheStale, err, h.verbose, ai.user, sl)
 }
 
-func (h *Handler) handleGetMetricsList(ai accessInfo, namespace string) (*GetMetricsListResp, time.Duration, error) {
+func (h *Handler) handleGetMetricsList(ai accessInfo) (*GetMetricsListResp, time.Duration, error) {
 	ret := &GetMetricsListResp{
 		Metrics: []metricShortInfo{},
 	}
@@ -1021,7 +1023,7 @@ func (h *Handler) handleGetMetricsList(ai accessInfo, namespace string) (*GetMet
 		}
 		ret.Metrics = append(ret.Metrics, metricShortInfo{Name: m.Name})
 	}
-	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible, namespace) {
+	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
 		if ai.CanViewMetric(*v) {
 			ret.Metrics = append(ret.Metrics, metricShortInfo{Name: v.Name})
 		}
@@ -1214,18 +1216,18 @@ func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
 	}{event.Version}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
 }
 
-func (h *Handler) handleGetMetric(ai accessInfo, metricWithNamespace string, metricIDStr string) (*MetricInfo, time.Duration, error) {
+func (h *Handler) handleGetMetric(ai accessInfo, metricName string, metricIDStr string) (*MetricInfo, time.Duration, error) {
 	if metricIDStr != "" {
 		metricID, err := strconv.ParseInt(metricIDStr, 10, 32)
 		if err != nil {
 			return nil, 0, fmt.Errorf("can't parse %s", metricIDStr)
 		}
-		metricWithNamespace = h.getMetricNameByID(int32(metricID))
-		if metricWithNamespace == "" {
+		metricName = h.getMetricNameByID(int32(metricID))
+		if metricName == "" {
 			return nil, 0, fmt.Errorf("can't find metric %d", metricID)
 		}
 	}
-	v, err := h.getMetricMeta(ai, metricWithNamespace)
+	v, err := h.getMetricMeta(ai, metricName)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1264,7 +1266,7 @@ func (h *Handler) handleGetDashboard(ai accessInfo, id int32) (*DashboardInfo, t
 	return &DashboardInfo{Dashboard: getDashboardMetaInfo(dash)}, defaultCacheTTL, nil
 }
 
-func (h *Handler) handleGetDashboardList(ai accessInfo) (*GetDashboardListResp, time.Duration, error) {
+func (h *Handler) handleGetDashboardList(ai accessInfo, showInvisible bool) (*GetDashboardListResp, time.Duration, error) {
 	dashs := h.metricsStorage.GetDashboardList()
 	for _, meta := range format.BuiltinDashboardByID {
 		dashs = append(dashs, meta)
@@ -1319,7 +1321,7 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 	return &DashboardInfo{Dashboard: getDashboardMetaInfo(&dashboard)}, nil
 }
 
-func (h *Handler) handleGetGroup(ai accessInfo, id int32) (*MetricsGroupInfo, time.Duration, error) {
+func (h *Handler) handleGetGroup(ai accessInfo, id int64) (*MetricsGroupInfo, time.Duration, error) {
 	group, ok := h.metricsStorage.GetGroupWithMetricsList(id)
 	if !ok {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("group %d not found", id))
@@ -1327,8 +1329,8 @@ func (h *Handler) handleGetGroup(ai accessInfo, id int32) (*MetricsGroupInfo, ti
 	return &MetricsGroupInfo{Group: *group.Group, Metrics: group.Metrics}, defaultCacheTTL, nil
 }
 
-func (h *Handler) handleGetGroupsList(ai accessInfo) (*GetGroupListResp, time.Duration, error) {
-	groups := h.metricsStorage.GetGroupsList()
+func (h *Handler) handleGetGroupsList(ai accessInfo, showInvisible bool) (*GetGroupListResp, time.Duration, error) {
+	groups := h.metricsStorage.GetGroupsList(showInvisible)
 	resp := &GetGroupListResp{}
 	for _, group := range groups {
 		resp.Groups = append(resp.Groups, groupShortInfo{
@@ -1340,7 +1342,7 @@ func (h *Handler) handleGetGroupsList(ai accessInfo) (*GetGroupListResp, time.Du
 	return resp, defaultCacheTTL, nil
 }
 
-func (h *Handler) handleGetNamespace(ai accessInfo, id int32) (*NamespaceInfo, time.Duration, error) {
+func (h *Handler) handleGetNamespace(ai accessInfo, id int64) (*NamespaceInfo, time.Duration, error) {
 	namespace := h.metricsStorage.GetNamespace(id)
 	if namespace == nil {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("namespace %d not found", id))
@@ -1348,7 +1350,7 @@ func (h *Handler) handleGetNamespace(ai accessInfo, id int32) (*NamespaceInfo, t
 	return &NamespaceInfo{Namespace: *namespace}, defaultCacheTTL, nil
 }
 
-func (h *Handler) handleGetNamespaceList(ai accessInfo) (*GetNamespaceListResp, time.Duration, error) {
+func (h *Handler) handleGetNamespaceList(ai accessInfo, showInvisible bool) (*GetNamespaceListResp, time.Duration, error) {
 	namespaces := h.metricsStorage.GetNamespaceList()
 	var namespacesResp []namespaceShortInfo
 	for _, namespace := range namespaces {
@@ -2806,20 +2808,25 @@ func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetGroup(w http.ResponseWriter, r *http.Request) {
-	HandleGetEntity(w, r, h, EndpointGroup, h.handleGetGroup)
+	HandleGetEntity(w, r, h, EndpointGroup, func(ai accessInfo, id int32) (*MetricsGroupInfo, time.Duration, error) {
+		return h.handleGetGroup(ai, int64(id))
+	})
 }
 
 func (h *Handler) HandleGetNamespace(w http.ResponseWriter, r *http.Request) {
-	HandleGetEntity(w, r, h, EndpointNamespace, h.handleGetNamespace)
+	HandleGetEntity(w, r, h, EndpointNamespace, func(ai accessInfo, id int32) (*NamespaceInfo, time.Duration, error) {
+		return h.handleGetNamespace(ai, int64(id))
+	})
 }
 
-func HandleGetEntityList[T any](w http.ResponseWriter, r *http.Request, h *Handler, endpointName string, handle func(ai accessInfo) (T, time.Duration, error)) {
+func HandleGetEntityList[T any](w http.ResponseWriter, r *http.Request, h *Handler, endpointName string, handle func(ai accessInfo, showInvisible bool) (T, time.Duration, error)) {
 	sl := newEndpointStat(endpointName, r.Method, 0, "")
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
 	}
-	resp, cache, err := handle(ai)
+	sd := r.URL.Query().Has(paramShowDisabled)
+	resp, cache, err := handle(ai, sd)
 	respondJSON(w, resp, cache, 0, err, h.verbose, ai.user, sl)
 }
 
@@ -3976,7 +3983,8 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			if strings.HasPrefix(name, formerBuiltin) {
 				name = "__" + name[len(formerBuiltin):]
 			}
-			t.metricWithNamespace = name
+			ns := r.FormValue(ParamNamespace)
+			t.metricWithNamespace = mergeMetricNamespace(ns, name)
 		case ParamNumResults:
 			t.strNumResults = first(v)
 		case ParamQueryBy:
@@ -4185,4 +4193,11 @@ func (r *seriesRequest) validate(ai accessInfo) error {
 		}
 	}
 	return nil
+}
+
+func mergeMetricNamespace(namespace string, metric string) string {
+	if strings.Contains(namespace, format.NamespaceSeparator) {
+		return metric
+	}
+	return format.NamespaceName(namespace, metric)
 }
