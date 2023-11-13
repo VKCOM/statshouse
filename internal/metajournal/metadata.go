@@ -135,7 +135,7 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 	g.Version = event.Version
 	g.Name = event.Name
 	g.UpdateTime = event.UpdateTime
-	g.ID = event.Id
+	g.ID = int32(event.Id)
 	return g, nil
 }
 
@@ -180,7 +180,7 @@ func (l *MetricMetaLoader) SaveNamespace(ctx context.Context, value format.Names
 	g.Version = event.Version
 	g.Name = event.Name
 	g.UpdateTime = event.UpdateTime
-	g.ID = event.Id
+	g.ID = int32(event.Id)
 	return g, nil
 }
 

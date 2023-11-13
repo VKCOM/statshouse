@@ -227,13 +227,13 @@ type (
 	}
 
 	groupShortInfo struct {
-		Id     int64   `json:"id"`
+		Id     int32   `json:"id"`
 		Name   string  `json:"name"`
 		Weight float64 `json:"weight"`
 	}
 
 	namespaceShortInfo struct {
-		Id     int64   `json:"id"`
+		Id     int32   `json:"id"`
 		Name   string  `json:"name"`
 		Weight float64 `json:"weight"`
 	}
@@ -1323,7 +1323,7 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 	return &DashboardInfo{Dashboard: getDashboardMetaInfo(&dashboard)}, nil
 }
 
-func (h *Handler) handleGetGroup(ai accessInfo, id int64) (*MetricsGroupInfo, time.Duration, error) {
+func (h *Handler) handleGetGroup(ai accessInfo, id int32) (*MetricsGroupInfo, time.Duration, error) {
 	group, ok := h.metricsStorage.GetGroupWithMetricsList(id)
 	if !ok {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("group %d not found", id))
@@ -1344,7 +1344,7 @@ func (h *Handler) handleGetGroupsList(ai accessInfo, showInvisible bool) (*GetGr
 	return resp, defaultCacheTTL, nil
 }
 
-func (h *Handler) handleGetNamespace(ai accessInfo, id int64) (*NamespaceInfo, time.Duration, error) {
+func (h *Handler) handleGetNamespace(ai accessInfo, id int32) (*NamespaceInfo, time.Duration, error) {
 	namespace := h.metricsStorage.GetNamespace(id)
 	if namespace == nil {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("namespace %d not found", id))
@@ -2847,13 +2847,13 @@ func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) HandleGetGroup(w http.ResponseWriter, r *http.Request) {
 	HandleGetEntity(w, r, h, EndpointGroup, func(ai accessInfo, id int32) (*MetricsGroupInfo, time.Duration, error) {
-		return h.handleGetGroup(ai, int64(id))
+		return h.handleGetGroup(ai, id)
 	})
 }
 
 func (h *Handler) HandleGetNamespace(w http.ResponseWriter, r *http.Request) {
 	HandleGetEntity(w, r, h, EndpointNamespace, func(ai accessInfo, id int32) (*NamespaceInfo, time.Duration, error) {
-		return h.handleGetNamespace(ai, int64(id))
+		return h.handleGetNamespace(ai, id)
 	})
 }
 

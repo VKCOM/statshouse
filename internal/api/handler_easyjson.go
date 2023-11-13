@@ -410,7 +410,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 		case "metric_id":
 			out.MetricID = int32(in.Int32())
 		case "namespace_id":
-			out.NamespaceID = int64(in.Int64())
+			out.NamespaceID = int32(in.Int32())
 		case "name":
 			out.Name = string(in.String())
 		case "version":
@@ -1185,7 +1185,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Le
 		}
 		switch key {
 		case "namespace_id":
-			out.ID = int64(in.Int64())
+			out.ID = int32(in.Int32())
 		case "name":
 			out.Name = string(in.String())
 		case "version":
@@ -1360,9 +1360,9 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat3(in *jlexer.Le
 		}
 		switch key {
 		case "group_id":
-			out.ID = int64(in.Int64())
+			out.ID = int32(in.Int32())
 		case "namespace_id":
-			out.NamespaceID = int64(in.Int64())
+			out.NamespaceID = int32(in.Int32())
 		case "name":
 			out.Name = string(in.String())
 		case "version":
@@ -2043,7 +2043,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi12(in *jlexer.Lexe
 		}
 		switch key {
 		case "id":
-			out.Id = int64(in.Int64())
+			out.Id = int32(in.Int32())
 		case "name":
 			out.Name = string(in.String())
 		case "weight":
@@ -2449,7 +2449,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(in *jlexer.Lexe
 		}
 		switch key {
 		case "id":
-			out.Id = int64(in.Int64())
+			out.Id = int32(in.Int32())
 		case "name":
 			out.Name = string(in.String())
 		case "weight":

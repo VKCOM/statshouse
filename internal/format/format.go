@@ -120,7 +120,7 @@ type MetaStorageInterface interface { // agent uses this to avoid circular depen
 	StateHash() string
 	GetMetaMetric(metricID int32) *MetricMetaValue
 	GetMetaMetricByName(metricName string) *MetricMetaValue
-	GetGroup(id int64) *MetricsGroup
+	GetGroup(id int32) *MetricsGroup
 }
 
 // This struct is immutable, it is accessed by mapping code without any locking
@@ -146,7 +146,7 @@ const (
 )
 
 type NamespaceMeta struct {
-	ID         int64  `json:"namespace_id"`
+	ID         int32  `json:"namespace_id"`
 	Name       string `json:"name"`
 	Version    int64  `json:"version"`
 	UpdateTime uint32 `json:"update_time"`
@@ -171,8 +171,8 @@ type DashboardMeta struct {
 
 // This struct is immutable, it is accessed by mapping code without any locking
 type MetricsGroup struct {
-	ID          int64  `json:"group_id"`
-	NamespaceID int64  `json:"namespace_id"`
+	ID          int32  `json:"group_id"`
+	NamespaceID int32  `json:"namespace_id"`
 	Name        string `json:"name"`
 	Version     int64  `json:"version"`
 	UpdateTime  uint32 `json:"update_time"`
@@ -187,7 +187,7 @@ type MetricsGroup struct {
 // This struct is immutable, it is accessed by mapping code without any locking
 type MetricMetaValue struct {
 	MetricID    int32  `json:"metric_id"`
-	NamespaceID int64  `json:"namespace_id"`
+	NamespaceID int32  `json:"namespace_id"` // RO
 	Name        string `json:"name"`
 	Version     int64  `json:"version,omitempty"`
 	UpdateTime  uint32 `json:"update_time"`
@@ -219,7 +219,7 @@ type MetricMetaValue struct {
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
 
-	GroupID   int64          `json:"-"`
+	GroupID   int32          `json:"-"`
 	Group     *MetricsGroup  `json:"-"`
 	Namespace *NamespaceMeta `json:"-"`
 }
