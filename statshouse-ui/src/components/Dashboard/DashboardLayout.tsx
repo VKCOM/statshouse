@@ -31,6 +31,7 @@ import { PlotParams } from '../../url/queryParams';
 import { toNumber } from '../../common/helpers';
 import { useResizeObserver } from '../../view/utils';
 import { Button } from '../UI';
+import { DashboardPlotWrapper } from './DashboardPlotWrapper';
 
 function getStylePreview(
   targetRect: DOMRect,
@@ -424,7 +425,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                   )}
                 >
                   {plots.map(({ plot, indexPlot, selected }) => (
-                    <div
+                    <DashboardPlotWrapper
                       key={indexPlot}
                       className={cn(
                         'plot-item p-1',
@@ -446,7 +447,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                         dashboard={true}
                         group="1"
                       />
-                    </div>
+                    </DashboardPlotWrapper>
                   ))}
                 </div>
               </div>
