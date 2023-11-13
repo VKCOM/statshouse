@@ -96,27 +96,30 @@ func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	return ai, nil
 }
 
-func (ai *accessInfo) protectedMetric(metric format.MetricMetaValue) bool {
+func (ai *accessInfo) protectedMetric(name string) bool {
 	for _, p := range ai.protectedPrefixes {
-		if strings.HasPrefix(metric.Name, p) {
+		if strings.HasPrefix(name, p) {
 			return true
 		}
 	}
 	return false
 }
 
-func (ai *accessInfo) CanViewMetric(metric format.MetricMetaValue) bool {
-	if metric.Name == format.BuiltinMetricNameBadges && ai.skipBadgesValidation {
+func (ai *accessInfo) CanViewMetricName(name string) bool {
+	if name == format.BuiltinMetricNameBadges && ai.skipBadgesValidation {
 		return true
 	}
 	if ai.insecureMode {
 		return true
 	}
-	name := metric.Name
 
 	return ai.bitViewMetric[name] ||
 		hasPrefixAccess(ai.bitViewPrefix, name) ||
-		(ai.bitViewDefault && !ai.protectedMetric(metric))
+		(ai.bitViewDefault && !ai.protectedMetric(name))
+}
+
+func (ai *accessInfo) CanViewMetric(metric format.MetricMetaValue) bool {
+	return ai.CanViewMetricName(metric.Name)
 }
 
 func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
@@ -141,7 +144,7 @@ func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaVa
 	// we expect that oldName and newName both are in the same group
 	return ai.bitEditMetric[oldName] && ai.bitEditMetric[newName] ||
 		(hasPrefixAccess(ai.bitEditPrefix, oldName) && hasPrefixAccess(ai.bitEditPrefix, newName)) ||
-		(ai.bitEditDefault && !ai.protectedMetric(old) && !ai.protectedMetric(new_))
+		(ai.bitEditDefault && !ai.protectedMetric(oldName) && !ai.protectedMetric(newName))
 }
 
 func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {

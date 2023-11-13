@@ -392,11 +392,11 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	resPos := len(res)
 	for k, v := range samplerStat.Items {
 		// keep bytes
-		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, key1, format.TagValueIDSamplingDecisionKeep, k[0], k[1], k[2]}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, key1, format.TagValueIDSamplingDecisionKeep, int32(k[0]), int32(k[1]), int32(k[2])}, a.aggregatorHost, a.shardKey, a.replicaKey)
 		mi := data_model.MultiItem{Tail: data_model.MultiValue{Value: v.SumSizeKeep}}
 		insertItem(key, &mi, 1)
 		// discard bytes
-		key = data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, key1, format.TagValueIDSamplingDecisionDiscard, k[0], k[1], k[2]}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		key = data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, key1, format.TagValueIDSamplingDecisionDiscard, int32(k[0]), int32(k[1]), int32(k[2])}, a.aggregatorHost, a.shardKey, a.replicaKey)
 		mi = data_model.MultiItem{Tail: data_model.MultiValue{Value: v.SumSizeDiscard}}
 		insertItem(key, &mi, 1)
 	}

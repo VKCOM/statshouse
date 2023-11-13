@@ -168,7 +168,7 @@ func (ms *MetricsStorage) GetGroupsList(showInvisible bool) []*format.MetricsGro
 	defer ms.mu.RUnlock()
 	var groups []*format.MetricsGroup
 	for _, v := range ms.groupsByID {
-		if !v.Disable && !showInvisible {
+		if v.Disable && !showInvisible {
 			continue
 		}
 		groups = append(groups, v)
@@ -191,15 +191,6 @@ func (ms *MetricsStorage) GetNamespaceList() []*format.NamespaceMeta {
 	}
 	return namespaces
 }
-
-//func (ms *MetricsStorage) RestoreInternalInfo(metric format.MetricMetaValue) format.MetricMetaValue {
-//	group := ms.GetM(metric.Name)
-//	metric.Group = group
-//	if group != nil {
-//		metric.GroupID = group.ID
-//	}
-//	return metric
-//}
 
 func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	// This code operates on immutable structs, it should not change any stored object, except of map
@@ -411,11 +402,4 @@ func (ms *MetricsStorage) canAddOrChangeGroupLocked(name string, id int64) bool 
 		}
 	}
 	return true
-}
-
-func namespaceID(namespace *format.NamespaceMeta) int64 {
-	if namespace == nil {
-		return 0
-	}
-	return namespace.ID
 }

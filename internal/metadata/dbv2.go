@@ -38,8 +38,6 @@ type DBV2 struct {
 
 	globalBudget          int64
 	lastMappingIDToInsert int32
-
-	namespaces map[int64]string
 }
 
 type Options struct {
@@ -181,32 +179,7 @@ func OpenDB(
 		lastTimeCommit: opt.Now(),
 	}
 
-	err = loadNamespaces(db)
-	if err != nil {
-		return nil, err
-	}
 	return db, nil
-}
-
-func loadNamespaces(db *DBV2) error {
-	namespaces := map[int64]string{}
-	err := db.eng.Do(context.Background(), "preload_namespace", func(conn sqlite.Conn, bytes []byte) ([]byte, error) {
-		rows := conn.Query("select_namespace", "SELECT id, name FROM metrics_v5 WHERE type = $type", sqlite.Int64("$type", int64(format.NamespaceEvent)))
-		for rows.Next() {
-			id, _ := rows.ColumnInt64(0)
-			name, err := rows.ColumnBlobString(1)
-			if err != nil {
-				return nil, err
-			}
-			namespaces[id] = name
-		}
-		return nil, rows.Error()
-	})
-	if err != nil {
-		return err
-	}
-	db.namespaces = namespaces
-	return nil
 }
 
 func loadNamespace(conn sqlite.Conn, id int64, version int64) (string, error) {

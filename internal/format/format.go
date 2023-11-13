@@ -219,7 +219,6 @@ type MetricMetaValue struct {
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
 
-	// must be restored with RestoreInternalInfo
 	GroupID   int64          `json:"-"`
 	Group     *MetricsGroup  `json:"-"`
 	Namespace *NamespaceMeta `json:"-"`

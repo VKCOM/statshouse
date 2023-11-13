@@ -418,7 +418,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	if ai == nil {
 		panic("metric access violation") // should not happen
 	}
-	if !ai.canViewMetric(qry.Metric.Name) {
+	if !ai.CanViewMetricName(qry.Metric.Name) {
 		return promql.Series{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
 	}
 	var (

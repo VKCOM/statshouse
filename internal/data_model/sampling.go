@@ -77,7 +77,7 @@ type (
 	SamplerStatistics struct {
 		Count   int                                 // number of metrics with SF > 1
 		Steps   []SamplerStep                       // steps contributed to "Count"
-		Items   map[[3]int32]*SamplerStatisticsItem // grouped by [namespace, group, metric_kind]
+		Items   map[[3]int64]*SamplerStatisticsItem // grouped by [namespace, group, metric_kind]
 		Metrics map[int32]int                       // series count grouped by metric
 	}
 
@@ -150,7 +150,7 @@ func (h *Sampler) Run(budgetNum, budgetDenom int64) SamplerStatistics {
 		return lhs.fairKey < rhs.fairKey
 	})
 	stat := SamplerStatistics{
-		Items:   map[[3]int32]*SamplerStatisticsItem{},
+		Items:   map[[3]int64]*SamplerStatisticsItem{},
 		Metrics: map[int32]int{},
 	}
 	h.run(h.items, 0, budgetNum, budgetDenom, &stat)
@@ -293,7 +293,7 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 }
 
 func (stat *SamplerStatistics) add(p *SamplingMultiItemPair, keep bool) {
-	var metricKind int32
+	var metricKind int64
 	switch {
 	case p.Item.Tail.ValueTDigest != nil:
 		metricKind = format.TagValueIDSizePercentiles
@@ -304,7 +304,7 @@ func (stat *SamplerStatistics) add(p *SamplingMultiItemPair, keep bool) {
 	default:
 		metricKind = format.TagValueIDSizeCounter
 	}
-	k := [3]int32{p.metric.NamespaceID, p.metric.GroupID, metricKind}
+	k := [3]int64{p.metric.NamespaceID, p.metric.GroupID, metricKind}
 	v := stat.Items[k]
 	if v == nil {
 		v = &SamplerStatisticsItem{}
