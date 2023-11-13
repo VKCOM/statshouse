@@ -15,9 +15,6 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-type accessManager struct {
-}
-
 type accessInfo struct {
 	user                 string
 	service              bool
@@ -32,10 +29,9 @@ type accessInfo struct {
 	bitViewMetric        map[string]bool
 	bitEditMetric        map[string]bool
 	skipBadgesValidation bool
-	accessManager        *accessManager
 }
 
-func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
+func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	accessToken string,
 	protectedPrefixes []string,
 	localMode bool,
@@ -51,7 +47,6 @@ func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
 			bitViewMetric:     map[string]bool{},
 			bitEditMetric:     map[string]bool{},
 			insecureMode:      insecureMode,
-			accessManager:     m,
 		}
 		return ai, nil
 	}
@@ -68,7 +63,6 @@ func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
 		bitViewMetric:     map[string]bool{},
 		bitEditMetric:     map[string]bool{},
 		insecureMode:      insecureMode,
-		accessManager:     m,
 	}
 
 	bits := data.Bits

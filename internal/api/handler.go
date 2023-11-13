@@ -104,7 +104,7 @@ const (
 	paramLegacyEngine = "legacy"
 	paramQueryType    = "qt"
 	paramDashboardID  = "id"
-	paramShowDisabled = "sd“"
+	paramShowDisabled = "sd"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -192,7 +192,6 @@ type (
 		rmID                  int
 		promEngine            promql.Engine
 		promEngineOn          bool
-		accessManager         *accessManager
 		querySelectTimeout    time.Duration
 	}
 
@@ -575,7 +574,6 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		location:              location,
 		readOnly:              readOnly,
 		insecureMode:          insecureMode,
-		accessManager:         &accessManager{},
 		querySelectTimeout:    querySelectTimeout,
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
@@ -993,7 +991,7 @@ func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) parseAccessToken(w http.ResponseWriter, r *http.Request, es *endpointStat) (accessInfo, bool) {
-	ai, err := h.accessManager.parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedPrefixes, h.localMode, h.insecureMode)
+	ai, err := parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedPrefixes, h.localMode, h.insecureMode)
 	if es != nil {
 		es.setTokenName(ai.user)
 	}
