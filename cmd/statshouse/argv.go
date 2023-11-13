@@ -125,27 +125,7 @@ func argvAddCommonFlags() {
 }
 
 func argvAddAgentFlags(legacyVerb bool) {
-	flag.IntVar(&argv.configAgent.SampleBudget, "sample-budget", agent.DefaultConfig().SampleBudget, "Statshouse will sample all buckets to contain max this number of bytes.")
-	flag.Int64Var(&argv.configAgent.MaxHistoricDiskSize, "max-disk-size", agent.DefaultConfig().MaxHistoricDiskSize, "Statshouse will use no more than this amount of disk space for storing historic data.")
-	flag.IntVar(&argv.configAgent.SkipShards, "skip-shards", agent.DefaultConfig().SkipShards, "Skip first shards during sharding. When extending cluster, helps prevent filling disks of already full shards.")
-
-	flag.IntVar(&argv.configAgent.StringTopCapacity, "string-top-capacity", agent.DefaultConfig().StringTopCapacity, "How many different strings per key is stored in string tops.")
-	flag.IntVar(&argv.configAgent.StringTopCountSend, "string-top-send", agent.DefaultConfig().StringTopCountSend, "How many different strings per key is sent in string tops.")
-
-	flag.IntVar(&argv.configAgent.LivenessResponsesWindowLength, "liveness-window", agent.DefaultConfig().LivenessResponsesWindowLength, "windows size (seconds) to use for liveness checks. Aggregator is live again if all keepalives in window are successes.")
-	flag.IntVar(&argv.configAgent.LivenessResponsesWindowSuccesses, "liveness-success", agent.DefaultConfig().LivenessResponsesWindowSuccesses, "For liveness checks. Aggregator is dead if less responses in window are successes.")
-	flag.DurationVar(&argv.configAgent.KeepAliveSuccessTimeout, "keep-alive-timeout", agent.DefaultConfig().KeepAliveSuccessTimeout, "For liveness checks. Successful keepalive must take less.")
-
-	flag.BoolVar(&argv.configAgent.SaveSecondsImmediately, "save-seconds-immediately", agent.DefaultConfig().SaveSecondsImmediately, "Save data to disk as soon as second is ready. When false, data is saved after first unsuccessful send.")
-	flag.StringVar(&argv.configAgent.StatsHouseEnv, "statshouse-env", agent.DefaultConfig().StatsHouseEnv, "Fill key0 with this value in built-in statistics. Only 'production' and 'staging' values are allowed.")
-
-	flag.BoolVar(&argv.configAgent.RemoteWriteEnabled, "remote-write-enabled", agent.DefaultConfig().RemoteWriteEnabled, "Serve prometheus remote write endpoint.")
-	flag.StringVar(&argv.configAgent.RemoteWriteAddr, "remote-write-addr", agent.DefaultConfig().RemoteWriteAddr, "Prometheus remote write listen address.")
-	flag.StringVar(&argv.configAgent.RemoteWritePath, "remote-write-path", agent.DefaultConfig().RemoteWritePath, "Prometheus remote write path.")
-	if !legacyVerb { // TODO - remove
-		flag.BoolVar(&argv.configAgent.AutoCreate, "auto-create", agent.DefaultConfig().AutoCreate, "Enable metric auto-create.")
-	}
-
+	argv.configAgent.Bind(flag.CommandLine, agent.DefaultConfig())
 	flag.StringVar(&argv.listenAddr, "p", ":13337", "RAW UDP & RPC TCP listen address")
 
 	flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
