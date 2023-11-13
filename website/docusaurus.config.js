@@ -10,7 +10,7 @@ import {themes as prismThemes} from 'prism-react-renderer';
 const config = {
   title: 'StatsHouse',
   tagline: 'A highly-available, scalable, multi-tenant monitoring system',
-//  favicon: 'img/favicon.ico',
+  favicon: 'img/statshouse.ico',
 
   // Set the production url of your site here
   url: 'https://github.com',
@@ -75,10 +75,10 @@ const config = {
       image: 'img/docusaurus-social-card.jpg',
       navbar: {
         title: 'StatsHouse',
-//        logo: {
-//          alt: 'StatsHouse Logo',
-//          src: 'img/logo.svg',
-//        },
+        logo: {
+          alt: 'StatsHouse Logo',
+          src: 'img/statshouse.jpeg',
+        },
         items: [
           {
             type: 'docSidebar',
