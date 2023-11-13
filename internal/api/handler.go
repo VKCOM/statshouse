@@ -226,9 +226,10 @@ type (
 	}
 
 	groupShortInfo struct {
-		Id     int32   `json:"id"`
-		Name   string  `json:"name"`
-		Weight float64 `json:"weight"`
+		Id      int32   `json:"id"`
+		Name    string  `json:"name"`
+		Weight  float64 `json:"weight"`
+		Disable bool    `json:"disable"`
 	}
 
 	namespaceShortInfo struct {
@@ -1334,9 +1335,10 @@ func (h *Handler) handleGetGroupsList(ai accessInfo, showInvisible bool) (*GetGr
 	resp := &GetGroupListResp{}
 	for _, group := range groups {
 		resp.Groups = append(resp.Groups, groupShortInfo{
-			Id:     group.ID,
-			Name:   group.Name,
-			Weight: group.Weight,
+			Id:      group.ID,
+			Name:    group.Name,
+			Weight:  group.Weight,
+			Disable: group.Disable,
 		})
 	}
 	return resp, defaultCacheTTL, nil
@@ -1411,7 +1413,12 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 		}
 		return &MetricsGroupInfo{}, errReturn
 	}
-	return &MetricsGroupInfo{Group: group}, nil
+	err = h.waitVersionUpdate(ctx, group.Version)
+	if err != nil {
+		return &MetricsGroupInfo{}, err
+	}
+	info, _ := h.metricsStorage.GetGroupWithMetricsList(group.ID)
+	return &MetricsGroupInfo{Group: group, Metrics: info.Metrics}, nil
 }
 
 // TODO - remove metric name from request
