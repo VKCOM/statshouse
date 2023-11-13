@@ -160,7 +160,10 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         prev.tabNum = 0;
         prev.plots = [plot].filter(Boolean);
         prev.tagSync = [];
-        prev.variables = [];
+        prev.variables =
+          plot.metricName === promQLMetric
+            ? prev.variables.filter((v) => plot.promQL.indexOf(v.name) > -1).map((v) => ({ ...v, link: [] }))
+            : [];
       })
     );
     return `${document.location.protocol}//${document.location.host}${document.location.pathname}?${fixMessageTrouble(
