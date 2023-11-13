@@ -8,16 +8,12 @@ package metadata
 
 import (
 	"fmt"
-	"log"
 	"time"
-
-	"github.com/pkg/errors"
-
-	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/sqlite"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/sqlite"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 
@@ -182,34 +178,29 @@ func OpenDB(
 		now:            opt.Now,
 		lastTimeCommit: opt.Now(),
 	}
-	if opt.Migration {
-		migrationID := "migration_v4"
-		err = db.eng.Do(context.Background(), "migration", func(conn sqlite.Conn, bytes []byte) ([]byte, error) {
-			rows := conn.Query("check_migration", fmt.Sprintf("SELECT name from property where name = '%s'", migrationID))
-			if rows.Next() {
-				return nil, nil
-			}
-			if rows.Error() != nil {
-				return nil, rows.Error()
-			}
-			rows = conn.Query("migration_select", "SELECT id,name,version,updated_at,deleted_at,data,type FROM metrics_v4")
-			if rows.Error() != nil {
-				return nil, fmt.Errorf("failed to select metrics_v4: %w", err)
-			}
-			q := `INSERT INTO metrics_v5 (namespace_id, id, data, name, updated_at, deleted_at, type, version)
-			SELECT 0, id, cast(data as TEXT), cast(name as TEXT), updated_at, deleted_at, type, version FROM metrics_v4;`
-			_, err := conn.Exec("insert_entity", q)
-			if err != nil {
-				return nil, fmt.Errorf("failed to insert entity: %w", err)
-			}
-			_, err = conn.Exec("finish_migration", fmt.Sprintf("INSERT INTO property (name, data) VALUES ('%s', '')", migrationID))
-			return nil, err
-		})
-		if err != nil {
-			log.Panic(err)
-		}
-	}
+
 	return db, nil
+}
+
+func loadNamespace(conn sqlite.Conn, id int64, version int64) (string, error) {
+	rows := conn.Query("select_namespace", "SELECT name FROM metrics_v5 WHERE type = $type AND id = $id AND version = $version",
+		sqlite.Int64("$type", int64(format.NamespaceEvent)),
+		sqlite.Int64("$id", id),
+		sqlite.Int64("$version", version),
+	)
+	if rows.Next() {
+		name, err := rows.ColumnBlobString(0)
+		if err != nil {
+			return "", err
+		}
+		return name, nil
+
+	}
+	if rows.Error() != nil {
+		return "", rows.Error()
+	}
+
+	return "", errNamespaceNotExists
 }
 
 func (db *DBV2) backup(ctx context.Context, prefix string) (string, error) {
@@ -276,59 +267,12 @@ func (db *DBV2) JournalEvents(ctx context.Context, sinceVersion int64, page int6
 	return result, err
 }
 
-func checkRules(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32, namespaceID int64) error {
-	if typ == format.MetricsGroupEvent {
-		r := c.Query("select_groups", "SELECT id FROM metrics_v5 WHERE type = $type AND name <> $name AND name like $pattern",
-			sqlite.Int64("$type", int64(format.MetricsGroupEvent)),
-			sqlite.TextString("$name", name),
-			sqlite.TextString("$pattern", name+"%"))
-		if r.Next() {
-			return fmt.Errorf("group can't be prefix of another group")
-		}
-		if r.Error() != nil {
-			return r.Error()
-		}
-	}
-	if namespaceID != 0 && (typ == format.MetricsGroupEvent || typ == format.MetricEvent) {
-		r := c.Query("select_namespace", "SELECT id FROM metrics_v5 WHERE type = $type AND id = $id",
-			sqlite.Int64("$type", int64(format.NamespaceEvent)),
-			sqlite.Int64("$id", namespaceID))
-		if !r.Next() {
-			return errors.Wrap(errNamespaceNotExists, fmt.Sprintf("namespace with id %d doesn't exists", namespaceID))
-		}
-		if r.Error() != nil {
-			return r.Error()
-		}
-	}
-
-	if createMetric {
-		r := c.Query("select_event", "SELECT id FROM metrics_v5 WHERE type = $type AND name = $name",
-			sqlite.Int64("$type", int64(typ)),
-			sqlite.TextString("$name", name))
-		entityName := "metric"
-		switch typ {
-		case format.MetricsGroupEvent:
-			entityName = "group"
-		case format.NamespaceEvent:
-			entityName = "namespace"
-		}
-		if r.Next() {
-			return errors.Wrap(errMetricIsExist, fmt.Sprintf("%s %s is exists", entityName, name))
-		}
-		if r.Error() != nil {
-			return r.Error()
-		}
-	}
-
-	return nil
-}
-
-func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32, namespaceID int64) (tlmetadata.Event, error) {
+func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersion int64, newJson string, createMetric, deleteEntity bool, typ int32) (tlmetadata.Event, error) {
 	updatedAt := db.now().Unix()
 	var result tlmetadata.Event
 	createFixed := false
 	err := db.eng.Do(ctx, "save_entity", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-		err := checkRules(conn, name, id, oldVersion, newJson, createMetric, deleteEntity, typ, namespaceID)
+		resolvedNamespaceID, err := resolveEntity(conn, name, id, oldVersion, newJson, createMetric, deleteEntity, typ)
 		if err != nil {
 			return cache, err
 		}
@@ -367,7 +311,7 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 				sqlite.TextString("$name", name),
 				sqlite.Int64("$id", id),
 				sqlite.Int64("$deletedAt", deletedAt),
-				sqlite.Int64("$namespaceId", namespaceID))
+				sqlite.Int64("$namespaceId", resolvedNamespaceID))
 
 			if err != nil {
 				return cache, fmt.Errorf("failed to update metric: %d, %w", oldVersion, err)
@@ -380,7 +324,7 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 					sqlite.TextString("$name", name),
 					sqlite.Int64("$updatedAt", updatedAt),
 					sqlite.Int64("$type", int64(typ)),
-					sqlite.Int64("$namespaceId", namespaceID))
+					sqlite.Int64("$namespaceId", resolvedNamespaceID))
 			} else {
 				id, err = conn.Exec("insert_entity", "INSERT INTO metrics_v5 (id, version, data, name, updated_at, type, deleted_at, namespace_id) VALUES ($id, (SELECT IFNULL(MAX(version), 0) + 1 FROM metrics_v5), $data, $name, $updatedAt, $type, 0, $namespaceId);",
 					sqlite.Int64("$id", id),
@@ -388,7 +332,7 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 					sqlite.TextString("$name", name),
 					sqlite.Int64("$updatedAt", updatedAt),
 					sqlite.Int64("$type", int64(typ)),
-					sqlite.Int64("$namespaceId", namespaceID))
+					sqlite.Int64("$namespaceId", resolvedNamespaceID))
 			}
 			if err != nil {
 				return cache, fmt.Errorf("failed to put new metric %s: %w", newJson, err)
@@ -415,7 +359,7 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 			Unused:     uint32(deletedAt),
 			EventType:  typ,
 		}
-		result.SetNamespaceId(namespaceID)
+		result.SetNamespaceId(resolvedNamespaceID)
 		if createMetric {
 			metadataCreatMetricEvent := tlmetadata.CreateEntityEvent{
 				Metric: result,
@@ -441,7 +385,7 @@ func (db *DBV2) SaveEntityold(ctx context.Context, name string, id int64, oldVer
 	var result tlmetadata.Event
 	createFixed := false
 	err := db.eng.Do(ctx, "save_entity", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
-		err := checkRules(conn, name, id, oldVersion, newJson, createMetric, deleteEntity, typ, 0)
+		_, err := resolveEntity(conn, name, id, oldVersion, newJson, createMetric, deleteEntity, typ)
 		if err != nil {
 			return cache, err
 		}

@@ -79,6 +79,7 @@ const (
 	ParamNumResults = "n"
 	ParamMetric     = "s"
 	ParamID         = "id"
+	ParamNamespace  = "namespace"
 
 	ParamTagID        = "k"
 	ParamFromTime     = "f"
@@ -103,6 +104,7 @@ const (
 	paramLegacyEngine = "legacy"
 	paramQueryType    = "qt"
 	paramDashboardID  = "id"
+	paramShowDisabled = "sd"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -190,7 +192,6 @@ type (
 		rmID                  int
 		promEngine            promql.Engine
 		promEngineOn          bool
-		accessManager         *accessManager
 		querySelectTimeout    time.Duration
 	}
 
@@ -573,7 +574,6 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		location:              location,
 		readOnly:              readOnly,
 		insecureMode:          insecureMode,
-		accessManager:         &accessManager{metricStorage.GetGroupByMetricName},
 		querySelectTimeout:    querySelectTimeout,
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
@@ -790,7 +790,7 @@ func (h *Handler) getMetricMeta(ai accessInfo, metricWithNamespace string) (*for
 	if v == nil {
 		return nil, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found", metricWithNamespace))
 	}
-	if !ai.canViewMetric(metricWithNamespace) { // We are OK with sharing this bit of information with clients
+	if !ai.CanViewMetric(*v) { // We are OK with sharing this bit of information with clients
 		return nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metricWithNamespace))
 	}
 	return v, nil
@@ -912,7 +912,8 @@ func formValueParamMetric(r *http.Request) string {
 	if strings.HasPrefix(str, formerBuiltin) {
 		str = "__" + str[len(formerBuiltin):]
 	}
-	return str
+	ns := r.FormValue(ParamNamespace)
+	return mergeMetricNamespace(ns, str)
 }
 
 func (h *Handler) resolveFilter(metricMeta *format.MetricMetaValue, version string, f map[string][]string) (map[string][]interface{}, error) {
@@ -990,7 +991,7 @@ func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) parseAccessToken(w http.ResponseWriter, r *http.Request, es *endpointStat) (accessInfo, bool) {
-	ai, err := h.accessManager.parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedPrefixes, h.localMode, h.insecureMode)
+	ai, err := parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedPrefixes, h.localMode, h.insecureMode)
 	if es != nil {
 		es.setTokenName(ai.user)
 	}
@@ -1023,7 +1024,7 @@ func (h *Handler) handleGetMetricsList(ai accessInfo) (*GetMetricsListResp, time
 		ret.Metrics = append(ret.Metrics, metricShortInfo{Name: m.Name})
 	}
 	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
-		if ai.canViewMetric(v.Name) {
+		if ai.CanViewMetric(*v) {
 			ret.Metrics = append(ret.Metrics, metricShortInfo{Name: v.Name})
 		}
 	}
@@ -1215,18 +1216,18 @@ func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
 	}{event.Version}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
 }
 
-func (h *Handler) handleGetMetric(ai accessInfo, metricWithNamespace string, metricIDStr string) (*MetricInfo, time.Duration, error) {
+func (h *Handler) handleGetMetric(ai accessInfo, metricName string, metricIDStr string) (*MetricInfo, time.Duration, error) {
 	if metricIDStr != "" {
 		metricID, err := strconv.ParseInt(metricIDStr, 10, 32)
 		if err != nil {
 			return nil, 0, fmt.Errorf("can't parse %s", metricIDStr)
 		}
-		metricWithNamespace = h.getMetricNameByID(int32(metricID))
-		if metricWithNamespace == "" {
+		metricName = h.getMetricNameByID(int32(metricID))
+		if metricName == "" {
 			return nil, 0, fmt.Errorf("can't find metric %d", metricID)
 		}
 	}
-	v, err := h.getMetricMeta(ai, metricWithNamespace)
+	v, err := h.getMetricMeta(ai, metricName)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -1265,7 +1266,7 @@ func (h *Handler) handleGetDashboard(ai accessInfo, id int32) (*DashboardInfo, t
 	return &DashboardInfo{Dashboard: getDashboardMetaInfo(dash)}, defaultCacheTTL, nil
 }
 
-func (h *Handler) handleGetDashboardList(ai accessInfo) (*GetDashboardListResp, time.Duration, error) {
+func (h *Handler) handleGetDashboardList(ai accessInfo, showInvisible bool) (*GetDashboardListResp, time.Duration, error) {
 	dashs := h.metricsStorage.GetDashboardList()
 	for _, meta := range format.BuiltinDashboardByID {
 		dashs = append(dashs, meta)
@@ -1328,8 +1329,8 @@ func (h *Handler) handleGetGroup(ai accessInfo, id int32) (*MetricsGroupInfo, ti
 	return &MetricsGroupInfo{Group: *group.Group, Metrics: group.Metrics}, defaultCacheTTL, nil
 }
 
-func (h *Handler) handleGetGroupsList(ai accessInfo) (*GetGroupListResp, time.Duration, error) {
-	groups := h.metricsStorage.GetGroupsList()
+func (h *Handler) handleGetGroupsList(ai accessInfo, showInvisible bool) (*GetGroupListResp, time.Duration, error) {
+	groups := h.metricsStorage.GetGroupsList(showInvisible)
 	resp := &GetGroupListResp{}
 	for _, group := range groups {
 		resp.Groups = append(resp.Groups, groupShortInfo{
@@ -1349,7 +1350,7 @@ func (h *Handler) handleGetNamespace(ai accessInfo, id int32) (*NamespaceInfo, t
 	return &NamespaceInfo{Namespace: *namespace}, defaultCacheTTL, nil
 }
 
-func (h *Handler) handleGetNamespaceList(ai accessInfo) (*GetNamespaceListResp, time.Duration, error) {
+func (h *Handler) handleGetNamespaceList(ai accessInfo, showInvisible bool) (*GetNamespaceListResp, time.Duration, error) {
 	namespaces := h.metricsStorage.GetNamespaceList()
 	var namespacesResp []namespaceShortInfo
 	for _, namespace := range namespaces {
@@ -1427,7 +1428,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, fmt.Errorf("use prekey_only with non empty prekey_tag_id"))
 	}
 	if create {
-		if !ai.canEditMetric(true, metric, metric) {
+		if !ai.CanEditMetric(true, metric, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q", metric.Name))
 		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric)
@@ -1444,7 +1445,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		if old == nil {
 			return format.MetricMetaValue{}, httpErr(http.StatusNotFound, fmt.Errorf("metric %q not found (id %d)", metric.Name, metric.MetricID))
 		}
-		if !ai.canEditMetric(false, *old, metric) {
+		if !ai.CanEditMetric(false, *old, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q", old.Name))
 		}
 		resp, err = h.metadataLoader.SaveMetric(ctx, metric)
@@ -2843,20 +2844,25 @@ func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetGroup(w http.ResponseWriter, r *http.Request) {
-	HandleGetEntity(w, r, h, EndpointGroup, h.handleGetGroup)
+	HandleGetEntity(w, r, h, EndpointGroup, func(ai accessInfo, id int32) (*MetricsGroupInfo, time.Duration, error) {
+		return h.handleGetGroup(ai, id)
+	})
 }
 
 func (h *Handler) HandleGetNamespace(w http.ResponseWriter, r *http.Request) {
-	HandleGetEntity(w, r, h, EndpointNamespace, h.handleGetNamespace)
+	HandleGetEntity(w, r, h, EndpointNamespace, func(ai accessInfo, id int32) (*NamespaceInfo, time.Duration, error) {
+		return h.handleGetNamespace(ai, id)
+	})
 }
 
-func HandleGetEntityList[T any](w http.ResponseWriter, r *http.Request, h *Handler, endpointName string, handle func(ai accessInfo) (T, time.Duration, error)) {
+func HandleGetEntityList[T any](w http.ResponseWriter, r *http.Request, h *Handler, endpointName string, handle func(ai accessInfo, showInvisible bool) (T, time.Duration, error)) {
 	sl := newEndpointStat(endpointName, r.Method, 0, "")
 	ai, ok := h.parseAccessToken(w, r, sl)
 	if !ok {
 		return
 	}
-	resp, cache, err := handle(ai)
+	sd := r.URL.Query().Has(paramShowDisabled)
+	resp, cache, err := handle(ai, sd)
 	respondJSON(w, resp, cache, 0, err, h.verbose, ai.user, sl)
 }
 
@@ -4013,7 +4019,8 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			if strings.HasPrefix(name, formerBuiltin) {
 				name = "__" + name[len(formerBuiltin):]
 			}
-			t.metricWithNamespace = name
+			ns := r.FormValue(ParamNamespace)
+			t.metricWithNamespace = mergeMetricNamespace(ns, name)
 		case ParamNumResults:
 			t.strNumResults = first(v)
 		case ParamQueryBy:
@@ -4223,4 +4230,11 @@ func (r *seriesRequest) validate(ai accessInfo) error {
 		}
 	}
 	return nil
+}
+
+func mergeMetricNamespace(namespace string, metric string) string {
+	if strings.Contains(namespace, format.NamespaceSeparator) {
+		return metric
+	}
+	return format.NamespaceName(namespace, metric)
 }
