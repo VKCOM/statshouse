@@ -200,6 +200,11 @@ export function PlotViewMetric(props: {
 
   const getAxisStroke = useCallback(() => (themeDark ? grey : black), [themeDark]);
 
+  const metricType = useMemo(
+    () => getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type),
+    [meta?.metric_type, metaMetricType, sel.what, whats]
+  );
+
   const opts = useMemo<UPlotWrapperPropsOpts>(() => {
     const grid: uPlot.Axis.Grid = {
       stroke: themeDark ? greyDark : grey,
@@ -210,7 +215,6 @@ export function PlotViewMetric(props: {
           key: group,
         }
       : undefined;
-    const metricType = getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -278,20 +282,7 @@ export function PlotViewMetric(props: {
       },
       plugins: [pluginEventOverlay],
     };
-  }, [
-    compact,
-    getAxisStroke,
-    group,
-    meta?.metric_type,
-    metaMetricType,
-    pluginEventOverlay,
-    sel.what,
-    themeDark,
-    topPad,
-    whats,
-    xAxisSize,
-    yAxisSize,
-  ]);
+  }, [compact, getAxisStroke, group, metricType, pluginEventOverlay, themeDark, topPad, xAxisSize, yAxisSize]);
 
   const linkCSV = useLinkCSV(indexPlot);
 
@@ -476,6 +467,7 @@ export function PlotViewMetric(props: {
               onLegendShow={onLegendShow}
               onLegendFocus={onLegendFocus}
               compact={compact && !(fixHeight > 0 && dashboard)}
+              unit={metricType}
             />
             {topInfo && (!compact || (fixHeight > 0 && dashboard)) && (
               <div className="pb-3">

@@ -7,6 +7,9 @@ import css from './style.module.css';
 import { AlignByDot } from './AlignByDot';
 import { secondsRangeToString, timeShiftDesc, useResizeObserver } from '../../view/utils';
 import { PlotLegendMaxHost } from './PlotLegendMaxHost';
+import { Tooltip } from '../UI';
+import { PlotValueUnit } from './PlotValueUnit';
+import { METRIC_TYPE, MetricType } from '../../api/enum';
 
 type PlotLegendProps = {
   indexPlot: number;
@@ -15,6 +18,7 @@ type PlotLegendProps = {
   onLegendFocus?: (index: number, focus: boolean) => void;
   onLegendShow?: (index: number, show: boolean, single: boolean) => void;
   className?: string;
+  unit?: MetricType;
 };
 
 export const PlotLegend: React.FC<PlotLegendProps> = ({
@@ -24,6 +28,7 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({
   onLegendFocus,
   className,
   compact,
+  unit = METRIC_TYPE.none,
 }) => {
   const refDiv = useRef<HTMLDivElement>(null);
   const { width } = useResizeObserver(refDiv);
@@ -78,9 +83,9 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({
                 className={css.marker}
                 style={{ border: l.stroke && `${l.width}px solid ${l.stroke}`, background: l.fill }}
               ></div>
-              <div className={css.labelCompact} title={l.label}>
+              <Tooltip className={css.labelCompact} title={l.label}>
                 {l.label}
-              </div>
+              </Tooltip>
             </div>
           ))}
         </div>
@@ -107,8 +112,11 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({
                         borderStyle: l.dash?.length ? 'dashed' : l.stroke ? 'solid' : 'none',
                       }}
                     ></div>
-                    <div
-                      style={{ width: index !== 0 ? `${legendWidth}px` : undefined }}
+                    <Tooltip
+                      style={{
+                        width: index !== 0 ? `${legendWidth}px` : undefined,
+                        minWidth: index === 0 ? 250 : undefined,
+                      }}
                       className={css.label}
                       title={l.label}
                     >
@@ -126,7 +134,7 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({
                       ) : (
                         l.value || ' '
                       )}
-                    </div>
+                    </Tooltip>
                   </div>
                 </td>
                 {index !== 0 && (
@@ -134,14 +142,22 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({
                     <td className={css.value}>
                       <div className="d-flex justify-content-end w-100">
                         <div className="w-0 flex-grow-1">
-                          <AlignByDot value={l.values?.value ?? '—'} />
+                          <AlignByDot
+                            title={<PlotValueUnit unit={unit} value={l.values?.rawValue} />}
+                            value={l.values?.value ?? '—'}
+                          />
                         </div>
                       </div>
                     </td>
                     <td className={css.percent}>
                       <div className="d-flex justify-content-end w-100">
                         <div className="w-0 flex-grow-1">
-                          <AlignByDot className={css.percentSuffix} value={l.values?.percent ?? ''} unit="%" />
+                          <AlignByDot
+                            className={css.percentSuffix}
+                            title={l.values?.percent}
+                            value={l.values?.percent ?? ''}
+                            unit="%"
+                          />
                         </div>
                       </div>
                     </td>
@@ -160,9 +176,12 @@ export const PlotLegend: React.FC<PlotLegendProps> = ({
                       </td>
                     )}
                     <td className={css.timeShift}>
-                      <div className="text-secondary">
+                      <Tooltip
+                        className="text-secondary text-truncate"
+                        title={!!l.deltaTime && `${secondsRangeToString(Math.abs(l.deltaTime), true)} ago`}
+                      >
                         {!!l.deltaTime && `${secondsRangeToString(Math.abs(l.deltaTime), true)} ago`}
-                      </div>
+                      </Tooltip>
                     </td>
                   </>
                 )}
