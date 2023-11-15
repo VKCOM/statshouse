@@ -134,6 +134,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDCPUUsage: {
 		Name:        BuiltinMetricNameCpuUsage,
 		Kind:        MetricKindValue,
+		MetricType:  MetricSecond,
 		Description: "The number of seconds the CPU has spent performing different kinds of work",
 		Tags: []MetricMetaTag{{
 			Description: "state",
@@ -153,6 +154,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDMemUsage: {
 		Name:        BuiltinMetricNameMemUsage,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "Amount of free and used memory in the system",
 		Tags: []MetricMetaTag{{
 			Description: "state",
@@ -168,6 +170,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDBlockIOTime: {
 		Name:        BuiltinMetricNameBlockIOTime,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "The amount of time to transfer data to and from disk. Count - number of operations, Value - wait time for handle operations",
 		Tags: []MetricMetaTag{
 			{
@@ -204,6 +207,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDSystemUptime: {
 		Name:        BuiltinMetricNameSystemUptime,
 		Kind:        MetricKindValue,
+		MetricType:  MetricSecond,
 		Description: "The amount of time the system has been running",
 	},
 
@@ -250,6 +254,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDNetBandwidth: {
 		Name:        BuiltinMetricNameNetBandwidth,
 		Kind:        MetricKindMixed,
+		MetricType:  MetricByte,
 		Description: "Total bandwidth of all physical network interfaces. Count - number of packets, Value - number of bytes",
 		Tags: []MetricMetaTag{{
 			Description: "type",
@@ -377,12 +382,14 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDTCPSocketMemory: {
 		Name:        BuiltinMetricNameTCPSocketMemory,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "The amount of memory used by TCP sockets in all states",
 		Tags:        []MetricMetaTag{},
 	},
 	BuiltinMetricIDSocketMemory: {
 		Name:        BuiltinMetricNameSocketMemory,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "The amount of memory used by sockets",
 		Tags: []MetricMetaTag{
 			{
@@ -454,6 +461,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDWriteback: {
 		Name:        BuiltinMetricNameWriteback,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "Writeback/Dirty memory",
 		Tags: []MetricMetaTag{
 			{
@@ -469,6 +477,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDBlockIOSize: {
 		Name:        BuiltinMetricNameBlockIOSize,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "The amount of data transferred to and from disk. Count - number of operations, Value - size",
 		Tags: []MetricMetaTag{
 			{
