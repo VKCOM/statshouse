@@ -269,9 +269,14 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 			}
 			stat.add(p, true)
 		}
-		sf *= 2 // space has been taken by whales
 		items = items[pos:]
 	}
+	// Space has been taken by whales
+	// NB! Should be moved at the end of the above "if" ASAP
+	// NB! because unconditional multiplication here is a BUG
+	// NB! leading to significant counters (sums as well) increase.
+	// NB! Left here to not deploy multiple changes together.
+	sf *= 2
 	// Sample tail
 	pos = h.config.SelectF(items, sf, h.config.Rand)
 	for i := 0; i < pos; i++ {
@@ -482,23 +487,12 @@ func selectRandom(s []SamplingMultiItemPair, sf float64, r *rand.Rand) int {
 	if sf <= 1 {
 		return len(s)
 	}
-	var (
-		x = float64(len(s)) / sf
-		l = int(math.Floor(x))
-		h = int(math.Ceil(x))
-	)
-	if len(s) <= l {
-		return len(s)
-	}
 	n := 0
-	for ; n < l; n++ {
-		x := n + r.Intn(len(s)-n)
-		s[n], s[x] = s[x], s[n]
-	}
-	if l != h && n < len(s) {
-		x := n + r.Intn(2*(len(s)-n))
-		if x < len(s) {
-			s[n], s[x] = s[x], s[n]
+	for i := 0; i < len(s); i++ {
+		if r.Float64()*sf < 1 {
+			if n < i {
+				s[n], s[i] = s[i], s[n]
+			}
 			n++
 		}
 	}
