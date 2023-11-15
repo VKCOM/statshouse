@@ -396,7 +396,7 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
   }, [series, updateSeries]);
 
   useEffect(() => {
-    if (data[0]?.length && series.length && uRef.current) {
+    if (uRef.current) {
       microTask(() => {
         uRef.current && onUpdatePreview?.(uRef.current);
       });

@@ -7,7 +7,7 @@
 import React, { useCallback } from 'react';
 import { getTagDescription, isTagEnabled } from '../../view/utils';
 import { MetricMetaValue } from '../../api/metric';
-import { toKeyTag } from '../../url/queryParams';
+import { toTagKey } from '../../url/queryParams';
 import { TAG_KEY, TagKey } from '../../api/enum';
 
 export type VariablePlotLinkSelectProps = {
@@ -19,7 +19,7 @@ export type VariablePlotLinkSelectProps = {
 export function VariablePlotLinkSelect({ indexPlot, selectTag, metricMeta, onChange }: VariablePlotLinkSelectProps) {
   const changeTag = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const iTag = JSON.parse(e.currentTarget.value) ?? undefined;
+      const iTag = toTagKey(e.currentTarget.value) ?? undefined;
       onChange?.(indexPlot, iTag);
     },
     [indexPlot, onChange]
@@ -27,15 +27,20 @@ export function VariablePlotLinkSelect({ indexPlot, selectTag, metricMeta, onCha
   return (
     <select className="form-select form-select-sm" value={selectTag?.toString() ?? 'null'} onChange={changeTag}>
       <option value="null">-</option>
-      {metricMeta?.tags?.map(
-        (tag, indexTag) =>
-          isTagEnabled(metricMeta, toKeyTag(indexTag)) && (
-            <option key={indexTag} value={indexTag}>
-              {getTagDescription(metricMeta, indexTag)}
+      {metricMeta?.tags?.map((tag, indexTag) => {
+        const keyTag = toTagKey(indexTag);
+        return (
+          keyTag != null &&
+          isTagEnabled(metricMeta, keyTag) && (
+            <option key={indexTag} value={keyTag}>
+              {getTagDescription(metricMeta, keyTag)}
             </option>
           )
+        );
+      })}
+      {isTagEnabled(metricMeta, TAG_KEY._s) && (
+        <option value={TAG_KEY._s}>{getTagDescription(metricMeta, TAG_KEY._s)}</option>
       )}
-      {isTagEnabled(metricMeta, TAG_KEY._s) && <option value="-1">{getTagDescription(metricMeta, -1)}</option>}
     </select>
   );
 }
