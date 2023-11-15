@@ -304,10 +304,12 @@ func (ss *Series) weight(ev *evaluator) []float64 {
 }
 
 func (g *seriesGroup) at(i int) Series {
-	return Series{
+	res := Series{
 		Data: g.Data[i : i+1],
 		Meta: g.Meta,
 	}
+	res.Data[0].Tags = g.tags
+	return res
 }
 
 func (t *SeriesTag) stringify(ev *evaluator) {
