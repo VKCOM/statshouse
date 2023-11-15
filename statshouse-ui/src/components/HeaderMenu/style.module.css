@@ -6,14 +6,7 @@
  */
 
 :root {
-  --headerMenuColorBg: var(--bs-secondary-bg);
-  --headerMenuSubColorBg: var(--bs-body-bg);
-  --headerMenuSubColorBorder: var(--bs-gray-300);
-  --headerMenuColorBorder: var(--bs-secondary-bg);
-}
-
-[data-bs-theme='dark'] {
-  --headerMenuColorBg: var(--bs-secondary-bg);
+  --headerMenuColorBg: var(--bs-tertiary-bg);
   --headerMenuSubColorBg: var(--bs-body-bg);
   --headerMenuSubColorBorder: var(--bs-secondary-bg);
   --headerMenuColorBorder: var(--bs-secondary-bg);

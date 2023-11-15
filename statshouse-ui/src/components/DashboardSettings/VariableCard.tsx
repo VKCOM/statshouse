@@ -87,6 +87,7 @@ export function VariableCard({
         indexVariable,
         produce((v) => {
           const plotKey = toPlotKey(indexPlot);
+
           if (plotKey != null) {
             const indexLink = v.link.findIndex(([kPlot]) => plotKey === kPlot);
             if (indexLink > -1) {

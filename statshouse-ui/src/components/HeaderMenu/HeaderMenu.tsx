@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGGridFill } from 'bootstrap-icons/icons/grid-fill.svg';
@@ -114,6 +114,13 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
       })
     );
   }, []);
+  const refListMenuItemPlot = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => {
+      refListMenuItemPlot.current?.querySelector('.plot-active')?.scrollIntoView();
+    }, 0);
+  }, []);
 
   return (
     <div className={cn('sticky-top align-self-start', css.navOuter, className)}>
@@ -222,7 +229,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
           <HeaderMenuItem
             icon={SVGGear}
             to="/settings/group"
-            title="Setting group"
+            title="Group"
             className={cn(isSettings && css.activeItem)}
           ></HeaderMenuItem>
         )}
@@ -239,7 +246,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
           className={cn(params.tabNum < 0 && isView && css.activeItem)}
         ></HeaderMenuItem>
         <li className={cn('flex-grow-0 w-100 overflow-auto', css.scrollStyle)}>
-          <ul className={cn('nav d-flex flex-column', css.nav)}>
+          <ul ref={refListMenuItemPlot} className={cn('nav d-flex flex-column', css.nav)}>
             {menuPlots.map((item) => (
               <HeaderMenuItemPlot key={item.indexPlot} indexPlot={item.indexPlot} />
             ))}
