@@ -367,15 +367,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             ) : (
               <div className="d-flex align-items-center w-100">
                 <div className="overflow-force-wrap flex-grow-1">
-                  <Tooltip hover as="span" className="text-decoration-none overflow-hidden" title={plotTooltip}>
-                    <PlotLink
-                      className="text-decoration-none overflow-hidden"
-                      indexPlot={indexPlot}
-                      target={embed ? '_blank' : '_self'}
-                    >
-                      <PlotName plot={plot} plotData={plotData} />
-                    </PlotLink>
-                  </Tooltip>
+                  <PlotName plot={plot} plotData={plotData} />
                   <Link to={copyLink} target="_blank" className="ms-2">
                     <SVGBoxArrowUpRight width={10} height={10} />
                   </Link>
