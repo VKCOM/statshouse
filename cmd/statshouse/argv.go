@@ -143,11 +143,9 @@ func argvAddAggregatorFlags(legacyVerb bool) {
 	flag.IntVar(&argv.configAggregator.HistoricInserters, "historic-inserters", aggregator.DefaultConfigAggregator().HistoricInserters, "How many parallel inserts to make for historic data")
 	flag.IntVar(&argv.configAggregator.InsertHistoricWhen, "insert-historic-when", aggregator.DefaultConfigAggregator().InsertHistoricWhen, "Aggregator will insert historic data when # of ongoing recent data inserts is this number or less")
 
-	flag.IntVar(&argv.configAggregator.InsertBudget, "insert-budget", aggregator.DefaultConfigAggregator().InsertBudget, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # >> 100.")
-	flag.IntVar(&argv.configAggregator.InsertBudget100, "insert-budget-100", aggregator.DefaultConfigAggregator().InsertBudget100, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # ~ 100.")
 	flag.IntVar(&argv.configAggregator.CardinalityWindow, "cardinality-window", aggregator.DefaultConfigAggregator().CardinalityWindow, "Aggregator will use this window (seconds) to estimate cardinality")
 	flag.IntVar(&argv.configAggregator.MaxCardinality, "max-cardinality", aggregator.DefaultConfigAggregator().MaxCardinality, "Aggregator will sample metrics which cardinality estimates are higher")
-	flag.IntVar(&argv.configAggregator.StringTopCountInsert, "string-top-insert", aggregator.DefaultConfigAggregator().StringTopCountInsert, "How many different strings per key is inserted by aggregator in string tops.")
+	argv.configAggregator.Bind(flag.CommandLine, aggregator.DefaultConfigAggregator().ConfigAggregatorRemote)
 
 	flag.Float64Var(&argv.configAggregator.SimulateRandomErrors, "simulate-errors-random", aggregator.DefaultConfigAggregator().SimulateRandomErrors, "Probability of errors for recent buckets from 0.0 (no errors) to 1.0 (all errors)")
 
