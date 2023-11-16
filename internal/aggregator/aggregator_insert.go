@@ -281,6 +281,11 @@ func multiValueMarshal(metricID int32, cache *metricIndexCache, res []byte, valu
 }
 
 func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *rand.Rand, res []byte, historic bool) []byte {
+	var config ConfigAggregatorRemote
+	a.configMu.RLock()
+	config = a.configR
+	a.configMu.RUnlock()
+
 	sizeCounters := 0
 	sizeValues := 0
 	sizePercentiles := 0
@@ -341,7 +346,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	// TODO - actual sampleFactors are empty due to code commented out in estimator.go
 	for si := 0; si < len(b.shards); si++ {
 		for k, item := range b.shards[si].multiItems {
-			whaleWeight := item.FinishStringTop(a.config.StringTopCountInsert) // all excess items are baked into Tail
+			whaleWeight := item.FinishStringTop(config.StringTopCountInsert) // all excess items are baked into Tail
 
 			resPos := len(res)
 			res = appendMultiBadge(res, k, item, metricCache, usedTimestamps)
@@ -380,8 +385,8 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	if minSqrtContributors > 100 { // Short term part peaks at 100 contributors
 		minSqrtContributors = 100
 	}
-	remainingBudget += int64(float64(a.config.InsertBudget100) * minSqrtContributors)
-	remainingBudget += int64(a.config.InsertBudget * numContributors) // fixed part + longterm part
+	remainingBudget += int64(float64(config.InsertBudget100) * minSqrtContributors)
+	remainingBudget += int64(config.InsertBudget * numContributors) // fixed part + longterm part
 	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
 	samplerStat := sampler.Run(remainingBudget, 1)

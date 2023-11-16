@@ -102,7 +102,8 @@ const (
 
 	SimulatorMetricPrefix = "simulator_metric_"
 
-	StatshouseAgentRemoteConfigMetric = "statshouse_agent_remote_config"
+	StatshouseAgentRemoteConfigMetric      = "statshouse_agent_remote_config"
+	StatshouseAggregatorRemoteConfigMetric = "statshouse_aggregator_remote_config"
 )
 
 func NextBackoffDuration(backoffTimeout time.Duration) time.Duration {
