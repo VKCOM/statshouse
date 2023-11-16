@@ -231,7 +231,14 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             to="/settings/group"
             title="Group"
             className={cn(isSettings && css.activeItem)}
-          ></HeaderMenuItem>
+          >
+            <li className={css.splitter}></li>
+            <li className="nav-item">
+              <NavLink className="nav-link" to="/settings/namespace" end>
+                Namespace
+              </NavLink>
+            </li>
+          </HeaderMenuItem>
         )}
         <HeaderMenuItem
           icon={SVGCardList}

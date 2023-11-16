@@ -5,6 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { apiFetch } from './api';
+import { GET_PARAMS } from './enum';
 
 const ApiNamespaceListEndpoint = '/api/namespace-list';
 
@@ -23,8 +24,13 @@ export type NamespaceShort = {
   id: number;
   name: string;
   weight: number;
+  disable?: boolean;
 };
 
 export async function apiNamespaceListFetch(keyRequest?: unknown) {
-  return await apiFetch<ApiNamespaceList>({ url: ApiNamespaceListEndpoint, keyRequest });
+  return await apiFetch<ApiNamespaceList>({
+    url: ApiNamespaceListEndpoint,
+    get: { [GET_PARAMS.metricsListAndDisabled]: '1' },
+    keyRequest,
+  });
 }
