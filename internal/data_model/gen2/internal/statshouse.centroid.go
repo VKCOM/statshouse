@@ -83,9 +83,6 @@ func (item *StatshouseCentroid) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseCentroid) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseCentroid) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Value != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -165,13 +162,10 @@ func VectorStatshouseCentroid0ReadJSON(j interface{}, vec *[]StatshouseCentroid)
 }
 
 func VectorStatshouseCentroid0WriteJSON(w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
-	return VectorStatshouseCentroid0WriteJSONOpt(false, w, vec)
-}
-func VectorStatshouseCentroid0WriteJSONOpt(short bool, w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSON(w); err != nil {
 			return w, err
 		}
 	}

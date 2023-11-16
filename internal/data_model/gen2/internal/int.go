@@ -63,10 +63,6 @@ func (item *Int) readJSON(j interface{}) error {
 }
 
 func (item *Int) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *Int) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*int32)(item)
 	w = basictl.JSONWriteInt32(w, *ptr)
 	return w, nil
@@ -122,9 +118,6 @@ func TupleInt4ReadJSON(j interface{}, vec *[4]int32) error {
 }
 
 func TupleInt4WriteJSON(w []byte, vec *[4]int32) (_ []byte, err error) {
-	return TupleInt4WriteJSONOpt(false, w, vec)
-}
-func TupleInt4WriteJSONOpt(short bool, w []byte, vec *[4]int32) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -181,9 +174,6 @@ func VectorInt0ReadJSON(j interface{}, vec *[]int32) error {
 }
 
 func VectorInt0WriteJSON(w []byte, vec []int32) (_ []byte, err error) {
-	return VectorInt0WriteJSONOpt(false, w, vec)
-}
-func VectorInt0WriteJSONOpt(short bool, w []byte, vec []int32) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

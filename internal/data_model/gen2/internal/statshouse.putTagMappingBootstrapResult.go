@@ -74,9 +74,6 @@ func (item *StatshousePutTagMappingBootstrapResult) readJSON(j interface{}) erro
 }
 
 func (item *StatshousePutTagMappingBootstrapResult) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshousePutTagMappingBootstrapResult) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.CountInserted != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

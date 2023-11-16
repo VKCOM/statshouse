@@ -60,10 +60,6 @@ func (item *EngineSleep) ReadResultJSON(j interface{}, ret *bool) error {
 }
 
 func (item *EngineSleep) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *EngineSleep) writeResultJSON(short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -74,15 +70,6 @@ func (item *EngineSleep) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *EngineSleep) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret bool
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -125,9 +112,6 @@ func (item *EngineSleep) readJSON(j interface{}) error {
 }
 
 func (item *EngineSleep) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineSleep) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.TimeMs != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -74,14 +74,11 @@ func (item *StatshouseGetTagMappingBootstrapResult) readJSON(j interface{}) erro
 }
 
 func (item *StatshouseGetTagMappingBootstrapResult) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseGetTagMappingBootstrapResult) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Mappings) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"mappings":`...)
-		if w, err = VectorStatshouseMapping0WriteJSONOpt(short, w, item.Mappings); err != nil {
+		if w, err = VectorStatshouseMapping0WriteJSON(w, item.Mappings); err != nil {
 			return w, err
 		}
 	}
@@ -164,14 +161,11 @@ func (item *StatshouseGetTagMappingBootstrapResultBytes) readJSON(j interface{})
 }
 
 func (item *StatshouseGetTagMappingBootstrapResultBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseGetTagMappingBootstrapResultBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Mappings) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"mappings":`...)
-		if w, err = VectorStatshouseMapping0BytesWriteJSONOpt(short, w, item.Mappings); err != nil {
+		if w, err = VectorStatshouseMapping0BytesWriteJSON(w, item.Mappings); err != nil {
 			return w, err
 		}
 	}

@@ -61,9 +61,6 @@ func VectorDouble0ReadJSON(j interface{}, vec *[]float64) error {
 }
 
 func VectorDouble0WriteJSON(w []byte, vec []float64) (_ []byte, err error) {
-	return VectorDouble0WriteJSONOpt(false, w, vec)
-}
-func VectorDouble0WriteJSONOpt(short bool, w []byte, vec []float64) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

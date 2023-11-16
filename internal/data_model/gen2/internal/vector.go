@@ -65,12 +65,8 @@ func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) readJSON(j interface{
 }
 
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	if w, err = VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -142,12 +138,8 @@ func (item *VectorDictionaryFieldString) readJSON(j interface{}) error {
 }
 
 func (item *VectorDictionaryFieldString) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorDictionaryFieldString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	if w, err = VectorDictionaryFieldString0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorDictionaryFieldString0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -219,12 +211,8 @@ func (item *VectorDictionaryFieldStringBytes) readJSON(j interface{}) error {
 }
 
 func (item *VectorDictionaryFieldStringBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorDictionaryFieldStringBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	if w, err = VectorDictionaryFieldString0BytesWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorDictionaryFieldString0BytesWriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -294,12 +282,8 @@ func (item *VectorDouble) readJSON(j interface{}) error {
 }
 
 func (item *VectorDouble) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorDouble) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]float64)(item)
-	if w, err = VectorDouble0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorDouble0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -371,12 +355,8 @@ func (item *VectorEngineBinlogPrefix) readJSON(j interface{}) error {
 }
 
 func (item *VectorEngineBinlogPrefix) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorEngineBinlogPrefix) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]EngineBinlogPrefix)(item)
-	if w, err = VectorEngineBinlogPrefix0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorEngineBinlogPrefix0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -448,12 +428,8 @@ func (item *VectorEngineMetafilesOneMemoryStat) readJSON(j interface{}) error {
 }
 
 func (item *VectorEngineMetafilesOneMemoryStat) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorEngineMetafilesOneMemoryStat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]EngineMetafilesOneMemoryStat)(item)
-	if w, err = VectorEngineMetafilesOneMemoryStat0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorEngineMetafilesOneMemoryStat0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -523,12 +499,8 @@ func (item *VectorInt) readJSON(j interface{}) error {
 }
 
 func (item *VectorInt) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorInt) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]int32)(item)
-	if w, err = VectorInt0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorInt0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -538,6 +510,79 @@ func (item *VectorInt) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorInt) UnmarshalJSON(b []byte) error {
+	j, err := JsonBytesToInterface(b)
+	if err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	if err = item.readJSON(j); err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	return nil
+}
+
+type VectorKvEngineKvBoxed []KvEngineKv
+
+func (VectorKvEngineKvBoxed) TLName() string { return "vector" }
+func (VectorKvEngineKvBoxed) TLTag() uint32  { return 0x1cb5c415 }
+
+func (item *VectorKvEngineKvBoxed) Reset() {
+	ptr := (*[]KvEngineKv)(item)
+	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorKvEngineKvBoxed) Read(w []byte) (_ []byte, err error) {
+	ptr := (*[]KvEngineKv)(item)
+	return VectorKvEngineKvBoxed0Read(w, ptr)
+}
+
+func (item *VectorKvEngineKvBoxed) Write(w []byte) (_ []byte, err error) {
+	ptr := (*[]KvEngineKv)(item)
+	return VectorKvEngineKvBoxed0Write(w, *ptr)
+}
+
+func (item *VectorKvEngineKvBoxed) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+func (item *VectorKvEngineKvBoxed) WriteBoxed(w []byte) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x1cb5c415)
+	return item.Write(w)
+}
+
+func (item VectorKvEngineKvBoxed) String() string {
+	w, err := item.WriteJSON(nil)
+	if err != nil {
+		return err.Error()
+	}
+	return string(w)
+}
+
+func VectorKvEngineKvBoxed__ReadJSON(item *VectorKvEngineKvBoxed, j interface{}) error {
+	return item.readJSON(j)
+}
+func (item *VectorKvEngineKvBoxed) readJSON(j interface{}) error {
+	ptr := (*[]KvEngineKv)(item)
+	if err := VectorKvEngineKvBoxed0ReadJSON(j, ptr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (item *VectorKvEngineKvBoxed) WriteJSON(w []byte) (_ []byte, err error) {
+	ptr := (*[]KvEngineKv)(item)
+	if w, err = VectorKvEngineKvBoxed0WriteJSON(w, *ptr); err != nil {
+		return w, err
+	}
+	return w, nil
+}
+func (item *VectorKvEngineKvBoxed) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil)
+}
+
+func (item *VectorKvEngineKvBoxed) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
 		return ErrorInvalidJSON("vector", err.Error())
@@ -598,12 +643,8 @@ func (item *VectorLong) readJSON(j interface{}) error {
 }
 
 func (item *VectorLong) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorLong) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]int64)(item)
-	if w, err = VectorLong0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorLong0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -675,12 +716,8 @@ func (item *VectorMetadataEvent) readJSON(j interface{}) error {
 }
 
 func (item *VectorMetadataEvent) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorMetadataEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]MetadataEvent)(item)
-	if w, err = VectorMetadataEvent0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorMetadataEvent0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -752,12 +789,8 @@ func (item *VectorMetadataEventBytes) readJSON(j interface{}) error {
 }
 
 func (item *VectorMetadataEventBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorMetadataEventBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]MetadataEventBytes)(item)
-	if w, err = VectorMetadataEvent0BytesWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorMetadataEvent0BytesWriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -821,12 +854,8 @@ func (item *VectorMetadataMetricOld) readJSON(j interface{}, nat_t uint32) error
 }
 
 func (item *VectorMetadataMetricOld) WriteJSON(w []byte, nat_t uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_t)
-}
-
-func (item *VectorMetadataMetricOld) WriteJSONOpt(short bool, w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataMetricOld)(item)
-	if w, err = VectorMetadataMetricOld0WriteJSONOpt(short, w, *ptr, nat_t); err != nil {
+	if w, err = VectorMetadataMetricOld0WriteJSON(w, *ptr, nat_t); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -884,12 +913,8 @@ func (item *VectorStatshouseApiFilter) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseApiFilter) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseApiFilter) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFilter)(item)
-	if w, err = VectorStatshouseApiFilter0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseApiFilter0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -961,12 +986,8 @@ func (item *VectorStatshouseApiFunctionBoxed) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseApiFunctionBoxed) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseApiFunctionBoxed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFunction)(item)
-	if w, err = VectorStatshouseApiFunctionBoxed0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseApiFunctionBoxed0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1038,12 +1059,8 @@ func (item *VectorStatshouseApiPointMeta) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseApiPointMeta) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseApiPointMeta) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiPointMeta)(item)
-	if w, err = VectorStatshouseApiPointMeta0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseApiPointMeta0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1107,12 +1124,8 @@ func (item *VectorStatshouseApiSeriesMeta) readJSON(j interface{}, nat_t uint32)
 }
 
 func (item *VectorStatshouseApiSeriesMeta) WriteJSON(w []byte, nat_t uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_t)
-}
-
-func (item *VectorStatshouseApiSeriesMeta) WriteJSONOpt(short bool, w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
-	if w, err = VectorStatshouseApiSeriesMeta0WriteJSONOpt(short, w, *ptr, nat_t); err != nil {
+	if w, err = VectorStatshouseApiSeriesMeta0WriteJSON(w, *ptr, nat_t); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1170,12 +1183,8 @@ func (item *VectorStatshouseApiTagValue) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseApiTagValue) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseApiTagValue) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiTagValue)(item)
-	if w, err = VectorStatshouseApiTagValue0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseApiTagValue0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1247,12 +1256,8 @@ func (item *VectorStatshouseCentroid) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseCentroid) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseCentroid) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseCentroid)(item)
-	if w, err = VectorStatshouseCentroid0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseCentroid0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1324,12 +1329,8 @@ func (item *VectorStatshouseIngestionStatus2) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseIngestionStatus2) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseIngestionStatus2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseIngestionStatus2)(item)
-	if w, err = VectorStatshouseIngestionStatus20WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseIngestionStatus20WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1401,12 +1402,8 @@ func (item *VectorStatshouseMapping) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseMapping) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseMapping) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMapping)(item)
-	if w, err = VectorStatshouseMapping0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseMapping0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1478,12 +1475,8 @@ func (item *VectorStatshouseMappingBytes) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseMappingBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseMappingBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMappingBytes)(item)
-	if w, err = VectorStatshouseMapping0BytesWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseMapping0BytesWriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1555,12 +1548,8 @@ func (item *VectorStatshouseMetric) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseMetric) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseMetric) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMetric)(item)
-	if w, err = VectorStatshouseMetric0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseMetric0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1632,12 +1621,8 @@ func (item *VectorStatshouseMetricBytes) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseMetricBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseMetricBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMetricBytes)(item)
-	if w, err = VectorStatshouseMetric0BytesWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseMetric0BytesWriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1709,12 +1694,8 @@ func (item *VectorStatshouseMultiItem) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseMultiItem) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseMultiItem) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMultiItem)(item)
-	if w, err = VectorStatshouseMultiItem0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseMultiItem0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1786,12 +1767,8 @@ func (item *VectorStatshouseMultiItemBytes) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseMultiItemBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseMultiItemBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMultiItemBytes)(item)
-	if w, err = VectorStatshouseMultiItem0BytesWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseMultiItem0BytesWriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1863,12 +1840,8 @@ func (item *VectorStatshousePromTarget) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshousePromTarget) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshousePromTarget) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshousePromTarget)(item)
-	if w, err = VectorStatshousePromTarget0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshousePromTarget0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1940,12 +1913,8 @@ func (item *VectorStatshousePromTargetBytes) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshousePromTargetBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshousePromTargetBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshousePromTargetBytes)(item)
-	if w, err = VectorStatshousePromTarget0BytesWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshousePromTarget0BytesWriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2017,12 +1986,8 @@ func (item *VectorStatshouseSampleFactor) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseSampleFactor) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseSampleFactor) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseSampleFactor)(item)
-	if w, err = VectorStatshouseSampleFactor0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseSampleFactor0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2094,12 +2059,8 @@ func (item *VectorStatshouseTopElement) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseTopElement) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseTopElement) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseTopElement)(item)
-	if w, err = VectorStatshouseTopElement0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseTopElement0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2171,12 +2132,8 @@ func (item *VectorStatshouseTopElementBytes) readJSON(j interface{}) error {
 }
 
 func (item *VectorStatshouseTopElementBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStatshouseTopElementBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseTopElementBytes)(item)
-	if w, err = VectorStatshouseTopElement0BytesWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorStatshouseTopElement0BytesWriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2246,12 +2203,8 @@ func (item *VectorString) readJSON(j interface{}) error {
 }
 
 func (item *VectorString) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]string)(item)
-	if w, err = VectorString0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorString0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2323,12 +2276,8 @@ func (item *VectorStringBytes) readJSON(j interface{}) error {
 }
 
 func (item *VectorStringBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorStringBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[][]byte)(item)
-	if w, err = VectorString0BytesWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorString0BytesWriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2400,12 +2349,8 @@ func (item *VectorVectorDouble) readJSON(j interface{}) error {
 }
 
 func (item *VectorVectorDouble) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *VectorVectorDouble) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[][]float64)(item)
-	if w, err = VectorVectorDouble0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorVectorDouble0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2475,13 +2420,10 @@ func VectorVectorDouble0ReadJSON(j interface{}, vec *[][]float64) error {
 }
 
 func VectorVectorDouble0WriteJSON(w []byte, vec [][]float64) (_ []byte, err error) {
-	return VectorVectorDouble0WriteJSONOpt(false, w, vec)
-}
-func VectorVectorDouble0WriteJSONOpt(short bool, w []byte, vec [][]float64) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = VectorDouble0WriteJSONOpt(short, w, elem); err != nil {
+		if w, err = VectorDouble0WriteJSON(w, elem); err != nil {
 			return w, err
 		}
 	}

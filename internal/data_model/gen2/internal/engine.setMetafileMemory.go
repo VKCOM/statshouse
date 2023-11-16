@@ -60,11 +60,7 @@ func (item *EngineSetMetafileMemory) ReadResultJSON(j interface{}, ret *BoolStat
 }
 
 func (item *EngineSetMetafileMemory) WriteResultJSON(w []byte, ret BoolStat) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *EngineSetMetafileMemory) writeResultJSON(short bool, w []byte, ret BoolStat) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+	if w, err = ret.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -76,15 +72,6 @@ func (item *EngineSetMetafileMemory) ReadResultWriteResultJSON(r []byte, w []byt
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *EngineSetMetafileMemory) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret BoolStat
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -129,9 +116,6 @@ func (item *EngineSetMetafileMemory) readJSON(j interface{}) error {
 }
 
 func (item *EngineSetMetafileMemory) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineSetMetafileMemory) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Megabytes != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

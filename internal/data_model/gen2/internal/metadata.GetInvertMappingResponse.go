@@ -71,9 +71,6 @@ func (item *MetadataGetInvertMappingResponse) readJSON(j interface{}, nat_field_
 }
 
 func (item *MetadataGetInvertMappingResponse) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_field_mask)
-}
-func (item *MetadataGetInvertMappingResponse) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Key) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -127,9 +124,6 @@ func (item *MetadataGetInvertMappingResponseKeyNotExists) readJSON(j interface{}
 }
 
 func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_field_mask)
-}
-func (item *MetadataGetInvertMappingResponseKeyNotExists) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -239,13 +233,10 @@ func (item *MetadataGetInvertMappingResponseUnion) readJSON(j interface{}, nat_f
 }
 
 func (item *MetadataGetInvertMappingResponseUnion) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_field_mask)
-}
-func (item *MetadataGetInvertMappingResponseUnion) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	switch item.index {
 	case 0:
 		w = append(w, `{"type":"metadata.getInvertMappingResponse#9286abac","value":`...)
-		if w, err = item.valueGetInvertMappingResponse.WriteJSONOpt(short, w, nat_field_mask); err != nil {
+		if w, err = item.valueGetInvertMappingResponse.WriteJSON(w, nat_field_mask); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil

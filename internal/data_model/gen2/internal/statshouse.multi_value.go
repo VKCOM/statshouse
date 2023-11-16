@@ -499,9 +499,6 @@ func (item *StatshouseMultiValue) readJSON(j interface{}, nat_fields_mask uint32
 }
 
 func (item *StatshouseMultiValue) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_fields_mask)
-}
-func (item *StatshouseMultiValue) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		if item.Counter != 0 {
@@ -549,7 +546,7 @@ func (item *StatshouseMultiValue) WriteJSONOpt(short bool, w []byte, nat_fields_
 		if len(item.Centroids) != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
 			w = append(w, `"centroids":`...)
-			if w, err = VectorStatshouseCentroid0WriteJSONOpt(short, w, item.Centroids); err != nil {
+			if w, err = VectorStatshouseCentroid0WriteJSON(w, item.Centroids); err != nil {
 				return w, err
 			}
 		}
@@ -1064,9 +1061,6 @@ func (item *StatshouseMultiValueBytes) readJSON(j interface{}, nat_fields_mask u
 }
 
 func (item *StatshouseMultiValueBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_fields_mask)
-}
-func (item *StatshouseMultiValueBytes) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		if item.Counter != 0 {
@@ -1114,7 +1108,7 @@ func (item *StatshouseMultiValueBytes) WriteJSONOpt(short bool, w []byte, nat_fi
 		if len(item.Centroids) != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
 			w = append(w, `"centroids":`...)
-			if w, err = VectorStatshouseCentroid0WriteJSONOpt(short, w, item.Centroids); err != nil {
+			if w, err = VectorStatshouseCentroid0WriteJSON(w, item.Centroids); err != nil {
 				return w, err
 			}
 		}

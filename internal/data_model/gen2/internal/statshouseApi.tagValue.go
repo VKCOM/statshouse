@@ -109,9 +109,6 @@ func (item *StatshouseApiTagValue) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseApiTagValue) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseApiTagValue) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -130,7 +127,7 @@ func (item *StatshouseApiTagValue) WriteJSONOpt(short bool, w []byte) (_ []byte,
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"flag":`...)
-	if w, err = item.Flag.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Flag.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil
@@ -201,13 +198,10 @@ func VectorStatshouseApiTagValue0ReadJSON(j interface{}, vec *[]StatshouseApiTag
 }
 
 func VectorStatshouseApiTagValue0WriteJSON(w []byte, vec []StatshouseApiTagValue) (_ []byte, err error) {
-	return VectorStatshouseApiTagValue0WriteJSONOpt(false, w, vec)
-}
-func VectorStatshouseApiTagValue0WriteJSONOpt(short bool, w []byte, vec []StatshouseApiTagValue) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSON(w); err != nil {
 			return w, err
 		}
 	}

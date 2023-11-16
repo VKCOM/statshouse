@@ -204,7 +204,8 @@ func loadNamespace(conn sqlite.Conn, id int64, version int64) (string, error) {
 }
 
 func (db *DBV2) backup(ctx context.Context, prefix string) (string, error) {
-	return db.eng.Backup(ctx, prefix)
+	path, _, err := db.eng.Backup(ctx, prefix)
+	return path, err
 }
 
 func (db *DBV2) Close() error {

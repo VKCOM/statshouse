@@ -65,12 +65,8 @@ func (item *DictionaryEngineMetafilesStatBoxed) readJSON(j interface{}) error {
 }
 
 func (item *DictionaryEngineMetafilesStatBoxed) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *DictionaryEngineMetafilesStatBoxed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	if w, err = VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -140,12 +136,8 @@ func (item *DictionaryString) readJSON(j interface{}) error {
 }
 
 func (item *DictionaryString) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *DictionaryString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	if w, err = VectorDictionaryFieldString0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorDictionaryFieldString0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -217,12 +209,8 @@ func (item *DictionaryStringBytes) readJSON(j interface{}) error {
 }
 
 func (item *DictionaryStringBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *DictionaryStringBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	if w, err = VectorDictionaryFieldString0BytesWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorDictionaryFieldString0BytesWriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil

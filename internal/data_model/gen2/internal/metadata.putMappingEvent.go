@@ -96,9 +96,6 @@ func (item *MetadataPutMappingEvent) readJSON(j interface{}) error {
 }
 
 func (item *MetadataPutMappingEvent) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *MetadataPutMappingEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -108,14 +105,14 @@ func (item *MetadataPutMappingEvent) WriteJSONOpt(short bool, w []byte) (_ []byt
 	if len(item.Keys) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"keys":`...)
-		if w, err = VectorString0WriteJSONOpt(short, w, item.Keys); err != nil {
+		if w, err = VectorString0WriteJSON(w, item.Keys); err != nil {
 			return w, err
 		}
 	}
 	if len(item.Value) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"value":`...)
-		if w, err = VectorInt0WriteJSONOpt(short, w, item.Value); err != nil {
+		if w, err = VectorInt0WriteJSON(w, item.Value); err != nil {
 			return w, err
 		}
 	}

@@ -49,11 +49,7 @@ func (item *EngineGetBinlogPrefixes) ReadResultJSON(j interface{}, ret *[]Engine
 }
 
 func (item *EngineGetBinlogPrefixes) WriteResultJSON(w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *EngineGetBinlogPrefixes) writeResultJSON(short bool, w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
-	if w, err = VectorEngineBinlogPrefix0WriteJSONOpt(short, w, ret); err != nil {
+	if w, err = VectorEngineBinlogPrefix0WriteJSON(w, ret); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -65,15 +61,6 @@ func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSON(r []byte, w []byt
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret []EngineBinlogPrefix
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -113,9 +100,6 @@ func (item *EngineGetBinlogPrefixes) readJSON(j interface{}) error {
 }
 
 func (item *EngineGetBinlogPrefixes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineGetBinlogPrefixes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }

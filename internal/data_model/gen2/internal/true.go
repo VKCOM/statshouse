@@ -46,9 +46,6 @@ func (item *True) readJSON(j interface{}) error {
 }
 
 func (item *True) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *True) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }

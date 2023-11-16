@@ -85,10 +85,10 @@ func (c *Client) AddMetricsBatchBytes(ctx context.Context, args AddMetricsBatchB
 		return internal.ErrorClientWrite("statshouse.addMetricsBatch", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.addMetricsBatch", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.addMetricsBatch", c.Network, c.ActorID, c.Address, err)
@@ -108,10 +108,10 @@ func (c *Client) AddMetricsBatch(ctx context.Context, args AddMetricsBatch, extr
 		return internal.ErrorClientWrite("statshouse.addMetricsBatch", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.addMetricsBatch", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.addMetricsBatch", c.Network, c.ActorID, c.Address, err)
@@ -131,10 +131,10 @@ func (c *Client) AutoCreateBytes(ctx context.Context, args AutoCreateBytes, extr
 		return internal.ErrorClientWrite("statshouse.autoCreate", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.autoCreate", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.autoCreate", c.Network, c.ActorID, c.Address, err)
@@ -154,10 +154,10 @@ func (c *Client) AutoCreate(ctx context.Context, args AutoCreate, extra *rpc.Inv
 		return internal.ErrorClientWrite("statshouse.autoCreate", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.autoCreate", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.autoCreate", c.Network, c.ActorID, c.Address, err)
@@ -177,10 +177,10 @@ func (c *Client) GetConfig2Bytes(ctx context.Context, args GetConfig2Bytes, extr
 		return internal.ErrorClientWrite("statshouse.getConfig2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getConfig2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getConfig2", c.Network, c.ActorID, c.Address, err)
@@ -200,10 +200,10 @@ func (c *Client) GetConfig2(ctx context.Context, args GetConfig2, extra *rpc.Inv
 		return internal.ErrorClientWrite("statshouse.getConfig2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getConfig2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getConfig2", c.Network, c.ActorID, c.Address, err)
@@ -223,10 +223,10 @@ func (c *Client) GetMetrics3Bytes(ctx context.Context, args GetMetrics3Bytes, ex
 		return internal.ErrorClientWrite("statshouse.getMetrics3", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getMetrics3", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getMetrics3", c.Network, c.ActorID, c.Address, err)
@@ -246,10 +246,10 @@ func (c *Client) GetMetrics3(ctx context.Context, args GetMetrics3, extra *rpc.I
 		return internal.ErrorClientWrite("statshouse.getMetrics3", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getMetrics3", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getMetrics3", c.Network, c.ActorID, c.Address, err)
@@ -269,10 +269,10 @@ func (c *Client) GetTagMapping2Bytes(ctx context.Context, args GetTagMapping2Byt
 		return internal.ErrorClientWrite("statshouse.getTagMapping2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTagMapping2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getTagMapping2", c.Network, c.ActorID, c.Address, err)
@@ -292,10 +292,10 @@ func (c *Client) GetTagMapping2(ctx context.Context, args GetTagMapping2, extra 
 		return internal.ErrorClientWrite("statshouse.getTagMapping2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTagMapping2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getTagMapping2", c.Network, c.ActorID, c.Address, err)
@@ -315,10 +315,10 @@ func (c *Client) GetTagMappingBootstrapBytes(ctx context.Context, args GetTagMap
 		return internal.ErrorClientWrite("statshouse.getTagMappingBootstrap", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
@@ -338,10 +338,10 @@ func (c *Client) GetTagMappingBootstrap(ctx context.Context, args GetTagMappingB
 		return internal.ErrorClientWrite("statshouse.getTagMappingBootstrap", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
@@ -361,10 +361,10 @@ func (c *Client) GetTargets2Bytes(ctx context.Context, args GetTargets2Bytes, ex
 		return internal.ErrorClientWrite("statshouse.getTargets2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTargets2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getTargets2", c.Network, c.ActorID, c.Address, err)
@@ -384,10 +384,10 @@ func (c *Client) GetTargets2(ctx context.Context, args GetTargets2, extra *rpc.I
 		return internal.ErrorClientWrite("statshouse.getTargets2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.getTargets2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.getTargets2", c.Network, c.ActorID, c.Address, err)
@@ -407,10 +407,10 @@ func (c *Client) SendKeepAlive2Bytes(ctx context.Context, args SendKeepAlive2Byt
 		return internal.ErrorClientWrite("statshouse.sendKeepAlive2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.sendKeepAlive2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.sendKeepAlive2", c.Network, c.ActorID, c.Address, err)
@@ -430,10 +430,10 @@ func (c *Client) SendKeepAlive2(ctx context.Context, args SendKeepAlive2, extra 
 		return internal.ErrorClientWrite("statshouse.sendKeepAlive2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.sendKeepAlive2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.sendKeepAlive2", c.Network, c.ActorID, c.Address, err)
@@ -453,10 +453,10 @@ func (c *Client) SendSourceBucket2Bytes(ctx context.Context, args SendSourceBuck
 		return internal.ErrorClientWrite("statshouse.sendSourceBucket2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.sendSourceBucket2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.sendSourceBucket2", c.Network, c.ActorID, c.Address, err)
@@ -476,10 +476,10 @@ func (c *Client) SendSourceBucket2(ctx context.Context, args SendSourceBucket2, 
 		return internal.ErrorClientWrite("statshouse.sendSourceBucket2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.sendSourceBucket2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.sendSourceBucket2", c.Network, c.ActorID, c.Address, err)
@@ -499,10 +499,10 @@ func (c *Client) TestConnection2Bytes(ctx context.Context, args TestConnection2B
 		return internal.ErrorClientWrite("statshouse.testConnection2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.testConnection2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.testConnection2", c.Network, c.ActorID, c.Address, err)
@@ -522,10 +522,10 @@ func (c *Client) TestConnection2(ctx context.Context, args TestConnection2, extr
 		return internal.ErrorClientWrite("statshouse.testConnection2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("statshouse.testConnection2", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("statshouse.testConnection2", c.Network, c.ActorID, c.Address, err)
