@@ -215,7 +215,7 @@ export function _Popper({
   }, [show, updateTargetRect]);
   return (
     <Portal id={popperId} className={cn(css.popperGroup, fixed && css.popperGroupFixed)}>
-      {visible && show && (
+      {!!visible && show && (
         <div
           className={cn(css.popperItem, !firstInit && 'visually-hidden', className)}
           style={
