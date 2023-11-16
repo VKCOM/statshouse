@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -367,7 +367,9 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             ) : (
               <div className="d-flex align-items-center w-100">
                 <div className="overflow-force-wrap flex-grow-1">
-                  <PlotName plot={plot} plotData={plotData} />
+                  <PlotLink className="text-secondary text-decoration-none" indexPlot={indexPlot}>
+                    <PlotName plot={plot} plotData={plotData} />
+                  </PlotLink>
                   <Link to={copyLink} target="_blank" className="ms-2">
                     <SVGBoxArrowUpRight width={10} height={10} />
                   </Link>
