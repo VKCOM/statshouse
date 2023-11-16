@@ -100,11 +100,11 @@ func FlagParseShowVersionHelpWithTail() {
 	flag.Parse()
 
 	if version {
-		_, _ = fmt.Fprintf(os.Stderr, "%s\n", Info())
+		_, _ = fmt.Printf("%s\n", Info())
 		os.Exit(0)
 	}
 	if help {
-		_, _ = fmt.Fprintf(os.Stderr, "Usage of %s:\n", AppName())
+		_, _ = fmt.Printf("Usage of %s:\n", AppName())
 		flag.PrintDefaults()
 		os.Exit(0)
 	}
