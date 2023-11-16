@@ -26,6 +26,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ adminMode }) => {
             Group
           </NavLink>
         </li>
+        <li className="nav-item">
+          <NavLink className="nav-link" to="./namespace" end aria-current="page">
+            Namespace
+          </NavLink>
+        </li>
         {/*<li className="nav-item">
           <NavLink className="nav-link" to="./prometheus" end aria-current="page">
             Prometheus

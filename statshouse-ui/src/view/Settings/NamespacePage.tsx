@@ -5,40 +5,44 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { groupAdd, groupListErrors, groupListLoad, groupLoad, groupSave, useGroupListStore } from '../../store';
+import {
+  namespaceAdd,
+  namespaceListErrors,
+  namespaceListLoad,
+  namespaceLoad,
+  namespaceSave,
+  useNamespaceListStore,
+} from '../../store';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import cn from 'classnames';
 import { ErrorMessages, InputText } from '../../components';
-import { GroupInfo, GroupMetric } from '../../api/group';
 import { toNumber } from '../../common/helpers';
 import { produce } from 'immer';
+import { type Namespace } from '../../api/namespace';
 
-type SelectGroup = {
-  group: Pick<GroupInfo, 'name' | 'weight' | 'namespace_id'> &
-    Partial<Omit<GroupInfo, 'name' | 'weight' | 'namespace_id'>>;
-  metrics: GroupMetric[] | null;
+type SelectNamespace = {
+  namespace: Pick<Namespace, 'name' | 'weight'> & Partial<Omit<Namespace, 'name' | 'weight'>>;
 };
 
-export function GroupPage() {
-  const listMetricsGroup = useGroupListStore((s) => s.list);
-  const [selectMetricsGroup, setSelectMetricsGroup] = useState<SelectGroup | null>(null);
+export function NamespacePage() {
+  const listMetricsNamespace = useNamespaceListStore((s) => s.list);
+  const [selectMetricsNamespace, setSelectMetricsNamespace] = useState<SelectNamespace | null>(null);
   const [saveLoader, setSaveLoader] = useState(false);
   const [loadLoader, setLoadLoader] = useState(false);
 
-  const selectId = selectMetricsGroup?.group.group_id ?? null;
-  const selectWeight = selectMetricsGroup?.group.weight ?? 0;
-  const selectDisable = selectMetricsGroup?.group.disable ?? false;
+  const selectId = selectMetricsNamespace?.namespace.namespace_id ?? null;
+  const selectWeight = selectMetricsNamespace?.namespace.weight ?? 0;
+  const selectDisable = selectMetricsNamespace?.namespace.disable ?? false;
 
   const { sumWeight, list } = useMemo(() => {
     let sumWeight = 1 + (selectId == null ? selectWeight : 0);
-    listMetricsGroup.forEach((g) => {
+    listMetricsNamespace.forEach((g) => {
       if (!g.disable) {
         const weight = selectId === g.id ? selectWeight : g.weight;
         sumWeight += weight;
       }
     });
-
-    const list = listMetricsGroup.map((g) => {
+    const list = listMetricsNamespace.map((g) => {
       if (g.disable) {
         return { ...g, weight: 0, percent: 0 };
       }
@@ -47,43 +51,41 @@ export function GroupPage() {
       return { ...g, weight, percent };
     });
     return { sumWeight, list };
-  }, [listMetricsGroup, selectId, selectWeight]);
+  }, [listMetricsNamespace, selectId, selectWeight]);
 
-  const onAddNewMetricsGroup = useCallback(() => {
-    setSelectMetricsGroup({ group: { name: '', weight: 1, namespace_id: 0 }, metrics: [] });
+  const onAddNewMetricsNamespace = useCallback(() => {
+    setSelectMetricsNamespace({ namespace: { name: '', weight: 1 } });
   }, []);
 
-  const onSaveMetricsGroup = useCallback(
+  const onSaveMetricsNamespace = useCallback(
     (event: React.FormEvent) => {
-      if (selectMetricsGroup) {
+      if (selectMetricsNamespace) {
         setSaveLoader(true);
-        if (selectMetricsGroup.group.group_id != null && selectMetricsGroup.group.version != null) {
-          groupSave({
-            group: {
-              group_id: -1,
+        if (selectMetricsNamespace.namespace.namespace_id != null && selectMetricsNamespace.namespace.version != null) {
+          namespaceSave({
+            namespace: {
+              namespace_id: -1,
               version: 0,
-              ...selectMetricsGroup.group,
+              ...selectMetricsNamespace.namespace,
             },
           })
             .then((g) => {
               if (g) {
-                const { metrics, group } = g;
-                metrics?.sort();
-                setSelectMetricsGroup({ group, metrics });
+                const { namespace } = g;
+                setSelectMetricsNamespace({ namespace });
               }
             })
             .finally(() => {
               setSaveLoader(false);
             });
         } else {
-          groupAdd({
-            group: { name: selectMetricsGroup.group.name, weight: selectMetricsGroup.group.weight },
+          namespaceAdd({
+            namespace: { name: selectMetricsNamespace.namespace.name, weight: selectMetricsNamespace.namespace.weight },
           })
             .then((g) => {
               if (g) {
-                const { metrics, group } = g;
-                metrics?.sort();
-                setSelectMetricsGroup({ group, metrics });
+                const { namespace } = g;
+                setSelectMetricsNamespace({ namespace });
               }
             })
             .finally(() => {
@@ -95,25 +97,24 @@ export function GroupPage() {
       }
       event.preventDefault();
     },
-    [selectMetricsGroup]
+    [selectMetricsNamespace]
   );
-  const onRemoveMetricsGroup = useCallback(() => {
-    if (selectMetricsGroup) {
+  const onRemoveMetricsNamespace = useCallback(() => {
+    if (selectMetricsNamespace) {
       setSaveLoader(true);
-      if (selectMetricsGroup.group.group_id != null && selectMetricsGroup.group.version != null) {
-        groupSave({
-          group: {
-            group_id: -1,
+      if (selectMetricsNamespace.namespace.namespace_id != null && selectMetricsNamespace.namespace.version != null) {
+        namespaceSave({
+          namespace: {
+            namespace_id: -1,
             version: 0,
-            ...selectMetricsGroup.group,
-            disable: !selectMetricsGroup.group.disable,
+            ...selectMetricsNamespace.namespace,
+            disable: !selectMetricsNamespace.namespace.disable,
           },
         })
           .then((g) => {
             if (g) {
-              const { metrics, group } = g;
-              metrics?.sort();
-              setSelectMetricsGroup({ group, metrics });
+              const { namespace } = g;
+              setSelectMetricsNamespace({ namespace });
             }
           })
           .finally(() => {
@@ -121,23 +122,22 @@ export function GroupPage() {
           });
       }
     }
-  }, [selectMetricsGroup]);
+  }, [selectMetricsNamespace]);
 
-  const onCancelMetricsGroup = useCallback(() => {
-    setSelectMetricsGroup(null);
-  }, [setSelectMetricsGroup]);
+  const onCancelMetricsNamespace = useCallback(() => {
+    setSelectMetricsNamespace(null);
+  }, []);
 
   const onSelectMetricsGroup = useCallback((event: React.MouseEvent) => {
     const id = parseInt(event.currentTarget.getAttribute('data-id') ?? '-1');
     setLoadLoader(true);
-    groupLoad(id)
+    namespaceLoad(id)
       .then((g) => {
         if (g) {
-          const { metrics, group } = g;
-          metrics?.sort();
-          setSelectMetricsGroup({ group, metrics });
+          const { namespace } = g;
+          setSelectMetricsNamespace({ namespace });
         } else {
-          setSelectMetricsGroup(null);
+          setSelectMetricsNamespace(null);
         }
       })
       .finally(() => {
@@ -145,35 +145,35 @@ export function GroupPage() {
       });
   }, []);
 
-  const defaultMetricsGroupWeightPercent = useMemo(() => Math.round((1 / sumWeight) * 1000) / 10, [sumWeight]);
+  const defaultMetricsNamespaceWeightPercent = useMemo(() => Math.round((1 / sumWeight) * 1000) / 10, [sumWeight]);
 
-  const selectMetricsGroupWeightPercent = useMemo(
+  const selectMetricsNamespaceWeightPercent = useMemo(
     () => Math.round((selectWeight / (sumWeight + (selectDisable ? selectWeight : 0))) * 1000) / 10,
     [selectDisable, selectWeight, sumWeight]
   );
 
   useEffect(() => {
     setLoadLoader(true);
-    groupListLoad().finally(() => {
+    namespaceListLoad().finally(() => {
       setLoadLoader(false);
     });
     return () => setLoadLoader(false);
   }, []);
 
   const onChangeName = useCallback((value: string) => {
-    setSelectMetricsGroup(
+    setSelectMetricsNamespace(
       produce((g) => {
         if (g) {
-          g.group.name = value;
+          g.namespace.name = value;
         }
       })
     );
   }, []);
   const onChangeWeight = useCallback((value: string) => {
-    setSelectMetricsGroup(
+    setSelectMetricsNamespace(
       produce((g) => {
         if (g) {
-          g.group.weight = toNumber(value, 1);
+          g.namespace.weight = toNumber(value, 1);
         }
       })
     );
@@ -181,23 +181,23 @@ export function GroupPage() {
 
   return (
     <div className="flex-grow-1 p-2">
-      <ErrorMessages channel={groupListErrors} />
+      <ErrorMessages channel={namespaceListErrors} />
       <div className="row">
-        <div className={cn('col-md-6 w-max-720', !!selectMetricsGroup && 'hidden-down-md')}>
+        <div className={cn('col-md-6 w-max-720', !!selectMetricsNamespace && 'hidden-down-md')}>
           <div className="mb-2 d-flex flex-row justify-content-end">
             <button
               className="btn btn-outline-primary ms-2 text-nowrap"
               title="Add group"
-              onClick={onAddNewMetricsGroup}
+              onClick={onAddNewMetricsNamespace}
             >
               <SVGPlus />
-              Add group
+              Add namespace
             </button>
           </div>
           <ul className="list-group">
             <li className="list-group-item text-secondary d-flex flex-row">
               <div className="flex-grow-1">default</div>
-              <div>1 [{defaultMetricsGroupWeightPercent}%]</div>
+              <div>1 [{defaultMetricsNamespaceWeightPercent}%]</div>
             </li>
             {list.map((item) => (
               <li
@@ -207,7 +207,7 @@ export function GroupPage() {
                 className={cn(
                   item.disable && 'text-secondary',
                   'list-group-item text-black d-flex flex-row',
-                  selectMetricsGroup?.group.group_id === item.id && 'text-bg-light'
+                  selectMetricsNamespace?.namespace.namespace_id === item.id && 'text-bg-light'
                 )}
                 onClick={onSelectMetricsGroup}
               >
@@ -230,26 +230,26 @@ export function GroupPage() {
             )}
           </ul>
         </div>
-        {!!selectMetricsGroup && (
+        {!!selectMetricsNamespace && (
           <div className="col-md-6 w-max-720">
-            <form onSubmit={onSaveMetricsGroup}>
+            <form onSubmit={onSaveMetricsNamespace}>
               <div className="mb-3 row">
-                <label htmlFor="metricsGroupName" className="col-sm-2 col-form-label">
+                <label htmlFor="metricsNamespaceName" className="col-sm-2 col-form-label">
                   Name
                 </label>
                 <div className="col-sm-10">
                   <InputText
                     type="text"
                     className="form-control"
-                    id="metricsGroupName"
-                    // disabled={selectMetricsGroup.group.group_id != null}
-                    value={selectMetricsGroup.group.name}
+                    id="metricsNamespaceName"
+                    disabled={selectMetricsNamespace.namespace.namespace_id != null}
+                    value={selectMetricsNamespace.namespace.name}
                     onChange={onChangeName}
                   />
                 </div>
               </div>
               <div className="mb-3 row">
-                <label htmlFor="metricsGroupWeight" className="col-sm-2 col-form-label">
+                <label htmlFor="metricsNamespaceWeight" className="col-sm-2 col-form-label">
                   Weight
                 </label>
                 <div className="col-sm-10 d-flex flex-row">
@@ -259,60 +259,44 @@ export function GroupPage() {
                     max={1000}
                     step={0.01}
                     className="form-control"
-                    id="metricsGroupWeight"
-                    value={selectMetricsGroup.group.weight.toString()}
+                    id="metricsNamespaceWeight"
+                    value={selectMetricsNamespace.namespace.weight.toString()}
                     onChange={onChangeWeight}
                   />
                   <div className="col-form-label ms-2" style={{ width: 80 }}>
-                    [{selectMetricsGroupWeightPercent}%]
+                    [{selectMetricsNamespaceWeightPercent}%]
                   </div>
-                </div>
-              </div>
-              <div className="mb-3 row">
-                <span className="col-sm-2 col-form-label">Metrics</span>
-                <div
-                  className="col-sm-10 d-flex flex-row flex-wrap align-items-start overflow-auto"
-                  style={{ maxHeight: 300 }}
-                >
-                  {selectMetricsGroup.metrics?.map((metric_name, index) => (
-                    <span
-                      className="input-group-text border-success bg-transparent text-success text-nowrap py-0 mt-1 me-1 "
-                      key={index}
-                    >
-                      <span className="small">{metric_name}</span>
-                    </span>
-                  ))}
                 </div>
               </div>
               <div className="mb-3 d-flex flex-row justify-content-end">
                 <button
                   type="submit"
                   className="btn btn-outline-primary ms-1 text-nowrap"
-                  disabled={!selectMetricsGroup.group.name || saveLoader}
+                  disabled={!selectMetricsNamespace.namespace.name || saveLoader}
                 >
                   {saveLoader && (
                     <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                   )}
-                  {typeof selectMetricsGroup.group.group_id === 'undefined' ? 'Create' : 'Save'}
+                  {typeof selectMetricsNamespace.namespace.namespace_id === 'undefined' ? 'Create' : 'Save'}
                 </button>
                 <button
                   type="button"
                   className="btn btn-outline-primary ms-1 text-nowrap"
-                  onClick={onCancelMetricsGroup}
+                  onClick={onCancelMetricsNamespace}
                 >
                   Cancel
                 </button>
-                {typeof selectMetricsGroup.group.group_id !== 'undefined' && (
+                {typeof selectMetricsNamespace.namespace.namespace_id !== 'undefined' && (
                   <button
                     type="button"
                     className="btn btn-outline-danger ms-1 text-nowrap"
-                    onClick={onRemoveMetricsGroup}
-                    disabled={!selectMetricsGroup.group.name || saveLoader}
+                    onClick={onRemoveMetricsNamespace}
+                    disabled={!selectMetricsNamespace.namespace.name || saveLoader}
                   >
                     {saveLoader && (
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                     )}
-                    {selectMetricsGroup.group.disable ? 'Restore' : 'Remove'}
+                    {selectMetricsNamespace.namespace.disable ? 'Restore' : 'Remove'}
                   </button>
                 )}
               </div>

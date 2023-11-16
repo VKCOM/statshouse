@@ -32,14 +32,19 @@ export type ApiNamespaceGet = {
 };
 
 export type ApiNamespacePost = {
-  namespace_id: number;
-  name: string;
-  weight: number;
-  version: number;
+  namespace: {
+    namespace_id: number;
+    name: string;
+    weight: number;
+    version: number;
+    disable?: boolean;
+  };
 };
 export type ApiNamespacePut = {
-  name: string;
-  weight: number;
+  namespace: {
+    name: string;
+    weight: number;
+  };
 };
 
 export async function apiNamespaceFetch(params: ApiNamespaceGet, keyRequest?: unknown) {
