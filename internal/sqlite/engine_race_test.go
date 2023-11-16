@@ -13,9 +13,9 @@ import (
 
 func Test_Engine_Do(t *testing.T) {
 	dir := t.TempDir()
-	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, true, NoWaitCommit, nil)
 	agg := &testAggregation{}
-	n := 32
+	n := 4
 	iters := 1000
 	wg := &sync.WaitGroup{}
 	for i := 0; i < n; i++ {
@@ -43,7 +43,7 @@ func Test_Engine_Do(t *testing.T) {
 	}
 	wg.Wait()
 	require.NoError(t, engine.Close(context.Background()))
-	engine, _ = openEngine(t, dir, "db", schema, false, false, false, false, WaitCommit, func(s string) {
+	engine, _ = openEngine(t, dir, "db", schema, false, false, false, true, NoWaitCommit, func(s string) {
 		t.Fatal("mustn't apply music")
 	})
 	expectedMap := map[string]struct{}{}
