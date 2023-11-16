@@ -583,7 +583,7 @@ func (e *Engine) commitRWTXAndStartNewLocked(c Conn, commit, waitBinlogCommit, s
 	if commit {
 		startCommit := time.Now()
 		if !skipUpdateMeta && e.binlog != nil && info != nil && len(info.meta) > 0 {
-			err := e.binlogUpdateMeta(c, info.meta)
+			err = e.binlogUpdateMeta(c, info.meta)
 			if err != nil {
 				e.rw.err = err
 			}
@@ -744,7 +744,7 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 
 func (e *Engine) mustCommitNow(waitCommitMode, isReadOp bool) bool {
 	if !e.isTest {
-		return time.Since(e.lastCommitTime) >= e.opt.CommitEvery && !waitCommitMode && !isReadOp
+		return ((waitBinlogCommitDebug && e.opt.CommitOnEachWrite) || (time.Since(e.lastCommitTime) >= e.opt.CommitEvery && !waitCommitMode)) && !isReadOp
 	}
 	return e.mustCommitNowFlag
 }
@@ -755,6 +755,8 @@ func checkQueryName(qn string) error {
 	}
 	return nil
 }
+
+var waitBinlogCommitDebug = true
 
 func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) (_ chan struct{}, err error) {
 	if err := checkQueryName(queryName); err != nil {
@@ -825,7 +827,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	}
 	if e.opt.CommitOnEachWrite {
 		commit = func(c Conn) error {
-			return e.commitRWTXAndStartNewLocked(c, true, false, true)
+			return e.commitRWTXAndStartNewLocked(c, true, waitBinlogCommitDebug, !waitBinlogCommitDebug)
 		}
 		mustCommitNow = false
 	}
