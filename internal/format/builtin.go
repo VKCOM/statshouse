@@ -1569,6 +1569,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDSrcSamplingSizeBytes: {
 			Name:        "__src_sampling_size_bytes",
 			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
 			Description: `Size in bytes processed by sampler on agent.`,
 			Tags: []MetricMetaTag{{
 				Description:   "component",
@@ -1597,6 +1598,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAggSamplingSizeBytes: {
 			Name:        "__agg_sampling_size_bytes",
 			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
 			Description: `Size in bytes processed by sampler on aggregator.`,
 			Tags: []MetricMetaTag{{
 				Description:   "conveyor",
