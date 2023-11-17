@@ -363,7 +363,7 @@ func (s *MultiValue) ApplyValues(values []float64, count float64, hostTag int32,
 		}
 		s.Value.ValueSet = true
 	}
-	if count == 0 {
+	if count == 0 || count == float64(len(values)) {
 		s.Value.Counter += float64(len(values))
 		s.Value.ValueSum += sumDiff
 		s.Value.ValueSumSquare += sumSquareDiff
@@ -371,13 +371,9 @@ func (s *MultiValue) ApplyValues(values []float64, count float64, hostTag int32,
 	}
 	s.Value.Counter += count
 	// values and counter are set, so if we get [1 2 2 100] with count 20, we do not know how many times each item was repeated,
-	// so we simply guess they had equal probability
-	s.Value.ValueSum += sumDiff * count
-	s.Value.ValueSumSquare += sumSquareDiff * count
-	if len(values) != 1 {
-		s.Value.ValueSum /= float64(len(values))
-		s.Value.ValueSumSquare /= float64(len(values))
-	}
+	// so we simply guess they had equal probability.
+	s.Value.ValueSum += sumDiff * count / float64(len(values))
+	s.Value.ValueSumSquare += sumSquareDiff * count / float64(len(values))
 }
 
 func (s *MultiValue) AddUniqueHost(hashes []int64, count float64, hostTag int32) {
