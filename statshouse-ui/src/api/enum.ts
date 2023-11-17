@@ -50,6 +50,7 @@ export const GET_PARAMS = {
   dashboardGroupInfoShow: 'v',
   dashboardGroupInfoCount: 'n',
   dashboardGroupInfoSize: 's',
+  dashboardGroupInfoDescription: 'd',
   metricLive: 'live',
   theme: 'theme',
   avoidCache: 'ac',
