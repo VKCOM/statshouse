@@ -26,6 +26,9 @@ export async function groupListLoad() {
     useGroupListStore.setState((s) => {
       const list = response.data.groups?.slice() ?? [];
       list.sort(sortByKey.bind(undefined, 'name'));
+      if (!list.some((n) => n.id <= 0)) {
+        list.unshift({ id: -9999, name: 'default', weight: 1 });
+      }
       s.list = list;
     });
   }
