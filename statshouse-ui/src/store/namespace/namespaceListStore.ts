@@ -9,6 +9,7 @@ import {
   apiPutNamespaceFetch,
 } from '../../api/namespace';
 import { apiNamespaceListFetch, NamespaceShort } from '../../api/namespaceList';
+import { sortByKey } from '../../view/utils';
 
 export const namespaceListErrors = 'groupListErrors';
 
@@ -29,7 +30,12 @@ export async function namespaceListLoad() {
   }
   if (response) {
     useNamespaceListStore.setState((s) => {
-      s.list = response.data.namespaces ?? [];
+      const list = response.data.namespaces ?? [];
+      list.sort(sortByKey.bind(undefined, 'name'));
+      if (!list.some((n) => n.id <= 0)) {
+        list.unshift({ id: -9999, name: 'default', weight: 1 });
+      }
+      s.list = list;
     });
   }
 }

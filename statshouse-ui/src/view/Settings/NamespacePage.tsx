@@ -35,7 +35,7 @@ export function NamespacePage() {
   const selectDisable = selectMetricsNamespace?.namespace.disable ?? false;
 
   const { sumWeight, list } = useMemo(() => {
-    let sumWeight = 1 + (selectId == null ? selectWeight : 0);
+    let sumWeight = selectId == null ? selectWeight : 0;
     listMetricsNamespace.forEach((g) => {
       if (!g.disable) {
         const weight = selectId === g.id ? selectWeight : g.weight;
@@ -101,6 +101,9 @@ export function NamespacePage() {
   );
   const onRemoveMetricsNamespace = useCallback(() => {
     if (selectMetricsNamespace) {
+      if (!window.confirm('Confirm ' + (selectMetricsNamespace.namespace.disable ? 'restore' : 'remove'))) {
+        return;
+      }
       setSaveLoader(true);
       if (selectMetricsNamespace.namespace.namespace_id != null && selectMetricsNamespace.namespace.version != null) {
         namespaceSave({
@@ -130,22 +133,22 @@ export function NamespacePage() {
 
   const onSelectMetricsGroup = useCallback((event: React.MouseEvent) => {
     const id = parseInt(event.currentTarget.getAttribute('data-id') ?? '-1');
-    setLoadLoader(true);
-    namespaceLoad(id)
-      .then((g) => {
-        if (g) {
-          const { namespace } = g;
-          setSelectMetricsNamespace({ namespace });
-        } else {
-          setSelectMetricsNamespace(null);
-        }
-      })
-      .finally(() => {
-        setLoadLoader(false);
-      });
+    if (id > 0) {
+      setLoadLoader(true);
+      namespaceLoad(id)
+        .then((g) => {
+          if (g) {
+            const { namespace } = g;
+            setSelectMetricsNamespace({ namespace });
+          } else {
+            setSelectMetricsNamespace(null);
+          }
+        })
+        .finally(() => {
+          setLoadLoader(false);
+        });
+    }
   }, []);
-
-  const defaultMetricsNamespaceWeightPercent = useMemo(() => Math.round((1 / sumWeight) * 1000) / 10, [sumWeight]);
 
   const selectMetricsNamespaceWeightPercent = useMemo(
     () => Math.round((selectWeight / (sumWeight + (selectDisable ? selectWeight : 0))) * 1000) / 10,
@@ -195,18 +198,14 @@ export function NamespacePage() {
             </button>
           </div>
           <ul className="list-group">
-            <li className="list-group-item text-secondary d-flex flex-row">
-              <div className="flex-grow-1">default</div>
-              <div>1 [{defaultMetricsNamespaceWeightPercent}%]</div>
-            </li>
             {list.map((item) => (
               <li
                 key={item.id}
                 data-id={item.id}
-                role="button"
+                role={item.id > 0 ? 'button' : undefined}
                 className={cn(
-                  item.disable && 'text-secondary',
-                  'list-group-item text-black d-flex flex-row',
+                  item.disable || item.id <= 0 ? 'text-secondary' : 'text-body',
+                  'list-group-item d-flex flex-row',
                   selectMetricsNamespace?.namespace.namespace_id === item.id && 'text-bg-light'
                 )}
                 onClick={onSelectMetricsGroup}
