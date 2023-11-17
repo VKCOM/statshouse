@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { Popper } from './Popper';
+import { Popper, POPPER_HORIZONTAL, POPPER_VERTICAL, PopperHorizontal, PopperVertical } from './Popper';
 import { type JSX } from 'react/jsx-runtime';
 import { TooltipTitleContent } from './TooltipTitleContent';
 import cn from 'classnames';
@@ -20,12 +20,27 @@ export type TooltipProps<T extends keyof JSX.IntrinsicElements> = {
   minWidth?: string | number;
   maxHeight?: string | number;
   maxWidth?: string | number;
+  vertical?: PopperVertical;
+  horizontal?: PopperHorizontal;
 } & Omit<JSX.IntrinsicElements[T], 'title'>;
 
 declare function TooltipFn<T extends keyof JSX.IntrinsicElements>(props: TooltipProps<T>): JSX.Element;
 
 export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Tooltip(
-  { as: Tag = 'div', title, children, minHeight, minWidth, maxHeight, maxWidth, hover, titleClassName, ...props },
+  {
+    as: Tag = 'div',
+    title,
+    children,
+    minHeight,
+    minWidth,
+    maxHeight,
+    maxWidth,
+    hover,
+    titleClassName,
+    vertical = POPPER_VERTICAL.outTop,
+    horizontal = POPPER_HORIZONTAL.center,
+    ...props
+  },
   ref
 ) {
   const [localRef, setLocalRef] = useState<Element | null>(null);
@@ -72,8 +87,8 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
           className={cn(!hover && css.pointerNone)}
           targetRef={targetRef}
           fixed={false}
-          horizontal={'center'}
-          vertical={'out-top'}
+          horizontal={horizontal}
+          vertical={vertical}
           show={open}
         >
           <div className={cn(titleClassName, 'card overflow-auto')} onClick={stopPropagation}>
