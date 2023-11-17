@@ -170,7 +170,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDBlockIOTime: {
 		Name:        BuiltinMetricNameBlockIOTime,
 		Kind:        MetricKindValue,
-		MetricType:  MetricByte,
+		MetricType:  MetricSecond,
 		Description: "The amount of time to transfer data to and from disk. Count - number of operations, Value - wait time for handle operations",
 		Tags: []MetricMetaTag{
 			{
