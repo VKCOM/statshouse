@@ -8,12 +8,12 @@ export function DashboardGroupTooltipTitle({ name, description }: DashboardGroup
     return null;
   }
   return (
-    <div className="small">
+    <div className="small text-secondary overflow-auto">
       <div className="text-body fw-bold">
         {name}
         {!!description && ':'}
       </div>
-      {!!description && <div className="text-secondary">{description}</div>}
+      {!!description && <pre className="p-0 m-0">{description}</pre>}
     </div>
   );
 }
