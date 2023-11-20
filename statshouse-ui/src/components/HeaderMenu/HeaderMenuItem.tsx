@@ -82,7 +82,7 @@ export const HeaderMenuItem: React.FC<HeaderMenuItemProps> = ({
       onClick={onClose}
     >
       {to || indexPlot !== undefined ? (
-        <PlotLink className="nav-link" to={to} indexPlot={indexPlot} title={title} ref={touchToggle}>
+        <PlotLink className="nav-link" to={to} indexPlot={indexPlot} ref={touchToggle}>
           <Icon className={css.icon} />
         </PlotLink>
       ) : (
@@ -94,7 +94,7 @@ export const HeaderMenuItem: React.FC<HeaderMenuItemProps> = ({
         <ul className={cn(`nav d-flex flex-column`, css.nav, css.sub)} ref={sub}>
           {to || indexPlot !== undefined ? (
             <li className="nav-item">
-              <PlotLink className="nav-link text-nowrap" to={to} indexPlot={indexPlot} title={title}>
+              <PlotLink className="nav-link text-nowrap" to={to} indexPlot={indexPlot}>
                 {description ?? title}
               </PlotLink>
             </li>

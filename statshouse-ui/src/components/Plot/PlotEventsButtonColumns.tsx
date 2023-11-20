@@ -3,6 +3,7 @@ import { ReactComponent as SVGListCheck } from 'bootstrap-icons/icons/list-check
 import { PlotEventsSelectColumns } from './PlotEventsSelectColumns';
 import cn from 'classnames';
 import css from './style.module.css';
+import { Button } from '../UI';
 
 export type PlotEventsButtonColumnsProps = {
   indexPlot: number;
@@ -16,7 +17,7 @@ export function PlotEventsButtonColumns({ indexPlot, loader }: PlotEventsButtonC
   }, []);
   return (
     <div className="position-relative">
-      <button
+      <Button
         className={cn(css.btnEventsSelectColumns, 'btn btn-sm border-0 position-relative')}
         onClick={toggleEventColumnShow}
         title="select table column"
@@ -27,7 +28,7 @@ export function PlotEventsButtonColumns({ indexPlot, loader }: PlotEventsButtonC
             <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
           </div>
         )}
-      </button>
+      </Button>
       {eventColumnShow && (
         <PlotEventsSelectColumns
           indexPlot={indexPlot}

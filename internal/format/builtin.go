@@ -18,7 +18,8 @@ const (
 	tagStringForUI = "tag"
 
 	BuiltinGroupIDDefault = -1 // for all metrics with group not known. We want to edit it in the future, so not 0
-	BuiltinGroupIDBuiltin = -2 // for all built in metrics
+	BuiltinGroupIDBuiltin = -2 // for all built in metrics except host
+	BuiltinGroupIDHost    = -3 // host built in metrics
 
 	BuiltinMetricIDAgentSamplingFactor        = -1
 	BuiltinMetricIDAggBucketReceiveDelaySec   = -2 // Also approximates insert delay, interesting for historic buckets
@@ -91,6 +92,11 @@ const (
 	BuiltinMetricIDAPIResponseTime            = -77
 	BuiltinMetricIDSrcTestConnection          = -78
 	BuiltinMetricIDAggTimeDiff                = -79
+	BuiltinMetricIDSrcSamplingMetricCount     = -80
+	BuiltinMetricIDAggSamplingMetricCount     = -81
+	BuiltinMetricIDSrcSamplingSizeBytes       = -82
+	BuiltinMetricIDAggSamplingSizeBytes       = -83
+	BuiltinMetricIDUIErrors                   = -84
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -308,6 +314,9 @@ const (
 	TagOtherError   = 3
 	TagRPCError     = 4
 	TagTimeoutError = 5
+
+	TagValueIDSamplingDecisionKeep    = -1
+	TagValueIDSamplingDecisionDiscard = -2
 )
 
 var (
@@ -1539,6 +1548,88 @@ Value is delta between second value and time it was inserted.`,
 				},
 			},
 		},
+		BuiltinMetricIDSrcSamplingMetricCount: {
+			Name:        "__src_sampling_metric_count",
+			Kind:        MetricKindValue,
+			Description: `Metric count processed by sampler on agent.`,
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}},
+		},
+		BuiltinMetricIDAggSamplingMetricCount: {
+			Name:        "__agg_sampling_metric_count",
+			Kind:        MetricKindValue,
+			Description: `Metric count processed by sampler on aggregator.`,
+			Tags: []MetricMetaTag{{
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}},
+		},
+		BuiltinMetricIDSrcSamplingSizeBytes: {
+			Name:        "__src_sampling_size_bytes",
+			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
+			Description: `Size in bytes processed by sampler on agent.`,
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}, {
+				Description: "sampling_decision",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDSamplingDecisionKeep:    "keep",
+					TagValueIDSamplingDecisionDiscard: "discard",
+				}),
+			}, {
+				Description: "namespace",
+				Raw:         true,
+			}, {
+				Description: "group",
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinGroupIDDefault: "default",
+					BuiltinGroupIDBuiltin: "builtin",
+					BuiltinGroupIDHost:    "host",
+				}),
+			}, {
+				Description:   "metric_kind",
+				ValueComments: convertToValueComments(insertKindToValue),
+			}},
+		},
+		BuiltinMetricIDAggSamplingSizeBytes: {
+			Name:        "__agg_sampling_size_bytes",
+			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
+			Description: `Size in bytes processed by sampler on aggregator.`,
+			Tags: []MetricMetaTag{{
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}, {
+				Description: "sampling_decision",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDSamplingDecisionKeep:    "keep",
+					TagValueIDSamplingDecisionDiscard: "discard",
+				}),
+			}, {
+				Description: "namespace",
+				Raw:         true,
+			}, {
+				Description: "group",
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinGroupIDDefault: "default",
+					BuiltinGroupIDBuiltin: "builtin",
+					BuiltinGroupIDHost:    "host",
+				}),
+			}, {
+				Description:   "metric_kind",
+				ValueComments: convertToValueComments(insertKindToValue),
+			}},
+		},
+		BuiltinMetricIDUIErrors: {
+			Name:                 "__ui_errors",
+			Kind:                 MetricKindValue,
+			Description:          `Errors on the frontend.`,
+			StringTopDescription: "error_string",
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -1567,6 +1658,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDMetaClientWaits:            true,
 		BuiltinMetricIDAPIMetricUsage:             true,
 		BuiltinMetricIDHeartbeatVersion:           true,
+		BuiltinMetricIDUIErrors:                   true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
@@ -1663,6 +1755,9 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
 		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
 		BuiltinMetricIDAPIMetricUsage:             true,
+		BuiltinMetricIDSrcSamplingMetricCount:     true,
+		BuiltinMetricIDSrcSamplingSizeBytes:       true,
+		BuiltinMetricIDUIErrors:                   true,
 	}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue
@@ -1768,6 +1863,7 @@ func init() {
 	for k, v := range hostMetrics {
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
 		v.Resolution = 60
+		v.GroupID = BuiltinGroupIDHost
 		BuiltinMetrics[k] = v
 		builtinMetricsAllowedToReceive[k] = true
 		metricsWithoutAggregatorID[k] = true
@@ -1794,9 +1890,12 @@ func init() {
 	BuiltinMetricAllowedToReceive = make(map[string]*MetricMetaValue, len(BuiltinMetrics))
 	for id, m := range BuiltinMetrics {
 		m.MetricID = id
-		m.GroupID = BuiltinGroupIDBuiltin
+		if m.GroupID == 0 {
+			m.GroupID = BuiltinGroupIDBuiltin
+		}
 		m.Visible = !builtinMetricsInvisible[id]
 		m.PreKeyFrom = math.MaxInt32 // allow writing, but not yet selecting
+		m.Weight = 1
 
 		BuiltinMetricByName[m.Name] = m
 

@@ -10,6 +10,7 @@ import { useDebounceState } from '../../hooks';
 import useDeepCompareEffect from 'use-deep-compare-effect';
 import cn from 'classnames';
 import { SearchFabric } from '../../common/helpers';
+import { Button } from '../UI';
 
 export const SELECT_OPTION_ACTION = {
   ToggleFiltered: 'ToggleFiltered',
@@ -681,7 +682,7 @@ export const Select: FC<SelectProps> = ({
       onMouseMove={onHover}
       ref={select}
     >
-      <button type="button" aria-label="Close" className={`btn ${css.close}`} onClick={onClose}></button>
+      <Button type="button" aria-label="Close" className={`btn ${css.close}`} onClick={onClose}></Button>
       <input
         ref={input}
         className={`w-100 ${css.input} ${meFocusDebounce ? css.focus : ''}  ${classNameInput}`}
@@ -692,7 +693,7 @@ export const Select: FC<SelectProps> = ({
         placeholder={placeholderInput}
       />
       <ul ref={list} onClick={onClickSelect} onInput={onChangeSelect} className={`${css.list} ${classNameList}`} />
-      <button type="button" className={css.chevron} onFocus={onFocusChevron} onClick={onClickChevron}></button>
+      <Button type="button" className={css.chevron} onFocus={onFocusChevron} onClick={onClickChevron}></Button>
     </div>
   );
 };

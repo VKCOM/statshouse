@@ -16,6 +16,7 @@ import {
 } from '../../store';
 import { produce } from 'immer';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '../UI';
 
 export type DashboardInfoProps = {};
 
@@ -116,14 +117,14 @@ export const DashboardInfo: React.FC<DashboardInfoProps> = () => {
           </div>
           <div className="d-flex flex-row justify-content-end">
             {isServer && (
-              <button
+              <Button
                 type="button"
                 className="btn btn-outline-danger ms-2"
                 onClick={onRemoveDashboard}
                 disabled={numQueries > 1}
               >
                 Remove
-              </button>
+              </Button>
             )}
           </div>
         </div>

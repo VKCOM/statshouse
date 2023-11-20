@@ -21,16 +21,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ adminMode }) => {
   return (
     <div className="d-flex flex-column flex-grow-1">
       <ul className="nav nav-tabs px-2 pt-1">
-        {/*<li className="nav-item">
+        <li className="nav-item">
           <NavLink className="nav-link" to="./group" end aria-current="page">
             Group
           </NavLink>
-        </li>*/}
+        </li>
         <li className="nav-item">
+          <NavLink className="nav-link" to="./namespace" end aria-current="page">
+            Namespace
+          </NavLink>
+        </li>
+        {/*<li className="nav-item">
           <NavLink className="nav-link" to="./prometheus" end aria-current="page">
             Prometheus
           </NavLink>
-        </li>
+        </li>*/}
       </ul>
       <div className="flex-grow-1 d-flex flex-column">
         <Outlet />

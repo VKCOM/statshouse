@@ -38,6 +38,7 @@ const (
 	EndpointNamespaceList   = "namespace-list"
 	EndpointGroupList       = "group-list"
 	EndpointPrometheus      = "prometheus"
+	EndpointStatistics      = "stat"
 	endpointChunk           = "chunk"
 
 	userTokenName = "user"

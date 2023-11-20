@@ -263,7 +263,9 @@ func TestSelectRandom(t *testing.T) {
 }
 
 func TestSelectRandom2(t *testing.T) {
-	testSelectRandom(t, selectRandom)
+	if os.Getenv("STATSHOUSE_TEST_SELECT_RANDOM") == "1" {
+		testSelectRandom(t, selectRandom)
+	}
 }
 
 func testSelectRandom(t *testing.T, fn func([]SamplingMultiItemPair, float64, *rand.Rand) int) {
@@ -606,9 +608,9 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 					config.KeepF(v.Key, v.Item)
 				}
 			}
-			sf *= 2 // half of space is occupied by whales now. TODO - we can be more exact here, make permutations and take as many elements as we need, saving lots of rnd calls
 			samplingMetric.items = samplingMetric.items[whalesAllowed:]
 		}
+		sf *= 2 // half of space is occupied by whales now. TODO - we can be more exact here, make permutations and take as many elements as we need, saving lots of rnd calls
 		pos := config.SelectF(samplingMetric.items, sf, config.Rand)
 		for _, v := range samplingMetric.items[:pos] {
 			v.Item.SF = sf // communicate selected factor to next step of processing

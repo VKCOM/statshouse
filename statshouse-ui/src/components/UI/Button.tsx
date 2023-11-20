@@ -2,7 +2,7 @@ import React from 'react';
 import { Tooltip } from './Tooltip';
 
 export type ButtonProps = {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   title?: React.ReactNode;
 } & Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'title'>;
 

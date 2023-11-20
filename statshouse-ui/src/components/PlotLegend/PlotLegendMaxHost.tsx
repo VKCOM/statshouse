@@ -4,6 +4,7 @@ import { selectorPlotsDataByIndex, useStore } from '../../store';
 
 import { ReactComponent as SVGCopy } from 'bootstrap-icons/icons/copy.svg';
 import { debug } from '../../common/debug';
+import { Button } from '../UI';
 
 type PlotLegendMaxHostProps = {
   value: string;
@@ -36,14 +37,14 @@ function _PlotLegendMaxHost({ value, placeholder, indexPlot, idx }: PlotLegendMa
         listOnlyOpen
         showCountItems
       />
-      <button
+      <Button
         onClick={onCopyList}
         type="button"
         className="btn btn-sm border-0 p-0 ms-1"
         title="copy max host list to clipboard"
       >
         <SVGCopy width="8" height="8" />
-      </button>
+      </Button>
     </div>
   );
 }

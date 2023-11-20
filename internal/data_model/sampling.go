@@ -75,8 +75,15 @@ type (
 	}
 
 	SamplerStatistics struct {
-		Count int           // number of metrics with SF > 1
-		Steps []SamplerStep // steps contributed to "Count"
+		Count   int                                 // number of metrics with SF > 1
+		Steps   []SamplerStep                       // steps contributed to "Count"
+		Items   map[[3]int32]*SamplerStatisticsItem // grouped by [namespace, group, metric_kind]
+		Metrics map[int32]int                       // series count grouped by metric
+	}
+
+	SamplerStatisticsItem struct {
+		SumSizeKeep    ItemValue
+		SumSizeDiscard ItemValue
 	}
 )
 
@@ -91,7 +98,6 @@ func NewSampler(capacity int, config SamplerConfig) Sampler {
 		items:  make([]SamplingMultiItemPair, 0, capacity),
 		config: config,
 		nilMetric: format.MetricMetaValue{
-			GroupID:         format.BuiltinGroupIDDefault,
 			EffectiveWeight: format.EffectiveWeightOne,
 		},
 		nilGroup: format.MetricsGroup{
@@ -143,7 +149,10 @@ func (h *Sampler) Run(budgetNum, budgetDenom int64) SamplerStatistics {
 		}
 		return lhs.fairKey < rhs.fairKey
 	})
-	var stat SamplerStatistics
+	stat := SamplerStatistics{
+		Items:   map[[3]int32]*SamplerStatisticsItem{},
+		Metrics: map[int32]int{},
+	}
 	h.run(h.items, 0, budgetNum, budgetDenom, &stat)
 	return stat
 }
@@ -171,7 +180,7 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 		}
 		budgetNum -= g.sumSize * budgetDenom
 		sumWeight -= g.weight
-		h.keep(g)
+		h.keep(g, stat)
 		pos++
 	}
 	// Sample remaining groups who didn't fit into the budget
@@ -179,12 +188,12 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 	for i := pos; i < len(groups); i++ {
 		g := &groups[i]
 		if g.noSampleAgent && h.config.ModeAgent {
-			h.keep(g)
+			h.keep(g, stat)
 		} else if depth < len(h.partF)-1 {
 			d := budgetDenom * (int64(len(groups) - pos)) // group budget denominator
 			h.run(g.items, depth+1, budgetNum, d, stat)
 		} else {
-			h.sample(g, budgetNum, budgetDenom, sumWeight)
+			h.sample(g, budgetNum, budgetDenom, sumWeight, stat)
 			if g.SF > 1 {
 				n++
 			}
@@ -203,17 +212,18 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 	}
 }
 
-func (h *Sampler) keep(g *SamplerGroup) {
+func (h *Sampler) keep(g *SamplerGroup, stat *SamplerStatistics) {
 	for i := range g.items {
 		p := &g.items[i]
 		p.Item.SF = 1 // communicate selected factor to next step of processing
 		if h.config.KeepF != nil {
 			h.config.KeepF(p.Key, p.Item)
 		}
+		stat.add(p, true)
 	}
 }
 
-func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int64) {
+func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int64, stat *SamplerStatistics) {
 	var (
 		sfNum   = g.sumSize * budgetDenom * sumWeight
 		sfDenom = budgetNum * g.weight
@@ -228,7 +238,7 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 	if g.roundFactors {
 		sf = h.config.RoundF(sf, h.config.Rand)
 		if sf <= 1 { // many sample factors are between 1 and 2, so this is worthy optimization
-			h.keep(g)
+			h.keep(g, stat)
 			return
 		}
 		sfNum = int64(sf)
@@ -257,10 +267,16 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 			if h.config.KeepF != nil {
 				h.config.KeepF(p.Key, p.Item)
 			}
+			stat.add(p, true)
 		}
-		sf *= 2 // space has been taken by whales
 		items = items[pos:]
 	}
+	// Space has been taken by whales
+	// NB! Should be moved at the end of the above "if" ASAP
+	// NB! because unconditional multiplication here is a BUG
+	// NB! leading to significant counters (sums as well) increase.
+	// NB! Left here to not deploy multiple changes together.
+	sf *= 2
 	// Sample tail
 	pos = h.config.SelectF(items, sf, h.config.Rand)
 	for i := 0; i < pos; i++ {
@@ -269,6 +285,7 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 		if h.config.KeepF != nil {
 			h.config.KeepF(p.Key, p.Item)
 		}
+		stat.add(p, true)
 	}
 	for i := pos; i < len(items); i++ {
 		p := &items[i]
@@ -276,7 +293,34 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 		if h.config.DiscardF != nil {
 			h.config.DiscardF(p.Key, p.Item)
 		}
+		stat.add(p, false)
 	}
+}
+
+func (stat *SamplerStatistics) add(p *SamplingMultiItemPair, keep bool) {
+	var metricKind int32
+	switch {
+	case p.Item.Tail.ValueTDigest != nil:
+		metricKind = format.TagValueIDSizePercentiles
+	case p.Item.Tail.HLL.ItemsCount() != 0:
+		metricKind = format.TagValueIDSizeUnique
+	case p.Item.Tail.Value.ValueSet:
+		metricKind = format.TagValueIDSizeValue
+	default:
+		metricKind = format.TagValueIDSizeCounter
+	}
+	k := [3]int32{p.metric.NamespaceID, p.metric.GroupID, metricKind}
+	v := stat.Items[k]
+	if v == nil {
+		v = &SamplerStatisticsItem{}
+		stat.Items[k] = v
+	}
+	if keep {
+		v.SumSizeKeep.AddValue(float64(p.Size))
+	} else {
+		v.SumSizeDiscard.AddValue(float64(p.Size))
+	}
+	stat.Metrics[p.MetricID]++
 }
 
 func partitionByGroup(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
@@ -398,11 +442,14 @@ func (h *Sampler) getMetricMeta(metricID int32) *format.MetricMetaValue {
 	if meta := h.config.Meta.GetMetaMetric(metricID); meta != nil {
 		return meta
 	}
+	if meta := format.BuiltinMetrics[metricID]; meta != nil {
+		return meta
+	}
 	return &h.nilMetric
 }
 
 func (h *Sampler) getGroupMeta(groupID int32) *format.MetricsGroup {
-	if groupID == format.BuiltinGroupIDBuiltin || h.config.Meta == nil {
+	if h.config.Meta == nil || groupID == 0 {
 		return &h.nilGroup
 	}
 	if meta := h.config.Meta.GetGroup(groupID); meta != nil {
@@ -440,23 +487,12 @@ func selectRandom(s []SamplingMultiItemPair, sf float64, r *rand.Rand) int {
 	if sf <= 1 {
 		return len(s)
 	}
-	var (
-		x = float64(len(s)) / sf
-		l = int(math.Floor(x))
-		h = int(math.Ceil(x))
-	)
-	if len(s) <= l {
-		return len(s)
-	}
 	n := 0
-	for ; n < l; n++ {
-		x := n + r.Intn(len(s)-n)
-		s[n], s[x] = s[x], s[n]
-	}
-	if l != h && n < len(s) {
-		x := n + r.Intn(2*(len(s)-n))
-		if x < len(s) {
-			s[n], s[x] = s[x], s[n]
+	for i := 0; i < len(s); i++ {
+		if r.Float64()*sf < 1 {
+			if n < i {
+				s[n], s[i] = s[i], s[n]
+			}
 			n++
 		}
 	}

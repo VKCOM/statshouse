@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -160,7 +160,10 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         prev.tabNum = 0;
         prev.plots = [plot].filter(Boolean);
         prev.tagSync = [];
-        prev.variables = [];
+        prev.variables =
+          plot.metricName === promQLMetric
+            ? prev.variables.filter((v) => plot.promQL.indexOf(v.name) > -1).map((v) => ({ ...v, link: [] }))
+            : [];
       })
     );
     return `${document.location.protocol}//${document.location.host}${document.location.pathname}?${fixMessageTrouble(
@@ -259,7 +262,12 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
               </div>
             ) : (
               <>
-                <Tooltip as="span" className="text-decoration-none overflow-hidden text-nowrap" title={plotTooltip}>
+                <Tooltip
+                  hover
+                  as="span"
+                  className="text-decoration-none overflow-hidden text-nowrap"
+                  title={plotTooltip}
+                >
                   <PlotLink className="text-decoration-none" indexPlot={indexPlot} target={embed ? '_blank' : '_self'}>
                     <PlotName plot={plot} plotData={plotData} />
                   </PlotLink>
@@ -317,7 +325,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         <h6
           className={`d-flex flex-wrap justify-content-center align-items-center overflow-force-wrap font-monospace fw-bold me-3 flex-grow-1 gap-1 mb-1`}
         >
-          <Tooltip title={plotTooltip}>
+          <Tooltip hover title={plotTooltip}>
             <PlotLink
               className="text-secondary text-decoration-none"
               indexPlot={indexPlot}
@@ -359,15 +367,9 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             ) : (
               <div className="d-flex align-items-center w-100">
                 <div className="overflow-force-wrap flex-grow-1">
-                  <Tooltip as="span" className="text-decoration-none overflow-hidden" title={plotTooltip}>
-                    <PlotLink
-                      className="text-decoration-none overflow-hidden"
-                      indexPlot={indexPlot}
-                      target={embed ? '_blank' : '_self'}
-                    >
-                      <PlotName plot={plot} plotData={plotData} />
-                    </PlotLink>
-                  </Tooltip>
+                  <PlotLink className="text-secondary text-decoration-none" indexPlot={indexPlot}>
+                    <PlotName plot={plot} plotData={plotData} />
+                  </PlotLink>
                   <Link to={copyLink} target="_blank" className="ms-2">
                     <SVGBoxArrowUpRight width={10} height={10} />
                   </Link>

@@ -20,6 +20,7 @@ import { GET_PARAMS } from '../../api/enum';
 import { getEmptyVariableParams } from '../../common/getEmptyVariableParams';
 import { getNextState } from '../../common/getNextState';
 import { VariableParams } from '../../url/queryParams';
+import { Button } from '../UI';
 
 const selector = ({ params: { variables, plots }, plotsData, metricsMeta }: Store) => ({
   variables,
@@ -107,7 +108,7 @@ export function DashboardVariable() {
           ))}
         </div>
         <div className="mt-1 text-end">
-          <button
+          <Button
             type="button"
             disabled={autoLoader}
             onClick={autoSearch}
@@ -121,16 +122,16 @@ export function DashboardVariable() {
                 <SVGSearch /> Auto filter
               </>
             )}
-          </button>
-          <button type="button" onClick={addVariable} className="btn btn-outline-primary ms-2">
+          </Button>
+          <Button type="button" onClick={addVariable} className="btn btn-outline-primary ms-2">
             <SVGPlusLg /> Add variable
-          </button>
-          <button type="button" disabled={noChange} className="btn btn-outline-success ms-2" onClick={apply}>
+          </Button>
+          <Button type="button" disabled={noChange} className="btn btn-outline-success ms-2" onClick={apply}>
             <SVGCheckLg /> Apply
-          </button>
-          <button type="button" disabled={noChange} className="btn btn-outline-danger ms-2" onClick={reset}>
+          </Button>
+          <Button type="button" disabled={noChange} className="btn btn-outline-danger ms-2" onClick={reset}>
             <SVGArrowCounterclockwise /> Reset
-          </button>
+          </Button>
         </div>
       </div>
     </div>

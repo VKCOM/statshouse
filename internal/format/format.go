@@ -56,6 +56,9 @@ const (
 	TagValueNullLegacy           = "null"     // see TagValueIDNull
 	TagValueIDMappingFloodLegacy = 22136242   // STATLOGS_KEY_KEYOVERFLOW_INT
 	TagValueIDRawDeltaLegacy     = 10_000_000 // STATLOGS_INT_NOCONVERT
+
+	NamespaceSeparator     = ":"
+	NamespaceSeparatorRune = ':'
 )
 
 // Do not change values, they are stored in DB
@@ -150,7 +153,7 @@ type NamespaceMeta struct {
 	DeleteTime uint32 `json:"delete_time"`
 
 	Weight  float64 `json:"weight"`
-	Visible bool    `json:"visible"`
+	Disable bool    `json:"disable"`
 
 	EffectiveWeight int64 `json:"-"`
 }
@@ -174,10 +177,8 @@ type MetricsGroup struct {
 	Version     int64  `json:"version"`
 	UpdateTime  uint32 `json:"update_time"`
 
-	Weight            float64 `json:"weight,omitempty"`
-	Visible           bool    `json:"visible,omitempty"`
-	IsWeightEffective bool    `json:"is_weight_effective,omitempty"`
-	Protected         bool    `json:"protected,omitempty"`
+	Weight  float64 `json:"weight,omitempty"`
+	Disable bool    `json:"disable,omitempty"`
 
 	EffectiveWeight int64          `json:"-"`
 	Namespace       *NamespaceMeta `json:"-"`
@@ -186,7 +187,7 @@ type MetricsGroup struct {
 // This struct is immutable, it is accessed by mapping code without any locking
 type MetricMetaValue struct {
 	MetricID    int32  `json:"metric_id"`
-	NamespaceID int32  `json:"namespace_id"`
+	NamespaceID int32  `json:"namespace_id"` // RO
 	Name        string `json:"name"`
 	Version     int64  `json:"version,omitempty"`
 	UpdateTime  uint32 `json:"update_time"`
@@ -217,9 +218,10 @@ type MetricMetaValue struct {
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
-	GroupID             int32                    `json:"-"`
-	Group               *MetricsGroup            `json:"-"`
-	Namespace           *NamespaceMeta           `json:"-"`
+
+	GroupID   int32          `json:"-"`
+	Group     *MetricsGroup  `json:"-"`
+	Namespace *NamespaceMeta `json:"-"`
 }
 
 type MetricMetaValueOld struct {
@@ -500,16 +502,33 @@ func (m *NamespaceMeta) RestoreCachedInfo() error {
 	return err
 }
 
-func (m *MetricsGroup) MetricIn(metric string) bool {
-	return strings.HasPrefix(metric, m.Name+"_")
+func (m *MetricsGroup) MetricIn(metric *MetricMetaValue) bool {
+	return strings.HasPrefix(metric.Name, m.Name)
 }
 
 func ValidMetricName(s mem.RO) bool {
-	return validIdent(s)
+	if s.Len() == 0 || s.Len() > MaxStringLen || !isLetter(s.At(0)) {
+		return false
+	}
+	namespaceSepCount := 0
+	for i := 1; i < s.Len(); i++ {
+		c := s.At(i)
+		if c == NamespaceSeparatorRune {
+			if namespaceSepCount > 0 {
+				return false
+			}
+			namespaceSepCount++
+			continue
+		}
+		if !isLetter(c) && c != '_' && !(c >= '0' && c <= '9') {
+			return false
+		}
+	}
+	return true
 }
 
 func ValidGroupName(s string) bool {
-	return validIdent(mem.S(s))
+	return ValidMetricName(mem.S(s))
 }
 
 func ValidDashboardName(s string) bool {
@@ -944,4 +963,36 @@ func IsValidMetricType(typ_ string) bool {
 		return true
 	}
 	return false
+}
+
+func NamespaceName(namespace string, name string) string {
+	if namespace == "" {
+		return name
+	}
+	return namespace + NamespaceSeparator + name
+}
+
+func SplitNamespace(metricName string) (string, string) {
+	ix := strings.Index(metricName, NamespaceSeparator)
+	if ix == -1 {
+		return metricName, ""
+	}
+	return metricName[ix+1:], metricName[:ix]
+}
+
+func EventTypeToName(typ int32) string {
+	switch typ {
+	case MetricEvent:
+		return "metric"
+	case DashboardEvent:
+		return "dashboard"
+	case MetricsGroupEvent:
+		return "group"
+	case PromConfigEvent:
+		return "prom-config"
+	case NamespaceEvent:
+		return "namespace"
+	default:
+		return "unknown"
+	}
 }

@@ -30,6 +30,8 @@ import css from './style.module.css';
 import { PlotParams } from '../../url/queryParams';
 import { toNumber } from '../../common/helpers';
 import { useResizeObserver } from '../../view/utils';
+import { Button } from '../UI';
+import { DashboardPlotWrapper } from './DashboardPlotWrapper';
 
 function getStylePreview(
   targetRect: DOMRect,
@@ -325,16 +327,16 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
         ref={zone}
       >
         {itemsGroup.map(({ group, indexGroup, plots }) => (
-          <div key={indexGroup} className="pb-5" data-group={indexGroup}>
+          <div key={indexGroup} className={cn(!embed ? 'pb-5' : 'pb-2')} data-group={indexGroup}>
             <h6
               hidden={itemsGroup.length <= 1 && group.show !== false && !dashboardLayoutEdit && !group.name}
               className="border-bottom pb-1"
             >
               {dashboardLayoutEdit ? (
                 <div className="d-flex p-0 container-xl">
-                  <button className="btn me-2" onClick={onGroupShowToggle} data-group={indexGroup}>
+                  <Button className="btn me-2" onClick={onGroupShowToggle} data-group={indexGroup}>
                     {group.show === false ? <SVGChevronRight /> : <SVGChevronDown />}
-                  </button>
+                  </Button>
                   <div className="input-group">
                     <input
                       className="form-control"
@@ -357,7 +359,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                       <option value="s">S, auto width</option>
                     </select>
                     <div className="d-flex flex-column">
-                      <button
+                      <Button
                         className="btn btn-sm btn-outline-primary py-0 rounded-0"
                         style={{ height: 19 }}
                         title="Group move up"
@@ -366,8 +368,8 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                         onClick={onMoveGroupUp}
                       >
                         <SVGChevronCompactUp className="align-baseline" />
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         className="btn btn-sm btn-outline-primary py-0 rounded-0 border-top-0"
                         style={{ height: 19 }}
                         title="Group move down"
@@ -376,25 +378,25 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                         onClick={onMoveGroupDown}
                       >
                         <SVGChevronCompactDown className="align-baseline" />
-                      </button>
+                      </Button>
                     </div>
-                    <button
+                    <Button
                       className="btn btn-outline-primary px-1"
                       title="Add group before this"
                       data-index-group={indexGroup}
                       onClick={onAddGroup}
                     >
                       <SVGPlus />
-                    </button>
+                    </Button>
                     {itemsGroup.length > 1 && plots.length === 0 && (
-                      <button
+                      <Button
                         className="btn btn-outline-danger px-1"
                         title="Remove group"
                         data-index-group={indexGroup}
                         onClick={onRemoveGroup}
                       >
                         <SVGTrash />
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -418,12 +420,12 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                 <div
                   className={cn(
                     'd-flex flex-row flex-wrap',
-                    !plots.length && !dashboardLayoutEdit ? 'pb-0' : 'pb-5',
+                    (!plots.length && !dashboardLayoutEdit) || embed ? 'pb-0' : 'pb-5',
                     toNumber(group.size ?? '2') != null ? 'container-xl' : null
                   )}
                 >
                   {plots.map(({ plot, indexPlot, selected }) => (
-                    <div
+                    <DashboardPlotWrapper
                       key={indexPlot}
                       className={cn(
                         'plot-item p-1',
@@ -445,7 +447,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                         dashboard={true}
                         group="1"
                       />
-                    </div>
+                    </DashboardPlotWrapper>
                   ))}
                 </div>
               </div>
@@ -461,13 +463,13 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
           ) : (
             <div className="pb-5 text-center container-xl" data-group={maxGroup + 1}>
               <h6 className="border-bottom"> </h6>
-              <button
+              <Button
                 className="btn btn-outline-primary py-4 w-100"
                 data-index-group={maxGroup + 1}
                 onClick={onAddGroup}
               >
                 <SVGPlus /> Add new group
-              </button>
+              </Button>
             </div>
           ))}
         <div hidden={select === null} className="position-fixed opacity-75 top-0 start-0" ref={preview}>

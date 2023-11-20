@@ -9,7 +9,7 @@ import uPlot from 'uplot';
 import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
-import { UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
+import { Button, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
 import { now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { black, grey, greyDark } from '../../view/palette';
 import { produce } from 'immer';
@@ -330,10 +330,10 @@ export function PlotViewEvent(props: {
   const divOut = useRef<HTMLDivElement>(null);
   const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
   const onMouseOver = useCallback(() => {
-    if (divOut.current) {
+    if (divOut.current && !embed) {
       setFixHeight(divOut.current.getBoundingClientRect().height);
     }
-  }, []);
+  }, [embed]);
   const onMouseOut = useCallback(() => {
     setFixHeight(0);
   }, []);
@@ -404,11 +404,11 @@ export function PlotViewEvent(props: {
             {/*last error*/}
             {!!lastError && (
               <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
-                <button type="button" className="btn" aria-label="Reload" onClick={reload}>
+                <Button type="button" className="btn" aria-label="Reload" onClick={reload}>
                   <SVGArrowCounterclockwise />
-                </button>
+                </Button>
                 <small className="overflow-force-wrap font-monospace">{lastError}</small>
-                <button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
+                <Button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
               </div>
             )}
             <PlotHeader

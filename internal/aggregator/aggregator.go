@@ -90,6 +90,11 @@ type (
 
 		config ConfigAggregator
 
+		// Remote config
+		configR  ConfigAggregatorRemote
+		configS  string
+		configMu sync.RWMutex
+
 		metricStorage  *metajournal.MetricsStorage
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
@@ -167,6 +172,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		bucketsToSend:               make(chan *aggregatorBucket),
 		historicBuckets:             map[uint32]*aggregatorBucket{},
 		config:                      config,
+		configR:                     config.ConfigAggregatorRemote,
 		hostName:                    format.ForceValidStringValue(hostName), // worse alternative is do not run at all
 		withoutCluster:              withoutCluster,
 		shardKey:                    shardKey,
@@ -648,6 +654,7 @@ func (a *Aggregator) goTicker() {
 		tick := time.After(data_model.TillStartOfNextSecond(now))
 		now = <-tick // We synchronize with calendar second boundary
 
+		a.updateConfigRemotelyExperimental()
 		readyBuckets := a.advanceRecentBuckets(now, false)
 		for _, aggBucket := range readyBuckets {
 			aggBucket.sendMu.Lock()   // Lock/Unlock waits all clients to finish aggregation
@@ -680,4 +687,28 @@ func (a *Aggregator) goTicker() {
 			a.estimator.GarbageCollect(oldestTime)
 		}
 	}
+}
+
+func (a *Aggregator) updateConfigRemotelyExperimental() {
+	if a.metricStorage == nil {
+		return
+	}
+	description := ""
+	if mv := a.metricStorage.GetMetaMetricByName(data_model.StatshouseAggregatorRemoteConfigMetric); mv != nil {
+		description = mv.Description
+	}
+	if description == a.configS {
+		return
+	}
+	a.configS = description
+	log.Printf("Remote config:\n%s", description)
+	config := a.config.ConfigAggregatorRemote
+	if err := config.updateFromRemoteDescription(description); err != nil {
+		log.Printf("[error] Remote config: error updating config from metric %q: %v", data_model.StatshouseAggregatorRemoteConfigMetric, err)
+		return
+	}
+	log.Printf("Remote config: updated config from metric %q", data_model.StatshouseAggregatorRemoteConfigMetric)
+	a.configMu.Lock()
+	a.configR = config
+	a.configMu.Unlock()
 }

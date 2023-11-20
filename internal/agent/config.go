@@ -7,8 +7,8 @@
 package agent
 
 import (
+	"flag"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -60,113 +60,44 @@ func DefaultConfig() Config {
 	}
 }
 
-func hasKeyGetSuffix(line string, prefix string) (string, bool) {
-	if len(line) >= 2 && line[0] == '-' && line[1] == '-' { // transform -- into -
-		line = line[1:]
-	}
-	if strings.HasPrefix(line, prefix) {
-		return line[len(prefix):], true
-	}
-	return "", false
-}
+func (c *Config) Bind(f *flag.FlagSet, d Config) {
+	f.IntVar(&c.SampleBudget, "sample-budget", d.SampleBudget, "Statshouse will sample all buckets to contain max this number of bytes.")
+	f.Int64Var(&c.MaxHistoricDiskSize, "max-disk-size", d.MaxHistoricDiskSize, "Statshouse will use no more than this amount of disk space for storing historic data.")
+	f.IntVar(&c.SkipShards, "skip-shards", d.SkipShards, "Skip first shards during sharding. When extending cluster, helps prevent filling disks of already full shards.")
 
-func parseIntLine(line string, str string, value *int) error {
-	i, err := strconv.Atoi(str)
-	if err != nil {
-		return fmt.Errorf("error parsing %s: %w", line, err)
-	}
-	*value = i
-	return nil
-}
+	f.IntVar(&c.StringTopCapacity, "string-top-capacity", d.StringTopCapacity, "How many different strings per key is stored in string tops.")
+	f.IntVar(&c.StringTopCountSend, "string-top-send", d.StringTopCountSend, "How many different strings per key is sent in string tops.")
 
-func parseInt64Line(line string, str string, value *int64) error {
-	i, err := strconv.ParseInt(str, 10, 64)
-	if err != nil {
-		return fmt.Errorf("error parsing %s: %w", line, err)
-	}
-	*value = int64(i)
-	return nil
-}
+	f.IntVar(&c.LivenessResponsesWindowLength, "liveness-window", d.LivenessResponsesWindowLength, "windows size (seconds) to use for liveness checks. Aggregator is live again if all keepalives in window are successes.")
+	f.IntVar(&c.LivenessResponsesWindowSuccesses, "liveness-success", d.LivenessResponsesWindowSuccesses, "For liveness checks. Aggregator is dead if less responses in window are successes.")
+	f.DurationVar(&c.KeepAliveSuccessTimeout, "keep-alive-timeout", d.KeepAliveSuccessTimeout, "For liveness checks. Successful keepalive must take less.")
 
-func parseDurationLine(line string, str string, value *time.Duration) error {
-	i, err := strconv.ParseInt(str, 10, 64)
-	if err != nil {
-		return fmt.Errorf("error parsing %s: %w", line, err)
-	}
-	*value = time.Duration(i)
-	return nil
-}
+	f.BoolVar(&c.SaveSecondsImmediately, "save-seconds-immediately", d.SaveSecondsImmediately, "Save data to disk as soon as second is ready. When false, data is saved after first unsuccessful send.")
+	f.StringVar(&c.StatsHouseEnv, "statshouse-env", d.StatsHouseEnv, "Fill key0 with this value in built-in statistics. Only 'production' and 'staging' values are allowed.")
 
-func parseBoolLine(line string, str string, value *bool) error {
-	if str != "true" && str != "false" {
-		return fmt.Errorf("error parsing %s: must be true or false", line)
-	}
-	*value = str == "true"
-	return nil
+	f.BoolVar(&c.RemoteWriteEnabled, "remote-write-enabled", d.RemoteWriteEnabled, "Serve prometheus remote write endpoint.")
+	f.StringVar(&c.RemoteWriteAddr, "remote-write-addr", d.RemoteWriteAddr, "Prometheus remote write listen address.")
+	f.StringVar(&c.RemoteWritePath, "remote-write-path", d.RemoteWritePath, "Prometheus remote write path.")
+	f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
 }
 
 func (c *Config) updateFromRemoteDescription(description string) error {
-	for _, line := range strings.Split(description, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
+	var f flag.FlagSet
+	f.Init("", flag.ContinueOnError)
+	c.Bind(&f, *c)
+	s := strings.Split(description, "\n")
+	for i := 0; i < len(s); {
+		t := strings.TrimSpace(s[i])
+		if len(t) == 0 || strings.HasPrefix(t, "#") {
+			s = append(s[0:i], s[i+1:]...)
+		} else {
+			s[i] = t
+			i++
 		}
-		// all non-empty non-comment lines must have valid settings
-		if suffix, ok := hasKeyGetSuffix(line, "-sample-budget="); ok {
-			if err := parseIntLine(line, suffix, &c.SampleBudget); err != nil {
-				return err
-			}
-			continue
-		}
-		if suffix, ok := hasKeyGetSuffix(line, "-max-disk-size="); ok {
-			if err := parseInt64Line(line, suffix, &c.MaxHistoricDiskSize); err != nil {
-				return err
-			}
-			continue
-		}
-		if suffix, ok := hasKeyGetSuffix(line, "-skip-shards="); ok {
-			if err := parseIntLine(line, suffix, &c.SkipShards); err != nil {
-				return err
-			}
-			continue
-		}
-		if suffix, ok := hasKeyGetSuffix(line, "-string-top-capacity="); ok {
-			if err := parseIntLine(line, suffix, &c.StringTopCapacity); err != nil {
-				return err
-			}
-			continue
-		}
-		if suffix, ok := hasKeyGetSuffix(line, "-string-top-send="); ok {
-			if err := parseIntLine(line, suffix, &c.StringTopCountSend); err != nil {
-				return err
-			}
-			continue
-		}
-		if suffix, ok := hasKeyGetSuffix(line, "-liveness-window="); ok {
-			if err := parseIntLine(line, suffix, &c.LivenessResponsesWindowLength); err != nil {
-				return err
-			}
-			continue
-		}
-		if suffix, ok := hasKeyGetSuffix(line, "-liveness-success="); ok {
-			if err := parseIntLine(line, suffix, &c.LivenessResponsesWindowSuccesses); err != nil {
-				return err
-			}
-			continue
-		}
-		if suffix, ok := hasKeyGetSuffix(line, "-keep-alive-timeou="); ok {
-			if err := parseDurationLine(line, suffix, &c.KeepAliveSuccessTimeout); err != nil {
-				return err
-			}
-			continue
-		}
-		if suffix, ok := hasKeyGetSuffix(line, "-save-seconds-immediately="); ok {
-			if err := parseBoolLine(line, suffix, &c.SaveSecondsImmediately); err != nil {
-				return err
-			}
-			continue
-		}
-		return fmt.Errorf("error parsing %s: options not supported", line)
+	}
+	err := f.Parse(s)
+	if err != nil {
+		return err
 	}
 	return c.ValidateConfigSource()
 }

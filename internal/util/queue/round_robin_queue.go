@@ -27,7 +27,7 @@ func (u *user) Less(than llrb.Item) bool {
 type Queue struct {
 	mx                     sync.Mutex
 	activeQuery            int64
-	maxActiveQuery         int64
+	MaxActiveQuery         int64
 	waitingUsersByName     map[string]*user
 	waitingUsersByPriority *llrb.LLRB // priority -> *user
 	globalOrder            int64
@@ -35,7 +35,7 @@ type Queue struct {
 
 func NewQueue(n int64) *Queue {
 	return &Queue{
-		maxActiveQuery:         n,
+		MaxActiveQuery:         n,
 		waitingUsersByName:     map[string]*user{},
 		waitingUsersByPriority: llrb.New(),
 	}
@@ -57,7 +57,7 @@ func (q *Queue) addUserQueryLocked(token string) (e *list.Element, qry *query, f
 		e = u.qry.PushBack(qry)
 	} else {
 		order := q.incOrder()
-		if q.activeQuery < q.maxActiveQuery {
+		if q.activeQuery < q.MaxActiveQuery {
 			q.activeQuery++
 			return nil, nil, true
 		}
@@ -124,7 +124,7 @@ func isClosed(ch chan struct{}) bool {
 }
 
 func (q *Queue) nextQueryLocked() {
-	if q.activeQuery == q.maxActiveQuery {
+	if q.activeQuery == q.MaxActiveQuery {
 		return
 	}
 	nextUserI := q.waitingUsersByPriority.DeleteMin()

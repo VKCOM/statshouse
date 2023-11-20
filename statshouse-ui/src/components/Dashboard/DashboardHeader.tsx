@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { PlotControlFrom, PlotControlTimeShifts, PlotControlTo, PlotNavigate } from '../Plot';
 import {
   selectorDashboardId,
@@ -24,6 +24,7 @@ import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icon
 import { NavLink } from 'react-router-dom';
 import { produce } from 'immer';
 import { encodeParams, fixMessageTrouble } from '../../url/queryParams';
+import { Button, ToggleButton } from '../UI';
 
 export type DashboardHeaderProps = {};
 export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
@@ -40,13 +41,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
 
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
   const setDashboardLayoutEdit = useStore(selectorSetDashboardLayoutEdit);
-
-  const onDashboardLayoutEdit = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setDashboardLayoutEdit(e.currentTarget.checked);
-    },
-    [setDashboardLayoutEdit]
-  );
 
   const params = useStore(selectorParams);
 
@@ -99,24 +93,21 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
           <PlotControlTimeShifts />
         </div>
         <div className="ms-4 mb-2">
-          <input
-            type="checkbox"
-            className="btn-check"
-            id="dashboard-layout"
-            autoComplete="off"
+          <ToggleButton
+            className="btn btn-outline-primary btn-sm"
             checked={dashboardLayoutEdit}
-            onChange={onDashboardLayoutEdit}
-          />
-          <label className="btn btn-outline-primary btn-sm" htmlFor="dashboard-layout" title="Edit dashboard">
+            onChange={setDashboardLayoutEdit}
+            title="Edit dashboard"
+          >
             <SVGGearFill />
-          </label>
+          </ToggleButton>
         </div>
         {!!dashboardId && (
           <div className="ms-2 mb-2">
             <NavLink to={`/view?id=${dashboardId}`} end>
-              <button type="button" className="btn btn-sm btn-outline-primary" title="Reset dashboard to saved state">
+              <Button type="button" className="btn btn-sm btn-outline-primary" title="Reset dashboard to saved state">
                 <SVGArrowCounterclockwise />
-              </button>
+              </Button>
             </NavLink>
           </div>
         )}

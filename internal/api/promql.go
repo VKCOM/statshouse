@@ -88,7 +88,7 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 		s = append(s, m.Name)
 	}
 	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
-		if ai.canViewMetric(v.Name) {
+		if ai.CanViewMetric(*v) {
 			s = append(s, v.Name)
 		}
 	}
@@ -271,7 +271,7 @@ func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]
 			default:
 				return nil
 			}
-			if !ai.canViewMetric(metric.Name) {
+			if !ai.CanViewMetric(*metric) {
 				return httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metric.Name))
 			}
 			s1 = append(s1, metric)
@@ -418,7 +418,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	if ai == nil {
 		panic("metric access violation") // should not happen
 	}
-	if !ai.canViewMetric(qry.Metric.Name) {
+	if !ai.CanViewMetricName(qry.Metric.Name) {
 		return promql.Series{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
 	}
 	var (

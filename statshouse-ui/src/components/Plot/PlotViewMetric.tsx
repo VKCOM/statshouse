@@ -9,7 +9,7 @@ import uPlot from 'uplot';
 import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
-import { LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
+import { Button, LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
 import { fmtInputDateTime, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { black, grey, greyDark } from '../../view/palette';
 import { produce } from 'immer';
@@ -200,6 +200,11 @@ export function PlotViewMetric(props: {
 
   const getAxisStroke = useCallback(() => (themeDark ? grey : black), [themeDark]);
 
+  const metricType = useMemo(
+    () => getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type),
+    [meta?.metric_type, metaMetricType, sel.what, whats]
+  );
+
   const opts = useMemo<UPlotWrapperPropsOpts>(() => {
     const grid: uPlot.Axis.Grid = {
       stroke: themeDark ? greyDark : grey,
@@ -210,7 +215,6 @@ export function PlotViewMetric(props: {
           key: group,
         }
       : undefined;
-    const metricType = getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -278,20 +282,7 @@ export function PlotViewMetric(props: {
       },
       plugins: [pluginEventOverlay],
     };
-  }, [
-    compact,
-    getAxisStroke,
-    group,
-    meta?.metric_type,
-    metaMetricType,
-    pluginEventOverlay,
-    sel.what,
-    themeDark,
-    topPad,
-    whats,
-    xAxisSize,
-    yAxisSize,
-  ]);
+  }, [compact, getAxisStroke, group, metricType, pluginEventOverlay, themeDark, topPad, xAxisSize, yAxisSize]);
 
   const linkCSV = useLinkCSV(indexPlot);
 
@@ -324,10 +315,10 @@ export function PlotViewMetric(props: {
   const divOut = useRef<HTMLDivElement>(null);
   const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
   const onMouseOver = useCallback(() => {
-    if (divOut.current) {
+    if (divOut.current && !embed) {
       setFixHeight(divOut.current.getBoundingClientRect().height);
     }
-  }, []);
+  }, [embed]);
   const onMouseOut = useCallback(() => {
     setFixHeight(0);
   }, []);
@@ -395,11 +386,11 @@ export function PlotViewMetric(props: {
             {/*last error*/}
             {!!lastError && (
               <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
-                <button type="button" className="btn" aria-label="Reload" onClick={reload}>
+                <Button type="button" className="btn" aria-label="Reload" onClick={reload}>
                   <SVGArrowCounterclockwise />
-                </button>
+                </Button>
                 <small className="overflow-force-wrap font-monospace">{lastError}</small>
-                <button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
+                <Button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
               </div>
             )}
             <PlotHeader
@@ -476,6 +467,7 @@ export function PlotViewMetric(props: {
               onLegendShow={onLegendShow}
               onLegendFocus={onLegendFocus}
               compact={compact && !(fixHeight > 0 && dashboard)}
+              unit={metricType}
             />
             {topInfo && (!compact || (fixHeight > 0 && dashboard)) && (
               <div className="pb-3">

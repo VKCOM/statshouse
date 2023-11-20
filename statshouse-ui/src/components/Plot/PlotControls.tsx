@@ -15,12 +15,14 @@ import {
   timeShiftAbbrevExpand,
 } from '../../view/utils';
 import {
+  Button,
   PlotControlFrom,
   PlotControlTimeShifts,
   PlotControlTo,
   Select,
   SelectOptionProps,
   SwitchBox,
+  Tooltip,
   VariableControl,
 } from '../index';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
@@ -295,10 +297,10 @@ export const PlotControls = memo(function PlotControls_(props: {
     [indexPlot]
   );
   const onHostChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
+    (status: boolean) => {
       setPlotParams(indexPlot, (s) => ({
         ...s,
-        maxHost: e.target.checked,
+        maxHost: status,
       }));
     },
     [indexPlot]
@@ -426,26 +428,26 @@ export const PlotControls = memo(function PlotControls_(props: {
               loading={loadingMetricsList}
             />
             {!!clonePlot && (
-              <button
+              <Button
                 type="button"
                 onClick={clonePlot}
                 className="btn btn-outline-primary"
                 title="Duplicate plot to new tab"
               >
                 <SVGFiles />
-              </button>
+              </Button>
             )}
           </div>
           {plotParams.type === PLOT_TYPE.Metric && (
-            <button type="button" className="btn btn-outline-primary ms-3" onClick={toPromql} title="PromQL">
+            <Button type="button" className="btn btn-outline-primary ms-3" onClick={toPromql} title="PromQL">
               <SVGCode />
-            </button>
+            </Button>
           )}
         </div>
         {!!meta && (
           <>
             <div className="row mb-3">
-              <div className="d-flex align-items-baseline">
+              <div className="d-flex">
                 <Select
                   value={plotParams.what}
                   onChange={onWhatChange}
@@ -456,19 +458,9 @@ export const PlotControls = memo(function PlotControls_(props: {
                   classNameList="dropdown-menu"
                 />
                 {plotParams.type === PLOT_TYPE.Metric && (
-                  <div className="form-check form-switch">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      value=""
-                      id="switchMaxHost"
-                      checked={plotParams.maxHost}
-                      onChange={onHostChange}
-                    />
-                    <label className="form-check-label" htmlFor="switchMaxHost" title="Host">
-                      <SVGPcDisplay />
-                    </label>
-                  </div>
+                  <SwitchBox title="Host" checked={plotParams.maxHost} onChange={onHostChange}>
+                    <SVGPcDisplay />
+                  </SwitchBox>
                 )}
               </div>
             </div>
@@ -571,7 +563,8 @@ export const PlotControls = memo(function PlotControls_(props: {
                       customValue={tagsList[tagKey]?.more}
                       customBadge={
                         variableTags[tagKey] && (
-                          <span
+                          <Tooltip<'span'>
+                            as="span"
                             title={`is variable: ${variableTags[tagKey]?.description || variableTags[tagKey]?.name}`}
                             className={cn(
                               'input-group-text bg-transparent text-nowrap pt-0 pb-0 mt-2 me-2',
@@ -581,7 +574,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                             )}
                           >
                             <span className="small">{variableTags[tagKey]?.name}</span>
-                          </span>
+                          </Tooltip>
                         )
                       }
                     />

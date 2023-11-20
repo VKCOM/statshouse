@@ -65,8 +65,10 @@ type args struct {
 	chV1User                 string
 	chV2Addrs                []string
 	chV2Debug                bool
-	chV2MaxConns             int
-	chV2MaxHeavyConns        int
+	chV2MaxLightFastConns    int
+	chV2MaxHeavyFastConns    int
+	chV2MaxHeavySlowConns    int
+	chV2MaxLightSlowConns    int
 	chV2Password             string
 	chV2User                 string
 	defaultMetric            string
@@ -123,8 +125,11 @@ func main() {
 	pflag.StringVar(&argv.chV1User, "clickhouse-v1-user", "", "ClickHouse-v1 user")
 	pflag.StringSliceVar(&argv.chV2Addrs, "clickhouse-v2-addrs", nil, "comma-separated list of ClickHouse-v2 addresses")
 	pflag.BoolVar(&argv.chV2Debug, "clickhouse-v2-debug", false, "ClickHouse-v2 debug mode")
-	pflag.IntVar(&argv.chV2MaxConns, "clickhouse-v2-max-conns", 16, "maximum number of ClickHouse-v2 connections (fast and slow)")
-	pflag.IntVar(&argv.chV2MaxHeavyConns, "clickhouse-v2-max-heavy-conns", 5, "maximum number of ClickHouse-v2 connections (light and heavy)")
+	pflag.IntVar(&argv.chV2MaxLightFastConns, "clickhouse-v2-max-conns", 16, "maximum number of ClickHouse-v2 connections (light fast)")
+	pflag.IntVar(&argv.chV2MaxLightSlowConns, "clickhouse-v2-max-light-slow-conns", 8, "maximum number of ClickHouse-v2 connections (light slow)")
+	pflag.IntVar(&argv.chV2MaxHeavyFastConns, "clickhouse-v2-max-heavy-conns", 5, "maximum number of ClickHouse-v2 connections (heavy fast)")
+	pflag.IntVar(&argv.chV2MaxHeavySlowConns, "clickhouse-v2-max-heavy-slow-conns", 2, "maximum number of ClickHouse-v2 connections (heavy slow)")
+
 	pflag.StringVar(&argv.chV2Password, "clickhouse-v2-password", "", "ClickHouse-v2 password")
 	pflag.StringVar(&argv.chV2User, "clickhouse-v2-user", "", "ClickHouse-v2 user")
 	pflag.StringVar(&argv.defaultMetric, "default-metric", format.BuiltinMetricNameAggBucketReceiveDelaySec, "default metric to show")
@@ -245,14 +250,33 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 
 	var chV1 *util.ClickHouse
 	if len(argv.chV1Addrs) > 0 {
-		chV1, err = util.OpenClickHouse(argv.chV1MaxConns, argv.chV2MaxHeavyConns, argv.chV1Addrs, argv.chV1User, argv.chV1Password, argv.chV1Debug, chDialTimeout)
+		// argv.chV1MaxConns, argv.chV2MaxHeavyConns, argv.chV1Addrs, argv.chV1User, argv.chV1Password, argv.chV1Debug, chDialTimeout
+		chV1, err = util.OpenClickHouse(util.ChConnOptions{
+			Addrs:             argv.chV1Addrs,
+			User:              argv.chV1User,
+			Password:          argv.chV1Password,
+			DialTimeout:       chDialTimeout,
+			FastLightMaxConns: argv.chV1MaxConns,
+			FastHeavyMaxConns: argv.chV1MaxConns,
+			SlowLightMaxConns: argv.chV1MaxConns,
+			SlowHeavyMaxConns: argv.chV1MaxConns,
+		})
 		if err != nil {
 			return fmt.Errorf("failed to open ClickHouse-v1: %w", err)
 		}
 		defer func() { chV1.Close() }()
 	}
-
-	chV2, err := util.OpenClickHouse(argv.chV2MaxConns, argv.chV2MaxHeavyConns, argv.chV2Addrs, argv.chV2User, argv.chV2Password, argv.chV2Debug, chDialTimeout)
+	// argv.chV2MaxLightFastConns, argv.chV2MaxHeavyConns, , , argv.chV2Password, argv.chV2Debug, chDialTimeout
+	chV2, err := util.OpenClickHouse(util.ChConnOptions{
+		Addrs:             argv.chV2Addrs,
+		User:              argv.chV2User,
+		Password:          argv.chV2Password,
+		DialTimeout:       chDialTimeout,
+		FastLightMaxConns: argv.chV2MaxLightFastConns,
+		FastHeavyMaxConns: argv.chV2MaxHeavyFastConns,
+		SlowLightMaxConns: argv.chV2MaxLightSlowConns,
+		SlowHeavyMaxConns: argv.chV2MaxHeavySlowConns,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to open ClickHouse-v2: %w", err)
 	}
@@ -376,6 +400,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	a.Path("/" + api.EndpointNamespaceList).Methods("GET").HandlerFunc(f.HandleGetNamespaceList)
 	a.Path("/" + api.EndpointPrometheus).Methods("GET").HandlerFunc(f.HandleGetPromConfig)
 	a.Path("/" + api.EndpointPrometheus).Methods("POST").HandlerFunc(f.HandlePostPromConfig)
+	a.Path("/" + api.EndpointStatistics).Methods("POST").HandlerFunc(f.HandleFrontendStat)
 	m.Path("/prom/api/v1/query").Methods("POST").HandlerFunc(f.HandlePromInstantQuery)
 	m.Path("/prom/api/v1/query_range").Methods("POST").HandlerFunc(f.HandlePromRangeQuery)
 	m.Path("/prom/api/v1/label/{name}/values").Methods("GET").HandlerFunc(f.HandlePromLabelValuesQuery)
