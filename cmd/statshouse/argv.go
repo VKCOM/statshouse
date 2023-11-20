@@ -146,7 +146,7 @@ func argvAddAggregatorFlags(legacyVerb bool) {
 
 	flag.IntVar(&argv.configAggregator.CardinalityWindow, "cardinality-window", aggregator.DefaultConfigAggregator().CardinalityWindow, "Aggregator will use this window (seconds) to estimate cardinality")
 	flag.IntVar(&argv.configAggregator.MaxCardinality, "max-cardinality", aggregator.DefaultConfigAggregator().MaxCardinality, "Aggregator will sample metrics which cardinality estimates are higher")
-	argv.configAggregator.Bind(flag.CommandLine, aggregator.DefaultConfigAggregator().ConfigAggregatorRemote)
+	argv.configAggregator.Bind(flag.CommandLine, aggregator.DefaultConfigAggregator().ConfigAggregatorRemote, legacyVerb)
 
 	flag.Float64Var(&argv.configAggregator.SimulateRandomErrors, "simulate-errors-random", aggregator.DefaultConfigAggregator().SimulateRandomErrors, "Probability of errors for recent buckets from 0.0 (no errors) to 1.0 (all errors)")
 

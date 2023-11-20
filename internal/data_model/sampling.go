@@ -25,6 +25,7 @@ type (
 		MetricID    int32
 		metric      *format.MetricMetaValue
 		group       *format.MetricsGroup
+		namespace   *format.NamespaceMeta
 		fairKey     int32
 	}
 
@@ -41,9 +42,10 @@ type (
 
 	SamplerConfig struct {
 		// Options
-		ModeAgent    bool // to support "NoSampleAgent" option above
-		SampleGroups bool
-		SampleKeys   bool
+		ModeAgent        bool // to support "NoSampleAgent" option above
+		SampleNamespaces bool
+		SampleGroups     bool
+		SampleKeys       bool
 
 		// External services
 		Meta format.MetaStorageInterface
@@ -59,11 +61,12 @@ type (
 	}
 
 	Sampler struct {
-		items     []SamplingMultiItemPair
-		config    SamplerConfig
-		partF     []func([]SamplingMultiItemPair) ([]SamplerGroup, int64)
-		nilMetric format.MetricMetaValue
-		nilGroup  format.MetricsGroup
+		items        []SamplingMultiItemPair
+		config       SamplerConfig
+		partF        []func([]SamplingMultiItemPair) ([]SamplerGroup, int64)
+		nilMetric    format.MetricMetaValue
+		nilGroup     format.MetricsGroup
+		nilNamespace format.NamespaceMeta
 	}
 
 	SamplerStep struct {
@@ -103,6 +106,12 @@ func NewSampler(capacity int, config SamplerConfig) Sampler {
 		nilGroup: format.MetricsGroup{
 			EffectiveWeight: format.EffectiveWeightOne,
 		},
+		nilNamespace: format.NamespaceMeta{
+			EffectiveWeight: format.EffectiveWeightOne,
+		},
+	}
+	if config.SampleNamespaces {
+		h.partF = append(h.partF, partitionByNamespace)
 	}
 	if config.SampleGroups {
 		h.partF = append(h.partF, partitionByGroup)
@@ -128,6 +137,11 @@ func (h *Sampler) Add(p SamplingMultiItemPair) {
 	} else {
 		p.group = &h.nilGroup
 	}
+	if h.config.SampleNamespaces {
+		p.namespace = h.getNamespaceMeta(p.metric.NamespaceID)
+	} else {
+		p.namespace = &h.nilNamespace
+	}
 	if h.config.SampleKeys {
 		x := p.metric.FairKeyIndex
 		if 0 <= x || x < format.MaxTags {
@@ -141,8 +155,11 @@ func (h *Sampler) Run(budgetNum, budgetDenom int64) SamplerStatistics {
 	// Partition by group/metric/key and run
 	sort.Slice(h.items, func(i, j int) bool {
 		var lhs, rhs *SamplingMultiItemPair = &h.items[i], &h.items[j]
-		if lhs.group.ID != rhs.group.ID {
-			return lhs.group.ID < rhs.group.ID
+		if lhs.metric.NamespaceID != rhs.metric.NamespaceID {
+			return lhs.metric.NamespaceID < rhs.metric.NamespaceID
+		}
+		if lhs.metric.GroupID != rhs.metric.GroupID {
+			return lhs.metric.GroupID < rhs.metric.GroupID
 		}
 		if lhs.MetricID != rhs.MetricID {
 			return lhs.MetricID < rhs.MetricID
@@ -323,6 +340,41 @@ func (stat *SamplerStatistics) add(p *SamplingMultiItemPair, keep bool) {
 	stat.Metrics[p.MetricID]++
 }
 
+func partitionByNamespace(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
+	if len(s) == 0 {
+		return nil, 0
+	}
+	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
+		weight := items[0].namespace.EffectiveWeight
+		if weight < 1 { // weight can't be zero or less, sanity check
+			weight = 1
+		}
+		return SamplerGroup{
+			weight:  weight,
+			items:   items,
+			sumSize: sumSize,
+		}
+	}
+	var res []SamplerGroup
+	var sumWeight int64
+	var i, j int
+	sumSize := int64(s[0].Size)
+	for j = 1; j < len(s); j++ {
+		if s[i].metric.NamespaceID != s[j].metric.NamespaceID {
+			v := newSamplerGroup(s[i:j], sumSize)
+			res = append(res, v)
+			sumWeight += v.weight
+			i = j
+			sumSize = 0
+		}
+		sumSize += int64(s[j].Size)
+	}
+	v := newSamplerGroup(s[i:j], sumSize)
+	res = append(res, v)
+	sumWeight += v.weight
+	return res, sumWeight
+}
+
 func partitionByGroup(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	if len(s) == 0 {
 		return nil, 0
@@ -343,7 +395,7 @@ func partitionByGroup(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	var i, j int
 	sumSize := int64(s[0].Size)
 	for j = 1; j < len(s); j++ {
-		if s[i].group.ID != s[j].group.ID {
+		if s[i].metric.GroupID != s[j].metric.GroupID {
 			v := newSamplerGroup(s[i:j], sumSize)
 			res = append(res, v)
 			sumWeight += v.weight
@@ -456,6 +508,16 @@ func (h *Sampler) getGroupMeta(groupID int32) *format.MetricsGroup {
 		return meta
 	}
 	return &h.nilGroup
+}
+
+func (h *Sampler) getNamespaceMeta(namespaceID int32) *format.NamespaceMeta {
+	if h.config.Meta == nil || namespaceID == 0 {
+		return &h.nilNamespace
+	}
+	if meta := h.config.Meta.GetNamespace(namespaceID); meta != nil {
+		return meta
+	}
+	return &h.nilNamespace
 }
 
 func (s SamplerStatistics) GetSampleFactors(sf []tlstatshouse.SampleFactor) []tlstatshouse.SampleFactor {

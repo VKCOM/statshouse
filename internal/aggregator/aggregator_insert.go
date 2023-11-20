@@ -338,9 +338,12 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		seriesCount += len(b.shards[si].multiItems)
 	}
 	sampler := data_model.NewSampler(seriesCount, data_model.SamplerConfig{
-		Meta:  a.metricStorage,
-		Rand:  rnd,
-		KeepF: func(k data_model.Key, item *data_model.MultiItem) { insertItem(k, item, item.SF) },
+		Meta:             a.metricStorage,
+		SampleNamespaces: config.SampleNamespaces,
+		SampleGroups:     config.SampleGroups,
+		SampleKeys:       config.SampleKeys,
+		Rand:             rnd,
+		KeepF:            func(k data_model.Key, item *data_model.MultiItem) { insertItem(k, item, item.SF) },
 	})
 	// First, sample with global sampling factors, depending on cardinality. Collect relative sizes for 2nd stage sampling below.
 	// TODO - actual sampleFactors are empty due to code commented out in estimator.go

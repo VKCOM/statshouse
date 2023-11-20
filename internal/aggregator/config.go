@@ -18,6 +18,9 @@ type ConfigAggregatorRemote struct {
 	InsertBudget         int // for single replica, in bytes per contributor, when many contributors
 	InsertBudget100      int // for single replica, in bytes per contributor, when 100 contributors
 	StringTopCountInsert int
+	SampleNamespaces     bool
+	SampleGroups         bool
+	SampleKeys           bool
 }
 
 type ConfigAggregator struct {
@@ -68,10 +71,15 @@ func DefaultConfigAggregator() ConfigAggregator {
 	}
 }
 
-func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote) {
+func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote, legacyVerb bool) {
 	f.IntVar(&c.InsertBudget, "insert-budget", d.InsertBudget, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # >> 100.")
 	f.IntVar(&c.InsertBudget100, "insert-budget-100", d.InsertBudget100, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # ~ 100.")
 	f.IntVar(&c.StringTopCountInsert, "string-top-insert", d.StringTopCountInsert, "How many different strings per key is inserted by aggregator in string tops.")
+	if !legacyVerb {
+		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", false, "Statshouse will sample at namespace level.")
+		f.BoolVar(&c.SampleGroups, "sample-groups", false, "Statshouse will sample at group level.")
+		f.BoolVar(&c.SampleKeys, "sample-keys", false, "Statshouse will sample at key level.")
+	}
 }
 
 func ValidateConfigAggregator(c ConfigAggregator) error {
@@ -122,7 +130,7 @@ func (c *ConfigAggregatorRemote) Validate() error {
 func (c *ConfigAggregatorRemote) updateFromRemoteDescription(description string) error {
 	var f flag.FlagSet
 	f.Init("", flag.ContinueOnError)
-	c.Bind(&f, *c)
+	c.Bind(&f, *c, false)
 	var s []string
 	for _, v := range strings.Split(description, "\n") {
 		v = strings.TrimSpace(v)

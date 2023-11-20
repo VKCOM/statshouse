@@ -20,6 +20,9 @@ type Config struct {
 	// Sampling Algorithm
 	SampleBudget        int   // for all shards, in bytes
 	MaxHistoricDiskSize int64 // for all shards, in bytes
+	SampleNamespaces    bool
+	SampleGroups        bool
+	SampleKeys          bool
 
 	// How much strings (per key) is stored and sent to aggregator
 	StringTopCapacity  int
@@ -47,6 +50,9 @@ func DefaultConfig() Config {
 	return Config{
 		SampleBudget:                     150000,
 		MaxHistoricDiskSize:              20 << 30, // enough for default SampleBudget per MaxHistoricWindow
+		SampleNamespaces:                 false,
+		SampleGroups:                     false,
+		SampleKeys:                       false,
 		StringTopCapacity:                100,
 		StringTopCountSend:               20,
 		LivenessResponsesWindowLength:    5,
@@ -83,6 +89,9 @@ func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
 	if !legacyVerb {
 		f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
 		f.BoolVar(&c.DisableRemoteConfig, "disable-remote-config", d.DisableRemoteConfig, "disable remote configuration.")
+		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", false, "Statshouse will sample at namespace level.")
+		f.BoolVar(&c.SampleGroups, "sample-groups", false, "Statshouse will sample at group level.")
+		f.BoolVar(&c.SampleKeys, "sample-keys", false, "Statshouse will sample at key level.")
 	}
 }
 
