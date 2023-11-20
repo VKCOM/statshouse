@@ -15,8 +15,8 @@ export type TextAreaProps = {
   value?: string;
   autoHeight?: boolean;
   defaultValue?: string;
-  onInput?: (value: string) => void;
-  onChange?: (value: string) => void;
+  onInput?: (value: string, event: React.ChangeEvent<HTMLTextAreaElement>) => void;
+  onChange?: (value: string, event: React.ChangeEvent<HTMLTextAreaElement>) => void;
 } & Omit<React.InputHTMLAttributes<HTMLTextAreaElement>, 'onInput' | 'onChange' | 'value' | 'defaultValue'>;
 
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
@@ -35,7 +35,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
       } else {
         setHeight(undefined);
       }
-      onInput?.(v);
+      onInput?.(v, event);
     },
     [autoHeight, onInput]
   );
@@ -50,7 +50,7 @@ export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function 
   const onChangeHandle = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       const v = event.currentTarget.value;
-      onChange?.(v);
+      onChange?.(v, event);
     },
     [onChange]
   );

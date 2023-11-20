@@ -418,9 +418,11 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             autoHeight
           />
         ) : (
-          <small className="overflow-force-wrap text-secondary flex-grow-0" style={{ whiteSpace: 'pre-wrap' }}>
-            {plot.customDescription || meta?.description}
-          </small>
+          <Tooltip className="d-flex" title={plot.customDescription || meta?.description} hover>
+            <small className="text-secondary w-0 flex-grow-1 text-truncate">
+              {plot.customDescription || meta?.description}
+            </small>
+          </Tooltip>
         ))}
     </div>
   );

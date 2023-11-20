@@ -256,6 +256,7 @@ export type StatsHouseStore = {
   dashboardLayoutEdit: boolean;
   setDashboardLayoutEdit(nextStatus: boolean): void;
   setGroupName(indexGroup: number, name: string): void;
+  setGroupDescription(indexGroup: number, description: string): void;
   setGroupShow(indexGroup: number, show: React.SetStateAction<boolean>): void;
   setGroupSize(indexGroup: number, size: React.SetStateAction<string>): void;
   listMetricsGroup: MetricsGroupShort[];
@@ -1614,7 +1615,21 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
             if (state.dashboard.groupInfo[indexGroup]) {
               state.dashboard.groupInfo[indexGroup].name = name;
             } else {
-              state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: '2' };
+              state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: '2', description: '' };
+            }
+          }
+        })
+      );
+    },
+    setGroupDescription(indexGroup, description) {
+      getState().setParams(
+        produce<QueryParams>((state) => {
+          if (state.dashboard) {
+            state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
+            if (state.dashboard.groupInfo[indexGroup]) {
+              state.dashboard.groupInfo[indexGroup].description = description;
+            } else {
+              state.dashboard.groupInfo[indexGroup] = { show: true, name: '', count: 0, size: '2', description };
             }
           }
         })
@@ -1634,6 +1649,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                 name: '',
                 count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
                 size: '2',
+                description: '',
               };
             }
           }
@@ -1654,6 +1670,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                 name: '',
                 count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
                 size: nextSize,
+                description: '',
               };
             }
           }
@@ -2061,12 +2078,12 @@ export function addDashboardGroup(indexGroup: number) {
       if (p.dashboard) {
         p.dashboard.groupInfo ??= [];
         if (p.dashboard.groupInfo.length === 0) {
-          p.dashboard.groupInfo.push({ name: '', count: p.plots.length, show: true, size: '2' });
+          p.dashboard.groupInfo.push({ name: '', count: p.plots.length, show: true, size: '2', description: '' });
         }
         if (indexGroup >= p.dashboard.groupInfo.length) {
-          p.dashboard.groupInfo.push({ name: '', count: 0, show: true, size: '2' });
+          p.dashboard.groupInfo.push({ name: '', count: 0, show: true, size: '2', description: '' });
         } else {
-          p.dashboard.groupInfo.splice(indexGroup, 0, { name: '', count: 0, show: true, size: '2' });
+          p.dashboard.groupInfo.splice(indexGroup, 0, { name: '', count: 0, show: true, size: '2', description: '' });
         }
       }
     })
@@ -2079,7 +2096,7 @@ export function removeDashboardGroup(indexGroup: number) {
       if (p.dashboard) {
         p.dashboard.groupInfo ??= [];
         if (p.dashboard.groupInfo.length === 0) {
-          p.dashboard.groupInfo.push({ name: '', count: p.plots.length, show: true, size: '2' });
+          p.dashboard.groupInfo.push({ name: '', count: p.plots.length, show: true, size: '2', description: '' });
         }
         p.dashboard.groupInfo.splice(indexGroup, 1);
       }
@@ -2193,6 +2210,7 @@ export function moveAndResortPlot(
             count: 0,
             show: true,
             size: '2',
+            description: '',
           };
         }
       }
@@ -2252,7 +2270,13 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
       if (p.params.dashboard) {
         p.params.dashboard.groupInfo ??= [];
         if (p.params.dashboard.groupInfo.length === 0) {
-          p.params.dashboard.groupInfo.push({ name: '', count: p.params.plots.length, show: true, size: '2' });
+          p.params.dashboard.groupInfo.push({
+            name: '',
+            count: p.params.plots.length,
+            show: true,
+            size: '2',
+            description: '',
+          });
         }
         if (targetGroupIndex > p.params.dashboard.groupInfo.length) {
           p.params.dashboard.groupInfo.push({ ...group, count: 0 });
@@ -2280,7 +2304,13 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
       if (p.params.dashboard) {
         p.params.dashboard.groupInfo ??= [];
         if (p.params.dashboard.groupInfo.length === 0) {
-          p.params.dashboard.groupInfo.push({ name: '', count: p.params.plots.length, show: true, size: '2' });
+          p.params.dashboard.groupInfo.push({
+            name: '',
+            count: p.params.plots.length,
+            show: true,
+            size: '2',
+            description: '',
+          });
         }
         p.params.dashboard.groupInfo.splice(direction > 0 ? indexGroup : indexGroup + 1, 1);
       }
