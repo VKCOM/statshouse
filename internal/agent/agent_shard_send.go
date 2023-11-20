@@ -223,10 +223,13 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 	s.mu.Unlock()
 
 	sampler := data_model.NewSampler(len(bucket.MultiItems), data_model.SamplerConfig{
-		ModeAgent: true,
-		Meta:      s.agent.metricStorage,
-		Rand:      rnd,
-		DiscardF:  func(key data_model.Key, _ *data_model.MultiItem) { delete(bucket.MultiItems, key) }, // remove from map
+		ModeAgent:        true,
+		SampleNamespaces: config.SampleNamespaces,
+		SampleGroups:     config.SampleGroups,
+		SampleKeys:       config.SampleKeys,
+		Meta:             s.agent.metricStorage,
+		Rand:             rnd,
+		DiscardF:         func(key data_model.Key, _ *data_model.MultiItem) { delete(bucket.MultiItems, key) }, // remove from map
 	})
 	for k, item := range bucket.MultiItems {
 		whaleWeight := item.FinishStringTop(config.StringTopCountSend) // all excess items are baked into Tail
