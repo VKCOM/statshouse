@@ -679,6 +679,7 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
           count: g.count ?? 0,
           show: g.show ?? true,
           size: g.size?.toString?.() ?? '2',
+          description: g.description ?? '',
         })) ?? [],
     },
     variables:

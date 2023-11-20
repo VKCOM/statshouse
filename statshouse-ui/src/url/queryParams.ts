@@ -134,6 +134,7 @@ export type GroupInfo = {
   show: boolean;
   count: number;
   size: string;
+  description: string;
 };
 
 export type DashboardParams = {
@@ -365,7 +366,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         !defaultParams?.dashboard?.groupInfo?.length
       )
     ) {
-      value.dashboard.groupInfo.forEach(({ name, show, count, size }, indexGroup) => {
+      value.dashboard.groupInfo.forEach(({ name, show, count, size, description }, indexGroup) => {
         const prefix = toGroupInfoPrefix(indexGroup);
         search.push([prefix + GET_PARAMS.dashboardGroupInfoName, name]);
         if (count) {
@@ -373,6 +374,9 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         }
         if (size !== '2') {
           search.push([prefix + GET_PARAMS.dashboardGroupInfoSize, size.toString()]);
+        }
+        if (description) {
+          search.push([prefix + GET_PARAMS.dashboardGroupInfoDescription, description]);
         }
       });
     }
@@ -589,9 +593,10 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     if (name === removeValueChar) {
       break;
     }
+    const description = urlParams[prefix + GET_PARAMS.dashboardGroupInfoDescription]?.[0] ?? '';
     const count = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoCount]?.[0]) ?? 0;
     const size = urlParams[prefix + GET_PARAMS.dashboardGroupInfoSize]?.[0] ?? '2';
-    groupInfo.push({ name, show: defaultParams?.dashboard?.groupInfo?.[i]?.show ?? true, count, size });
+    groupInfo.push({ name, show: defaultParams?.dashboard?.groupInfo?.[i]?.show ?? true, count, size, description });
   }
   groupInfo.forEach((group, indexGroup) => {
     const prefix = toGroupInfoPrefix(indexGroup);
