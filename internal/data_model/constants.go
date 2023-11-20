@@ -131,3 +131,12 @@ func SilentRPCError(err error) bool {
 		return false
 	}
 }
+
+func RemoteConfigMetric(name string) bool {
+	switch name {
+	case StatshouseAgentRemoteConfigMetric, StatshouseAggregatorRemoteConfigMetric:
+		return true
+	default:
+		return false
+	}
+}
