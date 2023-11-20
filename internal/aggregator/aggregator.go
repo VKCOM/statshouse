@@ -109,6 +109,8 @@ type (
 	}
 )
 
+const aggregatorMaxInflightPackets = (data_model.MaxConveyorDelay + data_model.MaxHistorySendStreams) * 3 // *3 is additional load for spares, when original aggregator is down
+
 func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -192,7 +194,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
-		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3), // *3 is additional load for spares, when original aggregator is down
+		rpc.ServerWithMaxInflightPackets(aggregatorMaxInflightPackets),
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(2<<30))
@@ -300,13 +302,13 @@ func addrIPString(remoteAddr net.Addr) (uint32, string) {
 		if len(addr.IP) >= 4 {
 			v = binary.BigEndian.Uint32(addr.IP[len(addr.IP)-4:])
 		}
-		return v, addr.IP.String()
+		return v, addr.String()
 	case *net.TCPAddr:
 		var v uint32
 		if len(addr.IP) >= 4 {
 			v = binary.BigEndian.Uint32(addr.IP[len(addr.IP)-4:])
 		}
-		return v, addr.IP.String()
+		return v, addr.String()
 	default:
 		return 0, addr.String()
 	}
