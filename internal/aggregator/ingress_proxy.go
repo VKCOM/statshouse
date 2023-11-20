@@ -234,7 +234,7 @@ func (pool *clientPool) getClient(shardReplicaIx uint32) (int, *cachedClient, er
 	fullClientsPerShardReplica := pool.fullClients[shardReplicaIx]
 	clientsCount := len(freeClientsPerShardReplica) + len(fullClientsPerShardReplica)
 	if len(freeClientsPerShardReplica) == 0 && clientsCount >= pool.config.MaxClientsPerShardReplica {
-		return 0, nil, fmt.Errorf("client pool limit")
+		return 0, nil, fmt.Errorf("clients pool limit is exceed")
 	}
 	if len(freeClientsPerShardReplica) == 0 {
 		client := &cachedClient{
