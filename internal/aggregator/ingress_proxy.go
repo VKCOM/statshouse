@@ -30,15 +30,19 @@ import (
 )
 
 type cachedClient struct {
-	client   *rpc.Client
-	useCount int
+	client         *rpc.Client
+	packetInflight int
 }
 
 type clientPool struct {
-	aesPwd  string
-	mu      sync.Mutex
-	clients map[string]*cachedClient // client per incoming IP:port
-	config  ConfigIngressProxy
+	aesPwd string
+	mu     sync.Mutex
+
+	// shardReplica -> free clients
+	freeClients                      []map[int]*cachedClient
+	fullClients                      []map[int]*cachedClient
+	config                           ConfigIngressProxy
+	maxPacketInflightPerShardReplica int
 }
 
 type IngressProxy struct {
@@ -49,13 +53,27 @@ type IngressProxy struct {
 }
 
 type ConfigIngressProxy struct {
-	Cluster           string
-	Network           string
-	ListenAddr        string
-	ExternalAddresses []string // exactly 3 comma-separated external ingress points
-	IngressKeys       []string
-	MaxConnection     int
-	DeleteSampleSize  int
+	Cluster                   string
+	Network                   string
+	ListenAddr                string
+	ExternalAddresses         []string // exactly 3 comma-separated external ingress points
+	IngressKeys               []string
+	MaxClientsPerShardReplica int
+}
+
+func newClientPool(aesPwd string, addresses []string, maxPacketInflightPerShardReplica int, config ConfigIngressProxy) *clientPool {
+	cl := &clientPool{
+		aesPwd:                           aesPwd,
+		freeClients:                      []map[int]*cachedClient{},
+		fullClients:                      []map[int]*cachedClient{},
+		config:                           config,
+		maxPacketInflightPerShardReplica: maxPacketInflightPerShardReplica,
+	}
+	for range addresses {
+		cl.freeClients = append(cl.freeClients, map[int]*cachedClient{})
+		cl.fullClients = append(cl.fullClients, map[int]*cachedClient{})
+	}
+	return cl
 }
 
 func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
@@ -94,12 +112,8 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 	}
 
 	proxy := &IngressProxy{
-		sh2: sh2,
-		pool: &clientPool{
-			aesPwd:  aesPwd,
-			clients: map[string]*cachedClient{},
-			config:  config,
-		},
+		sh2:  sh2,
+		pool: newClientPool(aesPwd, sh2.GetConfigResult.Addresses, aggregatorMaxInflightPackets, config),
 		// TODO - server settings must be tuned
 		config: config,
 	}
@@ -177,7 +191,7 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	if len(hctx.Request) < 32 {
 		return true, fmt.Errorf("ingress proxy query with tag 0x%x is too short - %d bytes", tag, len(hctx.Request))
 	}
-	addrIPV4, remoteAddressPort := addrIPString(hctx.RemoteAddr())
+	addrIPV4, _ := addrIPString(hctx.RemoteAddr())
 
 	fieldsMask := binary.LittleEndian.Uint32(hctx.Request[4:])
 	shardReplica := binary.LittleEndian.Uint32(hctx.Request[8:])
@@ -188,13 +202,15 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 
 	// Motivation of % len - we pass through badly configured requests for now, so aggregators will record them in builtin metric
 	// TODO - collect metric, send to aggregator, reply with error to clients
-	address := proxy.sh2.GetConfigResult.Addresses[shardReplica%uint32(len(proxy.sh2.GetConfigResult.Addresses))]
+	shardReplicaIx := shardReplica % uint32(len(proxy.sh2.GetConfigResult.Addresses))
+	address := proxy.sh2.GetConfigResult.Addresses[shardReplicaIx]
 
-	cachedClient, ok := proxy.pool.getClient(remoteAddressPort)
-	defer proxy.pool.releaseClient(cachedClient)
-	if !ok {
-		log.Printf("First connection from %s", remoteAddressPort)
+	key, cachedClient, err := proxy.pool.getClient(shardReplicaIx)
+	if err != nil {
+		return true, err
 	}
+	defer proxy.pool.releaseClient(shardReplicaIx, key, cachedClient)
+
 	client := cachedClient.client
 	req := client.GetRequest()
 	req.Body = append(req.Body, hctx.Request...)
@@ -211,49 +227,43 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	return false, nil
 }
 
-func (pool *clientPool) getClient(addr string) (*cachedClient, bool) {
+func (pool *clientPool) getClient(shardReplicaIx uint32) (int, *cachedClient, error) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
-	client, ok := pool.clients[addr]
-	if !ok {
-		client = &cachedClient{
+	freeClientsPerShardReplica := pool.freeClients[shardReplicaIx]
+	fullClientsPerShardReplica := pool.fullClients[shardReplicaIx]
+	clientsCount := len(freeClientsPerShardReplica) + len(fullClientsPerShardReplica)
+	if len(freeClientsPerShardReplica) == 0 && clientsCount >= pool.config.MaxClientsPerShardReplica {
+		return 0, nil, fmt.Errorf("client pool limit")
+	}
+	if len(freeClientsPerShardReplica) == 0 {
+		client := &cachedClient{
 			client: rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
 		}
-		pool.clients[addr] = client
+		freeClientsPerShardReplica[clientsCount] = client
 	}
-	client.useCount++
+	var key int
+	var client *cachedClient
+	for k, c := range freeClientsPerShardReplica {
+		key = k
+		client = c
+		break
+	}
+	client.packetInflight++
+	if client.packetInflight >= pool.maxPacketInflightPerShardReplica {
+		delete(freeClientsPerShardReplica, key)
+		fullClientsPerShardReplica[key] = client
+	}
 
-	return client, ok
+	return key, client, nil
 }
 
-func (pool *clientPool) releaseClient(client *cachedClient) {
-	pool.mu.Lock()
-	client.useCount--
-	pool.mu.Unlock()
-	res := pool.collectClientsToDelete()
-	for _, c := range res {
-		_ = c.client.Close()
-	}
-}
-
-func (pool *clientPool) collectClientsToDelete() (res []*cachedClient) {
+func (pool *clientPool) releaseClient(shardReplicaIx uint32, key int, client *cachedClient) {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
-
-	if len(pool.clients) <= pool.config.MaxConnection {
-		return nil
+	client.packetInflight--
+	if _, ok := pool.fullClients[shardReplicaIx][key]; ok {
+		delete(pool.fullClients[shardReplicaIx], key)
+		pool.freeClients[shardReplicaIx][key] = client
 	}
-	i := 0
-	for k, client := range pool.clients {
-		if i >= pool.config.DeleteSampleSize {
-			break
-		}
-		if client.useCount > 0 {
-			continue
-		}
-		delete(pool.clients, k)
-		res = append(res, client)
-		i++
-	}
-	return res
 }
