@@ -257,6 +257,9 @@ func (s *Agent) getRandomLiveShardReplicas() (*ShardReplica, *ShardReplica) {
 }
 
 func (s *Agent) updateConfigRemotelyExperimental() {
+	if s.config.DisableRemoteConfig {
+		return
+	}
 	if s.metricStorage == nil { // nil only on ingress proxy for now
 		return
 	}

@@ -692,7 +692,7 @@ func (a *Aggregator) goTicker() {
 }
 
 func (a *Aggregator) updateConfigRemotelyExperimental() {
-	if a.metricStorage == nil {
+	if a.config.DisableRemoteConfig || a.metricStorage == nil {
 		return
 	}
 	description := ""

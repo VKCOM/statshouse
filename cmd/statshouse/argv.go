@@ -171,6 +171,7 @@ func argvAddAggregatorFlags(legacyVerb bool) {
 	flag.StringVar(&argv.configAggregator.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
 
 	flag.StringVar(&argv.configAggregator.KHAddr, "kh", "127.0.0.1:13338,127.0.0.1:13339", "clickhouse HTTP address:port")
+	flag.BoolVar(&argv.configAggregator.DisableRemoteConfig, "disable-remote-config", false, "disable remote configuration")
 }
 
 func argvAddIngressProxyFlags() {
