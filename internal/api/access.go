@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 
 	"github.com/vkcom/statshouse/internal/format"
@@ -135,6 +136,9 @@ func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaVa
 	oldName := old.Name
 	newName := new_.Name
 
+	if data_model.RemoteConfigMetric(oldName) || data_model.RemoteConfigMetric(newName) {
+		return false // remote config can only be set by administrators
+	}
 	// we expect that oldName and newName both are in the same group
 	return ai.bitEditMetric[oldName] && ai.bitEditMetric[newName] ||
 		(hasPrefixAccess(ai.bitEditPrefix, oldName) && hasPrefixAccess(ai.bitEditPrefix, newName)) ||
