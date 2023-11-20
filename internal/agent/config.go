@@ -39,7 +39,8 @@ type Config struct {
 	RemoteWriteAddr    string
 	RemoteWritePath    string
 
-	AutoCreate bool
+	AutoCreate          bool
+	DisableRemoteConfig bool
 }
 
 func DefaultConfig() Config {
@@ -79,6 +80,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.StringVar(&c.RemoteWriteAddr, "remote-write-addr", d.RemoteWriteAddr, "Prometheus remote write listen address.")
 	f.StringVar(&c.RemoteWritePath, "remote-write-path", d.RemoteWritePath, "Prometheus remote write path.")
 	f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
+	f.BoolVar(&c.DisableRemoteConfig, "disable-remote-config", false, "disable remote configuration.")
 }
 
 func (c *Config) updateFromRemoteDescription(description string) error {
