@@ -124,7 +124,7 @@ func argvAddCommonFlags() {
 }
 
 func argvAddAgentFlags(legacyVerb bool) {
-	argv.configAgent.Bind(flag.CommandLine, agent.DefaultConfig())
+	argv.configAgent.Bind(flag.CommandLine, agent.DefaultConfig(), legacyVerb)
 	flag.StringVar(&argv.listenAddr, "p", ":13337", "RAW UDP & RPC TCP listen address")
 
 	flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
@@ -161,6 +161,7 @@ func argvAddAggregatorFlags(legacyVerb bool) {
 		flag.Uint64Var(&unused1, "pmc-mapping-actor-id", 0, "actor ID of PMC mapping cluster")
 	} else {
 		flag.BoolVar(&argv.configAggregator.AutoCreate, "auto-create", aggregator.DefaultConfigAggregator().AutoCreate, "Enable metric auto-create.")
+		flag.BoolVar(&argv.configAggregator.DisableRemoteConfig, "disable-remote-config", aggregator.DefaultConfigAggregator().DisableRemoteConfig, "disable remote configuration")
 	}
 
 	flag.StringVar(&argv.configAggregator.ExternalPort, "agg-external-port", aggregator.DefaultConfigAggregator().ExternalPort, "external port for aggregator autoconfiguration if different from port set in agg-addr")
@@ -171,7 +172,6 @@ func argvAddAggregatorFlags(legacyVerb bool) {
 	flag.StringVar(&argv.configAggregator.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
 
 	flag.StringVar(&argv.configAggregator.KHAddr, "kh", "127.0.0.1:13338,127.0.0.1:13339", "clickhouse HTTP address:port")
-	flag.BoolVar(&argv.configAggregator.DisableRemoteConfig, "disable-remote-config", false, "disable remote configuration")
 }
 
 func argvAddIngressProxyFlags() {
