@@ -122,24 +122,12 @@ func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaVa
 		return true
 	}
 
-	if !create {
-		oldGroup := old.Group
-		newGroup := new_.Group
-		if oldGroup != nil && newGroup != nil {
-			if oldGroup.ID != newGroup.ID {
-				return false
-			}
-		} else if oldGroup != newGroup {
-			return false
-		}
-	}
 	oldName := old.Name
 	newName := new_.Name
 
 	if data_model.RemoteConfigMetric(oldName) || data_model.RemoteConfigMetric(newName) {
 		return false // remote config can only be set by administrators
 	}
-	// we expect that oldName and newName both are in the same group
 	return ai.bitEditMetric[oldName] && ai.bitEditMetric[newName] ||
 		(hasPrefixAccess(ai.bitEditPrefix, oldName) && hasPrefixAccess(ai.bitEditPrefix, newName)) ||
 		(ai.bitEditDefault && !ai.protectedMetric(oldName) && !ai.protectedMetric(newName))
