@@ -7,6 +7,7 @@
 package format
 
 import (
+	"log"
 	"math"
 	"strconv"
 )
@@ -17,9 +18,11 @@ const (
 
 	tagStringForUI = "tag"
 
-	BuiltinGroupIDDefault = -1 // for all metrics with group not known. We want to edit it in the future, so not 0
+	BuiltinGroupIDDefault = -4 // for all metrics with group not known. We want to edit it in the future, so not 0
 	BuiltinGroupIDBuiltin = -2 // for all built in metrics except host
 	BuiltinGroupIDHost    = -3 // host built in metrics
+
+	BuiltinNamespaceIDDefault = -5
 
 	BuiltinMetricIDAgentSamplingFactor        = -1
 	BuiltinMetricIDAggBucketReceiveDelaySec   = -2 // Also approximates insert delay, interesting for historic buckets
@@ -1813,6 +1816,32 @@ Value is delta between second value and time it was inserted.`,
 		TagValueIDBuildArchARM64: "arm64",
 		TagValueIDBuildArchARM:   "arm",
 	}
+	// BuiltInGroupDefault can be overridden by journal, don't use directly
+	BuiltInGroupDefault = map[int32]*MetricsGroup{
+		BuiltinGroupIDDefault: {
+			ID:     BuiltinGroupIDDefault,
+			Name:   "__default",
+			Weight: 1,
+		},
+		BuiltinGroupIDBuiltin: {
+			ID:     BuiltinGroupIDBuiltin,
+			Name:   "__builtin",
+			Weight: 1,
+		},
+		BuiltinGroupIDHost: {
+			ID:     BuiltinGroupIDHost,
+			Name:   "__host",
+			Weight: 1,
+		},
+	}
+	// BuiltInNamespaceDefault can be overridden by journal, don't use directly
+	BuiltInNamespaceDefault = map[int32]*NamespaceMeta{
+		BuiltinNamespaceIDDefault: {
+			ID:     BuiltinNamespaceIDDefault,
+			Name:   "__default",
+			Weight: 1,
+		},
+	}
 )
 
 func TagIDTagToTagID(tagIDTag int32) string {
@@ -1860,10 +1889,23 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 }
 
 func init() {
+	for _, g := range BuiltInGroupDefault {
+		err := g.RestoreCachedInfo(true)
+		if err != nil {
+			log.Printf("error to RestoreCachedInfo of %v", *g)
+		}
+	}
+	for _, n := range BuiltInNamespaceDefault {
+		err := n.RestoreCachedInfo(true)
+		if err != nil {
+			log.Printf("error to RestoreCachedInfo of %v", *n)
+		}
+	}
 	for k, v := range hostMetrics {
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
 		v.Resolution = 60
 		v.GroupID = BuiltinGroupIDHost
+		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
 		BuiltinMetrics[k] = v
 		builtinMetricsAllowedToReceive[k] = true
 		metricsWithoutAggregatorID[k] = true
@@ -1892,6 +1934,7 @@ func init() {
 		m.MetricID = id
 		if m.GroupID == 0 {
 			m.GroupID = BuiltinGroupIDBuiltin
+			m.Group = BuiltInGroupDefault[BuiltinGroupIDBuiltin]
 		}
 		m.Visible = !builtinMetricsInvisible[id]
 		m.PreKeyFrom = math.MaxInt32 // allow writing, but not yet selecting

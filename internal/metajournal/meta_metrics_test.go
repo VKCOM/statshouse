@@ -97,8 +97,8 @@ func TestMetricStorage1(t *testing.T) {
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.metricsByName, metric.Name)
 		actualMetric := m.metricsByID[int32(metric.Id)]
-		require.Equal(t, int32(0), actualMetric.NamespaceID)
-		require.Nil(t, actualMetric.Namespace)
+		require.Equal(t, int32(format.BuiltinNamespaceIDDefault), actualMetric.NamespaceID)
+		require.Equal(t, m.builtInNamespace[format.BuiltinNamespaceIDDefault], actualMetric.Namespace)
 		events = append(events, createEntity(2, 1, "namespace@metric", format.MetricEvent, 3, format.MetricMetaValue{}))
 		err = m.journal.updateJournal(nil)
 		require.NoError(t, err)
@@ -123,8 +123,8 @@ func TestMetricStorage1(t *testing.T) {
 		err = m.journal.updateJournal(nil)
 		require.NoError(t, err)
 		actualMetric = m.metricsByID[int32(metric.Id)]
-		require.Equal(t, int32(0), actualMetric.NamespaceID)
-		require.Nil(t, actualMetric.Namespace)
+		require.Equal(t, int32(format.BuiltinNamespaceIDDefault), actualMetric.NamespaceID)
+		require.Equal(t, m.builtInNamespace[format.BuiltinNamespaceIDDefault], actualMetric.Namespace)
 	}})
 
 	testCases = append(testCases, testCase{"create group after namespace", func(t *testing.T) {
@@ -159,8 +159,8 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.groupsByID, int32(group.Id))
 		actualGroup := m.groupsByID[int32(group.Id)]
-		require.Equal(t, int32(0), actualGroup.NamespaceID)
-		require.Nil(t, actualGroup.Namespace)
+		require.Equal(t, int32(format.BuiltinNamespaceIDDefault), actualGroup.NamespaceID)
+		require.Equal(t, m.builtInNamespace[format.BuiltinNamespaceIDDefault], actualGroup.Namespace)
 		events = append(events, createEntity(2, 1, "namespace@group", format.MetricsGroupEvent, 3, format.MetricsGroup{}))
 		err = m.journal.updateJournal(nil)
 		require.NoError(t, err)
@@ -184,8 +184,8 @@ func TestMetricStorage1(t *testing.T) {
 		err = m.journal.updateJournal(nil)
 		require.NoError(t, err)
 		actualGroup = m.groupsByID[int32(group.Id)]
-		require.Equal(t, int32(0), actualGroup.NamespaceID)
-		require.Nil(t, actualGroup.Namespace)
+		require.Equal(t, int32(format.BuiltinNamespaceIDDefault), actualGroup.NamespaceID)
+		require.Equal(t, m.builtInNamespace[format.BuiltinNamespaceIDDefault], actualGroup.Namespace)
 	}})
 
 	testCases = append(testCases, testCase{"create group after metric", func(t *testing.T) {
@@ -196,8 +196,6 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup[int32(group.Id)], int32(metric.Id))
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -211,8 +209,6 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup[int32(group.Id)], int32(metric.Id))
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -226,8 +222,6 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup[int32(group.Id)], int32(metric.Id))
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -237,10 +231,9 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
-		require.NotContains(t, m.metricsNamesByGroup[int32(group.Id)], int32(metric.Id))
 		actualMetric = m.metricsByID[int32(metric.Id)]
-		require.Equal(t, int32(0), actualMetric.GroupID)
-		require.Nil(t, actualMetric.Group)
+		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
+		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
 	}})
 
 	testCases = append(testCases, testCase{"rename metric and check metric", func(t *testing.T) {
@@ -251,8 +244,6 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup[int32(group.Id)], int32(metric.Id))
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -262,10 +253,9 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
-		require.NotContains(t, m.metricsNamesByGroup[int32(group.Id)], int32(metric.Id))
 		actualMetric = m.metricsByID[int32(metric.Id)]
-		require.Equal(t, int32(0), actualMetric.GroupID)
-		require.Nil(t, actualMetric.Group)
+		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
+		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
 	}})
 
 	testCases = append(testCases, testCase{"move group to another namespace", func(t *testing.T) {
@@ -277,8 +267,6 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup[int32(group.Id)], int32(metric.Id))
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -288,10 +276,9 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
-		require.NotContains(t, m.metricsNamesByGroup[int32(group.Id)], int32(metric.Id))
 		actualMetric = m.metricsByID[int32(metric.Id)]
-		require.Equal(t, int32(0), actualMetric.GroupID)
-		require.Nil(t, actualMetric.Group)
+		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
+		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
 	}})
 
 	testCases = append(testCases, testCase{"move metric to another namespace", func(t *testing.T) {
@@ -303,8 +290,6 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup, int32(group.Id))
-		require.Contains(t, m.metricsNamesByGroup[int32(group.Id)], int32(metric.Id))
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -314,10 +299,9 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
-		require.NotContains(t, m.metricsNamesByGroup[int32(group.Id)], int32(metric.Id))
 		actualMetric = m.metricsByID[int32(metric.Id)]
-		require.Equal(t, int32(0), actualMetric.GroupID)
-		require.Nil(t, actualMetric.Group)
+		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
+		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
 	}})
 
 	for _, tc := range testCases {
@@ -625,7 +609,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 2)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1)
-			require.Len(t, m.metricsNamesByGroup, 0)
 		})
 
 		t.Run("metric renamed (check old metric removed from group and new metric added)", func(t *testing.T) {
@@ -653,9 +636,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 2)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1)
-			require.Len(t, m.metricsNamesByGroup, 1)
-			require.Contains(t, m.metricsNamesByGroup, int32(group1Id))
-			require.Contains(t, m.metricsNamesByGroup[group1Id], metric.MetricID)
 		})
 		t.Run("metric created (check new metric in group)", func(t *testing.T) {
 			var id int32 = 65463
@@ -686,11 +666,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1)
-			require.Len(t, m.metricsNamesByGroup, 1)
-			require.Contains(t, m.metricsNamesByGroup, int32(group1Id))
-			require.Len(t, m.metricsNamesByGroup[group1.ID], 2)
-			require.Contains(t, m.metricsNamesByGroup[group1.ID], metricCopy.MetricID)
-			require.Contains(t, m.metricsNamesByGroup[group1Id], metric.MetricID)
 		})
 		t.Run("group renamed (check old metric removed from group and metric added)", func(t *testing.T) {
 			group1.Version = incVersion()
@@ -718,7 +693,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1)
-			require.Len(t, m.metricsNamesByGroup, 0)
 		})
 		t.Run("broadcast prom clients", func(t *testing.T) {
 			v1 := incVersion()
@@ -773,7 +747,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1)
-			require.Len(t, m.metricsNamesByGroup, 0)
 			require.Len(t, m.namespaceByID, 1)
 		})
 
@@ -803,7 +776,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1)
-			require.Len(t, m.metricsNamesByGroup, 0)
 			require.Len(t, m.namespaceByID, 1)
 
 			require.Contains(t, m.metricsByID, metric.MetricID)
@@ -836,7 +808,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 3)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1)
-			require.Len(t, m.metricsNamesByGroup, 0)
 			require.Len(t, m.namespaceByID, 1)
 
 			require.Contains(t, m.groupsByID, group1.ID)
@@ -878,7 +849,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 5)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1)
-			require.Len(t, m.metricsNamesByGroup, 0)
 		})
 		t.Run("metric change namespace (check metric in group)", func(t *testing.T) {
 			group2Metric6.Version = incVersion()
@@ -906,7 +876,6 @@ func TestMetricsStorage(t *testing.T) {
 			require.Len(t, m.metricsByName, 5)
 			require.Len(t, m.dashboardByID, 2)
 			require.Len(t, m.groupsByID, 1)
-			require.Len(t, m.metricsNamesByGroup, 0)
 		})
 		t.Run("get metric 6", func(t *testing.T) {
 			metric := m.GetMetaMetricByName(namespace.Name + format.NamespaceSeparator + group2Metric6.Name)

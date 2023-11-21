@@ -182,7 +182,7 @@ func OpenDB(
 	return db, nil
 }
 
-func loadNamespace(conn sqlite.Conn, id int64, version int64) (string, error) {
+func loadNamespaceName(conn sqlite.Conn, id int64, version int64) (string, error) {
 	rows := conn.Query("select_namespace", "SELECT name FROM metrics_v5 WHERE type = $type AND id = $id AND version = $version",
 		sqlite.Int64("$type", int64(format.NamespaceEvent)),
 		sqlite.Int64("$id", id),

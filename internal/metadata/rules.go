@@ -62,7 +62,7 @@ func checkGroup(c sqlite.Conn, id int64, name string, createEntity bool) error {
 
 func checkNamespace(c sqlite.Conn, name string, id int64, oldVersion int64, newJson string, createEntity, deleteEntity bool) error {
 	if !createEntity {
-		oldName, err := loadNamespace(c, id, oldVersion)
+		oldName, err := loadNamespaceName(c, id, oldVersion)
 		if err != nil {
 			return err
 		}

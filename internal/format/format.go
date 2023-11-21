@@ -105,6 +105,7 @@ var (
 
 	errInvalidCodeTagValue = fmt.Errorf("invalid code tag value") // must be fast
 	errBadEncoding         = fmt.Errorf("bad utf-8 encoding")     // must be fast
+	reservedMetricPrefix   = []string{"host_", "__"}
 )
 
 // Legacy, left for API backward compatibility
@@ -219,9 +220,10 @@ type MetricMetaValue struct {
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
 
-	GroupID   int32          `json:"-"`
-	Group     *MetricsGroup  `json:"-"`
-	Namespace *NamespaceMeta `json:"-"`
+	GroupID int32 `json:"-"`
+
+	Group     *MetricsGroup  `json:"-"` // don't use directly
+	Namespace *NamespaceMeta `json:"-"` // don't use directly
 }
 
 type MetricMetaValueOld struct {
@@ -310,6 +312,9 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	if !IsValidMetricType(m.MetricType) {
 		err = multierr.Append(err, fmt.Errorf("invalid metric type: %s", m.MetricType))
 		m.MetricType = ""
+	}
+	if !ValidMetricPrefix(m.Name) {
+		err = multierr.Append(err, fmt.Errorf("invalid metric name (reserved prefix: %s)", strings.Join(reservedMetricPrefix, ", ")))
 	}
 
 	if m.Kind == legacyMetricKindStringTop {
@@ -433,6 +438,14 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.ShardUniqueValues = strings.Contains(m.Description, "__shard_unique_values")   // Experimental
 
 	m.NoSampleAgent = builtinMetricsNoSamplingAgent[m.MetricID]
+	if m.GroupID == 0 || m.GroupID == BuiltinGroupIDDefault {
+		m.GroupID = BuiltinGroupIDDefault
+		m.Group = BuiltInGroupDefault[BuiltinGroupIDDefault]
+	}
+	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
+		m.NamespaceID = BuiltinNamespaceIDDefault
+		m.Namespace = BuiltInNamespaceDefault[BuiltinNamespaceIDDefault]
+	}
 	return err
 }
 
@@ -461,10 +474,12 @@ func (m *MetricMetaValue) APICompatGetTagFromBytes(tagNameOrID []byte) (tag Metr
 }
 
 // Always restores maximum info, if error is returned, group is non-canonical and should not be saved
-func (m *MetricsGroup) RestoreCachedInfo() error {
+func (m *MetricsGroup) RestoreCachedInfo(builtin bool) error {
 	var err error
-	if !ValidGroupName(m.Name) {
-		err = fmt.Errorf("invalid group name: %q", m.Name)
+	if !builtin {
+		if !ValidGroupName(m.Name) {
+			err = fmt.Errorf("invalid group name: %q", m.Name)
+		}
 	}
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
 		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
@@ -477,15 +492,20 @@ func (m *MetricsGroup) RestoreCachedInfo() error {
 		m.EffectiveWeight = MaxEffectiveWeight
 	}
 	m.EffectiveWeight = int64(rw)
-
+	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
+		m.NamespaceID = BuiltinNamespaceIDDefault
+		m.Namespace = BuiltInNamespaceDefault[BuiltinNamespaceIDDefault]
+	}
 	return err
 }
 
 // Always restores maximum info, if error is returned, group is non-canonical and should not be saved
-func (m *NamespaceMeta) RestoreCachedInfo() error {
+func (m *NamespaceMeta) RestoreCachedInfo(builtin bool) error {
 	var err error
-	if !ValidGroupName(m.Name) {
-		err = fmt.Errorf("invalid namespace name: %q", m.Name)
+	if !builtin {
+		if !ValidGroupName(m.Name) {
+			err = fmt.Errorf("invalid namespace name: %q", m.Name)
+		}
 	}
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
 		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
@@ -498,12 +518,11 @@ func (m *NamespaceMeta) RestoreCachedInfo() error {
 		m.EffectiveWeight = MaxEffectiveWeight
 	}
 	m.EffectiveWeight = int64(rw)
-
 	return err
 }
 
 func (m *MetricsGroup) MetricIn(metric *MetricMetaValue) bool {
-	return strings.HasPrefix(metric.Name, m.Name)
+	return !m.Disable && strings.HasPrefix(metric.Name, m.Name)
 }
 
 func ValidMetricName(s mem.RO) bool {
@@ -521,6 +540,15 @@ func ValidMetricName(s mem.RO) bool {
 			continue
 		}
 		if !isLetter(c) && c != '_' && !(c >= '0' && c <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
+func ValidMetricPrefix(s string) bool {
+	for _, p := range reservedMetricPrefix {
+		if strings.HasPrefix(s, p) {
 			return false
 		}
 	}
