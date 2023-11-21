@@ -83,9 +83,6 @@ func (item *MetadataResetFloodResponse2) readJSON(j interface{}) error {
 }
 
 func (item *MetadataResetFloodResponse2) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *MetadataResetFloodResponse2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.BudgetBefore != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

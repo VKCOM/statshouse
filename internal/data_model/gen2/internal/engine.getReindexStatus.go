@@ -45,11 +45,7 @@ func (item *EngineGetReindexStatus) ReadResultJSON(j interface{}, ret *EngineRei
 }
 
 func (item *EngineGetReindexStatus) WriteResultJSON(w []byte, ret EngineReindexStatusUnion) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *EngineGetReindexStatus) writeResultJSON(short bool, w []byte, ret EngineReindexStatusUnion) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+	if w, err = ret.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -61,15 +57,6 @@ func (item *EngineGetReindexStatus) ReadResultWriteResultJSON(r []byte, w []byte
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *EngineGetReindexStatus) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret EngineReindexStatusUnion
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -109,9 +96,6 @@ func (item *EngineGetReindexStatus) readJSON(j interface{}) error {
 }
 
 func (item *EngineGetReindexStatus) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineGetReindexStatus) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }

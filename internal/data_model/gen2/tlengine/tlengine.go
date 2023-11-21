@@ -100,10 +100,10 @@ func (c *Client) AsyncSleep(ctx context.Context, args AsyncSleep, extra *rpc.Inv
 		return internal.ErrorClientWrite("engine.asyncSleep", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.asyncSleep", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.asyncSleep", c.Network, c.ActorID, c.Address, err)
@@ -123,10 +123,10 @@ func (c *Client) Count(ctx context.Context, args Count, extra *rpc.InvokeReqExtr
 		return internal.ErrorClientWrite("engine.count", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.count", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.count", c.Network, c.ActorID, c.Address, err)
@@ -146,10 +146,10 @@ func (c *Client) DumpForceQueries(ctx context.Context, args DumpForceQueries, ex
 		return internal.ErrorClientWrite("engine.dumpForceQueries", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.dumpForceQueries", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.dumpForceQueries", c.Network, c.ActorID, c.Address, err)
@@ -169,10 +169,10 @@ func (c *Client) DumpLastQueries(ctx context.Context, args DumpLastQueries, extr
 		return internal.ErrorClientWrite("engine.dumpLastQueries", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.dumpLastQueries", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.dumpLastQueries", c.Network, c.ActorID, c.Address, err)
@@ -192,10 +192,10 @@ func (c *Client) DumpNextQueries(ctx context.Context, args DumpNextQueries, extr
 		return internal.ErrorClientWrite("engine.dumpNextQueries", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.dumpNextQueries", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.dumpNextQueries", c.Network, c.ActorID, c.Address, err)
@@ -215,10 +215,10 @@ func (c *Client) EnableMetafilesAnalyzer(ctx context.Context, args EnableMetafil
 		return internal.ErrorClientWrite("engine.enableMetafilesAnalyzer", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.enableMetafilesAnalyzer", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.enableMetafilesAnalyzer", c.Network, c.ActorID, c.Address, err)
@@ -238,10 +238,10 @@ func (c *Client) FilteredStat(ctx context.Context, args FilteredStat, extra *rpc
 		return internal.ErrorClientWrite("engine.filteredStat", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.filteredStat", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.filteredStat", c.Network, c.ActorID, c.Address, err)
@@ -261,10 +261,10 @@ func (c *Client) GetBinlogPrefixes(ctx context.Context, args GetBinlogPrefixes, 
 		return internal.ErrorClientWrite("engine.getBinlogPrefixes", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.getBinlogPrefixes", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.getBinlogPrefixes", c.Network, c.ActorID, c.Address, err)
@@ -284,10 +284,10 @@ func (c *Client) GetExpectedMetafilesStats(ctx context.Context, args GetExpected
 		return internal.ErrorClientWrite("engine.getExpectedMetafilesStats", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.getExpectedMetafilesStats", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.getExpectedMetafilesStats", c.Network, c.ActorID, c.Address, err)
@@ -307,10 +307,10 @@ func (c *Client) GetReadWriteMode(ctx context.Context, args GetReadWriteMode, ex
 		return internal.ErrorClientWrite("engine.getReadWriteMode", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.getReadWriteMode", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.getReadWriteMode", c.Network, c.ActorID, c.Address, err)
@@ -330,10 +330,10 @@ func (c *Client) GetReindexStatus(ctx context.Context, args GetReindexStatus, ex
 		return internal.ErrorClientWrite("engine.getReindexStatus", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.getReindexStatus", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.getReindexStatus", c.Network, c.ActorID, c.Address, err)
@@ -353,10 +353,10 @@ func (c *Client) InvokeHttpQuery(ctx context.Context, args InvokeHttpQuery, extr
 		return internal.ErrorClientWrite("engine.invokeHttpQuery", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.invokeHttpQuery", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.invokeHttpQuery", c.Network, c.ActorID, c.Address, err)
@@ -376,10 +376,10 @@ func (c *Client) IsProduction(ctx context.Context, args IsProduction, extra *rpc
 		return internal.ErrorClientWrite("engine.isProduction", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.isProduction", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.isProduction", c.Network, c.ActorID, c.Address, err)
@@ -399,10 +399,10 @@ func (c *Client) Nop(ctx context.Context, args Nop, extra *rpc.InvokeReqExtra, r
 		return internal.ErrorClientWrite("engine.nop", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.nop", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.nop", c.Network, c.ActorID, c.Address, err)
@@ -422,10 +422,10 @@ func (c *Client) Pid(ctx context.Context, args Pid, extra *rpc.InvokeReqExtra, r
 		return internal.ErrorClientWrite("engine.pid", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.pid", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.pid", c.Network, c.ActorID, c.Address, err)
@@ -445,10 +445,10 @@ func (c *Client) PushStat(ctx context.Context, args PushStat, extra *rpc.InvokeR
 		return internal.ErrorClientWrite("engine.pushStat", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.pushStat", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.pushStat", c.Network, c.ActorID, c.Address, err)
@@ -468,10 +468,10 @@ func (c *Client) ReadNop(ctx context.Context, args ReadNop, extra *rpc.InvokeReq
 		return internal.ErrorClientWrite("engine.readNop", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.readNop", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.readNop", c.Network, c.ActorID, c.Address, err)
@@ -491,10 +491,10 @@ func (c *Client) RecordNextQueries(ctx context.Context, args RecordNextQueries, 
 		return internal.ErrorClientWrite("engine.recordNextQueries", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.recordNextQueries", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.recordNextQueries", c.Network, c.ActorID, c.Address, err)
@@ -514,10 +514,10 @@ func (c *Client) RegisterDynamicLib(ctx context.Context, args RegisterDynamicLib
 		return internal.ErrorClientWrite("engine.registerDynamicLib", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.registerDynamicLib", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.registerDynamicLib", c.Network, c.ActorID, c.Address, err)
@@ -537,10 +537,10 @@ func (c *Client) ReloadDynamicLib(ctx context.Context, args ReloadDynamicLib, ex
 		return internal.ErrorClientWrite("engine.reloadDynamicLib", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.reloadDynamicLib", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.reloadDynamicLib", c.Network, c.ActorID, c.Address, err)
@@ -560,10 +560,10 @@ func (c *Client) ReplaceConfigServer(ctx context.Context, args ReplaceConfigServ
 		return internal.ErrorClientWrite("engine.replaceConfigServer", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.replaceConfigServer", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.replaceConfigServer", c.Network, c.ActorID, c.Address, err)
@@ -583,10 +583,10 @@ func (c *Client) SendSignal(ctx context.Context, args SendSignal, extra *rpc.Inv
 		return internal.ErrorClientWrite("engine.sendSignal", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.sendSignal", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.sendSignal", c.Network, c.ActorID, c.Address, err)
@@ -606,10 +606,10 @@ func (c *Client) SetFsyncInterval(ctx context.Context, args SetFsyncInterval, ex
 		return internal.ErrorClientWrite("engine.setFsyncInterval", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.setFsyncInterval", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.setFsyncInterval", c.Network, c.ActorID, c.Address, err)
@@ -629,10 +629,10 @@ func (c *Client) SetMetafileMemory(ctx context.Context, args SetMetafileMemory, 
 		return internal.ErrorClientWrite("engine.setMetafileMemory", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.setMetafileMemory", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.setMetafileMemory", c.Network, c.ActorID, c.Address, err)
@@ -652,10 +652,10 @@ func (c *Client) SetNoPersistentConfigArray(ctx context.Context, args SetNoPersi
 		return internal.ErrorClientWrite("engine.setNoPersistentConfigArray", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.setNoPersistentConfigArray", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.setNoPersistentConfigArray", c.Network, c.ActorID, c.Address, err)
@@ -675,10 +675,10 @@ func (c *Client) SetNoPersistentConfigValue(ctx context.Context, args SetNoPersi
 		return internal.ErrorClientWrite("engine.setNoPersistentConfigValue", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.setNoPersistentConfigValue", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.setNoPersistentConfigValue", c.Network, c.ActorID, c.Address, err)
@@ -698,10 +698,10 @@ func (c *Client) SetPersistentConfigArray(ctx context.Context, args SetPersisten
 		return internal.ErrorClientWrite("engine.setPersistentConfigArray", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.setPersistentConfigArray", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.setPersistentConfigArray", c.Network, c.ActorID, c.Address, err)
@@ -721,10 +721,10 @@ func (c *Client) SetPersistentConfigValue(ctx context.Context, args SetPersisten
 		return internal.ErrorClientWrite("engine.setPersistentConfigValue", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.setPersistentConfigValue", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.setPersistentConfigValue", c.Network, c.ActorID, c.Address, err)
@@ -744,10 +744,10 @@ func (c *Client) SetVerbosity(ctx context.Context, args SetVerbosity, extra *rpc
 		return internal.ErrorClientWrite("engine.setVerbosity", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.setVerbosity", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.setVerbosity", c.Network, c.ActorID, c.Address, err)
@@ -767,10 +767,10 @@ func (c *Client) SetVerbosityType(ctx context.Context, args SetVerbosityType, ex
 		return internal.ErrorClientWrite("engine.setVerbosityType", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.setVerbosityType", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.setVerbosityType", c.Network, c.ActorID, c.Address, err)
@@ -790,10 +790,10 @@ func (c *Client) Sleep(ctx context.Context, args Sleep, extra *rpc.InvokeReqExtr
 		return internal.ErrorClientWrite("engine.sleep", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.sleep", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.sleep", c.Network, c.ActorID, c.Address, err)
@@ -813,10 +813,10 @@ func (c *Client) Stat(ctx context.Context, args Stat, extra *rpc.InvokeReqExtra,
 		return internal.ErrorClientWrite("engine.stat", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.stat", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.stat", c.Network, c.ActorID, c.Address, err)
@@ -836,10 +836,10 @@ func (c *Client) SwitchToMasterMode(ctx context.Context, args SwitchToMasterMode
 		return internal.ErrorClientWrite("engine.switchToMasterMode", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.switchToMasterMode", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.switchToMasterMode", c.Network, c.ActorID, c.Address, err)
@@ -859,10 +859,10 @@ func (c *Client) SwitchToMasterModeForcefully(ctx context.Context, args SwitchTo
 		return internal.ErrorClientWrite("engine.switchToMasterModeForcefully", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.switchToMasterModeForcefully", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.switchToMasterModeForcefully", c.Network, c.ActorID, c.Address, err)
@@ -882,10 +882,10 @@ func (c *Client) SwitchToReplicaMode(ctx context.Context, args SwitchToReplicaMo
 		return internal.ErrorClientWrite("engine.switchToReplicaMode", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.switchToReplicaMode", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.switchToReplicaMode", c.Network, c.ActorID, c.Address, err)
@@ -905,10 +905,10 @@ func (c *Client) UnregisterDynamicLib(ctx context.Context, args UnregisterDynami
 		return internal.ErrorClientWrite("engine.unregisterDynamicLib", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.unregisterDynamicLib", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.unregisterDynamicLib", c.Network, c.ActorID, c.Address, err)
@@ -928,10 +928,10 @@ func (c *Client) Version(ctx context.Context, args Version, extra *rpc.InvokeReq
 		return internal.ErrorClientWrite("engine.version", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.version", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.version", c.Network, c.ActorID, c.Address, err)
@@ -951,10 +951,10 @@ func (c *Client) WriteNop(ctx context.Context, args WriteNop, extra *rpc.InvokeR
 		return internal.ErrorClientWrite("engine.writeNop", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
-	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("engine.writeNop", c.Network, c.ActorID, c.Address, err)
 	}
+	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("engine.writeNop", c.Network, c.ActorID, c.Address, err)

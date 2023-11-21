@@ -63,12 +63,8 @@ func (item *Stat) readJSON(j interface{}) error {
 }
 
 func (item *Stat) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-
-func (item *Stat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	if w, err = VectorDictionaryFieldString0WriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = VectorDictionaryFieldString0WriteJSON(w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil

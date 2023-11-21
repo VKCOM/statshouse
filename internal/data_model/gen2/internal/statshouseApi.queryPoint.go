@@ -221,9 +221,6 @@ func (item *StatshouseApiQueryPoint) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseApiQueryPoint) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseApiQueryPoint) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -257,27 +254,27 @@ func (item *StatshouseApiQueryPoint) WriteJSONOpt(short bool, w []byte) (_ []byt
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"function":`...)
-	if w, err = item.Function.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Function.WriteJSON(w); err != nil {
 		return w, err
 	}
 	if len(item.GroupBy) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"group_by":`...)
-		if w, err = VectorString0WriteJSONOpt(short, w, item.GroupBy); err != nil {
+		if w, err = VectorString0WriteJSON(w, item.GroupBy); err != nil {
 			return w, err
 		}
 	}
 	if len(item.Filter) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"filter":`...)
-		if w, err = VectorStatshouseApiFilter0WriteJSONOpt(short, w, item.Filter); err != nil {
+		if w, err = VectorStatshouseApiFilter0WriteJSON(w, item.Filter); err != nil {
 			return w, err
 		}
 	}
 	if len(item.TimeShift) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"time_shift":`...)
-		if w, err = VectorLong0WriteJSONOpt(short, w, item.TimeShift); err != nil {
+		if w, err = VectorLong0WriteJSON(w, item.TimeShift); err != nil {
 			return w, err
 		}
 	}
@@ -285,7 +282,7 @@ func (item *StatshouseApiQueryPoint) WriteJSONOpt(short bool, w []byte) (_ []byt
 		if len(item.What) != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
 			w = append(w, `"what":`...)
-			if w, err = VectorStatshouseApiFunctionBoxed0WriteJSONOpt(short, w, item.What); err != nil {
+			if w, err = VectorStatshouseApiFunctionBoxed0WriteJSON(w, item.What); err != nil {
 				return w, err
 			}
 		}

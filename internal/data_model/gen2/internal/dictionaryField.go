@@ -87,9 +87,6 @@ func (item *DictionaryFieldEngineMetafilesStatBoxed) readJSON(j interface{}) err
 }
 
 func (item *DictionaryFieldEngineMetafilesStatBoxed) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *DictionaryFieldEngineMetafilesStatBoxed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Key) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -98,7 +95,7 @@ func (item *DictionaryFieldEngineMetafilesStatBoxed) WriteJSONOpt(short bool, w 
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"value":`...)
-	if w, err = item.Value.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Value.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil
@@ -191,9 +188,6 @@ func (item *DictionaryFieldString) readJSON(j interface{}) error {
 }
 
 func (item *DictionaryFieldString) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *DictionaryFieldString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Key) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -295,9 +289,6 @@ func (item *DictionaryFieldStringBytes) readJSON(j interface{}) error {
 }
 
 func (item *DictionaryFieldStringBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *DictionaryFieldStringBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Key) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -406,9 +397,6 @@ func VectorDictionaryFieldEngineMetafilesStatBoxed0ReadJSON(j interface{}, m *ma
 }
 
 func VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSON(w []byte, m map[string]EngineMetafilesStat) (_ []byte, err error) {
-	return VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSONOpt(false, w, m)
-}
-func VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSONOpt(short bool, w []byte, m map[string]EngineMetafilesStat) (_ []byte, err error) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -420,7 +408,7 @@ func VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSONOpt(short bool, w []
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = basictl.JSONWriteString(w, key) // StringKey
 		w = append(w, ':')
-		if w, err = value.WriteJSONOpt(short, w); err != nil {
+		if w, err = value.WriteJSON(w); err != nil {
 			return w, err
 		}
 	}
@@ -506,9 +494,6 @@ func VectorDictionaryFieldString0ReadJSON(j interface{}, m *map[string]string) e
 }
 
 func VectorDictionaryFieldString0WriteJSON(w []byte, m map[string]string) (_ []byte, err error) {
-	return VectorDictionaryFieldString0WriteJSONOpt(false, w, m)
-}
-func VectorDictionaryFieldString0WriteJSONOpt(short bool, w []byte, m map[string]string) (_ []byte, err error) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -584,9 +569,6 @@ func VectorDictionaryFieldString0BytesReadJSON(j interface{}, vec *[]DictionaryF
 }
 
 func VectorDictionaryFieldString0BytesWriteJSON(w []byte, vec []DictionaryFieldStringBytes) (_ []byte, err error) {
-	return VectorDictionaryFieldString0BytesWriteJSONOpt(false, w, vec)
-}
-func VectorDictionaryFieldString0BytesWriteJSONOpt(short bool, w []byte, vec []DictionaryFieldStringBytes) (_ []byte, err error) {
 	w = append(w, '{')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

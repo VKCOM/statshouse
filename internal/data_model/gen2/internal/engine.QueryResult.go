@@ -79,9 +79,6 @@ func (item *EngineQueryResult) readJSON(j interface{}) error {
 }
 
 func (item *EngineQueryResult) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineQueryResult) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Size != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -152,9 +149,6 @@ func (item *EngineQueryResultAio) readJSON(j interface{}) error {
 }
 
 func (item *EngineQueryResultAio) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineQueryResultAio) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -251,9 +245,6 @@ func (item *EngineQueryResultError) readJSON(j interface{}) error {
 }
 
 func (item *EngineQueryResultError) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineQueryResultError) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.ErrorCode != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -413,19 +404,16 @@ func (item *EngineQueryResultUnion) readJSON(j interface{}) error {
 }
 
 func (item *EngineQueryResultUnion) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineQueryResultUnion) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	switch item.index {
 	case 0:
 		w = append(w, `{"type":"engine.queryResult#ac4d6fe9","value":`...)
-		if w, err = item.valueQueryResult.WriteJSONOpt(short, w); err != nil {
+		if w, err = item.valueQueryResult.WriteJSON(w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 1:
 		w = append(w, `{"type":"engine.queryResultError#2b4dd0ba","value":`...)
-		if w, err = item.valueError.WriteJSONOpt(short, w); err != nil {
+		if w, err = item.valueError.WriteJSON(w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil

@@ -183,9 +183,6 @@ func (item *StatshouseMultiItem) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseMultiItem) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseMultiItem) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -200,7 +197,7 @@ func (item *StatshouseMultiItem) WriteJSONOpt(short bool, w []byte) (_ []byte, e
 	if len(item.Keys) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"keys":`...)
-		if w, err = VectorInt0WriteJSONOpt(short, w, item.Keys); err != nil {
+		if w, err = VectorInt0WriteJSON(w, item.Keys); err != nil {
 			return w, err
 		}
 	}
@@ -213,14 +210,14 @@ func (item *StatshouseMultiItem) WriteJSONOpt(short bool, w []byte) (_ []byte, e
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tail":`...)
-	if w, err = item.Tail.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Tail.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<11) != 0 {
 		if len(item.Top) != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
 			w = append(w, `"top":`...)
-			if w, err = VectorStatshouseTopElement0WriteJSONOpt(short, w, item.Top); err != nil {
+			if w, err = VectorStatshouseTopElement0WriteJSON(w, item.Top); err != nil {
 				return w, err
 			}
 		}
@@ -413,9 +410,6 @@ func (item *StatshouseMultiItemBytes) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseMultiItemBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseMultiItemBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -430,7 +424,7 @@ func (item *StatshouseMultiItemBytes) WriteJSONOpt(short bool, w []byte) (_ []by
 	if len(item.Keys) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"keys":`...)
-		if w, err = VectorInt0WriteJSONOpt(short, w, item.Keys); err != nil {
+		if w, err = VectorInt0WriteJSON(w, item.Keys); err != nil {
 			return w, err
 		}
 	}
@@ -443,14 +437,14 @@ func (item *StatshouseMultiItemBytes) WriteJSONOpt(short bool, w []byte) (_ []by
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tail":`...)
-	if w, err = item.Tail.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Tail.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<11) != 0 {
 		if len(item.Top) != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
 			w = append(w, `"top":`...)
-			if w, err = VectorStatshouseTopElement0BytesWriteJSONOpt(short, w, item.Top); err != nil {
+			if w, err = VectorStatshouseTopElement0BytesWriteJSON(w, item.Top); err != nil {
 				return w, err
 			}
 		}
@@ -523,13 +517,10 @@ func VectorStatshouseMultiItem0ReadJSON(j interface{}, vec *[]StatshouseMultiIte
 }
 
 func VectorStatshouseMultiItem0WriteJSON(w []byte, vec []StatshouseMultiItem) (_ []byte, err error) {
-	return VectorStatshouseMultiItem0WriteJSONOpt(false, w, vec)
-}
-func VectorStatshouseMultiItem0WriteJSONOpt(short bool, w []byte, vec []StatshouseMultiItem) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSON(w); err != nil {
 			return w, err
 		}
 	}
@@ -586,13 +577,10 @@ func VectorStatshouseMultiItem0BytesReadJSON(j interface{}, vec *[]StatshouseMul
 }
 
 func VectorStatshouseMultiItem0BytesWriteJSON(w []byte, vec []StatshouseMultiItemBytes) (_ []byte, err error) {
-	return VectorStatshouseMultiItem0BytesWriteJSONOpt(false, w, vec)
-}
-func VectorStatshouseMultiItem0BytesWriteJSONOpt(short bool, w []byte, vec []StatshouseMultiItemBytes) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSON(w); err != nil {
 			return w, err
 		}
 	}

@@ -75,6 +75,16 @@ const (
 	EngineUnregisterDynamicLib                   = 0x84d5fcb9 // engine.unregisterDynamicLib
 	EngineVersion                                = 0x1a2e06fa // engine.version
 	EngineWriteNop                               = 0x58160af4 // engine.writeNop
+	KvEngineBackup                               = 0x3c7231b2 // kv_engine.backup
+	KvEngineBackupResponse                       = 0x732a1764 // kv_engine.backup_response
+	KvEngineChangeResponse                       = 0x73eaa764 // kv_engine.change_response
+	KvEngineCheck                                = 0x2c3239ba // kv_engine.check
+	KvEngineGet                                  = 0x1c7349bb // kv_engine.get
+	KvEngineGetResponse                          = 0x63eeb764 // kv_engine.get_response
+	KvEngineInc                                  = 0x3c7239bb // kv_engine.inc
+	KvEngineKv                                   = 0x18f34950 // kv_engine.kv
+	KvEngineMetaInfo                             = 0x53eeb763 // kv_engine.meta_info
+	KvEnginePut                                  = 0x2c7349ba // kv_engine.put
 	Map                                          = 0x79c473a4 // map
 	MetadataCreateEntityEvent                    = 0x1a345674 // metadata.createEntityEvent
 	MetadataCreateMappingEvent                   = 0x12345678 // metadata.createMappingEvent

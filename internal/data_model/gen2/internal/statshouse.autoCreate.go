@@ -90,11 +90,7 @@ func (item *StatshouseAutoCreate) ReadResultJSON(j interface{}, ret *True) error
 }
 
 func (item *StatshouseAutoCreate) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *StatshouseAutoCreate) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+	if w, err = ret.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -106,15 +102,6 @@ func (item *StatshouseAutoCreate) ReadResultWriteResultJSON(r []byte, w []byte) 
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseAutoCreate) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret True
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -179,9 +166,6 @@ func (item *StatshouseAutoCreate) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseAutoCreate) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseAutoCreate) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -190,7 +174,7 @@ func (item *StatshouseAutoCreate) WriteJSONOpt(short bool, w []byte) (_ []byte, 
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if len(item.Metric) != 0 {
@@ -206,7 +190,7 @@ func (item *StatshouseAutoCreate) WriteJSONOpt(short bool, w []byte) (_ []byte, 
 	if len(item.Tags) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"tags":`...)
-		if w, err = VectorString0WriteJSONOpt(short, w, item.Tags); err != nil {
+		if w, err = VectorString0WriteJSON(w, item.Tags); err != nil {
 			return w, err
 		}
 	}
@@ -305,11 +289,7 @@ func (item *StatshouseAutoCreateBytes) ReadResultJSON(j interface{}, ret *True) 
 }
 
 func (item *StatshouseAutoCreateBytes) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *StatshouseAutoCreateBytes) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+	if w, err = ret.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -321,15 +301,6 @@ func (item *StatshouseAutoCreateBytes) ReadResultWriteResultJSON(r []byte, w []b
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseAutoCreateBytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret True
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -394,9 +365,6 @@ func (item *StatshouseAutoCreateBytes) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseAutoCreateBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseAutoCreateBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -405,7 +373,7 @@ func (item *StatshouseAutoCreateBytes) WriteJSONOpt(short bool, w []byte) (_ []b
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if len(item.Metric) != 0 {
@@ -421,7 +389,7 @@ func (item *StatshouseAutoCreateBytes) WriteJSONOpt(short bool, w []byte) (_ []b
 	if len(item.Tags) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"tags":`...)
-		if w, err = VectorString0BytesWriteJSONOpt(short, w, item.Tags); err != nil {
+		if w, err = VectorString0BytesWriteJSON(w, item.Tags); err != nil {
 			return w, err
 		}
 	}

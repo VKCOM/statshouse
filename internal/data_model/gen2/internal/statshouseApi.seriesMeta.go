@@ -294,9 +294,6 @@ func (item *StatshouseApiSeriesMeta) readJSON(j interface{}, nat_query_fields_ma
 }
 
 func (item *StatshouseApiSeriesMeta) WriteJSON(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_query_fields_mask)
-}
-func (item *StatshouseApiSeriesMeta) WriteJSONOpt(short bool, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -311,14 +308,14 @@ func (item *StatshouseApiSeriesMeta) WriteJSONOpt(short bool, w []byte, nat_quer
 	if len(item.Tags) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"tags":`...)
-		if w, err = VectorDictionaryFieldString0WriteJSONOpt(short, w, item.Tags); err != nil {
+		if w, err = VectorDictionaryFieldString0WriteJSON(w, item.Tags); err != nil {
 			return w, err
 		}
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		if w, err = item.What.WriteJSONOpt(short, w); err != nil {
+		if w, err = item.What.WriteJSON(w); err != nil {
 			return w, err
 		}
 	}
@@ -347,7 +344,7 @@ func (item *StatshouseApiSeriesMeta) WriteJSONOpt(short bool, w []byte, nat_quer
 		if len(item.MaxHosts) != 0 {
 			w = basictl.JSONAddCommaIfNeeded(w)
 			w = append(w, `"max_hosts":`...)
-			if w, err = VectorString0WriteJSONOpt(short, w, item.MaxHosts); err != nil {
+			if w, err = VectorString0WriteJSON(w, item.MaxHosts); err != nil {
 				return w, err
 			}
 		}
@@ -405,13 +402,10 @@ func VectorStatshouseApiSeriesMeta0ReadJSON(j interface{}, vec *[]StatshouseApiS
 }
 
 func VectorStatshouseApiSeriesMeta0WriteJSON(w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) (_ []byte, err error) {
-	return VectorStatshouseApiSeriesMeta0WriteJSONOpt(false, w, vec, nat_t)
-}
-func VectorStatshouseApiSeriesMeta0WriteJSONOpt(short bool, w []byte, vec []StatshouseApiSeriesMeta, nat_t uint32) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w, nat_t); err != nil {
+		if w, err = elem.WriteJSON(w, nat_t); err != nil {
 			return w, err
 		}
 	}
