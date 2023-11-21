@@ -128,15 +128,17 @@ type (
 	}
 
 	Options struct {
-		Path                   string
-		APPID                  int32
-		StatsOptions           StatsOptions
-		Scheme                 string
-		Replica                bool
-		CommitEvery            time.Duration
-		DurabilityMode         DurabilityMode
-		ReadAndExit            bool
-		CommitOnEachWrite      bool // use only to test. If true break binlog + sqlite consistency
+		Path                  string
+		APPID                 int32
+		StatsOptions          StatsOptions
+		Scheme                string
+		Replica               bool
+		CommitEvery           time.Duration
+		DurabilityMode        DurabilityMode
+		ReadAndExit           bool
+		CommitOnEachWrite     bool // use only to test. If true break binlog + sqlite consistency
+		WaitBinlogCommitDebug bool // ...
+
 		MaxROConn              int
 		CacheMaxSizePerConnect int
 	}
@@ -746,7 +748,7 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 
 func (e *Engine) mustCommitNow(waitCommitMode, isReadOp bool) bool {
 	if !e.isTest {
-		return ((waitBinlogCommitDebug && e.opt.CommitOnEachWrite) || (time.Since(e.lastCommitTime) >= e.opt.CommitEvery && !waitCommitMode)) && !isReadOp
+		return ((e.opt.WaitBinlogCommitDebug && e.opt.CommitOnEachWrite) || (time.Since(e.lastCommitTime) >= e.opt.CommitEvery && !waitCommitMode)) && !isReadOp
 	}
 	return e.mustCommitNowFlag
 }
@@ -757,8 +759,6 @@ func checkQueryName(qn string) error {
 	}
 	return nil
 }
-
-var waitBinlogCommitDebug = true
 
 func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Conn, []byte) ([]byte, error)) (_ chan struct{}, dbOffset int64, commitOffset int64, err error) {
 	if err := checkQueryName(queryName); err != nil {
@@ -829,7 +829,7 @@ func (e *Engine) doWithoutWait(ctx context.Context, queryName string, fn func(Co
 	}
 	if e.opt.CommitOnEachWrite {
 		commit = func(c Conn) error {
-			return e.commitRWTXAndStartNewLocked(c, true, waitBinlogCommitDebug, !waitBinlogCommitDebug)
+			return e.commitRWTXAndStartNewLocked(c, true, e.opt.WaitBinlogCommitDebug, !e.opt.WaitBinlogCommitDebug)
 		}
 		mustCommitNow = false
 	}
