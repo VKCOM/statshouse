@@ -12,7 +12,7 @@ func TestUpdateFromRemoteDescription(t *testing.T) {
 	var master Config
 	var f flag.FlagSet
 	f.Init("", flag.ContinueOnError)
-	master.Bind(&f, DefaultConfig())
+	master.Bind(&f, DefaultConfig(), false)
 	err := f.Parse(nil)
 	require.Nil(t, err)
 	// Update sample-budget

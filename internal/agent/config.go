@@ -61,7 +61,7 @@ func DefaultConfig() Config {
 	}
 }
 
-func (c *Config) Bind(f *flag.FlagSet, d Config) {
+func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
 	f.IntVar(&c.SampleBudget, "sample-budget", d.SampleBudget, "Statshouse will sample all buckets to contain max this number of bytes.")
 	f.Int64Var(&c.MaxHistoricDiskSize, "max-disk-size", d.MaxHistoricDiskSize, "Statshouse will use no more than this amount of disk space for storing historic data.")
 	f.IntVar(&c.SkipShards, "skip-shards", d.SkipShards, "Skip first shards during sharding. When extending cluster, helps prevent filling disks of already full shards.")
@@ -79,14 +79,17 @@ func (c *Config) Bind(f *flag.FlagSet, d Config) {
 	f.BoolVar(&c.RemoteWriteEnabled, "remote-write-enabled", d.RemoteWriteEnabled, "Serve prometheus remote write endpoint.")
 	f.StringVar(&c.RemoteWriteAddr, "remote-write-addr", d.RemoteWriteAddr, "Prometheus remote write listen address.")
 	f.StringVar(&c.RemoteWritePath, "remote-write-path", d.RemoteWritePath, "Prometheus remote write path.")
-	f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
-	f.BoolVar(&c.DisableRemoteConfig, "disable-remote-config", false, "disable remote configuration.")
+
+	if !legacyVerb {
+		f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
+		f.BoolVar(&c.DisableRemoteConfig, "disable-remote-config", d.DisableRemoteConfig, "disable remote configuration.")
+	}
 }
 
 func (c *Config) updateFromRemoteDescription(description string) error {
 	var f flag.FlagSet
 	f.Init("", flag.ContinueOnError)
-	c.Bind(&f, *c)
+	c.Bind(&f, *c, false)
 	s := strings.Split(description, "\n")
 	for i := 0; i < len(s); {
 		t := strings.TrimSpace(s[i])
