@@ -1374,7 +1374,18 @@ func (h *Handler) handlePostNamespace(ctx context.Context, ai accessInfo, namesp
 			return &NamespaceInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("namespace %d not found", namespace.ID))
 		}
 	}
-	namespace, err := h.metadataLoader.SaveNamespace(ctx, namespace, create)
+	var err error
+	if namespace.ID >= 0 {
+		namespace, err = h.metadataLoader.SaveNamespace(ctx, namespace, create)
+	} else {
+		n := h.metricsStorage.GetNamespace(namespace.ID)
+		if n == nil {
+			return &NamespaceInfo{}, httpErr(http.StatusNotFound, fmt.Errorf("namespace %d not found", namespace.ID))
+		}
+		create := n == format.BuiltInNamespaceDefault[namespace.ID]
+		namespace, err = h.metadataLoader.SaveBuiltinNamespace(ctx, namespace, create)
+	}
+
 	if err != nil {
 		s := "edit"
 		if create {

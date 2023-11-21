@@ -1816,8 +1816,8 @@ Value is delta between second value and time it was inserted.`,
 		TagValueIDBuildArchARM64: "arm64",
 		TagValueIDBuildArchARM:   "arm",
 	}
-
-	BuiltInGroup = map[int32]*MetricsGroup{
+	// BuiltInGroupDefault can be overridden by journal, don't use directly
+	BuiltInGroupDefault = map[int32]*MetricsGroup{
 		BuiltinGroupIDDefault: {
 			ID:     BuiltinGroupIDDefault,
 			Name:   "__default",
@@ -1834,7 +1834,8 @@ Value is delta between second value and time it was inserted.`,
 			Weight: 1,
 		},
 	}
-	BuiltInNamespace = map[int32]*NamespaceMeta{
+	// BuiltInNamespaceDefault can be overridden by journal, don't use directly
+	BuiltInNamespaceDefault = map[int32]*NamespaceMeta{
 		BuiltinNamespaceIDDefault: {
 			ID:     BuiltinNamespaceIDDefault,
 			Name:   "__default",
@@ -1888,14 +1889,14 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 }
 
 func init() {
-	for _, g := range BuiltInGroup {
+	for _, g := range BuiltInGroupDefault {
 		err := g.RestoreCachedInfo(true)
 		if err != nil {
 			log.Printf("error to RestoreCachedInfo of %v", *g)
 		}
 	}
-	for _, n := range BuiltInNamespace {
-		err := n.RestoreCachedInfo()
+	for _, n := range BuiltInNamespaceDefault {
+		err := n.RestoreCachedInfo(true)
 		if err != nil {
 			log.Printf("error to RestoreCachedInfo of %v", *n)
 		}
@@ -1904,7 +1905,7 @@ func init() {
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
 		v.Resolution = 60
 		v.GroupID = BuiltinGroupIDHost
-		v.Group = BuiltInGroup[BuiltinGroupIDHost]
+		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
 		BuiltinMetrics[k] = v
 		builtinMetricsAllowedToReceive[k] = true
 		metricsWithoutAggregatorID[k] = true
@@ -1933,7 +1934,7 @@ func init() {
 		m.MetricID = id
 		if m.GroupID == 0 {
 			m.GroupID = BuiltinGroupIDBuiltin
-			m.Group = BuiltInGroup[BuiltinGroupIDBuiltin]
+			m.Group = BuiltInGroupDefault[BuiltinGroupIDBuiltin]
 		}
 		m.Visible = !builtinMetricsInvisible[id]
 		m.PreKeyFrom = math.MaxInt32 // allow writing, but not yet selecting

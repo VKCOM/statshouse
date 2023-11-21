@@ -98,7 +98,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.Contains(t, m.metricsByName, metric.Name)
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(format.BuiltinNamespaceIDDefault), actualMetric.NamespaceID)
-		require.Equal(t, format.BuiltInNamespace[format.BuiltinNamespaceIDDefault], actualMetric.Namespace)
+		require.Equal(t, m.builtInNamespace[format.BuiltinNamespaceIDDefault], actualMetric.Namespace)
 		events = append(events, createEntity(2, 1, "namespace@metric", format.MetricEvent, 3, format.MetricMetaValue{}))
 		err = m.journal.updateJournal(nil)
 		require.NoError(t, err)
@@ -124,7 +124,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		actualMetric = m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(format.BuiltinNamespaceIDDefault), actualMetric.NamespaceID)
-		require.Equal(t, format.BuiltInNamespace[format.BuiltinNamespaceIDDefault], actualMetric.Namespace)
+		require.Equal(t, m.builtInNamespace[format.BuiltinNamespaceIDDefault], actualMetric.Namespace)
 	}})
 
 	testCases = append(testCases, testCase{"create group after namespace", func(t *testing.T) {
@@ -160,7 +160,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.Contains(t, m.groupsByID, int32(group.Id))
 		actualGroup := m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(format.BuiltinNamespaceIDDefault), actualGroup.NamespaceID)
-		require.Equal(t, format.BuiltInNamespace[format.BuiltinNamespaceIDDefault], actualGroup.Namespace)
+		require.Equal(t, m.builtInNamespace[format.BuiltinNamespaceIDDefault], actualGroup.Namespace)
 		events = append(events, createEntity(2, 1, "namespace@group", format.MetricsGroupEvent, 3, format.MetricsGroup{}))
 		err = m.journal.updateJournal(nil)
 		require.NoError(t, err)
@@ -185,7 +185,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		actualGroup = m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(format.BuiltinNamespaceIDDefault), actualGroup.NamespaceID)
-		require.Equal(t, format.BuiltInNamespace[format.BuiltinNamespaceIDDefault], actualGroup.Namespace)
+		require.Equal(t, m.builtInNamespace[format.BuiltinNamespaceIDDefault], actualGroup.Namespace)
 	}})
 
 	testCases = append(testCases, testCase{"create group after metric", func(t *testing.T) {
@@ -233,7 +233,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.Contains(t, m.groupsByID, int32(group.Id))
 		actualMetric = m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
-		require.Equal(t, format.BuiltInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
+		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
 	}})
 
 	testCases = append(testCases, testCase{"rename metric and check metric", func(t *testing.T) {
@@ -255,7 +255,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.Contains(t, m.groupsByID, int32(group.Id))
 		actualMetric = m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
-		require.Equal(t, format.BuiltInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
+		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
 	}})
 
 	testCases = append(testCases, testCase{"move group to another namespace", func(t *testing.T) {
@@ -278,7 +278,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.Contains(t, m.groupsByID, int32(group.Id))
 		actualMetric = m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
-		require.Equal(t, format.BuiltInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
+		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
 	}})
 
 	testCases = append(testCases, testCase{"move metric to another namespace", func(t *testing.T) {
@@ -301,7 +301,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.Contains(t, m.groupsByID, int32(group.Id))
 		actualMetric = m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
-		require.Equal(t, format.BuiltInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
+		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
 	}})
 
 	for _, tc := range testCases {

@@ -140,7 +140,7 @@ func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.Me
 }
 
 func (l *MetricMetaLoader) SaveNamespace(ctx context.Context, value format.NamespaceMeta, create bool) (g format.NamespaceMeta, _ error) {
-	if err := value.RestoreCachedInfo(); err != nil {
+	if err := value.RestoreCachedInfo(false); err != nil {
 		return g, err
 	}
 	var err error
@@ -168,7 +168,7 @@ func (l *MetricMetaLoader) SaveNamespace(ctx context.Context, value format.Names
 	event := tlmetadata.Event{}
 	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
 	if err != nil {
-		return format.NamespaceMeta{}, fmt.Errorf("failed to edit group: %w", err)
+		return format.NamespaceMeta{}, fmt.Errorf("failed to edit namespace: %w", err)
 	}
 	if event.Id < math.MinInt32 || event.Id > math.MaxInt32 {
 		return g, fmt.Errorf("namespace ID %d assigned by metaengine does not fit into int32 for group %q", event.Id, event.Name)
@@ -360,7 +360,7 @@ func (l *MetricMetaLoader) SaveBuiltInGroup(ctx context.Context, value format.Me
 	if err != nil {
 		return g, fmt.Errorf("faield to serialize group: %w", err)
 	}
-	builtinGroup, ok := format.BuiltInGroup[value.ID]
+	builtinGroup, ok := format.BuiltInGroupDefault[value.ID]
 	if !ok {
 		return g, fmt.Errorf("invalid buildin group id: %d", value.ID)
 	}
@@ -383,6 +383,50 @@ func (l *MetricMetaLoader) SaveBuiltInGroup(ctx context.Context, value format.Me
 	err = json.Unmarshal([]byte(event.Data), &g)
 	if err != nil {
 		return g, fmt.Errorf("failed to deserialize json group: %w", err)
+	}
+	g.Version = event.Version
+	g.Name = event.Name
+	g.UpdateTime = event.UpdateTime
+	g.ID = int32(event.Id)
+	return g, nil
+}
+
+func (l *MetricMetaLoader) SaveBuiltinNamespace(ctx context.Context, value format.NamespaceMeta, create bool) (g format.NamespaceMeta, _ error) {
+	if err := value.RestoreCachedInfo(true); err != nil {
+		return g, err
+	}
+
+	builtinNamespace, ok := format.BuiltInNamespaceDefault[value.ID]
+	if !ok {
+		return g, fmt.Errorf("invalid buildin namespace id: %d", value.ID)
+	}
+	namespaceBytes, err := json.Marshal(value)
+	if err != nil {
+		return format.NamespaceMeta{}, fmt.Errorf("faield to serialize namespace: %w", err)
+	}
+	editMetricReq := tlmetadata.EditEntitynew{
+		Event: tlmetadata.Event{
+			Id:        int64(value.ID),
+			Name:      builtinNamespace.Name,
+			EventType: format.NamespaceEvent,
+			Version:   value.Version,
+			Data:      string(namespaceBytes),
+		},
+	}
+	editMetricReq.SetCreate(create)
+	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
+	defer cancelFunc()
+	event := tlmetadata.Event{}
+	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
+	if err != nil {
+		return format.NamespaceMeta{}, fmt.Errorf("failed to edit namespace: %w", err)
+	}
+	if event.Id < math.MinInt32 || event.Id > math.MaxInt32 {
+		return g, fmt.Errorf("namespace ID %d assigned by metaengine does not fit into int32 for group %q", event.Id, event.Name)
+	}
+	err = json.Unmarshal([]byte(event.Data), &g)
+	if err != nil {
+		return format.NamespaceMeta{}, fmt.Errorf("failed to deserialize json namespace: %w", err)
 	}
 	g.Version = event.Version
 	g.Name = event.Name
