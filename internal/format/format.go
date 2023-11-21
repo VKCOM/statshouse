@@ -219,8 +219,9 @@ type MetricMetaValue struct {
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
 
-	GroupID   int32          `json:"-"`
-	Group     *MetricsGroup  `json:"-"`
+	GroupID int32 `json:"-"`
+
+	Group     *MetricsGroup  // don't use directly
 	Namespace *NamespaceMeta `json:"-"`
 }
 
@@ -433,6 +434,14 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.ShardUniqueValues = strings.Contains(m.Description, "__shard_unique_values")   // Experimental
 
 	m.NoSampleAgent = builtinMetricsNoSamplingAgent[m.MetricID]
+	if m.GroupID == 0 || m.GroupID == BuiltinGroupIDDefault {
+		m.GroupID = BuiltinGroupIDDefault
+		m.Group = BuiltInGroup[BuiltinGroupIDDefault]
+	}
+	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
+		m.NamespaceID = BuiltinNamespaceIDDefault
+		m.Namespace = BuiltInNamespace[BuiltinNamespaceIDDefault]
+	}
 	return err
 }
 
@@ -461,10 +470,12 @@ func (m *MetricMetaValue) APICompatGetTagFromBytes(tagNameOrID []byte) (tag Metr
 }
 
 // Always restores maximum info, if error is returned, group is non-canonical and should not be saved
-func (m *MetricsGroup) RestoreCachedInfo() error {
+func (m *MetricsGroup) RestoreCachedInfo(builtin bool) error {
 	var err error
-	if !ValidGroupName(m.Name) {
-		err = fmt.Errorf("invalid group name: %q", m.Name)
+	if !builtin {
+		if !ValidGroupName(m.Name) {
+			err = fmt.Errorf("invalid group name: %q", m.Name)
+		}
 	}
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
 		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
@@ -477,7 +488,10 @@ func (m *MetricsGroup) RestoreCachedInfo() error {
 		m.EffectiveWeight = MaxEffectiveWeight
 	}
 	m.EffectiveWeight = int64(rw)
-
+	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
+		m.NamespaceID = BuiltinNamespaceIDDefault
+		m.Namespace = BuiltInNamespace[BuiltinNamespaceIDDefault]
+	}
 	return err
 }
 
@@ -498,12 +512,11 @@ func (m *NamespaceMeta) RestoreCachedInfo() error {
 		m.EffectiveWeight = MaxEffectiveWeight
 	}
 	m.EffectiveWeight = int64(rw)
-
 	return err
 }
 
 func (m *MetricsGroup) MetricIn(metric *MetricMetaValue) bool {
-	return strings.HasPrefix(metric.Name, m.Name)
+	return !m.Disable && strings.HasPrefix(metric.Name, m.Name)
 }
 
 func ValidMetricName(s mem.RO) bool {

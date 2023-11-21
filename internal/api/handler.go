@@ -1401,7 +1401,12 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 	if !h.metricsStorage.CanAddOrChangeGroup(group.Name, group.ID) {
 		return &MetricsGroupInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("group name %s is not posible", group.Name))
 	}
-	group, err := h.metadataLoader.SaveMetricsGroup(ctx, group, create)
+	var err error
+	if group.ID >= 0 {
+		group, err = h.metadataLoader.SaveMetricsGroup(ctx, group, create)
+	} else {
+		group, err = h.metadataLoader.SaveBuiltInGroup(ctx, group)
+	}
 	if err != nil {
 		s := "edit"
 		if create {
@@ -1426,11 +1431,6 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 	create := metric.MetricID == 0
 	var resp format.MetricMetaValue
 	var err error
-	if metric.GroupID != 0 {
-		if h.metricsStorage.GetGroup(metric.GroupID) != nil {
-			return format.MetricMetaValue{}, fmt.Errorf("invalid group id: %d", metric.GroupID)
-		}
-	}
 	if metric.PreKeyOnly && (metric.PreKeyFrom == 0 || metric.PreKeyTagID == "") {
 		return format.MetricMetaValue{}, httpErr(http.StatusBadRequest, fmt.Errorf("use prekey_only with non empty prekey_tag_id"))
 	}

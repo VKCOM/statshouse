@@ -95,11 +95,11 @@ func (l *MetricMetaLoader) SaveDashboard(ctx context.Context, value format.Dashb
 }
 
 func (l *MetricMetaLoader) SaveMetricsGroup(ctx context.Context, value format.MetricsGroup, create bool) (g format.MetricsGroup, _ error) {
-	if err := value.RestoreCachedInfo(); err != nil {
+	if err := value.RestoreCachedInfo(false); err != nil {
 		return g, err
 	}
 	var err error
-	if !format.ValidMetricName(mem.S(value.Name)) {
+	if !format.ValidGroupName(value.Name) {
 		return g, fmt.Errorf("invalid group name %w: %q", errorInvalidUserRequest, value.Name)
 	}
 
@@ -350,6 +350,45 @@ func (l *MetricMetaLoader) SavePromConfig(ctx context.Context, version int64, co
 		return event, fmt.Errorf("failed to change prometheus config: %w", err)
 	}
 	return event, nil
+}
+
+func (l *MetricMetaLoader) SaveBuiltInGroup(ctx context.Context, value format.MetricsGroup) (g format.MetricsGroup, _ error) {
+	if err := value.RestoreCachedInfo(true); err != nil {
+		return g, err
+	}
+	groupBytes, err := json.Marshal(value)
+	if err != nil {
+		return g, fmt.Errorf("faield to serialize group: %w", err)
+	}
+	builtinGroup, ok := format.BuiltInGroup[value.ID]
+	if !ok {
+		return g, fmt.Errorf("invalid buildin group id: %d", value.ID)
+	}
+	editMetricReq := tlmetadata.EditEntitynew{
+		Event: tlmetadata.Event{
+			Id:        int64(value.ID),
+			Name:      builtinGroup.Name,
+			EventType: format.MetricsGroupEvent,
+			Version:   value.Version,
+			Data:      string(groupBytes),
+		},
+	}
+	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
+	defer cancelFunc()
+	event := tlmetadata.Event{}
+	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
+	if err != nil {
+		return g, fmt.Errorf("failed to edit group: %w", err)
+	}
+	err = json.Unmarshal([]byte(event.Data), &g)
+	if err != nil {
+		return g, fmt.Errorf("failed to deserialize json group: %w", err)
+	}
+	g.Version = event.Version
+	g.Name = event.Name
+	g.UpdateTime = event.UpdateTime
+	g.ID = int32(event.Id)
+	return g, nil
 }
 
 func (l *MetricMetaLoader) ResetFlood(ctx context.Context, metricName string, value int32) (_ bool, before int32, after int32, _ error) {
