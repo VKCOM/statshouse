@@ -13,7 +13,7 @@ import (
 
 const schemeNumbers = "CREATE TABLE IF NOT EXISTS numbers (n INTEGER PRIMARY KEY);"
 
-func initDb(b *testing.B, scheme, prefix string, dbFile string, durabilityMode DurabilityMode, commitOnEachWrite bool) (*Engine, binlog2.Binlog) {
+func initDb(b *testing.B, scheme, prefix string, dbFile string, durabilityMode DurabilityMode, commitOnEachWrite, waitCommit bool) (*Engine, binlog2.Binlog) {
 	options := binlog2.Options{
 		PrefixPath: prefix + "/test",
 		Magic:      3456,
@@ -36,6 +36,7 @@ func initDb(b *testing.B, scheme, prefix string, dbFile string, durabilityMode D
 		DurabilityMode:         durabilityMode,
 		CacheMaxSizePerConnect: 1,
 		CommitOnEachWrite:      commitOnEachWrite,
+		WaitBinlogCommitDebug:  waitCommit,
 	}, bl, nil, nil)
 	if err != nil {
 		b.Fatal(err)
@@ -87,7 +88,7 @@ func queryLoop(b *testing.B, eng *Engine, query func(c Conn, i int) Rows) {
 
 func BenchmarkReadNumbers(b *testing.B) {
 	const m = 1000
-	eng, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", NoBinlog, false)
+	eng, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", NoBinlog, false, false)
 	r := fillDB(b, eng, "numbers", 1000, m, func(i, j int) Arg {
 		return Int64("$n", int64(i*m+j))
 	})
@@ -101,8 +102,8 @@ func BenchmarkReadNumbers(b *testing.B) {
 }
 
 func BenchmarkWriteNumbers(b *testing.B) {
-	f := func(b *testing.B) {
-		engine, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", NoWaitCommit, true)
+	f := func(b *testing.B, waitCommit bool) {
+		engine, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", NoWaitCommit, true, waitCommit)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			err := engine.Do(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {
@@ -118,12 +119,10 @@ func BenchmarkWriteNumbers(b *testing.B) {
 		}
 	}
 	b.Run("wait binlog commit", func(b *testing.B) {
-		waitBinlogCommitDebug = true
-		f(b)
+		f(b, true)
 	})
 	b.Run("not wait binlog commit", func(b *testing.B) {
-		waitBinlogCommitDebug = false
-		f(b)
+		f(b, false)
 	})
 
 }
