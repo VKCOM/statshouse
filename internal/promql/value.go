@@ -403,7 +403,9 @@ func (ts *SeriesTags) remove(t string) {
 	}
 	delete(ts.Name2Tag, v.Name)
 	delete(ts.ID2Tag, v.ID)
-	ts.hashSumValid = false // tags changed, previously computed hash sum is no longer valid
+	if t != labels.MetricName {
+		ts.hashSumValid = false // tags changed, previously computed hash sum is no longer valid
+	}
 }
 
 func (ts *SeriesData) GetSMaxHosts(h Handler) []string {
@@ -424,10 +426,12 @@ func (ts *SeriesTags) hash(ev *evaluator, opt hashOptions, listTags bool) (uint6
 	var cache bool
 	if opt.on {
 		s = append(s, opt.tags...)
-	} else if len(opt.tags) == 0 {
+	} else if len(opt.tags) == 0 || (len(opt.tags) == 1 && opt.tags[0] == labels.MetricName) {
 		if listTags || !ts.hashSumValid {
-			for _, v := range ts.ID2Tag {
-				s = append(s, v.ID)
+			for id := range ts.ID2Tag {
+				if id != labels.MetricName {
+					s = append(s, id)
+				}
 			}
 		}
 		if ts.hashSumValid {
@@ -436,8 +440,10 @@ func (ts *SeriesTags) hash(ev *evaluator, opt hashOptions, listTags bool) (uint6
 			cache = true
 		}
 	} else {
-		var nots []string // not "s"
 		for id, tag := range ts.ID2Tag {
+			if id == labels.MetricName {
+				continue
+			}
 			var found bool
 			for _, v := range opt.tags { // "tags" expected to be short, no need to build a map
 				if len(v) == 0 {
@@ -449,10 +455,9 @@ func (ts *SeriesTags) hash(ev *evaluator, opt hashOptions, listTags bool) (uint6
 				}
 			}
 			if !found {
-				nots = append(nots, id)
+				s = append(s, id)
 			}
 		}
-		s = nots
 	}
 	sort.Strings(s)
 	buf := make([]byte, 4)
