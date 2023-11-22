@@ -133,21 +133,20 @@ export function NamespacePage() {
 
   const onSelectMetricsGroup = useCallback((event: React.MouseEvent) => {
     const id = parseInt(event.currentTarget.getAttribute('data-id') ?? '-1');
-    if (id > 0) {
-      setLoadLoader(true);
-      namespaceLoad(id)
-        .then((g) => {
-          if (g) {
-            const { namespace } = g;
-            setSelectMetricsNamespace({ namespace });
-          } else {
-            setSelectMetricsNamespace(null);
-          }
-        })
-        .finally(() => {
-          setLoadLoader(false);
-        });
-    }
+
+    setLoadLoader(true);
+    namespaceLoad(id)
+      .then((g) => {
+        if (g) {
+          const { namespace } = g;
+          setSelectMetricsNamespace({ namespace });
+        } else {
+          setSelectMetricsNamespace(null);
+        }
+      })
+      .finally(() => {
+        setLoadLoader(false);
+      });
   }, []);
 
   const selectMetricsNamespaceWeightPercent = useMemo(
@@ -202,9 +201,9 @@ export function NamespacePage() {
               <li
                 key={item.id}
                 data-id={item.id}
-                role={item.id > 0 ? 'button' : undefined}
+                role="button"
                 className={cn(
-                  item.disable || item.id <= 0 ? 'text-secondary' : 'text-body',
+                  item.disable ? 'text-secondary' : 'text-body',
                   'list-group-item d-flex flex-row',
                   selectMetricsNamespace?.namespace.namespace_id === item.id && 'text-bg-light'
                 )}
@@ -241,7 +240,10 @@ export function NamespacePage() {
                     type="text"
                     className="form-control"
                     id="metricsNamespaceName"
-                    disabled={selectMetricsNamespace.namespace.namespace_id != null}
+                    disabled={
+                      selectMetricsNamespace.namespace.namespace_id != null &&
+                      selectMetricsNamespace.namespace.namespace_id <= 0
+                    }
                     value={selectMetricsNamespace.namespace.name}
                     onChange={onChangeName}
                   />
@@ -285,19 +287,20 @@ export function NamespacePage() {
                 >
                   Cancel
                 </button>
-                {typeof selectMetricsNamespace.namespace.namespace_id !== 'undefined' && (
-                  <button
-                    type="button"
-                    className="btn btn-outline-danger ms-1 text-nowrap"
-                    onClick={onRemoveMetricsNamespace}
-                    disabled={!selectMetricsNamespace.namespace.name || saveLoader}
-                  >
-                    {saveLoader && (
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    )}
-                    {selectMetricsNamespace.namespace.disable ? 'Restore' : 'Remove'}
-                  </button>
-                )}
+                {selectMetricsNamespace.namespace.namespace_id != null &&
+                  selectMetricsNamespace.namespace.namespace_id > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger ms-1 text-nowrap"
+                      onClick={onRemoveMetricsNamespace}
+                      disabled={!selectMetricsNamespace.namespace.name || saveLoader}
+                    >
+                      {saveLoader && (
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      )}
+                      {selectMetricsNamespace.namespace.disable ? 'Restore' : 'Remove'}
+                    </button>
+                  )}
               </div>
             </form>
           </div>
