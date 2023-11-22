@@ -132,22 +132,21 @@ export function GroupPage() {
 
   const onSelectMetricsGroup = useCallback((event: React.MouseEvent) => {
     const id = parseInt(event.currentTarget.getAttribute('data-id') ?? '-1');
-    if (id > 0) {
-      setLoadLoader(true);
-      groupLoad(id)
-        .then((g) => {
-          if (g) {
-            const { metrics, group } = g;
-            metrics?.sort();
-            setSelectMetricsGroup({ group, metrics });
-          } else {
-            setSelectMetricsGroup(null);
-          }
-        })
-        .finally(() => {
-          setLoadLoader(false);
-        });
-    }
+
+    setLoadLoader(true);
+    groupLoad(id)
+      .then((g) => {
+        if (g) {
+          const { metrics, group } = g;
+          metrics?.sort();
+          setSelectMetricsGroup({ group, metrics });
+        } else {
+          setSelectMetricsGroup(null);
+        }
+      })
+      .finally(() => {
+        setLoadLoader(false);
+      });
   }, []);
 
   const selectMetricsGroupWeightPercent = useMemo(
@@ -202,9 +201,9 @@ export function GroupPage() {
               <li
                 key={item.id}
                 data-id={item.id}
-                role={item.id > 0 ? 'button' : undefined}
+                role="button"
                 className={cn(
-                  item.disable || item.id <= 0 ? 'text-secondary' : 'text-body',
+                  item.disable ? 'text-secondary' : 'text-body',
                   'list-group-item d-flex flex-row',
                   selectMetricsGroup?.group.group_id === item.id && 'text-bg-light'
                 )}
@@ -241,7 +240,7 @@ export function GroupPage() {
                     type="text"
                     className="form-control"
                     id="metricsGroupName"
-                    // disabled={selectMetricsGroup.group.group_id != null}
+                    disabled={selectMetricsGroup.group.group_id != null && selectMetricsGroup.group.group_id <= 0}
                     value={selectMetricsGroup.group.name}
                     onChange={onChangeName}
                   />
@@ -301,7 +300,7 @@ export function GroupPage() {
                 >
                   Cancel
                 </button>
-                {typeof selectMetricsGroup.group.group_id !== 'undefined' && (
+                {selectMetricsGroup.group.group_id != null && selectMetricsGroup.group.group_id > 0 && (
                   <button
                     type="button"
                     className="btn btn-outline-danger ms-1 text-nowrap"
