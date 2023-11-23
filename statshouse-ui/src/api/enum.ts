@@ -13,6 +13,7 @@ export const GET_PARAMS = {
   version: 'v',
   metricName: 's',
   metricCustomName: 'cn',
+  metricMetricType: 'mt',
   metricCustomDescription: 'cd',
   fromTime: 'f',
   toTime: 't',
