@@ -136,6 +136,8 @@ type MetricMetaTag struct {
 
 	Comment2Value map[string]string `json:"-"` // Should be restored from ValueComments after reading
 	IsMetric      bool              `json:"-"` // Only for built-in metrics so never saved or parsed
+	IsGroup       bool              `json:"-"` // Only for built-in metrics so never saved or parsed
+	IsNamespace   bool              `json:"-"` // Only for built-in metrics so never saved or parsed
 	Index         int               `json:"-"` // Should be restored from position in MetricMetaValue.Tags
 }
 

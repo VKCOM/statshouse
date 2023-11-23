@@ -1585,9 +1585,11 @@ Value is delta between second value and time it was inserted.`,
 				}),
 			}, {
 				Description: "namespace",
+				IsNamespace: true,
 				Raw:         true,
 			}, {
 				Description: "group",
+				IsGroup:     true,
 				ValueComments: convertToValueComments(map[int32]string{
 					BuiltinGroupIDDefault: "default",
 					BuiltinGroupIDBuiltin: "builtin",
@@ -1614,9 +1616,11 @@ Value is delta between second value and time it was inserted.`,
 				}),
 			}, {
 				Description: "namespace",
+				IsNamespace: true,
 				Raw:         true,
 			}, {
 				Description: "group",
+				IsGroup:     true,
 				ValueComments: convertToValueComments(map[int32]string{
 					BuiltinGroupIDDefault: "default",
 					BuiltinGroupIDBuiltin: "builtin",

@@ -839,6 +839,22 @@ func (h *Handler) getRichTagValue(metricMeta *format.MetricMetaValue, version st
 		}
 		return v
 	}
+	if tag.IsNamespace {
+		if tagValueID != format.TagValueIDUnspecified {
+			if meta := h.metricsStorage.GetNamespace(tagValueID); meta != nil {
+				return meta.Name
+			}
+		}
+		return format.CodeTagValue(tagValueID)
+	}
+	if tag.IsGroup {
+		if tagValueID != format.TagValueIDUnspecified {
+			if meta := h.metricsStorage.GetGroup(tagValueID); meta != nil {
+				return meta.Name
+			}
+		}
+		return format.CodeTagValue(tagValueID)
+	}
 	if tag.Raw {
 		base := int32(0)
 		if version == Version1 {
