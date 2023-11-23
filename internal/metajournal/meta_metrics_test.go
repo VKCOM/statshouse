@@ -134,6 +134,7 @@ func TestMetricStorage1(t *testing.T) {
 		err := m.journal.updateJournal(nil)
 		require.NoError(t, err)
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualGroup := m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(namespace.Id), actualGroup.NamespaceID)
 		require.NotNil(t, actualGroup.Namespace)
@@ -146,6 +147,7 @@ func TestMetricStorage1(t *testing.T) {
 		err := m.journal.updateJournal(nil)
 		require.NoError(t, err)
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualGroup := m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(namespace.Id), actualGroup.NamespaceID)
 		require.NotNil(t, actualGroup.Namespace)
@@ -158,6 +160,7 @@ func TestMetricStorage1(t *testing.T) {
 		err := m.journal.updateJournal(nil)
 		require.NoError(t, err)
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualGroup := m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(format.BuiltinNamespaceIDDefault), actualGroup.NamespaceID)
 		require.Equal(t, m.builtInNamespace[format.BuiltinNamespaceIDDefault], actualGroup.Namespace)
@@ -176,6 +179,7 @@ func TestMetricStorage1(t *testing.T) {
 		err := m.journal.updateJournal(nil)
 		require.NoError(t, err)
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualGroup := m.groupsByID[int32(group.Id)]
 		require.Equal(t, int32(namespace.Id), actualGroup.NamespaceID)
 		require.NotNil(t, actualGroup.Namespace)
@@ -196,6 +200,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -209,6 +214,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -222,6 +228,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -231,6 +238,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualMetric = m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
 		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
@@ -244,6 +252,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -253,6 +262,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualMetric = m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
 		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
@@ -267,6 +277,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -276,6 +287,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualMetric = m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
 		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
@@ -290,6 +302,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(group.Id), actualMetric.GroupID)
 		require.NotNil(t, actualMetric.Group)
@@ -299,6 +312,7 @@ func TestMetricStorage1(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.groupsByID, int32(group.Id))
+		require.Contains(t, m.groupsByName, group.Name)
 		actualMetric = m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(format.BuiltinGroupIDDefault), actualMetric.GroupID)
 		require.Equal(t, m.builtInGroup[format.BuiltinGroupIDDefault], actualMetric.Group)
