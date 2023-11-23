@@ -34,6 +34,7 @@ type MetricsStorage struct {
 
 	builtInGroup map[int32]*format.MetricsGroup
 	groupsByID   map[int32]*format.MetricsGroup
+	groupsByName map[string]*format.MetricsGroup
 
 	builtInNamespace map[int32]*format.NamespaceMeta
 	namespaceByID    map[int32]*format.NamespaceMeta
@@ -92,6 +93,19 @@ func (ms *MetricsStorage) GetMetaMetricByName(metricName string) *format.MetricM
 	return ms.getMetaMetricByNameLocked(metricName)
 
 }
+
+func (ms *MetricsStorage) GetNamespaceByName(name string) *format.NamespaceMeta {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	return ms.namespaceByName[name]
+}
+
+func (ms *MetricsStorage) GetGroupByName(name string) *format.MetricsGroup {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+	return ms.groupsByName[name]
+}
+
 func (ms *MetricsStorage) getMetaMetricByNameLocked(metricName string) *format.MetricMetaValue {
 	return ms.metricsByName[metricName]
 }
@@ -302,6 +316,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 
 			}
 			ms.calcGroupForMetricsLocked(old, value)
+			ms.calcGroupNamesMapLocked()
 		case format.PromConfigEvent:
 			ms.promConfig = e
 			promConfigSet = true
@@ -329,7 +344,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 				ms.builtInNamespace[value.ID] = value
 			}
 			ms.calcNamespaceForMetricsAndGroupsLocked(value)
-
+			ms.calcGroupNamesMapLocked()
 		}
 	}
 	ms.mu.Unlock()
@@ -469,4 +484,12 @@ func (ms *MetricsStorage) canAddOrChangeGroupLocked(name string, id int32) bool 
 		}
 	}
 	return true
+}
+
+func (ms *MetricsStorage) calcGroupNamesMapLocked() {
+	newM := make(map[string]*format.MetricsGroup, len(ms.groupsByID))
+	for _, g := range ms.groupsByID {
+		newM[g.Name] = g
+	}
+	ms.groupsByName = newM
 }
