@@ -2218,6 +2218,10 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 			if len(tag.SValue) == 0 || tag.ID == labels.MetricName {
 				continue
 			}
+			if tag.ID == "__id__" {
+				meta.What, _, _ = parseQueryWhat(tag.SValue, false)
+				continue
+			}
 			var (
 				k = id
 				v = SeriesMetaTag{Value: tag.SValue}
