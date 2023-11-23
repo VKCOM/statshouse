@@ -240,10 +240,7 @@ export function NamespacePage() {
                     type="text"
                     className="form-control"
                     id="metricsNamespaceName"
-                    disabled={
-                      selectMetricsNamespace.namespace.namespace_id != null &&
-                      selectMetricsNamespace.namespace.namespace_id <= 0
-                    }
+                    disabled={selectMetricsNamespace.namespace.namespace_id != null}
                     value={selectMetricsNamespace.namespace.name}
                     onChange={onChangeName}
                   />

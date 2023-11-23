@@ -200,10 +200,12 @@ export function PlotViewMetric(props: {
 
   const getAxisStroke = useCallback(() => (themeDark ? grey : black), [themeDark]);
 
-  const metricType = useMemo(
-    () => getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type),
-    [meta?.metric_type, metaMetricType, sel.what, whats]
-  );
+  const metricType = useMemo(() => {
+    if (sel.metricType != null) {
+      return sel.metricType;
+    }
+    return getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
+  }, [meta?.metric_type, metaMetricType, sel.metricType, sel.what, whats]);
 
   const opts = useMemo<UPlotWrapperPropsOpts>(() => {
     const grid: uPlot.Axis.Grid = {

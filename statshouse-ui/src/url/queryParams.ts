@@ -10,9 +10,11 @@ import {
   isQueryWhat,
   isTagKey,
   METRIC_VALUE_BACKEND_VERSION,
+  MetricType,
   QueryWhat,
   TAG_KEY,
   TagKey,
+  toMetricType,
 } from '../api/enum';
 import { KeysTo, stringToTime, TIME_RANGE_KEYS_TO } from '../common/TimeRange';
 import { dequal } from 'dequal/lite';
@@ -109,6 +111,7 @@ export function toPlotKey(s: unknown, defaultPlotKey?: PlotKey): PlotKey | null 
 export type PlotParams = {
   metricName: string;
   customName: string;
+  metricType?: MetricType;
   customDescription: string;
   what: QueryWhat[];
   customAgg: number;
@@ -227,6 +230,7 @@ export function getNewPlot(): PlotParams {
     customName: '',
     customDescription: '',
     promQL: '',
+    metricType: undefined,
     what: globalSettings.default_metric_what.slice(),
     customAgg: 0,
     groupBy: globalSettings.default_metric_group_by.slice(),
@@ -425,6 +429,10 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
 
       if (plot.customName !== defaultPlot.customName) {
         search.push([prefix + GET_PARAMS.metricCustomName, plot.customName]);
+      }
+
+      if (plot.metricType != null && plot.metricType !== defaultPlot.metricType) {
+        search.push([prefix + GET_PARAMS.metricMetricType, plot.metricType]);
       }
 
       if (plot.customDescription !== defaultPlot.customDescription) {
@@ -630,6 +638,8 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     const customName = urlParams[prefix + GET_PARAMS.metricCustomName]?.[0] ?? defaultPlot.customName;
     const customDescription =
       urlParams[prefix + GET_PARAMS.metricCustomDescription]?.[0] ?? defaultPlot.customDescription;
+    const metricType: MetricType | undefined =
+      toMetricType(urlParams[prefix + GET_PARAMS.metricMetricType]?.[0]) ?? defaultPlot.metricType;
     const what: QueryWhat[] =
       urlParams[prefix + GET_PARAMS.metricWhat]?.filter(isQueryWhat) ?? defaultPlot.what.slice();
     const customAgg = toNumber(urlParams[prefix + GET_PARAMS.metricAgg]?.[0]) ?? defaultPlot.customAgg;
@@ -681,6 +691,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       metricName,
       customName,
       customDescription,
+      metricType,
       what,
       customAgg,
       groupBy,

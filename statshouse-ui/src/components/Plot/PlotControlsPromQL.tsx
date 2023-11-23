@@ -19,10 +19,14 @@ import { ReactComponent as SVGChevronCompactLeft } from 'bootstrap-icons/icons/c
 import { ReactComponent as SVGChevronCompactRight } from 'bootstrap-icons/icons/chevron-compact-right.svg';
 import { globalSettings } from '../../common/settings';
 import { MetricMetaValue } from '../../api/metric';
-import { QueryWhat } from '../../api/enum';
+import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType, QueryWhat, toMetricType } from '../../api/enum';
 import { PlotParams } from '../../url/queryParams';
+import { getMetricType } from '../../common/formatByMetricType';
 
 const { setParams, setTimeRange } = useStore.getState();
+
+const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE) as MetricType[];
+const METRIC_TYPE_DESCRIPTION_SELECTOR = { ...METRIC_TYPE_DESCRIPTION, [METRIC_TYPE.none]: 'unit by metric' };
 
 export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   indexPlot: number;
@@ -102,12 +106,14 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
           s.groupBy = [];
           s.filterIn = {};
           s.filterNotIn = {};
+          s.metricType = undefined;
           s.promQL = '';
           s.numSeries = globalSettings.default_num_series;
         } else {
           s.metricName = globalSettings.default_metric;
           s.what = globalSettings.default_metric_what.slice();
           s.customName = '';
+          s.metricType = undefined;
           s.groupBy = globalSettings.default_metric_group_by.slice();
           s.filterIn = { ...globalSettings.default_metric_filter_in };
           s.filterNotIn = { ...globalSettings.default_metric_filter_not_in };
@@ -130,6 +136,30 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
     setPromQL(sel.promQL);
   }, [sel.promQL]);
 
+  const metricType = useMemo(() => {
+    if (sel.metricType != null) {
+      return sel.metricType;
+    }
+    return getMetricType(plotData.whats?.length ? plotData.whats : sel.what, plotData.metricType || meta?.metric_type);
+  }, [meta?.metric_type, plotData.metricType, plotData.whats, sel.metricType, sel.what]);
+
+  const onSelectUnit = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const unit = toMetricType(e.currentTarget.value);
+
+      setSel(
+        produce((s) => {
+          if (sel.metricType !== unit && unit) {
+            s.metricType = unit;
+          } else {
+            s.metricType = undefined;
+          }
+        })
+      );
+    },
+    [sel.metricType, setSel]
+  );
+
   useEffect(() => {
     setPromQL(sel.promQL);
   }, [sel.promQL, setPromQL]);
@@ -139,25 +169,34 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
       <div>
         <div className="row mb-3">
           <div className="col-12 d-flex">
-            <select
-              className={cn('form-select me-4', sel.customAgg > 0 && 'border-warning')}
-              value={sel.customAgg}
-              onChange={onCustomAggChange}
-            >
-              <option value={0}>Auto</option>
-              <option value={-1}>Auto (low)</option>
-              <option value={1}>1 second</option>
-              <option value={5}>5 seconds</option>
-              <option value={15}>15 seconds</option>
-              <option value={60}>1 minute</option>
-              <option value={5 * 60}>5 minutes</option>
-              <option value={15 * 60}>15 minutes</option>
-              <option value={60 * 60}>1 hour</option>
-              <option value={4 * 60 * 60}>4 hours</option>
-              <option value={24 * 60 * 60}>24 hours</option>
-              <option value={7 * 24 * 60 * 60}>7 days</option>
-              <option value={31 * 24 * 60 * 60}>1 month</option>
-            </select>
+            <div className="input-group  me-2">
+              <select
+                className={cn('form-select', sel.customAgg > 0 && 'border-warning')}
+                value={sel.customAgg}
+                onChange={onCustomAggChange}
+              >
+                <option value={0}>Auto</option>
+                <option value={-1}>Auto (low)</option>
+                <option value={1}>1 second</option>
+                <option value={5}>5 seconds</option>
+                <option value={15}>15 seconds</option>
+                <option value={60}>1 minute</option>
+                <option value={5 * 60}>5 minutes</option>
+                <option value={15 * 60}>15 minutes</option>
+                <option value={60 * 60}>1 hour</option>
+                <option value={4 * 60 * 60}>4 hours</option>
+                <option value={24 * 60 * 60}>24 hours</option>
+                <option value={7 * 24 * 60 * 60}>7 days</option>
+                <option value={31 * 24 * 60 * 60}>1 month</option>
+              </select>
+              <select className="form-select" value={metricType} onChange={onSelectUnit}>
+                {METRIC_TYPE_KEYS.map((unit_type) => (
+                  <option key={unit_type} value={unit_type}>
+                    {METRIC_TYPE_DESCRIPTION_SELECTOR[unit_type]}
+                  </option>
+                ))}
+              </select>
+            </div>
             <SwitchBox title="Host" checked={sel.maxHost} onChange={onHostChange}>
               <SVGPcDisplay />
             </SwitchBox>

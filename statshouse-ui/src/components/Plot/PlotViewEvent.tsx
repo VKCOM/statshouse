@@ -160,6 +160,13 @@ export function PlotViewEvent(props: {
     resetZoomRef.current = resetZoom;
   }, [resetZoom]);
 
+  const metricType = useMemo(() => {
+    if (sel.metricType != null) {
+      return sel.metricType;
+    }
+    return getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
+  }, [meta?.metric_type, metaMetricType, sel.metricType, sel.what, whats]);
+
   const onSetSelect = useCallback(
     (u: uPlot) => {
       if (u.status === 1) {
@@ -195,7 +202,6 @@ export function PlotViewEvent(props: {
           key: group,
         }
       : undefined;
-    const metricType = getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -263,20 +269,7 @@ export function PlotViewEvent(props: {
       },
       plugins: [pluginTimeWindow],
     };
-  }, [
-    compact,
-    getAxisStroke,
-    group,
-    meta?.metric_type,
-    metaMetricType,
-    pluginTimeWindow,
-    sel.what,
-    themeDark,
-    topPad,
-    whats,
-    xAxisSize,
-    yAxisSize,
-  ]);
+  }, [compact, getAxisStroke, group, metricType, pluginTimeWindow, themeDark, topPad, xAxisSize, yAxisSize]);
 
   const timeWindow = useMemo(() => {
     let leftWidth = 0;
