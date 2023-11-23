@@ -830,7 +830,7 @@ func getPromQuery(req seriesRequest, queryFn bool) (string, error) {
 		return req.promQL, nil
 	}
 	var res []string
-	for i, fn := range req.what {
+	for _, fn := range req.what {
 		name, ok := validQueryFn(fn)
 		if !ok {
 			return "", fmt.Errorf("invalid %q value: %q", ParamQueryWhat, fn)
@@ -972,9 +972,7 @@ func getPromQuery(req seriesRequest, queryFn bool) (string, error) {
 		} else if req.numResults > 0 {
 			q = fmt.Sprintf("topk(%d,%s)", req.numResults, q)
 		}
-		if i > 0 {
-			q = fmt.Sprintf("label_replace(%s, \"__name__\",%q,\"\",\"\")", q, name)
-		}
+		q = fmt.Sprintf("label_replace(%s, \"__id__\",%q,\"\",\"\")", q, name)
 		res = append(res, q)
 	}
 	return strings.Join(res, " or "), nil
