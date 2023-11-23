@@ -63,7 +63,7 @@ type (
 	Sampler struct {
 		items        []SamplingMultiItemPair
 		config       SamplerConfig
-		partF        []func([]SamplingMultiItemPair) ([]SamplerGroup, int64)
+		partF        []func(*Sampler, []SamplingMultiItemPair) ([]SamplerGroup, int64)
 		nilMetric    format.MetricMetaValue
 		nilGroup     format.MetricsGroup
 		nilNamespace format.NamespaceMeta
@@ -132,16 +132,6 @@ func (h *Sampler) Add(p SamplingMultiItemPair) {
 	} else {
 		p.metric = h.getMetricMeta(p.MetricID)
 	}
-	if h.config.SampleGroups {
-		p.group = h.getGroupMeta(p.metric.GroupID)
-	} else {
-		p.group = &h.nilGroup
-	}
-	if h.config.SampleNamespaces {
-		p.namespace = h.getNamespaceMeta(p.metric.NamespaceID)
-	} else {
-		p.namespace = &h.nilNamespace
-	}
 	if h.config.SampleKeys {
 		x := p.metric.FairKeyIndex
 		if 0 <= x || x < format.MaxTags {
@@ -183,7 +173,7 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 		budgetDenom = 1
 	}
 	// Partition, then sort groups by sumSize/weight ratio
-	groups, sumWeight := h.partF[depth](s)
+	groups, sumWeight := h.partF[depth](h, s)
 	sort.Slice(groups, func(i, j int) bool {
 		var lhs, rhs *SamplerGroup = &groups[i], &groups[j]
 		return lhs.sumSize*rhs.weight < rhs.sumSize*lhs.weight // comparing rational numbers
@@ -340,12 +330,16 @@ func (stat *SamplerStatistics) add(p *SamplingMultiItemPair, keep bool) {
 	stat.Metrics[p.MetricID]++
 }
 
-func partitionByNamespace(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
+func partitionByNamespace(h *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	if len(s) == 0 {
 		return nil, 0
 	}
 	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
-		weight := items[0].namespace.EffectiveWeight
+		namespace := h.getNamespaceMeta(items[0].metric.NamespaceID)
+		for i := range items {
+			items[i].namespace = namespace
+		}
+		weight := namespace.EffectiveWeight
 		if weight < 1 { // weight can't be zero or less, sanity check
 			weight = 1
 		}
@@ -375,12 +369,16 @@ func partitionByNamespace(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	return res, sumWeight
 }
 
-func partitionByGroup(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
+func partitionByGroup(h *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	if len(s) == 0 {
 		return nil, 0
 	}
 	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
-		weight := items[0].group.EffectiveWeight
+		group := h.getGroupMeta(items[0].metric.GroupID)
+		for i := range items {
+			items[i].group = group
+		}
+		weight := group.EffectiveWeight
 		if weight < 1 { // weight can't be zero or less, sanity check
 			weight = 1
 		}
@@ -410,7 +408,7 @@ func partitionByGroup(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	return res, sumWeight
 }
 
-func partitionByMetric(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
+func partitionByMetric(_ *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	if len(s) == 0 {
 		return nil, 0
 	}
@@ -448,7 +446,7 @@ func partitionByMetric(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	return res, sumWeight
 }
 
-func partitionByKey(s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
+func partitionByKey(_ *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
 	if len(s) == 0 {
 		return nil, 0
 	}
