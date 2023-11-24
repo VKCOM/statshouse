@@ -10,7 +10,7 @@ metric
 ## Mapping and budgets for creating metrics
 
 You cannot automate creating metrics. This limitation is related to a StatsHouse mapping mechanism. See more about
-[mapping and budgets for creating metrics](../conceptual-overview/draft.md).
+[mapping and budgets for creating metrics].
 
 Правда ли что в сутки можно писать только 200 комбинаций ключей?
 Не правда, у нас есть 2 механизма ограничений, первый связан с отображениями строковых значений ключей в целые, второй с лимитом записи в базу под каждую метрику.

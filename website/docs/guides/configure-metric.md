@@ -23,7 +23,7 @@ set the [metric type](#metric-type), [resolution](#resolution), [tags](#tags), a
 
 :::info
 To learn more about mechanisms that make StatsHouse robust, highly-available, and scalable, refer to the
-[conceptual overview](../conceptual-overview).
+[conceptual overview].
 :::
 
 The typical workflow is to [create the new metrics](#create-a-metric),
@@ -44,14 +44,14 @@ how to [edit metrics] or [send data] safely.
 
 You can [start sending data](send-data.md) to your named metric with no additional configuration.
 StatsHouse does everything for you, but it may lead to increased sampling. In most cases, you do not need
-to worry about sampling, but if you are not sure, check the [conceptual overview](../conceptual-overview).
+to worry about sampling, but if you are not sure, check the [conceptual overview].
 
 :::info
 Sampling prevents StatsHouse from database overload. If you send too much, StatsHouse _samples_
 data: it removes random data rows and multiplies the remaining ones so that the resulting aggregation and
-digests stay the same. Find more about [sampling](../conceptual-overview/draft.md#sampling),
-[aggregation](../conceptual-overview/draft.md#aggregation), and
-[digests](../conceptual-overview/draft.md#digest).
+digests stay the same. Find more about [sampling],
+[aggregation], and
+[digests].
 :::
 
 ### Metric type
@@ -73,7 +73,7 @@ their requests to a service. All these measurements are different metric types.
 > "But why should I bother about choosing the proper metric type?"
 
 A metric type affects the range of
-[desriptive statistics](view-graph.md#desriptive-statistics-available-for-a-metric) available for your
+[desriptive statistics](view-graph#desriptive-statistics-available-for-a-metric) available for your
 metric to view and analyze.
 
 With StatsHouse, you can use three basic metric types—see the table below:
