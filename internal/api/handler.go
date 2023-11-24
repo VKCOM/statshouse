@@ -893,6 +893,24 @@ func (h *Handler) getRichTagValueID(tag *format.MetricMetaTag, version string, t
 	if tag.IsMetric {
 		return h.getMetricID(accessInfo{insecureMode: true}, tagValue) // we don't consider metric ID to be private
 	}
+	if tag.IsNamespace {
+		if tagValue == format.CodeTagValue(format.TagValueIDUnspecified) {
+			return format.TagValueIDUnspecified, nil
+		}
+		if meta := h.metricsStorage.GetNamespaceByName(tagValue); meta != nil {
+			return meta.ID, nil
+		}
+		return 0, httpErr(http.StatusNotFound, fmt.Errorf("namespace %q not found", tagValue))
+	}
+	if tag.IsGroup {
+		if tagValue == format.CodeTagValue(format.TagValueIDUnspecified) {
+			return format.TagValueIDUnspecified, nil
+		}
+		if meta := h.metricsStorage.GetGroupByName(tagValue); meta != nil {
+			return meta.ID, nil
+		}
+		return 0, httpErr(http.StatusNotFound, fmt.Errorf("group %q not found", tagValue))
+	}
 	if tag.Raw {
 		value, ok := tag.Comment2Value[tagValue]
 		if ok {
