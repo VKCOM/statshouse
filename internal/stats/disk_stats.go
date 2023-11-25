@@ -105,22 +105,21 @@ func (c *DiskStats) WriteMetrics(nowUnix int64) error {
 		if deviceType != physical {
 			continue
 		}
-		readIO := float64(stat.ReadIOs - oldStat.ReadIOs)
-		writeIO := float64(stat.WriteIOs - oldStat.WriteIOs)
-		discardIO := float64(stat.DiscardIOs - oldStat.DiscardIOs)
+		readIO := float64(stat.ReadIOs) - float64(oldStat.ReadIOs)
+		writeIO := float64(stat.WriteIOs) - float64(oldStat.WriteIOs)
+		discardIO := float64(stat.DiscardIOs) - float64(oldStat.DiscardIOs)
 
-		readIOTicks := float64(stat.ReadTicks-oldStat.ReadTicks) / 1000 / readIO
-		writeIOTicks := float64(stat.WriteTicks-oldStat.WriteTicks) / 1000 / writeIO
-		discardIOTicks := float64(stat.DiscardTicks-oldStat.DiscardTicks) / 1000 / discardIO
+		readIOTicks := (float64(stat.ReadTicks) - float64(oldStat.ReadTicks)) / 1000 / readIO
+		writeIOTicks := (float64(stat.WriteTicks) - float64(oldStat.WriteTicks)) / 1000 / writeIO
+		discardIOTicks := (float64(stat.DiscardTicks) - float64(oldStat.DiscardTicks)) / 1000 / discardIO
 
-		readIOSize := float64(stat.ReadSectors-oldStat.ReadSectors) * sectorSize / readIO
-		writeIOSize := float64(stat.WriteSectors-oldStat.WriteSectors) * sectorSize / writeIO
-		discardIOSize := float64(stat.DiscardSectors-oldStat.DiscardSectors) * sectorSize / discardIO
+		readIOSize := (float64(stat.ReadSectors) - float64(oldStat.ReadSectors)) * sectorSize / readIO
+		writeIOSize := (float64(stat.WriteSectors) - float64(oldStat.WriteSectors)) * sectorSize / writeIO
+		discardIOSize := (float64(stat.DiscardSectors) - float64(oldStat.DiscardSectors)) * sectorSize / discardIO
 
 		if readIO > 0 {
 			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameBlockIOTime, readIO, readIOTicks, 0, format.RawIDTagRead)
 			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameBlockIOSize, readIO, readIOSize, 0, format.RawIDTagRead)
-
 		}
 		if writeIO > 0 {
 			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameBlockIOTime, writeIO, writeIOTicks, 0, format.RawIDTagWrite)
@@ -156,7 +155,7 @@ func (c *DiskStats) writeFSStats(nowUnix int64) error {
 		s := unix.Statfs_t{}
 		err := unix.Statfs(stat.mountPoint, &s)
 		if err != nil {
-			c.logErr.Printf("failed to statfs of %s: %s", stat.mountPoint, err.Error())
+			// c.logErr.Printf("failed to statfs of %s: %s", stat.mountPoint, err.Error())
 			continue
 		}
 		free := float64(s.Bfree) * float64(s.Bsize)

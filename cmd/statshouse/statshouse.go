@@ -151,6 +151,7 @@ func runMain() int {
 			build.FlagParseShowVersionHelp()
 		case "ingress_proxy", "-ingress_proxy", "--ingress_proxy":
 			argvAddCommonFlags()
+			argvAddAgentFlags(false)
 			argvAddIngressProxyFlags()
 			argv.configAgent = agent.DefaultConfig()
 			build.FlagParseShowVersionHelp()
