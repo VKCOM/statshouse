@@ -25,8 +25,11 @@ import { getMetricType } from '../../common/formatByMetricType';
 
 const { setParams, setTimeRange } = useStore.getState();
 
-const METRIC_TYPE_KEYS: MetricType[] = Object.values(METRIC_TYPE) as MetricType[];
-const METRIC_TYPE_DESCRIPTION_SELECTOR = { ...METRIC_TYPE_DESCRIPTION, [METRIC_TYPE.none]: 'unit by metric' };
+const METRIC_TYPE_KEYS: MetricType[] = ['null', ...Object.values(METRIC_TYPE)] as MetricType[];
+const METRIC_TYPE_DESCRIPTION_SELECTOR = {
+  null: 'unit by metric',
+  ...METRIC_TYPE_DESCRIPTION,
+};
 
 export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   indexPlot: number;
@@ -146,10 +149,9 @@ export const PlotControlsPromQL = memo(function PlotControlsPromQL_(props: {
   const onSelectUnit = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
       const unit = toMetricType(e.currentTarget.value);
-
       setSel(
         produce((s) => {
-          if (sel.metricType !== unit && unit) {
+          if (sel.metricType !== unit && unit != null) {
             s.metricType = unit;
           } else {
             s.metricType = undefined;

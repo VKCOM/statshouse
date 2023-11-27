@@ -177,6 +177,10 @@ export function toEnum<T>(itemIsEnum: (s: unknown) => s is T, preConvert: (s: un
   return toEnumFull;
 }
 
+export function invertObj<K extends string, V extends string>(obj: Record<K, V>): Record<V, K> {
+  return Object.fromEntries(Object.entries(obj).map(([k, v]) => [v, k]));
+}
+
 export function objectRemoveKeyShift<T = unknown>(obj: Record<string, T>, index: number) {
   return Object.fromEntries(
     Object.entries(obj).map(([key, value]) => {

@@ -11,10 +11,11 @@ import {
   isTagKey,
   METRIC_VALUE_BACKEND_VERSION,
   MetricType,
+  metricTypeToMetricTypeUrl,
+  metricTypeUrlToMetricType,
   QueryWhat,
   TAG_KEY,
   TagKey,
-  toMetricType,
 } from '../api/enum';
 import { KeysTo, stringToTime, TIME_RANGE_KEYS_TO } from '../common/TimeRange';
 import { dequal } from 'dequal/lite';
@@ -432,7 +433,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
       }
 
       if (plot.metricType != null && plot.metricType !== defaultPlot.metricType) {
-        search.push([prefix + GET_PARAMS.metricMetricType, plot.metricType]);
+        search.push([prefix + GET_PARAMS.metricMetricType, metricTypeToMetricTypeUrl(plot.metricType)]);
       }
 
       if (plot.customDescription !== defaultPlot.customDescription) {
@@ -639,7 +640,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     const customDescription =
       urlParams[prefix + GET_PARAMS.metricCustomDescription]?.[0] ?? defaultPlot.customDescription;
     const metricType: MetricType | undefined =
-      toMetricType(urlParams[prefix + GET_PARAMS.metricMetricType]?.[0]) ?? defaultPlot.metricType;
+      metricTypeUrlToMetricType(urlParams[prefix + GET_PARAMS.metricMetricType]?.[0]) ?? defaultPlot.metricType;
     const what: QueryWhat[] =
       urlParams[prefix + GET_PARAMS.metricWhat]?.filter(isQueryWhat) ?? defaultPlot.what.slice();
     const customAgg = toNumber(urlParams[prefix + GET_PARAMS.metricAgg]?.[0]) ?? defaultPlot.customAgg;
