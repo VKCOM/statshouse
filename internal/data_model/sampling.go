@@ -24,8 +24,6 @@ type (
 		Size        int
 		MetricID    int32
 		metric      *format.MetricMetaValue
-		group       *format.MetricsGroup
-		namespace   *format.NamespaceMeta
 		fairKey     int32
 	}
 
@@ -336,9 +334,6 @@ func partitionByNamespace(h *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup
 	}
 	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
 		namespace := h.getNamespaceMeta(items[0].metric.NamespaceID)
-		for i := range items {
-			items[i].namespace = namespace
-		}
 		weight := namespace.EffectiveWeight
 		if weight < 1 { // weight can't be zero or less, sanity check
 			weight = 1
@@ -375,9 +370,6 @@ func partitionByGroup(h *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup, in
 	}
 	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
 		group := h.getGroupMeta(items[0].metric.GroupID)
-		for i := range items {
-			items[i].group = group
-		}
 		weight := group.EffectiveWeight
 		if weight < 1 { // weight can't be zero or less, sanity check
 			weight = 1
