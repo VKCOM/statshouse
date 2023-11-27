@@ -1,6 +1,6 @@
 import { formatFixed } from './formatFixed';
 import { METRIC_TYPE, MetricType, QUERY_WHAT, QueryWhat, toMetricType } from '../api/enum';
-import { round } from './helpers';
+import { floor, round } from './helpers';
 
 const siPrefixes = ['y', 'z', 'a', 'f', 'p', 'n', 'μ', 'm', '', 'k', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'];
 
@@ -36,7 +36,7 @@ const baseMetricTypeSi: ConfigConvertMetric = {
   },
   format(n) {
     const base = this.getBase(n);
-    return round(n / Math.pow(10, base * 3), 3) + (this.suffix[base] ?? '');
+    return floor(n / Math.pow(10, base * 3), 3) + (this.suffix[base] ?? '');
   },
   suffix: {
     '-8': 'y',
