@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { isEnum, toEnum, toNumber } from '../common/helpers';
+import { invertObj, isEnum, toEnum, toNumber } from '../common/helpers';
 
 export type Enum<T> = T[keyof T];
 
@@ -210,6 +210,7 @@ export const METRIC_TYPE = {
 export type MetricType = Enum<typeof METRIC_TYPE>;
 export const isMetricType = isEnum<MetricType>(METRIC_TYPE);
 export const toMetricType = toEnum(isMetricType);
+export const valueMapMetricType = invertObj(METRIC_TYPE);
 export const METRIC_TYPE_DESCRIPTION: Record<MetricType, string> = {
   [METRIC_TYPE.none]: 'no unit',
   [METRIC_TYPE.second]: 'second',
@@ -217,6 +218,32 @@ export const METRIC_TYPE_DESCRIPTION: Record<MetricType, string> = {
   [METRIC_TYPE.microsecond]: 'microsecond',
   [METRIC_TYPE.nanosecond]: 'nanosecond',
   [METRIC_TYPE.byte]: 'byte',
+};
+
+export const METRIC_TYPE_URL = {
+  [METRIC_TYPE.none]: 'si',
+  // time
+  [METRIC_TYPE.second]: 's',
+  [METRIC_TYPE.millisecond]: 'ms',
+  [METRIC_TYPE.microsecond]: 'mcs',
+  [METRIC_TYPE.nanosecond]: 'ns',
+  // data size
+  [METRIC_TYPE.byte]: 'b',
+} as const;
+export type MetricTypeUrl = Enum<typeof METRIC_TYPE_URL>;
+export const isMetricTypeUrl = isEnum<MetricTypeUrl>(METRIC_TYPE_URL);
+export const toMetricTypeUrl = toEnum(isMetricTypeUrl);
+export const valueMapMetricTypeUrl = invertObj(METRIC_TYPE_URL);
+export const metricTypeUrlToMetricType = (s: unknown) => {
+  const value = toMetricTypeUrl(s);
+  if (value != null) {
+    return toMetricType(valueMapMetricTypeUrl[value]);
+  }
+  return null;
+};
+export const metricTypeToMetricTypeUrl = (s: unknown) => {
+  const value = toMetricType(s, METRIC_TYPE.none);
+  return toMetricTypeUrl(METRIC_TYPE_URL[value], METRIC_TYPE_URL[METRIC_TYPE.none]);
 };
 
 /**
