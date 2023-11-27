@@ -199,6 +199,12 @@ export function round(val: number, dec: number = 0, radix: number = 10) {
   return Math.round(val * p * (1 + Number.EPSILON)) / p;
 }
 
+export function floor(val: number, dec: number = 0, radix: number = 10) {
+  if (Number.isInteger(val) && dec >= 0 && radix === 10) return val;
+  let p = Math.pow(radix, dec);
+  return Math.floor(val * p * (1 + Number.EPSILON)) / p;
+}
+
 export function prepareSearchStr(str: string) {
   return str.replace(/(\s+|_+)/gi, '');
 }

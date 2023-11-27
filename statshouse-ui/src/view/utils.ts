@@ -31,6 +31,7 @@ import {
 } from '../url/queryParams';
 import { globalSettings } from '../common/settings';
 import { formatFixed } from '../common/formatFixed';
+import { formatFixedFloor } from '../common/formatFixedFloor';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
@@ -544,7 +545,7 @@ export function formatLegendValue(value: number | null): string {
   }
   const abs = Math.abs(value);
   const maxFrac = abs > 1000 ? 0 : abs > 100 ? 1 : abs > 10 ? 2 : abs > 0.001 ? 3 : 9;
-  return formatNumberDigit(formatFixed(value, maxFrac));
+  return formatNumberDigit(formatFixedFloor(value, maxFrac));
 }
 
 export function normalizeTagValues(
