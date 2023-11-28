@@ -45,6 +45,7 @@ type SeriesMeta struct {
 	What   int
 	Total  int
 	STags  map[string]int
+	Units  string
 }
 
 type SeriesTags struct {
@@ -102,13 +103,15 @@ func (ss *Series) removeMetricName() {
 	ss.removeTag(labels.MetricName)
 }
 
-func (ss *Series) append(s Series) {
-	ss.Meta = mergeSeriesMeta(ss.Meta, s.Meta)
+func (ss *Series) appendAll(s Series) {
 	ss.Data = append(ss.Data, s.Data...)
 }
 
-func (ss *Series) appendX(s Series, x ...int) {
-	ss.Meta = mergeSeriesMeta(ss.Meta, s.Meta)
+func (ss *Series) appendOne(s Series, i int) {
+	ss.Data = append(ss.Data, s.Data[i])
+}
+
+func (ss *Series) appendSome(s Series, x ...int) {
 	for _, i := range x {
 		ss.Data = append(ss.Data, s.Data[i])
 	}
@@ -130,7 +133,7 @@ func (ss *Series) group(ev *evaluator, opt hashOptions) ([]seriesGroup, error) {
 		)
 		if g, ok = groups[sum]; !ok {
 			g = &seriesGroup{
-				Series: ev.newSeries(0),
+				Series: ev.newSeries(0, ss.Meta),
 				hash:   sum,
 			}
 			for _, v := range tags {
@@ -140,7 +143,7 @@ func (ss *Series) group(ev *evaluator, opt hashOptions) ([]seriesGroup, error) {
 			}
 			groups[sum] = g
 		}
-		g.appendX(*ss, i)
+		g.appendOne(*ss, i)
 	}
 	res := make([]seriesGroup, 0, len(groups))
 	for _, g := range groups {
@@ -553,35 +556,44 @@ func decodeTagIndexLegacy(i int) (ix int, id string, ok bool) {
 	}
 	return ix, id, ok
 }
-func mergeSeriesMeta(a SeriesMeta, b SeriesMeta) SeriesMeta {
-	if a.Metric != b.Metric {
-		if a.Metric == nil {
-			a.Metric = b.Metric
-		} else {
-			a.Metric = nil
+
+func evalSeriesMeta(expr *parser.BinaryExpr, lhs SeriesMeta, rhs SeriesMeta) SeriesMeta {
+	switch expr.Op {
+	case parser.EQLC, parser.GTE, parser.GTR, parser.LSS, parser.LTE, parser.NEQ:
+		if expr.ReturnBool {
+			lhs.Units = ""
 		}
-	}
-	if a.What != b.What {
-		if a.What == 0 {
-			a.What = b.What
-		} else {
-			a.What = 0
+	case parser.LAND, parser.LUNLESS, parser.LOR, parser.LDEFAULT:
+		if len(rhs.Units) != 0 && lhs.Units != rhs.Units {
+			lhs.Units = ""
 		}
-	}
-	if a.Total < b.Total {
-		a.Total = b.Total
-	}
-	if len(a.STags) == 0 {
-		a.STags = b.STags
-	} else if len(b.STags) != 0 {
-		if len(a.STags) < len(b.STags) {
-			a.STags, b.STags = b.STags, a.STags
+	case parser.ADD, parser.SUB:
+		if lhs.Units != rhs.Units {
+			lhs.Units = ""
 		}
-		for k, v := range b.STags {
-			a.STags[k] += v
+	default:
+		lhs.Units = ""
+	}
+	if rhs.Metric != nil && lhs.Metric != rhs.Metric {
+		lhs.Metric = nil
+	}
+	if rhs.What != 0 && lhs.What != rhs.What {
+		lhs.What = 0
+	}
+	if lhs.Total < rhs.Total {
+		lhs.Total = rhs.Total
+	}
+	if len(lhs.STags) == 0 {
+		lhs.STags = rhs.STags
+	} else if len(rhs.STags) != 0 {
+		if len(lhs.STags) < len(rhs.STags) {
+			lhs.STags, rhs.STags = rhs.STags, lhs.STags
+		}
+		for k, v := range rhs.STags {
+			lhs.STags[k] += v
 		}
 	} // else both empty
-	return a
+	return lhs
 }
 
 func removeMetricName(s []Series) {

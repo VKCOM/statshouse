@@ -436,35 +436,38 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 		hi--
 	}
 	res := TimeSeries{Time: ev.t.Time[lo:hi]}
-	for _, s := range ss {
+	for _, v := range ss {
 		// remove series with no data within [start, end), update total
-		if s.Meta.Total == 0 {
-			s.Meta.Total = len(s.Data)
+		if v.Meta.Total == 0 {
+			v.Meta.Total = len(v.Data)
 		}
-		ss := ev.newSeries(len(s.Data))
-		for i := range s.Data {
+		s := ev.newSeries(len(v.Data), v.Meta)
+		for i := range v.Data {
 			var keep bool
 			for j := lo; j < hi; j++ {
-				if !math.IsNaN((*s.Data[i].Values)[j]) {
+				if !math.IsNaN((*v.Data[i].Values)[j]) {
 					keep = true
 					break
 				}
 			}
 			if keep {
-				ss.appendX(s, i)
+				s.appendOne(v, i)
 			} else {
-				s.Meta.Total--
+				v.Meta.Total--
 			}
 		}
 		// trim time outside [start, end)
-		for i := range ss.Data {
-			s := (*ss.Data[i].Values)[lo:hi]
-			ss.Data[i].Values = &s
-			if len(ss.Data[i].MaxHost) != 0 {
-				ss.Data[i].MaxHost = ss.Data[i].MaxHost[lo:hi]
+		for i := range s.Data {
+			vs := (*s.Data[i].Values)[lo:hi]
+			s.Data[i].Values = &vs
+			if len(s.Data[i].MaxHost) != 0 {
+				s.Data[i].MaxHost = s.Data[i].MaxHost[lo:hi]
 			}
 		}
-		res.Series.append(ss)
+		if len(res.Series.Data) == 0 {
+			res.Series.Meta = v.Meta
+		}
+		res.Series.appendAll(s)
 	}
 	return res, nil
 }
@@ -506,6 +509,7 @@ func (ev *evaluator) eval(expr parser.Expr) (res []Series, err error) {
 				for j := range res[i].Data {
 					fn(l.Val, *res[i].Data[j].Values)
 				}
+				res[i].Meta = evalSeriesMeta(e, SeriesMeta{}, res[i].Meta)
 			}
 		default:
 			switch r := e.RHS.(type) {
@@ -521,6 +525,7 @@ func (ev *evaluator) eval(expr parser.Expr) (res []Series, err error) {
 					for j := range res[i].Data {
 						fn(*res[i].Data[j].Values, r.Val)
 					}
+					res[i].Meta = evalSeriesMeta(e, res[i].Meta, SeriesMeta{})
 				}
 			default:
 				if res, err = ev.evalBinary(e); err != nil {
@@ -618,7 +623,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				for i := range lhs.Data {
 					fn(*lhs.Data[i].Values, *lhs.Data[i].Values, *rhs.Data[0].Values)
 				}
-				res[x].append(lhs)
+				res[x].appendAll(lhs)
 				rhs.free(ev)
 			} else if lhs.scalar() {
 				op := expr.Op
@@ -651,7 +656,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 						fn(*rhs.Data[i].Values, *lhs.Data[0].Values, *rhs.Data[i].Values)
 					}
 				}
-				res[x].append(rhs)
+				res[x].appendAll(rhs)
 				lhs.Data[0].free(ev)
 			} else {
 				var lhsM map[uint64]int
@@ -672,11 +677,11 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				if err != nil {
 					return nil, err
 				}
-				res[x] = ev.newSeries(len(lhsM))
+				res[x] = ev.newSeries(len(lhsM), evalSeriesMeta(expr, lhs.Meta, rhs.Meta))
 				for lhsH, lhsX := range lhsM {
 					if rhsX, ok := rhsM[lhsH]; ok {
 						fn(*lhs.Data[lhsX].Values, *lhs.Data[lhsX].Values, *rhs.Data[rhsX].Values)
-						res[x].appendX(lhs, lhsX)
+						res[x].appendOne(lhs, lhsX)
 					} else {
 						lhs.Data[lhsX].free(ev)
 					}
@@ -702,7 +707,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			if err != nil {
 				return nil, err
 			}
-			res[x] = ev.newSeries(len(lhsG))
+			res[x] = ev.newSeries(len(lhsG), evalSeriesMeta(expr, lhs.Meta, rhs.Meta))
 			for _, lhsG := range lhsG {
 				if rhsX, ok := rhsM[lhsG.hash]; ok {
 					for lhsX, lhsS := range lhsG.Data {
@@ -712,7 +717,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 								lhsG.AddTagAt(lhsX, t)
 							}
 						}
-						res[x].appendX(lhsG.Series, lhsX)
+						res[x].appendOne(lhsG.Series, lhsX)
 					}
 				} else {
 					lhsG.free(ev)
@@ -738,7 +743,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			if err != nil {
 				return nil, err
 			}
-			res[x] = ev.newSeries(len(rhsG))
+			res[x] = ev.newSeries(len(rhsG), evalSeriesMeta(expr, lhs.Meta, rhs.Meta))
 			for _, rhsG := range rhsG {
 				if lhsX, ok := lhsM[rhsG.hash]; ok {
 					for rhsX, rhsS := range rhsG.Data {
@@ -748,7 +753,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 								rhsG.AddTagAt(rhsX, tag)
 							}
 						}
-						res[x].appendX(rhsG.Series, rhsX)
+						res[x].appendOne(rhsG.Series, rhsX)
 					}
 				} else {
 					rhsG.free(ev)
@@ -776,10 +781,10 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			}
 			switch expr.Op {
 			case parser.LAND:
-				res[x] = ev.newSeries(len(lhsM))
+				res[x] = ev.newSeries(len(lhsM), lhs.Meta)
 				for lhsH, lhsX := range lhsM {
 					if _, ok := rhsM[lhsH]; ok {
-						res[x].appendX(lhs, lhsX)
+						res[x].appendOne(lhs, lhsX)
 					} else {
 						ev.freeAt(lhs.Data, lhsX)
 					}
@@ -787,6 +792,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				rhs.free(ev)
 			case parser.LDEFAULT:
 				res[x] = lhs
+				res[x].Meta = evalSeriesMeta(expr, lhs.Meta, rhs.Meta)
 				for lhsH, lhsX := range lhsM {
 					if rhsX, ok := rhsM[lhsH]; ok {
 						sliceDefault(*res[x].Data[lhsX].Values, *lhs.Data[lhsX].Values, *rhs.Data[rhsX].Values)
@@ -797,16 +803,16 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				res[x] = lhs
 				for rhsH, rhsX := range rhsM {
 					if _, ok := lhsM[rhsH]; !ok {
-						res[x].appendX(rhs, rhsX)
+						res[x].appendOne(rhs, rhsX)
 					} else {
 						ev.freeAt(rhs.Data, rhsX)
 					}
 				}
 			case parser.LUNLESS:
-				res[x] = ev.newSeries(len(lhsM))
+				res[x] = ev.newSeries(len(lhsM), lhs.Meta)
 				for lhsH, lhsX := range lhsM {
 					if _, ok := rhsM[lhsH]; !ok {
-						res[x].appendX(lhs, lhsX)
+						res[x].appendOne(lhs, lhsX)
 					} else {
 						ev.freeAt(lhs.Data, lhsX)
 					}
@@ -866,7 +872,10 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
 					return nil, err
 				}
 			}
-			res[x].append(series)
+			if len(res[x].Data) == 0 {
+				res[x].Meta = series.Meta
+			}
+			res[x].appendAll(series)
 		}
 	}
 	return res, nil
@@ -887,11 +896,11 @@ func (ev *evaluator) restoreHistogram(bag Series, qry seriesQueryX) (Series, err
 	if !qry.histogram.filter {
 		return bag, nil
 	}
-	res := ev.newSeries(len(bag.Data))
+	res := ev.newSeries(len(bag.Data), bag.Meta)
 	for _, h := range s {
 		for _, b := range h.buckets {
 			if qry.histogram.le == b.le == qry.histogram.compare {
-				res.append(h.group.at(b.x))
+				res.appendAll(h.group.at(b.x))
 				break
 			}
 		}
@@ -1179,11 +1188,14 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		nil
 }
 
-func (ev *evaluator) newSeries(capacity int) Series {
+func (ev *evaluator) newSeries(capacity int, meta SeriesMeta) Series {
 	if capacity == 0 {
-		return Series{}
+		return Series{Meta: meta}
 	}
-	return Series{Data: make([]SeriesData, 0, capacity)}
+	return Series{
+		Data: make([]SeriesData, 0, capacity),
+		Meta: meta,
+	}
 }
 
 func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMetaValue, tagX int, offset int64) (map[int32]string, error) {
