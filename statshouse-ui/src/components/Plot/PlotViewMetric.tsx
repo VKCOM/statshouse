@@ -34,7 +34,7 @@ import { shallow } from 'zustand/shallow';
 import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
 import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
 import { createPlotPreview } from '../../store/plot/plotPreview';
-import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
+import { formatByMetricType, getMetricType, incrs, splitByMetricType } from '../../common/formatByMetricType';
 import { METRIC_TYPE } from '../../api/enum';
 import css from './style.module.css';
 import { useLinkCSV } from '../../hooks/useLinkCSV';
@@ -254,6 +254,7 @@ export function PlotViewMetric(props: {
           font: font,
           stroke: getAxisStroke,
           splits: metricType === METRIC_TYPE.none ? undefined : splitByMetricType(metricType),
+          incrs,
         },
       ],
       scales: {
