@@ -62,9 +62,9 @@ func evalAndGroup(fn seriesGroupFunc) aggregateFunc {
 			if err != nil {
 				return nil, err
 			}
-			res := ev.newSeries(len(groups))
+			res := ev.newSeries(len(groups), bag[x].Meta)
 			for i, g := range groups {
-				res.append(fn(ev, g, expr.Param))
+				res.appendAll(fn(ev, g, expr.Param))
 				res.Data[i].MaxHost = g.groupMaxHost(ev)
 			}
 			bag[x] = res
@@ -76,7 +76,7 @@ func evalAndGroup(fn seriesGroupFunc) aggregateFunc {
 func simpleAggregate(fn func([]SeriesData, int)) seriesGroupFunc {
 	return func(ev *evaluator, g seriesGroup, _ parser.Expr) Series {
 		if len(g.Data) == 0 {
-			return ev.newSeries(0)
+			return ev.newSeries(0, SeriesMeta{})
 		}
 		fn(g.Data, len(ev.time()))
 		ev.free(g.Data[1:])
@@ -414,11 +414,11 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
 		}
 	}
 	for x := range bags {
-		bags[x] = ev.newSeries(0)
+		bags[x] = ev.newSeries(0, bags[x].Meta)
 	}
 	for i := range buckets {
 		for x, bag := range buckets[i].bags {
-			bags[x].appendX(bag.Series, bag.x[:bag.k]...)
+			bags[x].appendSome(bag.Series, bag.x[:bag.k]...)
 			ev.freeAt(bag.Data, bag.x[bag.k:]...)
 		}
 	}
@@ -1041,7 +1041,7 @@ func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]Series, er
 		if err != nil {
 			return nil, err
 		}
-		res := ev.newSeries(len(hs))
+		res := ev.newSeries(len(hs), bag[x].Meta)
 		for _, h := range hs {
 			d := h.group.Data
 			s := *d[0].Values
@@ -1084,7 +1084,7 @@ func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]Series, er
 				}
 			}
 			ev.free(d[1:])
-			res.append(h.group.at(0))
+			res.appendAll(h.group.at(0))
 		}
 		bag[x] = res
 	}

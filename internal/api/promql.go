@@ -440,6 +440,14 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			What:   int(what),
 		}}
 	)
+	switch qry.What {
+	case promql.DigestCount, promql.DigestCountSec, promql.DigestCountRaw,
+		promql.DigestStdVar, promql.DigestCardinality, promql.DigestCardinalitySec,
+		promql.DigestCardinalityRaw, promql.DigestUnique, promql.DigestUniqueSec:
+		// measure units does not apply to counters
+	default:
+		res.Meta.Units = qry.Metric.MetricType
+	}
 	var step int64
 	if qry.Range != 0 {
 		step = qry.Range

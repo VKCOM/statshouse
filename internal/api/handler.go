@@ -2231,19 +2231,17 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	}
 	for _, s := range ts.Series.Data {
 		meta := QuerySeriesMetaV2{
-			Name:      metricName,
-			Tags:      make(map[string]SeriesMetaTag, len(s.Tags.ID2Tag)),
-			MaxHosts:  s.GetSMaxHosts(h),
-			TimeShift: -s.Offset,
-			Total:     ts.Series.Meta.Total,
+			Name:       metricName,
+			Tags:       make(map[string]SeriesMetaTag, len(s.Tags.ID2Tag)),
+			MaxHosts:   s.GetSMaxHosts(h),
+			TimeShift:  -s.Offset,
+			Total:      ts.Series.Meta.Total,
+			MetricType: ts.Series.Meta.Units,
 		}
 		if promqlGenerated {
 			meta.What = queryFn(s.What)
 		} else {
 			meta.What = queryFn(ts.Series.Meta.What)
-		}
-		if ts.Series.Meta.Metric != nil {
-			meta.MetricType = ts.Series.Meta.Metric.MetricType
 		}
 		if meta.Total == 0 {
 			meta.Total = len(ts.Series.Data)
