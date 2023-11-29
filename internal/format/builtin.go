@@ -1636,6 +1636,8 @@ Value is delta between second value and time it was inserted.`,
 			Kind:                 MetricKindValue,
 			Description:          `Errors on the frontend.`,
 			StringTopDescription: "error_string",
+			Tags: []MetricMetaTag{
+				{Description: "environment"}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		},
 	}
 
