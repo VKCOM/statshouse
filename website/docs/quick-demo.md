@@ -36,15 +36,15 @@ cd statshouse
 ## Send metrics from a Go web server
 
 From the StatsHouse directory, run a [simple instrumented Go
-web server](https://github.com/VKCOM/statshouse/blob/master/cmd/statshouse-example/statshouse-example.go)
-—it will send metrics to your StatsHouse instance:
+web server](https://github.com/VKCOM/statshouse/blob/master/cmd/statshouse-example/statshouse-example.go)—it will send metrics to your StatsHouse instance:
 ```shell
 go run ./cmd/statshouse-example/statshouse-example.go
 ```
 
 ## View metrics on a dashboard
 
-View the metrics in the StatsHouse UI at [localhost:10888](http://localhost:10888).
+View the metrics in the StatsHouse dashboard at 
+[localhost:10888](http://localhost:10888/view?live=1&f=-300&t=0&tn=-1&s=example_response_time&t1.s=example_response_time&t1.qw=avg&t2.s=example_runtime_memory&t2.qw=avg&t2.qb=key1).
 
 ![Dashboard in the local StatsHouse UI](./img/quick-demo.png)
 

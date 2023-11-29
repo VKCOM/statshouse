@@ -1,5 +1,6 @@
 ---
 sidebar_position: 1
+description: Find how to access a running StatsHouse cluster.
 ---
 
 # Access a cluster

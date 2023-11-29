@@ -1,11 +1,36 @@
 ---
 sidebar_position: 5
+description: TEST
 ---
 
 # Send data from your code
 
+:::important
+Before sending data to a metric, you have to create a metric manually via the StatsHouse UI.
+:::
 
-Be sure to create a metric manually in the UI prior to sending data.
+отправлять в одном из трех протоколов
+https://github.com/VKCOM/statshouse/blob/master/docs/protocol.md
+
+
+ОТправлять данные можно из кода
+с помощью клиентской либы
+баш-запросом
+
+
+
+Мишин тестовый проект:
+https://github.com/alpinskiy/statshouse-load-generator/blob/main/main.go
+
+Питоновская либа:
+https://github.com/VKCOM/statshouse-py/blob/master/src/statshouse/_statshouse.py
+
+как пользоваться - импортируешь, вызываешь нужные методы
+
+На плюсах все непонятно
+
+как сделано на джаве - Женя
+
 
 
 
@@ -13,6 +38,9 @@ Be sure to create a metric manually in the UI prior to sending data.
 Can I write data to someone's metric?
 
 ! Beware of spoiling someone's data
+
+
+You can start sending data as soon as you create a metric
 
 ## Use StatsHouse client libraries
 
