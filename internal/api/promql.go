@@ -381,6 +381,15 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		})
 		res.Time = append(res.Time, s...)
 	}
+	// calculate effective index range
+	lo, hi := 0, len(res.Time)
+	for lo < hi && res.Time[lo] < res.Start {
+		lo++
+	}
+	for lo < hi-1 && res.End <= res.Time[hi-1] {
+		hi--
+	}
+	res.Lo, res.Hi = lo, hi
 	return res, nil
 }
 

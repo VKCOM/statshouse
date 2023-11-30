@@ -90,6 +90,7 @@ type Timescale struct {
 	Offset int64 // the offset for which timescale was generated
 	Start  int64 // query start
 	End    int64 // query end
+	Lo, Hi int
 }
 
 type LOD struct {
