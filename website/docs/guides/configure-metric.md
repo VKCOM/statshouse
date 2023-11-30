@@ -7,6 +7,15 @@ import MetricTypes from '../img/metric-types.png'
 
 # Configure your metric
 
+
+You have just created a metric—it now has a name and nothing more.
+
+:::info 
+For a created metric, you have to choose the [metric type](#metric-type). This is the minimal configuration needed 
+to start sending data. 
+Setting up other metric parameters is optional.
+:::
+
 Before you start configuring metrics, you may have a question:
 
 > "Can I skip configuration for my metric?"
@@ -14,7 +23,7 @@ Before you start configuring metrics, you may have a question:
 No. As soon as your metric has a name, you have to specify a [metric type](#metric-type) in your sending requests.
 Then, you can configure more parameters for advanced usage, or start sending data right away.
 
-For the full list of configuration options, see the upper-right navigation menu on this page.
+For a full list of configuration options, see the upper-right navigation menu on this page.
 
 :::warning
 Do not commit configuration changes or send data to someone else's metric as you can spoil the metric or the related data.
@@ -37,11 +46,11 @@ measure, and how you will measure it.
 :::important
 A metric type affects the range of
 [descriptive statistics](view-graph#desriptive-statistics-available-for-a-metric) available for your metric to view 
-and analyze. For example, you cannot calculate the sum for unique counters (you can, but this sum is meaningless); 
+and analyze. For example, you cannot calculate the sum for unique metrics (you can, but this sum is meaningless); 
 and percentiles are available for values only.
 
 See more about [enabling percentiles](#enable-percentiles) 
-and [showing the proper descriptive statistics](#aggregation) in the UI.
+and [showing the proper descriptive statistics](#aggregation) in the UI. 
 :::
 
 > "Which metric types are available in StatsHouse?"
@@ -52,23 +61,21 @@ With StatsHouse, you can use three basic metric types.
 
 See the table below for definitions and examples:
 
-| Metric type    | What does it measure?                                                                     | Examples                                                                                                                                        |
-|----------------|-------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
-| Counter        | It counts the number of times an event has occurred.                                      | The number of API method calls<br/>The number of requests to a server<br/>The number of errors received while sending messages                  |
-| Value metric   | It measures magnitude of a parameter.<br/>A measurement event itself is counted as well.  | How long does it take <br/>for a service to generate a newsfeed?<br/>What is CPU usage for this host?<br/>What is the response size (in bytes)? |
-| Unique counter | It counts the number of unique events.<br/>The total number of events is counted as well. | The number of unique users who sent packages to a service                                                                                       |
+| Metric type | What does it measure?                                                                     | Examples                                                                                                                                        |
+|-------------|-------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| Counter     | It counts the number of times an event has occurred.                                      | The number of API method calls<br/>The number of requests to a server<br/>The number of errors received while sending messages                  |
+| Value       | It measures magnitude of a parameter.<br/>A measurement event itself is counted as well.  | How long does it take <br/>for a service to generate a newsfeed?<br/>What is CPU usage for this host?<br/>What is the response size (in bytes)? |
+| Unique      | It counts the number of unique events.<br/>The total number of events is counted as well. | The number of unique users who sent packages to a service                                                                                       |
 
-Value metrics and unique counters have an ordinary counter inside so that you should not implement your own counters 
-for these metric types. Imagine you measuring a value metric (e.g. the 
-response size in bytes) once in a second:
+Value and unique metrics have an ordinary counter inside, so you should not implement your own counters 
+for these metric types. Imagine you measuring a value metric (e.g. the response size in bytes) once in a second:
 * You get the "value level" that is your parameter magnitude:
 1024 bytes, then 2048 bytes, etc. Please note that this "level" is [aggregation], not an exact value for a 
   particular moment in time.
 * You also get the "counter" for your value metric that shows the number of times you performed 
 your measurements: +1 for the first second, +1 for the next one, etc. 
 
-The same applies to unique counters: they 
-provide you with both the number of unique events and the total number of events.
+The same applies to unique metrics: they provide you with the number of unique events and the total number of events.
 See more on 
 [changing or combining metric types](#changing-or-combining-metric-types)
 and [user-guided sampling](#user-guided-sampling).
@@ -108,15 +115,19 @@ Having done this, you may send your data, or continue configuring metric paramet
 ## Tags
 
 
-You can [start sending data](send-data.md) to your metric with no additional configuration.
-StatsHouse does everything for you, but it may lead to increased sampling. In most cases, you do not need
-to worry about sampling, but if you are not sure, check the [conceptual overview].
+Why to use tags for your metrics
 
-:::info
-Sampling prevents StatsHouse from database overload. If you send too much, StatsHouse _samples_
-data: it removes random data rows and multiplies the remaining ones so that the resulting aggregation and
-digests stay the same. Find more about [sampling], [aggregation], and [digests].
-:::
+Человек группирует по тегам, например, ищет причину провала
+
+Хороший дизайн метрики - хорошие теги. Теги позволяют категоризовать данные
+
+Ограничения: число тегов. Но много чего можно сделать
+
+ЧТо лучше: создавать несколько метрик или одну метрику переиспользовать с кучей тегов
+
+
+
+
 
 
 https://prometheus.io/docs/practices/naming/
@@ -136,7 +147,23 @@ https://www.robustperception.io/cardinality-is-key/
 > "How many tags are allowed?"
  
 
-> "How many tag values are allowed?"
+> "How many tag _values_ are allowed?"
+
+
+
+
+You can [start sending data](send-data.md) to your metric with no additional configuration.
+StatsHouse does everything for you, but it may lead to increased sampling. In most cases, you do not need
+to worry about sampling, but if you are not sure, check the [conceptual overview].
+
+:::info
+Sampling prevents StatsHouse from database overload. If you send too much, StatsHouse _samples_
+data: it removes random data rows and multiplies the remaining ones so that the resulting aggregation and
+digests stay the same. Find more about [sampling], [aggregation], and [digests].
+:::
+
+
+
 
 > "What are tag ID, name, and description?"
 
@@ -144,9 +171,66 @@ https://www.robustperception.io/cardinality-is-key/
 > "What are _Raw_ tags and value comments"
 
 
+Mapping - в БД храним числа (меньше места занимают, экономия на чтении и записи)
+Строки переводятся в числа 32-разрядные - ограничиваем создание mapping-а
+Необходима правильная разметка данных - не разрешаем автоматически создавать метрики
+16 тегов (мб будет больше) - в Кликхаусе надо сразу сказать, сколько будет колонок
+Если в качестве тега user id   - получаем mapping error
+Receive status загорается, когда мы не смогли распарсить данные
+Sampling source/aggregator - на чем семплируется
+Mapping status - руками создаем метрики
+Если много создаем, если исчерпали бюджет, то строку (тег) выкидываем - получаем empty
+Загорелось: если писать в качестве тега user id - исчерпается бюджет строк
+(про теги) Raw  - когда прислали строку - перевести в число. Raw - можно использовать как есть
+Если шлем строку, а стоит Raw - получаем ошибки Receive status
+С помощью Raw экономим бюджет на строки
+Если тег - метрика, то что??
+Вначале пользователи вообще не знали про mapping - фигачили подряд - быстро исчерпывали бюджет
+Сделали Raw
+неудобно смотреть числа
+Сделали comment - хранятся не там, где маппинг (он хранится в метаданных)
+
+Host (комп): вместо того, чтобы писать тег "host", нужно использовать готовую фичу — с какого компа чаще всего приходит максимальная строчка
+
+Кардинальность — сколько уникальных комбинаций значений тегов. Каждому сочетанию соответствует строчка в базе.
+
+
+Пользователи часто хотят добавить как можно больше тегов в метрики
+Динамическое возрастание объема данных: например, сервис создает ключи, например, ID. Представим, что сервис стал популярен...
+Можно писать одну и ту же метрику — много тегов, кардинальность высокая — она семплируется, запросы будут медленные
+Для постоянного использования всего пара основных ключей, но семплироваться не будет
+
+
+Ряд - последовательность значений с тегаами (ключ - значение)
+Имя метрики - тоже тег
+Бюджет - сколько в секунду передать данных (разные бюджеты на агенте и агрегаторе)
+Нужно сохранить статистику: случайным образом выкидываем, а потом счетчики и сумму домножаем - семплирование
+
+Наши разные либы по-разному отправляют пакеты на события
+Сейчас семплирование работает только на уровне метрик
+Например, пришли 10 комбинаций тегов - это 10 рядов
+Если низкая кардинальность - легко агрегируем, не надо семплировать. Высокая кардинальность - надо семплировать
+Хуже всего, когда в тег пишут ID пользователя - не сжимается, надо семплировать
+
+Создать метрику - назвать ее и проименовать теги (добавляется алиас - говорящее имя)
+тег0 - всегда  env
+(Кликхаус хранит данные по столбикам, теги - столбики, данные группируются по тегам)
+Хорошо, когда вначале идут теги с меньшей кардинальностью (env-тов у нас мало)
+
+tag_1 - alias - description
+Value comment - mapping
+
+
+
+**Как  выглядит настройка тегов в ЮИ и в коде**
+
 
 
 ## Description
+какие символы использовать
+
+какой длины текст
+кто читает и зачем
 
 Description is for UI only. New lines are respected, no other formatting supported yet.
 

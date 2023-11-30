@@ -7,7 +7,16 @@ import NameMetric from '../img/name-new-metric.png'
 
 # Create a metric
 
-[Check the typical questions](#frequent-questions) and [create a metric via the StatsHouse UI](#how-to-create-a-metric-in-the-ui).
+[Check the typical questions](#frequent-questions) 
+and [create a metric via the StatsHouse UI](#how-to-create-a-metric-in-the-ui).
+
+:::important
+* You have to create a metric before sending data to it.
+* To create a metric is to give it a name—nothing more.
+* For a created metric, you have to choose the metric type. This is the minimal configuration needed to start sending 
+  data.
+* You can configure more options for your metric later.
+:::
 
 ## Frequent questions
 
