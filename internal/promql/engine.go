@@ -425,16 +425,7 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 	if err != nil {
 		return TimeSeries{}, err
 	}
-	var (
-		lo int
-		hi = len(ev.t.Time)
-	)
-	for lo < hi && ev.t.Time[lo] < ev.t.Start {
-		lo++
-	}
-	for lo < hi-1 && ev.t.End <= ev.t.Time[hi-1] {
-		hi--
-	}
+	lo, hi := ev.t.Lo, ev.t.Hi
 	res := TimeSeries{Time: ev.t.Time[lo:hi]}
 	for _, v := range ss {
 		// remove series with no data within [start, end), update total
