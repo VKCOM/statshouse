@@ -14,6 +14,9 @@ type MetricWriter interface {
 	WriteSystemMetricCount(nowUnix int64, name string, count float64, tagsList ...int32)
 	WriteSystemMetricCountValue(nowUnix int64, name string, count, value float64, tagsList ...int32)
 	WriteSystemMetricValueWithoutHost(nowUnix int64, name string, value float64, tagsList ...int32)
+
+	WriteSystemMetricCountExtendedTag(nowUnix int64, name string, count float64, tagsList ...Tag)
+	WriteSystemMetricCountValueExtendedTag(nowUnix int64, name string, count, value float64, tagsList ...Tag)
 }
 
 type MetricWriterRemoteImpl struct {
@@ -27,11 +30,27 @@ type MetricWriterSHImpl struct {
 	metric   *tlstatshouse.MetricBytes
 }
 
-func buildTags(useHost bool, tags ...int32) statshouse.Tags {
+type Tag struct {
+	Raw int32
+	Str string
+}
+
+func buildTags[A Tag | int32](useHost bool, tags ...A) statshouse.Tags {
 	res := statshouse.Tags{}
 	// Tag1 is reserved for host
 	for index, tagV := range tags {
-		tag := strconv.FormatInt(int64(tagV), 10)
+		tagI := any(tagV)
+		tag := ""
+		switch t := tagI.(type) {
+		case int32:
+			tag = strconv.FormatInt(int64(t), 10)
+		case Tag:
+			if t.Str == "" {
+				tag = strconv.FormatInt(int64(t.Raw), 10)
+			} else {
+				tag = t.Str
+			}
+		}
 		i := index
 		if useHost {
 			i++
@@ -48,13 +67,23 @@ const (
 	usedCommon   = 1
 )
 
-func fillTags(metric *tlstatshouse.MetricBytes, reservedKeys int, startFrom int, tags ...int32) {
+func fillTags[A Tag | int32](metric *tlstatshouse.MetricBytes, reservedKeys int, startFrom int, tags ...A) {
 	// Tag1 is reserved for host
 	for i, tag := range tags {
 		i = i + reservedKeys
 		t := &metric.Tags[startFrom]
 		t.Key = strconv.AppendInt(t.Key[:0], int64(i), 10)
-		t.Value = strconv.AppendInt(t.Value[:0], int64(tag), 10)
+		tagI := any(tag)
+		switch tagI := tagI.(type) {
+		case int32:
+			t.Value = strconv.AppendInt(t.Value[:0], int64(tagI), 10)
+		case Tag:
+			if tagI.Str == "" {
+				t.Value = strconv.AppendInt(t.Value[:0], int64(tagI.Raw), 10)
+			} else {
+				t.Value = append(t.Value[:0], tagI.Str...)
+			}
+		}
 		startFrom++
 	}
 }
@@ -83,7 +112,20 @@ func (p *MetricWriterRemoteImpl) WriteSystemMetricCount(nowUnix int64, name stri
 	statshouse.Metric(name, tags).Count(count)
 }
 
-func (p *MetricWriterSHImpl) fillCommonMetric(m *tlstatshouse.MetricBytes, useHost bool, name string, nowUnix int64, tagsList ...int32) {
+func (p *MetricWriterRemoteImpl) WriteSystemMetricCountValueExtendedTag(nowUnix int64, name string, count, value float64, tagsList ...Tag) {
+	tags := buildTags(true, tagsList...)
+	tags[1] = p.HostName
+	statshouse.Metric(name, tags).Count(count)
+	statshouse.Metric(name, tags).Value(value)
+}
+
+func (p *MetricWriterRemoteImpl) WriteSystemMetricCountExtendedTag(nowUnix int64, name string, count float64, tagsList ...Tag) {
+	tags := buildTags(true, tagsList...)
+	tags[1] = p.HostName
+	statshouse.Metric(name, tags).Count(count)
+}
+
+func fillCommonMetric[A Tag | int32](p *MetricWriterSHImpl, m *tlstatshouse.MetricBytes, useHost bool, name string, nowUnix int64, tagsList ...A) {
 	m.Reset()
 	m.Name = append(m.Name, name...)
 	m.Ts = uint32(nowUnix)
@@ -108,14 +150,14 @@ func (p *MetricWriterSHImpl) fillCommonMetric(m *tlstatshouse.MetricBytes, useHo
 
 func (p *MetricWriterSHImpl) WriteSystemMetricValue(nowUnix int64, name string, value float64, tagsList ...int32) {
 	m := p.metric
-	p.fillCommonMetric(m, true, name, nowUnix, tagsList...)
+	fillCommonMetric(p, m, true, name, nowUnix, tagsList...)
 	m.Value = append(m.Value, value)
 	_, _ = p.handler.HandleMetrics(m, nil)
 }
 
 func (p *MetricWriterSHImpl) WriteSystemMetricCountValue(nowUnix int64, name string, count, value float64, tagsList ...int32) {
 	m := p.metric
-	p.fillCommonMetric(m, true, name, nowUnix, tagsList...)
+	fillCommonMetric(p, m, true, name, nowUnix, tagsList...)
 	m.Counter = count
 	m.Value = append(m.Value, value)
 	_, _ = p.handler.HandleMetrics(m, nil)
@@ -123,14 +165,29 @@ func (p *MetricWriterSHImpl) WriteSystemMetricCountValue(nowUnix int64, name str
 
 func (p *MetricWriterSHImpl) WriteSystemMetricValueWithoutHost(nowUnix int64, name string, value float64, tagsList ...int32) {
 	m := p.metric
-	p.fillCommonMetric(m, false, name, nowUnix, tagsList...)
+	fillCommonMetric(p, m, false, name, nowUnix, tagsList...)
 	m.Value = append(m.Value, value)
 	_, _ = p.handler.HandleMetrics(m, nil)
 }
 
 func (p *MetricWriterSHImpl) WriteSystemMetricCount(nowUnix int64, name string, count float64, tagsList ...int32) {
 	m := p.metric
-	p.fillCommonMetric(m, true, name, nowUnix, tagsList...)
+	fillCommonMetric(p, m, true, name, nowUnix, tagsList...)
+	m.Counter = count
+	_, _ = p.handler.HandleMetrics(m, nil)
+}
+
+func (p *MetricWriterSHImpl) WriteSystemMetricCountValueExtendedTag(nowUnix int64, name string, count, value float64, tagsList ...Tag) {
+	m := p.metric
+	fillCommonMetric(p, m, true, name, nowUnix, tagsList...)
+	m.Counter = count
+	m.Value = append(m.Value, value)
+	_, _ = p.handler.HandleMetrics(m, nil)
+}
+
+func (p *MetricWriterSHImpl) WriteSystemMetricCountExtendedTag(nowUnix int64, name string, count float64, tagsList ...Tag) {
+	m := p.metric
+	fillCommonMetric(p, m, true, name, nowUnix, tagsList...)
 	m.Counter = count
 	_, _ = p.handler.HandleMetrics(m, nil)
 }
