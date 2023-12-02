@@ -122,17 +122,6 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	if dc == nil { // TODO - make sure aggregator works without cache dir?
 		return fmt.Errorf("aggregator cannot run without -cache-dir for now")
 	}
-	localAddresses := strings.Split(listenAddr, ",")
-	if len(localAddresses) != 1 {
-		if len(localAddresses) != 3 {
-			return fmt.Errorf("you must set exactly one address or three comma separated addresses in --agg-addr")
-		}
-		if config.LocalReplica < 1 || config.LocalReplica > 3 {
-			return fmt.Errorf("seetting three --agg-addr require setting --local-replica to 1, 2 or 3")
-		}
-		listenAddr = localAddresses[config.LocalReplica-1]
-	}
-
 	_, listenPort, err := net.SplitHostPort(listenAddr)
 	if err != nil {
 		return fmt.Errorf("failed to split --agg-addr (%q) into host and port for autoconfiguration: %v", listenAddr, err)
@@ -151,15 +140,9 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	}
 	withoutCluster := false
 	if len(addresses) == 1 { // mostly demo runs with local non-replicated clusters
-		if len(localAddresses) == 3 {
-			addresses = localAddresses
-			replicaKey = int32(config.LocalReplica)
-			log.Printf("[warning] running as a local replica %d with single-host cluster, probably demo", replicaKey)
-		} else {
-			addresses = []string{addresses[0], addresses[0], addresses[0]}
-			withoutCluster = true
-			log.Printf("[warning] running with single-host cluster, probably demo")
-		}
+		addresses = []string{addresses[0], addresses[0], addresses[0]}
+		withoutCluster = true
+		log.Printf("[warning] running with single-host cluster, probably demo")
 	}
 	if len(addresses)%3 != 0 {
 		return fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
