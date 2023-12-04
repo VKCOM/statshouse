@@ -26,7 +26,7 @@ import { Button, ToggleButton, Tooltip } from '../UI';
 
 export type PlotNavigateProps = {
   live: boolean;
-  setLive: Dispatch<SetStateAction<boolean>>;
+  setLive: (status: boolean) => void;
   disabledLive: boolean;
   setTimeRange: (value: SetTimeRangeValue, force?: boolean) => void;
   yLock?: lockRange;

@@ -16,9 +16,12 @@ export const namespaceListErrors = 'groupListErrors';
 export type NamespaceListStore = {
   list: NamespaceShort[];
 };
-export const useNamespaceListStore = createStore<NamespaceListStore>(() => ({
-  list: [],
-}));
+export const useNamespaceListStore = createStore<NamespaceListStore>(
+  () => ({
+    list: [],
+  }),
+  'useNamespaceListStore'
+);
 
 let loadListErrorRemover: () => void;
 

@@ -16,13 +16,14 @@ import { produce } from 'immer';
 import {
   selectorBaseRange,
   selectorEventsByIndex,
-  selectorLiveMode,
   selectorLoadEvents,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
   selectorParamsPlotsByIndex,
   selectorPlotsDataByIndex,
   selectorTimeRange,
+  setLiveMode,
+  useLiveModeStore,
   useStore,
   useThemeStore,
 } from '../../store';
@@ -54,8 +55,7 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
   return [dataMin, dataMax];
 }
 
-const { setPlotParams, setTimeRange, setLiveMode, setYLockChange, setPlotLastError, setUPlotWidth, loadPlot } =
-  useStore.getState();
+const { setPlotParams, setTimeRange, setYLockChange, setPlotLastError, setUPlotWidth, loadPlot } = useStore.getState();
 
 export function PlotViewEvent(props: {
   indexPlot: number;
@@ -78,7 +78,7 @@ export function PlotViewEvent(props: {
 
   const baseRange = useStore(selectorBaseRange);
 
-  const live = useStore(selectorLiveMode);
+  const live = useLiveModeStore((s) => s.live);
 
   const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
   const {

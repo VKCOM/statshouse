@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { Dispatch, memo, SetStateAction, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
 import { produce } from 'immer';
@@ -54,7 +54,7 @@ export type PlotHeaderProps = {
   meta?: MetricMetaValue;
   live: boolean;
   setParams: (nextState: React.SetStateAction<PlotParams>, replace?: boolean | undefined) => void;
-  setLive: Dispatch<SetStateAction<boolean>>;
+  setLive: (status: boolean) => void;
   setTimeRange: (value: SetTimeRangeValue, force?: boolean) => void;
   yLock: lockRange;
   onResetZoom?: () => void;

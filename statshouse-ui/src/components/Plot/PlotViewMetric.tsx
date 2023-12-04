@@ -16,12 +16,13 @@ import { produce } from 'immer';
 import {
   PlotValues,
   selectorBaseRange,
-  selectorLiveMode,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
   selectorParamsPlotsByIndex,
   selectorPlotsDataByIndex,
   selectorTimeRange,
+  setLiveMode,
+  useLiveModeStore,
   useStore,
   useThemeStore,
 } from '../../store';
@@ -62,16 +63,8 @@ function dateRangeFormat(self: uPlot, rawValue: number, seriesIdx: number, idx: 
   return fmtInputDateTime(new Date(rawValue * 1000)) + suffix;
 }
 
-const {
-  setPlotParams,
-  setTimeRange,
-  setLiveMode,
-  setPlotShow,
-  setYLockChange,
-  setPlotLastError,
-  setUPlotWidth,
-  loadPlot,
-} = useStore.getState();
+const { setPlotParams, setTimeRange, setPlotShow, setYLockChange, setPlotLastError, setUPlotWidth, loadPlot } =
+  useStore.getState();
 
 export function PlotViewMetric(props: {
   indexPlot: number;
@@ -92,7 +85,7 @@ export function PlotViewMetric(props: {
 
   const baseRange = useStore(selectorBaseRange);
 
-  const live = useStore(selectorLiveMode);
+  const live = useLiveModeStore((s) => s.live);
 
   const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
   const {

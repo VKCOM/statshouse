@@ -27,7 +27,7 @@ const { setParams, setTimeRange } = useStore.getState();
 
 const METRIC_TYPE_KEYS: MetricType[] = ['null', ...Object.values(METRIC_TYPE)] as MetricType[];
 const METRIC_TYPE_DESCRIPTION_SELECTOR = {
-  null: 'unit by metric',
+  null: 'infer unit',
   ...METRIC_TYPE_DESCRIPTION,
 };
 

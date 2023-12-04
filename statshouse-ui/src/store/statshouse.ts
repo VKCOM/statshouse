@@ -92,6 +92,7 @@ import {
 import { clearPlotVisibility, resortPlotVisibility, usePlotVisibilityStore } from './plot/plotVisibilityStore';
 import { clearAllPlotPreview, clearPlotPreview, resortPlotPreview } from './plot/plotPreview';
 import { createStoreWithEqualityFn } from './createStore';
+import { setLiveMode, setLiveModeInterval, useLiveModeStore } from './liveMode';
 
 export type PlotStore = {
   nameMetric: string;
@@ -208,8 +209,6 @@ export type StatsHouseStore = {
   setDefaultParams(nextState: React.SetStateAction<QueryParams>): void;
   timeRange: TimeRange;
   params: QueryParams;
-  liveMode: boolean;
-  setLiveMode(nextStatus: React.SetStateAction<boolean>): void;
   updateParamsByUrl(abortSignal?: AbortSignal): void;
   updateUrl(replace?: boolean): void;
   updateTitle(): void;
@@ -275,7 +274,7 @@ export type StatsHouseStore = {
 };
 
 export type Store = StatsHouseStore;
-export const useStore = createStoreWithEqualityFn<Store>((setState, getState) => {
+export const useStore = createStoreWithEqualityFn<Store>((setState, getState, store) => {
   let prevLocation = appHistory.location;
   let controller: AbortController;
   appHistory.listen(({ location }) => {
@@ -288,7 +287,11 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
       }
     }
   });
-
+  store.subscribe((store, prevStore) => {
+    if (store.timeRange.relativeFrom !== prevStore.timeRange.relativeFrom) {
+      setLiveModeInterval(store.timeRange.relativeFrom);
+    }
+  });
   return {
     defaultParams: getDefaultParams(),
     setDefaultParams(nextState) {
@@ -458,7 +461,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         getState().updateUrl(true);
       }
       if (params.live) {
-        getState().setLiveMode(true);
+        setLiveMode(true);
       }
     },
     setParams(nextState, replace?, force?) {
@@ -531,8 +534,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
             getState().loadPlot(indexPlot, force);
           }
         });
-        if (getState().params.plots.some(({ useV2 }) => !useV2) && getState().liveMode) {
-          getState().setLiveMode(false);
+        if (getState().params.plots.some(({ useV2 }) => !useV2) && useLiveModeStore.getState().live) {
+          setLiveMode(false);
         }
         getState().updateUrl(replace);
       }
@@ -566,8 +569,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         if (!noUpdate) {
           getState().loadPlot(index);
         }
-        if (!next.useV2 && getState().liveMode) {
-          getState().setLiveMode(false);
+        if (!next.useV2 && useLiveModeStore.getState().live) {
+          setLiveMode(false);
         }
         if (next.metricName !== prev.metricName) {
           const metrics = getState().params.plots.map(({ metricName }) => metricName);
@@ -651,7 +654,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
       const autoReplace =
         prevState.params.timeRange.from === defaultTimeRange.from ||
         prevState.params.timeRange.to === defaultTimeRange.to ||
-        prevState.liveMode ||
+        useLiveModeStore.getState().live ||
         prevState.timeRange.from > now();
 
       const p = encodeParams(prevState.params, prevState.defaultParams);
@@ -714,22 +717,6 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
       getState().updateUrl();
     },
     error: '',
-    liveMode: false,
-    setLiveMode(nextStatus) {
-      const nextState = getNextState(getState().liveMode, nextStatus);
-      setState((state) => {
-        if (state.liveMode !== nextState) {
-          state.liveMode = nextState;
-        }
-      });
-      if (!nextState) {
-        getState().setParams(
-          produce((param) => {
-            param.live = false;
-          })
-        );
-      }
-    },
     globalNumQueriesPlot: 0,
     setGlobalNumQueriesPlot(nextState) {
       setState((state) => {
@@ -757,9 +744,9 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
           state.plotsData[index] = getEmptyPlotData();
         });
       }
+      const prevStateLiveMode = useLiveModeStore.getState().live;
       const {
         numQueriesPlot: prevStateNumQueriesPlot,
-        liveMode: prevStateLiveMode,
         params: { plots: prevStatePlots, variables: prevStateVariables, timeShifts: prevStateTimeShifts },
         uPlotsWidth: prevStateuPlotsWidth,
         compact: prevStateCompact,
@@ -870,7 +857,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         if (isPromQl && !lastPlotParams.promQL) {
           setState((state) => {
             state.plotsData[index] = getEmptyPlotData();
-            state.liveMode = false;
+            setLiveMode(false);
           });
           clearPlotPreview(index);
           getState().setNumQueriesPlot(index, (n) => n - 1);
@@ -1210,9 +1197,12 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
               setState((state) => {
                 state.plotsData[index] ??= getEmptyPlotData();
                 state.plotsData[index].errorSkipCount++;
-                if (!state.liveMode || state.plotsData[index].errorSkipCount > globalSettings.skip_error_count) {
+                if (
+                  !useLiveModeStore.getState().live ||
+                  state.plotsData[index].errorSkipCount > globalSettings.skip_error_count
+                ) {
                   state.plotsData[index].error = error.toString();
-                  state.liveMode = false;
+                  setLiveMode(false);
                 }
               });
             } else if (error instanceof Error403) {
@@ -1221,7 +1211,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                   ...getEmptyPlotData(),
                   error403: error.toString(),
                 };
-                state.liveMode = false;
+                setLiveMode(false);
               });
             } else if (error.name !== 'AbortError') {
               debug.error(error);
@@ -1230,7 +1220,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                   ...getEmptyPlotData(),
                   error: error.toString(),
                 };
-                state.liveMode = false;
+                setLiveMode(false);
               });
             }
             clearPlotPreview(index);
@@ -1601,7 +1591,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         state.dashboardLayoutEdit = nextStatus;
       });
       if (nextStatus) {
-        getState().setLiveMode(false);
+        setLiveMode(false);
       }
       if (!nextStatus && getState().params.tabNum < -1) {
         getState().setTabNum(-1);
