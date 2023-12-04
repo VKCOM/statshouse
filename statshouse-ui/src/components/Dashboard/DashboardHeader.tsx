@@ -10,13 +10,13 @@ import {
   selectorDashboardId,
   selectorDashboardLayoutEdit,
   selectorDisabledLive,
-  selectorLiveMode,
   selectorParams,
   selectorSetBaseRange,
   selectorSetDashboardLayoutEdit,
-  selectorSetLiveMode,
   selectorSetTimeRange,
   selectorTimeRange,
+  setLiveMode,
+  useLiveModeStore,
   useStore,
 } from '../../store';
 import { ReactComponent as SVGGearFill } from 'bootstrap-icons/icons/gear-fill.svg';
@@ -35,8 +35,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
 
   const setBaseRange = useStore(selectorSetBaseRange);
 
-  const live = useStore(selectorLiveMode);
-  const setLive = useStore(selectorSetLiveMode);
+  const live = useLiveModeStore((s) => s.live);
   const disabledLive = useStore(selectorDisabledLive);
 
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
@@ -66,7 +65,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
           live={live}
           link={copyLink}
           outerLink={copyLink}
-          setLive={setLive}
+          setLive={setLiveMode}
           disabledLive={disabledLive}
         />
       </div>

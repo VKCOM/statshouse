@@ -14,3 +14,5 @@ export * from './variableList';
 export * from './theme';
 export * from './group';
 export * from './namespace';
+export * from './pageMeta';
+export * from './liveMode';

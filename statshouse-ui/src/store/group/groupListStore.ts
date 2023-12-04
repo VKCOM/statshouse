@@ -10,9 +10,12 @@ export const groupListErrors = 'groupListErrors';
 export type GroupListStore = {
   list: GroupShort[];
 };
-export const useGroupListStore = createStore<GroupListStore>(() => ({
-  list: [],
-}));
+export const useGroupListStore = createStore<GroupListStore>(
+  () => ({
+    list: [],
+  }),
+  'useGroupListStore'
+);
 
 let loadListErrorRemover: () => void;
 

@@ -46,3 +46,5 @@ export async function logError(event: ErrorEvent) {
     ],
   });
 }
+
+window.addEventListener('error', logError, false);
