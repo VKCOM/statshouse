@@ -1540,6 +1540,8 @@ type (
 var sliceBinaryFuncM = map[parser.ItemType][2]sliceBinaryFunc{
 	parser.ADD:      {sliceAdd},
 	parser.LDEFAULT: {sliceDefault},
+	parser.LAND:     {sliceLogicalAnd},
+	parser.LOR:      {sliceLogicalOr},
 	parser.DIV:      {sliceDiv},
 	parser.EQLC:     {sliceFilterEqual, sliceEqual},
 	parser.GTE:      {sliceFilterGreaterOrEqual, sliceGreaterOrEqual},
@@ -1689,6 +1691,26 @@ func sliceGreater(dst, lhs, rhs []float64) {
 			dst[i] = 1
 		} else {
 			dst[i] = 0
+		}
+	}
+}
+
+func sliceLogicalAnd(dst, lhs, rhs []float64) {
+	for i := range lhs {
+		if math.IsNaN(lhs[i]) || math.IsNaN(rhs[i]) {
+			dst[i] = NilValue
+		} else {
+			dst[i] = lhs[i]
+		}
+	}
+}
+
+func sliceLogicalOr(dst, lhs, rhs []float64) {
+	for i := range lhs {
+		if math.IsNaN(lhs[i]) {
+			dst[i] = rhs[i]
+		} else {
+			dst[i] = lhs[i]
 		}
 	}
 }

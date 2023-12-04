@@ -773,7 +773,8 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			case parser.LAND:
 				res[x] = ev.newSeries(len(lhsM), lhs.Meta)
 				for lhsH, lhsX := range lhsM {
-					if _, ok := rhsM[lhsH]; ok {
+					if rhsX, ok := rhsM[lhsH]; ok {
+						sliceLogicalAnd(*lhs.Data[lhsX].Values, *lhs.Data[lhsX].Values, *rhs.Data[rhsX].Values)
 						res[x].appendOne(lhs, lhsX)
 					} else {
 						ev.freeAt(lhs.Data, lhsX)
@@ -792,10 +793,11 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			case parser.LOR:
 				res[x] = lhs
 				for rhsH, rhsX := range rhsM {
-					if _, ok := lhsM[rhsH]; !ok {
-						res[x].appendOne(rhs, rhsX)
-					} else {
+					if lhsX, ok := lhsM[rhsH]; ok {
+						sliceLogicalOr(*res[x].Data[lhsX].Values, *lhs.Data[lhsX].Values, *rhs.Data[rhsX].Values)
 						ev.freeAt(rhs.Data, rhsX)
+					} else {
+						res[x].appendOne(rhs, rhsX)
 					}
 				}
 			case parser.LUNLESS:
