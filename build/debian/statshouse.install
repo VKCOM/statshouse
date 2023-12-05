@@ -1,1 +1,2 @@
 ../target/statshouse usr/share/engine/bin
+../cmd/statshouse/statshouse.service usr/lib/systemd/system/
