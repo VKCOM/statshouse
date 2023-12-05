@@ -100,6 +100,7 @@ const (
 	BuiltinMetricIDSrcSamplingSizeBytes       = -82
 	BuiltinMetricIDAggSamplingSizeBytes       = -83
 	BuiltinMetricIDUIErrors                   = -84
+	BuiltinMetricIDStatsHouseErrors           = -85
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -135,6 +136,7 @@ const (
 	BuiltinMetricNameSrcTestConnection          = "__src_test_connection"
 	BuiltinMetricNameAggTimeDiff                = "__src_agg_time_diff"
 	BuiltinMetricNameHeartbeatVersion           = "__heartbeat_version"
+	BuiltinMetricNameStatsHouseErrors           = "__statshouse_errors"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -308,6 +310,7 @@ const (
 	TagValueIDSystemMetricPSI       = 5
 	TagValueIDSystemMetricSocksStat = 6
 	TagValueIDSystemMetricProtocols = 7
+	TagValueIDSystemMetricVMStat    = 8
 
 	TagValueIDRPC  = 1
 	TagValueIDHTTP = 2
@@ -1497,6 +1500,7 @@ Value is delta between second value and time it was inserted.`,
 					TagValueIDSystemMetricPSI:       "psi",
 					TagValueIDSystemMetricSocksStat: "socks",
 					TagValueIDSystemMetricProtocols: "protocols",
+					TagValueIDSystemMetricVMStat:    "vmstat",
 				}),
 			}},
 		},
@@ -1639,6 +1643,13 @@ Value is delta between second value and time it was inserted.`,
 			Tags: []MetricMetaTag{
 				{Description: "environment"}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		},
+		BuiltinMetricIDStatsHouseErrors: {
+			Name:        BuiltinMetricNameStatsHouseErrors,
+			Kind:        MetricKindCounter,
+			Description: `Always empty metric because SH don't have errors'`,
+			Tags: []MetricMetaTag{
+				{Description: "environment"}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -1668,6 +1679,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPIMetricUsage:             true,
 		BuiltinMetricIDHeartbeatVersion:           true,
 		BuiltinMetricIDUIErrors:                   true,
+		BuiltinMetricIDStatsHouseErrors:           true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
@@ -1767,6 +1779,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDSrcSamplingMetricCount:     true,
 		BuiltinMetricIDSrcSamplingSizeBytes:       true,
 		BuiltinMetricIDUIErrors:                   true,
+		BuiltinMetricIDStatsHouseErrors:           true,
 	}
 
 	BuiltinMetricByName           map[string]*MetricMetaValue
@@ -1909,7 +1922,7 @@ func init() {
 	}
 	for k, v := range hostMetrics {
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
-		v.Resolution = 60
+		v.Resolution = 1
 		v.GroupID = BuiltinGroupIDHost
 		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
 		BuiltinMetrics[k] = v
