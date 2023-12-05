@@ -77,7 +77,11 @@ func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, logErr
 	if err != nil {
 		return nil, err
 	}
-	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats} // TODO add modules
+	vmStatsCollector, err := NewVMStats(newWriter())
+	if err != nil {
+		return nil, err
+	}
+	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats, vmStatsCollector} // TODO add modules
 	var collectors []Collector
 	for _, collector := range allCollectors {
 		if !collector.Skip() {

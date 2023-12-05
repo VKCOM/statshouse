@@ -76,17 +76,17 @@ func (c *CPUStats) WriteMetrics(nowUnix int64) error {
 func (c *CPUStats) writeCPU(nowUnix int64, stat procfs.Stat) error {
 	for core, t := range stat.CPU {
 		oldT := c.stat.CPU[core]
-		coreI := int32(core)
-		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.User-oldT.User, format.RawIDTagUser, coreI)
-		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Nice-oldT.Nice, format.RawIDTagNice, coreI)
-		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.System-oldT.System, format.RawIDTagSystem, coreI)
-		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Idle-oldT.Idle, format.RawIDTagIdle, coreI)
-		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Iowait-oldT.Iowait, format.RawIDTagIOWait, coreI)
-		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.IRQ-oldT.IRQ, format.RawIDTagIRQ, coreI)
-		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.SoftIRQ-oldT.SoftIRQ, format.RawIDTagSoftIRQ, coreI)
-		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Steal-oldT.Steal, format.RawIDTagSteal, coreI)
-		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Guest-oldT.Guest, format.RawIDTagGuest, coreI)
-		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.GuestNice-oldT.GuestNice, format.RawIDTagGuestNice, coreI)
+		var coreTag int32 = 0 // int32(core)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.User-oldT.User, format.RawIDTagUser, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Nice-oldT.Nice, format.RawIDTagNice, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.System-oldT.System, format.RawIDTagSystem, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Idle-oldT.Idle, format.RawIDTagIdle, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Iowait-oldT.Iowait, format.RawIDTagIOWait, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.IRQ-oldT.IRQ, format.RawIDTagIRQ, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.SoftIRQ-oldT.SoftIRQ, format.RawIDTagSoftIRQ, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Steal-oldT.Steal, format.RawIDTagSteal, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Guest-oldT.Guest, format.RawIDTagGuest, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.GuestNice-oldT.GuestNice, format.RawIDTagGuestNice, coreTag)
 
 	}
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameIRQ, diff(stat.IRQTotal, c.stat.IRQTotal))

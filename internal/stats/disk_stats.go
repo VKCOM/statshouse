@@ -110,14 +110,14 @@ func (c *DiskStats) WriteMetrics(nowUnix int64) error {
 		discardIO := float64(stat.DiscardIOs) - float64(oldStat.DiscardIOs)
 		flushIO := float64(stat.FlushRequestsCompleted) - float64(oldStat.FlushRequestsCompleted)
 
-		readIOSeconds := (float64(stat.ReadTicks) - float64(oldStat.ReadTicks)) / 1000 / readIO
-		writeIOSeconds := (float64(stat.WriteTicks) - float64(oldStat.WriteTicks)) / 1000 / writeIO
-		discardIOSeconds := (float64(stat.DiscardTicks) - float64(oldStat.DiscardTicks)) / 1000 / discardIO
-		flushIOSeconds := (float64(stat.TimeSpentFlushing) - float64(oldStat.TimeSpentFlushing)) / 1000 / flushIO
+		readIOSeconds := (float64(stat.ReadTicks) - float64(oldStat.ReadTicks)) / 1000
+		writeIOSeconds := (float64(stat.WriteTicks) - float64(oldStat.WriteTicks)) / 1000
+		discardIOSeconds := (float64(stat.DiscardTicks) - float64(oldStat.DiscardTicks)) / 1000
+		flushIOSeconds := (float64(stat.TimeSpentFlushing) - float64(oldStat.TimeSpentFlushing)) / 1000
 
-		readIOSize := (float64(stat.ReadSectors) - float64(oldStat.ReadSectors)) * sectorSize / readIO
-		writeIOSize := (float64(stat.WriteSectors) - float64(oldStat.WriteSectors)) * sectorSize / writeIO
-		discardIOSize := (float64(stat.DiscardSectors) - float64(oldStat.DiscardSectors)) * sectorSize / discardIO
+		readIOSize := (float64(stat.ReadSectors) - float64(oldStat.ReadSectors)) * sectorSize
+		writeIOSize := (float64(stat.WriteSectors) - float64(oldStat.WriteSectors)) * sectorSize
+		discardIOSize := (float64(stat.DiscardSectors) - float64(oldStat.DiscardSectors)) * sectorSize
 
 		if readIO > 0 {
 			c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameBlockIOTime, readIO, readIOSeconds/readIO, Tag{Str: device}, Tag{Raw: format.RawIDTagRead})
