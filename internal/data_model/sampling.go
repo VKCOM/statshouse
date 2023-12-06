@@ -99,12 +99,17 @@ func NewSampler(capacity int, config SamplerConfig) Sampler {
 		items:  make([]SamplingMultiItemPair, 0, capacity),
 		config: config,
 		nilMetric: format.MetricMetaValue{
+			GroupID:         format.BuiltinGroupIDMissing,
+			NamespaceID:     format.BuiltinNamespaceIDMissing,
 			EffectiveWeight: format.EffectiveWeightOne,
 		},
 		nilGroup: format.MetricsGroup{
+			ID:              format.BuiltinGroupIDMissing,
+			NamespaceID:     format.BuiltinNamespaceIDMissing,
 			EffectiveWeight: format.EffectiveWeightOne,
 		},
 		nilNamespace: format.NamespaceMeta{
+			ID:              format.BuiltinNamespaceIDMissing,
 			EffectiveWeight: format.EffectiveWeightOne,
 		},
 	}
