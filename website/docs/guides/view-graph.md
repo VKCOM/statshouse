@@ -3,7 +3,7 @@ sidebar_position: 6
 description: TEST
 ---
 
-# View a metric on a graph
+# View data on a graph
 
 
 Что делать, если мои метрики пропали/просели?

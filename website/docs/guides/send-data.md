@@ -3,7 +3,7 @@ sidebar_position: 5
 description: TEST
 ---
 
-# Send data from your code
+# Send metric data
 
 :::important
 Before sending data to a metric, you have to create a metric manually via the StatsHouse UI.
@@ -29,7 +29,7 @@ https://github.com/VKCOM/statshouse-py/blob/master/src/statshouse/_statshouse.py
 
 На плюсах все непонятно
 
-как сделано на джаве - Женя
+как сделано на джаве
 
 
 

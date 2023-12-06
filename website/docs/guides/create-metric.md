@@ -5,7 +5,7 @@ description: Learn how to create a metric via the StatsHouse UI.
 import CreateMetric from '../img/create-metric.png'
 import NameMetric from '../img/name-new-metric.png'
 
-# Create a metric
+# Create metrics
 
 [Check the typical questions](#frequent-questions) 
 and [create a metric via the StatsHouse UI](#how-to-create-a-metric-in-the-ui).
@@ -31,12 +31,12 @@ Otherwise, you will not be able to see it.
 
 No. You cannot automate creating metrics: the data you send should be properly formatted. Also, there are limits to 
 creating metrics related to the StatsHouse mapping mechanism. 
-See more about [mapping and budgets for creating metrics](../conceptual-overview/draft.md).
+See more about [mapping and budgets for creating metrics](../conceptual-overview.md).
 
 > "How many metrics can I create?"
  
 In most cases, you should not worry about limits if you create metrics manually via the UI. If you are not sure, see 
-more about [mapping and budgets for creating metrics](../conceptual-overview/draft.md).
+more about [mapping and budgets for creating metrics](../conceptual-overview.md).
 
 > "What if I send too much data? Can I overload StatsHouse or spoil other metrics?"
 
@@ -51,7 +51,7 @@ resulting data, refer to the [conceptual overview].
 
 > "Can I delete a metric?"
 
-No, but you can disable it. See [how to disable or enable a metric](configure-metric.md#disabling-a-metric).
+No, but you can disable it. See [how to disable or enable a metric](edit-metrics.md#disabling-a-metric).
 
 ## How to create a metric in the UI
 
@@ -68,8 +68,8 @@ specifications to name them consistently:
 
 <img src={NameMetric} width="600"/>
 
-As soon as your metric has a name, you should understand the [metric type](configure-metric.md#metric-type) and specify it in 
+As soon as your metric has a name, you should understand the [metric type](edit-metrics.md#metric-type) and specify it in 
 your sending requests. 
-Then, you can [configure](configure-metric.md) more parameters for your metric, or start [sending data](send-data.md) 
+Then, you can [configure](edit-metrics.md) more parameters for your metric, or start [sending data](send-data.md) 
 right away.
 

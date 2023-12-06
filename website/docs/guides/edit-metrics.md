@@ -5,7 +5,7 @@ description: Get to know how to set up metric types, tags, resolution, and more.
 
 import MetricTypes from '../img/metric-types.png'
 
-# Configure your metric
+# Edit metrics
 
 
 You have just created a metric—it now has a name and nothing more.

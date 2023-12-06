@@ -1,8 +1,8 @@
 {
-  "label": "Guides",
+  "label": "How-to guides",
   "position": 4,
   "link": {
     "type": "generated-index",
-    "description": "Get what you need from StatsHouse."
+    "description": "Check the guides to perform popular tasks."
   }
 }

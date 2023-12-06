@@ -3,7 +3,7 @@ sidebar_position: 7
 description: TEST
 ---
 
-# Monitor with dashboards
+# Create dashboards
 
 
 copy links to dashboards

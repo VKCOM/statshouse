@@ -16,7 +16,7 @@ const config = {
   url: 'https://github.com',
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/statshouse/',
+  baseUrl: '/statshouse',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -75,18 +75,18 @@ const config = {
       // Replace with your project's social card
       image: 'img/docusaurus-social-card.jpg',
       navbar: {
-        title: 'StatsHouse',
+        title: 'StatsHouse Docs',
         logo: {
           alt: 'StatsHouse Logo',
-          src: 'img/statshouse.jpeg',
+          src: '/img/statshouse.jpeg',
         },
         items: [
-          {
-            type: 'docSidebar',
-            sidebarId: 'tutorialSidebar',
-            position: 'left',
-            label: 'Documentation',
-          },
+//          {
+//            type: 'docSidebar',
+//            sidebarId: 'tutorialSidebar',
+//            position: 'left',
+//            label: 'Documentation',
+//          },
 //          {to: '/blog', label: 'Blog', position: 'left'},
           {
             href: 'https://github.com/VKCOM/statshouse',
