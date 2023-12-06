@@ -21,8 +21,10 @@ const (
 	BuiltinGroupIDDefault = -4 // for all metrics with group not known. We want to edit it in the future, so not 0
 	BuiltinGroupIDBuiltin = -2 // for all built in metrics except host
 	BuiltinGroupIDHost    = -3 // host built in metrics
+	BuiltinGroupIDMissing = -5 // indicates missing metadata while running sampling, should not happen
 
 	BuiltinNamespaceIDDefault = -5
+	BuiltinNamespaceIDMissing = -6 // indicates missing metadata while running sampling, should not happen
 
 	BuiltinMetricIDAgentSamplingFactor        = -1
 	BuiltinMetricIDAggBucketReceiveDelaySec   = -2 // Also approximates insert delay, interesting for historic buckets
@@ -1590,7 +1592,10 @@ Value is delta between second value and time it was inserted.`,
 			}, {
 				Description: "namespace",
 				IsNamespace: true,
-				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinNamespaceIDDefault: "default",
+					BuiltinNamespaceIDMissing: "missing",
+				}),
 			}, {
 				Description: "group",
 				IsGroup:     true,
@@ -1598,6 +1603,7 @@ Value is delta between second value and time it was inserted.`,
 					BuiltinGroupIDDefault: "default",
 					BuiltinGroupIDBuiltin: "builtin",
 					BuiltinGroupIDHost:    "host",
+					BuiltinGroupIDMissing: "missing",
 				}),
 			}, {
 				Description:   "metric_kind",
@@ -1621,7 +1627,10 @@ Value is delta between second value and time it was inserted.`,
 			}, {
 				Description: "namespace",
 				IsNamespace: true,
-				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinNamespaceIDDefault: "default",
+					BuiltinNamespaceIDMissing: "missing",
+				}),
 			}, {
 				Description: "group",
 				IsGroup:     true,
@@ -1629,6 +1638,7 @@ Value is delta between second value and time it was inserted.`,
 					BuiltinGroupIDDefault: "default",
 					BuiltinGroupIDBuiltin: "builtin",
 					BuiltinGroupIDHost:    "host",
+					BuiltinGroupIDMissing: "missing",
 				}),
 			}, {
 				Description:   "metric_kind",
