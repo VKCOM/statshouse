@@ -160,18 +160,17 @@ func (c *DiskStats) writeFSStats(nowUnix int64) error {
 		s := unix.Statfs_t{}
 		err := unix.Statfs(stat.mountPoint, &s)
 		if err != nil {
-			// c.logErr.Printf("failed to statfs of %s: %s", stat.mountPoint, err.Error())
 			continue
 		}
 		free := float64(s.Bfree) * float64(s.Bsize)
 		used := float64(s.Blocks)*float64(s.Bsize) - free
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameDiskUsage, free, format.RawIDTagFree)
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameDiskUsage, used, format.RawIDTagUsed)
+		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameDiskUsage, 1, free, Tag{Raw: format.RawIDTagFree}, Tag{Str: stat.device})
+		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameDiskUsage, 1, used, Tag{Raw: format.RawIDTagUsed}, Tag{Str: stat.device})
 
 		inodeFree := float64(s.Ffree)
 		inodeUsed := float64(s.Files) - inodeFree
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameINodeUsage, inodeFree, format.RawIDTagFree)
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameINodeUsage, inodeUsed, format.RawIDTagUsed)
+		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameINodeUsage, 1, inodeFree, Tag{Raw: format.RawIDTagFree}, Tag{Str: stat.device})
+		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameINodeUsage, 1, inodeUsed, Tag{Raw: format.RawIDTagUsed}, Tag{Str: stat.device})
 	}
 	return nil
 }
