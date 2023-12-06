@@ -104,6 +104,24 @@ func (c *VMStatStats) pushMetric(nowUnix int64, name string, valueDiff float64, 
 		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNamePagedMemory, valueDiff*mult, format.RawIDTagIn)
 	case pgpgout:
 		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNamePagedMemory, valueDiff*mult, format.RawIDTagOut)
+	case numa_foreign:
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNumaEvents, valueDiff, format.RawIDTagForeign)
+	case numa_interleave:
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNumaEvents, valueDiff, format.RawIDTagInterleave)
+	case numa_local:
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNumaEvents, valueDiff, format.RawIDTagLocal)
+	case numa_other:
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNumaEvents, valueDiff, format.RawIDTagNumaOther)
+	case numa_pte_updates:
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNumaEvents, valueDiff, format.RawIDTagPteUpdates)
+	case numa_huge_pte_updates:
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNumaEvents, valueDiff, format.RawIDTagHugePteUpdates)
+	case numa_hint_faults:
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNumaEvents, valueDiff, format.RawIDTagHintFaults)
+	case numa_hint_faults_local:
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNumaEvents, valueDiff, format.RawIDTagHintFaultsLocal)
+	case numa_pages_migrated:
+		c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameNumaEvents, valueDiff, format.RawIDTagPagesMigrated)
 	}
 }
 
