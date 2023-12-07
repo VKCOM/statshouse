@@ -1225,7 +1225,7 @@ func funcPrefixSum(ev *evaluator, args parser.Expressions) ([]Series, error) {
 func (ev *evaluator) funcPrefixSum(bag Series) Series {
 	for _, s := range bag.Data {
 		// skip values before requested interval start
-		i := ev.t.Lo
+		i := ev.t.StartX
 		// skip NANs
 		for i < len(*s.Values) && math.IsNaN((*s.Values)[i]) {
 			i++
@@ -1243,8 +1243,8 @@ func (ev *evaluator) funcPrefixSum(bag Series) Series {
 			(*s.Values)[i] = sum
 		}
 		// copy first value to the left of requested interval
-		for i = ev.t.Lo; i > 0; i-- {
-			(*s.Values)[i-1] = (*s.Values)[ev.t.Lo]
+		for i = ev.t.StartX; i > 0; i-- {
+			(*s.Values)[i-1] = (*s.Values)[ev.t.StartX]
 		}
 	}
 	return bag

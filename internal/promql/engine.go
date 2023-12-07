@@ -161,7 +161,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 		*t.s = append(*t.s, ev.ast.String())
 	}
 	if ev.trace != nil && ev.debug {
-		ev.tracef("requested from %d to %d, timescale from %d to %d", qry.Start, qry.End, ev.t.Start, ev.t.End)
+		ev.tracef("requested from %d to %d, timescale from %d to %d", qry.Start, qry.End, ev.t.Time[ev.t.StartX], ev.t.Time[len(ev.t.Time)-1])
 	}
 	switch e := ev.ast.(type) {
 	case *parser.StringLiteral:
@@ -425,8 +425,7 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 	if err != nil {
 		return TimeSeries{}, err
 	}
-	lo, hi := ev.t.Lo, ev.t.Hi
-	res := TimeSeries{Time: ev.t.Time[lo:hi]}
+	res := TimeSeries{Time: ev.t.Time[ev.t.StartX:]}
 	for _, v := range ss {
 		// remove series with no data within [start, end), update total
 		if v.Meta.Total == 0 {
@@ -435,7 +434,7 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 		s := ev.newSeries(len(v.Data), v.Meta)
 		for i := range v.Data {
 			var keep bool
-			for j := lo; j < hi; j++ {
+			for j := ev.t.StartX; j < len(ev.t.Time); j++ {
 				if !math.IsNaN((*v.Data[i].Values)[j]) {
 					keep = true
 					break
@@ -449,10 +448,10 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 		}
 		// trim time outside [start, end)
 		for i := range s.Data {
-			vs := (*s.Data[i].Values)[lo:hi]
+			vs := (*s.Data[i].Values)[ev.t.StartX:]
 			s.Data[i].Values = &vs
 			if len(s.Data[i].MaxHost) != 0 {
-				s.Data[i].MaxHost = s.Data[i].MaxHost[lo:hi]
+				s.Data[i].MaxHost = s.Data[i].MaxHost[ev.t.StartX:]
 			}
 		}
 		if len(res.Series.Data) == 0 {
