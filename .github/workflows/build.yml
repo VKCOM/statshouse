@@ -2,8 +2,8 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag or commit to build'
-        required: false
+        description: 'Tag to build'
+        required: true
       draft_release:
         description: 'Draft a release'
         required: false
@@ -135,6 +135,6 @@ jobs:
         with:
           name: ${{needs.ubuntu_focal.outputs.artifact}}
           path: pkg/deb
-      - run: gh release create --draft --generate-notes --title "Release ${{needs.env.outputs.version}}" ${{needs.env.outputs.ref}} $(find ./pkg -type f -name *.deb -o -name *.rpm)
+      - run: gh release create --verify-tag --draft --generate-notes --title "${{github.event.inputs.tag}}" ${{github.event.inputs.tag}} $(find ./pkg -type f -name *.deb -o -name *.rpm)
         env:
           GITHUB_TOKEN: ${{secrets.DEVTOOLS_GITHUB_TOKEN}}
