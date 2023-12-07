@@ -62,6 +62,7 @@ jobs:
           echo "BUILD_COMMIT_TS=${{inputs.ref_timestamp}}" >> $GITHUB_ENV
           echo "BUILD_MACHINE=$(uname -n -m -r -s)" >> $GITHUB_ENV
           echo "BUILD_VERSION=${{inputs.version}}" >> $GITHUB_ENV
+          echo "BUILD_ID=${{github.run_number}}" >> $GITHUB_ENV
       - run: make build-sh build-sh-metadata build-sh-api build-sh-grafana
       - uses: actions/upload-artifact@v3
         with:
