@@ -88,9 +88,7 @@ type Timescale struct {
 	LODs   []LOD
 	Step   int64 // aggregation interval requested (former "desiredStepMul")
 	Offset int64 // the offset for which timescale was generated
-	Start  int64 // query start
-	End    int64 // query end
-	Lo, Hi int
+	StartX int   // requested time interval starts at "Time[StartX]"
 }
 
 type LOD struct {

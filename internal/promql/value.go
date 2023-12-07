@@ -254,7 +254,6 @@ func (ss *Series) scalar() bool {
 
 func (ss *Series) weight(ev *evaluator) []float64 {
 	var (
-		lo, hi = ev.t.Lo, ev.t.Hi
 		w      = make([]float64, len(ss.Data))
 		nodecN int // number of non-decreasing series
 	)
@@ -268,11 +267,8 @@ func (ss *Series) weight(ev *evaluator) []float64 {
 		for _, lod := range ev.t.LODs {
 			for m := 0; m < lod.Len; m++ {
 				k := j + m
-				if k < lo {
+				if k < ev.t.StartX {
 					continue // skip points before requested interval start
-				}
-				if hi <= k {
-					break // discard points after requested interval end
 				}
 				v := (*s.Values)[k]
 				if !math.IsNaN(v) {
@@ -294,7 +290,7 @@ func (ss *Series) weight(ev *evaluator) []float64 {
 		// all series are non-decreasing, weight is a last value
 		for i, s := range ss.Data {
 			last := -math.MaxFloat64
-			for i := hi; i > 0; i-- {
+			for i := len(*s.Values); i > 0; i-- {
 				v := (*s.Values)[i-1]
 				if !math.IsNaN(v) {
 					last = v

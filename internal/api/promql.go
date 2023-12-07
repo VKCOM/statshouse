@@ -353,24 +353,23 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		})
 		t = res[0]
 	}
-	var (
-		fl  = t.lods[0]             // first LOD
-		ll  = t.lods[len(t.lods)-1] // last LOD
-		res = promql.Timescale{Start: qry.Start, End: qry.End, Offset: t.offset}
-	)
+	fl := t.lods[0]             // first LOD
+	ll := t.lods[len(t.lods)-1] // last LOD
 	if qry.Options.ExpandToLODBoundary {
-		res.Start = shiftTimestamp(fl.fromSec, fl.stepSec, t.offset, h.location) // inclusive
-		res.End = shiftTimestamp(ll.toSec, ll.stepSec, t.offset, h.location) + 1 // exclusive
+		qry.Start = shiftTimestamp(fl.fromSec, fl.stepSec, t.offset, h.location) // inclusive
+		qry.End = shiftTimestamp(ll.toSec, ll.stepSec, t.offset, h.location) + 1 // exclusive
 	}
 	if qry.Options.StepAuto {
-		res.Step = ll.stepSec
-	} else {
-		res.Step = qry.Step
+		qry.Step = ll.stepSec
 	}
 	// extend the interval by one from the left so that the
 	// derivative (if any) at the first point can be calculated
 	t.lods[0].fromSec -= t.lods[0].stepSec
 	// generate time
+	res := promql.Timescale{
+		Step:   qry.Step,
+		Offset: t.offset,
+	}
 	for _, lod := range t.lods {
 		s := lod.generateTimePoints(-t.offset)
 		res.LODs = append(res.LODs, promql.LOD{
@@ -381,15 +380,22 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		})
 		res.Time = append(res.Time, s...)
 	}
-	// calculate effective index range
-	lo, hi := 0, len(res.Time)
-	for lo < hi && res.Time[lo] < res.Start {
-		lo++
+	// calculate requested start index
+	for res.StartX < len(res.Time) && res.Time[res.StartX] < qry.Start {
+		res.StartX++
 	}
-	for lo < hi-1 && res.End <= res.Time[hi-1] {
-		hi--
+	// trim right
+	i := len(res.Time)
+	j := len(res.LODs)
+	for ; res.StartX < i-1 && qry.End <= res.Time[i-1]; i-- {
+		res.LODs[j-1].Len--
+		res.LODs[j-1].End -= res.LODs[j-1].Step
+		if res.LODs[j-1].Len == 0 {
+			j--
+		}
 	}
-	res.Lo, res.Hi = lo, hi
+	res.Time = res.Time[:i]
+	res.LODs = res.LODs[:j]
 	return res, nil
 }
 
