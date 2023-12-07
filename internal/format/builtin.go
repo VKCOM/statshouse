@@ -323,6 +323,8 @@ const (
 
 	TagValueIDSamplingDecisionKeep    = -1
 	TagValueIDSamplingDecisionDiscard = -2
+
+	TagValueIDDMESGParseError = 1
 )
 
 var (
@@ -1606,7 +1608,13 @@ Value is delta between second value and time it was inserted.`,
 			Kind:        MetricKindCounter,
 			Description: `Always empty metric because SH don't have errors'`,
 			Tags: []MetricMetaTag{
-				{Description: "environment"}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+				{Description: "environment"}, {
+					Description: "error_type",
+					Raw:         true,
+					ValueComments: convertToValueComments(map[int32]string{
+						TagValueIDDMESGParseError: "dmesg_parse",
+					}),
+				}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		},
 	}
 
