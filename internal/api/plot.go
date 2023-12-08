@@ -323,12 +323,6 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 	)
 	utcOffset %= (24 * 3600) // ignore the part we use to align start of week
 	for i := 0; i < len(data); i++ {
-		timeFrom := time.Now().Add(-blankRenderInterval).Unix()
-		timeTo := time.Now().Unix()
-		if len(data[i].Series.Time) > 1 {
-			timeFrom = data[i].Series.Time[0]
-			timeTo = data[i].Series.Time[len(data[i].Series.Time)-1]
-		}
 		var (
 			legend       = data[i].Series.SeriesMeta
 			legendMaxLen = 15
@@ -344,8 +338,8 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 			Height:           height,
 			Ratio:            1 / goldenRatio,
 			Data:             data[i],
-			TimeFrom:         timeFrom + utcOffset,
-			TimeTo:           timeTo + utcOffset,
+			TimeFrom:         metric[i].from.Unix() + utcOffset,
+			TimeTo:           metric[i].to.Unix() + utcOffset,
 			Legend:           legend,
 			usedColorIndices: map[string]int{},
 			uniqueWhat:       map[queryFn]struct{}{},
