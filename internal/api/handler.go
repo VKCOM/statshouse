@@ -3963,6 +3963,9 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			tab0.from = from
 		}
 		tab0.shifts, _ = parseTimeShifts(dash.TimeShifts)
+		for i := 1; i < len(tabs); i++ {
+			tabs[i].shifts = tab0.shifts
+		}
 	}
 	// parse URL
 	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors
