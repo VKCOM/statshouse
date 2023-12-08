@@ -7,7 +7,7 @@ on:
       draft_release:
         description: 'Draft a release'
         required: false
-        default: true
+        default: false
 jobs:
   env:
     runs-on: ubuntu-latest
@@ -55,6 +55,7 @@ jobs:
     outputs:
       artifact: statshouse-${{needs.env.outputs.version}}-ui
   almalinux:
+    if: ${{false}}
     needs: [env, frontend]
     uses: ./.github/workflows/build_rpm.yml
     with:
@@ -84,7 +85,6 @@ jobs:
       frontend-artifact: ${{needs.frontend.outputs.artifact}}
     secrets: inherit
   ubuntu_jammy:
-    if: ${{false}}
     needs: [env, frontend]
     uses: ./.github/workflows/build_deb.yml
     with:
@@ -99,6 +99,7 @@ jobs:
       frontend-artifact: ${{needs.frontend.outputs.artifact}}
     secrets: inherit
   ubuntu_focal:
+    if: ${{false}}
     needs: [env, frontend]
     uses: ./.github/workflows/build_deb.yml
     with:
@@ -114,7 +115,7 @@ jobs:
     secrets: inherit
   draft_release:
     if: ${{ github.event.inputs.draft_release }}
-    needs: [env, ubuntu_focal, almalinux]
+    needs: [env, ubuntu_jammy]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
