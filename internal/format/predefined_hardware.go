@@ -32,6 +32,7 @@ const (
 	BuiltinMetricIDOOMKill         = -1030
 	BuiltinMetricIDNumaEvents      = -1031
 	BuiltinMetricIDDMesgEvents     = -1032
+	BuiltinMetricIDOOMKillDetailed = -1033
 
 	BuiltinMetricNameCpuUsage      = "host_cpu_usage"
 	BuiltinMetricNameSoftIRQ       = "host_softirq"
@@ -68,11 +69,12 @@ const (
 	BuiltinMetricNameTCPSocketMemory = "host_tcp_socket_memory"
 	BuiltinMetricNameSocketUsedv2    = "host_socket_used"
 
-	BuiltinMetricNamePageFault   = "host_page_fault"
-	BuiltinMetricNamePagedMemory = "host_paged_memory"
-	BuiltinMetricNameOOMKill     = "host_oom_kill"
-	BuiltinMetricNameNumaEvents  = "host_numa_events"
-	BuiltinMetricNameDMesgEvents = "host_dmesg_events"
+	BuiltinMetricNamePageFault       = "host_page_fault"
+	BuiltinMetricNamePagedMemory     = "host_paged_memory"
+	BuiltinMetricNameOOMKill         = "host_oom_kill"
+	BuiltinMetricNameNumaEvents      = "host_numa_events"
+	BuiltinMetricNameDMesgEvents     = "host_dmesg_events"
+	BuiltinMetricNameOOMKillDetailed = "host_oom_kill_detailed"
 
 	RawIDTagNice      = 1
 	RawIDTagSystem    = 2
@@ -623,6 +625,15 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Name:        BuiltinMetricNameOOMKill,
 		Kind:        MetricKindCounter,
 		Description: "The number of OOM",
+	},
+	BuiltinMetricIDOOMKillDetailed: {
+		Name:        BuiltinMetricNameOOMKillDetailed,
+		Kind:        MetricKindCounter,
+		Description: "The number of OOM",
+		Tags: []MetricMetaTag{
+			{
+				Description: "process",
+			}},
 	},
 	BuiltinMetricIDPageFault: {
 		Name:        BuiltinMetricNamePageFault,

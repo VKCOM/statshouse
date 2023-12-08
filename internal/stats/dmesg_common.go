@@ -1,6 +1,7 @@
 package stats
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"time"
@@ -13,14 +14,24 @@ import (
 const (
 	SYSLOG_ACTION_READ_ALL    = 3
 	SYSLOG_ACTION_SIZE_BUFFER = 10
+
+	LOG_FACMASK = 0x03f8
+	LOG_PRIMASK = 0x07
+)
+
+var (
+	oomMsgPrefixBytes = []byte("Killed process")
+	numbers           = []byte{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 )
 
 type (
 	DMesgStats struct {
-		lastTS   timestamp
-		pushStat bool
-		writer   MetricWriter
-		parser   *parser
+		cache      []byte
+		lastTS     timestamp
+		pushStat   bool
+		writer     MetricWriter
+		klogParser *parser
+		msgParser  *parser
 	}
 	parser struct {
 		cache []byte
@@ -39,6 +50,8 @@ type (
 		ts       timestamp
 		msgtype  string
 		msg      string
+
+		oomProcessName string
 	}
 )
 
@@ -47,21 +60,22 @@ func (c *DMesgStats) Skip() bool {
 }
 
 func (*DMesgStats) Name() string {
-	return "cpu_stats"
+	return "dmesg_stats"
 }
 
 func (c *DMesgStats) PushDuration(now int64, d time.Duration) {
-	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricCPU)
+	c.writer.WriteSystemMetricValueWithoutHost(now, format.BuiltinMetricNameSystemMetricScrapeDuration, d.Seconds(), format.TagValueIDSystemMetricDMesgStat)
 }
 
 func NewDMesgStats(writer MetricWriter) (*DMesgStats, error) {
-	return &DMesgStats{writer: writer}, nil
+	return &DMesgStats{writer: writer, klogParser: &parser{
+		cache: []byte{},
+	},
+		msgParser: &parser{
+			cache: []byte{},
+		},
+	}, nil
 }
-
-const (
-	LOG_FACMASK = 0x03f8
-	LOG_PRIMASK = 0x07
-)
 
 func log_fac(p int32) int32 {
 	return ((p) & LOG_FACMASK) >> 3
@@ -72,23 +86,22 @@ func log_pri(p int32) int32 {
 }
 
 func leOrEq(a, b timestamp) bool {
-	if a.sec < b.sec {
-		return true
-	}
-	if a.sec > b.sec {
-		return false
-	}
-	return a.usec <= b.usec
+	return a.sec < b.sec || (a.sec == b.sec && a.usec <= b.usec)
 }
 
-func (c *DMesgStats) handleMsg(nowUnix int64, klog klogMsg) {
+func (c *DMesgStats) pushMetric(nowUnix int64, klog klogMsg) {
 	// don't use event ts to avoid historic conveyor
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameDMesgEvents, 1, klog.facility, klog.level)
+	if klog.oomProcessName != "" {
+		c.writer.WriteSystemMetricCountExtendedTag(nowUnix, format.BuiltinMetricNameOOMKillDetailed, 1, Tag{
+			Str: klog.oomProcessName,
+		})
+	}
 }
 
-func (c *DMesgStats) handleMsgs(nowUnix int64, klog []byte, pushStat bool) error {
-	c.parser.body = klog
-	p := c.parser
+func (c *DMesgStats) handleMsgs(nowUnix int64, klog []byte, pushStat bool, pushMsg func(nowUnix int64, klog klogMsg)) error {
+	c.klogParser.body = klog
+	p := c.klogParser
 	lastTS := c.lastTS
 	for p.hasTail() {
 		p.mustChar('<')
@@ -118,15 +131,14 @@ func (c *DMesgStats) handleMsgs(nowUnix int64, klog []byte, pushStat bool) error
 			return p.err
 		}
 		p.mustChar(']')
+		if p.err != nil {
+			return p.err
+		}
 		p.mustChar(' ')
 		if p.err != nil {
 			return p.err
 		}
-		_ = p.parseUntil(':')
-		if p.err != nil {
-			return p.err
-		}
-		_ = p.parseUntil('\n')
+		msg := p.parseUntil('\n')
 		if p.err != nil {
 			return p.err
 		}
@@ -140,11 +152,54 @@ func (c *DMesgStats) handleMsgs(nowUnix int64, klog []byte, pushStat bool) error
 		if leOrEq(klog.ts, lastTS) {
 			continue
 		}
+		err := c.fillMsg(msg, &klog)
+		if err != nil {
+			return err
+		}
 		if pushStat {
-			c.handleMsg(nowUnix, klog)
+			pushMsg(nowUnix, klog)
 		}
 		c.lastTS = klog.ts
 	}
+	return nil
+}
+
+func (c *DMesgStats) fillMsg(data []byte, klog *klogMsg) error {
+	switch {
+	case bytes.HasPrefix(data, oomMsgPrefixBytes):
+		return c.handleOOM(data, klog)
+	}
+	return nil
+}
+
+func (c *DMesgStats) handleOOM(data []byte, klog *klogMsg) error {
+	c.msgParser.body = data
+	p := c.msgParser
+	p.mustSequence(oomMsgPrefixBytes)
+	if p.err != nil {
+		return p.err
+	}
+	p.mustChar(' ')
+	if p.err != nil {
+		return p.err
+	}
+	_ = p.parseNumber()
+	if p.err != nil {
+		return p.err
+	}
+	p.mustChar(' ')
+	if p.err != nil {
+		return p.err
+	}
+	p.mustChar('(')
+	if p.err != nil {
+		return p.err
+	}
+	processName := p.parseUntil(')')
+	if p.err != nil {
+		return p.err
+	}
+	klog.oomProcessName = string(processName)
 	return nil
 }
 
@@ -162,6 +217,10 @@ func (p *parser) skipN(n int) {
 }
 
 func (p *parser) mustChar(ch byte) {
+	if len(p.body) == 0 {
+		p.err = fmt.Errorf("expect %s but empty body", string(rune(ch)))
+		return
+	}
 	if p.body[0] == ch {
 		p.skipN(1)
 		return
@@ -169,7 +228,14 @@ func (p *parser) mustChar(ch byte) {
 	p.err = fmt.Errorf("expect %s", string(rune(ch)))
 }
 
-func (p *parser) mustSequence(bs []byte) []byte {
+func (p *parser) mustSequence(bs []byte) {
+	if bytes.HasPrefix(p.body, bs) {
+		p.body = p.body[len(bs):]
+		return
+	}
+	p.err = fmt.Errorf("expect %s, got %s", string(bs), string(p.body))
+}
+func (p *parser) mustChars(bs []byte) []byte {
 	cache := p.cache[:0]
 	for {
 		b, err := p.checkChar()
@@ -184,7 +250,7 @@ func (p *parser) mustSequence(bs []byte) []byte {
 		cache = append(cache, b)
 	}
 	if len(cache) == 0 {
-		p.err = fmt.Errorf("mustSequence error: %s", bs)
+		p.err = fmt.Errorf("mustChars error: %s", bs)
 	}
 	return cache
 }
@@ -197,13 +263,12 @@ func (p *parser) checkChar() (byte, error) {
 	return b, nil
 }
 
-var numbers = []byte{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
-
 func (p *parser) parseNumber() int64 {
-	seq := p.mustSequence(numbers)
+	seq := p.mustChars(numbers)
 	n, err := mem.ParseInt(mem.B(seq), 10, 64)
 	if err != nil {
-		panic(err)
+		p.err = err
+		return 0
 	}
 	return n
 }
@@ -218,4 +283,18 @@ func (p *parser) parseUntil(b byte) []byte {
 	p.cache = append(p.cache, p.body[:i]...)
 	p.skipN(i + 1)
 	return p.cache
+}
+
+/*
+To run:
+go-fuzz-build
+go-fuzz
+*/
+func Fuzz(data []byte) int {
+	c := &DMesgStats{klogParser: &parser{}, msgParser: &parser{}}
+	err := c.handleMsgs(0, data, false, nil)
+	if err == nil {
+		return 1
+	}
+	return 0
 }
