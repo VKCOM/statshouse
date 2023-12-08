@@ -250,19 +250,17 @@ func (h *Handler) colorize(resp *SeriesResponse) {
 	if resp == nil {
 		return
 	}
-	var (
-		graphCount       int
-		uniqueWhat       = make(map[queryFn]struct{})
-		usedColorIndices = make(map[string]int)
-	)
+	graphCount := 0
+	uniqueWhat := make(map[queryFn]struct{})
 	for _, meta := range resp.Series.SeriesMeta {
 		uniqueWhat[meta.What] = struct{}{}
 		if meta.TimeShift == 0 {
 			graphCount++
 		}
 	}
-	for i, meta := range resp.Series.SeriesMeta {
+	colorKeyAt := func(i int) string {
 		var (
+			meta             = resp.Series.SeriesMeta[i]
 			oneGraph         = graphCount == 1
 			uniqueWhatLength = len(uniqueWhat)
 			label            = MetaToLabel(meta, uniqueWhatLength, h.utcOffset)
@@ -280,7 +278,26 @@ func (h *Handler) colorize(resp *SeriesResponse) {
 		} else {
 			colorKey = fmt.Sprintf("%d%s%s", prefColor, metricName, baseLabel)
 		}
-		resp.Series.SeriesMeta[i].Color = selectColor(colorKey, usedColorIndices)
+		return colorKey
+	}
+	type indexKey struct {
+		index int
+		key   string
+	}
+	i := 0
+	top := make([]indexKey, 0, len(palette))
+	for ; i < len(resp.Series.SeriesMeta) && i < len(palette); i++ {
+		top = append(top, indexKey{i, colorKeyAt(i)})
+	}
+	sort.Slice(top, func(i, j int) bool {
+		return top[i].key < top[j].key
+	})
+	usedColorIndices := make(map[string]int, len(resp.Series.SeriesMeta))
+	for _, v := range top {
+		resp.Series.SeriesMeta[v.index].Color = selectColor(v.key, usedColorIndices)
+	}
+	for ; i < len(resp.Series.SeriesMeta); i++ {
+		resp.Series.SeriesMeta[i].Color = selectColor(colorKeyAt(i), usedColorIndices)
 	}
 }
 
