@@ -347,14 +347,23 @@ func parseWidth(w string, g string) (int, int, error) {
 }
 
 func parseTimeShifts(ts []string) ([]time.Duration, error) {
-	ds := []time.Duration{0} // implicit 0s
+	ds := make([]int64, 0, len(ts))
 	for _, s := range ts {
 		d, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return nil, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse time shift %q: %w", s, err))
 		}
+		ds = append(ds, d)
+	}
+	return verifyTimeShifts(ds)
+
+}
+
+func verifyTimeShifts(ts []int64) ([]time.Duration, error) {
+	ds := []time.Duration{0} // implicit 0s
+	for _, d := range ts {
 		if d >= 0 {
-			return nil, httpErr(http.StatusBadRequest, fmt.Errorf("time shift %q is not negative", s))
+			return nil, httpErr(http.StatusBadRequest, fmt.Errorf("time shift %d is not negative", d))
 		}
 		ds = append(ds, time.Duration(d)*time.Second)
 	}
