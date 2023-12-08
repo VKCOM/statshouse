@@ -17,6 +17,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/discovery"
+	_ "github.com/prometheus/prometheus/discovery/kubernetes"
 )
 
 type discoveryManager struct {
