@@ -1,6 +1,6 @@
 import { createStore } from '../createStore';
 import { useStore } from '../statshouse';
-import { usePlotPreview } from '../plot/plotPreview';
+import { usePlotPreviewStore } from '../plot/plotPreviewStore';
 import { setBackgroundColor } from '../../common/canvasToImage';
 
 const defaultIcon = '/favicon.ico';
@@ -28,7 +28,7 @@ export const usePageMetaStore = createStore<PageMetaStore>((setState, getState, 
 
 async function updateIcon() {
   const tabNum = useStore.getState().params.tabNum;
-  const preview = usePlotPreview.getState().previewList[tabNum];
+  const preview = usePlotPreviewStore.getState().previewList[tabNum];
   const icon = await setBackgroundColor(preview ?? '', 'rgba(255,255,255,1)', 64);
   usePageMetaStore.setState((state) => {
     if (state.pageIcon && state.pageIcon.indexOf('blob:') === 0) {
@@ -42,7 +42,7 @@ useStore.subscribe((state, prevState) => {
     updateIcon();
   }
 });
-usePlotPreview.subscribe((state, prevState) => {
+usePlotPreviewStore.subscribe((state, prevState) => {
   const tabNum = useStore.getState().params.tabNum;
   if (state.previewList[tabNum] !== prevState.previewList[tabNum]) {
     updateIcon();

@@ -4,12 +4,12 @@ import { debug } from '../../common/debug';
 import { now } from '../../view/utils';
 import { produce } from 'immer';
 
-export type LiveMode = {
+export type LiveModeStore = {
   live: boolean;
   interval: number;
 };
 
-export const useLiveModeStore = createStore<LiveMode>((setState, getState, store) => {
+export const useLiveModeStore = createStore<LiveModeStore>((setState, getState, store) => {
   store.subscribe((state, prevState) => {
     if (!state.live || state.interval !== prevState.interval || id != null) {
       clearInterval(id);

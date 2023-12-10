@@ -16,3 +16,6 @@ export * from './group';
 export * from './namespace';
 export * from './pageMeta';
 export * from './liveMode';
+export * from './plot/plotHealsStore';
+export * from './plot/plotPreviewStore';
+export * from './plot/plotVisibilityStore';

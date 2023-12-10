@@ -83,6 +83,10 @@ export function uniqueArray<T>(arr: T[]): T[] {
   return [...new Set(arr).keys()];
 }
 
+export function sumArray(arr: number[]) {
+  return arr.reduce((res, i) => res + i, 0);
+}
+
 export function getRandomKey(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
