@@ -9,12 +9,14 @@ import uPlot from 'uplot';
 import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
-import { Button, LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
+import { LegendItem, PlotLegend, UPlotPluginPortal, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
 import { fmtInputDateTime, now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { black, grey, greyDark } from '../../view/palette';
 import { produce } from 'immer';
 import {
+  createPlotPreview,
   PlotValues,
+  removePlotHeals,
   selectorBaseRange,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
@@ -22,7 +24,9 @@ import {
   selectorPlotsDataByIndex,
   selectorTimeRange,
   setLiveMode,
+  setPlotVisibility,
   useLiveModeStore,
+  usePlotHealsStore,
   useStore,
   useThemeStore,
 } from '../../store';
@@ -32,13 +36,11 @@ import { PlotEventOverlay } from './PlotEventOverlay';
 import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '../../hooks';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
 import { shallow } from 'zustand/shallow';
-import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
-import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
-import { createPlotPreview } from '../../store/plot/plotPreview';
 import { formatByMetricType, getMetricType, incrs, splitByMetricType } from '../../common/formatByMetricType';
 import { METRIC_TYPE } from '../../api/enum';
 import css from './style.module.css';
 import { useLinkCSV } from '../../hooks/useLinkCSV';
+import { PlotHealsStatus } from './PlotHealsStatus';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -85,7 +87,7 @@ export function PlotViewMetric(props: {
 
   const baseRange = useStore(selectorBaseRange);
 
-  const live = useLiveModeStore((s) => s.live);
+  const { live, interval } = useLiveModeStore((s) => s);
 
   const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
   const {
@@ -124,6 +126,14 @@ export function PlotViewMetric(props: {
 
   const themeDark = useThemeStore((s) => s.dark);
 
+  const plotHeals = usePlotHealsStore((s) => s.status[indexPlot]);
+  const healsInfo = useMemo(() => {
+    if (plotHeals?.timout && interval < plotHeals.timout) {
+      return `plot update timeout ${plotHeals.timout} sec`;
+    }
+    return undefined;
+  }, [interval, plotHeals?.timout]);
+
   const uPlotRef = useRef<uPlot>();
   const [legend, setLegend] = useState<LegendItem[]>([]);
 
@@ -136,10 +146,12 @@ export function PlotViewMetric(props: {
 
   const clearLastError = useCallback(() => {
     setPlotLastError(indexPlot, '');
+    removePlotHeals(indexPlot.toString());
   }, [indexPlot]);
 
   const reload = useCallback(() => {
     setPlotLastError(indexPlot, '');
+    removePlotHeals(indexPlot.toString());
     loadPlot(indexPlot);
   }, [indexPlot]);
 
@@ -373,22 +385,17 @@ export function PlotViewMetric(props: {
             style={{ width: `${yAxisSize}px` }}
             className="flex-shrink-0 d-flex justify-content-end align-items-center pe-3"
           >
-            {numQueries > 0 && (
-              <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-            )}
+            <PlotHealsStatus
+              numQueries={numQueries}
+              lastError={lastError}
+              clearLastError={clearLastError}
+              live={live}
+              reload={reload}
+              timeoutInfo={healsInfo}
+            />
           </div>
           {/*header*/}
           <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
-            {/*last error*/}
-            {!!lastError && (
-              <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
-                <Button type="button" className="btn" aria-label="Reload" onClick={reload}>
-                  <SVGArrowCounterclockwise />
-                </Button>
-                <small className="overflow-force-wrap font-monospace">{lastError}</small>
-                <Button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
-              </div>
-            )}
             <PlotHeader
               indexPlot={indexPlot}
               setParams={setSel}

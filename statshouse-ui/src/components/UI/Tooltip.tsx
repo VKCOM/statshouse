@@ -22,6 +22,7 @@ export type TooltipProps<T extends keyof JSX.IntrinsicElements> = {
   maxWidth?: string | number;
   vertical?: PopperVertical;
   horizontal?: PopperHorizontal;
+  open?: boolean;
 } & Omit<JSX.IntrinsicElements[T], 'title'>;
 
 declare function TooltipFn<T extends keyof JSX.IntrinsicElements>(props: TooltipProps<T>): JSX.Element;
@@ -39,6 +40,7 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
     titleClassName,
     vertical = POPPER_VERTICAL.outTop,
     horizontal = POPPER_HORIZONTAL.center,
+    open: outerOpen,
     ...props
   },
   ref
@@ -55,28 +57,40 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
 
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    if (outerOpen != null) {
+      setOpen(outerOpen);
+    }
+  }, [outerOpen]);
+
   const onMouseOver = useCallback(
     (e: any) => {
-      setOpen(true);
+      if (outerOpen == null) {
+        setOpen(true);
+      }
       props.onMouseOver?.(e);
     },
-    [props]
+    [outerOpen, props]
   );
 
   const onMouseOut = useCallback(
     (e: any) => {
-      setOpen(false);
+      if (outerOpen == null) {
+        setOpen(false);
+      }
       props.onMouseOut?.(e);
     },
-    [props]
+    [outerOpen, props]
   );
 
   const onClick = useCallback(
     (e: any) => {
-      setOpen(false);
+      if (outerOpen == null) {
+        setOpen(false);
+      }
       props.onClick?.(e);
     },
-    [props]
+    [outerOpen, props]
   );
 
   return (
