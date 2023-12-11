@@ -41,6 +41,8 @@ func init() {
 		parser.STDVAR:       evalAndGroup(simpleAggregate(funcStdVar)),
 		parser.SUM:          evalAndGroup(simpleAggregate(funcSum)),
 		parser.TOPK:         funcTopK,
+		parser.SORT:         funcTopK,
+		parser.SORT_DESC:    funcTopK,
 	}
 }
 
@@ -291,9 +293,12 @@ func funcSum(s []SeriesData, n int) {
 }
 
 func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
-	k := int(expr.Param.(*parser.NumberLiteral).Val)
-	if k <= 0 {
-		return make([]Series, len(ev.opt.Offsets)), nil
+	k := math.MaxInt
+	if expr.Op == parser.TOPK || expr.Op == parser.BOTTOMK {
+		k = int(expr.Param.(*parser.NumberLiteral).Val)
+		if k <= 0 {
+			return make([]Series, len(ev.opt.Offsets)), nil
+		}
 	}
 	bags, err := ev.eval(expr.Expr)
 	if err != nil {
@@ -344,7 +349,7 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
 			}
 		}
 	)
-	if expr.Op == parser.TOPK {
+	if expr.Op == parser.TOPK || expr.Op == parser.SORT_DESC {
 		desc = true
 	}
 	for x := range bags {
@@ -482,8 +487,6 @@ func init() {
 			}
 			return v
 		}),
-		// "sort": ?
-		// "sort_desc": ?
 		"sqrt":               simpleCall(math.Sqrt),
 		"time":               generatorCall(funcTime),
 		"timestamp":          bagCall(funcTimestamp),

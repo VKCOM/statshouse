@@ -335,16 +335,6 @@ var Functions = map[string]*Function{
 		ArgTypes:   []ValueType{ValueTypeVector},
 		ReturnType: ValueTypeVector,
 	},
-	"sort": {
-		Name:       "sort",
-		ArgTypes:   []ValueType{ValueTypeVector},
-		ReturnType: ValueTypeVector,
-	},
-	"sort_desc": {
-		Name:       "sort_desc",
-		ArgTypes:   []ValueType{ValueTypeVector},
-		ReturnType: ValueTypeVector,
-	},
 	"sqrt": {
 		Name:       "sqrt",
 		ArgTypes:   []ValueType{ValueTypeVector},
