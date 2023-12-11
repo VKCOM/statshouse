@@ -8,7 +8,7 @@ import ViewMetric from './img/quick-start-view.png'
 
 # Quick start
 
-See how StatsHouse works in 5 minutes:
+See how StatsHouse works in two minutes:
 
 <!-- TOC -->
 * [Get access to StatsHouse](#get-access-to-statshouse)
@@ -66,23 +66,8 @@ In this example, we sent the same metric data three times:
 
 ## Understand basic UI options
 
-These are UI elements that help you to perform the most typical metric-related tasks. 
-
-Statistics
-- Функции и что они означают (count, value, max_host)
-
-- Выбор разрешения а особенно что за auto/ auto low такой
-- у кого-то ломается мозг когда жмет today и график становится пустой
-- Top - удивительно но даже это не всем понятно
-- Тэги
-- Promql мод
-+
-отдельное описание edit секции
-
-
-
 :::info
-To try out full StatsHouse features, refer to the [How-to guides](category/guides).
+To try out full StatsHouse features, refer to the [How-to guides](/category/how-to-guides).
 :::
 
 

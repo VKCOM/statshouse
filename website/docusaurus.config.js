@@ -23,7 +23,6 @@ const config = {
   organizationName: 'VKCOM', // Usually your GitHub org/user name.
   projectName: 'statshouse', // Usually your repo name.
   deploymentBranch: 'gh-pages',
-
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
 
@@ -72,6 +71,16 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+
+    announcementBar: {
+          id: 'test_version',
+          content:
+            'This documentation is currently in draft form, so it may be misleading. Please wait until the official documentation is released.',
+          backgroundColor: '#ff4013',
+          textColor: '#ffffff',
+          isCloseable: false,
+        },
+
       // Replace with your project's social card
       image: 'img/docusaurus-social-card.jpg',
       navbar: {
@@ -107,7 +116,7 @@ const config = {
             items: [
               {
                 label: 'Documentation',
-                to: '/introduction',
+                to: '/',
               },
             ],
           },
@@ -149,6 +158,7 @@ const config = {
         darkTheme: prismThemes.dracula,
       },
     }),
+
 };
 
 export default config;

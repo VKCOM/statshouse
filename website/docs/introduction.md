@@ -1,6 +1,6 @@
 ---
 slug: /
-sidebar_position: 1
+sidebar_position: 1 
 ---
 
 import Intro from './img/intro.png'
@@ -36,7 +36,7 @@ Then spend ten minutes more and [understand basic UI options](quick-start.md#und
 
 ### Find the guide for your task
 
-Check the detailed [**How-to guides**](category/how-to) to perform popular tasks:
+Check the detailed [**How-to guides**](category/how-to-guides) to perform popular tasks:
 
 * [Access a StatsHouse cluster](guides/access-cluster.md)
 * [Create metrics](guides/create-metric.md)
@@ -50,12 +50,12 @@ Check the detailed [**How-to guides**](category/how-to) to perform popular tasks
 
 ### Dive into details
 
-Refer to [**conceptual overview**](conceptual-overview.md) to handle complicated monitoring tasks and to understand 
+Refer to [**Conceptual overview**](conceptual-overview.md) to handle complicated monitoring tasks and to understand 
 StatsHouse implementation details.
 
 ### Check FAQs
 
-Find answers to [**frequently asked questions**](faq.md).
+Find answers to [**Frequently asked questions**](faq.md).
 
 ## Features
 
