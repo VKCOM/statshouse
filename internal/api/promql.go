@@ -994,6 +994,8 @@ func getPromQuery(req seriesRequest, queryFn bool) (string, error) {
 			q = fmt.Sprintf("bottomk(%d,%s)", -req.numResults, q)
 		} else if req.numResults > 0 {
 			q = fmt.Sprintf("topk(%d,%s)", req.numResults, q)
+		} else {
+			q = fmt.Sprintf("sort_desc(%s)", q)
 		}
 		q = fmt.Sprintf("label_replace(%s, \"__id__\",%q,\"\",\"\")", q, name)
 		res = append(res, q)

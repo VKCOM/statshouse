@@ -119,6 +119,8 @@ var key = map[string]ItemType{
 	"bottomk":      BOTTOMK,
 	"count_values": COUNT_VALUES,
 	"quantile":     QUANTILE,
+	"sort":         SORT,
+	"sort_desc":    SORT_DESC,
 
 	// Keywords.
 	"offset":      OFFSET,
