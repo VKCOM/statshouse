@@ -59,12 +59,9 @@ type (
 	}
 
 	Sampler struct {
-		items        []SamplingMultiItemPair
-		config       SamplerConfig
-		partF        []func(*Sampler, []SamplingMultiItemPair) ([]SamplerGroup, int64)
-		nilMetric    format.MetricMetaValue
-		nilGroup     format.MetricsGroup
-		nilNamespace format.NamespaceMeta
+		items  []SamplingMultiItemPair
+		config SamplerConfig
+		partF  []func(*Sampler, []SamplingMultiItemPair) ([]SamplerGroup, int64)
 	}
 
 	SamplerStep struct {
@@ -88,6 +85,23 @@ type (
 	}
 )
 
+var (
+	nilMetric = format.MetricMetaValue{
+		GroupID:         format.BuiltinGroupIDMissing,
+		NamespaceID:     format.BuiltinNamespaceIDMissing,
+		EffectiveWeight: format.EffectiveWeightOne,
+	}
+	nilGroup = format.MetricsGroup{
+		ID:              format.BuiltinGroupIDMissing,
+		NamespaceID:     format.BuiltinNamespaceIDMissing,
+		EffectiveWeight: format.EffectiveWeightOne,
+	}
+	nilNamespace = format.NamespaceMeta{
+		ID:              format.BuiltinNamespaceIDMissing,
+		EffectiveWeight: format.EffectiveWeightOne,
+	}
+)
+
 func NewSampler(capacity int, config SamplerConfig) Sampler {
 	if config.RoundF == nil {
 		config.RoundF = roundSampleFactor
@@ -98,20 +112,6 @@ func NewSampler(capacity int, config SamplerConfig) Sampler {
 	h := Sampler{
 		items:  make([]SamplingMultiItemPair, 0, capacity),
 		config: config,
-		nilMetric: format.MetricMetaValue{
-			GroupID:         format.BuiltinGroupIDMissing,
-			NamespaceID:     format.BuiltinNamespaceIDMissing,
-			EffectiveWeight: format.EffectiveWeightOne,
-		},
-		nilGroup: format.MetricsGroup{
-			ID:              format.BuiltinGroupIDMissing,
-			NamespaceID:     format.BuiltinNamespaceIDMissing,
-			EffectiveWeight: format.EffectiveWeightOne,
-		},
-		nilNamespace: format.NamespaceMeta{
-			ID:              format.BuiltinNamespaceIDMissing,
-			EffectiveWeight: format.EffectiveWeightOne,
-		},
 	}
 	if config.SampleNamespaces {
 		h.partF = append(h.partF, partitionByNamespace)
@@ -144,7 +144,7 @@ func (h *Sampler) Add(p SamplingMultiItemPair) {
 	h.items = append(h.items, p)
 }
 
-func (h *Sampler) Run(budgetNum, budgetDenom int64) SamplerStatistics {
+func (h *Sampler) Run(budgetNum, budgetDenom int64, stat *SamplerStatistics) {
 	// Partition by group/metric/key and run
 	sort.Slice(h.items, func(i, j int) bool {
 		var lhs, rhs *SamplingMultiItemPair = &h.items[i], &h.items[j]
@@ -159,12 +159,16 @@ func (h *Sampler) Run(budgetNum, budgetDenom int64) SamplerStatistics {
 		}
 		return lhs.fairKey < rhs.fairKey
 	})
-	stat := SamplerStatistics{
-		Items:   map[[3]int32]*SamplerStatisticsItem{},
-		Metrics: map[int32]int{},
+	h.run(h.items, 0, budgetNum, budgetDenom, stat)
+}
+
+func (stat *SamplerStatistics) Keep(p SamplingMultiItemPair) {
+	if p.metric == nil {
+		if p.metric = format.BuiltinMetrics[p.MetricID]; p.metric == nil {
+			p.metric = &nilMetric
+		}
 	}
-	h.run(h.items, 0, budgetNum, budgetDenom, &stat)
-	return stat
+	stat.add(&p, true)
 }
 
 func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDenom int64, stat *SamplerStatistics) {
@@ -190,7 +194,7 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 		}
 		budgetNum -= g.sumSize * budgetDenom
 		sumWeight -= g.weight
-		h.keep(g, stat)
+		g.keep(h, stat)
 		pos++
 	}
 	// Sample remaining groups who didn't fit into the budget
@@ -198,7 +202,7 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 	for i := pos; i < len(groups); i++ {
 		g := &groups[i]
 		if g.noSampleAgent && h.config.ModeAgent {
-			h.keep(g, stat)
+			g.keep(h, stat)
 		} else if depth < len(h.partF)-1 {
 			d := budgetDenom * (int64(len(groups) - pos)) // group budget denominator
 			h.run(g.items, depth+1, budgetNum, d, stat)
@@ -222,15 +226,26 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 	}
 }
 
-func (h *Sampler) keep(g *SamplerGroup, stat *SamplerStatistics) {
+func (g *SamplerGroup) keep(h *Sampler, stat *SamplerStatistics) {
 	for i := range g.items {
-		p := &g.items[i]
-		p.Item.SF = 1 // communicate selected factor to next step of processing
-		if h.config.KeepF != nil {
-			h.config.KeepF(p.Key, p.Item)
-		}
-		stat.add(p, true)
+		g.items[i].keep(1, h, stat)
 	}
+}
+
+func (p *SamplingMultiItemPair) keep(sf float64, h *Sampler, stat *SamplerStatistics) {
+	p.Item.SF = sf // communicate selected factor to next step of processing
+	if h.config.KeepF != nil {
+		h.config.KeepF(p.Key, p.Item)
+	}
+	stat.add(p, true)
+}
+
+func (p *SamplingMultiItemPair) discard(sf float64, h *Sampler, stat *SamplerStatistics) {
+	p.Item.SF = sf // communicate selected factor to next step of processing
+	if h.config.DiscardF != nil {
+		h.config.DiscardF(p.Key, p.Item)
+	}
+	stat.add(p, false)
 }
 
 func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int64, stat *SamplerStatistics) {
@@ -248,7 +263,7 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 	if g.roundFactors {
 		sf = h.config.RoundF(sf, h.config.Rand)
 		if sf <= 1 { // many sample factors are between 1 and 2, so this is worthy optimization
-			h.keep(g, stat)
+			g.keep(h, stat)
 			return
 		}
 		sfNum = int64(sf)
@@ -273,11 +288,7 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 		})
 		for i := 0; i < pos; i++ {
 			p := &items[i]
-			p.Item.SF = 1 // communicate selected factor to next step of processing
-			if h.config.KeepF != nil {
-				h.config.KeepF(p.Key, p.Item)
-			}
-			stat.add(p, true)
+			p.keep(1, h, stat)
 		}
 		items = items[pos:]
 	}
@@ -291,19 +302,11 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 	pos = h.config.SelectF(items, sf, h.config.Rand)
 	for i := 0; i < pos; i++ {
 		p := &items[i]
-		p.Item.SF = sf // communicate selected factor to next step of processing
-		if h.config.KeepF != nil {
-			h.config.KeepF(p.Key, p.Item)
-		}
-		stat.add(p, true)
+		p.keep(sf, h, stat)
 	}
 	for i := pos; i < len(items); i++ {
 		p := &items[i]
-		p.Item.SF = sf // communicate selected factor to next step of processing
-		if h.config.DiscardF != nil {
-			h.config.DiscardF(p.Key, p.Item)
-		}
-		stat.add(p, false)
+		p.discard(sf, h, stat)
 	}
 }
 
@@ -319,18 +322,30 @@ func (stat *SamplerStatistics) add(p *SamplingMultiItemPair, keep bool) {
 	default:
 		metricKind = format.TagValueIDSizeCounter
 	}
-	k := [3]int32{p.metric.NamespaceID, p.metric.GroupID, metricKind}
-	v := stat.Items[k]
-	if v == nil {
+	var (
+		k = [3]int32{p.metric.NamespaceID, p.metric.GroupID, metricKind}
+		v *SamplerStatisticsItem
+	)
+	if stat.Items != nil {
+		v = stat.Items[k]
+		if v == nil {
+			v = &SamplerStatisticsItem{}
+			stat.Items[k] = v
+		}
+	} else {
 		v = &SamplerStatisticsItem{}
-		stat.Items[k] = v
+		stat.Items = map[[3]int32]*SamplerStatisticsItem{k: v}
 	}
 	if keep {
 		v.SumSizeKeep.AddValue(float64(p.Size))
 	} else {
 		v.SumSizeDiscard.AddValue(float64(p.Size))
 	}
-	stat.Metrics[p.MetricID]++
+	if stat.Metrics != nil {
+		stat.Metrics[p.MetricID]++
+	} else {
+		stat.Metrics = map[int32]int{p.MetricID: 1}
+	}
 }
 
 func partitionByNamespace(h *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup, int64) {
@@ -484,7 +499,7 @@ func partitionByKey(_ *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup, int6
 
 func (h *Sampler) getMetricMeta(metricID int32) *format.MetricMetaValue {
 	if h.config.Meta == nil {
-		return &h.nilMetric
+		return &nilMetric
 	}
 	if meta := h.config.Meta.GetMetaMetric(metricID); meta != nil {
 		return meta
@@ -492,27 +507,27 @@ func (h *Sampler) getMetricMeta(metricID int32) *format.MetricMetaValue {
 	if meta := format.BuiltinMetrics[metricID]; meta != nil {
 		return meta
 	}
-	return &h.nilMetric
+	return &nilMetric
 }
 
 func (h *Sampler) getGroupMeta(groupID int32) *format.MetricsGroup {
 	if h.config.Meta == nil || groupID == 0 {
-		return &h.nilGroup
+		return &nilGroup
 	}
 	if meta := h.config.Meta.GetGroup(groupID); meta != nil {
 		return meta
 	}
-	return &h.nilGroup
+	return &nilGroup
 }
 
 func (h *Sampler) getNamespaceMeta(namespaceID int32) *format.NamespaceMeta {
 	if h.config.Meta == nil || namespaceID == 0 {
-		return &h.nilNamespace
+		return &nilNamespace
 	}
 	if meta := h.config.Meta.GetNamespace(namespaceID); meta != nil {
 		return meta
 	}
-	return &h.nilNamespace
+	return &nilNamespace
 }
 
 func (s SamplerStatistics) GetSampleFactors(sf []tlstatshouse.SampleFactor) []tlstatshouse.SampleFactor {

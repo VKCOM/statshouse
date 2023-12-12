@@ -164,6 +164,10 @@ const (
 	HostDCTag = 11
 )
 
+func HardwareMetric(metricID int32) bool {
+	return metricID <= -1000
+}
+
 // add host tag later
 var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDCPUUsage: {
