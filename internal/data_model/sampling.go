@@ -462,11 +462,6 @@ func partitionByKey(_ *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup, int6
 	if len(s) == 0 {
 		return nil, 0
 	}
-	x := s[0].metric.FairKeyIndex
-	if x < 0 || format.MaxTags <= x {
-		weight := int64(format.EffectiveWeightOne)
-		return []SamplerGroup{{weight: weight, items: s}}, weight
-	}
 	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
 		return SamplerGroup{
 			MetricID:      items[0].MetricID,
