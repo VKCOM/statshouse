@@ -208,6 +208,18 @@ func (ss *Series) hash(ev *evaluator, opt hashOptions) (map[uint64]int, error) {
 	return res, nil
 }
 
+func (ss *Series) hashS(ev *evaluator, opt hashOptions) (map[uint64][]int, error) {
+	res := make(map[uint64][]int, len(ss.Data))
+	for i := range ss.Data {
+		sum, _, err := ss.Data[i].Tags.hash(ev, opt, false)
+		if err != nil {
+			return nil, err
+		}
+		res[sum] = append(res[sum], i)
+	}
+	return res, nil
+}
+
 func (ss *Series) histograms(ev *evaluator) ([]histogram, error) {
 	groups, err := ss.group(ev, hashOptions{
 		tags: []string{labels.BucketLabel},
