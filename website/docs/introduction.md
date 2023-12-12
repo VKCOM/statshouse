@@ -9,9 +9,11 @@ import WhatIsSh from './img/what-is-sh.png'
 # What is StatsHouse?
 
 StatsHouse is a monitoring system that is highly available, scalable, and multi-tenant.
+It is robust, and one can hardly overload it—due to [aggregation] and [sampling].
 Read more about its [features](#features).
 
-It allows your applications to send metric data without limitations, so you can view statistics on a graph in a live mode.
+It allows your applications to send metric data without limitations, and you can view statistics on a graph in a live 
+mode.
 
 <img src={WhatIsSh} width="1000"/>
 
@@ -28,11 +30,14 @@ Check the links below to get the most out of StatsHouse.
 ### Try StatsHouse basics
 
 Walk through the two-minute [**Quick start**](quick-start.md) guide:
+* run StatsHouse locally,
 * create your own metric with minimal configuration,
 * send data,
-* and view it on a graph.
+* view it on a graph,
+* understand [basic viewing and editing options](quick-start#basic-viewing-and-editing-options).
 
-Then spend ten minutes more and [understand basic UI options](quick-start.md#understand-basic-ui-options).
+If you already have a StatsHouse cluster deployed in your organization, you can skip the steps above
+and jump to [basic viewing and editing options](quick-start.md#understand-basic-ui-options) straight away.
 
 ### Find the guide for your task
 

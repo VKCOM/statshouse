@@ -7,7 +7,6 @@ import MetricTypes from '../img/metric-types.png'
 
 # Edit metrics
 
-
 You have just created a metric—it now has a name and nothing more.
 
 :::info 
