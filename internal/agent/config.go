@@ -42,8 +42,9 @@ type Config struct {
 	RemoteWriteAddr    string
 	RemoteWritePath    string
 
-	AutoCreate          bool
-	DisableRemoteConfig bool
+	AutoCreate           bool
+	DisableRemoteConfig  bool
+	DisableNoSampleAgent bool
 }
 
 func DefaultConfig() Config {
@@ -64,6 +65,8 @@ func DefaultConfig() Config {
 		RemoteWriteAddr:                  ":13380",
 		RemoteWritePath:                  "/write",
 		AutoCreate:                       true,
+		DisableRemoteConfig:              false,
+		DisableNoSampleAgent:             false,
 	}
 }
 
@@ -89,9 +92,10 @@ func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
 	if !legacyVerb {
 		f.BoolVar(&c.AutoCreate, "auto-create", d.AutoCreate, "Enable metric auto-create.")
 		f.BoolVar(&c.DisableRemoteConfig, "disable-remote-config", d.DisableRemoteConfig, "disable remote configuration.")
-		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", false, "Statshouse will sample at namespace level.")
-		f.BoolVar(&c.SampleGroups, "sample-groups", false, "Statshouse will sample at group level.")
-		f.BoolVar(&c.SampleKeys, "sample-keys", false, "Statshouse will sample at key level.")
+		f.BoolVar(&c.DisableNoSampleAgent, "disable-nosample-agent", d.DisableNoSampleAgent, "disable remote configuration.")
+		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
+		f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
+		f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
 	}
 }
 
