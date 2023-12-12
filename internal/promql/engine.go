@@ -751,8 +751,8 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			}
 			lhs.free(ev)
 		case parser.CardManyToMany:
-			var lhsM map[uint64]int
-			lhsM, err = lhs.hash(ev, hashOptions{
+			var lhsM map[uint64][]int
+			lhsM, err = lhs.hashS(ev, hashOptions{
 				on:    expr.VectorMatching.On,
 				tags:  expr.VectorMatching.MatchingLabels,
 				stags: rhs.Meta.STags,
@@ -760,52 +760,100 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			if err != nil {
 				return nil, err
 			}
-			var rhsM map[uint64]int
-			rhsM, err = rhs.hash(ev, hashOptions{
-				on:    expr.VectorMatching.On,
-				tags:  expr.VectorMatching.MatchingLabels,
-				stags: lhs.Meta.STags,
-			})
-			if err != nil {
-				return nil, err
-			}
 			switch expr.Op {
 			case parser.LAND:
+				var rhsM map[uint64][]int
+				rhsM, err = rhs.hashS(ev, hashOptions{
+					on:    expr.VectorMatching.On,
+					tags:  expr.VectorMatching.MatchingLabels,
+					stags: lhs.Meta.STags,
+				})
+				if err != nil {
+					return nil, err
+				}
 				res[x] = ev.newSeries(len(lhsM), lhs.Meta)
 				for lhsH, lhsX := range lhsM {
-					if _, ok := rhsM[lhsH]; ok {
-						res[x].appendOne(lhs, lhsX)
+					if rhsX, ok := rhsM[lhsH]; ok {
+						for _, rx := range rhsX[1:] {
+							sliceOr(*rhs.Data[rhsX[0]].Values, *rhs.Data[rhsX[0]].Values, *rhs.Data[rx].Values)
+						}
+						for _, lx := range lhsX {
+							sliceAnd(*lhs.Data[lx].Values, *lhs.Data[lx].Values, *rhs.Data[rhsX[0]].Values)
+						}
+						res[x].appendSome(lhs, lhsX...)
 					} else {
-						ev.freeAt(lhs.Data, lhsX)
+						ev.freeAt(lhs.Data, lhsX...)
 					}
 				}
 				rhs.free(ev)
 			case parser.LDEFAULT:
+				var rhsM map[uint64]int
+				rhsM, err = rhs.hash(ev, hashOptions{
+					on:    expr.VectorMatching.On,
+					tags:  expr.VectorMatching.MatchingLabels,
+					stags: lhs.Meta.STags,
+				})
+				if err != nil {
+					return nil, err
+				}
 				res[x] = lhs
 				res[x].Meta = evalSeriesMeta(expr, lhs.Meta, rhs.Meta)
 				for lhsH, lhsX := range lhsM {
 					if rhsX, ok := rhsM[lhsH]; ok {
-						sliceDefault(*res[x].Data[lhsX].Values, *lhs.Data[lhsX].Values, *rhs.Data[rhsX].Values)
+						for _, lx := range lhsX {
+							sliceOr(*res[x].Data[lx].Values, *lhs.Data[lx].Values, *rhs.Data[rhsX].Values)
+						}
 					}
 				}
 				rhs.free(ev)
 			case parser.LOR:
-				res[x] = lhs
+				var rhsM map[uint64][]int
+				rhsM, err = rhs.hashS(ev, hashOptions{
+					on:    expr.VectorMatching.On,
+					tags:  expr.VectorMatching.MatchingLabels,
+					stags: lhs.Meta.STags,
+				})
+				if err != nil {
+					return nil, err
+				}
 				for rhsH, rhsX := range rhsM {
-					if _, ok := lhsM[rhsH]; !ok {
-						res[x].appendOne(rhs, rhsX)
-					} else {
-						ev.freeAt(rhs.Data, rhsX)
+					if lhsX, ok := lhsM[rhsH]; ok {
+						for i := range ev.time() {
+							for _, lx := range lhsX {
+								if !math.IsNaN((*lhs.Data[lx].Values)[i]) {
+									for _, rx := range rhsX {
+										(*rhs.Data[rx].Values)[i] = NilValue
+									}
+									break
+								}
+							}
+						}
 					}
 				}
+				res[x] = lhs
+				res[x].appendAll(rhs)
+				res[x].Meta = evalSeriesMeta(expr, lhs.Meta, rhs.Meta)
 			case parser.LUNLESS:
+				var rhsM map[uint64][]int
+				rhsM, err = rhs.hashS(ev, hashOptions{
+					on:    expr.VectorMatching.On,
+					tags:  expr.VectorMatching.MatchingLabels,
+					stags: lhs.Meta.STags,
+				})
+				if err != nil {
+					return nil, err
+				}
 				res[x] = ev.newSeries(len(lhsM), lhs.Meta)
 				for lhsH, lhsX := range lhsM {
-					if _, ok := rhsM[lhsH]; !ok {
-						res[x].appendOne(lhs, lhsX)
-					} else {
-						ev.freeAt(lhs.Data, lhsX)
+					if rhsX, ok := rhsM[lhsH]; ok {
+						for _, rx := range rhsX[1:] {
+							sliceOr(*rhs.Data[rhsX[0]].Values, *rhs.Data[rhsX[0]].Values, *rhs.Data[rx].Values)
+						}
+						for _, lx := range lhsX {
+							sliceUnless(*lhs.Data[lx].Values, *lhs.Data[lx].Values, *rhs.Data[rhsX[0]].Values)
+						}
 					}
+					res[x].appendSome(lhs, lhsX...)
 				}
 				rhs.free(ev)
 			default:
