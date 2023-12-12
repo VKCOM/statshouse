@@ -345,6 +345,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		Rand:             rnd,
 		KeepF:            func(k data_model.Key, item *data_model.MultiItem) { insertItem(k, item, item.SF) },
 	})
+	var samplerStat data_model.SamplerStatistics
 	// First, sample with global sampling factors, depending on cardinality. Collect relative sizes for 2nd stage sampling below.
 	// TODO - actual sampleFactors are empty due to code commented out in estimator.go
 	for si := 0; si < len(b.shards); si++ {
@@ -357,12 +358,21 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 
 			accountMetric := k.Metric
 			if k.Metric < 0 {
-				if k.Metric != format.BuiltinMetricIDIngestionStatus {
-					// For now sample only ingestion statuses on aggregator. Might be bad idea. TODO - check.
+				ingestionStatus := k.Metric == format.BuiltinMetricIDIngestionStatus
+				hardwareMetric := format.HardwareMetric(k.Metric)
+				if !ingestionStatus && !hardwareMetric {
+					// For now sample only ingestion statuses and hardware metrics on aggregator. Might be bad idea. TODO - check.
 					insertItem(k, item, 1)
+					samplerStat.Keep(data_model.SamplingMultiItemPair{
+						Key:         k,
+						Item:        item,
+						WhaleWeight: whaleWeight,
+						Size:        item.RowBinarySizeEstimate(),
+						MetricID:    k.Metric,
+					})
 					continue
 				}
-				if k.Keys[1] != 0 {
+				if ingestionStatus && k.Keys[1] != 0 {
 					// Ingestion status and other unlimited per-metric built-ins should use its metric budget
 					// So metrics are better isolated
 					accountMetric = k.Keys[1]
@@ -392,7 +402,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	remainingBudget += int64(config.InsertBudget * numContributors) // fixed part + longterm part
 	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
-	samplerStat := sampler.Run(remainingBudget, 1)
+	sampler.Run(remainingBudget, 1, &samplerStat)
 	key1 := int32(format.TagValueIDConveyorRecent)
 	if historic {
 		key1 = format.TagValueIDConveyorHistoric

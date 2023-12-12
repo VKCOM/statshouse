@@ -260,7 +260,8 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
 		remainingBudget = data_model.MaxUncompressedBucketSize / 2
 	}
-	samplerStat := sampler.Run(remainingBudget, 1)
+	var samplerStat data_model.SamplerStatistics
+	sampler.Run(remainingBudget, 1, &samplerStat)
 	sampleFactors := make([]tlstatshouse.SampleFactor, 0, samplerStat.Count)
 	for _, s := range samplerStat.Steps {
 		if s.StartPos < len(s.Groups) {

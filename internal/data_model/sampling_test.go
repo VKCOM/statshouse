@@ -376,7 +376,9 @@ func (b *samplingTestBucket) run(s *Sampler, budgetNum, budgetDenom int64) Sampl
 			MetricID:    k.Metric,
 		})
 	}
-	return s.Run(budgetNum, budgetDenom)
+	var stat SamplerStatistics
+	s.Run(budgetNum, budgetDenom, &stat)
+	return stat
 }
 
 func samplingTestSizeOf(k Key, item *MultiItem) int {
@@ -481,7 +483,8 @@ func sampleBucket(bucket *MetricsBucket, config samplerConfigEx) map[int32]float
 	}
 	numShards := config.numShards
 	remainingBudget := int64((config.sampleBudget + numShards - 1) / numShards)
-	samplerStat := sampler.Run(remainingBudget, 1)
+	var samplerStat SamplerStatistics
+	sampler.Run(remainingBudget, 1, &samplerStat)
 	sampleFactors := map[int32]float32{}
 	for _, v := range samplerStat.GetSampleFactors(nil) {
 		sampleFactors[v.Metric] = v.Value
