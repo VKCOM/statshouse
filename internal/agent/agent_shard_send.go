@@ -223,7 +223,7 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 	s.mu.Unlock()
 
 	sampler := data_model.NewSampler(len(bucket.MultiItems), data_model.SamplerConfig{
-		ModeAgent:        true,
+		ModeAgent:        !config.DisableNoSampleAgent,
 		SampleNamespaces: config.SampleNamespaces,
 		SampleGroups:     config.SampleGroups,
 		SampleKeys:       config.SampleKeys,
