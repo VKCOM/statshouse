@@ -36,3 +36,10 @@
 .overlayCardTable tr:hover {
   background-color: rgba(var(--bs-secondary-bg-rgb), 0.7);
 }
+
+.overlayCardTableItem {
+  border-bottom: 1px solid var(--bs-secondary-bg);
+}
+.overlayCardTableItem:last-child {
+  border-bottom: none;
+}

@@ -58,7 +58,21 @@ function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot,
       }
     }
   });
-  return Object.values(flags);
+  const flagsGroup: Record<string, Flag> = {};
+  let prevFlag: Flag;
+  Object.values(flags).forEach((info) => {
+    if (!prevFlag || Math.abs(info.x - prevFlag.x) > flagWidth * 1.5) {
+      prevFlag = info;
+    }
+    if (flagsGroup[prevFlag.idx]) {
+      flagsGroup[prevFlag.idx].groups = [...flagsGroup[prevFlag.idx].groups, ...info.groups];
+      flagsGroup[prevFlag.idx].range = new TimeRange({ from: flagsGroup[prevFlag.idx].range.from, to: info.range.to });
+      flagsGroup[prevFlag.idx].opacity = Math.min(1, Math.max(flagsGroup[prevFlag.idx].opacity, info.opacity));
+    } else {
+      flagsGroup[prevFlag.idx] = info;
+    }
+  });
+  return Object.values(flagsGroup);
 }
 
 export type PlotEventOverlayProps = {
@@ -134,7 +148,7 @@ export function _PlotEventOverlay({ indexPlot, hooks, flagHeight = 8, compact }:
         <g stroke="gray" strokeWidth="0.5" fill="gray">
           {lines.map((r) => (
             <PlotEventFlag
-              plot={params.plots[r.plotIndex]}
+              plots={params.plots}
               plotWidth={plotWidth}
               range={r.range}
               agg={r.agg}
