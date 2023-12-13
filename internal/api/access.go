@@ -107,7 +107,9 @@ func (ai *accessInfo) CanViewMetricName(name string) bool {
 	if ai.insecureMode {
 		return true
 	}
-
+	if data_model.RemoteConfigMetric(name) && !ai.bitAdmin {
+		return false // remote config can only be viewed by administrators
+	}
 	return ai.bitViewMetric[name] ||
 		hasPrefixAccess(ai.bitViewPrefix, name) ||
 		(ai.bitViewDefault && !ai.protectedMetric(name))
