@@ -20,47 +20,44 @@ type Flag = {
 };
 
 function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot, flagWidth: number): Flag[] {
-  const flags: Record<string, Flag> = {};
+  const aFlags: Flag[] = [];
   eventsIndex.forEach((indexEvent) => {
     const time = eventsData[indexEvent]?.data[0] ?? [];
     const data = eventsData[indexEvent]?.data.slice(1) ?? [];
     const values = data.flat().filter(Boolean).map(Number);
     const maxY = values.reduce((res, item) => Math.max(res, item), values[0]);
-    let prevIdx = 0;
     for (let idx = 0, iMax = time.length; idx < iMax; idx++) {
       for (let s = 0, sMax = data.length; s < sMax; s++) {
         const val = data[s][idx];
         if (val != null) {
           const x = Math.round(Math.min(100000, u.valToPos(time[idx], 'x') ?? 0));
-          if (flags[prevIdx] && Math.abs(x - flags[prevIdx].x) > flagWidth * 1.5) {
-            prevIdx = idx;
+          if (x > 0) {
+            aFlags.push({
+              groups: [
+                {
+                  plotIndex: indexEvent,
+                  color: eventsData[indexEvent].series[s].stroke?.toString() ?? '',
+                  idx,
+                  x,
+                },
+              ],
+              key: `${idx}`,
+              idx,
+              opacity: Math.min(1, Math.max(0.3, val / maxY)),
+              x,
+              plotIndex: indexEvent,
+              range: new TimeRange({ from: time[idx], to: time[idx + 1] }),
+              agg: `${time[idx + 1] - time[idx]}s`,
+            });
           }
-          flags[prevIdx] ??= {
-            groups: [],
-            key: `${idx}`,
-            idx,
-            opacity: 0.3,
-            x,
-            plotIndex: indexEvent,
-            range: new TimeRange({ from: time[idx], to: time[idx + 1] }),
-            agg: `${time[idx + 1] - time[idx]}s`,
-          };
-          flags[prevIdx].groups.push({
-            plotIndex: indexEvent,
-            color: eventsData[indexEvent].series[s].stroke?.toString() ?? '',
-            idx,
-            x,
-          });
-          flags[prevIdx].range.setRange({ from: flags[prevIdx].range.from, to: time[idx + 1] });
-          const opacity = Math.max(0.3, val / maxY);
-          flags[prevIdx].opacity = Math.min(1, Math.max(flags[prevIdx].opacity, opacity));
         }
       }
     }
   });
+  aFlags.sort((a, b) => a.x - b.x);
   const flagsGroup: Record<string, Flag> = {};
   let prevFlag: Flag;
-  Object.values(flags).forEach((info) => {
+  aFlags.forEach((info) => {
     if (!prevFlag || Math.abs(info.x - prevFlag.x) > flagWidth * 1.5) {
       prevFlag = info;
     }
