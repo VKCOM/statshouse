@@ -16,7 +16,7 @@ type Flag = {
   range: TimeRange;
   agg: string;
   plotIndex: number;
-  groups: { color: string; idx: number; x: number }[];
+  groups: { color: string; idx: number; x: number; plotIndex: number }[];
 };
 
 function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot, flagWidth: number): Flag[] {
@@ -24,14 +24,15 @@ function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot,
   eventsIndex.forEach((indexEvent) => {
     const time = eventsData[indexEvent]?.data[0] ?? [];
     const data = eventsData[indexEvent]?.data.slice(1) ?? [];
-    const maxY = Math.max(...data.flat().filter(Boolean).map(Number));
+    const values = data.flat().filter(Boolean).map(Number);
+    const maxY = values.reduce((res, item) => Math.max(res, item), values[0]);
     let prevIdx = 0;
     for (let idx = 0, iMax = time.length; idx < iMax; idx++) {
       for (let s = 0, sMax = data.length; s < sMax; s++) {
         const val = data[s][idx];
-        if (val) {
+        if (val != null) {
           const x = Math.round(Math.min(100000, u.valToPos(time[idx], 'x') ?? 0));
-          if (flags[prevIdx] && x - flags[prevIdx].x > flagWidth * 1.5) {
+          if (flags[prevIdx] && Math.abs(x - flags[prevIdx].x) > flagWidth * 1.5) {
             prevIdx = idx;
           }
           flags[prevIdx] ??= {
@@ -45,6 +46,7 @@ function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot,
             agg: `${time[idx + 1] - time[idx]}s`,
           };
           flags[prevIdx].groups.push({
+            plotIndex: indexEvent,
             color: eventsData[indexEvent].series[s].stroke?.toString() ?? '',
             idx,
             x,
