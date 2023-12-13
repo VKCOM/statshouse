@@ -211,6 +211,7 @@ type MetricMetaValue struct {
 	SkipSumSquare        bool            `json:"skip_sum_square,omitempty"`
 	PreKeyOnly           bool            `json:"pre_key_only,omitempty"`
 	MetricType           string          `json:"metric_type"`
+	FairKeyTagID         string          `json:"fair_key_tag_id,omitempty"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
@@ -349,6 +350,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		m.Tags[0].Name = ""
 	}
 	m.PreKeyIndex = -1
+	m.FairKeyIndex = FairKeyIndexUnspecified
 	tags := m.Tags
 	if len(tags) > MaxTags { // prevent index out of range during mapping
 		tags = tags[:MaxTags]
@@ -371,6 +373,9 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 				m.PreKeyTagID = tagID // fix legacy name
 			}
 		}
+		if m.FairKeyTagID == tagID { // restore fair key index
+			m.FairKeyIndex = i
+		}
 		if !ValidRawKind(tag.RawKind) {
 			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
 		}
@@ -382,7 +387,9 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		m.PreKeyOnly = false
 		err = multierr.Append(err, fmt.Errorf("pre_key_only is true, but pre_key_tag_id is not defined"))
 	}
-	m.FairKeyIndex = FairKeyIndexUnspecified // TODO: read from meta
+	if m.FairKeyIndex == FairKeyIndexUnspecified && m.FairKeyTagID != "" {
+		err = multierr.Append(err, fmt.Errorf("invalid fair_key_tag_id: %q", m.FairKeyTagID))
+	}
 	for i := range tags {
 		tag := &tags[i]
 		if tag.Raw {
