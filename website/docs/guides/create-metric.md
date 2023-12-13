@@ -5,7 +5,7 @@ description: Learn how to create a metric via the StatsHouse UI.
 import CreateMetric from '../img/create-metric.png'
 import NameMetric from '../img/name-new-metric.png'
 
-# Create metrics
+# Create a metric
 
 [Check the typical questions](#frequent-questions) 
 and [create a metric via the StatsHouse UI](#how-to-create-a-metric-in-the-ui).
