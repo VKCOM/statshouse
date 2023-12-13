@@ -137,7 +137,7 @@ func (h *Sampler) Add(p SamplingMultiItemPair) {
 	}
 	if h.config.SampleKeys {
 		x := p.metric.FairKeyIndex
-		if 0 <= x || x < format.MaxTags {
+		if 0 <= x && x < len(p.Key.Keys) {
 			p.fairKey = p.Key.Keys[x]
 		}
 	}
