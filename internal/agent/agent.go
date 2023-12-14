@@ -150,15 +150,16 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 	commonSpread := time.Duration(rnd.Int63n(int64(time.Second) / int64(len(config.AggregatorAddresses))))
 	for i, a := range config.AggregatorAddresses {
 		shard := &ShardReplica{
-			config:          config,
-			agent:           result,
-			ShardReplicaNum: i,
-			ShardKey:        int32(i/3) + 1,
-			ReplicaKey:      int32(i%3) + 1,
-			timeSpreadDelta: commonSpread + time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
-			CurrentTime:     nowUnix,
-			FutureQueue:     make([][]*data_model.MetricsBucket, 60),
-			BucketsToSend:   make(chan compressedBucketDataOnDisk),
+			config:                           config,
+			hardwareMetricResolutionResolved: atomic.NewInt32(int32(config.HardwareMetricResolution)),
+			agent:                            result,
+			ShardReplicaNum:                  i,
+			ShardKey:                         int32(i/3) + 1,
+			ReplicaKey:                       int32(i%3) + 1,
+			timeSpreadDelta:                  commonSpread + time.Second*time.Duration(i)/time.Duration(len(config.AggregatorAddresses)),
+			CurrentTime:                      nowUnix,
+			FutureQueue:                      make([][]*data_model.MetricsBucket, 60),
+			BucketsToSend:                    make(chan compressedBucketDataOnDisk),
 			client: tlstatshouse.Client{
 				Client:  rpcClient,
 				Network: network,
@@ -288,6 +289,7 @@ func (s *Agent) updateConfigRemotelyExperimental() {
 	for _, shardReplica := range s.ShardReplicas {
 		shardReplica.mu.Lock()
 		shardReplica.config = config
+		shardReplica.hardwareMetricResolutionResolved.Store(int32(config.HardwareMetricResolution))
 		shardReplica.mu.Unlock()
 	}
 }

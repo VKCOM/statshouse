@@ -328,6 +328,9 @@ const (
 )
 
 var (
+	BuiltinMetricByName           map[string]*MetricMetaValue
+	BuiltinMetricAllowedToReceive map[string]*MetricMetaValue
+
 	// list of built-in metrics which can be sent as normal metric. Used by API and prometheus exporter
 	// Description: "-" marks tags used in incompatible way in the past. We should not reuse such tags, because there would be garbage in historic data.
 
@@ -1791,9 +1794,6 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDUIErrors:                   true,
 		BuiltinMetricIDStatsHouseErrors:           true,
 	}
-
-	BuiltinMetricByName           map[string]*MetricMetaValue
-	BuiltinMetricAllowedToReceive map[string]*MetricMetaValue
 
 	insertKindToValue = map[int32]string{
 		TagValueIDSizeCounter:           "counter",
