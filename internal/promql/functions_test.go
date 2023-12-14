@@ -24,15 +24,15 @@ func testWindow(t require.TestingT, values []float64, step, width int64, strict 
 		i++
 	}
 	var (
-		wnd   = newWindow(time, values, width, strict)
-		lastL = math.MaxInt
-		lastR = math.MaxInt
+		wnd   = newWindow(time, values, width, step, strict)
+		lastL = len(time)
+		lastR = len(time)
 	)
 	for wnd.moveOneLeft() {
 		// window moves left
 		require.LessOrEqual(t, wnd.l, wnd.r)
 		require.Less(t, wnd.l, lastL)
-		require.Less(t, wnd.r, lastR)
+		require.Equal(t, wnd.r, lastR-1)
 		lastL, lastR = wnd.l, wnd.r
 		// number of values in the current interval is updated correctly
 		tt, vv := wnd.get()
@@ -42,11 +42,11 @@ func testWindow(t require.TestingT, values []float64, step, width int64, strict 
 		require.Equal(t, len(wnd.getCopyOfValues()), wnd.n)
 		// ensure window width is correct
 		if wnd.w == 0 {
-			require.Equal(t, wnd.l+1, wnd.r)
-		} else {
+			require.Equal(t, wnd.l, wnd.r)
+		} else if wnd.n != 0 {
 			var (
 				d  int64
-				ww = wnd.t[wnd.r] - wnd.t[wnd.l]
+				ww = wnd.t[wnd.r] - wnd.t[wnd.l] + step
 			)
 			if wnd.strict {
 				d = wnd.w - ww
