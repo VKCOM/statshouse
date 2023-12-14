@@ -524,13 +524,14 @@ type window struct {
 	t, ct   []int64   // time, current interval time
 	v, cv   []float64 // values, current interval values
 	w       int64     // target width
+	s       int64     // current value of t[r+1]-t[r]
 	l, r, n int       // current [l,r] interval, number of not NaN values inside
 	strict  bool      // don't stretch to LOD resolution if set
 	done    bool      // next "moveOneLeft" returns false if set
 }
 
-func newWindow(t []int64, v []float64, w int64, s bool) window {
-	return window{t: t, v: v, w: w, strict: s, l: len(t), r: len(t), done: len(t) == 0}
+func newWindow(t []int64, v []float64, w, step int64, s bool) window {
+	return window{t: t, v: v, w: w, s: step, strict: s, l: len(t), r: len(t), done: len(t) == 0}
 }
 
 func (wnd *window) moveOneLeft() bool {
@@ -546,21 +547,16 @@ func (wnd *window) moveOneLeft() bool {
 	// shift left boundary
 	if l > r {
 		l = r
-		if math.IsNaN(wnd.v[l]) {
+		if math.IsNaN(wnd.v[l]) || (wnd.strict && wnd.w < wnd.s) {
 			n = 0
 		} else {
 			n = 1
 		}
 	}
-	for 0 < l {
-		if 0 < wnd.w {
-			if wnd.w <= wnd.t[r]-wnd.t[l] {
-				break
-			}
-			if wnd.strict && wnd.w < wnd.t[r]-wnd.t[l-1] {
-				break
-			}
-		} else if l != r {
+	found := wnd.w <= 0 && l == r
+	for !found && 0 < l {
+		found = (wnd.w <= wnd.t[r]-wnd.t[l]+wnd.s) || (wnd.strict && wnd.w < wnd.t[r]-wnd.t[l-1]+wnd.s)
+		if found {
 			break
 		}
 		l--
@@ -568,21 +564,23 @@ func (wnd *window) moveOneLeft() bool {
 			n++
 		}
 	}
+	// see what we got
 	if l <= 0 {
 		wnd.done = true
-		if wnd.w <= 0 {
-			if l == r {
-				return false
-			}
-		} else if wnd.t[r]-wnd.t[l] < wnd.w {
+		if !found {
 			return false
 		}
+	} else {
+		wnd.s = wnd.t[r] - wnd.t[r-1]
 	}
 	wnd.l, wnd.r, wnd.n = l, r, n
 	return true
 }
 
 func (wnd *window) get() ([]int64, []float64) {
+	if wnd.n == 0 {
+		return nil, nil
+	}
 	var (
 		l = wnd.l
 		r = wnd.r
@@ -608,6 +606,9 @@ func (wnd *window) get() ([]int64, []float64) {
 }
 
 func (wnd *window) getValues() []float64 {
+	if wnd.n == 0 {
+		return nil
+	}
 	var (
 		l = wnd.l
 		r = wnd.r
@@ -631,6 +632,9 @@ func (wnd *window) getCopyOfValues() []float64 {
 }
 
 func (wnd *window) copyValues(v []float64, l, r int) []float64 {
+	if wnd.n == 0 {
+		return v
+	}
 	for ; l <= r; l++ {
 		if !math.IsNaN(wnd.v[l]) {
 			v = append(v, wnd.v[l])

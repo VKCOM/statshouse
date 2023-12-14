@@ -1383,7 +1383,7 @@ func (ev *evaluator) cancel() {
 }
 
 func (ev *evaluator) newWindow(v []float64, s bool) window {
-	return newWindow(ev.time(), v, ev.r, s)
+	return newWindow(ev.time(), v, ev.r, ev.t.LODs[len(ev.t.LODs)-1].Step, s)
 }
 
 func (q *seriesQueryX) empty() bool {
