@@ -206,7 +206,11 @@ func fixKeyTimestamp(key *data_model.Key, resolution int, currentTimestamp uint3
 func (s *ShardReplica) resolutionShardFromHashLocked(hash uint64, metricInfo *format.MetricMetaValue) (*data_model.MetricsBucket, int, int) {
 	resolution := 1
 	if metricInfo != nil {
-		resolution = metricInfo.EffectiveResolution // TODO - better idea?
+		if !format.HardwareMetric(metricInfo.MetricID) {
+			resolution = metricInfo.EffectiveResolution // TODO - better idea?
+		} else {
+			resolution = s.config.HardwareMetricResolution
+		}
 	}
 	numShards := uint64(resolution)
 	// lower bits of hash are independent of higher bits used by shardReplicaFromHash function

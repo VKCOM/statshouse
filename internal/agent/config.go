@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/vkcom/statshouse/internal/format"
 )
 
 type Config struct {
@@ -45,6 +46,8 @@ type Config struct {
 	AutoCreate           bool
 	DisableRemoteConfig  bool
 	DisableNoSampleAgent bool
+
+	HardwareMetricResolution int
 }
 
 func DefaultConfig() Config {
@@ -67,6 +70,7 @@ func DefaultConfig() Config {
 		AutoCreate:                       true,
 		DisableRemoteConfig:              false,
 		DisableNoSampleAgent:             false,
+		HardwareMetricResolution:         60,
 	}
 }
 
@@ -96,6 +100,7 @@ func (c *Config) Bind(f *flag.FlagSet, d Config, legacyVerb bool) {
 		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
 		f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
 		f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
+		f.IntVar(&c.HardwareMetricResolution, "hardware-metric-resolution", d.HardwareMetricResolution, "Statshouse hardware metric resolution")
 	}
 }
 
@@ -146,6 +151,9 @@ func (c *Config) ValidateConfigSource() error {
 	}
 	if c.KeepAliveSuccessTimeout < time.Second {
 		return fmt.Errorf("--keep-alive-timeout (%s) must be >= 1s", c.KeepAliveSuccessTimeout)
+	}
+	if format.AllowedResolution(c.HardwareMetricResolution) != c.HardwareMetricResolution {
+		return fmt.Errorf("--hardware-metric-resolution")
 	}
 
 	return nil
