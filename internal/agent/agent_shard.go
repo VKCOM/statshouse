@@ -37,8 +37,9 @@ type (
 		ReplicaKey      int32
 		perm            []int
 
-		mu     sync.Mutex
-		config Config // can change if remotely updated
+		mu                               sync.Mutex
+		config                           Config        // can change if remotely updated
+		hardwareMetricResolutionResolved *atomic.Int32 // depends on config
 
 		timeSpreadDelta time.Duration // randomly spread bucket sending through second between sources/machines
 
@@ -209,7 +210,7 @@ func (s *ShardReplica) resolutionShardFromHashLocked(hash uint64, metricInfo *fo
 		if !format.HardwareMetric(metricInfo.MetricID) {
 			resolution = metricInfo.EffectiveResolution // TODO - better idea?
 		} else {
-			resolution = s.config.HardwareMetricResolution
+			resolution = int(s.hardwareMetricResolutionResolved.Load())
 		}
 	}
 	numShards := uint64(resolution)

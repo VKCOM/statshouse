@@ -153,7 +153,7 @@ func (c *Config) ValidateConfigSource() error {
 		return fmt.Errorf("--keep-alive-timeout (%s) must be >= 1s", c.KeepAliveSuccessTimeout)
 	}
 	if format.AllowedResolution(c.HardwareMetricResolution) != c.HardwareMetricResolution {
-		return fmt.Errorf("--hardware-metric-resolution")
+		return fmt.Errorf("--hardware-metric-resolution (%d) but must be 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30 or 60", c.HardwareMetricResolution)
 	}
 
 	return nil
