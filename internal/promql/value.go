@@ -324,6 +324,20 @@ func (g *seriesGroup) at(i int) Series {
 	return res
 }
 
+type secondsFormat struct {
+	n int32  // number of seconds
+	s string // corresponding format string
+}
+
+var secondsFormats []secondsFormat = []secondsFormat{
+	{2678400, "%dM"}, // months
+	{604800, "%dw"},  // weeks
+	{86400, "%dd"},   // days
+	{3600, "%dh"},    // hours
+	{60, "%dm"},      // minutes
+	{1, "%ds"},       // seconds
+}
+
 func (t *SeriesTag) stringify(ev *evaluator) {
 	if t.stringified {
 		return
@@ -336,6 +350,17 @@ func (t *SeriesTag) stringify(ev *evaluator) {
 	switch t.ID {
 	case LabelShard:
 		v = strconv.FormatUint(uint64(t.Value), 10)
+	case LabelOffset:
+		n := t.Value // seconds
+		if n < 0 {
+			n = -n
+		}
+		for _, f := range secondsFormats {
+			if n >= f.n && n%f.n == 0 {
+				v = fmt.Sprintf(f.s, -t.Value/f.n)
+				break
+			}
+		}
 	default:
 		v = ev.h.GetTagValue(TagValueQuery{
 			Version:    ev.opt.Version,
