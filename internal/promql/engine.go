@@ -28,10 +28,11 @@ import (
 )
 
 const (
-	labelWhat  = "__what__"
-	labelBy    = "__by__"
-	labelBind  = "__bind__"
-	LabelShard = "__shard__"
+	labelWhat   = "__what__"
+	labelBy     = "__by__"
+	labelBind   = "__bind__"
+	LabelShard  = "__shard__"
+	LabelOffset = "__offset__"
 )
 
 type Query struct {
@@ -207,19 +208,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	if v, ok := evalLiteral(ev.ast); ok {
 		ev.ast = v
 	}
-	// ensure zero offset present, sort descending, remove duplicates
-	s := make([]int64, 0, 1+len(ev.opt.Offsets))
-	s = append(s, 0)
-	s = append(s, ev.opt.Offsets...)
-	sort.Sort(sort.Reverse(sortkeys.Int64Slice(s)))
-	var i int
-	for j := 1; j < len(s); j++ {
-		if s[i] != s[j] {
-			i++
-			s[i] = s[j]
-		}
-	}
-	ev.opt.Offsets = s[:i+1]
+	ev.opt.Offsets = normalizeOffsets(append(ev.opt.Offsets, 0))
 	// match metrics
 	var (
 		maxRange     int64
@@ -228,8 +217,13 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	parser.Inspect(ev.ast, func(node parser.Node, path []parser.Node) error {
 		switch e := node.(type) {
 		case *parser.VectorSelector:
+			if len(e.OriginalOffsetEx) != 0 {
+				e.Offsets = normalizeOffsets(e.OriginalOffsetEx)
+			} else {
+				e.Offsets = []int64{e.OriginalOffset}
+			}
 			if err = ev.bindVariables(e); err == nil {
-				err = ev.matchMetrics(e, path, metricOffset, s[0])
+				err = ev.matchMetrics(e, path, metricOffset, ev.opt.Offsets[0])
 			}
 		case *parser.MatrixSelector:
 			if maxRange < e.Range {
@@ -367,9 +361,15 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 				ev.tracef("found %d metrics for %v", len(metrics), matcher)
 			}
 			for i, m := range metrics {
+				var selOffset int64
+				for _, v := range sel.Offsets {
+					if selOffset < v {
+						selOffset = v
+					}
+				}
 				var (
 					curOffset, ok = metricOffset[m]
-					newOffset     = sel.OriginalOffset + offset
+					newOffset     = selOffset + offset
 				)
 				if !ok || curOffset < newOffset {
 					metricOffset[m] = newOffset
@@ -874,46 +874,53 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
 			ev.tracef("#%d request %s: %s", i, metric.Name, sel.What)
 		}
 		for x, offset := range ev.opt.Offsets {
-			qry, err := ev.buildSeriesQuery(ev.ctx, sel, metric, sel.What, sel.OriginalOffset+offset)
-			if err != nil {
-				return nil, err
-			}
-			if qry.empty() {
-				if ev.trace != nil && ev.debug {
-					ev.tracef("#%d query is empty", i)
-				}
-				continue
-			}
-			series, cancel, err := ev.h.QuerySeries(ev.ctx, &qry.SeriesQuery)
-			if err != nil {
-				return nil, err
-			}
-			ev.cancellationList = append(ev.cancellationList, cancel)
-			if ev.trace != nil && ev.debug {
-				ev.tracef("#%d series count %d", i, len(series.Data))
-			}
-			if qry.prefixSum {
-				series = ev.funcPrefixSum(series)
-			}
-			for k := range series.Data {
-				if !sel.OmitNameTag {
-					series.AddTagAt(k, &SeriesTag{
-						ID:     labels.MetricName,
-						SValue: sel.MatchingNames[i]})
-				}
-				series.Data[k].Offset = offset
-				series.Data[k].What = series.Meta.What
-			}
-			if qry.histogram.restore {
-				series, err = ev.restoreHistogram(series, qry)
+			for _, selOffset := range sel.Offsets {
+				qry, err := ev.buildSeriesQuery(ev.ctx, sel, metric, sel.What, selOffset+offset)
 				if err != nil {
 					return nil, err
 				}
+				if qry.empty() {
+					if ev.trace != nil && ev.debug {
+						ev.tracef("#%d query is empty", i)
+					}
+					continue
+				}
+				series, cancel, err := ev.h.QuerySeries(ev.ctx, &qry.SeriesQuery)
+				if err != nil {
+					return nil, err
+				}
+				ev.cancellationList = append(ev.cancellationList, cancel)
+				if ev.trace != nil && ev.debug {
+					ev.tracef("#%d series count %d", i, len(series.Data))
+				}
+				if qry.prefixSum {
+					series = ev.funcPrefixSum(series)
+				}
+				for k := range series.Data {
+					if !sel.OmitNameTag {
+						series.AddTagAt(k, &SeriesTag{
+							ID:     labels.MetricName,
+							SValue: sel.MatchingNames[i]})
+					}
+					if len(sel.OriginalOffsetEx) != 0 {
+						series.AddTagAt(k, &SeriesTag{
+							ID:    LabelOffset,
+							Value: int32(selOffset)})
+					}
+					series.Data[k].Offset = offset
+					series.Data[k].What = series.Meta.What
+				}
+				if qry.histogram.restore {
+					series, err = ev.restoreHistogram(series, qry)
+					if err != nil {
+						return nil, err
+					}
+				}
+				if len(res[x].Data) == 0 {
+					res[x].Meta = series.Meta
+				}
+				res[x].appendAll(series)
 			}
-			if len(res[x].Data) == 0 {
-				res[x].Meta = series.Meta
-			}
-			res[x].appendAll(series)
 		}
 	}
 	return res, nil
@@ -1437,4 +1444,20 @@ func evalLiteral(expr parser.Expr) (*parser.NumberLiteral, bool) {
 
 func removeLast[V any](s []V) ([]V, V) {
 	return s[:len(s)-1], s[len(s)-1]
+}
+
+func normalizeOffsets(s []int64) []int64 {
+	res := make([]int64, 0, len(s))
+	res = append(res, s...)
+	// sort descending
+	sort.Sort(sort.Reverse(sortkeys.Int64Slice(res)))
+	// remove duplicates
+	var i int
+	for j := 1; j < len(res); j++ {
+		if res[i] != res[j] {
+			i++
+			res[i] = res[j]
+		}
+	}
+	return res[:i+1]
 }

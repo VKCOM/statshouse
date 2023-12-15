@@ -408,13 +408,15 @@ func (p *parser) newVariableBinding(label, value Item) *labels.Matcher {
 }
 
 // addOffset is used to set the offset in the generated parser.
-func (p *parser) addOffset(e Node, offset int64) {
+func (p *parser) addOffset(e Node, offset int64, extra []int64) {
 	var orgoffsetp *int64
+	var orgextsetp *[]int64
 	var endPosp *Pos
 
 	switch s := e.(type) {
 	case *VectorSelector:
 		orgoffsetp = &s.OriginalOffset
+		orgextsetp = &s.OriginalOffsetEx
 		endPosp = &s.PosRange.End
 	case *MatrixSelector:
 		vs, ok := s.VectorSelector.(*VectorSelector)
@@ -423,6 +425,7 @@ func (p *parser) addOffset(e Node, offset int64) {
 			return
 		}
 		orgoffsetp = &vs.OriginalOffset
+		orgextsetp = &vs.OriginalOffsetEx
 		endPosp = &s.EndPos
 	case *SubqueryExpr:
 		orgoffsetp = &s.OriginalOffset
@@ -439,6 +442,9 @@ func (p *parser) addOffset(e Node, offset int64) {
 		*orgoffsetp = offset
 	}
 
+	if orgextsetp != nil {
+		*orgextsetp = append(*orgextsetp, extra...)
+	}
 	*endPosp = p.lastClosing
 }
 
