@@ -45,7 +45,7 @@ Check the detailed [**How-to guides**](category/how-to-guides) to perform popula
 * [Get access to StatsHouse](guides/access-cluster.md)
 * [Create a metric](guides/create-metric.md)
 * [Send metric data](guides/send-data.md)
-* [View data on a graph](guides/view-graph.md)
+* [View data on a graph](guides/view-graph.md) ← _the detailed UI description is here_
 * [Edit a metric](guides/edit-metrics.md)
 * [Create dashboards](guides/dashboards.md)
 * [Query with PromQL](guides/query-wth-promql.md)

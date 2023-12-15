@@ -19,7 +19,7 @@ See how StatsHouse works in two minutes:
 * [Get access to StatsHouse](#get-access-to-statshouse)
 * [Create a metric](#create-a-metric)
 * [Send metric data](#send-metric-data)
-* [View your metric on a dashboard](#view-your-metric-on-a-dashboard)
+* [View your metric on a graph](#view-your-metric-on-a-graph)
 <!-- TOC -->
 
 Then spend ten minutes more and [check basic viewing options](#check-basic-viewing-options).
@@ -30,7 +30,7 @@ Visit StatsHouse deployed in your organization, or [run StatsHouse locally](#how
 
 ### How to run StatsHouse locally
 
-:::warning
+:::important
 Make sure you have [Docker](https://docs.docker.com/get-docker/) installed.
 :::
 
@@ -60,7 +60,7 @@ For this toy example, use a simple `bash` script:
 echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 127.0.0.1 13337
 ```
 
-## View your metric on a dashboard
+## View your metric on a graph
 
 View the metric on the StatsHouse dashboard at 
 [localhost:10888](http://localhost:10888/view?live=1&f=-300&t=0&tn=-1&s=example_response_time&t1.s=example_response_time&t1.qw=avg&t2.s=example_runtime_memory&t2.qw=avg&t2.qb=key1).
@@ -158,9 +158,8 @@ The currently available aggregation is also related to
 a metric [resolution](guides/edit-metrics.md#resolution).
 :::
 
-Read more about [aggregation intervals](guides/view-graph.md#aggregation-interval), 
-what is [aggregation](conceptual-overview.md#aggregation) in StatsHouse, 
-or how and why to change metric [resolution](guides/edit-metrics.md#resolution).
+Read more about [aggregation](conceptual-overview.md#aggregation) in StatsHouse, [aggregation intervals](guides/view-graph.md#aggregation-interval),
+and changing metric [resolution](guides/edit-metrics.md#resolution).
 
 ### Tags
 
@@ -176,7 +175,8 @@ A particular piece of data can be labeled as related to
 :::tip
 Tags with many different values such as user IDs or email addresses
 may lead to [mapping flood](guides/view-graph.md#mapping-status) errors 
-or increased [sampling](guides/view-graph.md#sampling).
+or increased [sampling](guides/view-graph.md#sampling). If you need to create such a tag, read more about [user ID as a 
+tag](guides/edit-metrics.md#user-id-as-a-tag).
 :::
 
 Read more about [filtering with tags](guides/view-graph.md#tags), [setting up](guides/send-data.md#tags) 

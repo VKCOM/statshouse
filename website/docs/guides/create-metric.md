@@ -10,14 +10,6 @@ import NameMetric from '../img/name-new-metric.png'
 [Check the typical questions](#frequent-questions) 
 and [create a metric via the StatsHouse UI](#how-to-create-a-metric-in-the-ui).
 
-:::important
-* You have to create a metric before sending data to it.
-* To create a metric is to give it a name—nothing more.
-* For a created metric, you have to choose the metric type. This is the minimal configuration needed to start sending 
-  data.
-* You can configure more options for your metric later.
-:::
-
 ## Frequent questions
 
 Before you get your first metric in StatsHouse, you may have questions:
@@ -31,22 +23,24 @@ Otherwise, you will not be able to see it.
 
 No. You cannot automate creating metrics: the data you send should be properly formatted. Also, there are limits to 
 creating metrics related to the StatsHouse mapping mechanism. 
-See more about [mapping and budgets for creating metrics](../conceptual-overview.md).
+See more about [mapping and budgets for creating metrics](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics).
 
 > "How many metrics can I create?"
  
 In most cases, you should not worry about limits if you create metrics manually via the UI. If you are not sure, see 
-more about [mapping and budgets for creating metrics](../conceptual-overview.md).
+more about [mapping and budgets for creating metrics](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics).
 
 > "What if I send too much data? Can I overload StatsHouse or spoil other metrics?"
 
 Most likely, you cannot do anything wrong to StatsHouse or other users with your metrics. It is almost 
-impossible to overload StatsHouse due to [aggregation] and [sampling]. StatsHouse also provides users with [fair 
-resource sharing], so no metric can steal budget from the other one.
+impossible to overload StatsHouse due to [aggregation](../conceptual-overview.md#aggregation) 
+and [sampling](../conceptual-overview.md#sampling). 
+StatsHouse also provides users with [fair resource sharing](../conceptual-overview.md#fair-resource-sharing), 
+so no metric can steal budget from the other one.
 
 :::info
 To learn more about mechanisms that make StatsHouse highly available and scalable, and how they may affect the 
-resulting data, refer to the [conceptual overview].
+resulting data, refer to the [conceptual overview](../conceptual-overview.md).
 :::
 
 > "Can I delete a metric?"
@@ -61,15 +55,13 @@ To create a metric, give it a name:
 
 <img src={CreateMetric} width="300"/>
 
-2. In StatsHouse, there may be more than 10.000 metrics, so naming your metrics properly will help you and other 
-users to find the necessary one.
+2. In StatsHouse, there may be more than 10.000 metrics at a time, so naming your metrics properly will help you and 
+   other users to find the necessary one.
 If you have a group of metrics related to a particular product or a service, you can use prefixes or other 
 specifications to name them consistently:
 
 <img src={NameMetric} width="600"/>
 
 As soon as your metric has a name, you should understand the [metric type](edit-metrics.md#metric-type) and specify it in 
-your sending requests. 
-Then, you can [configure](edit-metrics.md) more parameters for your metric, or start [sending data](send-data.md) 
-right away.
+your sending requests. Then, you can start [sending data](send-data.md).
 
