@@ -444,7 +444,7 @@ func init() {
 		"absent":           funcAbsent,
 		"absent_over_time": funcAbsentOverTime,
 		"ceil":             simpleCall(math.Ceil),
-		"changes":          overTimeCall(funcChanges, 0),
+		"changes":          overTimeCall(funcChanges, true, 0),
 		"clamp":            funcClamp,
 		"clamp_max":        funcClampMax,
 		"clamp_min":        funcClampMin,
@@ -492,14 +492,14 @@ func init() {
 		"timestamp":          bagCall(funcTimestamp),
 		"vector":             funcVector,
 		"year":               timeCall(time.Time.Year),
-		"avg_over_time":      overTimeCall(funcAvgOverTime, NilValue),
-		"min_over_time":      overTimeCall(funcMinOverTime, NilValue),
-		"max_over_time":      overTimeCall(funcMaxOverTime, NilValue),
-		"sum_over_time":      overTimeCall(funcSumOverTime, NilValue),
-		"count_over_time":    overTimeCall(funcCountOverTime, 0),
+		"avg_over_time":      overTimeCall(funcAvgOverTime, false, NilValue),
+		"min_over_time":      overTimeCall(funcMinOverTime, false, NilValue),
+		"max_over_time":      overTimeCall(funcMaxOverTime, false, NilValue),
+		"sum_over_time":      overTimeCall(funcSumOverTime, true, NilValue),
+		"count_over_time":    overTimeCall(funcCountOverTime, true, 0),
 		"quantile_over_time": funcQuantileOverTime,
-		"stddev_over_time":   overTimeCall(funcStdDevOverTime, NilValue),
-		"stdvar_over_time":   overTimeCall(funcStdVarOverTime, NilValue),
+		"stddev_over_time":   overTimeCall(funcStdDevOverTime, true, NilValue),
+		"stdvar_over_time":   overTimeCall(funcStdVarOverTime, true, NilValue),
 		"last_over_time":     nopCall,
 		"present_over_time":  funcPresentOverTime,
 		"acos":               simpleCall(math.Acos),
@@ -690,7 +690,7 @@ func nopCall(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	return ev.eval(args[0])
 }
 
-func overTimeCall(fn func(v []float64) float64, nilValue float64) callFunc {
+func overTimeCall(fn func(v []float64) float64, strict bool, nilValue float64) callFunc {
 	return func(ev *evaluator, args parser.Expressions) ([]Series, error) {
 		bag, err := ev.eval(args[0])
 		if err != nil {
@@ -698,7 +698,7 @@ func overTimeCall(fn func(v []float64) float64, nilValue float64) callFunc {
 		}
 		for x := range bag {
 			for _, s := range bag[x].Data {
-				wnd := ev.newWindow(*s.Values, true)
+				wnd := ev.newWindow(*s.Values, strict)
 				for wnd.moveOneLeft() {
 					if wnd.n != 0 {
 						wnd.setValueAtRight(fn((*s.Values)[wnd.l : wnd.r+1]))
