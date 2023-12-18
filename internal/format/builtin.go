@@ -66,10 +66,10 @@ const (
 	BuiltinMetricIDGeneratorSinCounter        = -46
 	BuiltinMetricIDHeartbeatVersion           = -47
 	BuiltinMetricIDHeartbeatArgs              = -48 // this metric was writing larger than allowed strings to DB in the past
-	BuiltinMetricIDAPIRPCServiceTime          = -49 // TODO: delete when agents & aggregators get "__api_service_time" builtin
-	BuiltinMetricIDAPIBRS                     = -50
-	BuiltinMetricIDAPIEndpointResponseTime    = -51 // TODO: delete when agents & aggregators get "__api_response_time" builtin
-	BuiltinMetricIDAPIEndpointServiceTime     = -52 // TODO: delete when agents & aggregators get "__api_service_time" builtin
+	// BuiltinMetricIDAPIRPCServiceTime       = -49 // deprecated, replaced by "__api_service_time"
+	BuiltinMetricIDAPIBRS = -50
+	// BuiltinMetricIDAPIEndpointResponseTime = -51 // deprecated, replaced by "__api_response_time"
+	// BuiltinMetricIDAPIEndpointServiceTime  = -52 // deprecated, replaced by "__api_service_time"
 	BuiltinMetricIDBudgetHost                 = -53 // these 2 metrics are invisible, but host mapping is flood-protected by their names
 	BuiltinMetricIDBudgetAggregatorHost       = -54 // we want to see limits properly credited in flood meta metric tags
 	BuiltinMetricIDAPIActiveQueries           = -55
@@ -124,8 +124,6 @@ const (
 	BuiltinMetricNameAPISelectRows              = "__api_ch_select_rows"
 	BuiltinMetricNameAPISourceSelectRows        = "__api_ch_source_select_rows"
 	BuiltinMetricNameAPISelectDuration          = "__api_ch_select_duration"
-	BuiltinMetricNameAPIEndpointResponseTime    = "__api_endpoint_response_time" // TODO: delete when agents & aggregators get "__api_response_time" builtin
-	BuiltinMetricNameAPIEndpointServiceTime     = "__api_endpoint_service_time"  // TODO: delete when agents & aggregators get "__api_service_time" builtin
 	BuiltinMetricNameBudgetHost                 = "__budget_host"
 	BuiltinMetricNameBudgetAggregatorHost       = "__budget_aggregator_host"
 	BuiltinMetricNameAPIActiveQueries           = "__api_active_queries"
@@ -1132,59 +1130,6 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Description: "Test counter generated on the fly by sine function",
 			Tags:        []MetricMetaTag{},
 		},
-		BuiltinMetricIDAPIRPCServiceTime: { // TODO: delete when agents & aggregators get "__api_service_time" builtin
-			Name:        BuiltinMetricNameAPIRPCServiceTime,
-			Kind:        MetricKindValue,
-			Description: "Time to handle RPC query by API.",
-			Tags: []MetricMetaTag{{
-				Description: "methods",
-			}, {
-				Description: "error_code",
-				Raw:         true,
-			}, {
-				Description: "token_name",
-			}, {
-				Description: "host",
-			}},
-		},
-		BuiltinMetricIDAPIEndpointResponseTime: { // TODO: delete when agents & aggregators get "__api_response_time" builtin
-			Name:        BuiltinMetricNameAPIEndpointResponseTime,
-			Kind:        MetricKindValue,
-			Description: "Time to handle and respond to HTTP query by API",
-			Tags: []MetricMetaTag{{
-				Description: "endpoint",
-			}, {
-				Description: "metric",
-				IsMetric:    true,
-			}, {
-				Description: "http_code",
-			}, {
-				Description: "token_name",
-			}, {
-				Description: "data_format",
-			}, {
-				Description: "method",
-			}},
-		},
-		BuiltinMetricIDAPIEndpointServiceTime: { // TODO: delete when agents & aggregators get "__api_service_time" builtin
-			Name:        BuiltinMetricNameAPIEndpointServiceTime,
-			Kind:        MetricKindValue,
-			Description: "Time to handle HTTP query by API",
-			Tags: []MetricMetaTag{{
-				Description: "endpoint",
-			}, {
-				Description: "metric",
-				IsMetric:    true,
-			}, {
-				Description: "http_code",
-			}, {
-				Description: "token_name",
-			}, {
-				Description: "data_format",
-			}, {
-				Description: "method",
-			}},
-		},
 		BuiltinMetricIDAPIServiceTime: {
 			Name:        BuiltinMetricNameAPIServiceTime,
 			Kind:        MetricKindValue,
@@ -1676,8 +1621,6 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDTimingErrors:               true,
 		BuiltinMetricIDPromScrapeTime:             true,
 		BuiltinMetricIDAPIBRS:                     true,
-		BuiltinMetricIDAPIEndpointResponseTime:    true,
-		BuiltinMetricIDAPIEndpointServiceTime:     true,
 		BuiltinMetricIDAPIServiceTime:             true,
 		BuiltinMetricIDAPIResponseTime:            true,
 		BuiltinMetricIDUsageMemory:                true,
@@ -1779,8 +1722,6 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPISelectRows:              true,
 		BuiltinMetricIDAPISelectBytes:             true,
 		BuiltinMetricIDAPISelectDuration:          true,
-		BuiltinMetricIDAPIEndpointResponseTime:    true,
-		BuiltinMetricIDAPIEndpointServiceTime:     true,
 		BuiltinMetricIDAPIServiceTime:             true,
 		BuiltinMetricIDAPIResponseTime:            true,
 		BuiltinMetricIDAPIActiveQueries:           true,

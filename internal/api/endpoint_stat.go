@@ -58,12 +58,10 @@ type endpointStat struct {
 func (es *endpointStat) serviceTime(code int) {
 	LogMetric(format.TagValueIDHTTP, es.user, es.metric)
 	es.logEvent(format.BuiltinMetricNameAPIServiceTime, code)
-	es.logDeprecatedEvent(format.BuiltinMetricNameAPIEndpointServiceTime, code)
 }
 
 func (es *endpointStat) responseTime(code int) {
 	es.logEvent(format.BuiltinMetricNameAPIResponseTime, code)
-	es.logDeprecatedEvent(format.BuiltinMetricNameAPIEndpointResponseTime, code)
 }
 
 func (es *endpointStat) logEvent(statName string, code int) {
@@ -82,21 +80,6 @@ func (es *endpointStat) logEvent(statName string, code int) {
 		}
 	)
 	statshouse.Metric(statName, t).Value(v)
-}
-
-func (es *endpointStat) logDeprecatedEvent(statName string, code int) {
-	v := time.Since(es.startTime).Seconds()
-	statshouse.Metric(
-		statName,
-		statshouse.Tags{
-			1: es.endpoint,
-			2: es.metric,
-			3: strconv.Itoa(code),
-			4: es.tokenName,
-			5: es.dataFormat,
-			6: es.method,
-		},
-	).Value(v)
 }
 
 func (es *endpointStat) setTokenName(user string) {
