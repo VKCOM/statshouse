@@ -2254,6 +2254,10 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 				meta.What, _, _ = parseQueryWhat(tag.SValue, false)
 				continue
 			}
+			if tag.ID == promql.LabelOffset {
+				meta.TimeShift = -(s.Offset + int64(tag.Value))
+				continue
+			}
 			var (
 				k = id
 				v = SeriesMetaTag{Value: tag.SValue}

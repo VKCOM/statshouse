@@ -467,6 +467,7 @@ func init() {
 		"irate":              bagCall(funcIrate),
 		"label_join":         funcLabelJoin,
 		"label_replace":      funcLabelReplace,
+		"label_set":          funcLabelSet,
 		"ln":                 simpleCall(math.Log),
 		"log2":               simpleCall(math.Log2),
 		"log10":              simpleCall(math.Log10),
@@ -1166,6 +1167,24 @@ func funcLabelReplace(ev *evaluator, args parser.Expressions) ([]Series, error) 
 					bag[x].Data[i].Tags.remove(dst)
 				}
 			}
+		}
+	}
+	return bag, nil
+}
+
+func funcLabelSet(ev *evaluator, args parser.Expressions) ([]Series, error) {
+	if len(args) != 3 {
+		return nil, fmt.Errorf("invalid argument count in label_set(): expected 3, got %d", len(args))
+	}
+	k := args[1].(*parser.StringLiteral).Val
+	v := args[2].(*parser.StringLiteral).Val
+	bag, err := ev.eval(args[0])
+	if err != nil {
+		return nil, err
+	}
+	for x := range bag {
+		for i := range bag[x].Data {
+			bag[x].AddTagAt(i, &SeriesTag{ID: k, SValue: v})
 		}
 	}
 	return bag, nil
