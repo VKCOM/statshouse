@@ -67,7 +67,7 @@ import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
-import { GET_PARAMS, isQueryWhat, QueryWhat, TagKey } from '../api/enum';
+import { GET_PARAMS, isQueryWhat, METRIC_TYPE, QUERY_WHAT, QueryWhat, TagKey } from '../api/enum';
 import { deepClone, mergeLeft, sortEntity, toNumber } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { appHistory } from '../common/appHistory';
@@ -93,6 +93,7 @@ import { clearAllPlotPreview, clearPlotPreview, resortPlotPreview } from './plot
 import { createStoreWithEqualityFn } from './createStore';
 import { setLiveMode, setLiveModeInterval, useLiveModeStore } from './liveMode';
 import { addStatus, removePlotHeals, resortPlotHeals, skipRequestPlot, usePlotHealsStore } from './plot/plotHealsStore';
+import { formatByMetricType, getMetricType } from '../common/formatByMetricType';
 
 export type PlotStore = {
   nameMetric: string;
@@ -1395,8 +1396,12 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
               case PLOT_TYPE.Metric:
                 params.plots[indexPlot].customAgg = 0;
                 params.plots[indexPlot].eventsBy = [];
+                params.plots[indexPlot].what = [QUERY_WHAT.countNorm];
+                params.plots[indexPlot].numSeries = 5;
                 break;
               case PLOT_TYPE.Event:
+                params.plots[indexPlot].what = [QUERY_WHAT.count];
+                params.plots[indexPlot].numSeries = 0;
                 params.plots[indexPlot].customAgg = -1;
                 params.plots[indexPlot].eventsBy =
                   (meta &&
@@ -1883,7 +1888,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
           }
         });
         apiGet<queryTable>(url, controller.signal, true)
-          .then((resp) => {
+          .then(async (resp) => {
+            await getState().loadMetricsMeta(getState().params.plots[indexPlot].metricName);
             setState((state) => {
               state.events[indexPlot] ??= {
                 chunks: [],
@@ -1891,6 +1897,10 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                 what: [],
                 range: new TimeRange(range.getRangeUrl),
               };
+              const prevPlot = state.params.plots[indexPlot];
+              const meta = state.metricsMeta[prevPlot.metricName];
+              const metricType = getMetricType(prevPlot.what, prevPlot.metricType ?? meta?.metric_type);
+              const formatMetric = metricType !== METRIC_TYPE.none && formatByMetricType(metricType);
               const chunk: EventDataChunk = {
                 ...resp,
                 ...range.getRange(),
@@ -1936,7 +1946,15 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                         data: row.data,
                         time: row.time,
                         ...Object.fromEntries(
-                          state.events[indexPlot].what.map((whatKey, indexWhat) => [whatKey, row.data[indexWhat]])
+                          state.events[indexPlot].what.map((whatKey, indexWhat) => [
+                            whatKey,
+                            {
+                              value: row.data[indexWhat],
+                              formatValue: formatMetric
+                                ? formatMetric(row.data[indexWhat])
+                                : formatLegendValue(row.data[indexWhat]),
+                            },
+                          ])
                         ),
                         ...row.tags,
                       }) as EventDataRow
