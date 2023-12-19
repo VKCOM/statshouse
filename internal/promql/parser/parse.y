@@ -90,6 +90,7 @@ AVG
 BOTTOMK
 COUNT
 COUNT_VALUES
+DROP_EMPTY_SERIES
 GROUP
 MAX
 MIN
@@ -553,8 +554,8 @@ label_match_list: label_match_list COMMA label_matcher
                         { yylex.(*parser).unexpected("label matching", "\",\" or \"}\""); $$ = $1 }
                 ;
 
-label_matcher   : AT IDENTIFIER EQL STRING
-                        { $$ = yylex.(*parser).newLabelMatcherInternal($2, $4);  }
+label_matcher   : AT IDENTIFIER match_op STRING
+                        { $$ = yylex.(*parser).newLabelMatcherInternal($2, $3, $4);  }
                 | IDENTIFIER BIND DOLLAR IDENTIFIER
                         { $$ = yylex.(*parser).newVariableBinding($1, $4);  }
                 | IDENTIFIER match_op STRING
@@ -571,16 +572,16 @@ label_matcher   : AT IDENTIFIER EQL STRING
  * Metric descriptions.
  */
 
-metric_identifier: AVG | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | IDENTIFIER |  LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC | WITHOUT | START | END;
+metric_identifier: AVG | BOTTOMK | BY | COUNT | COUNT_VALUES | DROP_EMPTY_SERIES | GROUP | IDENTIFIER |  LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC | WITHOUT | START | END;
 
 /*
  * Keyword lists.
  */
 
-aggregate_op    : AVG | BOTTOMK | COUNT | COUNT_VALUES | GROUP | MAX | MIN | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC;
+aggregate_op    : AVG | BOTTOMK | COUNT | COUNT_VALUES | DROP_EMPTY_SERIES | GROUP | MAX | MIN | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC;
 
 // inside of grouping options label names can be recognized as keywords by the lexer. This is a list of keywords that could also be a label name.
-maybe_label     : AVG | BOOL | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | GROUP_LEFT | GROUP_RIGHT | IDENTIFIER | IGNORING | LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | ON | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC | START | END | ATAN2 | NUMBER;
+maybe_label     : AVG | BOOL | BOTTOMK | BY | COUNT | COUNT_VALUES | DROP_EMPTY_SERIES | GROUP | GROUP_LEFT | GROUP_RIGHT | IDENTIFIER | IGNORING | LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | ON | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC | START | END | ATAN2 | NUMBER;
 
 unary_op        : ADD | SUB;
 

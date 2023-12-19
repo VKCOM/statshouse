@@ -221,6 +221,11 @@ var Functions = map[string]*Function{
 		ArgTypes:   []ValueType{ValueTypeVector, ValueTypeString, ValueTypeString},
 		ReturnType: ValueTypeVector,
 	},
+	"label_maxhost": {
+		Name:       "label_maxhost",
+		ArgTypes:   []ValueType{ValueTypeVector},
+		ReturnType: ValueTypeVector,
+	},
 	"label_join": {
 		Name:       "label_join",
 		ArgTypes:   []ValueType{ValueTypeVector, ValueTypeString, ValueTypeString, ValueTypeString},

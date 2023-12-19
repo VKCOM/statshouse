@@ -389,9 +389,25 @@ func (p *parser) newLabelMatcher(label, operator, value Item) *labels.Matcher {
 	return m
 }
 
-func (p *parser) newLabelMatcherInternal(label, value Item) *labels.Matcher {
+func (p *parser) newLabelMatcherInternal(label, operator, value Item) *labels.Matcher {
+	op := operator.Typ
+	var matchType labels.MatchType
+	switch op {
+	case EQL:
+		matchType = labels.MatchEqual
+	case NEQ:
+		matchType = labels.MatchNotEqual
+	case EQL_REGEX:
+		matchType = labels.MatchRegexp
+	case NEQ_REGEX:
+		matchType = labels.MatchNotRegexp
+	default:
+		// This should never happen, since the error should have been caught
+		// by the generated parser.
+		panic("invalid operator")
+	}
 	val := p.unquoteString(value.Val)
-	m, err := labels.NewMatcher(labels.MatchEqual, "__"+label.Val+"__", val)
+	m, err := labels.NewMatcher(matchType, "__"+label.Val+"__", val)
 	if err != nil {
 		p.addParseErr(mergeRanges(&label, &value), err)
 	}
