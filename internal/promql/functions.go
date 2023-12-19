@@ -1160,12 +1160,11 @@ func funcLabelReplace(ev *evaluator, args parser.Expressions) ([]Series, error) 
 			}
 			match := r.FindStringSubmatchIndex(v)
 			if len(match) != 0 {
-				v = string(r.ExpandString([]byte{}, tpl, v, match))
-				if len(v) != 0 {
-					bag[x].AddTagAt(i, &SeriesTag{ID: dst, SValue: v})
-				} else if i < len(bag[x].Data) {
-					bag[x].Data[i].Tags.remove(dst)
-				}
+				bag[x].AddTagAt(i, &SeriesTag{
+					ID:          dst,
+					SValue:      string(r.ExpandString([]byte{}, tpl, v, match)),
+					stringified: true,
+				})
 			}
 		}
 	}
@@ -1184,7 +1183,7 @@ func funcLabelSet(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	}
 	for x := range bag {
 		for i := range bag[x].Data {
-			bag[x].AddTagAt(i, &SeriesTag{ID: k, SValue: v})
+			bag[x].AddTagAt(i, &SeriesTag{ID: k, SValue: v, stringified: true})
 		}
 	}
 	return bag, nil
