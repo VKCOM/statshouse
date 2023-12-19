@@ -15,7 +15,6 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/textparse"
 	"github.com/prometheus/prometheus/prompb"
-
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
@@ -42,7 +41,6 @@ type metricCacheItem struct {
 type cacheMetricSample struct {
 	timestamp int64
 	count     float64
-	sum       float64
 	buckets   []cacheMetricBucket // nil unless histogram
 }
 
@@ -103,8 +101,6 @@ func (cache metricCache) setMetricType(name string, typ cacheMetricType) {
 		cache[name] = info
 		if typ == cacheMetricTypeHistogram {
 			cache[name+_bucket] = info
-			cache[name+_sum] = info
-			cache[name+_count] = info
 		}
 	}
 }
@@ -210,7 +206,8 @@ func (m *cacheMetric) processSample(v float64, t int64, s []tlstatshouse.MetricB
 	case cacheMetricTypeHistogram:
 		// calculate histogram if sample timestamp changed
 		if m.sample.timestamp != t {
-			s = m.calculateHistogram(t, s)
+			s = m.calculateHistogram(s)
+			m.sample.timestamp = t
 		}
 		// append sample
 		switch m.name {
@@ -221,50 +218,41 @@ func (m *cacheMetric) processSample(v float64, t int64, s []tlstatshouse.MetricB
 				le:    m.le,
 				count: v,
 			})
-		case m.info.name + _sum:
-			m.sample.sum += v
-		case m.info.name + _count:
-			m.sample.count += v
 		}
 	}
 	return s
 }
 
-func (m *cacheMetric) calculateHistogram(t int64, s []tlstatshouse.MetricBytes) []tlstatshouse.MetricBytes {
-	if m.sample.buckets != nil && m.sample.count != 0 {
-		// sort buckets by "le"
-		buckets := m.sample.buckets
-		sort.Slice(buckets, func(i, j int) bool { return buckets[i].le < buckets[j].le })
-		// row per bucket
-		for i := len(buckets); i != 0; i-- {
-			bucket := buckets[i-1]
-			if i != 1 {
-				// bucket delta from absolute value
-				bucket.count -= buckets[i-2].count
-			}
-			bytes := tlstatshouse.MetricBytes{
-				Name: []byte(m.info.name),
-				Tags: bucket.tags,
-			}
-			bytes.SetCounter(bucket.count)
-			if m.sample.timestamp != 0 {
-				bytes.SetTs(uint32((m.sample.timestamp-1)/1_000 + 1))
-			}
-			s = append(s, bytes)
-		}
+func (m *cacheMetric) calculateHistogram(s []tlstatshouse.MetricBytes) []tlstatshouse.MetricBytes {
+	if len(m.sample.buckets) == 0 {
+		return s
 	}
-	// reset sample state (get ready for new histogram)
-	m.sample.timestamp = t
-	m.sample.count = 0
-	m.sample.sum = 0
-	if m.sample.buckets != nil {
-		// clear references to "info" and "tags"
-		for i := range m.sample.buckets {
-			m.sample.buckets[i] = cacheMetricBucket{}
+	// sort buckets by "le"
+	buckets := m.sample.buckets
+	sort.Slice(buckets, func(i, j int) bool { return buckets[i].le < buckets[j].le })
+	// row per bucket
+	for i := len(buckets); i != 0; i-- {
+		bucket := buckets[i-1]
+		if i != 1 {
+			// bucket delta from absolute value
+			bucket.count -= buckets[i-2].count
 		}
-		// reuse array
-		m.sample.buckets = m.sample.buckets[:0]
+		bytes := tlstatshouse.MetricBytes{
+			Name: []byte(m.info.name),
+			Tags: bucket.tags,
+		}
+		bytes.SetValue([]float64{bucket.count})
+		if m.sample.timestamp != 0 {
+			bytes.SetTs(uint32((m.sample.timestamp-1)/1_000 + 1))
+		}
+		s = append(s, bytes)
 	}
+	// clear references to "info" and "tags"
+	for i := range m.sample.buckets {
+		m.sample.buckets[i] = cacheMetricBucket{}
+	}
+	// reuse array
+	m.sample.buckets = m.sample.buckets[:0]
 	return s
 }
 
@@ -274,7 +262,8 @@ func (cache metricCache) calculateHistograms(s []tlstatshouse.MetricBytes) []tls
 			for _, sample := range item.samples {
 				if len(sample.buckets) != 0 {
 					metric := &cacheMetric{name: item.name, info: item, sample: sample}
-					s = metric.calculateHistogram(0, s)
+					s = metric.calculateHistogram(s)
+					metric.sample.timestamp = 0
 				}
 			}
 		}
