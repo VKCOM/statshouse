@@ -374,6 +374,11 @@ func (t *SeriesTag) stringify(ev *evaluator) {
 }
 
 func (ts *SeriesTags) add(t *SeriesTag, m *SeriesMeta) {
+	if len(t.SValue) == 0 && t.stringified {
+		// setting empty string value removes tag
+		ts.remove(t.ID)
+		return
+	}
 	if ts.ID2Tag == nil {
 		ts.ID2Tag = map[string]*SeriesTag{t.ID: t}
 	} else {
