@@ -2,6 +2,7 @@
 sidebar_position: 3
 ---
 
+import DemoFlow from './img/demo-flow.png'
 import CreateMetric from './img/create-metric.png'
 import MyMetric from './img/quick-start-name-metric.png'
 import ViewMetric from './img/quick-start-view.png'
@@ -13,22 +14,23 @@ import TopN from './img/top-n.png'
 
 # Quick start
 
-See how StatsHouse works in two minutes:
+See how StatsHouse works in ten minutes.
 
-<!-- TOC -->
-* [Get access to StatsHouse](#get-access-to-statshouse)
-* [Create a metric](#create-a-metric)
-* [Send metric data](#send-metric-data)
-* [View your metric on a graph](#view-your-metric-on-a-graph)
-<!-- TOC -->
+<img src={DemoFlow} width="900"/>
 
-Then spend ten minutes more and [check basic viewing options](#check-basic-viewing-options).
+Choose your flow and find the related section below or in the upper-right navigation bar.
 
-## Get access to StatsHouse
+:::important
+This tutorial is for Linux systems.
+For macOS or Windows, there may be Docker-related issues.
+:::
 
-Visit StatsHouse deployed in your organization, or [run StatsHouse locally](#how-to-run-statshouse-locally).
+For detailed instructions on how to create, send, and view metrics, please refer
+to the [How-to guides](introduction.md#find-the-guide-for-your-task).
 
-### How to run StatsHouse locally
+If you have StatsHouse deployed in your organization, please contact your administrators to get the necessary access.
+
+## Run StatsHouse locally
 
 :::important
 Make sure you have [Docker](https://docs.docker.com/get-docker/) installed.
@@ -43,15 +45,25 @@ cd statshouse
 
 The StatsHouse UI opens once it is ready.
 
-## Create a metric
+## Send metrics from a demo web server
 
-1. Go to the main **⚡** menu in the upper-left corner and select **Create metric**:
+From the StatsHouse directory, run a [simple instrumented Go
+web server](https://github.com/VKCOM/statshouse/blob/master/cmd/statshouse-example/statshouse-example.go)—it will send metrics to your local StatsHouse instance:
+ ```shell
+ go run ./cmd/statshouse-example/statshouse-example.go
+ ```
+
+## Create your metric
+
+Go to the main **⚡** menu in the upper-left corner and select **Create metric**:
 
 <img src={CreateMetric} width="300"/>
 
-2. Name your metric:
+Name your metric:
 
 <img src={MyMetric} width="600"/>
+
+Read more about [creating metrics](guides/create-metric.md).
 
 ## Send metric data
 
@@ -60,7 +72,7 @@ For this toy example, use a simple `bash` script:
 echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 127.0.0.1 13337
 ```
 
-## View your metric on a graph
+Read more about [metrics in StatsHouse](guides/send-data.md#what-are-metrics-in-statshouse) and [sending metric data](guides/send-data.md).
 
 View the metric on the StatsHouse dashboard at 
 [localhost:10888](http://localhost:10888/view?live=1&f=-300&t=0&tn=-1&s=example_response_time&t1.s=example_response_time&t1.qw=avg&t2.s=example_runtime_memory&t2.qw=avg&t2.qb=key1).
@@ -68,6 +80,8 @@ View the metric on the StatsHouse dashboard at
 In this example, we sent the same metric data three times:
 
 <img src={ViewMetric} width="900"/>
+
+Read more about [viewing metrics on a graph](guides/view-graph.md).
 
 ## Check basic viewing options
 
@@ -80,9 +94,6 @@ Find the basic viewing options on a picture and their descriptions below:
 Choose the name of your previously created metric or refer to someone else's one. 
 Learn how to [refer to existing metrics](guides/view-graph.md#refer-to-existing-metrics) 
 and check the related warnings.
-Check [how to find the metrics author](guides/view-graph.md#how-to-find-the-metrics-author).
-
-Read more about [choosing a metric by its name](guides/view-graph.md#metric-name).
 
 ### Descriptive statistics
 
@@ -101,7 +112,7 @@ The range of descriptive statistics that are meaningful for a metric is
 For example, _percentiles_ are available for _values_ only.
 
 In this dropdown menu, you can see statistics, which may be not relevant for your metric type. If you pick them, you 
-will see _0_ values for them on a graph. To switch off showing irrelevant statistics in this dropdown menu, 
+will see 0 values for them on a graph. To switch off showing irrelevant statistics in this dropdown menu, 
 [specify the metric type in the UI](guides/edit-metrics.md#aggregation).
 
 :::tip
@@ -166,17 +177,16 @@ and changing metric [resolution](guides/edit-metrics.md#resolution).
 Tags help to differentiate the characteristics of what you measure, the contributing factors, or a context. 
 Filter or group metric data by available tags.
 
-A particular piece of data can be labeled as related to 
+For example, a particular piece of data can be labeled as related to 
 * an environment: `production`, `development`, or `staging`; 
 * parts of your application: `video`, `stories`, `feed`, etc.;
 * a platform: `mobile`, `web`, etc., 
 * a group of methods, a version, or something else.
 
 :::tip
-Tags with many different values such as user IDs or email addresses
-may lead to [mapping flood](guides/view-graph.md#mapping-status) errors 
-or increased [sampling](guides/view-graph.md#sampling). If you need to create such a tag, read more about [user ID as a 
-tag](guides/edit-metrics.md#user-id-as-a-tag).
+Tags with many different values such as user IDs may lead to [mapping flood](guides/view-graph.md#mapping-status) errors 
+or increased [sampling](guides/view-graph.md#sampling) due to high [cardinality](conceptual-overview.md#cardinality). If you need to create such a tag, read more about 
+[tags with many different values](guides/edit-metrics.md#raw-values).
 :::
 
 Read more about [filtering with tags](guides/view-graph.md#tags), [setting up](guides/send-data.md#tags) 
@@ -203,5 +213,5 @@ So, if you choose _Top 3_, you will get, for example:
 :::note
 To try out full StatsHouse features such as [editing metrics](guides/edit-metrics.md), 
 [querying with PromQL](guides/query-wth-promql.md), [creating dashboards](guides/dashboards.md), and more,
-refer to the [How-to guides](/category/how-to-guides).
+refer to the [How-to guides](introduction.md#find-the-guide-for-your-task).
 :::

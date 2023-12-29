@@ -18,8 +18,9 @@ Mixed
 ## Tags
 
 
-## User ID as a tag
+## Raw values
 
+## String tag
 
 ## Disabling a metric
 

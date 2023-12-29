@@ -1,8 +1,4 @@
 {
   "label": "How-to guides",
-  "position": 4,
-  "link": {
-    "type": "generated-index",
-    "description": "Check the guides to perform popular tasks."
-  }
+  "position": 4
 }

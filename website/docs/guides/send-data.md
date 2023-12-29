@@ -1,94 +1,118 @@
 ---
 sidebar_position: 3
-description: TEST
 ---
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
-import MetricTypes from '../img/metric-types.png'
+import MetricTypes from '../img/metric-types.png';
+import WhatIsMetric from '../img/what-is-metric.png'
+import AbTest from '../img/ab-test.png'
 
 # Send metric data
 
 :::important
-Before sending data, [create a metric](create-metric.md) manually 
-via the UI.
-:::
-
-:::tip
-Make sure you understand [metric types](#understand-metric-types),
-and how to choose [proper tags](#choose-proper-tags).
+Before sending data, [create a metric](create-metric.md) manually via the UI.
 :::
 
 :::warning
 Do not send data to someone else's metric as you can spoil the metric data.
 :::
 
-As soon as your metric has a name, you are almost ready to start sending data. 
+## What are metrics in StatsHouse?
 
-## Use client libraries
+A metric is how you measure something you are interested in—read more about [metric types](#how-to-choose-a-metric-type).
+A basic metric structure in StatsHouse looks like this:
 
-StatsHouse provides you with client libraries to send metric data from your code:
+<img src={WhatIsMetric} width="1000"/>
+
+
+<details>
+
+    <summary>
+        See code from this picture
+        </summary>
+    
+        ```yaml
+        {
+          metrics: [
+            {
+              ts:   1670673392,     # uint32, UNIX timestamp in seconds (optional)
+              name: "foobar",       # string([a-zA-Z][a-zA-Z0-9_]*), metric name
+              tags: {
+                "env":              # string([a-zA-Z][a-zA-Z0-9_]*), tag name
+                  "production"      # string(printable UTF-8),       tag value
+              },
+              counter: 100500.1,    # float64,        number of observed events
+              value:   [0.7],       # array(float64), observed values array
+              unique:  [591068825], # array(int64),   observed IDs array
+            }
+          ]
+        }
+        ```
+
+    </details>
+
+(We use [MessagePack](https://github.com/msgpack/msgpack) format for the above example, but
+more [protocols](../conceptual-overview.md#protocols) are supported.)
+
+To start sending data, check the following: 
+* [how to send metric data via client libraries](#how-to-send-data-via-client-libraries),
+* [how to use tags](#choose-proper-tags), 
+* and [how to choose a metric type](#how-to-choose-a-metric-type).
+
+## How to send data via client libraries
+
+StatsHouse client libraries help to instrument your application code
+so that you can send properly formatted data for your metric:
+
 - [Go](https://github.com/VKCOM/statshouse-go)
 - [PHP](https://github.com/VKCOM/statshouse-php)
 - [C++](https://github.com/VKCOM/statshouse-cpp)
 - [Java](https://github.com/VKCOM/statshouse-java)
 - [Python](https://github.com/VKCOM/statshouse-py)
 
-There is also a special module for using StatsHouse with 
-[nginx](https://github.com/VKCOM/nginx-statshouse-module).
-
-### How to use the client libraries
+There is also a special module for using StatsHouse with [nginx](https://github.com/VKCOM/nginx-statshouse-module).
 
 Below are the simple code examples using some of these libraries. 
 Prior to copying and pasting the code, install the library you need using recommendations 
-from the corresponding README file, [for example](https://github.com/VKCOM/statshouse-py/blob/master/README.md):
-```Python
-pip install statshouse # install a StatsHouse library for Python
-```
-Or, for a [StatsHouse library for C++](https://github.com/VKCOM/statshouse-cpp):
-```shell
-git clone https://github.com/VKCOM/statshouse-cpp.git
-```
-Upon importing or including the library in your module, 
-choose the appropriate method to send metric data. It depends on the [metric type](#understand-metric-types) 
-and is probably named as `count`, `value`, or `unique`—see the Python code for an example.
+from the corresponding README file.
 
 <Tabs>
-<TabItem value="py" label="Python">
-```py
-import statshouse
 
-statshouse.count("my_metric", {}, 0.42)
-
-statshouse.value("my_metric", {}, 0.42)
-
-statshouse.unique("my_metric", {}, 0.42)
-```
-</TabItem>
 <TabItem value="cpp" label="C++">
+
 ```cpp
 #include "statshouse.hpp"
 #include <cstdio>
 
 using namespace statshouse;
-
+    
 Registry r{{
     logger: puts // debug output
 }};
 
 int main() {
-    // Write "value" metric
-    auto v = r.metric("demo_value_metric")
-        .tag("1", "foo")
-        .tag("2", "bar")
+    auto v = r.metric("my_value_metric")
+        .tag("subsystem", "foo")
+        .tag("protocol", "bar")
         .event_metric_ref();
 
     v.write_value(42.5);
     return 0;
 }
-
-}
 ```
+
 </TabItem>
+
+<TabItem value="py" label="Python">
+
+```Python
+import statshouse
+    
+statshouse.value("my_value_metric", {"subsystem": "foo", "protocol": "bar"}, 42.5)
+```
+
+</TabItem>
+
 <TabItem value="go" label="Go">
 ```go
 TEST
@@ -107,22 +131,185 @@ TEST
 
 </Tabs>
 
-### Why to use the client libraries
+As soon as there are only five native client libraries in StatsHouse, you may have questions:
 
-Client libraries [aggregate](../conceptual-overview.md#aggregation) data before sending them to StatsHouse.
-While it may sound counterintuitive, by aggregating, client libraries prevent you from losing data.
+#### "What if there is no client library for a programming language I need?
 
-Without a client library, you can create a socket, prepare a JSON file, and send your formatted data. 
-This sounds simple, but only if you have not so much data. 
+The preferred way is to file a [feature request](https://github.com/VKCOM/statshouse/issues) for us on GitHub.
 
-StatsHouse uses [UDP](https://en.wikipedia.org/wiki/User_Datagram_Protocol). 
-If you send a datagram per event, and there are too many of them, 
-there is a risk of dropping datagrams, and no one will notice it.
+You can contribute to StatsHouse by creating a library for the language you need.
+Though, we do not recommend doing this as we won't be able to provide guarantees and support.
 
-If you do not use the client library, the non-aggregated data will reach StatsHouse 
-[agent](../conceptual-overview.md#agent), and the agent will aggregate them anyway.
+If you are sure about creating a library,
+please use one of the existing StatsHouse libraries as a model for your own one—pay
+your attention to a StatsHouse [data model](../conceptual-overview.md#data-model).
 
-## Understand metric types
+#### "What if the existing library does not have the required functionality?"
+
+The preferred way is to file a [feature request](https://github.com/VKCOM/statshouse/issues) for us on GitHub.
+
+Alternatively, you can prepare a JSON file and send your formatted data to StatsHouse,
+but we do not recommend doing this as you won't benefit from aggregation and other native StatsHouse features.
+
+## How to use tags
+
+Use tags to differentiate the characteristics of what you measure, the contributing factors, or a context.
+
+### What are tags?
+
+Tags are additional dimensions you use to filter or group your data. They are sometimes mentioned as "labels" or 
+"keys". Tags are the _name-value_ pairs.
+
+Imagine you conduct an A/B test: which color-text combination is better for a button? You measure the number 
+of clicks per button and use the tags:
+
+<img src={AbTest} width="900"/>
+
+Tagged metrics help to verify hypotheses about your data. For monitoring, troubleshooting, or other purposes, you may 
+ask questions like these:
+
+> "Does the error rate differ for platforms?"
+
+or
+
+> "What is the region we have the highest request rate from? Does it differ for environments?"
+ 
+For these example questions, you may send metrics (here, using the client library for Python):
+
+```Python
+statshouse.value("error_rate", {"platform": "web"}, 42.5)
+                   ↑                 ↑         ↑          
+                metric name          ↑         ↑          
+                                 tag name      ↑       
+                                             tag value 
+```
+or
+
+```Python
+statshouse.value("request_rate", {"env": "production", "region": "moscow"}, 42.5)
+                   ↑                 ↑         ↑           ↑        ↑
+                metric name          ↑         ↑           ↑        ↑
+                                 tag name      ↑       tag name     ↑
+                                             tag value            tag value   
+```
+
+Then you can [filter or group](view-graph.md#tags) your data using these tags.
+
+### How to name tags
+
+You can use system tag names (`tag0..tag15`) to send data. For convenience, add aliases (custom names) to your tags.
+
+Please use these characters:
+* Latin alphabet
+* integers
+* underscores
+
+:::note
+Do not start tag names with underscores. They are for StatsHouse internal use only.
+:::
+
+You can use the same tag names for different metrics.
+
+In the StatsHouse UI, you can [edit](edit-metrics.md#tags) tag names and add short descriptions to them.
+
+### How many tags
+
+You can use 16 tags per metric:
+* `tag0` is usually for an `environment`,
+* `tag1..tag15` are for any other characteristics.
+
+There is also one more [string tag](#string-tag):
+* `tag__s`.
+
+#### "What if I want more tags?"
+
+Unfortunately, it is impossible for now. We plan to increase the number of tags in the future.
+
+### How many tag values
+
+There is no formal limitation for a number of tag values, but the rule is to have **not that many** of them.
+
+Tags with many different values such as user IDs or email addresses may lead to 
+[mapping flood](view-graph.md#mapping-status) errors or increased [sampling](guides/view-graph.md#sampling) due to 
+high [cardinality](../conceptual-overview.md#cardinality).
+Metric cardinality is how many unique tag value combinations are possible for a metric.
+
+In StatsHouse, there are limitations for adding tag values. If a tag has too many values, they will exceed the 
+[mapping budget](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) and will be lost: tag values 
+for your measurements will be `Empty`.
+
+Even if you have managed to [avoid the mapping flood](edit-metrics.md#raw-values) but keep sending data with 
+many tag values, your data will probably be [sampled](../conceptual-overview.md#sampling). Sampling means that 
+StatsHouse throws away pieces of data to reduce its overall amount. 
+Then it multiplies the rest of data by a sampling coefficient to keep aggregation and statistics the same.
+
+If it is important for you not to sample data at all, 
+[keep an eye on your metric cardinality](view-graph.md#cardinality).
+
+We recommend that the very first tags have the lowest cardinality rate. For example, `tag_0` is usually an 
+`environment` tag having not that many values.
+
+:::tip
+If you need a tag with many different `integer` values (such as `user_ID`), use the 
+[Raw](edit-metrics.md#raw-values) tag values to avoid the mapping flood.
+
+For many different `string` values (such as `search_request`), use a [string tag](#string-tag).
+:::
+
+### String tag
+
+Use a _string tag_ (`tag__s`) when you need a tag with many different `string` values such as referrers or search
+requests.
+
+With the common tags, you will get [mapping flood](view-graph.md#mapping-status) errors very soon for this scenario.
+The _string tag_ stands apart from the other ones as its values are not 
+[mapped](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) to integers. Thus, you can avoid 
+[mapping flood](view-graph.md#mapping-status) errors and massive sampling.
+
+The string tag has a special storage: when you send your data labeled with many `string` tag values, only the most 
+popular tag values are stored. The other tag values for this metric become `Empty` and are aggregated.
+
+To filter data with the _string tag_ on a graph, [add a name or description](edit-metrics.md#string-tag) to it.
+
+### Host name as a tag
+
+To view statistics for each host separately, you may want to use host names as tag values. 
+Try the _Max host_ feature instead. You do not have to send something special to get use 
+of _Max host_—[enable it in the UI](view-graph.md#max-host).
+
+Using host names as tag values prevents data from being aggregated and leads to increased sampling. 
+By contrast, the _Max host_ feature does not lead to increased sampling but allows you to find the host that sends the 
+maximum value for your metric.
+
+The _Max host_ feature helps to answer questions like these:
+* which host has the maximum disk space usage, or
+* which host shows the maximum rate for a particular error type.
+
+In most cases, it is enough to know the name of the most problematic host to get logs and solve the issue.
+
+We also recommend using the `environment` tag (or similar) instead of `host_name`. When you deploy an experimental feature 
+to one or more hosts, label them with the `staging` or `development` tag values instead of their host names.
+
+## How to choose a metric type
+
+You can measure same things in different ways—they are metric types.
+
+For example, how to evaluate _service availability_? Try this:
+* count the number of handled requests          → get a <text className="orange-text">**counter**</text> for the events
+* measure processing time for these requests    → get the <text className="orange-text">**value**</text> accompanying each event
+* count the number of unique users whose requests were handled properly → get the <text className="orange-text">**unique**</text> counter
+  
+`Counter`, `value`, and `unique` are basic metric types in StatsHouse:
+
+<img src={MetricTypes} width="800"/>
+
+See the table below for definitions and examples:
+
+| Metric type  | What does it measure?                                                                     | Examples                                                                                                                                        |
+|--------------|-------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| `counter`    | It counts the number of times an event has occurred.                                      | The number of API method calls<br/>The number of requests to a server<br/>The number of errors received while sending messages                  |
+| `value`      | It measures magnitude of a parameter.<br/>A measurement event itself is counted as well.  | How long does it take <br/>for a service to generate a newsfeed?<br/>What is CPU usage for this host?<br/>What is the response size (in bytes)? |
+| `unique`     | It counts the number of unique events.<br/>The total number of events is counted as well. | The number of unique users who sent packages to a service                                                                                       |
 
 :::important
 A metric type affects the range of
@@ -131,99 +318,73 @@ and analyze. For example, percentiles are available for _values_ only.
 Or you cannot view the cumulative graph for _uniques_.
 
 See more about [enabling percentiles](#enable-percentiles)
-and [showing the proper descriptive statistics](#aggregation) in the UI.
+and [showing descriptive statistics](#aggregation) in the UI.
 :::
-
-### What is a metric type?
-
-A metric is a [system for measuring something](https://dictionary.cambridge.org/dictionary/english/metric)—it is 
-_how you measure_ the things you are interested in. The metric type affects the range of mathematical 
-operations allowed to your metric data.
-
-You can measure same things in different ways. To evaluate service availability, you can count the
-number of handled requests, which is just a number of events; or you can measure processing time for these requests,
-which is the value accompanying each event (each request).
-
-StatsHouse is a powerful tool, but it cannot decide for you, so you should clearly understand what you want to
-measure, and how you will measure it.
 
 :::note
 Metric types should not be confused with [data types](https://en.wikipedia.org/wiki/Data_type) in programming
 languages. You should not specify the type of your data: whether it is `int`, `float`, or `double`, etc.
 :::
 
-### Metric types in StatsHouse
+### Metric types and their combinations
 
-With StatsHouse, you can use three basic metric types.
+In the database, where StatsHouse stores metric data, there are columns for `counter`, `value`, and `unique` 
+per each metric:
 
-<img src={MetricTypes} width="800"/>
+| timestamp | metric name | tag_0   | tag_1..tag_15 | counter | value | unique |
+| --------- |-------------|---------|---------------| ------- |-------|--------|
+| 13:45:05  | my_metric   | dev     | -             | 100     | 1200  | -      |
+| 13:45:05  | my_metric   | staging | -             | 200     | 1600  | -      |
+| 13:45:05  | my_metric   | staging | -             | 5       | 80    | -      |
 
-See the table below for definitions and examples:
+Read more about [metric type implementation](../conceptual-overview.md#metric-types-implementation) in StatsHouse.
 
-| Metric type | What does it measure?                                                                     | Examples                                                                                                                                        |
-|-------------|-------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
-| Counter     | It counts the number of times an event has occurred.                                      | The number of API method calls<br/>The number of requests to a server<br/>The number of errors received while sending messages                  |
-| Value       | It measures magnitude of a parameter.<br/>A measurement event itself is counted as well.  | How long does it take <br/>for a service to generate a newsfeed?<br/>What is CPU usage for this host?<br/>What is the response size (in bytes)? |
-| Unique      | It counts the number of unique events.<br/>The total number of events is counted as well. | The number of unique users who sent packages to a service                                                                                       |
+Check the valid metric type combinations in the table below:
 
-### Built-in _counters_ for _values_ and _uniques_
+| What you send                    | What you get                                                                                                        |
+|----------------------------------|---------------------------------------------------------------------------------------------------------------------|
+| `"counter":100`                  | `counter`                                                                                                           |
+| `"value":[1, 2, 3]`              | `counter` and `value`                                                                                               |
+| `"unique":[17, 25, 37]`          | `counter` and `unique`                                                                                              |
+| `"counter":6, "value":[1, 2, 3]` | [User-guided sampling](#user-guided-sampling)                                                                       |
+| `"value":100,"unique":100`       | [Receive error](view-graph.md#receive-error) → <text className="orange-text">this is not a valid combination</text> |
 
-Value and unique metrics have an ordinary counter inside, so you should not implement your own counters
-for these metric types. Imagine you measuring a value metric (e.g. the response size in bytes) once in a second:
-* You get the "value level" that is your parameter magnitude:
-  1024 bytes, then 2048 bytes, etc. Please note that this "level" is [aggregation](../conceptual-overview.md#aggregation), not 
+### Implementing `counter` for `value` and `unique` metrics
+
+If you send a `value` or `unique` array, the size of this array becomes the `counter` for this metric. 
+Thus, you should not implement your own counters for `value` or `unique` metrics.
+You still can specify it for [user-guided sampling](#user-guided-sampling).
+
+Imagine you measuring a value metric (e.g., the response size in bytes) once in a second:
+* You get `value` that is your parameter magnitude:
+  XXXX bytes, then YYYY bytes, etc. Please note that this "level" is [aggregation](../conceptual-overview.md#aggregation), not
   an exact value for a particular moment in time.
-* You also get the "counter" for your value metric that shows the number of times you performed
+* You also get `counter` for your value metric that shows the number of times you performed
   your measurements: +1 for the first second, +1 for the next one, etc.
-
-The same applies to unique metrics: they provide you with the number of unique events and the total number of events.
-
-See more on [changing or combining metric types](#changing-or-combining-metric-types)
-and [user-guided sampling](#user-guided-sampling).
-
-### How to set up metric types
-
-Specify a [metric type](#metric-type) in your sending requests.
-
-For a toy example, you may send your metric data with one of these `bash` scripts:
-```bash
-echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 127.0.0.1 13337
-```
-```bash
-echo '{"metrics":[{"name":"my_metric","tags":{},"value":1000}]}' | nc -q 1 -u 127.0.0.1 13337
-```
-where `counter` or `value` are the metric types.
-
-Or, as you have already seen in the tab with the Python code example, you can 
-choose one of the methods according to your metric type:
-```Python
-statshouse.count("my_metric", {}, 0.42)
-statshouse.value("my_metric", {}, 0.42)
-statshouse.unique("my_metric", {}, 0.42)
-```
 
 ### Changing or combining metric types
 
 :::important
 Keep sending data of the **same type per metric**.
-For example, do not switch between sending _values_ and _uniques_ for the same metric.
 :::
 
-Some users want to create "one big metric" for the whole system and to differentiate
-subsystems using `tag 1`.
+Some users create "one big metric" for the whole system and differentiate subsystems using `tag_1`.
 So, they use different metric types for different combinations of tag values.
-They set the metric type to `mixed`, allowing StatsHouse to write and display 
-all the metric types for these data.  
+They set the metric type to `mixed`, allowing StatsHouse to write and display
+all the metric types for these data.
 
-We recommend avoiding such a design for your metric. You will not be able to set tag descriptions 
-as they would probably depend on `tag 1`. This "one big metric" will also get the common
-[sampling](../conceptual-overview.md#sampling) factor: data for the whole metric with all the subsystem data inside 
+We recommend avoiding such a design for your metric. You will not be able to set tag descriptions
+as they will probably depend on `tag_1`. This "one big metric" will also get the common
+[sampling](../conceptual-overview.md#sampling) factor: data for the whole metric with all the subsystem data inside
 will be sampled.
 
 :::tip
-Alternatively, create a separate metric with a particular metric type for each subsystem, 
-so that you could use tags and avoid massive sampling.
+Alternatively, create a separate metric with a particular metric type for each subsystem,
+so that you can use tags and avoid massive sampling.
 :::
+
+Please do not send value and unique measurements for the same metric as you will get the
+[Receive error](view-graph.md#receive-error).
 
 ### User-guided sampling
 
@@ -232,8 +393,7 @@ you may want to sample your data before sending them to StatsHouse.
 
 In this case, you can explicitly specify `counter` for the `value` metric:
 ```bash
-echo '{"metrics":[{"name":"my_metric","tags":{},"value":1000,"counter":100}]}' | nc -q 1 -u 127.0.0.1 13337
+`{"metrics":[{"name":"my_metric","tags":{},"counter":6, "value":[1, 2, 3]}]}`
 ```
-
-## Choose proper tags
-
+This means that the number of events is 6, and the values are sampled—as if the original `value` was `[1, 1, 2, 2, 3,
+3]`

@@ -28,3 +28,7 @@
   --ifm-color-primary-lightest: #49d9ff;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+.orange-text {
+  color: #F08C00;
+}

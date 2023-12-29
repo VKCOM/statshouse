@@ -11,7 +11,7 @@ import WhatIsSh from './img/what-is-sh.png'
 StatsHouse is a monitoring system that is highly available, scalable, and multi-tenant.
 It is robust, and one can hardly overload it—due to [aggregation](conceptual-overview.md#aggregation) and 
 [sampling](conceptual-overview.md#sampling).
-Read more about StatsHouse [features](#features).
+Read more about StatsHouse [features](conceptual-overview.md#features).
 
 It allows your applications to send metric data without limitations, and you can view statistics on a graph in a live 
 mode.
@@ -24,28 +24,25 @@ Here is what the StatsHouse user interface looks like and what it basically allo
 
 <img src={Intro} width="900"/>
 
-## How to use StatsHouse
-
 Check the links below to get the most out of StatsHouse.
 
 ### Try StatsHouse basics
 
-Walk through the two-minute [**Quick start**](quick-start.md) guide:
+Walk through the ten-minute [**Quick start**](quick-start.md) guide:
 * get access to StatsHouse (run it locally or access the deployed one),
 * create your own metric,
 * send data to your metric,
-* view it on a graph.
-
-Then spend ten minutes more and [check basic viewing options](quick-start.md#check-basic-viewing-options).
+* and [check basic viewing options](quick-start.md#check-basic-viewing-options).
 
 ### Find the guide for your task
 
-Check the detailed [**How-to guides**](category/how-to-guides) to perform popular tasks:
+Check the detailed **How-to guides** to perform popular tasks:
 
 * [Get access to StatsHouse](guides/access-cluster.md)
 * [Create a metric](guides/create-metric.md)
 * [Send metric data](guides/send-data.md)
-* [View data on a graph](guides/view-graph.md) ← _the detailed UI description is here_
+* [View data on a graph](guides/view-graph.md) ← <text className="orange-text">_the detailed UI description is 
+  here_</text>
 * [Edit a metric](guides/edit-metrics.md)
 * [Create dashboards](guides/dashboards.md)
 * [Query with PromQL](guides/query-wth-promql.md)
@@ -58,7 +55,5 @@ StatsHouse implementation details.
 ### Check FAQs
 
 Find answers to [**Frequently asked questions**](faq.md).
-
-## Features
 
 
