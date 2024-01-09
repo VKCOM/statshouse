@@ -150,7 +150,7 @@ func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, 
 		c.maybeDropCache()
 	}
 
-	ret := make([][]tsSelectRow, lod.getIndexForTimestamp(lod.toSec, 0))
+	ret := make([][]tsSelectRow, lod.getIndexForTimestamp(lod.toSec, 0)+1)
 	cachedRows := 0
 
 	realLoadFrom := lod.fromSec
