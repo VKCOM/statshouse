@@ -11,9 +11,8 @@ import (
 	"strings"
 
 	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
-
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 )
 
 type accessInfo struct {
@@ -166,20 +165,6 @@ func (ai *accessInfo) isAdmin() bool {
 		return true
 	}
 	return ai.bitAdmin
-}
-
-func (ai *accessInfo) withBadgesRequest() accessInfo {
-	return accessInfo{
-		user:                 ai.user,
-		insecureMode:         ai.insecureMode,
-		protectedPrefixes:    ai.protectedPrefixes,
-		bitAdmin:             ai.bitAdmin,
-		bitViewPrefix:        ai.bitViewPrefix,
-		bitEditPrefix:        ai.bitEditPrefix,
-		bitViewMetric:        ai.bitViewMetric,
-		bitEditMetric:        ai.bitEditMetric,
-		skipBadgesValidation: true,
-	}
 }
 
 func preKey(m format.MetricMetaValue) uint32 {
