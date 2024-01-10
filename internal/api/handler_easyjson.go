@@ -271,8 +271,6 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer
 				}
 				in.Delim(']')
 			}
-		case "promqltestfailed":
-			out.DebugPromQLTestFailed = bool(in.Bool())
 		case "excess_point_left":
 			out.ExcessPointLeft = bool(in.Bool())
 		case "excess_point_right":
@@ -351,11 +349,6 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 			}
 			out.RawByte(']')
 		}
-	}
-	{
-		const prefix string = ",\"promqltestfailed\":"
-		out.RawString(prefix)
-		out.Bool(bool(in.DebugPromQLTestFailed))
 	}
 	{
 		const prefix string = ",\"excess_point_left\":"
@@ -468,6 +461,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 			out.PreKeyOnly = bool(in.Bool())
 		case "metric_type":
 			out.MetricType = string(in.String())
+		case "fair_key_tag_id":
+			out.FairKeyTagID = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -590,6 +585,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 		const prefix string = ",\"metric_type\":"
 		out.RawString(prefix)
 		out.String(string(in.MetricType))
+	}
+	if in.FairKeyTagID != "" {
+		const prefix string = ",\"fair_key_tag_id\":"
+		out.RawString(prefix)
+		out.String(string(in.FairKeyTagID))
 	}
 	out.RawByte('}')
 }
