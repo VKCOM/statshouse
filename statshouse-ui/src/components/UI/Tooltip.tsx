@@ -23,6 +23,8 @@ export type TooltipProps<T extends keyof JSX.IntrinsicElements> = {
   vertical?: PopperVertical;
   horizontal?: PopperHorizontal;
   open?: boolean;
+  delay?: number;
+  delayClose?: number;
 } & Omit<JSX.IntrinsicElements[T], 'title'>;
 
 declare function TooltipFn<T extends keyof JSX.IntrinsicElements>(props: TooltipProps<T>): JSX.Element;
@@ -41,10 +43,13 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
     vertical = POPPER_VERTICAL.outTop,
     horizontal = POPPER_HORIZONTAL.center,
     open: outerOpen,
+    delay = 200,
+    delayClose = 50,
     ...props
   },
   ref
 ) {
+  const timeoutDelayRef = useRef<NodeJS.Timeout | null>(null);
   const [localRef, setLocalRef] = useState<Element | null>(null);
 
   const targetRef = useRef<Element | null>(null);
@@ -65,22 +70,51 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
 
   const onMouseOver = useCallback(
     (e: any) => {
+      if (timeoutDelayRef.current) {
+        clearTimeout(timeoutDelayRef.current);
+        timeoutDelayRef.current = null;
+      }
       if (outerOpen == null) {
-        setOpen(true);
+        timeoutDelayRef.current = setTimeout(() => {
+          timeoutDelayRef.current = null;
+          setOpen(true);
+        }, delay);
       }
       props.onMouseOver?.(e);
     },
-    [outerOpen, props]
+    [delay, outerOpen, props]
   );
 
   const onMouseOut = useCallback(
     (e: any) => {
+      if (timeoutDelayRef.current) {
+        clearTimeout(timeoutDelayRef.current);
+        timeoutDelayRef.current = null;
+      }
       if (outerOpen == null) {
-        setOpen(false);
+        timeoutDelayRef.current = setTimeout(() => {
+          setOpen(false);
+        }, delayClose);
       }
       props.onMouseOut?.(e);
     },
-    [outerOpen, props]
+    [delayClose, outerOpen, props]
+  );
+  const onMouseMove = useCallback(
+    (e: any) => {
+      if (timeoutDelayRef.current) {
+        clearTimeout(timeoutDelayRef.current);
+        timeoutDelayRef.current = null;
+      }
+      if (outerOpen == null) {
+        timeoutDelayRef.current = setTimeout(() => {
+          timeoutDelayRef.current = null;
+          setOpen(true);
+        }, delay);
+      }
+      props.onMouseMove?.(e);
+    },
+    [delay, outerOpen, props]
   );
 
   const onClick = useCallback(
@@ -94,7 +128,14 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
   );
 
   return (
-    <Tag {...props} ref={setLocalRef} onMouseOver={onMouseOver} onMouseOut={onMouseOut} onClick={onClick}>
+    <Tag
+      {...props}
+      ref={setLocalRef}
+      onMouseOver={onMouseOver}
+      onMouseOut={onMouseOut}
+      onMouseMove={onMouseMove}
+      onClick={onClick}
+    >
       {children}
       {!!title && (
         <Popper
