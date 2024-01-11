@@ -486,9 +486,6 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			preKeyOnly: lod.preKeyOnly,
 			location:   lod.location,
 		}
-		if qry.Options.SeriesQueryCallback != nil {
-			qry.Options.SeriesQueryCallback(version, qs, &pq, li, qry.Options.AvoidCache)
-		}
 		m, err := h.cache.Get(ctx, version, qs, &pq, li, qry.Options.AvoidCache)
 		if err != nil {
 			cleanup()
