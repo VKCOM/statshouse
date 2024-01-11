@@ -340,7 +340,10 @@ func selectTagValueLODs(version string, preKeyFrom int64, preKeyOnly bool, resol
 
 func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, width int, widthKind int, location *time.Location) []lodInfo {
 	var ret []lodInfo
-	pps := float64(width) / float64(to-from+1)
+	var pps float64
+	if widthKind == widthAutoRes {
+		pps = float64(width) / float64(to-from+1)
+	}
 	lodFrom := from
 	levels := calcLevels(version, preKeyFrom, preKeyOnly, isUnique, isStringTop, now, utcOffset, width)
 	for _, s := range levels {
@@ -352,13 +355,7 @@ func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resoluti
 		if cut < to {
 			lodTo = cut
 		}
-		var lod lodInfo
-		switch widthKind {
-		case widthAutoRes:
-			lod = selectQueryLOD(s, lodFrom, lodTo, int64(resolution), utcOffset, location, pps)
-		default:
-			lod = selectLastQueryLOD(s, lodFrom, lodTo, int64(width), utcOffset, location)
-		}
+		lod := selectQueryLOD(s, lodFrom, lodTo, int64(resolution), utcOffset, location, pps)
 		ret = append(ret, lod)
 		if lodTo == to || lod.toSec >= to {
 			break
@@ -384,28 +381,6 @@ func mergeLODs(lods []lodInfo) []lodInfo {
 	return ret
 }
 
-func selectLastQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset int64, location *time.Location) lodInfo {
-	lodLevel := s.levels[0]
-	for _, stepSec := range s.levels {
-		fromSec, toSec := roundRange(from, to, stepSec, utcOffset, location)
-		n := (toSec - fromSec) / stepSec
-		if stepSec < minStep || n > maxPoints {
-			break
-		}
-		lodLevel = stepSec
-	}
-	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, location)
-	return lodInfo{
-		fromSec:    fromSec,
-		toSec:      toSec,
-		stepSec:    lodLevel,
-		table:      s.tables[lodLevel],
-		hasPreKey:  s.hasPreKey,
-		preKeyOnly: s.preKeyOnly,
-		location:   location,
-	}
-}
-
 func selectQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset int64, location *time.Location, pps float64) lodInfo {
 	lodLevel := s.levels[0]
 	points := int64(math.Ceil(pps * float64(to-from)))
@@ -416,7 +391,7 @@ func selectQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset 
 			break
 		}
 		lodLevel = stepSec // we will get the first level with more points than pixels
-		if lodLevel < (to-from) && n > points {
+		if pps != 0 && lodLevel < (to-from) && n > points {
 			break
 		}
 	}
