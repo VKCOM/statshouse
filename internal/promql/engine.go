@@ -61,7 +61,6 @@ type Options struct {
 	Vars                map[string]Variable
 
 	ExprQueriesSingleMetricCallback MetricMetaValueCallback
-	SeriesQueryCallback             SeriesQueryCallback
 }
 
 type (
@@ -159,11 +158,11 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 		return nil, nil, Error{what: err}
 	}
 	// evaluate query
-	if t, ok := ctx.Value(traceContextKey).(*traceContext); ok {
-		*t.s = append(*t.s, ev.ast.String())
-	}
-	if ev.trace != nil && ev.debug {
-		ev.tracef("requested from %d to %d, timescale from %d to %d", qry.Start, qry.End, ev.t.Time[ev.t.StartX], ev.t.Time[len(ev.t.Time)-1])
+	if ev.trace != nil {
+		*ev.trace = append(*ev.trace, ev.ast.String())
+		if ev.debug {
+			ev.tracef("requested from %d to %d, timescale from %d to %d", qry.Start, qry.End, ev.t.Time[ev.t.StartX], ev.t.Time[len(ev.t.Time)-1])
+		}
 	}
 	switch e := ev.ast.(type) {
 	case *parser.StringLiteral:

@@ -374,7 +374,6 @@ type (
 
 	seriesRequestOptions struct {
 		debugQueries       bool
-		testPromql         bool
 		metricNameCallback func(string)
 		rand               *rand.Rand
 		stat               *endpointStat
@@ -396,7 +395,6 @@ type (
 		ExcessPointRight  bool                    `json:"excess_point_right"`
 		MetricMeta        *format.MetricMetaValue `json:"metric"`
 		immutable         bool
-		queries           map[lodInfo]int // not nil if testPromql option set (see getQueryReqOptions)
 	}
 
 	//easyjson:json
@@ -2000,16 +1998,6 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if opt.timeNow.IsZero() {
 		opt.timeNow = time.Now()
 	}
-	var (
-		seriesQueries       map[lodInfo]int
-		seriesQueryCallback promql.SeriesQueryCallback
-	)
-	if opt.testPromql {
-		seriesQueries = make(map[lodInfo]int)
-		seriesQueryCallback = func(version string, key string, pq any, lod any, avoidCache bool) {
-			seriesQueries[lod.(lodInfo)]++
-		}
-	}
 	var offsets = make([]int64, 0, len(req.shifts))
 	for _, v := range req.shifts {
 		offsets = append(offsets, -toSec(v))
@@ -2033,8 +2021,7 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 					opt.metricNameCallback(metricName)
 				}
 			},
-			SeriesQueryCallback: seriesQueryCallback,
-			Vars:                opt.vars,
+			Vars: opt.vars,
 		}
 	)
 	if req.widthKind == widthAutoRes {
@@ -2150,7 +2137,6 @@ func (h *Handler) handlePromqlQuery(ctx context.Context, ai accessInfo, req seri
 	if promqlGenerated {
 		res.PromQL = req.promQL
 	}
-	res.queries = seriesQueries
 	return res, cleanup, nil
 }
 
