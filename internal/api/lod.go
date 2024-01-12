@@ -90,11 +90,11 @@ var (
 		// Subtract from relSwitch to facilitate calculation of derivative.
 		// Subtrahend should be multiple of the next lodSwitch minimum level.
 		Version2: {{
-			relSwitch: 33*_24h - _1m,
+			relSwitch: 33*_24h - 2*_1m,
 			levels:    []int64{_7d, _24h, _4h, _1h},
 			tables:    lodTables[Version2],
 		}, {
-			relSwitch: 52*_1h - _1s,
+			relSwitch: 52*_1h - 2*_1s,
 			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m},
 			tables:    lodTables[Version2],
 		}, {
@@ -276,44 +276,6 @@ type lodInfo struct {
 
 func (lod lodInfo) isFast() bool {
 	return lod.fromSec+fastQueryTimeInterval >= lod.toSec
-}
-
-func (lod lodInfo) generateTimePoints(shift int64) []int64 {
-	if lod.stepSec == _1M {
-		length := lod.getIndexForTimestamp(lod.toSec, 0)
-		times := make([]int64, 0, length)
-		startTime := time.Unix(lod.fromSec, 0).In(lod.location)
-		shiftMonths := int(shift / _1M * -1)
-		for i := 0; i < length; i++ {
-			times = append(times, startTime.AddDate(0, i+shiftMonths, 0).Unix())
-		}
-
-		return times
-	}
-
-	times := make([]int64, 0, (lod.toSec-lod.fromSec)/lod.stepSec)
-	for t := lod.fromSec; t < lod.toSec; t += lod.stepSec {
-		times = append(times, t-shift)
-	}
-	return times
-}
-
-func (lod lodInfo) getIndexForTimestamp(timestamp, shiftDelta int64) int {
-	if lod.stepSec == _1M {
-		startTime := time.Unix(lod.fromSec, 0).In(lod.location)
-		shiftMonths := int(shiftDelta / _1M * -1)
-		currentTime := time.Unix(timestamp, 0).In(lod.location).AddDate(shiftMonths/12, shiftMonths%12, 0)
-		monthDiff := int(currentTime.Month() - startTime.Month())
-		yearDiff := currentTime.Year() - startTime.Year()
-		if monthDiff < 0 {
-			monthDiff += 12
-			yearDiff--
-		}
-
-		return yearDiff*12 + monthDiff
-	}
-
-	return int((timestamp - (lod.fromSec + shiftDelta)) / lod.stepSec)
 }
 
 func isTimestampValid(timestamp, stepSec, utcOffset int64, location *time.Location) bool {

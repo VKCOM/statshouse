@@ -284,7 +284,7 @@ SETTINGS
 	return q, pointsQueryMeta{vals: cnt, tags: pq.by, maxHost: pq.kind != queryFnKindCount, version: pq.version}, err
 }
 
-func loadPointQuery(pq *preparedPointsQuery, pointQuery pointQuery, utcOffset int64) (string, pointsQueryMeta, error) {
+func loadPointQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (string, pointsQueryMeta, error) {
 	what, cnt, err := loadPointsSelectWhat(pq)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
@@ -294,9 +294,9 @@ func loadPointQuery(pq *preparedPointsQuery, pointQuery pointQuery, utcOffset in
 	if len(pq.by) > 0 {
 		for i, b := range pq.by {
 			if i == 0 {
-				commaBy += fmt.Sprintf("%s AS key%s", columnName(pointQuery.hasPreKey, b, pq.preKeyTagID), b)
+				commaBy += fmt.Sprintf("%s AS key%s", columnName(lod.hasPreKey, b, pq.preKeyTagID), b)
 			} else {
-				commaBy += fmt.Sprintf(", %s AS key%s", columnName(pointQuery.hasPreKey, b, pq.preKeyTagID), b)
+				commaBy += fmt.Sprintf(", %s AS key%s", columnName(lod.hasPreKey, b, pq.preKeyTagID), b)
 			}
 		}
 	}
@@ -316,18 +316,18 @@ WHERE
   AND time >= ? AND time < ?%s`,
 		commaBySelect,
 		what,
-		preKeyTableNameFromPoint(pointQuery, "", pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
+		preKeyTableNameFromPoint(lod, "", pq.preKeyTagID, pq.filterIn, pq.filterNotIn),
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
-	args := []interface{}{pq.metricID, pointQuery.fromSec, pointQuery.toSec}
+	args := []interface{}{pq.metricID, lod.fromSec, lod.toSec}
 	if pq.version == Version1 {
-		args = append(args, pointQuery.fromSec, pointQuery.toSec)
+		args = append(args, lod.fromSec, lod.toSec)
 	}
 	for k, ids := range pq.filterIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s IN (%s)`, columnName(pointQuery.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s IN (%s)`, columnName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -337,7 +337,7 @@ WHERE
 	for k, ids := range pq.filterNotIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s NOT IN (%s)`, columnName(pointQuery.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s NOT IN (%s)`, columnName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -440,12 +440,12 @@ func (pq *preparedTagValuesQuery) preKeyTableName(lod lodInfo) string {
 	return lod.table
 }
 
-func preKeyTableNameFromPoint(point pointQuery, tagID string, preKeyTagID string, filterIn map[string][]interface{}, filterNotIn map[string][]interface{}) string {
-	usePreKey := point.hasPreKey && ((tagID != "" && tagID == preKeyTagID) || len(filterIn[preKeyTagID]) > 0 || len(filterNotIn[preKeyTagID]) > 0)
+func preKeyTableNameFromPoint(lod lodInfo, tagID string, preKeyTagID string, filterIn map[string][]interface{}, filterNotIn map[string][]interface{}) string {
+	usePreKey := lod.hasPreKey && ((tagID != "" && tagID == preKeyTagID) || len(filterIn[preKeyTagID]) > 0 || len(filterNotIn[preKeyTagID]) > 0)
 	if usePreKey {
-		return preKeyTableNames[point.table]
+		return preKeyTableNames[lod.table]
 	}
-	return point.table
+	return lod.table
 }
 
 func columnName(hasPreKey bool, tagID string, preKeyTagID string) string {

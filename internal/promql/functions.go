@@ -188,18 +188,21 @@ func funcDropEmptySeries(ev *evaluator, expr *parser.AggregateExpr) ([]Series, e
 	if err != nil {
 		return nil, err
 	}
-	ev.dropEmptySeries(res)
+	ev.stableRemoveEmptySeries(res)
 	return res, nil
 }
 
-func (ev *evaluator) dropEmptySeries(res []Series) {
-	for i := 0; i < len(res); i++ {
-		if res[i].Meta.Total == 0 {
-			res[i].Meta.Total = len(res[i].Data)
+func (ev *evaluator) removeEmptySeries(srs []Series) {
+	if ev.t.ViewStartX == ev.t.ViewEndX {
+		return
+	}
+	for i := 0; i < len(srs); i++ {
+		if srs[i].Meta.Total == 0 {
+			srs[i].Meta.Total = len(srs[i].Data)
 		}
-		for j := 0; j < len(res[i].Data); {
+		for j := 0; j < len(srs[i].Data); {
 			var keep bool
-			for _, v := range (*res[i].Data[j].Values)[ev.t.StartX:] {
+			for _, v := range (*srs[i].Data[j].Values)[ev.t.ViewStartX:ev.t.ViewEndX] {
 				if !math.IsNaN(v) {
 					keep = true
 					break
@@ -208,10 +211,40 @@ func (ev *evaluator) dropEmptySeries(res []Series) {
 			if keep {
 				j++
 			} else {
-				res[i].Data = append(res[i].Data[:j], res[i].Data[j+1:]...)
-				res[i].Meta.Total--
+				ev.free(srs[i].Data[j].Values)
+				srs[i].Data[j], srs[i].Data[len(srs[i].Data)-1] = srs[i].Data[len(srs[i].Data)-1], srs[i].Data[j]
+				srs[i].Data = srs[i].Data[:len(srs[i].Data)-1]
+				srs[i].Meta.Total--
 			}
 		}
+	}
+}
+
+func (ev *evaluator) stableRemoveEmptySeries(srs []Series) {
+	if ev.t.ViewStartX == ev.t.ViewEndX {
+		return
+	}
+	for i := 0; i < len(srs); i++ {
+		if srs[i].Meta.Total == 0 {
+			srs[i].Meta.Total = len(srs[i].Data)
+		}
+		ds := make([]SeriesData, 0, len(srs[i].Data))
+		for j := 0; j < len(srs[i].Data); j++ {
+			var keep bool
+			for _, v := range (*srs[i].Data[j].Values)[ev.t.ViewStartX:ev.t.ViewEndX] {
+				if !math.IsNaN(v) {
+					keep = true
+					break
+				}
+			}
+			if keep {
+				ds = append(ds, srs[i].Data[j])
+			} else {
+				ev.free(srs[i].Data[j].Values)
+				srs[i].Meta.Total--
+			}
+		}
+		srs[i].Data = ds
 	}
 }
 
@@ -1085,11 +1118,39 @@ func funcDeriv(ev *evaluator, sr Series) Series {
 }
 
 func funcIdelta(ev *evaluator, sr Series) Series {
-	for _, d := range sr.Data {
-		for i := len(*d.Values) - 1; i > 0; i-- {
-			(*d.Values)[i] = (*d.Values)[i] - (*d.Values)[i-1]
+	for i, d := range sr.Data {
+		for j := len(*d.Values) - 1; j > 0; j-- {
+			(*d.Values)[j] = (*d.Values)[j] - (*d.Values)[j-1]
 		}
 		(*d.Values)[0] = NilValue
+		// fix "what" tag
+		if tg, ok := d.Tags.ID2Tag[LabelWhat]; ok && !tg.stringified {
+			var s string
+			switch tg.Value {
+			case int32(DigestCount):
+				s = "dv_count"
+			case int32(DigestCountSec):
+				s = "dv_count_norm"
+			case int32(DigestSum):
+				s = "dv_sum"
+			case int32(DigestSumSec):
+				s = "dv_sum_norm"
+			case int32(DigestAvg):
+				s = "dv_avg"
+			case int32(DigestMin):
+				s = "dv_min"
+			case int32(DigestMax):
+				s = "dv_max"
+			case int32(DigestUnique):
+				s = "dv_unique"
+			case int32(DigestUniqueSec):
+				s = "dv_unique_norm"
+			}
+			if len(s) != 0 {
+				tg.setSValue(s)
+				sr.Data[i].Tags.hashSumValid = false
+			}
+		}
 	}
 	return sr
 }
@@ -1332,37 +1393,55 @@ func funcPrefixSum(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	return res, nil
 }
 
-func (ev *evaluator) funcPrefixSum(bag Series) Series {
-	for _, d := range bag.Data {
+func (ev *evaluator) funcPrefixSum(sr Series) Series {
+	for i, d := range sr.Data {
 		// skip values before requested interval start
-		i := ev.t.StartX
+		j := ev.t.ViewStartX
 		// skip NANs
-		for i < len(*d.Values) && math.IsNaN((*d.Values)[i]) {
-			i++
+		for j < len(*d.Values) && math.IsNaN((*d.Values)[j]) {
+			j++
 		}
 		// sum the rest
 		var sum float64
-		for ; i < len(*d.Values); i++ {
-			v := (*d.Values)[i]
+		for ; j < len(*d.Values); j++ {
+			v := (*d.Values)[j]
 			if !math.IsNaN(v) {
 				sum += v
 			}
-			if 0 < i && i < len(d.MaxHost) && d.MaxHost[i] == 0 && d.MaxHost[i-1] != 0 {
-				d.MaxHost[i] = d.MaxHost[i-1]
+			if 0 < j && j < len(d.MaxHost) && d.MaxHost[j] == 0 && d.MaxHost[j-1] != 0 {
+				d.MaxHost[j] = d.MaxHost[j-1]
 			}
-			(*d.Values)[i] = sum
+			(*d.Values)[j] = sum
 		}
 		// copy first value to the left of requested interval
-		for i = ev.t.StartX; i > 0; i-- {
-			(*d.Values)[i-1] = (*d.Values)[ev.t.StartX]
+		for j = ev.t.ViewStartX; j > 0; j-- {
+			(*d.Values)[j-1] = (*d.Values)[ev.t.ViewStartX]
+		}
+		// fix "what" tag
+		if tg, ok := d.Tags.ID2Tag[LabelWhat]; ok && !tg.stringified {
+			var s string
+			switch tg.Value {
+			case int32(DigestCountRaw):
+				s = "cu_count"
+			case int32(DigestCardinalityRaw):
+				s = "cu_cardinality"
+			case int32(DigestAvg):
+				s = "cu_avg"
+			case int32(DigestSumRaw):
+				s = "cu_sum"
+			}
+			if len(s) != 0 {
+				tg.setSValue(s)
+				sr.Data[i].Tags.hashSumValid = false
+			}
 		}
 	}
-	return bag
+	return sr
 }
 
-func funcRate(ev *evaluator, bag Series) Series {
+func funcRate(ev *evaluator, sr Series) Series {
 	t := ev.time()
-	for _, s := range bag.Data {
+	for _, s := range sr.Data {
 		wnd := ev.newWindow(*s.Values, false)
 		for wnd.moveOneLeft() {
 			if 1 < wnd.n {
@@ -1374,7 +1453,7 @@ func funcRate(ev *evaluator, bag Series) Series {
 		}
 		wnd.fillPrefixWith(NilValue)
 	}
-	return bag
+	return sr
 }
 
 func funcResets(ev *evaluator, sr Series) Series {
