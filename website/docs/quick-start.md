@@ -97,16 +97,15 @@ and check the related warnings.
 
 ### Descriptive statistics
 
-These are statistical functions that quantitatively describe or summarize metric data. Here you choose if you 
-want to show them on a graph or not. The most common are:
+They are statistical functions that quantitatively describe or summarize metric data. Choose if you 
+want to show them on a graph. The most common ones are:
 * _count_ and _count/sec_,
 * _sum_ and _sum/sec_,
 * _average_,
-* _minimum_ and _maximum_,
 * _standard deviation_,
-* _percentiles_,
-and [more](guides/view-graph.md#descriptive-statistics).
+* _minimum_ and _maximum_.
 
+There are [more](guides/view-graph.md#descriptive-statistics) statistics available.
 The range of descriptive statistics that are meaningful for a metric is 
 [related to a metric type](guides/send-data.md#metric-type).
 For example, _percentiles_ are available for _values_ only.
@@ -124,7 +123,7 @@ Instead, choose the _count/sec_ and _sum/sec_ statistics.
 These are normalized data, which are independent of an aggregation interval.
 :::
 
-Read more about [descriptive statistics](guides/view-graph.md#descriptive-statistics).
+Read more about [descriptive statistics](guides/view-graph.md#3--descriptive-statistics).
 
 ### Time periods
 
@@ -148,7 +147,7 @@ Make sure the chosen time period is larger than the aggregation interval.
 For example, choose a 7-day time period and a 24-hour aggregation interval.
 :::
 
-For real-time monitoring, use the [Live mode](guides/view-graph.md#live-mode).
+For real-time monitoring, use [Live mode](guides/view-graph.md#live-mode).
 
 Read more about choosing [time periods](guides/view-graph.md#time-periods).
 
@@ -159,7 +158,7 @@ The larger aggregation interval you choose, the smoother look your graph has:
 <img src={AggregationInterval} width="600"/>
 
 :::tip
-An _Auto_ interval uses the _minimal available interval_ for aggregation.
+An _Auto_ interval uses the _minimal available interval_ for aggregation to show data on a graph.
 This interval _varies_ depending on the currently available aggregation: 
 * per-second aggregated data is stored for the first three days, 
 * per-minute aggregated data is stored for a month, 
@@ -169,8 +168,7 @@ The currently available aggregation is also related to
 a metric [resolution](guides/edit-metrics.md#resolution).
 :::
 
-Read more about [aggregation](conceptual-overview.md#aggregation) in StatsHouse, [aggregation intervals](guides/view-graph.md#aggregation-interval),
-and changing metric [resolution](guides/edit-metrics.md#resolution).
+Read more about [aggregation](conceptual-overview.md#aggregation) in StatsHouse, and changing metric [resolution](guides/edit-metrics.md#resolution).
 
 ### Tags
 
@@ -189,7 +187,7 @@ or increased [sampling](guides/view-graph.md#sampling) due to high [cardinality]
 [tags with many different values](guides/edit-metrics.md#raw-values).
 :::
 
-Read more about [filtering with tags](guides/view-graph.md#tags), [setting up](guides/send-data.md#tags) 
+Read more about [filtering with tags](guides/view-graph.md#7--tags), [setting up](guides/send-data.md#tags) 
 and [editing](guides/edit-metrics.md#tags) tags, and [cardinality](conceptual-overview.md#cardinality).
 
 ### Top N

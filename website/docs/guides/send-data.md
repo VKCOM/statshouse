@@ -20,7 +20,8 @@ Do not send data to someone else's metric as you can spoil the metric data.
 ## What are metrics in StatsHouse?
 
 A metric is how you measure something you are interested in—read more about [metric types](#how-to-choose-a-metric-type).
-A basic metric structure in StatsHouse looks like this:
+A basic metric structure in StatsHouse looks like this (here, in a [MessagePack](https://github.com/msgpack/msgpack) 
+format):
 
 <img src={WhatIsMetric} width="1000"/>
 
@@ -51,8 +52,7 @@ A basic metric structure in StatsHouse looks like this:
 
     </details>
 
-(We use [MessagePack](https://github.com/msgpack/msgpack) format for the above example, but
-more [protocols](../conceptual-overview.md#protocols) are supported.)
+(More [data formats](../conceptual-overview.md#protocols) are supported.)
 
 To start sending data, check the following: 
 * [how to send metric data via client libraries](#how-to-send-data-via-client-libraries),
@@ -178,8 +178,8 @@ For these example questions, you may send metrics (here, using the client librar
 
 ```Python
 statshouse.value("error_rate", {"platform": "web"}, 42.5)
-                   ↑                 ↑         ↑          
-                metric name          ↑         ↑          
+                   ↑                 ↑         ↑      ↑          
+                metric name          ↑         ↑   measurement      
                                  tag name      ↑       
                                              tag value 
 ```
@@ -187,17 +187,18 @@ or
 
 ```Python
 statshouse.value("request_rate", {"env": "production", "region": "moscow"}, 42.5)
-                   ↑                 ↑         ↑           ↑        ↑
-                metric name          ↑         ↑           ↑        ↑
+                   ↑                 ↑         ↑           ↑        ↑         ↑
+                metric name          ↑         ↑           ↑        ↑      measurement
                                  tag name      ↑       tag name     ↑
                                              tag value            tag value   
 ```
 
-Then you can [filter or group](view-graph.md#tags) your data using these tags.
+Then you can [filter or group](view-graph.md#7--tags) your data using these tags.
+When you view a metric on a graph, the default UI behavior is to use no grouping.
 
 ### How to name tags
 
-You can use system tag names (`tag0..tag15`) to send data. For convenience, add aliases (custom names) to your tags.
+You can use system tag names (`0..15`) to send data. For convenience, add aliases (custom names) to your tags.
 
 Please use these characters:
 * Latin alphabet
@@ -215,11 +216,11 @@ In the StatsHouse UI, you can [edit](edit-metrics.md#tags) tag names and add sho
 ### How many tags
 
 You can use 16 tags per metric:
-* `tag0` is usually for an `environment`,
-* `tag1..tag15` are for any other characteristics.
+* tag `0` is usually for an `environment`,
+* tags `1..15` are for any other characteristics.
 
 There is also one more [string tag](#string-tag):
-* `tag__s`.
+* tag `__s`.
 
 #### "What if I want more tags?"
 
@@ -232,16 +233,17 @@ There is no formal limitation for a number of tag values, but the rule is to hav
 Tags with many different values such as user IDs or email addresses may lead to 
 [mapping flood](view-graph.md#mapping-status) errors or increased [sampling](guides/view-graph.md#sampling) due to 
 high [cardinality](../conceptual-overview.md#cardinality).
-Metric cardinality is how many unique tag value combinations are possible for a metric.
+In StatsHouse, metric cardinality is how many unique tag value combinations you send for a metric.
 
-In StatsHouse, there are limitations for adding tag values. If a tag has too many values, they will exceed the 
+If a tag has too many values, they will soon exceed the 
 [mapping budget](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) and will be lost: tag values 
 for your measurements will be `Empty`.
 
-Even if you have managed to [avoid the mapping flood](edit-metrics.md#raw-values) but keep sending data with 
-many tag values, your data will probably be [sampled](../conceptual-overview.md#sampling). Sampling means that 
-StatsHouse throws away pieces of data to reduce its overall amount. 
-Then it multiplies the rest of data by a sampling coefficient to keep aggregation and statistics the same.
+Even if all your tag values have been already mapped, and you 
+[avoid the mapping flood](edit-metrics.md#raw-values) but keep sending data with many tag values, 
+your data will probably be [sampled](../conceptual-overview.md#sampling). Sampling means that 
+StatsHouse throws away pieces of data to reduce its overall amount. To keep aggregation, statistics, and overall 
+graph's shape the same, StatsHouse multiplies the rest of data by a sampling coefficient.
 
 If it is important for you not to sample data at all, 
 [keep an eye on your metric cardinality](view-graph.md#cardinality).
@@ -250,15 +252,15 @@ We recommend that the very first tags have the lowest cardinality rate. For exam
 `environment` tag having not that many values.
 
 :::tip
-If you need a tag with many different `integer` values (such as `user_ID`), use the 
+If you need a tag with many different 32-bit integer values (such as `user_ID`), use the 
 [Raw](edit-metrics.md#raw-values) tag values to avoid the mapping flood.
 
-For many different `string` values (such as `search_request`), use a [string tag](#string-tag).
+For many different string values (such as `search_request`), use a [string tag](#string-tag).
 :::
 
 ### String tag
 
-Use a _string tag_ (`tag__s`) when you need a tag with many different `string` values such as referrers or search
+Use a _string tag_ (`__s`) when you need a tag with many different `string` values such as referrers or search
 requests.
 
 With the common tags, you will get [mapping flood](view-graph.md#mapping-status) errors very soon for this scenario.
@@ -275,7 +277,7 @@ To filter data with the _string tag_ on a graph, [add a name or description](edi
 
 To view statistics for each host separately, you may want to use host names as tag values. 
 Try the _Max host_ feature instead. You do not have to send something special to get use 
-of _Max host_—[enable it in the UI](view-graph.md#max-host).
+of _Max host_—[enable it in the UI](view-graph.md#9--max-host).
 
 Using host names as tag values prevents data from being aggregated and leads to increased sampling. 
 By contrast, the _Max host_ feature does not lead to increased sampling but allows you to find the host that sends the 
@@ -323,73 +325,58 @@ and [showing descriptive statistics](#aggregation) in the UI.
 
 :::note
 Metric types should not be confused with [data types](https://en.wikipedia.org/wiki/Data_type) in programming
-languages. You should not specify the type of your data: whether it is `int`, `float`, or `double`, etc.
+languages. You should not specify the type of your data: whether it is `int`, `string`, etc.
 :::
 
 ### Metric types and their combinations
 
-In the database, where StatsHouse stores metric data, there are columns for `counter`, `value`, and `unique` 
-per each metric:
+In the database, where StatsHouse stores metric data, the data model for each metric looks like this:
 
-| timestamp | metric name | tag_0   | tag_1..tag_15 | counter | value | unique |
-| --------- |-------------|---------|---------------| ------- |-------|--------|
-| 13:45:05  | my_metric   | dev     | -             | 100     | 1200  | -      |
-| 13:45:05  | my_metric   | staging | -             | 200     | 1600  | -      |
-| 13:45:05  | my_metric   | staging | -             | 5       | 80    | -      |
+| timestamp | metric name | tag_0   | tag_1..tag_15 | counter | sum   | min | max  | unique |
+|-----------|-------------|---------|---------------|---------|-------|-----|------|--------|
+| 13:45:05  | my_metric   | dev     | -             | 100     | 13000 | 20  | 1200 | -      |
+| 13:45:05  | my_metric   | staging | -             | 200     | 1600  | 3   | 1100 | -      |
+| 13:45:05  | my_metric   | staging | -             | 5       | 80    | 25  | 30   | -      |
+
+The `sum`, `min`, and `max` columns are [aggregation](../conceptual-overview.md#aggregation) for a `value` metric.
 
 Read more about [metric type implementation](../conceptual-overview.md#metric-types-implementation) in StatsHouse.
 
 Check the valid metric type combinations in the table below:
 
-| What you send                    | What you get                                                                                                        |
-|----------------------------------|---------------------------------------------------------------------------------------------------------------------|
-| `"counter":100`                  | `counter`                                                                                                           |
-| `"value":[1, 2, 3]`              | `counter` and `value`                                                                                               |
-| `"unique":[17, 25, 37]`          | `counter` and `unique`                                                                                              |
-| `"counter":6, "value":[1, 2, 3]` | [User-guided sampling](#user-guided-sampling)                                                                       |
-| `"value":100,"unique":100`       | [Receive error](view-graph.md#receive-error) → <text className="orange-text">this is not a valid combination</text> |
+| What you send                    | What you get                                                         |
+|----------------------------------|----------------------------------------------------------------------|
+| `"counter":100`                  | `counter`                                                            |
+| `"value":[1, 2, 3]`              | `counter` and `value` (i.e., `sum`, `min`, `max`)                    |
+| `"unique":[17, 25, 37]`          | `counter`, `value` (i.e., `sum`, `min`, `max`), and `unique`         |
+| `"counter":6, "value":[1, 2, 3]` | [User-guided sampling](#user-guided-sampling)                        |
+| `"value":100,"unique":100`       | <text className="orange-text">This is not a valid combination</text> |
 
-### Implementing `counter` for `value` and `unique` metrics
-
-If you send a `value` or `unique` array, the size of this array becomes the `counter` for this metric. 
-Thus, you should not implement your own counters for `value` or `unique` metrics.
-You still can specify it for [user-guided sampling](#user-guided-sampling).
-
-Imagine you measuring a value metric (e.g., the response size in bytes) once in a second:
-* You get `value` that is your parameter magnitude:
-  XXXX bytes, then YYYY bytes, etc. Please note that this "level" is [aggregation](../conceptual-overview.md#aggregation), not
-  an exact value for a particular moment in time.
-* You also get `counter` for your value metric that shows the number of times you performed
-  your measurements: +1 for the first second, +1 for the next one, etc.
-
-### Changing or combining metric types
+If you refactor your existing metric, i.e., switch between different metric types for a single metric, the data may
+become confusing or uninformative.
 
 :::important
 Keep sending data of the **same type per metric**.
 :::
 
-Some users create "one big metric" for the whole system and differentiate subsystems using `tag_1`.
-So, they use different metric types for different combinations of tag values.
-They set the metric type to `mixed`, allowing StatsHouse to write and display
-all the metric types for these data.
+### Implementing a separate `counter` for `value` and `unique` metrics
 
-We recommend avoiding such a design for your metric. You will not be able to set tag descriptions
-as they will probably depend on `tag_1`. This "one big metric" will also get the common
-[sampling](../conceptual-overview.md#sampling) factor: data for the whole metric with all the subsystem data inside
-will be sampled.
+If you send a `value` or `unique` array, the size of this array becomes the `counter` for this metric. 
+Thus, you should not implement a separate counter metric for your `value` or `unique` metrics.
+You still can specify `counter` to implement [user-guided sampling](#user-guided-sampling).
 
-:::tip
-Alternatively, create a separate metric with a particular metric type for each subsystem,
-so that you can use tags and avoid massive sampling.
-:::
-
-Please do not send value and unique measurements for the same metric as you will get the
-[Receive error](view-graph.md#receive-error).
+Imagine you measuring a value metric (e.g., the response size in bytes) once in a second:
+* You get `value` that is your parameter magnitude:
+  XXXX bytes, then YYYY bytes, etc. Please note that this "level" is [aggregation](../conceptual-overview.md#aggregation), not
+  an exact value for a particular moment in time.
+* You also get `counter` for your value metric that shows the number of times you sent
+  your measurements to StatsHouse: +1 for the first second, +1 for the next one, etc.
 
 ### User-guided sampling
 
 Though it is better to let StatsHouse sample data for you,
-you may want to sample your data before sending them to StatsHouse.
+you may want to sample your data before sending them to StatsHouse. 
+Use this kind of sampling to control the memory footprint.
 
 In this case, you can explicitly specify `counter` for the `value` metric:
 ```bash
@@ -397,3 +384,4 @@ In this case, you can explicitly specify `counter` for the `value` metric:
 ```
 This means that the number of events is 6, and the values are sampled—as if the original `value` was `[1, 1, 2, 2, 3,
 3]`
+

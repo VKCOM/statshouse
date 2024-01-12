@@ -11,6 +11,8 @@ description: Get to know how to set up your metric.
 Mixed
 [changing or combining metric types](#changing-or-combining-metric-types)
 
+### Percentiles
+
 
 ## Resolution
 
