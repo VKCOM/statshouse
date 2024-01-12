@@ -290,6 +290,8 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 	}
 	var v string
 	switch tg.ID {
+	case LabelWhat:
+		v = DigestWhat(tg.Value).String()
 	case LabelShard:
 		v = strconv.FormatUint(uint64(tg.Value), 10)
 	case LabelOffset:
@@ -313,6 +315,10 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 			TagValueID: tg.Value,
 		})
 	}
+	tg.setSValue(v)
+}
+
+func (tg *SeriesTag) setSValue(v string) {
 	tg.SValue = v
 	tg.stringified = true
 }

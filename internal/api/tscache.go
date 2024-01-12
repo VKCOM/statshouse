@@ -73,16 +73,18 @@ func (g *tsCacheGroup) Invalidate(lodLevel int64, times []int64) {
 }
 
 func (g *tsCacheGroup) Get(ctx context.Context, version string, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([][]tsSelectRow, error) {
+	res := make([][]tsSelectRow, lod.indexOf(lod.toSec))
 	switch pq.metricID {
 	case format.BuiltinMetricIDGeneratorConstCounter:
-		return generateConstCounter(lod)
+		generateConstCounter(lod, res)
 	case format.BuiltinMetricIDGeneratorSinCounter:
-		return generateSinCounter(lod)
+		generateSinCounter(lod, res)
 	case format.BuiltinMetricIDGeneratorGapsCounter:
-		return generateGapsCounter(lod)
+		generateGapsCounter(lod, res)
 	default:
-		return g.pointCaches[version][lod.stepSec].get(ctx, key, pq, lod, avoidCache)
+		return g.pointCaches[version][lod.stepSec].get(ctx, key, pq, lod, avoidCache, res)
 	}
+	return res, nil
 }
 
 type tsCache struct {
@@ -145,14 +147,12 @@ func (c *tsCache) maybeDropCache() {
 	}
 }
 
-func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([][]tsSelectRow, error) {
+func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool, ret [][]tsSelectRow) ([][]tsSelectRow, error) {
 	if c.dropEvery != 0 {
 		c.maybeDropCache()
 	}
 
-	ret := make([][]tsSelectRow, lod.getIndexForTimestamp(lod.toSec, 0)+1)
 	cachedRows := 0
-
 	realLoadFrom := lod.fromSec
 	realLoadTo := lod.toSec
 	if !avoidCache {
@@ -190,22 +190,16 @@ func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, 
 	}
 
 	e.lru.Store(time.Now().UnixNano())
-
-	for t := realLoadFrom; t < realLoadTo; {
-		var nextRealLoadFrom int64
-		if c.stepSec == _1M {
-			nextRealLoadFrom = time.Unix(t, 0).In(lod.location).AddDate(0, 1, 0).Unix()
-		} else {
-			nextRealLoadFrom = t + c.stepSec
-		}
-
+	i := lod.indexOf(realLoadFrom)
+	for t := realLoadFrom; t < realLoadTo; i++ {
+		nextRealLoadFrom := promqlStepForward(t, c.stepSec, lod.location)
 		cached, ok := e.secRows[t]
 		if !ok {
 			cached = &tsVersionedRows{}
 			e.secRows[t] = cached
 		}
 		if loadAtNano > cached.loadedAtNano {
-			loadedRows := ret[lod.getIndexForTimestamp(t, 0)]
+			loadedRows := ret[i]
 			c.size += len(loadedRows) - len(cached.rows)
 			cached.loadedAtNano = loadAtNano
 			cached.rows = loadedRows
@@ -253,13 +247,7 @@ func (c *tsCache) loadCached(ctx context.Context, key string, fromSec int64, toS
 	var loadFrom, loadTo int64
 	var hit int
 	for t, ix := fromSec, retStartIx; t < toSec; ix++ {
-		var nextStartFrom int64
-		if c.stepSec == _1M {
-			nextStartFrom = time.Unix(t, 0).In(location).AddDate(0, 1, 0).Unix()
-		} else {
-			nextStartFrom = t + c.stepSec
-		}
-
+		nextStartFrom := promqlStepForward(t, c.stepSec, location)
 		cached, ok := e.secRows[t]
 		if ok && cached.loadedAtNano >= c.invalidatedAtNano[t]+int64(invalidateLinger) {
 			ret[ix] = cached.rows

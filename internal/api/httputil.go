@@ -96,8 +96,8 @@ func cacheSeconds(d time.Duration) int {
 }
 
 func exportCSV(w http.ResponseWriter, resp *SeriesResponse, metric string, es *endpointStat) {
-	es.serviceTime(http.StatusOK)
-	defer es.responseTime(http.StatusOK)
+	es.reportServiceTime(http.StatusOK, nil)
+	defer es.reportResponseTime(http.StatusOK)
 
 	w.Header().Set(
 		"Content-Disposition",
@@ -150,7 +150,7 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 	r := Response{}
 
 	if es != nil {
-		es.serviceTime(code)
+		es.reportServiceTime(code, nil)
 	}
 
 	if err != nil {
@@ -204,14 +204,14 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 	}
 
 	if es != nil {
-		es.responseTime(code)
+		es.reportResponseTime(code)
 	}
 }
 
 func respondPlot(w http.ResponseWriter, format string, resp []byte, cache time.Duration, cacheStale time.Duration, verbose bool, user string, es *endpointStat) {
 	code := http.StatusOK
 	if es != nil {
-		es.serviceTime(code)
+		es.reportServiceTime(code, nil)
 	}
 
 	w.Header().Set("Content-Length", strconv.Itoa(len(resp)))
@@ -243,7 +243,7 @@ func respondPlot(w http.ResponseWriter, format string, resp []byte, cache time.D
 	}
 
 	if es != nil {
-		es.responseTime(code)
+		es.reportResponseTime(code)
 	}
 }
 

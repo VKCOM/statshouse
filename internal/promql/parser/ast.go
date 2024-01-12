@@ -200,6 +200,7 @@ type VectorSelector struct {
 	MetricKindHint  string
 	Range           int64
 	What            string
+	Whats           []string
 	GroupBy         []string
 	GroupByAll      bool
 	GroupWithout    bool
