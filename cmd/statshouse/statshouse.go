@@ -471,7 +471,6 @@ func mainIngressProxy(aesPwd string) int {
 	}
 	argv.configAgent.Cluster = argv.cluster
 	argv.configIngress.Cluster = argv.cluster
-	argv.configIngress.MaxClientsPerShardReplica = argv.maxClientsPerShardReplica
 	argv.configIngress.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
 	if len(argv.configIngress.ExternalAddresses) != 3 {
 		logErr.Printf("-ingress-external-addr must contain comma-separated list of 3 external ingress proxy addresses")

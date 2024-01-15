@@ -29,20 +29,11 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-type cachedClient struct {
-	client         *rpc.Client
-	packetInflight int
-}
-
 type clientPool struct {
 	aesPwd string
-	mu     sync.Mutex
-
+	mu     sync.RWMutex
 	// shardReplica -> free clients
-	freeClients                      []map[int]*cachedClient
-	fullClients                      []map[int]*cachedClient
-	config                           ConfigIngressProxy
-	maxPacketInflightPerShardReplica int
+	clients map[string]*rpc.Client
 }
 
 type IngressProxy struct {
@@ -53,25 +44,17 @@ type IngressProxy struct {
 }
 
 type ConfigIngressProxy struct {
-	Cluster                   string
-	Network                   string
-	ListenAddr                string
-	ExternalAddresses         []string // exactly 3 comma-separated external ingress points
-	IngressKeys               []string
-	MaxClientsPerShardReplica int
+	Cluster           string
+	Network           string
+	ListenAddr        string
+	ExternalAddresses []string // exactly 3 comma-separated external ingress points
+	IngressKeys       []string
 }
 
-func newClientPool(aesPwd string, addresses []string, maxPacketInflightPerShardReplica int, config ConfigIngressProxy) *clientPool {
+func newClientPool(aesPwd string) *clientPool {
 	cl := &clientPool{
-		aesPwd:                           aesPwd,
-		freeClients:                      []map[int]*cachedClient{},
-		fullClients:                      []map[int]*cachedClient{},
-		config:                           config,
-		maxPacketInflightPerShardReplica: maxPacketInflightPerShardReplica,
-	}
-	for range addresses {
-		cl.freeClients = append(cl.freeClients, map[int]*cachedClient{})
-		cl.fullClients = append(cl.fullClients, map[int]*cachedClient{})
+		aesPwd:  aesPwd,
+		clients: map[string]*rpc.Client{},
 	}
 	return cl
 }
@@ -113,7 +96,7 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 
 	proxy := &IngressProxy{
 		sh2:  sh2,
-		pool: newClientPool(aesPwd, sh2.GetConfigResult.Addresses, aggregatorMaxInflightPackets, config),
+		pool: newClientPool(aesPwd),
 		// TODO - server settings must be tuned
 		config: config,
 	}
@@ -191,7 +174,7 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	if len(hctx.Request) < 32 {
 		return true, fmt.Errorf("ingress proxy query with tag 0x%x is too short - %d bytes", tag, len(hctx.Request))
 	}
-	addrIPV4, _ := addrIPString(hctx.RemoteAddr())
+	addrIPV4, remoteAddress := addrIPString(hctx.RemoteAddr())
 
 	fieldsMask := binary.LittleEndian.Uint32(hctx.Request[4:])
 	shardReplica := binary.LittleEndian.Uint32(hctx.Request[8:])
@@ -199,19 +182,16 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	binary.LittleEndian.PutUint32(hctx.Request[4:], fieldsMask)
 	binary.LittleEndian.PutUint32(hctx.Request[28:], addrIPV4) // source_ip[3] in header. TODO - ipv6
 	// We override this field if set by previous proxy. Because we do not care about agent IPs in their cuber/internal networks
-
+	hostName, err := parseHostname(hctx.Request)
+	if err != nil {
+		return true, err
+	}
 	// Motivation of % len - we pass through badly configured requests for now, so aggregators will record them in builtin metric
 	// TODO - collect metric, send to aggregator, reply with error to clients
 	shardReplicaIx := shardReplica % uint32(len(proxy.sh2.GetConfigResult.Addresses))
 	address := proxy.sh2.GetConfigResult.Addresses[shardReplicaIx]
 
-	key, cachedClient, err := proxy.pool.getClient(shardReplicaIx)
-	if err != nil {
-		return true, err
-	}
-	defer proxy.pool.releaseClient(shardReplicaIx, key, cachedClient)
-
-	client := cachedClient.client
+	client := proxy.pool.getClient(hostName, remoteAddress)
 	req := client.GetRequest()
 	req.Body = append(req.Body, hctx.Request...)
 	req.Extra.FailIfNoConnection = true
@@ -227,43 +207,21 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	return false, nil
 }
 
-func (pool *clientPool) getClient(shardReplicaIx uint32) (int, *cachedClient, error) {
-	pool.mu.Lock()
-	defer pool.mu.Unlock()
-	freeClientsPerShardReplica := pool.freeClients[shardReplicaIx]
-	fullClientsPerShardReplica := pool.fullClients[shardReplicaIx]
-	clientsCount := len(freeClientsPerShardReplica) + len(fullClientsPerShardReplica)
-	if len(freeClientsPerShardReplica) == 0 && clientsCount >= pool.config.MaxClientsPerShardReplica {
-		return 0, nil, fmt.Errorf("clients pool limit is exceed")
-	}
-	if len(freeClientsPerShardReplica) == 0 {
-		client := &cachedClient{
-			client: rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
-		}
-		freeClientsPerShardReplica[clientsCount] = client
-	}
-	var key int
-	var client *cachedClient
-	for k, c := range freeClientsPerShardReplica {
-		key = k
-		client = c
-		break
-	}
-	client.packetInflight++
-	if client.packetInflight >= pool.maxPacketInflightPerShardReplica {
-		delete(freeClientsPerShardReplica, key)
-		fullClientsPerShardReplica[key] = client
-	}
-
-	return key, client, nil
+func parseHostname(req []byte) (clientHost string, _ error) {
+	_, err := basictl.StringRead(req[32:], &clientHost)
+	return clientHost, err
 }
 
-func (pool *clientPool) releaseClient(shardReplicaIx uint32, key int, client *cachedClient) {
+func (pool *clientPool) getClient(clientHost, remoteAddress string) *rpc.Client {
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
-	client.packetInflight--
-	if _, ok := pool.fullClients[shardReplicaIx][key]; ok {
-		delete(pool.fullClients[shardReplicaIx], key)
-		pool.freeClients[shardReplicaIx][key] = client
+	client := pool.clients[clientHost]
+	if client == nil {
+		log.Printf("First connection from agent host: %s, host IP: %s", clientHost, remoteAddress)
+
+		client = rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
+		pool.clients[clientHost] = client
 	}
+	return client
+
 }
