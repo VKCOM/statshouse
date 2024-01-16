@@ -278,7 +278,7 @@ View the metric events in a table, for example:
 
 <img src={TableView} width="900"/>
 
-Choose the columns to show:
+Choose the tags to show or hide as columns (an "eye" symbol), or to group by (a "checkmark" sign):
 
 <img src={TableChoose} width="500"/>
 
@@ -354,7 +354,7 @@ aggregation levels:
 The non-integer sampling coefficients may lead to 
 [non-integer values for the _count_ statistic](#why-do-i-see-a-non-integer-number-for-a-count-statistic).
 
-If the sampling coefficient for a metric is higher than 1.02, it is displayed with a yellow alert.
+If the sampling coefficient for a metric is higher than 1, it is displayed with a yellow alert.
 
 <img src={SamplingYellowAlert} width="800"/>
 
@@ -383,13 +383,14 @@ So an _avg_ statistic for this metric shows full cardinality, which may be group
 
 ### Mapping status
 
-If you send too many tag value combinations, which have not been 
-[mapped](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) yet,
-the mapping flood errors appear:
+If you create too many tag values, which have not been 
+[mapped](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) yet, the mapping flood errors appear:
 
 <img src={MappingFlood} width="800"/>
 
-Learn [how many tag values](send-data.md#how-many-tag-values) to create per metric.
+Mapping errors indicate that the number of newly created tag values exceed the mapping budget per day.
+Learn more about [mapping](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) 
+and  [how many tag values](send-data.md#how-many-tag-values) to create per metric.
 
 ## 14 — Lock Y-axis
 
@@ -409,6 +410,11 @@ Adjust the viewing options in the UI—group or filter your data by tags—and s
 
 Please note that the only viewing option not included in the link is _Live mode_.
 Check the [tip](#5--live-mode) for sharing data with the _Live mode_ option included.
+
+If you have several [metric tabs](#19--metric-tabs) opened, 
+the _Copy link to clipboard_ option copies the link to the current metric tab only.
+
+See also the [_Open in a new browser tab_](#20--open-in-a-new-browser-tab) option.
 
 ## 16 — Zoom options
 
@@ -456,3 +462,12 @@ or copy the graph's URL and paste it to a new metric tab:
 Remove the tab if necessary:
 
 <img src={MetricTabDelete} width="400"/>
+
+## 20 — Open in a new browser tab
+
+This option implements the same behavior as 
+the [_Copy link to clipboard_](#15--copy-link-to-clipboard) 
+but instead of copying the link it opens it in the new browser tab.
+
+All the [_Copy link to clipboard_](#15--copy-link-to-clipboard) limitations apply:
+only the current metric tab is opened, and _Live mode_ is not included.

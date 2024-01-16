@@ -3,5 +3,5 @@ sidebar_position: 6
 description: TEST
 ---
 
-# Create dashboards
+# Create and view dashboards
 
