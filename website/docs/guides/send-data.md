@@ -56,7 +56,7 @@ format):
 
 To start sending data, check the following: 
 * [how to send metric data via client libraries](#how-to-send-data-via-client-libraries),
-* [how to use tags](#choose-proper-tags), 
+* [how to use tags](#how-to-use-tags), 
 * and [how to choose a metric type](#how-to-choose-a-metric-type).
 
 ## How to send data via client libraries
@@ -231,7 +231,7 @@ Unfortunately, it is impossible for now. We plan to increase the number of tags 
 There is no formal limitation for a number of tag values, but the rule is to have **not that many** of them.
 
 Tags with many different values such as user IDs or email addresses may lead to 
-[mapping flood](view-graph.md#mapping-status) errors or increased [sampling](guides/view-graph.md#sampling) due to 
+[mapping flood](view-graph.md#mapping-status) errors or increased [sampling](view-graph.md#sampling) due to 
 high [cardinality](../conceptual-overview.md#cardinality).
 In StatsHouse, metric cardinality is how many unique tag value combinations you send for a metric.
 
@@ -385,3 +385,18 @@ In this case, you can explicitly specify `counter` for the `value` metric:
 This means that the number of events is 6, and the values are sampled—as if the original `value` was `[1, 1, 2, 2, 3,
 3]`
 
+## Timestamp: sending historical data
+
+StatsHouse writes real-time data as a priority.
+
+:::important
+Writing historical data is allowed only for the latest hour and a half.
+:::
+
+If the timestamp is in the future, StatsHouse replaces it with the current time.
+
+If the timestamp relates to a moment that is more than 1.5 hours ago, StatsHouse replaces it with the current time 
+minus 1.5 hours.
+
+For `cron` jobs that send metric data, use the one-hour sending period:
+it is OK to send data once in an hour, but it is not OK to send data once in a day.

@@ -21,6 +21,7 @@ sidebar_position: 5
 
 ## Agent
 
+## Aggregator
 
 ## Tags
 

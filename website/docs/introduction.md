@@ -36,7 +36,7 @@ Walk through the ten-minute [**Quick start**](quick-start.md) guide:
 
 ### Find the guide for your task
 
-Check the detailed **How-to guides** to perform popular tasks:
+Check the detailed **User guide** to perform popular tasks:
 
 * [Get access to StatsHouse](guides/access-cluster.md)
 * [Create a metric](guides/create-metric.md)

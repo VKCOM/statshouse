@@ -72,7 +72,8 @@ For this toy example, use a simple `bash` script:
 echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 127.0.0.1 13337
 ```
 
-Read more about [metrics in StatsHouse](guides/send-data.md#what-are-metrics-in-statshouse) and [sending metric data](guides/send-data.md).
+Read more about [metrics in StatsHouse](guides/send-data.md#what-are-metrics-in-statshouse) and 
+[sending metric data](guides/send-data.md).
 
 View the metric on the StatsHouse dashboard at 
 [localhost:10888](http://localhost:10888/view?live=1&f=-300&t=0&tn=-1&s=example_response_time&t1.s=example_response_time&t1.qw=avg&t2.s=example_runtime_memory&t2.qw=avg&t2.qb=key1).
@@ -92,7 +93,7 @@ Find the basic viewing options on a picture and their descriptions below:
 ### Metric name
 
 Choose the name of your previously created metric or refer to someone else's one. 
-Learn how to [refer to existing metrics](guides/view-graph.md#refer-to-existing-metrics) 
+Learn how to [refer to existing metrics](guides/view-graph.md#1--metric-name) 
 and check the related warnings.
 
 ### Descriptive statistics
@@ -105,9 +106,9 @@ want to show them on a graph. The most common ones are:
 * _standard deviation_,
 * _minimum_ and _maximum_.
 
-There are [more](guides/view-graph.md#descriptive-statistics) statistics available.
+There are [more](guides/view-graph.md#3--descriptive-statistics) statistics available.
 The range of descriptive statistics that are meaningful for a metric is 
-[related to a metric type](guides/send-data.md#metric-type).
+[related to a metric type](guides/send-data.md#how-to-choose-a-metric-type).
 For example, _percentiles_ are available for _values_ only.
 
 In this dropdown menu, you can see statistics, which may be not relevant for your metric type. If you pick them, you 
@@ -125,7 +126,7 @@ These are normalized data, which are independent of an aggregation interval.
 
 Read more about [descriptive statistics](guides/view-graph.md#3--descriptive-statistics).
 
-### Time periods
+### Time period
 
 Display data for a specific time period: the last five minutes, last hour, last week, 
 and more—even for the last two years.
@@ -147,9 +148,9 @@ Make sure the chosen time period is larger than the aggregation interval.
 For example, choose a 7-day time period and a 24-hour aggregation interval.
 :::
 
-For real-time monitoring, use [Live mode](guides/view-graph.md#live-mode).
+For real-time monitoring, use [Live mode](guides/view-graph.md#5--live-mode).
 
-Read more about choosing [time periods](guides/view-graph.md#time-periods).
+Read more about choosing the [time period](guides/view-graph.md#4--time-period).
 
 ### Aggregation interval
 
@@ -168,7 +169,8 @@ The currently available aggregation is also related to
 a metric [resolution](guides/edit-metrics.md#resolution).
 :::
 
-Read more about [aggregation](conceptual-overview.md#aggregation) in StatsHouse, and changing metric [resolution](guides/edit-metrics.md#resolution).
+Read more about [aggregation](conceptual-overview.md#aggregation) in StatsHouse, 
+and changing metric [resolution](guides/edit-metrics.md#resolution).
 
 ### Tags
 
@@ -183,11 +185,12 @@ For example, a particular piece of data can be labeled as related to
 
 :::tip
 Tags with many different values such as user IDs may lead to [mapping flood](guides/view-graph.md#mapping-status) errors 
-or increased [sampling](guides/view-graph.md#sampling) due to high [cardinality](conceptual-overview.md#cardinality). If you need to create such a tag, read more about 
+or increased [sampling](guides/view-graph.md#sampling) due to high [cardinality](conceptual-overview.md#cardinality). 
+If you need to create such a tag, read more about 
 [tags with many different values](guides/edit-metrics.md#raw-values).
 :::
 
-Read more about [filtering with tags](guides/view-graph.md#7--tags), [setting up](guides/send-data.md#tags) 
+Read more about [filtering with tags](guides/view-graph.md#7--tags), [setting up](guides/send-data.md#how-to-use-tags) 
 and [editing](guides/edit-metrics.md#tags) tags, and [cardinality](conceptual-overview.md#cardinality).
 
 ### Top N
