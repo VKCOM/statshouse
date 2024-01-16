@@ -13,7 +13,7 @@ import (
 
 const schemeNumbers = "CREATE TABLE IF NOT EXISTS numbers (n INTEGER PRIMARY KEY);"
 
-func initDb(b *testing.B, scheme, prefix string, dbFile string, durabilityMode DurabilityMode) (*Engine, binlog2.Binlog) {
+func initDb(b *testing.B, scheme, prefix string, dbFile string, durabilityMode DurabilityMode, commitOnEachWrite, waitCommit bool) (*Engine, binlog2.Binlog) {
 	options := binlog2.Options{
 		PrefixPath: prefix + "/test",
 		Magic:      3456,
@@ -35,6 +35,8 @@ func initDb(b *testing.B, scheme, prefix string, dbFile string, durabilityMode D
 		Scheme:                 scheme,
 		DurabilityMode:         durabilityMode,
 		CacheMaxSizePerConnect: 1,
+		CommitOnEachWrite:      commitOnEachWrite,
+		WaitBinlogCommitDebug:  waitCommit,
 	}, bl, nil, nil)
 	if err != nil {
 		b.Fatal(err)
@@ -86,7 +88,7 @@ func queryLoop(b *testing.B, eng *Engine, query func(c Conn, i int) Rows) {
 
 func BenchmarkReadNumbers(b *testing.B) {
 	const m = 1000
-	eng, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", NoBinlog)
+	eng, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", NoBinlog, false, false)
 	r := fillDB(b, eng, "numbers", 1000, m, func(i, j int) Arg {
 		return Int64("$n", int64(i*m+j))
 	})
@@ -97,4 +99,30 @@ func BenchmarkReadNumbers(b *testing.B) {
 		list = append(list, r[rand.Int()%len(r)].n)
 		return c.Query("select", "SELECT n FROM numbers WHERE n in ($n$)", Int64Slice("$n$", list))
 	})
+}
+
+func BenchmarkWriteNumbers(b *testing.B) {
+	f := func(b *testing.B, waitCommit bool) {
+		engine, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", NoWaitCommit, true, waitCommit)
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			err := engine.Do(context.Background(), "test", func(c Conn, cache []byte) ([]byte, error) {
+				_, err := c.Exec("insert", "INSERT INTO numbers (n) VALUES ($n)", Int64("$n", int64(i)))
+				if err != nil {
+					b.Fatal(err)
+				}
+				return append(cache, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0), nil
+			})
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+	}
+	b.Run("wait binlog commit", func(b *testing.B) {
+		f(b, true)
+	})
+	b.Run("not wait binlog commit", func(b *testing.B) {
+		f(b, false)
+	})
+
 }

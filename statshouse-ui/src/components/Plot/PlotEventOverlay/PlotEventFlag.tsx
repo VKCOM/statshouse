@@ -6,9 +6,10 @@ import { PlotEventOverlayTable } from './PlotEventOverlayTable';
 import { TimeRange } from '../../../common/TimeRange';
 import cn from 'classnames';
 import { PlotParams } from '../../../url/queryParams';
+import { isNotNil, uniqueArray } from '../../../common/helpers';
 
 export type PlotEventFlagProps = {
-  plot: PlotParams;
+  plots: PlotParams[];
   range: TimeRange;
   agg: string;
   width: number;
@@ -19,11 +20,11 @@ export type PlotEventFlagProps = {
   opacity: number;
   flagWidth: number;
   flagHeight: number;
-  groups: { color: string; idx: number; x: number }[];
+  groups: { color: string; idx: number; x: number; plotIndex: number }[];
   small?: boolean;
 };
 export function _PlotEventFlag({
-  plot,
+  plots,
   range,
   agg,
   plotWidth,
@@ -53,6 +54,13 @@ export function _PlotEventFlag({
   const _onMouseOver = useCallback(() => {
     setHover(true);
   }, [setHover]);
+  const plotsInfo = useMemo(
+    () =>
+      uniqueArray(groups.map((g) => g.plotIndex))
+        .map((idx) => plots[idx])
+        .filter(isNotNil),
+    [groups, plots]
+  );
   return (
     <g transform={`translate(${x}, 4)`} opacity={opacity}>
       <line x1="0" x2="0" y1="0" y2={height} />
@@ -111,8 +119,11 @@ export function _PlotEventFlag({
           )}
           onMouseOut={_onMouseOut}
           onMouseOver={_onMouseOver}
+          style={{ minWidth: 100, minHeight: 20 }}
         >
-          <PlotEventOverlayTable plot={plot} range={range} agg={agg} width={plotWidth} />
+          {plotsInfo.map((p, key) => (
+            <PlotEventOverlayTable key={key} plot={p} range={range} agg={agg} width={plotWidth} />
+          ))}
         </div>
       </Popper>
     </g>

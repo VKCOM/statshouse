@@ -10,6 +10,7 @@ import { formatInputDate, formatInputTime, maxTimeRange, now, parseInputDate, pa
 import { ReactComponent as SVGLockClock } from '../../assets/svg/LockClock.svg';
 import { ReactComponent as SVGUnlockClock } from '../../assets/svg/UnlockClock.svg';
 import cn from 'classnames';
+import { ToggleButton } from '../UI';
 
 export type PlotControlToProps = {
   timeRange: TimeRange;
@@ -25,10 +26,9 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({
   classNameInput,
 }) => {
   const onRelativeToChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
-      const absolute = !e.target.checked;
+    (status: boolean) => {
       setTimeRange((range) => {
-        range.absolute = absolute;
+        range.absolute = !status;
         return range.getRangeUrl();
       });
     },
@@ -89,17 +89,14 @@ export const _PlotControlTo: React.FC<PlotControlToProps> = ({
         value={formatInputTime(timeRange.to)}
         onChange={onToTimeChange}
       />
-      <input
-        type="checkbox"
-        className="btn-check"
-        id="toggle-relative"
-        autoComplete="off"
+      <ToggleButton
+        className="btn btn-outline-primary"
+        title="Use relative date/time in URL"
         checked={!timeRange.absolute}
         onChange={onRelativeToChange}
-      />
-      <label className="btn btn-outline-primary" htmlFor="toggle-relative" title="Use relative date/time in URL">
+      >
         {!timeRange.absolute ? <SVGLockClock /> : <SVGUnlockClock />}
-      </label>
+      </ToggleButton>
     </div>
   );
 };

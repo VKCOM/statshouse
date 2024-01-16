@@ -2,7 +2,6 @@ package stats
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -78,7 +77,11 @@ func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, logErr
 	if err != nil {
 		return nil, err
 	}
-	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats} // TODO add modules
+	vmStatsCollector, err := NewVMStats(newWriter())
+	if err != nil {
+		return nil, err
+	}
+	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats, vmStatsCollector} // TODO add modules
 	var collectors []Collector
 	for _, collector := range allCollectors {
 		if !collector.Skip() {
@@ -104,8 +107,7 @@ func (m *CollectorManager) RunCollector() error {
 		errGroup.Go(func() (err error) {
 			defer func() {
 				if r := recover(); r != nil {
-					m.logErr.Println(r)
-					err = fmt.Errorf("panic during to write system metrics: %s", r)
+					m.logErr.Println("panic:", r)
 				}
 			}()
 			for {

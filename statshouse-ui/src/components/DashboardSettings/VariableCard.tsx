@@ -14,7 +14,7 @@ import { VariablePlotLinkSelect } from './VariablePlotLinkSelect';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGChevronUp } from 'bootstrap-icons/icons/chevron-up.svg';
 import { ReactComponent as SVGChevronDown } from 'bootstrap-icons/icons/chevron-down.svg';
-import { ToggleButton } from '../UI';
+import { Button, ToggleButton } from '../UI';
 import cn from 'classnames';
 import { PlotParams, toPlotKey, VariableParams } from '../../url/queryParams';
 import { TagKey } from '../../api/enum';
@@ -87,6 +87,7 @@ export function VariableCard({
         indexVariable,
         produce((v) => {
           const plotKey = toPlotKey(indexPlot);
+
           if (plotKey != null) {
             const indexLink = v.link.findIndex(([kPlot]) => plotKey === kPlot);
             if (indexLink > -1) {
@@ -142,9 +143,9 @@ export function VariableCard({
               onInput={setDescription}
             />
           </div>
-          <button className="btn btn-outline-danger ms-2" onClick={remove} title="Remove">
+          <Button className="btn btn-outline-danger ms-2" onClick={remove} title="Remove">
             <SVGTrash />
-          </button>
+          </Button>
         </div>
         {!valid && (
           <div className="text-danger small">Not valid variable name, can content only 'a-z', '0-9' and '_' symbol</div>

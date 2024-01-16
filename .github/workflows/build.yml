@@ -1,121 +1,140 @@
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build'
+        required: true
+      draft_release:
+        description: 'Draft a release'
+        required: false
+        default: true
 jobs:
   env:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: VKCOM/statshouse
-        fetch-depth: 0
-    - id: main
-      run: |
-        BUILD_COMMIT=$(git log --format="%H" -n 1)
-        BUILD_COMMIT_TS=$(git log --format="%ct" -n 1)
-        BUILD_TIME=$(date +%FT%T%z)
-        BUILD_VERSION=$(git describe --tags --always --dirty)
-        BUILD_VERSION=${BUILD_VERSION#v}
-        echo "BUILD_COMMIT=$BUILD_COMMIT" >> "$GITHUB_OUTPUT"
-        echo "BUILD_COMMIT_TS=$BUILD_COMMIT_TS" >> "$GITHUB_OUTPUT"
-        echo "BUILD_TIME=$BUILD_TIME" >> "$GITHUB_OUTPUT"
-        echo "BUILD_VERSION=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: VKCOM/statshouse
+          ref: ${{ github.event.inputs.tag }}
+          fetch-depth: 0
+      - id: main
+        run: |
+          BUILD_COMMIT=$(git log --format="%H" -n 1)
+          BUILD_COMMIT_TS=$(git log --format="%ct" -n 1)
+          BUILD_TIME=$(date +%FT%T%z)
+          BUILD_VERSION=$(git describe --tags --always --dirty)
+          BUILD_VERSION=${BUILD_VERSION#v}
+          echo "BUILD_COMMIT=$BUILD_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "BUILD_COMMIT_TS=$BUILD_COMMIT_TS" >> "$GITHUB_OUTPUT"
+          echo "BUILD_TIME=$BUILD_TIME" >> "$GITHUB_OUTPUT"
+          echo "BUILD_VERSION=$BUILD_VERSION" >> "$GITHUB_OUTPUT"
     outputs:
-      BUILD_COMMIT: ${{ steps.main.outputs.BUILD_COMMIT }}
-      BUILD_COMMIT_TS: ${{ steps.main.outputs.BUILD_COMMIT_TS }}
-      BUILD_TIME: ${{ steps.main.outputs.BUILD_TIME }}
-      BUILD_VERSION: ${{ steps.main.outputs.BUILD_VERSION }}
-      REACT_APP_BUILD_VERSION: ${{ steps.main.outputs.REACT_APP_BUILD_VERSION }}
-  front:
+      ref: ${{ steps.main.outputs.BUILD_COMMIT }}
+      ref_timestamp: ${{ steps.main.outputs.BUILD_COMMIT_TS }}
+      timestamp: ${{ steps.main.outputs.BUILD_TIME }}
+      version: ${{ steps.main.outputs.BUILD_VERSION }}
+  frontend:
     needs: env
     runs-on: ubuntu-latest
     container:
       image: node:18
     steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: VKCOM/statshouse
-        ref: ${{needs.env.outputs.BUILD_COMMIT}}
-        fetch-depth: 0
-    - run: |
-        REACT_APP_BUILD_VERSION=${{needs.env.outputs.BUILD_VERSION}}-${{needs.env.outputs.BUILD_TIME}}
-        make build-sh-ui
-    - uses: actions/upload-artifact@v3
-      with:
-        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-ui
-        path: |
-          statshouse-ui/build
-          .dummy_preserves_directory_structure
-    - run: make build-grafana-ui
-    - uses: actions/upload-artifact@v3
-      with:
-        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-ui
-        path: |
-          grafana-plugin-ui/dist
-          .dummy_preserves_directory_structure
-  back:
-    needs: [env, front]
-    runs-on: ubuntu-latest
+      - uses: actions/checkout@v4
+        with:
+          repository: VKCOM/statshouse
+          ref: ${{needs.env.outputs.ref}}
+          fetch-depth: 0
+      - run: echo "REACT_APP_BUILD_VERSION=${{needs.env.outputs.version}}-${{needs.env.outputs.timestamp}}" >> $GITHUB_ENV
+      - run: make build-sh-ui
+      - uses: actions/upload-artifact@v3
+        with:
+          name: statshouse-${{needs.env.outputs.version}}-ui
+          path: |
+            statshouse-ui/build
+            .dummy_preserves_directory_structure
+    outputs:
+      artifact: statshouse-${{needs.env.outputs.version}}-ui
+  almalinux:
+    needs: [env, frontend]
+    uses: ./.github/workflows/build_rpm.yml
+    with:
+      ref: ${{needs.env.outputs.ref}}
+      ref_timestamp: ${{needs.env.outputs.ref_timestamp}}
+      timestamp: ${{needs.env.outputs.timestamp}}
+      version: ${{needs.env.outputs.version}}
+      name: almalinux
+      release: 9.2
+      frontend-artifact: ${{needs.frontend.outputs.artifact}}
+    secrets: inherit
+  debian:
+    if: ${{false}}
     strategy:
       matrix:
-        debian_release: [buster, bullseye]
-    container:
-      image: golang:1.19-${{ matrix.debian_release }}
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        repository: VKCOM/statshouse
-        ref: ${{needs.env.outputs.BUILD_COMMIT}}
-        fetch-depth: 0
-    - uses: actions/download-artifact@master
-      with:
-        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-ui
-    - run: |
-        BUILD_TIME=${{needs.env.outputs.BUILD_TIME}}
-        BUILD_COMMIT=${{needs.env.outputs.BUILD_COMMIT}}
-        BUILD_COMMIT_TS=${{needs.env.outputs.BUILD_COMMIT_TS}}
-        BUILD_MACHINE=$(uname -n -m -r -s)
-        BUILD_VERSION=${{needs.env.outputs.BUILD_VERSION}}
-        cp -r statshouse-ui/build cmd/statshouse-api/
-        make build-sh build-sh-metadata build-sh-api build-sh-grafana
-    - uses: actions/upload-artifact@v3
-      with:
-        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-${{ matrix.debian_release }}_amd64-bin
-        path: target
-  deb:
-    needs: [env, back, front]
+        release: [buster, bullseye]
+    needs: [env, frontend]
+    uses: ./.github/workflows/build_deb.yml
+    with:
+      container_json: '{"image":"golang:1.19-${{matrix.release}}"}'
+      ref: ${{needs.env.outputs.ref}}
+      ref_timestamp: ${{needs.env.outputs.ref_timestamp}}
+      timestamp: ${{needs.env.outputs.timestamp}}
+      version: ${{needs.env.outputs.version}}
+      name: 'debian'
+      release: ${{matrix.release}}
+      frontend-artifact: ${{needs.frontend.outputs.artifact}}
+    secrets: inherit
+  ubuntu_jammy:
+    if: ${{false}}
+    needs: [env, frontend]
+    uses: ./.github/workflows/build_deb.yml
+    with:
+      runs-on: ubuntu-22.04
+      setup-go: true
+      ref: ${{needs.env.outputs.ref}}
+      ref_timestamp: ${{needs.env.outputs.ref_timestamp}}
+      timestamp: ${{needs.env.outputs.timestamp}}
+      version: ${{needs.env.outputs.version}}
+      name: ubuntu
+      release: jammy
+      frontend-artifact: ${{needs.frontend.outputs.artifact}}
+    secrets: inherit
+  ubuntu_focal:
+    needs: [env, frontend]
+    uses: ./.github/workflows/build_deb.yml
+    with:
+      runs-on: ubuntu-20.04
+      setup-go: true
+      ref: ${{needs.env.outputs.ref}}
+      ref_timestamp: ${{needs.env.outputs.ref_timestamp}}
+      timestamp: ${{needs.env.outputs.timestamp}}
+      version: ${{needs.env.outputs.version}}
+      name: ubuntu
+      release: focal
+      frontend-artifact: ${{needs.frontend.outputs.artifact}}
+    secrets: inherit
+  draft_release:
+    if: ${{ github.event.inputs.draft_release }}
+    needs: [env, ubuntu_focal, almalinux]
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        debian_release: [buster, bullseye]
-    container:
-      image: debian:${{ matrix.debian_release }}
     steps:
-    - run: |
-        apt-get update
-        DEBIAN_FRONTEND=noninteractive apt-get install -y devscripts build-essential dh-exec
-        rm -rf /var/lib/apt/lists/*
-    - uses: actions/checkout@v4
-      with:
-        repository: VKCOM/statshouse
-        ref: ${{needs.env.outputs.BUILD_COMMIT}}
-        fetch-depth: 0
-    - uses: actions/download-artifact@master
-      with:
-        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-${{ matrix.debian_release }}_amd64-bin
-        path: target
-    - uses: actions/download-artifact@master
-      with:
-        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-ui
-    - working-directory: build
-      run: |
-        rm -f changelog
-        VERSION=1:${{needs.env.outputs.BUILD_VERSION}}-${{ matrix.debian_release }}
-        dch --create --distribution stable --package statshouse --newversion "$VERSION" "up to version $VERSION"
-        debuild --no-lintian -us -uc -b
-    - uses: actions/upload-artifact@v3
-      with:
-        name: statshouse-${{needs.env.outputs.BUILD_VERSION}}-${{ matrix.debian_release }}_amd64-deb
-        path: |
-          statshouse_*.deb
-          statshouse-api_*.deb
-          statshouse-metadata_*.deb
+      - uses: actions/checkout@v4
+        with:
+          repository: VKCOM/statshouse
+          ref: ${{needs.env.outputs.ref}}
+          fetch-depth: 0
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{needs.almalinux.outputs.artifact}}
+          path: pkg/rpm
+      - uses: actions/download-artifact@master
+        if: ${{false}}
+        with:
+          name: ${{needs.debian.outputs.artifact}}
+          path: pkg/deb
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{needs.ubuntu_focal.outputs.artifact}}
+          path: pkg/deb
+      - run: gh release create --verify-tag --draft --generate-notes --title "${{github.event.inputs.tag}}" ${{github.event.inputs.tag}} $(find ./pkg -type f -name *.deb -o -name *.rpm)
+        env:
+          GITHUB_TOKEN: ${{secrets.DEVTOOLS_GITHUB_TOKEN}}

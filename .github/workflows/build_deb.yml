@@ -1,0 +1,90 @@
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        type: string
+        required: false
+        default: ubuntu-latest
+      container_json:
+        required: false
+        type: string
+        default: '{"image":null}'
+      setup-go:
+        type: boolean
+        required: false
+        default: false
+      ref:
+        required: true
+        type: string
+      ref_timestamp:
+        required: true
+        type: string
+      timestamp:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      name:
+        required: true
+        type: string
+      release:
+        required: true
+        type: string
+      frontend-artifact:
+        type: string
+        required: true
+    outputs:
+      artifact:
+        value: statshouse-${{inputs.version}}-deb
+jobs:
+  binaries:
+    uses: ./.github/workflows/build_binaries.yml
+    with:
+      runs-on: ${{inputs.runs-on}}
+      container_json: ${{inputs.container_json}}
+      setup-go: ${{inputs.setup-go}}
+      ref: ${{inputs.ref}}
+      ref_timestamp: ${{inputs.ref_timestamp}}
+      timestamp: ${{inputs.timestamp}}
+      version: ${{inputs.version}}
+      name: ${{inputs.name}}
+      release: ${{inputs.release}}
+  package:
+    needs: [binaries]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          sudo apt-get update
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y devscripts build-essential dh-exec
+          sudo rm -rf /var/lib/apt/lists/*
+      - uses: actions/checkout@v4
+        with:
+          repository: VKCOM/statshouse
+          ref: ${{inputs.ref}}
+          fetch-depth: 0
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{needs.binaries.outputs.artifact}}
+          path: target
+      - uses: actions/download-artifact@master
+        with:
+          name: ${{inputs.frontend-artifact}}
+      - run: | # fake grafana plugin build since it isn't published
+          mkdir -p grafana-plugin-ui/dist
+          touch target/statshouse-grafana-plugin
+      - run: | # github doesn't retain file permissions for artifact contents, restore
+          chmod +x target/*
+      - run: echo "VERSION=1:${{inputs.version}}-${{inputs.release}}" >> $GITHUB_ENV
+      - working-directory: build
+        run: |
+          rm -f changelog          
+          dch --create --distribution stable --package statshouse --newversion "$VERSION" "up to version $VERSION"
+          debuild --no-lintian -us -uc -b
+      - uses: actions/upload-artifact@v3
+        with:
+          name: statshouse-${{inputs.version}}-deb
+          path: |
+            ./statshouse_*.deb
+          # ./statshouse-api_*.deb
+          # ./statshouse-metadata_*.deb

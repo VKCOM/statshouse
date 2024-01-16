@@ -184,7 +184,7 @@ func (h *RPCHandler) GetQueryPoint(ctx context.Context, args tlstatshouseApi.Get
 		return response, err
 	}
 	response.Data = make([]float64, len(r.PointData))
-	response.Meta = make([]tlstatshouseApi.PointMeta, len(r.PointData))
+	response.Meta = make([]tlstatshouseApi.PointMeta, len(r.PointMeta))
 	for i, data := range r.PointData {
 		response.Data[i] = data
 		meta := r.PointMeta[i]
@@ -397,7 +397,7 @@ func (h *RPCHandler) ReleaseChunks(_ context.Context, args tlstatshouseApi.Relea
 }
 
 func (h *RPCHandler) parseAccessToken(token string) (accessInfo, error) {
-	return h.ah.accessManager.parseAccessToken(h.jwtHelper, token, h.protectedPrefixes, h.localMode, h.insecureMode)
+	return parseAccessToken(h.jwtHelper, token, h.protectedPrefixes, h.localMode, h.insecureMode)
 }
 
 func transformQuery(q tlstatshouseApi.Query, meta *format.MetricMetaValue) (req seriesRequest, err error) {
@@ -460,11 +460,10 @@ func transformPointQuery(q tlstatshouseApi.QueryPoint, meta *format.MetricMetaVa
 		return req, fmt.Errorf("can't parse filter: %v", err)
 	}
 
-	timeShifts := make([]time.Duration, 0, len(q.TimeShift))
-	for _, ts := range q.TimeShift {
-		timeShifts = append(timeShifts, time.Duration(ts)*time.Second)
+	timeShifts, err := verifyTimeShifts(q.TimeShift)
+	if err != nil {
+		return req, err
 	}
-
 	var what []string
 	if q.IsSetWhat() {
 		what = make([]string, 0, len(q.What))

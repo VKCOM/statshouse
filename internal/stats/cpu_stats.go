@@ -67,7 +67,6 @@ func (c *CPUStats) WriteMetrics(nowUnix int64) error {
 		}
 	}
 	c.stat = stat
-	err = c.updateCPUStats(stat.CPU)
 	if err != nil {
 		return fmt.Errorf("failed to update cpu stats: %w", err)
 	}
@@ -75,16 +74,21 @@ func (c *CPUStats) WriteMetrics(nowUnix int64) error {
 }
 
 func (c *CPUStats) writeCPU(nowUnix int64, stat procfs.Stat) error {
-	t := stat.CPUTotal
-	oldT := c.stat.CPUTotal
-	c.writer.WriteSystemMetricValue(nowUnix, cpu, t.User-oldT.User, format.RawIDTagUser)
-	c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Nice-oldT.Nice, format.RawIDTagNice)
-	c.writer.WriteSystemMetricValue(nowUnix, cpu, t.System-oldT.System, format.RawIDTagSystem)
-	c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Idle-oldT.Idle, format.RawIDTagIdle)
-	c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Iowait-oldT.Iowait, format.RawIDTagIOWait)
-	c.writer.WriteSystemMetricValue(nowUnix, cpu, t.IRQ-oldT.IRQ, format.RawIDTagIRQ)
-	c.writer.WriteSystemMetricValue(nowUnix, cpu, t.SoftIRQ-oldT.SoftIRQ, format.RawIDTagSoftIRQ)
-	c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Steal-oldT.Steal, format.RawIDTagSteal)
+	for core, t := range stat.CPU {
+		oldT := c.stat.CPU[core]
+		var coreTag int32 = 0 // int32(core)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.User-oldT.User, format.RawIDTagUser, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Nice-oldT.Nice, format.RawIDTagNice, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.System-oldT.System, format.RawIDTagSystem, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Idle-oldT.Idle, format.RawIDTagIdle, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Iowait-oldT.Iowait, format.RawIDTagIOWait, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.IRQ-oldT.IRQ, format.RawIDTagIRQ, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.SoftIRQ-oldT.SoftIRQ, format.RawIDTagSoftIRQ, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Steal-oldT.Steal, format.RawIDTagSteal, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.Guest-oldT.Guest, format.RawIDTagGuest, coreTag)
+		c.writer.WriteSystemMetricValue(nowUnix, cpu, t.GuestNice-oldT.GuestNice, format.RawIDTagGuestNice, coreTag)
+
+	}
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameIRQ, diff(stat.IRQTotal, c.stat.IRQTotal))
 
 	sirqs := stat.SoftIRQ
@@ -111,12 +115,5 @@ func (c *CPUStats) writeSystem(nowUnix int64, stat procfs.Stat) error {
 	c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesBlocked), format.RawIDTagBlocked)
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameProcessCreated, float64(stat.ProcessCreated-c.stat.ProcessCreated))
 	c.writer.WriteSystemMetricCount(nowUnix, cs, diff(stat.ContextSwitches, c.stat.ContextSwitches))
-	return nil
-}
-
-func (c *CPUStats) updateCPUStats(new map[int64]procfs.CPUStat) error {
-	for cpu, stat := range new {
-		c.stats[cpu] = stat
-	}
 	return nil
 }

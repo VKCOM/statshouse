@@ -9,7 +9,6 @@ import (
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
 	jwriter "github.com/mailru/easyjson/jwriter"
-
 	format "github.com/vkcom/statshouse/internal/format"
 )
 
@@ -272,8 +271,6 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi2(in *jlexer.Lexer
 				}
 				in.Delim(']')
 			}
-		case "promqltestfailed":
-			out.DebugPromQLTestFailed = bool(in.Bool())
 		case "excess_point_left":
 			out.ExcessPointLeft = bool(in.Bool())
 		case "excess_point_right":
@@ -352,11 +349,6 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi2(out *jwriter.Wri
 			}
 			out.RawByte(']')
 		}
-	}
-	{
-		const prefix string = ",\"promqltestfailed\":"
-		out.RawString(prefix)
-		out.Bool(bool(in.DebugPromQLTestFailed))
 	}
 	{
 		const prefix string = ",\"excess_point_left\":"
@@ -469,6 +461,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat(in *jlexer.Lex
 			out.PreKeyOnly = bool(in.Bool())
 		case "metric_type":
 			out.MetricType = string(in.String())
+		case "fair_key_tag_id":
+			out.FairKeyTagID = string(in.String())
 		default:
 			in.SkipRecursive()
 		}
@@ -591,6 +585,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat(out *jwriter.W
 		const prefix string = ",\"metric_type\":"
 		out.RawString(prefix)
 		out.String(string(in.MetricType))
+	}
+	if in.FairKeyTagID != "" {
+		const prefix string = ",\"fair_key_tag_id\":"
+		out.RawString(prefix)
+		out.String(string(in.FairKeyTagID))
 	}
 	out.RawByte('}')
 }
@@ -1197,8 +1196,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat2(in *jlexer.Le
 			out.DeleteTime = uint32(in.Uint32())
 		case "weight":
 			out.Weight = float64(in.Float64())
-		case "visible":
-			out.Visible = bool(in.Bool())
+		case "disable":
+			out.Disable = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -1244,9 +1243,9 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat2(out *jwriter.
 		out.Float64(float64(in.Weight))
 	}
 	{
-		const prefix string = ",\"visible\":"
+		const prefix string = ",\"disable\":"
 		out.RawString(prefix)
-		out.Bool(bool(in.Visible))
+		out.Bool(bool(in.Disable))
 	}
 	out.RawByte('}')
 }
@@ -1372,12 +1371,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalFormat3(in *jlexer.Le
 			out.UpdateTime = uint32(in.Uint32())
 		case "weight":
 			out.Weight = float64(in.Float64())
-		case "visible":
-			out.Visible = bool(in.Bool())
-		case "is_weight_effective":
-			out.IsWeightEffective = bool(in.Bool())
-		case "protected":
-			out.Protected = bool(in.Bool())
+		case "disable":
+			out.Disable = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -1422,20 +1417,10 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalFormat3(out *jwriter.
 		out.RawString(prefix)
 		out.Float64(float64(in.Weight))
 	}
-	if in.Visible {
-		const prefix string = ",\"visible\":"
+	if in.Disable {
+		const prefix string = ",\"disable\":"
 		out.RawString(prefix)
-		out.Bool(bool(in.Visible))
-	}
-	if in.IsWeightEffective {
-		const prefix string = ",\"is_weight_effective\":"
-		out.RawString(prefix)
-		out.Bool(bool(in.IsWeightEffective))
-	}
-	if in.Protected {
-		const prefix string = ",\"protected\":"
-		out.RawString(prefix)
-		out.Bool(bool(in.Protected))
+		out.Bool(bool(in.Disable))
 	}
 	out.RawByte('}')
 }
@@ -2387,7 +2372,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi17(in *jlexer.Lexe
 				in.Delim('[')
 				if out.Groups == nil {
 					if !in.IsDelim(']') {
-						out.Groups = make([]groupShortInfo, 0, 2)
+						out.Groups = make([]groupShortInfo, 0, 1)
 					} else {
 						out.Groups = []groupShortInfo{}
 					}
@@ -2469,6 +2454,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi18(in *jlexer.Lexe
 			out.Name = string(in.String())
 		case "weight":
 			out.Weight = float64(in.Float64())
+		case "disable":
+			out.Disable = bool(in.Bool())
 		default:
 			in.SkipRecursive()
 		}
@@ -2497,6 +2484,11 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi18(out *jwriter.Wr
 		const prefix string = ",\"weight\":"
 		out.RawString(prefix)
 		out.Float64(float64(in.Weight))
+	}
+	{
+		const prefix string = ",\"disable\":"
+		out.RawString(prefix)
+		out.Bool(bool(in.Disable))
 	}
 	out.RawByte('}')
 }
@@ -2875,7 +2867,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi23(in *jlexer.Lexe
 				in.Delim('[')
 				if out.Vars == nil {
 					if !in.IsDelim(']') {
-						out.Vars = make([]DashboardVar, 0, 1)
+						out.Vars = make([]DashboardVar, 0, 0)
 					} else {
 						out.Vars = []DashboardVar{}
 					}
@@ -3052,6 +3044,8 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi25(in *jlexer.Lexe
 			continue
 		}
 		switch key {
+		case "name":
+			out.Name = string(in.String())
 		case "args":
 			easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi27(in, &out.Args)
 		case "values":
@@ -3136,8 +3130,13 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi25(out *jwriter.Wr
 	first := true
 	_ = first
 	{
-		const prefix string = ",\"args\":"
+		const prefix string = ",\"name\":"
 		out.RawString(prefix[1:])
+		out.String(string(in.Name))
+	}
+	{
+		const prefix string = ",\"args\":"
+		out.RawString(prefix)
 		easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi27(out, in.Args)
 	}
 	{

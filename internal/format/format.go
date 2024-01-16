@@ -56,6 +56,9 @@ const (
 	TagValueNullLegacy           = "null"     // see TagValueIDNull
 	TagValueIDMappingFloodLegacy = 22136242   // STATLOGS_KEY_KEYOVERFLOW_INT
 	TagValueIDRawDeltaLegacy     = 10_000_000 // STATLOGS_INT_NOCONVERT
+
+	NamespaceSeparator     = ":"
+	NamespaceSeparatorRune = ':'
 )
 
 // Do not change values, they are stored in DB
@@ -102,6 +105,7 @@ var (
 
 	errInvalidCodeTagValue = fmt.Errorf("invalid code tag value") // must be fast
 	errBadEncoding         = fmt.Errorf("bad utf-8 encoding")     // must be fast
+	reservedMetricPrefix   = []string{"host_", "__"}
 )
 
 // Legacy, left for API backward compatibility
@@ -118,6 +122,7 @@ type MetaStorageInterface interface { // agent uses this to avoid circular depen
 	GetMetaMetric(metricID int32) *MetricMetaValue
 	GetMetaMetricByName(metricName string) *MetricMetaValue
 	GetGroup(id int32) *MetricsGroup
+	GetNamespace(id int32) *NamespaceMeta
 }
 
 // This struct is immutable, it is accessed by mapping code without any locking
@@ -131,6 +136,8 @@ type MetricMetaTag struct {
 
 	Comment2Value map[string]string `json:"-"` // Should be restored from ValueComments after reading
 	IsMetric      bool              `json:"-"` // Only for built-in metrics so never saved or parsed
+	IsGroup       bool              `json:"-"` // Only for built-in metrics so never saved or parsed
+	IsNamespace   bool              `json:"-"` // Only for built-in metrics so never saved or parsed
 	Index         int               `json:"-"` // Should be restored from position in MetricMetaValue.Tags
 }
 
@@ -150,7 +157,7 @@ type NamespaceMeta struct {
 	DeleteTime uint32 `json:"delete_time"`
 
 	Weight  float64 `json:"weight"`
-	Visible bool    `json:"visible"`
+	Disable bool    `json:"disable"`
 
 	EffectiveWeight int64 `json:"-"`
 }
@@ -174,10 +181,8 @@ type MetricsGroup struct {
 	Version     int64  `json:"version"`
 	UpdateTime  uint32 `json:"update_time"`
 
-	Weight            float64 `json:"weight,omitempty"`
-	Visible           bool    `json:"visible,omitempty"`
-	IsWeightEffective bool    `json:"is_weight_effective,omitempty"`
-	Protected         bool    `json:"protected,omitempty"`
+	Weight  float64 `json:"weight,omitempty"`
+	Disable bool    `json:"disable,omitempty"`
 
 	EffectiveWeight int64          `json:"-"`
 	Namespace       *NamespaceMeta `json:"-"`
@@ -186,7 +191,7 @@ type MetricsGroup struct {
 // This struct is immutable, it is accessed by mapping code without any locking
 type MetricMetaValue struct {
 	MetricID    int32  `json:"metric_id"`
-	NamespaceID int32  `json:"namespace_id"`
+	NamespaceID int32  `json:"namespace_id"` // RO
 	Name        string `json:"name"`
 	Version     int64  `json:"version,omitempty"`
 	UpdateTime  uint32 `json:"update_time"`
@@ -206,6 +211,7 @@ type MetricMetaValue struct {
 	SkipSumSquare        bool            `json:"skip_sum_square,omitempty"`
 	PreKeyOnly           bool            `json:"pre_key_only,omitempty"`
 	MetricType           string          `json:"metric_type"`
+	FairKeyTagID         string          `json:"fair_key_tag_id,omitempty"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
@@ -217,9 +223,11 @@ type MetricMetaValue struct {
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
-	GroupID             int32                    `json:"-"`
-	Group               *MetricsGroup            `json:"-"`
-	Namespace           *NamespaceMeta           `json:"-"`
+
+	GroupID int32 `json:"-"`
+
+	Group     *MetricsGroup  `json:"-"` // don't use directly
+	Namespace *NamespaceMeta `json:"-"` // don't use directly
 }
 
 type MetricMetaValueOld struct {
@@ -309,6 +317,9 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		err = multierr.Append(err, fmt.Errorf("invalid metric type: %s", m.MetricType))
 		m.MetricType = ""
 	}
+	if !ValidMetricPrefix(m.Name) {
+		err = multierr.Append(err, fmt.Errorf("invalid metric name (reserved prefix: %s)", strings.Join(reservedMetricPrefix, ", ")))
+	}
 
 	if m.Kind == legacyMetricKindStringTop {
 		m.Kind = MetricKindCounter
@@ -339,6 +350,7 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		m.Tags[0].Name = ""
 	}
 	m.PreKeyIndex = -1
+	m.FairKeyIndex = FairKeyIndexUnspecified
 	tags := m.Tags
 	if len(tags) > MaxTags { // prevent index out of range during mapping
 		tags = tags[:MaxTags]
@@ -361,6 +373,9 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 				m.PreKeyTagID = tagID // fix legacy name
 			}
 		}
+		if m.FairKeyTagID == tagID { // restore fair key index
+			m.FairKeyIndex = i
+		}
 		if !ValidRawKind(tag.RawKind) {
 			err = multierr.Append(err, fmt.Errorf("invalid raw kind %q of tag %d", tag.RawKind, i))
 		}
@@ -372,7 +387,9 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 		m.PreKeyOnly = false
 		err = multierr.Append(err, fmt.Errorf("pre_key_only is true, but pre_key_tag_id is not defined"))
 	}
-	m.FairKeyIndex = FairKeyIndexUnspecified // TODO: read from meta
+	if m.FairKeyIndex == FairKeyIndexUnspecified && m.FairKeyTagID != "" {
+		err = multierr.Append(err, fmt.Errorf("invalid fair_key_tag_id: %q", m.FairKeyTagID))
+	}
 	for i := range tags {
 		tag := &tags[i]
 		if tag.Raw {
@@ -431,6 +448,14 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.ShardUniqueValues = strings.Contains(m.Description, "__shard_unique_values")   // Experimental
 
 	m.NoSampleAgent = builtinMetricsNoSamplingAgent[m.MetricID]
+	if m.GroupID == 0 || m.GroupID == BuiltinGroupIDDefault {
+		m.GroupID = BuiltinGroupIDDefault
+		m.Group = BuiltInGroupDefault[BuiltinGroupIDDefault]
+	}
+	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
+		m.NamespaceID = BuiltinNamespaceIDDefault
+		m.Namespace = BuiltInNamespaceDefault[BuiltinNamespaceIDDefault]
+	}
 	return err
 }
 
@@ -459,10 +484,12 @@ func (m *MetricMetaValue) APICompatGetTagFromBytes(tagNameOrID []byte) (tag Metr
 }
 
 // Always restores maximum info, if error is returned, group is non-canonical and should not be saved
-func (m *MetricsGroup) RestoreCachedInfo() error {
+func (m *MetricsGroup) RestoreCachedInfo(builtin bool) error {
 	var err error
-	if !ValidGroupName(m.Name) {
-		err = fmt.Errorf("invalid group name: %q", m.Name)
+	if !builtin {
+		if !ValidGroupName(m.Name) {
+			err = fmt.Errorf("invalid group name: %q", m.Name)
+		}
 	}
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
 		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
@@ -475,15 +502,20 @@ func (m *MetricsGroup) RestoreCachedInfo() error {
 		m.EffectiveWeight = MaxEffectiveWeight
 	}
 	m.EffectiveWeight = int64(rw)
-
+	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
+		m.NamespaceID = BuiltinNamespaceIDDefault
+		m.Namespace = BuiltInNamespaceDefault[BuiltinNamespaceIDDefault]
+	}
 	return err
 }
 
 // Always restores maximum info, if error is returned, group is non-canonical and should not be saved
-func (m *NamespaceMeta) RestoreCachedInfo() error {
+func (m *NamespaceMeta) RestoreCachedInfo(builtin bool) error {
 	var err error
-	if !ValidGroupName(m.Name) {
-		err = fmt.Errorf("invalid namespace name: %q", m.Name)
+	if !builtin {
+		if !ValidGroupName(m.Name) {
+			err = fmt.Errorf("invalid namespace name: %q", m.Name)
+		}
 	}
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
 		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
@@ -496,20 +528,45 @@ func (m *NamespaceMeta) RestoreCachedInfo() error {
 		m.EffectiveWeight = MaxEffectiveWeight
 	}
 	m.EffectiveWeight = int64(rw)
-
 	return err
 }
 
-func (m *MetricsGroup) MetricIn(metric string) bool {
-	return strings.HasPrefix(metric, m.Name+"_")
+func (m *MetricsGroup) MetricIn(metric *MetricMetaValue) bool {
+	return !m.Disable && strings.HasPrefix(metric.Name, m.Name)
 }
 
 func ValidMetricName(s mem.RO) bool {
-	return validIdent(s)
+	if s.Len() == 0 || s.Len() > MaxStringLen || !isLetter(s.At(0)) {
+		return false
+	}
+	namespaceSepCount := 0
+	for i := 1; i < s.Len(); i++ {
+		c := s.At(i)
+		if c == NamespaceSeparatorRune {
+			if namespaceSepCount > 0 {
+				return false
+			}
+			namespaceSepCount++
+			continue
+		}
+		if !isLetter(c) && c != '_' && !(c >= '0' && c <= '9') {
+			return false
+		}
+	}
+	return true
+}
+
+func ValidMetricPrefix(s string) bool {
+	for _, p := range reservedMetricPrefix {
+		if strings.HasPrefix(s, p) {
+			return false
+		}
+	}
+	return true
 }
 
 func ValidGroupName(s string) bool {
-	return validIdent(mem.S(s))
+	return ValidMetricName(mem.S(s))
 }
 
 func ValidDashboardName(s string) bool {
@@ -944,4 +1001,36 @@ func IsValidMetricType(typ_ string) bool {
 		return true
 	}
 	return false
+}
+
+func NamespaceName(namespace string, name string) string {
+	if namespace == "" {
+		return name
+	}
+	return namespace + NamespaceSeparator + name
+}
+
+func SplitNamespace(metricName string) (string, string) {
+	ix := strings.Index(metricName, NamespaceSeparator)
+	if ix == -1 {
+		return metricName, ""
+	}
+	return metricName[ix+1:], metricName[:ix]
+}
+
+func EventTypeToName(typ int32) string {
+	switch typ {
+	case MetricEvent:
+		return "metric"
+	case DashboardEvent:
+		return "dashboard"
+	case MetricsGroupEvent:
+		return "group"
+	case PromConfigEvent:
+		return "prom-config"
+	case NamespaceEvent:
+		return "namespace"
+	default:
+		return "unknown"
+	}
 }

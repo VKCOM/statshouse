@@ -5,6 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { produce } from 'immer';
+import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from './toggleKeyboard';
 
 export function isArray(item: unknown): item is unknown[] {
   return Array.isArray(item);
@@ -80,6 +81,10 @@ export function toNumber(item: unknown, defaultNumber?: number): number | null {
 
 export function uniqueArray<T>(arr: T[]): T[] {
   return [...new Set(arr).keys()];
+}
+
+export function sumArray(arr: number[]) {
+  return arr.reduce((res, i) => res + i, 0);
 }
 
 export function getRandomKey(): string {
@@ -176,6 +181,10 @@ export function toEnum<T>(itemIsEnum: (s: unknown) => s is T, preConvert: (s: un
   return toEnumFull;
 }
 
+export function invertObj<K extends string, V extends string>(obj: Record<K, V>): Record<V, K> {
+  return Object.fromEntries(Object.entries(obj).map(([k, v]) => [v, k]));
+}
+
 export function objectRemoveKeyShift<T = unknown>(obj: Record<string, T>, index: number) {
   return Object.fromEntries(
     Object.entries(obj).map(([key, value]) => {
@@ -196,4 +205,29 @@ export function round(val: number, dec: number = 0, radix: number = 10) {
   if (Number.isInteger(val) && dec >= 0 && radix === 10) return val;
   let p = Math.pow(radix, dec);
   return Math.round(val * p * (1 + Number.EPSILON)) / p;
+}
+
+export function floor(val: number, dec: number = 0, radix: number = 10) {
+  if (Number.isInteger(val) && dec >= 0 && radix === 10) return val;
+  let p = Math.pow(radix, dec);
+  return Math.floor(val * p * (1 + Number.EPSILON)) / p;
+}
+
+export function prepareSearchStr(str: string) {
+  return str.replace(/(\s+|_+)/gi, '');
+}
+
+export function SearchFabric<T extends string | Record<string, unknown>>(filterString: string, props?: string[]) {
+  const orig = prepareSearchStr(filterString.toLocaleLowerCase());
+  const ru = toggleKeyboard(orig, mapKeyboardEnToRu);
+  const en = toggleKeyboard(orig, mapKeyboardRuToEn);
+  const getListValues = props
+    ? (item: T) =>
+        props?.map((p) =>
+          prepareSearchStr(toString((typeof item === 'object' && item != null && item[p]) ?? '').toLocaleLowerCase())
+        )
+    : (item: T) => [prepareSearchStr(toString(item).toLocaleLowerCase())];
+  return function (item: T) {
+    return !!item && getListValues(item).some((v) => v.indexOf(orig) > -1 || v.indexOf(ru) > -1 || v.indexOf(en) > -1);
+  };
 }

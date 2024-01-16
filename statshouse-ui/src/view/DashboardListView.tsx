@@ -8,9 +8,9 @@ import { DashboardListStore, useDashboardListStore } from '../store';
 import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useStateInput, useWindowSize } from '../hooks';
-import { mapKeyboardEnToRu, mapKeyboardRuToEn, toggleKeyboard } from '../common/toggleKeyboard';
 import { ErrorMessages } from '../components';
 import cn from 'classnames';
+import { SearchFabric } from '../common/helpers';
 
 export type DashboardListViewProps = {};
 
@@ -26,19 +26,7 @@ export const DashboardListView: React.FC<DashboardListViewProps> = () => {
   }, []);
 
   const filterList = useMemo(() => {
-    const orig = searchInput.value.toLocaleLowerCase();
-    const ru = toggleKeyboard(orig, mapKeyboardEnToRu);
-    const en = toggleKeyboard(orig, mapKeyboardRuToEn);
-    const res = list.filter(
-      (item) =>
-        searchInput.value === '' ||
-        item.name.toLowerCase().includes(orig) ||
-        item.description.toLowerCase().includes(orig) ||
-        item.name.toLowerCase().includes(ru) ||
-        item.description.toLowerCase().includes(ru) ||
-        item.name.toLowerCase().includes(en) ||
-        item.description.toLowerCase().includes(en)
-    );
+    const res = list.filter(SearchFabric(searchInput.value, ['name', 'description']));
     res.sort((a, b) =>
       a.name.toLowerCase() > b.name.toLowerCase() ? 1 : a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 0
     );

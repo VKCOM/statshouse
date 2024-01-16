@@ -207,3 +207,7 @@ func TestAllowedResolution(t *testing.T) {
 		require.Equal(t, r == i, divisible)
 	}
 }
+
+func TestNamespaceConst(t *testing.T) {
+	require.Equal(t, NamespaceSeparator, string(NamespaceSeparatorRune))
+}

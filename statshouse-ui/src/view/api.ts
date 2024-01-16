@@ -137,7 +137,7 @@ export const eventColumnDefault: Readonly<Partial<Column<EventDataRow>>> = {
 };
 export const getEventColumnsType = (what: string[] = []): Record<string, Column<EventDataRow>> => ({
   timeString: { key: 'timeString', name: 'Time', width: 165, renderHeaderCell: EventFormatterHeaderTime },
-  ...Object.fromEntries(what.map((key) => [key, { key, name: whatToWhatDesc(key), formatter: EventFormatterData }])),
+  ...Object.fromEntries(what.map((key) => [key, { key, name: whatToWhatDesc(key), renderCell: EventFormatterData }])),
 });
 
 // XXX: keep in sync with Go

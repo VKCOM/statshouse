@@ -9,6 +9,9 @@ import { ApiTable, apiTable } from '../../../api/tableOld';
 import { TimeRange } from '../../../common/TimeRange';
 import { useEventTagColumns } from '../../../hooks/useEventTagColumns';
 import { PlotParams } from '../../../url/queryParams';
+import { Button } from '../../UI';
+import cn from 'classnames';
+import css from './style.module.css';
 
 export type PlotEventOverlayTableProps = {
   plot: PlotParams;
@@ -48,7 +51,7 @@ export function _PlotEventOverlayTable({ plot, range, agg }: PlotEventOverlayTab
     };
   }, [plot, range, agg]);
   return (
-    <div className="position-relative flex-grow-1 d-flex flex-column" style={{ minWidth: 100, minHeight: 20 }}>
+    <div className={cn('position-relative flex-grow-1 d-flex flex-column', css.overlayCardTableItem)}>
       {loader && (
         <div className=" position-absolute top-50 start-50 translate-middle">
           <div className="text-info spinner-border spinner-border-sm " role="status" aria-hidden="true" />
@@ -57,7 +60,7 @@ export function _PlotEventOverlayTable({ plot, range, agg }: PlotEventOverlayTab
       {!!errorText && (
         <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
           <small className="overflow-force-wrap font-monospace">{errorText}</small>
-          <button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
+          <Button type="button" className="btn-close" aria-label="Close" onClick={clearError} />
         </div>
       )}
       <table className="table table-sm m-0 table-borderless">

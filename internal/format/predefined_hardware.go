@@ -24,6 +24,13 @@ const (
 	BuiltinMetricIDContextSwitch   = -1022
 	BuiltinMetricIDWriteback       = -1023
 	BuiltinMetricIDBlockIOSize     = -1024
+	BuiltinMetricIDNetDevBandwidth = -1025
+	BuiltinMetricIDNetDevErrors    = -1026
+	BuiltinMetricIDNetDevDropped   = -1027
+	BuiltinMetricIDPageFault       = -1028
+	BuiltinMetricIDPagedMemory     = -1029
+	BuiltinMetricIDOOMKill         = -1030
+	BuiltinMetricIDNumaEvents      = -1031
 
 	BuiltinMetricNameCpuUsage      = "host_cpu_usage"
 	BuiltinMetricNameSoftIRQ       = "host_softirq"
@@ -46,23 +53,35 @@ const (
 	BuiltinMetricNamePSIMem = "host_system_psi_mem"
 	BuiltinMetricNamePSIIO  = "host_system_psi_io"
 
-	BuiltinMetricNameNetBandwidth = "host_net_bandwidth"
-	BuiltinMetricNameNetPacket    = "host_net_packet"
-	BuiltinMetricNameNetError     = "host_net_error"
+	BuiltinMetricNameNetPacket = "host_net_packet"
+	BuiltinMetricNameNetError  = "host_net_error"
+
+	BuiltinMetricNameNetBandwidth    = "host_net_bandwidth" // total
+	BuiltinMetricNameNetDevBandwidth = "host_net_dev_bandwidth"
+
+	BuiltinMetricNameNetDevErrors  = "host_net_dev_error"
+	BuiltinMetricNameNetDevDropped = "host_net_dev_drop"
 
 	BuiltinMetricNameSocketMemory    = "host_socket_memory"
 	BuiltinMetricNameTCPSocketStatus = "host_tcp_socket_status"
 	BuiltinMetricNameTCPSocketMemory = "host_tcp_socket_memory"
 	BuiltinMetricNameSocketUsedv2    = "host_socket_used"
 
-	RawIDTagNice    = 1
-	RawIDTagSystem  = 2
-	RawIDTagIdle    = 3
-	RawIDTagIOWait  = 4
-	RawIDTagIRQ     = 5
-	RawIDTagSoftIRQ = 6
-	RawIDTagSteal   = 7
-	RawIDTagUser    = 8
+	BuiltinMetricNamePageFault   = "host_page_fault"
+	BuiltinMetricNamePagedMemory = "host_paged_memory"
+	BuiltinMetricNameOOMKill     = "host_oom_kill"
+	BuiltinMetricNameNumaEvents  = "host_numa_events"
+
+	RawIDTagNice      = 1
+	RawIDTagSystem    = 2
+	RawIDTagIdle      = 3
+	RawIDTagIOWait    = 4
+	RawIDTagIRQ       = 5
+	RawIDTagSoftIRQ   = 6
+	RawIDTagSteal     = 7
+	RawIDTagUser      = 8
+	RawIDTagGuest     = 9
+	RawIDTagGuestNice = 10
 
 	RawIDTagUsed    = 1
 	RawIDTagBuffers = 2
@@ -72,6 +91,7 @@ const (
 	RawIDTagRead    = 1
 	RawIDTagWrite   = 2
 	RawIDTagDiscard = 3
+	RawIDTagFlush   = 4
 
 	RawIDTagBlocked = 1
 	RawIDTagRunning = 2
@@ -125,34 +145,62 @@ const (
 	RawIDTagDirty     = 1
 	RawIDTagWriteback = 2
 
+	RawIDTagMajor = 1
+	RawIDTagMinor = 2
+
+	RawIDTagIn  = 1
+	RawIDTagOut = 2
+
+	RawIDTagForeign         = 1
+	RawIDTagInterleave      = 2
+	RawIDTagLocal           = 3
+	RawIDTagNumaOther       = 4
+	RawIDTagPteUpdates      = 5
+	RawIDTagHugePteUpdates  = 6
+	RawIDTagHintFaults      = 7
+	RawIDTagHintFaultsLocal = 8
+	RawIDTagPagesMigrated   = 9
 	// don't use key tags greater than 11. 12..15 reserved by builtin metrics
 	HostDCTag = 11
 )
+
+func HardwareMetric(metricID int32) bool {
+	return metricID <= -1000
+}
 
 // add host tag later
 var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDCPUUsage: {
 		Name:        BuiltinMetricNameCpuUsage,
 		Kind:        MetricKindValue,
+		MetricType:  MetricSecond,
 		Description: "The number of seconds the CPU has spent performing different kinds of work",
 		Tags: []MetricMetaTag{{
 			Description: "state",
 			Raw:         true,
 			ValueComments: convertToValueComments(map[int32]string{
-				RawIDTagUser:    "user",
-				RawIDTagNice:    "nice",
-				RawIDTagSystem:  "system",
-				RawIDTagIdle:    "idle",
-				RawIDTagIOWait:  "iowait",
-				RawIDTagIRQ:     "irq",
-				RawIDTagSoftIRQ: "softirq",
-				RawIDTagSteal:   "steal",
+				RawIDTagUser:      "user",
+				RawIDTagNice:      "nice",
+				RawIDTagSystem:    "system",
+				RawIDTagIdle:      "idle",
+				RawIDTagIOWait:    "iowait",
+				RawIDTagIRQ:       "irq",
+				RawIDTagSoftIRQ:   "softirq",
+				RawIDTagSteal:     "steal",
+				RawIDTagGuest:     "guest",
+				RawIDTagGuestNice: "guest_nice",
 			}),
-		}},
+		},
+			{
+				Description: "core",
+				Raw:         true,
+			},
+		},
 	},
 	BuiltinMetricIDMemUsage: {
 		Name:        BuiltinMetricNameMemUsage,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "Amount of free and used memory in the system",
 		Tags: []MetricMetaTag{{
 			Description: "state",
@@ -168,6 +216,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDBlockIOTime: {
 		Name:        BuiltinMetricNameBlockIOTime,
 		Kind:        MetricKindValue,
+		MetricType:  MetricSecond,
 		Description: "The amount of time to transfer data to and from disk. Count - number of operations, Value - wait time for handle operations",
 		Tags: []MetricMetaTag{
 			{
@@ -180,6 +229,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 					RawIDTagRead:    "read",
 					RawIDTagWrite:   "write",
 					RawIDTagDiscard: "discard",
+					RawIDTagFlush:   "flush",
 				}),
 			}},
 	},
@@ -204,6 +254,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDSystemUptime: {
 		Name:        BuiltinMetricNameSystemUptime,
 		Kind:        MetricKindValue,
+		MetricType:  MetricSecond,
 		Description: "The amount of time the system has been running",
 	},
 
@@ -250,6 +301,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDNetBandwidth: {
 		Name:        BuiltinMetricNameNetBandwidth,
 		Kind:        MetricKindMixed,
+		MetricType:  MetricByte,
 		Description: "Total bandwidth of all physical network interfaces. Count - number of packets, Value - number of bytes",
 		Tags: []MetricMetaTag{{
 			Description: "type",
@@ -259,6 +311,58 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				RawIDTagSent:     "sent",
 			}),
 		}},
+	},
+	BuiltinMetricIDNetDevBandwidth: {
+		Name:        BuiltinMetricNameNetDevBandwidth,
+		Kind:        MetricKindMixed,
+		MetricType:  MetricByte,
+		Description: "Total bandwidth of all physical network interfaces. Count - number of packets, Value - number of bytes",
+		Tags: []MetricMetaTag{{
+			Description: "type",
+			Raw:         true,
+			ValueComments: convertToValueComments(map[int32]string{
+				RawIDTagReceived: "receive",
+				RawIDTagSent:     "transmit",
+			}),
+		}, {
+			Description: "device",
+		}},
+	},
+	BuiltinMetricIDNetDevErrors: {
+		Name:        BuiltinMetricNameNetDevErrors,
+		Kind:        MetricKindCounter,
+		Description: "Count of receive/transmit errors",
+		Tags: []MetricMetaTag{
+			{
+				Description: "type",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagReceived: "receive",
+					RawIDTagSent:     "transmit",
+				}),
+			},
+			{
+				Description: "device",
+			},
+		},
+	},
+	BuiltinMetricIDNetDevDropped: {
+		Name:        BuiltinMetricNameNetDevDropped,
+		Kind:        MetricKindCounter,
+		Description: "Count of packets dropped while receiving/transmitting",
+		Tags: []MetricMetaTag{
+			{
+				Description: "type",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagReceived: "receive",
+					RawIDTagSent:     "transmit",
+				}),
+			},
+			{
+				Description: "device",
+			},
+		},
 	},
 	BuiltinMetricIDNetPacket: {
 		Name:        BuiltinMetricNameNetPacket,
@@ -377,12 +481,14 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDTCPSocketMemory: {
 		Name:        BuiltinMetricNameTCPSocketMemory,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "The amount of memory used by TCP sockets in all states",
 		Tags:        []MetricMetaTag{},
 	},
 	BuiltinMetricIDSocketMemory: {
 		Name:        BuiltinMetricNameSocketMemory,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "The amount of memory used by sockets",
 		Tags: []MetricMetaTag{
 			{
@@ -454,6 +560,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDWriteback: {
 		Name:        BuiltinMetricNameWriteback,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "Writeback/Dirty memory",
 		Tags: []MetricMetaTag{
 			{
@@ -469,6 +576,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 	BuiltinMetricIDBlockIOSize: {
 		Name:        BuiltinMetricNameBlockIOSize,
 		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
 		Description: "The amount of data transferred to and from disk. Count - number of operations, Value - size",
 		Tags: []MetricMetaTag{
 			{
@@ -481,6 +589,62 @@ var hostMetrics = map[int32]*MetricMetaValue{
 					RawIDTagRead:    "read",
 					RawIDTagWrite:   "write",
 					RawIDTagDiscard: "discard",
+				}),
+			}},
+	},
+
+	BuiltinMetricIDOOMKill: {
+		Name:        BuiltinMetricNameOOMKill,
+		Kind:        MetricKindCounter,
+		Description: "The number of OOM",
+	},
+	BuiltinMetricIDPageFault: {
+		Name:        BuiltinMetricNamePageFault,
+		Kind:        MetricKindCounter,
+		Description: "The number of page fault",
+		Tags: []MetricMetaTag{
+			{
+				Description: "type",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagMajor: "major",
+					RawIDTagMinor: "minor",
+				}),
+			}},
+	},
+	BuiltinMetricIDPagedMemory: {
+		Name:        BuiltinMetricNamePagedMemory,
+		Kind:        MetricKindValue,
+		MetricType:  MetricByte,
+		Description: "The amount of memory paged from/to disk",
+		Tags: []MetricMetaTag{
+			{
+				Description: "type",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagIn:  "in",
+					RawIDTagOut: "out",
+				}),
+			}},
+	},
+	BuiltinMetricIDNumaEvents: {
+		Name:        BuiltinMetricNamePagedMemory,
+		Kind:        MetricKindCounter,
+		Description: "NUMA events",
+		Tags: []MetricMetaTag{
+			{
+				Description: "type",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTagForeign:         "foreign",
+					RawIDTagInterleave:      "interleave",
+					RawIDTagLocal:           "local",
+					RawIDTagNumaOther:       "other",
+					RawIDTagPteUpdates:      "pte_updates",
+					RawIDTagHugePteUpdates:  "huge_pte_updates",
+					RawIDTagHintFaults:      "hint_faults",
+					RawIDTagHintFaultsLocal: "hint_faults_local",
+					RawIDTagPagesMigrated:   "pages_migrated",
 				}),
 			}},
 	},

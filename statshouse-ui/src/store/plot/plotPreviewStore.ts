@@ -1,18 +1,17 @@
 import uPlot from 'uplot';
 import { canvasToImageData } from '../../common/canvasToImage';
-import { useStore } from '../statshouse';
 import { Queue } from '../../common/Queue';
 import { objectRemoveKeyShift, resortObjectKey } from '../../common/helpers';
 import { createStore } from '../createStore';
 
 const queuePreview = new Queue();
 
-export type PlotPreview = {
+export type PlotPreviewStore = {
   previewList: Record<string, string>;
   previewAbortController: Record<string, AbortController>;
 };
 
-export const usePlotPreview = createStore<PlotPreview>(
+export const usePlotPreviewStore = createStore<PlotPreviewStore>(
   () => ({
     previewList: {},
     previewAbortController: {},
@@ -21,43 +20,41 @@ export const usePlotPreview = createStore<PlotPreview>(
 );
 
 export async function createPlotPreview(indexPlot: number, u: uPlot, width: number = 300) {
-  const plotData = useStore.getState().plotsData[indexPlot];
-  if (plotData?.data[0]?.length && plotData?.series.length) {
-    const controller = new AbortController();
-    usePlotPreview.setState((state) => {
-      state.previewAbortController[indexPlot]?.abort();
-      state.previewAbortController[indexPlot] = controller;
-    });
-    try {
-      const canvas = u.ctx.canvas;
-      const canvasLeft = u.bbox.left;
-      const canvasTop = u.bbox.top;
-      const canvasWidth = u.bbox.width;
-      const canvasHeight = u.bbox.height;
-      const url = await queuePreview.add(
-        () =>
-          canvasToImageData(
-            canvas,
-            canvasLeft,
-            canvasTop,
-            canvasWidth,
-            canvasHeight,
-            devicePixelRatio ? devicePixelRatio * width : width
-          ),
-        controller.signal
-      );
-      setPlotPreview(indexPlot, url);
-    } catch (e) {
-      // abort task
-    }
-    usePlotPreview.setState((state) => {
-      delete state.previewAbortController[indexPlot];
-    });
+  const controller = new AbortController();
+  usePlotPreviewStore.setState((state) => {
+    state.previewAbortController[indexPlot]?.abort();
+    state.previewAbortController[indexPlot] = controller;
+  });
+  try {
+    const canvas = u.ctx.canvas;
+    const canvasLeft = u.bbox.left;
+    const canvasTop = u.bbox.top;
+    const canvasWidth = u.bbox.width;
+    const canvasHeight = u.bbox.height;
+    const url = await queuePreview.add(
+      () =>
+        canvasToImageData(
+          canvas,
+          canvasLeft,
+          canvasTop,
+          canvasWidth,
+          canvasHeight,
+          devicePixelRatio ? devicePixelRatio * width : width
+        ),
+      controller.signal
+    );
+    setPlotPreview(indexPlot, url);
+  } catch (e) {
+    // abort task
   }
+  usePlotPreviewStore.setState((state) => {
+    delete state.previewAbortController[indexPlot];
+  });
+  // }
 }
 
 export function setPlotPreview(indexPlot: number, url: string) {
-  usePlotPreview.setState((state) => {
+  usePlotPreviewStore.setState((state) => {
     const old = state.previewList[indexPlot];
     if (old && old.indexOf('blob:') === 0 && old !== url) {
       URL.revokeObjectURL(old);
@@ -67,14 +64,14 @@ export function setPlotPreview(indexPlot: number, url: string) {
 }
 
 export function clearAllPlotPreview() {
-  usePlotPreview.setState((state) => {
+  usePlotPreviewStore.setState((state) => {
     state.previewList = {};
     state.previewAbortController = {};
   });
 }
 
 export function clearPlotPreview(indexPlot: number, remap?: boolean) {
-  usePlotPreview.setState((state) => {
+  usePlotPreviewStore.setState((state) => {
     if (state.previewList[indexPlot]) {
       URL.revokeObjectURL(state.previewList[indexPlot]);
     }
@@ -88,7 +85,7 @@ export function clearPlotPreview(indexPlot: number, remap?: boolean) {
 }
 
 export function resortPlotPreview(remap: Record<string, string | number>) {
-  usePlotPreview.setState((state) => {
+  usePlotPreviewStore.setState((state) => {
     state.previewList = resortObjectKey(state.previewList, remap);
     state.previewAbortController = resortObjectKey(state.previewAbortController, remap);
   });

@@ -1,0 +1,30 @@
+name: Update UI cache
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'statshouse-ui/**'
+      - '.github/workflows/ci-ui-cache.yml'
+jobs:
+  ci-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.x
+      - name: Cache NPM dependencies
+        uses: actions/cache@v3
+        id: cache-primes
+        with:
+          path: statshouse-ui/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('statshouse-ui/package-lock.json') }}
+      - name: Install
+        if: steps.cache-primes.outputs.cache-hit != 'true'
+        run: npm ci
+        working-directory: statshouse-ui

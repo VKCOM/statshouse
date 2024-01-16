@@ -7,30 +7,39 @@
 package agent
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
 
 type (
-	// Shard gets data after initial hashing and shard number
-	Shard struct {
-		// Never change, so do not require protection
-		agent    *Agent
-		ShardNum int
-		ShardKey int32
-		perm     []int
+	// ShardReplica gets data after initial hashing and shard number
+	ShardReplica struct {
+		alive atomic.Bool
 
-		mu     sync.Mutex
-		config Config // can change if remotely updated
+		// Never change, so do not require protection
+		agent           *Agent
+		ShardReplicaNum int
+		ShardKey        int32
+		ReplicaKey      int32
+		perm            []int
+
+		mu                               sync.Mutex
+		config                           Config        // can change if remotely updated
+		hardwareMetricResolutionResolved *atomic.Int32 // depends on config
 
 		timeSpreadDelta time.Duration // randomly spread bucket sending through second between sources/machines
 
@@ -68,10 +77,29 @@ type (
 		HistoricBucketsDataSize int                    // if too many are with data, will put without data, which will be read from disk
 		cond                    *sync.Cond
 
+		client tlstatshouse.Client
+
+		// aggregator is considered live at start.
+		// then, if K of L last recent conveyor sends fail, it is considered dead and keepalive process started
+		// if L of L keepalives succeed, aggregator is considered live again
+
+		// if original aggregator is live, data is sent to it
+		// if original aggregator is dead, spare is selected by time % num_spares
+		//      if spare is live, data is sent to it
+		//      if spare is also dead, data is sent to original
+		lastSendSuccessful []bool
+
+		stats *shardStat
+
 		uniqueValueMu   sync.Mutex
 		uniqueValuePool [][][]int64 // reuse pool
 
-		HistoricOutOfWindowDropped atomic.Int64
+		successTestConnectionDurationBucket      *BuiltInItemValue
+		aggTimeDiffBucket                        *BuiltInItemValue
+		noConnectionTestConnectionDurationBucket *BuiltInItemValue
+		failedTestConnectionDurationBucket       *BuiltInItemValue
+		rpcErrorTestConnectionDurationBucket     *BuiltInItemValue
+		timeoutTestConnectionDurationBucket      *BuiltInItemValue
 	}
 
 	BuiltInItemValue struct {
@@ -90,13 +118,36 @@ type (
 	}
 )
 
-func (s *Shard) HistoricBucketsDataSizeMemory() int {
+func (s *ShardReplica) InitBuiltInMetric() {
+	// Unfortunately we do not know aggregator host tag.
+	s.successTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDSrcTestConnection,
+		[16]int32{0, s.agent.componentTag, format.TagOKConnection}, 0, s.ShardKey, s.ReplicaKey))
+	s.noConnectionTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDSrcTestConnection,
+		[16]int32{0, s.agent.componentTag, format.TagNoConnection}, 0, s.ShardKey, s.ReplicaKey))
+	s.failedTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDSrcTestConnection,
+		[16]int32{0, s.agent.componentTag, format.TagOtherError}, 0, s.ShardKey, s.ReplicaKey))
+	s.rpcErrorTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDSrcTestConnection,
+		[16]int32{0, s.agent.componentTag, format.TagRPCError}, 0, s.ShardKey, s.ReplicaKey))
+	s.timeoutTestConnectionDurationBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDSrcTestConnection,
+		[16]int32{0, s.agent.componentTag, format.TagTimeoutError}, 0, s.ShardKey, s.ReplicaKey))
+
+	s.aggTimeDiffBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
+		format.BuiltinMetricIDAggTimeDiff,
+		[16]int32{0, s.agent.componentTag}, 0, s.ShardKey, s.ReplicaKey))
+}
+
+func (s *ShardReplica) HistoricBucketsDataSizeMemory() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.HistoricBucketsDataSize
 }
 
-func (s *Shard) getUniqueValuesCache(notSkippedShards int) [][]int64 {
+func (s *ShardReplica) getUniqueValuesCache(notSkippedShards int) [][]int64 {
 	var uniqueValues [][]int64
 	s.uniqueValueMu.Lock()
 	if l := len(s.uniqueValuePool); l != 0 {
@@ -114,17 +165,21 @@ func (s *Shard) getUniqueValuesCache(notSkippedShards int) [][]int64 {
 	return uniqueValues
 }
 
-func (s *Shard) putUniqueValuesCache(uniqueValues [][]int64) {
+func (s *ShardReplica) putUniqueValuesCache(uniqueValues [][]int64) {
 	s.uniqueValueMu.Lock()
 	defer s.uniqueValueMu.Unlock()
 	s.uniqueValuePool = append(s.uniqueValuePool, uniqueValues)
 }
 
-func (s *Shard) HistoricBucketsDataSizeDisk() (total int64, unsent int64) {
+func (s *ShardReplica) FillStats(stats map[string]string) {
+	s.stats.fillStats(stats)
+}
+
+func (s *ShardReplica) HistoricBucketsDataSizeDisk() (total int64, unsent int64) {
 	if s.agent.diskCache == nil {
 		return 0, 0
 	}
-	return s.agent.diskCache.TotalFileSize(s.ShardNum)
+	return s.agent.diskCache.TotalFileSize(s.ShardReplicaNum)
 }
 
 // If user did not set timestamp or set to 0 (default timestamp), metric arrived with 0 up to here.
@@ -149,18 +204,22 @@ func fixKeyTimestamp(key *data_model.Key, resolution int, currentTimestamp uint3
 	}
 }
 
-func (s *Shard) resolutionShardFromHashLocked(hash uint64, metricInfo *format.MetricMetaValue) (*data_model.MetricsBucket, int, int) {
+func (s *ShardReplica) resolutionShardFromHashLocked(hash uint64, metricInfo *format.MetricMetaValue) (*data_model.MetricsBucket, int, int) {
 	resolution := 1
 	if metricInfo != nil {
-		resolution = metricInfo.EffectiveResolution // TODO - better idea?
+		if !format.HardwareMetric(metricInfo.MetricID) {
+			resolution = metricInfo.EffectiveResolution // TODO - better idea?
+		} else {
+			resolution = int(s.hardwareMetricResolutionResolved.Load())
+		}
 	}
 	numShards := uint64(resolution)
-	// lower bits of hash are independent of higher bits used by shardFromHash function
+	// lower bits of hash are independent of higher bits used by shardReplicaFromHash function
 	mul := (hash & 0xFFFFFFFF) * numShards >> 32 // trunc([0..0.9999999] * numShards) in fixed point 32.32
 	return s.CurrentBuckets[resolution][mul], resolution, int(mul)
 }
 
-func (s *Shard) CreateBuiltInItemValue(key data_model.Key) *BuiltInItemValue {
+func (s *ShardReplica) CreateBuiltInItemValue(key data_model.Key) *BuiltInItemValue {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	result := &BuiltInItemValue{key: key}
@@ -168,7 +227,7 @@ func (s *Shard) CreateBuiltInItemValue(key data_model.Key) *BuiltInItemValue {
 	return result
 }
 
-func (s *Shard) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hashes []int64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *ShardReplica) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hashes []int64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
@@ -181,7 +240,7 @@ func (s *Shard) ApplyUnique(key data_model.Key, keyHash uint64, str []byte, hash
 	mi.MapStringTopBytes(str, totalCount).ApplyUnique(hashes, count, hostTag)
 }
 
-func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *ShardReplica) ApplyValues(key data_model.Key, keyHash uint64, str []byte, values []float64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
@@ -194,7 +253,7 @@ func (s *Shard) ApplyValues(key data_model.Key, keyHash uint64, str []byte, valu
 	mi.MapStringTopBytes(str, totalCount).ApplyValues(values, count, hostTag, data_model.AgentPercentileCompression, metricInfo != nil && metricInfo.HasPercentiles)
 }
 
-func (s *Shard) ApplyCounter(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *ShardReplica) ApplyCounter(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
@@ -203,7 +262,7 @@ func (s *Shard) ApplyCounter(key data_model.Key, keyHash uint64, str []byte, cou
 	mi.MapStringTopBytes(str, count).AddCounterHost(count, hostTag)
 }
 
-func (s *Shard) AddCounterHost(key data_model.Key, keyHash uint64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *ShardReplica) AddCounterHost(key data_model.Key, keyHash uint64, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
@@ -212,7 +271,7 @@ func (s *Shard) AddCounterHost(key data_model.Key, keyHash uint64, count float64
 	mi.Tail.AddCounterHost(count, hostTag)
 }
 
-func (s *Shard) AddCounterHostStringBytes(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *ShardReplica) AddCounterHostStringBytes(key data_model.Key, keyHash uint64, str []byte, count float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
@@ -221,7 +280,7 @@ func (s *Shard) AddCounterHostStringBytes(key data_model.Key, keyHash uint64, st
 	mi.MapStringTopBytes(str, count).AddCounterHost(count, hostTag)
 }
 
-func (s *Shard) AddValueCounterHostStringBytes(key data_model.Key, keyHash uint64, value float64, count float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
+func (s *ShardReplica) AddValueCounterHostStringBytes(key data_model.Key, keyHash uint64, value float64, count float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
@@ -230,7 +289,7 @@ func (s *Shard) AddValueCounterHostStringBytes(key data_model.Key, keyHash uint6
 	mi.MapStringTopBytes(str, count).AddValueCounterHost(value, count, hostTag)
 }
 
-func (s *Shard) AddValueCounterHost(key data_model.Key, keyHash uint64, value float64, counter float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *ShardReplica) AddValueCounterHost(key data_model.Key, keyHash uint64, value float64, counter float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
@@ -243,7 +302,7 @@ func (s *Shard) AddValueCounterHost(key data_model.Key, keyHash uint64, value fl
 	}
 }
 
-func (s *Shard) AddValueArrayCounterHost(key data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, metricInfo *format.MetricMetaValue) {
+func (s *ShardReplica) AddValueArrayCounterHost(key data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
@@ -256,7 +315,7 @@ func (s *Shard) AddValueArrayCounterHost(key data_model.Key, keyHash uint64, val
 	}
 }
 
-func (s *Shard) AddValueArrayCounterHostStringBytes(key data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
+func (s *ShardReplica) AddValueArrayCounterHostStringBytes(key data_model.Key, keyHash uint64, values []float64, mult float64, hostTag int32, str []byte, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
@@ -270,7 +329,7 @@ func (s *Shard) AddValueArrayCounterHostStringBytes(key data_model.Key, keyHash 
 	}
 }
 
-func (s *Shard) MergeItemValue(key data_model.Key, keyHash uint64, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
+func (s *ShardReplica) MergeItemValue(key data_model.Key, keyHash uint64, item *data_model.ItemValue, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
@@ -279,7 +338,7 @@ func (s *Shard) MergeItemValue(key data_model.Key, keyHash uint64, item *data_mo
 	mi.Tail.Value.Merge(item)
 }
 
-func (s *Shard) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str []byte, keyHash uint64, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {
+func (s *ShardReplica) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str []byte, keyHash uint64, hashes []int64, count float64, metricInfo *format.MetricMetaValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	resolutionShard, resolution, _ := s.resolutionShardFromHashLocked(keyHash, metricInfo)
@@ -288,7 +347,7 @@ func (s *Shard) AddUniqueHostStringBytes(key data_model.Key, hostTag int32, str 
 	mi.MapStringTopBytes(str, count).AddUniqueHost(hashes, count, hostTag)
 }
 
-func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
+func (s *ShardReplica) addBuiltInsLocked(nowUnix uint32) {
 	resolutionShard := s.CurrentBuckets[1][0] // we aggregate built-ins locally into first second of second resolution
 	for _, v := range s.BuiltInItemValues {
 		v.mu.Lock()
@@ -299,7 +358,7 @@ func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
 		}
 		v.mu.Unlock()
 	}
-	if s.ShardNum != 0 { // heartbeats are in the first shard
+	if s.ShardReplicaNum != s.agent.heartBeatReplicaNum {
 		return
 	}
 	if s.agent.heartBeatEventType != format.TagValueIDHeartbeatEventHeartbeat { // first run
@@ -374,7 +433,7 @@ func (s *Shard) addBuiltInsLocked(nowUnix uint32) {
 	s.addBuiltInsHeartbeatsLocked(resolutionShard, nowUnix, 60) // heartbeat once per minute
 }
 
-func (s *Shard) addBuiltInsHeartbeatsLocked(resolutionShard *data_model.MetricsBucket, nowUnix uint32, count float64) {
+func (s *ShardReplica) addBuiltInsHeartbeatsLocked(resolutionShard *data_model.MetricsBucket, nowUnix uint32, count float64) {
 	uptimeSec := float64(nowUnix - s.agent.startTimestamp)
 
 	key := s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDHeartbeatVersion, [16]int32{0, s.agent.componentTag, s.agent.heartBeatEventType})
@@ -385,4 +444,80 @@ func (s *Shard) addBuiltInsHeartbeatsLocked(resolutionShard *data_model.MetricsB
 	key = s.agent.AggKey(resolutionShard.Time, format.BuiltinMetricIDHeartbeatArgs, [16]int32{0, s.agent.componentTag, s.agent.heartBeatEventType, s.agent.argsHash, 0, 0, 0, 0, 0, s.agent.argsLen})
 	mi = data_model.MapKeyItemMultiItem(&resolutionShard.MultiItems, key, s.config.StringTopCapacity, nil, nil)
 	mi.MapStringTop(s.agent.args, count).AddValueCounterHost(uptimeSec, count, 0)
+}
+
+func (s *ShardReplica) fillProxyHeader(fieldsMask *uint32, header *tlstatshouse.CommonProxyHeader) {
+	*header = tlstatshouse.CommonProxyHeader{
+		ShardReplica:      int32(s.ShardReplicaNum),
+		ShardReplicaTotal: int32(s.agent.NumShardReplicas()),
+		HostName:          string(s.agent.hostName),
+		ComponentTag:      s.agent.componentTag,
+		BuildArch:         s.agent.buildArchTag,
+	}
+	header.SetAgentEnvStaging(s.agent.isEnvStaging, fieldsMask)
+}
+
+func (s *ShardReplica) fillProxyHeaderBytes(fieldsMask *uint32, header *tlstatshouse.CommonProxyHeaderBytes) {
+	*header = tlstatshouse.CommonProxyHeaderBytes{
+		ShardReplica:      int32(s.ShardReplicaNum),
+		ShardReplicaTotal: int32(s.agent.NumShardReplicas()),
+		HostName:          s.agent.hostName,
+		ComponentTag:      s.agent.componentTag,
+		BuildArch:         s.agent.buildArchTag,
+	}
+	header.SetAgentEnvStaging(s.agent.isEnvStaging, fieldsMask)
+}
+
+func (s *ShardReplica) goTestConnectionLoop() {
+	calcHalfOfMinute := func() time.Duration {
+		n := time.Now()
+		return n.Truncate(time.Minute).Add(time.Minute + s.timeSpreadDelta*60).Sub(n)
+	}
+	for {
+		time.Sleep(calcHalfOfMinute()) // todo graceful
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		aggTimeDiff, duration, err := s.doTestConnection(ctx)
+		cancel()
+		seconds := duration.Seconds()
+		if err == nil {
+			s.successTestConnectionDurationBucket.AddValueCounter(seconds, 1)
+			if aggTimeDiff != 0 {
+				s.aggTimeDiffBucket.AddValueCounter(aggTimeDiff.Seconds(), 1)
+			}
+		} else {
+			var rpcError rpc.Error
+			if errors.Is(err, rpc.ErrClientConnClosedNoSideEffect) || errors.Is(err, rpc.ErrClientConnClosedSideEffect) || errors.Is(err, rpc.ErrClientClosed) {
+				s.noConnectionTestConnectionDurationBucket.AddValueCounter(seconds, 1)
+			} else if errors.Is(err, &rpcError) {
+				s.rpcErrorTestConnectionDurationBucket.AddValueCounter(seconds, 1)
+			} else if errors.Is(err, context.DeadlineExceeded) {
+				s.timeoutTestConnectionDurationBucket.AddValueCounter(seconds, 1)
+			} else {
+				s.failedTestConnectionDurationBucket.AddValueCounter(seconds, 1)
+			}
+		}
+	}
+}
+
+func (s *ShardReplica) doTestConnection(ctx context.Context) (aggTimeDiff time.Duration, duration time.Duration, err error) {
+	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
+	args := tlstatshouse.TestConnection2Bytes{}
+	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header)
+
+	var ret []byte
+
+	start := time.Now()
+	err = s.client.TestConnection2Bytes(ctx, args, &extra, &ret)
+	finish := time.Now()
+	duration = finish.Sub(start)
+	if err == nil && len(ret) >= 8 {
+		unixNano := int64(binary.LittleEndian.Uint64(ret))
+		aggTime := time.Unix(0, unixNano)
+		if aggTime.Before(start) {
+			aggTimeDiff = aggTime.Sub(start) // negative
+		} else if aggTime.After(finish) {
+			aggTimeDiff = aggTime.Sub(finish)
+		}
+	}
+	return aggTimeDiff, duration, err
 }

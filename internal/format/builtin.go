@@ -7,6 +7,7 @@
 package format
 
 import (
+	"log"
 	"math"
 	"strconv"
 )
@@ -17,8 +18,13 @@ const (
 
 	tagStringForUI = "tag"
 
-	BuiltinGroupIDDefault = -1 // for all metrics with group not known. We want to edit it in the future, so not 0
-	BuiltinGroupIDBuiltin = -2 // for all built in metrics
+	BuiltinGroupIDDefault = -4 // for all metrics with group not known. We want to edit it in the future, so not 0
+	BuiltinGroupIDBuiltin = -2 // for all built in metrics except host
+	BuiltinGroupIDHost    = -3 // host built in metrics
+	BuiltinGroupIDMissing = -5 // indicates missing metadata while running sampling, should not happen
+
+	BuiltinNamespaceIDDefault = -5
+	BuiltinNamespaceIDMissing = -6 // indicates missing metadata while running sampling, should not happen
 
 	BuiltinMetricIDAgentSamplingFactor        = -1
 	BuiltinMetricIDAggBucketReceiveDelaySec   = -2 // Also approximates insert delay, interesting for historic buckets
@@ -60,10 +66,10 @@ const (
 	BuiltinMetricIDGeneratorSinCounter        = -46
 	BuiltinMetricIDHeartbeatVersion           = -47
 	BuiltinMetricIDHeartbeatArgs              = -48 // this metric was writing larger than allowed strings to DB in the past
-	BuiltinMetricIDAPIRPCServiceTime          = -49 // TODO: delete when agents & aggregators get "__api_service_time" builtin
-	BuiltinMetricIDAPIBRS                     = -50
-	BuiltinMetricIDAPIEndpointResponseTime    = -51 // TODO: delete when agents & aggregators get "__api_response_time" builtin
-	BuiltinMetricIDAPIEndpointServiceTime     = -52 // TODO: delete when agents & aggregators get "__api_service_time" builtin
+	// BuiltinMetricIDAPIRPCServiceTime       = -49 // deprecated, replaced by "__api_service_time"
+	BuiltinMetricIDAPIBRS = -50
+	// BuiltinMetricIDAPIEndpointResponseTime = -51 // deprecated, replaced by "__api_response_time"
+	// BuiltinMetricIDAPIEndpointServiceTime  = -52 // deprecated, replaced by "__api_service_time"
 	BuiltinMetricIDBudgetHost                 = -53 // these 2 metrics are invisible, but host mapping is flood-protected by their names
 	BuiltinMetricIDBudgetAggregatorHost       = -54 // we want to see limits properly credited in flood meta metric tags
 	BuiltinMetricIDAPIActiveQueries           = -55
@@ -91,6 +97,12 @@ const (
 	BuiltinMetricIDAPIResponseTime            = -77
 	BuiltinMetricIDSrcTestConnection          = -78
 	BuiltinMetricIDAggTimeDiff                = -79
+	BuiltinMetricIDSrcSamplingMetricCount     = -80
+	BuiltinMetricIDAggSamplingMetricCount     = -81
+	BuiltinMetricIDSrcSamplingSizeBytes       = -82
+	BuiltinMetricIDAggSamplingSizeBytes       = -83
+	BuiltinMetricIDUIErrors                   = -84
+	BuiltinMetricIDStatsHouseErrors           = -85
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -112,8 +124,6 @@ const (
 	BuiltinMetricNameAPISelectRows              = "__api_ch_select_rows"
 	BuiltinMetricNameAPISourceSelectRows        = "__api_ch_source_select_rows"
 	BuiltinMetricNameAPISelectDuration          = "__api_ch_select_duration"
-	BuiltinMetricNameAPIEndpointResponseTime    = "__api_endpoint_response_time" // TODO: delete when agents & aggregators get "__api_response_time" builtin
-	BuiltinMetricNameAPIEndpointServiceTime     = "__api_endpoint_service_time"  // TODO: delete when agents & aggregators get "__api_service_time" builtin
 	BuiltinMetricNameBudgetHost                 = "__budget_host"
 	BuiltinMetricNameBudgetAggregatorHost       = "__budget_aggregator_host"
 	BuiltinMetricNameAPIActiveQueries           = "__api_active_queries"
@@ -125,6 +135,8 @@ const (
 	BuiltinMetricNameAPIResponseTime            = "__api_response_time"
 	BuiltinMetricNameSrcTestConnection          = "__src_test_connection"
 	BuiltinMetricNameAggTimeDiff                = "__src_agg_time_diff"
+	BuiltinMetricNameHeartbeatVersion           = "__heartbeat_version"
+	BuiltinMetricNameStatsHouseErrors           = "__statshouse_errors"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -298,6 +310,7 @@ const (
 	TagValueIDSystemMetricPSI       = 5
 	TagValueIDSystemMetricSocksStat = 6
 	TagValueIDSystemMetricProtocols = 7
+	TagValueIDSystemMetricVMStat    = 8
 
 	TagValueIDRPC  = 1
 	TagValueIDHTTP = 2
@@ -307,9 +320,15 @@ const (
 	TagOtherError   = 3
 	TagRPCError     = 4
 	TagTimeoutError = 5
+
+	TagValueIDSamplingDecisionKeep    = -1
+	TagValueIDSamplingDecisionDiscard = -2
 )
 
 var (
+	BuiltinMetricByName           map[string]*MetricMetaValue
+	BuiltinMetricAllowedToReceive map[string]*MetricMetaValue
+
 	// list of built-in metrics which can be sent as normal metric. Used by API and prometheus exporter
 	// Description: "-" marks tags used in incompatible way in the past. We should not reuse such tags, because there would be garbage in historic data.
 
@@ -1060,7 +1079,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			}},
 		},
 		BuiltinMetricIDHeartbeatVersion: {
-			Name:                 "__heartbeat_version",
+			Name:                 BuiltinMetricNameHeartbeatVersion,
 			Kind:                 MetricKindValue,
 			Description:          "Heartbeat value is uptime",
 			StringTopDescription: "Build Commit",
@@ -1110,59 +1129,6 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Kind:        MetricKindCounter,
 			Description: "Test counter generated on the fly by sine function",
 			Tags:        []MetricMetaTag{},
-		},
-		BuiltinMetricIDAPIRPCServiceTime: { // TODO: delete when agents & aggregators get "__api_service_time" builtin
-			Name:        BuiltinMetricNameAPIRPCServiceTime,
-			Kind:        MetricKindValue,
-			Description: "Time to handle RPC query by API.",
-			Tags: []MetricMetaTag{{
-				Description: "methods",
-			}, {
-				Description: "error_code",
-				Raw:         true,
-			}, {
-				Description: "token_name",
-			}, {
-				Description: "host",
-			}},
-		},
-		BuiltinMetricIDAPIEndpointResponseTime: { // TODO: delete when agents & aggregators get "__api_response_time" builtin
-			Name:        BuiltinMetricNameAPIEndpointResponseTime,
-			Kind:        MetricKindValue,
-			Description: "Time to handle and respond to HTTP query by API",
-			Tags: []MetricMetaTag{{
-				Description: "endpoint",
-			}, {
-				Description: "metric",
-				IsMetric:    true,
-			}, {
-				Description: "http_code",
-			}, {
-				Description: "token_name",
-			}, {
-				Description: "data_format",
-			}, {
-				Description: "method",
-			}},
-		},
-		BuiltinMetricIDAPIEndpointServiceTime: { // TODO: delete when agents & aggregators get "__api_service_time" builtin
-			Name:        BuiltinMetricNameAPIEndpointServiceTime,
-			Kind:        MetricKindValue,
-			Description: "Time to handle HTTP query by API",
-			Tags: []MetricMetaTag{{
-				Description: "endpoint",
-			}, {
-				Description: "metric",
-				IsMetric:    true,
-			}, {
-				Description: "http_code",
-			}, {
-				Description: "token_name",
-			}, {
-				Description: "data_format",
-			}, {
-				Description: "method",
-			}},
 		},
 		BuiltinMetricIDAPIServiceTime: {
 			Name:        BuiltinMetricNameAPIServiceTime,
@@ -1484,6 +1450,7 @@ Value is delta between second value and time it was inserted.`,
 					TagValueIDSystemMetricPSI:       "psi",
 					TagValueIDSystemMetricSocksStat: "socks",
 					TagValueIDSystemMetricProtocols: "protocols",
+					TagValueIDSystemMetricVMStat:    "vmstat",
 				}),
 			}},
 		},
@@ -1538,6 +1505,109 @@ Value is delta between second value and time it was inserted.`,
 				},
 			},
 		},
+		BuiltinMetricIDSrcSamplingMetricCount: {
+			Name:        "__src_sampling_metric_count",
+			Kind:        MetricKindValue,
+			Description: `Metric count processed by sampler on agent.`,
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}},
+		},
+		BuiltinMetricIDAggSamplingMetricCount: {
+			Name:        "__agg_sampling_metric_count",
+			Kind:        MetricKindValue,
+			Description: `Metric count processed by sampler on aggregator.`,
+			Tags: []MetricMetaTag{{
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}},
+		},
+		BuiltinMetricIDSrcSamplingSizeBytes: {
+			Name:        "__src_sampling_size_bytes",
+			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
+			Description: `Size in bytes processed by sampler on agent.`,
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}, {
+				Description: "sampling_decision",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDSamplingDecisionKeep:    "keep",
+					TagValueIDSamplingDecisionDiscard: "discard",
+				}),
+			}, {
+				Description: "namespace",
+				IsNamespace: true,
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinNamespaceIDDefault: "default",
+					BuiltinNamespaceIDMissing: "missing",
+				}),
+			}, {
+				Description: "group",
+				IsGroup:     true,
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinGroupIDDefault: "default",
+					BuiltinGroupIDBuiltin: "builtin",
+					BuiltinGroupIDHost:    "host",
+					BuiltinGroupIDMissing: "missing",
+				}),
+			}, {
+				Description:   "metric_kind",
+				ValueComments: convertToValueComments(insertKindToValue),
+			}},
+		},
+		BuiltinMetricIDAggSamplingSizeBytes: {
+			Name:        "__agg_sampling_size_bytes",
+			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
+			Description: `Size in bytes processed by sampler on aggregator.`,
+			Tags: []MetricMetaTag{{
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}, {
+				Description: "sampling_decision",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDSamplingDecisionKeep:    "keep",
+					TagValueIDSamplingDecisionDiscard: "discard",
+				}),
+			}, {
+				Description: "namespace",
+				IsNamespace: true,
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinNamespaceIDDefault: "default",
+					BuiltinNamespaceIDMissing: "missing",
+				}),
+			}, {
+				Description: "group",
+				IsGroup:     true,
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinGroupIDDefault: "default",
+					BuiltinGroupIDBuiltin: "builtin",
+					BuiltinGroupIDHost:    "host",
+					BuiltinGroupIDMissing: "missing",
+				}),
+			}, {
+				Description:   "metric_kind",
+				ValueComments: convertToValueComments(insertKindToValue),
+			}},
+		},
+		BuiltinMetricIDUIErrors: {
+			Name:                 "__ui_errors",
+			Kind:                 MetricKindValue,
+			Description:          `Errors on the frontend.`,
+			StringTopDescription: "error_string",
+			Tags: []MetricMetaTag{
+				{Description: "environment"}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+		},
+		BuiltinMetricIDStatsHouseErrors: {
+			Name:        BuiltinMetricNameStatsHouseErrors,
+			Kind:        MetricKindCounter,
+			Description: `Always empty metric because SH don't have errors'`,
+			Tags: []MetricMetaTag{
+				{Description: "environment"}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -1551,8 +1621,6 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDTimingErrors:               true,
 		BuiltinMetricIDPromScrapeTime:             true,
 		BuiltinMetricIDAPIBRS:                     true,
-		BuiltinMetricIDAPIEndpointResponseTime:    true,
-		BuiltinMetricIDAPIEndpointServiceTime:     true,
 		BuiltinMetricIDAPIServiceTime:             true,
 		BuiltinMetricIDAPIResponseTime:            true,
 		BuiltinMetricIDUsageMemory:                true,
@@ -1565,6 +1633,9 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDMetaServiceTime:            true,
 		BuiltinMetricIDMetaClientWaits:            true,
 		BuiltinMetricIDAPIMetricUsage:             true,
+		BuiltinMetricIDHeartbeatVersion:           true,
+		BuiltinMetricIDUIErrors:                   true,
+		BuiltinMetricIDStatsHouseErrors:           true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
@@ -1651,8 +1722,6 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPISelectRows:              true,
 		BuiltinMetricIDAPISelectBytes:             true,
 		BuiltinMetricIDAPISelectDuration:          true,
-		BuiltinMetricIDAPIEndpointResponseTime:    true,
-		BuiltinMetricIDAPIEndpointServiceTime:     true,
 		BuiltinMetricIDAPIServiceTime:             true,
 		BuiltinMetricIDAPIResponseTime:            true,
 		BuiltinMetricIDAPIActiveQueries:           true,
@@ -1661,10 +1730,11 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDSystemMetricScrapeDuration: true,
 		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
 		BuiltinMetricIDAPIMetricUsage:             true,
+		BuiltinMetricIDSrcSamplingMetricCount:     true,
+		BuiltinMetricIDSrcSamplingSizeBytes:       true,
+		BuiltinMetricIDUIErrors:                   true,
+		BuiltinMetricIDStatsHouseErrors:           true,
 	}
-
-	BuiltinMetricByName           map[string]*MetricMetaValue
-	BuiltinMetricAllowedToReceive map[string]*MetricMetaValue
 
 	insertKindToValue = map[int32]string{
 		TagValueIDSizeCounter:           "counter",
@@ -1716,6 +1786,32 @@ Value is delta between second value and time it was inserted.`,
 		TagValueIDBuildArchARM64: "arm64",
 		TagValueIDBuildArchARM:   "arm",
 	}
+	// BuiltInGroupDefault can be overridden by journal, don't use directly
+	BuiltInGroupDefault = map[int32]*MetricsGroup{
+		BuiltinGroupIDDefault: {
+			ID:     BuiltinGroupIDDefault,
+			Name:   "__default",
+			Weight: 1,
+		},
+		BuiltinGroupIDBuiltin: {
+			ID:     BuiltinGroupIDBuiltin,
+			Name:   "__builtin",
+			Weight: 1,
+		},
+		BuiltinGroupIDHost: {
+			ID:     BuiltinGroupIDHost,
+			Name:   "__host",
+			Weight: 1,
+		},
+	}
+	// BuiltInNamespaceDefault can be overridden by journal, don't use directly
+	BuiltInNamespaceDefault = map[int32]*NamespaceMeta{
+		BuiltinNamespaceIDDefault: {
+			ID:     BuiltinNamespaceIDDefault,
+			Name:   "__default",
+			Weight: 1,
+		},
+	}
 )
 
 func TagIDTagToTagID(tagIDTag int32) string {
@@ -1763,9 +1859,23 @@ func createBuiltinMetricIDHeartbeatArgs(name string, description string) *Metric
 }
 
 func init() {
+	for _, g := range BuiltInGroupDefault {
+		err := g.RestoreCachedInfo(true)
+		if err != nil {
+			log.Printf("error to RestoreCachedInfo of %v", *g)
+		}
+	}
+	for _, n := range BuiltInNamespaceDefault {
+		err := n.RestoreCachedInfo(true)
+		if err != nil {
+			log.Printf("error to RestoreCachedInfo of %v", *n)
+		}
+	}
 	for k, v := range hostMetrics {
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
 		v.Resolution = 60
+		v.GroupID = BuiltinGroupIDHost
+		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
 		BuiltinMetrics[k] = v
 		builtinMetricsAllowedToReceive[k] = true
 		metricsWithoutAggregatorID[k] = true
@@ -1792,9 +1902,13 @@ func init() {
 	BuiltinMetricAllowedToReceive = make(map[string]*MetricMetaValue, len(BuiltinMetrics))
 	for id, m := range BuiltinMetrics {
 		m.MetricID = id
-		m.GroupID = BuiltinGroupIDBuiltin
+		if m.GroupID == 0 {
+			m.GroupID = BuiltinGroupIDBuiltin
+			m.Group = BuiltInGroupDefault[BuiltinGroupIDBuiltin]
+		}
 		m.Visible = !builtinMetricsInvisible[id]
 		m.PreKeyFrom = math.MaxInt32 // allow writing, but not yet selecting
+		m.Weight = 1
 
 		BuiltinMetricByName[m.Name] = m
 

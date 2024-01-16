@@ -29,14 +29,18 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
-type IngressProxy struct {
-	sh2 *agent.Agent
+type clientPool struct {
+	aesPwd string
+	mu     sync.RWMutex
+	// shardReplica -> free clients
+	clients map[string]*rpc.Client
+}
 
-	mu      sync.Mutex
-	aesPwd  string
-	clients map[string]*rpc.Client // client per incoming IP
-	server  *rpc.Server
-	config  ConfigIngressProxy
+type IngressProxy struct {
+	sh2    *agent.Agent
+	pool   *clientPool
+	server *rpc.Server
+	config ConfigIngressProxy
 }
 
 type ConfigIngressProxy struct {
@@ -45,6 +49,14 @@ type ConfigIngressProxy struct {
 	ListenAddr        string
 	ExternalAddresses []string // exactly 3 comma-separated external ingress points
 	IngressKeys       []string
+}
+
+func newClientPool(aesPwd string) *clientPool {
+	cl := &clientPool{
+		aesPwd:  aesPwd,
+		clients: map[string]*rpc.Client{},
+	}
+	return cl
 }
 
 func (config *ConfigIngressProxy) ReadIngressKeys(ingressPwdDir string) error {
@@ -83,9 +95,8 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 	}
 
 	proxy := &IngressProxy{
-		sh2:     sh2,
-		aesPwd:  aesPwd,
-		clients: map[string]*rpc.Client{},
+		sh2:  sh2,
+		pool: newClientPool(aesPwd),
 		// TODO - server settings must be tuned
 		config: config,
 	}
@@ -98,7 +109,7 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
 		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3*100000), // see server settings in aggregator
-		rpc.ServerWithMaxWorkers(128<<10),
+		rpc.ServerWithMaxWorkers(128<<13),
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(8<<30)) // see server settings in aggregator. We do not multiply here
@@ -163,7 +174,7 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	if len(hctx.Request) < 32 {
 		return true, fmt.Errorf("ingress proxy query with tag 0x%x is too short - %d bytes", tag, len(hctx.Request))
 	}
-	addrIPV4, remoteAddress := addrIPString(hctx.RemoteAddr()) // without port, so per machine
+	addrIPV4, remoteAddress := addrIPString(hctx.RemoteAddr())
 
 	fieldsMask := binary.LittleEndian.Uint32(hctx.Request[4:])
 	shardReplica := binary.LittleEndian.Uint32(hctx.Request[8:])
@@ -171,21 +182,16 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	binary.LittleEndian.PutUint32(hctx.Request[4:], fieldsMask)
 	binary.LittleEndian.PutUint32(hctx.Request[28:], addrIPV4) // source_ip[3] in header. TODO - ipv6
 	// We override this field if set by previous proxy. Because we do not care about agent IPs in their cuber/internal networks
-
+	hostName, err := parseHostname(hctx.Request)
+	if err != nil {
+		return true, err
+	}
 	// Motivation of % len - we pass through badly configured requests for now, so aggregators will record them in builtin metric
 	// TODO - collect metric, send to aggregator, reply with error to clients
-	address := proxy.sh2.GetConfigResult.Addresses[shardReplica%uint32(len(proxy.sh2.GetConfigResult.Addresses))]
+	shardReplicaIx := shardReplica % uint32(len(proxy.sh2.GetConfigResult.Addresses))
+	address := proxy.sh2.GetConfigResult.Addresses[shardReplicaIx]
 
-	proxy.mu.Lock()
-	client, ok := proxy.clients[remoteAddress]
-	if !ok {
-		client = rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(proxy.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
-		proxy.clients[remoteAddress] = client
-	}
-	proxy.mu.Unlock()
-	if !ok {
-		log.Printf("First connection from %s", remoteAddress)
-	}
+	client := proxy.pool.getClient(hostName, remoteAddress)
 	req := client.GetRequest()
 	req.Body = append(req.Body, hctx.Request...)
 	req.Extra.FailIfNoConnection = true
@@ -199,4 +205,23 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	hctx.Response = append(hctx.Response, resp.Body...)
 
 	return false, nil
+}
+
+func parseHostname(req []byte) (clientHost string, _ error) {
+	_, err := basictl.StringRead(req[32:], &clientHost)
+	return clientHost, err
+}
+
+func (pool *clientPool) getClient(clientHost, remoteAddress string) *rpc.Client {
+	pool.mu.Lock()
+	defer pool.mu.Unlock()
+	client := pool.clients[clientHost]
+	if client == nil {
+		log.Printf("First connection from agent host: %s, host IP: %s", clientHost, remoteAddress)
+
+		client = rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
+		pool.clients[clientHost] = client
+	}
+	return client
+
 }

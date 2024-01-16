@@ -90,6 +90,11 @@ type (
 
 		config ConfigAggregator
 
+		// Remote config
+		configR  ConfigAggregatorRemote
+		configS  string
+		configMu sync.RWMutex
+
 		metricStorage  *metajournal.MetricsStorage
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
@@ -104,6 +109,8 @@ type (
 	}
 )
 
+const aggregatorMaxInflightPackets = (data_model.MaxConveyorDelay + data_model.MaxHistorySendStreams) * 3 // *3 is additional load for spares, when original aggregator is down
+
 func (b *aggregatorBucket) CancelHijack(hctx *rpc.HandlerContext) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -115,17 +122,6 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	if dc == nil { // TODO - make sure aggregator works without cache dir?
 		return fmt.Errorf("aggregator cannot run without -cache-dir for now")
 	}
-	localAddresses := strings.Split(listenAddr, ",")
-	if len(localAddresses) != 1 {
-		if len(localAddresses) != 3 {
-			return fmt.Errorf("you must set exactly one address or three comma separated addresses in --agg-addr")
-		}
-		if config.LocalReplica < 1 || config.LocalReplica > 3 {
-			return fmt.Errorf("seetting three --agg-addr require setting --local-replica to 1, 2 or 3")
-		}
-		listenAddr = localAddresses[config.LocalReplica-1]
-	}
-
 	_, listenPort, err := net.SplitHostPort(listenAddr)
 	if err != nil {
 		return fmt.Errorf("failed to split --agg-addr (%q) into host and port for autoconfiguration: %v", listenAddr, err)
@@ -144,15 +140,9 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	}
 	withoutCluster := false
 	if len(addresses) == 1 { // mostly demo runs with local non-replicated clusters
-		if len(localAddresses) == 3 {
-			addresses = localAddresses
-			replicaKey = int32(config.LocalReplica)
-			log.Printf("[warning] running as a local replica %d with single-host cluster, probably demo", replicaKey)
-		} else {
-			addresses = []string{addresses[0], addresses[0], addresses[0]}
-			withoutCluster = true
-			log.Printf("[warning] running with single-host cluster, probably demo")
-		}
+		addresses = []string{addresses[0], addresses[0], addresses[0]}
+		withoutCluster = true
+		log.Printf("[warning] running with single-host cluster, probably demo")
 	}
 	if len(addresses)%3 != 0 {
 		return fmt.Errorf("failed configuration - must have exactly 3 replicas in cluster %q per shard, probably wrong --cluster command line parameter set: %v", config.Cluster, err)
@@ -184,6 +174,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		bucketsToSend:               make(chan *aggregatorBucket),
 		historicBuckets:             map[uint32]*aggregatorBucket{},
 		config:                      config,
+		configR:                     config.ConfigAggregatorRemote,
 		hostName:                    format.ForceValidStringValue(hostName), // worse alternative is do not run at all
 		withoutCluster:              withoutCluster,
 		shardKey:                    shardKey,
@@ -203,7 +194,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
-		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3), // *3 is additional load for spares, when original aggregator is down
+		rpc.ServerWithMaxInflightPackets(aggregatorMaxInflightPackets),
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(2<<30))
@@ -665,6 +656,7 @@ func (a *Aggregator) goTicker() {
 		tick := time.After(data_model.TillStartOfNextSecond(now))
 		now = <-tick // We synchronize with calendar second boundary
 
+		a.updateConfigRemotelyExperimental()
 		readyBuckets := a.advanceRecentBuckets(now, false)
 		for _, aggBucket := range readyBuckets {
 			aggBucket.sendMu.Lock()   // Lock/Unlock waits all clients to finish aggregation
@@ -697,4 +689,28 @@ func (a *Aggregator) goTicker() {
 			a.estimator.GarbageCollect(oldestTime)
 		}
 	}
+}
+
+func (a *Aggregator) updateConfigRemotelyExperimental() {
+	if a.config.DisableRemoteConfig || a.metricStorage == nil {
+		return
+	}
+	description := ""
+	if mv := a.metricStorage.GetMetaMetricByName(data_model.StatshouseAggregatorRemoteConfigMetric); mv != nil {
+		description = mv.Description
+	}
+	if description == a.configS {
+		return
+	}
+	a.configS = description
+	log.Printf("Remote config:\n%s", description)
+	config := a.config.ConfigAggregatorRemote
+	if err := config.updateFromRemoteDescription(description); err != nil {
+		log.Printf("[error] Remote config: error updating config from metric %q: %v", data_model.StatshouseAggregatorRemoteConfigMetric, err)
+		return
+	}
+	log.Printf("Remote config: updated config from metric %q", data_model.StatshouseAggregatorRemoteConfigMetric)
+	a.configMu.Lock()
+	a.configR = config
+	a.configMu.Unlock()
 }

@@ -5,6 +5,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { ChangeEvent, useCallback, useId } from 'react';
+import { Tooltip } from './Tooltip';
 
 export type ToggleButtonProps<T> = {
   checked?: boolean;
@@ -14,10 +15,12 @@ export type ToggleButtonProps<T> = {
   className?: string;
   title?: string;
   value?: T;
+  disabled?: boolean;
 };
 
 export function ToggleButton<T = unknown>({
   checked,
+  disabled,
   defaultChecked,
   onChange,
   children,
@@ -42,11 +45,12 @@ export function ToggleButton<T = unknown>({
         checked={checked}
         defaultChecked={defaultChecked}
         onChange={change}
+        disabled={disabled}
       />
       {!!children && (
-        <label className={className} htmlFor={`toggle-button-${uid}`} title={title}>
+        <Tooltip as="label" className={className} htmlFor={`toggle-button-${uid}`} title={title}>
           {children}
-        </label>
+        </Tooltip>
       )}
     </>
   );

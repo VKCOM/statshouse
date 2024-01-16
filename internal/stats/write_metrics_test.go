@@ -25,6 +25,6 @@ func BenchmarkSHWriterImpl(b *testing.B) {
 	}
 	t := time.Now().Unix()
 	for i := 0; i < b.N; i++ {
-		p.WriteSystemMetricValue(t, "abc", 1, 1, 2, 3)
+		p.WriteSystemMetricCountValueExtendedTag(t, "abc", 1, 1, Tag{Raw: 2}, Tag{Raw: 3}, Tag{Str: "abc"})
 	}
 }

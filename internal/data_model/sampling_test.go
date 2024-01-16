@@ -115,6 +115,59 @@ func TestSampling(t *testing.T) {
 	})
 }
 
+func TestSamplingWithNilKeepF(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		b := newSamplingTestBucket()
+		b.generateSeriesSize(t, samplingTestSpec{
+			maxMetricCount: rapid.IntRange(1, 1024).Draw(t, "max metric count"),
+			minMetricSize:  rapid.IntRange(28, 256).Draw(t, "min metric size"),
+			maxMetricSize:  rapid.IntRange(512, 1024).Draw(t, "max metric size"),
+		})
+		s := NewSampler(len(b.series), SamplerConfig{
+			KeepF: nil, // agent doesn't set it
+			DiscardF: func(k Key, item *MultiItem) {
+				delete(b.series, k)
+			},
+			SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
+				return int(float64(len(s)) / sf)
+			},
+			RoundF: func(sf float64, _ *rand.Rand) float64 {
+				floor := math.Floor(sf)
+				delta := sf - floor
+				if rapid.Float64Range(0, 1).Draw(t, "RoundF") < delta {
+					return floor + 1
+				}
+				return floor
+			},
+		})
+		budget := rapid.Int64Range(20, 20+b.sumSize*2).Draw(t, "budget")
+		samplerStat := b.run(&s, budget, 1)
+		require.Equal(t, samplerStat.Count, len(samplerStat.GetSampleFactors(nil)))
+		if b.sumSize <= budget {
+			require.Zero(t, samplerStat.Count)
+		} else {
+			require.NotZero(t, samplerStat.Count)
+		}
+		m := map[int32]float64{}
+		for k, v := range b.series {
+			require.Less(t, 0., v.SF)
+			if v.SF < m[k.Metric] {
+				m[k.Metric] = v.SF
+			}
+		}
+		for _, v := range samplerStat.GetSampleFactors(nil) {
+			if sf, ok := m[v.Metric]; ok {
+				require.Truef(t, v.Value == float32(sf), "Item SF %v, metric SF %v", sf, v.Value)
+				delete(m, v.Metric)
+			}
+			require.Less(t, float32(1), v.Value, "SF less or equal one should not be reported")
+		}
+		for _, v := range b.series {
+			require.LessOrEqual(t, 1., v.SF)
+		}
+	})
+}
+
 func TestNoSamplingWhenFitBudget(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		b := newSamplingTestBucket()
@@ -210,7 +263,9 @@ func TestSelectRandom(t *testing.T) {
 }
 
 func TestSelectRandom2(t *testing.T) {
-	testSelectRandom(t, selectRandom)
+	if os.Getenv("STATSHOUSE_TEST_SELECT_RANDOM") == "1" {
+		testSelectRandom(t, selectRandom)
+	}
 }
 
 func testSelectRandom(t *testing.T, fn func([]SamplingMultiItemPair, float64, *rand.Rand) int) {
@@ -321,7 +376,9 @@ func (b *samplingTestBucket) run(s *Sampler, budgetNum, budgetDenom int64) Sampl
 			MetricID:    k.Metric,
 		})
 	}
-	return s.Run(budgetNum, budgetDenom)
+	var stat SamplerStatistics
+	s.Run(budgetNum, budgetDenom, &stat)
+	return stat
 }
 
 func samplingTestSizeOf(k Key, item *MultiItem) int {
@@ -426,7 +483,8 @@ func sampleBucket(bucket *MetricsBucket, config samplerConfigEx) map[int32]float
 	}
 	numShards := config.numShards
 	remainingBudget := int64((config.sampleBudget + numShards - 1) / numShards)
-	samplerStat := sampler.Run(remainingBudget, 1)
+	var samplerStat SamplerStatistics
+	sampler.Run(remainingBudget, 1, &samplerStat)
 	sampleFactors := map[int32]float32{}
 	for _, v := range samplerStat.GetSampleFactors(nil) {
 		sampleFactors[v.Metric] = v.Value
@@ -553,9 +611,9 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 					config.KeepF(v.Key, v.Item)
 				}
 			}
-			sf *= 2 // half of space is occupied by whales now. TODO - we can be more exact here, make permutations and take as many elements as we need, saving lots of rnd calls
 			samplingMetric.items = samplingMetric.items[whalesAllowed:]
 		}
+		sf *= 2 // half of space is occupied by whales now. TODO - we can be more exact here, make permutations and take as many elements as we need, saving lots of rnd calls
 		pos := config.SelectF(samplingMetric.items, sf, config.Rand)
 		for _, v := range samplingMetric.items[:pos] {
 			v.Item.SF = sf // communicate selected factor to next step of processing

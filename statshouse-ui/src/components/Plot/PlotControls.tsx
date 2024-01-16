@@ -15,19 +15,21 @@ import {
   timeShiftAbbrevExpand,
 } from '../../view/utils';
 import {
+  Button,
   PlotControlFrom,
   PlotControlTimeShifts,
   PlotControlTo,
   Select,
   SelectOptionProps,
   SwitchBox,
+  Tooltip,
   VariableControl,
 } from '../index';
 import { ReactComponent as SVGFiles } from 'bootstrap-icons/icons/files.svg';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGPcDisplay } from 'bootstrap-icons/icons/pc-display.svg';
 import { ReactComponent as SVGCode } from 'bootstrap-icons/icons/code.svg';
-import { ReactComponent as SVGFlag } from 'bootstrap-icons/icons/flag.svg';
+import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 import {
   setUpdatedTag,
   Store,
@@ -295,10 +297,10 @@ export const PlotControls = memo(function PlotControls_(props: {
     [indexPlot]
   );
   const onHostChange = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => {
+    (status: boolean) => {
       setPlotParams(indexPlot, (s) => ({
         ...s,
-        maxHost: e.target.checked,
+        maxHost: status,
       }));
     },
     [indexPlot]
@@ -426,26 +428,26 @@ export const PlotControls = memo(function PlotControls_(props: {
               loading={loadingMetricsList}
             />
             {!!clonePlot && (
-              <button
+              <Button
                 type="button"
                 onClick={clonePlot}
                 className="btn btn-outline-primary"
                 title="Duplicate plot to new tab"
               >
                 <SVGFiles />
-              </button>
+              </Button>
             )}
           </div>
           {plotParams.type === PLOT_TYPE.Metric && (
-            <button type="button" className="btn btn-outline-primary ms-3" onClick={toPromql} title="PromQL">
+            <Button type="button" className="btn btn-outline-primary ms-3" onClick={toPromql} title="PromQL">
               <SVGCode />
-            </button>
+            </Button>
           )}
         </div>
         {!!meta && (
           <>
             <div className="row mb-3">
-              <div className="d-flex align-items-baseline">
+              <div className="d-flex">
                 <Select
                   value={plotParams.what}
                   onChange={onWhatChange}
@@ -456,31 +458,39 @@ export const PlotControls = memo(function PlotControls_(props: {
                   classNameList="dropdown-menu"
                 />
                 {plotParams.type === PLOT_TYPE.Metric && (
-                  <div className="form-check form-switch">
-                    <input
-                      className="form-check-input"
-                      type="checkbox"
-                      value=""
-                      id="switchMaxHost"
-                      checked={plotParams.maxHost}
-                      onChange={onHostChange}
-                    />
-                    <label className="form-check-label" htmlFor="switchMaxHost" title="Host">
-                      <SVGPcDisplay />
-                    </label>
-                  </div>
+                  <SwitchBox title="Host" checked={plotParams.maxHost} onChange={onHostChange}>
+                    <SVGPcDisplay />
+                  </SwitchBox>
                 )}
               </div>
             </div>
 
-            <div className="row mb-3 align-items-baseline">
+            <div className="row mb-2 align-items-baseline">
               <PlotControlFrom timeRange={timeRange} setTimeRange={setTimeRange} setBaseRange={setBaseRange} />
               <div className="align-items-baseline mt-2">
                 <PlotControlTo timeRange={timeRange} setTimeRange={setTimeRange} />
               </div>
               <PlotControlTimeShifts className="w-100 mt-2" />
             </div>
-
+            {plotParams.type === PLOT_TYPE.Metric && !!eventPlotList.length && (
+              <div className="input-group input-group-sm mb-3">
+                <Select
+                  value={plotParams.events.map((e) => e.toString())}
+                  onChange={eventsChange}
+                  className="sh-select form-control"
+                  classNameList="dropdown-menu"
+                  showSelected={true}
+                  onceSelectByClick
+                  multiple
+                  options={eventPlotList}
+                  placeholder="Event overlay"
+                  valueSync
+                />
+                <span className="input-group-text text-primary">
+                  <SVGFlagFill />
+                </span>
+              </div>
+            )}
             <div className="mb-3 d-flex">
               <div className="d-flex me-4 gap-3 flex-grow-1">
                 <PlotControlAggregation value={plotParams.customAgg} onChange={onCustomAggChange} />
@@ -496,6 +506,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                   <option value="40">Top 40</option>
                   <option value="50">Top 50</option>
                   <option value="100">Top 100</option>
+                  <option value="0">All</option>
                   <option value="-1">Bottom 1</option>
                   <option value="-2">Bottom 2</option>
                   <option value="-3">Bottom 3</option>
@@ -514,7 +525,6 @@ export const PlotControls = memo(function PlotControls_(props: {
                 <SVGLightning />
               </SwitchBox>
             </div>
-
             {numQueries !== 0 && (
               <div className="text-center">
                 <div className="text-info spinner-border spinner-border-sm m-5" role="status" aria-hidden="true" />
@@ -553,7 +563,8 @@ export const PlotControls = memo(function PlotControls_(props: {
                       customValue={tagsList[tagKey]?.more}
                       customBadge={
                         variableTags[tagKey] && (
-                          <span
+                          <Tooltip<'span'>
+                            as="span"
                             title={`is variable: ${variableTags[tagKey]?.description || variableTags[tagKey]?.name}`}
                             className={cn(
                               'input-group-text bg-transparent text-nowrap pt-0 pb-0 mt-2 me-2',
@@ -563,7 +574,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                             )}
                           >
                             <span className="small">{variableTags[tagKey]?.name}</span>
-                          </span>
+                          </Tooltip>
                         )
                       }
                     />
@@ -613,24 +624,6 @@ export const PlotControls = memo(function PlotControls_(props: {
                     }
                   />
                 )}
-              </div>
-            )}
-            {plotParams.type === PLOT_TYPE.Metric && !!eventPlotList.length && (
-              <div className="input-group">
-                <Select
-                  value={plotParams.events.map((e) => e.toString())}
-                  onChange={eventsChange}
-                  className="sh-select form-control"
-                  classNameList="dropdown-menu"
-                  showSelected={true}
-                  onceSelectByClick
-                  multiple
-                  options={eventPlotList}
-                  placeholder="Event"
-                />
-                <span className="input-group-text text-primary">
-                  <SVGFlag />
-                </span>
               </div>
             )}
           </>

@@ -11,22 +11,23 @@ import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
 import { UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
 import { now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
-import { queryURLCSV } from '../../view/api';
 import { black, grey, greyDark } from '../../view/palette';
 import { produce } from 'immer';
 import {
+  createPlotPreview,
+  removePlotHeals,
   selectorBaseRange,
   selectorEventsByIndex,
-  selectorLiveMode,
   selectorLoadEvents,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
-  selectorParams,
   selectorParamsPlotsByIndex,
-  selectorParamsTimeShifts,
   selectorPlotsDataByIndex,
   selectorTimeRange,
-  selectorUPlotsWidthByIndex,
+  setLiveMode,
+  setPlotVisibility,
+  useLiveModeStore,
+  usePlotHealsStore,
   useStore,
   useThemeStore,
 } from '../../store';
@@ -36,13 +37,12 @@ import { PlotEvents } from './PlotEvents';
 import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '../../hooks';
 import { UPlotPluginPortal } from '../UPlotWrapper';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
-import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
-import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
-import { createPlotPreview } from '../../store/plot/plotPreview';
 import { shallow } from 'zustand/shallow';
-import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
+import { formatByMetricType, getMetricType, incrs, splitByMetricType } from '../../common/formatByMetricType';
 import { METRIC_TYPE } from '../../api/enum';
 import css from './style.module.css';
+import { useLinkCSV } from '../../hooks/useLinkCSV';
+import { PlotHealsStatus } from './PlotHealsStatus';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -57,8 +57,7 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
   return [dataMin, dataMax];
 }
 
-const { setPlotParams, setTimeRange, setLiveMode, setYLockChange, setPlotLastError, setUPlotWidth, loadPlot } =
-  useStore.getState();
+const { setPlotParams, setTimeRange, setYLockChange, setPlotLastError, setUPlotWidth, loadPlot } = useStore.getState();
 
 export function PlotViewEvent(props: {
   indexPlot: number;
@@ -70,7 +69,6 @@ export function PlotViewEvent(props: {
   embed?: boolean;
 }) {
   const { indexPlot, compact, yAxisSize, dashboard, className, group, embed } = props;
-  const params = useStore(selectorParams);
   const selectorParamsPlot = useMemo(() => selectorParamsPlotsByIndex.bind(undefined, indexPlot), [indexPlot]);
   const sel = useStore(selectorParamsPlot);
   const setSel = useMemo(() => setPlotParams.bind(undefined, indexPlot), [indexPlot]);
@@ -78,13 +76,11 @@ export function PlotViewEvent(props: {
   const plotEvent = useStore(selectorEvent);
   const [pluginTimeWindow, pluginTimeWindowHooks] = useUPlotPluginHooks();
 
-  const timeShifts = useStore(selectorParamsTimeShifts);
-
   const timeRange = useStore(selectorTimeRange);
 
   const baseRange = useStore(selectorBaseRange);
 
-  const live = useStore(selectorLiveMode);
+  const { live, interval } = useLiveModeStore((s) => s);
 
   const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
   const {
@@ -113,9 +109,6 @@ export function PlotViewEvent(props: {
   const selectorNumQueries = useMemo(() => selectorNumQueriesPlotByIndex.bind(undefined, indexPlot), [indexPlot]);
   const numQueries = useStore(selectorNumQueries);
 
-  const selectorUPlotWidth = useMemo(() => selectorUPlotsWidthByIndex.bind(undefined, indexPlot), [indexPlot]);
-  const width = useStore(selectorUPlotWidth);
-
   const selectorPlotMetricsMeta = useMemo(
     () => selectorMetricsMetaByName.bind(undefined, sel.metricName ?? ''),
     [sel.metricName]
@@ -127,6 +120,13 @@ export function PlotViewEvent(props: {
   const loadEvent = useStore(selectorLoadEvents);
 
   const themeDark = useThemeStore((s) => s.dark);
+  const plotHeals = usePlotHealsStore((s) => s.status[indexPlot]);
+  const healsInfo = useMemo(() => {
+    if (plotHeals?.timout && interval < plotHeals.timout) {
+      return `plot update timeout ${plotHeals.timout} sec`;
+    }
+    return undefined;
+  }, [interval, plotHeals?.timout]);
 
   const uPlotRef = useRef<uPlot>();
 
@@ -137,10 +137,12 @@ export function PlotViewEvent(props: {
 
   const clearLastError = useCallback(() => {
     setPlotLastError(indexPlot, '');
+    removePlotHeals(indexPlot.toString());
   }, [indexPlot]);
 
   const reload = useCallback(() => {
     setPlotLastError(indexPlot, '');
+    removePlotHeals(indexPlot.toString());
     loadPlot(indexPlot);
   }, [indexPlot]);
 
@@ -168,6 +170,13 @@ export function PlotViewEvent(props: {
   useEffect(() => {
     resetZoomRef.current = resetZoom;
   }, [resetZoom]);
+
+  const metricType = useMemo(() => {
+    if (sel.metricType != null) {
+      return sel.metricType;
+    }
+    return getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
+  }, [meta?.metric_type, metaMetricType, sel.metricType, sel.what, whats]);
 
   const onSetSelect = useCallback(
     (u: uPlot) => {
@@ -204,7 +213,6 @@ export function PlotViewEvent(props: {
           key: group,
         }
       : undefined;
-    const metricType = getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -242,6 +250,7 @@ export function PlotViewEvent(props: {
           font: font,
           stroke: getAxisStroke,
           splits: metricType === METRIC_TYPE.none ? undefined : splitByMetricType(metricType),
+          incrs,
         },
       ],
       scales: {
@@ -272,20 +281,7 @@ export function PlotViewEvent(props: {
       },
       plugins: [pluginTimeWindow],
     };
-  }, [
-    compact,
-    getAxisStroke,
-    group,
-    meta?.metric_type,
-    metaMetricType,
-    pluginTimeWindow,
-    sel.what,
-    themeDark,
-    topPad,
-    whats,
-    xAxisSize,
-    yAxisSize,
-  ]);
+  }, [compact, getAxisStroke, group, metricType, pluginTimeWindow, themeDark, topPad, xAxisSize, yAxisSize]);
 
   const timeWindow = useMemo(() => {
     let leftWidth = 0;
@@ -307,15 +303,7 @@ export function PlotViewEvent(props: {
     };
   }, [plotEvent.range.from, plotEvent.range.to]);
 
-  const linkCSV = useMemo(() => {
-    const agg =
-      sel.customAgg === -1
-        ? `${Math.floor(width / 2)}`
-        : sel.customAgg === 0
-        ? `${Math.floor(width * devicePixelRatio)}`
-        : `${sel.customAgg}s`;
-    return queryURLCSV(sel, timeRange, timeShifts, agg, params);
-  }, [params, sel, timeRange, timeShifts, width]);
+  const linkCSV = useLinkCSV(indexPlot);
 
   const onReady = useCallback(
     (u: uPlot) => {
@@ -347,10 +335,10 @@ export function PlotViewEvent(props: {
   const divOut = useRef<HTMLDivElement>(null);
   const visible = useIntersectionObserver(divOut?.current, threshold, undefined, 0);
   const onMouseOver = useCallback(() => {
-    if (divOut.current) {
+    if (divOut.current && !embed) {
       setFixHeight(divOut.current.getBoundingClientRect().height);
     }
-  }, []);
+  }, [embed]);
   const onMouseOut = useCallback(() => {
     setFixHeight(0);
   }, []);
@@ -412,22 +400,17 @@ export function PlotViewEvent(props: {
             style={{ width: `${yAxisSize}px` }}
             className="flex-shrink-0 d-flex justify-content-end align-items-center pe-3"
           >
-            {numQueries > 0 && compact && (
-              <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-            )}
+            <PlotHealsStatus
+              numQueries={numQueries}
+              lastError={lastError}
+              clearLastError={clearLastError}
+              live={live}
+              reload={reload}
+              timeoutInfo={healsInfo}
+            />
           </div>
           {/*header*/}
           <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
-            {/*last error*/}
-            {!!lastError && (
-              <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
-                <button type="button" className="btn" aria-label="Reload" onClick={reload}>
-                  <SVGArrowCounterclockwise />
-                </button>
-                <small className="overflow-force-wrap font-monospace">{lastError}</small>
-                <button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
-              </div>
-            )}
             <PlotHeader
               indexPlot={indexPlot}
               setParams={setSel}

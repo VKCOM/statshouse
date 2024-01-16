@@ -9,8 +9,16 @@ import { useLocation } from 'react-router-dom';
 
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGXSquare } from 'bootstrap-icons/icons/x-square.svg';
+import { ReactComponent as SVGFlagFill } from 'bootstrap-icons/icons/flag-fill.svg';
 
-import { Store, useStore } from '../../store';
+import {
+  setPlotVisibility,
+  setPreviewVisibility,
+  Store,
+  usePlotPreviewStore,
+  usePlotVisibilityStore,
+  useStore,
+} from '../../store';
 import { PlotLink } from '../Plot/PlotLink';
 import { whatToWhatDesc } from '../../view/api';
 
@@ -19,10 +27,8 @@ import css from './style.module.css';
 import { promQLMetric } from '../../view/utils';
 import { shallow } from 'zustand/shallow';
 import { PLOT_TYPE } from '../../url/queryParams';
-import { setPlotVisibility, setPreviewVisibility, usePlotVisibilityStore } from '../../store/plot/plotVisibilityStore';
 import { buildThresholdList, useIntersectionObserver } from '../../hooks';
-import { usePlotPreview } from '../../store/plot/plotPreview';
-import { Popper } from '../UI';
+import { Popper, Tooltip } from '../UI';
 
 const threshold = buildThresholdList(1);
 
@@ -49,7 +55,7 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
   const isView = location.pathname === '/view';
   const selectorPlotInfo = useMemo(() => selectorPlotInfoByIndex.bind(undefined, indexPlot), [indexPlot]);
   const { plot, numQueries, plotData, tabNum, plotCount } = useStore(selectorPlotInfo, shallow);
-  const preview = usePlotPreview((s) => s.previewList[indexPlot]);
+  const preview = usePlotPreviewStore((s) => s.previewList[indexPlot]);
   const lastVisiblePlot = useRef(false);
   const onRemovePlot = useCallback(() => {
     removePlot(indexPlot);
@@ -121,7 +127,11 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
 
   return (
     <li
-      className={cn('position-relative', css.plotItem, indexPlot === tabNum && isView && css.activePlotItem)}
+      className={cn(
+        'position-relative',
+        css.plotItem,
+        indexPlot === tabNum && isView && [css.activePlotItem, 'plot-active']
+      )}
       onMouseOver={onOpen}
       onMouseOut={onClose}
       onClick={onClose}
@@ -134,7 +144,6 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
           plot.type === PLOT_TYPE.Event && css.previewEvent
         )}
         indexPlot={indexPlot}
-        title={title}
         ref={touchToggle}
       >
         {!!plotData.error403 && <SVGXSquare className={css.icon} />}
@@ -144,14 +153,14 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
             <div className="spinner-white-bg spinner-border spinner-border-sm" role="status" aria-hidden="true"></div>
           </div>
         )}
+        {plot.type === PLOT_TYPE.Event && <SVGFlagFill className="position-absolute top-0 start-0 ms-1 mt-1" />}
       </PlotLink>
-      <Popper targetRef={itemRef} fixed={false} horizontal={'out-right'} vertical={'top'} show={open}>
+      <Popper targetRef={itemRef} fixed={false} horizontal={'out-right'} vertical={'top'} show={open} always>
         <ul className={cn(`nav d-flex flex-column`, css.sub)} ref={sub}>
           <li className={cn('nav-item d-flex flex-row', css.bigPreview)}>
             <PlotLink
               className="nav-link text-nowrap flex-grow-1 text-body fw-bold font-monospace text-decoration-none d-flex flex-row w-0"
               indexPlot={indexPlot}
-              title={title}
             >
               {plot.customName ? (
                 <span className="text-truncate">{plot.customName}</span>
@@ -168,9 +177,9 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
               )}
             </PlotLink>
             {plotCount > 1 && (
-              <span role="button" title="Remove" className="d-block p-2 text-body" onClick={onRemovePlot}>
+              <Tooltip role="button" title="Remove" className="d-block p-2 text-body" onClick={onRemovePlot}>
                 <SVGTrash />
-              </span>
+              </Tooltip>
             )}
           </li>
           {!!preview && !plotData.error403 && (

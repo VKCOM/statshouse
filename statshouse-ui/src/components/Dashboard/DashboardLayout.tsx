@@ -20,9 +20,6 @@ import {
   selectorDashboardLayoutEdit,
   selectorMoveAndResortPlot,
   selectorParams,
-  selectorSetGroupName,
-  selectorSetGroupShow,
-  selectorSetGroupSize,
   useStore,
 } from '../../store';
 
@@ -30,6 +27,9 @@ import css from './style.module.css';
 import { PlotParams } from '../../url/queryParams';
 import { toNumber } from '../../common/helpers';
 import { useResizeObserver } from '../../view/utils';
+import { Button, TextArea, Tooltip } from '../UI';
+import { DashboardPlotWrapper } from './DashboardPlotWrapper';
+import { DashboardGroupTooltipTitle } from './DashboardGroupTooltipTitle';
 
 function getStylePreview(
   targetRect: DOMRect,
@@ -89,13 +89,12 @@ export type DashboardLayoutProps = {
   embed?: boolean;
 };
 
+const { setGroupName, setGroupDescription, setGroupShow, setGroupSize } = useStore.getState();
+
 export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardLayoutProps) {
   const params = useStore(selectorParams);
   const moveAndResortPlot = useStore(selectorMoveAndResortPlot);
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
-  const setGroupName = useStore(selectorSetGroupName);
-  const setGroupShow = useStore(selectorSetGroupShow);
-  const setGroupSize = useStore(selectorSetGroupSize);
   const preview = useRef<HTMLDivElement>(null);
   const zone = useRef<HTMLDivElement>(null);
   const { width: zoneWidth } = useResizeObserver(zone);
@@ -108,11 +107,17 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
     const plots = params.plots.map((plot, indexPlot) => ({ plot, indexPlot }));
     const indexPlotMap = new Map<
       number,
-      { plot: PlotParams; indexPlot: number; indexGroup: number; selected: boolean; indexPlotInGroup: number }
+      {
+        plot: PlotParams;
+        indexPlot: number;
+        indexGroup: number;
+        selected: boolean;
+        indexPlotInGroup: number;
+      }
     >();
     const groups = params.dashboard?.groupInfo?.length
       ? params.dashboard?.groupInfo
-      : [{ count: plots.length, name: '', size: '2', show: true }];
+      : [{ count: plots.length, name: '', size: '2', show: true, description: '' }];
     let indexStart: number = 0;
     const itemsG = groups.map((group, indexGroup) => {
       const r = {
@@ -130,7 +135,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
     });
     if (selectTargetGroup != null && !itemsG[selectTargetGroup]) {
       itemsG[selectTargetGroup] = {
-        group: { name: '', size: '2', show: true, count: 1 },
+        group: { name: '', size: '2', show: true, count: 1, description: '' },
         indexGroup: selectTargetGroup,
         plots: [],
       };
@@ -163,7 +168,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
   const maxGroup = useMemo(() => {
     const groups = params.dashboard?.groupInfo?.length
       ? params.dashboard?.groupInfo
-      : [{ count: params.plots.length, name: '', size: '2', show: true }];
+      : [{ count: params.plots.length, name: '', size: '2', show: true, description: '' }];
     return groups.reduce((res, group, indexGroup) => {
       if (group.count) {
         res = Math.max(res, indexGroup);
@@ -272,30 +277,27 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
       };
     }
   }, [dashboardLayoutEdit]);
-  const onEditGroupName = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const index = parseInt(e.currentTarget.getAttribute('data-group') ?? '0');
-      const name = e.currentTarget.value;
-      setGroupName(index, name);
-    },
-    [setGroupName]
-  );
-  const onGroupShowToggle = useCallback(
-    (e: React.MouseEvent<HTMLElement>) => {
-      const index = parseInt(e.currentTarget.getAttribute('data-group') ?? '0');
-      setGroupShow(index, (s) => !s);
-    },
-    [setGroupShow]
-  );
+  const onEditGroupName = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const index = parseInt(e.currentTarget.getAttribute('data-group') ?? '0');
+    const name = e.currentTarget.value;
+    setGroupName(index, name);
+  }, []);
 
-  const onEditGroupSize = useCallback(
-    (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const index = parseInt(e.currentTarget.getAttribute('data-group') ?? '0');
-      const size = e.currentTarget.value ?? '2';
-      setGroupSize(index, size);
-    },
-    [setGroupSize]
-  );
+  const onEditGroupDescription = useCallback((value: string, event: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const index = parseInt(event.currentTarget.getAttribute('data-group') ?? '0');
+    setGroupDescription(index, value);
+  }, []);
+
+  const onGroupShowToggle = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const index = parseInt(e.currentTarget.getAttribute('data-group') ?? '0');
+    setGroupShow(index, (s) => !s);
+  }, []);
+
+  const onEditGroupSize = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    const index = parseInt(e.currentTarget.getAttribute('data-group') ?? '0');
+    const size = e.currentTarget.value ?? '2';
+    setGroupSize(index, size);
+  }, []);
 
   const onAddGroup = useCallback((e: React.MouseEvent<HTMLElement>) => {
     const index = parseInt(e.currentTarget.getAttribute('data-index-group') ?? '0');
@@ -325,77 +327,88 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
         ref={zone}
       >
         {itemsGroup.map(({ group, indexGroup, plots }) => (
-          <div key={indexGroup} className="pb-5" data-group={indexGroup}>
+          <div key={indexGroup} className={cn(!embed ? 'pb-3' : 'pb-2')} data-group={indexGroup}>
             <h6
               hidden={itemsGroup.length <= 1 && group.show !== false && !dashboardLayoutEdit && !group.name}
               className="border-bottom pb-1"
             >
               {dashboardLayoutEdit ? (
-                <div className="d-flex p-0 container-xl">
-                  <button className="btn me-2" onClick={onGroupShowToggle} data-group={indexGroup}>
-                    {group.show === false ? <SVGChevronRight /> : <SVGChevronDown />}
-                  </button>
-                  <div className="input-group">
-                    <input
-                      className="form-control"
-                      data-group={indexGroup}
-                      value={group.name ?? ''}
-                      onInput={onEditGroupName}
-                      placeholder="Enter group name"
-                    />
-                    <select
-                      className="form-select flex-grow-0 w-auto"
-                      data-group={indexGroup}
-                      value={group.size?.toString() || '2'}
-                      onChange={onEditGroupSize}
-                    >
-                      <option value="2">L, 2 per row</option>
-                      <option value="l">L, auto width</option>
-                      <option value="3">M, 3 per row</option>
-                      <option value="m">M, auto width</option>
-                      <option value="4">S, 4 per row</option>
-                      <option value="s">S, auto width</option>
-                    </select>
-                    <div className="d-flex flex-column">
-                      <button
-                        className="btn btn-sm btn-outline-primary py-0 rounded-0"
-                        style={{ height: 19 }}
-                        title="Group move up"
-                        data-index-group={indexGroup}
-                        disabled={indexGroup === 0}
-                        onClick={onMoveGroupUp}
+                <div className="p-0 container-xl">
+                  <div className="d-flex mb-1">
+                    <Button className="btn me-2" onClick={onGroupShowToggle} data-group={indexGroup}>
+                      {group.show === false ? <SVGChevronRight /> : <SVGChevronDown />}
+                    </Button>
+                    <div className="input-group">
+                      <input
+                        className="form-control"
+                        data-group={indexGroup}
+                        value={group.name ?? ''}
+                        onInput={onEditGroupName}
+                        placeholder="Enter group name"
+                      />
+                      <select
+                        className="form-select flex-grow-0 w-auto"
+                        data-group={indexGroup}
+                        value={group.size?.toString() || '2'}
+                        onChange={onEditGroupSize}
                       >
-                        <SVGChevronCompactUp className="align-baseline" />
-                      </button>
-                      <button
-                        className="btn btn-sm btn-outline-primary py-0 rounded-0 border-top-0"
-                        style={{ height: 19 }}
-                        title="Group move down"
+                        <option value="2">L, 2 per row</option>
+                        <option value="l">L, auto width</option>
+                        <option value="3">M, 3 per row</option>
+                        <option value="m">M, auto width</option>
+                        <option value="4">S, 4 per row</option>
+                        <option value="s">S, auto width</option>
+                      </select>
+                      <div className="d-flex flex-column">
+                        <Button
+                          className="btn btn-sm btn-outline-primary py-0 rounded-0"
+                          style={{ height: 19 }}
+                          title="Group move up"
+                          data-index-group={indexGroup}
+                          disabled={indexGroup === 0}
+                          onClick={onMoveGroupUp}
+                        >
+                          <SVGChevronCompactUp className="align-baseline" />
+                        </Button>
+                        <Button
+                          className="btn btn-sm btn-outline-primary py-0 rounded-0 border-top-0"
+                          style={{ height: 19 }}
+                          title="Group move down"
+                          data-index-group={indexGroup}
+                          disabled={indexGroup === itemsGroup.length - 1}
+                          onClick={onMoveGroupDown}
+                        >
+                          <SVGChevronCompactDown className="align-baseline" />
+                        </Button>
+                      </div>
+                      <Button
+                        className="btn btn-outline-primary px-1"
+                        title="Add group before this"
                         data-index-group={indexGroup}
-                        disabled={indexGroup === itemsGroup.length - 1}
-                        onClick={onMoveGroupDown}
+                        onClick={onAddGroup}
                       >
-                        <SVGChevronCompactDown className="align-baseline" />
-                      </button>
+                        <SVGPlus />
+                      </Button>
+                      {itemsGroup.length > 1 && plots.length === 0 && (
+                        <Button
+                          className="btn btn-outline-danger px-1"
+                          title="Remove group"
+                          data-index-group={indexGroup}
+                          onClick={onRemoveGroup}
+                        >
+                          <SVGTrash />
+                        </Button>
+                      )}
                     </div>
-                    <button
-                      className="btn btn-outline-primary px-1"
-                      title="Add group before this"
-                      data-index-group={indexGroup}
-                      onClick={onAddGroup}
-                    >
-                      <SVGPlus />
-                    </button>
-                    {itemsGroup.length > 1 && plots.length === 0 && (
-                      <button
-                        className="btn btn-outline-danger px-1"
-                        title="Remove group"
-                        data-index-group={indexGroup}
-                        onClick={onRemoveGroup}
-                      >
-                        <SVGTrash />
-                      </button>
-                    )}
+                  </div>
+                  <div>
+                    <TextArea
+                      data-group={indexGroup}
+                      autoHeight
+                      placeholder="Group description"
+                      value={group.description ?? ''}
+                      onChange={onEditGroupDescription}
+                    />
                   </div>
                 </div>
               ) : (
@@ -407,9 +420,23 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                 >
                   <div className="me-2">{group.show === false ? <SVGChevronRight /> : <SVGChevronDown />}</div>
 
-                  <div className="flex-grow-1">
-                    {group.name || <span className="text-body-tertiary">Group {indexGroup + 1}</span>}
-                  </div>
+                  <Tooltip
+                    className="flex-grow-1 d-flex flex-row gap-2"
+                    minWidth={200}
+                    title={
+                      group.name ? (
+                        <DashboardGroupTooltipTitle name={group.name} description={group.description} />
+                      ) : undefined
+                    }
+                    horizontal="left"
+                    hover
+                  >
+                    <div>
+                      {group.name || <span className="text-body-tertiary">Group {indexGroup + 1}</span>}
+                      {!!group.description && ':'}
+                    </div>
+                    <div className="flex-grow-1 text-secondary text-truncate w-0">{group.description}</div>
+                  </Tooltip>
                 </div>
               )}
             </h6>
@@ -418,12 +445,12 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                 <div
                   className={cn(
                     'd-flex flex-row flex-wrap',
-                    !plots.length && !dashboardLayoutEdit ? 'pb-0' : 'pb-5',
+                    (!plots.length && !dashboardLayoutEdit) || embed ? 'pb-0' : 'pb-3',
                     toNumber(group.size ?? '2') != null ? 'container-xl' : null
                   )}
                 >
                   {plots.map(({ plot, indexPlot, selected }) => (
-                    <div
+                    <DashboardPlotWrapper
                       key={indexPlot}
                       className={cn(
                         'plot-item p-1',
@@ -445,7 +472,7 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
                         dashboard={true}
                         group="1"
                       />
-                    </div>
+                    </DashboardPlotWrapper>
                   ))}
                 </div>
               </div>
@@ -461,13 +488,13 @@ export function DashboardLayout({ yAxisSize = 54, embed, className }: DashboardL
           ) : (
             <div className="pb-5 text-center container-xl" data-group={maxGroup + 1}>
               <h6 className="border-bottom"> </h6>
-              <button
+              <Button
                 className="btn btn-outline-primary py-4 w-100"
                 data-index-group={maxGroup + 1}
                 onClick={onAddGroup}
               >
                 <SVGPlus /> Add new group
-              </button>
+              </Button>
             </div>
           ))}
         <div hidden={select === null} className="position-fixed opacity-75 top-0 start-0" ref={preview}>

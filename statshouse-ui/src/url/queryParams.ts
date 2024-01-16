@@ -10,6 +10,9 @@ import {
   isQueryWhat,
   isTagKey,
   METRIC_VALUE_BACKEND_VERSION,
+  MetricType,
+  metricTypeToMetricTypeUrl,
+  metricTypeUrlToMetricType,
   QueryWhat,
   TAG_KEY,
   TagKey,
@@ -109,6 +112,7 @@ export function toPlotKey(s: unknown, defaultPlotKey?: PlotKey): PlotKey | null 
 export type PlotParams = {
   metricName: string;
   customName: string;
+  metricType?: MetricType;
   customDescription: string;
   what: QueryWhat[];
   customAgg: number;
@@ -134,6 +138,7 @@ export type GroupInfo = {
   show: boolean;
   count: number;
   size: string;
+  description: string;
 };
 
 export type DashboardParams = {
@@ -226,6 +231,7 @@ export function getNewPlot(): PlotParams {
     customName: '',
     customDescription: '',
     promQL: '',
+    metricType: undefined,
     what: globalSettings.default_metric_what.slice(),
     customAgg: 0,
     groupBy: globalSettings.default_metric_group_by.slice(),
@@ -365,7 +371,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         !defaultParams?.dashboard?.groupInfo?.length
       )
     ) {
-      value.dashboard.groupInfo.forEach(({ name, show, count, size }, indexGroup) => {
+      value.dashboard.groupInfo.forEach(({ name, show, count, size, description }, indexGroup) => {
         const prefix = toGroupInfoPrefix(indexGroup);
         search.push([prefix + GET_PARAMS.dashboardGroupInfoName, name]);
         if (count) {
@@ -373,6 +379,9 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         }
         if (size !== '2') {
           search.push([prefix + GET_PARAMS.dashboardGroupInfoSize, size.toString()]);
+        }
+        if (description) {
+          search.push([prefix + GET_PARAMS.dashboardGroupInfoDescription, description]);
         }
       });
     }
@@ -423,6 +432,10 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
         search.push([prefix + GET_PARAMS.metricCustomName, plot.customName]);
       }
 
+      if (plot.metricType != null && plot.metricType !== defaultPlot.metricType) {
+        search.push([prefix + GET_PARAMS.metricMetricType, metricTypeToMetricTypeUrl(plot.metricType)]);
+      }
+
       if (plot.customDescription !== defaultPlot.customDescription) {
         search.push([prefix + GET_PARAMS.metricCustomDescription, plot.customDescription]);
       }
@@ -460,9 +473,14 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
           });
         });
       }
-
-      if (plot.numSeries !== defaultPlot.numSeries) {
-        search.push([prefix + GET_PARAMS.numResults, plot.numSeries.toString()]);
+      if (plot.type === PLOT_TYPE.Event) {
+        if (plot.numSeries !== 0) {
+          search.push([prefix + GET_PARAMS.numResults, plot.numSeries.toString()]);
+        }
+      } else {
+        if (plot.numSeries !== defaultPlot.numSeries) {
+          search.push([prefix + GET_PARAMS.numResults, plot.numSeries.toString()]);
+        }
       }
 
       if (!plot.useV2) {
@@ -584,9 +602,10 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     if (name === removeValueChar) {
       break;
     }
+    const description = urlParams[prefix + GET_PARAMS.dashboardGroupInfoDescription]?.[0] ?? '';
     const count = toNumber(urlParams[prefix + GET_PARAMS.dashboardGroupInfoCount]?.[0]) ?? 0;
     const size = urlParams[prefix + GET_PARAMS.dashboardGroupInfoSize]?.[0] ?? '2';
-    groupInfo.push({ name, show: defaultParams?.dashboard?.groupInfo?.[i]?.show ?? true, count, size });
+    groupInfo.push({ name, show: defaultParams?.dashboard?.groupInfo?.[i]?.show ?? true, count, size, description });
   }
   groupInfo.forEach((group, indexGroup) => {
     const prefix = toGroupInfoPrefix(indexGroup);
@@ -620,6 +639,8 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     const customName = urlParams[prefix + GET_PARAMS.metricCustomName]?.[0] ?? defaultPlot.customName;
     const customDescription =
       urlParams[prefix + GET_PARAMS.metricCustomDescription]?.[0] ?? defaultPlot.customDescription;
+    const metricType: MetricType | undefined =
+      metricTypeUrlToMetricType(urlParams[prefix + GET_PARAMS.metricMetricType]?.[0]) ?? defaultPlot.metricType;
     const what: QueryWhat[] =
       urlParams[prefix + GET_PARAMS.metricWhat]?.filter(isQueryWhat) ?? defaultPlot.what.slice();
     const customAgg = toNumber(urlParams[prefix + GET_PARAMS.metricAgg]?.[0]) ?? defaultPlot.customAgg;
@@ -646,8 +667,6 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       }
     });
 
-    const numSeries = toNumber(urlParams[prefix + GET_PARAMS.numResults]?.[0]) ?? defaultPlot.numSeries;
-
     const useV2 = urlParams[prefix + GET_PARAMS.version]?.[0] !== METRIC_VALUE_BACKEND_VERSION.v1;
 
     const yLockMin = toNumber(urlParams[prefix + GET_PARAMS.metricLockMin]?.[0]) ?? defaultPlot.yLock.min;
@@ -659,6 +678,10 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
 
     const type = toPlotType(urlParams[prefix + GET_PARAMS.metricType]?.[0]) ?? defaultPlot.type;
 
+    const numSeries =
+      toNumber(urlParams[prefix + GET_PARAMS.numResults]?.[0]) ??
+      (type === PLOT_TYPE.Event ? 0 : defaultPlot.numSeries);
+
     const events = urlParams[prefix + GET_PARAMS.metricEvent]?.map(toNumber).filter(isNotNil) ?? [];
 
     const eventsBy = urlParams[prefix + GET_PARAMS.metricEventBy] ?? [];
@@ -669,6 +692,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       metricName,
       customName,
       customDescription,
+      metricType,
       what,
       customAgg,
       groupBy,

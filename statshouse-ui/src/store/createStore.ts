@@ -21,7 +21,7 @@ export function createStore<T, Mos extends [StoreMutatorIdentifier, T][] = []>(
       })
     );
   }
-  return create<T>()(immer(store));
+  return create<T>()(storeImmer);
 }
 
 export function createStoreWithEqualityFn<T, Mos extends [StoreMutatorIdentifier, T][] = []>(

@@ -1,14 +1,7 @@
 import { Portal } from './Portal';
 import css from './style.module.css';
 import React, { memo, ReactNode, RefObject, useEffect, useMemo, useState } from 'react';
-import {
-  buildThresholdList,
-  useIntersectionObserver,
-  useRectObserver,
-  useRefState,
-  useWindowSize,
-  WindowSize,
-} from '../../hooks';
+import { buildThresholdList, useIntersectionObserver, useRectObserver, useWindowSize, WindowSize } from '../../hooks';
 import cn from 'classnames';
 
 const popperId = 'popper-group';
@@ -42,6 +35,7 @@ export type PopperProps = {
   vertical?: PopperVertical;
   horizontal?: PopperHorizontal;
   show?: boolean;
+  always?: boolean;
   fixed?: boolean;
 };
 
@@ -109,25 +103,28 @@ export function _Popper({
   horizontal = POPPER_HORIZONTAL.center,
   vertical = POPPER_VERTICAL.outTop,
   show = true,
+  always = false,
   fixed = false,
 }: PopperProps) {
+  const [firstInit, setFirstInit] = useState(false);
   const visible = useIntersectionObserver(targetRef?.current, threshold);
   const [targetRect, updateTargetRect] = useRectObserver(targetRef?.current, fixed);
-  const [inner, innerRef] = useRefState<HTMLDivElement>();
-  const innerVisible = useIntersectionObserver(inner, threshold);
-  const [innerRect] = useRectObserver(inner, fixed);
+  const [innerRef, setInnerRef] = useState<HTMLDivElement | null>(null);
+  const innerVisible = useIntersectionObserver(innerRef, threshold);
+  const [innerRect] = useRectObserver(innerRef, fixed);
   const windowRect = useWindowSize();
 
   const [horizontalClass, setHorizontalClass] = useState(horizontal);
   const [verticalClass, setVerticalClass] = useState(vertical);
 
   const maxWidth = useMemo(() => {
-    if (horizontalClass === POPPER_HORIZONTAL.center) {
-      const center = targetRect.x + targetRect.width / 2;
-      return Math.min(center, windowRect.width - center) * 2;
+    if (verticalClass === POPPER_VERTICAL.middle) {
+      return Math.max(targetRect.x, windowRect.width - (targetRect.x + targetRect.width));
     }
-    return Math.max(targetRect.x, windowRect.width - (targetRect.x + targetRect.width));
-  }, [horizontalClass, targetRect.width, targetRect.x, windowRect.width]);
+    const center = targetRect.x + targetRect.width / 2;
+    const centerWidth = Math.min(center, windowRect.width - center) * 2;
+    return Math.max(targetRect.x, windowRect.width - (targetRect.x + targetRect.width), centerWidth);
+  }, [targetRect.width, targetRect.x, verticalClass, windowRect.width]);
 
   const maxHeight = useMemo(() => {
     if (verticalClass === POPPER_VERTICAL.middle) {
@@ -138,7 +135,7 @@ export function _Popper({
   }, [targetRect.height, targetRect.y, verticalClass, windowRect.height]);
 
   useEffect(() => {
-    if (innerVisible >= 1) {
+    if (innerVisible >= 1 && !always) {
       return;
     }
     const checkH = checkHorizontal.bind(undefined, targetRect, innerRect, windowRect);
@@ -210,16 +207,17 @@ export function _Popper({
         setVerticalClass(checkV(POPPER_VERTICAL.outBottom) || checkV(POPPER_VERTICAL.outTop) || vertical);
         break;
     }
-  }, [horizontal, innerRect, innerVisible, targetRect, vertical, windowRect]);
+    setFirstInit(true);
+  }, [always, horizontal, innerRect, innerVisible, targetRect, vertical, windowRect]);
 
   useEffect(() => {
     updateTargetRect();
   }, [show, updateTargetRect]);
   return (
     <Portal id={popperId} className={cn(css.popperGroup, fixed && css.popperGroupFixed)}>
-      {visible && show && (
+      {!!visible && show && (
         <div
-          className={cn(css.popperItem, className)}
+          className={cn(css.popperItem, !firstInit && 'visually-hidden', className)}
           style={
             {
               height: targetRect.height,
@@ -230,7 +228,7 @@ export function _Popper({
             } as React.CSSProperties
           }
         >
-          <div ref={innerRef} className={cn(css.popperItemInner, css[verticalClass], css[horizontalClass])}>
+          <div ref={setInnerRef} className={cn(css.popperItemInner, css[verticalClass], css[horizontalClass])}>
             {children}
           </div>
         </div>

@@ -281,6 +281,11 @@ func multiValueMarshal(metricID int32, cache *metricIndexCache, res []byte, valu
 }
 
 func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *rand.Rand, res []byte, historic bool) []byte {
+	var config ConfigAggregatorRemote
+	a.configMu.RLock()
+	config = a.configR
+	a.configMu.RUnlock()
+
 	sizeCounters := 0
 	sizeValues := 0
 	sizePercentiles := 0
@@ -333,15 +338,19 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		seriesCount += len(b.shards[si].multiItems)
 	}
 	sampler := data_model.NewSampler(seriesCount, data_model.SamplerConfig{
-		Meta:  a.metricStorage,
-		Rand:  rnd,
-		KeepF: func(k data_model.Key, item *data_model.MultiItem) { insertItem(k, item, item.SF) },
+		Meta:             a.metricStorage,
+		SampleNamespaces: config.SampleNamespaces,
+		SampleGroups:     config.SampleGroups,
+		SampleKeys:       config.SampleKeys,
+		Rand:             rnd,
+		KeepF:            func(k data_model.Key, item *data_model.MultiItem) { insertItem(k, item, item.SF) },
 	})
+	var samplerStat data_model.SamplerStatistics
 	// First, sample with global sampling factors, depending on cardinality. Collect relative sizes for 2nd stage sampling below.
 	// TODO - actual sampleFactors are empty due to code commented out in estimator.go
 	for si := 0; si < len(b.shards); si++ {
 		for k, item := range b.shards[si].multiItems {
-			whaleWeight := item.FinishStringTop(a.config.StringTopCountInsert) // all excess items are baked into Tail
+			whaleWeight := item.FinishStringTop(config.StringTopCountInsert) // all excess items are baked into Tail
 
 			resPos := len(res)
 			res = appendMultiBadge(res, k, item, metricCache, usedTimestamps)
@@ -349,12 +358,21 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 
 			accountMetric := k.Metric
 			if k.Metric < 0 {
-				if k.Metric != format.BuiltinMetricIDIngestionStatus {
-					// For now sample only ingestion statuses on aggregator. Might be bad idea. TODO - check.
+				ingestionStatus := k.Metric == format.BuiltinMetricIDIngestionStatus
+				hardwareMetric := format.HardwareMetric(k.Metric)
+				if !ingestionStatus && !hardwareMetric {
+					// For now sample only ingestion statuses and hardware metrics on aggregator. Might be bad idea. TODO - check.
 					insertItem(k, item, 1)
+					samplerStat.Keep(data_model.SamplingMultiItemPair{
+						Key:         k,
+						Item:        item,
+						WhaleWeight: whaleWeight,
+						Size:        item.RowBinarySizeEstimate(),
+						MetricID:    k.Metric,
+					})
 					continue
 				}
-				if k.Keys[1] != 0 {
+				if ingestionStatus && k.Keys[1] != 0 {
 					// Ingestion status and other unlimited per-metric built-ins should use its metric budget
 					// So metrics are better isolated
 					accountMetric = k.Keys[1]
@@ -380,16 +398,26 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	if minSqrtContributors > 100 { // Short term part peaks at 100 contributors
 		minSqrtContributors = 100
 	}
-	remainingBudget += int64(float64(a.config.InsertBudget100) * minSqrtContributors)
-	remainingBudget += int64(a.config.InsertBudget * numContributors) // fixed part + longterm part
+	remainingBudget += int64(float64(config.InsertBudget100) * minSqrtContributors)
+	remainingBudget += int64(config.InsertBudget * numContributors) // fixed part + longterm part
 	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
-	samplerStat := sampler.Run(remainingBudget, 1)
+	sampler.Run(remainingBudget, 1, &samplerStat)
 	key1 := int32(format.TagValueIDConveyorRecent)
 	if historic {
 		key1 = format.TagValueIDConveyorHistoric
 	}
 	resPos := len(res)
+	for k, v := range samplerStat.Items {
+		// keep bytes
+		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, key1, format.TagValueIDSamplingDecisionKeep, k[0], k[1], k[2]}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		mi := data_model.MultiItem{Tail: data_model.MultiValue{Value: v.SumSizeKeep}}
+		insertItem(key, &mi, 1)
+		// discard bytes
+		key = data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingSizeBytes, [16]int32{0, key1, format.TagValueIDSamplingDecisionDiscard, k[0], k[1], k[2]}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		mi = data_model.MultiItem{Tail: data_model.MultiValue{Value: v.SumSizeDiscard}}
+		insertItem(key, &mi, 1)
+	}
 	for _, s := range samplerStat.GetSampleFactors(nil) {
 		k := s.Metric
 		sf := float64(s.Value)
@@ -397,6 +425,8 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		res = appendBadge(res, key, data_model.ItemValue{Counter: 1, ValueSum: sf}, metricCache, usedTimestamps)
 		res = appendSimpleValueStat(res, key, sf, 1, a.aggregatorHost, metricCache, usedTimestamps)
 	}
+	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingMetricCount, [16]int32{0, key1},
+		a.aggregatorHost, a.shardKey, a.replicaKey), float64(len(samplerStat.Metrics)), 1, a.aggregatorHost, metricCache, usedTimestamps)
 	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeCounter},
 		a.aggregatorHost, a.shardKey, a.replicaKey), float64(sizeCounters), 1, a.aggregatorHost, metricCache, usedTimestamps)
 	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, key1, format.TagValueIDSizeValue},

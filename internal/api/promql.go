@@ -88,7 +88,7 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 		s = append(s, m.Name)
 	}
 	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
-		if ai.canViewMetric(v.Name) {
+		if ai.CanViewMetric(*v) {
 			s = append(s, v.Name)
 		}
 	}
@@ -271,7 +271,7 @@ func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]
 			default:
 				return nil
 			}
-			if !ai.canViewMetric(metric.Name) {
+			if !ai.CanViewMetric(*metric) {
 				return httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metric.Name))
 			}
 			s1 = append(s1, metric)
@@ -316,8 +316,8 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 			false,
 			stringTop,
 			qry.Options.TimeNow,
-			shiftTimestamp(qry.Start, qry.Step, -offset, h.location),
-			shiftTimestamp(qry.End, qry.Step, -offset, h.location),
+			shiftTimestamp(qry.Start, qry.Step, -offset, h.location), // inclusive
+			shiftTimestamp(qry.End, qry.Step, -offset, h.location)+1, // exclusive
 			h.utcOffset,
 			int(qry.Step),
 			widthKind,
@@ -353,24 +353,23 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		})
 		t = res[0]
 	}
-	var (
-		fl  = t.lods[0]             // first LOD
-		ll  = t.lods[len(t.lods)-1] // last LOD
-		res = promql.Timescale{Start: qry.Start, End: qry.End, Offset: t.offset}
-	)
+	fl := t.lods[0]             // first LOD
+	ll := t.lods[len(t.lods)-1] // last LOD
 	if qry.Options.ExpandToLODBoundary {
-		res.Start = shiftTimestamp(fl.fromSec, fl.stepSec, t.offset, h.location) // inclusive
-		res.End = shiftTimestamp(ll.toSec, ll.stepSec, t.offset, h.location) + 1 // exclusive
+		qry.Start = shiftTimestamp(fl.fromSec, fl.stepSec, t.offset, h.location) // inclusive
+		qry.End = shiftTimestamp(ll.toSec, ll.stepSec, t.offset, h.location) + 1 // exclusive
 	}
 	if qry.Options.StepAuto {
-		res.Step = ll.stepSec
-	} else {
-		res.Step = qry.Step
+		qry.Step = ll.stepSec
 	}
 	// extend the interval by one from the left so that the
 	// derivative (if any) at the first point can be calculated
 	t.lods[0].fromSec -= t.lods[0].stepSec
 	// generate time
+	res := promql.Timescale{
+		Step:   qry.Step,
+		Offset: t.offset,
+	}
 	for _, lod := range t.lods {
 		s := lod.generateTimePoints(-t.offset)
 		res.LODs = append(res.LODs, promql.LOD{
@@ -381,6 +380,22 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		})
 		res.Time = append(res.Time, s...)
 	}
+	// calculate requested start index
+	for res.StartX < len(res.Time) && res.Time[res.StartX] < qry.Start {
+		res.StartX++
+	}
+	// trim right
+	i := len(res.Time)
+	j := len(res.LODs)
+	for ; res.StartX < i-1 && qry.End <= res.Time[i-1]; i-- {
+		res.LODs[j-1].Len--
+		res.LODs[j-1].End -= res.LODs[j-1].Step
+		if res.LODs[j-1].Len == 0 {
+			j--
+		}
+	}
+	res.Time = res.Time[:i]
+	res.LODs = res.LODs[:j]
 	return res, nil
 }
 
@@ -418,7 +433,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	if ai == nil {
 		panic("metric access violation") // should not happen
 	}
-	if !ai.canViewMetric(qry.Metric.Name) {
+	if !ai.CanViewMetricName(qry.Metric.Name) {
 		return promql.Series{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
 	}
 	var (
@@ -440,6 +455,14 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			What:   int(what),
 		}}
 	)
+	switch qry.What {
+	case promql.DigestCount, promql.DigestCountSec, promql.DigestCountRaw,
+		promql.DigestStdVar, promql.DigestCardinality, promql.DigestCardinalitySec,
+		promql.DigestCardinalityRaw, promql.DigestUnique, promql.DigestUniqueSec:
+		// measure units does not apply to counters
+	default:
+		res.Meta.Units = qry.Metric.MetricType
+	}
 	var step int64
 	if qry.Range != 0 {
 		step = qry.Range
@@ -463,9 +486,6 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			preKeyOnly: lod.preKeyOnly,
 			location:   lod.location,
 		}
-		if qry.Options.SeriesQueryCallback != nil {
-			qry.Options.SeriesQueryCallback(version, qs, &pq, li, qry.Options.AvoidCache)
-		}
 		m, err := h.cache.Get(ctx, version, qs, &pq, li, qry.Options.AvoidCache)
 		if err != nil {
 			cleanup()
@@ -484,7 +504,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					buffers = append(buffers, values)
 					data := promql.SeriesData{Values: values}
 					if qry.MaxHost {
-						data.Tags.MaxHost = make([]int32, timeLen)
+						data.MaxHost = make([]int32, timeLen)
 					}
 					for k := range *data.Values {
 						(*data.Values)[k] = promql.NilValue
@@ -493,7 +513,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				}
 				(*res.Data[i].Values)[j] = selectTSValue(what, qry.MaxHost, qryRaw, step, &d)
 				if qry.MaxHost {
-					res.Data[i].Tags.MaxHost[j] = d.maxHost
+					res.Data[i].MaxHost[j] = d.maxHost
 				}
 			}
 		}
@@ -830,7 +850,7 @@ func getPromQuery(req seriesRequest, queryFn bool) (string, error) {
 		return req.promQL, nil
 	}
 	var res []string
-	for i, fn := range req.what {
+	for _, fn := range req.what {
 		name, ok := validQueryFn(fn)
 		if !ok {
 			return "", fmt.Errorf("invalid %q value: %q", ParamQueryWhat, fn)
@@ -971,10 +991,10 @@ func getPromQuery(req seriesRequest, queryFn bool) (string, error) {
 			q = fmt.Sprintf("bottomk(%d,%s)", -req.numResults, q)
 		} else if req.numResults > 0 {
 			q = fmt.Sprintf("topk(%d,%s)", req.numResults, q)
+		} else {
+			q = fmt.Sprintf("sort_desc(%s)", q)
 		}
-		if i > 0 {
-			q = fmt.Sprintf("label_replace(%s, \"__name__\",%q,\"\",\"\")", q, name)
-		}
+		q = fmt.Sprintf("label_replace(%s, \"__id__\",%q,\"\",\"\")", q, name)
 		res = append(res, q)
 	}
 	return strings.Join(res, " or "), nil

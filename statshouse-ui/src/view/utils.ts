@@ -31,6 +31,7 @@ import {
 } from '../url/queryParams';
 import { globalSettings } from '../common/settings';
 import { formatFixed } from '../common/formatFixed';
+import { formatFixedFloor } from '../common/formatFixedFloor';
 
 export const goldenRatio = 1.61803398875;
 export const minusSignChar = '−'; //&#8722;
@@ -514,14 +515,14 @@ export function range0(r: [number | null, number | null]): [number | null, numbe
   return [min, max];
 }
 
-export function useResizeObserver(ref: React.RefObject<HTMLDivElement>) {
+export function useResizeObserver(ref: React.RefObject<HTMLDivElement>, noRound?: boolean) {
   const [size, setSize] = React.useState({ width: 0, height: 0 });
 
   React.useLayoutEffect(() => {
     const obs = new ResizeObserver((entries) => {
       entries.forEach((entry) => {
-        const w = Math.round(entry.contentRect.width);
-        const h = Math.round(entry.contentRect.height);
+        const w = noRound ? entry.contentRect.width : Math.round(entry.contentRect.width);
+        const h = noRound ? entry.contentRect.height : Math.round(entry.contentRect.height);
         setSize({ width: w, height: h });
       });
     });
@@ -533,7 +534,7 @@ export function useResizeObserver(ref: React.RefObject<HTMLDivElement>) {
       obs.unobserve(cur);
       obs.disconnect();
     };
-  }, [ref]);
+  }, [noRound, ref]);
 
   return size;
 }
@@ -544,7 +545,7 @@ export function formatLegendValue(value: number | null): string {
   }
   const abs = Math.abs(value);
   const maxFrac = abs > 1000 ? 0 : abs > 100 ? 1 : abs > 10 ? 2 : abs > 0.001 ? 3 : 9;
-  return formatNumberDigit(formatFixed(value, maxFrac));
+  return formatNumberDigit(formatFixedFloor(value, maxFrac));
 }
 
 export function normalizeTagValues(
@@ -679,6 +680,7 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
           count: g.count ?? 0,
           show: g.show ?? true,
           size: g.size?.toString?.() ?? '2',
+          description: g.description ?? '',
         })) ?? [],
     },
     variables:
