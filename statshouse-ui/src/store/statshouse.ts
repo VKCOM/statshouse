@@ -1414,6 +1414,15 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                   [];
                 break;
             }
+            if (params.plots[indexPlot].type === PLOT_TYPE.Metric) {
+              params.plots = params.plots.map((plot, indexP, plotList) => {
+                const eventsFilter = plot.events.filter((eventPlot) => plotList[eventPlot]?.type === PLOT_TYPE.Event);
+                return {
+                  ...plot,
+                  events: eventsFilter,
+                };
+              });
+            }
             const timeShiftsSet = getTimeShifts(params.plots[indexPlot].customAgg);
             const shifts = params.timeShifts.filter(
               (v) => timeShiftsSet.find((shift) => timeShiftAbbrevExpand(shift) === v) !== undefined
