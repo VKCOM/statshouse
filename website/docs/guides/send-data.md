@@ -246,7 +246,8 @@ StatsHouse throws away pieces of data to reduce its overall amount. To keep aggr
 graph's shape the same, StatsHouse multiplies the rest of data by a sampling coefficient.
 
 If it is important for you not to sample data at all, 
-[keep an eye on your metric cardinality](view-graph.md#cardinality).
+[keep an eye on your metric cardinality](view-graph.md#cardinality) or reduce [resolution](edit-metrics.md#resolution) for 
+your metric.
 
 We recommend that the very first tags have the lowest cardinality rate. For example, `tag_0` is usually an 
 `environment` tag having not that many values.
@@ -315,12 +316,12 @@ See the table below for definitions and examples:
 
 :::important
 A metric type affects the range of
-[descriptive statistics](view-graph#desriptive-statistics-available-for-a-metric) available for your metric to view
+[descriptive statistics](view-graph.md#3--descriptive-statistics) available for your metric to view
 and analyze. For example, percentiles are available for _values_ only.
 Or you cannot view the cumulative graph for _uniques_.
 
-See more about [enabling percentiles](#enable-percentiles)
-and [showing descriptive statistics](#aggregation) in the UI.
+See more about [enabling percentiles](edit-metrics.md#percentiles)
+and [showing descriptive statistics](edit-metrics.md#aggregation) in the UI.
 :::
 
 :::note
@@ -400,3 +401,4 @@ minus 1.5 hours.
 
 For `cron` jobs that send metric data, use the one-hour sending period:
 it is OK to send data once in an hour, but it is not OK to send data once in a day.
+

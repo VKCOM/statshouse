@@ -1,6 +1,5 @@
 ---
 sidebar_position: 2
-description: Learn how to create a metric via the StatsHouse UI.
 ---
 import CreateMetric from '../img/create-metric.png'
 import NameMetric from '../img/name-new-metric.png'

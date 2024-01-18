@@ -39,20 +39,15 @@ import PromQuery from '../img/prom-query.png'
 import MetricTabs from '../img/metric-tabs.png'
 import MetricTabDelete from '../img/metric-tab-delete.png'
 
-
 # View metric data
 
 Display data on a graph, in a [table](#10--table-view), or as a [CSV](#csv) file via the StatsHouse UI.
 For complicated scenarios, [query StatsHouse with PromQL](query-wth-promql.md).
 StatsHouse does not support viewing data via third-party applications.
 
-To learn more about viewing options, refer to the picture below <text className="orange-text">⬇</text> 
-and the upper-right navigation bar <text className="orange-text">➡</text>
+To learn more about viewing options, refer to the picture below and the navigation bar.
 
 <img src={HomeLabeled} width="1000"/>
-
-On a mobile device, check the "On this page" menu above the heading of this page 
-<text className="orange-text">⬆</text>
 
 ## 1 — Metric name
 
@@ -75,12 +70,12 @@ You cannot edit them. See [Meta-metrics](#13--meta-metrics) for details.
 If you have StatsHouse deployed in your organization, you can find a set of metrics that are common for all the 
 engines, services, microservices, proxies, etc. in this organization.
 
-#### "How to find the metrics author?"
+#### "How can I find the metrics author?"
 
 There is no mechanism for checking a metrics author in StatsHouse, but sometimes authors mention how to find them 
 in the metric description section. Otherwise, use your organization's internal communication channels.
 
-#### "How to display several metrics on a graph?"
+#### "How can I display several metrics on a graph?"
 
 [Create a dashboard](dashboards.md) or [query StatsHouse with PromQL](query-wth-promql.md). To find relationships 
 between the metrics or events, use [Event overlay](#11--event-overlay).
@@ -164,6 +159,8 @@ For example, choose a 7-day time period and a 24-hour aggregation interval.
 :::
 
 For real-time monitoring, use [Live mode](#5--live-mode).
+
+
  
 ## 5 — Live mode
 
@@ -177,6 +174,7 @@ To share the link to real-time metric data, add the `live=1` query string to the
 
 ## 6 — Aggregation interval
 
+Aggregation interval is a kind of resolution for your metric data.
 The larger aggregation interval you choose, the smoother look your graph has:
 
 <img src={AggregationInterval} width="600"/>
@@ -192,7 +190,7 @@ This interval _varies_ depending on the currently available aggregation:
 The currently available aggregation is also related to
 a metric [resolution](edit-metrics.md#resolution).
 
-The _Auto (low)_ aggregation interval reduces the displayed "resolution" by a constant making the graph look smoother 
+The _Auto (low)_ aggregation interval reduces the displayed resolution by a constant making the graph look smoother 
 even when you view data using the minimal available aggregation interval:
 
 <img src={Auto} width="1000"/>

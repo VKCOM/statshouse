@@ -1,6 +1,5 @@
 ---
 sidebar_position: 1
-description: Find how to get access to StatsHouse.
 ---
 
 # Get access to StatsHouse

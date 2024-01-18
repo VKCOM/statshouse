@@ -19,6 +19,9 @@ sidebar_position: 5
 
 ## Mapping and budgets for creating metrics
 
+Tag values are often `string` values. StatsHouse maps all of them to `int32` values.
+This huge `string`↔`int32` map is common for all metrics.
+
 ## Agent
 
 ## Aggregator
@@ -28,6 +31,8 @@ sidebar_position: 5
 ## String tag
 
 ## Metric types: implementation
+
+## Resolution
 
 
 ## Protocols

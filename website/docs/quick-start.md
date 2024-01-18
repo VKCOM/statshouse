@@ -154,6 +154,7 @@ Read more about choosing the [time period](guides/view-graph.md#4--time-period).
 
 ### Aggregation interval
 
+Aggregation interval is a kind of resolution for your metric data.
 The larger aggregation interval you choose, the smoother look your graph has:
 
 <img src={AggregationInterval} width="600"/>
