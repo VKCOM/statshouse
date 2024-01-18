@@ -1,9 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"log"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/pflag"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlkv_engine"
@@ -88,10 +93,6 @@ func main() {
 			panic(err)
 		}
 	}()
-	ln, err := rpc.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", argv.rpcPort), false)
-	if err != nil {
-		panic(err)
-	}
 	h := rpc_handler{
 		readyCh: db.ReadyCh(),
 		engine:  db,
@@ -114,8 +115,21 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	err = rpcServer.Serve(ln)
+
+	ln, err := rpc.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", argv.rpcPort), false)
 	if err != nil {
+		panic(err)
+	}
+	go func() {
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGINT)
+		<-ch
+		log.Println("shutdown request")
+		_ = rpcServer.Close()
+
+	}()
+	err = rpcServer.Serve(ln)
+	if err != nil && !errors.Is(err, rpc.ErrServerClosed) {
 		panic(err)
 	}
 }

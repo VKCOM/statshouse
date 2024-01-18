@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"syscall"
 )
 
 type engine struct {
@@ -47,6 +48,20 @@ func run(dbPath, prefix string) (*exec.Cmd, error) {
 func (e *engine) kill() (*os.ProcessState, error) {
 	p := e.process
 	err := p.Process.Kill()
+	if err != nil {
+		return nil, err
+	}
+	e.process = nil
+	state, err := p.Process.Wait()
+	if err != nil {
+		return nil, err
+	}
+	return state, nil
+}
+
+func (e *engine) shutdown() (*os.ProcessState, error) {
+	p := e.process
+	err := p.Process.Signal(syscall.SIGINT)
 	if err != nil {
 		return nil, err
 	}

@@ -240,21 +240,7 @@ func (e *Engine) Backup(ctx context.Context, prefix string) (string, int64, erro
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to get backup path: %w", err)
 	}
-	for i := 0; ; i++ {
-		e.rw.mu.Lock()
-		offs := e.rw.committedOffset
-		e.rw.mu.Unlock()
-		if offs >= binlogPos {
-			break
-		}
-		if i%10 == 0 {
-			e.logger.Printf("wait binlog commit to save backup, expectedPos: %d, currentPos: %d", binlogPos, offs)
-		}
-		if i > 10*60 {
-			return "", 0, fmt.Errorf("failed to wait binlog commit position, expectedPos: %d, currentPos: %d", binlogPos, offs)
-		}
-		time.Sleep(time.Millisecond * 100)
-	}
+	e.binlogEngine.binlogWait(binlogPos, true)
 	stat, _ := os.Stat(path)
 	e.logger.Printf("finish backup successfully in %f seconds, path: %s, pos: %d, size: %d", time.Since(startTime).Seconds(), expectedPath, binlogPos, stat.Size())
 	return expectedPath, binlogPos, os.Rename(path, expectedPath)
@@ -332,9 +318,9 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 }
 
 // todo make META param
-func (e *Engine) DoWithOffset(ctx context.Context, queryName string, do func(c Conn, cache []byte) ([]byte, error)) (dbOffset int64, commitOffset int64, err error) {
+func (e *Engine) DoWithOffset(ctx context.Context, queryName string, do func(c Conn, cache []byte) ([]byte, error)) (dbOffset int64, err error) {
 	if err := checkUserQueryName(queryName); err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 	if e.testOptions != nil {
 		e.testOptions.sleep()
@@ -348,12 +334,12 @@ func (e *Engine) DoWithOffset(ctx context.Context, queryName string, do func(c C
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
 	if e.readOnly || e.opt.Replica {
-		return e.rw.dbOffset, e.rw.committedOffset, ErrReadOnly
+		return e.rw.dbOffset, ErrReadOnly
 	}
 	err = e.rw.beginTxLocked()
 	if err != nil {
 		e.opt.StatsOptions.engineBrokenEvent()
-		return e.rw.dbOffset, e.rw.committedOffset, fmt.Errorf("failed to begin tx: %w", err)
+		return e.rw.dbOffset, fmt.Errorf("failed to begin tx: %w", err)
 	}
 	defer func() {
 		errRollback := e.rw.rollbackLocked()
@@ -364,27 +350,28 @@ func (e *Engine) DoWithOffset(ctx context.Context, queryName string, do func(c C
 	conn := newUserConn(e.rw, ctx)
 	bytes, err := do(conn, e.rw.binlogCache[:0])
 	if err != nil {
-		return e.rw.dbOffset, e.rw.committedOffset, fmt.Errorf("user error: %w", err)
+		return e.rw.dbOffset, fmt.Errorf("user error: %w", err)
 	}
 	if len(bytes) == 0 {
-		return e.rw.dbOffset, e.rw.committedOffset, e.rw.nonBinlogCommitTxLocked()
+		return e.rw.dbOffset, e.rw.nonBinlogCommitTxLocked()
 	}
 	if e.binlog == nil {
-		return e.rw.dbOffset, e.rw.committedOffset, fmt.Errorf("can't write binlog event: binlog is nil")
+		return e.rw.dbOffset, fmt.Errorf("can't write binlog event: binlog is nil")
 	}
-	offsetAfterWrite, err := e.binlog.Append(e.rw.dbOffset, bytes)
+	offsetAfterWrite, err := e.binlog.AppendASAP(e.rw.dbOffset, bytes)
 	if err != nil {
-		return e.rw.dbOffset, e.rw.committedOffset, fmt.Errorf("binlog Append return error: %w", err)
+		return e.rw.dbOffset, fmt.Errorf("binlog Append return error: %w", err)
 	}
 	if e.testOptions != nil {
 		e.testOptions.sleep()
 	}
-	dbOffset, err = e.rw.binlogCommitTxLocked(offsetAfterWrite)
-	return dbOffset, e.rw.committedOffset, err
+	meta := e.binlogEngine.binlogWait(offsetAfterWrite, false)
+	dbOffset, err = e.rw.binlogCommitTxLocked(offsetAfterWrite, meta)
+	return dbOffset, err
 }
 
 func (e *Engine) Do(ctx context.Context, queryName string, do func(c Conn, cache []byte) ([]byte, error)) (err error) {
-	_, _, err = e.DoWithOffset(ctx, queryName, do)
+	_, err = e.DoWithOffset(ctx, queryName, do)
 	return err
 }
 

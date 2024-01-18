@@ -16,7 +16,6 @@ type (
 		conn             *sqlite0.Conn
 		mu               sync.Mutex
 		dbOffset         int64
-		committedOffset  int64
 		binlogCache      []byte
 		cache            *queryCachev2
 		queryBuffer      []byte
@@ -135,7 +134,7 @@ func (c *sqliteConn) beginTxLocked() error {
 }
 
 // если не смогли закомитить, движок находится в неконсистентном состоянии. Запрещаем запись
-func (c *sqliteConn) binlogCommitTxLocked(newOffset int64) (int64, error) {
+func (c *sqliteConn) binlogCommitTxLocked(newOffset int64, snapshotMeta []byte) (int64, error) {
 	if c.committed {
 		return c.dbOffset, nil
 	}
@@ -144,6 +143,11 @@ func (c *sqliteConn) binlogCommitTxLocked(newOffset int64) (int64, error) {
 	if err != nil {
 		c.connError = err
 		return c.dbOffset, fmt.Errorf("failed to save binlog offset: %w", err)
+	}
+	err = c.saveBinlogMetaLocked(snapshotMeta)
+	if err != nil {
+		c.connError = err
+		return c.dbOffset, fmt.Errorf("failed to save binlog meta: %w", err)
 	}
 	c.cache.closeTx()
 	err = c.execLocked(commitStmt)

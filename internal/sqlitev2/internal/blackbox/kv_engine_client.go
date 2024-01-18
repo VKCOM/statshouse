@@ -25,7 +25,7 @@ func (k kvEngine) Get(key int64) (resp tlkv_engine.GetResponse, _ error) {
 }
 
 func (k kvEngine) Put(key int64, value int64) (resp tlkv_engine.ChangeResponse, _ error) {
-	extra := &rpc.InvokeReqExtra{FailIfNoConnection: true}
+	extra := &rpc.InvokeReqExtra{FailIfNoConnection: false}
 	err := k.client.Put(context.Background(), tlkv_engine.Put{Key: key, Value: value}, extra, &resp)
 	return resp, err
 }

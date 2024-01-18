@@ -92,13 +92,13 @@ func (h *rpc_handler) put(ctx context.Context, put tlkv_engine.Put) (tlkv_engine
 	if err != nil {
 		return tlkv_engine.ChangeResponse{}, fmt.Errorf("failed to start engine")
 	}
-	dbOffset, committedOffset, err := h.engine.DoWithOffset(ctx, "put", func(c sqlitev2.Conn, cache []byte) ([]byte, error) {
+	dbOffset, err := h.engine.DoWithOffset(ctx, "put", func(c sqlitev2.Conn, cache []byte) ([]byte, error) {
 		return putConn(put.Key, put.Value, c, cache)
 	})
 	return tlkv_engine.ChangeResponse{
 		Meta: tlkv_engine.MetaInfo{
 			DbOffset:        dbOffset,
-			CommittedOffset: committedOffset,
+			CommittedOffset: dbOffset,
 		},
 		NewValue: put.Value,
 	}, err
@@ -110,7 +110,7 @@ func (h *rpc_handler) incr(ctx context.Context, inc tlkv_engine.Inc) (tlkv_engin
 		return tlkv_engine.ChangeResponse{}, fmt.Errorf("failed to start engine")
 	}
 	var v int64
-	dbOffset, committedOffset, err := h.engine.DoWithOffset(ctx, "incr", func(c sqlitev2.Conn, cache []byte) ([]byte, error) {
+	dbOffset, err := h.engine.DoWithOffset(ctx, "incr", func(c sqlitev2.Conn, cache []byte) ([]byte, error) {
 		rows := c.Query("select", "SELECT v FROM kv WHERE k = $key", sqlitev2.Int64("$key", inc.Key))
 		if rows.Error() != nil {
 			return cache, err
@@ -134,7 +134,7 @@ func (h *rpc_handler) incr(ctx context.Context, inc tlkv_engine.Inc) (tlkv_engin
 	return tlkv_engine.ChangeResponse{
 		Meta: tlkv_engine.MetaInfo{
 			DbOffset:        dbOffset,
-			CommittedOffset: committedOffset,
+			CommittedOffset: dbOffset,
 		},
 		NewValue: v,
 	}, err

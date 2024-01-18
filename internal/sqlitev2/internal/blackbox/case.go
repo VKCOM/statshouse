@@ -91,40 +91,20 @@ func (c *Case) Backup(r *rapid.T) {
 	if c.log[len(c.log)-1].offset == c.lastBackupOffset {
 		return
 	}
-	resp, err := c.client.Backup(c.tempDir)
-	if err != nil {
-		panic(err)
-	}
 	if c.LastBackupPath != "" {
 		err := os.Remove(c.LastBackupPath)
 		if err != nil {
 			panic(err)
 		}
 	}
+	resp, err := c.client.Backup(c.tempDir)
+	if err != nil {
+		panic(err)
+	}
 	r.Log("Last backup path", resp.Path)
 	r.Log("Last backup offset", resp.Offset)
 	c.lastBackupOffset = resp.Offset
 	c.LastBackupPath = resp.Path
-}
-
-func (c *Case) Revert(r *rapid.T, toOffset int64) {
-	r.Log("REVERT TO", toOffset)
-	if toOffset < c.commitDBOffset {
-		r.Errorf("try to revert to offset: %d, committedOffset: %d", toOffset, c.commitDBOffset)
-		return
-	}
-
-	kv := map[int64]int64{}
-	var ix int = len(c.log)
-	for i, e := range c.log {
-		if e.offset > toOffset {
-			ix = i
-			break
-		}
-		kv[e.k] = e.v
-	}
-	c.log = c.log[:ix]
-	c.kv = kv
 }
 
 func (c *Case) Check(r *rapid.T) {

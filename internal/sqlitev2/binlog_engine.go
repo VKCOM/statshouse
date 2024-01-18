@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
@@ -12,6 +13,19 @@ import (
 type binlogEngine struct {
 	e             *Engine
 	applyFunction ApplyEventFunction
+
+	waitQMx            sync.Mutex
+	waitQ              []waitCommitInfo
+	waitQBuffer        []waitCommitInfo
+	lastSnapshotMeta   []byte
+	committedOffset    int64
+	safeSnapshotOffset int64
+}
+
+type waitCommitInfo struct {
+	offset                 int64
+	waitSafeSnapshotOffset bool
+	waitCh                 chan []byte
 }
 
 func isEOFErr(err error) bool {
@@ -31,7 +45,7 @@ func newBinlogEngine(e *Engine, applyFunction ApplyEventFunction) *binlogEngine 
 	}
 }
 
-func (b binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error) {
+func (b *binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error) {
 	b.e.rareLog("apply payload (len: %d)", len(payload))
 	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_apply", time.Now())
 	err := b.e.internalDo("__apply_binlog", func(c internalConn) error {
@@ -53,7 +67,7 @@ func (b binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error)
 	return newOffset, errToReturn
 }
 
-func (b binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
+func (b *binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
 	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_skip", time.Now())
 	err = b.e.internalDo("__skip_binlog", func(c internalConn) error {
 		newOffset = b.e.rw.dbOffset + skipLen
@@ -67,26 +81,22 @@ func (b binlogEngine) Skip(skipLen int64) (newOffset int64, err error) {
 }
 
 // База может обгонять бинлог. Никак не учитываем toOffset
-func (b binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
+func (b *binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
 	if b.e.testOptions != nil {
 		b.e.testOptions.sleep()
 	}
 	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_commit", time.Now())
 	b.e.rareLog("commit toOffset: %d, safeSnapshotOffset: %d", toOffset, safeSnapshotOffset)
-	return b.e.internalDo("__commit_save_meta", func(conn internalConn) error {
-		err := b.e.rw.saveBinlogMetaLocked(snapshotMeta)
-		if err == nil {
-			b.e.rw.committedOffset = toOffset
-		}
-		return err
-	})
+	b.binlogNotifyWaited(toOffset, snapshotMeta, safeSnapshotOffset)
+	return nil
+
 }
 
-func (b binlogEngine) Revert(toOffset int64) (bool, error) {
+func (b *binlogEngine) Revert(toOffset int64) (bool, error) {
 	return false, nil
 }
 
-func (b binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
+func (b *binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
 	b.e.logger.Printf("change role: %+v", info)
 	if info.IsReady {
 		b.e.readyNotify.Do(func() {
@@ -99,6 +109,46 @@ func (b binlogEngine) ChangeRole(info binlog.ChangeRoleInfo) error {
 	return nil
 }
 
-func (b binlogEngine) StartReindex() error {
+func (b *binlogEngine) StartReindex() error {
 	return fmt.Errorf("implement")
+}
+
+func (b *binlogEngine) binlogWait(offset int64, waitSafeSnapshotOffset bool) []byte {
+	b.waitQMx.Lock()
+	if (!waitSafeSnapshotOffset && offset <= b.committedOffset) || waitSafeSnapshotOffset && offset <= b.safeSnapshotOffset {
+		meta := b.lastSnapshotMeta
+		b.waitQMx.Unlock()
+		return meta
+	}
+	ch := make(chan []byte, 1)
+	b.waitQ = append(b.waitQ, waitCommitInfo{
+		offset:                 offset,
+		waitCh:                 ch,
+		waitSafeSnapshotOffset: waitSafeSnapshotOffset,
+	})
+	b.waitQMx.Unlock()
+	meta := <-ch
+	return meta
+}
+
+func (b *binlogEngine) binlogNotifyWaited(committedOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) {
+	b.waitQMx.Lock()
+	defer b.waitQMx.Unlock()
+	b.lastSnapshotMeta = make([]byte, len(snapshotMeta))
+	copy(b.lastSnapshotMeta, snapshotMeta)
+	b.committedOffset = committedOffset
+	b.safeSnapshotOffset = safeSnapshotOffset
+	b.waitQBuffer = b.waitQBuffer[:0]
+	for _, wi := range b.waitQ {
+		if (!wi.waitSafeSnapshotOffset && wi.offset > committedOffset) ||
+			(wi.waitSafeSnapshotOffset && wi.offset > safeSnapshotOffset) {
+			b.waitQBuffer = append(b.waitQBuffer, wi)
+			continue
+		}
+		wi.waitCh <- b.lastSnapshotMeta
+		close(wi.waitCh)
+	}
+	t := b.waitQ
+	b.waitQ = b.waitQBuffer
+	b.waitQBuffer = t
 }
