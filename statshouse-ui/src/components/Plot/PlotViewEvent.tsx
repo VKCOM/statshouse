@@ -88,6 +88,7 @@ export function PlotViewEvent(props: {
     series,
     seriesShow,
     stacked,
+    bands,
     legendNameWidth,
     legendValueWidth,
     legendMaxDotSpaceWidth,
@@ -460,6 +461,7 @@ export function PlotViewEvent(props: {
               data={stacked}
               series={series}
               scales={scales}
+              bands={bands}
               onReady={onReady}
               onSetSelect={onSetSelect}
               onUpdatePreview={onUpdatePreview}

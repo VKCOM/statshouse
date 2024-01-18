@@ -104,6 +104,7 @@ export type PlotStore = {
   errorSkipCount: number;
   data: uPlot.AlignedData;
   stacked?: uPlot.AlignedData;
+  bands?: uPlot.Band[];
   series: uPlot.Series[];
   seriesShow: boolean[];
   scales: Record<string, { min: number; max: number }>;
@@ -1145,7 +1146,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             setState((state) => {
               delete state.plotsDataAbortController[index];
               const noUpdateData = dequal(
-                stacked || data,
+                stacked?.data || data,
                 state.plotsData[index]?.stacked || state.plotsData[index]?.data
               );
               if (resp.metric != null && !dequal(state.metricsMeta[resp.metric.name], resp.metric)) {
@@ -1159,7 +1160,10 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                 error: usePlotHealsStore.getState().status[index]?.status ? '' : state.plotsData[index]?.error,
                 errorSkipCount: 0,
                 data: noUpdateData ? state.plotsData[index]?.data : data,
-                stacked: noUpdateData ? state.plotsData[index]?.stacked : stacked,
+                stacked: noUpdateData ? state.plotsData[index]?.stacked : stacked?.data,
+                bands: dequal(state.plotsData[index]?.bands, stacked?.bands)
+                  ? state.plotsData[index]?.bands
+                  : stacked?.bands,
                 series:
                   dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) &&
                   !changeColor &&
