@@ -373,6 +373,10 @@ export const _UPlotWrapper: React.FC<UPlotWrapperProps> = ({
     };
     debug.log('%cUPlotWrapper create %d %d', 'color:blue;', width, height);
     uRef.current = new uPlot(opt, undefined, uRefDiv.current!);
+    updateData(data);
+    updateSeries(series);
+    updateBands(bands);
+    updateScales(scales);
     moveLegend();
   }, [
     bands,
