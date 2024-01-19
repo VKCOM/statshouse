@@ -55,7 +55,7 @@ To switch off showing irrelevant statistics in the UI, specify the type of your 
 
 <img src={AggregationEdit} width="500"/>
 
-The _Mixed_ type is a legacy one, so please avoid it.
+The _Mixed_ type allows you to display all the statistics (even irrelevant ones) in the UI.
 See more on [changing or combining metric types](send-data.md#metric-types-and-their-combinations).
 
 ### Percentiles
@@ -94,12 +94,12 @@ Some resolution levels are marked as "native": 1, 5, 15, 60 seconds. They corres
 for the UI, so we recommend using them to avoid jitter on a graph. See more about metric 
 [resolution](../conceptual-overview.md#resolution).
 
-If a metric sends data with custom resolution, you see it near the metric name in a graph view:
+You see custom resolution near the metric name in a graph view:
 
 <img src={ResolutionView} width="600"/>
 
 :::important
-Setting up resolution affects sending data—not showing data in the UI.
+Setting up resolution affects processing data—not showing data in the UI.
 For a metric with custom resolution, it is impossible to display data on a graph with 
 the smaller [aggregation interval](view-graph.md#6--aggregation-interval): 
 you cannot show per-second data if the resolution is set to 5 seconds.
