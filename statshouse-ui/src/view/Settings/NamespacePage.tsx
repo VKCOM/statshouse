@@ -174,8 +174,9 @@ export function NamespacePage() {
   const onChangeWeight = useCallback((value: string) => {
     setSelectMetricsNamespace(
       produce((g) => {
-        if (g) {
-          g.namespace.weight = toNumber(value, 1);
+        const v = toNumber(value);
+        if (g && v != null) {
+          g.namespace.weight = v;
         }
       })
     );
@@ -241,7 +242,7 @@ export function NamespacePage() {
                     className="form-control"
                     id="metricsNamespaceName"
                     disabled={selectMetricsNamespace.namespace.namespace_id != null}
-                    value={selectMetricsNamespace.namespace.name}
+                    defaultValue={selectMetricsNamespace.namespace.name}
                     onChange={onChangeName}
                   />
                 </div>

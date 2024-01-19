@@ -474,7 +474,8 @@ export function PlotViewMetric(props: {
             />
             {topInfo && (!compact || (fixHeight > 0 && dashboard)) && (
               <div className="pb-3">
-                Showing top {topInfo.top} out of {topInfo.total} total series{topInfo.info}
+                Showing {sel.numSeries > 0 ? 'top' : 'bottom'} {topInfo.top} out of {topInfo.total} total series
+                {topInfo.info}
               </div>
             )}
           </div>
