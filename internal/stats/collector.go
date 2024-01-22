@@ -2,6 +2,7 @@ package stats
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"time"
 
@@ -34,6 +35,8 @@ type CollectorManager struct {
 type scrapeResult struct {
 	isSuccess bool
 }
+
+var errStopCollector = fmt.Errorf("stop collector")
 
 const procPath = "/proc"
 const sysPath = "/sys"
@@ -81,7 +84,11 @@ func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, logErr
 	if err != nil {
 		return nil, err
 	}
-	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats, vmStatsCollector} // TODO add modules
+	klogStats, err := NewDMesgStats(newWriter())
+	if err != nil {
+		return nil, err
+	}
+	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats, vmStatsCollector, klogStats} // TODO add modules
 	var collectors []Collector
 	for _, collector := range allCollectors {
 		if !collector.Skip() {
@@ -113,6 +120,9 @@ func (m *CollectorManager) RunCollector() error {
 			for {
 				now := time.Now()
 				err := collector.WriteMetrics(now.Unix())
+				if err == errStopCollector {
+					return nil
+				}
 				if err != nil {
 					m.logErr.Printf("failed to write metrics: %v (collector: %s)", err, c.Name())
 				} else {

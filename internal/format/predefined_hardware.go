@@ -31,6 +31,8 @@ const (
 	BuiltinMetricIDPagedMemory     = -1029
 	BuiltinMetricIDOOMKill         = -1030
 	BuiltinMetricIDNumaEvents      = -1031
+	BuiltinMetricIDDMesgEvents     = -1032
+	BuiltinMetricIDOOMKillDetailed = -1033
 
 	BuiltinMetricNameCpuUsage      = "host_cpu_usage"
 	BuiltinMetricNameSoftIRQ       = "host_softirq"
@@ -67,10 +69,12 @@ const (
 	BuiltinMetricNameTCPSocketMemory = "host_tcp_socket_memory"
 	BuiltinMetricNameSocketUsedv2    = "host_socket_used"
 
-	BuiltinMetricNamePageFault   = "host_page_fault"
-	BuiltinMetricNamePagedMemory = "host_paged_memory"
-	BuiltinMetricNameOOMKill     = "host_oom_kill"
-	BuiltinMetricNameNumaEvents  = "host_numa_events"
+	BuiltinMetricNamePageFault       = "host_page_fault"
+	BuiltinMetricNamePagedMemory     = "host_paged_memory"
+	BuiltinMetricNameOOMKill         = "host_oom_kill"
+	BuiltinMetricNameNumaEvents      = "host_numa_events"
+	BuiltinMetricNameDMesgEvents     = "host_dmesg_events"
+	BuiltinMetricNameOOMKillDetailed = "host_oom_kill_detailed"
 
 	RawIDTagNice      = 1
 	RawIDTagSystem    = 2
@@ -160,6 +164,30 @@ const (
 	RawIDTagHintFaults      = 7
 	RawIDTagHintFaultsLocal = 8
 	RawIDTagPagesMigrated   = 9
+
+	// based on sys/syslog.h
+	RawIDTag_Emerg  = 0
+	RawIDTag_Alert  = 1
+	RawIDTag_Crit   = 2
+	RawIDTag_Err    = 3
+	RawIDTag_Warn   = 4
+	RawIDTag_Notice = 5
+	RawIDTag_Info   = 6
+	RawIDTag_Debug  = 7
+
+	RawIDTag_kern     = 0
+	RawIDTag_user     = 1
+	RawIDTag_mail     = 2
+	RawIDTag_daemon   = 3
+	RawIDTag_auth     = 4
+	RawIDTag_syslog   = 5
+	RawIDTag_lpr      = 6
+	RawIDTag_news     = 7
+	RawIDTag_uucp     = 8
+	RawIDTag_cron     = 9
+	RawIDTag_authpriv = 10
+	RawIDTag_ftp      = 11
+
 	// don't use key tags greater than 11. 12..15 reserved by builtin metrics
 	HostDCTag = 11
 )
@@ -598,6 +626,15 @@ var hostMetrics = map[int32]*MetricMetaValue{
 		Kind:        MetricKindCounter,
 		Description: "The number of OOM",
 	},
+	BuiltinMetricIDOOMKillDetailed: {
+		Name:        BuiltinMetricNameOOMKillDetailed,
+		Kind:        MetricKindCounter,
+		Description: "The number of OOM",
+		Tags: []MetricMetaTag{
+			{
+				Description: "process",
+			}},
+	},
 	BuiltinMetricIDPageFault: {
 		Name:        BuiltinMetricNamePageFault,
 		Kind:        MetricKindCounter,
@@ -628,7 +665,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			}},
 	},
 	BuiltinMetricIDNumaEvents: {
-		Name:        BuiltinMetricNamePagedMemory,
+		Name:        BuiltinMetricNameNumaEvents,
 		Kind:        MetricKindCounter,
 		Description: "NUMA events",
 		Tags: []MetricMetaTag{
@@ -647,5 +684,43 @@ var hostMetrics = map[int32]*MetricMetaValue{
 					RawIDTagPagesMigrated:   "pages_migrated",
 				}),
 			}},
+	},
+	BuiltinMetricIDDMesgEvents: {
+		Name:        BuiltinMetricNameDMesgEvents,
+		Kind:        MetricKindCounter,
+		Description: "dmesg events",
+		Tags: []MetricMetaTag{
+			{
+				Description: "facility",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTag_kern:     "kern",
+					RawIDTag_user:     "user",
+					RawIDTag_mail:     "mail",
+					RawIDTag_daemon:   "daemon",
+					RawIDTag_auth:     "auth",
+					RawIDTag_syslog:   "syslog",
+					RawIDTag_lpr:      "lpr",
+					RawIDTag_news:     "news",
+					RawIDTag_uucp:     "uucp",
+					RawIDTag_cron:     "crom",
+					RawIDTag_authpriv: "authpriv",
+					RawIDTag_ftp:      "ftp",
+				}),
+			},
+			{
+				Description: "level",
+				Raw:         true,
+				ValueComments: convertToValueComments(map[int32]string{
+					RawIDTag_Emerg:  "emerg",
+					RawIDTag_Alert:  "alert",
+					RawIDTag_Crit:   "crit",
+					RawIDTag_Err:    "err",
+					RawIDTag_Warn:   "warn",
+					RawIDTag_Notice: "notice",
+					RawIDTag_Info:   "info",
+					RawIDTag_Debug:  "debug",
+				})},
+		},
 	},
 }
