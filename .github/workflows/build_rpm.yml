@@ -50,11 +50,11 @@ jobs:
           repository: VKCOM/statshouse
           ref: ${{inputs.ref}}
           fetch-depth: 0
-      - uses: actions/download-artifact@master
+      - uses: actions/download-artifact@v4
         with:
           name: ${{needs.binaries.outputs.artifact}}
           path: target
-      - uses: actions/download-artifact@master
+      - uses: actions/download-artifact@v4
         with:
           name: ${{inputs.frontend-artifact}}
       - run: echo "BUILD_VERSION=`echo ${{inputs.version}} | sed -e 's:-:.:g'`" >> $GITHUB_ENV
@@ -63,7 +63,7 @@ jobs:
           mkdir -p BUILD BUILDROOT SOURCES SPECS SRPMS RPMS
           cp build/statshouse.spec SPECS/
           rpmbuild --define "_topdir `pwd`" --define "BUILD_VERSION $BUILD_VERSION" --define "OS_NAME_RELEASE ${{inputs.name}}${{inputs.release}}" -bb SPECS/statshouse.spec
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: statshouse-${{inputs.version}}-rpm
           path: RPMS/statshouse-${{env.BUILD_VERSION}}*.rpm

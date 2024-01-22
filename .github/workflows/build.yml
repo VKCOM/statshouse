@@ -46,7 +46,7 @@ jobs:
           fetch-depth: 0
       - run: echo "REACT_APP_BUILD_VERSION=${{needs.env.outputs.version}}-${{needs.env.outputs.timestamp}}" >> $GITHUB_ENV
       - run: make build-sh-ui
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: statshouse-${{needs.env.outputs.version}}-ui
           path: |
@@ -122,19 +122,19 @@ jobs:
           repository: VKCOM/statshouse
           ref: ${{needs.env.outputs.ref}}
           fetch-depth: 0
-      - uses: actions/download-artifact@master
+      - uses: actions/download-artifact@v4
         with:
           name: ${{needs.almalinux.outputs.artifact}}
           path: pkg/rpm
-      - uses: actions/download-artifact@master
+      - uses: actions/download-artifact@v4
         if: ${{false}}
         with:
           name: ${{needs.debian.outputs.artifact}}
           path: pkg/deb
-      - uses: actions/download-artifact@master
+      - uses: actions/download-artifact@v4
         with:
           name: ${{needs.ubuntu_focal.outputs.artifact}}
           path: pkg/deb
-      - run: gh release create --verify-tag --draft --generate-notes --title "${{github.event.inputs.tag}}" ${{github.event.inputs.tag}} $(find ./pkg -type f -name *.deb -o -name *.rpm)
+      - run: gh release create --draft --generate-notes --title "${{github.event.inputs.tag}}" ${{github.event.inputs.tag}} $(find ./pkg -type f -name *.deb -o -name *.rpm)
         env:
           GITHUB_TOKEN: ${{secrets.DEVTOOLS_GITHUB_TOKEN}}

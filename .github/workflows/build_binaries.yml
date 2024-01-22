@@ -53,9 +53,6 @@ jobs:
         if: ${{inputs.setup-go}}
         with:
           go-version: '1.19'
-      - uses: actions/download-artifact@master
-        with:
-          name: statshouse-${{inputs.version}}-ui
       - run: |
           echo "BUILD_TIME=${{inputs.timestamp}}" >> $GITHUB_ENV
           echo "BUILD_COMMIT=${{inputs.ref}}" >> $GITHUB_ENV
@@ -64,7 +61,7 @@ jobs:
           echo "BUILD_VERSION=${{inputs.version}}" >> $GITHUB_ENV
           echo "BUILD_ID=${{github.run_number}}" >> $GITHUB_ENV
       - run: make build-sh build-sh-metadata build-sh-api build-sh-grafana
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: statshouse-${{inputs.version}}-${{inputs.name}}_${{inputs.release}}-bin
           path: target
