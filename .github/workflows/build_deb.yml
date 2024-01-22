@@ -63,11 +63,11 @@ jobs:
           repository: VKCOM/statshouse
           ref: ${{inputs.ref}}
           fetch-depth: 0
-      - uses: actions/download-artifact@master
+      - uses: actions/download-artifact@v4
         with:
           name: ${{needs.binaries.outputs.artifact}}
           path: target
-      - uses: actions/download-artifact@master
+      - uses: actions/download-artifact@v4
         with:
           name: ${{inputs.frontend-artifact}}
       - run: | # fake grafana plugin build since it isn't published
@@ -81,7 +81,7 @@ jobs:
           rm -f changelog          
           dch --create --distribution stable --package statshouse --newversion "$VERSION" "up to version $VERSION"
           debuild --no-lintian -us -uc -b
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: statshouse-${{inputs.version}}-deb
           path: |
