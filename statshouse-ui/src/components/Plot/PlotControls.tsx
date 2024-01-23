@@ -567,7 +567,7 @@ export const PlotControls = memo(function PlotControls_(props: {
                             as="span"
                             title={`is variable: ${variableTags[tagKey]?.description || variableTags[tagKey]?.name}`}
                             className={cn(
-                              'input-group-text bg-transparent text-nowrap pt-0 pb-0 mt-2 me-2',
+                              'input-group-text bg-transparent text-nowrap pt-0 pb-0 me-2',
                               variableTags[tagKey]?.args.negative ?? negativeTags[tagKey]
                                 ? 'border-danger text-danger'
                                 : 'border-success text-success'
