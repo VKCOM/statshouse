@@ -12,8 +12,8 @@ import DashVar1 from '../img/dash-var-1.png'
 import DashVar2 from '../img/dash-var-2.png'
 import DashVar3 from '../img/dash-var-3.png'
 import DashVar4 from '../img/dash-var-4.png'
+import DashGroupByDefault from '../img/dash-group-by-default.png'
 import DashAddVariables from '../img/dash-add-variables.png'
-import DashGroupByTags from '../img/dash-group-by-tags.png'
 import DashLayout from '../img/dash-layout.png'
 import DashRemove from '../img/dash-remove.png'
 
@@ -101,9 +101,9 @@ use the _Autofilter_ option to generate variables for them automatically.
 
 ### Layout
 
-In the _Layout_ section, filter data for all the displayed metrics using created variables:
+In the _Layout_ section, set up options to filter, sort, or group data by default for all the metrics on a dashboard:
 
-<img src={DashGroupByTags} width="900"/>
+<img src={DashGroupByDefault} width="900"/>
 
 Group metrics by a subcategory, change the group order, and customize the layout:
 
@@ -125,98 +125,4 @@ Get rid of an unused dashboard:
 The removed dashboard disappears from the dashboard list but still exists, so you cannot use the same dashboard name
 later.
 :::
-
-
-
-
-Customize the layout
-
-
-
-удаление через apply
-автолейаут
-фиксированная ширина — чтобы один под другим
-
-отображается в урл - даже если не сохранен
-можно переслать ссылку даже на несохраненный даш
-
-Можно задать порядок групп
-
-добавлять в начале и в конце пустую группу и перемещать
-
-свернутые группы
-вк ид
-
-
-Можно 
-скрытая группа не обновляется
-на нем выкатываем полезную ифн
-нагрузка на открытие и закрытие будет меньше
-
-группировать по тематике
-скрыть отсортировать, добавить комментарии
-
-какие-то графики крупнее, какие-то мельче
-
-плюсики добавляют перед
-можно перетянуть чтобы создать группу
-
-перемещать графики можно, когда включено редактирование
-
-
-переменные
-
-пром КЛ
-
-создать переменную, тогда выбирать вводом вручную
-
-когда галочка - галочкой добавляю фильтр
-если просто наберу и кликну по названию - сбросятся другие
-
-не даш, а отдельный график, можно через ПромКЛ
-
-как добавить построение списка - с графиков с обычными тегами
-
-для ПромКЛ можно более сложные вещи
-
-дашборд на котором только промкл графики (но нет списка, из которого можно накликать параметры)
-
-для флажков - тоже можно
-убрать лишний график в скрытую группу
-чтобы не отображать
-
-переменные - как использовать с пром кл
-у переменной три параметра - сортировка, группировка и отрицание
-
-переменная может существовать в воздухе, не привязанная к графику
-
-переключать значение - не включет
-
-тег свзяываем с переменной
-изменяя переменную, мы меняем фильтры связанных тегов
-
-переменные в графане
-
-синхронизация тегов - было недостаточно функциональности
-
-чтобы урл не захламлялся - попадало все полотно изменений графика
-
-переменная - в урл записать только
-привязать к промКЛ запросу
-
-
-связать два непересекающихся тега
-например, продакшен или прод - значения
-
-в разных метриках один и тот же тег имеет разные варианты значений
-
-например, продакшен будет на 98 процентах графиков
-построение общего списка
-
-хост цпу
-
-рандом на приращение
-
-fn counter
-генерируется на сервере
 
