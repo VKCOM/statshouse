@@ -69,9 +69,11 @@ resulting data, refer to the [conceptual overview](../conceptual-overview.md).
 The rare case of losing or spoiling metric data is related to 
 [UDP socket buffer overflow](../conceptual-overview.md#protocols). Most likely, you should not worry about it.
 
-#### "Can I delete a metric?"
+#### "Can I rename a metric?"
 
-No, but you can disable it. See [how to disable or enable a metric](edit-metrics.md#disabling-a-metric).
+You cannot rename an existing metric, so please create a new one with the name you want. You can
+[edit the graph name](view-graph.md#2--graph-name) so that the metric name remains the same.
+[Disable](edit-metrics.md#disabling-a-metric) an unused metric.
 
 #### "I want to re-design my metric. Should I refactor it or create a new one?"
 
@@ -80,3 +82,8 @@ become confusing or uninformative.
 
 If you create a new metric, please note that you cannot reuse the name of
 an existing (even disabled) metric.
+
+#### "Can I delete a metric?"
+
+No, but you can disable it. Disabling a metric stops writing data for it and removes it from the metric list.
+See [how to disable or enable a metric](edit-metrics.md#disabling-a-metric).

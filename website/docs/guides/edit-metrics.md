@@ -41,7 +41,7 @@ Add a metric description on one or multiple lines to show in the UI. No formatti
 <img src={Description} width="800"/>
 
 You can [edit the graph name](view-graph.md#2--graph-name) to customize the look of the dashboard or the graph view 
-without changing the name of the metric itself.
+without changing the name of the metric itself. You [cannot rename a metric](create-metric.md#can-i-rename-a-metric).
 
 ## Aggregation
 
