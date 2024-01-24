@@ -81,6 +81,7 @@ const (
 	KvEngineCheck                                = 0x2c3239ba // kv_engine.check
 	KvEngineGet                                  = 0x1c7349bb // kv_engine.get
 	KvEngineGetResponse                          = 0x63eeb764 // kv_engine.get_response
+	KvEngineHealthcheck                          = 0x2c1259aa // kv_engine.healthcheck
 	KvEngineInc                                  = 0x3c7239bb // kv_engine.inc
 	KvEngineKv                                   = 0x18f34950 // kv_engine.kv
 	KvEngineMetaInfo                             = 0x53eeb763 // kv_engine.meta_info

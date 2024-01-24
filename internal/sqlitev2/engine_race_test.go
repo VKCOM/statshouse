@@ -117,7 +117,7 @@ func applyNumberInc(t *testing.T, conn Conn, payload []byte) (int, error) {
 	return fsbinlog.AddPadding(read), nil
 }
 
-func Test_Engine_Do(t *testing.T) {
+func Test_Engine_Race_Do(t *testing.T) {
 	dir := t.TempDir()
 
 	engine, _ := openEngine1(t, testEngineOptions{
@@ -183,7 +183,7 @@ func Test_Engine_Do(t *testing.T) {
 	require.NoError(t, engine.Close())
 }
 
-func Test_Engine_View(t *testing.T) {
+func Test_Engine_Race_View(t *testing.T) {
 	dir := t.TempDir()
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
 	agg := &testAggregation{}
@@ -274,7 +274,7 @@ func Test_ReadAndExit(t *testing.T) {
 	require.NoError(t, engineMaster.Close())
 }
 
-func TestFullEngine(t *testing.T) {
+func Test_Race_Engine_Replica_View(t *testing.T) {
 	dir := t.TempDir()
 	engineM, _ := openEngine1(t, testEngineOptions{
 		prefix: dir,

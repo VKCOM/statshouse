@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -103,6 +104,9 @@ func main() {
 		Put:    h.put,
 		Backup: h.backup,
 		Check:  h.Check,
+		Healthcheck: func(ctx context.Context, args tlkv_engine.Healthcheck) (bool, error) {
+			return true, nil
+		},
 	}
 	rpcServer := rpc.NewServer(rpc.ServerWithHandler(eh.Handle))
 	go func() {

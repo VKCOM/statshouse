@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlkv_engine"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"pgregory.net/rapid"
@@ -15,7 +14,6 @@ import (
 type engineState struct {
 	testCase *Case
 	clients  []*client
-	pushers  []*client // эти клиенты не проверяют консистентность, нужны для того чтобы создать большую хаотичность в работе движка
 	eng      *engine
 }
 
@@ -52,7 +50,10 @@ func (c *client) clientLoop() {
 		default:
 
 		}
-		//c.testCase.Check(c.r)
+		err := c.testCase.Check(c.r)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -62,7 +63,7 @@ func (s *engineState) init(r *rapid.T, tempDir string) {
 	var i int64
 	for i = 1; i <= n; i++ {
 		c := rpc.NewClient(rpc.ClientWithLogf(func(format string, args ...any) {
-			// log.Printf("CLIENT"+strconv.FormatInt(i, 10)+": "+format, args)
+			log.Println(format, args)
 		}))
 		cc := &tlkv_engine.Client{
 			Client:  c,
@@ -71,9 +72,6 @@ func (s *engineState) init(r *rapid.T, tempDir string) {
 		}
 		tc := NewCase(i*10, i*10+10, tempDir, &kvEngine{client: cc})
 		client := &client{
-			//	offset:   make(chan int64, 1),
-			//restart:  make(chan *sync.WaitGroup, 1),
-			//start:    make(chan struct{}, 1),
 			stop:     make(chan struct{}),
 			testCase: tc,
 			r:        r,
@@ -101,23 +99,9 @@ func (s *engineState) init(r *rapid.T, tempDir string) {
 	for _, c := range s.clients {
 		go c.clientLoop()
 	}
-	for _, c := range s.pushers {
-		go c.clientLoop()
-	}
 }
 
 const BinlogMagic = 123
-
-func (s *engineState) Put(r *rapid.T) {
-	err := s.testCase.Put()
-	if err != nil {
-		r.Errorf(err.Error())
-	}
-}
-
-func (s *engineState) Incr(r *rapid.T) {
-	//s.testCase.Incr(r)
-}
 
 func (s *engineState) Backup(r *rapid.T) {
 	s.testCase.Backup(r)
@@ -133,6 +117,7 @@ func (s *engineState) Kill(r *rapid.T) {
 	if err != nil {
 		panic(err)
 	}
+	s.testCase.HealchCheck(r)
 }
 
 func (s *engineState) Shutdown(r *rapid.T) {
@@ -141,22 +126,21 @@ func (s *engineState) Shutdown(r *rapid.T) {
 		r.Errorf(err.Error())
 		return
 	}
-	require.True(r, state.Success())
+	if !state.Success() {
+		r.Fatal("state.Success() must be true")
+	}
 	err = s.eng.restart(s.eng.db)
 	if err != nil {
 		panic(err)
 	}
+	s.testCase.HealchCheck(r)
 }
 
 func (s *engineState) Check(r *rapid.T) {
-	s.testCase.Check(r)
 }
 
 func (s *engineState) stop() {
 	for _, c := range s.clients {
-		c.stop <- struct{}{}
-	}
-	for _, c := range s.pushers {
 		c.stop <- struct{}{}
 	}
 	_, _ = s.eng.kill()

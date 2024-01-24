@@ -543,6 +543,12 @@ var (
 		createFunction: func() Function { var ret internal.KvEngineGet; return &ret },
 		createObject:   func() Object { var ret internal.KvEngineGet; return &ret },
 	}
+	itemKvEngineHealthcheck = TLItem{
+		tag:            0x2c1259aa,
+		tlName:         "kv_engine.healthcheck",
+		createFunction: func() Function { var ret internal.KvEngineHealthcheck; return &ret },
+		createObject:   func() Object { var ret internal.KvEngineHealthcheck; return &ret },
+	}
 	itemKvEngineInc = TLItem{
 		tag:            0x3c7239bb,
 		tlName:         "kv_engine.inc",
@@ -1139,6 +1145,7 @@ var itemsByTag = map[uint32]*TLItem{
 	0x3c7231b2: &itemKvEngineBackup,
 	0x2c3239ba: &itemKvEngineCheck,
 	0x1c7349bb: &itemKvEngineGet,
+	0x2c1259aa: &itemKvEngineHealthcheck,
 	0x3c7239bb: &itemKvEngineInc,
 	0x2c7349ba: &itemKvEnginePut,
 	0x1a345674: &itemMetadataCreateEntityEvent,
@@ -1459,6 +1466,9 @@ var itemsByName = map[string]*TLItem{
 	"kv_engine.get":                                    &itemKvEngineGet,
 	"kv_engine.get#1c7349bb":                           &itemKvEngineGet,
 	"#1c7349bb":                                        &itemKvEngineGet,
+	"kv_engine.healthcheck":                            &itemKvEngineHealthcheck,
+	"kv_engine.healthcheck#2c1259aa":                   &itemKvEngineHealthcheck,
+	"#2c1259aa":                                        &itemKvEngineHealthcheck,
 	"kv_engine.inc":                                    &itemKvEngineInc,
 	"kv_engine.inc#3c7239bb":                           &itemKvEngineInc,
 	"#3c7239bb":                                        &itemKvEngineInc,

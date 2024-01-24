@@ -2,6 +2,7 @@ package blackbox
 
 import (
 	"context"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlkv_engine"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -13,6 +14,7 @@ type KVEngineClient interface {
 	Incr(key int64, value int64) (tlkv_engine.ChangeResponse, error)
 	Backup(prefix string) (tlkv_engine.BackupResponse, error)
 	Check(kv map[int64]int64) (bool, error)
+	HealthCheck() error
 }
 
 type kvEngine struct {
@@ -48,6 +50,19 @@ func (k kvEngine) Check(kv map[int64]int64) (resp bool, _ error) {
 			Value: v,
 		})
 	}
-	err := k.client.Check(context.Background(), req, nil, &resp)
+	retry := 10000
+	var err error
+	for i := 0; i < retry; i++ {
+		err = k.client.Check(context.Background(), req, nil, &resp)
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Millisecond * 1)
+	}
 	return resp, err
+}
+
+func (k kvEngine) HealthCheck() error {
+	var b bool
+	return k.client.Healthcheck(context.Background(), tlkv_engine.Healthcheck{}, nil, &b)
 }

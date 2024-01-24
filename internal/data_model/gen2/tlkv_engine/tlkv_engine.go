@@ -22,6 +22,7 @@ type (
 	Check          = internal.KvEngineCheck
 	Get            = internal.KvEngineGet
 	GetResponse    = internal.KvEngineGetResponse
+	Healthcheck    = internal.KvEngineHealthcheck
 	Inc            = internal.KvEngineInc
 	Kv             = internal.KvEngineKv
 	MetaInfo       = internal.KvEngineMetaInfo
@@ -104,6 +105,29 @@ func (c *Client) Get(ctx context.Context, args Get, extra *rpc.InvokeReqExtra, r
 	return nil
 }
 
+func (c *Client) Healthcheck(ctx context.Context, args Healthcheck, extra *rpc.InvokeReqExtra, ret *bool) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	if extra != nil {
+		req.Extra = *extra
+	}
+	req.Body, err = args.WriteBoxed(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("kv_engine.healthcheck", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if err != nil {
+		return internal.ErrorClientDo("kv_engine.healthcheck", c.Network, c.ActorID, c.Address, err)
+	}
+	defer c.Client.PutResponse(resp)
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("kv_engine.healthcheck", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
 func (c *Client) Inc(ctx context.Context, args Inc, extra *rpc.InvokeReqExtra, ret *ChangeResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
@@ -151,17 +175,19 @@ func (c *Client) Put(ctx context.Context, args Put, extra *rpc.InvokeReqExtra, r
 }
 
 type Handler struct {
-	Backup func(ctx context.Context, args Backup) (BackupResponse, error) // kv_engine.backup
-	Check  func(ctx context.Context, args Check) (bool, error)            // kv_engine.check
-	Get    func(ctx context.Context, args Get) (GetResponse, error)       // kv_engine.get
-	Inc    func(ctx context.Context, args Inc) (ChangeResponse, error)    // kv_engine.inc
-	Put    func(ctx context.Context, args Put) (ChangeResponse, error)    // kv_engine.put
+	Backup      func(ctx context.Context, args Backup) (BackupResponse, error) // kv_engine.backup
+	Check       func(ctx context.Context, args Check) (bool, error)            // kv_engine.check
+	Get         func(ctx context.Context, args Get) (GetResponse, error)       // kv_engine.get
+	Healthcheck func(ctx context.Context, args Healthcheck) (bool, error)      // kv_engine.healthcheck
+	Inc         func(ctx context.Context, args Inc) (ChangeResponse, error)    // kv_engine.inc
+	Put         func(ctx context.Context, args Put) (ChangeResponse, error)    // kv_engine.put
 
-	RawBackup func(ctx context.Context, hctx *rpc.HandlerContext) error // kv_engine.backup
-	RawCheck  func(ctx context.Context, hctx *rpc.HandlerContext) error // kv_engine.check
-	RawGet    func(ctx context.Context, hctx *rpc.HandlerContext) error // kv_engine.get
-	RawInc    func(ctx context.Context, hctx *rpc.HandlerContext) error // kv_engine.inc
-	RawPut    func(ctx context.Context, hctx *rpc.HandlerContext) error // kv_engine.put
+	RawBackup      func(ctx context.Context, hctx *rpc.HandlerContext) error // kv_engine.backup
+	RawCheck       func(ctx context.Context, hctx *rpc.HandlerContext) error // kv_engine.check
+	RawGet         func(ctx context.Context, hctx *rpc.HandlerContext) error // kv_engine.get
+	RawHealthcheck func(ctx context.Context, hctx *rpc.HandlerContext) error // kv_engine.healthcheck
+	RawInc         func(ctx context.Context, hctx *rpc.HandlerContext) error // kv_engine.inc
+	RawPut         func(ctx context.Context, hctx *rpc.HandlerContext) error // kv_engine.put
 }
 
 func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err error) {
@@ -254,6 +280,36 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
 				return internal.ErrorServerWriteResult("kv_engine.get", err)
+			}
+			return nil
+		}
+	case 0x2c1259aa: // kv_engine.healthcheck
+		if h.RawHealthcheck != nil {
+			hctx.Request = r
+			err = h.RawHealthcheck(ctx, hctx)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("kv_engine.healthcheck", err)
+			}
+			return nil
+		}
+		if h.Healthcheck != nil {
+			var args Healthcheck
+			if _, err = args.Read(r); err != nil {
+				return internal.ErrorServerRead("kv_engine.healthcheck", err)
+			}
+			ctx = hctx.WithContext(ctx)
+			ret, err := h.Healthcheck(ctx, args)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("kv_engine.healthcheck", err)
+			}
+			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+				return internal.ErrorServerWriteResult("kv_engine.healthcheck", err)
 			}
 			return nil
 		}

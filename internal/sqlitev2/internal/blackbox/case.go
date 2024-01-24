@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/vkcom/statshouse/internal/sqlitev2"
 	"pgregory.net/rand"
@@ -11,9 +12,10 @@ import (
 )
 
 type logEntry struct {
-	k      int64
-	v      int64
-	offset int64
+	k             int64
+	v             int64
+	offset        int64
+	canBeReverted bool
 }
 
 type Case struct {
@@ -45,16 +47,23 @@ func (c *Case) randValue() int64 {
 func (c *Case) Put() error {
 	k := c.randValue()
 	v := c.randValue()
+	fmt.Println("TRY PUT", k, v)
 	resp, err := c.client.Put(k, v)
+	canBeReverted := false
 	if err != nil {
-		return err
+		if !strings.Contains(err.Error(), "connection closed after request sent") {
+			fmt.Println("ERROR", err.Error())
+			return err
+		}
+		canBeReverted = true
 	}
-	c.kv[k] = resp.NewValue
+	c.kv[k] = v
 	c.commitDBOffset = resp.Meta.CommittedOffset
 	c.log = append(c.log, logEntry{
-		k:      k,
-		v:      resp.NewValue,
-		offset: resp.Meta.DbOffset,
+		k:             k,
+		v:             v,
+		offset:        resp.Meta.DbOffset,
+		canBeReverted: canBeReverted,
 	})
 	return nil
 }
@@ -107,14 +116,49 @@ func (c *Case) Backup(r *rapid.T) {
 	c.LastBackupPath = resp.Path
 }
 
-func (c *Case) Check(r *rapid.T) {
+func (c *Case) HealchCheck(r *rapid.T) {
+	err := c.client.HealthCheck()
+	if err != nil {
+		r.Fatal(err.Error())
+	}
+}
+
+func (c *Case) restoreFromLog(includeReverted bool) {
+	kv := map[int64]int64{}
+	newLog := []logEntry{}
+	for _, entry := range c.log {
+		if entry.canBeReverted && !includeReverted {
+			break
+		}
+		kv[entry.k] = entry.v
+		entry.canBeReverted = false
+		newLog = append(newLog, entry)
+	}
+	c.kv = kv
+	c.log = newLog
+}
+
+func (c *Case) Check(r *rapid.T) error {
+	if len(c.log) > 0 && c.log[len(c.log)-1].canBeReverted {
+		ok, err := c.client.Check(c.kv)
+		if err != nil {
+			panic(err)
+		}
+		if !ok {
+			fmt.Println("try revert")
+			c.restoreFromLog(false)
+		} else {
+			c.restoreFromLog(true)
+		}
+	}
 	ok, err := c.client.Check(c.kv)
 	if err != nil {
 		panic(err)
 	}
 	if !ok {
-		r.Errorf("CHECK FAILED client %v", c.kv)
-		return
+		err := fmt.Errorf("CHECK FAILED client %v", c.kv)
+		r.Errorf(err.Error())
+		return err
 	}
 	if c.LastBackupPath != "" {
 		ro, err := sqlitev2.OpenEngine(sqlitev2.Options{
@@ -144,11 +188,12 @@ func (c *Case) Check(r *rapid.T) {
 
 		if err != nil {
 			r.Error(err.Error())
-			return
+			return err
 		}
 		if backupOffset != c.lastBackupOffset {
 			r.Errorf("expect backup offset: %d, got: %d", c.lastBackupOffset, backupOffset)
-			return
+			return err
 		}
 	}
+	return nil
 }

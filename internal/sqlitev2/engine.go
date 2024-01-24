@@ -484,11 +484,13 @@ func (e *Engine) close(waitCommitBinlog bool) error {
 		<-e.finishBinlogRunCh
 	}
 	if !readOnly {
+		e.logger.Println("closing RW connection")
 		err := e.rw.Close()
 		if err != nil {
 			multierr.AppendInto(&error, fmt.Errorf("failed to close RW connection: %w", err))
 		}
 	}
+	e.logger.Println("closing RO connection pool")
 	// todo wait when read is finish?
 	e.roConnPool.close(&error)
 	return error
