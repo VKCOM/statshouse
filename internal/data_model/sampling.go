@@ -64,10 +64,11 @@ type (
 	}
 
 	SamplerStep struct {
-		Groups    []SamplerGroup // sorted by SumSize/Weight ratio ascending
-		Budget    int64          // groups starting from StartPos were sampled to fit the budget=BudgetNum/BudgetDenom
-		StartPos  int            // groups left of StartPos were not sampled
-		SumWeight int64          // summary weight of groups starting from StartPos
+		Groups      []SamplerGroup // sorted by SumSize/Weight ratio ascending
+		BudgetNum   int64          // groups starting from StartPos were sampled to fit the budget=BudgetNum/BudgetDenom
+		BudgetDenom int64          // budget denominator
+		StartPos    int            // groups left of StartPos were not sampled
+		SumWeight   int64          // summary weight of groups starting from StartPos
 	}
 
 	SamplerStatistics struct {
@@ -157,7 +158,7 @@ func (h *Sampler) Run(budget int64, stat *SamplerStatistics) {
 		}
 		return lhs.fairKey < rhs.fairKey
 	})
-	h.run(h.items, 0, budget, stat)
+	h.run(h.items, 0, budget, 1, stat)
 }
 
 func (stat *SamplerStatistics) Keep(p SamplingMultiItemPair) {
@@ -169,10 +170,13 @@ func (stat *SamplerStatistics) Keep(p SamplingMultiItemPair) {
 	stat.add(&p, true)
 }
 
-func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budget int64, stat *SamplerStatistics) {
+func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDenom int64, stat *SamplerStatistics) {
 	// Sanity check
-	if budget < 1 {
-		budget = 1
+	if budgetNum < 1 {
+		budgetNum = 1
+	}
+	if budgetDenom < 1 {
+		budgetDenom = 1
 	}
 	// Partition, then sort groups by sumSize/weight ratio
 	groups, sumWeight := h.partF[depth](h, s)
@@ -184,27 +188,28 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budget int64, stat *
 	i := 0
 	for ; i < len(groups); i++ {
 		g := &groups[i]
-		if g.sumSize*sumWeight > budget*g.weight {
+		if g.sumSize*budgetDenom*sumWeight > budgetNum*g.weight {
 			break // SF > 1
 		}
-		budget -= g.sumSize
+		budgetNum -= g.sumSize * budgetDenom
 		sumWeight -= g.weight
 		g.keep(h, stat)
 	}
 	if i == len(groups) {
 		return // without sampling
 	}
-	// Sample remaining groups which didn't fit into the budget
-	n := 0                                                          // number of "sample" calls with g.SF > 1
-	m := int64(math.Ceil(float64(budget) / float64(len(groups)-i))) // per group budget
+	// Sampling
+	startPos := i                               // start position
+	d := budgetDenom * (int64(len(groups) - i)) // per group budget denominator
+	n := 0                                      // number of "sample" calls with SF > 1
 	for ; i < len(groups); i++ {
 		g := &groups[i]
 		if g.noSampleAgent && h.config.ModeAgent {
 			g.keep(h, stat)
 		} else if depth < len(h.partF)-1 {
-			h.run(g.items, depth+1, m, stat)
+			h.run(g.items, depth+1, budgetNum, d, stat)
 		} else {
-			h.sample(g, budget, sumWeight, stat)
+			h.sample(g, budgetNum, budgetDenom, sumWeight, stat)
 			if g.SF > 1 {
 				n++
 			}
@@ -214,10 +219,11 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budget int64, stat *
 	if n != 0 {
 		stat.Count += n
 		stat.Steps = append(stat.Steps, SamplerStep{
-			Groups:    groups,
-			Budget:    m,
-			StartPos:  i,
-			SumWeight: sumWeight,
+			Groups:      groups,
+			BudgetNum:   budgetNum,
+			BudgetDenom: budgetDenom,
+			StartPos:    startPos,
+			SumWeight:   sumWeight,
 		})
 	}
 }
@@ -244,10 +250,10 @@ func (p *SamplingMultiItemPair) discard(sf float64, h *Sampler, stat *SamplerSta
 	stat.add(p, false)
 }
 
-func (h *Sampler) sample(g *SamplerGroup, budget, sumWeight int64, stat *SamplerStatistics) {
+func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int64, stat *SamplerStatistics) {
 	var (
-		sfNum   = g.sumSize * sumWeight
-		sfDenom = budget * g.weight
+		sfNum   = g.sumSize * budgetDenom * sumWeight
+		sfDenom = budgetNum * g.weight
 	)
 	if sfNum < 1 {
 		sfNum = 1
