@@ -2057,6 +2057,7 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 		pointsNum = 0
 	)
 	for i, r := range req.seriesRequest {
+		r.ai = ai
 		start := time.Now()
 		v, cancel, err := h.handleSeriesRequest(ctx, r, seriesRequestOptions{
 			metricCallback: func(meta *format.MetricMetaValue) {
