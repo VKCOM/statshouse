@@ -30,8 +30,10 @@ const (
 	TagValueIDMappingFlood  = -1
 	FairKeyIndexUnspecified = -1
 
-	EffectiveWeightOne = 128                      // metric.Weight is multiplied by this and rounded. Do not make too big or metric with weight set to 0 will disappear completely.
-	MaxEffectiveWeight = 100 * EffectiveWeightOne // do not make too high, we multiply this by sum of metric serialized length during sampling
+	EffectiveWeightOne          = 128                      // metric.Weight is multiplied by this and rounded. Do not make too big or metric with weight set to 0 will disappear completely.
+	MaxEffectiveWeight          = 100 * EffectiveWeightOne // do not make too high, we multiply this by sum of metric serialized length during sampling
+	MaxEffectiveGroupWeight     = 10_000 * EffectiveWeightOne
+	MaxEffectiveNamespaceWeight = 10_000 * EffectiveWeightOne
 
 	StringTopTagID = "_s"
 	HostTagID      = "_h"
@@ -498,8 +500,8 @@ func (m *MetricsGroup) RestoreCachedInfo(builtin bool) error {
 	if rw < 1 {
 		m.EffectiveWeight = 1
 	}
-	if rw > MaxEffectiveWeight {
-		m.EffectiveWeight = MaxEffectiveWeight
+	if rw > MaxEffectiveGroupWeight {
+		m.EffectiveWeight = MaxEffectiveGroupWeight
 	}
 	m.EffectiveWeight = int64(rw)
 	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
@@ -524,8 +526,8 @@ func (m *NamespaceMeta) RestoreCachedInfo(builtin bool) error {
 	if rw < 1 {
 		m.EffectiveWeight = 1
 	}
-	if rw > MaxEffectiveWeight {
-		m.EffectiveWeight = MaxEffectiveWeight
+	if rw > MaxEffectiveNamespaceWeight {
+		m.EffectiveWeight = MaxEffectiveNamespaceWeight
 	}
 	m.EffectiveWeight = int64(rw)
 	return err

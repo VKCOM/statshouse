@@ -402,7 +402,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	remainingBudget += int64(config.InsertBudget * numContributors) // fixed part + longterm part
 	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
-	sampler.Run(remainingBudget, 1, &samplerStat)
+	sampler.Run(remainingBudget, &samplerStat)
 	key1 := int32(format.TagValueIDConveyorRecent)
 	if historic {
 		key1 = format.TagValueIDConveyorHistoric
