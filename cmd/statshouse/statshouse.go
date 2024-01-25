@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
+	env2 "github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/stats"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -410,7 +411,12 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	}
 
 	if !argv.hardwareMetricScrapeDisable {
-		m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, logErr)
+		envLoader, closeF, err := env2.ListenEnvFile(argv.envFilePath)
+		if err != nil {
+			logErr.Printf("failed to start listen env file: %s", err.Error())
+		}
+		defer closeF()
+		m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, envLoader, logErr)
 		if err != nil {
 			logErr.Println("failed to init hardware collector", err.Error())
 		} else {

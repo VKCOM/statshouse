@@ -189,7 +189,9 @@ const (
 	RawIDTag_ftp      = 11
 
 	// don't use key tags greater than 11. 12..15 reserved by builtin metrics
-	HostDCTag = 11
+	HostDCTag     = 11
+	HostGroupTag  = 12
+	HostRegionTag = 13
 )
 
 func HardwareMetric(metricID int32) bool {

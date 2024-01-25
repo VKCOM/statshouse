@@ -1939,7 +1939,11 @@ func init() {
 			m.Tags[AggReplicaTag] = MetricMetaTag{Description: "aggregator_replica", Raw: true}
 		}
 		if _, ok := hostMetrics[id]; ok {
+			m.Tags[0] = MetricMetaTag{Description: "env"}
 			m.Tags[HostDCTag] = MetricMetaTag{Description: "dc"}
+			m.Tags[HostGroupTag] = MetricMetaTag{Description: "group"}
+			m.Tags[HostRegionTag] = MetricMetaTag{Description: "region"}
+
 		}
 		if MetricsWithAgentEnvRouteArch[id] {
 			m.Tags[RouteTag] = MetricMetaTag{Description: "route", ValueComments: convertToValueComments(routeToValue)}

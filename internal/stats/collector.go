@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/env"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -41,15 +42,16 @@ var errStopCollector = fmt.Errorf("stop collector")
 const procPath = "/proc"
 const sysPath = "/sys"
 
-func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, logErr *log.Logger) (*CollectorManager, error) {
+func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, envLoader *env.Loader, logErr *log.Logger) (*CollectorManager, error) {
 	newWriter := func() MetricWriter {
 		if h == nil {
-			return &MetricWriterRemoteImpl{HostName: opt.HostName}
+			return &MetricWriterRemoteImpl{HostName: opt.HostName, envLoader: envLoader}
 		}
 		return &MetricWriterSHImpl{
-			HostName: []byte(opt.HostName),
-			handler:  h,
-			metric:   &tlstatshouse.MetricBytes{},
+			HostName:  []byte(opt.HostName),
+			handler:   h,
+			metric:    &tlstatshouse.MetricBytes{},
+			envLoader: envLoader,
 		}
 	}
 	cpuStats, err := NewCpuStats(newWriter())
