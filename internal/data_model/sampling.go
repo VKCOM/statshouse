@@ -293,13 +293,8 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 			p.keep(1, h, stat)
 		}
 		items = items[pos:]
+		sf *= 2 // space has been taken by whales
 	}
-	// Space has been taken by whales
-	// NB! Should be moved at the end of the above "if" ASAP
-	// NB! because unconditional multiplication here is a BUG
-	// NB! leading to significant counters (sums as well) increase.
-	// NB! Left here to not deploy multiple changes together.
-	sf *= 2
 	// Sample tail
 	pos = h.config.SelectF(items, sf, h.config.Rand)
 	for i := 0; i < pos; i++ {

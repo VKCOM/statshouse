@@ -612,8 +612,8 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 				}
 			}
 			samplingMetric.items = samplingMetric.items[whalesAllowed:]
+			sf *= 2 // half of space is occupied by whales now. TODO - we can be more exact here, make permutations and take as many elements as we need, saving lots of rnd calls
 		}
-		sf *= 2 // half of space is occupied by whales now. TODO - we can be more exact here, make permutations and take as many elements as we need, saving lots of rnd calls
 		pos := config.SelectF(samplingMetric.items, sf, config.Rand)
 		for _, v := range samplingMetric.items[:pos] {
 			v.Item.SF = sf // communicate selected factor to next step of processing
