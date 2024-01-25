@@ -26,9 +26,6 @@ const config = {
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
   plugins: [
-      ['docusaurus-plugin-yandex-metrica', {
-            counterID: '96098475',
-          }],
       [
         require.resolve("@cmfcmf/docusaurus-search-local"),
         {
