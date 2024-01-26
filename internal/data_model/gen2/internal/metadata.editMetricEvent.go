@@ -96,9 +96,6 @@ func (item *MetadataEditMetricEvent) readJSON(j interface{}) error {
 }
 
 func (item *MetadataEditMetricEvent) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *MetadataEditMetricEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -107,7 +104,7 @@ func (item *MetadataEditMetricEvent) WriteJSONOpt(short bool, w []byte) (_ []byt
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metric":`...)
-	if w, err = item.Metric.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Metric.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if item.OldVersion != 0 {

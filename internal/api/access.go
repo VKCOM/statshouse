@@ -10,14 +10,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
-
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 )
-
-type accessManager struct {
-	getGroupByMetricName func(string) *format.MetricsGroup
-}
 
 type accessInfo struct {
 	user                 string
@@ -33,10 +29,9 @@ type accessInfo struct {
 	bitViewMetric        map[string]bool
 	bitEditMetric        map[string]bool
 	skipBadgesValidation bool
-	accessManager        *accessManager
 }
 
-func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
+func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	accessToken string,
 	protectedPrefixes []string,
 	localMode bool,
@@ -52,7 +47,6 @@ func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
 			bitViewMetric:     map[string]bool{},
 			bitEditMetric:     map[string]bool{},
 			insecureMode:      insecureMode,
-			accessManager:     m,
 		}
 		return ai, nil
 	}
@@ -69,7 +63,6 @@ func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
 		bitViewMetric:     map[string]bool{},
 		bitEditMetric:     map[string]bool{},
 		insecureMode:      insecureMode,
-		accessManager:     m,
 	}
 
 	bits := data.Bits
@@ -97,61 +90,55 @@ func (m *accessManager) parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	return ai, nil
 }
 
-func (ai *accessInfo) protectedMetric(metric string) bool {
-	group := ai.accessManager.getGroupByMetricName(metric)
-	if group != nil {
-		return group.Protected
-	}
-	// todo remove
+func (ai *accessInfo) protectedMetric(name string) bool {
 	for _, p := range ai.protectedPrefixes {
-		if strings.HasPrefix(metric, p) {
+		if strings.HasPrefix(name, p) {
 			return true
 		}
 	}
 	return false
 }
 
-func (ai *accessInfo) canViewMetric(metric string) bool {
-	if metric == format.BuiltinMetricNameBadges && ai.skipBadgesValidation {
+func (ai *accessInfo) CanViewMetricName(name string) bool {
+	if name == format.BuiltinMetricNameBadges && ai.skipBadgesValidation {
 		return true
 	}
 	if ai.insecureMode {
 		return true
 	}
-
-	return ai.bitViewMetric[metric] ||
-		hasPrefixAccess(ai.bitViewPrefix, metric) ||
-		(ai.bitViewDefault && !ai.protectedMetric(metric))
+	if data_model.RemoteConfigMetric(name) && !ai.bitAdmin {
+		return false // remote config can only be viewed by administrators
+	}
+	return ai.bitViewMetric[name] ||
+		hasPrefixAccess(ai.bitViewPrefix, name) ||
+		(ai.bitViewDefault && !ai.protectedMetric(name))
 }
 
-func (ai *accessInfo) canChangeMetricByName(create bool, oldName, newName string) bool {
+func (ai *accessInfo) CanViewMetric(metric format.MetricMetaValue) bool {
+	return ai.CanViewMetricName(metric.Name)
+}
+
+func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
 	if ai.insecureMode || ai.bitAdmin {
 		return true
 	}
 
-	if !create {
-		oldGroup := ai.accessManager.getGroupByMetricName(oldName)
-		newGroup := ai.accessManager.getGroupByMetricName(newName)
-		if oldGroup != nil && newGroup != nil {
-			if oldGroup.ID != newGroup.ID {
-				return false
-			}
-		} else if oldGroup != newGroup {
-			return false
-		}
-	}
+	oldName := old.Name
+	newName := new_.Name
 
-	// we expect that oldName and newName both are in the same group
+	if data_model.RemoteConfigMetric(oldName) || data_model.RemoteConfigMetric(newName) {
+		return false // remote config can only be set by administrators
+	}
 	return ai.bitEditMetric[oldName] && ai.bitEditMetric[newName] ||
 		(hasPrefixAccess(ai.bitEditPrefix, oldName) && hasPrefixAccess(ai.bitEditPrefix, newName)) ||
 		(ai.bitEditDefault && !ai.protectedMetric(oldName) && !ai.protectedMetric(newName))
 }
 
-func (ai *accessInfo) canEditMetric(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
+func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
 	if ai.insecureMode {
 		return true
 	}
-	if ai.canChangeMetricByName(create, old.Name, new_.Name) {
+	if ai.canChangeMetricByName(create, old, new_) {
 		if ai.bitAdmin {
 			return true
 		}
@@ -164,7 +151,6 @@ func (ai *accessInfo) canEditMetric(create bool, old format.MetricMetaValue, new
 		if preKeyOnly(old) != preKeyOnly(new_) {
 			return false
 		}
-
 		if skips(old) != skips(new_) {
 			return false
 		}
@@ -179,20 +165,6 @@ func (ai *accessInfo) isAdmin() bool {
 		return true
 	}
 	return ai.bitAdmin
-}
-
-func (ai *accessInfo) withBadgesRequest() accessInfo {
-	return accessInfo{
-		user:                 ai.user,
-		insecureMode:         ai.insecureMode,
-		protectedPrefixes:    ai.protectedPrefixes,
-		bitAdmin:             ai.bitAdmin,
-		bitViewPrefix:        ai.bitViewPrefix,
-		bitEditPrefix:        ai.bitEditPrefix,
-		bitViewMetric:        ai.bitViewMetric,
-		bitEditMetric:        ai.bitEditMetric,
-		skipBadgesValidation: true,
-	}
 }
 
 func preKey(m format.MetricMetaValue) uint32 {

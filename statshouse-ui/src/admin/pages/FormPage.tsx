@@ -13,7 +13,7 @@ import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { resetMetricFlood, saveMetric } from '../api/saveMetric';
 import { formatInputDate } from '../../view/utils';
 import { IActions } from '../storages/MetricFormValues/reducer';
-import { selectorListMetricsGroup, selectorLoadListMetricsGroup, useStore } from '../../store';
+import { useStore } from '../../store';
 import { RawValueKind } from '../../view/api';
 import { freeKeyPrefix } from '../../url/queryParams';
 import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType } from '../../api/enum';
@@ -115,13 +115,6 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
     [values.pre_key_from]
   );
 
-  const loadListMetricsGroup = useStore(selectorLoadListMetricsGroup);
-  const listMetricsGroup = useStore(selectorListMetricsGroup);
-
-  useEffect(() => {
-    loadListMetricsGroup().finally();
-  }, [loadListMetricsGroup]);
-
   return (
     <form key={values.version}>
       <div className="row mb-3">
@@ -197,7 +190,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
         </div>
         <div id="kindHelpBlock" className="form-text">
           Aggregation defines which functions (count, avg, sum, etc.) are available in UI. Mixed allows all functions.
-          Enabling percentiles greatly increase data volume collected, so can be enabled only by administrator.
+          Enabling percentiles greatly increase data volume collected.
         </div>
       </div>
       <div className="row mb-3">
@@ -450,30 +443,6 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
           </div>
         </div>
         <div id="pre_key_onlyHelpBlock" className="form-text"></div>
-      </div>
-      <div className="row mb-3">
-        <label htmlFor="resolution" className="col-sm-2 col-form-label">
-          Metrics group
-        </label>
-        <div className="col-sm-auto d-flex align-items-center">
-          <select
-            name="metricsGroup"
-            className="form-select"
-            value={values.group_id || 0}
-            onChange={(e) => dispatch({ type: 'group_id', key: e.target.value })}
-            disabled={isReadonly || !adminMode}
-          >
-            <option key="0" value="0">
-              default
-            </option>
-            {listMetricsGroup.map((metricsGroup) => (
-              <option key={metricsGroup.id} value={metricsGroup.id.toString()}>
-                {metricsGroup.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="form-text">Select metrics group</div>
       </div>
       <div className="row align-items-baseline mb-3">
         <label htmlFor="skip_max_host" className="col-sm-2 col-form-label">

@@ -136,9 +136,6 @@ func (item *EngineReloadDynamicLibOptions) readJSON(j interface{}) error {
 }
 
 func (item *EngineReloadDynamicLibOptions) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineReloadDynamicLibOptions) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

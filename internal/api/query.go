@@ -369,18 +369,6 @@ func validateQuery(metricMeta *format.MetricMetaValue, version string) error {
 	return nil
 }
 
-func validateQueryPoint(q *query) bool {
-	switch q.what {
-	case queryFnCount, queryFnMin, queryFnMax, queryFnAvg,
-		queryFnSum, queryFnP25, queryFnP50, queryFnP75,
-		queryFnP90, queryFnP95, queryFnP99, queryFnP999,
-		queryFnUnique:
-		return true
-	default:
-		return false
-	}
-}
-
 func parseQueryFilter(filter []string) (map[string][]string, map[string][]string, error) {
 	filterIn := map[string][]string{}
 	filterNotIn := map[string][]string{}
@@ -514,22 +502,4 @@ func (fn *queryFn) UnmarshalEasyJSON(w *jlexer.Lexer) {
 	if err != nil {
 		w.AddError(err)
 	}
-}
-
-func (fn *queryFn) isCumul() bool {
-	switch *fn {
-	case queryFnCumulCount, queryFnCumulAvg, queryFnCumulSum, queryFnCumulCardinality:
-		return true
-	}
-	return false
-}
-
-func (fn *queryFn) isDerivative() bool {
-	switch *fn {
-	case queryFnDerivativeCount, queryFnDerivativeCountNorm, queryFnDerivativeAvg,
-		queryFnDerivativeSum, queryFnDerivativeSumNorm, queryFnDerivativeMin,
-		queryFnDerivativeMax, queryFnDerivativeUnique, queryFnDerivativeUniqueNorm:
-		return true
-	}
-	return false
 }

@@ -19,9 +19,6 @@ export const selectorTimeRange = (s: Store) => s.timeRange;
 export const selectorSetTimeRange = (s: Store) => s.setTimeRange;
 export const selectorSetParams = (s: Store) => s.setParams;
 
-export const selectorLiveMode = (s: Store) => s.liveMode;
-export const selectorSetLiveMode = (s: Store) => s.setLiveMode;
-
 export const selectorDisabledLive = (s: Store) => !s.params.plots.every(({ useV2 }) => useV2);
 
 export const selectorGlobalNumQueriesPlot = (s: Store) => s.globalNumQueriesPlot;

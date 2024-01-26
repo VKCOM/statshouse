@@ -105,7 +105,7 @@ func calcTrendValue(i int, tf, s0, s1, b float64) float64 {
 // how trends in historical data will affect the current data. A higher trend factor increases the influence.
 // of trends. Algorithm taken from https://en.wikipedia.org/wiki/Exponential_smoothing titled: "Double exponential smoothing".
 func funcHoltWinters(ev *evaluator, args parser.Expressions) ([]Series, error) {
-	bag, err := ev.eval(args[0])
+	res, err := ev.eval(args[0])
 	if err != nil {
 		return nil, err
 	}
@@ -117,8 +117,8 @@ func funcHoltWinters(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	if tf <= 0 || tf >= 1 {
 		return nil, fmt.Errorf("invalid trend factor. Expected: 0 < tf < 1, got: %f", tf)
 	}
-	for x := range bag {
-		for _, s := range bag[x].Data {
+	for i := range res {
+		for _, s := range res[i].Data {
 			wnd := ev.newWindow(*s.Values, false)
 			for wnd.moveOneLeft() {
 				v := wnd.getValues()
@@ -144,11 +144,11 @@ func funcHoltWinters(ev *evaluator, args parser.Expressions) ([]Series, error) {
 			wnd.fillPrefixWith(NilValue)
 		}
 	}
-	return bag, nil
+	return res, nil
 }
 
 func funcRound(ev *evaluator, args parser.Expressions) ([]Series, error) {
-	bag, err := ev.eval(args[0])
+	res, err := ev.eval(args[0])
 	if err != nil {
 		return nil, err
 	}
@@ -163,14 +163,14 @@ func funcRound(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	// Invert as it seems to cause fewer floating point accuracy issues.
 	toNearestInverse := 1.0 / toNearest
 
-	for x := range bag {
-		for _, s := range bag[x].Data {
-			for i := range *s.Values {
-				(*s.Values)[i] = math.Floor((*s.Values)[i]*toNearestInverse+0.5) / toNearestInverse
+	for i := range res {
+		for _, s := range res[i].Data {
+			for j := range *s.Values {
+				(*s.Values)[j] = math.Floor((*s.Values)[j]*toNearestInverse+0.5) / toNearestInverse
 			}
 		}
 	}
-	return bag, nil
+	return res, nil
 }
 
 // endregion promql/functions.go

@@ -6,6 +6,8 @@ scrape_configs:
   static_configs:
     - targets:
       - 'demo.promlabs.com:10000'
+      - 'demo.promlabs.com:10001'
+      - 'demo.promlabs.com:10002'
 
 remote_write:
 - url: http://agent:13380/write

@@ -154,9 +154,6 @@ func (item *MetadataCreateMappingEvent) readJSON(j interface{}) error {
 }
 
 func (item *MetadataCreateMappingEvent) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *MetadataCreateMappingEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

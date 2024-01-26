@@ -70,7 +70,7 @@ func ErrorInvalidJSON(typeName string, msg string) error {
 }
 
 func ErrorInvalidJSONExcessElement(typeName string, key string) error {
-	return fmt.Errorf("invalid json object key %q", key)
+	return fmt.Errorf("invalid json for type %q - invalid json object key %q", typeName, key)
 }
 
 func JsonReadUnionType(typeName string, j interface{}) (map[string]interface{}, string, error) {

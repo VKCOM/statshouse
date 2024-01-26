@@ -187,10 +187,11 @@ type VectorSelector struct {
 	Name string
 	// OriginalOffset is the actual offset that was set in the query.
 	// This never changes.
-	OriginalOffset int64
-	Timestamp      *int64
-	StartOrEnd     ItemType // Set when @ is used with start() or end()
-	LabelMatchers  []*labels.Matcher
+	OriginalOffset   int64
+	OriginalOffsetEx []int64
+	Timestamp        *int64
+	StartOrEnd       ItemType // Set when @ is used with start() or end()
+	LabelMatchers    []*labels.Matcher
 
 	PosRange PositionRange
 
@@ -199,11 +200,13 @@ type VectorSelector struct {
 	MetricKindHint  string
 	Range           int64
 	What            string
+	Whats           []string
 	GroupBy         []string
 	GroupByAll      bool
 	GroupWithout    bool
 	MaxHost         bool
 	OmitNameTag     bool
+	Offsets         []int64
 }
 
 // TestStmt is an internal helper statement that allows execution

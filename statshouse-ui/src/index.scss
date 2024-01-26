@@ -187,9 +187,9 @@ html {
   box-shadow: var(--bs-secondary-bg) 0 0 10px 0px;
 }
 
-.plot-item:hover,
-.plot-item:has(.plot-hover) {
-  z-index: 1000;
+.plot-item-hover,
+.plot-item:hover {
+  z-index: 1000 !important;
 }
 
 code {

@@ -83,6 +83,10 @@ export function uniqueArray<T>(arr: T[]): T[] {
   return [...new Set(arr).keys()];
 }
 
+export function sumArray(arr: number[]) {
+  return arr.reduce((res, i) => res + i, 0);
+}
+
 export function getRandomKey(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
@@ -177,6 +181,10 @@ export function toEnum<T>(itemIsEnum: (s: unknown) => s is T, preConvert: (s: un
   return toEnumFull;
 }
 
+export function invertObj<K extends string, V extends string>(obj: Record<K, V>): Record<V, K> {
+  return Object.fromEntries(Object.entries(obj).map(([k, v]) => [v, k]));
+}
+
 export function objectRemoveKeyShift<T = unknown>(obj: Record<string, T>, index: number) {
   return Object.fromEntries(
     Object.entries(obj).map(([key, value]) => {
@@ -197,6 +205,12 @@ export function round(val: number, dec: number = 0, radix: number = 10) {
   if (Number.isInteger(val) && dec >= 0 && radix === 10) return val;
   let p = Math.pow(radix, dec);
   return Math.round(val * p * (1 + Number.EPSILON)) / p;
+}
+
+export function floor(val: number, dec: number = 0, radix: number = 10) {
+  if (Number.isInteger(val) && dec >= 0 && radix === 10) return val;
+  let p = Math.pow(radix, dec);
+  return Math.floor(val * p * (1 + Number.EPSILON)) / p;
 }
 
 export function prepareSearchStr(str: string) {

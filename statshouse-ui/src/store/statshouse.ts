@@ -16,7 +16,6 @@ import {
   apiPut,
   defaultBaseRange,
   Error403,
-  ErrorSkip,
   fmtInputDateTime,
   formatLegendValue,
   formatPercent,
@@ -68,7 +67,7 @@ import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
-import { GET_PARAMS, isQueryWhat, QueryWhat, TagKey } from '../api/enum';
+import { GET_PARAMS, isQueryWhat, METRIC_TYPE, QUERY_WHAT, QueryWhat, TagKey } from '../api/enum';
 import { deepClone, mergeLeft, sortEntity, toNumber } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { appHistory } from '../common/appHistory';
@@ -90,8 +89,11 @@ import {
   VariableParams,
 } from '../url/queryParams';
 import { clearPlotVisibility, resortPlotVisibility, usePlotVisibilityStore } from './plot/plotVisibilityStore';
-import { clearAllPlotPreview, clearPlotPreview, resortPlotPreview } from './plot/plotPreview';
+import { clearAllPlotPreview, clearPlotPreview, resortPlotPreview } from './plot/plotPreviewStore';
 import { createStoreWithEqualityFn } from './createStore';
+import { setLiveMode, setLiveModeInterval, useLiveModeStore } from './liveMode';
+import { addStatus, removePlotHeals, resortPlotHeals, skipRequestPlot, usePlotHealsStore } from './plot/plotHealsStore';
+import { formatByMetricType, getMetricType } from '../common/formatByMetricType';
 
 export type PlotStore = {
   nameMetric: string;
@@ -102,6 +104,7 @@ export type PlotStore = {
   errorSkipCount: number;
   data: uPlot.AlignedData;
   stacked?: uPlot.AlignedData;
+  bands?: uPlot.Band[];
   series: uPlot.Series[];
   seriesShow: boolean[];
   scales: Record<string, { min: number; max: number }>;
@@ -208,8 +211,6 @@ export type StatsHouseStore = {
   setDefaultParams(nextState: React.SetStateAction<QueryParams>): void;
   timeRange: TimeRange;
   params: QueryParams;
-  liveMode: boolean;
-  setLiveMode(nextStatus: React.SetStateAction<boolean>): void;
   updateParamsByUrl(abortSignal?: AbortSignal): void;
   updateUrl(replace?: boolean): void;
   updateTitle(): void;
@@ -256,6 +257,7 @@ export type StatsHouseStore = {
   dashboardLayoutEdit: boolean;
   setDashboardLayoutEdit(nextStatus: boolean): void;
   setGroupName(indexGroup: number, name: string): void;
+  setGroupDescription(indexGroup: number, description: string): void;
   setGroupShow(indexGroup: number, show: React.SetStateAction<boolean>): void;
   setGroupSize(indexGroup: number, size: React.SetStateAction<string>): void;
   listMetricsGroup: MetricsGroupShort[];
@@ -274,7 +276,7 @@ export type StatsHouseStore = {
 };
 
 export type Store = StatsHouseStore;
-export const useStore = createStoreWithEqualityFn<Store>((setState, getState) => {
+export const useStore = createStoreWithEqualityFn<Store>((setState, getState, store) => {
   let prevLocation = appHistory.location;
   let controller: AbortController;
   appHistory.listen(({ location }) => {
@@ -287,7 +289,11 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
       }
     }
   });
-
+  store.subscribe((store, prevStore) => {
+    if (store.timeRange.relativeFrom !== prevStore.timeRange.relativeFrom) {
+      setLiveModeInterval(store.timeRange.relativeFrom);
+    }
+  });
   return {
     defaultParams: getDefaultParams(),
     setDefaultParams(nextState) {
@@ -457,7 +463,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         getState().updateUrl(true);
       }
       if (params.live) {
-        getState().setLiveMode(true);
+        setLiveMode(true);
       }
     },
     setParams(nextState, replace?, force?) {
@@ -530,8 +536,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
             getState().loadPlot(indexPlot, force);
           }
         });
-        if (getState().params.plots.some(({ useV2 }) => !useV2) && getState().liveMode) {
-          getState().setLiveMode(false);
+        if (getState().params.plots.some(({ useV2 }) => !useV2) && useLiveModeStore.getState().live) {
+          setLiveMode(false);
         }
         getState().updateUrl(replace);
       }
@@ -565,8 +571,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         if (!noUpdate) {
           getState().loadPlot(index);
         }
-        if (!next.useV2 && getState().liveMode) {
-          getState().setLiveMode(false);
+        if (!next.useV2 && useLiveModeStore.getState().live) {
+          setLiveMode(false);
         }
         if (next.metricName !== prev.metricName) {
           const metrics = getState().params.plots.map(({ metricName }) => metricName);
@@ -650,7 +656,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
       const autoReplace =
         prevState.params.timeRange.from === defaultTimeRange.from ||
         prevState.params.timeRange.to === defaultTimeRange.to ||
-        prevState.liveMode ||
+        useLiveModeStore.getState().live ||
         prevState.timeRange.from > now();
 
       const p = encodeParams(prevState.params, prevState.defaultParams);
@@ -713,22 +719,6 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
       getState().updateUrl();
     },
     error: '',
-    liveMode: false,
-    setLiveMode(nextStatus) {
-      const nextState = getNextState(getState().liveMode, nextStatus);
-      setState((state) => {
-        if (state.liveMode !== nextState) {
-          state.liveMode = nextState;
-        }
-      });
-      if (!nextState) {
-        getState().setParams(
-          produce((param) => {
-            param.live = false;
-          })
-        );
-      }
-    },
     globalNumQueriesPlot: 0,
     setGlobalNumQueriesPlot(nextState) {
       setState((state) => {
@@ -756,9 +746,9 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
           state.plotsData[index] = getEmptyPlotData();
         });
       }
+      const prevStateLiveMode = useLiveModeStore.getState().live;
       const {
         numQueriesPlot: prevStateNumQueriesPlot,
-        liveMode: prevStateLiveMode,
         params: { plots: prevStatePlots, variables: prevStateVariables, timeShifts: prevStateTimeShifts },
         uPlotsWidth: prevStateuPlotsWidth,
         compact: prevStateCompact,
@@ -793,7 +783,6 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
       const prev: PlotStore = getState().plotsData[index];
 
       const deltaTime = Math.floor((prevStateTo - prevStateFrom) / 5);
-
       if (
         !usePlotVisibilityStore.getState().visibilityList[index] &&
         usePlotVisibilityStore.getState().previewList[index] &&
@@ -811,6 +800,10 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
       if (lastPlotParams && lastPlotParams.metricName === '' && lastPlotParams.promQL === '') {
         return;
       }
+      const changeMetric = !dequal(
+        { metricName: lastPlotParams.metricName },
+        { metricName: prev.lastPlotParams?.metricName }
+      );
       if (
         width &&
         lastPlotParams &&
@@ -826,19 +819,6 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
             : lastPlotParams.customAgg === 0
             ? `${Math.floor(width * devicePixelRatio)}`
             : `${lastPlotParams.customAgg}s`;
-        debug.log(
-          '%crequesting data for %s %s %d %o %O %o %o %d',
-          'color:green',
-          lastPlotParams.useV2,
-          lastPlotParams.metricName,
-          agg,
-          lastPlotParams.what,
-          lastPlotParams.groupBy,
-          lastPlotParams.filterIn,
-          lastPlotParams.filterNotIn,
-          Math.round(-getState().timeRange.relativeFrom),
-          lastPlotParams.maxHost
-        );
         if (!getState().metricsMeta[lastPlotParams.metricName]) {
           getState().loadMetricsMeta(lastPlotParams.metricName);
         }
@@ -865,17 +845,29 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
             scales.y = { ...lastPlotParams.yLock };
           }
           state.plotsData[index].scales = scales;
-        });
-        if (isPromQl && !lastPlotParams.promQL) {
-          setState((state) => {
+          if (changeMetric || (isPromQl && !lastPlotParams.promQL)) {
             state.plotsData[index] = getEmptyPlotData();
-            state.liveMode = false;
-          });
-          clearPlotPreview(index);
+            clearPlotPreview(index);
+            removePlotHeals(index.toString());
+          }
+        });
+        if ((isPromQl && !lastPlotParams.promQL) || skipRequestPlot(index.toString())) {
           getState().setNumQueriesPlot(index, (n) => n - 1);
           return;
         }
-
+        debug.log(
+          '%crequesting data for %s %s %d %o %O %o %o %d',
+          'color:green',
+          lastPlotParams.useV2,
+          lastPlotParams.metricName,
+          agg,
+          lastPlotParams.what,
+          lastPlotParams.groupBy,
+          lastPlotParams.filterIn,
+          lastPlotParams.filterNotIn,
+          Math.round(-getState().timeRange.relativeFrom),
+          lastPlotParams.maxHost
+        );
         (isPromQl
           ? apiPost<queryResult>(url, promQLForm, controller.signal, true)
           : apiGet<queryResult>(url, controller.signal, true)
@@ -1154,7 +1146,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
             setState((state) => {
               delete state.plotsDataAbortController[index];
               const noUpdateData = dequal(
-                stacked || data,
+                stacked?.data || data,
                 state.plotsData[index]?.stacked || state.plotsData[index]?.data
               );
               if (resp.metric != null && !dequal(state.metricsMeta[resp.metric.name], resp.metric)) {
@@ -1165,10 +1157,13 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                 nameMetric: uniqueName.size === 1 ? ([...uniqueName.keys()][0] as string) : '',
                 whats: dequal(whats, state.plotsData[index]?.whats) ? state.plotsData[index]?.whats : whats,
                 metricType,
-                error: '',
+                error: usePlotHealsStore.getState().status[index]?.status ? '' : state.plotsData[index]?.error,
                 errorSkipCount: 0,
                 data: noUpdateData ? state.plotsData[index]?.data : data,
-                stacked: noUpdateData ? state.plotsData[index]?.stacked : stacked,
+                stacked: noUpdateData ? state.plotsData[index]?.stacked : stacked?.data,
+                bands: dequal(state.plotsData[index]?.bands, stacked?.bands)
+                  ? state.plotsData[index]?.bands
+                  : stacked?.bands,
                 series:
                   dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) &&
                   !changeColor &&
@@ -1200,36 +1195,45 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                 promQL: resp.promql ?? '',
               };
             });
+            addStatus(index.toString(), true);
           })
           .catch((error) => {
             if (!getState().metricsMeta[lastPlotParams.metricName]) {
               getState().loadMetricsMeta(lastPlotParams.metricName);
             }
-            if (error instanceof ErrorSkip) {
+            /*if (error instanceof ErrorSkip) {
               setState((state) => {
                 state.plotsData[index] ??= getEmptyPlotData();
                 state.plotsData[index].errorSkipCount++;
-                if (!state.liveMode || state.plotsData[index].errorSkipCount > globalSettings.skip_error_count) {
+                if (
+                  !useLiveModeStore.getState().live ||
+                  state.plotsData[index].errorSkipCount > globalSettings.skip_error_count
+                ) {
                   state.plotsData[index].error = error.toString();
-                  state.liveMode = false;
+                  // setLiveMode(false);
+                  addStatus(index.toString(), false);
                 }
               });
-            } else if (error instanceof Error403) {
+            } else */ if (error instanceof Error403) {
               setState((state) => {
                 state.plotsData[index] = {
                   ...getEmptyPlotData(),
                   error403: error.toString(),
                 };
-                state.liveMode = false;
+                // state.plotsData[index].error = error.toString();
+                // setLiveMode(false);
+                addStatus(index.toString(), false);
               });
             } else if (error.name !== 'AbortError') {
               debug.error(error);
               setState((state) => {
-                state.plotsData[index] = {
-                  ...getEmptyPlotData(),
-                  error: error.toString(),
-                };
-                state.liveMode = false;
+                state.plotsData[index].error = error.toString();
+                // state.plotsData[index] = {
+                //   ...getEmptyPlotData(),
+                //   error: error.toString(),
+                // };
+                addStatus(index.toString(), false);
+                // setLiveMode(false);
               });
             }
             clearPlotPreview(index);
@@ -1396,8 +1400,12 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
               case PLOT_TYPE.Metric:
                 params.plots[indexPlot].customAgg = 0;
                 params.plots[indexPlot].eventsBy = [];
+                params.plots[indexPlot].what = [QUERY_WHAT.countNorm];
+                params.plots[indexPlot].numSeries = 5;
                 break;
               case PLOT_TYPE.Event:
+                params.plots[indexPlot].what = [QUERY_WHAT.count];
+                params.plots[indexPlot].numSeries = 0;
                 params.plots[indexPlot].customAgg = -1;
                 params.plots[indexPlot].eventsBy =
                   (meta &&
@@ -1409,6 +1417,15 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                     }, [] as string[])) ??
                   [];
                 break;
+            }
+            if (params.plots[indexPlot].type === PLOT_TYPE.Metric) {
+              params.plots = params.plots.map((plot, indexP, plotList) => {
+                const eventsFilter = plot.events.filter((eventPlot) => plotList[eventPlot]?.type === PLOT_TYPE.Event);
+                return {
+                  ...plot,
+                  events: eventsFilter,
+                };
+              });
             }
             const timeShiftsSet = getTimeShifts(params.plots[indexPlot].customAgg);
             const shifts = params.timeShifts.filter(
@@ -1587,6 +1604,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
       if (remapIndexPlot) {
         resortPlotPreview(remapIndexPlot);
         resortPlotVisibility(remapIndexPlot);
+        resortPlotHeals(remapIndexPlot);
       }
       setState((state) => {
         state.plotsData = plotsData;
@@ -1600,7 +1618,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
         state.dashboardLayoutEdit = nextStatus;
       });
       if (nextStatus) {
-        getState().setLiveMode(false);
+        setLiveMode(false);
       }
       if (!nextStatus && getState().params.tabNum < -1) {
         getState().setTabNum(-1);
@@ -1614,7 +1632,21 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
             if (state.dashboard.groupInfo[indexGroup]) {
               state.dashboard.groupInfo[indexGroup].name = name;
             } else {
-              state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: '2' };
+              state.dashboard.groupInfo[indexGroup] = { show: true, name, count: 0, size: '2', description: '' };
+            }
+          }
+        })
+      );
+    },
+    setGroupDescription(indexGroup, description) {
+      getState().setParams(
+        produce<QueryParams>((state) => {
+          if (state.dashboard) {
+            state.dashboard.groupInfo = state.dashboard.groupInfo ?? [];
+            if (state.dashboard.groupInfo[indexGroup]) {
+              state.dashboard.groupInfo[indexGroup].description = description;
+            } else {
+              state.dashboard.groupInfo[indexGroup] = { show: true, name: '', count: 0, size: '2', description };
             }
           }
         })
@@ -1634,6 +1666,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                 name: '',
                 count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
                 size: '2',
+                description: '',
               };
             }
           }
@@ -1654,6 +1687,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                 name: '',
                 count: state.dashboard.groupInfo.length ? 0 : state.plots.length,
                 size: nextSize,
+                description: '',
               };
             }
           }
@@ -1867,7 +1901,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
           }
         });
         apiGet<queryTable>(url, controller.signal, true)
-          .then((resp) => {
+          .then(async (resp) => {
+            await getState().loadMetricsMeta(getState().params.plots[indexPlot].metricName);
             setState((state) => {
               state.events[indexPlot] ??= {
                 chunks: [],
@@ -1875,6 +1910,10 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                 what: [],
                 range: new TimeRange(range.getRangeUrl),
               };
+              const prevPlot = state.params.plots[indexPlot];
+              const meta = state.metricsMeta[prevPlot.metricName];
+              const metricType = getMetricType(prevPlot.what, prevPlot.metricType ?? meta?.metric_type);
+              const formatMetric = metricType !== METRIC_TYPE.none && formatByMetricType(metricType);
               const chunk: EventDataChunk = {
                 ...resp,
                 ...range.getRange(),
@@ -1920,7 +1959,15 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState) =>
                         data: row.data,
                         time: row.time,
                         ...Object.fromEntries(
-                          state.events[indexPlot].what.map((whatKey, indexWhat) => [whatKey, row.data[indexWhat]])
+                          state.events[indexPlot].what.map((whatKey, indexWhat) => [
+                            whatKey,
+                            {
+                              value: row.data[indexWhat],
+                              formatValue: formatMetric
+                                ? formatMetric(row.data[indexWhat])
+                                : formatLegendValue(row.data[indexWhat]),
+                            },
+                          ])
                         ),
                         ...row.tags,
                       }) as EventDataRow
@@ -2061,12 +2108,12 @@ export function addDashboardGroup(indexGroup: number) {
       if (p.dashboard) {
         p.dashboard.groupInfo ??= [];
         if (p.dashboard.groupInfo.length === 0) {
-          p.dashboard.groupInfo.push({ name: '', count: p.plots.length, show: true, size: '2' });
+          p.dashboard.groupInfo.push({ name: '', count: p.plots.length, show: true, size: '2', description: '' });
         }
         if (indexGroup >= p.dashboard.groupInfo.length) {
-          p.dashboard.groupInfo.push({ name: '', count: 0, show: true, size: '2' });
+          p.dashboard.groupInfo.push({ name: '', count: 0, show: true, size: '2', description: '' });
         } else {
-          p.dashboard.groupInfo.splice(indexGroup, 0, { name: '', count: 0, show: true, size: '2' });
+          p.dashboard.groupInfo.splice(indexGroup, 0, { name: '', count: 0, show: true, size: '2', description: '' });
         }
       }
     })
@@ -2079,7 +2126,7 @@ export function removeDashboardGroup(indexGroup: number) {
       if (p.dashboard) {
         p.dashboard.groupInfo ??= [];
         if (p.dashboard.groupInfo.length === 0) {
-          p.dashboard.groupInfo.push({ name: '', count: p.plots.length, show: true, size: '2' });
+          p.dashboard.groupInfo.push({ name: '', count: p.plots.length, show: true, size: '2', description: '' });
         }
         p.dashboard.groupInfo.splice(indexGroup, 1);
       }
@@ -2193,6 +2240,7 @@ export function moveAndResortPlot(
             count: 0,
             show: true,
             size: '2',
+            description: '',
           };
         }
       }
@@ -2252,7 +2300,13 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
       if (p.params.dashboard) {
         p.params.dashboard.groupInfo ??= [];
         if (p.params.dashboard.groupInfo.length === 0) {
-          p.params.dashboard.groupInfo.push({ name: '', count: p.params.plots.length, show: true, size: '2' });
+          p.params.dashboard.groupInfo.push({
+            name: '',
+            count: p.params.plots.length,
+            show: true,
+            size: '2',
+            description: '',
+          });
         }
         if (targetGroupIndex > p.params.dashboard.groupInfo.length) {
           p.params.dashboard.groupInfo.push({ ...group, count: 0 });
@@ -2280,7 +2334,13 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
       if (p.params.dashboard) {
         p.params.dashboard.groupInfo ??= [];
         if (p.params.dashboard.groupInfo.length === 0) {
-          p.params.dashboard.groupInfo.push({ name: '', count: p.params.plots.length, show: true, size: '2' });
+          p.params.dashboard.groupInfo.push({
+            name: '',
+            count: p.params.plots.length,
+            show: true,
+            size: '2',
+            description: '',
+          });
         }
         p.params.dashboard.groupInfo.splice(direction > 0 ? indexGroup : indexGroup + 1, 1);
       }
@@ -2288,6 +2348,7 @@ export function moveGroup(indexGroup: number, direction: -1 | 1) {
     if (remapIndexPlot) {
       resortPlotPreview(remapIndexPlot);
       resortPlotVisibility(remapIndexPlot);
+      resortPlotHeals(remapIndexPlot);
     }
     useStore.setState((state) => {
       state.plotsData = store.plotsData;

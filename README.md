@@ -6,8 +6,8 @@ StatsHouse is a highly-available, scalable, multi-tenant monitoring system.
 
 **StatsHouse is used in production at big scale**  
 StatsHouse is the main monitoring system of [vk.com](https://vk.com). As of
-December 2022, main StatsHouse cluster is receiving 650 million metrics
-per second from 15000 servers and stores 4 years of data.
+November 2023, main StatsHouse cluster is receiving 1.2 billion metrics
+per second from 22000 servers and stores 5 years of data.
 
 **StatsHouse provides high resolution, low latency data**  
 With default metric resolution of 1 second and latency of 5 seconds,

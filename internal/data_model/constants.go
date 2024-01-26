@@ -102,7 +102,8 @@ const (
 
 	SimulatorMetricPrefix = "simulator_metric_"
 
-	StatshouseAgentRemoteConfigMetric = "statshouse_agent_remote_config"
+	StatshouseAgentRemoteConfigMetric      = "statshouse_agent_remote_config"
+	StatshouseAggregatorRemoteConfigMetric = "statshouse_aggregator_remote_config"
 )
 
 func NextBackoffDuration(backoffTimeout time.Duration) time.Duration {
@@ -125,6 +126,15 @@ func SilentRPCError(err error) bool {
 	switch rpcError.Code {
 	case RPCErrorMissedRecentConveyor, RPCErrorInsert,
 		RPCErrorNoAutoCreate, RPCErrorTerminateLongpoll:
+		return true
+	default:
+		return false
+	}
+}
+
+func RemoteConfigMetric(name string) bool {
+	switch name {
+	case StatshouseAgentRemoteConfigMetric, StatshouseAggregatorRemoteConfigMetric:
 		return true
 	default:
 		return false

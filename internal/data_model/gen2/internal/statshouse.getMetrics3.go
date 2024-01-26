@@ -100,11 +100,7 @@ func (item *StatshouseGetMetrics3) ReadResultJSON(j interface{}, ret *MetadataGe
 }
 
 func (item *StatshouseGetMetrics3) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *StatshouseGetMetrics3) writeResultJSON(short bool, w []byte, ret MetadataGetJournalResponsenew) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = ret.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -116,15 +112,6 @@ func (item *StatshouseGetMetrics3) ReadResultWriteResultJSON(r []byte, w []byte)
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseGetMetrics3) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetJournalResponsenew
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -202,9 +189,6 @@ func (item *StatshouseGetMetrics3) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseGetMetrics3) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseGetMetrics3) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -213,7 +197,7 @@ func (item *StatshouseGetMetrics3) WriteJSONOpt(short bool, w []byte) (_ []byte,
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if item.FieldMask != 0 {
@@ -340,11 +324,7 @@ func (item *StatshouseGetMetrics3Bytes) ReadResultJSON(j interface{}, ret *Metad
 }
 
 func (item *StatshouseGetMetrics3Bytes) WriteResultJSON(w []byte, ret MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *StatshouseGetMetrics3Bytes) writeResultJSON(short bool, w []byte, ret MetadataGetJournalResponsenewBytes) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = ret.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -356,15 +336,6 @@ func (item *StatshouseGetMetrics3Bytes) ReadResultWriteResultJSON(r []byte, w []
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseGetMetrics3Bytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetJournalResponsenewBytes
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -442,9 +413,6 @@ func (item *StatshouseGetMetrics3Bytes) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseGetMetrics3Bytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseGetMetrics3Bytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -453,7 +421,7 @@ func (item *StatshouseGetMetrics3Bytes) WriteJSONOpt(short bool, w []byte) (_ []
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if item.FieldMask != 0 {

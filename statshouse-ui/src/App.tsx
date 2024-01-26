@@ -11,6 +11,9 @@ import { ViewPage } from './view/ViewPage';
 import { BuildVersion, HeaderMenu } from './components';
 import { currentAccessInfo } from './common/access';
 import { DashboardListView } from './view/DashboardListView';
+import { SettingsPage } from './view/Settings/SettingsPage';
+import { GroupPage } from './view/Settings/GroupPage';
+import { NamespacePage } from './view/Settings/NamespacePage';
 
 const FAQ = React.lazy(() => import('./doc/FAQ'));
 
@@ -32,10 +35,11 @@ function App() {
           }
         />
         <Route path="admin/*" element={<Admin yAxisSize={yAxisSize} adminMode={ai.admin} />} />
-        {/*<Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>*/}
-        {/*<Route path="group" element={<GroupPage />} />*/}
-        {/*<Route path="prometheus" element={<PrometheusPage />} />*/}
-        {/*</Route>*/}
+        <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>
+          <Route path="group" element={<GroupPage />} />
+          <Route path="namespace" element={<NamespacePage />} />
+          {/*<Route path="prometheus" element={<PrometheusPage />} />*/}
+        </Route>
 
         <Route path="view" element={<ViewPage yAxisSize={yAxisSize} />} />
         <Route path="dash-list" element={<DashboardListView />} />

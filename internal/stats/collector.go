@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/env"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -36,18 +37,21 @@ type scrapeResult struct {
 	isSuccess bool
 }
 
+var errStopCollector = fmt.Errorf("stop collector")
+
 const procPath = "/proc"
 const sysPath = "/sys"
 
-func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, logErr *log.Logger) (*CollectorManager, error) {
+func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, envLoader *env.Loader, logErr *log.Logger) (*CollectorManager, error) {
 	newWriter := func() MetricWriter {
 		if h == nil {
-			return &MetricWriterRemoteImpl{HostName: opt.HostName}
+			return &MetricWriterRemoteImpl{HostName: opt.HostName, envLoader: envLoader}
 		}
 		return &MetricWriterSHImpl{
-			HostName: []byte(opt.HostName),
-			handler:  h,
-			metric:   &tlstatshouse.MetricBytes{},
+			HostName:  []byte(opt.HostName),
+			handler:   h,
+			metric:    &tlstatshouse.MetricBytes{},
+			envLoader: envLoader,
 		}
 	}
 	cpuStats, err := NewCpuStats(newWriter())
@@ -78,7 +82,15 @@ func NewCollectorManager(opt CollectorManagerOptions, h receiver.Handler, logErr
 	if err != nil {
 		return nil, err
 	}
-	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats} // TODO add modules
+	vmStatsCollector, err := NewVMStats(newWriter())
+	if err != nil {
+		return nil, err
+	}
+	klogStats, err := NewDMesgStats(newWriter())
+	if err != nil {
+		return nil, err
+	}
+	allCollectors := []Collector{cpuStats, diskStats, memStats, netStats, psiStats, sockStats, protocolsStats, vmStatsCollector, klogStats} // TODO add modules
 	var collectors []Collector
 	for _, collector := range allCollectors {
 		if !collector.Skip() {
@@ -104,13 +116,15 @@ func (m *CollectorManager) RunCollector() error {
 		errGroup.Go(func() (err error) {
 			defer func() {
 				if r := recover(); r != nil {
-					m.logErr.Println(r)
-					err = fmt.Errorf("panic during to write system metrics: %s", r)
+					m.logErr.Println("panic:", r)
 				}
 			}()
 			for {
 				now := time.Now()
 				err := collector.WriteMetrics(now.Unix())
+				if err == errStopCollector {
+					return nil
+				}
 				if err != nil {
 					m.logErr.Printf("failed to write metrics: %v (collector: %s)", err, c.Name())
 				} else {

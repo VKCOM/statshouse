@@ -1,10 +1,10 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { Dispatch, memo, SetStateAction, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { PlotNavigate } from './PlotNavigate';
 import { SetTimeRangeValue } from '../../common/TimeRange';
 import { produce } from 'immer';
@@ -54,7 +54,7 @@ export type PlotHeaderProps = {
   meta?: MetricMetaValue;
   live: boolean;
   setParams: (nextState: React.SetStateAction<PlotParams>, replace?: boolean | undefined) => void;
-  setLive: Dispatch<SetStateAction<boolean>>;
+  setLive: (status: boolean) => void;
   setTimeRange: (value: SetTimeRangeValue, force?: boolean) => void;
   yLock: lockRange;
   onResetZoom?: () => void;
@@ -160,7 +160,10 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
         prev.tabNum = 0;
         prev.plots = [plot].filter(Boolean);
         prev.tagSync = [];
-        prev.variables = [];
+        prev.variables =
+          plot.metricName === promQLMetric
+            ? prev.variables.filter((v) => plot.promQL.indexOf(v.name) > -1).map((v) => ({ ...v, link: [] }))
+            : [];
       })
     );
     return `${document.location.protocol}//${document.location.host}${document.location.pathname}?${fixMessageTrouble(
@@ -364,15 +367,9 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             ) : (
               <div className="d-flex align-items-center w-100">
                 <div className="overflow-force-wrap flex-grow-1">
-                  <Tooltip hover as="span" className="text-decoration-none overflow-hidden" title={plotTooltip}>
-                    <PlotLink
-                      className="text-decoration-none overflow-hidden"
-                      indexPlot={indexPlot}
-                      target={embed ? '_blank' : '_self'}
-                    >
-                      <PlotName plot={plot} plotData={plotData} />
-                    </PlotLink>
-                  </Tooltip>
+                  <PlotLink className="text-secondary text-decoration-none" indexPlot={indexPlot}>
+                    <PlotName plot={plot} plotData={plotData} />
+                  </PlotLink>
                   <Link to={copyLink} target="_blank" className="ms-2">
                     <SVGBoxArrowUpRight width={10} height={10} />
                   </Link>
@@ -421,9 +418,11 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
             autoHeight
           />
         ) : (
-          <small className="overflow-force-wrap text-secondary flex-grow-0" style={{ whiteSpace: 'pre-wrap' }}>
-            {plot.customDescription || meta?.description}
-          </small>
+          <Tooltip className="d-flex" title={plot.customDescription || meta?.description} hover>
+            <small className="text-secondary w-0 flex-grow-1 text-truncate">
+              {plot.customDescription || meta?.description}
+            </small>
+          </Tooltip>
         ))}
     </div>
   );

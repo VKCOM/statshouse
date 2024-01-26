@@ -1,154 +1,189 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2023 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  selectorListMetricsGroup,
-  selectorLoadListMetricsGroup,
-  selectorLoadMetricsGroup,
-  selectorRemoveMetricsGroup,
-  selectorSaveMetricsGroup,
-  selectorSelectMetricsGroup,
-  selectorSetSelectMetricsGroup,
-  useStore,
-} from '../../store';
+import { groupAdd, groupListErrors, groupListLoad, groupLoad, groupSave, useGroupListStore } from '../../store';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
-import { useStateInput } from '../../hooks';
 import cn from 'classnames';
-import { sortByKey } from '../utils';
-import { ErrorMessages } from '../../components';
+import { ErrorMessages, InputText } from '../../components';
+import { GroupInfo, GroupMetric } from '../../api/group';
+import { toNumber } from '../../common/helpers';
+import { produce } from 'immer';
 
-export type GroupPageProps = {};
-export const GroupPage: React.FC<GroupPageProps> = () => {
-  const loadListMetricsGroup = useStore(selectorLoadListMetricsGroup);
-  const loadMetricsGroup = useStore(selectorLoadMetricsGroup);
-  const listMetricsGroup = useStore(selectorListMetricsGroup);
-  const selectMetricsGroup = useStore(selectorSelectMetricsGroup);
-  const saveMetricsGroup = useStore(selectorSaveMetricsGroup);
-  const removeMetricsGroup = useStore(selectorRemoveMetricsGroup);
-  const setSelectMetricsGroup = useStore(selectorSetSelectMetricsGroup);
-  const nameMetricsGroupInput = useStateInput(selectMetricsGroup?.group.name ?? '');
-  const weightMetricsGroupInput = useStateInput(selectMetricsGroup?.group.weight.toString() ?? '');
+type SelectGroup = {
+  group: Pick<GroupInfo, 'name' | 'weight' | 'namespace_id'> &
+    Partial<Omit<GroupInfo, 'name' | 'weight' | 'namespace_id'>>;
+  metrics: GroupMetric[] | null;
+};
+
+export function GroupPage() {
+  const listMetricsGroup = useGroupListStore((s) => s.list);
+  const [selectMetricsGroup, setSelectMetricsGroup] = useState<SelectGroup | null>(null);
   const [saveLoader, setSaveLoader] = useState(false);
   const [loadLoader, setLoadLoader] = useState(false);
 
-  const sumWeight = useMemo(
-    () => listMetricsGroup.reduce((res, item) => res + (item.weight ?? 0), 1),
-    [listMetricsGroup]
-  );
+  const selectId = selectMetricsGroup?.group.group_id ?? null;
+  const selectWeight = selectMetricsGroup?.group.weight ?? 0;
+  const selectDisable = selectMetricsGroup?.group.disable ?? false;
 
-  const filterList = useMemo(() => {
-    const result = listMetricsGroup.map((item) => ({
-      ...item,
-      percent: Math.round(((item.weight ?? 0) / sumWeight) * 1000) / 10 ?? 0,
-    }));
-    result.sort(sortByKey.bind(null, 'name'));
-    return result;
-  }, [listMetricsGroup, sumWeight]);
+  const { sumWeight, list } = useMemo(() => {
+    let sumWeight = selectId == null ? selectWeight : 0;
+    listMetricsGroup.forEach((g) => {
+      if (!g.disable) {
+        const weight = selectId === g.id ? selectWeight : g.weight;
+        sumWeight += weight;
+      }
+    });
+
+    const list = listMetricsGroup.map((g) => {
+      if (g.disable) {
+        return { ...g, weight: 0, percent: 0 };
+      }
+      const weight = selectId === g.id ? selectWeight : g.weight;
+      const percent = Math.round((weight / sumWeight) * 1000) / 10 ?? 0;
+      return { ...g, weight, percent };
+    });
+    return { sumWeight, list };
+  }, [listMetricsGroup, selectId, selectWeight]);
 
   const onAddNewMetricsGroup = useCallback(() => {
-    setSelectMetricsGroup({ group: { name: '', weight: 1 }, metrics: [] });
-  }, [setSelectMetricsGroup]);
+    setSelectMetricsGroup({ group: { name: '', weight: 1, namespace_id: 0 }, metrics: [] });
+  }, []);
 
   const onSaveMetricsGroup = useCallback(
     (event: React.FormEvent) => {
-      setSaveLoader(true);
-      saveMetricsGroup({
-        group_id: selectMetricsGroup?.group.group_id,
-        version: selectMetricsGroup?.group.version,
-        name: nameMetricsGroupInput.value,
-        weight: parseInt(weightMetricsGroupInput.value),
-      }).finally(() => {
+      if (selectMetricsGroup) {
+        setSaveLoader(true);
+        if (selectMetricsGroup.group.group_id != null && selectMetricsGroup.group.version != null) {
+          groupSave({
+            group: {
+              group_id: -1,
+              version: 0,
+              ...selectMetricsGroup.group,
+            },
+          })
+            .then((g) => {
+              if (g) {
+                const { metrics, group } = g;
+                metrics?.sort();
+                setSelectMetricsGroup({ group, metrics });
+              }
+            })
+            .finally(() => {
+              setSaveLoader(false);
+            });
+        } else {
+          groupAdd({
+            group: { name: selectMetricsGroup.group.name, weight: selectMetricsGroup.group.weight },
+          })
+            .then((g) => {
+              if (g) {
+                const { metrics, group } = g;
+                metrics?.sort();
+                setSelectMetricsGroup({ group, metrics });
+              }
+            })
+            .finally(() => {
+              setSaveLoader(false);
+            });
+        }
+      } else {
         setSaveLoader(false);
-        setLoadLoader(true);
-        loadListMetricsGroup().finally(() => {
-          setSelectMetricsGroup(undefined);
-          setLoadLoader(false);
-        });
-      });
+      }
       event.preventDefault();
     },
-    [
-      loadListMetricsGroup,
-      nameMetricsGroupInput.value,
-      saveMetricsGroup,
-      selectMetricsGroup,
-      setSelectMetricsGroup,
-      weightMetricsGroupInput.value,
-    ]
+    [selectMetricsGroup]
   );
   const onRemoveMetricsGroup = useCallback(() => {
-    setSaveLoader(true);
-    removeMetricsGroup({
-      group_id: selectMetricsGroup?.group.group_id,
-      version: selectMetricsGroup?.group.version,
-      name: nameMetricsGroupInput.value,
-      weight: parseInt(weightMetricsGroupInput.value),
-    }).finally(() => {
-      setSaveLoader(false);
-      setLoadLoader(true);
-      loadListMetricsGroup().finally(() => {
-        setSelectMetricsGroup(undefined);
-        setLoadLoader(false);
-      });
-    });
-  }, [
-    loadListMetricsGroup,
-    nameMetricsGroupInput.value,
-    removeMetricsGroup,
-    selectMetricsGroup?.group.group_id,
-    selectMetricsGroup?.group.version,
-    setSelectMetricsGroup,
-    weightMetricsGroupInput.value,
-  ]);
+    if (selectMetricsGroup) {
+      if (!window.confirm('Confirm ' + (selectMetricsGroup.group.disable ? 'restore' : 'remove'))) {
+        return;
+      }
+      setSaveLoader(true);
+      if (selectMetricsGroup.group.group_id != null && selectMetricsGroup.group.version != null) {
+        groupSave({
+          group: {
+            group_id: -1,
+            version: 0,
+            ...selectMetricsGroup.group,
+            disable: !selectMetricsGroup.group.disable,
+          },
+        })
+          .then((g) => {
+            if (g) {
+              const { metrics, group } = g;
+              metrics?.sort();
+              setSelectMetricsGroup({ group, metrics });
+            }
+          })
+          .finally(() => {
+            setSaveLoader(false);
+          });
+      }
+    }
+  }, [selectMetricsGroup]);
 
   const onCancelMetricsGroup = useCallback(() => {
-    setSelectMetricsGroup(undefined);
+    setSelectMetricsGroup(null);
   }, [setSelectMetricsGroup]);
 
-  const onSelectMetricsGroup = useCallback(
-    (event: React.MouseEvent) => {
-      const id = parseInt(event.currentTarget.getAttribute('data-id') ?? '-1');
-      setLoadLoader(true);
-      loadMetricsGroup(id).finally(() => {
+  const onSelectMetricsGroup = useCallback((event: React.MouseEvent) => {
+    const id = parseInt(event.currentTarget.getAttribute('data-id') ?? '-1');
+
+    setLoadLoader(true);
+    groupLoad(id)
+      .then((g) => {
+        if (g) {
+          const { metrics, group } = g;
+          metrics?.sort();
+          setSelectMetricsGroup({ group, metrics });
+        } else {
+          setSelectMetricsGroup(null);
+        }
+      })
+      .finally(() => {
         setLoadLoader(false);
       });
-    },
-    [loadMetricsGroup]
+  }, []);
+
+  const selectMetricsGroupWeightPercent = useMemo(
+    () => Math.round((selectWeight / (sumWeight + (selectDisable ? selectWeight : 0))) * 1000) / 10,
+    [selectDisable, selectWeight, sumWeight]
   );
-
-  const defaultMetricsGroupWeightPercent = useMemo(() => Math.round((1 / sumWeight) * 1000) / 10, [sumWeight]);
-
-  const selectMetricsGroupWeightPercent = useMemo(() => {
-    const weight = parseFloat(weightMetricsGroupInput.value.replace(',', '.')) ?? 0;
-    if (weight === 0) {
-      return 0;
-    }
-    return (
-      Math.round(
-        (weight /
-          (sumWeight -
-            ((typeof selectMetricsGroup?.group.group_id !== 'undefined' && selectMetricsGroup?.group.weight) || 0) +
-            weight)) *
-          1000
-      ) / 10
-    );
-  }, [selectMetricsGroup?.group.group_id, selectMetricsGroup?.group.weight, sumWeight, weightMetricsGroupInput.value]);
 
   useEffect(() => {
     setLoadLoader(true);
-    loadListMetricsGroup().finally(() => {
+    groupListLoad().finally(() => {
       setLoadLoader(false);
     });
     return () => setLoadLoader(false);
-  }, [loadListMetricsGroup]);
+  }, []);
+
+  const onChangeName = useCallback((value: string) => {
+    setSelectMetricsGroup(
+      produce((g) => {
+        if (g) {
+          g.group.name = value;
+        }
+      })
+    );
+  }, []);
+  const onChangeWeight = useCallback((value: string) => {
+    setSelectMetricsGroup(
+      produce((g) => {
+        if (g) {
+          g.group.weight = toNumber(value, 1);
+        }
+      })
+    );
+  }, []);
 
   return (
     <div className="flex-grow-1 p-2">
-      <ErrorMessages />
+      <ErrorMessages channel={groupListErrors} />
       <div className="row">
         <div className={cn('col-md-6 w-max-720', !!selectMetricsGroup && 'hidden-down-md')}>
           <div className="mb-2 d-flex flex-row justify-content-end">
@@ -162,22 +197,21 @@ export const GroupPage: React.FC<GroupPageProps> = () => {
             </button>
           </div>
           <ul className="list-group">
-            <li className="list-group-item text-secondary d-flex flex-row">
-              <div className="flex-grow-1">default</div>
-              <div>1 [{defaultMetricsGroupWeightPercent}%]</div>
-            </li>
-            {filterList.map((item) => (
+            {list.map((item) => (
               <li
                 key={item.id}
                 data-id={item.id}
                 role="button"
                 className={cn(
-                  'list-group-item text-black d-flex flex-row',
+                  item.disable ? 'text-secondary' : 'text-body',
+                  'list-group-item d-flex flex-row',
                   selectMetricsGroup?.group.group_id === item.id && 'text-bg-light'
                 )}
                 onClick={onSelectMetricsGroup}
               >
-                <div className="flex-grow-1">{item.name}</div>
+                <div className={cn('flex-grow-1', item.disable && 'text-decoration-line-through text-secondary')}>
+                  {item.name}
+                </div>
                 <div>
                   {item.weight} [{item.percent}%]
                 </div>
@@ -202,7 +236,14 @@ export const GroupPage: React.FC<GroupPageProps> = () => {
                   Name
                 </label>
                 <div className="col-sm-10">
-                  <input type="text" className="form-control" id="metricsGroupName" {...nameMetricsGroupInput} />
+                  <InputText
+                    type="text"
+                    className="form-control"
+                    id="metricsGroupName"
+                    disabled={selectMetricsGroup.group.group_id != null && selectMetricsGroup.group.group_id <= 0}
+                    value={selectMetricsGroup.group.name}
+                    onChange={onChangeName}
+                  />
                 </div>
               </div>
               <div className="mb-3 row">
@@ -210,21 +251,27 @@ export const GroupPage: React.FC<GroupPageProps> = () => {
                   Weight
                 </label>
                 <div className="col-sm-10 d-flex flex-row">
-                  <input
+                  <InputText
                     type="number"
                     min={0}
                     max={1000}
-                    step={1}
+                    step={0.01}
                     className="form-control"
                     id="metricsGroupWeight"
-                    {...weightMetricsGroupInput}
+                    value={selectMetricsGroup.group.weight.toString()}
+                    onChange={onChangeWeight}
                   />
-                  <div className="col-form-label ms-2">[{selectMetricsGroupWeightPercent}%]</div>
+                  <div className="col-form-label ms-2" style={{ width: 80 }}>
+                    [{selectMetricsGroupWeightPercent}%]
+                  </div>
                 </div>
               </div>
               <div className="mb-3 row">
                 <span className="col-sm-2 col-form-label">Metrics</span>
-                <div className="col-sm-10 d-flex flex-row flex-wrap align-items-start">
+                <div
+                  className="col-sm-10 d-flex flex-row flex-wrap align-items-start overflow-auto"
+                  style={{ maxHeight: 300 }}
+                >
                   {selectMetricsGroup.metrics?.map((metric_name, index) => (
                     <span
                       className="input-group-text border-success bg-transparent text-success text-nowrap py-0 mt-1 me-1 "
@@ -239,7 +286,7 @@ export const GroupPage: React.FC<GroupPageProps> = () => {
                 <button
                   type="submit"
                   className="btn btn-outline-primary ms-1 text-nowrap"
-                  disabled={!nameMetricsGroupInput.value || saveLoader}
+                  disabled={!selectMetricsGroup.group.name || saveLoader}
                 >
                   {saveLoader && (
                     <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -253,17 +300,17 @@ export const GroupPage: React.FC<GroupPageProps> = () => {
                 >
                   Cancel
                 </button>
-                {typeof selectMetricsGroup.group.group_id !== 'undefined' && (
+                {selectMetricsGroup.group.group_id != null && selectMetricsGroup.group.group_id > 0 && (
                   <button
                     type="button"
-                    className="btn btn-outline-primary ms-1 text-nowrap"
+                    className="btn btn-outline-danger ms-1 text-nowrap"
                     onClick={onRemoveMetricsGroup}
-                    disabled={!nameMetricsGroupInput.value || saveLoader}
+                    disabled={!selectMetricsGroup.group.name || saveLoader}
                   >
                     {saveLoader && (
                       <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
                     )}
-                    Remove
+                    {selectMetricsGroup.group.disable ? 'Restore' : 'Remove'}
                   </button>
                 )}
               </div>
@@ -273,4 +320,4 @@ export const GroupPage: React.FC<GroupPageProps> = () => {
       </div>
     </div>
   );
-};
+}

@@ -234,9 +234,6 @@ func (item *StatshousePromTarget) readJSON(j interface{}) error {
 }
 
 func (item *StatshousePromTarget) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshousePromTarget) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -256,7 +253,7 @@ func (item *StatshousePromTarget) WriteJSONOpt(short bool, w []byte) (_ []byte, 
 	if len(item.Labels) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"labels":`...)
-		if w, err = VectorDictionaryFieldString0WriteJSONOpt(short, w, item.Labels); err != nil {
+		if w, err = VectorDictionaryFieldString0WriteJSON(w, item.Labels); err != nil {
 			return w, err
 		}
 	}
@@ -542,9 +539,6 @@ func (item *StatshousePromTargetBytes) readJSON(j interface{}) error {
 }
 
 func (item *StatshousePromTargetBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshousePromTargetBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -564,7 +558,7 @@ func (item *StatshousePromTargetBytes) WriteJSONOpt(short bool, w []byte) (_ []b
 	if len(item.Labels) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"labels":`...)
-		if w, err = VectorDictionaryFieldString0BytesWriteJSONOpt(short, w, item.Labels); err != nil {
+		if w, err = VectorDictionaryFieldString0BytesWriteJSON(w, item.Labels); err != nil {
 			return w, err
 		}
 	}
@@ -679,13 +673,10 @@ func VectorStatshousePromTarget0ReadJSON(j interface{}, vec *[]StatshousePromTar
 }
 
 func VectorStatshousePromTarget0WriteJSON(w []byte, vec []StatshousePromTarget) (_ []byte, err error) {
-	return VectorStatshousePromTarget0WriteJSONOpt(false, w, vec)
-}
-func VectorStatshousePromTarget0WriteJSONOpt(short bool, w []byte, vec []StatshousePromTarget) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSON(w); err != nil {
 			return w, err
 		}
 	}
@@ -742,13 +733,10 @@ func VectorStatshousePromTarget0BytesReadJSON(j interface{}, vec *[]StatshousePr
 }
 
 func VectorStatshousePromTarget0BytesWriteJSON(w []byte, vec []StatshousePromTargetBytes) (_ []byte, err error) {
-	return VectorStatshousePromTarget0BytesWriteJSONOpt(false, w, vec)
-}
-func VectorStatshousePromTarget0BytesWriteJSONOpt(short bool, w []byte, vec []StatshousePromTargetBytes) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSON(w); err != nil {
 			return w, err
 		}
 	}

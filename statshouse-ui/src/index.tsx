@@ -10,6 +10,9 @@ import './index.scss';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { AppRouter } from './components';
+import './api/stat'; // global error log
+import './store'; // pre init all store
+
 const root = createRoot(document.getElementById('root')!);
 root.render(
   <React.StrictMode>

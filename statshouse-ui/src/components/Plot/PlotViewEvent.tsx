@@ -9,20 +9,25 @@ import uPlot from 'uplot';
 import { calcYRange } from '../../common/calcYRange';
 import { PlotSubMenu } from './PlotSubMenu';
 import { PlotHeader } from './PlotHeader';
-import { Button, UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
+import { UPlotWrapper, UPlotWrapperPropsOpts } from '../index';
 import { now, promQLMetric, timeRangeAbbrevExpand } from '../../view/utils';
 import { black, grey, greyDark } from '../../view/palette';
 import { produce } from 'immer';
 import {
+  createPlotPreview,
+  removePlotHeals,
   selectorBaseRange,
   selectorEventsByIndex,
-  selectorLiveMode,
   selectorLoadEvents,
   selectorMetricsMetaByName,
   selectorNumQueriesPlotByIndex,
   selectorParamsPlotsByIndex,
   selectorPlotsDataByIndex,
   selectorTimeRange,
+  setLiveMode,
+  setPlotVisibility,
+  useLiveModeStore,
+  usePlotHealsStore,
   useStore,
   useThemeStore,
 } from '../../store';
@@ -32,14 +37,12 @@ import { PlotEvents } from './PlotEvents';
 import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '../../hooks';
 import { UPlotPluginPortal } from '../UPlotWrapper';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
-import { ReactComponent as SVGArrowCounterclockwise } from 'bootstrap-icons/icons/arrow-counterclockwise.svg';
-import { setPlotVisibility } from '../../store/plot/plotVisibilityStore';
-import { createPlotPreview } from '../../store/plot/plotPreview';
 import { shallow } from 'zustand/shallow';
-import { formatByMetricType, getMetricType, splitByMetricType } from '../../common/formatByMetricType';
+import { formatByMetricType, getMetricType, incrs, splitByMetricType } from '../../common/formatByMetricType';
 import { METRIC_TYPE } from '../../api/enum';
 import css from './style.module.css';
 import { useLinkCSV } from '../../hooks/useLinkCSV';
+import { PlotHealsStatus } from './PlotHealsStatus';
 
 const unFocusAlfa = 1;
 const rightPad = 16;
@@ -54,8 +57,7 @@ function xRangeStatic(u: uPlot, dataMin: number | null, dataMax: number | null):
   return [dataMin, dataMax];
 }
 
-const { setPlotParams, setTimeRange, setLiveMode, setYLockChange, setPlotLastError, setUPlotWidth, loadPlot } =
-  useStore.getState();
+const { setPlotParams, setTimeRange, setYLockChange, setPlotLastError, setUPlotWidth, loadPlot } = useStore.getState();
 
 export function PlotViewEvent(props: {
   indexPlot: number;
@@ -78,7 +80,7 @@ export function PlotViewEvent(props: {
 
   const baseRange = useStore(selectorBaseRange);
 
-  const live = useStore(selectorLiveMode);
+  const { live, interval } = useLiveModeStore((s) => s);
 
   const selectorPlotsData = useMemo(() => selectorPlotsDataByIndex.bind(undefined, indexPlot), [indexPlot]);
   const {
@@ -86,6 +88,7 @@ export function PlotViewEvent(props: {
     series,
     seriesShow,
     stacked,
+    bands,
     legendNameWidth,
     legendValueWidth,
     legendMaxDotSpaceWidth,
@@ -118,6 +121,13 @@ export function PlotViewEvent(props: {
   const loadEvent = useStore(selectorLoadEvents);
 
   const themeDark = useThemeStore((s) => s.dark);
+  const plotHeals = usePlotHealsStore((s) => s.status[indexPlot]);
+  const healsInfo = useMemo(() => {
+    if (plotHeals?.timout && interval < plotHeals.timout) {
+      return `plot update timeout ${plotHeals.timout} sec`;
+    }
+    return undefined;
+  }, [interval, plotHeals?.timout]);
 
   const uPlotRef = useRef<uPlot>();
 
@@ -128,10 +138,12 @@ export function PlotViewEvent(props: {
 
   const clearLastError = useCallback(() => {
     setPlotLastError(indexPlot, '');
+    removePlotHeals(indexPlot.toString());
   }, [indexPlot]);
 
   const reload = useCallback(() => {
     setPlotLastError(indexPlot, '');
+    removePlotHeals(indexPlot.toString());
     loadPlot(indexPlot);
   }, [indexPlot]);
 
@@ -159,6 +171,13 @@ export function PlotViewEvent(props: {
   useEffect(() => {
     resetZoomRef.current = resetZoom;
   }, [resetZoom]);
+
+  const metricType = useMemo(() => {
+    if (sel.metricType != null) {
+      return sel.metricType;
+    }
+    return getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
+  }, [meta?.metric_type, metaMetricType, sel.metricType, sel.what, whats]);
 
   const onSetSelect = useCallback(
     (u: uPlot) => {
@@ -195,7 +214,6 @@ export function PlotViewEvent(props: {
           key: group,
         }
       : undefined;
-    const metricType = getMetricType(whats?.length ? whats : sel.what, metaMetricType || meta?.metric_type);
     return {
       pxAlign: false, // avoid shimmer in live mode
       padding: [topPad, rightPad, 0, 0],
@@ -233,6 +251,7 @@ export function PlotViewEvent(props: {
           font: font,
           stroke: getAxisStroke,
           splits: metricType === METRIC_TYPE.none ? undefined : splitByMetricType(metricType),
+          incrs,
         },
       ],
       scales: {
@@ -263,20 +282,7 @@ export function PlotViewEvent(props: {
       },
       plugins: [pluginTimeWindow],
     };
-  }, [
-    compact,
-    getAxisStroke,
-    group,
-    meta?.metric_type,
-    metaMetricType,
-    pluginTimeWindow,
-    sel.what,
-    themeDark,
-    topPad,
-    whats,
-    xAxisSize,
-    yAxisSize,
-  ]);
+  }, [compact, getAxisStroke, group, metricType, pluginTimeWindow, themeDark, topPad, xAxisSize, yAxisSize]);
 
   const timeWindow = useMemo(() => {
     let leftWidth = 0;
@@ -395,22 +401,17 @@ export function PlotViewEvent(props: {
             style={{ width: `${yAxisSize}px` }}
             className="flex-shrink-0 d-flex justify-content-end align-items-center pe-3"
           >
-            {numQueries > 0 && compact && (
-              <div className="text-info spinner-border spinner-border-sm" role="status" aria-hidden="true" />
-            )}
+            <PlotHealsStatus
+              numQueries={numQueries}
+              lastError={lastError}
+              clearLastError={clearLastError}
+              live={live}
+              reload={reload}
+              timeoutInfo={healsInfo}
+            />
           </div>
           {/*header*/}
           <div className="d-flex flex-column flex-grow-1 overflow-force-wrap">
-            {/*last error*/}
-            {!!lastError && (
-              <div className="alert alert-danger d-flex align-items-center justify-content-between" role="alert">
-                <Button type="button" className="btn" aria-label="Reload" onClick={reload}>
-                  <SVGArrowCounterclockwise />
-                </Button>
-                <small className="overflow-force-wrap font-monospace">{lastError}</small>
-                <Button type="button" className="btn-close" aria-label="Close" onClick={clearLastError} />
-              </div>
-            )}
             <PlotHeader
               indexPlot={indexPlot}
               setParams={setSel}
@@ -460,6 +461,7 @@ export function PlotViewEvent(props: {
               data={stacked}
               series={series}
               scales={scales}
+              bands={bands}
               onReady={onReady}
               onSetSelect={onSetSelect}
               onUpdatePreview={onUpdatePreview}

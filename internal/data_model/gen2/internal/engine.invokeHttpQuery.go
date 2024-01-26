@@ -60,11 +60,7 @@ func (item *EngineInvokeHttpQuery) ReadResultJSON(j interface{}, ret *EngineHttp
 }
 
 func (item *EngineInvokeHttpQuery) WriteResultJSON(w []byte, ret EngineHttpQueryResponse) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *EngineInvokeHttpQuery) writeResultJSON(short bool, w []byte, ret EngineHttpQueryResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+	if w, err = ret.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -76,15 +72,6 @@ func (item *EngineInvokeHttpQuery) ReadResultWriteResultJSON(r []byte, w []byte)
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *EngineInvokeHttpQuery) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret EngineHttpQueryResponse
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -129,13 +116,10 @@ func (item *EngineInvokeHttpQuery) readJSON(j interface{}) error {
 }
 
 func (item *EngineInvokeHttpQuery) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineInvokeHttpQuery) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"query":`...)
-	if w, err = item.Query.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Query.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil

@@ -52,9 +52,6 @@ func (item *MetadataResetFloodResponse) readJSON(j interface{}) error {
 }
 
 func (item *MetadataResetFloodResponse) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *MetadataResetFloodResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }

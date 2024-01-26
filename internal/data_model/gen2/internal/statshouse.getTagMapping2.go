@@ -106,11 +106,7 @@ func (item *StatshouseGetTagMapping2) ReadResultJSON(j interface{}, ret *Statsho
 }
 
 func (item *StatshouseGetTagMapping2) WriteResultJSON(w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *StatshouseGetTagMapping2) writeResultJSON(short bool, w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+	if w, err = ret.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -122,15 +118,6 @@ func (item *StatshouseGetTagMapping2) ReadResultWriteResultJSON(r []byte, w []by
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseGetTagMapping2) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret StatshouseGetTagMappingResult
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -213,9 +200,6 @@ func (item *StatshouseGetTagMapping2) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseGetTagMapping2) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseGetTagMapping2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -224,7 +208,7 @@ func (item *StatshouseGetTagMapping2) WriteJSONOpt(short bool, w []byte) (_ []by
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if len(item.Metric) != 0 {
@@ -362,11 +346,7 @@ func (item *StatshouseGetTagMapping2Bytes) ReadResultJSON(j interface{}, ret *St
 }
 
 func (item *StatshouseGetTagMapping2Bytes) WriteResultJSON(w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *StatshouseGetTagMapping2Bytes) writeResultJSON(short bool, w []byte, ret StatshouseGetTagMappingResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+	if w, err = ret.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -378,15 +358,6 @@ func (item *StatshouseGetTagMapping2Bytes) ReadResultWriteResultJSON(r []byte, w
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseGetTagMapping2Bytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret StatshouseGetTagMappingResult
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -469,9 +440,6 @@ func (item *StatshouseGetTagMapping2Bytes) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseGetTagMapping2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseGetTagMapping2Bytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -480,7 +448,7 @@ func (item *StatshouseGetTagMapping2Bytes) WriteJSONOpt(short bool, w []byte) (_
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if len(item.Metric) != 0 {

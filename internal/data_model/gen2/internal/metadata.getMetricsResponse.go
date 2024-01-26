@@ -75,9 +75,6 @@ func (item *MetadataGetMetricsResponse) readJSON(j interface{}, nat_field_mask u
 }
 
 func (item *MetadataGetMetricsResponse) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_field_mask)
-}
-func (item *MetadataGetMetricsResponse) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.CurrentVersion != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -87,7 +84,7 @@ func (item *MetadataGetMetricsResponse) WriteJSONOpt(short bool, w []byte, nat_f
 	if len(item.Metrics) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"metrics":`...)
-		if w, err = VectorMetadataMetricOld0WriteJSONOpt(short, w, item.Metrics, nat_field_mask); err != nil {
+		if w, err = VectorMetadataMetricOld0WriteJSON(w, item.Metrics, nat_field_mask); err != nil {
 			return w, err
 		}
 	}

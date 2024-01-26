@@ -67,7 +67,6 @@ export function PlotEvents({ indexPlot, className, onCursor, cursor }: PlotEvent
     ],
     [event.what, eventColumns]
   );
-
   const loadPrev = useCallback(() => {
     !!event.prevKey &&
       loadEvent(indexPlot, event.prevKey, true)

@@ -111,6 +111,7 @@ func (impl *binlogEngineReplicaImpl) apply(payload []byte) (newOffset int64, err
 func (impl *binlogEngineReplicaImpl) Commit(offset int64, snapshotMeta []byte, safeSnapshotOffset int64) (err error) {
 	defer impl.e.opt.StatsOptions.measureActionDurationSince("engine_commit", time.Now())
 	e := impl.e
+	e.commitOffset.Store(offset)
 	old := e.committedInfo.Load()
 	if old != nil {
 		ci := old.(*committedInfo)

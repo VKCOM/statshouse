@@ -90,11 +90,11 @@ var (
 		// Subtract from relSwitch to facilitate calculation of derivative.
 		// Subtrahend should be multiple of the next lodSwitch minimum level.
 		Version2: {{
-			relSwitch: 33*_24h - _1m,
+			relSwitch: 33*_24h - 2*_1m,
 			levels:    []int64{_7d, _24h, _4h, _1h},
 			tables:    lodTables[Version2],
 		}, {
-			relSwitch: 52*_1h - _1s,
+			relSwitch: 52*_1h - 2*_1s,
 			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m},
 			tables:    lodTables[Version2],
 		}, {
@@ -278,44 +278,6 @@ func (lod lodInfo) isFast() bool {
 	return lod.fromSec+fastQueryTimeInterval >= lod.toSec
 }
 
-func (lod lodInfo) generateTimePoints(shift int64) []int64 {
-	if lod.stepSec == _1M {
-		length := lod.getIndexForTimestamp(lod.toSec, 0)
-		times := make([]int64, 0, length)
-		startTime := time.Unix(lod.fromSec, 0).In(lod.location)
-		shiftMonths := int(shift / _1M * -1)
-		for i := 0; i < length; i++ {
-			times = append(times, startTime.AddDate(0, i+shiftMonths, 0).Unix())
-		}
-
-		return times
-	}
-
-	times := make([]int64, 0, (lod.toSec-lod.fromSec)/lod.stepSec)
-	for t := lod.fromSec; t < lod.toSec; t += lod.stepSec {
-		times = append(times, t-shift)
-	}
-	return times
-}
-
-func (lod lodInfo) getIndexForTimestamp(timestamp, shiftDelta int64) int {
-	if lod.stepSec == _1M {
-		startTime := time.Unix(lod.fromSec, 0).In(lod.location)
-		shiftMonths := int(shiftDelta / _1M * -1)
-		currentTime := time.Unix(timestamp, 0).In(lod.location).AddDate(shiftMonths/12, shiftMonths%12, 0)
-		monthDiff := int(currentTime.Month() - startTime.Month())
-		yearDiff := currentTime.Year() - startTime.Year()
-		if monthDiff < 0 {
-			monthDiff += 12
-			yearDiff--
-		}
-
-		return yearDiff*12 + monthDiff
-	}
-
-	return int((timestamp - (lod.fromSec + shiftDelta)) / lod.stepSec)
-}
-
 func isTimestampValid(timestamp, stepSec, utcOffset int64, location *time.Location) bool {
 	if stepSec == _1M {
 		timePoint := time.Unix(timestamp, 0).In(location)
@@ -340,7 +302,14 @@ func selectTagValueLODs(version string, preKeyFrom int64, preKeyOnly bool, resol
 
 func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, width int, widthKind int, location *time.Location) []lodInfo {
 	var ret []lodInfo
-	pps := float64(width) / float64(to-from+1)
+	var pps float64
+	var minStep int
+	if widthKind == widthAutoRes {
+		minStep = resolution
+		pps = float64(width) / float64(to-from+1)
+	} else {
+		minStep = width
+	}
 	lodFrom := from
 	levels := calcLevels(version, preKeyFrom, preKeyOnly, isUnique, isStringTop, now, utcOffset, width)
 	for _, s := range levels {
@@ -352,13 +321,7 @@ func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resoluti
 		if cut < to {
 			lodTo = cut
 		}
-		var lod lodInfo
-		switch widthKind {
-		case widthAutoRes:
-			lod = selectQueryLOD(s, lodFrom, lodTo, int64(resolution), utcOffset, location, pps)
-		default:
-			lod = selectLastQueryLOD(s, lodFrom, lodTo, int64(width), utcOffset, location)
-		}
+		lod := selectQueryLOD(s, lodFrom, lodTo, int64(minStep), utcOffset, location, pps)
 		ret = append(ret, lod)
 		if lodTo == to || lod.toSec >= to {
 			break
@@ -384,28 +347,6 @@ func mergeLODs(lods []lodInfo) []lodInfo {
 	return ret
 }
 
-func selectLastQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset int64, location *time.Location) lodInfo {
-	lodLevel := s.levels[0]
-	for _, stepSec := range s.levels {
-		fromSec, toSec := roundRange(from, to, stepSec, utcOffset, location)
-		n := (toSec - fromSec) / stepSec
-		if stepSec < minStep || n > maxPoints {
-			break
-		}
-		lodLevel = stepSec
-	}
-	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, location)
-	return lodInfo{
-		fromSec:    fromSec,
-		toSec:      toSec,
-		stepSec:    lodLevel,
-		table:      s.tables[lodLevel],
-		hasPreKey:  s.hasPreKey,
-		preKeyOnly: s.preKeyOnly,
-		location:   location,
-	}
-}
-
 func selectQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset int64, location *time.Location, pps float64) lodInfo {
 	lodLevel := s.levels[0]
 	points := int64(math.Ceil(pps * float64(to-from)))
@@ -415,9 +356,9 @@ func selectQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset 
 		if stepSec < minStep || n > maxPoints {
 			break
 		}
-		lodLevel = stepSec // we will get the first level with more points than pixels
-		if lodLevel < (to-from) && n > points {
-			break
+		lodLevel = stepSec
+		if pps != 0 && lodLevel < (to-from) && n > points {
+			break // on the first level with more points than pixels
 		}
 	}
 	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, location)

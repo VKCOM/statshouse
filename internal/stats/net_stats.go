@@ -18,12 +18,24 @@ import (
 type NetStats struct {
 	fs procfs.FS
 
-	oldNetDev      procfs.NetDev
-	oldNetDevTotal procfs.NetDevLine
+	oldNetDevTotal    *procfs.NetDevLine
+	oldNetDevByDevice map[string]*procfs.NetDevLine
 
 	oldNetStat netStat
 
 	writer MetricWriter
+}
+
+type devStat struct {
+	RxBytes   float64
+	RxPackets float64
+	RxErrors  float64
+	RxDropped float64
+
+	TxBytes   float64
+	TxPackets float64
+	TxErrors  float64
+	TxDropped float64
 }
 
 type netStat struct {
@@ -136,8 +148,9 @@ func NewNetStats(writer MetricWriter) (*NetStats, error) {
 		return nil, fmt.Errorf("failed to initialize procfs: %w", err)
 	}
 	return &NetStats{
-		fs:     fs,
-		writer: writer,
+		fs:                fs,
+		writer:            writer,
+		oldNetDevByDevice: map[string]*procfs.NetDevLine{},
 	}, nil
 }
 
@@ -154,29 +167,81 @@ func (c *NetStats) WriteMetrics(nowUnix int64) error {
 	return nil
 }
 
+func calcNetDev(old, new_ *procfs.NetDevLine) (stat *devStat) {
+	if old == nil {
+		return nil
+	}
+	rxBytes := float64(new_.RxBytes) - float64(old.RxBytes)
+	rxPackets := float64(new_.RxPackets) - float64(old.RxPackets)
+	rxErrors := float64(new_.RxErrors) - float64(old.RxErrors)
+	rxDropped := float64(new_.RxDropped) - float64(old.RxDropped)
+
+	txBytes := float64(new_.TxBytes) - float64(old.TxBytes)
+	txPackets := float64(new_.TxPackets) - float64(old.TxPackets)
+	txErrors := float64(new_.TxErrors) - float64(old.TxErrors)
+	txDropped := float64(new_.TxDropped) - float64(old.TxDropped)
+
+	return &devStat{
+		RxBytes:   rxBytes,
+		RxPackets: rxPackets,
+		RxErrors:  rxErrors,
+		RxDropped: rxDropped,
+		TxBytes:   txBytes,
+		TxPackets: txPackets,
+		TxErrors:  txErrors,
+		TxDropped: txDropped,
+	}
+}
+
 func (c *NetStats) writeNetDev(nowUnix int64) error {
 	dev, err := c.fs.NetDev()
 	if err != nil {
 		return err
 	}
 	delete(dev, "lo")
-	total := dev.Total()
-
-	if len(c.oldNetDev) > 0 {
-		rxBytes := total.RxBytes - c.oldNetDevTotal.RxBytes
-		rxCount := total.RxPackets - c.oldNetDevTotal.RxPackets
-		txBytes := total.TxBytes - c.oldNetDevTotal.TxBytes
-		txCount := total.TxPackets - c.oldNetDevTotal.TxPackets
-		if rxCount > 0 {
-			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameNetBandwidth, float64(rxCount), float64(rxBytes)/float64(rxCount), format.RawIDTagReceived)
+	new_ := dev.Total()
+	statTotal := calcNetDev(c.oldNetDevTotal, &new_)
+	if statTotal != nil {
+		if statTotal.RxPackets > 0 {
+			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameNetBandwidth, statTotal.RxPackets, statTotal.RxBytes/statTotal.RxPackets, format.RawIDTagReceived)
 		}
-		if txCount > 0 {
-			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameNetBandwidth, float64(txCount), float64(txBytes)/float64(txCount), format.RawIDTagSent)
+		if statTotal.TxPackets > 0 {
+			c.writer.WriteSystemMetricCountValue(nowUnix, format.BuiltinMetricNameNetBandwidth, statTotal.TxPackets, statTotal.TxBytes/statTotal.TxPackets, format.RawIDTagSent)
 		}
 	}
+	c.oldNetDevTotal = &new_
 
-	c.oldNetDev = dev
-	c.oldNetDevTotal = total
+	for name, devStat := range dev {
+		devStatC := devStat
+		stat := calcNetDev(c.oldNetDevByDevice[name], &devStatC)
+		if stat != nil {
+			if stat.RxPackets > 0 {
+				c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameNetDevBandwidth, stat.RxPackets, stat.RxBytes/stat.RxPackets,
+					Tag{Raw: format.RawIDTagReceived},
+					Tag{Str: name},
+				)
+			}
+			if stat.TxPackets > 0 {
+				c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameNetDevBandwidth, stat.TxPackets, stat.TxBytes/stat.TxPackets,
+					Tag{Raw: format.RawIDTagSent},
+					Tag{Str: name},
+				)
+			}
+			c.writer.WriteSystemMetricCountExtendedTag(nowUnix, format.BuiltinMetricNameNetDevErrors, stat.RxErrors,
+				Tag{Raw: format.RawIDTagReceived},
+				Tag{Str: name})
+			c.writer.WriteSystemMetricCountExtendedTag(nowUnix, format.BuiltinMetricNameNetDevErrors, stat.TxErrors,
+				Tag{Raw: format.RawIDTagSent},
+				Tag{Str: name})
+			c.writer.WriteSystemMetricCountExtendedTag(nowUnix, format.BuiltinMetricNameNetDevDropped, stat.RxDropped,
+				Tag{Raw: format.RawIDTagReceived},
+				Tag{Str: name})
+			c.writer.WriteSystemMetricCountExtendedTag(nowUnix, format.BuiltinMetricNameNetDevDropped, stat.TxDropped,
+				Tag{Raw: format.RawIDTagSent},
+				Tag{Str: name})
+		}
+		c.oldNetDevByDevice[name] = &devStatC
+	}
 	return nil
 }
 

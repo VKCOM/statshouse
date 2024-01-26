@@ -4,89 +4,32 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Dashboard, ErrorMessages, PlotLayout, PlotView } from '../components';
-import { setBackgroundColor } from '../common/canvasToImage';
 import { Store, useStore } from '../store';
-import { now } from './utils';
-import { debug } from '../common/debug';
 import { shallow } from 'zustand/shallow';
-import { usePlotPreview } from '../store/plot/plotPreview';
-import { useRectObserver } from '../hooks';
+import { useEmbedMessage } from '../hooks/useEmbedMessage';
 
-const { setPlotParams, setTimeRange, setBaseRange, setCompact } = useStore.getState();
+const { setPlotParams, setBaseRange, setCompact } = useStore.getState();
 
 export type ViewPageProps = {
   embed?: boolean;
   yAxisSize?: number;
 };
 
-const selector = ({ params, liveMode, metricsMeta, timeRange, globalNumQueriesPlot }: Store) => ({
+const selector = ({ params, metricsMeta, globalNumQueriesPlot }: Store) => ({
   params,
   activePlot: params.plots[params.tabNum],
-  liveMode,
   activePlotMeta: metricsMeta[params.plots[params.tabNum]?.metricName ?? ''] ?? undefined,
   globalNumQueriesPlot,
-  timeRange,
 });
 export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => {
-  const { params, activePlotMeta, activePlot, liveMode, timeRange, globalNumQueriesPlot } = useStore(selector, shallow);
-  const plotPreview = usePlotPreview((state) => state.previewList[params.tabNum]);
+  const { params, activePlotMeta, activePlot, globalNumQueriesPlot } = useStore(selector, shallow);
   const [refPage, setRefPage] = useState<HTMLDivElement | null>(null);
-  const [{ width, height }] = useRectObserver(refPage, true);
-  useEffect(() => {
-    if (embed) {
-      window.top?.postMessage({ source: 'statshouse', payload: { width, height } }, '*');
-    }
-  }, [embed, height, width]);
-
+  useEmbedMessage(refPage, embed);
   useEffect(() => {
     setCompact(!!embed);
   }, [embed]);
-
-  useEffect(() => {
-    setBackgroundColor(plotPreview ?? '', 'rgba(255,255,255,1)', 64).then((data) => {
-      let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
-      if (!link) {
-        link = document.createElement('link');
-        link.rel = 'icon';
-        document.getElementsByTagName('head')[0].appendChild(link);
-      }
-      link.href = data || '/favicon.ico';
-    });
-  }, [params.tabNum, plotPreview]);
-
-  const refresh = useCallback(() => {
-    if (document.visibilityState === 'visible') {
-      setTimeRange(
-        (range) => ({
-          to: range.absolute ? now() : range.getRangeUrl().to,
-          from: range.relativeFrom,
-        }),
-        true
-      );
-    }
-  }, []);
-
-  useEffect(() => {
-    if (liveMode) {
-      refresh();
-      const refreshSec =
-        -timeRange.relativeFrom <= 2 * 3600
-          ? 1
-          : -timeRange.relativeFrom <= 48 * 3600
-          ? 15
-          : -timeRange.relativeFrom <= 31 * 24 * 3600
-          ? 60
-          : 300;
-      debug.log('live mode enabled', refreshSec);
-      const id = setInterval(refresh, refreshSec * 1000);
-      return () => {
-        debug.log('live mode disabled');
-        clearInterval(id);
-      };
-    }
-  }, [liveMode, refresh, timeRange.relativeFrom]);
 
   useEffect(() => {
     if (params.tabNum >= 0 && !useStore.getState().dashboardLayoutEdit) {

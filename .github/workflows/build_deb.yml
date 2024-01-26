@@ -1,63 +1,57 @@
 on:
   workflow_call:
     inputs:
-      build_time:
-        required: true
+      runs-on:
         type: string
-      build_commit:
-        required: true
-        type: string
-      build_commit_ts:
-        required: true
-        type: string
-      build_version:
-        required: true
-        type: string
-      build_machine:
         required: false
-        type: string
-        default: ubuntu-22.04
-      build_container:
+        default: ubuntu-latest
+      container_json:
         required: false
         type: string
         default: '{"image":null}'
-      os_name:
+      setup-go:
+        type: boolean
+        required: false
+        default: false
+      ref:
         required: true
         type: string
-      os_release:
+      ref_timestamp:
         required: true
         type: string
+      timestamp:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      name:
+        required: true
+        type: string
+      release:
+        required: true
+        type: string
+      frontend-artifact:
+        type: string
+        required: true
+    outputs:
+      artifact:
+        value: statshouse-${{inputs.version}}-deb
 jobs:
-  binary:
-    runs-on: ${{inputs.build_machine}}
-    container: ${{fromJSON(inputs.build_container)}}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: VKCOM/statshouse
-          ref: ${{inputs.build_commit}}
-          fetch-depth: 0
-      - uses: actions/setup-go@v4
-        if: inputs.build_container == '{"image":null}'
-        with:
-          go-version: '1.19'
-      - uses: actions/download-artifact@master
-        with:
-          name: statshouse-${{inputs.build_version}}-ui
-      - run: |
-          BUILD_TIME=${{inputs.build_time}}
-          BUILD_COMMIT=${{inputs.build_commit}}
-          BUILD_COMMIT_TS=${{inputs.build_commit_ts}}
-          BUILD_MACHINE=$(uname -n -m -r -s)
-          BUILD_VERSION=${{inputs.build_version}}
-          cp -r statshouse-ui/build cmd/statshouse-api/
-          make build-sh build-sh-metadata build-sh-api build-sh-grafana
-      - uses: actions/upload-artifact@v3
-        with:
-          name: statshouse-${{inputs.build_version}}-${{inputs.os_name}}_${{inputs.os_release}}_amd64-bin
-          path: target
+  binaries:
+    uses: ./.github/workflows/build_binaries.yml
+    with:
+      runs-on: ${{inputs.runs-on}}
+      container_json: ${{inputs.container_json}}
+      setup-go: ${{inputs.setup-go}}
+      ref: ${{inputs.ref}}
+      ref_timestamp: ${{inputs.ref_timestamp}}
+      timestamp: ${{inputs.timestamp}}
+      version: ${{inputs.version}}
+      name: ${{inputs.name}}
+      release: ${{inputs.release}}
   package:
-    needs: [binary]
+    needs: [binaries]
     runs-on: ubuntu-latest
     steps:
       - run: |
@@ -67,30 +61,30 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: VKCOM/statshouse
-          ref: ${{inputs.build_commit}}
+          ref: ${{inputs.ref}}
           fetch-depth: 0
-      - uses: actions/download-artifact@master
+      - uses: actions/download-artifact@v4
         with:
-          name: statshouse-${{inputs.build_version}}-${{inputs.os_name}}_${{inputs.os_release}}_amd64-bin
+          name: ${{needs.binaries.outputs.artifact}}
           path: target
-      - run: chmod +x target/*
-      - uses: actions/download-artifact@master
+      - uses: actions/download-artifact@v4
         with:
-          name: statshouse-${{inputs.build_version}}-ui
+          name: ${{inputs.frontend-artifact}}
+      - run: | # fake grafana plugin build since it isn't published
+          mkdir -p grafana-plugin-ui/dist
+          touch target/statshouse-grafana-plugin
+      - run: | # github doesn't retain file permissions for artifact contents, restore
+          chmod +x target/*
+      - run: echo "VERSION=1:${{inputs.version}}-${{inputs.release}}" >> $GITHUB_ENV
       - working-directory: build
         run: |
-          rm -f changelog
-          VERSION=1:${{inputs.build_version}}-${{inputs.os_release}}
+          rm -f changelog          
           dch --create --distribution stable --package statshouse --newversion "$VERSION" "up to version $VERSION"
           debuild --no-lintian -us -uc -b
-      - run: |
-          mkdir -p ${{inputs.os_name}}/${{inputs.os_release}}
-          mv *.deb ${{inputs.os_name}}/${{inputs.os_release}}
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
-          name: statshouse-${{inputs.build_version}}_amd64-deb
+          name: statshouse-${{inputs.version}}-deb
           path: |
-            ${{inputs.os_name}}/${{inputs.os_release}}/statshouse_*
-            ${{inputs.os_name}}/${{inputs.os_release}}/statshouse-api_*
-            ${{inputs.os_name}}/${{inputs.os_release}}/statshouse-metadata_*
-            .dummy_preserves_directory_structure
+            ./statshouse_*.deb
+          # ./statshouse-api_*.deb
+          # ./statshouse-metadata_*.deb

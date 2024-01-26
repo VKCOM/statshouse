@@ -90,6 +90,7 @@ gen:
 		./internal/data_model/engine.tl \
 		./internal/data_model/metadata.tl \
 		./internal/data_model/public.tl \
+		./internal/data_model/kv_engine.tl \
 		./internal/data_model/schema.tl
 	@echo "Checking that generated code actually compiles..."
 	@go build ./internal/data_model/gen2/...
@@ -98,4 +99,3 @@ gen:
 lint:
 	staticcheck -version
 	staticcheck ./...
-

@@ -74,11 +74,7 @@ func (item *StatshouseApiGetQuery) ReadResultJSON(j interface{}, ret *Statshouse
 }
 
 func (item *StatshouseApiGetQuery) WriteResultJSON(w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *StatshouseApiGetQuery) writeResultJSON(short bool, w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = ret.WriteJSON(w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -90,15 +86,6 @@ func (item *StatshouseApiGetQuery) ReadResultWriteResultJSON(r []byte, w []byte)
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *StatshouseApiGetQuery) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret StatshouseApiGetQueryResponse
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -153,9 +140,6 @@ func (item *StatshouseApiGetQuery) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseApiGetQuery) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *StatshouseApiGetQuery) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -169,7 +153,7 @@ func (item *StatshouseApiGetQuery) WriteJSONOpt(short bool, w []byte) (_ []byte,
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"query":`...)
-	if w, err = item.Query.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Query.WriteJSON(w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil

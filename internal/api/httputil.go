@@ -96,8 +96,8 @@ func cacheSeconds(d time.Duration) int {
 }
 
 func exportCSV(w http.ResponseWriter, resp *SeriesResponse, metric string, es *endpointStat) {
-	es.serviceTime(http.StatusOK)
-	defer es.responseTime(http.StatusOK)
+	es.reportServiceTime(http.StatusOK, nil)
+	defer es.reportResponseTime(http.StatusOK)
 
 	w.Header().Set(
 		"Content-Disposition",
@@ -150,7 +150,7 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 	r := Response{}
 
 	if es != nil {
-		es.serviceTime(code)
+		es.reportServiceTime(code, nil)
 	}
 
 	if err != nil {
@@ -204,14 +204,14 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 	}
 
 	if es != nil {
-		es.responseTime(code)
+		es.reportResponseTime(code)
 	}
 }
 
 func respondPlot(w http.ResponseWriter, format string, resp []byte, cache time.Duration, cacheStale time.Duration, verbose bool, user string, es *endpointStat) {
 	code := http.StatusOK
 	if es != nil {
-		es.serviceTime(code)
+		es.reportServiceTime(code, nil)
 	}
 
 	w.Header().Set("Content-Length", strconv.Itoa(len(resp)))
@@ -243,7 +243,7 @@ func respondPlot(w http.ResponseWriter, format string, resp []byte, cache time.D
 	}
 
 	if es != nil {
-		es.responseTime(code)
+		es.reportResponseTime(code)
 	}
 }
 
@@ -347,14 +347,23 @@ func parseWidth(w string, g string) (int, int, error) {
 }
 
 func parseTimeShifts(ts []string) ([]time.Duration, error) {
-	ds := []time.Duration{0} // implicit 0s
+	ds := make([]int64, 0, len(ts))
 	for _, s := range ts {
 		d, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return nil, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse time shift %q: %w", s, err))
 		}
+		ds = append(ds, d)
+	}
+	return verifyTimeShifts(ds)
+
+}
+
+func verifyTimeShifts(ts []int64) ([]time.Duration, error) {
+	ds := []time.Duration{0} // implicit 0s
+	for _, d := range ts {
 		if d >= 0 {
-			return nil, httpErr(http.StatusBadRequest, fmt.Errorf("time shift %q is not negative", s))
+			return nil, httpErr(http.StatusBadRequest, fmt.Errorf("time shift %d is not negative", d))
 		}
 		ds = append(ds, time.Duration(d)*time.Second)
 	}

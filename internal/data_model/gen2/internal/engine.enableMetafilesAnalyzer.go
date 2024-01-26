@@ -60,10 +60,6 @@ func (item *EngineEnableMetafilesAnalyzer) ReadResultJSON(j interface{}, ret *bo
 }
 
 func (item *EngineEnableMetafilesAnalyzer) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
-}
-
-func (item *EngineEnableMetafilesAnalyzer) writeResultJSON(short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -74,15 +70,6 @@ func (item *EngineEnableMetafilesAnalyzer) ReadResultWriteResultJSON(r []byte, w
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
-	return r, w, err
-}
-
-func (item *EngineEnableMetafilesAnalyzer) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret bool
-	if r, err = item.ReadResult(r, &ret); err != nil {
-		return r, w, err
-	}
-	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -127,9 +114,6 @@ func (item *EngineEnableMetafilesAnalyzer) readJSON(j interface{}) error {
 }
 
 func (item *EngineEnableMetafilesAnalyzer) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineEnableMetafilesAnalyzer) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Enable {
 		w = basictl.JSONAddCommaIfNeeded(w)

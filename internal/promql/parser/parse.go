@@ -389,9 +389,25 @@ func (p *parser) newLabelMatcher(label, operator, value Item) *labels.Matcher {
 	return m
 }
 
-func (p *parser) newLabelMatcherInternal(label, value Item) *labels.Matcher {
+func (p *parser) newLabelMatcherInternal(label, operator, value Item) *labels.Matcher {
+	op := operator.Typ
+	var matchType labels.MatchType
+	switch op {
+	case EQL:
+		matchType = labels.MatchEqual
+	case NEQ:
+		matchType = labels.MatchNotEqual
+	case EQL_REGEX:
+		matchType = labels.MatchRegexp
+	case NEQ_REGEX:
+		matchType = labels.MatchNotRegexp
+	default:
+		// This should never happen, since the error should have been caught
+		// by the generated parser.
+		panic("invalid operator")
+	}
 	val := p.unquoteString(value.Val)
-	m, err := labels.NewMatcher(labels.MatchEqual, "__"+label.Val+"__", val)
+	m, err := labels.NewMatcher(matchType, "__"+label.Val+"__", val)
 	if err != nil {
 		p.addParseErr(mergeRanges(&label, &value), err)
 	}
@@ -408,13 +424,15 @@ func (p *parser) newVariableBinding(label, value Item) *labels.Matcher {
 }
 
 // addOffset is used to set the offset in the generated parser.
-func (p *parser) addOffset(e Node, offset int64) {
+func (p *parser) addOffset(e Node, offset int64, extra []int64) {
 	var orgoffsetp *int64
+	var orgextsetp *[]int64
 	var endPosp *Pos
 
 	switch s := e.(type) {
 	case *VectorSelector:
 		orgoffsetp = &s.OriginalOffset
+		orgextsetp = &s.OriginalOffsetEx
 		endPosp = &s.PosRange.End
 	case *MatrixSelector:
 		vs, ok := s.VectorSelector.(*VectorSelector)
@@ -423,6 +441,7 @@ func (p *parser) addOffset(e Node, offset int64) {
 			return
 		}
 		orgoffsetp = &vs.OriginalOffset
+		orgextsetp = &vs.OriginalOffsetEx
 		endPosp = &s.EndPos
 	case *SubqueryExpr:
 		orgoffsetp = &s.OriginalOffset
@@ -439,6 +458,9 @@ func (p *parser) addOffset(e Node, offset int64) {
 		*orgoffsetp = offset
 	}
 
+	if orgextsetp != nil {
+		*orgextsetp = append(*orgextsetp, extra...)
+	}
 	*endPosp = p.lastClosing
 }
 

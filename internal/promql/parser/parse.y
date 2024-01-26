@@ -29,6 +29,7 @@ import (
     strings   []string
     float     float64
     duration  int64
+    offsets   []int64
 }
 
 
@@ -89,6 +90,7 @@ AVG
 BOTTOMK
 COUNT
 COUNT_VALUES
+DROP_EMPTY_SERIES
 GROUP
 MAX
 MIN
@@ -97,6 +99,8 @@ STDDEV
 STDVAR
 SUM
 TOPK
+SORT
+SORT_DESC
 %token	aggregatorsEnd
 
 // Keywords.
@@ -129,7 +133,8 @@ END
 %type <strings> grouping_label_list grouping_labels maybe_grouping_labels
 %type <float> number signed_number signed_or_unsigned_number
 %type <node> step_invariant_expr aggregate_expr aggregate_modifier bin_modifier binary_expr bool_modifier expr function_call function_call_args function_call_body group_modifiers label_matchers matrix_selector number_literal offset_expr on_or_ignoring paren_expr string_literal subquery_expr unary_expr vector_selector
-%type <duration> duration maybe_duration
+%type <duration> duration maybe_duration offset_value
+%type <offsets> offset_list
 
 %start start
 
@@ -361,19 +366,38 @@ paren_expr      : LEFT_PAREN expr RIGHT_PAREN
  * Offset modifiers.
  */
 
-offset_expr: expr OFFSET duration
-                        {
-                        yylex.(*parser).addOffset($1, $3)
+offset_expr: expr OFFSET LEFT_BRACKET offset_list RIGHT_BRACKET
+                {
+                        yylex.(*parser).addOffset($1, 0, $4)
                         $$ = $1
-                        }
-                | expr OFFSET SUB duration
-                        {
-                        yylex.(*parser).addOffset($1, -$4)
+                }
+                | expr OFFSET offset_value
+                {
+                        yylex.(*parser).addOffset($1, $3, nil)
                         $$ = $1
-                        }
-                | expr OFFSET error
-                        { yylex.(*parser).unexpected("offset", "duration"); $$ = $1 }
+                }
                 ;
+
+offset_list: offset_list COMMA offset_value
+                {
+                        $$ = append($$, $3)
+                }
+                | offset_value
+                {
+                        $$ = append($$, $1)
+                }
+                ;
+
+offset_value: duration
+                {
+                        $$ = $1
+                }
+                | SUB duration
+                {
+                        $$ = -$2
+                }
+                ;
+
 /*
  * @ modifiers.
  */
@@ -404,7 +428,7 @@ matrix_selector : expr LEFT_BRACKET duration RIGHT_BRACKET
                         vs, ok := $1.(*VectorSelector)
                         if !ok{
                                 errMsg = "ranges only allowed for vector selectors"
-                        } else if vs.OriginalOffset != 0{
+                        } else if vs.OriginalOffset != 0 || len(vs.OriginalOffsetEx) != 0 {
                                 errMsg = "no offset modifiers allowed before range"
                         } else if vs.Timestamp != nil {
                                 errMsg = "no @ modifiers allowed before range"
@@ -530,8 +554,8 @@ label_match_list: label_match_list COMMA label_matcher
                         { yylex.(*parser).unexpected("label matching", "\",\" or \"}\""); $$ = $1 }
                 ;
 
-label_matcher   : AT IDENTIFIER EQL STRING
-                        { $$ = yylex.(*parser).newLabelMatcherInternal($2, $4);  }
+label_matcher   : AT IDENTIFIER match_op STRING
+                        { $$ = yylex.(*parser).newLabelMatcherInternal($2, $3, $4);  }
                 | IDENTIFIER BIND DOLLAR IDENTIFIER
                         { $$ = yylex.(*parser).newVariableBinding($1, $4);  }
                 | IDENTIFIER match_op STRING
@@ -548,16 +572,16 @@ label_matcher   : AT IDENTIFIER EQL STRING
  * Metric descriptions.
  */
 
-metric_identifier: AVG | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | IDENTIFIER |  LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | QUANTILE | STDDEV | STDVAR | SUM | TOPK | WITHOUT | START | END;
+metric_identifier: AVG | BOTTOMK | BY | COUNT | COUNT_VALUES | DROP_EMPTY_SERIES | GROUP | IDENTIFIER |  LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC | WITHOUT | START | END;
 
 /*
  * Keyword lists.
  */
 
-aggregate_op    : AVG | BOTTOMK | COUNT | COUNT_VALUES | GROUP | MAX | MIN | QUANTILE | STDDEV | STDVAR | SUM | TOPK ;
+aggregate_op    : AVG | BOTTOMK | COUNT | COUNT_VALUES | DROP_EMPTY_SERIES | GROUP | MAX | MIN | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC;
 
 // inside of grouping options label names can be recognized as keywords by the lexer. This is a list of keywords that could also be a label name.
-maybe_label     : AVG | BOOL | BOTTOMK | BY | COUNT | COUNT_VALUES | GROUP | GROUP_LEFT | GROUP_RIGHT | IDENTIFIER | IGNORING | LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | ON | QUANTILE | STDDEV | STDVAR | SUM | TOPK | START | END | ATAN2 | NUMBER;
+maybe_label     : AVG | BOOL | BOTTOMK | BY | COUNT | COUNT_VALUES | DROP_EMPTY_SERIES | GROUP | GROUP_LEFT | GROUP_RIGHT | IDENTIFIER | IGNORING | LAND | LOR | LUNLESS | MAX | METRIC_IDENTIFIER | MIN | OFFSET | ON | QUANTILE | STDDEV | STDVAR | SUM | TOPK | SORT | SORT_DESC | START | END | ATAN2 | NUMBER;
 
 unary_op        : ADD | SUB;
 

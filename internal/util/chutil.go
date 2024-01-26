@@ -54,6 +54,17 @@ type QueryHandleInfo struct {
 	Profile  proto.Profile
 }
 
+type ChConnOptions struct {
+	Addrs             []string
+	User              string
+	Password          string
+	DialTimeout       time.Duration
+	FastLightMaxConns int
+	FastHeavyMaxConns int
+	SlowLightMaxConns int
+	SlowHeavyMaxConns int
+}
+
 const (
 	fastLight = 0
 	fastHeavy = 1
@@ -61,27 +72,27 @@ const (
 	slowHeavy = 3 // fix Close after adding new modes
 )
 
-func OpenClickHouse(fastSlowMaxConns, lightHeavyMaxConns int, addrs []string, user string, password string, debug bool, dialTimeout time.Duration) (*ClickHouse, error) {
-	if len(addrs) == 0 {
+func OpenClickHouse(opt ChConnOptions) (*ClickHouse, error) {
+	if len(opt.Addrs) == 0 {
 		return nil, fmt.Errorf("at least one ClickHouse address must be specified")
 	}
 
 	result := &ClickHouse{[4]*connPool{
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), queue.NewQueue(int64(fastSlowMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},   // fastLight
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), queue.NewQueue(int64(lightHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // fastHeavy
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), queue.NewQueue(int64(fastSlowMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}},   // slowLight
-		{rand.New(), make([]*chpool.Pool, 0, len(addrs)), queue.NewQueue(int64(lightHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // slowHeavy
+		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.FastLightMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // fastLight
+		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.FastHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // fastHeavy
+		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.SlowLightMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // slowLight
+		{rand.New(), make([]*chpool.Pool, 0, len(opt.Addrs)), queue.NewQueue(int64(opt.SlowHeavyMaxConns)), map[string]int{}, sync.Mutex{}, map[string]int{}, sync.Mutex{}}, // slowHeavy
 	}}
-	for _, addr := range addrs {
+	for _, addr := range opt.Addrs {
 		for _, pool := range result.pools {
 			server, err := chpool.New(context.Background(), chpool.Options{
-				MaxConns: int32(fastSlowMaxConns),
+				MaxConns: int32(pool.sem.MaxActiveQuery),
 				ClientOptions: ch.Options{
 					Address:          addr,
-					User:             user,
-					Password:         password,
+					User:             opt.User,
+					Password:         opt.Password,
 					Compression:      ch.CompressionLZ4,
-					DialTimeout:      dialTimeout,
+					DialTimeout:      opt.DialTimeout,
 					HandshakeTimeout: 10 * time.Second,
 				}})
 			if err != nil {

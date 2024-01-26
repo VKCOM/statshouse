@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.svg';
 import { ReactComponent as SVGGridFill } from 'bootstrap-icons/icons/grid-fill.svg';
@@ -14,7 +14,7 @@ import { ReactComponent as SVGBrightnessHighFill } from 'bootstrap-icons/icons/b
 import { ReactComponent as SVGMoonStarsFill } from 'bootstrap-icons/icons/moon-stars-fill.svg';
 import { ReactComponent as SVGCircleHalf } from 'bootstrap-icons/icons/circle-half.svg';
 import { ReactComponent as SVGLightbulbFill } from 'bootstrap-icons/icons/lightbulb-fill.svg';
-// import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
+import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
 import cn from 'classnames';
 import { produce } from 'immer';
 
@@ -65,7 +65,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
 
   const isView = location.pathname === '/view';
   const isDashList = location.pathname === '/dash-list';
-  // const isAdminGroup = location.pathname === '/admin/group';
+  const isSettings = location.pathname === '/settings' || location.pathname === '/settings/group';
 
   const onPasteClipboard = useCallback(() => {
     (navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.reject())
@@ -113,6 +113,13 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
         p.theme = undefined;
       })
     );
+  }, []);
+  const refListMenuItemPlot = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    setTimeout(() => {
+      refListMenuItemPlot.current?.querySelector('.plot-active')?.scrollIntoView();
+    }, 0);
   }, []);
 
   return (
@@ -218,14 +225,21 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             </span>
           </li>
         </HeaderMenuItem>
-        {/*{ai.admin && (
+        {ai.admin && (
           <HeaderMenuItem
             icon={SVGGear}
-            to="/settings/prometheus"
-            title="Setting"
-            className={cn(isAdminGroup && css.activeItem)}
-          ></HeaderMenuItem>
-        )}*/}
+            to="/settings/group"
+            title="Group"
+            className={cn(isSettings && css.activeItem)}
+          >
+            <li className={css.splitter}></li>
+            <li className="nav-item">
+              <NavLink className="nav-link" to="/settings/namespace" end>
+                Namespace
+              </NavLink>
+            </li>
+          </HeaderMenuItem>
+        )}
         <HeaderMenuItem
           icon={SVGCardList}
           to="/dash-list"
@@ -237,16 +251,9 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
           indexPlot={-1}
           title="Dashboard"
           className={cn(params.tabNum < 0 && isView && css.activeItem)}
-        >
-          {/*<li className={css.splitter}></li>
-          <li className="nav-item">
-            <PlotLink className="nav-link" indexPlot={-2} title="Dashboard Setting">
-              Dashboard&nbsp;Setting
-            </PlotLink>
-          </li>*/}
-        </HeaderMenuItem>
+        ></HeaderMenuItem>
         <li className={cn('flex-grow-0 w-100 overflow-auto', css.scrollStyle)}>
-          <ul className={cn('nav d-flex flex-column', css.nav)}>
+          <ul ref={refListMenuItemPlot} className={cn('nav d-flex flex-column', css.nav)}>
             {menuPlots.map((item) => (
               <HeaderMenuItemPlot key={item.indexPlot} indexPlot={item.indexPlot} />
             ))}

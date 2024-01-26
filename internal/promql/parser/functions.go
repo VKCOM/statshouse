@@ -216,6 +216,16 @@ var Functions = map[string]*Function{
 		ArgTypes:   []ValueType{ValueTypeVector, ValueTypeString, ValueTypeString, ValueTypeString, ValueTypeString},
 		ReturnType: ValueTypeVector,
 	},
+	"label_set": {
+		Name:       "label_set",
+		ArgTypes:   []ValueType{ValueTypeVector, ValueTypeString, ValueTypeString},
+		ReturnType: ValueTypeVector,
+	},
+	"label_maxhost": {
+		Name:       "label_maxhost",
+		ArgTypes:   []ValueType{ValueTypeVector},
+		ReturnType: ValueTypeVector,
+	},
 	"label_join": {
 		Name:       "label_join",
 		ArgTypes:   []ValueType{ValueTypeVector, ValueTypeString, ValueTypeString, ValueTypeString},
@@ -332,16 +342,6 @@ var Functions = map[string]*Function{
 	},
 	"sinh": {
 		Name:       "sinh",
-		ArgTypes:   []ValueType{ValueTypeVector},
-		ReturnType: ValueTypeVector,
-	},
-	"sort": {
-		Name:       "sort",
-		ArgTypes:   []ValueType{ValueTypeVector},
-		ReturnType: ValueTypeVector,
-	},
-	"sort_desc": {
-		Name:       "sort_desc",
 		ArgTypes:   []ValueType{ValueTypeVector},
 		ReturnType: ValueTypeVector,
 	},

@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
+	env2 "github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/stats"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -151,6 +152,7 @@ func runMain() int {
 			build.FlagParseShowVersionHelp()
 		case "ingress_proxy", "-ingress_proxy", "--ingress_proxy":
 			argvAddCommonFlags()
+			argvAddAgentFlags(false)
 			argvAddIngressProxyFlags()
 			argv.configAgent = agent.DefaultConfig()
 			build.FlagParseShowVersionHelp()
@@ -409,7 +411,12 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	}
 
 	if !argv.hardwareMetricScrapeDisable {
-		m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, logErr)
+		envLoader, closeF, err := env2.ListenEnvFile(argv.envFilePath)
+		if err != nil {
+			logErr.Printf("failed to start listen env file: %s", err.Error())
+		}
+		defer closeF()
+		m, err := stats.NewCollectorManager(stats.CollectorManagerOptions{ScrapeInterval: argv.hardwareMetricScrapeInterval, HostName: argv.customHostName}, w, envLoader, logErr)
 		if err != nil {
 			logErr.Println("failed to init hardware collector", err.Error())
 		} else {
@@ -470,8 +477,6 @@ func mainIngressProxy(aesPwd string) int {
 	}
 	argv.configAgent.Cluster = argv.cluster
 	argv.configIngress.Cluster = argv.cluster
-	argv.configIngress.MaxConnection = argv.ingressMaxConn
-	argv.configIngress.DeleteSampleSize = argv.ingressDeleteSampleSize
 	argv.configIngress.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
 	if len(argv.configIngress.ExternalAddresses) != 3 {
 		logErr.Printf("-ingress-external-addr must contain comma-separated list of 3 external ingress proxy addresses")
