@@ -69,7 +69,7 @@ a dashboard name.
 
 Variables help you to get use of tags for several metrics simultaneously.
 A variable allows you to bind the tags of two different metrics even if the sets of values for the tags do not 
-intersect.
+intersect, or the same tag has different names such as `production` or `prod` in different metrics.
 
 Imagine you want to view two metrics on a dashboard. Each metric has the `environment` tag. What if you would like to 
 bind these tags together to filter data for both metrics simultaneously?
@@ -105,9 +105,25 @@ In the _Layout_ section, set up options to filter, sort, or group data by defaul
 
 <img src={DashGroupByDefault} width="900"/>
 
-Group metrics by a subcategory, change the group order, and customize the layout:
+Customize the layout so that the dashboard could help you recognize the meaningful patterns in data:
 
 <img src={DashLayout} width="900"/>
+
+#### Graph width
+
+_S_, _M_, _L_ options are fixed graph widths, which are _small_, _medium_, and _large_ ones.
+_Autowidth_ and the number of graphs _per row_ are the ways to arrange graphs in a group horizontally.
+
+Play with these options to arrange the compared graphs one above or near the other.
+
+#### Graph groups
+
+Group the graphs by subcategories, describe and sort the groups for your convenience:
+
+* In the _Layout_ editing mode, drag and drop graphs to move them on a dashboard.
+* Add a group before or after the current one. 
+* Collapse the infrequently used groups to save resources: the collapsed graphs are not updated upon 
+  refreshing or opening the page.
 
 ## View a dashboard
 
@@ -125,4 +141,3 @@ Get rid of an unused dashboard:
 The removed dashboard disappears from the dashboard list but still exists, so you cannot use the same dashboard name
 later.
 :::
-
