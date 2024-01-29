@@ -154,7 +154,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
               OpenAPI
             </a>
           </li>
-          <li className="nav-item">
+          {/*<li className="nav-item">
             <a
               className="nav-link"
               href="https://github.com/VKCOM/statshouse/discussions/categories/q-a"
@@ -163,7 +163,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             >
               Support
             </a>
-          </li>
+          </li>*/}
           <li className="nav-item">
             <NavLink className="nav-link" to="/doc/faq" end>
               FAQ
