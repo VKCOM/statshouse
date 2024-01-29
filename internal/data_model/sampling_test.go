@@ -6,11 +6,10 @@ import (
 	"os"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
-
 	"github.com/vkcom/statshouse/internal/format"
-
 	"pgregory.net/rand"
 	"pgregory.net/rapid"
 )
@@ -629,4 +628,88 @@ func sampleBucketLegacy(bucket *MetricsBucket, config samplerConfigEx) map[int32
 		}
 	}
 	return sampleFactors
+}
+
+func TestSinSampling(t *testing.T) {
+	rapid.Check(t, func(t *rapid.T) {
+		const metricNum = 10
+		const seriesNum = 10
+		in := make([][]SamplingMultiItemPair, 0, metricNum*seriesNum)
+		for i := int32(0); i < metricNum; i++ {
+			in = append(in, testGenerateSinMetric(i, seriesNum)...)
+		}
+		out := make([][]SamplingMultiItemPair, metricNum*seriesNum)
+		for i := 0; i < len(out); i++ {
+			out[i] = make([]SamplingMultiItemPair, len(in[i]))
+		}
+		for i := 0; i < len(in[0]); i++ {
+			sampler := NewSampler(len(in), SamplerConfig{
+				KeepF: func(k Key, item *MultiItem) {
+					x := k.Metric*seriesNum + k.Keys[0]
+					require.Nil(t, out[x][i].Item)
+					out[x][i].Item = item
+				},
+				SelectF: func(s []SamplingMultiItemPair, sf float64, _ *rand.Rand) int {
+					require.LessOrEqual(t, float64(1), sf)
+					copy(s, rapid.Permutation(s).Draw(t, "SelectF"))
+					return int(float64(len(s)) / sf)
+				},
+			})
+			size := 0
+			for j := 0; j < len(in); j++ {
+				sampler.Add(in[j][i])
+				size += in[j][i].Size
+			}
+			var stat SamplerStatistics
+			sampler.Run(int64(size/2), &stat)
+		}
+		d := make([]float64, metricNum) // delta
+		for i := 0; i < len(in[0]); i++ {
+			for j := 0; j < metricNum; j++ {
+				var before, after float64
+				for k := 0; k < seriesNum; k++ {
+					x := j*metricNum + k
+					before += in[x][i].Item.Tail.Value.Counter
+					if item := out[x][i].Item; item != nil {
+						after += item.Tail.Value.Counter * item.SF
+					}
+				}
+				d[j] += before - after
+			}
+		}
+		var acc float64
+		for i := 0; i < len(d); i++ {
+			acc += d[i]
+		}
+		// TODO:
+		// now what compare deltas with?
+	})
+}
+
+func testGenerateSinMetric(metricID, seriesNum int32) [][]SamplingMultiItemPair {
+	res := make([][]SamplingMultiItemPair, 0, seriesNum)
+	for i := int32(0); i < seriesNum; i++ {
+		s := testGenerateSinSeries(metricID, [16]int32{i}, float64(i)+1, 3600*12)
+		res = append(res, s)
+	}
+	return res
+}
+
+func testGenerateSinSeries(metric int32, tags [16]int32, mul float64, timeLen int) []SamplingMultiItemPair {
+	res := make([]SamplingMultiItemPair, timeLen)
+	now := uint32(time.Now().Unix())
+	for i := 0; i < len(res); i++ {
+		res[i].Key = Key{Metric: metric, Keys: tags, Timestamp: now}
+		v := mul * (1 + float64(math.Sin(2*math.Pi*float64(i)/float64(len(res)))))
+		item := MultiItem{}
+		item.Tail.Value.AddValueCounter(0, v)
+		res[i] = SamplingMultiItemPair{
+			Key:         Key{Metric: metric, Keys: tags},
+			Item:        &item,
+			WhaleWeight: item.Tail.Value.Counter,
+			Size:        64,
+			MetricID:    metric,
+		}
+	}
+	return res
 }
