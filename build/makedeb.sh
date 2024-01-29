@@ -11,7 +11,7 @@ if [[ -z $TAG ]]; then
 fi
 
 # upstream-version
-UPSTREAM=$(git describe --tags --always --dirty)
+UPSTREAM=$(git describe --tags --always --dirty --abbrev=0)
 UPSTREAM=${UPSTREAM#v} # v1.0.0 -> 1.0.0
 BUILD_TIME="$(date +%FT%T%z)"
 REACT_APP_BUILD_VERSION=$UPSTREAM-$BUILD_TIME
