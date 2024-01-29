@@ -159,6 +159,11 @@ const (
 	TagValueIDAPILaneSlowLight = 3
 	TagValueIDAPILaneSlowHeavy = 4
 
+	TagValueIDAPILaneFastLightv2 = 0
+	TagValueIDAPILaneFastHeavyv2 = 1
+	TagValueIDAPILaneSlowLightv2 = 2
+	TagValueIDAPILaneSlowHeavyv2 = 3
+
 	TagValueIDConveyorRecent   = 1
 	TagValueIDConveyorHistoric = 2
 
@@ -1153,10 +1158,10 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "lane",
 				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDAPILaneFastLight: "fastlight",
-					TagValueIDAPILaneFastHeavy: "fastheavy",
-					TagValueIDAPILaneSlowLight: "slowlight",
-					TagValueIDAPILaneSlowHeavy: "slowheavy"}),
+					TagValueIDAPILaneFastLightv2: "fastlight",
+					TagValueIDAPILaneFastHeavyv2: "fastheavy",
+					TagValueIDAPILaneSlowLightv2: "slowlight",
+					TagValueIDAPILaneSlowHeavyv2: "slowheavy"}),
 			}, {
 				Description: "host",
 			}, {
@@ -1189,10 +1194,10 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "lane",
 				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
-					TagValueIDAPILaneFastLight: "fastlight",
-					TagValueIDAPILaneFastHeavy: "fastheavy",
-					TagValueIDAPILaneSlowLight: "slowlight",
-					TagValueIDAPILaneSlowHeavy: "slowheavy"}),
+					TagValueIDAPILaneFastLightv2: "fastlight",
+					TagValueIDAPILaneFastHeavyv2: "fastheavy",
+					TagValueIDAPILaneSlowLightv2: "slowlight",
+					TagValueIDAPILaneSlowHeavyv2: "slowheavy"}),
 			}, {
 				Description: "host",
 			}, {
