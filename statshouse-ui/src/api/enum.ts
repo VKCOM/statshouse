@@ -66,6 +66,7 @@ export const GET_PARAMS = {
   variableSource: 's',
   variableGroupBy: 'g',
   variableNegative: 'nv',
+  priority: 'priority',
 } as const;
 export type GetParams = Enum<typeof GET_PARAMS>;
 

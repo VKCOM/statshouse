@@ -439,7 +439,8 @@ export function queryURL(
   timeShifts: number[],
   width: number | string,
   fetchBadges: boolean,
-  allParams?: QueryParams
+  allParams?: QueryParams,
+  priority?: number
 ): string {
   let params: string[][];
   if (sel.metricName === promQLMetric) {
@@ -470,6 +471,9 @@ export function queryURL(
 
   if (sel.maxHost) {
     params.push([GET_PARAMS.metricMaxHost, '1']);
+  }
+  if (priority) {
+    params.push([GET_PARAMS.priority, priority.toString()]);
   }
   params.push([GET_PARAMS.excessPoints, '1']);
   params.push([GET_PARAMS.metricVerbose, fetchBadges ? '1' : '0']);
