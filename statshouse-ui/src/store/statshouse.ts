@@ -352,7 +352,6 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
       };
 
       let decodeP = decodeParams(searchParams, localDefaultParams);
-
       if (!decodeP) {
         return;
       }
@@ -408,6 +407,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
 
       if (params.plots.length === 0) {
         const np: PlotParams = getNewPlot();
+        np.id = '0';
         params.plots = [np];
         reset = true;
       }
@@ -604,8 +604,9 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
           }
           if (params.plots.length > 1) {
             params.plots.splice(index, 1);
-            params.plots = params.plots.map((p) => ({
+            params.plots = params.plots.map((p, indexPlot) => ({
               ...p,
+              id: indexPlot.toString(), // fix fallback
               events: p.events.filter((v) => v !== index).map((v) => (v > index ? v - 1 : v)),
             }));
             params.tagSync = params.tagSync.map((g) => g.filter((tags, plot) => plot !== index));
@@ -658,7 +659,6 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
         prevState.params.timeRange.to === defaultTimeRange.to ||
         useLiveModeStore.getState().live ||
         prevState.timeRange.from > now();
-
       const p = encodeParams(prevState.params, prevState.defaultParams);
       const search = '?' + fixMessageTrouble(new URLSearchParams(p).toString());
       let pathname = document.location.pathname;
@@ -2221,6 +2221,7 @@ export function moveAndResortPlot(
 
     state.params.plots = plots.map((p, indexP) => ({
       ...p,
+      id: indexP.toString(), // fix fallback
       events: plotEventLink[indexP].filter((i) => i > -1) ?? [],
     }));
     state.params.tagSync = tagSync;
