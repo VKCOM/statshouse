@@ -2,6 +2,7 @@ package stats
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -122,7 +123,8 @@ func (m *CollectorManager) RunCollector() error {
 			for {
 				now := time.Now()
 				err := collector.WriteMetrics(now.Unix())
-				if err == errStopCollector {
+
+				if errors.Is(err, errStopCollector) {
 					return nil
 				}
 				if err != nil {
