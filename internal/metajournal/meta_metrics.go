@@ -103,7 +103,16 @@ func (ms *MetricsStorage) GetNamespaceByName(name string) *format.NamespaceMeta 
 func (ms *MetricsStorage) GetGroupByName(name string) *format.MetricsGroup {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	return ms.groupsByName[name]
+	g, ok := ms.groupsByName[name]
+	if ok {
+		return g
+	}
+	for _, g := range ms.builtInGroup {
+		if g.Name == name {
+			return g
+		}
+	}
+	return nil
 }
 
 func (ms *MetricsStorage) getMetaMetricByNameLocked(metricName string) *format.MetricMetaValue {
