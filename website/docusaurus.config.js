@@ -28,6 +28,7 @@ const config = {
   plugins: [
         ['docusaurus-plugin-yandex-metrica', {
               counterID: '96098475',
+              webvisor: true,
             }],
       [
         require.resolve("@cmfcmf/docusaurus-search-local"),
