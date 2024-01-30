@@ -30,6 +30,8 @@ type (
 		MetricID int32
 		SF       float64
 
+		namespaceID   int32
+		groupID       int32
 		roundFactors  bool
 		noSampleAgent bool
 		weight        int64 // actually, effective weight
@@ -76,6 +78,7 @@ type (
 		Steps   []SamplerStep                       // steps contributed to "Count"
 		Items   map[[3]int32]*SamplerStatisticsItem // grouped by [namespace, group, metric_kind]
 		Metrics map[int32]int                       // series count grouped by metric
+		Budget  map[[2]int32]float64                // effective budget groupped by [namespace, group]
 	}
 
 	SamplerStatisticsItem struct {
@@ -188,28 +191,49 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 	i := 0
 	for ; i < len(groups); i++ {
 		g := &groups[i]
-		if g.sumSize*budgetDenom*sumWeight > budgetNum*g.weight {
+		num := budgetNum * g.weight      // group budget numerator
+		denom := budgetDenom * sumWeight // denonimator
+		if num < denom*g.sumSize {
 			break // SF > 1
 		}
+		if g.MetricID == 0 {
+			// namespace or group budget
+			g.statBudget(h, stat, num, denom)
+		}
+		g.keep(h, stat)
 		budgetNum -= g.sumSize * budgetDenom
 		sumWeight -= g.weight
-		g.keep(h, stat)
 	}
 	if i == len(groups) {
 		return // without sampling
 	}
 	// Sampling
-	startPos := i                               // start position
-	d := budgetDenom * (int64(len(groups) - i)) // per group budget denominator
-	n := 0                                      // number of "sample" calls with SF > 1
+	step := SamplerStep{
+		Groups:      groups,
+		BudgetNum:   budgetNum,
+		BudgetDenom: budgetDenom,
+		StartPos:    i,
+		SumWeight:   sumWeight,
+	}
+	budgetDenom *= sumWeight
+	n := 0 // number of "sample" calls with SF > 1
 	for ; i < len(groups); i++ {
 		g := &groups[i]
+		budgetNum = step.BudgetNum * g.weight
 		if g.noSampleAgent && h.config.ModeAgent {
+			if g.MetricID == 0 {
+				// namespace or group budget
+				g.statBudget(h, stat, budgetNum, budgetDenom)
+			}
 			g.keep(h, stat)
 		} else if depth < len(h.partF)-1 {
-			h.run(g.items, depth+1, budgetNum, d, stat)
+			if g.MetricID == 0 && (g.groupID != 0 || !h.config.SampleGroups) {
+				// namespace or group budget
+				g.statBudget(h, stat, budgetNum, budgetDenom)
+			}
+			h.run(g.items, depth+1, budgetNum, budgetDenom, stat)
 		} else {
-			h.sample(g, budgetNum, budgetDenom, sumWeight, stat)
+			h.sample(g, budgetNum, budgetDenom, stat)
 			if g.SF > 1 {
 				n++
 			}
@@ -218,19 +242,26 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 	// Update statistics
 	if n != 0 {
 		stat.Count += n
-		stat.Steps = append(stat.Steps, SamplerStep{
-			Groups:      groups,
-			BudgetNum:   budgetNum,
-			BudgetDenom: budgetDenom,
-			StartPos:    startPos,
-			SumWeight:   sumWeight,
-		})
+		stat.Steps = append(stat.Steps, step)
 	}
 }
 
 func (g *SamplerGroup) keep(h *Sampler, stat *SamplerStatistics) {
 	for i := range g.items {
 		g.items[i].keep(1, h, stat)
+	}
+}
+
+func (g *SamplerGroup) statBudget(h *Sampler, stat *SamplerStatistics, budgetNum, budgetDenom int64) {
+	k := [2]int32{g.namespaceID, g.groupID}
+	var b float64
+	if budgetDenom != 0 {
+		b = float64(budgetNum) / float64(budgetDenom)
+	}
+	if stat.Budget == nil {
+		stat.Budget = map[[2]int32]float64{k: b}
+	} else {
+		stat.Budget[k] = b
 	}
 }
 
@@ -250,11 +281,9 @@ func (p *SamplingMultiItemPair) discard(sf float64, h *Sampler, stat *SamplerSta
 	stat.add(p, false)
 }
 
-func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int64, stat *SamplerStatistics) {
-	var (
-		sfNum   = g.sumSize * budgetDenom * sumWeight
-		sfDenom = budgetNum * g.weight
-	)
+func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom int64, stat *SamplerStatistics) {
+	sfNum := budgetDenom * g.sumSize
+	sfDenom := budgetNum
 	if sfNum < 1 {
 		sfNum = 1
 	}
@@ -356,9 +385,10 @@ func partitionByNamespace(h *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup
 			weight = 1
 		}
 		return SamplerGroup{
-			weight:  weight,
-			items:   items,
-			sumSize: sumSize,
+			weight:      weight,
+			items:       items,
+			sumSize:     sumSize,
+			namespaceID: namespace.ID,
 		}
 	}
 	var res []SamplerGroup
@@ -392,9 +422,11 @@ func partitionByGroup(h *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup, in
 			weight = 1
 		}
 		return SamplerGroup{
-			weight:  weight,
-			items:   items,
-			sumSize: sumSize,
+			weight:      weight,
+			items:       items,
+			sumSize:     sumSize,
+			namespaceID: group.NamespaceID,
+			groupID:     group.ID,
 		}
 	}
 	var res []SamplerGroup

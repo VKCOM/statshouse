@@ -286,6 +286,15 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 		mi = data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
 		mi.Tail.Value.Merge(&v.SumSizeDiscard)
 	}
+	// report budget used
+	budgetKey := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingBudget, Keys: [16]int32{0, s.agent.componentTag}}
+	budgetItem := data_model.MapKeyItemMultiItem(&bucket.MultiItems, budgetKey, config.StringTopCapacity, nil, nil)
+	budgetItem.Tail.Value.AddValue(float64(remainingBudget))
+	for k, v := range samplerStat.Budget {
+		key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingGroupBudget, Keys: [16]int32{0, s.agent.componentTag, k[0], k[1]}}
+		item := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
+		item.Tail.Value.AddValue(v)
+	}
 	// metric count
 	key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingMetricCount, Keys: [16]int32{0, s.agent.componentTag}}
 	mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
