@@ -8,7 +8,7 @@ import WhatIsSh from './img/what-is-sh.png'
 
 # What is StatsHouse?
 
-StatsHouse is a monitoring system that is highly available, scalable, and multi-tenant.
+StatsHouse is a monitoring system that is highly available, scalable, and multitenant.
 It is robust, and one can hardly overload it—due to [aggregation](conceptual-overview.md#aggregation) and 
 [sampling](conceptual-overview.md#sampling).
 Read more about StatsHouse [features](conceptual-overview.md#features).
@@ -55,5 +55,4 @@ StatsHouse implementation details.
 ### Check FAQs
 
 Find answers to [**Frequently asked questions**](faq.md).
-
 

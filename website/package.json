@@ -23,6 +23,7 @@
     "plugin-image-zoom": "github:flexanalytics/plugin-image-zoom",
     "prism-react-renderer": "^2.1.0",
     "react": "^18.0.0",
+    "react-cookie-consent": "^9.0.0",
     "react-dom": "^18.0.0"
   },
   "devDependencies": {
