@@ -36,6 +36,7 @@ import { currentAccessInfo, logoutURL } from '../../common/access';
 import { HeaderMenuItemPlot } from './HeaderMenuItemPlot';
 import css from './style.module.css';
 import { decodeParams } from '../../url/queryParams';
+import { globalSettings } from '../../common/settings';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -144,12 +145,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             </a>
           </li>
           <li className="nav-item">
-            <a
-              className="nav-link"
-              href="https://github.com/VKCOM/statshouse#documentation"
-              target="_blank"
-              rel="noreferrer"
-            >
+            <a className="nav-link" href="https://vkcom.github.io/statshouse/" target="_blank" rel="noreferrer">
               Documentation
             </a>
           </li>
@@ -158,7 +154,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
               OpenAPI
             </a>
           </li>
-          <li className="nav-item">
+          {/*<li className="nav-item">
             <a
               className="nav-link"
               href="https://github.com/VKCOM/statshouse/discussions/categories/q-a"
@@ -167,12 +163,19 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             >
               Support
             </a>
-          </li>
+          </li>*/}
           <li className="nav-item">
             <NavLink className="nav-link" to="/doc/faq" end>
               FAQ
             </NavLink>
           </li>
+          {!!globalSettings.links?.length && <li className={css.splitter}></li>}
+          {!!globalSettings.links?.length &&
+            globalSettings.links.map(({ url, name }, index) => (
+              <NavLink key={index} target="_blank" className="nav-link" to={url} end>
+                {name}
+              </NavLink>
+            ))}
           {ai.developer && (
             <>
               <li className={css.splitter}></li>

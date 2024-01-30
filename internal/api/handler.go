@@ -2475,15 +2475,11 @@ func (s seriesResponse) queryFnShiftAndTagsAt(i int) (queryFn, int64, map[string
 			timsShift = -(d.Offset + int64(tag.Value))
 			continue
 		}
-		var (
-			k = id
-			v = SeriesMetaTag{Value: tag.SValue}
-		)
-		if s.Series.Meta.Metric != nil && tag.Index != 0 {
-			var (
-				name  string
-				index = tag.Index - promql.SeriesTagIndexOffset
-			)
+		k := id
+		v := SeriesMetaTag{Value: tag.SValue}
+		if tag.Index != 0 {
+			var name string
+			index := tag.Index - promql.SeriesTagIndexOffset
 			if index == format.StringTopTagIndex {
 				k = format.LegacyStringTopTagID
 				name = format.StringTopTagID
@@ -2491,10 +2487,12 @@ func (s seriesResponse) queryFnShiftAndTagsAt(i int) (queryFn, int64, map[string
 				k = format.TagIDLegacy(index)
 				name = format.TagID(index)
 			}
-			if meta, ok := s.Series.Meta.Metric.Name2Tag[name]; ok {
-				v.Comment = meta.ValueComments[v.Value]
-				v.Raw = meta.Raw
-				v.RawKind = meta.RawKind
+			if s.Series.Meta.Metric != nil {
+				if meta, ok := s.Series.Meta.Metric.Name2Tag[name]; ok {
+					v.Comment = meta.ValueComments[v.Value]
+					v.Raw = meta.Raw
+					v.RawKind = meta.RawKind
+				}
 			}
 		}
 		tags[k] = v
