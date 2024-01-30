@@ -103,6 +103,10 @@ const (
 	BuiltinMetricIDAggSamplingSizeBytes       = -83
 	BuiltinMetricIDUIErrors                   = -84
 	BuiltinMetricIDStatsHouseErrors           = -85
+	BuiltinMetricIDSrcSamplingBudget          = -86
+	BuiltinMetricIDAggSamplingBudget          = -87
+	BuiltinMetricIDSrcSamplingGroupBudget     = -88
+	BuiltinMetricIDAggSamplingGroupBudget     = -89
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -1602,6 +1606,78 @@ Value is delta between second value and time it was inserted.`,
 				ValueComments: convertToValueComments(insertKindToValue),
 			}},
 		},
+		BuiltinMetricIDSrcSamplingBudget: {
+			Name:        "__src_sampling_budget",
+			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
+			Description: `Budget allocated on agent.`,
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}},
+		},
+		BuiltinMetricIDAggSamplingBudget: {
+			Name:        "__agg_sampling_budget",
+			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
+			Description: `Budget allocated on aggregator.`,
+			Tags: []MetricMetaTag{{
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}},
+		},
+		BuiltinMetricIDSrcSamplingGroupBudget: {
+			Name:        "__src_sampling_group_budget",
+			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
+			Description: `Group budget allocated on agent.`,
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}, {
+				Description: "namespace",
+				IsNamespace: true,
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinNamespaceIDDefault: "default",
+					BuiltinNamespaceIDMissing: "missing",
+				}),
+			}, {
+				Description: "group",
+				IsGroup:     true,
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinGroupIDDefault: "default",
+					BuiltinGroupIDBuiltin: "builtin",
+					BuiltinGroupIDHost:    "host",
+					BuiltinGroupIDMissing: "missing",
+				}),
+			}},
+		},
+		BuiltinMetricIDAggSamplingGroupBudget: {
+			Name:        "__agg_sampling_group_budget",
+			Kind:        MetricKindValue,
+			MetricType:  MetricByte,
+			Description: `Group budget allocated on aggregator.`,
+			Tags: []MetricMetaTag{{
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}, {
+				Description: "namespace",
+				IsNamespace: true,
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinNamespaceIDDefault: "default",
+					BuiltinNamespaceIDMissing: "missing",
+				}),
+			}, {
+				Description: "group",
+				IsGroup:     true,
+				ValueComments: convertToValueComments(map[int32]string{
+					BuiltinGroupIDDefault: "default",
+					BuiltinGroupIDBuiltin: "builtin",
+					BuiltinGroupIDHost:    "host",
+					BuiltinGroupIDMissing: "missing",
+				}),
+			}},
+		},
 		BuiltinMetricIDUIErrors: {
 			Name:                 "__ui_errors",
 			Kind:                 MetricKindValue,
@@ -1747,6 +1823,8 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAPIMetricUsage:             true,
 		BuiltinMetricIDSrcSamplingMetricCount:     true,
 		BuiltinMetricIDSrcSamplingSizeBytes:       true,
+		BuiltinMetricIDSrcSamplingBudget:          true,
+		BuiltinMetricIDSrcSamplingGroupBudget:     true,
 		BuiltinMetricIDUIErrors:                   true,
 		BuiltinMetricIDStatsHouseErrors:           true,
 	}
