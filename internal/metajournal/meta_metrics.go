@@ -265,6 +265,9 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	promConfigVersion := int64(0)
 	ms.mu.Lock()
 	for _, e := range newEntries {
+		if e.Data == "" {
+			continue
+		}
 		switch e.EventType {
 		case format.MetricEvent:
 			value := &format.MetricMetaValue{}
@@ -291,6 +294,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			err := json.Unmarshal([]byte(e.Data), &m)
 			if err != nil {
 				log.Printf("Cannot marshal metric %s: %v", e.Name, err)
+				continue
 			}
 			dash := &format.DashboardMeta{
 				DashboardID: int32(e.Id), // TODO - beware!

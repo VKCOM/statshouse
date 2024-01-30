@@ -457,6 +457,7 @@ func (ms *Journal) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext
 	}
 	result := ms.getJournalDiffLocked3(args.From)
 	if len(result.Events) != 0 {
+		prepareResponseToAgent(&result)
 		var err error
 		hctx.Response, err = args.WriteResult(hctx.Response, result)
 		if err != nil {
@@ -471,6 +472,17 @@ func (ms *Journal) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext
 	ms.metricsVersionClients3[hctx] = args
 	ms.builtinAddValue(&ms.BuiltinLongPollEnqueue, 1)
 	return hctx.HijackResponse(ms)
+}
+
+func prepareResponseToAgent(resp *tlmetadata.GetJournalResponsenew) {
+	for i, e := range resp.Events {
+		switch e.EventType {
+		case format.DashboardEvent:
+			fallthrough
+		case format.PromConfigEvent:
+			resp.Events[i].Data = ""
+		}
+	}
 }
 
 func (j *journalEventID) key() string {
