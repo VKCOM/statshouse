@@ -1180,8 +1180,12 @@ func getPromQuery(req seriesRequest) (string, error) {
 		if len(groupBy) != 0 {
 			res = fmt.Sprintf("sort(%s)", res)
 		}
-	} else if req.numResults > 0 {
-		res = fmt.Sprintf("topk%s(%d,%s)", groupBy, req.numResults, res)
+	} else if 0 <= req.numResults && req.numResults < math.MaxInt {
+		numResults := req.numResults
+		if numResults == 0 {
+			numResults = defSeries
+		}
+		res = fmt.Sprintf("topk%s(%d,%s)", groupBy, numResults, res)
 		if len(groupBy) != 0 {
 			res = fmt.Sprintf("sort_desc(%s)", res)
 		}

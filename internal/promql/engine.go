@@ -59,6 +59,7 @@ type Options struct {
 	ExplicitGrouping bool
 	MaxHost          bool
 	Offsets          []int64
+	Limit            int
 	Rand             *rand.Rand
 	Vars             map[string]Variable
 
@@ -435,20 +436,35 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 	}
 	ev.stableRemoveEmptySeries(srs)
 	res := TimeSeries{Time: ev.t.Time[ev.t.StartX:]}
+	limit := ev.opt.Limit
+	if limit == 0 {
+		limit = math.MaxInt
+	} else if limit < 0 {
+		limit = -limit
+	}
 	for _, sr := range srs {
-		// trim time outside [start, end)
-		for i := range sr.Data {
+		if len(res.Series.Data) == 0 {
+			// get resulting meta from first time shift
+			res.Series.Meta = sr.Meta
+		}
+		i := 0
+		end := len(sr.Data)
+		if limit < len(sr.Data) {
+			if ev.opt.Limit < 0 {
+				i = len(sr.Data) - limit
+			} else {
+				end = limit
+			}
+		}
+		for ; i < end; i++ {
+			// trim time outside [StartX:]
 			vs := (*sr.Data[i].Values)[ev.t.StartX:]
 			sr.Data[i].Values = &vs
 			if len(sr.Data[i].MaxHost) != 0 {
 				sr.Data[i].MaxHost = sr.Data[i].MaxHost[ev.t.StartX:]
 			}
+			res.Series.appendSome(sr, i)
 		}
-		// get resulting meta from first time shift
-		if len(res.Series.Data) == 0 {
-			res.Series.Meta = sr.Meta
-		}
-		res.Series.appendAll(sr)
 	}
 	return res, nil
 }

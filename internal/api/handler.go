@@ -1592,7 +1592,7 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 	var numResults int
 	if req.numResults == "" || req.numResults == "0" {
 		numResults = defTagValues
-	} else if numResults, err = parseNumResults(req.numResults, defTagValues, maxTagValues); err != nil {
+	} else if numResults, err = parseNumResults(req.numResults, maxTagValues); err != nil {
 		return nil, false, err
 	}
 
@@ -2320,6 +2320,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 				ScreenWidth:      screenWidth,
 				MaxHost:          req.maxHost,
 				Offsets:          offsets,
+				Limit:            req.numResults,
 				Rand:             opt.rand,
 				ExprQueriesSingleMetricCallback: func(metric *format.MetricMetaValue) {
 					res.metric = metric
@@ -3450,10 +3451,13 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			if len(t.shifts) != 0 {
 				numResultsMax /= len(t.shifts)
 			}
-			if t.strNumResults == "" {
-				t.numResults = defSeries
-			} else if t.numResults, err = parseNumResults(t.strNumResults, defSeries, numResultsMax); err != nil {
-				return err
+			if t.strNumResults != "" {
+				if t.numResults, err = parseNumResults(t.strNumResults, numResultsMax); err != nil {
+					return err
+				}
+				if t.numResults == 0 {
+					t.numResults = math.MaxInt
+				}
 			}
 			if _, ok := format.BuiltinMetricByName[t.metricWithNamespace]; ok {
 				t.verbose = false

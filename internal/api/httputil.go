@@ -374,7 +374,7 @@ func verifyTimeShifts(ts []int64) ([]time.Duration, error) {
 	return ds, nil
 }
 
-func parseNumResults(s string, def int, max int) (int, error) {
+func parseNumResults(s string, max int) (int, error) {
 	u, err := strconv.ParseInt(s, 10, 32)
 	if err != nil {
 		return 0, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse number of results: %w", err))
