@@ -255,6 +255,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 			bcTag = int32(binary.BigEndian.Uint32(bcStrRaw))
 		}
 	}
+	// TODO - if bcTag == 0 || args.BuildCommitTs == 0 { reply with error "agent must be built correctly with commit timestamp and hash"
 
 	addrIPV4, _ := addrIPString(hctx.RemoteAddr())
 	if args.Header.AgentIp[3] != 0 {
