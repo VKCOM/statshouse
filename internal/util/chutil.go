@@ -185,7 +185,7 @@ func (ch *ClickHouse) Select(ctx context.Context, meta QueryMetaInto, query ch.Q
 			delete(pool.userWait, meta.User)
 		}
 		pool.waitMx.Unlock()
-		statshouse.Metric("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10)}).Value(waitLockDuration.Seconds())
+		statshouse.Metric("statshouse_wait_lock", statshouse.Tags{1: strconv.FormatInt(int64(kind), 10), 2: meta.User}).Value(waitLockDuration.Seconds())
 		if err != nil {
 			return info, err
 		}
