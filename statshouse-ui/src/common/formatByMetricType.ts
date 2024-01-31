@@ -123,15 +123,15 @@ const baseMetricTypeByte: ConfigConvertMetric = {
     return round(n / Math.pow(1024, base), 1) + (this.suffix[base] ?? '');
   },
   suffix: {
-    '0': 'b',
-    '1': 'kb',
-    '2': 'Mb',
-    '3': 'Gb',
-    '4': 'Tb',
-    '5': 'Pb',
-    '6': 'Eb',
-    '7': 'Zb',
-    '8': 'Yb',
+    '0': 'B',
+    '1': 'KiB',
+    '2': 'MiB',
+    '3': 'GiB',
+    '4': 'TiB',
+    '5': 'PiB',
+    '6': 'EiB',
+    '7': 'ZiB',
+    '8': 'YiB',
   },
 };
 export const suffixesByMetricType: Record<MetricType, ConfigConvertMetric> = {
