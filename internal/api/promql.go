@@ -352,16 +352,23 @@ func (h *Handler) promqlLODs(t *promql.Timescale, version string, offset int64, 
 }
 
 func (lod lodInfo) indexOf(timestamp int64) int {
-	var n int
-	t := lod.fromSec
-	for ; t < timestamp; n++ {
-		t = promqlStepForward(t, lod.stepSec, lod.location)
+	if lod.stepSec == _1M {
+		n := 0
+		t := lod.fromSec
+		for ; t < timestamp; n++ {
+			t = time.Unix(t, 0).In(lod.location).AddDate(0, 1, 0).UTC().Unix()
+		}
+		if t == timestamp {
+			return n
+		}
+	} else {
+		d := timestamp - lod.fromSec
+		if d%lod.stepSec == 0 {
+			return int(d / lod.stepSec)
+		}
 	}
-	if t != timestamp {
-		err := fmt.Errorf("timestamp %d is out of [%d,%d), step %d", timestamp, lod.fromSec, lod.toSec, lod.stepSec)
-		panic(err)
-	}
-	return n
+	err := fmt.Errorf("timestamp %d is out of [%d,%d), step %d", timestamp, lod.fromSec, lod.toSec, lod.stepSec)
+	panic(err)
 }
 
 func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaValue]int64) (promql.Timescale, error) {
