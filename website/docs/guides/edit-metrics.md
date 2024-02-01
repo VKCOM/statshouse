@@ -10,12 +10,12 @@ import AggregationEdit from '../img/aggregation-edit.png'
 import EnablePercentiles from '../img/enable-percentiles.png'
 import ResolutionEdit from '../img/resolution-edit.png'
 import ResolutionView from '../img/resolution-view.png'
-import Petabytes from '../img/petabytes.png'
+import Milliseconds from '../img/milliseconds.png'
 import TagsN from '../img/tags-n.png'
 import TagsDash from '../img/tag-dash.png'
 import TagDesc from '../img/tag-desc.png'
-import Raw from '../img/raw.png'
-import RawInt from '../img/raw-int.png'
+import RawValueComments from '../img/raw-value-comments.png'
+import RawFormat from '../img/raw-format.png'
 import StringTag from '../img/string-tag.png'
 import Disable from '../img/disable.png'
 
@@ -107,9 +107,18 @@ you cannot show per-second data if the resolution is set to 5 seconds.
 
 ## Unit
 
-Set up measurement units to show on a Y-axis in a graph view:
+Set up measurement units for the _value_ metric data you send to StatsHouse. 
+With this unit information, StatsHouse generates the Y-axis label for a graph.
 
-<img src={Petabytes} width="600"/>
+For example, if you set up _milliseconds_ for your metric, you can see _seconds_, _minutes_, or even _days_ as the 
+Y-axis label on the graph:
+
+<img src={Milliseconds} width="900"/>
+
+:::note
+If you have a _counter_ metric or view the _count_ and _count/sec_ statistics, you should not set a particular 
+unit. A counter means the "number of times," so choose the _no unit_ option.
+:::
 
 ## Tags
 
@@ -143,12 +152,32 @@ This huge `string`↔`int32` map is common for all metrics, and the budget for c
 is limited. Mapping flood appears when you exceed this budget.
 
 If tag values in your metric are originally 32-bit integer values, you can prevent them from being mapped 
-and mark them as _Raw_ ones. The _Raw_ tag values in the example below are stored as `1` and `2`.
-To help yourself remember what they mean, choose a type to show in the UI and add descriptions:
+and mark them as _Raw_ ones. To help yourself remember what they mean, specify a 
+[format](#specifying-formats-for-raw-tag-values) for your data to show in the UI 
+and add [value comments](#value-comments).
 
-<img src={Raw} width="800"/>
+#### Value comments
 
+Add value comments to remember what your raw tag values mean:
+
+<img src={RawValueComments} width="1000"/>
+
+:::note
 Value comments are stored as meta-information, so they do not expend the mapping budget.
+:::
+
+#### Specifying formats for raw tag values
+
+When you send tag values as raw ones, you send 32-bit integer values. For example, you send integers that are 
+timestamps. To make such raw tag values more readable in the UI, choose the format for them: 
+
+<img src={RawFormat} width="1000"/>
+
+:::note
+Please note that you send only 32-bit integer values as raw tag values. If you send IP-addresses, they look like 
+`1234567890` but not `12.345.67.890` as the latter would be a string. When you choose an _ip_ option as the format, 
+StatsHouse displays your `1234567890` raw tag value as `12.345.67.890` in the UI.
+:::
 
 ### Set up _String tag_
 

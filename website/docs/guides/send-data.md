@@ -151,6 +151,32 @@ The preferred way is to file a [feature request](https://github.com/VKCOM/statsh
 Alternatively, you can prepare a JSON file and send your formatted data to StatsHouse,
 but we do not recommend doing this as you won't benefit from aggregation and other native StatsHouse features.
 
+## How to send data without client libraries
+
+For a toy example or testing purposes, you may send data using [Netcat](https://netcat.sourceforge.net):
+
+```bash
+echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 127.0.0.1 13337
+```
+
+See the [Quick start](../quick-start.md#send-metric-data) for a context.
+
+:::important
+We strongly recommend using the [StatsHouse client libraries](#how-to-send-data-via-client-libraries).
+
+Client libraries [aggregate](../conceptual-overview.md#aggregation) data before sending them to StatsHouse.
+While it may sound counterintuitive, by aggregating, client libraries prevent you from losing data.
+Without a client library, you can create a socket, prepare a JSON file, and send your formatted data.
+This sounds simple, but only if you have not so much data.
+
+StatsHouse uses [UDP](../conceptual-overview.md#protocols).
+If you send a datagram per event, and there are too many of them,
+there is a risk of dropping datagrams due to UDP socket buffer overflow, and no one will notice it.
+
+If you do not use the client library, the non-aggregated data will reach StatsHouse
+[agent](../conceptual-overview.md#agent), and the agent will aggregate them anyway.
+:::
+
 ## How to use tags
 
 Use tags to differentiate the characteristics of what you measure, the contributing factors, or a context.
@@ -158,9 +184,9 @@ Use tags to differentiate the characteristics of what you measure, the contribut
 ### What are tags?
 
 Tags are additional dimensions you use to filter or group your data. They are sometimes mentioned as "labels" or 
-"keys". Tags are the _name-value_ pairs.
+"keys." Tags are the _name-value_ pairs.
 
-Imagine you conduct an A/B test: which color-text combination is better for a button? You measure the number 
+Imagine you conducting an A/B test: which color-text combination is better for a button? You measure the number 
 of clicks per button and use the tags:
 
 <img src={AbTest} width="900"/>

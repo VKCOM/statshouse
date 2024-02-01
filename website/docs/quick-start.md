@@ -65,7 +65,7 @@ Name your metric:
 
 Read more about [creating metrics](guides/create-metric.md).
 
-## Send metric data
+## Send data to your metric
 
 For this toy example, use a simple `bash` script:
 ```bash

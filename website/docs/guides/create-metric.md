@@ -67,7 +67,8 @@ resulting data, refer to the [conceptual overview](../conceptual-overview.md).
 :::
 
 The rare case of losing or spoiling metric data is related to 
-[UDP socket buffer overflow](../conceptual-overview.md#protocols). Most likely, you should not worry about it.
+[UDP socket buffer overflow](send-data.md#how-to-send-data-without-client-libraries). 
+Most likely, you should not worry about it.
 
 #### "Can I rename a metric?"
 
