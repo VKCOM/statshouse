@@ -38,6 +38,7 @@ func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	insecureMode bool) (accessInfo, error) {
 	if localMode || insecureMode {
 		ai := accessInfo{
+			user:              "@local_mode",
 			protectedPrefixes: protectedPrefixes,
 			bitViewDefault:    true,
 			bitEditDefault:    true,

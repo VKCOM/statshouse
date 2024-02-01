@@ -9,6 +9,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"log"
 	"math"
 	"sync"
 	"time"
@@ -201,6 +202,7 @@ func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, 
 		if loadAtNano > cached.loadedAtNano {
 			loadedRows := ret[i]
 			c.size += len(loadedRows) - len(cached.rows)
+			log.Println("Cache increased: ", c.size, len(loadedRows))
 			cached.loadedAtNano = loadAtNano
 			cached.rows = loadedRows
 		}

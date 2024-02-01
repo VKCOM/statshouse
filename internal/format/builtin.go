@@ -1284,6 +1284,12 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				{
 					Description: "status",
 				},
+				{
+					Description: "token-short",
+				},
+				{
+					Description: "token-long",
+				},
 			},
 		},
 		BuiltinMetricIDAPISourceSelectRows: {
