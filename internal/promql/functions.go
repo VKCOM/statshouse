@@ -69,7 +69,9 @@ func aggregateAt0(fn func([]SeriesData, parser.Expr)) aggregateFunc {
 			for _, xs := range m {
 				ds := res[i].dataAt(xs...)
 				fn(ds, expr.Param)
-				ds[0].MaxHost = ev.groupMaxHost(ds)
+				for j := range ds[0].MinMaxHost {
+					ds[0].MinMaxHost[j] = ev.groupMinMaxHost(ds, j)
+				}
 				for _, id := range tags[xs[0]].unused {
 					ds[0].Tags.remove(id)
 				}
@@ -569,6 +571,7 @@ func init() {
 		"label_join":         funcLabelJoin,
 		"label_replace":      funcLabelReplace,
 		"label_set":          funcLabelSet,
+		"label_minhost":      funcLabelMinHost,
 		"label_maxhost":      funcLabelMaxHost,
 		"ln":                 simpleCall(math.Log),
 		"log2":               simpleCall(math.Log2),
@@ -1319,6 +1322,22 @@ func funcLabelSet(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	return res, nil
 }
 
+func funcLabelMinHost(ev *evaluator, args parser.Expressions) ([]Series, error) {
+	if len(args) != 1 {
+		return nil, fmt.Errorf("invalid argument count in label_minhost(): expected 1, got %d", len(args))
+	}
+	res, err := ev.eval(args[0])
+	if err != nil {
+		return nil, err
+	}
+	for i := range res {
+		if err = res[i].labelMinMaxHost(ev, 0, LabelMinHost); err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
 func funcLabelMaxHost(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid argument count in label_maxhost(): expected 1, got %d", len(args))
@@ -1328,7 +1347,7 @@ func funcLabelMaxHost(ev *evaluator, args parser.Expressions) ([]Series, error) 
 		return nil, err
 	}
 	for i := range res {
-		if err = res[i].labelMaxHost(ev); err != nil {
+		if err = res[i].labelMinMaxHost(ev, 1, LabelMaxHost); err != nil {
 			return nil, err
 		}
 	}
@@ -1408,8 +1427,12 @@ func (ev *evaluator) funcPrefixSum(sr Series) Series {
 			if !math.IsNaN(v) {
 				sum += v
 			}
-			if 0 < j && j < len(d.MaxHost) && d.MaxHost[j] == 0 && d.MaxHost[j-1] != 0 {
-				d.MaxHost[j] = d.MaxHost[j-1]
+			if j > 0 {
+				for k := range d.MinMaxHost {
+					if j < len(d.MinMaxHost[k]) && d.MinMaxHost[k][j] == 0 && d.MinMaxHost[k][j-1] != 0 {
+						d.MinMaxHost[k][j] = d.MinMaxHost[k][j-1]
+					}
+				}
 			}
 			(*d.Values)[j] = sum
 		}

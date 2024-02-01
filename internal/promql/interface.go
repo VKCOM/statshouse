@@ -44,6 +44,7 @@ const (
 	CardinalityRaw = "cardinalityraw"
 	Unique         = "unique"
 	UniqueSec      = "uniquesec"
+	MinHost        = "minhost"
 	MaxHost        = "maxhost"
 
 	NilValueBits = 0x7ff0000000000002
@@ -99,10 +100,10 @@ type LOD struct {
 
 type SeriesQuery struct {
 	// What
-	Metric  *format.MetricMetaValue
-	Whats   []DigestWhat
-	GroupBy []string
-	MaxHost bool
+	Metric     *format.MetricMetaValue
+	Whats      []DigestWhat
+	GroupBy    []string
+	MinMaxHost [2]bool // "min" at [0], "max" at [1]
 
 	// When
 	Timescale Timescale

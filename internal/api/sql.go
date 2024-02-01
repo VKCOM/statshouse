@@ -118,10 +118,10 @@ SETTINGS
 }
 
 type pointsQueryMeta struct {
-	vals    int
-	tags    []string
-	maxHost bool
-	version string
+	vals       int
+	tags       []string
+	minMaxHost bool
+	version    string
 }
 
 func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
@@ -150,7 +150,7 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
   toFloat64(%s(sum)) AS _val3,
   if(%s(count) < 2, 0, sqrt(greatest(   (%s(sumsquare) - pow(%s(sum), 2) / %s(count)) / (%s(count) - 1)   , 0))) AS _val4,
   toFloat64(sum(1)) AS _val5,
-  %s as _maxHost`,
+  %s as _minHost, %s as _maxHost`,
 			sqlAggFn(version, "sum"),
 			sqlAggFn(version, "min"),
 			sqlAggFn(version, "max"),
@@ -158,7 +158,7 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
 			sqlAggFn(version, "sum"),
 			// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance, "Naïve algorithm", poor numeric stability
 			sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"),
-			sqlMaxHost(version)), 6, nil
+			sqlMinHost(version), sqlMaxHost(version)), 6, nil
 	case queryFnKindPercentilesLow:
 		return fmt.Sprintf(`
 	  toFloat64(%s(count)) AS _count,
@@ -169,8 +169,8 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
 	  toFloat64(0) AS _val4,
 	  toFloat64(0) AS _val5,
 	  toFloat64(0) AS _val6,
-	  %s as _maxHost`,
-			sqlAggFn(version, "sum"), sqlMaxHost(version)), 7, nil
+	  %s as _minHost, %s as _maxHost`,
+			sqlAggFn(version, "sum"), sqlMinHost(version), sqlMaxHost(version)), 7, nil
 	case queryFnKindPercentiles:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
@@ -181,14 +181,14 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
   toFloat64(digest[5]) AS _val4,
   toFloat64(digest[6]) AS _val5,
   toFloat64(digest[7]) AS _val6,
-  %s as _maxHost`,
-			sqlAggFn(version, "sum"), sqlMaxHost(version)), 7, nil
+  %s as _minHost, %s as _maxHost`,
+			sqlAggFn(version, "sum"), sqlMinHost(version), sqlMaxHost(version)), 7, nil
 	case queryFnKindUnique:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
   toFloat64(uniqMerge(uniq_state)) AS _val0,
-  %s as _maxHost`,
-			sqlAggFn(version, "sum"), sqlMaxHost(version)), 1, nil
+  %s as _minHost, %s as _maxHost`,
+			sqlAggFn(version, "sum"), sqlMinHost(version), sqlMaxHost(version)), 1, nil
 	default:
 		return "", 0, fmt.Errorf("unsupported operation kind: %q", kind)
 	}
@@ -281,7 +281,7 @@ SETTINGS
   optimize_aggregation_in_order = 1
 `, limit)
 	q, err := util.BindQuery(query, args...)
-	return q, pointsQueryMeta{vals: cnt, tags: pq.by, maxHost: pq.kind != queryFnKindCount, version: pq.version}, err
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != queryFnKindCount, version: pq.version}, err
 }
 
 func loadPointQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (string, pointsQueryMeta, error) {
@@ -357,7 +357,7 @@ SETTINGS
   optimize_aggregation_in_order = 1
 `, maxSeriesRows)
 	q, err := util.BindQuery(query, args...)
-	return q, pointsQueryMeta{vals: cnt, tags: pq.by, maxHost: pq.kind != queryFnKindCount, version: pq.version}, err
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != queryFnKindCount, version: pq.version}, err
 }
 
 func sqlAggFn(version string, fn string) string {
@@ -365,6 +365,13 @@ func sqlAggFn(version string, fn string) string {
 		return fn + "Merge"
 	}
 	return fn
+}
+
+func sqlMinHost(version string) string {
+	if version == Version1 {
+		return "0"
+	}
+	return "argMinMerge(min_host)"
 }
 
 func sqlMaxHost(version string) string {

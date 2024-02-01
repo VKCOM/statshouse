@@ -204,6 +204,7 @@ type VectorSelector struct {
 	GroupBy         []string
 	GroupByAll      bool
 	GroupWithout    bool
+	MinHost         bool
 	MaxHost         bool
 	OmitNameTag     bool
 	Offsets         []int64

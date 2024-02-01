@@ -41,7 +41,7 @@ type tsTags struct {
 type tsValues struct {
 	countNorm float64
 	val       [7]float64
-	maxHost   int32
+	host      [2]int32 // "min" at [0], "max" at [1]
 }
 
 type tsCacheGroup struct {
