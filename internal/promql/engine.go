@@ -31,6 +31,7 @@ const (
 	labelBind    = "__bind__"
 	LabelShard   = "__shard__"
 	LabelOffset  = "__offset__"
+	LabelMinHost = "__minhost__"
 	LabelMaxHost = "__maxhost__"
 
 	maxSeriesRows = 10_000_000
@@ -57,6 +58,7 @@ type Options struct {
 	TagOffset        bool
 	TagTotal         bool
 	ExplicitGrouping bool
+	MinHost          bool
 	MaxHost          bool
 	Offsets          []int64
 	Limit            int
@@ -387,6 +389,8 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 				switch what {
 				case "":
 					// ignore empty "what" value
+				case MinHost:
+					sel.MinHost = true
 				case MaxHost:
 					sel.MaxHost = true
 				default:
@@ -402,6 +406,8 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 			} else {
 				sel.GroupBy = make([]string, 0)
 			}
+		case LabelMinHost:
+			sel.MinHost = true
 		case LabelMaxHost:
 			sel.MaxHost = true
 		}
@@ -417,9 +423,14 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 			}
 		}
 	}
-	for i := len(path); !sel.MaxHost && i != 0; i-- {
-		if e, ok := path[i-1].(*parser.Call); ok && e.Func.Name == "label_maxhost" {
-			sel.MaxHost = true
+	for i := len(path); !(sel.MinHost && sel.MaxHost) && i != 0; i-- {
+		if e, ok := path[i-1].(*parser.Call); ok {
+			switch e.Func.Name {
+			case "label_minhost":
+				sel.MinHost = true
+			case "label_maxhost":
+				sel.MaxHost = true
+			}
 		}
 	}
 	return nil
@@ -460,8 +471,10 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 			// trim time outside [StartX:]
 			vs := (*sr.Data[i].Values)[ev.t.StartX:]
 			sr.Data[i].Values = &vs
-			if len(sr.Data[i].MaxHost) != 0 {
-				sr.Data[i].MaxHost = sr.Data[i].MaxHost[ev.t.StartX:]
+			for j := range sr.Data[i].MinMaxHost {
+				if len(sr.Data[i].MinMaxHost[j]) != 0 {
+					sr.Data[i].MinMaxHost[j] = sr.Data[i].MinMaxHost[j][ev.t.StartX:]
+				}
 			}
 			res.Series.appendSome(sr, i)
 		}
@@ -851,10 +864,13 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
 		if ev.trace != nil && ev.debug {
 			ev.tracef("#%d request %s: %s", i, metric.Name, sel.What)
 		}
-		var matchers []*labels.Matcher
+		var minMaxHostMatchers [2][]*labels.Matcher
 		for _, v := range sel.LabelMatchers {
-			if v.Name == LabelMaxHost {
-				matchers = append(matchers, v)
+			switch v.Name {
+			case LabelMinHost:
+				minMaxHostMatchers[0] = append(minMaxHostMatchers[0], v)
+			case LabelMaxHost:
+				minMaxHostMatchers[1] = append(minMaxHostMatchers[1], v)
 			}
 		}
 		for j, offset := range ev.opt.Offsets {
@@ -877,8 +893,10 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
 				if ev.trace != nil && ev.debug {
 					ev.tracef("#%d series count %d", i, len(sr.Data))
 				}
-				if len(matchers) != 0 {
-					sr.filterMaxHost(ev, matchers)
+				for k := range minMaxHostMatchers {
+					if len(minMaxHostMatchers[k]) != 0 {
+						sr.filterMinMaxHost(ev, k, minMaxHostMatchers[k])
+					}
 				}
 				if qry.prefixSum {
 					sr = ev.funcPrefixSum(sr)
@@ -1217,7 +1235,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				FilterOut:  filterOut,
 				SFilterIn:  sFilterIn,
 				SFilterOut: sFilterOut,
-				MaxHost:    sel.MaxHost || ev.opt.MaxHost,
+				MinMaxHost: [2]bool{sel.MinHost || ev.opt.MinHost, sel.MaxHost || ev.opt.MaxHost},
 				Options:    ev.opt,
 			},
 			prefixSum,

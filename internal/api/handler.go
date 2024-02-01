@@ -2582,17 +2582,17 @@ func (h *Handler) maybeAddQuerySeriesTagValue(m map[string]SeriesMetaTag, metric
 }
 
 type pointsSelectCols struct {
-	time      proto.ColInt64
-	step      proto.ColInt64
-	cnt       proto.ColFloat64
-	val       []proto.ColFloat64
-	tag       []proto.ColInt32
-	tagIx     []int
-	tagStr    proto.ColStr
-	maxHostV1 proto.ColUInt8
-	maxHostV2 proto.ColInt32
-	shardNum  proto.ColUInt32
-	res       proto.Results
+	time         proto.ColInt64
+	step         proto.ColInt64
+	cnt          proto.ColFloat64
+	val          []proto.ColFloat64
+	tag          []proto.ColInt32
+	tagIx        []int
+	tagStr       proto.ColStr
+	minMaxHostV1 [2]proto.ColUInt8 // "min" at [0], "max" at [1]
+	minMaxHostV2 [2]proto.ColInt32 // "min" at [0], "max" at [1]
+	shardNum     proto.ColUInt32
+	res          proto.Results
 }
 
 func newPointsSelectCols(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
@@ -2624,11 +2624,13 @@ func newPointsSelectCols(meta pointsQueryMeta, useTime bool) *pointsSelectCols {
 	for i := 0; i < meta.vals; i++ {
 		c.res = append(c.res, proto.ResultColumn{Name: "_val" + strconv.Itoa(i), Data: &c.val[i]})
 	}
-	if meta.maxHost {
+	if meta.minMaxHost {
 		if meta.version == Version1 {
-			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.maxHostV1})
+			c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV1[0]})
+			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV1[1]})
 		} else {
-			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.maxHostV2})
+			c.res = append(c.res, proto.ResultColumn{Name: "_minHost", Data: &c.minMaxHostV2[0]})
+			c.res = append(c.res, proto.ResultColumn{Name: "_maxHost", Data: &c.minMaxHostV2[1]})
 		}
 	}
 	return c
@@ -2649,10 +2651,11 @@ func (c *pointsSelectCols) rowAt(i int) tsSelectRow {
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
 	}
-	if len(c.maxHostV2) != 0 {
-		row.maxHost = c.maxHostV2[i]
-	} else if len(c.maxHostV1) != 0 {
-		row.maxHost = int32(c.maxHostV1[i])
+	if len(c.minMaxHostV2[0]) != 0 {
+		row.host[0] = c.minMaxHostV2[0][i]
+	}
+	if len(c.minMaxHostV2[1]) != 0 {
+		row.host[1] = c.minMaxHostV2[1][i]
 	}
 	if c.shardNum != nil {
 		row.shardNum = c.shardNum[i]
@@ -2673,10 +2676,11 @@ func (c *pointsSelectCols) rowAtPoint(i int) pSelectRow {
 	if c.tagStr.Pos != nil && i < len(c.tagStr.Pos) {
 		copy(row.tagStr[:], c.tagStr.Buf[c.tagStr.Pos[i].Start:c.tagStr.Pos[i].End])
 	}
-	if len(c.maxHostV2) != 0 {
-		row.maxHost = c.maxHostV2[i]
-	} else if len(c.maxHostV1) != 0 {
-		row.maxHost = int32(c.maxHostV1[i])
+	if len(c.minMaxHostV2[0]) != 0 {
+		row.host[0] = c.minMaxHostV2[0][i]
+	}
+	if len(c.minMaxHostV2[1]) != 0 {
+		row.host[1] = c.minMaxHostV2[1][i]
 	}
 	return row
 }
