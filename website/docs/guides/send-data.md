@@ -303,14 +303,14 @@ To filter data with the _string tag_ on a graph, [add a name or description](edi
 ### Host name as a tag
 
 To view statistics for each host separately, you may want to use host names as tag values. 
-Try the _Max host_ feature instead. You do not have to send something special to get use 
+Try the _Max host_ option instead. You do not have to send something special to get use 
 of _Max host_—[enable it in the UI](view-graph.md#9--max-host).
 
 Using host names as tag values prevents data from being aggregated and leads to increased sampling. 
-By contrast, the _Max host_ feature does not lead to increased sampling but allows you to find the host that sends the 
+By contrast, the _Max host_ option does not lead to increased sampling but allows you to find the host that sends the 
 maximum value for your metric.
 
-The _Max host_ feature helps to answer questions like these:
+The _Max host_ option helps to answer questions like these:
 * which host has the maximum disk space usage, or
 * which host shows the maximum rate for a particular error type.
 
@@ -318,6 +318,8 @@ In most cases, it is enough to know the name of the most problematic host to get
 
 We also recommend using the `environment` tag (or similar) instead of `host_name`. When you deploy an experimental feature 
 to one or more hosts, label them with the `staging` or `development` tag values instead of their host names.
+
+Learn how the [_Max host_](../conceptual-overview.md#max-host) option is implemented.
 
 ## How to choose a metric type
 

@@ -161,12 +161,12 @@ Imagine you have a PromQL-based graph with tags:
 <img src={PqlDash1} width="1000"/>
 
 While creating the [variable](#variables) for the PromQL-based graph (`new_var` in our example), you will not see tag 
-values:
+names:
 
 <img src={PqlDash2} width="1000"/>
 
-To enable filtering or grouping, get back to the graph view. Bind the tag to the previously created variable in your 
-PromQL query and press _Run_:
+To enable filtering or grouping, get back to the graph view and use the PromQL editor. Bind the tag to the previously 
+created variable in your PromQL query and press _Run_:
 
 <img src={PqlDash3} width="1000"/>
 
@@ -178,6 +178,7 @@ and we bound the `0` tag (that means `environment`) with the `new_var` variable:
 
 `topk(5,metric{@what="countsec",0:$new_var})`.
 
+Then the filtering controls appear in the _Layout_ section and in the _Dashboard_ view.
 To filter data with the particular tag value, enter the value name manually:
 
 <img src={PqlDash4} width="1000"/>
