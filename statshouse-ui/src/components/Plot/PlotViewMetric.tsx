@@ -182,7 +182,6 @@ export function PlotViewMetric(props: {
 
   const onSetSelect = useCallback(
     (u: uPlot) => {
-      console.log('onSetSelect', { ...u });
       if (u.status === 1) {
         const xMin = u.posToVal(u.select.left, 'x');
         const xMax = u.posToVal(u.select.left + u.select.width, 'x');
