@@ -405,6 +405,7 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
 	if err != nil {
 		return nil, err
 	}
+	ev.removeEmptySeries(res)
 	type (
 		sortedSeriesGroup struct {
 			ds []SeriesData

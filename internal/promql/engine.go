@@ -928,7 +928,6 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
 			}
 		}
 	}
-	ev.removeEmptySeries(res)
 	return res, nil
 }
 
