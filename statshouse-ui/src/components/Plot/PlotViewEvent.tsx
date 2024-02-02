@@ -212,6 +212,14 @@ export function PlotViewEvent(props: {
     const sync: uPlot.Cursor.Sync | undefined = group
       ? {
           key: group,
+          filters: {
+            sub(event) {
+              return event !== 'mouseup' && event !== 'mousedown';
+            },
+            pub(event) {
+              return event !== 'mouseup' && event !== 'mousedown';
+            },
+          },
         }
       : undefined;
     return {

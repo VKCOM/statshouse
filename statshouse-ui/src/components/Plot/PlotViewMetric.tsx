@@ -182,6 +182,7 @@ export function PlotViewMetric(props: {
 
   const onSetSelect = useCallback(
     (u: uPlot) => {
+      console.log('onSetSelect', { ...u });
       if (u.status === 1) {
         const xMin = u.posToVal(u.select.left, 'x');
         const xMax = u.posToVal(u.select.left + u.select.width, 'x');
@@ -220,6 +221,14 @@ export function PlotViewMetric(props: {
     const sync: uPlot.Cursor.Sync | undefined = group
       ? {
           key: group,
+          filters: {
+            sub(event) {
+              return event !== 'mouseup' && event !== 'mousedown';
+            },
+            pub(event) {
+              return event !== 'mouseup' && event !== 'mousedown';
+            },
+          },
         }
       : undefined;
     return {
