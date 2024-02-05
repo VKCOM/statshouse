@@ -22,6 +22,10 @@ on:
       frontend-artifact:
         type: string
         required: true
+      package-manager:
+        type: string
+        required: false
+        default: dnf
     outputs:
       artifact:
         value: statshouse-${{inputs.version}}-rpm
@@ -36,7 +40,7 @@ jobs:
       version: ${{inputs.version}}
       name: ${{inputs.name}}
       release: ${{inputs.release}}
-      run: 'dnf group install -y "Development Tools"'
+      run: '${{inputs.package-manager}} group install -y "Development Tools"'
       setup-go: true
   package:
     needs: [binaries]
@@ -44,7 +48,7 @@ jobs:
     container:
       image: ${{inputs.name}}:${{inputs.release}}
     steps:
-      - run: dnf group install -y "Development Tools"
+      - run: ${{inputs.package-manager}} group install -y "Development Tools"
       - uses: actions/checkout@v4
         with:
           repository: VKCOM/statshouse

@@ -3,7 +3,8 @@ on:
     inputs:
       tag:
         description: 'Tag to build'
-        required: true
+        required: false
+        default: master
       draft_release:
         description: 'Draft a release'
         required: false
@@ -66,6 +67,19 @@ jobs:
       release: 9.2
       frontend-artifact: ${{needs.frontend.outputs.artifact}}
     secrets: inherit
+  centos:
+    needs: [env, frontend]
+    uses: ./.github/workflows/build_rpm.yml
+    with:
+      ref: ${{needs.env.outputs.ref}}
+      ref_timestamp: ${{needs.env.outputs.ref_timestamp}}
+      timestamp: ${{needs.env.outputs.timestamp}}
+      version: ${{needs.env.outputs.version}}
+      name:  centos
+      release: centos7.9.2009
+      frontend-artifact: ${{needs.frontend.outputs.artifact}}
+      package-manager: yum
+    secrets: inherit
   debian:
     if: ${{false}}
     strategy:
@@ -114,7 +128,7 @@ jobs:
     secrets: inherit
   draft_release:
     if: ${{ github.event.inputs.draft_release }}
-    needs: [env, ubuntu_focal, almalinux]
+    needs: [env, ubuntu_focal, almalinux, centos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -125,6 +139,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: ${{needs.almalinux.outputs.artifact}}
+          path: pkg/rpm
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{needs.centos.outputs.artifact}}
           path: pkg/rpm
       - uses: actions/download-artifact@v4
         if: ${{false}}
