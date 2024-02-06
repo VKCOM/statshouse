@@ -20,9 +20,11 @@ import (
 
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"golang.org/x/sync/errgroup"
 	"pgregory.net/rand"
 )
@@ -112,6 +114,7 @@ type evaluator struct {
 	// diagnostics
 	trace *[]string
 	debug bool
+	stat  *statictics
 }
 
 type seriesQueryX struct { // SeriesQuery eXtended
@@ -134,6 +137,15 @@ type traceContext struct {
 	v bool      // verbose
 }
 
+type statictics struct {
+	queryInterval      int64
+	numberOfPoints     int
+	timeStart          time.Time
+	timeQueryParseEnd  time.Time
+	dataAccessDuration time.Duration
+	timeEnd            time.Time
+}
+
 const (
 	offsetContextKey contextKey = iota
 	traceContextKey
@@ -144,9 +156,13 @@ func NewEngine(h Handler, loc *time.Location) Engine {
 }
 
 func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel func(), err error) {
+	stat := statictics{
+		queryInterval: qry.End - qry.Start,
+		timeStart:     time.Now(),
+	}
 	if qry.Options.TimeNow == 0 {
 		// fix the time "now"
-		qry.Options.TimeNow = time.Now().Unix()
+		qry.Options.TimeNow = stat.timeStart.Unix()
 	}
 	if qry.Options.TimeNow < qry.Start {
 		// the future is unknown
@@ -159,12 +175,18 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 			err = Error{what: r, panic: true}
 			ev.cancel()
 		}
+		if err == nil {
+			stat.timeEnd = time.Now()
+			stat.numberOfPoints = len(ev.t.Time) - ev.t.StartX
+			ev.reportStat()
+		}
 	}()
 	// parse query
-	ev, err = ng.newEvaluator(ctx, qry)
+	ev, err = ng.newEvaluator(ctx, qry, &stat)
 	if err != nil {
 		return nil, nil, Error{what: err}
 	}
+	stat.timeQueryParseEnd = time.Now()
 	if ev.t.empty() {
 		return &TimeSeries{}, func() {}, nil
 	}
@@ -198,11 +220,12 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 	}
 }
 
-func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error) {
+func (ng Engine) newEvaluator(ctx context.Context, qry Query, stat *statictics) (evaluator, error) {
 	ev := evaluator{
 		Engine: ng,
 		ctx:    ctx,
 		opt:    qry.Options,
+		stat:   stat,
 	}
 	// init diagnostics
 	if v, ok := ctx.Value(traceContextKey).(*traceContext); ok {
@@ -943,6 +966,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 		}
 		return nil // success
 	}
+	timeStart := time.Now()
 	if ev.opt.QuerySequential || len(res) == 1 {
 		for i := 0; i < len(res); i++ {
 			err = run(i, nil)
@@ -973,6 +997,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 			}
 		}
 	}
+	ev.stat.dataAccessDuration += time.Since(timeStart)
 	return res, nil
 }
 
@@ -1494,6 +1519,87 @@ func (ev *evaluator) cancel() {
 
 func (ev *evaluator) newWindow(v []float64, s bool) window {
 	return newWindow(ev.time(), v, ev.r, ev.t.LODs[len(ev.t.LODs)-1].Step, s)
+}
+
+func (ev *evaluator) reportStat() {
+	tags := statshouse.Tags{
+		1: srvfunc.HostnameForStatshouse(),
+	}
+	r := ev.stat.queryInterval
+	x := 2
+	switch {
+	// add one because UI always requests one second more
+	case r <= 1+1:
+		tags[x] = "1" // "1_second"
+	case r <= 300+1:
+		tags[x] = "2" // "5_minutes"
+	case r <= 900+1:
+		tags[x] = "3" // "15_minutes"
+	case r <= 3600+1:
+		tags[x] = "4" // "1_hour"
+	case r <= 7200+1:
+		tags[x] = "5" // "2_hours"
+	case r <= 21600+1:
+		tags[x] = "6" // "6_hours"
+	case r <= 43200+1:
+		tags[x] = "7" // "12_hours"
+	case r <= 86400+1:
+		tags[x] = "8" // "1_day"
+	case r <= 172800+1:
+		tags[x] = "9" // "2_days"
+	case r <= 259200+1:
+		tags[x] = "10" // "3_days"
+	case r <= 604800+1:
+		tags[x] = "11" // "1_week"
+	case r <= 1209600+1:
+		tags[x] = "12" // "2_weeks"
+	case r <= 2592000+1:
+		tags[x] = "13" // "1_month"
+	case r <= 7776000+1:
+		tags[x] = "14" // "3_months"
+	case r <= 15552000+1:
+		tags[x] = "15" // "6_months"
+	case r <= 31536000+1:
+		tags[x] = "16" // "1_year"
+	case r <= 63072000+1:
+		tags[x] = "17" // "2_years"
+	default:
+		tags[x] = "18"
+	}
+	n := ev.stat.numberOfPoints
+	x = 3
+	switch {
+	case n <= 1:
+		tags[x] = "1"
+	case n <= 1024:
+		tags[x] = "2" // "1K"
+	case n <= 2048:
+		tags[x] = "3" // "2K"
+	case n <= 3072:
+		tags[x] = "4" // "3K"
+	case n <= 4096:
+		tags[x] = "5" // "4K"
+	case n <= 5120:
+		tags[x] = "6" // "5K"
+	case n <= 6144:
+		tags[x] = "7" // "6K"
+	case n <= 7168:
+		tags[x] = "8" // "7K"
+	case n <= 8192:
+		tags[x] = "9" // "8K"
+	default:
+		tags[x] = "10"
+	}
+	x = 4
+	tags[x] = "1" // "query_parsing"
+	value := ev.stat.timeQueryParseEnd.Sub(ev.stat.timeStart)
+	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(float64(value))
+	tags[x] = "2" // "data_access"
+	value = ev.stat.dataAccessDuration
+	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(float64(value))
+	tags[x] = "3" // "data_processing"
+	value = ev.stat.timeEnd.Sub(ev.stat.timeQueryParseEnd) - ev.stat.dataAccessDuration
+	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(float64(value))
 }
 
 func (qry *seriesQueryX) empty() bool {
