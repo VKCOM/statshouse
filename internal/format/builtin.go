@@ -107,6 +107,8 @@ const (
 	BuiltinMetricIDAggSamplingBudget          = -87
 	BuiltinMetricIDSrcSamplingGroupBudget     = -88
 	BuiltinMetricIDAggSamplingGroupBudget     = -89
+	BuiltinMetricIDAPICacheHit                = -90
+
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -141,6 +143,7 @@ const (
 	BuiltinMetricNameAggTimeDiff                = "__src_agg_time_diff"
 	BuiltinMetricNameHeartbeatVersion           = "__heartbeat_version"
 	BuiltinMetricNameStatsHouseErrors           = "__statshouse_errors"
+	BuiltinMetricNameAPICacheHit                = "__api_cache_hit_rate"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -1704,6 +1707,23 @@ Value is delta between second value and time it was inserted.`,
 						TagValueIDDMESGParseError: "dmesg_parse",
 					}),
 				}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+		},
+		BuiltinMetricIDAPICacheHit: {
+			Name:        BuiltinMetricNameAPICacheHit,
+			Kind:        MetricKindValue,
+			Description: `API cache hit rate`,
+			Tags: []MetricMetaTag{
+				{Description: "environment"}, {
+					Description: "source",
+				}, {
+					Description: "metric",
+					IsMetric:    true,
+					Raw:         true,
+				}, {
+					Description: "table",
+				}, {
+					Description: "kind",
+				}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		},
 	}
 

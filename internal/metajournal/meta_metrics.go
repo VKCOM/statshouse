@@ -47,7 +47,7 @@ type MetricsStorage struct {
 	journal *Journal // can be easily moved out, if desired
 }
 
-func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromConfig ApplyPromConfig) *MetricsStorage {
+func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromConfig ApplyPromConfig, applyEvents ...ApplyEvent) *MetricsStorage {
 	result := &MetricsStorage{
 		metricsByID:      map[int32]*format.MetricMetaValue{},
 		metricsByName:    map[string]*format.MetricMetaValue{},
@@ -65,7 +65,7 @@ func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromC
 	for id, g := range format.BuiltInNamespaceDefault {
 		result.builtInNamespace[id] = g
 	}
-	result.journal = MakeJournal(namespaceSuffix, dc, result.ApplyEvent)
+	result.journal = MakeJournal(namespaceSuffix, dc, append([]ApplyEvent{result.ApplyEvent}, applyEvents...))
 	return result
 }
 

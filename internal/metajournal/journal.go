@@ -51,7 +51,7 @@ type Journal struct {
 	dc         *pcache.DiskCache
 	metaLoader MetricsStorageLoader
 	namespace  string
-	applyEvent ApplyEvent
+	applyEvent []ApplyEvent
 
 	metricsDead          bool      // together with this bool
 	lastUpdateTime       time.Time // we no more use this information for logic
@@ -83,7 +83,7 @@ type Journal struct {
 	BuiltinJournalUpdateError data_model.ItemValue
 }
 
-func MakeJournal(namespaceSuffix string, dc *pcache.DiskCache, applyEvent ApplyEvent) *Journal {
+func MakeJournal(namespaceSuffix string, dc *pcache.DiskCache, applyEvent []ApplyEvent) *Journal {
 	result := &Journal{
 		dc:                     dc,
 		namespace:              data_model.JournalDiskNamespace + namespaceSuffix,
@@ -188,7 +188,9 @@ func (ms *Journal) parseDiscCache() {
 		return journal2[i].Version < journal2[j].Version
 	})
 	// TODO - check invariants here before saving
-	ms.applyEvent(journal2)
+	for _, f := range ms.applyEvent {
+		f(journal2)
+	}
 	ms.journal = journal2
 	ms.stateHash = calculateStateHashLocked(journal2)
 	log.Printf("Loaded metric storage version %d, journal hash is %s", ms.versionLocked(), ms.stateHash)
@@ -277,7 +279,9 @@ func (ms *Journal) updateJournal(aggLog AggLog) error {
 	// TODO - check invariants here before saving
 
 	ms.builtinAddValue(&ms.BuiltinJournalUpdateOK, 0)
-	ms.applyEvent(src)
+	for _, f := range ms.applyEvent {
+		f(src)
+	}
 
 	if ms.dc != nil && !stopWriteToDiscCache {
 		for _, e := range src {
