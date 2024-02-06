@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gogo/protobuf/sortkeys"
@@ -22,6 +23,7 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
+	"golang.org/x/sync/errgroup"
 	"pgregory.net/rand"
 )
 
@@ -60,6 +62,7 @@ type Options struct {
 	ExplicitGrouping bool
 	MinHost          bool
 	MaxHost          bool
+	QuerySequential  bool
 	Offsets          []int64
 	Limit            int
 	Rand             *rand.Rand
@@ -345,10 +348,9 @@ func (ev *evaluator) bindVariables(sel *parser.VectorSelector) error {
 }
 
 func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node, metricOffset map[*format.MetricMetaValue]int64, offset int64) error {
+	sel.MinHost = ev.opt.MinHost
+	sel.MaxHost = ev.opt.MaxHost
 	for _, matcher := range sel.LabelMatchers {
-		if len(sel.MatchingMetrics) != 0 && len(sel.What) != 0 {
-			break
-		}
 		switch matcher.Name {
 		case labels.MetricName:
 			metrics, names, err := ev.h.MatchMetrics(ev.ctx, matcher)
@@ -408,8 +410,10 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 			}
 		case LabelMinHost:
 			sel.MinHost = true
+			sel.MinHostMatchers = append(sel.MinHostMatchers, matcher)
 		case LabelMaxHost:
 			sel.MaxHost = true
+			sel.MaxHostMatchers = append(sel.MaxHostMatchers, matcher)
 		}
 	}
 	for i := len(path); len(sel.MetricKindHint) == 0 && i != 0; i-- {
@@ -858,26 +862,28 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 	return res, nil
 }
 
-func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
+func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err error) {
 	res := make([]Series, len(ev.opt.Offsets))
-	for i, metric := range sel.MatchingMetrics {
-		if ev.trace != nil && ev.debug {
-			ev.tracef("#%d request %s: %s", i, metric.Name, sel.What)
+	run := func(j int, mu *sync.Mutex) error {
+		var locked bool
+		if mu != nil {
+			mu.Lock()
+			locked = true
+			defer func() {
+				if locked {
+					mu.Unlock()
+				}
+			}()
 		}
-		var minMaxHostMatchers [2][]*labels.Matcher
-		for _, v := range sel.LabelMatchers {
-			switch v.Name {
-			case LabelMinHost:
-				minMaxHostMatchers[0] = append(minMaxHostMatchers[0], v)
-			case LabelMaxHost:
-				minMaxHostMatchers[1] = append(minMaxHostMatchers[1], v)
+		offset := ev.opt.Offsets[j]
+		for i, metric := range sel.MatchingMetrics {
+			if ev.trace != nil && ev.debug {
+				ev.tracef("#%d request %s: %s", i, metric.Name, sel.What)
 			}
-		}
-		for j, offset := range ev.opt.Offsets {
 			for _, selOffset := range sel.Offsets {
 				qry, err := ev.buildSeriesQuery(ev.ctx, sel, metric, sel.Whats, selOffset+offset)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				if qry.empty() {
 					if ev.trace != nil && ev.debug {
@@ -885,17 +891,25 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
 					}
 					continue
 				}
+				if mu != nil {
+					mu.Unlock()
+					locked = false
+				}
 				sr, cancel, err := ev.h.QuerySeries(ev.ctx, &qry.SeriesQuery)
 				if err != nil {
-					return nil, err
+					return err
+				}
+				if mu != nil {
+					mu.Lock()
+					locked = true
 				}
 				ev.cancellationList = append(ev.cancellationList, cancel)
 				if ev.trace != nil && ev.debug {
 					ev.tracef("#%d series count %d", i, len(sr.Data))
 				}
-				for k := range minMaxHostMatchers {
-					if len(minMaxHostMatchers[k]) != 0 {
-						sr.filterMinMaxHost(ev, k, minMaxHostMatchers[k])
+				for k, s := range [2][]*labels.Matcher{sel.MinHostMatchers, sel.MaxHostMatchers} {
+					if len(s) != 0 {
+						sr.filterMinMaxHost(ev, k, s)
 					}
 				}
 				if qry.prefixSum {
@@ -918,13 +932,44 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
 				if qry.histogram.restore {
 					sr, err = ev.restoreHistogram(sr, qry)
 					if err != nil {
-						return nil, err
+						return err
 					}
 				}
 				if len(res[j].Data) == 0 {
 					res[j].Meta = sr.Meta
 				}
 				res[j].appendAll(sr)
+			}
+		}
+		return nil // success
+	}
+	if ev.opt.QuerySequential || len(res) == 1 {
+		for i := 0; i < len(res); i++ {
+			err = run(i, nil)
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		var mu sync.Mutex
+		for i := 0; i < len(res); {
+			// Limit the number of parallel queries to the number of time shifts
+			// available in UI (currently 7) plus always present zero offset.
+			var g errgroup.Group
+			for n := 8; n != 0 && i < len(res); i, n = i+1, n-1 {
+				ii := i
+				g.Go(func() (err error) {
+					defer func() {
+						if r := recover(); r != nil {
+							err = Error{what: r, panic: true}
+						}
+					}()
+					return run(ii, &mu)
+				})
+			}
+			err = g.Wait()
+			if err != nil {
+				return nil, err
 			}
 		}
 	}
@@ -1234,7 +1279,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				FilterOut:  filterOut,
 				SFilterIn:  sFilterIn,
 				SFilterOut: sFilterOut,
-				MinMaxHost: [2]bool{sel.MinHost || ev.opt.MinHost, sel.MaxHost || ev.opt.MaxHost},
+				MinMaxHost: [2]bool{sel.MinHost, sel.MaxHost},
 				Options:    ev.opt,
 			},
 			prefixSum,
