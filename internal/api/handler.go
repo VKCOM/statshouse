@@ -2276,6 +2276,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 	if err != nil {
 		return seriesResponse{}, nil, err
 	}
+	var limit int
 	var promqlGenerated bool
 	if len(req.promQL) == 0 {
 		req.promQL, err = getPromQuery(req)
@@ -2283,6 +2284,8 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 			return seriesResponse{}, nil, httpErr(http.StatusBadRequest, err)
 		}
 		promqlGenerated = true
+	} else {
+		limit = req.numResults
 	}
 	if opt.timeNow.IsZero() {
 		opt.timeNow = time.Now()
@@ -2320,7 +2323,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 				ScreenWidth:      screenWidth,
 				MaxHost:          req.maxHost,
 				Offsets:          offsets,
-				Limit:            req.numResults,
+				Limit:            limit,
 				Rand:             opt.rand,
 				ExprQueriesSingleMetricCallback: func(metric *format.MetricMetaValue) {
 					res.metric = metric
