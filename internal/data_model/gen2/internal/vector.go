@@ -810,6 +810,57 @@ func (item *VectorMetadataEventBytes) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+type VectorMetadataHistoryShortResponseEvent []MetadataHistoryShortResponseEvent
+
+func (VectorMetadataHistoryShortResponseEvent) TLName() string { return "vector" }
+func (VectorMetadataHistoryShortResponseEvent) TLTag() uint32  { return 0x1cb5c415 }
+
+func (item *VectorMetadataHistoryShortResponseEvent) Reset() {
+	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
+	*ptr = (*ptr)[:0]
+}
+
+func (item *VectorMetadataHistoryShortResponseEvent) Read(w []byte, nat_t uint32) (_ []byte, err error) {
+	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
+	return VectorMetadataHistoryShortResponseEvent0Read(w, ptr, nat_t)
+}
+
+func (item *VectorMetadataHistoryShortResponseEvent) Write(w []byte, nat_t uint32) (_ []byte, err error) {
+	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
+	return VectorMetadataHistoryShortResponseEvent0Write(w, *ptr, nat_t)
+}
+
+func (item *VectorMetadataHistoryShortResponseEvent) ReadBoxed(w []byte, nat_t uint32) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
+		return w, err
+	}
+	return item.Read(w, nat_t)
+}
+
+func (item *VectorMetadataHistoryShortResponseEvent) WriteBoxed(w []byte, nat_t uint32) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x1cb5c415)
+	return item.Write(w, nat_t)
+}
+
+func VectorMetadataHistoryShortResponseEvent__ReadJSON(item *VectorMetadataHistoryShortResponseEvent, j interface{}, nat_t uint32) error {
+	return item.readJSON(j, nat_t)
+}
+func (item *VectorMetadataHistoryShortResponseEvent) readJSON(j interface{}, nat_t uint32) error {
+	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
+	if err := VectorMetadataHistoryShortResponseEvent0ReadJSON(j, ptr, nat_t); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (item *VectorMetadataHistoryShortResponseEvent) WriteJSON(w []byte, nat_t uint32) (_ []byte, err error) {
+	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
+	if w, err = VectorMetadataHistoryShortResponseEvent0WriteJSON(w, *ptr, nat_t); err != nil {
+		return w, err
+	}
+	return w, nil
+}
+
 type VectorMetadataMetricOld []MetadataMetricOld
 
 func (VectorMetadataMetricOld) TLName() string { return "vector" }

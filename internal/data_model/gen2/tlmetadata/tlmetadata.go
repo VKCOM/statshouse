@@ -24,6 +24,8 @@ type (
 	EditMetricEvent                      = internal.MetadataEditMetricEvent
 	Event                                = internal.MetadataEvent
 	EventBytes                           = internal.MetadataEventBytes
+	GetEntity                            = internal.MetadataGetEntity
+	GetHistoryShortInfo                  = internal.MetadataGetHistoryShortInfo
 	GetInvertMapping                     = internal.MetadataGetInvertMapping
 	GetInvertMappingResponse             = internal.MetadataGetInvertMappingResponse
 	GetInvertMappingResponseKeyNotExists = internal.MetadataGetInvertMappingResponseKeyNotExists
@@ -40,6 +42,8 @@ type (
 	GetMetrics                           = internal.MetadataGetMetrics
 	GetMetricsResponse                   = internal.MetadataGetMetricsResponse
 	GetTagMappingBootstrap               = internal.MetadataGetTagMappingBootstrap
+	HistoryShortResponse                 = internal.MetadataHistoryShortResponse
+	HistoryShortResponseEvent            = internal.MetadataHistoryShortResponseEvent
 	MetricOld                            = internal.MetadataMetricOld
 	PutBootstrapEvent                    = internal.MetadataPutBootstrapEvent
 	PutMapping                           = internal.MetadataPutMapping
@@ -77,6 +81,52 @@ func (c *Client) EditEntitynew(ctx context.Context, args EditEntitynew, extra *r
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.editEntitynew", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
+func (c *Client) GetEntity(ctx context.Context, args GetEntity, extra *rpc.InvokeReqExtra, ret *Event) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	if extra != nil {
+		req.Extra = *extra
+	}
+	req.Body, err = args.WriteBoxed(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("metadata.getEntity", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if err != nil {
+		return internal.ErrorClientDo("metadata.getEntity", c.Network, c.ActorID, c.Address, err)
+	}
+	defer c.Client.PutResponse(resp)
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("metadata.getEntity", c.Network, c.ActorID, c.Address, err)
+		}
+	}
+	return nil
+}
+
+func (c *Client) GetHistoryShortInfo(ctx context.Context, args GetHistoryShortInfo, extra *rpc.InvokeReqExtra, ret *HistoryShortResponse) (err error) {
+	req := c.Client.GetRequest()
+	req.ActorID = c.ActorID
+	if extra != nil {
+		req.Extra = *extra
+	}
+	req.Body, err = args.WriteBoxed(req.Body)
+	if err != nil {
+		return internal.ErrorClientWrite("metadata.getHistoryShortInfo", err)
+	}
+	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	if err != nil {
+		return internal.ErrorClientDo("metadata.getHistoryShortInfo", c.Network, c.ActorID, c.Address, err)
+	}
+	defer c.Client.PutResponse(resp)
+	if ret != nil {
+		if _, err = args.ReadResult(resp.Body, ret); err != nil {
+			return internal.ErrorClientReadResult("metadata.getHistoryShortInfo", c.Network, c.ActorID, c.Address, err)
 		}
 	}
 	return nil
@@ -291,6 +341,8 @@ func (c *Client) ResetFlood2(ctx context.Context, args ResetFlood2, extra *rpc.I
 
 type Handler struct {
 	EditEntitynew          func(ctx context.Context, args EditEntitynew) (Event, error)                                                    // metadata.editEntitynew
+	GetEntity              func(ctx context.Context, args GetEntity) (Event, error)                                                        // metadata.getEntity
+	GetHistoryShortInfo    func(ctx context.Context, args GetHistoryShortInfo) (HistoryShortResponse, error)                               // metadata.getHistoryShortInfo
 	GetInvertMapping       func(ctx context.Context, args GetInvertMapping) (GetInvertMappingResponseUnion, error)                         // metadata.getInvertMapping
 	GetJournalnew          func(ctx context.Context, args GetJournalnew) (GetJournalResponsenew, error)                                    // metadata.getJournalnew
 	GetMapping             func(ctx context.Context, args GetMapping) (GetMappingResponseUnion, error)                                     // metadata.getMapping
@@ -302,6 +354,8 @@ type Handler struct {
 	ResetFlood2            func(ctx context.Context, args ResetFlood2) (ResetFloodResponse2, error)                                        // metadata.resetFlood2
 
 	RawEditEntitynew          func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.editEntitynew
+	RawGetEntity              func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getEntity
+	RawGetHistoryShortInfo    func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getHistoryShortInfo
 	RawGetInvertMapping       func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getInvertMapping
 	RawGetJournalnew          func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getJournalnew
 	RawGetMapping             func(ctx context.Context, hctx *rpc.HandlerContext) error // metadata.getMapping
@@ -343,6 +397,66 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			}
 			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
 				return internal.ErrorServerWriteResult("metadata.editEntitynew", err)
+			}
+			return nil
+		}
+	case 0x72b132f8: // metadata.getEntity
+		if h.RawGetEntity != nil {
+			hctx.Request = r
+			err = h.RawGetEntity(ctx, hctx)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("metadata.getEntity", err)
+			}
+			return nil
+		}
+		if h.GetEntity != nil {
+			var args GetEntity
+			if _, err = args.Read(r); err != nil {
+				return internal.ErrorServerRead("metadata.getEntity", err)
+			}
+			ctx = hctx.WithContext(ctx)
+			ret, err := h.GetEntity(ctx, args)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("metadata.getEntity", err)
+			}
+			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+				return internal.ErrorServerWriteResult("metadata.getEntity", err)
+			}
+			return nil
+		}
+	case 0x22ff6a79: // metadata.getHistoryShortInfo
+		if h.RawGetHistoryShortInfo != nil {
+			hctx.Request = r
+			err = h.RawGetHistoryShortInfo(ctx, hctx)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("metadata.getHistoryShortInfo", err)
+			}
+			return nil
+		}
+		if h.GetHistoryShortInfo != nil {
+			var args GetHistoryShortInfo
+			if _, err = args.Read(r); err != nil {
+				return internal.ErrorServerRead("metadata.getHistoryShortInfo", err)
+			}
+			ctx = hctx.WithContext(ctx)
+			ret, err := h.GetHistoryShortInfo(ctx, args)
+			if rpc.IsHijackedResponse(err) {
+				return err
+			}
+			if err != nil {
+				return internal.ErrorServerHandle("metadata.getHistoryShortInfo", err)
+			}
+			if hctx.Response, err = args.WriteResult(hctx.Response, ret); err != nil {
+				return internal.ErrorServerWriteResult("metadata.getHistoryShortInfo", err)
 			}
 			return nil
 		}

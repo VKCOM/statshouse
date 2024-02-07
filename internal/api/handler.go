@@ -75,11 +75,12 @@ import (
 // also remove code which saves and loads UpdateTime
 
 const (
-	ParamVersion    = "v"
-	ParamNumResults = "n"
-	ParamMetric     = "s"
-	ParamID         = "id"
-	ParamNamespace  = "namespace"
+	ParamVersion       = "v"
+	ParamNumResults    = "n"
+	ParamMetric        = "s"
+	ParamID            = "id"
+	ParamEntityVersion = "ver"
+	ParamNamespace     = "namespace"
 
 	ParamTagID        = "k"
 	ParamFromTime     = "f"
@@ -503,6 +504,21 @@ type (
 		trace           []string
 		extraPointLeft  bool
 		extraPointRight bool
+	}
+
+	metadata struct {
+		UserEmail string `json:"user_email"`
+		UserName  string `json:"user_name"`
+		UserRef   string `json:"user_ref"`
+	}
+
+	HistoryEvent struct {
+		Version  int64    `json:"version"`
+		Metadata metadata `json:"metadata"`
+	}
+
+	GetHistoryShortInfoResp struct {
+		Events []HistoryEvent `json:"events"`
 	}
 )
 
@@ -1082,7 +1098,7 @@ func (h *Handler) HandleGetMetric(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	resp, cache, err := h.handleGetMetric(ai, formValueParamMetric(r), r.FormValue(ParamID))
+	resp, cache, err := h.handleGetMetric(r.Context(), ai, formValueParamMetric(r), r.FormValue(ParamID), r.FormValue(ParamEntityVersion))
 	respondJSON(w, resp, cache, 0, err, h.verbose, ai.user, sl) // we don't want clients to see stale metadata
 }
 
@@ -1263,20 +1279,68 @@ func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
 	}{event.Version}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
 }
 
-func (h *Handler) handleGetMetric(ai accessInfo, metricName string, metricIDStr string) (*MetricInfo, time.Duration, error) {
+func (h *Handler) HandleGetHistory(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStatHTTP(EndpointHistory, r.Method, 0, "")
+	ai, err := h.parseAccessToken(r, sl)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	var id int64
+	if idStr := r.FormValue(ParamID); idStr != "" {
+		id, err = strconv.ParseInt(idStr, 10, 32)
+		if err != nil {
+			respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err), h.verbose, ai.user, sl)
+			return
+		}
+	} else {
+		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("%s is must be set", ParamID)), h.verbose, ai.user, sl)
+	}
+	hist, err := h.metadataLoader.GetShortHistory(r.Context(), id)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	resp := GetHistoryShortInfoResp{}
+	for _, h := range hist.Events {
+		m := metadata{}
+		_ = json.Unmarshal([]byte(h.Metadata), &m)
+		resp.Events = append(resp.Events, HistoryEvent{
+			Version:  h.Version,
+			Metadata: m,
+		})
+	}
+	respondJSON(w, resp, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
+}
+
+func (h *Handler) handleGetMetric(ctx context.Context, ai accessInfo, metricName string, metricIDStr string, versionStr string) (*MetricInfo, time.Duration, error) {
 	if metricIDStr != "" {
 		metricID, err := strconv.ParseInt(metricIDStr, 10, 32)
 		if err != nil {
 			return nil, 0, fmt.Errorf("can't parse %s", metricIDStr)
 		}
-		metricName = h.getMetricNameByID(int32(metricID))
-		if metricName == "" {
-			return nil, 0, fmt.Errorf("can't find metric %d", metricID)
+		if versionStr == "" {
+			metricName = h.getMetricNameByID(int32(metricID))
+			if metricName == "" {
+				return nil, 0, fmt.Errorf("can't find metric %d", metricID)
+			}
+		} else {
+			version, err := strconv.ParseInt(versionStr, 10, 64)
+			if err != nil {
+				return nil, 0, fmt.Errorf("can't parse %s", versionStr)
+			}
+			m, err := h.metadataLoader.GetMetric(ctx, metricID, version)
+			if err != nil {
+				return nil, 0, err
+			}
+			return &MetricInfo{
+				Metric: m,
+			}, defaultCacheTTL, nil
 		}
 	}
 	v, err := h.getMetricMeta(ai, metricName)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, httpErr(http.StatusNotFound, err)
 	}
 	return &MetricInfo{
 		Metric: *v,
@@ -1295,20 +1359,33 @@ func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, confi
 	if !ai.isAdmin() {
 		return tlmetadata.Event{}, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 	}
-	event, err := h.metadataLoader.SavePromConfig(ctx, h.metricsStorage.PromConfig().Version, configStr)
+	event, err := h.metadataLoader.SavePromConfig(ctx, h.metricsStorage.PromConfig().Version, configStr, ai.toMetadata())
 	if err != nil {
 		return tlmetadata.Event{}, fmt.Errorf("failed to save prometheus config: %w", err)
 	}
 	return event, nil
 }
 
-func (h *Handler) handleGetDashboard(ai accessInfo, id int32) (*DashboardInfo, time.Duration, error) {
-	if dash, ok := format.BuiltinDashboardByID[id]; ok {
-		return &DashboardInfo{Dashboard: getDashboardMetaInfo(dash)}, defaultCacheTTL, nil
+func (h *Handler) handleGetDashboard(ctx context.Context, ai accessInfo, id int32, version int64) (*DashboardInfo, time.Duration, error) {
+	if id < 0 {
+		if dash, ok := format.BuiltinDashboardByID[id]; ok {
+			return &DashboardInfo{Dashboard: getDashboardMetaInfo(dash)}, defaultCacheTTL, nil
+		} else {
+			return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("dashboard %d not found", id))
+		}
 	}
-	dash := h.metricsStorage.GetDashboardMeta(id)
-	if dash == nil {
-		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("dashboard %d not found", id))
+	var dash *format.DashboardMeta
+	if version == 0 {
+		dash = h.metricsStorage.GetDashboardMeta(id)
+		if dash == nil {
+			return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("dashboard %d not found", id))
+		}
+	} else {
+		dashI, err := h.metadataLoader.GetDashboard(ctx, int64(id), version)
+		if err != nil {
+			return nil, 0, err
+		}
+		dash = &dashI
 	}
 	return &DashboardInfo{Dashboard: getDashboardMetaInfo(dash)}, defaultCacheTTL, nil
 }
@@ -1422,7 +1499,7 @@ func (h *Handler) handlePostNamespace(ctx context.Context, ai accessInfo, namesp
 	}
 	var err error
 	if namespace.ID >= 0 {
-		namespace, err = h.metadataLoader.SaveNamespace(ctx, namespace, create)
+		namespace, err = h.metadataLoader.SaveNamespace(ctx, namespace, create, ai.toMetadata())
 	} else {
 		n := h.metricsStorage.GetNamespace(namespace.ID)
 		if n == nil {
@@ -1460,7 +1537,7 @@ func (h *Handler) handlePostGroup(ctx context.Context, ai accessInfo, group form
 	}
 	var err error
 	if group.ID >= 0 {
-		group, err = h.metadataLoader.SaveMetricsGroup(ctx, group, create)
+		group, err = h.metadataLoader.SaveMetricsGroup(ctx, group, create, ai.toMetadata())
 	} else {
 		group, err = h.metadataLoader.SaveBuiltInGroup(ctx, group)
 	}
@@ -1495,7 +1572,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		if !ai.CanEditMetric(true, metric, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't create metric %q", metric.Name))
 		}
-		resp, err = h.metadataLoader.SaveMetric(ctx, metric)
+		resp, err = h.metadataLoader.SaveMetric(ctx, metric, ai.toMetadata())
 		if err != nil {
 			err = fmt.Errorf("error creating metric in sqlite engine: %w", err)
 			log.Println(err.Error())
@@ -1512,7 +1589,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 		if !ai.CanEditMetric(false, *old, metric) {
 			return format.MetricMetaValue{}, httpErr(http.StatusForbidden, fmt.Errorf("can't edit metric %q", old.Name))
 		}
-		resp, err = h.metadataLoader.SaveMetric(ctx, metric)
+		resp, err = h.metadataLoader.SaveMetric(ctx, metric, ai.toMetadata())
 		if err != nil {
 			err = fmt.Errorf("error saving metric in sqllite: %w", err)
 			log.Println(err.Error())
@@ -1977,7 +2054,7 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 	respondPlot(w, resp.format, resp.data, cache, cacheStale, h.verbose, ai.user, sl)
 }
 
-func HandleGetEntity[T any](w http.ResponseWriter, r *http.Request, h *Handler, endpointName string, handle func(ai accessInfo, id int32) (T, time.Duration, error)) {
+func HandleGetEntity[T any](w http.ResponseWriter, r *http.Request, h *Handler, endpointName string, handle func(ctx context.Context, ai accessInfo, id int32, version int64) (T, time.Duration, error)) {
 	sl := newEndpointStatHTTP(endpointName, r.Method, 0, "")
 	ai, err := h.parseAccessToken(r, sl)
 	if err != nil {
@@ -1990,7 +2067,13 @@ func HandleGetEntity[T any](w http.ResponseWriter, r *http.Request, h *Handler, 
 		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err), h.verbose, ai.user, sl)
 		return
 	}
-	resp, cache, err := handle(ai, int32(id))
+	verStr := r.FormValue(ParamEntityVersion)
+	ver, err := strconv.ParseInt(verStr, 10, 64)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err), h.verbose, ai.user, sl)
+		return
+	}
+	resp, cache, err := handle(r.Context(), ai, int32(id), ver)
 	respondJSON(w, resp, cache, 0, err, h.verbose, ai.user, sl)
 }
 
@@ -1999,13 +2082,13 @@ func (h *Handler) HandleGetDashboard(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetGroup(w http.ResponseWriter, r *http.Request) {
-	HandleGetEntity(w, r, h, EndpointGroup, func(ai accessInfo, id int32) (*MetricsGroupInfo, time.Duration, error) {
+	HandleGetEntity(w, r, h, EndpointGroup, func(ctx context.Context, ai accessInfo, id int32, _ int64) (*MetricsGroupInfo, time.Duration, error) {
 		return h.handleGetGroup(ai, id)
 	})
 }
 
 func (h *Handler) HandleGetNamespace(w http.ResponseWriter, r *http.Request) {
-	HandleGetEntity(w, r, h, EndpointNamespace, func(ai accessInfo, id int32) (*NamespaceInfo, time.Duration, error) {
+	HandleGetEntity(w, r, h, EndpointNamespace, func(_ context.Context, ai accessInfo, id int32, _ int64) (*NamespaceInfo, time.Duration, error) {
 		return h.handleGetNamespace(ai, id)
 	})
 }

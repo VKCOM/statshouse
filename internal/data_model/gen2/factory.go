@@ -616,6 +616,18 @@ var (
 		createFunction: func() Function { var ret internal.MetadataEditEntitynew; return &ret },
 		createObject:   func() Object { var ret internal.MetadataEditEntitynew; return &ret },
 	}
+	itemMetadataGetEntity = TLItem{
+		tag:            0x72b132f8,
+		tlName:         "metadata.getEntity",
+		createFunction: func() Function { var ret internal.MetadataGetEntity; return &ret },
+		createObject:   func() Object { var ret internal.MetadataGetEntity; return &ret },
+	}
+	itemMetadataGetHistoryShortInfo = TLItem{
+		tag:            0x22ff6a79,
+		tlName:         "metadata.getHistoryShortInfo",
+		createFunction: func() Function { var ret internal.MetadataGetHistoryShortInfo; return &ret },
+		createObject:   func() Object { var ret internal.MetadataGetHistoryShortInfo; return &ret },
+	}
 	itemMetadataGetInvertMapping = TLItem{
 		tag:            0x9faf5280,
 		tlName:         "metadata.getInvertMapping",
@@ -1153,6 +1165,8 @@ var itemsByTag = map[uint32]*TLItem{
 	0x9286abee: &itemMetadataResetFloodResponse,
 	0x9286abef: &itemMetadataResetFloodResponse2,
 	0x86df475f: &itemMetadataEditEntitynew,
+	0x72b132f8: &itemMetadataGetEntity,
+	0x22ff6a79: &itemMetadataGetHistoryShortInfo,
 	0x9faf5280: &itemMetadataGetInvertMapping,
 	0x93ba92f8: &itemMetadataGetJournalnew,
 	0x9dfa7a83: &itemMetadataGetMapping,
@@ -1501,6 +1515,12 @@ var itemsByName = map[string]*TLItem{
 	"metadata.editEntitynew":                           &itemMetadataEditEntitynew,
 	"metadata.editEntitynew#86df475f":                  &itemMetadataEditEntitynew,
 	"#86df475f":                                        &itemMetadataEditEntitynew,
+	"metadata.getEntity":                               &itemMetadataGetEntity,
+	"metadata.getEntity#72b132f8":                      &itemMetadataGetEntity,
+	"#72b132f8":                                        &itemMetadataGetEntity,
+	"metadata.getHistoryShortInfo":                     &itemMetadataGetHistoryShortInfo,
+	"metadata.getHistoryShortInfo#22ff6a79":            &itemMetadataGetHistoryShortInfo,
+	"#22ff6a79":                                        &itemMetadataGetHistoryShortInfo,
 	"metadata.getInvertMapping":                        &itemMetadataGetInvertMapping,
 	"metadata.getInvertMapping#9faf5280":               &itemMetadataGetInvertMapping,
 	"#9faf5280":                                        &itemMetadataGetInvertMapping,

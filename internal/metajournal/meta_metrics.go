@@ -322,7 +322,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.ID = int32(e.Id)
 			value.NamespaceID = int32(e.NamespaceId)
 			value.UpdateTime = e.UpdateTime
-			_ = value.RestoreCachedInfo(false)
+			_ = value.RestoreCachedInfo(value.ID < 0)
 			var old *format.MetricsGroup
 			if value.ID >= 0 {
 				old = ms.groupsByID[value.ID]

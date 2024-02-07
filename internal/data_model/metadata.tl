@@ -17,7 +17,18 @@ metadata.event#9286affa
     unused: # // not this is always 0
     version: long
     update_time: #
-    data: string = metadata.Event;
+    data: string
+    metadata: field_mask.1?string = metadata.Event;
+
+
+metadata.history_short_response_event#1186baaf {field_mask: #}
+    version: long
+    metadata: string
+        = metadata.History_Short_Response_event field_mask;
+
+metadata.history_short_response#7186baaf {field_mask: #}
+    events: (Vector (metadata.history_short_response_event field_mask))
+    = metadata.History_Short_Response field_mask;
 
 metadata.getMetricsResponse#9286abfb {field_mask: #}
     current_version: long
@@ -71,6 +82,11 @@ metadata.resetFloodResponse2#9286abef
     delete: fields_mask.1?true
      = metadata.Event;
 
+@readwrite metadata.getHistoryShortInfo#22ff6a79
+    fields_mask: #
+    id: long
+     = metadata.History_Short_Response fields_mask;
+
 @read metadata.getMetrics#93ba92f5
     field_mask: #
     from: long // строго больше
@@ -83,6 +99,13 @@ metadata.resetFloodResponse2#9286abef
     limit: long
     return_if_empty: field_mask.3?true
      = metadata.GetJournalResponsenew field_mask;
+
+@read metadata.getEntity#72b132f8
+    field_mask: #
+    id: long
+    version: long
+     = metadata.Event;
+
 
 @readwrite metadata.getMapping#9dfa7a83
     field_mask: #
@@ -134,11 +157,13 @@ metadata.createMappingEvent#12345678
 	updated_at: #
      = metadata.CreateMappingEvent;
 
+// deprecated
 metadata.editMetricEvent#12345677
     fields_mask: #
     metric: (metadata.metricOld fields_mask)
     old_version: long = metadata.EditMetricEvent;
 
+// deprecated
 metadata.createMetricEvent#12345674
     fields_mask: #
     metric: (metadata.metricOld fields_mask)

@@ -38,6 +38,7 @@ const (
 	EndpointPrometheus      = "prometheus"
 	EndpointStatistics      = "stat"
 	endpointChunk           = "chunk"
+	EndpointHistory         = "history"
 
 	userTokenName = "user"
 )

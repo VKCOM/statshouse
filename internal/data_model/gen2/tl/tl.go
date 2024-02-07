@@ -35,6 +35,7 @@ type (
 	VectorLong                                    = internal.VectorLong
 	VectorMetadataEvent                           = internal.VectorMetadataEvent
 	VectorMetadataEventBytes                      = internal.VectorMetadataEventBytes
+	VectorMetadataHistoryShortResponseEvent       = internal.VectorMetadataHistoryShortResponseEvent
 	VectorMetadataMetricOld                       = internal.VectorMetadataMetricOld
 	VectorStatshouseApiFilter                     = internal.VectorStatshouseApiFilter
 	VectorStatshouseApiFunctionBoxed              = internal.VectorStatshouseApiFunctionBoxed

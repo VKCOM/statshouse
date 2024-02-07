@@ -107,6 +107,11 @@ const (
 	APIRemoteConfig                        = "statshouse_api_remote_config"
 )
 
+var ErrEntityNotExists = rpc.Error{
+	Code:        -1234,
+	Description: "entity doesn't exists",
+}
+
 func NextBackoffDuration(backoffTimeout time.Duration) time.Duration {
 	if backoffTimeout < 0 {
 		backoffTimeout = 0

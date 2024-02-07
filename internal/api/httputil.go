@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/mailru/easyjson/jwriter"
+	"github.com/vkcom/statshouse/internal/data_model"
 
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
@@ -65,6 +66,8 @@ func httpCode(err error) int {
 		var httpErr httpError
 		var promErr promql.Error
 		switch {
+		case errors.Is(err, data_model.ErrEntityNotExists):
+			code = http.StatusNotFound
 		case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
 			code = http.StatusGatewayTimeout // 504
 		case errors.As(err, &httpErr):
