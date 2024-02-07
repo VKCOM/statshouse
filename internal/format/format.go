@@ -496,14 +496,13 @@ func (m *MetricsGroup) RestoreCachedInfo(builtin bool) error {
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
 		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
 	}
-	rw := m.Weight * EffectiveWeightOne
-	if rw < 1 {
+	m.EffectiveWeight = int64(m.Weight * EffectiveWeightOne)
+	if m.EffectiveWeight < 1 {
 		m.EffectiveWeight = 1
 	}
-	if rw > MaxEffectiveGroupWeight {
+	if m.EffectiveWeight > MaxEffectiveGroupWeight {
 		m.EffectiveWeight = MaxEffectiveGroupWeight
 	}
-	m.EffectiveWeight = int64(rw)
 	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
 		m.NamespaceID = BuiltinNamespaceIDDefault
 		m.Namespace = BuiltInNamespaceDefault[BuiltinNamespaceIDDefault]
@@ -522,14 +521,13 @@ func (m *NamespaceMeta) RestoreCachedInfo(builtin bool) error {
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
 		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
 	}
-	rw := m.Weight * EffectiveWeightOne
-	if rw < 1 {
+	m.EffectiveWeight = int64(m.Weight * EffectiveWeightOne)
+	if m.EffectiveWeight < 1 {
 		m.EffectiveWeight = 1
 	}
-	if rw > MaxEffectiveNamespaceWeight {
+	if m.EffectiveWeight > MaxEffectiveNamespaceWeight {
 		m.EffectiveWeight = MaxEffectiveNamespaceWeight
 	}
-	m.EffectiveWeight = int64(rw)
 	return err
 }
 
