@@ -351,6 +351,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.Name = e.Name
 			value.Version = e.Version
 			value.UpdateTime = e.UpdateTime
+			_ = value.RestoreCachedInfo(value.ID < 0)
 			if value.ID >= 0 {
 				if oldNamespace, ok := ms.namespaceByID[value.ID]; ok && oldNamespace.Name != value.Name {
 					delete(ms.namespaceByName, oldNamespace.Name)
