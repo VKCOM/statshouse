@@ -60,6 +60,7 @@ describe('queryParams.ts', () => {
       tabNum: -1,
       plots: [
         {
+          id: '0',
           metricName: 'test',
           customName: 'test name',
           customDescription: '',
@@ -83,6 +84,7 @@ describe('queryParams.ts', () => {
           eventsHide: ['1'],
         },
         {
+          id: '1',
           metricName: 'test',
           customName: 'test name 2',
           customDescription: '',
@@ -136,6 +138,7 @@ describe('queryParams.ts', () => {
       tabNum: -1,
       plots: [
         {
+          id: '0',
           metricName: 'test',
           customName: 'test name',
           customDescription: '',
@@ -159,6 +162,7 @@ describe('queryParams.ts', () => {
           eventsHide: ['1'],
         },
         {
+          id: '1',
           metricName: 'test',
           customName: 'test name 2',
           customDescription: '',

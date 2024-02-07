@@ -107,8 +107,8 @@ const (
 	BuiltinMetricIDAggSamplingBudget          = -87
 	BuiltinMetricIDSrcSamplingGroupBudget     = -88
 	BuiltinMetricIDAggSamplingGroupBudget     = -89
-	BuiltinMetricIDAPICacheHit                = -90
-
+	BuiltinMetricIDPromQLEngineTime           = -90
+	BuiltinMetricIDAPICacheHit                = -91
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -143,6 +143,7 @@ const (
 	BuiltinMetricNameAggTimeDiff                = "__src_agg_time_diff"
 	BuiltinMetricNameHeartbeatVersion           = "__heartbeat_version"
 	BuiltinMetricNameStatsHouseErrors           = "__statshouse_errors"
+	BuiltinMetricNamePromQLEngineTime           = "__promql_engine_time"
 	BuiltinMetricNameAPICacheHit                = "__api_cache_hit_rate"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
@@ -1216,6 +1217,62 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				Description: "metric",
 				IsMetric:    true,
 			}},
+		},
+		BuiltinMetricIDPromQLEngineTime: {
+			Name:        BuiltinMetricNamePromQLEngineTime,
+			Kind:        MetricKindValue,
+			Description: "Time spent in PromQL engine",
+			MetricType:  MetricNanosecond,
+			Tags: []MetricMetaTag{{
+				Name:        "host",
+				Description: "API host",
+			}, {
+				Name:        "interval",
+				Description: "Time interval requested",
+				ValueComments: convertToValueComments(map[int32]string{
+					1:  "1 second",
+					2:  "5 minutes",
+					3:  "15 minutes",
+					4:  "1 hour",
+					5:  "2 hours",
+					6:  "6 hours",
+					7:  "12 hours",
+					8:  "1 day",
+					9:  "2 days",
+					10: "3 days",
+					11: "1 week",
+					12: "2 weeks",
+					13: "1 month",
+					14: "3 months",
+					15: "6 months",
+					16: "1 year",
+					17: "2 years",
+					18: "inf",
+				}),
+			}, {
+				Name:        "points",
+				Description: "Resulting number of points",
+				ValueComments: convertToValueComments(map[int32]string{
+					1:  "1",
+					2:  "1K",
+					3:  "2K",
+					4:  "3K",
+					5:  "4K",
+					6:  "5K",
+					7:  "6K",
+					8:  "7K",
+					9:  "8K",
+					10: "inf",
+				}),
+			}, {
+				Name:        "work",
+				Description: "Type of work performed",
+				ValueComments: convertToValueComments(map[int32]string{
+					1: "query_parsing",
+					2: "data_access",
+					3: "data_processing",
+				}),
+			}},
 		}, BuiltinMetricIDMetaServiceTime: { // TODO - harmonize
 			Name:        BuiltinMetricNameMetaServiceTime,
 			Kind:        MetricKindValue,
@@ -1753,6 +1810,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDHeartbeatVersion:           true,
 		BuiltinMetricIDUIErrors:                   true,
 		BuiltinMetricIDStatsHouseErrors:           true,
+		BuiltinMetricIDPromQLEngineTime:           true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{
@@ -1853,6 +1911,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDSrcSamplingGroupBudget:     true,
 		BuiltinMetricIDUIErrors:                   true,
 		BuiltinMetricIDStatsHouseErrors:           true,
+		BuiltinMetricIDPromQLEngineTime:           true,
 	}
 
 	insertKindToValue = map[int32]string{

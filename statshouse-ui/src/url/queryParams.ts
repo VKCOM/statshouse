@@ -29,7 +29,7 @@ export const maxPrefixArray = 1000;
 export const removeValueChar = String.fromCharCode(7);
 
 export const toGroupInfoPrefix = (i: number) => `${GET_PARAMS.dashboardGroupInfoPrefix}${i}.`;
-export const toPlotPrefix = (i: number) => (i ? `${GET_PARAMS.plotPrefix}${i}.` : '');
+export const toPlotPrefix = (i: number | string) => (i ? `${GET_PARAMS.plotPrefix}${i}.` : '');
 export const toVariablePrefix = (i: number) => `${GET_PARAMS.variablePrefix}${i}.`;
 
 export const toVariableConfig = ({ name, description, link }: VariableParams) => ({ name, description, link });
@@ -110,6 +110,7 @@ export function toPlotKey(s: unknown, defaultPlotKey?: PlotKey): PlotKey | null 
 }
 
 export type PlotParams = {
+  id: PlotKey;
   metricName: string;
   customName: string;
   metricType?: MetricType;
@@ -227,6 +228,7 @@ export function toKeyTag(indexTag: number, full?: boolean): TagKey | string | nu
 
 export function getNewPlot(): PlotParams {
   return {
+    id: '',
     metricName: globalSettings.default_metric,
     customName: '',
     customDescription: '',
@@ -570,7 +572,6 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     },
     {} as Partial<Record<string, string[]>>
   );
-
   const live = urlParams[GET_PARAMS.metricLive]?.[0] === '1';
 
   const theme = urlParams[GET_PARAMS.theme]?.[0];
@@ -623,9 +624,12 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
 
   const plots: PlotParams[] = [];
   const defaultPlot = getNewPlot();
-  for (let i = 0; i < maxPrefixArray; i++) {
-    const prefix = toPlotPrefix(i);
-
+  const plotIdList = Object.keys(urlParams)
+    .filter((key) => key === 's' || (key.slice(-2) === '.s' && key.slice(0, 1) === 't'))
+    .map((key) => (key === 's' ? '' : key.split('.')[0]?.replace('t', '')));
+  for (let i = 0; i < plotIdList.length; i++) {
+    const prefix = toPlotPrefix(plotIdList[i]);
+    const id = toPlotKey(plotIdList[i], '0');
     const metricName = urlParams[prefix + GET_PARAMS.metricName]?.[0];
     if (metricName == null) {
       if (defaultParams?.plots.length && i === 0) {
@@ -689,6 +693,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
     const eventsHide = urlParams[prefix + GET_PARAMS.metricEventHide] ?? [];
 
     plots.push({
+      id,
       metricName,
       customName,
       customDescription,
@@ -711,6 +716,10 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       eventsBy,
       eventsHide,
     });
+  }
+
+  if (!plotIdList.length && defaultParams?.plots.length) {
+    plots.push(...deepClone(defaultParams.plots));
   }
 
   const timeShifts =

@@ -352,16 +352,23 @@ func (h *Handler) promqlLODs(t *promql.Timescale, version string, offset int64, 
 }
 
 func (lod lodInfo) indexOf(timestamp int64) int {
-	var n int
-	t := lod.fromSec
-	for ; t < timestamp; n++ {
-		t = promqlStepForward(t, lod.stepSec, lod.location)
+	if lod.stepSec == _1M {
+		n := 0
+		t := lod.fromSec
+		for ; t < timestamp; n++ {
+			t = time.Unix(t, 0).In(lod.location).AddDate(0, 1, 0).UTC().Unix()
+		}
+		if t == timestamp {
+			return n
+		}
+	} else {
+		d := timestamp - lod.fromSec
+		if d%lod.stepSec == 0 {
+			return int(d / lod.stepSec)
+		}
 	}
-	if t != timestamp {
-		err := fmt.Errorf("timestamp %d is out of [%d,%d), step %d", timestamp, lod.fromSec, lod.toSec, lod.stepSec)
-		panic(err)
-	}
-	return n
+	err := fmt.Errorf("timestamp %d is out of [%d,%d), step %d", timestamp, lod.fromSec, lod.toSec, lod.stepSec)
+	panic(err)
 }
 
 func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaValue]int64) (promql.Timescale, error) {
@@ -696,20 +703,24 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 							for y := range *v {
 								(*v)[y] = promql.NilValue
 							}
-							var h []int32
-							if qry.MaxHost {
-								h = make([]int32, len(qry.Timescale.Time))
+							var h [2][]int32
+							for z, qryHost := range qry.MinMaxHost {
+								if qryHost {
+									h[z] = make([]int32, len(qry.Timescale.Time))
+								}
 							}
 							res.Data = append(res.Data, promql.SeriesData{
-								Values:  v,
-								MaxHost: h,
+								Values:     v,
+								MinMaxHost: h,
 							})
 						}
 					}
 					for y, fn := range fns {
-						(*res.Data[x+y].Values)[k] = selectTSValue(fn, qry.MaxHost, qryRaw[y], int64(step), &data[i][j])
-						if qry.MaxHost {
-							res.Data[x+y].MaxHost[k] = data[i][j].maxHost
+						(*res.Data[x+y].Values)[k] = selectTSValue(fn, qry.MinMaxHost[0] || qry.MinMaxHost[1], qryRaw[y], int64(step), &data[i][j])
+						for z, qryHost := range qry.MinMaxHost {
+							if qryHost {
+								res.Data[x+y].MinMaxHost[z][k] = data[i][j].host[z]
+							}
 						}
 					}
 				}
@@ -974,7 +985,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) map[queryFnKind]han
 		default:
 			panic(fmt.Errorf("unrecognized what: %v", qry.Whats))
 		}
-		kind := queryFnToQueryFnKind(fn, qry.MaxHost)
+		kind := queryFnToQueryFnKind(fn, qry.MinMaxHost[0] || qry.MinMaxHost[1])
 		args := res[kind]
 		args.fns = append(args.fns, fn)
 		args.whats = append(args.whats, v)

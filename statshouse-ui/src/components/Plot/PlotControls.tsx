@@ -222,9 +222,9 @@ export const PlotControls = memo(function PlotControls_(props: {
 
   const eventPlotList = useMemo<SelectOptionProps[]>(() => {
     const eventPresetFilter = eventPreset.filter(({ value }) => {
-      const presetPlot = decodeParams([...new URLSearchParams(value).entries()]).plots[0];
+      const presetPlot = { ...decodeParams([...new URLSearchParams(value).entries()]).plots[0], id: '0' };
       if (presetPlot) {
-        let index = params.plots.findIndex((plot) => dequal(plot, presetPlot));
+        let index = params.plots.findIndex((plot) => dequal({ ...plot, id: '0' }, presetPlot));
         return index < 0;
       }
       return false;

@@ -204,7 +204,10 @@ type VectorSelector struct {
 	GroupBy         []string
 	GroupByAll      bool
 	GroupWithout    bool
+	MinHost         bool
 	MaxHost         bool
+	MinHostMatchers []*labels.Matcher
+	MaxHostMatchers []*labels.Matcher
 	OmitNameTag     bool
 	Offsets         []int64
 }

@@ -18,6 +18,9 @@ import { RawValueKind } from '../../view/api';
 import { freeKeyPrefix } from '../../url/queryParams';
 import { METRIC_TYPE, METRIC_TYPE_DESCRIPTION, MetricType } from '../../api/enum';
 import { maxTagsSize } from '../../common/settings';
+import { Button } from '../../components';
+import { ReactComponent as SVGPlusLg } from 'bootstrap-icons/icons/plus-lg.svg';
+import { ReactComponent as SVGDashLg } from 'bootstrap-icons/icons/dash-lg.svg';
 
 const { clearMetricsMeta } = useStore.getState();
 
@@ -321,6 +324,25 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
               disabled={isReadonly}
             />
           ))}
+          <div className="mt-3">
+            <Button
+              className="btn btn-outline-secondary me-2"
+              disabled={values.tagsSize >= maxTagsSize}
+              onClick={() => dispatch({ type: 'numTags', num: `${values.tagsSize + 1}` })}
+            >
+              <SVGPlusLg className="me-1" />
+              Add tag
+            </Button>
+
+            <Button
+              className="btn btn-outline-secondary"
+              disabled={values.tagsSize <= 1}
+              onClick={() => dispatch({ type: 'numTags', num: `${values.tagsSize - 1}` })}
+            >
+              <SVGDashLg className="me-1" />
+              Remove last tag
+            </Button>
+          </div>
           <div id="tagsHelpBlock1" className="form-text">
             When sending data to statshouse, you can refer to tag by either Tag ID or Name.
           </div>
