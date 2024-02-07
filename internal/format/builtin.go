@@ -1222,7 +1222,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Name:        BuiltinMetricNamePromQLEngineTime,
 			Kind:        MetricKindValue,
 			Description: "Time spent in PromQL engine",
-			MetricType:  MetricNanosecond,
+			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
 				Name:        "host",
 				Description: "API host",
