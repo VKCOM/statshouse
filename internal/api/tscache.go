@@ -68,6 +68,14 @@ func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, u
 	return g
 }
 
+func (g *tsCacheGroup) changeMaxSize(newSize int) {
+	for _, cs := range g.pointCaches {
+		for _, c := range cs {
+			c.changeMaxSize(newSize)
+		}
+	}
+}
+
 func (g *tsCacheGroup) Invalidate(lodLevel int64, times []int64) {
 	g.pointCaches[Version2][lodLevel].invalidate(times)
 }
@@ -125,6 +133,12 @@ func newTSCache(approxMaxSize int, stepSec int64, utcOffset int64, loader tsLoad
 		lastDrop:          now,
 		dropEvery:         dropEvery,
 	}
+}
+
+func (c *tsCache) changeMaxSize(newMaxSize int) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	c.approxMaxSize = newMaxSize
 }
 
 func (c *tsCache) maybeDropCache() {

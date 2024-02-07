@@ -104,6 +104,7 @@ const (
 
 	StatshouseAgentRemoteConfigMetric      = "statshouse_agent_remote_config"
 	StatshouseAggregatorRemoteConfigMetric = "statshouse_aggregator_remote_config"
+	APIRemoteConfig                        = "statshouse_api_remote_config"
 )
 
 func NextBackoffDuration(backoffTimeout time.Duration) time.Duration {

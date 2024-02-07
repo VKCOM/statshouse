@@ -27,6 +27,7 @@ import (
 	ttemplate "text/template"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/config"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
@@ -507,7 +508,7 @@ type (
 
 var errTooManyRows = fmt.Errorf("can't fetch more than %v rows", maxSeriesRows)
 
-func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedPrefixes []string, showInvisible bool, utcOffsetSec int64, approxCacheMaxSize int, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, location *time.Location, localMode, readOnly, insecureMode bool, querySelectTimeout time.Duration) (*Handler, error) {
+func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedPrefixes []string, showInvisible bool, utcOffsetSec int64, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, location *time.Location, localMode, readOnly, insecureMode bool, querySelectTimeout time.Duration, cfg *Config) (*Handler, error) {
 	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	diskCacheSuffix := metadataClient.Address // TODO - use cluster name or something here
 
@@ -519,7 +520,8 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal settings to JSON: %w", err)
 	}
-	metricStorage := metajournal.MakeMetricsStorage(diskCacheSuffix, diskCache, nil)
+	cl := config.NewConfigListener(data_model.APIRemoteConfig, cfg)
+	metricStorage := metajournal.MakeMetricsStorage(diskCacheSuffix, diskCache, nil, cl.ApplyEventCB)
 	metricStorage.Journal().Start(nil, nil, metadataLoader.LoadJournal)
 	h := &Handler{
 		verbose:           verbose,
@@ -584,8 +586,12 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
-	h.cache = newTSCacheGroup(approxCacheMaxSize, lodTables, h.utcOffset, h.loadPoints, cacheDefaultDropEvery)
-	h.pointsCache = newPointsCache(approxCacheMaxSize, h.utcOffset, h.loadPoint, time.Now)
+	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, lodTables, h.utcOffset, h.loadPoints, cacheDefaultDropEvery)
+	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, h.loadPoint, time.Now)
+	cl.AddChangeCB(func(c config.Config) {
+		cfg := c.(*Config)
+		h.cache.changeMaxSize(cfg.ApproxCacheMaxSize)
+	})
 	go h.invalidateLoop()
 	h.rmID = statshouse.StartRegularMeasurement(func(client *statshouse.Client) { // TODO - stop
 		prevRUsage := h.rUsage

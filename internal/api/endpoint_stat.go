@@ -148,7 +148,7 @@ func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
 	}
 }
 
-func ChSelectMetricDuration(duration time.Duration, metricID int32, token, table, kind string, isFast, isLight bool, err error) {
+func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table, kind string, isFast, isLight bool, err error) {
 	ok := "ok"
 	if err != nil {
 		ok = "error"
@@ -161,8 +161,8 @@ func ChSelectMetricDuration(duration time.Duration, metricID int32, token, table
 			3: table,
 			4: kind,
 			5: ok,
-			6: getStatTokenName(token),
-			7: token,
+			6: getStatTokenName(user),
+			7: user,
 		},
 	).Value(duration.Seconds())
 }
@@ -200,7 +200,7 @@ func chSelectPushMetric(metric string, isFast, isLight bool, data float64, err e
 
 func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
 	statshouse.Metric(
-		"ch_video_select_test",
+		format.BuiltinMetricNameAPICacheHit,
 		statshouse.Tags{
 			1: "cache",
 			2: strconv.Itoa(int(metricID)),
@@ -210,7 +210,7 @@ func ChCacheRate(cachedRows, chRows int, metricID int32, table, kind string) {
 	).Value(float64(cachedRows))
 
 	statshouse.Metric(
-		"ch_video_select_test",
+		format.BuiltinMetricNameAPICacheHit,
 		statshouse.Tags{
 			1: "clickhouse",
 			2: strconv.Itoa(int(metricID)),

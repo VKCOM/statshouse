@@ -56,7 +56,6 @@ const (
 type args struct {
 	accessLog                bool
 	rpcCryptoKeyPath         string
-	approxCacheMaxSize       int
 	brsMaxChunksCount        int
 	chV1Addrs                []string
 	chV1Debug                bool
@@ -114,7 +113,6 @@ func main() {
 	var argv args
 	pflag.BoolVar(&argv.accessLog, "access-log", false, "write HTTP access log to stdout")
 	pflag.StringVar(&argv.rpcCryptoKeyPath, "rpc-crypto-path", "", "path to RPC crypto key")
-	pflag.IntVar(&argv.approxCacheMaxSize, "approx-cache-max-size", 1_000_000, "approximate max amount of rows to cache for each table+resolution")
 	pflag.IntVar(&argv.brsMaxChunksCount, "max-chunks-count", 1000, "in memory data chunks count limit for RPC server")
 	var chMaxQueries int // not used any more, TODO - remove?
 	pflag.IntVar(&chMaxQueries, "clickhouse-max-queries", 32, "maximum number of concurrent ClickHouse queries")
@@ -168,6 +166,8 @@ func main() {
 	pflag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "metadata engine address")
 	pflag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "metadata engine network")
 	pflag.DurationVar(&argv.querySelectTimeout, "query-select-timeout", api.QuerySelectTimeoutDefault, "query select timeout")
+	cfg := &api.Config{}
+	cfg.Bind(pflag.CommandLine, api.DefaultConfig())
 	pflag.Parse()
 
 	if argv.help {
@@ -202,13 +202,13 @@ func main() {
 		log.Fatalf("invalid --week-start value, only 0-6 allowed %q given", argv.weekStartAt)
 	}
 
-	err = run(argv, keys)
+	err = run(argv, cfg, keys)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run(argv args, vkuthPublicKeys map[string][]byte) error {
+func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	location, err := time.LoadLocation(argv.timezone)
 	if err != nil {
 		return fmt.Errorf("failed to load timezone %q: %w", argv.timezone, err)
@@ -354,7 +354,6 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		argv.protectedMetricPrefixes,
 		argv.showInvisible,
 		utcOffset,
-		argv.approxCacheMaxSize,
 		chV1,
 		chV2,
 		&tlmetadata.Client{
@@ -370,6 +369,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		argv.readOnly,
 		argv.insecureMode,
 		argv.querySelectTimeout,
+		cfg,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create handler: %w", err)

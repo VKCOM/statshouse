@@ -108,6 +108,7 @@ const (
 	BuiltinMetricIDSrcSamplingGroupBudget     = -88
 	BuiltinMetricIDAggSamplingGroupBudget     = -89
 	BuiltinMetricIDPromQLEngineTime           = -90
+	BuiltinMetricIDAPICacheHit                = -91
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -143,6 +144,7 @@ const (
 	BuiltinMetricNameHeartbeatVersion           = "__heartbeat_version"
 	BuiltinMetricNameStatsHouseErrors           = "__statshouse_errors"
 	BuiltinMetricNamePromQLEngineTime           = "__promql_engine_time"
+	BuiltinMetricNameAPICacheHit                = "__api_cache_hit_rate"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -1342,6 +1344,12 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				{
 					Description: "status",
 				},
+				{
+					Description: "token-short",
+				},
+				{
+					Description: "token-long",
+				},
 			},
 		},
 		BuiltinMetricIDAPISourceSelectRows: {
@@ -1756,6 +1764,23 @@ Value is delta between second value and time it was inserted.`,
 						TagValueIDDMESGParseError: "dmesg_parse",
 					}),
 				}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+		},
+		BuiltinMetricIDAPICacheHit: {
+			Name:        BuiltinMetricNameAPICacheHit,
+			Kind:        MetricKindValue,
+			Description: `API cache hit rate`,
+			Tags: []MetricMetaTag{
+				{Description: "environment"}, {
+					Description: "source",
+				}, {
+					Description: "metric",
+					IsMetric:    true,
+					Raw:         true,
+				}, {
+					Description: "table",
+				}, {
+					Description: "kind",
+				}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		},
 	}
 
