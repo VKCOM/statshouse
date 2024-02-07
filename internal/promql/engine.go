@@ -1592,14 +1592,14 @@ func (ev *evaluator) reportStat() {
 	}
 	x = 4
 	tags[x] = "1" // "query_parsing"
-	value := ev.stat.timeQueryParseEnd.Sub(ev.stat.timeStart)
-	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(float64(value))
+	value := ev.stat.timeQueryParseEnd.Sub(ev.stat.timeStart).Seconds()
+	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
 	tags[x] = "2" // "data_access"
-	value = ev.stat.dataAccessDuration
-	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(float64(value))
+	value = ev.stat.dataAccessDuration.Seconds()
+	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
 	tags[x] = "3" // "data_processing"
-	value = ev.stat.timeEnd.Sub(ev.stat.timeQueryParseEnd) - ev.stat.dataAccessDuration
-	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(float64(value))
+	value = (ev.stat.timeEnd.Sub(ev.stat.timeQueryParseEnd) - ev.stat.dataAccessDuration).Seconds()
+	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
 }
 
 func (qry *seriesQueryX) empty() bool {
