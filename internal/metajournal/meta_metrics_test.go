@@ -62,14 +62,22 @@ func TestMetricStorage1(t *testing.T) {
 	}
 	testCases := []testCase{}
 
+	ns := format.NamespaceMeta{Name: "namespace", Weight: 1}
+	require.NoError(t, ns.RestoreCachedInfo(false))
 	testCases = append(testCases, testCase{"create metric after namespace", func(t *testing.T) {
-		namespace := createEntity(1, 0, "namespace", format.NamespaceEvent, 1, format.NamespaceMeta{})
+		namespace := createEntity(1, 0, "namespace", format.NamespaceEvent, 1, ns)
+		ns.ID = 1
+		ns.Version = 1
 		metric := createEntity(2, 1, "namespace@metric", format.MetricEvent, 2, format.MetricMetaValue{})
 		events = []tlmetadata.Event{namespace, metric}
 		err := m.journal.updateJournal(nil)
 		require.NoError(t, err)
 		require.Contains(t, m.metricsByID, int32(metric.Id))
 		require.Contains(t, m.metricsByName, metric.Name)
+		require.Contains(t, m.namespaceByID, ns.ID)
+		require.Contains(t, m.namespaceByName, ns.Name)
+		require.Equal(t, ns, *m.namespaceByID[ns.ID], ns)
+		require.Equal(t, ns, *m.namespaceByName[ns.Name], ns)
 		actualMetric := m.metricsByID[int32(metric.Id)]
 		require.Equal(t, int32(namespace.Id), actualMetric.NamespaceID)
 		require.NotNil(t, actualMetric.Namespace)
@@ -767,6 +775,7 @@ func TestMetricsStorage(t *testing.T) {
 		t.Run("metric added to namespace", func(t *testing.T) {
 			metric.Version = incVersion()
 			metric.NamespaceID = namespace.ID
+			_ = namespace.RestoreCachedInfo(false)
 			metricBytes, err := metric.MarshalBinary()
 			require.NoError(t, err)
 			events = []tlmetadata.Event{
@@ -797,6 +806,7 @@ func TestMetricsStorage(t *testing.T) {
 		})
 
 		t.Run("group added to namespace", func(t *testing.T) {
+			_ = namespace.RestoreCachedInfo(false)
 			group1.Version = incVersion()
 			group1.NamespaceID = namespace.ID
 			groupBytes, err := metric.MarshalBinary()
