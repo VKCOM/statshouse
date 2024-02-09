@@ -178,7 +178,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 		if err == nil {
 			stat.timeEnd = time.Now()
 			stat.numberOfPoints = len(ev.t.Time) - ev.t.StartX
-			ev.reportStat()
+			//ev.reportStat()
 		}
 	}()
 	// parse query
@@ -966,7 +966,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 		}
 		return nil // success
 	}
-	timeStart := time.Now()
+	_ = time.Now()
 	if ev.opt.QuerySequential || len(res) == 1 {
 		for i := 0; i < len(res); i++ {
 			err = run(i, nil)
@@ -997,7 +997,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 			}
 		}
 	}
-	ev.stat.dataAccessDuration += time.Since(timeStart)
+	//ev.stat.dataAccessDuration += time.Since(timeStart)
 	return res, nil
 }
 
