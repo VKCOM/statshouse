@@ -112,9 +112,11 @@ type evaluator struct {
 	cancellationList []func()
 
 	// diagnostics
-	trace *[]string
-	debug bool
-	stat  *statictics
+	trace              *[]string
+	debug              bool
+	timeStart          time.Time
+	timeQueryParseEnd  time.Time
+	dataAccessDuration time.Duration
 }
 
 type seriesQueryX struct { // SeriesQuery eXtended
@@ -137,15 +139,6 @@ type traceContext struct {
 	v bool      // verbose
 }
 
-type statictics struct {
-	queryInterval      int64
-	numberOfPoints     int
-	timeStart          time.Time
-	timeQueryParseEnd  time.Time
-	dataAccessDuration time.Duration
-	timeEnd            time.Time
-}
-
 const (
 	offsetContextKey contextKey = iota
 	traceContextKey
@@ -155,40 +148,23 @@ func NewEngine(h Handler, loc *time.Location) Engine {
 	return Engine{h, loc}
 }
 
-func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel func(), err error) {
-	stat := statictics{
-		queryInterval: qry.End - qry.Start,
-		timeStart:     time.Now(),
-	}
-	if qry.Options.TimeNow == 0 {
-		// fix the time "now"
-		qry.Options.TimeNow = stat.timeStart.Unix()
-	}
-	if qry.Options.TimeNow < qry.Start {
-		// the future is unknown
-		return &TimeSeries{Time: []int64{}}, func() {}, nil
-	}
+func (ng Engine) Exec(ctx context.Context, qry Query) (val parser.Value, cancel func(), err error) {
 	// register panic handler
-	var ev evaluator
 	defer func() {
 		if r := recover(); r != nil {
 			err = Error{what: r, panic: true}
-			ev.cancel()
 		}
-		if err == nil {
-			stat.timeEnd = time.Now()
-			stat.numberOfPoints = len(ev.t.Time) - ev.t.StartX
-			//ev.reportStat()
+		if err != nil && cancel != nil {
+			cancel()
 		}
 	}()
 	// parse query
-	ev, err = ng.newEvaluator(ctx, qry, &stat)
+	ev, err := ng.newEvaluator(ctx, qry)
 	if err != nil {
 		return nil, nil, Error{what: err}
 	}
-	stat.timeQueryParseEnd = time.Now()
 	if ev.t.empty() {
-		return &TimeSeries{}, func() {}, nil
+		return &TimeSeries{Time: []int64{}}, func() {}, nil
 	}
 	// evaluate query
 	if ev.trace != nil {
@@ -201,10 +177,9 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 	case *parser.StringLiteral:
 		return String{T: qry.Start, V: e.Val}, func() {}, nil
 	default:
-		var res TimeSeries
-		res, err = ev.exec()
+		cancel = ev.cancel
+		res, err := ev.exec()
 		if err != nil {
-			ev.cancel()
 			return nil, nil, Error{what: err}
 		}
 		// resolve int32 tag values into strings
@@ -216,16 +191,26 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 		if ev.trace != nil {
 			ev.tracef("buffers alloc #%d, reuse #%d, %s", len(ev.allocMap)+len(ev.freeList), len(ev.reuseList), res.String())
 		}
-		return &res, ev.cancel, nil
+		ev.reportStat(qry, time.Now())
+		return &res, cancel, nil
 	}
 }
 
-func (ng Engine) newEvaluator(ctx context.Context, qry Query, stat *statictics) (evaluator, error) {
+func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error) {
+	timeStart := time.Now()
+	if qry.Options.TimeNow == 0 {
+		// fix the time "now"
+		qry.Options.TimeNow = timeStart.Unix()
+	}
+	if qry.Options.TimeNow < qry.Start {
+		// the future is unknown
+		return evaluator{}, nil
+	}
 	ev := evaluator{
-		Engine: ng,
-		ctx:    ctx,
-		opt:    qry.Options,
-		stat:   stat,
+		Engine:    ng,
+		ctx:       ctx,
+		opt:       qry.Options,
+		timeStart: timeStart,
 	}
 	// init diagnostics
 	if v, ok := ctx.Value(traceContextKey).(*traceContext); ok {
@@ -315,6 +300,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query, stat *statictics) 
 	// final touch
 	ev.tags = make(map[*format.MetricMetaValue][]map[int64]map[int32]string)
 	ev.stop = make(map[*format.MetricMetaValue]map[int64][]string)
+	ev.timeQueryParseEnd = time.Now()
 	return ev, nil
 }
 
@@ -966,7 +952,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 		}
 		return nil // success
 	}
-	_ = time.Now()
+	timeStart := time.Now()
 	if ev.opt.QuerySequential || len(res) == 1 {
 		for i := 0; i < len(res); i++ {
 			err = run(i, nil)
@@ -997,7 +983,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 			}
 		}
 	}
-	//ev.stat.dataAccessDuration += time.Since(timeStart)
+	ev.dataAccessDuration += time.Since(timeStart)
 	return res, nil
 }
 
@@ -1521,11 +1507,11 @@ func (ev *evaluator) newWindow(v []float64, s bool) window {
 	return newWindow(ev.time(), v, ev.r, ev.t.LODs[len(ev.t.LODs)-1].Step, s)
 }
 
-func (ev *evaluator) reportStat() {
+func (ev *evaluator) reportStat(qry Query, timeEnd time.Time) {
 	tags := statshouse.Tags{
 		1: srvfunc.HostnameForStatshouse(),
 	}
-	r := ev.stat.queryInterval
+	r := qry.End - qry.Start
 	x := 2
 	switch {
 	// add one because UI always requests one second more
@@ -1566,7 +1552,7 @@ func (ev *evaluator) reportStat() {
 	default:
 		tags[x] = "18"
 	}
-	n := ev.stat.numberOfPoints
+	n := len(ev.t.Time) - ev.t.StartX // number of points
 	x = 3
 	switch {
 	case n <= 1:
@@ -1592,13 +1578,13 @@ func (ev *evaluator) reportStat() {
 	}
 	x = 4
 	tags[x] = "1" // "query_parsing"
-	value := ev.stat.timeQueryParseEnd.Sub(ev.stat.timeStart).Seconds()
+	value := ev.timeQueryParseEnd.Sub(ev.timeStart).Seconds()
 	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
 	tags[x] = "2" // "data_access"
-	value = ev.stat.dataAccessDuration.Seconds()
+	value = ev.dataAccessDuration.Seconds()
 	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
 	tags[x] = "3" // "data_processing"
-	value = (ev.stat.timeEnd.Sub(ev.stat.timeQueryParseEnd) - ev.stat.dataAccessDuration).Seconds()
+	value = (timeEnd.Sub(ev.timeQueryParseEnd) - ev.dataAccessDuration).Seconds()
 	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
 }
 
