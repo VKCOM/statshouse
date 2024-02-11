@@ -1447,6 +1447,9 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				RawKind:     "hex",
 			}, {
 				Description: "host", // filled by aggregator for ingress proxy
+			}, {
+				Description: "protocol",
+				Raw:         true,
 			}},
 		},
 		BuiltinMetricIDContributorsLog: {
