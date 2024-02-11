@@ -65,10 +65,11 @@ func (hctx *HandlerContext) WithContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, handlerContextKey{}, hctx)
 }
 
-func (hctx *HandlerContext) KeyID() [4]byte       { return hctx.keyID }
-func (hctx *HandlerContext) ListenAddr() net.Addr { return hctx.remoteAddr }
-func (hctx *HandlerContext) LocalAddr() net.Addr  { return hctx.localAddr }
-func (hctx *HandlerContext) RemoteAddr() net.Addr { return hctx.remoteAddr }
+func (hctx *HandlerContext) KeyID() [4]byte          { return hctx.keyID }
+func (hctx *HandlerContext) ProtocolVersion() uint32 { return 0 }
+func (hctx *HandlerContext) ListenAddr() net.Addr    { return hctx.remoteAddr }
+func (hctx *HandlerContext) LocalAddr() net.Addr     { return hctx.localAddr }
+func (hctx *HandlerContext) RemoteAddr() net.Addr    { return hctx.remoteAddr }
 
 func (hctx *HandlerContext) releaseRequest() {
 	hctx.serverConn.server.releaseRequestBuf(hctx.reqTaken, hctx.request)

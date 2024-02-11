@@ -122,9 +122,10 @@ func (proxy *IngressProxy) handler(ctx context.Context, hctx *rpc.HandlerContext
 	tag, _ := basictl.NatPeekTag(hctx.Request)
 	keyID := hctx.KeyID()
 	keyIDTag := int32(binary.BigEndian.Uint32(keyID[:4]))
+	protocol := int32(hctx.ProtocolVersion())
 	key := data_model.Key{
 		Metric: format.BuiltinMetricIDRPCRequests,
-		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag},
+		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag, 0, protocol},
 	}
 	isLocal, err := proxy.handlerImpl(ctx, hctx)
 	if err != nil && isLocal {
