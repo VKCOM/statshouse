@@ -156,6 +156,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (val parser.Value, cancel 
 		}
 		if err != nil && cancel != nil {
 			cancel()
+			cancel = nil
 		}
 	}()
 	// parse query
