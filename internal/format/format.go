@@ -697,8 +697,8 @@ func ValidStringValueLegacy(s mem.RO) bool {
 //
 // Often, scripts insert tags with extra spaces, new line, some trash, etc.
 // We help people by replacing slightly invalid tag values with valid tag values.
-// 1. trim
-// 2. replace all consecutive whitespaces inside with single ASCII space
+// 1. trim unicode whitespaces to the left and right
+// 2. replace all consecutive unicode whitespaces inside with single ASCII space
 // 3. trim to MaxStringLen (if las utf symbol fits only partly, we remove it completely)
 // 4. non-printable characters are replaced by roadsign (invalid rune)
 // but invalid UTF-8 is still error
