@@ -452,6 +452,34 @@ func (ms *Journal) broadcastJournalVersionClient() {
 	ms.versionClients = ms.versionClients[:keepPos]
 }
 
+func prepareResponseToAgent(resp *tlmetadata.GetJournalResponsenew) {
+	// TODO skip copy
+	cpyArr := make([]tlmetadata.Event, len(resp.Events))
+	for i, e := range resp.Events {
+		eCpy := tlmetadata.Event{
+			Id:          e.Id,
+			Name:        e.Name,
+			NamespaceId: e.NamespaceId,
+			EventType:   e.EventType,
+			Version:     e.Version,
+			UpdateTime:  e.UpdateTime,
+			Data:        e.Data,
+		}
+		eCpy.SetNamespaceId(e.NamespaceId)
+		cpyArr[i] = eCpy
+
+		switch e.EventType {
+		case format.DashboardEvent:
+			fallthrough
+		case format.PromConfigEvent:
+		// resp.Events[i].Data = ""
+		default:
+
+		}
+	}
+	resp.Events = cpyArr
+}
+
 func (ms *Journal) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetMetrics3) error {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
@@ -461,6 +489,7 @@ func (ms *Journal) HandleGetMetrics3(_ context.Context, hctx *rpc.HandlerContext
 	}
 	result := ms.getJournalDiffLocked3(args.From)
 	if len(result.Events) != 0 {
+		prepareResponseToAgent(&result)
 		var err error
 		hctx.Response, err = args.WriteResult(hctx.Response, result)
 		if err != nil {
