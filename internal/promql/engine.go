@@ -181,6 +181,8 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (val parser.Value, cancel 
 		cancel = ev.cancel
 		res, err := ev.exec()
 		if err != nil {
+			cancel = nil
+			ev.cancel()
 			return nil, nil, Error{what: err}
 		}
 		// resolve int32 tag values into strings
@@ -193,7 +195,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (val parser.Value, cancel 
 			ev.tracef("buffers alloc #%d, reuse #%d, %s", len(ev.allocMap)+len(ev.freeList), len(ev.reuseList), res.String())
 		}
 		ev.reportStat(qry, time.Now())
-		return &res, cancel, nil
+		return &res, ev.cancel, nil
 	}
 }
 
