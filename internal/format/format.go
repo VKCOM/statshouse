@@ -569,13 +569,25 @@ func ValidGroupName(s string) bool {
 	return ValidMetricName(mem.S(s))
 }
 
+var validDashboardSymbols = map[uint8]bool{
+	'_': true,
+	'-': true,
+	' ': true,
+	'[': true,
+	']': true,
+	'{': true,
+	'}': true,
+	':': true,
+	'.': true,
+}
+
 func ValidDashboardName(s string) bool {
-	if len(s) == 0 || len(s) > MaxStringLen || !isLetter(s[0]) {
+	if len(s) == 0 || len(s) > MaxStringLen || s[0] == ' ' {
 		return false
 	}
 	for i := 1; i < len(s); i++ {
 		c := s[i]
-		if !isLetter(c) && c != '_' && !(c >= '0' && c <= '9') && c != ' ' {
+		if !isLetter(c) && !(c >= '0' && c <= '9') && !validDashboardSymbols[c] {
 			return false
 		}
 	}
