@@ -7,6 +7,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -89,6 +90,16 @@ func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	}
 
 	return ai, nil
+}
+
+func (ai *accessInfo) toMetadata() string {
+	m := metadata{
+		UserEmail: ai.user,
+		UserName:  "",
+		UserRef:   "",
+	}
+	res, _ := json.Marshal(&m)
+	return string(res)
 }
 
 func (ai *accessInfo) protectedMetric(name string) bool {

@@ -510,7 +510,7 @@ func mainSimulator() {
 			m.MetricID = metricInfo.MetricID
 			m.Version = metricInfo.Version
 		}
-		ms, err := loader.SaveMetric(context.Background(), m)
+		ms, err := loader.SaveMetric(context.Background(), m, "")
 		if err != nil {
 			log.Panicf("Failed to create simulator metric: %v", err)
 		}

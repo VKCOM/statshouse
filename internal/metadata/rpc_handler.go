@@ -134,13 +134,42 @@ func (h *Handler) RawGetJournal(ctx context.Context, hctx *rpc.HandlerContext) (
 	return "", hctx.HijackResponse(h)
 }
 
+func (h *Handler) RawGetHistory(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
+	var args tlmetadata.GetHistoryShortInfo
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize metadata.GetHistoryShortInfo request: %w", err)
+	}
+	resp, err := h.db.GetHistoryShort(ctx, args.Id)
+	if err != nil {
+		return "", err
+	}
+	hctx.Response, err = args.WriteResult(hctx.Response, resp)
+	return "", err
+}
+
+func (h *Handler) RawGetEntity(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
+	var args tlmetadata.GetEntity
+	_, err := args.Read(hctx.Request)
+	if err != nil {
+		return "", fmt.Errorf("failed to deserialize metadata.GetEntity request: %w", err)
+	}
+	e, err := h.db.GetEntityVersioned(ctx, args.Id, args.Version)
+	if err != nil {
+		return "", err
+	}
+	hctx.Response, err = args.WriteResult(hctx.Response, e)
+	return "ok", err
+
+}
+
 func (h *Handler) RawEditEntity(ctx context.Context, hctx *rpc.HandlerContext) (string, error) {
 	var args tlmetadata.EditEntitynew
 	_, err := args.Read(hctx.Request)
 	if err != nil {
 		return "", fmt.Errorf("failed to deserialize metadata.editMetricEvent request: %w", err)
 	}
-	event, err := h.db.SaveEntity(ctx, args.Event.Name, args.Event.Id, args.Event.Version, args.Event.Data, args.IsSetCreate(), args.IsSetDelete(), args.Event.EventType)
+	event, err := h.db.SaveEntity(ctx, args.Event.Name, args.Event.Id, args.Event.Version, args.Event.Data, args.IsSetCreate(), args.IsSetDelete(), args.Event.EventType, args.Event.Metadata)
 	if err == errInvalidMetricVersion {
 		return "", fmt.Errorf("invalid version. Reload this page and try again")
 	}
