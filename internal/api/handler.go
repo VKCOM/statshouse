@@ -27,7 +27,6 @@ import (
 	ttemplate "text/template"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/config"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
@@ -40,6 +39,7 @@ import (
 	"github.com/mailru/easyjson"
 	_ "github.com/mailru/easyjson/gen" // https://github.com/mailru/easyjson/issues/293
 
+	"github.com/vkcom/statshouse/internal/config"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -2068,10 +2068,13 @@ func HandleGetEntity[T any](w http.ResponseWriter, r *http.Request, h *Handler, 
 		return
 	}
 	verStr := r.FormValue(ParamEntityVersion)
-	ver, err := strconv.ParseInt(verStr, 10, 64)
-	if err != nil {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err), h.verbose, ai.user, sl)
-		return
+	var ver int64
+	if verStr != "" {
+		ver, err = strconv.ParseInt(verStr, 10, 64)
+		if err != nil {
+			respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, err), h.verbose, ai.user, sl)
+			return
+		}
 	}
 	resp, cache, err := handle(r.Context(), ai, int32(id), ver)
 	respondJSON(w, resp, cache, 0, err, h.verbose, ai.user, sl)
