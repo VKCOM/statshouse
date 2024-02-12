@@ -211,3 +211,26 @@ func TestAllowedResolution(t *testing.T) {
 func TestNamespaceConst(t *testing.T) {
 	require.Equal(t, NamespaceSeparator, string(NamespaceSeparatorRune))
 }
+
+func TestValidDashboardName(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want bool
+	}{
+		{"", " ", false},
+		{"", " abc", false},
+		{"", "a bc", true},
+		{"", "[ a bc", true},
+		{"", "{ a bc", true},
+		{"", "{:} a bc", true},
+		{"", "1:{:} a bc", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ValidDashboardName(tt.args); got != tt.want {
+				t.Errorf("ValidDashboardName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
