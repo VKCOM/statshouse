@@ -77,11 +77,11 @@ for writing metric data.
 ## Resolution
 
 The minimum available resolution of data to show on a graph depends on the currently available aggregation:
-* per-second aggregated data is stored for the first three days,
+* per-second aggregated data is stored for the first two days,
 * per-minute aggregated data is stored for a month,
 * per-hour aggregated data is available forever.
 
-So, you can get per-second data for the last three days, per-minute data for the last month, and you can get 
+So, you can get per-second data for the last two days, per-minute data for the last month, and you can get 
 per-hour data for any period you want.
 
 If getting the highest available resolution is not crucial for you, but it is important for you 

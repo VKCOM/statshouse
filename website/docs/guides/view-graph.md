@@ -116,7 +116,7 @@ These are normalized data, which are independent of an aggregation interval.
 
 #### "Why do I see a non-integer number for a _count_ statistic?"
 
-[Sampling coefficients](#sampling) should sometimes be non-integer to keep aggregation and statistics the same.
+[Sampling coefficients](#sampling) should sometimes be non-integer to keep aggregates and statistics the same.
 This leads to non-integer values for the _count_ statistic, which is an integer number at its core.
 
 #### Cumulative functions
@@ -183,7 +183,7 @@ The larger aggregation interval you choose, the smoother look your graph has:
 
 An _Auto_ interval uses the _minimal available interval_ for aggregation to show data on a graph.
 This interval _varies_ depending on the currently available aggregation:
-* per-second aggregated data is stored for the first three days,
+* per-second aggregated data is stored for the first two days,
 * per-minute aggregated data is stored for a month,
 * per-hour aggregated data is available forever.
 
@@ -355,7 +355,7 @@ StatshHouse has two bottlenecks where it samples data: an agent and an aggregato
 to as _source_ because it is the same machine the data come from.
 
 Sampling means that StatsHouse throws away pieces of data to reduce its overall amount. 
-To keep aggregation and statistics the same, StatsHouse multiplies the rest of data by a sampling coefficient (or a 
+To keep aggregates and statistics the same, StatsHouse multiplies the rest of data by a sampling coefficient (or a 
 sampling factor).
 
 The _Sampling source/aggregator_ meta-metric redirects you to the sampling coefficient information for the agent and 

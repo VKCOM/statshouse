@@ -49,10 +49,11 @@ Check the detailed **User guide** to perform popular tasks:
 
 ### Dive into details
 
-Refer to [**Conceptual overview**](conceptual-overview.md) to handle complicated monitoring tasks and to understand 
-StatsHouse implementation details.
+Refer to the [**Conceptual overview**](conceptual%20overview/features.md) to handle complicated monitoring tasks:
+* find more about StatsHouse [features](conceptual%20overview/features.md),
+* understand the underlying [concepts](conceptual%20overview/concepts.md), 
+* learn how the StatsHouse [components](conceptual%20overview/components.md) implement all of the above.
 
 ### Check FAQs
 
 Find answers to [**Frequently asked questions**](faq.md).
-

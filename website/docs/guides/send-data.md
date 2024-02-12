@@ -25,7 +25,6 @@ format):
 
 <img src={WhatIsMetric} width="1000"/>
 
-
 <details>
 
     <summary>
@@ -254,6 +253,8 @@ Unfortunately, it is impossible for now. We plan to increase the number of tags 
 
 ### How many tag values
 
+Tag values must be UTF-8 string values.
+
 There is no formal limitation for a number of tag values, but the rule is to have **not that many** of them.
 
 Tags with many different values such as user IDs or email addresses may lead to 
@@ -367,7 +368,7 @@ In the database, where StatsHouse stores metric data, the data model for each me
 | 13:45:05  | my_metric   | staging | -             | 200     | 1600  | 3   | 1100 | -      |
 | 13:45:05  | my_metric   | staging | -             | 5       | 80    | 25  | 30   | -      |
 
-The `sum`, `min`, and `max` columns are [aggregation](../conceptual-overview.md#aggregation) for a `value` metric.
+The `sum`, `min`, and `max` columns are an [aggregate](../conceptual-overview.md#aggregation) for a `value` metric.
 
 Read more about [metric type implementation](../conceptual-overview.md#metric-types-implementation) in StatsHouse.
 
