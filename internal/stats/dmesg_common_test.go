@@ -9,6 +9,7 @@ import (
 
 func TestMesgStats_handleMsgs(t *testing.T) {
 	c := &DMesgStats{klogParser: &parser{}, msgParser: &parser{}}
+
 	body := []byte(
 		`<4>[12555048.809330] audit: audit_lost=50409498 audit_rate_limit=0 audit_backlog_limit=8192
 <4>[12555058.445681] Killed process 3029 (Web Content) total-vm:10206696kB, anon-rss:6584572kB, file-rss:0kB, shmem-rss:8732kB
@@ -48,4 +49,12 @@ func TestMesgStats_handleMsgs(t *testing.T) {
 	require.Equal(t, a.level, int32(format.RawIDTag_Warn))
 	require.Equal(t, a.facility, int32(format.RawIDTag_kern))
 	require.Equal(t, a.ts, timestamp{sec: 12555060, usec: 240817})
+
+	body = append(body, "<4>[12555070.955796] Memory cgroup out of memory: Killed process 21075 (check_binlog_re) total-vm:7756kB, anon-rss:876kB, file-rss:2984kB, shmem-rss:0kB, UID:0 pgtables:56kB oom_score_adj:0\n"...)
+	err = c.handleMsgs(0, body, true, cb)
+	require.NoError(t, err)
+	a = data[5]
+	require.Equal(t, a.level, int32(format.RawIDTag_Warn))
+	require.Equal(t, a.facility, int32(format.RawIDTag_kern))
+	require.Equal(t, a.ts, timestamp{sec: 12555070, usec: 955796})
 }

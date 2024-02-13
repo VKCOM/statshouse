@@ -20,8 +20,9 @@ const (
 )
 
 var (
-	oomMsgPrefixBytes = []byte("Killed process")
-	numbers           = []byte{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
+	oomMsgPrefixBytes       = []byte("Killed process")
+	oomCGroupMsgPrefixBytes = []byte("Memory cgroup out of memory: Killed process")
+	numbers                 = []byte{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
 )
 
 type (
@@ -167,15 +168,17 @@ func (c *DMesgStats) handleMsgs(nowUnix int64, klog []byte, pushStat bool, pushM
 func (c *DMesgStats) fillMsg(data []byte, klog *klogMsg) error {
 	switch {
 	case bytes.HasPrefix(data, oomMsgPrefixBytes):
-		return c.handleOOM(data, klog)
+		return c.handleOOM(oomMsgPrefixBytes, data, klog)
+	case bytes.HasPrefix(data, oomCGroupMsgPrefixBytes):
+		return c.handleOOM(oomCGroupMsgPrefixBytes, data, klog)
 	}
 	return nil
 }
 
-func (c *DMesgStats) handleOOM(data []byte, klog *klogMsg) error {
+func (c *DMesgStats) handleOOM(prefix, data []byte, klog *klogMsg) error {
 	c.msgParser.body = data
 	p := c.msgParser
-	p.mustSequence(oomMsgPrefixBytes)
+	p.mustSequence(prefix)
 	if p.err != nil {
 		return p.err
 	}
