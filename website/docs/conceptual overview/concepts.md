@@ -251,10 +251,10 @@ We will throw away one row per each second:
 On average, these values look valid: if we summarize them, we'll get `1004`. But the graph will be located higher than 
 the average value—around `1200`—and will have the ravines down to 0.
 
-When StatsHouse have to sample such data (with "mainstays"), it divides the budget in two. The first part of the 
+When StatsHouse has to sample such data (with "mainstays"), it divides the budget in two. The first part of the 
 budget (two rows in our example) is granted for the non-sampled rows with the maximum counter values.
 The second part of the budget is spent for the rest of the rows: the random rows are inserted while the others are 
-sampled. Unlike "mainstays," these "weak" rows get the respectively higher sampling rate.  
+thrown away. Unlike "mainstays," these "weak" rows get the respectively higher sampling rate.  
 
 In our example, StatsHouse will insert the row with the `1000` counter as is, i.e., will not sample this row. So, 
 we'll get the graph with the average value of `1004`.
