@@ -2054,7 +2054,7 @@ func init() {
 	}
 	for k, v := range hostMetrics {
 		v.Tags = append([]MetricMetaTag{{Name: "hostname"}}, v.Tags...)
-		v.Resolution = 60
+		v.Resolution = 5
 		v.GroupID = BuiltinGroupIDHost
 		v.Group = BuiltInGroupDefault[BuiltinGroupIDHost]
 		BuiltinMetrics[k] = v
