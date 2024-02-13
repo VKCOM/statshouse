@@ -134,7 +134,7 @@ Percentiles are available for _value_ metrics only.
 To get them, [enable percentiles](edit-metrics.md#percentiles) in the UI.
 
 Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased 
-[sampling](../conceptual-overview.md#sampling). If it is important for you to have the lower sampling factor, keep an 
+[sampling](../conceptual%20overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an 
 eye on your metric [cardinality](#cardinality) or choose custom [resolution](edit-metrics.md#resolution) 
 for writing metric data.
 
@@ -282,7 +282,7 @@ the host that sends the value, which is the maximum for the available
 <img src={MaxHost2} width="900"/>
 
 Read more about using the [host name as a tag](send-data.md#host-name-as-a-tag) and learn
-how the [_Max host_](../conceptual-overview.md#max-host) option is implemented.
+how the [_Max host_](../conceptual%20overview/concepts.md#max-host-tag) option is implemented.
 
 ## 10 — Table view
 
@@ -343,7 +343,7 @@ Here are some error examples:
 <img src={ReceiveStatus} width="300"/>
 
 For example, the `err_map_per_metric_queue_overload`, `err_map_tag_value`, or `err_map_tag_value_cached` tags 
-indicate the slowdowns or errors of the [mapping mechanism](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics).
+indicate the slowdowns or errors of the [mapping mechanism](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics).
 
 This metric uses the sampling budget of a metric it refers to, so the error flood cannot affect the other metrics.
 
@@ -376,8 +376,8 @@ If the sampling coefficient for a metric is higher than 5, it is displayed with 
 
 The _count_ statistic for this metric shows the number of agents having set this coefficient in a particular second.
 
-Learn more about StatsHouse [agents](../conceptual-overview.md#agent) and
-[aggregators](../conceptual-overview.md#aggregator), and what [sampling](../conceptual-overview.md#sampling) is.
+Learn more about StatsHouse [agents](../conceptual%20overview/components.md#agent) and
+[aggregators](../conceptual%20overview/components.md#aggregator), and what [sampling](../conceptual%20overview/concepts.md#sampling) is.
 
 ### Cardinality
 
@@ -396,13 +396,13 @@ So an _avg_ statistic for this metric shows full cardinality, which may be group
 ### Mapping status
 
 If you create too many tag values, which have not been 
-[mapped](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) yet, the mapping flood errors appear:
+[mapped](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics) yet, the mapping flood errors appear:
 
 <img src={MappingFlood} width="800"/>
 
-Mapping errors indicate that the number of newly created tag values exceed the mapping budget per day.
-Learn more about [mapping](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) 
-and  [how many tag values](send-data.md#how-many-tag-values) to create per metric.
+Mapping errors indicate that the number of newly created tag values exceeds the mapping budget per day.
+Learn more about [mapping](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics) 
+and [how many tag values](send-data.md#how-many-tag-values) to create per metric.
 
 ## 14 — Lock Y-axis
 

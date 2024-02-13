@@ -33,13 +33,18 @@ example, this is what an aggregate within one second looks like:
 <img src={PerSecAggr} width="700"/>
 
 :::important
-An aggregate is the result of aggregation. StatsHouse does not store 
+StatsHouse does not store an exact metric value per each moment.
+Instead, it stores aggregates associated with time intervals.
+
+An aggregate is the result of aggregation. 
+It is the minimal set of descriptive statistics such as _count_, _sum_, _min_, _max_. StatsHouse uses them to 
+reconstruct the rest of statistics if necessary.
 :::
 
 Imagine a hypothetical product. For this product, we need to get the number of received packets per second.
-The packets may have different
+The packets may have different 
 * formats: `TL`, `JSON`;
-* statuses: "correct" (`ok`) or "incorrect" (`error_too_short`, `error_too_long`).
+* statuses: "correct" (`ok`) or "incorrect" (`error_too_short`, `error_too_long`, etc.).
 
 When the user-defined code receives a packet, it sends an event to StatsHouse, specifically, 
 to an [agent](components.md#agent).
@@ -63,12 +68,14 @@ Let's represent an event as a row in a conventional database. Upon per-second ag
 we'll get the table below—for each tag value combination received, we get the row with the corresponding count:
 
 | timestamp | metric            | format | status          | counter |
-| --------- | ----------------- | ------ | --------------- | ------- |
+|-----------|-------------------|--------|-----------------|---------|
 | 13:45:05  | toy_packets_count | JSON   | ok              | 100     |
 | 13:45:05  | toy_packets_count | TL     | ok              | 200     |
 | 13:45:05  | toy_packets_count | TL     | error_too_short | 5       |
 
 The number of rows in such a table is a metric's cardinality.
+
+### Cardinality
 
 :::important
 Cardinality is how many unique tag value combinations you send for a metric.
@@ -87,7 +94,7 @@ aggregating data within a second, it sends data to [aggregators](components.md#a
 For our hypothetical metric, the between-host aggregation per second leads to the following:
 
 | timestamp | metric            | format  | status          | counter |
-| --------- | ----------------- | ------- | --------------- | ------- |
+|-----------|-------------------|---------|-----------------|---------|
 | 13:45:05  | toy_packets_count | JSON    | ok              | 1100    |
 | 13:45:05  | toy_packets_count | JSON    | error_too_short | 40      |
 | 13:45:05  | toy_packets_count | JSON    | error_too_long  | 20      |
@@ -134,32 +141,32 @@ To keep aggregates and statistics the same, StatsHouse multiplies the rest of da
 Suppose we have three data rows per second for a single metric:
 
 | timestamp | metric            | format | status          | counter |
-| --------- | ----------------- | ------ | --------------- | ------- |
+|-----------|-------------------|--------|-----------------|---------|
 | 13:45:05  | toy_packets_count | JSON   | ok              | 100     |
 | 13:45:05  | toy_packets_count | TL     | ok              | 200     |
 | 13:45:05  | toy_packets_count | TL     | error_too_short | 5       |
 
 Suppose also that the channel width allows us to send only two rows to the aggregator. StatsHouse will set 
-the sampling coefficient to 1.5, then randomize the rows, and send only the first two rows multiplied by 1.5.
+the sampling coefficient to `1.5`, then randomize the rows, and send only the first two rows multiplied by `1.5`.
 
 The data sent will look like this:
 
 | timestamp | metric            | format | status | counter |
-| --------- | ----------------- | ------ | ------ | ------- |
+|-----------|-------------------|--------|--------|---------|
 | 13:45:05  | toy_packets_count | TL     | ok     | 300     |
 | 13:45:05  | toy_packets_count | JSON   | ok     | 150     |
 
 or like this:
 
 | timestamp | metric            | format | status          | counter |
-| --------- | ----------------- | ------ | --------------- | ------- |
+|-----------|-------------------|--------|-----------------|---------|
 | 13:45:05  | toy_packets_count | TL     | ok              | 300     |
 | 13:45:05  | toy_packets_count | TL     | error_too_short | 7.5     |
 
 or like that:
 
 | timestamp | metric            | format | status          | counter |
-| --------- | ----------------- | ------ | --------------- | ------- |
+|-----------|-------------------|--------|-----------------|---------|
 | 13:45:05  | toy_packets_count | TL     | error_too_short | 7.5     |
 | 13:45:05  | toy_packets_count | JSON   | ok              | 150     |
 
@@ -183,14 +190,14 @@ the database.
 
 ### Non-integer sampling coefficients
 
-Sampling coefficients should sometimes be non-integer to keep aggregation and statistics the same. 
+Sampling coefficients should sometimes be non-integer to keep aggregates and statistics the same. 
 This leads to [non-integer values for counters](../guides/view-graph.md#3--descriptive-statistics), 
 though each counter is an integer number at its core.
 
 In StatsHouse, counters are floating-point by default. 
 For a particular metric, you can choose the option to randomly round the sampling coefficients:
-if the desired sampling coefficient is 1.1, it will be rounded to 1 nine times out of ten—and it will be rounded to 
-2 only once.
+if the desired sampling coefficient is `1.1`, it will be rounded to `1` nine times out of ten—and it will be rounded to 
+`2` only once.
 
 ### Fair resource sharing
 
@@ -221,266 +228,65 @@ A metric having a weight of 2 gets the channel two times as broad as the channel
 
 ### Sampling "mainstays"
 
-Сэмплирование "китов"
+The above-mentioned algorithm works fine when the original counters for the rows are close to each other.
+Often, a metric has one or several "mainstays" that are dominating rows.
+For example, if we successfully process 1000 packets per second, 
+but we also get one error of each type, the first "ok" row becomes the "mainstay":
 
-Алгоритм описанный выше хорошо работает, если у нас исходные значения счётчиков в рядах близки друг к другу. Однако
-очень часто в метрике есть один или несколько доминирующих рядов (мы называем их "киты"), например если каждую секунду
-у нас успешно обрабатывается 1000 пакетов, но происходит по 1 из 4 ошибок:
+| timestamp | metric            | format | status          | counter                                                         |
+|-----------|-------------------|--------|-----------------|-----------------------------------------------------------------|
+| 13:45:05  | toy_packets_count | JSON   | ok              | 1000 <text className="orange-text">← will not be sampled</text> |
+| 13:45:05  | toy_packets_count | TL     | error_too_short | 1                                                               |
+| 13:45:05  | toy_packets_count | TL     | error_too_long  | 1                                                               |
+| 13:45:05  | toy_packets_count | TL     | error_too_bad   | 1                                                               |
+| 13:45:05  | toy_packets_count | TL     | error_too_good  | 1                                                               |
 
-| timestamp | metric            | format | status          | counter |
-| --------- | ----------------- | ------ |-----------------|---------|
-| 13:45:05  | toy_packets_count | JSON   | ok              | 1000    |
-| 13:45:05  | toy_packets_count | TL     | error_too_short | 1       |
-| 13:45:05  | toy_packets_count | TL     | error_too_long  | 1       |
-| 13:45:05  | toy_packets_count | TL     | error_too_bad   | 1       |
-| 13:45:05  | toy_packets_count | TL     | error_too_good  | 1       |
+When we display the sum of counters on a graph, we get the flat graph for the `1004` value.
 
-Если мы отобразим на графике сумму счётчиков пакетов, то получим гладкий график со значением 1004.
+Imagine, we have to insert only four rows out of five because of a budget.
+We will throw away one row per each second:
+* for four seconds out of five the value will be `1003 * (5 / 4) ~ 1203`,
+* for one second out of five the value will be `4 * (5 / 4) = 5`.
 
-Представим теперь, что бюджет позволяет вставить только 4 ряда из 5. Тогда каждую секунду мы будем выбрасывать один ряд,
-и примерно 4 секунды из 5 значение будет `1003 * (5 / 4) ~ 1203`, а одну секунду из 5 значение будет `4 * (5 / 4) = 5`.
+On average, these values look valid: if we summarize them, we'll get `1004`. But the graph will be located higher than 
+the average value—around `1200`—and will have the ravines down to 0.
 
-В среднем это правильно, если просуммируем за 5 секунд, получим 1004, однако визуально график будет проходить гораздо
-выше среднего значения, в районе 1200, и иметь глубокие провалы почти до 0.
+When StatsHouse have to sample such data (with "mainstays"), it divides the budget in two. The first part of the 
+budget (two rows in our example) is granted for the non-sampled rows with the maximum counter values.
+The second part of the budget is spent for the rest of the rows: the random rows are inserted while the others are 
+sampled. Unlike "mainstays," these "weak" rows get the respectively higher sampling rate.  
 
-Поэтому при сэмплировании мы первую половину бюджета (2 ряда в данном примере) заполняем рядами с максимальным значением
-счётчика без сэмплирования, а вторую половину бюджета заполняем случайными из оставшихся рядов, сэмплируя их
-пропорционально сильнее.
-
-В данном примере ряд со значением 1000 будет всегда вставлен со значением счётчика 1000, так что снова получим гладкий
-график со значением в районе 1004.
+In our example, StatsHouse will insert the row with the `1000` counter as is, i.e., will not sample this row. So, 
+we'll get the graph with the average value of `1004`.
 
 ### Resolution
-
-Для некоторых метрик секундное разрешение не так важно, как минимальный коэффициент сэмплирования. Поэтому StatsHouse
-позволяет установить для каждой метрике меньшее разрешение, например 5 секунд. Тогда данные будут отправляться в 5 раз
-реже, а число рядов, выделяемой метрике окажется примерно в 5 раз больше. При этом задержка увеличится примерно на 5+5
-секунд - сначала 5 секунд данные будут собираться, затем будут шардированы (по меткам, как обычно) на 5 частей, и
-следующие 5 секунд будут отправляться, каждую секунду по одному шарду. Такой способ отправки гарантирует честное
-распределение канала между метриками с разным временным разрешением.
-
-Разрешение может любым быть делителем числа 60, но мы рекомендуем использовать только значения, совпадающие с LOD UI -
-1, 5, 15, 60. Так как при выборе, например, разрешения в 2 секунды в каждые 2 соседние точки 5 секундного LOD-а
-попадут 3 и 2 значения метрики, а значит на всём протяжении графика будет присутствовать пила с амплитудой +50%.
-
-
-
-
-
-## Cardinality
 
 ### Mapping and budgets for creating metrics
 
 ## Metrics
 
-What is a metric: ts + metric name + tags + aggregation (metric type)
-
 ### Metric types
 
 #### Value metrics
 
-Кроме метрик-счётчиков, есть метрики-значения. Например вместо счётчика принятых пакетов мы бы могли захотеть
-записывать размер принятых пакетов.
-
-```
-    {"metrics":[ {"name": "toy_packets_size",
-     "tags":{"format": "JSON", "status": "ok"},
-     "value": [150]} ]}
-```
-или
-
-```
-    {"metrics":[ {"name": "toy_packets_size",
-     "tags":{"format": "JSON", "status": "error_too_short"},
-     "value": [0]} ]}
-```
-Значение является массивом, чтобы можно было отправлять сразу несколько значений пачкой, что более эффективно.
-
-Тогда кроме счётчика будут вычисляться агрегаты значений - сумма, минимальное и максимальное значение.
-
-| timestamp | metric           | format | status          | counter | sum   | min | max  |
-| --------- | ---------------- | ------ | --------------- | ------- | ----- | --- | ---- |
-| 13:45:05  | toy_packets_size | JSON   | ok              | 100     | 13000 | 20  | 1200 |
-| 13:45:05  | toy_packets_size | TL     | ok              | 200     | 7000  | 4   | 800  |
-| 13:45:05  | toy_packets_size | TL     | error_too_short | 5       | 10    | 0   | 8    |
-
-Среднее вычисляется при выборке данных путём деления суммы на сумму счётчика.
-
 ##### Receiving regular values
-
-Детали приёма регулярных значений
-Агенты финализируют секунду для отправки синхронно с календарной секундой. Поэтому если у клиента есть какое-то
-значение, которое должно фиксироваться каждую секунду (условный “уровень воды”), клиентские библиотеки стараются присылать это
-значение в районе середины календарной секунды. Таким образом увеличивается вероятность того, что каждая секунда будет
-содержать ровно 1 измерений, однако гарантий этого система не предоставляет. Клиенты, которым это важно могут
-явно указать timestamp.
 
 #### Percentiles
 
-Если в описании метрики установлена галочка “с перцентилями”, то кроме агрегатов значений система будет
-считать перцентили на агентах, пересылать на агрегаторы, агрегировать там и записывать в clickhouse.
-Объём данных для такой метрики значительно возрастет, поэтому система скорее всего выберет высокие факторы сэмплирования.
-В таком случае может помочь уменьшение кардинальности или временного разрешения.
-
 #### Unique counters
-
-Используются, чтобы оценить число разных уникальных целых значений (если значения не целые, а например строки,
-то можно взять hash строк) Предположим, что пакеты содержат id пользователя, отправляющего пакеты. Мы можем
-посчитать сколько разных пользователей отправляло пакеты.
-
-```
-    {"metrics":[ {"name": "toy_packets_user",
-     "tags":{"format": "JSON", "status": "ok"},
-     "unique": [17]} ]}
-```
-
-Уникальное значение является массивом, чтобы можно было отправлять сразу несколько значений пачкой, что более эффективно.
-
-Множества хранятся в сжатом виде и использованием функции, подобной Hyper Log Log, так что сами значения недоступны,
-можно узнать только оценку кадинальности множеств.
-
-| timestamp | metric           | format | status          | counter | unique                    |
-| --------- | ---------------- | ------ | --------------- | ------- | ------------------------- |
-| 13:45:05  | toy_packets_user | JSON   | ok              | 100     | uniq(17,  19, 13, 15)     |
-| 13:45:05  | toy_packets_user | TL     | ok              | 200     | uniq(17,  19, 13, 15, 11) |
-| 13:45:05  | toy_packets_user | TL     | error_too_short | 5       | uniq(51)                  |
-
-Кроме того для уникумов хранятся обычные агрегаты, как для значений (минимальное, максимальное, среднее,
-стандартное отклонение), интерпретированных, как int64 и округлённых до float64.
-Знание диапазона значений часто помогает в отладке.
 
 ### Tags
 
 #### Tag names
 
-Хранение меток - имена
-
-Все метрики хранятся в одной таблице, где есть 15 колонок для меток, названных tag1..tag15. Когда в примере выше
-мы использовали метки с именем “format”, “status” на самом деле система выбирала одну из колонок на основании
-описания метрики, например можно отредактировать описание так, чтобы format направлялся в tag1,
-а статус - в tag2 или наоборот. Также можно использовать системные имена 1..15 напрямую для выбора нужной колонки,
-они не пересекаются с пользовательскими и всегда доступны для записи.
-
-Дополнительная колонка tag0 имеет специальную интерпретацию, и служит для задания окружения (environment),
-в котором собирается статистика. Например production или staging. В принципе, могут использоваться любые значения.
-Например, если на подмножестве машин экспериментальная версия, может быть задана строчка для этого эксперимента.
-Задаётся в клиентских библиотеках один раз при инициализации. В остальном с точки зрения системы tag0 ничем
-не отличается от остальных колонок.
-
 #### Tag values
 
-Хранение меток - значения
-
-Так как значения меток постоянно повторяются, для компактности хранения и скорости записи и выборки tag0..tag15
-имеют тип int32 и там хранятся не строчки, а значения, которые берутся из гигантского отображения строчек string ↔ int32.
-Отображение общее на все метрики, а его элементы никогда не удаляются, а чтобы предотвратить его бесконтрольный рост,
-на создание элементов отображения установлен бюджет с лимитом в 300, пополняющийся на 1 значения в час (настраивается).
-Когда бюджет исчерпывается и отображение создать не удаётся, в колонку записывается  специальное служебное значение
-(mapping flood), чтобы не терять событие целиком.
-
-Максимальная длина значения тэга 128 байтов, если больше - обрезается. Также делается нормализация - с обеих сторон
-делается TRIM, а все последовательности юникодных пробелов внутри заменяются на 1 ASCII пробел,
-а все непечатные символы заменяются на дорожный знак. Это делает метки более регулярными и уменьшает удивление
-при отображении в UI, копировании и вставке в чаты, и т.д.
-
-Иногда значения меток уже имеют подходящий тип, а количество значений велико, например номера приложений или
-каких-нибудь других объектов. Тогда можно отредактировать описание метрики, указав, что определённые тэги
-являются “сырыми”, тогда для них вместо отображения строчки-значения, она будет просто парситься, как (u)int32
-(принимаем значения в диапазоне -2^31..2^32-1) и вставляться в таблицу как есть. При отображении в UI можно попросить
-показывать такие значения в каком-то формате, например timestamp, беззнаковое целое, hex, ip адрес, и т.д.
-
-must be UTF-8 string
-// 1. trim unicode whitespaces to the left and right
-// 2. replace all consecutive unicode whitespaces inside with single ASCII space
-// 3. trim to MaxStringLen (if last utf symbol fits only partly, we remove it completely)
-// 4. non-printable characters are replaced by roadsign (invalid rune)
-
-тэги с невалидным UTF-8 приводят к тому, что всё событие выбрасывается и загорается красная плашка над графиком. Это так в основном потому, что у нас есть много текста в формате vk1251, если такой текст забудут сконвертить (в PHP это делает обёртка наша, а в других языках мало ли) , то мы хотим, чтобы это заметили). А так можно было тоже невалидные байты заменять на дорожный знак.
 #### String tag and _Top N_
 
-Топ строк
-
-Иногда бывает ситуация, когда число разных значений метки огромно и неограниченно, например referrer
-или слово в поисковом запросе. Если использовать обычные метки, то новые значения очень быстро выберут
-бюджет на создание элементов отображения, да ещё и засорят его огромным количеством одноразовых значений.
-Для подобных случаев система поддерживает специальную метку с именем _s, что означает буквально строковый тэг.
-Буквально в дополнение к 16 целочисленным колонкам тэгов сделана дополнительная строковая колонка.
-Для каждой комбинации обычных тэгов  на агенте создаётся специальная структура данных, которая хранит
-некоторое количество популярных за эту секунду значений строки (например, 100), когда структура наполняется,
-применяется вероятностное вытеснение. На агрегатор отправляется топ этих значений, например 10.
-При сэмплировании выбрасываются либо все строки из набора, либо ни одной, таким образом распределение самих наборов
-по пространству кардинальности обычных меток сохраняется, это важно для большинства пользователей.
-Аггрегатор собирает все строки для набора во всех агентов, и в свою очередь вставляет в базу данных топ этих строк
-(например, 20), а для “остальных” не попавших в топ, используется пустая строка.
-Таким образом обычные счётчики (и метрики других типов) являются на самом деле частным случаем топа строк,
-когда все строки пустые.
-
-#### Max host tag
-
-Метка машины-агента и механизм max_host
-
-Большинство пользователей интуитивно хотят использовать имя машины-агента в качестве метки, чтобы иметь возможность
-просматривать статистику с каждой машины независимо. Однако, что может оказаться неожиданным, добавление такой метки
-прекращает агрегацию данных между машинами, а значит увеличивает кардинальности и объём данных в соответствующее число
-раз. Например, если машин-агентов 100, то объём данных увеличится в 100 раз, и системой могут быть выбраны гигантские
-коэффициенты сэмплирования, например 10, 50 или 100, при этом качество данных сильно ухудшается из-за шума.
-
-Поэтому в StatsHouse для всех метрик включен очень дешёвый механизм, когда в специальную колонку max_host при агрегации
-данных записывается имя машины, ответственной за максимальное значение (либо внёсшей максимальный вклад в счётчик для
-счётчиков). Такая колонка увеличивает объём данных менее, чем на 10%, при этом позволяет ответить на вопросы “на каком
-хосте максимальный объём занятого дискового пространства” или “на каком хосте максимальное количество ошибок каждого
-типа”.
-
-Например, после агрегации следующих строк от двух агентов
-
-| timestamp | metric      | format | … | min | max  | max_host |
-| --------- | ----------- | ------ | - | --- | ---- | -------- |
-| 13:45:05  | toy_latency | JSON   |   | 200 | 1200 | nginx001 |
-
-| timestamp | metric      | format | … | min | max | max_host |
-| --------- | ----------- | ------ | - | --- | --- | -------- |
-| 13:45:05  | toy_latency | JSON   |   | 4   | 80  | nginx003 |
-
-ясно, что максимальное значение latency 1200 было именно на хосте nginx001
-
-| timestamp | metric      | format | … | min | max  | max_host |
-| --------- | ----------- | ------ | - | --- | ---- | -------- |
-| 13:45:05  | toy_latency | JSON   |   | 4   | 1200 | nginx001 |
-
-
-Прежде чем добавлять метку с именем машины-агента мы рекомендуем попробовать посмотреть в UI функцию max_host для
-вашей метрики. Чаще всего, зная имя лишь одной проблемной машины, можно посмотреть логи и решить проблему.
-
-Также советуем, где возможно, использовать разбивку не по отдельным машинам, а по их группам, используя метку
-environment или собственную метку. Например, запуская экспериментальную версию на одной или нескольких машинах,
-можно установить environment staging или dev для того, чтобы отделить статистику с этих машин от остальных.
-
-Значение максимум в колонке max_host имеет типа Float32, а не Float64 для лучшего сжатия, так как высокая точность
-здесь не нужна. Имя хоста хранится в виде строкового отображения (Int32), как тэги.
-
-
-
+#### _Max host_ tag
 
 ### Timestamps and a receive window
 
-Хранение времени и окно приёма
-
-Обычно время события назначается системой автоматически по времени приёма события, однако если нужно писать старую
-статистику, можно указать конкретное значение времени события, но принимается только статистика за последние
-полтора часа, если более старая - время будет установлено в текущее время минус полтора часа. Это сделано потому,
-что система может работать только при эффективной агрегации между хостами, а для этого все хосты должны присылать
-данные за конкретную секунду максимально вместе и слажено. А также система хранения (сейчас это clickhouse) работает
-гораздо медленнее, если значение primary ключа оказывается в разных партах на диске. Для тех метрик, которые явно
-указывают время событий можно ожидать выбора системой более высоких факторов сэмплирования, так как ряды
-с разным временем не могут быть агрегированы между собой.
-
 ### Meta-metrics
 
-Для получения сведений о работе самой системы на разных этапах собираются и записываются метаметрики.
-Все они имеют префикс два подчерка. Самые главные из них вынесены в UI для каждой метрики - это ошибки приёма данных
-(например отрицательное значение счётчика или значение-NaN), факторы сэмплирования, выбранные агентом и агрегатором,
-а также оценка часовой кардинальности метрики и количество созданных элементов отображения.
 
-Многие метаметрики по разным причинам не подчиняются общим правилам, например не сэмплируются.
-Некоторые метаметрики, например статус приёма данных и факторы сэмлирования агентом пересылаются в специальной
-компактной форме для экономии трафика.

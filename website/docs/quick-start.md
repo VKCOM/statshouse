@@ -170,7 +170,7 @@ The currently available aggregation is also related to
 a metric [resolution](guides/edit-metrics.md#resolution).
 :::
 
-Read more about [aggregation](conceptual-overview.md#aggregation) in StatsHouse, 
+Read more about [aggregation](conceptual%20overview/concepts.md#aggregation) in StatsHouse, 
 and changing metric [resolution](guides/edit-metrics.md#resolution).
 
 ### Tags
@@ -186,13 +186,13 @@ For example, a particular piece of data can be labeled as related to
 
 :::tip
 Tags with many different values such as user IDs may lead to [mapping flood](guides/view-graph.md#mapping-status) errors 
-or increased [sampling](guides/view-graph.md#sampling) due to high [cardinality](conceptual-overview.md#cardinality). 
+or increased [sampling](guides/view-graph.md#sampling) due to high [cardinality](conceptual%20overview/concepts.md#cardinality). 
 If you need to create such a tag, read more about 
 [tags with many different values](guides/edit-metrics.md#raw-values).
 :::
 
 Read more about [filtering with tags](guides/view-graph.md#7--tags), [setting up](guides/send-data.md#how-to-use-tags) 
-and [editing](guides/edit-metrics.md#tags) tags, and [cardinality](conceptual-overview.md#cardinality).
+and [editing](guides/edit-metrics.md#tags) tags, and [cardinality](conceptual%20overview/concepts.md#cardinality).
 
 ### Top N
 

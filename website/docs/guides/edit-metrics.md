@@ -70,7 +70,7 @@ You will not see percentiles for the previously written data.
 :::
 
 Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased
-[sampling](../conceptual-overview.md#sampling). If it is important for you to have the lower sampling factor, keep an
+[sampling](../conceptual%20overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an
 eye on your metric [cardinality](#cardinality) or choose custom [resolution](edit-metrics.md#resolution)
 for writing metric data.
 
@@ -85,14 +85,14 @@ So, you can get per-second data for the last two days, per-minute data for the l
 per-hour data for any period you want.
 
 If getting the highest available resolution is not crucial for you, but it is important for you 
-to reduce [sampling](../conceptual-overview.md#sampling), reduce your metric resolution. 
+to reduce [sampling](../conceptual%20overview/concepts.md#sampling), reduce your metric resolution. 
 For example, you may choose to send data once per 15 seconds instead of sending per-second data:
 
 <img src={ResolutionEdit} width="400"/>
 
 Some resolution levels are marked as "native": 1, 5, 15, 60 seconds. They correspond to a level of details 
 for the UI, so we recommend using them to avoid jitter on a graph. See more about metric 
-[resolution](../conceptual-overview.md#resolution).
+[resolution](../conceptual%20overview/concepts.md#resolution).
 
 You see custom resolution near the metric name in a graph view:
 
@@ -144,7 +144,7 @@ show in the UI:
 ### Set up _Raw tags_
 
 If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
-_Raw_ tag values to avoid the [mapping flood](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics).
+_Raw_ tag values to avoid the [mapping flood](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics).
 Check [how many tag values](send-data.md#how-many-tag-values) you can create.
 
 Tag values are usually `string` values. StatsHouse maps all of them to `int32` values for higher efficiency.

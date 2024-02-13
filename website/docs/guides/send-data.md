@@ -51,7 +51,7 @@ format):
 
     </details>
 
-(More [data formats](../conceptual-overview.md#protocols) are supported.)
+(More [data formats](../conceptual%20overview/components.md#agent) are supported.)
 
 To start sending data, check the following: 
 * [how to send metric data via client libraries](#how-to-send-data-via-client-libraries),
@@ -141,7 +141,7 @@ Though, we do not recommend doing this as we won't be able to provide guarantees
 
 If you are sure about creating a library,
 please use one of the existing StatsHouse libraries as a model for your own one—pay
-your attention to a StatsHouse [data model](../conceptual-overview.md#data-model).
+your attention to StatsHouse [data model](../conceptual%20overview/concepts.md).
 
 #### "What if the existing library does not have the required functionality?"
 
@@ -163,17 +163,17 @@ See the [Quick start](../quick-start.md#send-metric-data) for a context.
 :::important
 We strongly recommend using the [StatsHouse client libraries](#how-to-send-data-via-client-libraries).
 
-Client libraries [aggregate](../conceptual-overview.md#aggregation) data before sending them to StatsHouse.
+Client libraries [aggregate](../conceptual%20overview/concepts.md#aggregation) data before sending them to StatsHouse.
 While it may sound counterintuitive, by aggregating, client libraries prevent you from losing data.
 Without a client library, you can create a socket, prepare a JSON file, and send your formatted data.
 This sounds simple, but only if you have not so much data.
 
-StatsHouse uses [UDP](../conceptual-overview.md#protocols).
+StatsHouse uses [UDP](../conceptual%20overview/components.md#receiving-data-via-udp).
 If you send a datagram per event, and there are too many of them,
 there is a risk of dropping datagrams due to UDP socket buffer overflow, and no one will notice it.
 
 If you do not use the client library, the non-aggregated data will reach StatsHouse
-[agent](../conceptual-overview.md#agent), and the agent will aggregate them anyway.
+[agent](../conceptual%20overview/components.md#agent), and the agent will aggregate them anyway.
 :::
 
 ## How to use tags
@@ -259,16 +259,16 @@ There is no formal limitation for a number of tag values, but the rule is to hav
 
 Tags with many different values such as user IDs or email addresses may lead to 
 [mapping flood](view-graph.md#mapping-status) errors or increased [sampling](view-graph.md#sampling) due to 
-high [cardinality](../conceptual-overview.md#cardinality).
+high [cardinality](../conceptual%20overview/concepts.md#cardinality).
 In StatsHouse, metric cardinality is how many unique tag value combinations you send for a metric.
 
 If a tag has too many values, they will soon exceed the 
-[mapping budget](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) and will be lost: tag values 
+[mapping budget](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics) and will be lost: tag values 
 for your measurements will be `Empty`.
 
 Even if all your tag values have been already mapped, and you 
 [avoid the mapping flood](edit-metrics.md#raw-values) but keep sending data with many tag values, 
-your data will probably be [sampled](../conceptual-overview.md#sampling). Sampling means that 
+your data will probably be [sampled](../conceptual%20overview/concepts.md#sampling). Sampling means that 
 StatsHouse throws away pieces of data to reduce its overall amount. To keep aggregation, statistics, and overall 
 graph's shape the same, StatsHouse multiplies the rest of data by a sampling coefficient.
 
@@ -293,7 +293,7 @@ requests.
 
 With the common tags, you will get [mapping flood](view-graph.md#mapping-status) errors very soon for this scenario.
 The _string tag_ stands apart from the other ones as its values are not 
-[mapped](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) to integers. Thus, you can avoid 
+[mapped](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics) to integers. Thus, you can avoid 
 [mapping flood](view-graph.md#mapping-status) errors and massive sampling.
 
 The string tag has a special storage: when you send your data labeled with many `string` tag values, only the most 
@@ -320,7 +320,7 @@ In most cases, it is enough to know the name of the most problematic host to get
 We also recommend using the `environment` tag (or similar) instead of `host_name`. When you deploy an experimental feature 
 to one or more hosts, label them with the `staging` or `development` tag values instead of their host names.
 
-Learn how the [_Max host_](../conceptual-overview.md#max-host) option is implemented.
+Learn how the [_Max host_](../conceptual%20overview/concepts.md#max-host-tag) option is implemented.
 
 ## How to choose a metric type
 
@@ -368,9 +368,9 @@ In the database, where StatsHouse stores metric data, the data model for each me
 | 13:45:05  | my_metric   | staging | -             | 200     | 1600  | 3   | 1100 | -      |
 | 13:45:05  | my_metric   | staging | -             | 5       | 80    | 25  | 30   | -      |
 
-The `sum`, `min`, and `max` columns are an [aggregate](../conceptual-overview.md#aggregation) for a `value` metric.
+The `sum`, `min`, and `max` columns are an [aggregate](../conceptual%20overview/concepts.md#aggregation) for a `value` metric.
 
-Read more about [metric type implementation](../conceptual-overview.md#metric-types-implementation) in StatsHouse.
+Read more about [metric type implementation](../conceptual%20overview/concepts.md#metric-types) in StatsHouse.
 
 Check the valid metric type combinations in the table below:
 
@@ -397,7 +397,7 @@ You still can specify `counter` to implement [user-guided sampling](#user-guided
 
 Imagine you measuring a value metric (e.g., the response size in bytes) once in a second:
 * You get `value` that is your parameter magnitude:
-  XXXX bytes, then YYYY bytes, etc. Please note that this "level" is [aggregation](../conceptual-overview.md#aggregation), not
+  XXXX bytes, then YYYY bytes, etc. Please note that this "level" is [aggregation](../conceptual%20overview/concepts.md#aggregation), not
   an exact value for a particular moment in time.
 * You also get `counter` for your value metric that shows the number of times you sent
   your measurements to StatsHouse: +1 for the first second, +1 for the next one, etc.
