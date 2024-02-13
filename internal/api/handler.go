@@ -2333,15 +2333,25 @@ func (h *Handler) handleSeriesRequestS(ctx context.Context, req seriesRequest, e
 	if req.verbose && len(s) > 1 {
 		var g *errgroup.Group
 		g, ctx = errgroup.WithContext(ctx)
-		g.Go(func() error {
-			var err error
+		g.Go(func() (err error) {
+			defer func() {
+				if r := recover(); r != nil {
+					statshouse.Metric(format.BuiltinMetricNameStatsHouseErrors, statshouse.Tags{1: strconv.FormatInt(format.TagValueIDAPIPanicError, 10)}).StringTop(fmt.Sprintf("%v", r))
+					err = httpErr(http.StatusInternalServerError, fmt.Errorf(""))
+				}
+			}()
 			s[0], freeRes, err = h.handleSeriesRequest(withEndpointStat(ctx, es), req, seriesRequestOptions{
 				trace: true,
 				metricCallback: func(meta *format.MetricMetaValue) {
 					req.metricWithNamespace = meta.Name
 					if meta.MetricID != format.BuiltinMetricIDBadges {
-						g.Go(func() error {
-							var err error
+						g.Go(func() (err error) {
+							defer func() {
+								if r := recover(); r != nil {
+									statshouse.Metric(format.BuiltinMetricNameStatsHouseErrors, statshouse.Tags{1: strconv.FormatInt(format.TagValueIDAPIPanicError, 10)}).StringTop(fmt.Sprintf("%v", r))
+									err = httpErr(http.StatusInternalServerError, fmt.Errorf(""))
+								}
+							}()
 							s[1], freeBadges, err = h.queryBadges(ctx, req, meta)
 							return err
 						})

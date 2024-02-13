@@ -339,6 +339,7 @@ const (
 	TagValueIDSamplingDecisionDiscard = -2
 
 	TagValueIDDMESGParseError = 1
+	TagValueIDAPIPanicError   = 2
 )
 
 var (
@@ -1752,19 +1753,20 @@ Value is delta between second value and time it was inserted.`,
 			Kind:                 MetricKindValue,
 			Description:          `Errors on the frontend.`,
 			StringTopDescription: "error_string",
-			Tags: []MetricMetaTag{
-				{Description: "environment"}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
+			Tags:                 []MetricMetaTag{{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		},
 		BuiltinMetricIDStatsHouseErrors: {
-			Name:        BuiltinMetricNameStatsHouseErrors,
-			Kind:        MetricKindCounter,
-			Description: `Always empty metric because SH don't have errors'`,
+			Name:                 BuiltinMetricNameStatsHouseErrors,
+			Kind:                 MetricKindCounter,
+			Description:          `Always empty metric because SH don't have errors'`,
+			StringTopDescription: "error_string",
 			Tags: []MetricMetaTag{
-				{Description: "environment"}, {
+				{
 					Description: "error_type",
 					Raw:         true,
 					ValueComments: convertToValueComments(map[int32]string{
 						TagValueIDDMESGParseError: "dmesg_parse",
+						TagValueIDAPIPanicError:   "api_panic",
 					}),
 				}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		},
