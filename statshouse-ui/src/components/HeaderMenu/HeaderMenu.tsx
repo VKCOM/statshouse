@@ -31,6 +31,7 @@ import {
   useStore,
   useStoreDev,
   useThemeStore,
+  useTVModeStore,
 } from '../../store';
 import { currentAccessInfo, logoutURL } from '../../common/access';
 import { HeaderMenuItemPlot } from './HeaderMenuItemPlot';
@@ -67,6 +68,8 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   const isView = location.pathname === '/view';
   const isDashList = location.pathname === '/dash-list';
   const isSettings = location.pathname === '/settings' || location.pathname === '/settings/group';
+
+  const tvMode = useTVModeStore((state) => state.enable);
 
   const onPasteClipboard = useCallback(() => {
     (navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.reject())
@@ -124,7 +127,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   }, []);
 
   return (
-    <div className={cn('sticky-top align-self-start', css.navOuter, className)}>
+    <div className={cn('sticky-top align-self-start', css.navOuter, className)} hidden={tvMode && params.tabNum < 0}>
       <ul className={cn('nav pb-2 h-100 d-flex flex-column flex-nowrap ', css.nav)}>
         <HeaderMenuItem icon={SVGLightning} title="Home" to="/view" description="StatsHouse">
           <li className={css.splitter}></li>

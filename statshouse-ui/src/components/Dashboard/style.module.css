@@ -42,5 +42,5 @@
   --base-cols: 2;
   --max-cols: 2;
   --width-col: calc(1320px / var(--base-cols));
-  max-width: calc((var(--width-col) * var(--max-cols)));
+  max-width: calc(var(--width-col) * var(--max-cols));
 }
