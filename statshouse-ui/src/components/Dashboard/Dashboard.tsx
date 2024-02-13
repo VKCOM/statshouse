@@ -16,6 +16,7 @@ import {
   selectorSaveServerParams,
   selectorSetDashboardLayoutEdit,
   useStore,
+  useTVModeStore,
 } from '../../store';
 import { DashboardHeader } from './DashboardHeader';
 import { DashboardLayout } from './DashboardLayout';
@@ -35,6 +36,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
   const params = useStore(selectorParams);
   const numQueries = useStore(selectorGlobalNumQueriesPlot);
 
+  const tvMode = useTVModeStore((state) => state.enable);
+
   const dashboardLayoutEdit = useStore(selectorDashboardLayoutEdit);
   const setDashboardLayoutEdit = useStore(selectorSetDashboardLayoutEdit);
   const saveServerParams = useStore(selectorSaveServerParams);
@@ -50,7 +53,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
 
   return (
     <div>
-      {params.plots.length > 0 && !embed && <DashboardHeader />}
+      {params.plots.length > 0 && !embed && !tvMode && <DashboardHeader />}
       <ErrorMessages />
       {dashboardLayoutEdit && (
         <ul className="nav nav-tabs mb-4 container-xl">
@@ -90,7 +93,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
           </Tooltip>
         </ul>
       )}
-      {params.variables.length > 0 && tabNum === -1 && (
+      {params.variables.length > 0 && tabNum === -1 && !tvMode && (
         <DashboardVariablesControl
           className={cn(
             'd-flex flex-grow-1 flex-row gap-3 flex-wrap col-12 justify-content-start container-xl mb-3 z-100 position-relative'
