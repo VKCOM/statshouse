@@ -59,9 +59,20 @@ Choose a metric name to refer to existing metrics.
 Do not commit configuration changes or send data to someone else's metric as you can spoil the metric or the related data.
 :::
 
-Some popular host metrics are built-in, for example:
+### Host metrics
+
+Some popular host metrics are built-in such as CPU or disk usage, and more:
 
 <img src={HostMetrics} width="300"/>
+
+:::tip
+Host metric names begin with `host_`.
+:::
+
+Find the full list of host metrics and their implementation 
+on [GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/format/predefined_hardware.go#L37).
+
+### Service metrics
 
 Metrics having two underscores in the beginning are for StatsHouse internal use only, for example:
 
@@ -69,8 +80,10 @@ Metrics having two underscores in the beginning are for StatsHouse internal use 
 
 You cannot edit them. See [Meta-metrics](#13--meta-metrics) for details.
 
+### Common metrics
+
 If you have StatsHouse deployed in your organization, you can find a set of metrics that are common for all the 
-engines, services, microservices, proxies, etc. in this organization.
+engines, services, microservices, proxies, etc. in the organization.
 
 #### "How can I find the metrics author?"
 

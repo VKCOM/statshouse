@@ -8,6 +8,8 @@ import AggregationComponents from '../img/aggregation-components.png'
 import Bottlenecks from '../img/bottlenecks.png'
 import CardinalitySamplingNoise from '../img/cardinality-sampling-noise.png'
 import HigherSamplingCoef from '../img/higher-sampling-coef.png'
+import Lod from '../img/lod.png'
+import MetricFormulaType from '../img/metric-formula-type.png'
 
 
 # Concepts
@@ -261,10 +263,32 @@ we'll get the graph with the average value of `1004`.
 
 ### Resolution
 
-### Mapping and budgets for creating metrics
+The highest available resolution of data to show on a graph depends on the currently available
+[aggregate](#aggregation): you can get per-second data for the last two days, per-minute data for the last month,
+and you can get per-hour data for any period you want.
+
+If getting the highest available resolution is not crucial for you, but it is important for you
+to reduce [sampling](#sampling), [reduce your metric resolution](../guides/edit-metrics.md#resolution).
+
+For example, you may choose to send data once per five seconds instead of sending per-second data.
+StatsHouse will send data five times more rarely and grant five times more rows for the metric.
+The processing delay will increase by **ten** seconds:
+* StatsHouse will be collecting data for **five** seconds,
+* then it will shard data into five partitions,
+* and will be sending data for the next **five** seconds—one shard per second.
+
+This way of sending data ensures fair channel sharing for the metrics with differing resolution.
+
+The resolution level may be a divisor of 60. We recommend using "native" levels: 1, 5, 15, 60 seconds. 
+They correspond to a level of details (LOD) for the UI, so we recommend using them to avoid jitter on a graph.
+If you choose a 2-second resolution level, the events will be distributed between 5-second LODs unevenly—two or 
+three events per LOD:
+
+<img src={Lod} width="300"/>
+
+This uneven distribution leads to a jitter on a graph.
 
 ## Metrics
-
 
 ### Metric types
 
@@ -289,5 +313,4 @@ we'll get the graph with the average value of `1004`.
 ### Timestamps and a receive window
 
 ### Meta-metrics
-
 

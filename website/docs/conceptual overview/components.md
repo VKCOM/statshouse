@@ -43,3 +43,5 @@ import Components from '../img/components.png'
 ## Metadata
 
 ### Mapping string values
+
+### Mapping and budgets for creating metrics

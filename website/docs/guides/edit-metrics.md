@@ -76,7 +76,8 @@ for writing metric data.
 
 ## Resolution
 
-The highest available resolution of data to show on a graph depends on the currently available aggregation:
+The highest available resolution of data to show on a graph depends on the currently available 
+[aggregate](../conceptual%20overview/concepts.md#aggregation):
 * per-second aggregated data is stored for the first two days,
 * per-minute aggregated data is stored for a month,
 * per-hour aggregated data is available forever.
