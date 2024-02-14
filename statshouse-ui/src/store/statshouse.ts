@@ -828,13 +828,16 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
 
         const promQLForm = new FormData();
         promQLForm.append('q', lastPlotParams.promQL);
+        const priority =
+          index === getState().params.tabNum ? 1 : usePlotVisibilityStore.getState().visibilityList[index] ? 2 : 3;
         const url = queryURL(
           lastPlotParams,
           getState().timeRange,
           getState().params.timeShifts,
           agg,
           !compact,
-          getState().params
+          getState().params,
+          priority
         );
         setState((state) => {
           state.plotsDataAbortController[index]?.abort();
