@@ -88,7 +88,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
             setBaseRange={setBaseRange}
           />
         </div>
-        <div className="ms-4 mb-2">
+        <div className="ms-3 mb-2">
           <PlotControlTo
             className="btn-group-sm"
             classNameInput="form-control-sm"
@@ -96,10 +96,10 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = () => {
             setTimeRange={setTimeRange}
           />
         </div>
-        <div className="ms-4 mb-2">
+        <div className="ms-3 mb-2">
           <PlotControlTimeShifts />
         </div>
-        <div className="ms-4 mb-2">
+        <div className="ms-3 mb-2">
           <ToggleButton
             className="btn btn-outline-primary btn-sm"
             checked={dashboardLayoutEdit}
