@@ -87,12 +87,13 @@ per-hour data for any period you want.
 
 If getting the highest available resolution is not crucial for you, but it is important for you 
 to reduce [sampling](../conceptual%20overview/concepts.md#sampling), reduce your metric resolution. 
-For example, you may choose to send data once per 15 seconds instead of sending per-second data:
+For example, choose a custom resolution to make the [agent](../conceptual%20overview/components.md#agent) send data once 
+per 15 seconds instead of sending per-second data:
 
 <img src={ResolutionEdit} width="400"/>
 
-Some resolution levels are marked as "native": 1, 5, 15, 60 seconds. They correspond to a level of details 
-for the UI, so we recommend using them to avoid jitter on a graph. See more about metric 
+Some resolution levels are marked as "native": 1, 5, 15, 60 seconds. They correspond to levels of details (LOD) 
+in the UI, so we recommend using them to avoid jitter on a graph. See more about metric 
 [resolution](../conceptual%20overview/concepts.md#resolution).
 
 You see custom resolution near the metric name in a graph view:
