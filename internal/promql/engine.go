@@ -25,7 +25,6 @@ import (
 	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
-	"github.com/vkcom/statshouse/internal/receiver/prometheus"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"golang.org/x/sync/errgroup"
 )
@@ -1207,7 +1206,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
 					histogramQ.filter = true
 					histogramQ.eq = true
-					histogramQ.le = prometheus.LexDecode(id)
+					histogramQ.le = statshouse.LexDecode(id)
 				} else if filterIn[i] != nil {
 					filterIn[i][id] = matcher.Value
 				} else {
@@ -1224,7 +1223,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
 					histogramQ.filter = true
 					histogramQ.eq = false
-					histogramQ.le = prometheus.LexDecode(id)
+					histogramQ.le = statshouse.LexDecode(id)
 				} else if filterOut[i] != nil {
 					filterOut[i][id] = matcher.Value
 				} else {
