@@ -11,7 +11,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
 	"sort"
 	"time"
 
@@ -20,14 +19,13 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 
 	"pgregory.net/rand"
 )
 
 // If clients wish periodic measurements, they are advised to send them around the middle of calendar second
-func (s *ShardReplica) flushBuckets(now time.Time) {
+func (s *Shard) flushBuckets(now time.Time) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	nowUnix := uint32(now.Unix())
@@ -172,7 +170,7 @@ func sourceBucketToTL(bucket *data_model.MetricsBucket, perm []int, sampleFactor
 	return sb
 }
 
-func (s *ShardReplica) goPreProcess() {
+func (s *Shard) goPreProcess() {
 	rnd := rand.New() // We use distinct rand so that we can use it without locking
 
 	s.mu.Lock()
@@ -200,7 +198,7 @@ func (s *ShardReplica) goPreProcess() {
 	}
 }
 
-func (s *ShardReplica) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_model.MetricsBucket) {
+func (s *Shard) mergeBuckets(bucket *data_model.MetricsBucket, buckets []*data_model.MetricsBucket) {
 	s.mu.Lock()
 	stringTopCapacity := s.config.StringTopCapacity
 	s.mu.Unlock()
@@ -217,7 +215,7 @@ func (s *ShardReplica) mergeBuckets(bucket *data_model.MetricsBucket, buckets []
 	}
 }
 
-func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) []tlstatshouse.SampleFactor {
+func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) []tlstatshouse.SampleFactor {
 	s.mu.Lock()
 	config := s.config
 	s.mu.Unlock()
@@ -255,7 +253,7 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 			MetricID:    accountMetric,
 		})
 	}
-	numShards := s.agent.NumShardReplicas()
+	numShards := s.agent.NumShards()
 	remainingBudget := int64((config.SampleBudget + numShards - 1) / numShards)
 	if remainingBudget > data_model.MaxUncompressedBucketSize/2 { // Algorithm is not exact
 		remainingBudget = data_model.MaxUncompressedBucketSize / 2
@@ -302,13 +300,13 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 	return sampleFactors
 }
 
-func (s *ShardReplica) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors []tlstatshouse.SampleFactor) {
+func (s *Shard) sendToSenders(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors []tlstatshouse.SampleFactor) {
 	cbd, err := s.compressBucket(bucket, missedSeconds, sampleFactors)
 
 	if err != nil {
 		s.agent.statErrorsDiskCompressFailed.AddValueCounter(0, 1)
-		s.client.Client.Logf("Internal Error: Failed to compress bucket %v for shard %d replica %d (shard-replica %d) bucket %d",
-			err, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, bucket.Time)
+		s.agent.logF("Internal Error: Failed to compress bucket %v for shard %d bucket %d",
+			err, s.ShardKey, bucket.Time)
 		return
 	}
 	s.mu.Lock()
@@ -329,7 +327,7 @@ func (s *ShardReplica) sendToSenders(bucket *data_model.MetricsBucket, missedSec
 	}
 }
 
-func (s *ShardReplica) compressBucket(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors []tlstatshouse.SampleFactor) (compressedBucketData, error) {
+func (s *Shard) compressBucket(bucket *data_model.MetricsBucket, missedSeconds uint32, sampleFactors []tlstatshouse.SampleFactor) (compressedBucketData, error) {
 	cb := compressedBucketData{time: bucket.Time}
 
 	sb := sourceBucketToTL(bucket, s.perm, sampleFactors)
@@ -354,61 +352,7 @@ func (s *ShardReplica) compressBucket(bucket *data_model.MetricsBucket, missedSe
 	return cb, nil
 }
 
-func (s *ShardReplica) sendSourceBucketCompressed(ctx context.Context, cbd compressedBucketData, historic bool, spare bool, ret *[]byte) error {
-	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
-	args := tlstatshouse.SendSourceBucket2Bytes{
-		Time:            cbd.time,
-		BuildCommit:     []byte(build.Commit()),
-		BuildCommitDate: s.agent.commitDateTag,
-		BuildCommitTs:   s.agent.commitTimestamp,
-		QueueSizeDisk:   math.MaxInt32,
-		QueueSizeMemory: math.MaxInt32,
-		OriginalSize:    int32(binary.LittleEndian.Uint32(cbd.data)),
-		CompressedData:  cbd.data[4:],
-	}
-	s.fillProxyHeaderBytes(&args.FieldsMask, &args.Header)
-	args.SetHistoric(historic)
-	args.SetSpare(spare)
-
-	sizeMem := s.HistoricBucketsDataSizeMemory()
-	if sizeMem < math.MaxInt32 {
-		args.QueueSizeMemory = int32(sizeMem)
-	}
-	sizeDiskTotal, sizeDiskUnsent := s.HistoricBucketsDataSizeDisk()
-	if sizeDiskTotal < math.MaxInt32 {
-		args.QueueSizeDisk = int32(sizeDiskTotal)
-	}
-	if sizeDiskUnsent < math.MaxInt32 {
-		args.SetQueueSizeDiskUnsent(int32(sizeDiskUnsent))
-	} else {
-		args.SetQueueSizeDiskUnsent(math.MaxInt32)
-	}
-	sizeDiskSumTotal, sizeDiskSumUnsent := s.agent.HistoricBucketsDataSizeDiskSum()
-	if sizeDiskSumTotal < math.MaxInt32 {
-		args.SetQueueSizeDiskSum(int32(sizeDiskSumTotal))
-	} else {
-		args.SetQueueSizeDiskSum(math.MaxInt32)
-	}
-	if sizeDiskSumUnsent < math.MaxInt32 {
-		args.SetQueueSizeDiskSumUnsent(int32(sizeDiskSumUnsent))
-	} else {
-		args.SetQueueSizeDiskSumUnsent(math.MaxInt32)
-	}
-	sizeMemSum := s.agent.HistoricBucketsDataSizeMemorySum()
-	if sizeMemSum < math.MaxInt32 {
-		args.SetQueueSizeMemorySum(int32(sizeMemSum))
-	} else {
-		args.SetQueueSizeMemorySum(math.MaxInt32)
-	}
-	if s.client.Address != "" { // Skip sending to "empty" shards. Provides fast way to answer "what if there were more shards" question
-		if err := s.client.SendSourceBucket2Bytes(ctx, args, &extra, ret); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *ShardReplica) sendRecent(cbd compressedBucketData) bool {
+func (s *Shard) sendRecent(cbd compressedBucketData) bool {
 	now := time.Now()
 	nowUnix := uint32(now.Unix())
 	if cbd.time+data_model.MaxShortWindow+data_model.FutureWindow < nowUnix { // Not bother sending, will receive error anyway
@@ -424,33 +368,32 @@ func (s *ShardReplica) sendRecent(cbd compressedBucketData) bool {
 	ctx, cancel := context.WithDeadline(context.Background(), now.Add(time.Second*(data_model.MaxConveyorDelay+data_model.AgentAggregatorDelay)))
 	defer cancel()
 	var err error
-	if s.alive.Load() {
-		err = s.sendSourceBucketCompressed(ctx, cbd, false, false, &resp)
-		s.recordSendResult(!isShardDeadError(err))
-	} else {
-		spare := SpareShardReplica(s.ShardReplicaNum, cbd.time)
-		if !s.agent.ShardReplicas[spare].alive.Load() {
-			return false
-		}
-		err = s.agent.ShardReplicas[spare].sendSourceBucketCompressed(ctx, cbd, false, true, &resp)
+
+	shardReplica, spare := s.agent.getShardReplicaForSeccnd(s.ShardNum, cbd.time)
+	if shardReplica == nil {
+		return false
+	}
+	err = shardReplica.sendSourceBucketCompressed(ctx, cbd, false, spare, &resp, s)
+	if !spare {
+		shardReplica.recordSendResult(!isShardDeadError(err))
 	}
 	if err != nil {
 		if !data_model.SilentRPCError(err) {
-			s.stats.recentSendFailed.Add(1)
-			s.client.Client.Logf("Send Error: s.client.Do returned error %v, moving bucket %d to historic conveyor for shard %d replica %d (shard-replica %d)",
-				err, cbd.time, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum)
+			shardReplica.stats.recentSendFailed.Add(1)
+			s.agent.logF("Send Error: s.client.Do returned error %v, moving bucket %d to historic conveyor for shard %d",
+				err, cbd.time, s.ShardKey)
 		} else {
-			s.stats.recentSendSkip.Add(1)
+			shardReplica.stats.recentSendSkip.Add(1)
 		}
 		return false
 	}
+	shardReplica.stats.recentSendSuccess.Add(1)
 	return true
 }
 
-func (s *ShardReplica) goSendRecent() {
+func (s *Shard) goSendRecent() {
 	for cbd := range s.BucketsToSend {
 		if s.sendRecent(cbd.compressedBucketData) {
-			s.stats.recentSendSuccess.Add(1)
 			s.diskCacheEraseWithLog(cbd.time, "after sending")
 		} else {
 			if !cbd.onDisk {
@@ -461,13 +404,13 @@ func (s *ShardReplica) goSendRecent() {
 	}
 }
 
-func (s *ShardReplica) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
+func (s *Shard) sendHistoric(cbd compressedBucketData, scratchPad *[]byte) {
 	var err error
 
 	for {
 		nowUnix := uint32(time.Now().Unix())
 		if s.checkOutOfWindow(nowUnix, cbd.time) { // should check in for because time passes with attempts
-			s.stats.historicOutOfWindowDropped.Add(1)
+			s.HistoricOutOfWindowDropped.Add(1)
 			return
 		}
 		if len(cbd.data) == 0 { // Read once, if needed, but only after checking timestamp
@@ -475,15 +418,15 @@ func (s *ShardReplica) sendHistoric(cbd compressedBucketData, scratchPad *[]byte
 				s.agent.statErrorsDiskReadNotConfigured.AddValueCounter(0, 1)
 				return // No data and no disk storage configured, alas
 			}
-			if cbd.data, err = s.agent.diskCache.GetBucket(s.ShardReplicaNum, cbd.time, scratchPad); err != nil {
-				s.client.Client.Logf("Disk Error: diskCache.GetBucket returned error %v for shard %d replica %d (shard-replica %d) bucket %d",
-					err, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
+			if cbd.data, err = s.agent.diskCache.GetBucket(s.ShardNum, cbd.time, scratchPad); err != nil {
+				s.agent.logF("Disk Error: diskCache.GetBucket returned error %v for shard %d bucket %d",
+					err, s.ShardKey, cbd.time)
 				s.agent.statErrorsDiskRead.AddValueCounter(0, 1)
 				return
 			}
 			if len(cbd.data) < 4 {
-				s.client.Client.Logf("Disk Error: diskCache.GetBucket returned compressed bucket data with size %d for shard %d replica %d (shard-replica %d) bucket %d",
-					len(cbd.data), s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
+				s.agent.logF("Disk Error: diskCache.GetBucket returned compressed bucket data with size %d for shard %d bucket %d",
+					len(cbd.data), s.ShardKey, cbd.time)
 				s.agent.statErrorsDiskRead.AddValueCounter(0, 1)
 				s.diskCacheEraseWithLog(cbd.time, "after reading tiny")
 				return
@@ -491,37 +434,31 @@ func (s *ShardReplica) sendHistoric(cbd compressedBucketData, scratchPad *[]byte
 		}
 		var resp []byte
 
+		shardReplica, spare := s.agent.getShardReplicaForSeccnd(s.ShardNum, cbd.time)
+		if shardReplica == nil {
+			time.Sleep(10 * time.Second) // TODO - better idea?
+			s.agent.logF("both historic shards are dead, shard %d, time %d, %v", s.ShardKey, cbd.time, err)
+			continue
+		}
 		// We use infinite timeout, because otherwise, if aggregator is busy, source will send the same bucket again and again, inflating amount of data
 		// But we set FailIfNoConnection to switch to fallback immediately
-		if s.alive.Load() {
-			err = s.sendSourceBucketCompressed(context.Background(), cbd, true, false, &resp)
-		} else {
-			spare := SpareShardReplica(s.ShardReplicaNum, cbd.time)
-			if !s.agent.ShardReplicas[spare].alive.Load() {
-				time.Sleep(10 * time.Second) // TODO - better idea?
-				s.client.Client.Logf("both historic shards are dead, shard %d replica %d (shard-replica %d), time %d, %v",
-					s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time, err)
-				continue
-			}
-			err = s.agent.ShardReplicas[spare].sendSourceBucketCompressed(context.Background(), cbd, true, true, &resp)
-		}
-
+		err = shardReplica.sendSourceBucketCompressed(context.Background(), cbd, true, spare, &resp, s)
 		if err != nil {
 			if !data_model.SilentRPCError(err) {
-				s.stats.historicSendFailed.Add(1)
+				shardReplica.stats.historicSendFailed.Add(1)
 			} else {
-				s.stats.historicSendSkip.Add(1)
+				shardReplica.stats.historicSendSkip.Add(1)
 			}
 			time.Sleep(time.Second) // TODO - better idea?
 			continue
 		}
-		s.stats.historicSendSuccess.Add(1)
+		shardReplica.stats.historicSendSuccess.Add(1)
 		s.diskCacheEraseWithLog(cbd.time, "after sending historic")
 		break
 	}
 }
 
-func (s *ShardReplica) diskCachePutWithLog(cbd compressedBucketData) {
+func (s *Shard) diskCachePutWithLog(cbd compressedBucketData) {
 	if s.agent.diskCache == nil {
 		return
 	}
@@ -534,28 +471,28 @@ func (s *ShardReplica) diskCachePutWithLog(cbd compressedBucketData) {
 	if maxHistoricDiskSize <= 0 {
 		return
 	}
-	if err := s.agent.diskCache.PutBucket(s.ShardReplicaNum, cbd.time, cbd.data); err != nil {
-		s.client.Client.Logf("Disk Error: diskCache.PutBucket returned error %v for shard %d replica %d (shard-replica %d) bucket %d",
-			err, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, cbd.time)
+	if err := s.agent.diskCache.PutBucket(s.ShardNum, cbd.time, cbd.data); err != nil {
+		s.agent.logF("Disk Error: diskCache.PutBucket returned error %v for shard %d bucket %d",
+			err, s.ShardKey, cbd.time)
 		s.agent.statErrorsDiskWrite.AddValueCounter(0, 1)
 	}
 }
 
-func (s *ShardReplica) diskCacheEraseWithLog(time uint32, place string) {
+func (s *Shard) diskCacheEraseWithLog(time uint32, place string) {
 	if s.agent.diskCache == nil {
 		return
 	}
-	if err := s.agent.diskCache.EraseBucket(s.ShardReplicaNum, time); err != nil {
-		s.client.Client.Logf("Disk Error: diskCache.EraseBucket returned error %v for shard %d replica %d (shard-replica %d) %s bucket %d",
-			err, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, place, time)
+	if err := s.agent.diskCache.EraseBucket(s.ShardNum, time); err != nil {
+		s.agent.logF("Disk Error: diskCache.EraseBucket returned error %v for shard %d %s bucket %d",
+			err, s.ShardKey, place, time)
 		s.agent.statErrorsDiskErase.AddValueCounter(0, 1)
 	}
 }
 
-func (s *ShardReplica) appendHistoricBucketsToSend(cbd compressedBucketData) {
+func (s *Shard) appendHistoricBucketsToSend(cbd compressedBucketData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.HistoricBucketsDataSize+len(cbd.data) > data_model.MaxHistoricBucketsMemorySize/s.agent.NumShardReplicas() {
+	if s.HistoricBucketsDataSize+len(cbd.data) > data_model.MaxHistoricBucketsMemorySize/s.agent.NumShards() {
 		cbd.data = nil
 	} else {
 		s.HistoricBucketsDataSize += len(cbd.data)
@@ -565,18 +502,18 @@ func (s *ShardReplica) appendHistoricBucketsToSend(cbd compressedBucketData) {
 	s.cond.Signal()
 }
 
-func (s *ShardReplica) readHistoricSecondLocked() {
+func (s *Shard) readHistoricSecondLocked() {
 	if s.agent.diskCache == nil {
 		return
 	}
-	sec, ok := s.agent.diskCache.ReadNextTailSecond(s.ShardReplicaNum)
+	sec, ok := s.agent.diskCache.ReadNextTailSecond(s.ShardNum)
 	if !ok {
 		return
 	}
 	s.HistoricBucketsToSend = append(s.HistoricBucketsToSend, compressedBucketData{time: sec}) // HistoricBucketsDataSize does not change
 }
 
-func (s *ShardReplica) popOldestHistoricSecondLocked() compressedBucketData {
+func (s *Shard) popOldestHistoricSecondLocked() compressedBucketData {
 	// Sending the oldest known historic buckets is very important for "herding" strategy
 	// Even tiny imperfectness in sorting explodes number of inserts aggregator makes
 	pos := 0
@@ -597,10 +534,10 @@ func (s *ShardReplica) popOldestHistoricSecondLocked() compressedBucketData {
 	return cbd
 }
 
-func (s *ShardReplica) checkOutOfWindow(nowUnix uint32, timestamp uint32) bool {
+func (s *Shard) checkOutOfWindow(nowUnix uint32, timestamp uint32) bool {
 	if nowUnix >= data_model.MaxHistoricWindow && timestamp < nowUnix-data_model.MaxHistoricWindow { // Not bother sending, will receive error anyway
-		s.client.Client.Logf("Send Disaster: Bucket %d for shard %d replica %d (shard-replica %d) does not fit into full admission window (now is %d), throwing out",
-			timestamp, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, nowUnix)
+		s.agent.logF("Send Disaster: Bucket %d for shard %d does not fit into full admission window (now is %d), throwing out",
+			timestamp, s.ShardKey, nowUnix)
 		s.agent.statLongWindowOverflow.AddValueCounter(float64(nowUnix)-float64(timestamp), 1)
 
 		s.diskCacheEraseWithLog(timestamp, "after throwing out historic")
@@ -609,7 +546,7 @@ func (s *ShardReplica) checkOutOfWindow(nowUnix uint32, timestamp uint32) bool {
 	return false
 }
 
-func (s *ShardReplica) goSendHistoric() {
+func (s *Shard) goSendHistoric() {
 	var scratchPad []byte
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -626,12 +563,12 @@ func (s *ShardReplica) goSendHistoric() {
 	}
 }
 
-func (s *ShardReplica) goEraseHistoric() {
+func (s *Shard) goEraseHistoric() {
 	// When all senders are in infinite wait, buckets must still be erased
 	// Also, we delete buckets when disk limit is reached. We cannot promise strict limit, because disk cache design is very loose.
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	diskLimit := s.config.MaxHistoricDiskSize / int64(s.agent.NumShardReplicas())
+	diskLimit := s.config.MaxHistoricDiskSize / int64(s.agent.NumShards())
 	for {
 		s.readHistoricSecondLocked() // if there were unread seconds from disk cache tail, reads one last historic second
 		for len(s.HistoricBucketsToSend) == 0 {
@@ -647,8 +584,8 @@ func (s *ShardReplica) goEraseHistoric() {
 		// seconds held by historic seconds will not be deleted, because they are not popped by popOldestHistoricSecondLocked above,
 		// if all possible seconds are deleted, but we are still over limit, this goroutine will block on s.cond.Wait() above
 		if diskUsed > diskLimit {
-			s.client.Client.Logf("Send Disaster: Bucket %d for shard %d replica %d (shard-replica %d) (now is %d) violates disk size limit %d (%d used), throwing out",
-				cbd.time, s.ShardKey, s.ReplicaKey, s.ShardReplicaNum, nowUnix, diskLimit, diskUsed)
+			s.agent.logF("Send Disaster: Bucket %d for shard %d (now is %d) violates disk size limit %d (%d used), throwing out",
+				cbd.time, s.ShardKey, nowUnix, diskLimit, diskUsed)
 			s.agent.statDiskOverflow.AddValueCounter(float64(nowUnix)-float64(cbd.time), 1)
 
 			s.diskCacheEraseWithLog(cbd.time, "after throwing out historic, due to disk limit")
