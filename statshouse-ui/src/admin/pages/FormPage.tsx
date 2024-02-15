@@ -21,6 +21,9 @@ import { maxTagsSize } from '../../common/settings';
 import { Button } from '../../components';
 import { ReactComponent as SVGPlusLg } from 'bootstrap-icons/icons/plus-lg.svg';
 import { ReactComponent as SVGDashLg } from 'bootstrap-icons/icons/dash-lg.svg';
+import { toNumber } from '../../common/helpers';
+import { dequal } from 'dequal/lite';
+import { produce } from 'immer';
 
 const { clearMetricsMeta } = useStore.getState();
 
@@ -49,9 +52,9 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
             name: tag.name === undefined || tag.name === `key${index}` ? '' : tag.name, // now API sends undefined for canonical names, but this can change in the future, so we keep the code
             alias: tag.description === undefined ? '' : tag.description,
             customMapping: tag.value_comments
-              ? Object.keys(tag.value_comments).map((key: string) => ({
-                  from: key,
-                  to: tag.value_comments![key],
+              ? Object.entries(tag.value_comments).map(([from, to]) => ({
+                  from,
+                  to,
                 }))
               : [],
             isRaw: tag.raw,
@@ -555,6 +558,19 @@ type SortCustomMappingItem = {
   index: number;
 };
 
+const sortCustomMappingFn = (isRaw?: boolean) => (a: SortCustomMappingItem, b: SortCustomMappingItem) => {
+  if (isRaw) {
+    return toNumber(a.mapping.from.trimStart(), 0) - toNumber(b.mapping.from.trimStart(), 0);
+  } else {
+    if (a.mapping.from < b.mapping.from) {
+      return -1;
+    } else if (a.mapping.from === b.mapping.from) {
+      return 0;
+    }
+    return 1;
+  }
+};
+
 function AliasField(props: {
   value: ITagAlias;
   onChange: (value: Partial<ITagAlias>) => void;
@@ -567,37 +583,16 @@ function AliasField(props: {
   const [sortCustomMapping, setSortCustomMapping] = useState<SortCustomMappingItem[]>([]);
   useEffect(() => {
     setSortCustomMapping((prevState) => {
-      if (prevState.length && prevState.length <= value.customMapping.length) {
-        const nextState = [...prevState];
-        const map: Record<string, SortCustomMappingItem> = prevState.reduce(
-          (res, item) => {
-            res[item.index] = item;
-            return res;
-          },
-          {} as Record<string, SortCustomMappingItem>
-        );
-        value.customMapping.forEach((mapping, index) => {
-          if (map[index]) {
-            map[index].mapping = mapping;
-          } else {
-            nextState.push({ mapping, index });
-          }
-        });
-        return nextState;
-      } else {
-        const nextState = value.customMapping.map((mapping, index) => ({ mapping, index }));
-        nextState.sort((a, b) => {
-          if (a.mapping.from < b.mapping.from) {
-            return -1;
-          } else if (a.mapping.from === b.mapping.from) {
-            return 0;
-          }
-          return 1;
-        });
-        return nextState;
+      const nextState = value.customMapping.map((mapping, index) => ({ mapping, index }));
+      nextState.sort(sortCustomMappingFn(value.isRaw));
+      const sortPrevState = [...prevState];
+      sortPrevState.sort(sortCustomMappingFn(value.isRaw));
+      if (dequal(nextState, sortPrevState)) {
+        return prevState;
       }
+      return nextState;
     });
-  }, [value.customMapping]);
+  }, [value.customMapping, value.isRaw]);
   return (
     <div className="row mt-3">
       <label htmlFor={`tag${tagNumber}`} className="col-sm-2 col-lg-1 col-form-label font-monospace">
@@ -668,7 +663,7 @@ function AliasField(props: {
           </div>
         </div>
         <>
-          {sortCustomMapping.map(({ mapping, index }) => (
+          {sortCustomMapping.map(({ mapping, index }, i) => (
             <div className="row mt-3" key={index}>
               <div className="col-sm-8">
                 <div className="row">
@@ -677,9 +672,14 @@ function AliasField(props: {
                       type={value.isRaw ? 'number' : 'text'}
                       className="form-control"
                       placeholder="Value"
-                      onChange={(e) =>
-                        onChangeCustomMapping(index, value.isRaw ? ` ${e.target.value}` : e.target.value, undefined)
-                      }
+                      onChange={(e) => {
+                        setSortCustomMapping(
+                          produce((s) => {
+                            s[i].mapping.from = value.isRaw ? ` ${e.target.value}` : e.target.value;
+                          })
+                        );
+                        onChangeCustomMapping(index, value.isRaw ? ` ${e.target.value}` : e.target.value, undefined);
+                      }}
                       defaultValue={value.isRaw ? mapping.from.trimStart() : mapping.from}
                       disabled={disabled}
                     />
@@ -689,7 +689,14 @@ function AliasField(props: {
                       type="text"
                       className="form-control"
                       placeholder="Comment"
-                      onChange={(e) => onChangeCustomMapping(index, undefined, e.target.value)}
+                      onChange={(e) => {
+                        setSortCustomMapping(
+                          produce((s) => {
+                            s[i].mapping.to = e.target.value;
+                          })
+                        );
+                        onChangeCustomMapping(index, undefined, e.target.value);
+                      }}
                       defaultValue={mapping.to}
                       disabled={disabled}
                     />
@@ -699,6 +706,11 @@ function AliasField(props: {
                       className="btn btn-outline-warning"
                       type="button"
                       onClick={() => {
+                        setSortCustomMapping(
+                          produce((s) => {
+                            s.splice(i, 1);
+                          })
+                        );
                         onChangeCustomMapping(index, undefined, undefined);
                       }}
                       disabled={disabled}
@@ -713,7 +725,14 @@ function AliasField(props: {
           <button
             type="button"
             className="btn btn-outline-secondary mt-3"
-            onClick={() => onChange({ customMapping: [{ from: '', to: '' }] })}
+            onClick={() => {
+              setSortCustomMapping(
+                produce((s) => {
+                  s.push({ mapping: { from: '', to: '' }, index: s.length });
+                })
+              );
+              onChange({ customMapping: [{ from: '', to: '' }] });
+            }}
             disabled={disabled}
           >
             Add value comment
