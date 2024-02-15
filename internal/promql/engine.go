@@ -18,6 +18,8 @@ import (
 	"sync"
 	"time"
 
+	"pgregory.net/rand"
+
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
@@ -26,7 +28,6 @@ import (
 	"github.com/vkcom/statshouse/internal/receiver/prometheus"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"golang.org/x/sync/errgroup"
-	"pgregory.net/rand"
 )
 
 const (
@@ -1362,7 +1363,7 @@ func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tag
 	t := metric.Tags[tagX]
 	if t.Name == labels.BucketLabel && t.Raw {
 		if v, err := strconv.ParseFloat(tagV, 32); err == nil {
-			return prometheus.LexEncode(float32(v))
+			return statshouse.LexEncode(float32(v)), nil
 		}
 	}
 	return ev.h.GetTagValueID(TagValueIDQuery{
