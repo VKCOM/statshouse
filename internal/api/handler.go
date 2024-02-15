@@ -106,6 +106,7 @@ const (
 	paramQueryType    = "qt"
 	paramDashboardID  = "id"
 	paramShowDisabled = "sd"
+	paramPriority     = "priority"
 
 	Version1       = "1"
 	Version2       = "2"
@@ -1060,7 +1061,7 @@ func (h *Handler) parseAccessToken(r *http.Request, es *endpointStat) (accessInf
 }
 
 func (h *Handler) HandleGetMetricsList(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStatHTTP(EndpointMetricList, r.Method, 0, "")
+	sl := newEndpointStatHTTP(EndpointMetricList, r.Method, 0, "", r.FormValue(paramPriority))
 	ai, err := h.parseAccessToken(r, sl)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
@@ -1092,7 +1093,7 @@ func (h *Handler) handleGetMetricsList(ai accessInfo) (*GetMetricsListResp, time
 }
 
 func (h *Handler) HandleGetMetric(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStatHTTP(EndpointMetric, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), "")
+	sl := newEndpointStatHTTP(EndpointMetric, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), "", r.FormValue(paramPriority))
 	ai, err := h.parseAccessToken(r, sl)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
@@ -1103,7 +1104,7 @@ func (h *Handler) HandleGetMetric(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetPromConfig(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStatHTTP(EndpointPrometheus, r.Method, 0, "")
+	sl := newEndpointStatHTTP(EndpointPrometheus, r.Method, 0, "", r.FormValue(paramPriority))
 	ai, err := h.parseAccessToken(r, sl)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
@@ -1114,7 +1115,7 @@ func (h *Handler) HandleGetPromConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandlePostMetric(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStatHTTP(EndpointMetric, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), "")
+	sl := newEndpointStatHTTP(EndpointMetric, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), "", r.FormValue(paramPriority))
 	if h.checkReadOnlyMode(w, r) {
 		return
 	}
@@ -1152,7 +1153,7 @@ func (h *Handler) HandlePostMetric(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlePostEntity[T easyjson.Unmarshaler](h *Handler, w http.ResponseWriter, r *http.Request, endpoint string, entity T, handleCallback func(ctx context.Context, ai accessInfo, entity T, create bool) (resp interface{}, versionToWait int64, err error)) {
-	sl := newEndpointStatHTTP(endpoint, r.Method, 0, "")
+	sl := newEndpointStatHTTP(endpoint, r.Method, 0, "", r.FormValue(paramPriority))
 	if h.checkReadOnlyMode(w, r) {
 		return
 	}
@@ -1211,7 +1212,7 @@ func (h *Handler) HandlePostNamespace(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandlePostResetFlood(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStatHTTP(EndpointResetFlood, r.Method, 0, "")
+	sl := newEndpointStatHTTP(EndpointResetFlood, r.Method, 0, "", r.FormValue(paramPriority))
 	if h.checkReadOnlyMode(w, r) {
 		return
 	}
@@ -1245,7 +1246,7 @@ func (h *Handler) HandlePostResetFlood(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStatHTTP(EndpointPrometheus, r.Method, 0, "")
+	sl := newEndpointStatHTTP(EndpointPrometheus, r.Method, 0, "", r.FormValue(paramPriority))
 	if h.checkReadOnlyMode(w, r) {
 		return
 	}
@@ -1280,7 +1281,7 @@ func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetHistory(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStatHTTP(EndpointHistory, r.Method, 0, "")
+	sl := newEndpointStatHTTP(EndpointHistory, r.Method, 0, "", r.FormValue(paramPriority))
 	ai, err := h.parseAccessToken(r, sl)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
@@ -1600,7 +1601,7 @@ func (h *Handler) handlePostMetric(ctx context.Context, ai accessInfo, _ string,
 }
 
 func (h *Handler) HandleGetMetricTagValues(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStatHTTP(EndpointMetricTagValues, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), "")
+	sl := newEndpointStatHTTP(EndpointMetricTagValues, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), "", r.FormValue(paramPriority))
 	ai, err := h.parseAccessToken(r, sl)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
@@ -1817,7 +1818,7 @@ func sumSeries(data *[]float64, missingValue float64) float64 {
 }
 
 func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStatHTTP(EndpointTable, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	sl := newEndpointStatHTTP(EndpointTable, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat), r.FormValue(paramPriority))
 	ai, err := h.parseAccessToken(r, sl)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
@@ -1903,7 +1904,7 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var req seriesRequest
-	sl := newEndpointStatHTTP(EndpointQuery, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	sl := newEndpointStatHTTP(EndpointQuery, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat), r.FormValue(paramPriority))
 	if req, err = h.parseHTTPRequest(r); err == nil {
 		if req.ai, err = h.parseAccessToken(r, sl); err == nil {
 			err = req.validate()
@@ -1992,7 +1993,7 @@ func (h *Handler) queryBadges(ctx context.Context, req seriesRequest, meta *form
 func (h *Handler) HandlePointQuery(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var req seriesRequest
-	sl := newEndpointStatHTTP(EndpointPoint, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	sl := newEndpointStatHTTP(EndpointPoint, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat), r.FormValue(paramPriority))
 	if req, err = h.parseHTTPRequest(r); err == nil {
 		if req.ai, err = h.parseAccessToken(r, sl); err == nil {
 			err = req.validate()
@@ -2021,7 +2022,7 @@ func (h *Handler) HandlePointQuery(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
-	sl := newEndpointStatHTTP(EndpointRender, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat))
+	sl := newEndpointStatHTTP(EndpointRender, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat), r.FormValue(paramPriority))
 	ai, err := h.parseAccessToken(r, sl)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
@@ -2055,7 +2056,7 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleGetEntity[T any](w http.ResponseWriter, r *http.Request, h *Handler, endpointName string, handle func(ctx context.Context, ai accessInfo, id int32, version int64) (T, time.Duration, error)) {
-	sl := newEndpointStatHTTP(endpointName, r.Method, 0, "")
+	sl := newEndpointStatHTTP(endpointName, r.Method, 0, "", r.FormValue(paramPriority))
 	ai, err := h.parseAccessToken(r, sl)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
@@ -2097,7 +2098,7 @@ func (h *Handler) HandleGetNamespace(w http.ResponseWriter, r *http.Request) {
 }
 
 func HandleGetEntityList[T any](w http.ResponseWriter, r *http.Request, h *Handler, endpointName string, handle func(ai accessInfo, showInvisible bool) (T, time.Duration, error)) {
-	sl := newEndpointStatHTTP(endpointName, r.Method, 0, "")
+	sl := newEndpointStatHTTP(endpointName, r.Method, 0, "", r.FormValue(paramPriority))
 	ai, err := h.parseAccessToken(r, sl)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)

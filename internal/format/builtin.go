@@ -1180,6 +1180,9 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			}, {
 				Description: "metric",
 				IsMetric:    true,
+			}, {
+				Description: "priority",
+				Raw:         true,
 			}},
 		},
 		BuiltinMetricIDAPIResponseTime: {
@@ -1216,6 +1219,9 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			}, {
 				Description: "metric",
 				IsMetric:    true,
+			}, {
+				Description: "priority",
+				Raw:         true,
 			}},
 		},
 		BuiltinMetricIDPromQLEngineTime: {
