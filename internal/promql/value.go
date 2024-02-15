@@ -16,9 +16,9 @@ import (
 	"strconv"
 
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
-	"github.com/vkcom/statshouse/internal/receiver/prometheus"
 )
 
 type TimeSeries struct {
@@ -224,7 +224,7 @@ func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
 						bs = append(bs, bucket{x, float32(v)})
 					}
 				} else {
-					bs = append(bs, bucket{x, prometheus.LexDecode(t.Value)})
+					bs = append(bs, bucket{x, statshouse.LexDecode(t.Value)})
 				}
 			}
 		}
