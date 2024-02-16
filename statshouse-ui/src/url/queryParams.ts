@@ -132,6 +132,8 @@ export type PlotParams = {
   events: number[];
   eventsBy: string[];
   eventsHide: string[];
+  totalLine: boolean;
+  filledGraph: boolean;
 };
 
 export type GroupInfo = {
@@ -250,6 +252,8 @@ export function getNewPlot(): PlotParams {
     events: [],
     eventsBy: [],
     eventsHide: [],
+    totalLine: false,
+    filledGraph: true,
   };
 }
 
@@ -529,6 +533,16 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
           search.push([prefix + GET_PARAMS.metricEventHide, eventHide]);
         });
       }
+
+      // totalLine
+      if (plot.totalLine) {
+        search.push([prefix + GET_PARAMS.viewTotalLine, '1']);
+      }
+
+      // filledGraph
+      if (!plot.filledGraph) {
+        search.push([prefix + GET_PARAMS.viewFilledGraph, '0']);
+      }
     });
   } else if (!value.plots.length && defaultParams?.plots.length) {
     search.push([toPlotPrefix(0) + GET_PARAMS.metricName, removeValueChar]);
@@ -692,6 +706,9 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
 
     const eventsHide = urlParams[prefix + GET_PARAMS.metricEventHide] ?? [];
 
+    const totalLine = urlParams[prefix + GET_PARAMS.viewTotalLine]?.[0] === '1';
+    const filledGraph = urlParams[prefix + GET_PARAMS.viewFilledGraph]?.[0] !== '0';
+
     plots.push({
       id,
       metricName,
@@ -715,6 +732,8 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       events,
       eventsBy,
       eventsHide,
+      totalLine,
+      filledGraph,
     });
   }
 

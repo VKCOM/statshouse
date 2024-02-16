@@ -666,6 +666,8 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       p.filterNotIn = normalizeFilterKey(p.filterNotIn);
       p.groupBy = p.groupBy.map((g) => toTagKey(g)).filter(isNotNil);
       p.metricType ??= undefined;
+      p.filledGraph ??= true;
+      p.totalLine ??= false;
       return p;
     }),
     timeShifts,
