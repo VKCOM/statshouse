@@ -40,6 +40,8 @@ export const GET_PARAMS = {
   metricEventFrom: 'ef',
   metricEventBy: 'eb',
   metricEventHide: 'eh',
+  viewTotalLine: 'vtl',
+  viewFilledGraph: 'vfg',
   dataFormat: 'df',
   plotPrefix: 't',
   dashboardID: 'id',

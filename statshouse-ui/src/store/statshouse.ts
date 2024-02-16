@@ -882,6 +882,23 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             const uniqueMetricType: Set<string> = new Set();
             let series_meta = [...resp?.series.series_meta] ?? [];
             let series_data = ([...resp.series.series_data] as (number | null)[][]) ?? [];
+            const totalLineId = lastPlotParams.totalLine ? series_meta.length : null;
+            const totalLineLabel = 'Total line';
+            if (lastPlotParams.totalLine) {
+              const totalLineData = resp.series.time.map((time, idx) =>
+                series_data.reduce((res, d) => res + (d[idx] ?? 0), 0)
+              );
+              series_meta.push({
+                name: totalLineLabel,
+                time_shift: 0,
+                tags: { '0': { value: totalLineLabel } },
+                max_hosts: null,
+                what: QUERY_WHAT.sum,
+                total: 0,
+                color: '#333333',
+              });
+              series_data.push(totalLineData);
+            }
             if (lastPlotParams.type === PLOT_TYPE.Event) {
               series_meta = [];
               series_data = [];
@@ -939,6 +956,9 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             const baseColors: Record<string, string> = {};
             let changeColor = false;
             let changeType = currentPrevLastPlotParams?.type !== lastPlotParams.type;
+            const changeView =
+              currentPrevLastPlotParams?.totalLine !== lastPlotParams.totalLine ||
+              currentPrevLastPlotParams?.filledGraph !== lastPlotParams.filledGraph;
             const widthLine =
               (width ?? 0) > resp.series.time.length
                 ? devicePixelRatio > 1
@@ -955,8 +975,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
 
             const series: uPlot.Series[] = series_meta.map((meta, indexMeta): uPlot.Series => {
               const timeShift = meta.time_shift !== 0;
-              const label = metaToLabel(meta, uniqueWhat.size);
-              const baseLabel = metaToBaseLabel(meta, uniqueWhat.size);
+              const label = totalLineId !== indexMeta ? metaToLabel(meta, uniqueWhat.size) : totalLineLabel;
+              const baseLabel = totalLineId !== indexMeta ? metaToBaseLabel(meta, uniqueWhat.size) : totalLineLabel;
               const isValue = baseLabel.indexOf('Value') === 0;
               const prefColor = '9'; // it`s magic prefix
               const metricName = isValue
@@ -1001,9 +1021,11 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                     html: `<div class="d-flex"><div class="flex-grow-1 me-2 overflow-hidden text-nowrap">${host}</div><div class="text-end">${percent}</div></div>`,
                   };
                 });
-              const key = `${meta.what}|${meta.time_shift}`;
-              topInfoCounts[key] = (topInfoCounts[key] ?? 0) + 1;
-              topInfoTotals[key] = meta.total;
+              if (totalLineId !== indexMeta) {
+                const key = `${meta.what}|${meta.time_shift}`;
+                topInfoCounts[key] = (topInfoCounts[key] ?? 0) + 1;
+                topInfoTotals[key] = meta.total;
+              }
               const paths =
                 lastPlotParams.type === PLOT_TYPE.Event
                   ? uPlot.paths.bars!({ size: [0.7], gap: 0, align: 1 })
@@ -1017,7 +1039,10 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                 stroke: baseColor,
                 width: widthLine,
                 dash: timeShift ? timeShiftToDash(meta.time_shift, usedDashes) : undefined,
-                fill: rgba(baseColor, timeShift ? 0.1 : 0.15),
+                fill:
+                  totalLineId !== indexMeta && lastPlotParams.filledGraph
+                    ? rgba(baseColor, timeShift ? 0.1 : 0.15)
+                    : undefined,
                 points:
                   lastPlotParams.type === PLOT_TYPE.Event
                     ? { show: false, size: 0 }
@@ -1048,7 +1073,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                   let total = 0;
                   for (let i = 1; i < u.series.length; i++) {
                     const v = localData[i]?.[idx];
-                    if (v !== null && v !== undefined) {
+                    if (v !== null && v !== undefined && i - 1 !== totalLineId) {
                       total += v;
                     }
                   }
@@ -1069,7 +1094,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                     timeShift: meta.time_shift,
                     max_host,
                     total,
-                    percent,
+                    percent: totalLineId !== indexMeta ? percent : '100%',
                     max_host_percent,
                     top_max_host: maxHostLists[indexMeta]?.[0]?.value ?? '',
                     top_max_host_percent: maxHostLists[indexMeta]?.[0]?.title ?? '',
@@ -1170,7 +1195,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                 series:
                   dequal(resp.series.series_meta, state.plotsData[index]?.lastQuerySeriesMeta) &&
                   !changeColor &&
-                  !changeType
+                  !changeType &&
+                  !changeView
                     ? state.plotsData[index]?.series
                     : series,
                 seriesShow: dequal(seriesShow, state.plotsData[index]?.seriesShow)
