@@ -18,8 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"pgregory.net/rand"
-
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
@@ -27,6 +25,7 @@ import (
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"golang.org/x/sync/errgroup"
+	"pgregory.net/rand"
 )
 
 const (
@@ -152,7 +151,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (val parser.Value, cancel 
 	// register panic handler
 	defer func() {
 		if r := recover(); r != nil {
-			statshouse.Metric(format.BuiltinMetricNameStatsHouseErrors, statshouse.Tags{1: strconv.FormatInt(format.TagValueIDAPIPanicError, 10)}).StringTop(fmt.Sprintf("%v", r))
+			format.ReportAPIPanic(r)
 			err = Error{what: r, panic: true}
 		}
 		if err != nil && cancel != nil {
@@ -972,13 +971,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 			var g errgroup.Group
 			for n := 8; n != 0 && i < len(res); i, n = i+1, n-1 {
 				ii := i
-				g.Go(func() (err error) {
-					defer func() {
-						if r := recover(); r != nil {
-							statshouse.Metric(format.BuiltinMetricNameStatsHouseErrors, statshouse.Tags{1: strconv.FormatInt(format.TagValueIDAPIPanicError, 10)}).StringTop(fmt.Sprintf("%v", r))
-							err = Error{what: r, panic: true}
-						}
-					}()
+				PanicSafeGroupGo(&g, func() (err error) {
 					return run(ii, &mu)
 				})
 			}
