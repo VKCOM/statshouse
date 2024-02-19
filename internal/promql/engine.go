@@ -152,6 +152,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (val parser.Value, cancel 
 	// register panic handler
 	defer func() {
 		if r := recover(); r != nil {
+			statshouse.Metric(format.BuiltinMetricNameStatsHouseErrors, statshouse.Tags{1: strconv.FormatInt(format.TagValueIDAPIPanicError, 10)}).StringTop(fmt.Sprintf("%v", r))
 			err = Error{what: r, panic: true}
 		}
 		if err != nil && cancel != nil {
@@ -974,6 +975,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 				g.Go(func() (err error) {
 					defer func() {
 						if r := recover(); r != nil {
+							statshouse.Metric(format.BuiltinMetricNameStatsHouseErrors, statshouse.Tags{1: strconv.FormatInt(format.TagValueIDAPIPanicError, 10)}).StringTop(fmt.Sprintf("%v", r))
 							err = Error{what: r, panic: true}
 						}
 					}()
