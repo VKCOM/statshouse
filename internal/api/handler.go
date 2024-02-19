@@ -422,7 +422,6 @@ type (
 	renderRequest struct {
 		ai            accessInfo
 		seriesRequest []seriesRequest
-		vars          map[string]promql.Variable
 		renderWidth   string
 		renderFormat  string
 	}
@@ -2032,7 +2031,7 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
-	s, vars, err := h.parseHTTPRequestS(r, 12)
+	s, err := h.parseHTTPRequestS(r, 12)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
@@ -2042,7 +2041,6 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 		ctx, ai,
 		renderRequest{
 			seriesRequest: s,
-			vars:          vars,
 			renderWidth:   r.FormValue(paramRenderWidth),
 			renderFormat:  r.FormValue(paramDataFormat),
 		})
@@ -3141,18 +3139,17 @@ func rowMarkerLessThan(l, r RowMarker) bool {
 }
 
 func (h *Handler) parseHTTPRequest(r *http.Request) (seriesRequest, error) {
-	res, vars, err := h.parseHTTPRequestS(r, 1)
+	res, err := h.parseHTTPRequestS(r, 1)
 	if err != nil {
 		return seriesRequest{}, err
 	}
 	if len(res) == 0 {
 		return seriesRequest{}, httpErr(http.StatusBadRequest, fmt.Errorf("request is empty"))
 	}
-	res[0].vars = vars
 	return res[0], nil
 }
 
-func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesRequest, env map[string]promql.Variable, err error) {
+func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesRequest, err error) {
 	defer func() {
 		var dummy httpError
 		if err != nil && !errors.As(err, &dummy) {
@@ -3176,6 +3173,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			}
 			return ""
 		}
+		env   = make(map[string]promql.Variable)
 		tabs  = make([]seriesRequestEx, 1, maxTabs)
 		tabX  = -1
 		tab0  = &tabs[0]
@@ -3188,6 +3186,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 					version:   Version2,
 					width:     1,
 					widthKind: widthLODRes,
+					vars:      env,
 				}})
 			}
 			return &tabs[i]
@@ -3256,7 +3255,6 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		tab.maxHost = v.MaxHost
 		n++
 	}
-	env = make(map[string]promql.Variable)
 	for _, v := range dash.Vars {
 		env[v.Name] = promql.Variable{
 			Value:  v.Vals,
@@ -3452,7 +3450,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 				var tid string
 				tid, err = parseTagID(s)
 				if err != nil {
-					return nil, nil, err
+					return nil, err
 				}
 				t.by = append(t.by, tid)
 			}
@@ -3472,7 +3470,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			case Version1, Version2:
 				t.version = s
 			default:
-				return nil, nil, fmt.Errorf("invalid version: %q", s)
+				return nil, fmt.Errorf("invalid version: %q", s)
 			}
 		case ParamWidth:
 			t.strWidth = first(v)
@@ -3490,11 +3488,11 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			t.excessPoints = true
 		}
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 	if len(tabs) == 0 {
-		return nil, nil, nil
+		return nil, nil
 	}
 	for _, v := range vars {
 		vv := varM[v.name]
@@ -3580,12 +3578,12 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 	if len(tab0.strFrom) != 0 || len(tab0.strTo) != 0 {
 		tab0.from, tab0.to, err = parseFromTo(tab0.strFrom, tab0.strTo)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 	err = finalize(tab0)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	for i := range tabs[1:] {
 		t := &tabs[i+1]
@@ -3593,15 +3591,15 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		t.to = tab0.to
 		err = finalize(t)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 	}
 	// build resulting slice
 	if tabX != -1 {
 		if tabs[tabX].strType == "1" {
-			return nil, nil, nil
+			return nil, nil
 		}
-		return []seriesRequest{tabs[tabX].seriesRequest}, env, nil
+		return []seriesRequest{tabs[tabX].seriesRequest}, nil
 	}
 	res = make([]seriesRequest, 0, len(tabs))
 	for _, t := range tabs {
@@ -3612,7 +3610,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			res = append(res, t.seriesRequest)
 		}
 	}
-	return res, env, nil
+	return res, nil
 }
 
 func (r *DashboardTimeRange) UnmarshalJSON(bs []byte) error {
