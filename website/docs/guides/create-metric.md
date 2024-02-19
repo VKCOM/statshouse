@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 ---
 import CreateMetric from '../img/create-metric.png'
 import NameMetric from '../img/name-new-metric.png'

@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Features
 
-StatsHouse is a highly available, scalable, multitenant monitoring system:
+StatsHouse is a **highly available**, **scalable**, **multitenant** monitoring system:
 * it delivers uninterrupted service even in the face of failures,
 * it handles a growing amount of incoming data,
 * it serves multiple groups of users while providing them with fair resource sharing.

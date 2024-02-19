@@ -9,7 +9,7 @@ import WhatIsSh from './img/what-is-sh.png'
 # What is StatsHouse?
 
 StatsHouse is a monitoring system that is highly available, scalable, and multitenant.
-It is robust, and one can hardly overload it—due to [aggregation](conceptual%20overview/concepts.md#aggregation) and 
+One can hardly overload it—due to [aggregation](conceptual%20overview/concepts.md#aggregation) and 
 [sampling](conceptual%20overview/concepts.md#sampling).
 Read more about StatsHouse [features](conceptual%20overview/features.md).
 
@@ -20,40 +20,42 @@ mode.
 
 ## What you can do with StatsHouse
 
-Here is what the StatsHouse user interface looks like and what it basically allows you to do:
+Here is [what the StatsHouse user interface looks like](guides/view-graph.md) and what it basically allows you to do:
 
 <img src={Intro} width="900"/>
 
-Check the links below to get the most out of StatsHouse.
+## What you can find in the docs
 
-### Try StatsHouse basics
+Use the **🔍 Search** bar in the upper-right corner, or check the table of contents below.
 
-Walk through the ten-minute [**Quick start**](quick-start.md) guide:
-* get access to StatsHouse (run it locally or access the deployed one),
-* create your own metric,
-* send data to your metric,
-* and [check basic viewing options](quick-start.md#check-basic-viewing-options).
+### [Quick start](quick-start.md)
 
-### Find the guide for your task
+* [Run StatsHouse locally](quick-start.md#run-statshouse-locally) or 
+[access the deployed one](quick-start.md#get-internal-permissions)
+* [Send metrics from a demo web server](quick-start.md#send-metrics-from-a-demo-web-server)
+* [Create your own metric](quick-start.md#create-your-metric)
+* [Send data to your metric](quick-start.md#send-data-to-your-metric)
+* [Check basic viewing options](quick-start.md#check-basic-viewing-options)
 
-Check the detailed **User guide** to perform popular tasks:
+### [User guide](guides)
 
 * [Get access to StatsHouse](guides/access-cluster.md)
+* [Design your metric](guides/design-metric.md) <text className="orange-text">← _understand what you want from 
+  your metric_</text>
 * [Create a metric](guides/create-metric.md)
 * [Send metric data](guides/send-data.md)
 * [View data on a graph](guides/view-graph.md) <text className="orange-text">← _the detailed UI description is 
   here_</text>
 * [Edit a metric](guides/edit-metrics.md)
-* [Create dashboards](guides/dashboards.md)
+* [Create and view dashboards](guides/dashboards.md)
 * [Query with PromQL](guides/query-wth-promql.md)
 
-### Dive into details
+### [Conceptual overview](conceptual%20overview/features.md)
 
-Refer to the [**Conceptual overview**](conceptual%20overview/features.md) to handle complicated monitoring tasks:
-* find more about StatsHouse [features](conceptual%20overview/features.md),
-* understand the underlying [concepts](conceptual%20overview/concepts.md), 
-* learn how the StatsHouse [components](conceptual%20overview/components.md) implement all of the above.
+* Find more about StatsHouse [features](conceptual%20overview/features.md).
+* Understand the underlying [concepts](conceptual%20overview/concepts.md).
+* Learn how the StatsHouse [components](conceptual%20overview/components.md) implement all of the above.
 
-### Check FAQs
+### [FAQ](faq.md)
 
-Find answers to [**Frequently asked questions**](faq.md).
+Find answers to [frequently asked questions](faq.md).

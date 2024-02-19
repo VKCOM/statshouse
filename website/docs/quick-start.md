@@ -18,8 +18,6 @@ See how StatsHouse works in ten minutes.
 
 <img src={DemoFlow} width="900"/>
 
-Choose your flow and find the related section below or in the upper-right navigation bar.
-
 :::important
 This tutorial is for Linux systems.
 For macOS or Windows, there may be Docker-related issues.
@@ -27,6 +25,8 @@ For macOS or Windows, there may be Docker-related issues.
 
 For detailed instructions on how to create, send, and view metrics, please refer
 to the [How-to guides](introduction.md#find-the-guide-for-your-task).
+
+## Get internal permissions
 
 If you have StatsHouse deployed in your organization, please contact your administrators to get the necessary access.
 
