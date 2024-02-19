@@ -37,7 +37,7 @@ Use the **🔍 Search** bar in the upper-right corner, or check the table of con
 * [Send data to your metric](quick-start.md#send-data-to-your-metric)
 * [Check basic viewing options](quick-start.md#check-basic-viewing-options)
 
-### [User guide](guides)
+### [User guide](guides/access-cluster.md)
 
 * [Get access to StatsHouse](guides/access-cluster.md)
 * [Design your metric](guides/design-metric.md) <text className="orange-text">← _understand what you want from 
