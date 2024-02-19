@@ -73,7 +73,7 @@ func getOpenGraphInfo(r *http.Request, origPath string) *openGraphInfo {
 		// Build query
 		v.Set(paramMetric, metric)
 		v.Set(paramVersion, value(r, paramVersion, "2"))
-		v.Set(paramNumResults, value(r, paramNumResults, "5"))
+		v[paramNumResults] = r.Form[paramNumResults]
 		v[paramQueryBy] = r.Form[paramQueryBy]
 		v[paramQueryFilter] = r.Form[paramQueryFilter]
 		v[paramTimeShift] = r.Form[paramTimeShift]
