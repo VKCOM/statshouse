@@ -2151,11 +2151,11 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 	)
 	for i, r := range req.seriesRequest {
 		r.ai = ai
-		if r.numResults == 0 || r.numResults > 32 {
+		if r.numResults == 0 || r.numResults > 15 {
 			// Limit number of plots on the preview because
 			// there is no point in drawing a lot on a small canvas
 			// (it takes time and doesn't look good)
-			r.numResults = 32
+			r.numResults = 15
 		}
 		start := time.Now()
 		v, cancel, err := h.handleSeriesRequest(ctx, r, seriesRequestOptions{
