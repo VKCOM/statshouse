@@ -16,6 +16,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/vkcom/statshouse-go"
 	"go.uber.org/multierr"
 	"go4.org/mem"
 )
@@ -1045,4 +1046,8 @@ func EventTypeToName(typ int32) string {
 	default:
 		return "unknown"
 	}
+}
+
+func ReportAPIPanic(r any) {
+	statshouse.Metric(BuiltinMetricNameStatsHouseErrors, statshouse.Tags{1: strconv.FormatInt(TagValueIDAPIPanicError, 10)}).StringTop(fmt.Sprintf("%v", r))
 }
