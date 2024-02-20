@@ -1,14 +1,9 @@
 package stats
 
 import (
-	"bytes"
-	"fmt"
-	"io"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/format"
-	"go4.org/mem"
-	"golang.org/x/exp/slices"
 )
 
 const (
@@ -22,22 +17,15 @@ const (
 var (
 	oomMsgPrefixBytes       = []byte("Killed process")
 	oomCGroupMsgPrefixBytes = []byte("Memory cgroup out of memory: Killed process")
-	numbers                 = []byte{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
+	klogParser              parserComb[either[klogMsg, []byte]]
 )
 
 type (
 	DMesgStats struct {
-		cache      []byte
-		lastTS     timestamp
-		pushStat   bool
-		writer     MetricWriter
-		klogParser *parser
-		msgParser  *parser
-	}
-	parser struct {
-		cache []byte
-		body  []byte
-		err   error
+		cache    []byte
+		lastTS   timestamp
+		pushStat bool
+		writer   MetricWriter
 	}
 
 	timestamp struct {
@@ -45,16 +33,50 @@ type (
 		usec int64
 	}
 
+	fascility struct {
+		lev int32
+		fac int32
+	}
+
 	klogMsg struct {
 		level    int32
 		facility int32
 		ts       timestamp
-		msgtype  string
-		msg      string
 
+		oom oom
+	}
+
+	oom struct {
 		oomProcessName string
 	}
 )
+
+func init() {
+	facilityParser := map_(
+		left(
+			right(char('<'), number()),
+			char('>')),
+		func(a int64) fascility {
+			lev, fac := extractLevFac(int32(a))
+			return fascility{lev: lev, fac: fac}
+		})
+	secParser := left(right(char('['), blankedNumberParser()), char('.'))
+	tsParser := map_(combine(secParser, left(number(), char(']'))), func(cmb comb[int64, int64]) timestamp {
+		return timestamp{sec: cmb.a, usec: cmb.b}
+	})
+	prefixParser := left(combine(facilityParser, tsParser), char(' '))
+
+	msgParser := combine(prefixParser, klogTailParser())
+	klogMsgParser := map_(msgParser, func(a comb[comb[fascility, timestamp], either[oom, []byte]]) klogMsg {
+		return klogMsg{
+			level:    a.a.a.lev,
+			facility: a.a.a.fac,
+			ts:       timestamp{a.a.b.sec, a.a.b.usec},
+			oom:      a.b.left,
+		}
+	})
+	klogParser = or(klogMsgParser, toTheEndOfLine())
+}
 
 func (c *DMesgStats) Skip() bool {
 	return false
@@ -69,13 +91,10 @@ func (c *DMesgStats) PushDuration(now int64, d time.Duration) {
 }
 
 func NewDMesgStats(writer MetricWriter) (*DMesgStats, error) {
-	return &DMesgStats{writer: writer, klogParser: &parser{
-		cache: []byte{},
-	},
-		msgParser: &parser{
-			cache: []byte{},
-		},
-	}, nil
+	return &DMesgStats{writer: writer, lastTS: timestamp{
+		sec:  -1,
+		usec: 0,
+	}}, nil
 }
 
 func log_fac(p int32) int32 {
@@ -93,208 +112,75 @@ func leOrEq(a, b timestamp) bool {
 func (c *DMesgStats) pushMetric(nowUnix int64, klog klogMsg) {
 	// don't use event ts to avoid historic conveyor
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameDMesgEvents, 1, klog.facility, klog.level)
-	if klog.oomProcessName != "" {
+	if klog.oom.oomProcessName != "" {
 		c.writer.WriteSystemMetricCountExtendedTag(nowUnix, format.BuiltinMetricNameOOMKillDetailed, 1, Tag{
-			Str: klog.oomProcessName,
+			Str: klog.oom.oomProcessName,
 		})
 	}
 }
 
 func (c *DMesgStats) handleMsgs(nowUnix int64, klog []byte, pushStat bool, pushMsg func(nowUnix int64, klog klogMsg)) error {
-	c.klogParser.body = klog
-	p := c.klogParser
 	lastTS := c.lastTS
-	for p.hasTail() {
-		p.mustChar('<')
-		if p.err != nil {
-			return p.err
-		}
-		levFac := p.parseNumber()
-		if p.err != nil {
-			return p.err
-		}
-		lev, fac := extractLevFac(int32(levFac))
-		p.mustChar('>')
-		if p.err != nil {
-			return p.err
-		}
-		p.mustChar('[')
-		if p.err != nil {
-			return p.err
-		}
-		sec := p.parseNumber()
-		p.mustChar('.')
-		if p.err != nil {
-			return p.err
-		}
-		usec := p.parseNumber()
-		if p.err != nil {
-			return p.err
-		}
-		p.mustChar(']')
-		if p.err != nil {
-			return p.err
-		}
-		p.mustChar(' ')
-		if p.err != nil {
-			return p.err
-		}
-		msg := p.parseUntil('\n')
-		if p.err != nil {
-			return p.err
-		}
-		klog := klogMsg{
-			level:    lev,
-			facility: fac,
-			ts:       timestamp{sec: sec, usec: usec},
-			msgtype:  "",
-			msg:      "",
-		}
-		if leOrEq(klog.ts, lastTS) {
-			continue
-		}
-		err := c.fillMsg(msg, &klog)
+	for len(klog) > 0 {
+		msgE, tail, err := klogParser(klog)
+		klog = tail
 		if err != nil {
 			return err
 		}
-		if pushStat {
-			pushMsg(nowUnix, klog)
+
+		if !msgE.isLeft {
+			continue
 		}
-		c.lastTS = klog.ts
+		msg := msgE.left
+		if leOrEq(msg.ts, lastTS) {
+			continue
+		}
+		if pushStat {
+			pushMsg(nowUnix, msg)
+		}
+		c.lastTS = msg.ts
 	}
 	return nil
+
 }
 
-func (c *DMesgStats) fillMsg(data []byte, klog *klogMsg) error {
-	switch {
-	case bytes.HasPrefix(data, oomMsgPrefixBytes):
-		return c.handleOOM(oomMsgPrefixBytes, data, klog)
-	case bytes.HasPrefix(data, oomCGroupMsgPrefixBytes):
-		return c.handleOOM(oomCGroupMsgPrefixBytes, data, klog)
-	}
-	return nil
+func klogTailParser() parserComb[either[oom, []byte]] {
+	return or(oomParser(), toTheEndOfLine())
 }
 
-func (c *DMesgStats) handleOOM(prefix, data []byte, klog *klogMsg) error {
-	c.msgParser.body = data
-	p := c.msgParser
-	p.mustSequence(prefix)
-	if p.err != nil {
-		return p.err
-	}
-	p.mustChar(' ')
-	if p.err != nil {
-		return p.err
-	}
-	_ = p.parseNumber()
-	if p.err != nil {
-		return p.err
-	}
-	p.mustChar(' ')
-	if p.err != nil {
-		return p.err
-	}
-	p.mustChar('(')
-	if p.err != nil {
-		return p.err
-	}
-	processName := p.parseUntil(')')
-	if p.err != nil {
-		return p.err
-	}
-	klog.oomProcessName = string(processName)
-	return nil
+func blankedNumberParser() parserComb[int64] {
+	return right(satisfy(func(b byte) bool {
+		return b == ' '
+	}), number())
+}
+
+func oomParser() parserComb[oom] {
+	// <4>[12555058.445681] Killed process 3029 (Web Content)
+	oomPrefParser := anyOf(prefix(oomCGroupMsgPrefixBytes), prefix(oomMsgPrefixBytes))
+	// oomPrefParser *> char(' ') *> number() *> char(' ') *> char('(') *> satisfy c => c != ')' <* char(')')
+	oomedAppNameParser := left(right(right(right(right(right(oomPrefParser, char(' ')), number()), char(' ')), char('(')), satisfy(func(b byte) bool {
+		return b != ')'
+	})), char(')'))
+	lineParser := left(oomedAppNameParser, toTheEndOfLine())
+	return map_(lineParser, func(name []byte) oom {
+		return oom{oomProcessName: string(name)}
+	})
 }
 
 func extractLevFac(levFac int32) (lev int32, fac int32) {
 	return log_pri(levFac), log_fac(levFac)
 }
 
-func (p *parser) hasTail() bool {
-	return p.err == nil && len(p.body) > 0
-}
-
-func (p *parser) skipN(n int) {
-	p.body = p.body[n:]
-
-}
-
-func (p *parser) mustChar(ch byte) {
-	if len(p.body) == 0 {
-		p.err = fmt.Errorf("expect %s but empty body", string(rune(ch)))
-		return
-	}
-	if p.body[0] == ch {
-		p.skipN(1)
-		return
-	}
-	p.err = fmt.Errorf("expect %s", string(rune(ch)))
-}
-
-func (p *parser) mustSequence(bs []byte) {
-	if bytes.HasPrefix(p.body, bs) {
-		p.body = p.body[len(bs):]
-		return
-	}
-	p.err = fmt.Errorf("expect %s, got %s", string(bs), string(p.body))
-}
-func (p *parser) mustChars(bs []byte) []byte {
-	cache := p.cache[:0]
-	for {
-		b, err := p.checkChar()
-		if err != nil {
-			break
-		}
-		if slices.Contains(bs, b) {
-			p.skipN(1)
-		} else {
-			break
-		}
-		cache = append(cache, b)
-	}
-	if len(cache) == 0 {
-		p.err = fmt.Errorf("mustChars error: %s", bs)
-	}
-	return cache
-}
-
-func (p *parser) checkChar() (byte, error) {
-	if !p.hasTail() {
-		return 0, io.ErrUnexpectedEOF
-	}
-	b := p.body[0]
-	return b, nil
-}
-
-func (p *parser) parseNumber() int64 {
-	seq := p.mustChars(numbers)
-	n, err := mem.ParseInt(mem.B(seq), 10, 64)
-	if err != nil {
-		p.err = err
-		return 0
-	}
-	return n
-}
-
-func (p *parser) parseUntil(b byte) []byte {
-	i := mem.IndexByte(mem.B(p.body), b)
-	if i == -1 {
-		p.err = fmt.Errorf("parseUntil error %s", string(rune(b)))
-		return nil
-	}
-	p.cache = p.cache[:0]
-	p.cache = append(p.cache, p.body[:i]...)
-	p.skipN(i + 1)
-	return p.cache
-}
-
 /*
+To install:
+go install github.com/dvyukov/go-fuzz/go-fuzz@latest github.com/dvyukov/go-fuzz/go-fuzz-build@latest
+
 To run:
 go-fuzz-build
 go-fuzz
 */
 func Fuzz(data []byte) int {
-	c := &DMesgStats{klogParser: &parser{}, msgParser: &parser{}}
+	c := &DMesgStats{}
 	err := c.handleMsgs(0, data, false, nil)
 	if err == nil {
 		return 1
