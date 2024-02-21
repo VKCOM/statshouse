@@ -147,6 +147,7 @@ const (
 	BuiltinMetricNameStatsHouseErrors           = "__statshouse_errors"
 	BuiltinMetricNamePromQLEngineTime           = "__promql_engine_time"
 	BuiltinMetricNameAPICacheHit                = "__api_cache_hit_rate"
+	BuiltinMetricIDUIErrorsName                 = "__ui_errors"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -1785,7 +1786,7 @@ Value is delta between second value and time it was inserted.`,
 			}},
 		},
 		BuiltinMetricIDUIErrors: {
-			Name:                 "__ui_errors",
+			Name:                 BuiltinMetricIDUIErrorsName,
 			Kind:                 MetricKindValue,
 			Description:          `Errors on the frontend.`,
 			StringTopDescription: "error_string",

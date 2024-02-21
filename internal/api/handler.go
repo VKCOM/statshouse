@@ -1295,6 +1295,7 @@ func (h *Handler) HandleGetHistory(w http.ResponseWriter, r *http.Request) {
 		}
 	} else {
 		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("%s is must be set", ParamID)), h.verbose, ai.user, sl)
+		return
 	}
 	hist, err := h.metadataLoader.GetShortHistory(r.Context(), id)
 	if err != nil {
@@ -1938,18 +1939,24 @@ func (h *Handler) HandleFrontendStat(w http.ResponseWriter, r *http.Request) {
 	if ai.service {
 		// statistics from bots isn't welcome
 		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, nil)
+		return
 	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		return
 	}
 	var batch tlstatshouse.AddMetricsBatchBytes
 	err = batch.UnmarshalJSON(body)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, nil)
+		return
 	}
 	for _, v := range batch.Metrics {
-		// TODO: metric whitelist
+		if string(v.Name) != format.BuiltinMetricIDUIErrorsName { // metric whitelist
+			respondJSON(w, nil, 0, 0, fmt.Errorf("metric is not in whitelist"), h.verbose, ai.user, nil)
+			return
+		}
 		tags := make(statshouse.NamedTags, 0, len(v.Tags))
 		for _, v := range v.Tags {
 			tags = append(tags, [2]string{string(v.Key), string(v.Value)})
