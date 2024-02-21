@@ -1953,7 +1953,7 @@ func (h *Handler) HandleFrontendStat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, v := range batch.Metrics {
-		if string(v.Name) != format.BuiltinMetricIDUIErrorsName { // metric whitelist
+		if string(v.Name) != format.BuiltinMetricNameIDUIErrors { // metric whitelist
 			respondJSON(w, nil, 0, 0, fmt.Errorf("metric is not in whitelist"), h.verbose, ai.user, nil)
 			return
 		}
