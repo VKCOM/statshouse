@@ -24,7 +24,7 @@ For macOS or Windows, there may be Docker-related issues.
 :::
 
 For detailed instructions on how to create, send, and view metrics, please refer
-to the [How-to guides](introduction.md#find-the-guide-for-your-task).
+to the [user guide](introduction.md#user-guide).
 
 ## Get internal permissions
 
@@ -72,7 +72,7 @@ For this toy example, use a simple `bash` script:
 echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 127.0.0.1 13337
 ```
 
-Read more about [metrics in StatsHouse](guides/send-data.md#what-are-metrics-in-statshouse) and 
+Read more about [metrics in StatsHouse](guides/design-metric.md#what-are-metrics-in-statshouse) and 
 [sending metric data](guides/send-data.md).
 
 View the metric on the StatsHouse dashboard at 
@@ -108,7 +108,7 @@ want to show them on a graph. The most common ones are:
 
 There are [more](guides/view-graph.md#3--descriptive-statistics) statistics available.
 The range of descriptive statistics that are meaningful for a metric is 
-[related to a metric type](guides/send-data.md#how-to-choose-a-metric-type).
+[related to a metric type](guides/design-metric.md#metric-types).
 For example, _percentiles_ are available for _values_ only.
 
 In this dropdown menu, you can see statistics, which may be not relevant for your metric type. If you pick them, you 
@@ -167,7 +167,7 @@ This interval _varies_ depending on the currently available aggregation:
 * per-hour aggregated data is available forever.
 
 The currently available aggregation is also related to 
-a metric [resolution](guides/edit-metrics.md#resolution).
+a metric [resolution](conceptual%20overview/concepts.md#resolution).
 :::
 
 Read more about [aggregation](conceptual%20overview/concepts.md#aggregation) in StatsHouse, 
@@ -188,10 +188,10 @@ For example, a particular piece of data can be labeled as related to
 Tags with many different values such as user IDs may lead to [mapping flood](guides/view-graph.md#mapping-status) errors 
 or increased [sampling](guides/view-graph.md#sampling) due to high [cardinality](conceptual%20overview/concepts.md#cardinality). 
 If you need to create such a tag, read more about 
-[tags with many different values](guides/edit-metrics.md#raw-values).
+[tags with many different values](guides/design-metric.md#how-many-tag-values).
 :::
 
-Read more about [filtering with tags](guides/view-graph.md#7--tags), [setting up](guides/send-data.md#how-to-use-tags) 
+Read more about [filtering with tags](guides/view-graph.md#7--tags), [setting up](guides/design-metric.md#tags) 
 and [editing](guides/edit-metrics.md#tags) tags, and [cardinality](conceptual%20overview/concepts.md#cardinality).
 
 ### Top N
@@ -213,7 +213,5 @@ So, if you choose _Top 3_, you will get, for example:
 <img src={TopN} width="900"/>
 
 :::note
-To try out full StatsHouse features such as [editing metrics](guides/edit-metrics.md), 
-[querying with PromQL](guides/query-wth-promql.md), [creating dashboards](guides/dashboards.md), and more,
-refer to the [How-to guides](introduction.md#find-the-guide-for-your-task).
+To try out full StatsHouse features, refer to the [user guide](introduction.md#user-guide).
 :::

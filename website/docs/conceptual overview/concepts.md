@@ -29,7 +29,7 @@ example, this is what an aggregate within one second looks like:
 StatsHouse does not store an exact metric value per each moment.
 Instead, it stores aggregates associated with time intervals.
 
-An aggregate is the result of aggregation. 
+An **aggregate** is the result of aggregation. 
 It is the minimal set of descriptive statistics such as _count_, _sum_, _min_, _max_. StatsHouse uses them to 
 reconstruct the rest of statistics if necessary.
 :::
@@ -175,7 +175,7 @@ The aggregates' averages will stay the same but will get the high-frequency nois
 <img src={CardinalitySamplingNoise} width="900"/>
 
 :::important
-We strongly [recommend reducing metrics' cardinality](../guides/send-data.md#how-many-tag-values).
+We strongly [recommend reducing metrics' cardinality](../guides/design-metric.md#how-many-tag-values).
 :::
 
 The same algorithm applies both when the agents send data to the aggregator and when the aggregator inserts data into 
@@ -212,7 +212,7 @@ The algorithm's logic is the following:
 for a metric with 2000 rows and the budget of 500 rows, the sampling coefficient is set to 4.
 5. StatsHouse reduces the rest of the budget by the number of bytes spent. 
 
-The number of occupied bytes depends on the [metric type](../guides/send-data.md#how-to-choose-a-metric-type) 
+The number of occupied bytes depends on the [metric type](../guides/design-metric.md#metric-types) 
 and the number of tag values. _Counter_ metrics require less space than _value_ metrics.
 
 In practice, some metrics are more important than the other. StatsHouse administrators can set up 
@@ -254,7 +254,7 @@ we'll get the graph with the average value of `1004`.
 
 ### User-guided sampling
 
-Though it is better to let StatsHouse [sample](../conceptual%20overview/concepts.md#sampling) data for you,
+Though it is better to let StatsHouse [sample](#sampling) data for you,
 you may want to sample your data before sending them to StatsHouse.
 Use this kind of sampling to control the memory footprint.
 

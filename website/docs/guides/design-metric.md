@@ -23,6 +23,7 @@ Understand what you want from your metric and how to implement it with StatsHous
   * [How many tags](#how-many-tags)
   * [Tag names](#tag-names)
   * [Tag values](#tag-values)
+  * [_Raw_ tags](#raw-tags)
   * [String tag](#string-tag)
   * [Host name as a tag](#host-name-as-a-tag)
   * [Customizing the `environment` tag](#customizing-the-environment-tag)
@@ -174,13 +175,13 @@ interpreted as `int64` and approximated to `float64`). Knowing the range of valu
 
 Check the valid metric type combinations in the table below:
 
-| What you send                    | What you get                                                         |
-|----------------------------------|----------------------------------------------------------------------|
-| `"counter":100`                  | `counter`                                                            |
-| `"value":[1, 2, 3]`              | `counter` and `value` (i.e., `sum`, `min`, `max`)                    |
-| `"unique":[17, 25, 37]`          | `counter`, `value` (i.e., `sum`, `min`, `max`), and `unique`         |
-| `"counter":6, "value":[1, 2, 3]` | [User-guided sampling](#user-guided-sampling)                        |
-| `"value":100,"unique":100`       | <text className="orange-text">This is not a valid combination</text> |
+| What you send                    | What you get                                                                      |
+|----------------------------------|-----------------------------------------------------------------------------------|
+| `"counter":100`                  | `counter`                                                                         |
+| `"value":[1, 2, 3]`              | `counter` and `value` (i.e., `sum`, `min`, `max`)                                 |
+| `"unique":[17, 25, 37]`          | `counter`, `value` (i.e., `sum`, `min`, `max`), and `unique`                      |
+| `"counter":6, "value":[1, 2, 3]` | [User-guided sampling](../conceptual%20overview/concepts.md#user-guided-sampling) |
+| `"value":100,"unique":100`       | <text className="orange-text">This is not a valid combination</text>              |
 
 If you refactor your existing metric, i.e., switch between different metric types for a single metric, the data may
 become confusing or uninformative.
@@ -271,10 +272,20 @@ In the StatsHouse UI, you can [edit](edit-metrics.md#tags) tag names and add sho
 
 ### Tag values
 
-:::important
-Tag values must contain only UTF-8 printable characters.
+Tag values are usually `string` values. StatsHouse maps all of them to `int32` values for higher efficiency.
+This huge `string`↔`int32` map is common for all metrics, and the budget for creating new mappings is limited.
+Mapping flood appears when you exceed this budget.
+
+#### Length and characters
+
+Tag values must contain only **UTF-8 printable** characters.
 All the non-printing characters are replaced with the traffic sign.
-:::
+
+The maximum tag value length is 128 bytes—the rest is cut.
+
+Tag values are also normalized: all leading and trailing white space is removed, as defined by Unicode.
+The sequence of Unicode whitespace characters within a tag value is replaced with one ASCII whitespace
+character.
 
 #### How many tag values
 
@@ -286,11 +297,11 @@ high [cardinality](../conceptual%20overview/concepts.md#cardinality).
 In StatsHouse, metric cardinality is how many unique tag value combinations you send for a metric.
 
 If a tag has too many values, they will soon exceed the
-[mapping budget](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics) and will be lost: tag values
+[mapping budget](../conceptual%20overview/components.md#mapping-budget) and will be lost: tag values
 for your measurements will be `Empty`.
 
 Even if all your tag values have been already mapped, and you
-[avoid the mapping flood](edit-metrics.md#raw-values) but keep sending data with many tag values,
+[avoid the mapping flood](edit-metrics.md#set-up-raw-tags) but keep sending data with many tag values,
 your data will probably be [sampled](../conceptual%20overview/concepts.md#sampling). Sampling means that
 StatsHouse throws away pieces of data to reduce its overall amount. To keep aggregation, statistics, and overall
 graph's shape the same, StatsHouse multiplies the rest of data by a sampling coefficient.
@@ -304,14 +315,23 @@ We recommend that the very first tags have the lowest cardinality rate. For exam
 
 :::tip
 If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
-[Raw](edit-metrics.md#raw-values) tag values to avoid the mapping flood.
+[Raw](#raw-tags) tag values to avoid the mapping flood.
 
 For many different string values (such as `search_request`), use a [string tag](#string-tag).
 :::
 
-<details>
-    <summary>Tag values: implementation details</summary>
-</details>
+### _Raw_ tags
+
+If tag values in your metric are originally 32-bit integer values, you can
+[mark them as _Raw_ ones](edit-metrics.md#set-up-raw-tags)
+to avoid the [mapping flood](../conceptual%20overview/components.md#mapping-budget).
+
+These _Raw_ tag values will be parsed as `(u)int32` (`-2^31..2^32-1` values are allowed) 
+and inserted into the ClickHouse database as is.
+
+To help yourself remember what your _Raw_ tag values mean, specify a
+[format](edit-metrics.md#specifying-formats-for-raw-tag-values) for your data to show in the UI and add 
+[value comments](edit-metrics.md#value-comments).
 
 ### String tag
 
@@ -320,17 +340,13 @@ requests.
 
 With the common tags, you will get [mapping flood](view-graph.md#mapping-status) errors very soon for this scenario.
 The _string tag_ stands apart from the other ones as its values are not
-[mapped](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics) to integers. Thus, you can avoid
+[mapped](../conceptual%20overview/components.md#mapping-budget) to integers. Thus, you can avoid
 [mapping flood](view-graph.md#mapping-status) errors and massive sampling.
 
 The string tag has a special storage: when you send your data labeled with many `string` tag values, only the most
 popular tag values are stored. The other tag values for this metric become `Empty` and are aggregated.
 
-To filter data with the _string tag_ on a graph, [add a name or description](edit-metrics.md#string-tag) to it.
-
-<details>
-    <summary>String tag and <i>Top N</i>: implementation details</summary>
-</details>
+To filter data with the _string tag_ on a graph, [add a name or description](edit-metrics.md#set-up-string-tag) to it.
 
 ### Host name as a tag
 
@@ -346,22 +362,43 @@ The _Max host_ option helps to answer questions like these:
 * which host has the maximum disk space usage, or
 * which host shows the maximum rate for a particular error type.
 
-In most cases, it is enough to know the name of the most problematic host to get logs and solve the issue.
+During aggregation, StatsHouse uses the special `max_host` column in the database to store the name of the host, 
+which is responsible for sending the maximum value (for value metrics) or the maximum contribution to the counter (for 
+counter metrics).
+
+For example, StatsHouse aggregates the rows from two agents: 
+
+| timestamp | metric      | format | … | min | max  | max_host |
+| --------- | ----------- | ------ | - | --- | ---- | -------- |
+| 13:45:05  | toy_latency | JSON   |   | 200 | 1200 | nginx001 |
+
+and
+
+| timestamp | metric      | format | … | min | max | max_host |
+| --------- | ----------- | ------ | - | --- | --- | -------- |
+| 13:45:05  | toy_latency | JSON   |   | 4   | 80  | nginx003 |
+
+The maximum `toy_latency` value (which is 1200) is associated with the `nginx001` host in the resulting aggregate:
+
+| timestamp | metric      | format | … | min | max  | max_host |
+| --------- | ----------- | ------ | - | --- | ---- | -------- |
+| 13:45:05  | toy_latency | JSON   |   | 4   | 1200 | nginx001 |
+
+<details>
+    <summary>Implementation details</summary>
+  <p> The value in the `max_host` column is `Float32` rather than `Float64` for better compression as there is no 
+need for high precision here. The host name is stored as the `string`↔`int32` mapping similar to tag values.</p>
+</details>
 
 We also recommend using the `environment` tag (or similar) instead of `host_name`. When you deploy an experimental feature
 to one or more hosts, label them with the `staging` or `development` tag values instead of their host names.
 
-Read about the _Max host_ implementation below.
-
-<details>
-    <summary><i>Max host</i>: implementation details</summary>
-</details>
-
 ### Customizing the `environment` tag
 
-StatsHouse stores metrics in a ClickHouse table, where 15 columns are for tags. These tag columns are named like
-`1..15`. In the example above, the tag names were “format” and “status.” One can edit the metric, so that
-"format" relates to the `1` column, and "status" relates to the `2` column. You can use system names `1..15`.
+StatsHouse stores metrics in a ClickHouse [database](../conceptual%20overview/components.md#database), 
+where 16 columns are for tags. These tag columns are named like `1..15`. For example, the tag names may be “format” 
+and “status.” One can edit the metric, so that "format" relates to the `1` column, 
+and "status" relates to the `2` column. You can use system names `1..15`.
 
 What about the `0` column? Use it to specify environments for collecting statistics, e.g., `production` or `staging`.
 For example, if the experimental version of software is installed on a number of hosts, you can associate the `0` tag
@@ -384,6 +421,7 @@ minus 1.5 hours.
 For `cron` jobs that send metric data, use the one-hour sending period:
 it is OK to send data once in an hour, but it is not OK to send data once in a day.
 
-<details>
-    <summary>Timestamps and a receive window</summary>
-</details>
+We do not encourage you to specify timestamps explicitly because rows with differing timestamps cannot be 
+aggregated—this may lead to increased sampling. Moreover, the ClickHouse 
+[database](../conceptual%20overview/components.md#database) is rather slow when inserting historical data.
+

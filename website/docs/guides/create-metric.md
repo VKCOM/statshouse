@@ -7,7 +7,7 @@ import NameMetric from '../img/name-new-metric.png'
 # Create a metric
 
 [Create a metric via the StatsHouse UI](#how-to-create-a-metric-in-the-ui). If you have questions, please [check the 
-typical ones](#frequent-questions).
+typical ones](#faqs-about-creating-metrics).
 
 ## How to create a metric in the UI
 
@@ -17,7 +17,7 @@ In the StatsHouse UI, go to the main **⚡** menu in the upper-left corner and s
 
 <img src={CreateMetric} width="300"/>
 
-Please [avoid creating "one big metric"](send-data.md#can-i-change-or-combine-metric-types) for the whole system. 
+Please avoid creating "one big metric" for the whole system. 
 Instead, create several metrics, named consistently. For such a group of metrics, related to a particular system (a 
 product or a service), use prefixes or other specifications:
 
@@ -32,7 +32,7 @@ Please use these characters:
 Do not start metric names with underscores. They are for StatsHouse internal use only.
 :::
 
-As soon as your metric has a name, choose the [metric type](edit-metrics.md#metric-type) and start [sending data](send-data.md).
+As soon as your metric has a name, you can start [sending data](send-data.md).
 
 ## FAQs about creating metrics
 

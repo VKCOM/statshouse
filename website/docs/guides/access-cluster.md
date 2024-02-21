@@ -14,4 +14,4 @@ If you have internal permissions but still have issues with access, try to log o
 again.
 :::
 
-Otherwise, [run StatsHouse locally](../quick-start.md#how-to-run-statshouse-locally).
+Otherwise, [run StatsHouse locally](../quick-start.md#run-statshouse-locally).

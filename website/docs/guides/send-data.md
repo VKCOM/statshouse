@@ -97,7 +97,7 @@ Though, we do not recommend doing this as we won't be able to provide guarantees
 
 If you are sure about creating a library,
 please use one of the existing StatsHouse libraries as a model for your own one—pay
-your attention to StatsHouse [data model](../conceptual%20overview/concepts.md).
+your attention to the StatsHouse [data model](design-metric.md).
 
 #### "What if the existing library does not have the required functionality?"
 
@@ -114,7 +114,7 @@ For a toy example or testing purposes, you may send data using [Netcat](https://
 echo '{"metrics":[{"name":"my_metric","tags":{},"counter":1000}]}' | nc -q 1 -u 127.0.0.1 13337
 ```
 
-See the [Quick start](../quick-start.md#send-metric-data) for a context.
+See the [Quick start](../quick-start.md#send-data-to-your-metric) for a context.
 
 :::important
 We strongly recommend using the [StatsHouse client libraries](#how-to-send-data-via-client-libraries).
@@ -126,7 +126,7 @@ This sounds simple, but only if you have not so much data.
 
 StatsHouse uses [UDP](../conceptual%20overview/components.md#receiving-data-via-udp).
 If you send a datagram per event, and there are too many of them,
-there is a risk of dropping datagrams due to UDP socket buffer overflow, and no one will notice it.
+there is a risk of dropping datagrams due to **UDP socket buffer overflow**, and no one will notice it.
 
 If you do not use the client library, the non-aggregated data will reach StatsHouse
 [agent](../conceptual%20overview/components.md#agent), and the agent will aggregate them anyway.

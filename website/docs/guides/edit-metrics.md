@@ -45,7 +45,7 @@ without changing the name of the metric itself. You [cannot rename a metric](cre
 
 ## Aggregation
 
-Basically, a [metric type](send-data.md#how-to-choose-a-metric-type) affects the range of descriptive statistics 
+Basically, a [metric type](design-metric.md#metric-types) affects the range of descriptive statistics 
 that are meaningful for a metric. In the [_Descriptive statistics_](view-graph.md#3--descriptive-statistics) 
 dropdown menu, you can see statistics, which may be not relevant for your metric type.
 If you pick them, you will see 0 values for them on a graph. For example, you cannot view the cumulative graph 
@@ -56,7 +56,7 @@ To switch off showing irrelevant statistics in the UI, specify the type of your 
 <img src={AggregationEdit} width="500"/>
 
 The _Mixed_ type allows you to display all the statistics (even irrelevant ones) in the UI.
-See more on [changing or combining metric types](send-data.md#metric-types-and-their-combinations).
+See more on [changing or combining metric types](design-metric.md#combining-metric-types).
 
 ### Percentiles
 
@@ -71,7 +71,7 @@ You will not see percentiles for the previously written data.
 
 Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased
 [sampling](../conceptual%20overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an
-eye on your metric [cardinality](#cardinality) or choose custom [resolution](edit-metrics.md#resolution)
+eye on your metric [cardinality](view-graph.md#cardinality) or choose custom [resolution](edit-metrics.md#resolution)
 for writing metric data.
 
 ## Resolution
@@ -146,15 +146,9 @@ show in the UI:
 ### Set up _Raw tags_
 
 If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
-_Raw_ tag values to avoid the [mapping flood](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics).
-Check [how many tag values](send-data.md#how-many-tag-values) you can create.
+_Raw_ tag values to avoid the [mapping flood](../conceptual%20overview/components.md#mapping-budget).
 
-Tag values are usually `string` values. StatsHouse maps all of them to `int32` values for higher efficiency.
-This huge `string`↔`int32` map is common for all metrics, and the budget for creating new mappings
-is limited. Mapping flood appears when you exceed this budget.
-
-If tag values in your metric are originally 32-bit integer values, you can prevent them from being mapped 
-and mark them as _Raw_ ones. To help yourself remember what they mean, specify a 
+To help yourself remember what they mean, specify a 
 [format](#specifying-formats-for-raw-tag-values) for your data to show in the UI 
 and add [value comments](#value-comments).
 
@@ -183,7 +177,7 @@ StatsHouse displays your `1234567890` raw tag value as `12.345.67.890` in the UI
 
 ### Set up _String tag_
 
-To filter data with the [String tag](send-data.md#string-tag) on a graph, add a name or description to it:
+To filter data with the [String tag](design-metric.md#string-tag) on a graph, add a name or description to it:
 
 <img src={StringTag} width="600"/>
 

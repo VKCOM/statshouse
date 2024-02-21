@@ -43,8 +43,8 @@ import MetricTabDelete from '../img/metric-tab-delete.png'
 
 # View metric data
 
-Display data on a graph, in a [table](#10--table-view), or as a [CSV](#csv) file via the StatsHouse UI.
-For complicated scenarios, [query StatsHouse with PromQL](query-wth-promql.md).
+Display data on a graph, in a [table](#10--table-view), or as a [CSV](#12--csv) file via the StatsHouse UI.
+For complicated scenarios, [query StatsHouse with PromQL](#18--query-with-promql).
 StatsHouse does not support viewing data via third-party applications.
 
 To learn more about viewing options, refer to the picture below and the navigation bar.
@@ -201,7 +201,7 @@ This interval _varies_ depending on the currently available aggregation:
 * per-hour aggregated data is available forever.
 
 The currently available aggregation is also related to
-a metric [resolution](edit-metrics.md#resolution).
+a metric [resolution](../conceptual%20overview/concepts.md#resolution).
 
 The _Auto (low)_ aggregation interval reduces the displayed resolution by a constant making the graph look smoother 
 even when you view data using the minimal available aggregation interval:
@@ -273,7 +273,8 @@ To get the lowest values, choose one of the _Bottom N_ options in the same dropd
 
 ## 9 — Max host
 
-Enable the [Max host](send-data.md#host-name-as-a-tag) option to find the host that sends the maximum value for your metric:
+Enable the [Max host](design-metric.md#host-name-as-a-tag) option to find the host 
+that sends the maximum value for your metric:
 
 <img src={MaxHostEnable} width="100"/>
 
@@ -293,9 +294,6 @@ the host that sends the value, which is the maximum for the available
 [aggregation interval](#6--aggregation-interval)—in the example below, for the minute you are pointing at:
 
 <img src={MaxHost2} width="900"/>
-
-Read more about using the [host name as a tag](send-data.md#host-name-as-a-tag) and learn
-how the [_Max host_](../conceptual%20overview/concepts.md#max-host-tag) option is implemented.
 
 ## 10 — Table view
 
@@ -356,7 +354,7 @@ Here are some error examples:
 <img src={ReceiveStatus} width="300"/>
 
 For example, the `err_map_per_metric_queue_overload`, `err_map_tag_value`, or `err_map_tag_value_cached` tags 
-indicate the slowdowns or errors of the [mapping mechanism](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics).
+indicate the slowdowns or errors of the [mapping mechanism](../conceptual%20overview/components.md#mapping-budget).
 
 This metric uses the sampling budget of a metric it refers to, so the error flood cannot affect the other metrics.
 
@@ -409,13 +407,13 @@ So an _avg_ statistic for this metric shows full cardinality, which may be group
 ### Mapping status
 
 If you create too many tag values, which have not been 
-[mapped](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics) yet, the mapping flood errors appear:
+[mapped](../conceptual%20overview/components.md#mapping-budget) yet, the mapping flood errors appear:
 
 <img src={MappingFlood} width="800"/>
 
 Mapping errors indicate that the number of newly created tag values exceeds the mapping budget per day.
-Learn more about [mapping](../conceptual%20overview/concepts.md#mapping-and-budgets-for-creating-metrics) 
-and [how many tag values](send-data.md#how-many-tag-values) to create per metric.
+Learn more about [mapping](../conceptual%20overview/components.md#mapping-budget) 
+and [how many tag values](design-metric.md#how-many-tag-values) to create per metric.
 
 ## 14 — Lock Y-axis
 
