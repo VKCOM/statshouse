@@ -18,6 +18,8 @@ const (
 
 	tagStringForUI = "tag"
 
+	// TODO - rename all "Src" names to "Agent", rename "__src" to "__agent" also
+
 	BuiltinGroupIDDefault = -4 // for all metrics with group not known. We want to edit it in the future, so not 0
 	BuiltinGroupIDBuiltin = -2 // for all built in metrics except host
 	BuiltinGroupIDHost    = -3 // host built in metrics
@@ -70,14 +72,14 @@ const (
 	BuiltinMetricIDAPIBRS = -50
 	// BuiltinMetricIDAPIEndpointResponseTime = -51 // deprecated, replaced by "__api_response_time"
 	// BuiltinMetricIDAPIEndpointServiceTime  = -52 // deprecated, replaced by "__api_service_time"
-	BuiltinMetricIDBudgetHost                 = -53 // these 2 metrics are invisible, but host mapping is flood-protected by their names
-	BuiltinMetricIDBudgetAggregatorHost       = -54 // we want to see limits properly credited in flood meta metric tags
-	BuiltinMetricIDAPIActiveQueries           = -55
-	BuiltinMetricIDRPCRequests                = -56
-	BuiltinMetricIDBudgetUnknownMetric        = -57
-	BuiltinMetricIDHeartbeatArgs2             = -58 // TODO: not recorded any more, remove later
-	BuiltinMetricIDHeartbeatArgs3             = -59 // TODO: not recorded any more, remove later
-	BuiltinMetricIDHeartbeatArgs4             = -60 // TODO: not recorded any more, remove later
+	BuiltinMetricIDBudgetHost           = -53 // these 2 metrics are invisible, but host mapping is flood-protected by their names
+	BuiltinMetricIDBudgetAggregatorHost = -54 // we want to see limits properly credited in flood meta metric tags
+	BuiltinMetricIDAPIActiveQueries     = -55
+	BuiltinMetricIDRPCRequests          = -56
+	BuiltinMetricIDBudgetUnknownMetric  = -57
+	// BuiltinMetricIDHeartbeatArgs2             = -58 // not recorded any more
+	// BuiltinMetricIDHeartbeatArgs3             = -59 // not recorded any more
+	// BuiltinMetricIDHeartbeatArgs4             = -60 // not recorded any more
 	BuiltinMetricIDContributorsLog            = -61
 	BuiltinMetricIDContributorsLogRev         = -62
 	BuiltinMetricIDGeneratorGapsCounter       = -63
@@ -96,7 +98,7 @@ const (
 	BuiltinMetricIDAPIServiceTime             = -76
 	BuiltinMetricIDAPIResponseTime            = -77
 	BuiltinMetricIDSrcTestConnection          = -78
-	BuiltinMetricIDAggTimeDiff                = -79
+	BuiltinMetricIDAgentAggregatorTimeDiff    = -79
 	BuiltinMetricIDSrcSamplingMetricCount     = -80
 	BuiltinMetricIDAggSamplingMetricCount     = -81
 	BuiltinMetricIDSrcSamplingSizeBytes       = -82
@@ -1127,14 +1129,42 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 				RawKind:     "ip",
 			}},
 		},
-		BuiltinMetricIDHeartbeatArgs: createBuiltinMetricIDHeartbeatArgs("__heartbeat_args",
-			"Commandline of statshouse components.\nIf too long, continued in __heartbeat_args2, __heartbeat_args3, __heartbeat_args4.\nHeartbeat value is uptime."),
-		BuiltinMetricIDHeartbeatArgs2: createBuiltinMetricIDHeartbeatArgs("__heartbeat_args2",
-			"Commandline of statshouse components.\nContinuation of __heartbeat_args.\nHeartbeat value is uptime."),
-		BuiltinMetricIDHeartbeatArgs3: createBuiltinMetricIDHeartbeatArgs("__heartbeat_args3",
-			"Commandline of statshouse components.\nContinuation of __heartbeat_args.\nHeartbeat value is uptime."),
-		BuiltinMetricIDHeartbeatArgs4: createBuiltinMetricIDHeartbeatArgs("__heartbeat_args4",
-			"Commandline of statshouse components.\nContinuation of __heartbeat_args.\nHeartbeat value is uptime."),
+		BuiltinMetricIDHeartbeatArgs: {
+			Name:                 "__heartbeat_args",
+			Kind:                 MetricKindValue,
+			Description:          "Commandline of statshouse components.\nHeartbeat value is uptime.",
+			StringTopDescription: "Arguments",
+			Resolution:           60,
+			Tags: []MetricMetaTag{{
+				Description:   "component",
+				ValueComments: convertToValueComments(componentToValue),
+			}, {
+				Description: "event_type",
+				ValueComments: convertToValueComments(map[int32]string{
+					TagValueIDHeartbeatEventStart:     "start",
+					TagValueIDHeartbeatEventHeartbeat: "heartbeat"}),
+			}, {
+				Description: "arguments_hash",
+				RawKind:     "hex",
+			}, {
+				Description: "commit_hash", // this is unrelated to metric keys, this is ingress key ID
+				RawKind:     "hex",
+			}, {
+				Description: "commit_date",
+				Raw:         true,
+			}, {
+				Description: "commit_timestamp",
+				RawKind:     "timestamp",
+			}, {
+				Description: "host",
+			}, {
+				Description: "remote_ip",
+				RawKind:     "ip",
+			}, {
+				Description: "arguments_length",
+				RawKind:     "int",
+			}},
+		},
 		BuiltinMetricIDGeneratorConstCounter: {
 			Name:        "__fn_const_counter",
 			Kind:        MetricKindCounter,
@@ -1543,7 +1573,7 @@ Value is delta between second value and time it was inserted.`,
 				}),
 			}},
 		},
-		BuiltinMetricIDAggTimeDiff: {
+		BuiltinMetricIDAgentAggregatorTimeDiff: {
 			Name:        BuiltinMetricNameAggTimeDiff,
 			Kind:        MetricKindValue,
 			Resolution:  60,
@@ -1831,9 +1861,6 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAgentReceivedBatchSize:  true,
 		BuiltinMetricIDHeartbeatVersion:        true,
 		BuiltinMetricIDHeartbeatArgs:           true,
-		BuiltinMetricIDHeartbeatArgs2:          true,
-		BuiltinMetricIDHeartbeatArgs3:          true,
-		BuiltinMetricIDHeartbeatArgs4:          true,
 		BuiltinMetricIDAgentDiskCacheErrors:    true,
 		BuiltinMetricIDTimingErrors:            true,
 		BuiltinMetricIDUsageMemory:             true,
@@ -1886,10 +1913,14 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDUsageCPU:                   true,
 		BuiltinMetricIDHeartbeatVersion:           true,
 		BuiltinMetricIDHeartbeatArgs:              true,
-		BuiltinMetricIDHeartbeatArgs2:             true,
-		BuiltinMetricIDHeartbeatArgs3:             true,
-		BuiltinMetricIDHeartbeatArgs4:             true,
 		BuiltinMetricIDAgentUDPReceiveBufferSize:  true,
+		BuiltinMetricIDSrcTestConnection:          true,
+		BuiltinMetricIDAgentAggregatorTimeDiff:    true,
+		BuiltinMetricIDSrcSamplingMetricCount:     true,
+		BuiltinMetricIDSrcSamplingSizeBytes:       true,
+		BuiltinMetricIDStatsHouseErrors:           true,
+		BuiltinMetricIDSrcSamplingBudget:          true,
+		BuiltinMetricIDSrcSamplingGroupBudget:     true,
 	}
 
 	metricsWithoutAggregatorID = map[int32]bool{
@@ -2005,46 +2036,6 @@ Value is delta between second value and time it was inserted.`,
 
 func TagIDTagToTagID(tagIDTag int32) string {
 	return tagIDTag2TagID[tagIDTag]
-}
-
-// 4 very similar metrics to record longer than allowed commandline arguments of statshouse components
-func createBuiltinMetricIDHeartbeatArgs(name string, description string) *MetricMetaValue {
-	return &MetricMetaValue{
-		Name:                 name,
-		Kind:                 MetricKindValue,
-		Description:          description,
-		StringTopDescription: "Arguments",
-		Resolution:           60,
-		Tags: []MetricMetaTag{{
-			Description:   "component",
-			ValueComments: convertToValueComments(componentToValue),
-		}, {
-			Description: "event_type",
-			ValueComments: convertToValueComments(map[int32]string{
-				TagValueIDHeartbeatEventStart:     "start",
-				TagValueIDHeartbeatEventHeartbeat: "heartbeat"}),
-		}, {
-			Description: "arguments_hash",
-			RawKind:     "hex",
-		}, {
-			Description: "commit_hash", // this is unrelated to metric keys, this is ingress key ID
-			RawKind:     "hex",
-		}, {
-			Description: "commit_date",
-			Raw:         true,
-		}, {
-			Description: "commit_timestamp",
-			RawKind:     "timestamp",
-		}, {
-			Description: "host",
-		}, {
-			Description: "remote_ip",
-			RawKind:     "ip",
-		}, {
-			Description: "arguments_length",
-			RawKind:     "int",
-		}},
-	}
 }
 
 func init() {
