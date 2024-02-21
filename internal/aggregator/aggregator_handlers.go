@@ -387,8 +387,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 				k.Keys[1] = format.TagValueIDComponentAgent
 			}
 			if k.Metric == format.BuiltinMetricIDHeartbeatVersion ||
-				k.Metric == format.BuiltinMetricIDHeartbeatArgs || k.Metric == format.BuiltinMetricIDHeartbeatArgs2 ||
-				k.Metric == format.BuiltinMetricIDHeartbeatArgs3 || k.Metric == format.BuiltinMetricIDHeartbeatArgs4 {
+				k.Metric == format.BuiltinMetricIDHeartbeatArgs {
 				// We need to set IP anyway, so set other keys here, not by source
 				k.Keys[4] = bcTag
 				k.Keys[5] = args.BuildCommitDate
