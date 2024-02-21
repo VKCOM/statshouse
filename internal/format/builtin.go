@@ -122,7 +122,6 @@ const (
 	BuiltinMetricNameAggMappingCreated          = "__agg_mapping_created"
 	BuiltinMetricNameBadges                     = "__badges"
 	BuiltinMetricNamePromScrapeTime             = "__prom_scrape_time"
-	BuiltinMetricNameAPIRPCServiceTime          = "__api_rpc_service_time" // TODO: delete when agents & aggregators get "__api_service_time" builtin
 	BuiltinMetricNameMetaServiceTime            = "__meta_rpc_service_time"
 	BuiltinMetricNameMetaClientWaits            = "__meta_load_journal_client_waits"
 	BuiltinMetricNameUsageMemory                = "__usage_mem"
