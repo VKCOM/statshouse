@@ -81,7 +81,11 @@ func (g *tsCacheGroup) Invalidate(lodLevel int64, times []int64) {
 }
 
 func (g *tsCacheGroup) Get(ctx context.Context, version string, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([][]tsSelectRow, error) {
-	res := make([][]tsSelectRow, lod.indexOf(lod.toSec))
+	x, err := lod.indexOf(lod.toSec)
+	if err != nil {
+		return nil, err
+	}
+	res := make([][]tsSelectRow, x)
 	switch pq.metricID {
 	case format.BuiltinMetricIDGeneratorConstCounter:
 		generateConstCounter(lod, res)
@@ -204,7 +208,10 @@ func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, 
 	}
 
 	e.lru.Store(time.Now().UnixNano())
-	i := lod.indexOf(realLoadFrom)
+	i, err := lod.indexOf(realLoadFrom)
+	if err != nil {
+		return nil, err
+	}
 	for t := realLoadFrom; t < realLoadTo; i++ {
 		nextRealLoadFrom := promqlStepForward(t, c.stepSec, lod.location)
 		cached, ok := e.secRows[t]
