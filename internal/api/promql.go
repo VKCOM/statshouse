@@ -30,6 +30,7 @@ import (
 )
 
 var errQueryOutOfRange = fmt.Errorf("exceeded maximum resolution of %d points per timeseries", maxSlice)
+var errAccessViolation = fmt.Errorf("metric access violation")
 
 func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQuery bool) {
 	// parse access token
@@ -257,7 +258,7 @@ func promRespondError(w http.ResponseWriter, typ promErrorType, err error) {
 func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, []string, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
-		panic("metric access violation") // should not happen
+		return nil, nil, errAccessViolation
 	}
 	var (
 		s1 []*format.MetricMetaValue // metrics
@@ -351,7 +352,7 @@ func (h *Handler) promqlLODs(t *promql.Timescale, version string, offset int64, 
 	return res
 }
 
-func (lod lodInfo) indexOf(timestamp int64) int {
+func (lod lodInfo) indexOf(timestamp int64) (int, error) {
 	if lod.stepSec == _1M {
 		n := 0
 		t := lod.fromSec
@@ -359,16 +360,15 @@ func (lod lodInfo) indexOf(timestamp int64) int {
 			t = time.Unix(t, 0).In(lod.location).AddDate(0, 1, 0).UTC().Unix()
 		}
 		if t == timestamp {
-			return n
+			return n, nil
 		}
 	} else {
 		d := timestamp - lod.fromSec
 		if d%lod.stepSec == 0 {
-			return int(d / lod.stepSec)
+			return int(d / lod.stepSec), nil
 		}
 	}
-	err := fmt.Errorf("timestamp %d is out of [%d,%d), step %d", timestamp, lod.fromSec, lod.toSec, lod.stepSec)
-	panic(err)
+	return 0, fmt.Errorf("timestamp %d is out of [%d,%d), step %d", timestamp, lod.fromSec, lod.toSec, lod.stepSec)
 }
 
 func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaValue]int64) (promql.Timescale, error) {
@@ -493,7 +493,7 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		}
 		if lod.Step <= 0 || lod.Step > _1M || lod.Len <= 0 || !(qry.Options.Collapse || lod.Len <= maxPoints) {
 			// should not happen
-			panic(fmt.Errorf("LOD out of range: step=%d, len=%d", lod.Step, lod.Len))
+			return promql.Timescale{}, fmt.Errorf("LOD out of range: step=%d, len=%d", lod.Step, lod.Len)
 		}
 		start = lodEnd
 		resLen += lod.Len
@@ -596,7 +596,7 @@ func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
 func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.Series, func(), error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
-		panic("metric access violation") // should not happen
+		return promql.Series{}, nil, errAccessViolation
 	}
 	if !ai.CanViewMetricName(qry.Metric.Name) {
 		return promql.Series{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
@@ -691,7 +691,12 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				for j := 0; j < len(data[i]); j++ {
 					k := tx
 					if !qry.Options.Collapse { // "point" query does not return timestamp
-						k += lod.indexOf(data[i][j].time)
+						x, err := lod.indexOf(data[i][j].time)
+						if err != nil {
+							cleanup()
+							return promql.Series{}, nil, err
+						}
+						k += x
 					}
 					x, ok := tagX[data[i][j].tsTags]
 					if !ok {
@@ -775,7 +780,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
-		panic("metric access violation") // should not happen
+		return nil, errAccessViolation
 	}
 	var (
 		version = promqlVersionOrDefault(qry.Options.Version)
@@ -825,7 +830,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 func (h *Handler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery) ([]string, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
-		panic("metric access violation") // should not happen
+		return nil, errAccessViolation
 	}
 	var (
 		version = promqlVersionOrDefault(qry.Options.Version)

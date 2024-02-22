@@ -10,7 +10,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"unicode"
@@ -1049,5 +1051,6 @@ func EventTypeToName(typ int32) string {
 }
 
 func ReportAPIPanic(r any) {
+	log.Println("panic:", string(debug.Stack()))
 	statshouse.Metric(BuiltinMetricNameStatsHouseErrors, statshouse.Tags{1: strconv.FormatInt(TagValueIDAPIPanicError, 10)}).StringTop(fmt.Sprintf("%v", r))
 }

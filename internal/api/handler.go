@@ -2872,7 +2872,11 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 					replaceInfNan(&cols.val[j][i])
 				}
 				row := cols.rowAt(i)
-				ix := retStartIx + lod.indexOf(row.time)
+				ix, err := lod.indexOf(row.time)
+				if err != nil {
+					return err
+				}
+				ix += retStartIx
 				ret[ix] = append(ret[ix], row)
 			}
 			rows += block.Rows

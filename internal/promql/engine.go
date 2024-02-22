@@ -147,18 +147,7 @@ func NewEngine(h Handler, loc *time.Location) Engine {
 	return Engine{h, loc}
 }
 
-func (ng Engine) Exec(ctx context.Context, qry Query) (val parser.Value, cancel func(), err error) {
-	// register panic handler
-	defer func() {
-		if r := recover(); r != nil {
-			format.ReportAPIPanic(r)
-			err = Error{what: r, panic: true}
-		}
-		if err != nil && cancel != nil {
-			cancel()
-			cancel = nil
-		}
-	}()
+func (ng Engine) Exec(ctx context.Context, qry Query) (parser.Value, func(), error) {
 	// parse query
 	ev, err := ng.newEvaluator(ctx, qry)
 	if err != nil {
@@ -167,6 +156,9 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (val parser.Value, cancel 
 	if ev.t.empty() {
 		return &TimeSeries{Time: []int64{}}, func() {}, nil
 	}
+	if e, ok := ev.ast.(*parser.StringLiteral); ok {
+		return String{T: qry.Start, V: e.Val}, func() {}, nil
+	}
 	// evaluate query
 	if ev.trace != nil {
 		*ev.trace = append(*ev.trace, ev.ast.String())
@@ -174,29 +166,28 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (val parser.Value, cancel 
 			ev.tracef("requested from %d to %d, timescale from %d to %d", qry.Start, qry.End, ev.t.Time[ev.t.StartX], ev.t.Time[len(ev.t.Time)-1])
 		}
 	}
-	switch e := ev.ast.(type) {
-	case *parser.StringLiteral:
-		return String{T: qry.Start, V: e.Val}, func() {}, nil
-	default:
-		cancel = ev.cancel
-		res, err := ev.exec()
-		if err != nil {
-			cancel = nil
+	var ok bool
+	defer func() {
+		if !ok {
 			ev.cancel()
-			return nil, nil, Error{what: err}
 		}
-		// resolve int32 tag values into strings
-		for _, dat := range res.Series.Data {
-			for _, tg := range dat.Tags.ID2Tag {
-				tg.stringify(&ev)
-			}
-		}
-		if ev.trace != nil {
-			ev.tracef("buffers alloc #%d, reuse #%d, %s", len(ev.allocMap)+len(ev.freeList), len(ev.reuseList), res.String())
-		}
-		ev.reportStat(qry, time.Now())
-		return &res, ev.cancel, nil
+	}()
+	res, err := ev.exec()
+	if err != nil {
+		return nil, nil, Error{what: err}
 	}
+	// resolve int32 tag values into strings
+	for _, dat := range res.Series.Data {
+		for _, tg := range dat.Tags.ID2Tag {
+			tg.stringify(&ev)
+		}
+	}
+	if ev.trace != nil {
+		ev.tracef("buffers alloc #%d, reuse #%d, %s", len(ev.allocMap)+len(ev.freeList), len(ev.reuseList), res.String())
+	}
+	ev.reportStat(qry, time.Now())
+	ok = true // prevents deffered "cancel"
+	return &res, ev.cancel, nil
 }
 
 func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error) {
