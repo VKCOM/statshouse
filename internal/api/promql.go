@@ -666,6 +666,12 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			h.putFloatsSlice(s)
 		}
 	}
+	var succeeded bool
+	defer func() {
+		if !succeeded {
+			cleanup()
+		}
+	}()
 	for _, args := range getHandlerArgs(qry, ai) {
 		var tx int // time index
 		fns, qs, pq := args.fns, args.qs, args.pq
@@ -684,7 +690,6 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				data, err = h.cache.Get(ctx, version, qs, &pq, lod, qry.Options.AvoidCache)
 			}
 			if err != nil {
-				cleanup()
 				return promql.Series{}, nil, err
 			}
 			for i := 0; i < len(data); i++ {
@@ -693,7 +698,6 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					if !qry.Options.Collapse { // "point" query does not return timestamp
 						x, err := lod.indexOf(data[i][j].time)
 						if err != nil {
-							cleanup()
 							return promql.Series{}, nil, err
 						}
 						k += x
@@ -774,6 +778,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 		tagX = make(map[tsTags]int, len(tagX))
 	}
 	res.Meta.Total = len(res.Data)
+	succeeded = true // prevents deffered "cleanup"
 	return res, cleanup, nil
 }
 
