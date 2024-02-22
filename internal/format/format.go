@@ -18,9 +18,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/vkcom/statshouse-go"
 	"go.uber.org/multierr"
 	"go4.org/mem"
+
+	"github.com/vkcom/statshouse-go"
 )
 
 const (
@@ -770,56 +771,18 @@ func validStringValue(s mem.RO, maxLen int) bool {
 	return true
 }
 
-func AppendValidStringValueLegacy(dst []byte, src []byte) ([]byte, error) {
-	return appendValidStringValueLegacy(dst, src, MaxStringLen, false)
-}
-
+// We have a lot of 1251 encoding still, also we have java people saving strings in default UTF-16 encoding,
+// so we consider rejecting large percentage of such strings is good.
+// Let's consider using ForceValidStringValue everywhere after last component using 1251 encoding is removed.
+// Do not forget to eliminate difference in speed between functions then.
 func AppendValidStringValue(dst []byte, src []byte) ([]byte, error) {
 	return appendValidStringValue(dst, src, MaxStringLen, false)
 }
 
-// We use this function only to validate host names. Can be slow, this is OK.
+// We use this function only to validate host names and args for now.
 func ForceValidStringValue(src string) []byte {
 	dst, _ := appendValidStringValue(nil, []byte(src), MaxStringLen, true)
 	return dst
-}
-
-func appendValidStringValueLegacy(dst []byte, src []byte, maxLen int, force bool) ([]byte, error) {
-	// trim
-	src = bytes.TrimSpace(src) // packet is limited, so this will not be too slow
-	// fast path
-	if len(src) <= maxLen { // if we cut by maxLen, we will have to trim right side again, which is slow
-		fastPath := true
-		for _, c := range src {
-			if !bytePrint(c) {
-				fastPath = false
-				break
-			}
-		}
-		if fastPath {
-			return append(dst, src...), nil
-		}
-	}
-	// slow path
-	var buf [MaxStringLen + utf8.UTFMax]byte
-	w := 0
-	for r := 0; r < len(src); {
-		c, nr := utf8.DecodeRune(src[r:])
-		if c == utf8.RuneError && nr <= 1 && !force {
-			return dst, errBadEncoding
-		}
-		if !unicode.IsPrint(c) {
-			c = utf8.RuneError
-		}
-		nw := utf8.EncodeRune(buf[w:], c)
-		if w+nw > maxLen {
-			break
-		}
-		r += nr
-		w += nw
-	}
-	dst = append(dst, buf[:w]...)
-	return bytes.TrimRightFunc(dst, unicode.IsSpace), nil
 }
 
 func appendValidStringValue(dst []byte, src []byte, maxLen int, force bool) ([]byte, error) {
