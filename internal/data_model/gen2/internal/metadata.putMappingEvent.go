@@ -32,18 +32,18 @@ func (item *MetadataPutMappingEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = VectorString0Read(w, &item.Keys); err != nil {
+	if w, err = BuiltinVectorStringRead(w, &item.Keys); err != nil {
 		return w, err
 	}
-	return VectorInt0Read(w, &item.Value)
+	return BuiltinVectorIntRead(w, &item.Value)
 }
 
 func (item *MetadataPutMappingEvent) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = VectorString0Write(w, item.Keys); err != nil {
+	if w, err = BuiltinVectorStringWrite(w, item.Keys); err != nil {
 		return w, err
 	}
-	return VectorInt0Write(w, item.Value)
+	return BuiltinVectorIntWrite(w, item.Value)
 }
 
 func (item *MetadataPutMappingEvent) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -86,16 +86,19 @@ func (item *MetadataPutMappingEvent) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.putMappingEvent", k)
 	}
-	if err := VectorString0ReadJSON(_jKeys, &item.Keys); err != nil {
+	if err := BuiltinVectorStringReadJSON(_jKeys, &item.Keys); err != nil {
 		return err
 	}
-	if err := VectorInt0ReadJSON(_jValue, &item.Value); err != nil {
+	if err := BuiltinVectorIntReadJSON(_jValue, &item.Value); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataPutMappingEvent) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataPutMappingEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -105,14 +108,14 @@ func (item *MetadataPutMappingEvent) WriteJSON(w []byte) (_ []byte, err error) {
 	if len(item.Keys) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"keys":`...)
-		if w, err = VectorString0WriteJSON(w, item.Keys); err != nil {
+		if w, err = BuiltinVectorStringWriteJSONOpt(short, w, item.Keys); err != nil {
 			return w, err
 		}
 	}
 	if len(item.Value) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"value":`...)
-		if w, err = VectorInt0WriteJSON(w, item.Value); err != nil {
+		if w, err = BuiltinVectorIntWriteJSONOpt(short, w, item.Value); err != nil {
 			return w, err
 		}
 	}

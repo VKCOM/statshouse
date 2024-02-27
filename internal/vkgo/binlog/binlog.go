@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -108,7 +108,8 @@ type Binlog interface {
 	// offset и snapshotMeta (берутся из Engine.Commit).
 	// Блокируется на все время работы бинлогов
 	// содержимое snapshotMeta копируется, слайс или подслайс не сохраняется
-	Run(offset int64, snapshotMeta []byte, engine Engine) error
+	Run(offset int64, snapshotMeta []byte, engine Engine) error // TODO - deprecate and use the next one
+	Run2(offset int64, snapshotMeta []byte, controlMeta []byte, upgrade bool, engine Engine) error
 
 	// Restart просит Барсик перезапустить движок. Может быть вызван в любой момент, даже до Start, вызвать Restart
 	// 1 или более раз. Если движок был мастером, Барсик запустит процесс безоткатного снятия роли, затем

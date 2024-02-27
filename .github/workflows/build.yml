@@ -74,7 +74,7 @@ jobs:
     needs: [env, frontend]
     uses: ./.github/workflows/build_deb.yml
     with:
-      container_json: '{"image":"golang:1.19-${{matrix.release}}"}'
+      container_json: '{"image":"golang:1.22-${{matrix.release}}"}'
       ref: ${{needs.env.outputs.ref}}
       ref_timestamp: ${{needs.env.outputs.ref_timestamp}}
       timestamp: ${{needs.env.outputs.timestamp}}

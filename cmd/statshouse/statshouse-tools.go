@@ -535,12 +535,12 @@ func mainTagMapping() {
 		budget          int
 		metadataNet     string
 		metadataAddr    string
-		metadataActorID uint64
+		metadataActorID int64
 	)
 	flag.StringVar(&metric, "metric", "", "metric name, if specified then strings are considered metric tags")
 	flag.StringVar(&tags, "tag", "", "string to be searched for a int32 mapping")
 	flag.IntVar(&budget, "budget", 0, "mapping budget to set")
-	flag.Uint64Var(&metadataActorID, "metadata-actor-id", 0, "")
+	flag.Int64Var(&metadataActorID, "metadata-actor-id", 0, "")
 	flag.StringVar(&metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
 	flag.StringVar(&metadataNet, "metadata-net", "tcp4", "")
 	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")

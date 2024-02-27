@@ -25,11 +25,11 @@ func (item *KvEngineCheck) Reset() {
 }
 
 func (item *KvEngineCheck) Read(w []byte) (_ []byte, err error) {
-	return VectorKvEngineKvBoxed0Read(w, &item.Kv)
+	return BuiltinVectorKvEngineKvBoxedRead(w, &item.Kv)
 }
 
 func (item *KvEngineCheck) Write(w []byte) (_ []byte, err error) {
-	return VectorKvEngineKvBoxed0Write(w, item.Kv)
+	return BuiltinVectorKvEngineKvBoxedWrite(w, item.Kv)
 }
 
 func (item *KvEngineCheck) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -60,6 +60,10 @@ func (item *KvEngineCheck) ReadResultJSON(j interface{}, ret *bool) error {
 }
 
 func (item *KvEngineCheck) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *KvEngineCheck) writeResultJSON(short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -70,6 +74,15 @@ func (item *KvEngineCheck) ReadResultWriteResultJSON(r []byte, w []byte) (_ []by
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *KvEngineCheck) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret bool
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -105,18 +118,21 @@ func (item *KvEngineCheck) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("kv_engine.check", k)
 	}
-	if err := VectorKvEngineKvBoxed0ReadJSON(_jKv, &item.Kv); err != nil {
+	if err := BuiltinVectorKvEngineKvBoxedReadJSON(_jKv, &item.Kv); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *KvEngineCheck) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *KvEngineCheck) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Kv) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"kv":`...)
-		if w, err = VectorKvEngineKvBoxed0WriteJSON(w, item.Kv); err != nil {
+		if w, err = BuiltinVectorKvEngineKvBoxedWriteJSONOpt(short, w, item.Kv); err != nil {
 			return w, err
 		}
 	}

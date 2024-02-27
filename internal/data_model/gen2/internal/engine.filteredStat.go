@@ -25,11 +25,11 @@ func (item *EngineFilteredStat) Reset() {
 }
 
 func (item *EngineFilteredStat) Read(w []byte) (_ []byte, err error) {
-	return VectorString0Read(w, &item.StatNames)
+	return BuiltinVectorStringRead(w, &item.StatNames)
 }
 
 func (item *EngineFilteredStat) Write(w []byte) (_ []byte, err error) {
-	return VectorString0Write(w, item.StatNames)
+	return BuiltinVectorStringWrite(w, item.StatNames)
 }
 
 func (item *EngineFilteredStat) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -60,7 +60,11 @@ func (item *EngineFilteredStat) ReadResultJSON(j interface{}, ret *Stat) error {
 }
 
 func (item *EngineFilteredStat) WriteResultJSON(w []byte, ret Stat) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *EngineFilteredStat) writeResultJSON(short bool, w []byte, ret Stat) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -72,6 +76,15 @@ func (item *EngineFilteredStat) ReadResultWriteResultJSON(r []byte, w []byte) (_
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *EngineFilteredStat) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret Stat
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -109,18 +122,21 @@ func (item *EngineFilteredStat) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("engine.filteredStat", k)
 	}
-	if err := VectorString0ReadJSON(_jStatNames, &item.StatNames); err != nil {
+	if err := BuiltinVectorStringReadJSON(_jStatNames, &item.StatNames); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineFilteredStat) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineFilteredStat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.StatNames) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"stat_names":`...)
-		if w, err = VectorString0WriteJSON(w, item.StatNames); err != nil {
+		if w, err = BuiltinVectorStringWriteJSONOpt(short, w, item.StatNames); err != nil {
 			return w, err
 		}
 	}

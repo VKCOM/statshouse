@@ -28,12 +28,12 @@ func (item *MetadataHistoryShortResponse) Read(w []byte, nat_field_mask uint32) 
 	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
 		return w, err
 	}
-	return VectorMetadataHistoryShortResponseEvent0Read(w, &item.Events, nat_field_mask)
+	return BuiltinVectorMetadataHistoryShortResponseEventRead(w, &item.Events, nat_field_mask)
 }
 
 func (item *MetadataHistoryShortResponse) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0x1cb5c415)
-	return VectorMetadataHistoryShortResponseEvent0Write(w, item.Events, nat_field_mask)
+	return BuiltinVectorMetadataHistoryShortResponseEventWrite(w, item.Events, nat_field_mask)
 }
 
 func (item *MetadataHistoryShortResponse) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -61,18 +61,21 @@ func (item *MetadataHistoryShortResponse) readJSON(j interface{}, nat_field_mask
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.history_short_response", k)
 	}
-	if err := VectorMetadataHistoryShortResponseEvent0ReadJSON(_jEvents, &item.Events, nat_field_mask); err != nil {
+	if err := BuiltinVectorMetadataHistoryShortResponseEventReadJSON(_jEvents, &item.Events, nat_field_mask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataHistoryShortResponse) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataHistoryShortResponse) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Events) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"events":`...)
-		if w, err = VectorMetadataHistoryShortResponseEvent0WriteJSON(w, item.Events, nat_field_mask); err != nil {
+		if w, err = BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(short, w, item.Events, nat_field_mask); err != nil {
 			return w, err
 		}
 	}

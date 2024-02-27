@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -25,11 +25,11 @@ func ErrorClientWrite(typeName string, err error) error {
 	return fmt.Errorf("failed to serialize %s request: %w", typeName, err)
 }
 
-func ErrorClientDo(typeName string, network string, actorID uint64, address string, err error) error {
+func ErrorClientDo(typeName string, network string, actorID int64, address string, err error) error {
 	return fmt.Errorf("%s request to %s://%d@%s failed: %w", typeName, network, actorID, address, err)
 }
 
-func ErrorClientReadResult(typeName string, network string, actorID uint64, address string, err error) error {
+func ErrorClientReadResult(typeName string, network string, actorID int64, address string, err error) error {
 	return fmt.Errorf("failed to deserialize %s response from %s://%d@%s: %w", typeName, network, actorID, address, err)
 }
 

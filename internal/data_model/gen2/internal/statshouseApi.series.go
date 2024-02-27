@@ -32,18 +32,18 @@ func (item *StatshouseApiSeries) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = VectorVectorDouble0Read(w, &item.SeriesData); err != nil {
+	if w, err = BuiltinVectorVectorDoubleRead(w, &item.SeriesData); err != nil {
 		return w, err
 	}
-	return VectorLong0Read(w, &item.Time)
+	return BuiltinVectorLongRead(w, &item.Time)
 }
 
 func (item *StatshouseApiSeries) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = VectorVectorDouble0Write(w, item.SeriesData); err != nil {
+	if w, err = BuiltinVectorVectorDoubleWrite(w, item.SeriesData); err != nil {
 		return w, err
 	}
-	return VectorLong0Write(w, item.Time)
+	return BuiltinVectorLongWrite(w, item.Time)
 }
 
 func (item *StatshouseApiSeries) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -86,16 +86,19 @@ func (item *StatshouseApiSeries) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouseApi.series", k)
 	}
-	if err := VectorVectorDouble0ReadJSON(_jSeriesData, &item.SeriesData); err != nil {
+	if err := BuiltinVectorVectorDoubleReadJSON(_jSeriesData, &item.SeriesData); err != nil {
 		return err
 	}
-	if err := VectorLong0ReadJSON(_jTime, &item.Time); err != nil {
+	if err := BuiltinVectorLongReadJSON(_jTime, &item.Time); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseApiSeries) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseApiSeries) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -105,14 +108,14 @@ func (item *StatshouseApiSeries) WriteJSON(w []byte) (_ []byte, err error) {
 	if len(item.SeriesData) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"series_data":`...)
-		if w, err = VectorVectorDouble0WriteJSON(w, item.SeriesData); err != nil {
+		if w, err = BuiltinVectorVectorDoubleWriteJSONOpt(short, w, item.SeriesData); err != nil {
 			return w, err
 		}
 	}
 	if len(item.Time) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"time":`...)
-		if w, err = VectorLong0WriteJSON(w, item.Time); err != nil {
+		if w, err = BuiltinVectorLongWriteJSONOpt(short, w, item.Time); err != nil {
 			return w, err
 		}
 	}

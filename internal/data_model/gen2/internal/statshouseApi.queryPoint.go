@@ -76,17 +76,17 @@ func (item *StatshouseApiQueryPoint) Read(w []byte) (_ []byte, err error) {
 	if w, err = item.Function.ReadBoxed(w); err != nil {
 		return w, err
 	}
-	if w, err = VectorString0Read(w, &item.GroupBy); err != nil {
+	if w, err = BuiltinVectorStringRead(w, &item.GroupBy); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseApiFilter0Read(w, &item.Filter); err != nil {
+	if w, err = BuiltinVectorStatshouseApiFilterRead(w, &item.Filter); err != nil {
 		return w, err
 	}
-	if w, err = VectorLong0Read(w, &item.TimeShift); err != nil {
+	if w, err = BuiltinVectorLongRead(w, &item.TimeShift); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = VectorStatshouseApiFunctionBoxed0Read(w, &item.What); err != nil {
+		if w, err = BuiltinVectorStatshouseApiFunctionBoxedRead(w, &item.What); err != nil {
 			return w, err
 		}
 	} else {
@@ -107,17 +107,17 @@ func (item *StatshouseApiQueryPoint) Write(w []byte) (_ []byte, err error) {
 	if w, err = item.Function.WriteBoxed(w); err != nil {
 		return w, err
 	}
-	if w, err = VectorString0Write(w, item.GroupBy); err != nil {
+	if w, err = BuiltinVectorStringWrite(w, item.GroupBy); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseApiFilter0Write(w, item.Filter); err != nil {
+	if w, err = BuiltinVectorStatshouseApiFilterWrite(w, item.Filter); err != nil {
 		return w, err
 	}
-	if w, err = VectorLong0Write(w, item.TimeShift); err != nil {
+	if w, err = BuiltinVectorLongWrite(w, item.TimeShift); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = VectorStatshouseApiFunctionBoxed0Write(w, item.What); err != nil {
+		if w, err = BuiltinVectorStatshouseApiFunctionBoxedWrite(w, item.What); err != nil {
 			return w, err
 		}
 	}
@@ -201,17 +201,17 @@ func (item *StatshouseApiQueryPoint) readJSON(j interface{}) error {
 	if err := StatshouseApiFunction__ReadJSON(&item.Function, _jFunction); err != nil {
 		return err
 	}
-	if err := VectorString0ReadJSON(_jGroupBy, &item.GroupBy); err != nil {
+	if err := BuiltinVectorStringReadJSON(_jGroupBy, &item.GroupBy); err != nil {
 		return err
 	}
-	if err := VectorStatshouseApiFilter0ReadJSON(_jFilter, &item.Filter); err != nil {
+	if err := BuiltinVectorStatshouseApiFilterReadJSON(_jFilter, &item.Filter); err != nil {
 		return err
 	}
-	if err := VectorLong0ReadJSON(_jTimeShift, &item.TimeShift); err != nil {
+	if err := BuiltinVectorLongReadJSON(_jTimeShift, &item.TimeShift); err != nil {
 		return err
 	}
 	if _jWhat != nil {
-		if err := VectorStatshouseApiFunctionBoxed0ReadJSON(_jWhat, &item.What); err != nil {
+		if err := BuiltinVectorStatshouseApiFunctionBoxedReadJSON(_jWhat, &item.What); err != nil {
 			return err
 		}
 	} else {
@@ -221,6 +221,9 @@ func (item *StatshouseApiQueryPoint) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseApiQueryPoint) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseApiQueryPoint) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -254,37 +257,35 @@ func (item *StatshouseApiQueryPoint) WriteJSON(w []byte) (_ []byte, err error) {
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"function":`...)
-	if w, err = item.Function.WriteJSON(w); err != nil {
+	if w, err = item.Function.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	if len(item.GroupBy) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"group_by":`...)
-		if w, err = VectorString0WriteJSON(w, item.GroupBy); err != nil {
+		if w, err = BuiltinVectorStringWriteJSONOpt(short, w, item.GroupBy); err != nil {
 			return w, err
 		}
 	}
 	if len(item.Filter) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"filter":`...)
-		if w, err = VectorStatshouseApiFilter0WriteJSON(w, item.Filter); err != nil {
+		if w, err = BuiltinVectorStatshouseApiFilterWriteJSONOpt(short, w, item.Filter); err != nil {
 			return w, err
 		}
 	}
 	if len(item.TimeShift) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"time_shift":`...)
-		if w, err = VectorLong0WriteJSON(w, item.TimeShift); err != nil {
+		if w, err = BuiltinVectorLongWriteJSONOpt(short, w, item.TimeShift); err != nil {
 			return w, err
 		}
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if len(item.What) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"what":`...)
-			if w, err = VectorStatshouseApiFunctionBoxed0WriteJSON(w, item.What); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"what":`...)
+		if w, err = BuiltinVectorStatshouseApiFunctionBoxedWriteJSONOpt(short, w, item.What); err != nil {
+			return w, err
 		}
 	}
 	return append(w, '}'), nil

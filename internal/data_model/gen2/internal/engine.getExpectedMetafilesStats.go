@@ -33,23 +33,27 @@ func (item *EngineGetExpectedMetafilesStats) ReadResult(w []byte, ret *map[strin
 	if w, err = basictl.NatReadExactTag(w, 0x1f4c618f); err != nil {
 		return w, err
 	}
-	return VectorDictionaryFieldEngineMetafilesStatBoxed0Read(w, ret)
+	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedRead(w, ret)
 }
 
 func (item *EngineGetExpectedMetafilesStats) WriteResult(w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0x1f4c618f)
-	return VectorDictionaryFieldEngineMetafilesStatBoxed0Write(w, ret)
+	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWrite(w, ret)
 }
 
 func (item *EngineGetExpectedMetafilesStats) ReadResultJSON(j interface{}, ret *map[string]EngineMetafilesStat) error {
-	if err := VectorDictionaryFieldEngineMetafilesStatBoxed0ReadJSON(j, ret); err != nil {
+	if err := BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSON(j, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineGetExpectedMetafilesStats) WriteResultJSON(w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
-	if w, err = VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSON(w, ret); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *EngineGetExpectedMetafilesStats) writeResultJSON(short bool, w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
+	if w, err = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(short, w, ret); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -61,6 +65,15 @@ func (item *EngineGetExpectedMetafilesStats) ReadResultWriteResultJSON(r []byte,
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *EngineGetExpectedMetafilesStats) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret map[string]EngineMetafilesStat
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -100,6 +113,9 @@ func (item *EngineGetExpectedMetafilesStats) readJSON(j interface{}) error {
 }
 
 func (item *EngineGetExpectedMetafilesStats) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineGetExpectedMetafilesStats) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }

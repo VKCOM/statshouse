@@ -30,12 +30,12 @@ func (item *MetadataPutTagMappingBootstrap) Read(w []byte) (_ []byte, err error)
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	return VectorStatshouseMapping0Read(w, &item.Mappings)
+	return BuiltinVectorStatshouseMappingRead(w, &item.Mappings)
 }
 
 func (item *MetadataPutTagMappingBootstrap) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return VectorStatshouseMapping0Write(w, item.Mappings)
+	return BuiltinVectorStatshouseMappingWrite(w, item.Mappings)
 }
 
 func (item *MetadataPutTagMappingBootstrap) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -66,7 +66,11 @@ func (item *MetadataPutTagMappingBootstrap) ReadResultJSON(j interface{}, ret *S
 }
 
 func (item *MetadataPutTagMappingBootstrap) WriteResultJSON(w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *MetadataPutTagMappingBootstrap) writeResultJSON(short bool, w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -78,6 +82,15 @@ func (item *MetadataPutTagMappingBootstrap) ReadResultWriteResultJSON(r []byte, 
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *MetadataPutTagMappingBootstrap) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshousePutTagMappingBootstrapResult
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -120,13 +133,16 @@ func (item *MetadataPutTagMappingBootstrap) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.putTagMappingBootstrap", k)
 	}
-	if err := VectorStatshouseMapping0ReadJSON(_jMappings, &item.Mappings); err != nil {
+	if err := BuiltinVectorStatshouseMappingReadJSON(_jMappings, &item.Mappings); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataPutTagMappingBootstrap) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataPutTagMappingBootstrap) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -136,7 +152,7 @@ func (item *MetadataPutTagMappingBootstrap) WriteJSON(w []byte) (_ []byte, err e
 	if len(item.Mappings) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"mappings":`...)
-		if w, err = VectorStatshouseMapping0WriteJSON(w, item.Mappings); err != nil {
+		if w, err = BuiltinVectorStatshouseMappingWriteJSONOpt(short, w, item.Mappings); err != nil {
 			return w, err
 		}
 	}

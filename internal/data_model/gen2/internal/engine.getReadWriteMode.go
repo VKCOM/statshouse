@@ -60,7 +60,11 @@ func (item *EngineGetReadWriteMode) ReadResultJSON(j interface{}, ret *EngineRea
 }
 
 func (item *EngineGetReadWriteMode) WriteResultJSON(w []byte, ret EngineReadWriteMode) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w, item.FieldsMask); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *EngineGetReadWriteMode) writeResultJSON(short bool, w []byte, ret EngineReadWriteMode) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -72,6 +76,15 @@ func (item *EngineGetReadWriteMode) ReadResultWriteResultJSON(r []byte, w []byte
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *EngineGetReadWriteMode) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret EngineReadWriteMode
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -116,6 +129,9 @@ func (item *EngineGetReadWriteMode) readJSON(j interface{}) error {
 }
 
 func (item *EngineGetReadWriteMode) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineGetReadWriteMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

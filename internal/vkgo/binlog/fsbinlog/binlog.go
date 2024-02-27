@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -246,6 +246,10 @@ func (b *fsBinlog) WriteLoop(ri PositionInfo) (PositionInfo, error) {
 	}
 
 	return b.writer.loop(ri.Offset)
+}
+
+func (b *fsBinlog) Run2(offset int64, snapshotMeta []byte, controlMeta []byte, upgrade bool, engine binlog.Engine) error {
+	return b.Run(offset, snapshotMeta, engine)
 }
 
 func (b *fsBinlog) Run(offset int64, snapshotMeta []byte, engine binlog.Engine) error {

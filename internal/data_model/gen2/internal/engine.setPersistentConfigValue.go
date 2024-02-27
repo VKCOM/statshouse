@@ -68,7 +68,11 @@ func (item *EngineSetPersistentConfigValue) ReadResultJSON(j interface{}, ret *T
 }
 
 func (item *EngineSetPersistentConfigValue) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *EngineSetPersistentConfigValue) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -80,6 +84,15 @@ func (item *EngineSetPersistentConfigValue) ReadResultWriteResultJSON(r []byte, 
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *EngineSetPersistentConfigValue) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret True
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -129,6 +142,9 @@ func (item *EngineSetPersistentConfigValue) readJSON(j interface{}) error {
 }
 
 func (item *EngineSetPersistentConfigValue) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineSetPersistentConfigValue) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Name) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

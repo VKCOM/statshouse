@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,8 +8,6 @@
 package internal
 
 import (
-	"fmt"
-
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 )
 
@@ -19,12 +17,13 @@ type RpcReqResultExtra struct {
 	Flags              uint32
 	BinlogPos          int64             // Conditional: item.Flags.0
 	BinlogTime         int64             // Conditional: item.Flags.1
-	EnginePid          NetPID            // Conditional: item.Flags.2
+	EnginePid          NetPid            // Conditional: item.Flags.2
 	RequestSize        int32             // Conditional: item.Flags.3
 	ResponseSize       int32             // Conditional: item.Flags.3
 	FailedSubqueries   int32             // Conditional: item.Flags.4
 	CompressionVersion int32             // Conditional: item.Flags.5
 	Stats              map[string]string // Conditional: item.Flags.6
+	ShardsBinlogPos    map[string]int64  // Conditional: item.Flags.8
 	EpochNumber        int64             // Conditional: item.Flags.27
 	ViewNumber         int64             // Conditional: item.Flags.27
 }
@@ -52,7 +51,7 @@ func (item *RpcReqResultExtra) ClearBinlogTime() {
 }
 func (item RpcReqResultExtra) IsSetBinlogTime() bool { return item.Flags&(1<<1) != 0 }
 
-func (item *RpcReqResultExtra) SetEnginePid(v NetPID) {
+func (item *RpcReqResultExtra) SetEnginePid(v NetPid) {
 	item.EnginePid = v
 	item.Flags |= 1 << 2
 }
@@ -107,10 +106,30 @@ func (item *RpcReqResultExtra) SetStats(v map[string]string) {
 	item.Flags |= 1 << 6
 }
 func (item *RpcReqResultExtra) ClearStats() {
-	VectorDictionaryFieldString0Reset(item.Stats)
+	BuiltinVectorDictionaryFieldStringReset(item.Stats)
 	item.Flags &^= 1 << 6
 }
 func (item RpcReqResultExtra) IsSetStats() bool { return item.Flags&(1<<6) != 0 }
+
+func (item *RpcReqResultExtra) SetShardsBinlogPos(v map[string]int64) {
+	item.ShardsBinlogPos = v
+	item.Flags |= 1 << 8
+}
+func (item *RpcReqResultExtra) ClearShardsBinlogPos() {
+	BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
+	item.Flags &^= 1 << 8
+}
+func (item RpcReqResultExtra) IsSetShardsBinlogPos() bool { return item.Flags&(1<<8) != 0 }
+
+func (item *RpcReqResultExtra) SetEpochNumber(v int64) {
+	item.EpochNumber = v
+	item.Flags |= 1 << 27
+}
+func (item *RpcReqResultExtra) ClearEpochNumber() {
+	item.EpochNumber = 0
+	item.Flags &^= 1 << 27
+}
+func (item RpcReqResultExtra) IsSetEpochNumber() bool { return item.Flags&(1<<27) != 0 }
 
 func (item *RpcReqResultExtra) SetViewNumber(v int64) {
 	item.ViewNumber = v
@@ -131,7 +150,9 @@ func (item *RpcReqResultExtra) Reset() {
 	item.ResponseSize = 0
 	item.FailedSubqueries = 0
 	item.CompressionVersion = 0
-	VectorDictionaryFieldString0Reset(item.Stats)
+	BuiltinVectorDictionaryFieldStringReset(item.Stats)
+	BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
+	item.EpochNumber = 0
 	item.ViewNumber = 0
 }
 
@@ -189,22 +210,29 @@ func (item *RpcReqResultExtra) Read(w []byte) (_ []byte, err error) {
 		item.CompressionVersion = 0
 	}
 	if item.Flags&(1<<6) != 0 {
-		if w, err = VectorDictionaryFieldString0Read(w, &item.Stats); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Stats); err != nil {
 			return w, err
 		}
 	} else {
-		VectorDictionaryFieldString0Reset(item.Stats)
+		BuiltinVectorDictionaryFieldStringReset(item.Stats)
 	}
-	item.EpochNumber = 0
+	if item.Flags&(1<<8) != 0 {
+		if w, err = BuiltinVectorDictionaryFieldLongRead(w, &item.ShardsBinlogPos); err != nil {
+			return w, err
+		}
+	} else {
+		BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
+	}
+	if item.Flags&(1<<27) != 0 {
+		if w, err = basictl.LongRead(w, &item.EpochNumber); err != nil {
+			return w, err
+		}
+	} else {
+		item.EpochNumber = 0
+	}
 	if item.Flags&(1<<27) != 0 {
 		if w, err = basictl.LongRead(w, &item.ViewNumber); err != nil {
 			return w, err
-		}
-		if item.ViewNumber < 0 {
-			item.EpochNumber = int64(uint64(item.ViewNumber) & ^uint64(1<<63))
-			if w, err = basictl.LongRead(w, &item.ViewNumber); err != nil {
-				return w, err
-			}
 		}
 	} else {
 		item.ViewNumber = 0
@@ -238,17 +266,19 @@ func (item *RpcReqResultExtra) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.CompressionVersion)
 	}
 	if item.Flags&(1<<6) != 0 {
-		if w, err = VectorDictionaryFieldString0Write(w, item.Stats); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.Stats); err != nil {
+			return w, err
+		}
+	}
+	if item.Flags&(1<<8) != 0 {
+		if w, err = BuiltinVectorDictionaryFieldLongWrite(w, item.ShardsBinlogPos); err != nil {
 			return w, err
 		}
 	}
 	if item.Flags&(1<<27) != 0 {
-		if item.EpochNumber < 0 || item.ViewNumber < 0 {
-			return w, fmt.Errorf("EpochNumber and ViewNumber must be >= 0 for last bit hack to work")
-		}
-		if item.EpochNumber != 0 {
-			w = basictl.LongWrite(w, int64(uint64(item.EpochNumber)|(1<<63)))
-		}
+		w = basictl.LongWrite(w, item.EpochNumber)
+	}
+	if item.Flags&(1<<27) != 0 {
 		w = basictl.LongWrite(w, item.ViewNumber)
 	}
 	return w, nil
@@ -303,6 +333,10 @@ func (item *RpcReqResultExtra) readJSON(j interface{}) error {
 	delete(_jm, "compression_version")
 	_jStats := _jm["stats"]
 	delete(_jm, "stats")
+	_jShardsBinlogPos := _jm["shards_binlog_pos"]
+	delete(_jm, "shards_binlog_pos")
+	_jEpochNumber := _jm["epoch_number"]
+	delete(_jm, "epoch_number")
 	_jViewNumber := _jm["view_number"]
 	delete(_jm, "view_number")
 	for k := range _jm {
@@ -332,6 +366,12 @@ func (item *RpcReqResultExtra) readJSON(j interface{}) error {
 	if _jStats != nil {
 		item.Flags |= 1 << 6
 	}
+	if _jShardsBinlogPos != nil {
+		item.Flags |= 1 << 8
+	}
+	if _jEpochNumber != nil {
+		item.Flags |= 1 << 27
+	}
 	if _jViewNumber != nil {
 		item.Flags |= 1 << 27
 	}
@@ -350,7 +390,7 @@ func (item *RpcReqResultExtra) readJSON(j interface{}) error {
 		item.BinlogTime = 0
 	}
 	if _jEnginePid != nil {
-		if err := NetPID__ReadJSON(&item.EnginePid, _jEnginePid); err != nil {
+		if err := NetPid__ReadJSON(&item.EnginePid, _jEnginePid); err != nil {
 			return err
 		}
 	} else {
@@ -385,11 +425,25 @@ func (item *RpcReqResultExtra) readJSON(j interface{}) error {
 		item.CompressionVersion = 0
 	}
 	if _jStats != nil {
-		if err := VectorDictionaryFieldString0ReadJSON(_jStats, &item.Stats); err != nil {
+		if err := BuiltinVectorDictionaryFieldStringReadJSON(_jStats, &item.Stats); err != nil {
 			return err
 		}
 	} else {
-		VectorDictionaryFieldString0Reset(item.Stats)
+		BuiltinVectorDictionaryFieldStringReset(item.Stats)
+	}
+	if _jShardsBinlogPos != nil {
+		if err := BuiltinVectorDictionaryFieldLongReadJSON(_jShardsBinlogPos, &item.ShardsBinlogPos); err != nil {
+			return err
+		}
+	} else {
+		BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
+	}
+	if _jEpochNumber != nil {
+		if err := JsonReadInt64(_jEpochNumber, &item.EpochNumber); err != nil {
+			return err
+		}
+	} else {
+		item.EpochNumber = 0
 	}
 	if _jViewNumber != nil {
 		if err := JsonReadInt64(_jViewNumber, &item.ViewNumber); err != nil {
@@ -402,6 +456,9 @@ func (item *RpcReqResultExtra) readJSON(j interface{}) error {
 }
 
 func (item *RpcReqResultExtra) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *RpcReqResultExtra) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Flags != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -409,69 +466,65 @@ func (item *RpcReqResultExtra) WriteJSON(w []byte) (_ []byte, err error) {
 		w = basictl.JSONWriteUint32(w, item.Flags)
 	}
 	if item.Flags&(1<<0) != 0 {
-		if item.BinlogPos != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"binlog_pos":`...)
-			w = basictl.JSONWriteInt64(w, item.BinlogPos)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"binlog_pos":`...)
+		w = basictl.JSONWriteInt64(w, item.BinlogPos)
 	}
 	if item.Flags&(1<<1) != 0 {
-		if item.BinlogTime != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"binlog_time":`...)
-			w = basictl.JSONWriteInt64(w, item.BinlogTime)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"binlog_time":`...)
+		w = basictl.JSONWriteInt64(w, item.BinlogTime)
 	}
 	if item.Flags&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"engine_pid":`...)
-		if w, err = item.EnginePid.WriteJSON(w); err != nil {
+		if w, err = item.EnginePid.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}
 	if item.Flags&(1<<3) != 0 {
-		if item.RequestSize != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"request_size":`...)
-			w = basictl.JSONWriteInt32(w, item.RequestSize)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"request_size":`...)
+		w = basictl.JSONWriteInt32(w, item.RequestSize)
 	}
 	if item.Flags&(1<<3) != 0 {
-		if item.ResponseSize != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"response_size":`...)
-			w = basictl.JSONWriteInt32(w, item.ResponseSize)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"response_size":`...)
+		w = basictl.JSONWriteInt32(w, item.ResponseSize)
 	}
 	if item.Flags&(1<<4) != 0 {
-		if item.FailedSubqueries != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"failed_subqueries":`...)
-			w = basictl.JSONWriteInt32(w, item.FailedSubqueries)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"failed_subqueries":`...)
+		w = basictl.JSONWriteInt32(w, item.FailedSubqueries)
 	}
 	if item.Flags&(1<<5) != 0 {
-		if item.CompressionVersion != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"compression_version":`...)
-			w = basictl.JSONWriteInt32(w, item.CompressionVersion)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"compression_version":`...)
+		w = basictl.JSONWriteInt32(w, item.CompressionVersion)
 	}
 	if item.Flags&(1<<6) != 0 {
-		if len(item.Stats) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"stats":`...)
-			if w, err = VectorDictionaryFieldString0WriteJSON(w, item.Stats); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"stats":`...)
+		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, item.Stats); err != nil {
+			return w, err
+		}
+	}
+	if item.Flags&(1<<8) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"shards_binlog_pos":`...)
+		if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(short, w, item.ShardsBinlogPos); err != nil {
+			return w, err
 		}
 	}
 	if item.Flags&(1<<27) != 0 {
-		if item.ViewNumber != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"view_number":`...)
-			w = basictl.JSONWriteInt64(w, item.ViewNumber)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"epoch_number":`...)
+		w = basictl.JSONWriteInt64(w, item.EpochNumber)
+	}
+	if item.Flags&(1<<27) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"view_number":`...)
+		w = basictl.JSONWriteInt64(w, item.ViewNumber)
 	}
 	return append(w, '}'), nil
 }

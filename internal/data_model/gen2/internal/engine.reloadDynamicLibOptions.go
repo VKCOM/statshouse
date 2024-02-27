@@ -136,6 +136,9 @@ func (item *EngineReloadDynamicLibOptions) readJSON(j interface{}) error {
 }
 
 func (item *EngineReloadDynamicLibOptions) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineReloadDynamicLibOptions) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -153,11 +156,9 @@ func (item *EngineReloadDynamicLibOptions) WriteJSON(w []byte) (_ []byte, err er
 		w = basictl.JSONWriteString(w, item.LibFileName)
 	}
 	if item.FieldsMask&(1<<0) != 0 {
-		if item.SlicesPart != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"slices_part":`...)
-			w = basictl.JSONWriteFloat64(w, item.SlicesPart)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"slices_part":`...)
+		w = basictl.JSONWriteFloat64(w, item.SlicesPart)
 	}
 	return append(w, '}'), nil
 }

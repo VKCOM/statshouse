@@ -13,7 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
-func VectorDouble0Read(w []byte, vec *[]float64) (_ []byte, err error) {
+func BuiltinVectorDoubleRead(w []byte, vec *[]float64) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -34,7 +34,7 @@ func VectorDouble0Read(w []byte, vec *[]float64) (_ []byte, err error) {
 	return w, nil
 }
 
-func VectorDouble0Write(w []byte, vec []float64) (_ []byte, err error) {
+func BuiltinVectorDoubleWrite(w []byte, vec []float64) (_ []byte, err error) {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		w = basictl.DoubleWrite(w, elem)
@@ -42,7 +42,7 @@ func VectorDouble0Write(w []byte, vec []float64) (_ []byte, err error) {
 	return w, nil
 }
 
-func VectorDouble0ReadJSON(j interface{}, vec *[]float64) error {
+func BuiltinVectorDoubleReadJSON(j interface{}, vec *[]float64) error {
 	l, _arr, err := JsonReadArray("[]float64", j)
 	if err != nil {
 		return err
@@ -60,7 +60,10 @@ func VectorDouble0ReadJSON(j interface{}, vec *[]float64) error {
 	return nil
 }
 
-func VectorDouble0WriteJSON(w []byte, vec []float64) (_ []byte, err error) {
+func BuiltinVectorDoubleWriteJSON(w []byte, vec []float64) (_ []byte, err error) {
+	return BuiltinVectorDoubleWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorDoubleWriteJSONOpt(short bool, w []byte, vec []float64) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

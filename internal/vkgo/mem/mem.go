@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,8 +8,6 @@ package mem
 
 import (
 	"io"
-	"reflect"
-	"runtime"
 	"unsafe"
 
 	"github.com/dchest/siphash"
@@ -26,14 +24,5 @@ func SipHash24(k0 uint64, k1 uint64, s string) uint64 {
 }
 
 func toByteSlice(s string) []byte {
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-
-	var buf []byte
-	bh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	bh.Data = sh.Data
-	bh.Cap = sh.Len
-	bh.Len = sh.Len
-	runtime.KeepAlive(&s) // prevent s from being freed before data is reachable via buf
-
-	return buf
+	return unsafe.Slice(unsafe.StringData(s), len(s))
 }

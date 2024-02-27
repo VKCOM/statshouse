@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -19,35 +19,12 @@ const (
 	flagCancelReq = uint32(0x00001000) // #define RPC_CRYPTO_RPC_CANCEL_REQ     0x00001000
 	FlagP2PHijack = uint32(0x40000000) // #define RPC_CRYPTO_P2P_HIJACK         0x40000000
 
-	packetTypeRPCNonce          = uint32(0x7acb87aa)
-	packetTypeRPCHandshake      = uint32(0x7682eef5)
-	packetTypeRPCInvokeReq      = constants.RpcInvokeReqHeader
-	packetTypeRPCReqResult      = constants.RpcReqResultHeader
-	packetTypeRPCReqError       = constants.RpcReqResultError
-	packetTypeRPCCancelReq      = constants.RpcCancelReq
-	packetTypeRPCServerWantsFin = constants.RpcServerWantsFin
+	packetTypeRPCNonce     = uint32(0x7acb87aa)
+	packetTypeRPCHandshake = uint32(0x7682eef5)
 
 	PacketTypeRPCPing = constants.RpcPing
 	PacketTypeRPCPong = constants.RpcPong
 	// contains 8 byte payload
-	// client sends PacketTypeRPCPing periodically, with pingID (int64) it increments
-	// server respond with the same payload
-
-	destActorTag      = constants.RpcDestActor
-	destFlagsTag      = constants.RpcDestFlags
-	destActorFlagsTag = constants.RpcDestActorFlags
-
-	reqResultHeaderTag       = constants.ReqResultHeader
-	reqResultErrorTag        = packetTypeRPCReqError
-	reqResultErrorWrappedTag = packetTypeRPCReqError + 1 // RPC_REQ_ERROR_WRAPPED
-	reqErrorTag              = constants.ReqError
-
-	enginePIDTag          = uint32(0x559d6e36) // copy of vktl.MagicTlEnginePid
-	engineStatTag         = uint32(0xefb3c36b) // copy of vktl.MagicTlEngineStat
-	engineFilteredStatTag = uint32(0x594870d6)
-	engineVersionTag      = uint32(0x1a2e06fa) // copy of vktl.MagicTlEngineVersion
-	engineSetVerbosityTag = uint32(0x9d980926) // copy of vktl.MagicTlEngineSetVerbosity
-	goPProfTag            = uint32(0xea2876a6) // copy of vktl.MagicTlGoPprof
 
 	// rpc-error-codes.h
 	TLErrorSyntax        = -1000 // TL_ERROR_SYNTAX
@@ -57,17 +34,21 @@ const (
 	TlErrorInternal      = -3003 // TL_ERROR_INTERNAL
 	TlErrorUnknown       = -4000 // TL_ERROR_UNKNOWN
 
-	clientPingInterval       = 5 * time.Second
-	DefaultClientPongTimeout = 10 * time.Second
+	DefaultPacketTimeout = 10 * time.Second
+	// keeping this above 10 seconds helps to avoid disconnecting engines with default 10 seconds ping interval
+	//
+	// We have single timeout for all activity.
+	//
+	// Before reading next packet, timer is set to this timeout.
+	// If not a single byte is read from the peer before timeout triggers, ping is sent and timer is reset.
+	// If not a single byte is read from the peer before timeout triggers with ping sent, connection is closed.
+	// If a single byte is read, full packet must be read before timeout triggers, otherwise connection is closed.
+	//
+	// Before writing next packet, separate timer is set to this timeout.
+	// If full packet is not completely written before timeout triggers, connection is closed.
 
 	DefaultConnTimeoutAccuracy = 100 * time.Millisecond
-
-	// keeping this above 10 seconds helps to avoid disconnecting engines with default 10 seconds ping interval
-	maxIdleDuration = 30 * time.Second
-
-	// keeping this less than DefaultConnTimeoutAccuracy away from maxIdleDuration allows to skip setting
-	// almost all deadlines (see PacketConn.timeoutAccuracy)
-	maxPacketRWTime = maxIdleDuration
+	// We optimize excess SetDeadline calls
 )
 
 type UnencHeader = tlnetUdpPacket.UnencHeader // TODO - move to better place when UDP impl is ready
@@ -95,11 +76,15 @@ func (na NetAddr) String() string {
 }
 
 type packetHeader struct {
-	length uint32
+	length uint32 // (body size + 16 bytes) for historic reasons
 	seqNum uint32
 	tip    uint32
-	crc    uint32
 }
+
+// after header, there is body, then
+// crc32 of (header | body)
+// then (only if encrypted) must contain 0 to 3 zero bytes aligning packet to multiple of 4
+// then can contain 0 to 3 values of uint32(4), aligning packet to multiple of AES encryption block.
 
 func humanByteCountIEC(b int64) string {
 	const unit = 1024

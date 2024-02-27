@@ -72,7 +72,11 @@ func (item *MetadataGetEntity) ReadResultJSON(j interface{}, ret *MetadataEvent)
 }
 
 func (item *MetadataGetEntity) WriteResultJSON(w []byte, ret MetadataEvent) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *MetadataGetEntity) writeResultJSON(short bool, w []byte, ret MetadataEvent) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -84,6 +88,15 @@ func (item *MetadataGetEntity) ReadResultWriteResultJSON(r []byte, w []byte) (_ 
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *MetadataGetEntity) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret MetadataEvent
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -138,6 +151,9 @@ func (item *MetadataGetEntity) readJSON(j interface{}) error {
 }
 
 func (item *MetadataGetEntity) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataGetEntity) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

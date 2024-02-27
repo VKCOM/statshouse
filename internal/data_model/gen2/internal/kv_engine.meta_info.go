@@ -81,6 +81,9 @@ func (item *KvEngineMetaInfo) readJSON(j interface{}) error {
 }
 
 func (item *KvEngineMetaInfo) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *KvEngineMetaInfo) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.DbOffset != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

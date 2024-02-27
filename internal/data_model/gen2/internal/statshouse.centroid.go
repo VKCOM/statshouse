@@ -13,6 +13,69 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseCentroidRead(w []byte, vec *[]StatshouseCentroid) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]StatshouseCentroid, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseCentroidWrite(w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseCentroidReadJSON(j interface{}, vec *[]StatshouseCentroid) error {
+	l, _arr, err := JsonReadArray("[]StatshouseCentroid", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]StatshouseCentroid, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := StatshouseCentroid__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorStatshouseCentroidWriteJSON(w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
+	return BuiltinVectorStatshouseCentroidWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorStatshouseCentroidWriteJSONOpt(short bool, w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
 type StatshouseCentroid struct {
 	Value  float32
 	Weight float32
@@ -83,6 +146,9 @@ func (item *StatshouseCentroid) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseCentroid) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseCentroid) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Value != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -110,64 +176,4 @@ func (item *StatshouseCentroid) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.centroid", err.Error())
 	}
 	return nil
-}
-
-func VectorStatshouseCentroid0Read(w []byte, vec *[]StatshouseCentroid) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]StatshouseCentroid, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseCentroid0Write(w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseCentroid0ReadJSON(j interface{}, vec *[]StatshouseCentroid) error {
-	l, _arr, err := JsonReadArray("[]StatshouseCentroid", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseCentroid, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseCentroid__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorStatshouseCentroid0WriteJSON(w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

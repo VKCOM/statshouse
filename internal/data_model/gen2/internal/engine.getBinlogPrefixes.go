@@ -33,23 +33,27 @@ func (item *EngineGetBinlogPrefixes) ReadResult(w []byte, ret *[]EngineBinlogPre
 	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
 		return w, err
 	}
-	return VectorEngineBinlogPrefix0Read(w, ret)
+	return BuiltinVectorEngineBinlogPrefixRead(w, ret)
 }
 
 func (item *EngineGetBinlogPrefixes) WriteResult(w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0x1cb5c415)
-	return VectorEngineBinlogPrefix0Write(w, ret)
+	return BuiltinVectorEngineBinlogPrefixWrite(w, ret)
 }
 
 func (item *EngineGetBinlogPrefixes) ReadResultJSON(j interface{}, ret *[]EngineBinlogPrefix) error {
-	if err := VectorEngineBinlogPrefix0ReadJSON(j, ret); err != nil {
+	if err := BuiltinVectorEngineBinlogPrefixReadJSON(j, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineGetBinlogPrefixes) WriteResultJSON(w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
-	if w, err = VectorEngineBinlogPrefix0WriteJSON(w, ret); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *EngineGetBinlogPrefixes) writeResultJSON(short bool, w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
+	if w, err = BuiltinVectorEngineBinlogPrefixWriteJSONOpt(short, w, ret); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -61,6 +65,15 @@ func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSON(r []byte, w []byt
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret []EngineBinlogPrefix
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -100,6 +113,9 @@ func (item *EngineGetBinlogPrefixes) readJSON(j interface{}) error {
 }
 
 func (item *EngineGetBinlogPrefixes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineGetBinlogPrefixes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }

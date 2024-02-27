@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -83,6 +83,9 @@ func (item *RpcDestActorFlags) readJSON(j interface{}) error {
 }
 
 func (item *RpcDestActorFlags) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *RpcDestActorFlags) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.ActorId != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -91,7 +94,7 @@ func (item *RpcDestActorFlags) WriteJSON(w []byte) (_ []byte, err error) {
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"extra":`...)
-	if w, err = item.Extra.WriteJSON(w); err != nil {
+	if w, err = item.Extra.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil
