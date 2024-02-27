@@ -962,7 +962,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 			var g errgroup.Group
 			for n := 8; n != 0 && i < len(res); i, n = i+1, n-1 {
 				ii := i
-				PanicSafeGroupGo(&g, func() (err error) {
+				g.Go(func() error {
 					return run(ii, &mu)
 				})
 			}

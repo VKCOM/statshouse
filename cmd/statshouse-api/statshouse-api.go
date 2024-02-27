@@ -409,7 +409,6 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	m.PathPrefix("/").Methods("GET", "HEAD").HandlerFunc(f.HandleStatic)
 
 	h := http.Handler(m)
-	h = &panicHandler{h}
 	h = handlers.RecoveryHandler(handlers.PrintRecoveryStack(true))(h)
 	h = handlers.CompressHandler(h)
 	if argv.accessLog {
