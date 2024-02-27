@@ -2345,13 +2345,13 @@ func (h *Handler) handleSeriesRequestS(ctx context.Context, req seriesRequest, e
 	if req.verbose && len(s) > 1 {
 		var g *errgroup.Group
 		g, ctx = errgroup.WithContext(ctx)
-		promql.PanicSafeGroupGo(g, func() error {
+		g.Go(func() error {
 			s[0], freeRes, err = h.handleSeriesRequest(withEndpointStat(ctx, es), req, seriesRequestOptions{
 				trace: true,
 				metricCallback: func(meta *format.MetricMetaValue) {
 					req.metricWithNamespace = meta.Name
 					if meta.MetricID != format.BuiltinMetricIDBadges {
-						promql.PanicSafeGroupGo(g, func() error {
+						g.Go(func() error {
 							s[1], freeBadges, err = h.queryBadges(ctx, req, meta)
 							return err
 						})
@@ -2860,12 +2860,7 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 	}, pq.version, ch.Query{
 		Body:   query,
 		Result: cols.res,
-		OnResult: func(_ context.Context, block proto.Block) (err error) {
-			defer func() { // process crashes if we do not catch the "panic"
-				if p := recover(); p != nil {
-					err = fmt.Errorf("doSelect: %v", p)
-				}
-			}()
+		OnResult: func(_ context.Context, block proto.Block) error {
 			for i := 0; i < block.Rows; i++ {
 				replaceInfNan(&cols.cnt[i])
 				for j := 0; j < len(cols.val); j++ {
@@ -2929,12 +2924,7 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, lod lo
 	}, pq.version, ch.Query{
 		Body:   query,
 		Result: cols.res,
-		OnResult: func(_ context.Context, block proto.Block) (err error) {
-			defer func() { // process crashes if we do not catch the "panic"
-				if p := recover(); p != nil {
-					err = fmt.Errorf("doSelect: %v", p)
-				}
-			}()
+		OnResult: func(_ context.Context, block proto.Block) error {
 			for i := 0; i < block.Rows; i++ {
 				//todo check
 				replaceInfNan(&cols.cnt[i])

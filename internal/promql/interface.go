@@ -14,7 +14,6 @@ import (
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse/internal/format"
-	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -264,16 +263,4 @@ func (w DigestWhat) String() string {
 	default:
 		return strconv.Itoa(int(w))
 	}
-}
-
-func PanicSafeGroupGo(g *errgroup.Group, f func() error) {
-	g.Go(func() (err error) {
-		defer func() {
-			if r := recover(); r != nil {
-				format.ReportAPIPanic(r)
-				err = Error{what: r, panic: true}
-			}
-		}()
-		return f()
-	})
 }
