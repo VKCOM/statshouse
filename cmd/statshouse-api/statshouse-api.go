@@ -98,7 +98,7 @@ type args struct {
 	vkuthAppName             string
 	vkuthPublicKeys          []string
 	weekStartAt              int
-	metadataActorID          uint64
+	metadataActorID          int64
 	metadataAddr             string
 	metadataNet              string
 	readOnly                 bool
@@ -162,7 +162,7 @@ func main() {
 	pflag.IntVar(&argv.weekStartAt, "week-start", int(time.Monday), "week day of beginning of the week (from sunday=0 to saturday=6)")
 	pflag.BoolVar(&argv.readOnly, "readonly", false, "read only mode")
 
-	pflag.Uint64Var(&argv.metadataActorID, "metadata-actor-id", 0, "metadata engine actor id")
+	pflag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "metadata engine actor id")
 	pflag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "metadata engine address")
 	pflag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "metadata engine network")
 	pflag.DurationVar(&argv.querySelectTimeout, "query-select-timeout", api.QuerySelectTimeoutDefault, "query select timeout")

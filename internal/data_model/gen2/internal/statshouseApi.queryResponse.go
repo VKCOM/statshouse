@@ -65,10 +65,10 @@ func (item *StatshouseApiGetQueryResponse) Read(w []byte, nat_query_fields_mask 
 	if w, err = item.Series.Read(w); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseApiSeriesMeta0Read(w, &item.SeriesMeta, nat_query_fields_mask); err != nil {
+	if w, err = BuiltinVectorStatshouseApiSeriesMetaRead(w, &item.SeriesMeta, nat_query_fields_mask); err != nil {
 		return w, err
 	}
-	if w, err = VectorInt0Read(w, &item.ChunkIds); err != nil {
+	if w, err = BuiltinVectorIntRead(w, &item.ChunkIds); err != nil {
 		return w, err
 	}
 	if w, err = basictl.IntRead(w, &item.TotalTimePoints); err != nil {
@@ -85,10 +85,10 @@ func (item *StatshouseApiGetQueryResponse) Write(w []byte, nat_query_fields_mask
 	if w, err = item.Series.Write(w); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseApiSeriesMeta0Write(w, item.SeriesMeta, nat_query_fields_mask); err != nil {
+	if w, err = BuiltinVectorStatshouseApiSeriesMetaWrite(w, item.SeriesMeta, nat_query_fields_mask); err != nil {
 		return w, err
 	}
-	if w, err = VectorInt0Write(w, item.ChunkIds); err != nil {
+	if w, err = BuiltinVectorIntWrite(w, item.ChunkIds); err != nil {
 		return w, err
 	}
 	w = basictl.IntWrite(w, item.TotalTimePoints)
@@ -169,16 +169,19 @@ func (item *StatshouseApiGetQueryResponse) readJSON(j interface{}, nat_query_fie
 	if err := StatshouseApiSeries__ReadJSON(&item.Series, _jSeries); err != nil {
 		return err
 	}
-	if err := VectorStatshouseApiSeriesMeta0ReadJSON(_jSeriesMeta, &item.SeriesMeta, nat_query_fields_mask); err != nil {
+	if err := BuiltinVectorStatshouseApiSeriesMetaReadJSON(_jSeriesMeta, &item.SeriesMeta, nat_query_fields_mask); err != nil {
 		return err
 	}
-	if err := VectorInt0ReadJSON(_jChunkIds, &item.ChunkIds); err != nil {
+	if err := BuiltinVectorIntReadJSON(_jChunkIds, &item.ChunkIds); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseApiGetQueryResponse) WriteJSON(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_query_fields_mask)
+}
+func (item *StatshouseApiGetQueryResponse) WriteJSONOpt(short bool, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -187,20 +190,20 @@ func (item *StatshouseApiGetQueryResponse) WriteJSON(w []byte, nat_query_fields_
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"series":`...)
-	if w, err = item.Series.WriteJSON(w); err != nil {
+	if w, err = item.Series.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	if len(item.SeriesMeta) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"series_meta":`...)
-		if w, err = VectorStatshouseApiSeriesMeta0WriteJSON(w, item.SeriesMeta, nat_query_fields_mask); err != nil {
+		if w, err = BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(short, w, item.SeriesMeta, nat_query_fields_mask); err != nil {
 			return w, err
 		}
 	}
 	if len(item.ChunkIds) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"chunk_ids":`...)
-		if w, err = VectorInt0WriteJSON(w, item.ChunkIds); err != nil {
+		if w, err = BuiltinVectorIntWriteJSONOpt(short, w, item.ChunkIds); err != nil {
 			return w, err
 		}
 	}

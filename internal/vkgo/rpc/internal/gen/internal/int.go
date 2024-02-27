@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,7 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
-func VectorInt0Read(w []byte, vec *[]int32) (_ []byte, err error) {
+func BuiltinVectorIntRead(w []byte, vec *[]int32) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -34,7 +34,7 @@ func VectorInt0Read(w []byte, vec *[]int32) (_ []byte, err error) {
 	return w, nil
 }
 
-func VectorInt0Write(w []byte, vec []int32) (_ []byte, err error) {
+func BuiltinVectorIntWrite(w []byte, vec []int32) (_ []byte, err error) {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		w = basictl.IntWrite(w, elem)
@@ -42,7 +42,7 @@ func VectorInt0Write(w []byte, vec []int32) (_ []byte, err error) {
 	return w, nil
 }
 
-func VectorInt0ReadJSON(j interface{}, vec *[]int32) error {
+func BuiltinVectorIntReadJSON(j interface{}, vec *[]int32) error {
 	l, _arr, err := JsonReadArray("[]int32", j)
 	if err != nil {
 		return err
@@ -60,7 +60,10 @@ func VectorInt0ReadJSON(j interface{}, vec *[]int32) error {
 	return nil
 }
 
-func VectorInt0WriteJSON(w []byte, vec []int32) (_ []byte, err error) {
+func BuiltinVectorIntWriteJSON(w []byte, vec []int32) (_ []byte, err error) {
+	return BuiltinVectorIntWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorIntWriteJSONOpt(short bool, w []byte, vec []int32) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

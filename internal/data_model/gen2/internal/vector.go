@@ -13,6 +13,69 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorVectorDoubleRead(w []byte, vec *[][]float64) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([][]float64, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = BuiltinVectorDoubleRead(w, &(*vec)[i]); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorVectorDoubleWrite(w []byte, vec [][]float64) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = BuiltinVectorDoubleWrite(w, elem); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorVectorDoubleReadJSON(j interface{}, vec *[][]float64) error {
+	l, _arr, err := JsonReadArray("[][]float64", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([][]float64, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := BuiltinVectorDoubleReadJSON(_arr[i], &(*vec)[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorVectorDoubleWriteJSON(w []byte, vec [][]float64) (_ []byte, err error) {
+	return BuiltinVectorVectorDoubleWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorVectorDoubleWriteJSONOpt(short bool, w []byte, vec [][]float64) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = BuiltinVectorDoubleWriteJSONOpt(short, w, elem); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
 type VectorDictionaryFieldEngineMetafilesStatBoxed map[string]EngineMetafilesStat
 
 func (VectorDictionaryFieldEngineMetafilesStatBoxed) TLName() string { return "vector" }
@@ -20,17 +83,17 @@ func (VectorDictionaryFieldEngineMetafilesStatBoxed) TLTag() uint32  { return 0x
 
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) Reset() {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	VectorDictionaryFieldEngineMetafilesStatBoxed0Reset(*ptr)
+	BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReset(*ptr)
 }
 
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	return VectorDictionaryFieldEngineMetafilesStatBoxed0Read(w, ptr)
+	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedRead(w, ptr)
 }
 
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) Write(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	return VectorDictionaryFieldEngineMetafilesStatBoxed0Write(w, *ptr)
+	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWrite(w, *ptr)
 }
 
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -58,15 +121,19 @@ func VectorDictionaryFieldEngineMetafilesStatBoxed__ReadJSON(item *VectorDiction
 }
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) readJSON(j interface{}) error {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	if err := VectorDictionaryFieldEngineMetafilesStatBoxed0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorDictionaryFieldEngineMetafilesStatBoxed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	if w, err = VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -93,17 +160,17 @@ func (VectorDictionaryFieldString) TLTag() uint32  { return 0x1cb5c415 }
 
 func (item *VectorDictionaryFieldString) Reset() {
 	ptr := (*map[string]string)(item)
-	VectorDictionaryFieldString0Reset(*ptr)
+	BuiltinVectorDictionaryFieldStringReset(*ptr)
 }
 
 func (item *VectorDictionaryFieldString) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	return VectorDictionaryFieldString0Read(w, ptr)
+	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
 }
 
 func (item *VectorDictionaryFieldString) Write(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	return VectorDictionaryFieldString0Write(w, *ptr)
+	return BuiltinVectorDictionaryFieldStringWrite(w, *ptr)
 }
 
 func (item *VectorDictionaryFieldString) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -131,15 +198,19 @@ func VectorDictionaryFieldString__ReadJSON(item *VectorDictionaryFieldString, j 
 }
 func (item *VectorDictionaryFieldString) readJSON(j interface{}) error {
 	ptr := (*map[string]string)(item)
-	if err := VectorDictionaryFieldString0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldStringReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorDictionaryFieldString) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorDictionaryFieldString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	if w, err = VectorDictionaryFieldString0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -171,12 +242,12 @@ func (item *VectorDictionaryFieldStringBytes) Reset() {
 
 func (item *VectorDictionaryFieldStringBytes) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	return VectorDictionaryFieldString0BytesRead(w, ptr)
+	return BuiltinVectorDictionaryFieldStringBytesRead(w, ptr)
 }
 
 func (item *VectorDictionaryFieldStringBytes) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	return VectorDictionaryFieldString0BytesWrite(w, *ptr)
+	return BuiltinVectorDictionaryFieldStringBytesWrite(w, *ptr)
 }
 
 func (item *VectorDictionaryFieldStringBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -204,15 +275,19 @@ func VectorDictionaryFieldStringBytes__ReadJSON(item *VectorDictionaryFieldStrin
 }
 func (item *VectorDictionaryFieldStringBytes) readJSON(j interface{}) error {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	if err := VectorDictionaryFieldString0BytesReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldStringBytesReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorDictionaryFieldStringBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorDictionaryFieldStringBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	if w, err = VectorDictionaryFieldString0BytesWriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -244,12 +319,12 @@ func (item *VectorDouble) Reset() {
 
 func (item *VectorDouble) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]float64)(item)
-	return VectorDouble0Read(w, ptr)
+	return BuiltinVectorDoubleRead(w, ptr)
 }
 
 func (item *VectorDouble) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]float64)(item)
-	return VectorDouble0Write(w, *ptr)
+	return BuiltinVectorDoubleWrite(w, *ptr)
 }
 
 func (item *VectorDouble) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -275,15 +350,19 @@ func (item VectorDouble) String() string {
 func VectorDouble__ReadJSON(item *VectorDouble, j interface{}) error { return item.readJSON(j) }
 func (item *VectorDouble) readJSON(j interface{}) error {
 	ptr := (*[]float64)(item)
-	if err := VectorDouble0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorDoubleReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorDouble) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorDouble) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]float64)(item)
-	if w, err = VectorDouble0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorDoubleWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -315,12 +394,12 @@ func (item *VectorEngineBinlogPrefix) Reset() {
 
 func (item *VectorEngineBinlogPrefix) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]EngineBinlogPrefix)(item)
-	return VectorEngineBinlogPrefix0Read(w, ptr)
+	return BuiltinVectorEngineBinlogPrefixRead(w, ptr)
 }
 
 func (item *VectorEngineBinlogPrefix) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]EngineBinlogPrefix)(item)
-	return VectorEngineBinlogPrefix0Write(w, *ptr)
+	return BuiltinVectorEngineBinlogPrefixWrite(w, *ptr)
 }
 
 func (item *VectorEngineBinlogPrefix) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -348,15 +427,19 @@ func VectorEngineBinlogPrefix__ReadJSON(item *VectorEngineBinlogPrefix, j interf
 }
 func (item *VectorEngineBinlogPrefix) readJSON(j interface{}) error {
 	ptr := (*[]EngineBinlogPrefix)(item)
-	if err := VectorEngineBinlogPrefix0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorEngineBinlogPrefixReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorEngineBinlogPrefix) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorEngineBinlogPrefix) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]EngineBinlogPrefix)(item)
-	if w, err = VectorEngineBinlogPrefix0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorEngineBinlogPrefixWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -388,12 +471,12 @@ func (item *VectorEngineMetafilesOneMemoryStat) Reset() {
 
 func (item *VectorEngineMetafilesOneMemoryStat) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]EngineMetafilesOneMemoryStat)(item)
-	return VectorEngineMetafilesOneMemoryStat0Read(w, ptr)
+	return BuiltinVectorEngineMetafilesOneMemoryStatRead(w, ptr)
 }
 
 func (item *VectorEngineMetafilesOneMemoryStat) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]EngineMetafilesOneMemoryStat)(item)
-	return VectorEngineMetafilesOneMemoryStat0Write(w, *ptr)
+	return BuiltinVectorEngineMetafilesOneMemoryStatWrite(w, *ptr)
 }
 
 func (item *VectorEngineMetafilesOneMemoryStat) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -421,15 +504,19 @@ func VectorEngineMetafilesOneMemoryStat__ReadJSON(item *VectorEngineMetafilesOne
 }
 func (item *VectorEngineMetafilesOneMemoryStat) readJSON(j interface{}) error {
 	ptr := (*[]EngineMetafilesOneMemoryStat)(item)
-	if err := VectorEngineMetafilesOneMemoryStat0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorEngineMetafilesOneMemoryStatReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorEngineMetafilesOneMemoryStat) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorEngineMetafilesOneMemoryStat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]EngineMetafilesOneMemoryStat)(item)
-	if w, err = VectorEngineMetafilesOneMemoryStat0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -461,12 +548,12 @@ func (item *VectorInt) Reset() {
 
 func (item *VectorInt) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]int32)(item)
-	return VectorInt0Read(w, ptr)
+	return BuiltinVectorIntRead(w, ptr)
 }
 
 func (item *VectorInt) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]int32)(item)
-	return VectorInt0Write(w, *ptr)
+	return BuiltinVectorIntWrite(w, *ptr)
 }
 
 func (item *VectorInt) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -492,15 +579,19 @@ func (item VectorInt) String() string {
 func VectorInt__ReadJSON(item *VectorInt, j interface{}) error { return item.readJSON(j) }
 func (item *VectorInt) readJSON(j interface{}) error {
 	ptr := (*[]int32)(item)
-	if err := VectorInt0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorIntReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorInt) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorInt) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]int32)(item)
-	if w, err = VectorInt0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorIntWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -532,12 +623,12 @@ func (item *VectorKvEngineKvBoxed) Reset() {
 
 func (item *VectorKvEngineKvBoxed) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]KvEngineKv)(item)
-	return VectorKvEngineKvBoxed0Read(w, ptr)
+	return BuiltinVectorKvEngineKvBoxedRead(w, ptr)
 }
 
 func (item *VectorKvEngineKvBoxed) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]KvEngineKv)(item)
-	return VectorKvEngineKvBoxed0Write(w, *ptr)
+	return BuiltinVectorKvEngineKvBoxedWrite(w, *ptr)
 }
 
 func (item *VectorKvEngineKvBoxed) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -565,15 +656,19 @@ func VectorKvEngineKvBoxed__ReadJSON(item *VectorKvEngineKvBoxed, j interface{})
 }
 func (item *VectorKvEngineKvBoxed) readJSON(j interface{}) error {
 	ptr := (*[]KvEngineKv)(item)
-	if err := VectorKvEngineKvBoxed0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorKvEngineKvBoxedReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorKvEngineKvBoxed) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorKvEngineKvBoxed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]KvEngineKv)(item)
-	if w, err = VectorKvEngineKvBoxed0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorKvEngineKvBoxedWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -605,12 +700,12 @@ func (item *VectorLong) Reset() {
 
 func (item *VectorLong) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]int64)(item)
-	return VectorLong0Read(w, ptr)
+	return BuiltinVectorLongRead(w, ptr)
 }
 
 func (item *VectorLong) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]int64)(item)
-	return VectorLong0Write(w, *ptr)
+	return BuiltinVectorLongWrite(w, *ptr)
 }
 
 func (item *VectorLong) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -636,15 +731,19 @@ func (item VectorLong) String() string {
 func VectorLong__ReadJSON(item *VectorLong, j interface{}) error { return item.readJSON(j) }
 func (item *VectorLong) readJSON(j interface{}) error {
 	ptr := (*[]int64)(item)
-	if err := VectorLong0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorLongReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorLong) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorLong) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]int64)(item)
-	if w, err = VectorLong0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorLongWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -676,12 +775,12 @@ func (item *VectorMetadataEvent) Reset() {
 
 func (item *VectorMetadataEvent) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]MetadataEvent)(item)
-	return VectorMetadataEvent0Read(w, ptr)
+	return BuiltinVectorMetadataEventRead(w, ptr)
 }
 
 func (item *VectorMetadataEvent) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]MetadataEvent)(item)
-	return VectorMetadataEvent0Write(w, *ptr)
+	return BuiltinVectorMetadataEventWrite(w, *ptr)
 }
 
 func (item *VectorMetadataEvent) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -709,15 +808,19 @@ func VectorMetadataEvent__ReadJSON(item *VectorMetadataEvent, j interface{}) err
 }
 func (item *VectorMetadataEvent) readJSON(j interface{}) error {
 	ptr := (*[]MetadataEvent)(item)
-	if err := VectorMetadataEvent0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorMetadataEventReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorMetadataEvent) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorMetadataEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]MetadataEvent)(item)
-	if w, err = VectorMetadataEvent0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorMetadataEventWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -749,12 +852,12 @@ func (item *VectorMetadataEventBytes) Reset() {
 
 func (item *VectorMetadataEventBytes) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]MetadataEventBytes)(item)
-	return VectorMetadataEvent0BytesRead(w, ptr)
+	return BuiltinVectorMetadataEventBytesRead(w, ptr)
 }
 
 func (item *VectorMetadataEventBytes) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]MetadataEventBytes)(item)
-	return VectorMetadataEvent0BytesWrite(w, *ptr)
+	return BuiltinVectorMetadataEventBytesWrite(w, *ptr)
 }
 
 func (item *VectorMetadataEventBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -782,15 +885,19 @@ func VectorMetadataEventBytes__ReadJSON(item *VectorMetadataEventBytes, j interf
 }
 func (item *VectorMetadataEventBytes) readJSON(j interface{}) error {
 	ptr := (*[]MetadataEventBytes)(item)
-	if err := VectorMetadataEvent0BytesReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorMetadataEventBytesReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorMetadataEventBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorMetadataEventBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]MetadataEventBytes)(item)
-	if w, err = VectorMetadataEvent0BytesWriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorMetadataEventBytesWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -822,12 +929,12 @@ func (item *VectorMetadataHistoryShortResponseEvent) Reset() {
 
 func (item *VectorMetadataHistoryShortResponseEvent) Read(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
-	return VectorMetadataHistoryShortResponseEvent0Read(w, ptr, nat_t)
+	return BuiltinVectorMetadataHistoryShortResponseEventRead(w, ptr, nat_t)
 }
 
 func (item *VectorMetadataHistoryShortResponseEvent) Write(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
-	return VectorMetadataHistoryShortResponseEvent0Write(w, *ptr, nat_t)
+	return BuiltinVectorMetadataHistoryShortResponseEventWrite(w, *ptr, nat_t)
 }
 
 func (item *VectorMetadataHistoryShortResponseEvent) ReadBoxed(w []byte, nat_t uint32) (_ []byte, err error) {
@@ -847,15 +954,19 @@ func VectorMetadataHistoryShortResponseEvent__ReadJSON(item *VectorMetadataHisto
 }
 func (item *VectorMetadataHistoryShortResponseEvent) readJSON(j interface{}, nat_t uint32) error {
 	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
-	if err := VectorMetadataHistoryShortResponseEvent0ReadJSON(j, ptr, nat_t); err != nil {
+	if err := BuiltinVectorMetadataHistoryShortResponseEventReadJSON(j, ptr, nat_t); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorMetadataHistoryShortResponseEvent) WriteJSON(w []byte, nat_t uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_t)
+}
+
+func (item *VectorMetadataHistoryShortResponseEvent) WriteJSONOpt(short bool, w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataHistoryShortResponseEvent)(item)
-	if w, err = VectorMetadataHistoryShortResponseEvent0WriteJSON(w, *ptr, nat_t); err != nil {
+	if w, err = BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(short, w, *ptr, nat_t); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -873,12 +984,12 @@ func (item *VectorMetadataMetricOld) Reset() {
 
 func (item *VectorMetadataMetricOld) Read(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataMetricOld)(item)
-	return VectorMetadataMetricOld0Read(w, ptr, nat_t)
+	return BuiltinVectorMetadataMetricOldRead(w, ptr, nat_t)
 }
 
 func (item *VectorMetadataMetricOld) Write(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataMetricOld)(item)
-	return VectorMetadataMetricOld0Write(w, *ptr, nat_t)
+	return BuiltinVectorMetadataMetricOldWrite(w, *ptr, nat_t)
 }
 
 func (item *VectorMetadataMetricOld) ReadBoxed(w []byte, nat_t uint32) (_ []byte, err error) {
@@ -898,15 +1009,19 @@ func VectorMetadataMetricOld__ReadJSON(item *VectorMetadataMetricOld, j interfac
 }
 func (item *VectorMetadataMetricOld) readJSON(j interface{}, nat_t uint32) error {
 	ptr := (*[]MetadataMetricOld)(item)
-	if err := VectorMetadataMetricOld0ReadJSON(j, ptr, nat_t); err != nil {
+	if err := BuiltinVectorMetadataMetricOldReadJSON(j, ptr, nat_t); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorMetadataMetricOld) WriteJSON(w []byte, nat_t uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_t)
+}
+
+func (item *VectorMetadataMetricOld) WriteJSONOpt(short bool, w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]MetadataMetricOld)(item)
-	if w, err = VectorMetadataMetricOld0WriteJSON(w, *ptr, nat_t); err != nil {
+	if w, err = BuiltinVectorMetadataMetricOldWriteJSONOpt(short, w, *ptr, nat_t); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -924,12 +1039,12 @@ func (item *VectorStatshouseApiFilter) Reset() {
 
 func (item *VectorStatshouseApiFilter) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFilter)(item)
-	return VectorStatshouseApiFilter0Read(w, ptr)
+	return BuiltinVectorStatshouseApiFilterRead(w, ptr)
 }
 
 func (item *VectorStatshouseApiFilter) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFilter)(item)
-	return VectorStatshouseApiFilter0Write(w, *ptr)
+	return BuiltinVectorStatshouseApiFilterWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseApiFilter) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -957,15 +1072,19 @@ func VectorStatshouseApiFilter__ReadJSON(item *VectorStatshouseApiFilter, j inte
 }
 func (item *VectorStatshouseApiFilter) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseApiFilter)(item)
-	if err := VectorStatshouseApiFilter0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseApiFilterReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseApiFilter) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseApiFilter) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFilter)(item)
-	if w, err = VectorStatshouseApiFilter0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseApiFilterWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -997,12 +1116,12 @@ func (item *VectorStatshouseApiFunctionBoxed) Reset() {
 
 func (item *VectorStatshouseApiFunctionBoxed) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFunction)(item)
-	return VectorStatshouseApiFunctionBoxed0Read(w, ptr)
+	return BuiltinVectorStatshouseApiFunctionBoxedRead(w, ptr)
 }
 
 func (item *VectorStatshouseApiFunctionBoxed) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFunction)(item)
-	return VectorStatshouseApiFunctionBoxed0Write(w, *ptr)
+	return BuiltinVectorStatshouseApiFunctionBoxedWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseApiFunctionBoxed) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1030,15 +1149,19 @@ func VectorStatshouseApiFunctionBoxed__ReadJSON(item *VectorStatshouseApiFunctio
 }
 func (item *VectorStatshouseApiFunctionBoxed) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseApiFunction)(item)
-	if err := VectorStatshouseApiFunctionBoxed0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseApiFunctionBoxedReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseApiFunctionBoxed) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseApiFunctionBoxed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFunction)(item)
-	if w, err = VectorStatshouseApiFunctionBoxed0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseApiFunctionBoxedWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1070,12 +1193,12 @@ func (item *VectorStatshouseApiPointMeta) Reset() {
 
 func (item *VectorStatshouseApiPointMeta) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiPointMeta)(item)
-	return VectorStatshouseApiPointMeta0Read(w, ptr)
+	return BuiltinVectorStatshouseApiPointMetaRead(w, ptr)
 }
 
 func (item *VectorStatshouseApiPointMeta) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiPointMeta)(item)
-	return VectorStatshouseApiPointMeta0Write(w, *ptr)
+	return BuiltinVectorStatshouseApiPointMetaWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseApiPointMeta) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1103,15 +1226,19 @@ func VectorStatshouseApiPointMeta__ReadJSON(item *VectorStatshouseApiPointMeta, 
 }
 func (item *VectorStatshouseApiPointMeta) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseApiPointMeta)(item)
-	if err := VectorStatshouseApiPointMeta0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseApiPointMetaReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseApiPointMeta) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseApiPointMeta) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiPointMeta)(item)
-	if w, err = VectorStatshouseApiPointMeta0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1143,12 +1270,12 @@ func (item *VectorStatshouseApiSeriesMeta) Reset() {
 
 func (item *VectorStatshouseApiSeriesMeta) Read(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
-	return VectorStatshouseApiSeriesMeta0Read(w, ptr, nat_t)
+	return BuiltinVectorStatshouseApiSeriesMetaRead(w, ptr, nat_t)
 }
 
 func (item *VectorStatshouseApiSeriesMeta) Write(w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
-	return VectorStatshouseApiSeriesMeta0Write(w, *ptr, nat_t)
+	return BuiltinVectorStatshouseApiSeriesMetaWrite(w, *ptr, nat_t)
 }
 
 func (item *VectorStatshouseApiSeriesMeta) ReadBoxed(w []byte, nat_t uint32) (_ []byte, err error) {
@@ -1168,15 +1295,19 @@ func VectorStatshouseApiSeriesMeta__ReadJSON(item *VectorStatshouseApiSeriesMeta
 }
 func (item *VectorStatshouseApiSeriesMeta) readJSON(j interface{}, nat_t uint32) error {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
-	if err := VectorStatshouseApiSeriesMeta0ReadJSON(j, ptr, nat_t); err != nil {
+	if err := BuiltinVectorStatshouseApiSeriesMetaReadJSON(j, ptr, nat_t); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseApiSeriesMeta) WriteJSON(w []byte, nat_t uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_t)
+}
+
+func (item *VectorStatshouseApiSeriesMeta) WriteJSONOpt(short bool, w []byte, nat_t uint32) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiSeriesMeta)(item)
-	if w, err = VectorStatshouseApiSeriesMeta0WriteJSON(w, *ptr, nat_t); err != nil {
+	if w, err = BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(short, w, *ptr, nat_t); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1194,12 +1325,12 @@ func (item *VectorStatshouseApiTagValue) Reset() {
 
 func (item *VectorStatshouseApiTagValue) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiTagValue)(item)
-	return VectorStatshouseApiTagValue0Read(w, ptr)
+	return BuiltinVectorStatshouseApiTagValueRead(w, ptr)
 }
 
 func (item *VectorStatshouseApiTagValue) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiTagValue)(item)
-	return VectorStatshouseApiTagValue0Write(w, *ptr)
+	return BuiltinVectorStatshouseApiTagValueWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseApiTagValue) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1227,15 +1358,19 @@ func VectorStatshouseApiTagValue__ReadJSON(item *VectorStatshouseApiTagValue, j 
 }
 func (item *VectorStatshouseApiTagValue) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseApiTagValue)(item)
-	if err := VectorStatshouseApiTagValue0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseApiTagValueReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseApiTagValue) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseApiTagValue) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiTagValue)(item)
-	if w, err = VectorStatshouseApiTagValue0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseApiTagValueWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1267,12 +1402,12 @@ func (item *VectorStatshouseCentroid) Reset() {
 
 func (item *VectorStatshouseCentroid) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseCentroid)(item)
-	return VectorStatshouseCentroid0Read(w, ptr)
+	return BuiltinVectorStatshouseCentroidRead(w, ptr)
 }
 
 func (item *VectorStatshouseCentroid) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseCentroid)(item)
-	return VectorStatshouseCentroid0Write(w, *ptr)
+	return BuiltinVectorStatshouseCentroidWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseCentroid) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1300,15 +1435,19 @@ func VectorStatshouseCentroid__ReadJSON(item *VectorStatshouseCentroid, j interf
 }
 func (item *VectorStatshouseCentroid) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseCentroid)(item)
-	if err := VectorStatshouseCentroid0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseCentroidReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseCentroid) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseCentroid) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseCentroid)(item)
-	if w, err = VectorStatshouseCentroid0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseCentroidWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1340,12 +1479,12 @@ func (item *VectorStatshouseIngestionStatus2) Reset() {
 
 func (item *VectorStatshouseIngestionStatus2) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseIngestionStatus2)(item)
-	return VectorStatshouseIngestionStatus20Read(w, ptr)
+	return BuiltinVectorStatshouseIngestionStatus2Read(w, ptr)
 }
 
 func (item *VectorStatshouseIngestionStatus2) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseIngestionStatus2)(item)
-	return VectorStatshouseIngestionStatus20Write(w, *ptr)
+	return BuiltinVectorStatshouseIngestionStatus2Write(w, *ptr)
 }
 
 func (item *VectorStatshouseIngestionStatus2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1373,15 +1512,19 @@ func VectorStatshouseIngestionStatus2__ReadJSON(item *VectorStatshouseIngestionS
 }
 func (item *VectorStatshouseIngestionStatus2) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseIngestionStatus2)(item)
-	if err := VectorStatshouseIngestionStatus20ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseIngestionStatus2ReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseIngestionStatus2) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseIngestionStatus2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseIngestionStatus2)(item)
-	if w, err = VectorStatshouseIngestionStatus20WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1413,12 +1556,12 @@ func (item *VectorStatshouseMapping) Reset() {
 
 func (item *VectorStatshouseMapping) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMapping)(item)
-	return VectorStatshouseMapping0Read(w, ptr)
+	return BuiltinVectorStatshouseMappingRead(w, ptr)
 }
 
 func (item *VectorStatshouseMapping) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMapping)(item)
-	return VectorStatshouseMapping0Write(w, *ptr)
+	return BuiltinVectorStatshouseMappingWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseMapping) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1446,15 +1589,19 @@ func VectorStatshouseMapping__ReadJSON(item *VectorStatshouseMapping, j interfac
 }
 func (item *VectorStatshouseMapping) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseMapping)(item)
-	if err := VectorStatshouseMapping0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMappingReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseMapping) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseMapping) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMapping)(item)
-	if w, err = VectorStatshouseMapping0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseMappingWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1486,12 +1633,12 @@ func (item *VectorStatshouseMappingBytes) Reset() {
 
 func (item *VectorStatshouseMappingBytes) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMappingBytes)(item)
-	return VectorStatshouseMapping0BytesRead(w, ptr)
+	return BuiltinVectorStatshouseMappingBytesRead(w, ptr)
 }
 
 func (item *VectorStatshouseMappingBytes) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMappingBytes)(item)
-	return VectorStatshouseMapping0BytesWrite(w, *ptr)
+	return BuiltinVectorStatshouseMappingBytesWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseMappingBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1519,15 +1666,19 @@ func VectorStatshouseMappingBytes__ReadJSON(item *VectorStatshouseMappingBytes, 
 }
 func (item *VectorStatshouseMappingBytes) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseMappingBytes)(item)
-	if err := VectorStatshouseMapping0BytesReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMappingBytesReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseMappingBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseMappingBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMappingBytes)(item)
-	if w, err = VectorStatshouseMapping0BytesWriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseMappingBytesWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1559,12 +1710,12 @@ func (item *VectorStatshouseMetric) Reset() {
 
 func (item *VectorStatshouseMetric) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMetric)(item)
-	return VectorStatshouseMetric0Read(w, ptr)
+	return BuiltinVectorStatshouseMetricRead(w, ptr)
 }
 
 func (item *VectorStatshouseMetric) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMetric)(item)
-	return VectorStatshouseMetric0Write(w, *ptr)
+	return BuiltinVectorStatshouseMetricWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseMetric) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1592,15 +1743,19 @@ func VectorStatshouseMetric__ReadJSON(item *VectorStatshouseMetric, j interface{
 }
 func (item *VectorStatshouseMetric) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseMetric)(item)
-	if err := VectorStatshouseMetric0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMetricReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseMetric) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseMetric) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMetric)(item)
-	if w, err = VectorStatshouseMetric0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseMetricWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1632,12 +1787,12 @@ func (item *VectorStatshouseMetricBytes) Reset() {
 
 func (item *VectorStatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMetricBytes)(item)
-	return VectorStatshouseMetric0BytesRead(w, ptr)
+	return BuiltinVectorStatshouseMetricBytesRead(w, ptr)
 }
 
 func (item *VectorStatshouseMetricBytes) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMetricBytes)(item)
-	return VectorStatshouseMetric0BytesWrite(w, *ptr)
+	return BuiltinVectorStatshouseMetricBytesWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseMetricBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1665,15 +1820,19 @@ func VectorStatshouseMetricBytes__ReadJSON(item *VectorStatshouseMetricBytes, j 
 }
 func (item *VectorStatshouseMetricBytes) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseMetricBytes)(item)
-	if err := VectorStatshouseMetric0BytesReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMetricBytesReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseMetricBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseMetricBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMetricBytes)(item)
-	if w, err = VectorStatshouseMetric0BytesWriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseMetricBytesWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1705,12 +1864,12 @@ func (item *VectorStatshouseMultiItem) Reset() {
 
 func (item *VectorStatshouseMultiItem) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMultiItem)(item)
-	return VectorStatshouseMultiItem0Read(w, ptr)
+	return BuiltinVectorStatshouseMultiItemRead(w, ptr)
 }
 
 func (item *VectorStatshouseMultiItem) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMultiItem)(item)
-	return VectorStatshouseMultiItem0Write(w, *ptr)
+	return BuiltinVectorStatshouseMultiItemWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseMultiItem) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1738,15 +1897,19 @@ func VectorStatshouseMultiItem__ReadJSON(item *VectorStatshouseMultiItem, j inte
 }
 func (item *VectorStatshouseMultiItem) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseMultiItem)(item)
-	if err := VectorStatshouseMultiItem0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMultiItemReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseMultiItem) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseMultiItem) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMultiItem)(item)
-	if w, err = VectorStatshouseMultiItem0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseMultiItemWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1778,12 +1941,12 @@ func (item *VectorStatshouseMultiItemBytes) Reset() {
 
 func (item *VectorStatshouseMultiItemBytes) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMultiItemBytes)(item)
-	return VectorStatshouseMultiItem0BytesRead(w, ptr)
+	return BuiltinVectorStatshouseMultiItemBytesRead(w, ptr)
 }
 
 func (item *VectorStatshouseMultiItemBytes) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMultiItemBytes)(item)
-	return VectorStatshouseMultiItem0BytesWrite(w, *ptr)
+	return BuiltinVectorStatshouseMultiItemBytesWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseMultiItemBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1811,15 +1974,19 @@ func VectorStatshouseMultiItemBytes__ReadJSON(item *VectorStatshouseMultiItemByt
 }
 func (item *VectorStatshouseMultiItemBytes) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseMultiItemBytes)(item)
-	if err := VectorStatshouseMultiItem0BytesReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseMultiItemBytesReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseMultiItemBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseMultiItemBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseMultiItemBytes)(item)
-	if w, err = VectorStatshouseMultiItem0BytesWriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseMultiItemBytesWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1851,12 +2018,12 @@ func (item *VectorStatshousePromTarget) Reset() {
 
 func (item *VectorStatshousePromTarget) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshousePromTarget)(item)
-	return VectorStatshousePromTarget0Read(w, ptr)
+	return BuiltinVectorStatshousePromTargetRead(w, ptr)
 }
 
 func (item *VectorStatshousePromTarget) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshousePromTarget)(item)
-	return VectorStatshousePromTarget0Write(w, *ptr)
+	return BuiltinVectorStatshousePromTargetWrite(w, *ptr)
 }
 
 func (item *VectorStatshousePromTarget) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1884,15 +2051,19 @@ func VectorStatshousePromTarget__ReadJSON(item *VectorStatshousePromTarget, j in
 }
 func (item *VectorStatshousePromTarget) readJSON(j interface{}) error {
 	ptr := (*[]StatshousePromTarget)(item)
-	if err := VectorStatshousePromTarget0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshousePromTargetReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshousePromTarget) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshousePromTarget) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshousePromTarget)(item)
-	if w, err = VectorStatshousePromTarget0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshousePromTargetWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1924,12 +2095,12 @@ func (item *VectorStatshousePromTargetBytes) Reset() {
 
 func (item *VectorStatshousePromTargetBytes) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshousePromTargetBytes)(item)
-	return VectorStatshousePromTarget0BytesRead(w, ptr)
+	return BuiltinVectorStatshousePromTargetBytesRead(w, ptr)
 }
 
 func (item *VectorStatshousePromTargetBytes) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshousePromTargetBytes)(item)
-	return VectorStatshousePromTarget0BytesWrite(w, *ptr)
+	return BuiltinVectorStatshousePromTargetBytesWrite(w, *ptr)
 }
 
 func (item *VectorStatshousePromTargetBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -1957,15 +2128,19 @@ func VectorStatshousePromTargetBytes__ReadJSON(item *VectorStatshousePromTargetB
 }
 func (item *VectorStatshousePromTargetBytes) readJSON(j interface{}) error {
 	ptr := (*[]StatshousePromTargetBytes)(item)
-	if err := VectorStatshousePromTarget0BytesReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshousePromTargetBytesReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshousePromTargetBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshousePromTargetBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshousePromTargetBytes)(item)
-	if w, err = VectorStatshousePromTarget0BytesWriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -1997,12 +2172,12 @@ func (item *VectorStatshouseSampleFactor) Reset() {
 
 func (item *VectorStatshouseSampleFactor) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseSampleFactor)(item)
-	return VectorStatshouseSampleFactor0Read(w, ptr)
+	return BuiltinVectorStatshouseSampleFactorRead(w, ptr)
 }
 
 func (item *VectorStatshouseSampleFactor) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseSampleFactor)(item)
-	return VectorStatshouseSampleFactor0Write(w, *ptr)
+	return BuiltinVectorStatshouseSampleFactorWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseSampleFactor) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -2030,15 +2205,19 @@ func VectorStatshouseSampleFactor__ReadJSON(item *VectorStatshouseSampleFactor, 
 }
 func (item *VectorStatshouseSampleFactor) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseSampleFactor)(item)
-	if err := VectorStatshouseSampleFactor0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseSampleFactorReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseSampleFactor) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseSampleFactor) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseSampleFactor)(item)
-	if w, err = VectorStatshouseSampleFactor0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2070,12 +2249,12 @@ func (item *VectorStatshouseTopElement) Reset() {
 
 func (item *VectorStatshouseTopElement) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseTopElement)(item)
-	return VectorStatshouseTopElement0Read(w, ptr)
+	return BuiltinVectorStatshouseTopElementRead(w, ptr)
 }
 
 func (item *VectorStatshouseTopElement) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseTopElement)(item)
-	return VectorStatshouseTopElement0Write(w, *ptr)
+	return BuiltinVectorStatshouseTopElementWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseTopElement) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -2103,15 +2282,19 @@ func VectorStatshouseTopElement__ReadJSON(item *VectorStatshouseTopElement, j in
 }
 func (item *VectorStatshouseTopElement) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseTopElement)(item)
-	if err := VectorStatshouseTopElement0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseTopElementReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseTopElement) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseTopElement) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseTopElement)(item)
-	if w, err = VectorStatshouseTopElement0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseTopElementWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2143,12 +2326,12 @@ func (item *VectorStatshouseTopElementBytes) Reset() {
 
 func (item *VectorStatshouseTopElementBytes) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseTopElementBytes)(item)
-	return VectorStatshouseTopElement0BytesRead(w, ptr)
+	return BuiltinVectorStatshouseTopElementBytesRead(w, ptr)
 }
 
 func (item *VectorStatshouseTopElementBytes) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseTopElementBytes)(item)
-	return VectorStatshouseTopElement0BytesWrite(w, *ptr)
+	return BuiltinVectorStatshouseTopElementBytesWrite(w, *ptr)
 }
 
 func (item *VectorStatshouseTopElementBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -2176,15 +2359,19 @@ func VectorStatshouseTopElementBytes__ReadJSON(item *VectorStatshouseTopElementB
 }
 func (item *VectorStatshouseTopElementBytes) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseTopElementBytes)(item)
-	if err := VectorStatshouseTopElement0BytesReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseTopElementBytesReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStatshouseTopElementBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStatshouseTopElementBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseTopElementBytes)(item)
-	if w, err = VectorStatshouseTopElement0BytesWriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseTopElementBytesWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2216,12 +2403,12 @@ func (item *VectorString) Reset() {
 
 func (item *VectorString) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]string)(item)
-	return VectorString0Read(w, ptr)
+	return BuiltinVectorStringRead(w, ptr)
 }
 
 func (item *VectorString) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]string)(item)
-	return VectorString0Write(w, *ptr)
+	return BuiltinVectorStringWrite(w, *ptr)
 }
 
 func (item *VectorString) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -2247,15 +2434,19 @@ func (item VectorString) String() string {
 func VectorString__ReadJSON(item *VectorString, j interface{}) error { return item.readJSON(j) }
 func (item *VectorString) readJSON(j interface{}) error {
 	ptr := (*[]string)(item)
-	if err := VectorString0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStringReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorString) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]string)(item)
-	if w, err = VectorString0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStringWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2287,12 +2478,12 @@ func (item *VectorStringBytes) Reset() {
 
 func (item *VectorStringBytes) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[][]byte)(item)
-	return VectorString0BytesRead(w, ptr)
+	return BuiltinVectorStringBytesRead(w, ptr)
 }
 
 func (item *VectorStringBytes) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[][]byte)(item)
-	return VectorString0BytesWrite(w, *ptr)
+	return BuiltinVectorStringBytesWrite(w, *ptr)
 }
 
 func (item *VectorStringBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -2320,15 +2511,19 @@ func VectorStringBytes__ReadJSON(item *VectorStringBytes, j interface{}) error {
 }
 func (item *VectorStringBytes) readJSON(j interface{}) error {
 	ptr := (*[][]byte)(item)
-	if err := VectorString0BytesReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStringBytesReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorStringBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorStringBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[][]byte)(item)
-	if w, err = VectorString0BytesWriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStringBytesWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2360,12 +2555,12 @@ func (item *VectorVectorDouble) Reset() {
 
 func (item *VectorVectorDouble) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[][]float64)(item)
-	return VectorVectorDouble0Read(w, ptr)
+	return BuiltinVectorVectorDoubleRead(w, ptr)
 }
 
 func (item *VectorVectorDouble) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[][]float64)(item)
-	return VectorVectorDouble0Write(w, *ptr)
+	return BuiltinVectorVectorDoubleWrite(w, *ptr)
 }
 
 func (item *VectorVectorDouble) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -2393,15 +2588,19 @@ func VectorVectorDouble__ReadJSON(item *VectorVectorDouble, j interface{}) error
 }
 func (item *VectorVectorDouble) readJSON(j interface{}) error {
 	ptr := (*[][]float64)(item)
-	if err := VectorVectorDouble0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorVectorDoubleReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorVectorDouble) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorVectorDouble) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[][]float64)(item)
-	if w, err = VectorVectorDouble0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorVectorDoubleWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -2419,64 +2618,4 @@ func (item *VectorVectorDouble) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
-}
-
-func VectorVectorDouble0Read(w []byte, vec *[][]float64) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([][]float64, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = VectorDouble0Read(w, &(*vec)[i]); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorVectorDouble0Write(w []byte, vec [][]float64) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = VectorDouble0Write(w, elem); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorVectorDouble0ReadJSON(j interface{}, vec *[][]float64) error {
-	l, _arr, err := JsonReadArray("[][]float64", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([][]float64, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := VectorDouble0ReadJSON(_arr[i], &(*vec)[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorVectorDouble0WriteJSON(w []byte, vec [][]float64) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = VectorDouble0WriteJSON(w, elem); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

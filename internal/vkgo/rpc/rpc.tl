@@ -7,10 +7,21 @@
 vector#1cb5c415 {t:Type} # [t] = Vector t;
 tuple#9770768a {t:Type} {n:#} [t] = Tuple t n;
 
+string#b5286e24 ? = String;
+
 dictionaryField {t:Type} key:string value:t = DictionaryField t;
 dictionary#1f4c618f {t:Type} %(Vector %(DictionaryField t)) = Dictionary t;
 
-netPID ip:# port_pid:# utime:# = NetPID;
+stat#9d56e6b2 %(Dictionary string) = Stat;
+
+net.pid#46409ccf ip:# port_pid:# utime:# = net.Pid;
+// mutation of below
+// pid   host:int port_pid:int utime:int = Pid;
+// net.pid ip:int port_pid:int utime:int = net.Pid;
+
+// Boolean emulation
+boolFalse#bc799737 = Bool;
+boolTrue#997275b5 = Bool;
 
 true = True;
 
@@ -24,7 +35,9 @@ rpcInvokeReqExtra#f3ef81a9
   return_failed_subqueries:flags.4?%True
   return_query_stats:flags.6?%True
   no_result:flags.7?%True // Currently for proxy only. Client goes to proxy, it clears this bit and sends query to engine. Client does not wait for answer.
+  return_shards_binlog_pos:flags.8?%True
   // Bits 17, 22, 24 was used in before, but their support was dropped
+  wait_shards_binlog_pos:flags.15?%(Dictionary long)
   wait_binlog_pos:flags.16?long // Perform query only after position in binlog is at least this
   string_forward_keys:flags.18?%(Vector string) // For cluster that are split by string (like pmemcached in some modes) - first specified string is used to choose target, then it is deleted from vector
   int_forward_keys:flags.19?%(Vector long) // First long is used to choose target. Then it is deleted from vector
@@ -40,12 +53,13 @@ rpcReqResultExtra#c5011709
     flags:#
 
     binlog_pos:flags.0?long  binlog_time:flags.1?long
-    engine_pid:flags.2?%netPID
+    engine_pid:flags.2?%net.Pid
     request_size:flags.3?int response_size:flags.3?int
     failed_subqueries:flags.4?int
     compression_version:flags.5?int
     stats:flags.6?%(Dictionary string)
-    view_number:flags.27?%long
+    shards_binlog_pos:flags.8?%(Dictionary long)
+    epoch_number:flags.27?%long view_number:flags.27?%long
     = RpcReqResultExtra;
 
 reqError#b527877d error_code:int error:string = ReqError;
@@ -55,6 +69,7 @@ reqResultHeader#8cc84ce1 extra:%RpcReqResultExtra = ReqResultHeader;
 
 rpcReqResultHeader#63aeda4e query_id:long = RpcReqResultHeader;
 rpcReqResultError#7ae432f5 query_id:long error_code:int error:string = RpcReqResultError;
+rpcReqResultErrorWrapped#7ae432f6 error_code:int error:string = RpcReqResultErrorWrapped;
 
 rpcPong#8430eaa7 ping_id:long = RpcPong;
 rpcPing#5730a2df ping_id:long = RpcPing;
@@ -78,7 +93,7 @@ rpcServerWantsFin#a8ddbc46 = RpcServerWantsFin;
 
 netUdpPacket.unencHeader#00a8e945
   flags:#
-  remote_pid:flags.0?%NetPID local_pid:flags.0?%NetPID generation:flags.0?int
+  remote_pid:flags.0?%net.Pid local_pid:flags.0?%net.Pid generation:flags.0?int
   pid_hash:flags.2?long
   crypto_init:flags.3?int
   random_key:flags.5?%(Tuple # 8)
@@ -96,3 +111,16 @@ netUdpPacket.encHeader#251a7bfd
   prev_parts:flags.22?int
   next_parts:flags.23?int
   = netUdpPacket.EncHeader;
+
+---functions---
+
+@any @internal engine.sleep time_ms:int = Bool;
+@any @internal engine.asyncSleep time_ms:int = Bool;
+
+@any engine.stat = Stat;
+@any engine.filteredStat stat_names:%(Vector string) = Stat;
+@any engine.pid = net.Pid;
+@any engine.version = String;
+@any @internal engine.setVerbosity verbosity:int = True;
+
+@readwrite go.pprof params:string = String;

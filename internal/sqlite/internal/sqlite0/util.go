@@ -12,7 +12,6 @@ package sqlite0
 import "C"
 import (
 	"fmt"
-	"reflect"
 	"sync"
 	"unsafe"
 )
@@ -83,7 +82,7 @@ func unsafeSlicePtr(b []byte) unsafe.Pointer {
 	if b == nil {
 		b = emptyBytes
 	}
-	return unsafe.Pointer((*reflect.SliceHeader)(unsafe.Pointer(&b)).Data)
+	return unsafe.Pointer(unsafe.SliceData(b))
 }
 
 // unsafeStringPtr always returns a non-nil pointer.
@@ -91,7 +90,7 @@ func unsafeStringPtr(s string) unsafe.Pointer {
 	if s == "" {
 		return unsafeSlicePtr(nil)
 	}
-	return unsafe.Pointer((*reflect.StringHeader)(unsafe.Pointer(&s)).Data)
+	return unsafe.Pointer(unsafe.StringData(s))
 }
 
 // unsafeSliceCPtr always returns a non-nil pointer.
@@ -106,19 +105,14 @@ func unsafeStringCPtr(s string) *C.char {
 
 func unsafePtrToSlice(p unsafe.Pointer, n int) (b []byte) {
 	if n > 0 {
-		h := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-		h.Data = uintptr(p)
-		h.Len = n
-		h.Cap = n
+		b = unsafe.Slice((*byte)(p), n)
 	}
 	return
 }
 
 func unsafeSliceToString(b []byte) (s string) {
 	if len(b) > 0 {
-		h := (*reflect.StringHeader)(unsafe.Pointer(&s))
-		h.Data = (*reflect.SliceHeader)(unsafe.Pointer(&b)).Data
-		h.Len = len(b)
+		s = unsafe.String(unsafe.SliceData(b), len(b))
 	}
 	return
 }

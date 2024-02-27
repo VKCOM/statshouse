@@ -30,12 +30,12 @@ func (item *MetadataGetJournalResponsenew) Read(w []byte, nat_field_mask uint32)
 	if w, err = basictl.LongRead(w, &item.CurrentVersion); err != nil {
 		return w, err
 	}
-	return VectorMetadataEvent0Read(w, &item.Events)
+	return BuiltinVectorMetadataEventRead(w, &item.Events)
 }
 
 func (item *MetadataGetJournalResponsenew) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.CurrentVersion)
-	return VectorMetadataEvent0Write(w, item.Events)
+	return BuiltinVectorMetadataEventWrite(w, item.Events)
 }
 
 func (item *MetadataGetJournalResponsenew) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -68,13 +68,16 @@ func (item *MetadataGetJournalResponsenew) readJSON(j interface{}, nat_field_mas
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.getJournalResponsenew", k)
 	}
-	if err := VectorMetadataEvent0ReadJSON(_jEvents, &item.Events); err != nil {
+	if err := BuiltinVectorMetadataEventReadJSON(_jEvents, &item.Events); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetJournalResponsenew) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataGetJournalResponsenew) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.CurrentVersion != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -84,7 +87,7 @@ func (item *MetadataGetJournalResponsenew) WriteJSON(w []byte, nat_field_mask ui
 	if len(item.Events) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"events":`...)
-		if w, err = VectorMetadataEvent0WriteJSON(w, item.Events); err != nil {
+		if w, err = BuiltinVectorMetadataEventWriteJSONOpt(short, w, item.Events); err != nil {
 			return w, err
 		}
 	}
@@ -108,12 +111,12 @@ func (item *MetadataGetJournalResponsenewBytes) Read(w []byte, nat_field_mask ui
 	if w, err = basictl.LongRead(w, &item.CurrentVersion); err != nil {
 		return w, err
 	}
-	return VectorMetadataEvent0BytesRead(w, &item.Events)
+	return BuiltinVectorMetadataEventBytesRead(w, &item.Events)
 }
 
 func (item *MetadataGetJournalResponsenewBytes) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.CurrentVersion)
-	return VectorMetadataEvent0BytesWrite(w, item.Events)
+	return BuiltinVectorMetadataEventBytesWrite(w, item.Events)
 }
 
 func (item *MetadataGetJournalResponsenewBytes) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -146,13 +149,16 @@ func (item *MetadataGetJournalResponsenewBytes) readJSON(j interface{}, nat_fiel
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.getJournalResponsenew", k)
 	}
-	if err := VectorMetadataEvent0BytesReadJSON(_jEvents, &item.Events); err != nil {
+	if err := BuiltinVectorMetadataEventBytesReadJSON(_jEvents, &item.Events); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetJournalResponsenewBytes) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.CurrentVersion != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -162,7 +168,7 @@ func (item *MetadataGetJournalResponsenewBytes) WriteJSON(w []byte, nat_field_ma
 	if len(item.Events) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"events":`...)
-		if w, err = VectorMetadataEvent0BytesWriteJSON(w, item.Events); err != nil {
+		if w, err = BuiltinVectorMetadataEventBytesWriteJSONOpt(short, w, item.Events); err != nil {
 			return w, err
 		}
 	}

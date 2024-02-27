@@ -83,6 +83,9 @@ func (item *MetadataCreateEntityEvent) readJSON(j interface{}) error {
 }
 
 func (item *MetadataCreateEntityEvent) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataCreateEntityEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -91,7 +94,7 @@ func (item *MetadataCreateEntityEvent) WriteJSON(w []byte) (_ []byte, err error)
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"metric":`...)
-	if w, err = item.Metric.WriteJSON(w); err != nil {
+	if w, err = item.Metric.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil

@@ -25,11 +25,11 @@ func (item *EngineMetafilesStat) Reset() {
 }
 
 func (item *EngineMetafilesStat) Read(w []byte) (_ []byte, err error) {
-	return VectorEngineMetafilesOneMemoryStat0Read(w, &item.Data)
+	return BuiltinVectorEngineMetafilesOneMemoryStatRead(w, &item.Data)
 }
 
 func (item *EngineMetafilesStat) Write(w []byte) (_ []byte, err error) {
-	return VectorEngineMetafilesOneMemoryStat0Write(w, item.Data)
+	return BuiltinVectorEngineMetafilesOneMemoryStatWrite(w, item.Data)
 }
 
 func (item *EngineMetafilesStat) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -65,18 +65,21 @@ func (item *EngineMetafilesStat) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("engine.metafilesStatData", k)
 	}
-	if err := VectorEngineMetafilesOneMemoryStat0ReadJSON(_jData, &item.Data); err != nil {
+	if err := BuiltinVectorEngineMetafilesOneMemoryStatReadJSON(_jData, &item.Data); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineMetafilesStat) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineMetafilesStat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Data) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"data":`...)
-		if w, err = VectorEngineMetafilesOneMemoryStat0WriteJSON(w, item.Data); err != nil {
+		if w, err = BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(short, w, item.Data); err != nil {
 			return w, err
 		}
 	}

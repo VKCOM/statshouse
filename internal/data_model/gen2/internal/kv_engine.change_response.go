@@ -85,10 +85,13 @@ func (item *KvEngineChangeResponse) readJSON(j interface{}) error {
 }
 
 func (item *KvEngineChangeResponse) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *KvEngineChangeResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"meta":`...)
-	if w, err = item.Meta.WriteJSON(w); err != nil {
+	if w, err = item.Meta.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	if item.NewValue != 0 {

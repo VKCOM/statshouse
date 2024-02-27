@@ -13,6 +13,132 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseMultiItemRead(w []byte, vec *[]StatshouseMultiItem) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]StatshouseMultiItem, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseMultiItemWrite(w []byte, vec []StatshouseMultiItem) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseMultiItemReadJSON(j interface{}, vec *[]StatshouseMultiItem) error {
+	l, _arr, err := JsonReadArray("[]StatshouseMultiItem", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]StatshouseMultiItem, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := StatshouseMultiItem__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorStatshouseMultiItemWriteJSON(w []byte, vec []StatshouseMultiItem) (_ []byte, err error) {
+	return BuiltinVectorStatshouseMultiItemWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorStatshouseMultiItemWriteJSONOpt(short bool, w []byte, vec []StatshouseMultiItem) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
+func BuiltinVectorStatshouseMultiItemBytesRead(w []byte, vec *[]StatshouseMultiItemBytes) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]StatshouseMultiItemBytes, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseMultiItemBytesWrite(w []byte, vec []StatshouseMultiItemBytes) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseMultiItemBytesReadJSON(j interface{}, vec *[]StatshouseMultiItemBytes) error {
+	l, _arr, err := JsonReadArray("[]StatshouseMultiItemBytes", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]StatshouseMultiItemBytes, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := StatshouseMultiItemBytes__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorStatshouseMultiItemBytesWriteJSON(w []byte, vec []StatshouseMultiItemBytes) (_ []byte, err error) {
+	return BuiltinVectorStatshouseMultiItemBytesWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorStatshouseMultiItemBytesWriteJSONOpt(short bool, w []byte, vec []StatshouseMultiItemBytes) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
 type StatshouseMultiItem struct {
 	FieldsMask uint32
 	Metric     int32
@@ -61,7 +187,7 @@ func (item *StatshouseMultiItem) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.Metric); err != nil {
 		return w, err
 	}
-	if w, err = VectorInt0Read(w, &item.Keys); err != nil {
+	if w, err = BuiltinVectorIntRead(w, &item.Keys); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<10) != 0 {
@@ -75,7 +201,7 @@ func (item *StatshouseMultiItem) Read(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if item.FieldsMask&(1<<11) != 0 {
-		if w, err = VectorStatshouseTopElement0Read(w, &item.Top); err != nil {
+		if w, err = BuiltinVectorStatshouseTopElementRead(w, &item.Top); err != nil {
 			return w, err
 		}
 	} else {
@@ -87,7 +213,7 @@ func (item *StatshouseMultiItem) Read(w []byte) (_ []byte, err error) {
 func (item *StatshouseMultiItem) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.IntWrite(w, item.Metric)
-	if w, err = VectorInt0Write(w, item.Keys); err != nil {
+	if w, err = BuiltinVectorIntWrite(w, item.Keys); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<10) != 0 {
@@ -97,7 +223,7 @@ func (item *StatshouseMultiItem) Write(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if item.FieldsMask&(1<<11) != 0 {
-		if w, err = VectorStatshouseTopElement0Write(w, item.Top); err != nil {
+		if w, err = BuiltinVectorStatshouseTopElementWrite(w, item.Top); err != nil {
 			return w, err
 		}
 	}
@@ -159,7 +285,7 @@ func (item *StatshouseMultiItem) readJSON(j interface{}) error {
 	if _jTop != nil {
 		item.FieldsMask |= 1 << 11
 	}
-	if err := VectorInt0ReadJSON(_jKeys, &item.Keys); err != nil {
+	if err := BuiltinVectorIntReadJSON(_jKeys, &item.Keys); err != nil {
 		return err
 	}
 	if _jT != nil {
@@ -173,7 +299,7 @@ func (item *StatshouseMultiItem) readJSON(j interface{}) error {
 		return err
 	}
 	if _jTop != nil {
-		if err := VectorStatshouseTopElement0ReadJSON(_jTop, &item.Top); err != nil {
+		if err := BuiltinVectorStatshouseTopElementReadJSON(_jTop, &item.Top); err != nil {
 			return err
 		}
 	} else {
@@ -183,6 +309,9 @@ func (item *StatshouseMultiItem) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseMultiItem) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseMultiItem) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -197,29 +326,25 @@ func (item *StatshouseMultiItem) WriteJSON(w []byte) (_ []byte, err error) {
 	if len(item.Keys) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"keys":`...)
-		if w, err = VectorInt0WriteJSON(w, item.Keys); err != nil {
+		if w, err = BuiltinVectorIntWriteJSONOpt(short, w, item.Keys); err != nil {
 			return w, err
 		}
 	}
 	if item.FieldsMask&(1<<10) != 0 {
-		if item.T != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"t":`...)
-			w = basictl.JSONWriteUint32(w, item.T)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"t":`...)
+		w = basictl.JSONWriteUint32(w, item.T)
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tail":`...)
-	if w, err = item.Tail.WriteJSON(w, item.FieldsMask); err != nil {
+	if w, err = item.Tail.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<11) != 0 {
-		if len(item.Top) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"top":`...)
-			if w, err = VectorStatshouseTopElement0WriteJSON(w, item.Top); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"top":`...)
+		if w, err = BuiltinVectorStatshouseTopElementWriteJSONOpt(short, w, item.Top); err != nil {
+			return w, err
 		}
 	}
 	return append(w, '}'), nil
@@ -288,7 +413,7 @@ func (item *StatshouseMultiItemBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.Metric); err != nil {
 		return w, err
 	}
-	if w, err = VectorInt0Read(w, &item.Keys); err != nil {
+	if w, err = BuiltinVectorIntRead(w, &item.Keys); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<10) != 0 {
@@ -302,7 +427,7 @@ func (item *StatshouseMultiItemBytes) Read(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if item.FieldsMask&(1<<11) != 0 {
-		if w, err = VectorStatshouseTopElement0BytesRead(w, &item.Top); err != nil {
+		if w, err = BuiltinVectorStatshouseTopElementBytesRead(w, &item.Top); err != nil {
 			return w, err
 		}
 	} else {
@@ -314,7 +439,7 @@ func (item *StatshouseMultiItemBytes) Read(w []byte) (_ []byte, err error) {
 func (item *StatshouseMultiItemBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.IntWrite(w, item.Metric)
-	if w, err = VectorInt0Write(w, item.Keys); err != nil {
+	if w, err = BuiltinVectorIntWrite(w, item.Keys); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<10) != 0 {
@@ -324,7 +449,7 @@ func (item *StatshouseMultiItemBytes) Write(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if item.FieldsMask&(1<<11) != 0 {
-		if w, err = VectorStatshouseTopElement0BytesWrite(w, item.Top); err != nil {
+		if w, err = BuiltinVectorStatshouseTopElementBytesWrite(w, item.Top); err != nil {
 			return w, err
 		}
 	}
@@ -386,7 +511,7 @@ func (item *StatshouseMultiItemBytes) readJSON(j interface{}) error {
 	if _jTop != nil {
 		item.FieldsMask |= 1 << 11
 	}
-	if err := VectorInt0ReadJSON(_jKeys, &item.Keys); err != nil {
+	if err := BuiltinVectorIntReadJSON(_jKeys, &item.Keys); err != nil {
 		return err
 	}
 	if _jT != nil {
@@ -400,7 +525,7 @@ func (item *StatshouseMultiItemBytes) readJSON(j interface{}) error {
 		return err
 	}
 	if _jTop != nil {
-		if err := VectorStatshouseTopElement0BytesReadJSON(_jTop, &item.Top); err != nil {
+		if err := BuiltinVectorStatshouseTopElementBytesReadJSON(_jTop, &item.Top); err != nil {
 			return err
 		}
 	} else {
@@ -410,6 +535,9 @@ func (item *StatshouseMultiItemBytes) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseMultiItemBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseMultiItemBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -424,29 +552,25 @@ func (item *StatshouseMultiItemBytes) WriteJSON(w []byte) (_ []byte, err error) 
 	if len(item.Keys) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"keys":`...)
-		if w, err = VectorInt0WriteJSON(w, item.Keys); err != nil {
+		if w, err = BuiltinVectorIntWriteJSONOpt(short, w, item.Keys); err != nil {
 			return w, err
 		}
 	}
 	if item.FieldsMask&(1<<10) != 0 {
-		if item.T != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"t":`...)
-			w = basictl.JSONWriteUint32(w, item.T)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"t":`...)
+		w = basictl.JSONWriteUint32(w, item.T)
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"tail":`...)
-	if w, err = item.Tail.WriteJSON(w, item.FieldsMask); err != nil {
+	if w, err = item.Tail.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<11) != 0 {
-		if len(item.Top) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"top":`...)
-			if w, err = VectorStatshouseTopElement0BytesWriteJSON(w, item.Top); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"top":`...)
+		if w, err = BuiltinVectorStatshouseTopElementBytesWriteJSONOpt(short, w, item.Top); err != nil {
+			return w, err
 		}
 	}
 	return append(w, '}'), nil
@@ -465,124 +589,4 @@ func (item *StatshouseMultiItemBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.multi_item", err.Error())
 	}
 	return nil
-}
-
-func VectorStatshouseMultiItem0Read(w []byte, vec *[]StatshouseMultiItem) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]StatshouseMultiItem, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseMultiItem0Write(w []byte, vec []StatshouseMultiItem) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseMultiItem0ReadJSON(j interface{}, vec *[]StatshouseMultiItem) error {
-	l, _arr, err := JsonReadArray("[]StatshouseMultiItem", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseMultiItem, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseMultiItem__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorStatshouseMultiItem0WriteJSON(w []byte, vec []StatshouseMultiItem) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
-}
-
-func VectorStatshouseMultiItem0BytesRead(w []byte, vec *[]StatshouseMultiItemBytes) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]StatshouseMultiItemBytes, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseMultiItem0BytesWrite(w []byte, vec []StatshouseMultiItemBytes) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseMultiItem0BytesReadJSON(j interface{}, vec *[]StatshouseMultiItemBytes) error {
-	l, _arr, err := JsonReadArray("[]StatshouseMultiItemBytes", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseMultiItemBytes, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseMultiItemBytes__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorStatshouseMultiItem0BytesWriteJSON(w []byte, vec []StatshouseMultiItemBytes) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

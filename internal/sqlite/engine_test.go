@@ -11,7 +11,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"math/rand"
 	"path"
 	"reflect"
 	"strconv"
@@ -20,12 +19,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
-
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
-
-	"github.com/stretchr/testify/require"
+	"pgregory.net/rand"
 )
 
 type Logger struct{}

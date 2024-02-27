@@ -85,6 +85,9 @@ func (item *KvEngineBackupResponse) readJSON(j interface{}) error {
 }
 
 func (item *KvEngineBackupResponse) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *KvEngineBackupResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Path) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

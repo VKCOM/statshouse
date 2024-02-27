@@ -38,7 +38,7 @@ func (item *EngineHttpQuery) SetArgs(v map[string]string) {
 	item.FieldsMask |= 1 << 1
 }
 func (item *EngineHttpQuery) ClearArgs() {
-	VectorDictionaryFieldString0Reset(item.Args)
+	BuiltinVectorDictionaryFieldStringReset(item.Args)
 	item.FieldsMask &^= 1 << 1
 }
 func (item EngineHttpQuery) IsSetArgs() bool { return item.FieldsMask&(1<<1) != 0 }
@@ -48,7 +48,7 @@ func (item *EngineHttpQuery) SetHeaders(v map[string]string) {
 	item.FieldsMask |= 1 << 2
 }
 func (item *EngineHttpQuery) ClearHeaders() {
-	VectorDictionaryFieldString0Reset(item.Headers)
+	BuiltinVectorDictionaryFieldStringReset(item.Headers)
 	item.FieldsMask &^= 1 << 2
 }
 func (item EngineHttpQuery) IsSetHeaders() bool { return item.FieldsMask&(1<<2) != 0 }
@@ -56,8 +56,8 @@ func (item EngineHttpQuery) IsSetHeaders() bool { return item.FieldsMask&(1<<2) 
 func (item *EngineHttpQuery) Reset() {
 	item.FieldsMask = 0
 	item.Uri = ""
-	VectorDictionaryFieldString0Reset(item.Args)
-	VectorDictionaryFieldString0Reset(item.Headers)
+	BuiltinVectorDictionaryFieldStringReset(item.Args)
+	BuiltinVectorDictionaryFieldStringReset(item.Headers)
 }
 
 func (item *EngineHttpQuery) Read(w []byte) (_ []byte, err error) {
@@ -72,18 +72,18 @@ func (item *EngineHttpQuery) Read(w []byte) (_ []byte, err error) {
 		item.Uri = ""
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = VectorDictionaryFieldString0Read(w, &item.Args); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Args); err != nil {
 			return w, err
 		}
 	} else {
-		VectorDictionaryFieldString0Reset(item.Args)
+		BuiltinVectorDictionaryFieldStringReset(item.Args)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
-		if w, err = VectorDictionaryFieldString0Read(w, &item.Headers); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Headers); err != nil {
 			return w, err
 		}
 	} else {
-		VectorDictionaryFieldString0Reset(item.Headers)
+		BuiltinVectorDictionaryFieldStringReset(item.Headers)
 	}
 	return w, nil
 }
@@ -96,12 +96,12 @@ func (item *EngineHttpQuery) Write(w []byte) (_ []byte, err error) {
 		}
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = VectorDictionaryFieldString0Write(w, item.Args); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.Args); err != nil {
 			return w, err
 		}
 	}
 	if item.FieldsMask&(1<<2) != 0 {
-		if w, err = VectorDictionaryFieldString0Write(w, item.Headers); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.Headers); err != nil {
 			return w, err
 		}
 	}
@@ -165,23 +165,26 @@ func (item *EngineHttpQuery) readJSON(j interface{}) error {
 		item.Uri = ""
 	}
 	if _jArgs != nil {
-		if err := VectorDictionaryFieldString0ReadJSON(_jArgs, &item.Args); err != nil {
+		if err := BuiltinVectorDictionaryFieldStringReadJSON(_jArgs, &item.Args); err != nil {
 			return err
 		}
 	} else {
-		VectorDictionaryFieldString0Reset(item.Args)
+		BuiltinVectorDictionaryFieldStringReset(item.Args)
 	}
 	if _jHeaders != nil {
-		if err := VectorDictionaryFieldString0ReadJSON(_jHeaders, &item.Headers); err != nil {
+		if err := BuiltinVectorDictionaryFieldStringReadJSON(_jHeaders, &item.Headers); err != nil {
 			return err
 		}
 	} else {
-		VectorDictionaryFieldString0Reset(item.Headers)
+		BuiltinVectorDictionaryFieldStringReset(item.Headers)
 	}
 	return nil
 }
 
 func (item *EngineHttpQuery) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineHttpQuery) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -189,28 +192,22 @@ func (item *EngineHttpQuery) WriteJSON(w []byte) (_ []byte, err error) {
 		w = basictl.JSONWriteUint32(w, item.FieldsMask)
 	}
 	if item.FieldsMask&(1<<0) != 0 {
-		if len(item.Uri) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"uri":`...)
-			w = basictl.JSONWriteString(w, item.Uri)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"uri":`...)
+		w = basictl.JSONWriteString(w, item.Uri)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if len(item.Args) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"args":`...)
-			if w, err = VectorDictionaryFieldString0WriteJSON(w, item.Args); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"args":`...)
+		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, item.Args); err != nil {
+			return w, err
 		}
 	}
 	if item.FieldsMask&(1<<2) != 0 {
-		if len(item.Headers) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"headers":`...)
-			if w, err = VectorDictionaryFieldString0WriteJSON(w, item.Headers); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"headers":`...)
+		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, item.Headers); err != nil {
+			return w, err
 		}
 	}
 	return append(w, '}'), nil

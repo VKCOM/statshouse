@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -14,6 +14,330 @@ import (
 )
 
 var _ = basictl.NatWrite
+
+func BuiltinVectorDictionaryFieldLongReset(m map[string]int64) {
+	for k := range m {
+		delete(m, k)
+	}
+}
+
+func BuiltinVectorDictionaryFieldLongRead(w []byte, m *map[string]int64) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	var data map[string]int64
+	if *m == nil {
+		if l == 0 {
+			return w, nil
+		}
+		data = make(map[string]int64, l)
+		*m = data
+	} else {
+		data = *m
+		for k := range data {
+			delete(data, k)
+		}
+	}
+	for i := 0; i < int(l); i++ {
+		var elem DictionaryFieldLong
+		if w, err = elem.Read(w); err != nil {
+			return w, err
+		}
+		data[elem.Key] = elem.Value
+	}
+	return w, nil
+}
+
+func BuiltinVectorDictionaryFieldLongWrite(w []byte, m map[string]int64) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(m)))
+	if len(m) == 0 {
+		return w, nil
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		val := m[key]
+		elem := DictionaryFieldLong{Key: key, Value: val}
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorDictionaryFieldLongReadJSON(j interface{}, m *map[string]int64) error {
+	var _map map[string]interface{}
+	var _mapok bool
+	if j != nil {
+		_map, _mapok = j.(map[string]interface{})
+		if !_mapok {
+			return ErrorInvalidJSON("map[string]int64", "expected json object") // TODO - better name
+		}
+	}
+	l := len(_map)
+	var data map[string]int64
+	if *m == nil {
+		if l == 0 {
+			return nil
+		}
+		data = make(map[string]int64, l)
+		*m = data
+	} else {
+		data = *m
+		for k := range data {
+			delete(data, k)
+		}
+	}
+	for _jkey, _jvalue := range _map {
+		var value int64
+		if err := JsonReadInt64(_jvalue, &value); err != nil {
+			return err
+		}
+		data[_jkey] = value
+	}
+	return nil
+}
+
+func BuiltinVectorDictionaryFieldLongWriteJSON(w []byte, m map[string]int64) (_ []byte, err error) {
+	return BuiltinVectorDictionaryFieldLongWriteJSONOpt(false, w, m)
+}
+func BuiltinVectorDictionaryFieldLongWriteJSONOpt(short bool, w []byte, m map[string]int64) (_ []byte, err error) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	w = append(w, '{')
+	for _, key := range keys {
+		value := m[key]
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = basictl.JSONWriteString(w, key) // StringKey
+		w = append(w, ':')
+		w = basictl.JSONWriteInt64(w, value)
+	}
+	return append(w, '}'), nil
+}
+
+func BuiltinVectorDictionaryFieldStringReset(m map[string]string) {
+	for k := range m {
+		delete(m, k)
+	}
+}
+
+func BuiltinVectorDictionaryFieldStringRead(w []byte, m *map[string]string) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	var data map[string]string
+	if *m == nil {
+		if l == 0 {
+			return w, nil
+		}
+		data = make(map[string]string, l)
+		*m = data
+	} else {
+		data = *m
+		for k := range data {
+			delete(data, k)
+		}
+	}
+	for i := 0; i < int(l); i++ {
+		var elem DictionaryFieldString
+		if w, err = elem.Read(w); err != nil {
+			return w, err
+		}
+		data[elem.Key] = elem.Value
+	}
+	return w, nil
+}
+
+func BuiltinVectorDictionaryFieldStringWrite(w []byte, m map[string]string) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(m)))
+	if len(m) == 0 {
+		return w, nil
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		val := m[key]
+		elem := DictionaryFieldString{Key: key, Value: val}
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorDictionaryFieldStringReadJSON(j interface{}, m *map[string]string) error {
+	var _map map[string]interface{}
+	var _mapok bool
+	if j != nil {
+		_map, _mapok = j.(map[string]interface{})
+		if !_mapok {
+			return ErrorInvalidJSON("map[string]string", "expected json object") // TODO - better name
+		}
+	}
+	l := len(_map)
+	var data map[string]string
+	if *m == nil {
+		if l == 0 {
+			return nil
+		}
+		data = make(map[string]string, l)
+		*m = data
+	} else {
+		data = *m
+		for k := range data {
+			delete(data, k)
+		}
+	}
+	for _jkey, _jvalue := range _map {
+		var value string
+		if err := JsonReadString(_jvalue, &value); err != nil {
+			return err
+		}
+		data[_jkey] = value
+	}
+	return nil
+}
+
+func BuiltinVectorDictionaryFieldStringWriteJSON(w []byte, m map[string]string) (_ []byte, err error) {
+	return BuiltinVectorDictionaryFieldStringWriteJSONOpt(false, w, m)
+}
+func BuiltinVectorDictionaryFieldStringWriteJSONOpt(short bool, w []byte, m map[string]string) (_ []byte, err error) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	w = append(w, '{')
+	for _, key := range keys {
+		value := m[key]
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = basictl.JSONWriteString(w, key) // StringKey
+		w = append(w, ':')
+		w = basictl.JSONWriteString(w, value)
+	}
+	return append(w, '}'), nil
+}
+
+type DictionaryFieldLong struct {
+	Key   string
+	Value int64
+}
+
+func (DictionaryFieldLong) TLName() string { return "dictionaryField" }
+func (DictionaryFieldLong) TLTag() uint32  { return 0x239c1b62 }
+
+func (item *DictionaryFieldLong) Reset() {
+	item.Key = ""
+	item.Value = 0
+}
+
+func (item *DictionaryFieldLong) Read(w []byte) (_ []byte, err error) {
+	if w, err = basictl.StringRead(w, &item.Key); err != nil {
+		return w, err
+	}
+	return basictl.LongRead(w, &item.Value)
+}
+
+func (item *DictionaryFieldLong) Write(w []byte) (_ []byte, err error) {
+	if w, err = basictl.StringWrite(w, item.Key); err != nil {
+		return w, err
+	}
+	return basictl.LongWrite(w, item.Value), nil
+}
+
+func (item *DictionaryFieldLong) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x239c1b62); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+func (item *DictionaryFieldLong) WriteBoxed(w []byte) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x239c1b62)
+	return item.Write(w)
+}
+
+func (item DictionaryFieldLong) String() string {
+	w, err := item.WriteJSON(nil)
+	if err != nil {
+		return err.Error()
+	}
+	return string(w)
+}
+
+func DictionaryFieldLong__ReadJSON(item *DictionaryFieldLong, j interface{}) error {
+	return item.readJSON(j)
+}
+func (item *DictionaryFieldLong) readJSON(j interface{}) error {
+	_jm, _ok := j.(map[string]interface{})
+	if j != nil && !_ok {
+		return ErrorInvalidJSON("dictionaryField", "expected json object")
+	}
+	_jKey := _jm["key"]
+	delete(_jm, "key")
+	if err := JsonReadString(_jKey, &item.Key); err != nil {
+		return err
+	}
+	_jValue := _jm["value"]
+	delete(_jm, "value")
+	if err := JsonReadInt64(_jValue, &item.Value); err != nil {
+		return err
+	}
+	for k := range _jm {
+		return ErrorInvalidJSONExcessElement("dictionaryField", k)
+	}
+	return nil
+}
+
+func (item *DictionaryFieldLong) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *DictionaryFieldLong) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+	w = append(w, '{')
+	if len(item.Key) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"key":`...)
+		w = basictl.JSONWriteString(w, item.Key)
+	}
+	if item.Value != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"value":`...)
+		w = basictl.JSONWriteInt64(w, item.Value)
+	}
+	return append(w, '}'), nil
+}
+
+func (item *DictionaryFieldLong) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil)
+}
+
+func (item *DictionaryFieldLong) UnmarshalJSON(b []byte) error {
+	j, err := JsonBytesToInterface(b)
+	if err != nil {
+		return ErrorInvalidJSON("dictionaryField", err.Error())
+	}
+	if err = item.readJSON(j); err != nil {
+		return ErrorInvalidJSON("dictionaryField", err.Error())
+	}
+	return nil
+}
 
 type DictionaryFieldString struct {
 	Key   string
@@ -87,6 +411,9 @@ func (item *DictionaryFieldString) readJSON(j interface{}) error {
 }
 
 func (item *DictionaryFieldString) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *DictionaryFieldString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Key) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -114,99 +441,4 @@ func (item *DictionaryFieldString) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("dictionaryField", err.Error())
 	}
 	return nil
-}
-
-func VectorDictionaryFieldString0Reset(m map[string]string) {
-	for k := range m {
-		delete(m, k)
-	}
-}
-
-func VectorDictionaryFieldString0Read(w []byte, m *map[string]string) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil { // No sanity check required for map
-		return w, err
-	}
-	var data map[string]string
-	if *m == nil {
-		if l == 0 {
-			return w, nil
-		}
-		data = make(map[string]string, l)
-		*m = data
-	} else {
-		data = *m
-		for k := range data {
-			delete(data, k)
-		}
-	}
-	for i := 0; i < int(l); i++ {
-		var elem DictionaryFieldString
-		if w, err = elem.Read(w); err != nil {
-			return w, err
-		}
-		data[elem.Key] = elem.Value
-	}
-	return w, nil
-}
-
-func VectorDictionaryFieldString0Write(w []byte, m map[string]string) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(m)))
-	for key, val := range m {
-		elem := DictionaryFieldString{Key: key, Value: val}
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorDictionaryFieldString0ReadJSON(j interface{}, m *map[string]string) error {
-	var _map map[string]interface{}
-	var _mapok bool
-	if j != nil {
-		_map, _mapok = j.(map[string]interface{})
-		if !_mapok {
-			return ErrorInvalidJSON("map[string]string", "expected json object") // TODO - better name
-		}
-	}
-	l := len(_map)
-	var data map[string]string
-	if *m == nil {
-		if l == 0 {
-			return nil
-		}
-		data = make(map[string]string, l)
-		*m = data
-	} else {
-		data = *m
-		for k := range data {
-			delete(data, k)
-		}
-	}
-	for key, _jvalue := range _map {
-		var value string
-		if err := JsonReadString(_jvalue, &value); err != nil {
-			return err
-		}
-		data[key] = value
-	}
-	return nil
-}
-
-func VectorDictionaryFieldString0WriteJSON(w []byte, m map[string]string) (_ []byte, err error) {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	w = append(w, '{')
-	for _, key := range keys {
-		value := m[key]
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteString(w, key) // StringKey
-		w = append(w, ':')
-		w = basictl.JSONWriteString(w, value)
-	}
-	return append(w, '}'), nil
 }

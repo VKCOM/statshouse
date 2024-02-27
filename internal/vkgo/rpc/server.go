@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -26,9 +26,9 @@ import (
 	"golang.org/x/net/netutil"
 	"golang.org/x/sys/unix"
 
-	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
-
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/constants"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 	"github.com/vkcom/statshouse/internal/vkgo/semaphore"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
@@ -133,12 +133,10 @@ func NewServer(options ...ServerOptionsFunc) *Server {
 	}
 
 	for _, err := range opts.trustedSubnetGroupsParseErrors {
-		opts.Logf("[rpc] failed to parse server trusted subnet %q, ignoring", err)
+		// opts.Logf("[rpc] failed to parse server trusted subnet %q, ignoring", err)
+		// we do not return error from this function, and do not want to ingore this error
+		log.Panicf("[rpc] failed to parse server trusted subnet %v", err)
 	}
-
-	// if opts.MaxWorkers <= 0 {
-	//	opts.Logf("[rpc] no workers requested, consider setting SyncHandler instead of Handler")
-	// }
 
 	host, _ := os.Hostname()
 
@@ -202,14 +200,15 @@ type Server struct {
 
 	startTime uint32
 
-	rareLogMu             sync.Mutex
-	lastReqMemWaitLog     time.Time
-	lastRespMemWaitLog    time.Time
-	lastHctxWaitLog       time.Time
-	lastWorkerWaitLog     time.Time
-	lastDuplicateExtraLog time.Time
-	lastHijackWarningLog  time.Time
-	lastPacketTypeLog     time.Time
+	rareLogMu            sync.Mutex
+	lastReqMemWaitLog    time.Time
+	lastRespMemWaitLog   time.Time
+	lastHctxWaitLog      time.Time
+	lastWorkerWaitLog    time.Time
+	lastHijackWarningLog time.Time
+	lastPacketTypeLog    time.Time
+	lastReadErrorLog     time.Time
+	lastOtherLog         time.Time // TODO - may be split this into different error classes
 
 	tracingMu  sync.Mutex
 	tracingLog []string
@@ -306,16 +305,16 @@ func (s *Server) Close() error {
 	s.workersGroup.WaitForever()
 
 	if len(s.conns) != 0 {
-		s.opts.Logf("tracking of connection invariant violated after close wait - %d connections", len(s.conns))
+		s.opts.Logf("rpc: tracking of connection invariant violated after close wait - %d connections", len(s.conns))
 	}
 	if cur, _ := s.reqMemSem.Observe(); cur != 0 {
-		s.opts.Logf("tracking of request memory invariant violated after close wait - %d bytes", cur)
+		s.opts.Logf("rpc: tracking of request memory invariant violated after close wait - %d bytes", cur)
 	}
 	if cur, _ := s.respMemSem.Observe(); cur != 0 {
-		s.opts.Logf("tracking of request memory invariant violated after close wait - %d bytes", cur)
+		s.opts.Logf("rpc: tracking of request memory invariant violated after close wait - %d bytes", cur)
 	}
 	if cur := s.statRequestsCurrent.Load(); cur != 0 {
-		s.opts.Logf("tracking of current requests invariant violated after close wait - %d requests", cur)
+		s.opts.Logf("rpc: tracking of current requests invariant violated after close wait - %d requests", cur)
 	}
 	return closeErr
 }
@@ -453,6 +452,7 @@ func (s *Server) ListenAndServe(network string, address string) error {
 }
 
 func (s *Server) Serve(ln net.Listener) error {
+	_, _ = statCPUInfo.GetSelfCpuUsage()
 	s.mu.Lock()
 	if s.serverStatus > serverStatusStarted {
 		s.mu.Unlock()
@@ -488,7 +488,7 @@ func (s *Server) Serve(ln net.Listener) error {
 				if acceptDelay > maxAcceptDelay {
 					acceptDelay = maxAcceptDelay
 				}
-				s.opts.Logf("rpc: Accept error: %v; retrying in %v", err, acceptDelay)
+				s.rareLog(&s.lastOtherLog, "rpc: Accept error: %v; retrying in %v", err, acceptDelay)
 				time.Sleep(acceptDelay)
 				continue
 			}
@@ -508,7 +508,7 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 	defer s.statConnectionsCurrent.Dec()
 	defer wg.Done()
 
-	magicHead, flags, err := conn.HandshakeServer(s.opts.CryptoKeys, s.opts.TrustedSubnetGroups, s.opts.ForceEncryption, s.startTime, DefaultHandshakeStepTimeout)
+	magicHead, flags, err := conn.HandshakeServer(s.opts.cryptoKeys, s.opts.TrustedSubnetGroups, s.opts.ForceEncryption, s.startTime, DefaultHandshakeStepTimeout)
 	if err != nil {
 		switch string(magicHead) {
 		case memcachedStatsReqRN, memcachedStatsReqN, memcachedGetStatsReq:
@@ -524,7 +524,11 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 				return
 			}
 			if !commonConnCloseError(err) {
-				s.opts.Logf("rpc: failed to handshake with %v, disconnecting: %v, magic head: %+q", conn.remoteAddr, err, magicHead)
+				if len(magicHead) == 0 {
+					s.rareLog(&s.lastOtherLog, "rpc: failed to handshake with %v, disconnecting: %v", conn.remoteAddr, err)
+				} else {
+					s.rareLog(&s.lastOtherLog, "rpc: failed to handshake with %v, disconnecting: %v, peer sent: 0x%x", conn.remoteAddr, err, magicHead)
+				}
 			}
 		}
 		_ = conn.Close()
@@ -559,6 +563,9 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 		_ = conn.Close()
 		return
 	}
+	if s.opts.DebugRPC {
+		s.opts.Logf("rpc: %s->%s Handshake ", sc.conn.remoteAddr, sc.conn.localAddr)
+	}
 
 	wg.Add(1)
 
@@ -568,8 +575,12 @@ func (s *Server) goHandshake(conn *PacketConn, lnAddr net.Addr, wg *WaitGroup) {
 	if debugPrint {
 		fmt.Printf("%v server %p conn %p sendLoop quit\n", time.Now(), s, sc)
 	}
-	_ = sc.Close() // after writer quit, there is no point to continue connection operation
-	<-readErrCC    // wait for reader
+	_ = sc.Close()    // after writer quit, there is no point to continue connection operation
+	err = <-readErrCC // wait for reader
+
+	if s.opts.DebugRPC {
+		s.opts.Logf("rpc: %s->%s Disconnect with err=%v", sc.conn.remoteAddr, sc.conn.localAddr, err)
+	}
 
 	defer s.dropConn(sc)
 
@@ -624,7 +635,8 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 		// read header first, before acquiring handler context,
 		// to be able to disconnect event when all handler contexts are taken
 		var header packetHeader
-		head, err := sc.conn.readPacketHeaderUnlocked(&header, maxIdleDuration)
+		head, isBuiltin, err := sc.conn.readPacketHeaderUnlocked(&header, DefaultPacketTimeout*11/10)
+		// motivation for slightly increasing timeout is so that client and server will not send pings to each other, only client will
 		if err != nil {
 			if len(head) == 0 && (err == io.EOF || err == io.ErrUnexpectedEOF) {
 				if debugPrint {
@@ -633,10 +645,14 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 				sc.SetReadFIN()
 				return nil, nil // clean shutdown, finish writing then close
 			}
-			if len(head) > 0 && !sc.closed() && !commonConnCloseError(err) {
-				s.opts.Logf("rpc: error reading packet header from %v, disconnecting: %v, head: %+q", sc.conn.remoteAddr, err, head)
+			if !sc.closed() && !commonConnCloseError(err) {
+				s.rareLog(&s.lastReadErrorLog, "rpc: error reading packet header from %v, disconnecting: %v, head: %+q", sc.conn.remoteAddr, err, head)
 			}
 			return nil, err
+		}
+		if isBuiltin {
+			sc.SetWriteBuiltin()
+			continue
 		}
 		requestTime := time.Now()
 
@@ -658,13 +674,13 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 		if hctx.request != nil {
 			hctx.Request = *hctx.request
 		}
-		hctx.Request, err = sc.conn.readPacketBodyUnlocked(&hctx.reqHeader, hctx.Request, true, maxPacketRWTime)
+		hctx.Request, err = sc.conn.readPacketBodyUnlocked(&hctx.reqHeader, hctx.Request)
 		if hctx.request != nil {
 			*hctx.request = hctx.Request[:0] // prepare for reuse immediately
 		}
 		if err != nil {
 			if !sc.closed() && !commonConnCloseError(err) {
-				s.opts.Logf("rpc: error reading packet body from %v, disconnecting: %v", sc.conn.remoteAddr, err)
+				s.rareLog(&s.lastReadErrorLog, "rpc: error reading packet body from %v, disconnecting: %v", sc.conn.remoteAddr, err)
 			}
 			return hctx, err
 		}
@@ -711,39 +727,58 @@ func (s *Server) sendLoopImpl(sc *serverConn) []*HandlerContext { // returns con
 	sc.mu.Lock()
 	for {
 		shouldStop := sc.closedFlag || (sc.readFINFlag && sc.hctxCreated == len(sc.hctxPool))
-		if !(sent || sc.writeLetsFin || len(sc.writeQ) != 0 || shouldStop) {
+		if !(sent || sc.writeLetsFin || sc.writeBuiltin || len(sc.writeQ) != 0 || shouldStop) {
 			sc.writeQCond.Wait()
 			continue
 		}
 
 		writeLetsFin := sc.writeLetsFin
 		sc.writeLetsFin = false
+		writeBuiltin := sc.writeBuiltin
+		sc.writeBuiltin = false
 		writeQ, sc.writeQ = sc.writeQ, writeQ[:0]
 		sc.mu.Unlock()
 		sentNow := false
+		if writeBuiltin {
+			sentNow = true
+			if err := sc.conn.WritePacketBuiltinNoFlushUnlocked(); err != nil {
+				if !sc.closed() && !commonConnCloseError(err) {
+					s.rareLog(&s.lastOtherLog, "rpc: error writing builtin packet to %v, disconnecting: %v", sc.conn.remoteAddr, err)
+				}
+				return writeQ // release remaining contexts
+			}
+		}
 		if writeLetsFin {
 			if debugPrint {
 				fmt.Printf("%v server %p conn %p writes Let's FIN\n", time.Now(), s, sc)
 			}
 			sentNow = true
-			crc, err := sc.conn.writePacketHeaderUnlocked(packetTypeRPCServerWantsFin, 0, maxPacketRWTime)
-			if err != nil {
+			if s.opts.DebugRPC {
+				s.opts.Logf("rpc: %s->%s Write Let's FIN packet\n", sc.conn.remoteAddr, sc.conn.localAddr)
+			}
+			if err := sc.conn.writePacketHeaderUnlocked(tl.RpcServerWantsFin{}.TLTag(), 0, DefaultPacketTimeout); err != nil {
 				return writeQ // release remaining contexts
 			}
-			sc.conn.writePacketTrailerUnlocked(crc)
+			sc.conn.writePacketTrailerUnlocked()
 		}
 		for i, hctx := range writeQ {
 			sentNow = true
-			err := writeResponseUnlocked(sc.conn, hctx, maxPacketRWTime)
+			if s.opts.DebugRPC {
+				s.opts.Logf("rpc: %s->%s Response packet queryID=%d extra=%s body=%x\n", sc.conn.remoteAddr, sc.conn.localAddr, hctx.queryID, hctx.ResponseExtra.String(), hctx.Response[:hctx.extraStart])
+			}
+			err := writeResponseUnlocked(sc.conn, hctx)
 			if err != nil {
 				if !sc.closed() && !commonConnCloseError(err) {
-					s.opts.Logf("rpc: error writing packet 0x%x#0x%x to %v, disconnecting: %v", hctx.respPacketType, hctx.reqType, sc.conn.remoteAddr, err)
+					s.rareLog(&s.lastOtherLog, "rpc: error writing packet reqTag #%08x to %v, disconnecting: %v", hctx.reqTag, sc.conn.remoteAddr, err)
 				}
 				return writeQ[i:] // release remaining contexts
 			}
 			sc.releaseHandlerCtx(hctx)
 		}
 		if (sent && !sentNow) || shouldStop {
+			if s.opts.DebugRPC && !shouldStop { // this log during disconnect can be confusing
+				s.opts.Logf("rpc: %s->%s Flush\n", sc.conn.remoteAddr, sc.conn.localAddr)
+			}
 			if err := sc.flush(); err != nil {
 				return nil
 			}
@@ -772,42 +807,33 @@ func (s *Server) syncHandler(sc *serverConn, hctx *HandlerContext) bool {
 		return true
 	}
 	hctx.UserData, sc.userData = sc.userData, hctx.UserData
-	hctx.releaseRequest()
-	hctx.prepareResponse(err)
-	s.pushResponse(hctx, false)
+	s.pushResponse(hctx, err, false)
 	return true
 }
 
 func (s *Server) doSyncHandler(ctx context.Context, hctx *HandlerContext) error {
 	switch hctx.reqHeader.tip {
-	case packetTypeRPCCancelReq:
-		var queryID int64
-		if _, err := basictl.LongRead(hctx.Request, &queryID); err != nil {
+	case tl.RpcCancelReq{}.TLTag():
+		cancelReq := tl.RpcCancelReq{}
+		if _, err := cancelReq.Read(hctx.Request); err != nil {
 			return err
 		}
+		if s.opts.DebugRPC {
+			s.opts.Logf("rpc: %s->%s Cancel queryID=%d\n", hctx.serverConn.conn.remoteAddr, hctx.serverConn.conn.localAddr, cancelReq.QueryId)
+		}
 		hctx.noResult = true
-		hctx.serverConn.cancelLongpollResponse(queryID)
+		hctx.serverConn.cancelLongpollResponse(cancelReq.QueryId)
 		return nil
-	case PacketTypeRPCPing:
-		var ping tl.RpcPing
-		req, err := ping.Read(hctx.Request)
-		if err != nil {
-			return fmt.Errorf("failed to parse ping packet %w", err)
-		}
-		if len(req) != 0 {
-			return fmt.Errorf("excess %d bytes in ping packet", len(req))
-		}
-		pong := tl.RpcPong{PingId: ping.PingId} //lint:ignore S1016 "we do not want conversion semantic here"
-		hctx.Response, _ = pong.Write(hctx.Response)
-		hctx.respPacketType = PacketTypeRPCPong
-		return nil
-	case packetTypeRPCInvokeReq:
-		if s.opts.SyncHandler == nil {
-			return ErrNoHandler
-		}
+	case tl.RpcInvokeReqHeader{}.TLTag():
 		err := hctx.parseInvokeReq(s)
 		if err != nil {
 			return err
+		}
+		if s.opts.DebugRPC {
+			s.opts.Logf("rpc: %s->%s SyncHandler packet tag=#%08x queryID=%d extra=%s body=%x\n", hctx.serverConn.conn.remoteAddr, hctx.serverConn.conn.localAddr, hctx.reqHeader.tip, hctx.queryID, hctx.RequestExtra.String(), hctx.Request)
+		}
+		if s.opts.SyncHandler == nil {
+			return ErrNoHandler
 		}
 		// No deadline on sync handler context, too costly
 		return s.opts.SyncHandler(ctx, hctx)
@@ -818,44 +844,26 @@ func (s *Server) doSyncHandler(ctx context.Context, hctx *HandlerContext) error 
 }
 
 func (s *Server) handle(hctx *HandlerContext) {
-	err := s.doHandle(hctx.serverConn.closeCtx, hctx)
-	if err == errHijackResponse {
-		panic("you must hijack responses from SyncHandler, not from normal handler")
-	}
-	hctx.releaseRequest()
-	hctx.prepareResponse(err)
-	s.pushResponse(hctx, false)
+	err := s.callHandler(hctx.serverConn.closeCtx, hctx)
+	s.pushResponse(hctx, err, false)
 }
 
 func (s *Server) legacySyncHandler(sc *serverConn, hctx *HandlerContext) { // same as handle, but with swapping userData
 	hctx.UserData, sc.userData = sc.userData, hctx.UserData
-	err := s.doHandle(hctx.serverConn.closeCtx, hctx)
-	if err == errHijackResponse {
-		panic("you must hijack responses from SyncHandler, not from normal handler")
-	}
+	err := s.callHandler(hctx.serverConn.closeCtx, hctx)
 	hctx.UserData, sc.userData = sc.userData, hctx.UserData
-	hctx.releaseRequest()
-	hctx.prepareResponse(err)
-	s.pushResponse(hctx, false)
+	s.pushResponse(hctx, err, false)
 }
 
-func (s *Server) pushResponse(hctx *HandlerContext, isLongpoll bool) {
+func (s *Server) pushResponse(hctx *HandlerContext, err error, isLongpoll bool) {
+	if !isLongpoll {
+		hctx.releaseRequest()
+	}
+	hctx.prepareResponse(err)
 	if !hctx.noResult { // do not spend time for accounting, will release anyway couple lines below
 		hctx.respTaken, _ = s.accountResponseMem(hctx.serverConn.closeCtx, hctx.respTaken, cap(hctx.Response), true)
 	}
 	hctx.serverConn.push(hctx, isLongpoll)
-}
-
-func (s *Server) doHandle(ctx context.Context, hctx *HandlerContext) error {
-	if hctx.reqHeader.tip != packetTypeRPCInvokeReq {
-		panic("doHandle - forgot to handle new packet type in doSyncHandler")
-	}
-	if s.opts.SyncHandler == nil { // otherwise already passed in connection loop
-		if err := hctx.parseInvokeReq(s); err != nil {
-			return err
-		}
-	}
-	return s.callHandler(ctx, hctx)
 }
 
 func (hctx *HandlerContext) prepareResponse(err error) {
@@ -874,9 +882,9 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 	if err != nil {
 		respErr := Error{}
 		switch {
-		case err == ErrNoHandler: // this case is only to include reqType into description
+		case err == ErrNoHandler: // this case is only to include reqTag into description
 			respErr.Code = TlErrorNoHandler
-			respErr.Description = fmt.Sprintf("RPC handler for #%08x not found", hctx.reqType)
+			respErr.Description = fmt.Sprintf("RPC handler for #%08x not found", hctx.reqTag)
 		case errors.As(err, &respErr):
 			// OK, forward the error as-is
 		case errors.Is(err, context.DeadlineExceeded):
@@ -888,31 +896,37 @@ func (hctx *HandlerContext) prepareResponseBody(err error) error {
 		}
 
 		if hctx.noResult {
-			hctx.serverConn.server.opts.Logf("rpc: failed to handle no_result query #%v to 0x%x: %s", hctx.queryID, hctx.reqType, respErr.Error())
+			hctx.serverConn.server.rareLog(&hctx.serverConn.server.lastOtherLog, "rpc: failed to handle no_result query #%v to 0x%x: %s", hctx.queryID, hctx.reqTag, respErr.Error())
 			return nil
 		}
 
 		resp = resp[:0]
-		resp = basictl.NatWrite(resp, reqResultErrorTag) // vkext compatibility hack instead of
-		resp = basictl.LongWrite(resp, hctx.queryID)     // packetTypeRPCReqError in packet header
-		resp = basictl.IntWrite(resp, respErr.Code)
-		resp = basictl.StringWriteTruncated(resp, respErr.Description)
+		// vkext compatibility hack instead of
+		// packetTypeRPCReqError in packet header
+		ret := tl.RpcReqResultError{
+			QueryId:   hctx.queryID,
+			ErrorCode: respErr.Code,
+			Error:     respErr.Description,
+		}
+		resp, _ = ret.WriteBoxed(resp)
 	}
 	if hctx.noResult { //We do not care what is in Response, might be any trash
 		return nil
 	}
 	if len(resp) == 0 {
 		// Handler should return ErrNoHandler if it does not know how to return response
-		hctx.serverConn.server.opts.Logf("rpc: handler returned empty response with no error query #%v to 0x%x", hctx.queryID, hctx.reqType)
+		hctx.serverConn.server.rareLog(&hctx.serverConn.server.lastOtherLog, "rpc: handler returned empty response with no error query #%v to 0x%x", hctx.queryID, hctx.reqTag)
 	}
 	hctx.extraStart = len(resp)
-	if hctx.respPacketType == packetTypeRPCReqResult || hctx.respPacketType == packetTypeRPCReqError {
-		resp = basictl.LongWrite(resp, hctx.queryID)
-		hctx.ResponseExtra.Flags &= hctx.requestExtraFieldsmask // return only fields they understand
-		if hctx.respPacketType == packetTypeRPCReqResult && hctx.ResponseExtra.Flags != 0 {
-			resp = basictl.NatWrite(resp, reqResultHeaderTag)
-			resp, _ = hctx.ResponseExtra.Write(resp) // should be no errors during writing, though
-		}
+	rest := tl.RpcReqResultHeader{QueryId: hctx.queryID}
+	resp, _ = rest.Write(resp)
+	hctx.ResponseExtra.Flags &= hctx.requestExtraFieldsmask // return only fields they understand
+	if hctx.ResponseExtra.Flags != 0 {
+		// extra := tl.ReqResultHeader{Extra: hctx.ResponseExtra}
+		// resp, _ = extra.WriteBoxed(resp) // should be no errors during writing
+		// we optimize copy of large extra here
+		resp = basictl.NatWrite(resp, tl.ReqResultHeader{}.TLTag())
+		resp, _ = hctx.ResponseExtra.Write(resp) // should be no errors during writing
 	}
 	hctx.Response = resp
 	return validBodyLen(len(resp))
@@ -931,18 +945,22 @@ func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err err
 		}
 	}()
 
-	switch hctx.reqType {
-	case enginePIDTag:
+	switch hctx.reqTag {
+	case constants.EnginePid:
 		return s.handleEnginePID(hctx)
-	case engineStatTag:
-		return s.handleEngineStat(hctx, false)
-	case engineFilteredStatTag:
-		return s.handleEngineStat(hctx, true)
-	case engineVersionTag:
+	case constants.EngineStat:
+		return s.handleEngineStat(hctx)
+	case constants.EngineFilteredStat:
+		return s.handleEngineFilteredStat(hctx)
+	case constants.EngineVersion:
 		return s.handleEngineVersion(hctx)
-	case engineSetVerbosityTag:
+	case constants.EngineSetVerbosity:
 		return s.handleEngineSetVerbosity(hctx)
-	case goPProfTag:
+	case constants.EngineSleep:
+		return s.handleEngineSleep(ctx, hctx)
+	case constants.EngineAsyncSleep:
+		return s.handleEngineAsyncSleep(ctx, hctx)
+	case constants.GoPprof:
 		return s.handleGoPProf(hctx)
 	default:
 		if hctx.timeout != 0 {
@@ -966,6 +984,9 @@ func (s *Server) callHandler(ctx context.Context, hctx *HandlerContext) (err err
 			hctx.hooksState.BeforeCall(hctx)
 		}
 		err = s.opts.Handler(ctx, hctx)
+		if err == errHijackResponse {
+			panic("you must hijack responses from SyncHandler, not from normal handler")
+		}
 		return err
 	}
 }
@@ -985,7 +1006,7 @@ func (s *Server) dropConn(sc *serverConn) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.conns[sc]; !ok {
-		s.opts.Logf("connections tracking invariant violated in dropConn")
+		s.opts.Logf("rpc: connections tracking invariant violated in dropConn")
 		return
 	}
 	delete(s.conns, sc)

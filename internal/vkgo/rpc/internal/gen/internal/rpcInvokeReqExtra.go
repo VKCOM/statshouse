@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -22,14 +22,16 @@ type RpcInvokeReqExtra struct {
 	// ReturnFailedSubqueries (TrueType) // Conditional: item.Flags.4
 	// ReturnQueryStats (TrueType) // Conditional: item.Flags.6
 	// NoResult (TrueType) // Conditional: item.Flags.7
-	WaitBinlogPos               int64    // Conditional: item.Flags.16
-	StringForwardKeys           []string // Conditional: item.Flags.18
-	IntForwardKeys              []int64  // Conditional: item.Flags.19
-	StringForward               string   // Conditional: item.Flags.20
-	IntForward                  int64    // Conditional: item.Flags.21
-	CustomTimeoutMs             int32    // Conditional: item.Flags.23
-	SupportedCompressionVersion int32    // Conditional: item.Flags.25
-	RandomDelay                 float64  // Conditional: item.Flags.26
+	// ReturnShardsBinlogPos (TrueType) // Conditional: item.Flags.8
+	WaitShardsBinlogPos         map[string]int64 // Conditional: item.Flags.15
+	WaitBinlogPos               int64            // Conditional: item.Flags.16
+	StringForwardKeys           []string         // Conditional: item.Flags.18
+	IntForwardKeys              []int64          // Conditional: item.Flags.19
+	StringForward               string           // Conditional: item.Flags.20
+	IntForward                  int64            // Conditional: item.Flags.21
+	CustomTimeoutMs             int32            // Conditional: item.Flags.23
+	SupportedCompressionVersion int32            // Conditional: item.Flags.25
+	RandomDelay                 float64          // Conditional: item.Flags.26
 	// ReturnViewNumber (TrueType) // Conditional: item.Flags.27
 }
 
@@ -98,6 +100,25 @@ func (item *RpcInvokeReqExtra) SetNoResult(v bool) {
 	}
 }
 func (item RpcInvokeReqExtra) IsSetNoResult() bool { return item.Flags&(1<<7) != 0 }
+
+func (item *RpcInvokeReqExtra) SetReturnShardsBinlogPos(v bool) {
+	if v {
+		item.Flags |= 1 << 8
+	} else {
+		item.Flags &^= 1 << 8
+	}
+}
+func (item RpcInvokeReqExtra) IsSetReturnShardsBinlogPos() bool { return item.Flags&(1<<8) != 0 }
+
+func (item *RpcInvokeReqExtra) SetWaitShardsBinlogPos(v map[string]int64) {
+	item.WaitShardsBinlogPos = v
+	item.Flags |= 1 << 15
+}
+func (item *RpcInvokeReqExtra) ClearWaitShardsBinlogPos() {
+	BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
+	item.Flags &^= 1 << 15
+}
+func (item RpcInvokeReqExtra) IsSetWaitShardsBinlogPos() bool { return item.Flags&(1<<15) != 0 }
 
 func (item *RpcInvokeReqExtra) SetWaitBinlogPos(v int64) {
 	item.WaitBinlogPos = v
@@ -190,6 +211,7 @@ func (item RpcInvokeReqExtra) IsSetReturnViewNumber() bool { return item.Flags&(
 
 func (item *RpcInvokeReqExtra) Reset() {
 	item.Flags = 0
+	BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
 	item.WaitBinlogPos = 0
 	item.StringForwardKeys = item.StringForwardKeys[:0]
 	item.IntForwardKeys = item.IntForwardKeys[:0]
@@ -204,6 +226,13 @@ func (item *RpcInvokeReqExtra) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.Flags); err != nil {
 		return w, err
 	}
+	if item.Flags&(1<<15) != 0 {
+		if w, err = BuiltinVectorDictionaryFieldLongRead(w, &item.WaitShardsBinlogPos); err != nil {
+			return w, err
+		}
+	} else {
+		BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
+	}
 	if item.Flags&(1<<16) != 0 {
 		if w, err = basictl.LongRead(w, &item.WaitBinlogPos); err != nil {
 			return w, err
@@ -212,14 +241,14 @@ func (item *RpcInvokeReqExtra) Read(w []byte) (_ []byte, err error) {
 		item.WaitBinlogPos = 0
 	}
 	if item.Flags&(1<<18) != 0 {
-		if w, err = VectorString0Read(w, &item.StringForwardKeys); err != nil {
+		if w, err = BuiltinVectorStringRead(w, &item.StringForwardKeys); err != nil {
 			return w, err
 		}
 	} else {
 		item.StringForwardKeys = item.StringForwardKeys[:0]
 	}
 	if item.Flags&(1<<19) != 0 {
-		if w, err = VectorLong0Read(w, &item.IntForwardKeys); err != nil {
+		if w, err = BuiltinVectorLongRead(w, &item.IntForwardKeys); err != nil {
 			return w, err
 		}
 	} else {
@@ -265,16 +294,21 @@ func (item *RpcInvokeReqExtra) Read(w []byte) (_ []byte, err error) {
 
 func (item *RpcInvokeReqExtra) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.Flags)
+	if item.Flags&(1<<15) != 0 {
+		if w, err = BuiltinVectorDictionaryFieldLongWrite(w, item.WaitShardsBinlogPos); err != nil {
+			return w, err
+		}
+	}
 	if item.Flags&(1<<16) != 0 {
 		w = basictl.LongWrite(w, item.WaitBinlogPos)
 	}
 	if item.Flags&(1<<18) != 0 {
-		if w, err = VectorString0Write(w, item.StringForwardKeys); err != nil {
+		if w, err = BuiltinVectorStringWrite(w, item.StringForwardKeys); err != nil {
 			return w, err
 		}
 	}
 	if item.Flags&(1<<19) != 0 {
-		if w, err = VectorLong0Write(w, item.IntForwardKeys); err != nil {
+		if w, err = BuiltinVectorLongWrite(w, item.IntForwardKeys); err != nil {
 			return w, err
 		}
 	}
@@ -345,6 +379,10 @@ func (item *RpcInvokeReqExtra) readJSON(j interface{}) error {
 	delete(_jm, "return_query_stats")
 	_jNoResult := _jm["no_result"]
 	delete(_jm, "no_result")
+	_jReturnShardsBinlogPos := _jm["return_shards_binlog_pos"]
+	delete(_jm, "return_shards_binlog_pos")
+	_jWaitShardsBinlogPos := _jm["wait_shards_binlog_pos"]
+	delete(_jm, "wait_shards_binlog_pos")
 	_jWaitBinlogPos := _jm["wait_binlog_pos"]
 	delete(_jm, "wait_binlog_pos")
 	_jStringForwardKeys := _jm["string_forward_keys"]
@@ -443,6 +481,20 @@ func (item *RpcInvokeReqExtra) readJSON(j interface{}) error {
 			item.Flags &^= 1 << 7
 		}
 	}
+	if _jReturnShardsBinlogPos != nil {
+		_bit := false
+		if err := JsonReadBool(_jReturnShardsBinlogPos, &_bit); err != nil {
+			return err
+		}
+		if _bit {
+			item.Flags |= 1 << 8
+		} else {
+			item.Flags &^= 1 << 8
+		}
+	}
+	if _jWaitShardsBinlogPos != nil {
+		item.Flags |= 1 << 15
+	}
 	if _jWaitBinlogPos != nil {
 		item.Flags |= 1 << 16
 	}
@@ -478,6 +530,13 @@ func (item *RpcInvokeReqExtra) readJSON(j interface{}) error {
 			item.Flags &^= 1 << 27
 		}
 	}
+	if _jWaitShardsBinlogPos != nil {
+		if err := BuiltinVectorDictionaryFieldLongReadJSON(_jWaitShardsBinlogPos, &item.WaitShardsBinlogPos); err != nil {
+			return err
+		}
+	} else {
+		BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
+	}
 	if _jWaitBinlogPos != nil {
 		if err := JsonReadInt64(_jWaitBinlogPos, &item.WaitBinlogPos); err != nil {
 			return err
@@ -486,14 +545,14 @@ func (item *RpcInvokeReqExtra) readJSON(j interface{}) error {
 		item.WaitBinlogPos = 0
 	}
 	if _jStringForwardKeys != nil {
-		if err := VectorString0ReadJSON(_jStringForwardKeys, &item.StringForwardKeys); err != nil {
+		if err := BuiltinVectorStringReadJSON(_jStringForwardKeys, &item.StringForwardKeys); err != nil {
 			return err
 		}
 	} else {
 		item.StringForwardKeys = item.StringForwardKeys[:0]
 	}
 	if _jIntForwardKeys != nil {
-		if err := VectorLong0ReadJSON(_jIntForwardKeys, &item.IntForwardKeys); err != nil {
+		if err := BuiltinVectorLongReadJSON(_jIntForwardKeys, &item.IntForwardKeys); err != nil {
 			return err
 		}
 	} else {
@@ -538,6 +597,9 @@ func (item *RpcInvokeReqExtra) readJSON(j interface{}) error {
 }
 
 func (item *RpcInvokeReqExtra) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *RpcInvokeReqExtra) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Flags != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -572,65 +634,60 @@ func (item *RpcInvokeReqExtra) WriteJSON(w []byte) (_ []byte, err error) {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"no_result":true`...)
 	}
-	if item.Flags&(1<<16) != 0 {
-		if item.WaitBinlogPos != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"wait_binlog_pos":`...)
-			w = basictl.JSONWriteInt64(w, item.WaitBinlogPos)
+	if item.Flags&(1<<8) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"return_shards_binlog_pos":true`...)
+	}
+	if item.Flags&(1<<15) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"wait_shards_binlog_pos":`...)
+		if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(short, w, item.WaitShardsBinlogPos); err != nil {
+			return w, err
 		}
 	}
+	if item.Flags&(1<<16) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"wait_binlog_pos":`...)
+		w = basictl.JSONWriteInt64(w, item.WaitBinlogPos)
+	}
 	if item.Flags&(1<<18) != 0 {
-		if len(item.StringForwardKeys) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"string_forward_keys":`...)
-			if w, err = VectorString0WriteJSON(w, item.StringForwardKeys); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"string_forward_keys":`...)
+		if w, err = BuiltinVectorStringWriteJSONOpt(short, w, item.StringForwardKeys); err != nil {
+			return w, err
 		}
 	}
 	if item.Flags&(1<<19) != 0 {
-		if len(item.IntForwardKeys) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"int_forward_keys":`...)
-			if w, err = VectorLong0WriteJSON(w, item.IntForwardKeys); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"int_forward_keys":`...)
+		if w, err = BuiltinVectorLongWriteJSONOpt(short, w, item.IntForwardKeys); err != nil {
+			return w, err
 		}
 	}
 	if item.Flags&(1<<20) != 0 {
-		if len(item.StringForward) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"string_forward":`...)
-			w = basictl.JSONWriteString(w, item.StringForward)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"string_forward":`...)
+		w = basictl.JSONWriteString(w, item.StringForward)
 	}
 	if item.Flags&(1<<21) != 0 {
-		if item.IntForward != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"int_forward":`...)
-			w = basictl.JSONWriteInt64(w, item.IntForward)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"int_forward":`...)
+		w = basictl.JSONWriteInt64(w, item.IntForward)
 	}
 	if item.Flags&(1<<23) != 0 {
-		if item.CustomTimeoutMs != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"custom_timeout_ms":`...)
-			w = basictl.JSONWriteInt32(w, item.CustomTimeoutMs)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"custom_timeout_ms":`...)
+		w = basictl.JSONWriteInt32(w, item.CustomTimeoutMs)
 	}
 	if item.Flags&(1<<25) != 0 {
-		if item.SupportedCompressionVersion != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"supported_compression_version":`...)
-			w = basictl.JSONWriteInt32(w, item.SupportedCompressionVersion)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"supported_compression_version":`...)
+		w = basictl.JSONWriteInt32(w, item.SupportedCompressionVersion)
 	}
 	if item.Flags&(1<<26) != 0 {
-		if item.RandomDelay != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"random_delay":`...)
-			w = basictl.JSONWriteFloat64(w, item.RandomDelay)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"random_delay":`...)
+		w = basictl.JSONWriteFloat64(w, item.RandomDelay)
 	}
 	if item.Flags&(1<<27) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

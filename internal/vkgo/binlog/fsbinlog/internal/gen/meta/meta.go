@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -80,11 +80,11 @@ func CreateObjectFromName(name string) Object {
 
 type TLItem struct {
 	tag                uint32
+	annotations        uint32
 	tlName             string
 	createFunction     func() Function
 	createFunctionLong func() Function
 	createObject       func() Object
-	// TODO - annotations, etc
 }
 
 func (item TLItem) TLTag() uint32            { return item.tag }
@@ -96,6 +96,8 @@ func (item TLItem) CreateFunction() Function { return item.createFunction() }
 // For transcoding short-long version during Long ID transition
 func (item TLItem) HasFunctionLong() bool        { return item.createFunctionLong != nil }
 func (item TLItem) CreateFunctionLong() Function { return item.createFunctionLong() }
+
+// Annotations
 
 // TLItem serves as a single type for all enum values
 func (item *TLItem) Reset()                              {}
@@ -201,7 +203,7 @@ func fillFunction(n1 string, n2 string, item *TLItem) {
 }
 
 func init() {
-	fillObject("fsbinlog.levStart#044c644b", "#044c644b", &TLItem{tag: 0x44c644b, tlName: "fsbinlog.levStart"})
-	fillObject("fsbinlog.levUpgradeToGms#b75009a0", "#b75009a0", &TLItem{tag: 0xb75009a0, tlName: "fsbinlog.levUpgradeToGms"})
-	fillObject("fsbinlog.snapshotMeta#6b49d850", "#6b49d850", &TLItem{tag: 0x6b49d850, tlName: "fsbinlog.snapshotMeta"})
+	fillObject("fsbinlog.levStart#044c644b", "#044c644b", &TLItem{tag: 0x44c644b, annotations: 0x0, tlName: "fsbinlog.levStart"})
+	fillObject("fsbinlog.levUpgradeToGms#b75009a0", "#b75009a0", &TLItem{tag: 0xb75009a0, annotations: 0x0, tlName: "fsbinlog.levUpgradeToGms"})
+	fillObject("fsbinlog.snapshotMeta#6b49d850", "#6b49d850", &TLItem{tag: 0x6b49d850, annotations: 0x0, tlName: "fsbinlog.snapshotMeta"})
 }

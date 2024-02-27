@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,6 +8,7 @@ package rpc
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -20,15 +21,12 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/constants"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlengine"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tlgo"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/tlpprof" // TODO - modernize pprof package, it is very old
-)
-
-const (
-	tlTrueTag   = uint32(0x3fedd339) // copy of vktl.MagicTlTrue
-	tlStringTag = uint32(0xb5286e24)
-	tlNetPIDTag = uint32(0x46409ccf) // copy of vktl.MagicTlNetPid
-	tlStatTag   = uint32(0x9d56e6b2) // copy of vktl.MagicTlStat
 )
 
 func (s *Server) collectStats(localAddr net.Addr) map[string]string {
@@ -108,27 +106,45 @@ func readCommandLine() string {
 	return strings.ReplaceAll(string(buf), "\x00", " ")
 }
 
-func (s *Server) handleEnginePID(hctx *HandlerContext) error {
+func (s *Server) handleEnginePID(hctx *HandlerContext) (err error) {
+	req := tlengine.Pid{}
+	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+		return err
+	}
 	pid := prepareHandshakePIDServer(hctx.localAddr, s.startTime)
-	hctx.Response = basictl.NatWrite(hctx.Response, tlNetPIDTag)
-	hctx.Response, _ = pid.Write(hctx.Response)
+	hctx.Response, err = req.WriteResult(hctx.Response, pid)
+	return err
+}
+
+func (s *Server) handleEngineStat(hctx *HandlerContext) error {
+	req := tlengine.Stat{}
+	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+		return err
+	}
+	stats := s.collectStats(hctx.localAddr)
+	keys := sortedStatKeys(stats)
+	// hctx.Response, err = req.WriteResult(hctx.Response, pid) - TODO - generate code to write sorted stats
+
+	hctx.Response = basictl.NatWrite(hctx.Response, constants.Stat)
+	hctx.Response = basictl.NatWrite(hctx.Response, uint32(len(keys)))
+	for _, k := range keys {
+		hctx.Response = basictl.StringWriteTruncated(hctx.Response, k)
+		hctx.Response = basictl.StringWriteTruncated(hctx.Response, stats[k])
+	}
 	return nil
 }
 
-func (s *Server) handleEngineStat(hctx *HandlerContext, isFiltered bool) error {
-	stats := s.collectStats(hctx.localAddr)
-	keys := sortedStatKeys(stats)
-
-	if isFiltered {
-		statNames, err := parseStatNames(hctx)
-		if err != nil {
-			return fmt.Errorf("failed to parse stat names: %w", err)
-		}
-
-		keys = filterStatKeys(keys, statNames)
+func (s *Server) handleEngineFilteredStat(hctx *HandlerContext) error {
+	req := tlengine.FilteredStat{}
+	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+		return err
 	}
+	stats := s.collectStats(hctx.localAddr)
+	filterStats(stats, req.StatNames)
+	keys := sortedStatKeys(stats)
+	// hctx.Response, err = req.WriteResult(hctx.Response, pid) - TODO - generate code to write sorted stats
 
-	hctx.Response = basictl.NatWrite(hctx.Response, tlStatTag)
+	hctx.Response = basictl.NatWrite(hctx.Response, constants.Stat)
 	hctx.Response = basictl.NatWrite(hctx.Response, uint32(len(keys)))
 	for _, k := range keys {
 		hctx.Response = basictl.StringWriteTruncated(hctx.Response, k)
@@ -138,53 +154,76 @@ func (s *Server) handleEngineStat(hctx *HandlerContext, isFiltered bool) error {
 	return nil
 }
 
-func parseStatNames(hctx *HandlerContext) ([]string, error) {
-	var (
-		l   uint32
-		err error
-	)
-
-	_, hctx.Request, _ = basictl.NatReadTag(hctx.Request)
-	if hctx.Request, err = basictl.NatRead(hctx.Request, &l); err != nil {
-		return nil, err
+func (s *Server) handleEngineVersion(hctx *HandlerContext) (err error) {
+	req := tlengine.Version{}
+	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+		return err
 	}
-	if err = basictl.CheckLengthSanity(hctx.Request, l, 4); err != nil {
-		return nil, err
-	}
-
-	vector := make([]string, l)
-	for i := range vector {
-		if hctx.Request, err = basictl.StringRead(hctx.Request, &vector[i]); err != nil {
-			return nil, err
-		}
-	}
-	return vector, nil
-}
-
-func (s *Server) handleEngineVersion(hctx *HandlerContext) error {
-	hctx.Response = basictl.NatWrite(hctx.Response, tlStringTag)
-	hctx.Response = basictl.StringWriteTruncated(hctx.Response, s.opts.Version)
-	return nil
+	hctx.Response, err = req.WriteResult(hctx.Response, s.opts.Version)
+	return err
 }
 
 func (s *Server) handleEngineSetVerbosity(hctx *HandlerContext) (err error) {
+	req := tlengine.SetVerbosity{}
+	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+		return err
+	}
 	if s.opts.VerbosityHandler == nil {
 		return nil
 	}
-
-	if hctx.Request, err = basictl.NatReadExactTag(hctx.Request, engineSetVerbosityTag); err != nil {
+	if err = s.opts.VerbosityHandler(int(req.Verbosity)); err != nil {
 		return err
 	}
-	var verbosity int32
-	if hctx.Request, err = basictl.IntRead(hctx.Request, &verbosity); err != nil {
-		return fmt.Errorf("failed to read verbosity level: %w", err)
+	hctx.Response, err = req.WriteResult(hctx.Response, tl.True{})
+	return err
+}
+
+func handleEngineSleep(ctx context.Context, hctx *HandlerContext, timeMs int32) (err error) {
+	if hctx.timeout != 0 {
+		deadline := hctx.RequestTime.Add(hctx.timeout)
+		dt := time.Since(deadline)
+		if dt >= 0 {
+			return Error{
+				Code:        TlErrorTimeout,
+				Description: fmt.Sprintf("RPC query timeout (%v after deadline)", dt),
+			}
+		}
+
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, deadline)
+		defer cancel()
 	}
-	if err = s.opts.VerbosityHandler(int(verbosity)); err != nil {
+
+	select {
+	case <-time.After(time.Duration(timeMs) * time.Millisecond):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *Server) handleEngineSleep(ctx context.Context, hctx *HandlerContext) (err error) {
+	req := tlengine.Sleep{}
+	if _, err := req.ReadBoxed(hctx.Request); err != nil {
 		return err
 	}
-	hctx.Response = basictl.NatWrite(hctx.Response, tlTrueTag)
+	if err := handleEngineSleep(ctx, hctx, req.TimeMs); err != nil {
+		return err
+	}
+	hctx.Response, err = req.WriteResult(hctx.Response, true)
+	return err
+}
 
-	return nil
+func (s *Server) handleEngineAsyncSleep(ctx context.Context, hctx *HandlerContext) (err error) {
+	req := tlengine.AsyncSleep{}
+	if _, err := req.ReadBoxed(hctx.Request); err != nil {
+		return err
+	}
+	if err := handleEngineSleep(ctx, hctx, req.TimeMs); err != nil {
+		return err
+	}
+	hctx.Response, err = req.WriteResult(hctx.Response, true)
+	return err
 }
 
 func (s *Server) respondWithMemcachedVersion(conn *PacketConn) {
@@ -192,7 +231,7 @@ func (s *Server) respondWithMemcachedVersion(conn *PacketConn) {
 
 	err := s.sendMemcachedResponse(conn, "version", []byte(resp))
 	if err != nil {
-		s.opts.Logf(err.Error())
+		s.rareLog(&s.lastOtherLog, err.Error())
 	}
 }
 
@@ -202,12 +241,12 @@ func (s *Server) respondWithMemcachedStats(conn *PacketConn) {
 
 	err := s.sendMemcachedResponse(conn, "stats", resp)
 	if err != nil {
-		s.opts.Logf(err.Error())
+		s.rareLog(&s.lastOtherLog, "%v", err)
 	}
 }
 
 func (s *Server) sendMemcachedResponse(c *PacketConn, name string, resp []byte) error {
-	err := c.conn.SetWriteDeadline(time.Now().Add(maxPacketRWTime))
+	err := c.conn.SetWriteDeadline(time.Now().Add(DefaultPacketTimeout))
 	if err != nil {
 		return fmt.Errorf("rpc: failed to set write deadline for memcached %v for %v: %w", name, c.remoteAddr, err)
 	}
@@ -231,19 +270,17 @@ func sortedStatKeys(stats map[string]string) []string {
 	return keys
 }
 
-func filterStatKeys(keys []string, names []string) []string {
+func filterStats(stats map[string]string, names []string) {
 	m := map[string]struct{}{}
 	for _, name := range names {
 		m[name] = struct{}{}
 	}
 
-	var result []string
-	for _, key := range keys {
-		if _, ok := m[key]; ok {
-			result = append(result, key)
+	for key := range stats {
+		if _, ok := m[key]; !ok {
+			delete(stats, key)
 		}
 	}
-	return result
 }
 
 func marshalMemcachedStats(stats map[string]string) []byte {
@@ -262,16 +299,11 @@ func marshalMemcachedStats(stats map[string]string) []byte {
 }
 
 func (s *Server) handleGoPProf(hctx *HandlerContext) (err error) {
-	hctx.Request, err = basictl.NatReadExactTag(hctx.Request, goPProfTag)
-	if err != nil {
+	req := tlgo.Pprof{}
+	if _, err := req.ReadBoxed(hctx.Request); err != nil {
 		return err
 	}
-	var q string
-	hctx.Request, err = basictl.StringRead(hctx.Request, &q)
-	if err != nil {
-		return fmt.Errorf("failed to read pprof URL: %w", err)
-	}
-	u, err := url.Parse(q)
+	u, err := url.Parse(req.Params)
 	if err != nil {
 		return fmt.Errorf("failed to parse pprof URL: %w", err)
 	}
@@ -293,12 +325,11 @@ func (s *Server) handleGoPProf(hctx *HandlerContext) (err error) {
 		name := strings.TrimPrefix(u.Path, "/debug/pprof/")
 		err = tlpprof.Index(&buf, name, u)
 	default:
-		err = fmt.Errorf("unsupported pprof URL %q", q)
+		err = fmt.Errorf("unsupported pprof URL %q", req.Params)
 	}
 	if err != nil {
 		return err
 	}
-	hctx.Response = basictl.NatWrite(hctx.Response, tlStringTag)
-	hctx.Response = basictl.StringWriteBytesTruncated(hctx.Response, buf.Bytes())
-	return nil
+	hctx.Response, err = req.WriteResult(hctx.Response, buf.String())
+	return err
 }

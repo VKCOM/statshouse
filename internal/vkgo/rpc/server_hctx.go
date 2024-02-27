@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,17 +13,20 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
 // HandlerContext must not be used outside the handler
 type HandlerContext struct {
-	ActorID     uint64
+	ActorID     int64
 	QueryID     int64
 	RequestTime time.Time
 	listenAddr  net.Addr
 	localAddr   net.Addr
 	remoteAddr  net.Addr
-	keyID       [4]byte
+
+	keyID           [4]byte
+	protocolVersion uint32
 
 	request  *[]byte // pointer for reuse. Holds allocated slice which will be put into sync pool, has always len 0
 	Request  []byte
@@ -39,16 +42,17 @@ type HandlerContext struct {
 	// UserData allows caching common state between different requests.
 	UserData any
 
+	RequestFunctionName string // Experimental. Generated handlers fill this during request processing.
+
 	hooksState ServerHookState // can be nil
 
-	serverConn     *serverConn
-	reqHeader      packetHeader
-	reqType        uint32 // actual request can be wrapped 0 or more times within reqHeader
-	reqTaken       int
-	respTaken      int
-	respPacketType uint32
-	noResult       bool  // defensive copy
-	queryID        int64 // defensive copy
+	serverConn *serverConn
+	reqHeader  packetHeader
+	reqTag     uint32 // actual request can be wrapped 0 or more times within reqHeader
+	reqTaken   int
+	respTaken  int
+	noResult   bool  // defensive copy
+	queryID    int64 // defensive copy
 
 	timeout time.Duration // 0 means infinite, for this, both client and server must have infinite timeout
 }
@@ -65,9 +69,10 @@ func (hctx *HandlerContext) WithContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, handlerContextKey{}, hctx)
 }
 
+func (hctx *HandlerContext) RequestTag() uint32      { return hctx.reqTag } // First 4 bytes of request available after request is freed
 func (hctx *HandlerContext) KeyID() [4]byte          { return hctx.keyID }
-func (hctx *HandlerContext) ProtocolVersion() uint32 { return 0 }
-func (hctx *HandlerContext) ListenAddr() net.Addr    { return hctx.remoteAddr }
+func (hctx *HandlerContext) ProtocolVersion() uint32 { return hctx.protocolVersion }
+func (hctx *HandlerContext) ListenAddr() net.Addr    { return hctx.listenAddr }
 func (hctx *HandlerContext) LocalAddr() net.Addr     { return hctx.localAddr }
 func (hctx *HandlerContext) RemoteAddr() net.Addr    { return hctx.remoteAddr }
 
@@ -98,16 +103,18 @@ func (hctx *HandlerContext) reset() {
 	}
 
 	// We do not preserve map in ResponseExtra because strings will not be reused anyway
+	// Also we do not reuse because client could possibly save slice/pointer
 	*hctx = HandlerContext{
 		UserData: hctx.UserData,
 
 		// HandlerContext is bound to the connection, so these are always valid
-		serverConn: hctx.serverConn,
-		listenAddr: hctx.listenAddr,
-		localAddr:  hctx.localAddr,
-		remoteAddr: hctx.remoteAddr,
-		keyID:      hctx.keyID,
-		hooksState: hctx.hooksState,
+		serverConn:      hctx.serverConn,
+		listenAddr:      hctx.listenAddr,
+		localAddr:       hctx.localAddr,
+		remoteAddr:      hctx.remoteAddr,
+		keyID:           hctx.keyID,
+		protocolVersion: hctx.protocolVersion,
+		hooksState:      hctx.hooksState,
 	}
 }
 
@@ -135,55 +142,62 @@ func (hctx *HandlerContext) SendHijackedResponse(err error) {
 	if debugPrint {
 		fmt.Printf("longpollResponses send %d\n", hctx.queryID)
 	}
-	hctx.prepareResponse(err)
-	hctx.serverConn.server.pushResponse(hctx, true)
+	hctx.serverConn.server.pushResponse(hctx, err, true)
 }
 
 func (hctx *HandlerContext) parseInvokeReq(s *Server) (err error) {
-	if hctx.Request, err = basictl.LongRead(hctx.Request, &hctx.queryID); err != nil {
+	var reqHeader tl.RpcInvokeReqHeader
+	if hctx.Request, err = reqHeader.Read(hctx.Request); err != nil {
 		return fmt.Errorf("failed to read request query ID: %w", err)
 	}
-	hctx.QueryID = hctx.queryID
+	hctx.queryID = reqHeader.QueryId
+	hctx.QueryID = reqHeader.QueryId
 
-	var tag uint32
 	var afterTag []byte
 	actorIDSet := 0
 	extraSet := 0
+loop:
 	for {
+		var tag uint32
 		if afterTag, err = basictl.NatRead(hctx.Request, &tag); err != nil {
 			return fmt.Errorf("failed to read tag: %w", err)
 		}
-		if tag != destActorFlagsTag && tag != destFlagsTag && tag != destActorTag {
-			break
-		}
-		hctx.Request = afterTag
-		if tag == destActorFlagsTag || tag == destActorTag {
-			var actorID int64
-			if hctx.Request, err = basictl.LongRead(hctx.Request, &actorID); err != nil {
-				return fmt.Errorf("failed to read actor ID: %w", err)
+		switch tag {
+		case tl.RpcDestActor{}.TLTag():
+			var extra tl.RpcDestActor
+			if hctx.Request, err = extra.Read(afterTag); err != nil {
+				return fmt.Errorf("failed to read rpcDestActor: %w", err)
 			}
-			if actorIDSet == 0 {
-				hctx.ActorID = uint64(actorID)
-			}
+			hctx.ActorID = extra.ActorId
 			actorIDSet++
-		}
-		if tag == destActorFlagsTag || tag == destFlagsTag {
-			var extra InvokeReqExtra // do not reuse because client could possibly save slice/pointer
-			if hctx.Request, err = extra.Read(hctx.Request); err != nil {
-				return fmt.Errorf("failed to read request extra: %w", err)
-			}
-			if extraSet == 0 {
-				hctx.RequestExtra = extra
+		case tl.RpcDestFlags{}.TLTag():
+			// var extra tl.RpcDestFlags
+			// if hctx.Request, err = extra.Read(afterTag); err != nil {
+			// here we optimize copy of large extra
+			if hctx.Request, err = hctx.RequestExtra.Read(afterTag); err != nil {
+				return fmt.Errorf("failed to read request rpcDestFlags: %w", err)
 			}
 			extraSet++
+		case tl.RpcDestActorFlags{}.TLTag():
+			// var extra tl.RpcDestActorFlags
+			// if hctx.Request, err = extra.Read(afterTag); err != nil {
+			// here we optimize copy of large extra
+			if afterTag, err = basictl.LongRead(afterTag, &hctx.ActorID); err != nil {
+				return fmt.Errorf("failed to read rpcDestActorFlags: %w", err)
+			}
+			if hctx.Request, err = hctx.RequestExtra.Read(afterTag); err != nil {
+				return fmt.Errorf("failed to read rpcDestActorFlags: %w", err)
+			}
+			actorIDSet++
+			extraSet++
+		default:
+			hctx.reqTag = tag
+			break loop
 		}
 	}
 	if actorIDSet > 1 || extraSet > 1 {
-		s.rareLog(&s.lastDuplicateExtraLog, "rpc: ActorID or RequestExtra set more than once (%d and %d) for request tag #%08d; please report to infrastructure team", actorIDSet, extraSet, tag)
+		return fmt.Errorf("rpc: ActorID or RequestExtra set more than once (%d and %d) for request tag #%08d; please report to infrastructure team", actorIDSet, extraSet, hctx.reqTag)
 	}
-
-	hctx.reqType = tag
-	hctx.respPacketType = packetTypeRPCReqResult
 
 	hctx.noResult = hctx.RequestExtra.IsSetNoResult()
 	hctx.requestExtraFieldsmask = hctx.RequestExtra.Flags

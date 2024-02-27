@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -11,7 +11,8 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"time"
+
+	"github.com/vkcom/statshouse/internal/vkgo/rpc/internal/gen/tl"
 )
 
 type serverConn struct {
@@ -40,6 +41,7 @@ type serverConn struct {
 	conn         *PacketConn
 	writeQ       []*HandlerContext // never contains noResult responses
 	writeQCond   sync.Cond
+	writeBuiltin bool
 	writeLetsFin bool
 }
 
@@ -104,7 +106,7 @@ func (sc *serverConn) flush() error {
 	err := sc.conn.FlushUnlocked()
 	if err != nil {
 		if !sc.closed() && !commonConnCloseError(err) {
-			sc.server.opts.Logf("rpc: error flushing packet to %v, disconnecting: %v", sc.conn.remoteAddr, err)
+			sc.server.rareLog(&sc.server.lastOtherLog, "rpc: error flushing packet to %v, disconnecting: %v", sc.conn.remoteAddr, err)
 		}
 	}
 	return err
@@ -113,6 +115,13 @@ func (sc *serverConn) flush() error {
 func (sc *serverConn) SetReadFIN() {
 	sc.mu.Lock()
 	sc.readFINFlag = true
+	sc.mu.Unlock()
+	sc.writeQCond.Signal()
+}
+
+func (sc *serverConn) SetWriteBuiltin() {
+	sc.mu.Lock()
+	sc.writeBuiltin = true
 	sc.mu.Unlock()
 	sc.writeQCond.Signal()
 }
@@ -155,7 +164,7 @@ func (sc *serverConn) WaitClosed() error {
 		sc.closeWaitCond.Wait()
 	}
 	if len(sc.writeQ) != 0 {
-		sc.server.opts.Logf("connection write queue length (%d) invariant violated", len(sc.writeQ))
+		sc.server.opts.Logf("rpc: connection write queue length (%d) invariant violated", len(sc.writeQ))
 	}
 	return nil
 }
@@ -166,24 +175,21 @@ func (sc *serverConn) closed() bool {
 	return sc.closedFlag
 }
 
-func writeResponseUnlocked(conn *PacketConn, hctx *HandlerContext, timeout time.Duration) error {
+func writeResponseUnlocked(conn *PacketConn, hctx *HandlerContext) error {
 	resp := hctx.Response
 	extraStart := hctx.extraStart
 
-	crc, err := conn.writePacketHeaderUnlocked(hctx.respPacketType, len(resp), timeout)
-	if err != nil {
+	if err := conn.writePacketHeaderUnlocked(tl.RpcReqResultHeader{}.TLTag(), len(resp), DefaultPacketTimeout); err != nil {
 		return err
 	}
 	// we serialize Extra after Body, so we have to twist spacetime a bit
-	crc, err = conn.writePacketBodyUnlocked(crc, resp[extraStart:])
-	if err != nil {
+	if err := conn.writePacketBodyUnlocked(resp[extraStart:]); err != nil {
 		return err
 	}
-	crc, err = conn.writePacketBodyUnlocked(crc, resp[:extraStart])
-	if err != nil {
+	if err := conn.writePacketBodyUnlocked(resp[:extraStart]); err != nil {
 		return err
 	}
-	conn.writePacketTrailerUnlocked(crc)
+	conn.writePacketTrailerUnlocked()
 	return nil
 }
 
@@ -220,6 +226,7 @@ func (sc *serverConn) acquireHandlerCtx(tip uint32, stateInit func() ServerHookS
 	hctx.localAddr = sc.conn.conn.LocalAddr()
 	hctx.remoteAddr = sc.conn.conn.RemoteAddr()
 	hctx.keyID = sc.conn.keyID
+	hctx.protocolVersion = sc.conn.ProtocolVersion()
 	hctx.hooksState = stateInit()
 
 	return hctx, true

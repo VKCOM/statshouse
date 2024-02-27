@@ -25,6 +25,11 @@ func (b *binlogMock) Run(offset int64, snapshotMeta []byte, engine binlog.Engine
 	return nil
 }
 
+func (b *binlogMock) Run2(offset int64, snapshotMeta []byte, controlMeta []byte, upgrade bool, engine binlog.Engine) error {
+	b.engine = engine
+	return nil
+}
+
 func (b *binlogMock) Restart() {
 }
 

@@ -13,6 +13,132 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshousePromTargetRead(w []byte, vec *[]StatshousePromTarget) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]StatshousePromTarget, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshousePromTargetWrite(w []byte, vec []StatshousePromTarget) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshousePromTargetReadJSON(j interface{}, vec *[]StatshousePromTarget) error {
+	l, _arr, err := JsonReadArray("[]StatshousePromTarget", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]StatshousePromTarget, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := StatshousePromTarget__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorStatshousePromTargetWriteJSON(w []byte, vec []StatshousePromTarget) (_ []byte, err error) {
+	return BuiltinVectorStatshousePromTargetWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorStatshousePromTargetWriteJSONOpt(short bool, w []byte, vec []StatshousePromTarget) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
+func BuiltinVectorStatshousePromTargetBytesRead(w []byte, vec *[]StatshousePromTargetBytes) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]StatshousePromTargetBytes, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshousePromTargetBytesWrite(w []byte, vec []StatshousePromTargetBytes) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshousePromTargetBytesReadJSON(j interface{}, vec *[]StatshousePromTargetBytes) error {
+	l, _arr, err := JsonReadArray("[]StatshousePromTargetBytes", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]StatshousePromTargetBytes, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := StatshousePromTargetBytes__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorStatshousePromTargetBytesWriteJSON(w []byte, vec []StatshousePromTargetBytes) (_ []byte, err error) {
+	return BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(short bool, w []byte, vec []StatshousePromTargetBytes) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
 type StatshousePromTarget struct {
 	FieldsMask     uint32
 	JobName        string
@@ -54,7 +180,7 @@ func (item *StatshousePromTarget) Reset() {
 	item.FieldsMask = 0
 	item.JobName = ""
 	item.Url = ""
-	VectorDictionaryFieldString0Reset(item.Labels)
+	BuiltinVectorDictionaryFieldStringReset(item.Labels)
 	item.ScrapeInterval = 0
 	item.ScrapeTimeout = 0
 	item.BodySizeLimit = 0
@@ -74,7 +200,7 @@ func (item *StatshousePromTarget) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.Url); err != nil {
 		return w, err
 	}
-	if w, err = VectorDictionaryFieldString0Read(w, &item.Labels); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.Labels); err != nil {
 		return w, err
 	}
 	if w, err = basictl.LongRead(w, &item.ScrapeInterval); err != nil {
@@ -106,7 +232,7 @@ func (item *StatshousePromTarget) Write(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringWrite(w, item.Url); err != nil {
 		return w, err
 	}
-	if w, err = VectorDictionaryFieldString0Write(w, item.Labels); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.Labels); err != nil {
 		return w, err
 	}
 	w = basictl.LongWrite(w, item.ScrapeInterval)
@@ -227,13 +353,16 @@ func (item *StatshousePromTarget) readJSON(j interface{}) error {
 			item.FieldsMask &^= 1 << 1
 		}
 	}
-	if err := VectorDictionaryFieldString0ReadJSON(_jLabels, &item.Labels); err != nil {
+	if err := BuiltinVectorDictionaryFieldStringReadJSON(_jLabels, &item.Labels); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshousePromTarget) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshousePromTarget) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -253,7 +382,7 @@ func (item *StatshousePromTarget) WriteJSON(w []byte) (_ []byte, err error) {
 	if len(item.Labels) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"labels":`...)
-		if w, err = VectorDictionaryFieldString0WriteJSON(w, item.Labels); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, item.Labels); err != nil {
 			return w, err
 		}
 	}
@@ -379,7 +508,7 @@ func (item *StatshousePromTargetBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringReadBytes(w, &item.Url); err != nil {
 		return w, err
 	}
-	if w, err = VectorDictionaryFieldString0BytesRead(w, &item.Labels); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldStringBytesRead(w, &item.Labels); err != nil {
 		return w, err
 	}
 	if w, err = basictl.LongRead(w, &item.ScrapeInterval); err != nil {
@@ -411,7 +540,7 @@ func (item *StatshousePromTargetBytes) Write(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringWriteBytes(w, item.Url); err != nil {
 		return w, err
 	}
-	if w, err = VectorDictionaryFieldString0BytesWrite(w, item.Labels); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldStringBytesWrite(w, item.Labels); err != nil {
 		return w, err
 	}
 	w = basictl.LongWrite(w, item.ScrapeInterval)
@@ -532,13 +661,16 @@ func (item *StatshousePromTargetBytes) readJSON(j interface{}) error {
 			item.FieldsMask &^= 1 << 1
 		}
 	}
-	if err := VectorDictionaryFieldString0BytesReadJSON(_jLabels, &item.Labels); err != nil {
+	if err := BuiltinVectorDictionaryFieldStringBytesReadJSON(_jLabels, &item.Labels); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshousePromTargetBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshousePromTargetBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -558,7 +690,7 @@ func (item *StatshousePromTargetBytes) WriteJSON(w []byte) (_ []byte, err error)
 	if len(item.Labels) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"labels":`...)
-		if w, err = VectorDictionaryFieldString0BytesWriteJSON(w, item.Labels); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(short, w, item.Labels); err != nil {
 			return w, err
 		}
 	}
@@ -621,124 +753,4 @@ func (item *StatshousePromTargetBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.promTarget", err.Error())
 	}
 	return nil
-}
-
-func VectorStatshousePromTarget0Read(w []byte, vec *[]StatshousePromTarget) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]StatshousePromTarget, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshousePromTarget0Write(w []byte, vec []StatshousePromTarget) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshousePromTarget0ReadJSON(j interface{}, vec *[]StatshousePromTarget) error {
-	l, _arr, err := JsonReadArray("[]StatshousePromTarget", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshousePromTarget, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshousePromTarget__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorStatshousePromTarget0WriteJSON(w []byte, vec []StatshousePromTarget) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
-}
-
-func VectorStatshousePromTarget0BytesRead(w []byte, vec *[]StatshousePromTargetBytes) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]StatshousePromTargetBytes, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshousePromTarget0BytesWrite(w []byte, vec []StatshousePromTargetBytes) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshousePromTarget0BytesReadJSON(j interface{}, vec *[]StatshousePromTargetBytes) error {
-	l, _arr, err := JsonReadArray("[]StatshousePromTargetBytes", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshousePromTargetBytes, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshousePromTargetBytes__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorStatshousePromTarget0BytesWriteJSON(w []byte, vec []StatshousePromTargetBytes) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

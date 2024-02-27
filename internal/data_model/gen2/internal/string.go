@@ -13,6 +13,128 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStringRead(w []byte, vec *[]string) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]string, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = basictl.StringRead(w, &(*vec)[i]); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStringWrite(w []byte, vec []string) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = basictl.StringWrite(w, elem); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStringReadJSON(j interface{}, vec *[]string) error {
+	l, _arr, err := JsonReadArray("[]string", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]string, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := JsonReadString(_arr[i], &(*vec)[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorStringWriteJSON(w []byte, vec []string) (_ []byte, err error) {
+	return BuiltinVectorStringWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorStringWriteJSONOpt(short bool, w []byte, vec []string) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = basictl.JSONWriteString(w, elem)
+	}
+	return append(w, ']'), nil
+}
+
+func BuiltinVectorStringBytesRead(w []byte, vec *[][]byte) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([][]byte, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = basictl.StringReadBytes(w, &(*vec)[i]); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = basictl.StringWriteBytes(w, elem); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStringBytesReadJSON(j interface{}, vec *[][]byte) error {
+	l, _arr, err := JsonReadArray("[][]byte", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([][]byte, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := JsonReadStringBytes(_arr[i], &(*vec)[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorStringBytesWriteJSON(w []byte, vec [][]byte) (_ []byte, err error) {
+	return BuiltinVectorStringBytesWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorStringBytesWriteJSONOpt(short bool, w []byte, vec [][]byte) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = basictl.JSONWriteStringBytes(w, elem)
+	}
+	return append(w, ']'), nil
+}
+
 type String string
 
 func (String) TLName() string { return "string" }
@@ -63,6 +185,10 @@ func (item *String) readJSON(j interface{}) error {
 }
 
 func (item *String) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *String) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*string)(item)
 	w = basictl.JSONWriteString(w, *ptr)
 	return w, nil
@@ -132,6 +258,10 @@ func (item *StringBytes) readJSON(j interface{}) error {
 }
 
 func (item *StringBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *StringBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]byte)(item)
 	w = basictl.JSONWriteStringBytes(w, *ptr)
 	return w, nil
@@ -149,120 +279,4 @@ func (item *StringBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("string", err.Error())
 	}
 	return nil
-}
-
-func VectorString0Read(w []byte, vec *[]string) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]string, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = basictl.StringRead(w, &(*vec)[i]); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorString0Write(w []byte, vec []string) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = basictl.StringWrite(w, elem); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorString0ReadJSON(j interface{}, vec *[]string) error {
-	l, _arr, err := JsonReadArray("[]string", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]string, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := JsonReadString(_arr[i], &(*vec)[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorString0WriteJSON(w []byte, vec []string) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteString(w, elem)
-	}
-	return append(w, ']'), nil
-}
-
-func VectorString0BytesRead(w []byte, vec *[][]byte) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([][]byte, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = basictl.StringReadBytes(w, &(*vec)[i]); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorString0BytesWrite(w []byte, vec [][]byte) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = basictl.StringWriteBytes(w, elem); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorString0BytesReadJSON(j interface{}, vec *[][]byte) error {
-	l, _arr, err := JsonReadArray("[][]byte", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([][]byte, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := JsonReadStringBytes(_arr[i], &(*vec)[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorString0BytesWriteJSON(w []byte, vec [][]byte) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteStringBytes(w, elem)
-	}
-	return append(w, ']'), nil
 }

@@ -13,6 +13,69 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseApiFilterRead(w []byte, vec *[]StatshouseApiFilter) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]StatshouseApiFilter, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseApiFilterWrite(w []byte, vec []StatshouseApiFilter) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseApiFilterReadJSON(j interface{}, vec *[]StatshouseApiFilter) error {
+	l, _arr, err := JsonReadArray("[]StatshouseApiFilter", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]StatshouseApiFilter, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := StatshouseApiFilter__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorStatshouseApiFilterWriteJSON(w []byte, vec []StatshouseApiFilter) (_ []byte, err error) {
+	return BuiltinVectorStatshouseApiFilterWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorStatshouseApiFilterWriteJSONOpt(short bool, w []byte, vec []StatshouseApiFilter) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
 type StatshouseApiFilter struct {
 	FieldsMask uint32
 	Key        string
@@ -35,7 +98,7 @@ func (item *StatshouseApiFilter) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.Key); err != nil {
 		return w, err
 	}
-	return VectorStatshouseApiTagValue0Read(w, &item.Values)
+	return BuiltinVectorStatshouseApiTagValueRead(w, &item.Values)
 }
 
 func (item *StatshouseApiFilter) Write(w []byte) (_ []byte, err error) {
@@ -43,7 +106,7 @@ func (item *StatshouseApiFilter) Write(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringWrite(w, item.Key); err != nil {
 		return w, err
 	}
-	return VectorStatshouseApiTagValue0Write(w, item.Values)
+	return BuiltinVectorStatshouseApiTagValueWrite(w, item.Values)
 }
 
 func (item *StatshouseApiFilter) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -89,13 +152,16 @@ func (item *StatshouseApiFilter) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouseApi.filter", k)
 	}
-	if err := VectorStatshouseApiTagValue0ReadJSON(_jValues, &item.Values); err != nil {
+	if err := BuiltinVectorStatshouseApiTagValueReadJSON(_jValues, &item.Values); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseApiFilter) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseApiFilter) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -110,7 +176,7 @@ func (item *StatshouseApiFilter) WriteJSON(w []byte) (_ []byte, err error) {
 	if len(item.Values) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"values":`...)
-		if w, err = VectorStatshouseApiTagValue0WriteJSON(w, item.Values); err != nil {
+		if w, err = BuiltinVectorStatshouseApiTagValueWriteJSONOpt(short, w, item.Values); err != nil {
 			return w, err
 		}
 	}
@@ -130,64 +196,4 @@ func (item *StatshouseApiFilter) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouseApi.filter", err.Error())
 	}
 	return nil
-}
-
-func VectorStatshouseApiFilter0Read(w []byte, vec *[]StatshouseApiFilter) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]StatshouseApiFilter, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseApiFilter0Write(w []byte, vec []StatshouseApiFilter) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseApiFilter0ReadJSON(j interface{}, vec *[]StatshouseApiFilter) error {
-	l, _arr, err := JsonReadArray("[]StatshouseApiFilter", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseApiFilter, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseApiFilter__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorStatshouseApiFilter0WriteJSON(w []byte, vec []StatshouseApiFilter) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

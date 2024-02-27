@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -33,19 +33,22 @@ var (
 	ErrClientClosed                 = errors.New("rpc: Client closed")
 	ErrClientConnClosedSideEffect   = errors.New("rpc: client connection closed after request sent")
 	ErrClientConnClosedNoSideEffect = errors.New("rpc: client connection closed (or connect failed) before request sent")
+
+	ErrClientDropRequest = errors.New("rpc hook: drop request")
 )
 
 type Request struct {
 	Body    []byte
-	ActorID uint64
+	ActorID int64
 	Extra   InvokeReqExtra
 
 	extraStart int // We serialize extra after body into Body, then write into reversed order
 
-	ReadOnly bool // no side effects, can be retried by client
+	FunctionName string // Experimental. Generated calls fill this during request serialization.
+	ReadOnly     bool   // no side effects, can be retried by client
 
-	queryID   int64           // unique per client, assigned by client
-	hookState ClientHookState // can be nil
+	queryID   int64       // unique per client, assigned by client
+	hookState ClientHooks // can be nil
 }
 
 // QueryID is always non-zero (guaranteed by [Client.GetRequest]).
@@ -53,7 +56,7 @@ func (req *Request) QueryID() int64 {
 	return req.queryID
 }
 
-func (req *Request) HookState() ClientHookState {
+func (req *Request) HookState() ClientHooks {
 	return req.hookState
 }
 
@@ -102,8 +105,9 @@ func NewClient(options ...ClientOptionsFunc) *Client {
 		Logf:             log.Printf,
 		ConnReadBufSize:  DefaultClientConnReadBufSize,
 		ConnWriteBufSize: DefaultClientConnWriteBufSize,
-		PongTimeout:      DefaultClientPongTimeout,
-		Hooks:            func() ClientHookState { return nil },
+		PacketTimeout:    DefaultPacketTimeout,
+		Hooks:            func() ClientHooks { return nil },
+		ProtocolVersion:  DefaultProtocolVersion,
 	}
 	for _, opt := range options {
 		opt(&opts)
@@ -122,10 +126,11 @@ func NewClient(options ...ClientOptionsFunc) *Client {
 	return c
 }
 
-type ClientHookState interface {
+type ClientHooks interface {
 	Reset()
 	BeforeSend(req *Request)
 	AfterReceive(resp *Response, err error)
+	NeedToDropRequest(ctx context.Context, address NetAddr, req *Request) bool
 }
 
 // Client is used by other components of your app.
@@ -172,10 +177,15 @@ func (c *Client) Do(ctx context.Context, network string, address string, req *Re
 // Starts if it needs to
 // We must setupCall inside client lock, otherwise connection might decide to quit before we can setup call
 func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *callContext) (*clientConn, *callContext, error) {
+	if req.hookState != nil && req.hookState.NeedToDropRequest(ctx, address, req) {
+		return nil, nil, ErrClientDropRequest
+	}
+
 	if req.Extra.IsSetNoResult() {
 		// We consider it antipattern
 		return nil, nil, fmt.Errorf("sending no_result requests is not supported")
 	}
+
 	deadline, _ := ctx.Deadline()
 
 	if err := preparePacket(req, deadline); err != nil {
@@ -221,11 +231,13 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 	pc = c.conns[address]
 	if pc == nil {
 		closeCC := make(chan struct{})
+		resetReconnectDelayC := make(chan struct{}, 1)
 		pc = &clientConn{
-			client:  c,
-			address: address,
-			calls:   map[int64]*callContext{},
-			closeCC: closeCC,
+			client:               c,
+			address:              address,
+			calls:                map[int64]*callContext{},
+			closeCC:              closeCC,
+			resetReconnectDelayC: resetReconnectDelayC,
 		}
 		pc.writeQCond.L = &pc.mu
 
@@ -234,13 +246,30 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 			fmt.Printf("%v goConnect for client %p pc %p\n", time.Now(), c, pc)
 		}
 		c.wg.Add(1)
-		go pc.goConnect(closeCC)
+		go pc.goConnect(closeCC, resetReconnectDelayC)
 	}
 	pc.mu.Lock()
 	cctx, err := pc.setupCallLocked(req, deadline, multiResult)
 	pc.mu.Unlock()
 	pc.writeQCond.Signal() // signal without holding the mutex to reduce contention
 	return pc, cctx, err
+}
+
+// ResetReconnectDelay resets timer before the next reconnect attempt.
+// If connect goroutine is already waiting - ResetReconnectDelay forces it to wait again with minimal delay
+func (c *Client) ResetReconnectDelay(address NetAddr) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	conn := c.conns[address]
+	if conn == nil {
+		return
+	}
+
+	select {
+	case conn.resetReconnectDelayC <- struct{}{}:
+	default:
+	}
 }
 
 func (c *Client) removeConnection(pc *clientConn) bool {

@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -30,7 +30,7 @@ type ServerOptions struct {
 	SocketHijackHandler    func(conn *HijackConnection)
 	TrustedSubnetGroups    [][]*net.IPNet
 	ForceEncryption        bool
-	CryptoKeys             []string
+	cryptoKeys             []string
 	MaxConns               int           // defaults to DefaultMaxConns
 	MaxWorkers             int           // defaults to DefaultMaxWorkers; <= value disables worker pool completely
 	MaxInflightPackets     int           // defaults to DefaultMaxInflightPackets
@@ -45,8 +45,13 @@ type ServerOptions struct {
 	ResponseTimeoutAdjust  time.Duration
 	DisableContextTimeout  bool
 	DisableTCPReuseAddr    bool
+	DebugRPC               bool // prints all incoming and outgoing RPC activity (very slow, only for protocol debug)
 
 	trustedSubnetGroupsParseErrors []error
+}
+
+func (opts *ServerOptions) AddCryptoKey(key string) {
+	opts.cryptoKeys = append(opts.cryptoKeys, key)
 }
 
 type ServerOptionsFunc func(*ServerOptions)
@@ -66,6 +71,12 @@ func ServerWithLogf(logf LoggerFunc) ServerOptionsFunc {
 func ServerWithHandler(handler HandlerFunc) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		opts.Handler = handler
+	}
+}
+
+func ServerWithDebugRPC(debugRpc bool) ServerOptionsFunc {
+	return func(opts *ServerOptions) {
+		opts.DebugRPC = debugRpc
 	}
 }
 
@@ -119,7 +130,9 @@ func ServerWithForceEncryption(status bool) ServerOptionsFunc {
 
 func ServerWithCryptoKeys(keys []string) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
-		opts.CryptoKeys = keys
+		for _, key := range keys {
+			opts.AddCryptoKey(key)
+		}
 	}
 }
 

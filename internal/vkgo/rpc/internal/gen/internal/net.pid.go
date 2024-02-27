@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,22 +13,22 @@ import (
 
 var _ = basictl.NatWrite
 
-type NetPID struct {
+type NetPid struct {
 	Ip      uint32
 	PortPid uint32
 	Utime   uint32
 }
 
-func (NetPID) TLName() string { return "netPID" }
-func (NetPID) TLTag() uint32  { return 0x723c414d }
+func (NetPid) TLName() string { return "net.pid" }
+func (NetPid) TLTag() uint32  { return 0x46409ccf }
 
-func (item *NetPID) Reset() {
+func (item *NetPid) Reset() {
 	item.Ip = 0
 	item.PortPid = 0
 	item.Utime = 0
 }
 
-func (item *NetPID) Read(w []byte) (_ []byte, err error) {
+func (item *NetPid) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.Ip); err != nil {
 		return w, err
 	}
@@ -38,25 +38,25 @@ func (item *NetPID) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.Utime)
 }
 
-func (item *NetPID) Write(w []byte) (_ []byte, err error) {
+func (item *NetPid) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.Ip)
 	w = basictl.NatWrite(w, item.PortPid)
 	return basictl.NatWrite(w, item.Utime), nil
 }
 
-func (item *NetPID) ReadBoxed(w []byte) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x723c414d); err != nil {
+func (item *NetPid) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x46409ccf); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *NetPID) WriteBoxed(w []byte) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x723c414d)
+func (item *NetPid) WriteBoxed(w []byte) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x46409ccf)
 	return item.Write(w)
 }
 
-func (item NetPID) String() string {
+func (item NetPid) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -64,11 +64,11 @@ func (item NetPID) String() string {
 	return string(w)
 }
 
-func NetPID__ReadJSON(item *NetPID, j interface{}) error { return item.readJSON(j) }
-func (item *NetPID) readJSON(j interface{}) error {
+func NetPid__ReadJSON(item *NetPid, j interface{}) error { return item.readJSON(j) }
+func (item *NetPid) readJSON(j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
-		return ErrorInvalidJSON("netPID", "expected json object")
+		return ErrorInvalidJSON("net.pid", "expected json object")
 	}
 	_jIp := _jm["ip"]
 	delete(_jm, "ip")
@@ -86,12 +86,15 @@ func (item *NetPID) readJSON(j interface{}) error {
 		return err
 	}
 	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("netPID", k)
+		return ErrorInvalidJSONExcessElement("net.pid", k)
 	}
 	return nil
 }
 
-func (item *NetPID) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *NetPid) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *NetPid) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Ip != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -111,17 +114,17 @@ func (item *NetPID) WriteJSON(w []byte) (_ []byte, err error) {
 	return append(w, '}'), nil
 }
 
-func (item *NetPID) MarshalJSON() ([]byte, error) {
+func (item *NetPid) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *NetPID) UnmarshalJSON(b []byte) error {
+func (item *NetPid) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
-		return ErrorInvalidJSON("netPID", err.Error())
+		return ErrorInvalidJSON("net.pid", err.Error())
 	}
 	if err = item.readJSON(j); err != nil {
-		return ErrorInvalidJSON("netPID", err.Error())
+		return ErrorInvalidJSON("net.pid", err.Error())
 	}
 	return nil
 }

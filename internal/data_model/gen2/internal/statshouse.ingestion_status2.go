@@ -13,6 +13,69 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorStatshouseIngestionStatus2Read(w []byte, vec *[]StatshouseIngestionStatus2) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]StatshouseIngestionStatus2, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseIngestionStatus2Write(w []byte, vec []StatshouseIngestionStatus2) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorStatshouseIngestionStatus2ReadJSON(j interface{}, vec *[]StatshouseIngestionStatus2) error {
+	l, _arr, err := JsonReadArray("[]StatshouseIngestionStatus2", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]StatshouseIngestionStatus2, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := StatshouseIngestionStatus2__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorStatshouseIngestionStatus2WriteJSON(w []byte, vec []StatshouseIngestionStatus2) (_ []byte, err error) {
+	return BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(short bool, w []byte, vec []StatshouseIngestionStatus2) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
 type StatshouseIngestionStatus2 struct {
 	Env    int32
 	Metric int32
@@ -94,6 +157,9 @@ func (item *StatshouseIngestionStatus2) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseIngestionStatus2) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseIngestionStatus2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Env != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -126,64 +192,4 @@ func (item *StatshouseIngestionStatus2) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("statshouse.ingestion_status2", err.Error())
 	}
 	return nil
-}
-
-func VectorStatshouseIngestionStatus20Read(w []byte, vec *[]StatshouseIngestionStatus2) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]StatshouseIngestionStatus2, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseIngestionStatus20Write(w []byte, vec []StatshouseIngestionStatus2) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorStatshouseIngestionStatus20ReadJSON(j interface{}, vec *[]StatshouseIngestionStatus2) error {
-	l, _arr, err := JsonReadArray("[]StatshouseIngestionStatus2", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseIngestionStatus2, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseIngestionStatus2__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorStatshouseIngestionStatus20WriteJSON(w []byte, vec []StatshouseIngestionStatus2) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

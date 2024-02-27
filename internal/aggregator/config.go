@@ -40,7 +40,7 @@ type ConfigAggregator struct {
 
 	MetadataNet     string
 	MetadataAddr    string
-	MetadataActorID uint64
+	MetadataActorID int64
 
 	Cluster           string
 	PreviousNumShards int

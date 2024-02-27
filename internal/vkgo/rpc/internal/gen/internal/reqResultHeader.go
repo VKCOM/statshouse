@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -70,10 +70,13 @@ func (item *ReqResultHeader) readJSON(j interface{}) error {
 }
 
 func (item *ReqResultHeader) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *ReqResultHeader) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"extra":`...)
-	if w, err = item.Extra.WriteJSON(w); err != nil {
+	if w, err = item.Extra.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil

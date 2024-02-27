@@ -60,12 +60,13 @@ type Client struct {
 	Client  *rpc.Client
 	Network string // should be either "tcp4" or "unix"
 	Address string
-	ActorID uint64 // should be non-zero when using rpc-proxy
+	ActorID int64 // should be non-zero when using rpc-proxy
 }
 
 func (c *Client) EditEntitynew(ctx context.Context, args EditEntitynew, extra *rpc.InvokeReqExtra, ret *Event) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "metadata.editEntitynew"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -74,10 +75,10 @@ func (c *Client) EditEntitynew(ctx context.Context, args EditEntitynew, extra *r
 		return internal.ErrorClientWrite("metadata.editEntitynew", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.editEntitynew", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.editEntitynew", c.Network, c.ActorID, c.Address, err)
@@ -89,6 +90,8 @@ func (c *Client) EditEntitynew(ctx context.Context, args EditEntitynew, extra *r
 func (c *Client) GetEntity(ctx context.Context, args GetEntity, extra *rpc.InvokeReqExtra, ret *Event) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.ReadOnly = true
+	req.FunctionName = "metadata.getEntity"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -97,10 +100,10 @@ func (c *Client) GetEntity(ctx context.Context, args GetEntity, extra *rpc.Invok
 		return internal.ErrorClientWrite("metadata.getEntity", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getEntity", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getEntity", c.Network, c.ActorID, c.Address, err)
@@ -112,6 +115,7 @@ func (c *Client) GetEntity(ctx context.Context, args GetEntity, extra *rpc.Invok
 func (c *Client) GetHistoryShortInfo(ctx context.Context, args GetHistoryShortInfo, extra *rpc.InvokeReqExtra, ret *HistoryShortResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "metadata.getHistoryShortInfo"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -120,10 +124,10 @@ func (c *Client) GetHistoryShortInfo(ctx context.Context, args GetHistoryShortIn
 		return internal.ErrorClientWrite("metadata.getHistoryShortInfo", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getHistoryShortInfo", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getHistoryShortInfo", c.Network, c.ActorID, c.Address, err)
@@ -135,6 +139,8 @@ func (c *Client) GetHistoryShortInfo(ctx context.Context, args GetHistoryShortIn
 func (c *Client) GetInvertMapping(ctx context.Context, args GetInvertMapping, extra *rpc.InvokeReqExtra, ret *GetInvertMappingResponseUnion) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.ReadOnly = true
+	req.FunctionName = "metadata.getInvertMapping"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -143,10 +149,10 @@ func (c *Client) GetInvertMapping(ctx context.Context, args GetInvertMapping, ex
 		return internal.ErrorClientWrite("metadata.getInvertMapping", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getInvertMapping", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getInvertMapping", c.Network, c.ActorID, c.Address, err)
@@ -158,6 +164,8 @@ func (c *Client) GetInvertMapping(ctx context.Context, args GetInvertMapping, ex
 func (c *Client) GetJournalnew(ctx context.Context, args GetJournalnew, extra *rpc.InvokeReqExtra, ret *GetJournalResponsenew) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.ReadOnly = true
+	req.FunctionName = "metadata.getJournalnew"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -166,10 +174,10 @@ func (c *Client) GetJournalnew(ctx context.Context, args GetJournalnew, extra *r
 		return internal.ErrorClientWrite("metadata.getJournalnew", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getJournalnew", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getJournalnew", c.Network, c.ActorID, c.Address, err)
@@ -181,6 +189,7 @@ func (c *Client) GetJournalnew(ctx context.Context, args GetJournalnew, extra *r
 func (c *Client) GetMapping(ctx context.Context, args GetMapping, extra *rpc.InvokeReqExtra, ret *GetMappingResponseUnion) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "metadata.getMapping"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -189,10 +198,10 @@ func (c *Client) GetMapping(ctx context.Context, args GetMapping, extra *rpc.Inv
 		return internal.ErrorClientWrite("metadata.getMapping", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getMapping", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getMapping", c.Network, c.ActorID, c.Address, err)
@@ -204,6 +213,8 @@ func (c *Client) GetMapping(ctx context.Context, args GetMapping, extra *rpc.Inv
 func (c *Client) GetMetrics(ctx context.Context, args GetMetrics, extra *rpc.InvokeReqExtra, ret *GetMetricsResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.ReadOnly = true
+	req.FunctionName = "metadata.getMetrics"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -212,10 +223,10 @@ func (c *Client) GetMetrics(ctx context.Context, args GetMetrics, extra *rpc.Inv
 		return internal.ErrorClientWrite("metadata.getMetrics", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getMetrics", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getMetrics", c.Network, c.ActorID, c.Address, err)
@@ -227,6 +238,7 @@ func (c *Client) GetMetrics(ctx context.Context, args GetMetrics, extra *rpc.Inv
 func (c *Client) GetTagMappingBootstrap(ctx context.Context, args GetTagMappingBootstrap, extra *rpc.InvokeReqExtra, ret *internal.StatshouseGetTagMappingBootstrapResult) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "metadata.getTagMappingBootstrap"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -235,10 +247,10 @@ func (c *Client) GetTagMappingBootstrap(ctx context.Context, args GetTagMappingB
 		return internal.ErrorClientWrite("metadata.getTagMappingBootstrap", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.getTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.getTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
@@ -250,6 +262,7 @@ func (c *Client) GetTagMappingBootstrap(ctx context.Context, args GetTagMappingB
 func (c *Client) PutMapping(ctx context.Context, args PutMapping, extra *rpc.InvokeReqExtra, ret *PutMappingResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "metadata.putMapping"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -258,10 +271,10 @@ func (c *Client) PutMapping(ctx context.Context, args PutMapping, extra *rpc.Inv
 		return internal.ErrorClientWrite("metadata.putMapping", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.putMapping", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.putMapping", c.Network, c.ActorID, c.Address, err)
@@ -273,6 +286,7 @@ func (c *Client) PutMapping(ctx context.Context, args PutMapping, extra *rpc.Inv
 func (c *Client) PutTagMappingBootstrap(ctx context.Context, args PutTagMappingBootstrap, extra *rpc.InvokeReqExtra, ret *internal.StatshousePutTagMappingBootstrapResult) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "metadata.putTagMappingBootstrap"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -281,10 +295,10 @@ func (c *Client) PutTagMappingBootstrap(ctx context.Context, args PutTagMappingB
 		return internal.ErrorClientWrite("metadata.putTagMappingBootstrap", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.putTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.putTagMappingBootstrap", c.Network, c.ActorID, c.Address, err)
@@ -296,6 +310,7 @@ func (c *Client) PutTagMappingBootstrap(ctx context.Context, args PutTagMappingB
 func (c *Client) ResetFlood(ctx context.Context, args ResetFlood, extra *rpc.InvokeReqExtra, ret *ResetFloodResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "metadata.resetFlood"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -304,10 +319,10 @@ func (c *Client) ResetFlood(ctx context.Context, args ResetFlood, extra *rpc.Inv
 		return internal.ErrorClientWrite("metadata.resetFlood", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.resetFlood", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.resetFlood", c.Network, c.ActorID, c.Address, err)
@@ -319,6 +334,7 @@ func (c *Client) ResetFlood(ctx context.Context, args ResetFlood, extra *rpc.Inv
 func (c *Client) ResetFlood2(ctx context.Context, args ResetFlood2, extra *rpc.InvokeReqExtra, ret *ResetFloodResponse2) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "metadata.resetFlood2"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -327,10 +343,10 @@ func (c *Client) ResetFlood2(ctx context.Context, args ResetFlood2, extra *rpc.I
 		return internal.ErrorClientWrite("metadata.resetFlood2", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("metadata.resetFlood2", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("metadata.resetFlood2", c.Network, c.ActorID, c.Address, err)
@@ -371,6 +387,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 	tag, r, _ := basictl.NatReadTag(hctx.Request) // keep hctx.Request intact for handler chaining
 	switch tag {
 	case 0x86df475f: // metadata.editEntitynew
+		hctx.RequestFunctionName = "metadata.editEntitynew"
 		if h.RawEditEntitynew != nil {
 			hctx.Request = r
 			err = h.RawEditEntitynew(ctx, hctx)
@@ -401,6 +418,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x72b132f8: // metadata.getEntity
+		hctx.RequestFunctionName = "metadata.getEntity"
 		if h.RawGetEntity != nil {
 			hctx.Request = r
 			err = h.RawGetEntity(ctx, hctx)
@@ -431,6 +449,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x22ff6a79: // metadata.getHistoryShortInfo
+		hctx.RequestFunctionName = "metadata.getHistoryShortInfo"
 		if h.RawGetHistoryShortInfo != nil {
 			hctx.Request = r
 			err = h.RawGetHistoryShortInfo(ctx, hctx)
@@ -461,6 +480,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x9faf5280: // metadata.getInvertMapping
+		hctx.RequestFunctionName = "metadata.getInvertMapping"
 		if h.RawGetInvertMapping != nil {
 			hctx.Request = r
 			err = h.RawGetInvertMapping(ctx, hctx)
@@ -491,6 +511,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x93ba92f8: // metadata.getJournalnew
+		hctx.RequestFunctionName = "metadata.getJournalnew"
 		if h.RawGetJournalnew != nil {
 			hctx.Request = r
 			err = h.RawGetJournalnew(ctx, hctx)
@@ -521,6 +542,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x9dfa7a83: // metadata.getMapping
+		hctx.RequestFunctionName = "metadata.getMapping"
 		if h.RawGetMapping != nil {
 			hctx.Request = r
 			err = h.RawGetMapping(ctx, hctx)
@@ -551,6 +573,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x93ba92f5: // metadata.getMetrics
+		hctx.RequestFunctionName = "metadata.getMetrics"
 		if h.RawGetMetrics != nil {
 			hctx.Request = r
 			err = h.RawGetMetrics(ctx, hctx)
@@ -581,6 +604,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x5fc81a9b: // metadata.getTagMappingBootstrap
+		hctx.RequestFunctionName = "metadata.getTagMappingBootstrap"
 		if h.RawGetTagMappingBootstrap != nil {
 			hctx.Request = r
 			err = h.RawGetTagMappingBootstrap(ctx, hctx)
@@ -611,6 +635,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x9faf5281: // metadata.putMapping
+		hctx.RequestFunctionName = "metadata.putMapping"
 		if h.RawPutMapping != nil {
 			hctx.Request = r
 			err = h.RawPutMapping(ctx, hctx)
@@ -641,6 +666,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x5fc8ab9b: // metadata.putTagMappingBootstrap
+		hctx.RequestFunctionName = "metadata.putTagMappingBootstrap"
 		if h.RawPutTagMappingBootstrap != nil {
 			hctx.Request = r
 			err = h.RawPutTagMappingBootstrap(ctx, hctx)
@@ -671,6 +697,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x9faf5282: // metadata.resetFlood
+		hctx.RequestFunctionName = "metadata.resetFlood"
 		if h.RawResetFlood != nil {
 			hctx.Request = r
 			err = h.RawResetFlood(ctx, hctx)
@@ -701,6 +728,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x88d0fd5e: // metadata.resetFlood2
+		hctx.RequestFunctionName = "metadata.resetFlood2"
 		if h.RawResetFlood2 != nil {
 			hctx.Request = r
 			err = h.RawResetFlood2(ctx, hctx)
