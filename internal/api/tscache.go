@@ -295,12 +295,14 @@ func (c *tsCache) loadCached(ctx context.Context, key string, fromSec int64, toS
 
 func (c *tsCache) evictLocked() int {
 	k := ""
+	var v *tsEntry
 	i := 0
 	t := int64(math.MaxInt64)
 	for key, e := range c.cache { // "power of N random choices" with map iteration providing randomness
 		u := e.lru.Load()
 		if u < t {
 			k = key
+			v = e
 			t = u
 		}
 		i++
@@ -308,9 +310,11 @@ func (c *tsCache) evictLocked() int {
 			break
 		}
 	}
-	e := c.cache[k]
+	if v == nil {
+		return 0
+	}
 	n := 0
-	for _, cached := range e.secRows {
+	for _, cached := range v.secRows {
 		n += len(cached.rows)
 	}
 	delete(c.cache, k)
