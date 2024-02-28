@@ -7,6 +7,7 @@
 package data_model
 
 import (
+	"encoding/binary"
 	"math"
 	"math/bits"
 	"sort"
@@ -91,9 +92,31 @@ func (k *Key) ClearedKeys() Key {
 
 func (k *Key) Hash() uint64 {
 	a := (*[unsafe.Sizeof(*k)]byte)(unsafe.Pointer(k))
-	// sum := sha256.Sum256(a[4:])
-	// return binary.LittleEndian.Uint64(sum[:])
 	return siphash.Hash(sipKeyA, sipKeyB, a[4:]) // timestamp is not part of shard
+}
+
+func (k *Key) HashSafe() uint64 {
+	var b [4 + 4*format.MaxTags]byte
+	// timestamp is not part of shard
+	binary.LittleEndian.PutUint32(b[:], uint32(k.Metric))
+	binary.LittleEndian.PutUint32(b[4+0*4:], uint32(k.Keys[0]))
+	binary.LittleEndian.PutUint32(b[4+1*4:], uint32(k.Keys[1]))
+	binary.LittleEndian.PutUint32(b[4+2*4:], uint32(k.Keys[2]))
+	binary.LittleEndian.PutUint32(b[4+3*4:], uint32(k.Keys[3]))
+	binary.LittleEndian.PutUint32(b[4+4*4:], uint32(k.Keys[4]))
+	binary.LittleEndian.PutUint32(b[4+5*4:], uint32(k.Keys[5]))
+	binary.LittleEndian.PutUint32(b[4+6*4:], uint32(k.Keys[6]))
+	binary.LittleEndian.PutUint32(b[4+7*4:], uint32(k.Keys[7]))
+	binary.LittleEndian.PutUint32(b[4+8*4:], uint32(k.Keys[8]))
+	binary.LittleEndian.PutUint32(b[4+9*4:], uint32(k.Keys[9]))
+	binary.LittleEndian.PutUint32(b[4+10*4:], uint32(k.Keys[10]))
+	binary.LittleEndian.PutUint32(b[4+11*4:], uint32(k.Keys[11]))
+	binary.LittleEndian.PutUint32(b[4+12*4:], uint32(k.Keys[12]))
+	binary.LittleEndian.PutUint32(b[4+13*4:], uint32(k.Keys[13]))
+	binary.LittleEndian.PutUint32(b[4+14*4:], uint32(k.Keys[14]))
+	binary.LittleEndian.PutUint32(b[4+15*4:], uint32(k.Keys[15]))
+	const _ = uint(16 - format.MaxTags) // compile time assert to manually add new keys above
+	return siphash.Hash(sipKeyA, sipKeyB, b[:])
 }
 
 func SimpleItemValue(value float64, count float64, hostTag int32) ItemValue {
