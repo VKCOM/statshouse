@@ -107,7 +107,7 @@ func Open(path string, flags int) (*Conn, error) {
 	}
 
 	var cConn *C.sqlite3
-	path = ensureZeroTermStr(path)
+	path = EnsureZeroTermStr(path)
 	rc := C.sqlite3_open_v2(unsafeStringCPtr(path), &cConn, C.int(flags), nil) //nolint:gocritic // nonsense
 	runtime.KeepAlive(path)
 	if rc != ok {
@@ -172,7 +172,7 @@ func (c *Conn) SetBusyTimeout(dt time.Duration) error {
 }
 
 func (c *Conn) Exec(sql string) error {
-	sql = ensureZeroTermStr(sql)
+	sql = EnsureZeroTermStr(sql)
 	rc := C.sqlite3_exec(c.conn, unsafeStringCPtr(sql), nil, nil, nil)
 	runtime.KeepAlive(sql)
 	return sqliteErr(rc, c.conn, "sqlite3_exec")
@@ -215,14 +215,16 @@ func (c *Conn) Prepare(sql []byte) (*Stmt, []byte, error) {
 	}
 
 	n := int(C.sqlite3_bind_parameter_count(cStmt))
-	params := make(map[string]int, n)
-	for i := 0; i < n; i++ {
-		name := C.sqlite3_bind_parameter_name(cStmt, C.int(i+1))
-		if name != nil {
-			params[C.GoString(name)] = i + 1
+	var params map[string]int
+	if n > 0 {
+		params = make(map[string]int, n)
+		for i := 0; i < n; i++ {
+			name := C.sqlite3_bind_parameter_name(cStmt, C.int(i+1))
+			if name != nil {
+				params[C.GoString(name)] = i + 1
+			}
 		}
 	}
-
 	return &Stmt{
 		conn:   c,
 		stmt:   cStmt,
@@ -400,14 +402,14 @@ func (s *Stmt) ColumnBlobUnsafeString(i int) (string, error) {
 	return unsafeSliceToString(b), err
 }
 
-func (s *Stmt) ColumnInt64(i int) (int64, error) {
+func (s *Stmt) ColumnInt64(i int) int64 {
 	value := C.sqlite3_column_int64(s.stmt, C.int(i))
-	return int64(value), nil
+	return int64(value)
 }
 
-func (s *Stmt) ColumnFloat64(i int) (float64, error) {
+func (s *Stmt) ColumnFloat64(i int) float64 {
 	value := C.sqlite3_column_double(s.stmt, C.int(i))
-	return float64(value), nil
+	return float64(value)
 }
 
 func (s *Stmt) ColumnNull(i int) bool {

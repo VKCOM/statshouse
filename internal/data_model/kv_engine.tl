@@ -58,3 +58,6 @@ kv_engine.check#2c3239ba
 kv_engine.backup#3c7231b2
     prefix: string
     = kv_engine.Backup_Response;
+
+@read
+kv_engine.healthcheck#2c1259aa = Bool;

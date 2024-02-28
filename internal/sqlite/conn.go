@@ -11,7 +11,7 @@ import (
 	"go4.org/mem"
 	"pgregory.net/rand"
 
-	"github.com/vkcom/statshouse/internal/sqlite/internal/sqlite0"
+	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 )
 
 type sqliteConn struct {
@@ -239,11 +239,11 @@ func (r *Rows) ColumnIsNull(i int) bool {
 }
 
 func (r *Rows) ColumnInt64(i int) (int64, error) {
-	return r.s.ColumnInt64(i)
+	return r.s.ColumnInt64(i), nil
 }
 
 func (r *Rows) ColumnFloat64(i int) (float64, error) {
-	return r.s.ColumnFloat64(i)
+	return r.s.ColumnFloat64(i), nil
 }
 
 func (c Conn) LastInsertRowID() int64 {

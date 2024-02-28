@@ -71,7 +71,7 @@ func ensureZeroTerm(s []byte) []byte {
 	}
 	return s
 }
-func ensureZeroTermStr(s string) string {
+func EnsureZeroTermStr(s string) string {
 	if len(s) == 0 || s[len(s)-1] != 0 {
 		s += "\x00"
 	}
