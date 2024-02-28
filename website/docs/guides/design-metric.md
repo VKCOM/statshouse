@@ -78,6 +78,13 @@ Metric types should not be confused with [data types](https://en.wikipedia.org/w
 languages.
 :::
 
+<details>
+    <summary>Implementation details</summary>
+  <p>Counter and value metrics are `float64`. When StatsHouse receives metric data of a `counter` or `value` type, 
+it trims everything outside the `[-max(float32)..max(float32)]` range. 
+Thus, you avoid getting positive or negative infinity (`±inf`) while summarizing values—in the database as well.</p>
+</details>
+
 ### Counters
 
 Imagine a hypothetical product. For this product, we need to get the number of received packets per second.
@@ -171,17 +178,27 @@ you can only estimate the [cardinality](../conceptual%20overview/concepts.md#car
 For unique metrics, StatsHouse stores the aggregates: _sum_, _min_, _max_ (the same as for the value metrics
 interpreted as `int64` and approximated to `float64`). Knowing the range of values may be useful for debugging.
 
+<details>
+    <summary>Implementation details</summary>
+  <p>Unique counters are `int64`—StatsHouse interprets it as 64 bits. They are not `uint64` just because some 
+programming languages does not have it. These values are regarded as hashes. When estimating cardinality for the 
+sets of these values, StatsHouse tests them for equality and inequality.</p>
+
+<p>When producing aggregates (`sum`, `min`, `max`), StatsHouse interprets these values as `int64` and then converts 
+them into `float64` as the column for these aggregates are the same as for the value aggregates.</p>
+</details>
+
 ### Combining metric types
 
 Check the valid metric type combinations in the table below:
 
-| What you send                    | What you get                                                                      |
-|----------------------------------|-----------------------------------------------------------------------------------|
-| `"counter":100`                  | `counter`                                                                         |
-| `"value":[1, 2, 3]`              | `counter` and `value` (i.e., `sum`, `min`, `max`)                                 |
-| `"unique":[17, 25, 37]`          | `counter`, `value` (i.e., `sum`, `min`, `max`), and `unique`                      |
+| What you send                    | What you get                                                                     |
+|----------------------------------|----------------------------------------------------------------------------------|
+| `"counter":100`                  | `counter`                                                                        |
+| `"value":[1, 2, 3]`              | `counter` (the size of the array), `value` (`sum`, `min`, `max`)                 |
+| `"unique":[17, 25, 37]`          | `counter` (the size of the array), `value` (`sum`, `min`, `max`), `unique`    |
 | `"counter":6, "value":[1, 2, 3]` | [User-guided sampling](../conceptual%20overview/concepts.md#user-guided-sampling) |
-| `"value":100,"unique":100`       | <text className="orange-text">This is not a valid combination</text>              |
+| `"value":100,"unique":100`       | <text className="orange-text">This is not a valid combination</text>             |
 
 If you refactor your existing metric, i.e., switch between different metric types for a single metric, the data may
 become confusing or uninformative.
@@ -386,7 +403,7 @@ The maximum `toy_latency` value (which is 1200) is associated with the `nginx001
 
 <details>
     <summary>Implementation details</summary>
-  <p> The value in the `max_host` column is `Float32` rather than `Float64` for better compression as there is no 
+  <p> The value in the `max_host` column is `float32` rather than `float64` for better compression as there is no 
 need for high precision here. The host name is stored as the `string`↔`int32` mapping similar to tag values.</p>
 </details>
 

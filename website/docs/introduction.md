@@ -49,6 +49,7 @@ Use the **🔍 Search** bar in the upper-right corner, or check the table of con
 * [Edit a metric](guides/edit-metrics.md)
 * [Create and view dashboards](guides/dashboards.md)
 * [Query with PromQL](guides/query-wth-promql.md)
+* [Find OpenAPI specification](guides/openapi.md)
 
 ### [Conceptual overview](conceptual%20overview/features.md)
 

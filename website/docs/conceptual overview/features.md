@@ -9,7 +9,8 @@ StatsHouse is a **highly available**, **scalable**, **multitenant** monitoring s
 * it handles a growing amount of incoming data,
 * it serves multiple groups of users while providing them with fair resource sharing.
 
-Learn more about StatsHouse features.
+Watch the [StatsHouse presentation](https://youtu.be/gs2_PGgPVwU) at the HighLoad 2022 conference (in Russian)
+to learn more about StatsHouse features and implementation details.   
 
 ### Ready for production on a large scale
 
