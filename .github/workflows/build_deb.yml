@@ -34,9 +34,6 @@ on:
       frontend-artifact:
         type: string
         required: true
-    outputs:
-      artifact:
-        value: statshouse-${{inputs.version}}-deb
 jobs:
   binaries:
     uses: ./.github/workflows/build_binaries.yml
@@ -83,8 +80,8 @@ jobs:
           debuild --no-lintian -us -uc -b
       - uses: actions/upload-artifact@v4
         with:
-          name: statshouse-${{inputs.version}}-deb
+          name: statshouse-pkg-deb-${{inputs.version}}${{github.run_number}}${{strategy.job-index}}
           path: |
             ./statshouse_*.deb
-          # ./statshouse-api_*.deb
-          # ./statshouse-metadata_*.deb
+            ./statshouse-api_*.deb
+            ./statshouse-metadata_*.deb
