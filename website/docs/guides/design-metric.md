@@ -24,7 +24,7 @@ Understand what you want from your metric and how to implement it with StatsHous
   * [Tag names](#tag-names)
   * [Tag values](#tag-values)
   * [_Raw_ tags](#raw-tags)
-  * [String tag](#string-tag)
+  * [String top tag](#string-tag)
   * [Host name as a tag](#host-name-as-a-tag)
   * [Customizing the `environment` tag](#customizing-the-environment-tag)
 * [Timestamps](#timestamps)
@@ -263,7 +263,7 @@ You can use 16 tags per metric:
 * the `0` tag is usually for an `environment` (read more about [customizing it](#customizing-the-environment-tag)),
 * the `1..15` tags are for any other characteristics.
 
-There is also one more [string tag](#string-tag):
+There is also one more [String top tag](#string-tag):
 * the `__s` tag.
 
 #### "What if I want more tags?"
@@ -334,7 +334,7 @@ We recommend that the very first tags have the lowest cardinality rate. For exam
 If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
 [Raw](#raw-tags) tag values to avoid the mapping flood.
 
-For many different string values (such as `search_request`), use a [string tag](#string-tag).
+For many different string values (such as `search_request`), use a [String top tag](#string-tag).
 :::
 
 ### _Raw_ tags
@@ -350,20 +350,21 @@ To help yourself remember what your _Raw_ tag values mean, specify a
 [format](edit-metrics.md#specifying-formats-for-raw-tag-values) for your data to show in the UI and add 
 [value comments](edit-metrics.md#value-comments).
 
-### String tag
+### String top tag
 
-Use a _string tag_ (`__s`) when you need a tag with many different `string` values such as referrers or search
+Use a _String top tag_ (`__s`) when you need a tag with many different `string` values such as referrers or search
 requests.
 
-With the common tags, you will get [mapping flood](view-graph.md#mapping-status) errors very soon for this scenario.
-The _string tag_ stands apart from the other ones as its values are not
+With the common tags, you will get [mapping flood errors](view-graph.md#mapping-status) very soon for this scenario.
+The _String top tag_ stands apart from the other ones as its values are not
 [mapped](../conceptual%20overview/components.md#mapping-budget) to integers. Thus, you can avoid
-[mapping flood](view-graph.md#mapping-status) errors and massive sampling.
+mapping flood errors and massive sampling.
 
-The string tag has a special storage: when you send your data labeled with many `string` tag values, only the most
+The _String top tag_ has a special storage: when you send your data labeled with many `string` tag values, only the most
 popular tag values are stored. The other tag values for this metric become `Empty` and are aggregated.
 
-To filter data with the _string tag_ on a graph, [add a name or description](edit-metrics.md#set-up-string-tag) to it.
+To filter data with the _String top tag_ on a graph, [add a name or description](edit-metrics.md#set-up-string-tag) 
+to it.
 
 ### Host name as a tag
 

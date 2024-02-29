@@ -175,9 +175,9 @@ Please note that you send only 32-bit integer values as raw tag values. If you s
 StatsHouse displays your `1234567890` raw tag value as `12.345.67.890` in the UI.
 :::
 
-### Set up _String tag_
+### Set up _String top tag_
 
-To filter data with the [String tag](design-metric.md#string-tag) on a graph, add a name or description to it:
+To filter data with the [String top tag](design-metric.md#string-tag) on a graph, add a name or description to it:
 
 <img src={StringTag} width="600"/>
 
