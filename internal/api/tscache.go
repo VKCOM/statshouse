@@ -310,9 +310,6 @@ func (c *tsCache) evictLocked() int {
 			break
 		}
 	}
-	if v == nil {
-		return 0
-	}
 	n := 0
 	for _, cached := range v.secRows {
 		n += len(cached.rows)

@@ -54,6 +54,7 @@ const (
 )
 
 type args struct {
+	api.HandlerOptions
 	accessLog                bool
 	rpcCryptoKeyPath         string
 	brsMaxChunksCount        int
@@ -85,25 +86,18 @@ type args struct {
 	pidFile                  string
 	pprofAddr                string
 	pprofHTTP                bool
-	protectedMetricPrefixes  []string
 	showInvisible            bool
 	slow                     time.Duration
 	staticDir                string
 	statsHouseAddr           string
 	statsHouseEnv            string
-	timezone                 string
 	utcOffsetHours           int // we can't support offsets not divisible by hour because we aggregate the data by hour
-	verbose                  bool
 	version                  bool
 	vkuthAppName             string
 	vkuthPublicKeys          []string
-	weekStartAt              int
 	metadataActorID          int64
 	metadataAddr             string
 	metadataNet              string
-	readOnly                 bool
-	insecureMode             bool
-	querySelectTimeout       time.Duration
 }
 
 func main() {
@@ -142,30 +136,24 @@ func main() {
 	pflag.StringVar(&argv.listenHTTPAddr, "listen-addr", "localhost:8080", "web server listen address")
 	pflag.StringVar(&argv.listenRPCAddr, "listen-rpc-addr", "localhost:13347", "RPC server listen address")
 	pflag.BoolVar(&argv.localMode, "local-mode", false, "set local-mode if you need to have default access without access token")
-	pflag.BoolVar(&argv.insecureMode, "insecure-mode", false, "set insecure-mode if you don't need any access verification")
 	pflag.StringVar(&argv.pidFile, "pid-file", "statshouse_api.pid", "path to PID file") // fpr table flip
 
 	pflag.StringVar(&argv.pprofAddr, "pprof-addr", "", "Go pprof HTTP listen address (deprecated)")
 	pflag.BoolVar(&argv.pprofHTTP, "pprof-http", true, "Serve Go pprof HTTP on RPC port")
-	pflag.StringSliceVar(&argv.protectedMetricPrefixes, "protected-metric-prefixes", nil, "comma-separated list of metric prefixes that require access bits set")
 	pflag.BoolVar(&argv.showInvisible, "show-invisible", false, "show invisible metrics as well")
 	pflag.DurationVar(&argv.slow, "slow", 0, "slow down all HTTP requests by this much")
 	pflag.StringVar(&argv.staticDir, "static-dir", "", "directory with static assets")
 	pflag.StringVar(&argv.statsHouseAddr, "statshouse-addr", statshouse.DefaultStatsHouseAddr, "address of StatsHouse UDP socket")
 	pflag.StringVar(&argv.statsHouseEnv, "statshouse-env", "dev", "fill key0/environment with this value in StatHouse statistics")
-	pflag.StringVar(&argv.timezone, "timezone", "Europe/Moscow", "location of the desired timezone")
 	pflag.IntVar(&argv.utcOffsetHours, "utc-offset", 0, "UTC offset for aggregation, in hours")
-	pflag.BoolVar(&argv.verbose, "verbose", false, "verbose logging")
 	pflag.BoolVar(&argv.version, "version", false, "show version information and exit")
 	pflag.StringVar(&argv.vkuthAppName, "vkuth-app-name", "statshouse-api", "vkuth application name (access bits namespace)")
 	pflag.StringSliceVar(&argv.vkuthPublicKeys, "vkuth-public-keys", nil, "comma-separated list of trusted vkuth public keys; empty list disables token-based access control")
-	pflag.IntVar(&argv.weekStartAt, "week-start", int(time.Monday), "week day of beginning of the week (from sunday=0 to saturday=6)")
-	pflag.BoolVar(&argv.readOnly, "readonly", false, "read only mode")
 
 	pflag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "metadata engine actor id")
 	pflag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "metadata engine address")
 	pflag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "metadata engine network")
-	pflag.DurationVar(&argv.querySelectTimeout, "query-select-timeout", api.QuerySelectTimeoutDefault, "query select timeout")
+	argv.HandlerOptions.Bind(pflag.CommandLine)
 	cfg := &api.Config{}
 	cfg.Bind(pflag.CommandLine, api.DefaultConfig())
 	pflag.Parse()
@@ -198,10 +186,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if argv.weekStartAt < int(time.Sunday) || argv.weekStartAt > int(time.Saturday) {
-		log.Fatalf("invalid --week-start value, only 0-6 allowed %q given", argv.weekStartAt)
-	}
-
 	err = run(argv, cfg, keys)
 	if err != nil {
 		log.Fatal(err)
@@ -209,13 +193,9 @@ func main() {
 }
 
 func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
-	location, err := time.LoadLocation(argv.timezone)
-	if err != nil {
-		return fmt.Errorf("failed to load timezone %q: %w", argv.timezone, err)
+	if err := argv.HandlerOptions.LoadLocation(); err != nil {
+		return err
 	}
-
-	utcOffset := api.CalcUTCOffset(location, time.Weekday(argv.weekStartAt)) // demands restart after summer/winter time switching
-
 	tf, err := tableflip.New(tableflip.Options{
 		PIDFile:        argv.pidFile,
 		UpgradeTimeout: upgradeTimeout,
@@ -348,12 +328,9 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		jsSettings.VkuthAppName = ""
 	}
 	f, err := api.NewHandler(
-		argv.verbose,
 		staticFS,
 		jsSettings,
-		argv.protectedMetricPrefixes,
 		argv.showInvisible,
-		utcOffset,
 		chV1,
 		chV2,
 		&tlmetadata.Client{
@@ -364,11 +341,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		},
 		dc,
 		jwtHelper,
-		location,
-		argv.localMode,
-		argv.readOnly,
-		argv.insecureMode,
-		argv.querySelectTimeout,
+		argv.HandlerOptions,
 		cfg,
 	)
 	if err != nil {
@@ -450,7 +423,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		c.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: "4", 2: "2"}).Value(uptime)
 	}))
 
-	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.protectedMetricPrefixes, argv.localMode, argv.insecureMode)
+	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.HandlerOptions)
 	handlerRPC := &tlstatshouseApi.Handler{
 		GetChunk:         hr.GetChunk,
 		RawGetQuery:      hr.RawGetQuery,

@@ -125,17 +125,15 @@ func NewRpcHandler(
 	ah *Handler,
 	brs *BigResponseStorage,
 	jwtHelper *vkuth.JWTHelper,
-	protectedPrefixes []string,
-	localMode bool,
-	insecureMode bool,
+	opt HandlerOptions,
 ) *RPCHandler {
 	return &RPCHandler{
 		ah:                ah,
 		brs:               brs,
 		jwtHelper:         jwtHelper,
-		protectedPrefixes: protectedPrefixes,
-		localMode:         localMode,
-		insecureMode:      insecureMode,
+		protectedPrefixes: opt.protectedMetricPrefixes,
+		localMode:         opt.localMode,
+		insecureMode:      opt.insecureMode,
 	}
 }
 

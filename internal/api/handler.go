@@ -165,7 +165,7 @@ type (
 	}
 
 	Handler struct {
-		verbose               bool
+		HandlerOptions
 		protectedPrefixes     []string
 		showInvisible         bool
 		utcOffset             int64
@@ -183,16 +183,11 @@ type (
 		cacheInvalidateStop   chan chan struct{}
 		metadataLoader        *metajournal.MetricMetaLoader
 		jwtHelper             *vkuth.JWTHelper
-		localMode             bool
-		insecureMode          bool
 		plotRenderSem         *semaphore.Weighted
 		plotTemplate          *ttemplate.Template
-		location              *time.Location
-		readOnly              bool
 		rUsage                syscall.Rusage // accessed without lock by first shard addBuiltIns
 		rmID                  int
 		promEngine            promql.Engine
-		querySelectTimeout    time.Duration
 	}
 
 	//easyjson:json
@@ -524,7 +519,7 @@ type (
 
 var errTooManyRows = fmt.Errorf("can't fetch more than %v rows", maxSeriesRows)
 
-func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedPrefixes []string, showInvisible bool, utcOffsetSec int64, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, location *time.Location, localMode, readOnly, insecureMode bool, querySelectTimeout time.Duration, cfg *Config) (*Handler, error) {
+func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1 *util.ClickHouse, chV2 *util.ClickHouse, metadataClient *tlmetadata.Client, diskCache *pcache.DiskCache, jwtHelper *vkuth.JWTHelper, opt HandlerOptions, cfg *Config) (*Handler, error) {
 	metadataLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
 	diskCacheSuffix := metadataClient.Address // TODO - use cluster name or something here
 
@@ -540,14 +535,12 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 	metricStorage := metajournal.MakeMetricsStorage(diskCacheSuffix, diskCache, nil, cl.ApplyEventCB)
 	metricStorage.Journal().Start(nil, nil, metadataLoader.LoadJournal)
 	h := &Handler{
-		verbose:           verbose,
-		protectedPrefixes: protectedPrefixes,
-		showInvisible:     showInvisible,
-		utcOffset:         utcOffsetSec,
-		staticDir:         http.FS(staticDir),
-		indexTemplate:     tmpl,
-		indexSettings:     string(settings),
-		metadataLoader:    metadataLoader,
+		HandlerOptions: opt,
+		showInvisible:  showInvisible,
+		staticDir:      http.FS(staticDir),
+		indexTemplate:  tmpl,
+		indexSettings:  string(settings),
+		metadataLoader: metadataLoader,
 		ch: map[string]*util.ClickHouse{
 			Version1: chV1,
 			Version2: chV2,
@@ -592,13 +585,8 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		cacheInvalidateTicker: time.NewTicker(cacheInvalidateCheckInterval),
 		cacheInvalidateStop:   make(chan chan struct{}),
 		jwtHelper:             jwtHelper,
-		localMode:             localMode,
 		plotRenderSem:         semaphore.NewWeighted(maxConcurrentPlots),
 		plotTemplate:          ttemplate.Must(ttemplate.New("").Parse(gnuplotTemplate)),
-		location:              location,
-		readOnly:              readOnly,
-		insecureMode:          insecureMode,
-		querySelectTimeout:    querySelectTimeout,
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
@@ -645,7 +633,7 @@ func NewHandler(verbose bool, staticDir fs.FS, jsSettings JSSettings, protectedP
 		writeActiveQuieries(chV1, "1")
 		writeActiveQuieries(chV2, "2")
 	})
-	h.promEngine = promql.NewEngine(h, location)
+	h.promEngine = promql.NewEngine(h, h.location)
 	return h, nil
 }
 
@@ -1987,6 +1975,7 @@ func (h *Handler) queryBadges(ctx context.Context, req seriesRequest, meta *form
 			Expr:  fmt.Sprintf("%s{@what=\"count,avg\",__by__=\"1,2\",2=\" 0\",2=\" %d\"}", format.BuiltinMetricNameBadges, meta.MetricID),
 			Options: promql.Options{
 				ExplicitGrouping: true,
+				QuerySequential:  h.querySequential,
 			},
 		})
 	if err != nil {
@@ -2421,6 +2410,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 				TimeNow:          opt.timeNow.Unix(),
 				Extend:           req.excessPoints,
 				ExplicitGrouping: true,
+				QuerySequential:  h.querySequential,
 				TagWhat:          promqlGenerated,
 				ScreenWidth:      screenWidth,
 				MaxHost:          req.maxHost,
