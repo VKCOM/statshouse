@@ -3163,11 +3163,10 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			return ""
 		}
 		env   = make(map[string]promql.Variable)
-		tabs  = make([]seriesRequestEx, 1, maxTabs)
+		tabs  = make([]seriesRequestEx, 0, maxTabs)
 		tabX  = -1
-		tab0  = &tabs[0]
 		tabAt = func(i int) *seriesRequestEx {
-			if i >= cap(tabs) {
+			if i >= maxTabs {
 				return nil
 			}
 			for j := len(tabs) - 1; j < i; j++ {
@@ -3180,6 +3179,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			}
 			return &tabs[i]
 		}
+		tab0 = tabAt(0)
 	)
 	// parse dashboard
 	if id, err := strconv.Atoi(first(r.Form[paramDashboardID])); err == nil {
