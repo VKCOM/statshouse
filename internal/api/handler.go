@@ -168,7 +168,6 @@ type (
 		HandlerOptions
 		protectedPrefixes     []string
 		showInvisible         bool
-		utcOffset             int64
 		staticDir             http.FileSystem
 		indexTemplate         *template.Template
 		indexSettings         string
