@@ -7,8 +7,39 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 )
 
+func TestDmesgStats_handleMsgsCC(t *testing.T) {
+	c := &DMesgStats{lastTS: timestamp{-1, 0}}
+	body := []byte(`<6>[    0.000000] BIOS-e820: [mem 0x000000000008e400-0x000000000009ffff] reserved
+<4>[   32.369778] Unsafe core_pattern used with fs.suid_dumpable=2.
+                  Pipe handler or fully qualified core dump path required.
+                  Set kernel.core_pattern before fs.suid_dumpable.
+<4>[33.445681] Killed process 3029 (Web Content) total-vm:10206696kB, anon-rss:6584572kB, file-rss:0kB, shmem-rss:8732kB
+`)
+	var data []klogMsg
+	cb := func(nowUnix int64, klog klogMsg) {
+		data = append(data, klog)
+	}
+	err := c.handleMsgs(0, body, true, cb)
+	require.NoError(t, err)
+	require.Len(t, data, 3)
+	a := data[0]
+	require.Equal(t, int32(format.RawIDTag_Info), a.level)
+	require.Equal(t, int32(format.RawIDTag_kern), a.facility)
+	require.Equal(t, timestamp{sec: 0, usec: 0}, a.ts)
+	a = data[1]
+	require.Equal(t, int32(format.RawIDTag_Warn), a.level)
+	require.Equal(t, int32(format.RawIDTag_kern), a.facility)
+	require.Equal(t, timestamp{sec: 32, usec: 369778}, a.ts)
+	a = data[2]
+	require.Equal(t, int32(format.RawIDTag_Warn), a.level)
+	require.Equal(t, int32(format.RawIDTag_kern), a.facility)
+	require.Equal(t, timestamp{sec: 33, usec: 445681}, a.ts)
+	require.Equal(t, "Web Content", a.oom.oomProcessName)
+
+}
+
 func TestMesgStats_handleMsgs(t *testing.T) {
-	c := &DMesgStats{klogParser: &parser{}, msgParser: &parser{}}
+	c := &DMesgStats{}
 
 	body := []byte(
 		`<4>[12555048.809330] audit: audit_lost=50409498 audit_rate_limit=0 audit_backlog_limit=8192
@@ -30,7 +61,7 @@ func TestMesgStats_handleMsgs(t *testing.T) {
 	require.Equal(t, int32(format.RawIDTag_Warn), a.level)
 	require.Equal(t, int32(format.RawIDTag_kern), a.facility)
 	require.Equal(t, timestamp{sec: 12555058, usec: 445681}, a.ts)
-	require.Equal(t, "Web Content", a.oomProcessName)
+	require.Equal(t, "Web Content", a.oom.oomProcessName)
 	a = data[2]
 	require.Equal(t, a.level, int32(format.RawIDTag_Warn))
 	require.Equal(t, a.facility, int32(format.RawIDTag_kern))

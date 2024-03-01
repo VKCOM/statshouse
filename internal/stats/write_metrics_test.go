@@ -6,6 +6,7 @@ import (
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/env"
 	"github.com/vkcom/statshouse/internal/mapping"
 )
 
@@ -18,10 +19,12 @@ func (*handlerMock) HandleMetrics(b *tlstatshouse.MetricBytes, m mapping.MapCall
 func (*handlerMock) HandleParseError([]byte, error) {}
 
 func BenchmarkSHWriterImpl(b *testing.B) {
+	loader := &env.Loader{}
 	p := MetricWriterSHImpl{
-		HostName: []byte{1},
-		handler:  &handlerMock{},
-		metric:   &tlstatshouse.MetricBytes{},
+		HostName:  []byte{1},
+		handler:   &handlerMock{},
+		metric:    &tlstatshouse.MetricBytes{},
+		envLoader: loader,
 	}
 	t := time.Now().Unix()
 	for i := 0; i < b.N; i++ {
