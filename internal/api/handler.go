@@ -1039,7 +1039,7 @@ func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) parseAccessToken(r *http.Request, es *endpointStat) (accessInfo, error) {
-	ai, err := parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedPrefixes, h.localMode, h.insecureMode)
+	ai, err := parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedPrefixes, h.LocalMode, h.insecureMode)
 	if es != nil {
 		es.setAccessInfo(ai)
 	}
