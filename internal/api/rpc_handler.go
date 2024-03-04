@@ -132,7 +132,7 @@ func NewRpcHandler(
 		brs:               brs,
 		jwtHelper:         jwtHelper,
 		protectedPrefixes: opt.protectedMetricPrefixes,
-		localMode:         opt.localMode,
+		localMode:         opt.LocalMode,
 		insecureMode:      opt.insecureMode,
 	}
 }

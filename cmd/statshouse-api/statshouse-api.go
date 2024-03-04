@@ -82,7 +82,6 @@ type args struct {
 	help                     bool
 	listenHTTPAddr           string
 	listenRPCAddr            string
-	localMode                bool
 	pidFile                  string
 	pprofAddr                string
 	pprofHTTP                bool
@@ -135,7 +134,6 @@ func main() {
 	pflag.BoolVarP(&argv.help, "help", "h", false, "print usage instructions and exit")
 	pflag.StringVar(&argv.listenHTTPAddr, "listen-addr", "localhost:8080", "web server listen address")
 	pflag.StringVar(&argv.listenRPCAddr, "listen-rpc-addr", "localhost:13347", "RPC server listen address")
-	pflag.BoolVar(&argv.localMode, "local-mode", false, "set local-mode if you need to have default access without access token")
 	pflag.StringVar(&argv.pidFile, "pid-file", "statshouse_api.pid", "path to PID file") // fpr table flip
 
 	pflag.StringVar(&argv.pprofAddr, "pprof-addr", "", "Go pprof HTTP listen address (deprecated)")
@@ -324,7 +322,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		DefaultNumSeries:         argv.defaultNumSeries,
 		DisableV1:                len(argv.chV1Addrs) == 0,
 	}
-	if argv.localMode {
+	if argv.LocalMode {
 		jsSettings.VkuthAppName = ""
 	}
 	f, err := api.NewHandler(

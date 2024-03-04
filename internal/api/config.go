@@ -34,7 +34,7 @@ func DefaultConfig() *Config {
 
 type HandlerOptions struct {
 	insecureMode            bool
-	localMode               bool
+	LocalMode               bool
 	querySequential         bool
 	readOnly                bool
 	verbose                 bool
@@ -49,6 +49,7 @@ type HandlerOptions struct {
 
 func (argv *HandlerOptions) Bind(pflag *pflag.FlagSet) {
 	pflag.BoolVar(&argv.insecureMode, "insecure-mode", false, "set insecure-mode if you don't need any access verification")
+	pflag.BoolVar(&argv.LocalMode, "local-mode", false, "set local-mode if you need to have default access without access token")
 	pflag.BoolVar(&argv.querySequential, "query-sequential", false, "disables query parallel execution")
 	pflag.BoolVar(&argv.readOnly, "readonly", false, "read only mode")
 	pflag.BoolVar(&argv.verbose, "verbose", false, "verbose logging")
