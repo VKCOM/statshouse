@@ -883,7 +883,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             let series_meta = [...resp?.series.series_meta] ?? [];
             let series_data = ([...resp.series.series_data] as (number | null)[][]) ?? [];
             const totalLineId = lastPlotParams.totalLine ? series_meta.length : null;
-            const totalLineLabel = 'Total line';
+            const totalLineLabel = 'Total';
             if (lastPlotParams.totalLine) {
               const totalLineData = resp.series.time.map((time, idx) =>
                 series_data.reduce((res, d) => res + (d[idx] ?? 0), 0)

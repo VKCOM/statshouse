@@ -37,7 +37,7 @@ export function PlotControlView({
         <div>
           <div>
             <SwitchBox className="text-nowrap my-1 mx-2 user-select-none" checked={totalLine} onChange={setTotalLine}>
-              Show total line
+              Show Total
             </SwitchBox>
           </div>
           <div>
