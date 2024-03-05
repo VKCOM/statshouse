@@ -10,6 +10,7 @@ import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.
 import { ReactComponent as SVGGridFill } from 'bootstrap-icons/icons/grid-fill.svg';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import { ReactComponent as SVGCardList } from 'bootstrap-icons/icons/card-list.svg';
+import { ReactComponent as SVGCpu } from 'bootstrap-icons/icons/cpu.svg';
 import { ReactComponent as SVGBrightnessHighFill } from 'bootstrap-icons/icons/brightness-high-fill.svg';
 import { ReactComponent as SVGMoonStarsFill } from 'bootstrap-icons/icons/moon-stars-fill.svg';
 import { ReactComponent as SVGCircleHalf } from 'bootstrap-icons/icons/circle-half.svg';
@@ -245,6 +246,14 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
               </NavLink>
             </li>
           </HeaderMenuItem>
+        )}
+        {!!globalSettings.admin_dash && (
+          <HeaderMenuItem
+            icon={SVGCpu}
+            to={`/view?id=${globalSettings.admin_dash}`}
+            title="Hardware info"
+            className={cn(isDashList && css.activeItem)}
+          ></HeaderMenuItem>
         )}
         <HeaderMenuItem
           icon={SVGCardList}
