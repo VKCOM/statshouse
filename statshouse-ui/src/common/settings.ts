@@ -21,6 +21,7 @@ export interface settings {
   readonly skip_error_count: number;
   readonly event_preset: string[];
   readonly links: { name: string; url: string }[];
+  readonly admin_dash?: number | null;
 }
 
 const defaultSettings: settings = {
@@ -36,6 +37,7 @@ const defaultSettings: settings = {
   skip_error_count: 10,
   event_preset: [],
   links: [],
+  admin_dash: null,
 };
 
 const meta = document.querySelector('meta[name="settings"]');
