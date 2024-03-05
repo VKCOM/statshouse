@@ -146,7 +146,8 @@ show in the UI:
 ### Set up _Raw tags_
 
 If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
-_Raw_ tag values to avoid the [mapping flood](../conceptual%20overview/components.md#mapping-budget).
+[_Raw_ tag values](design-metric.md#raw-tags) to avoid the 
+[mapping flood](../conceptual%20overview/components.md#the-budget-for-creating-mappings).
 
 To help yourself remember what they mean, specify a 
 [format](#specifying-formats-for-raw-tag-values) for your data to show in the UI 
