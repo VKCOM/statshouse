@@ -880,8 +880,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             const uniqueWhat: Set<QueryWhat> = new Set();
             const uniqueName = new Set();
             const uniqueMetricType: Set<string> = new Set();
-            let series_meta = [...resp?.series.series_meta] ?? [];
-            let series_data = ([...resp.series.series_data] as (number | null)[][]) ?? [];
+            let series_meta = [...resp?.series.series_meta];
+            let series_data = [...resp.series.series_data] as (number | null)[][];
             const totalLineId = lastPlotParams.totalLine ? series_meta.length : null;
             const totalLineLabel = 'Total';
             if (lastPlotParams.totalLine) {
