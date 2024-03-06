@@ -56,7 +56,3 @@ Use the **🔍 Search** bar in the upper-right corner, or check the table of con
 * Find more about StatsHouse [features](conceptual%20overview/features.md).
 * Understand the underlying [concepts](conceptual%20overview/concepts.md).
 * Learn how the StatsHouse [components](conceptual%20overview/components.md) implement all of the above.
-
-### [FAQ](faq.md)
-
-Find answers to [frequently asked questions](faq.md).

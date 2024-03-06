@@ -126,7 +126,7 @@ This sounds simple, but only if you have not so much data.
 
 StatsHouse uses [UDP](../conceptual%20overview/components.md#receiving-data-via-udp).
 If you send a datagram per event, and there are too many of them,
-there is a risk of dropping datagrams due to **UDP socket buffer overflow**, and no one will notice it.
+there is a risk of dropping datagrams due to UDP socket buffer overflow, and no one will notice it.
 
 If you do not use the client library, the non-aggregated data will reach StatsHouse
 [agent](../conceptual%20overview/components.md#agent), and the agent will aggregate them anyway.

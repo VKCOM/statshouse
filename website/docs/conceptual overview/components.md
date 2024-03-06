@@ -101,24 +101,11 @@ message MetricBatch {
 }
 ```
 
-Сheck the requirements for using formats:
-
-| Format           | Requirement                                                                                                                                                                                                                  |
-|------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| TL               | The packet body should be the [Boxed](https://docs.ton.org/develop/data-formats/tl#non-obvious-serialization-rules)-serialized `statshouse.addMetricsBatch` object<br/>(see the [schema](#receiving-data-via-tl-rpc) below). |
-| JSON             | The first character should be a curly bracket `{` for correct format autodetection.                                                                                                                                          |
-| Protocol Buffers | Do not add fields to the `MetricBatch` object for correct format autodetection.                                                                                                                                              |
-
-#### UDP socket buffer overflow
-
-Without a client library, you can create a socket, prepare a JSON file, and send your formatted data.
-This sounds simple, but only if you have not so much data.
-
-StatsHouse uses UDP. If you send a datagram per event, and there are too many of them,
-there is a risk of dropping datagrams, and no one will notice it.
-
-If you do not use the client library, the non-aggregated data will reach the StatsHouse
-agent, and the agent will aggregate them anyway.
+Сheck the requirements for using formats.
+* For TL: the packet body should be the Boxed-serialized `statshouse.addMetricsBatch` object<br/>(see the [schema]
+  (#receiving-data-via-tl-rpc) below).
+* For JSON: the first character should be a curly bracket `{` (to detect the format correctly).
+* For Protocol Buffers: do not add fields to the `MetricBatch` object (to detect the format correctly).
 
 ### Receiving data via TL/RPC
 
@@ -143,15 +130,14 @@ statshouse.metric#3325d884 fields_mask:#
 Receive errors are returned as TL errors. We do not specify the error codes as we assume only logging and manual 
 processing for the errors—with no error processing on a client.
 
-### Receiving data via Unix datagram socket or TCP
+### Deploying agents in the Kubernetes pods
 
-To track if the sender drops packets or not, use non-blocking sending for the Unix datagram sockets instead of UDP 
-(if possible).
+Please avoid deploying agents in the Kubernetes pods.
+We strongly recommend deploying them on the server—make sure to specify the `13337` port.
 
-For the same purpose, the clients such as the PHP client can use the non-blocking TCP/Unix socket for the same 
-purpose—not to be blocked because of the socket buffer overflow. If the packet does not fit the buffer, the 
-non-fitting part is cached. This part is sent as soon as the buffer becomes free. The entire new non-fitting packets 
-are thrown away and the related counters increase.
+The reason is that StatsHouse "does not like" the fluctuating number of agents.
+The agents send per-second reports to the aggregators. The permanent number of agents indicates that the agents are
+connected to the aggregators. The pods that stopped working reduce the number of agents and activate the main StatsHouse alert.
 
 ## Aggregator
 
@@ -180,86 +166,9 @@ Imagine the breakdown situation: it was impossible to insert data for a long tim
 StatsHouse starts to insert real-time data immediately. As for the "historical" data, StatsHouse will insert it as 
 soon as possible—if only it does not prevent real-time data from being inserted.
 
-### "Small" inserting window
-
-The aggregator allows agents to insert last 5-minute data—this is a "small" inserting window (customizable).
-If an agent was not able to insert data in time, it is required to send data as the "historical" one. 
-
-The aggregator keeps a container with statistics per each second—such a container aggregates data from the agents.
-As soon as the next second data arrives, the aggregator inserts this data (from the "small" window) into the database.
-And the agents receive the response with the insert result.
-
-The "small" window extends to the future for 2 seconds. It helps the agents to insert data correctly 
-if their clock is going too fast.
-
-### "Large" inserting window
-
-The aggregator allows agents to insert last 48-hour data—this is a "large" inserting window (customizable).
-
-If the data is older than 48 hours, StatsHouse records meta-statistics, and throws away this piece of data. The agent 
-receives the `OK` response.
-
-The between-host aggregation is really important, so StatsHouse does its best to make it possible:
-* Each agent makes a request to insert a few tens of "historical" seconds—starting from the "oldest" one.
-* The aggregator receives these requests and chooses the "oldest" second.
-* It aggregates data, inserts it into the database and sends the response.
-* Then it chooses the "oldest" second again, etc.
-
-This algorithm helps the most distant ("oldest") seconds to come up with the "newest" ones. It makes aggregating 
-historical data possible and helps to insert data simultaneously.
-
-### Time correction
-
-Each shard's replica uses time correction: from -1 to 0 seconds depending on the replica's number. It helps to 
-prevent sending data from the agents like an avalanche—when switching from one second to another. Otherwise, there 
-is a risk of dropping many packets.
-
-When the host is in the sleep mode or hangs up, the agent detects time difference—more than for one second.
-In this case, the agent sends this difference in a special field, so that the aggregators could take it into account 
-using the special meta-metric.
-
-### Handling aggregator's shutdown
-
-If the aggregator is unavailable or responds with an error, the agent stores data on a local disk.
-Storing data on a disk is limited in bytes. It is also limited in time—within the ["large"](#large-inserting-window)
-(48-hour) inserting window—as the aggregator still does not receive the older data.
-
-If it is unacceptable or impossible to access the disk, one may run the agent with the empty `--cache-dir` argument. 
-StatsHouse will not use the disk. The "historical" data will be stored in memory—while the aggregators are 
-unavailable, i.e., for several minutes.
-
-If the aggregator is unavailable, the agents send data to the rest of the replicas.
-The data is distributed according to the seconds' ordinal numbers: the even seconds are sent to one of the replicas, 
-the odd seconds are sent to another. So the load for both increases by 50%. This is one of the reasons to support 
-writing data to exactly three ClickHouse replicas.
-
-<img src={OddEven} width="500"/>
-
-### Handling double inserts
-
-If the aggregator responds with an error, the agent sends data to another aggregator (another replica) on the other 
-host. For deduplication, we need a consensus algorithm, which is a rather complicated thing.
-
-In StatsHouse, the main and the back-up aggregators can insert data from the same agent at the same second.
-For this rare case, we track the double inserts via the `__heartbeat_version` meta-metric, which is the _number of 
-agents sending data at the current second_.
-To make this meta-metric stable during normal aggregators' operation, the agents send data every second—even if 
-there is no real user data at the moment.
-
 ## Database
 
 The [ClickHouse](https://clickhouse.com) database stores [aggregated](concepts.md#aggregation) metric data.
-
-The database is responsible for replication and downsampling.
-
-:::important
-Things you need to know about the StatsHouse database:
-* it has only three tables, 
-* it allows each metric to have only 16 tags, 
-* it maps strings to integers.
-:::
-
-### Table structure
 
 StatsHouse inserts all the metric data of any type into the same ClickHouse table having the following definition:
 
@@ -332,7 +241,7 @@ as much as possible, since ineffective queries can negatively impact the ClickHo
 
 ## User interface (UI)
 
-A user interface retrieves data from `statshouse-api` and displays metric data in a graph view.
+A user interface retrieves data from the StatsHouse API and displays metric data in a graph view.
 
 ## Ingress proxy
 
@@ -354,6 +263,11 @@ If the proxy is unavailable due to service or shutdown, it is equivalent to a br
 does not affect the normal operation of the StatsHouse system.
 
 <img src={IngressProxy} width="600"/>
+
+Three ingress proxy instances simulate aggregators. One can set up one more ingress proxy level behind the existing
+proxies. This level will use the previous ingress proxies as the aggregators.
+
+Please avoid deploying ingress proxies in the Kubernetes pods.
 
 ### Cryptokeys
 
@@ -398,51 +312,20 @@ of this directory, because the external keys in the set are changed rarely.
 Each agent gets one of the keys from the ingress proxy's `-ingress-pwd-dir=X` directory as the `-aes-pwd-file=X` 
 parameter.
 
-### A proxy behind the proxy
-
-Three ingress proxy instances simulate aggregators. One can set up one more ingress proxy level behind the existing 
-proxies. This level will use the previous ingress proxies as the aggregators.
-
-For the second proxy level, provide the parameters:
-* `-agg-addr=X`—three addresses from the `-ingress-external-addr=X` parameter of the previous ingress proxy level,
-* `-aes-pwd-file=X`—one of the cryptokeys from the `-ingress-pwd-dir=X` directory of the previous ingress proxy level.
-
-### Kubernetes-related questions
-
-With the VK RPC protocol, StatsHouse gets the ephemeral connection keys using the remote and local IP addresses 
-of the connection—as they are shown to the client and the server.
-
-Routing packets from one adapter to another via firewall makes establishing the connections impossible.
-
-To connect the [Kubernetes](https://kubernetes.io)-like components, create the virtual network adapters and connect 
-them using the [Linux network namespaces](https://lwn.net/Articles/580893/).
-
-:::important
-Please avoid deploying agents and the ingress proxies in the Kubernetes pods.
-We strongly recommend deploying them on the server—make sure to specify the `13337` port.
-
-The reason is that StatsHouse "does not like" the fluctuating number of agents. 
-The agents send per-second reports to the aggregators. The permanent number of agents indicates that the agents are 
-connected to the aggregators. The pods that stopped working reduce the number of agents and activate the main StatsHouse alert.
-:::
-
 ## Metadata
 
 A metadata service stores a list of metrics and their properties:
 * the metric type (to show the metric correctly in the UI),
-* the metric name, 
+* the metric names, 
 * tag names, 
-* tags interpretation.
-
-We usually deploy this service on the aggregators' first shards. 
-The load on this service is not so high—there is no need to deploy it on a separate host.
+* the [mapping](#the-mapping-mechanism).
 
 ### The budget for creating metrics
 
 :::important
-The users can create as many metrics as they wish as soon as they do it manually via the StatsHouse UI.
+Users can create as many metrics as they wish as soon as they do it manually via the StatsHouse UI.
 
-As a rule, the administrators cannot automate creating metrics. 
+As a rule, administrators cannot automate creating metrics. 
 :::
 
 The StatsHouse components rely on the idea that there are not so many different metrics—hundreds of thousands as a 
@@ -509,9 +392,9 @@ For many different string values (such as `search_request`), use a [String top t
 The _String top tag_ stands apart from the other ones as its values are _not mapped to integers_. It is a separate 
 `stag` column in the ClickHouse table:
 
-| timestamp | metric           | tag_1                                                           | tag_2                                                         | counter | sum   | min | max  | <text className="orange-text">stag</text>                                   |
-|-----------|------------------|-----------------------------------------------------------------|---------------------------------------------------------------|---------|-------|-----|------|-----------------------------------------------------------------------------|
-| 13:45:05  | toy_packets_size | JSON<br/><text className="orange-text">mapped to `int32`</text> | ok<br/><text className="orange-text">mapped to `int32`</text> | 100     | 13000 | 20  | 1200 | my-tag-value<br/><text className="orange-text">NOT mapped to `int32`</text> |
+| timestamp | metric           | tag_1                                                           | tag_2                                                         | <text className="orange-text">tag_s</text>                                  | counter   | sum    | min   | max   | 
+|-----------|------------------|-----------------------------------------------------------------|---------------------------------------------------------------|-----------------------------------------------------------------------------|-----------|--------|-------|-------|
+| 13:45:05  | toy_packets_size | JSON<br/><text className="orange-text">mapped to `int32`</text> | ok<br/><text className="orange-text">mapped to `int32`</text> | my-tag-value<br/><text className="orange-text">NOT mapped to `int32`</text> | 100       | 1300   | 20    | 1200  | 
 
 As the non-mapped strings take up a lot of space and are longer to read, StatsHouse limits their number (e.g., to a 
 hundred). This limit is not configurable for users.
