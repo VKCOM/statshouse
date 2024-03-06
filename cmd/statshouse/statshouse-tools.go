@@ -47,8 +47,8 @@ func mainBenchmarks() {
 type packetPrinter struct {
 }
 
-func (w *packetPrinter) HandleMetrics(m *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
-	log.Printf("Parsed metric: %s\n", m.String())
+func (w *packetPrinter) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) {
+	log.Printf("Parsed metric: %s\n", args.MetricBytes.String())
 	return h, true
 }
 
@@ -310,12 +310,12 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 	// go writeFunc()
 	serveFunc := func(u *receiver.UDP, rm *atomic.Int64) error {
 		return u.Serve(receiver.CallbackHandler{
-			Metrics: func(m *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+			Metrics: func(m *tlstatshouse.MetricBytes, cb data_model.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
 				r := rm.Inc()
 				if almostReceiveOnly && r%1024 != 0 {
 					return h, true
 				}
-				h, done = mapper.Map(m, metricStorage.GetMetaMetricByNameBytes(m.Name), cb)
+				h, done = mapper.Map(data_model.HandlerArgs{MetricBytes: m, MapCallback: cb}, metricStorage.GetMetaMetricByNameBytes(m.Name))
 				if done {
 					handleMappedMetric(*m, h)
 				}

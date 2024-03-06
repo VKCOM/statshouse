@@ -31,9 +31,13 @@ services:
     hostname: aggregator
     volumes:
       - kh:/var/lib/clickhouse
+      - type: bind
+        source: ./build/clickhouse-config.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
     ports:
       - "8123:8123"
       - "9000:9000"
+      - "9363:9363"
     healthcheck:
       test: ["CMD-SHELL", "clickhouse-client --query='SELECT 1'"]
       interval: 200ms
@@ -104,6 +108,7 @@ services:
       - "2442:2442"
       - "8123:8123"
       - "9000:9000"
+      - "9363:9363"
       - "10888:10888"
       - "13336:13336"
       - "13337:13337/udp"
@@ -111,6 +116,9 @@ services:
     volumes:
       - metadata:/var/lib/statshouse/metadata
       - kh:/var/lib/clickhouse
+      - type: bind
+        source: ./build/clickhouse-config.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
   all-but-aggregator:
     profiles:
       - aggregator-off
@@ -125,6 +133,7 @@ services:
       - 2442
       - 8123
       - 9000
+      - 9363
       - 10888
       - 13337/udp
       - 13337/tcp
@@ -132,6 +141,9 @@ services:
     volumes:
       - metadata:/var/lib/statshouse/metadata
       - kh:/var/lib/clickhouse
+      - type: bind
+        source: ./build/clickhouse-config.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
   all-but-agent:
     profiles:
       - agent-off
@@ -146,12 +158,16 @@ services:
       - 2442
       - 8123
       - 9000
+      - 9363
       - 10888
       - 13336
     network_mode: host
     volumes:
       - metadata:/var/lib/statshouse/metadata
       - kh:/var/lib/clickhouse
+      - type: bind
+        source: ./build/clickhouse-config.xml
+        target: /etc/clickhouse-server/config.d/clickhouse-config.xml
   all-but-metadata:
     # run statshouse-metadata first, then
     # ./localrun meta-off
@@ -165,7 +181,9 @@ services:
     environment:
       - META_OFF=1
     expose:
+      - 8123
       - 9000
+      - 9363
       - 10888
       - 13336
     network_mode: host

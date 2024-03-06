@@ -26,6 +26,7 @@ import (
 
 const (
 	MaxTags      = 16
+	MaxDraftTags = 128
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)
 
 	tagValueCodePrefix      = " " // regular tag values can't start with whitespace
@@ -39,11 +40,12 @@ const (
 	MaxEffectiveGroupWeight     = 10_000 * EffectiveWeightOne
 	MaxEffectiveNamespaceWeight = 10_000 * EffectiveWeightOne
 
-	StringTopTagID = "_s"
-	HostTagID      = "_h"
-	ShardTagID     = "_shard_num"
-	EnvTagID       = "0"
-	LETagName      = "le"
+	StringTopTagID         = "_s"
+	HostTagID              = "_h"
+	ShardTagID             = "_shard_num"
+	EnvTagID               = "0"
+	LETagName              = "le"
+	ScrapeNamespaceTagName = "__scrape_namespace__"
 
 	LETagIndex        = 15
 	StringTopTagIndex = -1 // used as flag during mapping
@@ -202,22 +204,23 @@ type MetricMetaValue struct {
 	Version     int64  `json:"version,omitempty"`
 	UpdateTime  uint32 `json:"update_time"`
 
-	Description          string          `json:"description,omitempty"`
-	Tags                 []MetricMetaTag `json:"tags,omitempty"`
-	Visible              bool            `json:"visible,omitempty"`
-	Kind                 string          `json:"kind"`
-	Weight               float64         `json:"weight,omitempty"`
-	Resolution           int             `json:"resolution,omitempty"`             // no invariants
-	StringTopName        string          `json:"string_top_name,omitempty"`        // no invariants
-	StringTopDescription string          `json:"string_top_description,omitempty"` // no invariants
-	PreKeyTagID          string          `json:"pre_key_tag_id,omitempty"`
-	PreKeyFrom           uint32          `json:"pre_key_from,omitempty"`
-	SkipMaxHost          bool            `json:"skip_max_host,omitempty"`
-	SkipMinHost          bool            `json:"skip_min_host,omitempty"`
-	SkipSumSquare        bool            `json:"skip_sum_square,omitempty"`
-	PreKeyOnly           bool            `json:"pre_key_only,omitempty"`
-	MetricType           string          `json:"metric_type"`
-	FairKeyTagID         string          `json:"fair_key_tag_id,omitempty"`
+	Description          string                   `json:"description,omitempty"`
+	Tags                 []MetricMetaTag          `json:"tags,omitempty"`
+	TagsDraft            map[string]MetricMetaTag `json:"tags_draft,omitempty"`
+	Visible              bool                     `json:"visible,omitempty"`
+	Kind                 string                   `json:"kind"`
+	Weight               float64                  `json:"weight,omitempty"`
+	Resolution           int                      `json:"resolution,omitempty"`             // no invariants
+	StringTopName        string                   `json:"string_top_name,omitempty"`        // no invariants
+	StringTopDescription string                   `json:"string_top_description,omitempty"` // no invariants
+	PreKeyTagID          string                   `json:"pre_key_tag_id,omitempty"`
+	PreKeyFrom           uint32                   `json:"pre_key_from,omitempty"`
+	SkipMaxHost          bool                     `json:"skip_max_host,omitempty"`
+	SkipMinHost          bool                     `json:"skip_min_host,omitempty"`
+	SkipSumSquare        bool                     `json:"skip_sum_square,omitempty"`
+	PreKeyOnly           bool                     `json:"pre_key_only,omitempty"`
+	MetricType           string                   `json:"metric_type"`
+	FairKeyTagID         string                   `json:"fair_key_tag_id,omitempty"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
@@ -487,6 +490,14 @@ func (m *MetricMetaValue) APICompatGetTagFromBytes(tagNameOrID []byte) (tag Metr
 		return tag, ok, true
 	}
 	return MetricMetaTag{}, false, false
+}
+
+func (m *MetricMetaValue) GetTagDraft(tagName []byte) (tag MetricMetaTag, ok bool) {
+	if m.TagsDraft == nil {
+		return MetricMetaTag{}, false
+	}
+	tag, ok = m.TagsDraft[string(tagName)]
+	return tag, ok
 }
 
 // Always restores maximum info, if error is returned, group is non-canonical and should not be saved

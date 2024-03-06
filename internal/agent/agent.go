@@ -379,6 +379,14 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameNotFound}, // tag ID not known
 		}, h.NotFoundTagName, 1, 0, nil)
 	}
+	if h.FoundDraftTagName != nil { // this is correct, can be set, but empty
+		// FoundDraftTagName is validated when discovered
+		// This is warning, so written independent of ingestion status
+		s.AddCounterHostStringBytes(data_model.Key{
+			Metric: format.BuiltinMetricIDIngestionStatus,
+			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft}, // tag ID is known, but draft
+		}, h.FoundDraftTagName, 1, 0, nil)
+	}
 	if h.TagSetTwiceKey != 0 {
 		s.AddCounter(data_model.Key{
 			Metric: format.BuiltinMetricIDIngestionStatus,

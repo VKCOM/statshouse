@@ -235,6 +235,7 @@ const (
 	TagValueIDSrcIngestionStatusErrValueUniqueBothSet        = 50
 	TagValueIDSrcIngestionStatusWarnOldCounterSemantic       = 51 // never written, for historic data
 	TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue    = 52
+	TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft     = 53
 
 	TagValueIDPacketFormatLegacy   = 1
 	TagValueIDPacketFormatTL       = 2
@@ -589,6 +590,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 					TagValueIDSrcIngestionStatusErrValueUniqueBothSet:        "err_value_unique_both_set",
 					TagValueIDSrcIngestionStatusWarnOldCounterSemantic:       "warn_deprecated_counter_semantic",
 					TagValueIDSrcIngestionStatusWarnMapInvalidRawTagValue:    "warn_map_invalid_raw_tag_value",
+					TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft:     "warn_tag_draft_found",
 				}),
 			}, {
 				Description: "tag_id",

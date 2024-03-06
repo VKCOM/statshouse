@@ -9,8 +9,18 @@ package data_model
 import (
 	"time"
 
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 )
+
+type HandlerArgs struct {
+	MetricBytes    *tlstatshouse.MetricBytes
+	Description    string
+	ScrapeInterval int
+	MapCallback    MapCallbackFunc
+}
+
+type MapCallbackFunc func(tlstatshouse.MetricBytes, MappedMetricHeader)
 
 type MappedMetricHeader struct {
 	ReceiveTime time.Time // Saved at mapping start and used where we need time.Now. This is different to MetricBatch.T, which is sent by clients
@@ -33,6 +43,7 @@ type MappedMetricHeader struct {
 
 	// warnings below
 	NotFoundTagName       []byte // reference to memory inside tlstatshouse.MetricBytes. If more than 1 problem, reports the last one
+	FoundDraftTagName     []byte // reference to memory inside tlstatshouse.MetricBytes. If more than 1 problem, reports the last one
 	TagSetTwiceKey        int32  // +TagIDShift, as required by "tag_id" in builtin metric. If more than 1, remembers some
 	LegacyCanonicalTagKey int32  // +TagIDShift, as required by "tag_id" in builtin metric. If more than 1, remembers some
 	InvalidRawValue       []byte // reference to memory inside tlstatshouse.MetricBytes. If more than 1 problem, reports the last one
