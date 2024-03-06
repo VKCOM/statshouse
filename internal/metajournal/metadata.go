@@ -13,11 +13,8 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"os"
 	"time"
 
-	promlog "github.com/go-kit/log"
-	prom_config "github.com/prometheus/prometheus/config"
 	"go4.org/mem"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -364,39 +361,8 @@ func (l *MetricMetaLoader) LoadOrCreateMapping(ctxParent context.Context, key st
 	return pcache.Int32ToValue(v), d, e
 }
 
-func checkPromConfig(cfg *prom_config.Config) error {
-	if len(cfg.RemoteWriteConfigs) > 0 {
-		return fmt.Errorf("statshouse doesn't support v remote write")
-	}
-
-	if len(cfg.AlertingConfig.AlertmanagerConfigs) > 0 || len(cfg.AlertingConfig.AlertRelabelConfigs) > 0 {
-		return fmt.Errorf("statshouse doesn't support prometheus prometheus alerting")
-	}
-
-	if len(cfg.RuleFiles) > 0 {
-		return fmt.Errorf("statshouse doesn't support prometheus rule_files field")
-	}
-
-	if len(cfg.RemoteReadConfigs) > 0 {
-		return fmt.Errorf("statshouse doesn't support prometheus remote read")
-	}
-
-	if cfg.StorageConfig.ExemplarsConfig != nil && cfg.StorageConfig != prom_config.DefaultStorageConfig {
-		return fmt.Errorf("statshouse doesn't support storage section")
-	}
-
-	return nil
-}
-
 func (l *MetricMetaLoader) SavePromConfig(ctx context.Context, version int64, config string, metadata string) (tlmetadata.Event, error) {
-	cfg, err := prom_config.Load(config, false, promlog.NewLogfmtLogger(os.Stdout))
 	event := tlmetadata.Event{}
-	if err != nil {
-		return event, fmt.Errorf("invalid prometheus config syntax: %w", err)
-	}
-	if err := checkPromConfig(cfg); err != nil {
-		return event, err
-	}
 	editMetricReq := tlmetadata.EditEntitynew{
 		Event: tlmetadata.Event{
 			Id:        prometheusConfigID,
@@ -411,7 +377,7 @@ func (l *MetricMetaLoader) SavePromConfig(ctx context.Context, version int64, co
 	}
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
-	err = l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
+	err := l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
 	if err != nil {
 		return event, fmt.Errorf("failed to change prometheus config: %w", err)
 	}

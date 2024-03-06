@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 
 	"github.com/vkcom/statshouse/internal/agent"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/receiver"
 )
@@ -58,7 +59,7 @@ func (rw *remoteWrite) handleWriteResponse(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	for _, metric := range metrics {
-		rw.h.HandleMetrics(&metric, nil)
+		rw.h.HandleMetrics(data_model.HandlerArgs{MetricBytes: &metric})
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -85,7 +86,7 @@ func (rw *remoteWrite) readMetrics(r *http.Request) ([]tlstatshouse.MetricBytes,
 		metric, ok := rw.cache.getMetric(metricKeyFromProtobufLabels(ts.Labels))
 		if ok {
 			for _, sample := range ts.Samples {
-				ret = metric.processSample(sample.Value, sample.Timestamp, ret)
+				ret = metric.processSample(sample.Value, sample.Timestamp, "", ret)
 			}
 		}
 	}

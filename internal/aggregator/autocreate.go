@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,7 +28,7 @@ type autoCreate struct {
 	mu         sync.Mutex
 	co         *sync.Cond
 	queue      []*rpc.HandlerContext // protected by "mu"
-	args       map[*rpc.HandlerContext]tlstatshouse.AutoCreate
+	args       map[*rpc.HandlerContext]tlstatshouse.AutoCreateBytes
 	ctx        context.Context
 	shutdownFn func()
 }
@@ -36,7 +37,7 @@ func newAutoCreate(client *tlmetadata.Client, storage *metajournal.MetricsStorag
 	ac := autoCreate{
 		client:  client,
 		storage: storage,
-		args:    map[*rpc.HandlerContext]tlstatshouse.AutoCreate{},
+		args:    make(map[*rpc.HandlerContext]tlstatshouse.AutoCreateBytes),
 	}
 	ac.co = sync.NewCond(&ac.mu)
 	ac.ctx, ac.shutdownFn = context.WithCancel(context.Background())
@@ -60,7 +61,7 @@ func (ac *autoCreate) CancelHijack(hctx *rpc.HandlerContext) {
 	// TODO - must remove from queue here, otherwise the same hctx will be reused and added to map, and we'll break rpc.Server internal invariants
 }
 
-func (ac *autoCreate) handleAutoCreate(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.AutoCreate) error {
+func (ac *autoCreate) handleAutoCreate(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.AutoCreateBytes) error {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 	ac.queue = append(ac.queue, hctx)
@@ -94,13 +95,13 @@ func (ac *autoCreate) goWork() {
 	}
 }
 
-func (ac *autoCreate) getWork() (*rpc.HandlerContext, tlstatshouse.AutoCreate, bool) {
+func (ac *autoCreate) getWork() (*rpc.HandlerContext, tlstatshouse.AutoCreateBytes, bool) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 	for {
 		for len(ac.queue) == 0 {
 			if ac.done() {
-				return nil, tlstatshouse.AutoCreate{}, false
+				return nil, tlstatshouse.AutoCreateBytes{}, false
 			}
 			ac.co.Wait()
 		}
@@ -112,11 +113,11 @@ func (ac *autoCreate) getWork() (*rpc.HandlerContext, tlstatshouse.AutoCreate, b
 	}
 }
 
-func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreate) error {
+func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 	// get or build metric
 	value := format.MetricMetaValue{}
 	metricExists := false
-	if v := ac.storage.GetMetaMetricByName(args.Metric); v != nil {
+	if v := ac.storage.GetMetaMetricByNameBytes(args.Metric); v != nil {
 		// deep copy
 		s, err := v.MarshalBinary()
 		if err != nil {
@@ -128,66 +129,64 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreate) error {
 		}
 		metricExists = true
 	} else {
-		value = format.MetricMetaValue{
-			Name:       args.Metric,
-			Tags:       make([]format.MetricMetaTag, format.MaxTags),
-			Visible:    true,
-			Kind:       args.Kind,
-			Resolution: 1,
+		validName, err := format.AppendValidStringValue(args.Metric[:0], args.Metric)
+		if err != nil {
+			return err // metric name is not valid
 		}
-		err := value.RestoreCachedInfo()
+		value = format.MetricMetaValue{
+			Name:        string(validName),
+			Description: string(args.Description),
+			Tags:        make([]format.MetricMetaTag, format.MaxTags),
+			Visible:     true,
+			Kind:        string(args.Kind),
+		}
+		if i := strings.Index(value.Name, ":"); i != -1 {
+			if namespace := ac.storage.GetNamespaceByName(value.Name[:i]); namespace != nil {
+				value.NamespaceID = namespace.ID
+			}
+		}
+		if 0 < args.Resolution && args.Resolution <= 60 {
+			value.Resolution = int(args.Resolution)
+		} else {
+			value.Resolution = 1
+		}
+		err = value.RestoreCachedInfo()
 		if err != nil {
 			return fmt.Errorf("RestoreCachedInfo failed: %w", err)
 		}
 	}
+	if value.NamespaceID == 0 || value.NamespaceID == format.BuiltinNamespaceIDDefault {
+		return nil // autocreation disabled for metrics without namespace
+	}
 	// map tags
 	newTagCount := 0
-tagMappingLoop:
 	for _, tagName := range args.Tags {
-		if _, ok := value.Name2Tag[tagName]; ok {
+		if len(value.TagsDraft) >= format.MaxDraftTags {
+			break
+		}
+		if _, ok := value.Name2Tag[string(tagName)]; ok {
 			continue // already mapped
 		}
-		if tagName == format.LETagName {
-			i := format.LETagIndex
-			if i >= len(value.Tags) || len(value.Tags[i].Name) == 0 {
-				for j := len(value.Tags); j < i; j++ {
-					value.Tags = append(value.Tags, format.MetricMetaTag{Description: "-"})
-				}
-				meta := format.MetricMetaTag{
-					Name:        format.LETagName,
-					Description: "histogram bucket label",
-					Index:       i,
-					Raw:         true,
-					RawKind:     "lexenc_float",
-				}
-				if i < len(value.Tags) {
-					value.Tags[i] = meta
-				} else {
-					value.Tags = append(value.Tags, meta)
-				}
-				newTagCount++
-			}
-		} else {
-			i := 1 // skip "env" tag
-			for ; i < len(value.Tags); i++ {
-				if len(value.Tags[i].Name) == 0 {
-					break
-				}
-			}
-			switch {
-			case i < len(value.Tags):
-				value.Tags[i].Name = tagName
-				value.Tags[i].Description = ""
-			case i >= format.MaxTags:
-				break tagMappingLoop // all tags mapped
-			default:
-				value.Tags = append(value.Tags, format.MetricMetaTag{
-					Name:  tagName,
-					Index: len(value.Tags),
-				})
-			}
-			newTagCount++
+		if _, ok := value.GetTagDraft(tagName); ok {
+			continue // already mapped
 		}
+		validName, err := format.AppendValidStringValue(tagName[:0], tagName)
+		if err != nil {
+			continue // tag name is not valid
+		}
+		t := format.MetricMetaTag{Name: string(validName)}
+		if t.Name == format.LETagName {
+			t.Description = "histogram bucket label"
+			t.Index = format.LETagIndex
+			t.Raw = true
+			t.RawKind = "lexenc_float"
+		}
+		if value.TagsDraft == nil {
+			value.TagsDraft = map[string]format.MetricMetaTag{t.Name: t}
+		} else {
+			value.TagsDraft[t.Name] = t
+		}
+		newTagCount++
 	}
 	if metricExists && newTagCount == 0 {
 		return nil // nothing to do

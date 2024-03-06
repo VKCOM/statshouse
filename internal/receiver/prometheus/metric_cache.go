@@ -175,7 +175,7 @@ func (cache metricCache) getMetric(key cacheMetricKey) (cacheMetric, bool) {
 	return cacheMetric{name, info, sample, tags, le}, true
 }
 
-func (m *cacheMetric) processSample(v float64, t int64, s []tlstatshouse.MetricBytes) []tlstatshouse.MetricBytes {
+func (m *cacheMetric) processSample(v float64, t int64, namespace string, s []tlstatshouse.MetricBytes) []tlstatshouse.MetricBytes {
 	switch m.info.typ {
 	case cacheMetricTypeCounter:
 		if m.sample.count >= 0 { // counter was set at least once
@@ -184,7 +184,7 @@ func (m *cacheMetric) processSample(v float64, t int64, s []tlstatshouse.MetricB
 				delta = v // counter reset
 			}
 			if delta > 0 {
-				bytes := tlstatshouse.MetricBytes{Name: []byte(m.info.name), Tags: m.tags}
+				bytes := tlstatshouse.MetricBytes{Name: []byte(fmt.Sprintf("%s:%s", namespace, m.info.name)), Tags: m.tags}
 				bytes.SetCounter(delta)
 				if t != 0 {
 					bytes.SetTs(uint32((t-1)/1_000 + 1))
@@ -195,7 +195,7 @@ func (m *cacheMetric) processSample(v float64, t int64, s []tlstatshouse.MetricB
 		m.sample.count = v
 	case cacheMetricTypeGauge:
 		// store gauges as is
-		bytes := tlstatshouse.MetricBytes{Name: []byte(m.info.name), Tags: m.tags}
+		bytes := tlstatshouse.MetricBytes{Name: []byte(fmt.Sprintf("%s:%s", namespace, m.info.name)), Tags: m.tags}
 		bytes.SetValue([]float64{v})
 		if t != 0 {
 			bytes.SetTs(uint32((t-1)/1_000 + 1))

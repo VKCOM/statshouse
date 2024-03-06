@@ -22,19 +22,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/format"
-
 	"github.com/pkg/errors"
 	"github.com/prometheus/common/config"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/textparse"
+	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/format"
 )
 
 type promTarget struct {
+	namespace             string
 	jobName               string
 	url                   string
 	labels                map[string]string
@@ -319,7 +319,7 @@ func (s *scrapeLoop) pushScrapeTimeMetric(when time.Time, d time.Duration, errTa
 		}
 		metric.SetValue([]float64{d.Seconds()})
 		metric.SetTs(uint32(when.Unix()))
-		s.pusher.PushLocal(metric)
+		s.pusher.PushLocal(metric, "", 0)
 	}
 }
 
@@ -342,23 +342,34 @@ func (s *scrapeLoop) parseAndReport(content []byte, contentType string) {
 	scrapeTime := time.Now().Unix() * 1_000
 	seriesToSend := make([]tlstatshouse.MetricBytes, 0)
 	var lset labels.Labels
-
+	var description []string
+parse:
 	for {
-		entry, err := parser.Next()
-		if err == io.EOF {
-			break
-		}
-		switch entry {
-		case textparse.EntryType:
-			cache.setType(parser.Type())
-			continue
-		case textparse.EntryHelp:
-			continue
-		case textparse.EntryUnit:
-			continue
-		case textparse.EntryComment:
-			continue
-		default:
+		description = description[:0]
+	sample:
+		for {
+			entry, err := parser.Next()
+			if err == io.EOF {
+				break parse
+			}
+			switch entry {
+			case textparse.EntryType:
+				cache.setType(parser.Type())
+				continue
+			case textparse.EntryHelp:
+				_, help := parser.Help()
+				description = append(description, string(help))
+				continue
+			case textparse.EntryUnit:
+				_, unit := parser.Unit()
+				description = append(description, string(unit))
+				continue
+			case textparse.EntryComment:
+				description = append(description, string(parser.Comment()))
+				continue
+			case textparse.EntrySeries:
+				break sample
+			}
 		}
 
 		series, tsPointer, value := parser.Series()
@@ -402,15 +413,15 @@ func (s *scrapeLoop) parseAndReport(content []byte, contentType string) {
 			continue
 		}
 
-		seriesToSend = meta.processSample(value, ts, seriesToSend[:0])
+		seriesToSend = meta.processSample(value, ts, target.namespace, seriesToSend[:0])
 		for _, metric := range seriesToSend {
-			s.pusher.PushLocal(&metric)
+			s.pusher.PushLocal(&metric, strings.Join(description, "\n"), int(target.scrapeInterval.Seconds()))
 			sentSuccessCount++
 		}
 	}
 	seriesToSend = cache.metadata.calculateHistograms(seriesToSend[:0])
 	for _, metric := range seriesToSend {
-		s.pusher.PushLocal(&metric)
+		s.pusher.PushLocal(&metric, strings.Join(description, "\n"), int(target.scrapeInterval.Seconds()))
 		sentSuccessCount++
 	}
 	s.logOk.Println("pushed ", sentSuccessCount, " series")

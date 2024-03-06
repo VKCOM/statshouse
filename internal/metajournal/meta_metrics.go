@@ -22,7 +22,7 @@ type GroupWithMetricsList struct {
 	Metrics []string
 }
 
-type ApplyPromConfig func(configString string, version int64)
+type ApplyPromConfig func(configString string)
 
 type MetricsStorage struct {
 	mu sync.RWMutex
@@ -271,7 +271,6 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	// This code operates on immutable structs, it should not change any stored object, except of map
 	promConfigSet := false
 	promConfigData := ""
-	promConfigVersion := int64(0)
 	ms.mu.Lock()
 	for _, e := range newEntries {
 		switch e.EventType {
@@ -339,7 +338,6 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			ms.promConfig = e
 			promConfigSet = true
 			promConfigData = e.Data
-			promConfigVersion = e.Version
 		case format.NamespaceEvent:
 			value := &format.NamespaceMeta{}
 			err := json.Unmarshal([]byte(e.Data), value)
@@ -368,7 +366,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	}
 	ms.mu.Unlock()
 	if promConfigSet && ms.applyPromConfig != nil { // outside of lock, once
-		ms.applyPromConfig(promConfigData, promConfigVersion)
+		ms.applyPromConfig(promConfigData)
 	}
 }
 

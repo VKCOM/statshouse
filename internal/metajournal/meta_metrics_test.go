@@ -736,15 +736,12 @@ func TestMetricsStorage(t *testing.T) {
 				},
 			}
 			var promConfgString string
-			var promConfgVersion int64
-			m.applyPromConfig = func(configString string, version int64) {
+			m.applyPromConfig = func(configString string) {
 				promConfgString = configString
-				promConfgVersion = version
 			}
 			err = m.journal.updateJournal(nil)
 			require.NoError(t, err)
 			require.Equal(t, "def", promConfgString)
-			require.Equal(t, v2, promConfgVersion)
 		})
 
 		t.Run("namespace created", func(t *testing.T) {

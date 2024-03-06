@@ -24,7 +24,6 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/mapping"
 	"github.com/vkcom/statshouse/internal/receiver"
 )
 
@@ -353,7 +352,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 		timer := time.AfterFunc(recvTimeout, func() { _ = recv.Close() })
 		defer timer.Stop()
 		serveErr <- recv.Serve(receiver.CallbackHandler{
-			Metrics: func(m *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+			Metrics: func(m *tlstatshouse.MetricBytes, cb data_model.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
 				sumTimestamp.count(ts(string(m.Name), receivedSlice(m.Tags, nil)), int64(m.Ts))
 				switch {
 				case len(m.Value) > 0:

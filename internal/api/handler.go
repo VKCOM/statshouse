@@ -39,6 +39,7 @@ import (
 	"github.com/mailru/easyjson"
 	_ "github.com/mailru/easyjson/gen" // https://github.com/mailru/easyjson/issues/293
 
+	"github.com/vkcom/statshouse/internal/aggregator"
 	"github.com/vkcom/statshouse/internal/config"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -1346,6 +1347,10 @@ func (h *Handler) handleGetPromConfig(ai accessInfo) (string, time.Duration, err
 func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, configStr string) (tlmetadata.Event, error) {
 	if !ai.isAdmin() {
 		return tlmetadata.Event{}, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
+	}
+	_, err := aggregator.LoadScrapeConfig(configStr)
+	if err != nil {
+		return tlmetadata.Event{}, fmt.Errorf("invalid prometheus config syntax: %w", err)
 	}
 	event, err := h.metadataLoader.SavePromConfig(ctx, h.metricsStorage.PromConfig().Version, configStr, ai.toMetadata())
 	if err != nil {

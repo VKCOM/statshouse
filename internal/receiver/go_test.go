@@ -21,7 +21,6 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/mapping"
 	"github.com/vkcom/statshouse/internal/receiver"
 )
 
@@ -317,7 +316,7 @@ func (g *goMachine) Run(t *rapid.T) {
 	timer := time.AfterFunc(recvTimeout, func() { _ = g.recv.Close() })
 	defer timer.Stop()
 	serveErr := g.recv.Serve(receiver.CallbackHandler{
-		Metrics: func(m *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+		Metrics: func(m *tlstatshouse.MetricBytes, cb data_model.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
 			switch {
 			case len(m.Value) > 0:
 				valueMetrics.merge(ts(string(m.Name), receivedSlice(m.Tags, nil)), m.Value)

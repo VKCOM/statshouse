@@ -36,7 +36,7 @@ type userData struct {
 	getConfig2        tlstatshouse.GetConfig2
 	testConneection2  tlstatshouse.TestConnection2Bytes
 	getTargets2       tlstatshouse.GetTargets2Bytes
-	autoCreate        tlstatshouse.AutoCreate
+	autoCreate        tlstatshouse.AutoCreateBytes
 	uncompressed      []byte
 }
 
@@ -166,15 +166,15 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 		}
 	case constants.StatshouseGetTargets2:
 		{
-			if a.promUpdater == nil {
-				return fmt.Errorf("aggregator not configured for prometheus")
+			if a.scrape == nil {
+				return fmt.Errorf("service discovery is not running")
 			}
 			ud := getUserData(hctx)
 			_, err := ud.getTargets2.Read(hctx.Request)
 			if err != nil {
 				return fmt.Errorf("failed to deserialize statshouse.getTargets2 request: %w", err)
 			}
-			return a.promUpdater.HandleGetTargets(ctx, hctx, ud.getTargets2)
+			return a.scrape.handleGetTargets(ctx, hctx, ud.getTargets2)
 		}
 	case constants.StatshouseAutoCreate:
 		{

@@ -10,12 +10,9 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
 )
-
-type MapCallbackFunc func(tlstatshouse.MetricBytes, data_model.MappedMetricHeader)
 
 type Mapper struct {
 	pipeline *mapPipeline
@@ -39,7 +36,7 @@ func NewTagsCache(loader pcache.LoaderFunc, suffix string, dc *pcache.DiskCache)
 	return result
 }
 
-func NewMapper(suffix string, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache, ac *AutoCreate, metricMapQueueSize int, mapCallback MapCallbackFunc) *Mapper {
+func NewMapper(suffix string, pmcLoader pcache.LoaderFunc, dc *pcache.DiskCache, ac *AutoCreate, metricMapQueueSize int, mapCallback data_model.MapCallbackFunc) *Mapper {
 	tagValue := NewTagsCache(pmcLoader, suffix, dc)
 
 	return &Mapper{
@@ -60,6 +57,6 @@ func (m *Mapper) Stop() {
 }
 
 // cb.MetricInfo must be set from journal. If nil, will lookup allowed built-in metric, otherwise set ingestion status not found
-func (m *Mapper) Map(metric *tlstatshouse.MetricBytes, metricInfo *format.MetricMetaValue, cb MapCallbackFunc) (data_model.MappedMetricHeader, bool) {
-	return m.pipeline.Map(metric, metricInfo, cb)
+func (m *Mapper) Map(args data_model.HandlerArgs, metricInfo *format.MetricMetaValue) (data_model.MappedMetricHeader, bool) {
+	return m.pipeline.Map(args, metricInfo)
 }
