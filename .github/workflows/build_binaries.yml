@@ -52,7 +52,7 @@ jobs:
       - uses: actions/setup-go@v4
         if: ${{inputs.setup-go}}
         with:
-          go-version: '1.22'
+          go-version: '1.21'
       - run: |
           echo "BUILD_TIME=${{inputs.timestamp}}" >> $GITHUB_ENV
           echo "BUILD_COMMIT=${{inputs.ref}}" >> $GITHUB_ENV

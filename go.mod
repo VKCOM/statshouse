@@ -1,6 +1,6 @@
 module github.com/vkcom/statshouse
 
-go 1.22
+go 1.21
 
 require (
 	github.com/ClickHouse/ch-go v0.52.0
@@ -121,8 +121,6 @@ require (
 	google.golang.org/genproto v0.0.0-20221024183307-1bc688fe9f3e // indirect
 	google.golang.org/grpc v1.50.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/klog/v2 v2.60.1 // indirect
-	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
