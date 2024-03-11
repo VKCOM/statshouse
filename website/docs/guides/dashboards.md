@@ -27,8 +27,21 @@ A dashboard is a graphical report of data relevant to a particular system (a pro
 
 <img src={Dash} width="900"/>
 
-Check the main StatsHouse menu to [refer to existing dashboards](#refer-to-existing-dashboards),
-or [create](#create-a-dashboard) and [edit](#edit-a-dashboard) your ones.
+In this section, you will find information on how to:
+<!-- TOC -->
+* [Refer to existing dashboards](#refer-to-existing-dashboards)
+* [Create a dashboard](#create-a-dashboard)
+* [Edit a dashboard](#edit-a-dashboard)
+  * [Settings](#settings)
+    * [Dashboard info](#dashboard-info)
+    * [Variables](#variables)
+  * [Layout](#layout)
+    * [Graph width](#graph-width)
+    * [Graph groups](#graph-groups)
+* [View a dashboard](#view-a-dashboard)
+* [Remove a dashboard](#remove-a-dashboard)
+* [Set up PromQL-based dashboards](#set-up-promql-based-dashboards)
+<!-- TOC -->
 
 ## Refer to existing dashboards
 

@@ -1,6 +1,7 @@
 ---
 slug: /
-sidebar_position: 1 
+sidebar_position: 1
+toc_max_heading_level: 2
 ---
 
 import Intro from './img/intro.png'
@@ -24,7 +25,7 @@ Here is [what the StatsHouse user interface looks like](guides/view-graph.md) an
 
 <img src={Intro} width="900"/>
 
-## What you can find in the docs
+## What you can find in this documentation
 
 Use the **🔍 Search** bar in the upper-right corner, or check the table of contents below.
 

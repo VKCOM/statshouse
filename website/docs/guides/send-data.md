@@ -6,6 +6,14 @@ import TabItem from '@theme/TabItem';
 
 # Send metric data
 
+In this section, you will find:
+<!-- TOC -->
+* [How to send data via client libraries](#how-to-send-data-via-client-libraries)
+    * ["What if there is no client library for a programming language I need?](#what-if-there-is-no-client-library-for-a-programming-language-i-need)
+    * ["What if the existing library does not have the required functionality?"](#what-if-the-existing-library-does-not-have-the-required-functionality)
+* [How to send data without client libraries](#how-to-send-data-without-client-libraries)
+<!-- TOC -->
+
 :::important
 Before sending data, [create a metric](create-metric.md) manually via the UI.
 :::

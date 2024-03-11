@@ -6,8 +6,18 @@ import NameMetric from '../img/name-new-metric.png'
 
 # Create a metric
 
-[Create a metric via the StatsHouse UI](#how-to-create-a-metric-in-the-ui). If you have questions, please [check the 
-typical ones](#faqs-about-creating-metrics).
+In this section, you will find:
+<!-- TOC -->
+* [How to create a metric in the UI](#how-to-create-a-metric-in-the-ui)
+* [FAQs about creating metrics](#faqs-about-creating-metrics)
+    * ["Can I skip creating a metric and start sending data to it right away?"](#can-i-skip-creating-a-metric-and-start-sending-data-to-it-right-away)
+    * ["Can I automate creating metrics?"](#can-i-automate-creating-metrics)
+    * ["How many metrics can I create?"](#how-many-metrics-can-i-create)
+    * ["What if I send too much data? Can I overload StatsHouse or spoil other metrics?"](#what-if-i-send-too-much-data-can-i-overload-statshouse-or-spoil-other-metrics)
+    * ["Can I rename a metric?"](#can-i-rename-a-metric)
+    * ["I want to re-design my metric. Should I refactor it or create a new one?"](#i-want-to-re-design-my-metric-should-i-refactor-it-or-create-a-new-one)
+    * ["Can I delete a metric?"](#can-i-delete-a-metric)
+<!-- TOC -->
 
 ## How to create a metric in the UI
 

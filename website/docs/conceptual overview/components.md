@@ -16,17 +16,28 @@ import MappingCached from '../img/mapping-cached.png'
 
 # Components
 
-:::note
-This section will be later transformed into the _Administrator guide_ and the _Contributor guide_. Now it mixes up 
-the following:
-* which components StatsHouse has;
-* how they are usually deployed;
-* how they are implemented in code (some details).
-:::
-
-Find basic StatsHouse components in the picture and check the descriptions below:
+Find basic StatsHouse components in the picture:
 
 <img src={Components} width="1000"/>
+
+Check the descriptions below:
+<!-- TOC -->
+* [Agent](#agent)
+  * [Receiving data via UDP](#receiving-data-via-udp)
+  * [Deploying agents in the Kubernetes pods](#deploying-agents-in-the-kubernetes-pods)
+* [Aggregator](#aggregator)
+  * [Real-time and "historical" data](#real-time-and-historical-data)
+  * [Handling aggregator's shutdown](#handling-aggregators-shutdown)
+* [Database](#database)
+* [Application programming interface (API)](#application-programming-interface-api)
+* [User interface (UI)](#user-interface-ui)
+* [Ingress proxy](#ingress-proxy)
+* [Metadata](#metadata)
+  * [The budget for creating tag values](#the-budget-for-creating-tag-values)
+    * [_String top_ tag](#string-top-tag)
+    * [_Raw_ tags](#raw-tags)
+  * [The budget for creating metrics](#the-budget-for-creating-metrics)
+<!-- TOC -->
 
 ## Agent
 
@@ -421,46 +432,46 @@ _counter_. The other tag values for this metric become _empty_ and are aggregate
 
 For example, the limitation for the non-mapped strings is 4, and we have the following metric data:
 
-| timestamp | metric     | tag_1 | tag_2 | counter | sum | min | max | stag |
-|-----------|------------|-------|-------|---------|-----|-----|-----|------|
-| 13:45:05  | toy_metric | ...   | ...   | 100     | ... | ... | ... | a    |
-| 13:45:05  | toy_metric | ...   | ...   | 3       | ... | ... | ... | b    |
-| 13:45:05  | toy_metric | ...   | ...   | 100     | ... | ... | ... | c    |
-| 13:45:05  | toy_metric | ...   | ...   | 88      | ... | ... | ... | d    |
+| timestamp | metric     | tag_1 | tag_2 | <text className="orange-text">tag_s</text> | counter | sum | min | max |
+|-----------|------------|-------|-------|--------------------------------------------|---------|-----|-----|-----|
+| 13:45:05  | toy_metric | ...   | ...   | a                                          | 100     | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | b                                          | 3       | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | c                                          | 100     | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | d                                          | 88      | ... | ... | ... |
 
 The next piece of data adds one more row: with the `e` _String top_ tag value and the counter equal to `5`.
 The _String top_ mechanism chooses the tag value with the lowest count (`b` is the less popular one) and makes it 
 _empty_:
 
-| timestamp | metric     | tag_1 | tag_2 | counter | sum | min | max | stag                   |
-|-----------|------------|-------|-------|---------|-----|-----|-----|------------------------|
-| 13:45:05  | toy_metric | ...   | ...   | 100     | ... | ... | ... | a                      |
-| 13:45:05  | toy_metric | ...   | ...   | **3**   | ... | ... | ... | **b** → _empty string_ |
-| 13:45:05  | toy_metric | ...   | ...   | 100     | ... | ... | ... | c                      |
-| 13:45:05  | toy_metric | ...   | ...   | 88      | ... | ... | ... | d                      |
-| 13:45:05  | toy_metric | ...   | ...   | **55**  | ... | ... | ... | **e**                  |
+| timestamp | metric     | tag_1 | tag_2 | <text className="orange-text">tag_s</text> | counter | sum | min | max |
+|-----------|------------|-------|-------|--------------------------------------------|---------|-----|-----|-----|
+| 13:45:05  | toy_metric | ...   | ...   | a                                          | 100     | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | **b** → _empty string_                     | **3**   | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | c                                          | 100     | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | d                                          | 88      | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | **e**                                      | **55**  | ... | ... | ... |
 
 The next piece of data adds one more row: with the `f` tag value and the counter equal to `2`.
 
-| timestamp | metric     | tag_1 | tag_2 | counter | sum | min | max | stag                    |
-|-----------|------------|-------|-------|---------|-----|-----|-----|-------------------------|
-| 13:45:05  | toy_metric | ...   | ...   | 100     | ... | ... | ... | a                       |
-| 13:45:05  | toy_metric | ...   | ...   | 3       | ... | ... | ... | _empty string_          |
-| 13:45:05  | toy_metric | ...   | ...   | 100     | ... | ... | ... | c                       |
-| 13:45:05  | toy_metric | ...   | ...   | 88      | ... | ... | ... | d                       |
-| 13:45:05  | toy_metric | ...   | ...   | 55      | ... | ... | ... | e                       |
-| 13:45:05  | toy_metric | ...   | ...   | **2**   | ... | ... | ... | **f** → _empty string_  |
+| timestamp | metric     | tag_1 | tag_2 | <text className="orange-text">tag_s</text> | counter | sum | min | max |
+|-----------|------------|-------|-------|--------------------------------------------|---------|-----|-----|-----|
+| 13:45:05  | toy_metric | ...   | ...   | a                                          | 100     | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | _empty string_                             | 3       | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | c                                          | 100     | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | d                                          | 88      | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | e                                          | 55      | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | **f** → _empty string_                     | **2**   | ... | ... | ... |
 
 As the `f` tag value is not in the top of the frequently used ones (i.e., it has the low _count_), it becomes the 
 empty string too and is aggregated with the previous _empty string_:
 
-| timestamp | metric     | tag_1 | tag_2 | counter | sum | min | max | stag                    |
-|-----------|------------|-------|-------|---------|-----|-----|-----|-------------------------|
-| 13:45:05  | toy_metric | ...   | ...   | 100     | ... | ... | ... | a                       |
-| 13:45:05  | toy_metric | ...   | ...   | **3+2** | ... | ... | ... | _empty string_          |
-| 13:45:05  | toy_metric | ...   | ...   | 100     | ... | ... | ... | c                       |
-| 13:45:05  | toy_metric | ...   | ...   | 88      | ... | ... | ... | d                       |
-| 13:45:05  | toy_metric | ...   | ...   | 55      | ... | ... | ... | e                       |
+| timestamp | metric     | tag_1 | tag_2 | <text className="orange-text">tag_s</text> | counter | sum | min | max |
+|-----------|------------|-------|-------|--------------------------------------------|---------|-----|-----|-----|
+| 13:45:05  | toy_metric | ...   | ...   | a                                          | 100     | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | _empty string_                             | **3+2** | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | c                                          | 100     | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | d                                          | 88      | ... | ... | ... |
+| 13:45:05  | toy_metric | ...   | ...   | e                                          | 55      | ... | ... | ... |
 
 #### _Raw_ tags
 

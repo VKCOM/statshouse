@@ -18,6 +18,16 @@ See how StatsHouse works in ten minutes.
 
 <img src={DemoFlow} width="900"/>
 
+See the related sections below:
+<!-- TOC -->
+* [Get internal permissions](#get-internal-permissions)
+* [Run StatsHouse locally](#run-statshouse-locally)
+* [Send metrics from a demo web server](#send-metrics-from-a-demo-web-server)
+* [Create your metric](#create-your-metric)
+* [Send data to your metric](#send-data-to-your-metric)
+* [Check basic viewing options](#check-basic-viewing-options)
+<!-- TOC -->
+
 :::important
 This tutorial is for Linux systems.
 For macOS or Windows, there may be Docker-related issues.

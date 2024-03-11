@@ -21,6 +21,26 @@ import Disable from '../img/disable.png'
 
 # Edit a metric
 
+Learn [how to edit a metric](#how-to-edit-a-metric) and what the editing options are:
+<!-- TOC -->
+* [Description](#description)
+* [Aggregation](#aggregation)
+  * [Percentiles](#percentiles)
+* [Resolution](#resolution)
+* [Unit](#unit)
+* [Tags](#tags)
+  * [Hide the unnecessary tags](#hide-the-unnecessary-tags)
+  * [Describe tags](#describe-tags)
+  * [Set up _Raw tags_](#set-up-raw-tags)
+    * [Value comments](#value-comments)
+    * [Specifying formats for raw tag values](#specifying-formats-for-raw-tag-values)
+  * [Set up _String top tag_](#set-up-string-top-tag)
+* [Disabling a metric](#disabling-a-metric)
+* [Admin settings](#admin-settings)
+<!-- TOC -->
+
+## How to edit a metric
+
 If you have started sending metric data, you have already set up the essential metric characteristics.
 With the editing options, try more settings or change the look of your metric in the UI:
 
