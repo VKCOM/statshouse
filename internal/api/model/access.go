@@ -4,7 +4,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package api
+package model
 
 import (
 	"encoding/json"
@@ -16,12 +16,12 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 )
 
-type accessInfo struct {
-	user                 string
-	service              bool
-	insecureMode         bool // full access to everything; can not be obtained from bits
+type AccessInfo struct {
+	User                 string
+	Service              bool
+	InsecureMode         bool // full access to everything; can not be obtained from bits
 	protectedPrefixes    []string
-	bitAdmin             bool
+	BitAdmin             bool
 	bitDeveloper         bool
 	bitViewDefault       bool
 	bitEditDefault       bool
@@ -29,17 +29,17 @@ type accessInfo struct {
 	bitEditPrefix        map[string]bool
 	bitViewMetric        map[string]bool
 	bitEditMetric        map[string]bool
-	skipBadgesValidation bool
+	SkipBadgesValidation bool
 }
 
-func parseAccessToken(jwtHelper *vkuth.JWTHelper,
+func ParseAccessToken(jwtHelper *vkuth.JWTHelper,
 	accessToken string,
 	protectedPrefixes []string,
 	localMode bool,
-	insecureMode bool) (accessInfo, error) {
+	insecureMode bool) (AccessInfo, error) {
 	if localMode || insecureMode {
-		ai := accessInfo{
-			user:              "@local_mode",
+		ai := AccessInfo{
+			User:              "@local_mode",
 			protectedPrefixes: protectedPrefixes,
 			bitViewDefault:    true,
 			bitEditDefault:    true,
@@ -48,30 +48,30 @@ func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 			bitEditPrefix:     map[string]bool{},
 			bitViewMetric:     map[string]bool{},
 			bitEditMetric:     map[string]bool{},
-			insecureMode:      insecureMode,
+			InsecureMode:      insecureMode,
 		}
 		return ai, nil
 	}
 	data, err := jwtHelper.ParseVkuthData(accessToken)
 	if err != nil {
-		return accessInfo{}, httpErr(http.StatusUnauthorized, err)
+		return AccessInfo{}, HttpErr(http.StatusUnauthorized, err)
 	}
-	ai := accessInfo{
-		user:              data.User,
-		service:           data.IsService,
+	ai := AccessInfo{
+		User:              data.User,
+		Service:           data.IsService,
 		protectedPrefixes: protectedPrefixes,
 		bitViewPrefix:     map[string]bool{},
 		bitEditPrefix:     map[string]bool{},
 		bitViewMetric:     map[string]bool{},
 		bitEditMetric:     map[string]bool{},
-		insecureMode:      insecureMode,
+		InsecureMode:      insecureMode,
 	}
 
 	bits := data.Bits
 	for b := range bits {
 		switch {
 		case b == "admin":
-			ai.bitAdmin = true
+			ai.BitAdmin = true
 		case b == "developer":
 			ai.bitDeveloper = true
 		case b == "view_default":
@@ -97,9 +97,9 @@ func parseAccessToken(jwtHelper *vkuth.JWTHelper,
 	return ai, nil
 }
 
-func (ai *accessInfo) toMetadata() string {
-	m := metadata{
-		UserEmail: ai.user,
+func (ai *AccessInfo) ToMetadata() string {
+	m := Metadata{
+		UserEmail: ai.User,
 		UserName:  "",
 		UserRef:   "",
 	}
@@ -107,7 +107,7 @@ func (ai *accessInfo) toMetadata() string {
 	return string(res)
 }
 
-func (ai *accessInfo) protectedMetric(name string) bool {
+func (ai *AccessInfo) ProtectedMetric(name string) bool {
 	for _, p := range ai.protectedPrefixes {
 		if strings.HasPrefix(name, p) {
 			return true
@@ -116,27 +116,27 @@ func (ai *accessInfo) protectedMetric(name string) bool {
 	return false
 }
 
-func (ai *accessInfo) CanViewMetricName(name string) bool {
-	if name == format.BuiltinMetricNameBadges && ai.skipBadgesValidation {
+func (ai *AccessInfo) CanViewMetricName(name string) bool {
+	if name == format.BuiltinMetricNameBadges && ai.SkipBadgesValidation {
 		return true
 	}
-	if ai.insecureMode {
+	if ai.InsecureMode {
 		return true
 	}
-	if data_model.RemoteConfigMetric(name) && !ai.bitAdmin {
+	if data_model.RemoteConfigMetric(name) && !ai.BitAdmin {
 		return false // remote config can only be viewed by administrators
 	}
 	return ai.bitViewMetric[name] ||
-		hasPrefixAccess(ai.bitViewPrefix, name) ||
-		(ai.bitViewDefault && !ai.protectedMetric(name))
+		HasPrefixAccess(ai.bitViewPrefix, name) ||
+		(ai.bitViewDefault && !ai.ProtectedMetric(name))
 }
 
-func (ai *accessInfo) CanViewMetric(metric format.MetricMetaValue) bool {
+func (ai *AccessInfo) CanViewMetric(metric format.MetricMetaValue) bool {
 	return ai.CanViewMetricName(metric.Name)
 }
 
-func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
-	if ai.insecureMode || ai.bitAdmin {
+func (ai *AccessInfo) CanChangeMetricByName(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
+	if ai.InsecureMode || ai.BitAdmin {
 		return true
 	}
 
@@ -147,28 +147,28 @@ func (ai *accessInfo) canChangeMetricByName(create bool, old format.MetricMetaVa
 		return false // remote config can only be set by administrators
 	}
 	return ai.bitEditMetric[oldName] && ai.bitEditMetric[newName] ||
-		(hasPrefixAccess(ai.bitEditPrefix, oldName) && hasPrefixAccess(ai.bitEditPrefix, newName)) ||
-		(ai.bitEditDefault && !ai.protectedMetric(oldName) && !ai.protectedMetric(newName))
+		(HasPrefixAccess(ai.bitEditPrefix, oldName) && HasPrefixAccess(ai.bitEditPrefix, newName)) ||
+		(ai.bitEditDefault && !ai.ProtectedMetric(oldName) && !ai.ProtectedMetric(newName))
 }
 
-func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
-	if ai.insecureMode {
+func (ai *AccessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new_ format.MetricMetaValue) bool {
+	if ai.InsecureMode {
 		return true
 	}
-	if ai.canChangeMetricByName(create, old, new_) {
-		if ai.bitAdmin {
+	if ai.CanChangeMetricByName(create, old, new_) {
+		if ai.BitAdmin {
 			return true
 		}
 		if old.Weight != new_.Weight && !(old.Weight == 0 && new_.Weight == 1) {
 			return false
 		}
-		if preKey(old) != preKey(new_) {
+		if PreKey(old) != PreKey(new_) {
 			return false
 		}
-		if preKeyOnly(old) != preKeyOnly(new_) {
+		if PreKeyOnly(old) != PreKeyOnly(new_) {
 			return false
 		}
-		if skips(old) != skips(new_) {
+		if Skips(old) != Skips(new_) {
 			return false
 		}
 
@@ -177,26 +177,26 @@ func (ai *accessInfo) CanEditMetric(create bool, old format.MetricMetaValue, new
 	return false
 }
 
-func (ai *accessInfo) isAdmin() bool {
-	if ai.insecureMode {
+func (ai *AccessInfo) IsAdmin() bool {
+	if ai.InsecureMode {
 		return true
 	}
-	return ai.bitAdmin
+	return ai.BitAdmin
 }
 
-func preKey(m format.MetricMetaValue) uint32 {
+func PreKey(m format.MetricMetaValue) uint32 {
 	return m.PreKeyFrom
 }
 
-func preKeyOnly(m format.MetricMetaValue) bool {
+func PreKeyOnly(m format.MetricMetaValue) bool {
 	return m.PreKeyOnly
 }
 
-func skips(m format.MetricMetaValue) [3]bool {
+func Skips(m format.MetricMetaValue) [3]bool {
 	return [3]bool{m.SkipMaxHost, m.SkipMinHost, m.SkipSumSquare}
 }
 
-func hasPrefixAccess(m map[string]bool, metric string) bool {
+func HasPrefixAccess(m map[string]bool, metric string) bool {
 	for prefix := range m {
 		if strings.HasPrefix(metric, prefix) {
 			return true

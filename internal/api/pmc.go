@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/api/model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 
 	"github.com/vkcom/statshouse/internal/pcache"
@@ -28,7 +29,7 @@ func (l tagValueInverseLoader) load(ctx context.Context, tagValueID string, _ in
 	defer cancel()
 	parsed, err := strconv.ParseInt(tagValueID, 10, 32)
 	if err != nil {
-		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("%v not a integer", tagValueID))
+		return nil, 0, model.HttpErr(http.StatusNotFound, fmt.Errorf("%v not a integer", tagValueID))
 	}
 	resp := tlmetadata.GetInvertMappingResponseUnion{}
 	err = l.metaClient.GetInvertMapping(ctx, tlmetadata.GetInvertMapping{
@@ -38,7 +39,7 @@ func (l tagValueInverseLoader) load(ctx context.Context, tagValueID string, _ in
 		return nil, 0, err
 	}
 	if resp.IsKeyNotExists() {
-		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("tag value for %v not found", tagValueID))
+		return nil, 0, model.HttpErr(http.StatusNotFound, fmt.Errorf("tag value for %v not found", tagValueID))
 	}
 	if response, ok := resp.AsGetInvertMappingResponse(); ok {
 		return pcache.StringToValue(response.Key), 0, nil
@@ -64,7 +65,7 @@ func (l tagValueLoader) load(ctx context.Context, tagValue string, _ interface{}
 		return nil, 0, err
 	}
 	if resp.IsKeyNotExists() {
-		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("tag value ID for %q not found", tagValue))
+		return nil, 0, model.HttpErr(http.StatusNotFound, fmt.Errorf("tag value ID for %q not found", tagValue))
 	}
 	if response, ok := resp.AsGetMappingResponse(); ok {
 		return pcache.Int32ToValue(response.Id), 0, nil

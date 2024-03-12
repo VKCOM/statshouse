@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/mailru/easyjson"
-
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 )

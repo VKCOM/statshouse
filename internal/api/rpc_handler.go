@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/api/model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
@@ -73,42 +74,42 @@ var (
 		tlstatshouseApi.FnDerivativeUnique():     ParamQueryFnDerivativeUnique,
 		tlstatshouseApi.FnDerivativeUniqueNorm(): ParamQueryFnDerivativeUniqueNorm,
 	}
-	whatToFn = map[queryFn]tlstatshouseApi.Function{
-		queryFnCount:                tlstatshouseApi.FnCount(),
-		queryFnCountNorm:            tlstatshouseApi.FnCountNorm(),
-		queryFnCumulCount:           tlstatshouseApi.FnCumulCount(),
-		queryFnMin:                  tlstatshouseApi.FnMin(),
-		queryFnMax:                  tlstatshouseApi.FnMax(),
-		queryFnAvg:                  tlstatshouseApi.FnAvg(),
-		queryFnCumulAvg:             tlstatshouseApi.FnCumulAvg(),
-		queryFnSum:                  tlstatshouseApi.FnSum(),
-		queryFnSumNorm:              tlstatshouseApi.FnSumNorm(),
-		queryFnStddev:               tlstatshouseApi.FnStddev(),
-		queryFnP0_1:                 tlstatshouseApi.FnP01(),
-		queryFnP1:                   tlstatshouseApi.FnP1(),
-		queryFnP5:                   tlstatshouseApi.FnP5(),
-		queryFnP10:                  tlstatshouseApi.FnP10(),
-		queryFnP25:                  tlstatshouseApi.FnP25(),
-		queryFnP50:                  tlstatshouseApi.FnP50(),
-		queryFnP75:                  tlstatshouseApi.FnP75(),
-		queryFnP90:                  tlstatshouseApi.FnP90(),
-		queryFnP95:                  tlstatshouseApi.FnP95(),
-		queryFnP99:                  tlstatshouseApi.FnP99(),
-		queryFnP999:                 tlstatshouseApi.FnP999(),
-		queryFnUnique:               tlstatshouseApi.FnUnique(),
-		queryFnUniqueNorm:           tlstatshouseApi.FnUniqueNorm(),
-		queryFnMaxHost:              tlstatshouseApi.FnMaxHost(),
-		queryFnMaxCountHost:         tlstatshouseApi.FnMaxCountHost(),
-		queryFnCumulSum:             tlstatshouseApi.FnCumulSum(),
-		queryFnDerivativeCount:      tlstatshouseApi.FnDerivativeCount(),
-		queryFnDerivativeCountNorm:  tlstatshouseApi.FnDerivativeCountNorm(),
-		queryFnDerivativeSum:        tlstatshouseApi.FnDerivativeSum(),
-		queryFnDerivativeSumNorm:    tlstatshouseApi.FnDerivativeSumNorm(),
-		queryFnDerivativeMin:        tlstatshouseApi.FnDerivativeMin(),
-		queryFnDerivativeMax:        tlstatshouseApi.FnDerivativeMax(),
-		queryFnDerivativeAvg:        tlstatshouseApi.FnDerivativeAvg(),
-		queryFnDerivativeUnique:     tlstatshouseApi.FnDerivativeUnique(),
-		queryFnDerivativeUniqueNorm: tlstatshouseApi.FnDerivativeUniqueNorm(),
+	whatToFn = map[model.QueryFn]tlstatshouseApi.Function{
+		model.QueryFnCount:                tlstatshouseApi.FnCount(),
+		model.QueryFnCountNorm:            tlstatshouseApi.FnCountNorm(),
+		model.QueryFnCumulCount:           tlstatshouseApi.FnCumulCount(),
+		model.QueryFnMin:                  tlstatshouseApi.FnMin(),
+		model.QueryFnMax:                  tlstatshouseApi.FnMax(),
+		model.QueryFnAvg:                  tlstatshouseApi.FnAvg(),
+		model.QueryFnCumulAvg:             tlstatshouseApi.FnCumulAvg(),
+		model.QueryFnSum:                  tlstatshouseApi.FnSum(),
+		model.QueryFnSumNorm:              tlstatshouseApi.FnSumNorm(),
+		model.QueryFnStddev:               tlstatshouseApi.FnStddev(),
+		model.QueryFnP0_1:                 tlstatshouseApi.FnP01(),
+		model.QueryFnP1:                   tlstatshouseApi.FnP1(),
+		model.QueryFnP5:                   tlstatshouseApi.FnP5(),
+		model.QueryFnP10:                  tlstatshouseApi.FnP10(),
+		model.QueryFnP25:                  tlstatshouseApi.FnP25(),
+		model.QueryFnP50:                  tlstatshouseApi.FnP50(),
+		model.QueryFnP75:                  tlstatshouseApi.FnP75(),
+		model.QueryFnP90:                  tlstatshouseApi.FnP90(),
+		model.QueryFnP95:                  tlstatshouseApi.FnP95(),
+		model.QueryFnP99:                  tlstatshouseApi.FnP99(),
+		model.QueryFnP999:                 tlstatshouseApi.FnP999(),
+		model.QueryFnUnique:               tlstatshouseApi.FnUnique(),
+		model.QueryFnUniqueNorm:           tlstatshouseApi.FnUniqueNorm(),
+		model.QueryFnMaxHost:              tlstatshouseApi.FnMaxHost(),
+		model.QueryFnMaxCountHost:         tlstatshouseApi.FnMaxCountHost(),
+		model.QueryFnCumulSum:             tlstatshouseApi.FnCumulSum(),
+		model.QueryFnDerivativeCount:      tlstatshouseApi.FnDerivativeCount(),
+		model.QueryFnDerivativeCountNorm:  tlstatshouseApi.FnDerivativeCountNorm(),
+		model.QueryFnDerivativeSum:        tlstatshouseApi.FnDerivativeSum(),
+		model.QueryFnDerivativeSumNorm:    tlstatshouseApi.FnDerivativeSumNorm(),
+		model.QueryFnDerivativeMin:        tlstatshouseApi.FnDerivativeMin(),
+		model.QueryFnDerivativeMax:        tlstatshouseApi.FnDerivativeMax(),
+		model.QueryFnDerivativeAvg:        tlstatshouseApi.FnDerivativeAvg(),
+		model.QueryFnDerivativeUnique:     tlstatshouseApi.FnDerivativeUnique(),
+		model.QueryFnDerivativeUniqueNorm: tlstatshouseApi.FnDerivativeUniqueNorm(),
 	}
 )
 
@@ -145,7 +146,7 @@ func (h *RPCHandler) RawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerCont
 	var sr seriesResponse
 	defer func() {
 		log.Printf("POINT QUERY err=%v, res=%v", err, sr)
-		qry.stat.reportServiceTime(0, err)
+		qry.stat.ReportServiceTime(0, err)
 	}()
 	var req seriesRequest
 	req, err = qry.toSeriesRequest(h)
@@ -167,7 +168,7 @@ func (h *RPCHandler) RawGetQueryPoint(ctx context.Context, hctx *rpc.HandlerCont
 			From: sr.Time[0],
 			To:   sr.Time[1],
 		}
-		var what queryFn
+		var what model.QueryFn
 		var tags map[string]SeriesMetaTag
 		what, meta.TimeShift, tags = sr.queryFnShiftAndTagsAt(i)
 		meta.SetWhat(whatToFn[what])
@@ -190,7 +191,7 @@ func (h *RPCHandler) RawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) 
 		return err
 	}
 	defer func() {
-		qry.stat.reportServiceTime(0, err)
+		qry.stat.ReportServiceTime(0, err)
 	}()
 	req, err := qry.toSeriesRequest(h)
 	if err != nil {
@@ -236,7 +237,7 @@ func (h *RPCHandler) RawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) 
 		chunks := chunkResponse(sr, columnSize, totalSize, metaSize)
 		res.Series = chunks[0] // return first chunk immediately
 		rid := int64(rand.Uint64())
-		if err = h.brs.Set(ctx, rid, req.ai.user, chunks[1:], bigResponseTTL); err != nil {
+		if err = h.brs.Set(ctx, rid, req.ai.User, chunks[1:], bigResponseTTL); err != nil {
 			return rpc.Error{Code: rpcErrorCodeChunkStorageFailed, Description: fmt.Sprintf("can't save chunks: %v", err)}
 		}
 		res.ResponseId = rid
@@ -253,9 +254,9 @@ func (h *RPCHandler) RawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) 
 
 func (h *RPCHandler) GetChunk(_ context.Context, args tlstatshouseApi.GetChunk) (tlstatshouseApi.GetChunkResponse, error) {
 	var err error
-	es := newEndpointStatRPC(endpointChunk, args.TLName())
+	es := model.NewEndpointStatRPC(EndpointChunk, args.TLName())
 	defer func() {
-		es.reportServiceTime(0, err)
+		es.ReportServiceTime(0, err)
 	}()
 
 	ai, err := h.parseAccessToken(args.AccessToken)
@@ -263,14 +264,14 @@ func (h *RPCHandler) GetChunk(_ context.Context, args tlstatshouseApi.GetChunk) 
 		err = rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
 		return tlstatshouseApi.GetChunkResponse{}, err
 	}
-	es.setAccessInfo(ai)
+	es.SetAccessInfo(ai)
 
 	br, ok := h.brs.Get(args.ResponseId)
 	if !ok {
 		err = rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
 		return tlstatshouseApi.GetChunkResponse{}, err
 	}
-	if br.owner != ai.user {
+	if br.owner != ai.User {
 		err = rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %d belongs to another user", args.ResponseId)}
 		return tlstatshouseApi.GetChunkResponse{}, err
 	}
@@ -287,22 +288,22 @@ func (h *RPCHandler) GetChunk(_ context.Context, args tlstatshouseApi.GetChunk) 
 }
 
 func (h *RPCHandler) ReleaseChunks(_ context.Context, args tlstatshouseApi.ReleaseChunks) (tlstatshouseApi.ReleaseChunksResponse, error) {
-	es := newEndpointStatRPC(endpointChunk, args.TLName())
+	es := model.NewEndpointStatRPC(EndpointChunk, args.TLName())
 	ai, err := h.parseAccessToken(args.AccessToken)
 	defer func() {
-		es.reportServiceTime(0, err)
+		es.ReportServiceTime(0, err)
 	}()
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
 		return tlstatshouseApi.ReleaseChunksResponse{}, err
 	}
-	es.setAccessInfo(ai)
+	es.SetAccessInfo(ai)
 	br, ok := h.brs.Get(args.ResponseId)
 	if !ok {
 		err = rpc.Error{Code: rpcErrorCodeNotFound, Description: fmt.Sprintf("can't find response %q", args.ResponseId)}
 		return tlstatshouseApi.ReleaseChunksResponse{}, err
 	}
-	if br.owner != ai.user {
+	if br.owner != ai.User {
 		err = rpc.Error{Code: rpcErrorCodeForbidden, Description: fmt.Sprintf("response %q belongs to another user", args.ResponseId)}
 		return tlstatshouseApi.ReleaseChunksResponse{}, err
 	}
@@ -312,12 +313,12 @@ func (h *RPCHandler) ReleaseChunks(_ context.Context, args tlstatshouseApi.Relea
 	return res, nil
 }
 
-func (h *RPCHandler) parseAccessToken(token string) (accessInfo, error) {
-	return parseAccessToken(h.jwtHelper, token, h.protectedPrefixes, h.localMode, h.insecureMode)
+func (h *RPCHandler) parseAccessToken(token string) (model.AccessInfo, error) {
+	return model.ParseAccessToken(h.jwtHelper, token, h.protectedPrefixes, h.localMode, h.insecureMode)
 }
 
 type seriesRequestRPC struct {
-	stat        *endpointStat
+	stat        *model.EndpointStat
 	accessToken string
 	filter      []tlstatshouseApi.Filter
 	function    tlstatshouseApi.Function
@@ -344,7 +345,7 @@ func (h *RPCHandler) getSeriesQuery(hctx *rpc.HandlerContext) (tlstatshouseApi.G
 	}
 	r := seriesRequestRPC{
 		accessToken: q.AccessToken,
-		stat:        newEndpointStatRPC(EndpointQuery, q.TLName()),
+		stat:        model.NewEndpointStatRPC(EndpointQuery, q.TLName()),
 		filter:      q.Query.Filter,
 		function:    q.Query.Function,
 		groupBy:     q.Query.GroupBy,
@@ -372,7 +373,7 @@ func (h *RPCHandler) getPointQuery(hctx *rpc.HandlerContext) (tlstatshouseApi.Ge
 	}
 	r := seriesRequestRPC{
 		accessToken: q.AccessToken,
-		stat:        newEndpointStatRPC(EndpointQuery, q.TLName()),
+		stat:        model.NewEndpointStatRPC(EndpointQuery, q.TLName()),
 		filter:      q.Query.Filter,
 		function:    q.Query.Function,
 		groupBy:     q.Query.GroupBy,
@@ -404,13 +405,13 @@ func (q *seriesRequestRPC) toSeriesRequest(h *RPCHandler) (seriesRequest, error)
 		err = rpc.Error{Code: rpcErrorCodeAuthFailed, Description: fmt.Sprintf("can't parse access token: %v", err)}
 		return seriesRequest{}, err
 	}
-	q.stat.setAccessInfo(req.ai)
+	q.stat.SetAccessInfo(req.ai)
 	req.metric, err = h.ah.getMetricMeta(req.ai, q.metricName)
 	if err != nil {
 		err = rpc.Error{Code: rpcErrorCodeUnknownMetric, Description: fmt.Sprintf("can't get metric's meta: %v", err)}
 		return seriesRequest{}, err
 	}
-	q.stat.setMetricMeta(req.metric)
+	q.stat.SetMetricMeta(req.metric)
 	if req.metric != nil {
 		req.filterIn, req.filterNotIn, err = parseFilterValues(q.filter, req.metric)
 		if err != nil {

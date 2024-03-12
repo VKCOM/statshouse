@@ -6,6 +6,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/api/dac"
+	"github.com/vkcom/statshouse/internal/api/model"
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -25,14 +27,14 @@ type (
 
 	tableRowKey struct {
 		time int64
-		tsTags
+		dac.TsTags
 	}
 )
 
-type loadPoints func(ctx context.Context, version string, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([][]tsSelectRow, error)
+type loadPoints func(ctx context.Context, version string, key string, pq *dac.PreparedPointsQuery, lod dac.LodInfo, avoidCache bool) ([][]dac.TsSelectRow, error)
 type maybeAddQuerySeriesTagValue func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int32) bool
 
-func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableReqParams,
+func getTableFromLODs(ctx context.Context, lods []dac.LodInfo, tableReqParams tableReqParams,
 	loadPoints loadPoints,
 	maybeAddQuerySeriesTagValue maybeAddQuerySeriesTagValue) (_ []queryTableRow, hasMore bool, _ error) {
 	req := tableReqParams.req
@@ -45,29 +47,29 @@ func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableR
 	for qIndex, q := range queries {
 		rowsCount := 0
 		qs := normalizedQueryString(req.metricWithNamespace, q.whatKind, req.by, req.filterIn, req.filterNotIn, true)
-		pq := &preparedPointsQuery{
-			user:        tableReqParams.user,
-			version:     req.version,
-			metricID:    metricMeta.MetricID,
-			preKeyTagID: metricMeta.PreKeyTagID,
-			isStringTop: tableReqParams.isStringTop,
-			kind:        q.whatKind,
-			by:          q.by,
-			filterIn:    tableReqParams.mappedFilterIn,
-			filterNotIn: tableReqParams.mappedFilterNotIn,
-			orderBy:     true,
-			desc:        req.fromEnd,
+		pq := &dac.PreparedPointsQuery{
+			User:        tableReqParams.user,
+			Version:     req.version,
+			MetricID:    metricMeta.MetricID,
+			PreKeyTagID: metricMeta.PreKeyTagID,
+			IsStringTop: tableReqParams.isStringTop,
+			Kind:        q.whatKind,
+			By:          q.by,
+			FilterIn:    tableReqParams.mappedFilterIn,
+			FilterNotIn: tableReqParams.mappedFilterNotIn,
+			OrderBy:     true,
+			Desc:        req.fromEnd,
 		}
 
 		for _, lod := range lods {
-			m, err := loadPoints(ctx, req.version, qs, pq, lodInfo{
-				fromSec:    shiftTimestamp(lod.fromSec, lod.stepSec, 0, lod.location),
-				toSec:      shiftTimestamp(lod.toSec, lod.stepSec, 0, lod.location),
-				stepSec:    lod.stepSec,
-				table:      lod.table,
-				hasPreKey:  lod.hasPreKey,
-				preKeyOnly: lod.preKeyOnly,
-				location:   tableReqParams.location,
+			m, err := loadPoints(ctx, req.version, qs, pq, dac.LodInfo{
+				FromSec:    shiftTimestamp(lod.FromSec, lod.StepSec, 0, lod.Location),
+				ToSec:      shiftTimestamp(lod.ToSec, lod.StepSec, 0, lod.Location),
+				StepSec:    lod.StepSec,
+				Table:      lod.Table,
+				HasPreKey:  lod.HasPreKey,
+				PreKeyOnly: lod.PreKeyOnly,
+				Location:   tableReqParams.location,
 			}, req.avoidCache)
 			if err != nil {
 				return nil, false, err
@@ -76,25 +78,25 @@ func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableR
 			rows, hasMoreValues := limitQueries(m, req.fromRow, req.toRow, req.fromEnd, req.limit-rowsCount)
 			for i := 0; i < len(rows); i++ {
 				rowsCount++
-				rowRepr.Time = rows[i].time
+				rowRepr.Time = rows[i].Time
 				rowRepr.Tags = rowRepr.Tags[:0]
-				tags := &rows[i].tsTags
+				tags := &rows[i].TsTags
 				kvs := make(map[string]SeriesMetaTag, 16)
 				for j := 0; j < format.MaxTags; j++ {
-					wasAdded := maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, j, tags.tag[j])
+					wasAdded := maybeAddQuerySeriesTagValue(kvs, metricMeta, req.version, q.by, j, tags.Tag[j])
 					if wasAdded {
 						rowRepr.Tags = append(rowRepr.Tags, RawTag{
 							Index: j,
-							Value: tags.tag[j],
+							Value: tags.Tag[j],
 						})
 					}
 				}
-				skey := maybeAddQuerySeriesTagValueString(kvs, q.by, &tags.tagStr)
+				skey := maybeAddQuerySeriesTagValueString(kvs, q.by, &tags.TagStr)
 				rowRepr.SKey = skey
 				data := selectTSValue(q.what, req.maxHost, tableReqParams.rawValue, tableReqParams.desiredStepMul, &rows[i])
 				key := tableRowKey{
-					time:   rows[i].time,
-					tsTags: rows[i].tsTags,
+					time:   rows[i].Time,
+					TsTags: rows[i].TsTags,
 				}
 				var ix int
 				var ok bool
@@ -102,7 +104,7 @@ func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableR
 					ix = len(queryRows)
 					rowsIdx[key] = ix
 					queryRows = append(queryRows, queryTableRow{
-						Time:    rows[i].time,
+						Time:    rows[i].Time,
 						Data:    make([]float64, 0, len(queries)),
 						Tags:    kvs,
 						row:     rows[i],
@@ -135,11 +137,11 @@ func getTableFromLODs(ctx context.Context, lods []lodInfo, tableReqParams tableR
 	return queryRows, hasMore, nil
 }
 
-func limitQueries(rowsByTime [][]tsSelectRow, from, to RowMarker, fromEnd bool, limit int) (res []tsSelectRow, hasMore bool) {
+func limitQueries(rowsByTime [][]dac.TsSelectRow, from, to model.RowMarker, fromEnd bool, limit int) (res []dac.TsSelectRow, hasMore bool) {
 	if limit <= 0 {
 		return nil, len(rowsByTime) > 0
 	}
-	limitedRows := make([]tsSelectRow, 0, limit)
+	limitedRows := make([]dac.TsSelectRow, 0, limit)
 	for i := range rowsByTime {
 		if fromEnd {
 			i = len(rowsByTime) - i - 1
@@ -162,14 +164,14 @@ func limitQueries(rowsByTime [][]tsSelectRow, from, to RowMarker, fromEnd bool, 
 	return limitedRows, false
 }
 
-func inRange(row tsSelectRow, from, to RowMarker) bool {
+func inRange(row dac.TsSelectRow, from, to model.RowMarker) bool {
 	if from.Time != 0 {
-		if !lessThan(from, row, skeyFromFixedString(&row.tsTags.tagStr), false) {
+		if !lessThan(from, row, skeyFromFixedString(&row.TsTags.TagStr), false) {
 			return false
 		}
 	}
 	if to.Time != 0 {
-		if lessThan(to, row, skeyFromFixedString(&row.tsTags.tagStr), true) {
+		if lessThan(to, row, skeyFromFixedString(&row.TsTags.TagStr), true) {
 			return false
 		}
 	}
