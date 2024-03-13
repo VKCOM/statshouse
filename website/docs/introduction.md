@@ -25,7 +25,7 @@ Here is [what the StatsHouse user interface looks like](guides/view-graph.md) an
 
 <img src={Intro} width="900"/>
 
-## What you can find in this documentation
+## What you can find in the docs
 
 Use the **🔍 Search** bar in the upper-right corner, or check the table of contents below.
 

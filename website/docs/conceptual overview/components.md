@@ -1,7 +1,8 @@
 ---
 sidebar_position: 3
 ---
-
+import Tabs from '@theme/Tabs'
+import TabItem from '@theme/TabItem'
 import Components from '../img/components.png'
 import Agent from '../img/agent.png'
 import Aggregator from '../img/aggregator.png'
@@ -60,8 +61,109 @@ An agent receives metric data via [UDP](https://en.wikipedia.org/wiki/User_Datag
 ### Receiving data via UDP
 
 StatsHouse receives data via UDP in the MessagePack, Protocol Buffers, JSON, and TL formats—they are semantically 
-identical.
-It automatically detects the format by the first bytes in the packet. 
+identical. It automatically detects the format by the first bytes in the packet.
+
+Find the schemes for [TL](https://github.com/VKCOM/statshouse/blob/master/internal/data_model/public.tl), MessagePack,
+and [Protocol Buffers](https://github.com/VKCOM/statshouse/blob/master/internal/receiver/statshouse.proto):
+
+<Tabs>
+
+<TabItem value="TL" label="TL">
+
+```
+---types---
+
+statshouse.metric#3325d884 fields_mask:#
+name:    string
+tags:    (dictionary string)
+counter: fields_mask.0?double
+ts:      fields_mask.4?#               // UNIX timestamp UTC
+value:   fields_mask.1?(vector double)
+unique:  fields_mask.2?(vector long)
+
+= statshouse.Metric;
+
+---functions---
+
+// for smooth JSON interoperability, first byte of tag must not be 0x5b or 0x7b ("[" or "{")
+// for smooth MessagePack interoperability, first byte of tag must be less than 0x80
+// for smooth ProtoBuf interoperability, first byte must be as large as possible.
+
+@write statshouse.addMetricsBatch#56580239 fields_mask:# metrics:(vector statshouse.metric) = True;
+```
+</TabItem>
+
+<TabItem value="MessagePack" label="MessagePack">
+
+```{
+  metrics: [
+    {
+      ts:   1670673392,     # uint32, UNIX timestamp in seconds (optional)
+      name: "foobar",       # string([a-zA-Z][a-zA-Z0-9_]*), metric name
+      tags: {
+        "env":              # string([a-zA-Z][a-zA-Z0-9_]*), tag name
+          "production"      # string(printable UTF-8),       tag value
+      },
+      counter: 100500.1,    # float64,        number of observed events
+      value:   [0.7],       # array(float64), observed values array
+      unique:  [591068825], # array(int64),   observed IDs array
+    }
+  ]
+}
+```
+
+</TabItem>
+
+<TabItem value="Protocol Buffers" label="Protocol Buffers">
+
+```
+syntax = "proto3";
+package statshouse;
+
+option go_package = "github.com/vkcom/statshouse/internal/receiver/pb";
+
+message Metric {
+    string              name    = 1;
+    map<string, string> tags    = 2;
+    double              counter = 3;
+    uint32              ts      = 4;  // UNIX seconds UTC
+    repeated double     value   = 5;
+    repeated int64      unique  = 6;
+}
+
+message MetricBatch {
+    repeated Metric metrics = 13337;  // to autodetect packet format by first bytes
+}
+
+// to compile
+// sudo apt-get install libprotobuf-dev
+// go install google.golang.org/protobuf/cmd/protoc-gen-go
+// ~/go/src/github.com/vkcom/statshouse$ protoc -I=internal/receiver --go_out=../../../../.. statshouse.proto
+
+// to compile if proto3 format not supported, for example by protocute
+
+// 1. comment out line: option go_package = "github.com/vkcom/statshouse/internal/receiver/pb";
+// 2. add
+// message MapFieldEntry {
+//   optional string key = 1;
+//   optional string value = 2;
+// }
+// 3. replace Metric with
+// message Metric {
+// string              name    = 1;
+// map<string, string> tags    = 2;
+// double              counter = 3;
+// uint32              ts      = 4;  // UNIX seconds UTC
+// repeated double     value   = 5;
+// repeated int64      unique  = 6;
+// }
+// 4. ./protocute --cpp_out=. ~/go/src/github.com/vkcom/statshouse/internal/receiver/statshouse.proto
+```
+
+</TabItem>
+
+</Tabs>
+
 
 A packet is an object with an array of metrics inside:
 
@@ -101,26 +203,8 @@ For example, one can send a packet like this:
 ]}
 ```
 
-The schema for Protocol Buffers:
-
-```
-message Metric {
-  string              name    = 1;
-  map<string, string> tags    = 2;
-  double              counter = 3;
-  uint32              ts      = 4;  // UNIX seconds UTC
-  repeated double     value   = 5;
-  repeated int64      unique  = 6;
-}
-
-message MetricBatch {
-  repeated Metric metrics = 13337;  // to autodetect packet format by first bytes
-}
-```
-
 Сheck the requirements for using formats.
-* For TL: the packet body should be the Boxed-serialized `statshouse.addMetricsBatch` object 
-(see the [scheme](#receiving-data-via-tl-rpc) below).
+* For TL: the packet body should be the Boxed-serialized `statshouse.addMetricsBatch` object.
 * For JSON: the first character should be a curly bracket `{` (to detect the format correctly).
 * For Protocol Buffers: do not add fields to the `MetricBatch` object (to detect the format correctly).
 

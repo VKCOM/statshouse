@@ -10,6 +10,8 @@ import CardinalitySamplingNoise from '../img/cardinality-sampling-noise.png'
 import HigherSamplingCoef from '../img/higher-sampling-coef.png'
 import Lod from '../img/lod.png'
 import MetricFormulaType from '../img/metric-formula-type.png'
+import MinAvailableAggregation from '../img/min-available-aggregation.png'
+
 
 # Concepts
 
@@ -20,19 +22,37 @@ To understand StatsHouse deeply, learn the basic metric-related concepts:
 
 ## Aggregation
 
-StatsHouse aggregates the events with the same tag sets—both within the time period and between the hosts. For 
-example, this is what an aggregate within one second looks like:
+StatsHouse aggregates the events with the same tag sets—both within the time period and between the hosts. 
+
+### Aggregate
+
+An **aggregate** is the result of aggregation.
+It is the minimal set of descriptive statistics such as _count_, _sum_, _min_, _max_. StatsHouse uses them to
+reconstruct the rest of statistics if necessary.
+For example, this is what an aggregate within one second looks like:
 
 <img src={PerSecAggr} width="700"/>
 
 :::important
 StatsHouse does not store an exact metric value per each moment.
-Instead, it stores aggregates associated with time intervals.
-
-An **aggregate** is the result of aggregation. 
-It is the minimal set of descriptive statistics such as _count_, _sum_, _min_, _max_. StatsHouse uses them to 
-reconstruct the rest of statistics if necessary.
+Instead, it stores aggregates associated with time intervals 
+(see more about the [minimal available aggregation interval](#minimal-available-aggregation-interval)).
 :::
+
+Upon aggregation, StatsHouse inserts data into the ClickHouse database—specifically, into a per-second table.
+The amount of per-second data is huge, so StatsHouse downsamples data: per-second data is available for two days.
+
+StatsHouse aggregates data within a minute and inserts it to a per-minute ClickHouse table.
+Similarly, StatsHouse aggregates per-minute data to per-hour one.
+
+### Minimal available aggregation interval
+
+The currently available aggregate depends on the "age" of the data:
+* per-second aggregated data is stored for the first two days,
+* per-minute aggregated data is stored for a month,
+* per-hour aggregated data is available forever (if not deleted manually).
+
+<img src={MinAvailableAggregation} width="700"/>
 
 Imagine a hypothetical product. For this product, we need to get the number of received packets per second.
 The packets may have different 
@@ -98,20 +118,10 @@ For our hypothetical metric, the between-host aggregation per second leads to th
 Cardinality may increase due to between-host aggregation: the sets of tag value combinations for the hosts may vary.
 In the example above, the total cardinality for the current second is _six_.
 
-Upon aggregation, StatsHouse inserts data into the ClickHouse database—specifically, into a per-second table.
-The amount of per-second data is huge, so StatsHouse downsamples data: per-second data is available for two days.
-
-Meanwhile, StatsHouse resets seconds in each timestamp to zero. It aggregates data within a minute and inserts it to 
-a per-minute ClickHouse table. Similarly, StatsHouse aggregates per-minute data to per-hour one. 
-
-* Per-second aggregated data is stored for the first two days.
-* Per-minute aggregated data is stored for a month.
-* Per-hour aggregated data is available forever (if not deleted manually).
-
-The total [hour cardinality](../guides/view-graph.md#cardinality) for a metric determines how many 
+The total [hour cardinality](../guides/view-graph.md#cardinality) for a metric determines how many
 rows for a metric can be stored in a database for a long time.
 
-When retrieving data from a database, we have to iterate over the rows for the chosen time interval. It is 
+When retrieving data from a database, we have to iterate over the rows for the chosen time interval. It is
 the cardinality that determines the number of these rows and the time we spend on doing this.
 
 ## Sampling

@@ -194,7 +194,9 @@ The larger aggregation interval you choose, the smoother look your graph has:
 
 ### _Auto_ and _Auto (low)_
 
-An _Auto_ interval uses the _minimal available interval_ for aggregation to show data on a graph.
+An _Auto_ interval uses the 
+[_minimal available interval_ for aggregation](../conceptual%20overview/concepts.md#minimal-available-aggregation-interval)
+to show data on a graph.
 This interval _varies_ depending on the currently available aggregation:
 * per-second aggregated data is stored for the first two days,
 * per-minute aggregated data is stored for a month,
@@ -456,12 +458,12 @@ In most cases, you should not switch to this slow database—you will probably s
 
 <img src={SwitchDb} width="800"/>
 
-## 18 — Query with PromQL
+## 18 — PromQL query editor
 
 To broaden the range of operations available when viewing data, we supported PromQL, 
 or [Prometheus Query Language](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 
-Switch to PromQL queries for complex viewing scenarios:
+Switch to PromQL query editor for complex viewing scenarios:
 
 <img src={Prom} width="300"/>
 

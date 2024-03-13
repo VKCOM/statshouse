@@ -272,7 +272,8 @@ Unfortunately, it is impossible for now. We plan to increase the number of tags 
 
 ### Tag names
 
-You can use system tag names (`0..15`) to send data. For convenience, add aliases (custom names) to your tags.
+You can use system tag names (`0..15`) to send data. For convenience, 
+[add aliases (custom names) to your tags](edit-metrics.md#describe-tags).
 
 Please use these characters:
 * Latin alphabet
