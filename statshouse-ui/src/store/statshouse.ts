@@ -1137,6 +1137,8 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             scales.x = { min: getState().timeRange.from, max: getState().timeRange.to };
             if (lastPlotParams.yLock.min !== 0 || lastPlotParams.yLock.max !== 0) {
               scales.y = { ...lastPlotParams.yLock };
+            } else {
+              scales.y = { min: 0, max: 0 };
             }
 
             const maxLengthValue = series.reduce(

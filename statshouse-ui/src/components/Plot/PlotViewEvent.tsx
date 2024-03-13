@@ -265,7 +265,7 @@ export function PlotViewEvent(props: {
       scales: {
         x: { auto: false, range: xRangeStatic },
         y: {
-          auto: false,
+          auto: (u) => !yLockRef.current || (yLockRef.current.min === 0 && yLockRef.current.max === 0),
           range: (u: uPlot): uPlot.Range.MinMax => {
             const min = yLockRef.current.min;
             const max = yLockRef.current.max;
