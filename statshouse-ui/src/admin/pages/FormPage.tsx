@@ -21,9 +21,10 @@ import { maxTagsSize } from '../../common/settings';
 import { Button } from '../../components';
 import { ReactComponent as SVGPlusLg } from 'bootstrap-icons/icons/plus-lg.svg';
 import { ReactComponent as SVGDashLg } from 'bootstrap-icons/icons/dash-lg.svg';
-import { toNumber } from '../../common/helpers';
+import { isNotNil, toNumber } from '../../common/helpers';
 import { dequal } from 'dequal/lite';
 import { produce } from 'immer';
+import { TagDraft } from './TagDraft';
 
 const { clearMetricsMeta } = useStore.getState();
 
@@ -36,7 +37,11 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
   React.useEffect(() => {
     fetch(`/api/metric?s=${metricName}`)
       .then<{ data: { metric: IBackendMetric } }>((res) => res.json())
-      .then(({ data: { metric } }) =>
+      .then(({ data: { metric } }) => {
+        const tags_draft: ITag[] = Object.entries(metric.tags_draft ?? {})
+          .map(([, t]) => t)
+          .filter(isNotNil);
+        tags_draft.sort((a, b) => (b.name < a.name ? 1 : b.name === a.name ? 0 : -1));
         setInitMetric({
           id: metric.metric_id === undefined ? 0 : metric.metric_id,
           name: metric.name,
@@ -60,14 +65,15 @@ export function FormPage(props: { yAxisSize: number; adminMode: boolean }) {
             isRaw: tag.raw,
             raw_kind: tag.raw_kind,
           })),
+          tags_draft,
           tagsSize: metric.tags.length,
           pre_key_tag_id: metric.pre_key_tag_id && freeKeyPrefix(metric.pre_key_tag_id),
           pre_key_from: metric.pre_key_from,
           metric_type: metric.metric_type,
           version: metric.version,
           group_id: metric.group_id,
-        })
-      );
+        });
+      });
   }, [metricName]);
 
   // update document title
@@ -119,6 +125,17 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
   const preKeyFromString = useMemo<string>(
     () => (values.pre_key_from ? formatInputDate(values.pre_key_from) : ''),
     [values.pre_key_from]
+  );
+
+  const free_tags = useMemo(
+    () =>
+      values.tags.reduce((res, t, index) => {
+        if (!t.name && index > 0 && index < values.tagsSize) {
+          res.push(index);
+        }
+        return res;
+      }, [] as number[]),
+    [values.tags, values.tagsSize]
   );
 
   return (
@@ -369,6 +386,27 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
           </div>
         </div>
       </div>
+      {values.tags_draft.length > 0 && (
+        <div className="row mb-3">
+          <label htmlFor="tagsDraft" className="col-sm-2 col-form-label">
+            Tags draft
+          </label>
+          <div className="col">
+            <div id="tagsDraft" className="form-text"></div>
+            {values.tags_draft.map((tag_draft_info, index) => (
+              <TagDraft
+                key={index}
+                tag_key={tag_draft_info.name}
+                tag={tag_draft_info}
+                free_tags={free_tags}
+                onMoveTag={(num_tag, tag_key, tag) => {
+                  dispatch({ type: 'move_draft', pos: num_tag, tag, tag_key });
+                }}
+              ></TagDraft>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="row align-items-baseline mb-3">
         <label htmlFor="visible" className="col-sm-2 col-form-label">
           Enabled
@@ -554,7 +592,7 @@ export function EditForm(props: { isReadonly: boolean; adminMode: boolean }) {
   );
 }
 type SortCustomMappingItem = {
-  mapping: { readonly from: string; readonly to: string };
+  mapping: { from: string; to: string };
   index: number;
 };
 
