@@ -149,6 +149,7 @@ type MetadataEvent struct {
 	Version     int64
 	UpdateTime  uint32
 	Data        string
+	Metadata    string // Conditional: item.FieldMask.1
 }
 
 func (MetadataEvent) TLName() string { return "metadata.event" }
@@ -164,6 +165,16 @@ func (item *MetadataEvent) ClearNamespaceId() {
 }
 func (item MetadataEvent) IsSetNamespaceId() bool { return item.FieldMask&(1<<0) != 0 }
 
+func (item *MetadataEvent) SetMetadata(v string) {
+	item.Metadata = v
+	item.FieldMask |= 1 << 1
+}
+func (item *MetadataEvent) ClearMetadata() {
+	item.Metadata = ""
+	item.FieldMask &^= 1 << 1
+}
+func (item MetadataEvent) IsSetMetadata() bool { return item.FieldMask&(1<<1) != 0 }
+
 func (item *MetadataEvent) Reset() {
 	item.FieldMask = 0
 	item.Id = 0
@@ -174,6 +185,7 @@ func (item *MetadataEvent) Reset() {
 	item.Version = 0
 	item.UpdateTime = 0
 	item.Data = ""
+	item.Metadata = ""
 }
 
 func (item *MetadataEvent) Read(w []byte) (_ []byte, err error) {
@@ -205,7 +217,17 @@ func (item *MetadataEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.UpdateTime); err != nil {
 		return w, err
 	}
-	return basictl.StringRead(w, &item.Data)
+	if w, err = basictl.StringRead(w, &item.Data); err != nil {
+		return w, err
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		if w, err = basictl.StringRead(w, &item.Metadata); err != nil {
+			return w, err
+		}
+	} else {
+		item.Metadata = ""
+	}
+	return w, nil
 }
 
 func (item *MetadataEvent) Write(w []byte) (_ []byte, err error) {
@@ -221,7 +243,15 @@ func (item *MetadataEvent) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.Unused)
 	w = basictl.LongWrite(w, item.Version)
 	w = basictl.NatWrite(w, item.UpdateTime)
-	return basictl.StringWrite(w, item.Data)
+	if w, err = basictl.StringWrite(w, item.Data); err != nil {
+		return w, err
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		if w, err = basictl.StringWrite(w, item.Metadata); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
 }
 
 func (item *MetadataEvent) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -292,11 +322,16 @@ func (item *MetadataEvent) readJSON(j interface{}) error {
 	if err := JsonReadString(_jData, &item.Data); err != nil {
 		return err
 	}
+	_jMetadata := _jm["metadata"]
+	delete(_jm, "metadata")
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.event", k)
 	}
 	if _jNamespaceId != nil {
 		item.FieldMask |= 1 << 0
+	}
+	if _jMetadata != nil {
+		item.FieldMask |= 1 << 1
 	}
 	if _jNamespaceId != nil {
 		if err := JsonReadInt64(_jNamespaceId, &item.NamespaceId); err != nil {
@@ -304,6 +339,13 @@ func (item *MetadataEvent) readJSON(j interface{}) error {
 		}
 	} else {
 		item.NamespaceId = 0
+	}
+	if _jMetadata != nil {
+		if err := JsonReadString(_jMetadata, &item.Metadata); err != nil {
+			return err
+		}
+	} else {
+		item.Metadata = ""
 	}
 	return nil
 }
@@ -358,6 +400,11 @@ func (item *MetadataEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err err
 		w = append(w, `"data":`...)
 		w = basictl.JSONWriteString(w, item.Data)
 	}
+	if item.FieldMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"metadata":`...)
+		w = basictl.JSONWriteString(w, item.Metadata)
+	}
 	return append(w, '}'), nil
 }
 
@@ -386,6 +433,7 @@ type MetadataEventBytes struct {
 	Version     int64
 	UpdateTime  uint32
 	Data        []byte
+	Metadata    []byte // Conditional: item.FieldMask.1
 }
 
 func (MetadataEventBytes) TLName() string { return "metadata.event" }
@@ -401,6 +449,16 @@ func (item *MetadataEventBytes) ClearNamespaceId() {
 }
 func (item MetadataEventBytes) IsSetNamespaceId() bool { return item.FieldMask&(1<<0) != 0 }
 
+func (item *MetadataEventBytes) SetMetadata(v []byte) {
+	item.Metadata = v
+	item.FieldMask |= 1 << 1
+}
+func (item *MetadataEventBytes) ClearMetadata() {
+	item.Metadata = item.Metadata[:0]
+	item.FieldMask &^= 1 << 1
+}
+func (item MetadataEventBytes) IsSetMetadata() bool { return item.FieldMask&(1<<1) != 0 }
+
 func (item *MetadataEventBytes) Reset() {
 	item.FieldMask = 0
 	item.Id = 0
@@ -411,6 +469,7 @@ func (item *MetadataEventBytes) Reset() {
 	item.Version = 0
 	item.UpdateTime = 0
 	item.Data = item.Data[:0]
+	item.Metadata = item.Metadata[:0]
 }
 
 func (item *MetadataEventBytes) Read(w []byte) (_ []byte, err error) {
@@ -442,7 +501,17 @@ func (item *MetadataEventBytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.UpdateTime); err != nil {
 		return w, err
 	}
-	return basictl.StringReadBytes(w, &item.Data)
+	if w, err = basictl.StringReadBytes(w, &item.Data); err != nil {
+		return w, err
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		if w, err = basictl.StringReadBytes(w, &item.Metadata); err != nil {
+			return w, err
+		}
+	} else {
+		item.Metadata = item.Metadata[:0]
+	}
+	return w, nil
 }
 
 func (item *MetadataEventBytes) Write(w []byte) (_ []byte, err error) {
@@ -458,7 +527,15 @@ func (item *MetadataEventBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.Unused)
 	w = basictl.LongWrite(w, item.Version)
 	w = basictl.NatWrite(w, item.UpdateTime)
-	return basictl.StringWriteBytes(w, item.Data)
+	if w, err = basictl.StringWriteBytes(w, item.Data); err != nil {
+		return w, err
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		if w, err = basictl.StringWriteBytes(w, item.Metadata); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
 }
 
 func (item *MetadataEventBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -531,11 +608,16 @@ func (item *MetadataEventBytes) readJSON(j interface{}) error {
 	if err := JsonReadStringBytes(_jData, &item.Data); err != nil {
 		return err
 	}
+	_jMetadata := _jm["metadata"]
+	delete(_jm, "metadata")
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.event", k)
 	}
 	if _jNamespaceId != nil {
 		item.FieldMask |= 1 << 0
+	}
+	if _jMetadata != nil {
+		item.FieldMask |= 1 << 1
 	}
 	if _jNamespaceId != nil {
 		if err := JsonReadInt64(_jNamespaceId, &item.NamespaceId); err != nil {
@@ -543,6 +625,13 @@ func (item *MetadataEventBytes) readJSON(j interface{}) error {
 		}
 	} else {
 		item.NamespaceId = 0
+	}
+	if _jMetadata != nil {
+		if err := JsonReadStringBytes(_jMetadata, &item.Metadata); err != nil {
+			return err
+		}
+	} else {
+		item.Metadata = item.Metadata[:0]
 	}
 	return nil
 }
@@ -596,6 +685,11 @@ func (item *MetadataEventBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, er
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"data":`...)
 		w = basictl.JSONWriteStringBytes(w, item.Data)
+	}
+	if item.FieldMask&(1<<1) != 0 {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"metadata":`...)
+		w = basictl.JSONWriteStringBytes(w, item.Metadata)
 	}
 	return append(w, '}'), nil
 }

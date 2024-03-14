@@ -137,7 +137,7 @@ func (s *ShardReplica) InitBuiltInMetric() {
 		[16]int32{0, s.agent.componentTag, format.TagTimeoutError}, 0, s.ShardKey, s.ReplicaKey))
 
 	s.aggTimeDiffBucket = s.agent.CreateBuiltInItemValue(data_model.AggKey(0,
-		format.BuiltinMetricIDAggTimeDiff,
+		format.BuiltinMetricIDAgentAggregatorTimeDiff,
 		[16]int32{0, s.agent.componentTag}, 0, s.ShardKey, s.ReplicaKey))
 }
 

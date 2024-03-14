@@ -41,7 +41,7 @@ type tsTags struct {
 type tsValues struct {
 	countNorm float64
 	val       [7]float64
-	maxHost   int32
+	host      [2]int32 // "min" at [0], "max" at [1]
 }
 
 type tsCacheGroup struct {
@@ -68,21 +68,35 @@ func newTSCacheGroup(approxMaxSize int, lodTables map[string]map[int64]string, u
 	return g
 }
 
+func (g *tsCacheGroup) changeMaxSize(newSize int) {
+	for _, cs := range g.pointCaches {
+		for _, c := range cs {
+			c.changeMaxSize(newSize)
+		}
+	}
+}
+
 func (g *tsCacheGroup) Invalidate(lodLevel int64, times []int64) {
 	g.pointCaches[Version2][lodLevel].invalidate(times)
 }
 
 func (g *tsCacheGroup) Get(ctx context.Context, version string, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([][]tsSelectRow, error) {
+	x, err := lod.indexOf(lod.toSec)
+	if err != nil {
+		return nil, err
+	}
+	res := make([][]tsSelectRow, x)
 	switch pq.metricID {
 	case format.BuiltinMetricIDGeneratorConstCounter:
-		return generateConstCounter(lod)
+		generateConstCounter(lod, res)
 	case format.BuiltinMetricIDGeneratorSinCounter:
-		return generateSinCounter(lod)
+		generateSinCounter(lod, res)
 	case format.BuiltinMetricIDGeneratorGapsCounter:
-		return generateGapsCounter(lod)
+		generateGapsCounter(lod, res)
 	default:
-		return g.pointCaches[version][lod.stepSec].get(ctx, key, pq, lod, avoidCache)
+		return g.pointCaches[version][lod.stepSec].get(ctx, key, pq, lod, avoidCache, res)
 	}
+	return res, nil
 }
 
 type tsCache struct {
@@ -125,6 +139,12 @@ func newTSCache(approxMaxSize int, stepSec int64, utcOffset int64, loader tsLoad
 	}
 }
 
+func (c *tsCache) changeMaxSize(newMaxSize int) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	c.approxMaxSize = newMaxSize
+}
+
 func (c *tsCache) maybeDropCache() {
 	c.cacheMu.Lock()
 	defer c.cacheMu.Unlock()
@@ -145,14 +165,12 @@ func (c *tsCache) maybeDropCache() {
 	}
 }
 
-func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([][]tsSelectRow, error) {
+func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool, ret [][]tsSelectRow) ([][]tsSelectRow, error) {
 	if c.dropEvery != 0 {
 		c.maybeDropCache()
 	}
 
-	ret := make([][]tsSelectRow, lod.getIndexForTimestamp(lod.toSec, 0)+1)
 	cachedRows := 0
-
 	realLoadFrom := lod.fromSec
 	realLoadTo := lod.toSec
 	if !avoidCache {
@@ -190,22 +208,19 @@ func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, 
 	}
 
 	e.lru.Store(time.Now().UnixNano())
-
-	for t := realLoadFrom; t < realLoadTo; {
-		var nextRealLoadFrom int64
-		if c.stepSec == _1M {
-			nextRealLoadFrom = time.Unix(t, 0).In(lod.location).AddDate(0, 1, 0).Unix()
-		} else {
-			nextRealLoadFrom = t + c.stepSec
-		}
-
+	i, err := lod.indexOf(realLoadFrom)
+	if err != nil {
+		return nil, err
+	}
+	for t := realLoadFrom; t < realLoadTo; i++ {
+		nextRealLoadFrom := promqlStepForward(t, c.stepSec, lod.location)
 		cached, ok := e.secRows[t]
 		if !ok {
 			cached = &tsVersionedRows{}
 			e.secRows[t] = cached
 		}
 		if loadAtNano > cached.loadedAtNano {
-			loadedRows := ret[lod.getIndexForTimestamp(t, 0)]
+			loadedRows := ret[i]
 			c.size += len(loadedRows) - len(cached.rows)
 			cached.loadedAtNano = loadAtNano
 			cached.rows = loadedRows
@@ -253,13 +268,7 @@ func (c *tsCache) loadCached(ctx context.Context, key string, fromSec int64, toS
 	var loadFrom, loadTo int64
 	var hit int
 	for t, ix := fromSec, retStartIx; t < toSec; ix++ {
-		var nextStartFrom int64
-		if c.stepSec == _1M {
-			nextStartFrom = time.Unix(t, 0).In(location).AddDate(0, 1, 0).Unix()
-		} else {
-			nextStartFrom = t + c.stepSec
-		}
-
+		nextStartFrom := promqlStepForward(t, c.stepSec, location)
 		cached, ok := e.secRows[t]
 		if ok && cached.loadedAtNano >= c.invalidatedAtNano[t]+int64(invalidateLinger) {
 			ret[ix] = cached.rows
@@ -286,12 +295,14 @@ func (c *tsCache) loadCached(ctx context.Context, key string, fromSec int64, toS
 
 func (c *tsCache) evictLocked() int {
 	k := ""
+	var v *tsEntry
 	i := 0
 	t := int64(math.MaxInt64)
 	for key, e := range c.cache { // "power of N random choices" with map iteration providing randomness
 		u := e.lru.Load()
 		if u < t {
 			k = key
+			v = e
 			t = u
 		}
 		i++
@@ -299,9 +310,8 @@ func (c *tsCache) evictLocked() int {
 			break
 		}
 	}
-	e := c.cache[k]
 	n := 0
-	for _, cached := range e.secRows {
+	for _, cached := range v.secRows {
 		n += len(cached.rows)
 	}
 	delete(c.cache, k)

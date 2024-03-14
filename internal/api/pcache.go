@@ -30,7 +30,7 @@ type pointsCache struct {
 	now               func() time.Time
 }
 
-type pointsLoadFunc func(ctx context.Context, pq *preparedPointsQuery, pointsQuery pointQuery) ([]pSelectRow, error)
+type pointsLoadFunc func(ctx context.Context, pq *preparedPointsQuery, lod lodInfo) ([]pSelectRow, error)
 
 type timeRange struct {
 	from int64
@@ -55,15 +55,15 @@ func newPointsCache(approxMaxSize int, utcOffset int64, loader pointsLoadFunc, n
 	}
 }
 
-func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, pointQuery pointQuery, avoidCache bool) ([]pSelectRow, error) {
+func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([]pSelectRow, error) {
 	if !avoidCache {
-		rows, ok := c.loadCached(key, pointQuery.fromSec, pointQuery.toSec)
+		rows, ok := c.loadCached(key, lod.fromSec, lod.toSec)
 		if ok {
 			return rows, nil
 		}
 	}
 	loadedAtNano := c.now().UnixNano()
-	rows, err := c.loader(ctx, pq, pointQuery)
+	rows, err := c.loader(ctx, pq, lod)
 	if err != nil {
 		return rows, err
 	}
@@ -89,7 +89,7 @@ func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQue
 
 	e.lru.Store(c.now().UnixNano())
 	e.loadedAtNano = loadedAtNano
-	tr := timeRange{from: pointQuery.fromSec, to: pointQuery.toSec}
+	tr := timeRange{from: lod.fromSec, to: lod.toSec}
 	if _, ok := e.rows[tr]; !ok {
 		c.size++
 	}

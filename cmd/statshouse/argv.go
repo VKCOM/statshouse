@@ -53,6 +53,7 @@ var (
 		promRemoteMod                bool
 		hardwareMetricScrapeInterval time.Duration
 		hardwareMetricScrapeDisable  bool
+		envFilePath                  string
 
 		configAggregator aggregator.ConfigAggregator
 
@@ -135,6 +136,7 @@ func argvAddAgentFlags(legacyVerb bool) {
 
 	flag.DurationVar(&argv.hardwareMetricScrapeInterval, "hardware-metric-scrape-interval", time.Second, "how often hardware metrics will be scraped")
 	flag.BoolVar(&argv.hardwareMetricScrapeDisable, "hardware-metric-scrape-disable", false, "disable hardware metric scraping")
+	flag.StringVar(&argv.envFilePath, "env-file-path", "", "statshouse environment file path")
 }
 
 func argvAddAggregatorFlags(legacyVerb bool) {
@@ -166,7 +168,7 @@ func argvAddAggregatorFlags(legacyVerb bool) {
 	flag.StringVar(&argv.configAggregator.ExternalPort, "agg-external-port", aggregator.DefaultConfigAggregator().ExternalPort, "external port for aggregator autoconfiguration if different from port set in agg-addr")
 	flag.IntVar(&argv.configAggregator.PreviousNumShards, "previous-shards", aggregator.DefaultConfigAggregator().PreviousNumShards, "Previous number of shard*replicas in cluster. During transition, clients with previous configuration are also allowed to send data.")
 
-	flag.Uint64Var(&argv.configAggregator.MetadataActorID, "metadata-actor-id", aggregator.DefaultConfigAggregator().MetadataActorID, "")
+	flag.Int64Var(&argv.configAggregator.MetadataActorID, "metadata-actor-id", aggregator.DefaultConfigAggregator().MetadataActorID, "")
 	flag.StringVar(&argv.configAggregator.MetadataAddr, "metadata-addr", aggregator.DefaultConfigAggregator().MetadataAddr, "")
 	flag.StringVar(&argv.configAggregator.MetadataNet, "metadata-net", aggregator.DefaultConfigAggregator().MetadataNet, "")
 

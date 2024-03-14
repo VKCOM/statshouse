@@ -48,16 +48,16 @@ func (w *worker) wait() {
 	w.mapper.Stop()
 }
 
-func (w *worker) HandleMetrics(m *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+func (w *worker) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) {
 	if w.logPackets != nil {
-		w.logPackets("Parsed metric: %s\n", m.String())
+		w.logPackets("Parsed metric: %s\n", args.MetricBytes.String())
 	}
-	h, done = w.mapper.Map(m, w.metricStorage.GetMetaMetricByNameBytes(m.Name), cb)
+	h, done = w.mapper.Map(args, w.metricStorage.GetMetaMetricByNameBytes(args.MetricBytes.Name))
 	if done {
 		if w.logPackets != nil {
-			w.printMetric("cached", *m, h)
+			w.printMetric("cached", *args.MetricBytes, h)
 		}
-		w.sh2.ApplyMetric(*m, h, format.TagValueIDSrcIngestionStatusOKCached)
+		w.sh2.ApplyMetric(*args.MetricBytes, h, format.TagValueIDSrcIngestionStatusOKCached)
 	}
 	return h, done
 }

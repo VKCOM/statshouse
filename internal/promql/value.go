@@ -16,9 +16,9 @@ import (
 	"strconv"
 
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
-	"github.com/vkcom/statshouse/internal/receiver/prometheus"
 )
 
 type TimeSeries struct {
@@ -32,11 +32,11 @@ type Series struct {
 }
 
 type SeriesData struct {
-	Values  *[]float64
-	MaxHost []int32
-	Tags    SeriesTags
-	Offset  int64
-	What    int
+	Values     *[]float64
+	MinMaxHost [2][]int32 // "min" at [0], "max" at [1]
+	Tags       SeriesTags
+	Offset     int64
+	What       int
 }
 
 type SeriesMeta struct {
@@ -119,12 +119,12 @@ func (sr *Series) appendSome(src Series, xs ...int) {
 	}
 }
 
-func (ev *evaluator) groupMaxHost(ds []SeriesData) []int32 {
+func (ev *evaluator) groupMinMaxHost(ds []SeriesData, x int) []int32 {
 	if len(ds) == 0 {
 		return nil
 	}
 	if len(ds) == 1 {
-		return ds[0].MaxHost
+		return ds[0].MinMaxHost[x]
 	}
 	var (
 		i   int
@@ -132,7 +132,7 @@ func (ev *evaluator) groupMaxHost(ds []SeriesData) []int32 {
 		res []int32
 	)
 	for ; i < len(ds); i++ {
-		if len(ds[i].MaxHost) != 0 {
+		if len(ds[i].MinMaxHost[x]) != 0 {
 			res = make([]int32, 0, len(t))
 			break
 		}
@@ -142,13 +142,13 @@ func (ev *evaluator) groupMaxHost(ds []SeriesData) []int32 {
 	}
 	for j := 0; j < len(t); j++ {
 		var (
-			v = ds[i].MaxHost[j]
+			v = ds[i].MinMaxHost[x][j]
 			k = i + 1
 		)
 		for ; k < len(ds); k++ {
-			if k < len(ds) && ds[k].MaxHost[j] != 0 && ds[k].MaxHost[j] != v {
+			if k < len(ds) && ds[k].MinMaxHost[x][j] != 0 && ds[k].MinMaxHost[x][j] != v {
 				if v == 0 {
-					v = ds[k].MaxHost[j]
+					v = ds[k].MinMaxHost[x][j]
 				} else {
 					v = 0
 					break
@@ -224,7 +224,7 @@ func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
 						bs = append(bs, bucket{x, float32(v)})
 					}
 				} else {
-					bs = append(bs, bucket{x, prometheus.LexDecode(t.Value)})
+					bs = append(bs, bucket{x, statshouse.LexDecode(t.Value)})
 				}
 			}
 		}
@@ -290,6 +290,8 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 	}
 	var v string
 	switch tg.ID {
+	case LabelWhat:
+		v = DigestWhat(tg.Value).String()
 	case LabelShard:
 		v = strconv.FormatUint(uint64(tg.Value), 10)
 	case LabelOffset:
@@ -303,7 +305,7 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 				break
 			}
 		}
-	case LabelMaxHost:
+	case LabelMinHost, LabelMaxHost:
 		v = ev.h.GetHostName(tg.Value)
 	default:
 		v = ev.h.GetTagValue(TagValueQuery{
@@ -313,6 +315,10 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 			TagValueID: tg.Value,
 		})
 	}
+	tg.setSValue(v)
+}
+
+func (tg *SeriesTag) setSValue(v string) {
 	tg.SValue = v
 	tg.stringified = true
 }
@@ -429,8 +435,8 @@ func (tgs *SeriesTags) cloneSome(ids ...string) SeriesTags {
 }
 
 func (d *SeriesData) GetSMaxHosts(h Handler) []string {
-	res := make([]string, len(d.MaxHost))
-	for j, id := range d.MaxHost {
+	res := make([]string, len(d.MinMaxHost[1]))
+	for j, id := range d.MinMaxHost[1] {
 		if id != 0 {
 			res[j] = h.GetHostName(id)
 		}
@@ -438,10 +444,10 @@ func (d *SeriesData) GetSMaxHosts(h Handler) []string {
 	return res
 }
 
-func (sr *Series) labelMaxHost(ev *evaluator) error {
+func (sr *Series) labelMinMaxHost(ev *evaluator, x int, tagID string) error {
 	res := make([]SeriesData, 0)
 	for _, d := range sr.Data {
-		tail := d.labelMaxHost(ev)
+		tail := d.labelMinMaxHost(ev, x, tagID)
 		if len(res)+len(tail) > maxSeriesRows {
 			return fmt.Errorf("number of resulting series exceeds %d", maxSeriesRows)
 		}
@@ -453,18 +459,18 @@ func (sr *Series) labelMaxHost(ev *evaluator) error {
 	return nil
 }
 
-func (d *SeriesData) labelMaxHost(ev *evaluator) []SeriesData {
-	if len(d.MaxHost) == 0 {
+func (d *SeriesData) labelMinMaxHost(ev *evaluator, x int, tagID string) []SeriesData {
+	if len(d.MinMaxHost[x]) == 0 {
 		return []SeriesData{*d}
 	}
 	m := map[int32]int{}
-	for i, maxHost := range d.MaxHost {
+	for i, h := range d.MinMaxHost[x] {
 		if !math.IsNaN((*d.Values)[i]) {
-			m[maxHost] = i
+			m[h] = i
 		}
 	}
 	res := make([]SeriesData, 0, len(m))
-	for maxHost := range m {
+	for h := range m {
 		data := SeriesData{
 			Values: ev.alloc(),
 			Tags:   d.Tags.clone(),
@@ -472,24 +478,24 @@ func (d *SeriesData) labelMaxHost(ev *evaluator) []SeriesData {
 			What:   d.What,
 		}
 		for i, v := range *d.Values {
-			if d.MaxHost[i] == maxHost {
+			if d.MinMaxHost[x][i] == h {
 				(*data.Values)[i] = v
 			} else {
 				(*data.Values)[i] = NilValue
 			}
 		}
 		data.Tags.add(&SeriesTag{
-			ID:    LabelMaxHost,
-			Value: maxHost,
+			ID:    tagID,
+			Value: h,
 		}, nil)
 		res = append(res, data)
 	}
 	return res
 }
 
-func (sr *Series) filterMaxHost(ev *evaluator, matchers []*labels.Matcher) {
+func (sr *Series) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.Matcher) {
 	for i := 0; i < len(sr.Data); {
-		if sr.Data[i].filterMaxHost(ev, matchers) != 0 {
+		if sr.Data[i].filterMinMaxHost(ev, x, matchers) != 0 {
 			i++
 		} else {
 			sr.Data = append(sr.Data[0:i], sr.Data[i+1:]...)
@@ -506,9 +512,9 @@ func (sr *Series) freeSome(ev *evaluator, xs ...int) {
 	ev.freeSome(sr.Data, xs...)
 }
 
-func (d *SeriesData) filterMaxHost(ev *evaluator, matchers []*labels.Matcher) int {
+func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.Matcher) int {
 	n := 0
-	for i, maxHost := range d.MaxHost {
+	for i, maxHost := range d.MinMaxHost[x] {
 		discard := false
 		maxHostname := ev.h.GetHostName(maxHost)
 		for _, matcher := range matchers {
@@ -519,7 +525,7 @@ func (d *SeriesData) filterMaxHost(ev *evaluator, matchers []*labels.Matcher) in
 		}
 		if discard {
 			(*d.Values)[i] = NilValue
-			d.MaxHost[i] = 0
+			d.MinMaxHost[x][i] = 0
 		} else if !math.IsNaN((*d.Values)[i]) {
 			n++
 		}

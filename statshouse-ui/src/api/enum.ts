@@ -40,6 +40,8 @@ export const GET_PARAMS = {
   metricEventFrom: 'ef',
   metricEventBy: 'eb',
   metricEventHide: 'eh',
+  viewTotalLine: 'vtl',
+  viewFilledGraph: 'vfg',
   dataFormat: 'df',
   plotPrefix: 't',
   dashboardID: 'id',
@@ -66,6 +68,7 @@ export const GET_PARAMS = {
   variableSource: 's',
   variableGroupBy: 'g',
   variableNegative: 'nv',
+  priority: 'priority',
 } as const;
 export type GetParams = Enum<typeof GET_PARAMS>;
 

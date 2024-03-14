@@ -1,8 +1,10 @@
 # StatsHouse
 
-StatsHouse is a highly-available, scalable, multi-tenant monitoring system.
+StatsHouse is a highly available, scalable, multitenant monitoring system.
 
-## Why would I use StatsHouse?
+Visit the [StatsHouse documentation website](https://vkcom.github.io/statshouse/).
+
+## Why should I use StatsHouse?
 
 **StatsHouse is used in production at big scale**  
 StatsHouse is the main monitoring system of [vk.com](https://vk.com). As of
@@ -43,6 +45,9 @@ cases, StatsHouse provides a Grafana data source plugin as well.
 ![Dashboard](./docs/media/dash.webp "Dashboard")
 
 ## Documentation
+
+The [StatsHouse documentation website](https://vkcom.github.io/statshouse/) is currently in draft form,
+so please check our earlier documents as well:
 
 - [Quick start guide](./docs/quickstart.md)
 - [Internals](./docs/internals.ru.md) (in Russian)

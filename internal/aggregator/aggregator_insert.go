@@ -402,7 +402,7 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 	remainingBudget += int64(config.InsertBudget * numContributors) // fixed part + longterm part
 	// Budget is per contributor, so if they come in 1% groups, total size will approx. fit
 	// Also if 2x contributors come to spare, budget is also 2x
-	sampler.Run(remainingBudget, 1, &samplerStat)
+	sampler.Run(remainingBudget, &samplerStat)
 	key1 := int32(format.TagValueIDConveyorRecent)
 	if historic {
 		key1 = format.TagValueIDConveyorHistoric
@@ -424,6 +424,17 @@ func (a *Aggregator) RowDataMarshalAppendPositions(b *aggregatorBucket, rnd *ran
 		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingFactor, [16]int32{0, 0, 0, 0, k, format.TagValueIDAggSamplingFactorReasonInsertSize}, a.aggregatorHost, a.shardKey, a.replicaKey)
 		res = appendBadge(res, key, data_model.ItemValue{Counter: 1, ValueSum: sf}, metricCache, usedTimestamps)
 		res = appendSimpleValueStat(res, key, sf, 1, a.aggregatorHost, metricCache, usedTimestamps)
+	}
+	// report budget used
+	budgetKey := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingBudget, [16]int32{0, key1}, a.aggregatorHost, a.shardKey, a.replicaKey)
+	budgetItem := data_model.MultiItem{}
+	budgetItem.Tail.Value.AddValue(float64(remainingBudget))
+	insertItem(budgetKey, &budgetItem, 1)
+	for k, v := range samplerStat.Budget {
+		key := data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingGroupBudget, [16]int32{0, key1, k[0], k[1]}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		item := data_model.MultiItem{}
+		item.Tail.Value.AddValue(v)
+		insertItem(key, &item, 1)
 	}
 	res = appendSimpleValueStat(res, data_model.AggKey(b.time, format.BuiltinMetricIDAggSamplingMetricCount, [16]int32{0, key1},
 		a.aggregatorHost, a.shardKey, a.replicaKey), float64(len(samplerStat.Metrics)), 1, a.aggregatorHost, metricCache, usedTimestamps)

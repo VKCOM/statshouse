@@ -113,7 +113,9 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
   }, []);
 
   useEffect(() => {
-    setPreviewVisibility(indexPlot, visible > 0);
+    setTimeout(() => {
+      setPreviewVisibility(indexPlot, visible > 0);
+    }, 100);
   }, [indexPlot, tabNum, visible]);
 
   useEffect(() => {

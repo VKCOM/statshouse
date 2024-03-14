@@ -93,7 +93,7 @@ func SpareShardReplica(shardReplica int, timestamp uint32) int {
 // All shard aggregators must be on the same network
 func MakeAgent(network string, storageDir string, aesPwd string, config Config, hostName string, componentTag int32, metricStorage format.MetaStorageInterface, logF func(format string, args ...interface{}),
 	beforeFlushBucketFunc func(s *Agent, now time.Time), getConfigResult *tlstatshouse.GetConfigResult) (*Agent, error) {
-	rpcClient := rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF), rpc.ClientWithPongTimeout(data_model.ClientRPCPongTimeout))
+	rpcClient := rpc.NewClient(rpc.ClientWithCryptoKey(aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()), rpc.ClientWithLogf(logF))
 	rnd := rand.New()
 	allArgs := strings.Join(os.Args[1:], " ")
 	argsHash := sha1.Sum([]byte(allArgs))
@@ -378,6 +378,14 @@ func (s *Agent) ApplyMetric(m tlstatshouse.MetricBytes, h data_model.MappedMetri
 			Metric: format.BuiltinMetricIDIngestionStatus,
 			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameNotFound}, // tag ID not known
 		}, h.NotFoundTagName, 1, 0, nil)
+	}
+	if h.FoundDraftTagName != nil { // this is correct, can be set, but empty
+		// FoundDraftTagName is validated when discovered
+		// This is warning, so written independent of ingestion status
+		s.AddCounterHostStringBytes(data_model.Key{
+			Metric: format.BuiltinMetricIDIngestionStatus,
+			Keys:   [format.MaxTags]int32{h.Key.Keys[0], h.Key.Metric, format.TagValueIDSrcIngestionStatusWarnMapTagNameFoundDraft}, // tag ID is known, but draft
+		}, h.FoundDraftTagName, 1, 0, nil)
 	}
 	if h.TagSetTwiceKey != 0 {
 		s.AddCounter(data_model.Key{

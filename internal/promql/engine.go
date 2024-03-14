@@ -15,22 +15,26 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
-	"github.com/vkcom/statshouse/internal/receiver/prometheus"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
+	"golang.org/x/sync/errgroup"
 	"pgregory.net/rand"
 )
 
 const (
-	labelWhat    = "__what__"
+	LabelWhat    = "__what__"
 	labelBy      = "__by__"
 	labelBind    = "__bind__"
 	LabelShard   = "__shard__"
 	LabelOffset  = "__offset__"
+	LabelMinHost = "__minhost__"
 	LabelMaxHost = "__maxhost__"
 
 	maxSeriesRows = 10_000_000
@@ -47,18 +51,23 @@ type Query struct {
 
 // NB! If you add an option make sure that default Options{} corresponds to Prometheus behavior.
 type Options struct {
-	Version             string
-	AvoidCache          bool
-	TimeNow             int64
-	StepAuto            bool
-	ExpandToLODBoundary bool
-	TagOffset           bool
-	TagTotal            bool
-	ExplicitGrouping    bool
-	MaxHost             bool
-	Offsets             []int64
-	Rand                *rand.Rand
-	Vars                map[string]Variable
+	Version          string
+	AvoidCache       bool
+	TimeNow          int64
+	ScreenWidth      int64
+	Collapse         bool // aka "point" query
+	Extend           bool
+	TagWhat          bool
+	TagOffset        bool
+	TagTotal         bool
+	ExplicitGrouping bool
+	MinHost          bool
+	MaxHost          bool
+	QuerySequential  bool
+	Offsets          []int64
+	Limit            int
+	Rand             *rand.Rand
+	Vars             map[string]Variable
 
 	ExprQueriesSingleMetricCallback MetricMetaValueCallback
 }
@@ -102,8 +111,11 @@ type evaluator struct {
 	cancellationList []func()
 
 	// diagnostics
-	trace *[]string
-	debug bool
+	trace              *[]string
+	debug              bool
+	timeStart          time.Time
+	timeQueryParseEnd  time.Time
+	dataAccessDuration time.Duration
 }
 
 type seriesQueryX struct { // SeriesQuery eXtended
@@ -135,27 +147,17 @@ func NewEngine(h Handler, loc *time.Location) Engine {
 	return Engine{h, loc}
 }
 
-func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel func(), err error) {
-	if qry.Options.TimeNow == 0 {
-		// fix the time "now"
-		qry.Options.TimeNow = time.Now().Unix()
-	}
-	if qry.Options.TimeNow < qry.Start {
-		// the future is unknown
-		return &TimeSeries{Time: []int64{}}, func() {}, nil
-	}
-	// register panic handler
-	var ev evaluator
-	defer func() {
-		if r := recover(); r != nil {
-			err = Error{what: r, panic: true}
-			ev.cancel()
-		}
-	}()
+func (ng Engine) Exec(ctx context.Context, qry Query) (parser.Value, func(), error) {
 	// parse query
-	ev, err = ng.newEvaluator(ctx, qry)
+	ev, err := ng.newEvaluator(ctx, qry)
 	if err != nil {
 		return nil, nil, Error{what: err}
+	}
+	if ev.t.empty() {
+		return &TimeSeries{Time: []int64{}}, func() {}, nil
+	}
+	if e, ok := ev.ast.(*parser.StringLiteral); ok {
+		return String{T: qry.Start, V: e.Val}, func() {}, nil
 	}
 	// evaluate query
 	if ev.trace != nil {
@@ -164,35 +166,45 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (res parser.Value, cancel 
 			ev.tracef("requested from %d to %d, timescale from %d to %d", qry.Start, qry.End, ev.t.Time[ev.t.StartX], ev.t.Time[len(ev.t.Time)-1])
 		}
 	}
-	switch e := ev.ast.(type) {
-	case *parser.StringLiteral:
-		return String{T: qry.Start, V: e.Val}, func() {}, nil
-	default:
-		var res TimeSeries
-		res, err = ev.exec()
-		if err != nil {
+	var ok bool
+	defer func() {
+		if !ok {
 			ev.cancel()
-			return nil, nil, Error{what: err}
 		}
-		// resolve int32 tag values into strings
-		for _, dat := range res.Series.Data {
-			for _, tg := range dat.Tags.ID2Tag {
-				tg.stringify(&ev)
-			}
-		}
-		if ev.trace != nil {
-			ev.tracef(ev.ast.String())
-			ev.tracef("buffers alloc #%d, reuse #%d, %s", len(ev.allocMap)+len(ev.freeList), len(ev.reuseList), res.String())
-		}
-		return &res, ev.cancel, nil
+	}()
+	res, err := ev.exec()
+	if err != nil {
+		return nil, nil, Error{what: err}
 	}
+	// resolve int32 tag values into strings
+	for _, dat := range res.Series.Data {
+		for _, tg := range dat.Tags.ID2Tag {
+			tg.stringify(&ev)
+		}
+	}
+	if ev.trace != nil {
+		ev.tracef("buffers alloc #%d, reuse #%d, %s", len(ev.allocMap)+len(ev.freeList), len(ev.reuseList), res.String())
+	}
+	ev.reportStat(qry, time.Now())
+	ok = true // prevents deffered "cancel"
+	return &res, ev.cancel, nil
 }
 
 func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error) {
+	timeStart := time.Now()
+	if qry.Options.TimeNow == 0 {
+		// fix the time "now"
+		qry.Options.TimeNow = timeStart.Unix()
+	}
+	if qry.Options.TimeNow < qry.Start {
+		// the future is unknown
+		return evaluator{}, nil
+	}
 	ev := evaluator{
-		Engine: ng,
-		ctx:    ctx,
-		opt:    qry.Options,
+		Engine:    ng,
+		ctx:       ctx,
+		opt:       qry.Options,
+		timeStart: timeStart,
 	}
 	// init diagnostics
 	if v, ok := ctx.Value(traceContextKey).(*traceContext); ok {
@@ -241,11 +253,8 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	}
 	// init timescale
 	qry.Start -= maxRange // widen time range to accommodate range selectors
-	if qry.Step <= 0 {    // instant query case
-		qry.Step = 1
-	}
 	ev.t, err = ng.h.GetTimescale(qry, metricOffset)
-	if err != nil {
+	if err != nil || ev.t.empty() {
 		return evaluator{}, err
 	}
 	// evaluate reduction rules
@@ -285,6 +294,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	// final touch
 	ev.tags = make(map[*format.MetricMetaValue][]map[int64]map[int32]string)
 	ev.stop = make(map[*format.MetricMetaValue]map[int64][]string)
+	ev.timeQueryParseEnd = time.Now()
 	return ev, nil
 }
 
@@ -341,10 +351,9 @@ func (ev *evaluator) bindVariables(sel *parser.VectorSelector) error {
 }
 
 func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node, metricOffset map[*format.MetricMetaValue]int64, offset int64) error {
+	sel.MinHost = ev.opt.MinHost
+	sel.MaxHost = ev.opt.MaxHost
 	for _, matcher := range sel.LabelMatchers {
-		if len(sel.MatchingMetrics) != 0 && len(sel.What) != 0 {
-			break
-		}
 		switch matcher.Name {
 		case labels.MetricName:
 			metrics, names, err := ev.h.MatchMetrics(ev.ctx, matcher)
@@ -377,18 +386,20 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 				sel.MatchingMetrics = append(sel.MatchingMetrics, m)
 				sel.MatchingNames = append(sel.MatchingNames, names[i])
 			}
-		case labelWhat:
+		case LabelWhat:
 			if matcher.Type != labels.MatchEqual {
-				return fmt.Errorf("%s supports only strict equality", labelWhat)
+				return fmt.Errorf("%s supports only strict equality", LabelWhat)
 			}
 			for _, what := range strings.Split(matcher.Value, ",") {
 				switch what {
 				case "":
 					// ignore empty "what" value
+				case MinHost:
+					sel.MinHost = true
 				case MaxHost:
 					sel.MaxHost = true
 				default:
-					sel.What = what
+					sel.Whats = append(sel.Whats, what)
 				}
 			}
 		case labelBy:
@@ -400,8 +411,12 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 			} else {
 				sel.GroupBy = make([]string, 0)
 			}
+		case LabelMinHost:
+			sel.MinHost = true
+			sel.MinHostMatchers = append(sel.MinHostMatchers, matcher)
 		case LabelMaxHost:
 			sel.MaxHost = true
+			sel.MaxHostMatchers = append(sel.MaxHostMatchers, matcher)
 		}
 	}
 	for i := len(path); len(sel.MetricKindHint) == 0 && i != 0; i-- {
@@ -415,9 +430,14 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 			}
 		}
 	}
-	for i := len(path); !sel.MaxHost && i != 0; i-- {
-		if e, ok := path[i-1].(*parser.Call); ok && e.Func.Name == "label_maxhost" {
-			sel.MaxHost = true
+	for i := len(path); !(sel.MinHost && sel.MaxHost) && i != 0; i-- {
+		if e, ok := path[i-1].(*parser.Call); ok {
+			switch e.Func.Name {
+			case "label_minhost":
+				sel.MinHost = true
+			case "label_maxhost":
+				sel.MaxHost = true
+			}
 		}
 	}
 	return nil
@@ -432,22 +452,39 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 	if err != nil {
 		return TimeSeries{}, err
 	}
-	ev.dropEmptySeries(srs)
+	ev.stableRemoveEmptySeries(srs)
 	res := TimeSeries{Time: ev.t.Time[ev.t.StartX:]}
+	limit := ev.opt.Limit
+	if limit == 0 {
+		limit = math.MaxInt
+	} else if limit < 0 {
+		limit = -limit
+	}
 	for _, sr := range srs {
-		// trim time outside [start, end)
-		for i := range sr.Data {
-			vs := (*sr.Data[i].Values)[ev.t.StartX:]
-			sr.Data[i].Values = &vs
-			if len(sr.Data[i].MaxHost) != 0 {
-				sr.Data[i].MaxHost = sr.Data[i].MaxHost[ev.t.StartX:]
-			}
-		}
-		// get resulting meta from first time shift
 		if len(res.Series.Data) == 0 {
+			// get resulting meta from first time shift
 			res.Series.Meta = sr.Meta
 		}
-		res.Series.appendAll(sr)
+		i := 0
+		end := len(sr.Data)
+		if limit < len(sr.Data) {
+			if ev.opt.Limit < 0 {
+				i = len(sr.Data) - limit
+			} else {
+				end = limit
+			}
+		}
+		for ; i < end; i++ {
+			// trim time outside [StartX:]
+			vs := (*sr.Data[i].Values)[ev.t.StartX:]
+			sr.Data[i].Values = &vs
+			for j := range sr.Data[i].MinMaxHost {
+				if len(sr.Data[i].MinMaxHost[j]) != 0 {
+					sr.Data[i].MinMaxHost[j] = sr.Data[i].MinMaxHost[j][ev.t.StartX:]
+				}
+			}
+			res.Series.appendSome(sr, i)
+		}
 	}
 	return res, nil
 }
@@ -542,7 +579,7 @@ func (ev *evaluator) eval(expr parser.Expr) (res []Series, err error) {
 	case *parser.NumberLiteral:
 		res = make([]Series, len(ev.opt.Offsets))
 		for i := range res {
-			res[i].Data = []SeriesData{SeriesData{Values: ev.alloc()}}
+			res[i].Data = []SeriesData{{Values: ev.alloc()}}
 			s := *res[i].Data[0].Values
 			for j := range s {
 				s[j] = e.Val
@@ -828,23 +865,28 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 	return res, nil
 }
 
-func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
+func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err error) {
 	res := make([]Series, len(ev.opt.Offsets))
-	for i, metric := range sel.MatchingMetrics {
-		if ev.trace != nil && ev.debug {
-			ev.tracef("#%d request %s: %s", i, metric.Name, sel.What)
+	run := func(j int, mu *sync.Mutex) error {
+		var locked bool
+		if mu != nil {
+			mu.Lock()
+			locked = true
+			defer func() {
+				if locked {
+					mu.Unlock()
+				}
+			}()
 		}
-		var matchers []*labels.Matcher
-		for _, v := range sel.LabelMatchers {
-			if v.Name == LabelMaxHost {
-				matchers = append(matchers, v)
+		offset := ev.opt.Offsets[j]
+		for i, metric := range sel.MatchingMetrics {
+			if ev.trace != nil && ev.debug {
+				ev.tracef("#%d request %s: %s", i, metric.Name, sel.What)
 			}
-		}
-		for j, offset := range ev.opt.Offsets {
 			for _, selOffset := range sel.Offsets {
-				qry, err := ev.buildSeriesQuery(ev.ctx, sel, metric, sel.What, selOffset+offset)
+				qry, err := ev.buildSeriesQuery(ev.ctx, sel, metric, sel.Whats, selOffset+offset)
 				if err != nil {
-					return nil, err
+					return err
 				}
 				if qry.empty() {
 					if ev.trace != nil && ev.debug {
@@ -852,16 +894,26 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
 					}
 					continue
 				}
+				if mu != nil {
+					mu.Unlock()
+					locked = false
+				}
 				sr, cancel, err := ev.h.QuerySeries(ev.ctx, &qry.SeriesQuery)
 				if err != nil {
-					return nil, err
+					return err
+				}
+				if mu != nil {
+					mu.Lock()
+					locked = true
 				}
 				ev.cancellationList = append(ev.cancellationList, cancel)
 				if ev.trace != nil && ev.debug {
 					ev.tracef("#%d series count %d", i, len(sr.Data))
 				}
-				if len(matchers) != 0 {
-					sr.filterMaxHost(ev, matchers)
+				for k, s := range [2][]*labels.Matcher{sel.MinHostMatchers, sel.MaxHostMatchers} {
+					if len(s) != 0 {
+						sr.filterMinMaxHost(ev, k, s)
+					}
 				}
 				if qry.prefixSum {
 					sr = ev.funcPrefixSum(sr)
@@ -883,7 +935,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
 				if qry.histogram.restore {
 					sr, err = ev.restoreHistogram(sr, qry)
 					if err != nil {
-						return nil, err
+						return err
 					}
 				}
 				if len(res[j].Data) == 0 {
@@ -892,7 +944,35 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) ([]Series, error) {
 				res[j].appendAll(sr)
 			}
 		}
+		return nil // success
 	}
+	timeStart := time.Now()
+	if ev.opt.QuerySequential || len(res) == 1 {
+		for i := 0; i < len(res); i++ {
+			err = run(i, nil)
+			if err != nil {
+				return nil, err
+			}
+		}
+	} else {
+		var mu sync.Mutex
+		for i := 0; i < len(res); {
+			// Limit the number of parallel queries to the number of time shifts
+			// available in UI (currently 7) plus always present zero offset.
+			var g errgroup.Group
+			for n := 8; n != 0 && i < len(res); i, n = i+1, n-1 {
+				ii := i
+				g.Go(func() error {
+					return run(ii, &mu)
+				})
+			}
+			err = g.Wait()
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	ev.dataAccessDuration += time.Since(timeStart)
 	return res, nil
 }
 
@@ -923,81 +1003,85 @@ func (ev *evaluator) restoreHistogram(sr Series, qry seriesQueryX) (Series, erro
 	return res, nil
 }
 
-func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSelector, metric *format.MetricMetaValue, selWhat string, offset int64) (seriesQueryX, error) {
-	// what
+func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSelector, metric *format.MetricMetaValue, selWhats []string, offset int64) (seriesQueryX, error) {
+	// whats
 	var (
-		what      DigestWhat
+		whats     []DigestWhat
 		prefixSum bool
 	)
-	switch selWhat {
-	case Count:
-		what = DigestCount
-	case CountSec:
-		what = DigestCountSec
-	case CountRaw:
-		what = DigestCountRaw
-	case Min:
-		what = DigestMin
-	case Max:
-		what = DigestMax
-	case Sum:
-		what = DigestSum
-	case SumSec:
-		what = DigestSumSec
-	case SumRaw:
-		what = DigestSumRaw
-	case Avg:
-		what = DigestAvg
-	case StdDev:
-		what = DigestStdDev
-	case StdVar:
-		what = DigestStdVar
-	case P0_1:
-		what = DigestP0_1
-	case P1:
-		what = DigestP1
-	case P5:
-		what = DigestP5
-	case P10:
-		what = DigestP10
-	case P25:
-		what = DigestP25
-	case P50:
-		what = DigestP50
-	case P75:
-		what = DigestP75
-	case P90:
-		what = DigestP90
-	case P95:
-		what = DigestP95
-	case P99:
-		what = DigestP99
-	case P999:
-		what = DigestP999
-	case Cardinality:
-		what = DigestCardinality
-	case CardinalitySec:
-		what = DigestCardinalitySec
-	case CardinalityRaw:
-		what = DigestCardinalityRaw
-	case Unique:
-		what = DigestUnique
-	case UniqueSec:
-		what = DigestUniqueSec
-	case "":
-		if metric.Kind == format.MetricKindCounter || sel.MetricKindHint == format.MetricKindCounter {
+	for _, selWhat := range selWhats {
+		var what DigestWhat
+		switch selWhat {
+		case Count:
+			what = DigestCount
+		case CountSec:
+			what = DigestCountSec
+		case CountRaw:
 			what = DigestCountRaw
-			prefixSum = true
-		} else {
+		case Min:
+			what = DigestMin
+		case Max:
+			what = DigestMax
+		case Sum:
+			what = DigestSum
+		case SumSec:
+			what = DigestSumSec
+		case SumRaw:
+			what = DigestSumRaw
+		case Avg:
 			what = DigestAvg
+		case StdDev:
+			what = DigestStdDev
+		case StdVar:
+			what = DigestStdVar
+		case P0_1:
+			what = DigestP0_1
+		case P1:
+			what = DigestP1
+		case P5:
+			what = DigestP5
+		case P10:
+			what = DigestP10
+		case P25:
+			what = DigestP25
+		case P50:
+			what = DigestP50
+		case P75:
+			what = DigestP75
+		case P90:
+			what = DigestP90
+		case P95:
+			what = DigestP95
+		case P99:
+			what = DigestP99
+		case P999:
+			what = DigestP999
+		case Cardinality:
+			what = DigestCardinality
+		case CardinalitySec:
+			what = DigestCardinalitySec
+		case CardinalityRaw:
+			what = DigestCardinalityRaw
+		case Unique:
+			what = DigestUnique
+		case UniqueSec:
+			what = DigestUniqueSec
+		case "":
+			if metric.Kind == format.MetricKindCounter || sel.MetricKindHint == format.MetricKindCounter {
+				what = DigestCountRaw
+				prefixSum = true
+			} else {
+				what = DigestAvg
+			}
+		default:
+			return seriesQueryX{}, fmt.Errorf("unrecognized %s value %q", LabelWhat, selWhat)
 		}
-	default:
-		return seriesQueryX{}, fmt.Errorf("unrecognized %s value %q", labelWhat, sel.What)
+		whats = append(whats, what)
 	}
 	// grouping
 	var (
 		groupBy    []string
-		metricH    = what == DigestCount && metric.Name2Tag[format.LETagName].Raw
+		metricH    = len(whats) == 1 && whats[0] == DigestCount && metric.Name2Tag[format.LETagName].Raw
 		histogramQ histogramQuery
 		addGroupBy = func(t format.MetricMetaTag) {
 			groupBy = append(groupBy, format.TagID(t.Index))
@@ -1108,7 +1192,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
 					histogramQ.filter = true
 					histogramQ.eq = true
-					histogramQ.le = prometheus.LexDecode(id)
+					histogramQ.le = statshouse.LexDecode(id)
 				} else if filterIn[i] != nil {
 					filterIn[i][id] = matcher.Value
 				} else {
@@ -1125,7 +1209,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
 					histogramQ.filter = true
 					histogramQ.eq = false
-					histogramQ.le = prometheus.LexDecode(id)
+					histogramQ.le = statshouse.LexDecode(id)
 				} else if filterOut[i] != nil {
 					filterOut[i][id] = matcher.Value
 				} else {
@@ -1186,7 +1270,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	return seriesQueryX{
 			SeriesQuery{
 				Metric:     metric,
-				What:       what,
+				Whats:      whats,
 				Timescale:  ev.t,
 				Offset:     offset,
 				Range:      sel.Range,
@@ -1195,7 +1279,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 				FilterOut:  filterOut,
 				SFilterIn:  sFilterIn,
 				SFilterOut: sFilterOut,
-				MaxHost:    sel.MaxHost || ev.opt.MaxHost,
+				MinMaxHost: [2]bool{sel.MinHost, sel.MaxHost},
 				Options:    ev.opt,
 			},
 			prefixSum,
@@ -1264,7 +1348,7 @@ func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tag
 	t := metric.Tags[tagX]
 	if t.Name == labels.BucketLabel && t.Raw {
 		if v, err := strconv.ParseFloat(tagV, 32); err == nil {
-			return prometheus.LexEncode(float32(v))
+			return statshouse.LexEncode(float32(v)), nil
 		}
 	}
 	return ev.h.GetTagValueID(TagValueIDQuery{
@@ -1314,8 +1398,11 @@ func (ev *evaluator) weight(ds []SeriesData) []float64 {
 		for _, lod := range ev.t.LODs {
 			for m := 0; m < lod.Len; m++ {
 				k := j + m
-				if k < ev.t.StartX {
-					continue // skip points before requested interval start
+				// do not count invisible
+				if k < ev.t.ViewStartX {
+					continue
+				} else if k >= ev.t.ViewEndX {
+					break
 				}
 				v := (*d.Values)[k]
 				if !math.IsNaN(v) {
@@ -1337,7 +1424,7 @@ func (ev *evaluator) weight(ds []SeriesData) []float64 {
 		// all series are non-decreasing, weight is a last value
 		for i, s := range ds {
 			last := -math.MaxFloat64
-			for i := len(*s.Values); i > 0; i-- {
+			for i := ev.t.ViewEndX; i > 0; i-- {
 				v := (*s.Values)[i-1]
 				if !math.IsNaN(v) {
 					last = v
@@ -1407,6 +1494,87 @@ func (ev *evaluator) cancel() {
 
 func (ev *evaluator) newWindow(v []float64, s bool) window {
 	return newWindow(ev.time(), v, ev.r, ev.t.LODs[len(ev.t.LODs)-1].Step, s)
+}
+
+func (ev *evaluator) reportStat(qry Query, timeEnd time.Time) {
+	tags := statshouse.Tags{
+		1: srvfunc.HostnameForStatshouse(),
+	}
+	r := qry.End - qry.Start
+	x := 2
+	switch {
+	// add one because UI always requests one second more
+	case r <= 1+1:
+		tags[x] = "1" // "1_second"
+	case r <= 300+1:
+		tags[x] = "2" // "5_minutes"
+	case r <= 900+1:
+		tags[x] = "3" // "15_minutes"
+	case r <= 3600+1:
+		tags[x] = "4" // "1_hour"
+	case r <= 7200+1:
+		tags[x] = "5" // "2_hours"
+	case r <= 21600+1:
+		tags[x] = "6" // "6_hours"
+	case r <= 43200+1:
+		tags[x] = "7" // "12_hours"
+	case r <= 86400+1:
+		tags[x] = "8" // "1_day"
+	case r <= 172800+1:
+		tags[x] = "9" // "2_days"
+	case r <= 259200+1:
+		tags[x] = "10" // "3_days"
+	case r <= 604800+1:
+		tags[x] = "11" // "1_week"
+	case r <= 1209600+1:
+		tags[x] = "12" // "2_weeks"
+	case r <= 2592000+1:
+		tags[x] = "13" // "1_month"
+	case r <= 7776000+1:
+		tags[x] = "14" // "3_months"
+	case r <= 15552000+1:
+		tags[x] = "15" // "6_months"
+	case r <= 31536000+1:
+		tags[x] = "16" // "1_year"
+	case r <= 63072000+1:
+		tags[x] = "17" // "2_years"
+	default:
+		tags[x] = "18"
+	}
+	n := len(ev.t.Time) - ev.t.StartX // number of points
+	x = 3
+	switch {
+	case n <= 1:
+		tags[x] = "1"
+	case n <= 1024:
+		tags[x] = "2" // "1K"
+	case n <= 2048:
+		tags[x] = "3" // "2K"
+	case n <= 3072:
+		tags[x] = "4" // "3K"
+	case n <= 4096:
+		tags[x] = "5" // "4K"
+	case n <= 5120:
+		tags[x] = "6" // "5K"
+	case n <= 6144:
+		tags[x] = "7" // "6K"
+	case n <= 7168:
+		tags[x] = "8" // "7K"
+	case n <= 8192:
+		tags[x] = "9" // "8K"
+	default:
+		tags[x] = "10"
+	}
+	x = 4
+	tags[x] = "1" // "query_parsing"
+	value := ev.timeQueryParseEnd.Sub(ev.timeStart).Seconds()
+	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
+	tags[x] = "2" // "data_access"
+	value = ev.dataAccessDuration.Seconds()
+	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
+	tags[x] = "3" // "data_processing"
+	value = (timeEnd.Sub(ev.timeQueryParseEnd) - ev.dataAccessDuration).Seconds()
+	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
 }
 
 func (qry *seriesQueryX) empty() bool {

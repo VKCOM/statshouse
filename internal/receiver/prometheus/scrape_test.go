@@ -8,6 +8,7 @@ package prometheus
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -19,13 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/stretchr/testify/require"
-
-	"context"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 )
 
 type testSyncer struct {
@@ -123,7 +121,7 @@ func getUniqString(metric *tlstatshouse.MetricBytes) string {
 	return getUniqStringRaw(s, tags)
 }
 
-func (m *metricPusherTestImpl) PushLocal(metric *tlstatshouse.MetricBytes) {
+func (m *metricPusherTestImpl) PushLocal(metric *tlstatshouse.MetricBytes, description string, scrapeInterval int) {
 	if strings.HasPrefix(string(metric.Name), "__") {
 		return
 	}

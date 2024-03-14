@@ -1,4 +1,4 @@
-FROM golang:1.19-bullseye AS build
+FROM golang:1.21-bullseye AS build
 ARG BUILD_TIME
 ARG BUILD_MACHINE
 ARG BUILD_COMMIT

@@ -10,7 +10,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"unicode"
@@ -18,10 +20,13 @@ import (
 
 	"go.uber.org/multierr"
 	"go4.org/mem"
+
+	"github.com/vkcom/statshouse-go"
 )
 
 const (
 	MaxTags      = 16
+	MaxDraftTags = 128
 	MaxStringLen = 128 // both for normal tags and _s, _h tags (string tops, hostnames)
 
 	tagValueCodePrefix      = " " // regular tag values can't start with whitespace
@@ -30,14 +35,17 @@ const (
 	TagValueIDMappingFlood  = -1
 	FairKeyIndexUnspecified = -1
 
-	EffectiveWeightOne = 128                      // metric.Weight is multiplied by this and rounded. Do not make too big or metric with weight set to 0 will disappear completely.
-	MaxEffectiveWeight = 100 * EffectiveWeightOne // do not make too high, we multiply this by sum of metric serialized length during sampling
+	EffectiveWeightOne          = 128                      // metric.Weight is multiplied by this and rounded. Do not make too big or metric with weight set to 0 will disappear completely.
+	MaxEffectiveWeight          = 100 * EffectiveWeightOne // do not make too high, we multiply this by sum of metric serialized length during sampling
+	MaxEffectiveGroupWeight     = 10_000 * EffectiveWeightOne
+	MaxEffectiveNamespaceWeight = 10_000 * EffectiveWeightOne
 
-	StringTopTagID = "_s"
-	HostTagID      = "_h"
-	ShardTagID     = "_shard_num"
-	EnvTagID       = "0"
-	LETagName      = "le"
+	StringTopTagID         = "_s"
+	HostTagID              = "_h"
+	ShardTagID             = "_shard_num"
+	EnvTagID               = "0"
+	LETagName              = "le"
+	ScrapeNamespaceTagName = "__scrape_namespace__"
 
 	LETagIndex        = 15
 	StringTopTagIndex = -1 // used as flag during mapping
@@ -196,22 +204,23 @@ type MetricMetaValue struct {
 	Version     int64  `json:"version,omitempty"`
 	UpdateTime  uint32 `json:"update_time"`
 
-	Description          string          `json:"description,omitempty"`
-	Tags                 []MetricMetaTag `json:"tags,omitempty"`
-	Visible              bool            `json:"visible,omitempty"`
-	Kind                 string          `json:"kind"`
-	Weight               float64         `json:"weight,omitempty"`
-	Resolution           int             `json:"resolution,omitempty"`             // no invariants
-	StringTopName        string          `json:"string_top_name,omitempty"`        // no invariants
-	StringTopDescription string          `json:"string_top_description,omitempty"` // no invariants
-	PreKeyTagID          string          `json:"pre_key_tag_id,omitempty"`
-	PreKeyFrom           uint32          `json:"pre_key_from,omitempty"`
-	SkipMaxHost          bool            `json:"skip_max_host,omitempty"`
-	SkipMinHost          bool            `json:"skip_min_host,omitempty"`
-	SkipSumSquare        bool            `json:"skip_sum_square,omitempty"`
-	PreKeyOnly           bool            `json:"pre_key_only,omitempty"`
-	MetricType           string          `json:"metric_type"`
-	FairKeyTagID         string          `json:"fair_key_tag_id,omitempty"`
+	Description          string                   `json:"description,omitempty"`
+	Tags                 []MetricMetaTag          `json:"tags,omitempty"`
+	TagsDraft            map[string]MetricMetaTag `json:"tags_draft,omitempty"`
+	Visible              bool                     `json:"visible,omitempty"`
+	Kind                 string                   `json:"kind"`
+	Weight               float64                  `json:"weight,omitempty"`
+	Resolution           int                      `json:"resolution,omitempty"`             // no invariants
+	StringTopName        string                   `json:"string_top_name,omitempty"`        // no invariants
+	StringTopDescription string                   `json:"string_top_description,omitempty"` // no invariants
+	PreKeyTagID          string                   `json:"pre_key_tag_id,omitempty"`
+	PreKeyFrom           uint32                   `json:"pre_key_from,omitempty"`
+	SkipMaxHost          bool                     `json:"skip_max_host,omitempty"`
+	SkipMinHost          bool                     `json:"skip_min_host,omitempty"`
+	SkipSumSquare        bool                     `json:"skip_sum_square,omitempty"`
+	PreKeyOnly           bool                     `json:"pre_key_only,omitempty"`
+	MetricType           string                   `json:"metric_type"`
+	FairKeyTagID         string                   `json:"fair_key_tag_id,omitempty"`
 
 	RawTagMask          uint32                   `json:"-"` // Should be restored from Tags after reading
 	Name2Tag            map[string]MetricMetaTag `json:"-"` // Should be restored from Tags after reading
@@ -483,6 +492,14 @@ func (m *MetricMetaValue) APICompatGetTagFromBytes(tagNameOrID []byte) (tag Metr
 	return MetricMetaTag{}, false, false
 }
 
+func (m *MetricMetaValue) GetTagDraft(tagName []byte) (tag MetricMetaTag, ok bool) {
+	if m.TagsDraft == nil {
+		return MetricMetaTag{}, false
+	}
+	tag, ok = m.TagsDraft[string(tagName)]
+	return tag, ok
+}
+
 // Always restores maximum info, if error is returned, group is non-canonical and should not be saved
 func (m *MetricsGroup) RestoreCachedInfo(builtin bool) error {
 	var err error
@@ -494,14 +511,13 @@ func (m *MetricsGroup) RestoreCachedInfo(builtin bool) error {
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
 		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
 	}
-	rw := m.Weight * EffectiveWeightOne
-	if rw < 1 {
+	m.EffectiveWeight = int64(m.Weight * EffectiveWeightOne)
+	if m.EffectiveWeight < 1 {
 		m.EffectiveWeight = 1
 	}
-	if rw > MaxEffectiveWeight {
-		m.EffectiveWeight = MaxEffectiveWeight
+	if m.EffectiveWeight > MaxEffectiveGroupWeight {
+		m.EffectiveWeight = MaxEffectiveGroupWeight
 	}
-	m.EffectiveWeight = int64(rw)
 	if m.NamespaceID == 0 || m.NamespaceID == BuiltinNamespaceIDDefault {
 		m.NamespaceID = BuiltinNamespaceIDDefault
 		m.Namespace = BuiltInNamespaceDefault[BuiltinNamespaceIDDefault]
@@ -520,14 +536,13 @@ func (m *NamespaceMeta) RestoreCachedInfo(builtin bool) error {
 	if math.IsNaN(m.Weight) || m.Weight < 0 || m.Weight > math.MaxInt32 {
 		err = fmt.Errorf("weight must be from %d to %d", 0, math.MaxInt32)
 	}
-	rw := m.Weight * EffectiveWeightOne
-	if rw < 1 {
+	m.EffectiveWeight = int64(m.Weight * EffectiveWeightOne)
+	if m.EffectiveWeight < 1 {
 		m.EffectiveWeight = 1
 	}
-	if rw > MaxEffectiveWeight {
-		m.EffectiveWeight = MaxEffectiveWeight
+	if m.EffectiveWeight > MaxEffectiveNamespaceWeight {
+		m.EffectiveWeight = MaxEffectiveNamespaceWeight
 	}
-	m.EffectiveWeight = int64(rw)
 	return err
 }
 
@@ -569,13 +584,25 @@ func ValidGroupName(s string) bool {
 	return ValidMetricName(mem.S(s))
 }
 
+var validDashboardSymbols = map[uint8]bool{
+	'_': true,
+	'-': true,
+	' ': true,
+	'[': true,
+	']': true,
+	'{': true,
+	'}': true,
+	':': true,
+	'.': true,
+}
+
 func ValidDashboardName(s string) bool {
-	if len(s) == 0 || len(s) > MaxStringLen || !isLetter(s[0]) {
+	if len(s) == 0 || len(s) > MaxStringLen || s[0] == ' ' {
 		return false
 	}
 	for i := 1; i < len(s); i++ {
 		c := s[i]
-		if !isLetter(c) && c != '_' && !(c >= '0' && c <= '9') && c != ' ' {
+		if !isLetter(c) && !(c >= '0' && c <= '9') && !validDashboardSymbols[c] {
 			return false
 		}
 	}
@@ -697,8 +724,8 @@ func ValidStringValueLegacy(s mem.RO) bool {
 //
 // Often, scripts insert tags with extra spaces, new line, some trash, etc.
 // We help people by replacing slightly invalid tag values with valid tag values.
-// 1. trim
-// 2. replace all consecutive whitespaces inside with single ASCII space
+// 1. trim unicode whitespaces to the left and right
+// 2. replace all consecutive unicode whitespaces inside with single ASCII space
 // 3. trim to MaxStringLen (if las utf symbol fits only partly, we remove it completely)
 // 4. non-printable characters are replaced by roadsign (invalid rune)
 // but invalid UTF-8 is still error
@@ -755,56 +782,18 @@ func validStringValue(s mem.RO, maxLen int) bool {
 	return true
 }
 
-func AppendValidStringValueLegacy(dst []byte, src []byte) ([]byte, error) {
-	return appendValidStringValueLegacy(dst, src, MaxStringLen, false)
-}
-
+// We have a lot of 1251 encoding still, also we have java people saving strings in default UTF-16 encoding,
+// so we consider rejecting large percentage of such strings is good.
+// Let's consider using ForceValidStringValue everywhere after last component using 1251 encoding is removed.
+// Do not forget to eliminate difference in speed between functions then.
 func AppendValidStringValue(dst []byte, src []byte) ([]byte, error) {
 	return appendValidStringValue(dst, src, MaxStringLen, false)
 }
 
-// We use this function only to validate host names. Can be slow, this is OK.
+// We use this function only to validate host names and args for now.
 func ForceValidStringValue(src string) []byte {
 	dst, _ := appendValidStringValue(nil, []byte(src), MaxStringLen, true)
 	return dst
-}
-
-func appendValidStringValueLegacy(dst []byte, src []byte, maxLen int, force bool) ([]byte, error) {
-	// trim
-	src = bytes.TrimSpace(src) // packet is limited, so this will not be too slow
-	// fast path
-	if len(src) <= maxLen { // if we cut by maxLen, we will have to trim right side again, which is slow
-		fastPath := true
-		for _, c := range src {
-			if !bytePrint(c) {
-				fastPath = false
-				break
-			}
-		}
-		if fastPath {
-			return append(dst, src...), nil
-		}
-	}
-	// slow path
-	var buf [MaxStringLen + utf8.UTFMax]byte
-	w := 0
-	for r := 0; r < len(src); {
-		c, nr := utf8.DecodeRune(src[r:])
-		if c == utf8.RuneError && nr <= 1 && !force {
-			return dst, errBadEncoding
-		}
-		if !unicode.IsPrint(c) {
-			c = utf8.RuneError
-		}
-		nw := utf8.EncodeRune(buf[w:], c)
-		if w+nw > maxLen {
-			break
-		}
-		r += nr
-		w += nw
-	}
-	dst = append(dst, buf[:w]...)
-	return bytes.TrimRightFunc(dst, unicode.IsSpace), nil
 }
 
 func appendValidStringValue(dst []byte, src []byte, maxLen int, force bool) ([]byte, error) {
@@ -1033,4 +1022,9 @@ func EventTypeToName(typ int32) string {
 	default:
 		return "unknown"
 	}
+}
+
+func ReportAPIPanic(r any) {
+	log.Println("panic:", string(debug.Stack()))
+	statshouse.Metric(BuiltinMetricNameStatsHouseErrors, statshouse.Tags{1: strconv.FormatInt(TagValueIDAPIPanicError, 10)}).StringTop(fmt.Sprintf("%v", r))
 }

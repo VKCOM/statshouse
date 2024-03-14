@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -196,7 +196,7 @@ func (item *NetUdpPacketEncHeader) Read(w []byte) (_ []byte, err error) {
 		item.PacketAckTo = 0
 	}
 	if item.Flags&(1<<15) != 0 {
-		if w, err = VectorInt0Read(w, &item.PacketAckSet); err != nil {
+		if w, err = BuiltinVectorIntRead(w, &item.PacketAckSet); err != nil {
 			return w, err
 		}
 	} else {
@@ -258,7 +258,7 @@ func (item *NetUdpPacketEncHeader) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.PacketAckTo)
 	}
 	if item.Flags&(1<<15) != 0 {
-		if w, err = VectorInt0Write(w, item.PacketAckSet); err != nil {
+		if w, err = BuiltinVectorIntWrite(w, item.PacketAckSet); err != nil {
 			return w, err
 		}
 	}
@@ -407,7 +407,7 @@ func (item *NetUdpPacketEncHeader) readJSON(j interface{}) error {
 		item.PacketAckTo = 0
 	}
 	if _jPacketAckSet != nil {
-		if err := VectorInt0ReadJSON(_jPacketAckSet, &item.PacketAckSet); err != nil {
+		if err := BuiltinVectorIntReadJSON(_jPacketAckSet, &item.PacketAckSet); err != nil {
 			return err
 		}
 	} else {
@@ -452,6 +452,9 @@ func (item *NetUdpPacketEncHeader) readJSON(j interface{}) error {
 }
 
 func (item *NetUdpPacketEncHeader) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *NetUdpPacketEncHeader) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Flags != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -459,83 +462,61 @@ func (item *NetUdpPacketEncHeader) WriteJSON(w []byte) (_ []byte, err error) {
 		w = basictl.JSONWriteUint32(w, item.Flags)
 	}
 	if item.Flags&(1<<9) != 0 {
-		if item.Time != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"time":`...)
-			w = basictl.JSONWriteInt32(w, item.Time)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"time":`...)
+		w = basictl.JSONWriteInt32(w, item.Time)
 	}
 	if item.Flags&(1<<10) != 0 {
-		if item.Version != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"version":`...)
-			w = basictl.JSONWriteInt32(w, item.Version)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"version":`...)
+		w = basictl.JSONWriteInt32(w, item.Version)
 	}
 	if item.Flags&(1<<13) != 0 {
-		if item.PacketAckPrefix != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"packet_ack_prefix":`...)
-			w = basictl.JSONWriteInt32(w, item.PacketAckPrefix)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"packet_ack_prefix":`...)
+		w = basictl.JSONWriteInt32(w, item.PacketAckPrefix)
 	}
 	if item.Flags&(1<<14) != 0 {
-		if item.PacketAckFrom != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"packet_ack_from":`...)
-			w = basictl.JSONWriteInt32(w, item.PacketAckFrom)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"packet_ack_from":`...)
+		w = basictl.JSONWriteInt32(w, item.PacketAckFrom)
 	}
 	if item.Flags&(1<<14) != 0 {
-		if item.PacketAckTo != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"packet_ack_to":`...)
-			w = basictl.JSONWriteInt32(w, item.PacketAckTo)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"packet_ack_to":`...)
+		w = basictl.JSONWriteInt32(w, item.PacketAckTo)
 	}
 	if item.Flags&(1<<15) != 0 {
-		if len(item.PacketAckSet) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"packet_ack_set":`...)
-			if w, err = VectorInt0WriteJSON(w, item.PacketAckSet); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"packet_ack_set":`...)
+		if w, err = BuiltinVectorIntWriteJSONOpt(short, w, item.PacketAckSet); err != nil {
+			return w, err
 		}
 	}
 	if item.Flags&(1<<20) != 0 {
-		if item.PacketNum != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"packet_num":`...)
-			w = basictl.JSONWriteInt32(w, item.PacketNum)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"packet_num":`...)
+		w = basictl.JSONWriteInt32(w, item.PacketNum)
 	}
 	if item.Flags&(1<<21) != 0 {
-		if item.PacketsFrom != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"packets_from":`...)
-			w = basictl.JSONWriteInt32(w, item.PacketsFrom)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"packets_from":`...)
+		w = basictl.JSONWriteInt32(w, item.PacketsFrom)
 	}
 	if item.Flags&(1<<21) != 0 {
-		if item.PacketsTo != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"packets_to":`...)
-			w = basictl.JSONWriteInt32(w, item.PacketsTo)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"packets_to":`...)
+		w = basictl.JSONWriteInt32(w, item.PacketsTo)
 	}
 	if item.Flags&(1<<22) != 0 {
-		if item.PrevParts != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"prev_parts":`...)
-			w = basictl.JSONWriteInt32(w, item.PrevParts)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"prev_parts":`...)
+		w = basictl.JSONWriteInt32(w, item.PrevParts)
 	}
 	if item.Flags&(1<<23) != 0 {
-		if item.NextParts != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"next_parts":`...)
-			w = basictl.JSONWriteInt32(w, item.NextParts)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"next_parts":`...)
+		w = basictl.JSONWriteInt32(w, item.NextParts)
 	}
 	return append(w, '}'), nil
 }

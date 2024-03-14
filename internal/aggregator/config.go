@@ -40,7 +40,7 @@ type ConfigAggregator struct {
 
 	MetadataNet     string
 	MetadataAddr    string
-	MetadataActorID uint64
+	MetadataActorID int64
 
 	Cluster           string
 	PreviousNumShards int
@@ -67,6 +67,9 @@ func DefaultConfigAggregator() ConfigAggregator {
 			InsertBudget:         400,
 			InsertBudget100:      2500,
 			StringTopCountInsert: 20,
+			SampleNamespaces:     false,
+			SampleGroups:         false,
+			SampleKeys:           false,
 		},
 	}
 }
@@ -76,9 +79,9 @@ func (c *ConfigAggregatorRemote) Bind(f *flag.FlagSet, d ConfigAggregatorRemote,
 	f.IntVar(&c.InsertBudget100, "insert-budget-100", d.InsertBudget100, "Aggregator will sample data before inserting into clickhouse. Bytes per contributor when # ~ 100.")
 	f.IntVar(&c.StringTopCountInsert, "string-top-insert", d.StringTopCountInsert, "How many different strings per key is inserted by aggregator in string tops.")
 	if !legacyVerb {
-		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", false, "Statshouse will sample at namespace level.")
-		f.BoolVar(&c.SampleGroups, "sample-groups", false, "Statshouse will sample at group level.")
-		f.BoolVar(&c.SampleKeys, "sample-keys", false, "Statshouse will sample at key level.")
+		f.BoolVar(&c.SampleNamespaces, "sample-namespaces", d.SampleNamespaces, "Statshouse will sample at namespace level.")
+		f.BoolVar(&c.SampleGroups, "sample-groups", d.SampleGroups, "Statshouse will sample at group level.")
+		f.BoolVar(&c.SampleKeys, "sample-keys", d.SampleKeys, "Statshouse will sample at key level.")
 	}
 }
 

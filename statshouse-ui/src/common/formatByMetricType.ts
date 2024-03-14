@@ -24,10 +24,12 @@ type ConfigConvertMetric = {
   format: (n: number) => string;
   suffix: Record<string, string>;
 };
+const minusZero = -0;
+
 const getMetricTypeBase = (n: number) => {
   const base = Math.floor(Math.log10(Math.abs(n))) / 3;
   const resBase = base < 0 ? Math.ceil(base) : Math.floor(base);
-  return resBase === -0 ? 0 : resBase;
+  return resBase === minusZero ? 0 : resBase;
 };
 const baseMetricTypeSi: ConfigConvertMetric = {
   baseOffset: 0,
@@ -116,22 +118,22 @@ const baseMetricTypeByte: ConfigConvertMetric = {
   baseOffset: 0,
   getBase(n) {
     const base = Math.floor(Math.floor(Math.log2(Math.abs(n))) / 10);
-    return Math.max(0, Math.min(8, base === -0 ? 0 : base));
+    return Math.max(0, Math.min(8, base === minusZero ? 0 : base));
   },
   format(n) {
     const base = this.getBase(n);
     return round(n / Math.pow(1024, base), 1) + (this.suffix[base] ?? '');
   },
   suffix: {
-    '0': 'b',
-    '1': 'kb',
-    '2': 'Mb',
-    '3': 'Gb',
-    '4': 'Tb',
-    '5': 'Pb',
-    '6': 'Eb',
-    '7': 'Zb',
-    '8': 'Yb',
+    '0': 'B',
+    '1': 'KiB',
+    '2': 'MiB',
+    '3': 'GiB',
+    '4': 'TiB',
+    '5': 'PiB',
+    '6': 'EiB',
+    '7': 'ZiB',
+    '8': 'YiB',
   },
 };
 export const suffixesByMetricType: Record<MetricType, ConfigConvertMetric> = {
@@ -231,7 +233,7 @@ export function splitByMetricType(metricType: MetricType) {
     if (incr > 0) {
       for (let val = start; val <= end; val = val + incr) {
         const pos = round(val, 10);
-        splits.push(pos === -0 ? 0 : pos);
+        splits.push(pos === minusZero ? 0 : pos);
       }
     }
     return splits;

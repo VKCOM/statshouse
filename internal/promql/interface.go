@@ -10,9 +10,9 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strconv"
 
 	"github.com/prometheus/prometheus/model/labels"
-
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -44,6 +44,7 @@ const (
 	CardinalityRaw = "cardinalityraw"
 	Unique         = "unique"
 	UniqueSec      = "uniquesec"
+	MinHost        = "minhost"
 	MaxHost        = "maxhost"
 
 	NilValueBits = 0x7ff0000000000002
@@ -84,29 +85,25 @@ const (
 var NilValue = math.Float64frombits(NilValueBits)
 
 type Timescale struct {
-	Time   []int64
-	LODs   []LOD
-	Step   int64 // aggregation interval requested (former "desiredStepMul")
-	Offset int64 // the offset for which timescale was generated
-	StartX int   // requested time interval starts at "Time[StartX]"
+	Time       []int64
+	LODs       []LOD
+	Step       int64 // aggregation interval requested (former "desiredStepMul")
+	StartX     int   // requested time interval starts at "Time[StartX]"
+	ViewStartX int
+	ViewEndX   int
 }
 
 type LOD struct {
-	// as in lodInfo
-	Start int64
-	End   int64
-	Step  int64
-
-	// plus number of elements LOD occupies in time array
-	Len int
+	Step int64
+	Len  int // number of elements LOD occupies in time array
 }
 
 type SeriesQuery struct {
 	// What
-	Metric  *format.MetricMetaValue
-	What    DigestWhat
-	GroupBy []string
-	MaxHost bool
+	Metric     *format.MetricMetaValue
+	Whats      []DigestWhat
+	GroupBy    []string
+	MinMaxHost [2]bool // "min" at [0], "max" at [1]
 
 	// When
 	Timescale Timescale
@@ -119,8 +116,7 @@ type SeriesQuery struct {
 	SFilterOut []string
 
 	// Transformations
-	Range      int64
-	Accumulate bool
+	Range int64
 
 	Options Options
 }
@@ -180,6 +176,10 @@ type Handler interface {
 	Free(*[]float64)
 }
 
+func (t *Timescale) empty() bool {
+	return t.StartX == len(t.Time)
+}
+
 // Used by 'Handler' implementation to signal that entity requested was just not found
 var ErrNotFound = fmt.Errorf("not found")
 
@@ -190,7 +190,7 @@ type Error struct {
 }
 
 func (e Error) Error() string {
-	return fmt.Sprintf("PromQL: %v", e.what)
+	return fmt.Sprintf("%v", e.what)
 }
 
 func (e Error) Unwrap() error {
@@ -202,4 +202,65 @@ func (e Error) Unwrap() error {
 
 func (e Error) EngineFailure() bool {
 	return e.panic
+}
+
+func (w DigestWhat) String() string {
+	switch w {
+	case DigestAvg:
+		return "avg"
+	case DigestCount:
+		return "count"
+	case DigestCountSec:
+		return "count_norm"
+	case DigestCountRaw:
+		return "count_raw"
+	case DigestMax:
+		return "max"
+	case DigestMin:
+		return "min"
+	case DigestSum:
+		return "sum"
+	case DigestSumSec:
+		return "sum_norm"
+	case DigestSumRaw:
+		return "sum_raw"
+	case DigestP0_1:
+		return "p0_1"
+	case DigestP1:
+		return "p1"
+	case DigestP5:
+		return "p5"
+	case DigestP10:
+		return "p10"
+	case DigestP25:
+		return "p25"
+	case DigestP50:
+		return "p50"
+	case DigestP75:
+		return "p75"
+	case DigestP90:
+		return "p90"
+	case DigestP95:
+		return "p95"
+	case DigestP99:
+		return "p99"
+	case DigestP999:
+		return "p999"
+	case DigestStdDev:
+		return "stddev"
+	case DigestStdVar:
+		return "stdvar"
+	case DigestCardinality:
+		return "cardinality"
+	case DigestCardinalitySec:
+		return "cardinality_norm"
+	case DigestCardinalityRaw:
+		return "cardinality_raw"
+	case DigestUnique:
+		return "unique"
+	case DigestUniqueSec:
+		return "unique_norm"
+	default:
+		return strconv.Itoa(int(w))
+	}
 }

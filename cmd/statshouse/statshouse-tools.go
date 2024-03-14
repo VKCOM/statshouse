@@ -47,8 +47,8 @@ func mainBenchmarks() {
 type packetPrinter struct {
 }
 
-func (w *packetPrinter) HandleMetrics(m *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
-	log.Printf("Parsed metric: %s\n", m.String())
+func (w *packetPrinter) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) {
+	log.Printf("Parsed metric: %s\n", args.MetricBytes.String())
 	return h, true
 }
 
@@ -310,12 +310,12 @@ func FakeBenchmarkMetricsPerSecond(listenAddr string) {
 	// go writeFunc()
 	serveFunc := func(u *receiver.UDP, rm *atomic.Int64) error {
 		return u.Serve(receiver.CallbackHandler{
-			Metrics: func(m *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+			Metrics: func(m *tlstatshouse.MetricBytes, cb data_model.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
 				r := rm.Inc()
 				if almostReceiveOnly && r%1024 != 0 {
 					return h, true
 				}
-				h, done = mapper.Map(m, metricStorage.GetMetaMetricByNameBytes(m.Name), cb)
+				h, done = mapper.Map(data_model.HandlerArgs{MetricBytes: m, MapCallback: cb}, metricStorage.GetMetaMetricByNameBytes(m.Name))
 				if done {
 					handleMappedMetric(*m, h)
 				}
@@ -510,7 +510,7 @@ func mainSimulator() {
 			m.MetricID = metricInfo.MetricID
 			m.Version = metricInfo.Version
 		}
-		ms, err := loader.SaveMetric(context.Background(), m)
+		ms, err := loader.SaveMetric(context.Background(), m, "")
 		if err != nil {
 			log.Panicf("Failed to create simulator metric: %v", err)
 		}
@@ -535,12 +535,12 @@ func mainTagMapping() {
 		budget          int
 		metadataNet     string
 		metadataAddr    string
-		metadataActorID uint64
+		metadataActorID int64
 	)
 	flag.StringVar(&metric, "metric", "", "metric name, if specified then strings are considered metric tags")
 	flag.StringVar(&tags, "tag", "", "string to be searched for a int32 mapping")
 	flag.IntVar(&budget, "budget", 0, "mapping budget to set")
-	flag.Uint64Var(&metadataActorID, "metadata-actor-id", 0, "")
+	flag.Int64Var(&metadataActorID, "metadata-actor-id", 0, "")
 	flag.StringVar(&metadataAddr, "metadata-addr", "127.0.0.1:2442", "")
 	flag.StringVar(&metadataNet, "metadata-net", "tcp4", "")
 	flag.StringVar(&argv.aesPwdFile, "aes-pwd-file", "", "path to AES password file, will try to read "+defaultPathToPwd+" if not set")

@@ -6,13 +6,12 @@ import (
 
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
-	"github.com/vkcom/statshouse/internal/mapping"
 )
 
 type handlerMock struct {
 }
 
-func (*handlerMock) HandleMetrics(b *tlstatshouse.MetricBytes, m mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+func (*handlerMock) HandleMetrics(data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) {
 	return data_model.MappedMetricHeader{}, true
 }
 func (*handlerMock) HandleParseError([]byte, error) {}

@@ -10,12 +10,11 @@ import (
 	"math"
 )
 
-func generateConstCounter(lod lodInfo) ([][]tsSelectRow, error) {
+func generateConstCounter(lod lodInfo, rows [][]tsSelectRow) {
 	const (
 		constValue = 1000
 	)
 	fromSec := lod.fromSec
-	rows := make([][]tsSelectRow, lod.getIndexForTimestamp(lod.toSec, 0))
 	for i := range rows {
 		rows[i] = []tsSelectRow{
 			{
@@ -27,17 +26,15 @@ func generateConstCounter(lod lodInfo) ([][]tsSelectRow, error) {
 		rows[i][0].val[0] = float64(lod.stepSec)
 		fromSec += lod.stepSec
 	}
-	return rows, nil
 }
 
-func generateSinCounter(lod lodInfo) ([][]tsSelectRow, error) {
+func generateSinCounter(lod lodInfo, rows [][]tsSelectRow) {
 	const (
 		sinPeriod    = 24 * 3600
 		sinShift     = 15 * 3600 // adjust peaks/lows to Moscow TZ
 		sinAmplitude = 1000.0
 	)
 	fromSec := lod.fromSec
-	rows := make([][]tsSelectRow, lod.getIndexForTimestamp(lod.toSec, 0))
 	for i := range rows {
 		sum := 0.0
 		toSec := fromSec + lod.stepSec
@@ -55,16 +52,14 @@ func generateSinCounter(lod lodInfo) ([][]tsSelectRow, error) {
 		rows[i][0].val[0] = float64(lod.stepSec)
 		fromSec += lod.stepSec
 	}
-	return rows, nil
 }
 
-func generateGapsCounter(lod lodInfo) ([][]tsSelectRow, error) {
+func generateGapsCounter(lod lodInfo, rows [][]tsSelectRow) {
 	const (
 		gapShift     = 21 * 3600 // adjust peaks/lows to Moscow TZ
 		sinAmplitude = 1000.0
 	)
 	fromSec := lod.fromSec
-	rows := make([][]tsSelectRow, lod.getIndexForTimestamp(lod.toSec, 0))
 	for i := range rows {
 		sum := 0.0
 		toSec := fromSec + lod.stepSec
@@ -100,5 +95,4 @@ func generateGapsCounter(lod lodInfo) ([][]tsSelectRow, error) {
 		rows[i][0].val[0] = float64(lod.stepSec)
 		fromSec += lod.stepSec
 	}
-	return rows, nil
 }

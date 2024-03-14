@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -20,17 +20,17 @@ func (Tuple8) TLTag() uint32  { return 0x9770768a }
 
 func (item *Tuple8) Reset() {
 	ptr := (*[8]uint32)(item)
-	Tuple80Reset(ptr)
+	BuiltinTuple8Reset(ptr)
 }
 
 func (item *Tuple8) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[8]uint32)(item)
-	return Tuple80Read(w, ptr)
+	return BuiltinTuple8Read(w, ptr)
 }
 
 func (item *Tuple8) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[8]uint32)(item)
-	return Tuple80Write(w, ptr)
+	return BuiltinTuple8Write(w, ptr)
 }
 
 func (item *Tuple8) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -56,15 +56,19 @@ func (item Tuple8) String() string {
 func Tuple8__ReadJSON(item *Tuple8, j interface{}) error { return item.readJSON(j) }
 func (item *Tuple8) readJSON(j interface{}) error {
 	ptr := (*[8]uint32)(item)
-	if err := Tuple80ReadJSON(j, ptr); err != nil {
+	if err := BuiltinTuple8ReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *Tuple8) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *Tuple8) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[8]uint32)(item)
-	if w, err = Tuple80WriteJSON(w, ptr); err != nil {
+	if w, err = BuiltinTuple8WriteJSONOpt(short, w, ptr); err != nil {
 		return w, err
 	}
 	return w, nil

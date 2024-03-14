@@ -18,10 +18,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/mapping"
-
 	"go.uber.org/atomic"
-
 	"golang.org/x/sys/unix"
 )
 
@@ -38,18 +35,18 @@ var (
 )
 
 type Handler interface {
-	HandleMetrics(*tlstatshouse.MetricBytes, mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) // if cannot process immediately, and needs to own data, should swap another metric from the pool
+	HandleMetrics(data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) // if cannot process immediately, and needs to own data, should swap another metric from the pool
 	HandleParseError([]byte, error)
 }
 
 type CallbackHandler struct {
-	Metrics    func(*tlstatshouse.MetricBytes, mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool)
+	Metrics    func(*tlstatshouse.MetricBytes, data_model.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool)
 	ParseError func([]byte, error)
 }
 
-func (c CallbackHandler) HandleMetrics(b *tlstatshouse.MetricBytes, cb mapping.MapCallbackFunc) (h data_model.MappedMetricHeader, done bool) {
+func (c CallbackHandler) HandleMetrics(args data_model.HandlerArgs) (h data_model.MappedMetricHeader, done bool) {
 	if c.Metrics != nil {
-		return c.Metrics(b, cb)
+		return c.Metrics(args.MetricBytes, args.MapCallback)
 	}
 	return h, true
 }
@@ -248,7 +245,7 @@ func (u *UDP) handleMetricsBatch(h Handler, b tlstatshouse.AddMetricsBatchBytes,
 	u.statBatchesTotalOK.Inc()
 
 	for i := range b.Metrics {
-		_, _ = h.HandleMetrics(&b.Metrics[i], nil) // might move out metric, if needs to
+		_, _ = h.HandleMetrics(data_model.HandlerArgs{MetricBytes: &b.Metrics[i]}) // might move out metric, if needs to
 	}
 
 	return true

@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   all:
-    image: vkcom/statshouse-localrun-all
+    image: vkcom/statshouse-localrun-all:latest
     container_name: sh
     user: "root:root"
     ports:

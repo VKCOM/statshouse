@@ -54,9 +54,9 @@ const (
 )
 
 type args struct {
+	api.HandlerOptions
 	accessLog                bool
 	rpcCryptoKeyPath         string
-	approxCacheMaxSize       int
 	brsMaxChunksCount        int
 	chV1Addrs                []string
 	chV1Debug                bool
@@ -82,29 +82,21 @@ type args struct {
 	help                     bool
 	listenHTTPAddr           string
 	listenRPCAddr            string
-	localMode                bool
 	pidFile                  string
 	pprofAddr                string
 	pprofHTTP                bool
-	protectedMetricPrefixes  []string
 	showInvisible            bool
 	slow                     time.Duration
 	staticDir                string
 	statsHouseAddr           string
 	statsHouseEnv            string
-	timezone                 string
 	utcOffsetHours           int // we can't support offsets not divisible by hour because we aggregate the data by hour
-	verbose                  bool
 	version                  bool
 	vkuthAppName             string
 	vkuthPublicKeys          []string
-	weekStartAt              int
-	metadataActorID          uint64
+	metadataActorID          int64
 	metadataAddr             string
 	metadataNet              string
-	readOnly                 bool
-	insecureMode             bool
-	querySelectTimeout       time.Duration
 }
 
 func main() {
@@ -114,7 +106,6 @@ func main() {
 	var argv args
 	pflag.BoolVar(&argv.accessLog, "access-log", false, "write HTTP access log to stdout")
 	pflag.StringVar(&argv.rpcCryptoKeyPath, "rpc-crypto-path", "", "path to RPC crypto key")
-	pflag.IntVar(&argv.approxCacheMaxSize, "approx-cache-max-size", 1_000_000, "approximate max amount of rows to cache for each table+resolution")
 	pflag.IntVar(&argv.brsMaxChunksCount, "max-chunks-count", 1000, "in memory data chunks count limit for RPC server")
 	var chMaxQueries int // not used any more, TODO - remove?
 	pflag.IntVar(&chMaxQueries, "clickhouse-max-queries", 32, "maximum number of concurrent ClickHouse queries")
@@ -125,10 +116,10 @@ func main() {
 	pflag.StringVar(&argv.chV1User, "clickhouse-v1-user", "", "ClickHouse-v1 user")
 	pflag.StringSliceVar(&argv.chV2Addrs, "clickhouse-v2-addrs", nil, "comma-separated list of ClickHouse-v2 addresses")
 	pflag.BoolVar(&argv.chV2Debug, "clickhouse-v2-debug", false, "ClickHouse-v2 debug mode")
-	pflag.IntVar(&argv.chV2MaxLightFastConns, "clickhouse-v2-max-conns", 16, "maximum number of ClickHouse-v2 connections (light fast)")
-	pflag.IntVar(&argv.chV2MaxLightSlowConns, "clickhouse-v2-max-light-slow-conns", 8, "maximum number of ClickHouse-v2 connections (light slow)")
+	pflag.IntVar(&argv.chV2MaxLightFastConns, "clickhouse-v2-max-conns", 24, "maximum number of ClickHouse-v2 connections (light fast)")
+	pflag.IntVar(&argv.chV2MaxLightSlowConns, "clickhouse-v2-max-light-slow-conns", 12, "maximum number of ClickHouse-v2 connections (light slow)")
 	pflag.IntVar(&argv.chV2MaxHeavyFastConns, "clickhouse-v2-max-heavy-conns", 5, "maximum number of ClickHouse-v2 connections (heavy fast)")
-	pflag.IntVar(&argv.chV2MaxHeavySlowConns, "clickhouse-v2-max-heavy-slow-conns", 2, "maximum number of ClickHouse-v2 connections (heavy slow)")
+	pflag.IntVar(&argv.chV2MaxHeavySlowConns, "clickhouse-v2-max-heavy-slow-conns", 1, "maximum number of ClickHouse-v2 connections (heavy slow)")
 
 	pflag.StringVar(&argv.chV2Password, "clickhouse-v2-password", "", "ClickHouse-v2 password")
 	pflag.StringVar(&argv.chV2User, "clickhouse-v2-user", "", "ClickHouse-v2 user")
@@ -143,31 +134,26 @@ func main() {
 	pflag.BoolVarP(&argv.help, "help", "h", false, "print usage instructions and exit")
 	pflag.StringVar(&argv.listenHTTPAddr, "listen-addr", "localhost:8080", "web server listen address")
 	pflag.StringVar(&argv.listenRPCAddr, "listen-rpc-addr", "localhost:13347", "RPC server listen address")
-	pflag.BoolVar(&argv.localMode, "local-mode", false, "set local-mode if you need to have default access without access token")
-	pflag.BoolVar(&argv.insecureMode, "insecure-mode", false, "set insecure-mode if you don't need any access verification")
 	pflag.StringVar(&argv.pidFile, "pid-file", "statshouse_api.pid", "path to PID file") // fpr table flip
 
 	pflag.StringVar(&argv.pprofAddr, "pprof-addr", "", "Go pprof HTTP listen address (deprecated)")
 	pflag.BoolVar(&argv.pprofHTTP, "pprof-http", true, "Serve Go pprof HTTP on RPC port")
-	pflag.StringSliceVar(&argv.protectedMetricPrefixes, "protected-metric-prefixes", nil, "comma-separated list of metric prefixes that require access bits set")
 	pflag.BoolVar(&argv.showInvisible, "show-invisible", false, "show invisible metrics as well")
 	pflag.DurationVar(&argv.slow, "slow", 0, "slow down all HTTP requests by this much")
 	pflag.StringVar(&argv.staticDir, "static-dir", "", "directory with static assets")
 	pflag.StringVar(&argv.statsHouseAddr, "statshouse-addr", statshouse.DefaultStatsHouseAddr, "address of StatsHouse UDP socket")
 	pflag.StringVar(&argv.statsHouseEnv, "statshouse-env", "dev", "fill key0/environment with this value in StatHouse statistics")
-	pflag.StringVar(&argv.timezone, "timezone", "Europe/Moscow", "location of the desired timezone")
 	pflag.IntVar(&argv.utcOffsetHours, "utc-offset", 0, "UTC offset for aggregation, in hours")
-	pflag.BoolVar(&argv.verbose, "verbose", false, "verbose logging")
 	pflag.BoolVar(&argv.version, "version", false, "show version information and exit")
 	pflag.StringVar(&argv.vkuthAppName, "vkuth-app-name", "statshouse-api", "vkuth application name (access bits namespace)")
 	pflag.StringSliceVar(&argv.vkuthPublicKeys, "vkuth-public-keys", nil, "comma-separated list of trusted vkuth public keys; empty list disables token-based access control")
-	pflag.IntVar(&argv.weekStartAt, "week-start", int(time.Monday), "week day of beginning of the week (from sunday=0 to saturday=6)")
-	pflag.BoolVar(&argv.readOnly, "readonly", false, "read only mode")
 
-	pflag.Uint64Var(&argv.metadataActorID, "metadata-actor-id", 0, "metadata engine actor id")
+	pflag.Int64Var(&argv.metadataActorID, "metadata-actor-id", 0, "metadata engine actor id")
 	pflag.StringVar(&argv.metadataAddr, "metadata-addr", "127.0.0.1:2442", "metadata engine address")
 	pflag.StringVar(&argv.metadataNet, "metadata-net", "tcp4", "metadata engine network")
-	pflag.DurationVar(&argv.querySelectTimeout, "query-select-timeout", api.QuerySelectTimeoutDefault, "query select timeout")
+	argv.HandlerOptions.Bind(pflag.CommandLine)
+	cfg := &api.Config{}
+	cfg.Bind(pflag.CommandLine, api.DefaultConfig())
 	pflag.Parse()
 
 	if argv.help {
@@ -198,24 +184,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if argv.weekStartAt < int(time.Sunday) || argv.weekStartAt > int(time.Saturday) {
-		log.Fatalf("invalid --week-start value, only 0-6 allowed %q given", argv.weekStartAt)
-	}
-
-	err = run(argv, keys)
+	err = run(argv, cfg, keys)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func run(argv args, vkuthPublicKeys map[string][]byte) error {
-	location, err := time.LoadLocation(argv.timezone)
-	if err != nil {
-		return fmt.Errorf("failed to load timezone %q: %w", argv.timezone, err)
+func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
+	if err := argv.HandlerOptions.LoadLocation(); err != nil {
+		return err
 	}
-
-	utcOffset := api.CalcUTCOffset(location, time.Weekday(argv.weekStartAt)) // demands restart after summer/winter time switching
-
 	tf, err := tableflip.New(tableflip.Options{
 		PIDFile:        argv.pidFile,
 		UpgradeTimeout: upgradeTimeout,
@@ -344,17 +322,13 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		DefaultNumSeries:         argv.defaultNumSeries,
 		DisableV1:                len(argv.chV1Addrs) == 0,
 	}
-	if argv.localMode {
+	if argv.LocalMode {
 		jsSettings.VkuthAppName = ""
 	}
 	f, err := api.NewHandler(
-		argv.verbose,
 		staticFS,
 		jsSettings,
-		argv.protectedMetricPrefixes,
 		argv.showInvisible,
-		utcOffset,
-		argv.approxCacheMaxSize,
 		chV1,
 		chV2,
 		&tlmetadata.Client{
@@ -365,11 +339,8 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		},
 		dc,
 		jwtHelper,
-		location,
-		argv.localMode,
-		argv.readOnly,
-		argv.insecureMode,
-		argv.querySelectTimeout,
+		argv.HandlerOptions,
+		cfg,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create handler: %w", err)
@@ -385,7 +356,8 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	a.Path("/" + api.EndpointMetric).Methods("POST").HandlerFunc(f.HandlePostMetric)
 	a.Path("/" + api.EndpointResetFlood).Methods("POST").HandlerFunc(f.HandlePostResetFlood)
 	a.Path("/" + api.EndpointQuery).Methods("GET").HandlerFunc(f.HandleSeriesQuery)
-	a.Path("/" + api.EndpointPoint).Methods("GET").HandlerFunc(f.HandleGetPoint)
+	a.Path("/" + api.EndpointPoint).Methods("GET").HandlerFunc(f.HandlePointQuery)
+	a.Path("/" + api.EndpointPoint).Methods("POST").HandlerFunc(f.HandlePointQuery)
 	a.Path("/" + api.EndpointTable).Methods("GET").HandlerFunc(f.HandleGetTable)
 	a.Path("/" + api.EndpointQuery).Methods("POST").HandlerFunc(f.HandleSeriesQuery)
 	a.Path("/" + api.EndpointRender).Methods("GET").HandlerFunc(f.HandleGetRender)
@@ -401,6 +373,7 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 	a.Path("/" + api.EndpointPrometheus).Methods("GET").HandlerFunc(f.HandleGetPromConfig)
 	a.Path("/" + api.EndpointPrometheus).Methods("POST").HandlerFunc(f.HandlePostPromConfig)
 	a.Path("/" + api.EndpointStatistics).Methods("POST").HandlerFunc(f.HandleFrontendStat)
+	a.Path("/" + api.EndpointHistory).Methods("GET").HandlerFunc(f.HandleGetHistory)
 	m.Path("/prom/api/v1/query").Methods("POST").HandlerFunc(f.HandlePromInstantQuery)
 	m.Path("/prom/api/v1/query_range").Methods("POST").HandlerFunc(f.HandlePromRangeQuery)
 	m.Path("/prom/api/v1/label/{name}/values").Methods("GET").HandlerFunc(f.HandlePromLabelValuesQuery)
@@ -448,12 +421,12 @@ func run(argv args, vkuthPublicKeys map[string][]byte) error {
 		c.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: "4", 2: "2"}).Value(uptime)
 	}))
 
-	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.protectedMetricPrefixes, argv.localMode, argv.insecureMode)
+	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.HandlerOptions)
 	handlerRPC := &tlstatshouseApi.Handler{
-		GetChunk:      hr.GetChunk,
-		RawGetQuery:   hr.RawGetQuery,
-		ReleaseChunks: hr.ReleaseChunks,
-		GetQueryPoint: hr.GetQueryPoint,
+		GetChunk:         hr.GetChunk,
+		RawGetQuery:      hr.RawGetQuery,
+		ReleaseChunks:    hr.ReleaseChunks,
+		RawGetQueryPoint: hr.RawGetQueryPoint,
 	}
 	var hijackListener *rpc.HijackListener
 	srv := rpc.NewServer(

@@ -6,6 +6,7 @@
 
 import { QueryWhat, TagKey } from '../api/enum';
 import { normalizeFilterKey } from '../url/queryParams';
+import { deepClone } from './helpers';
 
 export interface settings {
   readonly vkuth_app_name?: string;
@@ -19,6 +20,8 @@ export interface settings {
   readonly skip_error_code: number[];
   readonly skip_error_count: number;
   readonly event_preset: string[];
+  readonly links: { name: string; url: string }[];
+  readonly admin_dash?: number | null;
 }
 
 const defaultSettings: settings = {
@@ -33,6 +36,8 @@ const defaultSettings: settings = {
   skip_error_code: [504, 502],
   skip_error_count: 10,
   event_preset: [],
+  links: [],
+  admin_dash: null,
 };
 
 const meta = document.querySelector('meta[name="settings"]');
@@ -56,6 +61,9 @@ if (meta !== null) {
         ? serverConfig.default_num_series
         : defaultSettings.default_num_series,
       event_preset: serverConfig.event_preset ? serverConfig.event_preset : defaultSettings.event_preset.slice(),
+      links: serverConfig.links
+        ? deepClone(serverConfig.links).filter(({ name, url }) => name && url)
+        : deepClone(defaultSettings.links),
     };
   } catch (e) {}
 }

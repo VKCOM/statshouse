@@ -60,6 +60,7 @@ describe('queryParams.ts', () => {
       tabNum: -1,
       plots: [
         {
+          id: '0',
           metricName: 'test',
           customName: 'test name',
           customDescription: '',
@@ -81,8 +82,11 @@ describe('queryParams.ts', () => {
           events: [1],
           eventsBy: ['0', '1'],
           eventsHide: ['1'],
+          totalLine: false,
+          filledGraph: true,
         },
         {
+          id: '1',
           metricName: 'test',
           customName: 'test name 2',
           customDescription: '',
@@ -104,6 +108,8 @@ describe('queryParams.ts', () => {
           events: [1],
           eventsBy: ['0', '1'],
           eventsHide: ['1'],
+          totalLine: true,
+          filledGraph: true,
         },
       ],
       timeRange: { to: 3333, from: 3600 },
@@ -136,6 +142,7 @@ describe('queryParams.ts', () => {
       tabNum: -1,
       plots: [
         {
+          id: '0',
           metricName: 'test',
           customName: 'test name',
           customDescription: '',
@@ -157,8 +164,11 @@ describe('queryParams.ts', () => {
           events: [1],
           eventsBy: ['0', '1'],
           eventsHide: ['1'],
+          totalLine: false,
+          filledGraph: true,
         },
         {
+          id: '1',
           metricName: 'test',
           customName: 'test name 2',
           customDescription: '',
@@ -180,6 +190,8 @@ describe('queryParams.ts', () => {
           events: [1],
           eventsBy: ['0', '1'],
           eventsHide: ['1'],
+          totalLine: true,
+          filledGraph: true,
         },
       ],
       timeRange: { to: 'ed', from: 1800 },
@@ -256,6 +268,7 @@ describe('queryParams.ts', () => {
       ['t1.eb', '0'],
       ['t1.eb', '1'],
       ['t1.eh', '1'],
+      ['t1.vtl', '1'],
       ['ts', '3600'],
       ['ts', '1800'],
       ['fs', '0.1-1.2-2.3'],
@@ -270,7 +283,7 @@ describe('queryParams.ts', () => {
       ['v.var2', '4'],
     ]);
     expect(new URLSearchParams(p).toString()).toEqual(
-      'g0.t=qwe&g0.n=2&t=ed&f=1800&s=test&cn=test+name&qw=count_norm&qw=avg&g=1&qb=_s&qb=1&qf=1-a&qf=1-p&qf=1-s&qf=2%7Er&qf=2%7Es&yl=10&yh=1000&qe=1&eb=0&eb=1&eh=1&t1.s=test&t1.cn=test+name+2&t1.qw=count_norm&t1.qw=avg&t1.g=1&t1.qb=_s&t1.qb=1&t1.qf=1-a&t1.qf=1-p&t1.qf=2%7Er&t1.qf=2%7Es&t1.yl=10&t1.yh=1000&t1.mh=1&t1.qe=1&t1.eb=0&t1.eb=1&t1.eh=1&ts=3600&ts=1800&fs=0.1-1.2-2.3&fs=0.2-2.4&v0.n=var1&v0.d=variable1&v0.l=0.3-1.2-2._s&v1.n=var2&v1.d=variable2&v1.l=3.3-3.2-3._s&v.var2=3&v.var2=4'
+      'g0.t=qwe&g0.n=2&t=ed&f=1800&s=test&cn=test+name&qw=count_norm&qw=avg&g=1&qb=_s&qb=1&qf=1-a&qf=1-p&qf=1-s&qf=2%7Er&qf=2%7Es&yl=10&yh=1000&qe=1&eb=0&eb=1&eh=1&t1.s=test&t1.cn=test+name+2&t1.qw=count_norm&t1.qw=avg&t1.g=1&t1.qb=_s&t1.qb=1&t1.qf=1-a&t1.qf=1-p&t1.qf=2%7Er&t1.qf=2%7Es&t1.yl=10&t1.yh=1000&t1.mh=1&t1.qe=1&t1.eb=0&t1.eb=1&t1.eh=1&t1.vtl=1&ts=3600&ts=1800&fs=0.1-1.2-2.3&fs=0.2-2.4&v0.n=var1&v0.d=variable1&v0.l=0.3-1.2-2._s&v1.n=var2&v1.d=variable2&v1.l=3.3-3.2-3._s&v.var2=3&v.var2=4'
     );
     const s = decodeParams(p, defaultParam);
     expect(s).toEqual(testParam);

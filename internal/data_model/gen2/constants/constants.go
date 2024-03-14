@@ -95,6 +95,8 @@ const (
 	MetadataEditEntitynew                        = 0x86df475f // metadata.editEntitynew
 	MetadataEditMetricEvent                      = 0x12345677 // metadata.editMetricEvent
 	MetadataEvent                                = 0x9286affa // metadata.event
+	MetadataGetEntity                            = 0x72b132f8 // metadata.getEntity
+	MetadataGetHistoryShortInfo                  = 0x22ff6a79 // metadata.getHistoryShortInfo
 	MetadataGetInvertMapping                     = 0x9faf5280 // metadata.getInvertMapping
 	MetadataGetInvertMappingResponse             = 0x9286abac // metadata.getInvertMappingResponse
 	MetadataGetInvertMappingResponseKeyNotExists = 0x9286abab // metadata.getInvertMappingResponseKeyNotExists
@@ -108,6 +110,8 @@ const (
 	MetadataGetMetrics                           = 0x93ba92f5 // metadata.getMetrics
 	MetadataGetMetricsResponse                   = 0x9286abfb // metadata.getMetricsResponse
 	MetadataGetTagMappingBootstrap               = 0x5fc81a9b // metadata.getTagMappingBootstrap
+	MetadataHistoryShortResponse                 = 0x7186baaf // metadata.history_short_response
+	MetadataHistoryShortResponseEvent            = 0x1186baaf // metadata.history_short_response_event
 	MetadataMetricOld                            = 0x9286abfa // metadata.metricOld
 	MetadataPutBootstrapEvent                    = 0x5854dfaf // metadata.putBootstrapEvent
 	MetadataPutMapping                           = 0x9faf5281 // metadata.putMapping

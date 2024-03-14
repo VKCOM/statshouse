@@ -36,7 +36,7 @@ type userData struct {
 	getConfig2        tlstatshouse.GetConfig2
 	testConneection2  tlstatshouse.TestConnection2Bytes
 	getTargets2       tlstatshouse.GetTargets2Bytes
-	autoCreate        tlstatshouse.AutoCreate
+	autoCreate        tlstatshouse.AutoCreateBytes
 	uncompressed      []byte
 }
 
@@ -53,8 +53,9 @@ func (a *Aggregator) handleClient(ctx context.Context, hctx *rpc.HandlerContext)
 	tag, _ := basictl.NatPeekTag(hctx.Request)
 	keyID := hctx.KeyID()
 	keyIDTag := int32(binary.BigEndian.Uint32(keyID[:4]))
+	protocol := int32(hctx.ProtocolVersion())
 	requestLen := len(hctx.Request) // impl will release hctx
-	key := data_model.AggKey(0, format.BuiltinMetricIDRPCRequests, [16]int32{0, format.TagValueIDComponentAggregator, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag}, a.aggregatorHost, a.shardKey, a.replicaKey)
+	key := data_model.AggKey(0, format.BuiltinMetricIDRPCRequests, [16]int32{0, format.TagValueIDComponentAggregator, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag, 0, protocol}, a.aggregatorHost, a.shardKey, a.replicaKey)
 	err := a.handleClientImpl(ctx, hctx)
 	if err == rpc.ErrNoHandler {
 		key.Keys[3] = format.TagValueIDRPCRequestsStatusNoHandler
@@ -165,15 +166,15 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 		}
 	case constants.StatshouseGetTargets2:
 		{
-			if a.promUpdater == nil {
-				return fmt.Errorf("aggregator not configured for prometheus")
+			if a.scrape == nil {
+				return fmt.Errorf("service discovery is not running")
 			}
 			ud := getUserData(hctx)
 			_, err := ud.getTargets2.Read(hctx.Request)
 			if err != nil {
 				return fmt.Errorf("failed to deserialize statshouse.getTargets2 request: %w", err)
 			}
-			return a.promUpdater.HandleGetTargets(ctx, hctx, ud.getTargets2)
+			return a.scrape.handleGetTargets(ctx, hctx, ud.getTargets2)
 		}
 	case constants.StatshouseAutoCreate:
 		{
@@ -386,8 +387,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 				k.Keys[1] = format.TagValueIDComponentAgent
 			}
 			if k.Metric == format.BuiltinMetricIDHeartbeatVersion ||
-				k.Metric == format.BuiltinMetricIDHeartbeatArgs || k.Metric == format.BuiltinMetricIDHeartbeatArgs2 ||
-				k.Metric == format.BuiltinMetricIDHeartbeatArgs3 || k.Metric == format.BuiltinMetricIDHeartbeatArgs4 {
+				k.Metric == format.BuiltinMetricIDHeartbeatArgs {
 				// We need to set IP anyway, so set other keys here, not by source
 				k.Keys[4] = bcTag
 				k.Keys[5] = args.BuildCommitDate

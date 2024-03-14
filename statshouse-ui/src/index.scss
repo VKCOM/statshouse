@@ -32,6 +32,7 @@
 @import '~bootstrap/scss/dropdown';
 
 @import 'uplot/dist/uPlot.min.css';
+@import 'fix.css';
 
 :root {
   --golden-ratio: 1.61803398875;
@@ -48,6 +49,11 @@
   textarea {
     color-scheme: dark;
   }
+}
+
+#root {
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
 }
 
 .u-select {
@@ -195,22 +201,6 @@ html {
 code {
   color: var(--bs-body-color);
   font-weight: bold;
-}
-
-input.form-control-safari-fix::-webkit-datetime-edit {
-  display: inline-flex;
-}
-
-input.form-control-safari-fix::-webkit-datetime-edit,
-input.form-control-safari-fix::-webkit-datetime-edit-year-field,
-input.form-control-safari-fix::-webkit-datetime-edit-month-field,
-input.form-control-safari-fix::-webkit-datetime-edit-day-field,
-input.form-control-safari-fix::-webkit-datetime-edit-hour-field,
-input.form-control-safari-fix::-webkit-datetime-edit-minute-field,
-input.form-control-safari-fix::-webkit-datetime-edit-second-field,
-input.form-control-safari-fix::-webkit-datetime-edit-millisecond-field,
-input.form-control-safari-fix::-webkit-datetime-edit-meridiem-field {
-  padding: 0;
 }
 
 .sh-select {

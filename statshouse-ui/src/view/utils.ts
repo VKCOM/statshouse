@@ -651,9 +651,10 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
     ...params,
     live: getDefaultParams().live,
     theme: getDefaultParams().theme,
-    plots: params.plots.map((p) => {
+    plots: params.plots.map((p, index) => {
       // @ts-ignore
       delete p.timeShifts;
+      p.id ??= `${index}`;
       p.customName ??= '';
       p.customDescription ??= '';
       p.promQL ??= '';
@@ -664,6 +665,9 @@ export function normalizeDashboard(data: DashboardInfo): QueryParams {
       p.filterIn = normalizeFilterKey(p.filterIn);
       p.filterNotIn = normalizeFilterKey(p.filterNotIn);
       p.groupBy = p.groupBy.map((g) => toTagKey(g)).filter(isNotNil);
+      p.metricType ??= undefined;
+      p.filledGraph ??= true;
+      p.totalLine ??= false;
       return p;
     }),
     timeShifts,

@@ -45,19 +45,15 @@ func getAccessInfo(ctx context.Context) *accessInfo {
 	return nil
 }
 
-func withHTTPEndpointStat(ctx context.Context, es *endpointStat) context.Context {
+func withEndpointStat(ctx context.Context, es *endpointStat) context.Context {
+	if es == nil {
+		return ctx
+	}
 	return context.WithValue(ctx, endpointStatContextKey, es)
 }
 
-func withRPCEndpointStat(ctx context.Context, ms *rpcMethodStat) context.Context {
-	return context.WithValue(ctx, endpointStatContextKey, ms)
-}
-
-func endpointStatSetQueryKind(ctx context.Context, isFast, isLight bool) {
-	switch s := ctx.Value(endpointStatContextKey).(type) {
-	case *endpointStat:
-		s.lane = strconv.Itoa(util.QueryKind(isFast, isLight))
-	case *rpcMethodStat:
+func reportQueryKind(ctx context.Context, isFast, isLight bool) {
+	if s, ok := ctx.Value(endpointStatContextKey).(*endpointStat); ok {
 		s.lane = strconv.Itoa(util.QueryKind(isFast, isLight))
 	}
 }

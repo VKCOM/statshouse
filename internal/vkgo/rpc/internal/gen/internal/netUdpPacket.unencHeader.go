@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -15,8 +15,8 @@ var _ = basictl.NatWrite
 
 type NetUdpPacketUnencHeader struct {
 	Flags      uint32
-	RemotePid  NetPID    // Conditional: item.Flags.0
-	LocalPid   NetPID    // Conditional: item.Flags.0
+	RemotePid  NetPid    // Conditional: item.Flags.0
+	LocalPid   NetPid    // Conditional: item.Flags.0
 	Generation int32     // Conditional: item.Flags.0
 	PidHash    int64     // Conditional: item.Flags.2
 	CryptoInit int32     // Conditional: item.Flags.3
@@ -26,7 +26,7 @@ type NetUdpPacketUnencHeader struct {
 func (NetUdpPacketUnencHeader) TLName() string { return "netUdpPacket.unencHeader" }
 func (NetUdpPacketUnencHeader) TLTag() uint32  { return 0xa8e945 }
 
-func (item *NetUdpPacketUnencHeader) SetRemotePid(v NetPID) {
+func (item *NetUdpPacketUnencHeader) SetRemotePid(v NetPid) {
 	item.RemotePid = v
 	item.Flags |= 1 << 0
 }
@@ -36,7 +36,7 @@ func (item *NetUdpPacketUnencHeader) ClearRemotePid() {
 }
 func (item NetUdpPacketUnencHeader) IsSetRemotePid() bool { return item.Flags&(1<<0) != 0 }
 
-func (item *NetUdpPacketUnencHeader) SetLocalPid(v NetPID) {
+func (item *NetUdpPacketUnencHeader) SetLocalPid(v NetPid) {
 	item.LocalPid = v
 	item.Flags |= 1 << 0
 }
@@ -81,7 +81,7 @@ func (item *NetUdpPacketUnencHeader) SetRandomKey(v [8]uint32) {
 	item.Flags |= 1 << 5
 }
 func (item *NetUdpPacketUnencHeader) ClearRandomKey() {
-	Tuple80Reset(&item.RandomKey)
+	BuiltinTuple8Reset(&item.RandomKey)
 	item.Flags &^= 1 << 5
 }
 func (item NetUdpPacketUnencHeader) IsSetRandomKey() bool { return item.Flags&(1<<5) != 0 }
@@ -93,7 +93,7 @@ func (item *NetUdpPacketUnencHeader) Reset() {
 	item.Generation = 0
 	item.PidHash = 0
 	item.CryptoInit = 0
-	Tuple80Reset(&item.RandomKey)
+	BuiltinTuple8Reset(&item.RandomKey)
 }
 
 func (item *NetUdpPacketUnencHeader) Read(w []byte) (_ []byte, err error) {
@@ -136,11 +136,11 @@ func (item *NetUdpPacketUnencHeader) Read(w []byte) (_ []byte, err error) {
 		item.CryptoInit = 0
 	}
 	if item.Flags&(1<<5) != 0 {
-		if w, err = Tuple80Read(w, &item.RandomKey); err != nil {
+		if w, err = BuiltinTuple8Read(w, &item.RandomKey); err != nil {
 			return w, err
 		}
 	} else {
-		Tuple80Reset(&item.RandomKey)
+		BuiltinTuple8Reset(&item.RandomKey)
 	}
 	return w, nil
 }
@@ -167,7 +167,7 @@ func (item *NetUdpPacketUnencHeader) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.CryptoInit)
 	}
 	if item.Flags&(1<<5) != 0 {
-		if w, err = Tuple80Write(w, &item.RandomKey); err != nil {
+		if w, err = BuiltinTuple8Write(w, &item.RandomKey); err != nil {
 			return w, err
 		}
 	}
@@ -241,14 +241,14 @@ func (item *NetUdpPacketUnencHeader) readJSON(j interface{}) error {
 		item.Flags |= 1 << 5
 	}
 	if _jRemotePid != nil {
-		if err := NetPID__ReadJSON(&item.RemotePid, _jRemotePid); err != nil {
+		if err := NetPid__ReadJSON(&item.RemotePid, _jRemotePid); err != nil {
 			return err
 		}
 	} else {
 		item.RemotePid.Reset()
 	}
 	if _jLocalPid != nil {
-		if err := NetPID__ReadJSON(&item.LocalPid, _jLocalPid); err != nil {
+		if err := NetPid__ReadJSON(&item.LocalPid, _jLocalPid); err != nil {
 			return err
 		}
 	} else {
@@ -276,16 +276,19 @@ func (item *NetUdpPacketUnencHeader) readJSON(j interface{}) error {
 		item.CryptoInit = 0
 	}
 	if _jRandomKey != nil {
-		if err := Tuple80ReadJSON(_jRandomKey, &item.RandomKey); err != nil {
+		if err := BuiltinTuple8ReadJSON(_jRandomKey, &item.RandomKey); err != nil {
 			return err
 		}
 	} else {
-		Tuple80Reset(&item.RandomKey)
+		BuiltinTuple8Reset(&item.RandomKey)
 	}
 	return nil
 }
 
 func (item *NetUdpPacketUnencHeader) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *NetUdpPacketUnencHeader) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Flags != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -295,42 +298,36 @@ func (item *NetUdpPacketUnencHeader) WriteJSON(w []byte) (_ []byte, err error) {
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"remote_pid":`...)
-		if w, err = item.RemotePid.WriteJSON(w); err != nil {
+		if w, err = item.RemotePid.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"local_pid":`...)
-		if w, err = item.LocalPid.WriteJSON(w); err != nil {
+		if w, err = item.LocalPid.WriteJSONOpt(short, w); err != nil {
 			return w, err
 		}
 	}
 	if item.Flags&(1<<0) != 0 {
-		if item.Generation != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"generation":`...)
-			w = basictl.JSONWriteInt32(w, item.Generation)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"generation":`...)
+		w = basictl.JSONWriteInt32(w, item.Generation)
 	}
 	if item.Flags&(1<<2) != 0 {
-		if item.PidHash != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"pid_hash":`...)
-			w = basictl.JSONWriteInt64(w, item.PidHash)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"pid_hash":`...)
+		w = basictl.JSONWriteInt64(w, item.PidHash)
 	}
 	if item.Flags&(1<<3) != 0 {
-		if item.CryptoInit != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"crypto_init":`...)
-			w = basictl.JSONWriteInt32(w, item.CryptoInit)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"crypto_init":`...)
+		w = basictl.JSONWriteInt32(w, item.CryptoInit)
 	}
 	if item.Flags&(1<<5) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"random_key":`...)
-		if w, err = Tuple80WriteJSON(w, &item.RandomKey); err != nil {
+		if w, err = BuiltinTuple8WriteJSONOpt(short, w, &item.RandomKey); err != nil {
 			return w, err
 		}
 	}

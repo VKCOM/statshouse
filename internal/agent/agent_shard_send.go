@@ -261,18 +261,18 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 		remainingBudget = data_model.MaxUncompressedBucketSize / 2
 	}
 	var samplerStat data_model.SamplerStatistics
-	sampler.Run(remainingBudget, 1, &samplerStat)
+	sampler.Run(remainingBudget, &samplerStat)
 	sampleFactors := make([]tlstatshouse.SampleFactor, 0, samplerStat.Count)
 	for _, s := range samplerStat.Steps {
 		if s.StartPos < len(s.Groups) {
-			value := float64(s.BudgetNum) / float64(s.BudgetDenom) / float64(s.SumWeight)
+			value := float64(s.Budget) / float64(s.SumWeight)
 			key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetPerMetric}}
 			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
 			mi.Tail.Value.AddValueCounterHost(value, 1, 0)
 		} else {
 			key := data_model.Key{Metric: format.BuiltinMetricIDAgentPerMetricSampleBudget, Keys: [16]int32{0, format.TagValueIDAgentFirstSampledMetricBudgetUnused}}
 			mi := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
-			mi.Tail.Value.AddValueCounterHost(float64(s.BudgetNum)/float64(s.BudgetDenom), 1, 0)
+			mi.Tail.Value.AddValueCounterHost(float64(s.Budget), 1, 0)
 		}
 		sampleFactors = s.GetSampleFactors(sampleFactors)
 	}
@@ -285,6 +285,15 @@ func (s *ShardReplica) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.
 		key = data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingSizeBytes, Keys: [16]int32{0, s.agent.componentTag, format.TagValueIDSamplingDecisionDiscard, k[0], k[1], k[2]}}
 		mi = data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
 		mi.Tail.Value.Merge(&v.SumSizeDiscard)
+	}
+	// report budget used
+	budgetKey := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingBudget, Keys: [16]int32{0, s.agent.componentTag}}
+	budgetItem := data_model.MapKeyItemMultiItem(&bucket.MultiItems, budgetKey, config.StringTopCapacity, nil, nil)
+	budgetItem.Tail.Value.AddValue(float64(remainingBudget))
+	for k, v := range samplerStat.Budget {
+		key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingGroupBudget, Keys: [16]int32{0, s.agent.componentTag, k[0], k[1]}}
+		item := data_model.MapKeyItemMultiItem(&bucket.MultiItems, key, config.StringTopCapacity, nil, nil)
+		item.Tail.Value.AddValue(v)
 	}
 	// metric count
 	key := data_model.Key{Metric: format.BuiltinMetricIDSrcSamplingMetricCount, Keys: [16]int32{0, s.agent.componentTag}}

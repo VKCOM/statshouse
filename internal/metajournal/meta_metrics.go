@@ -22,7 +22,7 @@ type GroupWithMetricsList struct {
 	Metrics []string
 }
 
-type ApplyPromConfig func(configString string, version int64)
+type ApplyPromConfig func(configString string)
 
 type MetricsStorage struct {
 	mu sync.RWMutex
@@ -47,7 +47,7 @@ type MetricsStorage struct {
 	journal *Journal // can be easily moved out, if desired
 }
 
-func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromConfig ApplyPromConfig) *MetricsStorage {
+func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromConfig ApplyPromConfig, applyEvents ...ApplyEvent) *MetricsStorage {
 	result := &MetricsStorage{
 		metricsByID:      map[int32]*format.MetricMetaValue{},
 		metricsByName:    map[string]*format.MetricMetaValue{},
@@ -65,7 +65,7 @@ func MakeMetricsStorage(namespaceSuffix string, dc *pcache.DiskCache, applyPromC
 	for id, g := range format.BuiltInNamespaceDefault {
 		result.builtInNamespace[id] = g
 	}
-	result.journal = MakeJournal(namespaceSuffix, dc, result.ApplyEvent)
+	result.journal = MakeJournal(namespaceSuffix, dc, append([]ApplyEvent{result.ApplyEvent}, applyEvents...))
 	return result
 }
 
@@ -97,13 +97,31 @@ func (ms *MetricsStorage) GetMetaMetricByName(metricName string) *format.MetricM
 func (ms *MetricsStorage) GetNamespaceByName(name string) *format.NamespaceMeta {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	return ms.namespaceByName[name]
+	ns, ok := ms.namespaceByName[name]
+	if ok {
+		return ns
+	}
+	for _, ns := range ms.builtInNamespace {
+		if ns.Name == name {
+			return ns
+		}
+	}
+	return nil
 }
 
 func (ms *MetricsStorage) GetGroupByName(name string) *format.MetricsGroup {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	return ms.groupsByName[name]
+	g, ok := ms.groupsByName[name]
+	if ok {
+		return g
+	}
+	for _, g := range ms.builtInGroup {
+		if g.Name == name {
+			return g
+		}
+	}
+	return nil
 }
 
 func (ms *MetricsStorage) getMetaMetricByNameLocked(metricName string) *format.MetricMetaValue {
@@ -253,7 +271,6 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	// This code operates on immutable structs, it should not change any stored object, except of map
 	promConfigSet := false
 	promConfigData := ""
-	promConfigVersion := int64(0)
 	ms.mu.Lock()
 	for _, e := range newEntries {
 		switch e.EventType {
@@ -304,7 +321,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.ID = int32(e.Id)
 			value.NamespaceID = int32(e.NamespaceId)
 			value.UpdateTime = e.UpdateTime
-			_ = value.RestoreCachedInfo(false)
+			_ = value.RestoreCachedInfo(value.ID < 0)
 			var old *format.MetricsGroup
 			if value.ID >= 0 {
 				old = ms.groupsByID[value.ID]
@@ -321,7 +338,6 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			ms.promConfig = e
 			promConfigSet = true
 			promConfigData = e.Data
-			promConfigVersion = e.Version
 		case format.NamespaceEvent:
 			value := &format.NamespaceMeta{}
 			err := json.Unmarshal([]byte(e.Data), value)
@@ -333,6 +349,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			value.Name = e.Name
 			value.Version = e.Version
 			value.UpdateTime = e.UpdateTime
+			_ = value.RestoreCachedInfo(value.ID < 0)
 			if value.ID >= 0 {
 				if oldNamespace, ok := ms.namespaceByID[value.ID]; ok && oldNamespace.Name != value.Name {
 					delete(ms.namespaceByName, oldNamespace.Name)
@@ -349,7 +366,7 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	}
 	ms.mu.Unlock()
 	if promConfigSet && ms.applyPromConfig != nil { // outside of lock, once
-		ms.applyPromConfig(promConfigData, promConfigVersion)
+		ms.applyPromConfig(promConfigData)
 	}
 }
 

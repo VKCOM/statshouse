@@ -19,3 +19,4 @@ export * from './liveMode';
 export * from './plot/plotHealsStore';
 export * from './plot/plotPreviewStore';
 export * from './plot/plotVisibilityStore';
+export * from './tvMode';

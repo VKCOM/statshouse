@@ -17,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
+	"github.com/vkcom/statshouse/internal/format"
 
 	"github.com/prometheus/common/config"
 )
@@ -76,7 +77,13 @@ func (s *syncerImpl) SyncTargets(ctx context.Context) ([]promTarget, error) {
 		}
 		buf, _ = target.Write(buf[:0])
 		host, port := parseInstance(uri)
+		var namespace string
+		if v, ok := target.Labels[format.ScrapeNamespaceTagName]; ok {
+			delete(target.Labels, format.ScrapeNamespaceTagName)
+			namespace = v
+		}
 		result = append(result, promTarget{
+			namespace:             namespace,
 			jobName:               target.JobName,
 			url:                   target.Url,
 			labels:                target.Labels,

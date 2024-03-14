@@ -22,18 +22,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/vkgo/build"
-	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-
 	"github.com/vkcom/statshouse/internal/agent"
-	"github.com/vkcom/statshouse/internal/aggregator/prometheus"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
-
+	"github.com/vkcom/statshouse/internal/vkgo/build"
+	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"pgregory.net/rand"
 )
 
@@ -99,8 +96,8 @@ type (
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
 
-		promUpdater *prometheus.Updater
-		autoCreate  *autoCreate
+		scrape     *ScrapeServer
+		autoCreate *autoCreate
 	}
 	BuiltInStatRecord struct {
 		Key  data_model.Key
@@ -200,14 +197,9 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		rpc.ServerWithRequestMemoryLimit(2<<30))
 
 	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
-	log.Println("starting prom updater")
-	a.promUpdater, err = prometheus.RunPromUpdaterAsync(hostName, logTrace)
-	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, dc, a.promUpdater.ApplyConfigFromJournal)
+	a.scrape = newScrapeServer()
+	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, dc, a.scrape.applyConfig)
 	a.metricStorage.Journal().Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
-	if err != nil {
-		return fmt.Errorf("failed to run prom updater: %s", err)
-	}
-	log.Println("prom updater started")
 	agentConfig := agent.DefaultConfig()
 	agentConfig.Cluster = a.config.Cluster
 	// We use agent instance for aggregator built-in metrics

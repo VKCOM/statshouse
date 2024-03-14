@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/mailru/easyjson/jwriter"
+	"github.com/vkcom/statshouse/internal/data_model"
 
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
@@ -65,6 +66,8 @@ func httpCode(err error) int {
 		var httpErr httpError
 		var promErr promql.Error
 		switch {
+		case errors.Is(err, data_model.ErrEntityNotExists):
+			code = http.StatusNotFound
 		case errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded):
 			code = http.StatusGatewayTimeout // 504
 		case errors.As(err, &httpErr):
@@ -96,8 +99,8 @@ func cacheSeconds(d time.Duration) int {
 }
 
 func exportCSV(w http.ResponseWriter, resp *SeriesResponse, metric string, es *endpointStat) {
-	es.serviceTime(http.StatusOK)
-	defer es.responseTime(http.StatusOK)
+	es.reportServiceTime(http.StatusOK, nil)
+	defer es.reportResponseTime(http.StatusOK)
 
 	w.Header().Set(
 		"Content-Disposition",
@@ -150,7 +153,7 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 	r := Response{}
 
 	if es != nil {
-		es.serviceTime(code)
+		es.reportServiceTime(code, nil)
 	}
 
 	if err != nil {
@@ -204,14 +207,14 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 	}
 
 	if es != nil {
-		es.responseTime(code)
+		es.reportResponseTime(code)
 	}
 }
 
 func respondPlot(w http.ResponseWriter, format string, resp []byte, cache time.Duration, cacheStale time.Duration, verbose bool, user string, es *endpointStat) {
 	code := http.StatusOK
 	if es != nil {
-		es.serviceTime(code)
+		es.reportServiceTime(code, nil)
 	}
 
 	w.Header().Set("Content-Length", strconv.Itoa(len(resp)))
@@ -243,7 +246,7 @@ func respondPlot(w http.ResponseWriter, format string, resp []byte, cache time.D
 	}
 
 	if es != nil {
-		es.responseTime(code)
+		es.reportResponseTime(code)
 	}
 }
 
@@ -374,7 +377,7 @@ func verifyTimeShifts(ts []int64) ([]time.Duration, error) {
 	return ds, nil
 }
 
-func parseNumResults(s string, def int, max int) (int, error) {
+func parseNumResults(s string, max int) (int, error) {
 	u, err := strconv.ParseInt(s, 10, 32)
 	if err != nil {
 		return 0, httpErr(http.StatusBadRequest, fmt.Errorf("failed to parse number of results: %w", err))

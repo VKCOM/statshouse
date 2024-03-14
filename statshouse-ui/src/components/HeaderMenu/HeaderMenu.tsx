@@ -10,6 +10,7 @@ import { ReactComponent as SVGLightning } from 'bootstrap-icons/icons/lightning.
 import { ReactComponent as SVGGridFill } from 'bootstrap-icons/icons/grid-fill.svg';
 import { ReactComponent as SVGPlus } from 'bootstrap-icons/icons/plus.svg';
 import { ReactComponent as SVGCardList } from 'bootstrap-icons/icons/card-list.svg';
+import { ReactComponent as SVGCpu } from 'bootstrap-icons/icons/cpu.svg';
 import { ReactComponent as SVGBrightnessHighFill } from 'bootstrap-icons/icons/brightness-high-fill.svg';
 import { ReactComponent as SVGMoonStarsFill } from 'bootstrap-icons/icons/moon-stars-fill.svg';
 import { ReactComponent as SVGCircleHalf } from 'bootstrap-icons/icons/circle-half.svg';
@@ -31,11 +32,13 @@ import {
   useStore,
   useStoreDev,
   useThemeStore,
+  useTVModeStore,
 } from '../../store';
 import { currentAccessInfo, logoutURL } from '../../common/access';
 import { HeaderMenuItemPlot } from './HeaderMenuItemPlot';
 import css from './style.module.css';
 import { decodeParams } from '../../url/queryParams';
+import { globalSettings } from '../../common/settings';
 
 const themeIcon = {
   [THEMES.Light]: SVGBrightnessHighFill,
@@ -66,6 +69,8 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   const isView = location.pathname === '/view';
   const isDashList = location.pathname === '/dash-list';
   const isSettings = location.pathname === '/settings' || location.pathname === '/settings/group';
+
+  const tvMode = useTVModeStore((state) => state.enable);
 
   const onPasteClipboard = useCallback(() => {
     (navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.reject())
@@ -123,7 +128,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
   }, []);
 
   return (
-    <div className={cn('sticky-top align-self-start', css.navOuter, className)}>
+    <div className={cn('sticky-top align-self-start', css.navOuter, className)} hidden={tvMode && params.tabNum < 0}>
       <ul className={cn('nav pb-2 h-100 d-flex flex-column flex-nowrap ', css.nav)}>
         <HeaderMenuItem icon={SVGLightning} title="Home" to="/view" description="StatsHouse">
           <li className={css.splitter}></li>
@@ -144,12 +149,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             </a>
           </li>
           <li className="nav-item">
-            <a
-              className="nav-link"
-              href="https://github.com/VKCOM/statshouse#documentation"
-              target="_blank"
-              rel="noreferrer"
-            >
+            <a className="nav-link" href="https://vkcom.github.io/statshouse/" target="_blank" rel="noreferrer">
               Documentation
             </a>
           </li>
@@ -158,7 +158,7 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
               OpenAPI
             </a>
           </li>
-          <li className="nav-item">
+          {/*<li className="nav-item">
             <a
               className="nav-link"
               href="https://github.com/VKCOM/statshouse/discussions/categories/q-a"
@@ -167,12 +167,19 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             >
               Support
             </a>
-          </li>
+          </li>*/}
           <li className="nav-item">
             <NavLink className="nav-link" to="/doc/faq" end>
               FAQ
             </NavLink>
           </li>
+          {!!globalSettings.links?.length && <li className={css.splitter}></li>}
+          {!!globalSettings.links?.length &&
+            globalSettings.links.map(({ url, name }, index) => (
+              <NavLink key={index} target="_blank" className="nav-link" to={url} end>
+                {name}
+              </NavLink>
+            ))}
           {ai.developer && (
             <>
               <li className={css.splitter}></li>
@@ -239,6 +246,14 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
               </NavLink>
             </li>
           </HeaderMenuItem>
+        )}
+        {!!globalSettings.admin_dash && (
+          <HeaderMenuItem
+            icon={SVGCpu}
+            to={`/view?id=${globalSettings.admin_dash}`}
+            title="Hardware info"
+            className={cn(isDashList && css.activeItem)}
+          ></HeaderMenuItem>
         )}
         <HeaderMenuItem
           icon={SVGCardList}

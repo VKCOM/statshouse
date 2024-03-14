@@ -7,12 +7,13 @@
 package prometheus
 
 import (
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/receiver"
 )
 
 type MetricPusher interface {
-	PushLocal(metric *tlstatshouse.MetricBytes)
+	PushLocal(metric *tlstatshouse.MetricBytes, description string, scrapeInterval int)
 	IsLocal() bool
 }
 
@@ -20,8 +21,12 @@ type LocalMetricPusher struct {
 	h receiver.Handler
 }
 
-func (pusher *LocalMetricPusher) PushLocal(metric *tlstatshouse.MetricBytes) {
-	_, _ = pusher.h.HandleMetrics(metric, nil)
+func (pusher *LocalMetricPusher) PushLocal(metric *tlstatshouse.MetricBytes, description string, scrapeInterval int) {
+	_, _ = pusher.h.HandleMetrics(data_model.HandlerArgs{
+		MetricBytes:    metric,
+		Description:    description,
+		ScrapeInterval: scrapeInterval,
+	})
 }
 
 func (pusher *LocalMetricPusher) IsLocal() bool {

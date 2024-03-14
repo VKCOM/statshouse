@@ -10,10 +10,9 @@ import (
 	"math"
 	"sort"
 
-	"pgregory.net/rand"
-
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+	"pgregory.net/rand"
 )
 
 type (
@@ -31,6 +30,8 @@ type (
 		MetricID int32
 		SF       float64
 
+		namespaceID   int32
+		groupID       int32
 		roundFactors  bool
 		noSampleAgent bool
 		weight        int64 // actually, effective weight
@@ -65,11 +66,10 @@ type (
 	}
 
 	SamplerStep struct {
-		Groups      []SamplerGroup // sorted by SumSize/Weight ratio ascending
-		BudgetNum   int64          // groups starting from StartPos were sampled to fit the budget=BudgetNum/BudgetDenom
-		BudgetDenom int64          // budget denominator
-		StartPos    int            // groups left of StartPos were not sampled
-		SumWeight   int64          // summary weight of groups starting from StartPos
+		Groups    []SamplerGroup // sorted by SumSize/Weight ratio ascending
+		Budget    int64          // groups starting from StartPos were sampled to fit the Budget
+		StartPos  int            // groups left of StartPos were not sampled
+		SumWeight int64          // summary weight of groups starting from StartPos
 	}
 
 	SamplerStatistics struct {
@@ -77,6 +77,7 @@ type (
 		Steps   []SamplerStep                       // steps contributed to "Count"
 		Items   map[[3]int32]*SamplerStatisticsItem // grouped by [namespace, group, metric_kind]
 		Metrics map[int32]int                       // series count grouped by metric
+		Budget  map[[2]int32]float64                // effective budget groupped by [namespace, group]
 	}
 
 	SamplerStatisticsItem struct {
@@ -144,7 +145,7 @@ func (h *Sampler) Add(p SamplingMultiItemPair) {
 	h.items = append(h.items, p)
 }
 
-func (h *Sampler) Run(budgetNum, budgetDenom int64, stat *SamplerStatistics) {
+func (h *Sampler) Run(budget int64, stat *SamplerStatistics) {
 	// Partition by group/metric/key and run
 	sort.Slice(h.items, func(i, j int) bool {
 		var lhs, rhs *SamplingMultiItemPair = &h.items[i], &h.items[j]
@@ -159,7 +160,7 @@ func (h *Sampler) Run(budgetNum, budgetDenom int64, stat *SamplerStatistics) {
 		}
 		return lhs.fairKey < rhs.fairKey
 	})
-	h.run(h.items, 0, budgetNum, budgetDenom, stat)
+	h.run(h.items, 0, budget, stat)
 }
 
 func (stat *SamplerStatistics) Keep(p SamplingMultiItemPair) {
@@ -171,13 +172,10 @@ func (stat *SamplerStatistics) Keep(p SamplingMultiItemPair) {
 	stat.add(&p, true)
 }
 
-func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDenom int64, stat *SamplerStatistics) {
-	// The following two cases should not happen, but if they do, it will cause panic
-	if budgetNum < 1 {
-		budgetNum = 1
-	}
-	if budgetDenom < 1 {
-		budgetDenom = 1
+func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budget int64, stat *SamplerStatistics) {
+	// Sanity check
+	if budget < 1 {
+		budget = 1
 	}
 	// Partition, then sort groups by sumSize/weight ratio
 	groups, sumWeight := h.partF[depth](h, s)
@@ -186,28 +184,44 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 		return lhs.sumSize*rhs.weight < rhs.sumSize*lhs.weight // comparing rational numbers
 	})
 	// Groups smaller than the budget aren't sampled
-	pos := 0
-	for i := range groups {
+	i := 0
+	for ; i < len(groups); i++ {
 		g := &groups[i]
-		if g.sumSize*budgetDenom*sumWeight > budgetNum*g.weight {
+		bxw := budget * g.weight
+		if bxw < sumWeight*g.sumSize {
 			break // SF > 1
 		}
-		budgetNum -= g.sumSize * budgetDenom
-		sumWeight -= g.weight
+		if g.MetricID == 0 {
+			// namespace or group budget
+			g.statBudget(h, stat, bxw, sumWeight)
+		}
 		g.keep(h, stat)
-		pos++
+		budget -= g.sumSize
+		sumWeight -= g.weight
 	}
-	// Sample remaining groups who didn't fit into the budget
-	n := 0 // number of "sample" calls with g.SF > 1
-	for i := pos; i < len(groups); i++ {
-		g := &groups[i]
+	if i == len(groups) {
+		return // without sampling
+	}
+	// Sampling
+	n := 0 // number of "sample" calls with SF > 1
+	for j := i; j < len(groups); j++ {
+		g := &groups[j]
+		bxw := budget * g.weight
 		if g.noSampleAgent && h.config.ModeAgent {
+			if g.MetricID == 0 {
+				// namespace or group budget
+				g.statBudget(h, stat, bxw, sumWeight)
+			}
 			g.keep(h, stat)
 		} else if depth < len(h.partF)-1 {
-			d := budgetDenom * (int64(len(groups) - pos)) // group budget denominator
-			h.run(g.items, depth+1, budgetNum, d, stat)
+			b := int64(h.config.RoundF(float64(bxw)/float64(sumWeight), h.config.Rand))
+			if g.MetricID == 0 && (g.groupID != 0 || !h.config.SampleGroups) {
+				// namespace or group budget
+				g.statBudget(h, stat, b, 1)
+			}
+			h.run(g.items, depth+1, b, stat)
 		} else {
-			h.sample(g, budgetNum, budgetDenom, sumWeight, stat)
+			h.sample(g, bxw, sumWeight, stat)
 			if g.SF > 1 {
 				n++
 			}
@@ -217,11 +231,10 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 	if n != 0 {
 		stat.Count += n
 		stat.Steps = append(stat.Steps, SamplerStep{
-			Groups:      groups,
-			BudgetNum:   budgetNum,
-			BudgetDenom: budgetDenom,
-			StartPos:    pos,
-			SumWeight:   sumWeight,
+			Groups:    groups,
+			Budget:    budget,
+			StartPos:  i,
+			SumWeight: sumWeight,
 		})
 	}
 }
@@ -229,6 +242,19 @@ func (h *Sampler) run(s []SamplingMultiItemPair, depth int, budgetNum, budgetDen
 func (g *SamplerGroup) keep(h *Sampler, stat *SamplerStatistics) {
 	for i := range g.items {
 		g.items[i].keep(1, h, stat)
+	}
+}
+
+func (g *SamplerGroup) statBudget(h *Sampler, stat *SamplerStatistics, budgetNum, budgetDenom int64) {
+	k := [2]int32{g.namespaceID, g.groupID}
+	var b float64
+	if budgetDenom != 0 {
+		b = float64(budgetNum) / float64(budgetDenom)
+	}
+	if stat.Budget == nil {
+		stat.Budget = map[[2]int32]float64{k: b}
+	} else {
+		stat.Budget[k] = b
 	}
 }
 
@@ -248,11 +274,9 @@ func (p *SamplingMultiItemPair) discard(sf float64, h *Sampler, stat *SamplerSta
 	stat.add(p, false)
 }
 
-func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int64, stat *SamplerStatistics) {
-	var (
-		sfNum   = g.sumSize * budgetDenom * sumWeight
-		sfDenom = budgetNum * g.weight
-	)
+func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom int64, stat *SamplerStatistics) {
+	sfNum := budgetDenom * g.sumSize
+	sfDenom := budgetNum
 	if sfNum < 1 {
 		sfNum = 1
 	}
@@ -291,13 +315,8 @@ func (h *Sampler) sample(g *SamplerGroup, budgetNum, budgetDenom, sumWeight int6
 			p.keep(1, h, stat)
 		}
 		items = items[pos:]
+		sf *= 2 // space has been taken by whales
 	}
-	// Space has been taken by whales
-	// NB! Should be moved at the end of the above "if" ASAP
-	// NB! because unconditional multiplication here is a BUG
-	// NB! leading to significant counters (sums as well) increase.
-	// NB! Left here to not deploy multiple changes together.
-	sf *= 2
 	// Sample tail
 	pos = h.config.SelectF(items, sf, h.config.Rand)
 	for i := 0; i < pos; i++ {
@@ -353,15 +372,15 @@ func partitionByNamespace(h *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup
 		return nil, 0
 	}
 	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
-		namespace := h.getNamespaceMeta(items[0].metric.NamespaceID)
-		weight := namespace.EffectiveWeight
+		weight := h.getNamespaceMeta(items[0].metric.NamespaceID).EffectiveWeight
 		if weight < 1 { // weight can't be zero or less, sanity check
 			weight = 1
 		}
 		return SamplerGroup{
-			weight:  weight,
-			items:   items,
-			sumSize: sumSize,
+			weight:      weight,
+			items:       items,
+			sumSize:     sumSize,
+			namespaceID: items[0].metric.NamespaceID,
 		}
 	}
 	var res []SamplerGroup
@@ -389,15 +408,16 @@ func partitionByGroup(h *Sampler, s []SamplingMultiItemPair) ([]SamplerGroup, in
 		return nil, 0
 	}
 	newSamplerGroup := func(items []SamplingMultiItemPair, sumSize int64) SamplerGroup {
-		group := h.getGroupMeta(items[0].metric.GroupID)
-		weight := group.EffectiveWeight
+		weight := h.getGroupMeta(items[0].metric.GroupID).EffectiveWeight
 		if weight < 1 { // weight can't be zero or less, sanity check
 			weight = 1
 		}
 		return SamplerGroup{
-			weight:  weight,
-			items:   items,
-			sumSize: sumSize,
+			weight:      weight,
+			items:       items,
+			sumSize:     sumSize,
+			namespaceID: items[0].metric.NamespaceID,
+			groupID:     items[0].metric.GroupID,
 		}
 	}
 	var res []SamplerGroup

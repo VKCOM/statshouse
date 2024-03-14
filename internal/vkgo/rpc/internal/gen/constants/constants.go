@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,26 +8,39 @@
 package constants
 
 const (
-	Dictionary              = 0x1f4c618f // dictionary
-	DictionaryField         = 0x239c1b62 // dictionaryField
-	NetPID                  = 0x723c414d // netPID
-	NetUdpPacketEncHeader   = 0x251a7bfd // netUdpPacket.encHeader
-	NetUdpPacketUnencHeader = 0x00a8e945 // netUdpPacket.unencHeader
-	ReqError                = 0xb527877d // reqError
-	ReqResultHeader         = 0x8cc84ce1 // reqResultHeader
-	RpcCancelReq            = 0x193f1b22 // rpcCancelReq
-	RpcDestActor            = 0x7568aabd // rpcDestActor
-	RpcDestActorFlags       = 0xf0a5acf7 // rpcDestActorFlags
-	RpcDestFlags            = 0xe352035e // rpcDestFlags
-	RpcInvokeReqExtra       = 0xf3ef81a9 // rpcInvokeReqExtra
-	RpcInvokeReqHeader      = 0x2374df3d // rpcInvokeReqHeader
-	RpcPing                 = 0x5730a2df // rpcPing
-	RpcPong                 = 0x8430eaa7 // rpcPong
-	RpcReqResultError       = 0x7ae432f5 // rpcReqResultError
-	RpcReqResultExtra       = 0xc5011709 // rpcReqResultExtra
-	RpcReqResultHeader      = 0x63aeda4e // rpcReqResultHeader
-	RpcServerWantsFin       = 0xa8ddbc46 // rpcServerWantsFin
-	True                    = 0x3fedd339 // true
-	Tuple                   = 0x9770768a // tuple
-	Vector                  = 0x1cb5c415 // vector
+	BoolFalse                = 0xbc799737 // boolFalse
+	BoolTrue                 = 0x997275b5 // boolTrue
+	Dictionary               = 0x1f4c618f // dictionary
+	DictionaryField          = 0x239c1b62 // dictionaryField
+	EngineAsyncSleep         = 0x60e50d3d // engine.asyncSleep
+	EngineFilteredStat       = 0x594870d6 // engine.filteredStat
+	EnginePid                = 0x559d6e36 // engine.pid
+	EngineSetVerbosity       = 0x9d980926 // engine.setVerbosity
+	EngineSleep              = 0x3d3bcd48 // engine.sleep
+	EngineStat               = 0xefb3c36b // engine.stat
+	EngineVersion            = 0x1a2e06fa // engine.version
+	GoPprof                  = 0xea2876a6 // go.pprof
+	NetPid                   = 0x46409ccf // net.pid
+	NetUdpPacketEncHeader    = 0x251a7bfd // netUdpPacket.encHeader
+	NetUdpPacketUnencHeader  = 0x00a8e945 // netUdpPacket.unencHeader
+	ReqError                 = 0xb527877d // reqError
+	ReqResultHeader          = 0x8cc84ce1 // reqResultHeader
+	RpcCancelReq             = 0x193f1b22 // rpcCancelReq
+	RpcDestActor             = 0x7568aabd // rpcDestActor
+	RpcDestActorFlags        = 0xf0a5acf7 // rpcDestActorFlags
+	RpcDestFlags             = 0xe352035e // rpcDestFlags
+	RpcInvokeReqExtra        = 0xf3ef81a9 // rpcInvokeReqExtra
+	RpcInvokeReqHeader       = 0x2374df3d // rpcInvokeReqHeader
+	RpcPing                  = 0x5730a2df // rpcPing
+	RpcPong                  = 0x8430eaa7 // rpcPong
+	RpcReqResultError        = 0x7ae432f5 // rpcReqResultError
+	RpcReqResultErrorWrapped = 0x7ae432f6 // rpcReqResultErrorWrapped
+	RpcReqResultExtra        = 0xc5011709 // rpcReqResultExtra
+	RpcReqResultHeader       = 0x63aeda4e // rpcReqResultHeader
+	RpcServerWantsFin        = 0xa8ddbc46 // rpcServerWantsFin
+	Stat                     = 0x9d56e6b2 // stat
+	String                   = 0xb5286e24 // string
+	True                     = 0x3fedd339 // true
+	Tuple                    = 0x9770768a // tuple
+	Vector                   = 0x1cb5c415 // vector
 )

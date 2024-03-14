@@ -73,7 +73,7 @@ func (r *RPCReceiver) RawAddMetricsBatch(ctx context.Context, hctx *rpc.HandlerC
 		ch <- mapping.MapErrorFromHeader(m, h)
 	}
 	for i := range args.Metrics {
-		h, done := r.Handler.HandleMetrics(&args.Metrics[i], cb) // might move out metric, if needs to
+		h, done := r.Handler.HandleMetrics(data_model.HandlerArgs{MetricBytes: &args.Metrics[i], MapCallback: cb}) // might move out metric, if needs to
 		if done && firstError == nil && h.IngestionStatus != 0 {
 			firstError = mapping.MapErrorFromHeader(args.Metrics[i], h)
 		}

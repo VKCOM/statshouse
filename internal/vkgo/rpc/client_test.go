@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -24,13 +24,13 @@ func TestNewClient(t *testing.T) {
 		ClientWithCryptoKey("crypto-key"),
 		ClientWithConnReadBufSize(123),
 		ClientWithConnWriteBufSize(456),
-		ClientWithPongTimeout(2*time.Second),
+		ClientWithPacketTimeout(2*time.Second),
 		ClientWithTrustedSubnetGroups([][]string{{"10.32.0.0/11"}}),
 	)
 
 	require.Equal(t, 123, c.opts.ConnReadBufSize)
 	require.Equal(t, 456, c.opts.ConnWriteBufSize)
-	require.Equal(t, 2*time.Second, c.opts.PongTimeout)
+	require.Equal(t, 2*time.Second, c.opts.PacketTimeout)
 	require.Equal(t, "crypto-key", c.opts.CryptoKey)
 	require.Equal(t, true, c.opts.ForceEncryption)
 

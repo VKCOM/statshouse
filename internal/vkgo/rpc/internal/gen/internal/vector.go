@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -13,6 +13,83 @@ import (
 
 var _ = basictl.NatWrite
 
+type VectorDictionaryFieldLong map[string]int64
+
+func (VectorDictionaryFieldLong) TLName() string { return "vector" }
+func (VectorDictionaryFieldLong) TLTag() uint32  { return 0x1cb5c415 }
+
+func (item *VectorDictionaryFieldLong) Reset() {
+	ptr := (*map[string]int64)(item)
+	BuiltinVectorDictionaryFieldLongReset(*ptr)
+}
+
+func (item *VectorDictionaryFieldLong) Read(w []byte) (_ []byte, err error) {
+	ptr := (*map[string]int64)(item)
+	return BuiltinVectorDictionaryFieldLongRead(w, ptr)
+}
+
+func (item *VectorDictionaryFieldLong) Write(w []byte) (_ []byte, err error) {
+	ptr := (*map[string]int64)(item)
+	return BuiltinVectorDictionaryFieldLongWrite(w, *ptr)
+}
+
+func (item *VectorDictionaryFieldLong) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+func (item *VectorDictionaryFieldLong) WriteBoxed(w []byte) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x1cb5c415)
+	return item.Write(w)
+}
+
+func (item VectorDictionaryFieldLong) String() string {
+	w, err := item.WriteJSON(nil)
+	if err != nil {
+		return err.Error()
+	}
+	return string(w)
+}
+
+func VectorDictionaryFieldLong__ReadJSON(item *VectorDictionaryFieldLong, j interface{}) error {
+	return item.readJSON(j)
+}
+func (item *VectorDictionaryFieldLong) readJSON(j interface{}) error {
+	ptr := (*map[string]int64)(item)
+	if err := BuiltinVectorDictionaryFieldLongReadJSON(j, ptr); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (item *VectorDictionaryFieldLong) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorDictionaryFieldLong) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+	ptr := (*map[string]int64)(item)
+	if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(short, w, *ptr); err != nil {
+		return w, err
+	}
+	return w, nil
+}
+func (item *VectorDictionaryFieldLong) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil)
+}
+
+func (item *VectorDictionaryFieldLong) UnmarshalJSON(b []byte) error {
+	j, err := JsonBytesToInterface(b)
+	if err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	if err = item.readJSON(j); err != nil {
+		return ErrorInvalidJSON("vector", err.Error())
+	}
+	return nil
+}
+
 type VectorDictionaryFieldString map[string]string
 
 func (VectorDictionaryFieldString) TLName() string { return "vector" }
@@ -20,17 +97,17 @@ func (VectorDictionaryFieldString) TLTag() uint32  { return 0x1cb5c415 }
 
 func (item *VectorDictionaryFieldString) Reset() {
 	ptr := (*map[string]string)(item)
-	VectorDictionaryFieldString0Reset(*ptr)
+	BuiltinVectorDictionaryFieldStringReset(*ptr)
 }
 
 func (item *VectorDictionaryFieldString) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	return VectorDictionaryFieldString0Read(w, ptr)
+	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
 }
 
 func (item *VectorDictionaryFieldString) Write(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	return VectorDictionaryFieldString0Write(w, *ptr)
+	return BuiltinVectorDictionaryFieldStringWrite(w, *ptr)
 }
 
 func (item *VectorDictionaryFieldString) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -58,15 +135,19 @@ func VectorDictionaryFieldString__ReadJSON(item *VectorDictionaryFieldString, j 
 }
 func (item *VectorDictionaryFieldString) readJSON(j interface{}) error {
 	ptr := (*map[string]string)(item)
-	if err := VectorDictionaryFieldString0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldStringReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorDictionaryFieldString) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorDictionaryFieldString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	if w, err = VectorDictionaryFieldString0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -98,12 +179,12 @@ func (item *VectorInt) Reset() {
 
 func (item *VectorInt) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]int32)(item)
-	return VectorInt0Read(w, ptr)
+	return BuiltinVectorIntRead(w, ptr)
 }
 
 func (item *VectorInt) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]int32)(item)
-	return VectorInt0Write(w, *ptr)
+	return BuiltinVectorIntWrite(w, *ptr)
 }
 
 func (item *VectorInt) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -129,15 +210,19 @@ func (item VectorInt) String() string {
 func VectorInt__ReadJSON(item *VectorInt, j interface{}) error { return item.readJSON(j) }
 func (item *VectorInt) readJSON(j interface{}) error {
 	ptr := (*[]int32)(item)
-	if err := VectorInt0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorIntReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorInt) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorInt) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]int32)(item)
-	if w, err = VectorInt0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorIntWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -169,12 +254,12 @@ func (item *VectorLong) Reset() {
 
 func (item *VectorLong) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]int64)(item)
-	return VectorLong0Read(w, ptr)
+	return BuiltinVectorLongRead(w, ptr)
 }
 
 func (item *VectorLong) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]int64)(item)
-	return VectorLong0Write(w, *ptr)
+	return BuiltinVectorLongWrite(w, *ptr)
 }
 
 func (item *VectorLong) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -200,15 +285,19 @@ func (item VectorLong) String() string {
 func VectorLong__ReadJSON(item *VectorLong, j interface{}) error { return item.readJSON(j) }
 func (item *VectorLong) readJSON(j interface{}) error {
 	ptr := (*[]int64)(item)
-	if err := VectorLong0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorLongReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorLong) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorLong) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]int64)(item)
-	if w, err = VectorLong0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorLongWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -240,12 +329,12 @@ func (item *VectorString) Reset() {
 
 func (item *VectorString) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]string)(item)
-	return VectorString0Read(w, ptr)
+	return BuiltinVectorStringRead(w, ptr)
 }
 
 func (item *VectorString) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]string)(item)
-	return VectorString0Write(w, *ptr)
+	return BuiltinVectorStringWrite(w, *ptr)
 }
 
 func (item *VectorString) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -271,15 +360,19 @@ func (item VectorString) String() string {
 func VectorString__ReadJSON(item *VectorString, j interface{}) error { return item.readJSON(j) }
 func (item *VectorString) readJSON(j interface{}) error {
 	ptr := (*[]string)(item)
-	if err := VectorString0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStringReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *VectorString) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *VectorString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]string)(item)
-	if w, err = VectorString0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorStringWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil

@@ -313,6 +313,8 @@ func run() error {
 		RawResetFlood:       proxy.HandleProxy("resetFlood", handler.RawResetFlood),
 
 		RawEditEntitynew:       proxy.HandleProxy("editEntity", handler.RawEditEntity),
+		RawGetEntity:           proxy.HandleProxy("getEntity", handler.RawGetEntity),
+		RawGetHistoryShortInfo: proxy.HandleProxy("getHistory", handler.RawGetHistory),
 		PutTagMappingBootstrap: handler.PutTagMappingBootstrap,
 		GetTagMappingBootstrap: handler.GetTagMappingBootstrap,
 		ResetFlood2:            handler.ResetFlood2,

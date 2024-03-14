@@ -30,7 +30,7 @@ fi
 
 # build StatsHouse
 if [[ -z $GOLANG_IMAGE ]]; then
-  GOLANG_IMAGE="golang:1.19-$TAG" # e.g. golang:1.19-bullseye
+  GOLANG_IMAGE="golang:1.21-$TAG" # e.g. golang:1.21-bullseye
 fi
 GOCACHE=build/go-cache
 mkdir -p "$PWD/$GOCACHE"

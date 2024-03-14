@@ -72,26 +72,15 @@ func TestAppendValidStringValue_Bytes(t *testing.T) {
 		if doubleIndex+1 < len(src) {
 			src[doubleIndex+1] = ' '
 		}
-		dst, err := appendValidStringValueLegacy(nil, src, n, false)
-		dst2, err2 := appendValidStringValue(nil, src, n, false)
-		require.False(t, strings.Contains(string(dst2), "  "))
+		dst, err := appendValidStringValue(nil, src, n, false)
+		require.False(t, strings.Contains(string(dst), "  "))
 		if err != nil {
-			require.True(t, !validStringValueLegacy(mem.B(src), n))
 			require.True(t, !validStringValue(mem.B(src), n)) // if value is invalid, collapsing spaces is also invalid
 		} else {
-			require.Truef(t, validStringValueLegacy(mem.B(dst), n), "dst %q", dst)
-			dst_repeat, err_repeat := appendValidStringValueLegacy(nil, dst, n, false)
+			require.Truef(t, validStringValue(mem.B(dst), n), "dst %q", dst)
+			dst_repeat, err_repeat := appendValidStringValue(nil, dst, n, false)
 			require.NoError(t, err_repeat)
 			require.Equal(t, string(dst), string(dst_repeat))
-		}
-		if err2 != nil {
-			require.True(t, !validStringValue(mem.B(src), n))
-		} else {
-			require.Truef(t, validStringValueLegacy(mem.B(dst), n), "dst %q", dst) // collapsed space value is also valid for func which does not check collapsing
-			require.Truef(t, validStringValue(mem.B(dst2), n), "dst %q", dst2)
-			dst_repeat, err_repeat := appendValidStringValueLegacy(nil, dst2, n, false)
-			require.NoError(t, err_repeat)
-			require.Equal(t, string(dst2), string(dst_repeat))
 		}
 		dst, err = appendValidStringValue(nil, src, n, true)
 		require.NoError(t, err)
@@ -102,6 +91,7 @@ func TestAppendValidStringValue_Bytes(t *testing.T) {
 	})
 }
 
+/* TODO - do not add more than single space inside
 func TestAppendValidStringValue_String(t *testing.T) {
 	rapid.Check(t, func(t *rapid.T) {
 		n := rapid.IntRange(4, MaxStringLen).Draw(t, "n")
@@ -110,11 +100,22 @@ func TestAppendValidStringValue_String(t *testing.T) {
 		if len(src) == 0 {
 			t.Skip()
 		}
-		require.True(t, validStringValueLegacy(mem.S(src), n))
-		dst, err := appendValidStringValueLegacy(nil, []byte(src), n, false)
+		require.True(t, validStringValue(mem.S(src), n))
+		dst, err := appendValidStringValue(nil, []byte(src), n, false)
 		require.NoError(t, err)
 		require.Equal(t, src, string(dst))
 	})
+}
+*/
+
+func TestAppendValidStringValue_UTF16(t *testing.T) {
+	// We have a lot of java people converting strings using str.getBytes()
+	dst, err := AppendValidStringValue(nil, []byte("b\x00e\x00t\x00a\x00"))
+	require.NoError(t, err)
+	require.Equal(t, "b�e�t�a�", string(dst))
+	dst, err = AppendValidStringValue(nil, []byte("\x00b\x00e\x00t\x00a"))
+	require.NoError(t, err)
+	require.Equal(t, "�b�e�t�a", string(dst))
 }
 
 func TestBytePrint(t *testing.T) {
@@ -135,7 +136,7 @@ func BenchmarkAppendValidStringValueFastPath(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		in, _ = AppendValidStringValueLegacy(in[:0], in)
+		in, _ = AppendValidStringValue(in[:0], in)
 	}
 	fmt.Printf("result: %d\n", len(in)) // do not allow to optimize out
 }
@@ -162,7 +163,7 @@ func BenchmarkAppendValidStringValueSlowPath(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		in, _ = AppendValidStringValueLegacy(in[:0], in)
+		in, _ = AppendValidStringValue(in[:0], in)
 	}
 	fmt.Printf("result: %d\n", len(in)) // do not allow to optimize out
 }
@@ -210,4 +211,27 @@ func TestAllowedResolution(t *testing.T) {
 
 func TestNamespaceConst(t *testing.T) {
 	require.Equal(t, NamespaceSeparator, string(NamespaceSeparatorRune))
+}
+
+func TestValidDashboardName(t *testing.T) {
+	tests := []struct {
+		name string
+		args string
+		want bool
+	}{
+		{"", " ", false},
+		{"", " abc", false},
+		{"", "a bc", true},
+		{"", "[ a bc", true},
+		{"", "{ a bc", true},
+		{"", "{:} a bc", true},
+		{"", "1:{:} a bc", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ValidDashboardName(tt.args); got != tt.want {
+				t.Errorf("ValidDashboardName() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

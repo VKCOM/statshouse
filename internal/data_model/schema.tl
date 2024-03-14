@@ -179,6 +179,8 @@ statshouse.getTargetsResult#51ac86df {fields_mask:#}
     metric:string // metric name
     kind:string   // metric kind
     tags:(vector string) // metric tags
+    resolution:fields_mask.0?int
+    description:fields_mask.1?string
      = True;
 
 // when local cache is empty, statshouse will ask aggregator for common mappings
