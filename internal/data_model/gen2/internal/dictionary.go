@@ -20,17 +20,17 @@ func (DictionaryEngineMetafilesStatBoxed) TLTag() uint32  { return 0x1f4c618f }
 
 func (item *DictionaryEngineMetafilesStatBoxed) Reset() {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	VectorDictionaryFieldEngineMetafilesStatBoxed0Reset(*ptr)
+	BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReset(*ptr)
 }
 
 func (item *DictionaryEngineMetafilesStatBoxed) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	return VectorDictionaryFieldEngineMetafilesStatBoxed0Read(w, ptr)
+	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedRead(w, ptr)
 }
 
 func (item *DictionaryEngineMetafilesStatBoxed) Write(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	return VectorDictionaryFieldEngineMetafilesStatBoxed0Write(w, *ptr)
+	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWrite(w, *ptr)
 }
 
 func (item *DictionaryEngineMetafilesStatBoxed) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -58,15 +58,19 @@ func DictionaryEngineMetafilesStatBoxed__ReadJSON(item *DictionaryEngineMetafile
 }
 func (item *DictionaryEngineMetafilesStatBoxed) readJSON(j interface{}) error {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	if err := VectorDictionaryFieldEngineMetafilesStatBoxed0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *DictionaryEngineMetafilesStatBoxed) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *DictionaryEngineMetafilesStatBoxed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]EngineMetafilesStat)(item)
-	if w, err = VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -93,17 +97,17 @@ func (DictionaryString) TLTag() uint32  { return 0x1f4c618f }
 
 func (item *DictionaryString) Reset() {
 	ptr := (*map[string]string)(item)
-	VectorDictionaryFieldString0Reset(*ptr)
+	BuiltinVectorDictionaryFieldStringReset(*ptr)
 }
 
 func (item *DictionaryString) Read(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	return VectorDictionaryFieldString0Read(w, ptr)
+	return BuiltinVectorDictionaryFieldStringRead(w, ptr)
 }
 
 func (item *DictionaryString) Write(w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	return VectorDictionaryFieldString0Write(w, *ptr)
+	return BuiltinVectorDictionaryFieldStringWrite(w, *ptr)
 }
 
 func (item *DictionaryString) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -129,15 +133,19 @@ func (item DictionaryString) String() string {
 func DictionaryString__ReadJSON(item *DictionaryString, j interface{}) error { return item.readJSON(j) }
 func (item *DictionaryString) readJSON(j interface{}) error {
 	ptr := (*map[string]string)(item)
-	if err := VectorDictionaryFieldString0ReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldStringReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *DictionaryString) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *DictionaryString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	if w, err = VectorDictionaryFieldString0WriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -169,12 +177,12 @@ func (item *DictionaryStringBytes) Reset() {
 
 func (item *DictionaryStringBytes) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	return VectorDictionaryFieldString0BytesRead(w, ptr)
+	return BuiltinVectorDictionaryFieldStringBytesRead(w, ptr)
 }
 
 func (item *DictionaryStringBytes) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	return VectorDictionaryFieldString0BytesWrite(w, *ptr)
+	return BuiltinVectorDictionaryFieldStringBytesWrite(w, *ptr)
 }
 
 func (item *DictionaryStringBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -202,15 +210,19 @@ func DictionaryStringBytes__ReadJSON(item *DictionaryStringBytes, j interface{})
 }
 func (item *DictionaryStringBytes) readJSON(j interface{}) error {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	if err := VectorDictionaryFieldString0BytesReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldStringBytesReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *DictionaryStringBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+
+func (item *DictionaryStringBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]DictionaryFieldStringBytes)(item)
-	if w, err = VectorDictionaryFieldString0BytesWriteJSON(w, *ptr); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil

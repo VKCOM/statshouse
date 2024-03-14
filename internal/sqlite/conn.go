@@ -306,12 +306,6 @@ func (c Conn) doQuery(isRO, allowUnsafe bool, sqlBytes []byte, sqlString string,
 		}
 	}
 
-	if !allowUnsafe && !si.isSafe {
-		return nil, errUnsafe
-	}
-	if isRO && !si.isSelect {
-		return nil, fmt.Errorf("use Exec instead of Query")
-	}
 	if c.autoSavepoint && (!si.isSelect && !si.isVacuumInto) && !c.c.spIn {
 		err := c.execBeginSavepoint()
 		if err != nil {

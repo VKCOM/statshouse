@@ -32,18 +32,18 @@ func (item *StatshouseApiGetQueryPointResponse) Read(w []byte) (_ []byte, err er
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = VectorDouble0Read(w, &item.Data); err != nil {
+	if w, err = BuiltinVectorDoubleRead(w, &item.Data); err != nil {
 		return w, err
 	}
-	return VectorStatshouseApiPointMeta0Read(w, &item.Meta)
+	return BuiltinVectorStatshouseApiPointMetaRead(w, &item.Meta)
 }
 
 func (item *StatshouseApiGetQueryPointResponse) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = VectorDouble0Write(w, item.Data); err != nil {
+	if w, err = BuiltinVectorDoubleWrite(w, item.Data); err != nil {
 		return w, err
 	}
-	return VectorStatshouseApiPointMeta0Write(w, item.Meta)
+	return BuiltinVectorStatshouseApiPointMetaWrite(w, item.Meta)
 }
 
 func (item *StatshouseApiGetQueryPointResponse) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -86,16 +86,19 @@ func (item *StatshouseApiGetQueryPointResponse) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouseApi.queryPointResponse", k)
 	}
-	if err := VectorDouble0ReadJSON(_jData, &item.Data); err != nil {
+	if err := BuiltinVectorDoubleReadJSON(_jData, &item.Data); err != nil {
 		return err
 	}
-	if err := VectorStatshouseApiPointMeta0ReadJSON(_jMeta, &item.Meta); err != nil {
+	if err := BuiltinVectorStatshouseApiPointMetaReadJSON(_jMeta, &item.Meta); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseApiGetQueryPointResponse) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseApiGetQueryPointResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -105,14 +108,14 @@ func (item *StatshouseApiGetQueryPointResponse) WriteJSON(w []byte) (_ []byte, e
 	if len(item.Data) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"data":`...)
-		if w, err = VectorDouble0WriteJSON(w, item.Data); err != nil {
+		if w, err = BuiltinVectorDoubleWriteJSONOpt(short, w, item.Data); err != nil {
 			return w, err
 		}
 	}
 	if len(item.Meta) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"meta":`...)
-		if w, err = VectorStatshouseApiPointMeta0WriteJSON(w, item.Meta); err != nil {
+		if w, err = BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(short, w, item.Meta); err != nil {
 			return w, err
 		}
 	}

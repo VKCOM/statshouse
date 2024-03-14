@@ -52,6 +52,13 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite conn: %w", err)
 	}
+	if true {
+		err = conn.SetAutoCheckpoint(0)
+		if err != nil {
+			_ = conn.Close()
+			return nil, fmt.Errorf("failed to disable DB auto-checkpoints: %w", err)
+		}
+	}
 
 	err = conn.Exec("PRAGMA journal_mode=WAL2")
 	if err != nil {

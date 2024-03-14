@@ -13,6 +13,132 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorMetadataEventRead(w []byte, vec *[]MetadataEvent) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]MetadataEvent, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorMetadataEventWrite(w []byte, vec []MetadataEvent) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorMetadataEventReadJSON(j interface{}, vec *[]MetadataEvent) error {
+	l, _arr, err := JsonReadArray("[]MetadataEvent", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]MetadataEvent, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := MetadataEvent__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorMetadataEventWriteJSON(w []byte, vec []MetadataEvent) (_ []byte, err error) {
+	return BuiltinVectorMetadataEventWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorMetadataEventWriteJSONOpt(short bool, w []byte, vec []MetadataEvent) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
+func BuiltinVectorMetadataEventBytesRead(w []byte, vec *[]MetadataEventBytes) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]MetadataEventBytes, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorMetadataEventBytesWrite(w []byte, vec []MetadataEventBytes) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorMetadataEventBytesReadJSON(j interface{}, vec *[]MetadataEventBytes) error {
+	l, _arr, err := JsonReadArray("[]MetadataEventBytes", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]MetadataEventBytes, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := MetadataEventBytes__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorMetadataEventBytesWriteJSON(w []byte, vec []MetadataEventBytes) (_ []byte, err error) {
+	return BuiltinVectorMetadataEventBytesWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorMetadataEventBytesWriteJSONOpt(short bool, w []byte, vec []MetadataEventBytes) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
 type MetadataEvent struct {
 	FieldMask   uint32
 	Id          int64
@@ -183,6 +309,9 @@ func (item *MetadataEvent) readJSON(j interface{}) error {
 }
 
 func (item *MetadataEvent) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -200,11 +329,9 @@ func (item *MetadataEvent) WriteJSON(w []byte) (_ []byte, err error) {
 		w = basictl.JSONWriteString(w, item.Name)
 	}
 	if item.FieldMask&(1<<0) != 0 {
-		if item.NamespaceId != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"namespace_id":`...)
-			w = basictl.JSONWriteInt64(w, item.NamespaceId)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"namespace_id":`...)
+		w = basictl.JSONWriteInt64(w, item.NamespaceId)
 	}
 	if item.EventType != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -421,6 +548,9 @@ func (item *MetadataEventBytes) readJSON(j interface{}) error {
 }
 
 func (item *MetadataEventBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataEventBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -438,11 +568,9 @@ func (item *MetadataEventBytes) WriteJSON(w []byte) (_ []byte, err error) {
 		w = basictl.JSONWriteStringBytes(w, item.Name)
 	}
 	if item.FieldMask&(1<<0) != 0 {
-		if item.NamespaceId != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"namespace_id":`...)
-			w = basictl.JSONWriteInt64(w, item.NamespaceId)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"namespace_id":`...)
+		w = basictl.JSONWriteInt64(w, item.NamespaceId)
 	}
 	if item.EventType != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -485,124 +613,4 @@ func (item *MetadataEventBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("metadata.event", err.Error())
 	}
 	return nil
-}
-
-func VectorMetadataEvent0Read(w []byte, vec *[]MetadataEvent) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]MetadataEvent, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorMetadataEvent0Write(w []byte, vec []MetadataEvent) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorMetadataEvent0ReadJSON(j interface{}, vec *[]MetadataEvent) error {
-	l, _arr, err := JsonReadArray("[]MetadataEvent", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]MetadataEvent, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := MetadataEvent__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorMetadataEvent0WriteJSON(w []byte, vec []MetadataEvent) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
-}
-
-func VectorMetadataEvent0BytesRead(w []byte, vec *[]MetadataEventBytes) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]MetadataEventBytes, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorMetadataEvent0BytesWrite(w []byte, vec []MetadataEventBytes) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorMetadataEvent0BytesReadJSON(j interface{}, vec *[]MetadataEventBytes) error {
-	l, _arr, err := JsonReadArray("[]MetadataEventBytes", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]MetadataEventBytes, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := MetadataEventBytes__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorMetadataEvent0BytesWriteJSON(w []byte, vec []MetadataEventBytes) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

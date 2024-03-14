@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -21,6 +22,7 @@ import (
 
 	"github.com/cloudflare/tableflip"
 	"github.com/spf13/pflag"
+	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 
 	"github.com/vkcom/statshouse-go"
 
@@ -167,6 +169,22 @@ func processCreateBinlogParam(createBinlog string) (engineID uint64, clusterSize
 }
 
 func main() {
+	runtime.GOMAXPROCS(8)
+	go func() {
+		for {
+		}
+	}()
+	go func() {
+		for {
+		}
+	}()
+	go func() {
+		for {
+		}
+	}()
+	sqlite0.Test()
+}
+func main1() {
 	log.SetPrefix("[statshouse-metadata] ")
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lmsgprefix)
 	parseArgs()

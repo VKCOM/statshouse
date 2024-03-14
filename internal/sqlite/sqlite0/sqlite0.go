@@ -55,7 +55,9 @@ package sqlite0
 */
 import "C"
 import (
+	"fmt"
 	"runtime"
+	"runtime/debug"
 	"time"
 	"unsafe"
 )
@@ -65,6 +67,7 @@ var (
 )
 
 func init() {
+	C._sqlite_enable_wal_switch()
 	rc := C._sqlite_enable_logging()
 	if rc != ok {
 		initErr = sqliteErr(rc, nil, "_sqlite_enable_logging")
@@ -164,6 +167,11 @@ func (c *Conn) AutoCommit() bool {
 func (c *Conn) SetAutoCheckpoint(n int) error {
 	rc := C.sqlite3_wal_autocheckpoint(c.conn, C.int(n))
 	return sqliteErr(rc, c.conn, "sqlite3_wal_autocheckpoint")
+}
+
+func (c *Conn) Checkpoint() error {
+	rc := C.sqlite3_wal_checkpoint_v2(c.conn, nil, C.SQLITE_CHECKPOINT_PASSIVE, nil, nil)
+	return sqliteErr(rc, c.conn, "sqlite3_wal_checkpoint_v2")
 }
 
 func (c *Conn) SetBusyTimeout(dt time.Duration) error {
@@ -415,4 +423,20 @@ func (s *Stmt) ColumnFloat64(i int) float64 {
 func (s *Stmt) ColumnNull(i int) bool {
 	typ := C.sqlite3_column_type(s.stmt, C.int(i))
 	return typ == C.SQLITE_NULL
+}
+
+var x = 0
+
+//export cb
+func cb() {
+	x++
+	fmt.Println("STACK2")
+	debug.PrintStack()
+}
+
+func Test() {
+	fmt.Println("STACK1")
+	debug.PrintStack()
+	C._cbcall()
+	fmt.Println(x)
 }

@@ -58,3 +58,10 @@ type (
 	VectorStringBytes                             = internal.VectorStringBytes
 	VectorVectorDouble                            = internal.VectorVectorDouble
 )
+
+func BoolReadBoxed(w []byte, v *bool) ([]byte, error) {
+	return internal.BoolReadBoxed(w, v)
+}
+func BoolWriteBoxed(w []byte, v bool) ([]byte, error) {
+	return internal.BoolWriteBoxed(w, v)
+}

@@ -85,6 +85,9 @@ func (item *StatshouseApiReleaseChunksResponse) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseApiReleaseChunksResponse) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseApiReleaseChunksResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

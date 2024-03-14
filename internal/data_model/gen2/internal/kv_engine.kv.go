@@ -13,6 +13,69 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorKvEngineKvBoxedRead(w []byte, vec *[]KvEngineKv) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]KvEngineKv, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].ReadBoxed(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorKvEngineKvBoxedWrite(w []byte, vec []KvEngineKv) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.WriteBoxed(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorKvEngineKvBoxedReadJSON(j interface{}, vec *[]KvEngineKv) error {
+	l, _arr, err := JsonReadArray("[]KvEngineKv", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]KvEngineKv, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := KvEngineKv__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorKvEngineKvBoxedWriteJSON(w []byte, vec []KvEngineKv) (_ []byte, err error) {
+	return BuiltinVectorKvEngineKvBoxedWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorKvEngineKvBoxedWriteJSONOpt(short bool, w []byte, vec []KvEngineKv) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
 type KvEngineKv struct {
 	Key   int64
 	Value int64
@@ -81,6 +144,9 @@ func (item *KvEngineKv) readJSON(j interface{}) error {
 }
 
 func (item *KvEngineKv) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *KvEngineKv) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Key != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -108,64 +174,4 @@ func (item *KvEngineKv) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("kv_engine.kv", err.Error())
 	}
 	return nil
-}
-
-func VectorKvEngineKvBoxed0Read(w []byte, vec *[]KvEngineKv) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]KvEngineKv, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].ReadBoxed(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorKvEngineKvBoxed0Write(w []byte, vec []KvEngineKv) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.WriteBoxed(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorKvEngineKvBoxed0ReadJSON(j interface{}, vec *[]KvEngineKv) error {
-	l, _arr, err := JsonReadArray("[]KvEngineKv", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]KvEngineKv, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := KvEngineKv__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorKvEngineKvBoxed0WriteJSON(w []byte, vec []KvEngineKv) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

@@ -66,7 +66,11 @@ func (item *KvEngineInc) ReadResultJSON(j interface{}, ret *KvEngineChangeRespon
 }
 
 func (item *KvEngineInc) WriteResultJSON(w []byte, ret KvEngineChangeResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *KvEngineInc) writeResultJSON(short bool, w []byte, ret KvEngineChangeResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -78,6 +82,15 @@ func (item *KvEngineInc) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *KvEngineInc) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret KvEngineChangeResponse
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -125,6 +138,9 @@ func (item *KvEngineInc) readJSON(j interface{}) error {
 }
 
 func (item *KvEngineInc) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *KvEngineInc) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Key != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -74,7 +74,11 @@ func (item *StatshouseApiReleaseChunks) ReadResultJSON(j interface{}, ret *Stats
 }
 
 func (item *StatshouseApiReleaseChunks) WriteResultJSON(w []byte, ret StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *StatshouseApiReleaseChunks) writeResultJSON(short bool, w []byte, ret StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -86,6 +90,15 @@ func (item *StatshouseApiReleaseChunks) ReadResultWriteResultJSON(r []byte, w []
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *StatshouseApiReleaseChunks) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseApiReleaseChunksResponse
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -140,6 +153,9 @@ func (item *StatshouseApiReleaseChunks) readJSON(j interface{}) error {
 }
 
 func (item *StatshouseApiReleaseChunks) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseApiReleaseChunks) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -13,6 +13,69 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorEngineBinlogPrefixRead(w []byte, vec *[]EngineBinlogPrefix) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]EngineBinlogPrefix, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorEngineBinlogPrefixWrite(w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorEngineBinlogPrefixReadJSON(j interface{}, vec *[]EngineBinlogPrefix) error {
+	l, _arr, err := JsonReadArray("[]EngineBinlogPrefix", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]EngineBinlogPrefix, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := EngineBinlogPrefix__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorEngineBinlogPrefixWriteJSON(w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
+	return BuiltinVectorEngineBinlogPrefixWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorEngineBinlogPrefixWriteJSONOpt(short bool, w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
 type EngineBinlogPrefix struct {
 	BinlogPrefix   string
 	SnapshotPrefix string
@@ -85,6 +148,9 @@ func (item *EngineBinlogPrefix) readJSON(j interface{}) error {
 }
 
 func (item *EngineBinlogPrefix) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineBinlogPrefix) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.BinlogPrefix) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -112,64 +178,4 @@ func (item *EngineBinlogPrefix) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.binlogPrefix", err.Error())
 	}
 	return nil
-}
-
-func VectorEngineBinlogPrefix0Read(w []byte, vec *[]EngineBinlogPrefix) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]EngineBinlogPrefix, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorEngineBinlogPrefix0Write(w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorEngineBinlogPrefix0ReadJSON(j interface{}, vec *[]EngineBinlogPrefix) error {
-	l, _arr, err := JsonReadArray("[]EngineBinlogPrefix", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]EngineBinlogPrefix, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := EngineBinlogPrefix__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorEngineBinlogPrefix0WriteJSON(w []byte, vec []EngineBinlogPrefix) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

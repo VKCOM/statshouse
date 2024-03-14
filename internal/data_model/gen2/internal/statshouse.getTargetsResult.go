@@ -27,14 +27,14 @@ func (item *StatshouseGetTargetsResult) Reset() {
 }
 
 func (item *StatshouseGetTargetsResult) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = VectorStatshousePromTarget0Read(w, &item.Targets); err != nil {
+	if w, err = BuiltinVectorStatshousePromTargetRead(w, &item.Targets); err != nil {
 		return w, err
 	}
 	return basictl.StringRead(w, &item.Hash)
 }
 
 func (item *StatshouseGetTargetsResult) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = VectorStatshousePromTarget0Write(w, item.Targets); err != nil {
+	if w, err = BuiltinVectorStatshousePromTargetWrite(w, item.Targets); err != nil {
 		return w, err
 	}
 	return basictl.StringWrite(w, item.Hash)
@@ -70,18 +70,21 @@ func (item *StatshouseGetTargetsResult) readJSON(j interface{}, nat_fields_mask 
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouse.getTargetsResult", k)
 	}
-	if err := VectorStatshousePromTarget0ReadJSON(_jTargets, &item.Targets); err != nil {
+	if err := BuiltinVectorStatshousePromTargetReadJSON(_jTargets, &item.Targets); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetTargetsResult) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_fields_mask)
+}
+func (item *StatshouseGetTargetsResult) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Targets) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"targets":`...)
-		if w, err = VectorStatshousePromTarget0WriteJSON(w, item.Targets); err != nil {
+		if w, err = BuiltinVectorStatshousePromTargetWriteJSONOpt(short, w, item.Targets); err != nil {
 			return w, err
 		}
 	}
@@ -107,14 +110,14 @@ func (item *StatshouseGetTargetsResultBytes) Reset() {
 }
 
 func (item *StatshouseGetTargetsResultBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = VectorStatshousePromTarget0BytesRead(w, &item.Targets); err != nil {
+	if w, err = BuiltinVectorStatshousePromTargetBytesRead(w, &item.Targets); err != nil {
 		return w, err
 	}
 	return basictl.StringReadBytes(w, &item.Hash)
 }
 
 func (item *StatshouseGetTargetsResultBytes) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	if w, err = VectorStatshousePromTarget0BytesWrite(w, item.Targets); err != nil {
+	if w, err = BuiltinVectorStatshousePromTargetBytesWrite(w, item.Targets); err != nil {
 		return w, err
 	}
 	return basictl.StringWriteBytes(w, item.Hash)
@@ -150,18 +153,21 @@ func (item *StatshouseGetTargetsResultBytes) readJSON(j interface{}, nat_fields_
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouse.getTargetsResult", k)
 	}
-	if err := VectorStatshousePromTarget0BytesReadJSON(_jTargets, &item.Targets); err != nil {
+	if err := BuiltinVectorStatshousePromTargetBytesReadJSON(_jTargets, &item.Targets); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetTargetsResultBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_fields_mask)
+}
+func (item *StatshouseGetTargetsResultBytes) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Targets) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"targets":`...)
-		if w, err = VectorStatshousePromTarget0BytesWriteJSON(w, item.Targets); err != nil {
+		if w, err = BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(short, w, item.Targets); err != nil {
 			return w, err
 		}
 	}

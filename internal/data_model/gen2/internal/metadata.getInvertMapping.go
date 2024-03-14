@@ -50,34 +50,47 @@ func (item *MetadataGetInvertMapping) WriteBoxed(w []byte) ([]byte, error) {
 	return item.Write(w)
 }
 
-func (item *MetadataGetInvertMapping) ReadResult(w []byte, ret *MetadataGetInvertMappingResponseUnion) (_ []byte, err error) {
+func (item *MetadataGetInvertMapping) ReadResult(w []byte, ret *MetadataGetInvertMappingResponse) (_ []byte, err error) {
 	return ret.ReadBoxed(w, item.FieldMask)
 }
 
-func (item *MetadataGetInvertMapping) WriteResult(w []byte, ret MetadataGetInvertMappingResponseUnion) (_ []byte, err error) {
+func (item *MetadataGetInvertMapping) WriteResult(w []byte, ret MetadataGetInvertMappingResponse) (_ []byte, err error) {
 	return ret.WriteBoxed(w, item.FieldMask)
 }
 
-func (item *MetadataGetInvertMapping) ReadResultJSON(j interface{}, ret *MetadataGetInvertMappingResponseUnion) error {
-	if err := MetadataGetInvertMappingResponseUnion__ReadJSON(ret, j, item.FieldMask); err != nil {
+func (item *MetadataGetInvertMapping) ReadResultJSON(j interface{}, ret *MetadataGetInvertMappingResponse) error {
+	if err := MetadataGetInvertMappingResponse__ReadJSON(ret, j, item.FieldMask); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *MetadataGetInvertMapping) WriteResultJSON(w []byte, ret MetadataGetInvertMappingResponseUnion) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w, item.FieldMask); err != nil {
+func (item *MetadataGetInvertMapping) WriteResultJSON(w []byte, ret MetadataGetInvertMappingResponse) (_ []byte, err error) {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *MetadataGetInvertMapping) writeResultJSON(short bool, w []byte, ret MetadataGetInvertMappingResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w, item.FieldMask); err != nil {
 		return w, err
 	}
 	return w, nil
 }
 
 func (item *MetadataGetInvertMapping) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetInvertMappingResponseUnion
+	var ret MetadataGetInvertMappingResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *MetadataGetInvertMapping) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret MetadataGetInvertMappingResponse
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -86,7 +99,7 @@ func (item *MetadataGetInvertMapping) ReadResultJSONWriteResult(r []byte, w []by
 	if err != nil {
 		return r, w, ErrorInvalidJSON("metadata.getInvertMapping", err.Error())
 	}
-	var ret MetadataGetInvertMappingResponseUnion
+	var ret MetadataGetInvertMappingResponse
 	if err = item.ReadResultJSON(j, &ret); err != nil {
 		return r, w, err
 	}
@@ -127,6 +140,9 @@ func (item *MetadataGetInvertMapping) readJSON(j interface{}) error {
 }
 
 func (item *MetadataGetInvertMapping) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataGetInvertMapping) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -59,7 +59,7 @@ func (item *EngineHttpQueryResponse) SetAdditionalHeaders(v map[string]string) {
 	item.FieldsMask |= 1 << 3
 }
 func (item *EngineHttpQueryResponse) ClearAdditionalHeaders() {
-	VectorDictionaryFieldString0Reset(item.AdditionalHeaders)
+	BuiltinVectorDictionaryFieldStringReset(item.AdditionalHeaders)
 	item.FieldsMask &^= 1 << 3
 }
 func (item EngineHttpQueryResponse) IsSetAdditionalHeaders() bool { return item.FieldsMask&(1<<3) != 0 }
@@ -69,7 +69,7 @@ func (item *EngineHttpQueryResponse) Reset() {
 	item.ReturnCode = 0
 	item.Data = ""
 	item.ContentType = ""
-	VectorDictionaryFieldString0Reset(item.AdditionalHeaders)
+	BuiltinVectorDictionaryFieldStringReset(item.AdditionalHeaders)
 }
 
 func (item *EngineHttpQueryResponse) Read(w []byte) (_ []byte, err error) {
@@ -98,11 +98,11 @@ func (item *EngineHttpQueryResponse) Read(w []byte) (_ []byte, err error) {
 		item.ContentType = ""
 	}
 	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = VectorDictionaryFieldString0Read(w, &item.AdditionalHeaders); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringRead(w, &item.AdditionalHeaders); err != nil {
 			return w, err
 		}
 	} else {
-		VectorDictionaryFieldString0Reset(item.AdditionalHeaders)
+		BuiltinVectorDictionaryFieldStringReset(item.AdditionalHeaders)
 	}
 	return w, nil
 }
@@ -123,7 +123,7 @@ func (item *EngineHttpQueryResponse) Write(w []byte) (_ []byte, err error) {
 		}
 	}
 	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = VectorDictionaryFieldString0Write(w, item.AdditionalHeaders); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.AdditionalHeaders); err != nil {
 			return w, err
 		}
 	}
@@ -208,16 +208,19 @@ func (item *EngineHttpQueryResponse) readJSON(j interface{}) error {
 		item.ContentType = ""
 	}
 	if _jAdditionalHeaders != nil {
-		if err := VectorDictionaryFieldString0ReadJSON(_jAdditionalHeaders, &item.AdditionalHeaders); err != nil {
+		if err := BuiltinVectorDictionaryFieldStringReadJSON(_jAdditionalHeaders, &item.AdditionalHeaders); err != nil {
 			return err
 		}
 	} else {
-		VectorDictionaryFieldString0Reset(item.AdditionalHeaders)
+		BuiltinVectorDictionaryFieldStringReset(item.AdditionalHeaders)
 	}
 	return nil
 }
 
 func (item *EngineHttpQueryResponse) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineHttpQueryResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -225,33 +228,25 @@ func (item *EngineHttpQueryResponse) WriteJSON(w []byte) (_ []byte, err error) {
 		w = basictl.JSONWriteUint32(w, item.FieldsMask)
 	}
 	if item.FieldsMask&(1<<0) != 0 {
-		if item.ReturnCode != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"return_code":`...)
-			w = basictl.JSONWriteInt32(w, item.ReturnCode)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"return_code":`...)
+		w = basictl.JSONWriteInt32(w, item.ReturnCode)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if len(item.Data) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"data":`...)
-			w = basictl.JSONWriteString(w, item.Data)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"data":`...)
+		w = basictl.JSONWriteString(w, item.Data)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
-		if len(item.ContentType) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"content_type":`...)
-			w = basictl.JSONWriteString(w, item.ContentType)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"content_type":`...)
+		w = basictl.JSONWriteString(w, item.ContentType)
 	}
 	if item.FieldsMask&(1<<3) != 0 {
-		if len(item.AdditionalHeaders) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"additional_headers":`...)
-			if w, err = VectorDictionaryFieldString0WriteJSON(w, item.AdditionalHeaders); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"additional_headers":`...)
+		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, item.AdditionalHeaders); err != nil {
+			return w, err
 		}
 	}
 	return append(w, '}'), nil

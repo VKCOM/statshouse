@@ -20,6 +20,11 @@ type binlogEngine struct {
 	lastSnapshotMeta   []byte
 	committedOffset    int64
 	safeSnapshotOffset int64
+
+	checkpointMx sync.Mutex
+
+	waitCheckpointOffset int64
+	waitCheckpoint       bool
 }
 
 type waitCommitInfo struct {
@@ -88,6 +93,11 @@ func (b *binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotO
 	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_commit", time.Now())
 	b.e.rareLog("commit toOffset: %d, safeSnapshotOffset: %d", toOffset, safeSnapshotOffset)
 	b.binlogNotifyWaited(toOffset, snapshotMeta, safeSnapshotOffset)
+	err = b.e.rw.saveCommitInfo(snapshotMeta, toOffset)
+	if err != nil {
+		return err
+	}
+	b.doCkeckpointIfCan(toOffset)
 	return nil
 
 }
@@ -151,4 +161,28 @@ func (b *binlogEngine) binlogNotifyWaited(committedOffset int64, snapshotMeta []
 	t := b.waitQ
 	b.waitQ = b.waitQBuffer
 	b.waitQBuffer = t
+}
+
+func (b *binlogEngine) setWaitCheckpointOffset() {
+	b.checkpointMx.Lock()
+	defer b.checkpointMx.Unlock()
+	b.waitCheckpointOffset = b.e.rw.dbOffset // TODO можно ли обращаться без синхронизации?
+	b.waitCheckpoint = true
+}
+
+func (b *binlogEngine) doCkeckpointIfCan(commitOffset int64) {
+	b.e.rw.mu.Lock()
+	defer b.e.rw.mu.Unlock()
+	b.checkpointMx.Lock()
+	defer b.checkpointMx.Unlock() // TODO не обязательно брать лок на все время чекпоинта
+	if b.waitCheckpoint && b.waitCheckpointOffset <= commitOffset {
+		err := b.e.rw.conn.Checkpoint()
+		if err != nil {
+			fmt.Println(fmt.Errorf("CHECKPOINT ERROR: %w", err).Error())
+			return
+		}
+		fmt.Println("CHECKPOINT OK: %w")
+		// TODO если ошибка то пытается еще раз через время
+		b.waitCheckpoint = false
+	}
 }

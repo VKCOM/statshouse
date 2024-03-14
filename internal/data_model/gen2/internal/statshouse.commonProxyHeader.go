@@ -56,7 +56,7 @@ func (item StatshouseCommonProxyHeader) IsSetAgentEnvStaging(nat_fields_mask uin
 func (item *StatshouseCommonProxyHeader) Reset() {
 	item.ShardReplica = 0
 	item.ShardReplicaTotal = 0
-	TupleInt4Reset(&item.AgentIp)
+	BuiltinTupleInt4Reset(&item.AgentIp)
 	item.HostName = ""
 	item.ComponentTag = 0
 	item.BuildArch = 0
@@ -69,7 +69,7 @@ func (item *StatshouseCommonProxyHeader) Read(w []byte, nat_fields_mask uint32) 
 	if w, err = basictl.IntRead(w, &item.ShardReplicaTotal); err != nil {
 		return w, err
 	}
-	if w, err = TupleInt4Read(w, &item.AgentIp); err != nil {
+	if w, err = BuiltinTupleInt4Read(w, &item.AgentIp); err != nil {
 		return w, err
 	}
 	if w, err = basictl.StringRead(w, &item.HostName); err != nil {
@@ -84,7 +84,7 @@ func (item *StatshouseCommonProxyHeader) Read(w []byte, nat_fields_mask uint32) 
 func (item *StatshouseCommonProxyHeader) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = basictl.IntWrite(w, item.ShardReplica)
 	w = basictl.IntWrite(w, item.ShardReplicaTotal)
-	if w, err = TupleInt4Write(w, &item.AgentIp); err != nil {
+	if w, err = BuiltinTupleInt4Write(w, &item.AgentIp); err != nil {
 		return w, err
 	}
 	if w, err = basictl.StringWrite(w, item.HostName); err != nil {
@@ -154,13 +154,16 @@ func (item *StatshouseCommonProxyHeader) readJSON(j interface{}, nat_fields_mask
 	if _jAgentEnvStaging != nil {
 		return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging' cannot be defined, set fieldmask instead")
 	}
-	if err := TupleInt4ReadJSON(_jAgentIp, &item.AgentIp); err != nil {
+	if err := BuiltinTupleInt4ReadJSON(_jAgentIp, &item.AgentIp); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseCommonProxyHeader) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_fields_mask)
+}
+func (item *StatshouseCommonProxyHeader) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.ShardReplica != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -174,7 +177,7 @@ func (item *StatshouseCommonProxyHeader) WriteJSON(w []byte, nat_fields_mask uin
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"agent_ip":`...)
-	if w, err = TupleInt4WriteJSON(w, &item.AgentIp); err != nil {
+	if w, err = BuiltinTupleInt4WriteJSONOpt(short, w, &item.AgentIp); err != nil {
 		return w, err
 	}
 	if len(item.HostName) != 0 {
@@ -238,7 +241,7 @@ func (item StatshouseCommonProxyHeaderBytes) IsSetAgentEnvStaging(nat_fields_mas
 func (item *StatshouseCommonProxyHeaderBytes) Reset() {
 	item.ShardReplica = 0
 	item.ShardReplicaTotal = 0
-	TupleInt4Reset(&item.AgentIp)
+	BuiltinTupleInt4Reset(&item.AgentIp)
 	item.HostName = item.HostName[:0]
 	item.ComponentTag = 0
 	item.BuildArch = 0
@@ -251,7 +254,7 @@ func (item *StatshouseCommonProxyHeaderBytes) Read(w []byte, nat_fields_mask uin
 	if w, err = basictl.IntRead(w, &item.ShardReplicaTotal); err != nil {
 		return w, err
 	}
-	if w, err = TupleInt4Read(w, &item.AgentIp); err != nil {
+	if w, err = BuiltinTupleInt4Read(w, &item.AgentIp); err != nil {
 		return w, err
 	}
 	if w, err = basictl.StringReadBytes(w, &item.HostName); err != nil {
@@ -266,7 +269,7 @@ func (item *StatshouseCommonProxyHeaderBytes) Read(w []byte, nat_fields_mask uin
 func (item *StatshouseCommonProxyHeaderBytes) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = basictl.IntWrite(w, item.ShardReplica)
 	w = basictl.IntWrite(w, item.ShardReplicaTotal)
-	if w, err = TupleInt4Write(w, &item.AgentIp); err != nil {
+	if w, err = BuiltinTupleInt4Write(w, &item.AgentIp); err != nil {
 		return w, err
 	}
 	if w, err = basictl.StringWriteBytes(w, item.HostName); err != nil {
@@ -336,13 +339,16 @@ func (item *StatshouseCommonProxyHeaderBytes) readJSON(j interface{}, nat_fields
 	if _jAgentEnvStaging != nil {
 		return ErrorInvalidJSON("statshouse.commonProxyHeader", "implicit true field 'agent_env_staging' cannot be defined, set fieldmask instead")
 	}
-	if err := TupleInt4ReadJSON(_jAgentIp, &item.AgentIp); err != nil {
+	if err := BuiltinTupleInt4ReadJSON(_jAgentIp, &item.AgentIp); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseCommonProxyHeaderBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_fields_mask)
+}
+func (item *StatshouseCommonProxyHeaderBytes) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.ShardReplica != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -356,7 +362,7 @@ func (item *StatshouseCommonProxyHeaderBytes) WriteJSON(w []byte, nat_fields_mas
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"agent_ip":`...)
-	if w, err = TupleInt4WriteJSON(w, &item.AgentIp); err != nil {
+	if w, err = BuiltinTupleInt4WriteJSONOpt(short, w, &item.AgentIp); err != nil {
 		return w, err
 	}
 	if len(item.HostName) != 0 {

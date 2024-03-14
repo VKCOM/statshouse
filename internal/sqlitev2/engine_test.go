@@ -765,3 +765,51 @@ func TestDoMustErrorWithBadName(t *testing.T) {
 	})
 	require.Error(t, err)
 }
+
+func TestDelete(t *testing.T) {
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
+	agg := &testAggregation{}
+	n := 1000
+	ch := make(chan struct{})
+	for i := 0; i < n; i++ {
+		if false && i == 10 {
+			go func() {
+				_ = engine.View(context.Background(), "dsada", func(conn Conn) error {
+					rows := conn.Query("re", "SELECT count(*) FROM test_db")
+					if rows.Next() {
+						fmt.Println("COUNT1", rows.ColumnInt64(0))
+					}
+					<-ch
+					rows = conn.Query("re", "SELECT count(*) FROM test_db")
+					if rows.Next() {
+						fmt.Println("COUNT2", rows.ColumnInt64(0))
+					}
+					return rows.Error()
+
+				})
+			}()
+			time.Sleep(time.Second * 2)
+		}
+		data := make([]byte, 64)
+		_, err := rand.Read(data)
+		require.NoError(t, err)
+		data = strconv.AppendInt(data, int64(i), 10)
+		str := string(data)
+		err = insertText(engine, str, false)
+		require.NoError(t, err)
+		agg.writeHistory = append(agg.writeHistory, str)
+	}
+	close(ch)
+	time.Sleep(time.Second * 3)
+	fmt.Println(engine.Close())
+	engine, _ = openEngine(t, dir, "db", schema, false, false, false, nil)
+	err := engine.View(context.Background(), "dsada", func(conn Conn) error {
+		rows := conn.Query("re", "SELECT count(*) FROM test_db")
+		if rows.Next() {
+			fmt.Println("COUNT", rows.ColumnInt64(0))
+		}
+		return rows.Error()
+	})
+	require.NoError(t, err)
+}

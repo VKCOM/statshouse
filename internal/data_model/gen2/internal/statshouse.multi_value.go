@@ -274,7 +274,7 @@ func (item *StatshouseMultiValue) Read(w []byte, nat_fields_mask uint32) (_ []by
 		item.Uniques = ""
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if w, err = VectorStatshouseCentroid0Read(w, &item.Centroids); err != nil {
+		if w, err = BuiltinVectorStatshouseCentroidRead(w, &item.Centroids); err != nil {
 			return w, err
 		}
 	} else {
@@ -326,7 +326,7 @@ func (item *StatshouseMultiValue) Write(w []byte, nat_fields_mask uint32) (_ []b
 		}
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if w, err = VectorStatshouseCentroid0Write(w, item.Centroids); err != nil {
+		if w, err = BuiltinVectorStatshouseCentroidWrite(w, item.Centroids); err != nil {
 			return w, err
 		}
 	}
@@ -468,7 +468,7 @@ func (item *StatshouseMultiValue) readJSON(j interface{}, nat_fields_mask uint32
 		item.Uniques = ""
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if err := VectorStatshouseCentroid0ReadJSON(_jCentroids, &item.Centroids); err != nil {
+		if err := BuiltinVectorStatshouseCentroidReadJSON(_jCentroids, &item.Centroids); err != nil {
 			return err
 		}
 	} else {
@@ -499,78 +499,61 @@ func (item *StatshouseMultiValue) readJSON(j interface{}, nat_fields_mask uint32
 }
 
 func (item *StatshouseMultiValue) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_fields_mask)
+}
+func (item *StatshouseMultiValue) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
-		if item.Counter != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"counter":`...)
-			w = basictl.JSONWriteFloat64(w, item.Counter)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"counter":`...)
+		w = basictl.JSONWriteFloat64(w, item.Counter)
 	}
 	if nat_fields_mask&(1<<3) != 0 {
-		if item.ValueMin != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"value_min":`...)
-			w = basictl.JSONWriteFloat64(w, item.ValueMin)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"value_min":`...)
+		w = basictl.JSONWriteFloat64(w, item.ValueMin)
 	}
 	if nat_fields_mask&(1<<4) != 0 {
-		if item.ValueMax != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"value_max":`...)
-			w = basictl.JSONWriteFloat64(w, item.ValueMax)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"value_max":`...)
+		w = basictl.JSONWriteFloat64(w, item.ValueMax)
 	}
 	if nat_fields_mask&(1<<4) != 0 {
-		if item.ValueSum != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"value_sum":`...)
-			w = basictl.JSONWriteFloat64(w, item.ValueSum)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"value_sum":`...)
+		w = basictl.JSONWriteFloat64(w, item.ValueSum)
 	}
 	if nat_fields_mask&(1<<4) != 0 {
-		if item.ValueSumSquare != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"value_sum_square":`...)
-			w = basictl.JSONWriteFloat64(w, item.ValueSumSquare)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"value_sum_square":`...)
+		w = basictl.JSONWriteFloat64(w, item.ValueSumSquare)
 	}
 	if nat_fields_mask&(1<<5) != 0 {
-		if len(item.Uniques) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"uniques":`...)
-			w = basictl.JSONWriteString(w, item.Uniques)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"uniques":`...)
+		w = basictl.JSONWriteString(w, item.Uniques)
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if len(item.Centroids) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"centroids":`...)
-			if w, err = VectorStatshouseCentroid0WriteJSON(w, item.Centroids); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"centroids":`...)
+		if w, err = BuiltinVectorStatshouseCentroidWriteJSONOpt(short, w, item.Centroids); err != nil {
+			return w, err
 		}
 	}
 	if nat_fields_mask&(1<<7) != 0 {
-		if item.MaxHostTag != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"max_host_tag":`...)
-			w = basictl.JSONWriteInt32(w, item.MaxHostTag)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"max_host_tag":`...)
+		w = basictl.JSONWriteInt32(w, item.MaxHostTag)
 	}
 	if nat_fields_mask&(1<<8) != 0 {
-		if item.MinHostTag != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"min_host_tag":`...)
-			w = basictl.JSONWriteInt32(w, item.MinHostTag)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"min_host_tag":`...)
+		w = basictl.JSONWriteInt32(w, item.MinHostTag)
 	}
 	if nat_fields_mask&(1<<9) != 0 {
-		if item.MaxCounterHostTag != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"max_counter_host_tag":`...)
-			w = basictl.JSONWriteInt32(w, item.MaxCounterHostTag)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"max_counter_host_tag":`...)
+		w = basictl.JSONWriteInt32(w, item.MaxCounterHostTag)
 	}
 	return append(w, '}'), nil
 }
@@ -836,7 +819,7 @@ func (item *StatshouseMultiValueBytes) Read(w []byte, nat_fields_mask uint32) (_
 		item.Uniques = item.Uniques[:0]
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if w, err = VectorStatshouseCentroid0Read(w, &item.Centroids); err != nil {
+		if w, err = BuiltinVectorStatshouseCentroidRead(w, &item.Centroids); err != nil {
 			return w, err
 		}
 	} else {
@@ -888,7 +871,7 @@ func (item *StatshouseMultiValueBytes) Write(w []byte, nat_fields_mask uint32) (
 		}
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if w, err = VectorStatshouseCentroid0Write(w, item.Centroids); err != nil {
+		if w, err = BuiltinVectorStatshouseCentroidWrite(w, item.Centroids); err != nil {
 			return w, err
 		}
 	}
@@ -1030,7 +1013,7 @@ func (item *StatshouseMultiValueBytes) readJSON(j interface{}, nat_fields_mask u
 		item.Uniques = item.Uniques[:0]
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if err := VectorStatshouseCentroid0ReadJSON(_jCentroids, &item.Centroids); err != nil {
+		if err := BuiltinVectorStatshouseCentroidReadJSON(_jCentroids, &item.Centroids); err != nil {
 			return err
 		}
 	} else {
@@ -1061,78 +1044,61 @@ func (item *StatshouseMultiValueBytes) readJSON(j interface{}, nat_fields_mask u
 }
 
 func (item *StatshouseMultiValueBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_fields_mask)
+}
+func (item *StatshouseMultiValueBytes) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
-		if item.Counter != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"counter":`...)
-			w = basictl.JSONWriteFloat64(w, item.Counter)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"counter":`...)
+		w = basictl.JSONWriteFloat64(w, item.Counter)
 	}
 	if nat_fields_mask&(1<<3) != 0 {
-		if item.ValueMin != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"value_min":`...)
-			w = basictl.JSONWriteFloat64(w, item.ValueMin)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"value_min":`...)
+		w = basictl.JSONWriteFloat64(w, item.ValueMin)
 	}
 	if nat_fields_mask&(1<<4) != 0 {
-		if item.ValueMax != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"value_max":`...)
-			w = basictl.JSONWriteFloat64(w, item.ValueMax)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"value_max":`...)
+		w = basictl.JSONWriteFloat64(w, item.ValueMax)
 	}
 	if nat_fields_mask&(1<<4) != 0 {
-		if item.ValueSum != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"value_sum":`...)
-			w = basictl.JSONWriteFloat64(w, item.ValueSum)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"value_sum":`...)
+		w = basictl.JSONWriteFloat64(w, item.ValueSum)
 	}
 	if nat_fields_mask&(1<<4) != 0 {
-		if item.ValueSumSquare != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"value_sum_square":`...)
-			w = basictl.JSONWriteFloat64(w, item.ValueSumSquare)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"value_sum_square":`...)
+		w = basictl.JSONWriteFloat64(w, item.ValueSumSquare)
 	}
 	if nat_fields_mask&(1<<5) != 0 {
-		if len(item.Uniques) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"uniques":`...)
-			w = basictl.JSONWriteStringBytes(w, item.Uniques)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"uniques":`...)
+		w = basictl.JSONWriteStringBytes(w, item.Uniques)
 	}
 	if nat_fields_mask&(1<<6) != 0 {
-		if len(item.Centroids) != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"centroids":`...)
-			if w, err = VectorStatshouseCentroid0WriteJSON(w, item.Centroids); err != nil {
-				return w, err
-			}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"centroids":`...)
+		if w, err = BuiltinVectorStatshouseCentroidWriteJSONOpt(short, w, item.Centroids); err != nil {
+			return w, err
 		}
 	}
 	if nat_fields_mask&(1<<7) != 0 {
-		if item.MaxHostTag != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"max_host_tag":`...)
-			w = basictl.JSONWriteInt32(w, item.MaxHostTag)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"max_host_tag":`...)
+		w = basictl.JSONWriteInt32(w, item.MaxHostTag)
 	}
 	if nat_fields_mask&(1<<8) != 0 {
-		if item.MinHostTag != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"min_host_tag":`...)
-			w = basictl.JSONWriteInt32(w, item.MinHostTag)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"min_host_tag":`...)
+		w = basictl.JSONWriteInt32(w, item.MinHostTag)
 	}
 	if nat_fields_mask&(1<<9) != 0 {
-		if item.MaxCounterHostTag != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"max_counter_host_tag":`...)
-			w = basictl.JSONWriteInt32(w, item.MaxCounterHostTag)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"max_counter_host_tag":`...)
+		w = basictl.JSONWriteInt32(w, item.MaxCounterHostTag)
 	}
 	return append(w, '}'), nil
 }

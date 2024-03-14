@@ -30,12 +30,12 @@ func (item *MetadataGetMetricsResponse) Read(w []byte, nat_field_mask uint32) (_
 	if w, err = basictl.LongRead(w, &item.CurrentVersion); err != nil {
 		return w, err
 	}
-	return VectorMetadataMetricOld0Read(w, &item.Metrics, nat_field_mask)
+	return BuiltinVectorMetadataMetricOldRead(w, &item.Metrics, nat_field_mask)
 }
 
 func (item *MetadataGetMetricsResponse) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.CurrentVersion)
-	return VectorMetadataMetricOld0Write(w, item.Metrics, nat_field_mask)
+	return BuiltinVectorMetadataMetricOldWrite(w, item.Metrics, nat_field_mask)
 }
 
 func (item *MetadataGetMetricsResponse) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
@@ -68,13 +68,16 @@ func (item *MetadataGetMetricsResponse) readJSON(j interface{}, nat_field_mask u
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.getMetricsResponse", k)
 	}
-	if err := VectorMetadataMetricOld0ReadJSON(_jMetrics, &item.Metrics, nat_field_mask); err != nil {
+	if err := BuiltinVectorMetadataMetricOldReadJSON(_jMetrics, &item.Metrics, nat_field_mask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetMetricsResponse) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataGetMetricsResponse) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.CurrentVersion != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -84,7 +87,7 @@ func (item *MetadataGetMetricsResponse) WriteJSON(w []byte, nat_field_mask uint3
 	if len(item.Metrics) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"metrics":`...)
-		if w, err = VectorMetadataMetricOld0WriteJSON(w, item.Metrics, nat_field_mask); err != nil {
+		if w, err = BuiltinVectorMetadataMetricOldWriteJSONOpt(short, w, item.Metrics, nat_field_mask); err != nil {
 			return w, err
 		}
 	}

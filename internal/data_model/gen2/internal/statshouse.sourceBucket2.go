@@ -35,13 +35,13 @@ func (item *StatshouseSourceBucket2) Reset() {
 }
 
 func (item *StatshouseSourceBucket2) Read(w []byte) (_ []byte, err error) {
-	if w, err = VectorStatshouseMultiItem0Read(w, &item.Metrics); err != nil {
+	if w, err = BuiltinVectorStatshouseMultiItemRead(w, &item.Metrics); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseSampleFactor0Read(w, &item.SampleFactors); err != nil {
+	if w, err = BuiltinVectorStatshouseSampleFactorRead(w, &item.SampleFactors); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseSampleFactor0Read(w, &item.IngestionStatusOk); err != nil {
+	if w, err = BuiltinVectorStatshouseSampleFactorRead(w, &item.IngestionStatusOk); err != nil {
 		return w, err
 	}
 	if w, err = basictl.NatRead(w, &item.MissedSeconds); err != nil {
@@ -50,22 +50,22 @@ func (item *StatshouseSourceBucket2) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.LegacyAgentEnv); err != nil {
 		return w, err
 	}
-	return VectorStatshouseIngestionStatus20Read(w, &item.IngestionStatusOk2)
+	return BuiltinVectorStatshouseIngestionStatus2Read(w, &item.IngestionStatusOk2)
 }
 
 func (item *StatshouseSourceBucket2) Write(w []byte) (_ []byte, err error) {
-	if w, err = VectorStatshouseMultiItem0Write(w, item.Metrics); err != nil {
+	if w, err = BuiltinVectorStatshouseMultiItemWrite(w, item.Metrics); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseSampleFactor0Write(w, item.SampleFactors); err != nil {
+	if w, err = BuiltinVectorStatshouseSampleFactorWrite(w, item.SampleFactors); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseSampleFactor0Write(w, item.IngestionStatusOk); err != nil {
+	if w, err = BuiltinVectorStatshouseSampleFactorWrite(w, item.IngestionStatusOk); err != nil {
 		return w, err
 	}
 	w = basictl.NatWrite(w, item.MissedSeconds)
 	w = basictl.IntWrite(w, item.LegacyAgentEnv)
-	return VectorStatshouseIngestionStatus20Write(w, item.IngestionStatusOk2)
+	return BuiltinVectorStatshouseIngestionStatus2Write(w, item.IngestionStatusOk2)
 }
 
 func (item *StatshouseSourceBucket2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -117,41 +117,44 @@ func (item *StatshouseSourceBucket2) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouse.sourceBucket2", k)
 	}
-	if err := VectorStatshouseMultiItem0ReadJSON(_jMetrics, &item.Metrics); err != nil {
+	if err := BuiltinVectorStatshouseMultiItemReadJSON(_jMetrics, &item.Metrics); err != nil {
 		return err
 	}
-	if err := VectorStatshouseSampleFactor0ReadJSON(_jSampleFactors, &item.SampleFactors); err != nil {
+	if err := BuiltinVectorStatshouseSampleFactorReadJSON(_jSampleFactors, &item.SampleFactors); err != nil {
 		return err
 	}
-	if err := VectorStatshouseSampleFactor0ReadJSON(_jIngestionStatusOk, &item.IngestionStatusOk); err != nil {
+	if err := BuiltinVectorStatshouseSampleFactorReadJSON(_jIngestionStatusOk, &item.IngestionStatusOk); err != nil {
 		return err
 	}
-	if err := VectorStatshouseIngestionStatus20ReadJSON(_jIngestionStatusOk2, &item.IngestionStatusOk2); err != nil {
+	if err := BuiltinVectorStatshouseIngestionStatus2ReadJSON(_jIngestionStatusOk2, &item.IngestionStatusOk2); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseSourceBucket2) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseSourceBucket2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Metrics) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"metrics":`...)
-		if w, err = VectorStatshouseMultiItem0WriteJSON(w, item.Metrics); err != nil {
+		if w, err = BuiltinVectorStatshouseMultiItemWriteJSONOpt(short, w, item.Metrics); err != nil {
 			return w, err
 		}
 	}
 	if len(item.SampleFactors) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"sample_factors":`...)
-		if w, err = VectorStatshouseSampleFactor0WriteJSON(w, item.SampleFactors); err != nil {
+		if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(short, w, item.SampleFactors); err != nil {
 			return w, err
 		}
 	}
 	if len(item.IngestionStatusOk) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"ingestion_status_ok":`...)
-		if w, err = VectorStatshouseSampleFactor0WriteJSON(w, item.IngestionStatusOk); err != nil {
+		if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(short, w, item.IngestionStatusOk); err != nil {
 			return w, err
 		}
 	}
@@ -168,7 +171,7 @@ func (item *StatshouseSourceBucket2) WriteJSON(w []byte) (_ []byte, err error) {
 	if len(item.IngestionStatusOk2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"ingestion_status_ok2":`...)
-		if w, err = VectorStatshouseIngestionStatus20WriteJSON(w, item.IngestionStatusOk2); err != nil {
+		if w, err = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(short, w, item.IngestionStatusOk2); err != nil {
 			return w, err
 		}
 	}
@@ -212,13 +215,13 @@ func (item *StatshouseSourceBucket2Bytes) Reset() {
 }
 
 func (item *StatshouseSourceBucket2Bytes) Read(w []byte) (_ []byte, err error) {
-	if w, err = VectorStatshouseMultiItem0BytesRead(w, &item.Metrics); err != nil {
+	if w, err = BuiltinVectorStatshouseMultiItemBytesRead(w, &item.Metrics); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseSampleFactor0Read(w, &item.SampleFactors); err != nil {
+	if w, err = BuiltinVectorStatshouseSampleFactorRead(w, &item.SampleFactors); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseSampleFactor0Read(w, &item.IngestionStatusOk); err != nil {
+	if w, err = BuiltinVectorStatshouseSampleFactorRead(w, &item.IngestionStatusOk); err != nil {
 		return w, err
 	}
 	if w, err = basictl.NatRead(w, &item.MissedSeconds); err != nil {
@@ -227,22 +230,22 @@ func (item *StatshouseSourceBucket2Bytes) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.IntRead(w, &item.LegacyAgentEnv); err != nil {
 		return w, err
 	}
-	return VectorStatshouseIngestionStatus20Read(w, &item.IngestionStatusOk2)
+	return BuiltinVectorStatshouseIngestionStatus2Read(w, &item.IngestionStatusOk2)
 }
 
 func (item *StatshouseSourceBucket2Bytes) Write(w []byte) (_ []byte, err error) {
-	if w, err = VectorStatshouseMultiItem0BytesWrite(w, item.Metrics); err != nil {
+	if w, err = BuiltinVectorStatshouseMultiItemBytesWrite(w, item.Metrics); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseSampleFactor0Write(w, item.SampleFactors); err != nil {
+	if w, err = BuiltinVectorStatshouseSampleFactorWrite(w, item.SampleFactors); err != nil {
 		return w, err
 	}
-	if w, err = VectorStatshouseSampleFactor0Write(w, item.IngestionStatusOk); err != nil {
+	if w, err = BuiltinVectorStatshouseSampleFactorWrite(w, item.IngestionStatusOk); err != nil {
 		return w, err
 	}
 	w = basictl.NatWrite(w, item.MissedSeconds)
 	w = basictl.IntWrite(w, item.LegacyAgentEnv)
-	return VectorStatshouseIngestionStatus20Write(w, item.IngestionStatusOk2)
+	return BuiltinVectorStatshouseIngestionStatus2Write(w, item.IngestionStatusOk2)
 }
 
 func (item *StatshouseSourceBucket2Bytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -294,41 +297,44 @@ func (item *StatshouseSourceBucket2Bytes) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouse.sourceBucket2", k)
 	}
-	if err := VectorStatshouseMultiItem0BytesReadJSON(_jMetrics, &item.Metrics); err != nil {
+	if err := BuiltinVectorStatshouseMultiItemBytesReadJSON(_jMetrics, &item.Metrics); err != nil {
 		return err
 	}
-	if err := VectorStatshouseSampleFactor0ReadJSON(_jSampleFactors, &item.SampleFactors); err != nil {
+	if err := BuiltinVectorStatshouseSampleFactorReadJSON(_jSampleFactors, &item.SampleFactors); err != nil {
 		return err
 	}
-	if err := VectorStatshouseSampleFactor0ReadJSON(_jIngestionStatusOk, &item.IngestionStatusOk); err != nil {
+	if err := BuiltinVectorStatshouseSampleFactorReadJSON(_jIngestionStatusOk, &item.IngestionStatusOk); err != nil {
 		return err
 	}
-	if err := VectorStatshouseIngestionStatus20ReadJSON(_jIngestionStatusOk2, &item.IngestionStatusOk2); err != nil {
+	if err := BuiltinVectorStatshouseIngestionStatus2ReadJSON(_jIngestionStatusOk2, &item.IngestionStatusOk2); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseSourceBucket2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseSourceBucket2Bytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Metrics) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"metrics":`...)
-		if w, err = VectorStatshouseMultiItem0BytesWriteJSON(w, item.Metrics); err != nil {
+		if w, err = BuiltinVectorStatshouseMultiItemBytesWriteJSONOpt(short, w, item.Metrics); err != nil {
 			return w, err
 		}
 	}
 	if len(item.SampleFactors) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"sample_factors":`...)
-		if w, err = VectorStatshouseSampleFactor0WriteJSON(w, item.SampleFactors); err != nil {
+		if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(short, w, item.SampleFactors); err != nil {
 			return w, err
 		}
 	}
 	if len(item.IngestionStatusOk) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"ingestion_status_ok":`...)
-		if w, err = VectorStatshouseSampleFactor0WriteJSON(w, item.IngestionStatusOk); err != nil {
+		if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(short, w, item.IngestionStatusOk); err != nil {
 			return w, err
 		}
 	}
@@ -345,7 +351,7 @@ func (item *StatshouseSourceBucket2Bytes) WriteJSON(w []byte) (_ []byte, err err
 	if len(item.IngestionStatusOk2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"ingestion_status_ok2":`...)
-		if w, err = VectorStatshouseIngestionStatus20WriteJSON(w, item.IngestionStatusOk2); err != nil {
+		if w, err = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(short, w, item.IngestionStatusOk2); err != nil {
 			return w, err
 		}
 	}

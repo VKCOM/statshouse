@@ -15,6 +15,300 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReset(m map[string]EngineMetafilesStat) {
+	for k := range m {
+		delete(m, k)
+	}
+}
+
+func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedRead(w []byte, m *map[string]EngineMetafilesStat) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	var data map[string]EngineMetafilesStat
+	if *m == nil {
+		if l == 0 {
+			return w, nil
+		}
+		data = make(map[string]EngineMetafilesStat, l)
+		*m = data
+	} else {
+		data = *m
+		for k := range data {
+			delete(data, k)
+		}
+	}
+	for i := 0; i < int(l); i++ {
+		var elem DictionaryFieldEngineMetafilesStatBoxed
+		if w, err = elem.Read(w); err != nil {
+			return w, err
+		}
+		data[elem.Key] = elem.Value
+	}
+	return w, nil
+}
+
+func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWrite(w []byte, m map[string]EngineMetafilesStat) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(m)))
+	if len(m) == 0 {
+		return w, nil
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		val := m[key]
+		elem := DictionaryFieldEngineMetafilesStatBoxed{Key: key, Value: val}
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSON(j interface{}, m *map[string]EngineMetafilesStat) error {
+	var _map map[string]interface{}
+	var _mapok bool
+	if j != nil {
+		_map, _mapok = j.(map[string]interface{})
+		if !_mapok {
+			return ErrorInvalidJSON("map[string]EngineMetafilesStat", "expected json object")
+		}
+	}
+	l := len(_map)
+	var data map[string]EngineMetafilesStat
+	if *m == nil {
+		if l == 0 {
+			return nil
+		}
+		data = make(map[string]EngineMetafilesStat, l)
+		*m = data
+	} else {
+		data = *m
+		for k := range data {
+			delete(data, k)
+		}
+	}
+	for _jkey, _jvalue := range _map {
+		var value EngineMetafilesStat
+		if err := EngineMetafilesStat__ReadJSON(&value, _jvalue); err != nil {
+			return err
+		}
+		data[_jkey] = value
+	}
+	return nil
+}
+
+func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSON(w []byte, m map[string]EngineMetafilesStat) (_ []byte, err error) {
+	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(false, w, m)
+}
+func BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(short bool, w []byte, m map[string]EngineMetafilesStat) (_ []byte, err error) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	w = append(w, '{')
+	for _, key := range keys {
+		value := m[key]
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = basictl.JSONWriteString(w, key)
+		w = append(w, ':')
+		if w, err = value.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+	}
+	return append(w, '}'), nil
+}
+
+func BuiltinVectorDictionaryFieldStringReset(m map[string]string) {
+	for k := range m {
+		delete(m, k)
+	}
+}
+
+func BuiltinVectorDictionaryFieldStringRead(w []byte, m *map[string]string) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	var data map[string]string
+	if *m == nil {
+		if l == 0 {
+			return w, nil
+		}
+		data = make(map[string]string, l)
+		*m = data
+	} else {
+		data = *m
+		for k := range data {
+			delete(data, k)
+		}
+	}
+	for i := 0; i < int(l); i++ {
+		var elem DictionaryFieldString
+		if w, err = elem.Read(w); err != nil {
+			return w, err
+		}
+		data[elem.Key] = elem.Value
+	}
+	return w, nil
+}
+
+func BuiltinVectorDictionaryFieldStringWrite(w []byte, m map[string]string) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(m)))
+	if len(m) == 0 {
+		return w, nil
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		val := m[key]
+		elem := DictionaryFieldString{Key: key, Value: val}
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorDictionaryFieldStringReadJSON(j interface{}, m *map[string]string) error {
+	var _map map[string]interface{}
+	var _mapok bool
+	if j != nil {
+		_map, _mapok = j.(map[string]interface{})
+		if !_mapok {
+			return ErrorInvalidJSON("map[string]string", "expected json object")
+		}
+	}
+	l := len(_map)
+	var data map[string]string
+	if *m == nil {
+		if l == 0 {
+			return nil
+		}
+		data = make(map[string]string, l)
+		*m = data
+	} else {
+		data = *m
+		for k := range data {
+			delete(data, k)
+		}
+	}
+	for _jkey, _jvalue := range _map {
+		var value string
+		if err := JsonReadString(_jvalue, &value); err != nil {
+			return err
+		}
+		data[_jkey] = value
+	}
+	return nil
+}
+
+func BuiltinVectorDictionaryFieldStringWriteJSON(w []byte, m map[string]string) (_ []byte, err error) {
+	return BuiltinVectorDictionaryFieldStringWriteJSONOpt(false, w, m)
+}
+func BuiltinVectorDictionaryFieldStringWriteJSONOpt(short bool, w []byte, m map[string]string) (_ []byte, err error) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	w = append(w, '{')
+	for _, key := range keys {
+		value := m[key]
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = basictl.JSONWriteString(w, key)
+		w = append(w, ':')
+		w = basictl.JSONWriteString(w, value)
+	}
+	return append(w, '}'), nil
+}
+
+func BuiltinVectorDictionaryFieldStringBytesRead(w []byte, vec *[]DictionaryFieldStringBytes) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]DictionaryFieldStringBytes, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorDictionaryFieldStringBytesWrite(w []byte, vec []DictionaryFieldStringBytes) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorDictionaryFieldStringBytesReadJSON(j interface{}, vec *[]DictionaryFieldStringBytes) error {
+	var _map map[string]interface{}
+	var _mapok bool
+	if j != nil {
+		_map, _mapok = j.(map[string]interface{})
+		if !_mapok {
+			return ErrorInvalidJSON("[]DictionaryFieldStringBytes", "expected json object")
+		}
+	}
+	l := len(_map)
+	if cap(*vec) < l {
+		*vec = make([]DictionaryFieldStringBytes, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	i := 0
+	arr := *vec
+	for key, _jvalue := range _map {
+		arr[i].Key = append(arr[i].Key[:0], key...)
+		if err := JsonReadStringBytes(_jvalue, &arr[i].Value); err != nil {
+			return err
+		}
+		i++
+	}
+	return nil
+}
+
+func BuiltinVectorDictionaryFieldStringBytesWriteJSON(w []byte, vec []DictionaryFieldStringBytes) (_ []byte, err error) {
+	return BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(false, w, vec)
+}
+func BuiltinVectorDictionaryFieldStringBytesWriteJSONOpt(short bool, w []byte, vec []DictionaryFieldStringBytes) (_ []byte, err error) {
+	w = append(w, '{')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = basictl.JSONWriteStringBytes(w, elem.Key)
+		w = append(w, ':')
+		w = basictl.JSONWriteStringBytes(w, elem.Value)
+	}
+	return append(w, '}'), nil
+}
+
 type DictionaryFieldEngineMetafilesStatBoxed struct {
 	Key   string
 	Value EngineMetafilesStat
@@ -87,6 +381,9 @@ func (item *DictionaryFieldEngineMetafilesStatBoxed) readJSON(j interface{}) err
 }
 
 func (item *DictionaryFieldEngineMetafilesStatBoxed) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *DictionaryFieldEngineMetafilesStatBoxed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Key) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -95,7 +392,7 @@ func (item *DictionaryFieldEngineMetafilesStatBoxed) WriteJSON(w []byte) (_ []by
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"value":`...)
-	if w, err = item.Value.WriteJSON(w); err != nil {
+	if w, err = item.Value.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil
@@ -188,6 +485,9 @@ func (item *DictionaryFieldString) readJSON(j interface{}) error {
 }
 
 func (item *DictionaryFieldString) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *DictionaryFieldString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Key) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -289,6 +589,9 @@ func (item *DictionaryFieldStringBytes) readJSON(j interface{}) error {
 }
 
 func (item *DictionaryFieldStringBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *DictionaryFieldStringBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Key) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -316,265 +619,4 @@ func (item *DictionaryFieldStringBytes) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("dictionaryField", err.Error())
 	}
 	return nil
-}
-
-func VectorDictionaryFieldEngineMetafilesStatBoxed0Reset(m map[string]EngineMetafilesStat) {
-	for k := range m {
-		delete(m, k)
-	}
-}
-
-func VectorDictionaryFieldEngineMetafilesStatBoxed0Read(w []byte, m *map[string]EngineMetafilesStat) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil { // No sanity check required for map
-		return w, err
-	}
-	var data map[string]EngineMetafilesStat
-	if *m == nil {
-		if l == 0 {
-			return w, nil
-		}
-		data = make(map[string]EngineMetafilesStat, l)
-		*m = data
-	} else {
-		data = *m
-		for k := range data {
-			delete(data, k)
-		}
-	}
-	for i := 0; i < int(l); i++ {
-		var elem DictionaryFieldEngineMetafilesStatBoxed
-		if w, err = elem.Read(w); err != nil {
-			return w, err
-		}
-		data[elem.Key] = elem.Value
-	}
-	return w, nil
-}
-
-func VectorDictionaryFieldEngineMetafilesStatBoxed0Write(w []byte, m map[string]EngineMetafilesStat) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(m)))
-	for key, val := range m {
-		elem := DictionaryFieldEngineMetafilesStatBoxed{Key: key, Value: val}
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorDictionaryFieldEngineMetafilesStatBoxed0ReadJSON(j interface{}, m *map[string]EngineMetafilesStat) error {
-	var _map map[string]interface{}
-	var _mapok bool
-	if j != nil {
-		_map, _mapok = j.(map[string]interface{})
-		if !_mapok {
-			return ErrorInvalidJSON("map[string]EngineMetafilesStat", "expected json object") // TODO - better name
-		}
-	}
-	l := len(_map)
-	var data map[string]EngineMetafilesStat
-	if *m == nil {
-		if l == 0 {
-			return nil
-		}
-		data = make(map[string]EngineMetafilesStat, l)
-		*m = data
-	} else {
-		data = *m
-		for k := range data {
-			delete(data, k)
-		}
-	}
-	for key, _jvalue := range _map {
-		var value EngineMetafilesStat
-		if err := EngineMetafilesStat__ReadJSON(&value, _jvalue); err != nil {
-			return err
-		}
-		data[key] = value
-	}
-	return nil
-}
-
-func VectorDictionaryFieldEngineMetafilesStatBoxed0WriteJSON(w []byte, m map[string]EngineMetafilesStat) (_ []byte, err error) {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	w = append(w, '{')
-	for _, key := range keys {
-		value := m[key]
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteString(w, key) // StringKey
-		w = append(w, ':')
-		if w, err = value.WriteJSON(w); err != nil {
-			return w, err
-		}
-	}
-	return append(w, '}'), nil
-}
-
-func VectorDictionaryFieldString0Reset(m map[string]string) {
-	for k := range m {
-		delete(m, k)
-	}
-}
-
-func VectorDictionaryFieldString0Read(w []byte, m *map[string]string) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil { // No sanity check required for map
-		return w, err
-	}
-	var data map[string]string
-	if *m == nil {
-		if l == 0 {
-			return w, nil
-		}
-		data = make(map[string]string, l)
-		*m = data
-	} else {
-		data = *m
-		for k := range data {
-			delete(data, k)
-		}
-	}
-	for i := 0; i < int(l); i++ {
-		var elem DictionaryFieldString
-		if w, err = elem.Read(w); err != nil {
-			return w, err
-		}
-		data[elem.Key] = elem.Value
-	}
-	return w, nil
-}
-
-func VectorDictionaryFieldString0Write(w []byte, m map[string]string) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(m)))
-	for key, val := range m {
-		elem := DictionaryFieldString{Key: key, Value: val}
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorDictionaryFieldString0ReadJSON(j interface{}, m *map[string]string) error {
-	var _map map[string]interface{}
-	var _mapok bool
-	if j != nil {
-		_map, _mapok = j.(map[string]interface{})
-		if !_mapok {
-			return ErrorInvalidJSON("map[string]string", "expected json object") // TODO - better name
-		}
-	}
-	l := len(_map)
-	var data map[string]string
-	if *m == nil {
-		if l == 0 {
-			return nil
-		}
-		data = make(map[string]string, l)
-		*m = data
-	} else {
-		data = *m
-		for k := range data {
-			delete(data, k)
-		}
-	}
-	for key, _jvalue := range _map {
-		var value string
-		if err := JsonReadString(_jvalue, &value); err != nil {
-			return err
-		}
-		data[key] = value
-	}
-	return nil
-}
-
-func VectorDictionaryFieldString0WriteJSON(w []byte, m map[string]string) (_ []byte, err error) {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	w = append(w, '{')
-	for _, key := range keys {
-		value := m[key]
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteString(w, key) // StringKey
-		w = append(w, ':')
-		w = basictl.JSONWriteString(w, value)
-	}
-	return append(w, '}'), nil
-}
-
-func VectorDictionaryFieldString0BytesRead(w []byte, vec *[]DictionaryFieldStringBytes) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]DictionaryFieldStringBytes, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorDictionaryFieldString0BytesWrite(w []byte, vec []DictionaryFieldStringBytes) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorDictionaryFieldString0BytesReadJSON(j interface{}, vec *[]DictionaryFieldStringBytes) error {
-	var _map map[string]interface{}
-	var _mapok bool
-	if j != nil {
-		_map, _mapok = j.(map[string]interface{})
-		if !_mapok {
-			return ErrorInvalidJSON("[]DictionaryFieldStringBytes", "expected json object") // TODO - better name
-		}
-	}
-	l := len(_map)
-	if cap(*vec) < l {
-		*vec = make([]DictionaryFieldStringBytes, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	i := 0
-	arr := *vec
-	for key, _jvalue := range _map {
-		arr[i].Key = append(arr[i].Key[:0], key...)
-		if err := JsonReadStringBytes(_jvalue, &arr[i].Value); err != nil {
-			return err
-		}
-		i++
-	}
-	return nil
-}
-
-func VectorDictionaryFieldString0BytesWriteJSON(w []byte, vec []DictionaryFieldStringBytes) (_ []byte, err error) {
-	w = append(w, '{')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteStringBytes(w, elem.Key)
-		w = append(w, ':')
-		w = basictl.JSONWriteStringBytes(w, elem.Value)
-	}
-	return append(w, '}'), nil
 }

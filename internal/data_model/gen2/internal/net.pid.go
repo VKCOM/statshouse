@@ -92,6 +92,9 @@ func (item *NetPid) readJSON(j interface{}) error {
 }
 
 func (item *NetPid) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *NetPid) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Ip != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

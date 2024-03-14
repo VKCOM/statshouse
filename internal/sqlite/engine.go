@@ -365,7 +365,6 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 		_ = conn.Close()
 		return nil, fmt.Errorf("failed to set DB busy timeout to %v: %w", busyTimeout, err)
 	}
-
 	err = conn.Exec("PRAGMA journal_mode=WAL2")
 	if err != nil {
 		_ = conn.Close()

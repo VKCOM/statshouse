@@ -13,6 +13,69 @@ import (
 
 var _ = basictl.NatWrite
 
+func BuiltinVectorMetadataMetricOldRead(w []byte, vec *[]MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
+	var l uint32
+	if w, err = basictl.NatRead(w, &l); err != nil {
+		return w, err
+	}
+	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
+		return w, err
+	}
+	if uint32(cap(*vec)) < l {
+		*vec = make([]MetadataMetricOld, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if w, err = (*vec)[i].Read(w, nat_t); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorMetadataMetricOldWrite(w []byte, vec []MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
+	w = basictl.NatWrite(w, uint32(len(vec)))
+	for _, elem := range vec {
+		if w, err = elem.Write(w, nat_t); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
+}
+
+func BuiltinVectorMetadataMetricOldReadJSON(j interface{}, vec *[]MetadataMetricOld, nat_t uint32) error {
+	l, _arr, err := JsonReadArray("[]MetadataMetricOld", j)
+	if err != nil {
+		return err
+	}
+	if cap(*vec) < l {
+		*vec = make([]MetadataMetricOld, l)
+	} else {
+		*vec = (*vec)[:l]
+	}
+	for i := range *vec {
+		if err := MetadataMetricOld__ReadJSON(&(*vec)[i], _arr[i], nat_t); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func BuiltinVectorMetadataMetricOldWriteJSON(w []byte, vec []MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
+	return BuiltinVectorMetadataMetricOldWriteJSONOpt(false, w, vec, nat_t)
+}
+func BuiltinVectorMetadataMetricOldWriteJSONOpt(short bool, w []byte, vec []MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
+	w = append(w, '[')
+	for _, elem := range vec {
+		w = basictl.JSONAddCommaIfNeeded(w)
+		if w, err = elem.WriteJSONOpt(short, w, nat_t); err != nil {
+			return w, err
+		}
+	}
+	return append(w, ']'), nil
+}
+
 type MetadataMetricOld struct {
 	Id         int64
 	Name       string
@@ -190,6 +253,9 @@ func (item *MetadataMetricOld) readJSON(j interface{}, nat_field_mask uint32) er
 }
 
 func (item *MetadataMetricOld) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataMetricOld) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Id != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -202,18 +268,14 @@ func (item *MetadataMetricOld) WriteJSON(w []byte, nat_field_mask uint32) (_ []b
 		w = basictl.JSONWriteString(w, item.Name)
 	}
 	if nat_field_mask&(1<<2) != 0 {
-		if item.EventType != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"event_type":`...)
-			w = basictl.JSONWriteInt32(w, item.EventType)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"event_type":`...)
+		w = basictl.JSONWriteInt32(w, item.EventType)
 	}
 	if nat_field_mask&(1<<3) != 0 {
-		if item.Unused != 0 {
-			w = basictl.JSONAddCommaIfNeeded(w)
-			w = append(w, `"unused":`...)
-			w = basictl.JSONWriteUint32(w, item.Unused)
-		}
+		w = basictl.JSONAddCommaIfNeeded(w)
+		w = append(w, `"unused":`...)
+		w = basictl.JSONWriteUint32(w, item.Unused)
 	}
 	if item.Version != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -231,64 +293,4 @@ func (item *MetadataMetricOld) WriteJSON(w []byte, nat_field_mask uint32) (_ []b
 		w = basictl.JSONWriteString(w, item.Data)
 	}
 	return append(w, '}'), nil
-}
-
-func VectorMetadataMetricOld0Read(w []byte, vec *[]MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
-	var l uint32
-	if w, err = basictl.NatRead(w, &l); err != nil {
-		return w, err
-	}
-	if err = basictl.CheckLengthSanity(w, l, 4); err != nil {
-		return w, err
-	}
-	if uint32(cap(*vec)) < l {
-		*vec = make([]MetadataMetricOld, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if w, err = (*vec)[i].Read(w, nat_t); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorMetadataMetricOld0Write(w []byte, vec []MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
-	w = basictl.NatWrite(w, uint32(len(vec)))
-	for _, elem := range vec {
-		if w, err = elem.Write(w, nat_t); err != nil {
-			return w, err
-		}
-	}
-	return w, nil
-}
-
-func VectorMetadataMetricOld0ReadJSON(j interface{}, vec *[]MetadataMetricOld, nat_t uint32) error {
-	l, _arr, err := JsonReadArray("[]MetadataMetricOld", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]MetadataMetricOld, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := MetadataMetricOld__ReadJSON(&(*vec)[i], _arr[i], nat_t); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func VectorMetadataMetricOld0WriteJSON(w []byte, vec []MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
-	w = append(w, '[')
-	for _, elem := range vec {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSON(w, nat_t); err != nil {
-			return w, err
-		}
-	}
-	return append(w, ']'), nil
 }

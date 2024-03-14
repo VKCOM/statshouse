@@ -362,15 +362,22 @@ func Test_Engine_NoBinlog_Close(t *testing.T) {
 		Scheme:                 schema,
 		DurabilityMode:         NoBinlog,
 		CacheMaxSizePerConnect: 1,
+		CommitOnEachWrite:      true,
 	}, nil, nil, nil)
 	require.NoError(t, err)
 	var data = ""
+	fmt.Println("BEGIN TX1")
+	for i := 0; i < 1000; i++ {
+		err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+			fmt.Println("BEGIN EXEC1")
+			_, err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
+			fmt.Println("FINISH EXEC1")
+			return cache, err
+		})
+		fmt.Println("FINISH WRITE1")
+		require.NoError(t, err)
+	}
 
-	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
-		_, err = conn.Exec("test", "INSERT INTO test_db(data) VALUES ($data)", BlobString("$data", "abc"))
-		return cache, err
-	})
-	require.NoError(t, err)
 	require.NoError(t, engine.Close(context.Background()))
 	engine, err = OpenEngine(Options{
 		Path:                   dir + "/db",

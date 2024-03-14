@@ -11,11 +11,18 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"go.uber.org/multierr"
 	"pgregory.net/rand"
 )
 
+/*
+TODO
+- Унести работу с склайтом в отдельный слой чтобы
+  - Engine работал с этим слоем
+  - Пользователи могли использоавть этот слой как отдельную либу
+*/
 type (
 	Engine struct {
 		opt               Options
@@ -76,10 +83,11 @@ type (
 )
 
 const (
-	initOffsetTable     = "CREATE TABLE IF NOT EXISTS __binlog_offset (offset INTEGER);"
-	snapshotMetaTable   = "CREATE TABLE IF NOT EXISTS __snapshot_meta (meta BLOB);"
-	internalQueryPrefix = "__"
-	logPrefix           = "[sqlite-engine]"
+	initOffsetTable       = "CREATE TABLE IF NOT EXISTS __binlog_offset (offset INTEGER);"
+	initCommitOffsetTable = "CREATE TABLE IF NOT EXISTS __binlog_commit_offset (offset INTEGER);"
+	snapshotMetaTable     = "CREATE TABLE IF NOT EXISTS __snapshot_meta (meta BLOB);"
+	internalQueryPrefix   = "__"
+	logPrefix             = "[sqlite-engine]"
 )
 
 func openRO(opt Options) (*Engine, error) {
@@ -115,7 +123,12 @@ func OpenEngine(opt Options) (*Engine, error) {
 	if opt.ReadOnly {
 		return openRO(opt)
 	}
+	// todo add nobinlog mode
 	logger := log.New(os.Stdout, logPrefix, log.LstdFlags)
+	err := restart(opt, logger)
+	if err != nil {
+		return nil, err
+	}
 	stat, _ := os.Stat(opt.Path)
 	var size int64
 	if stat != nil {
@@ -126,7 +139,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = rw.applyScheme(initOffsetTable, snapshotMetaTable, opt.Scheme)
+	err = rw.applyScheme(initOffsetTable, snapshotMetaTable, initCommitOffsetTable, opt.Scheme)
 	if err != nil {
 		errClose := rw.Close()
 		return nil, fmt.Errorf("failed to apply acheme: %w", multierr.Append(err, errClose))
@@ -141,6 +154,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 		}),
 		logger: logger,
 	}
+	sqlite0.CB = e.switchCallBack
 	return e, nil
 }
 
@@ -148,6 +162,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 binlog - will be closed during to Engine.Close
 */
 func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction) (err error) {
+	// TODO делать принудительный чекпоинт
 	e.binlog = binlog
 	defer func() { close(e.finishBinlogRunCh) }()
 	e.rw.dbOffset, err = e.binlogLoadOrCreatePosition()
@@ -160,6 +175,17 @@ func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction
 		})
 		return err
 	}
+	committedBinlogPosition, err := e.binlogLoadOrCreateCommittedOffset()
+	e.logger.Printf("load binlog committed position: %d", committedBinlogPosition)
+	if err != nil {
+		err = fmt.Errorf("failed to load binlog committed position during to start run: %w", err)
+		e.readyNotify.Do(func() {
+			e.readyCh <- err
+			close(e.readyCh)
+		})
+		return err
+	}
+
 	meta, err := e.binlogLoadOrCreateMeta()
 	if err != nil {
 		err = fmt.Errorf("failed to load binlog meta durint to start run: %w", err)
@@ -196,6 +222,10 @@ func (e *Engine) ReadyCh() <-chan error {
 
 func (e *Engine) WaitReady() error {
 	return <-e.readyCh
+}
+
+func (e *Engine) switchCallBack(iApp int, maxFrame uint) {
+	e.binlogEngine.setWaitCheckpointOffset()
 }
 
 func (e *Engine) Backup(ctx context.Context, prefix string) (string, int64, error) {
@@ -365,8 +395,8 @@ func (e *Engine) DoWithOffset(ctx context.Context, queryName string, do func(c C
 	if e.testOptions != nil {
 		e.testOptions.sleep()
 	}
-	meta := e.binlogEngine.binlogWait(offsetAfterWrite, false)
-	dbOffset, err = e.rw.binlogCommitTxLocked(offsetAfterWrite, meta)
+	//meta := e.binlogEngine.binlogWait(offsetAfterWrite, false)
+	dbOffset, err = e.rw.binlogCommitTxLocked(offsetAfterWrite, nil)
 	return dbOffset, err
 }
 
@@ -460,6 +490,24 @@ func (e *Engine) binlogLoadOrCreatePosition() (int64, error) {
 	return offset, err
 }
 
+func (e *Engine) binlogLoadOrCreateCommittedOffset() (int64, error) {
+	var offset int64
+	err := e.internalDo("__load_binlog_committed_pos", func(conn internalConn) error {
+		var isExists bool
+		var err error
+		offset, isExists, err = binlogLoadCommittedPosition(conn)
+		if err != nil {
+			return err
+		}
+		if isExists {
+			return nil
+		}
+		_, err = conn.Exec("__insert_binlog_committed_pos", "INSERT INTO __binlog_commit_offset(offset) VALUES(0)")
+		return err
+	})
+	return offset, err
+}
+
 func (e *Engine) Close() error {
 	return e.close(e.binlog != nil && !e.opt.ReadAndExit)
 }
@@ -498,6 +546,18 @@ func (e *Engine) close(waitCommitBinlog bool) error {
 
 func binlogLoadPosition(conn internalConn) (offset int64, isExists bool, err error) {
 	rows := conn.Query("__select_binlog_pos", "SELECT offset from __binlog_offset")
+	if rows.err != nil {
+		return 0, false, rows.err
+	}
+	for rows.Next() {
+		offset := rows.ColumnInt64(0)
+		return offset, true, nil
+	}
+	return 0, false, nil
+}
+
+func binlogLoadCommittedPosition(conn internalConn) (offset int64, isExists bool, err error) {
+	rows := conn.Query("__select_binlog_committed_pos", "SELECT offset from __binlog_commit_offset")
 	if rows.err != nil {
 		return 0, false, rows.err
 	}

@@ -30,14 +30,14 @@ func (item *StatshouseGetMetricsResult) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringRead(w, &item.Version); err != nil {
 		return w, err
 	}
-	return VectorString0Read(w, &item.Metrics)
+	return BuiltinVectorStringRead(w, &item.Metrics)
 }
 
 func (item *StatshouseGetMetricsResult) Write(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringWrite(w, item.Version); err != nil {
 		return w, err
 	}
-	return VectorString0Write(w, item.Metrics)
+	return BuiltinVectorStringWrite(w, item.Metrics)
 }
 
 func (item *StatshouseGetMetricsResult) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -78,13 +78,16 @@ func (item *StatshouseGetMetricsResult) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouse.getMetricsResult", k)
 	}
-	if err := VectorString0ReadJSON(_jMetrics, &item.Metrics); err != nil {
+	if err := BuiltinVectorStringReadJSON(_jMetrics, &item.Metrics); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetMetricsResult) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseGetMetricsResult) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Version) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -94,7 +97,7 @@ func (item *StatshouseGetMetricsResult) WriteJSON(w []byte) (_ []byte, err error
 	if len(item.Metrics) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"metrics":`...)
-		if w, err = VectorString0WriteJSON(w, item.Metrics); err != nil {
+		if w, err = BuiltinVectorStringWriteJSONOpt(short, w, item.Metrics); err != nil {
 			return w, err
 		}
 	}
@@ -133,14 +136,14 @@ func (item *StatshouseGetMetricsResultBytes) Read(w []byte) (_ []byte, err error
 	if w, err = basictl.StringReadBytes(w, &item.Version); err != nil {
 		return w, err
 	}
-	return VectorString0BytesRead(w, &item.Metrics)
+	return BuiltinVectorStringBytesRead(w, &item.Metrics)
 }
 
 func (item *StatshouseGetMetricsResultBytes) Write(w []byte) (_ []byte, err error) {
 	if w, err = basictl.StringWriteBytes(w, item.Version); err != nil {
 		return w, err
 	}
-	return VectorString0BytesWrite(w, item.Metrics)
+	return BuiltinVectorStringBytesWrite(w, item.Metrics)
 }
 
 func (item *StatshouseGetMetricsResultBytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -181,13 +184,16 @@ func (item *StatshouseGetMetricsResultBytes) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("statshouse.getMetricsResult", k)
 	}
-	if err := VectorString0BytesReadJSON(_jMetrics, &item.Metrics); err != nil {
+	if err := BuiltinVectorStringBytesReadJSON(_jMetrics, &item.Metrics); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetMetricsResultBytes) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *StatshouseGetMetricsResultBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Version) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -197,7 +203,7 @@ func (item *StatshouseGetMetricsResultBytes) WriteJSON(w []byte) (_ []byte, err 
 	if len(item.Metrics) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"metrics":`...)
-		if w, err = VectorString0BytesWriteJSON(w, item.Metrics); err != nil {
+		if w, err = BuiltinVectorStringBytesWriteJSONOpt(short, w, item.Metrics); err != nil {
 			return w, err
 		}
 	}

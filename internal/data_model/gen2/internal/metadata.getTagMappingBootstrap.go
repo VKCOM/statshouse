@@ -60,7 +60,11 @@ func (item *MetadataGetTagMappingBootstrap) ReadResultJSON(j interface{}, ret *S
 }
 
 func (item *MetadataGetTagMappingBootstrap) WriteResultJSON(w []byte, ret StatshouseGetTagMappingBootstrapResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSON(w); err != nil {
+	return item.writeResultJSON(false, w, ret)
+}
+
+func (item *MetadataGetTagMappingBootstrap) writeResultJSON(short bool, w []byte, ret StatshouseGetTagMappingBootstrapResult) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -72,6 +76,15 @@ func (item *MetadataGetTagMappingBootstrap) ReadResultWriteResultJSON(r []byte, 
 		return r, w, err
 	}
 	w, err = item.WriteResultJSON(w, ret)
+	return r, w, err
+}
+
+func (item *MetadataGetTagMappingBootstrap) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+	var ret StatshouseGetTagMappingBootstrapResult
+	if r, err = item.ReadResult(r, &ret); err != nil {
+		return r, w, err
+	}
+	w, err = item.writeResultJSON(true, w, ret)
 	return r, w, err
 }
 
@@ -116,6 +129,9 @@ func (item *MetadataGetTagMappingBootstrap) readJSON(j interface{}) error {
 }
 
 func (item *MetadataGetTagMappingBootstrap) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataGetTagMappingBootstrap) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

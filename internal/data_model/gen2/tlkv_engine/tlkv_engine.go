@@ -33,12 +33,13 @@ type Client struct {
 	Client  *rpc.Client
 	Network string // should be either "tcp4" or "unix"
 	Address string
-	ActorID uint64 // should be non-zero when using rpc-proxy
+	ActorID int64 // should be non-zero when using rpc-proxy
 }
 
 func (c *Client) Backup(ctx context.Context, args Backup, extra *rpc.InvokeReqExtra, ret *BackupResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "kv_engine.backup"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -47,10 +48,10 @@ func (c *Client) Backup(ctx context.Context, args Backup, extra *rpc.InvokeReqEx
 		return internal.ErrorClientWrite("kv_engine.backup", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("kv_engine.backup", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("kv_engine.backup", c.Network, c.ActorID, c.Address, err)
@@ -62,6 +63,7 @@ func (c *Client) Backup(ctx context.Context, args Backup, extra *rpc.InvokeReqEx
 func (c *Client) Check(ctx context.Context, args Check, extra *rpc.InvokeReqExtra, ret *bool) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "kv_engine.check"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -70,10 +72,10 @@ func (c *Client) Check(ctx context.Context, args Check, extra *rpc.InvokeReqExtr
 		return internal.ErrorClientWrite("kv_engine.check", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("kv_engine.check", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("kv_engine.check", c.Network, c.ActorID, c.Address, err)
@@ -85,6 +87,8 @@ func (c *Client) Check(ctx context.Context, args Check, extra *rpc.InvokeReqExtr
 func (c *Client) Get(ctx context.Context, args Get, extra *rpc.InvokeReqExtra, ret *GetResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.ReadOnly = true
+	req.FunctionName = "kv_engine.get"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -93,10 +97,10 @@ func (c *Client) Get(ctx context.Context, args Get, extra *rpc.InvokeReqExtra, r
 		return internal.ErrorClientWrite("kv_engine.get", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("kv_engine.get", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("kv_engine.get", c.Network, c.ActorID, c.Address, err)
@@ -108,6 +112,8 @@ func (c *Client) Get(ctx context.Context, args Get, extra *rpc.InvokeReqExtra, r
 func (c *Client) Healthcheck(ctx context.Context, args Healthcheck, extra *rpc.InvokeReqExtra, ret *bool) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.ReadOnly = true
+	req.FunctionName = "kv_engine.healthcheck"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -116,10 +122,10 @@ func (c *Client) Healthcheck(ctx context.Context, args Healthcheck, extra *rpc.I
 		return internal.ErrorClientWrite("kv_engine.healthcheck", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("kv_engine.healthcheck", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("kv_engine.healthcheck", c.Network, c.ActorID, c.Address, err)
@@ -131,6 +137,7 @@ func (c *Client) Healthcheck(ctx context.Context, args Healthcheck, extra *rpc.I
 func (c *Client) Inc(ctx context.Context, args Inc, extra *rpc.InvokeReqExtra, ret *ChangeResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "kv_engine.inc"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -139,10 +146,10 @@ func (c *Client) Inc(ctx context.Context, args Inc, extra *rpc.InvokeReqExtra, r
 		return internal.ErrorClientWrite("kv_engine.inc", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("kv_engine.inc", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("kv_engine.inc", c.Network, c.ActorID, c.Address, err)
@@ -154,6 +161,7 @@ func (c *Client) Inc(ctx context.Context, args Inc, extra *rpc.InvokeReqExtra, r
 func (c *Client) Put(ctx context.Context, args Put, extra *rpc.InvokeReqExtra, ret *ChangeResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
+	req.FunctionName = "kv_engine.put"
 	if extra != nil {
 		req.Extra = *extra
 	}
@@ -162,10 +170,10 @@ func (c *Client) Put(ctx context.Context, args Put, extra *rpc.InvokeReqExtra, r
 		return internal.ErrorClientWrite("kv_engine.put", err)
 	}
 	resp, err := c.Client.Do(ctx, c.Network, c.Address, req)
+	defer c.Client.PutResponse(resp)
 	if err != nil {
 		return internal.ErrorClientDo("kv_engine.put", c.Network, c.ActorID, c.Address, err)
 	}
-	defer c.Client.PutResponse(resp)
 	if ret != nil {
 		if _, err = args.ReadResult(resp.Body, ret); err != nil {
 			return internal.ErrorClientReadResult("kv_engine.put", c.Network, c.ActorID, c.Address, err)
@@ -194,6 +202,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 	tag, r, _ := basictl.NatReadTag(hctx.Request) // keep hctx.Request intact for handler chaining
 	switch tag {
 	case 0x3c7231b2: // kv_engine.backup
+		hctx.RequestFunctionName = "kv_engine.backup"
 		if h.RawBackup != nil {
 			hctx.Request = r
 			err = h.RawBackup(ctx, hctx)
@@ -224,6 +233,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x2c3239ba: // kv_engine.check
+		hctx.RequestFunctionName = "kv_engine.check"
 		if h.RawCheck != nil {
 			hctx.Request = r
 			err = h.RawCheck(ctx, hctx)
@@ -254,6 +264,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x1c7349bb: // kv_engine.get
+		hctx.RequestFunctionName = "kv_engine.get"
 		if h.RawGet != nil {
 			hctx.Request = r
 			err = h.RawGet(ctx, hctx)
@@ -284,6 +295,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x2c1259aa: // kv_engine.healthcheck
+		hctx.RequestFunctionName = "kv_engine.healthcheck"
 		if h.RawHealthcheck != nil {
 			hctx.Request = r
 			err = h.RawHealthcheck(ctx, hctx)
@@ -314,6 +326,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x3c7239bb: // kv_engine.inc
+		hctx.RequestFunctionName = "kv_engine.inc"
 		if h.RawInc != nil {
 			hctx.Request = r
 			err = h.RawInc(ctx, hctx)
@@ -344,6 +357,7 @@ func (h *Handler) Handle(ctx context.Context, hctx *rpc.HandlerContext) (err err
 			return nil
 		}
 	case 0x2c7349ba: // kv_engine.put
+		hctx.RequestFunctionName = "kv_engine.put"
 		if h.RawPut != nil {
 			hctx.Request = r
 			err = h.RawPut(ctx, hctx)

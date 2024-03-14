@@ -30,12 +30,12 @@ func (item *MetadataPutBootstrapEvent) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
 	}
-	return VectorStatshouseMapping0Read(w, &item.Mappings)
+	return BuiltinVectorStatshouseMappingRead(w, &item.Mappings)
 }
 
 func (item *MetadataPutBootstrapEvent) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	return VectorStatshouseMapping0Write(w, item.Mappings)
+	return BuiltinVectorStatshouseMappingWrite(w, item.Mappings)
 }
 
 func (item *MetadataPutBootstrapEvent) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -76,13 +76,16 @@ func (item *MetadataPutBootstrapEvent) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("metadata.putBootstrapEvent", k)
 	}
-	if err := VectorStatshouseMapping0ReadJSON(_jMappings, &item.Mappings); err != nil {
+	if err := BuiltinVectorStatshouseMappingReadJSON(_jMappings, &item.Mappings); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataPutBootstrapEvent) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *MetadataPutBootstrapEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -92,7 +95,7 @@ func (item *MetadataPutBootstrapEvent) WriteJSON(w []byte) (_ []byte, err error)
 	if len(item.Mappings) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"mappings":`...)
-		if w, err = VectorStatshouseMapping0WriteJSON(w, item.Mappings); err != nil {
+		if w, err = BuiltinVectorStatshouseMappingWriteJSONOpt(short, w, item.Mappings); err != nil {
 			return w, err
 		}
 	}

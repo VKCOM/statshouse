@@ -144,13 +144,9 @@ func (c *sqliteConn) binlogCommitTxLocked(newOffset int64, snapshotMeta []byte) 
 		c.connError = err
 		return c.dbOffset, fmt.Errorf("failed to save binlog offset: %w", err)
 	}
-	err = c.saveBinlogMetaLocked(snapshotMeta)
-	if err != nil {
-		c.connError = err
-		return c.dbOffset, fmt.Errorf("failed to save binlog meta: %w", err)
-	}
+
 	c.cache.closeTx()
-	err = c.execLocked(commitStmt)
+	err = c.execLocked(commitStmt) // Во время выполнения этой строки, может произойти смена вала
 	if err != nil {
 		c.connError = err
 		return c.dbOffset, fmt.Errorf("failed to commit TX: %w", err)
@@ -158,6 +154,22 @@ func (c *sqliteConn) binlogCommitTxLocked(newOffset int64, snapshotMeta []byte) 
 		c.dbOffset = newOffset
 	}
 	return c.dbOffset, nil
+}
+
+func (c *sqliteConn) saveCommitInfo(snapshotMeta []byte, offset int64) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	err := c.saveBinlogMetaLocked(snapshotMeta)
+	if err != nil {
+		c.connError = err
+		return fmt.Errorf("failed to save binlog meta: %w", err)
+	}
+	err = c.saveBinlogCommittedOffsetLocked(offset)
+	if err != nil {
+		c.connError = err
+		return fmt.Errorf("failed to save binlog committed offset: %w", err)
+	}
+	return nil
 }
 
 // если не смогли откатиться, движок находится в неконсистентном состоянии. Запрещаем запись
@@ -231,6 +243,11 @@ func prepare(c *sqlite0.Conn, sql []byte) (*sqlite0.Stmt, error) {
 
 func (c *sqliteConn) saveBinlogOffsetLocked(newOffset int64) error {
 	_, err := c.execLockedArgs(innerCtx, "__update_binlog_pos", nil, "UPDATE __binlog_offset set offset = $offset;", Int64("$offset", newOffset))
+	return err
+}
+
+func (c *sqliteConn) saveBinlogCommittedOffsetLocked(newOffset int64) error {
+	_, err := c.execLockedArgs(innerCtx, "__update_binlog_commited_pos", nil, "UPDATE __binlog_commit_offset set offset = $offset;", Int64("$offset", newOffset))
 	return err
 }
 

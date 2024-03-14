@@ -24,6 +24,7 @@ var (
 
 	logFunc   LogFunc = func(code int, msg string) {}
 	logFuncMu sync.Mutex
+	CB        func(int, uint)
 )
 
 //export _sqliteLogFunc
@@ -37,6 +38,13 @@ func _sqliteLogFunc(_ unsafe.Pointer, cCode C.int, cMsg *C.char) {
 	defer logFuncMu.Unlock()
 
 	logFunc(int(cCode), msg)
+}
+
+//export _sqlite_wal_switch_callback
+func _sqlite_wal_switch_callback(iAPP C.int, frame C.uint) {
+	if CB != nil {
+		CB(int(iAPP), uint(frame))
+	}
 }
 
 type Error struct {
