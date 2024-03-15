@@ -69,6 +69,8 @@ type (
 		StatsOptions     StatsOptions
 
 		BinlogOptions
+
+		Test bool
 	}
 	BinlogOptions struct {
 		// Set true if binlog created in replica mode
@@ -125,7 +127,16 @@ func OpenEngine(opt Options) (*Engine, error) {
 	}
 	// todo add nobinlog mode
 	logger := log.New(os.Stdout, logPrefix, log.LstdFlags)
-	err := restart(opt, logger)
+	// TODO пока перед рестартом таким образом проверяем что базу никто не исользует, потом надо будет сделать полоноценный флок
+	rw, err := newSqliteRWWALConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, logger)
+	if err != nil {
+		return nil, err
+	}
+	err = rw.Close()
+	if err != nil {
+		return nil, err
+	}
+	err = restart(opt, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -134,10 +145,19 @@ func OpenEngine(opt Options) (*Engine, error) {
 	if stat != nil {
 		size = stat.Size()
 	}
-	logger.Printf("OPEN DB path: %s size: %d", opt.Path, size)
-	rw, err := newSqliteRWWALConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, logger)
+	logger.Printf("OPEN DB path: %s size(only db file): %d", opt.Path, size)
+	rw, err = newSqliteRWWALConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, logger)
 	if err != nil {
 		return nil, err
+	}
+
+	if opt.Test {
+		err = rw.integrityCheck()
+		if err != nil {
+			errClose := rw.Close()
+			return nil, fmt.Errorf("failed to intergrity check: %w", multierr.Append(err, errClose))
+		}
+		logger.Println("integrity check: ok")
 	}
 	err = rw.applyScheme(initOffsetTable, snapshotMetaTable, initCommitOffsetTable, opt.Scheme)
 	if err != nil {
@@ -154,6 +174,7 @@ func OpenEngine(opt Options) (*Engine, error) {
 		}),
 		logger: logger,
 	}
+
 	sqlite0.CB = e.switchCallBack
 	return e, nil
 }
@@ -165,6 +186,9 @@ func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction
 	// TODO делать принудительный чекпоинт
 	e.binlog = binlog
 	defer func() { close(e.finishBinlogRunCh) }()
+
+	e.binlogEngine = newBinlogEngine(e, applyEventFunction)
+	// todo move to run
 	e.rw.dbOffset, err = e.binlogLoadOrCreatePosition()
 	e.logger.Printf("load binlog position: %d", e.rw.dbOffset)
 	if err != nil {
@@ -196,7 +220,6 @@ func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction
 		return err
 	}
 	e.logger.Printf("load snapshot meta: %s", hex.EncodeToString(meta))
-	e.binlogEngine = newBinlogEngine(e, applyEventFunction)
 	e.logger.Printf("running binlog")
 	err = e.rw.setError(e.binlog.Run(e.rw.dbOffset, meta, e.binlogEngine))
 	// TODO race?
@@ -225,6 +248,10 @@ func (e *Engine) WaitReady() error {
 }
 
 func (e *Engine) switchCallBack(iApp int, maxFrame uint) {
+	//statshouse.Metric(walCheckpointSizeMetric, T)
+	//if e == nil || e.binlogEngine == nil {
+	//	return // TODO DELETE
+	//}
 	e.binlogEngine.setWaitCheckpointOffset()
 }
 
@@ -530,6 +557,7 @@ func (e *Engine) close(waitCommitBinlog bool) error {
 			multierr.AppendInto(&error, err)
 		}
 		<-e.finishBinlogRunCh
+		// todo checkout
 	}
 	if !readOnly {
 		e.logger.Println("closing RW connection")

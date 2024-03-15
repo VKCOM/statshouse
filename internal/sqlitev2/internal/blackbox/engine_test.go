@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlkv_engine"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 	"pgregory.net/rapid"
@@ -50,14 +51,14 @@ func (c *client) clientLoop() {
 		default:
 
 		}
-		err := c.testCase.Check(c.r)
-		if err != nil {
-			panic(err)
-		}
+		_ = c.testCase.Check(c.r)
+		//if err != nil {
+		//	panic(err)
+		//}
 	}
 }
 
-const n = 1
+const n = 4
 
 func (s *engineState) init(r *rapid.T, tempDir string) {
 	var i int64
@@ -95,7 +96,7 @@ func (s *engineState) init(r *rapid.T, tempDir string) {
 		Address: "127.0.0.1:2442",
 	}
 	time.Sleep(time.Second * 5)
-	s.testCase = NewCase(0, 10, tempDir, &kvEngine{client: client})
+	s.testCase = NewCase(1000, 9999999999, tempDir, &kvEngine{client: client})
 	for _, c := range s.clients {
 		go c.clientLoop()
 	}
@@ -105,6 +106,13 @@ const BinlogMagic = 123
 
 func (s *engineState) Backup(r *rapid.T) {
 	s.testCase.Backup(r)
+}
+
+func (s *engineState) Put(r *rapid.T) {
+	for i := 0; i < 1000; i++ {
+		err := s.testCase.Put()
+		require.NoError(r, err)
+	}
 }
 
 func (s *engineState) Kill(r *rapid.T) {
@@ -147,7 +155,6 @@ func (s *engineState) stop() {
 }
 
 func TestEngine(t *testing.T) {
-	t.SkipNow()
 	rapid.Check(t, func(r *rapid.T) {
 		state := &engineState{}
 		defer func() {

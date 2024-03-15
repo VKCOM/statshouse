@@ -84,6 +84,7 @@ func main() {
 	db, err := sqlitev2.OpenEngine(sqlitev2.Options{
 		Path:   argv.dbPath,
 		Scheme: schemeKV,
+		Test:   true,
 	})
 	if err != nil {
 		panic(err)

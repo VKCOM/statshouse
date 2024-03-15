@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"slices"
@@ -48,6 +49,11 @@ func restart(opt Options, log *log.Logger) error {
 		}
 		if !isExists {
 			// todo???
+			err := os.Remove(w.path)
+			if err != nil {
+				panic(err)
+			}
+			return nil
 		}
 		wal2.path = wal2Path
 		wal2.restartPah = restartPath(wal2Path)
@@ -77,6 +83,7 @@ func restart(opt Options, log *log.Logger) error {
 	if rows.err != nil {
 		panic(err)
 	}
+	log.Println("READ BINLOG COMMITTED 2 WAL", commitOffset)
 	rows = conn.queryLocked(context.Background(), query, "__select_binlog_pos", nil, "SELECT offset from __binlog_offset")
 	if rows.err != nil {
 		return rows.err
@@ -89,6 +96,8 @@ func restart(opt Options, log *log.Logger) error {
 	if rows.err != nil {
 		return rows.err
 	}
+	log.Println("READ DB OFFSET 2 WAL", commitOffset)
+
 	if commitOffset > 0 && dbOffset <= commitOffset {
 		err = conn.conn.Checkpoint() // все окей, база с 2 валами на уровне с бинлогом делаем чекпоинт
 		if err != nil {
@@ -129,6 +138,7 @@ func restart(opt Options, log *log.Logger) error {
 	if rows.err != nil {
 		return rows.err
 	}
+	log.Println("READ DB OFFSET 1 WAL", withoutWalOffset)
 	err = conn.Close()
 	if err != nil {
 		panic(err)
@@ -168,7 +178,7 @@ func restartPath(path string) string {
 
 func readChkpt(f *os.File) (uint32, error) {
 	hdr := [24]byte{}
-	n, err := f.Read(hdr[:])
+	n, err := f.ReadAt(hdr[:], 0)
 	if err != nil {
 		return 0, err
 	}
@@ -207,6 +217,22 @@ func checkFollowAndOrder(wals []walInfo) error {
 	return nil
 }
 
+func checkWal(f *os.File) (delete bool, _ error) {
+	var hdr [24]byte
+	n, err := f.ReadAt(hdr[:], 0)
+	if errors.Is(err, io.EOF) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("failed to read hdr: %w", err)
+	}
+	if n < 24 {
+		return true, nil
+	}
+
+	return false, nil
+}
+
 func loadWal(iWal int, path string) (i walInfo, walExists bool, _ error) {
 	wal, err := os.Open(path)
 	if err != nil {
@@ -217,6 +243,17 @@ func loadWal(iWal int, path string) (i walInfo, walExists bool, _ error) {
 		}
 	}
 	defer wal.Close()
+	deleteWal, err := checkWal(wal)
+	if err != nil {
+		panic(err)
+	}
+	if deleteWal {
+		err := os.Remove(path)
+		if err != nil {
+			panic(err)
+		}
+		return i, false, nil
+	}
 	chkpt, err := readChkpt(wal)
 	if err != nil {
 		panic(err)

@@ -68,6 +68,7 @@ func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSi
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW conn: %w", err)
 	}
+	// TODO do integrity check if test
 	return &sqliteConn{
 		conn:             conn,
 		mu:               sync.Mutex{},
@@ -78,6 +79,12 @@ func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSi
 		cache:            newQueryCachev2(cacheSize, logger),
 		beginStmt:        beginImmediateStmt,
 	}, nil
+}
+
+func (c *sqliteConn) integrityCheck() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.execLocked("PRAGMA integrity_check;")
 }
 
 func (c *sqliteConn) applyScheme(schemas ...string) error {

@@ -13,11 +13,12 @@ type StatsOptions struct {
 }
 
 const (
-	queryDurationMetric  = "sqlite_query_duration"
-	waitDurationMetric   = "sqlite_wait_duration"
-	txDurationMetric     = "sqlite_tx_duration"
-	actionDurationMetric = "sqlite_action_duration"
-	engineBrokenMetric   = "sqlite_engine_broken_event"
+	queryDurationMetric     = "sqlite_query_duration"
+	waitDurationMetric      = "sqlite_wait_duration"
+	txDurationMetric        = "sqlite_tx_duration"
+	actionDurationMetric    = "sqlite_action_duration"
+	engineBrokenMetric      = "sqlite_engine_broken_event"
+	walCheckpointSizeMetric = "sqlite_wal_checkpoint_size"
 
 	txDo   = "sqlite_tx_do"
 	txView = "sqlite_tx_view"
@@ -66,4 +67,15 @@ func (s *StatsOptions) engineBrokenEvent() {
 		return
 	}
 	statshouse.Metric(engineBrokenMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC}).Count(1)
+}
+
+func (s *StatsOptions) walCheckpointSize(iApp int, maxFrame uint) {
+	if s.checkEmpty() {
+		return
+	}
+	k := "wal"
+	if iApp > 0 {
+		k = "wal2"
+	}
+	statshouse.Metric(walCheckpointSizeMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: k}).Value(float64(maxFrame))
 }

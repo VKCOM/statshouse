@@ -31,11 +31,27 @@ func initDb(b *testing.B, scheme, prefix string, dbFile string, useBinlog bool) 
 		Path:                         prefix + "/" + dbFile,
 		APPID:                        32,
 		Scheme:                       scheme,
-		CacheApproxMaxSizePerConnect: 1,
+		CacheApproxMaxSizePerConnect: 100,
 		ShowLastInsertID:             false,
 	})
 	if err != nil {
 		b.Fatal(err)
+	}
+	if useBinlog {
+		fmt.Println("Start run")
+		go func() {
+			err = engine.Run(bl, nil)
+			if err != nil {
+				panic(err)
+			}
+		}()
+
+		fmt.Println("START WaitReady")
+		err = engine.WaitReady()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("FINISH WaitReady")
 	}
 	return engine, bl
 }
@@ -91,4 +107,23 @@ func BenchmarkReadNumbers(b *testing.B) {
 	queryLoop(b, eng, func(c Conn, i int) Rows {
 		return c.Query("select", "SELECT n FROM numbers WHERE n = $n", r[i%len(r)])
 	})
+}
+func BenchmarkWrite(b *testing.B) {
+	const schemeNumbers = "CREATE TABLE IF NOT EXISTS numbers (n INTEGER PRIMARY KEY);"
+	eng, _ := initDb(b, schemeNumbers, b.TempDir(), "test.db", true)
+	var bytes [32]byte
+	for i := 0; i < b.N; i++ {
+		err := eng.Do(context.Background(), "dododo", func(c Conn, cache []byte) ([]byte, error) {
+			_, err := c.Exec("dodod", "INSERT OR REPLACE INTO numbers(n) VALUES(0)")
+			return append(cache, bytes[:]...), err
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
+	fmt.Println("CLOSE")
+	err := eng.Close()
+	if err != nil {
+		panic(err)
+	}
 }

@@ -18,6 +18,11 @@ type binlogMock struct {
 
 func NewBinlogMock(engine binlog.Engine, t require.TestingT) binlog.Binlog {
 	return &binlogMock{engine: engine, t: t}
+
+}
+
+func (b *binlogMock) Run2(offset int64, snapshotMeta []byte, controlMeta []byte, upgrade bool, engine binlog.Engine) error {
+	panic("err")
 }
 
 func (b *binlogMock) Run(offset int64, snapshotMeta []byte, engine binlog.Engine) error {

@@ -288,6 +288,8 @@ func init() {
 	fillFunction("metadata.editEntitynew#86df475f", "#86df475f", &TLItem{tag: 0x86df475f, annotations: 0x8, tlName: "metadata.editEntitynew"})
 	fillObject("metadata.editMetricEvent#12345677", "#12345677", &TLItem{tag: 0x12345677, annotations: 0x0, tlName: "metadata.editMetricEvent"})
 	fillObject("metadata.event#9286affa", "#9286affa", &TLItem{tag: 0x9286affa, annotations: 0x0, tlName: "metadata.event"})
+	fillFunction("metadata.getEntity#72b132f8", "#72b132f8", &TLItem{tag: 0x72b132f8, annotations: 0x4, tlName: "metadata.getEntity"})
+	fillFunction("metadata.getHistoryShortInfo#22ff6a79", "#22ff6a79", &TLItem{tag: 0x22ff6a79, annotations: 0x8, tlName: "metadata.getHistoryShortInfo"})
 	fillFunction("metadata.getInvertMapping#9faf5280", "#9faf5280", &TLItem{tag: 0x9faf5280, annotations: 0x4, tlName: "metadata.getInvertMapping"})
 	fillFunction("metadata.getJournalnew#93ba92f8", "#93ba92f8", &TLItem{tag: 0x93ba92f8, annotations: 0x4, tlName: "metadata.getJournalnew"})
 	fillFunction("metadata.getMapping#9dfa7a83", "#9dfa7a83", &TLItem{tag: 0x9dfa7a83, annotations: 0x8, tlName: "metadata.getMapping"})
