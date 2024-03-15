@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -6,7 +6,10 @@
 
 package promql
 
-import "github.com/vkcom/statshouse/internal/promql/parser"
+import (
+	"github.com/vkcom/statshouse/internal/promql/model"
+	"github.com/vkcom/statshouse/internal/promql/parser"
+)
 
 type reduction struct {
 	rule         int
@@ -103,25 +106,25 @@ func reduceOverTimeCall(r *reduction, e parser.Expr, step int64) bool {
 	var what string
 	switch call.Func.Name {
 	case "avg_over_time":
-		what = Avg
+		what = model.Avg
 	case "min_over_time":
-		what = Min
+		what = model.Min
 	case "max_over_time":
-		what = Max
+		what = model.Max
 	case "sum_over_time":
-		what = Sum
+		what = model.Sum
 	case "count_over_time":
-		what = Count
+		what = model.Count
 	case "stddev_over_time":
 		if r.step != step {
 			return false
 		}
-		what = StdDev
+		what = model.StdDev
 	case "stdvar_over_time":
 		if r.step != step {
 			return false
 		}
-		what = StdVar
+		what = model.StdVar
 	default:
 		return false
 	}
@@ -137,15 +140,15 @@ func reduceAggregateExpr(r *reduction, e parser.Expr, _ int64) bool {
 	var what string
 	switch agg.Op {
 	case parser.AVG:
-		what = Avg
+		what = model.Avg
 	case parser.MIN:
-		what = Min
+		what = model.Min
 	case parser.MAX:
-		what = Max
+		what = model.Max
 	case parser.SUM:
-		what = SumSec
+		what = model.SumSec
 	case parser.COUNT:
-		what = CountSec
+		what = model.CountSec
 	default:
 		return false
 	}
@@ -159,10 +162,10 @@ func reduceAggregateExpr(r *reduction, e parser.Expr, _ int64) bool {
 }
 
 func reduceWhat(a, b string) (string, bool) {
-	if a == "" || a == SumSec && b == Sum || a == CountSec && b == Count {
+	if a == "" || a == model.SumSec && b == model.Sum || a == model.CountSec && b == model.Count {
 		return b, true
 	}
-	if a == b || a == Sum && b == SumSec || a == Count && b == CountSec {
+	if a == b || a == model.Sum && b == model.SumSec || a == model.Count && b == model.CountSec {
 		return a, true
 	}
 	return a, false

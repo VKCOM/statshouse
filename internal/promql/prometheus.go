@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/vkcom/statshouse/internal/promql/model"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 )
 
@@ -104,7 +105,7 @@ func calcTrendValue(i int, tf, s0, s1, b float64) float64 {
 // data. A lower smoothing factor increases the influence of historical data. The trend factor (0 < tf < 1) affects
 // how trends in historical data will affect the current data. A higher trend factor increases the influence.
 // of trends. Algorithm taken from https://en.wikipedia.org/wiki/Exponential_smoothing titled: "Double exponential smoothing".
-func funcHoltWinters(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcHoltWinters(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	res, err := ev.eval(args[0])
 	if err != nil {
 		return nil, err
@@ -123,7 +124,7 @@ func funcHoltWinters(ev *evaluator, args parser.Expressions) ([]Series, error) {
 			for wnd.moveOneLeft() {
 				v := wnd.getValues()
 				if len(v) < 2 {
-					wnd.setValueAtRight(NilValue)
+					wnd.setValueAtRight(model.NilValue)
 					continue
 				}
 				var s0, x, y float64
@@ -141,13 +142,13 @@ func funcHoltWinters(ev *evaluator, args parser.Expressions) ([]Series, error) {
 				wnd.setValueAtRight(s1)
 
 			}
-			wnd.fillPrefixWith(NilValue)
+			wnd.fillPrefixWith(model.NilValue)
 		}
 	}
 	return res, nil
 }
 
-func funcRound(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcRound(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	res, err := ev.eval(args[0])
 	if err != nil {
 		return nil, err
