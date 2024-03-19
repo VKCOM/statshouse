@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,10 +21,11 @@ import (
 	"github.com/ClickHouse/ch-go"
 	"github.com/ClickHouse/ch-go/proto"
 	"github.com/gorilla/mux"
-	"github.com/prometheus/common/model"
+	prom "github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql"
+	"github.com/vkcom/statshouse/internal/promql/model"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/util"
 )
@@ -40,7 +41,7 @@ func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQ
 		return
 	}
 	// parse query
-	var parse func(*http.Request) (promql.Query, error)
+	var parse func(*http.Request) (model.Query, error)
 	if rangeQuery {
 		parse = parsePromRangeQuery
 	} else {
@@ -99,7 +100,7 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 
 // region Request
 
-func parsePromRangeQuery(r *http.Request) (q promql.Query, err error) {
+func parsePromRangeQuery(r *http.Request) (q model.Query, err error) {
 	q.Start, err = parseTime(r.FormValue("start"))
 	if err != nil {
 		return q, fmt.Errorf("invalid parameter start: %w", err)
@@ -131,7 +132,7 @@ func parsePromRangeQuery(r *http.Request) (q promql.Query, err error) {
 	return q, nil
 }
 
-func parsePromInstantQuery(r *http.Request) (q promql.Query, err error) {
+func parsePromInstantQuery(r *http.Request) (q model.Query, err error) {
 	v := r.FormValue("time")
 	if v == "" {
 		q.Start = time.Now().Unix()
@@ -164,7 +165,7 @@ func parseDuration(s string) (int64, error) {
 		}
 		return int64(v), nil
 	}
-	if v, err := model.ParseDuration(s); err == nil {
+	if v, err := prom.ParseDuration(s); err == nil {
 		return int64(math.Round(float64(v) / float64(time.Second))), nil
 	}
 	return 0, fmt.Errorf("cannot parse %qs to a valid duration", s)
@@ -327,7 +328,7 @@ func (h *Handler) promqlLODEnd(start, step, end int64, le bool) (int64, int) {
 	return start, n
 }
 
-func (h *Handler) promqlLODs(t *promql.Timescale, version string, offset int64, metric *format.MetricMetaValue) []lodInfo {
+func (h *Handler) promqlLODs(t *model.Timescale, version string, offset int64, metric *format.MetricMetaValue) []lodInfo {
 	start := t.Time[0]
 	if offset != 0 {
 		start = h.promqlLODStart(start-offset, t.LODs[0].Step)
@@ -371,9 +372,9 @@ func (lod lodInfo) indexOf(timestamp int64) (int, error) {
 	return 0, fmt.Errorf("timestamp %d is out of [%d,%d), step %d", timestamp, lod.fromSec, lod.toSec, lod.stepSec)
 }
 
-func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaValue]int64) (promql.Timescale, error) {
+func (h *Handler) GetTimescale(qry model.Query, offsets map[*format.MetricMetaValue]int64) (model.Timescale, error) {
 	if qry.End <= qry.Start || qry.Step < 0 {
-		return promql.Timescale{}, nil
+		return model.Timescale{}, nil
 	}
 	// gather query info
 	var (
@@ -438,9 +439,9 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 	}
 	start := qry.Start - int64(maxOffset)
 	end := qry.End - int64(maxOffset)
-	res := promql.Timescale{Step: qry.Step}
+	res := model.Timescale{Step: qry.Step}
 	var resLen int
-	var lod promql.LOD // last LOD
+	var lod model.LOD // last LOD
 	for i := 0; i < len(levels) && start < end; i++ {
 		edge := qry.Options.TimeNow - levels[i].relSwitch
 		if edge < start {
@@ -473,7 +474,7 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 					// "maxPoints" limit exceed
 					if lod.Step == 0 {
 						// at largest "step" possible
-						return promql.Timescale{}, errQueryOutOfRange
+						return model.Timescale{}, errQueryOutOfRange
 					}
 					// use previous (larger) "step" to the end
 					if len(res.LODs) == 0 {
@@ -483,7 +484,7 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 					break
 				}
 			}
-			lod = promql.LOD{Step: step, Len: lodLen}
+			lod = model.LOD{Step: step, Len: lodLen}
 			if qry.Options.ScreenWidth != 0 && int(qry.Options.ScreenWidth) < n {
 				// use current "step" to the end
 				lodEnd, lodLen = h.promqlLODEnd(lodEnd, step, end, false)
@@ -493,7 +494,7 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		}
 		if lod.Step <= 0 || lod.Step > _1M || lod.Len <= 0 || !(qry.Options.Collapse || lod.Len <= maxPoints) {
 			// should not happen
-			return promql.Timescale{}, fmt.Errorf("LOD out of range: step=%d, len=%d", lod.Step, lod.Len)
+			return model.Timescale{}, fmt.Errorf("LOD out of range: step=%d, len=%d", lod.Step, lod.Len)
 		}
 		start = lodEnd
 		resLen += lod.Len
@@ -504,12 +505,12 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		}
 	}
 	if len(res.LODs) == 0 {
-		return promql.Timescale{}, nil
+		return model.Timescale{}, nil
 	}
 	// verify offset is multiple of largest LOD step
 	for _, v := range offsets {
 		if v%res.LODs[0].Step != 0 {
-			return promql.Timescale{}, fmt.Errorf("offset %d is not multiple of step %d", v, res.LODs[0].Step)
+			return model.Timescale{}, fmt.Errorf("offset %d is not multiple of step %d", v, res.LODs[0].Step)
 		}
 	}
 	// generate time
@@ -522,7 +523,7 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		res.Time = []int64{t, 0}
 		res.Time[1], _ = h.promqlLODEnd(t, p.Step, qry.End, !qry.Options.Extend)
 		if res.Time[0] == res.Time[1] {
-			return promql.Timescale{}, nil
+			return model.Timescale{}, nil
 		}
 		res.ViewEndX = 1
 	} else {
@@ -574,7 +575,7 @@ func (h *Handler) GetHostName(hostID int32) string {
 	return v
 }
 
-func (h *Handler) GetTagValue(qry promql.TagValueQuery) string {
+func (h *Handler) GetTagValue(qry model.TagValueQuery) string {
 	var tagID string
 	if len(qry.TagID) == 0 {
 		tagID = format.TagID(qry.TagIndex)
@@ -584,7 +585,7 @@ func (h *Handler) GetTagValue(qry promql.TagValueQuery) string {
 	return h.getRichTagValue(qry.Metric, promqlVersionOrDefault(qry.Version), tagID, qry.TagValueID)
 }
 
-func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
+func (h *Handler) GetTagValueID(qry model.TagValueIDQuery) (int32, error) {
 	res, err := h.getRichTagValueID(&qry.Metric.Tags[qry.TagIndex], qry.Version, qry.TagValue)
 	if err != nil {
 		var httpErr httpError
@@ -595,24 +596,24 @@ func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
 	return res, err
 }
 
-func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (promql.Series, func(), error) {
+func (h *Handler) QuerySeries(ctx context.Context, qry *model.SeriesQuery) (model.Series, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
-		return promql.Series{}, nil, errAccessViolation
+		return model.Series{}, errAccessViolation
 	}
 	if !ai.CanViewMetricName(qry.Metric.Name) {
-		return promql.Series{}, func() {}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
+		return model.Series{}, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", qry.Metric.Name))
 	}
 	if qry.Options.Collapse {
 		for _, what := range qry.Whats {
 			switch what {
-			case promql.DigestCount, promql.DigestMin, promql.DigestMax, promql.DigestAvg,
-				promql.DigestSum, promql.DigestP25, promql.DigestP50, promql.DigestP75,
-				promql.DigestP90, promql.DigestP95, promql.DigestP99, promql.DigestP999,
-				promql.DigestUnique:
+			case model.DigestCount, model.DigestMin, model.DigestMax, model.DigestAvg,
+				model.DigestSum, model.DigestP25, model.DigestP50, model.DigestP75,
+				model.DigestP90, model.DigestP95, model.DigestP99, model.DigestP999,
+				model.DigestUnique:
 				// pass
 			default:
-				return promql.Series{}, func() {}, fmt.Errorf("function %s is not supported", what.String())
+				return model.Series{}, fmt.Errorf("function %s is not supported", what.String())
 			}
 		}
 	}
@@ -625,18 +626,18 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	qryRaw := make([]bool, len(qry.Whats))
 	for i, what := range qry.Whats {
 		switch what {
-		case promql.DigestCountRaw, promql.DigestSumRaw, promql.DigestCardinalityRaw:
+		case model.DigestCountRaw, model.DigestSumRaw, model.DigestCardinalityRaw:
 			qryRaw[i] = true
 		default:
 			qryRaw[i] = qry.Options.Collapse || step == 0 || step == _1M
 		}
 	}
-	res := promql.Series{Meta: promql.SeriesMeta{Metric: qry.Metric}}
+	res := model.Series{Meta: model.SeriesMeta{Metric: qry.Metric}}
 	if len(qry.Whats) == 1 {
 		switch qry.Whats[0] {
-		case promql.DigestCount, promql.DigestCountSec, promql.DigestCountRaw,
-			promql.DigestStdVar, promql.DigestCardinality, promql.DigestCardinalitySec,
-			promql.DigestCardinalityRaw, promql.DigestUnique, promql.DigestUniqueSec:
+		case model.DigestCount, model.DigestCountSec, model.DigestCountRaw,
+			model.DigestStdVar, model.DigestCardinality, model.DigestCardinalitySec,
+			model.DigestCardinalityRaw, model.DigestUnique, model.DigestUniqueSec:
 			// measure units does not apply to counters
 		default:
 			res.Meta.Units = qry.Metric.MetricType
@@ -692,7 +693,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				data, err = h.cache.Get(ctx, version, qs, &pq, lod, qry.Options.AvoidCache)
 			}
 			if err != nil {
-				return promql.Series{}, nil, err
+				return model.Series{}, err
 			}
 			for i := 0; i < len(data); i++ {
 				for j := 0; j < len(data[i]); j++ {
@@ -700,7 +701,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					if !qry.Options.Collapse { // "point" query does not return timestamp
 						x, err := lod.indexOf(data[i][j].time)
 						if err != nil {
-							return promql.Series{}, nil, err
+							return model.Series{}, err
 						}
 						k += x
 					}
@@ -712,7 +713,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 							v := h.Alloc(len(qry.Timescale.Time))
 							buffers = append(buffers, v)
 							for y := range *v {
-								(*v)[y] = promql.NilValue
+								(*v)[y] = model.NilValue
 							}
 							var h [2][]int32
 							for z, qryHost := range qry.MinMaxHost {
@@ -720,7 +721,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 									h[z] = make([]int32, len(qry.Timescale.Time))
 								}
 							}
-							res.Data = append(res.Data, promql.SeriesData{
+							res.Data = append(res.Data, model.SeriesData{
 								Values:     v,
 								MinMaxHost: h,
 							})
@@ -744,24 +745,24 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				for _, groupBy := range qry.GroupBy {
 					switch groupBy {
 					case format.StringTopTagID, qry.Metric.StringTopName:
-						res.AddTagAt(i+j, &promql.SeriesTag{
+						res.AddTagAt(i+j, &model.SeriesTag{
 							Metric: qry.Metric,
-							Index:  format.StringTopTagIndex + promql.SeriesTagIndexOffset,
+							Index:  format.StringTopTagIndex + model.SeriesTagIndexOffset,
 							ID:     format.StringTopTagID,
 							Name:   qry.Metric.StringTopName,
 							SValue: emptyToUnspecified(v.tagStr.String()),
 						})
 					case format.ShardTagID:
-						res.AddTagAt(i+j, &promql.SeriesTag{
+						res.AddTagAt(i+j, &model.SeriesTag{
 							Metric: qry.Metric,
 							ID:     promql.LabelShard,
 							Value:  int32(v.shardNum),
 						})
 					default:
 						if m, ok := qry.Metric.Name2Tag[groupBy]; ok && m.Index < len(v.tag) {
-							res.AddTagAt(i+j, &promql.SeriesTag{
+							res.AddTagAt(i+j, &model.SeriesTag{
 								Metric: qry.Metric,
-								Index:  m.Index + promql.SeriesTagIndexOffset,
+								Index:  m.Index + model.SeriesTagIndexOffset,
 								ID:     format.TagID(m.Index),
 								Name:   m.Name,
 								Value:  v.tag[m.Index],
@@ -770,7 +771,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 					}
 				}
 				if tagWhat {
-					res.AddTagAt(i+j, &promql.SeriesTag{
+					res.AddTagAt(i+j, &model.SeriesTag{
 						ID:    promql.LabelWhat,
 						Value: int32(what),
 					})
@@ -781,10 +782,10 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	}
 	res.Meta.Total = len(res.Data)
 	succeeded = true // prevents deffered "cleanup"
-	return res, cleanup, nil
+	return res, nil
 }
 
-func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuery) ([]int32, error) {
+func (h *Handler) QueryTagValueIDs(ctx context.Context, qry model.TagValuesQuery) ([]int32, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
 		return nil, errAccessViolation
@@ -834,7 +835,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 	return res, nil
 }
 
-func (h *Handler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery) ([]string, error) {
+func (h *Handler) QueryStringTop(ctx context.Context, qry model.TagValuesQuery) ([]string, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
 		return nil, errAccessViolation
@@ -888,10 +889,10 @@ type handlerArgs struct {
 	qs    string // cache key
 	pq    preparedPointsQuery
 	fns   []queryFn
-	whats []promql.DigestWhat
+	whats []model.DigestWhat
 }
 
-func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) map[queryFnKind]handlerArgs {
+func getHandlerArgs(qry *model.SeriesQuery, ai *accessInfo) map[queryFnKind]handlerArgs {
 	// filtering
 	var (
 		filterIn  = make(map[string][]string)
@@ -946,53 +947,53 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) map[queryFnKind]han
 	for _, v := range qry.Whats {
 		var fn queryFn
 		switch v {
-		case promql.DigestCount, promql.DigestCountRaw:
+		case model.DigestCount, model.DigestCountRaw:
 			fn = queryFnCount
-		case promql.DigestCountSec:
+		case model.DigestCountSec:
 			fn = queryFnCountNorm
-		case promql.DigestMin:
+		case model.DigestMin:
 			fn = queryFnMin
-		case promql.DigestMax:
+		case model.DigestMax:
 			fn = queryFnMax
-		case promql.DigestSum, promql.DigestSumRaw:
+		case model.DigestSum, model.DigestSumRaw:
 			fn = queryFnSum
-		case promql.DigestSumSec:
+		case model.DigestSumSec:
 			fn = queryFnSumNorm
-		case promql.DigestAvg:
+		case model.DigestAvg:
 			fn = queryFnAvg
-		case promql.DigestStdDev:
+		case model.DigestStdDev:
 			fn = queryFnStddev
-		case promql.DigestStdVar:
+		case model.DigestStdVar:
 			fn = queryFnStdvar
-		case promql.DigestP0_1:
+		case model.DigestP0_1:
 			fn = queryFnP0_1
-		case promql.DigestP1:
+		case model.DigestP1:
 			fn = queryFnP1
-		case promql.DigestP5:
+		case model.DigestP5:
 			fn = queryFnP5
-		case promql.DigestP10:
+		case model.DigestP10:
 			fn = queryFnP10
-		case promql.DigestP25:
+		case model.DigestP25:
 			fn = queryFnP25
-		case promql.DigestP50:
+		case model.DigestP50:
 			fn = queryFnP50
-		case promql.DigestP75:
+		case model.DigestP75:
 			fn = queryFnP75
-		case promql.DigestP90:
+		case model.DigestP90:
 			fn = queryFnP90
-		case promql.DigestP95:
+		case model.DigestP95:
 			fn = queryFnP95
-		case promql.DigestP99:
+		case model.DigestP99:
 			fn = queryFnP99
-		case promql.DigestP999:
+		case model.DigestP999:
 			fn = queryFnP999
-		case promql.DigestCardinality, promql.DigestCardinalityRaw:
+		case model.DigestCardinality, model.DigestCardinalityRaw:
 			fn = queryFnCardinality
-		case promql.DigestCardinalitySec:
+		case model.DigestCardinalitySec:
 			fn = queryFnCardinalityNorm
-		case promql.DigestUnique:
+		case model.DigestUnique:
 			fn = queryFnUnique
-		case promql.DigestUniqueSec:
+		case model.DigestUniqueSec:
 			fn = queryFnUniqueNorm
 		default:
 			panic(fmt.Errorf("unrecognized what: %v", qry.Whats))
@@ -1052,94 +1053,94 @@ func getPromQuery(req seriesRequest) (string, error) {
 		x := nat
 		switch name {
 		case queryFnCount:
-			what = promql.Count
+			what = model.Count
 		case queryFnCountNorm:
-			what = promql.CountSec
+			what = model.CountSec
 		case queryFnCumulCount:
-			what = promql.CountRaw
+			what = model.CountRaw
 			x = cum
 		case queryFnCardinality:
-			what = promql.Cardinality
+			what = model.Cardinality
 		case queryFnCardinalityNorm:
-			what = promql.CardinalitySec
+			what = model.CardinalitySec
 		case queryFnCumulCardinality:
-			what = promql.CardinalityRaw
+			what = model.CardinalityRaw
 			x = cum
 		case queryFnMin:
-			what = promql.Min
+			what = model.Min
 		case queryFnMax:
-			what = promql.Max
+			what = model.Max
 		case queryFnAvg:
-			what = promql.Avg
+			what = model.Avg
 		case queryFnCumulAvg:
-			what = promql.Avg
+			what = model.Avg
 			x = cum
 		case queryFnSum:
-			what = promql.Sum
+			what = model.Sum
 		case queryFnSumNorm:
-			what = promql.SumSec
+			what = model.SumSec
 		case queryFnCumulSum:
-			what = promql.SumRaw
+			what = model.SumRaw
 			x = cum
 		case queryFnStddev:
-			what = promql.StdDev
+			what = model.StdDev
 		case queryFnP0_1:
-			what = promql.P0_1
+			what = model.P0_1
 		case queryFnP1:
-			what = promql.P1
+			what = model.P1
 		case queryFnP5:
-			what = promql.P5
+			what = model.P5
 		case queryFnP10:
-			what = promql.P10
+			what = model.P10
 		case queryFnP25:
-			what = promql.P25
+			what = model.P25
 		case queryFnP50:
-			what = promql.P50
+			what = model.P50
 		case queryFnP75:
-			what = promql.P75
+			what = model.P75
 		case queryFnP90:
-			what = promql.P90
+			what = model.P90
 		case queryFnP95:
-			what = promql.P95
+			what = model.P95
 		case queryFnP99:
-			what = promql.P99
+			what = model.P99
 		case queryFnP999:
-			what = promql.P999
+			what = model.P999
 		case queryFnUnique:
-			what = promql.Unique
+			what = model.Unique
 		case queryFnUniqueNorm:
-			what = promql.UniqueSec
+			what = model.UniqueSec
 		case queryFnMaxHost:
 			req.maxHost = true
 		case queryFnMaxCountHost:
-			what = promql.Max
+			what = model.Max
 			req.maxHost = true
 		case queryFnDerivativeCount:
-			what = promql.Count
+			what = model.Count
 			x = der
 		case queryFnDerivativeSum:
-			what = promql.Sum
+			what = model.Sum
 			x = der
 		case queryFnDerivativeAvg:
-			what = promql.Avg
+			what = model.Avg
 			x = der
 		case queryFnDerivativeCountNorm:
-			what = promql.CountSec
+			what = model.CountSec
 			x = der
 		case queryFnDerivativeSumNorm:
-			what = promql.SumSec
+			what = model.SumSec
 			x = der
 		case queryFnDerivativeMin:
-			what = promql.Min
+			what = model.Min
 			x = der
 		case queryFnDerivativeMax:
-			what = promql.Max
+			what = model.Max
 			x = der
 		case queryFnDerivativeUnique:
-			what = promql.Unique
+			what = model.Unique
 			x = der
 		case queryFnDerivativeUniqueNorm:
-			what = promql.UniqueSec
+			what = model.UniqueSec
 			x = der
 		default:
 			continue
@@ -1180,7 +1181,7 @@ func getPromQuery(req seriesRequest) (string, error) {
 			continue
 		}
 		if req.maxHost {
-			v = append(v, promql.MaxHost)
+			v = append(v, model.MaxHost)
 		}
 		s := fmt.Sprintf("@what=%q", strings.Join(v, ","))
 		s = strings.Join(append([]string{s}, filterGroupBy...), ",")

@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -48,6 +48,7 @@ import (
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/promql"
+	"github.com/vkcom/statshouse/internal/promql/model"
 	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
@@ -365,7 +366,7 @@ type (
 		by                  []string
 		filterIn            map[string][]string
 		filterNotIn         map[string][]string
-		vars                map[string]promql.Variable
+		vars                map[string]model.Variable
 		maxHost             bool
 		avoidCache          bool
 		verbose             bool
@@ -493,7 +494,7 @@ type (
 	}
 
 	seriesResponse struct {
-		*promql.TimeSeries
+		*model.TimeSeries
 		metric          *format.MetricMetaValue
 		promQL          string
 		trace           []string
@@ -1973,11 +1974,11 @@ func (h *Handler) queryBadges(ctx context.Context, req seriesRequest, meta *form
 	req.ai.skipBadgesValidation = true
 	v, cleanup, err := h.promEngine.Exec(
 		withAccessInfo(ctx, &req.ai),
-		promql.Query{
+		model.Query{
 			Start: req.from.Unix(),
 			End:   req.to.Unix(),
 			Expr:  fmt.Sprintf("%s{@what=\"count,avg\",__by__=\"1,2\",2=\" 0\",2=\" %d\"}", format.BuiltinMetricNameBadges, meta.MetricID),
-			Options: promql.Options{
+			Options: model.Options{
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,
 			},
@@ -1985,7 +1986,7 @@ func (h *Handler) queryBadges(ctx context.Context, req seriesRequest, meta *form
 	if err != nil {
 		return seriesResponse{}, nil, err
 	}
-	res.TimeSeries, _ = v.(*promql.TimeSeries)
+	res.TimeSeries, _ = v.(*model.TimeSeries)
 	return res, cleanup, nil
 }
 
@@ -2402,12 +2403,12 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 	}
 	v, cleanup, err := h.promEngine.Exec(
 		withAccessInfo(ctx, &req.ai),
-		promql.Query{
+		model.Query{
 			Start: req.from.Unix(),
 			End:   req.to.Unix(),
 			Step:  step,
 			Expr:  req.promQL,
-			Options: promql.Options{
+			Options: model.Options{
 				Version:          req.version,
 				Collapse:         opt.collapse,
 				AvoidCache:       req.avoidCache,
@@ -2433,7 +2434,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 	if err != nil {
 		return seriesResponse{}, nil, err
 	}
-	if res.TimeSeries, _ = v.(*promql.TimeSeries); res.TimeSeries == nil {
+	if res.TimeSeries, _ = v.(*model.TimeSeries); res.TimeSeries == nil {
 		cleanup()
 		return seriesResponse{}, nil, fmt.Errorf("string literals are not supported")
 	}
@@ -2579,7 +2580,7 @@ func (s seriesResponse) queryFnShiftAndTagsAt(i int) (queryFn, int64, map[string
 		v := SeriesMetaTag{Value: tag.SValue}
 		if tag.Index != 0 {
 			var name string
-			index := tag.Index - promql.SeriesTagIndexOffset
+			index := tag.Index - model.SeriesTagIndexOffset
 			if index == format.StringTopTagIndex {
 				k = format.LegacyStringTopTagID
 				name = format.StringTopTagID
@@ -3166,7 +3167,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			}
 			return ""
 		}
-		env   = make(map[string]promql.Variable)
+		env   = make(map[string]model.Variable)
 		tabs  = make([]seriesRequestEx, 0, maxTabs)
 		tabX  = -1
 		tabAt = func(i int) *seriesRequestEx {
@@ -3249,7 +3250,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		n++
 	}
 	for _, v := range dash.Vars {
-		env[v.Name] = promql.Variable{
+		env[v.Name] = model.Variable{
 			Value:  v.Vals,
 			Group:  v.Args.Group,
 			Negate: v.Args.Negate,
@@ -3492,7 +3493,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		if vv == nil {
 			continue
 		}
-		env[v.name] = promql.Variable{
+		env[v.name] = model.Variable{
 			Value:  vv.val,
 			Group:  vv.group == "1",
 			Negate: vv.negate == "1",

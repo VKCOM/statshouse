@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -21,9 +21,7 @@ import (
 
 	"github.com/mailru/easyjson/jwriter"
 	"github.com/vkcom/statshouse/internal/data_model"
-
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/promql"
 )
 
 const (
@@ -64,7 +62,6 @@ func httpCode(err error) int {
 	code := http.StatusOK
 	if err != nil {
 		var httpErr httpError
-		var promErr promql.Error
 		switch {
 		case errors.Is(err, data_model.ErrEntityNotExists):
 			code = http.StatusNotFound
@@ -74,12 +71,6 @@ func httpCode(err error) int {
 			code = httpErr.code
 		case errors.Is(err, errTooManyRows):
 			code = http.StatusBadRequest
-		case errors.As(err, &promErr):
-			if promErr.EngineFailure() {
-				code = http.StatusInternalServerError
-			} else {
-				code = http.StatusBadRequest
-			}
 		default:
 			code = http.StatusInternalServerError // 500
 		}

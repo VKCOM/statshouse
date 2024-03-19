@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -16,13 +16,14 @@ import (
 	"time"
 
 	"github.com/prometheus/prometheus/model/labels"
+	"github.com/vkcom/statshouse/internal/promql/model"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/util"
 )
 
 // region AggregateExpr
 
-type aggregateFunc func(*evaluator, *parser.AggregateExpr) ([]Series, error)
+type aggregateFunc func(*evaluator, *parser.AggregateExpr) ([]model.Series, error)
 
 var aggregates map[parser.ItemType]aggregateFunc
 
@@ -46,8 +47,8 @@ func init() {
 	}
 }
 
-func aggregateAt0(fn func([]SeriesData, parser.Expr)) aggregateFunc {
-	return func(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
+func aggregateAt0(fn func([]model.SeriesData, parser.Expr)) aggregateFunc {
+	return func(ev *evaluator, expr *parser.AggregateExpr) ([]model.Series, error) {
 		res, err := ev.eval(expr.Expr)
 		if err != nil {
 			return nil, err
@@ -57,7 +58,7 @@ func aggregateAt0(fn func([]SeriesData, parser.Expr)) aggregateFunc {
 				continue
 			}
 			var m map[uint64][]int
-			m, tags, err := res[i].group(ev, hashOptions{
+			m, tags, err := ev.group(&res[i], hashOptions{
 				on:         !expr.Without,
 				tags:       expr.Grouping,
 				listUnused: true,
@@ -67,13 +68,13 @@ func aggregateAt0(fn func([]SeriesData, parser.Expr)) aggregateFunc {
 			}
 			sr := ev.newSeries(len(m), res[i].Meta)
 			for _, xs := range m {
-				ds := res[i].dataAt(xs...)
+				ds := res[i].DataAt(xs...)
 				fn(ds, expr.Param)
 				for j := range ds[0].MinMaxHost {
 					ds[0].MinMaxHost[j] = ev.groupMinMaxHost(ds, j)
 				}
 				for _, id := range tags[xs[0]].unused {
-					ds[0].Tags.remove(id)
+					ds[0].Tags.Remove(id)
 				}
 				for j := range ds[1:] {
 					if ds[0].Offset != ds[j].Offset {
@@ -90,7 +91,7 @@ func aggregateAt0(fn func([]SeriesData, parser.Expr)) aggregateFunc {
 	}
 }
 
-func funcAvg(ds []SeriesData, _ parser.Expr) {
+func funcAvg(ds []model.SeriesData, _ parser.Expr) {
 	d0 := *ds[0].Values
 	for i := 0; i < len(d0); i++ {
 		var (
@@ -113,7 +114,7 @@ func funcAvg(ds []SeriesData, _ parser.Expr) {
 	}
 }
 
-func funcCount(ds []SeriesData, _ parser.Expr) {
+func funcCount(ds []model.SeriesData, _ parser.Expr) {
 	d0 := *ds[0].Values
 	for i := 0; i < len(d0); i++ {
 		var n int
@@ -126,18 +127,18 @@ func funcCount(ds []SeriesData, _ parser.Expr) {
 	}
 }
 
-func funcCountValues(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
+func funcCountValues(ev *evaluator, expr *parser.AggregateExpr) ([]model.Series, error) {
 	srs, err := ev.eval(expr.Expr)
 	if err != nil {
 		return nil, err
 	}
-	res := make([]Series, len(srs))
+	res := make([]model.Series, len(srs))
 	for i := range srs {
 		res[i].Meta = srs[i].Meta
 		if len(srs[i].Data) == 0 {
 			continue
 		}
-		m, tags, err := srs[i].group(ev, hashOptions{
+		m, tags, err := ev.group(&srs[i], hashOptions{
 			on:       !expr.Without,
 			tags:     expr.Grouping,
 			listUsed: true,
@@ -146,23 +147,23 @@ func funcCountValues(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error
 			return nil, err
 		}
 		for _, xs := range m {
-			dm := make(map[float64]SeriesData)
+			dm := make(map[float64]model.SeriesData)
 			for _, x := range xs {
 				src := &srs[i].Data[x]
 				for j, v := range *src.Values {
 					d, ok := dm[v]
 					if !ok {
-						d = SeriesData{
+						d = model.SeriesData{
 							Values: ev.alloc(),
-							Tags:   src.Tags.cloneSome(tags[x].used...),
+							Tags:   src.Tags.CloneSome(tags[x].used...),
 							Offset: src.Offset,
 							What:   src.What,
 						}
 						for k := range *d.Values {
 							(*d.Values)[k] = 0
 						}
-						d.Tags.add(
-							&SeriesTag{
+						d.Tags.Add(
+							&model.SeriesTag{
 								ID:     expr.Param.(*parser.StringLiteral).Val,
 								SValue: strconv.FormatFloat(v, 'f', -1, 64)},
 							&srs[i].Meta)
@@ -174,18 +175,18 @@ func funcCountValues(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error
 			for _, d := range dm {
 				for i := range *d.Values {
 					if (*d.Values)[i] == 0 {
-						(*d.Values)[i] = NilValue
+						(*d.Values)[i] = model.NilValue
 					}
 				}
 				res[i].Data = append(res[i].Data, d)
 			}
-			srs[i].freeSome(ev, xs...)
+			srs[i].FreeSome(ev, xs...)
 		}
 	}
 	return res, nil
 }
 
-func funcDropEmptySeries(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
+func funcDropEmptySeries(ev *evaluator, expr *parser.AggregateExpr) ([]model.Series, error) {
 	res, err := ev.eval(expr.Expr)
 	if err != nil {
 		return nil, err
@@ -194,7 +195,7 @@ func funcDropEmptySeries(ev *evaluator, expr *parser.AggregateExpr) ([]Series, e
 	return res, nil
 }
 
-func (ev *evaluator) removeEmptySeries(srs []Series) {
+func (ev *evaluator) removeEmptySeries(srs []model.Series) {
 	if ev.t.ViewStartX == ev.t.ViewEndX {
 		return
 	}
@@ -213,7 +214,7 @@ func (ev *evaluator) removeEmptySeries(srs []Series) {
 			if keep {
 				j++
 			} else {
-				ev.free(srs[i].Data[j].Values)
+				ev.Free(srs[i].Data[j].Values)
 				srs[i].Data[j], srs[i].Data[len(srs[i].Data)-1] = srs[i].Data[len(srs[i].Data)-1], srs[i].Data[j]
 				srs[i].Data = srs[i].Data[:len(srs[i].Data)-1]
 				srs[i].Meta.Total--
@@ -222,7 +223,7 @@ func (ev *evaluator) removeEmptySeries(srs []Series) {
 	}
 }
 
-func (ev *evaluator) stableRemoveEmptySeries(srs []Series) {
+func (ev *evaluator) stableRemoveEmptySeries(srs []model.Series) {
 	if ev.t.ViewStartX == ev.t.ViewEndX {
 		return
 	}
@@ -230,7 +231,7 @@ func (ev *evaluator) stableRemoveEmptySeries(srs []Series) {
 		if srs[i].Meta.Total == 0 {
 			srs[i].Meta.Total = len(srs[i].Data)
 		}
-		ds := make([]SeriesData, 0, len(srs[i].Data))
+		ds := make([]model.SeriesData, 0, len(srs[i].Data))
 		for j := 0; j < len(srs[i].Data); j++ {
 			var keep bool
 			for _, v := range (*srs[i].Data[j].Values)[ev.t.ViewStartX:ev.t.ViewEndX] {
@@ -242,7 +243,7 @@ func (ev *evaluator) stableRemoveEmptySeries(srs []Series) {
 			if keep {
 				ds = append(ds, srs[i].Data[j])
 			} else {
-				ev.free(srs[i].Data[j].Values)
+				ev.Free(srs[i].Data[j].Values)
 				srs[i].Meta.Total--
 			}
 		}
@@ -250,14 +251,14 @@ func (ev *evaluator) stableRemoveEmptySeries(srs []Series) {
 	}
 }
 
-func funcGroup(ds []SeriesData, _ parser.Expr) {
+func funcGroup(ds []model.SeriesData, _ parser.Expr) {
 	d0 := *ds[0].Values
 	for i := 0; i < len(d0); i++ {
 		d0[i] = 1
 	}
 }
 
-func funcMax(ds []SeriesData, _ parser.Expr) {
+func funcMax(ds []model.SeriesData, _ parser.Expr) {
 	d0 := *ds[0].Values
 	for i := 0; i < len(d0); i++ {
 		var (
@@ -278,7 +279,7 @@ func funcMax(ds []SeriesData, _ parser.Expr) {
 	}
 }
 
-func funcMin(ds []SeriesData, _ parser.Expr) {
+func funcMin(ds []model.SeriesData, _ parser.Expr) {
 	d0 := *ds[0].Values
 	for i := 0; i < len(d0); i++ {
 		var (
@@ -299,7 +300,7 @@ func funcMin(ds []SeriesData, _ parser.Expr) {
 	}
 }
 
-func funcQuantile(ds []SeriesData, p parser.Expr) {
+func funcQuantile(ds []model.SeriesData, p parser.Expr) {
 	var (
 		q     = p.(*parser.NumberLiteral).Val
 		valid bool
@@ -337,7 +338,7 @@ func funcQuantile(ds []SeriesData, p parser.Expr) {
 	}
 }
 
-func funcStdDev(ds []SeriesData, p parser.Expr) {
+func funcStdDev(ds []model.SeriesData, p parser.Expr) {
 	funcStdVar(ds, p)
 	d0 := *ds[0].Values
 	for i := 0; i < len(d0); i++ {
@@ -345,7 +346,7 @@ func funcStdDev(ds []SeriesData, p parser.Expr) {
 	}
 }
 
-func funcStdVar(ds []SeriesData, _ parser.Expr) {
+func funcStdVar(ds []model.SeriesData, _ parser.Expr) {
 	d0 := *ds[0].Values
 	for i := 0; i < len(d0); i++ {
 		var cnt int
@@ -370,7 +371,7 @@ func funcStdVar(ds []SeriesData, _ parser.Expr) {
 	}
 }
 
-func funcSum(ds []SeriesData, _ parser.Expr) {
+func funcSum(ds []model.SeriesData, _ parser.Expr) {
 	d0 := *ds[0].Values
 	for i := 0; i < len(d0); i++ {
 		var (
@@ -393,12 +394,12 @@ func funcSum(ds []SeriesData, _ parser.Expr) {
 	}
 }
 
-func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
+func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]model.Series, error) {
 	k := math.MaxInt
 	if expr.Op == parser.TOPK || expr.Op == parser.BOTTOMK {
 		k = int(expr.Param.(*parser.NumberLiteral).Val)
 		if k <= 0 {
-			return make([]Series, len(ev.opt.Offsets)), nil
+			return make([]model.Series, len(ev.opt.Offsets)), nil
 		}
 	}
 	res, err := ev.eval(expr.Expr)
@@ -408,7 +409,7 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
 	ev.removeEmptySeries(res)
 	type (
 		sortedSeriesGroup struct {
-			ds []SeriesData
+			ds []model.SeriesData
 			k  int
 			ws []float64 // weights, not sorted
 			xs []int     // index, sorted according to weights
@@ -421,7 +422,7 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
 	var (
 		bs   = make(map[uint64]*bucket)
 		desc bool
-		sort = func(ds []SeriesData) sortedSeriesGroup {
+		sort = func(ds []model.SeriesData) sortedSeriesGroup {
 			var (
 				w = ev.weight(ds)
 				x = make([]int, len(ds))
@@ -459,7 +460,7 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
 			continue
 		}
 		var m map[uint64][]int
-		m, _, err := res[i].group(ev, hashOptions{
+		m, _, err := ev.group(&res[i], hashOptions{
 			on:   !expr.Without,
 			tags: expr.Grouping,
 		})
@@ -475,9 +476,9 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
 				}
 				bs[h] = b
 			}
-			b.gs[i] = sort(res[i].dataAt(g...))
+			b.gs[i] = sort(res[i].DataAt(g...))
 			for j := 0; j < b.gs[i].k; j++ {
-				sum, _, err := b.gs[i].ds[b.gs[i].xs[j]].Tags.hash(ev, hashOptions{})
+				sum, _, err := ev.hashT(&b.gs[i].ds[b.gs[i].xs[j]].Tags, hashOptions{})
 				if err != nil {
 					return nil, err
 				}
@@ -502,7 +503,7 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
 					continue
 				}
 				for j := b.gs[i].k; b.gs[i].k < len(b.topK) && j < len(b.gs[i].ds); j++ {
-					v, _, err := b.gs[i].ds[b.gs[i].xs[j]].Tags.hash(ev, hashOptions{})
+					v, _, err := ev.hashT(&b.gs[i].ds[b.gs[i].xs[j]].Tags, hashOptions{})
 					if err != nil {
 						return nil, err
 					}
@@ -538,7 +539,7 @@ func funcTopK(ev *evaluator, expr *parser.AggregateExpr) ([]Series, error) {
 
 // region Call
 
-type callFunc func(*evaluator, parser.Expressions) ([]Series, error)
+type callFunc func(*evaluator, parser.Expressions) ([]model.Series, error)
 
 var calls map[string]callFunc
 
@@ -599,14 +600,14 @@ func init() {
 		"timestamp":          seriesCall(funcTimestamp),
 		"vector":             funcVector,
 		"year":               timeCall(time.Time.Year),
-		"avg_over_time":      overTimeCall(funcAvgOverTime, false, NilValue),
-		"min_over_time":      overTimeCall(funcMinOverTime, false, NilValue),
-		"max_over_time":      overTimeCall(funcMaxOverTime, false, NilValue),
-		"sum_over_time":      overTimeCall(funcSumOverTime, true, NilValue),
+		"avg_over_time":      overTimeCall(funcAvgOverTime, false, model.NilValue),
+		"min_over_time":      overTimeCall(funcMinOverTime, false, model.NilValue),
+		"max_over_time":      overTimeCall(funcMaxOverTime, false, model.NilValue),
+		"sum_over_time":      overTimeCall(funcSumOverTime, true, model.NilValue),
 		"count_over_time":    overTimeCall(funcCountOverTime, true, 0),
 		"quantile_over_time": funcQuantileOverTime,
-		"stddev_over_time":   overTimeCall(funcStdDevOverTime, true, NilValue),
-		"stdvar_over_time":   overTimeCall(funcStdVarOverTime, true, NilValue),
+		"stddev_over_time":   overTimeCall(funcStdDevOverTime, true, model.NilValue),
+		"stdvar_over_time":   overTimeCall(funcStdVarOverTime, true, model.NilValue),
 		"last_over_time":     nopCall,
 		"present_over_time":  funcPresentOverTime,
 		"acos":               simpleCall(math.Acos),
@@ -770,8 +771,8 @@ func (wnd *window) fillPrefixWith(v float64) {
 	}
 }
 
-func seriesCall(fn func(*evaluator, Series) Series) callFunc {
-	return func(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func seriesCall(fn func(*evaluator, model.Series) model.Series) callFunc {
+	return func(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 		res, err := ev.eval(args[0])
 		if err != nil {
 			return nil, err
@@ -783,9 +784,9 @@ func seriesCall(fn func(*evaluator, Series) Series) callFunc {
 	}
 }
 
-func generatorCall(fn func(ev *evaluator, args parser.Expressions) Series) callFunc {
-	return func(ev *evaluator, args parser.Expressions) ([]Series, error) {
-		res := make([]Series, len(ev.opt.Offsets))
+func generatorCall(fn func(ev *evaluator, args parser.Expressions) model.Series) callFunc {
+	return func(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
+		res := make([]model.Series, len(ev.opt.Offsets))
 		for i := range ev.opt.Offsets {
 			res[i] = fn(ev, args)
 		}
@@ -793,12 +794,12 @@ func generatorCall(fn func(ev *evaluator, args parser.Expressions) Series) callF
 	}
 }
 
-func nopCall(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func nopCall(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	return ev.eval(args[0])
 }
 
 func overTimeCall(fn func(v []float64) float64, strict bool, nilValue float64) callFunc {
-	return func(ev *evaluator, args parser.Expressions) ([]Series, error) {
+	return func(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 		res, err := ev.eval(args[0])
 		if err != nil {
 			return nil, err
@@ -813,7 +814,7 @@ func overTimeCall(fn func(v []float64) float64, strict bool, nilValue float64) c
 						wnd.setValueAtRight(nilValue)
 					}
 				}
-				wnd.fillPrefixWith(NilValue)
+				wnd.fillPrefixWith(model.NilValue)
 			}
 		}
 		return res, nil
@@ -821,7 +822,7 @@ func overTimeCall(fn func(v []float64) float64, strict bool, nilValue float64) c
 }
 
 func simpleCall(fn func(float64) float64) callFunc {
-	return func(ev *evaluator, args parser.Expressions) ([]Series, error) {
+	return func(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 		res, err := ev.eval(args[0])
 		if err != nil {
 			return nil, err
@@ -838,7 +839,7 @@ func simpleCall(fn func(float64) float64) callFunc {
 }
 
 func timeCall[V int | time.Weekday | time.Month](fn func(time.Time) V) callFunc {
-	return func(ev *evaluator, args parser.Expressions) (res []Series, err error) {
+	return func(ev *evaluator, args parser.Expressions) (res []model.Series, err error) {
 		if len(args) != 0 {
 			res, err = ev.eval(args[0])
 			if err != nil {
@@ -859,7 +860,7 @@ func timeCall[V int | time.Weekday | time.Month](fn func(time.Time) V) callFunc 
 	}
 }
 
-func funcAbsent(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcAbsent(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid argument count in absent(): expected 1, got %d", len(args))
 	}
@@ -869,15 +870,15 @@ func funcAbsent(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	}
 	for i := range res {
 		var (
-			d SeriesData // absent row
-			n int        // absent count
+			d model.SeriesData // absent row
+			n int              // absent count
 		)
 		if len(res[i].Data) != 0 {
 			d = res[i].Data[0]
 			for j := range ev.time() {
 				var m int
 				for _, s := range res[i].Data {
-					if math.Float64bits((*s.Values)[j]) != NilValueBits {
+					if math.Float64bits((*s.Values)[j]) != model.NilValueBits {
 						m++
 					}
 				}
@@ -885,25 +886,25 @@ func funcAbsent(ev *evaluator, args parser.Expressions) ([]Series, error) {
 					(*d.Values)[j] = 1
 					n++
 				} else {
-					(*d.Values)[j] = NilValue
+					(*d.Values)[j] = model.NilValue
 				}
 			}
 			ev.freeAll(res[i].Data[1:])
 		} else {
-			d = SeriesData{Values: ev.alloc()}
+			d = model.SeriesData{Values: ev.alloc()}
 			n = len(*d.Values)
 			for i := range *d.Values {
 				(*d.Values)[i] = 1
 			}
 		}
-		res[i] = Series{
-			Data: []SeriesData{d},
+		res[i] = model.Series{
+			Data: []model.SeriesData{d},
 			Meta: res[i].Meta,
 		}
 		if sel, ok := args[0].(*parser.VectorSelector); ok && n != 0 {
 			for _, m := range sel.LabelMatchers {
 				if m.Type == labels.MatchEqual {
-					res[i].AddTagAt(0, &SeriesTag{ID: m.Name, SValue: m.Value})
+					res[i].AddTagAt(0, &model.SeriesTag{ID: m.Name, SValue: m.Value})
 				}
 			}
 		}
@@ -911,7 +912,7 @@ func funcAbsent(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	return res, nil
 }
 
-func funcAbsentOverTime(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcAbsentOverTime(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid argument count in absent_over_time(): expected 1, got %d", len(args))
 	}
@@ -921,8 +922,8 @@ func funcAbsentOverTime(ev *evaluator, args parser.Expressions) ([]Series, error
 	}
 	for i := range res {
 		var (
-			d SeriesData // absent row
-			n int        // absent count
+			d model.SeriesData // absent row
+			n int              // absent count
 		)
 		if len(res[i].Data) != 0 {
 			d = res[i].Data[0]
@@ -930,7 +931,7 @@ func funcAbsentOverTime(ev *evaluator, args parser.Expressions) ([]Series, error
 			for j, t := range ev.time() {
 				var m int
 				for _, s := range res[i].Data {
-					if math.Float64bits((*s.Values)[j]) != NilValueBits {
+					if math.Float64bits((*s.Values)[j]) != model.NilValueBits {
 						m++
 					}
 				}
@@ -938,26 +939,26 @@ func funcAbsentOverTime(ev *evaluator, args parser.Expressions) ([]Series, error
 					(*d.Values)[j] = 1
 					n++
 				} else {
-					(*d.Values)[j] = NilValue
+					(*d.Values)[j] = model.NilValue
 					lastSeen = t
 				}
 			}
 			ev.freeAll(res[i].Data[1:])
 		} else {
-			d = SeriesData{Values: ev.alloc()}
+			d = model.SeriesData{Values: ev.alloc()}
 			n = len(*d.Values)
 			for i := range *d.Values {
 				(*d.Values)[i] = 1
 			}
 		}
-		res[i] = Series{
-			Data: []SeriesData{d},
+		res[i] = model.Series{
+			Data: []model.SeriesData{d},
 			Meta: res[i].Meta,
 		}
 		if sel, ok := args[0].(*parser.VectorSelector); ok && n != 0 {
 			for _, m := range sel.LabelMatchers {
 				if m.Type == labels.MatchEqual {
-					res[i].AddTagAt(0, &SeriesTag{ID: m.Name, SValue: m.Value})
+					res[i].AddTagAt(0, &model.SeriesTag{ID: m.Name, SValue: m.Value})
 				}
 			}
 		}
@@ -982,7 +983,7 @@ func funcChanges(v []float64) float64 {
 	return float64(res)
 }
 
-func funcClamp(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcClamp(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 3 {
 		return nil, fmt.Errorf("invalid argument count in clamp(): expected 3, got %d", len(args))
 	}
@@ -1006,8 +1007,8 @@ func funcClamp(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	// return an empty vector if min > max
 	if min > max {
 		for i := range res {
-			res[i].free(ev)
-			res[i] = Series{}
+			res[i].Free(ev)
+			res[i] = model.Series{}
 		}
 		return res, nil
 	}
@@ -1026,7 +1027,7 @@ func funcClamp(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	return res, nil
 }
 
-func funcClampMax(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcClampMax(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 2 {
 		return nil, fmt.Errorf("invalid argument count in clamp_max(): expected 2, got %d", len(args))
 	}
@@ -1059,7 +1060,7 @@ func funcClampMax(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	return res, nil
 }
 
-func funcClampMin(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcClampMin(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 2 {
 		return nil, fmt.Errorf("invalid argument count in clamp_min(): expected 2, got %d", len(args))
 	}
@@ -1092,7 +1093,7 @@ func funcClampMin(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	return res, nil
 }
 
-func funcDelta(ev *evaluator, res Series) Series {
+func funcDelta(ev *evaluator, res model.Series) model.Series {
 	res = funcRate(ev, res)
 	if ev.r == 0 {
 		return res
@@ -1105,7 +1106,7 @@ func funcDelta(ev *evaluator, res Series) Series {
 	return res
 }
 
-func funcDeriv(ev *evaluator, sr Series) Series {
+func funcDeriv(ev *evaluator, sr model.Series) model.Series {
 	for _, d := range sr.Data {
 		wnd := ev.newWindow(*d.Values, false)
 		for wnd.moveOneLeft() {
@@ -1113,64 +1114,64 @@ func funcDeriv(ev *evaluator, sr Series) Series {
 				slope, _ := linearRegression(wnd.get())
 				wnd.setValueAtRight(slope)
 			} else {
-				wnd.setValueAtRight(NilValue)
+				wnd.setValueAtRight(model.NilValue)
 			}
 		}
-		wnd.fillPrefixWith(NilValue)
+		wnd.fillPrefixWith(model.NilValue)
 	}
 	return sr
 }
 
-func funcIdelta(ev *evaluator, sr Series) Series {
+func funcIdelta(ev *evaluator, sr model.Series) model.Series {
 	for i, d := range sr.Data {
 		for j := len(*d.Values) - 1; j > 0; j-- {
 			(*d.Values)[j] = (*d.Values)[j] - (*d.Values)[j-1]
 		}
-		(*d.Values)[0] = NilValue
+		(*d.Values)[0] = model.NilValue
 		// fix "what" tag
-		if tg, ok := d.Tags.ID2Tag[LabelWhat]; ok && !tg.stringified {
+		if tg, ok := d.Tags.ID2Tag[LabelWhat]; ok && !tg.Stringified {
 			var s string
 			switch tg.Value {
-			case int32(DigestCount):
+			case int32(model.DigestCount):
 				s = "dv_count"
-			case int32(DigestCountSec):
+			case int32(model.DigestCountSec):
 				s = "dv_count_norm"
-			case int32(DigestSum):
+			case int32(model.DigestSum):
 				s = "dv_sum"
-			case int32(DigestSumSec):
+			case int32(model.DigestSumSec):
 				s = "dv_sum_norm"
-			case int32(DigestAvg):
+			case int32(model.DigestAvg):
 				s = "dv_avg"
-			case int32(DigestMin):
+			case int32(model.DigestMin):
 				s = "dv_min"
-			case int32(DigestMax):
+			case int32(model.DigestMax):
 				s = "dv_max"
-			case int32(DigestUnique):
+			case int32(model.DigestUnique):
 				s = "dv_unique"
-			case int32(DigestUniqueSec):
+			case int32(model.DigestUniqueSec):
 				s = "dv_unique_norm"
 			}
 			if len(s) != 0 {
-				tg.setSValue(s)
-				sr.Data[i].Tags.hashSumValid = false
+				tg.SetSValue(s)
+				sr.Data[i].Tags.HashSumValid = false
 			}
 		}
 	}
 	return sr
 }
 
-func funcIrate(ev *evaluator, sr Series) Series {
+func funcIrate(ev *evaluator, sr model.Series) model.Series {
 	t := ev.time()
 	for _, s := range sr.Data {
 		for i := len(*s.Values) - 1; i > 0; i-- {
 			(*s.Values)[i] = ((*s.Values)[i] - (*s.Values)[i-1]) / float64(t[i]-t[i-1])
 		}
-		(*s.Values)[0] = NilValue
+		(*s.Values)[0] = model.NilValue
 	}
 	return sr
 }
 
-func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 2 {
 		return nil, fmt.Errorf("invalid argument count in histogram_quantile(): expected 2, got %d", len(args))
 	}
@@ -1179,7 +1180,7 @@ func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]Series, er
 		return nil, err
 	}
 	for i := range res {
-		hs, err := res[i].histograms(ev)
+		hs, err := ev.histograms(&res[i])
 		if err != nil {
 			return nil, err
 		}
@@ -1189,14 +1190,14 @@ func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]Series, er
 			s := *d[h.buckets[0].x].Values
 			if len(h.buckets) < 2 {
 				for i := range s {
-					s[i] = NilValue
+					s[i] = model.NilValue
 				}
 			} else {
 				q := args[0].(*parser.NumberLiteral).Val // quantile
 				for j := range s {
 					total := (*d[h.buckets[len(h.buckets)-1].x].Values)[j]
 					if total == 0 {
-						s[j] = NilValue
+						s[j] = model.NilValue
 						continue
 					}
 					rank := q * total
@@ -1226,14 +1227,14 @@ func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]Series, er
 				}
 			}
 			ev.freeAll(h.data()[1:])
-			sr.appendAll(h.seriesAt(0))
+			sr.AppendAll(h.seriesAt(0))
 		}
 		res[i] = sr
 	}
 	return res, nil
 }
 
-func funcLabelJoin(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcLabelJoin(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) < 3 {
 		return nil, fmt.Errorf("invalid argument count in label_join(): expected at least 3, got %d", len(args))
 	}
@@ -1250,22 +1251,22 @@ func funcLabelJoin(ev *evaluator, args parser.Expressions) ([]Series, error) {
 		src[args[i].(*parser.StringLiteral).Val] = true
 	}
 	for i := range res {
-		for j, m := range res[i].Data {
+		for j := range res[i].Data {
 			var s []string
 			for k := range src {
-				if t, ok := m.Tags.gets(ev, k); ok && len(t.SValue) != 0 {
+				if t, ok := ev.gets(&res[i], j, k); ok && len(t.SValue) != 0 {
 					s = append(s, t.SValue)
 				}
 			}
 			if len(s) != 0 {
-				res[i].AddTagAt(j, &SeriesTag{ID: dst, SValue: strings.Join(s, sep)})
+				res[i].AddTagAt(j, &model.SeriesTag{ID: dst, SValue: strings.Join(s, sep)})
 			}
 		}
 	}
 	return res, nil
 }
 
-func funcLabelReplace(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcLabelReplace(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 5 {
 		return nil, fmt.Errorf("invalid argument count in label_replace(): expected 5, got %d", len(args))
 	}
@@ -1289,15 +1290,15 @@ func funcLabelReplace(ev *evaluator, args parser.Expressions) ([]Series, error) 
 	for i := range res {
 		for j := range res[i].Data {
 			var v string
-			if t, ok := res[i].Data[j].Tags.gets(ev, src); ok {
+			if t, ok := ev.gets(&res[i], j, src); ok {
 				v = t.SValue
 			}
 			match := r.FindStringSubmatchIndex(v)
 			if len(match) != 0 {
-				res[i].AddTagAt(j, &SeriesTag{
+				res[i].AddTagAt(j, &model.SeriesTag{
 					ID:          dst,
 					SValue:      string(r.ExpandString([]byte{}, tpl, v, match)),
-					stringified: true,
+					Stringified: true,
 				})
 			}
 		}
@@ -1305,7 +1306,7 @@ func funcLabelReplace(ev *evaluator, args parser.Expressions) ([]Series, error) 
 	return res, nil
 }
 
-func funcLabelSet(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcLabelSet(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 3 {
 		return nil, fmt.Errorf("invalid argument count in label_set(): expected 3, got %d", len(args))
 	}
@@ -1317,13 +1318,13 @@ func funcLabelSet(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	}
 	for i := range res {
 		for j := range res[i].Data {
-			res[i].AddTagAt(j, &SeriesTag{ID: k, SValue: v, stringified: true})
+			res[i].AddTagAt(j, &model.SeriesTag{ID: k, SValue: v, Stringified: true})
 		}
 	}
 	return res, nil
 }
 
-func funcLabelMinHost(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcLabelMinHost(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid argument count in label_minhost(): expected 1, got %d", len(args))
 	}
@@ -1332,14 +1333,14 @@ func funcLabelMinHost(ev *evaluator, args parser.Expressions) ([]Series, error) 
 		return nil, err
 	}
 	for i := range res {
-		if err = res[i].labelMinMaxHost(ev, 0, LabelMinHost); err != nil {
+		if err = res[i].LabelMinMaxHost(ev, 0, LabelMinHost); err != nil {
 			return nil, err
 		}
 	}
 	return res, nil
 }
 
-func funcLabelMaxHost(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcLabelMaxHost(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid argument count in label_maxhost(): expected 1, got %d", len(args))
 	}
@@ -1348,19 +1349,19 @@ func funcLabelMaxHost(ev *evaluator, args parser.Expressions) ([]Series, error) 
 		return nil, err
 	}
 	for i := range res {
-		if err = res[i].labelMinMaxHost(ev, 1, LabelMaxHost); err != nil {
+		if err = res[i].LabelMinMaxHost(ev, 1, LabelMaxHost); err != nil {
 			return nil, err
 		}
 	}
 	return res, nil
 }
 
-func funcLODStepSec(ev *evaluator, _ parser.Expressions) ([]Series, error) {
-	res := make([]Series, len(ev.opt.Offsets))
+func funcLODStepSec(ev *evaluator, _ parser.Expressions) ([]model.Series, error) {
+	res := make([]model.Series, len(ev.opt.Offsets))
 	for i := range ev.opt.Offsets {
 		var (
 			j int
-			d = SeriesData{Values: ev.alloc()}
+			d = model.SeriesData{Values: ev.alloc()}
 		)
 		for _, lod := range ev.t.LODs {
 			for k := 0; k < lod.Len; k++ {
@@ -1368,12 +1369,12 @@ func funcLODStepSec(ev *evaluator, _ parser.Expressions) ([]Series, error) {
 			}
 			j += lod.Len
 		}
-		res[i] = Series{Data: []SeriesData{d}}
+		res[i] = model.Series{Data: []model.SeriesData{d}}
 	}
 	return res, nil
 }
 
-func funcPredictLinear(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcPredictLinear(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 2 {
 		return nil, fmt.Errorf("invalid argument count in predict_linear(): expected 2, got %d", len(args))
 	}
@@ -1390,16 +1391,16 @@ func funcPredictLinear(ev *evaluator, args parser.Expressions) ([]Series, error)
 					slope, intercept := linearRegression(wnd.get())
 					wnd.setValueAtRight(slope*d + intercept)
 				} else {
-					wnd.setValueAtRight(NilValue)
+					wnd.setValueAtRight(model.NilValue)
 				}
 			}
-			wnd.fillPrefixWith(NilValue)
+			wnd.fillPrefixWith(model.NilValue)
 		}
 	}
 	return res, nil
 }
 
-func funcPrefixSum(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcPrefixSum(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid argument count in prefix_sum(): expected 1, got %d", len(args))
 	}
@@ -1413,7 +1414,7 @@ func funcPrefixSum(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	return res, nil
 }
 
-func (ev *evaluator) funcPrefixSum(sr Series) Series {
+func (ev *evaluator) funcPrefixSum(sr model.Series) model.Series {
 	for i, d := range sr.Data {
 		// skip values before requested interval start
 		j := ev.t.ViewStartX
@@ -1442,28 +1443,28 @@ func (ev *evaluator) funcPrefixSum(sr Series) Series {
 			(*d.Values)[j-1] = (*d.Values)[ev.t.ViewStartX]
 		}
 		// fix "what" tag
-		if tg, ok := d.Tags.ID2Tag[LabelWhat]; ok && !tg.stringified {
+		if tg, ok := d.Tags.ID2Tag[LabelWhat]; ok && !tg.Stringified {
 			var s string
 			switch tg.Value {
-			case int32(DigestCountRaw):
+			case int32(model.DigestCountRaw):
 				s = "cu_count"
-			case int32(DigestCardinalityRaw):
+			case int32(model.DigestCardinalityRaw):
 				s = "cu_cardinality"
-			case int32(DigestAvg):
+			case int32(model.DigestAvg):
 				s = "cu_avg"
-			case int32(DigestSumRaw):
+			case int32(model.DigestSumRaw):
 				s = "cu_sum"
 			}
 			if len(s) != 0 {
-				tg.setSValue(s)
-				sr.Data[i].Tags.hashSumValid = false
+				tg.SetSValue(s)
+				sr.Data[i].Tags.HashSumValid = false
 			}
 		}
 	}
 	return sr
 }
 
-func funcRate(ev *evaluator, sr Series) Series {
+func funcRate(ev *evaluator, sr model.Series) model.Series {
 	t := ev.time()
 	for _, s := range sr.Data {
 		wnd := ev.newWindow(*s.Values, false)
@@ -1472,15 +1473,15 @@ func funcRate(ev *evaluator, sr Series) Series {
 				delta := (*s.Values)[wnd.r] - (*s.Values)[wnd.l]
 				wnd.setValueAtRight(delta / float64(t[wnd.r]-t[wnd.l]))
 			} else {
-				wnd.setValueAtRight(NilValue)
+				wnd.setValueAtRight(model.NilValue)
 			}
 		}
-		wnd.fillPrefixWith(NilValue)
+		wnd.fillPrefixWith(model.NilValue)
 	}
 	return sr
 }
 
-func funcResets(ev *evaluator, sr Series) Series {
+func funcResets(ev *evaluator, sr model.Series) model.Series {
 	for _, d := range sr.Data {
 		for i := range *d.Values {
 			(*d.Values)[i] = 0
@@ -1489,7 +1490,7 @@ func funcResets(ev *evaluator, sr Series) Series {
 	return sr
 }
 
-func funcScalar(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcScalar(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid argument count in scalar(): expected 1, got %d", len(args))
 	}
@@ -1502,7 +1503,7 @@ func funcScalar(ev *evaluator, args parser.Expressions) ([]Series, error) {
 			continue
 		}
 		if len(res[i].Data) == 0 {
-			res[i].Data = append(res[i].Data, SeriesData{Values: ev.alloc()})
+			res[i].Data = append(res[i].Data, model.SeriesData{Values: ev.alloc()})
 		}
 		for j := range *res[i].Data[0].Values {
 			(*res[i].Data[0].Values)[j] = math.NaN()
@@ -1512,18 +1513,18 @@ func funcScalar(ev *evaluator, args parser.Expressions) ([]Series, error) {
 	return res, nil
 }
 
-func funcTime(ev *evaluator, _ parser.Expressions) Series {
+func funcTime(ev *evaluator, _ parser.Expressions) model.Series {
 	var (
 		t = ev.time()
-		d = SeriesData{Values: ev.alloc()}
+		d = model.SeriesData{Values: ev.alloc()}
 	)
 	for i := range *d.Values {
 		(*d.Values)[i] = float64(t[i])
 	}
-	return Series{Data: []SeriesData{d}}
+	return model.Series{Data: []model.SeriesData{d}}
 }
 
-func funcTimestamp(ev *evaluator, sr Series) Series {
+func funcTimestamp(ev *evaluator, sr model.Series) model.Series {
 	for i := range sr.Data {
 		for j, t := range ev.time() {
 			(*sr.Data[i].Values)[j] = float64(t)
@@ -1532,7 +1533,7 @@ func funcTimestamp(ev *evaluator, sr Series) Series {
 	return sr
 }
 
-func funcVector(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcVector(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid argument count in vector(): expected 1, got %d", len(args))
 	}
@@ -1552,7 +1553,7 @@ func funcAvgOverTime(s []float64) float64 {
 		cnt++
 	}
 	if cnt == 0 {
-		return NilValue
+		return model.NilValue
 	}
 	return sum / float64(cnt)
 }
@@ -1572,7 +1573,7 @@ func funcMinOverTime(s []float64) float64 {
 		cnt++
 	}
 	if cnt == 0 {
-		return NilValue
+		return model.NilValue
 	}
 	return res
 }
@@ -1592,7 +1593,7 @@ func funcMaxOverTime(s []float64) float64 {
 		cnt++
 	}
 	if cnt == 0 {
-		return NilValue
+		return model.NilValue
 	}
 	return res
 }
@@ -1610,7 +1611,7 @@ func funcSumOverTime(s []float64) float64 {
 		cnt++
 	}
 	if cnt == 0 {
-		return NilValue
+		return model.NilValue
 	}
 	return res
 }
@@ -1626,7 +1627,7 @@ func funcCountOverTime(s []float64) float64 {
 	return res
 }
 
-func funcQuantileOverTime(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcQuantileOverTime(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 2 {
 		return nil, fmt.Errorf("invalid argument count in quantile_over_time(): expected 1, got %d", len(args))
 	}
@@ -1671,16 +1672,16 @@ func funcQuantileOverTime(ev *evaluator, args parser.Expressions) ([]Series, err
 					)
 					wnd.setValueAtRight(vs[i1]*w1 + vs[i2]*w2)
 				} else {
-					wnd.setValueAtRight(NilValue)
+					wnd.setValueAtRight(model.NilValue)
 				}
 			}
-			wnd.fillPrefixWith(NilValue)
+			wnd.fillPrefixWith(model.NilValue)
 		}
 	}
 	return res, nil
 }
 
-func funcPresentOverTime(ev *evaluator, args parser.Expressions) ([]Series, error) {
+func funcPresentOverTime(ev *evaluator, args parser.Expressions) ([]model.Series, error) {
 	if len(args) != 1 {
 		return nil, fmt.Errorf("invalid argument count in present_over_time(): expected 1, got %d", len(args))
 	}
@@ -1692,14 +1693,14 @@ func funcPresentOverTime(ev *evaluator, args parser.Expressions) ([]Series, erro
 		for _, s := range res[i].Data {
 			lastSeen := int64(math.MinInt64)
 			for j, t := range ev.time() {
-				p := math.Float64bits((*s.Values)[j]) != NilValueBits
+				p := math.Float64bits((*s.Values)[j]) != model.NilValueBits
 				if p || lastSeen < t-ev.r {
 					(*s.Values)[j] = 1
 					if p {
 						lastSeen = t
 					}
 				} else {
-					(*s.Values)[j] = NilValue
+					(*s.Values)[j] = model.NilValue
 				}
 			}
 		}
@@ -1731,12 +1732,12 @@ func funcStdVarOverTime(s []float64) float64 {
 	return res
 }
 
-func funcPi(ev *evaluator, _ parser.Expressions) Series {
-	d := SeriesData{Values: ev.alloc()}
+func funcPi(ev *evaluator, _ parser.Expressions) model.Series {
+	d := model.SeriesData{Values: ev.alloc()}
 	for i := range *d.Values {
 		(*d.Values)[i] = math.Pi
 	}
-	return Series{Data: []SeriesData{d}}
+	return model.Series{Data: []model.SeriesData{d}}
 }
 
 // endregion Call
@@ -1846,7 +1847,7 @@ func sliceAnd(dst, lhs, rhs []float64) {
 		if !math.IsNaN(rhs[i]) {
 			dst[i] = lhs[i]
 		} else {
-			dst[i] = NilValue
+			dst[i] = model.NilValue
 		}
 	}
 }
@@ -1856,7 +1857,7 @@ func sliceUnless(dst, lhs, rhs []float64) {
 		if math.IsNaN(rhs[i]) {
 			dst[i] = lhs[i]
 		} else {
-			dst[i] = NilValue
+			dst[i] = model.NilValue
 		}
 	}
 }
@@ -1872,7 +1873,7 @@ func sliceFilterEqual(dst, lhs, rhs []float64) {
 		if lhs[i] == rhs[i] {
 			dst[i] = lhs[i]
 		} else {
-			dst[i] = NilValue
+			dst[i] = model.NilValue
 		}
 	}
 }
@@ -1892,7 +1893,7 @@ func sliceFilterGreaterOrEqual(dst, lhs, rhs []float64) {
 		if lhs[i] >= rhs[i] {
 			dst[i] = lhs[i]
 		} else {
-			dst[i] = NilValue
+			dst[i] = model.NilValue
 		}
 	}
 }
@@ -1912,7 +1913,7 @@ func sliceFilterGreater(dst, lhs, rhs []float64) {
 		if lhs[i] > rhs[i] {
 			dst[i] = lhs[i]
 		} else {
-			dst[i] = NilValue
+			dst[i] = model.NilValue
 		}
 	}
 }
@@ -1932,7 +1933,7 @@ func sliceFilterLess(dst, lhs, rhs []float64) {
 		if lhs[i] < rhs[i] {
 			dst[i] = lhs[i]
 		} else {
-			dst[i] = NilValue
+			dst[i] = model.NilValue
 		}
 	}
 }
@@ -1952,7 +1953,7 @@ func sliceFilterLessOrEqual(dst, lhs, rhs []float64) {
 		if lhs[i] <= rhs[i] {
 			dst[i] = lhs[i]
 		} else {
-			dst[i] = NilValue
+			dst[i] = model.NilValue
 		}
 	}
 }
@@ -1984,7 +1985,7 @@ func sliceFilterNotEqual(dst, lhs, rhs []float64) {
 		if lhs[i] != rhs[i] {
 			dst[i] = lhs[i]
 		} else {
-			dst[i] = NilValue
+			dst[i] = model.NilValue
 		}
 	}
 }
@@ -2036,7 +2037,7 @@ func scalarFilterEqual(lhs, rhs float64) float64 {
 	if lhs == rhs {
 		return lhs
 	} else {
-		return NilValue
+		return model.NilValue
 	}
 }
 
@@ -2052,7 +2053,7 @@ func scalarFilterGreaterOrEqual(lhs, rhs float64) float64 {
 	if lhs >= rhs {
 		return lhs
 	} else {
-		return NilValue
+		return model.NilValue
 	}
 }
 
@@ -2068,7 +2069,7 @@ func scalarFilterGreater(lhs, rhs float64) float64 {
 	if lhs > rhs {
 		return lhs
 	} else {
-		return NilValue
+		return model.NilValue
 	}
 }
 
@@ -2084,7 +2085,7 @@ func scalarFilterLess(lhs, rhs float64) float64 {
 	if lhs < rhs {
 		return lhs
 	} else {
-		return NilValue
+		return model.NilValue
 	}
 }
 
@@ -2100,7 +2101,7 @@ func scalarFilterLessOrEqual(lhs, rhs float64) float64 {
 	if lhs <= rhs {
 		return lhs
 	} else {
-		return NilValue
+		return model.NilValue
 	}
 }
 
@@ -2120,7 +2121,7 @@ func scalarFilterNotEqual(lhs, rhs float64) float64 {
 	if lhs != rhs {
 		return lhs
 	} else {
-		return NilValue
+		return model.NilValue
 	}
 }
 
@@ -2151,7 +2152,7 @@ func scalarSliceDiv(lhs float64, rhs []float64) {
 func scalarSliceFilterEqual(lhs float64, rhs []float64) {
 	for i := range rhs {
 		if lhs != rhs[i] {
-			rhs[i] = NilValue
+			rhs[i] = model.NilValue
 		}
 	}
 }
@@ -2169,7 +2170,7 @@ func scalarSliceEqual(lhs float64, rhs []float64) {
 func scalarSliceFilterGreaterOrEqual(lhs float64, rhs []float64) {
 	for i := range rhs {
 		if lhs < rhs[i] {
-			rhs[i] = NilValue
+			rhs[i] = model.NilValue
 		}
 	}
 }
@@ -2187,7 +2188,7 @@ func scalarSliceGreaterOrEqual(lhs float64, rhs []float64) {
 func scalarSliceFilterGreater(lhs float64, rhs []float64) {
 	for i := range rhs {
 		if lhs <= rhs[i] {
-			rhs[i] = NilValue
+			rhs[i] = model.NilValue
 		}
 	}
 }
@@ -2205,7 +2206,7 @@ func scalarSliceGreater(lhs float64, rhs []float64) {
 func scalarSliceFilterLess(lhs float64, rhs []float64) {
 	for i := range rhs {
 		if lhs >= rhs[i] {
-			rhs[i] = NilValue
+			rhs[i] = model.NilValue
 		}
 	}
 }
@@ -2223,7 +2224,7 @@ func scalarSliceLess(lhs float64, rhs []float64) {
 func scalarSliceFilterLessOrEqual(lhs float64, rhs []float64) {
 	for i := range rhs {
 		if lhs > rhs[i] {
-			rhs[i] = NilValue
+			rhs[i] = model.NilValue
 		}
 	}
 }
@@ -2253,7 +2254,7 @@ func scalarSliceMul(lhs float64, rhs []float64) {
 func scalarSliceFilterNotEqual(lhs float64, rhs []float64) {
 	for i := range rhs {
 		if lhs == rhs[i] {
-			rhs[i] = NilValue
+			rhs[i] = model.NilValue
 		}
 	}
 }
@@ -2309,7 +2310,7 @@ func sliceScalarDiv(lhs []float64, rhs float64) {
 func sliceScalarFilterEqual(lhs []float64, rhs float64) {
 	for i := range lhs {
 		if lhs[i] != rhs {
-			lhs[i] = NilValue
+			lhs[i] = model.NilValue
 		}
 	}
 }
@@ -2327,7 +2328,7 @@ func sliceScalarEqual(lhs []float64, rhs float64) {
 func sliceScalarFilterGreaterOrEqual(lhs []float64, rhs float64) {
 	for i := range lhs {
 		if lhs[i] < rhs {
-			lhs[i] = NilValue
+			lhs[i] = model.NilValue
 		}
 	}
 }
@@ -2345,7 +2346,7 @@ func sliceScalarGreaterOrEqual(lhs []float64, rhs float64) {
 func sliceScalarFilterGreater(lhs []float64, rhs float64) {
 	for i := range lhs {
 		if lhs[i] <= rhs {
-			lhs[i] = NilValue
+			lhs[i] = model.NilValue
 		}
 	}
 }
@@ -2363,7 +2364,7 @@ func sliceScalarGreater(lhs []float64, rhs float64) {
 func sliceScalarFilterLess(lhs []float64, rhs float64) {
 	for i := range lhs {
 		if lhs[i] >= rhs {
-			lhs[i] = NilValue
+			lhs[i] = model.NilValue
 		}
 	}
 }
@@ -2381,7 +2382,7 @@ func sliceScalarLess(lhs []float64, rhs float64) {
 func sliceScalarFilterLessOrEqual(lhs []float64, rhs float64) {
 	for i := range lhs {
 		if lhs[i] > rhs {
-			lhs[i] = NilValue
+			lhs[i] = model.NilValue
 		}
 	}
 }
@@ -2411,7 +2412,7 @@ func sliceScalarMul(lhs []float64, rhs float64) {
 func sliceScalarFilterNotEqual(lhs []float64, rhs float64) {
 	for i := range lhs {
 		if lhs[i] == rhs {
-			lhs[i] = NilValue
+			lhs[i] = model.NilValue
 		}
 	}
 }

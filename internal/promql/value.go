@@ -1,4 +1,4 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -8,66 +8,19 @@ package promql
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"hash/fnv"
-	"math"
 	"sort"
 	"strconv"
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
-	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/promql/model"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 )
 
-type TimeSeries struct {
-	Time   []int64
-	Series Series
-}
-
-type Series struct {
-	Data []SeriesData
-	Meta SeriesMeta
-}
-
-type SeriesData struct {
-	Values     *[]float64
-	MinMaxHost [2][]int32 // "min" at [0], "max" at [1]
-	Tags       SeriesTags
-	Offset     int64
-	What       int
-}
-
-type SeriesMeta struct {
-	Metric *format.MetricMetaValue
-	What   int
-	Total  int
-	STags  map[string]int
-	Units  string
-}
-
-type SeriesTags struct {
-	ID2Tag       map[string]*SeriesTag // indexed by tag ID (canonical name)
-	Name2Tag     map[string]*SeriesTag // indexed by tag optional Name
-	hashSum      uint64
-	hashSumValid bool
-}
-
-type SeriesTag struct {
-	Metric      *format.MetricMetaValue
-	Index       int    // shifted by "SeriesTagIndexOffset", zero means not set
-	ID          string // canonical name, always set
-	Name        string // optional custom name
-	Value       int32
-	SValue      string
-	stringified bool
-}
-
-const SeriesTagIndexOffset = 2
-
 type histogram struct {
-	*Series
+	*model.Series
 	buckets []bucket
 }
 
@@ -79,7 +32,7 @@ type bucket struct {
 type hashOptions struct {
 	on    bool
 	tags  []string
-	stags map[string]int
+	stags map[string]int // tags with non zero value will be stringified
 
 	listUsed   bool // list tags used in hash calculation
 	listUnused bool // list tags not used in hash calculation
@@ -95,31 +48,7 @@ type hashMeta struct {
 	x int // series index
 }
 
-func (sr *Series) AddTagAt(x int, tg *SeriesTag) {
-	sr.Data[x].Tags.add(tg, &sr.Meta)
-}
-
-func (sr *Series) removeTag(id string) {
-	for _, data := range sr.Data {
-		data.Tags.remove(id)
-	}
-}
-
-func (sr *Series) removeMetricName() {
-	sr.removeTag(labels.MetricName)
-}
-
-func (sr *Series) appendAll(src Series) {
-	sr.Data = append(sr.Data, src.Data...)
-}
-
-func (sr *Series) appendSome(src Series, xs ...int) {
-	for _, x := range xs {
-		sr.Data = append(sr.Data, src.Data[x])
-	}
-}
-
-func (ev *evaluator) groupMinMaxHost(ds []SeriesData, x int) []int32 {
+func (ev *evaluator) groupMinMaxHost(ds []model.SeriesData, x int) []int32 {
 	if len(ds) == 0 {
 		return nil
 	}
@@ -160,10 +89,10 @@ func (ev *evaluator) groupMinMaxHost(ds []SeriesData, x int) []int32 {
 	return res
 }
 
-func (sr *Series) hash(ev *evaluator, opt hashOptions) (map[uint64]hashMeta, error) {
+func (ev *evaluator) hash(sr *model.Series, opt hashOptions) (map[uint64]hashMeta, error) {
 	res := make(map[uint64]hashMeta, len(sr.Data))
 	for i := range sr.Data {
-		sum, tags, err := sr.Data[i].Tags.hash(ev, opt)
+		sum, tags, err := ev.hashT(&sr.Data[i].Tags, opt)
 		if err != nil {
 			return nil, err
 		}
@@ -175,16 +104,14 @@ func (sr *Series) hash(ev *evaluator, opt hashOptions) (map[uint64]hashMeta, err
 	return res, nil
 }
 
-func (sr *Series) group(ev *evaluator, opt hashOptions) (map[uint64][]int, []hashTags, error) {
-	var (
-		m    = make(map[uint64][]int, len(sr.Data))
-		tags []hashTags
-	)
+func (ev *evaluator) group(sr *model.Series, opt hashOptions) (map[uint64][]int, []hashTags, error) {
+	var tags []hashTags
 	if opt.listUsed || opt.listUnused {
 		tags = make([]hashTags, len(sr.Data))
 	}
+	m := make(map[uint64][]int, len(sr.Data))
 	for i := range sr.Data {
-		h, v, err := sr.Data[i].Tags.hash(ev, opt)
+		h, v, err := ev.hashT(&sr.Data[i].Tags, opt)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -196,16 +123,8 @@ func (sr *Series) group(ev *evaluator, opt hashOptions) (map[uint64][]int, []has
 	return m, tags, nil
 }
 
-func (sr *Series) dataAt(xs ...int) []SeriesData {
-	res := make([]SeriesData, 0, len(xs))
-	for _, x := range xs {
-		res = append(res, sr.Data[x])
-	}
-	return res
-}
-
-func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
-	m, _, err := sr.group(ev, hashOptions{
+func (ev *evaluator) histograms(sr *model.Series) ([]histogram, error) {
+	m, _, err := ev.group(sr, hashOptions{
 		tags: []string{labels.BucketLabel},
 		on:   false, // group excluding BucketLabel
 	})
@@ -216,8 +135,8 @@ func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
 	for _, xs := range m {
 		var bs []bucket
 		for _, x := range xs {
-			if t, ok := sr.Data[x].Tags.get(labels.BucketLabel); ok {
-				if t.stringified {
+			if t, ok := sr.Data[x].Tags.Get(labels.BucketLabel); ok {
+				if t.Stringified {
 					var v float64
 					v, err = strconv.ParseFloat(t.SValue, 32)
 					if err == nil {
@@ -236,30 +155,18 @@ func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
 	return res, nil
 }
 
-func (sr *Series) scalar() bool {
-	if len(sr.Data) != 1 {
-		return false
-	}
-	for _, m := range sr.Data {
-		if len(m.Tags.ID2Tag) != 0 {
-			return false
-		}
-	}
-	return true
-}
-
-func (h *histogram) seriesAt(x int) Series {
+func (h *histogram) seriesAt(x int) model.Series {
 	bucket := h.buckets[x]
 	data := h.Data[bucket.x : bucket.x+1]
-	data[0].Tags.remove(labels.BucketLabel)
-	return Series{
+	data[0].Tags.Remove(labels.BucketLabel)
+	return model.Series{
 		Data: data,
 		Meta: h.Meta,
 	}
 }
 
-func (h *histogram) data() []SeriesData {
-	res := make([]SeriesData, 0, len(h.buckets))
+func (h *histogram) data() []model.SeriesData {
+	res := make([]model.SeriesData, 0, len(h.buckets))
 	for _, b := range h.buckets {
 		res = append(res, h.Data[b.x])
 	}
@@ -280,18 +187,18 @@ var secondsFormats []secondsFormat = []secondsFormat{
 	{1, "%ds"},       // seconds
 }
 
-func (tg *SeriesTag) stringify(ev *evaluator) {
-	if tg.stringified {
+func (ev *evaluator) stringify(tg *model.SeriesTag) {
+	if tg.Stringified {
 		return
 	}
 	if len(tg.SValue) != 0 {
-		tg.stringified = true
+		tg.Stringified = true
 		return
 	}
 	var v string
 	switch tg.ID {
 	case LabelWhat:
-		v = DigestWhat(tg.Value).String()
+		v = model.DigestWhat(tg.Value).String()
 	case LabelShard:
 		v = strconv.FormatUint(uint64(tg.Value), 10)
 	case LabelOffset:
@@ -308,237 +215,27 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 	case LabelMinHost, LabelMaxHost:
 		v = ev.h.GetHostName(tg.Value)
 	default:
-		v = ev.h.GetTagValue(TagValueQuery{
+		v = ev.h.GetTagValue(model.TagValueQuery{
 			Version:    ev.opt.Version,
 			Metric:     tg.Metric,
 			TagID:      tg.ID,
 			TagValueID: tg.Value,
 		})
 	}
-	tg.setSValue(v)
+	tg.SetSValue(v)
 }
 
-func (tg *SeriesTag) setSValue(v string) {
-	tg.SValue = v
-	tg.stringified = true
-}
-
-func (tgs *SeriesTags) add(tg *SeriesTag, mt *SeriesMeta) {
-	if len(tg.SValue) == 0 && tg.stringified {
-		// setting empty string value removes tag
-		tgs.remove(tg.ID)
-		return
-	}
-	if tgs.ID2Tag == nil {
-		tgs.ID2Tag = map[string]*SeriesTag{tg.ID: tg}
-	} else {
-		tgs.remove(tg.ID)
-		tgs.ID2Tag[tg.ID] = tg
-	}
-	if tg.Index != 0 {
-		if tgs.Name2Tag == nil {
-			tgs.Name2Tag = map[string]*SeriesTag{}
-		}
-		if len(tg.Name) != 0 {
-			tgs.Name2Tag[tg.Name] = tg
-		}
-		if _, id, ok := decodeTagIndexLegacy(tg.Index); ok {
-			tgs.Name2Tag[id] = tg
-		}
-	}
-	if len(tg.SValue) != 0 {
-		if mt.STags == nil {
-			mt.STags = make(map[string]int)
-		}
-		mt.STags[tg.ID]++
-		tg.stringified = true
-	}
-	tgs.hashSumValid = false // tags changed, previously computed hash sum is no longer valid
-}
-
-func (tgs *SeriesTags) get(id string) (*SeriesTag, bool) {
-	if tgs.ID2Tag == nil {
-		return nil, false
-	}
-	var res *SeriesTag
-	if res = tgs.ID2Tag[id]; res == nil && tgs.Name2Tag != nil {
-		res = tgs.Name2Tag[id]
-	}
-	if res == nil {
-		return nil, false
-	}
-	return res, true
-}
-
-func (t *SeriesTags) gets(ev *evaluator, id string) (*SeriesTag, bool) {
-	if res, ok := t.get(id); ok {
-		res.stringify(ev)
-		t.hashSumValid = false
+func (ev *evaluator) gets(sr *model.Series, x int, id string) (*model.SeriesTag, bool) {
+	tgs := &sr.Data[x].Tags
+	if res, ok := tgs.Get(id); ok {
+		ev.stringify(res)
+		tgs.HashSumValid = false
 		return res, true
 	}
 	return nil, false
 }
 
-func (tgs *SeriesTags) remove(id string) {
-	if tgs.ID2Tag == nil {
-		return
-	}
-	v := tgs.ID2Tag[id]
-	if v == nil && tgs.Name2Tag != nil {
-		v = tgs.Name2Tag[id]
-	}
-	if v == nil {
-		return
-	}
-	if _, id, ok := decodeTagIndexLegacy(v.Index); ok {
-		delete(tgs.Name2Tag, id)
-	}
-	delete(tgs.Name2Tag, v.Name)
-	delete(tgs.ID2Tag, v.ID)
-	if id != labels.MetricName {
-		tgs.hashSumValid = false // tags changed, previously computed hash sum is no longer valid
-	}
-}
-
-func (tgs *SeriesTags) clone() SeriesTags {
-	res := SeriesTags{
-		ID2Tag:       make(map[string]*SeriesTag, len(tgs.ID2Tag)),
-		Name2Tag:     make(map[string]*SeriesTag, len(tgs.Name2Tag)),
-		hashSum:      tgs.hashSum,
-		hashSumValid: tgs.hashSumValid,
-	}
-	for id, tag := range tgs.ID2Tag {
-		copy := *tag
-		res.ID2Tag[id] = &copy
-		if len(tag.Name) != 0 {
-			res.Name2Tag[tag.Name] = &copy
-		}
-	}
-	return res
-}
-
-func (tgs *SeriesTags) cloneSome(ids ...string) SeriesTags {
-	res := SeriesTags{
-		ID2Tag:   make(map[string]*SeriesTag, len(ids)),
-		Name2Tag: make(map[string]*SeriesTag),
-	}
-	for _, id := range ids {
-		if tag := tgs.ID2Tag[id]; tag != nil {
-			copy := *tag
-			res.ID2Tag[id] = &copy
-			if len(tag.Name) != 0 {
-				res.Name2Tag[tag.Name] = &copy
-			}
-		}
-	}
-	return res
-}
-
-func (d *SeriesData) GetSMaxHosts(h Handler) []string {
-	res := make([]string, len(d.MinMaxHost[1]))
-	for j, id := range d.MinMaxHost[1] {
-		if id != 0 {
-			res[j] = h.GetHostName(id)
-		}
-	}
-	return res
-}
-
-func (sr *Series) labelMinMaxHost(ev *evaluator, x int, tagID string) error {
-	res := make([]SeriesData, 0)
-	for _, d := range sr.Data {
-		tail := d.labelMinMaxHost(ev, x, tagID)
-		if len(res)+len(tail) > maxSeriesRows {
-			return fmt.Errorf("number of resulting series exceeds %d", maxSeriesRows)
-		}
-		res = append(res, tail...)
-	}
-	ev.freeAll(sr.Data)
-	sr.Data = res
-	sr.Meta.Total = len(res)
-	return nil
-}
-
-func (d *SeriesData) labelMinMaxHost(ev *evaluator, x int, tagID string) []SeriesData {
-	if len(d.MinMaxHost[x]) == 0 {
-		return []SeriesData{*d}
-	}
-	m := map[int32]int{}
-	for i, h := range d.MinMaxHost[x] {
-		if !math.IsNaN((*d.Values)[i]) {
-			m[h] = i
-		}
-	}
-	res := make([]SeriesData, 0, len(m))
-	for h := range m {
-		data := SeriesData{
-			Values: ev.alloc(),
-			Tags:   d.Tags.clone(),
-			Offset: d.Offset,
-			What:   d.What,
-		}
-		for i, v := range *d.Values {
-			if d.MinMaxHost[x][i] == h {
-				(*data.Values)[i] = v
-			} else {
-				(*data.Values)[i] = NilValue
-			}
-		}
-		data.Tags.add(&SeriesTag{
-			ID:    tagID,
-			Value: h,
-		}, nil)
-		res = append(res, data)
-	}
-	return res
-}
-
-func (sr *Series) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.Matcher) {
-	for i := 0; i < len(sr.Data); {
-		if sr.Data[i].filterMinMaxHost(ev, x, matchers) != 0 {
-			i++
-		} else {
-			sr.Data = append(sr.Data[0:i], sr.Data[i+1:]...)
-		}
-	}
-	sr.Meta.Total = len(sr.Data)
-}
-
-func (sr *Series) free(ev *evaluator) {
-	ev.freeAll(sr.Data)
-}
-
-func (sr *Series) freeSome(ev *evaluator, xs ...int) {
-	ev.freeSome(sr.Data, xs...)
-}
-
-func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.Matcher) int {
-	n := 0
-	for i, maxHost := range d.MinMaxHost[x] {
-		discard := false
-		maxHostname := ev.h.GetHostName(maxHost)
-		for _, matcher := range matchers {
-			if !matcher.Matches(maxHostname) {
-				discard = true
-				break
-			}
-		}
-		if discard {
-			(*d.Values)[i] = NilValue
-			d.MinMaxHost[x][i] = 0
-		} else if !math.IsNaN((*d.Values)[i]) {
-			n++
-		}
-	}
-	return n
-}
-
-func (d *SeriesData) free(ev *evaluator) {
-	ev.free(d.Values)
-	d.Values = nil
-}
-
-func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, error) {
+func (ev *evaluator) hashT(tgs *model.SeriesTags, opt hashOptions) (uint64, hashTags, error) {
 	if ev.hh == nil {
 		ev.hh = fnv.New64()
 	}
@@ -567,15 +264,15 @@ func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, e
 			}
 		}
 	} else if len(opt.tags) == 0 || (len(opt.tags) == 1 && opt.tags[0] == labels.MetricName) {
-		if opt.listUsed || !tgs.hashSumValid {
+		if opt.listUsed || !tgs.HashSumValid {
 			for id := range tgs.ID2Tag {
 				if id != labels.MetricName {
 					ht.used = append(ht.used, id)
 				}
 			}
 		}
-		if tgs.hashSumValid {
-			return tgs.hashSum, ht, nil
+		if tgs.HashSumValid {
+			return tgs.HashSum, ht, nil
 		} else {
 			cache = true
 		}
@@ -604,7 +301,7 @@ func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, e
 	sort.Strings(ht.used)
 	buf := make([]byte, 4)
 	for _, v := range ht.used {
-		t, ok := tgs.get(v)
+		t, ok := tgs.Get(v)
 		if !ok {
 			continue
 		}
@@ -613,9 +310,9 @@ func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, e
 			return 0, hashTags{}, err
 		}
 		if opt.stags != nil && opt.stags[t.ID] != 0 {
-			t.stringify(ev)
+			ev.stringify(t)
 		}
-		if t.stringified {
+		if t.Stringified {
 			_, err = ev.hh.Write([]byte(t.SValue))
 		} else {
 			binary.LittleEndian.PutUint32(buf, uint32(t.Value))
@@ -628,75 +325,13 @@ func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, e
 	sum := ev.hh.Sum64()
 	ev.hh.Reset()
 	if cache {
-		tgs.hashSum = sum
-		tgs.hashSumValid = true
+		tgs.HashSum = sum
+		tgs.HashSumValid = true
 	}
 	return sum, ht, nil
 }
 
-// Serializes into JSON of Prometheus format. Slow but only 20 lines long.
-func (ts *TimeSeries) MarshalJSON() ([]byte, error) {
-	type series struct {
-		M map[string]string `json:"metric,omitempty"`
-		V [][2]any          `json:"values,omitempty"`
-	}
-	res := make([]series, 0, len(ts.Series.Data))
-	for _, s := range ts.Series.Data {
-		v := make([][2]any, 0, len(ts.Time))
-		for i, t := range ts.Time {
-			if math.Float64bits((*s.Values)[i]) != NilValueBits {
-				v = append(v, [2]any{t, strconv.FormatFloat((*s.Values)[i], 'f', -1, 64)})
-			}
-		}
-		if len(v) == 0 {
-			continue
-		}
-		var m map[string]string
-		if len(s.Tags.ID2Tag) != 0 {
-			m = make(map[string]string, len(s.Tags.ID2Tag))
-			for _, tag := range s.Tags.ID2Tag {
-				if !tag.stringified || tag.SValue == format.TagValueCodeZero {
-					continue
-				}
-				if len(tag.Name) != 0 {
-					m[tag.Name] = tag.SValue
-				} else {
-					m[tag.ID] = tag.SValue
-				}
-			}
-		}
-		res = append(res, series{M: m, V: v})
-	}
-	return json.Marshal(res)
-}
-
-func (ts *TimeSeries) Type() parser.ValueType {
-	return parser.ValueTypeMatrix
-}
-
-func (ts *TimeSeries) String() string {
-	var from, to int64
-	if len(ts.Time) != 0 {
-		from = ts.Time[0]
-		to = ts.Time[len(ts.Time)-1]
-	}
-	return fmt.Sprintf("series #%d, points #%d, range [%d, %d]", len(ts.Series.Data), len(ts.Time), from, to)
-}
-
-func decodeTagIndexLegacy(i int) (ix int, id string, ok bool) {
-	if i <= 0 {
-		return 0, "", false
-	}
-	ix = i - SeriesTagIndexOffset
-	if 0 <= ix && ix < format.MaxTags {
-		id, ok = format.TagIDLegacy(ix), true
-	} else if i == format.StringTopTagIndex {
-		id, ok = format.LegacyStringTopTagID, true
-	}
-	return ix, id, ok
-}
-
-func evalSeriesMeta(expr *parser.BinaryExpr, lhs SeriesMeta, rhs SeriesMeta) SeriesMeta {
+func evalSeriesMeta(expr *parser.BinaryExpr, lhs model.SeriesMeta, rhs model.SeriesMeta) model.SeriesMeta {
 	switch expr.Op {
 	case parser.EQLC, parser.GTE, parser.GTR, parser.LSS, parser.LTE, parser.NEQ:
 		if expr.ReturnBool {
@@ -735,8 +370,8 @@ func evalSeriesMeta(expr *parser.BinaryExpr, lhs SeriesMeta, rhs SeriesMeta) Ser
 	return lhs
 }
 
-func removeMetricName(s []Series) {
+func removeMetricName(s []model.Series) {
 	for i := range s {
-		s[i].removeMetricName()
+		s[i].RemoveMetricName()
 	}
 }
