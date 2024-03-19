@@ -3362,6 +3362,11 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			return v
 		}
 	)
+	for i, v := range dash.Vars {
+		vv := varAt(i)
+		vv.name = v.Name
+		vv.link = append(vv.link, v.Link...)
+	}
 	for k, v := range r.Form {
 		var i int
 		if strings.HasPrefix(k, "t") {
