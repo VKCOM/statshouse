@@ -12,7 +12,9 @@ import TimeAgo from '../img/time-ago.png'
 import AggregationInterval from '../img/aggregation-interval.png'
 import TopN from '../img/top-n.png'
 import MaxHostEnable from '../img/max-host-enable.png'
-import MaxHostResult from '../img/max-host-result.png'
+import MaxHostRes from '../img/max-host-res.png'
+import MaxHost1 from '../img/max-host-1.png'
+import MaxHost2 from '../img/max-host-2.png'
 import GroupByChoose from '../img/groupby-choose.png'
 import GroupByGraph from '../img/groupby-graph.png'
 import FilterByTag from '../img/filter-by-tag.png'
@@ -41,8 +43,8 @@ import MetricTabDelete from '../img/metric-tab-delete.png'
 
 # View metric data
 
-Display data on a graph, in a [table](#10--table-view), or as a [CSV](#csv) file via the StatsHouse UI.
-For complicated scenarios, [query StatsHouse with PromQL](query-wth-promql.md).
+Display data on a graph, in a [table](#10--table-view), or as a [CSV](#12--csv) file via the StatsHouse UI.
+For complicated scenarios, [query StatsHouse with PromQL](#18--query-with-promql).
 StatsHouse does not support viewing data via third-party applications.
 
 To learn more about viewing options, refer to the picture below and the navigation bar.
@@ -57,9 +59,20 @@ Choose a metric name to refer to existing metrics.
 Do not commit configuration changes or send data to someone else's metric as you can spoil the metric or the related data.
 :::
 
-Some popular host metrics are built-in, for example:
+### Host metrics
+
+Some popular host metrics are built-in such as CPU or disk usage, and more:
 
 <img src={HostMetrics} width="300"/>
+
+:::tip
+Host metric names begin with `host_`.
+:::
+
+Find the full list of host metrics and their implementation 
+on [GitHub](https://github.com/VKCOM/statshouse/blob/1c45de2c5ecee27a767a4821ed85315c1a0dff49/internal/format/predefined_hardware.go#L37).
+
+### Service metrics
 
 Metrics having two underscores in the beginning are for StatsHouse internal use only, for example:
 
@@ -67,8 +80,10 @@ Metrics having two underscores in the beginning are for StatsHouse internal use 
 
 You cannot edit them. See [Meta-metrics](#13--meta-metrics) for details.
 
+### Common metrics
+
 If you have StatsHouse deployed in your organization, you can find a set of metrics that are common for all the 
-engines, services, microservices, proxies, etc. in this organization.
+engines, services, microservices, proxies, etc. in the organization.
 
 #### "How can I find the metrics author?"
 
@@ -84,7 +99,10 @@ between the metrics or events, use [Event overlay](#11--event-overlay).
 
 You can edit the graph name so that the metric name remains the same.
 
-<img src={RenameGraph} width="400"/>
+<img src={RenameGraph} width="800"/>
+
+These changed graph names are not saved for later.
+If you re-open your metric, the graph will have the initial name, not the new one.
 
 ## 3 — Descriptive statistics
 
@@ -114,7 +132,7 @@ These are normalized data, which are independent of an aggregation interval.
 
 #### "Why do I see a non-integer number for a _count_ statistic?"
 
-[Sampling coefficients](#sampling) should sometimes be non-integer to keep aggregation and statistics the same.
+[Sampling coefficients](#sampling) should sometimes be non-integer to keep aggregates and statistics the same.
 This leads to non-integer values for the _count_ statistic, which is an integer number at its core.
 
 #### Cumulative functions
@@ -132,7 +150,7 @@ Percentiles are available for _value_ metrics only.
 To get them, [enable percentiles](edit-metrics.md#percentiles) in the UI.
 
 Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased 
-[sampling](../conceptual-overview.md#sampling). If it is important for you to have the lower sampling factor, keep an 
+[sampling](../conceptual%20overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an 
 eye on your metric [cardinality](#cardinality) or choose custom [resolution](edit-metrics.md#resolution) 
 for writing metric data.
 
@@ -160,8 +178,6 @@ For example, choose a 7-day time period and a 24-hour aggregation interval.
 
 For real-time monitoring, use [Live mode](#5--live-mode).
 
-
- 
 ## 5 — Live mode
 
 Enable _Live mode_ to view data in real time.
@@ -181,14 +197,16 @@ The larger aggregation interval you choose, the smoother look your graph has:
 
 ### _Auto_ and _Auto (low)_
 
-An _Auto_ interval uses the _minimal available interval_ for aggregation to show data on a graph.
+An _Auto_ interval uses the 
+[_minimal available interval_ for aggregation](../conceptual%20overview/concepts.md#minimal-available-aggregation-interval)
+to show data on a graph.
 This interval _varies_ depending on the currently available aggregation:
-* per-second aggregated data is stored for the first three days,
+* per-second aggregated data is stored for the first two days,
 * per-minute aggregated data is stored for a month,
 * per-hour aggregated data is available forever.
 
 The currently available aggregation is also related to
-a metric [resolution](edit-metrics.md#resolution).
+a metric [resolution](../conceptual%20overview/concepts.md#resolution).
 
 The _Auto (low)_ aggregation interval reduces the displayed resolution by a constant making the graph look smoother 
 even when you view data using the minimal available aggregation interval:
@@ -260,15 +278,27 @@ To get the lowest values, choose one of the _Bottom N_ options in the same dropd
 
 ## 9 — Max host
 
-Enable the [Max host](send-data.md#host-name-as-a-tag) option to find the host 
+Enable the [Max host](design-metric.md#host-name-as-a-tag) option to find the host 
 that sends the maximum value for your metric:
 
 <img src={MaxHostEnable} width="100"/>
 
-View the list of all hosts sorted by the maximum value 
-or copy the list to clipboard:
+View the list of all hosts sorted by the maximum value or copy the list to clipboard:
 
-<img src={MaxHostResult} width="600"/>
+<img src={MaxHostRes} width="600"/>
+
+The idea of the maximum value is valid only with respect to the chosen time interval.
+
+If you enable the _Max host_ option and view the whole graph, you see the host that sends the 
+value, which is the maximum in the whole [time period](#4--time-period)—the _Last 24 hours_ in the example below:
+
+<img src={MaxHost1} width="900"/>
+
+When you move the cursor over the graph, you see the resulting _Max host_ changing. It now shows you 
+the host that sends the value, which is the maximum for the available 
+[aggregation interval](#6--aggregation-interval)—in the example below, for the minute you are pointing at:
+
+<img src={MaxHost2} width="900"/>
 
 ## 10 — Table view
 
@@ -317,8 +347,8 @@ are sent in a special compact form to save traffic.
 ### Receive status
 
 This meta-metric redirects you to the `__src_ingestion_status` metric.
-It shows if there are errors when receiving 
-metrics: whether data are formatted properly, or a counter has a negative value, or a `NaN` value has been sent.
+It shows if there are errors when receiving metrics: whether data are formatted properly, 
+or a counter has a negative value, or a `NaN` value has been sent.
 
 The red alert informs you about the errors:
 
@@ -329,7 +359,7 @@ Here are some error examples:
 <img src={ReceiveStatus} width="300"/>
 
 For example, the `err_map_per_metric_queue_overload`, `err_map_tag_value`, or `err_map_tag_value_cached` tags 
-indicate the slowdowns or errors of the [mapping mechanism](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics).
+indicate the slowdowns or errors of the [mapping mechanism](../conceptual%20overview/components.md#mapping-budget).
 
 This metric uses the sampling budget of a metric it refers to, so the error flood cannot affect the other metrics.
 
@@ -341,7 +371,7 @@ StatshHouse has two bottlenecks where it samples data: an agent and an aggregato
 to as _source_ because it is the same machine the data come from.
 
 Sampling means that StatsHouse throws away pieces of data to reduce its overall amount. 
-To keep aggregation and statistics the same, StatsHouse multiplies the rest of data by a sampling coefficient (or a 
+To keep aggregates and statistics the same, StatsHouse multiplies the rest of data by a sampling coefficient (or a 
 sampling factor).
 
 The _Sampling source/aggregator_ meta-metric redirects you to the sampling coefficient information for the agent and 
@@ -362,8 +392,8 @@ If the sampling coefficient for a metric is higher than 5, it is displayed with 
 
 The _count_ statistic for this metric shows the number of agents having set this coefficient in a particular second.
 
-Learn more about StatsHouse [agents](../conceptual-overview.md#agent) and
-[aggregators](../conceptual-overview.md#aggregator), and what [sampling](../conceptual-overview.md#sampling) is.
+Learn more about StatsHouse [agents](../conceptual%20overview/components.md#agent) and
+[aggregators](../conceptual%20overview/components.md#aggregator), and what [sampling](../conceptual%20overview/concepts.md#sampling) is.
 
 ### Cardinality
 
@@ -382,13 +412,13 @@ So an _avg_ statistic for this metric shows full cardinality, which may be group
 ### Mapping status
 
 If you create too many tag values, which have not been 
-[mapped](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) yet, the mapping flood errors appear:
+[mapped](../conceptual%20overview/components.md#mapping-budget) yet, the mapping flood errors appear:
 
 <img src={MappingFlood} width="800"/>
 
-Mapping errors indicate that the number of newly created tag values exceed the mapping budget per day.
-Learn more about [mapping](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics) 
-and  [how many tag values](send-data.md#how-many-tag-values) to create per metric.
+Mapping errors indicate that the number of newly created tag values exceeds the mapping budget per day.
+Learn more about [mapping](../conceptual%20overview/components.md#mapping-budget) 
+and [how many tag values](design-metric.md#how-many-tag-values) to create per metric.
 
 ## 14 — Lock Y-axis
 
@@ -431,19 +461,19 @@ In most cases, you should not switch to this slow database—you will probably s
 
 <img src={SwitchDb} width="800"/>
 
-## 18 — Query with PromQL
+## 18 — PromQL query editor
 
 To broaden the range of operations available when viewing data, we supported PromQL, 
 or [Prometheus Query Language](https://prometheus.io/docs/prometheus/latest/querying/basics/).
 
-Switch to PromQL queries for complex viewing scenarios:
+Switch to PromQL query editor for complex viewing scenarios:
 
 <img src={Prom} width="300"/>
 
 You will get an autogenerated PromQL query describing the current graph view. 
 
 Use the PromQL editor to run your queries.
-To switch back to graph mode, use the _Filter_ option:
+To switch back to graph mode, press _Filter_:
 
 <img src={PromQuery} width="300"/>
 

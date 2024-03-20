@@ -10,16 +10,37 @@ import AggregationEdit from '../img/aggregation-edit.png'
 import EnablePercentiles from '../img/enable-percentiles.png'
 import ResolutionEdit from '../img/resolution-edit.png'
 import ResolutionView from '../img/resolution-view.png'
-import Petabytes from '../img/petabytes.png'
+import Milliseconds from '../img/milliseconds.png'
 import TagsN from '../img/tags-n.png'
 import TagsDash from '../img/tag-dash.png'
 import TagDesc from '../img/tag-desc.png'
-import Raw from '../img/raw.png'
-import RawInt from '../img/raw-int.png'
+import TagName from '../img/tag-name.png'
+import RawValueComments from '../img/raw-value-comments.png'
+import RawFormat from '../img/raw-format.png'
 import StringTag from '../img/string-tag.png'
 import Disable from '../img/disable.png'
 
 # Edit a metric
+
+Learn [how to edit a metric](#how-to-edit-a-metric) and what the editing options are:
+<!-- TOC -->
+* [Description](#description)
+* [Aggregation](#aggregation)
+  * [Percentiles](#percentiles)
+* [Resolution](#resolution)
+* [Unit](#unit)
+* [Tags](#tags)
+  * [Hide the unnecessary tags](#hide-the-unnecessary-tags)
+  * [Describe tags](#describe-tags)
+  * [Set up _Raw tags_](#set-up-raw-tags)
+    * [Value comments](#value-comments)
+    * [Specifying formats for raw tag values](#specifying-formats-for-raw-tag-values)
+  * [Set up _String top tag_](#set-up-string-top-tag)
+* [Disabling a metric](#disabling-a-metric)
+* [Admin settings](#admin-settings)
+<!-- TOC -->
+
+## How to edit a metric
 
 If you have started sending metric data, you have already set up the essential metric characteristics.
 With the editing options, try more settings or change the look of your metric in the UI:
@@ -45,7 +66,7 @@ without changing the name of the metric itself. You [cannot rename a metric](cre
 
 ## Aggregation
 
-Basically, a [metric type](send-data.md#how-to-choose-a-metric-type) affects the range of descriptive statistics 
+Basically, a [metric type](design-metric.md#metric-types) affects the range of descriptive statistics 
 that are meaningful for a metric. In the [_Descriptive statistics_](view-graph.md#3--descriptive-statistics) 
 dropdown menu, you can see statistics, which may be not relevant for your metric type.
 If you pick them, you will see 0 values for them on a graph. For example, you cannot view the cumulative graph 
@@ -56,7 +77,7 @@ To switch off showing irrelevant statistics in the UI, specify the type of your 
 <img src={AggregationEdit} width="500"/>
 
 The _Mixed_ type allows you to display all the statistics (even irrelevant ones) in the UI.
-See more on [changing or combining metric types](send-data.md#metric-types-and-their-combinations).
+See more on [changing or combining metric types](design-metric.md#combining-metric-types).
 
 ### Percentiles
 
@@ -70,29 +91,31 @@ You will not see percentiles for the previously written data.
 :::
 
 Note that the amount of data increases for a metric with percentiles, so enabling them may lead to increased
-[sampling](../conceptual-overview.md#sampling). If it is important for you to have the lower sampling factor, keep an
-eye on your metric [cardinality](#cardinality) or choose custom [resolution](edit-metrics.md#resolution)
+[sampling](../conceptual%20overview/concepts.md#sampling). If it is important for you to have the lower sampling factor, keep an
+eye on your metric [cardinality](view-graph.md#cardinality) or choose custom [resolution](edit-metrics.md#resolution)
 for writing metric data.
 
 ## Resolution
 
-The minimum available resolution of data to show on a graph depends on the currently available aggregation:
-* per-second aggregated data is stored for the first three days,
+The highest available resolution of data to show on a graph depends on the currently available 
+[aggregate](../conceptual%20overview/concepts.md#aggregation):
+* per-second aggregated data is stored for the first two days,
 * per-minute aggregated data is stored for a month,
 * per-hour aggregated data is available forever.
 
-So, you can get per-second data for the last three days, per-minute data for the last month, and you can get 
+So, you can get per-second data for the last two days, per-minute data for the last month, and you can get 
 per-hour data for any period you want.
 
 If getting the highest available resolution is not crucial for you, but it is important for you 
-to reduce [sampling](../conceptual-overview.md#sampling), reduce your metric resolution. 
-For example, you may choose to send data once per 15 seconds instead of sending per-second data:
+to reduce [sampling](../conceptual%20overview/concepts.md#sampling), reduce your metric resolution. 
+For example, choose a custom resolution to make the [agent](../conceptual%20overview/components.md#agent) send data once 
+per 15 seconds instead of sending per-second data:
 
 <img src={ResolutionEdit} width="400"/>
 
-Some resolution levels are marked as "native": 1, 5, 15, 60 seconds. They correspond to a level of details 
-for the UI, so we recommend using them to avoid jitter on a graph. See more about metric 
-[resolution](../conceptual-overview.md#resolution).
+Some resolution levels are marked as "native": 1, 5, 15, 60 seconds. They correspond to levels of details (LOD) 
+in the UI, so we recommend using them to avoid jitter on a graph. See more about metric 
+[resolution](../conceptual%20overview/concepts.md#resolution).
 
 You see custom resolution near the metric name in a graph view:
 
@@ -107,9 +130,18 @@ you cannot show per-second data if the resolution is set to 5 seconds.
 
 ## Unit
 
-Set up measurement units to show on a Y-axis in a graph view:
+Set up measurement units for the _value_ metric data you send to StatsHouse. 
+With this unit information, StatsHouse generates the Y-axis label for a graph.
 
-<img src={Petabytes} width="600"/>
+For example, if you set up _milliseconds_ for your metric, you can see _seconds_, _minutes_, or even _days_ as the 
+Y-axis label on the graph:
+
+<img src={Milliseconds} width="900"/>
+
+:::note
+If you have a _counter_ metric or view the _count_ and _count/sec_ statistics, you should not set a particular 
+unit. A counter means the "number of times," so choose the _no unit_ option.
+:::
 
 ## Tags
 
@@ -127,32 +159,52 @@ To hide only one tag in the middle, enter a hyphen (-) in the _Tag description_ 
 
 ### Describe tags
 
-While sending data, you refer to a tag by its ID or a name. Add tag descriptions to 
-show in the UI:
+While sending data, you refer to a tag by its ID or a name.
+Before you start referring to a tag by the custom name in your sending requests, 
+specify these names here, in the UI:
+
+<img src={TagName} width="170"/>
+
+Add tag descriptions to show in the UI:
 
 <img src={TagDesc} width="600"/>
 
 ### Set up _Raw tags_
 
 If you need a tag with many different 32-bit integer values (such as `user_ID`), use the
-_Raw_ tag values to avoid the [mapping flood](../conceptual-overview.md#mapping-and-budgets-for-creating-metrics).
-Check [how many tag values](send-data.md#how-many-tag-values) you can create.
+[_Raw_ tag values](design-metric.md#raw-tags) to avoid the 
+[mapping flood](../conceptual%20overview/components.md#the-budget-for-creating-mappings).
 
-Tag values are usually `string` values. StatsHouse maps all of them to `int32` values for higher efficiency.
-This huge `string`↔`int32` map is common for all metrics, and the budget for creating new mappings
-is limited. Mapping flood appears when you exceed this budget.
+To help yourself remember what they mean, specify a 
+[format](#specifying-formats-for-raw-tag-values) for your data to show in the UI 
+and add [value comments](#value-comments).
 
-If tag values in your metric are originally 32-bit integer values, you can prevent them from being mapped 
-and mark them as _Raw_ ones. The _Raw_ tag values in the example below are stored as `1` and `2`.
-To help yourself remember what they mean, choose a type to show in the UI and add descriptions:
+#### Value comments
 
-<img src={Raw} width="800"/>
+Add value comments to remember what your raw tag values mean:
 
+<img src={RawValueComments} width="1000"/>
+
+:::note
 Value comments are stored as meta-information, so they do not expend the mapping budget.
+:::
 
-### Set up _String tag_
+#### Specifying formats for raw tag values
 
-To filter data with the [String tag](send-data.md#string-tag) on a graph, add a name or description to it:
+When you send tag values as raw ones, you send 32-bit integer values. For example, you send integers that are 
+timestamps. To make such raw tag values more readable in the UI, choose the format for them: 
+
+<img src={RawFormat} width="1000"/>
+
+:::note
+Please note that you send only 32-bit integer values as raw tag values. If you send IP-addresses, they look like 
+`1234567890` but not `12.345.67.890` as the latter would be a string. When you choose an _ip_ option as the format, 
+StatsHouse displays your `1234567890` raw tag value as `12.345.67.890` in the UI.
+:::
+
+### Set up _String top tag_
+
+To filter data with the [String top tag](design-metric.md#string-tag) on a graph, add a name or description to it:
 
 <img src={StringTag} width="600"/>
 
