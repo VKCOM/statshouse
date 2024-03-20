@@ -9,6 +9,8 @@ package api
 import (
 	"math"
 	"time"
+
+	"github.com/vkcom/statshouse/internal/api/dac"
 )
 
 const (
@@ -32,135 +34,6 @@ const (
 	_24h = 24 * _1h
 	_7d  = 7 * _24h
 	_1M  = 31 * _24h
-
-	_1mTableSH1          = "statshouse_value_dist"
-	_1hTableSH1          = "statshouse_value_dist_1h"
-	_1hTableStringTopSH1 = "stats_1h_agg_stop_dist"
-	_1dTableUniquesSH1   = "stats_1d_agg_dist"
-	_1sTableSH2          = "statshouse_value_1s_dist"
-	_1mTableSH2          = "statshouse_value_1m_dist"
-	_1hTableSH2          = "statshouse_value_1h_dist"
-)
-
-type lodSwitch struct {
-	relSwitch  int64 // must be properly aligned
-	levels     []int64
-	tables     map[int64]string
-	hasPreKey  bool
-	preKeyOnly bool
-}
-
-var (
-	lodTables = map[string]map[int64]string{
-		Version1: {
-			_1M:  _1hTableSH1,
-			_7d:  _1hTableSH1,
-			_24h: _1hTableSH1,
-			_4h:  _1hTableSH1,
-			_1h:  _1hTableSH1,
-			_15m: _1mTableSH1,
-			_5m:  _1mTableSH1,
-			_1m:  _1mTableSH1,
-		},
-		Version2: {
-			_1M:  _1hTableSH2,
-			_7d:  _1hTableSH2,
-			_24h: _1hTableSH2,
-			_4h:  _1hTableSH2,
-			_1h:  _1hTableSH2,
-			_15m: _1mTableSH2,
-			_5m:  _1mTableSH2,
-			_1m:  _1mTableSH2,
-			_15s: _1sTableSH2,
-			_5s:  _1sTableSH2,
-			_1s:  _1sTableSH2,
-		},
-	}
-
-	lodLevels = map[string][]lodSwitch{
-		Version1: {{
-			relSwitch: 33 * _24h,
-			levels:    []int64{_7d, _24h, _4h, _1h},
-			tables:    lodTables[Version1],
-		}, {
-			relSwitch: _0s,
-			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m},
-			tables:    lodTables[Version1],
-		}},
-		// Subtract from relSwitch to facilitate calculation of derivative.
-		// Subtrahend should be multiple of the next lodSwitch minimum level.
-		Version2: {{
-			relSwitch: 33*_24h - 2*_1m,
-			levels:    []int64{_7d, _24h, _4h, _1h},
-			tables:    lodTables[Version2],
-		}, {
-			relSwitch: 52*_1h - 2*_1s,
-			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m},
-			tables:    lodTables[Version2],
-		}, {
-			relSwitch: _0s,
-			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m, _15s, _5s, _1s},
-			tables:    lodTables[Version2],
-		}},
-	}
-
-	lodLevelsV1StringTop = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_7d, _24h, _4h, _1h},
-		tables: map[int64]string{
-			_7d:  _1hTableStringTopSH1,
-			_24h: _1hTableStringTopSH1,
-			_4h:  _1hTableStringTopSH1,
-			_1h:  _1hTableStringTopSH1,
-		},
-	}}
-
-	lodLevelsV1Unique = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_7d, _24h},
-		tables: map[int64]string{
-			_7d:  _1dTableUniquesSH1,
-			_24h: _1dTableUniquesSH1,
-		},
-	}}
-
-	lodLevelsV2Monthly = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_1M},
-		tables: map[int64]string{
-			_1M: _1hTableSH2,
-		},
-	}}
-
-	lodLevelsV1Monthly = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_1M},
-		tables: map[int64]string{
-			_1M: _1hTableSH1,
-		},
-	}}
-
-	lodLevelsV1MonthlyUnique = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_1M},
-		tables: map[int64]string{
-			_1M: _1dTableUniquesSH1,
-		},
-	}}
-
-	lodLevelsV1MonthlyStringTop = []lodSwitch{{
-		relSwitch: _0s,
-		levels:    []int64{_1M},
-		tables: map[int64]string{
-			_1M: _1hTableStringTopSH1,
-		},
-	}}
-
-	preKeyTableNames = map[string]string{
-		_1sTableSH2: "statshouse_value_1s_prekey_dist",
-		_1mTableSH2: "statshouse_value_1m_prekey_dist",
-		_1hTableSH2: "statshouse_value_1h_prekey_dist",
-	}
 )
 
 func mathDiv(a int64, b int64) int64 {
@@ -205,31 +78,31 @@ func roundRange(start int64, end int64, step int64, utcOffset int64, location *t
 	return rStart, rEnd
 }
 
-func calcLevels(version string, preKeyFrom int64, preKeyOnly bool, isUnique bool, isStringTop bool, now int64, utcOffset int64, width int) []lodSwitch {
+func calcLevels(version string, preKeyFrom int64, preKeyOnly bool, isUnique bool, isStringTop bool, now int64, utcOffset int64, width int) []dac.LodSwitch {
 	if width == _1M {
 		switch {
 		case version == Version1:
 			switch {
 			case isUnique:
-				return lodLevelsV1MonthlyUnique
+				return dac.LodLevelsV1MonthlyUnique
 			case isStringTop:
-				return lodLevelsV1MonthlyStringTop
+				return dac.LodLevelsV1MonthlyStringTop
 			default:
-				return lodLevelsV1Monthly
+				return dac.LodLevelsV1Monthly
 			}
 		default:
-			return lodLevelsV2Monthly
+			return dac.LodLevelsV2Monthly
 		}
 	}
 
 	if version == Version1 {
 		switch {
 		case isUnique:
-			return lodLevelsV1Unique
+			return dac.LodLevelsV1Unique
 		case isStringTop:
-			return lodLevelsV1StringTop
+			return dac.LodLevelsV1StringTop
 		default:
-			return lodLevels[version]
+			return dac.LodLevels[version]
 		}
 	}
 
@@ -238,53 +111,30 @@ func calcLevels(version string, preKeyFrom int64, preKeyOnly bool, isUnique bool
 	} else {
 		preKeyFrom = math.MaxInt64 // "cut < preKeyFrom" is always false
 	}
-	var levels []lodSwitch
+	var levels []dac.LodSwitch
 	split := false
-	for _, s := range lodLevels[version] {
-		cut := now - s.relSwitch
+	for _, s := range dac.LodLevels[version] {
+		cut := now - s.RelSwitch
 		switch {
 		case cut < preKeyFrom:
 			levels = append(levels, s)
 		case !split:
 			s1 := s
-			s1.relSwitch = now - preKeyFrom
+			s1.RelSwitch = now - preKeyFrom
 			levels = append(levels, s1)
 			s2 := s
-			s2.hasPreKey = true
-			s2.preKeyOnly = preKeyOnly
+			s2.HasPreKey = true
+			s2.PreKeyOnly = preKeyOnly
 			levels = append(levels, s2)
 			split = true
 		default:
 			s2 := s
-			s2.hasPreKey = true
-			s2.preKeyOnly = preKeyOnly
+			s2.HasPreKey = true
+			s2.PreKeyOnly = preKeyOnly
 			levels = append(levels, s2)
 		}
 	}
 	return levels
-}
-
-type lodInfo struct {
-	fromSec    int64 // inclusive
-	toSec      int64 // exclusive
-	stepSec    int64
-	table      string // is only here because we can't cleanly deduce it for v1 (unique-related madness etc.)
-	hasPreKey  bool
-	preKeyOnly bool
-	location   *time.Location
-}
-
-func (lod lodInfo) isFast() bool {
-	return lod.fromSec+fastQueryTimeInterval >= lod.toSec
-}
-
-func isTimestampValid(timestamp, stepSec, utcOffset int64, location *time.Location) bool {
-	if stepSec == _1M {
-		timePoint := time.Unix(timestamp, 0).In(location)
-		return time.Date(timePoint.Year(), timePoint.Month(), 1, 0, 0, 0, 0, timePoint.Location()).Unix() == timestamp
-	}
-
-	return (timestamp+utcOffset)%stepSec == 0
 }
 
 func shiftTimestamp(timestamp, stepSec, shift int64, location *time.Location) int64 {
@@ -296,12 +146,12 @@ func shiftTimestamp(timestamp, stepSec, shift int64, location *time.Location) in
 	return timestamp + shift
 }
 
-func selectTagValueLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, location *time.Location) []lodInfo {
+func selectTagValueLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, location *time.Location) []dac.LodInfo {
 	return selectQueryLODs(version, preKeyFrom, preKeyOnly, resolution, isUnique, isStringTop, now, from, to, utcOffset, 100, widthAutoRes, location) // really dumb
 }
 
-func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, width int, widthKind int, location *time.Location) []lodInfo {
-	var ret []lodInfo
+func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resolution int, isUnique bool, isStringTop bool, now int64, from int64, to int64, utcOffset int64, width int, widthKind int, location *time.Location) []dac.LodInfo {
+	var ret []dac.LodInfo
 	var pps float64
 	var minStep int
 	if widthKind == widthAutoRes {
@@ -313,7 +163,7 @@ func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resoluti
 	lodFrom := from
 	levels := calcLevels(version, preKeyFrom, preKeyOnly, isUnique, isStringTop, now, utcOffset, width)
 	for _, s := range levels {
-		cut := now - s.relSwitch
+		cut := now - s.RelSwitch
 		if cut < lodFrom {
 			continue
 		}
@@ -323,23 +173,23 @@ func selectQueryLODs(version string, preKeyFrom int64, preKeyOnly bool, resoluti
 		}
 		lod := selectQueryLOD(s, lodFrom, lodTo, int64(minStep), utcOffset, location, pps)
 		ret = append(ret, lod)
-		if lodTo == to || lod.toSec >= to {
+		if lodTo == to || lod.ToSec >= to {
 			break
 		}
-		lodFrom = lod.toSec
+		lodFrom = lod.ToSec
 	}
 	return mergeLODs(ret)
 }
 
-func mergeLODs(lods []lodInfo) []lodInfo {
+func mergeLODs(lods []dac.LodInfo) []dac.LodInfo {
 	if len(lods) == 0 {
 		return lods
 	}
 	ret := lods[:1]
 	for _, lod := range lods[1:] {
 		l := ret[len(ret)-1]
-		if l.toSec == lod.fromSec && l.table == lod.table && l.stepSec == lod.stepSec && l.hasPreKey == lod.hasPreKey && l.preKeyOnly == lod.preKeyOnly {
-			ret[len(ret)-1].toSec = lod.toSec
+		if l.ToSec == lod.FromSec && l.Table == lod.Table && l.StepSec == lod.StepSec && l.HasPreKey == lod.HasPreKey && l.PreKeyOnly == lod.PreKeyOnly {
+			ret[len(ret)-1].ToSec = lod.ToSec
 		} else {
 			ret = append(ret, lod)
 		}
@@ -347,10 +197,10 @@ func mergeLODs(lods []lodInfo) []lodInfo {
 	return ret
 }
 
-func selectQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset int64, location *time.Location, pps float64) lodInfo {
-	lodLevel := s.levels[0]
+func selectQueryLOD(s dac.LodSwitch, from int64, to int64, minStep int64, utcOffset int64, location *time.Location, pps float64) dac.LodInfo {
+	lodLevel := s.Levels[0]
 	points := int64(math.Ceil(pps * float64(to-from)))
-	for _, stepSec := range s.levels {
+	for _, stepSec := range s.Levels {
 		fromSec, toSec := roundRange(from, to, stepSec, utcOffset, location)
 		n := (toSec - fromSec) / stepSec
 		if stepSec < minStep || n > maxPoints {
@@ -362,14 +212,14 @@ func selectQueryLOD(s lodSwitch, from int64, to int64, minStep int64, utcOffset 
 		}
 	}
 	fromSec, toSec := roundRange(from, to, lodLevel, utcOffset, location)
-	return lodInfo{
-		fromSec:    fromSec,
-		toSec:      toSec,
-		stepSec:    lodLevel,
-		table:      s.tables[lodLevel],
-		hasPreKey:  s.hasPreKey,
-		preKeyOnly: s.preKeyOnly,
-		location:   location,
+	return dac.LodInfo{
+		FromSec:    fromSec,
+		ToSec:      toSec,
+		StepSec:    lodLevel,
+		Table:      s.Tables[lodLevel],
+		HasPreKey:  s.HasPreKey,
+		PreKeyOnly: s.PreKeyOnly,
+		Location:   location,
 	}
 }
 

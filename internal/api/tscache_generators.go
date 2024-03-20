@@ -8,61 +8,63 @@ package api
 
 import (
 	"math"
+
+	"github.com/vkcom/statshouse/internal/api/dac"
 )
 
-func generateConstCounter(lod lodInfo, rows [][]tsSelectRow) {
+func generateConstCounter(lod dac.LodInfo, rows [][]dac.TsSelectRow) {
 	const (
 		constValue = 1000
 	)
-	fromSec := lod.fromSec
+	fromSec := lod.FromSec
 	for i := range rows {
-		rows[i] = []tsSelectRow{
+		rows[i] = []dac.TsSelectRow{
 			{
-				time:     fromSec,
-				stepSec:  lod.stepSec,
-				tsValues: tsValues{countNorm: constValue * float64(lod.stepSec)},
+				Time:     fromSec,
+				StepSec:  lod.StepSec,
+				TsValues: dac.TsValues{CountNorm: constValue * float64(lod.StepSec)},
 			},
 		}
-		rows[i][0].val[0] = float64(lod.stepSec)
-		fromSec += lod.stepSec
+		rows[i][0].Val[0] = float64(lod.StepSec)
+		fromSec += lod.StepSec
 	}
 }
 
-func generateSinCounter(lod lodInfo, rows [][]tsSelectRow) {
+func generateSinCounter(lod dac.LodInfo, rows [][]dac.TsSelectRow) {
 	const (
 		sinPeriod    = 24 * 3600
 		sinShift     = 15 * 3600 // adjust peaks/lows to Moscow TZ
 		sinAmplitude = 1000.0
 	)
-	fromSec := lod.fromSec
+	fromSec := lod.FromSec
 	for i := range rows {
 		sum := 0.0
-		toSec := fromSec + lod.stepSec
+		toSec := fromSec + lod.StepSec
 		for j := fromSec; j < toSec; j++ {
 			sum += math.Sin(2 * math.Pi * (float64(j) + 0.5 + sinShift) / sinPeriod)
 		}
-		countNorm := sinAmplitude*float64(lod.stepSec) + sinAmplitude*sum
-		rows[i] = []tsSelectRow{
+		countNorm := sinAmplitude*float64(lod.StepSec) + sinAmplitude*sum
+		rows[i] = []dac.TsSelectRow{
 			{
-				time:     fromSec,
-				stepSec:  lod.stepSec,
-				tsValues: tsValues{countNorm: countNorm},
+				Time:     fromSec,
+				StepSec:  lod.StepSec,
+				TsValues: dac.TsValues{CountNorm: countNorm},
 			},
 		}
-		rows[i][0].val[0] = float64(lod.stepSec)
-		fromSec += lod.stepSec
+		rows[i][0].Val[0] = float64(lod.StepSec)
+		fromSec += lod.StepSec
 	}
 }
 
-func generateGapsCounter(lod lodInfo, rows [][]tsSelectRow) {
+func generateGapsCounter(lod dac.LodInfo, rows [][]dac.TsSelectRow) {
 	const (
 		gapShift     = 21 * 3600 // adjust peaks/lows to Moscow TZ
 		sinAmplitude = 1000.0
 	)
-	fromSec := lod.fromSec
+	fromSec := lod.FromSec
 	for i := range rows {
 		sum := 0.0
-		toSec := fromSec + lod.stepSec
+		toSec := fromSec + lod.StepSec
 		for j := fromSec; j < toSec; j++ {
 			hour := (j + gapShift) / 3600
 			switch hour % 4 {
@@ -85,14 +87,14 @@ func generateGapsCounter(lod lodInfo, rows [][]tsSelectRow) {
 		if sum == 0 {
 			sum = math.NaN()
 		}
-		rows[i] = []tsSelectRow{
+		rows[i] = []dac.TsSelectRow{
 			{
-				time:     fromSec,
-				stepSec:  lod.stepSec,
-				tsValues: tsValues{countNorm: sum},
+				Time:     fromSec,
+				StepSec:  lod.StepSec,
+				TsValues: dac.TsValues{CountNorm: sum},
 			},
 		}
-		rows[i][0].val[0] = float64(lod.stepSec)
-		fromSec += lod.stepSec
+		rows[i][0].Val[0] = float64(lod.StepSec)
+		fromSec += lod.StepSec
 	}
 }

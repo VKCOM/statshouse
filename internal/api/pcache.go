@@ -12,13 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/api/dac"
 	"go.uber.org/atomic"
 )
-
-type pSelectRow struct {
-	tsTags
-	tsValues
-}
 
 type pointsCache struct {
 	loader            pointsLoadFunc
@@ -30,7 +26,7 @@ type pointsCache struct {
 	now               func() time.Time
 }
 
-type pointsLoadFunc func(ctx context.Context, pq *preparedPointsQuery, lod lodInfo) ([]pSelectRow, error)
+type pointsLoadFunc func(ctx context.Context, pq *dac.PreparedPointsQuery, lod dac.LodInfo) ([]dac.PSelectRow, error)
 
 type timeRange struct {
 	from int64
@@ -41,7 +37,7 @@ type cacheEntry struct {
 	// Place atomics first to ensure proper alignment, see https://pkg.go.dev/sync/atomic#pkg-note-BUG
 	lru          atomic.Int64
 	loadedAtNano int64
-	rows         map[timeRange][]pSelectRow
+	rows         map[timeRange][]dac.PSelectRow
 	size         int
 }
 
@@ -55,9 +51,9 @@ func newPointsCache(approxMaxSize int, utcOffset int64, loader pointsLoadFunc, n
 	}
 }
 
-func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([]pSelectRow, error) {
+func (c *pointsCache) get(ctx context.Context, key string, pq *dac.PreparedPointsQuery, lod dac.LodInfo, avoidCache bool) ([]dac.PSelectRow, error) {
 	if !avoidCache {
-		rows, ok := c.loadCached(key, lod.fromSec, lod.toSec)
+		rows, ok := c.loadCached(key, lod.FromSec, lod.ToSec)
 		if ok {
 			return rows, nil
 		}
@@ -82,14 +78,14 @@ func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQue
 		e = &cacheEntry{
 			lru:          atomic.Int64{},
 			loadedAtNano: 0,
-			rows:         map[timeRange][]pSelectRow{},
+			rows:         map[timeRange][]dac.PSelectRow{},
 		}
 		c.cache[key] = e
 	}
 
 	e.lru.Store(c.now().UnixNano())
 	e.loadedAtNano = loadedAtNano
-	tr := timeRange{from: lod.fromSec, to: lod.toSec}
+	tr := timeRange{from: lod.FromSec, to: lod.ToSec}
 	if _, ok := e.rows[tr]; !ok {
 		c.size++
 	}
@@ -98,7 +94,7 @@ func (c *pointsCache) get(ctx context.Context, key string, pq *preparedPointsQue
 	return rows, nil
 }
 
-func (c *pointsCache) loadCached(key string, from, to int64) ([]pSelectRow, bool) {
+func (c *pointsCache) loadCached(key string, from, to int64) ([]dac.PSelectRow, bool) {
 	c.cacheMu.RLock()
 	defer c.cacheMu.RUnlock()
 	entry, ok := c.cache[key]

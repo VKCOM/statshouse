@@ -15,6 +15,8 @@ import (
 
 	"go.uber.org/atomic"
 
+	"github.com/vkcom/statshouse/internal/api/dac"
+	"github.com/vkcom/statshouse/internal/api/model"
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -23,26 +25,6 @@ const (
 	invalidateFrom        = -48 * time.Hour
 	invalidateLinger      = 15 * time.Second // try to work around ClickHouse table replication race
 )
-
-type tsSelectRow struct {
-	time    int64
-	stepSec int64 // TODO - do not get using strange logic in clickhouse, set directly
-	tsTags
-	tsValues
-}
-
-// all numeric tags are stored as int32 to save space
-type tsTags struct {
-	tag      [format.MaxTags]int32
-	tagStr   stringFixed
-	shardNum uint32
-}
-
-type tsValues struct {
-	countNorm float64
-	val       [7]float64
-	host      [2]int32 // "min" at [0], "max" at [1]
-}
 
 type tsCacheGroup struct {
 	pointCaches map[string]map[int64]*tsCache
@@ -80,13 +62,13 @@ func (g *tsCacheGroup) Invalidate(lodLevel int64, times []int64) {
 	g.pointCaches[Version2][lodLevel].invalidate(times)
 }
 
-func (g *tsCacheGroup) Get(ctx context.Context, version string, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([][]tsSelectRow, error) {
-	x, err := lod.indexOf(lod.toSec)
+func (g *tsCacheGroup) Get(ctx context.Context, version string, key string, pq *dac.PreparedPointsQuery, lod dac.LodInfo, avoidCache bool) ([][]dac.TsSelectRow, error) {
+	x, err := lod.IndexOf(lod.ToSec)
 	if err != nil {
 		return nil, err
 	}
-	res := make([][]tsSelectRow, x)
-	switch pq.metricID {
+	res := make([][]dac.TsSelectRow, x)
+	switch pq.MetricID {
 	case format.BuiltinMetricIDGeneratorConstCounter:
 		generateConstCounter(lod, res)
 	case format.BuiltinMetricIDGeneratorSinCounter:
@@ -94,7 +76,7 @@ func (g *tsCacheGroup) Get(ctx context.Context, version string, key string, pq *
 	case format.BuiltinMetricIDGeneratorGapsCounter:
 		generateGapsCounter(lod, res)
 	default:
-		return g.pointCaches[version][lod.stepSec].get(ctx, key, pq, lod, avoidCache, res)
+		return g.pointCaches[version][lod.StepSec].get(ctx, key, pq, lod, avoidCache, res)
 	}
 	return res, nil
 }
@@ -112,10 +94,10 @@ type tsCache struct {
 	dropEvery         time.Duration
 }
 
-type tsLoadFunc func(ctx context.Context, pq *preparedPointsQuery, lod lodInfo, ret [][]tsSelectRow, retStartIx int) (int, error)
+type tsLoadFunc func(ctx context.Context, pq *dac.PreparedPointsQuery, lod dac.LodInfo, ret [][]dac.TsSelectRow, retStartIx int) (int, error)
 
 type tsVersionedRows struct {
-	rows         []tsSelectRow
+	rows         []dac.TsSelectRow
 	loadedAtNano int64
 }
 
@@ -165,30 +147,30 @@ func (c *tsCache) maybeDropCache() {
 	}
 }
 
-func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool, ret [][]tsSelectRow) ([][]tsSelectRow, error) {
+func (c *tsCache) get(ctx context.Context, key string, pq *dac.PreparedPointsQuery, lod dac.LodInfo, avoidCache bool, ret [][]dac.TsSelectRow) ([][]dac.TsSelectRow, error) {
 	if c.dropEvery != 0 {
 		c.maybeDropCache()
 	}
 
 	cachedRows := 0
-	realLoadFrom := lod.fromSec
-	realLoadTo := lod.toSec
+	realLoadFrom := lod.FromSec
+	realLoadTo := lod.ToSec
 	if !avoidCache {
-		realLoadFrom, realLoadTo = c.loadCached(ctx, key, lod.fromSec, lod.toSec, ret, 0, lod.location, &cachedRows)
+		realLoadFrom, realLoadTo = c.loadCached(ctx, key, lod.FromSec, lod.ToSec, ret, 0, lod.Location, &cachedRows)
 		if realLoadFrom == 0 && realLoadTo == 0 {
-			ChCacheRate(cachedRows, 0, pq.metricID, lod.table, string(pq.kind))
+			model.ChCacheRate(cachedRows, 0, pq.MetricID, lod.Table, string(pq.Kind))
 			return ret, nil
 		}
 	}
 
 	loadAtNano := time.Now().UnixNano()
-	loadLOD := lodInfo{fromSec: realLoadFrom, toSec: realLoadTo, stepSec: c.stepSec, table: lod.table, hasPreKey: lod.hasPreKey, preKeyOnly: lod.preKeyOnly, location: lod.location}
-	chRows, err := c.loader(ctx, pq, loadLOD, ret, int((realLoadFrom-lod.fromSec)/c.stepSec))
+	loadLOD := dac.LodInfo{FromSec: realLoadFrom, ToSec: realLoadTo, StepSec: c.stepSec, Table: lod.Table, HasPreKey: lod.HasPreKey, PreKeyOnly: lod.PreKeyOnly, Location: lod.Location}
+	chRows, err := c.loader(ctx, pq, loadLOD, ret, int((realLoadFrom-lod.FromSec)/c.stepSec))
 	if err != nil {
 		return nil, err
 	}
 
-	ChCacheRate(cachedRows, chRows, pq.metricID, lod.table, string(pq.kind))
+	model.ChCacheRate(cachedRows, chRows, pq.MetricID, lod.Table, string(pq.Kind))
 
 	if avoidCache {
 		return ret, nil
@@ -208,12 +190,12 @@ func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, 
 	}
 
 	e.lru.Store(time.Now().UnixNano())
-	i, err := lod.indexOf(realLoadFrom)
+	i, err := lod.IndexOf(realLoadFrom)
 	if err != nil {
 		return nil, err
 	}
 	for t := realLoadFrom; t < realLoadTo; i++ {
-		nextRealLoadFrom := promqlStepForward(t, c.stepSec, lod.location)
+		nextRealLoadFrom := promqlStepForward(t, c.stepSec, lod.Location)
 		cached, ok := e.secRows[t]
 		if !ok {
 			cached = &tsVersionedRows{}
@@ -254,7 +236,7 @@ func (c *tsCache) invalidate(times []int64) {
 	}
 }
 
-func (c *tsCache) loadCached(ctx context.Context, key string, fromSec int64, toSec int64, ret [][]tsSelectRow, retStartIx int, location *time.Location, rows *int) (int64, int64) {
+func (c *tsCache) loadCached(ctx context.Context, key string, fromSec int64, toSec int64, ret [][]dac.TsSelectRow, retStartIx int, location *time.Location, rows *int) (int64, int64) {
 	c.cacheMu.RLock()
 	defer c.cacheMu.RUnlock()
 
@@ -285,7 +267,7 @@ func (c *tsCache) loadCached(ctx context.Context, key string, fromSec int64, toS
 		t = nextStartFrom
 	}
 
-	if p, ok := ctx.Value(debugQueriesContextKey).(*[]string); ok {
+	if p, ok := ctx.Value(model.DebugQueriesContextKey).(*[]string); ok {
 		reqCount := (toSec - fromSec) / c.stepSec
 		*p = append(*p, fmt.Sprintf("CACHE step %d, count %d, range [%d,%d), hit %d, miss [%d,%d), key %q", c.stepSec, reqCount, fromSec, toSec, hit, loadFrom, loadTo, key))
 	}

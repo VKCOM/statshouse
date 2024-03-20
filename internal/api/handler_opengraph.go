@@ -12,6 +12,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/vkcom/statshouse/internal/api/model"
 )
 
 type openGraphInfo struct {
@@ -137,7 +139,7 @@ func getOpenGraphInfo(r *http.Request, origPath string) *openGraphInfo {
 	if 0 <= tn && tn < len(metrics) {
 		what := whats[tn]
 		for i, w := range what {
-			if l, ok := validQueryFn(w); ok {
+			if l, ok := model.ValidQueryFn(w); ok {
 				what[i] = WhatToWhatDesc(l)
 			}
 		}

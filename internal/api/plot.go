@@ -22,6 +22,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/vkcom/statshouse/internal/api/model"
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -190,7 +191,7 @@ type gnuplotTemplateData struct {
 	TimeTo   int64
 
 	usedColorIndices map[string]int
-	uniqueWhat       map[queryFn]struct{}
+	uniqueWhat       map[model.QueryFn]struct{}
 	utcOffset        int64
 
 	// The buffer which template is printed into,
@@ -224,7 +225,7 @@ func (d *gnuplotTemplateData) LineStyle(i int) int {
 	return 10 + i
 }
 
-func (d *gnuplotTemplateData) GetUniqueWhat() map[queryFn]struct{} {
+func (d *gnuplotTemplateData) GetUniqueWhat() map[model.QueryFn]struct{} {
 	if len(d.uniqueWhat) > 0 {
 		return d.uniqueWhat
 	}
@@ -251,7 +252,7 @@ func (h *Handler) colorize(resp *SeriesResponse) {
 		return
 	}
 	graphCount := 0
-	uniqueWhat := make(map[queryFn]struct{})
+	uniqueWhat := make(map[model.QueryFn]struct{})
 	for _, meta := range resp.Series.SeriesMeta {
 		uniqueWhat[meta.What] = struct{}{}
 		if meta.TimeShift == 0 {
@@ -359,7 +360,7 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 			TimeTo:           metric[i].to.Unix() + utcOffset,
 			Legend:           legend,
 			usedColorIndices: map[string]int{},
-			uniqueWhat:       map[queryFn]struct{}{},
+			uniqueWhat:       map[model.QueryFn]struct{}{},
 			utcOffset:        utcOffset,
 			wr:               &buf,
 		}
@@ -512,45 +513,45 @@ func convert(kind string, input int, utcOffset int64) string {
 }
 
 // XXX: keep in sync with TypeScript
-func WhatToWhatDesc(what queryFn) string {
+func WhatToWhatDesc(what model.QueryFn) string {
 	switch what {
-	case queryFnP999:
+	case model.QueryFnP999:
 		return "p99.9"
-	case queryFnCountNorm:
+	case model.QueryFnCountNorm:
 		return "count/sec"
-	case queryFnCumulCount:
+	case model.QueryFnCumulCount:
 		return "count (cumul)"
-	case queryFnCardinalityNorm:
+	case model.QueryFnCardinalityNorm:
 		return "cardinality/sec"
-	case queryFnCumulCardinality:
+	case model.QueryFnCumulCardinality:
 		return "cardinality (cumul)"
-	case queryFnCumulAvg:
+	case model.QueryFnCumulAvg:
 		return "avg (cumul)"
-	case queryFnSumNorm:
+	case model.QueryFnSumNorm:
 		return "sum/sec"
-	case queryFnCumulSum:
+	case model.QueryFnCumulSum:
 		return "sum (cumul)"
-	case queryFnUniqueNorm:
+	case model.QueryFnUniqueNorm:
 		return "unique/sec"
-	case queryFnMaxCountHost:
+	case model.QueryFnMaxCountHost:
 		return "max(count)@host"
-	case queryFnDerivativeCount:
+	case model.QueryFnDerivativeCount:
 		return "count (derivative)"
-	case queryFnDerivativeSum:
+	case model.QueryFnDerivativeSum:
 		return "sum (derivative)"
-	case queryFnDerivativeAvg:
+	case model.QueryFnDerivativeAvg:
 		return "avg (derivative)"
-	case queryFnDerivativeCountNorm:
+	case model.QueryFnDerivativeCountNorm:
 		return "count/sec (derivative)"
-	case queryFnDerivativeSumNorm:
+	case model.QueryFnDerivativeSumNorm:
 		return "sum/sec (derivative)"
-	case queryFnDerivativeUnique:
+	case model.QueryFnDerivativeUnique:
 		return "unique (derivative)"
-	case queryFnDerivativeUniqueNorm:
+	case model.QueryFnDerivativeUniqueNorm:
 		return "unique/sec (derivative)"
-	case queryFnDerivativeMin:
+	case model.QueryFnDerivativeMin:
 		return "min (derivative)"
-	case queryFnDerivativeMax:
+	case model.QueryFnDerivativeMax:
 		return "max (derivative)"
 	default:
 		return what.String()

@@ -21,6 +21,7 @@ import (
 	"github.com/mailru/easyjson"
 
 	"github.com/vkcom/statshouse/internal/api"
+	"github.com/vkcom/statshouse/internal/api/model"
 )
 
 //go:generate easyjson -no_std_marshalers datasource.go
@@ -141,7 +142,7 @@ func (d *Datasource) query(_ context.Context, _ backend.PluginContext, query bac
 			params.Set(api.ParamNumResults, "5")
 		}
 		if params.Get(api.ParamQueryWhat) == "" {
-			params.Set(api.ParamQueryWhat, api.ParamQueryFnCountNorm)
+			params.Set(api.ParamQueryWhat, model.ParamQueryFnCountNorm)
 		}
 	default:
 		aq := Query{

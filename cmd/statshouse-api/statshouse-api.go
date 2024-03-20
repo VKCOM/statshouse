@@ -31,11 +31,11 @@ import (
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
 
 	"github.com/vkcom/statshouse/internal/api"
+	"github.com/vkcom/statshouse/internal/api/dac"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/pcache"
-	"github.com/vkcom/statshouse/internal/util"
 	"github.com/vkcom/statshouse/internal/vkgo/vkuth"
 )
 
@@ -48,29 +48,15 @@ const (
 	httpReadTimeout       = 30 * time.Second
 	httpIdleTimeout       = 5 * time.Minute
 
-	chDialTimeout = 5 * time.Second
-
 	diskCacheTxDuration = 5 * time.Second
 )
 
 type args struct {
 	api.HandlerOptions
+	dacOptions               dac.Options
 	accessLog                bool
 	rpcCryptoKeyPath         string
 	brsMaxChunksCount        int
-	chV1Addrs                []string
-	chV1Debug                bool
-	chV1MaxConns             int
-	chV1Password             string
-	chV1User                 string
-	chV2Addrs                []string
-	chV2Debug                bool
-	chV2MaxLightFastConns    int
-	chV2MaxHeavyFastConns    int
-	chV2MaxHeavySlowConns    int
-	chV2MaxLightSlowConns    int
-	chV2Password             string
-	chV2User                 string
 	defaultMetric            string
 	defaultMetricFilterIn    []string
 	defaultMetricFilterNotIn []string
@@ -109,20 +95,7 @@ func main() {
 	pflag.IntVar(&argv.brsMaxChunksCount, "max-chunks-count", 1000, "in memory data chunks count limit for RPC server")
 	var chMaxQueries int // not used any more, TODO - remove?
 	pflag.IntVar(&chMaxQueries, "clickhouse-max-queries", 32, "maximum number of concurrent ClickHouse queries")
-	pflag.StringSliceVar(&argv.chV1Addrs, "clickhouse-v1-addrs", nil, "comma-separated list of ClickHouse-v1 addresses")
-	pflag.BoolVar(&argv.chV1Debug, "clickhouse-v1-debug", false, "ClickHouse-v1 debug mode")
-	pflag.IntVar(&argv.chV1MaxConns, "clickhouse-v1-max-conns", 16, "maximum number of ClickHouse-v1 connections (fast and slow)")
-	pflag.StringVar(&argv.chV1Password, "clickhouse-v1-password", "", "ClickHouse-v1 password")
-	pflag.StringVar(&argv.chV1User, "clickhouse-v1-user", "", "ClickHouse-v1 user")
-	pflag.StringSliceVar(&argv.chV2Addrs, "clickhouse-v2-addrs", nil, "comma-separated list of ClickHouse-v2 addresses")
-	pflag.BoolVar(&argv.chV2Debug, "clickhouse-v2-debug", false, "ClickHouse-v2 debug mode")
-	pflag.IntVar(&argv.chV2MaxLightFastConns, "clickhouse-v2-max-conns", 24, "maximum number of ClickHouse-v2 connections (light fast)")
-	pflag.IntVar(&argv.chV2MaxLightSlowConns, "clickhouse-v2-max-light-slow-conns", 12, "maximum number of ClickHouse-v2 connections (light slow)")
-	pflag.IntVar(&argv.chV2MaxHeavyFastConns, "clickhouse-v2-max-heavy-conns", 5, "maximum number of ClickHouse-v2 connections (heavy fast)")
-	pflag.IntVar(&argv.chV2MaxHeavySlowConns, "clickhouse-v2-max-heavy-slow-conns", 1, "maximum number of ClickHouse-v2 connections (heavy slow)")
-
-	pflag.StringVar(&argv.chV2Password, "clickhouse-v2-password", "", "ClickHouse-v2 password")
-	pflag.StringVar(&argv.chV2User, "clickhouse-v2-user", "", "ClickHouse-v2 user")
+	argv.dacOptions.Bind(pflag.CommandLine)
 	pflag.StringVar(&argv.defaultMetric, "default-metric", format.BuiltinMetricNameAggBucketReceiveDelaySec, "default metric to show")
 	pflag.StringSliceVar(&argv.defaultMetricFilterIn, "default-metric-filter-in", []string{}, "default metric filter in <key0>:value")
 	pflag.StringSliceVar(&argv.defaultMetricFilterNotIn, "default-metric-filter-not-in", []string{}, "default metric filter not in <key0>:value")
@@ -168,7 +141,7 @@ func main() {
 	if len(pflag.Args()) != 0 {
 		log.Fatalf("unexpected command line arguments, check command line for typos: %q", pflag.Args())
 	}
-	if len(argv.chV2Addrs) == 0 {
+	if len(argv.dacOptions.V2Addrs) == 0 {
 		log.Fatal("--clickhouse-v2-addrs must be specified")
 	}
 	if math.Abs(float64(argv.utcOffsetHours)) > 168 { // hours in week (24*7=168)
@@ -226,39 +199,6 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		return fmt.Errorf("failed to listen on %q: %w", argv.listenHTTPAddr, err)
 	}
 
-	var chV1 *util.ClickHouse
-	if len(argv.chV1Addrs) > 0 {
-		// argv.chV1MaxConns, argv.chV2MaxHeavyConns, argv.chV1Addrs, argv.chV1User, argv.chV1Password, argv.chV1Debug, chDialTimeout
-		chV1, err = util.OpenClickHouse(util.ChConnOptions{
-			Addrs:             argv.chV1Addrs,
-			User:              argv.chV1User,
-			Password:          argv.chV1Password,
-			DialTimeout:       chDialTimeout,
-			FastLightMaxConns: argv.chV1MaxConns,
-			FastHeavyMaxConns: argv.chV1MaxConns,
-			SlowLightMaxConns: argv.chV1MaxConns,
-			SlowHeavyMaxConns: argv.chV1MaxConns,
-		})
-		if err != nil {
-			return fmt.Errorf("failed to open ClickHouse-v1: %w", err)
-		}
-		defer func() { chV1.Close() }()
-	}
-	// argv.chV2MaxLightFastConns, argv.chV2MaxHeavyConns, , , argv.chV2Password, argv.chV2Debug, chDialTimeout
-	chV2, err := util.OpenClickHouse(util.ChConnOptions{
-		Addrs:             argv.chV2Addrs,
-		User:              argv.chV2User,
-		Password:          argv.chV2Password,
-		DialTimeout:       chDialTimeout,
-		FastLightMaxConns: argv.chV2MaxLightFastConns,
-		FastHeavyMaxConns: argv.chV2MaxHeavyFastConns,
-		SlowLightMaxConns: argv.chV2MaxLightSlowConns,
-		SlowHeavyMaxConns: argv.chV2MaxHeavySlowConns,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to open ClickHouse-v2: %w", err)
-	}
-	defer func() { chV2.Close() }()
 	c := rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
 	defer func() { _ = c.Close() }()
 
@@ -320,7 +260,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		DefaultMetricFilterNotIn: defaultMetricFilterNotIn,
 		EventPreset:              argv.eventPreset,
 		DefaultNumSeries:         argv.defaultNumSeries,
-		DisableV1:                len(argv.chV1Addrs) == 0,
+		DisableV1:                len(argv.dacOptions.V1Addrs) == 0,
 	}
 	if argv.LocalMode {
 		jsSettings.VkuthAppName = ""
@@ -329,8 +269,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		staticFS,
 		jsSettings,
 		argv.showInvisible,
-		chV1,
-		chV2,
+		argv.dacOptions,
 		&tlmetadata.Client{
 			Client:  rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(rpcCryptoKey), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups())),
 			Network: argv.metadataNet,

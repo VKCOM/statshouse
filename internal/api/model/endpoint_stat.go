@@ -1,10 +1,10 @@
-// Copyright 2022 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-package api
+package model
 
 import (
 	"strconv"
@@ -19,32 +19,11 @@ import (
 )
 
 const (
-	RoutePrefix             = "/api/"
-	EndpointMetric          = "metric"
-	EndpointMetricList      = "metrics-list"
-	EndpointMetricTagValues = "metric-tag-values"
-	EndpointQuery           = "query"
-	EndpointTable           = "table"
-	EndpointPoint           = "point"
-	EndpointRender          = "render"
-	EndpointResetFlood      = "reset-flood"
-	EndpointLegacyRedirect  = "legacy-redirect"
-	EndpointDashboard       = "dashboard"
-	EndpointDashboardList   = "dashboards-list"
-	EndpointGroup           = "group"
-	EndpointNamespace       = "namespace"
-	EndpointNamespaceList   = "namespace-list"
-	EndpointGroupList       = "group-list"
-	EndpointPrometheus      = "prometheus"
-	EndpointStatistics      = "stat"
-	endpointChunk           = "chunk"
-	EndpointHistory         = "history"
-
 	userTokenName = "user"
 )
 
-type endpointStat struct {
-	timestamp  time.Time
+type EndpointStat struct {
+	Timestamp  time.Time
 	endpoint   string
 	protocol   int
 	method     string
@@ -56,10 +35,10 @@ type endpointStat struct {
 	priority   int
 }
 
-func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat string, priorityStr string) *endpointStat {
+func NewEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat string, priorityStr string) *EndpointStat {
 	priority, _ := strconv.Atoi(priorityStr)
-	return &endpointStat{
-		timestamp:  time.Now(),
+	return &EndpointStat{
+		Timestamp:  time.Now(),
 		endpoint:   endpoint,
 		protocol:   format.TagValueIDHTTP,
 		method:     method,
@@ -69,9 +48,9 @@ func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat str
 	}
 }
 
-func newEndpointStatRPC(endpoint, method string) *endpointStat {
-	return &endpointStat{
-		timestamp:  time.Now(),
+func NewEndpointStatRPC(endpoint, method string) *EndpointStat {
+	return &EndpointStat{
+		Timestamp:  time.Now(),
 		endpoint:   endpoint,
 		protocol:   format.TagValueIDRPC,
 		method:     method,
@@ -79,7 +58,7 @@ func newEndpointStatRPC(endpoint, method string) *endpointStat {
 	}
 }
 
-func (es *endpointStat) reportServiceTime(code int, err error) {
+func (es *EndpointStat) ReportServiceTime(code int, err error) {
 	if len(es.metric) != 0 {
 		statshouse.Metric(
 			format.BuiltinMetricNameAPIMetricUsage,
@@ -100,26 +79,26 @@ func (es *endpointStat) reportServiceTime(code int, err error) {
 			code = -1
 		}
 	}
-	es.report(code, format.BuiltinMetricNameAPIServiceTime)
+	es.Report(code, format.BuiltinMetricNameAPIServiceTime)
 }
 
-func (es *endpointStat) setAccessInfo(ai accessInfo) {
-	es.user = ai.user
-	es.tokenName = getStatTokenName(ai.user)
+func (es *EndpointStat) SetAccessInfo(ai AccessInfo) {
+	es.user = ai.User
+	es.tokenName = getStatTokenName(ai.User)
 }
 
-func (es *endpointStat) setMetricMeta(metricMeta *format.MetricMetaValue) {
+func (es *EndpointStat) SetMetricMeta(metricMeta *format.MetricMetaValue) {
 	if metricMeta != nil {
 		es.metric = strconv.Itoa(int(metricMeta.MetricID))
 	}
 }
 
-func (es *endpointStat) reportResponseTime(code int) {
-	es.report(code, format.BuiltinMetricNameAPIResponseTime)
+func (es *EndpointStat) ReportResponseTime(code int) {
+	es.Report(code, format.BuiltinMetricNameAPIResponseTime)
 }
 
-func (es *endpointStat) report(code int, metric string) {
-	v := time.Since(es.timestamp).Seconds()
+func (es *EndpointStat) Report(code int, metric string) {
+	v := time.Since(es.Timestamp).Seconds()
 	t := statshouse.Tags{
 		1:  es.endpoint,
 		2:  strconv.Itoa(es.protocol),
@@ -140,17 +119,6 @@ func getStatTokenName(user string) string {
 		return userTokenName
 	}
 	return user
-}
-
-func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
-	return func(c *statshouse.Client) {
-		c.Metric(
-			format.BuiltinMetricNameAPIBRS,
-			statshouse.Tags{
-				1: srvfunc.HostnameForStatshouse(),
-			},
-		).Value(float64(brs.Count()))
-	}
 }
 
 func ChSelectMetricDuration(duration time.Duration, metricID int32, user, table, kind string, isFast, isLight bool, err error) {

@@ -11,9 +11,11 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/semaphore"
-
+	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
+	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
+	"golang.org/x/sync/semaphore"
 )
 
 func NewBigResponseStorage(maxInMemoryChunksCount int, flushInterval time.Duration) *BigResponseStorage {
@@ -131,4 +133,15 @@ func (brs *BigResponseStorage) Count() int {
 	}
 
 	return count
+}
+
+func CurrentChunksCount(brs *BigResponseStorage) func(*statshouse.Client) {
+	return func(c *statshouse.Client) {
+		c.Metric(
+			format.BuiltinMetricNameAPIBRS,
+			statshouse.Tags{
+				1: srvfunc.HostnameForStatshouse(),
+			},
+		).Value(float64(brs.Count()))
+	}
 }
