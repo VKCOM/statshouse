@@ -69,7 +69,7 @@ func (hctx *HandlerContext) WithContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, handlerContextKey{}, hctx)
 }
 
-func (hctx *HandlerContext) RequestTag() uint32      { return hctx.reqTag } // First 4 bytes of request available after request is freed
+func (hctx *HandlerContext) RequestTag() uint32      { return hctx.reqTag } // First 4 bytes of request available even after request is freed
 func (hctx *HandlerContext) KeyID() [4]byte          { return hctx.keyID }
 func (hctx *HandlerContext) ProtocolVersion() uint32 { return hctx.protocolVersion }
 func (hctx *HandlerContext) ListenAddr() net.Addr    { return hctx.listenAddr }

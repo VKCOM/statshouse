@@ -19,14 +19,22 @@ type EngineVersion struct {
 func (EngineVersion) TLName() string { return "engine.version" }
 func (EngineVersion) TLTag() uint32  { return 0x1a2e06fa }
 
-func (item *EngineVersion) Reset()                         {}
-func (item *EngineVersion) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineVersion) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineVersion) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x1a2e06fa)
+func (item *EngineVersion) Reset() {}
+
+func (item *EngineVersion) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineVersion) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineVersion) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x1a2e06fa); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineVersion) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x1a2e06fa), nil
+	w = basictl.NatWrite(w, 0x1a2e06fa)
+	return item.Write(w)
 }
 
 func (item *EngineVersion) ReadResult(w []byte, ret *string) (_ []byte, err error) {
@@ -38,7 +46,7 @@ func (item *EngineVersion) ReadResult(w []byte, ret *string) (_ []byte, err erro
 
 func (item *EngineVersion) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWrite(w, ret)
+	return basictl.StringWrite(w, ret), nil
 }
 
 func (item *EngineVersion) ReadResultJSON(j interface{}, ret *string) error {

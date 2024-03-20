@@ -78,7 +78,7 @@ func BuiltinVectorDictionaryFieldLongReadJSON(j interface{}, m *map[string]int64
 	if j != nil {
 		_map, _mapok = j.(map[string]interface{})
 		if !_mapok {
-			return ErrorInvalidJSON("map[string]int64", "expected json object") // TODO - better name
+			return ErrorInvalidJSON("map[string]int64", "expected json object")
 		}
 	}
 	l := len(_map)
@@ -118,7 +118,7 @@ func BuiltinVectorDictionaryFieldLongWriteJSONOpt(short bool, w []byte, m map[st
 	for _, key := range keys {
 		value := m[key]
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteString(w, key) // StringKey
+		w = basictl.JSONWriteString(w, key)
 		w = append(w, ':')
 		w = basictl.JSONWriteInt64(w, value)
 	}
@@ -188,7 +188,7 @@ func BuiltinVectorDictionaryFieldStringReadJSON(j interface{}, m *map[string]str
 	if j != nil {
 		_map, _mapok = j.(map[string]interface{})
 		if !_mapok {
-			return ErrorInvalidJSON("map[string]string", "expected json object") // TODO - better name
+			return ErrorInvalidJSON("map[string]string", "expected json object")
 		}
 	}
 	l := len(_map)
@@ -228,7 +228,7 @@ func BuiltinVectorDictionaryFieldStringWriteJSONOpt(short bool, w []byte, m map[
 	for _, key := range keys {
 		value := m[key]
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = basictl.JSONWriteString(w, key) // StringKey
+		w = basictl.JSONWriteString(w, key)
 		w = append(w, ':')
 		w = basictl.JSONWriteString(w, value)
 	}
@@ -256,9 +256,7 @@ func (item *DictionaryFieldLong) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *DictionaryFieldLong) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Key); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Key)
 	return basictl.LongWrite(w, item.Value), nil
 }
 
@@ -360,10 +358,8 @@ func (item *DictionaryFieldString) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *DictionaryFieldString) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Key); err != nil {
-		return w, err
-	}
-	return basictl.StringWrite(w, item.Value)
+	w = basictl.StringWrite(w, item.Key)
+	return basictl.StringWrite(w, item.Value), nil
 }
 
 func (item *DictionaryFieldString) ReadBoxed(w []byte) (_ []byte, err error) {

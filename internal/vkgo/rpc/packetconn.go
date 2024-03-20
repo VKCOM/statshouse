@@ -84,7 +84,7 @@ type PacketConn struct {
 	pingMu          sync.Mutex
 	pingSent        bool
 	currentPingID   int64
-	pingBodyReadBuf [8 + 4]byte // pingID + space for CRC
+	pingBodyReadBuf [8 + 4]byte // pingID + space for CRC, also used for pongs
 
 	// mini send queue for ping-pongs
 	writePing   bool
@@ -205,14 +205,14 @@ func (pc *PacketConn) ReadPacket(body []byte, timeout time.Duration) (tip uint32
 		if !isBuiltin { // fast path
 			return tip, body, nil
 		}
-		if err := pc.WritePacketBuiltin(); err != nil {
+		if err := pc.WritePacketBuiltin(timeout); err != nil {
 			return tip, body, err
 		}
 	}
 }
 
 // ReadPacketUnlocked for high-efficiency users, which write with *Unlocked functions
-// if isBuiltin is true, caller must call WritePacketBuiltinNoFlushUnlocked()
+// if isBuiltin is true, caller must call WritePacketBuiltinNoFlushUnlocked(timeout)
 func (pc *PacketConn) ReadPacketUnlocked(body []byte, timeout time.Duration) (tip uint32, _ []byte, isBuiltin bool, err error) {
 	tip, _, body, isBuiltin, err = pc.readPacketWithMagic(body, timeout)
 	return tip, body, isBuiltin, err
@@ -239,27 +239,29 @@ func (pc *PacketConn) readPacketWithMagic(body []byte, timeout time.Duration) (t
 func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout time.Duration) (magicHead []byte, isBuiltin bool, err error) {
 	for {
 		if err = pc.setReadTimeoutUnlocked(timeout); err != nil {
-			return nil, false, err
+			return nil, false, fmt.Errorf("failed to set read timeout: %w", err)
 		}
 		magicHead, err = pc.readPacketHeaderUnlockedImpl(header)
 		if err != nil {
-			if pc.readSeqNum < 0 || len(magicHead) != 0 || !errors.Is(err, os.ErrDeadlineExceeded) {
-				// if performing handshake || read at least 1 bute || not a timeout error
+			if err == io.EOF || err == io.ErrUnexpectedEOF {
 				return magicHead, false, err
 			}
+			if pc.readSeqNum < 0 || len(magicHead) != 0 || !errors.Is(err, os.ErrDeadlineExceeded) {
+				// if performing handshake || read at least 1 byte || not a timeout error
+				return magicHead, false, fmt.Errorf("failed to read header for seq_num %d, magic(hex) %x: %w", pc.readSeqNum, magicHead, err)
+			}
 			if !pc.sendPing() {
-				return nil, false, fmt.Errorf("timeout after ping sent %w", err)
-
+				return nil, false, fmt.Errorf("timeout after ping sent: %w", err)
 			}
 			return nil, true, nil // send builtin ping
 		}
 		if header.tip == PacketTypeRPCPing {
 			if header.length != packetOverhead+8 {
-				return nil, false, fmt.Errorf("ping packet has wrong length %d", header.length)
+				return nil, false, fmt.Errorf("ping packet has wrong length: %d", header.length)
 			}
 			_, err := pc.readPacketBodyUnlocked(header, pc.pingBodyReadBuf[:])
 			if err != nil {
-				return nil, false, err
+				return nil, false, fmt.Errorf("failed to read ping body: %w", err)
 			}
 			if err := pc.onPing(pc.pingBodyReadBuf[:]); err != nil { // if pingBodyReadBuf is not big enough, here will be garbage due to realloc above
 				return nil, false, err
@@ -272,7 +274,7 @@ func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout tim
 			}
 			_, err := pc.readPacketBodyUnlocked(header, pc.pingBodyReadBuf[:])
 			if err != nil {
-				return nil, false, err
+				return nil, false, fmt.Errorf("failed to read pong body: %w", err)
 			}
 			if err := pc.onPong(pc.pingBodyReadBuf[:]); err != nil { // if pingBodyReadBuf is not big enough, here will be garbage due to realloc above
 				return nil, false, err
@@ -358,11 +360,11 @@ func (pc *PacketConn) readPacketBodyUnlocked(header *packetHeader, body []byte) 
 	} else {
 		body = body[:sz]
 	}
-	if _, err := io.ReadFull(pc.r, body); err != nil {
+	if n, err := io.ReadFull(pc.r, body); err != nil {
 		if err == io.EOF {
-			return body, io.ErrUnexpectedEOF // EOF before packet end is not expected
+			return body[:n], io.ErrUnexpectedEOF // EOF before packet end is not expected
 		}
-		return body, err
+		return body[:n], err
 	}
 	readCRC := binary.LittleEndian.Uint32(body[bodySize:])
 	for i := 0; i < alignTo4; i++ {
@@ -467,7 +469,7 @@ func (pc *PacketConn) writePacketHeaderUnlocked(packetType uint32, packetBodyLen
 	}
 
 	if err := pc.setWriteTimeoutUnlocked(timeout); err != nil {
-		return err
+		return fmt.Errorf("failed to set write timeout: %w", err)
 	}
 	prevBytes := len(pc.headerWriteBuf)
 	buf := pc.headerWriteBuf

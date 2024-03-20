@@ -44,13 +44,9 @@ func (item *EngineReplaceConfigServer) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *EngineReplaceConfigServer) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.ClusterName); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.ClusterName)
 	w = basictl.IntWrite(w, item.ServerOffset)
-	if w, err = basictl.StringWrite(w, item.Host); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Host)
 	return basictl.IntWrite(w, item.Port), nil
 }
 

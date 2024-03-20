@@ -83,15 +83,9 @@ func (item *BarsicStart) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicStart) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.ClusterId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.ShardId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.EncryptionSecret); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.ClusterId)
+	w = basictl.StringWrite(w, item.ShardId)
+	w = basictl.StringWrite(w, item.EncryptionSecret)
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = tlBuiltinVectorString.BuiltinVectorStringWrite(w, item.EncryptionSecrets); err != nil {
 			return w, err
@@ -366,15 +360,9 @@ func (item *BarsicStartBytes) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicStartBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWriteBytes(w, item.ClusterId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.ShardId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.EncryptionSecret); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.ClusterId)
+	w = basictl.StringWriteBytes(w, item.ShardId)
+	w = basictl.StringWriteBytes(w, item.EncryptionSecret)
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWrite(w, item.EncryptionSecrets); err != nil {
 			return w, err

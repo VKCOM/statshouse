@@ -37,7 +37,7 @@ func (item *StatshouseGetTargetsResult) Write(w []byte, nat_fields_mask uint32) 
 	if w, err = BuiltinVectorStatshousePromTargetWrite(w, item.Targets); err != nil {
 		return w, err
 	}
-	return basictl.StringWrite(w, item.Hash)
+	return basictl.StringWrite(w, item.Hash), nil
 }
 
 func (item *StatshouseGetTargetsResult) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -120,7 +120,7 @@ func (item *StatshouseGetTargetsResultBytes) Write(w []byte, nat_fields_mask uin
 	if w, err = BuiltinVectorStatshousePromTargetBytesWrite(w, item.Targets); err != nil {
 		return w, err
 	}
-	return basictl.StringWriteBytes(w, item.Hash)
+	return basictl.StringWriteBytes(w, item.Hash), nil
 }
 
 func (item *StatshouseGetTargetsResultBytes) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {

@@ -313,9 +313,7 @@ func (item *RpcInvokeReqExtra) Write(w []byte) (_ []byte, err error) {
 		}
 	}
 	if item.Flags&(1<<20) != 0 {
-		if w, err = basictl.StringWrite(w, item.StringForward); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.StringForward)
 	}
 	if item.Flags&(1<<21) != 0 {
 		w = basictl.LongWrite(w, item.IntForward)

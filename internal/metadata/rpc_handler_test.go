@@ -160,8 +160,8 @@ func getJournal(t *testing.T, rpcClient *tlmetadata.Client, from int64) (tlmetad
 	}
 }
 
-func getMapping(rpcClient *tlmetadata.Client, metricName, key string, create bool) (tlmetadata.GetMappingResponseUnion, error) {
-	resp := tlmetadata.GetMappingResponseUnion{}
+func getMapping(rpcClient *tlmetadata.Client, metricName, key string, create bool) (tlmetadata.GetMappingResponse, error) {
+	resp := tlmetadata.GetMappingResponse{}
 	req := tlmetadata.GetMapping{
 		FieldMask: 0,
 		Metric:    metricName,
@@ -174,8 +174,8 @@ func getMapping(rpcClient *tlmetadata.Client, metricName, key string, create boo
 	return resp, err
 }
 
-func getInvertMapping(rpcClient *tlmetadata.Client, id int32) (tlmetadata.GetInvertMappingResponseUnion, error) {
-	resp := tlmetadata.GetInvertMappingResponseUnion{}
+func getInvertMapping(rpcClient *tlmetadata.Client, id int32) (tlmetadata.GetInvertMappingResponse, error) {
+	resp := tlmetadata.GetInvertMappingResponse{}
 	req := tlmetadata.GetInvertMapping{
 		Id: id,
 	}

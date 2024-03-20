@@ -19,11 +19,23 @@ type True struct {
 func (True) TLName() string { return "true" }
 func (True) TLTag() uint32  { return 0x3fedd339 }
 
-func (item *True) Reset()                              {}
-func (item *True) Read(w []byte) ([]byte, error)       { return w, nil }
-func (item *True) Write(w []byte) ([]byte, error)      { return w, nil }
-func (item *True) ReadBoxed(w []byte) ([]byte, error)  { return basictl.NatReadExactTag(w, 0x3fedd339) }
-func (item *True) WriteBoxed(w []byte) ([]byte, error) { return basictl.NatWrite(w, 0x3fedd339), nil }
+func (item *True) Reset() {}
+
+func (item *True) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *True) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *True) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x3fedd339); err != nil {
+		return w, err
+	}
+	return item.Read(w)
+}
+
+func (item *True) WriteBoxed(w []byte) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x3fedd339)
+	return item.Write(w)
+}
 
 func (item True) String() string {
 	w, err := item.WriteJSON(nil)

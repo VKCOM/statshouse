@@ -39,9 +39,7 @@ func (item *EngineRecordNextQueries) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *EngineRecordNextQueries) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Binlogname); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Binlogname)
 	w = basictl.IntWrite(w, item.NumQueries)
 	return BoolWriteBoxed(w, item.Append)
 }

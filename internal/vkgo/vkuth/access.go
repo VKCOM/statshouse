@@ -110,12 +110,13 @@ func stripFullBit(fullBit string, appName string) string {
 }
 
 type Data struct {
-	Bits       []string `json:"bits"`
-	User       string   `json:"user"`
-	VkID       *int64   `json:"vk_id"`
-	IsService  bool     `json:"is_service"`
-	EmployeeID *int64   `json:"employee_id"`
-	UnitID     *int64   `json:"unit_id"`
+	Bits         []string `json:"bits"`
+	User         string   `json:"user"`
+	VkID         *int64   `json:"vk_id"`
+	IsService    bool     `json:"is_service"`
+	EmployeeID   *int64   `json:"employee_id"`
+	UnitID       *int64   `json:"unit_id"`
+	UnitsIDOwner *string  `json:"units_id_owner"` // owner/team lead
 }
 type Claims struct {
 	*jwt.RegisteredClaims
@@ -131,12 +132,13 @@ type JWTHelper struct {
 }
 
 type AccessData struct {
-	Bits       map[string]struct{} // bits without namespace and only for appName service
-	User       string
-	VkID       *int64
-	IsService  bool
-	EmployeeID *int64
-	UnitID     *int64
+	Bits         map[string]struct{} // bits without namespace and only for appName service
+	User         string
+	VkID         *int64
+	IsService    bool
+	EmployeeID   *int64
+	UnitID       *int64
+	UnitsIDOwner *string
 }
 
 func NewJWTHelper(publicKeys map[string][]byte, appName string) *JWTHelper {
@@ -215,11 +217,12 @@ func (helper *JWTHelper) ParseVkuthData(accessToken string) (*AccessData, error)
 		}
 	}
 	return &AccessData{
-		Bits:       bits,
-		User:       claims.Data.User,
-		VkID:       claims.Data.VkID,
-		IsService:  claims.Data.IsService,
-		EmployeeID: claims.Data.EmployeeID,
-		UnitID:     claims.Data.UnitID,
+		Bits:         bits,
+		User:         claims.Data.User,
+		VkID:         claims.Data.VkID,
+		IsService:    claims.Data.IsService,
+		EmployeeID:   claims.Data.EmployeeID,
+		UnitID:       claims.Data.UnitID,
+		UnitsIDOwner: claims.Data.UnitsIDOwner,
 	}, nil
 }

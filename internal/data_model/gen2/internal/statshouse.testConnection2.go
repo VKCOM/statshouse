@@ -53,9 +53,7 @@ func (item *StatshouseTestConnection2) Write(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringWrite(w, item.Payload); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Payload)
 	w = basictl.IntWrite(w, item.ResponseSize)
 	return basictl.IntWrite(w, item.ResponseTimeoutSec), nil
 }
@@ -81,7 +79,7 @@ func (item *StatshouseTestConnection2) ReadResult(w []byte, ret *string) (_ []by
 
 func (item *StatshouseTestConnection2) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWrite(w, ret)
+	return basictl.StringWrite(w, ret), nil
 }
 
 func (item *StatshouseTestConnection2) ReadResultJSON(j interface{}, ret *string) error {
@@ -266,9 +264,7 @@ func (item *StatshouseTestConnection2Bytes) Write(w []byte) (_ []byte, err error
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringWriteBytes(w, item.Payload); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Payload)
 	w = basictl.IntWrite(w, item.ResponseSize)
 	return basictl.IntWrite(w, item.ResponseTimeoutSec), nil
 }
@@ -294,7 +290,7 @@ func (item *StatshouseTestConnection2Bytes) ReadResult(w []byte, ret *[]byte) (_
 
 func (item *StatshouseTestConnection2Bytes) WriteResult(w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWriteBytes(w, ret)
+	return basictl.StringWriteBytes(w, ret), nil
 }
 
 func (item *StatshouseTestConnection2Bytes) ReadResultJSON(j interface{}, ret *[]byte) error {

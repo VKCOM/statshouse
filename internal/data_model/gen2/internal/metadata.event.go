@@ -233,9 +233,7 @@ func (item *MetadataEvent) Read(w []byte) (_ []byte, err error) {
 func (item *MetadataEvent) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.Id)
-	if w, err = basictl.StringWrite(w, item.Name); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Name)
 	if item.FieldMask&(1<<0) != 0 {
 		w = basictl.LongWrite(w, item.NamespaceId)
 	}
@@ -243,13 +241,9 @@ func (item *MetadataEvent) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.Unused)
 	w = basictl.LongWrite(w, item.Version)
 	w = basictl.NatWrite(w, item.UpdateTime)
-	if w, err = basictl.StringWrite(w, item.Data); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Data)
 	if item.FieldMask&(1<<1) != 0 {
-		if w, err = basictl.StringWrite(w, item.Metadata); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Metadata)
 	}
 	return w, nil
 }
@@ -517,9 +511,7 @@ func (item *MetadataEventBytes) Read(w []byte) (_ []byte, err error) {
 func (item *MetadataEventBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.LongWrite(w, item.Id)
-	if w, err = basictl.StringWriteBytes(w, item.Name); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Name)
 	if item.FieldMask&(1<<0) != 0 {
 		w = basictl.LongWrite(w, item.NamespaceId)
 	}
@@ -527,13 +519,9 @@ func (item *MetadataEventBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.Unused)
 	w = basictl.LongWrite(w, item.Version)
 	w = basictl.NatWrite(w, item.UpdateTime)
-	if w, err = basictl.StringWriteBytes(w, item.Data); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Data)
 	if item.FieldMask&(1<<1) != 0 {
-		if w, err = basictl.StringWriteBytes(w, item.Metadata); err != nil {
-			return w, err
-		}
+		w = basictl.StringWriteBytes(w, item.Metadata)
 	}
 	return w, nil
 }

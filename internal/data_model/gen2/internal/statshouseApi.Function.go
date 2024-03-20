@@ -13,7 +13,7 @@ import (
 
 var _ = basictl.NatWrite
 
-func BuiltinVectorStatshouseApiFunctionBoxedRead(w []byte, vec *[]StatshouseApiFunction) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiFunctionRead(w []byte, vec *[]StatshouseApiFunction) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
 		return w, err
@@ -34,7 +34,7 @@ func BuiltinVectorStatshouseApiFunctionBoxedRead(w []byte, vec *[]StatshouseApiF
 	return w, nil
 }
 
-func BuiltinVectorStatshouseApiFunctionBoxedWrite(w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiFunctionWrite(w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
 		if w, err = elem.WriteBoxed(w); err != nil {
@@ -44,7 +44,7 @@ func BuiltinVectorStatshouseApiFunctionBoxedWrite(w []byte, vec []StatshouseApiF
 	return w, nil
 }
 
-func BuiltinVectorStatshouseApiFunctionBoxedReadJSON(j interface{}, vec *[]StatshouseApiFunction) error {
+func BuiltinVectorStatshouseApiFunctionReadJSON(j interface{}, vec *[]StatshouseApiFunction) error {
 	l, _arr, err := JsonReadArray("[]StatshouseApiFunction", j)
 	if err != nil {
 		return err
@@ -62,10 +62,10 @@ func BuiltinVectorStatshouseApiFunctionBoxedReadJSON(j interface{}, vec *[]Stats
 	return nil
 }
 
-func BuiltinVectorStatshouseApiFunctionBoxedWriteJSON(w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
-	return BuiltinVectorStatshouseApiFunctionBoxedWriteJSONOpt(false, w, vec)
+func BuiltinVectorStatshouseApiFunctionWriteJSON(w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
+	return BuiltinVectorStatshouseApiFunctionWriteJSONOpt(false, w, vec)
 }
-func BuiltinVectorStatshouseApiFunctionBoxedWriteJSONOpt(short bool, w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiFunctionWriteJSONOpt(short bool, w []byte, vec []StatshouseApiFunction) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -194,7 +194,6 @@ var _StatshouseApiFunction = [35]UnionElement{
 	{TLTag: 0x4bd4f327, TLName: "statshouseApi.fnDerivativeUniqueNorm", TLString: "statshouseApi.fnDerivativeUniqueNorm#4bd4f327"},
 }
 
-// TODO - deconflict name
 func StatshouseApiFunction__MakeEnum(i int) StatshouseApiFunction {
 	return StatshouseApiFunction{index: i}
 }
@@ -571,4 +570,19 @@ func (item StatshouseApiFunction) String() string {
 		return err.Error()
 	}
 	return string(w)
+}
+
+func (item *StatshouseApiFunction) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil)
+}
+
+func (item *StatshouseApiFunction) UnmarshalJSON(b []byte) error {
+	j, err := JsonBytesToInterface(b)
+	if err != nil {
+		return ErrorInvalidJSON("statshouseApi.Function", err.Error())
+	}
+	if err = item.readJSON(j); err != nil {
+		return ErrorInvalidJSON("statshouseApi.Function", err.Error())
+	}
+	return nil
 }

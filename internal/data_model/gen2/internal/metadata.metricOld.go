@@ -163,9 +163,7 @@ func (item *MetadataMetricOld) Read(w []byte, nat_field_mask uint32) (_ []byte, 
 
 func (item *MetadataMetricOld) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.Id)
-	if w, err = basictl.StringWrite(w, item.Name); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Name)
 	if nat_field_mask&(1<<2) != 0 {
 		w = basictl.IntWrite(w, item.EventType)
 	}
@@ -174,7 +172,7 @@ func (item *MetadataMetricOld) Write(w []byte, nat_field_mask uint32) (_ []byte,
 	}
 	w = basictl.LongWrite(w, item.Version)
 	w = basictl.NatWrite(w, item.UpdateTime)
-	return basictl.StringWrite(w, item.Data)
+	return basictl.StringWrite(w, item.Data), nil
 }
 
 func (item *MetadataMetricOld) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {

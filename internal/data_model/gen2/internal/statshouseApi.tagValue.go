@@ -111,9 +111,7 @@ func (item *StatshouseApiTagValue) Write(w []byte) (_ []byte, err error) {
 	if w, err = BoolWriteBoxed(w, item.In); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringWrite(w, item.Value); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Value)
 	return item.Flag.WriteBoxed(w)
 }
 

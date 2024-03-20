@@ -13,27 +13,34 @@ import (
 
 var _ = basictl.NatWrite
 
-func (item EngineAlreadyInMasterMode) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item EngineAlreadyInMasterMode) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetAlreadyInMasterMode()
 	return ret
 }
 
-// AsUnion will be here
 type EngineAlreadyInMasterMode struct {
 }
 
 func (EngineAlreadyInMasterMode) TLName() string { return "engine.alreadyInMasterMode" }
 func (EngineAlreadyInMasterMode) TLTag() uint32  { return 0x402409cb }
 
-func (item *EngineAlreadyInMasterMode) Reset()                         {}
-func (item *EngineAlreadyInMasterMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineAlreadyInMasterMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineAlreadyInMasterMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x402409cb)
+func (item *EngineAlreadyInMasterMode) Reset() {}
+
+func (item *EngineAlreadyInMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineAlreadyInMasterMode) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineAlreadyInMasterMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x402409cb); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineAlreadyInMasterMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x402409cb), nil
+	w = basictl.NatWrite(w, 0x402409cb)
+	return item.Write(w)
 }
 
 func (item EngineAlreadyInMasterMode) String() string {
@@ -81,27 +88,34 @@ func (item *EngineAlreadyInMasterMode) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (item EngineAlreadyInReplicaMode) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item EngineAlreadyInReplicaMode) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetAlreadyInReplicaMode()
 	return ret
 }
 
-// AsUnion will be here
 type EngineAlreadyInReplicaMode struct {
 }
 
 func (EngineAlreadyInReplicaMode) TLName() string { return "engine.alreadyInReplicaMode" }
 func (EngineAlreadyInReplicaMode) TLTag() uint32  { return 0xebd80142 }
 
-func (item *EngineAlreadyInReplicaMode) Reset()                         {}
-func (item *EngineAlreadyInReplicaMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineAlreadyInReplicaMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineAlreadyInReplicaMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xebd80142)
+func (item *EngineAlreadyInReplicaMode) Reset() {}
+
+func (item *EngineAlreadyInReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineAlreadyInReplicaMode) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineAlreadyInReplicaMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xebd80142); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineAlreadyInReplicaMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xebd80142), nil
+	w = basictl.NatWrite(w, 0xebd80142)
+	return item.Write(w)
 }
 
 func (item EngineAlreadyInReplicaMode) String() string {
@@ -149,13 +163,12 @@ func (item *EngineAlreadyInReplicaMode) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (item EngineFailedToSwitchMode) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item EngineFailedToSwitchMode) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetFailedToSwitchMode(item)
 	return ret
 }
 
-// AsUnion will be here
 type EngineFailedToSwitchMode struct {
 	Error string
 }
@@ -172,7 +185,7 @@ func (item *EngineFailedToSwitchMode) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *EngineFailedToSwitchMode) Write(w []byte) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.Error)
+	return basictl.StringWrite(w, item.Error), nil
 }
 
 func (item *EngineFailedToSwitchMode) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -242,7 +255,7 @@ func (item *EngineFailedToSwitchMode) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-var _EngineSwitchMasterReplicaModeResultUnion = [6]UnionElement{
+var _EngineSwitchMasterReplicaModeResult = [6]UnionElement{
 	{TLTag: 0x95b13964, TLName: "engine.switchedToMasterMode", TLString: "engine.switchedToMasterMode#95b13964"},
 	{TLTag: 0xad642a0b, TLName: "engine.switchedToReplicaMode", TLString: "engine.switchedToReplicaMode#ad642a0b"},
 	{TLTag: 0x402409cb, TLName: "engine.alreadyInMasterMode", TLString: "engine.alreadyInMasterMode#402409cb"},
@@ -251,106 +264,102 @@ var _EngineSwitchMasterReplicaModeResultUnion = [6]UnionElement{
 	{TLTag: 0x17418662, TLName: "engine.failedToSwitchMode", TLString: "engine.failedToSwitchMode#17418662"},
 }
 
-type EngineSwitchMasterReplicaModeResultUnion struct {
+type EngineSwitchMasterReplicaModeResult struct {
 	valueSwitchedToMasterModeForcefully EngineSwitchedToMasterModeForcefully
 	valueFailedToSwitchMode             EngineFailedToSwitchMode
 	index                               int
 }
 
-func (item EngineSwitchMasterReplicaModeResultUnion) TLName() string {
-	return _EngineSwitchMasterReplicaModeResultUnion[item.index].TLName
+func (item EngineSwitchMasterReplicaModeResult) TLName() string {
+	return _EngineSwitchMasterReplicaModeResult[item.index].TLName
 }
-func (item EngineSwitchMasterReplicaModeResultUnion) TLTag() uint32 {
-	return _EngineSwitchMasterReplicaModeResultUnion[item.index].TLTag
+func (item EngineSwitchMasterReplicaModeResult) TLTag() uint32 {
+	return _EngineSwitchMasterReplicaModeResult[item.index].TLTag
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) Reset() { item.index = 0 }
+func (item *EngineSwitchMasterReplicaModeResult) Reset() { item.index = 0 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsSwitchedToMasterMode() bool {
+func (item *EngineSwitchMasterReplicaModeResult) IsSwitchedToMasterMode() bool {
 	return item.index == 0
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsSwitchedToMasterMode() (EngineSwitchedToMasterMode, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsSwitchedToMasterMode() (EngineSwitchedToMasterMode, bool) {
 	var value EngineSwitchedToMasterMode
 	return value, item.index == 0
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToSwitchedToMasterMode() { item.index = 0 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetSwitchedToMasterMode()     { item.index = 0 }
+func (item *EngineSwitchMasterReplicaModeResult) ResetToSwitchedToMasterMode() { item.index = 0 }
+func (item *EngineSwitchMasterReplicaModeResult) SetSwitchedToMasterMode()     { item.index = 0 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsSwitchedToReplicaMode() bool {
+func (item *EngineSwitchMasterReplicaModeResult) IsSwitchedToReplicaMode() bool {
 	return item.index == 1
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsSwitchedToReplicaMode() (EngineSwitchedToReplicaMode, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsSwitchedToReplicaMode() (EngineSwitchedToReplicaMode, bool) {
 	var value EngineSwitchedToReplicaMode
 	return value, item.index == 1
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToSwitchedToReplicaMode() { item.index = 1 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetSwitchedToReplicaMode()     { item.index = 1 }
+func (item *EngineSwitchMasterReplicaModeResult) ResetToSwitchedToReplicaMode() { item.index = 1 }
+func (item *EngineSwitchMasterReplicaModeResult) SetSwitchedToReplicaMode()     { item.index = 1 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsAlreadyInMasterMode() bool {
-	return item.index == 2
-}
+func (item *EngineSwitchMasterReplicaModeResult) IsAlreadyInMasterMode() bool { return item.index == 2 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsAlreadyInMasterMode() (EngineAlreadyInMasterMode, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsAlreadyInMasterMode() (EngineAlreadyInMasterMode, bool) {
 	var value EngineAlreadyInMasterMode
 	return value, item.index == 2
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToAlreadyInMasterMode() { item.index = 2 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetAlreadyInMasterMode()     { item.index = 2 }
+func (item *EngineSwitchMasterReplicaModeResult) ResetToAlreadyInMasterMode() { item.index = 2 }
+func (item *EngineSwitchMasterReplicaModeResult) SetAlreadyInMasterMode()     { item.index = 2 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsAlreadyInReplicaMode() bool {
+func (item *EngineSwitchMasterReplicaModeResult) IsAlreadyInReplicaMode() bool {
 	return item.index == 3
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsAlreadyInReplicaMode() (EngineAlreadyInReplicaMode, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsAlreadyInReplicaMode() (EngineAlreadyInReplicaMode, bool) {
 	var value EngineAlreadyInReplicaMode
 	return value, item.index == 3
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToAlreadyInReplicaMode() { item.index = 3 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetAlreadyInReplicaMode()     { item.index = 3 }
+func (item *EngineSwitchMasterReplicaModeResult) ResetToAlreadyInReplicaMode() { item.index = 3 }
+func (item *EngineSwitchMasterReplicaModeResult) SetAlreadyInReplicaMode()     { item.index = 3 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsSwitchedToMasterModeForcefully() bool {
+func (item *EngineSwitchMasterReplicaModeResult) IsSwitchedToMasterModeForcefully() bool {
 	return item.index == 4
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsSwitchedToMasterModeForcefully() (*EngineSwitchedToMasterModeForcefully, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsSwitchedToMasterModeForcefully() (*EngineSwitchedToMasterModeForcefully, bool) {
 	if item.index != 4 {
 		return nil, false
 	}
 	return &item.valueSwitchedToMasterModeForcefully, true
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToSwitchedToMasterModeForcefully() *EngineSwitchedToMasterModeForcefully {
+func (item *EngineSwitchMasterReplicaModeResult) ResetToSwitchedToMasterModeForcefully() *EngineSwitchedToMasterModeForcefully {
 	item.index = 4
 	item.valueSwitchedToMasterModeForcefully.Reset()
 	return &item.valueSwitchedToMasterModeForcefully
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetSwitchedToMasterModeForcefully(value EngineSwitchedToMasterModeForcefully) {
+func (item *EngineSwitchMasterReplicaModeResult) SetSwitchedToMasterModeForcefully(value EngineSwitchedToMasterModeForcefully) {
 	item.index = 4
 	item.valueSwitchedToMasterModeForcefully = value
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) IsFailedToSwitchMode() bool {
-	return item.index == 5
-}
+func (item *EngineSwitchMasterReplicaModeResult) IsFailedToSwitchMode() bool { return item.index == 5 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) AsFailedToSwitchMode() (*EngineFailedToSwitchMode, bool) {
+func (item *EngineSwitchMasterReplicaModeResult) AsFailedToSwitchMode() (*EngineFailedToSwitchMode, bool) {
 	if item.index != 5 {
 		return nil, false
 	}
 	return &item.valueFailedToSwitchMode, true
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) ResetToFailedToSwitchMode() *EngineFailedToSwitchMode {
+func (item *EngineSwitchMasterReplicaModeResult) ResetToFailedToSwitchMode() *EngineFailedToSwitchMode {
 	item.index = 5
 	item.valueFailedToSwitchMode.Reset()
 	return &item.valueFailedToSwitchMode
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) SetFailedToSwitchMode(value EngineFailedToSwitchMode) {
+func (item *EngineSwitchMasterReplicaModeResult) SetFailedToSwitchMode(value EngineFailedToSwitchMode) {
 	item.index = 5
 	item.valueFailedToSwitchMode = value
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *EngineSwitchMasterReplicaModeResult) ReadBoxed(w []byte) (_ []byte, err error) {
 	var tag uint32
 	if w, err = basictl.NatRead(w, &tag); err != nil {
 		return w, err
@@ -379,8 +388,8 @@ func (item *EngineSwitchMasterReplicaModeResultUnion) ReadBoxed(w []byte) (_ []b
 	}
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) WriteBoxed(w []byte) (_ []byte, err error) {
-	w = basictl.NatWrite(w, _EngineSwitchMasterReplicaModeResultUnion[item.index].TLTag)
+func (item *EngineSwitchMasterReplicaModeResult) WriteBoxed(w []byte) (_ []byte, err error) {
+	w = basictl.NatWrite(w, _EngineSwitchMasterReplicaModeResult[item.index].TLTag)
 	switch item.index {
 	case 0:
 		return w, nil
@@ -399,10 +408,10 @@ func (item *EngineSwitchMasterReplicaModeResultUnion) WriteBoxed(w []byte) (_ []
 	}
 }
 
-func EngineSwitchMasterReplicaModeResultUnion__ReadJSON(item *EngineSwitchMasterReplicaModeResultUnion, j interface{}) error {
+func EngineSwitchMasterReplicaModeResult__ReadJSON(item *EngineSwitchMasterReplicaModeResult, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) readJSON(j interface{}) error {
+func (item *EngineSwitchMasterReplicaModeResult) readJSON(j interface{}) error {
 	_jm, _tag, err := JsonReadUnionType("engine.SwitchMasterReplicaModeResult", j)
 	if err != nil {
 		return err
@@ -438,10 +447,10 @@ func (item *EngineSwitchMasterReplicaModeResultUnion) readJSON(j interface{}) er
 	return nil
 }
 
-func (item *EngineSwitchMasterReplicaModeResultUnion) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *EngineSwitchMasterReplicaModeResult) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(false, w)
 }
-func (item *EngineSwitchMasterReplicaModeResultUnion) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSwitchMasterReplicaModeResult) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	switch item.index {
 	case 0:
 		return append(w, `{"type":"engine.switchedToMasterMode#95b13964"}`...), nil
@@ -468,7 +477,7 @@ func (item *EngineSwitchMasterReplicaModeResultUnion) WriteJSONOpt(short bool, w
 	}
 }
 
-func (item EngineSwitchMasterReplicaModeResultUnion) String() string {
+func (item EngineSwitchMasterReplicaModeResult) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -476,27 +485,49 @@ func (item EngineSwitchMasterReplicaModeResultUnion) String() string {
 	return string(w)
 }
 
-func (item EngineSwitchedToMasterMode) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item *EngineSwitchMasterReplicaModeResult) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil)
+}
+
+func (item *EngineSwitchMasterReplicaModeResult) UnmarshalJSON(b []byte) error {
+	j, err := JsonBytesToInterface(b)
+	if err != nil {
+		return ErrorInvalidJSON("engine.SwitchMasterReplicaModeResult", err.Error())
+	}
+	if err = item.readJSON(j); err != nil {
+		return ErrorInvalidJSON("engine.SwitchMasterReplicaModeResult", err.Error())
+	}
+	return nil
+}
+
+func (item EngineSwitchedToMasterMode) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetSwitchedToMasterMode()
 	return ret
 }
 
-// AsUnion will be here
 type EngineSwitchedToMasterMode struct {
 }
 
 func (EngineSwitchedToMasterMode) TLName() string { return "engine.switchedToMasterMode" }
 func (EngineSwitchedToMasterMode) TLTag() uint32  { return 0x95b13964 }
 
-func (item *EngineSwitchedToMasterMode) Reset()                         {}
-func (item *EngineSwitchedToMasterMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineSwitchedToMasterMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineSwitchedToMasterMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x95b13964)
+func (item *EngineSwitchedToMasterMode) Reset() {}
+
+func (item *EngineSwitchedToMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchedToMasterMode) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchedToMasterMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x95b13964); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineSwitchedToMasterMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x95b13964), nil
+	w = basictl.NatWrite(w, 0x95b13964)
+	return item.Write(w)
 }
 
 func (item EngineSwitchedToMasterMode) String() string {
@@ -544,13 +575,12 @@ func (item *EngineSwitchedToMasterMode) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (item EngineSwitchedToMasterModeForcefully) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item EngineSwitchedToMasterModeForcefully) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetSwitchedToMasterModeForcefully(item)
 	return ret
 }
 
-// AsUnion will be here
 type EngineSwitchedToMasterModeForcefully struct {
 	BytesTruncated int64
 }
@@ -639,27 +669,34 @@ func (item *EngineSwitchedToMasterModeForcefully) UnmarshalJSON(b []byte) error 
 	return nil
 }
 
-func (item EngineSwitchedToReplicaMode) AsUnion() EngineSwitchMasterReplicaModeResultUnion {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+func (item EngineSwitchedToReplicaMode) AsUnion() EngineSwitchMasterReplicaModeResult {
+	var ret EngineSwitchMasterReplicaModeResult
 	ret.SetSwitchedToReplicaMode()
 	return ret
 }
 
-// AsUnion will be here
 type EngineSwitchedToReplicaMode struct {
 }
 
 func (EngineSwitchedToReplicaMode) TLName() string { return "engine.switchedToReplicaMode" }
 func (EngineSwitchedToReplicaMode) TLTag() uint32  { return 0xad642a0b }
 
-func (item *EngineSwitchedToReplicaMode) Reset()                         {}
-func (item *EngineSwitchedToReplicaMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineSwitchedToReplicaMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineSwitchedToReplicaMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xad642a0b)
+func (item *EngineSwitchedToReplicaMode) Reset() {}
+
+func (item *EngineSwitchedToReplicaMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchedToReplicaMode) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchedToReplicaMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xad642a0b); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineSwitchedToReplicaMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xad642a0b), nil
+	w = basictl.NatWrite(w, 0xad642a0b)
+	return item.Write(w)
 }
 
 func (item EngineSwitchedToReplicaMode) String() string {

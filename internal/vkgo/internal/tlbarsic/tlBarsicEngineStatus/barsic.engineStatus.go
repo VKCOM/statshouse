@@ -78,18 +78,12 @@ func (item *BarsicEngineStatus) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicEngineStatus) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.Version); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.LoadedSnapshot); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Version)
+	w = basictl.StringWrite(w, item.LoadedSnapshot)
 	w = basictl.LongWrite(w, item.LoadedSnapshotOffset)
 	w = basictl.LongWrite(w, item.LoadedSnapshotProgress)
 	w = basictl.LongWrite(w, item.LoadedSnapshotSize)
-	if w, err = basictl.StringWrite(w, item.PreparedSnapshot); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.PreparedSnapshot)
 	w = basictl.LongWrite(w, item.PreparedSnapshotOffset)
 	w = basictl.LongWrite(w, item.PreparedSnapshotProgress)
 	return basictl.LongWrite(w, item.PreparedSnapshotSize), nil
@@ -371,18 +365,12 @@ func (item *BarsicEngineStatusBytes) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicEngineStatusBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWriteBytes(w, item.Version); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.LoadedSnapshot); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Version)
+	w = basictl.StringWriteBytes(w, item.LoadedSnapshot)
 	w = basictl.LongWrite(w, item.LoadedSnapshotOffset)
 	w = basictl.LongWrite(w, item.LoadedSnapshotProgress)
 	w = basictl.LongWrite(w, item.LoadedSnapshotSize)
-	if w, err = basictl.StringWriteBytes(w, item.PreparedSnapshot); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.PreparedSnapshot)
 	w = basictl.LongWrite(w, item.PreparedSnapshotOffset)
 	w = basictl.LongWrite(w, item.PreparedSnapshotProgress)
 	return basictl.LongWrite(w, item.PreparedSnapshotSize), nil

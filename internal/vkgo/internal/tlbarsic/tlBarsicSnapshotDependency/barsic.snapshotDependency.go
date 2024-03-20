@@ -47,12 +47,8 @@ func (item *BarsicSnapshotDependency) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicSnapshotDependency) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.ClusterId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.ShardId); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.ClusterId)
+	w = basictl.StringWrite(w, item.ShardId)
 	return basictl.LongWrite(w, item.PayloadOffset), nil
 }
 
@@ -185,12 +181,8 @@ func (item *BarsicSnapshotDependencyBytes) Read(w []byte) (_ []byte, err error) 
 
 func (item *BarsicSnapshotDependencyBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWriteBytes(w, item.ClusterId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.ShardId); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.ClusterId)
+	w = basictl.StringWriteBytes(w, item.ShardId)
 	return basictl.LongWrite(w, item.PayloadOffset), nil
 }
 

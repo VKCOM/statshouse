@@ -13,13 +13,13 @@ import (
 
 var _ = basictl.NatWrite
 
-func BuiltinTupleInt4Reset(vec *[4]int32) {
+func BuiltinTuple4IntReset(vec *[4]int32) {
 	for i := range *vec {
 		(*vec)[i] = 0
 	}
 }
 
-func BuiltinTupleInt4Read(w []byte, vec *[4]int32) (_ []byte, err error) {
+func BuiltinTuple4IntRead(w []byte, vec *[4]int32) (_ []byte, err error) {
 	for i := range *vec {
 		if w, err = basictl.IntRead(w, &(*vec)[i]); err != nil {
 			return w, err
@@ -28,14 +28,14 @@ func BuiltinTupleInt4Read(w []byte, vec *[4]int32) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinTupleInt4Write(w []byte, vec *[4]int32) (_ []byte, err error) {
+func BuiltinTuple4IntWrite(w []byte, vec *[4]int32) (_ []byte, err error) {
 	for _, elem := range *vec {
 		w = basictl.IntWrite(w, elem)
 	}
 	return w, nil
 }
 
-func BuiltinTupleInt4ReadJSON(j interface{}, vec *[4]int32) error {
+func BuiltinTuple4IntReadJSON(j interface{}, vec *[4]int32) error {
 	_, _arr, err := JsonReadArrayFixedSize("[4]int32", j, 4)
 	if err != nil {
 		return err
@@ -48,10 +48,10 @@ func BuiltinTupleInt4ReadJSON(j interface{}, vec *[4]int32) error {
 	return nil
 }
 
-func BuiltinTupleInt4WriteJSON(w []byte, vec *[4]int32) (_ []byte, err error) {
-	return BuiltinTupleInt4WriteJSONOpt(false, w, vec)
+func BuiltinTuple4IntWriteJSON(w []byte, vec *[4]int32) (_ []byte, err error) {
+	return BuiltinTuple4IntWriteJSONOpt(false, w, vec)
 }
-func BuiltinTupleInt4WriteJSONOpt(short bool, w []byte, vec *[4]int32) (_ []byte, err error) {
+func BuiltinTuple4IntWriteJSONOpt(short bool, w []byte, vec *[4]int32) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range *vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

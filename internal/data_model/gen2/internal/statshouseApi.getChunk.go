@@ -45,9 +45,7 @@ func (item *StatshouseApiGetChunk) Read(w []byte) (_ []byte, err error) {
 
 func (item *StatshouseApiGetChunk) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.AccessToken); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.AccessToken)
 	w = basictl.LongWrite(w, item.ResponseId)
 	return basictl.IntWrite(w, item.ChunkId), nil
 }

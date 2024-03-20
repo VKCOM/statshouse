@@ -245,9 +245,7 @@ func (item *StatshouseMetric) Read(w []byte) (_ []byte, err error) {
 
 func (item *StatshouseMetric) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.Name); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Name)
 	if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.Tags); err != nil {
 		return w, err
 	}
@@ -535,9 +533,7 @@ func (item *StatshouseMetricBytes) Read(w []byte) (_ []byte, err error) {
 
 func (item *StatshouseMetricBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWriteBytes(w, item.Name); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Name)
 	if w, err = BuiltinVectorDictionaryFieldStringBytesWrite(w, item.Tags); err != nil {
 		return w, err
 	}

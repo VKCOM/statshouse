@@ -13,48 +13,223 @@ import (
 
 var _ = basictl.NatWrite
 
-func (item MetadataGetMappingResponse) AsUnion() MetadataGetMappingResponseUnion {
-	var ret MetadataGetMappingResponseUnion
-	ret.SetGetMappingResponse(item)
-	return ret
+var _MetadataGetMappingResponse = [4]UnionElement{
+	{TLTag: 0x9286abfc, TLName: "metadata.getMappingResponse", TLString: "metadata.getMappingResponse#9286abfc"},
+	{TLTag: 0x9286abfd, TLName: "metadata.getMappingResponseFloodLimitError", TLString: "metadata.getMappingResponseFloodLimitError#9286abfd"},
+	{TLTag: 0x9286abff, TLName: "metadata.getMappingResponseKeyNotExists", TLString: "metadata.getMappingResponseKeyNotExists#9286abff"},
+	{TLTag: 0x9286abbb, TLName: "metadata.getMappingResponseCreated", TLString: "metadata.getMappingResponseCreated#9286abbb"},
 }
 
-// AsUnion will be here
 type MetadataGetMappingResponse struct {
-	Id int32
+	valueGetMappingResponse MetadataGetMappingResponse0
+	valueCreated            MetadataGetMappingResponseCreated
+	index                   int
 }
 
-func (MetadataGetMappingResponse) TLName() string { return "metadata.getMappingResponse" }
-func (MetadataGetMappingResponse) TLTag() uint32  { return 0x9286abfc }
-
-func (item *MetadataGetMappingResponse) Reset() {
-	item.Id = 0
+func (item MetadataGetMappingResponse) TLName() string {
+	return _MetadataGetMappingResponse[item.index].TLName
+}
+func (item MetadataGetMappingResponse) TLTag() uint32 {
+	return _MetadataGetMappingResponse[item.index].TLTag
 }
 
-func (item *MetadataGetMappingResponse) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return basictl.IntRead(w, &item.Id)
+func (item *MetadataGetMappingResponse) Reset() { item.ResetToGetMappingResponse() }
+
+func (item *MetadataGetMappingResponse) IsGetMappingResponse() bool { return item.index == 0 }
+
+func (item *MetadataGetMappingResponse) AsGetMappingResponse() (*MetadataGetMappingResponse0, bool) {
+	if item.index != 0 {
+		return nil, false
+	}
+	return &item.valueGetMappingResponse, true
+}
+func (item *MetadataGetMappingResponse) ResetToGetMappingResponse() *MetadataGetMappingResponse0 {
+	item.index = 0
+	item.valueGetMappingResponse.Reset()
+	return &item.valueGetMappingResponse
+}
+func (item *MetadataGetMappingResponse) SetGetMappingResponse(value MetadataGetMappingResponse0) {
+	item.index = 0
+	item.valueGetMappingResponse = value
 }
 
-func (item *MetadataGetMappingResponse) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return basictl.IntWrite(w, item.Id), nil
+func (item *MetadataGetMappingResponse) IsFloodLimitError() bool { return item.index == 1 }
+
+func (item *MetadataGetMappingResponse) AsFloodLimitError() (MetadataGetMappingResponseFloodLimitError, bool) {
+	var value MetadataGetMappingResponseFloodLimitError
+	return value, item.index == 1
+}
+func (item *MetadataGetMappingResponse) ResetToFloodLimitError() { item.index = 1 }
+func (item *MetadataGetMappingResponse) SetFloodLimitError()     { item.index = 1 }
+
+func (item *MetadataGetMappingResponse) IsKeyNotExists() bool { return item.index == 2 }
+
+func (item *MetadataGetMappingResponse) AsKeyNotExists() (MetadataGetMappingResponseKeyNotExists, bool) {
+	var value MetadataGetMappingResponseKeyNotExists
+	return value, item.index == 2
+}
+func (item *MetadataGetMappingResponse) ResetToKeyNotExists() { item.index = 2 }
+func (item *MetadataGetMappingResponse) SetKeyNotExists()     { item.index = 2 }
+
+func (item *MetadataGetMappingResponse) IsCreated() bool { return item.index == 3 }
+
+func (item *MetadataGetMappingResponse) AsCreated() (*MetadataGetMappingResponseCreated, bool) {
+	if item.index != 3 {
+		return nil, false
+	}
+	return &item.valueCreated, true
+}
+func (item *MetadataGetMappingResponse) ResetToCreated() *MetadataGetMappingResponseCreated {
+	item.index = 3
+	item.valueCreated.Reset()
+	return &item.valueCreated
+}
+func (item *MetadataGetMappingResponse) SetCreated(value MetadataGetMappingResponseCreated) {
+	item.index = 3
+	item.valueCreated = value
 }
 
 func (item *MetadataGetMappingResponse) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	if w, err = basictl.NatReadExactTag(w, 0x9286abfc); err != nil {
+	var tag uint32
+	if w, err = basictl.NatRead(w, &tag); err != nil {
 		return w, err
 	}
-	return item.Read(w, nat_field_mask)
+	switch tag {
+	case 0x9286abfc:
+		item.index = 0
+		return item.valueGetMappingResponse.Read(w, nat_field_mask)
+	case 0x9286abfd:
+		item.index = 1
+		return w, nil
+	case 0x9286abff:
+		item.index = 2
+		return w, nil
+	case 0x9286abbb:
+		item.index = 3
+		return item.valueCreated.Read(w, nat_field_mask)
+	default:
+		return w, ErrorInvalidUnionTag("metadata.GetMappingResponse", tag)
+	}
 }
 
-func (item *MetadataGetMappingResponse) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
-	w = basictl.NatWrite(w, 0x9286abfc)
-	return item.Write(w, nat_field_mask)
+func (item *MetadataGetMappingResponse) WriteBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	w = basictl.NatWrite(w, _MetadataGetMappingResponse[item.index].TLTag)
+	switch item.index {
+	case 0:
+		return item.valueGetMappingResponse.Write(w, nat_field_mask)
+	case 1:
+		return w, nil
+	case 2:
+		return w, nil
+	case 3:
+		return item.valueCreated.Write(w, nat_field_mask)
+	default: // Impossible due to panic above
+		return w, nil
+	}
 }
 
 func MetadataGetMappingResponse__ReadJSON(item *MetadataGetMappingResponse, j interface{}, nat_field_mask uint32) error {
 	return item.readJSON(j, nat_field_mask)
 }
 func (item *MetadataGetMappingResponse) readJSON(j interface{}, nat_field_mask uint32) error {
+	_jm, _tag, err := JsonReadUnionType("metadata.GetMappingResponse", j)
+	if err != nil {
+		return err
+	}
+	jvalue := _jm["value"]
+	switch _tag {
+	case "metadata.getMappingResponse#9286abfc", "metadata.getMappingResponse", "#9286abfc":
+		item.index = 0
+		if err := MetadataGetMappingResponse0__ReadJSON(&item.valueGetMappingResponse, jvalue, nat_field_mask); err != nil {
+			return err
+		}
+		delete(_jm, "value")
+	case "metadata.getMappingResponseFloodLimitError#9286abfd", "metadata.getMappingResponseFloodLimitError", "#9286abfd":
+		item.index = 1
+	case "metadata.getMappingResponseKeyNotExists#9286abff", "metadata.getMappingResponseKeyNotExists", "#9286abff":
+		item.index = 2
+	case "metadata.getMappingResponseCreated#9286abbb", "metadata.getMappingResponseCreated", "#9286abbb":
+		item.index = 3
+		if err := MetadataGetMappingResponseCreated__ReadJSON(&item.valueCreated, jvalue, nat_field_mask); err != nil {
+			return err
+		}
+		delete(_jm, "value")
+	default:
+		return ErrorInvalidUnionTagJSON("metadata.GetMappingResponse", _tag)
+	}
+	for k := range _jm {
+		return ErrorInvalidJSONExcessElement("metadata.GetMappingResponse", k)
+	}
+	return nil
+}
+
+func (item *MetadataGetMappingResponse) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w, nat_field_mask)
+}
+func (item *MetadataGetMappingResponse) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	switch item.index {
+	case 0:
+		w = append(w, `{"type":"metadata.getMappingResponse#9286abfc","value":`...)
+		if w, err = item.valueGetMappingResponse.WriteJSONOpt(short, w, nat_field_mask); err != nil {
+			return w, err
+		}
+		return append(w, '}'), nil
+	case 1:
+		return append(w, `{"type":"metadata.getMappingResponseFloodLimitError#9286abfd"}`...), nil
+	case 2:
+		return append(w, `{"type":"metadata.getMappingResponseKeyNotExists#9286abff"}`...), nil
+	case 3:
+		w = append(w, `{"type":"metadata.getMappingResponseCreated#9286abbb","value":`...)
+		if w, err = item.valueCreated.WriteJSONOpt(short, w, nat_field_mask); err != nil {
+			return w, err
+		}
+		return append(w, '}'), nil
+	default: // Impossible due to panic above
+		return w, nil
+	}
+}
+
+func (item MetadataGetMappingResponse0) AsUnion() MetadataGetMappingResponse {
+	var ret MetadataGetMappingResponse
+	ret.SetGetMappingResponse(item)
+	return ret
+}
+
+type MetadataGetMappingResponse0 struct {
+	Id int32
+}
+
+func (MetadataGetMappingResponse0) TLName() string { return "metadata.getMappingResponse" }
+func (MetadataGetMappingResponse0) TLTag() uint32  { return 0x9286abfc }
+
+func (item *MetadataGetMappingResponse0) Reset() {
+	item.Id = 0
+}
+
+func (item *MetadataGetMappingResponse0) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return basictl.IntRead(w, &item.Id)
+}
+
+func (item *MetadataGetMappingResponse0) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	return basictl.IntWrite(w, item.Id), nil
+}
+
+func (item *MetadataGetMappingResponse0) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x9286abfc); err != nil {
+		return w, err
+	}
+	return item.Read(w, nat_field_mask)
+}
+
+func (item *MetadataGetMappingResponse0) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x9286abfc)
+	return item.Write(w, nat_field_mask)
+}
+
+func MetadataGetMappingResponse0__ReadJSON(item *MetadataGetMappingResponse0, j interface{}, nat_field_mask uint32) error {
+	return item.readJSON(j, nat_field_mask)
+}
+func (item *MetadataGetMappingResponse0) readJSON(j interface{}, nat_field_mask uint32) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("metadata.getMappingResponse", "expected json object")
@@ -70,10 +245,10 @@ func (item *MetadataGetMappingResponse) readJSON(j interface{}, nat_field_mask u
 	return nil
 }
 
-func (item *MetadataGetMappingResponse) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetMappingResponse0) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return item.WriteJSONOpt(false, w, nat_field_mask)
 }
-func (item *MetadataGetMappingResponse) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetMappingResponse0) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Id != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -83,13 +258,12 @@ func (item *MetadataGetMappingResponse) WriteJSONOpt(short bool, w []byte, nat_f
 	return append(w, '}'), nil
 }
 
-func (item MetadataGetMappingResponseCreated) AsUnion() MetadataGetMappingResponseUnion {
-	var ret MetadataGetMappingResponseUnion
+func (item MetadataGetMappingResponseCreated) AsUnion() MetadataGetMappingResponse {
+	var ret MetadataGetMappingResponse
 	ret.SetCreated(item)
 	return ret
 }
 
-// AsUnion will be here
 type MetadataGetMappingResponseCreated struct {
 	Id int32
 }
@@ -153,13 +327,12 @@ func (item *MetadataGetMappingResponseCreated) WriteJSONOpt(short bool, w []byte
 	return append(w, '}'), nil
 }
 
-func (item MetadataGetMappingResponseFloodLimitError) AsUnion() MetadataGetMappingResponseUnion {
-	var ret MetadataGetMappingResponseUnion
+func (item MetadataGetMappingResponseFloodLimitError) AsUnion() MetadataGetMappingResponse {
+	var ret MetadataGetMappingResponse
 	ret.SetFloodLimitError()
 	return ret
 }
 
-// AsUnion will be here
 type MetadataGetMappingResponseFloodLimitError struct {
 }
 
@@ -169,17 +342,25 @@ func (MetadataGetMappingResponseFloodLimitError) TLName() string {
 func (MetadataGetMappingResponseFloodLimitError) TLTag() uint32 { return 0x9286abfd }
 
 func (item *MetadataGetMappingResponseFloodLimitError) Reset() {}
-func (item *MetadataGetMappingResponseFloodLimitError) Read(w []byte, nat_field_mask uint32) ([]byte, error) {
+
+func (item *MetadataGetMappingResponseFloodLimitError) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return w, nil
 }
-func (item *MetadataGetMappingResponseFloodLimitError) Write(w []byte, nat_field_mask uint32) ([]byte, error) {
+
+func (item *MetadataGetMappingResponseFloodLimitError) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return w, nil
 }
-func (item *MetadataGetMappingResponseFloodLimitError) ReadBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x9286abfd)
+
+func (item *MetadataGetMappingResponseFloodLimitError) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x9286abfd); err != nil {
+		return w, err
+	}
+	return item.Read(w, nat_field_mask)
 }
+
 func (item *MetadataGetMappingResponseFloodLimitError) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
-	return basictl.NatWrite(w, 0x9286abfd), nil
+	w = basictl.NatWrite(w, 0x9286abfd)
+	return item.Write(w, nat_field_mask)
 }
 
 func MetadataGetMappingResponseFloodLimitError__ReadJSON(item *MetadataGetMappingResponseFloodLimitError, j interface{}, nat_field_mask uint32) error {
@@ -204,13 +385,12 @@ func (item *MetadataGetMappingResponseFloodLimitError) WriteJSONOpt(short bool, 
 	return append(w, '}'), nil
 }
 
-func (item MetadataGetMappingResponseKeyNotExists) AsUnion() MetadataGetMappingResponseUnion {
-	var ret MetadataGetMappingResponseUnion
+func (item MetadataGetMappingResponseKeyNotExists) AsUnion() MetadataGetMappingResponse {
+	var ret MetadataGetMappingResponse
 	ret.SetKeyNotExists()
 	return ret
 }
 
-// AsUnion will be here
 type MetadataGetMappingResponseKeyNotExists struct {
 }
 
@@ -220,17 +400,25 @@ func (MetadataGetMappingResponseKeyNotExists) TLName() string {
 func (MetadataGetMappingResponseKeyNotExists) TLTag() uint32 { return 0x9286abff }
 
 func (item *MetadataGetMappingResponseKeyNotExists) Reset() {}
-func (item *MetadataGetMappingResponseKeyNotExists) Read(w []byte, nat_field_mask uint32) ([]byte, error) {
+
+func (item *MetadataGetMappingResponseKeyNotExists) Read(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return w, nil
 }
-func (item *MetadataGetMappingResponseKeyNotExists) Write(w []byte, nat_field_mask uint32) ([]byte, error) {
+
+func (item *MetadataGetMappingResponseKeyNotExists) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	return w, nil
 }
-func (item *MetadataGetMappingResponseKeyNotExists) ReadBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x9286abff)
+
+func (item *MetadataGetMappingResponseKeyNotExists) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x9286abff); err != nil {
+		return w, err
+	}
+	return item.Read(w, nat_field_mask)
 }
+
 func (item *MetadataGetMappingResponseKeyNotExists) WriteBoxed(w []byte, nat_field_mask uint32) ([]byte, error) {
-	return basictl.NatWrite(w, 0x9286abff), nil
+	w = basictl.NatWrite(w, 0x9286abff)
+	return item.Write(w, nat_field_mask)
 }
 
 func MetadataGetMappingResponseKeyNotExists__ReadJSON(item *MetadataGetMappingResponseKeyNotExists, j interface{}, nat_field_mask uint32) error {
@@ -253,180 +441,4 @@ func (item *MetadataGetMappingResponseKeyNotExists) WriteJSON(w []byte, nat_fiel
 func (item *MetadataGetMappingResponseKeyNotExists) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
-}
-
-var _MetadataGetMappingResponseUnion = [4]UnionElement{
-	{TLTag: 0x9286abfc, TLName: "metadata.getMappingResponse", TLString: "metadata.getMappingResponse#9286abfc"},
-	{TLTag: 0x9286abfd, TLName: "metadata.getMappingResponseFloodLimitError", TLString: "metadata.getMappingResponseFloodLimitError#9286abfd"},
-	{TLTag: 0x9286abff, TLName: "metadata.getMappingResponseKeyNotExists", TLString: "metadata.getMappingResponseKeyNotExists#9286abff"},
-	{TLTag: 0x9286abbb, TLName: "metadata.getMappingResponseCreated", TLString: "metadata.getMappingResponseCreated#9286abbb"},
-}
-
-type MetadataGetMappingResponseUnion struct {
-	valueGetMappingResponse MetadataGetMappingResponse
-	valueCreated            MetadataGetMappingResponseCreated
-	index                   int
-}
-
-func (item MetadataGetMappingResponseUnion) TLName() string {
-	return _MetadataGetMappingResponseUnion[item.index].TLName
-}
-func (item MetadataGetMappingResponseUnion) TLTag() uint32 {
-	return _MetadataGetMappingResponseUnion[item.index].TLTag
-}
-
-func (item *MetadataGetMappingResponseUnion) Reset() { item.ResetToGetMappingResponse() }
-
-func (item *MetadataGetMappingResponseUnion) IsGetMappingResponse() bool { return item.index == 0 }
-
-func (item *MetadataGetMappingResponseUnion) AsGetMappingResponse() (*MetadataGetMappingResponse, bool) {
-	if item.index != 0 {
-		return nil, false
-	}
-	return &item.valueGetMappingResponse, true
-}
-func (item *MetadataGetMappingResponseUnion) ResetToGetMappingResponse() *MetadataGetMappingResponse {
-	item.index = 0
-	item.valueGetMappingResponse.Reset()
-	return &item.valueGetMappingResponse
-}
-func (item *MetadataGetMappingResponseUnion) SetGetMappingResponse(value MetadataGetMappingResponse) {
-	item.index = 0
-	item.valueGetMappingResponse = value
-}
-
-func (item *MetadataGetMappingResponseUnion) IsFloodLimitError() bool { return item.index == 1 }
-
-func (item *MetadataGetMappingResponseUnion) AsFloodLimitError() (MetadataGetMappingResponseFloodLimitError, bool) {
-	var value MetadataGetMappingResponseFloodLimitError
-	return value, item.index == 1
-}
-func (item *MetadataGetMappingResponseUnion) ResetToFloodLimitError() { item.index = 1 }
-func (item *MetadataGetMappingResponseUnion) SetFloodLimitError()     { item.index = 1 }
-
-func (item *MetadataGetMappingResponseUnion) IsKeyNotExists() bool { return item.index == 2 }
-
-func (item *MetadataGetMappingResponseUnion) AsKeyNotExists() (MetadataGetMappingResponseKeyNotExists, bool) {
-	var value MetadataGetMappingResponseKeyNotExists
-	return value, item.index == 2
-}
-func (item *MetadataGetMappingResponseUnion) ResetToKeyNotExists() { item.index = 2 }
-func (item *MetadataGetMappingResponseUnion) SetKeyNotExists()     { item.index = 2 }
-
-func (item *MetadataGetMappingResponseUnion) IsCreated() bool { return item.index == 3 }
-
-func (item *MetadataGetMappingResponseUnion) AsCreated() (*MetadataGetMappingResponseCreated, bool) {
-	if item.index != 3 {
-		return nil, false
-	}
-	return &item.valueCreated, true
-}
-func (item *MetadataGetMappingResponseUnion) ResetToCreated() *MetadataGetMappingResponseCreated {
-	item.index = 3
-	item.valueCreated.Reset()
-	return &item.valueCreated
-}
-func (item *MetadataGetMappingResponseUnion) SetCreated(value MetadataGetMappingResponseCreated) {
-	item.index = 3
-	item.valueCreated = value
-}
-
-func (item *MetadataGetMappingResponseUnion) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	var tag uint32
-	if w, err = basictl.NatRead(w, &tag); err != nil {
-		return w, err
-	}
-	switch tag {
-	case 0x9286abfc:
-		item.index = 0
-		return item.valueGetMappingResponse.Read(w, nat_field_mask)
-	case 0x9286abfd:
-		item.index = 1
-		return w, nil
-	case 0x9286abff:
-		item.index = 2
-		return w, nil
-	case 0x9286abbb:
-		item.index = 3
-		return item.valueCreated.Read(w, nat_field_mask)
-	default:
-		return w, ErrorInvalidUnionTag("metadata.GetMappingResponse", tag)
-	}
-}
-
-func (item *MetadataGetMappingResponseUnion) WriteBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	w = basictl.NatWrite(w, _MetadataGetMappingResponseUnion[item.index].TLTag)
-	switch item.index {
-	case 0:
-		return item.valueGetMappingResponse.Write(w, nat_field_mask)
-	case 1:
-		return w, nil
-	case 2:
-		return w, nil
-	case 3:
-		return item.valueCreated.Write(w, nat_field_mask)
-	default: // Impossible due to panic above
-		return w, nil
-	}
-}
-
-func MetadataGetMappingResponseUnion__ReadJSON(item *MetadataGetMappingResponseUnion, j interface{}, nat_field_mask uint32) error {
-	return item.readJSON(j, nat_field_mask)
-}
-func (item *MetadataGetMappingResponseUnion) readJSON(j interface{}, nat_field_mask uint32) error {
-	_jm, _tag, err := JsonReadUnionType("metadata.GetMappingResponse", j)
-	if err != nil {
-		return err
-	}
-	jvalue := _jm["value"]
-	switch _tag {
-	case "metadata.getMappingResponse#9286abfc", "metadata.getMappingResponse", "#9286abfc":
-		item.index = 0
-		if err := MetadataGetMappingResponse__ReadJSON(&item.valueGetMappingResponse, jvalue, nat_field_mask); err != nil {
-			return err
-		}
-		delete(_jm, "value")
-	case "metadata.getMappingResponseFloodLimitError#9286abfd", "metadata.getMappingResponseFloodLimitError", "#9286abfd":
-		item.index = 1
-	case "metadata.getMappingResponseKeyNotExists#9286abff", "metadata.getMappingResponseKeyNotExists", "#9286abff":
-		item.index = 2
-	case "metadata.getMappingResponseCreated#9286abbb", "metadata.getMappingResponseCreated", "#9286abbb":
-		item.index = 3
-		if err := MetadataGetMappingResponseCreated__ReadJSON(&item.valueCreated, jvalue, nat_field_mask); err != nil {
-			return err
-		}
-		delete(_jm, "value")
-	default:
-		return ErrorInvalidUnionTagJSON("metadata.GetMappingResponse", _tag)
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.GetMappingResponse", k)
-	}
-	return nil
-}
-
-func (item *MetadataGetMappingResponseUnion) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_field_mask)
-}
-func (item *MetadataGetMappingResponseUnion) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	switch item.index {
-	case 0:
-		w = append(w, `{"type":"metadata.getMappingResponse#9286abfc","value":`...)
-		if w, err = item.valueGetMappingResponse.WriteJSONOpt(short, w, nat_field_mask); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
-	case 1:
-		return append(w, `{"type":"metadata.getMappingResponseFloodLimitError#9286abfd"}`...), nil
-	case 2:
-		return append(w, `{"type":"metadata.getMappingResponseKeyNotExists#9286abff"}`...), nil
-	case 3:
-		w = append(w, `{"type":"metadata.getMappingResponseCreated#9286abbb","value":`...)
-		if w, err = item.valueCreated.WriteJSONOpt(short, w, nat_field_mask); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
-	default: // Impossible due to panic above
-		return w, nil
-	}
 }

@@ -217,7 +217,7 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 	}
 	c.mu.RUnlock()
 
-	if address.Network != "tcp4" && address.Network != "unix" { // optimization: check only if not found in c.conns
+	if address.Network != "tcp4" && address.Network != "tcp6" && address.Network != "unix" { // optimization: check only if not found in c.conns
 		return nil, nil, fmt.Errorf("unsupported network type %q", address.Network)
 	}
 

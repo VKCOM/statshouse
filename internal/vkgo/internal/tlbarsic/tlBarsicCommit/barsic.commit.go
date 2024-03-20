@@ -49,9 +49,7 @@ func (item *BarsicCommit) Read(w []byte) (_ []byte, err error) {
 func (item *BarsicCommit) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
-	if w, err = basictl.StringWrite(w, item.SnapshotMeta); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.SnapshotMeta)
 	return basictl.LongWrite(w, item.SafeSnapshotOffset), nil
 }
 
@@ -240,9 +238,7 @@ func (item *BarsicCommitBytes) Read(w []byte) (_ []byte, err error) {
 func (item *BarsicCommitBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
-	if w, err = basictl.StringWriteBytes(w, item.SnapshotMeta); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.SnapshotMeta)
 	return basictl.LongWrite(w, item.SafeSnapshotOffset), nil
 }
 

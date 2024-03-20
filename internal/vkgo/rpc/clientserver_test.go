@@ -56,14 +56,14 @@ func handler(_ context.Context, hctx *HandlerContext) (err error) {
 			// serialize manually to check parsing correctness
 			hctx.Response = basictl.NatWrite(hctx.Response, tl.RpcReqResultErrorWrapped{}.TLTag())
 			hctx.Response = basictl.IntWrite(hctx.Response, rpcErr.Code)
-			hctx.Response = basictl.StringWriteTruncated(hctx.Response, rpcErr.Description)
+			hctx.Response = basictl.StringWrite(hctx.Response, rpcErr.Description)
 			return nil
 		default:
 			// serialize manually to check parsing correctness
 			hctx.Response = basictl.NatWrite(hctx.Response, tl.RpcReqResultError{}.TLTag())
 			hctx.Response = basictl.LongWrite(hctx.Response, n) // unused
 			hctx.Response = basictl.IntWrite(hctx.Response, rpcErr.Code)
-			hctx.Response = basictl.StringWriteTruncated(hctx.Response, rpcErr.Description)
+			hctx.Response = basictl.StringWrite(hctx.Response, rpcErr.Description)
 			return nil
 		}
 	}

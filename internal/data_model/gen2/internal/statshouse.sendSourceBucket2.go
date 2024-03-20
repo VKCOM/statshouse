@@ -183,9 +183,7 @@ func (item *StatshouseSendSourceBucket2) Write(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	w = basictl.NatWrite(w, item.Time)
-	if w, err = basictl.StringWrite(w, item.BuildCommit); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.BuildCommit)
 	w = basictl.IntWrite(w, item.BuildCommitDate)
 	w = basictl.IntWrite(w, item.BuildCommitTs)
 	w = basictl.IntWrite(w, item.QueueSizeDisk)
@@ -203,7 +201,7 @@ func (item *StatshouseSendSourceBucket2) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	}
 	w = basictl.IntWrite(w, item.OriginalSize)
-	return basictl.StringWrite(w, item.CompressedData)
+	return basictl.StringWrite(w, item.CompressedData), nil
 }
 
 func (item *StatshouseSendSourceBucket2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -227,7 +225,7 @@ func (item *StatshouseSendSourceBucket2) ReadResult(w []byte, ret *string) (_ []
 
 func (item *StatshouseSendSourceBucket2) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWrite(w, ret)
+	return basictl.StringWrite(w, ret), nil
 }
 
 func (item *StatshouseSendSourceBucket2) ReadResultJSON(j interface{}, ret *string) error {
@@ -694,9 +692,7 @@ func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) (_ []byte, err err
 		return w, err
 	}
 	w = basictl.NatWrite(w, item.Time)
-	if w, err = basictl.StringWriteBytes(w, item.BuildCommit); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.BuildCommit)
 	w = basictl.IntWrite(w, item.BuildCommitDate)
 	w = basictl.IntWrite(w, item.BuildCommitTs)
 	w = basictl.IntWrite(w, item.QueueSizeDisk)
@@ -714,7 +710,7 @@ func (item *StatshouseSendSourceBucket2Bytes) Write(w []byte) (_ []byte, err err
 		w = basictl.IntWrite(w, item.QueueSizeDiskSumUnsent)
 	}
 	w = basictl.IntWrite(w, item.OriginalSize)
-	return basictl.StringWriteBytes(w, item.CompressedData)
+	return basictl.StringWriteBytes(w, item.CompressedData), nil
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -738,7 +734,7 @@ func (item *StatshouseSendSourceBucket2Bytes) ReadResult(w []byte, ret *[]byte) 
 
 func (item *StatshouseSendSourceBucket2Bytes) WriteResult(w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWriteBytes(w, ret)
+	return basictl.StringWriteBytes(w, ret), nil
 }
 
 func (item *StatshouseSendSourceBucket2Bytes) ReadResultJSON(j interface{}, ret *[]byte) error {

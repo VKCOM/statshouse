@@ -19,14 +19,22 @@ type EnginePid struct {
 func (EnginePid) TLName() string { return "engine.pid" }
 func (EnginePid) TLTag() uint32  { return 0x559d6e36 }
 
-func (item *EnginePid) Reset()                         {}
-func (item *EnginePid) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EnginePid) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EnginePid) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x559d6e36)
+func (item *EnginePid) Reset() {}
+
+func (item *EnginePid) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EnginePid) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EnginePid) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x559d6e36); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EnginePid) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x559d6e36), nil
+	w = basictl.NatWrite(w, 0x559d6e36)
+	return item.Write(w)
 }
 
 func (item *EnginePid) ReadResult(w []byte, ret *NetPid) (_ []byte, err error) {

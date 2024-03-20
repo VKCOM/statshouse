@@ -37,9 +37,7 @@ func BuiltinVectorStringRead(w []byte, vec *[]string) (_ []byte, err error) {
 func BuiltinVectorStringWrite(w []byte, vec []string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = basictl.StringWrite(w, elem); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, elem)
 	}
 	return w, nil
 }
@@ -98,9 +96,7 @@ func BuiltinVectorStringBytesRead(w []byte, vec *[][]byte) (_ []byte, err error)
 func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = basictl.StringWriteBytes(w, elem); err != nil {
-			return w, err
-		}
+		w = basictl.StringWriteBytes(w, elem)
 	}
 	return w, nil
 }
@@ -152,7 +148,7 @@ func (item *String) Read(w []byte) (_ []byte, err error) {
 
 func (item *String) Write(w []byte) (_ []byte, err error) {
 	ptr := (*string)(item)
-	return basictl.StringWrite(w, *ptr)
+	return basictl.StringWrite(w, *ptr), nil
 }
 
 func (item *String) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -225,7 +221,7 @@ func (item *StringBytes) Read(w []byte) (_ []byte, err error) {
 
 func (item *StringBytes) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]byte)(item)
-	return basictl.StringWriteBytes(w, *ptr)
+	return basictl.StringWriteBytes(w, *ptr), nil
 }
 
 func (item *StringBytes) ReadBoxed(w []byte) (_ []byte, err error) {

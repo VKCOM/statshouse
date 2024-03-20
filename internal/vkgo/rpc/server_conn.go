@@ -17,7 +17,7 @@ import (
 
 type serverConn struct {
 	closeCtx       context.Context
-	cancelCloseCtx context.CancelFunc
+	cancelCloseCtx context.CancelCauseFunc
 
 	server      *Server
 	listenAddr  net.Addr
@@ -72,8 +72,13 @@ func (sc *serverConn) push(hctx *HandlerContext, isLongpoll bool) {
 		if debugTrace {
 			sc.server.addTrace(fmt.Sprintf("push (closedFlag | noResult) %p", hctx))
 		}
+		closedFlag := sc.closedFlag
 		sc.mu.Unlock()
 		hctx.serverConn.releaseHandlerCtx(hctx)
+		if closedFlag {
+			sc.server.rareLog(&sc.server.lastPushToClosedLog, "attempt to push response to closed connection to %v", sc.conn.remoteAddr)
+			sc.server.rareLog(&sc.server.lastPushToClosedLog, "attempt to push response to closed connection to %v", sc.conn.remoteAddr)
+		}
 		return
 	}
 	if debugTrace {
@@ -102,16 +107,6 @@ func (sc *serverConn) sendLetsFin() {
 	sc.writeQCond.Signal()
 }
 
-func (sc *serverConn) flush() error {
-	err := sc.conn.FlushUnlocked()
-	if err != nil {
-		if !sc.closed() && !commonConnCloseError(err) {
-			sc.server.rareLog(&sc.server.lastOtherLog, "rpc: error flushing packet to %v, disconnecting: %v", sc.conn.remoteAddr, err)
-		}
-	}
-	return err
-}
-
 func (sc *serverConn) SetReadFIN() {
 	sc.mu.Lock()
 	sc.readFINFlag = true
@@ -126,11 +121,11 @@ func (sc *serverConn) SetWriteBuiltin() {
 	sc.writeQCond.Signal()
 }
 
-func (sc *serverConn) Close() error {
+func (sc *serverConn) close(cause error) {
 	sc.mu.Lock()
 	if sc.closedFlag {
 		sc.mu.Unlock()
-		return nil
+		return
 	}
 	sc.closedFlag = true
 	writeQ := sc.writeQ
@@ -142,7 +137,7 @@ func (sc *serverConn) Close() error {
 	}
 	sc.mu.Unlock()
 
-	sc.cancelCloseCtx()
+	sc.cancelCloseCtx(cause)
 
 	_ = sc.conn.Close()
 
@@ -153,7 +148,6 @@ func (sc *serverConn) Close() error {
 
 	sc.cond.Broadcast()    // wake up everyone who waits on !sc.closedFlag
 	sc.writeQCond.Signal() // or writeQ
-	return nil
 }
 
 func (sc *serverConn) WaitClosed() error {
@@ -167,12 +161,6 @@ func (sc *serverConn) WaitClosed() error {
 		sc.server.opts.Logf("rpc: connection write queue length (%d) invariant violated", len(sc.writeQ))
 	}
 	return nil
-}
-
-func (sc *serverConn) closed() bool {
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-	return sc.closedFlag
 }
 
 func writeResponseUnlocked(conn *PacketConn, hctx *HandlerContext) error {

@@ -69,10 +69,8 @@ func (item *BarsicEngineStarted) Read(w []byte) (_ []byte, err error) {
 func (item *BarsicEngineStarted) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
-	if w, err = basictl.StringWrite(w, item.SnapshotMeta); err != nil {
-		return w, err
-	}
-	return basictl.StringWrite(w, item.ControlMeta)
+	w = basictl.StringWrite(w, item.SnapshotMeta)
+	return basictl.StringWrite(w, item.ControlMeta), nil
 }
 
 func (item *BarsicEngineStarted) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -316,10 +314,8 @@ func (item *BarsicEngineStartedBytes) Read(w []byte) (_ []byte, err error) {
 func (item *BarsicEngineStartedBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
-	if w, err = basictl.StringWriteBytes(w, item.SnapshotMeta); err != nil {
-		return w, err
-	}
-	return basictl.StringWriteBytes(w, item.ControlMeta)
+	w = basictl.StringWriteBytes(w, item.SnapshotMeta)
+	return basictl.StringWriteBytes(w, item.ControlMeta), nil
 }
 
 func (item *BarsicEngineStartedBytes) ReadBoxed(w []byte) (_ []byte, err error) {

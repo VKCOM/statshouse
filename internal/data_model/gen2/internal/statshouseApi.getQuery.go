@@ -40,9 +40,7 @@ func (item *StatshouseApiGetQuery) Read(w []byte) (_ []byte, err error) {
 
 func (item *StatshouseApiGetQuery) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.AccessToken); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.AccessToken)
 	return item.Query.Write(w)
 }
 

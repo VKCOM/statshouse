@@ -13,13 +13,336 @@ import (
 
 var _ = basictl.NatWrite
 
-func (item EngineReindexStatusDone) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
+var _EngineReindexStatus = [7]UnionElement{
+	{TLTag: 0x7f6a89b9, TLName: "engine.reindexStatusNever", TLString: "engine.reindexStatusNever#7f6a89b9"},
+	{TLTag: 0xac530b46, TLName: "engine.reindexStatusRunningOld", TLString: "engine.reindexStatusRunningOld#ac530b46"},
+	{TLTag: 0xfa198b59, TLName: "engine.reindexStatusRunning", TLString: "engine.reindexStatusRunning#fa198b59"},
+	{TLTag: 0x10533721, TLName: "engine.reindexStatusFailed", TLString: "engine.reindexStatusFailed#10533721"},
+	{TLTag: 0x756e878b, TLName: "engine.reindexStatusSignaled", TLString: "engine.reindexStatusSignaled#756e878b"},
+	{TLTag: 0xafdbd505, TLName: "engine.reindexStatusDoneOld", TLString: "engine.reindexStatusDoneOld#afdbd505"},
+	{TLTag: 0xf67569a, TLName: "engine.reindexStatusDone", TLString: "engine.reindexStatusDone#0f67569a"},
+}
+
+type EngineReindexStatus struct {
+	valueRunningOld EngineReindexStatusRunningOld
+	valueRunning    EngineReindexStatusRunning
+	valueFailed     EngineReindexStatusFailed
+	valueSignaled   EngineReindexStatusSignaled
+	valueDoneOld    EngineReindexStatusDoneOld
+	valueDone       EngineReindexStatusDone
+	index           int
+}
+
+func (item EngineReindexStatus) TLName() string { return _EngineReindexStatus[item.index].TLName }
+func (item EngineReindexStatus) TLTag() uint32  { return _EngineReindexStatus[item.index].TLTag }
+
+func (item *EngineReindexStatus) Reset() { item.index = 0 }
+
+func (item *EngineReindexStatus) IsNever() bool { return item.index == 0 }
+
+func (item *EngineReindexStatus) AsNever() (EngineReindexStatusNever, bool) {
+	var value EngineReindexStatusNever
+	return value, item.index == 0
+}
+func (item *EngineReindexStatus) ResetToNever() { item.index = 0 }
+func (item *EngineReindexStatus) SetNever()     { item.index = 0 }
+
+func (item *EngineReindexStatus) IsRunningOld() bool { return item.index == 1 }
+
+func (item *EngineReindexStatus) AsRunningOld() (*EngineReindexStatusRunningOld, bool) {
+	if item.index != 1 {
+		return nil, false
+	}
+	return &item.valueRunningOld, true
+}
+func (item *EngineReindexStatus) ResetToRunningOld() *EngineReindexStatusRunningOld {
+	item.index = 1
+	item.valueRunningOld.Reset()
+	return &item.valueRunningOld
+}
+func (item *EngineReindexStatus) SetRunningOld(value EngineReindexStatusRunningOld) {
+	item.index = 1
+	item.valueRunningOld = value
+}
+
+func (item *EngineReindexStatus) IsRunning() bool { return item.index == 2 }
+
+func (item *EngineReindexStatus) AsRunning() (*EngineReindexStatusRunning, bool) {
+	if item.index != 2 {
+		return nil, false
+	}
+	return &item.valueRunning, true
+}
+func (item *EngineReindexStatus) ResetToRunning() *EngineReindexStatusRunning {
+	item.index = 2
+	item.valueRunning.Reset()
+	return &item.valueRunning
+}
+func (item *EngineReindexStatus) SetRunning(value EngineReindexStatusRunning) {
+	item.index = 2
+	item.valueRunning = value
+}
+
+func (item *EngineReindexStatus) IsFailed() bool { return item.index == 3 }
+
+func (item *EngineReindexStatus) AsFailed() (*EngineReindexStatusFailed, bool) {
+	if item.index != 3 {
+		return nil, false
+	}
+	return &item.valueFailed, true
+}
+func (item *EngineReindexStatus) ResetToFailed() *EngineReindexStatusFailed {
+	item.index = 3
+	item.valueFailed.Reset()
+	return &item.valueFailed
+}
+func (item *EngineReindexStatus) SetFailed(value EngineReindexStatusFailed) {
+	item.index = 3
+	item.valueFailed = value
+}
+
+func (item *EngineReindexStatus) IsSignaled() bool { return item.index == 4 }
+
+func (item *EngineReindexStatus) AsSignaled() (*EngineReindexStatusSignaled, bool) {
+	if item.index != 4 {
+		return nil, false
+	}
+	return &item.valueSignaled, true
+}
+func (item *EngineReindexStatus) ResetToSignaled() *EngineReindexStatusSignaled {
+	item.index = 4
+	item.valueSignaled.Reset()
+	return &item.valueSignaled
+}
+func (item *EngineReindexStatus) SetSignaled(value EngineReindexStatusSignaled) {
+	item.index = 4
+	item.valueSignaled = value
+}
+
+func (item *EngineReindexStatus) IsDoneOld() bool { return item.index == 5 }
+
+func (item *EngineReindexStatus) AsDoneOld() (*EngineReindexStatusDoneOld, bool) {
+	if item.index != 5 {
+		return nil, false
+	}
+	return &item.valueDoneOld, true
+}
+func (item *EngineReindexStatus) ResetToDoneOld() *EngineReindexStatusDoneOld {
+	item.index = 5
+	item.valueDoneOld.Reset()
+	return &item.valueDoneOld
+}
+func (item *EngineReindexStatus) SetDoneOld(value EngineReindexStatusDoneOld) {
+	item.index = 5
+	item.valueDoneOld = value
+}
+
+func (item *EngineReindexStatus) IsDone() bool { return item.index == 6 }
+
+func (item *EngineReindexStatus) AsDone() (*EngineReindexStatusDone, bool) {
+	if item.index != 6 {
+		return nil, false
+	}
+	return &item.valueDone, true
+}
+func (item *EngineReindexStatus) ResetToDone() *EngineReindexStatusDone {
+	item.index = 6
+	item.valueDone.Reset()
+	return &item.valueDone
+}
+func (item *EngineReindexStatus) SetDone(value EngineReindexStatusDone) {
+	item.index = 6
+	item.valueDone = value
+}
+
+func (item *EngineReindexStatus) ReadBoxed(w []byte) (_ []byte, err error) {
+	var tag uint32
+	if w, err = basictl.NatRead(w, &tag); err != nil {
+		return w, err
+	}
+	switch tag {
+	case 0x7f6a89b9:
+		item.index = 0
+		return w, nil
+	case 0xac530b46:
+		item.index = 1
+		return item.valueRunningOld.Read(w)
+	case 0xfa198b59:
+		item.index = 2
+		return item.valueRunning.Read(w)
+	case 0x10533721:
+		item.index = 3
+		return item.valueFailed.Read(w)
+	case 0x756e878b:
+		item.index = 4
+		return item.valueSignaled.Read(w)
+	case 0xafdbd505:
+		item.index = 5
+		return item.valueDoneOld.Read(w)
+	case 0xf67569a:
+		item.index = 6
+		return item.valueDone.Read(w)
+	default:
+		return w, ErrorInvalidUnionTag("engine.ReindexStatus", tag)
+	}
+}
+
+func (item *EngineReindexStatus) WriteBoxed(w []byte) (_ []byte, err error) {
+	w = basictl.NatWrite(w, _EngineReindexStatus[item.index].TLTag)
+	switch item.index {
+	case 0:
+		return w, nil
+	case 1:
+		return item.valueRunningOld.Write(w)
+	case 2:
+		return item.valueRunning.Write(w)
+	case 3:
+		return item.valueFailed.Write(w)
+	case 4:
+		return item.valueSignaled.Write(w)
+	case 5:
+		return item.valueDoneOld.Write(w)
+	case 6:
+		return item.valueDone.Write(w)
+	default: // Impossible due to panic above
+		return w, nil
+	}
+}
+
+func EngineReindexStatus__ReadJSON(item *EngineReindexStatus, j interface{}) error {
+	return item.readJSON(j)
+}
+func (item *EngineReindexStatus) readJSON(j interface{}) error {
+	_jm, _tag, err := JsonReadUnionType("engine.ReindexStatus", j)
+	if err != nil {
+		return err
+	}
+	jvalue := _jm["value"]
+	switch _tag {
+	case "engine.reindexStatusNever#7f6a89b9", "engine.reindexStatusNever", "#7f6a89b9":
+		item.index = 0
+	case "engine.reindexStatusRunningOld#ac530b46", "engine.reindexStatusRunningOld", "#ac530b46":
+		item.index = 1
+		if err := EngineReindexStatusRunningOld__ReadJSON(&item.valueRunningOld, jvalue); err != nil {
+			return err
+		}
+		delete(_jm, "value")
+	case "engine.reindexStatusRunning#fa198b59", "engine.reindexStatusRunning", "#fa198b59":
+		item.index = 2
+		if err := EngineReindexStatusRunning__ReadJSON(&item.valueRunning, jvalue); err != nil {
+			return err
+		}
+		delete(_jm, "value")
+	case "engine.reindexStatusFailed#10533721", "engine.reindexStatusFailed", "#10533721":
+		item.index = 3
+		if err := EngineReindexStatusFailed__ReadJSON(&item.valueFailed, jvalue); err != nil {
+			return err
+		}
+		delete(_jm, "value")
+	case "engine.reindexStatusSignaled#756e878b", "engine.reindexStatusSignaled", "#756e878b":
+		item.index = 4
+		if err := EngineReindexStatusSignaled__ReadJSON(&item.valueSignaled, jvalue); err != nil {
+			return err
+		}
+		delete(_jm, "value")
+	case "engine.reindexStatusDoneOld#afdbd505", "engine.reindexStatusDoneOld", "#afdbd505":
+		item.index = 5
+		if err := EngineReindexStatusDoneOld__ReadJSON(&item.valueDoneOld, jvalue); err != nil {
+			return err
+		}
+		delete(_jm, "value")
+	case "engine.reindexStatusDone#0f67569a", "engine.reindexStatusDone", "#0f67569a":
+		item.index = 6
+		if err := EngineReindexStatusDone__ReadJSON(&item.valueDone, jvalue); err != nil {
+			return err
+		}
+		delete(_jm, "value")
+	default:
+		return ErrorInvalidUnionTagJSON("engine.ReindexStatus", _tag)
+	}
+	for k := range _jm {
+		return ErrorInvalidJSONExcessElement("engine.ReindexStatus", k)
+	}
+	return nil
+}
+
+func (item *EngineReindexStatus) WriteJSON(w []byte) (_ []byte, err error) {
+	return item.WriteJSONOpt(false, w)
+}
+func (item *EngineReindexStatus) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+	switch item.index {
+	case 0:
+		return append(w, `{"type":"engine.reindexStatusNever#7f6a89b9"}`...), nil
+	case 1:
+		w = append(w, `{"type":"engine.reindexStatusRunningOld#ac530b46","value":`...)
+		if w, err = item.valueRunningOld.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+		return append(w, '}'), nil
+	case 2:
+		w = append(w, `{"type":"engine.reindexStatusRunning#fa198b59","value":`...)
+		if w, err = item.valueRunning.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+		return append(w, '}'), nil
+	case 3:
+		w = append(w, `{"type":"engine.reindexStatusFailed#10533721","value":`...)
+		if w, err = item.valueFailed.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+		return append(w, '}'), nil
+	case 4:
+		w = append(w, `{"type":"engine.reindexStatusSignaled#756e878b","value":`...)
+		if w, err = item.valueSignaled.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+		return append(w, '}'), nil
+	case 5:
+		w = append(w, `{"type":"engine.reindexStatusDoneOld#afdbd505","value":`...)
+		if w, err = item.valueDoneOld.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+		return append(w, '}'), nil
+	case 6:
+		w = append(w, `{"type":"engine.reindexStatusDone#0f67569a","value":`...)
+		if w, err = item.valueDone.WriteJSONOpt(short, w); err != nil {
+			return w, err
+		}
+		return append(w, '}'), nil
+	default: // Impossible due to panic above
+		return w, nil
+	}
+}
+
+func (item EngineReindexStatus) String() string {
+	w, err := item.WriteJSON(nil)
+	if err != nil {
+		return err.Error()
+	}
+	return string(w)
+}
+
+func (item *EngineReindexStatus) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil)
+}
+
+func (item *EngineReindexStatus) UnmarshalJSON(b []byte) error {
+	j, err := JsonBytesToInterface(b)
+	if err != nil {
+		return ErrorInvalidJSON("engine.ReindexStatus", err.Error())
+	}
+	if err = item.readJSON(j); err != nil {
+		return ErrorInvalidJSON("engine.ReindexStatus", err.Error())
+	}
+	return nil
+}
+
+func (item EngineReindexStatusDone) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
 	ret.SetDone(item)
 	return ret
 }
 
-// AsUnion will be here
 type EngineReindexStatusDone struct {
 	FinishTime  int32
 	NeedRestart bool
@@ -122,13 +445,12 @@ func (item *EngineReindexStatusDone) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (item EngineReindexStatusDoneOld) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
+func (item EngineReindexStatusDoneOld) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
 	ret.SetDoneOld(item)
 	return ret
 }
 
-// AsUnion will be here
 type EngineReindexStatusDoneOld struct {
 	FinishTime int32
 }
@@ -215,13 +537,12 @@ func (item *EngineReindexStatusDoneOld) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (item EngineReindexStatusFailed) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
+func (item EngineReindexStatusFailed) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
 	ret.SetFailed(item)
 	return ret
 }
 
-// AsUnion will be here
 type EngineReindexStatusFailed struct {
 	ExitCode   int32
 	FinishTime int32
@@ -324,27 +645,34 @@ func (item *EngineReindexStatusFailed) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (item EngineReindexStatusNever) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
+func (item EngineReindexStatusNever) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
 	ret.SetNever()
 	return ret
 }
 
-// AsUnion will be here
 type EngineReindexStatusNever struct {
 }
 
 func (EngineReindexStatusNever) TLName() string { return "engine.reindexStatusNever" }
 func (EngineReindexStatusNever) TLTag() uint32  { return 0x7f6a89b9 }
 
-func (item *EngineReindexStatusNever) Reset()                         {}
-func (item *EngineReindexStatusNever) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineReindexStatusNever) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineReindexStatusNever) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x7f6a89b9)
+func (item *EngineReindexStatusNever) Reset() {}
+
+func (item *EngineReindexStatusNever) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineReindexStatusNever) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineReindexStatusNever) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x7f6a89b9); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineReindexStatusNever) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x7f6a89b9), nil
+	w = basictl.NatWrite(w, 0x7f6a89b9)
+	return item.Write(w)
 }
 
 func (item EngineReindexStatusNever) String() string {
@@ -392,13 +720,12 @@ func (item *EngineReindexStatusNever) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (item EngineReindexStatusRunning) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
+func (item EngineReindexStatusRunning) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
 	ret.SetRunning(item)
 	return ret
 }
 
-// AsUnion will be here
 type EngineReindexStatusRunning struct {
 	Pids      []int32
 	StartTime int32
@@ -505,13 +832,12 @@ func (item *EngineReindexStatusRunning) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (item EngineReindexStatusRunningOld) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
+func (item EngineReindexStatusRunningOld) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
 	ret.SetRunningOld(item)
 	return ret
 }
 
-// AsUnion will be here
 type EngineReindexStatusRunningOld struct {
 	Pid       int32
 	StartTime int32
@@ -614,13 +940,12 @@ func (item *EngineReindexStatusRunningOld) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-func (item EngineReindexStatusSignaled) AsUnion() EngineReindexStatusUnion {
-	var ret EngineReindexStatusUnion
+func (item EngineReindexStatusSignaled) AsUnion() EngineReindexStatus {
+	var ret EngineReindexStatus
 	ret.SetSignaled(item)
 	return ret
 }
 
-// AsUnion will be here
 type EngineReindexStatusSignaled struct {
 	Signal     int32
 	FinishTime int32
@@ -721,317 +1046,4 @@ func (item *EngineReindexStatusSignaled) UnmarshalJSON(b []byte) error {
 		return ErrorInvalidJSON("engine.reindexStatusSignaled", err.Error())
 	}
 	return nil
-}
-
-var _EngineReindexStatusUnion = [7]UnionElement{
-	{TLTag: 0x7f6a89b9, TLName: "engine.reindexStatusNever", TLString: "engine.reindexStatusNever#7f6a89b9"},
-	{TLTag: 0xac530b46, TLName: "engine.reindexStatusRunningOld", TLString: "engine.reindexStatusRunningOld#ac530b46"},
-	{TLTag: 0xfa198b59, TLName: "engine.reindexStatusRunning", TLString: "engine.reindexStatusRunning#fa198b59"},
-	{TLTag: 0x10533721, TLName: "engine.reindexStatusFailed", TLString: "engine.reindexStatusFailed#10533721"},
-	{TLTag: 0x756e878b, TLName: "engine.reindexStatusSignaled", TLString: "engine.reindexStatusSignaled#756e878b"},
-	{TLTag: 0xafdbd505, TLName: "engine.reindexStatusDoneOld", TLString: "engine.reindexStatusDoneOld#afdbd505"},
-	{TLTag: 0xf67569a, TLName: "engine.reindexStatusDone", TLString: "engine.reindexStatusDone#0f67569a"},
-}
-
-type EngineReindexStatusUnion struct {
-	valueRunningOld EngineReindexStatusRunningOld
-	valueRunning    EngineReindexStatusRunning
-	valueFailed     EngineReindexStatusFailed
-	valueSignaled   EngineReindexStatusSignaled
-	valueDoneOld    EngineReindexStatusDoneOld
-	valueDone       EngineReindexStatusDone
-	index           int
-}
-
-func (item EngineReindexStatusUnion) TLName() string {
-	return _EngineReindexStatusUnion[item.index].TLName
-}
-func (item EngineReindexStatusUnion) TLTag() uint32 {
-	return _EngineReindexStatusUnion[item.index].TLTag
-}
-
-func (item *EngineReindexStatusUnion) Reset() { item.index = 0 }
-
-func (item *EngineReindexStatusUnion) IsNever() bool { return item.index == 0 }
-
-func (item *EngineReindexStatusUnion) AsNever() (EngineReindexStatusNever, bool) {
-	var value EngineReindexStatusNever
-	return value, item.index == 0
-}
-func (item *EngineReindexStatusUnion) ResetToNever() { item.index = 0 }
-func (item *EngineReindexStatusUnion) SetNever()     { item.index = 0 }
-
-func (item *EngineReindexStatusUnion) IsRunningOld() bool { return item.index == 1 }
-
-func (item *EngineReindexStatusUnion) AsRunningOld() (*EngineReindexStatusRunningOld, bool) {
-	if item.index != 1 {
-		return nil, false
-	}
-	return &item.valueRunningOld, true
-}
-func (item *EngineReindexStatusUnion) ResetToRunningOld() *EngineReindexStatusRunningOld {
-	item.index = 1
-	item.valueRunningOld.Reset()
-	return &item.valueRunningOld
-}
-func (item *EngineReindexStatusUnion) SetRunningOld(value EngineReindexStatusRunningOld) {
-	item.index = 1
-	item.valueRunningOld = value
-}
-
-func (item *EngineReindexStatusUnion) IsRunning() bool { return item.index == 2 }
-
-func (item *EngineReindexStatusUnion) AsRunning() (*EngineReindexStatusRunning, bool) {
-	if item.index != 2 {
-		return nil, false
-	}
-	return &item.valueRunning, true
-}
-func (item *EngineReindexStatusUnion) ResetToRunning() *EngineReindexStatusRunning {
-	item.index = 2
-	item.valueRunning.Reset()
-	return &item.valueRunning
-}
-func (item *EngineReindexStatusUnion) SetRunning(value EngineReindexStatusRunning) {
-	item.index = 2
-	item.valueRunning = value
-}
-
-func (item *EngineReindexStatusUnion) IsFailed() bool { return item.index == 3 }
-
-func (item *EngineReindexStatusUnion) AsFailed() (*EngineReindexStatusFailed, bool) {
-	if item.index != 3 {
-		return nil, false
-	}
-	return &item.valueFailed, true
-}
-func (item *EngineReindexStatusUnion) ResetToFailed() *EngineReindexStatusFailed {
-	item.index = 3
-	item.valueFailed.Reset()
-	return &item.valueFailed
-}
-func (item *EngineReindexStatusUnion) SetFailed(value EngineReindexStatusFailed) {
-	item.index = 3
-	item.valueFailed = value
-}
-
-func (item *EngineReindexStatusUnion) IsSignaled() bool { return item.index == 4 }
-
-func (item *EngineReindexStatusUnion) AsSignaled() (*EngineReindexStatusSignaled, bool) {
-	if item.index != 4 {
-		return nil, false
-	}
-	return &item.valueSignaled, true
-}
-func (item *EngineReindexStatusUnion) ResetToSignaled() *EngineReindexStatusSignaled {
-	item.index = 4
-	item.valueSignaled.Reset()
-	return &item.valueSignaled
-}
-func (item *EngineReindexStatusUnion) SetSignaled(value EngineReindexStatusSignaled) {
-	item.index = 4
-	item.valueSignaled = value
-}
-
-func (item *EngineReindexStatusUnion) IsDoneOld() bool { return item.index == 5 }
-
-func (item *EngineReindexStatusUnion) AsDoneOld() (*EngineReindexStatusDoneOld, bool) {
-	if item.index != 5 {
-		return nil, false
-	}
-	return &item.valueDoneOld, true
-}
-func (item *EngineReindexStatusUnion) ResetToDoneOld() *EngineReindexStatusDoneOld {
-	item.index = 5
-	item.valueDoneOld.Reset()
-	return &item.valueDoneOld
-}
-func (item *EngineReindexStatusUnion) SetDoneOld(value EngineReindexStatusDoneOld) {
-	item.index = 5
-	item.valueDoneOld = value
-}
-
-func (item *EngineReindexStatusUnion) IsDone() bool { return item.index == 6 }
-
-func (item *EngineReindexStatusUnion) AsDone() (*EngineReindexStatusDone, bool) {
-	if item.index != 6 {
-		return nil, false
-	}
-	return &item.valueDone, true
-}
-func (item *EngineReindexStatusUnion) ResetToDone() *EngineReindexStatusDone {
-	item.index = 6
-	item.valueDone.Reset()
-	return &item.valueDone
-}
-func (item *EngineReindexStatusUnion) SetDone(value EngineReindexStatusDone) {
-	item.index = 6
-	item.valueDone = value
-}
-
-func (item *EngineReindexStatusUnion) ReadBoxed(w []byte) (_ []byte, err error) {
-	var tag uint32
-	if w, err = basictl.NatRead(w, &tag); err != nil {
-		return w, err
-	}
-	switch tag {
-	case 0x7f6a89b9:
-		item.index = 0
-		return w, nil
-	case 0xac530b46:
-		item.index = 1
-		return item.valueRunningOld.Read(w)
-	case 0xfa198b59:
-		item.index = 2
-		return item.valueRunning.Read(w)
-	case 0x10533721:
-		item.index = 3
-		return item.valueFailed.Read(w)
-	case 0x756e878b:
-		item.index = 4
-		return item.valueSignaled.Read(w)
-	case 0xafdbd505:
-		item.index = 5
-		return item.valueDoneOld.Read(w)
-	case 0xf67569a:
-		item.index = 6
-		return item.valueDone.Read(w)
-	default:
-		return w, ErrorInvalidUnionTag("engine.ReindexStatus", tag)
-	}
-}
-
-func (item *EngineReindexStatusUnion) WriteBoxed(w []byte) (_ []byte, err error) {
-	w = basictl.NatWrite(w, _EngineReindexStatusUnion[item.index].TLTag)
-	switch item.index {
-	case 0:
-		return w, nil
-	case 1:
-		return item.valueRunningOld.Write(w)
-	case 2:
-		return item.valueRunning.Write(w)
-	case 3:
-		return item.valueFailed.Write(w)
-	case 4:
-		return item.valueSignaled.Write(w)
-	case 5:
-		return item.valueDoneOld.Write(w)
-	case 6:
-		return item.valueDone.Write(w)
-	default: // Impossible due to panic above
-		return w, nil
-	}
-}
-
-func EngineReindexStatusUnion__ReadJSON(item *EngineReindexStatusUnion, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusUnion) readJSON(j interface{}) error {
-	_jm, _tag, err := JsonReadUnionType("engine.ReindexStatus", j)
-	if err != nil {
-		return err
-	}
-	jvalue := _jm["value"]
-	switch _tag {
-	case "engine.reindexStatusNever#7f6a89b9", "engine.reindexStatusNever", "#7f6a89b9":
-		item.index = 0
-	case "engine.reindexStatusRunningOld#ac530b46", "engine.reindexStatusRunningOld", "#ac530b46":
-		item.index = 1
-		if err := EngineReindexStatusRunningOld__ReadJSON(&item.valueRunningOld, jvalue); err != nil {
-			return err
-		}
-		delete(_jm, "value")
-	case "engine.reindexStatusRunning#fa198b59", "engine.reindexStatusRunning", "#fa198b59":
-		item.index = 2
-		if err := EngineReindexStatusRunning__ReadJSON(&item.valueRunning, jvalue); err != nil {
-			return err
-		}
-		delete(_jm, "value")
-	case "engine.reindexStatusFailed#10533721", "engine.reindexStatusFailed", "#10533721":
-		item.index = 3
-		if err := EngineReindexStatusFailed__ReadJSON(&item.valueFailed, jvalue); err != nil {
-			return err
-		}
-		delete(_jm, "value")
-	case "engine.reindexStatusSignaled#756e878b", "engine.reindexStatusSignaled", "#756e878b":
-		item.index = 4
-		if err := EngineReindexStatusSignaled__ReadJSON(&item.valueSignaled, jvalue); err != nil {
-			return err
-		}
-		delete(_jm, "value")
-	case "engine.reindexStatusDoneOld#afdbd505", "engine.reindexStatusDoneOld", "#afdbd505":
-		item.index = 5
-		if err := EngineReindexStatusDoneOld__ReadJSON(&item.valueDoneOld, jvalue); err != nil {
-			return err
-		}
-		delete(_jm, "value")
-	case "engine.reindexStatusDone#0f67569a", "engine.reindexStatusDone", "#0f67569a":
-		item.index = 6
-		if err := EngineReindexStatusDone__ReadJSON(&item.valueDone, jvalue); err != nil {
-			return err
-		}
-		delete(_jm, "value")
-	default:
-		return ErrorInvalidUnionTagJSON("engine.ReindexStatus", _tag)
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.ReindexStatus", k)
-	}
-	return nil
-}
-
-func (item *EngineReindexStatusUnion) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
-}
-func (item *EngineReindexStatusUnion) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
-	switch item.index {
-	case 0:
-		return append(w, `{"type":"engine.reindexStatusNever#7f6a89b9"}`...), nil
-	case 1:
-		w = append(w, `{"type":"engine.reindexStatusRunningOld#ac530b46","value":`...)
-		if w, err = item.valueRunningOld.WriteJSONOpt(short, w); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
-	case 2:
-		w = append(w, `{"type":"engine.reindexStatusRunning#fa198b59","value":`...)
-		if w, err = item.valueRunning.WriteJSONOpt(short, w); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
-	case 3:
-		w = append(w, `{"type":"engine.reindexStatusFailed#10533721","value":`...)
-		if w, err = item.valueFailed.WriteJSONOpt(short, w); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
-	case 4:
-		w = append(w, `{"type":"engine.reindexStatusSignaled#756e878b","value":`...)
-		if w, err = item.valueSignaled.WriteJSONOpt(short, w); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
-	case 5:
-		w = append(w, `{"type":"engine.reindexStatusDoneOld#afdbd505","value":`...)
-		if w, err = item.valueDoneOld.WriteJSONOpt(short, w); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
-	case 6:
-		w = append(w, `{"type":"engine.reindexStatusDone#0f67569a","value":`...)
-		if w, err = item.valueDone.WriteJSONOpt(short, w); err != nil {
-			return w, err
-		}
-		return append(w, '}'), nil
-	default: // Impossible due to panic above
-		return w, nil
-	}
-}
-
-func (item EngineReindexStatusUnion) String() string {
-	w, err := item.WriteJSON(nil)
-	if err != nil {
-		return err.Error()
-	}
-	return string(w)
 }

@@ -103,9 +103,7 @@ func (item *StatshouseApiFilter) Read(w []byte) (_ []byte, err error) {
 
 func (item *StatshouseApiFilter) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.Key); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Key)
 	return BuiltinVectorStatshouseApiTagValueWrite(w, item.Values)
 }
 

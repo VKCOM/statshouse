@@ -35,7 +35,7 @@ func (item *ReqError) Read(w []byte) (_ []byte, err error) {
 
 func (item *ReqError) Write(w []byte) (_ []byte, err error) {
 	w = basictl.IntWrite(w, item.ErrorCode)
-	return basictl.StringWrite(w, item.Error)
+	return basictl.StringWrite(w, item.Error), nil
 }
 
 func (item *ReqError) ReadBoxed(w []byte) (_ []byte, err error) {

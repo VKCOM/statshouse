@@ -172,7 +172,7 @@ func (item *StatshouseApiQuery) Read(w []byte) (_ []byte, err error) {
 		item.Promql = ""
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = BuiltinVectorStatshouseApiFunctionBoxedRead(w, &item.What); err != nil {
+		if w, err = BuiltinVectorStatshouseApiFunctionRead(w, &item.What); err != nil {
 			return w, err
 		}
 	} else {
@@ -192,14 +192,10 @@ func (item *StatshouseApiQuery) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.IntWrite(w, item.Version)
 	w = basictl.IntWrite(w, item.TopN)
-	if w, err = basictl.StringWrite(w, item.MetricName); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.MetricName)
 	w = basictl.LongWrite(w, item.TimeFrom)
 	w = basictl.LongWrite(w, item.TimeTo)
-	if w, err = basictl.StringWrite(w, item.Interval); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Interval)
 	if w, err = item.Function.WriteBoxed(w); err != nil {
 		return w, err
 	}
@@ -213,19 +209,15 @@ func (item *StatshouseApiQuery) Write(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if item.FieldsMask&(1<<0) != 0 {
-		if w, err = basictl.StringWrite(w, item.Promql); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Promql)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = BuiltinVectorStatshouseApiFunctionBoxedWrite(w, item.What); err != nil {
+		if w, err = BuiltinVectorStatshouseApiFunctionWrite(w, item.What); err != nil {
 			return w, err
 		}
 	}
 	if item.FieldsMask&(1<<3) != 0 {
-		if w, err = basictl.StringWrite(w, item.WidthAgg); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.WidthAgg)
 	}
 	return w, nil
 }
@@ -404,7 +396,7 @@ func (item *StatshouseApiQuery) readJSON(j interface{}) error {
 		item.Promql = ""
 	}
 	if _jWhat != nil {
-		if err := BuiltinVectorStatshouseApiFunctionBoxedReadJSON(_jWhat, &item.What); err != nil {
+		if err := BuiltinVectorStatshouseApiFunctionReadJSON(_jWhat, &item.What); err != nil {
 			return err
 		}
 	} else {
@@ -494,7 +486,7 @@ func (item *StatshouseApiQuery) WriteJSONOpt(short bool, w []byte) (_ []byte, er
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		if w, err = BuiltinVectorStatshouseApiFunctionBoxedWriteJSONOpt(short, w, item.What); err != nil {
+		if w, err = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(short, w, item.What); err != nil {
 			return w, err
 		}
 	}

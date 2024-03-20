@@ -28,17 +28,17 @@ type (
 	GetHistoryShortInfo                  = internal.MetadataGetHistoryShortInfo
 	GetInvertMapping                     = internal.MetadataGetInvertMapping
 	GetInvertMappingResponse             = internal.MetadataGetInvertMappingResponse
+	GetInvertMappingResponse0            = internal.MetadataGetInvertMappingResponse0
 	GetInvertMappingResponseKeyNotExists = internal.MetadataGetInvertMappingResponseKeyNotExists
-	GetInvertMappingResponseUnion        = internal.MetadataGetInvertMappingResponseUnion
 	GetJournalResponsenew                = internal.MetadataGetJournalResponsenew
 	GetJournalResponsenewBytes           = internal.MetadataGetJournalResponsenewBytes
 	GetJournalnew                        = internal.MetadataGetJournalnew
 	GetMapping                           = internal.MetadataGetMapping
 	GetMappingResponse                   = internal.MetadataGetMappingResponse
+	GetMappingResponse0                  = internal.MetadataGetMappingResponse0
 	GetMappingResponseCreated            = internal.MetadataGetMappingResponseCreated
 	GetMappingResponseFloodLimitError    = internal.MetadataGetMappingResponseFloodLimitError
 	GetMappingResponseKeyNotExists       = internal.MetadataGetMappingResponseKeyNotExists
-	GetMappingResponseUnion              = internal.MetadataGetMappingResponseUnion
 	GetMetrics                           = internal.MetadataGetMetrics
 	GetMetricsResponse                   = internal.MetadataGetMetricsResponse
 	GetTagMappingBootstrap               = internal.MetadataGetTagMappingBootstrap
@@ -136,7 +136,7 @@ func (c *Client) GetHistoryShortInfo(ctx context.Context, args GetHistoryShortIn
 	return nil
 }
 
-func (c *Client) GetInvertMapping(ctx context.Context, args GetInvertMapping, extra *rpc.InvokeReqExtra, ret *GetInvertMappingResponseUnion) (err error) {
+func (c *Client) GetInvertMapping(ctx context.Context, args GetInvertMapping, extra *rpc.InvokeReqExtra, ret *GetInvertMappingResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.ReadOnly = true
@@ -186,7 +186,7 @@ func (c *Client) GetJournalnew(ctx context.Context, args GetJournalnew, extra *r
 	return nil
 }
 
-func (c *Client) GetMapping(ctx context.Context, args GetMapping, extra *rpc.InvokeReqExtra, ret *GetMappingResponseUnion) (err error) {
+func (c *Client) GetMapping(ctx context.Context, args GetMapping, extra *rpc.InvokeReqExtra, ret *GetMappingResponse) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "metadata.getMapping"
@@ -359,9 +359,9 @@ type Handler struct {
 	EditEntitynew          func(ctx context.Context, args EditEntitynew) (Event, error)                                                    // metadata.editEntitynew
 	GetEntity              func(ctx context.Context, args GetEntity) (Event, error)                                                        // metadata.getEntity
 	GetHistoryShortInfo    func(ctx context.Context, args GetHistoryShortInfo) (HistoryShortResponse, error)                               // metadata.getHistoryShortInfo
-	GetInvertMapping       func(ctx context.Context, args GetInvertMapping) (GetInvertMappingResponseUnion, error)                         // metadata.getInvertMapping
+	GetInvertMapping       func(ctx context.Context, args GetInvertMapping) (GetInvertMappingResponse, error)                              // metadata.getInvertMapping
 	GetJournalnew          func(ctx context.Context, args GetJournalnew) (GetJournalResponsenew, error)                                    // metadata.getJournalnew
-	GetMapping             func(ctx context.Context, args GetMapping) (GetMappingResponseUnion, error)                                     // metadata.getMapping
+	GetMapping             func(ctx context.Context, args GetMapping) (GetMappingResponse, error)                                          // metadata.getMapping
 	GetMetrics             func(ctx context.Context, args GetMetrics) (GetMetricsResponse, error)                                          // metadata.getMetrics
 	GetTagMappingBootstrap func(ctx context.Context, args GetTagMappingBootstrap) (internal.StatshouseGetTagMappingBootstrapResult, error) // metadata.getTagMappingBootstrap
 	PutMapping             func(ctx context.Context, args PutMapping) (PutMappingResponse, error)                                          // metadata.putMapping

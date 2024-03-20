@@ -29,7 +29,7 @@ func (item *MetadataResetFlood) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *MetadataResetFlood) Write(w []byte) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.Metric)
+	return basictl.StringWrite(w, item.Metric), nil
 }
 
 func (item *MetadataResetFlood) ReadBoxed(w []byte) (_ []byte, err error) {

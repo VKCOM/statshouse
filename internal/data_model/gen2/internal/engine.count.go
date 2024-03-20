@@ -19,14 +19,22 @@ type EngineCount struct {
 func (EngineCount) TLName() string { return "engine.count" }
 func (EngineCount) TLTag() uint32  { return 0x19d0f020 }
 
-func (item *EngineCount) Reset()                         {}
-func (item *EngineCount) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineCount) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineCount) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x19d0f020)
+func (item *EngineCount) Reset() {}
+
+func (item *EngineCount) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineCount) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineCount) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x19d0f020); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineCount) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x19d0f020), nil
+	w = basictl.NatWrite(w, 0x19d0f020)
+	return item.Write(w)
 }
 
 func (item *EngineCount) ReadResult(w []byte, ret *BoolStat) (_ []byte, err error) {

@@ -59,7 +59,7 @@ func (item *StatshouseSendKeepAlive2) ReadResult(w []byte, ret *string) (_ []byt
 
 func (item *StatshouseSendKeepAlive2) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWrite(w, ret)
+	return basictl.StringWrite(w, ret), nil
 }
 
 func (item *StatshouseSendKeepAlive2) ReadResultJSON(j interface{}, ret *string) error {
@@ -220,7 +220,7 @@ func (item *StatshouseSendKeepAlive2Bytes) ReadResult(w []byte, ret *[]byte) (_ 
 
 func (item *StatshouseSendKeepAlive2Bytes) WriteResult(w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWriteBytes(w, ret)
+	return basictl.StringWriteBytes(w, ret), nil
 }
 
 func (item *StatshouseSendKeepAlive2Bytes) ReadResultJSON(j interface{}, ret *[]byte) error {

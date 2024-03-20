@@ -41,7 +41,7 @@ func (item *RpcReqResultError) Read(w []byte) (_ []byte, err error) {
 func (item *RpcReqResultError) Write(w []byte) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.QueryId)
 	w = basictl.IntWrite(w, item.ErrorCode)
-	return basictl.StringWrite(w, item.Error)
+	return basictl.StringWrite(w, item.Error), nil
 }
 
 func (item *RpcReqResultError) ReadBoxed(w []byte) (_ []byte, err error) {

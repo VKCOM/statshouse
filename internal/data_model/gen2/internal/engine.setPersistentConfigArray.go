@@ -34,9 +34,7 @@ func (item *EngineSetPersistentConfigArray) Read(w []byte) (_ []byte, err error)
 }
 
 func (item *EngineSetPersistentConfigArray) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Name); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Name)
 	return BuiltinVectorIntWrite(w, item.Values)
 }
 

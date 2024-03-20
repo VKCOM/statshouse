@@ -43,7 +43,7 @@ func (item *StatshouseGetConfig2) Write(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	return basictl.StringWrite(w, item.Cluster)
+	return basictl.StringWrite(w, item.Cluster), nil
 }
 
 func (item *StatshouseGetConfig2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -220,7 +220,7 @@ func (item *StatshouseGetConfig2Bytes) Write(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	return basictl.StringWriteBytes(w, item.Cluster)
+	return basictl.StringWriteBytes(w, item.Cluster), nil
 }
 
 func (item *StatshouseGetConfig2Bytes) ReadBoxed(w []byte) (_ []byte, err error) {

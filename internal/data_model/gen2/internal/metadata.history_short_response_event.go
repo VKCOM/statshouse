@@ -100,7 +100,7 @@ func (item *MetadataHistoryShortResponseEvent) Read(w []byte, nat_field_mask uin
 
 func (item *MetadataHistoryShortResponseEvent) Write(w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.Version)
-	return basictl.StringWrite(w, item.Metadata)
+	return basictl.StringWrite(w, item.Metadata), nil
 }
 
 func (item *MetadataHistoryShortResponseEvent) ReadBoxed(w []byte, nat_field_mask uint32) (_ []byte, err error) {

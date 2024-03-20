@@ -57,9 +57,7 @@ func (item *MetadataResetFlood2) Read(w []byte) (_ []byte, err error) {
 
 func (item *MetadataResetFlood2) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
-	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Metric)
 	if item.FieldMask&(1<<1) != 0 {
 		w = basictl.IntWrite(w, item.Value)
 	}

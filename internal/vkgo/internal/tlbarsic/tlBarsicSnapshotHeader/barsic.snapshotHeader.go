@@ -91,27 +91,17 @@ func (item *BarsicSnapshotHeader) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicSnapshotHeader) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.ClusterId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.ShardId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.SnapshotMeta); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.ClusterId)
+	w = basictl.StringWrite(w, item.ShardId)
+	w = basictl.StringWrite(w, item.SnapshotMeta)
 	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWrite(w, item.Dependencies); err != nil {
 		return w, err
 	}
 	w = basictl.LongWrite(w, item.PayloadOffset)
-	if w, err = basictl.StringWrite(w, item.EngineVersion); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.EngineVersion)
 	w = basictl.LongWrite(w, item.CreationTimeNano)
 	if item.FieldsMask&(1<<0) != 0 {
-		if w, err = basictl.StringWrite(w, item.ControlMeta); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.ControlMeta)
 	}
 	return w, nil
 }
@@ -346,27 +336,17 @@ func (item *BarsicSnapshotHeaderBytes) Read(w []byte) (_ []byte, err error) {
 
 func (item *BarsicSnapshotHeaderBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWriteBytes(w, item.ClusterId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.ShardId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.SnapshotMeta); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.ClusterId)
+	w = basictl.StringWriteBytes(w, item.ShardId)
+	w = basictl.StringWriteBytes(w, item.SnapshotMeta)
 	if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWrite(w, item.Dependencies); err != nil {
 		return w, err
 	}
 	w = basictl.LongWrite(w, item.PayloadOffset)
-	if w, err = basictl.StringWriteBytes(w, item.EngineVersion); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.EngineVersion)
 	w = basictl.LongWrite(w, item.CreationTimeNano)
 	if item.FieldsMask&(1<<0) != 0 {
-		if w, err = basictl.StringWriteBytes(w, item.ControlMeta); err != nil {
-			return w, err
-		}
+		w = basictl.StringWriteBytes(w, item.ControlMeta)
 	}
 	return w, nil
 }

@@ -29,7 +29,7 @@ func (item *KvEngineBackup) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *KvEngineBackup) Write(w []byte) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.Prefix)
+	return basictl.StringWrite(w, item.Prefix), nil
 }
 
 func (item *KvEngineBackup) ReadBoxed(w []byte) (_ []byte, err error) {

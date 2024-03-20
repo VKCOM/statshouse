@@ -19,14 +19,22 @@ type EngineGetBinlogPrefixes struct {
 func (EngineGetBinlogPrefixes) TLName() string { return "engine.getBinlogPrefixes" }
 func (EngineGetBinlogPrefixes) TLTag() uint32  { return 0xef14db93 }
 
-func (item *EngineGetBinlogPrefixes) Reset()                         {}
-func (item *EngineGetBinlogPrefixes) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineGetBinlogPrefixes) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineGetBinlogPrefixes) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xef14db93)
+func (item *EngineGetBinlogPrefixes) Reset() {}
+
+func (item *EngineGetBinlogPrefixes) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineGetBinlogPrefixes) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineGetBinlogPrefixes) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xef14db93); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineGetBinlogPrefixes) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xef14db93), nil
+	w = basictl.NatWrite(w, 0xef14db93)
+	return item.Write(w)
 }
 
 func (item *EngineGetBinlogPrefixes) ReadResult(w []byte, ret *[]EngineBinlogPrefix) (_ []byte, err error) {

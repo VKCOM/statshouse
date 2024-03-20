@@ -563,7 +563,7 @@ func mainTagMapping() {
 		}
 		var (
 			qry = tlmetadata.GetMapping{Metric: metric, Key: tag}
-			ret tlmetadata.GetMappingResponseUnion
+			ret tlmetadata.GetMappingResponse
 			err = client.GetMapping(context.Background(), qry, nil, &ret)
 		)
 		if err != nil {
