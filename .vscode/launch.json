@@ -52,6 +52,7 @@
                 "--remote-write-enabled",
                 "--buffer-size-udp=524288000",
                 "--cores-udp=2",
+                "--ipv6-addr=[::1]:13337",
             ],
         },
         {
