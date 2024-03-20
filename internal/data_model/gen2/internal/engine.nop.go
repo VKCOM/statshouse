@@ -19,14 +19,22 @@ type EngineNop struct {
 func (EngineNop) TLName() string { return "engine.nop" }
 func (EngineNop) TLTag() uint32  { return 0x166bb7c6 }
 
-func (item *EngineNop) Reset()                         {}
-func (item *EngineNop) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineNop) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineNop) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x166bb7c6)
+func (item *EngineNop) Reset() {}
+
+func (item *EngineNop) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineNop) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineNop) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x166bb7c6); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineNop) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x166bb7c6), nil
+	w = basictl.NatWrite(w, 0x166bb7c6)
+	return item.Write(w)
 }
 
 func (item *EngineNop) ReadResult(w []byte, ret *True) (_ []byte, err error) {

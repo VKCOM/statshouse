@@ -19,14 +19,22 @@ type EngineDumpLastQueries struct {
 func (EngineDumpLastQueries) TLName() string { return "engine.dumpLastQueries" }
 func (EngineDumpLastQueries) TLTag() uint32  { return 0xc060a29f }
 
-func (item *EngineDumpLastQueries) Reset()                         {}
-func (item *EngineDumpLastQueries) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineDumpLastQueries) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineDumpLastQueries) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xc060a29f)
+func (item *EngineDumpLastQueries) Reset() {}
+
+func (item *EngineDumpLastQueries) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineDumpLastQueries) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineDumpLastQueries) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xc060a29f); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineDumpLastQueries) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xc060a29f), nil
+	w = basictl.NatWrite(w, 0xc060a29f)
+	return item.Write(w)
 }
 
 func (item *EngineDumpLastQueries) ReadResult(w []byte, ret *True) (_ []byte, err error) {

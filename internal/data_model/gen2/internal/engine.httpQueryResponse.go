@@ -113,14 +113,10 @@ func (item *EngineHttpQueryResponse) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.ReturnCode)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = basictl.StringWrite(w, item.Data); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Data)
 	}
 	if item.FieldsMask&(1<<2) != 0 {
-		if w, err = basictl.StringWrite(w, item.ContentType); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.ContentType)
 	}
 	if item.FieldsMask&(1<<3) != 0 {
 		if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.AdditionalHeaders); err != nil {

@@ -1104,39 +1104,39 @@ func (item *VectorStatshouseApiFilter) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
-type VectorStatshouseApiFunctionBoxed []StatshouseApiFunction
+type VectorStatshouseApiFunction []StatshouseApiFunction
 
-func (VectorStatshouseApiFunctionBoxed) TLName() string { return "vector" }
-func (VectorStatshouseApiFunctionBoxed) TLTag() uint32  { return 0x1cb5c415 }
+func (VectorStatshouseApiFunction) TLName() string { return "vector" }
+func (VectorStatshouseApiFunction) TLTag() uint32  { return 0x1cb5c415 }
 
-func (item *VectorStatshouseApiFunctionBoxed) Reset() {
+func (item *VectorStatshouseApiFunction) Reset() {
 	ptr := (*[]StatshouseApiFunction)(item)
 	*ptr = (*ptr)[:0]
 }
 
-func (item *VectorStatshouseApiFunctionBoxed) Read(w []byte) (_ []byte, err error) {
+func (item *VectorStatshouseApiFunction) Read(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFunction)(item)
-	return BuiltinVectorStatshouseApiFunctionBoxedRead(w, ptr)
+	return BuiltinVectorStatshouseApiFunctionRead(w, ptr)
 }
 
-func (item *VectorStatshouseApiFunctionBoxed) Write(w []byte) (_ []byte, err error) {
+func (item *VectorStatshouseApiFunction) Write(w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFunction)(item)
-	return BuiltinVectorStatshouseApiFunctionBoxedWrite(w, *ptr)
+	return BuiltinVectorStatshouseApiFunctionWrite(w, *ptr)
 }
 
-func (item *VectorStatshouseApiFunctionBoxed) ReadBoxed(w []byte) (_ []byte, err error) {
+func (item *VectorStatshouseApiFunction) ReadBoxed(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatReadExactTag(w, 0x1cb5c415); err != nil {
 		return w, err
 	}
 	return item.Read(w)
 }
 
-func (item *VectorStatshouseApiFunctionBoxed) WriteBoxed(w []byte) ([]byte, error) {
+func (item *VectorStatshouseApiFunction) WriteBoxed(w []byte) ([]byte, error) {
 	w = basictl.NatWrite(w, 0x1cb5c415)
 	return item.Write(w)
 }
 
-func (item VectorStatshouseApiFunctionBoxed) String() string {
+func (item VectorStatshouseApiFunction) String() string {
 	w, err := item.WriteJSON(nil)
 	if err != nil {
 		return err.Error()
@@ -1144,33 +1144,33 @@ func (item VectorStatshouseApiFunctionBoxed) String() string {
 	return string(w)
 }
 
-func VectorStatshouseApiFunctionBoxed__ReadJSON(item *VectorStatshouseApiFunctionBoxed, j interface{}) error {
+func VectorStatshouseApiFunction__ReadJSON(item *VectorStatshouseApiFunction, j interface{}) error {
 	return item.readJSON(j)
 }
-func (item *VectorStatshouseApiFunctionBoxed) readJSON(j interface{}) error {
+func (item *VectorStatshouseApiFunction) readJSON(j interface{}) error {
 	ptr := (*[]StatshouseApiFunction)(item)
-	if err := BuiltinVectorStatshouseApiFunctionBoxedReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorStatshouseApiFunctionReadJSON(j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *VectorStatshouseApiFunctionBoxed) WriteJSON(w []byte) (_ []byte, err error) {
+func (item *VectorStatshouseApiFunction) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(false, w)
 }
 
-func (item *VectorStatshouseApiFunctionBoxed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *VectorStatshouseApiFunction) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]StatshouseApiFunction)(item)
-	if w, err = BuiltinVectorStatshouseApiFunctionBoxedWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
 }
-func (item *VectorStatshouseApiFunctionBoxed) MarshalJSON() ([]byte, error) {
+func (item *VectorStatshouseApiFunction) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *VectorStatshouseApiFunctionBoxed) UnmarshalJSON(b []byte) error {
+func (item *VectorStatshouseApiFunction) UnmarshalJSON(b []byte) error {
 	j, err := JsonBytesToInterface(b)
 	if err != nil {
 		return ErrorInvalidJSON("vector", err.Error())

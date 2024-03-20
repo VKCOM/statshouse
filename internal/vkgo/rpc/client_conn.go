@@ -345,7 +345,7 @@ func (pc *clientConn) sendLoop(conn *PacketConn) error {
 			return nil
 		}
 		if writeBuiltin {
-			err := pc.conn.WritePacketBuiltinNoFlushUnlocked()
+			err := pc.conn.WritePacketBuiltinNoFlushUnlocked(pc.client.opts.PacketTimeout)
 			if err != nil {
 				if !commonConnCloseError(err) {
 					pc.client.opts.Logf("rpc: failed to send ping/pong to %v, disconnecting: %v", conn.remoteAddr, err)

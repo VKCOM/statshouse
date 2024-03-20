@@ -53,12 +53,8 @@ func (item *MetadataGetMapping) Read(w []byte) (_ []byte, err error) {
 
 func (item *MetadataGetMapping) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
-	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.Key); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Metric)
+	w = basictl.StringWrite(w, item.Key)
 	return w, nil
 }
 
@@ -74,26 +70,26 @@ func (item *MetadataGetMapping) WriteBoxed(w []byte) ([]byte, error) {
 	return item.Write(w)
 }
 
-func (item *MetadataGetMapping) ReadResult(w []byte, ret *MetadataGetMappingResponseUnion) (_ []byte, err error) {
+func (item *MetadataGetMapping) ReadResult(w []byte, ret *MetadataGetMappingResponse) (_ []byte, err error) {
 	return ret.ReadBoxed(w, item.FieldMask)
 }
 
-func (item *MetadataGetMapping) WriteResult(w []byte, ret MetadataGetMappingResponseUnion) (_ []byte, err error) {
+func (item *MetadataGetMapping) WriteResult(w []byte, ret MetadataGetMappingResponse) (_ []byte, err error) {
 	return ret.WriteBoxed(w, item.FieldMask)
 }
 
-func (item *MetadataGetMapping) ReadResultJSON(j interface{}, ret *MetadataGetMappingResponseUnion) error {
-	if err := MetadataGetMappingResponseUnion__ReadJSON(ret, j, item.FieldMask); err != nil {
+func (item *MetadataGetMapping) ReadResultJSON(j interface{}, ret *MetadataGetMappingResponse) error {
+	if err := MetadataGetMappingResponse__ReadJSON(ret, j, item.FieldMask); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *MetadataGetMapping) WriteResultJSON(w []byte, ret MetadataGetMappingResponseUnion) (_ []byte, err error) {
+func (item *MetadataGetMapping) WriteResultJSON(w []byte, ret MetadataGetMappingResponse) (_ []byte, err error) {
 	return item.writeResultJSON(false, w, ret)
 }
 
-func (item *MetadataGetMapping) writeResultJSON(short bool, w []byte, ret MetadataGetMappingResponseUnion) (_ []byte, err error) {
+func (item *MetadataGetMapping) writeResultJSON(short bool, w []byte, ret MetadataGetMappingResponse) (_ []byte, err error) {
 	if w, err = ret.WriteJSONOpt(short, w, item.FieldMask); err != nil {
 		return w, err
 	}
@@ -101,7 +97,7 @@ func (item *MetadataGetMapping) writeResultJSON(short bool, w []byte, ret Metada
 }
 
 func (item *MetadataGetMapping) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetMappingResponseUnion
+	var ret MetadataGetMappingResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -110,7 +106,7 @@ func (item *MetadataGetMapping) ReadResultWriteResultJSON(r []byte, w []byte) (_
 }
 
 func (item *MetadataGetMapping) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret MetadataGetMappingResponseUnion
+	var ret MetadataGetMappingResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -123,7 +119,7 @@ func (item *MetadataGetMapping) ReadResultJSONWriteResult(r []byte, w []byte) ([
 	if err != nil {
 		return r, w, ErrorInvalidJSON("metadata.getMapping", err.Error())
 	}
-	var ret MetadataGetMappingResponseUnion
+	var ret MetadataGetMappingResponse
 	if err = item.ReadResultJSON(j, &ret); err != nil {
 		return r, w, err
 	}

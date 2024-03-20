@@ -30,7 +30,7 @@ func (l tagValueInverseLoader) load(ctx context.Context, tagValueID string, _ in
 	if err != nil {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("%v not a integer", tagValueID))
 	}
-	resp := tlmetadata.GetInvertMappingResponseUnion{}
+	resp := tlmetadata.GetInvertMappingResponse{}
 	err = l.metaClient.GetInvertMapping(ctx, tlmetadata.GetInvertMapping{
 		Id: int32(parsed),
 	}, nil, &resp)
@@ -58,7 +58,7 @@ func (l tagValueLoader) load(ctx context.Context, tagValue string, _ interface{}
 		Key: tagValue,
 	}
 	req.SetCreateIfAbsent(false) // We do not need to validate tagValue, because we never ask to create here
-	resp := tlmetadata.GetMappingResponseUnion{}
+	resp := tlmetadata.GetMappingResponse{}
 	err := l.metaClient.GetMapping(ctx, req, nil, &resp)
 	if err != nil {
 		return nil, 0, err

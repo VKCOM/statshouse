@@ -234,16 +234,16 @@ func applyCreateEntityEvent(conn sqlite.Conn, event tlmetadata.CreateEntityEvent
 	return nil
 }
 
-func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, now time.Time, globalBudget, maxBudget, budgetBonus int64, stepSec uint32, lastCreatedID int32) (tlmetadata.GetMappingResponseUnion, []byte, error) {
+func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, now time.Time, globalBudget, maxBudget, budgetBonus int64, stepSec uint32, lastCreatedID int32) (tlmetadata.GetMappingResponse, []byte, error) {
 	var id int32
 	row := conn.Query("select_mapping", "SELECT id FROM mappings where name = $name;", sqlite.BlobString("$name", key))
 	if row.Error() != nil {
-		return tlmetadata.GetMappingResponseUnion{}, cache, row.Error()
+		return tlmetadata.GetMappingResponse{}, cache, row.Error()
 	}
 	if row.Next() {
 		resp, _ := row.ColumnInt64(0)
 		id := int32(resp)
-		return tlmetadata.GetMappingResponse{Id: id}.AsUnion(), cache, nil
+		return tlmetadata.GetMappingResponse0{Id: id}.AsUnion(), cache, nil
 	}
 	pred := roundTime(now, stepSec)
 	var countToInsert = maxBudget
@@ -252,7 +252,7 @@ func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, 
 	row = conn.Query("select_flood_limit", "SELECT last_time_update, count_free from flood_limits WHERE metric_name = $name",
 		sqlite.BlobString("$name", metricName))
 	if row.Error() != nil {
-		return tlmetadata.GetMappingResponse{Id: id}.AsUnion(), cache, row.Error()
+		return tlmetadata.GetMappingResponse0{Id: id}.AsUnion(), cache, row.Error()
 	}
 	var err error
 	metricLimitIsExists := row.Next()
@@ -276,7 +276,7 @@ func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, 
 			sqlite.Int64("$c", countToInsert),
 			sqlite.BlobString("$name", metricName))
 		if err != nil {
-			return tlmetadata.GetMappingResponseUnion{}, cache, err
+			return tlmetadata.GetMappingResponse{}, cache, err
 		}
 	} else {
 		countToInsert = maxBudget - 1
@@ -286,12 +286,12 @@ func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, 
 			sqlite.BlobString("$name", metricName))
 	}
 	if err != nil {
-		return tlmetadata.GetMappingResponseUnion{}, cache, fmt.Errorf("failed to update flood limits: %w", err)
+		return tlmetadata.GetMappingResponse{}, cache, fmt.Errorf("failed to update flood limits: %w", err)
 	}
 
 	idResp, err := conn.Exec("insert_mapping", "INSERT INTO mappings (name) VALUES ($name)", sqlite.BlobString("$name", key))
 	if err != nil {
-		return tlmetadata.GetMappingResponseUnion{}, cache, fmt.Errorf("failed to insert mapping: %w", err)
+		return tlmetadata.GetMappingResponse{}, cache, fmt.Errorf("failed to insert mapping: %w", err)
 	}
 	id = int32(idResp)
 	event := tlmetadata.CreateMappingEvent{

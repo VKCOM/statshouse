@@ -48,10 +48,8 @@ func (item *StatshouseGetTargets2) Write(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringWrite(w, item.PromHostName); err != nil {
-		return w, err
-	}
-	return basictl.StringWrite(w, item.OldHash)
+	w = basictl.StringWrite(w, item.PromHostName)
+	return basictl.StringWrite(w, item.OldHash), nil
 }
 
 func (item *StatshouseGetTargets2) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -243,10 +241,8 @@ func (item *StatshouseGetTargets2Bytes) Write(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringWriteBytes(w, item.PromHostName); err != nil {
-		return w, err
-	}
-	return basictl.StringWriteBytes(w, item.OldHash)
+	w = basictl.StringWriteBytes(w, item.PromHostName)
+	return basictl.StringWriteBytes(w, item.OldHash), nil
 }
 
 func (item *StatshouseGetTargets2Bytes) ReadBoxed(w []byte) (_ []byte, err error) {

@@ -56,7 +56,7 @@ func init() {
 	meta.SetGlobalFactoryCreateForFunction(0x166bb7c6, func() meta.Object { var ret internal.EngineNop; return &ret }, func() meta.Function { var ret internal.EngineNop; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0x559d6e36, func() meta.Object { var ret internal.EnginePid; return &ret }, func() meta.Function { var ret internal.EnginePid; return &ret }, nil)
 	meta.SetGlobalFactoryCreateForFunction(0xf4b19fa2, func() meta.Object { var ret internal.EnginePushStat; return &ret }, func() meta.Function { var ret internal.EnginePushStat; return &ret }, nil)
-	meta.SetGlobalFactoryCreateForObject(0xac4d6fe9, func() meta.Object { var ret internal.EngineQueryResult; return &ret })
+	meta.SetGlobalFactoryCreateForObject(0xac4d6fe9, func() meta.Object { var ret internal.EngineQueryResult0; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0xee2879b0, func() meta.Object { var ret internal.EngineQueryResultAio; return &ret })
 	meta.SetGlobalFactoryCreateForObject(0x2b4dd0ba, func() meta.Object { var ret internal.EngineQueryResultError; return &ret })
 	meta.SetGlobalFactoryCreateForFunction(0x9d2b841f, func() meta.Object { var ret internal.EngineReadNop; return &ret }, func() meta.Function { var ret internal.EngineReadNop; return &ret }, nil)

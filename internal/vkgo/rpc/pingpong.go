@@ -8,11 +8,12 @@ package rpc
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
 )
 
-func (pc *PacketConn) WritePacketBuiltinNoFlushUnlocked() error {
+func (pc *PacketConn) WritePacketBuiltinNoFlushUnlocked(timeout time.Duration) error {
 	pc.pingMu.Lock()
 	defer pc.pingMu.Unlock()
 	if !pc.writePing && !pc.writePong {
@@ -20,13 +21,13 @@ func (pc *PacketConn) WritePacketBuiltinNoFlushUnlocked() error {
 	}
 
 	if pc.writePing {
-		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPing, pc.writePingID[:], DefaultPacketTimeout); err != nil {
+		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPing, pc.writePingID[:], timeout); err != nil {
 			return err
 		}
 		pc.writePing = false
 	}
 	if pc.writePong {
-		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPong, pc.writePongID[:], DefaultPacketTimeout); err != nil {
+		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPong, pc.writePongID[:], timeout); err != nil {
 			return err
 		}
 		pc.writePong = false
@@ -34,7 +35,7 @@ func (pc *PacketConn) WritePacketBuiltinNoFlushUnlocked() error {
 	return nil
 }
 
-func (pc *PacketConn) WritePacketBuiltin() error {
+func (pc *PacketConn) WritePacketBuiltin(timeout time.Duration) error {
 	pc.pingMu.Lock()
 	defer pc.pingMu.Unlock()
 	if !pc.writePing && !pc.writePong {
@@ -44,13 +45,13 @@ func (pc *PacketConn) WritePacketBuiltin() error {
 	defer pc.writeMu.Unlock()
 
 	if pc.writePing {
-		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPing, pc.writePingID[:], DefaultPacketTimeout); err != nil {
+		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPing, pc.writePingID[:], timeout); err != nil {
 			return err
 		}
 		pc.writePing = false
 	}
 	if pc.writePong {
-		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPong, pc.writePongID[:], DefaultPacketTimeout); err != nil {
+		if err := pc.WritePacketNoFlushUnlocked(PacketTypeRPCPong, pc.writePongID[:], timeout); err != nil {
 			return err
 		}
 		pc.writePong = false

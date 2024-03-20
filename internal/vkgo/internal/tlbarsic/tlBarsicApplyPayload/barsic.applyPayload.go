@@ -64,7 +64,7 @@ func (item *BarsicApplyPayload) Read(w []byte) (_ []byte, err error) {
 func (item *BarsicApplyPayload) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
-	return basictl.StringWrite(w, item.Payload)
+	return basictl.StringWrite(w, item.Payload), nil
 }
 
 func (item *BarsicApplyPayload) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -293,7 +293,7 @@ func (item *BarsicApplyPayloadBytes) Read(w []byte) (_ []byte, err error) {
 func (item *BarsicApplyPayloadBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.LongWrite(w, item.Offset)
-	return basictl.StringWriteBytes(w, item.Payload)
+	return basictl.StringWriteBytes(w, item.Payload), nil
 }
 
 func (item *BarsicApplyPayloadBytes) ReadBoxed(w []byte) (_ []byte, err error) {

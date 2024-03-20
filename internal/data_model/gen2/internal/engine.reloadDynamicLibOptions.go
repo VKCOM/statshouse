@@ -62,12 +62,8 @@ func (item *EngineReloadDynamicLibOptions) Read(w []byte) (_ []byte, err error) 
 
 func (item *EngineReloadDynamicLibOptions) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.LibId); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.LibFileName); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.LibId)
+	w = basictl.StringWrite(w, item.LibFileName)
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.DoubleWrite(w, item.SlicesPart)
 	}

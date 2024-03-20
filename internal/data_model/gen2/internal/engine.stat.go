@@ -19,14 +19,22 @@ type EngineStat struct {
 func (EngineStat) TLName() string { return "engine.stat" }
 func (EngineStat) TLTag() uint32  { return 0xefb3c36b }
 
-func (item *EngineStat) Reset()                         {}
-func (item *EngineStat) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineStat) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineStat) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xefb3c36b)
+func (item *EngineStat) Reset() {}
+
+func (item *EngineStat) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineStat) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineStat) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xefb3c36b); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineStat) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xefb3c36b), nil
+	w = basictl.NatWrite(w, 0xefb3c36b)
+	return item.Write(w)
 }
 
 func (item *EngineStat) ReadResult(w []byte, ret *Stat) (_ []byte, err error) {

@@ -19,14 +19,22 @@ type RpcServerWantsFin struct {
 func (RpcServerWantsFin) TLName() string { return "rpcServerWantsFin" }
 func (RpcServerWantsFin) TLTag() uint32  { return 0xa8ddbc46 }
 
-func (item *RpcServerWantsFin) Reset()                         {}
-func (item *RpcServerWantsFin) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *RpcServerWantsFin) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *RpcServerWantsFin) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xa8ddbc46)
+func (item *RpcServerWantsFin) Reset() {}
+
+func (item *RpcServerWantsFin) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *RpcServerWantsFin) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *RpcServerWantsFin) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xa8ddbc46); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *RpcServerWantsFin) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xa8ddbc46), nil
+	w = basictl.NatWrite(w, 0xa8ddbc46)
+	return item.Write(w)
 }
 
 func (item RpcServerWantsFin) String() string {

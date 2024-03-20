@@ -91,9 +91,7 @@ func (item *EngineHttpQuery) Read(w []byte) (_ []byte, err error) {
 func (item *EngineHttpQuery) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	if item.FieldsMask&(1<<0) != 0 {
-		if w, err = basictl.StringWrite(w, item.Uri); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Uri)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
 		if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.Args); err != nil {

@@ -37,9 +37,7 @@ func BuiltinVectorStringRead(w []byte, vec *[]string) (_ []byte, err error) {
 func BuiltinVectorStringWrite(w []byte, vec []string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, uint32(len(vec)))
 	for _, elem := range vec {
-		if w, err = basictl.StringWrite(w, elem); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, elem)
 	}
 	return w, nil
 }
@@ -91,7 +89,7 @@ func (item *String) Read(w []byte) (_ []byte, err error) {
 
 func (item *String) Write(w []byte) (_ []byte, err error) {
 	ptr := (*string)(item)
-	return basictl.StringWrite(w, *ptr)
+	return basictl.StringWrite(w, *ptr), nil
 }
 
 func (item *String) ReadBoxed(w []byte) (_ []byte, err error) {

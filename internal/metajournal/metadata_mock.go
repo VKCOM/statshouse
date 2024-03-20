@@ -35,12 +35,12 @@ func (m *MetadataMock) Handle(ctx context.Context, hctx *rpc.HandlerContext) err
 	return m.handler.Handle(ctx, hctx)
 }
 
-func (m *MetadataMock) handleGetMapping(ctx context.Context, args tlmetadata.GetMapping) (tlmetadata.GetMappingResponseUnion, error) {
+func (m *MetadataMock) handleGetMapping(ctx context.Context, args tlmetadata.GetMapping) (tlmetadata.GetMappingResponse, error) {
 	m.dataMu.Lock()
 	defer m.dataMu.Unlock()
 	k, ok := m.Data[args.Key]
 	if ok {
-		return tlmetadata.GetMappingResponse{Id: k}.AsUnion(), nil
+		return tlmetadata.GetMappingResponse0{Id: k}.AsUnion(), nil
 	}
 	m.i++
 	m.Data[args.Key] = m.i

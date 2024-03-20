@@ -38,7 +38,7 @@ type (
 	VectorMetadataHistoryShortResponseEvent       = internal.VectorMetadataHistoryShortResponseEvent
 	VectorMetadataMetricOld                       = internal.VectorMetadataMetricOld
 	VectorStatshouseApiFilter                     = internal.VectorStatshouseApiFilter
-	VectorStatshouseApiFunctionBoxed              = internal.VectorStatshouseApiFunctionBoxed
+	VectorStatshouseApiFunction                   = internal.VectorStatshouseApiFunction
 	VectorStatshouseApiPointMeta                  = internal.VectorStatshouseApiPointMeta
 	VectorStatshouseApiSeriesMeta                 = internal.VectorStatshouseApiSeriesMeta
 	VectorStatshouseApiTagValue                   = internal.VectorStatshouseApiTagValue

@@ -34,9 +34,7 @@ func (item *EngineSetPersistentConfigValue) Read(w []byte) (_ []byte, err error)
 }
 
 func (item *EngineSetPersistentConfigValue) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Name); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Name)
 	return basictl.IntWrite(w, item.Value), nil
 }
 

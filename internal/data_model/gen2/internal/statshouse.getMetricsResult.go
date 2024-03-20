@@ -34,9 +34,7 @@ func (item *StatshouseGetMetricsResult) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *StatshouseGetMetricsResult) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Version); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Version)
 	return BuiltinVectorStringWrite(w, item.Metrics)
 }
 
@@ -140,9 +138,7 @@ func (item *StatshouseGetMetricsResultBytes) Read(w []byte) (_ []byte, err error
 }
 
 func (item *StatshouseGetMetricsResultBytes) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWriteBytes(w, item.Version); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Version)
 	return BuiltinVectorStringBytesWrite(w, item.Metrics)
 }
 

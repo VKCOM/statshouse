@@ -19,14 +19,22 @@ type EngineIsProduction struct {
 func (EngineIsProduction) TLName() string { return "engine.isProduction" }
 func (EngineIsProduction) TLTag() uint32  { return 0xccdea0ac }
 
-func (item *EngineIsProduction) Reset()                         {}
-func (item *EngineIsProduction) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineIsProduction) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineIsProduction) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xccdea0ac)
+func (item *EngineIsProduction) Reset() {}
+
+func (item *EngineIsProduction) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineIsProduction) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineIsProduction) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xccdea0ac); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineIsProduction) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xccdea0ac), nil
+	w = basictl.NatWrite(w, 0xccdea0ac)
+	return item.Write(w)
 }
 
 func (item *EngineIsProduction) ReadResult(w []byte, ret *bool) (_ []byte, err error) {

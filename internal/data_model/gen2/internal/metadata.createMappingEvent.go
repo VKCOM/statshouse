@@ -66,12 +66,8 @@ func (item *MetadataCreateMappingEvent) Read(w []byte) (_ []byte, err error) {
 func (item *MetadataCreateMappingEvent) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldMask)
 	w = basictl.IntWrite(w, item.Id)
-	if w, err = basictl.StringWrite(w, item.Key); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Key)
+	w = basictl.StringWrite(w, item.Metric)
 	w = basictl.LongWrite(w, item.Budget)
 	return basictl.NatWrite(w, item.UpdatedAt), nil
 }

@@ -165,9 +165,7 @@ func (item *StatshouseTopElement) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *StatshouseTopElement) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Key); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Key)
 	w = basictl.NatWrite(w, item.FieldsMask)
 	return item.Value.Write(w, item.FieldsMask)
 }
@@ -285,9 +283,7 @@ func (item *StatshouseTopElementBytes) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *StatshouseTopElementBytes) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWriteBytes(w, item.Key); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Key)
 	w = basictl.NatWrite(w, item.FieldsMask)
 	return item.Value.Write(w, item.FieldsMask)
 }

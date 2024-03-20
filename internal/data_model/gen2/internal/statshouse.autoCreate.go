@@ -94,12 +94,8 @@ func (item *StatshouseAutoCreate) Write(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.Kind); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Metric)
+	w = basictl.StringWrite(w, item.Kind)
 	if w, err = BuiltinVectorStringWrite(w, item.Tags); err != nil {
 		return w, err
 	}
@@ -107,9 +103,7 @@ func (item *StatshouseAutoCreate) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.Resolution)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = basictl.StringWrite(w, item.Description); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Description)
 	}
 	return w, nil
 }
@@ -395,12 +389,8 @@ func (item *StatshouseAutoCreateBytes) Write(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringWriteBytes(w, item.Metric); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.Kind); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Metric)
+	w = basictl.StringWriteBytes(w, item.Kind)
 	if w, err = BuiltinVectorStringBytesWrite(w, item.Tags); err != nil {
 		return w, err
 	}
@@ -408,9 +398,7 @@ func (item *StatshouseAutoCreateBytes) Write(w []byte) (_ []byte, err error) {
 		w = basictl.IntWrite(w, item.Resolution)
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = basictl.StringWriteBytes(w, item.Description); err != nil {
-			return w, err
-		}
+		w = basictl.StringWriteBytes(w, item.Description)
 	}
 	return w, nil
 }

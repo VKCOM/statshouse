@@ -34,9 +34,7 @@ func (item *EngineSetVerbosityType) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *EngineSetVerbosityType) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Type); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Type)
 	return basictl.IntWrite(w, item.Verbosity), nil
 }
 

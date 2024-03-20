@@ -128,8 +128,8 @@ func (s *Server) handleEngineStat(hctx *HandlerContext) error {
 	hctx.Response = basictl.NatWrite(hctx.Response, constants.Stat)
 	hctx.Response = basictl.NatWrite(hctx.Response, uint32(len(keys)))
 	for _, k := range keys {
-		hctx.Response = basictl.StringWriteTruncated(hctx.Response, k)
-		hctx.Response = basictl.StringWriteTruncated(hctx.Response, stats[k])
+		hctx.Response = basictl.StringWrite(hctx.Response, k)
+		hctx.Response = basictl.StringWrite(hctx.Response, stats[k])
 	}
 	return nil
 }
@@ -147,8 +147,8 @@ func (s *Server) handleEngineFilteredStat(hctx *HandlerContext) error {
 	hctx.Response = basictl.NatWrite(hctx.Response, constants.Stat)
 	hctx.Response = basictl.NatWrite(hctx.Response, uint32(len(keys)))
 	for _, k := range keys {
-		hctx.Response = basictl.StringWriteTruncated(hctx.Response, k)
-		hctx.Response = basictl.StringWriteTruncated(hctx.Response, stats[k])
+		hctx.Response = basictl.StringWrite(hctx.Response, k)
+		hctx.Response = basictl.StringWrite(hctx.Response, stats[k])
 	}
 
 	return nil

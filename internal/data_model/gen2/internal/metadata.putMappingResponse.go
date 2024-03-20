@@ -19,14 +19,22 @@ type MetadataPutMappingResponse struct {
 func (MetadataPutMappingResponse) TLName() string { return "metadata.putMappingResponse" }
 func (MetadataPutMappingResponse) TLTag() uint32  { return 0x9286abfe }
 
-func (item *MetadataPutMappingResponse) Reset()                         {}
-func (item *MetadataPutMappingResponse) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *MetadataPutMappingResponse) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *MetadataPutMappingResponse) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x9286abfe)
+func (item *MetadataPutMappingResponse) Reset() {}
+
+func (item *MetadataPutMappingResponse) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *MetadataPutMappingResponse) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *MetadataPutMappingResponse) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x9286abfe); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *MetadataPutMappingResponse) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x9286abfe), nil
+	w = basictl.NatWrite(w, 0x9286abfe)
+	return item.Write(w)
 }
 
 func (item MetadataPutMappingResponse) String() string {

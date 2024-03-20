@@ -19,36 +19,44 @@ type EngineSwitchToMasterMode struct {
 func (EngineSwitchToMasterMode) TLName() string { return "engine.switchToMasterMode" }
 func (EngineSwitchToMasterMode) TLTag() uint32  { return 0x8cdcb5f9 }
 
-func (item *EngineSwitchToMasterMode) Reset()                         {}
-func (item *EngineSwitchToMasterMode) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineSwitchToMasterMode) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineSwitchToMasterMode) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x8cdcb5f9)
-}
-func (item *EngineSwitchToMasterMode) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x8cdcb5f9), nil
+func (item *EngineSwitchToMasterMode) Reset() {}
+
+func (item *EngineSwitchToMasterMode) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchToMasterMode) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineSwitchToMasterMode) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x8cdcb5f9); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
 
-func (item *EngineSwitchToMasterMode) ReadResult(w []byte, ret *EngineSwitchMasterReplicaModeResultUnion) (_ []byte, err error) {
+func (item *EngineSwitchToMasterMode) WriteBoxed(w []byte) ([]byte, error) {
+	w = basictl.NatWrite(w, 0x8cdcb5f9)
+	return item.Write(w)
+}
+
+func (item *EngineSwitchToMasterMode) ReadResult(w []byte, ret *EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
 	return ret.ReadBoxed(w)
 }
 
-func (item *EngineSwitchToMasterMode) WriteResult(w []byte, ret EngineSwitchMasterReplicaModeResultUnion) (_ []byte, err error) {
+func (item *EngineSwitchToMasterMode) WriteResult(w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineSwitchToMasterMode) ReadResultJSON(j interface{}, ret *EngineSwitchMasterReplicaModeResultUnion) error {
-	if err := EngineSwitchMasterReplicaModeResultUnion__ReadJSON(ret, j); err != nil {
+func (item *EngineSwitchToMasterMode) ReadResultJSON(j interface{}, ret *EngineSwitchMasterReplicaModeResult) error {
+	if err := EngineSwitchMasterReplicaModeResult__ReadJSON(ret, j); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *EngineSwitchToMasterMode) WriteResultJSON(w []byte, ret EngineSwitchMasterReplicaModeResultUnion) (_ []byte, err error) {
+func (item *EngineSwitchToMasterMode) WriteResultJSON(w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
 	return item.writeResultJSON(false, w, ret)
 }
 
-func (item *EngineSwitchToMasterMode) writeResultJSON(short bool, w []byte, ret EngineSwitchMasterReplicaModeResultUnion) (_ []byte, err error) {
+func (item *EngineSwitchToMasterMode) writeResultJSON(short bool, w []byte, ret EngineSwitchMasterReplicaModeResult) (_ []byte, err error) {
 	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
@@ -56,7 +64,7 @@ func (item *EngineSwitchToMasterMode) writeResultJSON(short bool, w []byte, ret 
 }
 
 func (item *EngineSwitchToMasterMode) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+	var ret EngineSwitchMasterReplicaModeResult
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -65,7 +73,7 @@ func (item *EngineSwitchToMasterMode) ReadResultWriteResultJSON(r []byte, w []by
 }
 
 func (item *EngineSwitchToMasterMode) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret EngineSwitchMasterReplicaModeResultUnion
+	var ret EngineSwitchMasterReplicaModeResult
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -78,7 +86,7 @@ func (item *EngineSwitchToMasterMode) ReadResultJSONWriteResult(r []byte, w []by
 	if err != nil {
 		return r, w, ErrorInvalidJSON("engine.switchToMasterMode", err.Error())
 	}
-	var ret EngineSwitchMasterReplicaModeResultUnion
+	var ret EngineSwitchMasterReplicaModeResult
 	if err = item.ReadResultJSON(j, &ret); err != nil {
 		return r, w, err
 	}

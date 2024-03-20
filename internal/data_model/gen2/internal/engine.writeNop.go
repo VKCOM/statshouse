@@ -19,14 +19,22 @@ type EngineWriteNop struct {
 func (EngineWriteNop) TLName() string { return "engine.writeNop" }
 func (EngineWriteNop) TLTag() uint32  { return 0x58160af4 }
 
-func (item *EngineWriteNop) Reset()                         {}
-func (item *EngineWriteNop) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineWriteNop) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineWriteNop) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x58160af4)
+func (item *EngineWriteNop) Reset() {}
+
+func (item *EngineWriteNop) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineWriteNop) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineWriteNop) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x58160af4); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineWriteNop) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x58160af4), nil
+	w = basictl.NatWrite(w, 0x58160af4)
+	return item.Write(w)
 }
 
 func (item *EngineWriteNop) ReadResult(w []byte, ret *True) (_ []byte, err error) {

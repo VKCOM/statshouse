@@ -321,9 +321,7 @@ func (item *StatshouseMultiValue) Write(w []byte, nat_fields_mask uint32) (_ []b
 		w = basictl.DoubleWrite(w, item.ValueSumSquare)
 	}
 	if nat_fields_mask&(1<<5) != 0 {
-		if w, err = basictl.StringWrite(w, item.Uniques); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Uniques)
 	}
 	if nat_fields_mask&(1<<6) != 0 {
 		if w, err = BuiltinVectorStatshouseCentroidWrite(w, item.Centroids); err != nil {
@@ -866,9 +864,7 @@ func (item *StatshouseMultiValueBytes) Write(w []byte, nat_fields_mask uint32) (
 		w = basictl.DoubleWrite(w, item.ValueSumSquare)
 	}
 	if nat_fields_mask&(1<<5) != 0 {
-		if w, err = basictl.StringWriteBytes(w, item.Uniques); err != nil {
-			return w, err
-		}
+		w = basictl.StringWriteBytes(w, item.Uniques)
 	}
 	if nat_fields_mask&(1<<6) != 0 {
 		if w, err = BuiltinVectorStatshouseCentroidWrite(w, item.Centroids); err != nil {

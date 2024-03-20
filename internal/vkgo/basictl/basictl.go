@@ -124,14 +124,6 @@ func StringRead(r []byte, dst *string) ([]byte, error) {
 	return r, nil
 }
 
-func StringWrite(w []byte, v string) ([]byte, error) {
-	return writeString(w, v), nil
-}
-
-func StringWriteTruncated(w []byte, v string) []byte {
-	return writeString(w, v)
-}
-
 func StringReadBytes(r []byte, dst *[]byte) ([]byte, error) {
 	if len(r) == 0 {
 		return r, io.ErrUnexpectedEOF
@@ -197,14 +189,6 @@ func StringReadBytes(r []byte, dst *[]byte) ([]byte, error) {
 	return r[l+padding:], nil
 }
 
-func StringWriteBytes(w []byte, v []byte) ([]byte, error) {
-	return writeStringBytes(w, v), nil
-}
-
-func StringWriteBytesTruncated(w []byte, v []byte) []byte {
-	return writeStringBytes(w, v)
-}
-
 func NatPeekTag(r []byte) (uint32, error) {
 	if len(r) < 4 {
 		return 0, io.ErrUnexpectedEOF
@@ -233,7 +217,7 @@ func paddingLen(l int) int {
 	return int(-uint(l) % 4)
 }
 
-func writeString(w []byte, v string) []byte {
+func StringWrite(w []byte, v string) []byte {
 	l := int64(len(v))
 	var p int64
 	switch {
@@ -253,7 +237,8 @@ func writeString(w []byte, v string) []byte {
 	}
 	w = append(w, v...)
 
-	switch uint(p) % 4 {
+	// w is sometimes slice of byte array, so we do not want optimization to always append 3 bytes, then resize.
+	switch uint64(p) % 4 {
 	case 1:
 		w = append(w, 0, 0, 0)
 	case 2:
@@ -264,7 +249,7 @@ func writeString(w []byte, v string) []byte {
 	return w
 }
 
-func writeStringBytes(w []byte, v []byte) []byte {
+func StringWriteBytes(w []byte, v []byte) []byte {
 	l := int64(len(v))
 	var p int64
 	switch {
@@ -284,7 +269,8 @@ func writeStringBytes(w []byte, v []byte) []byte {
 	}
 	w = append(w, v...)
 
-	switch uint(p) % 4 {
+	// w is sometimes slice of byte array, so we do not want optimization to always append 3 bytes, then resize.
+	switch uint64(p) % 4 {
 	case 1:
 		w = append(w, 0, 0, 0)
 	case 2:
@@ -315,11 +301,30 @@ func JSONWriteInt64(w []byte, v int64) []byte {
 	return strconv.AppendInt(w, v, 10)
 }
 
+func jsonWriteFloatSpecial(w []byte, v float64) ([]byte, bool) {
+	if math.IsNaN(v) {
+		return append(w, "\"NaN\""...), true
+	}
+	if math.IsInf(v, 1) {
+		return append(w, "\"+Inf\""...), true
+	}
+	if math.IsInf(v, -1) {
+		return append(w, "\"-Inf\""...), true
+	}
+	return w, false
+}
+
 func JSONWriteFloat32(w []byte, v float32) []byte {
+	if ws, ok := jsonWriteFloatSpecial(w, float64(v)); ok {
+		return ws
+	}
 	return strconv.AppendFloat(w, float64(v), 'f', -1, 32)
 }
 
 func JSONWriteFloat64(w []byte, v float64) []byte {
+	if ws, ok := jsonWriteFloatSpecial(w, v); ok {
+		return ws
+	}
 	return strconv.AppendFloat(w, v, 'f', -1, 64)
 }
 

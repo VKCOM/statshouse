@@ -226,12 +226,8 @@ func (item *StatshousePromTarget) Read(w []byte) (_ []byte, err error) {
 
 func (item *StatshousePromTarget) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWrite(w, item.JobName); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.Url); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.JobName)
+	w = basictl.StringWrite(w, item.Url)
 	if w, err = BuiltinVectorDictionaryFieldStringWrite(w, item.Labels); err != nil {
 		return w, err
 	}
@@ -241,7 +237,7 @@ func (item *StatshousePromTarget) Write(w []byte) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.LabelLimit)
 	w = basictl.LongWrite(w, item.LabelNameLengthLimit)
 	w = basictl.LongWrite(w, item.LabelValueLengthLimit)
-	return basictl.StringWrite(w, item.HttpClientConfig)
+	return basictl.StringWrite(w, item.HttpClientConfig), nil
 }
 
 func (item *StatshousePromTarget) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -534,12 +530,8 @@ func (item *StatshousePromTargetBytes) Read(w []byte) (_ []byte, err error) {
 
 func (item *StatshousePromTargetBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
-	if w, err = basictl.StringWriteBytes(w, item.JobName); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.Url); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.JobName)
+	w = basictl.StringWriteBytes(w, item.Url)
 	if w, err = BuiltinVectorDictionaryFieldStringBytesWrite(w, item.Labels); err != nil {
 		return w, err
 	}
@@ -549,7 +541,7 @@ func (item *StatshousePromTargetBytes) Write(w []byte) (_ []byte, err error) {
 	w = basictl.LongWrite(w, item.LabelLimit)
 	w = basictl.LongWrite(w, item.LabelNameLengthLimit)
 	w = basictl.LongWrite(w, item.LabelValueLengthLimit)
-	return basictl.StringWriteBytes(w, item.HttpClientConfig)
+	return basictl.StringWriteBytes(w, item.HttpClientConfig), nil
 }
 
 func (item *StatshousePromTargetBytes) ReadBoxed(w []byte) (_ []byte, err error) {

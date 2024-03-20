@@ -19,14 +19,22 @@ type MetadataResetFloodResponse struct {
 func (MetadataResetFloodResponse) TLName() string { return "metadata.resetFloodResponse" }
 func (MetadataResetFloodResponse) TLTag() uint32  { return 0x9286abee }
 
-func (item *MetadataResetFloodResponse) Reset()                         {}
-func (item *MetadataResetFloodResponse) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *MetadataResetFloodResponse) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *MetadataResetFloodResponse) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x9286abee)
+func (item *MetadataResetFloodResponse) Reset() {}
+
+func (item *MetadataResetFloodResponse) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *MetadataResetFloodResponse) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *MetadataResetFloodResponse) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x9286abee); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *MetadataResetFloodResponse) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x9286abee), nil
+	w = basictl.NatWrite(w, 0x9286abee)
+	return item.Write(w)
 }
 
 func (item MetadataResetFloodResponse) String() string {

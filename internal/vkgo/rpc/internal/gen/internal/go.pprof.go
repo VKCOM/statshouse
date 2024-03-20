@@ -29,7 +29,7 @@ func (item *GoPprof) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *GoPprof) Write(w []byte) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.Params)
+	return basictl.StringWrite(w, item.Params), nil
 }
 
 func (item *GoPprof) ReadBoxed(w []byte) (_ []byte, err error) {
@@ -53,7 +53,7 @@ func (item *GoPprof) ReadResult(w []byte, ret *string) (_ []byte, err error) {
 
 func (item *GoPprof) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	w = basictl.NatWrite(w, 0xb5286e24)
-	return basictl.StringWrite(w, ret)
+	return basictl.StringWrite(w, ret), nil
 }
 
 func (item *GoPprof) ReadResultJSON(j interface{}, ret *string) error {

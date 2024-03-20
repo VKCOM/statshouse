@@ -16,70 +16,70 @@ import (
 )
 
 type (
-	AlreadyInMasterMode                = internal.EngineAlreadyInMasterMode
-	AlreadyInReplicaMode               = internal.EngineAlreadyInReplicaMode
-	AsyncSleep                         = internal.EngineAsyncSleep
-	BinlogPrefix                       = internal.EngineBinlogPrefix
-	Count                              = internal.EngineCount
-	DumpForceQueries                   = internal.EngineDumpForceQueries
-	DumpLastQueries                    = internal.EngineDumpLastQueries
-	DumpNextQueries                    = internal.EngineDumpNextQueries
-	EnableMetafilesAnalyzer            = internal.EngineEnableMetafilesAnalyzer
-	FailedToSwitchMode                 = internal.EngineFailedToSwitchMode
-	FilteredStat                       = internal.EngineFilteredStat
-	GetBinlogPrefixes                  = internal.EngineGetBinlogPrefixes
-	GetExpectedMetafilesStats          = internal.EngineGetExpectedMetafilesStats
-	GetReadWriteMode                   = internal.EngineGetReadWriteMode
-	GetReindexStatus                   = internal.EngineGetReindexStatus
-	HttpQuery                          = internal.EngineHttpQuery
-	HttpQueryResponse                  = internal.EngineHttpQueryResponse
-	InvokeHttpQuery                    = internal.EngineInvokeHttpQuery
-	IsProduction                       = internal.EngineIsProduction
-	MetafilesOneMemoryStat             = internal.EngineMetafilesOneMemoryStat
-	MetafilesStat                      = internal.EngineMetafilesStat
-	Nop                                = internal.EngineNop
-	Pid                                = internal.EnginePid
-	PushStat                           = internal.EnginePushStat
-	QueryResult                        = internal.EngineQueryResult
-	QueryResultAio                     = internal.EngineQueryResultAio
-	QueryResultError                   = internal.EngineQueryResultError
-	QueryResultUnion                   = internal.EngineQueryResultUnion
-	ReadNop                            = internal.EngineReadNop
-	ReadWriteMode                      = internal.EngineReadWriteMode
-	RecordNextQueries                  = internal.EngineRecordNextQueries
-	RegisterDynamicLib                 = internal.EngineRegisterDynamicLib
-	ReindexStatusDone                  = internal.EngineReindexStatusDone
-	ReindexStatusDoneOld               = internal.EngineReindexStatusDoneOld
-	ReindexStatusFailed                = internal.EngineReindexStatusFailed
-	ReindexStatusNever                 = internal.EngineReindexStatusNever
-	ReindexStatusRunning               = internal.EngineReindexStatusRunning
-	ReindexStatusRunningOld            = internal.EngineReindexStatusRunningOld
-	ReindexStatusSignaled              = internal.EngineReindexStatusSignaled
-	ReindexStatusUnion                 = internal.EngineReindexStatusUnion
-	ReloadDynamicLib                   = internal.EngineReloadDynamicLib
-	ReloadDynamicLibOptions            = internal.EngineReloadDynamicLibOptions
-	ReplaceConfigServer                = internal.EngineReplaceConfigServer
-	SendSignal                         = internal.EngineSendSignal
-	SetFsyncInterval                   = internal.EngineSetFsyncInterval
-	SetMetafileMemory                  = internal.EngineSetMetafileMemory
-	SetNoPersistentConfigArray         = internal.EngineSetNoPersistentConfigArray
-	SetNoPersistentConfigValue         = internal.EngineSetNoPersistentConfigValue
-	SetPersistentConfigArray           = internal.EngineSetPersistentConfigArray
-	SetPersistentConfigValue           = internal.EngineSetPersistentConfigValue
-	SetVerbosity                       = internal.EngineSetVerbosity
-	SetVerbosityType                   = internal.EngineSetVerbosityType
-	Sleep                              = internal.EngineSleep
-	Stat                               = internal.EngineStat
-	SwitchMasterReplicaModeResultUnion = internal.EngineSwitchMasterReplicaModeResultUnion
-	SwitchToMasterMode                 = internal.EngineSwitchToMasterMode
-	SwitchToMasterModeForcefully       = internal.EngineSwitchToMasterModeForcefully
-	SwitchToReplicaMode                = internal.EngineSwitchToReplicaMode
-	SwitchedToMasterMode               = internal.EngineSwitchedToMasterMode
-	SwitchedToMasterModeForcefully     = internal.EngineSwitchedToMasterModeForcefully
-	SwitchedToReplicaMode              = internal.EngineSwitchedToReplicaMode
-	UnregisterDynamicLib               = internal.EngineUnregisterDynamicLib
-	Version                            = internal.EngineVersion
-	WriteNop                           = internal.EngineWriteNop
+	AlreadyInMasterMode            = internal.EngineAlreadyInMasterMode
+	AlreadyInReplicaMode           = internal.EngineAlreadyInReplicaMode
+	AsyncSleep                     = internal.EngineAsyncSleep
+	BinlogPrefix                   = internal.EngineBinlogPrefix
+	Count                          = internal.EngineCount
+	DumpForceQueries               = internal.EngineDumpForceQueries
+	DumpLastQueries                = internal.EngineDumpLastQueries
+	DumpNextQueries                = internal.EngineDumpNextQueries
+	EnableMetafilesAnalyzer        = internal.EngineEnableMetafilesAnalyzer
+	FailedToSwitchMode             = internal.EngineFailedToSwitchMode
+	FilteredStat                   = internal.EngineFilteredStat
+	GetBinlogPrefixes              = internal.EngineGetBinlogPrefixes
+	GetExpectedMetafilesStats      = internal.EngineGetExpectedMetafilesStats
+	GetReadWriteMode               = internal.EngineGetReadWriteMode
+	GetReindexStatus               = internal.EngineGetReindexStatus
+	HttpQuery                      = internal.EngineHttpQuery
+	HttpQueryResponse              = internal.EngineHttpQueryResponse
+	InvokeHttpQuery                = internal.EngineInvokeHttpQuery
+	IsProduction                   = internal.EngineIsProduction
+	MetafilesOneMemoryStat         = internal.EngineMetafilesOneMemoryStat
+	MetafilesStat                  = internal.EngineMetafilesStat
+	Nop                            = internal.EngineNop
+	Pid                            = internal.EnginePid
+	PushStat                       = internal.EnginePushStat
+	QueryResult                    = internal.EngineQueryResult
+	QueryResult0                   = internal.EngineQueryResult0
+	QueryResultAio                 = internal.EngineQueryResultAio
+	QueryResultError               = internal.EngineQueryResultError
+	ReadNop                        = internal.EngineReadNop
+	ReadWriteMode                  = internal.EngineReadWriteMode
+	RecordNextQueries              = internal.EngineRecordNextQueries
+	RegisterDynamicLib             = internal.EngineRegisterDynamicLib
+	ReindexStatus                  = internal.EngineReindexStatus
+	ReindexStatusDone              = internal.EngineReindexStatusDone
+	ReindexStatusDoneOld           = internal.EngineReindexStatusDoneOld
+	ReindexStatusFailed            = internal.EngineReindexStatusFailed
+	ReindexStatusNever             = internal.EngineReindexStatusNever
+	ReindexStatusRunning           = internal.EngineReindexStatusRunning
+	ReindexStatusRunningOld        = internal.EngineReindexStatusRunningOld
+	ReindexStatusSignaled          = internal.EngineReindexStatusSignaled
+	ReloadDynamicLib               = internal.EngineReloadDynamicLib
+	ReloadDynamicLibOptions        = internal.EngineReloadDynamicLibOptions
+	ReplaceConfigServer            = internal.EngineReplaceConfigServer
+	SendSignal                     = internal.EngineSendSignal
+	SetFsyncInterval               = internal.EngineSetFsyncInterval
+	SetMetafileMemory              = internal.EngineSetMetafileMemory
+	SetNoPersistentConfigArray     = internal.EngineSetNoPersistentConfigArray
+	SetNoPersistentConfigValue     = internal.EngineSetNoPersistentConfigValue
+	SetPersistentConfigArray       = internal.EngineSetPersistentConfigArray
+	SetPersistentConfigValue       = internal.EngineSetPersistentConfigValue
+	SetVerbosity                   = internal.EngineSetVerbosity
+	SetVerbosityType               = internal.EngineSetVerbosityType
+	Sleep                          = internal.EngineSleep
+	Stat                           = internal.EngineStat
+	SwitchMasterReplicaModeResult  = internal.EngineSwitchMasterReplicaModeResult
+	SwitchToMasterMode             = internal.EngineSwitchToMasterMode
+	SwitchToMasterModeForcefully   = internal.EngineSwitchToMasterModeForcefully
+	SwitchToReplicaMode            = internal.EngineSwitchToReplicaMode
+	SwitchedToMasterMode           = internal.EngineSwitchedToMasterMode
+	SwitchedToMasterModeForcefully = internal.EngineSwitchedToMasterModeForcefully
+	SwitchedToReplicaMode          = internal.EngineSwitchedToReplicaMode
+	UnregisterDynamicLib           = internal.EngineUnregisterDynamicLib
+	Version                        = internal.EngineVersion
+	WriteNop                       = internal.EngineWriteNop
 )
 
 type Client struct {
@@ -329,7 +329,7 @@ func (c *Client) GetReadWriteMode(ctx context.Context, args GetReadWriteMode, ex
 	return nil
 }
 
-func (c *Client) GetReindexStatus(ctx context.Context, args GetReindexStatus, extra *rpc.InvokeReqExtra, ret *ReindexStatusUnion) (err error) {
+func (c *Client) GetReindexStatus(ctx context.Context, args GetReindexStatus, extra *rpc.InvokeReqExtra, ret *ReindexStatus) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.getReindexStatus"
@@ -859,7 +859,7 @@ func (c *Client) Stat(ctx context.Context, args Stat, extra *rpc.InvokeReqExtra,
 	return nil
 }
 
-func (c *Client) SwitchToMasterMode(ctx context.Context, args SwitchToMasterMode, extra *rpc.InvokeReqExtra, ret *SwitchMasterReplicaModeResultUnion) (err error) {
+func (c *Client) SwitchToMasterMode(ctx context.Context, args SwitchToMasterMode, extra *rpc.InvokeReqExtra, ret *SwitchMasterReplicaModeResult) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.switchToMasterMode"
@@ -883,7 +883,7 @@ func (c *Client) SwitchToMasterMode(ctx context.Context, args SwitchToMasterMode
 	return nil
 }
 
-func (c *Client) SwitchToMasterModeForcefully(ctx context.Context, args SwitchToMasterModeForcefully, extra *rpc.InvokeReqExtra, ret *SwitchMasterReplicaModeResultUnion) (err error) {
+func (c *Client) SwitchToMasterModeForcefully(ctx context.Context, args SwitchToMasterModeForcefully, extra *rpc.InvokeReqExtra, ret *SwitchMasterReplicaModeResult) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.switchToMasterModeForcefully"
@@ -907,7 +907,7 @@ func (c *Client) SwitchToMasterModeForcefully(ctx context.Context, args SwitchTo
 	return nil
 }
 
-func (c *Client) SwitchToReplicaMode(ctx context.Context, args SwitchToReplicaMode, extra *rpc.InvokeReqExtra, ret *SwitchMasterReplicaModeResultUnion) (err error) {
+func (c *Client) SwitchToReplicaMode(ctx context.Context, args SwitchToReplicaMode, extra *rpc.InvokeReqExtra, ret *SwitchMasterReplicaModeResult) (err error) {
 	req := c.Client.GetRequest()
 	req.ActorID = c.ActorID
 	req.FunctionName = "engine.switchToReplicaMode"
@@ -1014,7 +1014,7 @@ type Handler struct {
 	GetBinlogPrefixes            func(ctx context.Context, args GetBinlogPrefixes) ([]internal.EngineBinlogPrefix, error)                   // engine.getBinlogPrefixes
 	GetExpectedMetafilesStats    func(ctx context.Context, args GetExpectedMetafilesStats) (map[string]internal.EngineMetafilesStat, error) // engine.getExpectedMetafilesStats
 	GetReadWriteMode             func(ctx context.Context, args GetReadWriteMode) (ReadWriteMode, error)                                    // engine.getReadWriteMode
-	GetReindexStatus             func(ctx context.Context, args GetReindexStatus) (ReindexStatusUnion, error)                               // engine.getReindexStatus
+	GetReindexStatus             func(ctx context.Context, args GetReindexStatus) (ReindexStatus, error)                                    // engine.getReindexStatus
 	InvokeHttpQuery              func(ctx context.Context, args InvokeHttpQuery) (HttpQueryResponse, error)                                 // engine.invokeHttpQuery
 	IsProduction                 func(ctx context.Context, args IsProduction) (bool, error)                                                 // engine.isProduction
 	Nop                          func(ctx context.Context, args Nop) (internal.True, error)                                                 // engine.nop
@@ -1036,9 +1036,9 @@ type Handler struct {
 	SetVerbosityType             func(ctx context.Context, args SetVerbosityType) (internal.True, error)                                    // engine.setVerbosityType
 	Sleep                        func(ctx context.Context, args Sleep) (bool, error)                                                        // engine.sleep
 	Stat                         func(ctx context.Context, args Stat) (internal.Stat, error)                                                // engine.stat
-	SwitchToMasterMode           func(ctx context.Context, args SwitchToMasterMode) (SwitchMasterReplicaModeResultUnion, error)             // engine.switchToMasterMode
-	SwitchToMasterModeForcefully func(ctx context.Context, args SwitchToMasterModeForcefully) (SwitchMasterReplicaModeResultUnion, error)   // engine.switchToMasterModeForcefully
-	SwitchToReplicaMode          func(ctx context.Context, args SwitchToReplicaMode) (SwitchMasterReplicaModeResultUnion, error)            // engine.switchToReplicaMode
+	SwitchToMasterMode           func(ctx context.Context, args SwitchToMasterMode) (SwitchMasterReplicaModeResult, error)                  // engine.switchToMasterMode
+	SwitchToMasterModeForcefully func(ctx context.Context, args SwitchToMasterModeForcefully) (SwitchMasterReplicaModeResult, error)        // engine.switchToMasterModeForcefully
+	SwitchToReplicaMode          func(ctx context.Context, args SwitchToReplicaMode) (SwitchMasterReplicaModeResult, error)                 // engine.switchToReplicaMode
 	UnregisterDynamicLib         func(ctx context.Context, args UnregisterDynamicLib) (internal.BoolStat, error)                            // engine.unregisterDynamicLib
 	Version                      func(ctx context.Context, args Version) (string, error)                                                    // engine.version
 	WriteNop                     func(ctx context.Context, args WriteNop) (internal.True, error)                                            // engine.writeNop

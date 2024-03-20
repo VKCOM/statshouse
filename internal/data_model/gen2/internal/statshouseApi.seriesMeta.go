@@ -235,14 +235,10 @@ func (item *StatshouseApiSeriesMeta) Write(w []byte, nat_query_fields_mask uint3
 		}
 	}
 	if nat_query_fields_mask&(1<<4) != 0 {
-		if w, err = basictl.StringWrite(w, item.Name); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Name)
 	}
 	if nat_query_fields_mask&(1<<5) != 0 {
-		if w, err = basictl.StringWrite(w, item.Color); err != nil {
-			return w, err
-		}
+		w = basictl.StringWrite(w, item.Color)
 	}
 	if nat_query_fields_mask&(1<<6) != 0 {
 		w = basictl.IntWrite(w, item.Total)

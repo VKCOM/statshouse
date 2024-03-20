@@ -68,12 +68,8 @@ func (item *StatshouseGetTagMapping2) Write(w []byte) (_ []byte, err error) {
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringWrite(w, item.Metric); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWrite(w, item.Key); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Metric)
+	w = basictl.StringWrite(w, item.Key)
 	w = basictl.IntWrite(w, item.TagIdKey)
 	return basictl.IntWrite(w, item.ClientEnv), nil
 }
@@ -324,12 +320,8 @@ func (item *StatshouseGetTagMapping2Bytes) Write(w []byte) (_ []byte, err error)
 	if w, err = item.Header.Write(w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if w, err = basictl.StringWriteBytes(w, item.Metric); err != nil {
-		return w, err
-	}
-	if w, err = basictl.StringWriteBytes(w, item.Key); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Metric)
+	w = basictl.StringWriteBytes(w, item.Key)
 	w = basictl.IntWrite(w, item.TagIdKey)
 	return basictl.IntWrite(w, item.ClientEnv), nil
 }

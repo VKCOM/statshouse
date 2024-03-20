@@ -29,7 +29,7 @@ func (item *EngineUnregisterDynamicLib) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *EngineUnregisterDynamicLib) Write(w []byte) (_ []byte, err error) {
-	return basictl.StringWrite(w, item.LibId)
+	return basictl.StringWrite(w, item.LibId), nil
 }
 
 func (item *EngineUnregisterDynamicLib) ReadBoxed(w []byte) (_ []byte, err error) {

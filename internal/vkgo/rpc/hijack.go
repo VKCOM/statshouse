@@ -21,6 +21,8 @@ type HijackListener struct {
 	socketHijacks []net.Conn
 }
 
+var _ net.Listener = &HijackListener{}
+
 func NewHijackListener(listenAddr net.Addr) *HijackListener {
 	h := &HijackListener{ListenAddr: listenAddr}
 	h.cond = sync.NewCond(&h.mu)

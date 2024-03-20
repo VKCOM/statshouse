@@ -86,7 +86,7 @@ func (item *StatshouseApiQueryPoint) Read(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = BuiltinVectorStatshouseApiFunctionBoxedRead(w, &item.What); err != nil {
+		if w, err = BuiltinVectorStatshouseApiFunctionRead(w, &item.What); err != nil {
 			return w, err
 		}
 	} else {
@@ -99,9 +99,7 @@ func (item *StatshouseApiQueryPoint) Write(w []byte) (_ []byte, err error) {
 	w = basictl.NatWrite(w, item.FieldsMask)
 	w = basictl.IntWrite(w, item.Version)
 	w = basictl.IntWrite(w, item.TopN)
-	if w, err = basictl.StringWrite(w, item.MetricName); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.MetricName)
 	w = basictl.LongWrite(w, item.TimeFrom)
 	w = basictl.LongWrite(w, item.TimeTo)
 	if w, err = item.Function.WriteBoxed(w); err != nil {
@@ -117,7 +115,7 @@ func (item *StatshouseApiQueryPoint) Write(w []byte) (_ []byte, err error) {
 		return w, err
 	}
 	if item.FieldsMask&(1<<1) != 0 {
-		if w, err = BuiltinVectorStatshouseApiFunctionBoxedWrite(w, item.What); err != nil {
+		if w, err = BuiltinVectorStatshouseApiFunctionWrite(w, item.What); err != nil {
 			return w, err
 		}
 	}
@@ -211,7 +209,7 @@ func (item *StatshouseApiQueryPoint) readJSON(j interface{}) error {
 		return err
 	}
 	if _jWhat != nil {
-		if err := BuiltinVectorStatshouseApiFunctionBoxedReadJSON(_jWhat, &item.What); err != nil {
+		if err := BuiltinVectorStatshouseApiFunctionReadJSON(_jWhat, &item.What); err != nil {
 			return err
 		}
 	} else {
@@ -284,7 +282,7 @@ func (item *StatshouseApiQueryPoint) WriteJSONOpt(short bool, w []byte) (_ []byt
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		if w, err = BuiltinVectorStatshouseApiFunctionBoxedWriteJSONOpt(short, w, item.What); err != nil {
+		if w, err = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(short, w, item.What); err != nil {
 			return w, err
 		}
 	}

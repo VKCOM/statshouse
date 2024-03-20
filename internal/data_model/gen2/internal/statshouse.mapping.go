@@ -160,9 +160,7 @@ func (item *StatshouseMapping) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *StatshouseMapping) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.Str); err != nil {
-		return w, err
-	}
+	w = basictl.StringWrite(w, item.Str)
 	return basictl.IntWrite(w, item.Value), nil
 }
 
@@ -264,9 +262,7 @@ func (item *StatshouseMappingBytes) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *StatshouseMappingBytes) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWriteBytes(w, item.Str); err != nil {
-		return w, err
-	}
+	w = basictl.StringWriteBytes(w, item.Str)
 	return basictl.IntWrite(w, item.Value), nil
 }
 

@@ -19,14 +19,22 @@ type EngineGetExpectedMetafilesStats struct {
 func (EngineGetExpectedMetafilesStats) TLName() string { return "engine.getExpectedMetafilesStats" }
 func (EngineGetExpectedMetafilesStats) TLTag() uint32  { return 0x342f391 }
 
-func (item *EngineGetExpectedMetafilesStats) Reset()                         {}
-func (item *EngineGetExpectedMetafilesStats) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineGetExpectedMetafilesStats) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineGetExpectedMetafilesStats) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0x342f391)
+func (item *EngineGetExpectedMetafilesStats) Reset() {}
+
+func (item *EngineGetExpectedMetafilesStats) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineGetExpectedMetafilesStats) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineGetExpectedMetafilesStats) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0x342f391); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
+
 func (item *EngineGetExpectedMetafilesStats) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0x342f391), nil
+	w = basictl.NatWrite(w, 0x342f391)
+	return item.Write(w)
 }
 
 func (item *EngineGetExpectedMetafilesStats) ReadResult(w []byte, ret *map[string]EngineMetafilesStat) (_ []byte, err error) {

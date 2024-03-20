@@ -19,36 +19,44 @@ type EngineGetReindexStatus struct {
 func (EngineGetReindexStatus) TLName() string { return "engine.getReindexStatus" }
 func (EngineGetReindexStatus) TLTag() uint32  { return 0xf492042e }
 
-func (item *EngineGetReindexStatus) Reset()                         {}
-func (item *EngineGetReindexStatus) Read(w []byte) ([]byte, error)  { return w, nil }
-func (item *EngineGetReindexStatus) Write(w []byte) ([]byte, error) { return w, nil }
-func (item *EngineGetReindexStatus) ReadBoxed(w []byte) ([]byte, error) {
-	return basictl.NatReadExactTag(w, 0xf492042e)
-}
-func (item *EngineGetReindexStatus) WriteBoxed(w []byte) ([]byte, error) {
-	return basictl.NatWrite(w, 0xf492042e), nil
+func (item *EngineGetReindexStatus) Reset() {}
+
+func (item *EngineGetReindexStatus) Read(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineGetReindexStatus) Write(w []byte) (_ []byte, err error) { return w, nil }
+
+func (item *EngineGetReindexStatus) ReadBoxed(w []byte) (_ []byte, err error) {
+	if w, err = basictl.NatReadExactTag(w, 0xf492042e); err != nil {
+		return w, err
+	}
+	return item.Read(w)
 }
 
-func (item *EngineGetReindexStatus) ReadResult(w []byte, ret *EngineReindexStatusUnion) (_ []byte, err error) {
+func (item *EngineGetReindexStatus) WriteBoxed(w []byte) ([]byte, error) {
+	w = basictl.NatWrite(w, 0xf492042e)
+	return item.Write(w)
+}
+
+func (item *EngineGetReindexStatus) ReadResult(w []byte, ret *EngineReindexStatus) (_ []byte, err error) {
 	return ret.ReadBoxed(w)
 }
 
-func (item *EngineGetReindexStatus) WriteResult(w []byte, ret EngineReindexStatusUnion) (_ []byte, err error) {
+func (item *EngineGetReindexStatus) WriteResult(w []byte, ret EngineReindexStatus) (_ []byte, err error) {
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineGetReindexStatus) ReadResultJSON(j interface{}, ret *EngineReindexStatusUnion) error {
-	if err := EngineReindexStatusUnion__ReadJSON(ret, j); err != nil {
+func (item *EngineGetReindexStatus) ReadResultJSON(j interface{}, ret *EngineReindexStatus) error {
+	if err := EngineReindexStatus__ReadJSON(ret, j); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (item *EngineGetReindexStatus) WriteResultJSON(w []byte, ret EngineReindexStatusUnion) (_ []byte, err error) {
+func (item *EngineGetReindexStatus) WriteResultJSON(w []byte, ret EngineReindexStatus) (_ []byte, err error) {
 	return item.writeResultJSON(false, w, ret)
 }
 
-func (item *EngineGetReindexStatus) writeResultJSON(short bool, w []byte, ret EngineReindexStatusUnion) (_ []byte, err error) {
+func (item *EngineGetReindexStatus) writeResultJSON(short bool, w []byte, ret EngineReindexStatus) (_ []byte, err error) {
 	if w, err = ret.WriteJSONOpt(short, w); err != nil {
 		return w, err
 	}
@@ -56,7 +64,7 @@ func (item *EngineGetReindexStatus) writeResultJSON(short bool, w []byte, ret En
 }
 
 func (item *EngineGetReindexStatus) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret EngineReindexStatusUnion
+	var ret EngineReindexStatus
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -65,7 +73,7 @@ func (item *EngineGetReindexStatus) ReadResultWriteResultJSON(r []byte, w []byte
 }
 
 func (item *EngineGetReindexStatus) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
-	var ret EngineReindexStatusUnion
+	var ret EngineReindexStatus
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
@@ -78,7 +86,7 @@ func (item *EngineGetReindexStatus) ReadResultJSONWriteResult(r []byte, w []byte
 	if err != nil {
 		return r, w, ErrorInvalidJSON("engine.getReindexStatus", err.Error())
 	}
-	var ret EngineReindexStatusUnion
+	var ret EngineReindexStatus
 	if err = item.ReadResultJSON(j, &ret); err != nil {
 		return r, w, err
 	}

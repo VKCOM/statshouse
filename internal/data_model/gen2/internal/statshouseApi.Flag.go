@@ -19,7 +19,6 @@ var _StatshouseApiFlag = [3]UnionElement{
 	{TLTag: 0x2a6e4c14, TLName: "statshouseApi.flagAuto", TLString: "statshouseApi.flagAuto#2a6e4c14"},
 }
 
-// TODO - deconflict name
 func StatshouseApiFlag__MakeEnum(i int) StatshouseApiFlag { return StatshouseApiFlag{index: i} }
 
 type StatshouseApiFlag struct {
@@ -106,6 +105,21 @@ func (item StatshouseApiFlag) String() string {
 		return err.Error()
 	}
 	return string(w)
+}
+
+func (item *StatshouseApiFlag) MarshalJSON() ([]byte, error) {
+	return item.WriteJSON(nil)
+}
+
+func (item *StatshouseApiFlag) UnmarshalJSON(b []byte) error {
+	j, err := JsonBytesToInterface(b)
+	if err != nil {
+		return ErrorInvalidJSON("statshouseApi.Flag", err.Error())
+	}
+	if err = item.readJSON(j); err != nil {
+		return ErrorInvalidJSON("statshouseApi.Flag", err.Error())
+	}
+	return nil
 }
 
 func StatshouseApiFlagAuto() StatshouseApiFlag { return StatshouseApiFlag__MakeEnum(2) }

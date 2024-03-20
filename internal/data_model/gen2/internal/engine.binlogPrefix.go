@@ -97,10 +97,8 @@ func (item *EngineBinlogPrefix) Read(w []byte) (_ []byte, err error) {
 }
 
 func (item *EngineBinlogPrefix) Write(w []byte) (_ []byte, err error) {
-	if w, err = basictl.StringWrite(w, item.BinlogPrefix); err != nil {
-		return w, err
-	}
-	return basictl.StringWrite(w, item.SnapshotPrefix)
+	w = basictl.StringWrite(w, item.BinlogPrefix)
+	return basictl.StringWrite(w, item.SnapshotPrefix), nil
 }
 
 func (item *EngineBinlogPrefix) ReadBoxed(w []byte) (_ []byte, err error) {
