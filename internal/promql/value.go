@@ -248,6 +248,10 @@ func (sr *Series) scalar() bool {
 	return true
 }
 
+func (sr *Series) empty() bool {
+	return len(sr.Data) == 0
+}
+
 func (h *histogram) seriesAt(x int) Series {
 	bucket := h.buckets[x]
 	data := h.Data[bucket.x : bucket.x+1]
