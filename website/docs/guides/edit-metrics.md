@@ -160,7 +160,7 @@ To hide only one tag in the middle, enter a hyphen (-) in the _Tag description_ 
 ### Describe tags
 
 While sending data, you refer to a tag by its ID or a name.
-Before you start referring to a tag by the custom names in your sending requests, 
+Before you start referring to a tag by the custom name in your sending requests, 
 specify these names here, in the UI:
 
 <img src={TagName} width="170"/>

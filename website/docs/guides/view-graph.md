@@ -99,7 +99,10 @@ between the metrics or events, use [Event overlay](#11--event-overlay).
 
 You can edit the graph name so that the metric name remains the same.
 
-<img src={RenameGraph} width="400"/>
+<img src={RenameGraph} width="800"/>
+
+These changed graph names are not saved for later.
+If you re-open your metric, the graph will have the initial name, not the new one.
 
 ## 3 — Descriptive statistics
 
