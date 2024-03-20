@@ -44,5 +44,7 @@ COPY --from=build-go /src/target/statshouse /bin/
 COPY --from=build-go /src/target/statshouse-api /bin/
 COPY --from=build-go /src/target/statshouse-metadata /bin/
 COPY --from=build-node /src/statshouse-ui/build /usr/lib/statshouse-api/statshouse-ui/
+# dependencies for /api/render
+RUN apt-get update && apt-get install -y gnuplot-nox gnuplot-data libpango-1.0-0 libcairo2
 RUN ["/bin/statshouse-metadata", "--binlog-prefix=/var/lib/statshouse/metadata/binlog/bl", "--create-binlog=0,1"]
 ENTRYPOINT ["/bin/all-in-one-entrypoint.sh"]
