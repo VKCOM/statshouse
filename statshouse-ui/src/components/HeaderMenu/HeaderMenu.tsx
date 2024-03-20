@@ -123,13 +123,13 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
 
   useEffect(() => {
     setTimeout(() => {
-      refListMenuItemPlot.current?.querySelector('.plot-active')?.scrollIntoView();
+      refListMenuItemPlot.current?.querySelector('.plot-active')?.scrollIntoView({ block: 'nearest' });
     }, 0);
-  }, []);
+  }, [params.tabNum, params.plots]);
 
   return (
     <div className={cn('sticky-top align-self-start', css.navOuter, className)} hidden={tvMode && params.tabNum < 0}>
-      <ul className={cn('nav pb-2 h-100 d-flex flex-column flex-nowrap ', css.nav)}>
+      <ul className={cn('nav pb-2 h-100 d-flex flex-column flex-nowrap ', css.nav, css.mainNav)}>
         <HeaderMenuItem icon={SVGLightning} title="Home" to="/view" description="StatsHouse">
           <li className={css.splitter}></li>
           <li className="nav-item">
@@ -267,8 +267,8 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
           title="Dashboard"
           className={cn(params.tabNum < 0 && isView && css.activeItem)}
         ></HeaderMenuItem>
-        <li className={cn('flex-grow-0 w-100 overflow-auto', css.scrollStyle)}>
-          <ul ref={refListMenuItemPlot} className={cn('nav d-flex flex-column', css.nav)}>
+        <li className={cn('flex-grow-0 d-flex flex-column overflow-auto', css.scrollStyle, css.plotMenu)}>
+          <ul ref={refListMenuItemPlot} className={cn('nav flex-grow-0 d-flex flex-column', css.nav, css.plotNav)}>
             {menuPlots.map((item) => (
               <HeaderMenuItemPlot key={item.indexPlot} indexPlot={item.indexPlot} />
             ))}
