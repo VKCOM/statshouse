@@ -539,10 +539,14 @@ func (ev *evaluator) eval(expr parser.Expr) (res []Series, err error) {
 					return nil, fmt.Errorf("binary operator %q is not defined on (%q, %q) pair", e.Op, e.LHS.Type(), e.RHS.Type())
 				}
 				for i := range res {
-					for j := range res[i].Data {
-						fn(*res[i].Data[j].Values, r.Val)
+					if e.Op == parser.LDEFAULT && res[i].empty() {
+						res[i] = ev.newVector(r.Val)
+					} else {
+						for j := range res[i].Data {
+							fn(*res[i].Data[j].Values, r.Val)
+						}
+						res[i].Meta = evalSeriesMeta(e, res[i].Meta, SeriesMeta{})
 					}
-					res[i].Meta = evalSeriesMeta(e, res[i].Meta, SeriesMeta{})
 				}
 			default:
 				if res, err = ev.evalBinary(e); err != nil {
@@ -579,11 +583,7 @@ func (ev *evaluator) eval(expr parser.Expr) (res []Series, err error) {
 	case *parser.NumberLiteral:
 		res = make([]Series, len(ev.opt.Offsets))
 		for i := range res {
-			res[i].Data = []SeriesData{{Values: ev.alloc()}}
-			s := *res[i].Data[0].Values
-			for j := range s {
-				s[j] = e.Val
-			}
+			res[i] = ev.newVector(e.Val)
 		}
 	case *parser.ParenExpr:
 		res, err = ev.eval(e.Expr)
@@ -785,25 +785,29 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				}
 				rhs.free(ev)
 			case parser.LDEFAULT:
-				var rhsM map[uint64]hashMeta
-				rhsM, err = rhs.hash(ev, hashOptions{
-					on:    expr.VectorMatching.On,
-					tags:  expr.VectorMatching.MatchingLabels,
-					stags: lhs.Meta.STags,
-				})
-				if err != nil {
-					return nil, err
-				}
-				res[x] = lhs
-				res[x].Meta = evalSeriesMeta(expr, lhs.Meta, rhs.Meta)
-				for lhsH, lhsXs := range lhsM {
-					if rhsMt, ok := rhsM[lhsH]; ok {
-						for _, lhsX := range lhsXs {
-							sliceOr(*res[x].Data[lhsX].Values, *lhs.Data[lhsX].Values, *rhs.Data[rhsMt.x].Values)
+				if lhs.empty() {
+					res[x] = rhs
+				} else {
+					var rhsM map[uint64]hashMeta
+					rhsM, err = rhs.hash(ev, hashOptions{
+						on:    expr.VectorMatching.On,
+						tags:  expr.VectorMatching.MatchingLabels,
+						stags: lhs.Meta.STags,
+					})
+					if err != nil {
+						return nil, err
+					}
+					res[x] = lhs
+					res[x].Meta = evalSeriesMeta(expr, lhs.Meta, rhs.Meta)
+					for lhsH, lhsXs := range lhsM {
+						if rhsMt, ok := rhsM[lhsH]; ok {
+							for _, lhsX := range lhsXs {
+								sliceOr(*res[x].Data[lhsX].Values, *lhs.Data[lhsX].Values, *rhs.Data[rhsMt.x].Values)
+							}
 						}
 					}
+					rhs.free(ev)
 				}
-				rhs.free(ev)
 			case parser.LOR:
 				var rhsM map[uint64][]int
 				rhsM, _, err = rhs.group(ev, hashOptions{
@@ -1295,6 +1299,16 @@ func (ev *evaluator) newSeries(capacity int, meta SeriesMeta) Series {
 		Data: make([]SeriesData, 0, capacity),
 		Meta: meta,
 	}
+}
+
+func (ev *evaluator) newVector(v float64) Series {
+	res := Series{
+		Data: []SeriesData{{Values: ev.alloc()}},
+	}
+	for i := range *res.Data[0].Values {
+		(*res.Data[0].Values)[i] = v
+	}
+	return res
 }
 
 func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMetaValue, tagX int, offset int64) (map[int32]string, error) {
