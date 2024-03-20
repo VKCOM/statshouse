@@ -132,7 +132,7 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
       className={cn(
         'position-relative',
         css.plotItem,
-        indexPlot === tabNum && isView && [css.activePlotItem, 'plot-active']
+        indexPlot === tabNum && isView && [css.activePlotItem, css.activeItem, 'plot-active']
       )}
       onMouseOver={onOpen}
       onMouseOut={onClose}
