@@ -307,6 +307,15 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}
 		defer func() { _ = u.Close() }()
 		receiversUDP = append(receiversUDP, u)
+		if argv.listenAddrIPv6 != "" {
+			ipv6u, err := receiver.ListenUDP(argv.listenAddrIPv6, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+			if err != nil {
+				logErr.Printf("ListenUDP IPv6: %v", err)
+				return 1
+			}
+			defer func() { _ = ipv6u.Close() }()
+			receiversUDP = append(receiversUDP, ipv6u)
+		}
 	}
 	logOk.Printf("Listen UDP addr %q by %d cores", argv.listenAddr, argv.coresUDP)
 	sh2.Run(0, 0, 0)
@@ -391,6 +400,33 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			logErr.Fatalf("RPC server failed: %v", err)
 		}
 	}()
+
+	if argv.listenAddrIPv6 != "" {
+		ipv6srv := rpc.NewServer(
+			rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
+				hijackListener.AddConnection(conn)
+			}),
+			rpc.ServerWithLogf(logErr.Printf),
+			rpc.ServerWithVersion(build.Info()),
+			rpc.ServerWithCryptoKeys([]string{aesPwd}),
+			rpc.ServerWithHandler(handlerRPC.Handle),
+			rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats))
+		defer func() { _ = ipv6srv.Close() }()
+		ipv6rpcLn, err := net.Listen("tcp6", argv.listenAddr)
+		if err != nil {
+			logErr.Fatalf("RPC listen failed IPv6: %v", err)
+		}
+		ipv6hijackListener := rpc.NewHijackListener(ipv6rpcLn.Addr())
+		defer func() { _ = ipv6hijackListener.Close() }()
+
+		go func() {
+			err := ipv6srv.Serve(ipv6rpcLn)
+			if err != nil && err != rpc.ErrServerClosed {
+				logErr.Fatalf("RPC server failed IPv6: %v", err)
+			}
+		}()
+	}
+
 	if argv.pprofHTTP {
 		go func() { // serve pprof on RPC port
 			m := http.NewServeMux()
