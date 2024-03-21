@@ -52,6 +52,7 @@ type Query struct {
 // NB! If you add an option make sure that default Options{} corresponds to Prometheus behavior.
 type Options struct {
 	Version          string
+	Namespace        string
 	AvoidCache       bool
 	TimeNow          int64
 	ScreenWidth      int64
@@ -356,7 +357,7 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 	for _, matcher := range sel.LabelMatchers {
 		switch matcher.Name {
 		case labels.MetricName:
-			metrics, names, err := ev.h.MatchMetrics(ev.ctx, matcher)
+			metrics, names, err := ev.h.MatchMetrics(ev.ctx, matcher, ev.opt.Namespace)
 			if err != nil {
 				return err
 			}
@@ -1014,6 +1015,9 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		prefixSum bool
 	)
 	for _, selWhat := range selWhats {
+		if selWhat == "" {
+			continue
+		}
 		var what DigestWhat
 		switch selWhat {
 		case Count:
@@ -1070,15 +1074,18 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			what = DigestUnique
 		case UniqueSec:
 			what = DigestUniqueSec
-		case "":
-			if metric.Kind == format.MetricKindCounter || sel.MetricKindHint == format.MetricKindCounter {
-				what = DigestCountRaw
-				prefixSum = true
-			} else {
-				what = DigestAvg
-			}
 		default:
 			return seriesQueryX{}, fmt.Errorf("unrecognized %s value %q", LabelWhat, selWhat)
+		}
+		whats = append(whats, what)
+	}
+	if len(whats) == 0 {
+		var what DigestWhat
+		if metric.Kind == format.MetricKindCounter || sel.MetricKindHint == format.MetricKindCounter {
+			what = DigestCountRaw
+			prefixSum = true
+		} else {
+			what = DigestAvg
 		}
 		whats = append(whats, what)
 	}
