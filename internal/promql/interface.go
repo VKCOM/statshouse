@@ -157,7 +157,7 @@ type Handler interface {
 	// # Metric Metadata
 	//
 
-	MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, []string, error)
+	MatchMetrics(ctx context.Context, matcher *labels.Matcher, namespace string) ([]*format.MetricMetaValue, []string, error)
 	GetTimescale(qry Query, offsets map[*format.MetricMetaValue]int64) (Timescale, error)
 
 	//
