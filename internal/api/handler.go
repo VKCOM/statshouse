@@ -3303,6 +3303,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		case "ed": // end of day
 			year, month, day := time.Now().In(h.location).Date()
 			tab0.to = time.Date(year, month, day, 0, 0, 0, 0, h.location).Add(24 * time.Hour).UTC()
+			tab0.strTo = strconv.FormatInt(tab0.to.Unix(), 10)
 		case "ew": // end of week
 			var (
 				year, month, day = time.Now().In(h.location).Date()
@@ -3310,15 +3311,18 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 				offset           = time.Duration(((time.Sunday - dateNow.Weekday() + 7) % 7) + 1)
 			)
 			tab0.to = dateNow.Add(offset * 24 * time.Hour).UTC()
+			tab0.strTo = strconv.FormatInt(tab0.to.Unix(), 10)
 		default:
 			if n, err := strconv.ParseInt(dash.TimeRange.To, 10, 64); err == nil {
 				if to, err := parseUnixTimeTo(n); err == nil {
 					tab0.to = to
+					tab0.strTo = strconv.FormatInt(tab0.to.Unix(), 10)
 				}
 			}
 		}
 		if from, err := parseUnixTimeFrom(dash.TimeRange.From, tab0.to); err == nil {
 			tab0.from = from
+			tab0.strFrom = strconv.FormatInt(tab0.from.Unix(), 10)
 		}
 		tab0.shifts, _ = parseTimeShifts(dash.TimeShifts)
 		for i := 1; i < len(tabs); i++ {
