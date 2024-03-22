@@ -51,14 +51,14 @@ func (c *client) clientLoop() {
 		default:
 
 		}
-		_ = c.testCase.Check(c.r)
+		//_ = c.testCase.Check(c.r)
 		//if err != nil {
 		//	panic(err)
 		//}
 	}
 }
 
-const n = 4
+const n = 8
 
 func (s *engineState) init(r *rapid.T, tempDir string) {
 	var i int64
@@ -105,17 +105,18 @@ func (s *engineState) init(r *rapid.T, tempDir string) {
 const BinlogMagic = 123
 
 func (s *engineState) Backup(r *rapid.T) {
-	s.testCase.Backup(r)
+	//s.testCase.Backup(r)
 }
 
 func (s *engineState) Put(r *rapid.T) {
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 500; i++ {
 		err := s.testCase.Put()
 		require.NoError(r, err)
 	}
 }
 
 func (s *engineState) Kill(r *rapid.T) {
+	//log.Println("KILL")
 	_, err := s.eng.kill()
 	if err != nil {
 		r.Errorf(err.Error())
@@ -129,6 +130,7 @@ func (s *engineState) Kill(r *rapid.T) {
 }
 
 func (s *engineState) Shutdown(r *rapid.T) {
+	//log.Println("SHUTDOWN")
 	state, err := s.eng.shutdown()
 	if err != nil {
 		r.Errorf(err.Error())

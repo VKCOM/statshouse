@@ -56,6 +56,18 @@ func (p *connPool) put(conn *sqliteConn) {
 	p.roCond.Signal()
 }
 
+func (p *connPool) readTXExistsLocked() bool {
+	return len(p.roFree) == p.roCount
+}
+
+func (p *connPool) lockPool() {
+	p.roMx.Lock()
+}
+
+func (p *connPool) unlockPool() {
+	p.roMx.Unlock()
+}
+
 func (p *connPool) close(error *error) {
 	p.roMx.Lock()
 	defer p.roMx.Unlock()

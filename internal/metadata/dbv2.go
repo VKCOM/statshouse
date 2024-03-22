@@ -155,7 +155,7 @@ const BudgetBonus = 10
 const bootstrapFieldName = "bootstrap"
 const metricCountReadLimit int64 = 1000
 const metricBytesReadLimit int64 = 1024 * 1024
-const maxResetLimit = 100_000
+const maxResetLimit = 100_00
 const entityHistoryMaxResponseSize = 1024 * 1024 * 4
 
 var errInvalidMetricVersion = fmt.Errorf("invalid version")
@@ -553,8 +553,8 @@ func (db *DBV2) getFreeCount(conn sqlite.Conn) (actualLimit int64, _ error) {
 	return actualLimit, rows.Error()
 }
 
-func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) (tlmetadata.GetMappingResponseUnion, error) {
-	var resp tlmetadata.GetMappingResponseUnion
+func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) (tlmetadata.GetMappingResponse, error) {
+	var resp tlmetadata.GetMappingResponse
 	now := db.now()
 	err := db.eng.Do(ctx, "get_or_create_mapping", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
 		var err error

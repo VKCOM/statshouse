@@ -14,6 +14,8 @@ import (
 Решение: пользователь явно выбирает что кешировать а что нет
 */
 type queryCachev2 struct {
+	// требуется делать Reset всех stmt's чтобы иметь возможность вне транзакции сделать чекпоинт
+	txQueryCache map[hash]struct{}
 	queryCache   map[hash]int
 	h            *minHeap
 	cacheMaxSize int
@@ -40,6 +42,7 @@ func newQueryCachev2(cacheMaxSize int, logger *log.Logger) *queryCachev2 {
 		cacheMaxSize = cacheMaxSizeDefault
 	}
 	cache := &queryCachev2{
+		txQueryCache: map[hash]struct{}{},
 		queryCache:   make(map[hash]int),
 		cacheMaxSize: cacheMaxSize,
 		logger:       logger,
@@ -52,6 +55,14 @@ func newQueryCachev2(cacheMaxSize int, logger *log.Logger) *queryCachev2 {
 }
 
 func (cache *queryCachev2) closeTx() {
+	for h := range cache.txQueryCache {
+		i := cache.queryCache[h]
+		err := cache.h.heap[i].stmt.Reset()
+		if err != nil {
+			cache.logger.Println("[error] failed to reset stmt(probably bug)", err.Error())
+		}
+	}
+	clear(cache.txQueryCache)
 	if len(cache.queryCache) > cache.cacheMaxSize {
 		cache.evictCacheLocked(len(cache.queryCache) - cache.cacheMaxSize)
 	}
@@ -60,20 +71,23 @@ func (cache *queryCachev2) closeTx() {
 func (cache *queryCachev2) put(key hash, t time.Time, stmt *sqlite0.Stmt) {
 	stmtInfo := &cachedStmtInfo{key: key, lastTouch: t.Unix(), stmt: stmt}
 	ix := cache.h.put(stmtInfo)
+	cache.txQueryCache[key] = struct{}{}
 	cache.queryCache[key] = ix
 }
 
 func (cache *queryCachev2) get(key hash, t time.Time) (res *sqlite0.Stmt, ok bool) {
 	ix, ok := cache.queryCache[key]
 	if ok {
+		cache.txQueryCache[key] = struct{}{}
 		cachedStmt := cache.h.getAndUpdate(ix, t.Unix())
 		return cachedStmt.stmt, ok
 	}
+
 	return nil, false
 }
 
 func (cache *queryCachev2) evictCacheLocked(count int) {
-	for i := 0; i < count; i++ {
+	for i := 0; i < count && cache.size() > 0; i++ {
 		stmt := cache.h.pop()
 		delete(cache.queryCache, stmt.key)
 		if stmt.stmt == nil && isTest {

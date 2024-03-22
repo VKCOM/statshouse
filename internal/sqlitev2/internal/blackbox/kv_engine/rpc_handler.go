@@ -62,7 +62,9 @@ func (h *rpc_handler) get(ctx context.Context, get tlkv_engine.Get) (tlkv_engine
 	var v int64
 	err := h.engine.View(ctx, "get", func(conn sqlitev2.Conn) error {
 		rows := conn.Query("select", "SELECT v FROM kv WHERE k = $key", sqlitev2.Int64("$key", get.Key))
-		v = rows.ColumnInt64(0)
+		for rows.Next() {
+			v = rows.ColumnInt64(0)
+		}
 		return rows.Error()
 	})
 	return tlkv_engine.GetResponse{
@@ -79,6 +81,8 @@ func putConn(k, v int64, c sqlitev2.Conn, cache []byte) ([]byte, error) {
 	if !rows.Next() {
 		_, err = c.Exec("insert", "INSERT INTO kv (k, v) VALUES ($key, $value)", sqlitev2.Int64("$key", k), sqlitev2.Int64("$value", v))
 	} else {
+		for rows.Next() {
+		}
 		_, err = c.Exec("update", "UPDATE kv SET v = $value WHERE k = $key", sqlitev2.Int64("$key", k), sqlitev2.Int64("$value", v))
 	}
 	if err != nil {

@@ -12,8 +12,8 @@ const (
 	cacheKB     = 65536 // 64MB
 )
 
-func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path string, appID int32) (*sqlite0.Conn, error) {
-	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate)
+func openRW(open func(path string, flags int, disableAuthCheckpoint bool) (*sqlite0.Conn, error), path string, appID int32, disableAuthCheckpoint bool) (*sqlite0.Conn, error) {
+	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate, disableAuthCheckpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -47,12 +47,12 @@ func open(path string, flags int) (*sqlite0.Conn, error) {
 	return conn, nil
 }
 
-func openWAL(path string, flags int) (*sqlite0.Conn, error) {
+func openWAL(path string, flags int, disableAuthCheckpoint bool) (*sqlite0.Conn, error) {
 	conn, err := open(path, flags)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open sqlite conn: %w", err)
 	}
-	if true {
+	if disableAuthCheckpoint {
 		err = conn.SetAutoCheckpoint(0)
 		if err != nil {
 			_ = conn.Close()

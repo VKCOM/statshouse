@@ -329,7 +329,7 @@ func (l *MetricMetaLoader) GetTagMapping(ctx context.Context, tag string, metric
 		Key:    tag,
 	}
 	req.SetCreateIfAbsent(create)
-	resp := tlmetadata.GetMappingResponseUnion{}
+	resp := tlmetadata.GetMappingResponse{}
 	err := l.client.GetMapping(ctx, req, nil, &resp)
 	if err != nil {
 		return 0, format.TagValueIDAggMappingCreatedStatusErrorPMC, 0, err

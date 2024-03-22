@@ -114,7 +114,7 @@ func BenchmarkWrite(b *testing.B) {
 	var bytes [32]byte
 	for i := 0; i < b.N; i++ {
 		err := eng.Do(context.Background(), "dododo", func(c Conn, cache []byte) ([]byte, error) {
-			_, err := c.Exec("dodod", "INSERT OR REPLACE INTO numbers(n) VALUES(0)")
+			_, err := c.Exec("dodod", "INSERT OR REPLACE INTO numbers(n) VALUES($i)", Int64("$i", int64(i)))
 			return append(cache, bytes[:]...), err
 		})
 		if err != nil {

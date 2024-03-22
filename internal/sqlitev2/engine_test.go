@@ -9,8 +9,9 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math"
-	"math/rand"
+	"os"
 	"path"
 	"reflect"
 	"strconv"
@@ -19,7 +20,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/sqlitev2/restart"
 	"github.com/vkcom/statshouse/internal/vkgo/basictl"
+	"pgregory.net/rand"
 
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog/fsbinlog"
@@ -160,7 +163,7 @@ func openEngine1(t *testing.T, opt testEngineOptions) (*Engine, binlog2.Binlog) 
 		ShowLastInsertID:             true,
 		MaxROConn:                    opt.maxRoConn,
 	})
-	engine.testOptions = opt.testOptions
+	//engine.testOptions = opt.testOptions
 	require.NoError(t, err)
 	go func() {
 		require.NoError(t, engine.Run(bl, opt.applyF))
@@ -190,7 +193,7 @@ func openEngine(t *testing.T, prefix string, dbfile, schema string, create, repl
 			Replica:     replica,
 			ReadAndExit: readAndExit,
 		},
-		CacheApproxMaxSizePerConnect: 1,
+		CacheApproxMaxSizePerConnect: 100,
 		ShowLastInsertID:             true,
 	})
 	require.NoError(t, err)
@@ -244,6 +247,7 @@ func test_Engine_Reread_From_Begin(t *testing.T) {
 }
 
 func Test_Engine_Reread_From_Random_Place(t *testing.T) {
+	// падает потому что при graceful shutdown я не делаю чекпоинт всего. Если делать то все будет зорошо
 	dir := t.TempDir()
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
 	agg := &testAggregation{}
@@ -405,6 +409,7 @@ func Test_Engine_NoBinlog(t *testing.T) {
 }
 
 func Test_Engine_NoBinlog_Close(t *testing.T) {
+	// Падает потому что происходит откат вала так как нет бинлога вообще. Надо чекпоинт делать при gracefull shutdown или
 	schema := "CREATE TABLE IF NOT EXISTS test_db (data TEXT NOT NULL);"
 	dir := t.TempDir()
 	engine, err := OpenEngine(Options{
@@ -576,6 +581,7 @@ func Test_Engine_Backup(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
 	var id int64
 	dir := t.TempDir()
+	dbPath := path.Join(dir, "db")
 	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
 	var err error
 	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
@@ -589,6 +595,8 @@ func Test_Engine_Backup(t *testing.T) {
 	backupPath, _, err := engine.Backup(context.Background(), path.Join(dir, "db1"))
 	require.NoError(t, err)
 	require.NoError(t, engine.Close())
+	_ = os.Rename(restart.CommitFileName(dbPath), restart.CommitFileName(backupPath))
+
 	dir, db := path.Split(backupPath)
 	engine, _ = openEngine(t, dir, db, schema, false, false, false, nil)
 	err = engine.Do(context.Background(), "test", func(conn Conn, b []byte) ([]byte, error) {
@@ -645,7 +653,7 @@ func Test_Engine_RO(t *testing.T) {
 func TestReplicaCantWrite(t *testing.T) {
 	d := t.TempDir()
 	eng := createEngMaster(t, defaultTestEngineOptions(d))
-	defer eng.mustCloseGoodEngine(t)
+	eng.mustCloseGoodEngine(t)
 	eng = openEngReplica(t, d)
 	defer eng.mustCloseGoodEngine(t)
 	err := eng.put(context.Background(), 0, 0)
@@ -812,4 +820,44 @@ func TestDelete(t *testing.T) {
 		return rows.Error()
 	})
 	require.NoError(t, err)
+}
+
+func TestDelete111(t *testing.T) {
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, nil)
+
+	data := make([]byte, 64)
+	_, err := rand.Read(data)
+	require.NoError(t, err)
+	for i := 0; i < 1000; i++ {
+		data = strconv.AppendInt(data, int64(i), 10)
+		str := string(data)
+		err = insertText(engine, str, false)
+		require.NoError(t, err)
+	}
+	require.NoError(t, engine.Close())
+}
+
+func TestDelete111222(t *testing.T) {
+	dir := t.TempDir()
+	conn, err := newSqliteRWWALConn(dir+"/db", 123, false, 1000, false, log.New(os.Stdout, "", 0))
+	if err != nil {
+		panic(err)
+	}
+	err = conn.execLocked("BEGIN CONCURRENT")
+	if err != nil {
+		panic(err)
+	}
+	err = conn.execLocked("CREATE TABLE IF NOT EXISTS test_db (t INTEGER PRIMARY KEY);")
+	if err != nil {
+		panic(err)
+	}
+	err = conn.execLocked("INSERT INTO test_db(t) VALUES (0)")
+	if err != nil {
+		panic(err)
+	}
+	err = conn.execLocked("COMMIT")
+	if err != nil {
+		panic(err)
+	}
 }

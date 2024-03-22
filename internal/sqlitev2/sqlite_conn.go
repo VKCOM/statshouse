@@ -63,8 +63,8 @@ func newSqliteROWALConn(path string, cacheSize int, logger *log.Logger) (*sqlite
 		beginStmt: beginDeferredStmt,
 	}, nil
 }
-func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSize int, logger *log.Logger) (*sqliteConn, error) {
-	conn, err := openRW(openWAL, path, appid)
+func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSize int, disableAuthCheckpoint bool, logger *log.Logger) (*sqliteConn, error) {
+	conn, err := openRW(openWAL, path, appid, disableAuthCheckpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW conn: %w", err)
 	}
@@ -163,10 +163,22 @@ func (c *sqliteConn) binlogCommitTxLocked(newOffset int64, snapshotMeta []byte) 
 	return c.dbOffset, nil
 }
 
-func (c *sqliteConn) saveCommitInfo(snapshotMeta []byte, offset int64) error {
+// TODO унести в internal do
+func (c *sqliteConn) saveCommitInfo(snapshotMeta []byte, offset int64) (err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	err := c.saveBinlogMetaLocked(snapshotMeta)
+	err = c.beginTxLocked()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		errRollback := c.rollbackLocked()
+		if errRollback != nil {
+			err = multierr.Append(err, errRollback)
+			c.connError = err
+		}
+	}()
+	err = c.saveBinlogMetaLocked(snapshotMeta)
 	if err != nil {
 		c.connError = err
 		return fmt.Errorf("failed to save binlog meta: %w", err)
@@ -176,7 +188,8 @@ func (c *sqliteConn) saveCommitInfo(snapshotMeta []byte, offset int64) error {
 		c.connError = err
 		return fmt.Errorf("failed to save binlog committed offset: %w", err)
 	}
-	return nil
+
+	return c.nonBinlogCommitTxLocked()
 }
 
 // если не смогли откатиться, движок находится в неконсистентном состоянии. Запрещаем запись
@@ -213,10 +226,10 @@ func (c *sqliteConn) initStmt(sqlBytes []byte, sqlString string, args ...Arg) (*
 		}
 		c.cache.put(key, time.Now(), si)
 	} else {
-		err := si.Reset()
-		if err != nil {
-			return nil, fmt.Errorf("failed to reset stmt")
-		}
+		//err := si.ResetF()
+		//if err != nil {
+		//	return nil, fmt.Errorf("failed to reset stmt: %w", err)
+		//}
 	}
 
 	stmt, err := bindParam(si, args...)
@@ -278,5 +291,5 @@ func (c *sqliteConn) Close() error {
 }
 
 func openROWAL(path string) (*sqlite0.Conn, error) {
-	return openWAL(path, sqlite0.OpenReadonly)
+	return openWAL(path, sqlite0.OpenReadonly, true)
 }

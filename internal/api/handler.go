@@ -390,7 +390,7 @@ type (
 		ReceiveWarnings   float64                 `json:"receive_warnings"`    // count/sec
 		MappingErrors     float64                 `json:"mapping_errors"`      // count/sec
 		PromQL            string                  `json:"promql"`              // equivalent PromQL query
-		DebugQueries      []string                `json:"__debug_queries"`     // private, unstable: SQL queries executed
+		DebugQueries      []string                `json:"__debug_queries"`     // private, unstable: SQLStr queries executed
 		ExcessPointLeft   bool                    `json:"excess_point_left"`
 		ExcessPointRight  bool                    `json:"excess_point_right"`
 		MetricMeta        *format.MetricMetaValue `json:"metric"`
@@ -401,7 +401,7 @@ type (
 	GetPointResp struct {
 		PointMeta    []QueryPointsMeta `json:"point_meta"`      // M
 		PointData    []float64         `json:"point_data"`      // M
-		DebugQueries []string          `json:"__debug_queries"` // private, unstable: SQL queries executed
+		DebugQueries []string          `json:"__debug_queries"` // private, unstable: SQLStr queries executed
 	}
 
 	//easyjson:json
@@ -411,7 +411,7 @@ type (
 		FromRow      string          `json:"from_row"`
 		ToRow        string          `json:"to_row"`
 		More         bool            `json:"more"`
-		DebugQueries []string        `json:"__debug_queries"` // private, unstable: SQL queries executed, can be null
+		DebugQueries []string        `json:"__debug_queries"` // private, unstable: SQLStr queries executed, can be null
 	}
 
 	renderRequest struct {
@@ -762,7 +762,7 @@ func (h *Handler) doSelect(ctx context.Context, meta util.QueryMetaInto, version
 	info, err := h.ch[version].Select(ctx, meta, query)
 	duration := time.Since(start)
 	if h.verbose {
-		log.Printf("[debug] SQL for %q done in %v, err: %v", meta.User, duration, err)
+		log.Printf("[debug] SQLStr for %q done in %v, err: %v", meta.User, duration, err)
 	}
 
 	ChSelectMetricDuration(info.Duration, meta.Metric, meta.User, meta.Table, meta.Kind, meta.IsFast, meta.IsLight, err)

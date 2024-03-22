@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/vkcom/statshouse/internal/sqlitev2/restart"
 	"go.uber.org/atomic"
 	"go.uber.org/multierr"
 	"pgregory.net/rand"
@@ -33,7 +34,7 @@ import (
 // TODO: use mmap in all connections?
 // TODO: integrity check
 // TODO: built-in simple migrator
-// TODO: auto-rollback savepoint in case of any SQL-related errors
+// TODO: auto-rollback savepoint in case of any SQLStr-related errors
 // TODO: consider madvise in unixRemapfile() for mmap
 
 // how it should work:
@@ -93,6 +94,7 @@ type (
 		ctx  context.Context
 		stop func()
 		rw   *sqliteConn
+		f    *restart.RestartFile
 		//	chk *sqlite0.Conn
 		roMx    sync.Mutex
 		roFree  []*sqliteConn

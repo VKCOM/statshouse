@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
+	restart2 "github.com/vkcom/statshouse/internal/sqlitev2/restart"
 	"github.com/vkcom/statshouse/internal/vkgo/binlog"
 	"go.uber.org/multierr"
 	"pgregory.net/rand"
@@ -19,9 +20,20 @@ import (
 
 /*
 TODO
+- Если упадет во время долгого бэкапа, то все сделанные записи за это время будут откачены. Решение: если писать оффсет в рестарт файл каждый раз при коммите, то при рестарте оба вала выживут
 - Унести работу с склайтом в отдельный слой чтобы
   - Engine работал с этим слоем
   - Пользователи могли использоавть этот слой как отдельную либу
+
+- Надо следить когда завершаются рид транзакции и если была завершена последняя из тех которые держит вал, то делать чекпоинт
+- "PRAGMA journal_size_limit". поигаться с конфигурацией
+- Убивать долгие read транзакции чтобы избежать разростания вал файда (или хотя бы писать метрику на такие)
+- WAL switch лучше контролировать самому, чтобы сразу после смены файла инициировать коммит барсика
+
+- sqlite3_db_cacheflush
+
+- Если стартуем с бэкапа у него должно быть тоже имя что у основной базы, при этом надо не забыть потереть wal и wal2 файл
+- Гарантии на транзакции нет. Все операции могут быть откачены. (подумать про долгие операции типа создания индекса)
 */
 type (
 	Engine struct {
@@ -32,11 +44,12 @@ type (
 		finishBinlogRunCh chan struct{}
 		readyCh           chan error
 		readOnly          bool
+		re                *restart2.RestartFile
 
 		roConnPool  *connPool
 		readyNotify sync.Once
 
-		testOptions *testOptions
+		//testOptions *testOptions
 
 		logMx       sync.Mutex
 		logger      *log.Logger
@@ -53,7 +66,7 @@ type (
 		// User table scheme
 		Scheme string
 
-		// Open db in readonly mode. Don't use binlog in this mode
+		// OpenAndLock db in readonly mode. Don't use binlog in this mode
 		ReadOnly bool
 		// Advanced RO mode, DONT USE
 		NotUseWALROMMode bool
@@ -128,17 +141,14 @@ func OpenEngine(opt Options) (*Engine, error) {
 	// todo add nobinlog mode
 	logger := log.New(os.Stdout, logPrefix, log.LstdFlags)
 	// TODO пока перед рестартом таким образом проверяем что базу никто не исользует, потом надо будет сделать полоноценный флок
-	rw, err := newSqliteRWWALConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, logger)
+	re, err := restart2.OpenAndLock(opt.Path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open runRestart file: %w", err)
 	}
-	err = rw.Close()
+	logger.Println("Running runRestart script")
+	_, err = runRestart(re, opt, logger)
 	if err != nil {
-		return nil, err
-	}
-	err = restart(opt, logger)
-	if err != nil {
-		return nil, err
+		return nil, multierr.Append(err, re.Close())
 	}
 	stat, _ := os.Stat(opt.Path)
 	var size int64
@@ -146,14 +156,15 @@ func OpenEngine(opt Options) (*Engine, error) {
 		size = stat.Size()
 	}
 	logger.Printf("OPEN DB path: %s size(only db file): %d", opt.Path, size)
-	rw, err = newSqliteRWWALConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, logger)
+	rw, err := newSqliteRWWALConn(opt.Path, opt.APPID, opt.ShowLastInsertID, opt.CacheApproxMaxSizePerConnect, true, logger)
 	if err != nil {
-		return nil, err
+		return nil, multierr.Append(err, re.Close())
 	}
 
 	if opt.Test {
 		err = rw.integrityCheck()
 		if err != nil {
+			err = multierr.Append(err, re.Close())
 			errClose := rw.Close()
 			return nil, fmt.Errorf("failed to intergrity check: %w", multierr.Append(err, errClose))
 		}
@@ -161,12 +172,15 @@ func OpenEngine(opt Options) (*Engine, error) {
 	}
 	err = rw.applyScheme(initOffsetTable, snapshotMetaTable, initCommitOffsetTable, opt.Scheme)
 	if err != nil {
+		err = multierr.Append(err, re.Close())
 		errClose := rw.Close()
 		return nil, fmt.Errorf("failed to apply acheme: %w", multierr.Append(err, errClose))
 	}
+
 	e := &Engine{
 		opt:               opt,
 		rw:                rw,
+		re:                re,
 		finishBinlogRunCh: make(chan struct{}),
 		readyCh:           make(chan error, 1),
 		roConnPool: newConnPool(opt.MaxROConn, func() (*sqliteConn, error) {
@@ -175,7 +189,47 @@ func OpenEngine(opt Options) (*Engine, error) {
 		logger: logger,
 	}
 
-	sqlite0.CB = e.switchCallBack
+	//committedBinlogPositionDelayed, err := e.binlogLoadOrCreateCommittedOffset()
+	//if err != nil {
+	//	err = fmt.Errorf("failed to load binlog committed position during to start run: %w", err)
+	//	return nil, multierr.Append(err, re.Close())
+	//}
+	//e.logger.Printf("load binlog committed position: %d", committedBinlogPositionDelayed)
+	//if committedBinlogPositionDelayed <= comittedBinlogPosActual {
+	//	committedBinlogPositionDelayed = comittedBinlogPosActual
+	//	err = e.internalDo("__save_commit", func(c internalConn) error {
+	//		return e.rw.saveBinlogCommittedOffsetLocked(comittedBinlogPosActual)
+	//	})
+	//	if err != nil {
+	//		return nil, fmt.Errorf("fauled to rewrite committed offset")
+	//	}
+	//}
+	e.rw.dbOffset, err = e.binlogLoadOrCreatePosition()
+	if err != nil {
+		err = fmt.Errorf("failed to load binlog position during to start run: %w", err)
+		e.readyNotify.Do(func() {
+			e.readyCh <- err
+			close(e.readyCh)
+		})
+		return nil, multierr.Append(err, re.Close())
+
+	}
+	e.logger.Printf("load binlog position: %d", e.rw.dbOffset)
+
+	// TODO запуск на v1 версий сломается
+	// TODO лучше вернуть?
+	//if e.rw.dbOffset > re.GetCommitOffset() {
+	//	err = fmt.Errorf("dbOffset(%d) greater than binlog committed(%d)", e.rw.dbOffset, re.GetCommitOffset())
+	//	return nil, multierr.Append(err, re.Close())
+	//}
+
+	_, err = e.binlogLoadOrCreateMeta()
+	if err != nil {
+		err = fmt.Errorf("failed to load binlog meta durint to start run: %w", err)
+		return nil, multierr.Append(err, re.Close())
+
+	}
+
 	return e, nil
 }
 
@@ -183,32 +237,31 @@ func OpenEngine(opt Options) (*Engine, error) {
 binlog - will be closed during to Engine.Close
 */
 func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction) (err error) {
-	// TODO делать принудительный чекпоинт
+	if e.readOnly {
+		return fmt.Errorf("can't use binlog in readonly mode")
+	}
+	// TODO все изменения сделанные до RUN не должны быть откачены
+	e.roConnPool.lockPool()
+	if !e.roConnPool.readTXExistsLocked() {
+		e.roConnPool.unlockPool()
+		return fmt.Errorf("don't use RO/RW transactions before WaitReady")
+	}
+	//err = e.rw.Close() // чекпоинт вала
+	//if err != nil {
+	//	e.roConnPool.unlockPool()
+	//	return fmt.Errorf("failed to close rw conn: %w", err)
+	//}
+	//e.rw, err = newSqliteRWWALConn(e.opt.Path, e.opt.APPID, e.opt.ShowLastInsertID, e.opt.CacheApproxMaxSizePerConnect, true, e.logger)
+	//if err != nil {
+	//	e.roConnPool.unlockPool()
+	//	return fmt.Errorf("failed to reopen rw conn: %w", err)
+	//}
+	e.roConnPool.unlockPool()
+	sqlite0.CB = e.switchCallBack // TODO заменить
 	e.binlog = binlog
 	defer func() { close(e.finishBinlogRunCh) }()
 
 	e.binlogEngine = newBinlogEngine(e, applyEventFunction)
-	// todo move to run
-	e.rw.dbOffset, err = e.binlogLoadOrCreatePosition()
-	e.logger.Printf("load binlog position: %d", e.rw.dbOffset)
-	if err != nil {
-		err = fmt.Errorf("failed to load binlog position during to start run: %w", err)
-		e.readyNotify.Do(func() {
-			e.readyCh <- err
-			close(e.readyCh)
-		})
-		return err
-	}
-	committedBinlogPosition, err := e.binlogLoadOrCreateCommittedOffset()
-	e.logger.Printf("load binlog committed position: %d", committedBinlogPosition)
-	if err != nil {
-		err = fmt.Errorf("failed to load binlog committed position during to start run: %w", err)
-		e.readyNotify.Do(func() {
-			e.readyCh <- err
-			close(e.readyCh)
-		})
-		return err
-	}
 
 	meta, err := e.binlogLoadOrCreateMeta()
 	if err != nil {
@@ -220,6 +273,7 @@ func (e *Engine) Run(binlog binlog.Binlog, applyEventFunction ApplyEventFunction
 		return err
 	}
 	e.logger.Printf("load snapshot meta: %s", hex.EncodeToString(meta))
+
 	e.logger.Printf("running binlog")
 	err = e.rw.setError(e.binlog.Run(e.rw.dbOffset, meta, e.binlogEngine))
 	// TODO race?
@@ -248,11 +302,8 @@ func (e *Engine) WaitReady() error {
 }
 
 func (e *Engine) switchCallBack(iApp int, maxFrame uint) {
-	//statshouse.Metric(walCheckpointSizeMetric, T)
-	//if e == nil || e.binlogEngine == nil {
-	//	return // TODO DELETE
-	//}
-	e.binlogEngine.setWaitCheckpointOffset()
+	e.opt.StatsOptions.walCheckpointSize(iApp, maxFrame)
+	e.binlogEngine.checkpointer.setWaitCheckpointOffsetLocked()
 }
 
 func (e *Engine) Backup(ctx context.Context, prefix string) (string, int64, error) {
@@ -341,9 +392,9 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 	}
 
 	startTimeBeforeLock := time.Now()
-	if e.testOptions != nil {
-		e.testOptions.sleep()
-	}
+	//if e.testOptions != nil {
+	//	e.testOptions.sleep()
+	//}
 	conn, err := e.roConnPool.get()
 	if err != nil {
 		return fmt.Errorf("faield to get RO conn: %w", err)
@@ -354,7 +405,7 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txView, queryName, time.Now())
 	err = conn.beginTxLocked()
 	if err != nil {
-		return fmt.Errorf("failed to begon RO tx: %w", err)
+		return fmt.Errorf("failed to begin RO tx: %w", err)
 	}
 	defer func() {
 		errRollback := conn.rollbackLocked()
@@ -379,15 +430,15 @@ func (e *Engine) DoWithOffset(ctx context.Context, queryName string, do func(c C
 	if err := checkUserQueryName(queryName); err != nil {
 		return 0, err
 	}
-	if e.testOptions != nil {
-		e.testOptions.sleep()
-	}
+	//if e.testOptions != nil {
+	//	e.testOptions.sleep()
+	//}
 	startTimeBeforeLock := time.Now()
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
-	if e.testOptions != nil {
-		e.testOptions.sleep()
-	}
+	//if e.testOptions != nil {
+	//	e.testOptions.sleep()
+	//}
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
 	if e.readOnly || e.opt.Replica {
@@ -409,19 +460,20 @@ func (e *Engine) DoWithOffset(ctx context.Context, queryName string, do func(c C
 	if err != nil {
 		return e.rw.dbOffset, fmt.Errorf("user error: %w", err)
 	}
+	// todo error if binlog is set
 	if len(bytes) == 0 {
 		return e.rw.dbOffset, e.rw.nonBinlogCommitTxLocked()
 	}
 	if e.binlog == nil {
 		return e.rw.dbOffset, fmt.Errorf("can't write binlog event: binlog is nil")
 	}
-	offsetAfterWrite, err := e.binlog.AppendASAP(e.rw.dbOffset, bytes)
+	offsetAfterWrite, err := e.binlog.Append(e.rw.dbOffset, bytes)
 	if err != nil {
 		return e.rw.dbOffset, fmt.Errorf("binlog Append return error: %w", err)
 	}
-	if e.testOptions != nil {
-		e.testOptions.sleep()
-	}
+	//if e.testOptions != nil {
+	//	e.testOptions.sleep()
+	//}
 	//meta := e.binlogEngine.binlogWait(offsetAfterWrite, false)
 	dbOffset, err = e.rw.binlogCommitTxLocked(offsetAfterWrite, nil)
 	return dbOffset, err
@@ -438,9 +490,9 @@ func (e *Engine) internalDo(queryName string, do func(c internalConn) error) err
 		return err
 	}
 	startTimeBeforeLock := time.Now()
-	if e.testOptions != nil {
-		e.testOptions.sleep()
-	}
+	//if e.testOptions != nil {
+	//	e.testOptions.sleep()
+	//}
 	e.rw.mu.Lock()
 	defer e.rw.mu.Unlock()
 	defer func() {
@@ -450,15 +502,15 @@ func (e *Engine) internalDo(queryName string, do func(c internalConn) error) err
 			panic(err)
 		}
 	}()
-	if e.testOptions != nil {
-		e.testOptions.sleep()
-	}
+	//if e.testOptions != nil {
+	//	e.testOptions.sleep()
+	//}
 	e.opt.StatsOptions.measureWaitDurationSince(waitDo, startTimeBeforeLock)
 	defer e.opt.StatsOptions.measureSqliteTxDurationSince(txDo, queryName, time.Now())
 	err := e.internalDoLocked(do)
-	if e.testOptions != nil {
-		e.testOptions.sleep()
-	}
+	//if e.testOptions != nil {
+	//	e.testOptions.sleep()
+	//}
 	return e.rw.setErrorLocked(err)
 }
 
@@ -491,6 +543,8 @@ func (e *Engine) binlogLoadOrCreateMeta() ([]byte, error) {
 		}
 		for rows.Next() {
 			meta, _ = rows.ColumnBlob(0, meta)
+		}
+		if meta != nil {
 			return nil
 		}
 		_, err := conn.Exec("__insert_meta", "INSERT INTO __snapshot_meta(meta) VALUES($meta)", Blob("$meta", meta))
@@ -557,7 +611,7 @@ func (e *Engine) close(waitCommitBinlog bool) error {
 			multierr.AppendInto(&error, err)
 		}
 		<-e.finishBinlogRunCh
-		// todo checkout
+		e.binlogEngine.checkpointer.doCheckpointIfCan()
 	}
 	if !readOnly {
 		e.logger.Println("closing RW connection")
@@ -569,6 +623,10 @@ func (e *Engine) close(waitCommitBinlog bool) error {
 	e.logger.Println("closing RO connection pool")
 	// todo wait when read is finish?
 	e.roConnPool.close(&error)
+	if !readOnly {
+		error = multierr.Append(error, e.re.Close())
+	}
+
 	return error
 }
 
@@ -590,7 +648,7 @@ func binlogLoadCommittedPosition(conn internalConn) (offset int64, isExists bool
 		return 0, false, rows.err
 	}
 	for rows.Next() {
-		offset := rows.ColumnInt64(0)
+		offset = rows.ColumnInt64(0)
 		return offset, true, nil
 	}
 	return 0, false, nil

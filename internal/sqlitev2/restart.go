@@ -9,6 +9,8 @@ import (
 	"log"
 	"os"
 	"slices"
+
+	restart2 "github.com/vkcom/statshouse/internal/sqlitev2/restart"
 )
 
 type walHdr struct {
@@ -22,38 +24,69 @@ type walInfo struct {
 	restartPah string
 }
 
-func restart(opt Options, log *log.Logger) error {
+func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (commifOffset int64, _ error) {
 	// todo нужен какой-то лок допольнительный, чтобы другой процесс не мог ничего сделать на время рестарта
-	isExists, err := checkFileExist(opt.Path)
+	isExistsDb, err := checkFileExist(opt.Path)
 	if err != nil {
-		return fmt.Errorf("faied to check db existance: %w", err)
+		return 0, fmt.Errorf("faied to check db existance: %w", err)
 	}
-	if !isExists {
-		return nil
+	if !isExistsDb {
+		log.Println("db not exists")
+		return 0, nil
 	}
 	wals, err := loadWalsInfo(opt.Path)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if len(wals) == 0 {
-		// удалить restart файлы если есть
-		return nil
+		log.Println("0 WALS found")
+		return 0, nil
 	}
 	if len(wals) == 1 {
+		log.Println("one wal found")
 		w := wals[0]
 		iWal2 := ^w.iWal
 		wal2Path := walPath(iWal2, opt.Path)
 		wal2, isExists, err := loadWal(iWal2, restartPath(wal2Path))
 		if err != nil {
-			return err
+			return 0, err
 		}
 		if !isExists {
-			// todo???
-			err := os.Remove(w.path)
+			log.Println("one wal found remove it")
+			//var commitOffset int64 = re.GetCommitOffset()
+			//var dbOffset int64
+			//conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, true, log)
+			//if err != nil {
+			//	panic(err)
+			//}
+			//rows := conn.queryLocked(context.Background(), query, "__select_binlog_committed_offset", nil, "SELECT offset FROM __binlog_offset")
+			//if rows.err != nil {
+			//	if strings.Contains(rows.err.Error(), "no such table") {
+			//		err := conn.Close()
+			//		if err != nil {
+			//			panic(err)
+			//		}
+			//		return 0, nil
+			//	} else {
+			//		panic(rows.err)
+			//	}
+			//}
+			//for rows.Next() {
+			//	dbOffset = rows.ColumnInt64(0)
+			//}
+			//if rows.err != nil {
+			//	panic(err)
+			//}
+			//log.Println("READ BINLOG COMMITTED BEFORE DELETE 1 WAL", commitOffset)
+			//err = conn.Close()
+			//if err != nil {
+			//	panic(err)
+			//}
+			err = os.Remove(w.path)
 			if err != nil {
 				panic(err)
 			}
-			return nil
+			return 0, nil
 		}
 		wal2.path = wal2Path
 		wal2.restartPah = restartPath(wal2Path)
@@ -64,90 +97,88 @@ func restart(opt Options, log *log.Logger) error {
 		}
 	}
 
-	var commitOffset int64
+	var commitOffset = re.GetCommitOffset()
 	var dbOffset int64
 
-	conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, log)
+	conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, true, log)
 	if err != nil {
 		panic(err)
 	}
-	rows := conn.queryLocked(context.Background(), query, "__select_binlog_committed_offset", nil, "SELECT offset FROM __binlog_commit_offset")
+	//rows := conn.queryLocked(context.Background(), query, "__select_binlog_committed_offset", nil, "SELECT offset FROM __binlog_commit_offset")
+	//if rows.err != nil {
+	//	panic(rows.err)
+	//}
+	//for rows.Next() {
+	//	//isExists = true
+	//	commitOffset = rows.ColumnInt64(0)
+	//}
+	//if rows.err != nil {
+	//	panic(err)
+	//}
+	//log.Println("READ BINLOG COMMITTED 2 WAL", commitOffset)
+	rows := conn.queryLocked(context.Background(), query, "__select_binlog_pos", nil, "SELECT offset from __binlog_offset")
 	if rows.err != nil {
-		panic(rows.err)
+		return 0, rows.err
 	}
 	for rows.Next() {
-		isExists = true
-		commitOffset = rows.ColumnInt64(0)
-		return nil
-	}
-	if rows.err != nil {
-		panic(err)
-	}
-	log.Println("READ BINLOG COMMITTED 2 WAL", commitOffset)
-	rows = conn.queryLocked(context.Background(), query, "__select_binlog_pos", nil, "SELECT offset from __binlog_offset")
-	if rows.err != nil {
-		return rows.err
-	}
-	for rows.Next() {
-		isExists = true
+		//isExists = true
 		dbOffset = rows.ColumnInt64(0)
-		return nil
 	}
 	if rows.err != nil {
-		return rows.err
+		return 0, rows.err
 	}
-	log.Println("READ DB OFFSET 2 WAL", commitOffset)
+	log.Println("READ DB OFFSET 2 WAL", dbOffset)
 
 	if commitOffset > 0 && dbOffset <= commitOffset {
+		// TODO подумать что делать
 		err = conn.conn.Checkpoint() // все окей, база с 2 валами на уровне с бинлогом делаем чекпоинт
 		if err != nil {
 			panic(err)
 		}
-		return nil
 	}
 	err = conn.Close()
 	if err != nil {
 		panic(err)
 	}
 	if commitOffset > 0 && dbOffset <= commitOffset {
-		return nil
+		return commitOffset, nil
 	}
-	if !isExists || commitOffset == 0 {
-		return nil
-	}
+	//if commitOffset == 0 {
+	//	// todo ???
+	//	return 0, nil
+	//}
 	err = os.Rename(wals[1].path, wals[1].restartPah)
 	if err != nil {
 		panic(err)
 	}
 
-	conn, err = newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, log)
+	conn, err = newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, true, log)
 	if err != nil {
 		panic(err) // TODO точно ли будет всегда корректно открываться с одним валом
 	}
 	var withoutWalOffset int64
-	isExists = false
+	isExists := false
 	rows = conn.queryLocked(context.Background(), query, "__select_binlog_pos_from_1_wal", nil, "SELECT offset from __binlog_offset")
 	if rows.err != nil {
-		return rows.err
+		return 0, rows.err
 	}
 	for rows.Next() {
 		isExists = true
 		withoutWalOffset = rows.ColumnInt64(0)
-		return nil
 	}
 	if rows.err != nil {
-		return rows.err
+		return commitOffset, rows.err
 	}
 	log.Println("READ DB OFFSET 1 WAL", withoutWalOffset)
-	err = conn.Close()
 	if err != nil {
 		panic(err)
 	}
 	if !isExists || withoutWalOffset == 0 {
-		return nil // TODO?
+		return commitOffset, nil // TODO?
 	}
 
 	if withoutWalOffset <= commitOffset {
+		log.Println("DO CHECKPOINT TO SYNC 1 wal")
 		err = conn.conn.Checkpoint()
 		if err != nil {
 			panic(err)
@@ -157,11 +188,15 @@ func restart(opt Options, log *log.Logger) error {
 	if err != nil {
 		panic(err)
 	}
+
 	// База консистента, удаляем оба вала
+	_ = os.Remove(wals[1].path)
 	_ = os.Remove(wals[1].restartPah) // сначала удаляем новый файл, если упадем после этой строки, то при рестарте надо будет просто удалить старый вал
-	_ = os.Remove(wals[1].path)       // RO/RW соединение создает недостающий вал
 	_ = os.Remove(wals[0].path)
-	return nil
+	// тут race, если упадет после удаления, то узнать коммит позицию можно только у бинлога
+	// надо либо брать из бинлога коммит позицию, либо сохранять куда-то
+
+	return commitOffset, nil
 }
 
 func walPath(iWal int, path string) string {
@@ -173,7 +208,7 @@ func walPath(iWal int, path string) string {
 }
 
 func restartPath(path string) string {
-	return path + ".restart"
+	return path + ".runRestart"
 }
 
 func readChkpt(f *os.File) (uint32, error) {

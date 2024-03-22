@@ -188,14 +188,14 @@ func (h *Handler) RawGetMappingByValue(ctx context.Context, hctx *rpc.HandlerCon
 		return "", fmt.Errorf("failed to deserialize metadata.getMapping request: %w", err)
 	}
 
-	var mapping tlmetadata.GetMappingResponseUnion
+	var mapping tlmetadata.GetMappingResponse
 	var notExists bool
 	if args.IsSetCreateIfAbsent() {
 		mapping, err = h.db.GetOrCreateMapping(ctx, args.Metric, args.Key)
 	} else {
 		var id int32
 		id, notExists, err = h.db.GetMappingByValue(ctx, args.Key)
-		mapping = tlmetadata.GetMappingResponse{Id: id}.AsUnion()
+		mapping = tlmetadata.GetMappingResponse0{Id: id}.AsUnion()
 	}
 	if err != nil {
 		return "", err
@@ -236,13 +236,13 @@ func (h *Handler) RawGetMappingByID(ctx context.Context, hctx *rpc.HandlerContex
 		return "", err
 	}
 
-	var resp tlmetadata.GetInvertMappingResponseUnion
+	var resp tlmetadata.GetInvertMappingResponse
 	var status string
 	if !isExists {
 		resp = tlmetadata.GetInvertMappingResponseKeyNotExists{}.AsUnion()
 		status = "key_not_exists"
 	} else {
-		resp = tlmetadata.GetInvertMappingResponse{Key: k}.AsUnion()
+		resp = tlmetadata.GetInvertMappingResponse0{Key: k}.AsUnion()
 		status = "get"
 	}
 	hctx.Response, err = args.WriteResult(hctx.Response, resp)

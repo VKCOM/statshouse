@@ -47,7 +47,7 @@ func (c *Case) randValue() int64 {
 func (c *Case) Put() error {
 	k := c.randValue()
 	v := c.randValue()
-	fmt.Println("TRY PUT", k, v)
+	//fmt.Println("TRY PUT", k, v)
 	resp, err := c.client.Put(k, v)
 	canBeReverted := false
 	if err != nil {

@@ -118,7 +118,7 @@ func Test_Engine_NoBinlog_Close1(t *testing.T) {
 			L:
 				for {
 					select {
-					case _, _ = <-ch:
+					case <-ch:
 						break L
 					default:
 					}

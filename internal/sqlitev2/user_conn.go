@@ -2,6 +2,7 @@ package sqlitev2
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
@@ -69,6 +70,7 @@ func (r *Rows) Next() bool {
 	if r.ctx != nil {
 		if err := r.ctx.Err(); err != nil {
 			r.err = err
+			// TODO RESET
 			return false
 		}
 	}
@@ -77,6 +79,10 @@ func (r *Rows) Next() bool {
 		r.err = err
 	}
 	if !row {
+		err := r.s.Reset()
+		if err != nil {
+			log.Println("[ERROR] error te reset sql stement", err.Error())
+		}
 		r.c.stats.measureSqliteQueryDurationSince(r.type_, r.name, r.start)
 	}
 	return row

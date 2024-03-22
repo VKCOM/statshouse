@@ -10750,8 +10750,6 @@ SQLITE_API int sqlite3_deserialize(
   unsigned mFlags         /* Zero or more SQLITE_DESERIALIZE_* flags */
 );
 
-extern void (*WALSWITCHCALLBACK)(int, unsigned int);
-
 /*
 ** CAPI3REF: Flags for sqlite3_deserialize()
 **

@@ -277,7 +277,7 @@ func Test_SaveGroup_With_Bad_Name1(t *testing.T) {
 
 }
 
-func unpackGetMappingUnion(u tlmetadata.GetMappingResponseUnion, err error) (int32, error) {
+func unpackGetMappingUnion(u tlmetadata.GetMappingResponse, err error) (int32, error) {
 	if err != nil {
 		return 0, err
 	}
@@ -292,7 +292,7 @@ func unpackGetMappingUnion(u tlmetadata.GetMappingResponseUnion, err error) (int
 	return resp.Id, nil
 }
 
-func unpackInvertMappingUnion(u tlmetadata.GetInvertMappingResponseUnion, err error) (string, error) {
+func unpackInvertMappingUnion(u tlmetadata.GetInvertMappingResponse, err error) (string, error) {
 	if err != nil {
 		return "", err
 	}

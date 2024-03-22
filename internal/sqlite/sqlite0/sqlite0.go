@@ -55,9 +55,7 @@ package sqlite0
 */
 import "C"
 import (
-	"fmt"
 	"runtime"
-	"runtime/debug"
 	"time"
 	"unsafe"
 )
@@ -169,6 +167,7 @@ func (c *Conn) SetAutoCheckpoint(n int) error {
 	return sqliteErr(rc, c.conn, "sqlite3_wal_autocheckpoint")
 }
 
+// TODO падать если ошибка отличается от db is locked
 func (c *Conn) Checkpoint() error {
 	rc := C.sqlite3_wal_checkpoint_v2(c.conn, nil, C.SQLITE_CHECKPOINT_PASSIVE, nil, nil)
 	return sqliteErr(rc, c.conn, "sqlite3_wal_checkpoint_v2")
@@ -192,6 +191,8 @@ func (c *Conn) LastInsertRowID() int64 {
 }
 
 type Stmt struct {
+	SQLStr           string // TODO delete
+	ResetF           bool   // todo delete
 	conn             *Conn
 	stmt             *C.sqlite3_stmt
 	keepAliveStrings []string
@@ -234,6 +235,8 @@ func (c *Conn) Prepare(sql []byte) (*Stmt, []byte, error) {
 		}
 	}
 	return &Stmt{
+		ResetF: true,
+		SQLStr: string(sql),
 		conn:   c,
 		stmt:   cStmt,
 		params: params,
@@ -267,6 +270,9 @@ func (s *Stmt) ExpandedSQL() string {
 
 func (s *Stmt) Reset() error {
 	rc := C.sqlite3_reset(s.stmt)
+	if rc == ok {
+		s.ResetF = true
+	}
 	return sqliteErr(rc, s.conn.conn, "sqlite3_reset")
 }
 
@@ -367,6 +373,7 @@ func (s *Stmt) BindFloat64(param int, v float64) error {
 }
 
 func (s *Stmt) Step() (bool, error) {
+	s.ResetF = false
 	rc := C._sqlite3_blocking_step(s.conn.unlock, s.stmt)
 	switch rc {
 	case row:
@@ -378,7 +385,7 @@ func (s *Stmt) Step() (bool, error) {
 	}
 }
 
-// ColumnBlobUnsafe can return nil slice both for zero-length BLOB and SQL NULL.
+// ColumnBlobUnsafe can return nil slice both for zero-length BLOB and SQLStr NULL.
 func (s *Stmt) ColumnBlobUnsafe(i int) ([]byte, error) {
 	p := C.sqlite3_column_blob(s.stmt, C.int(i))
 	if p == nil {
@@ -386,7 +393,7 @@ func (s *Stmt) ColumnBlobUnsafe(i int) ([]byte, error) {
 		if rc != ok && rc != row {
 			return nil, sqliteErr(rc, s.conn.conn, "sqlite3_column_blob") // out-of-memory during format conversion
 		}
-		return nil, nil // zero-length BLOB or SQL NULL
+		return nil, nil // zero-length BLOB or SQLStr NULL
 	}
 	n := C.sqlite3_column_bytes(s.stmt, C.int(i))
 	if n == 0 {
@@ -423,20 +430,4 @@ func (s *Stmt) ColumnFloat64(i int) float64 {
 func (s *Stmt) ColumnNull(i int) bool {
 	typ := C.sqlite3_column_type(s.stmt, C.int(i))
 	return typ == C.SQLITE_NULL
-}
-
-var x = 0
-
-//export cb
-func cb() {
-	x++
-	fmt.Println("STACK2")
-	debug.PrintStack()
-}
-
-func Test() {
-	fmt.Println("STACK1")
-	debug.PrintStack()
-	C._cbcall()
-	fmt.Println(x)
 }

@@ -40,11 +40,11 @@ const (
 	// Initial buffer size degree
 	uniquesHashSetInitialSizeDegree = 4
 
-	// Golang-specific optimization. If buffer is larger, we free it on Reset, if smaller - reuse it
+	// Golang-specific optimization. If buffer is larger, we free it on ResetF, if smaller - reuse it
 	maxReuseBufferCap = 1024 / 4
 )
 
-// C++ implementation uses constructor, here we call Reset method on (ch.buf == nil) in all public methods
+// C++ implementation uses constructor, here we call ResetF method on (ch.buf == nil) in all public methods
 
 func (ch *ChUnique) Reset() {
 	ch.sizeDegree = uniquesHashSetInitialSizeDegree
