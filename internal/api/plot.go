@@ -383,6 +383,10 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 
 	out, err := gp.Output()
 	if err != nil {
+		// timeout or cancelled request
+		if cerr := ctx.Err(); cerr != nil {
+			return nil, cerr
+		}
 		var ee *exec.ExitError
 		if errors.As(err, &ee) {
 			return nil, fmt.Errorf("failed to execute gnuplot: %w (stderr: %q)", err, ee.Stderr)
