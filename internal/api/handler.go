@@ -1328,7 +1328,7 @@ func (h *Handler) handleGetMetric(ctx context.Context, ai accessInfo, metricName
 	}
 	v, err := h.getMetricMeta(ai, metricName)
 	if err != nil {
-		return nil, 0, httpErr(http.StatusNotFound, err)
+		return nil, 0, err
 	}
 	return &MetricInfo{
 		Metric: *v,
