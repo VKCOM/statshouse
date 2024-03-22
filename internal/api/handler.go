@@ -3316,13 +3316,13 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			if n, err := strconv.ParseInt(dash.TimeRange.To, 10, 64); err == nil {
 				if to, err := parseUnixTimeTo(n); err == nil {
 					tab0.to = to
-					tab0.strTo = strconv.FormatInt(tab0.to.Unix(), 10)
+					tab0.strTo = dash.TimeRange.To
 				}
 			}
 		}
 		if from, err := parseUnixTimeFrom(dash.TimeRange.From, tab0.to); err == nil {
 			tab0.from = from
-			tab0.strFrom = strconv.FormatInt(tab0.from.Unix(), 10)
+			tab0.strFrom = strconv.FormatInt(dash.TimeRange.From, 10)
 		}
 		tab0.shifts, _ = parseTimeShifts(dash.TimeShifts)
 		for i := 1; i < len(tabs); i++ {
