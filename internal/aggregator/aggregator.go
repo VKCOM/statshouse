@@ -96,7 +96,7 @@ type (
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
 
-		scrape     *ScrapeServer
+		scrape     *scrapeServer
 		autoCreate *autoCreate
 	}
 	BuiltInStatRecord struct {
@@ -197,8 +197,9 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		rpc.ServerWithRequestMemoryLimit(2<<30))
 
 	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
-	a.scrape = newScrapeServer()
+	a.scrape = newScrapeServer(nil)
 	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, dc, a.scrape.applyConfig)
+	a.scrape.meta = a.metricStorage
 	a.metricStorage.Journal().Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
 	agentConfig := agent.DefaultConfig()
 	agentConfig.Cluster = a.config.Cluster
@@ -230,7 +231,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	}
 	go a.goInternalLog()
 	if config.AutoCreate {
-		a.autoCreate = newAutoCreate(metadataClient, a.metricStorage)
+		a.autoCreate = newAutoCreate(metadataClient, a.metricStorage, a.scrape)
 		defer a.autoCreate.shutdown()
 	}
 

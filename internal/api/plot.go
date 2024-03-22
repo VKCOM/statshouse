@@ -50,6 +50,25 @@ set title "{{$d.Header}}" offset 0, -0.5
 set size ratio {{$d.Ratio}}
 set encoding utf8
 
+{{$l := len $d.Legend}}
+{{- if ne $l 0 -}}
+{{with index $d.Legend 0 -}}
+{{- if eq "second" .MetricType -}}
+set format y "%gs"
+{{- else if eq "millisecond" .MetricType -}}
+set format y "%gms"
+{{- else if eq "microsecond" .MetricType -}}
+set format y "%gus"
+{{- else if eq "nanosecond" .MetricType -}}
+set format y "%gns"
+{{- else if eq "byte" .MetricType -}}
+set format y "%.1b%BB"
+{{- else -}}
+set format y "%.1t%c"
+{{- end -}}
+{{- end -}}
+{{- end}}
+
 set style line 1 linewidth 0.3 linecolor rgb '#adb5bd' # thin grey
 set grid linestyle 1
 set border 0

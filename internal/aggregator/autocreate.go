@@ -25,6 +25,7 @@ import (
 type autoCreate struct {
 	client     *tlmetadata.Client
 	storage    *metajournal.MetricsStorage
+	scrape     *scrapeServer
 	mu         sync.Mutex
 	co         *sync.Cond
 	queue      []*rpc.HandlerContext // protected by "mu"
@@ -33,10 +34,11 @@ type autoCreate struct {
 	shutdownFn func()
 }
 
-func newAutoCreate(client *tlmetadata.Client, storage *metajournal.MetricsStorage) *autoCreate {
+func newAutoCreate(client *tlmetadata.Client, storage *metajournal.MetricsStorage, scrape *scrapeServer) *autoCreate {
 	ac := autoCreate{
 		client:  client,
 		storage: storage,
+		scrape:  scrape,
 		args:    make(map[*rpc.HandlerContext]tlstatshouse.AutoCreateBytes),
 	}
 	ac.co = sync.NewCond(&ac.mu)
@@ -191,6 +193,7 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 	if metricExists && newTagCount == 0 {
 		return nil // nothing to do
 	}
+	ac.scrape.getConfig().PublishDraftTags(&value)
 	// build edit request
 	data, err := json.Marshal(value)
 	if err != nil {
