@@ -31,12 +31,14 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type ScrapeServer struct {
-	ctx context.Context
-	man *discovery.Manager
+type scrapeServer struct {
+	ctx  context.Context
+	man  *discovery.Manager
+	meta format.MetaStorageInterface
 
 	// updated on "applyConfig"
-	config   map[string]*config.ScrapeConfig
+	config   scrapeConfig
+	configJ  map[string]*config.ScrapeConfig
 	configMu sync.Mutex
 
 	// current targets, updated on discovery events
@@ -54,40 +56,53 @@ type scrapeRequest struct {
 	args tlstatshouse.GetTargets2Bytes
 }
 
-type ScrapeConfig struct {
-	GlobalConfig  scrapeGlobalConfig     `yaml:"global"`
-	ScrapeConfigs []*config.ScrapeConfig `yaml:"scrape_configs,omitempty"`
+type scrapeConfig map[int32]*namespaceScrapeConfig // by namespace ID
+
+type namespaceScrapeConfig struct {
+	items     []namespaceScrapeConfigItem
+	knownTags map[string]int
+}
+type namespaceScrapeConfigItem struct {
+	Options scrapeOptions          `yaml:"statshouse"`
+	Globals *config.GlobalConfig   `yaml:"global,omitempty"`
+	Items   []*config.ScrapeConfig `yaml:"scrape_configs,omitempty"`
 }
 
-type scrapeGlobalConfig struct {
-	// copied from Prometheus "config.GlobalConfig"
-	ScrapeInterval model.Duration `yaml:"scrape_interval,omitempty"`
-	ScrapeTimeout  model.Duration `yaml:"scrape_timeout,omitempty"`
-
-	// scrape target namespace
-	Namespace string `yaml:"statshouse_namespace"`
+type scrapeOptions struct {
+	Namespace string         `yaml:"namespace"`
+	KnownTags map[string]int `yaml:"known_tags,omitempty"` // tag name -> tag index
 }
 
-func LoadScrapeConfig(configS string) ([]ScrapeConfig, error) {
-	var res []ScrapeConfig
-	err := yaml.UnmarshalStrict([]byte(configS), &res)
+func LoadScrapeConfig(configS string, meta format.MetaStorageInterface) (scrapeConfig, error) {
+	var s []namespaceScrapeConfigItem
+	err := yaml.UnmarshalStrict([]byte(configS), &s)
 	if err != nil {
-		res = make([]ScrapeConfig, 1)
-		err = yaml.UnmarshalStrict([]byte(configS), &res[0])
+		s = make([]namespaceScrapeConfigItem, 1)
+		err = yaml.UnmarshalStrict([]byte(configS), &s[0])
 		if err != nil {
 			return nil, err
 		}
 	}
-	for i := range res {
-		gc := res[i].GlobalConfig
+	res := make(map[int32]*namespaceScrapeConfig)
+	for _, v := range s {
+		if v.Options.Namespace == "" {
+			return nil, fmt.Errorf("scrape namespace not set")
+		}
+		namespace := meta.GetNamespaceByName(v.Options.Namespace)
+		if namespace == nil {
+			return nil, fmt.Errorf("scrape namespace not found %q", v.Options.Namespace)
+		}
+		if namespace.ID == format.BuiltinNamespaceIDDefault {
+			return nil, fmt.Errorf("scrape namespace can not be __default")
+		}
+		gc := v.Globals
 		if gc.ScrapeInterval == 0 {
 			gc.ScrapeInterval = config.DefaultGlobalConfig.ScrapeInterval
 		}
 		if gc.ScrapeTimeout == 0 {
 			gc.ScrapeTimeout = config.DefaultGlobalConfig.ScrapeTimeout
 		}
-		for j := range res[i].ScrapeConfigs {
-			sc := res[i].ScrapeConfigs[j]
+		for _, sc := range v.Items {
 			if sc.ScrapeInterval == 0 {
 				sc.ScrapeInterval = gc.ScrapeInterval
 			}
@@ -99,15 +114,28 @@ func LoadScrapeConfig(configS string) ([]ScrapeConfig, error) {
 				}
 			}
 		}
+		if ns := res[namespace.ID]; ns != nil {
+			if len(ns.knownTags) != 0 && len(v.Options.KnownTags) != 0 {
+				return nil, fmt.Errorf("known tags set twice for namespace %q", v.Options.Namespace)
+			}
+			ns.items = append(ns.items, v)
+		} else {
+			ns := &namespaceScrapeConfig{
+				knownTags: v.Options.KnownTags,
+				items:     []namespaceScrapeConfigItem{v},
+			}
+			res[namespace.ID] = ns
+		}
 	}
 	return res, err
 }
 
-func newScrapeServer() *ScrapeServer {
+func newScrapeServer(meta format.MetaStorageInterface) *scrapeServer {
 	ctx, cancel := context.WithCancel(context.Background())
-	res := &ScrapeServer{
+	res := &scrapeServer{
 		ctx:      ctx,
 		man:      discovery.NewManager(ctx, klog.NewLogfmtLogger(log.Writer())),
+		meta:     meta,
 		targets:  make(map[netip.Addr]tlstatshouse.GetTargetsResultBytes),
 		requests: make(map[*rpc.HandlerContext]scrapeRequest),
 	}
@@ -134,26 +162,32 @@ func newScrapeServer() *ScrapeServer {
 	return res
 }
 
-func (s *ScrapeServer) applyConfig(configS string) {
+func (s *scrapeServer) applyConfig(configS string) {
 	if s.ctx.Err() != nil {
 		return
 	}
-	cs, err := LoadScrapeConfig(configS)
+	if s.meta == nil {
+		log.Println("error loading scrape config: MetaStorageInterface not set")
+		return
+	}
+	cs, err := LoadScrapeConfig(configS, s.meta)
 	if err != nil {
 		log.Printf("error loading scrape config: %v\n", err)
 		return
 	}
 	sc := make(map[string]*config.ScrapeConfig)
 	dc := make(map[string]discovery.Configs)
-	for _, c := range cs {
-		if c.GlobalConfig.Namespace == "" {
+	for _, v := range cs {
+		if len(v.items) == 0 {
 			continue
 		}
-		namespace := model.LabelValue(c.GlobalConfig.Namespace)
-		for _, v := range c.ScrapeConfigs {
-			namespaceJobName := fmt.Sprintf("%s:%s", namespace, v.JobName)
-			sc[namespaceJobName] = v
-			dc[namespaceJobName] = v.ServiceDiscoveryConfigs
+		namespace := model.LabelValue(v.items[0].Options.Namespace)
+		for _, v1 := range v.items {
+			for _, v2 := range v1.Items {
+				namespaceJobName := fmt.Sprintf("%s:%s", namespace, v2.JobName)
+				sc[namespaceJobName] = v2
+				dc[namespaceJobName] = v2.ServiceDiscoveryConfigs
+			}
 		}
 	}
 	s.configMu.Lock()
@@ -162,10 +196,17 @@ func (s *ScrapeServer) applyConfig(configS string) {
 		log.Printf("error applying scrape config: %v\n", err)
 		return
 	}
-	s.config = sc
+	s.config = cs
+	s.configJ = sc
 }
 
-func (s *ScrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetTargets2Bytes) error {
+func (s *scrapeServer) getConfig() scrapeConfig {
+	s.configMu.Lock()
+	defer s.configMu.Unlock()
+	return s.config
+}
+
+func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetTargets2Bytes) error {
 	if s.ctx.Err() != nil {
 		return rpc.Error{
 			Code:        data_model.RPCErrorScrapeAgentIP,
@@ -204,7 +245,7 @@ func (s *ScrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerCont
 	return err
 }
 
-func (s *ScrapeServer) tryGetNewTargetsAndWriteResult(req scrapeRequest) (done bool, err error) {
+func (s *scrapeServer) tryGetNewTargetsAndWriteResult(req scrapeRequest) (done bool, err error) {
 	s.targetsMu.RLock()
 	res, ok := s.targets[req.addr]
 	s.targetsMu.RUnlock()
@@ -215,17 +256,17 @@ func (s *ScrapeServer) tryGetNewTargetsAndWriteResult(req scrapeRequest) (done b
 	return true, err
 }
 
-func (s *ScrapeServer) CancelHijack(hctx *rpc.HandlerContext) {
+func (s *scrapeServer) CancelHijack(hctx *rpc.HandlerContext) {
 	s.requestsMu.Lock()
 	defer s.requestsMu.Unlock()
 	delete(s.requests, hctx)
 }
 
-func (s *ScrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
+func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 	// get config
 	var cfg map[string]*config.ScrapeConfig
 	s.configMu.Lock()
-	cfg = s.config
+	cfg = s.configJ
 	s.configMu.Unlock()
 	// build targets
 	m := make(map[netip.Addr]*tlstatshouse.GetTargetsResultBytes)
@@ -311,6 +352,27 @@ func (s *ScrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 			s.CancelHijack(v.hctx)
 		}
 	}
+}
+
+func (c scrapeConfig) PublishDraftTags(meta *format.MetricMetaValue) int {
+	if meta.NamespaceID == format.BuiltinNamespaceIDDefault || meta.NamespaceID == format.BuiltinNamespaceIDMissing {
+		return 0
+	}
+	config := c[meta.NamespaceID]
+	if config == nil {
+		return 0
+	}
+	var n int
+	for k, v := range meta.TagsDraft {
+		x, ok := config.knownTags[k]
+		if !ok || x < 0 || format.MaxTags <= x || meta.Tags[x].Name != "" {
+			continue
+		}
+		meta.Tags[x] = v
+		delete(meta.TagsDraft, k)
+		n++
+	}
+	return n
 }
 
 func newPromTargetBytes(cfg *config.ScrapeConfig, url []byte, labels []tl.DictionaryFieldStringBytes) tlstatshouse.PromTargetBytes {
