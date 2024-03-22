@@ -131,6 +131,7 @@ type MetaStorageInterface interface { // agent uses this to avoid circular depen
 	GetMetaMetricByName(metricName string) *MetricMetaValue
 	GetGroup(id int32) *MetricsGroup
 	GetNamespace(id int32) *NamespaceMeta
+	GetNamespaceByName(name string) *NamespaceMeta
 }
 
 // This struct is immutable, it is accessed by mapping code without any locking

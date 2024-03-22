@@ -1347,7 +1347,7 @@ func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, confi
 	if !ai.isAdmin() {
 		return tlmetadata.Event{}, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 	}
-	_, err := aggregator.LoadScrapeConfig(configStr)
+	_, err := aggregator.LoadScrapeConfig(configStr, h.metricsStorage)
 	if err != nil {
 		return tlmetadata.Event{}, fmt.Errorf("invalid prometheus config syntax: %w", err)
 	}
