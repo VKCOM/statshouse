@@ -167,7 +167,6 @@ type (
 
 	Handler struct {
 		HandlerOptions
-		protectedPrefixes     []string
 		showInvisible         bool
 		staticDir             http.FileSystem
 		indexTemplate         *template.Template
@@ -1040,7 +1039,7 @@ func (h *Handler) HandleStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) parseAccessToken(r *http.Request, es *endpointStat) (accessInfo, error) {
-	ai, err := parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedPrefixes, h.LocalMode, h.insecureMode)
+	ai, err := parseAccessToken(h.jwtHelper, vkuth.GetAccessToken(r), h.protectedMetricPrefixes, h.LocalMode, h.insecureMode)
 	if es != nil {
 		es.setAccessInfo(ai)
 	}
@@ -1329,7 +1328,7 @@ func (h *Handler) handleGetMetric(ctx context.Context, ai accessInfo, metricName
 	}
 	v, err := h.getMetricMeta(ai, metricName)
 	if err != nil {
-		return nil, 0, httpErr(http.StatusNotFound, err)
+		return nil, 0, err
 	}
 	return &MetricInfo{
 		Metric: *v,
@@ -1348,7 +1347,7 @@ func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, confi
 	if !ai.isAdmin() {
 		return tlmetadata.Event{}, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
 	}
-	_, err := aggregator.LoadScrapeConfig(configStr)
+	_, err := aggregator.LoadScrapeConfig(configStr, h.metricsStorage)
 	if err != nil {
 		return tlmetadata.Event{}, fmt.Errorf("invalid prometheus config syntax: %w", err)
 	}
@@ -3303,6 +3302,7 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		case "ed": // end of day
 			year, month, day := time.Now().In(h.location).Date()
 			tab0.to = time.Date(year, month, day, 0, 0, 0, 0, h.location).Add(24 * time.Hour).UTC()
+			tab0.strTo = strconv.FormatInt(tab0.to.Unix(), 10)
 		case "ew": // end of week
 			var (
 				year, month, day = time.Now().In(h.location).Date()
@@ -3310,15 +3310,18 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 				offset           = time.Duration(((time.Sunday - dateNow.Weekday() + 7) % 7) + 1)
 			)
 			tab0.to = dateNow.Add(offset * 24 * time.Hour).UTC()
+			tab0.strTo = strconv.FormatInt(tab0.to.Unix(), 10)
 		default:
 			if n, err := strconv.ParseInt(dash.TimeRange.To, 10, 64); err == nil {
 				if to, err := parseUnixTimeTo(n); err == nil {
 					tab0.to = to
+					tab0.strTo = dash.TimeRange.To
 				}
 			}
 		}
 		if from, err := parseUnixTimeFrom(dash.TimeRange.From, tab0.to); err == nil {
 			tab0.from = from
+			tab0.strFrom = strconv.FormatInt(dash.TimeRange.From, 10)
 		}
 		tab0.shifts, _ = parseTimeShifts(dash.TimeShifts)
 		for i := 1; i < len(tabs); i++ {
@@ -3362,6 +3365,11 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			return v
 		}
 	)
+	for i, v := range dash.Vars {
+		vv := varAt(i)
+		vv.name = v.Name
+		vv.link = append(vv.link, v.Link...)
+	}
 	for k, v := range r.Form {
 		var i int
 		if strings.HasPrefix(k, "t") {

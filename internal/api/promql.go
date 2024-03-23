@@ -52,6 +52,7 @@ func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQ
 		return
 	}
 	q.End++ // handler expects half open interval [start, end)
+	q.Options.Namespace = r.Header.Get("X-StatsHouse-Namespace")
 	// execute query
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
@@ -87,7 +88,9 @@ func (h *Handler) HandlePromLabelValuesQuery(w http.ResponseWriter, r *http.Requ
 
 	s := make([]string, 0)
 	for _, m := range format.BuiltinMetrics {
-		s = append(s, m.Name)
+		if ai.CanViewMetric(*m) {
+			s = append(s, m.Name)
+		}
 	}
 	for _, v := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
 		if ai.CanViewMetric(*v) {
@@ -255,10 +258,31 @@ func promRespondError(w http.ResponseWriter, typ promErrorType, err error) {
 
 // endregion
 
-func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher) ([]*format.MetricMetaValue, []string, error) {
+func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher, namespace string) ([]*format.MetricMetaValue, []string, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
 		return nil, nil, errAccessViolation
+	}
+	if matcher.Type == labels.MatchEqual {
+		name := matcher.Value
+		if namespace != "" && !strings.Contains(name, format.NamespaceSeparator) {
+			name = namespace + format.NamespaceSeparator + name
+		}
+		metric := h.metricsStorage.GetMetaMetricByName(name)
+		if metric == nil && (namespace == "" || namespace == "__default") {
+			for _, metric = range format.BuiltinMetrics {
+				if metric.Name == name {
+					break
+				}
+			}
+		}
+		if metric == nil {
+			return nil, nil, nil
+		}
+		if !ai.CanViewMetric(*metric) {
+			return nil, nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metric.Name))
+		}
+		return []*format.MetricMetaValue{metric}, []string{metric.Name}, nil
 	}
 	var (
 		s1 []*format.MetricMetaValue // metrics

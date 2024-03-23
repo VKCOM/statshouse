@@ -102,7 +102,7 @@ services:
     build:
       context: .
       dockerfile: build/all-in-one.Dockerfile
-    container_name: sh
+    container_name: sh-all
     user: "root:root"
     ports:
       - "2442:2442"
@@ -125,7 +125,7 @@ services:
     build:
       context: .
       dockerfile: build/all-in-one.Dockerfile
-    container_name: sh
+    container_name: sh-all-but-aggregator
     user: "root:root"
     environment:
       - AGGREGATOR_OFF=1
@@ -150,7 +150,7 @@ services:
     build:
       context: .
       dockerfile: build/all-in-one.Dockerfile
-    container_name: sh
+    container_name: sh-all-but-agent
     user: "root:root"
     environment:
       - AGENT_OFF=1
@@ -176,7 +176,7 @@ services:
     build:
       context: .
       dockerfile: build/all-in-one.Dockerfile
-    container_name: sh
+    container_name: sh-all-but-metadata
     user: "root:root"
     environment:
       - META_OFF=1
