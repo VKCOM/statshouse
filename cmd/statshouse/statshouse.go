@@ -159,6 +159,9 @@ func runMain() int {
 		case "tag_mapping", "-tag_mapping", "--tag_mapping":
 			mainTagMapping()
 			return 0
+		case "publish_tag_drafts", "-publish_tag_drafts", "--publish_tag_drafts":
+			mainPublishTagDrafts()
+			return 0
 		default:
 			_, _ = fmt.Fprintf(os.Stderr, "Unknown verb %q:\n", verb)
 			printVerbUsage()
