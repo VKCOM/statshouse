@@ -37,7 +37,7 @@ type scrapeServer struct {
 	meta format.MetaStorageInterface
 
 	// updated on "applyConfig"
-	config   scrapeConfig
+	config   ScrapeConfig
 	configJ  map[string]*config.ScrapeConfig
 	configMu sync.Mutex
 
@@ -56,7 +56,7 @@ type scrapeRequest struct {
 	args tlstatshouse.GetTargets2Bytes
 }
 
-type scrapeConfig map[int32]*namespaceScrapeConfig // by namespace ID
+type ScrapeConfig map[int32]*namespaceScrapeConfig // by namespace ID
 
 type namespaceScrapeConfig struct {
 	items     []namespaceScrapeConfigItem
@@ -73,7 +73,7 @@ type scrapeOptions struct {
 	KnownTags map[string]string `yaml:"known_tags,omitempty"` // tag name -> tag index
 }
 
-func LoadScrapeConfig(configS string, meta format.MetaStorageInterface) (scrapeConfig, error) {
+func LoadScrapeConfig(configS string, meta format.MetaStorageInterface) (ScrapeConfig, error) {
 	var s []namespaceScrapeConfigItem
 	err := yaml.UnmarshalStrict([]byte(configS), &s)
 	if err != nil {
@@ -205,7 +205,7 @@ func (s *scrapeServer) applyConfig(configS string) {
 	}
 }
 
-func (s *scrapeServer) getConfig() scrapeConfig {
+func (s *scrapeServer) getConfig() ScrapeConfig {
 	s.configMu.Lock()
 	defer s.configMu.Unlock()
 	return s.config
@@ -364,7 +364,7 @@ func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 	}
 }
 
-func (c scrapeConfig) PublishDraftTags(meta *format.MetricMetaValue) int {
+func (c ScrapeConfig) PublishDraftTags(meta *format.MetricMetaValue) int {
 	if meta.NamespaceID == format.BuiltinNamespaceIDDefault || meta.NamespaceID == format.BuiltinNamespaceIDMissing {
 		return 0
 	}
