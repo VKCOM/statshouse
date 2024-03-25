@@ -142,7 +142,7 @@ export const HeaderMenuItemPlot: React.FC<HeaderMenuItemPlotProps> = ({ indexPlo
       <PlotLink
         className={cn(
           'nav-link',
-          !plotData.error403 && ['p-0', css.preview],
+          !plotData.error403 ? css.preview : css.preview403,
           plot.type === PLOT_TYPE.Event && css.previewEvent
         )}
         indexPlot={indexPlot}

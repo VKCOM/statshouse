@@ -88,9 +88,11 @@
   height: 37px;
   width: 100%;
   max-width: 100%;
+  padding: 0;
 }
 
-.preview {
+.preview403 {
+  padding: 7px var(--bs-nav-link-padding-x) 6px;
 }
 
 .previewEvent {
@@ -101,6 +103,7 @@
 }
 
 .icon {
+  display: block;
   width: 24px;
   height: 24px;
 }
