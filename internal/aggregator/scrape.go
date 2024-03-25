@@ -60,7 +60,7 @@ type scrapeConfig map[int32]*namespaceScrapeConfig // by namespace ID
 
 type namespaceScrapeConfig struct {
 	items     []namespaceScrapeConfigItem
-	knownTags map[string]int
+	knownTags map[string]string
 }
 type namespaceScrapeConfigItem struct {
 	Options scrapeOptions          `yaml:"statshouse"`
@@ -69,8 +69,8 @@ type namespaceScrapeConfigItem struct {
 }
 
 type scrapeOptions struct {
-	Namespace string         `yaml:"namespace"`
-	KnownTags map[string]int `yaml:"known_tags,omitempty"` // tag name -> tag index
+	Namespace string            `yaml:"namespace"`
+	KnownTags map[string]string `yaml:"known_tags,omitempty"` // tag name -> tag index
 }
 
 func LoadScrapeConfig(configS string, meta format.MetaStorageInterface) (scrapeConfig, error) {
@@ -190,14 +190,19 @@ func (s *scrapeServer) applyConfig(configS string) {
 			}
 		}
 	}
-	s.configMu.Lock()
-	defer s.configMu.Unlock()
-	if err = s.man.ApplyConfig(dc); err != nil {
-		log.Printf("error applying scrape config: %v\n", err)
-		return
+	func() { // to use "defer"
+		s.configMu.Lock()
+		defer s.configMu.Unlock()
+		s.config = cs
+		s.configJ = sc
+		if err = s.man.ApplyConfig(dc); err != nil {
+			log.Printf("error applying scrape config: %v\n", err)
+		}
+	}()
+	if len(dc) == 0 {
+		// "discovery.Manager" does not send updates on empty config, trigger manually
+		s.applyTargets(nil)
 	}
-	s.config = cs
-	s.configJ = sc
 }
 
 func (s *scrapeServer) getConfig() scrapeConfig {
@@ -333,7 +338,12 @@ func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 	}
 	// publish targets
 	s.targetsMu.Lock()
-	s.targets = targets
+	for k := range s.targets {
+		s.targets[k] = tlstatshouse.GetTargetsResultBytes{}
+	}
+	for k, v := range targets {
+		s.targets[k] = v
+	}
 	s.targetsMu.Unlock()
 	// serve long poll requests
 	pendingRequests := func() []scrapeRequest {
@@ -364,13 +374,21 @@ func (c scrapeConfig) PublishDraftTags(meta *format.MetricMetaValue) int {
 	}
 	var n int
 	for k, v := range meta.TagsDraft {
-		x, ok := config.knownTags[k]
-		if !ok || x < 0 || format.MaxTags <= x || meta.Tags[x].Name != "" {
+		tagID, ok := config.knownTags[k]
+		if !ok || tagID == "" {
 			continue
 		}
-		meta.Tags[x] = v
-		delete(meta.TagsDraft, k)
-		n++
+		if tagID == format.StringTopTagID {
+			if meta.StringTopName == "" {
+				meta.StringTopName = v.Name
+				meta.StringTopDescription = v.Description
+				n++
+			}
+		} else if x := format.TagIndex(tagID); 0 <= x && x < format.MaxTags {
+			meta.Tags[x] = v
+			delete(meta.TagsDraft, k)
+			n++
+		}
 	}
 	return n
 }
