@@ -132,6 +132,8 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 		if err != nil {
 			return fmt.Errorf("UnmarshalBinary failed: %w", err)
 		}
+		value.NamespaceID = v.NamespaceID
+		value.GroupID = v.GroupID
 		metricExists = true
 	} else {
 		validName, err := format.AppendValidStringValue(args.Metric[:0], args.Metric)
@@ -165,7 +167,6 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 		return nil // autocreation disabled for metrics without namespace
 	}
 	// map tags
-	newTagCount := 0
 	for _, tagName := range args.Tags {
 		if len(value.TagsDraft) >= format.MaxDraftTags {
 			break
@@ -192,12 +193,11 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 		} else {
 			value.TagsDraft[t.Name] = t
 		}
-		newTagCount++
 	}
-	if metricExists && newTagCount == 0 {
+	if metricExists &&
+		(len(value.TagsDraft) == 0 || ac.scrape.getConfig().PublishDraftTags(&value) == 0) {
 		return nil // nothing to do
 	}
-	ac.scrape.getConfig().PublishDraftTags(&value)
 	// build edit request
 	data, err := json.Marshal(value)
 	if err != nil {
