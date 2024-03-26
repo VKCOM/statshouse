@@ -49,6 +49,7 @@ var (
 		maxCores                     int
 		listenAddr                   string
 		listenAddrIPv6               string
+		listenAddrUnix               string
 		coresUDP                     int
 		bufferSizeUDP                int
 		promRemoteMod                bool
@@ -128,6 +129,7 @@ func argvAddAgentFlags(legacyVerb bool) {
 	argv.configAgent.Bind(flag.CommandLine, agent.DefaultConfig(), legacyVerb)
 	flag.StringVar(&argv.listenAddr, "p", ":13337", "RAW UDP & RPC TCP listen address")
 	flag.StringVar(&argv.listenAddrIPv6, "listen-addr-ipv6", "", "RAW UDP & RPC TCP listen address (IPv6)")
+	flag.StringVar(&argv.listenAddrUnix, "listen-addr-unix", "@statshouse", "Unix datagram listen address.")
 
 	flag.IntVar(&argv.coresUDP, "cores-udp", 1, "CPU cores to use for udp receiving. 0 switches UDP off")
 	flag.IntVar(&argv.bufferSizeUDP, "buffer-size-udp", receiver.DefaultConnBufSize, "UDP receiving buffer size")
