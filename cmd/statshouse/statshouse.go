@@ -397,33 +397,23 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	hijackListener = rpc.NewHijackListener(rpcLn.Addr())
 	defer func() { _ = hijackListener.Close() }()
 
+	var rpcLnIPv6 net.Listener
+	if argv.listenAddrIPv6 != "" {
+		rpcLnIPv6, err = net.Listen("tcp6", argv.listenAddrIPv6)
+		if err != nil {
+			logErr.Fatalf("RPC listen failed IPv6: %v", err)
+		}
+	}
+
 	go func() {
 		err := srv.Serve(rpcLn)
 		if err != nil && err != rpc.ErrServerClosed {
 			logErr.Fatalf("RPC server failed: %v", err)
 		}
 	}()
-
-	if argv.listenAddrIPv6 != "" {
-		ipv6srv := rpc.NewServer(
-			rpc.ServerWithSocketHijackHandler(func(conn *rpc.HijackConnection) {
-				hijackListener.AddConnection(conn)
-			}),
-			rpc.ServerWithLogf(logErr.Printf),
-			rpc.ServerWithVersion(build.Info()),
-			rpc.ServerWithCryptoKeys([]string{aesPwd}),
-			rpc.ServerWithHandler(handlerRPC.Handle),
-			rpc.ServerWithStatsHandler(statsHandler{receiversUDP: receiversUDP, receiverRPC: receiverRPC, sh2: sh2, metricsStorage: metricStorage}.handleStats))
-		defer func() { _ = ipv6srv.Close() }()
-		ipv6rpcLn, err := net.Listen("tcp6", argv.listenAddr)
-		if err != nil {
-			logErr.Fatalf("RPC listen failed IPv6: %v", err)
-		}
-		ipv6hijackListener := rpc.NewHijackListener(ipv6rpcLn.Addr())
-		defer func() { _ = ipv6hijackListener.Close() }()
-
+	if rpcLnIPv6 != nil {
 		go func() {
-			err := ipv6srv.Serve(ipv6rpcLn)
+			err := srv.Serve(rpcLnIPv6)
 			if err != nil && err != rpc.ErrServerClosed {
 				logErr.Fatalf("RPC server failed IPv6: %v", err)
 			}
