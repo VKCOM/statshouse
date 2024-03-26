@@ -60,8 +60,9 @@ type scrapeRequest struct {
 type ScrapeConfig map[int32]*namespaceScrapeConfig // by namespace ID
 
 type namespaceScrapeConfig struct {
-	items     []namespaceScrapeConfigItem
-	knownTags map[string]string
+	items      []namespaceScrapeConfigItem
+	knownTags  map[string]string
+	knownTagsG map[int32]map[string]string // group ID -> known tags
 }
 type namespaceScrapeConfigItem struct {
 	Options scrapeOptions          `yaml:"statshouse"`
@@ -70,8 +71,13 @@ type namespaceScrapeConfigItem struct {
 }
 
 type scrapeOptions struct {
-	Namespace string            `yaml:"namespace"`
-	KnownTags map[string]string `yaml:"known_tags,omitempty"` // tag name -> tag index
+	Namespace scrapeOptionsG   `yaml:"namespace"`
+	Groups    []scrapeOptionsG `yaml:"groups,omitempty"`
+}
+
+type scrapeOptionsG struct {
+	Name      string            `yaml:"name"`
+	KnownTags map[string]string `yaml:"known_tags,omitempty"` // tag name -> tag ID
 }
 
 func LoadScrapeConfig(configS string, meta format.MetaStorageInterface) (ScrapeConfig, error) {
@@ -86,15 +92,33 @@ func LoadScrapeConfig(configS string, meta format.MetaStorageInterface) (ScrapeC
 	}
 	res := make(map[int32]*namespaceScrapeConfig)
 	for _, v := range s {
-		if v.Options.Namespace == "" {
+		namespaceName := v.Options.Namespace.Name
+		if namespaceName == "" {
 			return nil, fmt.Errorf("scrape namespace not set")
 		}
-		namespace := meta.GetNamespaceByName(v.Options.Namespace)
+		namespace := meta.GetNamespaceByName(namespaceName)
 		if namespace == nil {
 			return nil, fmt.Errorf("scrape namespace not found %q", v.Options.Namespace)
 		}
 		if namespace.ID == format.BuiltinNamespaceIDDefault {
 			return nil, fmt.Errorf("scrape namespace can not be __default")
+		}
+		var knownTagsG map[int32]map[string]string
+		for _, g := range v.Options.Groups {
+			groupName := namespaceName + format.NamespaceSeparator + g.Name
+			group := meta.GetGroupByName(groupName)
+			if group == nil {
+				return nil, fmt.Errorf("group not found %q", groupName)
+			}
+			if group.ID == format.BuiltinGroupIDDefault {
+				return nil, fmt.Errorf("scrape group can not be __default")
+			}
+			if len(g.KnownTags) != 0 {
+				if knownTagsG == nil {
+					knownTagsG = make(map[int32]map[string]string, len(v.Options.Groups))
+				}
+				knownTagsG[group.ID] = g.KnownTags
+			}
 		}
 		gc := v.Globals
 		if gc.ScrapeInterval == 0 {
@@ -116,14 +140,24 @@ func LoadScrapeConfig(configS string, meta format.MetaStorageInterface) (ScrapeC
 			}
 		}
 		if ns := res[namespace.ID]; ns != nil {
-			if len(ns.knownTags) != 0 && len(v.Options.KnownTags) != 0 {
-				return nil, fmt.Errorf("known tags set twice for namespace %q", v.Options.Namespace)
+			if len(v.Options.Namespace.KnownTags) != 0 {
+				if len(ns.knownTags) != 0 {
+					return nil, fmt.Errorf("known tags set twice for namespace %q", v.Options.Namespace)
+				}
+				ns.knownTags = v.Options.Namespace.KnownTags
+			}
+			if len(knownTagsG) != 0 {
+				if len(ns.knownTagsG) != 0 {
+					return nil, fmt.Errorf("group known tags set twice for namespace %q", v.Options.Namespace)
+				}
+				ns.knownTagsG = knownTagsG
 			}
 			ns.items = append(ns.items, v)
 		} else {
 			ns := &namespaceScrapeConfig{
-				knownTags: v.Options.KnownTags,
-				items:     []namespaceScrapeConfigItem{v},
+				knownTags:  v.Options.Namespace.KnownTags,
+				knownTagsG: knownTagsG,
+				items:      []namespaceScrapeConfigItem{v},
 			}
 			res[namespace.ID] = ns
 		}
@@ -182,7 +216,7 @@ func (s *scrapeServer) applyConfig(configS string) {
 		if len(v.items) == 0 {
 			continue
 		}
-		namespace := model.LabelValue(v.items[0].Options.Namespace)
+		namespace := model.LabelValue(v.items[0].Options.Namespace.Name)
 		for _, v1 := range v.items {
 			for _, v2 := range v1.Items {
 				namespaceJobName := fmt.Sprintf("%s:%s", namespace, v2.JobName)
@@ -366,7 +400,9 @@ func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 }
 
 func (c ScrapeConfig) PublishDraftTags(meta *format.MetricMetaValue) int {
-	if meta.NamespaceID == format.BuiltinNamespaceIDDefault || meta.NamespaceID == format.BuiltinNamespaceIDMissing {
+	if meta.NamespaceID == 0 ||
+		meta.NamespaceID == format.BuiltinNamespaceIDDefault ||
+		meta.NamespaceID == format.BuiltinNamespaceIDMissing {
 		return 0
 	}
 	config := c[meta.NamespaceID]
@@ -374,8 +410,24 @@ func (c ScrapeConfig) PublishDraftTags(meta *format.MetricMetaValue) int {
 		return 0
 	}
 	var n int
+	if config.knownTags != nil {
+		n = publishDraftTags(meta, config.knownTags)
+	}
+	if config.knownTagsG == nil ||
+		meta.GroupID == 0 ||
+		meta.GroupID == format.BuiltinGroupIDDefault {
+		return n
+	}
+	if v := config.knownTagsG[meta.GroupID]; v != nil {
+		n += publishDraftTags(meta, v)
+	}
+	return n
+}
+
+func publishDraftTags(meta *format.MetricMetaValue, knownTags map[string]string) int {
+	var n int
 	for k, v := range meta.TagsDraft {
-		tagID, ok := config.knownTags[k]
+		tagID, ok := knownTags[k]
 		if !ok || tagID == "" {
 			continue
 		}
@@ -385,7 +437,7 @@ func (c ScrapeConfig) PublishDraftTags(meta *format.MetricMetaValue) int {
 				meta.StringTopDescription = v.Description
 				n++
 			}
-		} else if x := format.TagIndex(tagID); 0 <= x && x < format.MaxTags {
+		} else if x := format.TagIndex(tagID); 0 <= x && x < format.MaxTags && meta.Tags[x].Name == "" {
 			meta.Tags[x] = v
 			delete(meta.TagsDraft, k)
 			n++
