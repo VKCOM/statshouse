@@ -26,6 +26,7 @@ import { PlotLink } from '../Plot/PlotLink';
 import { ErrorMessages } from '../ErrorMessages';
 import { DashboardVariablesControl } from './DashboardVariablesControl';
 import { Button, Tooltip } from '../UI';
+import { DashboardName } from './DashboardName';
 
 export type DashboardProps = {
   yAxisSize?: number;
@@ -53,6 +54,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
 
   return (
     <div>
+      {!!params.dashboard?.name && !embed && !tvMode && <DashboardName />}
       {params.plots.length > 0 && !embed && !tvMode && <DashboardHeader />}
       <ErrorMessages />
       {dashboardLayoutEdit && (

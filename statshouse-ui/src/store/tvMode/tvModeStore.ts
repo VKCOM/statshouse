@@ -8,7 +8,7 @@ export type TVModeStore = {
   enable: boolean;
   interval: number;
 };
-export const defaultInterval = 30000;
+export const defaultInterval = 0;
 const localStorageParamName = 'tv_interval';
 const firstSelectorElement = '.dashLayout';
 let timer: NodeJS.Timeout;
