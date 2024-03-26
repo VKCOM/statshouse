@@ -90,7 +90,7 @@ type UDP struct {
 	packetSizeEmptyErr    *agent.BuiltInItemValue
 }
 
-func listenPacket(address string, fn func(int) error) (conn net.PacketConn, err error) {
+func listenPacket(network, address string, fn func(int) error) (conn net.PacketConn, err error) {
 	cfg := &net.ListenConfig{Control: func(network, address string, c syscall.RawConn) error {
 		var err2 error
 		err := c.Control(func(fd uintptr) {
@@ -101,12 +101,12 @@ func listenPacket(address string, fn func(int) error) (conn net.PacketConn, err 
 		}
 		return err2
 	}}
-	conn, err = cfg.ListenPacket(context.Background(), "udp", address)
+	conn, err = cfg.ListenPacket(context.Background(), network, address)
 	return conn, err
 }
 
-func ListenUDP(address string, bufferSize int, reusePort bool, bm *agent.Agent, logPacket func(format string, args ...interface{})) (*UDP, error) {
-	conn, err := listenPacket(address, func(fd int) error {
+func ListenUDP(network, address string, bufferSize int, reusePort bool, bm *agent.Agent, logPacket func(format string, args ...interface{})) (*UDP, error) {
+	conn, err := listenPacket(network, address, func(fd int) error {
 		setSocketReceiveBufferSize(fd, bufferSize)
 		if reusePort {
 			return syscall.SetsockoptInt(fd, syscall.SOL_SOCKET, unix.SO_REUSEPORT, 1)

@@ -148,7 +148,7 @@ func (g *goMachine) init(t *rapid.T) {
 	g.counterMetrics = floatsMap{}
 	g.valueMetrics = floatsMap{}
 	g.uniqueMetrics = intsMap{}
-	recv, err := receiver.ListenUDP(goStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
+	recv, err := receiver.ListenUDP("udp", goStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
 	require.NoError(t, err)
 	g.recv = recv
 	g.addr = recv.Addr()
