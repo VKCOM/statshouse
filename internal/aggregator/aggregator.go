@@ -231,7 +231,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	}
 	go a.goInternalLog()
 	if config.AutoCreate {
-		a.autoCreate = newAutoCreate(metadataClient, a.metricStorage, a.scrape)
+		a.autoCreate = newAutoCreate(metadataClient, a.metricStorage, a.scrape, config.AutoCreateDefaultNamespace)
 		defer a.autoCreate.shutdown()
 	}
 

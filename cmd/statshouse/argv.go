@@ -164,6 +164,7 @@ func argvAddAggregatorFlags(legacyVerb bool) {
 		flag.Uint64Var(&unused1, "pmc-mapping-actor-id", 0, "actor ID of PMC mapping cluster")
 	} else {
 		flag.BoolVar(&argv.configAggregator.AutoCreate, "auto-create", aggregator.DefaultConfigAggregator().AutoCreate, "Enable metric auto-create.")
+		flag.BoolVar(&argv.configAggregator.AutoCreateDefaultNamespace, "auto-create-default-namespace", false, "Auto-create metrics with no namespace specified.")
 		flag.BoolVar(&argv.configAggregator.DisableRemoteConfig, "disable-remote-config", aggregator.DefaultConfigAggregator().DisableRemoteConfig, "disable remote configuration")
 	}
 

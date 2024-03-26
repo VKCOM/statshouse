@@ -55,7 +55,7 @@ services:
         - BUILD_TRUSTED_SUBNET_GROUPS=0.0.0.0/0
     container_name: sh-aggregator
     user: "root:root"
-    command: aggregator -u=root -g=root --cluster=test_shard_aggregator --log-level=trace --agg-addr=':13336' --kh=kh:8123 --metadata-addr=metadata:2442 --auto-create --cache-dir=/var/lib/statshouse/cache/aggregator
+    command: aggregator -u=root -g=root --cluster=test_shard_aggregator --log-level=trace --agg-addr=':13336' --kh=kh:8123 --metadata-addr=metadata:2442 --auto-create --auto-create-default-namespace --cache-dir=/var/lib/statshouse/cache/aggregator
     ports:
       - "13336:13336"
     depends_on:

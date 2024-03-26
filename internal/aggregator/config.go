@@ -46,8 +46,9 @@ type ConfigAggregator struct {
 	PreviousNumShards int
 	ExternalPort      string
 
-	AutoCreate          bool
-	DisableRemoteConfig bool
+	AutoCreate                 bool
+	AutoCreateDefaultNamespace bool
+	DisableRemoteConfig        bool
 }
 
 func DefaultConfigAggregator() ConfigAggregator {
