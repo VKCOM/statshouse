@@ -17,9 +17,9 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
+	"github.com/stretchr/testify/require"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -332,7 +332,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 		t.Skip("no metrics to send/receive")
 	}
 
-	recv, err := receiver.ListenUDP(phpStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
+	recv, err := receiver.ListenUDP("udp", phpStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
 	t.Logf("listen err %v for %v", err, phpStatsHouseAddr)
 	require.NoError(t, err)
 	defer func() { _ = recv.Close() }()

@@ -13,11 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	"pgregory.net/rapid"
 
+	"github.com/stretchr/testify/require"
 	"github.com/vkcom/statshouse-go"
-
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
@@ -29,8 +28,9 @@ var (
 )
 
 const (
-	goStatsHouseAddr = "127.0.0.1:"
-	envName          = "abc"
+	goStatsHouseAddr     = "127.0.0.1:"
+	goStatsHouseAddrUnix = "@statshouse-test"
+	envName              = "abc"
 )
 
 type tag struct {
@@ -148,7 +148,8 @@ func (g *goMachine) init(t *rapid.T) {
 	g.counterMetrics = floatsMap{}
 	g.valueMetrics = floatsMap{}
 	g.uniqueMetrics = intsMap{}
-	recv, err := receiver.ListenUDP(goStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
+	recv, err := receiver.ListenUDP("udp", goStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
+	// recv, err := receiver.ListenUDP("unix", goStatsHouseAddrUnix, receiver.DefaultConnBufSize, false, nil, nil)
 	require.NoError(t, err)
 	g.recv = recv
 	g.addr = recv.Addr()
