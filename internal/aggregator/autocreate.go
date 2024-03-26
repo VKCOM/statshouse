@@ -32,14 +32,17 @@ type autoCreate struct {
 	args       map[*rpc.HandlerContext]tlstatshouse.AutoCreateBytes
 	ctx        context.Context
 	shutdownFn func()
+
+	defaultNamespaceAllowed bool
 }
 
-func newAutoCreate(client *tlmetadata.Client, storage *metajournal.MetricsStorage, scrape *scrapeServer) *autoCreate {
+func newAutoCreate(client *tlmetadata.Client, storage *metajournal.MetricsStorage, scrape *scrapeServer, defaultNamespaceAllowed bool) *autoCreate {
 	ac := autoCreate{
-		client:  client,
-		storage: storage,
-		scrape:  scrape,
-		args:    make(map[*rpc.HandlerContext]tlstatshouse.AutoCreateBytes),
+		client:                  client,
+		storage:                 storage,
+		scrape:                  scrape,
+		args:                    make(map[*rpc.HandlerContext]tlstatshouse.AutoCreateBytes),
+		defaultNamespaceAllowed: defaultNamespaceAllowed,
 	}
 	ac.co = sync.NewCond(&ac.mu)
 	ac.ctx, ac.shutdownFn = context.WithCancel(context.Background())
@@ -157,7 +160,8 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 			return fmt.Errorf("RestoreCachedInfo failed: %w", err)
 		}
 	}
-	if value.NamespaceID == 0 || value.NamespaceID == format.BuiltinNamespaceIDDefault {
+	defaultNamespace := value.NamespaceID == 0 || value.NamespaceID == format.BuiltinNamespaceIDDefault
+	if defaultNamespace && !ac.defaultNamespaceAllowed {
 		return nil // autocreation disabled for metrics without namespace
 	}
 	// map tags
