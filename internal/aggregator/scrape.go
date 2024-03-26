@@ -21,6 +21,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/config"
 	"github.com/prometheus/prometheus/discovery"
+	_ "github.com/prometheus/prometheus/discovery/consul"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
 	"github.com/prometheus/prometheus/scrape"
 	"github.com/vkcom/statshouse/internal/data_model"
