@@ -303,7 +303,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		return 1
 	}
 	for i := 0; i < argv.coresUDP; i++ {
-		u, err := receiver.ListenUDP(argv.listenAddr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+		u, err := receiver.ListenUDP("udp", argv.listenAddr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
 		if err != nil {
 			logErr.Printf("ListenUDP: %v", err)
 			return 1
@@ -311,13 +311,23 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		defer func() { _ = u.Close() }()
 		receiversUDP = append(receiversUDP, u)
 		if argv.listenAddrIPv6 != "" {
-			ipv6u, err := receiver.ListenUDP(argv.listenAddrIPv6, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+			ipv6u, err := receiver.ListenUDP("udp", argv.listenAddrIPv6, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
 			if err != nil {
 				logErr.Printf("ListenUDP IPv6: %v", err)
 				return 1
 			}
 			defer func() { _ = ipv6u.Close() }()
 			receiversUDP = append(receiversUDP, ipv6u)
+		}
+		if argv.listenAddrUnix != "" {
+			addr := "\x00" + argv.listenAddrUnix
+			unix, err := receiver.ListenUDP("unixgram", addr, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+			if err != nil {
+				logErr.Printf("ListenUDP IPv6: %v", err)
+				return 1
+			}
+			defer func() { _ = unix.Close() }()
+			receiversUDP = append(receiversUDP, unix)
 		}
 	}
 	logOk.Printf("Listen UDP addr %q by %d cores", argv.listenAddr, argv.coresUDP)

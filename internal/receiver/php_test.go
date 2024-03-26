@@ -332,7 +332,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 		t.Skip("no metrics to send/receive")
 	}
 
-	recv, err := receiver.ListenUDP(phpStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
+	recv, err := receiver.ListenUDP("udp", phpStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
 	t.Logf("listen err %v for %v", err, phpStatsHouseAddr)
 	require.NoError(t, err)
 	defer func() { _ = recv.Close() }()
