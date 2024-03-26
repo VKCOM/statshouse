@@ -6,7 +6,12 @@ export function PlotHeaderTooltipContent({ name, description }: PlotHeaderToolti
   return (
     <div className="small text-secondary overflow-auto">
       <div className={cn('font-monospace fw-bold', description && 'mb-3')}>{name}</div>
-      {!!description && <pre className="p-0 m-0">{description}</pre>}
+      {!!description && <div style={{ maxWidth: '80vw', whiteSpace: 'pre-wrap' }}>{description}</div>}
+      {!!description && (
+        <div className="opacity-0 overflow-hidden h-0" style={{ maxWidth: '80vw', whiteSpace: 'pre' }}>
+          {description}
+        </div>
+      )}
     </div>
   );
 }

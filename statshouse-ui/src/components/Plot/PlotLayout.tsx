@@ -52,7 +52,7 @@ export const PlotLayout: React.FC<PlotLayoutProps> = ({
     return <div className="my-2">{children}</div>;
   }
   return (
-    <div className="row flex-wrap">
+    <div className="row flex-wrap my-3">
       <div className={cn(css.plotColumn, 'position-relative mb-3', big ? 'col-lg-5 col-xl-4' : 'col-lg-7 col-xl-8')}>
         <div className="position-relative flex-grow-1 d-flex flex-column">{children}</div>
       </div>

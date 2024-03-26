@@ -1,15 +1,14 @@
 import React from 'react';
-export type DashboardGroupTooltipTitleProps = {
-  name?: string;
+
+export type DashboardNameTitleProps = {
+  name: string;
   description?: string;
 };
-export function DashboardGroupTooltipTitle({ name, description }: DashboardGroupTooltipTitleProps) {
-  if (!name) {
-    return null;
-  }
+
+export function DashboardNameTitle({ name, description }: DashboardNameTitleProps) {
   return (
     <div className="small text-secondary overflow-auto">
-      <div className="font-monospace text-body fw-bold">
+      <div className="text-body fw-bold">
         {name}
         {!!description && ':'}
       </div>

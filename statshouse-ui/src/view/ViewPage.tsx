@@ -67,7 +67,7 @@ export const ViewPage: React.FC<ViewPageProps> = ({ embed, yAxisSize = 54 }) => 
   }
   return (
     <div ref={setRefPage} className="d-flex flex-column flex-md-row dashLayout">
-      <div className={embed ? 'flex-grow-1' : 'flex-grow-1 pt-3 pb-3'}>
+      <div className="flex-grow-1">
         {tvMode && (
           <div className="position-fixed z-1000 top-0 end-0 pt-1 pe-1 ">
             <div className="input-group input-group-sm">
