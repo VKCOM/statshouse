@@ -410,16 +410,16 @@ func (c ScrapeConfig) PublishDraftTags(meta *format.MetricMetaValue) int {
 		return 0
 	}
 	var n int
-	if config.knownTags != nil {
+	if len(config.knownTags) != 0 {
 		n = publishDraftTags(meta, config.knownTags)
 	}
-	if config.knownTagsG == nil ||
+	if len(config.knownTagsG) == 0 ||
 		meta.GroupID == 0 ||
 		meta.GroupID == format.BuiltinGroupIDDefault {
 		return n
 	}
-	if v := config.knownTagsG[meta.GroupID]; v != nil {
-		n += publishDraftTags(meta, v)
+	if v := config.knownTagsG[meta.GroupID]; len(v) != 0 {
+		return n + publishDraftTags(meta, v)
 	}
 	return n
 }
