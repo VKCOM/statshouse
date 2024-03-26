@@ -64,7 +64,7 @@ set format y "%gns"
 {{- else if eq "byte" .MetricType -}}
 set format y "%.1b%BB"
 {{- else -}}
-set format y "%.1t%c"
+set format y "%.1s%c"
 {{- end -}}
 {{- end -}}
 {{- end}}
