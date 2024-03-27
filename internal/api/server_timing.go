@@ -40,6 +40,20 @@ func NewServerTimingHeader() *ServerTimingHeader {
 	return header
 }
 
+func (header *ServerTimingHeader) Report(name string, dur time.Duration, desc *string) {
+	header.mutex.Lock()
+	defer header.mutex.Unlock()
+	if previous := header.Timings[name]; previous == nil {
+		header.Timings[name] = &timing{
+			&dur,
+			desc,
+		}
+	} else {
+		// if we call Start/Stop twice for same name we save sum of durations, but keep desc from first call
+		*previous.Duration += dur
+	}
+}
+
 func (header *ServerTimingHeader) Start(name string, desc *string) TimingBuilder {
 	return TimingBuilder{
 		time.Now(),
@@ -50,19 +64,11 @@ func (header *ServerTimingHeader) Start(name string, desc *string) TimingBuilder
 }
 
 func (builder TimingBuilder) Stop() {
+	if builder.header == nil {
+		return
+	}
 	elapsed := time.Since(builder.Started)
-	t := timing{
-		&elapsed,
-		builder.Desc,
-	}
-	builder.header.mutex.Lock()
-	defer builder.header.mutex.Unlock()
-	if previous := builder.header.Timings[builder.Name]; previous == nil {
-		builder.header.Timings[builder.Name] = &t
-	} else {
-		// if we call Start/Stop twice for same name we save sum of durations, but keep desc from first call
-		*builder.header.Timings[builder.Name].Duration += *t.Duration
-	}
+	builder.header.Report(builder.Name, elapsed, builder.Desc)
 }
 
 func (header *ServerTimingHeader) String() string {

@@ -765,6 +765,7 @@ func (h *Handler) doSelect(ctx context.Context, meta util.QueryMetaInto, version
 		log.Printf("[debug] SQL for %q done in %v, err: %v", meta.User, duration, err)
 	}
 
+	reportTiming(ctx, "ch-select", duration)
 	ChSelectMetricDuration(info.Duration, meta.Metric, meta.User, meta.Table, meta.Kind, meta.IsFast, meta.IsLight, err)
 	ChSelectProfile(meta.IsFast, meta.IsLight, info.Profile, err)
 
@@ -2043,7 +2044,7 @@ func (h *Handler) HandleGetRender(w http.ResponseWriter, r *http.Request) {
 			seriesRequest: s,
 			renderWidth:   r.FormValue(paramRenderWidth),
 			renderFormat:  r.FormValue(paramDataFormat),
-		})
+		}, sl)
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
@@ -2130,7 +2131,7 @@ func (h *Handler) HandlePutPostDashboard(w http.ResponseWriter, r *http.Request)
 	})
 }
 
-func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req renderRequest) (*renderResponse, bool, error) {
+func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req renderRequest, es *endpointStat) (*renderResponse, bool, error) {
 	width, err := parseRenderWidth(req.renderWidth)
 	if err != nil {
 		return nil, false, err
@@ -2156,7 +2157,7 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 			r.numResults = 15
 		}
 		start := time.Now()
-		v, cancel, err := h.handleSeriesRequest(ctx, r, seriesRequestOptions{
+		v, cancel, err := h.handleSeriesRequest(withEndpointStat(ctx, es), r, seriesRequestOptions{
 			metricCallback: func(meta *format.MetricMetaValue) {
 				req.seriesRequest[i].metricWithNamespace = meta.Name
 			},
@@ -2186,7 +2187,12 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 	defer h.plotRenderSem.Release(1)
 
 	start := time.Now()
+	var b TimingBuilder
+	if es != nil {
+		b = es.timings.Start("plot", nil)
+	}
 	png, err := plot(ctx, format_, true, s, h.utcOffset, req.seriesRequest, width, h.plotTemplate)
+	b.Stop()
 	if err != nil {
 		return nil, false, err
 	}
