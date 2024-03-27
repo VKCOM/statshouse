@@ -419,11 +419,6 @@ parse:
 			sentSuccessCount++
 		}
 	}
-	seriesToSend = cache.metadata.calculateHistograms(seriesToSend[:0])
-	for _, metric := range seriesToSend {
-		s.pusher.PushLocal(&metric, strings.Join(description, "\n"), int(target.scrapeInterval.Seconds()))
-		sentSuccessCount++
-	}
 	s.logOk.Println("pushed ", sentSuccessCount, " series")
 }
 

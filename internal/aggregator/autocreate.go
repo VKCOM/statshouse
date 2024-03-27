@@ -167,6 +167,7 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 		return nil // autocreation disabled for metrics without namespace
 	}
 	// map tags
+	var newTagDraftCount int
 	for _, tagName := range args.Tags {
 		if len(value.TagsDraft) >= format.MaxDraftTags {
 			break
@@ -193,9 +194,16 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 		} else {
 			value.TagsDraft[t.Name] = t
 		}
+		newTagDraftCount++
 	}
-	if metricExists &&
-		(len(value.TagsDraft) == 0 || ac.scrape.getConfig().PublishDraftTags(&value) == 0) {
+	if metricExists && len(value.TagsDraft) == 0 {
+		return nil // nothing to do
+	}
+	var newTagCount int
+	if len(value.TagsDraft) != 0 {
+		newTagCount = ac.scrape.getConfig().PublishDraftTags(&value)
+	}
+	if metricExists && newTagDraftCount == 0 && newTagCount == 0 {
 		return nil // nothing to do
 	}
 	// build edit request
