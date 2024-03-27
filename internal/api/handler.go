@@ -163,6 +163,7 @@ type (
 		EventPreset              []string            `json:"event_preset"`
 		DefaultNumSeries         int                 `json:"default_num_series"`
 		DisableV1                bool                `json:"disabled_v1"`
+		AdminDash                int                 `json:"admin_dash"`
 	}
 
 	Handler struct {
