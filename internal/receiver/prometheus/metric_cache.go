@@ -22,7 +22,7 @@ import (
 )
 
 type (
-	metricCache     map[string]*metricCacheItem // by metric name
+	metricCache     map[string]*cacheMetricMeta // by metric name
 	cacheMetricType int
 	cacheMetricKey  labels.Labels
 )
@@ -33,34 +33,32 @@ const (
 	cacheMetricTypeHistogram
 )
 
-type metricCacheItem struct {
-	name    string
-	typ     cacheMetricType
-	samples map[string]*cacheMetricSample // by concatenated labels
+type cacheMetricMeta struct {
+	name   string
+	typ    cacheMetricType
+	series map[string]*cacheDigestPair // by concatenated labels
 }
 
-type cacheMetricSample struct {
-	timestamp int64
-	count     float64
-	buckets   []cacheMetricBucket // nil unless histogram
+type cacheDigestPair struct {
+	prev cacheDigest
+	curr cacheDigest
 }
 
-type cacheMetricBucket struct {
-	info  *metricCacheItem
-	tags  []tl.DictionaryFieldStringBytes
-	le    int32
-	count float64
+type cacheDigest struct {
+	val    float64
+	cnt    float64
+	valSet bool
+	cntSet bool
 }
 
 type cacheMetric struct {
-	name   string
-	info   *metricCacheItem
-	sample *cacheMetricSample
-	tags   []tl.DictionaryFieldStringBytes
-	le     int32
+	name string
+	meta *cacheMetricMeta
+	d    *cacheDigestPair
+	tags []tl.DictionaryFieldStringBytes
 }
 
-func (cache metricCache) processProtobufMeta(meta prompb.MetricMetadata) {
+func (c metricCache) processProtobufMeta(meta prompb.MetricMetadata) {
 	var v cacheMetricType
 	switch meta.Type {
 	case prompb.MetricMetadata_COUNTER:
@@ -72,10 +70,10 @@ func (cache metricCache) processProtobufMeta(meta prompb.MetricMetadata) {
 	default:
 		return // not supported
 	}
-	cache.setMetricType(meta.MetricFamilyName, v)
+	c.setMetricType(meta.MetricFamilyName, v)
 }
 
-func (cache metricCache) processTextParseType(name []byte, typ textparse.MetricType) {
+func (c metricCache) processTextParseType(name []byte, typ textparse.MetricType) {
 	var v cacheMetricType
 	switch typ {
 	case textparse.MetricTypeCounter:
@@ -87,21 +85,22 @@ func (cache metricCache) processTextParseType(name []byte, typ textparse.MetricT
 	default:
 		return // not supported
 	}
-	cache.setMetricType(string(name), v)
+	c.setMetricType(string(name), v)
 }
 
-func (cache metricCache) setMetricType(name string, typ cacheMetricType) {
-	info := cache[name]
-	if info == nil || info.typ != typ {
-		// reset if metric type differs
-		info := &metricCacheItem{
-			name:    name,
-			typ:     typ,
-			samples: map[string]*cacheMetricSample{},
+func (c metricCache) setMetricType(name string, typ cacheMetricType) {
+	info := c[name]
+	if info == nil || info.typ != typ { // reset if metric type differs
+		info := &cacheMetricMeta{
+			name:   name,
+			typ:    typ,
+			series: map[string]*cacheDigestPair{},
 		}
-		cache[name] = info
 		if typ == cacheMetricTypeHistogram {
-			cache[name+_bucket] = info
+			c[name+"_sum"] = info
+			c[name+"_count"] = info
+		} else {
+			c[name] = info
 		}
 	}
 }
@@ -114,13 +113,13 @@ func metricKeyFromProtobufLabels(s []prompb.Label) cacheMetricKey {
 	return key
 }
 
-func (cache metricCache) getMetric(key cacheMetricKey) (cacheMetric, bool) {
+func (c metricCache) getMetric(key cacheMetricKey) (cacheMetric, bool) {
 	if len(key) == 0 {
 		return cacheMetric{}, false // label set is empty
 	}
 	var (
 		name          string
-		info          *metricCacheItem
+		meta          *cacheMetricMeta
 		tags          = make([]tl.DictionaryFieldStringBytes, 0, len(key)-1)
 		tagNameValues []string
 		le            int32
@@ -130,7 +129,7 @@ func (cache metricCache) getMetric(key cacheMetricKey) (cacheMetric, bool) {
 		switch l.Name {
 		case labels.MetricName:
 			var ok bool
-			info, ok = cache[l.Value]
+			meta, ok = c[l.Value]
 			if !ok {
 				return cacheMetric{}, false // unknown metric
 			}
@@ -154,116 +153,97 @@ func (cache metricCache) getMetric(key cacheMetricKey) (cacheMetric, bool) {
 			break
 		}
 	}
-	if info == nil {
+	if meta == nil {
 		return cacheMetric{}, false // metric name not found
 	}
-	var sampleKey string
+	var k string
 	if tagNameValues != nil {
 		sort.Strings(tagNameValues)
-		sampleKey = strings.Join(tagNameValues, ",")
+		k = strings.Join(tagNameValues, ",")
 	} else {
-		sampleKey = ""
+		k = ""
 	}
-	sample, ok := info.samples[sampleKey]
+	v, ok := meta.series[k]
 	if !ok {
-		sample = &cacheMetricSample{}
-		if info.typ == cacheMetricTypeCounter {
-			sample.count = -1 // to differ never set value from zero value
-		}
-		info.samples[sampleKey] = sample
+		v = &cacheDigestPair{}
+		meta.series[k] = v
 	}
-	return cacheMetric{name, info, sample, tags, le}, true
+	res := cacheMetric{
+		name: name,
+		meta: meta,
+		d:    v,
+		tags: tags,
+	}
+	return res, true
 }
 
 func (m *cacheMetric) processSample(v float64, t int64, namespace string, s []tlstatshouse.MetricBytes) []tlstatshouse.MetricBytes {
-	switch m.info.typ {
+	var metricName string
+	if len(namespace) != 0 {
+		metricName = namespace + format.NamespaceSeparator + m.meta.name
+	} else {
+		metricName = m.meta.name
+	}
+	switch m.meta.typ {
 	case cacheMetricTypeCounter:
-		if m.sample.count >= 0 { // counter was set at least once
-			delta := v - m.sample.count
-			if delta < 0 {
-				delta = v // counter reset
+		if m.d.prev.cntSet { // counter was set at least once
+			d := v - m.d.prev.cnt
+			if d < 0 {
+				d = v // counter reset
 			}
-			if delta > 0 {
-				bytes := tlstatshouse.MetricBytes{Name: []byte(fmt.Sprintf("%s:%s", namespace, m.info.name)), Tags: m.tags}
-				bytes.SetCounter(delta)
+			if d > 0 {
+				bytes := tlstatshouse.MetricBytes{Name: []byte(metricName), Tags: m.tags}
+				bytes.SetCounter(d)
 				if t != 0 {
 					bytes.SetTs(uint32((t-1)/1_000 + 1))
 				}
 				s = append(s, bytes)
 			}
 		}
-		m.sample.count = v
+		m.d.prev.cnt = v
+		m.d.prev.cntSet = true
 	case cacheMetricTypeGauge:
-		// store gauges as is
-		bytes := tlstatshouse.MetricBytes{Name: []byte(fmt.Sprintf("%s:%s", namespace, m.info.name)), Tags: m.tags}
+		bytes := tlstatshouse.MetricBytes{Name: []byte(metricName), Tags: m.tags}
 		bytes.SetValue([]float64{v})
 		if t != 0 {
 			bytes.SetTs(uint32((t-1)/1_000 + 1))
 		}
 		s = append(s, bytes)
 	case cacheMetricTypeHistogram:
-		// calculate histogram if sample timestamp changed
-		if m.sample.timestamp != t {
-			s = m.calculateHistogram(s)
-			m.sample.timestamp = t
-		}
-		// append sample
-		switch m.name {
-		case m.info.name + _bucket:
-			m.sample.buckets = append(m.sample.buckets, cacheMetricBucket{
-				info:  m.info,
-				tags:  m.tags,
-				le:    m.le,
-				count: v,
-			})
-		}
-	}
-	return s
-}
-
-func (m *cacheMetric) calculateHistogram(s []tlstatshouse.MetricBytes) []tlstatshouse.MetricBytes {
-	if len(m.sample.buckets) == 0 {
-		return s
-	}
-	// sort buckets by "le"
-	buckets := m.sample.buckets
-	sort.Slice(buckets, func(i, j int) bool { return buckets[i].le < buckets[j].le })
-	// row per bucket
-	for i := len(buckets); i != 0; i-- {
-		bucket := buckets[i-1]
-		if i != 1 {
-			// bucket delta from absolute value
-			bucket.count -= buckets[i-2].count
-		}
-		bytes := tlstatshouse.MetricBytes{
-			Name: []byte(m.info.name),
-			Tags: bucket.tags,
-		}
-		bytes.SetValue([]float64{bucket.count})
-		if m.sample.timestamp != 0 {
-			bytes.SetTs(uint32((m.sample.timestamp-1)/1_000 + 1))
-		}
-		s = append(s, bytes)
-	}
-	// clear references to "info" and "tags"
-	for i := range m.sample.buckets {
-		m.sample.buckets[i] = cacheMetricBucket{}
-	}
-	// reuse array
-	m.sample.buckets = m.sample.buckets[:0]
-	return s
-}
-
-func (cache metricCache) calculateHistograms(s []tlstatshouse.MetricBytes) []tlstatshouse.MetricBytes {
-	for _, item := range cache {
-		if item.typ == cacheMetricTypeHistogram {
-			for _, sample := range item.samples {
-				if len(sample.buckets) != 0 {
-					metric := &cacheMetric{name: item.name, info: item, sample: sample}
-					s = metric.calculateHistogram(s)
-					metric.sample.timestamp = 0
-				}
+		if strings.HasSuffix(m.name, "_count") {
+			if m.d.prev.cntSet {
+				m.d.curr.cnt = v
+				m.d.curr.cntSet = true
+			} else {
+				m.d.prev.cnt = v
+				m.d.prev.cntSet = true
 			}
+		}
+		if strings.HasSuffix(m.name, "_sum") {
+			if m.d.prev.valSet {
+				m.d.curr.val = v
+				m.d.curr.valSet = true
+			} else {
+				m.d.prev.val = v
+				m.d.prev.valSet = true
+			}
+		}
+		if m.d.prev.cntSet && m.d.prev.valSet && m.d.curr.cntSet && m.d.curr.valSet {
+			d := m.d.curr.cnt - m.d.prev.cnt
+			if d < 0 {
+				d = m.d.curr.cnt // counter reset
+			}
+			if d > 0 {
+				bytes := tlstatshouse.MetricBytes{Name: []byte(metricName + "_sum"), Tags: m.tags}
+				bytes.SetCounter(d)
+				bytes.SetValue([]float64{m.d.curr.val - m.d.prev.val})
+				if t != 0 {
+					bytes.SetTs(uint32((t-1)/1_000 + 1))
+				}
+				s = append(s, bytes)
+			}
+			m.d.prev = m.d.curr
+			m.d.curr = cacheDigest{}
 		}
 	}
 	return s

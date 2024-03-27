@@ -113,6 +113,7 @@ services:
       - "13336:13336"
       - "13337:13337/udp"
       - "13337:13337/tcp"
+      - "13380:13380"
     volumes:
       - metadata:/var/lib/statshouse/metadata
       - kh:/var/lib/clickhouse

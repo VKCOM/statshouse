@@ -16,17 +16,10 @@ import (
 	"github.com/golang/snappy"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/prometheus/prompb"
-
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/receiver"
-)
-
-const (
-	_bucket = "_bucket"
-	_sum    = "_sum"
-	_count  = "_count"
 )
 
 type remoteWrite struct {
