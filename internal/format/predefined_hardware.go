@@ -92,6 +92,8 @@ const (
 	RawIDTagCached  = 3
 	RawIDTagFree    = 4
 
+	RawIDTagReservedForRoot = 5
+
 	RawIDTagRead    = 1
 	RawIDTagWrite   = 2
 	RawIDTagDiscard = 3
@@ -465,8 +467,9 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				Description: "state",
 				Raw:         true,
 				ValueComments: convertToValueComments(map[int32]string{
-					RawIDTagFree: "free",
-					RawIDTagUsed: "used",
+					RawIDTagFree:            "free",
+					RawIDTagUsed:            "used",
+					RawIDTagReservedForRoot: "reserved_for_root",
 				}),
 			},
 			{
