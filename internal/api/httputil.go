@@ -172,6 +172,9 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 		msg := `{"error": "failed to marshal JSON response"}`
 		w.Header().Set("Content-Length", strconv.Itoa(len(msg)))
 		w.Header().Set("Content-Type", "application/json")
+		if es != nil && es.timings != nil {
+			w.Header().Set(ServerTimingHeaderKey, es.timings.String())
+		}
 		code = http.StatusInternalServerError
 		w.WriteHeader(code)
 		_, err := w.Write([]byte(msg))
@@ -195,6 +198,9 @@ func respondJSON(w http.ResponseWriter, resp interface{}, cache time.Duration, c
 				w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d, stale-while-revalidate=%d", cacheSeconds(cache), cacheSeconds(cacheStale)))
 			}
 		}
+		if es != nil && es.timings != nil {
+			w.Header().Set(ServerTimingHeaderKey, es.timings.String())
+		}
 		w.WriteHeader(code)
 		start := time.Now()
 		_, err := jw.DumpTo(w)
@@ -215,6 +221,9 @@ func respondPlot(w http.ResponseWriter, format string, resp []byte, cache time.D
 	code := http.StatusOK
 	if es != nil {
 		es.reportServiceTime(code, nil)
+		if es.timings != nil {
+			w.Header().Set(ServerTimingHeaderKey, es.timings.String())
+		}
 	}
 
 	w.Header().Set("Content-Length", strconv.Itoa(len(resp)))
