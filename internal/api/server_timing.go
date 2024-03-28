@@ -8,6 +8,7 @@ package api
 
 import (
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -15,80 +16,29 @@ import (
 const ServerTimingHeaderKey = "Server-Timing"
 
 // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing
+// we always have duration
+// we never have description
 type ServerTimingHeader struct {
-	Timings map[string]*timing
+	Timings map[string]time.Duration
 	mutex   sync.Mutex
 	started time.Time
 }
 
-type timing struct {
-	Duration *time.Duration
-	Desc     *string
-}
-
-type TimingBuilder struct {
-	Started time.Time
-	Name    string
-	Desc    *string
-	header  *ServerTimingHeader
-}
-
-func NewServerTimingHeader() *ServerTimingHeader {
-	header := new(ServerTimingHeader)
-	header.Timings = make(map[string]*timing)
-	header.started = time.Now()
-	return header
-}
-
-func (header *ServerTimingHeader) Report(name string, dur time.Duration, desc *string) {
+func (header *ServerTimingHeader) Report(name string, dur time.Duration) {
 	header.mutex.Lock()
 	defer header.mutex.Unlock()
-	if previous := header.Timings[name]; previous == nil {
-		header.Timings[name] = &timing{
-			&dur,
-			desc,
-		}
-	} else {
-		// if we call Start/Stop twice for same name we save sum of durations, but keep desc from first call
-		*previous.Duration += dur
-	}
-}
-
-func (header *ServerTimingHeader) Start(name string, desc *string) TimingBuilder {
-	return TimingBuilder{
-		time.Now(),
-		name,
-		desc,
-		header,
-	}
-}
-
-func (builder TimingBuilder) Stop() {
-	if builder.header == nil {
-		return
-	}
-	elapsed := time.Since(builder.Started)
-	builder.header.Report(builder.Name, elapsed, builder.Desc)
+	header.Timings[name] += dur
 }
 
 func (header *ServerTimingHeader) String() string {
-	value := ""
 	header.mutex.Lock()
 	defer header.mutex.Unlock()
-	total := time.Since(header.started)
-	header.Timings["total"] = &timing{
-		&total,
-		nil,
+	header.Timings["total"] = time.Since(header.started)
+	strs := make([]string, len(header.Timings))
+	i := 0
+	for name, dur := range header.Timings {
+		strs[i] = name + ";dur=" + strconv.FormatInt(dur.Milliseconds(), 10)
+		i += 1
 	}
-	for name, timing := range header.Timings {
-		value += name
-		if timing.Desc != nil {
-			value += `;desc="` + *timing.Desc + `"`
-		}
-		if timing.Duration != nil {
-			value += ";dur=" + strconv.FormatInt(timing.Duration.Milliseconds(), 10)
-		}
-		value += ", "
-	}
-	return value
+	return strings.Join(strs, ", ")
 }

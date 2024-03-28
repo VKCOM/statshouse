@@ -54,7 +54,7 @@ type endpointStat struct {
 	tokenName  string
 	user       string
 	priority   int
-	timings    *ServerTimingHeader
+	timings    ServerTimingHeader
 }
 
 func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat string, priorityStr string) *endpointStat {
@@ -67,7 +67,7 @@ func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat str
 		metric:     strconv.Itoa(int(metricID)), // metric ID key is considered "raw"
 		dataFormat: dataFormat,
 		priority:   priority,
-		timings:    NewServerTimingHeader(),
+		timings:    ServerTimingHeader{Timings: make(map[string]time.Duration), started: time.Now()},
 	}
 }
 
