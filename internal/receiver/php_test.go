@@ -41,7 +41,7 @@ const (
 function tuple(...$args) { return $args; } // KPHP polyfill
 
 require 'StatsHouse.php';
-use VK\Statlogs\StatsHouse;
+use VK\StatsHouse\StatsHouse;
 $sh = new StatsHouse('udp://127.0.0.1:13337');
 `
 	phpStatsHouseAddr = "127.0.0.1:13337"
@@ -289,36 +289,6 @@ func (p *phpMachine) AppendWriteUnique(t *rapid.T) {
 	p.sumTimestamp.count(k, info.Timestamp)
 	p.uniqueMetrics.merge(k, info.Values.([]int64))
 
-	var buf bytes.Buffer
-	err := writeValuesTmpl.Execute(&buf, info)
-	require.NoError(t, err)
-
-	p.code = append(p.code, buf.String())
-}
-
-func (p *phpMachine) AppendWriteSTop(t *rapid.T) {
-	info := valuesInfo{
-		Func:      "writeSTop",
-		Name:      ident().Draw(t, "name"),
-		Tags:      tagsSlice().Draw(t, "tags"),
-		Values:    rapid.SliceOfN(identLike(format.MaxStringLen), 1, -1).Draw(t, "values"), // not arbitrary strings for easier text encoding
-		Shutdown:  rapid.IntRange(0, 1).Draw(t, "shutdown"),
-		Count:     float64(rapid.IntRange(1, 10).Draw(t, "count")),
-		Timestamp: int64(rapid.IntRange(0, 1).Draw(t, "timestamp")),
-	}
-
-	k := ts(info.Name, info.Tags)
-	if len(k) > maxTSSize {
-		return
-	}
-	p.sumCountsOther.count(k, info.Count)
-	p.sumTimestamp.count(k, info.Timestamp)
-	values := info.Values.([]string)
-	p.stopMetrics.merge(k, values)
-
-	for i := range values {
-		values[i] = "'" + values[i] + "'" // no need to quote anything
-	}
 	var buf bytes.Buffer
 	err := writeValuesTmpl.Execute(&buf, info)
 	require.NoError(t, err)
