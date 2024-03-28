@@ -207,7 +207,7 @@ type phpMachine struct {
 	code           []string
 }
 
-func (p *phpMachine) Init(_ *rapid.T) {
+func (p *phpMachine) init() {
 	p.numCounts = 0
 	p.sumCountsOther = floatsMap{}
 	p.sumTimestamp = intsMap{}
@@ -300,10 +300,13 @@ func (p *phpMachine) Run(t *rapid.T) {
 	total := p.numCounts + p.valueMetrics.size() + p.uniqueMetrics.size() + p.stopMetrics.size()
 	if total == 0 {
 		t.Skip("no metrics to send/receive")
+		return
 	}
 
 	recv, err := receiver.ListenUDP(phpStatsHouseAddr, receiver.DefaultConnBufSize, false, nil, nil)
-	t.Logf("listen err %v for %v", err, phpStatsHouseAddr)
+	if err != nil {
+		t.Logf("listen err %v for %v", err, phpStatsHouseAddr)
+	}
 	require.NoError(t, err)
 	defer func() { _ = recv.Close() }()
 
@@ -369,7 +372,7 @@ func (p *phpMachine) Run(t *rapid.T) {
 	require.Equal(t, p.stopMetrics, stopMetrics)
 	require.Equal(t, p.numCounts, numCounts)
 
-	p.Init(t)
+	p.init()
 }
 
 func (p *phpMachine) Check(*rapid.T) {}
@@ -402,7 +405,7 @@ func TestPHPRoundtrip(t *testing.T) {
 	}
 	rapid.Check(t, func(t *rapid.T) {
 		m := phpMachine{}
-		m.Init(t)
+		m.init()
 		t.Repeat(rapid.StateMachineActions(&m))
 	})
 }
