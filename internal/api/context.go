@@ -60,7 +60,7 @@ func reportQueryKind(ctx context.Context, isFast, isLight bool) {
 }
 
 func reportTiming(ctx context.Context, name string, dur time.Duration) {
-	if s, ok := ctx.Value(endpointStatContextKey).(*endpointStat); ok && s.timings != nil {
-		s.timings.Report(name, dur, nil)
+	if s, ok := ctx.Value(endpointStatContextKey).(*endpointStat); ok {
+		s.timings.Report(name, dur)
 	}
 }

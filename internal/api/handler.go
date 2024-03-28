@@ -2187,12 +2187,8 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 	defer h.plotRenderSem.Release(1)
 
 	start := time.Now()
-	var b TimingBuilder
-	if es != nil {
-		b = es.timings.Start("plot", nil)
-	}
 	png, err := plot(ctx, format_, true, s, h.utcOffset, req.seriesRequest, width, h.plotTemplate)
-	b.Stop()
+	es.timings.Report("plot", time.Since(start))
 	if err != nil {
 		return nil, false, err
 	}
