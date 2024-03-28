@@ -10,6 +10,7 @@ import (
 	"context"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/vkcom/statshouse/internal/util"
 )
@@ -55,5 +56,11 @@ func withEndpointStat(ctx context.Context, es *endpointStat) context.Context {
 func reportQueryKind(ctx context.Context, isFast, isLight bool) {
 	if s, ok := ctx.Value(endpointStatContextKey).(*endpointStat); ok {
 		s.lane = strconv.Itoa(util.QueryKind(isFast, isLight))
+	}
+}
+
+func reportTiming(ctx context.Context, name string, dur time.Duration) {
+	if s, ok := ctx.Value(endpointStatContextKey).(*endpointStat); ok {
+		s.timings.Report(name, dur)
 	}
 }
