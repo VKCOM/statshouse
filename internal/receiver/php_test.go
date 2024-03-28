@@ -182,12 +182,6 @@ func (m floatsMap) sum() float64 {
 
 type stringsMap map[string][]string
 
-func (m stringsMap) merge(key string, values []string) {
-	v := append(m[key], values...) //nolint:gocritic // appendAssign: append result not assigned to the same slice
-	sort.Strings(v)
-	m[key] = v
-}
-
 func (m stringsMap) size() int {
 	n := 0
 	for _, v := range m {
