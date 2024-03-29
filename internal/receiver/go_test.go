@@ -157,7 +157,7 @@ func (g *goMachine) init(t *rapid.T) {
 	if g.envIsSet {
 		env = envName
 	}
-	g.send = statshouse.NewClient(t.Logf, g.addr, env)
+	g.send = statshouse.NewClient(t.Logf, "udp", g.addr, env)
 }
 
 func (g *goMachine) Cleanup() {

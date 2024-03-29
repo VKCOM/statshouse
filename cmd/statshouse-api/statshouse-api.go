@@ -89,6 +89,7 @@ type args struct {
 	showInvisible            bool
 	slow                     time.Duration
 	staticDir                string
+	statsHouseNetwork        string
 	statsHouseAddr           string
 	statsHouseEnv            string
 	utcOffsetHours           int // we can't support offsets not divisible by hour because we aggregate the data by hour
@@ -143,7 +144,8 @@ func main() {
 	pflag.BoolVar(&argv.showInvisible, "show-invisible", false, "show invisible metrics as well")
 	pflag.DurationVar(&argv.slow, "slow", 0, "slow down all HTTP requests by this much")
 	pflag.StringVar(&argv.staticDir, "static-dir", "", "directory with static assets")
-	pflag.StringVar(&argv.statsHouseAddr, "statshouse-addr", statshouse.DefaultStatsHouseAddr, "address of StatsHouse UDP socket")
+	pflag.StringVar(&argv.statsHouseNetwork, "statshouse-network", statshouse.DefaultNetwork, "udp or unixgram")
+	pflag.StringVar(&argv.statsHouseAddr, "statshouse-addr", statshouse.DefaultAddr, "address of udp socket or path to unix socket")
 	pflag.StringVar(&argv.statsHouseEnv, "statshouse-env", "dev", "fill key0/environment with this value in StatHouse statistics")
 	pflag.IntVar(&argv.utcOffsetHours, "utc-offset", 0, "UTC offset for aggregation, in hours")
 	pflag.BoolVar(&argv.version, "version", false, "show version information and exit")
@@ -275,7 +277,7 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 		}
 	}()
 
-	statshouse.Configure(log.Printf, argv.statsHouseAddr, argv.statsHouseEnv)
+	statshouse.ConfigureNetwork(log.Printf, argv.statsHouseNetwork, argv.statsHouseAddr, argv.statsHouseEnv)
 	defer func() { _ = statshouse.Close() }()
 	var rpcCryptoKeys []string
 	if argv.rpcCryptoKeyPath != "" {
