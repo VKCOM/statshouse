@@ -24,6 +24,7 @@ import (
 	_ "github.com/prometheus/prometheus/discovery/consul"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
 	"github.com/prometheus/prometheus/scrape"
+	"github.com/vkcom/statshouse-go"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -293,6 +294,17 @@ func (s *scrapeServer) tryGetNewTargetsAndWriteResult(req scrapeRequest) (done b
 		return false, nil
 	}
 	req.hctx.Response, err = req.args.WriteResult(req.hctx.Response, res)
+	if err != nil {
+		statshouse.Metric(
+			format.BuiltinMetricNameAggScrapeTarget,
+			statshouse.Tags{1: "1", 2: "2"}, // failure, targets_sent
+		).StringTop(req.addr.String())
+	} else {
+		statshouse.Metric(
+			format.BuiltinMetricNameAggScrapeTarget,
+			statshouse.Tags{2: "2"}, // targets_sent
+		).StringTop(req.addr.String())
+	}
 	return true, err
 }
 
@@ -310,6 +322,9 @@ func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 	s.configMu.Unlock()
 	// build targets
 	m := make(map[netip.Addr]*tlstatshouse.GetTargetsResultBytes)
+	targetsReadyFailure := statshouse.Metric(
+		format.BuiltinMetricNameAggScrapeTarget,
+		statshouse.Tags{1: "1", 2: "1"}) // failure, targets_ready
 	for namespaceJobName, groups := range jobs {
 		scfg, ok := cfg[namespaceJobName]
 		if !ok {
@@ -338,6 +353,7 @@ func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 				url := t.URL()
 				ip, err := netip.ParseAddr(url.Hostname())
 				if err != nil {
+					targetsReadyFailure.StringTop(url.Hostname())
 					log.Printf("scrape target must have an IP address: %v\n", err)
 					continue
 				}
@@ -376,8 +392,12 @@ func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 	for k := range s.targets {
 		s.targets[k] = tlstatshouse.GetTargetsResultBytes{}
 	}
+	targetsReady := statshouse.Metric(
+		format.BuiltinMetricNameAggScrapeTarget,
+		statshouse.Tags{2: "1"}) // targets_ready
 	for k, v := range targets {
 		s.targets[k] = v
+		targetsReady.StringTop(k.String())
 	}
 	s.targetsMu.Unlock()
 	// serve long poll requests

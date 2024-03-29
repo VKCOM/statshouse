@@ -111,6 +111,7 @@ const (
 	BuiltinMetricIDAggSamplingGroupBudget     = -89
 	BuiltinMetricIDPromQLEngineTime           = -90
 	BuiltinMetricIDAPICacheHit                = -91
+	BuiltinMetricIDAggScrapeTarget            = -92
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -147,6 +148,7 @@ const (
 	BuiltinMetricNamePromQLEngineTime           = "__promql_engine_time"
 	BuiltinMetricNameAPICacheHit                = "__api_cache_hit_rate"
 	BuiltinMetricNameIDUIErrors                 = "__ui_errors"
+	BuiltinMetricNameAggScrapeTarget            = "__agg_scrape_target"
 
 	TagValueIDBadgeAgentSamplingFactor = -1
 	TagValueIDBadgeAggSamplingFactor   = -10
@@ -1825,6 +1827,30 @@ Value is delta between second value and time it was inserted.`,
 					Description: "kind",
 				}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}},
 		},
+		BuiltinMetricIDAggScrapeTarget: {
+			Name:                 BuiltinMetricNameAggScrapeTarget,
+			Kind:                 MetricKindCounter,
+			Description:          "Scrape targets found on aggregator",
+			StringTopDescription: "address",
+			Tags: []MetricMetaTag{
+				{
+					Description: "status",
+					Raw:         true,
+					ValueComments: convertToValueComments(map[int32]string{
+						0: "success",
+						1: "failure",
+					}),
+				},
+				{
+					Description: "type",
+					Raw:         true,
+					ValueComments: convertToValueComments(map[int32]string{
+						1: "targets_ready",
+						2: "targets_sent",
+					}),
+				},
+			},
+		},
 	}
 
 	builtinMetricsInvisible = map[int32]bool{
@@ -1854,6 +1880,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDUIErrors:                   true,
 		BuiltinMetricIDStatsHouseErrors:           true,
 		BuiltinMetricIDPromQLEngineTime:           true,
+		BuiltinMetricIDAggScrapeTarget:            true,
 	}
 
 	builtinMetricsNoSamplingAgent = map[int32]bool{

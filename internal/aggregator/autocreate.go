@@ -196,9 +196,6 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 		}
 		newTagDraftCount++
 	}
-	if metricExists && len(value.TagsDraft) == 0 {
-		return nil // nothing to do
-	}
 	var newTagCount int
 	if len(value.TagsDraft) != 0 {
 		newTagCount = ac.scrape.getConfig().PublishDraftTags(&value)
