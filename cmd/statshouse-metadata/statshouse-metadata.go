@@ -39,6 +39,7 @@ var argv struct {
 	dbPath  string
 	rpcPort int
 
+	shNetwork        string
 	shAddr           string
 	shEnv            string
 	pidFile          string
@@ -78,7 +79,8 @@ func parseArgs() {
 
 	pflag.StringVar(&argv.rpcCryptoKeyPath, "rpc-crypto-path", "", "path to RPC crypto key. if empty try to use stdin")
 
-	pflag.StringVar(&argv.shAddr, "statshouse-addr", statshouse.DefaultStatsHouseAddr, "address of StatsHouse UDP socket")
+	pflag.StringVar(&argv.shNetwork, "statshouse-network", statshouse.DefaultNetwork, "udp or unixgram")
+	pflag.StringVar(&argv.shAddr, "statshouse-addr", statshouse.DefaultAddr, "address of UDP socket or path to the unix socket")
 	pflag.StringVar(&argv.shEnv, "statshouse-env", "dev", "fill key0/environment with this value in StatHouse statistics")
 	pflag.BoolVar(&argv.secureMode, "secure", false, "if set, fail if can't read rpc crypto key from rpc-crypto-path or from stdin")
 
@@ -283,7 +285,7 @@ func run() error {
 			log.Printf("[error] %v", err)
 		}
 	}()
-	statshouse.Configure(log.Printf, argv.shAddr, argv.shEnv)
+	statshouse.ConfigureNetwork(log.Printf, argv.shNetwork, argv.shAddr, argv.shEnv)
 	defer statshouse.Close()
 
 	proxy := metadata.ProxyHandler{Host: host}
