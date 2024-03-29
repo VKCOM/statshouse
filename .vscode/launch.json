@@ -25,11 +25,21 @@
             ]
         },
         {
-            "name": "api remote",
+            "name": "debug 8000",
             "type": "go",
             "request": "attach",
             "mode": "remote",
             "port": 8000,
+            "host": "127.0.0.1",
+            "apiVersion": 2,
+            "showLog": true,
+        },
+        {
+            "name": "debug 8001",
+            "type": "go",
+            "request": "attach",
+            "mode": "remote",
+            "port": 8001,
             "host": "127.0.0.1",
             "apiVersion": 2,
             "showLog": true,
@@ -95,6 +105,6 @@
                 "--auto-create",
                 "--cache-dir=target/run/cache/aggregator",
             ],
-        },
+        }
     ]
 }

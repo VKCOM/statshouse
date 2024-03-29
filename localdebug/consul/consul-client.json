@@ -1,0 +1,14 @@
+{
+    "data_dir": "/consul/data",
+    "retry_join": [
+        "consul"
+    ],
+    "service": {
+        "name": "node_exporter",
+        "tags": [
+            "node_exporter",
+            "prometheus"
+        ],
+        "port": 9100
+    }
+}
