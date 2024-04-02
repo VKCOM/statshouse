@@ -2,6 +2,7 @@
   "extends": ["react-app", "plugin:react/recommended", "plugin:react-hooks/recommended", "prettier"],
   "parser": "@typescript-eslint/parser",
   "plugins": ["react", "@typescript-eslint", "prettier"],
+  "ignorePatterns": ["src/lib/**"],
   "rules": {
     "indent": "off",
     "prettier/prettier": "warn",
