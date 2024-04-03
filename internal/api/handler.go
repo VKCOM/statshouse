@@ -1977,7 +1977,7 @@ func (h *Handler) queryBadges(ctx context.Context, req seriesRequest, meta *form
 		promql.Query{
 			Start: req.from.Unix(),
 			End:   req.to.Unix(),
-			Expr:  fmt.Sprintf("%s{@what=\"count,avg\",__by__=\"1,2\",2=\" 0\",2=\" %d\"}", format.BuiltinMetricNameBadges, meta.MetricID),
+			Expr:  fmt.Sprintf(`%s{@what="count,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricNameBadges, meta.MetricID),
 			Options: promql.Options{
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,

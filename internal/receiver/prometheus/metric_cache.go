@@ -186,22 +186,12 @@ func (m *cacheMetric) processSample(v float64, t int64, namespace string, s []tl
 	}
 	switch m.meta.typ {
 	case cacheMetricTypeCounter:
-		if m.d.prev.cntSet { // counter was set at least once
-			d := v - m.d.prev.cnt
-			if d < 0 {
-				d = v // counter reset
-			}
-			if d > 0 {
-				bytes := tlstatshouse.MetricBytes{Name: []byte(metricName), Tags: m.tags}
-				bytes.SetCounter(d)
-				if t != 0 {
-					bytes.SetTs(uint32((t-1)/1_000 + 1))
-				}
-				s = append(s, bytes)
-			}
+		bytes := tlstatshouse.MetricBytes{Name: []byte(metricName), Tags: m.tags}
+		bytes.SetCounter(v)
+		if t != 0 {
+			bytes.SetTs(uint32((t-1)/1_000 + 1))
 		}
-		m.d.prev.cnt = v
-		m.d.prev.cntSet = true
+		s = append(s, bytes)
 	case cacheMetricTypeGauge:
 		bytes := tlstatshouse.MetricBytes{Name: []byte(metricName), Tags: m.tags}
 		bytes.SetValue([]float64{v})
