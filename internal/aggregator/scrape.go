@@ -24,7 +24,7 @@ import (
 	_ "github.com/prometheus/prometheus/discovery/consul"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
 	"github.com/prometheus/prometheus/scrape"
-	"github.com/vkcom/statshouse-go"
+	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
@@ -34,8 +34,11 @@ import (
 )
 
 type scrapeServer struct {
-	ctx  context.Context
-	man  *discovery.Manager
+	ctx context.Context
+	man *discovery.Manager
+
+	// set to not nil some time after launching aggregator
+	sh2  *agent.Agent
 	meta format.MetaStorageInterface
 
 	// updated on "applyConfig"
@@ -166,12 +169,11 @@ func LoadScrapeConfig(configS string, meta format.MetaStorageInterface) (ScrapeC
 	return res, err
 }
 
-func newScrapeServer(meta format.MetaStorageInterface) *scrapeServer {
+func newScrapeServer() *scrapeServer {
 	ctx, cancel := context.WithCancel(context.Background())
 	res := &scrapeServer{
 		ctx:      ctx,
 		man:      discovery.NewManager(ctx, klog.NewLogfmtLogger(log.Writer())),
-		meta:     meta,
 		targets:  make(map[netip.Addr]tlstatshouse.GetTargetsResultBytes),
 		requests: make(map[*rpc.HandlerContext]scrapeRequest),
 	}
@@ -294,16 +296,18 @@ func (s *scrapeServer) tryGetNewTargetsAndWriteResult(req scrapeRequest) (done b
 		return false, nil
 	}
 	req.hctx.Response, err = req.args.WriteResult(req.hctx.Response, res)
-	if err != nil {
-		statshouse.Metric(
-			format.BuiltinMetricNameAggScrapeTarget,
-			statshouse.Tags{1: "1", 2: "2"}, // failure, targets_sent
-		).StringTop(req.addr.String())
-	} else {
-		statshouse.Metric(
-			format.BuiltinMetricNameAggScrapeTarget,
-			statshouse.Tags{2: "2"}, // targets_sent
-		).StringTop(req.addr.String())
+	if s.sh2 != nil {
+		if err != nil {
+			// failure, targets_sent
+			s.sh2.AddCounterHostStringBytes(
+				s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 1, 2}),
+				[]byte(req.addr.String()), 1, 0, nil)
+		} else {
+			// success, targets_sent
+			s.sh2.AddCounterHostStringBytes(
+				s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 0, 2}),
+				[]byte(req.addr.String()), 1, 0, nil)
+		}
 	}
 	return true, err
 }
@@ -322,12 +326,29 @@ func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 	s.configMu.Unlock()
 	// build targets
 	m := make(map[netip.Addr]*tlstatshouse.GetTargetsResultBytes)
-	targetsReadyFailure := statshouse.Metric(
-		format.BuiltinMetricNameAggScrapeTarget,
-		statshouse.Tags{1: "1", 2: "1"}) // failure, targets_ready
 	for namespaceJobName, groups := range jobs {
+		if s.sh2 != nil {
+			for _, g := range groups {
+				if g == nil || len(g.Targets) == 0 {
+					log.Printf("scrape group is empty %q\n", namespaceJobName)
+					continue
+				}
+				for _, t := range g.Targets {
+					if len(t) == 0 {
+						log.Printf("scrape target is empty %q\n", namespaceJobName)
+						continue
+					}
+					if addr, ok := t[model.AddressLabel]; ok {
+						s.sh2.AddCounterHostStringBytes(
+							s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDiscovery, [format.MaxTags]int32{}),
+							[]byte(addr), 1, 0, nil)
+					}
+				}
+			}
+		}
 		scfg, ok := cfg[namespaceJobName]
 		if !ok {
+			log.Printf("scrape configuration not found %q\n", namespaceJobName)
 			continue
 		}
 		var namespace string
@@ -335,6 +356,7 @@ func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 			namespace = namespaceJobName[:i]
 		}
 		if namespace == "" {
+			log.Printf("scrape namespace is empty %q\n", namespaceJobName)
 			continue
 		}
 		for _, group := range groups {
@@ -353,7 +375,12 @@ func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 				url := t.URL()
 				ip, err := netip.ParseAddr(url.Hostname())
 				if err != nil {
-					targetsReadyFailure.StringTop(url.Hostname())
+					if s.sh2 != nil {
+						// failure, targets_ready
+						s.sh2.AddCounterHostStringBytes(
+							s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 1, 1}),
+							[]byte(url.Hostname()), 1, 0, nil)
+					}
 					log.Printf("scrape target must have an IP address: %v\n", err)
 					continue
 				}
@@ -392,12 +419,14 @@ func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 	for k := range s.targets {
 		s.targets[k] = tlstatshouse.GetTargetsResultBytes{}
 	}
-	targetsReady := statshouse.Metric(
-		format.BuiltinMetricNameAggScrapeTarget,
-		statshouse.Tags{2: "1"}) // targets_ready
 	for k, v := range targets {
 		s.targets[k] = v
-		targetsReady.StringTop(k.String())
+		if s.sh2 != nil {
+			// success, targets_ready
+			s.sh2.AddCounterHostStringBytes(
+				s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeTargetDispatch, [format.MaxTags]int32{0, 0, 1}),
+				[]byte(k.String()), 1, 0, nil)
+		}
 	}
 	s.targetsMu.Unlock()
 	// serve long poll requests
