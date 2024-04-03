@@ -25,12 +25,18 @@ type ServerTimingHeader struct {
 }
 
 func (header *ServerTimingHeader) Report(name string, dur time.Duration) {
+	if header.Timings == nil {
+		return
+	}
 	header.mutex.Lock()
 	defer header.mutex.Unlock()
 	header.Timings[name] += dur
 }
 
 func (header *ServerTimingHeader) String() string {
+	if header.Timings == nil {
+		return ""
+	}
 	header.mutex.Lock()
 	defer header.mutex.Unlock()
 	header.Timings["total"] = time.Since(header.started)
