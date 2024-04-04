@@ -9,7 +9,9 @@ package aggregator
 import (
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"log"
 	"net/netip"
@@ -44,7 +46,8 @@ type scrapeServer struct {
 	// updated on "applyConfig"
 	config   ScrapeConfig
 	configJ  map[string]*config.ScrapeConfig
-	configMu sync.Mutex
+	configH  int32 // config SHA1 hash
+	configMu sync.RWMutex
 
 	// current targets, updated on discovery events
 	targets   map[netip.Addr]tlstatshouse.GetTargetsResultBytes
@@ -235,7 +238,11 @@ func (s *scrapeServer) applyConfig(configS string) {
 		s.configJ = sc
 		if err = s.man.ApplyConfig(dc); err != nil {
 			log.Printf("error applying scrape config: %v\n", err)
+			return
 		}
+		// config applied successfully, update hash
+		h := sha1.Sum([]byte(configS))
+		s.configH = int32(binary.BigEndian.Uint32(h[:]))
 	}()
 	if len(dc) == 0 {
 		// "discovery.Manager" does not send updates on empty config, trigger manually
@@ -244,9 +251,19 @@ func (s *scrapeServer) applyConfig(configS string) {
 }
 
 func (s *scrapeServer) getConfig() ScrapeConfig {
-	s.configMu.Lock()
-	defer s.configMu.Unlock()
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
 	return s.config
+}
+
+func (s *scrapeServer) reportConfigHash() {
+	var v int32
+	s.configMu.RLock()
+	v = s.configH
+	s.configMu.RUnlock()
+	s.sh2.AddCounterHostStringBytes(
+		s.sh2.AggKey(0, format.BuiltinMetricIDAggScrapeConfigHash, [format.MaxTags]int32{0, v}),
+		nil, 1, 0, nil)
 }
 
 func (s *scrapeServer) handleGetTargets(_ context.Context, hctx *rpc.HandlerContext, args tlstatshouse.GetTargets2Bytes) error {
@@ -321,9 +338,9 @@ func (s *scrapeServer) CancelHijack(hctx *rpc.HandlerContext) {
 func (s *scrapeServer) applyTargets(jobs map[string][]*targetgroup.Group) {
 	// get config
 	var cfg map[string]*config.ScrapeConfig
-	s.configMu.Lock()
+	s.configMu.RLock()
 	cfg = s.configJ
-	s.configMu.Unlock()
+	s.configMu.RUnlock()
 	// build targets
 	m := make(map[netip.Addr]*tlstatshouse.GetTargetsResultBytes)
 	for namespaceJobName, groups := range jobs {

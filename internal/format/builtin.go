@@ -113,6 +113,7 @@ const (
 	BuiltinMetricIDAPICacheHit                = -91
 	BuiltinMetricIDAggScrapeTargetDispatch    = -92
 	BuiltinMetricIDAggScrapeTargetDiscovery   = -93
+	BuiltinMetricIDAggScrapeConfigHash        = -94
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 
@@ -1856,6 +1857,18 @@ Value is delta between second value and time it was inserted.`,
 			Kind:                 MetricKindCounter,
 			Description:          "Scrape targets found by service discovery",
 			StringTopDescription: "scrape_target",
+		},
+		BuiltinMetricIDAggScrapeConfigHash: {
+			Name:        "__agg_scrape_config_hash",
+			Kind:        MetricKindCounter,
+			Description: "Scrape configuration string SHA1 hash",
+			Tags: []MetricMetaTag{
+				{
+					Description: "config_hash",
+					Raw:         true,
+					RawKind:     "hex",
+				},
+			},
 		},
 	}
 

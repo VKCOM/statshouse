@@ -650,6 +650,7 @@ func (a *Aggregator) goTicker() {
 		tick := time.After(data_model.TillStartOfNextSecond(now))
 		now = <-tick // We synchronize with calendar second boundary
 
+		a.scrape.reportConfigHash()
 		a.updateConfigRemotelyExperimental()
 		readyBuckets := a.advanceRecentBuckets(now, false)
 		for _, aggBucket := range readyBuckets {
