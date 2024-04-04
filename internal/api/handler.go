@@ -1972,15 +1972,23 @@ func (h *Handler) queryBadges(ctx context.Context, req seriesRequest, meta *form
 	ctx = debugQueriesContext(ctx, &res.trace)
 	ctx = promql.TraceContext(ctx, &res.trace)
 	req.ai.skipBadgesValidation = true
+	var step, screenWidth int64
+	if req.widthKind == widthAutoRes {
+		screenWidth = int64(req.width)
+	} else {
+		step = int64(req.width)
+	}
 	v, cleanup, err := h.promEngine.Exec(
 		withAccessInfo(ctx, &req.ai),
 		promql.Query{
 			Start: req.from.Unix(),
 			End:   req.to.Unix(),
-			Expr:  fmt.Sprintf(`%s{@what="count,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricNameBadges, meta.MetricID),
+			Step:  step,
+			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricNameBadges, meta.MetricID),
 			Options: promql.Options{
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,
+				ScreenWidth:      screenWidth,
 			},
 		})
 	if err != nil {
@@ -2508,7 +2516,7 @@ func (h *Handler) buildSeriesResponse(s ...seriesResponse) *SeriesResponse {
 			if t, ok := d.Tags.ID2Tag["1"]; ok {
 				badgeType := t.Value
 				if t, ok = d.Tags.ID2Tag[promql.LabelWhat]; ok {
-					what, _ := validQueryFn(t.SValue)
+					what := queryFn(t.Value)
 					switch {
 					case what == queryFnAvg && badgeType == format.TagValueIDBadgeAgentSamplingFactor:
 						res.SamplingFactorSrc = sumSeries(d.Values, 1) / float64(len(s1.Time))

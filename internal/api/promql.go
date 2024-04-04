@@ -646,15 +646,6 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	} else {
 		step = qry.Timescale.Step
 	}
-	qryRaw := make([]bool, len(qry.Whats))
-	for i, what := range qry.Whats {
-		switch what {
-		case promql.DigestCountRaw, promql.DigestSumRaw, promql.DigestCardinalityRaw:
-			qryRaw[i] = true
-		default:
-			qryRaw[i] = qry.Options.Collapse || step == 0 || step == _1M
-		}
-	}
 	res := promql.Series{Meta: promql.SeriesMeta{Metric: qry.Metric}}
 	if len(qry.Whats) == 1 {
 		switch qry.Whats[0] {
@@ -698,7 +689,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			cleanup()
 		}
 	}()
-	for _, args := range getHandlerArgs(qry, ai) {
+	for _, args := range getHandlerArgs(qry, ai, step) {
 		var tx int // time index
 		fns, qs, pq := args.fns, args.qs, args.pq
 		for _, lod := range lods {
@@ -751,7 +742,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 						}
 					}
 					for y, fn := range fns {
-						(*res.Data[x+y].Values)[k] = selectTSValue(fn, qry.MinMaxHost[0] || qry.MinMaxHost[1], qryRaw[y], int64(step), &data[i][j])
+						(*res.Data[x+y].Values)[k] = selectTSValue(fn.fn, qry.MinMaxHost[0] || qry.MinMaxHost[1], fn.raw, int64(step), &data[i][j])
 						for z, qryHost := range qry.MinMaxHost {
 							if qryHost {
 								res.Data[x+y].MinMaxHost[z][k] = data[i][j].host[z]
@@ -763,7 +754,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			tx += len(data)
 		}
 		tagWhat := len(qry.Whats) > 1 || qry.Options.TagWhat
-		for i, what := range args.whats {
+		for i, what := range fns {
 			for v, j := range tagX {
 				for _, groupBy := range qry.GroupBy {
 					switch groupBy {
@@ -796,7 +787,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				if tagWhat {
 					res.AddTagAt(i+j, &promql.SeriesTag{
 						ID:    promql.LabelWhat,
-						Value: int32(what),
+						Value: int32(what.fn),
 					})
 				}
 			}
@@ -909,13 +900,18 @@ func (h *Handler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery)
 }
 
 type handlerArgs struct {
-	qs    string // cache key
-	pq    preparedPointsQuery
-	fns   []queryFn
-	whats []promql.DigestWhat
+	qs  string // cache key
+	pq  preparedPointsQuery
+	fns []handlerFn
 }
 
-func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) map[queryFnKind]handlerArgs {
+type handlerFn struct {
+	fn   queryFn
+	what promql.DigestWhat
+	raw  bool
+}
+
+func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[queryFnKind]handlerArgs {
 	// filtering
 	var (
 		filterIn  = make(map[string][]string)
@@ -1021,11 +1017,30 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo) map[queryFnKind]han
 		default:
 			panic(fmt.Errorf("unrecognized what: %v", qry.Whats))
 		}
+		hfn := handlerFn{fn: fn, what: v}
+		switch v {
+		case promql.DigestCountRaw, promql.DigestSumRaw, promql.DigestCardinalityRaw:
+			hfn.raw = true
+		default:
+			hfn.raw = qry.Options.Collapse || step == 0 || step == _1M
+		}
 		kind := queryFnToQueryFnKind(fn, qry.MinMaxHost[0] || qry.MinMaxHost[1])
 		args := res[kind]
-		args.fns = append(args.fns, fn)
-		args.whats = append(args.whats, v)
+		args.fns = append(args.fns, hfn)
 		res[kind] = args
+	}
+	// all kinds contain counter value, there is
+	// no sence therefore to query counter separetely
+	if v, ok := res[queryFnKindCount]; ok {
+		for kind, args := range res {
+			if kind == queryFnKindCount {
+				continue
+			}
+			args.fns = append(args.fns, v.fns...)
+			res[kind] = args
+			delete(res, queryFnKindCount)
+			break
+		}
 	}
 	// cache key & query
 	for kind, args := range res {
