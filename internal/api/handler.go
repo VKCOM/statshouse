@@ -2516,17 +2516,17 @@ func (h *Handler) buildSeriesResponse(s ...seriesResponse) *SeriesResponse {
 			if t, ok := d.Tags.ID2Tag["1"]; ok {
 				badgeType := t.Value
 				if t, ok = d.Tags.ID2Tag[promql.LabelWhat]; ok {
-					what := queryFn(t.Value)
+					what := promql.DigestWhat(t.Value)
 					switch {
-					case what == queryFnAvg && badgeType == format.TagValueIDBadgeAgentSamplingFactor:
+					case what == promql.DigestAvg && badgeType == format.TagValueIDBadgeAgentSamplingFactor:
 						res.SamplingFactorSrc = sumSeries(d.Values, 1) / float64(len(s1.Time))
-					case what == queryFnAvg && badgeType == format.TagValueIDBadgeAggSamplingFactor:
+					case what == promql.DigestAvg && badgeType == format.TagValueIDBadgeAggSamplingFactor:
 						res.SamplingFactorAgg = sumSeries(d.Values, 1) / float64(len(s1.Time))
-					case what == queryFnCount && badgeType == format.TagValueIDBadgeIngestionErrors:
+					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionErrors:
 						res.ReceiveErrors = sumSeries(d.Values, 0)
-					case what == queryFnCount && badgeType == format.TagValueIDBadgeIngestionWarnings:
+					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionWarnings:
 						res.ReceiveWarnings = sumSeries(d.Values, 0)
-					case what == queryFnCount && badgeType == format.TagValueIDBadgeAggMappingErrors:
+					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeAggMappingErrors:
 						res.MappingErrors = sumSeries(d.Values, 0)
 					}
 				}
