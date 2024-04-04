@@ -787,7 +787,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 				if tagWhat {
 					res.AddTagAt(i+j, &promql.SeriesTag{
 						ID:    promql.LabelWhat,
-						Value: int32(what.fn),
+						Value: int32(what.what),
 					})
 				}
 			}
