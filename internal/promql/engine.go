@@ -408,8 +408,8 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 				return fmt.Errorf("%s supports only strict equality", labelBy)
 			}
 			if len(matcher.Value) != 0 {
-				sel.GroupBy = strings.Split(matcher.Value, ",")
-			} else {
+				sel.GroupBy = append(sel.GroupBy, strings.Split(matcher.Value, ",")...)
+			} else if sel.GroupBy == nil {
 				sel.GroupBy = make([]string, 0)
 			}
 		case LabelMinHost:
@@ -1155,9 +1155,9 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		if tag.Index == format.StringTopTagIndex {
 			switch matcher.Type {
 			case labels.MatchEqual:
-				sFilterIn = append(sFilterIn, strings.Split(matcher.Value, ",")...)
+				sFilterIn = append(sFilterIn, matcher.Value)
 			case labels.MatchNotEqual:
-				sFilterOut = append(sFilterOut, strings.Split(matcher.Value, ",")...)
+				sFilterOut = append(sFilterOut, matcher.Value)
 			case labels.MatchRegexp:
 				stop, err := ev.getStringTop(ctx, metric, offset)
 				if err != nil {
@@ -1190,53 +1190,41 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			i := tag.Index
 			switch matcher.Type {
 			case labels.MatchEqual:
-				for j, k := 0, 0; k <= len(matcher.Value); j, k = k+1, k+1 {
-					for k < len(matcher.Value) && matcher.Value[k] != ',' {
-						k++
-					}
-					matcherValue := matcher.Value[j:k]
-					id, err := ev.getTagValueID(metric, i, matcherValue)
-					if err != nil {
-						if errors.Is(err, ErrNotFound) {
-							// string is not mapped, result is guaranteed to be empty
-							emptyCount[i]++
-							continue
-						} else {
-							return seriesQueryX{}, fmt.Errorf("failed to map string %q: %v", matcherValue, err)
-						}
-					}
-					if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
-						histogramQ.filter = true
-						histogramQ.eq = true
-						histogramQ.le = statshouse.LexDecode(id)
-					} else if filterIn[i] != nil {
-						filterIn[i][id] = matcherValue
+				id, err := ev.getTagValueID(metric, i, matcher.Value)
+				if err != nil {
+					if errors.Is(err, ErrNotFound) {
+						// string is not mapped, result is guaranteed to be empty
+						emptyCount[i]++
+						continue
 					} else {
-						filterIn[i] = map[int32]string{id: matcherValue}
+						return seriesQueryX{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
 					}
 				}
+				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
+					histogramQ.filter = true
+					histogramQ.eq = true
+					histogramQ.le = statshouse.LexDecode(id)
+				} else if filterIn[i] != nil {
+					filterIn[i][id] = matcher.Value
+				} else {
+					filterIn[i] = map[int32]string{id: matcher.Value}
+				}
 			case labels.MatchNotEqual:
-				for j, k := 0, 0; k <= len(matcher.Value); j, k = k+1, k+1 {
-					for k < len(matcher.Value) && matcher.Value[k] != ',' {
-						k++
+				id, err := ev.getTagValueID(metric, i, matcher.Value)
+				if err != nil {
+					if errors.Is(err, ErrNotFound) {
+						continue // ignore values with no mapping
 					}
-					matcherValue := matcher.Value[j:k]
-					id, err := ev.getTagValueID(metric, i, matcherValue)
-					if err != nil {
-						if errors.Is(err, ErrNotFound) {
-							continue // ignore values with no mapping
-						}
-						return seriesQueryX{}, err
-					}
-					if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
-						histogramQ.filter = true
-						histogramQ.eq = false
-						histogramQ.le = statshouse.LexDecode(id)
-					} else if filterOut[i] != nil {
-						filterOut[i][id] = matcherValue
-					} else {
-						filterOut[i] = map[int32]string{id: matcherValue}
-					}
+					return seriesQueryX{}, err
+				}
+				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
+					histogramQ.filter = true
+					histogramQ.eq = false
+					histogramQ.le = statshouse.LexDecode(id)
+				} else if filterOut[i] != nil {
+					filterOut[i][id] = matcher.Value
+				} else {
+					filterOut[i] = map[int32]string{id: matcher.Value}
 				}
 			case labels.MatchRegexp:
 				m, err := ev.getTagValues(ctx, metric, i, offset)
@@ -1289,6 +1277,17 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	if histogramQ.filter && !histogramQ.restore {
 		groupBy = append(groupBy, format.TagID(format.LETagIndex))
 		histogramQ.restore = true
+	}
+	// remove dublicates in "groupBy"
+	sort.Strings(groupBy)
+	for i := 1; i < len(groupBy); i++ {
+		j := i
+		for j < len(groupBy) && groupBy[i-1] == groupBy[j] {
+			j++
+		}
+		if i != j {
+			groupBy = append(groupBy[:i], groupBy[j:]...)
+		}
 	}
 	return seriesQueryX{
 			SeriesQuery{
