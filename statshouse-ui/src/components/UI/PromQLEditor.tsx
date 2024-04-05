@@ -33,6 +33,7 @@ const highlightStyle = HighlightStyle.define([
 
 const minHeightEditor = EditorView.baseTheme({
   '.cm-content, .cm-gutter': { minHeight: '200px' },
+  '.cm-content': { caretColor: 'var(--bs-body-color)' },
   '.cm-gutters': { backgroundColor: 'var(--bs-secondary-bg)', borderColor: 'var(--bs-border-color)' },
   '&.cm-focused': { borderRadius: 'inherit', outline: 'none' },
   '.cm-cursor, .cm-dropCursor': { borderLeft: '1.2px solid var(--bs-body-color)' },
