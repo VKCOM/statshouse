@@ -570,10 +570,9 @@ func (h *Handler) GetTimescale(qry promql.Query, offsets map[*format.MetricMetaV
 		res.Time = make([]int64, 0, resLen)
 		for i := range res.LODs {
 			p = &res.LODs[i]
-			res.Time = append(res.Time, t)
-			for j := 1; j < p.Len; j++ {
-				t = promqlStepForward(t, p.Step, h.location)
+			for j := 0; j < p.Len; j++ {
 				res.Time = append(res.Time, t)
+				t = promqlStepForward(t, p.Step, h.location)
 			}
 		}
 		if res.ViewStartX < len(res.Time) {
