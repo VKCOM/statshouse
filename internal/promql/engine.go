@@ -1155,9 +1155,9 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		if tag.Index == format.StringTopTagIndex {
 			switch matcher.Type {
 			case labels.MatchEqual:
-				sFilterIn = append(sFilterIn, matcher.Value)
+				sFilterIn = append(sFilterIn, strings.Split(matcher.Value, ",")...)
 			case labels.MatchNotEqual:
-				sFilterOut = append(sFilterOut, matcher.Value)
+				sFilterOut = append(sFilterOut, strings.Split(matcher.Value, ",")...)
 			case labels.MatchRegexp:
 				stop, err := ev.getStringTop(ctx, metric, offset)
 				if err != nil {
@@ -1190,41 +1190,53 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			i := tag.Index
 			switch matcher.Type {
 			case labels.MatchEqual:
-				id, err := ev.getTagValueID(metric, i, matcher.Value)
-				if err != nil {
-					if errors.Is(err, ErrNotFound) {
-						// string is not mapped, result is guaranteed to be empty
-						emptyCount[i]++
-						continue
-					} else {
-						return seriesQueryX{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
+				for j, k := 0, 0; k <= len(matcher.Value); j, k = k+1, k+1 {
+					for k < len(matcher.Value) && matcher.Value[k] != ',' {
+						k++
 					}
-				}
-				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
-					histogramQ.filter = true
-					histogramQ.eq = true
-					histogramQ.le = statshouse.LexDecode(id)
-				} else if filterIn[i] != nil {
-					filterIn[i][id] = matcher.Value
-				} else {
-					filterIn[i] = map[int32]string{id: matcher.Value}
+					matcherValue := matcher.Value[j:k]
+					id, err := ev.getTagValueID(metric, i, matcherValue)
+					if err != nil {
+						if errors.Is(err, ErrNotFound) {
+							// string is not mapped, result is guaranteed to be empty
+							emptyCount[i]++
+							continue
+						} else {
+							return seriesQueryX{}, fmt.Errorf("failed to map string %q: %v", matcherValue, err)
+						}
+					}
+					if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
+						histogramQ.filter = true
+						histogramQ.eq = true
+						histogramQ.le = statshouse.LexDecode(id)
+					} else if filterIn[i] != nil {
+						filterIn[i][id] = matcherValue
+					} else {
+						filterIn[i] = map[int32]string{id: matcherValue}
+					}
 				}
 			case labels.MatchNotEqual:
-				id, err := ev.getTagValueID(metric, i, matcher.Value)
-				if err != nil {
-					if errors.Is(err, ErrNotFound) {
-						continue // ignore values with no mapping
+				for j, k := 0, 0; k <= len(matcher.Value); j, k = k+1, k+1 {
+					for k < len(matcher.Value) && matcher.Value[k] != ',' {
+						k++
 					}
-					return seriesQueryX{}, err
-				}
-				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
-					histogramQ.filter = true
-					histogramQ.eq = false
-					histogramQ.le = statshouse.LexDecode(id)
-				} else if filterOut[i] != nil {
-					filterOut[i][id] = matcher.Value
-				} else {
-					filterOut[i] = map[int32]string{id: matcher.Value}
+					matcherValue := matcher.Value[j:k]
+					id, err := ev.getTagValueID(metric, i, matcherValue)
+					if err != nil {
+						if errors.Is(err, ErrNotFound) {
+							continue // ignore values with no mapping
+						}
+						return seriesQueryX{}, err
+					}
+					if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
+						histogramQ.filter = true
+						histogramQ.eq = false
+						histogramQ.le = statshouse.LexDecode(id)
+					} else if filterOut[i] != nil {
+						filterOut[i][id] = matcherValue
+					} else {
+						filterOut[i] = map[int32]string{id: matcherValue}
+					}
 				}
 			case labels.MatchRegexp:
 				m, err := ev.getTagValues(ctx, metric, i, offset)
