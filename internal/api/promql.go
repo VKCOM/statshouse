@@ -1194,26 +1194,22 @@ func getPromQuery(req seriesRequest) (string, error) {
 		filterGroupBy = append(filterGroupBy, fmt.Sprintf("@by=%q", by))
 	}
 	for t, in := range req.filterIn {
-		tid, err := format.APICompatNormalizeTagID(t)
-		if err != nil {
-			return "", err
-		}
-		s := make([]string, 0, len(in))
 		for _, v := range in {
-			s = append(s, promqlGetFilterValue(tid, v))
+			tid, err := format.APICompatNormalizeTagID(t)
+			if err != nil {
+				return "", err
+			}
+			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s=%q", tid, promqlGetFilterValue(tid, v)))
 		}
-		filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s=%q", tid, strings.Join(s, ",")))
 	}
 	for t, out := range req.filterNotIn {
-		tid, err := format.APICompatNormalizeTagID(t)
-		if err != nil {
-			return "", err
-		}
-		s := make([]string, 0, len(out))
 		for _, v := range out {
-			s = append(s, promqlGetFilterValue(tid, v))
+			tid, err := format.APICompatNormalizeTagID(t)
+			if err != nil {
+				return "", err
+			}
+			filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s!=%q", tid, promqlGetFilterValue(tid, v)))
 		}
-		filterGroupBy = append(filterGroupBy, fmt.Sprintf("%s!=%q", tid, strings.Join(s, ",")))
 	}
 	// generate resulting string
 	q := make([]string, 0, 3)
