@@ -319,15 +319,15 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 			defer func() { _ = ipv6u.Close() }()
 			receiversUDP = append(receiversUDP, ipv6u)
 		}
-		if argv.listenAddrUnix != "" {
-			ipv6u, err := receiver.ListenUDP("unixgram", argv.listenAddrUnix, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
-			if err != nil {
-				logErr.Printf("ListenUDP Unix: %v", err)
-				return 1
-			}
-			defer func() { _ = ipv6u.Close() }()
-			receiversUDP = append(receiversUDP, ipv6u)
+	}
+	if argv.listenAddrUnix != "" {
+		u, err := receiver.ListenUDP("unixgram", argv.listenAddrUnix, argv.bufferSizeUDP, argv.coresUDP > 1, sh2, logPackets)
+		if err != nil {
+			logErr.Printf("ListenUDP Unix: %v", err)
+			return 1
 		}
+		defer func() { _ = u.Close() }()
+		receiversUDP = append(receiversUDP, u)
 	}
 	logOk.Printf("Listen UDP addr %q by %d cores", argv.listenAddr, argv.coresUDP)
 	sh2.Run(0, 0, 0)
