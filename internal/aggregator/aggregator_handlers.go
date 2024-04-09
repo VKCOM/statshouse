@@ -395,12 +395,23 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 			}
 			if k.Metric == format.BuiltinMetricIDHeartbeatVersion ||
 				k.Metric == format.BuiltinMetricIDHeartbeatArgs {
-				// We need to set IP anyway, so set other keys here, not by source
-				k.Keys[4] = bcTag
-				k.Keys[5] = args.BuildCommitDate
-				k.Keys[6] = args.BuildCommitTs
-				k.Keys[7] = host
+				// In case of agent we need to set IP anyway, so set other keys here, not by source
+				// In case of api other tags are already set, so don't overwrite them
+				if k.Keys[4] == 0 {
+					k.Keys[4] = bcTag
+				}
+				if k.Keys[5] == 0 {
+					k.Keys[5] = args.BuildCommitDate
+				}
+				if k.Keys[6] == 0 {
+					k.Keys[6] = args.BuildCommitTs
+				}
+				if k.Keys[7] == 0 {
+					k.Keys[7] = host
+				}
+				// Valid for api as well because it is on the same host as agent
 				k.Keys[8] = int32(addrIPV4)
+
 			}
 			if k.Metric == format.BuiltinMetricIDRPCRequests {
 				k.Keys[7] = host // agent cannot easily map its own host for now
