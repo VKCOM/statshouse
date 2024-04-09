@@ -8,6 +8,8 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"math"
@@ -29,6 +31,7 @@ import (
 
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 
 	"github.com/vkcom/statshouse/internal/api"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -423,10 +426,25 @@ func run(argv args, cfg *api.Config, vkuthPublicKeys map[string][]byte) error {
 	defer statshouse.StopRegularMeasurement(chunksCountMeasurementID)
 
 	startTimestamp := time.Now().Unix()
-	statshouse.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: "4", 2: "1"}).Value(0)
+	heartbeatTags := statshouse.Tags{
+		1: "4",
+		2: fmt.Sprint(format.TagValueIDHeartbeatEventStart),
+		5: fmt.Sprint(format.ISO8601Date2BuildDateKey(time.Unix(int64(build.CommitTimestamp()), 0).Format(time.RFC3339))),
+		6: fmt.Sprint(build.CommitTimestamp()),
+		7: srvfunc.HostnameForStatshouse(),
+	}
+	if build.Commit() != "?" {
+		commitRaw, err := hex.DecodeString(build.Commit())
+		if err == nil && len(commitRaw) >= 4 {
+			heartbeatTags[4] = fmt.Sprint(int32(binary.BigEndian.Uint32(commitRaw)))
+		}
+	}
+	statshouse.Metric(format.BuiltinMetricNameHeartbeatVersion, heartbeatTags).Value(0)
+
+	heartbeatTags[2] = fmt.Sprint(format.TagValueIDHeartbeatEventHeartbeat)
 	defer statshouse.StopRegularMeasurement(statshouse.StartRegularMeasurement(func(c *statshouse.Client) {
 		uptime := float64(time.Now().Unix() - startTimestamp)
-		c.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: "4", 2: "2"}).Value(uptime)
+		c.Metric(format.BuiltinMetricNameHeartbeatVersion, heartbeatTags).Value(uptime)
 	}))
 
 	hr := api.NewRpcHandler(f, brs, jwtHelper, argv.HandlerOptions)
