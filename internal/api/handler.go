@@ -1098,8 +1098,37 @@ func (h *Handler) HandleGetPromConfig(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	resp, cache, err := h.handleGetPromConfig(ai)
-	respondJSON(w, resp, cache, 0, err, h.verbose, ai.user, sl) // we don't want clients to see stale metadata
+	if !ai.isAdmin() {
+		err = httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	s, err := aggregator.DeserializeScrapeConfig([]byte(h.metricsStorage.PromConfig().Data), h.metricsStorage)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	respondJSON(w, s, 0, 0, err, h.verbose, ai.user, sl)
+}
+
+func (h *Handler) HandleGetPromConfigGenerated(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStatHTTP(EndpointPrometheus, r.Method, 0, "", r.FormValue(paramPriority))
+	ai, err := h.parseAccessToken(r, sl)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	if !ai.isAdmin() {
+		err = httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	s, err := aggregator.DeserializeScrapeStaticConfig([]byte(h.metricsStorage.PromConfigGenerated().Data))
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	respondJSON(w, s, 0, 0, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) HandlePostMetric(w http.ResponseWriter, r *http.Request) {
@@ -1243,6 +1272,11 @@ func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
+	if !ai.isAdmin() {
+		err = httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
 	rd := &io.LimitedReader{
 		R: r.Body,
 		N: maxPromConfigHTTPBodySize,
@@ -1257,7 +1291,59 @@ func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("confog body too big. Max size is %d bytes", maxPromConfigHTTPBodySize)), h.verbose, ai.user, sl)
 		return
 	}
-	event, err := h.handlePostPromConfig(r.Context(), ai, string(res))
+	_, err = aggregator.DeserializeScrapeConfig(res, h.metricsStorage)
+	if err != nil {
+		err = httpErr(http.StatusBadRequest, fmt.Errorf("invalid prometheus config syntax: %v", err))
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	event, err := h.metadataLoader.SaveScrapeConfig(r.Context(), h.metricsStorage.PromConfig().Version, string(res), ai.toMetadata())
+	if err != nil {
+		err = fmt.Errorf("failed to save prometheus config: %w", err)
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	err = h.waitVersionUpdate(r.Context(), event.Version)
+	respondJSON(w, struct {
+		Version int64 `json:"version"`
+	}{event.Version}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
+}
+
+func (h *Handler) HandlePostKnownTags(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStatHTTP(EndpointPrometheus, r.Method, 0, "", r.FormValue(paramPriority))
+	if h.checkReadOnlyMode(w, r) {
+		return
+	}
+	ai, err := h.parseAccessToken(r, sl)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	if !ai.isAdmin() {
+		err = httpErr(http.StatusNotFound, fmt.Errorf("not found"))
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	rd := &io.LimitedReader{
+		R: r.Body,
+		N: maxPromConfigHTTPBodySize,
+	}
+	defer func() { _ = r.Body.Close() }()
+	res, err := io.ReadAll(rd)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	if len(res) >= maxPromConfigHTTPBodySize {
+		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("config body too big. Max size is %d bytes", maxPromConfigHTTPBodySize)), h.verbose, ai.user, sl)
+		return
+	}
+	_, err = aggregator.ParseKnownTags(res, h.metricsStorage)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	event, err := h.metadataLoader.SaveKnownTagsConfig(r.Context(), h.metricsStorage.KnownTags().Version, string(res))
 	if err != nil {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
@@ -1266,6 +1352,27 @@ func (h *Handler) HandlePostPromConfig(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, struct {
 		Version int64 `json:"version"`
 	}{event.Version}, defaultCacheTTL, 0, err, h.verbose, ai.user, sl)
+}
+
+func (h *Handler) HandleGetKnownTags(w http.ResponseWriter, r *http.Request) {
+	sl := newEndpointStatHTTP(EndpointPrometheus, r.Method, 0, "", r.FormValue(paramPriority))
+	ai, err := h.parseAccessToken(r, sl)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	if !ai.isAdmin() {
+		err = httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	var res map[string]aggregator.KnownTagsJSON
+	err = json.Unmarshal([]byte(h.metricsStorage.KnownTags().Data), &res)
+	if err != nil {
+		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		return
+	}
+	respondJSON(w, res, 0, 0, err, h.verbose, ai.user, sl)
 }
 
 func (h *Handler) HandleGetHistory(w http.ResponseWriter, r *http.Request) {
@@ -1335,29 +1442,6 @@ func (h *Handler) handleGetMetric(ctx context.Context, ai accessInfo, metricName
 	return &MetricInfo{
 		Metric: *v,
 	}, defaultCacheTTL, nil
-}
-
-func (h *Handler) handleGetPromConfig(ai accessInfo) (string, time.Duration, error) {
-	if !ai.isAdmin() {
-		return "", 0, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
-	}
-	config := h.metricsStorage.PromConfig()
-	return config.Data, defaultCacheTTL, nil
-}
-
-func (h *Handler) handlePostPromConfig(ctx context.Context, ai accessInfo, configStr string) (tlmetadata.Event, error) {
-	if !ai.isAdmin() {
-		return tlmetadata.Event{}, httpErr(http.StatusNotFound, fmt.Errorf("config is not found"))
-	}
-	_, err := aggregator.LoadScrapeConfig(configStr, h.metricsStorage)
-	if err != nil {
-		return tlmetadata.Event{}, fmt.Errorf("invalid prometheus config syntax: %w", err)
-	}
-	event, err := h.metadataLoader.SavePromConfig(ctx, h.metricsStorage.PromConfig().Version, configStr, ai.toMetadata())
-	if err != nil {
-		return tlmetadata.Event{}, fmt.Errorf("failed to save prometheus config: %w", err)
-	}
-	return event, nil
 }
 
 func (h *Handler) handleGetDashboard(ctx context.Context, ai accessInfo, id int32, version int64) (*DashboardInfo, time.Duration, error) {

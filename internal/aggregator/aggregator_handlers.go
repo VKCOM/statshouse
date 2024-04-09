@@ -166,9 +166,6 @@ func (a *Aggregator) handleClientImpl(ctx context.Context, hctx *rpc.HandlerCont
 		}
 	case constants.StatshouseGetTargets2:
 		{
-			if a.scrape == nil {
-				return fmt.Errorf("service discovery is not running")
-			}
 			ud := getUserData(hctx)
 			_, err := ud.getTargets2.Read(hctx.Request)
 			if err != nil {

@@ -616,7 +616,7 @@ func mainPublishTagDrafts() {
 	}
 	loader := metajournal.NewMetricMetaLoader(&client, metajournal.DefaultMetaTimeout)
 	var (
-		config   aggregator.ScrapeConfig
+		config   aggregator.KnownTags
 		storage  *metajournal.MetricsStorage
 		workMu   sync.Mutex
 		work     = make(map[int32]map[int32]format.MetricMetaValue)
@@ -649,7 +649,7 @@ func mainPublishTagDrafts() {
 				workCond.L.Unlock()
 				n++
 			case format.PromConfigEvent:
-				v, err := aggregator.LoadScrapeConfig(e.Data, storage)
+				v, err := aggregator.ParseKnownTags([]byte(e.Data), storage)
 				fmt.Fprintln(os.Stderr, e.Data)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, err)

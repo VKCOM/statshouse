@@ -24,10 +24,12 @@ import (
 )
 
 const (
-	pmcBigNegativeCacheTTL = 1 * time.Hour
-	DefaultMetaTimeout     = 2 * time.Second
-	prometheusConfigID     = -1 // TODO move to file with predefined entities
-	saveMeta               = false
+	pmcBigNegativeCacheTTL      = 1 * time.Hour
+	DefaultMetaTimeout          = 2 * time.Second
+	PrometheusConfigID          = -1 // TODO move to file with predefined entities
+	PrometheusGeneratedConfigID = -2
+	KnownTagsConfigID           = -3
+	saveMeta                    = false
 )
 
 var errorInvalidUserRequest = errors.New("")
@@ -361,11 +363,10 @@ func (l *MetricMetaLoader) LoadOrCreateMapping(ctxParent context.Context, key st
 	return pcache.Int32ToValue(v), d, e
 }
 
-func (l *MetricMetaLoader) SavePromConfig(ctx context.Context, version int64, config string, metadata string) (tlmetadata.Event, error) {
-	event := tlmetadata.Event{}
+func (l *MetricMetaLoader) SaveScrapeConfig(ctx context.Context, version int64, config string, metadata string) (tlmetadata.Event, error) {
 	editMetricReq := tlmetadata.EditEntitynew{
 		Event: tlmetadata.Event{
-			Id:        prometheusConfigID,
+			Id:        PrometheusConfigID,
 			Name:      "prom-config",
 			EventType: format.PromConfigEvent,
 			Version:   version,
@@ -377,9 +378,50 @@ func (l *MetricMetaLoader) SavePromConfig(ctx context.Context, version int64, co
 	}
 	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
 	defer cancelFunc()
+	var event tlmetadata.Event
 	err := l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
 	if err != nil {
-		return event, fmt.Errorf("failed to change prometheus config: %w", err)
+		return event, fmt.Errorf("failed to change prom config: %w", err)
+	}
+	return event, nil
+}
+
+func (l *MetricMetaLoader) SaveScrapeStaticConfig(ctx context.Context, version int64, config string) (tlmetadata.Event, error) {
+	editMetricReq := tlmetadata.EditEntitynew{
+		Event: tlmetadata.Event{
+			Id:        PrometheusGeneratedConfigID,
+			Name:      "prom-static-config",
+			EventType: format.PromConfigEvent,
+			Version:   version,
+			Data:      config,
+		},
+	}
+	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
+	defer cancelFunc()
+	var event tlmetadata.Event
+	err := l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
+	if err != nil {
+		return event, fmt.Errorf("failed to change prom static config: %w", err)
+	}
+	return event, nil
+}
+
+func (l *MetricMetaLoader) SaveKnownTagsConfig(ctx context.Context, version int64, config string) (tlmetadata.Event, error) {
+	editMetricReq := tlmetadata.EditEntitynew{
+		Event: tlmetadata.Event{
+			Id:        KnownTagsConfigID,
+			Name:      "prom-known-tags",
+			EventType: format.PromConfigEvent,
+			Version:   version,
+			Data:      config,
+		},
+	}
+	ctx, cancelFunc := context.WithTimeout(ctx, l.loadTimeout)
+	defer cancelFunc()
+	var event tlmetadata.Event
+	err := l.client.EditEntitynew(ctx, editMetricReq, nil, &event)
+	if err != nil {
+		return event, fmt.Errorf("failed to change prom known tags config: %w", err)
 	}
 	return event, nil
 }

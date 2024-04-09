@@ -25,7 +25,6 @@ import (
 type autoCreate struct {
 	client     *tlmetadata.Client
 	storage    *metajournal.MetricsStorage
-	scrape     *scrapeServer
 	mu         sync.Mutex
 	co         *sync.Cond
 	queue      []*rpc.HandlerContext // protected by "mu"
@@ -34,20 +33,55 @@ type autoCreate struct {
 	shutdownFn func()
 
 	defaultNamespaceAllowed bool
+	knownTags               KnownTags
+	knownTagsMu             sync.RWMutex
+
+	running bool // guard against double "run"
 }
 
-func newAutoCreate(client *tlmetadata.Client, storage *metajournal.MetricsStorage, scrape *scrapeServer, defaultNamespaceAllowed bool) *autoCreate {
-	ac := autoCreate{
+type KnownTags map[int32]knownTags
+
+type knownTags struct {
+	namespace map[string]string           // namespace level tags
+	groups    map[int32]map[string]string // group level tags, by group ID
+}
+
+type KnownTagsJSON struct {
+	Namespace map[string]string            `json:"known_tags,omitempty"` // tag name -> tag ID
+	Groups    map[string]map[string]string `json:"groups,omitempty"`     // group name -> tag name -> tag ID
+}
+
+func newAutoCreate(client *tlmetadata.Client, defaultNamespaceAllowed bool) *autoCreate {
+	ac := &autoCreate{
 		client:                  client,
-		storage:                 storage,
-		scrape:                  scrape,
 		args:                    make(map[*rpc.HandlerContext]tlstatshouse.AutoCreateBytes),
 		defaultNamespaceAllowed: defaultNamespaceAllowed,
 	}
 	ac.co = sync.NewCond(&ac.mu)
 	ac.ctx, ac.shutdownFn = context.WithCancel(context.Background())
+	return ac
+}
+
+func (ac *autoCreate) run(storage *metajournal.MetricsStorage) {
+	if ac.running {
+		return
+	}
+	ac.storage = storage
 	go ac.goWork()
-	return &ac
+	ac.running = true
+}
+
+func (ac *autoCreate) applyConfig(configID int32, configS string) {
+	if configID != metajournal.KnownTagsConfigID {
+		return
+	}
+	knownTags, err := ParseKnownTags([]byte(configS), ac.storage)
+	if err != nil {
+		return
+	}
+	ac.knownTagsMu.Lock()
+	ac.knownTags = knownTags
+	ac.knownTagsMu.Unlock()
 }
 
 func (ac *autoCreate) shutdown() {
@@ -198,7 +232,7 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 	}
 	var newTagCount int
 	if len(value.TagsDraft) != 0 {
-		newTagCount = ac.scrape.getConfig().PublishDraftTags(&value)
+		newTagCount = ac.publishDraftTags(&value)
 	}
 	if metricExists && newTagDraftCount == 0 && newTagCount == 0 {
 		return nil // nothing to do
@@ -233,6 +267,15 @@ func (ac *autoCreate) createMetric(args tlstatshouse.AutoCreateBytes) error {
 	return nil
 }
 
+func (ac *autoCreate) publishDraftTags(meta *format.MetricMetaValue) int {
+	ac.knownTagsMu.RLock()
+	defer ac.knownTagsMu.RUnlock()
+	if len(ac.knownTags) == 0 {
+		return 0
+	}
+	return ac.knownTags.PublishDraftTags(meta)
+}
+
 func (ac *autoCreate) done() bool {
 	select {
 	case <-ac.ctx.Done():
@@ -240,4 +283,89 @@ func (ac *autoCreate) done() bool {
 	default:
 		return false
 	}
+}
+
+func (m KnownTags) PublishDraftTags(meta *format.MetricMetaValue) int {
+	if meta.NamespaceID == 0 ||
+		meta.NamespaceID == format.BuiltinNamespaceIDDefault ||
+		meta.NamespaceID == format.BuiltinNamespaceIDMissing {
+		return 0
+	}
+	c, ok := m[meta.NamespaceID]
+	if !ok {
+		return 0
+	}
+	var n int
+	if len(c.namespace) != 0 {
+		n = publishDraftTags(meta, c.namespace)
+	}
+	if len(c.groups) == 0 ||
+		meta.GroupID == 0 ||
+		meta.GroupID == format.BuiltinGroupIDDefault {
+		return n
+	}
+	if v := c.groups[meta.GroupID]; len(v) != 0 {
+		return n + publishDraftTags(meta, v)
+	}
+	return n
+}
+
+func publishDraftTags(meta *format.MetricMetaValue, knownTags map[string]string) int {
+	var n int
+	for k, v := range meta.TagsDraft {
+		tagID, ok := knownTags[k]
+		if !ok || tagID == "" {
+			continue
+		}
+		if tagID == format.StringTopTagID {
+			if meta.StringTopName == "" {
+				meta.StringTopName = v.Name
+				meta.StringTopDescription = v.Description
+				n++
+			}
+		} else if x := format.TagIndex(tagID); 0 <= x && x < format.MaxTags && meta.Tags[x].Name == "" {
+			meta.Tags[x] = v
+			delete(meta.TagsDraft, k)
+			n++
+		}
+	}
+	return n
+}
+
+func ParseKnownTags(configS []byte, meta format.MetaStorageInterface) (KnownTags, error) {
+	var s map[string]KnownTagsJSON
+	err := json.Unmarshal(configS, &s)
+	if err != nil {
+		return nil, err
+	}
+	res := make(map[int32]knownTags)
+	for namespaceName, v := range s {
+		if namespaceName == "" {
+			return nil, fmt.Errorf("namespace not set")
+		}
+		namespace := meta.GetNamespaceByName(namespaceName)
+		if namespace == nil {
+			return nil, fmt.Errorf("namespace not found %q", namespaceName)
+		}
+		if namespace.ID == format.BuiltinNamespaceIDDefault {
+			return nil, fmt.Errorf("namespace can not be __default")
+		}
+		knownTagsG := make(map[int32]map[string]string, len(v.Groups))
+		for groupName, g := range v.Groups {
+			groupName := namespaceName + format.NamespaceSeparator + groupName
+			group := meta.GetGroupByName(groupName)
+			if group == nil {
+				return nil, fmt.Errorf("group not found %q", groupName)
+			}
+			if group.ID == format.BuiltinGroupIDDefault {
+				return nil, fmt.Errorf("scrape group can not be __default")
+			}
+			knownTagsG[group.ID] = g
+		}
+		res[namespace.ID] = knownTags{
+			namespace: v.Namespace,
+			groups:    knownTagsG,
+		}
+	}
+	return res, nil
 }

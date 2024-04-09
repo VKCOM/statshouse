@@ -96,7 +96,7 @@ type (
 		testConnection *TestConnection
 		tagsMapper     *TagsMapper
 
-		scrape     *scrapeServer
+		scrape     scrapeServer
 		autoCreate *autoCreate
 	}
 	BuiltInStatRecord struct {
@@ -197,9 +197,17 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		rpc.ServerWithRequestMemoryLimit(2<<30))
 
 	metricMetaLoader := metajournal.NewMetricMetaLoader(metadataClient, metajournal.DefaultMetaTimeout)
-	a.scrape = newScrapeServer()
-	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, dc, a.scrape.applyConfig)
-	a.scrape.meta = a.metricStorage
+	a.scrape = newScrapeServer(shardKey, replicaKey)
+	if config.AutoCreate {
+		a.autoCreate = newAutoCreate(metadataClient, config.AutoCreateDefaultNamespace)
+		defer a.autoCreate.shutdown()
+	}
+	a.metricStorage = metajournal.MakeMetricsStorage(a.config.Cluster, dc, func(configID int32, configS string) {
+		a.scrape.applyConfig(configID, configS)
+		if a.autoCreate != nil {
+			a.autoCreate.applyConfig(configID, configS)
+		}
+	})
 	agentConfig := agent.DefaultConfig()
 	agentConfig.Cluster = a.config.Cluster
 	// We use agent instance for aggregator built-in metrics
@@ -211,7 +219,10 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		return fmt.Errorf("built-in agent failed to start: %v", err)
 	}
 	a.sh2 = sh2
-	a.scrape.sh2 = sh2
+	a.scrape.run(a.metricStorage, metricMetaLoader, sh2)
+	if a.autoCreate != nil {
+		a.autoCreate.run(a.metricStorage)
+	}
 	a.metricStorage.Journal().Start(a.sh2, a.appendInternalLog, metricMetaLoader.LoadJournal)
 
 	a.testConnection = MakeTestConnection()
@@ -231,10 +242,6 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 		go a.goSend(i)
 	}
 	go a.goInternalLog()
-	if config.AutoCreate {
-		a.autoCreate = newAutoCreate(metadataClient, a.metricStorage, a.scrape, config.AutoCreateDefaultNamespace)
-		defer a.autoCreate.shutdown()
-	}
 
 	sh2.Run(a.aggregatorHost, a.shardKey, a.replicaKey)
 
