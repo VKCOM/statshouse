@@ -67,7 +67,7 @@ func newEndpointStatHTTP(endpoint, method string, metricID int32, dataFormat str
 		metric:     strconv.Itoa(int(metricID)), // metric ID key is considered "raw"
 		dataFormat: dataFormat,
 		priority:   priority,
-		timings:    ServerTimingHeader{Timings: make(map[string]time.Duration), started: time.Now()},
+		timings:    ServerTimingHeader{Timings: make(map[string][]time.Duration), started: time.Now()},
 	}
 }
 
