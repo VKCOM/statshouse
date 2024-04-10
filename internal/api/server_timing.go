@@ -7,7 +7,7 @@
 package api
 
 import (
-	"strconv"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -19,7 +19,7 @@ const ServerTimingHeaderKey = "Server-Timing"
 // we always have duration
 // we never have description
 type ServerTimingHeader struct {
-	Timings map[string]time.Duration
+	Timings map[string][]time.Duration
 	mutex   sync.Mutex
 	started time.Time
 }
@@ -30,7 +30,11 @@ func (header *ServerTimingHeader) Report(name string, dur time.Duration) {
 	}
 	header.mutex.Lock()
 	defer header.mutex.Unlock()
-	header.Timings[name] += dur
+	if t, ok := header.Timings[name]; ok {
+		header.Timings[name] = append(t, dur)
+	} else {
+		header.Timings[name] = []time.Duration{dur}
+	}
 }
 
 func (header *ServerTimingHeader) String() string {
@@ -39,12 +43,25 @@ func (header *ServerTimingHeader) String() string {
 	}
 	header.mutex.Lock()
 	defer header.mutex.Unlock()
-	header.Timings["total"] = time.Since(header.started)
-	strs := make([]string, len(header.Timings))
+	header.Timings["total"] = []time.Duration{time.Since(header.started)}
+
+	n := 0
+	for _, t := range header.Timings {
+		n += len(t)
+	}
+	strs := make([]string, n)
+
 	i := 0
-	for name, dur := range header.Timings {
-		strs[i] = name + ";dur=" + strconv.FormatInt(dur.Milliseconds(), 10)
-		i += 1
+	for name, durs := range header.Timings {
+		if len(durs) == 1 {
+			strs[i] = fmt.Sprintf("%s;dur=%d", name, durs[0].Milliseconds())
+			i += 1
+			continue
+		}
+		for j, dur := range durs {
+			strs[i] = fmt.Sprintf("%s-%d;dur=%d", name, j, dur.Milliseconds())
+			i += 1
+		}
 	}
 	return strings.Join(strs, ", ")
 }
