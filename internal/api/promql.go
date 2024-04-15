@@ -14,6 +14,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -258,6 +259,48 @@ func promRespondError(w http.ResponseWriter, typ promErrorType, err error) {
 }
 
 // endregion
+
+func (h *Handler) PromQLMatchMetrics(expr string, namespace string, s []*format.MetricMetaValue) ([]*format.MetricMetaValue, error) {
+	s = s[:0]
+	ast, err := parser.ParseExpr(expr)
+	if err != nil {
+		return s, err
+	}
+	ai := accessInfo{insecureMode: true}
+	ctx := withAccessInfo(context.Background(), &ai)
+	parser.Inspect(ast, func(node parser.Node, _ []parser.Node) error {
+		sel, ok := node.(*parser.VectorSelector)
+		if !ok {
+			return nil
+		}
+		for _, matcher := range sel.LabelMatchers {
+			if matcher.Name == labels.MetricName {
+				var out []*format.MetricMetaValue
+				out, _, err = h.MatchMetrics(ctx, matcher, namespace)
+				if err != nil {
+					return err
+				}
+				s = append(s, out...)
+			}
+		}
+		return nil
+	})
+	if err != nil || len(s) <= 1 {
+		return s, err
+	}
+	// remove duplicates
+	sort.Slice(s, func(i, j int) bool {
+		return s[i].MetricID < s[j].MetricID
+	})
+	var i int
+	for j := 1; j < len(s); j++ {
+		if s[i].MetricID != s[j].MetricID {
+			i++
+			s[i] = s[j]
+		}
+	}
+	return s[:i+1], nil
+}
 
 func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher, namespace string) ([]*format.MetricMetaValue, []string, error) {
 	ai := getAccessInfo(ctx)
