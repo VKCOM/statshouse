@@ -354,15 +354,15 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 			ms.calcGroupNamesMapLocked()
 		case format.PromConfigEvent:
 			switch e.Id {
-			case PrometheusConfigID:
+			case format.PrometheusConfigID:
 				ms.promConfig = e
 				promConfigSet = true
 				promConfigData = e.Data
-			case PrometheusGeneratedConfigID:
+			case format.PrometheusGeneratedConfigID:
 				ms.promConfigGenerated = e
 				promConfigGeneratedSet = true
 				promConfigGeneratedData = e.Data
-			case KnownTagsConfigID:
+			case format.KnownTagsConfigID:
 				ms.knownTags = e
 				knownTagsSet = true
 				knownTagsData = e.Data
@@ -397,13 +397,13 @@ func (ms *MetricsStorage) ApplyEvent(newEntries []tlmetadata.Event) {
 	if ms.applyPromConfig != nil {
 		// outside of lock, once
 		if promConfigSet {
-			ms.applyPromConfig(PrometheusConfigID, promConfigData)
+			ms.applyPromConfig(format.PrometheusConfigID, promConfigData)
 		}
 		if promConfigGeneratedSet {
-			ms.applyPromConfig(PrometheusGeneratedConfigID, promConfigGeneratedData)
+			ms.applyPromConfig(format.PrometheusGeneratedConfigID, promConfigGeneratedData)
 		}
 		if knownTagsSet {
-			ms.applyPromConfig(KnownTagsConfigID, knownTagsData)
+			ms.applyPromConfig(format.KnownTagsConfigID, knownTagsData)
 		}
 	}
 }

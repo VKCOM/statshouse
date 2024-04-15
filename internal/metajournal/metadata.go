@@ -24,12 +24,9 @@ import (
 )
 
 const (
-	pmcBigNegativeCacheTTL      = 1 * time.Hour
-	DefaultMetaTimeout          = 2 * time.Second
-	PrometheusConfigID          = -1 // TODO move to file with predefined entities
-	PrometheusGeneratedConfigID = -2
-	KnownTagsConfigID           = -3
-	saveMeta                    = false
+	pmcBigNegativeCacheTTL = 1 * time.Hour
+	DefaultMetaTimeout     = 2 * time.Second
+	saveMeta               = false
 )
 
 var errorInvalidUserRequest = errors.New("")
@@ -366,7 +363,7 @@ func (l *MetricMetaLoader) LoadOrCreateMapping(ctxParent context.Context, key st
 func (l *MetricMetaLoader) SaveScrapeConfig(ctx context.Context, version int64, config string, metadata string) (tlmetadata.Event, error) {
 	editMetricReq := tlmetadata.EditEntitynew{
 		Event: tlmetadata.Event{
-			Id:        PrometheusConfigID,
+			Id:        format.PrometheusConfigID,
 			Name:      "prom-config",
 			EventType: format.PromConfigEvent,
 			Version:   version,
@@ -389,7 +386,7 @@ func (l *MetricMetaLoader) SaveScrapeConfig(ctx context.Context, version int64, 
 func (l *MetricMetaLoader) SaveScrapeStaticConfig(ctx context.Context, version int64, config string) (tlmetadata.Event, error) {
 	editMetricReq := tlmetadata.EditEntitynew{
 		Event: tlmetadata.Event{
-			Id:        PrometheusGeneratedConfigID,
+			Id:        format.PrometheusGeneratedConfigID,
 			Name:      "prom-static-config",
 			EventType: format.PromConfigEvent,
 			Version:   version,
@@ -409,7 +406,7 @@ func (l *MetricMetaLoader) SaveScrapeStaticConfig(ctx context.Context, version i
 func (l *MetricMetaLoader) SaveKnownTagsConfig(ctx context.Context, version int64, config string) (tlmetadata.Event, error) {
 	editMetricReq := tlmetadata.EditEntitynew{
 		Event: tlmetadata.Event{
-			Id:        KnownTagsConfigID,
+			Id:        format.KnownTagsConfigID,
 			Name:      "prom-known-tags",
 			EventType: format.PromConfigEvent,
 			Version:   version,

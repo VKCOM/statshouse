@@ -722,14 +722,14 @@ func TestMetricsStorage(t *testing.T) {
 			v2 := incVersion()
 			events = []tlmetadata.Event{
 				{
-					Id:        PrometheusConfigID,
+					Id:        format.PrometheusConfigID,
 					Name:      "-",
 					EventType: format.PromConfigEvent,
 					Version:   v1,
 					Data:      "abc",
 				},
 				{
-					Id:        PrometheusConfigID,
+					Id:        format.PrometheusConfigID,
 					Name:      "-",
 					EventType: format.PromConfigEvent,
 					Version:   v2,
