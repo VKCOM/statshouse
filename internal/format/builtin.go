@@ -116,6 +116,10 @@ const (
 	BuiltinMetricIDAggScrapeConfigHash        = -94
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
+	// [-20000..-22000] reserved by well known configuration IDs
+	PrometheusConfigID          = -20000
+	PrometheusGeneratedConfigID = -20001
+	KnownTagsConfigID           = -20002
 
 	// metric names used in code directly
 	BuiltinMetricNameAggBucketReceiveDelaySec   = "__agg_bucket_receive_delay_sec"

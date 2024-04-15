@@ -72,7 +72,7 @@ func (ac *autoCreate) run(storage *metajournal.MetricsStorage) {
 }
 
 func (ac *autoCreate) applyConfig(configID int32, configS string) {
-	if configID != metajournal.KnownTagsConfigID {
+	if configID != format.KnownTagsConfigID {
 		return
 	}
 	knownTags, err := ParseKnownTags([]byte(configS), ac.storage)

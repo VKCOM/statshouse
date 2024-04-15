@@ -79,12 +79,12 @@ func (s *scrapeServer) run(meta *metajournal.MetricsStorage, journal *metajourna
 
 func (s *scrapeServer) applyConfig(configID int32, configS string) {
 	switch configID {
-	case metajournal.PrometheusConfigID:
+	case format.PrometheusConfigID:
 		if s.config != nil {
 			s.config.applyConfig(configS)
 		}
 		return
-	case metajournal.PrometheusGeneratedConfigID:
+	case format.PrometheusGeneratedConfigID:
 		break
 	default:
 		return
