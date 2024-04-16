@@ -76,6 +76,16 @@ build-docker-sh-metadata:
 build-deb:
 	./build/makedeb.sh
 
+clean:
+	rm -rf ./build/debian/*.log
+	rm -rf ./build/debian/*.substvars
+	rm -rf ./build/debian/.debhelper/
+	rm -rf ./build/debian/changelog
+	rm -rf ./build/debian/files
+	rm -rf ./build/debian/tmp/
+	rm -rf ./build/go-cache/
+	find ./build/debian/ -maxdepth 1 -type d -name "statshouse*" -exec rm -rf {} \;
+
 # if tlgen is not installed, replace tlgen with full path, for example ~/go/src/gitlab.mvk.com/go/vkgo/projects/vktl/cmd/tlgen/tlgen
 .PHONY: gen
 gen:
