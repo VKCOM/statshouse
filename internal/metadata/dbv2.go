@@ -212,9 +212,19 @@ func OpenDB(
 			if rows.Error() != nil {
 				return nil, fmt.Errorf("failed to select metrics_v4: %w", err)
 			}
+
+			_, err := conn.Exec("delete_old_migration", "DELETE FROM metrics_v5")
+			if err != nil {
+				return nil, fmt.Errorf("failed to delete: %w", err)
+			}
+			_, err = conn.Exec("delete_old_migration", "DELETE FROM entity_history")
+			if err != nil {
+				return nil, fmt.Errorf("failed to delete history: %w", err)
+			}
+
 			q := `INSERT INTO metrics_v5 (namespace_id, id, data, name, updated_at, deleted_at, type, version)
 			SELECT 0, id, cast(data as TEXT), cast(name as TEXT), updated_at, deleted_at, type, version FROM metrics_v4;`
-			_, err := conn.Exec("insert_entity", q)
+			_, err = conn.Exec("insert_entity", q)
 			if err != nil {
 				return nil, fmt.Errorf("failed to insert entity: %w", err)
 			}
@@ -663,6 +673,9 @@ func (db *DBV2) SaveEntityold(ctx context.Context, name string, id int64, oldVer
 	createFixed := false
 	err := db.eng.Do(ctx, "save_entity", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
 		_, err := resolveEntity(conn, name, id, oldVersion, newJson, createMetric, deleteEntity, typ)
+		if err != nil {
+			return cache, fmt.Errorf("invalid entity: %w", err)
+		}
 		err = insertHistory(conn, result)
 		if err != nil {
 			return cache, err
