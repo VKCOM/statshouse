@@ -140,7 +140,7 @@ func argvAddAgentFlags(legacyVerb bool) {
 
 	flag.DurationVar(&argv.hardwareMetricScrapeInterval, "hardware-metric-scrape-interval", time.Second, "how often hardware metrics will be scraped")
 	flag.BoolVar(&argv.hardwareMetricScrapeDisable, "hardware-metric-scrape-disable", false, "disable hardware metric scraping")
-	flag.StringVar(&argv.envFilePath, "env-file-path", "", "statshouse environment file path")
+	flag.StringVar(&argv.envFilePath, "env-file-path", "/etc/statshouse_env.yml", "statshouse environment file path")
 }
 
 func argvAddAggregatorFlags(legacyVerb bool) {
