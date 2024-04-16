@@ -105,10 +105,10 @@ func (c *DiskStats) WriteMetrics(nowUnix int64) error {
 		if deviceType != physical {
 			continue
 		}
-		readIO := float64(stat.ReadIOs) - float64(oldStat.ReadIOs)
-		writeIO := float64(stat.WriteIOs) - float64(oldStat.WriteIOs)
-		discardIO := float64(stat.DiscardIOs) - float64(oldStat.DiscardIOs)
-		flushIO := float64(stat.FlushRequestsCompleted) - float64(oldStat.FlushRequestsCompleted)
+		readIOI := int(stat.ReadIOs) - int(oldStat.ReadIOs)
+		writeIOI := int(stat.WriteIOs) - int(oldStat.WriteIOs)
+		discardIOI := int(stat.DiscardIOs) - int(oldStat.DiscardIOs)
+		flushIOI := int(stat.FlushRequestsCompleted) - int(oldStat.FlushRequestsCompleted)
 
 		readIOSeconds := (float64(stat.ReadTicks) - float64(oldStat.ReadTicks)) / 1000
 		writeIOSeconds := (float64(stat.WriteTicks) - float64(oldStat.WriteTicks)) / 1000
@@ -119,19 +119,23 @@ func (c *DiskStats) WriteMetrics(nowUnix int64) error {
 		writeIOSize := (float64(stat.WriteSectors) - float64(oldStat.WriteSectors)) * sectorSize
 		discardIOSize := (float64(stat.DiscardSectors) - float64(oldStat.DiscardSectors)) * sectorSize
 
-		if readIO > 0 {
+		if readIOI > 0 {
+			readIO := float64(readIOI)
 			c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameBlockIOTime, readIO, readIOSeconds/readIO, Tag{Str: device}, Tag{Raw: format.RawIDTagRead})
 			c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameBlockIOSize, readIO, readIOSize/readIO, Tag{Str: device}, Tag{Raw: format.RawIDTagRead})
 		}
-		if writeIO > 0 {
+		if writeIOI > 0 {
+			writeIO := float64(writeIOI)
 			c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameBlockIOTime, writeIO, writeIOSeconds/writeIO, Tag{Str: device}, Tag{Raw: format.RawIDTagWrite})
 			c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameBlockIOSize, writeIO, writeIOSize/writeIO, Tag{Str: device}, Tag{Raw: format.RawIDTagWrite})
 		}
-		if discardIO > 0 {
+		if discardIOI > 0 {
+			discardIO := float64(discardIOI)
 			c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameBlockIOTime, discardIO, discardIOSeconds/discardIO, Tag{Str: device}, Tag{Raw: format.RawIDTagDiscard})
 			c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameBlockIOSize, discardIO, discardIOSize/discardIO, Tag{Str: device}, Tag{Raw: format.RawIDTagDiscard})
 		}
-		if flushIO > 0 {
+		if flushIOI > 0 {
+			flushIO := float64(discardIOI)
 			c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameBlockIOTime, flushIO, flushIOSeconds/flushIO, Tag{Str: device}, Tag{Raw: format.RawIDTagFlush})
 		}
 
@@ -162,15 +166,29 @@ func (c *DiskStats) writeFSStats(nowUnix int64) error {
 		if err != nil {
 			continue
 		}
-		free := float64(s.Bfree) * float64(s.Bsize)
-		used := float64(s.Blocks)*float64(s.Bsize) - free
+		blocksTotal := s.Blocks
+		blocksAvailable := s.Bavail
+		blocksAvailableRoot := s.Bfree
+		blocksReservedRoot := blocksAvailableRoot - blocksAvailable
+		var blocksUsed uint64 = 0
+		// https://github.com/netdata/netdata/blob/db63ab82265f0606e33600a350e4ee6cc2dda687/src/collectors/diskspace.plugin/plugin_diskspace.c#L488
+		if blocksTotal >= blocksAvailableRoot {
+			blocksUsed = blocksTotal - blocksAvailableRoot
+		} else {
+			blocksUsed = blocksAvailableRoot - blocksTotal
+		}
+		free := float64(blocksAvailable) * float64(s.Bsize)
+		used := float64(blocksUsed) * float64(s.Bsize)
+		reservedForRoot := float64(blocksReservedRoot) * float64(s.Bsize)
 		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameDiskUsage, 1, free, Tag{Raw: format.RawIDTagFree}, Tag{Str: stat.device})
 		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameDiskUsage, 1, used, Tag{Raw: format.RawIDTagUsed}, Tag{Str: stat.device})
+		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameDiskUsage, 1, reservedForRoot, Tag{Raw: format.RawIDTagReservedForRoot}, Tag{Str: stat.device})
 
 		inodeFree := float64(s.Ffree)
 		inodeUsed := float64(s.Files) - inodeFree
 		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameINodeUsage, 1, inodeFree, Tag{Raw: format.RawIDTagFree}, Tag{Str: stat.device})
 		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameINodeUsage, 1, inodeUsed, Tag{Raw: format.RawIDTagUsed}, Tag{Str: stat.device})
+
 	}
 	return nil
 }

@@ -47,6 +47,10 @@ func (c *MemStats) WriteMetrics(nowUnix int64) error {
 		return fmt.Errorf("failed to get meminfo: %w", err)
 	}
 
+	if stat.SReclaimable != nil && stat.SUnreclaim != nil {
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameMemSLAB, float64(*stat.SReclaimable*mult), format.RawIDTagReclaimable)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameMemSLAB, float64(*stat.SUnreclaim*mult), format.RawIDTagUnreclaimable)
+	}
 	if stat.MemFree != nil {
 		c.writer.WriteSystemMetricValue(nowUnix, memStat, float64(*stat.MemFree*mult), format.RawIDTagFree)
 	}
