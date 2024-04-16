@@ -746,8 +746,6 @@ func Test_Reread_Binlog_SaveMetric(t *testing.T) {
 }
 
 func Test_Migration(t *testing.T) {
-	t.SkipNow()
-	return
 	path := t.TempDir()
 	const task = 3
 	mx := sync.Mutex{}
@@ -762,15 +760,17 @@ func Test_Migration(t *testing.T) {
 			name := metricsNames[rand.Int()%len(metricsNames)] + suffix
 			for i := 0; i < task; i++ {
 				mx.Lock()
-				metric := metrics[name]
+				delete := false
+				metric, notCreate := metrics[name]
 				mx.Unlock()
-				//metric, err := db.SaveEntityold(context.Background(), name, metric.Id, metric.Version, "{}", !notCreate, delete, format.MetricEvent)
-				//require.NoError(t, err)
+				metric, err := db.SaveEntityold(context.Background(), name, metric.Id, metric.Version, "{}", !notCreate, delete, format.MetricEvent)
+				require.NoError(t, err)
 				mx.Lock()
 				metrics[name] = metric
 				mx.Unlock()
 			}
 		}, func(t *testing.T, db *DBV2) {
+			require.Greater(t, len(metrics), 0)
 			metric1, err := db.JournalEvents(context.Background(), 0, 100000)
 			require.NoError(t, err)
 			require.Equal(t, len(metrics), len(metric1))
