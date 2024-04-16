@@ -19,7 +19,6 @@ type Loader struct {
 
 type Env struct {
 	Hostname string `yaml:"hostname"`
-	Hotfix   string `yaml:"hotfix"`
 
 	EnvT   string `yaml:"env"`
 	Group  string `yaml:"group"`
@@ -57,9 +56,6 @@ func ListenEnvFile(filePath string) (_ *Loader, closeF func(), _ error) {
 		err = yaml.Unmarshal(data, &env)
 		if err != nil {
 			return Env{}, fmt.Errorf("failed to unmarshal env: %w", err)
-		}
-		if env.Hostname != "" && env.Hotfix == "" {
-			return env, fmt.Errorf("invalid format of env file")
 		}
 		return env, nil
 	}
