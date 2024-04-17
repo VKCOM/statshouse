@@ -52,8 +52,7 @@ func (item RpcPong) String() string {
 	return string(w)
 }
 
-func RpcPong__ReadJSON(item *RpcPong, j interface{}) error { return item.readJSON(j) }
-func (item *RpcPong) readJSON(j interface{}) error {
+func (item *RpcPong) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("rpcPong", "expected json object")
@@ -70,9 +69,9 @@ func (item *RpcPong) readJSON(j interface{}) error {
 }
 
 func (item *RpcPong) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcPong) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcPong) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.PingId != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -91,7 +90,7 @@ func (item *RpcPong) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("rpcPong", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("rpcPong", err.Error())
 	}
 	return nil

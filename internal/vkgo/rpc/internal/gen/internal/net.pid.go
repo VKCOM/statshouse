@@ -64,8 +64,7 @@ func (item NetPid) String() string {
 	return string(w)
 }
 
-func NetPid__ReadJSON(item *NetPid, j interface{}) error { return item.readJSON(j) }
-func (item *NetPid) readJSON(j interface{}) error {
+func (item *NetPid) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("net.pid", "expected json object")
@@ -92,9 +91,9 @@ func (item *NetPid) readJSON(j interface{}) error {
 }
 
 func (item *NetPid) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *NetPid) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *NetPid) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Ip != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -123,7 +122,7 @@ func (item *NetPid) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("net.pid", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("net.pid", err.Error())
 	}
 	return nil

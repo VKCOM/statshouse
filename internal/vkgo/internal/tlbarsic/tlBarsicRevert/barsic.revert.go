@@ -61,19 +61,19 @@ func (item *BarsicRevert) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err 
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicRevert) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicRevert) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
+	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicRevert) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicRevert) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicRevert) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -88,12 +88,12 @@ func (item *BarsicRevert) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byt
 	return r, w, err
 }
 
-func (item *BarsicRevert) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicRevert) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
@@ -103,7 +103,7 @@ func (item *BarsicRevert) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte,
 		return r, w, internal.ErrorInvalidJSON("barsic.revert", err.Error())
 	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if err = item.ReadResultJSON(true, j, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -118,8 +118,7 @@ func (item BarsicRevert) String() string {
 	return string(w)
 }
 
-func BarsicRevert__ReadJSON(item *BarsicRevert, j interface{}) error { return item.readJSON(j) }
-func (item *BarsicRevert) readJSON(j interface{}) error {
+func (item *BarsicRevert) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("barsic.revert", "expected json object")
@@ -141,9 +140,9 @@ func (item *BarsicRevert) readJSON(j interface{}) error {
 }
 
 func (item *BarsicRevert) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicRevert) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicRevert) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -167,7 +166,7 @@ func (item *BarsicRevert) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("barsic.revert", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("barsic.revert", err.Error())
 	}
 	return nil

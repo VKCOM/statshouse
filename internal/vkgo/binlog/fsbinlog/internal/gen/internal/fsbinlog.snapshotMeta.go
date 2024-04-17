@@ -70,10 +70,7 @@ func (item FsbinlogSnapshotMeta) String() string {
 	return string(w)
 }
 
-func FsbinlogSnapshotMeta__ReadJSON(item *FsbinlogSnapshotMeta, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *FsbinlogSnapshotMeta) readJSON(j interface{}) error {
+func (item *FsbinlogSnapshotMeta) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("fsbinlog.snapshotMeta", "expected json object")
@@ -105,9 +102,9 @@ func (item *FsbinlogSnapshotMeta) readJSON(j interface{}) error {
 }
 
 func (item *FsbinlogSnapshotMeta) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *FsbinlogSnapshotMeta) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *FsbinlogSnapshotMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -141,7 +138,7 @@ func (item *FsbinlogSnapshotMeta) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("fsbinlog.snapshotMeta", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("fsbinlog.snapshotMeta", err.Error())
 	}
 	return nil

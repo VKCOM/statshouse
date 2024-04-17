@@ -52,10 +52,7 @@ func (item RpcInvokeReqHeader) String() string {
 	return string(w)
 }
 
-func RpcInvokeReqHeader__ReadJSON(item *RpcInvokeReqHeader, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *RpcInvokeReqHeader) readJSON(j interface{}) error {
+func (item *RpcInvokeReqHeader) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("rpcInvokeReqHeader", "expected json object")
@@ -72,9 +69,9 @@ func (item *RpcInvokeReqHeader) readJSON(j interface{}) error {
 }
 
 func (item *RpcInvokeReqHeader) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcInvokeReqHeader) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcInvokeReqHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.QueryId != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -93,7 +90,7 @@ func (item *RpcInvokeReqHeader) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("rpcInvokeReqHeader", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("rpcInvokeReqHeader", err.Error())
 	}
 	return nil

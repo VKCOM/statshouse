@@ -101,6 +101,10 @@ type Engine interface {
 
 	// Experimental for now. TODO - stabilize
 	StartReindex() error
+
+	// engine must start graceful shutdown of all connections and is recommended to
+	// exit after all connections shutdown. Otherwise barsic will close it after some timeout.
+	Shutdown()
 }
 
 type Binlog interface {

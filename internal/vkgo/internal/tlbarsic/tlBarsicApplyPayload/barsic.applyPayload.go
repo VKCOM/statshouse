@@ -87,19 +87,19 @@ func (item *BarsicApplyPayload) WriteResult(w []byte, ret tlTrue.True) (_ []byte
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicApplyPayload) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicApplyPayload) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
+	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicApplyPayload) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicApplyPayload) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicApplyPayload) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -114,12 +114,12 @@ func (item *BarsicApplyPayload) ReadResultWriteResultJSON(r []byte, w []byte) (_
 	return r, w, err
 }
 
-func (item *BarsicApplyPayload) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayload) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
@@ -129,7 +129,7 @@ func (item *BarsicApplyPayload) ReadResultJSONWriteResult(r []byte, w []byte) ([
 		return r, w, internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
 	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if err = item.ReadResultJSON(true, j, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -144,10 +144,7 @@ func (item BarsicApplyPayload) String() string {
 	return string(w)
 }
 
-func BarsicApplyPayload__ReadJSON(item *BarsicApplyPayload, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicApplyPayload) readJSON(j interface{}) error {
+func (item *BarsicApplyPayload) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("barsic.applyPayload", "expected json object")
@@ -200,9 +197,9 @@ func (item *BarsicApplyPayload) readJSON(j interface{}) error {
 }
 
 func (item *BarsicApplyPayload) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicApplyPayload) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicApplyPayload) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -239,7 +236,7 @@ func (item *BarsicApplyPayload) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
 	}
 	return nil
@@ -316,19 +313,19 @@ func (item *BarsicApplyPayloadBytes) WriteResult(w []byte, ret tlTrue.True) (_ [
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicApplyPayloadBytes) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicApplyPayloadBytes) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
+	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicApplyPayloadBytes) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicApplyPayloadBytes) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicApplyPayloadBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -343,12 +340,12 @@ func (item *BarsicApplyPayloadBytes) ReadResultWriteResultJSON(r []byte, w []byt
 	return r, w, err
 }
 
-func (item *BarsicApplyPayloadBytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicApplyPayloadBytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
@@ -358,7 +355,7 @@ func (item *BarsicApplyPayloadBytes) ReadResultJSONWriteResult(r []byte, w []byt
 		return r, w, internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
 	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if err = item.ReadResultJSON(true, j, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -373,10 +370,7 @@ func (item BarsicApplyPayloadBytes) String() string {
 	return string(w)
 }
 
-func BarsicApplyPayloadBytes__ReadJSON(item *BarsicApplyPayloadBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicApplyPayloadBytes) readJSON(j interface{}) error {
+func (item *BarsicApplyPayloadBytes) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("barsic.applyPayload", "expected json object")
@@ -429,9 +423,9 @@ func (item *BarsicApplyPayloadBytes) readJSON(j interface{}) error {
 }
 
 func (item *BarsicApplyPayloadBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicApplyPayloadBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicApplyPayloadBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -468,7 +462,7 @@ func (item *BarsicApplyPayloadBytes) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
 	}
 	return nil

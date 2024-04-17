@@ -42,7 +42,7 @@ func BuiltinVectorStringWrite(w []byte, vec []string) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorStringReadJSON(j interface{}, vec *[]string) error {
+func BuiltinVectorStringReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]string) error {
 	l, _arr, err := JsonReadArray("[]string", j)
 	if err != nil {
 		return err
@@ -61,9 +61,9 @@ func BuiltinVectorStringReadJSON(j interface{}, vec *[]string) error {
 }
 
 func BuiltinVectorStringWriteJSON(w []byte, vec []string) (_ []byte, err error) {
-	return BuiltinVectorStringWriteJSONOpt(false, w, vec)
+	return BuiltinVectorStringWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStringWriteJSONOpt(short bool, w []byte, vec []string) (_ []byte, err error) {
+func BuiltinVectorStringWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []string) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -112,8 +112,7 @@ func (item String) String() string {
 	return string(w)
 }
 
-func String__ReadJSON(item *String, j interface{}) error { return item.readJSON(j) }
-func (item *String) readJSON(j interface{}) error {
+func (item *String) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	ptr := (*string)(item)
 	if err := JsonReadString(j, ptr); err != nil {
 		return err
@@ -122,10 +121,10 @@ func (item *String) readJSON(j interface{}) error {
 }
 
 func (item *String) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
 
-func (item *String) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *String) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	ptr := (*string)(item)
 	w = basictl.JSONWriteString(w, *ptr)
 	return w, nil
@@ -139,7 +138,7 @@ func (item *String) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("string", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("string", err.Error())
 	}
 	return nil

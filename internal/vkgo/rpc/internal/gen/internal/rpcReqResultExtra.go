@@ -304,10 +304,7 @@ func (item RpcReqResultExtra) String() string {
 	return string(w)
 }
 
-func RpcReqResultExtra__ReadJSON(item *RpcReqResultExtra, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *RpcReqResultExtra) readJSON(j interface{}) error {
+func (item *RpcReqResultExtra) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("rpcReqResultExtra", "expected json object")
@@ -390,7 +387,7 @@ func (item *RpcReqResultExtra) readJSON(j interface{}) error {
 		item.BinlogTime = 0
 	}
 	if _jEnginePid != nil {
-		if err := NetPid__ReadJSON(&item.EnginePid, _jEnginePid); err != nil {
+		if err := item.EnginePid.ReadJSONLegacy(legacyTypeNames, _jEnginePid); err != nil {
 			return err
 		}
 	} else {
@@ -425,14 +422,14 @@ func (item *RpcReqResultExtra) readJSON(j interface{}) error {
 		item.CompressionVersion = 0
 	}
 	if _jStats != nil {
-		if err := BuiltinVectorDictionaryFieldStringReadJSON(_jStats, &item.Stats); err != nil {
+		if err := BuiltinVectorDictionaryFieldStringReadJSONLegacy(legacyTypeNames, _jStats, &item.Stats); err != nil {
 			return err
 		}
 	} else {
 		BuiltinVectorDictionaryFieldStringReset(item.Stats)
 	}
 	if _jShardsBinlogPos != nil {
-		if err := BuiltinVectorDictionaryFieldLongReadJSON(_jShardsBinlogPos, &item.ShardsBinlogPos); err != nil {
+		if err := BuiltinVectorDictionaryFieldLongReadJSONLegacy(legacyTypeNames, _jShardsBinlogPos, &item.ShardsBinlogPos); err != nil {
 			return err
 		}
 	} else {
@@ -456,9 +453,9 @@ func (item *RpcReqResultExtra) readJSON(j interface{}) error {
 }
 
 func (item *RpcReqResultExtra) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcReqResultExtra) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Flags != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -478,7 +475,7 @@ func (item *RpcReqResultExtra) WriteJSONOpt(short bool, w []byte) (_ []byte, err
 	if item.Flags&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"engine_pid":`...)
-		if w, err = item.EnginePid.WriteJSONOpt(short, w); err != nil {
+		if w, err = item.EnginePid.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -505,14 +502,14 @@ func (item *RpcReqResultExtra) WriteJSONOpt(short bool, w []byte) (_ []byte, err
 	if item.Flags&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"stats":`...)
-		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, item.Stats); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.Stats); err != nil {
 			return w, err
 		}
 	}
 	if item.Flags&(1<<8) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"shards_binlog_pos":`...)
-		if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(short, w, item.ShardsBinlogPos); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, item.ShardsBinlogPos); err != nil {
 			return w, err
 		}
 	}
@@ -538,7 +535,7 @@ func (item *RpcReqResultExtra) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("rpcReqResultExtra", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("rpcReqResultExtra", err.Error())
 	}
 	return nil

@@ -300,10 +300,7 @@ func (item NetUdpPacketEncHeader) String() string {
 	return string(w)
 }
 
-func NetUdpPacketEncHeader__ReadJSON(item *NetUdpPacketEncHeader, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *NetUdpPacketEncHeader) readJSON(j interface{}) error {
+func (item *NetUdpPacketEncHeader) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("netUdpPacket.encHeader", "expected json object")
@@ -407,7 +404,7 @@ func (item *NetUdpPacketEncHeader) readJSON(j interface{}) error {
 		item.PacketAckTo = 0
 	}
 	if _jPacketAckSet != nil {
-		if err := BuiltinVectorIntReadJSON(_jPacketAckSet, &item.PacketAckSet); err != nil {
+		if err := BuiltinVectorIntReadJSONLegacy(legacyTypeNames, _jPacketAckSet, &item.PacketAckSet); err != nil {
 			return err
 		}
 	} else {
@@ -452,9 +449,9 @@ func (item *NetUdpPacketEncHeader) readJSON(j interface{}) error {
 }
 
 func (item *NetUdpPacketEncHeader) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *NetUdpPacketEncHeader) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *NetUdpPacketEncHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Flags != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -489,7 +486,7 @@ func (item *NetUdpPacketEncHeader) WriteJSONOpt(short bool, w []byte) (_ []byte,
 	if item.Flags&(1<<15) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"packet_ack_set":`...)
-		if w, err = BuiltinVectorIntWriteJSONOpt(short, w, item.PacketAckSet); err != nil {
+		if w, err = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.PacketAckSet); err != nil {
 			return w, err
 		}
 	}
@@ -530,7 +527,7 @@ func (item *NetUdpPacketEncHeader) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("netUdpPacket.encHeader", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("netUdpPacket.encHeader", err.Error())
 	}
 	return nil

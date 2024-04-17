@@ -169,6 +169,8 @@ func (e *TestEngineImpl) Revert(toOffset int64) (bool, error) {
 	return false, nil
 }
 
+func (e *TestEngineImpl) Shutdown() {}
+
 func (e *TestEngineImpl) ChangeRole(info binlog.ChangeRoleInfo) error {
 	if info.IsReady {
 		e.ready.Store(true)

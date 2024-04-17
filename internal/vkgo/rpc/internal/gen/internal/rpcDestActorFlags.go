@@ -58,10 +58,7 @@ func (item RpcDestActorFlags) String() string {
 	return string(w)
 }
 
-func RpcDestActorFlags__ReadJSON(item *RpcDestActorFlags, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *RpcDestActorFlags) readJSON(j interface{}) error {
+func (item *RpcDestActorFlags) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("rpcDestActorFlags", "expected json object")
@@ -76,16 +73,16 @@ func (item *RpcDestActorFlags) readJSON(j interface{}) error {
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("rpcDestActorFlags", k)
 	}
-	if err := RpcInvokeReqExtra__ReadJSON(&item.Extra, _jExtra); err != nil {
+	if err := item.Extra.ReadJSONLegacy(legacyTypeNames, _jExtra); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *RpcDestActorFlags) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcDestActorFlags) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcDestActorFlags) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.ActorId != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -94,7 +91,7 @@ func (item *RpcDestActorFlags) WriteJSONOpt(short bool, w []byte) (_ []byte, err
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"extra":`...)
-	if w, err = item.Extra.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Extra.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil
@@ -109,7 +106,7 @@ func (item *RpcDestActorFlags) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("rpcDestActorFlags", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("rpcDestActorFlags", err.Error())
 	}
 	return nil

@@ -188,3 +188,7 @@ func (impl *binlogEngineReplicaImpl) skip(skipLen int64) (int64, error) {
 	impl.e.rareLog("[sqlite] skip offset (new offset: %d)", offset)
 	return offset, err
 }
+
+func (impl *binlogEngineReplicaImpl) Shutdown() {
+	// nop
+}

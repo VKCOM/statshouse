@@ -70,10 +70,7 @@ func (item FsbinlogLevUpgradeToGms) String() string {
 	return string(w)
 }
 
-func FsbinlogLevUpgradeToGms__ReadJSON(item *FsbinlogLevUpgradeToGms, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *FsbinlogLevUpgradeToGms) readJSON(j interface{}) error {
+func (item *FsbinlogLevUpgradeToGms) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("fsbinlog.levUpgradeToGms", "expected json object")
@@ -105,9 +102,9 @@ func (item *FsbinlogLevUpgradeToGms) readJSON(j interface{}) error {
 }
 
 func (item *FsbinlogLevUpgradeToGms) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *FsbinlogLevUpgradeToGms) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *FsbinlogLevUpgradeToGms) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -141,7 +138,7 @@ func (item *FsbinlogLevUpgradeToGms) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("fsbinlog.levUpgradeToGms", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("fsbinlog.levUpgradeToGms", err.Error())
 	}
 	return nil

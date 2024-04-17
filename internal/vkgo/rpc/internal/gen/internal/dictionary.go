@@ -53,22 +53,21 @@ func (item DictionaryLong) String() string {
 	return string(w)
 }
 
-func DictionaryLong__ReadJSON(item *DictionaryLong, j interface{}) error { return item.readJSON(j) }
-func (item *DictionaryLong) readJSON(j interface{}) error {
+func (item *DictionaryLong) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	ptr := (*map[string]int64)(item)
-	if err := BuiltinVectorDictionaryFieldLongReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldLongReadJSONLegacy(legacyTypeNames, j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *DictionaryLong) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
 
-func (item *DictionaryLong) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *DictionaryLong) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]int64)(item)
-	if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -82,7 +81,7 @@ func (item *DictionaryLong) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("dictionary", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("dictionary", err.Error())
 	}
 	return nil
@@ -128,22 +127,21 @@ func (item DictionaryString) String() string {
 	return string(w)
 }
 
-func DictionaryString__ReadJSON(item *DictionaryString, j interface{}) error { return item.readJSON(j) }
-func (item *DictionaryString) readJSON(j interface{}) error {
+func (item *DictionaryString) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	ptr := (*map[string]string)(item)
-	if err := BuiltinVectorDictionaryFieldStringReadJSON(j, ptr); err != nil {
+	if err := BuiltinVectorDictionaryFieldStringReadJSONLegacy(legacyTypeNames, j, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *DictionaryString) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
 
-func (item *DictionaryString) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *DictionaryString) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	ptr := (*map[string]string)(item)
-	if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, *ptr); err != nil {
+	if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, *ptr); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -157,7 +155,7 @@ func (item *DictionaryString) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("dictionary", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("dictionary", err.Error())
 	}
 	return nil

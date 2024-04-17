@@ -52,7 +52,7 @@ func (item *EngineAsyncSleep) WriteResult(w []byte, ret bool) (_ []byte, err err
 	return BoolWriteBoxed(w, ret)
 }
 
-func (item *EngineAsyncSleep) ReadResultJSON(j interface{}, ret *bool) error {
+func (item *EngineAsyncSleep) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *bool) error {
 	if err := JsonReadBool(j, ret); err != nil {
 		return err
 	}
@@ -60,10 +60,10 @@ func (item *EngineAsyncSleep) ReadResultJSON(j interface{}, ret *bool) error {
 }
 
 func (item *EngineAsyncSleep) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineAsyncSleep) writeResultJSON(short bool, w []byte, ret bool) (_ []byte, err error) {
+func (item *EngineAsyncSleep) writeResultJSON(newTypeNames bool, short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -77,12 +77,12 @@ func (item *EngineAsyncSleep) ReadResultWriteResultJSON(r []byte, w []byte) (_ [
 	return r, w, err
 }
 
-func (item *EngineAsyncSleep) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineAsyncSleep) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
@@ -92,7 +92,7 @@ func (item *EngineAsyncSleep) ReadResultJSONWriteResult(r []byte, w []byte) ([]b
 		return r, w, ErrorInvalidJSON("engine.asyncSleep", err.Error())
 	}
 	var ret bool
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if err = item.ReadResultJSON(true, j, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -107,8 +107,7 @@ func (item EngineAsyncSleep) String() string {
 	return string(w)
 }
 
-func EngineAsyncSleep__ReadJSON(item *EngineAsyncSleep, j interface{}) error { return item.readJSON(j) }
-func (item *EngineAsyncSleep) readJSON(j interface{}) error {
+func (item *EngineAsyncSleep) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("engine.asyncSleep", "expected json object")
@@ -125,9 +124,9 @@ func (item *EngineAsyncSleep) readJSON(j interface{}) error {
 }
 
 func (item *EngineAsyncSleep) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineAsyncSleep) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineAsyncSleep) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.TimeMs != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -146,7 +145,7 @@ func (item *EngineAsyncSleep) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("engine.asyncSleep", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("engine.asyncSleep", err.Error())
 	}
 	return nil

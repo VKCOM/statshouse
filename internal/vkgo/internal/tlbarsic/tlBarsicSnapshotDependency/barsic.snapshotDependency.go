@@ -72,10 +72,7 @@ func (item BarsicSnapshotDependency) String() string {
 	return string(w)
 }
 
-func BarsicSnapshotDependency__ReadJSON(item *BarsicSnapshotDependency, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicSnapshotDependency) readJSON(j interface{}) error {
+func (item *BarsicSnapshotDependency) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("barsic.snapshotDependency", "expected json object")
@@ -107,9 +104,9 @@ func (item *BarsicSnapshotDependency) readJSON(j interface{}) error {
 }
 
 func (item *BarsicSnapshotDependency) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicSnapshotDependency) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicSnapshotDependency) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -143,7 +140,7 @@ func (item *BarsicSnapshotDependency) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotDependency", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotDependency", err.Error())
 	}
 	return nil
@@ -206,10 +203,7 @@ func (item BarsicSnapshotDependencyBytes) String() string {
 	return string(w)
 }
 
-func BarsicSnapshotDependencyBytes__ReadJSON(item *BarsicSnapshotDependencyBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicSnapshotDependencyBytes) readJSON(j interface{}) error {
+func (item *BarsicSnapshotDependencyBytes) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("barsic.snapshotDependency", "expected json object")
@@ -241,9 +235,9 @@ func (item *BarsicSnapshotDependencyBytes) readJSON(j interface{}) error {
 }
 
 func (item *BarsicSnapshotDependencyBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicSnapshotDependencyBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicSnapshotDependencyBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -277,7 +271,7 @@ func (item *BarsicSnapshotDependencyBytes) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotDependency", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotDependency", err.Error())
 	}
 	return nil

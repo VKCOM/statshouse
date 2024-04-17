@@ -45,19 +45,19 @@ func (item *EngineStat) WriteResult(w []byte, ret Stat) (_ []byte, err error) {
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineStat) ReadResultJSON(j interface{}, ret *Stat) error {
-	if err := Stat__ReadJSON(ret, j); err != nil {
+func (item *EngineStat) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *Stat) error {
+	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineStat) WriteResultJSON(w []byte, ret Stat) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineStat) writeResultJSON(short bool, w []byte, ret Stat) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EngineStat) writeResultJSON(newTypeNames bool, short bool, w []byte, ret Stat) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -72,12 +72,12 @@ func (item *EngineStat) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte,
 	return r, w, err
 }
 
-func (item *EngineStat) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineStat) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret Stat
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
@@ -87,7 +87,7 @@ func (item *EngineStat) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, [
 		return r, w, ErrorInvalidJSON("engine.stat", err.Error())
 	}
 	var ret Stat
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if err = item.ReadResultJSON(true, j, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -102,8 +102,7 @@ func (item EngineStat) String() string {
 	return string(w)
 }
 
-func EngineStat__ReadJSON(item *EngineStat, j interface{}) error { return item.readJSON(j) }
-func (item *EngineStat) readJSON(j interface{}) error {
+func (item *EngineStat) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("engine.stat", "expected json object")
@@ -115,9 +114,9 @@ func (item *EngineStat) readJSON(j interface{}) error {
 }
 
 func (item *EngineStat) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineStat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -131,7 +130,7 @@ func (item *EngineStat) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("engine.stat", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("engine.stat", err.Error())
 	}
 	return nil

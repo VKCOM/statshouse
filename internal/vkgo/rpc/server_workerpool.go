@@ -13,17 +13,22 @@ import (
 
 const workerGCDuration = time.Second * 60
 
+type workerWork struct {
+	sc   *serverConn
+	hctx *HandlerContext
+}
+
 type worker struct {
-	s      *Server
-	ch     chan *HandlerContext
-	gcTime time.Time
+	workerPool *workerPool
+	ch         chan workerWork
+	gcTime     time.Time
 }
 
 func (w *worker) run(wg *WaitGroup) {
 	defer wg.Done()
-	for hctx := range w.ch {
-		w.s.handle(hctx)
-		w.s.workerPool.Put(w)
+	for work := range w.ch {
+		work.sc.handle(work.hctx)
+		w.workerPool.Put(w)
 	}
 }
 

@@ -109,19 +109,19 @@ func (item *BarsicEngineStatus) WriteResult(w []byte, ret tlTrue.True) (_ []byte
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicEngineStatus) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicEngineStatus) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
+	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicEngineStatus) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicEngineStatus) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicEngineStatus) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -136,12 +136,12 @@ func (item *BarsicEngineStatus) ReadResultWriteResultJSON(r []byte, w []byte) (_
 	return r, w, err
 }
 
-func (item *BarsicEngineStatus) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicEngineStatus) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
@@ -151,7 +151,7 @@ func (item *BarsicEngineStatus) ReadResultJSONWriteResult(r []byte, w []byte) ([
 		return r, w, internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
 	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if err = item.ReadResultJSON(true, j, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -166,10 +166,7 @@ func (item BarsicEngineStatus) String() string {
 	return string(w)
 }
 
-func BarsicEngineStatus__ReadJSON(item *BarsicEngineStatus, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicEngineStatus) readJSON(j interface{}) error {
+func (item *BarsicEngineStatus) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("barsic.engineStatus", "expected json object")
@@ -231,9 +228,9 @@ func (item *BarsicEngineStatus) readJSON(j interface{}) error {
 }
 
 func (item *BarsicEngineStatus) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicEngineStatus) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicEngineStatus) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -297,7 +294,7 @@ func (item *BarsicEngineStatus) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
 	}
 	return nil
@@ -396,19 +393,19 @@ func (item *BarsicEngineStatusBytes) WriteResult(w []byte, ret tlTrue.True) (_ [
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicEngineStatusBytes) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicEngineStatusBytes) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
+	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicEngineStatusBytes) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicEngineStatusBytes) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicEngineStatusBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -423,12 +420,12 @@ func (item *BarsicEngineStatusBytes) ReadResultWriteResultJSON(r []byte, w []byt
 	return r, w, err
 }
 
-func (item *BarsicEngineStatusBytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicEngineStatusBytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
@@ -438,7 +435,7 @@ func (item *BarsicEngineStatusBytes) ReadResultJSONWriteResult(r []byte, w []byt
 		return r, w, internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
 	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if err = item.ReadResultJSON(true, j, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -453,10 +450,7 @@ func (item BarsicEngineStatusBytes) String() string {
 	return string(w)
 }
 
-func BarsicEngineStatusBytes__ReadJSON(item *BarsicEngineStatusBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicEngineStatusBytes) readJSON(j interface{}) error {
+func (item *BarsicEngineStatusBytes) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("barsic.engineStatus", "expected json object")
@@ -518,9 +512,9 @@ func (item *BarsicEngineStatusBytes) readJSON(j interface{}) error {
 }
 
 func (item *BarsicEngineStatusBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicEngineStatusBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicEngineStatusBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -584,7 +578,7 @@ func (item *BarsicEngineStatusBytes) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("barsic.engineStatus", err.Error())
 	}
 	return nil
