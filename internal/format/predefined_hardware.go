@@ -34,6 +34,7 @@ const (
 	BuiltinMetricIDDMesgEvents     = -1032
 	BuiltinMetricIDOOMKillDetailed = -1033
 	BuiltinMetricIDMemSLAB         = -1034
+	BuiltinMetricIDBlockIOBusyTime = -1035
 
 	BuiltinMetricNameCpuUsage      = "host_cpu_usage"
 	BuiltinMetricNameSoftIRQ       = "host_softirq"
@@ -44,10 +45,11 @@ const (
 	BuiltinMetricNameWriteback = "host_mem_writeback"
 	BuiltinMetricNameMemSLAB   = "host_mem_slab"
 
-	BuiltinMetricNameBlockIOTime = "host_block_io_time"
-	BuiltinMetricNameBlockIOSize = "host_block_io_size"
-	BuiltinMetricNameDiskUsage   = "host_disk_usage"
-	BuiltinMetricNameINodeUsage  = "host_inode_usage"
+	BuiltinMetricNameBlockIOTime     = "host_block_io_time"
+	BuiltinMetricNameBlockIOBusyTime = "host_block_io_busy_time"
+	BuiltinMetricNameBlockIOSize     = "host_block_io_size"
+	BuiltinMetricNameDiskUsage       = "host_disk_usage"
+	BuiltinMetricNameINodeUsage      = "host_inode_usage"
 
 	BuiltinMetricNameSystemUptime   = "host_system_uptime"
 	BuiltinMetricNameProcessCreated = "host_system_process_created"
@@ -268,6 +270,16 @@ var hostMetrics = map[int32]*MetricMetaValue{
 					RawIDTagDiscard: "discard",
 					RawIDTagFlush:   "flush",
 				}),
+			}},
+	},
+	BuiltinMetricIDBlockIOBusyTime: {
+		Name:        BuiltinMetricNameBlockIOBusyTime,
+		Kind:        MetricKindValue,
+		MetricType:  MetricSecond,
+		Description: "The amount of time disk was busy",
+		Tags: []MetricMetaTag{
+			{
+				Description: "device",
 			}},
 	},
 	BuiltinMetricIDProcessCreated: {
