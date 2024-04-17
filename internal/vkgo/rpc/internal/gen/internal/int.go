@@ -42,7 +42,7 @@ func BuiltinVectorIntWrite(w []byte, vec []int32) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorIntReadJSON(j interface{}, vec *[]int32) error {
+func BuiltinVectorIntReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]int32) error {
 	l, _arr, err := JsonReadArray("[]int32", j)
 	if err != nil {
 		return err
@@ -61,9 +61,9 @@ func BuiltinVectorIntReadJSON(j interface{}, vec *[]int32) error {
 }
 
 func BuiltinVectorIntWriteJSON(w []byte, vec []int32) (_ []byte, err error) {
-	return BuiltinVectorIntWriteJSONOpt(false, w, vec)
+	return BuiltinVectorIntWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorIntWriteJSONOpt(short bool, w []byte, vec []int32) (_ []byte, err error) {
+func BuiltinVectorIntWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []int32) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

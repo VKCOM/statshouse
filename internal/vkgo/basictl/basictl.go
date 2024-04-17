@@ -15,6 +15,8 @@ import (
 	"math"
 	"strconv"
 	"unicode/utf8"
+
+	"github.com/mailru/easyjson/jlexer"
 )
 
 const (
@@ -24,6 +26,8 @@ const (
 	bigStringLen     = (1 << 24) - 1
 	hugeStringLen    = (1 << 56) - 1
 )
+
+type JsonLexer = jlexer.Lexer
 
 var errBadPadding = fmt.Errorf("non-canonical non-zero string padding")
 
@@ -619,41 +623,41 @@ type Rand interface {
 
 const RandomNatConstraint = 10
 
-func RandomNat(rand Rand) uint32 {
-	return rand.Uint32() % RandomNatConstraint
+func RandomUint(gen Rand) uint32 {
+	return gen.Uint32() % RandomNatConstraint
 }
 
-func RandomInt(rand Rand) int32 {
-	return rand.Int31()
+func RandomInt(gen Rand) int32 {
+	return gen.Int31()
 }
 
-func RandomLong(rand Rand) int64 {
-	return rand.Int63()
+func RandomLong(gen Rand) int64 {
+	return gen.Int63()
 }
 
-func RandomFloat(rand Rand) float32 {
-	return float32(rand.NormFloat64())
+func RandomFloat(gen Rand) float32 {
+	return float32(gen.NormFloat64())
 }
 
-func RandomDouble(rand Rand) float64 {
-	return rand.NormFloat64()
+func RandomDouble(gen Rand) float64 {
+	return gen.NormFloat64()
 }
 
 const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 const lenLetters uint32 = uint32(len(letters))
 
-func RandomString(rand Rand) string {
-	res := make([]byte, rand.Uint32()%RandomNatConstraint)
+func RandomString(gen Rand) string {
+	res := make([]byte, gen.Uint32()%RandomNatConstraint)
 	for i := range res {
-		res[i] = letters[rand.Uint32()%lenLetters]
+		res[i] = letters[gen.Uint32()%lenLetters]
 	}
 	return string(res)
 }
 
-func RandomStringBytes(rand Rand) []byte {
-	res := make([]byte, rand.Uint32()%RandomNatConstraint)
+func RandomStringBytes(gen Rand) []byte {
+	res := make([]byte, gen.Uint32()%RandomNatConstraint)
 	for i := range res {
-		res[i] = letters[rand.Uint32()%lenLetters]
+		res[i] = letters[gen.Uint32()%lenLetters]
 	}
 	return res
 }

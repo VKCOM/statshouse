@@ -52,8 +52,7 @@ func (item RpcCancelReq) String() string {
 	return string(w)
 }
 
-func RpcCancelReq__ReadJSON(item *RpcCancelReq, j interface{}) error { return item.readJSON(j) }
-func (item *RpcCancelReq) readJSON(j interface{}) error {
+func (item *RpcCancelReq) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("rpcCancelReq", "expected json object")
@@ -70,9 +69,9 @@ func (item *RpcCancelReq) readJSON(j interface{}) error {
 }
 
 func (item *RpcCancelReq) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcCancelReq) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcCancelReq) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.QueryId != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -91,7 +90,7 @@ func (item *RpcCancelReq) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("rpcCancelReq", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("rpcCancelReq", err.Error())
 	}
 	return nil

@@ -8,7 +8,9 @@ package rpc
 
 import (
 	"bytes"
+	"log"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -28,6 +30,7 @@ type ServerOptions struct {
 	Version                string
 	TransportHijackHandler func(conn *PacketConn) // Experimental, server handles connection to this function if FlagP2PHijack client flag set
 	SocketHijackHandler    func(conn *HijackConnection)
+	TrustedSubnetGroupsSt  string // for stats
 	TrustedSubnetGroups    [][]*net.IPNet
 	ForceEncryption        bool
 	cryptoKeys             []string
@@ -46,8 +49,6 @@ type ServerOptions struct {
 	DisableContextTimeout  bool
 	DisableTCPReuseAddr    bool
 	DebugRPC               bool // prints all incoming and outgoing RPC activity (very slow, only for protocol debug)
-
-	trustedSubnetGroupsParseErrors []error
 }
 
 func (opts *ServerOptions) AddCryptoKey(key string) {
@@ -114,11 +115,31 @@ func ServerWithTransportHijackHandler(handler func(conn *PacketConn)) ServerOpti
 	}
 }
 
+func TrustedSubnetGroupsString(groups [][]string) string {
+	b := strings.Builder{}
+	for i, g := range groups {
+		if i != 0 {
+			b.WriteString(";")
+		}
+		for j, m := range g {
+			if j != 0 {
+				b.WriteString(",")
+			}
+			b.WriteString(m)
+		}
+	}
+	return b.String()
+}
+
 func ServerWithTrustedSubnetGroups(groups [][]string) ServerOptionsFunc {
 	return func(opts *ServerOptions) {
 		gs, errs := ParseTrustedSubnets(groups)
+		for _, err := range errs {
+			// we do not return error from this function, and do not want to ignore this error
+			log.Panicf("[rpc] failed to parse server trusted subnet: %v", err)
+		}
 		opts.TrustedSubnetGroups = gs
-		opts.trustedSubnetGroupsParseErrors = errs
+		opts.TrustedSubnetGroupsSt = TrustedSubnetGroupsString(groups)
 	}
 }
 

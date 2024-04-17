@@ -52,8 +52,7 @@ func (item RpcDestActor) String() string {
 	return string(w)
 }
 
-func RpcDestActor__ReadJSON(item *RpcDestActor, j interface{}) error { return item.readJSON(j) }
-func (item *RpcDestActor) readJSON(j interface{}) error {
+func (item *RpcDestActor) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("rpcDestActor", "expected json object")
@@ -70,9 +69,9 @@ func (item *RpcDestActor) readJSON(j interface{}) error {
 }
 
 func (item *RpcDestActor) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcDestActor) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcDestActor) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.ActorId != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -91,7 +90,7 @@ func (item *RpcDestActor) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("rpcDestActor", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("rpcDestActor", err.Error())
 	}
 	return nil

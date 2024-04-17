@@ -45,10 +45,7 @@ func (item RpcServerWantsFin) String() string {
 	return string(w)
 }
 
-func RpcServerWantsFin__ReadJSON(item *RpcServerWantsFin, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *RpcServerWantsFin) readJSON(j interface{}) error {
+func (item *RpcServerWantsFin) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("rpcServerWantsFin", "expected json object")
@@ -60,9 +57,9 @@ func (item *RpcServerWantsFin) readJSON(j interface{}) error {
 }
 
 func (item *RpcServerWantsFin) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcServerWantsFin) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcServerWantsFin) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -76,7 +73,7 @@ func (item *RpcServerWantsFin) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("rpcServerWantsFin", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("rpcServerWantsFin", err.Error())
 	}
 	return nil

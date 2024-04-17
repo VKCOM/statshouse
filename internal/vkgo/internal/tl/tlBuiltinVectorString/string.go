@@ -44,7 +44,7 @@ func BuiltinVectorStringWrite(w []byte, vec []string) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorStringReadJSON(j interface{}, vec *[]string) error {
+func BuiltinVectorStringReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]string) error {
 	l, _arr, err := internal.JsonReadArray("[]string", j)
 	if err != nil {
 		return err
@@ -63,9 +63,9 @@ func BuiltinVectorStringReadJSON(j interface{}, vec *[]string) error {
 }
 
 func BuiltinVectorStringWriteJSON(w []byte, vec []string) (_ []byte, err error) {
-	return BuiltinVectorStringWriteJSONOpt(false, w, vec)
+	return BuiltinVectorStringWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStringWriteJSONOpt(short bool, w []byte, vec []string) (_ []byte, err error) {
+func BuiltinVectorStringWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []string) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -103,7 +103,7 @@ func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) (_ []byte, err error)
 	return w, nil
 }
 
-func BuiltinVectorStringBytesReadJSON(j interface{}, vec *[][]byte) error {
+func BuiltinVectorStringBytesReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[][]byte) error {
 	l, _arr, err := internal.JsonReadArray("[][]byte", j)
 	if err != nil {
 		return err
@@ -122,9 +122,9 @@ func BuiltinVectorStringBytesReadJSON(j interface{}, vec *[][]byte) error {
 }
 
 func BuiltinVectorStringBytesWriteJSON(w []byte, vec [][]byte) (_ []byte, err error) {
-	return BuiltinVectorStringBytesWriteJSONOpt(false, w, vec)
+	return BuiltinVectorStringBytesWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStringBytesWriteJSONOpt(short bool, w []byte, vec [][]byte) (_ []byte, err error) {
+func BuiltinVectorStringBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec [][]byte) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

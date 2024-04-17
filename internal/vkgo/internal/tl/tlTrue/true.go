@@ -47,8 +47,7 @@ func (item True) String() string {
 	return string(w)
 }
 
-func True__ReadJSON(item *True, j interface{}) error { return item.readJSON(j) }
-func (item *True) readJSON(j interface{}) error {
+func (item *True) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("true", "expected json object")
@@ -60,9 +59,9 @@ func (item *True) readJSON(j interface{}) error {
 }
 
 func (item *True) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *True) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *True) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -76,7 +75,7 @@ func (item *True) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("true", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("true", err.Error())
 	}
 	return nil

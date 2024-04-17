@@ -47,7 +47,7 @@ func BuiltinVectorBarsicSnapshotDependencyWrite(w []byte, vec []tlBarsicSnapshot
 	return w, nil
 }
 
-func BuiltinVectorBarsicSnapshotDependencyReadJSON(j interface{}, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) error {
+func BuiltinVectorBarsicSnapshotDependencyReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) error {
 	l, _arr, err := internal.JsonReadArray("[]tlBarsicSnapshotDependency.BarsicSnapshotDependency", j)
 	if err != nil {
 		return err
@@ -58,7 +58,7 @@ func BuiltinVectorBarsicSnapshotDependencyReadJSON(j interface{}, vec *[]tlBarsi
 		*vec = (*vec)[:l]
 	}
 	for i := range *vec {
-		if err := tlBarsicSnapshotDependency.BarsicSnapshotDependency__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+		if err := (*vec)[i].ReadJSONLegacy(legacyTypeNames, _arr[i]); err != nil {
 			return err
 		}
 	}
@@ -66,13 +66,13 @@ func BuiltinVectorBarsicSnapshotDependencyReadJSON(j interface{}, vec *[]tlBarsi
 }
 
 func BuiltinVectorBarsicSnapshotDependencyWriteJSON(w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependency) (_ []byte, err error) {
-	return BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(false, w, vec)
+	return BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(short bool, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependency) (_ []byte, err error) {
+func BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependency) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -110,7 +110,7 @@ func BuiltinVectorBarsicSnapshotDependencyBytesWrite(w []byte, vec []tlBarsicSna
 	return w, nil
 }
 
-func BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(j interface{}, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) error {
+func BuiltinVectorBarsicSnapshotDependencyBytesReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) error {
 	l, _arr, err := internal.JsonReadArray("[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes", j)
 	if err != nil {
 		return err
@@ -121,7 +121,7 @@ func BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(j interface{}, vec *[]tl
 		*vec = (*vec)[:l]
 	}
 	for i := range *vec {
-		if err := tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
+		if err := (*vec)[i].ReadJSONLegacy(legacyTypeNames, _arr[i]); err != nil {
 			return err
 		}
 	}
@@ -129,13 +129,13 @@ func BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(j interface{}, vec *[]tl
 }
 
 func BuiltinVectorBarsicSnapshotDependencyBytesWriteJSON(w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) (_ []byte, err error) {
-	return BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(false, w, vec)
+	return BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(short bool, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) (_ []byte, err error) {
+func BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}

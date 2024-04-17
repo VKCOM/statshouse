@@ -42,7 +42,7 @@ func BuiltinVectorLongWrite(w []byte, vec []int64) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorLongReadJSON(j interface{}, vec *[]int64) error {
+func BuiltinVectorLongReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]int64) error {
 	l, _arr, err := JsonReadArray("[]int64", j)
 	if err != nil {
 		return err
@@ -61,9 +61,9 @@ func BuiltinVectorLongReadJSON(j interface{}, vec *[]int64) error {
 }
 
 func BuiltinVectorLongWriteJSON(w []byte, vec []int64) (_ []byte, err error) {
-	return BuiltinVectorLongWriteJSONOpt(false, w, vec)
+	return BuiltinVectorLongWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorLongWriteJSONOpt(short bool, w []byte, vec []int64) (_ []byte, err error) {
+func BuiltinVectorLongWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []int64) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)

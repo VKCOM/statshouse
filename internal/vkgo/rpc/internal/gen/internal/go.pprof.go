@@ -56,7 +56,7 @@ func (item *GoPprof) WriteResult(w []byte, ret string) (_ []byte, err error) {
 	return basictl.StringWrite(w, ret), nil
 }
 
-func (item *GoPprof) ReadResultJSON(j interface{}, ret *string) error {
+func (item *GoPprof) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *string) error {
 	if err := JsonReadString(j, ret); err != nil {
 		return err
 	}
@@ -64,10 +64,10 @@ func (item *GoPprof) ReadResultJSON(j interface{}, ret *string) error {
 }
 
 func (item *GoPprof) WriteResultJSON(w []byte, ret string) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *GoPprof) writeResultJSON(short bool, w []byte, ret string) (_ []byte, err error) {
+func (item *GoPprof) writeResultJSON(newTypeNames bool, short bool, w []byte, ret string) (_ []byte, err error) {
 	w = basictl.JSONWriteString(w, ret)
 	return w, nil
 }
@@ -81,12 +81,12 @@ func (item *GoPprof) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, _ 
 	return r, w, err
 }
 
-func (item *GoPprof) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *GoPprof) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret string
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
@@ -96,7 +96,7 @@ func (item *GoPprof) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []by
 		return r, w, ErrorInvalidJSON("go.pprof", err.Error())
 	}
 	var ret string
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if err = item.ReadResultJSON(true, j, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -111,8 +111,7 @@ func (item GoPprof) String() string {
 	return string(w)
 }
 
-func GoPprof__ReadJSON(item *GoPprof, j interface{}) error { return item.readJSON(j) }
-func (item *GoPprof) readJSON(j interface{}) error {
+func (item *GoPprof) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("go.pprof", "expected json object")
@@ -129,9 +128,9 @@ func (item *GoPprof) readJSON(j interface{}) error {
 }
 
 func (item *GoPprof) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *GoPprof) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *GoPprof) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if len(item.Params) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -150,7 +149,7 @@ func (item *GoPprof) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("go.pprof", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("go.pprof", err.Error())
 	}
 	return nil

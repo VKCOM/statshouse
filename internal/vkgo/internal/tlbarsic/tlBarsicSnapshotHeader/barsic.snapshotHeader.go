@@ -126,10 +126,7 @@ func (item BarsicSnapshotHeader) String() string {
 	return string(w)
 }
 
-func BarsicSnapshotHeader__ReadJSON(item *BarsicSnapshotHeader, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicSnapshotHeader) readJSON(j interface{}) error {
+func (item *BarsicSnapshotHeader) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("barsic.snapshotHeader", "expected json object")
@@ -179,7 +176,7 @@ func (item *BarsicSnapshotHeader) readJSON(j interface{}) error {
 	if _jControlMeta != nil {
 		item.FieldsMask |= 1 << 0
 	}
-	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadJSON(_jDependencies, &item.Dependencies); err != nil {
+	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadJSONLegacy(legacyTypeNames, _jDependencies, &item.Dependencies); err != nil {
 		return err
 	}
 	if _jControlMeta != nil {
@@ -193,9 +190,9 @@ func (item *BarsicSnapshotHeader) readJSON(j interface{}) error {
 }
 
 func (item *BarsicSnapshotHeader) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicSnapshotHeader) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicSnapshotHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -220,7 +217,7 @@ func (item *BarsicSnapshotHeader) WriteJSONOpt(short bool, w []byte) (_ []byte, 
 	if len(item.Dependencies) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"dependencies":`...)
-		if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(short, w, item.Dependencies); err != nil {
+		if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(newTypeNames, short, w, item.Dependencies); err != nil {
 			return w, err
 		}
 	}
@@ -256,7 +253,7 @@ func (item *BarsicSnapshotHeader) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotHeader", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotHeader", err.Error())
 	}
 	return nil
@@ -371,10 +368,7 @@ func (item BarsicSnapshotHeaderBytes) String() string {
 	return string(w)
 }
 
-func BarsicSnapshotHeaderBytes__ReadJSON(item *BarsicSnapshotHeaderBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *BarsicSnapshotHeaderBytes) readJSON(j interface{}) error {
+func (item *BarsicSnapshotHeaderBytes) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("barsic.snapshotHeader", "expected json object")
@@ -424,7 +418,7 @@ func (item *BarsicSnapshotHeaderBytes) readJSON(j interface{}) error {
 	if _jControlMeta != nil {
 		item.FieldsMask |= 1 << 0
 	}
-	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(_jDependencies, &item.Dependencies); err != nil {
+	if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadJSONLegacy(legacyTypeNames, _jDependencies, &item.Dependencies); err != nil {
 		return err
 	}
 	if _jControlMeta != nil {
@@ -438,9 +432,9 @@ func (item *BarsicSnapshotHeaderBytes) readJSON(j interface{}) error {
 }
 
 func (item *BarsicSnapshotHeaderBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -465,7 +459,7 @@ func (item *BarsicSnapshotHeaderBytes) WriteJSONOpt(short bool, w []byte) (_ []b
 	if len(item.Dependencies) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"dependencies":`...)
-		if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(short, w, item.Dependencies); err != nil {
+		if w, err = tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesWriteJSONOpt(newTypeNames, short, w, item.Dependencies); err != nil {
 			return w, err
 		}
 	}
@@ -501,7 +495,7 @@ func (item *BarsicSnapshotHeaderBytes) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotHeader", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotHeader", err.Error())
 	}
 	return nil

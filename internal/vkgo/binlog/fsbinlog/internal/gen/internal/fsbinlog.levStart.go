@@ -76,8 +76,7 @@ func (item FsbinlogLevStart) String() string {
 	return string(w)
 }
 
-func FsbinlogLevStart__ReadJSON(item *FsbinlogLevStart, j interface{}) error { return item.readJSON(j) }
-func (item *FsbinlogLevStart) readJSON(j interface{}) error {
+func (item *FsbinlogLevStart) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("fsbinlog.levStart", "expected json object")
@@ -114,9 +113,9 @@ func (item *FsbinlogLevStart) readJSON(j interface{}) error {
 }
 
 func (item *FsbinlogLevStart) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *FsbinlogLevStart) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *FsbinlogLevStart) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.SchemaId != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -155,7 +154,7 @@ func (item *FsbinlogLevStart) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("fsbinlog.levStart", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("fsbinlog.levStart", err.Error())
 	}
 	return nil

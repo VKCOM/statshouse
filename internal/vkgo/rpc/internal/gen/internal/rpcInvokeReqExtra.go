@@ -350,10 +350,7 @@ func (item RpcInvokeReqExtra) String() string {
 	return string(w)
 }
 
-func RpcInvokeReqExtra__ReadJSON(item *RpcInvokeReqExtra, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *RpcInvokeReqExtra) readJSON(j interface{}) error {
+func (item *RpcInvokeReqExtra) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("rpcInvokeReqExtra", "expected json object")
@@ -529,7 +526,7 @@ func (item *RpcInvokeReqExtra) readJSON(j interface{}) error {
 		}
 	}
 	if _jWaitShardsBinlogPos != nil {
-		if err := BuiltinVectorDictionaryFieldLongReadJSON(_jWaitShardsBinlogPos, &item.WaitShardsBinlogPos); err != nil {
+		if err := BuiltinVectorDictionaryFieldLongReadJSONLegacy(legacyTypeNames, _jWaitShardsBinlogPos, &item.WaitShardsBinlogPos); err != nil {
 			return err
 		}
 	} else {
@@ -543,14 +540,14 @@ func (item *RpcInvokeReqExtra) readJSON(j interface{}) error {
 		item.WaitBinlogPos = 0
 	}
 	if _jStringForwardKeys != nil {
-		if err := BuiltinVectorStringReadJSON(_jStringForwardKeys, &item.StringForwardKeys); err != nil {
+		if err := BuiltinVectorStringReadJSONLegacy(legacyTypeNames, _jStringForwardKeys, &item.StringForwardKeys); err != nil {
 			return err
 		}
 	} else {
 		item.StringForwardKeys = item.StringForwardKeys[:0]
 	}
 	if _jIntForwardKeys != nil {
-		if err := BuiltinVectorLongReadJSON(_jIntForwardKeys, &item.IntForwardKeys); err != nil {
+		if err := BuiltinVectorLongReadJSONLegacy(legacyTypeNames, _jIntForwardKeys, &item.IntForwardKeys); err != nil {
 			return err
 		}
 	} else {
@@ -595,9 +592,9 @@ func (item *RpcInvokeReqExtra) readJSON(j interface{}) error {
 }
 
 func (item *RpcInvokeReqExtra) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *RpcInvokeReqExtra) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *RpcInvokeReqExtra) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Flags != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -639,7 +636,7 @@ func (item *RpcInvokeReqExtra) WriteJSONOpt(short bool, w []byte) (_ []byte, err
 	if item.Flags&(1<<15) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"wait_shards_binlog_pos":`...)
-		if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(short, w, item.WaitShardsBinlogPos); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldLongWriteJSONOpt(newTypeNames, short, w, item.WaitShardsBinlogPos); err != nil {
 			return w, err
 		}
 	}
@@ -651,14 +648,14 @@ func (item *RpcInvokeReqExtra) WriteJSONOpt(short bool, w []byte) (_ []byte, err
 	if item.Flags&(1<<18) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"string_forward_keys":`...)
-		if w, err = BuiltinVectorStringWriteJSONOpt(short, w, item.StringForwardKeys); err != nil {
+		if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.StringForwardKeys); err != nil {
 			return w, err
 		}
 	}
 	if item.Flags&(1<<19) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"int_forward_keys":`...)
-		if w, err = BuiltinVectorLongWriteJSONOpt(short, w, item.IntForwardKeys); err != nil {
+		if w, err = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.IntForwardKeys); err != nil {
 			return w, err
 		}
 	}
@@ -703,7 +700,7 @@ func (item *RpcInvokeReqExtra) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("rpcInvokeReqExtra", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("rpcInvokeReqExtra", err.Error())
 	}
 	return nil

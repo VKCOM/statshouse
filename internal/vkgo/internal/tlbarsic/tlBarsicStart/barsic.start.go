@@ -114,19 +114,19 @@ func (item *BarsicStart) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err e
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicStart) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicStart) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
+	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicStart) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicStart) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicStart) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -141,12 +141,12 @@ func (item *BarsicStart) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte
 	return r, w, err
 }
 
-func (item *BarsicStart) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicStart) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
@@ -156,7 +156,7 @@ func (item *BarsicStart) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, 
 		return r, w, internal.ErrorInvalidJSON("barsic.start", err.Error())
 	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if err = item.ReadResultJSON(true, j, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -171,8 +171,7 @@ func (item BarsicStart) String() string {
 	return string(w)
 }
 
-func BarsicStart__ReadJSON(item *BarsicStart, j interface{}) error { return item.readJSON(j) }
-func (item *BarsicStart) readJSON(j interface{}) error {
+func (item *BarsicStart) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("barsic.start", "expected json object")
@@ -221,22 +220,22 @@ func (item *BarsicStart) readJSON(j interface{}) error {
 		item.FieldsMask |= 1 << 1
 	}
 	if _jEncryptionSecrets != nil {
-		if err := tlBuiltinVectorString.BuiltinVectorStringReadJSON(_jEncryptionSecrets, &item.EncryptionSecrets); err != nil {
+		if err := tlBuiltinVectorString.BuiltinVectorStringReadJSONLegacy(legacyTypeNames, _jEncryptionSecrets, &item.EncryptionSecrets); err != nil {
 			return err
 		}
 	} else {
 		item.EncryptionSecrets = item.EncryptionSecrets[:0]
 	}
-	if err := tlBuiltinVectorString.BuiltinVectorStringReadJSON(_jSnapshots, &item.Snapshots); err != nil {
+	if err := tlBuiltinVectorString.BuiltinVectorStringReadJSONLegacy(legacyTypeNames, _jSnapshots, &item.Snapshots); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicStart) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicStart) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicStart) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -265,14 +264,14 @@ func (item *BarsicStart) WriteJSONOpt(short bool, w []byte) (_ []byte, err error
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"encryptionSecrets":`...)
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(short, w, item.EncryptionSecrets); err != nil {
+		if w, err = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.EncryptionSecrets); err != nil {
 			return w, err
 		}
 	}
 	if len(item.Snapshots) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"snapshots":`...)
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(short, w, item.Snapshots); err != nil {
+		if w, err = tlBuiltinVectorString.BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.Snapshots); err != nil {
 			return w, err
 		}
 	}
@@ -288,7 +287,7 @@ func (item *BarsicStart) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("barsic.start", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("barsic.start", err.Error())
 	}
 	return nil
@@ -391,19 +390,19 @@ func (item *BarsicStartBytes) WriteResult(w []byte, ret tlTrue.True) (_ []byte, 
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicStartBytes) ReadResultJSON(j interface{}, ret *tlTrue.True) error {
-	if err := tlTrue.True__ReadJSON(ret, j); err != nil {
+func (item *BarsicStartBytes) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
+	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicStartBytes) WriteResultJSON(w []byte, ret tlTrue.True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *BarsicStartBytes) writeResultJSON(short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *BarsicStartBytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret tlTrue.True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -418,12 +417,12 @@ func (item *BarsicStartBytes) ReadResultWriteResultJSON(r []byte, w []byte) (_ [
 	return r, w, err
 }
 
-func (item *BarsicStartBytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *BarsicStartBytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret tlTrue.True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
@@ -433,7 +432,7 @@ func (item *BarsicStartBytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]b
 		return r, w, internal.ErrorInvalidJSON("barsic.start", err.Error())
 	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	if err = item.ReadResultJSON(true, j, &ret); err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -448,8 +447,7 @@ func (item BarsicStartBytes) String() string {
 	return string(w)
 }
 
-func BarsicStartBytes__ReadJSON(item *BarsicStartBytes, j interface{}) error { return item.readJSON(j) }
-func (item *BarsicStartBytes) readJSON(j interface{}) error {
+func (item *BarsicStartBytes) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return internal.ErrorInvalidJSON("barsic.start", "expected json object")
@@ -498,22 +496,22 @@ func (item *BarsicStartBytes) readJSON(j interface{}) error {
 		item.FieldsMask |= 1 << 1
 	}
 	if _jEncryptionSecrets != nil {
-		if err := tlBuiltinVectorString.BuiltinVectorStringBytesReadJSON(_jEncryptionSecrets, &item.EncryptionSecrets); err != nil {
+		if err := tlBuiltinVectorString.BuiltinVectorStringBytesReadJSONLegacy(legacyTypeNames, _jEncryptionSecrets, &item.EncryptionSecrets); err != nil {
 			return err
 		}
 	} else {
 		item.EncryptionSecrets = item.EncryptionSecrets[:0]
 	}
-	if err := tlBuiltinVectorString.BuiltinVectorStringBytesReadJSON(_jSnapshots, &item.Snapshots); err != nil {
+	if err := tlBuiltinVectorString.BuiltinVectorStringBytesReadJSONLegacy(legacyTypeNames, _jSnapshots, &item.Snapshots); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *BarsicStartBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *BarsicStartBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *BarsicStartBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.FieldsMask != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -542,14 +540,14 @@ func (item *BarsicStartBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err 
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"encryptionSecrets":`...)
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(short, w, item.EncryptionSecrets); err != nil {
+		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.EncryptionSecrets); err != nil {
 			return w, err
 		}
 	}
 	if len(item.Snapshots) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"snapshots":`...)
-		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(short, w, item.Snapshots); err != nil {
+		if w, err = tlBuiltinVectorString.BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.Snapshots); err != nil {
 			return w, err
 		}
 	}
@@ -565,7 +563,7 @@ func (item *BarsicStartBytes) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return internal.ErrorInvalidJSON("barsic.start", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return internal.ErrorInvalidJSON("barsic.start", err.Error())
 	}
 	return nil

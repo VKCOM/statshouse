@@ -88,6 +88,8 @@ func (s *Server) collectStats(localAddr net.Addr) map[string]string {
 	m["gc_pauses"] = string(gcPausesMs)
 	m["gc_pauses_mcs"] = string(gcPausesMcs)
 
+	m["trusted_subnets"] = s.opts.TrustedSubnetGroupsSt
+
 	m["average_idle_percent"] = strconv.Itoa(avgIdle)
 	m["recent_idle_percent"] = strconv.Itoa(curIdle)
 

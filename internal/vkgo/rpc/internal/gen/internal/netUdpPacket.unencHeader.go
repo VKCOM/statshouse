@@ -194,10 +194,7 @@ func (item NetUdpPacketUnencHeader) String() string {
 	return string(w)
 }
 
-func NetUdpPacketUnencHeader__ReadJSON(item *NetUdpPacketUnencHeader, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *NetUdpPacketUnencHeader) readJSON(j interface{}) error {
+func (item *NetUdpPacketUnencHeader) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	_jm, _ok := j.(map[string]interface{})
 	if j != nil && !_ok {
 		return ErrorInvalidJSON("netUdpPacket.unencHeader", "expected json object")
@@ -241,14 +238,14 @@ func (item *NetUdpPacketUnencHeader) readJSON(j interface{}) error {
 		item.Flags |= 1 << 5
 	}
 	if _jRemotePid != nil {
-		if err := NetPid__ReadJSON(&item.RemotePid, _jRemotePid); err != nil {
+		if err := item.RemotePid.ReadJSONLegacy(legacyTypeNames, _jRemotePid); err != nil {
 			return err
 		}
 	} else {
 		item.RemotePid.Reset()
 	}
 	if _jLocalPid != nil {
-		if err := NetPid__ReadJSON(&item.LocalPid, _jLocalPid); err != nil {
+		if err := item.LocalPid.ReadJSONLegacy(legacyTypeNames, _jLocalPid); err != nil {
 			return err
 		}
 	} else {
@@ -276,7 +273,7 @@ func (item *NetUdpPacketUnencHeader) readJSON(j interface{}) error {
 		item.CryptoInit = 0
 	}
 	if _jRandomKey != nil {
-		if err := BuiltinTuple8ReadJSON(_jRandomKey, &item.RandomKey); err != nil {
+		if err := BuiltinTuple8ReadJSONLegacy(legacyTypeNames, _jRandomKey, &item.RandomKey); err != nil {
 			return err
 		}
 	} else {
@@ -286,9 +283,9 @@ func (item *NetUdpPacketUnencHeader) readJSON(j interface{}) error {
 }
 
 func (item *NetUdpPacketUnencHeader) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *NetUdpPacketUnencHeader) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *NetUdpPacketUnencHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	if item.Flags != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -298,14 +295,14 @@ func (item *NetUdpPacketUnencHeader) WriteJSONOpt(short bool, w []byte) (_ []byt
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"remote_pid":`...)
-		if w, err = item.RemotePid.WriteJSONOpt(short, w); err != nil {
+		if w, err = item.RemotePid.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"local_pid":`...)
-		if w, err = item.LocalPid.WriteJSONOpt(short, w); err != nil {
+		if w, err = item.LocalPid.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -327,7 +324,7 @@ func (item *NetUdpPacketUnencHeader) WriteJSONOpt(short bool, w []byte) (_ []byt
 	if item.Flags&(1<<5) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"random_key":`...)
-		if w, err = BuiltinTuple8WriteJSONOpt(short, w, &item.RandomKey); err != nil {
+		if w, err = BuiltinTuple8WriteJSONOpt(newTypeNames, short, w, &item.RandomKey); err != nil {
 			return w, err
 		}
 	}
@@ -343,7 +340,7 @@ func (item *NetUdpPacketUnencHeader) UnmarshalJSON(b []byte) error {
 	if err != nil {
 		return ErrorInvalidJSON("netUdpPacket.unencHeader", err.Error())
 	}
-	if err = item.readJSON(j); err != nil {
+	if err = item.ReadJSONLegacy(true, j); err != nil {
 		return ErrorInvalidJSON("netUdpPacket.unencHeader", err.Error())
 	}
 	return nil
