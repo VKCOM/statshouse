@@ -119,6 +119,9 @@ func (c *DiskStats) WriteMetrics(nowUnix int64) error {
 		writeIOSize := (float64(stat.WriteSectors) - float64(oldStat.WriteSectors)) * sectorSize
 		discardIOSize := (float64(stat.DiscardSectors) - float64(oldStat.DiscardSectors)) * sectorSize
 
+		if stat.IOsTotalTicks > oldStat.IOsTotalTicks {
+			c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameBlockIOBusyTime, 1, float64(stat.IOsTotalTicks-oldStat.IOsTotalTicks)/1000, Tag{Str: device})
+		}
 		if readIOI > 0 {
 			readIO := float64(readIOI)
 			c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameBlockIOTime, readIO, readIOSeconds/readIO, Tag{Str: device}, Tag{Raw: format.RawIDTagRead})
