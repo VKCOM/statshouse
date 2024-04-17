@@ -40,12 +40,14 @@ const (
 	MaxEffectiveGroupWeight     = 10_000 * EffectiveWeightOne
 	MaxEffectiveNamespaceWeight = 10_000 * EffectiveWeightOne
 
-	StringTopTagID         = "_s"
-	HostTagID              = "_h"
-	ShardTagID             = "_shard_num"
-	EnvTagID               = "0"
-	LETagName              = "le"
-	ScrapeNamespaceTagName = "__scrape_namespace__"
+	StringTopTagID            = "_s"
+	HostTagID                 = "_h"
+	ShardTagID                = "_shard_num"
+	EnvTagID                  = "0"
+	LETagName                 = "le"
+	ScrapeNamespaceTagName    = "__scrape_namespace__"
+	HistogramBucketsStartMark = "Buckets$"
+	HistogramBucketsEndMark   = "$"
 
 	LETagIndex        = 15
 	StringTopTagIndex = -1 // used as flag during mapping
@@ -234,6 +236,7 @@ type MetricMetaValue struct {
 	RoundSampleFactors  bool                     `json:"-"` // Experimental, set if magic word in description is found
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
+	HistorgamBuckets    []float32                `json:"-"` // Prometheus histogram buckets
 
 	GroupID int32 `json:"-"`
 
@@ -457,6 +460,18 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.HasPercentiles = m.Kind == MetricKindValuePercentiles || m.Kind == MetricKindMixedPercentiles
 	m.RoundSampleFactors = strings.Contains(m.Description, "__round_sample_factors") // Experimental
 	m.ShardUniqueValues = strings.Contains(m.Description, "__shard_unique_values")   // Experimental
+	if i := strings.Index(m.Description, HistogramBucketsStartMark); i != -1 {
+		s := m.Description[i+len(HistogramBucketsStartMark):]
+		if j := strings.Index(s, HistogramBucketsEndMark); j != -1 {
+			buckets := strings.Split(s[:j], ",")
+			m.HistorgamBuckets = make([]float32, 0, len(buckets))
+			for _, v := range buckets {
+				if f, err := strconv.ParseFloat(v, 32); err == nil {
+					m.HistorgamBuckets = append(m.HistorgamBuckets, float32(f))
+				}
+			}
+		}
+	}
 
 	m.NoSampleAgent = builtinMetricsNoSamplingAgent[m.MetricID]
 	if m.GroupID == 0 || m.GroupID == BuiltinGroupIDDefault {

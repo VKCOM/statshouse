@@ -1181,44 +1181,59 @@ func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]Series, er
 	for i := range res {
 		hs, err := res[i].histograms(ev)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to restore histogram: %v", err)
 		}
 		sr := ev.newSeries(len(hs), res[i].Meta)
 		for _, h := range hs {
 			d := res[i].Data
 			s := *d[h.buckets[0].x].Values
-			if len(h.buckets) < 2 {
+			if len(h.buckets) <= 1 {
 				for i := range s {
 					s[i] = NilValue
 				}
 			} else {
 				q := args[0].(*parser.NumberLiteral).Val // quantile
 				for j := range s {
-					total := (*d[h.buckets[len(h.buckets)-1].x].Values)[j]
+					var total float64
+					for k := len(h.buckets); k > 0; k-- {
+						t := (*d[h.buckets[k-1].x].Values)[j]
+						if t != 0 && !math.IsNaN(t) {
+							total = t
+							break
+						}
+					}
 					if total == 0 {
 						s[j] = NilValue
 						continue
 					}
 					rank := q * total
-					var k int // upper bound index
-					for k < len(h.buckets)-1 && (*d[h.buckets[k].x].Values)[j] < rank {
-						k++
+					var x int         // upper bound index
+					var count float64 // lower bound count
+					buckets := res[i].Meta.Metric.HistorgamBuckets
+					for k := 0; x < len(buckets) && k < len(h.buckets); x++ {
+						if buckets[x] == h.buckets[k].le {
+							v := (*d[h.buckets[k].x].Values)[j]
+							if v >= rank {
+								break
+							}
+							if !math.IsNaN(v) {
+								count = (*d[h.buckets[k].x].Values)[j]
+							}
+							k++
+						}
 					}
 					var v float64
-					switch k {
+					switch x {
 					case 0: // lower bound is -inf
-						v = float64(h.buckets[0].le)
-					case len(h.buckets) - 1: // upper bound is +inf
-						v = float64(h.buckets[len(h.buckets)-2].le)
+						v = float64(buckets[0])
+					case len(buckets) - 1: // upper bound is +inf
+						v = float64(buckets[len(buckets)-2])
 					default:
-						var (
-							lo    = h.buckets[k-1].le                // lower bound
-							count = (*d[h.buckets[k-1].x].Values)[j] // lower bound count
-						)
+						lo := buckets[x-1] // lower bound
 						if rank == count {
 							v = float64(lo)
 						} else {
-							hi := h.buckets[k].le // upper bound
+							hi := buckets[x] // upper bound
 							v = float64(lo) + float64(hi-lo)/(rank-count)
 						}
 					}

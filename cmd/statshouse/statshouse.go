@@ -376,7 +376,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		}(u)
 	}
 
-	runPromScraperAsync(!argv.promRemoteMod, w, sh2)
+	receiver.RunScrape(sh2, w)
 	if argv.configAgent.RemoteWriteEnabled {
 		closer := prometheus.ServeRemoteWrite(argv.configAgent, w)
 		defer closer()
@@ -536,25 +536,4 @@ func mainIngressProxy(aesPwd string) int {
 		return 1
 	}
 	return 0
-}
-
-func runPromScraperAsync(localMode bool, handler receiver.Handler, sh *agent.Agent) prometheus.Syncer {
-	syncer := prometheus.NewSyncer(logOk, logErr, sh.LoadPromTargets)
-	var s *prometheus.Scraper
-	if localMode {
-		s = prometheus.NewScraper(prometheus.NewLocalMetricPusher(handler), syncer, logOk, logErr)
-	} else {
-		logErr.Printf("can't run prom scraper in remote mode")
-		return nil
-	}
-	go func() {
-		defer func() {
-			err := recover()
-			if err != nil {
-				logErr.Printf("panic in prometheus scraper: %v", err)
-			}
-		}()
-		s.Run()
-	}()
-	return syncer
 }
