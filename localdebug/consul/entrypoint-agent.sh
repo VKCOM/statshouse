@@ -10,6 +10,6 @@ else
    -u=root -g=root &
 fi
 /bin/consul agent -data-dir=/consul/data -config-dir=/consul/config &
-/bin/node_exporter &
+/bin/node_exporter --web.listen-address=:9100 --web.listen-address=:9101 &
 wait -n
 exit $?

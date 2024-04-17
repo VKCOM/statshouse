@@ -6,7 +6,11 @@ services:
     hostname: aggregator
     user: root:root
     # environment:
+    #   - STATSHOUSE_DEBUG_TARGET=agent
+    # environment:
     #   - STATSHOUSE_DEBUG_TARGET=aggregator
+    # environment:
+    #   - STATSHOUSE_DEBUG_TARGET=api
     ports:
       # - 2442:2442
       - 8000:8000
@@ -45,6 +49,7 @@ services:
     restart: always
     volumes:
      - ./consul-client.json:/consul/config/client.json:ro
+     - ./consul-client2.json:/consul/config/client2.json:ro
     networks:
       localrun-statshouse:
         aliases:
@@ -61,6 +66,7 @@ services:
       - 8001:8000
     volumes:
      - ./consul-client.json:/consul/config/client.json:ro
+     - ./consul-client2.json:/consul/config/client2.json:ro
     networks:
       localrun-statshouse:
         aliases:
@@ -73,6 +79,7 @@ services:
     restart: always
     volumes:
      - ./consul-client.json:/consul/config/client.json:ro
+     - ./consul-client2.json:/consul/config/client2.json:ro
     networks:
       localrun-statshouse:
         aliases:

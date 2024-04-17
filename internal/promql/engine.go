@@ -441,6 +441,12 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 			}
 		}
 	}
+	for i := len(path); i != 0; i-- {
+		if e, ok := path[i-1].(*parser.Call); ok && e.Func.Name == "histogram_quantile" {
+			sel.GroupBy = append(sel.GroupBy, format.LETagName)
+			break
+		}
+	}
 	return nil
 }
 
@@ -987,9 +993,15 @@ func (ev *evaluator) restoreHistogram(sr Series, qry seriesQueryX) (Series, erro
 		return Series{}, err
 	}
 	for _, h := range hs {
-		for i := 1; i < len(h.buckets); i++ {
-			for j := 0; j < len(ev.time()); j++ {
-				(*sr.Data[h.buckets[i].x].Values)[j] += (*sr.Data[h.buckets[i-1].x].Values)[j]
+		for i := 0; i < len(ev.time()); i++ {
+			var acc float64
+			for j := 0; j < len(h.buckets); j++ {
+				v := (*sr.Data[h.buckets[j].x].Values)[i]
+				if math.IsNaN(v) {
+					continue
+				}
+				acc += v
+				(*sr.Data[h.buckets[j].x].Values)[i] = acc
 			}
 		}
 	}

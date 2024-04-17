@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"sync"
 
 	klog "github.com/go-kit/log"
@@ -206,6 +207,7 @@ func (s *scrapeConfigService) applyTargets(jobsM map[string][]*targetgroup.Group
 				}
 			}
 			if len(targets) != 0 {
+				sort.Strings(targets)
 				jobs = append(jobs, scrapeStaticConfigJob{
 					JobName:        j.JobName,
 					ScrapeInterval: j.ScrapeInterval,

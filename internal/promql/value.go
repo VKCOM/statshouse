@@ -205,6 +205,12 @@ func (sr *Series) dataAt(xs ...int) []SeriesData {
 }
 
 func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
+	if sr.Meta.Metric == nil {
+		return nil, fmt.Errorf("metric meta not found")
+	}
+	if len(sr.Meta.Metric.HistorgamBuckets) == 0 {
+		return nil, fmt.Errorf("histogram meta not found")
+	}
 	m, _, err := sr.group(ev, hashOptions{
 		tags: []string{labels.BucketLabel},
 		on:   false, // group excluding BucketLabel
@@ -214,23 +220,31 @@ func (sr *Series) histograms(ev *evaluator) ([]histogram, error) {
 	}
 	var res []histogram
 	for _, xs := range m {
-		var bs []bucket
+		buckets := make([]bucket, 0, len(sr.Meta.Metric.HistorgamBuckets))
 		for _, x := range xs {
 			if t, ok := sr.Data[x].Tags.get(labels.BucketLabel); ok {
+				var le float32
 				if t.stringified {
 					var v float64
 					v, err = strconv.ParseFloat(t.SValue, 32)
-					if err == nil {
-						bs = append(bs, bucket{x, float32(v)})
+					if err != nil {
+						return nil, err
 					}
+					le = float32(v)
 				} else {
-					bs = append(bs, bucket{x, statshouse.LexDecode(t.Value)})
+					le = statshouse.LexDecode(t.Value)
 				}
+				buckets = append(buckets, bucket{le: le, x: x})
 			}
 		}
-		if len(bs) != 0 {
-			sort.Slice(bs, func(i, j int) bool { return bs[i].le < bs[j].le })
-			res = append(res, histogram{sr, bs})
+		if len(buckets) != 0 {
+			sort.Slice(buckets, func(i, j int) bool {
+				return buckets[i].le < buckets[j].le
+			})
+			res = append(res, histogram{
+				Series:  sr,
+				buckets: buckets,
+			})
 		}
 	}
 	return res, nil

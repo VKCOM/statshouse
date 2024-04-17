@@ -186,8 +186,8 @@ func (s *Scraper) updateLoopsAsync(newTargets []promTarget) {
 	for key, loop := range s.loops {
 		if _, ok := urlsMap[key]; !ok {
 			loop.Stop()
+			delete(s.loops, key)
 		}
-		delete(s.loops, key)
 	}
 	for _, target := range newTargets {
 		key := loopKey{

@@ -79,7 +79,6 @@ func (s *syncerImpl) SyncTargets(ctx context.Context) ([]promTarget, error) {
 		host, port := parseInstance(uri)
 		var namespace string
 		if v, ok := target.Labels[format.ScrapeNamespaceTagName]; ok {
-			delete(target.Labels, format.ScrapeNamespaceTagName)
 			namespace = v
 		}
 		result = append(result, promTarget{
