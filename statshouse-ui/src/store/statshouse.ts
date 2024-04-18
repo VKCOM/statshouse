@@ -4,17 +4,38 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import uPlot from 'uplot';
-
-import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
-import { dequal } from 'dequal/lite';
 import React from 'react';
+import uPlot from 'uplot';
 import { produce, setAutoFreeze } from 'immer';
+import { dequal } from 'dequal/lite';
+
+import {
+  DashboardInfo,
+  dashboardURL,
+  metaToBaseLabel,
+  metaToLabel,
+  MetricsGroup,
+  MetricsGroupInfo,
+  MetricsGroupInfoList,
+  metricsGroupListURL,
+  MetricsGroupShort,
+  metricsGroupURL,
+  PromConfigInfo,
+  promConfigURL,
+  queryResult,
+  querySeriesMeta,
+  querySeriesMetaTag,
+  queryTable,
+  queryTableRow,
+  queryTableURL,
+  queryURL,
+  whatToWhatDesc,
+} from '../view/api';
+import { defaultTimeRange, SetTimeRangeValue, TIME_RANGE_KEYS_TO, TimeRange } from '../common/TimeRange';
 import {
   apiGet,
   apiPost,
   apiPut,
-  defaultBaseRange,
   Error403,
   fmtInputDateTime,
   formatLegendValue,
@@ -37,28 +58,6 @@ import {
 } from '../view/utils';
 import { globalSettings, pxPerChar } from '../common/settings';
 import { debug } from '../common/debug';
-import * as api from '../view/api';
-import {
-  DashboardInfo,
-  dashboardURL,
-  metaToBaseLabel,
-  metaToLabel,
-  MetricsGroup,
-  MetricsGroupInfo,
-  MetricsGroupInfoList,
-  metricsGroupListURL,
-  MetricsGroupShort,
-  metricsGroupURL,
-  PromConfigInfo,
-  promConfigURL,
-  queryResult,
-  querySeriesMeta,
-  querySeriesMetaTag,
-  queryTable,
-  queryTableRow,
-  queryTableURL,
-  queryURL,
-} from '../view/api';
 import { calcYRange2 } from '../common/calcYRange';
 import { rgba, selectColor } from '../view/palette';
 import { filterPoints } from '../common/filterPoints';
@@ -68,7 +67,7 @@ import { stackData } from '../common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
 import { GET_PARAMS, isQueryWhat, METRIC_TYPE, QUERY_WHAT, QueryWhat, TagKey } from '../api/enum';
-import { deepClone, mergeLeft, sortEntity, toNumber } from '../common/helpers';
+import { deepClone, defaultBaseRange, mergeLeft, sortEntity, toNumber } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { appHistory } from '../common/appHistory';
 import {
@@ -623,18 +622,16 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                   }, 0 as number) ?? 0,
               }));
             }
-            params.variables = params.variables
-              .map((variable) => ({
-                ...variable,
-                link: variable.link
-                  .filter(([keyP]) => keyP !== plotKey)
-                  .map(([keyP, keyT]) => {
-                    const indexP = toNumber(keyP, 0);
-                    return [toPlotKey(indexP > index ? indexP - 1 : indexP, keyP), keyT];
-                  })
-                  .filter(isNotNilVariableLink),
-              }))
-              .filter(({ link }) => link.length);
+            params.variables = params.variables.map((variable) => ({
+              ...variable,
+              link: variable.link
+                .filter(([keyP]) => keyP !== plotKey)
+                .map(([keyP, keyT]) => {
+                  const indexP = toNumber(keyP, 0);
+                  return [toPlotKey(indexP > index ? indexP - 1 : indexP, keyP), keyT];
+                })
+                .filter(isNotNilVariableLink),
+            }));
           }
           if (params.tabNum > index) {
             params.tabNum--;
@@ -694,7 +691,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
               document.title =
                 s.plotsData[s.params.tabNum].nameMetric +
                 (s.plotsData[s.params.tabNum].whats.length
-                  ? ': ' + s.plotsData[s.params.tabNum].whats.map((qw) => api.whatToWhatDesc(qw)).join(',')
+                  ? ': ' + s.plotsData[s.params.tabNum].whats.map((qw) => whatToWhatDesc(qw)).join(',')
                   : '') +
                 ' — StatsHouse';
             } else {
@@ -705,7 +702,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
               (s.params.plots[s.params.tabNum] &&
                 s.params.plots[s.params.tabNum].metricName !== '' &&
                 `${s.params.plots[s.params.tabNum].metricName}: ${s.params.plots[s.params.tabNum].what
-                  .map((qw) => api.whatToWhatDesc(qw))
+                  .map((qw) => whatToWhatDesc(qw))
                   .join(',')} — StatsHouse`) ||
               '';
           }

@@ -1,4 +1,4 @@
-// Copyright 2023 V Kontakte LLC
+// Copyright 2024 V Kontakte LLC
 //
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
@@ -58,6 +58,10 @@ export function toString(item: unknown, defaultSting?: string): string {
       }
   }
   return defaultSting ?? '';
+}
+
+export function numberAsStr(item: string) {
+  return !!item && Number.isFinite(+item);
 }
 
 export function toNumber(item: unknown): number | null;
@@ -231,3 +235,34 @@ export function SearchFabric<T extends string | Record<string, unknown>>(filterS
     return !!item && getListValues(item).some((v) => v.indexOf(orig) > -1 || v.indexOf(ru) > -1 || v.indexOf(en) > -1);
   };
 }
+
+export const searchParamsObjectValueSymbol = Symbol('value');
+export type SearchParamsObject = Partial<{
+  [key: string]: SearchParamsObject;
+  [searchParamsObjectValueSymbol]: string[];
+}>;
+export function searchParamsToObject(searchParams: [string, string][]): SearchParamsObject {
+  return searchParams.reduce((res, [key, value]) => {
+    const keys = key.split('.');
+    let target: SearchParamsObject = res;
+    keys.forEach((keyName) => {
+      target = target[keyName] ??= {};
+    });
+    (target[searchParamsObjectValueSymbol] ??= []).push(value);
+    return res;
+  }, {});
+}
+
+export function parseURLSearchParams(url: string): [string, string][] {
+  try {
+    const parseUrl = new URL(url, document.location.origin);
+    return [...parseUrl.searchParams.entries()];
+  } catch (e) {
+    return [];
+  }
+}
+
+export const emptyArray = [];
+export const emptyObject = {};
+export const emptyFunction = () => undefined;
+export const defaultBaseRange = 'last-2d';

@@ -18,6 +18,7 @@ import {
 import { shallow } from 'zustand/shallow';
 import { VariableControl } from '../VariableControl';
 import { DashboardVariablesBadge } from './DashboardVariablesBadge';
+import cn from 'classnames';
 
 export type DashboardVariablesControlProps = {
   className?: string;
@@ -30,38 +31,40 @@ export function DashboardVariablesControl({ className, embed }: DashboardVariabl
   const { variables } = useStore(selector, shallow);
   const variableItems = useVariableListStore(selectorVariableList);
   return (
-    <div className={className}>
-      {variables.map((variable) =>
-        !embed ? (
-          <VariableControl<string>
-            key={variable.name}
-            target={variable.name}
-            placeholder={variable.description || variable.name}
-            list={variableItems[variable.name].list}
-            loaded={variableItems[variable.name].loaded}
-            tagMeta={variableItems[variable.name].tagMeta}
-            more={variableItems[variable.name].more}
-            customValue={variableItems[variable.name].more || !variableItems[variable.name].list.length}
-            negative={variable.args.negative}
-            setNegative={setNegativeVariable}
-            groupBy={variable.args.groupBy}
-            setGroupBy={setGroupByVariable}
-            className={''}
-            values={!variable.args.negative ? variable.values : undefined}
-            notValues={variable.args.negative ? variable.values : undefined}
-            onChange={setValuesVariable}
-            setOpen={setUpdatedVariable}
-            small
-          />
-        ) : (
-          <DashboardVariablesBadge
-            key={variable.name}
-            tagMeta={variableItems[variable.name].tagMeta}
-            values={!variable.args.negative ? variable.values : undefined}
-            notValues={variable.args.negative ? variable.values : undefined}
-          />
-        )
-      )}
+    <div className={cn(className)}>
+      <div className="row">
+        {variables.map((variable) =>
+          !embed ? (
+            <VariableControl<string>
+              key={variable.name}
+              target={variable.name}
+              placeholder={variable.description || variable.name}
+              list={variableItems[variable.name].list}
+              loaded={variableItems[variable.name].loaded}
+              tagMeta={variableItems[variable.name].tagMeta}
+              more={variableItems[variable.name].more}
+              customValue={variableItems[variable.name].more || !variableItems[variable.name].list.length}
+              negative={variable.args.negative}
+              setNegative={setNegativeVariable}
+              groupBy={variable.args.groupBy}
+              setGroupBy={setGroupByVariable}
+              className={'col-12 col-lg-3 col-md-6 mb-2'}
+              values={!variable.args.negative ? variable.values : undefined}
+              notValues={variable.args.negative ? variable.values : undefined}
+              onChange={setValuesVariable}
+              setOpen={setUpdatedVariable}
+              small
+            />
+          ) : (
+            <DashboardVariablesBadge
+              key={variable.name}
+              tagMeta={variableItems[variable.name].tagMeta}
+              values={!variable.args.negative ? variable.values : undefined}
+              notValues={variable.args.negative ? variable.values : undefined}
+            />
+          )
+        )}
+      </div>
     </div>
   );
 }

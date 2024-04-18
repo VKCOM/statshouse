@@ -13,3 +13,8 @@ input.form-control-safari-fix::-webkit-datetime-edit-millisecond-field,
 input.form-control-safari-fix::-webkit-datetime-edit-meridiem-field {
   padding: 0;
 }
+
+.no-tooltip-safari-fix:after {
+  content: '';
+  display: block;
+}

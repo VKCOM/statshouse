@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { POPPER_HORIZONTAL, POPPER_VERTICAL, SwitchBox, Tooltip } from '../UI';
 import { ReactComponent as SVGGear } from 'bootstrap-icons/icons/gear.svg';
-import { useOnClickOutside } from '../../hooks/useOnClickOutside';
+import { useOnClickOutside } from '../../hooks';
 import cn from 'classnames';
 
 export type PlotControlViewProps = {
