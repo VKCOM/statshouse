@@ -296,6 +296,7 @@ const (
 	TagValueIDComponentAggregator   = 2
 	TagValueIDComponentIngressProxy = 3
 	TagValueIDComponentAPI          = 4
+	TagValueIDComponentMetadata     = 5
 
 	TagValueIDAutoConfigOK             = 1
 	TagValueIDAutoConfigErrorSend      = 2
@@ -2029,6 +2030,7 @@ Value is delta between second value and time it was inserted.`,
 		TagValueIDComponentAggregator:   "aggregator",
 		TagValueIDComponentIngressProxy: "ingress_proxy",
 		TagValueIDComponentAPI:          "api",
+		TagValueIDComponentMetadata:     "metadata",
 	}
 
 	packetFormatToValue = map[int32]string{
