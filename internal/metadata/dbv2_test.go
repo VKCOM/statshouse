@@ -746,6 +746,7 @@ func Test_Reread_Binlog_SaveMetric(t *testing.T) {
 }
 
 func Test_Migration(t *testing.T) {
+	t.SkipNow()
 	path := t.TempDir()
 	const task = 3
 	mx := sync.Mutex{}

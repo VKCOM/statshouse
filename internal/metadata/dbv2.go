@@ -8,7 +8,6 @@ package metadata
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
@@ -197,43 +196,6 @@ func OpenDB(
 
 		now:            opt.Now,
 		lastTimeCommit: opt.Now(),
-	}
-	if opt.Migration {
-		migrationID := "migration_v4"
-		err = db.eng.Do(context.Background(), "migration", func(conn sqlite.Conn, bytes []byte) ([]byte, error) {
-			rows := conn.Query("check_migration", fmt.Sprintf("SELECT name from property where name = '%s'", migrationID))
-			if rows.Next() {
-				return nil, nil
-			}
-			if rows.Error() != nil {
-				return nil, rows.Error()
-			}
-			rows = conn.Query("migration_select", "SELECT id,name,version,updated_at,deleted_at,data,type FROM metrics_v4")
-			if rows.Error() != nil {
-				return nil, fmt.Errorf("failed to select metrics_v4: %w", err)
-			}
-
-			_, err := conn.Exec("delete_old_migration", "DELETE FROM metrics_v5")
-			if err != nil {
-				return nil, fmt.Errorf("failed to delete: %w", err)
-			}
-			_, err = conn.Exec("delete_old_migration", "DELETE FROM entity_history")
-			if err != nil {
-				return nil, fmt.Errorf("failed to delete history: %w", err)
-			}
-
-			q := `INSERT INTO metrics_v5 (namespace_id, id, data, name, updated_at, deleted_at, type, version)
-			SELECT 0, id, cast(data as TEXT), cast(name as TEXT), updated_at, deleted_at, type, version FROM metrics_v4;`
-			_, err = conn.Exec("insert_entity", q)
-			if err != nil {
-				return nil, fmt.Errorf("failed to insert entity: %w", err)
-			}
-			_, err = conn.Exec("finish_migration", fmt.Sprintf("INSERT INTO property (name, data) VALUES ('%s', '')", migrationID))
-			return nil, err
-		})
-		if err != nil {
-			log.Panic(err)
-		}
 	}
 
 	return db, nil

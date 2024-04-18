@@ -21,6 +21,7 @@ import (
 
 	"github.com/cloudflare/tableflip"
 	"github.com/spf13/pflag"
+	"github.com/vkcom/statshouse/internal/format"
 
 	"github.com/vkcom/statshouse-go"
 
@@ -287,6 +288,17 @@ func run() error {
 	}()
 	statshouse.ConfigureNetwork(log.Printf, argv.shNetwork, argv.shAddr, argv.shEnv)
 	defer statshouse.Close()
+
+	startTimestamp := time.Now().Unix()
+	component := strconv.FormatInt(format.TagValueIDComponentMetadata, 10)
+	start := strconv.FormatInt(format.TagValueIDHeartbeatEventStart, 10)
+	heartbeat := strconv.FormatInt(format.TagValueIDHeartbeatEventHeartbeat, 10)
+
+	statshouse.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: component, 2: start}).Value(0)
+	defer statshouse.StopRegularMeasurement(statshouse.StartRegularMeasurement(func(c *statshouse.Client) {
+		uptime := float64(time.Now().Unix() - startTimestamp)
+		c.Metric(format.BuiltinMetricNameHeartbeatVersion, statshouse.Tags{1: component, 2: heartbeat}).Value(uptime)
+	}))
 
 	proxy := metadata.ProxyHandler{Host: host}
 	handler := metadata.NewHandler(db, host, log.Printf)
