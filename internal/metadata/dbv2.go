@@ -67,6 +67,13 @@ CREATE TABLE IF NOT EXISTS mappings
     id   INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE
 );
+CREATE TABLE IF NOT EXISTS declined_mappings
+(
+    ts    INTEGER, -- unix timestamp
+    name  TEXT,    -- metric name
+    count INTEGER
+    PRIMARY KEY (ts, name)
+);
 
 CREATE TABLE IF NOT EXISTS flood_limits
 (
