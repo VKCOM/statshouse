@@ -35,14 +35,14 @@ import { font, getYAxisSize, xAxisValues, xAxisValuesCompact } from '../../commo
 import cn from 'classnames';
 import { PlotEvents } from './PlotEvents';
 import { buildThresholdList, useIntersectionObserver, useUPlotPluginHooks } from '../../hooks';
+import { useLinkCSV } from '../../hooks/useLinkCSV';
 import { UPlotPluginPortal } from '../UPlotWrapper';
 import { dataIdxNearest } from '../../common/dataIdxNearest';
 import { shallow } from 'zustand/shallow';
 import { formatByMetricType, getMetricType, incrs, splitByMetricType } from '../../common/formatByMetricType';
 import { METRIC_TYPE } from '../../api/enum';
-import css from './style.module.css';
-import { useLinkCSV } from '../../hooks/useLinkCSV';
 import { PlotHealsStatus } from './PlotHealsStatus';
+import css from './style.module.css';
 
 const unFocusAlfa = 1;
 const rightPad = 16;

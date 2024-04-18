@@ -2,8 +2,9 @@ import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } 
 import { Popper, POPPER_HORIZONTAL, POPPER_VERTICAL, PopperHorizontal, PopperVertical } from './Popper';
 import { type JSX } from 'react/jsx-runtime';
 import { TooltipTitleContent } from './TooltipTitleContent';
-import cn from 'classnames';
+import { useOnClickOutside } from '../../hooks';
 
+import cn from 'classnames';
 import css from './style.module.css';
 
 const stopPropagation = (e: React.MouseEvent) => {
@@ -25,6 +26,7 @@ export type TooltipProps<T extends keyof JSX.IntrinsicElements> = {
   open?: boolean;
   delay?: number;
   delayClose?: number;
+  onClickOuter?: () => void;
 } & Omit<JSX.IntrinsicElements[T], 'title'>;
 
 declare function TooltipFn<T extends keyof JSX.IntrinsicElements>(props: TooltipProps<T>): JSX.Element;
@@ -45,6 +47,7 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
     open: outerOpen,
     delay = 200,
     delayClose = 50,
+    onClickOuter,
     ...props
   },
   ref
@@ -55,6 +58,16 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
   const targetRef = useRef<Element | null>(null);
 
   useImperativeHandle<Element | null, Element | null>(ref, () => localRef, [localRef]);
+
+  const portalRef = useRef(null);
+  useOnClickOutside(portalRef, () => {
+    if (outerOpen == null) {
+      timeoutDelayRef.current = setTimeout(() => {
+        setOpen(false);
+      }, delayClose);
+    }
+    onClickOuter?.();
+  });
 
   useEffect(() => {
     targetRef.current = localRef;
@@ -146,7 +159,7 @@ export const Tooltip = React.forwardRef<Element, TooltipProps<any>>(function Too
           vertical={vertical}
           show={open}
         >
-          <div className={cn(titleClassName, 'card overflow-auto')} onClick={stopPropagation}>
+          <div ref={portalRef} className={cn(titleClassName, 'card overflow-auto')} onClick={stopPropagation}>
             <div className="card-body p-1" style={{ minHeight, minWidth, maxHeight, maxWidth }}>
               <TooltipTitleContent>{title}</TooltipTitleContent>
             </div>

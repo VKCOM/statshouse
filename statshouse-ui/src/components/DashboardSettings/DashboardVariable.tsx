@@ -112,24 +112,32 @@ export function DashboardVariable() {
             type="button"
             disabled={autoLoader}
             onClick={autoSearch}
-            className="btn btn-outline-primary"
+            className="btn btn-outline-primary text-nowrap"
             style={{ width: 120 }}
           >
             {autoLoader ? (
               <span className="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
             ) : (
               <>
-                <SVGSearch /> Auto filter
+                <SVGSearch />
+                &nbsp;Auto&nbsp;filter
               </>
             )}
           </Button>
-          <Button type="button" onClick={addVariable} className="btn btn-outline-primary ms-2">
-            <SVGPlusLg /> Add variable
+          <Button type="button" onClick={addVariable} className="btn btn-outline-primary ms-2 text-nowrap">
+            <SVGPlusLg />
+            &nbsp;Add&nbsp;variable
           </Button>
-          <Button type="button" disabled={noChange} className="btn btn-outline-success ms-2" onClick={apply}>
-            <SVGCheckLg /> Apply
+          <Button
+            type="button"
+            disabled={noChange}
+            className="btn btn-outline-success ms-2 text-nowrap"
+            onClick={apply}
+          >
+            <SVGCheckLg />
+            &nbsp;Apply
           </Button>
-          <Button type="button" disabled={noChange} className="btn btn-outline-danger ms-2" onClick={reset}>
+          <Button type="button" disabled={noChange} className="btn btn-outline-danger ms-2 text-nowrap" onClick={reset}>
             <SVGArrowCounterclockwise /> Reset
           </Button>
         </div>

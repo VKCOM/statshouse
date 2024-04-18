@@ -28,7 +28,7 @@ import { PlotLink } from './PlotLink';
 import { Link } from 'react-router-dom';
 import { ReactComponent as SVGTrash } from 'bootstrap-icons/icons/trash.svg';
 import { ReactComponent as SVGBoxArrowUpRight } from 'bootstrap-icons/icons/box-arrow-up-right.svg';
-import { useOnClickOutside } from '../../hooks/useOnClickOutside';
+import { useOnClickOutside } from '../../hooks';
 import { PlotHeaderTooltipContent } from './PlotHeaderTooltipContent';
 
 const { removePlot, setPlotParams, setPlotType } = useStore.getState();
@@ -419,7 +419,7 @@ export const _PlotHeader: React.FC<PlotHeaderProps> = ({
           />
         ) : (
           <Tooltip className="d-flex" title={plot.customDescription || meta?.description} hover>
-            <small className="text-secondary w-0 flex-grow-1 text-truncate">
+            <small className="text-secondary w-0 flex-grow-1 text-truncate no-tooltip-safari-fix">
               {plot.customDescription || meta?.description}
             </small>
           </Tooltip>

@@ -96,12 +96,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ embed = false, yAxisSize =
         </ul>
       )}
       {params.variables.length > 0 && tabNum === -1 && !tvMode && (
-        <DashboardVariablesControl
-          className={cn(
-            'd-flex flex-grow-1 flex-row gap-3 flex-wrap col-12 justify-content-start container-xl mb-3 z-100 position-relative'
-          )}
-          embed={embed}
-        />
+        <DashboardVariablesControl className={cn('col-12 container-xl mb-3 z-100 position-relative')} embed={embed} />
       )}
       <DashboardLayout
         yAxisSize={yAxisSize}

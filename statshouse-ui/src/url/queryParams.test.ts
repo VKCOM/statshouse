@@ -126,6 +126,7 @@ describe('queryParams.ts', () => {
           ],
           description: 'variable',
           args: { groupBy: true, negative: true },
+          source: [],
         },
       ],
     };
@@ -212,6 +213,7 @@ describe('queryParams.ts', () => {
           ],
           description: 'variable1',
           args: { groupBy: true, negative: true },
+          source: [],
         },
         {
           name: 'var2',
@@ -223,6 +225,7 @@ describe('queryParams.ts', () => {
           ],
           description: 'variable2',
           args: { groupBy: false, negative: false },
+          source: [],
         },
       ],
     };
@@ -285,6 +288,370 @@ describe('queryParams.ts', () => {
     expect(new URLSearchParams(p).toString()).toEqual(
       'g0.t=qwe&g0.n=2&t=ed&f=1800&s=test&cn=test+name&qw=count_norm&qw=avg&g=1&qb=_s&qb=1&qf=1-a&qf=1-p&qf=1-s&qf=2%7Er&qf=2%7Es&yl=10&yh=1000&qe=1&eb=0&eb=1&eh=1&t1.s=test&t1.cn=test+name+2&t1.qw=count_norm&t1.qw=avg&t1.g=1&t1.qb=_s&t1.qb=1&t1.qf=1-a&t1.qf=1-p&t1.qf=2%7Er&t1.qf=2%7Es&t1.yl=10&t1.yh=1000&t1.mh=1&t1.qe=1&t1.eb=0&t1.eb=1&t1.eh=1&t1.vtl=1&ts=3600&ts=1800&fs=0.1-1.2-2.3&fs=0.2-2.4&v0.n=var1&v0.d=variable1&v0.l=0.3-1.2-2._s&v1.n=var2&v1.d=variable2&v1.l=3.3-3.2-3._s&v.var2=3&v.var2=4'
     );
+    const s = decodeParams(p, defaultParam);
+    expect(s).toEqual(testParam);
+  });
+
+  test('encodeParams -> decodeParams base variable', () => {
+    const defaultParam: QueryParams = {
+      live: false,
+      theme: undefined,
+      dashboard: {
+        dashboard_id: undefined,
+        groupInfo: [],
+        description: '',
+        name: '',
+        version: undefined,
+      },
+      timeRange: { to: TIME_RANGE_KEYS_TO.default, from: 0 },
+      eventFrom: 0,
+      tagSync: [],
+      plots: [],
+      timeShifts: [],
+      tabNum: 0,
+      variables: [],
+    };
+    const testParam: QueryParams = {
+      live: false,
+      theme: undefined,
+      dashboard: {
+        dashboard_id: undefined,
+        groupInfo: [],
+        description: '',
+        name: '',
+        version: undefined,
+      },
+      timeRange: { to: 120, from: 60 },
+      eventFrom: 0,
+      tagSync: [],
+      plots: [],
+      timeShifts: [],
+      tabNum: 0,
+      variables: [
+        {
+          name: 'var1',
+          values: ['value1', 'value2'],
+          link: [],
+          args: {
+            groupBy: false,
+            negative: false,
+          },
+          description: 'variable one',
+          source: [
+            {
+              metric: 'metric1',
+              tag: '0',
+              filterIn: { '2': ['filter_tag_2_1', 'filter_tag_2_2'], _s: ['filter_string'] },
+              filterNotIn: { '3': ['filter_tag_3_1'] },
+            },
+          ],
+        },
+        {
+          name: 'var2',
+          values: ['value2_1', 'value2_2'],
+          link: [],
+          args: {
+            groupBy: true,
+            negative: true,
+          },
+          description: 'variable two',
+          source: [
+            {
+              metric: 'metric2',
+              tag: '0',
+              filterIn: { '2': ['filter_tag_2_1', 'filter_tag_2_2'], _s: ['filter_string'] },
+              filterNotIn: { '3': ['filter_tag_3_1'] },
+            },
+          ],
+        },
+      ],
+    };
+
+    const p = encodeParams(testParam, defaultParam);
+    expect(p).toEqual([
+      ['t', '120'],
+      ['f', '60'],
+      ['v0.n', 'var1'],
+      ['v0.d', 'variable one'],
+      ['v0.s0.s', 'metric1'],
+      ['v0.s0.t', '0'],
+      ['v0.s0.qf', '2-filter_tag_2_1'],
+      ['v0.s0.qf', '2-filter_tag_2_2'],
+      ['v0.s0.qf', '_s-filter_string'],
+      ['v0.s0.qf', '3~filter_tag_3_1'],
+      ['v1.n', 'var2'],
+      ['v1.d', 'variable two'],
+      ['v1.s0.s', 'metric2'],
+      ['v1.s0.t', '0'],
+      ['v1.s0.qf', '2-filter_tag_2_1'],
+      ['v1.s0.qf', '2-filter_tag_2_2'],
+      ['v1.s0.qf', '_s-filter_string'],
+      ['v1.s0.qf', '3~filter_tag_3_1'],
+      ['v.var1', 'value1'],
+      ['v.var1', 'value2'],
+      ['v.var2', 'value2_1'],
+      ['v.var2', 'value2_2'],
+      ['v.var2.g', '1'],
+      ['v.var2.nv', '1'],
+    ]);
+    const s = decodeParams(p, defaultParam);
+    expect(s).toEqual(testParam);
+  });
+
+  test('encodeParams -> decodeParams default variable', () => {
+    const defaultParam: QueryParams = {
+      live: false,
+      theme: undefined,
+      dashboard: {
+        dashboard_id: undefined,
+        groupInfo: [],
+        description: '',
+        name: '',
+        version: undefined,
+      },
+      timeRange: { to: 120, from: 60 },
+      eventFrom: 0,
+      tagSync: [],
+      plots: [],
+      timeShifts: [],
+      tabNum: 0,
+      variables: [
+        {
+          name: 'var1',
+          values: ['value1', 'value2'],
+          link: [],
+          args: {
+            groupBy: false,
+            negative: false,
+          },
+          description: 'variable one',
+          source: [
+            {
+              metric: 'metric1',
+              tag: '0',
+              filterIn: { '2': ['filter_tag_2_1', 'filter_tag_2_2'], _s: ['filter_string'] },
+              filterNotIn: { '3': ['filter_tag_3_1'] },
+            },
+          ],
+        },
+        {
+          name: 'var2',
+          values: ['value2_1', 'value2_2'],
+          link: [],
+          args: {
+            groupBy: true,
+            negative: true,
+          },
+          description: 'variable two',
+          source: [
+            {
+              metric: 'metric2',
+              tag: '0',
+              filterIn: { '2': ['filter_tag_2_1', 'filter_tag_2_2'], _s: ['filter_string'] },
+              filterNotIn: { '3': ['filter_tag_3_1'] },
+            },
+          ],
+        },
+      ],
+    };
+    const testParam: QueryParams = {
+      live: false,
+      theme: undefined,
+      dashboard: {
+        dashboard_id: undefined,
+        groupInfo: [],
+        description: '',
+        name: '',
+        version: undefined,
+      },
+      timeRange: { to: 120, from: 60 },
+      eventFrom: 0,
+      tagSync: [],
+      plots: [],
+      timeShifts: [],
+      tabNum: 0,
+      variables: [
+        {
+          name: 'var1',
+          values: ['value1', 'value2'],
+          link: [],
+          args: {
+            groupBy: false,
+            negative: true,
+          },
+          description: 'variable one',
+          source: [
+            {
+              metric: 'metric1',
+              tag: '0',
+              filterIn: { '2': ['filter_tag_2_1', 'filter_tag_2_2'], _s: ['filter_string'] },
+              filterNotIn: { '3': ['filter_tag_3_1'] },
+            },
+          ],
+        },
+        {
+          name: 'var2',
+          values: ['value2_1', 'value2_2'],
+          link: [],
+          args: {
+            groupBy: false,
+            negative: true,
+          },
+          description: 'variable two',
+          source: [
+            {
+              metric: 'metric2',
+              tag: '0',
+              filterIn: { _s: ['filter_string'] },
+              filterNotIn: { '3': ['filter_tag_3_1', 'filter_tag_3_2'] },
+            },
+          ],
+        },
+      ],
+    };
+
+    const p = encodeParams(testParam, defaultParam);
+    expect(p).toEqual([
+      ['v0.n', 'var1'],
+      ['v0.d', 'variable one'],
+      ['v0.s0.s', 'metric1'],
+      ['v0.s0.t', '0'],
+      ['v0.s0.qf', '2-filter_tag_2_1'],
+      ['v0.s0.qf', '2-filter_tag_2_2'],
+      ['v0.s0.qf', '_s-filter_string'],
+      ['v0.s0.qf', '3~filter_tag_3_1'],
+      ['v1.n', 'var2'],
+      ['v1.d', 'variable two'],
+      ['v1.s0.s', 'metric2'],
+      ['v1.s0.t', '0'],
+      ['v1.s0.qf', '_s-filter_string'],
+      ['v1.s0.qf', '3~filter_tag_3_1'],
+      ['v1.s0.qf', '3~filter_tag_3_2'],
+      ['v.var1.nv', '1'],
+      ['v.var2.g', '0'],
+    ]);
+    const s = decodeParams(p, defaultParam);
+    expect(s).toEqual(testParam);
+  });
+  test('encodeParams -> decodeParams default variable only value', () => {
+    const defaultParam: QueryParams = {
+      live: false,
+      theme: undefined,
+      dashboard: {
+        dashboard_id: undefined,
+        groupInfo: [],
+        description: '',
+        name: '',
+        version: undefined,
+      },
+      timeRange: { to: 120, from: 60 },
+      eventFrom: 0,
+      tagSync: [],
+      plots: [],
+      timeShifts: [],
+      tabNum: 0,
+      variables: [
+        {
+          name: 'var1',
+          values: ['value1', 'value2'],
+          link: [],
+          args: {
+            groupBy: false,
+            negative: false,
+          },
+          description: 'variable one',
+          source: [
+            {
+              metric: 'metric1',
+              tag: '0',
+              filterIn: { '2': ['filter_tag_2_1', 'filter_tag_2_2'], _s: ['filter_string'] },
+              filterNotIn: { '3': ['filter_tag_3_1'] },
+            },
+          ],
+        },
+        {
+          name: 'var2',
+          values: ['value2_1', 'value2_2'],
+          link: [],
+          args: {
+            groupBy: true,
+            negative: true,
+          },
+          description: 'variable two',
+          source: [
+            {
+              metric: 'metric2',
+              tag: '0',
+              filterIn: { '2': ['filter_tag_2_1', 'filter_tag_2_2'], _s: ['filter_string'] },
+              filterNotIn: { '3': ['filter_tag_3_1'] },
+            },
+          ],
+        },
+      ],
+    };
+    const testParam: QueryParams = {
+      live: false,
+      theme: undefined,
+      dashboard: {
+        dashboard_id: undefined,
+        groupInfo: [],
+        description: '',
+        name: '',
+        version: undefined,
+      },
+      timeRange: { to: 120, from: 60 },
+      eventFrom: 0,
+      tagSync: [],
+      plots: [],
+      timeShifts: [],
+      tabNum: 0,
+      variables: [
+        {
+          name: 'var1',
+          values: ['value1'],
+          link: [],
+          args: {
+            groupBy: true,
+            negative: false,
+          },
+          description: 'variable one',
+          source: [
+            {
+              metric: 'metric1',
+              tag: '0',
+              filterIn: { '2': ['filter_tag_2_1', 'filter_tag_2_2'], _s: ['filter_string'] },
+              filterNotIn: { '3': ['filter_tag_3_1'] },
+            },
+          ],
+        },
+        {
+          name: 'var2',
+          values: [],
+          link: [],
+          args: {
+            groupBy: true,
+            negative: false,
+          },
+          description: 'variable two',
+          source: [
+            {
+              metric: 'metric2',
+              tag: '0',
+              filterIn: { '2': ['filter_tag_2_1', 'filter_tag_2_2'], _s: ['filter_string'] },
+              filterNotIn: { '3': ['filter_tag_3_1'] },
+            },
+          ],
+        },
+      ],
+    };
+
+    const p = encodeParams(testParam, defaultParam);
+    expect(p).toEqual([
+      ['v.var1', 'value1'],
+      ['v.var1.g', '1'],
+      ['v.var2', '\u0007'],
+      ['v.var2.nv', '0'],
+    ]);
     const s = decodeParams(p, defaultParam);
     expect(s).toEqual(testParam);
   });
