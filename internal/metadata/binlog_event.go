@@ -234,7 +234,7 @@ func applyCreateEntityEvent(conn sqlite.Conn, event tlmetadata.CreateEntityEvent
 	return nil
 }
 
-func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, now time.Time, globalBudget, maxBudget, budgetBonus int64, stepSec uint32, lastCreatedID int32) (tlmetadata.GetMappingResponse, []byte, error) {
+func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, now time.Time, globalBudget, maxBudget, budgetBonus int64, stepSec uint32, lastCreatedID int32, declinedMapping chan string) (tlmetadata.GetMappingResponse, []byte, error) {
 	var id int32
 	row := conn.Query("select_mapping", "SELECT id FROM mappings where name = $name;", sqlite.BlobString("$name", key))
 	if row.Error() != nil {
@@ -249,6 +249,9 @@ func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, 
 	var countToInsert = maxBudget
 	var timeUpdate uint32
 	var count int64
+	if declinedMapping != nil {
+		declinedMapping <- key
+	}
 	row = conn.Query("select_flood_limit", "SELECT last_time_update, count_free from flood_limits WHERE metric_name = $name",
 		sqlite.BlobString("$name", metricName))
 	if row.Error() != nil {

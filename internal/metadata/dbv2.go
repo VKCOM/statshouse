@@ -7,7 +7,10 @@
 package metadata
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"math/rand"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/data_model"
@@ -16,8 +19,6 @@ import (
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/sqlite"
 	binlog2 "github.com/vkcom/statshouse/internal/vkgo/binlog"
-
-	"context"
 )
 
 type DBV2 struct {
@@ -38,6 +39,7 @@ type DBV2 struct {
 
 	globalBudget          int64
 	lastMappingIDToInsert int32
+	declinedMapping       chan string
 }
 
 type Options struct {
@@ -71,7 +73,7 @@ CREATE TABLE IF NOT EXISTS declined_mappings
 (
     ts    INTEGER, -- unix timestamp
     name  TEXT,    -- metric name
-    count INTEGER
+    count INTEGER,
     PRIMARY KEY (ts, name)
 );
 
@@ -154,25 +156,30 @@ CREATE TABLE IF NOT EXISTS property
 );
 `
 
-const appId = 0x4d5fa5
-const MaxBudget = 1000
-const GlobalBudget = 1_000_000
-const StepSec = 3600
-const BudgetBonus = 10
-const bootstrapFieldName = "bootstrap"
-const metricCountReadLimit int64 = 1000
-const metricBytesReadLimit int64 = 1024 * 1024
-const maxResetLimit = 100_000
-const entityHistoryMaxResponseSize = 1024 * 1024 * 4
+const (
+	appId                              = 0x4d5fa5
+	MaxBudget                          = 1000
+	GlobalBudget                       = 1_000_000
+	StepSec                            = 3600
+	BudgetBonus                        = 10
+	bootstrapFieldName                 = "bootstrap"
+	metricCountReadLimit         int64 = 1000
+	metricBytesReadLimit         int64 = 1024 * 1024
+	maxResetLimit                      = 100_000
+	entityHistoryMaxResponseSize       = 1024 * 1024 * 4
+)
 
-var errInvalidMetricVersion = fmt.Errorf("invalid version")
-var errMetricIsExist = fmt.Errorf("entity is exists")
-var errNamespaceNotExists = fmt.Errorf("namespace doesn't exists")
+var (
+	errInvalidMetricVersion = fmt.Errorf("invalid version")
+	errMetricIsExist        = fmt.Errorf("entity is exists")
+	errNamespaceNotExists   = fmt.Errorf("namespace doesn't exists")
+)
 
 func OpenDB(
 	path string,
 	opt Options,
-	binlog binlog2.Binlog) (*DBV2, error) {
+	binlog binlog2.Binlog,
+) (*DBV2, error) {
 	if opt.Now == nil {
 		opt.Now = time.Now
 	}
@@ -203,7 +210,77 @@ func OpenDB(
 
 		now:            opt.Now,
 		lastTimeCommit: opt.Now(),
+
+		declinedMapping: make(chan string),
 	}
+
+	go func(ctx context.Context) {
+		const writeInterval = 10 * time.Second
+		const maxInsertElements = 10000
+		hist := make(map[string]uint32)
+		lastWrite := time.Now()
+		key := ""
+		writeBatchIfNeeded := func() {
+			if time.Since(lastWrite) < writeInterval {
+				return
+			}
+			sample := hist
+			if len(hist) > maxInsertElements {
+				keys := make([]string, 0, len(hist))
+				for k := range hist {
+					keys = append(keys, k)
+				}
+				samplePerm := rand.Perm(len(keys))[:maxInsertElements]
+				sampleKeys := make([]string, 0, maxInsertElements)
+				for i := range samplePerm {
+					sampleKeys = append(sampleKeys, keys[i])
+				}
+				for _, k := range sampleKeys {
+					sample[k] = hist[k]
+				}
+			}
+			// write to DB
+			err := db.eng.Do(ctx, "insert_declined", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
+				var err error
+				ts := time.Now().Unix()
+				for key, count := range sample {
+					_, err = conn.Exec("insert_single_declined", "INSERT INTO declined_mappings (ts, name, count) VALUES ($ts, $name, $count)",
+						sqlite.Int64("$ts", ts),
+						sqlite.TextString("$name", key),
+						sqlite.Int64("$count", int64(count)),
+					)
+					if err != nil {
+						break
+					}
+				}
+				return cache, err
+			})
+			if err != nil {
+				log.Printf("[error] Failed to write declined mappings to DB: %v\n", err)
+			}
+			hist = make(map[string]uint32)
+			lastWrite = time.Now()
+		}
+		for {
+			select {
+			case key = <-db.declinedMapping:
+				// limit size of hist
+				if len(hist) > 100000 {
+					if _, ok := hist[key]; ok {
+						hist[key] += 1
+					}
+				} else {
+					hist[key] += 1
+				}
+				writeBatchIfNeeded()
+			case <-time.After(writeInterval):
+				writeBatchIfNeeded()
+			case <-ctx.Done():
+				db.declinedMapping = nil
+				return
+			}
+		}
+	}(ctx)
 
 	return db, nil
 }
@@ -373,7 +450,6 @@ func (db *DBV2) SaveEntity(ctx context.Context, name string, id int64, oldVersio
 				sqlite.Int64("$id", id),
 				sqlite.Int64("$deletedAt", deletedAt),
 				sqlite.Int64("$namespaceId", resolvedNamespaceID))
-
 			if err != nil {
 				return cache, fmt.Errorf("failed to update metric: %d, %w", oldVersion, err)
 			}
@@ -565,7 +641,7 @@ func (db *DBV2) GetOrCreateMapping(ctx context.Context, metricName, key string) 
 	now := db.now()
 	err := db.eng.Do(ctx, "get_or_create_mapping", func(conn sqlite.Conn, cache []byte) ([]byte, error) {
 		var err error
-		resp, cache, err = getOrCreateMapping(conn, cache, metricName, key, now, db.globalBudget, db.maxBudget, db.budgetBonus, db.stepSec, db.lastMappingIDToInsert)
+		resp, cache, err = getOrCreateMapping(conn, cache, metricName, key, now, db.globalBudget, db.maxBudget, db.budgetBonus, db.stepSec, db.lastMappingIDToInsert, db.declinedMapping)
 		if resp.IsCreated() {
 			created, _ := resp.AsCreated()
 			db.lastMappingIDToInsert = created.Id
@@ -684,7 +760,6 @@ func (db *DBV2) SaveEntityold(ctx context.Context, name string, id int64, oldVer
 				sqlite.TextString("$name", name),
 				sqlite.Int64("$id", id),
 				sqlite.Int64("$deletedAt", deletedAt))
-
 			if err != nil {
 				return cache, fmt.Errorf("failed to update metric: %d, %w", oldVersion, err)
 			}
