@@ -23,7 +23,10 @@ function getEventLines(eventsIndex: number[], eventsData: PlotStore[], u: uPlot,
   const aFlags: Flag[] = [];
   eventsIndex.forEach((indexEvent) => {
     const time = eventsData[indexEvent]?.data[0] ?? [];
-    const data = eventsData[indexEvent]?.data.slice(1) ?? [];
+    const data =
+      eventsData[indexEvent]?.data
+        .slice(1)
+        .filter((d, indexData) => !eventsData[indexEvent].seriesTimeShift[indexData]) ?? [];
     const values = data.flat().filter(Boolean).map(Number);
     const maxY = values.reduce((res, item) => Math.max(res, item), values[0]);
     for (let idx = 0, iMax = time.length; idx < iMax; idx++) {

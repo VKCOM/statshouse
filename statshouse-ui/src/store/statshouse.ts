@@ -66,7 +66,7 @@ import { getNextState } from '../common/getNextState';
 import { stackData } from '../common/stackData';
 import { ErrorCustom, useErrorStore } from './errors';
 import { apiMetricFetch, MetricMetaValue } from '../api/metric';
-import { GET_PARAMS, isQueryWhat, METRIC_TYPE, QUERY_WHAT, QueryWhat, TagKey } from '../api/enum';
+import { GET_PARAMS, isQueryWhat, METRIC_TYPE, QUERY_WHAT, QueryWhat, TAG_KEY, TagKey } from '../api/enum';
 import { deepClone, defaultBaseRange, mergeLeft, sortEntity, toNumber } from '../common/helpers';
 import { promiseRun } from '../common/promiseRun';
 import { appHistory } from '../common/appHistory';
@@ -105,6 +105,7 @@ export type PlotStore = {
   stacked?: uPlot.AlignedData;
   bands?: uPlot.Band[];
   series: uPlot.Series[];
+  seriesTimeShift: number[];
   seriesShow: boolean[];
   scales: Record<string, { min: number; max: number }>;
   lastPlotParams?: PlotParams;
@@ -159,6 +160,7 @@ function getEmptyPlotData(): PlotStore {
     data: [[]],
     stacked: undefined,
     series: [],
+    seriesTimeShift: [],
     seriesShow: [],
     scales: {},
     receiveErrors: 0,
@@ -973,9 +975,10 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             const maxHostLists: SelectOptionProps[][] = new Array(series_meta.length).fill([]);
             const oneGraph = series_meta.filter((s) => s.time_shift === 0).length <= 1;
             const seriesShow: boolean[] = new Array(series_meta.length).fill(true);
-
+            const seriesTimeShift: number[] = [];
             const series: uPlot.Series[] = series_meta.map((meta, indexMeta): uPlot.Series => {
               const timeShift = meta.time_shift !== 0;
+              seriesTimeShift[indexMeta] = meta.time_shift;
               const label = totalLineId !== indexMeta ? metaToLabel(meta, uniqueWhat.size) : totalLineLabel;
               const baseLabel = totalLineId !== indexMeta ? metaToBaseLabel(meta, uniqueWhat.size) : totalLineLabel;
               const isValue = baseLabel.indexOf('Value') === 0;
@@ -1202,6 +1205,9 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                   !changeView
                     ? state.plotsData[index]?.series
                     : series,
+                seriesTimeShift: dequal(seriesTimeShift, state.plotsData[index].seriesTimeShift)
+                  ? state.plotsData[index].seriesTimeShift
+                  : seriesTimeShift,
                 seriesShow: dequal(seriesShow, state.plotsData[index]?.seriesShow)
                   ? state.plotsData[index]?.seriesShow
                   : seriesShow,
@@ -1439,15 +1445,20 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
                 params.plots[indexPlot].what = [QUERY_WHAT.count];
                 params.plots[indexPlot].numSeries = 0;
                 params.plots[indexPlot].customAgg = -1;
-                params.plots[indexPlot].eventsBy =
-                  (meta &&
+
+                const eventsBy = [
+                  ...((meta &&
                     meta.tags?.reduce((res, tag, index) => {
                       if (tag.description !== '-') {
                         res.push(index.toString());
                       }
                       return res;
                     }, [] as string[])) ??
-                  [];
+                    []),
+                  ...(meta?.string_top_name || meta?.string_top_description ? [TAG_KEY._s] : []),
+                ];
+                params.plots[indexPlot].eventsBy = eventsBy;
+
                 break;
             }
             if (params.plots[indexPlot].type === PLOT_TYPE.Metric) {
@@ -1888,6 +1899,7 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
     events: [],
     loadEvents(indexPlot, key, fromEnd = false, from) {
       return new Promise((resolve, reject) => {
+        const plotKey = toPlotKey(indexPlot);
         if (!getState().events[indexPlot]) {
           setState((state) => {
             state.events[indexPlot] = {
@@ -1901,9 +1913,13 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
         const prevState = getState();
         const prevEvent = prevState.events[indexPlot];
         const prevPlot = prevState.params.plots[indexPlot];
+        const prevStateVariables = prevState.params.variables;
         const compact = prevState.compact;
         if (compact || prevPlot.type !== PLOT_TYPE.Event || prevPlot.metricName === promQLMetric) {
           resolve(null);
+          return;
+        }
+        if (plotKey == null) {
           return;
         }
         if (fromEnd) {
@@ -1924,7 +1940,9 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             ? `${Math.floor(width * devicePixelRatio)}`
             : `${prevPlot.customAgg}s`;
 
-        const url = queryTableURL(prevPlot, range, agg, key, fromEnd);
+        const lastPlotParams: PlotParams | undefined = replaceVariable(plotKey, prevPlot, prevStateVariables);
+
+        const url = queryTableURL(lastPlotParams, range, agg, key, fromEnd);
         setState((state) => {
           if (fromEnd) {
             state.events[indexPlot].prevAbortController = controller;
