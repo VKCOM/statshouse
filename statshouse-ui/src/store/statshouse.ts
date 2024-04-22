@@ -807,10 +807,11 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
         { metricName: lastPlotParams.metricName },
         { metricName: prev.lastPlotParams?.metricName }
       );
+      const resetCache = !dequal(lastPlotParams, prev.lastPlotParams);
       if (
         width &&
         lastPlotParams &&
-        (!dequal(lastPlotParams, prev.lastPlotParams) ||
+        (resetCache ||
           getState().timeRange !== prev.lastTimeRange ||
           prevStateTimeShifts !== prev.lastTimeShifts ||
           (lastPlotParams.promQL && prevStateVariables.some(({ name }) => lastPlotParams.promQL.indexOf(name) > -1)) ||
@@ -1239,39 +1240,27 @@ export const useStore = createStoreWithEqualityFn<Store>((setState, getState, st
             if (!getState().metricsMeta[lastPlotParams.metricName]) {
               getState().loadMetricsMeta(lastPlotParams.metricName);
             }
-            /*if (error instanceof ErrorSkip) {
-              setState((state) => {
-                state.plotsData[index] ??= getEmptyPlotData();
-                state.plotsData[index].errorSkipCount++;
-                if (
-                  !useLiveModeStore.getState().live ||
-                  state.plotsData[index].errorSkipCount > globalSettings.skip_error_count
-                ) {
-                  state.plotsData[index].error = error.toString();
-                  // setLiveMode(false);
-                  addStatus(index.toString(), false);
-                }
-              });
-            } else */ if (error instanceof Error403) {
+            if (error instanceof Error403) {
               setState((state) => {
                 state.plotsData[index] = {
                   ...getEmptyPlotData(),
                   error403: error.toString(),
                 };
-                // state.plotsData[index].error = error.toString();
-                // setLiveMode(false);
                 addStatus(index.toString(), false);
               });
             } else if (error.name !== 'AbortError') {
               debug.error(error);
               setState((state) => {
-                state.plotsData[index].error = error.toString();
-                // state.plotsData[index] = {
-                //   ...getEmptyPlotData(),
-                //   error: error.toString(),
-                // };
+                if (resetCache) {
+                  state.plotsData[index] = {
+                    ...getEmptyPlotData(),
+                    error: error.toString(),
+                  };
+                } else {
+                  state.plotsData[index].error = error.toString();
+                }
+
                 addStatus(index.toString(), false);
-                // setLiveMode(false);
               });
             }
             clearPlotPreview(index);
