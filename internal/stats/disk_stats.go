@@ -185,7 +185,9 @@ func (c *DiskStats) writeFSStats(nowUnix int64) error {
 		reservedForRoot := float64(blocksReservedRoot) * float64(s.Bsize)
 		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameDiskUsage, 1, free, Tag{Raw: format.RawIDTagFree}, Tag{Str: stat.device})
 		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameDiskUsage, 1, used, Tag{Raw: format.RawIDTagUsed}, Tag{Str: stat.device})
-		c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameDiskUsage, 1, reservedForRoot, Tag{Raw: format.RawIDTagReservedForRoot}, Tag{Str: stat.device})
+		if blocksReservedRoot > 0 {
+			c.writer.WriteSystemMetricCountValueExtendedTag(nowUnix, format.BuiltinMetricNameDiskUsage, 1, reservedForRoot, Tag{Raw: format.RawIDTagReservedForRoot}, Tag{Str: stat.device})
+		}
 
 		inodeFree := float64(s.Ffree)
 		inodeUsed := float64(s.Files) - inodeFree
