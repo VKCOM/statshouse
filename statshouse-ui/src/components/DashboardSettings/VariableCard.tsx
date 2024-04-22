@@ -20,6 +20,7 @@ import cn from 'classnames';
 import { PlotParams, toPlotKey, VariableParams, VariableParamsSource } from '../../url/queryParams';
 import { TAG_KEY, TagKey } from '../../api/enum';
 import { VariableSource } from './VariableSource';
+import { currentAccessInfo } from '../../common/access';
 
 export type VariableCardProps = {
   indexVariable: number;
@@ -29,7 +30,7 @@ export type VariableCardProps = {
   plotsData: PlotStore[];
   metricsMeta: Record<string, MetricMetaValue>;
 };
-
+const ai = currentAccessInfo();
 export function VariableCard({
   indexVariable,
   variable,
@@ -211,7 +212,7 @@ export function VariableCard({
           </div>
         )}
 
-        {open && (
+        {ai.admin && open && (
           <div>
             {variable.source.map((source, indexSource) => (
               <VariableSource key={indexSource} indexValue={indexSource} value={source} onChange={onChangeSource} />
