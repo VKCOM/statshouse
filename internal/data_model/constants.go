@@ -46,7 +46,7 @@ const (
 
 	MaxShortWindow    = 5    // Must be >= 2, 5 seconds to send recent data, if too late - send as historic
 	FutureWindow      = 4    // Allow a couple of seconds clocks difference on clients. Plus rounding to multiple of 3
-	MaxHistoricWindow = 7200 // 1 day to send historic data, then drop. TODO - return to 86400 after incident
+	MaxHistoricWindow = 86400 // 1 day to send historic data, then drop
 
 	BelieveTimestampWindow = 86400 + 2*3600 // Margin for crons running once per day.
 	// Parts are quickly merged, so all timestamps in [-day..0] will be quickly and thoroughly optimized.
