@@ -82,10 +82,10 @@ func clientGetConfigFromCache(cluster string, dc *pcache.DiskCache) (tlstatshous
 	}
 	cacheData, _, _, errDiskCache, ok := dc.Get(data_model.AutoconfigDiskNamespace+cluster, "")
 	if errDiskCache != nil {
-		return res, fmt.Errorf("autoconfig cache data failed failed to load and failed to get from disk cache: %w", errDiskCache)
+		return res, fmt.Errorf("autoconfig cache data failed to load from disk cache: %w", errDiskCache)
 	}
 	if !ok {
-		return res, fmt.Errorf("autoconfig cache data failed to load, and not in disk cache")
+		return res, fmt.Errorf("autoconfig cache data not stored in disk cache (yet?)")
 	}
 	if _, err := res.ReadBoxed(cacheData, 0); err != nil { // 0 - we do not store additional fields yet
 		return res, err
