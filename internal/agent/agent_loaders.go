@@ -23,7 +23,7 @@ import (
 	"pgregory.net/rand"
 )
 
-func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, isEnvStaging bool, componentTag int32, archTag int32, cluster string, logF func(format string, args ...interface{})) tlstatshouse.GetConfigResult {
+func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, isEnvStaging bool, componentTag int32, archTag int32, cluster string, dc *pcache.DiskCache, logF func(format string, args ...interface{})) tlstatshouse.GetConfigResult {
 	addresses := append([]string{}, addressesExt...) // For simulator, where many start concurrently with the copy of the config
 	rnd := rand.New()
 	rnd.Shuffle(len(addresses), func(i, j int) { // randomize configuration load
@@ -39,15 +39,58 @@ func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, isE
 			//	dst.Addresses[i] = strings.ReplaceAll(dst.Addresses[i], "aggregator", "localhost")
 			// }
 			logF("Configuration: success autoconfiguration from (%q), address list is (%q), max is %d", strings.Join(addresses, ","), strings.Join(dst.Addresses, ","), dst.MaxAddressesCount)
+			if err = clientSaveConfigToCache(cluster, dc, dst); err != nil {
+				logF("Configuration: failed to save autoconfig to disk cache: %v", err)
+			}
 			return dst
 		}
 		logF("Configuration: failed autoconfiguration from address (%q) - %v", addr, err)
 		if nextAddr == len(addresses)-1 { // last one
+			dst, err = clientGetConfigFromCache(cluster, dc)
+			if err == nil {
+				// We could have a long poll on configuration, but this happens so rare that we decided to simplify.
+				// We have protection from misconfig on aggregator, so agents with very old config will be rejected and
+				// can be easily tracked in __auto_config metric
+				logF("Configuration: failed autoconfiguration from all addresses (%q), loaded previous autoconfiguration from disk cache, address list is (%q), max is %d",
+					strings.Join(addresses, ","), strings.Join(dst.Addresses, ","), dst.MaxAddressesCount)
+				return dst
+			}
 			backoffTimeout = data_model.NextBackoffDuration(backoffTimeout)
-			logF("Configuration: failed autoconfiguration from all addresses (%q), will retry after %v delay", strings.Join(addresses, ","), backoffTimeout)
+			logF("Configuration: failed autoconfiguration from all addresses (%q), will retry after %v delay",
+				strings.Join(addresses, ","), backoffTimeout)
 			time.Sleep(backoffTimeout)
 		}
 	}
+}
+
+func clientSaveConfigToCache(cluster string, dc *pcache.DiskCache, dst tlstatshouse.GetConfigResult) error {
+	if dc == nil {
+		return nil
+	}
+	cacheData, err := dst.WriteBoxed(nil, 0) // 0 - we do not save fields mask. If additional fields are needed, set mask here and in ReadBoxed
+	if err != nil {
+		return fmt.Errorf("failed to serialize autoconfig: %w", err)
+	}
+	return dc.Set(data_model.AutoconfigDiskNamespace+cluster, "", cacheData, time.Now(), 0)
+}
+
+func clientGetConfigFromCache(cluster string, dc *pcache.DiskCache) (tlstatshouse.GetConfigResult, error) {
+	var res tlstatshouse.GetConfigResult
+
+	if dc == nil {
+		return res, fmt.Errorf("cannot load autoconfig from disc cache, because no disk cache configured")
+	}
+	cacheData, _, _, errDiskCache, ok := dc.Get(data_model.AutoconfigDiskNamespace+cluster, "")
+	if errDiskCache != nil {
+		return res, fmt.Errorf("autoconfig cache data failed failed to load and failed to get from disk cache: %w", errDiskCache)
+	}
+	if !ok {
+		return res, fmt.Errorf("autoconfig cache data failed to load, and not in disk cache")
+	}
+	if _, err := res.ReadBoxed(cacheData, 0); err != nil { // 0 - we do not store additional fields yet
+		return res, err
+	}
+	return res, nil
 }
 
 func clientGetConfig(network string, rpcClient *rpc.Client, shardReplicaNum int, addr string, isEnvStaging bool, componentTag int32, archTag int32, cluster string) (tlstatshouse.GetConfigResult, error) {

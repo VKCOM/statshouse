@@ -22,6 +22,8 @@ import (
 	"sync"
 	"time"
 
+	"pgregory.net/rand"
+
 	"github.com/vkcom/statshouse/internal/agent"
 	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlmetadata"
@@ -31,7 +33,6 @@ import (
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/vkgo/build"
 	"github.com/vkcom/statshouse/internal/vkgo/rpc"
-	"pgregory.net/rand"
 )
 
 type (
@@ -214,7 +215,7 @@ func RunAggregator(dc *pcache.DiskCache, storageDir string, listenAddr string, a
 	getConfigResult := a.getConfigResult() // agent will use this config instead of getting via RPC, because our RPC is not started yet
 	// TODO - pass storage dir after design is fixed
 	sh2, err := agent.MakeAgent("tcp4", storageDir, aesPwd, agentConfig, hostName,
-		format.TagValueIDComponentAggregator, a.metricStorage, log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult)
+		format.TagValueIDComponentAggregator, a.metricStorage, nil, log.Printf, a.agentBeforeFlushBucketFunc, &getConfigResult)
 	if err != nil {
 		return fmt.Errorf("built-in agent failed to start: %v", err)
 	}
@@ -262,7 +263,7 @@ func loadBoostrap(dc *pcache.DiskCache, client *tlmetadata.Client) ([]byte, erro
 			return nil, fmt.Errorf("bootstrap data failed to load with error %v, and failed to get from disk cache: %w", err, errDiskCache)
 		}
 		if !ok {
-			return nil, fmt.Errorf("bootstrap data failed to load, and not int disk cache: %w", err)
+			return nil, fmt.Errorf("bootstrap data failed to load, and not in disk cache: %w", err)
 		}
 		log.Printf("Loaded bootstrap mappings from cache of size %d", len(cacheData))
 		return cacheData, nil // from cache
