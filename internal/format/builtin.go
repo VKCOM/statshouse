@@ -143,12 +143,9 @@ const (
 	BuiltinMetricNameAPIActiveQueries           = "__api_active_queries"
 	BuiltinMetricNameBudgetUnknownMetric        = "__budget_unknown_metric"
 	BuiltinMetricNameSystemMetricScrapeDuration = "__system_metrics_duration"
-	BuiltinMetricNameAgentUDPReceiveBufferSize  = "__src_udp_receive_buffer_size"
 	BuiltinMetricNameAPIMetricUsage             = "__api_metric_usage"
 	BuiltinMetricNameAPIServiceTime             = "__api_service_time"
 	BuiltinMetricNameAPIResponseTime            = "__api_response_time"
-	BuiltinMetricNameSrcTestConnection          = "__src_test_connection"
-	BuiltinMetricNameAggTimeDiff                = "__src_agg_time_diff"
 	BuiltinMetricNameHeartbeatVersion           = "__heartbeat_version"
 	BuiltinMetricNameStatsHouseErrors           = "__statshouse_errors"
 	BuiltinMetricNamePromQLEngineTime           = "__promql_engine_time"
@@ -927,7 +924,7 @@ Set by either agent or aggregator, depending on status.`,
 			}},
 		},
 		BuiltinMetricIDAgentUDPReceiveBufferSize: {
-			Name:        BuiltinMetricNameAgentUDPReceiveBufferSize,
+			Name:        "__src_udp_receive_buffer_size",
 			Kind:        MetricKindValue,
 			Resolution:  60,
 			Description: "Size in bytes of agent UDP receive buffer.",
@@ -1584,7 +1581,7 @@ Value is delta between second value and time it was inserted.`,
 			}},
 		},
 		BuiltinMetricIDAgentAggregatorTimeDiff: {
-			Name:        BuiltinMetricNameAggTimeDiff,
+			Name:        "__src_agg_time_diff",
 			Kind:        MetricKindValue,
 			Resolution:  60,
 			Description: "Aggregator time - agent time when start testConnection",
@@ -1594,7 +1591,7 @@ Value is delta between second value and time it was inserted.`,
 			}},
 		},
 		BuiltinMetricIDSrcTestConnection: {
-			Name:        BuiltinMetricNameSrcTestConnection,
+			Name:        "__src_test_connection",
 			Kind:        MetricKindValue,
 			Resolution:  60,
 			Description: "Duration of call test connection rpc method",
