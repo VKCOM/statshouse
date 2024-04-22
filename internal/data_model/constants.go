@@ -92,7 +92,8 @@ const (
 	JournalDiskNamespace        = "metric_journal_v5:"
 	TagValueDiskNamespace       = "tag_value_v3:"
 	TagValueInvertDiskNamespace = "tag_value_invert_v3:"
-	BootstrapDiskNamespace      = "bootstrap:" // stored in aggregator only
+	BootstrapDiskNamespace      = "bootstrap:"  // stored in aggregator only
+	AutoconfigDiskNamespace     = "autoconfig:" // stored in agents only
 
 	MappingMaxMetricsInQueue = 1000
 	MappingMaxMemCacheSize   = 2_000_000
