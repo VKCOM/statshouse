@@ -252,7 +252,6 @@ export const HeaderMenu: React.FC<HeaderMenuProps> = ({ className }) => {
             icon={SVGCpu}
             to={`/view?id=${globalSettings.admin_dash}`}
             title="Hardware info"
-            className={cn(isDashList && css.activeItem)}
           ></HeaderMenuItem>
         )}
         <HeaderMenuItem
