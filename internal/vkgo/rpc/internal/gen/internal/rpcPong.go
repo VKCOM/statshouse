@@ -68,6 +68,42 @@ func (item *RpcPong) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	return nil
 }
 
+func (item *RpcPong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propPingIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "ping_id":
+				if propPingIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcPong", "ping_id")
+				}
+				if err := Json2ReadInt64(in, &item.PingId); err != nil {
+					return err
+				}
+				propPingIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcPong", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propPingIdPresented {
+		item.PingId = 0
+	}
+	return nil
+}
+
 func (item *RpcPong) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

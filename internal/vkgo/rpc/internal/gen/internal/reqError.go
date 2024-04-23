@@ -79,6 +79,54 @@ func (item *ReqError) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error 
 	return nil
 }
 
+func (item *ReqError) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propErrorCodePresented bool
+	var propErrorPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "error_code":
+				if propErrorCodePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("reqError", "error_code")
+				}
+				if err := Json2ReadInt32(in, &item.ErrorCode); err != nil {
+					return err
+				}
+				propErrorCodePresented = true
+			case "error":
+				if propErrorPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("reqError", "error")
+				}
+				if err := Json2ReadString(in, &item.Error); err != nil {
+					return err
+				}
+				propErrorPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("reqError", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propErrorCodePresented {
+		item.ErrorCode = 0
+	}
+	if !propErrorPresented {
+		item.Error = ""
+	}
+	return nil
+}
+
 func (item *ReqError) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

@@ -452,6 +452,207 @@ func (item *RpcReqResultExtra) ReadJSONLegacy(legacyTypeNames bool, j interface{
 	return nil
 }
 
+func (item *RpcReqResultExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFlagsPresented bool
+	var propBinlogPosPresented bool
+	var propBinlogTimePresented bool
+	var propEnginePidPresented bool
+	var propRequestSizePresented bool
+	var propResponseSizePresented bool
+	var propFailedSubqueriesPresented bool
+	var propCompressionVersionPresented bool
+	var propStatsPresented bool
+	var propShardsBinlogPosPresented bool
+	var propEpochNumberPresented bool
+	var propViewNumberPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "flags":
+				if propFlagsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "flags")
+				}
+				if err := Json2ReadUint32(in, &item.Flags); err != nil {
+					return err
+				}
+				propFlagsPresented = true
+			case "binlog_pos":
+				if propBinlogPosPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "binlog_pos")
+				}
+				if err := Json2ReadInt64(in, &item.BinlogPos); err != nil {
+					return err
+				}
+				propBinlogPosPresented = true
+			case "binlog_time":
+				if propBinlogTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "binlog_time")
+				}
+				if err := Json2ReadInt64(in, &item.BinlogTime); err != nil {
+					return err
+				}
+				propBinlogTimePresented = true
+			case "engine_pid":
+				if propEnginePidPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "engine_pid")
+				}
+				if err := item.EnginePid.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propEnginePidPresented = true
+			case "request_size":
+				if propRequestSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "request_size")
+				}
+				if err := Json2ReadInt32(in, &item.RequestSize); err != nil {
+					return err
+				}
+				propRequestSizePresented = true
+			case "response_size":
+				if propResponseSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "response_size")
+				}
+				if err := Json2ReadInt32(in, &item.ResponseSize); err != nil {
+					return err
+				}
+				propResponseSizePresented = true
+			case "failed_subqueries":
+				if propFailedSubqueriesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "failed_subqueries")
+				}
+				if err := Json2ReadInt32(in, &item.FailedSubqueries); err != nil {
+					return err
+				}
+				propFailedSubqueriesPresented = true
+			case "compression_version":
+				if propCompressionVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "compression_version")
+				}
+				if err := Json2ReadInt32(in, &item.CompressionVersion); err != nil {
+					return err
+				}
+				propCompressionVersionPresented = true
+			case "stats":
+				if propStatsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "stats")
+				}
+				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.Stats); err != nil {
+					return err
+				}
+				propStatsPresented = true
+			case "shards_binlog_pos":
+				if propShardsBinlogPosPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "shards_binlog_pos")
+				}
+				if err := BuiltinVectorDictionaryFieldLongReadJSON(legacyTypeNames, in, &item.ShardsBinlogPos); err != nil {
+					return err
+				}
+				propShardsBinlogPosPresented = true
+			case "epoch_number":
+				if propEpochNumberPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "epoch_number")
+				}
+				if err := Json2ReadInt64(in, &item.EpochNumber); err != nil {
+					return err
+				}
+				propEpochNumberPresented = true
+			case "view_number":
+				if propViewNumberPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultExtra", "view_number")
+				}
+				if err := Json2ReadInt64(in, &item.ViewNumber); err != nil {
+					return err
+				}
+				propViewNumberPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcReqResultExtra", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFlagsPresented {
+		item.Flags = 0
+	}
+	if !propBinlogPosPresented {
+		item.BinlogPos = 0
+	}
+	if !propBinlogTimePresented {
+		item.BinlogTime = 0
+	}
+	if !propEnginePidPresented {
+		item.EnginePid.Reset()
+	}
+	if !propRequestSizePresented {
+		item.RequestSize = 0
+	}
+	if !propResponseSizePresented {
+		item.ResponseSize = 0
+	}
+	if !propFailedSubqueriesPresented {
+		item.FailedSubqueries = 0
+	}
+	if !propCompressionVersionPresented {
+		item.CompressionVersion = 0
+	}
+	if !propStatsPresented {
+		BuiltinVectorDictionaryFieldStringReset(item.Stats)
+	}
+	if !propShardsBinlogPosPresented {
+		BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
+	}
+	if !propEpochNumberPresented {
+		item.EpochNumber = 0
+	}
+	if !propViewNumberPresented {
+		item.ViewNumber = 0
+	}
+	if propBinlogPosPresented {
+		item.Flags |= 1 << 0
+	}
+	if propBinlogTimePresented {
+		item.Flags |= 1 << 1
+	}
+	if propEnginePidPresented {
+		item.Flags |= 1 << 2
+	}
+	if propRequestSizePresented {
+		item.Flags |= 1 << 3
+	}
+	if propResponseSizePresented {
+		item.Flags |= 1 << 3
+	}
+	if propFailedSubqueriesPresented {
+		item.Flags |= 1 << 4
+	}
+	if propCompressionVersionPresented {
+		item.Flags |= 1 << 5
+	}
+	if propStatsPresented {
+		item.Flags |= 1 << 6
+	}
+	if propShardsBinlogPosPresented {
+		item.Flags |= 1 << 8
+	}
+	if propEpochNumberPresented {
+		item.Flags |= 1 << 27
+	}
+	if propViewNumberPresented {
+		item.Flags |= 1 << 27
+	}
+	return nil
+}
+
 func (item *RpcReqResultExtra) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

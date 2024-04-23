@@ -27,6 +27,10 @@ func (item *BarsicEngineWantsRestart) Reset() {
 	item.FieldsMask = 0
 }
 
+func (item *BarsicEngineWantsRestart) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+}
+
 func (item *BarsicEngineWantsRestart) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.FieldsMask)
 }
@@ -124,6 +128,42 @@ func (item *BarsicEngineWantsRestart) ReadJSONLegacy(legacyTypeNames bool, j int
 	}
 	for k := range _jm {
 		return internal.ErrorInvalidJSONExcessElement("barsic.engineWantsRestart", k)
+	}
+	return nil
+}
+
+func (item *BarsicEngineWantsRestart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineWantsRestart", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.engineWantsRestart", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
 	return nil
 }

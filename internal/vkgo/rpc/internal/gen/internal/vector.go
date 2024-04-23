@@ -61,6 +61,13 @@ func (item *VectorDictionaryFieldLong) ReadJSONLegacy(legacyTypeNames bool, j in
 	return nil
 }
 
+func (item *VectorDictionaryFieldLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*map[string]int64)(item)
+	if err := BuiltinVectorDictionaryFieldLongReadJSON(legacyTypeNames, in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
 func (item *VectorDictionaryFieldLong) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -135,6 +142,13 @@ func (item *VectorDictionaryFieldString) ReadJSONLegacy(legacyTypeNames bool, j 
 	return nil
 }
 
+func (item *VectorDictionaryFieldString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*map[string]string)(item)
+	if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
 func (item *VectorDictionaryFieldString) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -209,6 +223,13 @@ func (item *VectorInt) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error
 	return nil
 }
 
+func (item *VectorInt) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*[]int32)(item)
+	if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
 func (item *VectorInt) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -283,6 +304,13 @@ func (item *VectorLong) ReadJSONLegacy(legacyTypeNames bool, j interface{}) erro
 	return nil
 }
 
+func (item *VectorLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*[]int64)(item)
+	if err := BuiltinVectorLongReadJSON(legacyTypeNames, in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
 func (item *VectorLong) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -357,6 +385,13 @@ func (item *VectorString) ReadJSONLegacy(legacyTypeNames bool, j interface{}) er
 	return nil
 }
 
+func (item *VectorString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*[]string)(item)
+	if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
 func (item *VectorString) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

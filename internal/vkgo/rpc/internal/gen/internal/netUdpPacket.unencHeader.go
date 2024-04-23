@@ -282,6 +282,132 @@ func (item *NetUdpPacketUnencHeader) ReadJSONLegacy(legacyTypeNames bool, j inte
 	return nil
 }
 
+func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFlagsPresented bool
+	var propRemotePidPresented bool
+	var propLocalPidPresented bool
+	var propGenerationPresented bool
+	var propPidHashPresented bool
+	var propCryptoInitPresented bool
+	var propRandomKeyPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "flags":
+				if propFlagsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "flags")
+				}
+				if err := Json2ReadUint32(in, &item.Flags); err != nil {
+					return err
+				}
+				propFlagsPresented = true
+			case "remote_pid":
+				if propRemotePidPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "remote_pid")
+				}
+				if err := item.RemotePid.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propRemotePidPresented = true
+			case "local_pid":
+				if propLocalPidPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "local_pid")
+				}
+				if err := item.LocalPid.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propLocalPidPresented = true
+			case "generation":
+				if propGenerationPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "generation")
+				}
+				if err := Json2ReadInt32(in, &item.Generation); err != nil {
+					return err
+				}
+				propGenerationPresented = true
+			case "pid_hash":
+				if propPidHashPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "pid_hash")
+				}
+				if err := Json2ReadInt64(in, &item.PidHash); err != nil {
+					return err
+				}
+				propPidHashPresented = true
+			case "crypto_init":
+				if propCryptoInitPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "crypto_init")
+				}
+				if err := Json2ReadInt32(in, &item.CryptoInit); err != nil {
+					return err
+				}
+				propCryptoInitPresented = true
+			case "random_key":
+				if propRandomKeyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.unencHeader", "random_key")
+				}
+				if err := BuiltinTuple8ReadJSON(legacyTypeNames, in, &item.RandomKey); err != nil {
+					return err
+				}
+				propRandomKeyPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("netUdpPacket.unencHeader", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFlagsPresented {
+		item.Flags = 0
+	}
+	if !propRemotePidPresented {
+		item.RemotePid.Reset()
+	}
+	if !propLocalPidPresented {
+		item.LocalPid.Reset()
+	}
+	if !propGenerationPresented {
+		item.Generation = 0
+	}
+	if !propPidHashPresented {
+		item.PidHash = 0
+	}
+	if !propCryptoInitPresented {
+		item.CryptoInit = 0
+	}
+	if !propRandomKeyPresented {
+		BuiltinTuple8Reset(&item.RandomKey)
+	}
+	if propRemotePidPresented {
+		item.Flags |= 1 << 0
+	}
+	if propLocalPidPresented {
+		item.Flags |= 1 << 0
+	}
+	if propGenerationPresented {
+		item.Flags |= 1 << 0
+	}
+	if propPidHashPresented {
+		item.Flags |= 1 << 2
+	}
+	if propCryptoInitPresented {
+		item.Flags |= 1 << 3
+	}
+	if propRandomKeyPresented {
+		item.Flags |= 1 << 5
+	}
+	return nil
+}
+
 func (item *NetUdpPacketUnencHeader) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

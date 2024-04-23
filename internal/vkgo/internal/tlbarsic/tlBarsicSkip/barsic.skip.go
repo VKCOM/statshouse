@@ -31,6 +31,12 @@ func (item *BarsicSkip) Reset() {
 	item.Length = 0
 }
 
+func (item *BarsicSkip) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.Offset = basictl.RandomLong(gen)
+	item.Length = basictl.RandomLong(gen)
+}
+
 func (item *BarsicSkip) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -146,6 +152,66 @@ func (item *BarsicSkip) ReadJSONLegacy(legacyTypeNames bool, j interface{}) erro
 	}
 	for k := range _jm {
 		return internal.ErrorInvalidJSONExcessElement("barsic.skip", k)
+	}
+	return nil
+}
+
+func (item *BarsicSkip) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propOffsetPresented bool
+	var propLengthPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.skip", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "offset":
+				if propOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.skip", "offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			case "length":
+				if propLengthPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.skip", "length")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Length); err != nil {
+					return err
+				}
+				propLengthPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.skip", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propOffsetPresented {
+		item.Offset = 0
+	}
+	if !propLengthPresented {
+		item.Length = 0
 	}
 	return nil
 }

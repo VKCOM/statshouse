@@ -51,6 +51,12 @@ func (item *BarsicApplyPayload) Reset() {
 	item.Payload = ""
 }
 
+func (item *BarsicApplyPayload) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.Offset = basictl.RandomLong(gen)
+	item.Payload = basictl.RandomString(gen)
+}
+
 func (item *BarsicApplyPayload) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -196,6 +202,104 @@ func (item *BarsicApplyPayload) ReadJSONLegacy(legacyTypeNames bool, j interface
 	return nil
 }
 
+func (item *BarsicApplyPayload) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var trueTypeCommitASAPPresented bool
+	var trueTypeCommitASAPValue bool
+	var trueTypeCommittedPresented bool
+	var trueTypeCommittedValue bool
+	var propOffsetPresented bool
+	var propPayloadPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.applyPayload", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "commitASAP":
+				if trueTypeCommitASAPPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.applyPayload", "commitASAP")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeCommitASAPValue); err != nil {
+					return err
+				}
+				trueTypeCommitASAPPresented = true
+			case "committed":
+				if trueTypeCommittedPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.applyPayload", "committed")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeCommittedValue); err != nil {
+					return err
+				}
+				trueTypeCommittedPresented = true
+			case "offset":
+				if propOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.applyPayload", "offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			case "payload":
+				if propPayloadPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.applyPayload", "payload")
+				}
+				if err := internal.Json2ReadString(in, &item.Payload); err != nil {
+					return err
+				}
+				propPayloadPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.applyPayload", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propOffsetPresented {
+		item.Offset = 0
+	}
+	if !propPayloadPresented {
+		item.Payload = ""
+	}
+	if trueTypeCommitASAPPresented {
+		if trueTypeCommitASAPValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if trueTypeCommittedPresented {
+		if trueTypeCommittedValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeCommitASAPPresented && !trueTypeCommitASAPValue && (item.FieldsMask&(1<<0) != 0) {
+		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeCommittedPresented && !trueTypeCommittedValue && (item.FieldsMask&(1<<1) != 0) {
+		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	return nil
+}
+
 func (item *BarsicApplyPayload) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -275,6 +379,12 @@ func (item *BarsicApplyPayloadBytes) Reset() {
 	item.FieldsMask = 0
 	item.Offset = 0
 	item.Payload = item.Payload[:0]
+}
+
+func (item *BarsicApplyPayloadBytes) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.Offset = basictl.RandomLong(gen)
+	item.Payload = basictl.RandomStringBytes(gen)
 }
 
 func (item *BarsicApplyPayloadBytes) Read(w []byte) (_ []byte, err error) {
@@ -418,6 +528,104 @@ func (item *BarsicApplyPayloadBytes) ReadJSONLegacy(legacyTypeNames bool, j inte
 		} else {
 			item.FieldsMask &^= 1 << 1
 		}
+	}
+	return nil
+}
+
+func (item *BarsicApplyPayloadBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var trueTypeCommitASAPPresented bool
+	var trueTypeCommitASAPValue bool
+	var trueTypeCommittedPresented bool
+	var trueTypeCommittedValue bool
+	var propOffsetPresented bool
+	var propPayloadPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.applyPayload", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "commitASAP":
+				if trueTypeCommitASAPPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.applyPayload", "commitASAP")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeCommitASAPValue); err != nil {
+					return err
+				}
+				trueTypeCommitASAPPresented = true
+			case "committed":
+				if trueTypeCommittedPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.applyPayload", "committed")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeCommittedValue); err != nil {
+					return err
+				}
+				trueTypeCommittedPresented = true
+			case "offset":
+				if propOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.applyPayload", "offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			case "payload":
+				if propPayloadPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.applyPayload", "payload")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.Payload); err != nil {
+					return err
+				}
+				propPayloadPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.applyPayload", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propOffsetPresented {
+		item.Offset = 0
+	}
+	if !propPayloadPresented {
+		item.Payload = item.Payload[:0]
+	}
+	if trueTypeCommitASAPPresented {
+		if trueTypeCommitASAPValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if trueTypeCommittedPresented {
+		if trueTypeCommittedValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeCommitASAPPresented && !trueTypeCommitASAPValue && (item.FieldsMask&(1<<0) != 0) {
+		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeCommittedPresented && !trueTypeCommittedValue && (item.FieldsMask&(1<<1) != 0) {
+		return internal.ErrorInvalidJSON("barsic.applyPayload", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }

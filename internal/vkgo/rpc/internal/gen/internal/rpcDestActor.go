@@ -68,6 +68,42 @@ func (item *RpcDestActor) ReadJSONLegacy(legacyTypeNames bool, j interface{}) er
 	return nil
 }
 
+func (item *RpcDestActor) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propActorIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "actor_id":
+				if propActorIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcDestActor", "actor_id")
+				}
+				if err := Json2ReadInt64(in, &item.ActorId); err != nil {
+					return err
+				}
+				propActorIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcDestActor", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propActorIdPresented {
+		item.ActorId = 0
+	}
+	return nil
+}
+
 func (item *RpcDestActor) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

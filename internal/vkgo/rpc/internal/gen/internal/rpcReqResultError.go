@@ -90,6 +90,66 @@ func (item *RpcReqResultError) ReadJSONLegacy(legacyTypeNames bool, j interface{
 	return nil
 }
 
+func (item *RpcReqResultError) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propQueryIdPresented bool
+	var propErrorCodePresented bool
+	var propErrorPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "query_id":
+				if propQueryIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultError", "query_id")
+				}
+				if err := Json2ReadInt64(in, &item.QueryId); err != nil {
+					return err
+				}
+				propQueryIdPresented = true
+			case "error_code":
+				if propErrorCodePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultError", "error_code")
+				}
+				if err := Json2ReadInt32(in, &item.ErrorCode); err != nil {
+					return err
+				}
+				propErrorCodePresented = true
+			case "error":
+				if propErrorPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultError", "error")
+				}
+				if err := Json2ReadString(in, &item.Error); err != nil {
+					return err
+				}
+				propErrorPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcReqResultError", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propQueryIdPresented {
+		item.QueryId = 0
+	}
+	if !propErrorCodePresented {
+		item.ErrorCode = 0
+	}
+	if !propErrorPresented {
+		item.Error = ""
+	}
+	return nil
+}
+
 func (item *RpcReqResultError) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

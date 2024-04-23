@@ -198,7 +198,7 @@ func (pc *PacketConn) setWriteTimeoutUnlocked(timeout time.Duration) error {
 func (pc *PacketConn) ReadPacket(body []byte, timeout time.Duration) (tip uint32, _ []byte, err error) {
 	for {
 		var isBuiltin bool
-		tip, _, body, isBuiltin, err = pc.readPacketWithMagic(body, timeout)
+		tip, _, body, isBuiltin, _, err = pc.readPacketWithMagic(body, timeout)
 		if err != nil {
 			return tip, body, err
 		}
@@ -213,75 +213,76 @@ func (pc *PacketConn) ReadPacket(body []byte, timeout time.Duration) (tip uint32
 
 // ReadPacketUnlocked for high-efficiency users, which write with *Unlocked functions
 // if isBuiltin is true, caller must call WritePacketBuiltinNoFlushUnlocked(timeout)
-func (pc *PacketConn) ReadPacketUnlocked(body []byte, timeout time.Duration) (tip uint32, _ []byte, isBuiltin bool, err error) {
-	tip, _, body, isBuiltin, err = pc.readPacketWithMagic(body, timeout)
-	return tip, body, isBuiltin, err
+// TODO - builtinKind is only for temporary testing, remove later
+func (pc *PacketConn) ReadPacketUnlocked(body []byte, timeout time.Duration) (tip uint32, _ []byte, isBuiltin bool, builtinKind string, err error) {
+	tip, _, body, isBuiltin, builtinKind, err = pc.readPacketWithMagic(body, timeout)
+	return tip, body, isBuiltin, builtinKind, err
 }
 
 // supports sending ascii command via terminal instead of first TL RPC packet, returns command in
-func (pc *PacketConn) readPacketWithMagic(body []byte, timeout time.Duration) (tip uint32, magic []byte, _ []byte, isBuiltin bool, err error) {
+func (pc *PacketConn) readPacketWithMagic(body []byte, timeout time.Duration) (tip uint32, magic []byte, _ []byte, isBuiltin bool, builtinKind string, err error) {
 	pc.readMu.Lock()
 	defer pc.readMu.Unlock()
 
 	var header packetHeader
-	magicHead, isBuiltin, err := pc.readPacketHeaderUnlocked(&header, timeout)
+	magicHead, isBuiltin, builtinKind, err := pc.readPacketHeaderUnlocked(&header, timeout)
 	if err != nil {
-		return 0, magicHead, body, isBuiltin, err
+		return 0, magicHead, body, isBuiltin, builtinKind, err
 	}
 	if isBuiltin {
-		return 0, nil, body, true, nil
+		return 0, nil, body, true, builtinKind, nil
 	}
 
 	body, err = pc.readPacketBodyUnlocked(&header, body)
-	return header.tip, nil, body, isBuiltin, err
+	return header.tip, nil, body, isBuiltin, builtinKind, err
 }
 
-func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout time.Duration) (magicHead []byte, isBuiltin bool, err error) {
+func (pc *PacketConn) readPacketHeaderUnlocked(header *packetHeader, timeout time.Duration) (magicHead []byte, isBuiltin bool, builtinKind string, err error) {
 	for {
 		if err = pc.setReadTimeoutUnlocked(timeout); err != nil {
-			return nil, false, fmt.Errorf("failed to set read timeout: %w", err)
+			return nil, false, "", fmt.Errorf("failed to set read timeout: %w", err)
 		}
 		magicHead, err = pc.readPacketHeaderUnlockedImpl(header)
 		if err != nil {
 			if err == io.EOF || err == io.ErrUnexpectedEOF {
-				return magicHead, false, err
+				return magicHead, false, "", err
 			}
 			if pc.readSeqNum < 0 || len(magicHead) != 0 || !errors.Is(err, os.ErrDeadlineExceeded) {
 				// if performing handshake || read at least 1 byte || not a timeout error
-				return magicHead, false, fmt.Errorf("failed to read header for seq_num %d, magic(hex) %x: %w", pc.readSeqNum, magicHead, err)
+				return magicHead, false, "", fmt.Errorf("failed to read header for seq_num %d, magic(hex) %x: %w", pc.readSeqNum, magicHead, err)
 			}
 			if !pc.sendPing() {
-				return nil, false, fmt.Errorf("timeout after ping sent: %w", err)
+				return nil, false, "", fmt.Errorf("timeout after ping sent: %w", err)
 			}
-			return nil, true, nil // send builtin ping
+			return nil, true, "sendPing", nil // send builtin ping
 		}
 		if header.tip == PacketTypeRPCPing {
 			if header.length != packetOverhead+8 {
-				return nil, false, fmt.Errorf("ping packet has wrong length: %d", header.length)
+				return nil, false, "", fmt.Errorf("ping packet has wrong length: %d", header.length)
 			}
 			_, err := pc.readPacketBodyUnlocked(header, pc.pingBodyReadBuf[:])
 			if err != nil {
-				return nil, false, fmt.Errorf("failed to read ping body: %w", err)
+				return nil, false, "", fmt.Errorf("failed to read ping body: %w", err)
 			}
 			if err := pc.onPing(pc.pingBodyReadBuf[:]); err != nil { // if pingBodyReadBuf is not big enough, here will be garbage due to realloc above
-				return nil, false, err
+				return nil, false, "", err
 			}
-			return nil, true, nil // send builtin pong
+			return nil, true, "sendPong", nil // send builtin pong
 		}
 		if header.tip == PacketTypeRPCPong {
 			if header.length != packetOverhead+8 {
-				return nil, false, fmt.Errorf("pong packet has wrong length %d", header.length)
+				return nil, false, "", fmt.Errorf("pong packet has wrong length %d", header.length)
 			}
 			_, err := pc.readPacketBodyUnlocked(header, pc.pingBodyReadBuf[:])
 			if err != nil {
-				return nil, false, fmt.Errorf("failed to read pong body: %w", err)
+				return nil, false, "", fmt.Errorf("failed to read pong body: %w", err)
 			}
 			if err := pc.onPong(pc.pingBodyReadBuf[:]); err != nil { // if pingBodyReadBuf is not big enough, here will be garbage due to realloc above
-				return nil, false, err
+				return nil, false, "", err
 			}
 			continue // read next header without sending anything
 		}
-		return magicHead, false, nil
+		return magicHead, false, "", nil
 	}
 }
 

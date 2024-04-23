@@ -208,7 +208,7 @@ func writeResponseUnlocked(conn *PacketConn, hctx *HandlerContext) error {
 	return nil
 }
 
-func (sc *serverConn) acquireHandlerCtx(tip uint32, stateInit func() ServerHookState) (*HandlerContext, bool) {
+func (sc *serverConn) acquireHandlerCtx(tip uint32, options *ServerOptions) (*HandlerContext, bool) {
 	sc.mu.Lock()
 	for !(sc.closedFlag || len(sc.hctxPool) > 0 || sc.hctxCreated < sc.maxInflight) {
 		sc.server.rareLog(&sc.server.lastHctxWaitLog, "rpc: waiting to acquire handler context; consider increasing Server.MaxInflightPackets")
@@ -243,8 +243,9 @@ func (sc *serverConn) acquireHandlerCtx(tip uint32, stateInit func() ServerHookS
 	hctx.keyID = sc.conn.keyID
 	hctx.protocolVersion = sc.conn.ProtocolVersion()
 	hctx.protocolTransport = "TCP"
-	hctx.hooksState = stateInit()
-
+	if options.Hooks != nil {
+		hctx.hooksState = options.Hooks()
+	}
 	return hctx, true
 }
 

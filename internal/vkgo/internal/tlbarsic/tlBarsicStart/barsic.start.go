@@ -58,6 +58,19 @@ func (item *BarsicStart) Reset() {
 	item.Snapshots = item.Snapshots[:0]
 }
 
+func (item *BarsicStart) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.ClusterId = basictl.RandomString(gen)
+	item.ShardId = basictl.RandomString(gen)
+	item.EncryptionSecret = basictl.RandomString(gen)
+	if item.FieldsMask&(1<<1) != 0 {
+		tlBuiltinVectorString.BuiltinVectorStringFillRandom(gen, &item.EncryptionSecrets)
+	} else {
+		item.EncryptionSecrets = item.EncryptionSecrets[:0]
+	}
+	tlBuiltinVectorString.BuiltinVectorStringFillRandom(gen, &item.Snapshots)
+}
+
 func (item *BarsicStart) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -232,6 +245,124 @@ func (item *BarsicStart) ReadJSONLegacy(legacyTypeNames bool, j interface{}) err
 	return nil
 }
 
+func (item *BarsicStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var trueTypeDumpPresented bool
+	var trueTypeDumpValue bool
+	var propClusterIdPresented bool
+	var propShardIdPresented bool
+	var propEncryptionSecretPresented bool
+	var propEncryptionSecretsPresented bool
+	var propSnapshotsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "dump":
+				if trueTypeDumpPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "dump")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeDumpValue); err != nil {
+					return err
+				}
+				trueTypeDumpPresented = true
+			case "cluster_id":
+				if propClusterIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "cluster_id")
+				}
+				if err := internal.Json2ReadString(in, &item.ClusterId); err != nil {
+					return err
+				}
+				propClusterIdPresented = true
+			case "shard_id":
+				if propShardIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "shard_id")
+				}
+				if err := internal.Json2ReadString(in, &item.ShardId); err != nil {
+					return err
+				}
+				propShardIdPresented = true
+			case "encryptionSecret":
+				if propEncryptionSecretPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "encryptionSecret")
+				}
+				if err := internal.Json2ReadString(in, &item.EncryptionSecret); err != nil {
+					return err
+				}
+				propEncryptionSecretPresented = true
+			case "encryptionSecrets":
+				if propEncryptionSecretsPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "encryptionSecrets")
+				}
+				if err := tlBuiltinVectorString.BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.EncryptionSecrets); err != nil {
+					return err
+				}
+				propEncryptionSecretsPresented = true
+			case "snapshots":
+				if propSnapshotsPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "snapshots")
+				}
+				if err := tlBuiltinVectorString.BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.Snapshots); err != nil {
+					return err
+				}
+				propSnapshotsPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.start", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propClusterIdPresented {
+		item.ClusterId = ""
+	}
+	if !propShardIdPresented {
+		item.ShardId = ""
+	}
+	if !propEncryptionSecretPresented {
+		item.EncryptionSecret = ""
+	}
+	if !propEncryptionSecretsPresented {
+		item.EncryptionSecrets = item.EncryptionSecrets[:0]
+	}
+	if !propSnapshotsPresented {
+		item.Snapshots = item.Snapshots[:0]
+	}
+	if trueTypeDumpPresented {
+		if trueTypeDumpValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if propEncryptionSecretsPresented {
+		item.FieldsMask |= 1 << 1
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeDumpPresented && !trueTypeDumpValue && (item.FieldsMask&(1<<0) != 0) {
+		return internal.ErrorInvalidJSON("barsic.start", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	return nil
+}
+
 func (item *BarsicStart) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -332,6 +463,19 @@ func (item *BarsicStartBytes) Reset() {
 	item.EncryptionSecret = item.EncryptionSecret[:0]
 	item.EncryptionSecrets = item.EncryptionSecrets[:0]
 	item.Snapshots = item.Snapshots[:0]
+}
+
+func (item *BarsicStartBytes) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.ClusterId = basictl.RandomStringBytes(gen)
+	item.ShardId = basictl.RandomStringBytes(gen)
+	item.EncryptionSecret = basictl.RandomStringBytes(gen)
+	if item.FieldsMask&(1<<1) != 0 {
+		tlBuiltinVectorString.BuiltinVectorStringBytesFillRandom(gen, &item.EncryptionSecrets)
+	} else {
+		item.EncryptionSecrets = item.EncryptionSecrets[:0]
+	}
+	tlBuiltinVectorString.BuiltinVectorStringBytesFillRandom(gen, &item.Snapshots)
 }
 
 func (item *BarsicStartBytes) Read(w []byte) (_ []byte, err error) {
@@ -504,6 +648,124 @@ func (item *BarsicStartBytes) ReadJSONLegacy(legacyTypeNames bool, j interface{}
 	}
 	if err := tlBuiltinVectorString.BuiltinVectorStringBytesReadJSONLegacy(legacyTypeNames, _jSnapshots, &item.Snapshots); err != nil {
 		return err
+	}
+	return nil
+}
+
+func (item *BarsicStartBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var trueTypeDumpPresented bool
+	var trueTypeDumpValue bool
+	var propClusterIdPresented bool
+	var propShardIdPresented bool
+	var propEncryptionSecretPresented bool
+	var propEncryptionSecretsPresented bool
+	var propSnapshotsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "dump":
+				if trueTypeDumpPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "dump")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeDumpValue); err != nil {
+					return err
+				}
+				trueTypeDumpPresented = true
+			case "cluster_id":
+				if propClusterIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "cluster_id")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ClusterId); err != nil {
+					return err
+				}
+				propClusterIdPresented = true
+			case "shard_id":
+				if propShardIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "shard_id")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ShardId); err != nil {
+					return err
+				}
+				propShardIdPresented = true
+			case "encryptionSecret":
+				if propEncryptionSecretPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "encryptionSecret")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.EncryptionSecret); err != nil {
+					return err
+				}
+				propEncryptionSecretPresented = true
+			case "encryptionSecrets":
+				if propEncryptionSecretsPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "encryptionSecrets")
+				}
+				if err := tlBuiltinVectorString.BuiltinVectorStringBytesReadJSON(legacyTypeNames, in, &item.EncryptionSecrets); err != nil {
+					return err
+				}
+				propEncryptionSecretsPresented = true
+			case "snapshots":
+				if propSnapshotsPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.start", "snapshots")
+				}
+				if err := tlBuiltinVectorString.BuiltinVectorStringBytesReadJSON(legacyTypeNames, in, &item.Snapshots); err != nil {
+					return err
+				}
+				propSnapshotsPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.start", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propClusterIdPresented {
+		item.ClusterId = item.ClusterId[:0]
+	}
+	if !propShardIdPresented {
+		item.ShardId = item.ShardId[:0]
+	}
+	if !propEncryptionSecretPresented {
+		item.EncryptionSecret = item.EncryptionSecret[:0]
+	}
+	if !propEncryptionSecretsPresented {
+		item.EncryptionSecrets = item.EncryptionSecrets[:0]
+	}
+	if !propSnapshotsPresented {
+		item.Snapshots = item.Snapshots[:0]
+	}
+	if trueTypeDumpPresented {
+		if trueTypeDumpValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if propEncryptionSecretsPresented {
+		item.FieldsMask |= 1 << 1
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeDumpPresented && !trueTypeDumpValue && (item.FieldsMask&(1<<0) != 0) {
+		return internal.ErrorInvalidJSON("barsic.start", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }

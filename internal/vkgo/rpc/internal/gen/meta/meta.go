@@ -29,6 +29,7 @@ type Object interface {
 	UnmarshalJSON([]byte) error   // reads type's JSON representation
 
 	ReadJSONLegacy(legacyTypeNames bool, j interface{}) error
+	ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
 	WriteJSON(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it
 }
 
@@ -40,6 +41,16 @@ type Function interface {
 
 	// For transcoding short-long version during Long ID and newTypeNames transition
 	ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) ([]byte, []byte, error)
+}
+
+func GetAllTLItems() []TLItem {
+	var allItems []TLItem
+	for _, item := range itemsByName {
+		if item != nil {
+			allItems = append(allItems, *item)
+		}
+	}
+	return allItems
 }
 
 // for quick one-liners
@@ -136,6 +147,21 @@ func (item *TLItem) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	}
 	for k := range _jm {
 		return internal.ErrorInvalidJSONExcessElement(item.tlName, k)
+	}
+	return nil
+}
+
+func (item *TLItem) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	in.Delim('{')
+	if !in.Ok() {
+		return in.Error()
+	}
+	for !in.IsDelim('}') {
+		return internal.ErrorInvalidJSONExcessElement(item.tlName, in.UnsafeFieldName(true))
+	}
+	in.Delim('}')
+	if !in.Ok() {
+		return in.Error()
 	}
 	return nil
 }

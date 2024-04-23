@@ -27,6 +27,10 @@ func (item *BarsicShutdown) Reset() {
 	item.FieldsMask = 0
 }
 
+func (item *BarsicShutdown) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+}
+
 func (item *BarsicShutdown) Read(w []byte) (_ []byte, err error) {
 	return basictl.NatRead(w, &item.FieldsMask)
 }
@@ -124,6 +128,42 @@ func (item *BarsicShutdown) ReadJSONLegacy(legacyTypeNames bool, j interface{}) 
 	}
 	for k := range _jm {
 		return internal.ErrorInvalidJSONExcessElement("barsic.shutdown", k)
+	}
+	return nil
+}
+
+func (item *BarsicShutdown) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.shutdown", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.shutdown", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
 	return nil
 }

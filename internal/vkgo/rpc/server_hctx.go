@@ -85,6 +85,23 @@ func (hctx *HandlerContext) ListenAddr() net.Addr      { return hctx.listenAddr 
 func (hctx *HandlerContext) LocalAddr() net.Addr       { return hctx.localAddr }
 func (hctx *HandlerContext) RemoteAddr() net.Addr      { return hctx.remoteAddr }
 
+// this is for testing UDP transport, will be removed soon
+func (hctx *HandlerContext) FillHandlerContextDoNotUse(
+	commonConn HandlerContextConnection, listenAddr net.Addr, localAddr net.Addr, remoteAddr net.Addr,
+	keyID [4]byte, protocolVersion uint32, protocolTransport string,
+	options *ServerOptions) {
+	hctx.commonConn = commonConn
+	hctx.listenAddr = listenAddr
+	hctx.localAddr = localAddr
+	hctx.remoteAddr = remoteAddr
+	hctx.keyID = keyID
+	hctx.protocolVersion = protocolVersion
+	hctx.protocolTransport = protocolTransport
+	if options.Hooks != nil {
+		hctx.hooksState = options.Hooks()
+	}
+}
+
 func (hctx *HandlerContext) reset() {
 	if hctx.hooksState != nil {
 		hctx.hooksState.Reset()

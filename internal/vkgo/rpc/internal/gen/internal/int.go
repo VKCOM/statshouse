@@ -60,6 +60,34 @@ func BuiltinVectorIntReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]
 	return nil
 }
 
+func BuiltinVectorIntReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]int32) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]int32", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue int32
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := Json2ReadInt32(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]int32", "expected json array's end")
+		}
+	}
+	*vec = (*vec)[:index]
+	return nil
+}
+
 func BuiltinVectorIntWriteJSON(w []byte, vec []int32) (_ []byte, err error) {
 	return BuiltinVectorIntWriteJSONOpt(true, false, w, vec)
 }

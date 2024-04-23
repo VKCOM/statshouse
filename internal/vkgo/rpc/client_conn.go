@@ -295,7 +295,7 @@ func (pc *clientConn) goConnect(closeCC <-chan struct{}, resetReconnectDelayC <-
 }
 
 func (pc *clientConn) run() (goodHandshake bool) {
-	address := srvfunc.MaybeResolveHost(pc.address.Network, pc.address.Address)
+	address := srvfunc.MaybeResolveAddr(pc.address.Network, pc.address.Address)
 	nc, err := net.DialTimeout(pc.address.Network, address, DefaultHandshakeStepTimeout)
 	if err != nil {
 		pc.client.opts.Logf("rpc: failed to start new peer connection with %v: %v", pc.address, err)
@@ -410,7 +410,7 @@ func (pc *clientConn) receiveLoop(conn *PacketConn) {
 		var err error
 
 		for {
-			typ, resp.Body, isBuiltin, err = conn.ReadPacketUnlocked(resp.body, pc.client.opts.PacketTimeout)
+			typ, resp.Body, isBuiltin, _, err = conn.ReadPacketUnlocked(resp.body, pc.client.opts.PacketTimeout)
 			resp.body = resp.Body[:0] // prepare for reuse immediately
 			if err != nil {
 				pc.client.PutResponse(resp)

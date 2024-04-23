@@ -61,6 +61,13 @@ func (item *DictionaryLong) ReadJSONLegacy(legacyTypeNames bool, j interface{}) 
 	return nil
 }
 
+func (item *DictionaryLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*map[string]int64)(item)
+	if err := BuiltinVectorDictionaryFieldLongReadJSON(legacyTypeNames, in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
 func (item *DictionaryLong) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -135,6 +142,13 @@ func (item *DictionaryString) ReadJSONLegacy(legacyTypeNames bool, j interface{}
 	return nil
 }
 
+func (item *DictionaryString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*map[string]string)(item)
+	if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
 func (item *DictionaryString) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

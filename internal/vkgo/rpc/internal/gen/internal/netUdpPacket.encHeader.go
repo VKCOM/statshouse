@@ -448,6 +448,207 @@ func (item *NetUdpPacketEncHeader) ReadJSONLegacy(legacyTypeNames bool, j interf
 	return nil
 }
 
+func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFlagsPresented bool
+	var propTimePresented bool
+	var propVersionPresented bool
+	var propPacketAckPrefixPresented bool
+	var propPacketAckFromPresented bool
+	var propPacketAckToPresented bool
+	var propPacketAckSetPresented bool
+	var propPacketNumPresented bool
+	var propPacketsFromPresented bool
+	var propPacketsToPresented bool
+	var propPrevPartsPresented bool
+	var propNextPartsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "flags":
+				if propFlagsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "flags")
+				}
+				if err := Json2ReadUint32(in, &item.Flags); err != nil {
+					return err
+				}
+				propFlagsPresented = true
+			case "time":
+				if propTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "time")
+				}
+				if err := Json2ReadInt32(in, &item.Time); err != nil {
+					return err
+				}
+				propTimePresented = true
+			case "version":
+				if propVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "version")
+				}
+				if err := Json2ReadInt32(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
+			case "packet_ack_prefix":
+				if propPacketAckPrefixPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_ack_prefix")
+				}
+				if err := Json2ReadInt32(in, &item.PacketAckPrefix); err != nil {
+					return err
+				}
+				propPacketAckPrefixPresented = true
+			case "packet_ack_from":
+				if propPacketAckFromPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_ack_from")
+				}
+				if err := Json2ReadInt32(in, &item.PacketAckFrom); err != nil {
+					return err
+				}
+				propPacketAckFromPresented = true
+			case "packet_ack_to":
+				if propPacketAckToPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_ack_to")
+				}
+				if err := Json2ReadInt32(in, &item.PacketAckTo); err != nil {
+					return err
+				}
+				propPacketAckToPresented = true
+			case "packet_ack_set":
+				if propPacketAckSetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_ack_set")
+				}
+				if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, &item.PacketAckSet); err != nil {
+					return err
+				}
+				propPacketAckSetPresented = true
+			case "packet_num":
+				if propPacketNumPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packet_num")
+				}
+				if err := Json2ReadInt32(in, &item.PacketNum); err != nil {
+					return err
+				}
+				propPacketNumPresented = true
+			case "packets_from":
+				if propPacketsFromPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packets_from")
+				}
+				if err := Json2ReadInt32(in, &item.PacketsFrom); err != nil {
+					return err
+				}
+				propPacketsFromPresented = true
+			case "packets_to":
+				if propPacketsToPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "packets_to")
+				}
+				if err := Json2ReadInt32(in, &item.PacketsTo); err != nil {
+					return err
+				}
+				propPacketsToPresented = true
+			case "prev_parts":
+				if propPrevPartsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "prev_parts")
+				}
+				if err := Json2ReadInt32(in, &item.PrevParts); err != nil {
+					return err
+				}
+				propPrevPartsPresented = true
+			case "next_parts":
+				if propNextPartsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("netUdpPacket.encHeader", "next_parts")
+				}
+				if err := Json2ReadInt32(in, &item.NextParts); err != nil {
+					return err
+				}
+				propNextPartsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("netUdpPacket.encHeader", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFlagsPresented {
+		item.Flags = 0
+	}
+	if !propTimePresented {
+		item.Time = 0
+	}
+	if !propVersionPresented {
+		item.Version = 0
+	}
+	if !propPacketAckPrefixPresented {
+		item.PacketAckPrefix = 0
+	}
+	if !propPacketAckFromPresented {
+		item.PacketAckFrom = 0
+	}
+	if !propPacketAckToPresented {
+		item.PacketAckTo = 0
+	}
+	if !propPacketAckSetPresented {
+		item.PacketAckSet = item.PacketAckSet[:0]
+	}
+	if !propPacketNumPresented {
+		item.PacketNum = 0
+	}
+	if !propPacketsFromPresented {
+		item.PacketsFrom = 0
+	}
+	if !propPacketsToPresented {
+		item.PacketsTo = 0
+	}
+	if !propPrevPartsPresented {
+		item.PrevParts = 0
+	}
+	if !propNextPartsPresented {
+		item.NextParts = 0
+	}
+	if propTimePresented {
+		item.Flags |= 1 << 9
+	}
+	if propVersionPresented {
+		item.Flags |= 1 << 10
+	}
+	if propPacketAckPrefixPresented {
+		item.Flags |= 1 << 13
+	}
+	if propPacketAckFromPresented {
+		item.Flags |= 1 << 14
+	}
+	if propPacketAckToPresented {
+		item.Flags |= 1 << 14
+	}
+	if propPacketAckSetPresented {
+		item.Flags |= 1 << 15
+	}
+	if propPacketNumPresented {
+		item.Flags |= 1 << 20
+	}
+	if propPacketsFromPresented {
+		item.Flags |= 1 << 21
+	}
+	if propPacketsToPresented {
+		item.Flags |= 1 << 21
+	}
+	if propPrevPartsPresented {
+		item.Flags |= 1 << 22
+	}
+	if propNextPartsPresented {
+		item.Flags |= 1 << 23
+	}
+	return nil
+}
+
 func (item *NetUdpPacketEncHeader) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

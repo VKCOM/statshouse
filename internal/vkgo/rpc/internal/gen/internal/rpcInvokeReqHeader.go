@@ -68,6 +68,42 @@ func (item *RpcInvokeReqHeader) ReadJSONLegacy(legacyTypeNames bool, j interface
 	return nil
 }
 
+func (item *RpcInvokeReqHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propQueryIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "query_id":
+				if propQueryIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcInvokeReqHeader", "query_id")
+				}
+				if err := Json2ReadInt64(in, &item.QueryId); err != nil {
+					return err
+				}
+				propQueryIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcInvokeReqHeader", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propQueryIdPresented {
+		item.QueryId = 0
+	}
+	return nil
+}
+
 func (item *RpcInvokeReqHeader) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

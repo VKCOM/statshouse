@@ -115,6 +115,23 @@ func (item *EngineVersion) ReadJSONLegacy(legacyTypeNames bool, j interface{}) e
 	return nil
 }
 
+func (item *EngineVersion) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.version", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	return nil
+}
+
 func (item *EngineVersion) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

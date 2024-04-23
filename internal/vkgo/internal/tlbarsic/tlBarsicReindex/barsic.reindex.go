@@ -47,6 +47,10 @@ func (item *BarsicReindex) Reset() {
 	item.FieldsMask = 0
 }
 
+func (item *BarsicReindex) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+}
+
 func (item *BarsicReindex) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -174,6 +178,80 @@ func (item *BarsicReindex) ReadJSONLegacy(legacyTypeNames bool, j interface{}) e
 		} else {
 			item.FieldsMask &^= 1 << 1
 		}
+	}
+	return nil
+}
+
+func (item *BarsicReindex) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var trueTypeFastPresented bool
+	var trueTypeFastValue bool
+	var trueTypeDiffPresented bool
+	var trueTypeDiffValue bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.reindex", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "fast":
+				if trueTypeFastPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.reindex", "fast")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeFastValue); err != nil {
+					return err
+				}
+				trueTypeFastPresented = true
+			case "diff":
+				if trueTypeDiffPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.reindex", "diff")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeDiffValue); err != nil {
+					return err
+				}
+				trueTypeDiffPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.reindex", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if trueTypeFastPresented {
+		if trueTypeFastValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if trueTypeDiffPresented {
+		if trueTypeDiffValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeFastPresented && !trueTypeFastValue && (item.FieldsMask&(1<<0) != 0) {
+		return internal.ErrorInvalidJSON("barsic.reindex", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeDiffPresented && !trueTypeDiffValue && (item.FieldsMask&(1<<1) != 0) {
+		return internal.ErrorInvalidJSON("barsic.reindex", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }

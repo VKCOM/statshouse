@@ -60,6 +60,34 @@ func BuiltinVectorStringReadJSONLegacy(legacyTypeNames bool, j interface{}, vec 
 	return nil
 }
 
+func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]string) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]string", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue string
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := Json2ReadString(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]string", "expected json array's end")
+		}
+	}
+	*vec = (*vec)[:index]
+	return nil
+}
+
 func BuiltinVectorStringWriteJSON(w []byte, vec []string) (_ []byte, err error) {
 	return BuiltinVectorStringWriteJSONOpt(true, false, w, vec)
 }
@@ -120,6 +148,13 @@ func (item *String) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	return nil
 }
 
+func (item *String) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*string)(item)
+	if err := Json2ReadString(in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
 func (item *String) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

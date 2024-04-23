@@ -23,6 +23,8 @@ func (True) TLTag() uint32  { return 0x3fedd339 }
 
 func (item *True) Reset() {}
 
+func (item *True) FillRandom(gen basictl.Rand) {}
+
 func (item *True) Read(w []byte) (_ []byte, err error) { return w, nil }
 
 func (item *True) Write(w []byte) (_ []byte, err error) { return w, nil }
@@ -54,6 +56,23 @@ func (item *True) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	}
 	for k := range _jm {
 		return internal.ErrorInvalidJSONExcessElement("true", k)
+	}
+	return nil
+}
+
+func (item *True) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return internal.ErrorInvalidJSON("true", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }

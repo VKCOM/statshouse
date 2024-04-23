@@ -123,6 +123,42 @@ func (item *EngineSleep) ReadJSONLegacy(legacyTypeNames bool, j interface{}) err
 	return nil
 }
 
+func (item *EngineSleep) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propTimeMsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "time_ms":
+				if propTimeMsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.sleep", "time_ms")
+				}
+				if err := Json2ReadInt32(in, &item.TimeMs); err != nil {
+					return err
+				}
+				propTimeMsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.sleep", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propTimeMsPresented {
+		item.TimeMs = 0
+	}
+	return nil
+}
+
 func (item *EngineSleep) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

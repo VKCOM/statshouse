@@ -101,6 +101,78 @@ func (item *FsbinlogLevUpgradeToGms) ReadJSONLegacy(legacyTypeNames bool, j inte
 	return nil
 }
 
+func (item *FsbinlogLevUpgradeToGms) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propPayloadOffsetPresented bool
+	var propCrcPresented bool
+	var propTsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levUpgradeToGms", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "PayloadOffset":
+				if propPayloadOffsetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levUpgradeToGms", "PayloadOffset")
+				}
+				if err := Json2ReadInt64(in, &item.PayloadOffset); err != nil {
+					return err
+				}
+				propPayloadOffsetPresented = true
+			case "Crc":
+				if propCrcPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levUpgradeToGms", "Crc")
+				}
+				if err := Json2ReadUint32(in, &item.Crc); err != nil {
+					return err
+				}
+				propCrcPresented = true
+			case "Ts":
+				if propTsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levUpgradeToGms", "Ts")
+				}
+				if err := Json2ReadUint32(in, &item.Ts); err != nil {
+					return err
+				}
+				propTsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("fsbinlog.levUpgradeToGms", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propPayloadOffsetPresented {
+		item.PayloadOffset = 0
+	}
+	if !propCrcPresented {
+		item.Crc = 0
+	}
+	if !propTsPresented {
+		item.Ts = 0
+	}
+	return nil
+}
+
 func (item *FsbinlogLevUpgradeToGms) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

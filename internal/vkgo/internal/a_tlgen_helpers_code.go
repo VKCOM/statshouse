@@ -383,7 +383,7 @@ func Json2ReadStringBytes(in *jlexer.Lexer, dst *[]byte) error {
 
 	switch in.CurrentToken() {
 	case jlexer.TokenString:
-		*dst = in.Bytes()
+		*dst = append((*dst)[:0], in.String()...)
 	case jlexer.TokenDelim:
 		var findValue = false
 

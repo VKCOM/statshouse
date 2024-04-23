@@ -147,7 +147,7 @@ func (pc *PacketConn) nonceExchangeClient(body []byte, cryptoKey string, trusted
 }
 
 func (pc *PacketConn) nonceExchangeServer(body []byte, cryptoKeys []string, trustedSubnetGroups [][]*net.IPNet, forceEncryption bool, handshakeStepTimeout time.Duration) (magicHead []byte, _ []byte, keyID [4]byte, err error) {
-	reqType, magicHead, body, _, err := pc.readPacketWithMagic(body[:0], handshakeStepTimeout)
+	reqType, magicHead, body, _, _, err := pc.readPacketWithMagic(body[:0], handshakeStepTimeout)
 	if err != nil {
 		return magicHead, body, [4]byte{}, err
 	}
