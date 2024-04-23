@@ -15,7 +15,7 @@ This section tells you about using PromQL with StatsHouse:
   * [No data grouping by default](#no-data-grouping-by-default)
 * [PromQL extensions in StatsHouse](#promql-extensions-in-statshouse)
   * [`__what__` and `__by__`](#what-and-by)
-  * [`__bind__`](#bind)
+  * [Applying dashboard variables](#applying-dashboard-variables)
   * [Range vectors and instant vectors](#range-vectors-and-instant-vectors)
   * [`prefix_sum`](#prefixsum)
   * [`default`](#default)
@@ -42,8 +42,7 @@ If you have been using PromQL before, you may be confused with some PromQL imple
 Let's make them clear.
 
 * [The query result is an aggregate](#the-query-result-is-an-aggregate)—not an exact metric value per moment. 
-* You can [choose the aggregate components](#the-what-selector-choosing-the-aggregate-components) using the `__what__` 
-  selector.
+* You can [choose the aggregate components](#the-what-selector-choosing-the-aggregate-components) using the `__what__` selector.
 * StatsHouse [histograms are _t-digests_](#histograms-are-t-digests).
 * StatsHouse [does not group data by default](#no-data-grouping-by-default).
 
@@ -165,20 +164,18 @@ Find PromQL extensions implemented in StatsHouse.
 The [`__what__`](#the-what-selector-choosing-the-aggregate-components) and [`__by__`](#no-data-grouping-by-default)
 selectors help to express any standard query in StatsHouse.
 
-### `__bind__`
+### Applying dashboard variables
 
-This operator binds the dashboard variables to a selector.
-Specify the `<tag_name>:<variable_name>` pairs with comma as delimiters.
+To bind the tag to the previously created variable in your PromQL query, use the following syntax:
 
-In this example, the `environment` variable values and the grouping are applied to the `api_methods` selector:
-```
-api_methods{__bind__="0:environment"}
-```
-If the `environment` variable values are `production,staging`, and the grouping is applied, the above-mentioned
-expression is equivalent to the following:
-```
-api_methods{0="production",0="staging",__by__="0"}
-```
+`tag_name:$variable_name`
+
+The resulting query may look like this:
+
+`topk(5,api_methods{@what="countsec",0:$env})`
+
+Find more about [setting up variables for PromQL-based graphs and dashboards](dashboards.md#set-up-promql-based-dashboards).
+
 ### Range vectors and instant vectors
 
 Functions for the range vectors receive instant vectors too. But the converse is false.
