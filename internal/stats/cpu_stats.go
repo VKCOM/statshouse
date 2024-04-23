@@ -124,8 +124,12 @@ func (c *CPUStats) writeCPU(nowUnix int64, stat procfs.Stat) error {
 func (c *CPUStats) writeSystem(nowUnix int64, stat procfs.Stat) error {
 	uptime := uint64(time.Now().Unix()) - stat.BootTime
 	c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameSystemUptime, float64(uptime))
-	c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesRunning), format.RawIDTagRunning)
-	c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesBlocked), format.RawIDTagBlocked)
+	if stat.ProcessesBlocked < processBlockedLimit {
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesRunning), format.RawIDTagRunning)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameProcessStatus, float64(stat.ProcessesBlocked), format.RawIDTagBlocked)
+	} else {
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameProcessStatus, float64(0), format.RawIDTagBadData)
+	}
 	c.writer.WriteSystemMetricCount(nowUnix, format.BuiltinMetricNameProcessCreated, float64(stat.ProcessCreated-c.stat.ProcessCreated))
 	c.writer.WriteSystemMetricCount(nowUnix, cs, diff(stat.ContextSwitches, c.stat.ContextSwitches))
 	return nil

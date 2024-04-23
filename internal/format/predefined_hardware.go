@@ -95,6 +95,7 @@ const (
 	RawIDTagBuffers = 2
 	RawIDTagCached  = 3
 	RawIDTagFree    = 4
+	RawIDTagBadData = 5
 
 	RawIDTagReservedForRoot = 5
 
@@ -249,6 +250,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 				RawIDTagUsed:    "used",
 				RawIDTagBuffers: "buffers",
 				RawIDTagCached:  "cached",
+				RawIDTagBadData: "bad_data",
 			}),
 		}},
 	},
@@ -297,6 +299,7 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			ValueComments: convertToValueComments(map[int32]string{
 				RawIDTagBlocked: "blocked",
 				RawIDTagRunning: "running",
+				RawIDTagBadData: "bad_data",
 			}),
 		}},
 	},
