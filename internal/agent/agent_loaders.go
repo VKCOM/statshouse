@@ -76,7 +76,6 @@ func clientSaveConfigToCache(cluster string, dc *pcache.DiskCache, dst tlstatsho
 
 func clientGetConfigFromCache(cluster string, dc *pcache.DiskCache) (tlstatshouse.GetConfigResult, error) {
 	var res tlstatshouse.GetConfigResult
-
 	if dc == nil {
 		return res, fmt.Errorf("cannot load autoconfig from disc cache, because no disk cache configured")
 	}
