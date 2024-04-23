@@ -53,6 +53,13 @@ func (item *BarsicEngineStarted) Reset() {
 	item.ControlMeta = ""
 }
 
+func (item *BarsicEngineStarted) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.Offset = basictl.RandomLong(gen)
+	item.SnapshotMeta = basictl.RandomString(gen)
+	item.ControlMeta = basictl.RandomString(gen)
+}
+
 func (item *BarsicEngineStarted) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -207,6 +214,116 @@ func (item *BarsicEngineStarted) ReadJSONLegacy(legacyTypeNames bool, j interfac
 	return nil
 }
 
+func (item *BarsicEngineStarted) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var trueTypeLegacyStartPresented bool
+	var trueTypeLegacyStartValue bool
+	var trueTypeEngineUpgradePresented bool
+	var trueTypeEngineUpgradeValue bool
+	var propOffsetPresented bool
+	var propSnapshotMetaPresented bool
+	var propControlMetaPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "legacy_start":
+				if trueTypeLegacyStartPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "legacy_start")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeLegacyStartValue); err != nil {
+					return err
+				}
+				trueTypeLegacyStartPresented = true
+			case "engine_upgrade":
+				if trueTypeEngineUpgradePresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "engine_upgrade")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeEngineUpgradeValue); err != nil {
+					return err
+				}
+				trueTypeEngineUpgradePresented = true
+			case "offset":
+				if propOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			case "snapshot_meta":
+				if propSnapshotMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "snapshot_meta")
+				}
+				if err := internal.Json2ReadString(in, &item.SnapshotMeta); err != nil {
+					return err
+				}
+				propSnapshotMetaPresented = true
+			case "control_meta":
+				if propControlMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "control_meta")
+				}
+				if err := internal.Json2ReadString(in, &item.ControlMeta); err != nil {
+					return err
+				}
+				propControlMetaPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.engineStarted", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propOffsetPresented {
+		item.Offset = 0
+	}
+	if !propSnapshotMetaPresented {
+		item.SnapshotMeta = ""
+	}
+	if !propControlMetaPresented {
+		item.ControlMeta = ""
+	}
+	if trueTypeLegacyStartPresented {
+		if trueTypeLegacyStartValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if trueTypeEngineUpgradePresented {
+		if trueTypeEngineUpgradeValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeLegacyStartPresented && !trueTypeLegacyStartValue && (item.FieldsMask&(1<<0) != 0) {
+		return internal.ErrorInvalidJSON("barsic.engineStarted", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeEngineUpgradePresented && !trueTypeEngineUpgradeValue && (item.FieldsMask&(1<<1) != 0) {
+		return internal.ErrorInvalidJSON("barsic.engineStarted", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	return nil
+}
+
 func (item *BarsicEngineStarted) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -293,6 +410,13 @@ func (item *BarsicEngineStartedBytes) Reset() {
 	item.Offset = 0
 	item.SnapshotMeta = item.SnapshotMeta[:0]
 	item.ControlMeta = item.ControlMeta[:0]
+}
+
+func (item *BarsicEngineStartedBytes) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.Offset = basictl.RandomLong(gen)
+	item.SnapshotMeta = basictl.RandomStringBytes(gen)
+	item.ControlMeta = basictl.RandomStringBytes(gen)
 }
 
 func (item *BarsicEngineStartedBytes) Read(w []byte) (_ []byte, err error) {
@@ -445,6 +569,116 @@ func (item *BarsicEngineStartedBytes) ReadJSONLegacy(legacyTypeNames bool, j int
 		} else {
 			item.FieldsMask &^= 1 << 1
 		}
+	}
+	return nil
+}
+
+func (item *BarsicEngineStartedBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var trueTypeLegacyStartPresented bool
+	var trueTypeLegacyStartValue bool
+	var trueTypeEngineUpgradePresented bool
+	var trueTypeEngineUpgradeValue bool
+	var propOffsetPresented bool
+	var propSnapshotMetaPresented bool
+	var propControlMetaPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "legacy_start":
+				if trueTypeLegacyStartPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "legacy_start")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeLegacyStartValue); err != nil {
+					return err
+				}
+				trueTypeLegacyStartPresented = true
+			case "engine_upgrade":
+				if trueTypeEngineUpgradePresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "engine_upgrade")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeEngineUpgradeValue); err != nil {
+					return err
+				}
+				trueTypeEngineUpgradePresented = true
+			case "offset":
+				if propOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			case "snapshot_meta":
+				if propSnapshotMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "snapshot_meta")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.SnapshotMeta); err != nil {
+					return err
+				}
+				propSnapshotMetaPresented = true
+			case "control_meta":
+				if propControlMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStarted", "control_meta")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ControlMeta); err != nil {
+					return err
+				}
+				propControlMetaPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.engineStarted", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propOffsetPresented {
+		item.Offset = 0
+	}
+	if !propSnapshotMetaPresented {
+		item.SnapshotMeta = item.SnapshotMeta[:0]
+	}
+	if !propControlMetaPresented {
+		item.ControlMeta = item.ControlMeta[:0]
+	}
+	if trueTypeLegacyStartPresented {
+		if trueTypeLegacyStartValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if trueTypeEngineUpgradePresented {
+		if trueTypeEngineUpgradeValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeLegacyStartPresented && !trueTypeLegacyStartValue && (item.FieldsMask&(1<<0) != 0) {
+		return internal.ErrorInvalidJSON("barsic.engineStarted", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeEngineUpgradePresented && !trueTypeEngineUpgradeValue && (item.FieldsMask&(1<<1) != 0) {
+		return internal.ErrorInvalidJSON("barsic.engineStarted", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }

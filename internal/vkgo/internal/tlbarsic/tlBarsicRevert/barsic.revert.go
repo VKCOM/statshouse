@@ -29,6 +29,11 @@ func (item *BarsicRevert) Reset() {
 	item.Offset = 0
 }
 
+func (item *BarsicRevert) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.Offset = basictl.RandomLong(gen)
+}
+
 func (item *BarsicRevert) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -135,6 +140,54 @@ func (item *BarsicRevert) ReadJSONLegacy(legacyTypeNames bool, j interface{}) er
 	}
 	for k := range _jm {
 		return internal.ErrorInvalidJSONExcessElement("barsic.revert", k)
+	}
+	return nil
+}
+
+func (item *BarsicRevert) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propOffsetPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.revert", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "offset":
+				if propOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.revert", "offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.revert", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propOffsetPresented {
+		item.Offset = 0
 	}
 	return nil
 }

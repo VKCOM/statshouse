@@ -125,6 +125,42 @@ func (item *EngineFilteredStat) ReadJSONLegacy(legacyTypeNames bool, j interface
 	return nil
 }
 
+func (item *EngineFilteredStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propStatNamesPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "stat_names":
+				if propStatNamesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.filteredStat", "stat_names")
+				}
+				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.StatNames); err != nil {
+					return err
+				}
+				propStatNamesPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.filteredStat", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propStatNamesPresented {
+		item.StatNames = item.StatNames[:0]
+	}
+	return nil
+}
+
 func (item *EngineFilteredStat) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

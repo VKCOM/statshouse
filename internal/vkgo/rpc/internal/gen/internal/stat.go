@@ -61,6 +61,13 @@ func (item *Stat) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	return nil
 }
 
+func (item *Stat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*map[string]string)(item)
+	if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
 func (item *Stat) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

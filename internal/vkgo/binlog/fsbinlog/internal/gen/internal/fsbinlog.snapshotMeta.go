@@ -101,6 +101,78 @@ func (item *FsbinlogSnapshotMeta) ReadJSONLegacy(legacyTypeNames bool, j interfa
 	return nil
 }
 
+func (item *FsbinlogSnapshotMeta) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propCommitPositionPresented bool
+	var propCommitCrcPresented bool
+	var propCommitTsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.snapshotMeta", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "CommitPosition":
+				if propCommitPositionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.snapshotMeta", "CommitPosition")
+				}
+				if err := Json2ReadInt64(in, &item.CommitPosition); err != nil {
+					return err
+				}
+				propCommitPositionPresented = true
+			case "CommitCrc":
+				if propCommitCrcPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.snapshotMeta", "CommitCrc")
+				}
+				if err := Json2ReadUint32(in, &item.CommitCrc); err != nil {
+					return err
+				}
+				propCommitCrcPresented = true
+			case "CommitTs":
+				if propCommitTsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.snapshotMeta", "CommitTs")
+				}
+				if err := Json2ReadUint32(in, &item.CommitTs); err != nil {
+					return err
+				}
+				propCommitTsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("fsbinlog.snapshotMeta", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propCommitPositionPresented {
+		item.CommitPosition = 0
+	}
+	if !propCommitCrcPresented {
+		item.CommitCrc = 0
+	}
+	if !propCommitTsPresented {
+		item.CommitTs = 0
+	}
+	return nil
+}
+
 func (item *FsbinlogSnapshotMeta) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

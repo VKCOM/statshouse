@@ -127,6 +127,42 @@ func (item *GoPprof) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	return nil
 }
 
+func (item *GoPprof) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propParamsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "params":
+				if propParamsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("go.pprof", "params")
+				}
+				if err := Json2ReadString(in, &item.Params); err != nil {
+					return err
+				}
+				propParamsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("go.pprof", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propParamsPresented {
+		item.Params = ""
+	}
+	return nil
+}
+
 func (item *GoPprof) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

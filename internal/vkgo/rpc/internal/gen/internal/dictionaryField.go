@@ -105,6 +105,40 @@ func BuiltinVectorDictionaryFieldLongReadJSONLegacy(legacyTypeNames bool, j inte
 	return nil
 }
 
+func BuiltinVectorDictionaryFieldLongReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, m *map[string]int64) error {
+	var data map[string]int64
+	if *m == nil {
+		*m = make(map[string]int64, 0)
+		data = *m
+	} else {
+		data = *m
+		for k := range data {
+			delete(data, k)
+		}
+	}
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return ErrorInvalidJSON("map[string]int64", "expected json object")
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			var value int64
+			if err := Json2ReadInt64(in, &value); err != nil {
+				return err
+			}
+			data[key] = value
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return ErrorInvalidJSON("map[string]int64", "expected json object's end")
+		}
+	}
+	return nil
+}
+
 func BuiltinVectorDictionaryFieldLongWriteJSON(w []byte, m map[string]int64) (_ []byte, err error) {
 	return BuiltinVectorDictionaryFieldLongWriteJSONOpt(true, false, w, m)
 }
@@ -215,6 +249,40 @@ func BuiltinVectorDictionaryFieldStringReadJSONLegacy(legacyTypeNames bool, j in
 	return nil
 }
 
+func BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, m *map[string]string) error {
+	var data map[string]string
+	if *m == nil {
+		*m = make(map[string]string, 0)
+		data = *m
+	} else {
+		data = *m
+		for k := range data {
+			delete(data, k)
+		}
+	}
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return ErrorInvalidJSON("map[string]string", "expected json object")
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			var value string
+			if err := Json2ReadString(in, &value); err != nil {
+				return err
+			}
+			data[key] = value
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return ErrorInvalidJSON("map[string]string", "expected json object's end")
+		}
+	}
+	return nil
+}
+
 func BuiltinVectorDictionaryFieldStringWriteJSON(w []byte, m map[string]string) (_ []byte, err error) {
 	return BuiltinVectorDictionaryFieldStringWriteJSONOpt(true, false, w, m)
 }
@@ -297,6 +365,54 @@ func (item *DictionaryFieldLong) ReadJSONLegacy(legacyTypeNames bool, j interfac
 	}
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("dictionaryField", k)
+	}
+	return nil
+}
+
+func (item *DictionaryFieldLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propKeyPresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "key":
+				if propKeyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("dictionaryField", "key")
+				}
+				if err := Json2ReadString(in, &item.Key); err != nil {
+					return err
+				}
+				propKeyPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("dictionaryField", "value")
+				}
+				if err := Json2ReadInt64(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("dictionaryField", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propKeyPresented {
+		item.Key = ""
+	}
+	if !propValuePresented {
+		item.Value = 0
 	}
 	return nil
 }
@@ -396,6 +512,54 @@ func (item *DictionaryFieldString) ReadJSONLegacy(legacyTypeNames bool, j interf
 	}
 	for k := range _jm {
 		return ErrorInvalidJSONExcessElement("dictionaryField", k)
+	}
+	return nil
+}
+
+func (item *DictionaryFieldString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propKeyPresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "key":
+				if propKeyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("dictionaryField", "key")
+				}
+				if err := Json2ReadString(in, &item.Key); err != nil {
+					return err
+				}
+				propKeyPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("dictionaryField", "value")
+				}
+				if err := Json2ReadString(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("dictionaryField", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propKeyPresented {
+		item.Key = ""
+	}
+	if !propValuePresented {
+		item.Value = ""
 	}
 	return nil
 }

@@ -61,6 +61,13 @@ func (item *Tuple8) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
 	return nil
 }
 
+func (item *Tuple8) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	ptr := (*[8]uint32)(item)
+	if err := BuiltinTuple8ReadJSON(legacyTypeNames, in, ptr); err != nil {
+		return err
+	}
+	return nil
+}
 func (item *Tuple8) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

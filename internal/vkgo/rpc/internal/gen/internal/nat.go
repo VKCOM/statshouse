@@ -48,6 +48,33 @@ func BuiltinTuple8ReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[8]ui
 	return nil
 }
 
+func BuiltinTuple8ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[8]uint32) error {
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[8]uint32", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if index == 8 {
+				return ErrorWrongSequenceLength("[8]uint32", index+1, 8)
+			}
+			if err := Json2ReadUint32(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[8]uint32", "expected json array's end")
+		}
+	}
+	if index != 8 {
+		return ErrorWrongSequenceLength("[8]uint32", index+1, 8)
+	}
+	return nil
+}
+
 func BuiltinTuple8WriteJSON(w []byte, vec *[8]uint32) (_ []byte, err error) {
 	return BuiltinTuple8WriteJSONOpt(true, false, w, vec)
 }

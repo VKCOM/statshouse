@@ -45,6 +45,19 @@ func (item *BarsicEngineStatus) Reset() {
 	item.PreparedSnapshotSize = 0
 }
 
+func (item *BarsicEngineStatus) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.Version = basictl.RandomString(gen)
+	item.LoadedSnapshot = basictl.RandomString(gen)
+	item.LoadedSnapshotOffset = basictl.RandomLong(gen)
+	item.LoadedSnapshotProgress = basictl.RandomLong(gen)
+	item.LoadedSnapshotSize = basictl.RandomLong(gen)
+	item.PreparedSnapshot = basictl.RandomString(gen)
+	item.PreparedSnapshotOffset = basictl.RandomLong(gen)
+	item.PreparedSnapshotProgress = basictl.RandomLong(gen)
+	item.PreparedSnapshotSize = basictl.RandomLong(gen)
+}
+
 func (item *BarsicEngineStatus) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -227,6 +240,150 @@ func (item *BarsicEngineStatus) ReadJSONLegacy(legacyTypeNames bool, j interface
 	return nil
 }
 
+func (item *BarsicEngineStatus) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propVersionPresented bool
+	var propLoadedSnapshotPresented bool
+	var propLoadedSnapshotOffsetPresented bool
+	var propLoadedSnapshotProgressPresented bool
+	var propLoadedSnapshotSizePresented bool
+	var propPreparedSnapshotPresented bool
+	var propPreparedSnapshotOffsetPresented bool
+	var propPreparedSnapshotProgressPresented bool
+	var propPreparedSnapshotSizePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "version":
+				if propVersionPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "version")
+				}
+				if err := internal.Json2ReadString(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
+			case "loaded_snapshot":
+				if propLoadedSnapshotPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot")
+				}
+				if err := internal.Json2ReadString(in, &item.LoadedSnapshot); err != nil {
+					return err
+				}
+				propLoadedSnapshotPresented = true
+			case "loaded_snapshot_offset":
+				if propLoadedSnapshotOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotOffset); err != nil {
+					return err
+				}
+				propLoadedSnapshotOffsetPresented = true
+			case "loaded_snapshot_progress":
+				if propLoadedSnapshotProgressPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_progress")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotProgress); err != nil {
+					return err
+				}
+				propLoadedSnapshotProgressPresented = true
+			case "loaded_snapshot_size":
+				if propLoadedSnapshotSizePresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_size")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotSize); err != nil {
+					return err
+				}
+				propLoadedSnapshotSizePresented = true
+			case "prepared_snapshot":
+				if propPreparedSnapshotPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot")
+				}
+				if err := internal.Json2ReadString(in, &item.PreparedSnapshot); err != nil {
+					return err
+				}
+				propPreparedSnapshotPresented = true
+			case "prepared_snapshot_offset":
+				if propPreparedSnapshotOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotOffset); err != nil {
+					return err
+				}
+				propPreparedSnapshotOffsetPresented = true
+			case "prepared_snapshot_progress":
+				if propPreparedSnapshotProgressPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_progress")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotProgress); err != nil {
+					return err
+				}
+				propPreparedSnapshotProgressPresented = true
+			case "prepared_snapshot_size":
+				if propPreparedSnapshotSizePresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_size")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotSize); err != nil {
+					return err
+				}
+				propPreparedSnapshotSizePresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.engineStatus", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propVersionPresented {
+		item.Version = ""
+	}
+	if !propLoadedSnapshotPresented {
+		item.LoadedSnapshot = ""
+	}
+	if !propLoadedSnapshotOffsetPresented {
+		item.LoadedSnapshotOffset = 0
+	}
+	if !propLoadedSnapshotProgressPresented {
+		item.LoadedSnapshotProgress = 0
+	}
+	if !propLoadedSnapshotSizePresented {
+		item.LoadedSnapshotSize = 0
+	}
+	if !propPreparedSnapshotPresented {
+		item.PreparedSnapshot = ""
+	}
+	if !propPreparedSnapshotOffsetPresented {
+		item.PreparedSnapshotOffset = 0
+	}
+	if !propPreparedSnapshotProgressPresented {
+		item.PreparedSnapshotProgress = 0
+	}
+	if !propPreparedSnapshotSizePresented {
+		item.PreparedSnapshotSize = 0
+	}
+	return nil
+}
+
 func (item *BarsicEngineStatus) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -327,6 +484,19 @@ func (item *BarsicEngineStatusBytes) Reset() {
 	item.PreparedSnapshotOffset = 0
 	item.PreparedSnapshotProgress = 0
 	item.PreparedSnapshotSize = 0
+}
+
+func (item *BarsicEngineStatusBytes) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.Version = basictl.RandomStringBytes(gen)
+	item.LoadedSnapshot = basictl.RandomStringBytes(gen)
+	item.LoadedSnapshotOffset = basictl.RandomLong(gen)
+	item.LoadedSnapshotProgress = basictl.RandomLong(gen)
+	item.LoadedSnapshotSize = basictl.RandomLong(gen)
+	item.PreparedSnapshot = basictl.RandomStringBytes(gen)
+	item.PreparedSnapshotOffset = basictl.RandomLong(gen)
+	item.PreparedSnapshotProgress = basictl.RandomLong(gen)
+	item.PreparedSnapshotSize = basictl.RandomLong(gen)
 }
 
 func (item *BarsicEngineStatusBytes) Read(w []byte) (_ []byte, err error) {
@@ -507,6 +677,150 @@ func (item *BarsicEngineStatusBytes) ReadJSONLegacy(legacyTypeNames bool, j inte
 	}
 	for k := range _jm {
 		return internal.ErrorInvalidJSONExcessElement("barsic.engineStatus", k)
+	}
+	return nil
+}
+
+func (item *BarsicEngineStatusBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propVersionPresented bool
+	var propLoadedSnapshotPresented bool
+	var propLoadedSnapshotOffsetPresented bool
+	var propLoadedSnapshotProgressPresented bool
+	var propLoadedSnapshotSizePresented bool
+	var propPreparedSnapshotPresented bool
+	var propPreparedSnapshotOffsetPresented bool
+	var propPreparedSnapshotProgressPresented bool
+	var propPreparedSnapshotSizePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "version":
+				if propVersionPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "version")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
+			case "loaded_snapshot":
+				if propLoadedSnapshotPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.LoadedSnapshot); err != nil {
+					return err
+				}
+				propLoadedSnapshotPresented = true
+			case "loaded_snapshot_offset":
+				if propLoadedSnapshotOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotOffset); err != nil {
+					return err
+				}
+				propLoadedSnapshotOffsetPresented = true
+			case "loaded_snapshot_progress":
+				if propLoadedSnapshotProgressPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_progress")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotProgress); err != nil {
+					return err
+				}
+				propLoadedSnapshotProgressPresented = true
+			case "loaded_snapshot_size":
+				if propLoadedSnapshotSizePresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "loaded_snapshot_size")
+				}
+				if err := internal.Json2ReadInt64(in, &item.LoadedSnapshotSize); err != nil {
+					return err
+				}
+				propLoadedSnapshotSizePresented = true
+			case "prepared_snapshot":
+				if propPreparedSnapshotPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.PreparedSnapshot); err != nil {
+					return err
+				}
+				propPreparedSnapshotPresented = true
+			case "prepared_snapshot_offset":
+				if propPreparedSnapshotOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotOffset); err != nil {
+					return err
+				}
+				propPreparedSnapshotOffsetPresented = true
+			case "prepared_snapshot_progress":
+				if propPreparedSnapshotProgressPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_progress")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotProgress); err != nil {
+					return err
+				}
+				propPreparedSnapshotProgressPresented = true
+			case "prepared_snapshot_size":
+				if propPreparedSnapshotSizePresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.engineStatus", "prepared_snapshot_size")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PreparedSnapshotSize); err != nil {
+					return err
+				}
+				propPreparedSnapshotSizePresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.engineStatus", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propVersionPresented {
+		item.Version = item.Version[:0]
+	}
+	if !propLoadedSnapshotPresented {
+		item.LoadedSnapshot = item.LoadedSnapshot[:0]
+	}
+	if !propLoadedSnapshotOffsetPresented {
+		item.LoadedSnapshotOffset = 0
+	}
+	if !propLoadedSnapshotProgressPresented {
+		item.LoadedSnapshotProgress = 0
+	}
+	if !propLoadedSnapshotSizePresented {
+		item.LoadedSnapshotSize = 0
+	}
+	if !propPreparedSnapshotPresented {
+		item.PreparedSnapshot = item.PreparedSnapshot[:0]
+	}
+	if !propPreparedSnapshotOffsetPresented {
+		item.PreparedSnapshotOffset = 0
+	}
+	if !propPreparedSnapshotProgressPresented {
+		item.PreparedSnapshotProgress = 0
+	}
+	if !propPreparedSnapshotSizePresented {
+		item.PreparedSnapshotSize = 0
 	}
 	return nil
 }

@@ -112,6 +112,90 @@ func (item *FsbinlogLevStart) ReadJSONLegacy(legacyTypeNames bool, j interface{}
 	return nil
 }
 
+func (item *FsbinlogLevStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propSchemaIdPresented bool
+	var propExtraBytesPresented bool
+	var propSplitModPresented bool
+	var propSplitMinPresented bool
+	var propSplitMaxPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "SchemaId":
+				if propSchemaIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levStart", "SchemaId")
+				}
+				if err := Json2ReadInt32(in, &item.SchemaId); err != nil {
+					return err
+				}
+				propSchemaIdPresented = true
+			case "ExtraBytes":
+				if propExtraBytesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levStart", "ExtraBytes")
+				}
+				if err := Json2ReadInt32(in, &item.ExtraBytes); err != nil {
+					return err
+				}
+				propExtraBytesPresented = true
+			case "SplitMod":
+				if propSplitModPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levStart", "SplitMod")
+				}
+				if err := Json2ReadInt32(in, &item.SplitMod); err != nil {
+					return err
+				}
+				propSplitModPresented = true
+			case "SplitMin":
+				if propSplitMinPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levStart", "SplitMin")
+				}
+				if err := Json2ReadInt32(in, &item.SplitMin); err != nil {
+					return err
+				}
+				propSplitMinPresented = true
+			case "SplitMax":
+				if propSplitMaxPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("fsbinlog.levStart", "SplitMax")
+				}
+				if err := Json2ReadInt32(in, &item.SplitMax); err != nil {
+					return err
+				}
+				propSplitMaxPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("fsbinlog.levStart", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propSchemaIdPresented {
+		item.SchemaId = 0
+	}
+	if !propExtraBytesPresented {
+		item.ExtraBytes = 0
+	}
+	if !propSplitModPresented {
+		item.SplitMod = 0
+	}
+	if !propSplitMinPresented {
+		item.SplitMin = 0
+	}
+	if !propSplitMaxPresented {
+		item.SplitMax = 0
+	}
+	return nil
+}
+
 func (item *FsbinlogLevStart) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

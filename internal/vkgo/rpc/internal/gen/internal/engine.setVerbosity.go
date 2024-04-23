@@ -125,6 +125,42 @@ func (item *EngineSetVerbosity) ReadJSONLegacy(legacyTypeNames bool, j interface
 	return nil
 }
 
+func (item *EngineSetVerbosity) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propVerbosityPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "verbosity":
+				if propVerbosityPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.setVerbosity", "verbosity")
+				}
+				if err := Json2ReadInt32(in, &item.Verbosity); err != nil {
+					return err
+				}
+				propVerbosityPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.setVerbosity", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propVerbosityPresented {
+		item.Verbosity = 0
+	}
+	return nil
+}
+
 func (item *EngineSetVerbosity) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

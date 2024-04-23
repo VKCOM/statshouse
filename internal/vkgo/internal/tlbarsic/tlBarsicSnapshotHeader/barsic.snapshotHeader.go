@@ -54,6 +54,22 @@ func (item *BarsicSnapshotHeader) Reset() {
 	item.ControlMeta = ""
 }
 
+func (item *BarsicSnapshotHeader) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.ClusterId = basictl.RandomString(gen)
+	item.ShardId = basictl.RandomString(gen)
+	item.SnapshotMeta = basictl.RandomString(gen)
+	tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyFillRandom(gen, &item.Dependencies)
+	item.PayloadOffset = basictl.RandomLong(gen)
+	item.EngineVersion = basictl.RandomString(gen)
+	item.CreationTimeNano = basictl.RandomLong(gen)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.ControlMeta = basictl.RandomString(gen)
+	} else {
+		item.ControlMeta = ""
+	}
+}
+
 func (item *BarsicSnapshotHeader) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -189,6 +205,141 @@ func (item *BarsicSnapshotHeader) ReadJSONLegacy(legacyTypeNames bool, j interfa
 	return nil
 }
 
+func (item *BarsicSnapshotHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propClusterIdPresented bool
+	var propShardIdPresented bool
+	var propSnapshotMetaPresented bool
+	var propDependenciesPresented bool
+	var propPayloadOffsetPresented bool
+	var propEngineVersionPresented bool
+	var propCreationTimeNanoPresented bool
+	var propControlMetaPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "cluster_id":
+				if propClusterIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "cluster_id")
+				}
+				if err := internal.Json2ReadString(in, &item.ClusterId); err != nil {
+					return err
+				}
+				propClusterIdPresented = true
+			case "shard_id":
+				if propShardIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "shard_id")
+				}
+				if err := internal.Json2ReadString(in, &item.ShardId); err != nil {
+					return err
+				}
+				propShardIdPresented = true
+			case "snapshot_meta":
+				if propSnapshotMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "snapshot_meta")
+				}
+				if err := internal.Json2ReadString(in, &item.SnapshotMeta); err != nil {
+					return err
+				}
+				propSnapshotMetaPresented = true
+			case "dependencies":
+				if propDependenciesPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "dependencies")
+				}
+				if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyReadJSON(legacyTypeNames, in, &item.Dependencies); err != nil {
+					return err
+				}
+				propDependenciesPresented = true
+			case "payload_offset":
+				if propPayloadOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "payload_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PayloadOffset); err != nil {
+					return err
+				}
+				propPayloadOffsetPresented = true
+			case "engine_version":
+				if propEngineVersionPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "engine_version")
+				}
+				if err := internal.Json2ReadString(in, &item.EngineVersion); err != nil {
+					return err
+				}
+				propEngineVersionPresented = true
+			case "creation_time_nano":
+				if propCreationTimeNanoPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "creation_time_nano")
+				}
+				if err := internal.Json2ReadInt64(in, &item.CreationTimeNano); err != nil {
+					return err
+				}
+				propCreationTimeNanoPresented = true
+			case "control_meta":
+				if propControlMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "control_meta")
+				}
+				if err := internal.Json2ReadString(in, &item.ControlMeta); err != nil {
+					return err
+				}
+				propControlMetaPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.snapshotHeader", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propClusterIdPresented {
+		item.ClusterId = ""
+	}
+	if !propShardIdPresented {
+		item.ShardId = ""
+	}
+	if !propSnapshotMetaPresented {
+		item.SnapshotMeta = ""
+	}
+	if !propDependenciesPresented {
+		item.Dependencies = item.Dependencies[:0]
+	}
+	if !propPayloadOffsetPresented {
+		item.PayloadOffset = 0
+	}
+	if !propEngineVersionPresented {
+		item.EngineVersion = ""
+	}
+	if !propCreationTimeNanoPresented {
+		item.CreationTimeNano = 0
+	}
+	if !propControlMetaPresented {
+		item.ControlMeta = ""
+	}
+	if propControlMetaPresented {
+		item.FieldsMask |= 1 << 0
+	}
+	return nil
+}
+
 func (item *BarsicSnapshotHeader) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -294,6 +445,22 @@ func (item *BarsicSnapshotHeaderBytes) Reset() {
 	item.EngineVersion = item.EngineVersion[:0]
 	item.CreationTimeNano = 0
 	item.ControlMeta = item.ControlMeta[:0]
+}
+
+func (item *BarsicSnapshotHeaderBytes) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.ClusterId = basictl.RandomStringBytes(gen)
+	item.ShardId = basictl.RandomStringBytes(gen)
+	item.SnapshotMeta = basictl.RandomStringBytes(gen)
+	tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesFillRandom(gen, &item.Dependencies)
+	item.PayloadOffset = basictl.RandomLong(gen)
+	item.EngineVersion = basictl.RandomStringBytes(gen)
+	item.CreationTimeNano = basictl.RandomLong(gen)
+	if item.FieldsMask&(1<<0) != 0 {
+		item.ControlMeta = basictl.RandomStringBytes(gen)
+	} else {
+		item.ControlMeta = item.ControlMeta[:0]
+	}
 }
 
 func (item *BarsicSnapshotHeaderBytes) Read(w []byte) (_ []byte, err error) {
@@ -427,6 +594,141 @@ func (item *BarsicSnapshotHeaderBytes) ReadJSONLegacy(legacyTypeNames bool, j in
 		}
 	} else {
 		item.ControlMeta = item.ControlMeta[:0]
+	}
+	return nil
+}
+
+func (item *BarsicSnapshotHeaderBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propClusterIdPresented bool
+	var propShardIdPresented bool
+	var propSnapshotMetaPresented bool
+	var propDependenciesPresented bool
+	var propPayloadOffsetPresented bool
+	var propEngineVersionPresented bool
+	var propCreationTimeNanoPresented bool
+	var propControlMetaPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "cluster_id":
+				if propClusterIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "cluster_id")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ClusterId); err != nil {
+					return err
+				}
+				propClusterIdPresented = true
+			case "shard_id":
+				if propShardIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "shard_id")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ShardId); err != nil {
+					return err
+				}
+				propShardIdPresented = true
+			case "snapshot_meta":
+				if propSnapshotMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "snapshot_meta")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.SnapshotMeta); err != nil {
+					return err
+				}
+				propSnapshotMetaPresented = true
+			case "dependencies":
+				if propDependenciesPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "dependencies")
+				}
+				if err := tlBuiltinVectorBarsicSnapshotDependency.BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(legacyTypeNames, in, &item.Dependencies); err != nil {
+					return err
+				}
+				propDependenciesPresented = true
+			case "payload_offset":
+				if propPayloadOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "payload_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PayloadOffset); err != nil {
+					return err
+				}
+				propPayloadOffsetPresented = true
+			case "engine_version":
+				if propEngineVersionPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "engine_version")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.EngineVersion); err != nil {
+					return err
+				}
+				propEngineVersionPresented = true
+			case "creation_time_nano":
+				if propCreationTimeNanoPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "creation_time_nano")
+				}
+				if err := internal.Json2ReadInt64(in, &item.CreationTimeNano); err != nil {
+					return err
+				}
+				propCreationTimeNanoPresented = true
+			case "control_meta":
+				if propControlMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotHeader", "control_meta")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ControlMeta); err != nil {
+					return err
+				}
+				propControlMetaPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.snapshotHeader", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propClusterIdPresented {
+		item.ClusterId = item.ClusterId[:0]
+	}
+	if !propShardIdPresented {
+		item.ShardId = item.ShardId[:0]
+	}
+	if !propSnapshotMetaPresented {
+		item.SnapshotMeta = item.SnapshotMeta[:0]
+	}
+	if !propDependenciesPresented {
+		item.Dependencies = item.Dependencies[:0]
+	}
+	if !propPayloadOffsetPresented {
+		item.PayloadOffset = 0
+	}
+	if !propEngineVersionPresented {
+		item.EngineVersion = item.EngineVersion[:0]
+	}
+	if !propCreationTimeNanoPresented {
+		item.CreationTimeNano = 0
+	}
+	if !propControlMetaPresented {
+		item.ControlMeta = item.ControlMeta[:0]
+	}
+	if propControlMetaPresented {
+		item.FieldsMask |= 1 << 0
 	}
 	return nil
 }

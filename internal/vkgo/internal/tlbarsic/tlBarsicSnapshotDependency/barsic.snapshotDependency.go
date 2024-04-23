@@ -32,6 +32,13 @@ func (item *BarsicSnapshotDependency) Reset() {
 	item.PayloadOffset = 0
 }
 
+func (item *BarsicSnapshotDependency) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.ClusterId = basictl.RandomString(gen)
+	item.ShardId = basictl.RandomString(gen)
+	item.PayloadOffset = basictl.RandomLong(gen)
+}
+
 func (item *BarsicSnapshotDependency) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -103,6 +110,78 @@ func (item *BarsicSnapshotDependency) ReadJSONLegacy(legacyTypeNames bool, j int
 	return nil
 }
 
+func (item *BarsicSnapshotDependency) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propClusterIdPresented bool
+	var propShardIdPresented bool
+	var propPayloadOffsetPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotDependency", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "cluster_id":
+				if propClusterIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotDependency", "cluster_id")
+				}
+				if err := internal.Json2ReadString(in, &item.ClusterId); err != nil {
+					return err
+				}
+				propClusterIdPresented = true
+			case "shard_id":
+				if propShardIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotDependency", "shard_id")
+				}
+				if err := internal.Json2ReadString(in, &item.ShardId); err != nil {
+					return err
+				}
+				propShardIdPresented = true
+			case "payload_offset":
+				if propPayloadOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotDependency", "payload_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PayloadOffset); err != nil {
+					return err
+				}
+				propPayloadOffsetPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.snapshotDependency", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propClusterIdPresented {
+		item.ClusterId = ""
+	}
+	if !propShardIdPresented {
+		item.ShardId = ""
+	}
+	if !propPayloadOffsetPresented {
+		item.PayloadOffset = 0
+	}
+	return nil
+}
+
 func (item *BarsicSnapshotDependency) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -161,6 +240,13 @@ func (item *BarsicSnapshotDependencyBytes) Reset() {
 	item.ClusterId = item.ClusterId[:0]
 	item.ShardId = item.ShardId[:0]
 	item.PayloadOffset = 0
+}
+
+func (item *BarsicSnapshotDependencyBytes) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.ClusterId = basictl.RandomStringBytes(gen)
+	item.ShardId = basictl.RandomStringBytes(gen)
+	item.PayloadOffset = basictl.RandomLong(gen)
 }
 
 func (item *BarsicSnapshotDependencyBytes) Read(w []byte) (_ []byte, err error) {
@@ -230,6 +316,78 @@ func (item *BarsicSnapshotDependencyBytes) ReadJSONLegacy(legacyTypeNames bool, 
 	}
 	for k := range _jm {
 		return internal.ErrorInvalidJSONExcessElement("barsic.snapshotDependency", k)
+	}
+	return nil
+}
+
+func (item *BarsicSnapshotDependencyBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propClusterIdPresented bool
+	var propShardIdPresented bool
+	var propPayloadOffsetPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotDependency", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "cluster_id":
+				if propClusterIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotDependency", "cluster_id")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ClusterId); err != nil {
+					return err
+				}
+				propClusterIdPresented = true
+			case "shard_id":
+				if propShardIdPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotDependency", "shard_id")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.ShardId); err != nil {
+					return err
+				}
+				propShardIdPresented = true
+			case "payload_offset":
+				if propPayloadOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.snapshotDependency", "payload_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.PayloadOffset); err != nil {
+					return err
+				}
+				propPayloadOffsetPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.snapshotDependency", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propClusterIdPresented {
+		item.ClusterId = item.ClusterId[:0]
+	}
+	if !propShardIdPresented {
+		item.ShardId = item.ShardId[:0]
+	}
+	if !propPayloadOffsetPresented {
+		item.PayloadOffset = 0
 	}
 	return nil
 }

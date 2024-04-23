@@ -56,6 +56,23 @@ func (item *RpcServerWantsFin) ReadJSONLegacy(legacyTypeNames bool, j interface{
 	return nil
 }
 
+func (item *RpcServerWantsFin) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("rpcServerWantsFin", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	return nil
+}
+
 func (item *RpcServerWantsFin) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

@@ -68,6 +68,42 @@ func (item *RpcDestFlags) ReadJSONLegacy(legacyTypeNames bool, j interface{}) er
 	return nil
 }
 
+func (item *RpcDestFlags) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propExtraPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "extra":
+				if propExtraPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcDestFlags", "extra")
+				}
+				if err := item.Extra.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propExtraPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcDestFlags", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propExtraPresented {
+		item.Extra.Reset()
+	}
+	return nil
+}
+
 func (item *RpcDestFlags) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }

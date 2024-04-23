@@ -33,6 +33,13 @@ func (item *BarsicCommit) Reset() {
 	item.SafeSnapshotOffset = 0
 }
 
+func (item *BarsicCommit) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.Offset = basictl.RandomLong(gen)
+	item.SnapshotMeta = basictl.RandomString(gen)
+	item.SafeSnapshotOffset = basictl.RandomLong(gen)
+}
+
 func (item *BarsicCommit) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -161,6 +168,78 @@ func (item *BarsicCommit) ReadJSONLegacy(legacyTypeNames bool, j interface{}) er
 	return nil
 }
 
+func (item *BarsicCommit) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propOffsetPresented bool
+	var propSnapshotMetaPresented bool
+	var propSafeSnapshotOffsetPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.commit", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "offset":
+				if propOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.commit", "offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			case "snapshot_meta":
+				if propSnapshotMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.commit", "snapshot_meta")
+				}
+				if err := internal.Json2ReadString(in, &item.SnapshotMeta); err != nil {
+					return err
+				}
+				propSnapshotMetaPresented = true
+			case "safe_snapshot_offset":
+				if propSafeSnapshotOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.commit", "safe_snapshot_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.SafeSnapshotOffset); err != nil {
+					return err
+				}
+				propSafeSnapshotOffsetPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.commit", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propOffsetPresented {
+		item.Offset = 0
+	}
+	if !propSnapshotMetaPresented {
+		item.SnapshotMeta = ""
+	}
+	if !propSafeSnapshotOffsetPresented {
+		item.SafeSnapshotOffset = 0
+	}
+	return nil
+}
+
 func (item *BarsicCommit) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -219,6 +298,13 @@ func (item *BarsicCommitBytes) Reset() {
 	item.Offset = 0
 	item.SnapshotMeta = item.SnapshotMeta[:0]
 	item.SafeSnapshotOffset = 0
+}
+
+func (item *BarsicCommitBytes) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.Offset = basictl.RandomLong(gen)
+	item.SnapshotMeta = basictl.RandomStringBytes(gen)
+	item.SafeSnapshotOffset = basictl.RandomLong(gen)
 }
 
 func (item *BarsicCommitBytes) Read(w []byte) (_ []byte, err error) {
@@ -345,6 +431,78 @@ func (item *BarsicCommitBytes) ReadJSONLegacy(legacyTypeNames bool, j interface{
 	}
 	for k := range _jm {
 		return internal.ErrorInvalidJSONExcessElement("barsic.commit", k)
+	}
+	return nil
+}
+
+func (item *BarsicCommitBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propOffsetPresented bool
+	var propSnapshotMetaPresented bool
+	var propSafeSnapshotOffsetPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.commit", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "offset":
+				if propOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.commit", "offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			case "snapshot_meta":
+				if propSnapshotMetaPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.commit", "snapshot_meta")
+				}
+				if err := internal.Json2ReadStringBytes(in, &item.SnapshotMeta); err != nil {
+					return err
+				}
+				propSnapshotMetaPresented = true
+			case "safe_snapshot_offset":
+				if propSafeSnapshotOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.commit", "safe_snapshot_offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.SafeSnapshotOffset); err != nil {
+					return err
+				}
+				propSafeSnapshotOffsetPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.commit", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propOffsetPresented {
+		item.Offset = 0
+	}
+	if !propSnapshotMetaPresented {
+		item.SnapshotMeta = item.SnapshotMeta[:0]
+	}
+	if !propSafeSnapshotOffsetPresented {
+		item.SafeSnapshotOffset = 0
 	}
 	return nil
 }

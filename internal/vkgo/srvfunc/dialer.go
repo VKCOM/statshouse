@@ -18,8 +18,9 @@ import (
 
 var emptyDialer = &net.Dialer{}
 
-// MaybeResolveHost resolves hostnames to ip:port if it's TCP or UDP network
-func MaybeResolveHost(network string, addr string) string {
+// MaybeResolveAddr quckly resolves hostnames to ip:port if it's TCP or UDP network
+// by keeping etc/hosts cache in memory
+func MaybeResolveAddr(network string, addr string) string {
 	switch network {
 	case "tcp", "tcp4", "tcp6", "udp", "udp4", "udp6":
 	default:
@@ -44,7 +45,7 @@ func MaybeResolveHost(network string, addr string) string {
 
 // CachingDialer should be used as DialContext function in http.Transport to speed up DNS resolution dramatically.
 func CachingDialer(ctx context.Context, network, addr string) (net.Conn, error) {
-	return emptyDialer.DialContext(ctx, network, MaybeResolveHost(network, addr))
+	return emptyDialer.DialContext(ctx, network, MaybeResolveAddr(network, addr))
 }
 
 // if address contains no port, defaultPort will be added, unless it is empty, then error is returned

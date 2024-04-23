@@ -96,7 +96,7 @@ func ChainHandler(ff ...HandlerFunc) HandlerFunc {
 }
 
 func Listen(network, address string, disableTCPReuseAddr bool) (net.Listener, error) {
-	if network != "tcp4" && network != "tcp6" && network != "unix" {
+	if network != "tcp4" && network != "tcp6" && network != "tcp" && network != "unix" {
 		return nil, fmt.Errorf("unsupported network type %q", network)
 	}
 
@@ -111,7 +111,6 @@ func Listen(network, address string, disableTCPReuseAddr bool) (net.Listener, er
 func NewServer(options ...ServerOptionsFunc) *Server {
 	opts := ServerOptions{
 		Logf:                   log.Printf,
-		Hooks:                  func() ServerHookState { return nil },
 		MaxConns:               DefaultMaxConns,
 		MaxWorkers:             DefaultMaxWorkers,
 		MaxInflightPackets:     DefaultMaxInflightPackets,
@@ -627,7 +626,7 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 		// read header first, before acquiring handler context,
 		// to be able to disconnect event when all handler contexts are taken
 		var header packetHeader
-		head, isBuiltin, err := sc.conn.readPacketHeaderUnlocked(&header, DefaultPacketTimeout*11/10)
+		head, isBuiltin, _, err := sc.conn.readPacketHeaderUnlocked(&header, DefaultPacketTimeout*11/10)
 		// motivation for slightly increasing timeout is so that client and server will not send pings to each other, client will do it first
 		if err != nil {
 			if len(head) == 0 && (err == io.EOF || err == io.ErrUnexpectedEOF) {
@@ -650,7 +649,7 @@ func (s *Server) receiveLoopImpl(sc *serverConn) (*HandlerContext, error) {
 		}
 		requestTime := time.Now()
 
-		hctx, ok := sc.acquireHandlerCtx(header.tip, s.opts.Hooks)
+		hctx, ok := sc.acquireHandlerCtx(header.tip, &s.opts)
 		if !ok {
 			return nil, ErrServerClosed
 		}
@@ -853,22 +852,26 @@ func (sc *serverConn) pushResponse(hctx *HandlerContext, err error, isLongpoll b
 	if !isLongpoll {
 		sc.releaseRequest(hctx)
 	}
-	hctx.prepareResponse(err)
+	hctx.PrepareResponse(err)
 	if !hctx.noResult { // do not spend time for accounting, will release anyway couple lines below
 		hctx.respTaken, _ = sc.server.accountResponseMem(sc.closeCtx, hctx.respTaken, cap(hctx.Response), true)
 	}
 	sc.push(hctx, isLongpoll)
 }
 
-func (hctx *HandlerContext) prepareResponse(err error) {
+// We serialize extra after body into Body, then write into reversed order
+// so full response is concatentation of hctx.Reponse[extraStart:], then hctx.Reponse[:extraStart]
+func (hctx *HandlerContext) PrepareResponse(err error) (extraStart int) {
 	if err = hctx.prepareResponseBody(err); err == nil {
-		return
+		return hctx.extraStart
 	}
 	// Too large packet. Very rare.
 	hctx.Response = hctx.Response[:0]
-	if err = hctx.prepareResponseBody(err); err != nil {
-		panic("prepareResponse with too large error is too large")
+	if err = hctx.prepareResponseBody(err); err == nil {
+		return hctx.extraStart
 	}
+	// err we passed above should be small, something is very wrong here
+	panic("PrepareResponse with too large error is itself too large")
 }
 
 func (hctx *HandlerContext) prepareResponseBody(err error) error {

@@ -63,6 +63,17 @@ func (item *BarsicChangeRole) Reset() {
 	item.ViewNumber = 0
 }
 
+func (item *BarsicChangeRole) FillRandom(gen basictl.Rand) {
+	item.FieldsMask = basictl.RandomUint(gen)
+	item.Offset = basictl.RandomLong(gen)
+	if item.FieldsMask&(1<<30) != 0 {
+		item.EpochNumber = basictl.RandomLong(gen)
+	} else {
+		item.EpochNumber = 0
+	}
+	item.ViewNumber = basictl.RandomLong(gen)
+}
+
 func (item *BarsicChangeRole) Read(w []byte) (_ []byte, err error) {
 	if w, err = basictl.NatRead(w, &item.FieldsMask); err != nil {
 		return w, err
@@ -226,6 +237,119 @@ func (item *BarsicChangeRole) ReadJSONLegacy(legacyTypeNames bool, j interface{}
 		}
 	} else {
 		item.EpochNumber = 0
+	}
+	return nil
+}
+
+func (item *BarsicChangeRole) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var trueTypeMasterPresented bool
+	var trueTypeMasterValue bool
+	var trueTypeReadyPresented bool
+	var trueTypeReadyValue bool
+	var propOffsetPresented bool
+	var propEpochNumberPresented bool
+	var propViewNumberPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "fields_mask")
+				}
+				if err := internal.Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "master":
+				if trueTypeMasterPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "master")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeMasterValue); err != nil {
+					return err
+				}
+				trueTypeMasterPresented = true
+			case "ready":
+				if trueTypeReadyPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "ready")
+				}
+				if err := internal.Json2ReadBool(in, &trueTypeReadyValue); err != nil {
+					return err
+				}
+				trueTypeReadyPresented = true
+			case "offset":
+				if propOffsetPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "offset")
+				}
+				if err := internal.Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			case "epoch_number":
+				if propEpochNumberPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "epoch_number")
+				}
+				if err := internal.Json2ReadInt64(in, &item.EpochNumber); err != nil {
+					return err
+				}
+				propEpochNumberPresented = true
+			case "view_number":
+				if propViewNumberPresented {
+					return internal.ErrorInvalidJSONWithDuplicatingKeys("barsic.changeRole", "view_number")
+				}
+				if err := internal.Json2ReadInt64(in, &item.ViewNumber); err != nil {
+					return err
+				}
+				propViewNumberPresented = true
+			default:
+				return internal.ErrorInvalidJSONExcessElement("barsic.changeRole", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propOffsetPresented {
+		item.Offset = 0
+	}
+	if !propEpochNumberPresented {
+		item.EpochNumber = 0
+	}
+	if !propViewNumberPresented {
+		item.ViewNumber = 0
+	}
+	if trueTypeMasterPresented {
+		if trueTypeMasterValue {
+			item.FieldsMask |= 1 << 0
+		}
+	}
+	if trueTypeReadyPresented {
+		if trueTypeReadyValue {
+			item.FieldsMask |= 1 << 1
+		}
+	}
+	if propEpochNumberPresented {
+		item.FieldsMask |= 1 << 30
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeMasterPresented && !trueTypeMasterValue && (item.FieldsMask&(1<<0) != 0) {
+		return internal.ErrorInvalidJSON("barsic.changeRole", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeReadyPresented && !trueTypeReadyValue && (item.FieldsMask&(1<<1) != 0) {
+		return internal.ErrorInvalidJSON("barsic.changeRole", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }

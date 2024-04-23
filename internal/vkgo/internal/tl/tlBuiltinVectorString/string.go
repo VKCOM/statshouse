@@ -15,6 +15,13 @@ import (
 var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
+func BuiltinVectorStringFillRandom(gen basictl.Rand, vec *[]string) {
+	l := basictl.RandomUint(gen)
+	*vec = make([]string, l)
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomString(gen)
+	}
+}
 func BuiltinVectorStringRead(w []byte, vec *[]string) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -62,6 +69,34 @@ func BuiltinVectorStringReadJSONLegacy(legacyTypeNames bool, j interface{}, vec 
 	return nil
 }
 
+func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]string) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return internal.ErrorInvalidJSON("[]string", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue string
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := internal.Json2ReadString(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return internal.ErrorInvalidJSON("[]string", "expected json array's end")
+		}
+	}
+	*vec = (*vec)[:index]
+	return nil
+}
+
 func BuiltinVectorStringWriteJSON(w []byte, vec []string) (_ []byte, err error) {
 	return BuiltinVectorStringWriteJSONOpt(true, false, w, vec)
 }
@@ -74,6 +109,13 @@ func BuiltinVectorStringWriteJSONOpt(newTypeNames bool, short bool, w []byte, ve
 	return append(w, ']'), nil
 }
 
+func BuiltinVectorStringBytesFillRandom(gen basictl.Rand, vec *[][]byte) {
+	l := basictl.RandomUint(gen)
+	*vec = make([][]byte, l)
+	for i := range *vec {
+		(*vec)[i] = basictl.RandomStringBytes(gen)
+	}
+}
 func BuiltinVectorStringBytesRead(w []byte, vec *[][]byte) (_ []byte, err error) {
 	var l uint32
 	if w, err = basictl.NatRead(w, &l); err != nil {
@@ -118,6 +160,34 @@ func BuiltinVectorStringBytesReadJSONLegacy(legacyTypeNames bool, j interface{},
 			return err
 		}
 	}
+	return nil
+}
+
+func BuiltinVectorStringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[][]byte) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return internal.ErrorInvalidJSON("[][]byte", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue []byte
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := internal.Json2ReadStringBytes(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return internal.ErrorInvalidJSON("[][]byte", "expected json array's end")
+		}
+	}
+	*vec = (*vec)[:index]
 	return nil
 }
 

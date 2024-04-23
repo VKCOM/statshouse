@@ -79,6 +79,54 @@ func (item *RpcReqResultErrorWrapped) ReadJSONLegacy(legacyTypeNames bool, j int
 	return nil
 }
 
+func (item *RpcReqResultErrorWrapped) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propErrorCodePresented bool
+	var propErrorPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "error_code":
+				if propErrorCodePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultErrorWrapped", "error_code")
+				}
+				if err := Json2ReadInt32(in, &item.ErrorCode); err != nil {
+					return err
+				}
+				propErrorCodePresented = true
+			case "error":
+				if propErrorPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("rpcReqResultErrorWrapped", "error")
+				}
+				if err := Json2ReadString(in, &item.Error); err != nil {
+					return err
+				}
+				propErrorPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("rpcReqResultErrorWrapped", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propErrorCodePresented {
+		item.ErrorCode = 0
+	}
+	if !propErrorPresented {
+		item.Error = ""
+	}
+	return nil
+}
+
 func (item *RpcReqResultErrorWrapped) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
