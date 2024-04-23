@@ -64,8 +64,8 @@ type scrapeHistogram struct {
 	nameB        []byte // "_bucket" metric full name
 	nameS        []byte // "_sum" metric full name
 	tags         []tl.DictionaryFieldStringBytes
-	descriptionB string
-	descriptionS string
+	descriptionB string // "_bucket" metric description
+	descriptionS string // "_sum" metric description
 	buckets      [][]byte
 	series       map[uint64]*scrapeHistogramSeries
 }
@@ -112,18 +112,18 @@ func (s *scrape) getTargets(hash string) ([]scrapeTarget, string, error) {
 		return nil, "", err
 	}
 	var res []scrapeTarget
-	for _, target := range targets.Targets {
+	for _, v := range targets.Targets {
 		var namespace string
-		if target.Labels != nil {
-			namespace = target.Labels[format.ScrapeNamespaceTagName]
+		if v.Labels != nil {
+			namespace = v.Labels[format.ScrapeNamespaceTagName]
 		}
 		res = append(res, scrapeTarget{
-			url: string(target.Url),
+			url: string(v.Url),
 			opt: scrapeOptions{
-				interval:  time.Duration(target.ScrapeInterval),
-				timeout:   time.Duration(target.ScrapeTimeout),
+				interval:  time.Duration(v.ScrapeInterval),
+				timeout:   time.Duration(v.ScrapeTimeout),
 				namespace: namespace,
-				job:       tl.DictionaryFieldStringBytes{Key: jobTagName, Value: []byte(target.JobName)},
+				job:       tl.DictionaryFieldStringBytes{Key: jobTagName, Value: []byte(v.JobName)},
 			},
 		})
 	}
@@ -272,7 +272,7 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 					continue
 				}
 				if v.Name == labels.MetricName {
-					if len(opt.namespace) != 0 {
+					if opt.namespace != "" {
 						b.Name = []byte(opt.namespace + format.NamespaceSeparator + v.Value)
 					} else {
 						b.Name = []byte(v.Value)
@@ -314,8 +314,8 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 			}
 			hashSum := s.hash.Sum64()
 			s.hash.Reset()
-			if len(name) == 0 || len(name) == len(baseName) {
-				continue
+			if name == "" || len(name) == len(baseName) {
+				continue // should not happen
 			}
 			if s.histograms == nil {
 				s.histograms = make(map[string]*scrapeHistogram)
@@ -324,10 +324,11 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 			if prevH == nil {
 				// initialize histogram
 				prevH = &scrapeHistogram{
-					tags:   make([]tl.DictionaryFieldStringBytes, 0, len(l)+1),
-					series: make(map[uint64]*scrapeHistogramSeries),
+					tags:         make([]tl.DictionaryFieldStringBytes, 0, len(l)+1),
+					series:       make(map[uint64]*scrapeHistogramSeries),
+					descriptionS: description,
 				}
-				if len(opt.namespace) != 0 {
+				if opt.namespace != "" {
 					prevH.nameB = []byte(opt.namespace + format.NamespaceSeparator + baseName + "_bucket")
 					prevH.nameS = []byte(opt.namespace + format.NamespaceSeparator + baseName + "_sum")
 				} else {
@@ -343,9 +344,6 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 					default:
 						prevH.tags = append(prevH.tags, tl.DictionaryFieldStringBytes{Key: []byte(v.Name), Value: []byte(v.Value)})
 					}
-				}
-				if len(prevH.nameB) == 0 {
-					continue
 				}
 				s.histograms[baseName] = prevH
 			}
@@ -395,20 +393,19 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 		if len(prevH.buckets) == 0 {
 			// build description
 			var sb strings.Builder
-			if len(description) != 0 {
-				sb.WriteString(description)
-				sb.WriteByte(byte('\n'))
-				sb.WriteByte(byte('\n'))
+			if len(prevH.descriptionS) != 0 {
+				sb.WriteString(prevH.descriptionS)
+				sb.WriteByte('\n')
+				sb.WriteByte('\n')
 			}
 			sb.WriteString(format.HistogramBucketsStartMark)
 			sb.WriteString(currH.buckets[0])
 			for i := 1; i < len(currH.buckets); i++ {
-				sb.WriteByte(byte(','))
+				sb.WriteByte(format.HistogramBucketsDelimC)
 				sb.WriteString(currH.buckets[i])
 			}
-			sb.WriteString(format.HistogramBucketsStartMark)
+			sb.WriteByte(format.HistogramBucketsEndMarkC)
 			prevH.descriptionB = sb.String()
-			prevH.descriptionS = description
 			// encode bucket tag values
 			prevH.buckets = make([][]byte, len(currH.buckets))
 			for i := 0; i < len(currH.buckets); i++ {
