@@ -51,6 +51,15 @@ func (c *MemStats) WriteMetrics(nowUnix int64) error {
 		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameMemSLAB, float64(*stat.SReclaimable*mult), format.RawIDTagReclaimable)
 		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameMemSLAB, float64(*stat.SUnreclaim*mult), format.RawIDTagUnreclaimable)
 	}
+	if stat.Writeback != nil && stat.Dirty != nil {
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameWriteback, float64(*stat.Writeback*mult), format.RawIDTagWriteback)
+		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameWriteback, float64(*stat.Dirty*mult), format.RawIDTagDirty)
+	}
+
+	if stat.MemFree != nil && *stat.MemFree > memFreeUpperLimit {
+		c.writer.WriteSystemMetricValue(nowUnix, memStat, float64(0), format.RawIDTagBadData)
+		return nil
+	}
 	if stat.MemFree != nil {
 		c.writer.WriteSystemMetricValue(nowUnix, memStat, float64(*stat.MemFree*mult), format.RawIDTagFree)
 	}
@@ -62,11 +71,6 @@ func (c *MemStats) WriteMetrics(nowUnix int64) error {
 		used := *stat.MemTotal - *stat.MemFree - *stat.Buffers - cached
 		c.writer.WriteSystemMetricValue(nowUnix, memStat, float64(used*mult), format.RawIDTagUsed)
 		c.writer.WriteSystemMetricValue(nowUnix, memStat, float64(cached*mult), format.RawIDTagCached)
-	}
-
-	if stat.Writeback != nil && stat.Dirty != nil {
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameWriteback, float64(*stat.Writeback*mult), format.RawIDTagWriteback)
-		c.writer.WriteSystemMetricValue(nowUnix, format.BuiltinMetricNameWriteback, float64(*stat.Dirty*mult), format.RawIDTagDirty)
 	}
 
 	return nil
