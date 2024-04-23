@@ -47,7 +47,10 @@ const (
 	LETagName                 = "le"
 	ScrapeNamespaceTagName    = "__scrape_namespace__"
 	HistogramBucketsStartMark = "Buckets$"
+	HistogramBucketsDelim     = ","
+	HistogramBucketsDelimC    = ','
 	HistogramBucketsEndMark   = "$"
+	HistogramBucketsEndMarkC  = '$'
 
 	LETagIndex        = 15
 	StringTopTagIndex = -1 // used as flag during mapping
@@ -462,13 +465,18 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.ShardUniqueValues = strings.Contains(m.Description, "__shard_unique_values")   // Experimental
 	if i := strings.Index(m.Description, HistogramBucketsStartMark); i != -1 {
 		s := m.Description[i+len(HistogramBucketsStartMark):]
-		if j := strings.Index(s, HistogramBucketsEndMark); j != -1 {
-			buckets := strings.Split(s[:j], ",")
-			m.HistorgamBuckets = make([]float32, 0, len(buckets))
-			for _, v := range buckets {
-				if f, err := strconv.ParseFloat(v, 32); err == nil {
+		if i = strings.Index(s, HistogramBucketsEndMark); i != -1 {
+			s = s[:i]
+			m.HistorgamBuckets = make([]float32, 0, strings.Count(s, HistogramBucketsDelim)+1)
+			for i, j := 0, 1; i < len(s); {
+				for j < len(s) && s[j] != HistogramBucketsDelimC {
+					j++
+				}
+				if f, err := strconv.ParseFloat(s[i:j], 32); err == nil {
 					m.HistorgamBuckets = append(m.HistorgamBuckets, float32(f))
 				}
+				i = j + 1
+				j = i + 1
 			}
 		}
 	}
