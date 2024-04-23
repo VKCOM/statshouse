@@ -44,9 +44,9 @@ const (
 	AgentPercentileCompression      = 40 // TODO - will typically have 20-30 centroids for compression 40
 	AggregatorPercentileCompression = 80 // TODO - clickhouse has compression of 256 by default
 
-	MaxShortWindow    = 5    // Must be >= 2, 5 seconds to send recent data, if too late - send as historic
-	FutureWindow      = 4    // Allow a couple of seconds clocks difference on clients. Plus rounding to multiple of 3
-	MaxHistoricWindow = 7200 // 1 day to send historic data, then drop. TODO - return to 86400 after incident
+	MaxShortWindow    = 5        // Must be >= 2, 5 seconds to send recent data, if too late - send as historic
+	FutureWindow      = 4        // Allow a couple of seconds clocks difference on clients. Plus rounding to multiple of 3
+	MaxHistoricWindow = 6 * 3600 // 1 day to send historic data, then drop. TODO - return to 86400 after ZK is faster and/or seconds table is partitioned by 12h
 
 	BelieveTimestampWindow = 86400 + 2*3600 // Margin for crons running once per day.
 	// Parts are quickly merged, so all timestamps in [-day..0] will be quickly and thoroughly optimized.
