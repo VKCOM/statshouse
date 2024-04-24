@@ -115,7 +115,7 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 		rpc.ServerWithRequestMemoryLimit(8<<30)) // see server settings in aggregator. We do not multiply here
 
 	log.Printf("Running ingress proxy listening %s with %d crypto keys", config.ListenAddr, len(config.IngressKeys))
-	return proxy.server.ListenAndServe("tcp4", config.ListenAddr)
+	return proxy.server.ListenAndServe("tcp", config.ListenAddr)
 }
 
 func (proxy *IngressProxy) handler(ctx context.Context, hctx *rpc.HandlerContext) error {
