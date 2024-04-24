@@ -521,10 +521,10 @@ func mainIngressProxy(aesPwd string) int {
 		logErr.Printf("-ingress-external-addr must contain comma-separated list of 3 external ingress proxy addresses")
 		return 1
 	}
-	argv.configIngress.Network = "tcp4"
+	argv.configIngress.Network = "tcp"
 
 	// We use agent instance for ingress proxy built-in metrics
-	sh2, err := agent.MakeAgent("tcp4", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
+	sh2, err := agent.MakeAgent("tcp", argv.cacheDir, aesPwd, argv.configAgent, argv.customHostName,
 		format.TagValueIDComponentIngressProxy, nil, nil, log.Printf, nil, nil)
 	if err != nil {
 		logErr.Printf("error creating Agent instance: %v", err)
