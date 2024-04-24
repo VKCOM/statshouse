@@ -267,7 +267,7 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 		receiversUDP  []*receiver.UDP
 		metricStorage = metajournal.MakeMetricsStorage(argv.configAgent.Cluster, dc, nil)
 	)
-	sh2, err := agent.MakeAgent("tcp4",
+	sh2, err := agent.MakeAgent("tcp",
 		argv.cacheDir,
 		aesPwd,
 		argv.configAgent,
