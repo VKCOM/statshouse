@@ -267,24 +267,24 @@ func (h *Handler) RawResetFlood(ctx context.Context, hctx *rpc.HandlerContext) (
 	return "", err
 }
 
-func (h *Handler) ResetFlood2(ctx context.Context, args tlmetadata.ResetFlood2) (tlmetadata.ResetFloodResponse2, error) {
+func (h *Handler) ResetFlood2(ctx context.Context, args tlmetadata.ResetFlood2) (tlmetadata.ResetFloodResponse2, string, error) {
 	before, after, err := h.db.ResetFlood(ctx, args.Metric, int64(args.Value))
-	return tlmetadata.ResetFloodResponse2{BudgetBefore: int32(before), BudgetAfter: int32(after)}, err
+	return tlmetadata.ResetFloodResponse2{BudgetBefore: int32(before), BudgetAfter: int32(after)}, args.Metric, err
 }
 
-func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.GetTagMappingBootstrap) (tlstatshouse.GetTagMappingBootstrapResult, error) {
+func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.GetTagMappingBootstrap) (tlstatshouse.GetTagMappingBootstrapResult, string, error) {
 	var ret tlstatshouse.GetTagMappingBootstrapResult
 
 	totalSizeEstimate := 0
 	boostrapDifferences := 0
 	response, err := h.db.GetBootstrap(ctx)
 	if err != nil {
-		return tlstatshouse.GetTagMappingBootstrapResult{}, nil
+		return tlstatshouse.GetTagMappingBootstrapResult{}, "", nil
 	}
 	for _, ma := range response.Mappings {
 		k, isExists, err := h.db.GetMappingByID(ctx, ma.Value)
 		if err != nil {
-			return ret, err
+			return ret, "", err
 		}
 		if !isExists { // skip, no problem
 			continue
@@ -306,12 +306,12 @@ func (h *Handler) GetTagMappingBootstrap(ctx context.Context, args tlmetadata.Ge
 		}
 	}
 	h.log("[info] returning boostrap of %d mappings of ~size %d, %d differences found", len(ret.Mappings), totalSizeEstimate, boostrapDifferences)
-	return ret, nil
+	return ret, "get_bootstrap", nil
 }
 
-func (h *Handler) PutTagMappingBootstrap(ctx context.Context, args tlmetadata.PutTagMappingBootstrap) (tlstatshouse.PutTagMappingBootstrapResult, error) {
+func (h *Handler) PutTagMappingBootstrap(ctx context.Context, args tlmetadata.PutTagMappingBootstrap) (tlstatshouse.PutTagMappingBootstrapResult, string, error) {
 	count, err := h.db.PutBootstrap(ctx, args.Mappings)
-	return tlstatshouse.PutTagMappingBootstrapResult{CountInserted: count}, err
+	return tlstatshouse.PutTagMappingBootstrapResult{CountInserted: count}, "put_bootstrap", err
 }
 
 func filterResponse(ms []tlmetadata.Event, buffer []tlmetadata.Event, filter func(m tlmetadata.Event) bool) tlmetadata.GetJournalResponsenew {
