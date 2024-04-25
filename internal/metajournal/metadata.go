@@ -26,7 +26,7 @@ import (
 const (
 	pmcBigNegativeCacheTTL = 1 * time.Hour
 	DefaultMetaTimeout     = 2 * time.Second
-	saveMeta               = false
+	saveMeta               = true
 )
 
 var errorInvalidUserRequest = errors.New("")
