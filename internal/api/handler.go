@@ -330,38 +330,18 @@ type (
 		Count float64 `json:"count"`
 	}
 
-	tableRequest struct {
-		version             string
-		metricWithNamespace string
-		from                string
-		to                  string
-		width               string
-		widthAgg            string
-		what                []string
-		by                  []string
-		filterIn            map[string][]string
-		filterNotIn         map[string][]string
-		maxHost             bool
-		avoidCache          bool
-		fromEnd             bool
-		fromRow             RowMarker
-		toRow               RowMarker
-		limit               int
-	}
-
 	seriesRequest struct {
 		ai                  accessInfo
 		version             string
 		numResults          int
-		metric              *format.MetricMetaValue
 		metricWithNamespace string
 		from                time.Time
 		to                  time.Time
-		width               int
-		widthKind           int
+		step                int64
+		screenWidth         int64
 		promQL              string
 		shifts              []time.Duration
-		what                []string
+		what                []QueryFunc
 		by                  []string
 		filterIn            map[string][]string
 		filterNotIn         map[string][]string
@@ -371,6 +351,11 @@ type (
 		verbose             bool
 		excessPoints        bool
 		format              string
+
+		// table query
+		fromEnd bool
+		fromRow RowMarker
+		toRow   RowMarker
 	}
 
 	seriesRequestOptions struct {
@@ -407,7 +392,7 @@ type (
 	//easyjson:json
 	GetTableResp struct {
 		Rows         []queryTableRow `json:"rows"`
-		What         []queryFn       `json:"what"`
+		What         []QueryFunc     `json:"what"`
 		FromRow      string          `json:"from_row"`
 		ToRow        string          `json:"to_row"`
 		More         bool            `json:"more"`
@@ -445,7 +430,7 @@ type (
 		TimeShift int64             `json:"time_shift"`
 		Tags      map[string]string `json:"tags"`
 		MaxHosts  []string          `json:"max_hosts"` // max_host for now
-		What      queryFn           `json:"what"`
+		What      QueryFunc         `json:"what"`
 	}
 
 	QuerySeriesMetaV2 struct {
@@ -454,7 +439,7 @@ type (
 		MaxHosts   []string                 `json:"max_hosts"` // max_host for now
 		Name       string                   `json:"name"`
 		Color      string                   `json:"color"`
-		What       queryFn                  `json:"what"`
+		What       string                   `json:"what"`
 		Total      int                      `json:"total"`
 		MetricType string                   `json:"metric_type"`
 	}
@@ -464,7 +449,7 @@ type (
 		Tags      map[string]SeriesMetaTag `json:"tags"`
 		MaxHost   string                   `json:"max_host"` // max_host for now
 		Name      string                   `json:"name"`
-		What      queryFn                  `json:"what"`
+		What      string                   `json:"what"`
 		FromSec   int64                    `json:"from_sec"` // rounded from sec
 		ToSec     int64                    `json:"to_sec"`   // rounded to sec
 	}
@@ -590,8 +575,8 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
-	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, lodTables, h.utcOffset, h.loadPoints, cacheDefaultDropEvery)
-	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, h.loadPoint, time.Now)
+	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LodTables, h.UTCOffset, h.loadPoints, cacheDefaultDropEvery)
+	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.UTCOffset, h.loadPoint, time.Now)
 	cl.AddChangeCB(func(c config.Config) {
 		cfg := c.(*Config)
 		h.cache.changeMaxSize(cfg.ApproxCacheMaxSize)
@@ -633,7 +618,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		writeActiveQuieries(chV1, "1")
 		writeActiveQuieries(chV2, "2")
 	})
-	h.promEngine = promql.NewEngine(h, h.location)
+	h.promEngine = promql.NewEngine(h, h.TimeZone)
 	return h, nil
 }
 
@@ -725,8 +710,8 @@ SETTINGS
 				if _, ok := seen[r]; ok {
 					continue
 				}
-				for lodLevel := range lodTables[Version2] {
-					t := roundTime(r.At, lodLevel, h.utcOffset)
+				for lodLevel := range data_model.LodTables[Version2] {
+					t := roundTime(r.At, lodLevel, h.UTCOffset)
 					w := todo[lodLevel]
 					if len(w) == 0 || w[len(w)-1] != t {
 						todo[lodLevel] = append(w, t)
@@ -1489,7 +1474,7 @@ func (h *Handler) handleGetDashboardList(ai accessInfo, showInvisible bool) (*Ge
 	return resp, defaultCacheTTL, nil
 }
 
-func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash DashboardMetaInfo, create, delete bool) (*DashboardInfo, error) {
+func (h *Handler) handlePostDashboard(ctx context.Context, _ accessInfo, dash DashboardMetaInfo, create, delete bool) (*DashboardInfo, error) {
 	if !create {
 		if _, ok := format.BuiltinDashboardByID[dash.DashboardID]; ok {
 			return &DashboardInfo{}, httpErr(http.StatusBadRequest, fmt.Errorf("can't edit builtin dashboard %d", dash.DashboardID))
@@ -1523,7 +1508,7 @@ func (h *Handler) handlePostDashboard(ctx context.Context, ai accessInfo, dash D
 	return &DashboardInfo{Dashboard: getDashboardMetaInfo(&dashboard)}, nil
 }
 
-func (h *Handler) handleGetGroup(ai accessInfo, id int32) (*MetricsGroupInfo, time.Duration, error) {
+func (h *Handler) handleGetGroup(_ accessInfo, id int32) (*MetricsGroupInfo, time.Duration, error) {
 	group, ok := h.metricsStorage.GetGroupWithMetricsList(id)
 	if !ok {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("group %d not found", id))
@@ -1545,7 +1530,7 @@ func (h *Handler) handleGetGroupsList(ai accessInfo, showInvisible bool) (*GetGr
 	return resp, defaultCacheTTL, nil
 }
 
-func (h *Handler) handleGetNamespace(ai accessInfo, id int32) (*NamespaceInfo, time.Duration, error) {
+func (h *Handler) handleGetNamespace(_ accessInfo, id int32) (*NamespaceInfo, time.Duration, error) {
 	namespace := h.metricsStorage.GetNamespace(id)
 	if namespace == nil {
 		return nil, 0, httpErr(http.StatusNotFound, fmt.Errorf("namespace %d not found", id))
@@ -1777,11 +1762,6 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		return nil, false, err
 	}
 
-	_, kind, err := parseQueryWhat(req.what, false)
-	if err != nil {
-		return nil, false, err
-	}
-
 	filterIn, filterNotIn, err := parseQueryFilter(req.filter)
 	if err != nil {
 		return nil, false, err
@@ -1795,19 +1775,18 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		return nil, false, err
 	}
 
-	lods := selectTagValueLODs(
-		version,
-		int64(metricMeta.PreKeyFrom),
-		metricMeta.PreKeyOnly,
-		metricMeta.Resolution,
-		kind == queryFnKindUnique,
-		metricMeta.StringTopDescription != "",
-		time.Now().Unix(),
-		from.Unix(),
-		to.Unix(),
-		h.utcOffset,
-		h.location,
-	)
+	lods, err := h.TimeZone.GetLODs(data_model.GetTimescaleArgs{
+		Version:     req.version,
+		Start:       from.Unix(),
+		End:         to.Unix(),
+		ScreenWidth: 100, // really dumb
+		TimeNow:     time.Now().Unix(),
+		Metric:      metricMeta,
+	})
+	if err != nil {
+		return nil, false, err
+	}
+
 	pq := &preparedTagValuesQuery{
 		version:     version,
 		metricID:    metricMeta.MetricID,
@@ -1828,13 +1807,13 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 				return nil, false, err
 			}
 			cols := newTagValuesSelectCols(args)
-			isFast := lod.fromSec+fastQueryTimeInterval >= lod.toSec
+			isFast := lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 			err = h.doSelect(ctx, util.QueryMetaInto{
 				IsFast:  isFast,
 				IsLight: true,
 				User:    req.ai.user,
 				Metric:  metricMeta.MetricID,
-				Table:   lod.table,
+				Table:   lod.Table,
 				Kind:    "get_mapping",
 			}, version, ch.Query{
 				Body:   query,
@@ -1895,87 +1874,29 @@ func sumSeries(data *[]float64, missingValue float64) float64 {
 }
 
 func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
+	var err error
+	var req seriesRequest
 	sl := newEndpointStatHTTP(EndpointTable, r.Method, h.getMetricIDForStat(r.FormValue(ParamMetric)), r.FormValue(paramDataFormat), r.FormValue(paramPriority))
-	ai, err := h.parseAccessToken(r, sl)
+	if req, err = h.parseHTTPRequest(r); err == nil {
+		if req.ai, err = h.parseAccessToken(r, sl); err == nil {
+			err = req.validate()
+		}
+	}
 	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
+		respondJSON(w, nil, 0, 0, err, h.verbose, req.ai.user, sl)
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
-	_ = r.ParseForm() // (*http.Request).FormValue ignores parse errors, too
-	metricWithNamespace := formValueParamMetric(r)
-
-	if r.FormValue(paramDataFormat) == dataFormatCSV {
-		respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf("df=csv isn't supported")), h.verbose, ai.user, sl)
-		return
-	}
-
-	filterIn, filterNotIn, err := parseQueryFilter(r.Form[ParamQueryFilter])
-	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-		return
-	}
-
-	fromRow, err := parseFromRows(r.FormValue(paramFromRow))
-	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-		return
-	}
-	toRow, err := parseFromRows(r.FormValue(paramToRow))
-	if err != nil {
-		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
-		return
-	}
-
-	_, avoidCache := r.Form[ParamAvoidCache]
-	if avoidCache && !ai.isAdmin() {
-		respondJSON(w, nil, 0, 0, httpErr(404, fmt.Errorf("")), h.verbose, ai.user, sl)
-		return
-	}
-
-	_, fromEnd := r.Form[paramFromEnd]
-	var limit int64 = maxTableRowsPage
-	if limitStr := r.FormValue(ParamNumResults); limitStr != "" {
-		limit, err = strconv.ParseInt(limitStr, 10, 64)
-		if err != nil {
-			respondJSON(w, nil, 0, 0, httpErr(http.StatusBadRequest, fmt.Errorf(ParamNumResults+" must be a valid number")), h.verbose, ai.user, sl)
-			return
-		}
-	}
-
-	respTable, immutable, err := h.handleGetTable(
-		ctx,
-		ai,
-		true,
-		tableRequest{
-			version:             r.FormValue(ParamVersion),
-			metricWithNamespace: metricWithNamespace,
-			from:                r.FormValue(ParamFromTime),
-			to:                  r.FormValue(ParamToTime),
-			width:               r.FormValue(ParamWidth),
-			widthAgg:            r.FormValue(ParamWidthAgg),
-			what:                r.Form[ParamQueryWhat],
-			by:                  r.Form[ParamQueryBy],
-			filterIn:            filterIn,
-			filterNotIn:         filterNotIn,
-			avoidCache:          avoidCache,
-			fromRow:             fromRow,
-			toRow:               toRow,
-			fromEnd:             fromEnd,
-			limit:               int(limit),
-		},
-		seriesRequestOptions{
-			trace: true,
-		})
+	respTable, immutable, err := h.handleGetTable(ctx, req.ai, true, req)
 	if h.verbose && err == nil {
-		log.Printf("[debug] handled query (%v rows) for %q in %v", len(respTable.Rows), ai.user, time.Since(sl.timestamp))
+		log.Printf("[debug] handled query (%v rows) for %q in %v", len(respTable.Rows), req.ai.user, time.Since(sl.timestamp))
 	}
 
 	cache, cacheStale := queryClientCacheDuration(immutable)
-	respondJSON(w, respTable, cache, cacheStale, err, h.verbose, ai.user, sl)
+	respondJSON(w, respTable, cache, cacheStale, err, h.verbose, req.ai.user, sl)
 }
 
 func (h *Handler) HandleSeriesQuery(w http.ResponseWriter, r *http.Request) {
@@ -2056,23 +1977,17 @@ func (h *Handler) queryBadges(ctx context.Context, req seriesRequest, meta *form
 	ctx = debugQueriesContext(ctx, &res.trace)
 	ctx = promql.TraceContext(ctx, &res.trace)
 	req.ai.skipBadgesValidation = true
-	var step, screenWidth int64
-	if req.widthKind == widthAutoRes {
-		screenWidth = int64(req.width)
-	} else {
-		step = int64(req.width)
-	}
 	v, cleanup, err := h.promEngine.Exec(
 		withAccessInfo(ctx, &req.ai),
 		promql.Query{
 			Start: req.from.Unix(),
 			End:   req.to.Unix(),
-			Step:  step,
+			Step:  req.step,
 			Expr:  fmt.Sprintf(`%s{@what="countraw,avg",@by="1,2",2=" 0",2=" %d"}`, format.BuiltinMetricNameBadges, meta.MetricID),
 			Options: promql.Options{
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,
-				ScreenWidth:      screenWidth,
+				ScreenWidth:      req.screenWidth,
 			},
 		})
 	if err != nil {
@@ -2104,7 +2019,7 @@ func (h *Handler) HandlePointQuery(w http.ResponseWriter, r *http.Request) {
 	}
 	defer cancel()
 	switch {
-	case err == nil && r.FormValue(paramDataFormat) == dataFormatCSV:
+	case r.FormValue(paramDataFormat) == dataFormatCSV:
 		respondJSON(w, h.buildPointResponse(s), 0, 0, httpErr(http.StatusBadRequest, nil), h.verbose, req.ai.user, sl)
 	default:
 		immutable := req.to.Before(time.Now().Add(invalidateFrom))
@@ -2279,7 +2194,7 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 	defer h.plotRenderSem.Release(1)
 
 	start := time.Now()
-	png, err := plot(ctx, format_, true, s, h.utcOffset, req.seriesRequest, width, h.plotTemplate)
+	png, err := plot(ctx, format_, true, s, h.UTCOffset, req.seriesRequest, width, h.plotTemplate)
 	es.timings.Report("plot", time.Since(start))
 	if err != nil {
 		return nil, false, err
@@ -2294,70 +2209,42 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 	}, immutable, nil
 }
 
-func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQueries bool, req tableRequest, opt seriesRequestOptions) (resp *GetTableResp, immutable bool, err error) {
-	version, err := parseVersion(req.version)
-	if err != nil {
-		return nil, false, err
-	}
-
+func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQueries bool, req seriesRequest) (resp *GetTableResp, immutable bool, err error) {
 	metricMeta, err := h.getMetricMeta(ai, req.metricWithNamespace)
 	if err != nil {
 		return nil, false, err
 	}
 
-	err = validateQuery(metricMeta, version)
+	err = validateQuery(metricMeta, req.version)
 	if err != nil {
 		return nil, false, err
 	}
 
-	from, to, err := parseFromToRows(req.from, req.to, req.fromRow, req.toRow)
+	mappedFilterIn, err := h.resolveFilter(metricMeta, req.version, req.filterIn)
+	if err != nil {
+		return nil, false, err
+	}
+	mappedFilterNotIn, err := h.resolveFilter(metricMeta, req.version, req.filterNotIn)
 	if err != nil {
 		return nil, false, err
 	}
 
-	width, widthKind, err := parseWidth(req.width, req.widthAgg)
+	lods, err := h.TimeZone.GetLODs(data_model.GetTimescaleArgs{
+		Version:     req.version,
+		Start:       req.from.Unix(),
+		End:         req.to.Unix(),
+		Step:        req.step,
+		ScreenWidth: req.screenWidth,
+		TimeNow:     time.Now().Unix(),
+		Metric:      metricMeta,
+	})
 	if err != nil {
 		return nil, false, err
 	}
 
-	queries, err := parseQueries(version, req.what, req.by, req.maxHost)
-	if err != nil {
-		return nil, false, err
-	}
-	mappedFilterIn, err := h.resolveFilter(metricMeta, version, req.filterIn)
-	if err != nil {
-		return nil, false, err
-	}
-	mappedFilterNotIn, err := h.resolveFilter(metricMeta, version, req.filterNotIn)
-	if err != nil {
-		return nil, false, err
-	}
-
-	isStringTop := metricMeta.StringTopDescription != ""
-
-	isUnique := false // this parameter has meaning only for the version 1, in other cases it does nothing
-	if version == Version1 {
-		isUnique = queries[0].whatKind == queryFnKindUnique // we always have only one query for version 1
-	}
-
-	lods := selectQueryLODs(
-		version,
-		int64(metricMeta.PreKeyFrom),
-		metricMeta.PreKeyOnly,
-		metricMeta.Resolution,
-		isUnique,
-		isStringTop,
-		time.Now().Unix(),
-		shiftTimestamp(from.Unix(), int64(width), 0, h.location),
-		shiftTimestamp(to.Unix(), int64(width), 0, h.location),
-		h.utcOffset,
-		width,
-		widthKind,
-		h.location,
-	)
 	desiredStepMul := int64(1)
-	if widthKind == widthLODRes {
-		desiredStepMul = int64(width)
+	if req.screenWidth == 0 {
+		desiredStepMul = int64(req.step)
 	}
 
 	if req.fromEnd {
@@ -2373,21 +2260,16 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	if debugQueries {
 		ctx = debugQueriesContext(ctx, &sqlQueries)
 	}
-	what := make([]queryFn, 0, len(queries))
-	for _, q := range queries {
-		what = append(what, q.what)
-	}
 	queryRows, hasMore, err := getTableFromLODs(ctx, lods, tableReqParams{
 		req:               req,
-		queries:           queries,
 		user:              ai.user,
 		metricMeta:        metricMeta,
-		isStringTop:       isStringTop,
+		isStringTop:       metricMeta.StringTopDescription != "",
 		mappedFilterIn:    mappedFilterIn,
 		mappedFilterNotIn: mappedFilterNotIn,
-		rawValue:          widthKind == widthAutoRes || width == _1M,
+		rawValue:          req.screenWidth == 0 || req.step == _1M,
 		desiredStepMul:    desiredStepMul,
-		location:          h.location,
+		location:          h.Location,
 	}, h.cache.Get, h.maybeAddQuerySeriesTagValue)
 	if err != nil {
 		return nil, false, err
@@ -2403,10 +2285,10 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 			return nil, false, err
 		}
 	}
-	immutable = to.Before(time.Now().Add(invalidateFrom))
+	immutable = req.to.Before(time.Now().Add(invalidateFrom))
 	return &GetTableResp{
 		Rows:         queryRows,
-		What:         what,
+		What:         req.what,
 		FromRow:      firstRowStr,
 		ToRow:        lastRowStr,
 		More:         hasMore,
@@ -2488,18 +2370,12 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 		ctx = debugQueriesContext(ctx, &res.trace)
 		ctx = promql.TraceContext(ctx, &res.trace)
 	}
-	var step, screenWidth int64
-	if req.widthKind == widthAutoRes {
-		screenWidth = int64(req.width)
-	} else {
-		step = int64(req.width)
-	}
 	v, cleanup, err := h.promEngine.Exec(
 		withAccessInfo(ctx, &req.ai),
 		promql.Query{
 			Start: req.from.Unix(),
 			End:   req.to.Unix(),
-			Step:  step,
+			Step:  req.step,
 			Expr:  req.promQL,
 			Options: promql.Options{
 				Version:          req.version,
@@ -2510,7 +2386,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 				ExplicitGrouping: true,
 				QuerySequential:  h.querySequential,
 				TagWhat:          promqlGenerated,
-				ScreenWidth:      screenWidth,
+				ScreenWidth:      req.screenWidth,
 				MaxHost:          req.maxHost,
 				Offsets:          offsets,
 				Limit:            limit,
@@ -2573,10 +2449,7 @@ func (h *Handler) buildSeriesResponse(s ...seriesResponse) *SeriesResponse {
 			Total:      s0.Series.Meta.Total,
 			MetricType: s0.Series.Meta.Units,
 		}
-		meta.What, meta.TimeShift, meta.Tags = s0.queryFnShiftAndTagsAt(i)
-		if meta.What == queryFnUnspecified {
-			meta.What = queryFn(s0.Series.Meta.What)
-		}
+		meta.What, meta.TimeShift, meta.Tags = s0.queryFuncShiftAndTagsAt(i)
 		if s0.metric != nil {
 			meta.Name = s0.metric.Name
 		}
@@ -2600,17 +2473,17 @@ func (h *Handler) buildSeriesResponse(s ...seriesResponse) *SeriesResponse {
 			if t, ok := d.Tags.ID2Tag["1"]; ok {
 				badgeType := t.Value
 				if t, ok = d.Tags.ID2Tag[promql.LabelWhat]; ok {
-					what := promql.DigestWhat(t.Value)
+					what := data_model.DigestWhat(t.Value)
 					switch {
-					case what == promql.DigestAvg && badgeType == format.TagValueIDBadgeAgentSamplingFactor:
+					case what == data_model.DigestAvg && badgeType == format.TagValueIDBadgeAgentSamplingFactor:
 						res.SamplingFactorSrc = sumSeries(d.Values, 1) / float64(len(s1.Time))
-					case what == promql.DigestAvg && badgeType == format.TagValueIDBadgeAggSamplingFactor:
+					case what == data_model.DigestAvg && badgeType == format.TagValueIDBadgeAggSamplingFactor:
 						res.SamplingFactorAgg = sumSeries(d.Values, 1) / float64(len(s1.Time))
-					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionErrors:
+					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionErrors:
 						res.ReceiveErrors = sumSeries(d.Values, 0)
-					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionWarnings:
+					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeIngestionWarnings:
 						res.ReceiveWarnings = sumSeries(d.Values, 0)
-					case what == promql.DigestCountRaw && badgeType == format.TagValueIDBadgeAggMappingErrors:
+					case what == data_model.DigestCountRaw && badgeType == format.TagValueIDBadgeAggMappingErrors:
 						res.MappingErrors = sumSeries(d.Values, 0)
 					}
 				}
@@ -2639,7 +2512,7 @@ func (h *Handler) buildPointResponse(s seriesResponse) *GetPointResp {
 			FromSec: s.Time[0],
 			ToSec:   s.Time[1],
 		}
-		meta.What, meta.TimeShift, meta.Tags = s.queryFnShiftAndTagsAt(i)
+		meta.What, meta.TimeShift, meta.Tags = s.queryFuncShiftAndTagsAt(i)
 		if s.metric != nil {
 			meta.Name = s.metric.Name
 		}
@@ -2652,17 +2525,12 @@ func (h *Handler) buildPointResponse(s seriesResponse) *GetPointResp {
 	return res
 }
 
-func (s seriesResponse) queryFnShiftAndTagsAt(i int) (queryFn, int64, map[string]SeriesMetaTag) {
+func (s seriesResponse) queryFuncShiftAndTagsAt(i int) (string, int64, map[string]SeriesMetaTag) {
 	d := s.Series.Data[i]
 	tags := make(map[string]SeriesMetaTag, len(d.Tags.ID2Tag))
-	what := queryFn(d.What)
 	timsShift := -d.Offset
 	for id, tag := range d.Tags.ID2Tag {
-		if len(tag.SValue) == 0 || tag.ID == labels.MetricName {
-			continue
-		}
-		if tag.ID == promql.LabelWhat {
-			what, _, _ = parseQueryWhat(tag.SValue, false)
+		if len(tag.SValue) == 0 || tag.ID == labels.MetricName || tag.ID == promql.LabelWhat {
 			continue
 		}
 		if tag.ID == promql.LabelOffset {
@@ -2692,7 +2560,7 @@ func (s seriesResponse) queryFnShiftAndTagsAt(i int) (queryFn, int64, map[string
 		tags[k] = v
 
 	}
-	return what, timsShift, tags
+	return d.What.QueryF, timsShift, tags
 }
 
 func getDashboardMetaInfo(d *format.DashboardMeta) DashboardMetaInfo {
@@ -2717,14 +2585,14 @@ func getDashboardMetaInfo(d *format.DashboardMeta) DashboardMetaInfo {
 }
 
 func (h *Handler) getFloatsSlice(n int) *[]float64 {
-	if n > maxSlice {
+	if n > data_model.MaxSlice {
 		s := make([]float64, n)
 		return &s // should not happen: we should never return more than maxSlice points
 	}
 
 	v := h.pointFloatsPool.Get()
 	if v == nil {
-		s := make([]float64, 0, maxSlice)
+		s := make([]float64, 0, data_model.MaxSlice)
 		v = &s
 	}
 	ret := v.(*[]float64)
@@ -2736,26 +2604,8 @@ func (h *Handler) getFloatsSlice(n int) *[]float64 {
 func (h *Handler) putFloatsSlice(s *[]float64) {
 	*s = (*s)[:0]
 
-	if cap(*s) <= maxSlice {
+	if cap(*s) <= data_model.MaxSlice {
 		h.pointFloatsPool.Put(s)
-	}
-}
-
-func accumulateSeries(s []float64) {
-	acc := 0.0
-	for i, v := range s {
-		if !math.IsNaN(v) {
-			acc += v
-		}
-		s[i] = acc
-	}
-}
-
-func differentiateSeries(s []float64) {
-	prev := math.NaN()
-	for i, v := range s {
-		s[i] = v - prev
-		prev = v
 	}
 }
 
@@ -2924,18 +2774,18 @@ func replaceInfNan(v *float64) {
 	}
 }
 
-func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod lodInfo, ret [][]tsSelectRow, retStartIx int) (int, error) {
-	query, args, err := loadPointsQuery(pq, lod, h.utcOffset)
+func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
+	query, args, err := loadPointsQuery(pq, lod, h.UTCOffset)
 	if err != nil {
 		return 0, err
 	}
 
 	rows := 0
 	cols := newPointsSelectCols(args, true)
-	isFast := lod.isFast()
+	isFast := lod.IsFast()
 	isLight := pq.isLight()
 	metric := pq.metricID
-	table := lod.table
+	table := lod.Table
 	kind := pq.kind
 	start := time.Now()
 	err = h.doSelect(ctx, util.QueryMetaInto{
@@ -2944,7 +2794,7 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 		User:    pq.user,
 		Metric:  metric,
 		Table:   table,
-		Kind:    string(kind),
+		Kind:    kind.String(),
 	}, pq.version, ch.Query{
 		Body:   query,
 		Result: cols.res,
@@ -2955,7 +2805,7 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 					replaceInfNan(&cols.val[j][i])
 				}
 				row := cols.rowAt(i)
-				ix, err := lod.indexOf(row.time)
+				ix, err := lod.IndexOf(row.time)
 				if err != nil {
 					return err
 				}
@@ -2976,11 +2826,11 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 	if h.verbose {
 		log.Printf("[debug] loaded %v rows from %v (%v timestamps, %v to %v step %v) for %q in %v",
 			rows,
-			lod.table,
-			(lod.toSec-lod.fromSec)/lod.stepSec,
-			time.Unix(lod.fromSec, 0),
-			time.Unix(lod.toSec, 0),
-			time.Duration(lod.stepSec)*time.Second,
+			lod.Table,
+			(lod.ToSec-lod.FromSec)/lod.StepSec,
+			time.Unix(lod.FromSec, 0),
+			time.Unix(lod.ToSec, 0),
+			time.Duration(lod.StepSec)*time.Second,
 			pq.user,
 			duration,
 		)
@@ -2989,18 +2839,18 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod l
 	return rows, nil
 }
 
-func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, lod lodInfo) ([]pSelectRow, error) {
-	query, args, err := loadPointQuery(pq, lod, h.utcOffset)
+func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, lod data_model.LOD) ([]pSelectRow, error) {
+	query, args, err := loadPointQuery(pq, lod, h.UTCOffset)
 	if err != nil {
 		return nil, err
 	}
 	ret := make([]pSelectRow, 0)
 	rows := 0
 	cols := newPointsSelectCols(args, false)
-	isFast := lod.isFast()
+	isFast := lod.IsFast()
 	isLight := pq.isLight()
 	metric := pq.metricID
-	table := lod.table
+	table := lod.Table
 	kind := pq.kind
 	err = h.doSelect(ctx, util.QueryMetaInto{
 		IsFast:  isFast,
@@ -3008,7 +2858,7 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, lod lo
 		User:    pq.user,
 		Metric:  metric,
 		Table:   table,
-		Kind:    string(kind),
+		Kind:    kind.String(),
 	}, pq.version, ch.Query{
 		Body:   query,
 		Result: cols.res,
@@ -3035,9 +2885,9 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, lod lo
 	if h.verbose {
 		log.Printf("[debug] loaded %v rows from %v (%v to %v) for %q in",
 			rows,
-			lod.table,
-			time.Unix(lod.fromSec, 0),
-			time.Unix(lod.toSec, 0),
+			lod.Table,
+			time.Unix(lod.FromSec, 0),
+			time.Unix(lod.ToSec, 0),
 			pq.user,
 		)
 	}
@@ -3056,85 +2906,70 @@ func stableMulDiv(v float64, mul int64, div int64) float64 {
 	return v * float64(mul) / float64(div)
 }
 
-func selectTSValue(what queryFn, maxHost bool, raw bool, desiredStepMul int64, row *tsSelectRow) float64 {
+func selectTSValue(what data_model.DigestWhat, maxHost bool, desiredStepMul int64, row *tsSelectRow) float64 {
 	switch what {
-	case queryFnCount, queryFnMaxCountHost, queryFnDerivativeCount:
-		if raw {
-			return row.countNorm
-		}
+	case data_model.DigestCount:
 		return stableMulDiv(row.countNorm, desiredStepMul, row.stepSec)
-	case queryFnCountNorm, queryFnDerivativeCountNorm:
-		return row.countNorm / float64(row.stepSec)
-	case queryFnCumulCount:
+	case data_model.DigestCountRaw:
 		return row.countNorm
-	case queryFnCardinality:
+	case data_model.DigestCountSec:
+		return row.countNorm / float64(row.stepSec)
+	case data_model.DigestCardinality:
 		if maxHost {
-			if raw {
-				return row.val[5]
-			}
 			return stableMulDiv(row.val[5], desiredStepMul, row.stepSec)
 		}
-		if raw {
-			return row.val[0]
-		}
 		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
-	case queryFnCardinalityNorm:
-		if maxHost {
-			return row.val[5] / float64(row.stepSec)
-		}
-		return row.val[0] / float64(row.stepSec)
-	case queryFnCumulCardinality:
+	case data_model.DigestCardinalityRaw:
 		if maxHost {
 			return row.val[5]
 		}
 		return row.val[0]
-	case queryFnMin, queryFnDerivativeMin:
-		return row.val[0]
-	case queryFnMax, queryFnMaxHost, queryFnDerivativeMax:
-		return row.val[1]
-	case queryFnAvg, queryFnCumulAvg, queryFnDerivativeAvg:
-		return row.val[2]
-	case queryFnSum, queryFnDerivativeSum:
-		if raw {
-			return row.val[3]
+	case data_model.DigestCardinalitySec:
+		if maxHost {
+			return row.val[5] / float64(row.stepSec)
 		}
+		return row.val[0] / float64(row.stepSec)
+	case data_model.DigestMin:
+		return row.val[0]
+	case data_model.DigestMax:
+		return row.val[1]
+	case data_model.DigestAvg:
+		return row.val[2]
+	case data_model.DigestSum:
 		return stableMulDiv(row.val[3], desiredStepMul, row.stepSec)
-	case queryFnSumNorm, queryFnDerivativeSumNorm:
+	case data_model.DigestSumRaw:
+		return row.val[3]
+	case data_model.DigestSumSec:
 		return row.val[3] / float64(row.stepSec)
-	case queryFnCumulSum:
-		return row.val[3]
-	case queryFnStddev:
+	case data_model.DigestStdDev:
 		return row.val[4]
-	case queryFnStdvar:
+	case data_model.DigestStdVar:
 		return row.val[4] * row.val[4]
-	case queryFnP0_1:
+	case data_model.DigestP0_1:
 		return row.val[0]
-	case queryFnP1:
+	case data_model.DigestP1:
 		return row.val[1]
-	case queryFnP5:
+	case data_model.DigestP5:
 		return row.val[2]
-	case queryFnP10:
+	case data_model.DigestP10:
 		return row.val[3]
-	case queryFnP25:
+	case data_model.DigestP25:
 		return row.val[0]
-	case queryFnP50:
+	case data_model.DigestP50:
 		return row.val[1]
-	case queryFnP75:
+	case data_model.DigestP75:
 		return row.val[2]
-	case queryFnP90:
+	case data_model.DigestP90:
 		return row.val[3]
-	case queryFnP95:
+	case data_model.DigestP95:
 		return row.val[4]
-	case queryFnP99:
+	case data_model.DigestP99:
 		return row.val[5]
-	case queryFnP999:
+	case data_model.DigestP999:
 		return row.val[6]
-	case queryFnUnique, queryFnDerivativeUnique:
-		if raw {
-			return row.val[0]
-		}
+	case data_model.DigestUnique:
 		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)
-	case queryFnUniqueNorm, queryFnDerivativeUniqueNorm:
+	case data_model.DigestUniqueSec:
 		return row.val[0] / float64(row.stepSec)
 	default:
 		return math.NaN()
@@ -3168,7 +3003,7 @@ func unspecifiedToEmpty(s string) string {
 	return s
 }
 
-func (h *Handler) checkReadOnlyMode(w http.ResponseWriter, r *http.Request) (readOnlyMode bool) {
+func (h *Handler) checkReadOnlyMode(w http.ResponseWriter, _ *http.Request) (readOnlyMode bool) {
 	if h.readOnly {
 		w.WriteHeader(406)
 		_, _ = w.Write([]byte("readonly mode"))
@@ -3251,6 +3086,8 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		strWidthAgg   string
 		strNumResults string
 		strType       string
+		width         int
+		widthKind     int
 	}
 	var (
 		dash  DashboardData
@@ -3269,10 +3106,8 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			}
 			for j := len(tabs) - 1; j < i; j++ {
 				tabs = append(tabs, seriesRequestEx{seriesRequest: seriesRequest{
-					version:   Version2,
-					width:     1,
-					widthKind: widthLODRes,
-					vars:      env,
+					version: Version2,
+					vars:    env,
 				}})
 			}
 			return &tabs[i]
@@ -3316,7 +3151,11 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		}
 		tab.widthKind = widthLODRes
 		tab.promQL = v.PromQL
-		tab.what = v.What
+		for _, v := range v.What {
+			if fn, _ := ParseQueryFunc(v, &tab.maxHost); fn.What != data_model.DigestUnspecified {
+				tab.what = append(tab.what, fn)
+			}
+		}
 		tab.strType = strconv.Itoa(v.Type)
 		for _, v := range v.GroupBy {
 			if tid, err := parseTagID(v); err == nil {
@@ -3395,13 +3234,13 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 	if n != 0 {
 		switch dash.TimeRange.To {
 		case "ed": // end of day
-			year, month, day := time.Now().In(h.location).Date()
-			tab0.to = time.Date(year, month, day, 0, 0, 0, 0, h.location).Add(24 * time.Hour).UTC()
+			year, month, day := time.Now().In(h.Location).Date()
+			tab0.to = time.Date(year, month, day, 0, 0, 0, 0, h.Location).Add(24 * time.Hour).UTC()
 			tab0.strTo = strconv.FormatInt(tab0.to.Unix(), 10)
 		case "ew": // end of week
 			var (
-				year, month, day = time.Now().In(h.location).Date()
-				dateNow          = time.Date(year, month, day, 0, 0, 0, 0, h.location)
+				year, month, day = time.Now().In(h.Location).Date()
+				dateNow          = time.Date(year, month, day, 0, 0, 0, 0, h.Location)
 				offset           = time.Duration(((time.Sunday - dateNow.Weekday() + 7) % 7) + 1)
 			)
 			tab0.to = dateNow.Add(offset * 24 * time.Hour).UTC()
@@ -3555,7 +3394,11 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 		case ParamQueryVerbose:
 			t.verbose = first(v) == "1"
 		case ParamQueryWhat:
-			t.what = v
+			for _, what := range v {
+				if fn, _ := ParseQueryFunc(what, &t.maxHost); fn.What != data_model.DigestUnspecified {
+					t.what = append(t.what, fn)
+				}
+			}
 		case ParamTimeShift:
 			t.shifts, err = parseTimeShifts(v)
 		case ParamToTime:
@@ -3582,6 +3425,12 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			t.strType = first(v)
 		case paramExcessPoints:
 			t.excessPoints = true
+		case paramFromEnd:
+			t.fromEnd = true
+		case paramFromRow:
+			t.fromRow, err = parseFromRows(first(v))
+		case paramToRow:
+			t.toRow, err = parseFromRows(first(v))
 		}
 		if err != nil {
 			return nil, err
@@ -3668,6 +3517,11 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 					return err
 				}
 			}
+			if t.widthKind == widthAutoRes {
+				t.screenWidth = int64(t.width)
+			} else {
+				t.step = int64(t.width)
+			}
 			return nil
 		}
 	)
@@ -3743,7 +3597,7 @@ func (r *seriesRequest) validate() error {
 	if r.avoidCache && !r.ai.isAdmin() {
 		return httpErr(404, fmt.Errorf(""))
 	}
-	if r.width == _1M {
+	if r.step == _1M {
 		for _, v := range r.shifts {
 			if (v/time.Second)%_1M != 0 {
 				return httpErr(http.StatusBadRequest, fmt.Errorf("time shift %v can't be used with month interval", v))

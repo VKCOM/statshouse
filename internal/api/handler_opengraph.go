@@ -137,8 +137,8 @@ func getOpenGraphInfo(r *http.Request, origPath string) *openGraphInfo {
 	if 0 <= tn && tn < len(metrics) {
 		what := whats[tn]
 		for i, w := range what {
-			if l, ok := validQueryFn(w); ok {
-				what[i] = WhatToWhatDesc(l)
+			if _, ok := ParseQueryFunc(w, nil); ok {
+				what[i] = WhatToWhatDesc(w)
 			}
 		}
 		title = fmt.Sprintf("%s: %s", metrics[tn], strings.Join(what, ", "))

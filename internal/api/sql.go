@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/util"
 )
@@ -35,7 +36,7 @@ type preparedPointsQuery struct {
 	metricID    int32
 	preKeyTagID string
 	isStringTop bool
-	kind        queryFnKind
+	kind        data_model.DigestKind
 	by          []string
 	filterIn    map[string][]interface{}
 	filterNotIn map[string][]interface{}
@@ -50,10 +51,10 @@ type tagValuesQueryMeta struct {
 }
 
 func (pq *preparedPointsQuery) isLight() bool {
-	return pq.kind != queryFnKindUnique && pq.kind != queryFnKindPercentiles
+	return pq.kind != data_model.DigestKindUnique && pq.kind != data_model.DigestKindPercentiles
 }
 
-func tagValuesQuery(pq *preparedTagValuesQuery, lod lodInfo) (string, tagValuesQueryMeta, error) {
+func tagValuesQuery(pq *preparedTagValuesQuery, lod data_model.LOD) (string, tagValuesQueryMeta, error) {
 	meta := tagValuesQueryMeta{}
 	valueName := "_value"
 	if pq.stringTag() {
@@ -70,21 +71,21 @@ FROM
 WHERE
   %s = ?
   AND time >= ? AND time < ?%s`,
-		columnName(lod.hasPreKey, pq.tagID, pq.preKeyTagID),
+		columnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID),
 		valueName,
 		sqlAggFn(pq.version, "sum"),
 		pq.preKeyTableName(lod),
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
-	args := []interface{}{pq.metricID, lod.fromSec, lod.toSec}
+	args := []interface{}{pq.metricID, lod.FromSec, lod.ToSec}
 	if pq.version == Version1 {
-		args = append(args, lod.fromSec, lod.toSec)
+		args = append(args, lod.FromSec, lod.ToSec)
 	}
 	for k, ids := range pq.filterIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s IN (%s)`, columnName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -94,7 +95,7 @@ WHERE
 	for k, ids := range pq.filterNotIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s NOT IN (%s)`, columnName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s NOT IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -111,7 +112,7 @@ ORDER BY
 LIMIT %v
 SETTINGS
   optimize_aggregation_in_order = 1
-`, columnName(lod.hasPreKey, pq.tagID, pq.preKeyTagID), valueName, pq.numResults+1) // +1 so we can set "more":true
+`, columnName(lod.HasPreKey, pq.tagID, pq.preKeyTagID), valueName, pq.numResults+1) // +1 so we can set "more":true
 
 	q, err := util.BindQuery(query, args...)
 	return q, meta, err
@@ -136,12 +137,12 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
 	}
 
 	switch kind {
-	case queryFnKindCount:
+	case data_model.DigestKindCount:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
   toFloat64(sum(1)) AS _val0,
   toFloat64(%s(max)) AS _val1`, sqlAggFn(version, "sum"), sqlAggFn(version, "max")), 2, nil
-	case queryFnKindValue:
+	case data_model.DigestKindValue:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
   toFloat64(%s(min)) AS _val0,
@@ -159,7 +160,7 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
 			// https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance, "Naïve algorithm", poor numeric stability
 			sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"), sqlAggFn(version, "sum"),
 			sqlMinHost(version), sqlMaxHost(version)), 6, nil
-	case queryFnKindPercentilesLow:
+	case data_model.DigestKindPercentilesLow:
 		return fmt.Sprintf(`
 	  toFloat64(%s(count)) AS _count,
 	  toFloat64((quantilesTDigestMerge(0.001, 0.01, 0.05, 0.1)(percentiles) AS digest)[1]) AS _val0,
@@ -171,7 +172,7 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
 	  toFloat64(0) AS _val6,
 	  %s as _minHost, %s as _maxHost`,
 			sqlAggFn(version, "sum"), sqlMinHost(version), sqlMaxHost(version)), 7, nil
-	case queryFnKindPercentiles:
+	case data_model.DigestKindPercentiles:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
   toFloat64((quantilesTDigestMerge(0.25, 0.5, 0.75, 0.90, 0.95, 0.99, 0.999)(percentiles) AS digest)[1]) AS _val0,
@@ -183,7 +184,7 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
   toFloat64(digest[7]) AS _val6,
   %s as _minHost, %s as _maxHost`,
 			sqlAggFn(version, "sum"), sqlMinHost(version), sqlMaxHost(version)), 7, nil
-	case queryFnKindUnique:
+	case data_model.DigestKindUnique:
 		return fmt.Sprintf(`
   toFloat64(%s(count)) AS _count,
   toFloat64(uniqMerge(uniq_state)) AS _val0,
@@ -194,7 +195,7 @@ func loadPointsSelectWhat(pq *preparedPointsQuery) (string, int, error) {
 	}
 }
 
-func loadPointsQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (string, pointsQueryMeta, error) {
+func loadPointsQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
 	what, cnt, err := loadPointsSelectWhat(pq)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
@@ -203,19 +204,19 @@ func loadPointsQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (str
 	var commaBy string
 	if len(pq.by) > 0 {
 		for _, b := range pq.by {
-			commaBy += fmt.Sprintf(", %s AS key%s", columnName(lod.hasPreKey, b, pq.preKeyTagID), b)
+			commaBy += fmt.Sprintf(", %s AS key%s", columnName(lod.HasPreKey, b, pq.preKeyTagID), b)
 		}
 	}
 
 	var timeInterval string
-	if lod.stepSec == _1M {
+	if lod.StepSec == _1M {
 		timeInterval = fmt.Sprintf(`
 toInt64(toDateTime(toStartOfInterval(time, INTERVAL 1 MONTH, '%s'), '%s')) AS _time, 
-toInt64(toDateTime(_time, '%s') + INTERVAL 1 MONTH) - _time AS _stepSec`, lod.location.String(), lod.location.String(), lod.location.String())
+toInt64(toDateTime(_time, '%s') + INTERVAL 1 MONTH) - _time AS _stepSec`, lod.Location.String(), lod.Location.String(), lod.Location.String())
 	} else {
 		timeInterval = fmt.Sprintf(`
 toInt64(toStartOfInterval(time + %d, INTERVAL %d second)) - %d AS _time,
-toInt64(%d) AS _stepSec`, utcOffset, lod.stepSec, utcOffset, lod.stepSec)
+toInt64(%d) AS _stepSec`, utcOffset, lod.StepSec, utcOffset, lod.StepSec)
 	}
 
 	// no need to escape anything as long as table and tag names are fixed
@@ -234,14 +235,14 @@ WHERE
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
-	args := []interface{}{pq.metricID, lod.fromSec, lod.toSec}
+	args := []interface{}{pq.metricID, lod.FromSec, lod.ToSec}
 	if pq.version == Version1 {
-		args = append(args, lod.fromSec, lod.toSec)
+		args = append(args, lod.FromSec, lod.ToSec)
 	}
 	for k, ids := range pq.filterIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s IN (%s)`, columnName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -251,7 +252,7 @@ WHERE
 	for k, ids := range pq.filterNotIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s NOT IN (%s)`, columnName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s NOT IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -281,10 +282,10 @@ SETTINGS
   optimize_aggregation_in_order = 1
 `, limit)
 	q, err := util.BindQuery(query, args...)
-	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != queryFnKindCount, version: pq.version}, err
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: pq.version}, err
 }
 
-func loadPointQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (string, pointsQueryMeta, error) {
+func loadPointQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
 	what, cnt, err := loadPointsSelectWhat(pq)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
@@ -294,9 +295,9 @@ func loadPointQuery(pq *preparedPointsQuery, lod lodInfo, utcOffset int64) (stri
 	if len(pq.by) > 0 {
 		for i, b := range pq.by {
 			if i == 0 {
-				commaBy += fmt.Sprintf("%s AS key%s", columnName(lod.hasPreKey, b, pq.preKeyTagID), b)
+				commaBy += fmt.Sprintf("%s AS key%s", columnName(lod.HasPreKey, b, pq.preKeyTagID), b)
 			} else {
-				commaBy += fmt.Sprintf(", %s AS key%s", columnName(lod.hasPreKey, b, pq.preKeyTagID), b)
+				commaBy += fmt.Sprintf(", %s AS key%s", columnName(lod.HasPreKey, b, pq.preKeyTagID), b)
 			}
 		}
 	}
@@ -320,14 +321,14 @@ WHERE
 		metricColumn(pq.version),
 		datePredicate(pq.version),
 	)
-	args := []interface{}{pq.metricID, lod.fromSec, lod.toSec}
+	args := []interface{}{pq.metricID, lod.FromSec, lod.ToSec}
 	if pq.version == Version1 {
-		args = append(args, lod.fromSec, lod.toSec)
+		args = append(args, lod.FromSec, lod.ToSec)
 	}
 	for k, ids := range pq.filterIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s IN (%s)`, columnName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -337,7 +338,7 @@ WHERE
 	for k, ids := range pq.filterNotIn {
 		if len(ids) > 0 {
 			query += fmt.Sprintf(`
-  AND %s NOT IN (%s)`, columnName(lod.hasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
+  AND %s NOT IN (%s)`, columnName(lod.HasPreKey, k, pq.preKeyTagID), expandBindVars(len(ids)))
 			args = append(args, ids...)
 		} else {
 			query += `
@@ -357,7 +358,7 @@ SETTINGS
   optimize_aggregation_in_order = 1
 `, maxSeriesRows)
 	q, err := util.BindQuery(query, args...)
-	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != queryFnKindCount, version: pq.version}, err
+	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: pq.version}, err
 }
 
 func sqlAggFn(version string, fn string) string {
@@ -414,10 +415,10 @@ func (s *stringFixed) String() string {
 	}
 }
 
-func (pq *preparedPointsQuery) preKeyTableName(lod lodInfo) string {
+func (pq *preparedPointsQuery) preKeyTableName(lod data_model.LOD) string {
 	var usePreKey bool
-	if lod.hasPreKey {
-		usePreKey = lod.preKeyOnly ||
+	if lod.HasPreKey {
+		usePreKey = lod.PreKeyOnly ||
 			len(pq.filterIn[pq.preKeyTagID]) > 0 ||
 			len(pq.filterNotIn[pq.preKeyTagID]) > 0
 		if !usePreKey {
@@ -430,29 +431,29 @@ func (pq *preparedPointsQuery) preKeyTableName(lod lodInfo) string {
 		}
 	}
 	if usePreKey {
-		return preKeyTableNames[lod.table]
+		return preKeyTableNames[lod.Table]
 	}
-	return lod.table
+	return lod.Table
 }
 
-func (pq *preparedTagValuesQuery) preKeyTableName(lod lodInfo) string {
-	usePreKey := (lod.hasPreKey &&
-		(lod.preKeyOnly ||
+func (pq *preparedTagValuesQuery) preKeyTableName(lod data_model.LOD) string {
+	usePreKey := (lod.HasPreKey &&
+		(lod.PreKeyOnly ||
 			(pq.tagID != "" && pq.tagID == pq.preKeyTagID) ||
 			len(pq.filterIn[pq.preKeyTagID]) > 0 ||
 			len(pq.filterNotIn[pq.preKeyTagID]) > 0))
 	if usePreKey {
-		return preKeyTableNames[lod.table]
+		return preKeyTableNames[lod.Table]
 	}
-	return lod.table
+	return lod.Table
 }
 
-func preKeyTableNameFromPoint(lod lodInfo, tagID string, preKeyTagID string, filterIn map[string][]interface{}, filterNotIn map[string][]interface{}) string {
-	usePreKey := lod.hasPreKey && ((tagID != "" && tagID == preKeyTagID) || len(filterIn[preKeyTagID]) > 0 || len(filterNotIn[preKeyTagID]) > 0)
+func preKeyTableNameFromPoint(lod data_model.LOD, tagID string, preKeyTagID string, filterIn map[string][]interface{}, filterNotIn map[string][]interface{}) string {
+	usePreKey := lod.HasPreKey && ((tagID != "" && tagID == preKeyTagID) || len(filterIn[preKeyTagID]) > 0 || len(filterNotIn[preKeyTagID]) > 0)
 	if usePreKey {
-		return preKeyTableNames[lod.table]
+		return preKeyTableNames[lod.Table]
 	}
-	return lod.table
+	return lod.Table
 }
 
 func columnName(hasPreKey bool, tagID string, preKeyTagID string) string {

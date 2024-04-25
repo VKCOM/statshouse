@@ -4,7 +4,7 @@ package api
 
 import (
 	json "encoding/json"
-    "math"
+	"math"
 
 	easyjson "github.com/mailru/easyjson"
 	jlexer "github.com/mailru/easyjson/jlexer"
@@ -1064,7 +1064,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi4(in *jlexer.Lexer
 		case "color":
 			out.Color = string(in.String())
 		case "what":
-			(out.What).UnmarshalEasyJSON(in)
+			out.What = string(in.String())
 		case "total":
 			out.Total = int(in.Int())
 		case "metric_type":
@@ -1138,7 +1138,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi4(out *jwriter.Wri
 	{
 		const prefix string = ",\"what\":"
 		out.RawString(prefix)
-		(in.What).MarshalEasyJSON(out)
+		out.String(string(in.What))
 	}
 	{
 		const prefix string = ",\"total\":"
@@ -1565,15 +1565,15 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi8(in *jlexer.Lexer
 				in.Delim('[')
 				if out.What == nil {
 					if !in.IsDelim(']') {
-						out.What = make([]queryFn, 0, 8)
+						out.What = make([]QueryFunc, 0, 2)
 					} else {
-						out.What = []queryFn{}
+						out.What = []QueryFunc{}
 					}
 				} else {
 					out.What = (out.What)[:0]
 				}
 				for !in.IsDelim(']') {
-					var v39 queryFn
+					var v39 QueryFunc
 					(v39).UnmarshalEasyJSON(in)
 					out.What = append(out.What, v39)
 					in.WantComma()
@@ -1906,7 +1906,7 @@ func easyjson888c126aDecodeGithubComVkcomStatshouseInternalApi10(in *jlexer.Lexe
 		case "name":
 			out.Name = string(in.String())
 		case "what":
-			(out.What).UnmarshalEasyJSON(in)
+			out.What = string(in.String())
 		case "from_sec":
 			out.FromSec = int64(in.Int64())
 		case "to_sec":
@@ -1964,7 +1964,7 @@ func easyjson888c126aEncodeGithubComVkcomStatshouseInternalApi10(out *jwriter.Wr
 	{
 		const prefix string = ",\"what\":"
 		out.RawString(prefix)
-		(in.What).MarshalEasyJSON(out)
+		out.String(string(in.What))
 	}
 	{
 		const prefix string = ",\"from_sec\":"

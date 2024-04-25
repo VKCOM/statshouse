@@ -17,6 +17,7 @@ import (
 
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 )
@@ -36,12 +37,11 @@ type SeriesData struct {
 	MinMaxHost [2][]int32 // "min" at [0], "max" at [1]
 	Tags       SeriesTags
 	Offset     int64
-	What       int
+	What       SelectorWhat
 }
 
 type SeriesMeta struct {
 	Metric *format.MetricMetaValue
-	What   int
 	Total  int
 	STags  map[string]int
 	Units  string
@@ -309,7 +309,7 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 	var v string
 	switch tg.ID {
 	case LabelWhat:
-		v = DigestWhat(tg.Value).String()
+		v = DigestWhatString(data_model.DigestWhat(tg.Value))
 	case LabelShard:
 		v = strconv.FormatUint(uint64(tg.Value), 10)
 	case LabelOffset:
@@ -733,9 +733,6 @@ func evalSeriesMeta(expr *parser.BinaryExpr, lhs SeriesMeta, rhs SeriesMeta) Ser
 	}
 	if rhs.Metric != nil && lhs.Metric != rhs.Metric {
 		lhs.Metric = nil
-	}
-	if rhs.What != 0 && lhs.What != rhs.What {
-		lhs.What = 0
 	}
 	if lhs.Total < rhs.Total {
 		lhs.Total = rhs.Total

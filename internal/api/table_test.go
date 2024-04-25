@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 )
 
@@ -17,23 +17,20 @@ func Test_getTableFromLODs(t *testing.T) {
 	return
 	l, _ := time.LoadLocation("")
 	p := tableReqParams{
-		req: tableRequest{limit: 100},
-		queries: []*query{{
-			what:     queryFnCount,
-			whatKind: queryFnKindCount,
-			by:       nil,
+		req: seriesRequest{numResults: 100, what: []QueryFunc{
+			QueryFunc{What: data_model.DigestCount},
 		}},
 		user:           "",
 		metricMeta:     &format.MetricMetaValue{},
 		desiredStepMul: 1,
 		location:       l,
 	}
-	lod := lodInfo{
-		fromSec:  1,
-		toSec:    10,
-		stepSec:  1,
-		table:    "",
-		location: l,
+	lod := data_model.LOD{
+		FromSec:  1,
+		ToSec:    10,
+		StepSec:  1,
+		Table:    "",
+		Location: l,
 	}
 	_ = queryTableRow{
 		Time:    0,
@@ -47,7 +44,7 @@ func Test_getTableFromLODs(t *testing.T) {
 	nop := func(m map[string]SeriesMetaTag, metricMeta *format.MetricMetaValue, version string, by []string, tagIndex int, id int32) bool {
 		return false
 	}
-	load := func(ctx context.Context, version string, key string, pq *preparedPointsQuery, lod lodInfo, avoidCache bool) ([][]tsSelectRow, error) {
+	load := func(ctx context.Context, version string, key string, pq *preparedPointsQuery, lod data_model.LOD, avoidCache bool) ([][]tsSelectRow, error) {
 		return rowsByTime, nil
 	}
 	type args struct {
@@ -74,7 +71,7 @@ func Test_getTableFromLODs(t *testing.T) {
 				i := row.time - 1
 				rowsByTime[i] = append(rowsByTime[i], row)
 			}
-			gotRes, gotHasMore, err := getTableFromLODs(context.Background(), []lodInfo{lod}, p, load, nop)
+			gotRes, gotHasMore, err := getTableFromLODs(context.Background(), []data_model.LOD{lod}, p, load, nop)
 			assert.Equalf(t, tt.wantRes, gotRes, "limitQueries(%v, %v, %v, %v, %v)", tt.args.rows, tt.args.from, tt.args.to, tt.args.fromEnd, tt.args.limit)
 			assert.Equalf(t, tt.wantHasMore, gotHasMore, "limitQueries(%v, %v, %v, %v, %v)", tt.args.rows, tt.args.from, tt.args.to, tt.args.fromEnd, tt.args.limit)
 			assert.NoError(t, err)
