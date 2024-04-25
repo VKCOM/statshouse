@@ -456,9 +456,6 @@ func (db *DBV2) GetHistoryShort(ctx context.Context, id int64) (resp tlmetadata.
 				break
 			}
 		}
-		if len(resp.Events) == 0 {
-			return c, data_model.ErrEntityNotExists
-		}
 		return c, rows.Error()
 	})
 	return resp, err

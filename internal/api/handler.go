@@ -1398,7 +1398,7 @@ func (h *Handler) HandleGetHistory(w http.ResponseWriter, r *http.Request) {
 		respondJSON(w, nil, 0, 0, err, h.verbose, ai.user, sl)
 		return
 	}
-	resp := GetHistoryShortInfoResp{}
+	resp := GetHistoryShortInfoResp{Events: make([]HistoryEvent, 0, len(hist.Events))}
 	for _, h := range hist.Events {
 		m := metadata{}
 		_ = json.Unmarshal([]byte(h.Metadata), &m)
