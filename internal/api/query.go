@@ -15,72 +15,20 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mailru/easyjson/jlexer"
-	"github.com/mailru/easyjson/jwriter"
-
+	jlexer "github.com/mailru/easyjson/jlexer"
+	jwriter "github.com/mailru/easyjson/jwriter"
+	"github.com/vkcom/statshouse/internal/data_model"
+	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouseApi"
 	"github.com/vkcom/statshouse/internal/format"
-)
-
-type (
-	queryFn     int
-	queryFnKind string
 )
 
 const (
 	// not valid characters in tag names
 	queryFilterInSep    = "-"
 	queryFilterNotInSep = "~"
-
-	queryFnKindCount          = queryFnKind("count")
-	queryFnKindValue          = queryFnKind("value")
-	queryFnKindPercentiles    = queryFnKind("percentiles")
-	queryFnKindPercentilesLow = queryFnKind("percentiles_low")
-	queryFnKindUnique         = queryFnKind("unique")
 )
 
 const (
-	// consecutive integer values for fast selectTSValue
-	queryFnUnspecified = queryFn(iota)
-	queryFnCount
-	queryFnCountNorm
-	queryFnCumulCount
-	queryFnCardinality
-	queryFnCardinalityNorm
-	queryFnCumulCardinality
-	queryFnMin
-	queryFnMax
-	queryFnAvg
-	queryFnCumulAvg
-	queryFnSum
-	queryFnSumNorm
-	queryFnCumulSum
-	queryFnStddev
-	queryFnStdvar
-	queryFnP0_1
-	queryFnP1
-	queryFnP5
-	queryFnP10
-	queryFnP25
-	queryFnP50
-	queryFnP75
-	queryFnP90
-	queryFnP95
-	queryFnP99
-	queryFnP999
-	queryFnUnique
-	queryFnUniqueNorm
-	queryFnMaxHost
-	queryFnMaxCountHost
-	queryFnDerivativeCount
-	queryFnDerivativeCountNorm
-	queryFnDerivativeSum
-	queryFnDerivativeSumNorm
-	queryFnDerivativeAvg
-	queryFnDerivativeMin
-	queryFnDerivativeMax
-	queryFnDerivativeUnique
-	queryFnDerivativeUniqueNorm
-
 	ParamQueryFnCount                = "count"
 	ParamQueryFnCountNorm            = "count_norm"
 	ParamQueryFnCumulCount           = "cu_count"
@@ -121,116 +69,340 @@ const (
 	ParamQueryFnDerivativeUniqueNorm = "dv_unique_norm"
 )
 
-func validQueryFn(fn string) (queryFn, bool) {
-	switch fn {
-	case ParamQueryFnCount:
-		return queryFnCount, true
-	case ParamQueryFnCountNorm:
-		return queryFnCountNorm, true
-	case ParamQueryFnCumulCount:
-		return queryFnCumulCount, true
-	case ParamQueryFnCardinality:
-		return queryFnCardinality, true
-	case ParamQueryFnCardinalityNorm:
-		return queryFnCardinalityNorm, true
-	case ParamQueryFnCumulCardinality:
-		return queryFnCumulCardinality, true
-	case ParamQueryFnMin:
-		return queryFnMin, true
-	case ParamQueryFnMax:
-		return queryFnMax, true
-	case ParamQueryFnAvg:
-		return queryFnAvg, true
-	case ParamQueryFnCumulAvg:
-		return queryFnCumulAvg, true
-	case ParamQueryFnSum:
-		return queryFnSum, true
-	case ParamQueryFnSumNorm:
-		return queryFnSumNorm, true
-	case ParamQueryFnCumulSum:
-		return queryFnCumulSum, true
-	case ParamQueryFnStddev:
-		return queryFnStddev, true
-	case ParamQueryFnP0_1:
-		return queryFnP0_1, true
-	case ParamQueryFnP1:
-		return queryFnP1, true
-	case ParamQueryFnP5:
-		return queryFnP5, true
-	case ParamQueryFnP10:
-		return queryFnP10, true
-	case ParamQueryFnP25:
-		return queryFnP25, true
-	case ParamQueryFnP50:
-		return queryFnP50, true
-	case ParamQueryFnP75:
-		return queryFnP75, true
-	case ParamQueryFnP90:
-		return queryFnP90, true
-	case ParamQueryFnP95:
-		return queryFnP95, true
-	case ParamQueryFnP99:
-		return queryFnP99, true
-	case ParamQueryFnP999:
-		return queryFnP999, true
-	case ParamQueryFnUnique:
-		return queryFnUnique, true
-	case ParamQueryFnUniqueNorm:
-		return queryFnUniqueNorm, true
-	case ParamQueryFnMaxHost:
-		return queryFnMaxHost, true
-	case ParamQueryFnMaxCountHost:
-		return queryFnMaxCountHost, true
-	case ParamQueryFnDerivativeCount:
-		return queryFnDerivativeCount, true
-	case ParamQueryFnDerivativeSum:
-		return queryFnDerivativeSum, true
-	case ParamQueryFnDerivativeAvg:
-		return queryFnDerivativeAvg, true
-	case ParamQueryFnDerivativeCountNorm:
-		return queryFnDerivativeCountNorm, true
-	case ParamQueryFnDerivativeSumNorm:
-		return queryFnDerivativeSumNorm, true
-	case ParamQueryFnDerivativeMin:
-		return queryFnDerivativeMin, true
-	case ParamQueryFnDerivativeMax:
-		return queryFnDerivativeMax, true
-	case ParamQueryFnDerivativeUnique:
-		return queryFnDerivativeUnique, true
-	case ParamQueryFnDerivativeUniqueNorm:
-		return queryFnDerivativeUniqueNorm, true
-	default:
-		return queryFnUnspecified, false
-	}
+type QueryFunc struct {
+	Name  string
+	What  data_model.DigestWhat
+	Cumul bool
+	Deriv bool
 }
 
-func queryFnToQueryFnKind(fn queryFn, maxHost bool) queryFnKind {
-	switch fn {
-	case queryFnCount, queryFnCountNorm, queryFnCumulCount, queryFnDerivativeCount, queryFnDerivativeCountNorm,
-		queryFnCardinality, queryFnCardinalityNorm, queryFnCumulCardinality:
-		if maxHost {
-			return queryFnKindValue
+func ParseQueryFunc(str string, maxhost *bool) (QueryFunc, bool) {
+	res := QueryFunc{Name: str}
+	switch str {
+	case ParamQueryFnCount:
+		res.What = data_model.DigestCount
+	case ParamQueryFnCountNorm:
+		res.What = data_model.DigestCountSec
+	case ParamQueryFnCumulCount:
+		res.What = data_model.DigestCountRaw
+		res.Cumul = true
+	case ParamQueryFnCardinality:
+		res.What = data_model.DigestCardinality
+	case ParamQueryFnCardinalityNorm:
+		res.What = data_model.DigestCardinalitySec
+	case ParamQueryFnCumulCardinality:
+		res.What = data_model.DigestCardinalityRaw
+		res.Cumul = true
+	case ParamQueryFnMin:
+		res.What = data_model.DigestMin
+	case ParamQueryFnMax:
+		res.What = data_model.DigestMax
+	case ParamQueryFnAvg:
+		res.What = data_model.DigestAvg
+	case ParamQueryFnCumulAvg:
+		res.What = data_model.DigestAvg
+		res.Cumul = true
+	case ParamQueryFnSum:
+		res.What = data_model.DigestSum
+	case ParamQueryFnSumNorm:
+		res.What = data_model.DigestSumSec
+	case ParamQueryFnCumulSum:
+		res.What = data_model.DigestSumRaw
+		res.Cumul = true
+	case ParamQueryFnStddev:
+		res.What = data_model.DigestStdDev
+	case ParamQueryFnP0_1:
+		res.What = data_model.DigestP0_1
+	case ParamQueryFnP1:
+		res.What = data_model.DigestP1
+	case ParamQueryFnP5:
+		res.What = data_model.DigestP5
+	case ParamQueryFnP10:
+		res.What = data_model.DigestP10
+	case ParamQueryFnP25:
+		res.What = data_model.DigestP25
+	case ParamQueryFnP50:
+		res.What = data_model.DigestP50
+	case ParamQueryFnP75:
+		res.What = data_model.DigestP75
+	case ParamQueryFnP90:
+		res.What = data_model.DigestP90
+	case ParamQueryFnP95:
+		res.What = data_model.DigestP95
+	case ParamQueryFnP99:
+		res.What = data_model.DigestP99
+	case ParamQueryFnP999:
+		res.What = data_model.DigestP999
+	case ParamQueryFnUnique:
+		res.What = data_model.DigestUnique
+	case ParamQueryFnUniqueNorm:
+		res.What = data_model.DigestUniqueSec
+	case ParamQueryFnMaxHost:
+		if maxhost != nil {
+			*maxhost = true
 		}
-		return queryFnKindCount
-	case queryFnMin, queryFnMax, queryFnDerivativeMin, queryFnDerivativeMax,
-		queryFnAvg, queryFnCumulAvg, queryFnDerivativeAvg,
-		queryFnSum, queryFnSumNorm, queryFnCumulSum, queryFnDerivativeSum, queryFnDerivativeSumNorm,
-		queryFnStddev, queryFnMaxCountHost, queryFnMaxHost:
-		return queryFnKindValue
-	case queryFnP0_1, queryFnP1, queryFnP5, queryFnP10:
-		return queryFnKindPercentilesLow
-	case queryFnP25, queryFnP50, queryFnP75, queryFnP90, queryFnP95, queryFnP99, queryFnP999:
-		return queryFnKindPercentiles
-	case queryFnUnique, queryFnUniqueNorm, queryFnDerivativeUnique, queryFnDerivativeUniqueNorm:
-		return queryFnKindUnique
+	case ParamQueryFnMaxCountHost:
+		res.What = data_model.DigestMax
+		if maxhost != nil {
+			*maxhost = true
+		}
+	case ParamQueryFnDerivativeCount:
+		res.What = data_model.DigestCount
+		res.Deriv = true
+	case ParamQueryFnDerivativeSum:
+		res.What = data_model.DigestSum
+		res.Deriv = true
+	case ParamQueryFnDerivativeAvg:
+		res.What = data_model.DigestAvg
+		res.Deriv = true
+	case ParamQueryFnDerivativeCountNorm:
+		res.What = data_model.DigestCountSec
+		res.Deriv = true
+	case ParamQueryFnDerivativeSumNorm:
+		res.What = data_model.DigestSumSec
+		res.Deriv = true
+	case ParamQueryFnDerivativeMin:
+		res.What = data_model.DigestMin
+		res.Deriv = true
+	case ParamQueryFnDerivativeMax:
+		res.What = data_model.DigestMax
+		res.Deriv = true
+	case ParamQueryFnDerivativeUnique:
+		res.What = data_model.DigestUnique
+		res.Deriv = true
+	case ParamQueryFnDerivativeUniqueNorm:
+		res.What = data_model.DigestUniqueSec
+		res.Deriv = true
 	default:
-		return queryFnKindCount
+		return QueryFunc{}, false
+	}
+	return res, true
+}
+
+func QueryFuncFromTLFunc(f tlstatshouseApi.Function, maxhost *bool) QueryFunc {
+	var res QueryFunc
+	switch f {
+	case tlstatshouseApi.FnCount():
+		res.Name = ParamQueryFnCount
+		res.What = data_model.DigestCount
+	case tlstatshouseApi.FnCountNorm():
+		res.Name = ParamQueryFnCountNorm
+		res.What = data_model.DigestCountSec
+	case tlstatshouseApi.FnCumulCount():
+		res.Name = ParamQueryFnCumulCount
+		res.What = data_model.DigestCountRaw
+		res.Cumul = true
+	case tlstatshouseApi.FnMin():
+		res.Name = ParamQueryFnMin
+		res.What = data_model.DigestMin
+	case tlstatshouseApi.FnMax():
+		res.Name = ParamQueryFnMax
+		res.What = data_model.DigestMax
+	case tlstatshouseApi.FnAvg():
+		res.Name = ParamQueryFnAvg
+		res.What = data_model.DigestAvg
+	case tlstatshouseApi.FnCumulAvg():
+		res.Name = ParamQueryFnCumulAvg
+		res.What = data_model.DigestAvg
+		res.Cumul = true
+	case tlstatshouseApi.FnSum():
+		res.Name = ParamQueryFnSum
+		res.What = data_model.DigestSum
+	case tlstatshouseApi.FnSumNorm():
+		res.Name = ParamQueryFnSumNorm
+		res.What = data_model.DigestSumSec
+	case tlstatshouseApi.FnCumulSum():
+		res.Name = ParamQueryFnCumulSum
+		res.What = data_model.DigestSumRaw
+		res.Cumul = true
+	case tlstatshouseApi.FnStddev():
+		res.Name = ParamQueryFnStddev
+		res.What = data_model.DigestStdDev
+	case tlstatshouseApi.FnP01():
+		res.Name = ParamQueryFnP0_1
+		res.What = data_model.DigestP0_1
+	case tlstatshouseApi.FnP1():
+		res.Name = ParamQueryFnP1
+		res.What = data_model.DigestP1
+	case tlstatshouseApi.FnP5():
+		res.Name = ParamQueryFnP5
+		res.What = data_model.DigestP5
+	case tlstatshouseApi.FnP10():
+		res.Name = ParamQueryFnP10
+		res.What = data_model.DigestP10
+	case tlstatshouseApi.FnP25():
+		res.Name = ParamQueryFnP25
+		res.What = data_model.DigestP25
+	case tlstatshouseApi.FnP50():
+		res.Name = ParamQueryFnP50
+		res.What = data_model.DigestP50
+	case tlstatshouseApi.FnP75():
+		res.Name = ParamQueryFnP75
+		res.What = data_model.DigestP75
+	case tlstatshouseApi.FnP90():
+		res.Name = ParamQueryFnP90
+		res.What = data_model.DigestP90
+	case tlstatshouseApi.FnP95():
+		res.Name = ParamQueryFnP95
+		res.What = data_model.DigestP95
+	case tlstatshouseApi.FnP99():
+		res.Name = ParamQueryFnP99
+		res.What = data_model.DigestP99
+	case tlstatshouseApi.FnP999():
+		res.Name = ParamQueryFnP999
+		res.What = data_model.DigestP999
+	case tlstatshouseApi.FnUnique():
+		res.Name = ParamQueryFnUnique
+		res.What = data_model.DigestUnique
+	case tlstatshouseApi.FnUniqueNorm():
+		res.Name = ParamQueryFnUniqueNorm
+		res.What = data_model.DigestUniqueSec
+	case tlstatshouseApi.FnMaxHost():
+		res.Name = ParamQueryFnMaxHost
+		if maxhost != nil {
+			*maxhost = true
+		}
+	case tlstatshouseApi.FnMaxCountHost():
+		res.Name = ParamQueryFnMaxCountHost
+		res.What = data_model.DigestMax
+		if maxhost != nil {
+			*maxhost = true
+		}
+	case tlstatshouseApi.FnDerivativeCount():
+		res.Name = ParamQueryFnDerivativeCount
+		res.What = data_model.DigestCount
+		res.Deriv = true
+	case tlstatshouseApi.FnDerivativeSum():
+		res.Name = ParamQueryFnDerivativeSum
+		res.What = data_model.DigestSum
+		res.Deriv = true
+	case tlstatshouseApi.FnDerivativeAvg():
+		res.Name = ParamQueryFnDerivativeAvg
+		res.What = data_model.DigestAvg
+		res.Deriv = true
+	case tlstatshouseApi.FnDerivativeCountNorm():
+		res.Name = ParamQueryFnDerivativeCountNorm
+		res.What = data_model.DigestCountSec
+		res.Deriv = true
+	case tlstatshouseApi.FnDerivativeSumNorm():
+		res.Name = ParamQueryFnDerivativeSumNorm
+		res.What = data_model.DigestSumSec
+		res.Deriv = true
+	case tlstatshouseApi.FnDerivativeMin():
+		res.Name = ParamQueryFnDerivativeMin
+		res.What = data_model.DigestMin
+		res.Deriv = true
+	case tlstatshouseApi.FnDerivativeMax():
+		res.Name = ParamQueryFnDerivativeMax
+		res.What = data_model.DigestMax
+		res.Deriv = true
+	case tlstatshouseApi.FnDerivativeUnique():
+		res.Name = ParamQueryFnDerivativeUnique
+		res.What = data_model.DigestUnique
+		res.Deriv = true
+	case tlstatshouseApi.FnDerivativeUniqueNorm():
+		res.Name = ParamQueryFnDerivativeUniqueNorm
+		res.What = data_model.DigestUniqueSec
+		res.Deriv = true
+	}
+	return res
+}
+
+func ParseTLFunc(str string) (tlstatshouseApi.Function, bool) {
+	var res tlstatshouseApi.Function
+	switch str {
+	case ParamQueryFnCount:
+		res = tlstatshouseApi.FnCount()
+	case ParamQueryFnCountNorm:
+		res = tlstatshouseApi.FnCountNorm()
+	case ParamQueryFnCumulCount:
+		res = tlstatshouseApi.FnCumulCount()
+	case ParamQueryFnMin:
+		res = tlstatshouseApi.FnMin()
+	case ParamQueryFnMax:
+		res = tlstatshouseApi.FnMax()
+	case ParamQueryFnAvg:
+		res = tlstatshouseApi.FnAvg()
+	case ParamQueryFnCumulAvg:
+		res = tlstatshouseApi.FnCumulAvg()
+	case ParamQueryFnSum:
+		res = tlstatshouseApi.FnSum()
+	case ParamQueryFnSumNorm:
+		res = tlstatshouseApi.FnSumNorm()
+	case ParamQueryFnStddev:
+		res = tlstatshouseApi.FnStddev()
+	case ParamQueryFnP0_1:
+		res = tlstatshouseApi.FnP01()
+	case ParamQueryFnP1:
+		res = tlstatshouseApi.FnP1()
+	case ParamQueryFnP5:
+		res = tlstatshouseApi.FnP5()
+	case ParamQueryFnP10:
+		res = tlstatshouseApi.FnP10()
+	case ParamQueryFnP25:
+		res = tlstatshouseApi.FnP25()
+	case ParamQueryFnP50:
+		res = tlstatshouseApi.FnP50()
+	case ParamQueryFnP75:
+		res = tlstatshouseApi.FnP75()
+	case ParamQueryFnP90:
+		res = tlstatshouseApi.FnP90()
+	case ParamQueryFnP95:
+		res = tlstatshouseApi.FnP95()
+	case ParamQueryFnP99:
+		res = tlstatshouseApi.FnP99()
+	case ParamQueryFnP999:
+		res = tlstatshouseApi.FnP999()
+	case ParamQueryFnUnique:
+		res = tlstatshouseApi.FnUnique()
+	case ParamQueryFnUniqueNorm:
+		res = tlstatshouseApi.FnUniqueNorm()
+	case ParamQueryFnMaxHost:
+		res = tlstatshouseApi.FnMaxHost()
+	case ParamQueryFnMaxCountHost:
+		res = tlstatshouseApi.FnMaxCountHost()
+	case ParamQueryFnCumulSum:
+		res = tlstatshouseApi.FnCumulSum()
+	case ParamQueryFnDerivativeCount:
+		res = tlstatshouseApi.FnDerivativeCount()
+	case ParamQueryFnDerivativeCountNorm:
+		res = tlstatshouseApi.FnDerivativeCountNorm()
+	case ParamQueryFnDerivativeSum:
+		res = tlstatshouseApi.FnDerivativeSum()
+	case ParamQueryFnDerivativeSumNorm:
+		res = tlstatshouseApi.FnDerivativeSumNorm()
+	case ParamQueryFnDerivativeMin:
+		res = tlstatshouseApi.FnDerivativeMin()
+	case ParamQueryFnDerivativeMax:
+		res = tlstatshouseApi.FnDerivativeMax()
+	case ParamQueryFnDerivativeAvg:
+		res = tlstatshouseApi.FnDerivativeAvg()
+	case ParamQueryFnDerivativeUnique:
+		res = tlstatshouseApi.FnDerivativeUnique()
+	case ParamQueryFnDerivativeUniqueNorm:
+		res = tlstatshouseApi.FnDerivativeUniqueNorm()
+	default:
+		return tlstatshouseApi.Function{}, false
+	}
+	return res, true
+}
+
+func (fn QueryFunc) MarshalEasyJSON(w *jwriter.Writer) {
+	w.String(fn.Name)
+}
+
+func (fn *QueryFunc) UnmarshalEasyJSON(w *jlexer.Lexer) {
+	s := w.String()
+	var ok bool
+	*fn, ok = ParseQueryFunc(s, nil)
+	if !ok {
+		w.AddError(fmt.Errorf("unrecognized query function: %q", s))
 	}
 }
 
 func normalizedQueryString(
 	metricWithNamespace string,
-	kind queryFnKind,
+	kind data_model.DigestKind,
 	by []string,
 	filterIn map[string][]string,
 	filterNoIn map[string][]string,
@@ -259,7 +431,7 @@ func normalizedQueryString(
 	buf.WriteByte('&')
 	buf.WriteString(ParamQueryWhat)
 	buf.WriteByte('=')
-	buf.WriteString(url.QueryEscape(string(kind)))
+	buf.WriteString(url.QueryEscape(kind.String()))
 	for _, b := range sortedBy {
 		buf.WriteByte('&')
 		buf.WriteString(ParamQueryBy)
@@ -279,50 +451,6 @@ func normalizedQueryString(
 	}
 
 	return buf.String()
-}
-
-type query struct {
-	what     queryFn
-	whatKind queryFnKind
-	by       []string
-}
-
-func parseQueries(version string, whats, by []string, maxHost bool) ([]*query, error) {
-	qq := make([]*query, 0, len(whats))
-	for _, what := range whats {
-		fn, kind, err := parseQueryWhat(what, maxHost)
-		if err != nil {
-			return nil, err
-		}
-
-		q := &query{
-			what:     fn,
-			whatKind: kind,
-		}
-
-		for _, b := range by {
-			k, err := parseTagID(b)
-			if err != nil {
-				return nil, err
-			}
-			if version == Version1 && b == format.EnvTagID {
-				continue // we only support production tables for v1
-			}
-			q.by = append(q.by, k)
-		}
-
-		qq = append(qq, q)
-
-		if version == Version1 && len(qq) > 1 {
-			return nil, httpErr(http.StatusBadRequest, fmt.Errorf("version 1 doesn't support multiple functions, %d given", len(whats)))
-		}
-
-		if len(qq) > maxFunctions {
-			return nil, httpErr(http.StatusBadRequest, fmt.Errorf("too many functions specified (%v, max=%v)", len(whats), maxFunctions))
-		}
-	}
-
-	return qq, nil
 }
 
 func parseFromRows(fromRows string) (RowMarker, error) {
@@ -352,14 +480,6 @@ func encodeFromRows(row *RowMarker) (string, error) {
 	}
 
 	return base64.RawURLEncoding.EncodeToString(jsonBytes), nil
-}
-
-func parseQueryWhat(what string, maxHost bool) (queryFn, queryFnKind, error) {
-	fn, ok := validQueryFn(what)
-	if !ok {
-		return 0, "", httpErr(http.StatusBadRequest, fmt.Errorf("invalid %q value: %q", ParamQueryWhat, what))
-	}
-	return fn, queryFnToQueryFnKind(fn, maxHost), nil
 }
 
 func validateQuery(metricMeta *format.MetricMetaValue, version string) error {
@@ -405,101 +525,4 @@ func parseQueryFilter(filter []string) (map[string][]string, map[string][]string
 	}
 
 	return filterIn, filterNotIn, nil
-}
-
-func (fn queryFn) String() string {
-	switch fn {
-	case queryFnUnspecified:
-		return ""
-	case queryFnCount:
-		return ParamQueryFnCount
-	case queryFnCountNorm:
-		return ParamQueryFnCountNorm
-	case queryFnCumulCount:
-		return ParamQueryFnCumulCount
-	case queryFnCardinality:
-		return ParamQueryFnCardinality
-	case queryFnCardinalityNorm:
-		return ParamQueryFnCardinalityNorm
-	case queryFnCumulCardinality:
-		return ParamQueryFnCumulCardinality
-	case queryFnMin:
-		return ParamQueryFnMin
-	case queryFnMax:
-		return ParamQueryFnMax
-	case queryFnAvg:
-		return ParamQueryFnAvg
-	case queryFnCumulAvg:
-		return ParamQueryFnCumulAvg
-	case queryFnSum:
-		return ParamQueryFnSum
-	case queryFnSumNorm:
-		return ParamQueryFnSumNorm
-	case queryFnCumulSum:
-		return ParamQueryFnCumulSum
-	case queryFnStddev:
-		return ParamQueryFnStddev
-	case queryFnP0_1:
-		return "p0.1"
-	case queryFnP1:
-		return ParamQueryFnP1
-	case queryFnP5:
-		return ParamQueryFnP5
-	case queryFnP10:
-		return ParamQueryFnP10
-	case queryFnP25:
-		return ParamQueryFnP25
-	case queryFnP50:
-		return ParamQueryFnP50
-	case queryFnP75:
-		return ParamQueryFnP75
-	case queryFnP90:
-		return ParamQueryFnP90
-	case queryFnP95:
-		return ParamQueryFnP95
-	case queryFnP99:
-		return ParamQueryFnP99
-	case queryFnP999:
-		return ParamQueryFnP999
-	case queryFnUnique:
-		return ParamQueryFnUnique
-	case queryFnUniqueNorm:
-		return ParamQueryFnUniqueNorm
-	case queryFnMaxHost:
-		return ParamQueryFnMaxHost
-	case queryFnMaxCountHost:
-		return ParamQueryFnMaxCountHost
-	case queryFnDerivativeCount:
-		return ParamQueryFnDerivativeCount
-	case queryFnDerivativeSum:
-		return ParamQueryFnDerivativeSum
-	case queryFnDerivativeAvg:
-		return ParamQueryFnDerivativeAvg
-	case queryFnDerivativeMin:
-		return ParamQueryFnDerivativeMin
-	case queryFnDerivativeMax:
-		return ParamQueryFnDerivativeMax
-	case queryFnDerivativeUnique:
-		return ParamQueryFnDerivativeUnique
-	case queryFnDerivativeUniqueNorm:
-		return ParamQueryFnDerivativeUniqueNorm
-	case queryFnDerivativeCountNorm:
-		return ParamQueryFnDerivativeCountNorm
-	case queryFnDerivativeSumNorm:
-		return ParamQueryFnDerivativeSumNorm
-	default:
-		return fmt.Sprintf("fn-%d", fn)
-	}
-}
-
-func (fn queryFn) MarshalEasyJSON(w *jwriter.Writer) {
-	w.String(fn.String())
-}
-
-func (fn *queryFn) UnmarshalEasyJSON(w *jlexer.Lexer) {
-	var err error
-	*fn, _, err = parseQueryWhat(w.String(), false)
-	if err != nil {
-		w.AddError(err)
-	}
 }
