@@ -494,6 +494,9 @@ var hostMetrics = map[int32]*MetricMetaValue{
 			},
 			{
 				Description: "device",
+			},
+			{
+				Description: "mount_point",
 			}},
 	},
 	BuiltinMetricIDINodeUsage: {
@@ -509,8 +512,12 @@ var hostMetrics = map[int32]*MetricMetaValue{
 					RawIDTagUsed: "used",
 				}),
 			},
+
 			{
 				Description: "device",
+			},
+			{
+				Description: "mount_point",
 			}},
 	},
 
