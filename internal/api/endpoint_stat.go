@@ -133,7 +133,6 @@ func (es *endpointStat) report(code int, metric string) {
 		6:  srvfunc.HostnameForStatshouse(),
 		7:  es.tokenName,
 		8:  strconv.Itoa(code),
-		9:  es.metric,
 		10: strconv.Itoa(es.priority),
 	}
 	statshouse.Metric(metric, t).Value(v)
