@@ -575,8 +575,8 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 	}
 	_ = syscall.Getrusage(syscall.RUSAGE_SELF, &h.rUsage)
 
-	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LodTables, h.UTCOffset, h.loadPoints, cacheDefaultDropEvery)
-	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.UTCOffset, h.loadPoint, time.Now)
+	h.cache = newTSCacheGroup(cfg.ApproxCacheMaxSize, data_model.LODTables, h.utcOffset, h.loadPoints, cacheDefaultDropEvery)
+	h.pointsCache = newPointsCache(cfg.ApproxCacheMaxSize, h.utcOffset, h.loadPoint, time.Now)
 	cl.AddChangeCB(func(c config.Config) {
 		cfg := c.(*Config)
 		h.cache.changeMaxSize(cfg.ApproxCacheMaxSize)
@@ -618,7 +618,7 @@ func NewHandler(staticDir fs.FS, jsSettings JSSettings, showInvisible bool, chV1
 		writeActiveQuieries(chV1, "1")
 		writeActiveQuieries(chV2, "2")
 	})
-	h.promEngine = promql.NewEngine(h, h.TimeZone)
+	h.promEngine = promql.NewEngine(h, h.location, h.utcOffset)
 	return h, nil
 }
 
@@ -710,8 +710,8 @@ SETTINGS
 				if _, ok := seen[r]; ok {
 					continue
 				}
-				for lodLevel := range data_model.LodTables[Version2] {
-					t := roundTime(r.At, lodLevel, h.UTCOffset)
+				for lodLevel := range data_model.LODTables[Version2] {
+					t := roundTime(r.At, lodLevel, h.utcOffset)
 					w := todo[lodLevel]
 					if len(w) == 0 || w[len(w)-1] != t {
 						todo[lodLevel] = append(w, t)
@@ -1775,13 +1775,15 @@ func (h *Handler) handleGetMetricTagValues(ctx context.Context, req getMetricTag
 		return nil, false, err
 	}
 
-	lods, err := h.TimeZone.GetLODs(data_model.GetTimescaleArgs{
+	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
 		Version:     req.version,
 		Start:       from.Unix(),
 		End:         to.Unix(),
 		ScreenWidth: 100, // really dumb
 		TimeNow:     time.Now().Unix(),
 		Metric:      metricMeta,
+		Location:    h.location,
+		UTCOffset:   h.utcOffset,
 	})
 	if err != nil {
 		return nil, false, err
@@ -1890,6 +1892,9 @@ func (h *Handler) HandleGetTable(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()
 
+	if req.numResults <= 0 || maxTableRowsPage < req.numResults {
+		req.numResults = maxTableRowsPage
+	}
 	respTable, immutable, err := h.handleGetTable(ctx, req.ai, true, req)
 	if h.verbose && err == nil {
 		log.Printf("[debug] handled query (%v rows) for %q in %v", len(respTable.Rows), req.ai.user, time.Since(sl.timestamp))
@@ -2194,7 +2199,7 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 	defer h.plotRenderSem.Release(1)
 
 	start := time.Now()
-	png, err := plot(ctx, format_, true, s, h.UTCOffset, req.seriesRequest, width, h.plotTemplate)
+	png, err := plot(ctx, format_, true, s, h.utcOffset, req.seriesRequest, width, h.plotTemplate)
 	es.timings.Report("plot", time.Since(start))
 	if err != nil {
 		return nil, false, err
@@ -2214,12 +2219,10 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	if err != nil {
 		return nil, false, err
 	}
-
 	err = validateQuery(metricMeta, req.version)
 	if err != nil {
 		return nil, false, err
 	}
-
 	mappedFilterIn, err := h.resolveFilter(metricMeta, req.version, req.filterIn)
 	if err != nil {
 		return nil, false, err
@@ -2228,8 +2231,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 	if err != nil {
 		return nil, false, err
 	}
-
-	lods, err := h.TimeZone.GetLODs(data_model.GetTimescaleArgs{
+	lods, err := data_model.GetLODs(data_model.GetTimescaleArgs{
 		Version:     req.version,
 		Start:       req.from.Unix(),
 		End:         req.to.Unix(),
@@ -2237,16 +2239,16 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 		ScreenWidth: req.screenWidth,
 		TimeNow:     time.Now().Unix(),
 		Metric:      metricMeta,
+		Location:    h.location,
+		UTCOffset:   h.utcOffset,
 	})
 	if err != nil {
 		return nil, false, err
 	}
-
 	desiredStepMul := int64(1)
-	if req.screenWidth == 0 {
+	if req.step != 0 {
 		desiredStepMul = int64(req.step)
 	}
-
 	if req.fromEnd {
 		for i := 0; i < len(lods)/2; i++ {
 			temp := lods[i]
@@ -2269,7 +2271,7 @@ func (h *Handler) handleGetTable(ctx context.Context, ai accessInfo, debugQuerie
 		mappedFilterNotIn: mappedFilterNotIn,
 		rawValue:          req.screenWidth == 0 || req.step == _1M,
 		desiredStepMul:    desiredStepMul,
-		location:          h.Location,
+		location:          h.location,
 	}, h.cache.Get, h.maybeAddQuerySeriesTagValue)
 	if err != nil {
 		return nil, false, err
@@ -2779,7 +2781,7 @@ func replaceInfNan(v *float64) {
 }
 
 func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod data_model.LOD, ret [][]tsSelectRow, retStartIx int) (int, error) {
-	query, args, err := loadPointsQuery(pq, lod, h.UTCOffset)
+	query, args, err := loadPointsQuery(pq, lod, h.utcOffset)
 	if err != nil {
 		return 0, err
 	}
@@ -2844,7 +2846,7 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod d
 }
 
 func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, lod data_model.LOD) ([]pSelectRow, error) {
-	query, args, err := loadPointQuery(pq, lod, h.UTCOffset)
+	query, args, err := loadPointQuery(pq, lod, h.utcOffset)
 	if err != nil {
 		return nil, err
 	}
@@ -3238,13 +3240,13 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 	if n != 0 {
 		switch dash.TimeRange.To {
 		case "ed": // end of day
-			year, month, day := time.Now().In(h.Location).Date()
-			tab0.to = time.Date(year, month, day, 0, 0, 0, 0, h.Location).Add(24 * time.Hour).UTC()
+			year, month, day := time.Now().In(h.location).Date()
+			tab0.to = time.Date(year, month, day, 0, 0, 0, 0, h.location).Add(24 * time.Hour).UTC()
 			tab0.strTo = strconv.FormatInt(tab0.to.Unix(), 10)
 		case "ew": // end of week
 			var (
-				year, month, day = time.Now().In(h.Location).Date()
-				dateNow          = time.Date(year, month, day, 0, 0, 0, 0, h.Location)
+				year, month, day = time.Now().In(h.location).Date()
+				dateNow          = time.Date(year, month, day, 0, 0, 0, 0, h.location)
 				offset           = time.Duration(((time.Sunday - dateNow.Weekday() + 7) % 7) + 1)
 			)
 			tab0.to = dateNow.Add(offset * 24 * time.Hour).UTC()

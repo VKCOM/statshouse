@@ -282,8 +282,8 @@ func (h *Handler) colorize(resp *SeriesResponse) {
 			meta             = resp.Series.SeriesMeta[i]
 			oneGraph         = graphCount == 1
 			uniqueWhatLength = len(uniqueWhat)
-			label            = MetaToLabel(meta, uniqueWhatLength, h.UTCOffset)
-			baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength, h.UTCOffset)
+			label            = MetaToLabel(meta, uniqueWhatLength, h.utcOffset)
+			baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength, h.utcOffset)
 			isValue          = strings.Index(baseLabel, "Value") == 0
 			metricName       string
 			prefColor        = 9 // it`s magic prefix

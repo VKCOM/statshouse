@@ -324,9 +324,9 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 			}
 		}
 	case LabelMinHost, LabelMaxHost:
-		v = ev.h.GetHostName(tg.Value)
+		v = ev.GetHostName(tg.Value)
 	default:
-		v = ev.h.GetTagValue(TagValueQuery{
+		v = ev.GetTagValue(TagValueQuery{
 			Version:    ev.opt.Version,
 			Metric:     tg.Metric,
 			TagID:      tg.ID,
@@ -534,7 +534,7 @@ func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.M
 	n := 0
 	for i, maxHost := range d.MinMaxHost[x] {
 		discard := false
-		maxHostname := ev.h.GetHostName(maxHost)
+		maxHostname := ev.GetHostName(maxHost)
 		for _, matcher := range matchers {
 			if !matcher.Matches(maxHostname) {
 				discard = true

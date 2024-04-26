@@ -319,14 +319,6 @@ func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher, nam
 	return s1, s2, nil
 }
 
-func promqlStepForward(start, step int64, loc *time.Location) int64 {
-	if step == _1M {
-		return time.Unix(start, 0).In(loc).AddDate(0, 1, 0).UTC().Unix()
-	} else {
-		return start + step
-	}
-}
-
 func (h *Handler) GetHostName(hostID int32) string {
 	v, err := h.getTagValue(hostID)
 	if err != nil {
@@ -342,7 +334,7 @@ func (h *Handler) GetTagValue(qry promql.TagValueQuery) string {
 	} else {
 		tagID = qry.TagID
 	}
-	return h.getRichTagValue(qry.Metric, promqlVersionOrDefault(qry.Version), tagID, qry.TagValueID)
+	return h.getRichTagValue(qry.Metric, data_model.VersionOrDefault(qry.Version), tagID, qry.TagValueID)
 }
 
 func (h *Handler) GetTagValueID(qry promql.TagValueIDQuery) (int32, error) {
@@ -394,7 +386,7 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			res.Meta.Units = qry.Metric.MetricType
 		}
 	}
-	version := promqlVersionOrDefault(qry.Options.Version)
+	version := data_model.VersionOrDefault(qry.Options.Version)
 	var lods []data_model.LOD
 	if qry.Options.Collapse {
 		// "point" query
@@ -405,10 +397,10 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 			FromSec:    qry.Timescale.Time[0] - qry.Offset,
 			ToSec:      qry.Timescale.Time[1] - qry.Offset,
 			StepSec:    lod0.Step,
-			Table:      data_model.LodTables[version][lod0.Step],
+			Table:      data_model.LODTables[version][lod0.Step],
 			HasPreKey:  metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
 			PreKeyOnly: metric.PreKeyOnly,
-			Location:   h.Location,
+			Location:   h.location,
 		}}
 	} else {
 		lods = qry.Timescale.GetLODs(qry.Metric, qry.Offset)
@@ -543,7 +535,7 @@ func (h *Handler) QueryTagValueIDs(ctx context.Context, qry promql.TagValuesQuer
 		return nil, errAccessViolation
 	}
 	var (
-		version = promqlVersionOrDefault(qry.Options.Version)
+		version = data_model.VersionOrDefault(qry.Options.Version)
 		pq      = &preparedTagValuesQuery{
 			version:     version,
 			metricID:    qry.Metric.MetricID,
@@ -593,7 +585,7 @@ func (h *Handler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery)
 		return nil, errAccessViolation
 	}
 	var (
-		version = promqlVersionOrDefault(qry.Options.Version)
+		version = data_model.VersionOrDefault(qry.Options.Version)
 		pq      = &preparedTagValuesQuery{
 			version:     version,
 			metricID:    qry.Metric.MetricID,
@@ -729,7 +721,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[dat
 		args.qs = normalizedQueryString(qry.Metric.Name, kind, groupBy, filterIn, filterOut, false)
 		args.pq = preparedPointsQuery{
 			user:        ai.user,
-			version:     promqlVersionOrDefault(qry.Options.Version),
+			version:     data_model.VersionOrDefault(qry.Options.Version),
 			metricID:    qry.Metric.MetricID,
 			preKeyTagID: qry.Metric.PreKeyTagID,
 			kind:        kind,
@@ -900,11 +892,4 @@ func promqlEncodeSTagValue(s string) string {
 		return format.TagValueCodeZero
 	}
 	return s
-}
-
-func promqlVersionOrDefault(version string) string {
-	if len(version) != 0 {
-		return version
-	}
-	return Version2
 }

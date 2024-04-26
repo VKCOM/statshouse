@@ -86,8 +86,9 @@ type Variable struct {
 }
 
 type Engine struct {
-	h  Handler
-	tz data_model.TimeZone
+	Handler
+	location  *time.Location
+	utcOffset int64
 }
 
 type evaluator struct {
@@ -145,8 +146,8 @@ const (
 	traceContextKey
 )
 
-func NewEngine(h Handler, tz data_model.TimeZone) Engine {
-	return Engine{h, tz}
+func NewEngine(h Handler, loc *time.Location, utcOffset int64) Engine {
+	return Engine{h, loc, utcOffset}
 }
 
 func (ng Engine) Exec(ctx context.Context, qry Query) (parser.Value, func(), error) {
@@ -255,7 +256,7 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	}
 	// init timescale
 	qry.Start -= maxRange // widen time range to accommodate range selectors
-	ev.t, err = ng.tz.GetTimescale(data_model.GetTimescaleArgs{
+	ev.t, err = data_model.GetTimescale(data_model.GetTimescaleArgs{
 		Version:      qry.Options.Version,
 		Start:        qry.Start,
 		End:          qry.End,
@@ -265,6 +266,8 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 		Collapse:     qry.Options.Collapse,
 		Extend:       qry.Options.Extend,
 		MetricOffset: metricOffset,
+		Location:     ng.location,
+		UTCOffset:    ng.utcOffset,
 	})
 
 	if err != nil || ev.t.Empty() {
@@ -369,7 +372,7 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 	for _, matcher := range sel.LabelMatchers {
 		switch matcher.Name {
 		case labels.MetricName:
-			metrics, names, err := ev.h.MatchMetrics(ev.ctx, matcher, ev.opt.Namespace)
+			metrics, names, err := ev.MatchMetrics(ev.ctx, matcher, ev.opt.Namespace)
 			if err != nil {
 				return err
 			}
@@ -932,7 +935,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 					mu.Unlock()
 					locked = false
 				}
-				sr, cancel, err := ev.h.QuerySeries(ev.ctx, &qry.SeriesQuery)
+				sr, cancel, err := ev.QuerySeries(ev.ctx, &qry.SeriesQuery)
 				if err != nil {
 					return err
 				}
@@ -1325,7 +1328,7 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 	if res, ok = m2[offset]; ok {
 		return res, nil
 	}
-	ids, err := ev.h.QueryTagValueIDs(ctx, TagValuesQuery{
+	ids, err := ev.QueryTagValueIDs(ctx, TagValuesQuery{
 		Metric:    metric,
 		TagIndex:  tagX,
 		Timescale: ev.t,
@@ -1338,7 +1341,7 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 	// tag value ID -> tag value
 	res = make(map[int32]string, len(ids))
 	for _, id := range ids {
-		res[id] = ev.h.GetTagValue(TagValueQuery{
+		res[id] = ev.GetTagValue(TagValueQuery{
 			Version:    ev.opt.Version,
 			Metric:     metric,
 			TagIndex:   tagX,
@@ -1362,7 +1365,7 @@ func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tag
 			return statshouse.LexEncode(float32(v)), nil
 		}
 	}
-	return ev.h.GetTagValueID(TagValueIDQuery{
+	return ev.GetTagValueID(TagValueIDQuery{
 		Version:  ev.opt.Version,
 		Metric:   metric,
 		TagIndex: tagX,
@@ -1382,7 +1385,7 @@ func (ev *evaluator) getStringTop(ctx context.Context, metric *format.MetricMeta
 		return res, nil
 	}
 	var err error
-	res, err = ev.h.QueryStringTop(ctx, TagValuesQuery{
+	res, err = ev.QueryStringTop(ctx, TagValuesQuery{
 		Metric:    metric,
 		Timescale: ev.t,
 		Offset:    offset,
@@ -1458,7 +1461,7 @@ func (ev *evaluator) alloc() *[]float64 {
 		if ev.allocMap == nil {
 			ev.allocMap = make(map[*[]float64]bool)
 		}
-		s = ev.h.Alloc(len(ev.time()))
+		s = ev.Alloc(len(ev.time()))
 		ev.allocMap[s] = true
 	}
 	return s
@@ -1488,12 +1491,12 @@ func (ev *evaluator) freeSome(ds []SeriesData, xs ...int) {
 func (ev *evaluator) cancel() {
 	if ev.allocMap != nil {
 		for s := range ev.allocMap {
-			ev.h.Free(s)
+			ev.Free(s)
 		}
 		ev.allocMap = nil
 	}
 	for _, s := range ev.freeList {
-		ev.h.Free(s)
+		ev.Free(s)
 	}
 	ev.freeList = nil
 	for _, cancel := range ev.cancellationList {

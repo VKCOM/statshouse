@@ -851,7 +851,7 @@ func timeCall[V int | time.Weekday | time.Month](fn func(time.Time) V) callFunc 
 			}
 			for _, d := range res[i].Data {
 				for i, v := range *d.Values {
-					(*d.Values)[i] = float64(fn(time.Unix(int64(v), 0).In(ev.tz.Location)))
+					(*d.Values)[i] = float64(fn(time.Unix(int64(v), 0).In(ev.location)))
 				}
 			}
 		}
