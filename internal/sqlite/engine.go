@@ -72,6 +72,7 @@ const (
 	cacheKB            = 65536                         // 64MB
 	mmapSize           = 8 * 1024 * 1024 * 1024 * 1024 // 8TB
 	commitEveryDefault = 1 * time.Second
+	defaultPageSize    = 4 * 1024 // 4KB
 
 	beginStmt  = "BEGIN IMMEDIATE" // make sure we don't get SQLITE_BUSY in the middle of transaction
 	commitStmt = "COMMIT"
@@ -141,6 +142,7 @@ type (
 
 		MaxROConn              int
 		CacheMaxSizePerConnect int
+		PageSize               int
 	}
 
 	waitCommitInfo struct {
@@ -231,7 +233,7 @@ func openDB(opt Options,
 	if opt.MaxROConn == 0 {
 		opt.MaxROConn = 100
 	}
-	rw, err := openRW(openWAL, opt.Path, opt.APPID, opt.Scheme, initOffsetTable, snapshotMetaTable)
+	rw, err := openRW(openWAL, opt.Path, opt.APPID, opt.PageSize, opt.Scheme, initOffsetTable, snapshotMetaTable)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW connection: %w", err)
 	}
@@ -345,7 +347,7 @@ func (e *Engine) binlogWaitReady(impl *binlogEngineReplicaImpl) error {
 	return nil
 }
 
-func openWAL(path string, flags int) (*sqlite0.Conn, error) {
+func openWAL(path string, flags int, pageSize int) (*sqlite0.Conn, error) {
 	conn, err := sqlite0.Open(path, flags)
 	if err != nil {
 		return nil, err
@@ -366,6 +368,16 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 		return nil, fmt.Errorf("failed to set DB busy timeout to %v: %w", busyTimeout, err)
 	}
 
+	if pageSize <= 0 {
+		pageSize = defaultPageSize
+	}
+
+	err = conn.Exec(fmt.Sprintf("PRAGMA page_size=%d", pageSize))
+	if err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("failed to set page_size: %w", err)
+	}
+
 	err = conn.Exec("PRAGMA journal_mode=WAL2")
 	if err != nil {
 		_ = conn.Close()
@@ -375,8 +387,8 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 	return conn, nil
 }
 
-func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path string, appID int32, schemas ...string) (*sqlite0.Conn, error) {
-	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate)
+func openRW(open func(path string, flags int, pageSize int) (*sqlite0.Conn, error), path string, appID int32, pageSize int, schemas ...string) (*sqlite0.Conn, error) {
+	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate, pageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -422,7 +434,7 @@ func openRW(open func(path string, flags int) (*sqlite0.Conn, error), path strin
 //	}
 
 func openROWAL(path string) (*sqlite0.Conn, error) {
-	return openWAL(path, sqlite0.OpenReadonly)
+	return openWAL(path, sqlite0.OpenReadonly, 0)
 }
 
 func (e *Engine) binlogLoadOrCreatePosition() (int64, error) {
