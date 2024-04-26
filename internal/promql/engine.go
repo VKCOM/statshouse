@@ -544,6 +544,7 @@ func (ev *evaluator) eval(expr parser.Expr) (res []Series, err error) {
 			for i := range res {
 				for j := range res[i].Data {
 					fn(l.Val, *res[i].Data[j].Values)
+					res[i].Data[j].What = SelectorWhat{}
 				}
 				res[i].Meta = evalSeriesMeta(e, SeriesMeta{}, res[i].Meta)
 			}
@@ -563,6 +564,7 @@ func (ev *evaluator) eval(expr parser.Expr) (res []Series, err error) {
 					} else {
 						for j := range res[i].Data {
 							fn(*res[i].Data[j].Values, r.Val)
+							res[i].Data[j].What = SelectorWhat{}
 						}
 						res[i].Meta = evalSeriesMeta(e, res[i].Meta, SeriesMeta{})
 					}
@@ -658,6 +660,7 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 			if rhs.scalar() {
 				for i := range lhs.Data {
 					fn(*lhs.Data[i].Values, *lhs.Data[i].Values, *rhs.Data[0].Values)
+					lhs.Data[i].What = SelectorWhat{}
 				}
 				res[x].appendAll(lhs)
 				rhs.free(ev)
@@ -686,10 +689,12 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				if swapArgs {
 					for i := range rhs.Data {
 						fn(*rhs.Data[i].Values, *rhs.Data[i].Values, *lhs.Data[0].Values)
+						rhs.Data[i].What = SelectorWhat{}
 					}
 				} else {
 					for i := range rhs.Data {
 						fn(*rhs.Data[i].Values, *lhs.Data[0].Values, *rhs.Data[i].Values)
+						rhs.Data[i].What = SelectorWhat{}
 					}
 				}
 				res[x].appendAll(rhs)
@@ -718,6 +723,9 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				for lhsH, lhsMt := range lhsM {
 					if rhsMt, ok := rhsM[lhsH]; ok {
 						fn(*lhs.Data[lhsMt.x].Values, *lhs.Data[lhsMt.x].Values, *rhs.Data[rhsMt.x].Values)
+						if lhs.Data[lhsMt.x].What != rhs.Data[rhsMt.x].What {
+							lhs.Data[lhsMt.x].What = SelectorWhat{}
+						}
 						for _, v := range lhsMt.unused {
 							lhs.Data[lhsMt.x].Tags.remove(v)
 						}
@@ -755,6 +763,9 @@ func (ev *evaluator) evalBinary(expr *parser.BinaryExpr) ([]Series, error) {
 				if lhsMt, ok := lhsM[rhsH]; ok {
 					for _, rhsX := range rhsXs {
 						fn(*rhs.Data[rhsX].Values, *rhs.Data[rhsX].Values, *lhs.Data[lhsMt.x].Values)
+						if rhs.Data[rhsX].What != lhs.Data[lhsMt.x].What {
+							rhs.Data[rhsX].What = SelectorWhat{}
+						}
 						for _, v := range expr.VectorMatching.Include {
 							if tag, ok := lhs.Data[lhsMt.x].Tags.get(v); ok {
 								rhs.AddTagAt(rhsX, tag)
