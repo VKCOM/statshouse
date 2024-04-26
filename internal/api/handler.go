@@ -2560,7 +2560,11 @@ func (s seriesResponse) queryFuncShiftAndTagsAt(i int) (string, int64, map[strin
 		tags[k] = v
 
 	}
-	return d.What.QueryF, timsShift, tags
+	queryFunc := d.What.QueryF
+	if queryFunc == "" {
+		queryFunc = promql.DigestWhatString(d.What.Digest)
+	}
+	return queryFunc, timsShift, tags
 }
 
 func getDashboardMetaInfo(d *format.DashboardMeta) DashboardMetaInfo {
