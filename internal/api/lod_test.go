@@ -165,7 +165,7 @@ func TestCalcUTCOffset(t *testing.T) {
 				t.Errorf("can't load location: %s", test.data.location)
 			}
 
-			assert.Equal(t, test.want, CalcUTCOffset(loc, test.data.weekStartsAt))
+			assert.Equal(t, test.want, calcUTCOffset(loc, test.data.weekStartsAt))
 		})
 	}
 }

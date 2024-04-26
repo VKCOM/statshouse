@@ -62,7 +62,7 @@ func shiftTimestamp(timestamp, stepSec, shift int64, location *time.Location) in
 	return timestamp + shift
 }
 
-func CalcUTCOffset(location *time.Location, weekStartsAt time.Weekday) int64 {
+func calcUTCOffset(location *time.Location, weekStartsAt time.Weekday) int64 {
 	date := time.Unix(0, 0).In(time.UTC)
 	weekDay := date.Weekday()
 	if weekDay == time.Sunday && weekStartsAt != time.Sunday {

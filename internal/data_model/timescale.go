@@ -50,8 +50,9 @@ const (
 )
 
 type Timescale struct {
-	Version string
-	TimeZone
+	Version    string
+	Location   *time.Location
+	UTCOffset  int64
 	Time       []int64
 	LODs       []TimescaleLOD
 	Step       int64 // aggregation interval requested (former "desiredStepMul")
@@ -77,11 +78,8 @@ type GetTimescaleArgs struct {
 	MetricOffset map[*format.MetricMetaValue]int64
 	Metric       *format.MetricMetaValue
 	Offset       int64
-}
-
-type TimeZone struct {
-	Location  *time.Location
-	UTCOffset int64
+	Location     *time.Location
+	UTCOffset    int64
 }
 
 type LOD struct {
@@ -101,7 +99,7 @@ type lodSwitch struct {
 }
 
 var (
-	LodTables = map[string]map[int64]string{
+	LODTables = map[string]map[int64]string{
 		Version1: {
 			_1M:  _1hTableSH1,
 			_7d:  _1hTableSH1,
@@ -131,26 +129,26 @@ var (
 		Version1: {{
 			relSwitch: 33 * _24h,
 			levels:    []int64{_7d, _24h, _4h, _1h},
-			tables:    LodTables[Version1],
+			tables:    LODTables[Version1],
 		}, {
 			relSwitch: _0s,
 			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m},
-			tables:    LodTables[Version1],
+			tables:    LODTables[Version1],
 		}},
 		// Subtract from relSwitch to facilitate calculation of derivative.
 		// Subtrahend should be multiple of the next lodSwitch minimum level.
 		Version2: {{
 			relSwitch: 33*_24h - 2*_1m,
 			levels:    []int64{_7d, _24h, _4h, _1h},
-			tables:    LodTables[Version2],
+			tables:    LODTables[Version2],
 		}, {
 			relSwitch: 52*_1h - 2*_1s,
 			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m},
-			tables:    LodTables[Version2],
+			tables:    LODTables[Version2],
 		}, {
 			relSwitch: _0s,
 			levels:    []int64{_7d, _24h, _4h, _1h, _15m, _5m, _1m, _15s, _5s, _1s},
-			tables:    LodTables[Version2],
+			tables:    LODTables[Version2],
 		}},
 	}
 
@@ -209,7 +207,7 @@ var (
 
 var errQueryOutOfRange = fmt.Errorf("exceeded maximum resolution of %d points per timeseries", MaxSlice)
 
-func (tz TimeZone) GetTimescale(args GetTimescaleArgs) (Timescale, error) {
+func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	if args.End <= args.Start || args.Step < 0 {
 		return Timescale{}, nil
 	}
@@ -233,7 +231,7 @@ func (tz TimeZone) GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	}
 	var (
 		levels  []lodSwitch // depends on query and version
-		version = versionOrDefault(args.Version)
+		version = VersionOrDefault(args.Version)
 	)
 	// find appropriate LOD table
 	switch {
@@ -276,7 +274,12 @@ func (tz TimeZone) GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	}
 	start := args.Start - int64(maxOffset)
 	end := args.End - int64(maxOffset)
-	res := Timescale{Version: version, TimeZone: tz, Step: args.Step}
+	res := Timescale{
+		Version:   version,
+		Location:  args.Location,
+		UTCOffset: args.UTCOffset,
+		Step:      args.Step,
+	}
 	var resLen int
 	var lod TimescaleLOD // last LOD
 	for i := 0; i < len(levels) && start < end; i++ {
@@ -298,14 +301,14 @@ func (tz TimeZone) GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			}
 			lodStart := start
 			if len(res.LODs) == 0 {
-				lodStart = tz.lodStart(start, step)
+				lodStart = startOfLOD(start, step, args.Location, args.UTCOffset)
 			}
 			// calculate number of points up to the "edge"
 			var lodLen, n int
-			lodEnd, lodLen = tz.lodEnd(lodStart, step, edge, false)
+			lodEnd, lodLen = endOfLOD(lodStart, step, edge, false, args.Location)
 			if !args.Collapse {
 				// plus up to the query and to ensure current "step" does not exceed "maxPoints" limit
-				_, m := tz.lodEnd(lodEnd, step, end, false)
+				_, m := endOfLOD(lodEnd, step, end, false, args.Location)
 				n = resLen + lodLen + m
 				if maxPoints < n {
 					// "maxPoints" limit exceed
@@ -315,16 +318,16 @@ func (tz TimeZone) GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 					}
 					// use previous (larger) "step" to the end
 					if len(res.LODs) == 0 {
-						lodStart = tz.lodStart(start, lod.Step)
+						lodStart = startOfLOD(start, lod.Step, args.Location, args.UTCOffset)
 					}
-					lodEnd, lod.Len = tz.lodEnd(lodStart, lod.Step, end, false)
+					lodEnd, lod.Len = endOfLOD(lodStart, lod.Step, end, false, args.Location)
 					break
 				}
 			}
 			lod = TimescaleLOD{Step: step, Len: lodLen}
 			if args.ScreenWidth != 0 && int(args.ScreenWidth) < n {
 				// use current "step" to the end
-				lodEnd, lodLen = tz.lodEnd(lodEnd, step, end, false)
+				lodEnd, lodLen = endOfLOD(lodEnd, step, end, false, args.Location)
 				lod.Len += lodLen
 				break
 			}
@@ -352,13 +355,13 @@ func (tz TimeZone) GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	}
 	// generate time
 	p := &res.LODs[0]
-	t := tz.lodStart(args.Start, p.Step)
+	t := startOfLOD(args.Start, p.Step, args.Location, args.UTCOffset)
 	if args.Collapse {
 		if t < args.Start && !args.Extend {
-			t = tz.stepForward(t, p.Step)
+			t = StepForward(t, p.Step, args.Location)
 		}
 		res.Time = []int64{t, 0}
-		res.Time[1], _ = tz.lodEnd(t, p.Step, args.End, !args.Extend)
+		res.Time[1], _ = endOfLOD(t, p.Step, args.End, !args.Extend, args.Location)
 		if res.Time[0] == res.Time[1] {
 			return Timescale{}, nil
 		}
@@ -370,12 +373,12 @@ func (tz TimeZone) GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			}
 			res.ViewStartX++
 		} else if args.Extend {
-			t = tz.lodStart(t-1, p.Step)
+			t = startOfLOD(t-1, p.Step, args.Location, args.UTCOffset)
 			p.Len++
 			res.ViewStartX++
 		}
 		if res.StartX == 0 {
-			t = tz.lodStart(t-1, p.Step)
+			t = startOfLOD(t-1, p.Step, args.Location, args.UTCOffset)
 			p.Len++
 			res.StartX++
 			res.ViewStartX++
@@ -386,7 +389,7 @@ func (tz TimeZone) GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			p = &res.LODs[i]
 			for j := 0; j < p.Len; j++ {
 				res.Time = append(res.Time, t)
-				t = tz.stepForward(t, p.Step)
+				t = StepForward(t, p.Step, args.Location)
 			}
 		}
 		if res.ViewStartX < len(res.Time) {
@@ -395,7 +398,7 @@ func (tz TimeZone) GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			res.ViewEndX = res.ViewStartX
 		}
 		if args.Extend {
-			t = tz.stepForward(t, p.Step)
+			t = StepForward(t, p.Step, args.Location)
 			res.Time = append(res.Time, t)
 			p.Len++
 		}
@@ -403,34 +406,34 @@ func (tz TimeZone) GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 	return res, nil
 }
 
-func (tz TimeZone) GetLODs(args GetTimescaleArgs) ([]LOD, error) {
+func GetLODs(args GetTimescaleArgs) ([]LOD, error) {
 	args.MetricOffset = map[*format.MetricMetaValue]int64{args.Metric: args.Offset}
-	v, err := tz.GetTimescale(args)
+	t, err := GetTimescale(args)
 	if err != nil {
 		return nil, err
 	}
-	return v.GetLODs(args.Metric, args.Offset), nil
+	return t.GetLODs(args.Metric, args.Offset), nil
 }
 
 func (t *Timescale) GetLODs(metric *format.MetricMetaValue, offset int64) []LOD {
 	start := t.Time[0]
 	if offset != 0 {
-		start = t.TimeZone.lodStart(start-offset, t.LODs[0].Step)
+		start = startOfLOD(start-offset, t.LODs[0].Step, t.Location, t.UTCOffset)
 	}
 	res := make([]LOD, 0, len(t.LODs))
 	for _, lod := range t.LODs {
 		end := start
 		for i := 0; i < lod.Len; i++ {
-			end = t.TimeZone.stepForward(end, lod.Step)
+			end = StepForward(end, lod.Step, t.Location)
 		}
 		res = append(res, LOD{
 			FromSec:    start,
 			ToSec:      end,
 			StepSec:    lod.Step,
-			Table:      LodTables[t.Version][lod.Step],
+			Table:      LODTables[t.Version][lod.Step],
 			HasPreKey:  metric.PreKeyOnly || (metric.PreKeyFrom != 0 && int64(metric.PreKeyFrom) <= start),
 			PreKeyOnly: metric.PreKeyOnly,
-			Location:   t.TimeZone.Location,
+			Location:   t.Location,
 		})
 		start = end
 	}
@@ -464,31 +467,31 @@ func (lod LOD) IsFast() bool {
 	return lod.FromSec+fastQueryTimeInterval >= lod.ToSec
 }
 
-func (h TimeZone) stepForward(start, step int64) int64 {
+func StepForward(start, step int64, loc *time.Location) int64 {
 	if step == _1M {
-		return time.Unix(start, 0).In(h.Location).AddDate(0, 1, 0).UTC().Unix()
+		return time.Unix(start, 0).In(loc).AddDate(0, 1, 0).UTC().Unix()
 	} else {
 		return start + step
 	}
 }
 
-func (h TimeZone) lodStart(start, step int64) int64 {
+func startOfLOD(start, step int64, loc *time.Location, utcOffset int64) int64 {
 	if step == _1M {
-		t := time.Unix(start, 0).In(h.Location)
-		return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, h.Location).UTC().Unix()
+		t := time.Unix(start, 0).In(loc)
+		return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, loc).UTC().Unix()
 	} else {
-		return h.roundTime(start, step)
+		return roundTime(start, step, utcOffset)
 	}
 }
 
-func (h TimeZone) lodEnd(start, step, end int64, le bool) (int64, int) {
+func endOfLOD(start, step, end int64, le bool, loc *time.Location) (int64, int) {
 	if step <= 0 {
 		// infinite loop guard
 		panic(fmt.Errorf("negative step not allowed: %v", step))
 	}
 	n := 0
 	for ; start < end; n++ {
-		t := h.stepForward(start, step)
+		t := StepForward(start, step, loc)
 		if le && end < t {
 			break
 		}
@@ -497,8 +500,8 @@ func (h TimeZone) lodEnd(start, step, end int64, le bool) (int64, int) {
 	return start, n
 }
 
-func (h TimeZone) roundTime(t int64, step int64) int64 {
-	return mathDiv(t+h.UTCOffset, step)*step - h.UTCOffset
+func roundTime(t int64, step int64, utcOffset int64) int64 {
+	return mathDiv(t+utcOffset, step)*step - utcOffset
 }
 
 func mathDiv(a int64, b int64) int64 {
@@ -509,7 +512,7 @@ func mathDiv(a int64, b int64) int64 {
 	return quo - 1
 }
 
-func versionOrDefault(version string) string {
+func VersionOrDefault(version string) string {
 	if len(version) != 0 {
 		return version
 	}

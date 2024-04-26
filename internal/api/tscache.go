@@ -213,7 +213,7 @@ func (c *tsCache) get(ctx context.Context, key string, pq *preparedPointsQuery, 
 		return nil, err
 	}
 	for t := realLoadFrom; t < realLoadTo; i++ {
-		nextRealLoadFrom := promqlStepForward(t, c.stepSec, lod.Location)
+		nextRealLoadFrom := data_model.StepForward(t, c.stepSec, lod.Location)
 		cached, ok := e.secRows[t]
 		if !ok {
 			cached = &tsVersionedRows{}
@@ -268,7 +268,7 @@ func (c *tsCache) loadCached(ctx context.Context, key string, fromSec int64, toS
 	var loadFrom, loadTo int64
 	var hit int
 	for t, ix := fromSec, retStartIx; t < toSec; ix++ {
-		nextStartFrom := promqlStepForward(t, c.stepSec, location)
+		nextStartFrom := data_model.StepForward(t, c.stepSec, location)
 		cached, ok := e.secRows[t]
 		if ok && cached.loadedAtNano >= c.invalidatedAtNano[t]+int64(invalidateLinger) {
 			ret[ix] = cached.rows
