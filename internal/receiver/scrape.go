@@ -7,8 +7,8 @@ import (
 	"hash"
 	"hash/fnv"
 	"io"
+	"log"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,7 +22,6 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
-	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
 
 type scrape struct {
@@ -86,6 +85,7 @@ func RunScrape(sh *agent.Agent, h Handler) {
 }
 
 func (s *scrape) run() {
+	log.Println("scrape running")
 	var lastHash string
 	var backoffTimeout time.Duration
 	m := map[string]*scraper{} // URL key
@@ -99,6 +99,7 @@ func (s *scrape) run() {
 		}
 		if err == nil {
 			lastHash = hash
+			log.Println("scrape target count", len(targets))
 			s.update(m, targets)
 		}
 		backoffTimeout = 0
@@ -140,7 +141,9 @@ func (s *scrape) update(m map[string]*scraper, targets []scrapeTarget) {
 			v.options = t.opt
 			v.mu.Unlock()
 			v.dead = false
+			log.Println("scrape update", t)
 		} else {
+			log.Println("scrape create", t)
 			m[t.url] = s.newScraper(t)
 		}
 	}
@@ -156,25 +159,24 @@ func (s *scrape) newScraper(t scrapeTarget) *scraper {
 	// configure HTTP client
 	req, err := http.NewRequest(http.MethodGet, t.url, nil)
 	if err != nil {
+		log.Printf("scrape URL parse error %q: %v\n", t.url, err)
 		return nil
 	}
 	req.Header.Add("Accept", "application/openmetrics-text;version=1.0.0,application/openmetrics-text;version=0.0.1;q=0.75,text/plain;version=0.0.4;q=0.5,*/*;q=0.1")
 	req.Header.Set("User-Agent", "statshouse")
 	// build instance tag
 	instance := tl.DictionaryFieldStringBytes{Key: instanceTagName}
-	if v, err := url.Parse(t.url); err == nil {
-		port := v.Port()
-		if port == "" {
-			switch v.Scheme {
-			case "http":
-				port = "80"
-			case "https":
-				port = "443"
-			}
+	if req.URL.Port() == "" {
+		switch req.URL.Scheme {
+		case "http":
+			instance.Value = []byte(req.URL.Host + ":80")
+		case "https":
+			instance.Value = []byte(req.URL.Host + ":443")
+		default:
+			instance.Value = []byte(req.URL.Host)
 		}
-		instance.Value = []byte(v.Hostname() + ":" + port)
 	} else {
-		instance.Value = []byte(srvfunc.HostnameForStatshouse())
+		instance.Value = []byte(req.URL.Host)
 	}
 	// create and run
 	ctx, cancel := context.WithCancel(context.Background())
@@ -196,7 +198,8 @@ func (s *scraper) run() {
 	if !timer.Stop() {
 		<-timer.C
 	}
-	// scrape loop
+	log.Println("scrape start", s)
+scrape_loop:
 	for s.ctx.Err() == nil {
 		// read options
 		var opt scrapeOptions
@@ -208,12 +211,13 @@ func (s *scraper) run() {
 		timer.Reset(now.Truncate(opt.interval).Add(opt.interval).Sub(now))
 		select {
 		case <-s.ctx.Done():
-			return
+			break scrape_loop
 		case <-timer.C:
 			// work
 			_ = s.scrape(opt)
 		}
 	}
+	log.Println("scrape stop", s)
 }
 
 func (s *scraper) scrape(opt scrapeOptions) error {
@@ -481,4 +485,16 @@ func (s *scraper) readBytes(timeout time.Duration) ([]byte, string, error) {
 		return nil, "", err
 	}
 	return buf.Bytes(), resp.Header.Get("Content-Type"), nil
+}
+
+func (s *scraper) String() string {
+	return fmt.Sprintf("URL %s, instance %s, %s", s.request.URL, s.instance.Value, s.options)
+}
+
+func (t scrapeTarget) String() string {
+	return fmt.Sprintf("URL %s, %s", t.url, t.opt)
+}
+
+func (opt scrapeOptions) String() string {
+	return fmt.Sprintf("namespace %s, job %s, interval %v, timeout %v", opt.namespace, opt.job.Value, opt.interval, opt.timeout)
 }
