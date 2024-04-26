@@ -139,7 +139,7 @@ type engineMachineNoWaitCommitMode struct {
 }
 
 func (m *engineMachineNoWaitCommitMode) init(t *rapid.T) {
-	//todo unify
+	// todo unify
 	e, err := newEngine(t, NoWaitCommit, "CREATE TABLE IF NOT EXISTS test (value INTEGER)")
 	e.isTest = true
 	require.NoError(t, err)
@@ -277,7 +277,7 @@ func TestApplyCommit(t *testing.T) {
 	})
 }
 
-func openInMemory(path string, flags int) (*sqlite0.Conn, error) {
+func openInMemory(path string, flags int, _ int) (*sqlite0.Conn, error) {
 	conn, err := sqlite0.Open(path, flags|sqlite0.OpenMemory)
 	if err != nil {
 		return nil, err
@@ -302,7 +302,7 @@ func openInMemory(path string, flags int) (*sqlite0.Conn, error) {
 }
 
 func newEngine(t require.TestingT, mode DurabilityMode, scheme string) (*Engine, error) {
-	rw, err := openRW(openInMemory, pathDB, appID, initOffsetTable, snapshotMetaTable, scheme)
+	rw, err := openRW(openInMemory, pathDB, appID, 0, initOffsetTable, snapshotMetaTable, scheme)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW connection: %w", err)
 	}
