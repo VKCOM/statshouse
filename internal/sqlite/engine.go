@@ -130,7 +130,7 @@ type (
 
 	Options struct {
 		Path                  string
-		APPID                 int32
+		APPID                 uint32
 		StatsOptions          StatsOptions
 		Scheme                string
 		Replica               bool
@@ -387,7 +387,7 @@ func openWAL(path string, flags int, pageSize int) (*sqlite0.Conn, error) {
 	return conn, nil
 }
 
-func openRW(open func(path string, flags int, pageSize int) (*sqlite0.Conn, error), path string, appID int32, pageSize int, schemas ...string) (*sqlite0.Conn, error) {
+func openRW(open func(path string, flags int, pageSize int) (*sqlite0.Conn, error), path string, appID uint32, pageSize int, schemas ...string) (*sqlite0.Conn, error) {
 	conn, err := open(path, sqlite0.OpenReadWrite|sqlite0.OpenCreate, pageSize)
 	if err != nil {
 		return nil, err
