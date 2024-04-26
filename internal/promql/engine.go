@@ -21,6 +21,7 @@ import (
 	"github.com/gogo/protobuf/sortkeys"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/vkcom/statshouse-go"
+	"github.com/vkcom/statshouse/internal/data_model"
 	"github.com/vkcom/statshouse/internal/format"
 	"github.com/vkcom/statshouse/internal/promql/parser"
 	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
@@ -85,8 +86,8 @@ type Variable struct {
 }
 
 type Engine struct {
-	h   Handler
-	loc *time.Location
+	h  Handler
+	tz data_model.TimeZone
 }
 
 type evaluator struct {
@@ -96,7 +97,7 @@ type evaluator struct {
 	opt Options
 	ast parser.Expr
 	ars map[parser.Expr]parser.Expr // ast reductions
-	t   Timescale
+	t   data_model.Timescale
 	r   int64 // matrix selector range
 	hh  hash.Hash64
 
@@ -144,8 +145,8 @@ const (
 	traceContextKey
 )
 
-func NewEngine(h Handler, loc *time.Location) Engine {
-	return Engine{h, loc}
+func NewEngine(h Handler, tz data_model.TimeZone) Engine {
+	return Engine{h, tz}
 }
 
 func (ng Engine) Exec(ctx context.Context, qry Query) (parser.Value, func(), error) {
@@ -154,7 +155,7 @@ func (ng Engine) Exec(ctx context.Context, qry Query) (parser.Value, func(), err
 	if err != nil {
 		return nil, nil, Error{what: err}
 	}
-	if ev.t.empty() {
+	if ev.t.Empty() {
 		return &TimeSeries{Time: []int64{}}, func() {}, nil
 	}
 	if e, ok := ev.ast.(*parser.StringLiteral); ok {
@@ -254,8 +255,19 @@ func (ng Engine) newEvaluator(ctx context.Context, qry Query) (evaluator, error)
 	}
 	// init timescale
 	qry.Start -= maxRange // widen time range to accommodate range selectors
-	ev.t, err = ng.h.GetTimescale(qry, metricOffset)
-	if err != nil || ev.t.empty() {
+	ev.t, err = ng.tz.GetTimescale(data_model.GetTimescaleArgs{
+		Version:      qry.Options.Version,
+		Start:        qry.Start,
+		End:          qry.End,
+		Step:         qry.Step,
+		TimeNow:      qry.Options.TimeNow,
+		ScreenWidth:  qry.Options.ScreenWidth,
+		Collapse:     qry.Options.Collapse,
+		Extend:       qry.Options.Extend,
+		MetricOffset: metricOffset,
+	})
+
+	if err != nil || ev.t.Empty() {
 		return evaluator{}, err
 	}
 	// evaluate reduction rules
@@ -941,7 +953,6 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 							Value: int32(selOffset)})
 					}
 					sr.Data[k].Offset = offset
-					sr.Data[k].What = sr.Meta.What
 				}
 				if qry.histogram.restore {
 					sr, err = ev.restoreHistogram(sr, qry)
@@ -1023,88 +1034,33 @@ func (ev *evaluator) restoreHistogram(sr Series, qry seriesQueryX) (Series, erro
 func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSelector, metric *format.MetricMetaValue, selWhats []string, offset int64) (seriesQueryX, error) {
 	// whats
 	var (
-		whats     []DigestWhat
+		sels      []SelectorWhat
 		prefixSum bool
 	)
 	for _, selWhat := range selWhats {
 		if selWhat == "" {
 			continue
 		}
-		var what DigestWhat
-		switch selWhat {
-		case Count:
-			what = DigestCount
-		case CountSec:
-			what = DigestCountSec
-		case CountRaw:
-			what = DigestCountRaw
-		case Min:
-			what = DigestMin
-		case Max:
-			what = DigestMax
-		case Sum:
-			what = DigestSum
-		case SumSec:
-			what = DigestSumSec
-		case SumRaw:
-			what = DigestSumRaw
-		case Avg:
-			what = DigestAvg
-		case StdDev:
-			what = DigestStdDev
-		case StdVar:
-			what = DigestStdVar
-		case P0_1:
-			what = DigestP0_1
-		case P1:
-			what = DigestP1
-		case P5:
-			what = DigestP5
-		case P10:
-			what = DigestP10
-		case P25:
-			what = DigestP25
-		case P50:
-			what = DigestP50
-		case P75:
-			what = DigestP75
-		case P90:
-			what = DigestP90
-		case P95:
-			what = DigestP95
-		case P99:
-			what = DigestP99
-		case P999:
-			what = DigestP999
-		case Cardinality:
-			what = DigestCardinality
-		case CardinalitySec:
-			what = DigestCardinalitySec
-		case CardinalityRaw:
-			what = DigestCardinalityRaw
-		case Unique:
-			what = DigestUnique
-		case UniqueSec:
-			what = DigestUniqueSec
-		default:
+		if what, queryFunc, ok := parseSelectorWhat(selWhat); ok {
+			sels = append(sels, SelectorWhat{what, queryFunc})
+		} else {
 			return seriesQueryX{}, fmt.Errorf("unrecognized %s value %q", LabelWhat, selWhat)
 		}
-		whats = append(whats, what)
 	}
-	if len(whats) == 0 {
-		var what DigestWhat
+	if len(sels) == 0 {
+		var what data_model.DigestWhat
 		if metric.Kind == format.MetricKindCounter || sel.MetricKindHint == format.MetricKindCounter {
-			what = DigestCountRaw
+			what = data_model.DigestCountRaw
 			prefixSum = true
 		} else {
-			what = DigestAvg
+			what = data_model.DigestAvg
 		}
-		whats = append(whats, what)
+		sels = append(sels, SelectorWhat{Digest: what})
 	}
 	// grouping
 	var (
 		groupBy    []string
-		metricH    = len(whats) == 1 && whats[0] == DigestCount && metric.Name2Tag[format.LETagName].Raw
+		metricH    = len(sels) == 1 && sels[0].Digest == data_model.DigestCount && metric.Name2Tag[format.LETagName].Raw
 		histogramQ histogramQuery
 		addGroupBy = func(t format.MetricMetaTag) {
 			groupBy = append(groupBy, format.TagID(t.Index))
@@ -1304,7 +1260,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	return seriesQueryX{
 			SeriesQuery{
 				Metric:     metric,
-				Whats:      whats,
+				Whats:      sels,
 				Timescale:  ev.t,
 				Offset:     offset,
 				Range:      sel.Range,
@@ -1688,4 +1644,74 @@ func normalizeOffsets(s []int64) []int64 {
 		}
 	}
 	return res[:i+1]
+}
+
+func parseSelectorWhat(str string) (data_model.DigestWhat, string, bool) {
+	var digestWhat, queryFunc string
+	if i := strings.Index(str, ":"); i != -1 {
+		digestWhat = str[:i]
+		queryFunc = str[i+1:]
+	} else {
+		digestWhat = str
+	}
+	var res data_model.DigestWhat
+	switch digestWhat {
+	case Count:
+		res = data_model.DigestCount
+	case CountSec:
+		res = data_model.DigestCountSec
+	case CountRaw:
+		res = data_model.DigestCountRaw
+	case Min:
+		res = data_model.DigestMin
+	case Max:
+		res = data_model.DigestMax
+	case Sum:
+		res = data_model.DigestSum
+	case SumSec:
+		res = data_model.DigestSumSec
+	case SumRaw:
+		res = data_model.DigestSumRaw
+	case Avg:
+		res = data_model.DigestAvg
+	case StdDev:
+		res = data_model.DigestStdDev
+	case StdVar:
+		res = data_model.DigestStdVar
+	case P0_1:
+		res = data_model.DigestP0_1
+	case P1:
+		res = data_model.DigestP1
+	case P5:
+		res = data_model.DigestP5
+	case P10:
+		res = data_model.DigestP10
+	case P25:
+		res = data_model.DigestP25
+	case P50:
+		res = data_model.DigestP50
+	case P75:
+		res = data_model.DigestP75
+	case P90:
+		res = data_model.DigestP90
+	case P95:
+		res = data_model.DigestP95
+	case P99:
+		res = data_model.DigestP99
+	case P999:
+		res = data_model.DigestP999
+	case Cardinality:
+		res = data_model.DigestCardinality
+	case CardinalitySec:
+		res = data_model.DigestCardinalitySec
+	case CardinalityRaw:
+		res = data_model.DigestCardinalityRaw
+	case Unique:
+		res = data_model.DigestUnique
+	case UniqueSec:
+		res = data_model.DigestUniqueSec
+	default:
+		return data_model.DigestUnspecified, "", false
+	}
+	return res, queryFunc, true
 }

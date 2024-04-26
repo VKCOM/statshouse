@@ -851,7 +851,7 @@ func timeCall[V int | time.Weekday | time.Month](fn func(time.Time) V) callFunc 
 			}
 			for _, d := range res[i].Data {
 				for i, v := range *d.Values {
-					(*d.Values)[i] = float64(fn(time.Unix(int64(v), 0).In(ev.loc)))
+					(*d.Values)[i] = float64(fn(time.Unix(int64(v), 0).In(ev.tz.Location)))
 				}
 			}
 		}
@@ -1122,39 +1122,11 @@ func funcDeriv(ev *evaluator, sr Series) Series {
 }
 
 func funcIdelta(ev *evaluator, sr Series) Series {
-	for i, d := range sr.Data {
+	for _, d := range sr.Data {
 		for j := len(*d.Values) - 1; j > 0; j-- {
 			(*d.Values)[j] = (*d.Values)[j] - (*d.Values)[j-1]
 		}
 		(*d.Values)[0] = NilValue
-		// fix "what" tag
-		if tg, ok := d.Tags.ID2Tag[LabelWhat]; ok && !tg.stringified {
-			var s string
-			switch tg.Value {
-			case int32(DigestCount):
-				s = "dv_count"
-			case int32(DigestCountSec):
-				s = "dv_count_norm"
-			case int32(DigestSum):
-				s = "dv_sum"
-			case int32(DigestSumSec):
-				s = "dv_sum_norm"
-			case int32(DigestAvg):
-				s = "dv_avg"
-			case int32(DigestMin):
-				s = "dv_min"
-			case int32(DigestMax):
-				s = "dv_max"
-			case int32(DigestUnique):
-				s = "dv_unique"
-			case int32(DigestUniqueSec):
-				s = "dv_unique_norm"
-			}
-			if len(s) != 0 {
-				tg.setSValue(s)
-				sr.Data[i].Tags.hashSumValid = false
-			}
-		}
 	}
 	return sr
 }
@@ -1429,7 +1401,7 @@ func funcPrefixSum(ev *evaluator, args parser.Expressions) ([]Series, error) {
 }
 
 func (ev *evaluator) funcPrefixSum(sr Series) Series {
-	for i, d := range sr.Data {
+	for _, d := range sr.Data {
 		// skip values before requested interval start
 		j := ev.t.ViewStartX
 		// skip NANs
@@ -1455,24 +1427,6 @@ func (ev *evaluator) funcPrefixSum(sr Series) Series {
 		// copy first value to the left of requested interval
 		for j = ev.t.ViewStartX; j > 0; j-- {
 			(*d.Values)[j-1] = (*d.Values)[ev.t.ViewStartX]
-		}
-		// fix "what" tag
-		if tg, ok := d.Tags.ID2Tag[LabelWhat]; ok && !tg.stringified {
-			var s string
-			switch tg.Value {
-			case int32(DigestCountRaw):
-				s = "cu_count"
-			case int32(DigestCardinalityRaw):
-				s = "cu_cardinality"
-			case int32(DigestAvg):
-				s = "cu_avg"
-			case int32(DigestSumRaw):
-				s = "cu_sum"
-			}
-			if len(s) != 0 {
-				tg.setSValue(s)
-				sr.Data[i].Tags.hashSumValid = false
-			}
 		}
 	}
 	return sr

@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/pflag"
 	"github.com/vkcom/statshouse/internal/config"
+	"github.com/vkcom/statshouse/internal/data_model"
 )
 
 type Config struct {
@@ -33,6 +34,7 @@ func DefaultConfig() *Config {
 }
 
 type HandlerOptions struct {
+	data_model.TimeZone
 	insecureMode            bool
 	LocalMode               bool
 	querySequential         bool
@@ -42,9 +44,6 @@ type HandlerOptions struct {
 	protectedMetricPrefixes []string
 	querySelectTimeout      time.Duration
 	weekStartAt             int
-
-	location  *time.Location
-	utcOffset int64
 }
 
 func (argv *HandlerOptions) Bind(pflag *pflag.FlagSet) {
@@ -64,10 +63,10 @@ func (argv *HandlerOptions) LoadLocation() error {
 		return fmt.Errorf("invalid --week-start value, only 0-6 allowed %q given", argv.weekStartAt)
 	}
 	var err error
-	argv.location, err = time.LoadLocation(argv.timezone)
+	argv.TimeZone.Location, err = time.LoadLocation(argv.timezone)
 	if err != nil {
 		return fmt.Errorf("failed to load timezone %q: %w", argv.timezone, err)
 	}
-	argv.utcOffset = CalcUTCOffset(argv.location, time.Weekday(argv.weekStartAt)) // demands restart after summer/winter time switching
+	argv.TimeZone.UTCOffset = CalcUTCOffset(argv.TimeZone.Location, time.Weekday(argv.weekStartAt)) // demands restart after summer/winter time switching
 	return nil
 }

@@ -8,61 +8,63 @@ package api
 
 import (
 	"math"
+
+	"github.com/vkcom/statshouse/internal/data_model"
 )
 
-func generateConstCounter(lod lodInfo, rows [][]tsSelectRow) {
+func generateConstCounter(lod data_model.LOD, rows [][]tsSelectRow) {
 	const (
 		constValue = 1000
 	)
-	fromSec := lod.fromSec
+	fromSec := lod.FromSec
 	for i := range rows {
 		rows[i] = []tsSelectRow{
 			{
 				time:     fromSec,
-				stepSec:  lod.stepSec,
-				tsValues: tsValues{countNorm: constValue * float64(lod.stepSec)},
+				stepSec:  lod.StepSec,
+				tsValues: tsValues{countNorm: constValue * float64(lod.StepSec)},
 			},
 		}
-		rows[i][0].val[0] = float64(lod.stepSec)
-		fromSec += lod.stepSec
+		rows[i][0].val[0] = float64(lod.StepSec)
+		fromSec += lod.StepSec
 	}
 }
 
-func generateSinCounter(lod lodInfo, rows [][]tsSelectRow) {
+func generateSinCounter(lod data_model.LOD, rows [][]tsSelectRow) {
 	const (
 		sinPeriod    = 24 * 3600
 		sinShift     = 15 * 3600 // adjust peaks/lows to Moscow TZ
 		sinAmplitude = 1000.0
 	)
-	fromSec := lod.fromSec
+	fromSec := lod.FromSec
 	for i := range rows {
 		sum := 0.0
-		toSec := fromSec + lod.stepSec
+		toSec := fromSec + lod.StepSec
 		for j := fromSec; j < toSec; j++ {
 			sum += math.Sin(2 * math.Pi * (float64(j) + 0.5 + sinShift) / sinPeriod)
 		}
-		countNorm := sinAmplitude*float64(lod.stepSec) + sinAmplitude*sum
+		countNorm := sinAmplitude*float64(lod.StepSec) + sinAmplitude*sum
 		rows[i] = []tsSelectRow{
 			{
 				time:     fromSec,
-				stepSec:  lod.stepSec,
+				stepSec:  lod.StepSec,
 				tsValues: tsValues{countNorm: countNorm},
 			},
 		}
-		rows[i][0].val[0] = float64(lod.stepSec)
-		fromSec += lod.stepSec
+		rows[i][0].val[0] = float64(lod.StepSec)
+		fromSec += lod.StepSec
 	}
 }
 
-func generateGapsCounter(lod lodInfo, rows [][]tsSelectRow) {
+func generateGapsCounter(lod data_model.LOD, rows [][]tsSelectRow) {
 	const (
 		gapShift     = 21 * 3600 // adjust peaks/lows to Moscow TZ
 		sinAmplitude = 1000.0
 	)
-	fromSec := lod.fromSec
+	fromSec := lod.FromSec
 	for i := range rows {
 		sum := 0.0
-		toSec := fromSec + lod.stepSec
+		toSec := fromSec + lod.StepSec
 		for j := fromSec; j < toSec; j++ {
 			hour := (j + gapShift) / 3600
 			switch hour % 4 {
@@ -88,11 +90,11 @@ func generateGapsCounter(lod lodInfo, rows [][]tsSelectRow) {
 		rows[i] = []tsSelectRow{
 			{
 				time:     fromSec,
-				stepSec:  lod.stepSec,
+				stepSec:  lod.StepSec,
 				tsValues: tsValues{countNorm: sum},
 			},
 		}
-		rows[i][0].val[0] = float64(lod.stepSec)
-		fromSec += lod.stepSec
+		rows[i][0].val[0] = float64(lod.StepSec)
+		fromSec += lod.StepSec
 	}
 }

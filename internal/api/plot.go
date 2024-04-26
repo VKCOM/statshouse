@@ -209,7 +209,7 @@ type gnuplotTemplateData struct {
 	TimeTo   int64
 
 	usedColorIndices map[string]int
-	uniqueWhat       map[queryFn]struct{}
+	uniqueWhat       map[string]struct{}
 	utcOffset        int64
 
 	// The buffer which template is printed into,
@@ -243,7 +243,7 @@ func (d *gnuplotTemplateData) LineStyle(i int) int {
 	return 10 + i
 }
 
-func (d *gnuplotTemplateData) GetUniqueWhat() map[queryFn]struct{} {
+func (d *gnuplotTemplateData) GetUniqueWhat() map[string]struct{} {
 	if len(d.uniqueWhat) > 0 {
 		return d.uniqueWhat
 	}
@@ -270,7 +270,7 @@ func (h *Handler) colorize(resp *SeriesResponse) {
 		return
 	}
 	graphCount := 0
-	uniqueWhat := make(map[queryFn]struct{})
+	uniqueWhat := make(map[string]struct{})
 	for _, meta := range resp.Series.SeriesMeta {
 		uniqueWhat[meta.What] = struct{}{}
 		if meta.TimeShift == 0 {
@@ -282,8 +282,8 @@ func (h *Handler) colorize(resp *SeriesResponse) {
 			meta             = resp.Series.SeriesMeta[i]
 			oneGraph         = graphCount == 1
 			uniqueWhatLength = len(uniqueWhat)
-			label            = MetaToLabel(meta, uniqueWhatLength, h.utcOffset)
-			baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength, h.utcOffset)
+			label            = MetaToLabel(meta, uniqueWhatLength, h.UTCOffset)
+			baseLabel        = MetaToBaseLabel(meta, uniqueWhatLength, h.UTCOffset)
 			isValue          = strings.Index(baseLabel, "Value") == 0
 			metricName       string
 			prefColor        = 9 // it`s magic prefix
@@ -378,7 +378,7 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 			TimeTo:           metric[i].to.Unix() + utcOffset,
 			Legend:           legend,
 			usedColorIndices: map[string]int{},
-			uniqueWhat:       map[queryFn]struct{}{},
+			uniqueWhat:       map[string]struct{}{},
 			utcOffset:        utcOffset,
 			wr:               &buf,
 		}
@@ -535,48 +535,48 @@ func convert(kind string, input int, utcOffset int64) string {
 }
 
 // XXX: keep in sync with TypeScript
-func WhatToWhatDesc(what queryFn) string {
+func WhatToWhatDesc(what string) string {
 	switch what {
-	case queryFnP999:
+	case ParamQueryFnP999:
 		return "p99.9"
-	case queryFnCountNorm:
+	case ParamQueryFnCountNorm:
 		return "count/sec"
-	case queryFnCumulCount:
+	case ParamQueryFnCumulCount:
 		return "count (cumul)"
-	case queryFnCardinalityNorm:
+	case ParamQueryFnCardinalityNorm:
 		return "cardinality/sec"
-	case queryFnCumulCardinality:
+	case ParamQueryFnCumulCardinality:
 		return "cardinality (cumul)"
-	case queryFnCumulAvg:
+	case ParamQueryFnCumulAvg:
 		return "avg (cumul)"
-	case queryFnSumNorm:
+	case ParamQueryFnSumNorm:
 		return "sum/sec"
-	case queryFnCumulSum:
+	case ParamQueryFnCumulSum:
 		return "sum (cumul)"
-	case queryFnUniqueNorm:
+	case ParamQueryFnUniqueNorm:
 		return "unique/sec"
-	case queryFnMaxCountHost:
+	case ParamQueryFnMaxCountHost:
 		return "max(count)@host"
-	case queryFnDerivativeCount:
+	case ParamQueryFnDerivativeCount:
 		return "count (derivative)"
-	case queryFnDerivativeSum:
+	case ParamQueryFnDerivativeSum:
 		return "sum (derivative)"
-	case queryFnDerivativeAvg:
+	case ParamQueryFnDerivativeAvg:
 		return "avg (derivative)"
-	case queryFnDerivativeCountNorm:
+	case ParamQueryFnDerivativeCountNorm:
 		return "count/sec (derivative)"
-	case queryFnDerivativeSumNorm:
+	case ParamQueryFnDerivativeSumNorm:
 		return "sum/sec (derivative)"
-	case queryFnDerivativeUnique:
+	case ParamQueryFnDerivativeUnique:
 		return "unique (derivative)"
-	case queryFnDerivativeUniqueNorm:
+	case ParamQueryFnDerivativeUniqueNorm:
 		return "unique/sec (derivative)"
-	case queryFnDerivativeMin:
+	case ParamQueryFnDerivativeMin:
 		return "min (derivative)"
-	case queryFnDerivativeMax:
+	case ParamQueryFnDerivativeMax:
 		return "max (derivative)"
 	default:
-		return what.String()
+		return what
 	}
 }
 
