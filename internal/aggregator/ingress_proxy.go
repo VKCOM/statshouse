@@ -214,15 +214,22 @@ func parseHostname(req []byte) (clientHost string, _ error) {
 }
 
 func (pool *clientPool) getClient(clientHost, remoteAddress string) *rpc.Client {
+	var client *rpc.Client
+	pool.mu.RLock()
+	client = pool.clients[clientHost]
+	pool.mu.RUnlock()
+	if client != nil {
+		return client
+	}
 	pool.mu.Lock()
 	defer pool.mu.Unlock()
-	client := pool.clients[clientHost]
-	if client == nil {
-		log.Printf("First connection from agent host: %s, host IP: %s", clientHost, remoteAddress)
-
-		client = rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
-		pool.clients[clientHost] = client
+	client = pool.clients[clientHost]
+	if client != nil {
+		return client
 	}
+	log.Printf("First connection from agent host: %s, host IP: %s", clientHost, remoteAddress)
+	client = rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
+	pool.clients[clientHost] = client
 	return client
 
 }
