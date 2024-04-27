@@ -557,6 +557,48 @@ func Test_Engine_Float64(t *testing.T) {
 	require.Equal(t, testValues, result)
 }
 
+func Test_Engine_Update_Delete_Limit(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER PRIMARY KEY AUTOINCREMENT, val INTEGER);"
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, NoBinlog, nil)
+	var err error
+	input := []int64{18, -9, 0, math.MaxInt32 + 1, math.MaxInt32 + 2, math.MaxInt32 + 3}
+	testValues := input[:4]
+
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		for i := 0; i < len(input); i++ {
+			_, err = conn.Exec("test", "INSERT INTO test_db(val) VALUES ($value)", Int64("$value", input[i]))
+			require.NoError(t, err)
+		}
+
+		return cache, err
+	})
+	require.NoError(t, err)
+
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = conn.Exec("test", "DELETE FROM test_db WHERE val > $value LIMIT 10 OFFSET 1", Int64("$value", math.MaxInt32))
+
+		return cache, err
+	})
+	require.NoError(t, err)
+
+	result := make([]int64, 0, len(testValues))
+	value := int64(0)
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		rows := conn.Query("test", "SELECT val FROM test_db")
+
+		for rows.Next() {
+			value, err = rows.ColumnInt64(0)
+			require.NoError(t, err)
+
+			result = append(result, value)
+		}
+		return cache, err
+	})
+	require.Equal(t, len(testValues), len(result))
+	require.Equal(t, testValues, result)
+}
+
 func Test_Engine_Backup(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
 	var id int64
