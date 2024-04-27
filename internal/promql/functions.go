@@ -1159,54 +1159,60 @@ func funcHistogramQuantile(ev *evaluator, args parser.Expressions) ([]Series, er
 		for _, h := range hs {
 			d := res[i].Data
 			s := *d[h.buckets[0].x].Values
-			if len(h.buckets) <= 1 {
+			if len(h.buckets) == 0 {
 				for i := range s {
 					s[i] = NilValue
 				}
 			} else {
 				q := args[0].(*parser.NumberLiteral).Val // quantile
 				for j := range s {
-					var total float64
-					for k := len(h.buckets); k > 0; k-- {
-						t := (*d[h.buckets[k-1].x].Values)[j]
-						if t != 0 && !math.IsNaN(t) {
-							total = t
-							break
+					var total float64 // total count
+					for k := 0; k < len(h.buckets); k++ {
+						v := (*d[h.buckets[k].x].Values)[j]
+						if !math.IsNaN(v) {
+							total += v
 						}
 					}
 					if total == 0 {
 						s[j] = NilValue
 						continue
 					}
-					rank := q * total
-					var x int         // upper bound index
-					var count float64 // lower bound count
+					var count float64 // bucket count
+					var lo float64    // bucket lower bound count
+					var hi float64    // bucket upper bound count
+					var x int         // bucket upper bound index
+					rank := q * total // quantile corresponding count
 					buckets := res[i].Meta.Metric.HistorgamBuckets
 					for k := 0; x < len(buckets) && k < len(h.buckets); x++ {
 						if buckets[x] == h.buckets[k].le {
 							v := (*d[h.buckets[k].x].Values)[j]
-							if v >= rank {
-								break
-							}
 							if !math.IsNaN(v) {
-								count = (*d[h.buckets[k].x].Values)[j]
+								count = v
+								hi += count
+								if hi >= rank {
+									break
+								}
+								lo = hi
 							}
 							k++
 						}
 					}
 					var v float64
-					switch x {
-					case 0: // lower bound is -inf
+					switch {
+					case x == 0:
+						// lower bound is -Inf
 						v = float64(buckets[0])
-					case len(buckets) - 1: // upper bound is +inf
+					case x == len(buckets):
+						// upper bound is +Inf
 						v = float64(buckets[len(buckets)-2])
+					case hi == rank:
+						// on bucket border
+						v = float64(buckets[x])
 					default:
-						lo := buckets[x-1] // lower bound
-						if rank == count {
-							v = float64(lo)
-						} else {
-							hi := buckets[x] // upper bound
-							v = float64(lo) + float64(hi-lo)/(rank-count)
+						// inside bucket
+						v = float64(buckets[x-1])
+						if count != 0 {
+							v += float64(buckets[x]-buckets[x-1]) * (rank - lo) / count
 						}
 					}
 					s[j] = v

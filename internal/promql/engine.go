@@ -121,19 +121,6 @@ type evaluator struct {
 	dataAccessDuration time.Duration
 }
 
-type seriesQueryX struct { // SeriesQuery eXtended
-	SeriesQuery
-	prefixSum bool
-	histogram histogramQuery
-}
-
-type histogramQuery struct {
-	restore bool
-	filter  bool
-	eq      bool // compare "==" if true, "!=" otherwise
-	le      float32
-}
-
 type contextKey int
 
 type traceContext struct {
@@ -935,7 +922,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 					mu.Unlock()
 					locked = false
 				}
-				sr, cancel, err := ev.QuerySeries(ev.ctx, &qry.SeriesQuery)
+				sr, cancel, err := ev.QuerySeries(ev.ctx, &qry)
 				if err != nil {
 					return err
 				}
@@ -952,9 +939,6 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 						sr.filterMinMaxHost(ev, k, s)
 					}
 				}
-				if qry.prefixSum {
-					sr = ev.funcPrefixSum(sr)
-				}
 				for k := range sr.Data {
 					if !sel.OmitNameTag {
 						sr.AddTagAt(k, &SeriesTag{
@@ -967,12 +951,6 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 							Value: int32(selOffset)})
 					}
 					sr.Data[k].Offset = offset
-				}
-				if qry.histogram.restore {
-					sr, err = ev.restoreHistogram(sr, qry)
-					if err != nil {
-						return err
-					}
 				}
 				if len(res[j].Data) == 0 {
 					res[j].Meta = sr.Meta
@@ -1012,75 +990,33 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 	return res, nil
 }
 
-func (ev *evaluator) restoreHistogram(sr Series, qry seriesQueryX) (Series, error) {
-	hs, err := sr.histograms(ev)
-	if err != nil {
-		return Series{}, err
-	}
-	for _, h := range hs {
-		for i := 0; i < len(ev.time()); i++ {
-			var acc float64
-			for j := 0; j < len(h.buckets); j++ {
-				v := (*sr.Data[h.buckets[j].x].Values)[i]
-				if math.IsNaN(v) {
-					continue
-				}
-				acc += v
-				(*sr.Data[h.buckets[j].x].Values)[i] = acc
-			}
-		}
-	}
-	if !qry.histogram.filter {
-		return sr, nil
-	}
-	res := ev.newSeries(len(sr.Data), sr.Meta)
-	for _, h := range hs {
-		for _, b := range h.buckets {
-			if qry.histogram.le == b.le == qry.histogram.eq {
-				res.appendSome(sr, b.x)
-				break
-			}
-		}
-	}
-	return res, nil
-}
-
-func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSelector, metric *format.MetricMetaValue, selWhats []string, offset int64) (seriesQueryX, error) {
+func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSelector, metric *format.MetricMetaValue, selWhats []string, offset int64) (SeriesQuery, error) {
 	// whats
-	var (
-		sels      []SelectorWhat
-		prefixSum bool
-	)
+	var whats []SelectorWhat
 	for _, selWhat := range selWhats {
 		if selWhat == "" {
 			continue
 		}
 		if what, queryFunc, ok := parseSelectorWhat(selWhat); ok {
-			sels = append(sels, SelectorWhat{what, queryFunc})
+			whats = append(whats, SelectorWhat{what, queryFunc})
 		} else {
-			return seriesQueryX{}, fmt.Errorf("unrecognized %s value %q", LabelWhat, selWhat)
+			return SeriesQuery{}, fmt.Errorf("unrecognized %s value %q", LabelWhat, selWhat)
 		}
 	}
-	if len(sels) == 0 {
+	if len(whats) == 0 {
 		var what data_model.DigestWhat
 		if metric.Kind == format.MetricKindCounter || sel.MetricKindHint == format.MetricKindCounter {
 			what = data_model.DigestCountRaw
-			prefixSum = true
 		} else {
 			what = data_model.DigestAvg
 		}
-		sels = append(sels, SelectorWhat{Digest: what})
+		whats = append(whats, SelectorWhat{Digest: what})
 	}
 	// grouping
 	var (
 		groupBy    []string
-		metricH    = len(sels) == 1 && sels[0].Digest == data_model.DigestCount && metric.Name2Tag[format.LETagName].Raw
-		histogramQ histogramQuery
 		addGroupBy = func(t format.MetricMetaTag) {
 			groupBy = append(groupBy, format.TagID(t.Index))
-			if t.Name == format.LETagName {
-				histogramQ.restore = true
-			}
 		}
 	)
 	if sel.GroupByAll {
@@ -1132,7 +1068,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		}
 		tag, ok, _ := metric.APICompatGetTag(matcher.Name)
 		if !ok {
-			return seriesQueryX{}, fmt.Errorf("not found tag %q", matcher.Name)
+			return SeriesQuery{}, fmt.Errorf("not found tag %q", matcher.Name)
 		}
 		if tag.Index == format.StringTopTagIndex {
 			switch matcher.Type {
@@ -1143,7 +1079,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchRegexp:
 				stop, err := ev.getStringTop(ctx, metric, offset)
 				if err != nil {
-					return seriesQueryX{}, err
+					return SeriesQuery{}, err
 				}
 				var n int
 				for _, v := range stop {
@@ -1160,7 +1096,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchNotRegexp:
 				stop, err := ev.getStringTop(ctx, metric, offset)
 				if err != nil {
-					return seriesQueryX{}, err
+					return SeriesQuery{}, err
 				}
 				for _, v := range stop {
 					if !matcher.Matches(v) {
@@ -1179,14 +1115,10 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 						emptyCount[i]++
 						continue
 					} else {
-						return seriesQueryX{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
+						return SeriesQuery{}, fmt.Errorf("failed to map string %q: %v", matcher.Value, err)
 					}
 				}
-				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
-					histogramQ.filter = true
-					histogramQ.eq = true
-					histogramQ.le = statshouse.LexDecode(id)
-				} else if filterIn[i] != nil {
+				if filterIn[i] != nil {
 					filterIn[i][id] = matcher.Value
 				} else {
 					filterIn[i] = map[int32]string{id: matcher.Value}
@@ -1197,13 +1129,9 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 					if errors.Is(err, ErrNotFound) {
 						continue // ignore values with no mapping
 					}
-					return seriesQueryX{}, err
+					return SeriesQuery{}, err
 				}
-				if metricH && !histogramQ.restore && matcher.Name == format.LETagName {
-					histogramQ.filter = true
-					histogramQ.eq = false
-					histogramQ.le = statshouse.LexDecode(id)
-				} else if filterOut[i] != nil {
+				if filterOut[i] != nil {
 					filterOut[i][id] = matcher.Value
 				} else {
 					filterOut[i] = map[int32]string{id: matcher.Value}
@@ -1211,7 +1139,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchRegexp:
 				m, err := ev.getTagValues(ctx, metric, i, offset)
 				if err != nil {
-					return seriesQueryX{}, err
+					return SeriesQuery{}, err
 				}
 				in := make(map[int32]string)
 				for id, str := range m {
@@ -1228,7 +1156,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			case labels.MatchNotRegexp:
 				m, err := ev.getTagValues(ctx, metric, i, offset)
 				if err != nil {
-					return seriesQueryX{}, err
+					return SeriesQuery{}, err
 				}
 				out := make(map[int32]string)
 				for id, str := range m {
@@ -1253,12 +1181,8 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 		if m == 0 {
 			// All "MatchEqual" and "MatchRegexp" filters give an empty result and
 			// there are no other such filters, overall result is guaranteed to be empty
-			return seriesQueryX{}, nil
+			return SeriesQuery{}, nil
 		}
-	}
-	if histogramQ.filter && !histogramQ.restore {
-		groupBy = append(groupBy, format.TagID(format.LETagIndex))
-		histogramQ.restore = true
 	}
 	// remove dublicates in "groupBy"
 	sort.Strings(groupBy)
@@ -1271,23 +1195,20 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			groupBy = append(groupBy[:i], groupBy[j:]...)
 		}
 	}
-	return seriesQueryX{
-			SeriesQuery{
-				Metric:     metric,
-				Whats:      sels,
-				Timescale:  ev.t,
-				Offset:     offset,
-				Range:      sel.Range,
-				GroupBy:    groupBy,
-				FilterIn:   filterIn,
-				FilterOut:  filterOut,
-				SFilterIn:  sFilterIn,
-				SFilterOut: sFilterOut,
-				MinMaxHost: [2]bool{sel.MinHost, sel.MaxHost},
-				Options:    ev.opt,
-			},
-			prefixSum,
-			histogramQ},
+	return SeriesQuery{
+			Metric:     metric,
+			Whats:      whats,
+			Timescale:  ev.t,
+			Offset:     offset,
+			Range:      sel.Range,
+			GroupBy:    groupBy,
+			FilterIn:   filterIn,
+			FilterOut:  filterOut,
+			SFilterIn:  sFilterIn,
+			SFilterOut: sFilterOut,
+			MinMaxHost: [2]bool{sel.MinHost, sel.MaxHost},
+			Options:    ev.opt,
+		},
 		nil
 }
 
@@ -1591,7 +1512,7 @@ func (ev *evaluator) reportStat(qry Query, timeEnd time.Time) {
 	statshouse.Metric(format.BuiltinMetricNamePromQLEngineTime, tags).Value(value)
 }
 
-func (qry *seriesQueryX) empty() bool {
+func (qry *SeriesQuery) empty() bool {
 	return qry.Metric == nil
 }
 
