@@ -137,6 +137,25 @@ func NewEngine(h Handler, loc *time.Location, utcOffset int64) Engine {
 	return Engine{h, loc, utcOffset}
 }
 
+func GetMetricNameMatchers(expr string, res []*labels.Matcher) ([]*labels.Matcher, error) {
+	res = res[:0]
+	ast, err := parser.ParseExpr(expr)
+	if err != nil {
+		return res, err
+	}
+	parser.Inspect(ast, func(node parser.Node, _ []parser.Node) error {
+		if sel, ok := node.(*parser.VectorSelector); ok {
+			for _, matcher := range sel.LabelMatchers {
+				if matcher.Name == labels.MetricName {
+					res = append(res, matcher)
+				}
+			}
+		}
+		return nil
+	})
+	return res, nil
+}
+
 func (ng Engine) Exec(ctx context.Context, qry Query) (parser.Value, func(), error) {
 	// parse query
 	ev, err := ng.newEvaluator(ctx, qry)
@@ -359,7 +378,7 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 	for _, matcher := range sel.LabelMatchers {
 		switch matcher.Name {
 		case labels.MetricName:
-			metrics, names, err := ev.MatchMetrics(ev.ctx, matcher, ev.opt.Namespace)
+			metrics, err := ev.MatchMetrics(ev.ctx, matcher, ev.opt.Namespace)
 			if err != nil {
 				return err
 			}
@@ -372,7 +391,7 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 			if ev.trace != nil && ev.debug {
 				ev.tracef("found %d metrics for %v", len(metrics), matcher)
 			}
-			for i, m := range metrics {
+			for _, m := range metrics {
 				var selOffset int64
 				for _, v := range sel.Offsets {
 					if selOffset < v {
@@ -387,7 +406,6 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 					metricOffset[m] = newOffset
 				}
 				sel.MatchingMetrics = append(sel.MatchingMetrics, m)
-				sel.MatchingNames = append(sel.MatchingNames, names[i])
 			}
 		case LabelWhat:
 			if matcher.Type != labels.MatchEqual {
@@ -943,7 +961,7 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 					if !sel.OmitNameTag {
 						sr.AddTagAt(k, &SeriesTag{
 							ID:     labels.MetricName,
-							SValue: sel.MatchingNames[i]})
+							SValue: sel.MatchingMetrics[i].Name})
 					}
 					if len(sel.OriginalOffsetEx) != 0 {
 						sr.AddTagAt(k, &SeriesTag{

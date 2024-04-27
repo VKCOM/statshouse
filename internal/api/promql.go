@@ -14,7 +14,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -260,106 +259,18 @@ func promRespondError(w http.ResponseWriter, typ promErrorType, err error) {
 
 // endregion
 
-func (h *Handler) PromQLMatchMetrics(expr string, namespace string, s []*format.MetricMetaValue) ([]*format.MetricMetaValue, error) {
-	s = s[:0]
-	ast, err := parser.ParseExpr(expr)
-	if err != nil {
-		return s, err
-	}
-	ai := accessInfo{insecureMode: true}
-	ctx := withAccessInfo(context.Background(), &ai)
-	parser.Inspect(ast, func(node parser.Node, _ []parser.Node) error {
-		sel, ok := node.(*parser.VectorSelector)
-		if !ok {
-			return nil
-		}
-		for _, matcher := range sel.LabelMatchers {
-			if matcher.Name == labels.MetricName {
-				var out []*format.MetricMetaValue
-				out, _, err = h.MatchMetrics(ctx, matcher, namespace)
-				if err != nil {
-					return err
-				}
-				s = append(s, out...)
-			}
-		}
-		return nil
-	})
-	if err != nil || len(s) <= 1 {
-		return s, err
-	}
-	// remove duplicates
-	sort.Slice(s, func(i, j int) bool {
-		return s[i].MetricID < s[j].MetricID
-	})
-	var i int
-	for j := 1; j < len(s); j++ {
-		if s[i].MetricID != s[j].MetricID {
-			i++
-			s[i] = s[j]
-		}
-	}
-	return s[:i+1], nil
-}
-
-func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher, namespace string) ([]*format.MetricMetaValue, []string, error) {
+func (h *Handler) MatchMetrics(ctx context.Context, matcher *labels.Matcher, namespace string) ([]*format.MetricMetaValue, error) {
 	ai := getAccessInfo(ctx)
 	if ai == nil {
-		return nil, nil, errAccessViolation
+		return nil, errAccessViolation
 	}
-	if matcher.Type == labels.MatchEqual {
-		name := matcher.Value
-		if namespace != "" && !strings.Contains(name, format.NamespaceSeparator) {
-			name = namespace + format.NamespaceSeparator + name
-		}
-		metric := h.metricsStorage.GetMetaMetricByName(name)
-		if metric == nil && (namespace == "" || namespace == "__default") {
-			for _, metric = range format.BuiltinMetrics {
-				if metric.Name == name {
-					break
-				}
-			}
-		}
-		if metric == nil {
-			return nil, nil, nil
-		}
+	res := h.metricsStorage.MatchMetrics(matcher, namespace, h.showInvisible, nil)
+	for _, metric := range res {
 		if !ai.CanViewMetric(*metric) {
-			return nil, nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metric.Name))
-		}
-		return []*format.MetricMetaValue{metric}, []string{metric.Name}, nil
-	}
-	var (
-		s1 []*format.MetricMetaValue // metrics
-		s2 []string                  // metric match names
-		fn = func(metric *format.MetricMetaValue) error {
-			var name string
-			switch {
-			case matcher.Matches(metric.Name):
-				name = metric.Name
-			case matcher.Matches(metric.Name + "_bucket"):
-				name = metric.Name + "_bucket"
-			default:
-				return nil
-			}
-			if !ai.CanViewMetric(*metric) {
-				return httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metric.Name))
-			}
-			s1 = append(s1, metric)
-			s2 = append(s2, name)
-			return nil
-		}
-	)
-	for _, m := range format.BuiltinMetrics {
-		if err := fn(m); err != nil {
-			return nil, nil, err
+			return nil, httpErr(http.StatusForbidden, fmt.Errorf("metric %q forbidden", metric.Name))
 		}
 	}
-	for _, m := range h.metricsStorage.GetMetaMetricList(h.showInvisible) {
-		if err := fn(m); err != nil {
-			return nil, nil, err
-		}
-	}
-	return s1, s2, nil
+	return res, nil
 }
 
 func (h *Handler) GetHostName(hostID int32) string {
