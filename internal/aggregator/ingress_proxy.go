@@ -108,8 +108,8 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 		rpc.ServerWithTrustedSubnetGroups(build.TrustedSubnetGroups()),
 		rpc.ServerWithVersion(build.Info()),
 		rpc.ServerWithDefaultResponseTimeout(data_model.MaxConveyorDelay*time.Second),
-		rpc.ServerWithMaxInflightPackets((data_model.MaxConveyorDelay+data_model.MaxHistorySendStreams)*3*100000), // see server settings in aggregator
-		rpc.ServerWithMaxWorkers(128<<13),
+		rpc.ServerWithMaxInflightPackets(aggregatorMaxInflightPackets*100), // enough for up to 100 shards
+		rpc.ServerWithMaxWorkers(2<<20),                                    // almost infinite
 		rpc.ServerWithResponseBufSize(1024),
 		rpc.ServerWithResponseMemEstimate(1024),
 		rpc.ServerWithRequestMemoryLimit(8<<30)) // see server settings in aggregator. We do not multiply here
@@ -118,64 +118,61 @@ func RunIngressProxy(sh2 *agent.Agent, aesPwd string, config ConfigIngressProxy)
 	return proxy.server.ListenAndServe("tcp", config.ListenAddr)
 }
 
-func (proxy *IngressProxy) handler(ctx context.Context, hctx *rpc.HandlerContext) error {
-	tag, _ := basictl.NatPeekTag(hctx.Request)
+func keyFromHctx(hctx *rpc.HandlerContext, resultTag int32) data_model.Key {
 	keyID := hctx.KeyID()
 	keyIDTag := int32(binary.BigEndian.Uint32(keyID[:4]))
 	protocol := int32(hctx.ProtocolVersion())
-	key := data_model.Key{
+	return data_model.Key{
 		Metric: format.BuiltinMetricIDRPCRequests,
-		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(tag), format.TagValueIDRPCRequestsStatusOK, 0, 0, keyIDTag, 0, protocol},
+		Keys:   [16]int32{0, format.TagValueIDComponentIngressProxy, int32(hctx.RequestTag()), resultTag, 0, 0, keyIDTag, 0, protocol},
 	}
-	isLocal, err := proxy.handlerImpl(ctx, hctx)
-	if err != nil && isLocal {
-		key.Keys[3] = format.TagValueIDRPCRequestsStatusErrLocal
-	}
-	if err != nil && !isLocal {
-		key.Keys[3] = format.TagValueIDRPCRequestsStatusErrUpstream
-	}
-	proxy.sh2.AddValueCounter(key, float64(len(hctx.Request)), 1, nil)
+}
+
+func (proxy *IngressProxy) handler(ctx context.Context, hctx *rpc.HandlerContext) error {
+	requestLen := len(hctx.Request)
+	resultTag, err := proxy.handlerImpl(ctx, hctx)
+	key := keyFromHctx(hctx, resultTag)
+	proxy.sh2.AddValueCounter(key, float64(requestLen), 1, nil)
 	return err
 }
 
-func (proxy *IngressProxy) handlerImpl(ctx context.Context, hctx *rpc.HandlerContext) (isLocal bool, err error) {
-	tag, _ := basictl.NatPeekTag(hctx.Request)
-	switch tag {
+func (proxy *IngressProxy) handlerImpl(ctx context.Context, hctx *rpc.HandlerContext) (resultTag int32, err error) {
+	switch hctx.RequestTag() {
 	case constants.StatshouseGetConfig2:
 		// Record metrics on aggregator with correct host, IP, etc.
 		// We do not care if it succeeded or not, we make our own response anyway
-		_, _ = proxy.proxyRequest(tag, ctx, hctx)
+		_, _ = proxy.syncProxyRequest(ctx, hctx)
 
 		var args tlstatshouse.GetConfig2
 		var ret tlstatshouse.GetConfigResult
-		_, err := args.ReadBoxed(hctx.Request)
+		_, err = args.ReadBoxed(hctx.Request)
 		if err != nil {
-			return true, fmt.Errorf("failed to deserialize statshouse.getConfig2 request: %w", err)
+			return format.TagValueIDRPCRequestsStatusErrLocal, fmt.Errorf("failed to deserialize statshouse.getConfig2 request: %w", err)
 		}
 		if args.Cluster != proxy.config.Cluster {
-			return true, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, proxy.config.Cluster)
+			return format.TagValueIDRPCRequestsStatusErrLocal, fmt.Errorf("statshouse misconfiguration! cluster requested %q does not match actual cluster connected %q", args.Cluster, proxy.config.Cluster)
 		}
 		ret.Addresses = proxy.config.ExternalAddresses
 		ret.MaxAddressesCount = proxy.sh2.GetConfigResult.MaxAddressesCount
 		ret.PreviousAddresses = proxy.sh2.GetConfigResult.PreviousAddresses
-		hctx.Response, err = args.WriteResult(hctx.Response[:0], ret)
-		return true, err
+		hctx.Response, _ = args.WriteResult(hctx.Response[:0], ret)
+		return format.TagValueIDRPCRequestsStatusOK, nil
 	case constants.StatshouseGetTagMapping2,
 		constants.StatshouseSendKeepAlive2, constants.StatshouseSendSourceBucket2,
 		constants.StatshouseTestConnection2, constants.StatshouseGetTargets2,
 		constants.StatshouseGetTagMappingBootstrap, constants.StatshouseGetMetrics3,
 		constants.StatshouseAutoCreate:
-		return proxy.proxyRequest(tag, ctx, hctx)
+		return proxy.syncProxyRequest(ctx, hctx)
 	default:
-		return true, fmt.Errorf("ingress proxy does not support tag 0x%x", tag)
+		return format.TagValueIDRPCRequestsStatusNoHandler, fmt.Errorf("ingress proxy does not support tag 0x%x", hctx.RequestTag())
 	}
 }
 
-func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *rpc.HandlerContext) (isLocal bool, err error) {
+func (proxy *IngressProxy) fillProxyRequest(hctx *rpc.HandlerContext) (request *rpc.Request, client *rpc.Client, address string, err error) {
 	if len(hctx.Request) < 32 {
-		return true, fmt.Errorf("ingress proxy query with tag 0x%x is too short - %d bytes", tag, len(hctx.Request))
+		return nil, nil, "", fmt.Errorf("ingress proxy query with tag 0x%x is too short - %d bytes", hctx.RequestTag(), len(hctx.Request))
 	}
-	addrIPV4, remoteAddress := addrIPString(hctx.RemoteAddr())
+	addrIPV4, _ := addrIPString(hctx.RemoteAddr())
 
 	fieldsMask := binary.LittleEndian.Uint32(hctx.Request[4:])
 	shardReplica := binary.LittleEndian.Uint32(hctx.Request[8:])
@@ -185,27 +182,34 @@ func (proxy *IngressProxy) proxyRequest(tag uint32, ctx context.Context, hctx *r
 	// We override this field if set by previous proxy. Because we do not care about agent IPs in their cuber/internal networks
 	hostName, err := parseHostname(hctx.Request)
 	if err != nil {
-		return true, err
+		return nil, nil, "", err
 	}
 	// Motivation of % len - we pass through badly configured requests for now, so aggregators will record them in builtin metric
-	// TODO - collect metric, send to aggregator, reply with error to clients
 	shardReplicaIx := shardReplica % uint32(len(proxy.sh2.GetConfigResult.Addresses))
-	address := proxy.sh2.GetConfigResult.Addresses[shardReplicaIx]
+	address = proxy.sh2.GetConfigResult.Addresses[shardReplicaIx]
 
-	client := proxy.pool.getClient(hostName, remoteAddress)
+	client = proxy.pool.getClient(hostName, hctx.RemoteAddr().String())
 	req := client.GetRequest()
 	req.Body = append(req.Body, hctx.Request...)
 	req.Extra.FailIfNoConnection = true
+	return req, client, address, nil
+}
+
+func (proxy *IngressProxy) syncProxyRequest(ctx context.Context, hctx *rpc.HandlerContext) (resultTag int32, err error) {
+	req, client, address, err := proxy.fillProxyRequest(hctx)
+	if err != nil {
+		return format.TagValueIDRPCRequestsStatusErrLocal, err
+	}
 
 	resp, err := client.Do(ctx, proxy.config.Network, address, req)
-	if err != nil {
-		return false, err
-	}
 	defer client.PutResponse(resp)
+	if err != nil {
+		return format.TagValueIDRPCRequestsStatusErrUpstream, err
+	}
 
 	hctx.Response = append(hctx.Response, resp.Body...)
 
-	return false, nil
+	return format.TagValueIDRPCRequestsStatusOK, nil
 }
 
 func parseHostname(req []byte) (clientHost string, _ error) {
@@ -231,5 +235,4 @@ func (pool *clientPool) getClient(clientHost, remoteAddress string) *rpc.Client 
 	client = rpc.NewClient(rpc.ClientWithLogf(log.Printf), rpc.ClientWithCryptoKey(pool.aesPwd), rpc.ClientWithTrustedSubnetGroups(build.TrustedSubnetGroups()))
 	pool.clients[clientHost] = client
 	return client
-
 }

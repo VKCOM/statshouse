@@ -23,7 +23,7 @@ import (
 	"pgregory.net/rand"
 )
 
-func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, isEnvStaging bool, componentTag int32, archTag int32, cluster string, dc *pcache.DiskCache, logF func(format string, args ...interface{})) tlstatshouse.GetConfigResult {
+func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, hostName string, isEnvStaging bool, componentTag int32, archTag int32, cluster string, dc *pcache.DiskCache, logF func(format string, args ...interface{})) tlstatshouse.GetConfigResult {
 	addresses := append([]string{}, addressesExt...) // For simulator, where many start concurrently with the copy of the config
 	rnd := rand.New()
 	rnd.Shuffle(len(addresses), func(i, j int) { // randomize configuration load
@@ -32,7 +32,7 @@ func GetConfig(network string, rpcClient *rpc.Client, addressesExt []string, isE
 	backoffTimeout := time.Duration(0)
 	for nextAddr := 0; ; nextAddr = (nextAddr + 1) % len(addresses) {
 		addr := addresses[nextAddr]
-		dst, err := clientGetConfig(network, rpcClient, nextAddr, addr, isEnvStaging, componentTag, archTag, cluster)
+		dst, err := clientGetConfig(network, rpcClient, nextAddr, addr, hostName, isEnvStaging, componentTag, archTag, cluster)
 		if err == nil {
 			// when running agent from outside run_local docker
 			// for i := range dst.Addresses {
@@ -92,7 +92,7 @@ func clientGetConfigFromCache(cluster string, dc *pcache.DiskCache) (tlstatshous
 	return res, nil
 }
 
-func clientGetConfig(network string, rpcClient *rpc.Client, shardReplicaNum int, addr string, isEnvStaging bool, componentTag int32, archTag int32, cluster string) (tlstatshouse.GetConfigResult, error) {
+func clientGetConfig(network string, rpcClient *rpc.Client, shardReplicaNum int, addr string, hostName string, isEnvStaging bool, componentTag int32, archTag int32, cluster string) (tlstatshouse.GetConfigResult, error) {
 	extra := rpc.InvokeReqExtra{FailIfNoConnection: true}
 	client := tlstatshouse.Client{
 		Client:  rpcClient,
@@ -104,7 +104,7 @@ func clientGetConfig(network string, rpcClient *rpc.Client, shardReplicaNum int,
 		Cluster: cluster,
 		Header: tlstatshouse.CommonProxyHeader{
 			ShardReplica: int32(shardReplicaNum), // proxies do proxy GetConfig requests to write __autoconfig metric with correct host, which proxy cannot map
-			HostName:     srvfunc.HostnameForStatshouse(),
+			HostName:     hostName,
 			ComponentTag: componentTag,
 			BuildArch:    archTag,
 		},
