@@ -30,16 +30,15 @@ const (
 var (
 	argv struct {
 		// common
-		logFile         string
-		logLevel        string
-		userLogin       string // логин для setuid
-		userGroup       string // логин для setguid
-		maxOpenFiles    uint64
-		pprofListenAddr string
-		pprofHTTP       bool
-		aesPwdFile      string
-		cacheDir        string // different default
-		customHostName  string // useful for testing and in some environments
+		logFile        string
+		logLevel       string
+		userLogin      string // логин для setuid
+		userGroup      string // логин для setguid
+		maxOpenFiles   uint64
+		pprofHTTP      bool
+		aesPwdFile     string
+		cacheDir       string // different default
+		customHostName string // useful for testing and in some environments
 
 		aggAddr string // common, different meaning
 
@@ -111,7 +110,6 @@ func argvAddCommonFlags() {
 	flag.StringVar(&argv.userLogin, "u", defaultUser, "sets user name to make setuid")
 	flag.StringVar(&argv.userGroup, "g", defaultGroup, "sets user group to make setguid")
 
-	flag.StringVar(&argv.pprofListenAddr, "pprof", "", "HTTP pprof listen address (deprecated)")
 	flag.BoolVar(&argv.pprofHTTP, "pprof-http", true, "Serve Go pprof HTTP on RPC port")
 
 	flag.StringVar(&argv.cacheDir, "cache-dir", "", "Data that cannot be immediately sent will be stored here together with metric metadata cache.")

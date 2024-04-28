@@ -101,7 +101,7 @@ func (m *Multi) Start(ctx context.Context, network string, address string, req *
 	}
 
 	queryID := req.QueryID()
-	pc, cctx, err := m.c.setupCall(ctx, NetAddr{network, address}, req, m.multiResult)
+	pc, cctx, err := m.c.setupCall(ctx, NetAddr{network, address}, req, m.multiResult, nil, nil)
 	if err != nil {
 		m.sem.Release(1)
 		return err

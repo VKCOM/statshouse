@@ -160,7 +160,7 @@ func (c *Client) Logf(format string, args ...any) {
 
 // Do supports only "tcp4" and "unix" networks
 func (c *Client) Do(ctx context.Context, network string, address string, req *Request) (*Response, error) {
-	pc, cctx, err := c.setupCall(ctx, NetAddr{network, address}, req, nil)
+	pc, cctx, err := c.setupCall(ctx, NetAddr{network, address}, req, nil, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -174,9 +174,19 @@ func (c *Client) Do(ctx context.Context, network string, address string, req *Re
 	}
 }
 
+// Experimental API, can change any moment
+type ClientCallback func(queryID int64, resp *Response, err error, userData any)
+
+// Either error is returned immediately, or ClientCallback will be called in the future.
+// There is no cancellation logic, you must remember QueryID and compare ir for now to avoid inconsistency
+func (c *Client) DoCallback(ctx context.Context, network string, address string, req *Request, cb ClientCallback, userData any) error {
+	_, _, err := c.setupCall(ctx, NetAddr{network, address}, req, nil, cb, userData)
+	return err
+}
+
 // Starts if it needs to
 // We must setupCall inside client lock, otherwise connection might decide to quit before we can setup call
-func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *callContext) (*clientConn, *callContext, error) {
+func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, multiResult chan *callContext, cb ClientCallback, userData any) (*clientConn, *callContext, error) {
 	if req.hookState != nil && req.hookState.NeedToDropRequest(ctx, address, req) {
 		return nil, nil, ErrClientDropRequest
 	}
@@ -210,7 +220,7 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 	if pc != nil {
 		pc.mu.Lock()
 		c.mu.RUnlock() // Do not hold while working with pc
-		cctx, err := pc.setupCallLocked(req, deadline, multiResult)
+		cctx, err := pc.setupCallLocked(req, deadline, multiResult, cb, userData)
 		pc.mu.Unlock()
 		pc.writeQCond.Signal() // signal without holding the mutex to reduce contention
 		return pc, cctx, err
@@ -249,7 +259,7 @@ func (c *Client) setupCall(ctx context.Context, address NetAddr, req *Request, m
 		go pc.goConnect(closeCC, resetReconnectDelayC)
 	}
 	pc.mu.Lock()
-	cctx, err := pc.setupCallLocked(req, deadline, multiResult)
+	cctx, err := pc.setupCallLocked(req, deadline, multiResult, cb, userData)
 	pc.mu.Unlock()
 	pc.writeQCond.Signal() // signal without holding the mutex to reduce contention
 	return pc, cctx, err

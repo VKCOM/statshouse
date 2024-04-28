@@ -164,6 +164,7 @@ const (
 	TagValueIDRPCRequestsStatusErrUpstream = 3
 	TagValueIDRPCRequestsStatusHijack      = 4
 	TagValueIDRPCRequestsStatusNoHandler   = 5
+	TagValueIDRPCRequestsStatusErrCancel   = 6 // on proxy, agent request was cancelled before response from aggregator arrived
 
 	TagValueIDProduction = 1
 	TagValueIDStaging    = 2

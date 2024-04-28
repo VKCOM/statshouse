@@ -54,12 +54,14 @@ func (pc *clientConn) close() error {
 }
 
 // if multiResult is used for many requests, it must contain enough space so that no receiver is blocked
-func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiResult chan *callContext) (*callContext, error) {
+func (pc *clientConn) setupCallLocked(req *Request, deadline time.Time, multiResult chan *callContext, cb ClientCallback, userData any) (*callContext, error) {
 	cctx := pc.getCallContext()
 	cctx.queryID = req.QueryID()
 	if multiResult != nil {
 		cctx.result = multiResult // overrides single-result channel
 	}
+	cctx.cb = cb
+	cctx.userData = userData
 	cctx.failIfNoConnection = req.Extra.FailIfNoConnection
 	cctx.readonly = req.ReadOnly
 	cctx.hookState, req.hookState = req.hookState, cctx.hookState // transfer ownership of "dirty" hook state to cctx
@@ -96,7 +98,7 @@ func (pc *clientConn) cancelCall(cctx *callContext, unblockWaitersError error) {
 		// exclusive ownership of cctx by this function
 		if unblockWaitersError != nil {
 			cctx.err = unblockWaitersError
-			cctx.result <- cctx // cctx owned by channel
+			cctx.deliverResult(pc.client)
 		} else {
 			pc.client.putCallContext(cctx)
 		}
@@ -177,8 +179,8 @@ func (pc *clientConn) massCancelRequestsLocked() {
 		} else {
 			continue
 		}
-		cctx.result <- cctx
 		delete(pc.calls, queryID)
+		cctx.deliverResult(pc.client) // risk of deadlock if callback does something stupid
 	}
 }
 
@@ -488,7 +490,7 @@ func (pc *clientConn) handleResponse(queryID int64, resp *Response, rpcErr error
 		cctx.hookState.AfterReceive(cctx.resp, cctx.err)
 	}
 
-	cctx.result <- cctx
+	cctx.deliverResult(pc.client)
 	return false
 }
 
