@@ -335,7 +335,7 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
 	a.mu.Unlock()
 
 	writeWaiting := func(metricID int32, key4 int32, item *data_model.ItemValue) {
-		key := data_model.AggKey(0, metricID, [16]int32{0, 0, 0, 0, key4}, a.aggregatorHost, a.shardKey, a.replicaKey)
+		key := a.aggKey(0, metricID, [16]int32{0, 0, 0, 0, key4})
 		a.sh2.MergeItemValue(key, item, nil)
 	}
 	writeWaiting(format.BuiltinMetricIDAggHistoricBucketsWaiting, format.TagValueIDAggregatorOriginal, &original)
@@ -343,9 +343,9 @@ func (a *Aggregator) agentBeforeFlushBucketFunc(_ *agent.Agent, now time.Time) {
 	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorOriginal, &original_unique)
 	writeWaiting(format.BuiltinMetricIDAggHistoricSecondsWaiting, format.TagValueIDAggregatorSpare, &spare_unique)
 
-	key := data_model.AggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent}, a.aggregatorHost, a.shardKey, a.replicaKey)
+	key := a.aggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorRecent})
 	a.sh2.AddValueCounterHost(key, float64(recentSenders), 1, a.aggregatorHost)
-	key = data_model.AggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric}, a.aggregatorHost, a.shardKey, a.replicaKey)
+	key = a.aggKey(0, format.BuiltinMetricIDAggActiveSenders, [16]int32{0, 0, 0, 0, format.TagValueIDConveyorHistoric})
 	a.sh2.AddValueCounterHost(key, float64(historicSends), 1, a.aggregatorHost)
 
 	/* TODO - replace with direct agent call
@@ -514,7 +514,7 @@ func (a *Aggregator) goSend(senderID int) {
 					delete(b.contributors, hctx)
 				}
 				b.mu.Unlock()
-				key := data_model.AggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater}, a.aggregatorHost, a.shardKey, a.replicaKey)
+				key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregatorLater})
 				a.sh2.AddValueCounterHost(key, float64(newestTime-b.time), 1, a.aggregatorHost) // This bucket is combination of many hosts
 			}
 			if historicBucket == nil {
