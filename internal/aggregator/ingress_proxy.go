@@ -172,7 +172,9 @@ func (ls *longpollShard) callback(queryID int64, resp *rpc.Response, err error, 
 		key = keyFromHctx(hctx, format.TagValueIDRPCRequestsStatusOK)
 	}
 	ls.proxy.sh2.AddValueCounter(key, float64(lpc.requestLen), 1, nil)
-	hctx.Response = append(hctx.Response, resp.Body...)
+	if resp != nil {
+		hctx.Response = append(hctx.Response, resp.Body...)
+	}
 	hctx.SendHijackedResponse(err)
 }
 
