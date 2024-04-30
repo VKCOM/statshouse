@@ -140,7 +140,7 @@ func (pc *clientConn) finishCall(queryID int64) *callContext {
 	return cctx
 }
 
-func (pc *clientConn) massCancelRequestsLocked() {
+func (pc *clientConn) massCancelRequestsLocked() (finishedCalls []*callContext) {
 	pc.writeFin = false
 	nQueued := 0
 	now := time.Now()
@@ -180,20 +180,31 @@ func (pc *clientConn) massCancelRequestsLocked() {
 			continue
 		}
 		delete(pc.calls, queryID)
-		cctx.deliverResult(pc.client) // risk of deadlock if callback does something stupid
+		finishedCalls = append(finishedCalls, cctx)
+		// we do some allocations here, but after disconnect we allocate anyway
+		// we cannot call callbacks under any lock, otherwise deadlock
 	}
+	return
 }
 
 func (pc *clientConn) continueRunning(previousGoodHandshake bool) bool {
+	finishedCalls, result := pc.continueRunningImpl(previousGoodHandshake)
+	for _, cctx := range finishedCalls {
+		cctx.deliverResult(pc.client)
+	}
+	return result
+}
+
+func (pc *clientConn) continueRunningImpl(previousGoodHandshake bool) (finishedCalls []*callContext, _ bool) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 
-	pc.massCancelRequestsLocked()
+	finishedCalls = pc.massCancelRequestsLocked()
 
 	if !previousGoodHandshake {
 		pc.waitingToReconnect = true
 	}
-	return pc.closeCC != nil && len(pc.calls) != 0
+	return finishedCalls, pc.closeCC != nil && len(pc.calls) != 0
 }
 
 func (pc *clientConn) putStaleRequest(wr writeReq) {
@@ -266,8 +277,11 @@ func (pc *clientConn) goConnect(closeCC <-chan struct{}, resetReconnectDelayC <-
 			if debugPrint {
 				fmt.Printf("%v closeCC == nil for pc %p", time.Now(), pc)
 			}
-			pc.massCancelRequestsLocked()
+			finishedCalls := pc.massCancelRequestsLocked()
 			pc.mu.Unlock()
+			for _, cctx := range finishedCalls {
+				cctx.deliverResult(pc.client)
+			}
 			break
 		}
 		pc.mu.Unlock()
