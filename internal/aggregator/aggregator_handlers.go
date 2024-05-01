@@ -290,7 +290,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 			a.mu.Unlock()
 			key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketHistoric})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(args.Time-newestTime), 1, host)
+			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, host)
 			// We discard, because otherwise clients will flood aggregators with this data
 			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("historic bucket time is too far in the future"))
 			return nil
@@ -299,7 +299,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 			a.mu.Unlock()
 			key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLongWindowThrownAggregator})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(newestTime-args.Time), 1, host)
+			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, host)
 			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("Successfully discarded historic bucket beyond historic window"))
 			return nil
 		}
@@ -323,7 +323,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 			a.mu.Unlock()
 			key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingFutureBucketRecent})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(args.Time-newestTime), 1, host)
+			a.sh2.AddValueCounterHost(key, float64(args.Time)-float64(newestTime), 1, host)
 			// We discard, because otherwise clients will flood aggregators with this data
 			hctx.Response, _ = args.WriteResult(hctx.Response, []byte("bucket time is too far in the future"))
 			return nil
@@ -332,7 +332,7 @@ func (a *Aggregator) handleClientBucket(_ context.Context, hctx *rpc.HandlerCont
 			a.mu.Unlock()
 			key := a.aggKey(0, format.BuiltinMetricIDTimingErrors, [16]int32{0, format.TagValueIDTimingLateRecent})
 			key = key.WithAgentEnvRouteArch(agentEnv, route, buildArch)
-			a.sh2.AddValueCounterHost(key, float64(newestTime-args.Time), 1, host)
+			a.sh2.AddValueCounterHost(key, float64(newestTime)-float64(args.Time), 1, host)
 			return rpc.Error{
 				Code:        data_model.RPCErrorMissedRecentConveyor,
 				Description: "bucket time is too far in the past for recent conveyor",
