@@ -10,9 +10,10 @@ import (
 	"math"
 	"sort"
 
+	"pgregory.net/rand"
+
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
-	"pgregory.net/rand"
 )
 
 type (
@@ -574,16 +575,8 @@ func selectRandom(s []SamplingMultiItemPair, sf float64, r *rand.Rand) int {
 	if sf <= 1 {
 		return len(s)
 	}
-	n := 0
-	for i := 0; i < len(s); i++ {
-		if r.Float64()*sf < 1 {
-			if n < i {
-				s[n], s[i] = s[i], s[n]
-			}
-			n++
-		}
-	}
-	return n
+	rand.ShuffleSlice(r, s)
+	return int(float64(len(s)) / sf)
 }
 
 // This function will be used in second sampling pass to fit all saved data in predefined budget
