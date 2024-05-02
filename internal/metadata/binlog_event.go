@@ -251,20 +251,16 @@ func getOrCreateMapping(conn sqlite.Conn, cache []byte, metricName, key string, 
 	var count int64
 	row = conn.Query("select_flood_limit", "SELECT last_time_update, count_free from flood_limits WHERE metric_name = $name",
 		sqlite.BlobString("$name", metricName))
+	var err error
+	metricLimitIsExists := row.Next()
 	if row.Error() != nil {
 		return tlmetadata.GetMappingResponse0{Id: id}.AsUnion(), cache, row.Error()
 	}
-	var err error
-	metricLimitIsExists := row.Next()
 	skipFloodLimitModification := lastCreatedID > 0 && int64(lastCreatedID) <= globalBudget
 	if metricLimitIsExists {
 		lastTimeUpdate, _ := row.ColumnInt64(0)
 		timeUpdate = uint32(lastTimeUpdate)
 		count, _ = row.ColumnInt64(1)
-		if pred < timeUpdate {
-			// todo
-			_ = 2
-		}
 		if !skipFloodLimitModification {
 			countToInsert = calcBudget(count, 1, timeUpdate, pred, maxBudget, budgetBonus, stepSec)
 			if countToInsert < 0 {

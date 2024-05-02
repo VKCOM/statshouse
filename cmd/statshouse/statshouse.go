@@ -514,10 +514,6 @@ func mainIngressProxy(aesPwd string) int {
 		logErr.Printf("%s", err)
 		return 1
 	}
-	logOk.Printf("Start listening pprof HTTP %q", argv.listenAddr)
-	go func() {
-		log.Println(http.ListenAndServe("localhost:12345", nil))
-	}()
 	argv.configAgent.Cluster = argv.cluster
 	argv.configIngress.Cluster = argv.cluster
 	argv.configIngress.ExternalAddresses = strings.Split(argv.ingressExtAddr, ",")
