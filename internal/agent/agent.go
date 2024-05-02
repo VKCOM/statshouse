@@ -135,7 +135,7 @@ func MakeAgent(network string, storageDir string, aesPwd string, config Config, 
 		if len(config.AggregatorAddresses) < 3 {
 			return nil, fmt.Errorf("configuration Error: must have 3 aggregator addresses for configuration redundancy")
 		}
-		result.GetConfigResult = GetConfig(network, rpcClient, config.AggregatorAddresses, result.isEnvStaging, result.componentTag, result.buildArchTag, config.Cluster, dc, logF)
+		result.GetConfigResult = GetConfig(network, rpcClient, config.AggregatorAddresses, hostName, result.isEnvStaging, result.componentTag, result.buildArchTag, config.Cluster, dc, logF)
 	}
 	config.AggregatorAddresses = result.GetConfigResult.Addresses[:result.GetConfigResult.MaxAddressesCount] // agents simply ignore excess addresses
 	result.NumShards = len(config.AggregatorAddresses) / 3

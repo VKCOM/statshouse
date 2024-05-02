@@ -37,12 +37,12 @@ require (
 	go.uber.org/atomic v1.10.0
 	go.uber.org/multierr v1.9.0
 	go4.org/mem v0.0.0-20220726221520-4f986261bf13
-	golang.org/x/crypto v0.0.0-20220214200702-86341886e292
+	golang.org/x/crypto v0.22.0
 	golang.org/x/exp v0.0.0-20220713135740-79cabaa25d75
-	golang.org/x/net v0.9.0
+	golang.org/x/net v0.24.0
 	golang.org/x/sync v0.1.0
-	golang.org/x/sys v0.7.0
-	golang.org/x/text v0.9.0
+	golang.org/x/sys v0.19.0
+	golang.org/x/text v0.14.0
 	golang.org/x/time v0.3.0
 	google.golang.org/protobuf v1.28.1
 	gopkg.in/yaml.v2 v2.4.0

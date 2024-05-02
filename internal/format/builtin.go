@@ -114,6 +114,8 @@ const (
 	BuiltinMetricIDAggScrapeTargetDispatch    = -92
 	BuiltinMetricIDAggScrapeTargetDiscovery   = -93
 	BuiltinMetricIDAggScrapeConfigHash        = -94
+	BuiltinMetricIDAggSamplingTime            = -95
+
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
 	// [-20000..-22000] reserved by well known configuration IDs
@@ -1871,6 +1873,21 @@ Value is delta between second value and time it was inserted.`,
 					RawKind:     "hex",
 				},
 			},
+		},
+		BuiltinMetricIDAggSamplingTime: {
+			Name:        "__agg_sampling_time",
+			Kind:        MetricKindValue,
+			Description: "Time sampling this second took. Written when second is inserted, which can be much later.",
+			Tags: []MetricMetaTag{{
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description:   "conveyor",
+				ValueComments: convertToValueComments(conveyorToValue),
+			}},
 		},
 	}
 
