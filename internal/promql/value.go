@@ -586,10 +586,14 @@ func (tgs *SeriesTags) hash(ev *evaluator, opt hashOptions) (uint64, hashTags, e
 		}
 	} else if len(opt.tags) == 0 || (len(opt.tags) == 1 && opt.tags[0] == labels.MetricName) {
 		if opt.listUsed || !tgs.hashSumValid {
-			for id := range tgs.ID2Tag {
-				if id != labels.MetricName {
-					ht.used = append(ht.used, id)
+			for id, tag := range tgs.ID2Tag {
+				if id == labels.MetricName {
+					continue
 				}
+				if tag.Name != "" {
+					id = tag.Name
+				}
+				ht.used = append(ht.used, id)
 			}
 		}
 		if tgs.hashSumValid {
