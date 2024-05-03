@@ -513,6 +513,7 @@ func (ev *evaluator) exec() (TimeSeries, error) {
 			res.Series.appendSome(sr, i)
 		}
 	}
+	res.Series.pruneMinMaxHost()
 	return res, nil
 }
 

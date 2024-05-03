@@ -522,6 +522,12 @@ func (sr *Series) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.Matc
 	sr.Meta.Total = len(sr.Data)
 }
 
+func (sr *Series) pruneMinMaxHost() {
+	for i := range sr.Data {
+		sr.Data[i].pruneMinMaxHost()
+	}
+}
+
 func (sr *Series) free(ev *evaluator) {
 	ev.freeAll(sr.Data)
 }
@@ -549,6 +555,15 @@ func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.M
 		}
 	}
 	return n
+}
+
+func (d *SeriesData) pruneMinMaxHost() {
+	for i, v := range *d.Values {
+		if math.IsNaN(v) {
+			d.MinMaxHost[0][i] = 0
+			d.MinMaxHost[1][i] = 0
+		}
+	}
 }
 
 func (d *SeriesData) free(ev *evaluator) {
