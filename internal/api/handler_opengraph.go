@@ -68,6 +68,8 @@ func getOpenGraphInfo(r *http.Request, origPath string) *openGraphInfo {
 			paramWidth       = p + ParamWidth
 			paramQueryWhat   = p + ParamQueryWhat
 			paramPromQuery   = p + paramPromQuery
+			paramYL          = p + paramYL
+			paramYH          = p + paramYH
 		)
 
 		// Build query
@@ -78,6 +80,8 @@ func getOpenGraphInfo(r *http.Request, origPath string) *openGraphInfo {
 		v[paramQueryFilter] = r.Form[paramQueryFilter]
 		v[paramTimeShift] = r.Form[paramTimeShift]
 		v[paramPromQuery] = r.Form[paramPromQuery]
+		v[paramYL] = r.Form[paramYL]
+		v[paramYH] = r.Form[paramYH]
 		//-- width
 		widthAgg := r.FormValue(paramWidthAgg)
 		if widthAgg != "" {

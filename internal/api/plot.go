@@ -94,6 +94,7 @@ $data << EOD
 EOD
 
 set xrange [{{$d.TimeFrom}}:{{$d.TimeTo}}]
+set yrange [{{$d.YL}}:{{$d.YH}}]
 {{if $d.Data.Series.SeriesMeta -}}
 plot for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with fillsteps notitle linestyle (10+n), \
      for [n=0:{{$d.Data.Series.SeriesMeta | len}}] $data index n using 1:2 with points notitle linestyle (10+n) linewidth 0.7 pointtype 7 pointsize 0.2, \
@@ -207,6 +208,7 @@ type gnuplotTemplateData struct {
 	Legend   []QuerySeriesMetaV2
 	TimeFrom int64
 	TimeTo   int64
+	YL, YH   string // Y scale range
 
 	usedColorIndices map[string]int
 	uniqueWhat       map[string]struct{}
@@ -381,6 +383,8 @@ func plot(ctx context.Context, format string, title bool, data []*SeriesResponse
 			uniqueWhat:       map[string]struct{}{},
 			utcOffset:        utcOffset,
 			wr:               &buf,
+			YL:               metric[i].yl,
+			YH:               metric[i].yh,
 		}
 	}
 
