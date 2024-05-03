@@ -558,10 +558,18 @@ func (d *SeriesData) filterMinMaxHost(ev *evaluator, x int, matchers []*labels.M
 }
 
 func (d *SeriesData) pruneMinMaxHost() {
+	if len(d.MinMaxHost[0]) == 0 && len(d.MinMaxHost[1]) == 0 {
+		return
+	}
 	for i, v := range *d.Values {
 		if math.IsNaN(v) {
-			d.MinMaxHost[0][i] = 0
-			d.MinMaxHost[1][i] = 0
+			if i < len(d.MinMaxHost[0]) {
+				d.MinMaxHost[0][i] = 0
+
+			}
+			if i < len(d.MinMaxHost[1]) {
+				d.MinMaxHost[1][i] = 0
+			}
 		}
 	}
 }
