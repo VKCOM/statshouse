@@ -366,6 +366,7 @@ type (
 		timeNow        time.Time
 		collapse       bool // "point" query
 		trace          bool
+		strBucketLabel bool
 	}
 
 	//easyjson:json
@@ -2175,6 +2176,7 @@ func (h *Handler) handleGetRender(ctx context.Context, ai accessInfo, req render
 			metricCallback: func(meta *format.MetricMetaValue) {
 				req.seriesRequest[i].metricWithNamespace = meta.Name
 			},
+			strBucketLabel: true,
 		})
 		if err != nil {
 			return nil, false, err
@@ -2388,7 +2390,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 				TimeNow:          opt.timeNow.Unix(),
 				Extend:           req.excessPoints,
 				ExplicitGrouping: true,
-				RawBucketLabel:   true,
+				RawBucketLabel:   !opt.strBucketLabel,
 				QuerySequential:  h.querySequential,
 				TagWhat:          promqlGenerated,
 				ScreenWidth:      req.screenWidth,

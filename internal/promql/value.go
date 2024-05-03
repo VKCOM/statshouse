@@ -326,7 +326,7 @@ func (tg *SeriesTag) stringify(ev *evaluator) {
 	case LabelMinHost, LabelMaxHost:
 		v = ev.GetHostName(tg.Value)
 	default:
-		if !ev.opt.RawBucketLabel && tg.ID == labels.BucketLabel {
+		if !ev.opt.RawBucketLabel && tg.Name == labels.BucketLabel {
 			v = strconv.FormatFloat(float64(statshouse.LexDecode(tg.Value)), 'f', -1, 32)
 		} else {
 			v = ev.GetTagValue(TagValueQuery{
