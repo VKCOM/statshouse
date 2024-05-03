@@ -1299,9 +1299,25 @@ func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tag
 		return 0, ErrNotFound
 	}
 	t := metric.Tags[tagX]
-	if t.Name == labels.BucketLabel && t.Raw {
-		if v, err := strconv.ParseFloat(tagV, 32); err == nil {
-			return statshouse.LexEncode(float32(v)), nil
+	if t.Raw {
+		// histogram bucket label
+		if t.Name == labels.BucketLabel {
+			if v, err := strconv.ParseFloat(tagV, 32); err == nil {
+				return statshouse.LexEncode(float32(v)), nil
+			}
+		}
+		// mapping from raw value comments
+		var s string
+		for k, v := range t.ValueComments {
+			if v == tagV {
+				if s != "" {
+					return 0, fmt.Errorf("ambiguous comment to value mapping")
+				}
+				s = k
+			}
+		}
+		if s != "" {
+			return format.ParseCodeTagValue(s)
 		}
 	}
 	return ev.GetTagValueID(TagValueIDQuery{
