@@ -3520,9 +3520,6 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 					t.numResults = math.MaxInt
 				}
 			}
-			if _, ok := format.BuiltinMetricByName[t.metricWithNamespace]; ok {
-				t.verbose = false
-			}
 			if len(t.strWidth) != 0 || len(t.strWidthAgg) != 0 {
 				t.width, t.widthKind, err = parseWidth(t.strWidth, t.strWidthAgg)
 				if err != nil {
