@@ -1293,6 +1293,9 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 }
 
 func (ev *evaluator) getTagValueID(metric *format.MetricMetaValue, tagX int, tagV string) (int32, error) {
+	if tagV == "" {
+		return 0, nil
+	}
 	if format.HasRawValuePrefix(tagV) {
 		return format.ParseCodeTagValue(tagV)
 	}
