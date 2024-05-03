@@ -2388,6 +2388,7 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 				TimeNow:          opt.timeNow.Unix(),
 				Extend:           req.excessPoints,
 				ExplicitGrouping: true,
+				RawBucketLabel:   true,
 				QuerySequential:  h.querySequential,
 				TagWhat:          promqlGenerated,
 				ScreenWidth:      req.screenWidth,

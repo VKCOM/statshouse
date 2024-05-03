@@ -62,6 +62,7 @@ type Options struct {
 	TagWhat          bool
 	TagOffset        bool
 	TagTotal         bool
+	RawBucketLabel   bool
 	ExplicitGrouping bool
 	MinHost          bool
 	MaxHost          bool
