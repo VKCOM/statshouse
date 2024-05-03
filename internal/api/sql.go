@@ -264,6 +264,16 @@ WHERE
 GROUP BY
   _time%s`, commaBy)
 
+	var having string
+	switch pq.kind {
+	case data_model.DigestKindPercentiles:
+		having = `
+HAVING not(isNaN(_val0) AND isNaN(_val1) AND isNaN(_val2) AND isNaN(_val3) AND isNaN(_val4) AND isNaN(_val5) AND isNaN(_val6))`
+	case data_model.DigestKindPercentilesLow:
+		having = `
+HAVING not(isNaN(_val0) AND isNaN(_val1) AND isNaN(_val2) AND isNaN(_val3))`
+	}
+	var oderBy string
 	limit := maxSeriesRows
 	if pq.orderBy {
 		limit = maxTableRows
@@ -271,16 +281,20 @@ GROUP BY
 		if pq.desc {
 			desc = " DESC"
 		}
-		query += fmt.Sprintf(`
-HAVING _count > 0
-ORDER BY
-  _time%s%s`, commaBy, desc)
+		if having != "" {
+			having += " && _count > 0"
+		} else {
+			having = `
+HAVING _count > 0`
+		}
+		oderBy = fmt.Sprintf(`
+ORDER BY _time%s%s`, commaBy, desc)
 	}
-	query += fmt.Sprintf(`
+	query += fmt.Sprintf(`%s%s
 LIMIT %v
 SETTINGS
   optimize_aggregation_in_order = 1
-`, limit)
+`, having, oderBy, limit)
 	q, err := util.BindQuery(query, args...)
 	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: pq.version}, err
 }
