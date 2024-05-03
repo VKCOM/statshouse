@@ -2760,15 +2760,15 @@ func skeyFromFixedString(tagValuePtr *stringFixed) string {
 }
 func replaceInfNan(v *float64) {
 	if math.IsNaN(*v) {
-		*v = -1.111111 // Motivation - 99.9% of our graphs are >=0, -1.111111 will stand out. But we do not expect NaNs.
+		*v = data_model.NaN
 		return
 	}
 	if math.IsInf(*v, 1) {
-		*v = -2.222222 // Motivation - as above, distinct value for debug
+		*v = data_model.PosInf
 		return
 	}
 	if math.IsInf(*v, -1) {
-		*v = -3.333333 // Motivation - as above, distinct value for debug
+		*v = data_model.NegInf
 		return
 	}
 	// Motivation - we store some values as float32 anyway. Also, most code does not work well, if close to float64 limits
@@ -2954,26 +2954,60 @@ func selectTSValue(what data_model.DigestWhat, maxHost bool, desiredStepMul int6
 	case data_model.DigestStdVar:
 		return row.val[4] * row.val[4]
 	case data_model.DigestP0_1:
+		// value may absent for percentiles because they may be switched on/off
+		if row.val[0] == data_model.NaN {
+			return math.NaN()
+		}
 		return row.val[0]
 	case data_model.DigestP1:
+		if row.val[1] == data_model.NaN {
+			return math.NaN()
+		}
 		return row.val[1]
 	case data_model.DigestP5:
+		if row.val[2] == data_model.NaN {
+			return math.NaN()
+		}
 		return row.val[2]
 	case data_model.DigestP10:
+		if row.val[3] == data_model.NaN {
+			return math.NaN()
+		}
 		return row.val[3]
 	case data_model.DigestP25:
+		if row.val[0] == data_model.NaN {
+			return math.NaN()
+		}
 		return row.val[0]
 	case data_model.DigestP50:
+		if row.val[1] == data_model.NaN {
+			return math.NaN()
+		}
 		return row.val[1]
 	case data_model.DigestP75:
+		if row.val[2] == data_model.NaN {
+			return math.NaN()
+		}
 		return row.val[2]
 	case data_model.DigestP90:
+		if row.val[3] == data_model.NaN {
+			return math.NaN()
+		}
 		return row.val[3]
 	case data_model.DigestP95:
+		if row.val[4] == data_model.NaN {
+			return math.NaN()
+		}
 		return row.val[4]
 	case data_model.DigestP99:
+		if row.val[5] == data_model.NaN {
+			return math.NaN()
+		}
 		return row.val[5]
 	case data_model.DigestP999:
+		if row.val[6] == data_model.NaN {
+			return math.NaN()
+		}
 		return row.val[6]
 	case data_model.DigestUnique:
 		return stableMulDiv(row.val[0], desiredStepMul, row.stepSec)

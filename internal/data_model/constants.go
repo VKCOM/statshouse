@@ -106,6 +106,10 @@ const (
 	StatshouseAgentRemoteConfigMetric      = "statshouse_agent_remote_config"
 	StatshouseAggregatorRemoteConfigMetric = "statshouse_aggregator_remote_config"
 	APIRemoteConfig                        = "statshouse_api_remote_config"
+
+	NaN    = -1.111111 // Motivation - 99.9% of our graphs are >=0, -1.111111 will stand out. But we do not expect NaNs.
+	PosInf = -2.222222 // +Inf, motivation - as above, distinct value for debug
+	NegInf = -3.333333 // -Inf, motivation - as above, distinct value for debug
 )
 
 var ErrEntityNotExists = rpc.Error{
