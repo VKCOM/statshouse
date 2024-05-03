@@ -1281,12 +1281,16 @@ func (ev *evaluator) getTagValues(ctx context.Context, metric *format.MetricMeta
 	// tag value ID -> tag value
 	res = make(map[int32]string, len(ids))
 	for _, id := range ids {
-		res[id] = ev.GetTagValue(TagValueQuery{
+		s := ev.GetTagValue(TagValueQuery{
 			Version:    ev.opt.Version,
 			Metric:     metric,
 			TagIndex:   tagX,
 			TagValueID: id,
 		})
+		if s == " 0" {
+			s = ""
+		}
+		res[id] = s
 	}
 	m2[offset] = res
 	return res, nil
