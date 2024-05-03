@@ -108,6 +108,7 @@ const (
 	paramDashboardID  = "id"
 	paramShowDisabled = "sd"
 	paramPriority     = "priority"
+	paramYL, paramYH  = "yl", "yh" // Y scale range
 
 	Version1       = "1"
 	Version2       = "2"
@@ -351,6 +352,7 @@ type (
 		verbose             bool
 		excessPoints        bool
 		format              string
+		yl, yh              string // Y scale range
 
 		// table query
 		fromEnd bool
@@ -3437,6 +3439,10 @@ func (h *Handler) parseHTTPRequestS(r *http.Request, maxTabs int) (res []seriesR
 			t.fromRow, err = parseFromRows(first(v))
 		case paramToRow:
 			t.toRow, err = parseFromRows(first(v))
+		case paramYL:
+			t.yl = first(v)
+		case paramYH:
+			t.yh = first(v)
 		}
 		if err != nil {
 			return nil, err
