@@ -17,12 +17,18 @@ import { NamespacePage } from './view/Settings/NamespacePage';
 
 const FAQ = React.lazy(() => import('./doc/FAQ'));
 
+const View2Page = React.lazy(() => import('./view2/ViewPage'));
+const Core = React.lazy(() => import('./view2/Core'));
+
 const yAxisSize = 54; // must be synced with .u-legend padding-left
 
 function App() {
   const ai = currentAccessInfo();
   return (
     <Routes>
+      <Route path="/2/" element={<Core />}>
+        <Route path="view" element={<View2Page />} />
+      </Route>
       <Route path="/" element={<Navigate to="view" replace={true} />} />
       <Route path="embed" element={<ViewPage embed={true} yAxisSize={yAxisSize} />} />
       <Route path="/" element={<NavbarApp />}>

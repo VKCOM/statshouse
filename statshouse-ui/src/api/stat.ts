@@ -37,7 +37,7 @@ export async function logError(event: ErrorEvent) {
         ts: Math.floor(Date.now() / 1000),
         name: UIErrorMetrickName,
         tags: {
-          0: environment,
+          1: environment,
           _s: message,
         },
         counter: 1,
