@@ -296,9 +296,6 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			if 0 < lod.Step && lod.Step < step {
 				continue // step can not grow
 			}
-			if lod.Len != 0 && step < minStep {
-				break // take previously computed LOD
-			}
 			lodStart := start
 			if len(res.LODs) == 0 {
 				lodStart = startOfLOD(start, step, args.Location, args.UTCOffset)
@@ -325,7 +322,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 				}
 			}
 			lod = TimescaleLOD{Step: step, Len: lodLen}
-			if args.ScreenWidth != 0 && int(args.ScreenWidth) < n {
+			if step <= minStep || (args.ScreenWidth != 0 && int(args.ScreenWidth) < n) {
 				// use current "step" to the end
 				lodEnd, lodLen = endOfLOD(lodEnd, step, end, false, args.Location)
 				lod.Len += lodLen
