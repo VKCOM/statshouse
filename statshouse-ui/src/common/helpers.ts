@@ -42,7 +42,7 @@ export function toFlatPairs<C>(
   return res;
 }
 
-export function toString(item: unknown, defaultSting?: string): string {
+export function toString(item: unknown): string {
   switch (typeof item) {
     case 'undefined':
       return 'undefined';
@@ -57,11 +57,20 @@ export function toString(item: unknown, defaultSting?: string): string {
         return 'null';
       }
   }
-  return defaultSting ?? '';
+  return '';
 }
 
 export function numberAsStr(item: string) {
   return !!item && Number.isFinite(+item);
+}
+
+/**
+ * toNumber for map without default number
+ *
+ * @param item
+ */
+export function toNumberM(item: unknown) {
+  return toNumber(item);
 }
 
 export function toNumber(item: unknown): number | null;

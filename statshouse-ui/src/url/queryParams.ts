@@ -498,7 +498,7 @@ export function encodeParams(value: QueryParams, defaultParams?: QueryParams): [
       }
 
       if (plot.metricType != null && plot.metricType !== defaultPlot.metricType) {
-        search.push([prefix + GET_PARAMS.metricMetricType, metricTypeToMetricTypeUrl(plot.metricType)]);
+        search.push([prefix + GET_PARAMS.metricMetricUnit, metricTypeToMetricTypeUrl(plot.metricType)]);
       }
 
       if (plot.customDescription !== defaultPlot.customDescription) {
@@ -727,7 +727,7 @@ export function decodeParams(searchParams: [string, string][], defaultParams?: Q
       plotParams[GET_PARAMS.metricCustomDescription]?.[searchParamsObjectValueSymbol]?.[0] ??
       defaultPlot.customDescription;
     const metricType: MetricType | undefined =
-      metricTypeUrlToMetricType(plotParams[GET_PARAMS.metricMetricType]?.[searchParamsObjectValueSymbol]?.[0]) ??
+      metricTypeUrlToMetricType(plotParams[GET_PARAMS.metricMetricUnit]?.[searchParamsObjectValueSymbol]?.[0]) ??
       defaultPlot.metricType;
     const what: QueryWhat[] =
       plotParams[GET_PARAMS.metricWhat]?.[searchParamsObjectValueSymbol]?.filter(isQueryWhat) ??
