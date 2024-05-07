@@ -210,9 +210,11 @@ scrape_loop:
 		select {
 		case <-s.ctx.Done():
 			break scrape_loop
-		case <-timer.C:
+		case start := <-timer.C:
 			// work
-			_ = s.scrape(opt)
+			err := s.scrape(opt)
+			dur := time.Since(start)
+			s.reportScrapeTime(opt.job, err, dur)
 		}
 	}
 	log.Println("scrape stop", s)
@@ -532,6 +534,21 @@ func (s *scraper) appendMetricTag(name, value string) {
 func (s *scraper) setMetricTagAt(i int, name, value string) {
 	appendString(&s.metric.Tags[i].Key, name)
 	appendString(&s.metric.Tags[i].Value, value)
+}
+
+func (s *scraper) reportScrapeTime(job string, err error, v time.Duration) {
+	s.metric.Reset()
+	appendString(&s.metric.Name, format.BuiltinMetricNamePromScrapeTime)
+	s.appendMetricTag("2", job)
+	if err != nil {
+		s.appendMetricTag("5", "1") // error
+	} else {
+		s.appendMetricTag("5", "2") // ok
+	}
+	s.setMetricValue(v.Seconds())
+	s.handler.HandleMetrics(data_model.HandlerArgs{
+		MetricBytes: &s.metric,
+	})
 }
 
 func (s *scraper) String() string {
