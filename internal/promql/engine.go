@@ -441,17 +441,6 @@ func (ev *evaluator) matchMetrics(sel *parser.VectorSelector, path []parser.Node
 			sel.MaxHostMatchers = append(sel.MaxHostMatchers, matcher)
 		}
 	}
-	for i := len(path); len(sel.MetricKindHint) == 0 && i != 0; i-- {
-		switch e := path[i-1].(type) {
-		case *parser.Call:
-			switch e.Func.Name {
-			case "delta", "deriv", "holt_winters", "idelta", "predict_linear":
-				sel.MetricKindHint = format.MetricKindValue
-			case "increase", "irate", "rate", "resets":
-				sel.MetricKindHint = format.MetricKindCounter
-			}
-		}
-	}
 	for i := len(path); !(sel.MinHost && sel.MaxHost) && i != 0; i-- {
 		if e, ok := path[i-1].(*parser.Call); ok {
 			switch e.Func.Name {
@@ -1025,7 +1014,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	}
 	if len(whats) == 0 {
 		var what data_model.DigestWhat
-		if metric.Kind == format.MetricKindCounter || sel.MetricKindHint == format.MetricKindCounter {
+		if metric.Kind == format.MetricKindCounter {
 			what = data_model.DigestCountRaw
 		} else {
 			what = data_model.DigestAvg

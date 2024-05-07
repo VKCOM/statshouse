@@ -1439,6 +1439,9 @@ func (ev *evaluator) funcPrefixSum(sr Series) Series {
 }
 
 func funcRate(ev *evaluator, sr Series) Series {
+	if sr.Meta.Metric != nil && len(sr.Meta.Metric.HistorgamBuckets) != 0 {
+		return sr // Prometheus histograms are stored with "rate" function applied
+	}
 	t := ev.time()
 	for _, s := range sr.Data {
 		wnd := ev.newWindow(*s.Values, false)
