@@ -38,7 +38,6 @@ import (
 	"github.com/vkcom/statshouse/internal/metajournal"
 	"github.com/vkcom/statshouse/internal/pcache"
 	"github.com/vkcom/statshouse/internal/receiver"
-	"github.com/vkcom/statshouse/internal/receiver/prometheus"
 	"github.com/vkcom/statshouse/internal/vkgo/platform"
 )
 
@@ -377,11 +376,6 @@ func mainAgent(aesPwd string, dc *pcache.DiskCache) int {
 	}
 
 	receiver.RunScrape(sh2, w)
-	if argv.configAgent.RemoteWriteEnabled {
-		closer := prometheus.ServeRemoteWrite(argv.configAgent, w)
-		defer closer()
-	}
-
 	receiverRPC := receiver.MakeRPCReceiver(sh2, w)
 	handlerRPC := &tlstatshouse.Handler{
 		RawAddMetricsBatch: receiverRPC.RawAddMetricsBatch,
