@@ -2851,7 +2851,7 @@ func (h *Handler) loadPoints(ctx context.Context, pq *preparedPointsQuery, lod d
 }
 
 func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, lod data_model.LOD) ([]pSelectRow, error) {
-	query, args, err := loadPointQuery(pq, lod, h.utcOffset)
+	query, args, err := loadPointQuery(pq, lod)
 	if err != nil {
 		return nil, err
 	}

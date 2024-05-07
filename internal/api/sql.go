@@ -200,7 +200,12 @@ func loadPointsQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int6
 	if err != nil {
 		return "", pointsQueryMeta{}, err
 	}
-
+	var metricColumn string
+	if pq.version == Version1 {
+		metricColumn = "stats = ? "
+	} else if pq.metricID != 0 {
+		metricColumn = "metric = ? "
+	}
 	var commaBy string
 	if len(pq.by) > 0 {
 		for _, b := range pq.by {
@@ -226,16 +231,20 @@ SELECT
 FROM
   %s
 WHERE
-  %s = ?
-  AND time >= ? AND time < ?%s`,
+  %sAND time >= ? AND time < ?%s`,
 		timeInterval,
 		commaBy,
 		what,
 		pq.preKeyTableName(lod),
-		metricColumn(pq.version),
+		metricColumn,
 		datePredicate(pq.version),
 	)
-	args := []interface{}{pq.metricID, lod.FromSec, lod.ToSec}
+	var args []interface{}
+	if metricColumn != "" {
+		args = []interface{}{pq.metricID, lod.FromSec, lod.ToSec}
+	} else {
+		args = []interface{}{lod.FromSec, lod.ToSec}
+	}
 	if pq.version == Version1 {
 		args = append(args, lod.FromSec, lod.ToSec)
 	}
@@ -299,12 +308,11 @@ SETTINGS
 	return q, pointsQueryMeta{vals: cnt, tags: pq.by, minMaxHost: pq.kind != data_model.DigestKindCount, version: pq.version}, err
 }
 
-func loadPointQuery(pq *preparedPointsQuery, lod data_model.LOD, utcOffset int64) (string, pointsQueryMeta, error) {
+func loadPointQuery(pq *preparedPointsQuery, lod data_model.LOD) (string, pointsQueryMeta, error) {
 	what, cnt, err := loadPointsSelectWhat(pq)
 	if err != nil {
 		return "", pointsQueryMeta{}, err
 	}
-
 	var commaBy string
 	if len(pq.by) > 0 {
 		for i, b := range pq.by {
@@ -326,8 +334,7 @@ SELECT
   %s %s
 FROM
   %s
-WHERE
-  %s = ?
+WHERE%s
   AND time >= ? AND time < ?%s`,
 		commaBySelect,
 		what,
