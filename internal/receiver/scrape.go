@@ -439,21 +439,21 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 						})
 					}
 				}
-				// "_sum" metric
-				if count := curr.count - prev.count; count > 0 {
-					bytes := tlstatshouse.MetricBytes{
-						Name: prevH.nameS,
-						Tags: make([]tl.DictionaryFieldStringBytes, 0, len(prevH.tags)),
-					}
-					bytes.Tags = append(bytes.Tags, prevH.tags...)
-					bytes.SetCounter(count)
-					bytes.SetValue([]float64{curr.sum - prev.sum})
-					s.handler.HandleMetrics(data_model.HandlerArgs{
-						MetricBytes:    &bytes,
-						Description:    prevH.descriptionS,
-						ScrapeInterval: int(opt.interval.Seconds()),
-					})
+			}
+			// "_sum" metric
+			if curr.count > 0 {
+				bytes := tlstatshouse.MetricBytes{
+					Name: prevH.nameS,
+					Tags: make([]tl.DictionaryFieldStringBytes, 0, len(prevH.tags)),
 				}
+				bytes.Tags = append(bytes.Tags, prevH.tags...)
+				bytes.SetCounter(curr.count)
+				bytes.SetValue([]float64{curr.sum})
+				s.handler.HandleMetrics(data_model.HandlerArgs{
+					MetricBytes:    &bytes,
+					Description:    prevH.descriptionS,
+					ScrapeInterval: int(opt.interval.Seconds()),
+				})
 			}
 			prevH.series[hashSum] = curr
 		}
