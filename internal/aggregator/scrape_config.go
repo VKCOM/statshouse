@@ -234,12 +234,18 @@ func (s *scrapeConfigService) applyTargets(jobsM map[string][]*targetgroup.Group
 	// write static config
 	bytes, err := json.Marshal(res)
 	if err != nil {
-		log.Printf("failed to serialize scrape static config: %v", err)
+		log.Printf("failed to serialize scrape static config: %v\n", err)
 		return
 	}
-	_, err = s.meta.SaveScrapeStaticConfig(s.ctx, s.storage.PromConfigGenerated().Version, string(bytes))
+	newData := string(bytes)
+	current := s.storage.PromConfigGenerated()
+	if newData == current.Data {
+		log.Println("scrape static config remains unchanged")
+		return
+	}
+	_, err = s.meta.SaveScrapeStaticConfig(s.ctx, current.Version, newData)
 	if err != nil {
-		log.Printf("failed to save scrape static config: %v", err)
+		log.Printf("failed to save scrape static config: %v\n", err)
 	}
 }
 
