@@ -22,6 +22,7 @@ import (
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tl"
 	"github.com/vkcom/statshouse/internal/data_model/gen2/tlstatshouse"
 	"github.com/vkcom/statshouse/internal/format"
+	"github.com/vkcom/statshouse/internal/vkgo/srvfunc"
 )
 
 type scrape struct {
@@ -31,7 +32,7 @@ type scrape struct {
 
 type scraper struct {
 	mu         sync.Mutex
-	instance   tl.DictionaryFieldStringBytes
+	instance   string
 	options    scrapeOptions
 	handler    Handler
 	histograms map[string]*scrapeHistogram
@@ -45,6 +46,9 @@ type scraper struct {
 	// HTTP client
 	client  http.Client
 	request *http.Request
+
+	buffer bytes.Buffer
+	metric tlstatshouse.MetricBytes
 }
 
 type scrapeTarget struct {
@@ -56,16 +60,16 @@ type scrapeOptions struct {
 	interval  time.Duration
 	timeout   time.Duration
 	namespace string
-	job       tl.DictionaryFieldStringBytes
+	job       string
 }
 
 type scrapeHistogram struct {
-	nameB        []byte // "_bucket" metric full name
-	nameS        []byte // "_sum" metric full name
-	tags         []tl.DictionaryFieldStringBytes
+	nameB        string // "_bucket" metric full name
+	nameS        string // "_sum" metric full name
+	tags         []labels.Label
 	descriptionB string // "_bucket" metric description
 	descriptionS string // "_sum" metric description
-	buckets      [][]byte
+	buckets      []string
 	series       map[uint64]*scrapeHistogramSeries
 }
 
@@ -74,10 +78,6 @@ type scrapeHistogramSeries struct {
 	count  float64
 	bucket []float64
 }
-
-var jobTagName = []byte("job")
-var instanceTagName = []byte("instance")
-var bucketTagName = []byte(format.LETagName)
 
 func RunScrape(sh *agent.Agent, h Handler) {
 	s := scrape{agent: sh, handler: h}
@@ -124,7 +124,7 @@ func (s *scrape) getTargets(hash string) ([]scrapeTarget, string, error) {
 				interval:  time.Duration(v.ScrapeInterval),
 				timeout:   time.Duration(v.ScrapeTimeout),
 				namespace: namespace,
-				job:       tl.DictionaryFieldStringBytes{Key: jobTagName, Value: []byte(v.JobName)},
+				job:       v.JobName,
 			},
 		})
 	}
@@ -164,19 +164,17 @@ func (s *scrape) newScraper(t scrapeTarget) *scraper {
 	}
 	req.Header.Add("Accept", "application/openmetrics-text;version=1.0.0,application/openmetrics-text;version=0.0.1;q=0.75,text/plain;version=0.0.4;q=0.5,*/*;q=0.1")
 	req.Header.Set("User-Agent", "statshouse")
-	// build instance tag
-	instance := tl.DictionaryFieldStringBytes{Key: instanceTagName}
-	if req.URL.Port() == "" {
+	// build instance tag value
+	instance := srvfunc.HostnameForStatshouse()
+	if port := req.URL.Port(); port != "" {
+		instance += ":" + port
+	} else {
 		switch req.URL.Scheme {
 		case "http":
-			instance.Value = []byte(req.URL.Host + ":80")
+			instance += ":80"
 		case "https":
-			instance.Value = []byte(req.URL.Host + ":443")
-		default:
-			instance.Value = []byte(req.URL.Host)
+			instance += ":443"
 		}
-	} else {
-		instance.Value = []byte(req.URL.Host)
 	}
 	// create and run
 	ctx, cancel := context.WithCancel(context.Background())
@@ -266,29 +264,21 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 		_, _, v := p.Series()
 		switch metricType {
 		case textparse.MetricTypeCounter, textparse.MetricTypeGauge:
-			b := tlstatshouse.MetricBytes{
-				Tags: make([]tl.DictionaryFieldStringBytes, 0, len(l)+1),
-			}
-			b.Tags = append(b.Tags, s.options.job)
-			b.Tags = append(b.Tags, s.instance)
+			s.resetMetric(opt.job, len(l))
 			for _, v := range l {
 				if v.Name == "" {
 					continue
 				}
 				if v.Name == labels.MetricName {
-					if opt.namespace != "" {
-						b.Name = []byte(opt.namespace + format.NamespaceSeparator + v.Value)
-					} else {
-						b.Name = []byte(v.Value)
-					}
+					s.setMetricName(opt.namespace, v.Value)
 				} else {
-					b.Tags = append(b.Tags, tl.DictionaryFieldStringBytes{Key: []byte(v.Name), Value: []byte(v.Value)})
+					s.appendMetricTag(v.Name, v.Value)
 				}
 			}
-			if len(b.Name) != 0 {
-				b.SetValue([]float64{v})
+			if len(s.metric.Name) != 0 {
+				s.setMetricValue(v)
 				s.handler.HandleMetrics(data_model.HandlerArgs{
-					MetricBytes:    &b,
+					MetricBytes:    &s.metric,
 					Description:    description,
 					ScrapeInterval: int(opt.interval.Seconds()),
 				})
@@ -328,25 +318,23 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 			if prevH == nil {
 				// initialize histogram
 				prevH = &scrapeHistogram{
-					tags:         make([]tl.DictionaryFieldStringBytes, 0, len(l)+1),
+					tags:         make([]labels.Label, 0, len(l)),
 					series:       make(map[uint64]*scrapeHistogramSeries),
 					descriptionS: description,
 				}
 				if opt.namespace != "" {
-					prevH.nameB = []byte(opt.namespace + format.NamespaceSeparator + baseName + "_bucket")
-					prevH.nameS = []byte(opt.namespace + format.NamespaceSeparator + baseName + "_sum")
+					prevH.nameB = opt.namespace + format.NamespaceSeparator + baseName + "_bucket"
+					prevH.nameS = opt.namespace + format.NamespaceSeparator + baseName + "_sum"
 				} else {
-					prevH.nameB = []byte(baseName + "_bucket")
-					prevH.nameS = []byte(baseName + "_sum")
+					prevH.nameB = baseName + "_bucket"
+					prevH.nameS = baseName + "_sum"
 				}
-				prevH.tags = append(prevH.tags, s.options.job)
-				prevH.tags = append(prevH.tags, s.instance)
 				for _, v := range l {
 					switch v.Name {
 					case labels.MetricName, labels.BucketLabel:
 						// skip
 					default:
-						prevH.tags = append(prevH.tags, tl.DictionaryFieldStringBytes{Key: []byte(v.Name), Value: []byte(v.Value)})
+						prevH.tags = append(prevH.tags, v)
 					}
 				}
 				s.histograms[baseName] = prevH
@@ -411,11 +399,11 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 			sb.WriteByte(format.HistogramBucketsEndMarkC)
 			prevH.descriptionB = sb.String()
 			// encode bucket tag values
-			prevH.buckets = make([][]byte, len(currH.buckets))
+			prevH.buckets = make([]string, len(currH.buckets))
 			for i := 0; i < len(currH.buckets); i++ {
 				var bucket float64
 				if bucket, err = strconv.ParseFloat(currH.buckets[i], 32); err == nil {
-					prevH.buckets[i] = []byte(strconv.FormatInt(int64(statshouse.LexEncode(float32(bucket))), 10))
+					prevH.buckets[i] = strconv.FormatInt(int64(statshouse.LexEncode(float32(bucket))), 10)
 				}
 			}
 		}
@@ -425,15 +413,15 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 				for i := 0; i < len(prev.bucket) && i < len(curr.bucket) && i < len(prevH.buckets); i++ {
 					count := curr.bucket[i] - prev.bucket[i]
 					if count > 0 {
-						bytes := tlstatshouse.MetricBytes{
-							Name: prevH.nameB,
-							Tags: make([]tl.DictionaryFieldStringBytes, 0, len(prevH.tags)+1),
+						s.resetMetric(opt.job, len(prevH.tags)+1)
+						appendString(&s.metric.Name, prevH.nameB)
+						for _, v := range prevH.tags {
+							s.appendMetricTag(v.Name, v.Value)
 						}
-						bytes.Tags = append(bytes.Tags, prevH.tags...)
-						bytes.Tags = append(bytes.Tags, tl.DictionaryFieldStringBytes{Key: bucketTagName, Value: prevH.buckets[i]})
-						bytes.SetCounter(count)
+						s.appendMetricTag(format.LETagName, prevH.buckets[i])
+						s.metric.SetCounter(count)
 						s.handler.HandleMetrics(data_model.HandlerArgs{
-							MetricBytes:    &bytes,
+							MetricBytes:    &s.metric,
 							Description:    prevH.descriptionB,
 							ScrapeInterval: int(opt.interval.Seconds()),
 						})
@@ -442,15 +430,15 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 			}
 			// "_sum" metric
 			if curr.count > 0 {
-				bytes := tlstatshouse.MetricBytes{
-					Name: prevH.nameS,
-					Tags: make([]tl.DictionaryFieldStringBytes, 0, len(prevH.tags)),
+				s.resetMetric(opt.job, len(prevH.tags))
+				appendString(&s.metric.Name, prevH.nameS)
+				for _, v := range prevH.tags {
+					s.appendMetricTag(v.Name, v.Value)
 				}
-				bytes.Tags = append(bytes.Tags, prevH.tags...)
-				bytes.SetCounter(curr.count)
-				bytes.SetValue([]float64{curr.sum})
+				s.metric.SetCounter(curr.count)
+				s.setMetricValue(curr.sum)
 				s.handler.HandleMetrics(data_model.HandlerArgs{
-					MetricBytes:    &bytes,
+					MetricBytes:    &s.metric,
 					Description:    prevH.descriptionS,
 					ScrapeInterval: int(opt.interval.Seconds()),
 				})
@@ -479,16 +467,75 @@ func (s *scraper) readBytes(timeout time.Duration) ([]byte, string, error) {
 		return nil, "", fmt.Errorf(resp.Status)
 	}
 	// read response
-	buf := bytes.NewBuffer(make([]byte, 0, 1024))
-	_, err = io.Copy(buf, resp.Body)
+	s.buffer.Reset()
+	_, err = io.Copy(&s.buffer, resp.Body)
 	if err != nil {
 		return nil, "", err
 	}
-	return buf.Bytes(), resp.Header.Get("Content-Type"), nil
+	return s.buffer.Bytes(), resp.Header.Get("Content-Type"), nil
+}
+
+func (s *scraper) resetMetric(job string, tagsCap int) *tlstatshouse.MetricBytes {
+	s.metric.Reset()
+	tagsCap += 2 // job, instance
+	if cap(s.metric.Tags) < tagsCap {
+		s.metric.Tags = make([]tl.DictionaryFieldStringBytes, 0, tagsCap)
+	}
+	s.metric.Tags = s.metric.Tags[:2]
+	s.setMetricTagAt(0, "job", job)
+	s.setMetricTagAt(1, "instance", s.instance)
+	return &s.metric
+}
+
+func (s *scraper) setMetricName(namespace string, metricName string) {
+	n := len(metricName)
+	if namespace != "" {
+		n += len(namespace)
+		n += len(format.NamespaceSeparator)
+	}
+	if cap(s.metric.Name) < n {
+		s.metric.Name = make([]byte, n)
+	} else {
+		s.metric.Name = s.metric.Name[:n]
+	}
+	if namespace != "" {
+		n = copy(s.metric.Name, namespace)
+		n += copy(s.metric.Name[n:], format.NamespaceSeparator)
+		copy(s.metric.Name[n:], metricName)
+	} else {
+		copy(s.metric.Name, metricName)
+	}
+}
+
+func (s *scraper) setMetricValue(v float64) {
+	if cap(s.metric.Value) < 1 {
+		s.metric.Value = make([]float64, 1)
+	} else {
+		s.metric.Value = s.metric.Value[:1]
+	}
+	s.metric.Value[0] = v
+	s.metric.FieldsMask |= 1 << 1
+}
+
+func (s *scraper) appendMetricTag(name, value string) {
+	n := len(s.metric.Tags)
+	if cap(s.metric.Tags) < n+1 {
+		tags := make([]tl.DictionaryFieldStringBytes, n+1)
+		copy(tags, s.metric.Tags)
+		s.metric.Tags = tags
+	} else {
+		s.metric.Tags = s.metric.Tags[:n+1]
+	}
+	s.setMetricTagAt(n, name, value)
+}
+
+func (s *scraper) setMetricTagAt(i int, name, value string) {
+	appendString(&s.metric.Tags[i].Key, name)
+	appendString(&s.metric.Tags[i].Value, value)
 }
 
 func (s *scraper) String() string {
-	return fmt.Sprintf("URL %s, instance %s, %s", s.request.URL, s.instance.Value, s.options)
+	return fmt.Sprintf("URL %s, instance %s, %s", s.request.URL, s.instance, s.options)
 }
 
 func (t scrapeTarget) String() string {
@@ -496,5 +543,14 @@ func (t scrapeTarget) String() string {
 }
 
 func (opt scrapeOptions) String() string {
-	return fmt.Sprintf("namespace %s, job %s, interval %v, timeout %v", opt.namespace, opt.job.Value, opt.interval, opt.timeout)
+	return fmt.Sprintf("namespace %s, job %s, interval %v, timeout %v", opt.namespace, opt.job, opt.interval, opt.timeout)
+}
+
+func appendString(dst *[]byte, src string) {
+	if cap(*dst) < len(src) {
+		*dst = make([]byte, len(src))
+	} else {
+		*dst = (*dst)[:len(src)]
+	}
+	copy(*dst, src)
 }
