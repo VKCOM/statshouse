@@ -462,6 +462,9 @@ func (a *Aggregator) RowDataMarshalAppendPositions(buckets []*aggregatorBucket, 
 	res = appendSimpleValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggInsertSize, [16]int32{0, 0, 0, 0, historicTag, format.TagValueIDSizeUnique}),
 		float64(sizeUniques), 1, a.aggregatorHost, metricCache, usedTimestamps)
 
+	res = appendSimpleValueStat(res, a.aggKey(recentTime, format.BuiltinMetricIDAggContributors, [16]int32{}),
+		float64(numContributors), 1, a.aggregatorHost, metricCache, usedTimestamps)
+
 	insertTimeUnix := uint32(time.Now().Unix()) // same quality as timestamp from advanceBuckets, can be larger or smaller
 	for t := range usedTimestamps {
 		key := data_model.Key{Timestamp: insertTimeUnix, Metric: format.BuiltinMetricIDContributorsLog, Keys: [16]int32{0, int32(t)}}
