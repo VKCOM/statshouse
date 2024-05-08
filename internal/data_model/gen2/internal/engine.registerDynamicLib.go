@@ -52,19 +52,19 @@ func (item *EngineRegisterDynamicLib) WriteResult(w []byte, ret BoolStat) (_ []b
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineRegisterDynamicLib) ReadResultJSON(j interface{}, ret *BoolStat) error {
-	if err := BoolStat__ReadJSON(ret, j); err != nil {
+func (item *EngineRegisterDynamicLib) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *BoolStat) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineRegisterDynamicLib) WriteResultJSON(w []byte, ret BoolStat) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineRegisterDynamicLib) writeResultJSON(short bool, w []byte, ret BoolStat) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EngineRegisterDynamicLib) writeResultJSON(newTypeNames bool, short bool, w []byte, ret BoolStat) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -79,22 +79,19 @@ func (item *EngineRegisterDynamicLib) ReadResultWriteResultJSON(r []byte, w []by
 	return r, w, err
 }
 
-func (item *EngineRegisterDynamicLib) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineRegisterDynamicLib) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret BoolStat
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineRegisterDynamicLib) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.registerDynamicLib", err.Error())
-	}
 	var ret BoolStat
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -109,34 +106,53 @@ func (item EngineRegisterDynamicLib) String() string {
 	return string(w)
 }
 
-func EngineRegisterDynamicLib__ReadJSON(item *EngineRegisterDynamicLib, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineRegisterDynamicLib) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.registerDynamicLib", "expected json object")
+func (item *EngineRegisterDynamicLib) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propLibIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "lib_id":
+				if propLibIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.registerDynamicLib", "lib_id")
+				}
+				if err := Json2ReadString(in, &item.LibId); err != nil {
+					return err
+				}
+				propLibIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.registerDynamicLib", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jLibId := _jm["lib_id"]
-	delete(_jm, "lib_id")
-	if err := JsonReadString(_jLibId, &item.LibId); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.registerDynamicLib", k)
+	if !propLibIdPresented {
+		item.LibId = ""
 	}
 	return nil
 }
 
 func (item *EngineRegisterDynamicLib) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineRegisterDynamicLib) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineRegisterDynamicLib) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.LibId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"lib_id":`...)
-		w = basictl.JSONWriteString(w, item.LibId)
+	backupIndexLibId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"lib_id":`...)
+	w = basictl.JSONWriteString(w, item.LibId)
+	if (len(item.LibId) != 0) == false {
+		w = w[:backupIndexLibId]
 	}
 	return append(w, '}'), nil
 }
@@ -146,11 +162,7 @@ func (item *EngineRegisterDynamicLib) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineRegisterDynamicLib) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.registerDynamicLib", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.registerDynamicLib", err.Error())
 	}
 	return nil

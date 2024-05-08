@@ -70,7 +70,8 @@ type SeriesQuery struct {
 	SFilterOut []string
 
 	// Transformations
-	Range int64
+	Range     int64
+	prefixSum bool
 
 	Options Options
 }

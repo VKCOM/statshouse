@@ -82,18 +82,18 @@ func (item *StatshouseTestConnection2) WriteResult(w []byte, ret string) (_ []by
 	return basictl.StringWrite(w, ret), nil
 }
 
-func (item *StatshouseTestConnection2) ReadResultJSON(j interface{}, ret *string) error {
-	if err := JsonReadString(j, ret); err != nil {
+func (item *StatshouseTestConnection2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *string) error {
+	if err := Json2ReadString(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseTestConnection2) WriteResultJSON(w []byte, ret string) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *StatshouseTestConnection2) writeResultJSON(short bool, w []byte, ret string) (_ []byte, err error) {
+func (item *StatshouseTestConnection2) writeResultJSON(newTypeNames bool, short bool, w []byte, ret string) (_ []byte, err error) {
 	w = basictl.JSONWriteString(w, ret)
 	return w, nil
 }
@@ -107,22 +107,19 @@ func (item *StatshouseTestConnection2) ReadResultWriteResultJSON(r []byte, w []b
 	return r, w, err
 }
 
-func (item *StatshouseTestConnection2) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseTestConnection2) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret string
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *StatshouseTestConnection2) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.testConnection2", err.Error())
-	}
 	var ret string
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -137,74 +134,133 @@ func (item StatshouseTestConnection2) String() string {
 	return string(w)
 }
 
-func StatshouseTestConnection2__ReadJSON(item *StatshouseTestConnection2, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseTestConnection2) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.testConnection2", "expected json object")
+func (item *StatshouseTestConnection2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propPayloadPresented bool
+	var propResponseSizePresented bool
+	var propResponseTimeoutSecPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.testConnection2", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.testConnection2", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "payload":
+				if propPayloadPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.testConnection2", "payload")
+				}
+				if err := Json2ReadString(in, &item.Payload); err != nil {
+					return err
+				}
+				propPayloadPresented = true
+			case "response_size":
+				if propResponseSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.testConnection2", "response_size")
+				}
+				if err := Json2ReadInt32(in, &item.ResponseSize); err != nil {
+					return err
+				}
+				propResponseSizePresented = true
+			case "response_timeout_sec":
+				if propResponseTimeoutSecPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.testConnection2", "response_timeout_sec")
+				}
+				if err := Json2ReadInt32(in, &item.ResponseTimeoutSec); err != nil {
+					return err
+				}
+				propResponseTimeoutSecPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.testConnection2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propPayloadPresented {
+		item.Payload = ""
+	}
+	if !propResponseSizePresented {
+		item.ResponseSize = 0
+	}
+	if !propResponseTimeoutSecPresented {
+		item.ResponseTimeoutSec = 0
+	}
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
 	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jPayload := _jm["payload"]
-	delete(_jm, "payload")
-	if err := JsonReadString(_jPayload, &item.Payload); err != nil {
-		return err
-	}
-	_jResponseSize := _jm["response_size"]
-	delete(_jm, "response_size")
-	if err := JsonReadInt32(_jResponseSize, &item.ResponseSize); err != nil {
-		return err
-	}
-	_jResponseTimeoutSec := _jm["response_timeout_sec"]
-	delete(_jm, "response_timeout_sec")
-	if err := JsonReadInt32(_jResponseTimeoutSec, &item.ResponseTimeoutSec); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.testConnection2", k)
-	}
-	if err := StatshouseCommonProxyHeader__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
-		return err
-	}
+
 	return nil
 }
 
 func (item *StatshouseTestConnection2) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseTestConnection2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseTestConnection2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if len(item.Payload) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"payload":`...)
-		w = basictl.JSONWriteString(w, item.Payload)
+	backupIndexPayload := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"payload":`...)
+	w = basictl.JSONWriteString(w, item.Payload)
+	if (len(item.Payload) != 0) == false {
+		w = w[:backupIndexPayload]
 	}
-	if item.ResponseSize != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"response_size":`...)
-		w = basictl.JSONWriteInt32(w, item.ResponseSize)
+	backupIndexResponseSize := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"response_size":`...)
+	w = basictl.JSONWriteInt32(w, item.ResponseSize)
+	if (item.ResponseSize != 0) == false {
+		w = w[:backupIndexResponseSize]
 	}
-	if item.ResponseTimeoutSec != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"response_timeout_sec":`...)
-		w = basictl.JSONWriteInt32(w, item.ResponseTimeoutSec)
+	backupIndexResponseTimeoutSec := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"response_timeout_sec":`...)
+	w = basictl.JSONWriteInt32(w, item.ResponseTimeoutSec)
+	if (item.ResponseTimeoutSec != 0) == false {
+		w = w[:backupIndexResponseTimeoutSec]
 	}
 	return append(w, '}'), nil
 }
@@ -214,11 +270,7 @@ func (item *StatshouseTestConnection2) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseTestConnection2) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.testConnection2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.testConnection2", err.Error())
 	}
 	return nil
@@ -293,18 +345,18 @@ func (item *StatshouseTestConnection2Bytes) WriteResult(w []byte, ret []byte) (_
 	return basictl.StringWriteBytes(w, ret), nil
 }
 
-func (item *StatshouseTestConnection2Bytes) ReadResultJSON(j interface{}, ret *[]byte) error {
-	if err := JsonReadStringBytes(j, ret); err != nil {
+func (item *StatshouseTestConnection2Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *[]byte) error {
+	if err := Json2ReadStringBytes(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseTestConnection2Bytes) WriteResultJSON(w []byte, ret []byte) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *StatshouseTestConnection2Bytes) writeResultJSON(short bool, w []byte, ret []byte) (_ []byte, err error) {
+func (item *StatshouseTestConnection2Bytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret []byte) (_ []byte, err error) {
 	w = basictl.JSONWriteStringBytes(w, ret)
 	return w, nil
 }
@@ -318,22 +370,19 @@ func (item *StatshouseTestConnection2Bytes) ReadResultWriteResultJSON(r []byte, 
 	return r, w, err
 }
 
-func (item *StatshouseTestConnection2Bytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseTestConnection2Bytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret []byte
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *StatshouseTestConnection2Bytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.testConnection2", err.Error())
-	}
 	var ret []byte
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -348,74 +397,133 @@ func (item StatshouseTestConnection2Bytes) String() string {
 	return string(w)
 }
 
-func StatshouseTestConnection2Bytes__ReadJSON(item *StatshouseTestConnection2Bytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseTestConnection2Bytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.testConnection2", "expected json object")
+func (item *StatshouseTestConnection2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propPayloadPresented bool
+	var propResponseSizePresented bool
+	var propResponseTimeoutSecPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.testConnection2", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.testConnection2", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "payload":
+				if propPayloadPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.testConnection2", "payload")
+				}
+				if err := Json2ReadStringBytes(in, &item.Payload); err != nil {
+					return err
+				}
+				propPayloadPresented = true
+			case "response_size":
+				if propResponseSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.testConnection2", "response_size")
+				}
+				if err := Json2ReadInt32(in, &item.ResponseSize); err != nil {
+					return err
+				}
+				propResponseSizePresented = true
+			case "response_timeout_sec":
+				if propResponseTimeoutSecPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.testConnection2", "response_timeout_sec")
+				}
+				if err := Json2ReadInt32(in, &item.ResponseTimeoutSec); err != nil {
+					return err
+				}
+				propResponseTimeoutSecPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.testConnection2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propPayloadPresented {
+		item.Payload = item.Payload[:0]
+	}
+	if !propResponseSizePresented {
+		item.ResponseSize = 0
+	}
+	if !propResponseTimeoutSecPresented {
+		item.ResponseTimeoutSec = 0
+	}
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
 	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jPayload := _jm["payload"]
-	delete(_jm, "payload")
-	if err := JsonReadStringBytes(_jPayload, &item.Payload); err != nil {
-		return err
-	}
-	_jResponseSize := _jm["response_size"]
-	delete(_jm, "response_size")
-	if err := JsonReadInt32(_jResponseSize, &item.ResponseSize); err != nil {
-		return err
-	}
-	_jResponseTimeoutSec := _jm["response_timeout_sec"]
-	delete(_jm, "response_timeout_sec")
-	if err := JsonReadInt32(_jResponseTimeoutSec, &item.ResponseTimeoutSec); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.testConnection2", k)
-	}
-	if err := StatshouseCommonProxyHeaderBytes__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
-		return err
-	}
+
 	return nil
 }
 
 func (item *StatshouseTestConnection2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseTestConnection2Bytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseTestConnection2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if len(item.Payload) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"payload":`...)
-		w = basictl.JSONWriteStringBytes(w, item.Payload)
+	backupIndexPayload := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"payload":`...)
+	w = basictl.JSONWriteStringBytes(w, item.Payload)
+	if (len(item.Payload) != 0) == false {
+		w = w[:backupIndexPayload]
 	}
-	if item.ResponseSize != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"response_size":`...)
-		w = basictl.JSONWriteInt32(w, item.ResponseSize)
+	backupIndexResponseSize := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"response_size":`...)
+	w = basictl.JSONWriteInt32(w, item.ResponseSize)
+	if (item.ResponseSize != 0) == false {
+		w = w[:backupIndexResponseSize]
 	}
-	if item.ResponseTimeoutSec != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"response_timeout_sec":`...)
-		w = basictl.JSONWriteInt32(w, item.ResponseTimeoutSec)
+	backupIndexResponseTimeoutSec := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"response_timeout_sec":`...)
+	w = basictl.JSONWriteInt32(w, item.ResponseTimeoutSec)
+	if (item.ResponseTimeoutSec != 0) == false {
+		w = w[:backupIndexResponseTimeoutSec]
 	}
 	return append(w, '}'), nil
 }
@@ -425,11 +533,7 @@ func (item *StatshouseTestConnection2Bytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseTestConnection2Bytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.testConnection2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.testConnection2", err.Error())
 	}
 	return nil

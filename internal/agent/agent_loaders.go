@@ -140,6 +140,7 @@ func (s *Agent) LoadPromTargets(ctxParent context.Context, version string) (res 
 		PromHostName: srvfunc.Hostname(),
 		OldHash:      version,
 	}
+	args.SetGaugeMetrics(true)
 	s.loadPromTargetsShardReplica.fillProxyHeader(&args.FieldsMask, &args.Header)
 
 	var ret tlstatshouse.GetTargetsResult

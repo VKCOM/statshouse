@@ -50,46 +50,74 @@ func (item *MetadataGetJournalResponsenew) WriteBoxed(w []byte, nat_field_mask u
 	return item.Write(w, nat_field_mask)
 }
 
-func MetadataGetJournalResponsenew__ReadJSON(item *MetadataGetJournalResponsenew, j interface{}, nat_field_mask uint32) error {
-	return item.readJSON(j, nat_field_mask)
-}
-func (item *MetadataGetJournalResponsenew) readJSON(j interface{}, nat_field_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.getJournalResponsenew", "expected json object")
+func (item *MetadataGetJournalResponsenew) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
+	var propCurrentVersionPresented bool
+	var propEventsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "current_version":
+				if propCurrentVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "current_version")
+				}
+				if err := Json2ReadInt64(in, &item.CurrentVersion); err != nil {
+					return err
+				}
+				propCurrentVersionPresented = true
+			case "events":
+				if propEventsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "events")
+				}
+				if err := BuiltinVectorMetadataEventReadJSON(legacyTypeNames, in, &item.Events); err != nil {
+					return err
+				}
+				propEventsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.getJournalResponsenew", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jCurrentVersion := _jm["current_version"]
-	delete(_jm, "current_version")
-	if err := JsonReadInt64(_jCurrentVersion, &item.CurrentVersion); err != nil {
-		return err
+	if !propCurrentVersionPresented {
+		item.CurrentVersion = 0
 	}
-	_jEvents := _jm["events"]
-	delete(_jm, "events")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.getJournalResponsenew", k)
-	}
-	if err := BuiltinVectorMetadataEventReadJSON(_jEvents, &item.Events); err != nil {
-		return err
+	if !propEventsPresented {
+		item.Events = item.Events[:0]
 	}
 	return nil
 }
 
 func (item *MetadataGetJournalResponsenew) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_field_mask)
+	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetJournalResponsenew) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetJournalResponsenew) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.CurrentVersion != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"current_version":`...)
-		w = basictl.JSONWriteInt64(w, item.CurrentVersion)
+	backupIndexCurrentVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"current_version":`...)
+	w = basictl.JSONWriteInt64(w, item.CurrentVersion)
+	if (item.CurrentVersion != 0) == false {
+		w = w[:backupIndexCurrentVersion]
 	}
-	if len(item.Events) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"events":`...)
-		if w, err = BuiltinVectorMetadataEventWriteJSONOpt(short, w, item.Events); err != nil {
-			return w, err
-		}
+	backupIndexEvents := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"events":`...)
+	if w, err = BuiltinVectorMetadataEventWriteJSONOpt(newTypeNames, short, w, item.Events); err != nil {
+		return w, err
+	}
+	if (len(item.Events) != 0) == false {
+		w = w[:backupIndexEvents]
 	}
 	return append(w, '}'), nil
 }
@@ -131,46 +159,74 @@ func (item *MetadataGetJournalResponsenewBytes) WriteBoxed(w []byte, nat_field_m
 	return item.Write(w, nat_field_mask)
 }
 
-func MetadataGetJournalResponsenewBytes__ReadJSON(item *MetadataGetJournalResponsenewBytes, j interface{}, nat_field_mask uint32) error {
-	return item.readJSON(j, nat_field_mask)
-}
-func (item *MetadataGetJournalResponsenewBytes) readJSON(j interface{}, nat_field_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.getJournalResponsenew", "expected json object")
+func (item *MetadataGetJournalResponsenewBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
+	var propCurrentVersionPresented bool
+	var propEventsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "current_version":
+				if propCurrentVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "current_version")
+				}
+				if err := Json2ReadInt64(in, &item.CurrentVersion); err != nil {
+					return err
+				}
+				propCurrentVersionPresented = true
+			case "events":
+				if propEventsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getJournalResponsenew", "events")
+				}
+				if err := BuiltinVectorMetadataEventBytesReadJSON(legacyTypeNames, in, &item.Events); err != nil {
+					return err
+				}
+				propEventsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.getJournalResponsenew", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jCurrentVersion := _jm["current_version"]
-	delete(_jm, "current_version")
-	if err := JsonReadInt64(_jCurrentVersion, &item.CurrentVersion); err != nil {
-		return err
+	if !propCurrentVersionPresented {
+		item.CurrentVersion = 0
 	}
-	_jEvents := _jm["events"]
-	delete(_jm, "events")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.getJournalResponsenew", k)
-	}
-	if err := BuiltinVectorMetadataEventBytesReadJSON(_jEvents, &item.Events); err != nil {
-		return err
+	if !propEventsPresented {
+		item.Events = item.Events[:0]
 	}
 	return nil
 }
 
 func (item *MetadataGetJournalResponsenewBytes) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_field_mask)
+	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataGetJournalResponsenewBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.CurrentVersion != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"current_version":`...)
-		w = basictl.JSONWriteInt64(w, item.CurrentVersion)
+	backupIndexCurrentVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"current_version":`...)
+	w = basictl.JSONWriteInt64(w, item.CurrentVersion)
+	if (item.CurrentVersion != 0) == false {
+		w = w[:backupIndexCurrentVersion]
 	}
-	if len(item.Events) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"events":`...)
-		if w, err = BuiltinVectorMetadataEventBytesWriteJSONOpt(short, w, item.Events); err != nil {
-			return w, err
-		}
+	backupIndexEvents := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"events":`...)
+	if w, err = BuiltinVectorMetadataEventBytesWriteJSONOpt(newTypeNames, short, w, item.Events); err != nil {
+		return w, err
+	}
+	if (len(item.Events) != 0) == false {
+		w = w[:backupIndexEvents]
 	}
 	return append(w, '}'), nil
 }

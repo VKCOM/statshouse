@@ -64,19 +64,19 @@ func (item *StatshouseApiReleaseChunks) WriteResult(w []byte, ret StatshouseApiR
 	return ret.WriteBoxed(w)
 }
 
-func (item *StatshouseApiReleaseChunks) ReadResultJSON(j interface{}, ret *StatshouseApiReleaseChunksResponse) error {
-	if err := StatshouseApiReleaseChunksResponse__ReadJSON(ret, j); err != nil {
+func (item *StatshouseApiReleaseChunks) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseApiReleaseChunksResponse) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseApiReleaseChunks) WriteResultJSON(w []byte, ret StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *StatshouseApiReleaseChunks) writeResultJSON(short bool, w []byte, ret StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *StatshouseApiReleaseChunks) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseApiReleaseChunksResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -91,22 +91,19 @@ func (item *StatshouseApiReleaseChunks) ReadResultWriteResultJSON(r []byte, w []
 	return r, w, err
 }
 
-func (item *StatshouseApiReleaseChunks) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseApiReleaseChunks) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseApiReleaseChunksResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *StatshouseApiReleaseChunks) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouseApi.releaseChunks", err.Error())
-	}
 	var ret StatshouseApiReleaseChunksResponse
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -121,54 +118,91 @@ func (item StatshouseApiReleaseChunks) String() string {
 	return string(w)
 }
 
-func StatshouseApiReleaseChunks__ReadJSON(item *StatshouseApiReleaseChunks, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiReleaseChunks) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.releaseChunks", "expected json object")
+func (item *StatshouseApiReleaseChunks) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propAccessTokenPresented bool
+	var propResponseIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.releaseChunks", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "access_token":
+				if propAccessTokenPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.releaseChunks", "access_token")
+				}
+				if err := Json2ReadString(in, &item.AccessToken); err != nil {
+					return err
+				}
+				propAccessTokenPresented = true
+			case "response_id":
+				if propResponseIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.releaseChunks", "response_id")
+				}
+				if err := Json2ReadInt64(in, &item.ResponseId); err != nil {
+					return err
+				}
+				propResponseIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.releaseChunks", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jAccessToken := _jm["access_token"]
-	delete(_jm, "access_token")
-	if err := JsonReadString(_jAccessToken, &item.AccessToken); err != nil {
-		return err
+	if !propAccessTokenPresented {
+		item.AccessToken = ""
 	}
-	_jResponseId := _jm["response_id"]
-	delete(_jm, "response_id")
-	if err := JsonReadInt64(_jResponseId, &item.ResponseId); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.releaseChunks", k)
+	if !propResponseIdPresented {
+		item.ResponseId = 0
 	}
 	return nil
 }
 
 func (item *StatshouseApiReleaseChunks) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiReleaseChunks) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiReleaseChunks) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.AccessToken) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"access_token":`...)
-		w = basictl.JSONWriteString(w, item.AccessToken)
+	backupIndexAccessToken := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"access_token":`...)
+	w = basictl.JSONWriteString(w, item.AccessToken)
+	if (len(item.AccessToken) != 0) == false {
+		w = w[:backupIndexAccessToken]
 	}
-	if item.ResponseId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"response_id":`...)
-		w = basictl.JSONWriteInt64(w, item.ResponseId)
+	backupIndexResponseId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"response_id":`...)
+	w = basictl.JSONWriteInt64(w, item.ResponseId)
+	if (item.ResponseId != 0) == false {
+		w = w[:backupIndexResponseId]
 	}
 	return append(w, '}'), nil
 }
@@ -178,11 +212,7 @@ func (item *StatshouseApiReleaseChunks) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiReleaseChunks) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.releaseChunks", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.releaseChunks", err.Error())
 	}
 	return nil

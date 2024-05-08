@@ -49,19 +49,19 @@ func (item *EngineGetBinlogPrefixes) WriteResult(w []byte, ret []EngineBinlogPre
 	return BuiltinVectorEngineBinlogPrefixWrite(w, ret)
 }
 
-func (item *EngineGetBinlogPrefixes) ReadResultJSON(j interface{}, ret *[]EngineBinlogPrefix) error {
-	if err := BuiltinVectorEngineBinlogPrefixReadJSON(j, ret); err != nil {
+func (item *EngineGetBinlogPrefixes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *[]EngineBinlogPrefix) error {
+	if err := BuiltinVectorEngineBinlogPrefixReadJSON(legacyTypeNames, in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineGetBinlogPrefixes) WriteResultJSON(w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineGetBinlogPrefixes) writeResultJSON(short bool, w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
-	if w, err = BuiltinVectorEngineBinlogPrefixWriteJSONOpt(short, w, ret); err != nil {
+func (item *EngineGetBinlogPrefixes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret []EngineBinlogPrefix) (_ []byte, err error) {
+	if w, err = BuiltinVectorEngineBinlogPrefixWriteJSONOpt(newTypeNames, short, w, ret); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -76,22 +76,19 @@ func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSON(r []byte, w []byt
 	return r, w, err
 }
 
-func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineGetBinlogPrefixes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret []EngineBinlogPrefix
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineGetBinlogPrefixes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.getBinlogPrefixes", err.Error())
-	}
 	var ret []EngineBinlogPrefix
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -106,24 +103,27 @@ func (item EngineGetBinlogPrefixes) String() string {
 	return string(w)
 }
 
-func EngineGetBinlogPrefixes__ReadJSON(item *EngineGetBinlogPrefixes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineGetBinlogPrefixes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.getBinlogPrefixes", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.getBinlogPrefixes", k)
+func (item *EngineGetBinlogPrefixes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.getBinlogPrefixes", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineGetBinlogPrefixes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineGetBinlogPrefixes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineGetBinlogPrefixes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -133,11 +133,7 @@ func (item *EngineGetBinlogPrefixes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineGetBinlogPrefixes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.getBinlogPrefixes", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.getBinlogPrefixes", err.Error())
 	}
 	return nil

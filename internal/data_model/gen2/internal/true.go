@@ -45,22 +45,27 @@ func (item True) String() string {
 	return string(w)
 }
 
-func True__ReadJSON(item *True, j interface{}) error { return item.readJSON(j) }
-func (item *True) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("true", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("true", k)
+func (item *True) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("true", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *True) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *True) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *True) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -70,11 +75,7 @@ func (item *True) MarshalJSON() ([]byte, error) {
 }
 
 func (item *True) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("true", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("true", err.Error())
 	}
 	return nil

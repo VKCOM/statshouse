@@ -45,19 +45,19 @@ func (item *EngineCount) WriteResult(w []byte, ret BoolStat) (_ []byte, err erro
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineCount) ReadResultJSON(j interface{}, ret *BoolStat) error {
-	if err := BoolStat__ReadJSON(ret, j); err != nil {
+func (item *EngineCount) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *BoolStat) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineCount) WriteResultJSON(w []byte, ret BoolStat) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineCount) writeResultJSON(short bool, w []byte, ret BoolStat) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EngineCount) writeResultJSON(newTypeNames bool, short bool, w []byte, ret BoolStat) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -72,22 +72,19 @@ func (item *EngineCount) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte
 	return r, w, err
 }
 
-func (item *EngineCount) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineCount) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret BoolStat
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineCount) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.count", err.Error())
-	}
 	var ret BoolStat
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -102,22 +99,27 @@ func (item EngineCount) String() string {
 	return string(w)
 }
 
-func EngineCount__ReadJSON(item *EngineCount, j interface{}) error { return item.readJSON(j) }
-func (item *EngineCount) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.count", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.count", k)
+func (item *EngineCount) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.count", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineCount) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineCount) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineCount) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -127,11 +129,7 @@ func (item *EngineCount) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineCount) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.count", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.count", err.Error())
 	}
 	return nil

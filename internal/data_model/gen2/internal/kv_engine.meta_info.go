@@ -58,42 +58,72 @@ func (item KvEngineMetaInfo) String() string {
 	return string(w)
 }
 
-func KvEngineMetaInfo__ReadJSON(item *KvEngineMetaInfo, j interface{}) error { return item.readJSON(j) }
-func (item *KvEngineMetaInfo) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("kv_engine.meta_info", "expected json object")
+func (item *KvEngineMetaInfo) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propDbOffsetPresented bool
+	var propCommittedOffsetPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "db_offset":
+				if propDbOffsetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("kv_engine.meta_info", "db_offset")
+				}
+				if err := Json2ReadInt64(in, &item.DbOffset); err != nil {
+					return err
+				}
+				propDbOffsetPresented = true
+			case "committed_offset":
+				if propCommittedOffsetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("kv_engine.meta_info", "committed_offset")
+				}
+				if err := Json2ReadInt64(in, &item.CommittedOffset); err != nil {
+					return err
+				}
+				propCommittedOffsetPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("kv_engine.meta_info", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jDbOffset := _jm["db_offset"]
-	delete(_jm, "db_offset")
-	if err := JsonReadInt64(_jDbOffset, &item.DbOffset); err != nil {
-		return err
+	if !propDbOffsetPresented {
+		item.DbOffset = 0
 	}
-	_jCommittedOffset := _jm["committed_offset"]
-	delete(_jm, "committed_offset")
-	if err := JsonReadInt64(_jCommittedOffset, &item.CommittedOffset); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("kv_engine.meta_info", k)
+	if !propCommittedOffsetPresented {
+		item.CommittedOffset = 0
 	}
 	return nil
 }
 
 func (item *KvEngineMetaInfo) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *KvEngineMetaInfo) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *KvEngineMetaInfo) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.DbOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"db_offset":`...)
-		w = basictl.JSONWriteInt64(w, item.DbOffset)
+	backupIndexDbOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"db_offset":`...)
+	w = basictl.JSONWriteInt64(w, item.DbOffset)
+	if (item.DbOffset != 0) == false {
+		w = w[:backupIndexDbOffset]
 	}
-	if item.CommittedOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"committed_offset":`...)
-		w = basictl.JSONWriteInt64(w, item.CommittedOffset)
+	backupIndexCommittedOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"committed_offset":`...)
+	w = basictl.JSONWriteInt64(w, item.CommittedOffset)
+	if (item.CommittedOffset != 0) == false {
+		w = w[:backupIndexCommittedOffset]
 	}
 	return append(w, '}'), nil
 }
@@ -103,11 +133,7 @@ func (item *KvEngineMetaInfo) MarshalJSON() ([]byte, error) {
 }
 
 func (item *KvEngineMetaInfo) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("kv_engine.meta_info", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("kv_engine.meta_info", err.Error())
 	}
 	return nil

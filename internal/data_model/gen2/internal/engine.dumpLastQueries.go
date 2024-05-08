@@ -45,19 +45,19 @@ func (item *EngineDumpLastQueries) WriteResult(w []byte, ret True) (_ []byte, er
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineDumpLastQueries) ReadResultJSON(j interface{}, ret *True) error {
-	if err := True__ReadJSON(ret, j); err != nil {
+func (item *EngineDumpLastQueries) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineDumpLastQueries) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineDumpLastQueries) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EngineDumpLastQueries) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -72,22 +72,19 @@ func (item *EngineDumpLastQueries) ReadResultWriteResultJSON(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item *EngineDumpLastQueries) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineDumpLastQueries) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineDumpLastQueries) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.dumpLastQueries", err.Error())
-	}
 	var ret True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -102,24 +99,27 @@ func (item EngineDumpLastQueries) String() string {
 	return string(w)
 }
 
-func EngineDumpLastQueries__ReadJSON(item *EngineDumpLastQueries, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineDumpLastQueries) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.dumpLastQueries", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.dumpLastQueries", k)
+func (item *EngineDumpLastQueries) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.dumpLastQueries", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineDumpLastQueries) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineDumpLastQueries) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineDumpLastQueries) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -129,11 +129,7 @@ func (item *EngineDumpLastQueries) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineDumpLastQueries) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.dumpLastQueries", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.dumpLastQueries", err.Error())
 	}
 	return nil

@@ -42,28 +42,38 @@ func BuiltinVectorStringWrite(w []byte, vec []string) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorStringReadJSON(j interface{}, vec *[]string) error {
-	l, _arr, err := JsonReadArray("[]string", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]string, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := JsonReadString(_arr[i], &(*vec)[i]); err != nil {
-			return err
+func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]string) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]string", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue string
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := Json2ReadString(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]string", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorStringWriteJSON(w []byte, vec []string) (_ []byte, err error) {
-	return BuiltinVectorStringWriteJSONOpt(false, w, vec)
+	return BuiltinVectorStringWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStringWriteJSONOpt(short bool, w []byte, vec []string) (_ []byte, err error) {
+func BuiltinVectorStringWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []string) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -101,28 +111,38 @@ func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) (_ []byte, err error)
 	return w, nil
 }
 
-func BuiltinVectorStringBytesReadJSON(j interface{}, vec *[][]byte) error {
-	l, _arr, err := JsonReadArray("[][]byte", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([][]byte, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := JsonReadStringBytes(_arr[i], &(*vec)[i]); err != nil {
-			return err
+func BuiltinVectorStringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[][]byte) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[][]byte", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue []byte
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := Json2ReadStringBytes(in, &(*vec)[index]); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[][]byte", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorStringBytesWriteJSON(w []byte, vec [][]byte) (_ []byte, err error) {
-	return BuiltinVectorStringBytesWriteJSONOpt(false, w, vec)
+	return BuiltinVectorStringBytesWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStringBytesWriteJSONOpt(short bool, w []byte, vec [][]byte) (_ []byte, err error) {
+func BuiltinVectorStringBytesWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec [][]byte) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -171,20 +191,19 @@ func (item String) String() string {
 	return string(w)
 }
 
-func String__ReadJSON(item *String, j interface{}) error { return item.readJSON(j) }
-func (item *String) readJSON(j interface{}) error {
+func (item *String) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*string)(item)
-	if err := JsonReadString(j, ptr); err != nil {
+	if err := Json2ReadString(in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *String) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
 
-func (item *String) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *String) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	ptr := (*string)(item)
 	w = basictl.JSONWriteString(w, *ptr)
 	return w, nil
@@ -194,11 +213,7 @@ func (item *String) MarshalJSON() ([]byte, error) {
 }
 
 func (item *String) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("string", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("string", err.Error())
 	}
 	return nil
@@ -244,20 +259,19 @@ func (item StringBytes) String() string {
 	return string(w)
 }
 
-func StringBytes__ReadJSON(item *StringBytes, j interface{}) error { return item.readJSON(j) }
-func (item *StringBytes) readJSON(j interface{}) error {
+func (item *StringBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*[]byte)(item)
-	if err := JsonReadStringBytes(j, ptr); err != nil {
+	if err := Json2ReadStringBytes(in, ptr); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StringBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
 
-func (item *StringBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StringBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	ptr := (*[]byte)(item)
 	w = basictl.JSONWriteStringBytes(w, *ptr)
 	return w, nil
@@ -267,11 +281,7 @@ func (item *StringBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StringBytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("string", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("string", err.Error())
 	}
 	return nil

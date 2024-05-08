@@ -242,241 +242,387 @@ func (item StatshouseApiQuery) String() string {
 	return string(w)
 }
 
-func StatshouseApiQuery__ReadJSON(item *StatshouseApiQuery, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiQuery) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.query", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jVersion := _jm["version"]
-	delete(_jm, "version")
-	if err := JsonReadInt32(_jVersion, &item.Version); err != nil {
-		return err
-	}
-	_jTopN := _jm["top_n"]
-	delete(_jm, "top_n")
-	if err := JsonReadInt32(_jTopN, &item.TopN); err != nil {
-		return err
-	}
-	_jMetricName := _jm["metric_name"]
-	delete(_jm, "metric_name")
-	if err := JsonReadString(_jMetricName, &item.MetricName); err != nil {
-		return err
-	}
-	_jTimeFrom := _jm["time_from"]
-	delete(_jm, "time_from")
-	if err := JsonReadInt64(_jTimeFrom, &item.TimeFrom); err != nil {
-		return err
-	}
-	_jTimeTo := _jm["time_to"]
-	delete(_jm, "time_to")
-	if err := JsonReadInt64(_jTimeTo, &item.TimeTo); err != nil {
-		return err
-	}
-	_jInterval := _jm["interval"]
-	delete(_jm, "interval")
-	if err := JsonReadString(_jInterval, &item.Interval); err != nil {
-		return err
-	}
-	_jFunction := _jm["function"]
-	delete(_jm, "function")
-	_jGroupBy := _jm["group_by"]
-	delete(_jm, "group_by")
-	_jFilter := _jm["filter"]
-	delete(_jm, "filter")
-	_jTimeShift := _jm["time_shift"]
-	delete(_jm, "time_shift")
-	_jPromql := _jm["promql"]
-	delete(_jm, "promql")
-	_jWhat := _jm["what"]
-	delete(_jm, "what")
-	_jExcessPointsFlag := _jm["excess_points_flag"]
-	delete(_jm, "excess_points_flag")
-	_jWidthAgg := _jm["widthAgg"]
-	delete(_jm, "widthAgg")
-	_jNameFlag := _jm["name_flag"]
-	delete(_jm, "name_flag")
-	_jColorFlag := _jm["color_flag"]
-	delete(_jm, "color_flag")
-	_jTotalFlag := _jm["total_flag"]
-	delete(_jm, "total_flag")
-	_jMaxHostFlag := _jm["max_host_flag"]
-	delete(_jm, "max_host_flag")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.query", k)
-	}
-	if _jPromql != nil {
-		item.FieldsMask |= 1 << 0
-	}
-	if _jWhat != nil {
-		item.FieldsMask |= 1 << 1
-	}
-	if _jExcessPointsFlag != nil {
-		_bit := false
-		if err := JsonReadBool(_jExcessPointsFlag, &_bit); err != nil {
-			return err
+func (item *StatshouseApiQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propVersionPresented bool
+	var propTopNPresented bool
+	var propMetricNamePresented bool
+	var propTimeFromPresented bool
+	var propTimeToPresented bool
+	var propIntervalPresented bool
+	var propFunctionPresented bool
+	var propGroupByPresented bool
+	var propFilterPresented bool
+	var propTimeShiftPresented bool
+	var propPromqlPresented bool
+	var propWhatPresented bool
+	var trueTypeExcessPointsFlagPresented bool
+	var trueTypeExcessPointsFlagValue bool
+	var propWidthAggPresented bool
+	var trueTypeNameFlagPresented bool
+	var trueTypeNameFlagValue bool
+	var trueTypeColorFlagPresented bool
+	var trueTypeColorFlagValue bool
+	var trueTypeTotalFlagPresented bool
+	var trueTypeTotalFlagValue bool
+	var trueTypeMaxHostFlagPresented bool
+	var trueTypeMaxHostFlagValue bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
-			item.FieldsMask |= 1 << 2
-		} else {
-			item.FieldsMask &^= 1 << 2
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "version":
+				if propVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "version")
+				}
+				if err := Json2ReadInt32(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
+			case "top_n":
+				if propTopNPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "top_n")
+				}
+				if err := Json2ReadInt32(in, &item.TopN); err != nil {
+					return err
+				}
+				propTopNPresented = true
+			case "metric_name":
+				if propMetricNamePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "metric_name")
+				}
+				if err := Json2ReadString(in, &item.MetricName); err != nil {
+					return err
+				}
+				propMetricNamePresented = true
+			case "time_from":
+				if propTimeFromPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "time_from")
+				}
+				if err := Json2ReadInt64(in, &item.TimeFrom); err != nil {
+					return err
+				}
+				propTimeFromPresented = true
+			case "time_to":
+				if propTimeToPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "time_to")
+				}
+				if err := Json2ReadInt64(in, &item.TimeTo); err != nil {
+					return err
+				}
+				propTimeToPresented = true
+			case "interval":
+				if propIntervalPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "interval")
+				}
+				if err := Json2ReadString(in, &item.Interval); err != nil {
+					return err
+				}
+				propIntervalPresented = true
+			case "function":
+				if propFunctionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "function")
+				}
+				if err := item.Function.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propFunctionPresented = true
+			case "group_by":
+				if propGroupByPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "group_by")
+				}
+				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.GroupBy); err != nil {
+					return err
+				}
+				propGroupByPresented = true
+			case "filter":
+				if propFilterPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "filter")
+				}
+				if err := BuiltinVectorStatshouseApiFilterReadJSON(legacyTypeNames, in, &item.Filter); err != nil {
+					return err
+				}
+				propFilterPresented = true
+			case "time_shift":
+				if propTimeShiftPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "time_shift")
+				}
+				if err := BuiltinVectorLongReadJSON(legacyTypeNames, in, &item.TimeShift); err != nil {
+					return err
+				}
+				propTimeShiftPresented = true
+			case "promql":
+				if propPromqlPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "promql")
+				}
+				if err := Json2ReadString(in, &item.Promql); err != nil {
+					return err
+				}
+				propPromqlPresented = true
+			case "what":
+				if propWhatPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "what")
+				}
+				if err := BuiltinVectorStatshouseApiFunctionReadJSON(legacyTypeNames, in, &item.What); err != nil {
+					return err
+				}
+				propWhatPresented = true
+			case "excess_points_flag":
+				if trueTypeExcessPointsFlagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "excess_points_flag")
+				}
+				if err := Json2ReadBool(in, &trueTypeExcessPointsFlagValue); err != nil {
+					return err
+				}
+				trueTypeExcessPointsFlagPresented = true
+			case "widthAgg":
+				if propWidthAggPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "widthAgg")
+				}
+				if err := Json2ReadString(in, &item.WidthAgg); err != nil {
+					return err
+				}
+				propWidthAggPresented = true
+			case "name_flag":
+				if trueTypeNameFlagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "name_flag")
+				}
+				if err := Json2ReadBool(in, &trueTypeNameFlagValue); err != nil {
+					return err
+				}
+				trueTypeNameFlagPresented = true
+			case "color_flag":
+				if trueTypeColorFlagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "color_flag")
+				}
+				if err := Json2ReadBool(in, &trueTypeColorFlagValue); err != nil {
+					return err
+				}
+				trueTypeColorFlagPresented = true
+			case "total_flag":
+				if trueTypeTotalFlagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "total_flag")
+				}
+				if err := Json2ReadBool(in, &trueTypeTotalFlagValue); err != nil {
+					return err
+				}
+				trueTypeTotalFlagPresented = true
+			case "max_host_flag":
+				if trueTypeMaxHostFlagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.query", "max_host_flag")
+				}
+				if err := Json2ReadBool(in, &trueTypeMaxHostFlagValue); err != nil {
+					return err
+				}
+				trueTypeMaxHostFlagPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.query", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
 		}
 	}
-	if _jWidthAgg != nil {
-		item.FieldsMask |= 1 << 3
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	if _jNameFlag != nil {
-		_bit := false
-		if err := JsonReadBool(_jNameFlag, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 4
-		} else {
-			item.FieldsMask &^= 1 << 4
-		}
+	if !propVersionPresented {
+		item.Version = 0
 	}
-	if _jColorFlag != nil {
-		_bit := false
-		if err := JsonReadBool(_jColorFlag, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 5
-		} else {
-			item.FieldsMask &^= 1 << 5
-		}
+	if !propTopNPresented {
+		item.TopN = 0
 	}
-	if _jTotalFlag != nil {
-		_bit := false
-		if err := JsonReadBool(_jTotalFlag, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 6
-		} else {
-			item.FieldsMask &^= 1 << 6
-		}
+	if !propMetricNamePresented {
+		item.MetricName = ""
 	}
-	if _jMaxHostFlag != nil {
-		_bit := false
-		if err := JsonReadBool(_jMaxHostFlag, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 7
-		} else {
-			item.FieldsMask &^= 1 << 7
-		}
+	if !propTimeFromPresented {
+		item.TimeFrom = 0
 	}
-	if err := StatshouseApiFunction__ReadJSON(&item.Function, _jFunction); err != nil {
-		return err
+	if !propTimeToPresented {
+		item.TimeTo = 0
 	}
-	if err := BuiltinVectorStringReadJSON(_jGroupBy, &item.GroupBy); err != nil {
-		return err
+	if !propIntervalPresented {
+		item.Interval = ""
 	}
-	if err := BuiltinVectorStatshouseApiFilterReadJSON(_jFilter, &item.Filter); err != nil {
-		return err
+	if !propFunctionPresented {
+		item.Function.Reset()
 	}
-	if err := BuiltinVectorLongReadJSON(_jTimeShift, &item.TimeShift); err != nil {
-		return err
+	if !propGroupByPresented {
+		item.GroupBy = item.GroupBy[:0]
 	}
-	if _jPromql != nil {
-		if err := JsonReadString(_jPromql, &item.Promql); err != nil {
-			return err
-		}
-	} else {
+	if !propFilterPresented {
+		item.Filter = item.Filter[:0]
+	}
+	if !propTimeShiftPresented {
+		item.TimeShift = item.TimeShift[:0]
+	}
+	if !propPromqlPresented {
 		item.Promql = ""
 	}
-	if _jWhat != nil {
-		if err := BuiltinVectorStatshouseApiFunctionReadJSON(_jWhat, &item.What); err != nil {
-			return err
-		}
-	} else {
+	if !propWhatPresented {
 		item.What = item.What[:0]
 	}
-	if _jWidthAgg != nil {
-		if err := JsonReadString(_jWidthAgg, &item.WidthAgg); err != nil {
-			return err
-		}
-	} else {
+	if !propWidthAggPresented {
 		item.WidthAgg = ""
+	}
+	if propPromqlPresented {
+		item.FieldsMask |= 1 << 0
+	}
+	if propWhatPresented {
+		item.FieldsMask |= 1 << 1
+	}
+	if trueTypeExcessPointsFlagPresented {
+		if trueTypeExcessPointsFlagValue {
+			item.FieldsMask |= 1 << 2
+		}
+	}
+	if propWidthAggPresented {
+		item.FieldsMask |= 1 << 3
+	}
+	if trueTypeNameFlagPresented {
+		if trueTypeNameFlagValue {
+			item.FieldsMask |= 1 << 4
+		}
+	}
+	if trueTypeColorFlagPresented {
+		if trueTypeColorFlagValue {
+			item.FieldsMask |= 1 << 5
+		}
+	}
+	if trueTypeTotalFlagPresented {
+		if trueTypeTotalFlagValue {
+			item.FieldsMask |= 1 << 6
+		}
+	}
+	if trueTypeMaxHostFlagPresented {
+		if trueTypeMaxHostFlagValue {
+			item.FieldsMask |= 1 << 7
+		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeExcessPointsFlagPresented && !trueTypeExcessPointsFlagValue && (item.FieldsMask&(1<<2) != 0) {
+		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeNameFlagPresented && !trueTypeNameFlagValue && (item.FieldsMask&(1<<4) != 0) {
+		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeColorFlagPresented && !trueTypeColorFlagValue && (item.FieldsMask&(1<<5) != 0) {
+		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeTotalFlagPresented && !trueTypeTotalFlagValue && (item.FieldsMask&(1<<6) != 0) {
+		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeMaxHostFlagPresented && !trueTypeMaxHostFlagValue && (item.FieldsMask&(1<<7) != 0) {
+		return ErrorInvalidJSON("statshouseApi.query", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 func (item *StatshouseApiQuery) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiQuery) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiQuery) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.Version != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"version":`...)
-		w = basictl.JSONWriteInt32(w, item.Version)
+	backupIndexVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"version":`...)
+	w = basictl.JSONWriteInt32(w, item.Version)
+	if (item.Version != 0) == false {
+		w = w[:backupIndexVersion]
 	}
-	if item.TopN != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"top_n":`...)
-		w = basictl.JSONWriteInt32(w, item.TopN)
+	backupIndexTopN := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"top_n":`...)
+	w = basictl.JSONWriteInt32(w, item.TopN)
+	if (item.TopN != 0) == false {
+		w = w[:backupIndexTopN]
 	}
-	if len(item.MetricName) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric_name":`...)
-		w = basictl.JSONWriteString(w, item.MetricName)
+	backupIndexMetricName := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric_name":`...)
+	w = basictl.JSONWriteString(w, item.MetricName)
+	if (len(item.MetricName) != 0) == false {
+		w = w[:backupIndexMetricName]
 	}
-	if item.TimeFrom != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time_from":`...)
-		w = basictl.JSONWriteInt64(w, item.TimeFrom)
+	backupIndexTimeFrom := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time_from":`...)
+	w = basictl.JSONWriteInt64(w, item.TimeFrom)
+	if (item.TimeFrom != 0) == false {
+		w = w[:backupIndexTimeFrom]
 	}
-	if item.TimeTo != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time_to":`...)
-		w = basictl.JSONWriteInt64(w, item.TimeTo)
+	backupIndexTimeTo := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time_to":`...)
+	w = basictl.JSONWriteInt64(w, item.TimeTo)
+	if (item.TimeTo != 0) == false {
+		w = w[:backupIndexTimeTo]
 	}
-	if len(item.Interval) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"interval":`...)
-		w = basictl.JSONWriteString(w, item.Interval)
+	backupIndexInterval := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"interval":`...)
+	w = basictl.JSONWriteString(w, item.Interval)
+	if (len(item.Interval) != 0) == false {
+		w = w[:backupIndexInterval]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"function":`...)
-	if w, err = item.Function.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Function.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
-	if len(item.GroupBy) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"group_by":`...)
-		if w, err = BuiltinVectorStringWriteJSONOpt(short, w, item.GroupBy); err != nil {
-			return w, err
-		}
+	backupIndexGroupBy := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"group_by":`...)
+	if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.GroupBy); err != nil {
+		return w, err
 	}
-	if len(item.Filter) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"filter":`...)
-		if w, err = BuiltinVectorStatshouseApiFilterWriteJSONOpt(short, w, item.Filter); err != nil {
-			return w, err
-		}
+	if (len(item.GroupBy) != 0) == false {
+		w = w[:backupIndexGroupBy]
 	}
-	if len(item.TimeShift) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time_shift":`...)
-		if w, err = BuiltinVectorLongWriteJSONOpt(short, w, item.TimeShift); err != nil {
-			return w, err
-		}
+	backupIndexFilter := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"filter":`...)
+	if w, err = BuiltinVectorStatshouseApiFilterWriteJSONOpt(newTypeNames, short, w, item.Filter); err != nil {
+		return w, err
+	}
+	if (len(item.Filter) != 0) == false {
+		w = w[:backupIndexFilter]
+	}
+	backupIndexTimeShift := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time_shift":`...)
+	if w, err = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.TimeShift); err != nil {
+		return w, err
+	}
+	if (len(item.TimeShift) != 0) == false {
+		w = w[:backupIndexTimeShift]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -486,7 +632,7 @@ func (item *StatshouseApiQuery) WriteJSONOpt(short bool, w []byte) (_ []byte, er
 	if item.FieldsMask&(1<<1) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"what":`...)
-		if w, err = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(short, w, item.What); err != nil {
+		if w, err = BuiltinVectorStatshouseApiFunctionWriteJSONOpt(newTypeNames, short, w, item.What); err != nil {
 			return w, err
 		}
 	}
@@ -523,11 +669,7 @@ func (item *StatshouseApiQuery) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiQuery) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.query", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.query", err.Error())
 	}
 	return nil

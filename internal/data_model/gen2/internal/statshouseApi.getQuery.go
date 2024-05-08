@@ -64,19 +64,19 @@ func (item *StatshouseApiGetQuery) WriteResult(w []byte, ret StatshouseApiGetQue
 	return ret.WriteBoxed(w, item.FieldsMask)
 }
 
-func (item *StatshouseApiGetQuery) ReadResultJSON(j interface{}, ret *StatshouseApiGetQueryResponse) error {
-	if err := StatshouseApiGetQueryResponse__ReadJSON(ret, j, item.FieldsMask); err != nil {
+func (item *StatshouseApiGetQuery) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseApiGetQueryResponse) error {
+	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseApiGetQuery) WriteResultJSON(w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *StatshouseApiGetQuery) writeResultJSON(short bool, w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+func (item *StatshouseApiGetQuery) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseApiGetQueryResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -91,22 +91,19 @@ func (item *StatshouseApiGetQuery) ReadResultWriteResultJSON(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item *StatshouseApiGetQuery) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseApiGetQuery) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseApiGetQueryResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *StatshouseApiGetQuery) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouseApi.getQuery", err.Error())
-	}
 	var ret StatshouseApiGetQueryResponse
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -121,53 +118,88 @@ func (item StatshouseApiGetQuery) String() string {
 	return string(w)
 }
 
-func StatshouseApiGetQuery__ReadJSON(item *StatshouseApiGetQuery, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiGetQuery) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.getQuery", "expected json object")
+func (item *StatshouseApiGetQuery) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propAccessTokenPresented bool
+	var propQueryPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getQuery", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "access_token":
+				if propAccessTokenPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getQuery", "access_token")
+				}
+				if err := Json2ReadString(in, &item.AccessToken); err != nil {
+					return err
+				}
+				propAccessTokenPresented = true
+			case "query":
+				if propQueryPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getQuery", "query")
+				}
+				if err := item.Query.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propQueryPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.getQuery", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jAccessToken := _jm["access_token"]
-	delete(_jm, "access_token")
-	if err := JsonReadString(_jAccessToken, &item.AccessToken); err != nil {
-		return err
+	if !propAccessTokenPresented {
+		item.AccessToken = ""
 	}
-	_jQuery := _jm["query"]
-	delete(_jm, "query")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.getQuery", k)
-	}
-	if err := StatshouseApiQuery__ReadJSON(&item.Query, _jQuery); err != nil {
-		return err
+	if !propQueryPresented {
+		item.Query.Reset()
 	}
 	return nil
 }
 
 func (item *StatshouseApiGetQuery) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiGetQuery) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetQuery) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.AccessToken) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"access_token":`...)
-		w = basictl.JSONWriteString(w, item.AccessToken)
+	backupIndexAccessToken := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"access_token":`...)
+	w = basictl.JSONWriteString(w, item.AccessToken)
+	if (len(item.AccessToken) != 0) == false {
+		w = w[:backupIndexAccessToken]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"query":`...)
-	if w, err = item.Query.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Query.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil
@@ -178,11 +210,7 @@ func (item *StatshouseApiGetQuery) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiGetQuery) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.getQuery", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.getQuery", err.Error())
 	}
 	return nil

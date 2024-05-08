@@ -58,44 +58,72 @@ func (item KvEngineBackupResponse) String() string {
 	return string(w)
 }
 
-func KvEngineBackupResponse__ReadJSON(item *KvEngineBackupResponse, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *KvEngineBackupResponse) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("kv_engine.backup_response", "expected json object")
+func (item *KvEngineBackupResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propPathPresented bool
+	var propOffsetPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "path":
+				if propPathPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("kv_engine.backup_response", "path")
+				}
+				if err := Json2ReadString(in, &item.Path); err != nil {
+					return err
+				}
+				propPathPresented = true
+			case "offset":
+				if propOffsetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("kv_engine.backup_response", "offset")
+				}
+				if err := Json2ReadInt64(in, &item.Offset); err != nil {
+					return err
+				}
+				propOffsetPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("kv_engine.backup_response", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jPath := _jm["path"]
-	delete(_jm, "path")
-	if err := JsonReadString(_jPath, &item.Path); err != nil {
-		return err
+	if !propPathPresented {
+		item.Path = ""
 	}
-	_jOffset := _jm["offset"]
-	delete(_jm, "offset")
-	if err := JsonReadInt64(_jOffset, &item.Offset); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("kv_engine.backup_response", k)
+	if !propOffsetPresented {
+		item.Offset = 0
 	}
 	return nil
 }
 
 func (item *KvEngineBackupResponse) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *KvEngineBackupResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *KvEngineBackupResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Path) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"path":`...)
-		w = basictl.JSONWriteString(w, item.Path)
+	backupIndexPath := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"path":`...)
+	w = basictl.JSONWriteString(w, item.Path)
+	if (len(item.Path) != 0) == false {
+		w = w[:backupIndexPath]
 	}
-	if item.Offset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"offset":`...)
-		w = basictl.JSONWriteInt64(w, item.Offset)
+	backupIndexOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"offset":`...)
+	w = basictl.JSONWriteInt64(w, item.Offset)
+	if (item.Offset != 0) == false {
+		w = w[:backupIndexOffset]
 	}
 	return append(w, '}'), nil
 }
@@ -105,11 +133,7 @@ func (item *KvEngineBackupResponse) MarshalJSON() ([]byte, error) {
 }
 
 func (item *KvEngineBackupResponse) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("kv_engine.backup_response", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("kv_engine.backup_response", err.Error())
 	}
 	return nil

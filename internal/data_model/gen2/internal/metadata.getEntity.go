@@ -64,19 +64,19 @@ func (item *MetadataGetEntity) WriteResult(w []byte, ret MetadataEvent) (_ []byt
 	return ret.WriteBoxed(w)
 }
 
-func (item *MetadataGetEntity) ReadResultJSON(j interface{}, ret *MetadataEvent) error {
-	if err := MetadataEvent__ReadJSON(ret, j); err != nil {
+func (item *MetadataGetEntity) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataEvent) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetEntity) WriteResultJSON(w []byte, ret MetadataEvent) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *MetadataGetEntity) writeResultJSON(short bool, w []byte, ret MetadataEvent) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *MetadataGetEntity) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataEvent) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -91,22 +91,19 @@ func (item *MetadataGetEntity) ReadResultWriteResultJSON(r []byte, w []byte) (_ 
 	return r, w, err
 }
 
-func (item *MetadataGetEntity) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataGetEntity) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataEvent
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *MetadataGetEntity) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.getEntity", err.Error())
-	}
 	var ret MetadataEvent
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -121,54 +118,91 @@ func (item MetadataGetEntity) String() string {
 	return string(w)
 }
 
-func MetadataGetEntity__ReadJSON(item *MetadataGetEntity, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataGetEntity) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.getEntity", "expected json object")
+func (item *MetadataGetEntity) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldMaskPresented bool
+	var propIdPresented bool
+	var propVersionPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "field_mask":
+				if propFieldMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getEntity", "field_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldMask); err != nil {
+					return err
+				}
+				propFieldMaskPresented = true
+			case "id":
+				if propIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getEntity", "id")
+				}
+				if err := Json2ReadInt64(in, &item.Id); err != nil {
+					return err
+				}
+				propIdPresented = true
+			case "version":
+				if propVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getEntity", "version")
+				}
+				if err := Json2ReadInt64(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.getEntity", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldMask := _jm["field_mask"]
-	delete(_jm, "field_mask")
-	if err := JsonReadUint32(_jFieldMask, &item.FieldMask); err != nil {
-		return err
+	if !propFieldMaskPresented {
+		item.FieldMask = 0
 	}
-	_jId := _jm["id"]
-	delete(_jm, "id")
-	if err := JsonReadInt64(_jId, &item.Id); err != nil {
-		return err
+	if !propIdPresented {
+		item.Id = 0
 	}
-	_jVersion := _jm["version"]
-	delete(_jm, "version")
-	if err := JsonReadInt64(_jVersion, &item.Version); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.getEntity", k)
+	if !propVersionPresented {
+		item.Version = 0
 	}
 	return nil
 }
 
 func (item *MetadataGetEntity) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataGetEntity) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataGetEntity) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"field_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldMask)
+	backupIndexFieldMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"field_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldMask)
+	if (item.FieldMask != 0) == false {
+		w = w[:backupIndexFieldMask]
 	}
-	if item.Id != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"id":`...)
-		w = basictl.JSONWriteInt64(w, item.Id)
+	backupIndexId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"id":`...)
+	w = basictl.JSONWriteInt64(w, item.Id)
+	if (item.Id != 0) == false {
+		w = w[:backupIndexId]
 	}
-	if item.Version != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"version":`...)
-		w = basictl.JSONWriteInt64(w, item.Version)
+	backupIndexVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"version":`...)
+	w = basictl.JSONWriteInt64(w, item.Version)
+	if (item.Version != 0) == false {
+		w = w[:backupIndexVersion]
 	}
 	return append(w, '}'), nil
 }
@@ -178,11 +212,7 @@ func (item *MetadataGetEntity) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataGetEntity) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.getEntity", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.getEntity", err.Error())
 	}
 	return nil

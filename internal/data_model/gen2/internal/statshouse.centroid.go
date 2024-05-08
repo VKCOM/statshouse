@@ -44,32 +44,42 @@ func BuiltinVectorStatshouseCentroidWrite(w []byte, vec []StatshouseCentroid) (_
 	return w, nil
 }
 
-func BuiltinVectorStatshouseCentroidReadJSON(j interface{}, vec *[]StatshouseCentroid) error {
-	l, _arr, err := JsonReadArray("[]StatshouseCentroid", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseCentroid, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseCentroid__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
+func BuiltinVectorStatshouseCentroidReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseCentroid) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseCentroid", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue StatshouseCentroid
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseCentroid", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorStatshouseCentroidWriteJSON(w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
-	return BuiltinVectorStatshouseCentroidWriteJSONOpt(false, w, vec)
+	return BuiltinVectorStatshouseCentroidWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseCentroidWriteJSONOpt(short bool, w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
+func BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseCentroid) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -121,44 +131,72 @@ func (item StatshouseCentroid) String() string {
 	return string(w)
 }
 
-func StatshouseCentroid__ReadJSON(item *StatshouseCentroid, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseCentroid) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.centroid", "expected json object")
+func (item *StatshouseCentroid) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propValuePresented bool
+	var propWeightPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.centroid", "value")
+				}
+				if err := Json2ReadFloat32(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			case "weight":
+				if propWeightPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.centroid", "weight")
+				}
+				if err := Json2ReadFloat32(in, &item.Weight); err != nil {
+					return err
+				}
+				propWeightPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.centroid", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	if err := JsonReadFloat32(_jValue, &item.Value); err != nil {
-		return err
+	if !propValuePresented {
+		item.Value = 0
 	}
-	_jWeight := _jm["weight"]
-	delete(_jm, "weight")
-	if err := JsonReadFloat32(_jWeight, &item.Weight); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.centroid", k)
+	if !propWeightPresented {
+		item.Weight = 0
 	}
 	return nil
 }
 
 func (item *StatshouseCentroid) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseCentroid) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseCentroid) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Value != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		w = basictl.JSONWriteFloat32(w, item.Value)
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = basictl.JSONWriteFloat32(w, item.Value)
+	if (item.Value != 0) == false {
+		w = w[:backupIndexValue]
 	}
-	if item.Weight != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"weight":`...)
-		w = basictl.JSONWriteFloat32(w, item.Weight)
+	backupIndexWeight := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"weight":`...)
+	w = basictl.JSONWriteFloat32(w, item.Weight)
+	if (item.Weight != 0) == false {
+		w = w[:backupIndexWeight]
 	}
 	return append(w, '}'), nil
 }
@@ -168,11 +206,7 @@ func (item *StatshouseCentroid) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseCentroid) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.centroid", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.centroid", err.Error())
 	}
 	return nil

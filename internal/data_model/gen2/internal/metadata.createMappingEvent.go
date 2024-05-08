@@ -92,101 +92,171 @@ func (item MetadataCreateMappingEvent) String() string {
 	return string(w)
 }
 
-func MetadataCreateMappingEvent__ReadJSON(item *MetadataCreateMappingEvent, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataCreateMappingEvent) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.createMappingEvent", "expected json object")
-	}
-	_jFieldMask := _jm["field_mask"]
-	delete(_jm, "field_mask")
-	if err := JsonReadUint32(_jFieldMask, &item.FieldMask); err != nil {
-		return err
-	}
-	_jId := _jm["id"]
-	delete(_jm, "id")
-	if err := JsonReadInt32(_jId, &item.Id); err != nil {
-		return err
-	}
-	_jKey := _jm["key"]
-	delete(_jm, "key")
-	if err := JsonReadString(_jKey, &item.Key); err != nil {
-		return err
-	}
-	_jMetric := _jm["metric"]
-	delete(_jm, "metric")
-	if err := JsonReadString(_jMetric, &item.Metric); err != nil {
-		return err
-	}
-	_jBudget := _jm["budget"]
-	delete(_jm, "budget")
-	if err := JsonReadInt64(_jBudget, &item.Budget); err != nil {
-		return err
-	}
-	_jCreate := _jm["create"]
-	delete(_jm, "create")
-	_jUpdatedAt := _jm["updated_at"]
-	delete(_jm, "updated_at")
-	if err := JsonReadUint32(_jUpdatedAt, &item.UpdatedAt); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.createMappingEvent", k)
-	}
-	if _jCreate != nil {
-		_bit := false
-		if err := JsonReadBool(_jCreate, &_bit); err != nil {
-			return err
+func (item *MetadataCreateMappingEvent) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldMaskPresented bool
+	var propIdPresented bool
+	var propKeyPresented bool
+	var propMetricPresented bool
+	var propBudgetPresented bool
+	var trueTypeCreatePresented bool
+	var trueTypeCreateValue bool
+	var propUpdatedAtPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "field_mask":
+				if propFieldMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.createMappingEvent", "field_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldMask); err != nil {
+					return err
+				}
+				propFieldMaskPresented = true
+			case "id":
+				if propIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.createMappingEvent", "id")
+				}
+				if err := Json2ReadInt32(in, &item.Id); err != nil {
+					return err
+				}
+				propIdPresented = true
+			case "key":
+				if propKeyPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.createMappingEvent", "key")
+				}
+				if err := Json2ReadString(in, &item.Key); err != nil {
+					return err
+				}
+				propKeyPresented = true
+			case "metric":
+				if propMetricPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.createMappingEvent", "metric")
+				}
+				if err := Json2ReadString(in, &item.Metric); err != nil {
+					return err
+				}
+				propMetricPresented = true
+			case "budget":
+				if propBudgetPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.createMappingEvent", "budget")
+				}
+				if err := Json2ReadInt64(in, &item.Budget); err != nil {
+					return err
+				}
+				propBudgetPresented = true
+			case "create":
+				if trueTypeCreatePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.createMappingEvent", "create")
+				}
+				if err := Json2ReadBool(in, &trueTypeCreateValue); err != nil {
+					return err
+				}
+				trueTypeCreatePresented = true
+			case "updated_at":
+				if propUpdatedAtPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.createMappingEvent", "updated_at")
+				}
+				if err := Json2ReadUint32(in, &item.UpdatedAt); err != nil {
+					return err
+				}
+				propUpdatedAtPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.createMappingEvent", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldMaskPresented {
+		item.FieldMask = 0
+	}
+	if !propIdPresented {
+		item.Id = 0
+	}
+	if !propKeyPresented {
+		item.Key = ""
+	}
+	if !propMetricPresented {
+		item.Metric = ""
+	}
+	if !propBudgetPresented {
+		item.Budget = 0
+	}
+	if !propUpdatedAtPresented {
+		item.UpdatedAt = 0
+	}
+	if trueTypeCreatePresented {
+		if trueTypeCreateValue {
 			item.FieldMask |= 1 << 0
-		} else {
-			item.FieldMask &^= 1 << 0
 		}
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeCreatePresented && !trueTypeCreateValue && (item.FieldMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("metadata.createMappingEvent", "fieldmask bit field_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 func (item *MetadataCreateMappingEvent) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataCreateMappingEvent) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataCreateMappingEvent) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"field_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldMask)
+	backupIndexFieldMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"field_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldMask)
+	if (item.FieldMask != 0) == false {
+		w = w[:backupIndexFieldMask]
 	}
-	if item.Id != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"id":`...)
-		w = basictl.JSONWriteInt32(w, item.Id)
+	backupIndexId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"id":`...)
+	w = basictl.JSONWriteInt32(w, item.Id)
+	if (item.Id != 0) == false {
+		w = w[:backupIndexId]
 	}
-	if len(item.Key) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"key":`...)
-		w = basictl.JSONWriteString(w, item.Key)
+	backupIndexKey := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"key":`...)
+	w = basictl.JSONWriteString(w, item.Key)
+	if (len(item.Key) != 0) == false {
+		w = w[:backupIndexKey]
 	}
-	if len(item.Metric) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metric":`...)
-		w = basictl.JSONWriteString(w, item.Metric)
+	backupIndexMetric := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metric":`...)
+	w = basictl.JSONWriteString(w, item.Metric)
+	if (len(item.Metric) != 0) == false {
+		w = w[:backupIndexMetric]
 	}
-	if item.Budget != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"budget":`...)
-		w = basictl.JSONWriteInt64(w, item.Budget)
+	backupIndexBudget := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"budget":`...)
+	w = basictl.JSONWriteInt64(w, item.Budget)
+	if (item.Budget != 0) == false {
+		w = w[:backupIndexBudget]
 	}
 	if item.FieldMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"create":true`...)
 	}
-	if item.UpdatedAt != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"updated_at":`...)
-		w = basictl.JSONWriteUint32(w, item.UpdatedAt)
+	backupIndexUpdatedAt := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"updated_at":`...)
+	w = basictl.JSONWriteUint32(w, item.UpdatedAt)
+	if (item.UpdatedAt != 0) == false {
+		w = w[:backupIndexUpdatedAt]
 	}
 	return append(w, '}'), nil
 }
@@ -196,11 +266,7 @@ func (item *MetadataCreateMappingEvent) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataCreateMappingEvent) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.createMappingEvent", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.createMappingEvent", err.Error())
 	}
 	return nil

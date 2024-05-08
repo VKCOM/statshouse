@@ -52,18 +52,18 @@ func (item *EngineEnableMetafilesAnalyzer) WriteResult(w []byte, ret bool) (_ []
 	return BoolWriteBoxed(w, ret)
 }
 
-func (item *EngineEnableMetafilesAnalyzer) ReadResultJSON(j interface{}, ret *bool) error {
-	if err := JsonReadBool(j, ret); err != nil {
+func (item *EngineEnableMetafilesAnalyzer) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
+	if err := Json2ReadBool(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineEnableMetafilesAnalyzer) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineEnableMetafilesAnalyzer) writeResultJSON(short bool, w []byte, ret bool) (_ []byte, err error) {
+func (item *EngineEnableMetafilesAnalyzer) writeResultJSON(newTypeNames bool, short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -77,22 +77,19 @@ func (item *EngineEnableMetafilesAnalyzer) ReadResultWriteResultJSON(r []byte, w
 	return r, w, err
 }
 
-func (item *EngineEnableMetafilesAnalyzer) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineEnableMetafilesAnalyzer) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineEnableMetafilesAnalyzer) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.enableMetafilesAnalyzer", err.Error())
-	}
 	var ret bool
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -107,34 +104,53 @@ func (item EngineEnableMetafilesAnalyzer) String() string {
 	return string(w)
 }
 
-func EngineEnableMetafilesAnalyzer__ReadJSON(item *EngineEnableMetafilesAnalyzer, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineEnableMetafilesAnalyzer) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.enableMetafilesAnalyzer", "expected json object")
+func (item *EngineEnableMetafilesAnalyzer) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propEnablePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "enable":
+				if propEnablePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.enableMetafilesAnalyzer", "enable")
+				}
+				if err := Json2ReadBool(in, &item.Enable); err != nil {
+					return err
+				}
+				propEnablePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.enableMetafilesAnalyzer", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jEnable := _jm["enable"]
-	delete(_jm, "enable")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.enableMetafilesAnalyzer", k)
-	}
-	if err := JsonReadBool(_jEnable, &item.Enable); err != nil {
-		return err
+	if !propEnablePresented {
+		item.Enable = false
 	}
 	return nil
 }
 
 func (item *EngineEnableMetafilesAnalyzer) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineEnableMetafilesAnalyzer) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineEnableMetafilesAnalyzer) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Enable {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"enable":`...)
-		w = basictl.JSONWriteBool(w, item.Enable)
+	backupIndexEnable := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"enable":`...)
+	w = basictl.JSONWriteBool(w, item.Enable)
+	if (item.Enable) == false {
+		w = w[:backupIndexEnable]
 	}
 	return append(w, '}'), nil
 }
@@ -144,11 +160,7 @@ func (item *EngineEnableMetafilesAnalyzer) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineEnableMetafilesAnalyzer) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.enableMetafilesAnalyzer", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.enableMetafilesAnalyzer", err.Error())
 	}
 	return nil

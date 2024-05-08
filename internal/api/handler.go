@@ -2404,7 +2404,8 @@ func (h *Handler) handleSeriesRequest(ctx context.Context, req seriesRequest, op
 						opt.metricCallback(metric)
 					}
 				},
-				Vars: req.vars,
+				Vars:   req.vars,
+				Simple: promqlGenerated,
 			},
 		})
 	if err != nil {

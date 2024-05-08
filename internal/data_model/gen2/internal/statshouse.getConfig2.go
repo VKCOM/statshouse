@@ -66,19 +66,19 @@ func (item *StatshouseGetConfig2) WriteResult(w []byte, ret StatshouseGetConfigR
 	return ret.WriteBoxed(w, item.FieldsMask)
 }
 
-func (item *StatshouseGetConfig2) ReadResultJSON(j interface{}, ret *StatshouseGetConfigResult) error {
-	if err := StatshouseGetConfigResult__ReadJSON(ret, j, item.FieldsMask); err != nil {
+func (item *StatshouseGetConfig2) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetConfigResult) error {
+	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetConfig2) WriteResultJSON(w []byte, ret StatshouseGetConfigResult) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *StatshouseGetConfig2) writeResultJSON(short bool, w []byte, ret StatshouseGetConfigResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+func (item *StatshouseGetConfig2) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetConfigResult) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -93,22 +93,19 @@ func (item *StatshouseGetConfig2) ReadResultWriteResultJSON(r []byte, w []byte) 
 	return r, w, err
 }
 
-func (item *StatshouseGetConfig2) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetConfig2) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseGetConfigResult
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *StatshouseGetConfig2) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.getConfig2", err.Error())
-	}
 	var ret StatshouseGetConfigResult
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -123,54 +120,95 @@ func (item StatshouseGetConfig2) String() string {
 	return string(w)
 }
 
-func StatshouseGetConfig2__ReadJSON(item *StatshouseGetConfig2, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseGetConfig2) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getConfig2", "expected json object")
+func (item *StatshouseGetConfig2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propClusterPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig2", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig2", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "cluster":
+				if propClusterPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig2", "cluster")
+				}
+				if err := Json2ReadString(in, &item.Cluster); err != nil {
+					return err
+				}
+				propClusterPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getConfig2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propClusterPresented {
+		item.Cluster = ""
+	}
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
 	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jCluster := _jm["cluster"]
-	delete(_jm, "cluster")
-	if err := JsonReadString(_jCluster, &item.Cluster); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getConfig2", k)
-	}
-	if err := StatshouseCommonProxyHeader__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
-		return err
-	}
+
 	return nil
 }
 
 func (item *StatshouseGetConfig2) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseGetConfig2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseGetConfig2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if len(item.Cluster) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"cluster":`...)
-		w = basictl.JSONWriteString(w, item.Cluster)
+	backupIndexCluster := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"cluster":`...)
+	w = basictl.JSONWriteString(w, item.Cluster)
+	if (len(item.Cluster) != 0) == false {
+		w = w[:backupIndexCluster]
 	}
 	return append(w, '}'), nil
 }
@@ -180,11 +218,7 @@ func (item *StatshouseGetConfig2) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseGetConfig2) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.getConfig2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getConfig2", err.Error())
 	}
 	return nil
@@ -243,19 +277,19 @@ func (item *StatshouseGetConfig2Bytes) WriteResult(w []byte, ret StatshouseGetCo
 	return ret.WriteBoxed(w, item.FieldsMask)
 }
 
-func (item *StatshouseGetConfig2Bytes) ReadResultJSON(j interface{}, ret *StatshouseGetConfigResultBytes) error {
-	if err := StatshouseGetConfigResultBytes__ReadJSON(ret, j, item.FieldsMask); err != nil {
+func (item *StatshouseGetConfig2Bytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseGetConfigResultBytes) error {
+	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseGetConfig2Bytes) WriteResultJSON(w []byte, ret StatshouseGetConfigResultBytes) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *StatshouseGetConfig2Bytes) writeResultJSON(short bool, w []byte, ret StatshouseGetConfigResultBytes) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+func (item *StatshouseGetConfig2Bytes) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseGetConfigResultBytes) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -270,22 +304,19 @@ func (item *StatshouseGetConfig2Bytes) ReadResultWriteResultJSON(r []byte, w []b
 	return r, w, err
 }
 
-func (item *StatshouseGetConfig2Bytes) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseGetConfig2Bytes) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseGetConfigResultBytes
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *StatshouseGetConfig2Bytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouse.getConfig2", err.Error())
-	}
 	var ret StatshouseGetConfigResultBytes
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -300,54 +331,95 @@ func (item StatshouseGetConfig2Bytes) String() string {
 	return string(w)
 }
 
-func StatshouseGetConfig2Bytes__ReadJSON(item *StatshouseGetConfig2Bytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseGetConfig2Bytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getConfig2", "expected json object")
+func (item *StatshouseGetConfig2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var rawHeader []byte
+	var propClusterPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig2", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "header":
+				if rawHeader != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig2", "header")
+				}
+				rawHeader = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "cluster":
+				if propClusterPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getConfig2", "cluster")
+				}
+				if err := Json2ReadStringBytes(in, &item.Cluster); err != nil {
+					return err
+				}
+				propClusterPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getConfig2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propClusterPresented {
+		item.Cluster = item.Cluster[:0]
+	}
+	var inHeaderPointer *basictl.JsonLexer
+	inHeader := basictl.JsonLexer{Data: rawHeader}
+	if rawHeader != nil {
+		inHeaderPointer = &inHeader
+	}
+	if err := item.Header.ReadJSON(legacyTypeNames, inHeaderPointer, item.FieldsMask); err != nil {
 		return err
 	}
-	_jHeader := _jm["header"]
-	delete(_jm, "header")
-	_jCluster := _jm["cluster"]
-	delete(_jm, "cluster")
-	if err := JsonReadStringBytes(_jCluster, &item.Cluster); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getConfig2", k)
-	}
-	if err := StatshouseCommonProxyHeaderBytes__ReadJSON(&item.Header, _jHeader, item.FieldsMask); err != nil {
-		return err
-	}
+
 	return nil
 }
 
 func (item *StatshouseGetConfig2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseGetConfig2Bytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseGetConfig2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"header":`...)
-	if w, err = item.Header.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+	if w, err = item.Header.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
-	if len(item.Cluster) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"cluster":`...)
-		w = basictl.JSONWriteStringBytes(w, item.Cluster)
+	backupIndexCluster := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"cluster":`...)
+	w = basictl.JSONWriteStringBytes(w, item.Cluster)
+	if (len(item.Cluster) != 0) == false {
+		w = w[:backupIndexCluster]
 	}
 	return append(w, '}'), nil
 }
@@ -357,11 +429,7 @@ func (item *StatshouseGetConfig2Bytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseGetConfig2Bytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.getConfig2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getConfig2", err.Error())
 	}
 	return nil

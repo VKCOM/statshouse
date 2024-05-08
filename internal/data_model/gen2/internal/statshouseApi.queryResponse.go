@@ -108,114 +108,194 @@ func (item *StatshouseApiGetQueryResponse) WriteBoxed(w []byte, nat_query_fields
 	return item.Write(w, nat_query_fields_mask)
 }
 
-func StatshouseApiGetQueryResponse__ReadJSON(item *StatshouseApiGetQueryResponse, j interface{}, nat_query_fields_mask uint32) error {
-	return item.readJSON(j, nat_query_fields_mask)
-}
-func (item *StatshouseApiGetQueryResponse) readJSON(j interface{}, nat_query_fields_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.queryResponse", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jSeries := _jm["series"]
-	delete(_jm, "series")
-	_jSeriesMeta := _jm["series_meta"]
-	delete(_jm, "series_meta")
-	_jChunkIds := _jm["chunk_ids"]
-	delete(_jm, "chunk_ids")
-	_jTotalTimePoints := _jm["total_time_points"]
-	delete(_jm, "total_time_points")
-	if err := JsonReadInt32(_jTotalTimePoints, &item.TotalTimePoints); err != nil {
-		return err
-	}
-	_jResponseId := _jm["response_id"]
-	delete(_jm, "response_id")
-	if err := JsonReadInt64(_jResponseId, &item.ResponseId); err != nil {
-		return err
-	}
-	_jExcessPointLeft := _jm["excess_point_left"]
-	delete(_jm, "excess_point_left")
-	_jExcessPointRight := _jm["excess_point_right"]
-	delete(_jm, "excess_point_right")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.queryResponse", k)
-	}
-	if _jExcessPointLeft != nil {
-		_bit := false
-		if err := JsonReadBool(_jExcessPointLeft, &_bit); err != nil {
-			return err
+func (item *StatshouseApiGetQueryResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_query_fields_mask uint32) error {
+	var propFieldsMaskPresented bool
+	var propSeriesPresented bool
+	var rawSeriesMeta []byte
+	var propChunkIdsPresented bool
+	var propTotalTimePointsPresented bool
+	var propResponseIdPresented bool
+	var trueTypeExcessPointLeftPresented bool
+	var trueTypeExcessPointLeftValue bool
+	var trueTypeExcessPointRightPresented bool
+	var trueTypeExcessPointRightValue bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryResponse", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "series":
+				if propSeriesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryResponse", "series")
+				}
+				if err := item.Series.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propSeriesPresented = true
+			case "series_meta":
+				if rawSeriesMeta != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryResponse", "series_meta")
+				}
+				rawSeriesMeta = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			case "chunk_ids":
+				if propChunkIdsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryResponse", "chunk_ids")
+				}
+				if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, &item.ChunkIds); err != nil {
+					return err
+				}
+				propChunkIdsPresented = true
+			case "total_time_points":
+				if propTotalTimePointsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryResponse", "total_time_points")
+				}
+				if err := Json2ReadInt32(in, &item.TotalTimePoints); err != nil {
+					return err
+				}
+				propTotalTimePointsPresented = true
+			case "response_id":
+				if propResponseIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryResponse", "response_id")
+				}
+				if err := Json2ReadInt64(in, &item.ResponseId); err != nil {
+					return err
+				}
+				propResponseIdPresented = true
+			case "excess_point_left":
+				if trueTypeExcessPointLeftPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryResponse", "excess_point_left")
+				}
+				if err := Json2ReadBool(in, &trueTypeExcessPointLeftValue); err != nil {
+					return err
+				}
+				trueTypeExcessPointLeftPresented = true
+			case "excess_point_right":
+				if trueTypeExcessPointRightPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryResponse", "excess_point_right")
+				}
+				if err := Json2ReadBool(in, &trueTypeExcessPointRightValue); err != nil {
+					return err
+				}
+				trueTypeExcessPointRightPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.queryResponse", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propSeriesPresented {
+		item.Series.Reset()
+	}
+	if !propChunkIdsPresented {
+		item.ChunkIds = item.ChunkIds[:0]
+	}
+	if !propTotalTimePointsPresented {
+		item.TotalTimePoints = 0
+	}
+	if !propResponseIdPresented {
+		item.ResponseId = 0
+	}
+	if trueTypeExcessPointLeftPresented {
+		if trueTypeExcessPointLeftValue {
 			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
 		}
 	}
-	if _jExcessPointRight != nil {
-		_bit := false
-		if err := JsonReadBool(_jExcessPointRight, &_bit); err != nil {
-			return err
-		}
-		if _bit {
+	if trueTypeExcessPointRightPresented {
+		if trueTypeExcessPointRightValue {
 			item.FieldsMask |= 1 << 1
-		} else {
-			item.FieldsMask &^= 1 << 1
 		}
 	}
-	if err := StatshouseApiSeries__ReadJSON(&item.Series, _jSeries); err != nil {
+	var inSeriesMetaPointer *basictl.JsonLexer
+	inSeriesMeta := basictl.JsonLexer{Data: rawSeriesMeta}
+	if rawSeriesMeta != nil {
+		inSeriesMetaPointer = &inSeriesMeta
+	}
+	if err := BuiltinVectorStatshouseApiSeriesMetaReadJSON(legacyTypeNames, inSeriesMetaPointer, &item.SeriesMeta, nat_query_fields_mask); err != nil {
 		return err
 	}
-	if err := BuiltinVectorStatshouseApiSeriesMetaReadJSON(_jSeriesMeta, &item.SeriesMeta, nat_query_fields_mask); err != nil {
-		return err
+
+	// tries to set bit to zero if it is 1
+	if trueTypeExcessPointLeftPresented && !trueTypeExcessPointLeftValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("statshouseApi.queryResponse", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
-	if err := BuiltinVectorIntReadJSON(_jChunkIds, &item.ChunkIds); err != nil {
-		return err
+	// tries to set bit to zero if it is 1
+	if trueTypeExcessPointRightPresented && !trueTypeExcessPointRightValue && (item.FieldsMask&(1<<1) != 0) {
+		return ErrorInvalidJSON("statshouseApi.queryResponse", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 func (item *StatshouseApiGetQueryResponse) WriteJSON(w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_query_fields_mask)
+	return item.WriteJSONOpt(true, false, w, nat_query_fields_mask)
 }
-func (item *StatshouseApiGetQueryResponse) WriteJSONOpt(short bool, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseApiGetQueryResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_query_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"series":`...)
-	if w, err = item.Series.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Series.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
-	if len(item.SeriesMeta) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"series_meta":`...)
-		if w, err = BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(short, w, item.SeriesMeta, nat_query_fields_mask); err != nil {
-			return w, err
-		}
+	backupIndexSeriesMeta := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"series_meta":`...)
+	if w, err = BuiltinVectorStatshouseApiSeriesMetaWriteJSONOpt(newTypeNames, short, w, item.SeriesMeta, nat_query_fields_mask); err != nil {
+		return w, err
 	}
-	if len(item.ChunkIds) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"chunk_ids":`...)
-		if w, err = BuiltinVectorIntWriteJSONOpt(short, w, item.ChunkIds); err != nil {
-			return w, err
-		}
+	if (len(item.SeriesMeta) != 0) == false {
+		w = w[:backupIndexSeriesMeta]
 	}
-	if item.TotalTimePoints != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"total_time_points":`...)
-		w = basictl.JSONWriteInt32(w, item.TotalTimePoints)
+	backupIndexChunkIds := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"chunk_ids":`...)
+	if w, err = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.ChunkIds); err != nil {
+		return w, err
 	}
-	if item.ResponseId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"response_id":`...)
-		w = basictl.JSONWriteInt64(w, item.ResponseId)
+	if (len(item.ChunkIds) != 0) == false {
+		w = w[:backupIndexChunkIds]
+	}
+	backupIndexTotalTimePoints := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"total_time_points":`...)
+	w = basictl.JSONWriteInt32(w, item.TotalTimePoints)
+	if (item.TotalTimePoints != 0) == false {
+		w = w[:backupIndexTotalTimePoints]
+	}
+	backupIndexResponseId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"response_id":`...)
+	w = basictl.JSONWriteInt64(w, item.ResponseId)
+	if (item.ResponseId != 0) == false {
+		w = w[:backupIndexResponseId]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)

@@ -44,32 +44,42 @@ func BuiltinVectorStatshouseApiTagValueWrite(w []byte, vec []StatshouseApiTagVal
 	return w, nil
 }
 
-func BuiltinVectorStatshouseApiTagValueReadJSON(j interface{}, vec *[]StatshouseApiTagValue) error {
-	l, _arr, err := JsonReadArray("[]StatshouseApiTagValue", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]StatshouseApiTagValue, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := StatshouseApiTagValue__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
+func BuiltinVectorStatshouseApiTagValueReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]StatshouseApiTagValue) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseApiTagValue", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue StatshouseApiTagValue
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]StatshouseApiTagValue", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorStatshouseApiTagValueWriteJSON(w []byte, vec []StatshouseApiTagValue) (_ []byte, err error) {
-	return BuiltinVectorStatshouseApiTagValueWriteJSONOpt(false, w, vec)
+	return BuiltinVectorStatshouseApiTagValueWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorStatshouseApiTagValueWriteJSONOpt(short bool, w []byte, vec []StatshouseApiTagValue) (_ []byte, err error) {
+func BuiltinVectorStatshouseApiTagValueWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []StatshouseApiTagValue) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -135,63 +145,107 @@ func (item StatshouseApiTagValue) String() string {
 	return string(w)
 }
 
-func StatshouseApiTagValue__ReadJSON(item *StatshouseApiTagValue, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiTagValue) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.tagValue", "expected json object")
+func (item *StatshouseApiTagValue) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propInPresented bool
+	var propValuePresented bool
+	var propFlagPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.tagValue", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "in":
+				if propInPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.tagValue", "in")
+				}
+				if err := Json2ReadBool(in, &item.In); err != nil {
+					return err
+				}
+				propInPresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.tagValue", "value")
+				}
+				if err := Json2ReadString(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			case "flag":
+				if propFlagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.tagValue", "flag")
+				}
+				if err := item.Flag.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propFlagPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.tagValue", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jIn := _jm["in"]
-	delete(_jm, "in")
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	if err := JsonReadString(_jValue, &item.Value); err != nil {
-		return err
+	if !propInPresented {
+		item.In = false
 	}
-	_jFlag := _jm["flag"]
-	delete(_jm, "flag")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.tagValue", k)
+	if !propValuePresented {
+		item.Value = ""
 	}
-	if err := JsonReadBool(_jIn, &item.In); err != nil {
-		return err
-	}
-	if err := StatshouseApiFlag__ReadJSON(&item.Flag, _jFlag); err != nil {
-		return err
+	if !propFlagPresented {
+		item.Flag.Reset()
 	}
 	return nil
 }
 
 func (item *StatshouseApiTagValue) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiTagValue) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiTagValue) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.In {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"in":`...)
-		w = basictl.JSONWriteBool(w, item.In)
+	backupIndexIn := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"in":`...)
+	w = basictl.JSONWriteBool(w, item.In)
+	if (item.In) == false {
+		w = w[:backupIndexIn]
 	}
-	if len(item.Value) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		w = basictl.JSONWriteString(w, item.Value)
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = basictl.JSONWriteString(w, item.Value)
+	if (len(item.Value) != 0) == false {
+		w = w[:backupIndexValue]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"flag":`...)
-	if w, err = item.Flag.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Flag.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return append(w, '}'), nil
@@ -202,11 +256,7 @@ func (item *StatshouseApiTagValue) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiTagValue) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.tagValue", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.tagValue", err.Error())
 	}
 	return nil

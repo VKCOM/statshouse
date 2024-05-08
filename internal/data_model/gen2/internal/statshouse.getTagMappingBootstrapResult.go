@@ -54,36 +54,55 @@ func (item StatshouseGetTagMappingBootstrapResult) String() string {
 	return string(w)
 }
 
-func StatshouseGetTagMappingBootstrapResult__ReadJSON(item *StatshouseGetTagMappingBootstrapResult, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseGetTagMappingBootstrapResult) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getTagMappingBootstrapResult", "expected json object")
+func (item *StatshouseGetTagMappingBootstrapResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propMappingsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "mappings":
+				if propMappingsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMappingBootstrapResult", "mappings")
+				}
+				if err := BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames, in, &item.Mappings); err != nil {
+					return err
+				}
+				propMappingsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getTagMappingBootstrapResult", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jMappings := _jm["mappings"]
-	delete(_jm, "mappings")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getTagMappingBootstrapResult", k)
-	}
-	if err := BuiltinVectorStatshouseMappingReadJSON(_jMappings, &item.Mappings); err != nil {
-		return err
+	if !propMappingsPresented {
+		item.Mappings = item.Mappings[:0]
 	}
 	return nil
 }
 
 func (item *StatshouseGetTagMappingBootstrapResult) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseGetTagMappingBootstrapResult) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseGetTagMappingBootstrapResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Mappings) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"mappings":`...)
-		if w, err = BuiltinVectorStatshouseMappingWriteJSONOpt(short, w, item.Mappings); err != nil {
-			return w, err
-		}
+	backupIndexMappings := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"mappings":`...)
+	if w, err = BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames, short, w, item.Mappings); err != nil {
+		return w, err
+	}
+	if (len(item.Mappings) != 0) == false {
+		w = w[:backupIndexMappings]
 	}
 	return append(w, '}'), nil
 }
@@ -93,11 +112,7 @@ func (item *StatshouseGetTagMappingBootstrapResult) MarshalJSON() ([]byte, error
 }
 
 func (item *StatshouseGetTagMappingBootstrapResult) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.getTagMappingBootstrapResult", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getTagMappingBootstrapResult", err.Error())
 	}
 	return nil
@@ -144,36 +159,55 @@ func (item StatshouseGetTagMappingBootstrapResultBytes) String() string {
 	return string(w)
 }
 
-func StatshouseGetTagMappingBootstrapResultBytes__ReadJSON(item *StatshouseGetTagMappingBootstrapResultBytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseGetTagMappingBootstrapResultBytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getTagMappingBootstrapResult", "expected json object")
+func (item *StatshouseGetTagMappingBootstrapResultBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propMappingsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "mappings":
+				if propMappingsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMappingBootstrapResult", "mappings")
+				}
+				if err := BuiltinVectorStatshouseMappingBytesReadJSON(legacyTypeNames, in, &item.Mappings); err != nil {
+					return err
+				}
+				propMappingsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getTagMappingBootstrapResult", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jMappings := _jm["mappings"]
-	delete(_jm, "mappings")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getTagMappingBootstrapResult", k)
-	}
-	if err := BuiltinVectorStatshouseMappingBytesReadJSON(_jMappings, &item.Mappings); err != nil {
-		return err
+	if !propMappingsPresented {
+		item.Mappings = item.Mappings[:0]
 	}
 	return nil
 }
 
 func (item *StatshouseGetTagMappingBootstrapResultBytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseGetTagMappingBootstrapResultBytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseGetTagMappingBootstrapResultBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Mappings) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"mappings":`...)
-		if w, err = BuiltinVectorStatshouseMappingBytesWriteJSONOpt(short, w, item.Mappings); err != nil {
-			return w, err
-		}
+	backupIndexMappings := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"mappings":`...)
+	if w, err = BuiltinVectorStatshouseMappingBytesWriteJSONOpt(newTypeNames, short, w, item.Mappings); err != nil {
+		return w, err
+	}
+	if (len(item.Mappings) != 0) == false {
+		w = w[:backupIndexMappings]
 	}
 	return append(w, '}'), nil
 }
@@ -183,11 +217,7 @@ func (item *StatshouseGetTagMappingBootstrapResultBytes) MarshalJSON() ([]byte, 
 }
 
 func (item *StatshouseGetTagMappingBootstrapResultBytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.getTagMappingBootstrapResult", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getTagMappingBootstrapResult", err.Error())
 	}
 	return nil

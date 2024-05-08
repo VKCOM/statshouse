@@ -52,19 +52,19 @@ func (item *EngineGetReadWriteMode) WriteResult(w []byte, ret EngineReadWriteMod
 	return ret.WriteBoxed(w, item.FieldsMask)
 }
 
-func (item *EngineGetReadWriteMode) ReadResultJSON(j interface{}, ret *EngineReadWriteMode) error {
-	if err := EngineReadWriteMode__ReadJSON(ret, j, item.FieldsMask); err != nil {
+func (item *EngineGetReadWriteMode) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *EngineReadWriteMode) error {
+	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineGetReadWriteMode) WriteResultJSON(w []byte, ret EngineReadWriteMode) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineGetReadWriteMode) writeResultJSON(short bool, w []byte, ret EngineReadWriteMode) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+func (item *EngineGetReadWriteMode) writeResultJSON(newTypeNames bool, short bool, w []byte, ret EngineReadWriteMode) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -79,22 +79,19 @@ func (item *EngineGetReadWriteMode) ReadResultWriteResultJSON(r []byte, w []byte
 	return r, w, err
 }
 
-func (item *EngineGetReadWriteMode) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineGetReadWriteMode) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret EngineReadWriteMode
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineGetReadWriteMode) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.getReadWriteMode", err.Error())
-	}
 	var ret EngineReadWriteMode
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -109,34 +106,53 @@ func (item EngineGetReadWriteMode) String() string {
 	return string(w)
 }
 
-func EngineGetReadWriteMode__ReadJSON(item *EngineGetReadWriteMode, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineGetReadWriteMode) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.getReadWriteMode", "expected json object")
+func (item *EngineGetReadWriteMode) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.getReadWriteMode", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.getReadWriteMode", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.getReadWriteMode", k)
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
 	return nil
 }
 
 func (item *EngineGetReadWriteMode) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineGetReadWriteMode) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineGetReadWriteMode) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	return append(w, '}'), nil
 }
@@ -146,11 +162,7 @@ func (item *EngineGetReadWriteMode) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineGetReadWriteMode) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.getReadWriteMode", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.getReadWriteMode", err.Error())
 	}
 	return nil

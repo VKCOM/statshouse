@@ -80,18 +80,18 @@ func (item *EnginePushStat) WriteResult(w []byte, ret bool) (_ []byte, err error
 	return BoolWriteBoxed(w, ret)
 }
 
-func (item *EnginePushStat) ReadResultJSON(j interface{}, ret *bool) error {
-	if err := JsonReadBool(j, ret); err != nil {
+func (item *EnginePushStat) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *bool) error {
+	if err := Json2ReadBool(in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EnginePushStat) WriteResultJSON(w []byte, ret bool) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EnginePushStat) writeResultJSON(short bool, w []byte, ret bool) (_ []byte, err error) {
+func (item *EnginePushStat) writeResultJSON(newTypeNames bool, short bool, w []byte, ret bool) (_ []byte, err error) {
 	w = basictl.JSONWriteBool(w, ret)
 	return w, nil
 }
@@ -105,22 +105,19 @@ func (item *EnginePushStat) ReadResultWriteResultJSON(r []byte, w []byte) (_ []b
 	return r, w, err
 }
 
-func (item *EnginePushStat) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EnginePushStat) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret bool
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EnginePushStat) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.pushStat", err.Error())
-	}
 	var ret bool
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -135,49 +132,73 @@ func (item EnginePushStat) String() string {
 	return string(w)
 }
 
-func EnginePushStat__ReadJSON(item *EnginePushStat, j interface{}) error { return item.readJSON(j) }
-func (item *EnginePushStat) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.pushStat", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jStat := _jm["stat"]
-	delete(_jm, "stat")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.pushStat", k)
-	}
-	if _jStat != nil {
-		item.FieldsMask |= 1 << 0
-	}
-	if _jStat != nil {
-		if err := Stat__ReadJSON(&item.Stat, _jStat); err != nil {
-			return err
+func (item *EnginePushStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propStatPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.pushStat", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "stat":
+				if propStatPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.pushStat", "stat")
+				}
+				if err := item.Stat.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propStatPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.pushStat", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propStatPresented {
 		item.Stat.Reset()
+	}
+	if propStatPresented {
+		item.FieldsMask |= 1 << 0
 	}
 	return nil
 }
 
 func (item *EnginePushStat) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EnginePushStat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EnginePushStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"stat":`...)
-		if w, err = item.Stat.WriteJSONOpt(short, w); err != nil {
+		if w, err = item.Stat.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -189,11 +210,7 @@ func (item *EnginePushStat) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EnginePushStat) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.pushStat", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.pushStat", err.Error())
 	}
 	return nil
