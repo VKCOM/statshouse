@@ -66,58 +66,95 @@ func (item StatshouseApiSeries) String() string {
 	return string(w)
 }
 
-func StatshouseApiSeries__ReadJSON(item *StatshouseApiSeries, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiSeries) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.series", "expected json object")
+func (item *StatshouseApiSeries) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propSeriesDataPresented bool
+	var propTimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.series", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "series_data":
+				if propSeriesDataPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.series", "series_data")
+				}
+				if err := BuiltinVectorVectorDoubleReadJSON(legacyTypeNames, in, &item.SeriesData); err != nil {
+					return err
+				}
+				propSeriesDataPresented = true
+			case "time":
+				if propTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.series", "time")
+				}
+				if err := BuiltinVectorLongReadJSON(legacyTypeNames, in, &item.Time); err != nil {
+					return err
+				}
+				propTimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.series", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jSeriesData := _jm["series_data"]
-	delete(_jm, "series_data")
-	_jTime := _jm["time"]
-	delete(_jm, "time")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.series", k)
+	if !propSeriesDataPresented {
+		item.SeriesData = item.SeriesData[:0]
 	}
-	if err := BuiltinVectorVectorDoubleReadJSON(_jSeriesData, &item.SeriesData); err != nil {
-		return err
-	}
-	if err := BuiltinVectorLongReadJSON(_jTime, &item.Time); err != nil {
-		return err
+	if !propTimePresented {
+		item.Time = item.Time[:0]
 	}
 	return nil
 }
 
 func (item *StatshouseApiSeries) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiSeries) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiSeries) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.SeriesData) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"series_data":`...)
-		if w, err = BuiltinVectorVectorDoubleWriteJSONOpt(short, w, item.SeriesData); err != nil {
-			return w, err
-		}
+	backupIndexSeriesData := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"series_data":`...)
+	if w, err = BuiltinVectorVectorDoubleWriteJSONOpt(newTypeNames, short, w, item.SeriesData); err != nil {
+		return w, err
 	}
-	if len(item.Time) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"time":`...)
-		if w, err = BuiltinVectorLongWriteJSONOpt(short, w, item.Time); err != nil {
-			return w, err
-		}
+	if (len(item.SeriesData) != 0) == false {
+		w = w[:backupIndexSeriesData]
+	}
+	backupIndexTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"time":`...)
+	if w, err = BuiltinVectorLongWriteJSONOpt(newTypeNames, short, w, item.Time); err != nil {
+		return w, err
+	}
+	if (len(item.Time) != 0) == false {
+		w = w[:backupIndexTime]
 	}
 	return append(w, '}'), nil
 }
@@ -127,11 +164,7 @@ func (item *StatshouseApiSeries) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiSeries) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.series", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.series", err.Error())
 	}
 	return nil

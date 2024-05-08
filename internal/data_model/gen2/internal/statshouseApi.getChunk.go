@@ -70,19 +70,19 @@ func (item *StatshouseApiGetChunk) WriteResult(w []byte, ret StatshouseApiGetChu
 	return ret.WriteBoxed(w)
 }
 
-func (item *StatshouseApiGetChunk) ReadResultJSON(j interface{}, ret *StatshouseApiGetChunkResponse) error {
-	if err := StatshouseApiGetChunkResponse__ReadJSON(ret, j); err != nil {
+func (item *StatshouseApiGetChunk) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshouseApiGetChunkResponse) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *StatshouseApiGetChunk) WriteResultJSON(w []byte, ret StatshouseApiGetChunkResponse) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *StatshouseApiGetChunk) writeResultJSON(short bool, w []byte, ret StatshouseApiGetChunkResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *StatshouseApiGetChunk) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshouseApiGetChunkResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -97,22 +97,19 @@ func (item *StatshouseApiGetChunk) ReadResultWriteResultJSON(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item *StatshouseApiGetChunk) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *StatshouseApiGetChunk) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshouseApiGetChunkResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *StatshouseApiGetChunk) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("statshouseApi.getChunk", err.Error())
-	}
 	var ret StatshouseApiGetChunkResponse
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -127,64 +124,110 @@ func (item StatshouseApiGetChunk) String() string {
 	return string(w)
 }
 
-func StatshouseApiGetChunk__ReadJSON(item *StatshouseApiGetChunk, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiGetChunk) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.getChunk", "expected json object")
+func (item *StatshouseApiGetChunk) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propAccessTokenPresented bool
+	var propResponseIdPresented bool
+	var propChunkIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getChunk", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "access_token":
+				if propAccessTokenPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getChunk", "access_token")
+				}
+				if err := Json2ReadString(in, &item.AccessToken); err != nil {
+					return err
+				}
+				propAccessTokenPresented = true
+			case "response_id":
+				if propResponseIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getChunk", "response_id")
+				}
+				if err := Json2ReadInt64(in, &item.ResponseId); err != nil {
+					return err
+				}
+				propResponseIdPresented = true
+			case "chunk_id":
+				if propChunkIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.getChunk", "chunk_id")
+				}
+				if err := Json2ReadInt32(in, &item.ChunkId); err != nil {
+					return err
+				}
+				propChunkIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.getChunk", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jAccessToken := _jm["access_token"]
-	delete(_jm, "access_token")
-	if err := JsonReadString(_jAccessToken, &item.AccessToken); err != nil {
-		return err
+	if !propAccessTokenPresented {
+		item.AccessToken = ""
 	}
-	_jResponseId := _jm["response_id"]
-	delete(_jm, "response_id")
-	if err := JsonReadInt64(_jResponseId, &item.ResponseId); err != nil {
-		return err
+	if !propResponseIdPresented {
+		item.ResponseId = 0
 	}
-	_jChunkId := _jm["chunk_id"]
-	delete(_jm, "chunk_id")
-	if err := JsonReadInt32(_jChunkId, &item.ChunkId); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.getChunk", k)
+	if !propChunkIdPresented {
+		item.ChunkId = 0
 	}
 	return nil
 }
 
 func (item *StatshouseApiGetChunk) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiGetChunk) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetChunk) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.AccessToken) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"access_token":`...)
-		w = basictl.JSONWriteString(w, item.AccessToken)
+	backupIndexAccessToken := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"access_token":`...)
+	w = basictl.JSONWriteString(w, item.AccessToken)
+	if (len(item.AccessToken) != 0) == false {
+		w = w[:backupIndexAccessToken]
 	}
-	if item.ResponseId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"response_id":`...)
-		w = basictl.JSONWriteInt64(w, item.ResponseId)
+	backupIndexResponseId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"response_id":`...)
+	w = basictl.JSONWriteInt64(w, item.ResponseId)
+	if (item.ResponseId != 0) == false {
+		w = w[:backupIndexResponseId]
 	}
-	if item.ChunkId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"chunk_id":`...)
-		w = basictl.JSONWriteInt32(w, item.ChunkId)
+	backupIndexChunkId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"chunk_id":`...)
+	w = basictl.JSONWriteInt32(w, item.ChunkId)
+	if (item.ChunkId != 0) == false {
+		w = w[:backupIndexChunkId]
 	}
 	return append(w, '}'), nil
 }
@@ -194,11 +237,7 @@ func (item *StatshouseApiGetChunk) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiGetChunk) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.getChunk", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.getChunk", err.Error())
 	}
 	return nil

@@ -45,24 +45,27 @@ func (item MetadataPutMappingResponse) String() string {
 	return string(w)
 }
 
-func MetadataPutMappingResponse__ReadJSON(item *MetadataPutMappingResponse, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataPutMappingResponse) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.putMappingResponse", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.putMappingResponse", k)
+func (item *MetadataPutMappingResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("metadata.putMappingResponse", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *MetadataPutMappingResponse) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataPutMappingResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataPutMappingResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -72,11 +75,7 @@ func (item *MetadataPutMappingResponse) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataPutMappingResponse) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.putMappingResponse", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.putMappingResponse", err.Error())
 	}
 	return nil

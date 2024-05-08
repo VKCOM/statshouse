@@ -60,44 +60,72 @@ func (item StatshouseApiReleaseChunksResponse) String() string {
 	return string(w)
 }
 
-func StatshouseApiReleaseChunksResponse__ReadJSON(item *StatshouseApiReleaseChunksResponse, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiReleaseChunksResponse) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.releaseChunksResponse", "expected json object")
+func (item *StatshouseApiReleaseChunksResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propReleasedChunkCountPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.releaseChunksResponse", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "releasedChunkCount":
+				if propReleasedChunkCountPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.releaseChunksResponse", "releasedChunkCount")
+				}
+				if err := Json2ReadInt32(in, &item.ReleasedChunkCount); err != nil {
+					return err
+				}
+				propReleasedChunkCountPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.releaseChunksResponse", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jReleasedChunkCount := _jm["releasedChunkCount"]
-	delete(_jm, "releasedChunkCount")
-	if err := JsonReadInt32(_jReleasedChunkCount, &item.ReleasedChunkCount); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.releaseChunksResponse", k)
+	if !propReleasedChunkCountPresented {
+		item.ReleasedChunkCount = 0
 	}
 	return nil
 }
 
 func (item *StatshouseApiReleaseChunksResponse) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiReleaseChunksResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiReleaseChunksResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.ReleasedChunkCount != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"releasedChunkCount":`...)
-		w = basictl.JSONWriteInt32(w, item.ReleasedChunkCount)
+	backupIndexReleasedChunkCount := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"releasedChunkCount":`...)
+	w = basictl.JSONWriteInt32(w, item.ReleasedChunkCount)
+	if (item.ReleasedChunkCount != 0) == false {
+		w = w[:backupIndexReleasedChunkCount]
 	}
 	return append(w, '}'), nil
 }
@@ -107,11 +135,7 @@ func (item *StatshouseApiReleaseChunksResponse) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiReleaseChunksResponse) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.releaseChunksResponse", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.releaseChunksResponse", err.Error())
 	}
 	return nil

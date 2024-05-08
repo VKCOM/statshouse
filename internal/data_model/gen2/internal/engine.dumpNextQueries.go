@@ -52,19 +52,19 @@ func (item *EngineDumpNextQueries) WriteResult(w []byte, ret True) (_ []byte, er
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineDumpNextQueries) ReadResultJSON(j interface{}, ret *True) error {
-	if err := True__ReadJSON(ret, j); err != nil {
+func (item *EngineDumpNextQueries) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineDumpNextQueries) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineDumpNextQueries) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EngineDumpNextQueries) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -79,22 +79,19 @@ func (item *EngineDumpNextQueries) ReadResultWriteResultJSON(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item *EngineDumpNextQueries) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineDumpNextQueries) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineDumpNextQueries) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.dumpNextQueries", err.Error())
-	}
 	var ret True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -109,34 +106,53 @@ func (item EngineDumpNextQueries) String() string {
 	return string(w)
 }
 
-func EngineDumpNextQueries__ReadJSON(item *EngineDumpNextQueries, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineDumpNextQueries) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.dumpNextQueries", "expected json object")
+func (item *EngineDumpNextQueries) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propNumQueriesPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "num_queries":
+				if propNumQueriesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.dumpNextQueries", "num_queries")
+				}
+				if err := Json2ReadInt32(in, &item.NumQueries); err != nil {
+					return err
+				}
+				propNumQueriesPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.dumpNextQueries", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jNumQueries := _jm["num_queries"]
-	delete(_jm, "num_queries")
-	if err := JsonReadInt32(_jNumQueries, &item.NumQueries); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.dumpNextQueries", k)
+	if !propNumQueriesPresented {
+		item.NumQueries = 0
 	}
 	return nil
 }
 
 func (item *EngineDumpNextQueries) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineDumpNextQueries) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineDumpNextQueries) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.NumQueries != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"num_queries":`...)
-		w = basictl.JSONWriteInt32(w, item.NumQueries)
+	backupIndexNumQueries := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"num_queries":`...)
+	w = basictl.JSONWriteInt32(w, item.NumQueries)
+	if (item.NumQueries != 0) == false {
+		w = w[:backupIndexNumQueries]
 	}
 	return append(w, '}'), nil
 }
@@ -146,11 +162,7 @@ func (item *EngineDumpNextQueries) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineDumpNextQueries) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.dumpNextQueries", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.dumpNextQueries", err.Error())
 	}
 	return nil

@@ -67,6 +67,7 @@ type Options struct {
 	MinHost          bool
 	MaxHost          bool
 	QuerySequential  bool
+	Simple           bool // expression is generated for a simple user interface
 	Offsets          []int64
 	Limit            int
 	Rand             *rand.Rand
@@ -959,6 +960,9 @@ func (ev *evaluator) querySeries(sel *parser.VectorSelector) (srs []Series, err 
 							ID:    LabelOffset,
 							Value: int32(selOffset)})
 					}
+					if qry.prefixSum {
+						sr = ev.funcPrefixSum(sr)
+					}
 					sr.Data[k].Offset = offset
 				}
 				if len(res[j].Data) == 0 {
@@ -1012,10 +1016,16 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			return SeriesQuery{}, fmt.Errorf("unrecognized %s value %q", LabelWhat, selWhat)
 		}
 	}
+	var prefixSum bool
 	if len(whats) == 0 {
 		var what data_model.DigestWhat
 		if metric.Kind == format.MetricKindCounter {
-			what = data_model.DigestCountRaw
+			if !ev.opt.Simple && (metric.PromQLPrefixSum || len(metric.HistorgamBuckets) != 0) {
+				what = data_model.DigestCountRaw
+				prefixSum = true
+			} else {
+				what = data_model.DigestCount
+			}
 		} else {
 			what = data_model.DigestAvg
 		}
@@ -1217,6 +1227,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 			SFilterOut: sFilterOut,
 			MinMaxHost: [2]bool{sel.MinHost, sel.MaxHost},
 			Options:    ev.opt,
+			prefixSum:  prefixSum,
 		},
 		nil
 }

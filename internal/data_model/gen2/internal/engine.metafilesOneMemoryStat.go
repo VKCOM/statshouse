@@ -44,32 +44,42 @@ func BuiltinVectorEngineMetafilesOneMemoryStatWrite(w []byte, vec []EngineMetafi
 	return w, nil
 }
 
-func BuiltinVectorEngineMetafilesOneMemoryStatReadJSON(j interface{}, vec *[]EngineMetafilesOneMemoryStat) error {
-	l, _arr, err := JsonReadArray("[]EngineMetafilesOneMemoryStat", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]EngineMetafilesOneMemoryStat, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := EngineMetafilesOneMemoryStat__ReadJSON(&(*vec)[i], _arr[i]); err != nil {
-			return err
+func BuiltinVectorEngineMetafilesOneMemoryStatReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]EngineMetafilesOneMemoryStat) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]EngineMetafilesOneMemoryStat", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue EngineMetafilesOneMemoryStat
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]EngineMetafilesOneMemoryStat", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorEngineMetafilesOneMemoryStatWriteJSON(w []byte, vec []EngineMetafilesOneMemoryStat) (_ []byte, err error) {
-	return BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(false, w, vec)
+	return BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(true, false, w, vec)
 }
-func BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(short bool, w []byte, vec []EngineMetafilesOneMemoryStat) (_ []byte, err error) {
+func BuiltinVectorEngineMetafilesOneMemoryStatWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []EngineMetafilesOneMemoryStat) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 	}
@@ -127,54 +137,91 @@ func (item EngineMetafilesOneMemoryStat) String() string {
 	return string(w)
 }
 
-func EngineMetafilesOneMemoryStat__ReadJSON(item *EngineMetafilesOneMemoryStat, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineMetafilesOneMemoryStat) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.metafilesOneMemoryStat", "expected json object")
+func (item *EngineMetafilesOneMemoryStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propMemoryMegabytesPresented bool
+	var propTotalAioQueriesPresented bool
+	var propTotalAioBytesPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "memory_megabytes":
+				if propMemoryMegabytesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.metafilesOneMemoryStat", "memory_megabytes")
+				}
+				if err := Json2ReadInt32(in, &item.MemoryMegabytes); err != nil {
+					return err
+				}
+				propMemoryMegabytesPresented = true
+			case "total_aio_queries":
+				if propTotalAioQueriesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.metafilesOneMemoryStat", "total_aio_queries")
+				}
+				if err := Json2ReadInt64(in, &item.TotalAioQueries); err != nil {
+					return err
+				}
+				propTotalAioQueriesPresented = true
+			case "total_aio_bytes":
+				if propTotalAioBytesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.metafilesOneMemoryStat", "total_aio_bytes")
+				}
+				if err := Json2ReadInt64(in, &item.TotalAioBytes); err != nil {
+					return err
+				}
+				propTotalAioBytesPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.metafilesOneMemoryStat", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jMemoryMegabytes := _jm["memory_megabytes"]
-	delete(_jm, "memory_megabytes")
-	if err := JsonReadInt32(_jMemoryMegabytes, &item.MemoryMegabytes); err != nil {
-		return err
+	if !propMemoryMegabytesPresented {
+		item.MemoryMegabytes = 0
 	}
-	_jTotalAioQueries := _jm["total_aio_queries"]
-	delete(_jm, "total_aio_queries")
-	if err := JsonReadInt64(_jTotalAioQueries, &item.TotalAioQueries); err != nil {
-		return err
+	if !propTotalAioQueriesPresented {
+		item.TotalAioQueries = 0
 	}
-	_jTotalAioBytes := _jm["total_aio_bytes"]
-	delete(_jm, "total_aio_bytes")
-	if err := JsonReadInt64(_jTotalAioBytes, &item.TotalAioBytes); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.metafilesOneMemoryStat", k)
+	if !propTotalAioBytesPresented {
+		item.TotalAioBytes = 0
 	}
 	return nil
 }
 
 func (item *EngineMetafilesOneMemoryStat) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineMetafilesOneMemoryStat) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineMetafilesOneMemoryStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.MemoryMegabytes != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"memory_megabytes":`...)
-		w = basictl.JSONWriteInt32(w, item.MemoryMegabytes)
+	backupIndexMemoryMegabytes := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"memory_megabytes":`...)
+	w = basictl.JSONWriteInt32(w, item.MemoryMegabytes)
+	if (item.MemoryMegabytes != 0) == false {
+		w = w[:backupIndexMemoryMegabytes]
 	}
-	if item.TotalAioQueries != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"total_aio_queries":`...)
-		w = basictl.JSONWriteInt64(w, item.TotalAioQueries)
+	backupIndexTotalAioQueries := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"total_aio_queries":`...)
+	w = basictl.JSONWriteInt64(w, item.TotalAioQueries)
+	if (item.TotalAioQueries != 0) == false {
+		w = w[:backupIndexTotalAioQueries]
 	}
-	if item.TotalAioBytes != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"total_aio_bytes":`...)
-		w = basictl.JSONWriteInt64(w, item.TotalAioBytes)
+	backupIndexTotalAioBytes := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"total_aio_bytes":`...)
+	w = basictl.JSONWriteInt64(w, item.TotalAioBytes)
+	if (item.TotalAioBytes != 0) == false {
+		w = w[:backupIndexTotalAioBytes]
 	}
 	return append(w, '}'), nil
 }
@@ -184,11 +231,7 @@ func (item *EngineMetafilesOneMemoryStat) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineMetafilesOneMemoryStat) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.metafilesOneMemoryStat", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.metafilesOneMemoryStat", err.Error())
 	}
 	return nil

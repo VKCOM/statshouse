@@ -58,44 +58,72 @@ func (item StatshouseGetTagMappingResult) String() string {
 	return string(w)
 }
 
-func StatshouseGetTagMappingResult__ReadJSON(item *StatshouseGetTagMappingResult, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseGetTagMappingResult) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getTagMappingResult", "expected json object")
+func (item *StatshouseGetTagMappingResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propValuePresented bool
+	var propTtlNanosecPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMappingResult", "value")
+				}
+				if err := Json2ReadInt32(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			case "ttl_nanosec":
+				if propTtlNanosecPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTagMappingResult", "ttl_nanosec")
+				}
+				if err := Json2ReadInt64(in, &item.TtlNanosec); err != nil {
+					return err
+				}
+				propTtlNanosecPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getTagMappingResult", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	if err := JsonReadInt32(_jValue, &item.Value); err != nil {
-		return err
+	if !propValuePresented {
+		item.Value = 0
 	}
-	_jTtlNanosec := _jm["ttl_nanosec"]
-	delete(_jm, "ttl_nanosec")
-	if err := JsonReadInt64(_jTtlNanosec, &item.TtlNanosec); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getTagMappingResult", k)
+	if !propTtlNanosecPresented {
+		item.TtlNanosec = 0
 	}
 	return nil
 }
 
 func (item *StatshouseGetTagMappingResult) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseGetTagMappingResult) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseGetTagMappingResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Value != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		w = basictl.JSONWriteInt32(w, item.Value)
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = basictl.JSONWriteInt32(w, item.Value)
+	if (item.Value != 0) == false {
+		w = w[:backupIndexValue]
 	}
-	if item.TtlNanosec != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"ttl_nanosec":`...)
-		w = basictl.JSONWriteInt64(w, item.TtlNanosec)
+	backupIndexTtlNanosec := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"ttl_nanosec":`...)
+	w = basictl.JSONWriteInt64(w, item.TtlNanosec)
+	if (item.TtlNanosec != 0) == false {
+		w = w[:backupIndexTtlNanosec]
 	}
 	return append(w, '}'), nil
 }
@@ -105,11 +133,7 @@ func (item *StatshouseGetTagMappingResult) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseGetTagMappingResult) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.getTagMappingResult", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.getTagMappingResult", err.Error())
 	}
 	return nil

@@ -48,36 +48,61 @@ func (item *MetadataHistoryShortResponse) WriteBoxed(w []byte, nat_field_mask ui
 	return item.Write(w, nat_field_mask)
 }
 
-func MetadataHistoryShortResponse__ReadJSON(item *MetadataHistoryShortResponse, j interface{}, nat_field_mask uint32) error {
-	return item.readJSON(j, nat_field_mask)
-}
-func (item *MetadataHistoryShortResponse) readJSON(j interface{}, nat_field_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.history_short_response", "expected json object")
+func (item *MetadataHistoryShortResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
+	var rawEvents []byte
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "events":
+				if rawEvents != nil {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.history_short_response", "events")
+				}
+				rawEvents = in.Raw()
+				if !in.Ok() {
+					return in.Error()
+				}
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.history_short_response", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jEvents := _jm["events"]
-	delete(_jm, "events")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.history_short_response", k)
+	var inEventsPointer *basictl.JsonLexer
+	inEvents := basictl.JsonLexer{Data: rawEvents}
+	if rawEvents != nil {
+		inEventsPointer = &inEvents
 	}
-	if err := BuiltinVectorMetadataHistoryShortResponseEventReadJSON(_jEvents, &item.Events, nat_field_mask); err != nil {
+	if err := BuiltinVectorMetadataHistoryShortResponseEventReadJSON(legacyTypeNames, inEventsPointer, &item.Events, nat_field_mask); err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (item *MetadataHistoryShortResponse) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_field_mask)
+	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataHistoryShortResponse) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataHistoryShortResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Events) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"events":`...)
-		if w, err = BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(short, w, item.Events, nat_field_mask); err != nil {
-			return w, err
-		}
+	backupIndexEvents := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"events":`...)
+	if w, err = BuiltinVectorMetadataHistoryShortResponseEventWriteJSONOpt(newTypeNames, short, w, item.Events, nat_field_mask); err != nil {
+		return w, err
+	}
+	if (len(item.Events) != 0) == false {
+		w = w[:backupIndexEvents]
 	}
 	return append(w, '}'), nil
 }

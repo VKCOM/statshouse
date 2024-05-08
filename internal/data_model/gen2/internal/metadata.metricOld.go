@@ -44,32 +44,42 @@ func BuiltinVectorMetadataMetricOldWrite(w []byte, vec []MetadataMetricOld, nat_
 	return w, nil
 }
 
-func BuiltinVectorMetadataMetricOldReadJSON(j interface{}, vec *[]MetadataMetricOld, nat_t uint32) error {
-	l, _arr, err := JsonReadArray("[]MetadataMetricOld", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]MetadataMetricOld, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := MetadataMetricOld__ReadJSON(&(*vec)[i], _arr[i], nat_t); err != nil {
-			return err
+func BuiltinVectorMetadataMetricOldReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]MetadataMetricOld, nat_t uint32) error {
+	*vec = (*vec)[:cap(*vec)]
+	index := 0
+	if in != nil {
+		in.Delim('[')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]MetadataMetricOld", "expected json array")
+		}
+		for ; !in.IsDelim(']'); index++ {
+			if len(*vec) <= index {
+				var newValue MetadataMetricOld
+				*vec = append(*vec, newValue)
+				*vec = (*vec)[:cap(*vec)]
+			}
+			if err := (*vec)[index].ReadJSON(legacyTypeNames, in, nat_t); err != nil {
+				return err
+			}
+			in.WantComma()
+		}
+		in.Delim(']')
+		if !in.Ok() {
+			return ErrorInvalidJSON("[]MetadataMetricOld", "expected json array's end")
 		}
 	}
+	*vec = (*vec)[:index]
 	return nil
 }
 
 func BuiltinVectorMetadataMetricOldWriteJSON(w []byte, vec []MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
-	return BuiltinVectorMetadataMetricOldWriteJSONOpt(false, w, vec, nat_t)
+	return BuiltinVectorMetadataMetricOldWriteJSONOpt(true, false, w, vec, nat_t)
 }
-func BuiltinVectorMetadataMetricOldWriteJSONOpt(short bool, w []byte, vec []MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
+func BuiltinVectorMetadataMetricOldWriteJSONOpt(newTypeNames bool, short bool, w []byte, vec []MetadataMetricOld, nat_t uint32) (_ []byte, err error) {
 	w = append(w, '[')
 	for _, elem := range vec {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		if w, err = elem.WriteJSONOpt(short, w, nat_t); err != nil {
+		if w, err = elem.WriteJSONOpt(newTypeNames, short, w, nat_t); err != nil {
 			return w, err
 		}
 	}
@@ -187,83 +197,138 @@ func (item *MetadataMetricOld) WriteBoxed(w []byte, nat_field_mask uint32) ([]by
 	return item.Write(w, nat_field_mask)
 }
 
-func MetadataMetricOld__ReadJSON(item *MetadataMetricOld, j interface{}, nat_field_mask uint32) error {
-	return item.readJSON(j, nat_field_mask)
-}
-func (item *MetadataMetricOld) readJSON(j interface{}, nat_field_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.metricOld", "expected json object")
-	}
-	_jId := _jm["id"]
-	delete(_jm, "id")
-	if err := JsonReadInt64(_jId, &item.Id); err != nil {
-		return err
-	}
-	_jName := _jm["name"]
-	delete(_jm, "name")
-	if err := JsonReadString(_jName, &item.Name); err != nil {
-		return err
-	}
-	_jEventType := _jm["event_type"]
-	delete(_jm, "event_type")
-	_jUnused := _jm["unused"]
-	delete(_jm, "unused")
-	_jVersion := _jm["version"]
-	delete(_jm, "version")
-	if err := JsonReadInt64(_jVersion, &item.Version); err != nil {
-		return err
-	}
-	_jUpdateTime := _jm["update_time"]
-	delete(_jm, "update_time")
-	if err := JsonReadUint32(_jUpdateTime, &item.UpdateTime); err != nil {
-		return err
-	}
-	_jData := _jm["data"]
-	delete(_jm, "data")
-	if err := JsonReadString(_jData, &item.Data); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.metricOld", k)
-	}
-	if nat_field_mask&(1<<2) == 0 && _jEventType != nil {
-		return ErrorInvalidJSON("metadata.metricOld", "field 'event_type' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_field_mask&(1<<3) == 0 && _jUnused != nil {
-		return ErrorInvalidJSON("metadata.metricOld", "field 'unused' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_field_mask&(1<<2) != 0 {
-		if err := JsonReadInt32(_jEventType, &item.EventType); err != nil {
-			return err
+func (item *MetadataMetricOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_field_mask uint32) error {
+	var propIdPresented bool
+	var propNamePresented bool
+	var propEventTypePresented bool
+	var propUnusedPresented bool
+	var propVersionPresented bool
+	var propUpdateTimePresented bool
+	var propDataPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "id":
+				if propIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.metricOld", "id")
+				}
+				if err := Json2ReadInt64(in, &item.Id); err != nil {
+					return err
+				}
+				propIdPresented = true
+			case "name":
+				if propNamePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.metricOld", "name")
+				}
+				if err := Json2ReadString(in, &item.Name); err != nil {
+					return err
+				}
+				propNamePresented = true
+			case "event_type":
+				if propEventTypePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.metricOld", "event_type")
+				}
+				if nat_field_mask&(1<<2) == 0 {
+					return ErrorInvalidJSON("metadata.metricOld", "field 'event_type' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt32(in, &item.EventType); err != nil {
+					return err
+				}
+				propEventTypePresented = true
+			case "unused":
+				if propUnusedPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.metricOld", "unused")
+				}
+				if nat_field_mask&(1<<3) == 0 {
+					return ErrorInvalidJSON("metadata.metricOld", "field 'unused' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadUint32(in, &item.Unused); err != nil {
+					return err
+				}
+				propUnusedPresented = true
+			case "version":
+				if propVersionPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.metricOld", "version")
+				}
+				if err := Json2ReadInt64(in, &item.Version); err != nil {
+					return err
+				}
+				propVersionPresented = true
+			case "update_time":
+				if propUpdateTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.metricOld", "update_time")
+				}
+				if err := Json2ReadUint32(in, &item.UpdateTime); err != nil {
+					return err
+				}
+				propUpdateTimePresented = true
+			case "data":
+				if propDataPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.metricOld", "data")
+				}
+				if err := Json2ReadString(in, &item.Data); err != nil {
+					return err
+				}
+				propDataPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.metricOld", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propIdPresented {
+		item.Id = 0
+	}
+	if !propNamePresented {
+		item.Name = ""
+	}
+	if !propEventTypePresented {
 		item.EventType = 0
 	}
-	if nat_field_mask&(1<<3) != 0 {
-		if err := JsonReadUint32(_jUnused, &item.Unused); err != nil {
-			return err
-		}
-	} else {
+	if !propUnusedPresented {
 		item.Unused = 0
+	}
+	if !propVersionPresented {
+		item.Version = 0
+	}
+	if !propUpdateTimePresented {
+		item.UpdateTime = 0
+	}
+	if !propDataPresented {
+		item.Data = ""
 	}
 	return nil
 }
 
 func (item *MetadataMetricOld) WriteJSON(w []byte, nat_field_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_field_mask)
+	return item.WriteJSONOpt(true, false, w, nat_field_mask)
 }
-func (item *MetadataMetricOld) WriteJSONOpt(short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
+func (item *MetadataMetricOld) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_field_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Id != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"id":`...)
-		w = basictl.JSONWriteInt64(w, item.Id)
+	backupIndexId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"id":`...)
+	w = basictl.JSONWriteInt64(w, item.Id)
+	if (item.Id != 0) == false {
+		w = w[:backupIndexId]
 	}
-	if len(item.Name) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"name":`...)
-		w = basictl.JSONWriteString(w, item.Name)
+	backupIndexName := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"name":`...)
+	w = basictl.JSONWriteString(w, item.Name)
+	if (len(item.Name) != 0) == false {
+		w = w[:backupIndexName]
 	}
 	if nat_field_mask&(1<<2) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -275,20 +340,26 @@ func (item *MetadataMetricOld) WriteJSONOpt(short bool, w []byte, nat_field_mask
 		w = append(w, `"unused":`...)
 		w = basictl.JSONWriteUint32(w, item.Unused)
 	}
-	if item.Version != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"version":`...)
-		w = basictl.JSONWriteInt64(w, item.Version)
+	backupIndexVersion := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"version":`...)
+	w = basictl.JSONWriteInt64(w, item.Version)
+	if (item.Version != 0) == false {
+		w = w[:backupIndexVersion]
 	}
-	if item.UpdateTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"update_time":`...)
-		w = basictl.JSONWriteUint32(w, item.UpdateTime)
+	backupIndexUpdateTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"update_time":`...)
+	w = basictl.JSONWriteUint32(w, item.UpdateTime)
+	if (item.UpdateTime != 0) == false {
+		w = w[:backupIndexUpdateTime]
 	}
-	if len(item.Data) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"data":`...)
-		w = basictl.JSONWriteString(w, item.Data)
+	backupIndexData := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"data":`...)
+	w = basictl.JSONWriteString(w, item.Data)
+	if (len(item.Data) != 0) == false {
+		w = w[:backupIndexData]
 	}
 	return append(w, '}'), nil
 }

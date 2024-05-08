@@ -52,19 +52,19 @@ func (item *KvEngineBackup) WriteResult(w []byte, ret KvEngineBackupResponse) (_
 	return ret.WriteBoxed(w)
 }
 
-func (item *KvEngineBackup) ReadResultJSON(j interface{}, ret *KvEngineBackupResponse) error {
-	if err := KvEngineBackupResponse__ReadJSON(ret, j); err != nil {
+func (item *KvEngineBackup) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *KvEngineBackupResponse) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *KvEngineBackup) WriteResultJSON(w []byte, ret KvEngineBackupResponse) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *KvEngineBackup) writeResultJSON(short bool, w []byte, ret KvEngineBackupResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *KvEngineBackup) writeResultJSON(newTypeNames bool, short bool, w []byte, ret KvEngineBackupResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -79,22 +79,19 @@ func (item *KvEngineBackup) ReadResultWriteResultJSON(r []byte, w []byte) (_ []b
 	return r, w, err
 }
 
-func (item *KvEngineBackup) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *KvEngineBackup) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret KvEngineBackupResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *KvEngineBackup) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("kv_engine.backup", err.Error())
-	}
 	var ret KvEngineBackupResponse
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -109,32 +106,53 @@ func (item KvEngineBackup) String() string {
 	return string(w)
 }
 
-func KvEngineBackup__ReadJSON(item *KvEngineBackup, j interface{}) error { return item.readJSON(j) }
-func (item *KvEngineBackup) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("kv_engine.backup", "expected json object")
+func (item *KvEngineBackup) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propPrefixPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "prefix":
+				if propPrefixPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("kv_engine.backup", "prefix")
+				}
+				if err := Json2ReadString(in, &item.Prefix); err != nil {
+					return err
+				}
+				propPrefixPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("kv_engine.backup", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jPrefix := _jm["prefix"]
-	delete(_jm, "prefix")
-	if err := JsonReadString(_jPrefix, &item.Prefix); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("kv_engine.backup", k)
+	if !propPrefixPresented {
+		item.Prefix = ""
 	}
 	return nil
 }
 
 func (item *KvEngineBackup) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *KvEngineBackup) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *KvEngineBackup) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Prefix) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"prefix":`...)
-		w = basictl.JSONWriteString(w, item.Prefix)
+	backupIndexPrefix := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"prefix":`...)
+	w = basictl.JSONWriteString(w, item.Prefix)
+	if (len(item.Prefix) != 0) == false {
+		w = w[:backupIndexPrefix]
 	}
 	return append(w, '}'), nil
 }
@@ -144,11 +162,7 @@ func (item *KvEngineBackup) MarshalJSON() ([]byte, error) {
 }
 
 func (item *KvEngineBackup) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("kv_engine.backup", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("kv_engine.backup", err.Error())
 	}
 	return nil

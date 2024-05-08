@@ -146,82 +146,113 @@ func (item EngineHttpQueryResponse) String() string {
 	return string(w)
 }
 
-func EngineHttpQueryResponse__ReadJSON(item *EngineHttpQueryResponse, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineHttpQueryResponse) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.httpQueryResponse", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jReturnCode := _jm["return_code"]
-	delete(_jm, "return_code")
-	_jData := _jm["data"]
-	delete(_jm, "data")
-	_jContentType := _jm["content_type"]
-	delete(_jm, "content_type")
-	_jAdditionalHeaders := _jm["additional_headers"]
-	delete(_jm, "additional_headers")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.httpQueryResponse", k)
-	}
-	if _jReturnCode != nil {
-		item.FieldsMask |= 1 << 0
-	}
-	if _jData != nil {
-		item.FieldsMask |= 1 << 1
-	}
-	if _jContentType != nil {
-		item.FieldsMask |= 1 << 2
-	}
-	if _jAdditionalHeaders != nil {
-		item.FieldsMask |= 1 << 3
-	}
-	if _jReturnCode != nil {
-		if err := JsonReadInt32(_jReturnCode, &item.ReturnCode); err != nil {
-			return err
+func (item *EngineHttpQueryResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propReturnCodePresented bool
+	var propDataPresented bool
+	var propContentTypePresented bool
+	var propAdditionalHeadersPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQueryResponse", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "return_code":
+				if propReturnCodePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQueryResponse", "return_code")
+				}
+				if err := Json2ReadInt32(in, &item.ReturnCode); err != nil {
+					return err
+				}
+				propReturnCodePresented = true
+			case "data":
+				if propDataPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQueryResponse", "data")
+				}
+				if err := Json2ReadString(in, &item.Data); err != nil {
+					return err
+				}
+				propDataPresented = true
+			case "content_type":
+				if propContentTypePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQueryResponse", "content_type")
+				}
+				if err := Json2ReadString(in, &item.ContentType); err != nil {
+					return err
+				}
+				propContentTypePresented = true
+			case "additional_headers":
+				if propAdditionalHeadersPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.httpQueryResponse", "additional_headers")
+				}
+				if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, &item.AdditionalHeaders); err != nil {
+					return err
+				}
+				propAdditionalHeadersPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.httpQueryResponse", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propReturnCodePresented {
 		item.ReturnCode = 0
 	}
-	if _jData != nil {
-		if err := JsonReadString(_jData, &item.Data); err != nil {
-			return err
-		}
-	} else {
+	if !propDataPresented {
 		item.Data = ""
 	}
-	if _jContentType != nil {
-		if err := JsonReadString(_jContentType, &item.ContentType); err != nil {
-			return err
-		}
-	} else {
+	if !propContentTypePresented {
 		item.ContentType = ""
 	}
-	if _jAdditionalHeaders != nil {
-		if err := BuiltinVectorDictionaryFieldStringReadJSON(_jAdditionalHeaders, &item.AdditionalHeaders); err != nil {
-			return err
-		}
-	} else {
+	if !propAdditionalHeadersPresented {
 		BuiltinVectorDictionaryFieldStringReset(item.AdditionalHeaders)
+	}
+	if propReturnCodePresented {
+		item.FieldsMask |= 1 << 0
+	}
+	if propDataPresented {
+		item.FieldsMask |= 1 << 1
+	}
+	if propContentTypePresented {
+		item.FieldsMask |= 1 << 2
+	}
+	if propAdditionalHeadersPresented {
+		item.FieldsMask |= 1 << 3
 	}
 	return nil
 }
 
 func (item *EngineHttpQueryResponse) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineHttpQueryResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineHttpQueryResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -241,7 +272,7 @@ func (item *EngineHttpQueryResponse) WriteJSONOpt(short bool, w []byte) (_ []byt
 	if item.FieldsMask&(1<<3) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"additional_headers":`...)
-		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(short, w, item.AdditionalHeaders); err != nil {
+		if w, err = BuiltinVectorDictionaryFieldStringWriteJSONOpt(newTypeNames, short, w, item.AdditionalHeaders); err != nil {
 			return w, err
 		}
 	}
@@ -253,11 +284,7 @@ func (item *EngineHttpQueryResponse) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineHttpQueryResponse) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.httpQueryResponse", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.httpQueryResponse", err.Error())
 	}
 	return nil

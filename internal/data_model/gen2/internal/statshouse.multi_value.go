@@ -352,154 +352,188 @@ func (item *StatshouseMultiValue) WriteBoxed(w []byte, nat_fields_mask uint32) (
 	return item.Write(w, nat_fields_mask)
 }
 
-func StatshouseMultiValue__ReadJSON(item *StatshouseMultiValue, j interface{}, nat_fields_mask uint32) error {
-	return item.readJSON(j, nat_fields_mask)
-}
-func (item *StatshouseMultiValue) readJSON(j interface{}, nat_fields_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.multi_value", "expected json object")
-	}
-	_jCounter := _jm["counter"]
-	delete(_jm, "counter")
-	_jCounterEq1 := _jm["counter_eq_1"]
-	delete(_jm, "counter_eq_1")
-	_jValueSet := _jm["value_set"]
-	delete(_jm, "value_set")
-	_jValueMin := _jm["value_min"]
-	delete(_jm, "value_min")
-	_jValueMax := _jm["value_max"]
-	delete(_jm, "value_max")
-	_jValueSum := _jm["value_sum"]
-	delete(_jm, "value_sum")
-	_jValueSumSquare := _jm["value_sum_square"]
-	delete(_jm, "value_sum_square")
-	_jUniques := _jm["uniques"]
-	delete(_jm, "uniques")
-	_jCentroids := _jm["centroids"]
-	delete(_jm, "centroids")
-	_jMaxHostTag := _jm["max_host_tag"]
-	delete(_jm, "max_host_tag")
-	_jMinHostTag := _jm["min_host_tag"]
-	delete(_jm, "min_host_tag")
-	_jMaxCounterHostTag := _jm["max_counter_host_tag"]
-	delete(_jm, "max_counter_host_tag")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.multi_value", k)
-	}
-	if nat_fields_mask&(1<<0) == 0 && _jCounter != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'counter' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if _jCounterEq1 != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'counter_eq_1' cannot be defined, set fieldmask instead")
-	}
-	if _jValueSet != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'value_set' cannot be defined, set fieldmask instead")
-	}
-	if nat_fields_mask&(1<<3) == 0 && _jValueMin != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'value_min' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<4) == 0 && _jValueMax != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'value_max' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<4) == 0 && _jValueSum != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<4) == 0 && _jValueSumSquare != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum_square' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<5) == 0 && _jUniques != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'uniques' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<6) == 0 && _jCentroids != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<7) == 0 && _jMaxHostTag != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<8) == 0 && _jMinHostTag != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<9) == 0 && _jMaxCounterHostTag != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<0) != 0 {
-		if err := JsonReadFloat64(_jCounter, &item.Counter); err != nil {
-			return err
+func (item *StatshouseMultiValue) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+	var propCounterPresented bool
+	var propValueMinPresented bool
+	var propValueMaxPresented bool
+	var propValueSumPresented bool
+	var propValueSumSquarePresented bool
+	var propUniquesPresented bool
+	var propCentroidsPresented bool
+	var propMaxHostTagPresented bool
+	var propMinHostTagPresented bool
+	var propMaxCounterHostTagPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "counter":
+				if propCounterPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "counter")
+				}
+				if nat_fields_mask&(1<<0) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'counter' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadFloat64(in, &item.Counter); err != nil {
+					return err
+				}
+				propCounterPresented = true
+			case "counter_eq_1":
+				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'counter_eq_1' cannot be defined, set fieldmask instead")
+			case "value_set":
+				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'value_set' cannot be defined, set fieldmask instead")
+			case "value_min":
+				if propValueMinPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_min")
+				}
+				if nat_fields_mask&(1<<3) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_min' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadFloat64(in, &item.ValueMin); err != nil {
+					return err
+				}
+				propValueMinPresented = true
+			case "value_max":
+				if propValueMaxPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_max")
+				}
+				if nat_fields_mask&(1<<4) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_max' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadFloat64(in, &item.ValueMax); err != nil {
+					return err
+				}
+				propValueMaxPresented = true
+			case "value_sum":
+				if propValueSumPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_sum")
+				}
+				if nat_fields_mask&(1<<4) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadFloat64(in, &item.ValueSum); err != nil {
+					return err
+				}
+				propValueSumPresented = true
+			case "value_sum_square":
+				if propValueSumSquarePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_sum_square")
+				}
+				if nat_fields_mask&(1<<4) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum_square' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadFloat64(in, &item.ValueSumSquare); err != nil {
+					return err
+				}
+				propValueSumSquarePresented = true
+			case "uniques":
+				if propUniquesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "uniques")
+				}
+				if nat_fields_mask&(1<<5) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'uniques' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadString(in, &item.Uniques); err != nil {
+					return err
+				}
+				propUniquesPresented = true
+			case "centroids":
+				if propCentroidsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "centroids")
+				}
+				if nat_fields_mask&(1<<6) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := BuiltinVectorStatshouseCentroidReadJSON(legacyTypeNames, in, &item.Centroids); err != nil {
+					return err
+				}
+				propCentroidsPresented = true
+			case "max_host_tag":
+				if propMaxHostTagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_host_tag")
+				}
+				if nat_fields_mask&(1<<7) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt32(in, &item.MaxHostTag); err != nil {
+					return err
+				}
+				propMaxHostTagPresented = true
+			case "min_host_tag":
+				if propMinHostTagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "min_host_tag")
+				}
+				if nat_fields_mask&(1<<8) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt32(in, &item.MinHostTag); err != nil {
+					return err
+				}
+				propMinHostTagPresented = true
+			case "max_counter_host_tag":
+				if propMaxCounterHostTagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_counter_host_tag")
+				}
+				if nat_fields_mask&(1<<9) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt32(in, &item.MaxCounterHostTag); err != nil {
+					return err
+				}
+				propMaxCounterHostTagPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.multi_value", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propCounterPresented {
 		item.Counter = 0
 	}
-	if nat_fields_mask&(1<<3) != 0 {
-		if err := JsonReadFloat64(_jValueMin, &item.ValueMin); err != nil {
-			return err
-		}
-	} else {
+	if !propValueMinPresented {
 		item.ValueMin = 0
 	}
-	if nat_fields_mask&(1<<4) != 0 {
-		if err := JsonReadFloat64(_jValueMax, &item.ValueMax); err != nil {
-			return err
-		}
-	} else {
+	if !propValueMaxPresented {
 		item.ValueMax = 0
 	}
-	if nat_fields_mask&(1<<4) != 0 {
-		if err := JsonReadFloat64(_jValueSum, &item.ValueSum); err != nil {
-			return err
-		}
-	} else {
+	if !propValueSumPresented {
 		item.ValueSum = 0
 	}
-	if nat_fields_mask&(1<<4) != 0 {
-		if err := JsonReadFloat64(_jValueSumSquare, &item.ValueSumSquare); err != nil {
-			return err
-		}
-	} else {
+	if !propValueSumSquarePresented {
 		item.ValueSumSquare = 0
 	}
-	if nat_fields_mask&(1<<5) != 0 {
-		if err := JsonReadString(_jUniques, &item.Uniques); err != nil {
-			return err
-		}
-	} else {
+	if !propUniquesPresented {
 		item.Uniques = ""
 	}
-	if nat_fields_mask&(1<<6) != 0 {
-		if err := BuiltinVectorStatshouseCentroidReadJSON(_jCentroids, &item.Centroids); err != nil {
-			return err
-		}
-	} else {
+	if !propCentroidsPresented {
 		item.Centroids = item.Centroids[:0]
 	}
-	if nat_fields_mask&(1<<7) != 0 {
-		if err := JsonReadInt32(_jMaxHostTag, &item.MaxHostTag); err != nil {
-			return err
-		}
-	} else {
+	if !propMaxHostTagPresented {
 		item.MaxHostTag = 0
 	}
-	if nat_fields_mask&(1<<8) != 0 {
-		if err := JsonReadInt32(_jMinHostTag, &item.MinHostTag); err != nil {
-			return err
-		}
-	} else {
+	if !propMinHostTagPresented {
 		item.MinHostTag = 0
 	}
-	if nat_fields_mask&(1<<9) != 0 {
-		if err := JsonReadInt32(_jMaxCounterHostTag, &item.MaxCounterHostTag); err != nil {
-			return err
-		}
-	} else {
+	if !propMaxCounterHostTagPresented {
 		item.MaxCounterHostTag = 0
 	}
 	return nil
 }
 
 func (item *StatshouseMultiValue) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_fields_mask)
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
 }
-func (item *StatshouseMultiValue) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseMultiValue) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -534,7 +568,7 @@ func (item *StatshouseMultiValue) WriteJSONOpt(short bool, w []byte, nat_fields_
 	if nat_fields_mask&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"centroids":`...)
-		if w, err = BuiltinVectorStatshouseCentroidWriteJSONOpt(short, w, item.Centroids); err != nil {
+		if w, err = BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames, short, w, item.Centroids); err != nil {
 			return w, err
 		}
 	}
@@ -895,154 +929,188 @@ func (item *StatshouseMultiValueBytes) WriteBoxed(w []byte, nat_fields_mask uint
 	return item.Write(w, nat_fields_mask)
 }
 
-func StatshouseMultiValueBytes__ReadJSON(item *StatshouseMultiValueBytes, j interface{}, nat_fields_mask uint32) error {
-	return item.readJSON(j, nat_fields_mask)
-}
-func (item *StatshouseMultiValueBytes) readJSON(j interface{}, nat_fields_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.multi_value", "expected json object")
-	}
-	_jCounter := _jm["counter"]
-	delete(_jm, "counter")
-	_jCounterEq1 := _jm["counter_eq_1"]
-	delete(_jm, "counter_eq_1")
-	_jValueSet := _jm["value_set"]
-	delete(_jm, "value_set")
-	_jValueMin := _jm["value_min"]
-	delete(_jm, "value_min")
-	_jValueMax := _jm["value_max"]
-	delete(_jm, "value_max")
-	_jValueSum := _jm["value_sum"]
-	delete(_jm, "value_sum")
-	_jValueSumSquare := _jm["value_sum_square"]
-	delete(_jm, "value_sum_square")
-	_jUniques := _jm["uniques"]
-	delete(_jm, "uniques")
-	_jCentroids := _jm["centroids"]
-	delete(_jm, "centroids")
-	_jMaxHostTag := _jm["max_host_tag"]
-	delete(_jm, "max_host_tag")
-	_jMinHostTag := _jm["min_host_tag"]
-	delete(_jm, "min_host_tag")
-	_jMaxCounterHostTag := _jm["max_counter_host_tag"]
-	delete(_jm, "max_counter_host_tag")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.multi_value", k)
-	}
-	if nat_fields_mask&(1<<0) == 0 && _jCounter != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'counter' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if _jCounterEq1 != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'counter_eq_1' cannot be defined, set fieldmask instead")
-	}
-	if _jValueSet != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'value_set' cannot be defined, set fieldmask instead")
-	}
-	if nat_fields_mask&(1<<3) == 0 && _jValueMin != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'value_min' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<4) == 0 && _jValueMax != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'value_max' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<4) == 0 && _jValueSum != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<4) == 0 && _jValueSumSquare != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum_square' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<5) == 0 && _jUniques != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'uniques' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<6) == 0 && _jCentroids != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<7) == 0 && _jMaxHostTag != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<8) == 0 && _jMinHostTag != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<9) == 0 && _jMaxCounterHostTag != nil {
-		return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
-	}
-	if nat_fields_mask&(1<<0) != 0 {
-		if err := JsonReadFloat64(_jCounter, &item.Counter); err != nil {
-			return err
+func (item *StatshouseMultiValueBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+	var propCounterPresented bool
+	var propValueMinPresented bool
+	var propValueMaxPresented bool
+	var propValueSumPresented bool
+	var propValueSumSquarePresented bool
+	var propUniquesPresented bool
+	var propCentroidsPresented bool
+	var propMaxHostTagPresented bool
+	var propMinHostTagPresented bool
+	var propMaxCounterHostTagPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-	} else {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "counter":
+				if propCounterPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "counter")
+				}
+				if nat_fields_mask&(1<<0) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'counter' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadFloat64(in, &item.Counter); err != nil {
+					return err
+				}
+				propCounterPresented = true
+			case "counter_eq_1":
+				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'counter_eq_1' cannot be defined, set fieldmask instead")
+			case "value_set":
+				return ErrorInvalidJSON("statshouse.multi_value", "implicit true field 'value_set' cannot be defined, set fieldmask instead")
+			case "value_min":
+				if propValueMinPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_min")
+				}
+				if nat_fields_mask&(1<<3) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_min' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadFloat64(in, &item.ValueMin); err != nil {
+					return err
+				}
+				propValueMinPresented = true
+			case "value_max":
+				if propValueMaxPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_max")
+				}
+				if nat_fields_mask&(1<<4) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_max' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadFloat64(in, &item.ValueMax); err != nil {
+					return err
+				}
+				propValueMaxPresented = true
+			case "value_sum":
+				if propValueSumPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_sum")
+				}
+				if nat_fields_mask&(1<<4) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadFloat64(in, &item.ValueSum); err != nil {
+					return err
+				}
+				propValueSumPresented = true
+			case "value_sum_square":
+				if propValueSumSquarePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "value_sum_square")
+				}
+				if nat_fields_mask&(1<<4) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'value_sum_square' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadFloat64(in, &item.ValueSumSquare); err != nil {
+					return err
+				}
+				propValueSumSquarePresented = true
+			case "uniques":
+				if propUniquesPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "uniques")
+				}
+				if nat_fields_mask&(1<<5) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'uniques' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadStringBytes(in, &item.Uniques); err != nil {
+					return err
+				}
+				propUniquesPresented = true
+			case "centroids":
+				if propCentroidsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "centroids")
+				}
+				if nat_fields_mask&(1<<6) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'centroids' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := BuiltinVectorStatshouseCentroidReadJSON(legacyTypeNames, in, &item.Centroids); err != nil {
+					return err
+				}
+				propCentroidsPresented = true
+			case "max_host_tag":
+				if propMaxHostTagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_host_tag")
+				}
+				if nat_fields_mask&(1<<7) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt32(in, &item.MaxHostTag); err != nil {
+					return err
+				}
+				propMaxHostTagPresented = true
+			case "min_host_tag":
+				if propMinHostTagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "min_host_tag")
+				}
+				if nat_fields_mask&(1<<8) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'min_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt32(in, &item.MinHostTag); err != nil {
+					return err
+				}
+				propMinHostTagPresented = true
+			case "max_counter_host_tag":
+				if propMaxCounterHostTagPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.multi_value", "max_counter_host_tag")
+				}
+				if nat_fields_mask&(1<<9) == 0 {
+					return ErrorInvalidJSON("statshouse.multi_value", "field 'max_counter_host_tag' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := Json2ReadInt32(in, &item.MaxCounterHostTag); err != nil {
+					return err
+				}
+				propMaxCounterHostTagPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.multi_value", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propCounterPresented {
 		item.Counter = 0
 	}
-	if nat_fields_mask&(1<<3) != 0 {
-		if err := JsonReadFloat64(_jValueMin, &item.ValueMin); err != nil {
-			return err
-		}
-	} else {
+	if !propValueMinPresented {
 		item.ValueMin = 0
 	}
-	if nat_fields_mask&(1<<4) != 0 {
-		if err := JsonReadFloat64(_jValueMax, &item.ValueMax); err != nil {
-			return err
-		}
-	} else {
+	if !propValueMaxPresented {
 		item.ValueMax = 0
 	}
-	if nat_fields_mask&(1<<4) != 0 {
-		if err := JsonReadFloat64(_jValueSum, &item.ValueSum); err != nil {
-			return err
-		}
-	} else {
+	if !propValueSumPresented {
 		item.ValueSum = 0
 	}
-	if nat_fields_mask&(1<<4) != 0 {
-		if err := JsonReadFloat64(_jValueSumSquare, &item.ValueSumSquare); err != nil {
-			return err
-		}
-	} else {
+	if !propValueSumSquarePresented {
 		item.ValueSumSquare = 0
 	}
-	if nat_fields_mask&(1<<5) != 0 {
-		if err := JsonReadStringBytes(_jUniques, &item.Uniques); err != nil {
-			return err
-		}
-	} else {
+	if !propUniquesPresented {
 		item.Uniques = item.Uniques[:0]
 	}
-	if nat_fields_mask&(1<<6) != 0 {
-		if err := BuiltinVectorStatshouseCentroidReadJSON(_jCentroids, &item.Centroids); err != nil {
-			return err
-		}
-	} else {
+	if !propCentroidsPresented {
 		item.Centroids = item.Centroids[:0]
 	}
-	if nat_fields_mask&(1<<7) != 0 {
-		if err := JsonReadInt32(_jMaxHostTag, &item.MaxHostTag); err != nil {
-			return err
-		}
-	} else {
+	if !propMaxHostTagPresented {
 		item.MaxHostTag = 0
 	}
-	if nat_fields_mask&(1<<8) != 0 {
-		if err := JsonReadInt32(_jMinHostTag, &item.MinHostTag); err != nil {
-			return err
-		}
-	} else {
+	if !propMinHostTagPresented {
 		item.MinHostTag = 0
 	}
-	if nat_fields_mask&(1<<9) != 0 {
-		if err := JsonReadInt32(_jMaxCounterHostTag, &item.MaxCounterHostTag); err != nil {
-			return err
-		}
-	} else {
+	if !propMaxCounterHostTagPresented {
 		item.MaxCounterHostTag = 0
 	}
 	return nil
 }
 
 func (item *StatshouseMultiValueBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_fields_mask)
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
 }
-func (item *StatshouseMultiValueBytes) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseMultiValueBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
 	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -1077,7 +1145,7 @@ func (item *StatshouseMultiValueBytes) WriteJSONOpt(short bool, w []byte, nat_fi
 	if nat_fields_mask&(1<<6) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"centroids":`...)
-		if w, err = BuiltinVectorStatshouseCentroidWriteJSONOpt(short, w, item.Centroids); err != nil {
+		if w, err = BuiltinVectorStatshouseCentroidWriteJSONOpt(newTypeNames, short, w, item.Centroids); err != nil {
 			return w, err
 		}
 	}

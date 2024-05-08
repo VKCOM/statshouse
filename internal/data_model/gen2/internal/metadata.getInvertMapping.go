@@ -58,19 +58,19 @@ func (item *MetadataGetInvertMapping) WriteResult(w []byte, ret MetadataGetInver
 	return ret.WriteBoxed(w, item.FieldMask)
 }
 
-func (item *MetadataGetInvertMapping) ReadResultJSON(j interface{}, ret *MetadataGetInvertMappingResponse) error {
-	if err := MetadataGetInvertMappingResponse__ReadJSON(ret, j, item.FieldMask); err != nil {
+func (item *MetadataGetInvertMapping) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataGetInvertMappingResponse) error {
+	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetInvertMapping) WriteResultJSON(w []byte, ret MetadataGetInvertMappingResponse) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *MetadataGetInvertMapping) writeResultJSON(short bool, w []byte, ret MetadataGetInvertMappingResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w, item.FieldMask); err != nil {
+func (item *MetadataGetInvertMapping) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataGetInvertMappingResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -85,22 +85,19 @@ func (item *MetadataGetInvertMapping) ReadResultWriteResultJSON(r []byte, w []by
 	return r, w, err
 }
 
-func (item *MetadataGetInvertMapping) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataGetInvertMapping) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataGetInvertMappingResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *MetadataGetInvertMapping) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.getInvertMapping", err.Error())
-	}
 	var ret MetadataGetInvertMappingResponse
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -115,44 +112,72 @@ func (item MetadataGetInvertMapping) String() string {
 	return string(w)
 }
 
-func MetadataGetInvertMapping__ReadJSON(item *MetadataGetInvertMapping, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataGetInvertMapping) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.getInvertMapping", "expected json object")
+func (item *MetadataGetInvertMapping) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldMaskPresented bool
+	var propIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "field_mask":
+				if propFieldMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getInvertMapping", "field_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldMask); err != nil {
+					return err
+				}
+				propFieldMaskPresented = true
+			case "id":
+				if propIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getInvertMapping", "id")
+				}
+				if err := Json2ReadInt32(in, &item.Id); err != nil {
+					return err
+				}
+				propIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.getInvertMapping", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldMask := _jm["field_mask"]
-	delete(_jm, "field_mask")
-	if err := JsonReadUint32(_jFieldMask, &item.FieldMask); err != nil {
-		return err
+	if !propFieldMaskPresented {
+		item.FieldMask = 0
 	}
-	_jId := _jm["id"]
-	delete(_jm, "id")
-	if err := JsonReadInt32(_jId, &item.Id); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.getInvertMapping", k)
+	if !propIdPresented {
+		item.Id = 0
 	}
 	return nil
 }
 
 func (item *MetadataGetInvertMapping) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataGetInvertMapping) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataGetInvertMapping) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"field_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldMask)
+	backupIndexFieldMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"field_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldMask)
+	if (item.FieldMask != 0) == false {
+		w = w[:backupIndexFieldMask]
 	}
-	if item.Id != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"id":`...)
-		w = basictl.JSONWriteInt32(w, item.Id)
+	backupIndexId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"id":`...)
+	w = basictl.JSONWriteInt32(w, item.Id)
+	if (item.Id != 0) == false {
+		w = w[:backupIndexId]
 	}
 	return append(w, '}'), nil
 }
@@ -162,11 +187,7 @@ func (item *MetadataGetInvertMapping) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataGetInvertMapping) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.getInvertMapping", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.getInvertMapping", err.Error())
 	}
 	return nil

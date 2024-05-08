@@ -14,30 +14,64 @@ import (
 var _ = basictl.NatWrite
 
 type StatshouseGetTargetsResult struct {
-	Targets []StatshousePromTarget
-	Hash    string
+	Targets      []StatshousePromTarget
+	Hash         string
+	GaugeMetrics []string // Conditional: nat_fields_mask.0
 }
 
 func (StatshouseGetTargetsResult) TLName() string { return "statshouse.getTargetsResult" }
 func (StatshouseGetTargetsResult) TLTag() uint32  { return 0x51ac86df }
 
+func (item *StatshouseGetTargetsResult) SetGaugeMetrics(v []string, nat_fields_mask *uint32) {
+	item.GaugeMetrics = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 0
+	}
+}
+func (item *StatshouseGetTargetsResult) ClearGaugeMetrics(nat_fields_mask *uint32) {
+	item.GaugeMetrics = item.GaugeMetrics[:0]
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 0
+	}
+}
+func (item StatshouseGetTargetsResult) IsSetGaugeMetrics(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<0) != 0
+}
+
 func (item *StatshouseGetTargetsResult) Reset() {
 	item.Targets = item.Targets[:0]
 	item.Hash = ""
+	item.GaugeMetrics = item.GaugeMetrics[:0]
 }
 
 func (item *StatshouseGetTargetsResult) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	if w, err = BuiltinVectorStatshousePromTargetRead(w, &item.Targets); err != nil {
 		return w, err
 	}
-	return basictl.StringRead(w, &item.Hash)
+	if w, err = basictl.StringRead(w, &item.Hash); err != nil {
+		return w, err
+	}
+	if nat_fields_mask&(1<<0) != 0 {
+		if w, err = BuiltinVectorStringRead(w, &item.GaugeMetrics); err != nil {
+			return w, err
+		}
+	} else {
+		item.GaugeMetrics = item.GaugeMetrics[:0]
+	}
+	return w, nil
 }
 
 func (item *StatshouseGetTargetsResult) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	if w, err = BuiltinVectorStatshousePromTargetWrite(w, item.Targets); err != nil {
 		return w, err
 	}
-	return basictl.StringWrite(w, item.Hash), nil
+	w = basictl.StringWrite(w, item.Hash)
+	if nat_fields_mask&(1<<0) != 0 {
+		if w, err = BuiltinVectorStringWrite(w, item.GaugeMetrics); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
 }
 
 func (item *StatshouseGetTargetsResult) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -52,75 +86,159 @@ func (item *StatshouseGetTargetsResult) WriteBoxed(w []byte, nat_fields_mask uin
 	return item.Write(w, nat_fields_mask)
 }
 
-func StatshouseGetTargetsResult__ReadJSON(item *StatshouseGetTargetsResult, j interface{}, nat_fields_mask uint32) error {
-	return item.readJSON(j, nat_fields_mask)
-}
-func (item *StatshouseGetTargetsResult) readJSON(j interface{}, nat_fields_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getTargetsResult", "expected json object")
+func (item *StatshouseGetTargetsResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+	var propTargetsPresented bool
+	var propHashPresented bool
+	var propGaugeMetricsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "targets":
+				if propTargetsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "targets")
+				}
+				if err := BuiltinVectorStatshousePromTargetReadJSON(legacyTypeNames, in, &item.Targets); err != nil {
+					return err
+				}
+				propTargetsPresented = true
+			case "hash":
+				if propHashPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "hash")
+				}
+				if err := Json2ReadString(in, &item.Hash); err != nil {
+					return err
+				}
+				propHashPresented = true
+			case "gauge_metrics":
+				if propGaugeMetricsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "gauge_metrics")
+				}
+				if nat_fields_mask&(1<<0) == 0 {
+					return ErrorInvalidJSON("statshouse.getTargetsResult", "field 'gauge_metrics' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, &item.GaugeMetrics); err != nil {
+					return err
+				}
+				propGaugeMetricsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getTargetsResult", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jTargets := _jm["targets"]
-	delete(_jm, "targets")
-	_jHash := _jm["hash"]
-	delete(_jm, "hash")
-	if err := JsonReadString(_jHash, &item.Hash); err != nil {
-		return err
+	if !propTargetsPresented {
+		item.Targets = item.Targets[:0]
 	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getTargetsResult", k)
+	if !propHashPresented {
+		item.Hash = ""
 	}
-	if err := BuiltinVectorStatshousePromTargetReadJSON(_jTargets, &item.Targets); err != nil {
-		return err
+	if !propGaugeMetricsPresented {
+		item.GaugeMetrics = item.GaugeMetrics[:0]
 	}
 	return nil
 }
 
 func (item *StatshouseGetTargetsResult) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_fields_mask)
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
 }
-func (item *StatshouseGetTargetsResult) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseGetTargetsResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Targets) != 0 {
+	backupIndexTargets := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"targets":`...)
+	if w, err = BuiltinVectorStatshousePromTargetWriteJSONOpt(newTypeNames, short, w, item.Targets); err != nil {
+		return w, err
+	}
+	if (len(item.Targets) != 0) == false {
+		w = w[:backupIndexTargets]
+	}
+	backupIndexHash := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"hash":`...)
+	w = basictl.JSONWriteString(w, item.Hash)
+	if (len(item.Hash) != 0) == false {
+		w = w[:backupIndexHash]
+	}
+	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"targets":`...)
-		if w, err = BuiltinVectorStatshousePromTargetWriteJSONOpt(short, w, item.Targets); err != nil {
+		w = append(w, `"gauge_metrics":`...)
+		if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.GaugeMetrics); err != nil {
 			return w, err
 		}
-	}
-	if len(item.Hash) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"hash":`...)
-		w = basictl.JSONWriteString(w, item.Hash)
 	}
 	return append(w, '}'), nil
 }
 
 type StatshouseGetTargetsResultBytes struct {
-	Targets []StatshousePromTargetBytes
-	Hash    []byte
+	Targets      []StatshousePromTargetBytes
+	Hash         []byte
+	GaugeMetrics [][]byte // Conditional: nat_fields_mask.0
 }
 
 func (StatshouseGetTargetsResultBytes) TLName() string { return "statshouse.getTargetsResult" }
 func (StatshouseGetTargetsResultBytes) TLTag() uint32  { return 0x51ac86df }
 
+func (item *StatshouseGetTargetsResultBytes) SetGaugeMetrics(v [][]byte, nat_fields_mask *uint32) {
+	item.GaugeMetrics = v
+	if nat_fields_mask != nil {
+		*nat_fields_mask |= 1 << 0
+	}
+}
+func (item *StatshouseGetTargetsResultBytes) ClearGaugeMetrics(nat_fields_mask *uint32) {
+	item.GaugeMetrics = item.GaugeMetrics[:0]
+	if nat_fields_mask != nil {
+		*nat_fields_mask &^= 1 << 0
+	}
+}
+func (item StatshouseGetTargetsResultBytes) IsSetGaugeMetrics(nat_fields_mask uint32) bool {
+	return nat_fields_mask&(1<<0) != 0
+}
+
 func (item *StatshouseGetTargetsResultBytes) Reset() {
 	item.Targets = item.Targets[:0]
 	item.Hash = item.Hash[:0]
+	item.GaugeMetrics = item.GaugeMetrics[:0]
 }
 
 func (item *StatshouseGetTargetsResultBytes) Read(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	if w, err = BuiltinVectorStatshousePromTargetBytesRead(w, &item.Targets); err != nil {
 		return w, err
 	}
-	return basictl.StringReadBytes(w, &item.Hash)
+	if w, err = basictl.StringReadBytes(w, &item.Hash); err != nil {
+		return w, err
+	}
+	if nat_fields_mask&(1<<0) != 0 {
+		if w, err = BuiltinVectorStringBytesRead(w, &item.GaugeMetrics); err != nil {
+			return w, err
+		}
+	} else {
+		item.GaugeMetrics = item.GaugeMetrics[:0]
+	}
+	return w, nil
 }
 
 func (item *StatshouseGetTargetsResultBytes) Write(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	if w, err = BuiltinVectorStatshousePromTargetBytesWrite(w, item.Targets); err != nil {
 		return w, err
 	}
-	return basictl.StringWriteBytes(w, item.Hash), nil
+	w = basictl.StringWriteBytes(w, item.Hash)
+	if nat_fields_mask&(1<<0) != 0 {
+		if w, err = BuiltinVectorStringBytesWrite(w, item.GaugeMetrics); err != nil {
+			return w, err
+		}
+	}
+	return w, nil
 }
 
 func (item *StatshouseGetTargetsResultBytes) ReadBoxed(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
@@ -135,46 +253,96 @@ func (item *StatshouseGetTargetsResultBytes) WriteBoxed(w []byte, nat_fields_mas
 	return item.Write(w, nat_fields_mask)
 }
 
-func StatshouseGetTargetsResultBytes__ReadJSON(item *StatshouseGetTargetsResultBytes, j interface{}, nat_fields_mask uint32) error {
-	return item.readJSON(j, nat_fields_mask)
-}
-func (item *StatshouseGetTargetsResultBytes) readJSON(j interface{}, nat_fields_mask uint32) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.getTargetsResult", "expected json object")
+func (item *StatshouseGetTargetsResultBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, nat_fields_mask uint32) error {
+	var propTargetsPresented bool
+	var propHashPresented bool
+	var propGaugeMetricsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "targets":
+				if propTargetsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "targets")
+				}
+				if err := BuiltinVectorStatshousePromTargetBytesReadJSON(legacyTypeNames, in, &item.Targets); err != nil {
+					return err
+				}
+				propTargetsPresented = true
+			case "hash":
+				if propHashPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "hash")
+				}
+				if err := Json2ReadStringBytes(in, &item.Hash); err != nil {
+					return err
+				}
+				propHashPresented = true
+			case "gauge_metrics":
+				if propGaugeMetricsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.getTargetsResult", "gauge_metrics")
+				}
+				if nat_fields_mask&(1<<0) == 0 {
+					return ErrorInvalidJSON("statshouse.getTargetsResult", "field 'gauge_metrics' is defined, while corresponding implicit fieldmask bit is 0")
+				}
+				if err := BuiltinVectorStringBytesReadJSON(legacyTypeNames, in, &item.GaugeMetrics); err != nil {
+					return err
+				}
+				propGaugeMetricsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.getTargetsResult", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jTargets := _jm["targets"]
-	delete(_jm, "targets")
-	_jHash := _jm["hash"]
-	delete(_jm, "hash")
-	if err := JsonReadStringBytes(_jHash, &item.Hash); err != nil {
-		return err
+	if !propTargetsPresented {
+		item.Targets = item.Targets[:0]
 	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.getTargetsResult", k)
+	if !propHashPresented {
+		item.Hash = item.Hash[:0]
 	}
-	if err := BuiltinVectorStatshousePromTargetBytesReadJSON(_jTargets, &item.Targets); err != nil {
-		return err
+	if !propGaugeMetricsPresented {
+		item.GaugeMetrics = item.GaugeMetrics[:0]
 	}
 	return nil
 }
 
 func (item *StatshouseGetTargetsResultBytes) WriteJSON(w []byte, nat_fields_mask uint32) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w, nat_fields_mask)
+	return item.WriteJSONOpt(true, false, w, nat_fields_mask)
 }
-func (item *StatshouseGetTargetsResultBytes) WriteJSONOpt(short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
+func (item *StatshouseGetTargetsResultBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte, nat_fields_mask uint32) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Targets) != 0 {
+	backupIndexTargets := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"targets":`...)
+	if w, err = BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(newTypeNames, short, w, item.Targets); err != nil {
+		return w, err
+	}
+	if (len(item.Targets) != 0) == false {
+		w = w[:backupIndexTargets]
+	}
+	backupIndexHash := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"hash":`...)
+	w = basictl.JSONWriteStringBytes(w, item.Hash)
+	if (len(item.Hash) != 0) == false {
+		w = w[:backupIndexHash]
+	}
+	if nat_fields_mask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"targets":`...)
-		if w, err = BuiltinVectorStatshousePromTargetBytesWriteJSONOpt(short, w, item.Targets); err != nil {
+		w = append(w, `"gauge_metrics":`...)
+		if w, err = BuiltinVectorStringBytesWriteJSONOpt(newTypeNames, short, w, item.GaugeMetrics); err != nil {
 			return w, err
 		}
-	}
-	if len(item.Hash) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"hash":`...)
-		w = basictl.JSONWriteStringBytes(w, item.Hash)
 	}
 	return append(w, '}'), nil
 }

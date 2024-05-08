@@ -58,19 +58,19 @@ func (item *MetadataPutTagMappingBootstrap) WriteResult(w []byte, ret Statshouse
 	return ret.WriteBoxed(w)
 }
 
-func (item *MetadataPutTagMappingBootstrap) ReadResultJSON(j interface{}, ret *StatshousePutTagMappingBootstrapResult) error {
-	if err := StatshousePutTagMappingBootstrapResult__ReadJSON(ret, j); err != nil {
+func (item *MetadataPutTagMappingBootstrap) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *StatshousePutTagMappingBootstrapResult) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataPutTagMappingBootstrap) WriteResultJSON(w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *MetadataPutTagMappingBootstrap) writeResultJSON(short bool, w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *MetadataPutTagMappingBootstrap) writeResultJSON(newTypeNames bool, short bool, w []byte, ret StatshousePutTagMappingBootstrapResult) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -85,22 +85,19 @@ func (item *MetadataPutTagMappingBootstrap) ReadResultWriteResultJSON(r []byte, 
 	return r, w, err
 }
 
-func (item *MetadataPutTagMappingBootstrap) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataPutTagMappingBootstrap) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret StatshousePutTagMappingBootstrapResult
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *MetadataPutTagMappingBootstrap) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.putTagMappingBootstrap", err.Error())
-	}
 	var ret StatshousePutTagMappingBootstrapResult
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -115,46 +112,74 @@ func (item MetadataPutTagMappingBootstrap) String() string {
 	return string(w)
 }
 
-func MetadataPutTagMappingBootstrap__ReadJSON(item *MetadataPutTagMappingBootstrap, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataPutTagMappingBootstrap) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.putTagMappingBootstrap", "expected json object")
+func (item *MetadataPutTagMappingBootstrap) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propMappingsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putTagMappingBootstrap", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "mappings":
+				if propMappingsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.putTagMappingBootstrap", "mappings")
+				}
+				if err := BuiltinVectorStatshouseMappingReadJSON(legacyTypeNames, in, &item.Mappings); err != nil {
+					return err
+				}
+				propMappingsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.putTagMappingBootstrap", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jMappings := _jm["mappings"]
-	delete(_jm, "mappings")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.putTagMappingBootstrap", k)
-	}
-	if err := BuiltinVectorStatshouseMappingReadJSON(_jMappings, &item.Mappings); err != nil {
-		return err
+	if !propMappingsPresented {
+		item.Mappings = item.Mappings[:0]
 	}
 	return nil
 }
 
 func (item *MetadataPutTagMappingBootstrap) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataPutTagMappingBootstrap) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataPutTagMappingBootstrap) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.Mappings) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"mappings":`...)
-		if w, err = BuiltinVectorStatshouseMappingWriteJSONOpt(short, w, item.Mappings); err != nil {
-			return w, err
-		}
+	backupIndexMappings := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"mappings":`...)
+	if w, err = BuiltinVectorStatshouseMappingWriteJSONOpt(newTypeNames, short, w, item.Mappings); err != nil {
+		return w, err
+	}
+	if (len(item.Mappings) != 0) == false {
+		w = w[:backupIndexMappings]
 	}
 	return append(w, '}'), nil
 }
@@ -164,11 +189,7 @@ func (item *MetadataPutTagMappingBootstrap) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataPutTagMappingBootstrap) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.putTagMappingBootstrap", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.putTagMappingBootstrap", err.Error())
 	}
 	return nil

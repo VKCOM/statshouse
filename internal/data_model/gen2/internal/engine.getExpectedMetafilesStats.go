@@ -49,19 +49,19 @@ func (item *EngineGetExpectedMetafilesStats) WriteResult(w []byte, ret map[strin
 	return BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWrite(w, ret)
 }
 
-func (item *EngineGetExpectedMetafilesStats) ReadResultJSON(j interface{}, ret *map[string]EngineMetafilesStat) error {
-	if err := BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSON(j, ret); err != nil {
+func (item *EngineGetExpectedMetafilesStats) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *map[string]EngineMetafilesStat) error {
+	if err := BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedReadJSON(legacyTypeNames, in, ret); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineGetExpectedMetafilesStats) WriteResultJSON(w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineGetExpectedMetafilesStats) writeResultJSON(short bool, w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
-	if w, err = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(short, w, ret); err != nil {
+func (item *EngineGetExpectedMetafilesStats) writeResultJSON(newTypeNames bool, short bool, w []byte, ret map[string]EngineMetafilesStat) (_ []byte, err error) {
+	if w, err = BuiltinVectorDictionaryFieldEngineMetafilesStatBoxedWriteJSONOpt(newTypeNames, short, w, ret); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -76,22 +76,19 @@ func (item *EngineGetExpectedMetafilesStats) ReadResultWriteResultJSON(r []byte,
 	return r, w, err
 }
 
-func (item *EngineGetExpectedMetafilesStats) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineGetExpectedMetafilesStats) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret map[string]EngineMetafilesStat
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineGetExpectedMetafilesStats) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.getExpectedMetafilesStats", err.Error())
-	}
 	var ret map[string]EngineMetafilesStat
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -106,24 +103,27 @@ func (item EngineGetExpectedMetafilesStats) String() string {
 	return string(w)
 }
 
-func EngineGetExpectedMetafilesStats__ReadJSON(item *EngineGetExpectedMetafilesStats, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineGetExpectedMetafilesStats) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.getExpectedMetafilesStats", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.getExpectedMetafilesStats", k)
+func (item *EngineGetExpectedMetafilesStats) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.getExpectedMetafilesStats", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineGetExpectedMetafilesStats) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineGetExpectedMetafilesStats) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineGetExpectedMetafilesStats) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -133,11 +133,7 @@ func (item *EngineGetExpectedMetafilesStats) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineGetExpectedMetafilesStats) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.getExpectedMetafilesStats", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.getExpectedMetafilesStats", err.Error())
 	}
 	return nil

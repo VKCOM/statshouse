@@ -51,6 +51,7 @@ const (
 	HistogramBucketsDelimC    = ','
 	HistogramBucketsEndMark   = "$"
 	HistogramBucketsEndMarkC  = '$'
+	PromQLPrefixSumMark       = "PromQL$prefix_sum$"
 
 	LETagIndex        = 15
 	StringTopTagIndex = -1 // used as flag during mapping
@@ -240,6 +241,7 @@ type MetricMetaValue struct {
 	ShardUniqueValues   bool                     `json:"-"` // Experimental, set if magic word in description is found
 	NoSampleAgent       bool                     `json:"-"` // Built-in metrics with fixed/limited # of rows on agent
 	HistorgamBuckets    []float32                `json:"-"` // Prometheus histogram buckets
+	PromQLPrefixSum     bool                     `json:"-"` // Prometheus counter restore
 
 	GroupID int32 `json:"-"`
 
@@ -463,24 +465,26 @@ func (m *MetricMetaValue) RestoreCachedInfo() error {
 	m.HasPercentiles = m.Kind == MetricKindValuePercentiles || m.Kind == MetricKindMixedPercentiles
 	m.RoundSampleFactors = strings.Contains(m.Description, "__round_sample_factors") // Experimental
 	m.ShardUniqueValues = strings.Contains(m.Description, "__shard_unique_values")   // Experimental
-	if i := strings.Index(m.Description, HistogramBucketsStartMark); i != -1 {
-		s := m.Description[i+len(HistogramBucketsStartMark):]
-		if i = strings.Index(s, HistogramBucketsEndMark); i != -1 {
-			s = s[:i]
-			m.HistorgamBuckets = make([]float32, 0, strings.Count(s, HistogramBucketsDelim)+1)
-			for i, j := 0, 1; i < len(s); {
-				for j < len(s) && s[j] != HistogramBucketsDelimC {
-					j++
+	if m.Kind == MetricKindCounter {
+		if i := strings.Index(m.Description, HistogramBucketsStartMark); i != -1 {
+			s := m.Description[i+len(HistogramBucketsStartMark):]
+			if i = strings.Index(s, HistogramBucketsEndMark); i != -1 {
+				s = s[:i]
+				m.HistorgamBuckets = make([]float32, 0, strings.Count(s, HistogramBucketsDelim)+1)
+				for i, j := 0, 1; i < len(s); {
+					for j < len(s) && s[j] != HistogramBucketsDelimC {
+						j++
+					}
+					if f, err := strconv.ParseFloat(s[i:j], 32); err == nil {
+						m.HistorgamBuckets = append(m.HistorgamBuckets, float32(f))
+					}
+					i = j + 1
+					j = i + 1
 				}
-				if f, err := strconv.ParseFloat(s[i:j], 32); err == nil {
-					m.HistorgamBuckets = append(m.HistorgamBuckets, float32(f))
-				}
-				i = j + 1
-				j = i + 1
 			}
 		}
+		m.PromQLPrefixSum = strings.Contains(m.Description, PromQLPrefixSumMark)
 	}
-
 	m.NoSampleAgent = builtinMetricsNoSamplingAgent[m.MetricID]
 	if m.GroupID == 0 || m.GroupID == BuiltinGroupIDDefault {
 		m.GroupID = BuiltinGroupIDDefault

@@ -109,58 +109,83 @@ func (item *EngineQueryResult) WriteBoxed(w []byte) (_ []byte, err error) {
 	}
 }
 
-func EngineQueryResult__ReadJSON(item *EngineQueryResult, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineQueryResult) readJSON(j interface{}) error {
-	_jm, _tag, err := JsonReadUnionType("engine.QueryResult", j)
+func (item *EngineQueryResult) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	_tag, _value, err := Json2ReadUnion("engine.QueryResult", in)
 	if err != nil {
 		return err
 	}
-	jvalue := _jm["value"]
 	switch _tag {
 	case "engine.queryResult#ac4d6fe9", "engine.queryResult", "#ac4d6fe9":
+		if !legacyTypeNames && _tag == "engine.queryResult#ac4d6fe9" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.QueryResult", "engine.queryResult#ac4d6fe9")
+		}
 		item.index = 0
-		if err := EngineQueryResult0__ReadJSON(&item.valueQueryResult, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueQueryResult.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.queryResultError#2b4dd0ba", "engine.queryResultError", "#2b4dd0ba":
+		if !legacyTypeNames && _tag == "engine.queryResultError#2b4dd0ba" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.QueryResult", "engine.queryResultError#2b4dd0ba")
+		}
 		item.index = 1
-		if err := EngineQueryResultError__ReadJSON(&item.valueError, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueError.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.queryResultAio#ee2879b0", "engine.queryResultAio", "#ee2879b0":
+		if !legacyTypeNames && _tag == "engine.queryResultAio#ee2879b0" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.QueryResult", "engine.queryResultAio#ee2879b0")
+		}
 		item.index = 2
 	default:
 		return ErrorInvalidUnionTagJSON("engine.QueryResult", _tag)
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.QueryResult", k)
 	}
 	return nil
 }
 
 func (item *EngineQueryResult) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineQueryResult) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineQueryResult) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	switch item.index {
 	case 0:
-		w = append(w, `{"type":"engine.queryResult#ac4d6fe9","value":`...)
-		if w, err = item.valueQueryResult.WriteJSONOpt(short, w); err != nil {
+		if newTypeNames {
+			w = append(w, `{"type":"engine.queryResult"`...)
+		} else {
+			w = append(w, `{"type":"engine.queryResult#ac4d6fe9"`...)
+		}
+		w = append(w, `,"value":`...)
+		if w, err = item.valueQueryResult.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 1:
-		w = append(w, `{"type":"engine.queryResultError#2b4dd0ba","value":`...)
-		if w, err = item.valueError.WriteJSONOpt(short, w); err != nil {
+		if newTypeNames {
+			w = append(w, `{"type":"engine.queryResultError"`...)
+		} else {
+			w = append(w, `{"type":"engine.queryResultError#2b4dd0ba"`...)
+		}
+		w = append(w, `,"value":`...)
+		if w, err = item.valueError.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 2:
-		return append(w, `{"type":"engine.queryResultAio#ee2879b0"}`...), nil
+		if newTypeNames {
+			w = append(w, `{"type":"engine.queryResultAio"`...)
+		} else {
+			w = append(w, `{"type":"engine.queryResultAio#ee2879b0"`...)
+		}
+		return append(w, '}'), nil
 	default: // Impossible due to panic above
 		return w, nil
 	}
@@ -178,12 +203,8 @@ func (item *EngineQueryResult) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *EngineQueryResult) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.QueryResult", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+func (item *EngineQueryResult) tUnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.QueryResult", err.Error())
 	}
 	return nil
@@ -234,34 +255,53 @@ func (item EngineQueryResult0) String() string {
 	return string(w)
 }
 
-func EngineQueryResult0__ReadJSON(item *EngineQueryResult0, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineQueryResult0) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.queryResult", "expected json object")
+func (item *EngineQueryResult0) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propSizePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "size":
+				if propSizePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.queryResult", "size")
+				}
+				if err := Json2ReadInt32(in, &item.Size); err != nil {
+					return err
+				}
+				propSizePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.queryResult", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jSize := _jm["size"]
-	delete(_jm, "size")
-	if err := JsonReadInt32(_jSize, &item.Size); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.queryResult", k)
+	if !propSizePresented {
+		item.Size = 0
 	}
 	return nil
 }
 
 func (item *EngineQueryResult0) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineQueryResult0) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineQueryResult0) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Size != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"size":`...)
-		w = basictl.JSONWriteInt32(w, item.Size)
+	backupIndexSize := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"size":`...)
+	w = basictl.JSONWriteInt32(w, item.Size)
+	if (item.Size != 0) == false {
+		w = w[:backupIndexSize]
 	}
 	return append(w, '}'), nil
 }
@@ -271,11 +311,7 @@ func (item *EngineQueryResult0) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineQueryResult0) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.queryResult", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.queryResult", err.Error())
 	}
 	return nil
@@ -319,24 +355,27 @@ func (item EngineQueryResultAio) String() string {
 	return string(w)
 }
 
-func EngineQueryResultAio__ReadJSON(item *EngineQueryResultAio, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineQueryResultAio) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.queryResultAio", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.queryResultAio", k)
+func (item *EngineQueryResultAio) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.queryResultAio", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineQueryResultAio) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineQueryResultAio) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineQueryResultAio) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -346,11 +385,7 @@ func (item *EngineQueryResultAio) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineQueryResultAio) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.queryResultAio", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.queryResultAio", err.Error())
 	}
 	return nil
@@ -407,44 +442,72 @@ func (item EngineQueryResultError) String() string {
 	return string(w)
 }
 
-func EngineQueryResultError__ReadJSON(item *EngineQueryResultError, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineQueryResultError) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.queryResultError", "expected json object")
+func (item *EngineQueryResultError) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propErrorCodePresented bool
+	var propErrorStringPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "error_code":
+				if propErrorCodePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.queryResultError", "error_code")
+				}
+				if err := Json2ReadInt32(in, &item.ErrorCode); err != nil {
+					return err
+				}
+				propErrorCodePresented = true
+			case "error_string":
+				if propErrorStringPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.queryResultError", "error_string")
+				}
+				if err := Json2ReadString(in, &item.ErrorString); err != nil {
+					return err
+				}
+				propErrorStringPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.queryResultError", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jErrorCode := _jm["error_code"]
-	delete(_jm, "error_code")
-	if err := JsonReadInt32(_jErrorCode, &item.ErrorCode); err != nil {
-		return err
+	if !propErrorCodePresented {
+		item.ErrorCode = 0
 	}
-	_jErrorString := _jm["error_string"]
-	delete(_jm, "error_string")
-	if err := JsonReadString(_jErrorString, &item.ErrorString); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.queryResultError", k)
+	if !propErrorStringPresented {
+		item.ErrorString = ""
 	}
 	return nil
 }
 
 func (item *EngineQueryResultError) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineQueryResultError) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineQueryResultError) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.ErrorCode != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"error_code":`...)
-		w = basictl.JSONWriteInt32(w, item.ErrorCode)
+	backupIndexErrorCode := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"error_code":`...)
+	w = basictl.JSONWriteInt32(w, item.ErrorCode)
+	if (item.ErrorCode != 0) == false {
+		w = w[:backupIndexErrorCode]
 	}
-	if len(item.ErrorString) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"error_string":`...)
-		w = basictl.JSONWriteString(w, item.ErrorString)
+	backupIndexErrorString := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"error_string":`...)
+	w = basictl.JSONWriteString(w, item.ErrorString)
+	if (len(item.ErrorString) != 0) == false {
+		w = w[:backupIndexErrorString]
 	}
 	return append(w, '}'), nil
 }
@@ -454,11 +517,7 @@ func (item *EngineQueryResultError) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineQueryResultError) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.queryResultError", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.queryResultError", err.Error())
 	}
 	return nil

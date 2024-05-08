@@ -84,19 +84,19 @@ func (item *MetadataEditEntitynew) WriteResult(w []byte, ret MetadataEvent) (_ [
 	return ret.WriteBoxed(w)
 }
 
-func (item *MetadataEditEntitynew) ReadResultJSON(j interface{}, ret *MetadataEvent) error {
-	if err := MetadataEvent__ReadJSON(ret, j); err != nil {
+func (item *MetadataEditEntitynew) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataEvent) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataEditEntitynew) WriteResultJSON(w []byte, ret MetadataEvent) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *MetadataEditEntitynew) writeResultJSON(short bool, w []byte, ret MetadataEvent) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *MetadataEditEntitynew) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataEvent) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -111,22 +111,19 @@ func (item *MetadataEditEntitynew) ReadResultWriteResultJSON(r []byte, w []byte)
 	return r, w, err
 }
 
-func (item *MetadataEditEntitynew) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataEditEntitynew) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataEvent
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *MetadataEditEntitynew) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.editEntitynew", err.Error())
-	}
 	var ret MetadataEvent
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -141,69 +138,107 @@ func (item MetadataEditEntitynew) String() string {
 	return string(w)
 }
 
-func MetadataEditEntitynew__ReadJSON(item *MetadataEditEntitynew, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataEditEntitynew) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.editEntitynew", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jEvent := _jm["event"]
-	delete(_jm, "event")
-	_jCreate := _jm["create"]
-	delete(_jm, "create")
-	_jDelete := _jm["delete"]
-	delete(_jm, "delete")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.editEntitynew", k)
-	}
-	if _jCreate != nil {
-		_bit := false
-		if err := JsonReadBool(_jCreate, &_bit); err != nil {
-			return err
+func (item *MetadataEditEntitynew) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propEventPresented bool
+	var trueTypeCreatePresented bool
+	var trueTypeCreateValue bool
+	var trueTypeDeletePresented bool
+	var trueTypeDeleteValue bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
 		}
-		if _bit {
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editEntitynew", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "event":
+				if propEventPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editEntitynew", "event")
+				}
+				if err := item.Event.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propEventPresented = true
+			case "create":
+				if trueTypeCreatePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editEntitynew", "create")
+				}
+				if err := Json2ReadBool(in, &trueTypeCreateValue); err != nil {
+					return err
+				}
+				trueTypeCreatePresented = true
+			case "delete":
+				if trueTypeDeletePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.editEntitynew", "delete")
+				}
+				if err := Json2ReadBool(in, &trueTypeDeleteValue); err != nil {
+					return err
+				}
+				trueTypeDeletePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.editEntitynew", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
+	}
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
+	}
+	if !propEventPresented {
+		item.Event.Reset()
+	}
+	if trueTypeCreatePresented {
+		if trueTypeCreateValue {
 			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
 		}
 	}
-	if _jDelete != nil {
-		_bit := false
-		if err := JsonReadBool(_jDelete, &_bit); err != nil {
-			return err
-		}
-		if _bit {
+	if trueTypeDeletePresented {
+		if trueTypeDeleteValue {
 			item.FieldsMask |= 1 << 1
-		} else {
-			item.FieldsMask &^= 1 << 1
 		}
 	}
-	if err := MetadataEvent__ReadJSON(&item.Event, _jEvent); err != nil {
-		return err
+	// tries to set bit to zero if it is 1
+	if trueTypeCreatePresented && !trueTypeCreateValue && (item.FieldsMask&(1<<0) != 0) {
+		return ErrorInvalidJSON("metadata.editEntitynew", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
+	}
+	// tries to set bit to zero if it is 1
+	if trueTypeDeletePresented && !trueTypeDeleteValue && (item.FieldsMask&(1<<1) != 0) {
+		return ErrorInvalidJSON("metadata.editEntitynew", "fieldmask bit fields_mask.0 is indefinite because of the contradictions in values")
 	}
 	return nil
 }
 
 func (item *MetadataEditEntitynew) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataEditEntitynew) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataEditEntitynew) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"event":`...)
-	if w, err = item.Event.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Event.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	if item.FieldsMask&(1<<0) != 0 {
@@ -222,11 +257,7 @@ func (item *MetadataEditEntitynew) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataEditEntitynew) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.editEntitynew", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.editEntitynew", err.Error())
 	}
 	return nil

@@ -60,44 +60,70 @@ func (item KvEngineChangeResponse) String() string {
 	return string(w)
 }
 
-func KvEngineChangeResponse__ReadJSON(item *KvEngineChangeResponse, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *KvEngineChangeResponse) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("kv_engine.change_response", "expected json object")
+func (item *KvEngineChangeResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propMetaPresented bool
+	var propNewValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "meta":
+				if propMetaPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("kv_engine.change_response", "meta")
+				}
+				if err := item.Meta.ReadJSON(legacyTypeNames, in); err != nil {
+					return err
+				}
+				propMetaPresented = true
+			case "new_value":
+				if propNewValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("kv_engine.change_response", "new_value")
+				}
+				if err := Json2ReadInt64(in, &item.NewValue); err != nil {
+					return err
+				}
+				propNewValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("kv_engine.change_response", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jMeta := _jm["meta"]
-	delete(_jm, "meta")
-	_jNewValue := _jm["new_value"]
-	delete(_jm, "new_value")
-	if err := JsonReadInt64(_jNewValue, &item.NewValue); err != nil {
-		return err
+	if !propMetaPresented {
+		item.Meta.Reset()
 	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("kv_engine.change_response", k)
-	}
-	if err := KvEngineMetaInfo__ReadJSON(&item.Meta, _jMeta); err != nil {
-		return err
+	if !propNewValuePresented {
+		item.NewValue = 0
 	}
 	return nil
 }
 
 func (item *KvEngineChangeResponse) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *KvEngineChangeResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *KvEngineChangeResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	w = basictl.JSONAddCommaIfNeeded(w)
 	w = append(w, `"meta":`...)
-	if w, err = item.Meta.WriteJSONOpt(short, w); err != nil {
+	if w, err = item.Meta.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
-	if item.NewValue != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"new_value":`...)
-		w = basictl.JSONWriteInt64(w, item.NewValue)
+	backupIndexNewValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"new_value":`...)
+	w = basictl.JSONWriteInt64(w, item.NewValue)
+	if (item.NewValue != 0) == false {
+		w = w[:backupIndexNewValue]
 	}
 	return append(w, '}'), nil
 }
@@ -107,11 +133,7 @@ func (item *KvEngineChangeResponse) MarshalJSON() ([]byte, error) {
 }
 
 func (item *KvEngineChangeResponse) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("kv_engine.change_response", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("kv_engine.change_response", err.Error())
 	}
 	return nil

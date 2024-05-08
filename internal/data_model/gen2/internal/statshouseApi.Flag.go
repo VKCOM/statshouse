@@ -64,25 +64,28 @@ func (item StatshouseApiFlag) WriteBoxed(w []byte) (_ []byte, err error) {
 	return w, nil
 }
 
-func StatshouseApiFlag__ReadJSON(item *StatshouseApiFlag, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiFlag) readJSON(j interface{}) error {
-	if j == nil {
-		return ErrorInvalidJSON("statshouseApi.Flag", "expected string")
-	}
-	_jtype, _ok := j.(string)
-	if !_ok {
+func (item *StatshouseApiFlag) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	_jtype := in.UnsafeString()
+	if !in.Ok() {
 		return ErrorInvalidJSON("statshouseApi.Flag", "expected string")
 	}
 	switch _jtype {
 	case "statshouseApi.flagMapped#670ab89c", "statshouseApi.flagMapped", "#670ab89c":
+		if !legacyTypeNames && _jtype == "statshouseApi.flagMapped#670ab89c" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagMapped#670ab89c")
+		}
 		item.index = 0
 		return nil
 	case "statshouseApi.flagRaw#4ca979c0", "statshouseApi.flagRaw", "#4ca979c0":
+		if !legacyTypeNames && _jtype == "statshouseApi.flagRaw#4ca979c0" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagRaw#4ca979c0")
+		}
 		item.index = 1
 		return nil
 	case "statshouseApi.flagAuto#2a6e4c14", "statshouseApi.flagAuto", "#2a6e4c14":
+		if !legacyTypeNames && _jtype == "statshouseApi.flagAuto#2a6e4c14" {
+			return ErrorInvalidUnionLegacyTagJSON("statshouseApi.Flag", "statshouseApi.flagAuto#2a6e4c14")
+		}
 		item.index = 2
 		return nil
 	default:
@@ -91,11 +94,15 @@ func (item *StatshouseApiFlag) readJSON(j interface{}) error {
 }
 
 func (item StatshouseApiFlag) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item StatshouseApiFlag) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item StatshouseApiFlag) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '"')
-	w = append(w, _StatshouseApiFlag[item.index].TLString...)
+	if newTypeNames {
+		w = append(w, _StatshouseApiFlag[item.index].TLName...)
+	} else {
+		w = append(w, _StatshouseApiFlag[item.index].TLString...)
+	}
 	return append(w, '"'), nil
 }
 
@@ -111,12 +118,8 @@ func (item *StatshouseApiFlag) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *StatshouseApiFlag) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.Flag", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+func (item *StatshouseApiFlag) tUnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.Flag", err.Error())
 	}
 	return nil

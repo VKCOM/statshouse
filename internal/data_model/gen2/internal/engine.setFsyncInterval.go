@@ -52,19 +52,19 @@ func (item *EngineSetFsyncInterval) WriteResult(w []byte, ret BoolStat) (_ []byt
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineSetFsyncInterval) ReadResultJSON(j interface{}, ret *BoolStat) error {
-	if err := BoolStat__ReadJSON(ret, j); err != nil {
+func (item *EngineSetFsyncInterval) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *BoolStat) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSetFsyncInterval) WriteResultJSON(w []byte, ret BoolStat) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineSetFsyncInterval) writeResultJSON(short bool, w []byte, ret BoolStat) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EngineSetFsyncInterval) writeResultJSON(newTypeNames bool, short bool, w []byte, ret BoolStat) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -79,22 +79,19 @@ func (item *EngineSetFsyncInterval) ReadResultWriteResultJSON(r []byte, w []byte
 	return r, w, err
 }
 
-func (item *EngineSetFsyncInterval) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSetFsyncInterval) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret BoolStat
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineSetFsyncInterval) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.setFsyncInterval", err.Error())
-	}
 	var ret BoolStat
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -109,34 +106,53 @@ func (item EngineSetFsyncInterval) String() string {
 	return string(w)
 }
 
-func EngineSetFsyncInterval__ReadJSON(item *EngineSetFsyncInterval, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSetFsyncInterval) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.setFsyncInterval", "expected json object")
+func (item *EngineSetFsyncInterval) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propSecondsPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "seconds":
+				if propSecondsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.setFsyncInterval", "seconds")
+				}
+				if err := Json2ReadFloat64(in, &item.Seconds); err != nil {
+					return err
+				}
+				propSecondsPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.setFsyncInterval", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jSeconds := _jm["seconds"]
-	delete(_jm, "seconds")
-	if err := JsonReadFloat64(_jSeconds, &item.Seconds); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.setFsyncInterval", k)
+	if !propSecondsPresented {
+		item.Seconds = 0
 	}
 	return nil
 }
 
 func (item *EngineSetFsyncInterval) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSetFsyncInterval) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSetFsyncInterval) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Seconds != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"seconds":`...)
-		w = basictl.JSONWriteFloat64(w, item.Seconds)
+	backupIndexSeconds := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"seconds":`...)
+	w = basictl.JSONWriteFloat64(w, item.Seconds)
+	if (item.Seconds != 0) == false {
+		w = w[:backupIndexSeconds]
 	}
 	return append(w, '}'), nil
 }
@@ -146,11 +162,7 @@ func (item *EngineSetFsyncInterval) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineSetFsyncInterval) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.setFsyncInterval", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.setFsyncInterval", err.Error())
 	}
 	return nil

@@ -209,103 +209,176 @@ func (item *EngineReindexStatus) WriteBoxed(w []byte) (_ []byte, err error) {
 	}
 }
 
-func EngineReindexStatus__ReadJSON(item *EngineReindexStatus, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatus) readJSON(j interface{}) error {
-	_jm, _tag, err := JsonReadUnionType("engine.ReindexStatus", j)
+func (item *EngineReindexStatus) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	_tag, _value, err := Json2ReadUnion("engine.ReindexStatus", in)
 	if err != nil {
 		return err
 	}
-	jvalue := _jm["value"]
 	switch _tag {
 	case "engine.reindexStatusNever#7f6a89b9", "engine.reindexStatusNever", "#7f6a89b9":
+		if !legacyTypeNames && _tag == "engine.reindexStatusNever#7f6a89b9" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusNever#7f6a89b9")
+		}
 		item.index = 0
 	case "engine.reindexStatusRunningOld#ac530b46", "engine.reindexStatusRunningOld", "#ac530b46":
+		if !legacyTypeNames && _tag == "engine.reindexStatusRunningOld#ac530b46" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusRunningOld#ac530b46")
+		}
 		item.index = 1
-		if err := EngineReindexStatusRunningOld__ReadJSON(&item.valueRunningOld, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueRunningOld.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.reindexStatusRunning#fa198b59", "engine.reindexStatusRunning", "#fa198b59":
+		if !legacyTypeNames && _tag == "engine.reindexStatusRunning#fa198b59" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusRunning#fa198b59")
+		}
 		item.index = 2
-		if err := EngineReindexStatusRunning__ReadJSON(&item.valueRunning, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueRunning.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.reindexStatusFailed#10533721", "engine.reindexStatusFailed", "#10533721":
+		if !legacyTypeNames && _tag == "engine.reindexStatusFailed#10533721" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusFailed#10533721")
+		}
 		item.index = 3
-		if err := EngineReindexStatusFailed__ReadJSON(&item.valueFailed, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueFailed.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.reindexStatusSignaled#756e878b", "engine.reindexStatusSignaled", "#756e878b":
+		if !legacyTypeNames && _tag == "engine.reindexStatusSignaled#756e878b" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusSignaled#756e878b")
+		}
 		item.index = 4
-		if err := EngineReindexStatusSignaled__ReadJSON(&item.valueSignaled, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueSignaled.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.reindexStatusDoneOld#afdbd505", "engine.reindexStatusDoneOld", "#afdbd505":
+		if !legacyTypeNames && _tag == "engine.reindexStatusDoneOld#afdbd505" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusDoneOld#afdbd505")
+		}
 		item.index = 5
-		if err := EngineReindexStatusDoneOld__ReadJSON(&item.valueDoneOld, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueDoneOld.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	case "engine.reindexStatusDone#0f67569a", "engine.reindexStatusDone", "#0f67569a":
+		if !legacyTypeNames && _tag == "engine.reindexStatusDone#0f67569a" {
+			return ErrorInvalidUnionLegacyTagJSON("engine.ReindexStatus", "engine.reindexStatusDone#0f67569a")
+		}
 		item.index = 6
-		if err := EngineReindexStatusDone__ReadJSON(&item.valueDone, jvalue); err != nil {
+		var in2Pointer *basictl.JsonLexer
+		if _value != nil {
+			in2 := basictl.JsonLexer{Data: _value}
+			in2Pointer = &in2
+		}
+		if err := item.valueDone.ReadJSON(legacyTypeNames, in2Pointer); err != nil {
 			return err
 		}
-		delete(_jm, "value")
 	default:
 		return ErrorInvalidUnionTagJSON("engine.ReindexStatus", _tag)
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.ReindexStatus", k)
 	}
 	return nil
 }
 
 func (item *EngineReindexStatus) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineReindexStatus) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineReindexStatus) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	switch item.index {
 	case 0:
-		return append(w, `{"type":"engine.reindexStatusNever#7f6a89b9"}`...), nil
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusNever"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusNever#7f6a89b9"`...)
+		}
+		return append(w, '}'), nil
 	case 1:
-		w = append(w, `{"type":"engine.reindexStatusRunningOld#ac530b46","value":`...)
-		if w, err = item.valueRunningOld.WriteJSONOpt(short, w); err != nil {
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusRunningOld"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusRunningOld#ac530b46"`...)
+		}
+		w = append(w, `,"value":`...)
+		if w, err = item.valueRunningOld.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 2:
-		w = append(w, `{"type":"engine.reindexStatusRunning#fa198b59","value":`...)
-		if w, err = item.valueRunning.WriteJSONOpt(short, w); err != nil {
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusRunning"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusRunning#fa198b59"`...)
+		}
+		w = append(w, `,"value":`...)
+		if w, err = item.valueRunning.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 3:
-		w = append(w, `{"type":"engine.reindexStatusFailed#10533721","value":`...)
-		if w, err = item.valueFailed.WriteJSONOpt(short, w); err != nil {
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusFailed"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusFailed#10533721"`...)
+		}
+		w = append(w, `,"value":`...)
+		if w, err = item.valueFailed.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 4:
-		w = append(w, `{"type":"engine.reindexStatusSignaled#756e878b","value":`...)
-		if w, err = item.valueSignaled.WriteJSONOpt(short, w); err != nil {
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusSignaled"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusSignaled#756e878b"`...)
+		}
+		w = append(w, `,"value":`...)
+		if w, err = item.valueSignaled.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 5:
-		w = append(w, `{"type":"engine.reindexStatusDoneOld#afdbd505","value":`...)
-		if w, err = item.valueDoneOld.WriteJSONOpt(short, w); err != nil {
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusDoneOld"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusDoneOld#afdbd505"`...)
+		}
+		w = append(w, `,"value":`...)
+		if w, err = item.valueDoneOld.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
 	case 6:
-		w = append(w, `{"type":"engine.reindexStatusDone#0f67569a","value":`...)
-		if w, err = item.valueDone.WriteJSONOpt(short, w); err != nil {
+		if newTypeNames {
+			w = append(w, `{"type":"engine.reindexStatusDone"`...)
+		} else {
+			w = append(w, `{"type":"engine.reindexStatusDone#0f67569a"`...)
+		}
+		w = append(w, `,"value":`...)
+		if w, err = item.valueDone.WriteJSONOpt(newTypeNames, short, w); err != nil {
 			return w, err
 		}
 		return append(w, '}'), nil
@@ -326,12 +399,8 @@ func (item *EngineReindexStatus) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 
-func (item *EngineReindexStatus) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.ReindexStatus", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+func (item *EngineReindexStatus) tUnmarshalJSON(b []byte) error {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.ReindexStatus", err.Error())
 	}
 	return nil
@@ -388,44 +457,72 @@ func (item EngineReindexStatusDone) String() string {
 	return string(w)
 }
 
-func EngineReindexStatusDone__ReadJSON(item *EngineReindexStatusDone, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusDone) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusDone", "expected json object")
+func (item *EngineReindexStatusDone) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFinishTimePresented bool
+	var propNeedRestartPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "finish_time":
+				if propFinishTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusDone", "finish_time")
+				}
+				if err := Json2ReadInt32(in, &item.FinishTime); err != nil {
+					return err
+				}
+				propFinishTimePresented = true
+			case "need_restart":
+				if propNeedRestartPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusDone", "need_restart")
+				}
+				if err := Json2ReadBool(in, &item.NeedRestart); err != nil {
+					return err
+				}
+				propNeedRestartPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusDone", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFinishTime := _jm["finish_time"]
-	delete(_jm, "finish_time")
-	if err := JsonReadInt32(_jFinishTime, &item.FinishTime); err != nil {
-		return err
+	if !propFinishTimePresented {
+		item.FinishTime = 0
 	}
-	_jNeedRestart := _jm["need_restart"]
-	delete(_jm, "need_restart")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusDone", k)
-	}
-	if err := JsonReadBool(_jNeedRestart, &item.NeedRestart); err != nil {
-		return err
+	if !propNeedRestartPresented {
+		item.NeedRestart = false
 	}
 	return nil
 }
 
 func (item *EngineReindexStatusDone) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineReindexStatusDone) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineReindexStatusDone) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FinishTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"finish_time":`...)
-		w = basictl.JSONWriteInt32(w, item.FinishTime)
+	backupIndexFinishTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"finish_time":`...)
+	w = basictl.JSONWriteInt32(w, item.FinishTime)
+	if (item.FinishTime != 0) == false {
+		w = w[:backupIndexFinishTime]
 	}
-	if item.NeedRestart {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"need_restart":`...)
-		w = basictl.JSONWriteBool(w, item.NeedRestart)
+	backupIndexNeedRestart := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"need_restart":`...)
+	w = basictl.JSONWriteBool(w, item.NeedRestart)
+	if (item.NeedRestart) == false {
+		w = w[:backupIndexNeedRestart]
 	}
 	return append(w, '}'), nil
 }
@@ -435,11 +532,7 @@ func (item *EngineReindexStatusDone) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusDone) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusDone", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusDone", err.Error())
 	}
 	return nil
@@ -490,34 +583,53 @@ func (item EngineReindexStatusDoneOld) String() string {
 	return string(w)
 }
 
-func EngineReindexStatusDoneOld__ReadJSON(item *EngineReindexStatusDoneOld, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusDoneOld) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusDoneOld", "expected json object")
+func (item *EngineReindexStatusDoneOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFinishTimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "finish_time":
+				if propFinishTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusDoneOld", "finish_time")
+				}
+				if err := Json2ReadInt32(in, &item.FinishTime); err != nil {
+					return err
+				}
+				propFinishTimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusDoneOld", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFinishTime := _jm["finish_time"]
-	delete(_jm, "finish_time")
-	if err := JsonReadInt32(_jFinishTime, &item.FinishTime); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusDoneOld", k)
+	if !propFinishTimePresented {
+		item.FinishTime = 0
 	}
 	return nil
 }
 
 func (item *EngineReindexStatusDoneOld) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineReindexStatusDoneOld) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineReindexStatusDoneOld) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FinishTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"finish_time":`...)
-		w = basictl.JSONWriteInt32(w, item.FinishTime)
+	backupIndexFinishTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"finish_time":`...)
+	w = basictl.JSONWriteInt32(w, item.FinishTime)
+	if (item.FinishTime != 0) == false {
+		w = w[:backupIndexFinishTime]
 	}
 	return append(w, '}'), nil
 }
@@ -527,11 +639,7 @@ func (item *EngineReindexStatusDoneOld) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusDoneOld) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusDoneOld", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusDoneOld", err.Error())
 	}
 	return nil
@@ -588,44 +696,72 @@ func (item EngineReindexStatusFailed) String() string {
 	return string(w)
 }
 
-func EngineReindexStatusFailed__ReadJSON(item *EngineReindexStatusFailed, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusFailed) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusFailed", "expected json object")
+func (item *EngineReindexStatusFailed) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propExitCodePresented bool
+	var propFinishTimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "exit_code":
+				if propExitCodePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusFailed", "exit_code")
+				}
+				if err := Json2ReadInt32(in, &item.ExitCode); err != nil {
+					return err
+				}
+				propExitCodePresented = true
+			case "finish_time":
+				if propFinishTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusFailed", "finish_time")
+				}
+				if err := Json2ReadInt32(in, &item.FinishTime); err != nil {
+					return err
+				}
+				propFinishTimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusFailed", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jExitCode := _jm["exit_code"]
-	delete(_jm, "exit_code")
-	if err := JsonReadInt32(_jExitCode, &item.ExitCode); err != nil {
-		return err
+	if !propExitCodePresented {
+		item.ExitCode = 0
 	}
-	_jFinishTime := _jm["finish_time"]
-	delete(_jm, "finish_time")
-	if err := JsonReadInt32(_jFinishTime, &item.FinishTime); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusFailed", k)
+	if !propFinishTimePresented {
+		item.FinishTime = 0
 	}
 	return nil
 }
 
 func (item *EngineReindexStatusFailed) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineReindexStatusFailed) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineReindexStatusFailed) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.ExitCode != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"exit_code":`...)
-		w = basictl.JSONWriteInt32(w, item.ExitCode)
+	backupIndexExitCode := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"exit_code":`...)
+	w = basictl.JSONWriteInt32(w, item.ExitCode)
+	if (item.ExitCode != 0) == false {
+		w = w[:backupIndexExitCode]
 	}
-	if item.FinishTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"finish_time":`...)
-		w = basictl.JSONWriteInt32(w, item.FinishTime)
+	backupIndexFinishTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"finish_time":`...)
+	w = basictl.JSONWriteInt32(w, item.FinishTime)
+	if (item.FinishTime != 0) == false {
+		w = w[:backupIndexFinishTime]
 	}
 	return append(w, '}'), nil
 }
@@ -635,11 +771,7 @@ func (item *EngineReindexStatusFailed) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusFailed) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusFailed", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusFailed", err.Error())
 	}
 	return nil
@@ -683,24 +815,27 @@ func (item EngineReindexStatusNever) String() string {
 	return string(w)
 }
 
-func EngineReindexStatusNever__ReadJSON(item *EngineReindexStatusNever, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusNever) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusNever", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusNever", k)
+func (item *EngineReindexStatusNever) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.reindexStatusNever", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EngineReindexStatusNever) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineReindexStatusNever) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineReindexStatusNever) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -710,11 +845,7 @@ func (item *EngineReindexStatusNever) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusNever) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusNever", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusNever", err.Error())
 	}
 	return nil
@@ -773,46 +904,74 @@ func (item EngineReindexStatusRunning) String() string {
 	return string(w)
 }
 
-func EngineReindexStatusRunning__ReadJSON(item *EngineReindexStatusRunning, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusRunning) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusRunning", "expected json object")
+func (item *EngineReindexStatusRunning) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propPidsPresented bool
+	var propStartTimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "pids":
+				if propPidsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusRunning", "pids")
+				}
+				if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, &item.Pids); err != nil {
+					return err
+				}
+				propPidsPresented = true
+			case "start_time":
+				if propStartTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusRunning", "start_time")
+				}
+				if err := Json2ReadInt32(in, &item.StartTime); err != nil {
+					return err
+				}
+				propStartTimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusRunning", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jPids := _jm["pids"]
-	delete(_jm, "pids")
-	_jStartTime := _jm["start_time"]
-	delete(_jm, "start_time")
-	if err := JsonReadInt32(_jStartTime, &item.StartTime); err != nil {
-		return err
+	if !propPidsPresented {
+		item.Pids = item.Pids[:0]
 	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusRunning", k)
-	}
-	if err := BuiltinVectorIntReadJSON(_jPids, &item.Pids); err != nil {
-		return err
+	if !propStartTimePresented {
+		item.StartTime = 0
 	}
 	return nil
 }
 
 func (item *EngineReindexStatusRunning) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineReindexStatusRunning) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineReindexStatusRunning) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Pids) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"pids":`...)
-		if w, err = BuiltinVectorIntWriteJSONOpt(short, w, item.Pids); err != nil {
-			return w, err
-		}
+	backupIndexPids := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"pids":`...)
+	if w, err = BuiltinVectorIntWriteJSONOpt(newTypeNames, short, w, item.Pids); err != nil {
+		return w, err
 	}
-	if item.StartTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"start_time":`...)
-		w = basictl.JSONWriteInt32(w, item.StartTime)
+	if (len(item.Pids) != 0) == false {
+		w = w[:backupIndexPids]
+	}
+	backupIndexStartTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"start_time":`...)
+	w = basictl.JSONWriteInt32(w, item.StartTime)
+	if (item.StartTime != 0) == false {
+		w = w[:backupIndexStartTime]
 	}
 	return append(w, '}'), nil
 }
@@ -822,11 +981,7 @@ func (item *EngineReindexStatusRunning) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusRunning) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusRunning", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusRunning", err.Error())
 	}
 	return nil
@@ -883,44 +1038,72 @@ func (item EngineReindexStatusRunningOld) String() string {
 	return string(w)
 }
 
-func EngineReindexStatusRunningOld__ReadJSON(item *EngineReindexStatusRunningOld, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusRunningOld) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusRunningOld", "expected json object")
+func (item *EngineReindexStatusRunningOld) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propPidPresented bool
+	var propStartTimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "pid":
+				if propPidPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusRunningOld", "pid")
+				}
+				if err := Json2ReadInt32(in, &item.Pid); err != nil {
+					return err
+				}
+				propPidPresented = true
+			case "start_time":
+				if propStartTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusRunningOld", "start_time")
+				}
+				if err := Json2ReadInt32(in, &item.StartTime); err != nil {
+					return err
+				}
+				propStartTimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusRunningOld", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jPid := _jm["pid"]
-	delete(_jm, "pid")
-	if err := JsonReadInt32(_jPid, &item.Pid); err != nil {
-		return err
+	if !propPidPresented {
+		item.Pid = 0
 	}
-	_jStartTime := _jm["start_time"]
-	delete(_jm, "start_time")
-	if err := JsonReadInt32(_jStartTime, &item.StartTime); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusRunningOld", k)
+	if !propStartTimePresented {
+		item.StartTime = 0
 	}
 	return nil
 }
 
 func (item *EngineReindexStatusRunningOld) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineReindexStatusRunningOld) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineReindexStatusRunningOld) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Pid != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"pid":`...)
-		w = basictl.JSONWriteInt32(w, item.Pid)
+	backupIndexPid := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"pid":`...)
+	w = basictl.JSONWriteInt32(w, item.Pid)
+	if (item.Pid != 0) == false {
+		w = w[:backupIndexPid]
 	}
-	if item.StartTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"start_time":`...)
-		w = basictl.JSONWriteInt32(w, item.StartTime)
+	backupIndexStartTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"start_time":`...)
+	w = basictl.JSONWriteInt32(w, item.StartTime)
+	if (item.StartTime != 0) == false {
+		w = w[:backupIndexStartTime]
 	}
 	return append(w, '}'), nil
 }
@@ -930,11 +1113,7 @@ func (item *EngineReindexStatusRunningOld) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusRunningOld) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusRunningOld", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusRunningOld", err.Error())
 	}
 	return nil
@@ -991,44 +1170,72 @@ func (item EngineReindexStatusSignaled) String() string {
 	return string(w)
 }
 
-func EngineReindexStatusSignaled__ReadJSON(item *EngineReindexStatusSignaled, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineReindexStatusSignaled) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.reindexStatusSignaled", "expected json object")
+func (item *EngineReindexStatusSignaled) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propSignalPresented bool
+	var propFinishTimePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "signal":
+				if propSignalPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusSignaled", "signal")
+				}
+				if err := Json2ReadInt32(in, &item.Signal); err != nil {
+					return err
+				}
+				propSignalPresented = true
+			case "finish_time":
+				if propFinishTimePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.reindexStatusSignaled", "finish_time")
+				}
+				if err := Json2ReadInt32(in, &item.FinishTime); err != nil {
+					return err
+				}
+				propFinishTimePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.reindexStatusSignaled", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jSignal := _jm["signal"]
-	delete(_jm, "signal")
-	if err := JsonReadInt32(_jSignal, &item.Signal); err != nil {
-		return err
+	if !propSignalPresented {
+		item.Signal = 0
 	}
-	_jFinishTime := _jm["finish_time"]
-	delete(_jm, "finish_time")
-	if err := JsonReadInt32(_jFinishTime, &item.FinishTime); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.reindexStatusSignaled", k)
+	if !propFinishTimePresented {
+		item.FinishTime = 0
 	}
 	return nil
 }
 
 func (item *EngineReindexStatusSignaled) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineReindexStatusSignaled) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineReindexStatusSignaled) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Signal != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"signal":`...)
-		w = basictl.JSONWriteInt32(w, item.Signal)
+	backupIndexSignal := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"signal":`...)
+	w = basictl.JSONWriteInt32(w, item.Signal)
+	if (item.Signal != 0) == false {
+		w = w[:backupIndexSignal]
 	}
-	if item.FinishTime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"finish_time":`...)
-		w = basictl.JSONWriteInt32(w, item.FinishTime)
+	backupIndexFinishTime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"finish_time":`...)
+	w = basictl.JSONWriteInt32(w, item.FinishTime)
+	if (item.FinishTime != 0) == false {
+		w = w[:backupIndexFinishTime]
 	}
 	return append(w, '}'), nil
 }
@@ -1038,11 +1245,7 @@ func (item *EngineReindexStatusSignaled) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineReindexStatusSignaled) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.reindexStatusSignaled", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.reindexStatusSignaled", err.Error())
 	}
 	return nil

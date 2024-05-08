@@ -58,19 +58,19 @@ func (item *MetadataGetHistoryShortInfo) WriteResult(w []byte, ret MetadataHisto
 	return ret.WriteBoxed(w, item.FieldsMask)
 }
 
-func (item *MetadataGetHistoryShortInfo) ReadResultJSON(j interface{}, ret *MetadataHistoryShortResponse) error {
-	if err := MetadataHistoryShortResponse__ReadJSON(ret, j, item.FieldsMask); err != nil {
+func (item *MetadataGetHistoryShortInfo) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *MetadataHistoryShortResponse) error {
+	if err := ret.ReadJSON(legacyTypeNames, in, item.FieldsMask); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *MetadataGetHistoryShortInfo) WriteResultJSON(w []byte, ret MetadataHistoryShortResponse) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *MetadataGetHistoryShortInfo) writeResultJSON(short bool, w []byte, ret MetadataHistoryShortResponse) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w, item.FieldsMask); err != nil {
+func (item *MetadataGetHistoryShortInfo) writeResultJSON(newTypeNames bool, short bool, w []byte, ret MetadataHistoryShortResponse) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w, item.FieldsMask); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -85,22 +85,19 @@ func (item *MetadataGetHistoryShortInfo) ReadResultWriteResultJSON(r []byte, w [
 	return r, w, err
 }
 
-func (item *MetadataGetHistoryShortInfo) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *MetadataGetHistoryShortInfo) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret MetadataHistoryShortResponse
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *MetadataGetHistoryShortInfo) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("metadata.getHistoryShortInfo", err.Error())
-	}
 	var ret MetadataHistoryShortResponse
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -115,44 +112,72 @@ func (item MetadataGetHistoryShortInfo) String() string {
 	return string(w)
 }
 
-func MetadataGetHistoryShortInfo__ReadJSON(item *MetadataGetHistoryShortInfo, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *MetadataGetHistoryShortInfo) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("metadata.getHistoryShortInfo", "expected json object")
+func (item *MetadataGetHistoryShortInfo) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propIdPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getHistoryShortInfo", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "id":
+				if propIdPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("metadata.getHistoryShortInfo", "id")
+				}
+				if err := Json2ReadInt64(in, &item.Id); err != nil {
+					return err
+				}
+				propIdPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("metadata.getHistoryShortInfo", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jId := _jm["id"]
-	delete(_jm, "id")
-	if err := JsonReadInt64(_jId, &item.Id); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("metadata.getHistoryShortInfo", k)
+	if !propIdPresented {
+		item.Id = 0
 	}
 	return nil
 }
 
 func (item *MetadataGetHistoryShortInfo) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *MetadataGetHistoryShortInfo) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *MetadataGetHistoryShortInfo) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.Id != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"id":`...)
-		w = basictl.JSONWriteInt64(w, item.Id)
+	backupIndexId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"id":`...)
+	w = basictl.JSONWriteInt64(w, item.Id)
+	if (item.Id != 0) == false {
+		w = w[:backupIndexId]
 	}
 	return append(w, '}'), nil
 }
@@ -162,11 +187,7 @@ func (item *MetadataGetHistoryShortInfo) MarshalJSON() ([]byte, error) {
 }
 
 func (item *MetadataGetHistoryShortInfo) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("metadata.getHistoryShortInfo", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("metadata.getHistoryShortInfo", err.Error())
 	}
 	return nil

@@ -66,58 +66,95 @@ func (item StatshouseApiGetQueryPointResponse) String() string {
 	return string(w)
 }
 
-func StatshouseApiGetQueryPointResponse__ReadJSON(item *StatshouseApiGetQueryPointResponse, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseApiGetQueryPointResponse) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouseApi.queryPointResponse", "expected json object")
+func (item *StatshouseApiGetQueryPointResponse) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propFieldsMaskPresented bool
+	var propDataPresented bool
+	var propMetaPresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "fields_mask":
+				if propFieldsMaskPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPointResponse", "fields_mask")
+				}
+				if err := Json2ReadUint32(in, &item.FieldsMask); err != nil {
+					return err
+				}
+				propFieldsMaskPresented = true
+			case "data":
+				if propDataPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPointResponse", "data")
+				}
+				if err := BuiltinVectorDoubleReadJSON(legacyTypeNames, in, &item.Data); err != nil {
+					return err
+				}
+				propDataPresented = true
+			case "meta":
+				if propMetaPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouseApi.queryPointResponse", "meta")
+				}
+				if err := BuiltinVectorStatshouseApiPointMetaReadJSON(legacyTypeNames, in, &item.Meta); err != nil {
+					return err
+				}
+				propMetaPresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouseApi.queryPointResponse", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
+	if !propFieldsMaskPresented {
+		item.FieldsMask = 0
 	}
-	_jData := _jm["data"]
-	delete(_jm, "data")
-	_jMeta := _jm["meta"]
-	delete(_jm, "meta")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouseApi.queryPointResponse", k)
+	if !propDataPresented {
+		item.Data = item.Data[:0]
 	}
-	if err := BuiltinVectorDoubleReadJSON(_jData, &item.Data); err != nil {
-		return err
-	}
-	if err := BuiltinVectorStatshouseApiPointMetaReadJSON(_jMeta, &item.Meta); err != nil {
-		return err
+	if !propMetaPresented {
+		item.Meta = item.Meta[:0]
 	}
 	return nil
 }
 
 func (item *StatshouseApiGetQueryPointResponse) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseApiGetQueryPointResponse) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseApiGetQueryPointResponse) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.Data) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"data":`...)
-		if w, err = BuiltinVectorDoubleWriteJSONOpt(short, w, item.Data); err != nil {
-			return w, err
-		}
+	backupIndexData := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"data":`...)
+	if w, err = BuiltinVectorDoubleWriteJSONOpt(newTypeNames, short, w, item.Data); err != nil {
+		return w, err
 	}
-	if len(item.Meta) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"meta":`...)
-		if w, err = BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(short, w, item.Meta); err != nil {
-			return w, err
-		}
+	if (len(item.Data) != 0) == false {
+		w = w[:backupIndexData]
+	}
+	backupIndexMeta := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"meta":`...)
+	if w, err = BuiltinVectorStatshouseApiPointMetaWriteJSONOpt(newTypeNames, short, w, item.Meta); err != nil {
+		return w, err
+	}
+	if (len(item.Meta) != 0) == false {
+		w = w[:backupIndexMeta]
 	}
 	return append(w, '}'), nil
 }
@@ -127,11 +164,7 @@ func (item *StatshouseApiGetQueryPointResponse) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseApiGetQueryPointResponse) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouseApi.queryPointResponse", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouseApi.queryPointResponse", err.Error())
 	}
 	return nil

@@ -58,19 +58,19 @@ func (item *EngineSetPersistentConfigValue) WriteResult(w []byte, ret True) (_ [
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineSetPersistentConfigValue) ReadResultJSON(j interface{}, ret *True) error {
-	if err := True__ReadJSON(ret, j); err != nil {
+func (item *EngineSetPersistentConfigValue) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EngineSetPersistentConfigValue) WriteResultJSON(w []byte, ret True) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EngineSetPersistentConfigValue) writeResultJSON(short bool, w []byte, ret True) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EngineSetPersistentConfigValue) writeResultJSON(newTypeNames bool, short bool, w []byte, ret True) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -85,22 +85,19 @@ func (item *EngineSetPersistentConfigValue) ReadResultWriteResultJSON(r []byte, 
 	return r, w, err
 }
 
-func (item *EngineSetPersistentConfigValue) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EngineSetPersistentConfigValue) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret True
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EngineSetPersistentConfigValue) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.setPersistentConfigValue", err.Error())
-	}
 	var ret True
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -115,44 +112,72 @@ func (item EngineSetPersistentConfigValue) String() string {
 	return string(w)
 }
 
-func EngineSetPersistentConfigValue__ReadJSON(item *EngineSetPersistentConfigValue, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *EngineSetPersistentConfigValue) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.setPersistentConfigValue", "expected json object")
+func (item *EngineSetPersistentConfigValue) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propNamePresented bool
+	var propValuePresented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "name":
+				if propNamePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.setPersistentConfigValue", "name")
+				}
+				if err := Json2ReadString(in, &item.Name); err != nil {
+					return err
+				}
+				propNamePresented = true
+			case "value":
+				if propValuePresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("engine.setPersistentConfigValue", "value")
+				}
+				if err := Json2ReadInt32(in, &item.Value); err != nil {
+					return err
+				}
+				propValuePresented = true
+			default:
+				return ErrorInvalidJSONExcessElement("engine.setPersistentConfigValue", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jName := _jm["name"]
-	delete(_jm, "name")
-	if err := JsonReadString(_jName, &item.Name); err != nil {
-		return err
+	if !propNamePresented {
+		item.Name = ""
 	}
-	_jValue := _jm["value"]
-	delete(_jm, "value")
-	if err := JsonReadInt32(_jValue, &item.Value); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.setPersistentConfigValue", k)
+	if !propValuePresented {
+		item.Value = 0
 	}
 	return nil
 }
 
 func (item *EngineSetPersistentConfigValue) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EngineSetPersistentConfigValue) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EngineSetPersistentConfigValue) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Name) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"name":`...)
-		w = basictl.JSONWriteString(w, item.Name)
+	backupIndexName := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"name":`...)
+	w = basictl.JSONWriteString(w, item.Name)
+	if (len(item.Name) != 0) == false {
+		w = w[:backupIndexName]
 	}
-	if item.Value != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"value":`...)
-		w = basictl.JSONWriteInt32(w, item.Value)
+	backupIndexValue := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"value":`...)
+	w = basictl.JSONWriteInt32(w, item.Value)
+	if (item.Value != 0) == false {
+		w = w[:backupIndexValue]
 	}
 	return append(w, '}'), nil
 }
@@ -162,11 +187,7 @@ func (item *EngineSetPersistentConfigValue) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineSetPersistentConfigValue) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.setPersistentConfigValue", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.setPersistentConfigValue", err.Error())
 	}
 	return nil

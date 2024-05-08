@@ -88,92 +88,156 @@ func (item StatshouseSourceBucket2) String() string {
 	return string(w)
 }
 
-func StatshouseSourceBucket2__ReadJSON(item *StatshouseSourceBucket2, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseSourceBucket2) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.sourceBucket2", "expected json object")
+func (item *StatshouseSourceBucket2) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propMetricsPresented bool
+	var propSampleFactorsPresented bool
+	var propIngestionStatusOkPresented bool
+	var propMissedSecondsPresented bool
+	var propLegacyAgentEnvPresented bool
+	var propIngestionStatusOk2Presented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "metrics":
+				if propMetricsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "metrics")
+				}
+				if err := BuiltinVectorStatshouseMultiItemReadJSON(legacyTypeNames, in, &item.Metrics); err != nil {
+					return err
+				}
+				propMetricsPresented = true
+			case "sample_factors":
+				if propSampleFactorsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "sample_factors")
+				}
+				if err := BuiltinVectorStatshouseSampleFactorReadJSON(legacyTypeNames, in, &item.SampleFactors); err != nil {
+					return err
+				}
+				propSampleFactorsPresented = true
+			case "ingestion_status_ok":
+				if propIngestionStatusOkPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "ingestion_status_ok")
+				}
+				if err := BuiltinVectorStatshouseSampleFactorReadJSON(legacyTypeNames, in, &item.IngestionStatusOk); err != nil {
+					return err
+				}
+				propIngestionStatusOkPresented = true
+			case "missed_seconds":
+				if propMissedSecondsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "missed_seconds")
+				}
+				if err := Json2ReadUint32(in, &item.MissedSeconds); err != nil {
+					return err
+				}
+				propMissedSecondsPresented = true
+			case "legacy_agent_env":
+				if propLegacyAgentEnvPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "legacy_agent_env")
+				}
+				if err := Json2ReadInt32(in, &item.LegacyAgentEnv); err != nil {
+					return err
+				}
+				propLegacyAgentEnvPresented = true
+			case "ingestion_status_ok2":
+				if propIngestionStatusOk2Presented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "ingestion_status_ok2")
+				}
+				if err := BuiltinVectorStatshouseIngestionStatus2ReadJSON(legacyTypeNames, in, &item.IngestionStatusOk2); err != nil {
+					return err
+				}
+				propIngestionStatusOk2Presented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.sourceBucket2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jMetrics := _jm["metrics"]
-	delete(_jm, "metrics")
-	_jSampleFactors := _jm["sample_factors"]
-	delete(_jm, "sample_factors")
-	_jIngestionStatusOk := _jm["ingestion_status_ok"]
-	delete(_jm, "ingestion_status_ok")
-	_jMissedSeconds := _jm["missed_seconds"]
-	delete(_jm, "missed_seconds")
-	if err := JsonReadUint32(_jMissedSeconds, &item.MissedSeconds); err != nil {
-		return err
+	if !propMetricsPresented {
+		item.Metrics = item.Metrics[:0]
 	}
-	_jLegacyAgentEnv := _jm["legacy_agent_env"]
-	delete(_jm, "legacy_agent_env")
-	if err := JsonReadInt32(_jLegacyAgentEnv, &item.LegacyAgentEnv); err != nil {
-		return err
+	if !propSampleFactorsPresented {
+		item.SampleFactors = item.SampleFactors[:0]
 	}
-	_jIngestionStatusOk2 := _jm["ingestion_status_ok2"]
-	delete(_jm, "ingestion_status_ok2")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.sourceBucket2", k)
+	if !propIngestionStatusOkPresented {
+		item.IngestionStatusOk = item.IngestionStatusOk[:0]
 	}
-	if err := BuiltinVectorStatshouseMultiItemReadJSON(_jMetrics, &item.Metrics); err != nil {
-		return err
+	if !propMissedSecondsPresented {
+		item.MissedSeconds = 0
 	}
-	if err := BuiltinVectorStatshouseSampleFactorReadJSON(_jSampleFactors, &item.SampleFactors); err != nil {
-		return err
+	if !propLegacyAgentEnvPresented {
+		item.LegacyAgentEnv = 0
 	}
-	if err := BuiltinVectorStatshouseSampleFactorReadJSON(_jIngestionStatusOk, &item.IngestionStatusOk); err != nil {
-		return err
-	}
-	if err := BuiltinVectorStatshouseIngestionStatus2ReadJSON(_jIngestionStatusOk2, &item.IngestionStatusOk2); err != nil {
-		return err
+	if !propIngestionStatusOk2Presented {
+		item.IngestionStatusOk2 = item.IngestionStatusOk2[:0]
 	}
 	return nil
 }
 
 func (item *StatshouseSourceBucket2) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseSourceBucket2) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseSourceBucket2) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Metrics) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metrics":`...)
-		if w, err = BuiltinVectorStatshouseMultiItemWriteJSONOpt(short, w, item.Metrics); err != nil {
-			return w, err
-		}
+	backupIndexMetrics := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metrics":`...)
+	if w, err = BuiltinVectorStatshouseMultiItemWriteJSONOpt(newTypeNames, short, w, item.Metrics); err != nil {
+		return w, err
 	}
-	if len(item.SampleFactors) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"sample_factors":`...)
-		if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(short, w, item.SampleFactors); err != nil {
-			return w, err
-		}
+	if (len(item.Metrics) != 0) == false {
+		w = w[:backupIndexMetrics]
 	}
-	if len(item.IngestionStatusOk) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"ingestion_status_ok":`...)
-		if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(short, w, item.IngestionStatusOk); err != nil {
-			return w, err
-		}
+	backupIndexSampleFactors := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"sample_factors":`...)
+	if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.SampleFactors); err != nil {
+		return w, err
 	}
-	if item.MissedSeconds != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"missed_seconds":`...)
-		w = basictl.JSONWriteUint32(w, item.MissedSeconds)
+	if (len(item.SampleFactors) != 0) == false {
+		w = w[:backupIndexSampleFactors]
 	}
-	if item.LegacyAgentEnv != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"legacy_agent_env":`...)
-		w = basictl.JSONWriteInt32(w, item.LegacyAgentEnv)
+	backupIndexIngestionStatusOk := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"ingestion_status_ok":`...)
+	if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk); err != nil {
+		return w, err
 	}
-	if len(item.IngestionStatusOk2) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"ingestion_status_ok2":`...)
-		if w, err = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(short, w, item.IngestionStatusOk2); err != nil {
-			return w, err
-		}
+	if (len(item.IngestionStatusOk) != 0) == false {
+		w = w[:backupIndexIngestionStatusOk]
+	}
+	backupIndexMissedSeconds := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"missed_seconds":`...)
+	w = basictl.JSONWriteUint32(w, item.MissedSeconds)
+	if (item.MissedSeconds != 0) == false {
+		w = w[:backupIndexMissedSeconds]
+	}
+	backupIndexLegacyAgentEnv := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"legacy_agent_env":`...)
+	w = basictl.JSONWriteInt32(w, item.LegacyAgentEnv)
+	if (item.LegacyAgentEnv != 0) == false {
+		w = w[:backupIndexLegacyAgentEnv]
+	}
+	backupIndexIngestionStatusOk2 := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"ingestion_status_ok2":`...)
+	if w, err = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk2); err != nil {
+		return w, err
+	}
+	if (len(item.IngestionStatusOk2) != 0) == false {
+		w = w[:backupIndexIngestionStatusOk2]
 	}
 	return append(w, '}'), nil
 }
@@ -183,11 +247,7 @@ func (item *StatshouseSourceBucket2) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseSourceBucket2) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.sourceBucket2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.sourceBucket2", err.Error())
 	}
 	return nil
@@ -268,92 +328,156 @@ func (item StatshouseSourceBucket2Bytes) String() string {
 	return string(w)
 }
 
-func StatshouseSourceBucket2Bytes__ReadJSON(item *StatshouseSourceBucket2Bytes, j interface{}) error {
-	return item.readJSON(j)
-}
-func (item *StatshouseSourceBucket2Bytes) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("statshouse.sourceBucket2", "expected json object")
+func (item *StatshouseSourceBucket2Bytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	var propMetricsPresented bool
+	var propSampleFactorsPresented bool
+	var propIngestionStatusOkPresented bool
+	var propMissedSecondsPresented bool
+	var propLegacyAgentEnvPresented bool
+	var propIngestionStatusOk2Presented bool
+
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			key := in.UnsafeFieldName(true)
+			in.WantColon()
+			switch key {
+			case "metrics":
+				if propMetricsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "metrics")
+				}
+				if err := BuiltinVectorStatshouseMultiItemBytesReadJSON(legacyTypeNames, in, &item.Metrics); err != nil {
+					return err
+				}
+				propMetricsPresented = true
+			case "sample_factors":
+				if propSampleFactorsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "sample_factors")
+				}
+				if err := BuiltinVectorStatshouseSampleFactorReadJSON(legacyTypeNames, in, &item.SampleFactors); err != nil {
+					return err
+				}
+				propSampleFactorsPresented = true
+			case "ingestion_status_ok":
+				if propIngestionStatusOkPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "ingestion_status_ok")
+				}
+				if err := BuiltinVectorStatshouseSampleFactorReadJSON(legacyTypeNames, in, &item.IngestionStatusOk); err != nil {
+					return err
+				}
+				propIngestionStatusOkPresented = true
+			case "missed_seconds":
+				if propMissedSecondsPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "missed_seconds")
+				}
+				if err := Json2ReadUint32(in, &item.MissedSeconds); err != nil {
+					return err
+				}
+				propMissedSecondsPresented = true
+			case "legacy_agent_env":
+				if propLegacyAgentEnvPresented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "legacy_agent_env")
+				}
+				if err := Json2ReadInt32(in, &item.LegacyAgentEnv); err != nil {
+					return err
+				}
+				propLegacyAgentEnvPresented = true
+			case "ingestion_status_ok2":
+				if propIngestionStatusOk2Presented {
+					return ErrorInvalidJSONWithDuplicatingKeys("statshouse.sourceBucket2", "ingestion_status_ok2")
+				}
+				if err := BuiltinVectorStatshouseIngestionStatus2ReadJSON(legacyTypeNames, in, &item.IngestionStatusOk2); err != nil {
+					return err
+				}
+				propIngestionStatusOk2Presented = true
+			default:
+				return ErrorInvalidJSONExcessElement("statshouse.sourceBucket2", key)
+			}
+			in.WantComma()
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
-	_jMetrics := _jm["metrics"]
-	delete(_jm, "metrics")
-	_jSampleFactors := _jm["sample_factors"]
-	delete(_jm, "sample_factors")
-	_jIngestionStatusOk := _jm["ingestion_status_ok"]
-	delete(_jm, "ingestion_status_ok")
-	_jMissedSeconds := _jm["missed_seconds"]
-	delete(_jm, "missed_seconds")
-	if err := JsonReadUint32(_jMissedSeconds, &item.MissedSeconds); err != nil {
-		return err
+	if !propMetricsPresented {
+		item.Metrics = item.Metrics[:0]
 	}
-	_jLegacyAgentEnv := _jm["legacy_agent_env"]
-	delete(_jm, "legacy_agent_env")
-	if err := JsonReadInt32(_jLegacyAgentEnv, &item.LegacyAgentEnv); err != nil {
-		return err
+	if !propSampleFactorsPresented {
+		item.SampleFactors = item.SampleFactors[:0]
 	}
-	_jIngestionStatusOk2 := _jm["ingestion_status_ok2"]
-	delete(_jm, "ingestion_status_ok2")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("statshouse.sourceBucket2", k)
+	if !propIngestionStatusOkPresented {
+		item.IngestionStatusOk = item.IngestionStatusOk[:0]
 	}
-	if err := BuiltinVectorStatshouseMultiItemBytesReadJSON(_jMetrics, &item.Metrics); err != nil {
-		return err
+	if !propMissedSecondsPresented {
+		item.MissedSeconds = 0
 	}
-	if err := BuiltinVectorStatshouseSampleFactorReadJSON(_jSampleFactors, &item.SampleFactors); err != nil {
-		return err
+	if !propLegacyAgentEnvPresented {
+		item.LegacyAgentEnv = 0
 	}
-	if err := BuiltinVectorStatshouseSampleFactorReadJSON(_jIngestionStatusOk, &item.IngestionStatusOk); err != nil {
-		return err
-	}
-	if err := BuiltinVectorStatshouseIngestionStatus2ReadJSON(_jIngestionStatusOk2, &item.IngestionStatusOk2); err != nil {
-		return err
+	if !propIngestionStatusOk2Presented {
+		item.IngestionStatusOk2 = item.IngestionStatusOk2[:0]
 	}
 	return nil
 }
 
 func (item *StatshouseSourceBucket2Bytes) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *StatshouseSourceBucket2Bytes) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *StatshouseSourceBucket2Bytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.Metrics) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"metrics":`...)
-		if w, err = BuiltinVectorStatshouseMultiItemBytesWriteJSONOpt(short, w, item.Metrics); err != nil {
-			return w, err
-		}
+	backupIndexMetrics := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"metrics":`...)
+	if w, err = BuiltinVectorStatshouseMultiItemBytesWriteJSONOpt(newTypeNames, short, w, item.Metrics); err != nil {
+		return w, err
 	}
-	if len(item.SampleFactors) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"sample_factors":`...)
-		if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(short, w, item.SampleFactors); err != nil {
-			return w, err
-		}
+	if (len(item.Metrics) != 0) == false {
+		w = w[:backupIndexMetrics]
 	}
-	if len(item.IngestionStatusOk) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"ingestion_status_ok":`...)
-		if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(short, w, item.IngestionStatusOk); err != nil {
-			return w, err
-		}
+	backupIndexSampleFactors := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"sample_factors":`...)
+	if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.SampleFactors); err != nil {
+		return w, err
 	}
-	if item.MissedSeconds != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"missed_seconds":`...)
-		w = basictl.JSONWriteUint32(w, item.MissedSeconds)
+	if (len(item.SampleFactors) != 0) == false {
+		w = w[:backupIndexSampleFactors]
 	}
-	if item.LegacyAgentEnv != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"legacy_agent_env":`...)
-		w = basictl.JSONWriteInt32(w, item.LegacyAgentEnv)
+	backupIndexIngestionStatusOk := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"ingestion_status_ok":`...)
+	if w, err = BuiltinVectorStatshouseSampleFactorWriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk); err != nil {
+		return w, err
 	}
-	if len(item.IngestionStatusOk2) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"ingestion_status_ok2":`...)
-		if w, err = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(short, w, item.IngestionStatusOk2); err != nil {
-			return w, err
-		}
+	if (len(item.IngestionStatusOk) != 0) == false {
+		w = w[:backupIndexIngestionStatusOk]
+	}
+	backupIndexMissedSeconds := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"missed_seconds":`...)
+	w = basictl.JSONWriteUint32(w, item.MissedSeconds)
+	if (item.MissedSeconds != 0) == false {
+		w = w[:backupIndexMissedSeconds]
+	}
+	backupIndexLegacyAgentEnv := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"legacy_agent_env":`...)
+	w = basictl.JSONWriteInt32(w, item.LegacyAgentEnv)
+	if (item.LegacyAgentEnv != 0) == false {
+		w = w[:backupIndexLegacyAgentEnv]
+	}
+	backupIndexIngestionStatusOk2 := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"ingestion_status_ok2":`...)
+	if w, err = BuiltinVectorStatshouseIngestionStatus2WriteJSONOpt(newTypeNames, short, w, item.IngestionStatusOk2); err != nil {
+		return w, err
+	}
+	if (len(item.IngestionStatusOk2) != 0) == false {
+		w = w[:backupIndexIngestionStatusOk2]
 	}
 	return append(w, '}'), nil
 }
@@ -363,11 +487,7 @@ func (item *StatshouseSourceBucket2Bytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *StatshouseSourceBucket2Bytes) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("statshouse.sourceBucket2", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("statshouse.sourceBucket2", err.Error())
 	}
 	return nil

@@ -45,19 +45,19 @@ func (item *EnginePid) WriteResult(w []byte, ret NetPid) (_ []byte, err error) {
 	return ret.WriteBoxed(w)
 }
 
-func (item *EnginePid) ReadResultJSON(j interface{}, ret *NetPid) error {
-	if err := NetPid__ReadJSON(ret, j); err != nil {
+func (item *EnginePid) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *NetPid) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (item *EnginePid) WriteResultJSON(w []byte, ret NetPid) (_ []byte, err error) {
-	return item.writeResultJSON(false, w, ret)
+	return item.writeResultJSON(true, false, w, ret)
 }
 
-func (item *EnginePid) writeResultJSON(short bool, w []byte, ret NetPid) (_ []byte, err error) {
-	if w, err = ret.WriteJSONOpt(short, w); err != nil {
+func (item *EnginePid) writeResultJSON(newTypeNames bool, short bool, w []byte, ret NetPid) (_ []byte, err error) {
+	if w, err = ret.WriteJSONOpt(newTypeNames, short, w); err != nil {
 		return w, err
 	}
 	return w, nil
@@ -72,22 +72,19 @@ func (item *EnginePid) ReadResultWriteResultJSON(r []byte, w []byte) (_ []byte, 
 	return r, w, err
 }
 
-func (item *EnginePid) ReadResultWriteResultJSONShort(r []byte, w []byte) (_ []byte, _ []byte, err error) {
+func (item *EnginePid) ReadResultWriteResultJSONOpt(newTypeNames bool, short bool, r []byte, w []byte) (_ []byte, _ []byte, err error) {
 	var ret NetPid
 	if r, err = item.ReadResult(r, &ret); err != nil {
 		return r, w, err
 	}
-	w, err = item.writeResultJSON(true, w, ret)
+	w, err = item.writeResultJSON(newTypeNames, short, w, ret)
 	return r, w, err
 }
 
 func (item *EnginePid) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.pid", err.Error())
-	}
 	var ret NetPid
-	if err = item.ReadResultJSON(j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -102,22 +99,27 @@ func (item EnginePid) String() string {
 	return string(w)
 }
 
-func EnginePid__ReadJSON(item *EnginePid, j interface{}) error { return item.readJSON(j) }
-func (item *EnginePid) readJSON(j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.pid", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.pid", k)
+func (item *EnginePid) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
+	if in != nil {
+		in.Delim('{')
+		if !in.Ok() {
+			return in.Error()
+		}
+		for !in.IsDelim('}') {
+			return ErrorInvalidJSON("engine.pid", "this object can't have properties")
+		}
+		in.Delim('}')
+		if !in.Ok() {
+			return in.Error()
+		}
 	}
 	return nil
 }
 
 func (item *EnginePid) WriteJSON(w []byte) (_ []byte, err error) {
-	return item.WriteJSONOpt(false, w)
+	return item.WriteJSONOpt(true, false, w)
 }
-func (item *EnginePid) WriteJSONOpt(short bool, w []byte) (_ []byte, err error) {
+func (item *EnginePid) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
 	return append(w, '}'), nil
 }
@@ -127,11 +129,7 @@ func (item *EnginePid) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EnginePid) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.pid", err.Error())
-	}
-	if err = item.readJSON(j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.pid", err.Error())
 	}
 	return nil
