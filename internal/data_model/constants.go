@@ -54,7 +54,7 @@ const (
 	MinCardinalityWindow = 300 // Our estimators GC depends on this not being too small
 	MinMaxCardinality    = 100
 
-	InsertBudgetFixed = 50000
+	InsertBudgetFixed = 300000
 	// fixed budget for BuiltinMetricIDAggKeepAlive and potentially other metrics which can be added with 0 contributors
 	// Also helps when # of contributors is very small
 
