@@ -395,8 +395,7 @@ func GetTimescale(args GetTimescaleArgs) (Timescale, error) {
 			res.ViewEndX = res.ViewStartX
 		}
 		if args.Extend {
-			t = StepForward(t, p.Step, args.Location)
-			res.Time = append(res.Time, t)
+			res.Time = append(res.Time, t) // last "StepForward" result
 			p.Len++
 		}
 	}
