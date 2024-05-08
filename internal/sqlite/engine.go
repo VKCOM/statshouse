@@ -181,7 +181,7 @@ const (
 )
 
 func OpenRO(opt Options) (*Engine, error) {
-	ro, err := openROWAL(opt.Path)
+	ro, err := openROWAL(opt.Path, opt.PageSize)
 	if err != nil {
 		return nil, err
 	}
@@ -433,8 +433,8 @@ func openRW(open func(path string, flags int, pageSize int) (*sqlite0.Conn, erro
 //		return conn, nil
 //	}
 
-func openROWAL(path string) (*sqlite0.Conn, error) {
-	return openWAL(path, sqlite0.OpenReadonly, 0)
+func openROWAL(path string, pageSize int) (*sqlite0.Conn, error) {
+	return openWAL(path, sqlite0.OpenReadonly, pageSize)
 }
 
 func (e *Engine) binlogLoadOrCreatePosition() (int64, error) {
@@ -692,7 +692,7 @@ func (e *Engine) do(fn func(Conn) error) error {
 func (e *Engine) Backup(ctx context.Context, prefix string) (string, int64, error) {
 	defer e.opt.StatsOptions.measureActionDurationSince("backup", time.Now())
 	var path string
-	err := doSingleROToWALQuery(e.opt.Path, func(conn *sqliteConn) error {
+	err := doSingleROToWALQuery(e.opt.Path, e.opt.PageSize, func(conn *sqliteConn) error {
 		var err error
 		path, err = backupToTemp(ctx, conn, prefix, &e.opt.StatsOptions)
 		return err
@@ -726,7 +726,7 @@ func (e *Engine) View(ctx context.Context, queryName string, fn func(Conn) error
 		e.roCond.Wait()
 	}
 	if len(e.roFree) == 0 {
-		ro, err := openROWAL(e.opt.Path)
+		ro, err := openROWAL(e.opt.Path, e.opt.PageSize)
 		if err != nil {
 			e.roMx.Unlock()
 			return fmt.Errorf("failed to open RO connection: %w", err)
