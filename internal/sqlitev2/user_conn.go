@@ -2,7 +2,6 @@ package sqlitev2
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
@@ -19,7 +18,7 @@ type Conn struct {
 
 type Rows struct {
 	ctx   context.Context
-	c     *sqliteConn
+	conn  *sqliteConn
 	s     *sqlite0.Stmt
 	err   error
 	name  string
@@ -70,7 +69,7 @@ func (r *Rows) Next() bool {
 	if r.ctx != nil {
 		if err := r.ctx.Err(); err != nil {
 			r.err = err
-			// TODO RESET
+			r.conn.stats.measureSqliteQueryDurationSince(r.type_, r.name, "timeout", r.start)
 			return false
 		}
 	}
@@ -79,11 +78,11 @@ func (r *Rows) Next() bool {
 		r.err = err
 	}
 	if !row {
-		err := r.s.Reset()
+		status := "ok"
 		if err != nil {
-			log.Println("[ERROR] error te reset sql stement", err.Error())
+			status = "error"
 		}
-		r.c.stats.measureSqliteQueryDurationSince(r.type_, r.name, r.start)
+		r.conn.stats.measureSqliteQueryDurationSince(r.type_, r.name, status, r.start)
 	}
 	return row
 }
@@ -118,8 +117,4 @@ func (c Conn) Exec(name, sql string, args ...Arg) (int64, error) {
 
 func (c Conn) ExecBytes(name string, sql []byte, args ...Arg) (int64, error) {
 	return c.conn.execLockedArgs(c.ctx, name, sql, "", args...)
-}
-
-func (c Conn) CacheSize() int {
-	return c.conn.cache.size()
 }

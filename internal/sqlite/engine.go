@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vkcom/statshouse/internal/sqlitev2/restart"
 	"go.uber.org/atomic"
 	"go.uber.org/multierr"
 	"pgregory.net/rand"
@@ -94,7 +93,6 @@ type (
 		ctx  context.Context
 		stop func()
 		rw   *sqliteConn
-		f    *restart.RestartFile
 		//	chk *sqlite0.Conn
 		roMx    sync.Mutex
 		roFree  []*sqliteConn
@@ -372,7 +370,6 @@ func openWAL(path string, flags int) (*sqlite0.Conn, error) {
 		_ = conn.Close()
 		return nil, fmt.Errorf("failed to enable DB WAL mode: %w", err)
 	}
-
 	return conn, nil
 }
 

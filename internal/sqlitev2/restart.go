@@ -19,13 +19,12 @@ type walHdr struct {
 
 type walInfo struct {
 	hdr        walHdr
-	iWal       int // 0=wal, 1=wal2
+	iWal       byte // 0=wal, -1=wal2
 	path       string
 	restartPah string
 }
 
 func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (commifOffset int64, _ error) {
-	// todo нужен какой-то лок допольнительный, чтобы другой процесс не мог ничего сделать на время рестарта
 	isExistsDb, err := checkFileExist(opt.Path)
 	if err != nil {
 		return 0, fmt.Errorf("faied to check db existance: %w", err)
@@ -47,11 +46,11 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (commifO
 		w := wals[0]
 		iWal2 := ^w.iWal
 		wal2Path := walPath(iWal2, opt.Path)
-		wal2, isExists, err := loadWal(iWal2, restartPath(wal2Path))
+		wal2, wal2IsExists, err := loadWal(iWal2, restartPath(wal2Path))
 		if err != nil {
 			return 0, err
 		}
-		if !isExists {
+		if !wal2IsExists {
 			log.Println("one wal found remove it")
 			//var commitOffset int64 = re.GetCommitOffset()
 			//var dbOffset int64
@@ -99,23 +98,13 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (commifO
 
 	var commitOffset = re.GetCommitOffset()
 	var dbOffset int64
+	log.Println("LOAD COMMIT OFFSET", commitOffset)
 
-	conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, true, log)
+	conn, err := newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, true, opt.StatsOptions, log)
 	if err != nil {
 		panic(err)
 	}
-	//rows := conn.queryLocked(context.Background(), query, "__select_binlog_committed_offset", nil, "SELECT offset FROM __binlog_commit_offset")
-	//if rows.err != nil {
-	//	panic(rows.err)
-	//}
-	//for rows.Next() {
-	//	//isExists = true
-	//	commitOffset = rows.ColumnInt64(0)
-	//}
-	//if rows.err != nil {
-	//	panic(err)
-	//}
-	//log.Println("READ BINLOG COMMITTED 2 WAL", commitOffset)
+
 	rows := conn.queryLocked(context.Background(), query, "__select_binlog_pos", nil, "SELECT offset from __binlog_offset")
 	if rows.err != nil {
 		return 0, rows.err
@@ -130,6 +119,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (commifO
 	log.Println("READ DB OFFSET 2 WAL", dbOffset)
 
 	if commitOffset > 0 && dbOffset <= commitOffset {
+		log.Println("CHECKPOINT ")
 		// TODO подумать что делать
 		err = conn.conn.Checkpoint() // все окей, база с 2 валами на уровне с бинлогом делаем чекпоинт
 		if err != nil {
@@ -152,7 +142,7 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (commifO
 		panic(err)
 	}
 
-	conn, err = newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, true, log)
+	conn, err = newSqliteRWWALConn(opt.Path, opt.APPID, false, 100, true, opt.StatsOptions, log)
 	if err != nil {
 		panic(err) // TODO точно ли будет всегда корректно открываться с одним валом
 	}
@@ -193,13 +183,11 @@ func runRestart(re *restart2.RestartFile, opt Options, log *log.Logger) (commifO
 	_ = os.Remove(wals[1].path)
 	_ = os.Remove(wals[1].restartPah) // сначала удаляем новый файл, если упадем после этой строки, то при рестарте надо будет просто удалить старый вал
 	_ = os.Remove(wals[0].path)
-	// тут race, если упадет после удаления, то узнать коммит позицию можно только у бинлога
-	// надо либо брать из бинлога коммит позицию, либо сохранять куда-то
 
 	return commitOffset, nil
 }
 
-func walPath(iWal int, path string) string {
+func walPath(iWal byte, path string) string {
 	if iWal == 0 {
 		return path + "-wal"
 	} else {
@@ -268,7 +256,7 @@ func checkWal(f *os.File) (delete bool, _ error) {
 	return false, nil
 }
 
-func loadWal(iWal int, path string) (i walInfo, walExists bool, _ error) {
+func loadWal(iWal byte, path string) (i walInfo, walExists bool, _ error) {
 	wal, err := os.Open(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -303,7 +291,6 @@ func loadWal(iWal int, path string) (i walInfo, walExists bool, _ error) {
 
 // TODO надо отсеивать фреймы которые не были закомиченны и проверять чексуммы
 func loadWalsInfo(path string) (wals []walInfo, err error) {
-
 	wal1, wal1Exists, err := loadWal(0, walPath(0, path))
 	if err != nil {
 		panic(err)

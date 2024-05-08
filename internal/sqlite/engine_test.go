@@ -613,6 +613,7 @@ func Test_Engine_RO(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, engine.commitTXAndStartNew(true, true))
+	require.NoError(t, engine.Close(context.Background()))
 	engineRO, err := OpenRO(Options{
 		Path:                   dir + "/" + dbfile,
 		APPID:                  32,
@@ -631,7 +632,6 @@ func Test_Engine_RO(t *testing.T) {
 		return rows.Error()
 	})
 	require.Equal(t, int64(1), id)
-	require.NoError(t, engine.Close(context.Background()))
 	require.NoError(t, engineRO.Close(context.Background()))
 }
 

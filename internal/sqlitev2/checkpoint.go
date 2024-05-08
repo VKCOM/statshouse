@@ -3,7 +3,6 @@ package sqlitev2
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -65,32 +64,24 @@ func (c *checkpointer) setWaitCheckpointOffsetLocked() {
 func (c *checkpointer) doCheckpointIfCan() {
 	c.e.rw.mu.Lock()
 	defer c.e.rw.mu.Unlock()
-	//b.checkpointMx.Lock()
 	waitCheckpoint := c.waitCheckpoint
 	waitCheckpointOffset := c.waitCheckpointOffset
 	commitOffset := c.e.re.GetCommitOffset()
-	//b.checkpointMx.Unlock() // TODO не обязательно брать лок на все время чекпоинта, можно только на время получение коммит оффсета
 	if waitCheckpoint && waitCheckpointOffset <= commitOffset {
-		fmt.Println("doCheckpointIfCan")
 		err := c.e.re.SetCommitOffsetAndSync(commitOffset)
 		if err != nil {
 			panic(err)
 		}
-		err = c.e.rw.conn.Checkpoint()
-		// TODO чекпоинт может быть не удачен если открыты read транзакции, поэтому надо:
-		// 1. Недопускать долгие рид транзакции(сделать таймаут)
-		// 2. Если долго не может случиться чекпоинт куда-то алертить или падать?
+		start := time.Now()
+		err = c.e.rw.conn.conn.Checkpoint()
+
 		if err != nil {
-			for _, i := range c.e.rw.cache.queryCache {
-				if !c.e.rw.cache.h.heap[i].stmt.ResetF {
-					log.Println("FOUND NON RESET", c.e.rw.cache.h.heap[i].stmt.SQLStr)
-				}
-			}
 			fmt.Println(fmt.Errorf("CHECKPOINT ERROR: %w", err).Error())
+			c.e.opt.StatsOptions.walCheckpointDuration("error", time.Since(start))
 			return
 		}
+		c.e.opt.StatsOptions.walCheckpointDuration("ok", time.Since(start))
 		fmt.Println("CHECKPOINT OK: %w")
-		// TODO если ошибка то пытается еще раз через время
 		c.waitCheckpoint = false
 	}
 }

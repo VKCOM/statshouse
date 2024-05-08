@@ -23,7 +23,10 @@ var (
 
 	logFunc   LogFunc = func(code int, msg string) {}
 	logFuncMu sync.Mutex
-	CB        func(int, uint)
+
+	connMap   = map[int64]*Conn{}
+	connMaxID int64
+	connMu    sync.RWMutex
 )
 
 //export _sqliteLogFunc
@@ -40,9 +43,15 @@ func _sqliteLogFunc(_ unsafe.Pointer, cCode C.int, cMsg *C.char) {
 }
 
 //export _sqlite_wal_switch_callback
-func _sqlite_wal_switch_callback(iAPP C.int, frame C.uint) {
-	if CB != nil {
-		CB(int(iAPP), uint(frame))
+func _sqlite_wal_switch_callback(connID C.longlong, iAPP C.int, frame C.uint) {
+	connMu.RLock()
+	conn, ok := connMap[int64(connID)]
+	connMu.RUnlock()
+	if !ok {
+		return
+	}
+	if conn.walSwitchCB != nil {
+		conn.walSwitchCB(int(iAPP), uint(frame))
 	}
 }
 

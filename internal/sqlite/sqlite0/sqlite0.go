@@ -65,7 +65,6 @@ var (
 )
 
 func init() {
-	C._sqlite_enable_wal_switch()
 	rc := C._sqlite_enable_logging()
 	if rc != ok {
 		initErr = sqliteErr(rc, nil, "_sqlite_enable_logging")
@@ -91,8 +90,10 @@ func Version() string {
 }
 
 type Conn struct {
-	conn   *C.sqlite3
-	unlock *C.unlock
+	conn        *C.sqlite3
+	unlock      *C.unlock
+	id          int64
+	walSwitchCB func(int, uint)
 }
 
 func Open(path string, flags int) (*Conn, error) {
@@ -133,10 +134,23 @@ func Open(path string, flags int) (*Conn, error) {
 		return nil, err
 	}
 
-	return &Conn{
+	c := &Conn{
 		conn:   cConn,
 		unlock: C.unlock_alloc(),
-	}, nil
+	}
+
+	connMu.Lock()
+	defer connMu.Unlock()
+	c.id = connMaxID
+	connMaxID++
+	connMap[c.id] = c
+	if rc != ok {
+		err := sqliteErr(rc, cConn, "_sqlite_set_wal_switch_callback")
+		delete(connMap, c.id)
+		C.sqlite3_close_v2(cConn)
+		return nil, err
+	}
+	return c, nil
 }
 
 func (c *Conn) Close() error {
@@ -155,7 +169,19 @@ func (c *Conn) Close() error {
 		C.unlock_free(c.unlock)
 		c.unlock = nil
 	}
+	connMu.Lock()
+	defer connMu.Unlock()
+	delete(connMap, c.id)
 	return err
+}
+
+func (c *Conn) EnableWALSwitchCallback() error {
+	rc := C._sqlite_set_wal_switch_callback(c.conn, C.longlong(c.id))
+	return sqliteErr(rc, c.conn, "_sqlite_set_wal_switch_callback")
+}
+
+func (c *Conn) RegisterWALSwitchCallback(walSwitchCB func(int, uint)) {
+	c.walSwitchCB = walSwitchCB
 }
 
 func (c *Conn) AutoCommit() bool {

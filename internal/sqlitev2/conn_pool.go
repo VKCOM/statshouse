@@ -2,6 +2,7 @@ package sqlitev2
 
 import (
 	"fmt"
+	"log"
 	"sync"
 
 	"go.uber.org/multierr"
@@ -15,13 +16,15 @@ type connPool struct {
 
 	maxROConn int
 	newConn   func() (*sqliteConn, error)
+
+	log *log.Logger
 }
 
-func newConnPool(maxROConn int, newConn func() (*sqliteConn, error)) *connPool {
+func newConnPool(maxROConn int, newConn func() (*sqliteConn, error), log *log.Logger) *connPool {
 	if maxROConn <= 0 {
 		maxROConn = 128
 	}
-	p := &connPool{maxROConn: maxROConn, newConn: newConn}
+	p := &connPool{maxROConn: maxROConn, newConn: newConn, log: log}
 	p.roCond = sync.NewCond(&p.roMx)
 	return p
 }
@@ -56,21 +59,12 @@ func (p *connPool) put(conn *sqliteConn) {
 	p.roCond.Signal()
 }
 
-func (p *connPool) readTXExistsLocked() bool {
-	return len(p.roFree) == p.roCount
-}
-
-func (p *connPool) lockPool() {
-	p.roMx.Lock()
-}
-
-func (p *connPool) unlockPool() {
-	p.roMx.Unlock()
-}
-
 func (p *connPool) close(error *error) {
 	p.roMx.Lock()
 	defer p.roMx.Unlock()
+	if len(p.roFree) != p.roCount {
+		p.log.Println("[warn] should finish all View queries before close")
+	}
 	for _, conn := range p.roFree {
 		err := conn.Close()
 		if err != nil {

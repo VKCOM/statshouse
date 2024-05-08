@@ -4,26 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	"github.com/vkcom/statshouse/internal/sqlite/sqlite0"
+	"github.com/vkcom/statshouse/internal/sqlitev2/cache"
 	"go.uber.org/multierr"
 )
 
 type (
 	sqliteConn struct {
 		conn             *sqlite0.Conn
-		mu               sync.Mutex
-		dbOffset         int64
-		binlogCache      []byte
-		cache            *queryCachev2
+		cache            *cache.QueryCache
 		queryBuffer      []byte
 		connError        error
 		showLastInsertID bool
 		beginStmt        string
 		committed        bool
-		stats            StatsOptions
+
+		stats StatsOptions
 	}
 )
 
@@ -37,53 +35,48 @@ var (
 var innerCtx = context.Background()
 
 // use only for snapshots
-func newSqliteROConn(path string, logger *log.Logger) (*sqliteConn, error) {
+func newSqliteROConn(path string, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
 	conn, err := open(path, sqlite0.OpenReadonly)
 	if err != nil {
 		return nil, fmt.Errorf("failed to openRO conn: %w", err)
 	}
 	return &sqliteConn{
 		conn:      conn,
-		mu:        sync.Mutex{},
-		cache:     newQueryCachev2(10, logger),
+		cache:     cache.NewQueryCache(10, logger),
 		beginStmt: beginDeferredStmt,
+		stats:     stats,
 	}, nil
 }
 
-func newSqliteROWALConn(path string, cacheSize int, logger *log.Logger) (*sqliteConn, error) {
+func newSqliteROWALConn(path string, cacheSize int, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
 	conn, err := openROWAL(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RO connL %w", err)
 	}
 	return &sqliteConn{
 		conn:      conn,
-		mu:        sync.Mutex{},
 		connError: nil,
-		cache:     newQueryCachev2(cacheSize, logger),
+		cache:     cache.NewQueryCache(cacheSize, logger),
 		beginStmt: beginDeferredStmt,
+		stats:     stats,
 	}, nil
 }
-func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSize int, disableAuthCheckpoint bool, logger *log.Logger) (*sqliteConn, error) {
+func newSqliteRWWALConn(path string, appid int32, showLastInsertID bool, cacheSize int, disableAuthCheckpoint bool, stats StatsOptions, logger *log.Logger) (*sqliteConn, error) {
 	conn, err := openRW(openWAL, path, appid, disableAuthCheckpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open RW conn: %w", err)
 	}
-	// TODO do integrity check if test
 	return &sqliteConn{
 		conn:             conn,
-		mu:               sync.Mutex{},
-		dbOffset:         0,
-		binlogCache:      make([]byte, 0),
 		connError:        nil,
 		showLastInsertID: showLastInsertID,
-		cache:            newQueryCachev2(cacheSize, logger),
+		cache:            cache.NewQueryCache(cacheSize, logger),
 		beginStmt:        beginImmediateStmt,
+		stats:            stats,
 	}, nil
 }
 
 func (c *sqliteConn) integrityCheck() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	return c.execLocked("PRAGMA integrity_check;")
 }
 
@@ -97,16 +90,10 @@ func (c *sqliteConn) applyScheme(schemas ...string) error {
 	return nil
 }
 
-func (c *sqliteConn) setError(err error) error {
+func (c *sqliteConn) setErrorLocked(err error) error {
 	if err == nil {
 		return err
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.setErrorLocked(err)
-}
-
-func (c *sqliteConn) setErrorLocked(err error) error {
 	if c.connError != nil {
 		return err
 	}
@@ -119,13 +106,13 @@ func (c *sqliteConn) execLocked(sql string) error {
 	return err
 }
 
-func (c *sqliteConn) nonBinlogCommitTxLocked() error {
+func (c *sqliteConn) commitTxLocked() error {
 	if c.committed {
 		return nil
 	}
 	c.committed = true
-	c.cache.closeTx()
-	err := c.execLocked(commitStmt)
+	c.cache.FinishTX()
+	err := c.execLocked(commitStmt) // Во время выполнения этой строки, может произойти смена вала
 	if err != nil {
 		c.connError = err
 	}
@@ -140,65 +127,13 @@ func (c *sqliteConn) beginTxLocked() error {
 	return c.execLocked(c.beginStmt)
 }
 
-// если не смогли закомитить, движок находится в неконсистентном состоянии. Запрещаем запись
-func (c *sqliteConn) binlogCommitTxLocked(newOffset int64, snapshotMeta []byte) (int64, error) {
-	if c.committed {
-		return c.dbOffset, nil
-	}
-	c.committed = true
-	err := c.saveBinlogOffsetLocked(newOffset)
-	if err != nil {
-		c.connError = err
-		return c.dbOffset, fmt.Errorf("failed to save binlog offset: %w", err)
-	}
-
-	c.cache.closeTx()
-	err = c.execLocked(commitStmt) // Во время выполнения этой строки, может произойти смена вала
-	if err != nil {
-		c.connError = err
-		return c.dbOffset, fmt.Errorf("failed to commit TX: %w", err)
-	} else {
-		c.dbOffset = newOffset
-	}
-	return c.dbOffset, nil
-}
-
-// TODO унести в internal do
-func (c *sqliteConn) saveCommitInfo(snapshotMeta []byte, offset int64) (err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	err = c.beginTxLocked()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		errRollback := c.rollbackLocked()
-		if errRollback != nil {
-			err = multierr.Append(err, errRollback)
-			c.connError = err
-		}
-	}()
-	err = c.saveBinlogMetaLocked(snapshotMeta)
-	if err != nil {
-		c.connError = err
-		return fmt.Errorf("failed to save binlog meta: %w", err)
-	}
-	err = c.saveBinlogCommittedOffsetLocked(offset)
-	if err != nil {
-		c.connError = err
-		return fmt.Errorf("failed to save binlog committed offset: %w", err)
-	}
-
-	return c.nonBinlogCommitTxLocked()
-}
-
 // если не смогли откатиться, движок находится в неконсистентном состоянии. Запрещаем запись
 func (c *sqliteConn) rollbackLocked() error {
 	if c.committed {
 		return nil
 	}
 	c.committed = true
-	c.cache.closeTx()
+	c.cache.FinishTX()
 	err := c.execLocked(rollbackStmt)
 	if err != nil {
 		c.connError = err
@@ -217,19 +152,14 @@ func (c *sqliteConn) initStmt(sqlBytes []byte, sqlString string, args ...Arg) (*
 	var si *sqlite0.Stmt
 	var err error
 	var ok bool
-	key := calcHashBytes(c.queryBuffer)
-	si, ok = c.cache.get(key, time.Now())
+	key := cache.CalcHashBytes(c.queryBuffer)
+	si, ok = c.cache.Get(key, time.Now())
 	if !ok {
 		si, err = prepare(c.conn, c.queryBuffer)
 		if err != nil {
 			return nil, fmt.Errorf("failed to prepare stmt: %w", err)
 		}
-		c.cache.put(key, time.Now(), si)
-	} else {
-		//err := si.ResetF()
-		//if err != nil {
-		//	return nil, fmt.Errorf("failed to reset stmt: %w", err)
-		//}
+		c.cache.Put(key, time.Now(), si)
 	}
 
 	stmt, err := bindParam(si, args...)
@@ -260,36 +190,14 @@ func prepare(c *sqlite0.Conn, sql []byte) (*sqlite0.Stmt, error) {
 	}
 	return s, nil
 }
-
-func (c *sqliteConn) saveBinlogOffsetLocked(newOffset int64) error {
-	_, err := c.execLockedArgs(innerCtx, "__update_binlog_pos", nil, "UPDATE __binlog_offset set offset = $offset;", Int64("$offset", newOffset))
-	return err
-}
-
-func (c *sqliteConn) saveBinlogCommittedOffsetLocked(newOffset int64) error {
-	_, err := c.execLockedArgs(innerCtx, "__update_binlog_commited_pos", nil, "UPDATE __binlog_commit_offset set offset = $offset;", Int64("$offset", newOffset))
-	return err
-}
-
-func (c *sqliteConn) saveBinlogMetaLocked(meta []byte) error {
-	_, err := c.execLockedArgs(innerCtx, "__update_meta", nil, "UPDATE __snapshot_meta SET meta = $meta;", Blob("$meta", meta))
-	return err
-}
-
 func (c *sqliteConn) LastInsertRowID() int64 {
 	return c.conn.LastInsertRowID()
 }
 
 func (c *sqliteConn) Close() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	err := c.connError
 	c.connError = errAlreadyClosed
-	c.cache.close(&err)
+	c.cache.Close(&err)
 	multierr.AppendInto(&err, c.conn.Close())
 	return err
-}
-
-func openROWAL(path string) (*sqlite0.Conn, error) {
-	return openWAL(path, sqlite0.OpenReadonly, true)
 }

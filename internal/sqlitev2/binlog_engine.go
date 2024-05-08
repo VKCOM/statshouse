@@ -17,7 +17,6 @@ type binlogEngine struct {
 	waitQMx            sync.Mutex
 	waitQ              []waitCommitInfo
 	waitQBuffer        []waitCommitInfo
-	lastSnapshotMeta   []byte
 	committedOffset    int64
 	safeSnapshotOffset int64
 
@@ -26,8 +25,8 @@ type binlogEngine struct {
 
 type waitCommitInfo struct {
 	offset                 int64
-	waitSafeSnapshotOffset bool
-	waitCh                 chan []byte
+	waitSafeSnapshotOffset bool // если true ждем safeSnapshotOffset, в противном случае смотрим на commit offset
+	waitCh                 chan struct{}
 }
 
 func isEOFErr(err error) bool {
@@ -46,6 +45,14 @@ func newBinlogEngine(e *Engine, applyFunction ApplyEventFunction) *binlogEngine 
 		checkpointer:  newCkeckpointer(e),
 		applyFunction: applyFunction,
 	}
+}
+
+func (b *binlogEngine) RunCheckpointer() {
+	b.checkpointer.goCheckpoint()
+}
+
+func (b *binlogEngine) StopCheckpointer() {
+	b.checkpointer.stop()
 }
 
 func (b *binlogEngine) Apply(payload []byte) (newOffset int64, errToReturn error) {
@@ -90,8 +97,8 @@ func (b *binlogEngine) Commit(toOffset int64, snapshotMeta []byte, safeSnapshotO
 	//}
 	defer b.e.opt.StatsOptions.measureActionDurationSince("engine_commit", time.Now())
 	b.e.rareLog("commit toOffset: %d, safeSnapshotOffset: %d", toOffset, safeSnapshotOffset)
-	b.binlogNotifyWaited(toOffset, snapshotMeta, safeSnapshotOffset)
-	err = b.e.rw.saveCommitInfo(snapshotMeta, toOffset)
+	b.binlogNotifyWaited(toOffset, safeSnapshotOffset)
+	err = b.e.rw.saveCommitInfo(snapshotMeta, toOffset) // унести в другое место чтобы не лочить в бинлог горутине?
 	if err != nil {
 		return err
 	}
@@ -121,29 +128,25 @@ func (b *binlogEngine) StartReindex() error {
 	return fmt.Errorf("implement")
 }
 
-func (b *binlogEngine) binlogWait(offset int64, waitSafeSnapshotOffset bool) []byte {
+func (b *binlogEngine) binlogWait(offset int64, waitSafeSnapshotOffset bool) {
 	b.waitQMx.Lock()
 	if (!waitSafeSnapshotOffset && offset <= b.committedOffset) || waitSafeSnapshotOffset && offset <= b.safeSnapshotOffset {
-		meta := b.lastSnapshotMeta
 		b.waitQMx.Unlock()
-		return meta
+		return
 	}
-	ch := make(chan []byte, 1)
+	ch := make(chan struct{}, 1)
 	b.waitQ = append(b.waitQ, waitCommitInfo{
 		offset:                 offset,
 		waitCh:                 ch,
 		waitSafeSnapshotOffset: waitSafeSnapshotOffset,
 	})
 	b.waitQMx.Unlock()
-	meta := <-ch
-	return meta
+	<-ch
 }
 
-func (b *binlogEngine) binlogNotifyWaited(committedOffset int64, snapshotMeta []byte, safeSnapshotOffset int64) {
+func (b *binlogEngine) binlogNotifyWaited(committedOffset int64, safeSnapshotOffset int64) {
 	b.waitQMx.Lock()
 	defer b.waitQMx.Unlock()
-	b.lastSnapshotMeta = make([]byte, len(snapshotMeta))
-	copy(b.lastSnapshotMeta, snapshotMeta)
 	b.committedOffset = committedOffset
 	b.safeSnapshotOffset = safeSnapshotOffset
 	b.waitQBuffer = b.waitQBuffer[:0]
@@ -153,7 +156,7 @@ func (b *binlogEngine) binlogNotifyWaited(committedOffset int64, snapshotMeta []
 			b.waitQBuffer = append(b.waitQBuffer, wi)
 			continue
 		}
-		wi.waitCh <- b.lastSnapshotMeta
+		wi.waitCh <- struct{}{}
 		close(wi.waitCh)
 	}
 	t := b.waitQ

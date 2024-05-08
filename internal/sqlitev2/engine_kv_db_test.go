@@ -19,7 +19,7 @@ type eng struct {
 const schemeKV = "CREATE TABLE IF NOT EXISTS test_db (k INTEGER PRIMARY KEY, v INTEGER);"
 
 func (e *eng) put(ctx context.Context, k, v int64) error {
-	return e.engine.Do(ctx, "put", func(c Conn, cache []byte) ([]byte, error) {
+	return e.engine.Do(ctx, "Put", func(c Conn, cache []byte) ([]byte, error) {
 		return putConn(c, cache, k, v)
 	})
 }
@@ -39,7 +39,7 @@ func putConn(c Conn, cache []byte, k, v int64) ([]byte, error) {
 }
 
 func (e *eng) get(ctx context.Context, k int64) (v int64, ok bool, err error) {
-	err = e.engine.View(ctx, "put", func(c Conn) error {
+	err = e.engine.View(ctx, "Put", func(c Conn) error {
 		rows := c.Query("select", "SELECT v FROM test_db WHERE k = $k", Int64("$k", k))
 		if ok = rows.Next(); ok {
 			v = rows.ColumnInt64(0)
@@ -50,15 +50,15 @@ func (e *eng) get(ctx context.Context, k int64) (v int64, ok bool, err error) {
 }
 
 func (e *eng) mustCloseGoodEngine(t *testing.T) {
-	require.NoError(t, e.engine.rw.connError)
+	require.NoError(t, e.engine.rw.conn.connError)
 	require.NoError(t, e.engine.Close())
-	require.ErrorIs(t, e.engine.rw.connError, errAlreadyClosed)
+	require.ErrorIs(t, e.engine.rw.conn.connError, errAlreadyClosed)
 }
 
 func (e *eng) mustCloseErrorEngine(t *testing.T, err error) {
-	require.ErrorIs(t, e.engine.rw.connError, err)
+	require.ErrorIs(t, e.engine.rw.conn.connError, err)
 	require.ErrorIs(t, e.engine.Close(), err)
-	require.ErrorIs(t, e.engine.rw.connError, errAlreadyClosed)
+	require.ErrorIs(t, e.engine.rw.conn.connError, errAlreadyClosed)
 }
 
 func applyKV(conn Conn, bytes []byte) (read int, err error) {

@@ -67,3 +67,7 @@ func openWAL(path string, flags int, disableAuthCheckpoint bool) (*sqlite0.Conn,
 	}
 	return conn, nil
 }
+
+func openROWAL(path string) (*sqlite0.Conn, error) {
+	return openWAL(path, sqlite0.OpenReadonly, true)
+}

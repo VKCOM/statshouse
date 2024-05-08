@@ -13,12 +13,13 @@ type StatsOptions struct {
 }
 
 const (
-	queryDurationMetric     = "sqlite_query_duration"
-	waitDurationMetric      = "sqlite_wait_duration"
-	txDurationMetric        = "sqlite_tx_duration"
-	actionDurationMetric    = "sqlite_action_duration"
-	engineBrokenMetric      = "sqlite_engine_broken_event"
-	walCheckpointSizeMetric = "sqlite_wal_checkpoint_size"
+	queryDurationMetric         = "sqlite_query_duration"
+	waitDurationMetric          = "sqlite_wait_duration"
+	txDurationMetric            = "sqlite_tx_duration"
+	actionDurationMetric        = "sqlite_action_duration"
+	engineBrokenMetric          = "sqlite_engine_broken_event"
+	walCheckpointSizeMetric     = "sqlite_wal_size"
+	walCheckpointDurationMetric = "sqlite_wal_checkpoint_duration"
 
 	txDo   = "sqlite_tx_do"
 	txView = "sqlite_tx_view"
@@ -31,14 +32,14 @@ const (
 )
 
 func (s *StatsOptions) checkEmpty() bool {
-	return s.Service == ""
+	return len(s.Service) == 0
 }
 
-func (s *StatsOptions) measureSqliteQueryDurationSince(typ, name string, start time.Time) {
+func (s *StatsOptions) measureSqliteQueryDurationSince(typ, name string, status string, start time.Time) {
 	if s.checkEmpty() {
 		return
 	}
-	statshouse.Metric(queryDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name}).Value(time.Since(start).Seconds())
+	statshouse.Metric(queryDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: typ, 5: name, 6: status}).Value(time.Since(start).Seconds())
 }
 
 func (s *StatsOptions) measureWaitDurationSince(typ string, start time.Time) {
@@ -69,7 +70,7 @@ func (s *StatsOptions) engineBrokenEvent() {
 	statshouse.Metric(engineBrokenMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC}).Count(1)
 }
 
-func (s *StatsOptions) walCheckpointSize(iApp int, maxFrame uint) {
+func (s *StatsOptions) walSwitchSize(iApp int, maxFrame uint) {
 	if s.checkEmpty() {
 		return
 	}
@@ -78,4 +79,11 @@ func (s *StatsOptions) walCheckpointSize(iApp int, maxFrame uint) {
 		k = "wal2"
 	}
 	statshouse.Metric(walCheckpointSizeMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: k}).Value(float64(maxFrame))
+}
+
+func (s *StatsOptions) walCheckpointDuration(status string, dur time.Duration) {
+	if s.checkEmpty() {
+		return
+	}
+	statshouse.Metric(walCheckpointDurationMetric, statshouse.Tags{1: s.Service, 2: s.Cluster, 3: s.DC, 4: status}).Value(dur.Seconds())
 }

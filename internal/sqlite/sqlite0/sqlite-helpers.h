@@ -1,7 +1,7 @@
 #pragma once
 #include <pthread.h>
 #include "sqlite3.h"
-#include "external.h"
+
 typedef struct unlock {
     int fired;
     pthread_cond_t cond;
@@ -40,7 +40,8 @@ static inline int _sqlite_enable_logging() {
     return sqlite3_config(SQLITE_CONFIG_LOG, _sqliteLogFunc, NULL);
 }
 
-extern void _sqlite_wal_switch_callback(int, unsigned int);
-static inline void _sqlite_enable_wal_switch() {
-    WALSWITCHCALLBACK = _sqlite_wal_switch_callback;
+extern void _sqlite_wal_switch_callback(long long conn, int, unsigned int);
+static int _sqlite_set_wal_switch_callback(sqlite3* db, long long conn) {
+    return sqlite3_wal_set_switch_callback(db, conn, _sqlite_wal_switch_callback);
 }
+
