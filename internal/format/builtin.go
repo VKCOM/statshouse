@@ -116,6 +116,7 @@ const (
 	BuiltinMetricIDAggScrapeConfigHash        = -94
 	BuiltinMetricIDAggSamplingTime            = -95
 	BuiltinMetricIDAgentDiskCacheSize         = -96
+	BuiltinMetricIDAggContributors            = -97
 
 	// [-1000..-2000] reserved by host system metrics
 	// [-10000..-12000] reserved by builtin dashboard
@@ -1926,6 +1927,18 @@ Value is delta between second value and time it was inserted.`,
 			Kind:        MetricKindValue,
 			MetricType:  MetricByte,
 			Description: "Size of agent mapping cache",
+			Tags: []MetricMetaTag{{
+				Description: "-",
+			}, {
+				Description: "-",
+			}, {
+				Description: "-",
+			}},
+		},
+		BuiltinMetricIDAggContributors: {
+			Name:        "__agg_contributors",
+			Kind:        MetricKindValue,
+			Description: "Number of contributors used to calculate sampling budget.",
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
