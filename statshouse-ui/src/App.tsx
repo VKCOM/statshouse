@@ -28,6 +28,12 @@ function App() {
     <Routes>
       <Route path="/2/" element={<Core />}>
         <Route path="view" element={<View2Page />} />
+        <Route path="settings/*" element={<SettingsPage adminMode={ai.admin} />}>
+          <Route path="group" element={<GroupPage />} />
+          <Route path="namespace" element={<NamespacePage />} />
+        </Route>
+        <Route path="dash-list" element={<DashboardListView />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
       <Route path="/" element={<Navigate to="view" replace={true} />} />
       <Route path="embed" element={<ViewPage embed={true} yAxisSize={yAxisSize} />} />

@@ -1,5 +1,6 @@
 import {
   GroupInfo,
+  GroupKey,
   PlotKey,
   PlotParams,
   QueryParams,
@@ -8,7 +9,7 @@ import {
   VariableParamsLink,
   VariableParamsSource,
 } from './queryParams';
-import { toNumber, toString } from '../../common/helpers';
+import { deepClone, isNotNil, toNumber, toString } from '../../common/helpers';
 import {
   GET_PARAMS,
   METRIC_TYPE,
@@ -19,6 +20,8 @@ import {
   toTagKey,
   toTimeRangeKeysTo,
 } from '../../api/enum';
+import { urlEncode, urlDecode } from '../urlStore';
+import { produce } from 'immer';
 
 export const filterInSep = '-';
 export const filterNotInSep = '~';
@@ -164,8 +167,8 @@ export function getDefaultParams(): QueryParams {
     theme: undefined,
     live: false,
     orderVariables: [],
-    orderGroup: [],
-    groups: {},
+    orderGroup: ['0'],
+    groups: { '0': { ...getNewGroup(), id: '0' } },
     timeRange: {
       from: 0,
       urlTo: TIME_RANGE_KEYS_TO.default,
@@ -249,3 +252,130 @@ export const toGroupInfoPrefix = (i: number | string) => `${GET_PARAMS.dashboard
 export const toPlotPrefix = (i: number | string) => (i && i !== '0' ? `${GET_PARAMS.plotPrefix}${i}.` : '');
 export const toVariablePrefix = (i: number | string) => `${GET_PARAMS.variablePrefix}${i}.`;
 export const toVariableValuePrefix = (name: string) => `${GET_PARAMS.variableValuePrefix}.${name}`;
+
+export function getNewPlotIndex(params: QueryParams): PlotKey {
+  let n = toNumber(Object.keys(params.plots).slice(-1)[0], -1) + 1;
+  while (params.plots[n]) {
+    n++;
+  }
+  return n.toString();
+}
+
+export function getPlotLink(plotKey: PlotKey, params: QueryParams, saveParams?: QueryParams): string {
+  return (
+    '?' +
+    new URLSearchParams(
+      urlEncode(
+        produce(params, (p) => {
+          p.tabNum = plotKey;
+        }),
+        saveParams
+      )
+    ).toString()
+  );
+}
+
+export function getAddPlotLink(params: QueryParams, saveParams?: QueryParams): string {
+  const tabNum = params.plots[params.tabNum] ? params.tabNum : params.orderPlot.slice(-1)[0];
+  const plot = deepClone(params.plots[tabNum]) ?? getNewPlot();
+  const nextParams = addPlot(plot, params);
+  return '?' + new URLSearchParams(urlEncode(nextParams, saveParams)).toString();
+}
+
+export type GroupPlotsMap = {
+  groupPlots: Partial<Record<GroupKey, PlotKey[]>>;
+  orderGroup: GroupKey[];
+  viewOrderPlot: PlotKey[];
+  plotToGroupMap: Partial<Record<PlotKey, GroupKey>>;
+};
+
+export function getGroupPlotsMap(params: QueryParams): GroupPlotsMap {
+  const orderPlots = [...params.orderPlot];
+  const plotToGroupMap: Partial<Record<PlotKey, GroupKey>> = {};
+  const groupPlots = params.orderGroup.reduce(
+    (res, groupKey) => {
+      const group = params.groups[groupKey];
+      if (group) {
+        const plots = orderPlots.splice(0, group.count);
+        res[groupKey] = plots;
+        Object.assign(plotToGroupMap, Object.fromEntries(plots.map((p) => [p, groupKey])));
+      }
+      return res;
+    },
+    {} as Partial<Record<GroupKey, PlotKey[]>>
+  );
+  //add no group plots
+  if (orderPlots.length) {
+    const groupKey = params.orderGroup.slice(-1)[0] ?? '0';
+    groupPlots[groupKey] = [...(groupPlots[groupKey] ?? []), ...orderPlots];
+  }
+  return {
+    groupPlots,
+    orderGroup: [...params.orderGroup],
+    viewOrderPlot: params.orderGroup
+      .filter((g) => params.groups[g]?.show ?? true)
+      .flatMap((g) => groupPlots[g])
+      .filter(isNotNil),
+    plotToGroupMap,
+  };
+}
+
+export function updateGroupsPlot(groupPlotsMap: GroupPlotsMap, params: QueryParams): QueryParams {
+  return produce(params, (p) => {
+    p.orderPlot = groupPlotsMap.orderGroup
+      .flatMap((g) => {
+        const group = p.groups[g];
+        if (group) {
+          group.count = groupPlotsMap.groupPlots[g]?.length ?? 0;
+        }
+        return groupPlotsMap.groupPlots[g];
+      })
+      .filter(isNotNil);
+    p.orderGroup = [...groupPlotsMap.orderGroup];
+  });
+}
+
+export function addPlotByUrl(url: string, params: QueryParams) {
+  let nextParams = params;
+  getPlotByUrl(url).forEach((plot) => {
+    nextParams = addPlot(plot, nextParams);
+  });
+  return nextParams;
+}
+export function addPlot(
+  plot: PlotParams,
+  params: QueryParams,
+  group?: GroupKey,
+  activeInsert: boolean = true
+): QueryParams {
+  return produce(params, (p) => {
+    const tabNum = p.plots[p.tabNum] ? p.tabNum : p.orderPlot.slice(-1)[0];
+    const groupPlotMap = getGroupPlotsMap(p);
+    const activeGroup = group ?? groupPlotMap.plotToGroupMap[tabNum] ?? p.orderGroup.slice(-1)[0];
+    const newTabNum = getNewPlotIndex(p);
+    p.plots[newTabNum] = { ...plot, id: newTabNum };
+    const { orderPlot, groups, orderGroup } = updateGroupsPlot(
+      produce(groupPlotMap, (gpm) => {
+        gpm.groupPlots[activeGroup]?.push(newTabNum);
+      }),
+      p
+    );
+    p.orderGroup = orderGroup;
+    p.orderPlot = orderPlot;
+    p.groups = groups;
+    if (activeInsert) {
+      p.tabNum = newTabNum;
+    }
+  });
+}
+
+export function getPlotByUrl(url: string): PlotParams[] {
+  try {
+    const getUrl = new URL(url, window.document.location.origin);
+    const tree = toTreeObj(arrToObj([...getUrl.searchParams.entries()]));
+    const params = urlDecode(tree);
+    return Object.values(params.plots).filter(isNotNil);
+  } catch (e) {
+    return [];
+  }
+}

@@ -79,6 +79,10 @@
 
 html {
   overflow-y: scroll; // prevent layout shift when scrollbar appears
+  height: 100%;
+}
+body {
+  min-height: 100%;
 }
 
 .font-normal {
