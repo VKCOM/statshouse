@@ -304,154 +304,6 @@ func (item RpcReqResultExtra) String() string {
 	return string(w)
 }
 
-func (item *RpcReqResultExtra) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcReqResultExtra", "expected json object")
-	}
-	_jFlags := _jm["flags"]
-	delete(_jm, "flags")
-	if err := JsonReadUint32(_jFlags, &item.Flags); err != nil {
-		return err
-	}
-	_jBinlogPos := _jm["binlog_pos"]
-	delete(_jm, "binlog_pos")
-	_jBinlogTime := _jm["binlog_time"]
-	delete(_jm, "binlog_time")
-	_jEnginePid := _jm["engine_pid"]
-	delete(_jm, "engine_pid")
-	_jRequestSize := _jm["request_size"]
-	delete(_jm, "request_size")
-	_jResponseSize := _jm["response_size"]
-	delete(_jm, "response_size")
-	_jFailedSubqueries := _jm["failed_subqueries"]
-	delete(_jm, "failed_subqueries")
-	_jCompressionVersion := _jm["compression_version"]
-	delete(_jm, "compression_version")
-	_jStats := _jm["stats"]
-	delete(_jm, "stats")
-	_jShardsBinlogPos := _jm["shards_binlog_pos"]
-	delete(_jm, "shards_binlog_pos")
-	_jEpochNumber := _jm["epoch_number"]
-	delete(_jm, "epoch_number")
-	_jViewNumber := _jm["view_number"]
-	delete(_jm, "view_number")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcReqResultExtra", k)
-	}
-	if _jBinlogPos != nil {
-		item.Flags |= 1 << 0
-	}
-	if _jBinlogTime != nil {
-		item.Flags |= 1 << 1
-	}
-	if _jEnginePid != nil {
-		item.Flags |= 1 << 2
-	}
-	if _jRequestSize != nil {
-		item.Flags |= 1 << 3
-	}
-	if _jResponseSize != nil {
-		item.Flags |= 1 << 3
-	}
-	if _jFailedSubqueries != nil {
-		item.Flags |= 1 << 4
-	}
-	if _jCompressionVersion != nil {
-		item.Flags |= 1 << 5
-	}
-	if _jStats != nil {
-		item.Flags |= 1 << 6
-	}
-	if _jShardsBinlogPos != nil {
-		item.Flags |= 1 << 8
-	}
-	if _jEpochNumber != nil {
-		item.Flags |= 1 << 27
-	}
-	if _jViewNumber != nil {
-		item.Flags |= 1 << 27
-	}
-	if _jBinlogPos != nil {
-		if err := JsonReadInt64(_jBinlogPos, &item.BinlogPos); err != nil {
-			return err
-		}
-	} else {
-		item.BinlogPos = 0
-	}
-	if _jBinlogTime != nil {
-		if err := JsonReadInt64(_jBinlogTime, &item.BinlogTime); err != nil {
-			return err
-		}
-	} else {
-		item.BinlogTime = 0
-	}
-	if _jEnginePid != nil {
-		if err := item.EnginePid.ReadJSONLegacy(legacyTypeNames, _jEnginePid); err != nil {
-			return err
-		}
-	} else {
-		item.EnginePid.Reset()
-	}
-	if _jRequestSize != nil {
-		if err := JsonReadInt32(_jRequestSize, &item.RequestSize); err != nil {
-			return err
-		}
-	} else {
-		item.RequestSize = 0
-	}
-	if _jResponseSize != nil {
-		if err := JsonReadInt32(_jResponseSize, &item.ResponseSize); err != nil {
-			return err
-		}
-	} else {
-		item.ResponseSize = 0
-	}
-	if _jFailedSubqueries != nil {
-		if err := JsonReadInt32(_jFailedSubqueries, &item.FailedSubqueries); err != nil {
-			return err
-		}
-	} else {
-		item.FailedSubqueries = 0
-	}
-	if _jCompressionVersion != nil {
-		if err := JsonReadInt32(_jCompressionVersion, &item.CompressionVersion); err != nil {
-			return err
-		}
-	} else {
-		item.CompressionVersion = 0
-	}
-	if _jStats != nil {
-		if err := BuiltinVectorDictionaryFieldStringReadJSONLegacy(legacyTypeNames, _jStats, &item.Stats); err != nil {
-			return err
-		}
-	} else {
-		BuiltinVectorDictionaryFieldStringReset(item.Stats)
-	}
-	if _jShardsBinlogPos != nil {
-		if err := BuiltinVectorDictionaryFieldLongReadJSONLegacy(legacyTypeNames, _jShardsBinlogPos, &item.ShardsBinlogPos); err != nil {
-			return err
-		}
-	} else {
-		BuiltinVectorDictionaryFieldLongReset(item.ShardsBinlogPos)
-	}
-	if _jEpochNumber != nil {
-		if err := JsonReadInt64(_jEpochNumber, &item.EpochNumber); err != nil {
-			return err
-		}
-	} else {
-		item.EpochNumber = 0
-	}
-	if _jViewNumber != nil {
-		if err := JsonReadInt64(_jViewNumber, &item.ViewNumber); err != nil {
-			return err
-		}
-	} else {
-		item.ViewNumber = 0
-	}
-	return nil
-}
-
 func (item *RpcReqResultExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFlagsPresented bool
 	var propBinlogPosPresented bool
@@ -658,10 +510,12 @@ func (item *RpcReqResultExtra) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *RpcReqResultExtra) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Flags != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"flags":`...)
-		w = basictl.JSONWriteUint32(w, item.Flags)
+	backupIndexFlags := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"flags":`...)
+	w = basictl.JSONWriteUint32(w, item.Flags)
+	if (item.Flags != 0) == false {
+		w = w[:backupIndexFlags]
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -732,11 +586,7 @@ func (item *RpcReqResultExtra) MarshalJSON() ([]byte, error) {
 }
 
 func (item *RpcReqResultExtra) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcReqResultExtra", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcReqResultExtra", err.Error())
 	}
 	return nil

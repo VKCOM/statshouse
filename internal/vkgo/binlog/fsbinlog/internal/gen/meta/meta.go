@@ -28,7 +28,6 @@ type Object interface {
 	MarshalJSON() ([]byte, error) // returns type's JSON representation, plus error
 	UnmarshalJSON([]byte) error   // reads type's JSON representation
 
-	ReadJSONLegacy(legacyTypeNames bool, j interface{}) error
 	ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error
 	WriteJSON(w []byte) ([]byte, error) // like MarshalJSON, but appends to w and returns it
 }
@@ -91,18 +90,6 @@ func CreateObjectFromName(name string) Object {
 	return nil
 }
 
-// legacy wrapper, will be removed soon
-func ReadJSONLegacy(item Object, legacyTypeNames bool, b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON(item.TLName(), err.Error())
-	}
-	if err = item.ReadJSONLegacy(legacyTypeNames, j); err != nil {
-		return internal.ErrorInvalidJSON(item.TLName(), err.Error())
-	}
-	return nil
-}
-
 type TLItem struct {
 	tag                uint32
 	annotations        uint32
@@ -137,17 +124,6 @@ func (item TLItem) String() string {
 	}
 	return string(w)
 }
-func (item *TLItem) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON(item.tlName, "expected json object")
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement(item.tlName, k)
-	}
-	return nil
-}
-
 func (item *TLItem) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	in.Delim('{')
 	if !in.Ok() {
@@ -171,11 +147,7 @@ func (item *TLItem) MarshalJSON() ([]byte, error) {
 	return item.WriteJSON(nil)
 }
 func (item *TLItem) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON(item.tlName, err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON(item.tlName, err.Error())
 	}
 	return nil

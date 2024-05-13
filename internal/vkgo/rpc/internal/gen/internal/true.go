@@ -45,17 +45,6 @@ func (item True) String() string {
 	return string(w)
 }
 
-func (item *True) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("true", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("true", k)
-	}
-	return nil
-}
-
 func (item *True) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
@@ -86,11 +75,7 @@ func (item *True) MarshalJSON() ([]byte, error) {
 }
 
 func (item *True) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("true", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("true", err.Error())
 	}
 	return nil

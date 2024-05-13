@@ -49,8 +49,8 @@ func (item *EngineVersion) WriteResult(w []byte, ret string) (_ []byte, err erro
 	return basictl.StringWrite(w, ret), nil
 }
 
-func (item *EngineVersion) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *string) error {
-	if err := JsonReadString(j, ret); err != nil {
+func (item *EngineVersion) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *string) error {
+	if err := Json2ReadString(in, ret); err != nil {
 		return err
 	}
 	return nil
@@ -84,12 +84,9 @@ func (item *EngineVersion) ReadResultWriteResultJSONOpt(newTypeNames bool, short
 }
 
 func (item *EngineVersion) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.version", err.Error())
-	}
 	var ret string
-	if err = item.ReadResultJSON(true, j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -102,17 +99,6 @@ func (item EngineVersion) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *EngineVersion) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.version", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.version", k)
-	}
-	return nil
 }
 
 func (item *EngineVersion) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -145,11 +131,7 @@ func (item *EngineVersion) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineVersion) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.version", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.version", err.Error())
 	}
 	return nil

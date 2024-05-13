@@ -350,247 +350,6 @@ func (item RpcInvokeReqExtra) String() string {
 	return string(w)
 }
 
-func (item *RpcInvokeReqExtra) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcInvokeReqExtra", "expected json object")
-	}
-	_jFlags := _jm["flags"]
-	delete(_jm, "flags")
-	if err := JsonReadUint32(_jFlags, &item.Flags); err != nil {
-		return err
-	}
-	_jReturnBinlogPos := _jm["return_binlog_pos"]
-	delete(_jm, "return_binlog_pos")
-	_jReturnBinlogTime := _jm["return_binlog_time"]
-	delete(_jm, "return_binlog_time")
-	_jReturnPid := _jm["return_pid"]
-	delete(_jm, "return_pid")
-	_jReturnRequestSizes := _jm["return_request_sizes"]
-	delete(_jm, "return_request_sizes")
-	_jReturnFailedSubqueries := _jm["return_failed_subqueries"]
-	delete(_jm, "return_failed_subqueries")
-	_jReturnQueryStats := _jm["return_query_stats"]
-	delete(_jm, "return_query_stats")
-	_jNoResult := _jm["no_result"]
-	delete(_jm, "no_result")
-	_jReturnShardsBinlogPos := _jm["return_shards_binlog_pos"]
-	delete(_jm, "return_shards_binlog_pos")
-	_jWaitShardsBinlogPos := _jm["wait_shards_binlog_pos"]
-	delete(_jm, "wait_shards_binlog_pos")
-	_jWaitBinlogPos := _jm["wait_binlog_pos"]
-	delete(_jm, "wait_binlog_pos")
-	_jStringForwardKeys := _jm["string_forward_keys"]
-	delete(_jm, "string_forward_keys")
-	_jIntForwardKeys := _jm["int_forward_keys"]
-	delete(_jm, "int_forward_keys")
-	_jStringForward := _jm["string_forward"]
-	delete(_jm, "string_forward")
-	_jIntForward := _jm["int_forward"]
-	delete(_jm, "int_forward")
-	_jCustomTimeoutMs := _jm["custom_timeout_ms"]
-	delete(_jm, "custom_timeout_ms")
-	_jSupportedCompressionVersion := _jm["supported_compression_version"]
-	delete(_jm, "supported_compression_version")
-	_jRandomDelay := _jm["random_delay"]
-	delete(_jm, "random_delay")
-	_jReturnViewNumber := _jm["return_view_number"]
-	delete(_jm, "return_view_number")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcInvokeReqExtra", k)
-	}
-	if _jReturnBinlogPos != nil {
-		_bit := false
-		if err := JsonReadBool(_jReturnBinlogPos, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.Flags |= 1 << 0
-		} else {
-			item.Flags &^= 1 << 0
-		}
-	}
-	if _jReturnBinlogTime != nil {
-		_bit := false
-		if err := JsonReadBool(_jReturnBinlogTime, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.Flags |= 1 << 1
-		} else {
-			item.Flags &^= 1 << 1
-		}
-	}
-	if _jReturnPid != nil {
-		_bit := false
-		if err := JsonReadBool(_jReturnPid, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.Flags |= 1 << 2
-		} else {
-			item.Flags &^= 1 << 2
-		}
-	}
-	if _jReturnRequestSizes != nil {
-		_bit := false
-		if err := JsonReadBool(_jReturnRequestSizes, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.Flags |= 1 << 3
-		} else {
-			item.Flags &^= 1 << 3
-		}
-	}
-	if _jReturnFailedSubqueries != nil {
-		_bit := false
-		if err := JsonReadBool(_jReturnFailedSubqueries, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.Flags |= 1 << 4
-		} else {
-			item.Flags &^= 1 << 4
-		}
-	}
-	if _jReturnQueryStats != nil {
-		_bit := false
-		if err := JsonReadBool(_jReturnQueryStats, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.Flags |= 1 << 6
-		} else {
-			item.Flags &^= 1 << 6
-		}
-	}
-	if _jNoResult != nil {
-		_bit := false
-		if err := JsonReadBool(_jNoResult, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.Flags |= 1 << 7
-		} else {
-			item.Flags &^= 1 << 7
-		}
-	}
-	if _jReturnShardsBinlogPos != nil {
-		_bit := false
-		if err := JsonReadBool(_jReturnShardsBinlogPos, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.Flags |= 1 << 8
-		} else {
-			item.Flags &^= 1 << 8
-		}
-	}
-	if _jWaitShardsBinlogPos != nil {
-		item.Flags |= 1 << 15
-	}
-	if _jWaitBinlogPos != nil {
-		item.Flags |= 1 << 16
-	}
-	if _jStringForwardKeys != nil {
-		item.Flags |= 1 << 18
-	}
-	if _jIntForwardKeys != nil {
-		item.Flags |= 1 << 19
-	}
-	if _jStringForward != nil {
-		item.Flags |= 1 << 20
-	}
-	if _jIntForward != nil {
-		item.Flags |= 1 << 21
-	}
-	if _jCustomTimeoutMs != nil {
-		item.Flags |= 1 << 23
-	}
-	if _jSupportedCompressionVersion != nil {
-		item.Flags |= 1 << 25
-	}
-	if _jRandomDelay != nil {
-		item.Flags |= 1 << 26
-	}
-	if _jReturnViewNumber != nil {
-		_bit := false
-		if err := JsonReadBool(_jReturnViewNumber, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.Flags |= 1 << 27
-		} else {
-			item.Flags &^= 1 << 27
-		}
-	}
-	if _jWaitShardsBinlogPos != nil {
-		if err := BuiltinVectorDictionaryFieldLongReadJSONLegacy(legacyTypeNames, _jWaitShardsBinlogPos, &item.WaitShardsBinlogPos); err != nil {
-			return err
-		}
-	} else {
-		BuiltinVectorDictionaryFieldLongReset(item.WaitShardsBinlogPos)
-	}
-	if _jWaitBinlogPos != nil {
-		if err := JsonReadInt64(_jWaitBinlogPos, &item.WaitBinlogPos); err != nil {
-			return err
-		}
-	} else {
-		item.WaitBinlogPos = 0
-	}
-	if _jStringForwardKeys != nil {
-		if err := BuiltinVectorStringReadJSONLegacy(legacyTypeNames, _jStringForwardKeys, &item.StringForwardKeys); err != nil {
-			return err
-		}
-	} else {
-		item.StringForwardKeys = item.StringForwardKeys[:0]
-	}
-	if _jIntForwardKeys != nil {
-		if err := BuiltinVectorLongReadJSONLegacy(legacyTypeNames, _jIntForwardKeys, &item.IntForwardKeys); err != nil {
-			return err
-		}
-	} else {
-		item.IntForwardKeys = item.IntForwardKeys[:0]
-	}
-	if _jStringForward != nil {
-		if err := JsonReadString(_jStringForward, &item.StringForward); err != nil {
-			return err
-		}
-	} else {
-		item.StringForward = ""
-	}
-	if _jIntForward != nil {
-		if err := JsonReadInt64(_jIntForward, &item.IntForward); err != nil {
-			return err
-		}
-	} else {
-		item.IntForward = 0
-	}
-	if _jCustomTimeoutMs != nil {
-		if err := JsonReadInt32(_jCustomTimeoutMs, &item.CustomTimeoutMs); err != nil {
-			return err
-		}
-	} else {
-		item.CustomTimeoutMs = 0
-	}
-	if _jSupportedCompressionVersion != nil {
-		if err := JsonReadInt32(_jSupportedCompressionVersion, &item.SupportedCompressionVersion); err != nil {
-			return err
-		}
-	} else {
-		item.SupportedCompressionVersion = 0
-	}
-	if _jRandomDelay != nil {
-		if err := JsonReadFloat64(_jRandomDelay, &item.RandomDelay); err != nil {
-			return err
-		}
-	} else {
-		item.RandomDelay = 0
-	}
-	return nil
-}
-
 func (item *RpcInvokeReqExtra) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFlagsPresented bool
 	var trueTypeReturnBinlogPosPresented bool
@@ -938,10 +697,12 @@ func (item *RpcInvokeReqExtra) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *RpcInvokeReqExtra) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Flags != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"flags":`...)
-		w = basictl.JSONWriteUint32(w, item.Flags)
+	backupIndexFlags := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"flags":`...)
+	w = basictl.JSONWriteUint32(w, item.Flags)
+	if (item.Flags != 0) == false {
+		w = w[:backupIndexFlags]
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -1038,11 +799,7 @@ func (item *RpcInvokeReqExtra) MarshalJSON() ([]byte, error) {
 }
 
 func (item *RpcInvokeReqExtra) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcInvokeReqExtra", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcInvokeReqExtra", err.Error())
 	}
 	return nil

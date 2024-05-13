@@ -52,22 +52,6 @@ func (item RpcInvokeReqHeader) String() string {
 	return string(w)
 }
 
-func (item *RpcInvokeReqHeader) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcInvokeReqHeader", "expected json object")
-	}
-	_jQueryId := _jm["query_id"]
-	delete(_jm, "query_id")
-	if err := JsonReadInt64(_jQueryId, &item.QueryId); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcInvokeReqHeader", k)
-	}
-	return nil
-}
-
 func (item *RpcInvokeReqHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propQueryIdPresented bool
 
@@ -109,10 +93,12 @@ func (item *RpcInvokeReqHeader) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *RpcInvokeReqHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.QueryId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"query_id":`...)
-		w = basictl.JSONWriteInt64(w, item.QueryId)
+	backupIndexQueryId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"query_id":`...)
+	w = basictl.JSONWriteInt64(w, item.QueryId)
+	if (item.QueryId != 0) == false {
+		w = w[:backupIndexQueryId]
 	}
 	return append(w, '}'), nil
 }
@@ -122,11 +108,7 @@ func (item *RpcInvokeReqHeader) MarshalJSON() ([]byte, error) {
 }
 
 func (item *RpcInvokeReqHeader) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcInvokeReqHeader", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcInvokeReqHeader", err.Error())
 	}
 	return nil

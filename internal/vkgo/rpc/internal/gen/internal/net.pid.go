@@ -64,32 +64,6 @@ func (item NetPid) String() string {
 	return string(w)
 }
 
-func (item *NetPid) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("net.pid", "expected json object")
-	}
-	_jIp := _jm["ip"]
-	delete(_jm, "ip")
-	if err := JsonReadUint32(_jIp, &item.Ip); err != nil {
-		return err
-	}
-	_jPortPid := _jm["port_pid"]
-	delete(_jm, "port_pid")
-	if err := JsonReadUint32(_jPortPid, &item.PortPid); err != nil {
-		return err
-	}
-	_jUtime := _jm["utime"]
-	delete(_jm, "utime")
-	if err := JsonReadUint32(_jUtime, &item.Utime); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("net.pid", k)
-	}
-	return nil
-}
-
 func (item *NetPid) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propIpPresented bool
 	var propPortPidPresented bool
@@ -155,20 +129,26 @@ func (item *NetPid) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *NetPid) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Ip != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"ip":`...)
-		w = basictl.JSONWriteUint32(w, item.Ip)
+	backupIndexIp := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"ip":`...)
+	w = basictl.JSONWriteUint32(w, item.Ip)
+	if (item.Ip != 0) == false {
+		w = w[:backupIndexIp]
 	}
-	if item.PortPid != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"port_pid":`...)
-		w = basictl.JSONWriteUint32(w, item.PortPid)
+	backupIndexPortPid := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"port_pid":`...)
+	w = basictl.JSONWriteUint32(w, item.PortPid)
+	if (item.PortPid != 0) == false {
+		w = w[:backupIndexPortPid]
 	}
-	if item.Utime != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"utime":`...)
-		w = basictl.JSONWriteUint32(w, item.Utime)
+	backupIndexUtime := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"utime":`...)
+	w = basictl.JSONWriteUint32(w, item.Utime)
+	if (item.Utime != 0) == false {
+		w = w[:backupIndexUtime]
 	}
 	return append(w, '}'), nil
 }
@@ -178,11 +158,7 @@ func (item *NetPid) MarshalJSON() ([]byte, error) {
 }
 
 func (item *NetPid) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("net.pid", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("net.pid", err.Error())
 	}
 	return nil

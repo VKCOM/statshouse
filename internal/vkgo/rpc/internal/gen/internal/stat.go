@@ -53,14 +53,6 @@ func (item Stat) String() string {
 	return string(w)
 }
 
-func (item *Stat) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	ptr := (*map[string]string)(item)
-	if err := BuiltinVectorDictionaryFieldStringReadJSONLegacy(legacyTypeNames, j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *Stat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*map[string]string)(item)
 	if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -68,6 +60,7 @@ func (item *Stat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	}
 	return nil
 }
+
 func (item *Stat) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -84,11 +77,7 @@ func (item *Stat) MarshalJSON() ([]byte, error) {
 }
 
 func (item *Stat) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("stat", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("stat", err.Error())
 	}
 	return nil

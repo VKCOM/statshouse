@@ -194,94 +194,6 @@ func (item NetUdpPacketUnencHeader) String() string {
 	return string(w)
 }
 
-func (item *NetUdpPacketUnencHeader) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("netUdpPacket.unencHeader", "expected json object")
-	}
-	_jFlags := _jm["flags"]
-	delete(_jm, "flags")
-	if err := JsonReadUint32(_jFlags, &item.Flags); err != nil {
-		return err
-	}
-	_jRemotePid := _jm["remote_pid"]
-	delete(_jm, "remote_pid")
-	_jLocalPid := _jm["local_pid"]
-	delete(_jm, "local_pid")
-	_jGeneration := _jm["generation"]
-	delete(_jm, "generation")
-	_jPidHash := _jm["pid_hash"]
-	delete(_jm, "pid_hash")
-	_jCryptoInit := _jm["crypto_init"]
-	delete(_jm, "crypto_init")
-	_jRandomKey := _jm["random_key"]
-	delete(_jm, "random_key")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("netUdpPacket.unencHeader", k)
-	}
-	if _jRemotePid != nil {
-		item.Flags |= 1 << 0
-	}
-	if _jLocalPid != nil {
-		item.Flags |= 1 << 0
-	}
-	if _jGeneration != nil {
-		item.Flags |= 1 << 0
-	}
-	if _jPidHash != nil {
-		item.Flags |= 1 << 2
-	}
-	if _jCryptoInit != nil {
-		item.Flags |= 1 << 3
-	}
-	if _jRandomKey != nil {
-		item.Flags |= 1 << 5
-	}
-	if _jRemotePid != nil {
-		if err := item.RemotePid.ReadJSONLegacy(legacyTypeNames, _jRemotePid); err != nil {
-			return err
-		}
-	} else {
-		item.RemotePid.Reset()
-	}
-	if _jLocalPid != nil {
-		if err := item.LocalPid.ReadJSONLegacy(legacyTypeNames, _jLocalPid); err != nil {
-			return err
-		}
-	} else {
-		item.LocalPid.Reset()
-	}
-	if _jGeneration != nil {
-		if err := JsonReadInt32(_jGeneration, &item.Generation); err != nil {
-			return err
-		}
-	} else {
-		item.Generation = 0
-	}
-	if _jPidHash != nil {
-		if err := JsonReadInt64(_jPidHash, &item.PidHash); err != nil {
-			return err
-		}
-	} else {
-		item.PidHash = 0
-	}
-	if _jCryptoInit != nil {
-		if err := JsonReadInt32(_jCryptoInit, &item.CryptoInit); err != nil {
-			return err
-		}
-	} else {
-		item.CryptoInit = 0
-	}
-	if _jRandomKey != nil {
-		if err := BuiltinTuple8ReadJSONLegacy(legacyTypeNames, _jRandomKey, &item.RandomKey); err != nil {
-			return err
-		}
-	} else {
-		BuiltinTuple8Reset(&item.RandomKey)
-	}
-	return nil
-}
-
 func (item *NetUdpPacketUnencHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFlagsPresented bool
 	var propRemotePidPresented bool
@@ -413,10 +325,12 @@ func (item *NetUdpPacketUnencHeader) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *NetUdpPacketUnencHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Flags != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"flags":`...)
-		w = basictl.JSONWriteUint32(w, item.Flags)
+	backupIndexFlags := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"flags":`...)
+	w = basictl.JSONWriteUint32(w, item.Flags)
+	if (item.Flags != 0) == false {
+		w = w[:backupIndexFlags]
 	}
 	if item.Flags&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -462,11 +376,7 @@ func (item *NetUdpPacketUnencHeader) MarshalJSON() ([]byte, error) {
 }
 
 func (item *NetUdpPacketUnencHeader) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("netUdpPacket.unencHeader", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("netUdpPacket.unencHeader", err.Error())
 	}
 	return nil

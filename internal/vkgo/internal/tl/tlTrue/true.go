@@ -23,7 +23,7 @@ func (True) TLTag() uint32  { return 0x3fedd339 }
 
 func (item *True) Reset() {}
 
-func (item *True) FillRandom(gen basictl.Rand) {}
+func (item *True) FillRandom(rg *basictl.RandGenerator) {}
 
 func (item *True) Read(w []byte) (_ []byte, err error) { return w, nil }
 
@@ -47,17 +47,6 @@ func (item True) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *True) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("true", "expected json object")
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("true", k)
-	}
-	return nil
 }
 
 func (item *True) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -90,11 +79,7 @@ func (item *True) MarshalJSON() ([]byte, error) {
 }
 
 func (item *True) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("true", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("true", err.Error())
 	}
 	return nil
