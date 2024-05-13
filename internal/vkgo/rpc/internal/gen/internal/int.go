@@ -42,24 +42,6 @@ func BuiltinVectorIntWrite(w []byte, vec []int32) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorIntReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]int32) error {
-	l, _arr, err := JsonReadArray("[]int32", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]int32, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := JsonReadInt32(_arr[i], &(*vec)[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func BuiltinVectorIntReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]int32) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0

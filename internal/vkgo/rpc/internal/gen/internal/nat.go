@@ -35,19 +35,6 @@ func BuiltinTuple8Write(w []byte, vec *[8]uint32) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinTuple8ReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[8]uint32) error {
-	_, _arr, err := JsonReadArrayFixedSize("[8]uint32", j, 8)
-	if err != nil {
-		return err
-	}
-	for i := range *vec {
-		if err := JsonReadUint32(_arr[i], &(*vec)[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func BuiltinTuple8ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[8]uint32) error {
 	index := 0
 	if in != nil {

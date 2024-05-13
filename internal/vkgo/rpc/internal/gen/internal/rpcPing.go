@@ -52,22 +52,6 @@ func (item RpcPing) String() string {
 	return string(w)
 }
 
-func (item *RpcPing) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcPing", "expected json object")
-	}
-	_jPingId := _jm["ping_id"]
-	delete(_jm, "ping_id")
-	if err := JsonReadInt64(_jPingId, &item.PingId); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcPing", k)
-	}
-	return nil
-}
-
 func (item *RpcPing) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propPingIdPresented bool
 
@@ -109,10 +93,12 @@ func (item *RpcPing) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *RpcPing) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.PingId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"ping_id":`...)
-		w = basictl.JSONWriteInt64(w, item.PingId)
+	backupIndexPingId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"ping_id":`...)
+	w = basictl.JSONWriteInt64(w, item.PingId)
+	if (item.PingId != 0) == false {
+		w = w[:backupIndexPingId]
 	}
 	return append(w, '}'), nil
 }
@@ -122,11 +108,7 @@ func (item *RpcPing) MarshalJSON() ([]byte, error) {
 }
 
 func (item *RpcPing) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcPing", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcPing", err.Error())
 	}
 	return nil

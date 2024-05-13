@@ -31,10 +31,9 @@ func (item *BarsicSkip) Reset() {
 	item.Length = 0
 }
 
-func (item *BarsicSkip) FillRandom(gen basictl.Rand) {
-	item.FieldsMask = basictl.RandomUint(gen)
-	item.Offset = basictl.RandomLong(gen)
-	item.Length = basictl.RandomLong(gen)
+func (item *BarsicSkip) FillRandom(rg *basictl.RandGenerator) {
+	item.Offset = basictl.RandomLong(rg)
+	item.Length = basictl.RandomLong(rg)
 }
 
 func (item *BarsicSkip) Read(w []byte) (_ []byte, err error) {
@@ -73,8 +72,8 @@ func (item *BarsicSkip) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err er
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicSkip) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
-	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
+func (item *BarsicSkip) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
@@ -110,12 +109,9 @@ func (item *BarsicSkip) ReadResultWriteResultJSONOpt(newTypeNames bool, short bo
 }
 
 func (item *BarsicSkip) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.skip", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(true, j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -128,32 +124,6 @@ func (item BarsicSkip) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *BarsicSkip) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.skip", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jOffset := _jm["offset"]
-	delete(_jm, "offset")
-	if err := internal.JsonReadInt64(_jOffset, &item.Offset); err != nil {
-		return err
-	}
-	_jLength := _jm["length"]
-	delete(_jm, "length")
-	if err := internal.JsonReadInt64(_jLength, &item.Length); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.skip", k)
-	}
-	return nil
 }
 
 func (item *BarsicSkip) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -221,20 +191,26 @@ func (item *BarsicSkip) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *BarsicSkip) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.Offset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"offset":`...)
-		w = basictl.JSONWriteInt64(w, item.Offset)
+	backupIndexOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"offset":`...)
+	w = basictl.JSONWriteInt64(w, item.Offset)
+	if (item.Offset != 0) == false {
+		w = w[:backupIndexOffset]
 	}
-	if item.Length != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"length":`...)
-		w = basictl.JSONWriteInt64(w, item.Length)
+	backupIndexLength := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"length":`...)
+	w = basictl.JSONWriteInt64(w, item.Length)
+	if (item.Length != 0) == false {
+		w = w[:backupIndexLength]
 	}
 	return append(w, '}'), nil
 }
@@ -244,11 +220,7 @@ func (item *BarsicSkip) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicSkip) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.skip", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.skip", err.Error())
 	}
 	return nil

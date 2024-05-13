@@ -69,7 +69,7 @@ func (m *Multi) Close() {
 	close(m.closeCh)
 
 	for _, cs := range m.calls {
-		cs.pc.cancelCall(cs.cctx, errMultiClosed) // Will release all waiting below
+		_ = cs.pc.cancelCall(cs.cctx.queryID, errMultiClosed) // Will release all waiting below
 	}
 	for queryID := range m.results {
 		delete(m.results, queryID)
@@ -101,7 +101,7 @@ func (m *Multi) Start(ctx context.Context, network string, address string, req *
 	}
 
 	queryID := req.QueryID()
-	pc, cctx, err := m.c.setupCall(ctx, NetAddr{network, address}, req, m.multiResult)
+	pc, cctx, err := m.c.setupCall(ctx, NetAddr{network, address}, req, m.multiResult, nil, nil)
 	if err != nil {
 		m.sem.Release(1)
 		return err

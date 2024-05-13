@@ -70,37 +70,6 @@ func (item FsbinlogSnapshotMeta) String() string {
 	return string(w)
 }
 
-func (item *FsbinlogSnapshotMeta) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("fsbinlog.snapshotMeta", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jCommitPosition := _jm["CommitPosition"]
-	delete(_jm, "CommitPosition")
-	if err := JsonReadInt64(_jCommitPosition, &item.CommitPosition); err != nil {
-		return err
-	}
-	_jCommitCrc := _jm["CommitCrc"]
-	delete(_jm, "CommitCrc")
-	if err := JsonReadUint32(_jCommitCrc, &item.CommitCrc); err != nil {
-		return err
-	}
-	_jCommitTs := _jm["CommitTs"]
-	delete(_jm, "CommitTs")
-	if err := JsonReadUint32(_jCommitTs, &item.CommitTs); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("fsbinlog.snapshotMeta", k)
-	}
-	return nil
-}
-
 func (item *FsbinlogSnapshotMeta) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFieldsMaskPresented bool
 	var propCommitPositionPresented bool
@@ -178,25 +147,33 @@ func (item *FsbinlogSnapshotMeta) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *FsbinlogSnapshotMeta) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.CommitPosition != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"CommitPosition":`...)
-		w = basictl.JSONWriteInt64(w, item.CommitPosition)
+	backupIndexCommitPosition := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"CommitPosition":`...)
+	w = basictl.JSONWriteInt64(w, item.CommitPosition)
+	if (item.CommitPosition != 0) == false {
+		w = w[:backupIndexCommitPosition]
 	}
-	if item.CommitCrc != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"CommitCrc":`...)
-		w = basictl.JSONWriteUint32(w, item.CommitCrc)
+	backupIndexCommitCrc := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"CommitCrc":`...)
+	w = basictl.JSONWriteUint32(w, item.CommitCrc)
+	if (item.CommitCrc != 0) == false {
+		w = w[:backupIndexCommitCrc]
 	}
-	if item.CommitTs != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"CommitTs":`...)
-		w = basictl.JSONWriteUint32(w, item.CommitTs)
+	backupIndexCommitTs := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"CommitTs":`...)
+	w = basictl.JSONWriteUint32(w, item.CommitTs)
+	if (item.CommitTs != 0) == false {
+		w = w[:backupIndexCommitTs]
 	}
 	return append(w, '}'), nil
 }
@@ -206,11 +183,7 @@ func (item *FsbinlogSnapshotMeta) MarshalJSON() ([]byte, error) {
 }
 
 func (item *FsbinlogSnapshotMeta) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("fsbinlog.snapshotMeta", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("fsbinlog.snapshotMeta", err.Error())
 	}
 	return nil

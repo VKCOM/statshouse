@@ -53,14 +53,6 @@ func (item VectorDictionaryFieldLong) String() string {
 	return string(w)
 }
 
-func (item *VectorDictionaryFieldLong) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	ptr := (*map[string]int64)(item)
-	if err := BuiltinVectorDictionaryFieldLongReadJSONLegacy(legacyTypeNames, j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *VectorDictionaryFieldLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*map[string]int64)(item)
 	if err := BuiltinVectorDictionaryFieldLongReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -68,6 +60,7 @@ func (item *VectorDictionaryFieldLong) ReadJSON(legacyTypeNames bool, in *basict
 	}
 	return nil
 }
+
 func (item *VectorDictionaryFieldLong) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -84,11 +77,7 @@ func (item *VectorDictionaryFieldLong) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorDictionaryFieldLong) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
@@ -134,14 +123,6 @@ func (item VectorDictionaryFieldString) String() string {
 	return string(w)
 }
 
-func (item *VectorDictionaryFieldString) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	ptr := (*map[string]string)(item)
-	if err := BuiltinVectorDictionaryFieldStringReadJSONLegacy(legacyTypeNames, j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *VectorDictionaryFieldString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*map[string]string)(item)
 	if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -149,6 +130,7 @@ func (item *VectorDictionaryFieldString) ReadJSON(legacyTypeNames bool, in *basi
 	}
 	return nil
 }
+
 func (item *VectorDictionaryFieldString) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -165,11 +147,7 @@ func (item *VectorDictionaryFieldString) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorDictionaryFieldString) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
@@ -215,14 +193,6 @@ func (item VectorInt) String() string {
 	return string(w)
 }
 
-func (item *VectorInt) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	ptr := (*[]int32)(item)
-	if err := BuiltinVectorIntReadJSONLegacy(legacyTypeNames, j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *VectorInt) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*[]int32)(item)
 	if err := BuiltinVectorIntReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -230,6 +200,7 @@ func (item *VectorInt) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) err
 	}
 	return nil
 }
+
 func (item *VectorInt) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -246,11 +217,7 @@ func (item *VectorInt) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorInt) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
@@ -296,14 +263,6 @@ func (item VectorLong) String() string {
 	return string(w)
 }
 
-func (item *VectorLong) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	ptr := (*[]int64)(item)
-	if err := BuiltinVectorLongReadJSONLegacy(legacyTypeNames, j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *VectorLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*[]int64)(item)
 	if err := BuiltinVectorLongReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -311,6 +270,7 @@ func (item *VectorLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) er
 	}
 	return nil
 }
+
 func (item *VectorLong) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -327,11 +287,7 @@ func (item *VectorLong) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorLong) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil
@@ -377,14 +333,6 @@ func (item VectorString) String() string {
 	return string(w)
 }
 
-func (item *VectorString) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	ptr := (*[]string)(item)
-	if err := BuiltinVectorStringReadJSONLegacy(legacyTypeNames, j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *VectorString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*[]string)(item)
 	if err := BuiltinVectorStringReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -392,6 +340,7 @@ func (item *VectorString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) 
 	}
 	return nil
 }
+
 func (item *VectorString) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -408,11 +357,7 @@ func (item *VectorString) MarshalJSON() ([]byte, error) {
 }
 
 func (item *VectorString) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("vector", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("vector", err.Error())
 	}
 	return nil

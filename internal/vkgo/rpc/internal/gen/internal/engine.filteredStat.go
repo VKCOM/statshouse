@@ -52,8 +52,8 @@ func (item *EngineFilteredStat) WriteResult(w []byte, ret Stat) (_ []byte, err e
 	return ret.WriteBoxed(w)
 }
 
-func (item *EngineFilteredStat) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *Stat) error {
-	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
+func (item *EngineFilteredStat) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *Stat) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
@@ -89,12 +89,9 @@ func (item *EngineFilteredStat) ReadResultWriteResultJSONOpt(newTypeNames bool, 
 }
 
 func (item *EngineFilteredStat) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, ErrorInvalidJSON("engine.filteredStat", err.Error())
-	}
 	var ret Stat
-	if err = item.ReadResultJSON(true, j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -107,22 +104,6 @@ func (item EngineFilteredStat) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *EngineFilteredStat) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("engine.filteredStat", "expected json object")
-	}
-	_jStatNames := _jm["stat_names"]
-	delete(_jm, "stat_names")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("engine.filteredStat", k)
-	}
-	if err := BuiltinVectorStringReadJSONLegacy(legacyTypeNames, _jStatNames, &item.StatNames); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (item *EngineFilteredStat) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -166,12 +147,14 @@ func (item *EngineFilteredStat) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *EngineFilteredStat) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if len(item.StatNames) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"stat_names":`...)
-		if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.StatNames); err != nil {
-			return w, err
-		}
+	backupIndexStatNames := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"stat_names":`...)
+	if w, err = BuiltinVectorStringWriteJSONOpt(newTypeNames, short, w, item.StatNames); err != nil {
+		return w, err
+	}
+	if (len(item.StatNames) != 0) == false {
+		w = w[:backupIndexStatNames]
 	}
 	return append(w, '}'), nil
 }
@@ -181,11 +164,7 @@ func (item *EngineFilteredStat) MarshalJSON() ([]byte, error) {
 }
 
 func (item *EngineFilteredStat) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("engine.filteredStat", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("engine.filteredStat", err.Error())
 	}
 	return nil

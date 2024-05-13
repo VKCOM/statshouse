@@ -15,12 +15,14 @@ import (
 var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
-func BuiltinVectorStringFillRandom(gen basictl.Rand, vec *[]string) {
-	l := basictl.RandomUint(gen)
+func BuiltinVectorStringFillRandom(rg *basictl.RandGenerator, vec *[]string) {
+	rg.IncreaseDepth()
+	l := rg.LimitValue(basictl.RandomUint(rg))
 	*vec = make([]string, l)
 	for i := range *vec {
-		(*vec)[i] = basictl.RandomString(gen)
+		(*vec)[i] = basictl.RandomString(rg)
 	}
+	rg.DecreaseDepth()
 }
 func BuiltinVectorStringRead(w []byte, vec *[]string) (_ []byte, err error) {
 	var l uint32
@@ -49,24 +51,6 @@ func BuiltinVectorStringWrite(w []byte, vec []string) (_ []byte, err error) {
 		w = basictl.StringWrite(w, elem)
 	}
 	return w, nil
-}
-
-func BuiltinVectorStringReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]string) error {
-	l, _arr, err := internal.JsonReadArray("[]string", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]string, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := internal.JsonReadString(_arr[i], &(*vec)[i]); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]string) error {
@@ -109,12 +93,14 @@ func BuiltinVectorStringWriteJSONOpt(newTypeNames bool, short bool, w []byte, ve
 	return append(w, ']'), nil
 }
 
-func BuiltinVectorStringBytesFillRandom(gen basictl.Rand, vec *[][]byte) {
-	l := basictl.RandomUint(gen)
+func BuiltinVectorStringBytesFillRandom(rg *basictl.RandGenerator, vec *[][]byte) {
+	rg.IncreaseDepth()
+	l := rg.LimitValue(basictl.RandomUint(rg))
 	*vec = make([][]byte, l)
 	for i := range *vec {
-		(*vec)[i] = basictl.RandomStringBytes(gen)
+		(*vec)[i] = basictl.RandomStringBytes(rg)
 	}
+	rg.DecreaseDepth()
 }
 func BuiltinVectorStringBytesRead(w []byte, vec *[][]byte) (_ []byte, err error) {
 	var l uint32
@@ -143,24 +129,6 @@ func BuiltinVectorStringBytesWrite(w []byte, vec [][]byte) (_ []byte, err error)
 		w = basictl.StringWriteBytes(w, elem)
 	}
 	return w, nil
-}
-
-func BuiltinVectorStringBytesReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[][]byte) error {
-	l, _arr, err := internal.JsonReadArray("[][]byte", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([][]byte, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := internal.JsonReadStringBytes(_arr[i], &(*vec)[i]); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func BuiltinVectorStringBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[][]byte) error {

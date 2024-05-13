@@ -300,154 +300,6 @@ func (item NetUdpPacketEncHeader) String() string {
 	return string(w)
 }
 
-func (item *NetUdpPacketEncHeader) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("netUdpPacket.encHeader", "expected json object")
-	}
-	_jFlags := _jm["flags"]
-	delete(_jm, "flags")
-	if err := JsonReadUint32(_jFlags, &item.Flags); err != nil {
-		return err
-	}
-	_jTime := _jm["time"]
-	delete(_jm, "time")
-	_jVersion := _jm["version"]
-	delete(_jm, "version")
-	_jPacketAckPrefix := _jm["packet_ack_prefix"]
-	delete(_jm, "packet_ack_prefix")
-	_jPacketAckFrom := _jm["packet_ack_from"]
-	delete(_jm, "packet_ack_from")
-	_jPacketAckTo := _jm["packet_ack_to"]
-	delete(_jm, "packet_ack_to")
-	_jPacketAckSet := _jm["packet_ack_set"]
-	delete(_jm, "packet_ack_set")
-	_jPacketNum := _jm["packet_num"]
-	delete(_jm, "packet_num")
-	_jPacketsFrom := _jm["packets_from"]
-	delete(_jm, "packets_from")
-	_jPacketsTo := _jm["packets_to"]
-	delete(_jm, "packets_to")
-	_jPrevParts := _jm["prev_parts"]
-	delete(_jm, "prev_parts")
-	_jNextParts := _jm["next_parts"]
-	delete(_jm, "next_parts")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("netUdpPacket.encHeader", k)
-	}
-	if _jTime != nil {
-		item.Flags |= 1 << 9
-	}
-	if _jVersion != nil {
-		item.Flags |= 1 << 10
-	}
-	if _jPacketAckPrefix != nil {
-		item.Flags |= 1 << 13
-	}
-	if _jPacketAckFrom != nil {
-		item.Flags |= 1 << 14
-	}
-	if _jPacketAckTo != nil {
-		item.Flags |= 1 << 14
-	}
-	if _jPacketAckSet != nil {
-		item.Flags |= 1 << 15
-	}
-	if _jPacketNum != nil {
-		item.Flags |= 1 << 20
-	}
-	if _jPacketsFrom != nil {
-		item.Flags |= 1 << 21
-	}
-	if _jPacketsTo != nil {
-		item.Flags |= 1 << 21
-	}
-	if _jPrevParts != nil {
-		item.Flags |= 1 << 22
-	}
-	if _jNextParts != nil {
-		item.Flags |= 1 << 23
-	}
-	if _jTime != nil {
-		if err := JsonReadInt32(_jTime, &item.Time); err != nil {
-			return err
-		}
-	} else {
-		item.Time = 0
-	}
-	if _jVersion != nil {
-		if err := JsonReadInt32(_jVersion, &item.Version); err != nil {
-			return err
-		}
-	} else {
-		item.Version = 0
-	}
-	if _jPacketAckPrefix != nil {
-		if err := JsonReadInt32(_jPacketAckPrefix, &item.PacketAckPrefix); err != nil {
-			return err
-		}
-	} else {
-		item.PacketAckPrefix = 0
-	}
-	if _jPacketAckFrom != nil {
-		if err := JsonReadInt32(_jPacketAckFrom, &item.PacketAckFrom); err != nil {
-			return err
-		}
-	} else {
-		item.PacketAckFrom = 0
-	}
-	if _jPacketAckTo != nil {
-		if err := JsonReadInt32(_jPacketAckTo, &item.PacketAckTo); err != nil {
-			return err
-		}
-	} else {
-		item.PacketAckTo = 0
-	}
-	if _jPacketAckSet != nil {
-		if err := BuiltinVectorIntReadJSONLegacy(legacyTypeNames, _jPacketAckSet, &item.PacketAckSet); err != nil {
-			return err
-		}
-	} else {
-		item.PacketAckSet = item.PacketAckSet[:0]
-	}
-	if _jPacketNum != nil {
-		if err := JsonReadInt32(_jPacketNum, &item.PacketNum); err != nil {
-			return err
-		}
-	} else {
-		item.PacketNum = 0
-	}
-	if _jPacketsFrom != nil {
-		if err := JsonReadInt32(_jPacketsFrom, &item.PacketsFrom); err != nil {
-			return err
-		}
-	} else {
-		item.PacketsFrom = 0
-	}
-	if _jPacketsTo != nil {
-		if err := JsonReadInt32(_jPacketsTo, &item.PacketsTo); err != nil {
-			return err
-		}
-	} else {
-		item.PacketsTo = 0
-	}
-	if _jPrevParts != nil {
-		if err := JsonReadInt32(_jPrevParts, &item.PrevParts); err != nil {
-			return err
-		}
-	} else {
-		item.PrevParts = 0
-	}
-	if _jNextParts != nil {
-		if err := JsonReadInt32(_jNextParts, &item.NextParts); err != nil {
-			return err
-		}
-	} else {
-		item.NextParts = 0
-	}
-	return nil
-}
-
 func (item *NetUdpPacketEncHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propFlagsPresented bool
 	var propTimePresented bool
@@ -654,10 +506,12 @@ func (item *NetUdpPacketEncHeader) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *NetUdpPacketEncHeader) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.Flags != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"flags":`...)
-		w = basictl.JSONWriteUint32(w, item.Flags)
+	backupIndexFlags := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"flags":`...)
+	w = basictl.JSONWriteUint32(w, item.Flags)
+	if (item.Flags != 0) == false {
+		w = w[:backupIndexFlags]
 	}
 	if item.Flags&(1<<9) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -724,11 +578,7 @@ func (item *NetUdpPacketEncHeader) MarshalJSON() ([]byte, error) {
 }
 
 func (item *NetUdpPacketEncHeader) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("netUdpPacket.encHeader", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("netUdpPacket.encHeader", err.Error())
 	}
 	return nil

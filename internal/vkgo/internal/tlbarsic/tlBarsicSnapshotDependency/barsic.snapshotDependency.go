@@ -32,11 +32,10 @@ func (item *BarsicSnapshotDependency) Reset() {
 	item.PayloadOffset = 0
 }
 
-func (item *BarsicSnapshotDependency) FillRandom(gen basictl.Rand) {
-	item.FieldsMask = basictl.RandomUint(gen)
-	item.ClusterId = basictl.RandomString(gen)
-	item.ShardId = basictl.RandomString(gen)
-	item.PayloadOffset = basictl.RandomLong(gen)
+func (item *BarsicSnapshotDependency) FillRandom(rg *basictl.RandGenerator) {
+	item.ClusterId = basictl.RandomString(rg)
+	item.ShardId = basictl.RandomString(rg)
+	item.PayloadOffset = basictl.RandomLong(rg)
 }
 
 func (item *BarsicSnapshotDependency) Read(w []byte) (_ []byte, err error) {
@@ -77,37 +76,6 @@ func (item BarsicSnapshotDependency) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *BarsicSnapshotDependency) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.snapshotDependency", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jClusterId := _jm["cluster_id"]
-	delete(_jm, "cluster_id")
-	if err := internal.JsonReadString(_jClusterId, &item.ClusterId); err != nil {
-		return err
-	}
-	_jShardId := _jm["shard_id"]
-	delete(_jm, "shard_id")
-	if err := internal.JsonReadString(_jShardId, &item.ShardId); err != nil {
-		return err
-	}
-	_jPayloadOffset := _jm["payload_offset"]
-	delete(_jm, "payload_offset")
-	if err := internal.JsonReadInt64(_jPayloadOffset, &item.PayloadOffset); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.snapshotDependency", k)
-	}
-	return nil
 }
 
 func (item *BarsicSnapshotDependency) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -187,25 +155,33 @@ func (item *BarsicSnapshotDependency) WriteJSON(w []byte) (_ []byte, err error) 
 }
 func (item *BarsicSnapshotDependency) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.ClusterId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"cluster_id":`...)
-		w = basictl.JSONWriteString(w, item.ClusterId)
+	backupIndexClusterId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"cluster_id":`...)
+	w = basictl.JSONWriteString(w, item.ClusterId)
+	if (len(item.ClusterId) != 0) == false {
+		w = w[:backupIndexClusterId]
 	}
-	if len(item.ShardId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"shard_id":`...)
-		w = basictl.JSONWriteString(w, item.ShardId)
+	backupIndexShardId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"shard_id":`...)
+	w = basictl.JSONWriteString(w, item.ShardId)
+	if (len(item.ShardId) != 0) == false {
+		w = w[:backupIndexShardId]
 	}
-	if item.PayloadOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"payload_offset":`...)
-		w = basictl.JSONWriteInt64(w, item.PayloadOffset)
+	backupIndexPayloadOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"payload_offset":`...)
+	w = basictl.JSONWriteInt64(w, item.PayloadOffset)
+	if (item.PayloadOffset != 0) == false {
+		w = w[:backupIndexPayloadOffset]
 	}
 	return append(w, '}'), nil
 }
@@ -215,11 +191,7 @@ func (item *BarsicSnapshotDependency) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicSnapshotDependency) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.snapshotDependency", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotDependency", err.Error())
 	}
 	return nil
@@ -242,11 +214,10 @@ func (item *BarsicSnapshotDependencyBytes) Reset() {
 	item.PayloadOffset = 0
 }
 
-func (item *BarsicSnapshotDependencyBytes) FillRandom(gen basictl.Rand) {
-	item.FieldsMask = basictl.RandomUint(gen)
-	item.ClusterId = basictl.RandomStringBytes(gen)
-	item.ShardId = basictl.RandomStringBytes(gen)
-	item.PayloadOffset = basictl.RandomLong(gen)
+func (item *BarsicSnapshotDependencyBytes) FillRandom(rg *basictl.RandGenerator) {
+	item.ClusterId = basictl.RandomStringBytes(rg)
+	item.ShardId = basictl.RandomStringBytes(rg)
+	item.PayloadOffset = basictl.RandomLong(rg)
 }
 
 func (item *BarsicSnapshotDependencyBytes) Read(w []byte) (_ []byte, err error) {
@@ -287,37 +258,6 @@ func (item BarsicSnapshotDependencyBytes) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *BarsicSnapshotDependencyBytes) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.snapshotDependency", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jClusterId := _jm["cluster_id"]
-	delete(_jm, "cluster_id")
-	if err := internal.JsonReadStringBytes(_jClusterId, &item.ClusterId); err != nil {
-		return err
-	}
-	_jShardId := _jm["shard_id"]
-	delete(_jm, "shard_id")
-	if err := internal.JsonReadStringBytes(_jShardId, &item.ShardId); err != nil {
-		return err
-	}
-	_jPayloadOffset := _jm["payload_offset"]
-	delete(_jm, "payload_offset")
-	if err := internal.JsonReadInt64(_jPayloadOffset, &item.PayloadOffset); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.snapshotDependency", k)
-	}
-	return nil
 }
 
 func (item *BarsicSnapshotDependencyBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -397,25 +337,33 @@ func (item *BarsicSnapshotDependencyBytes) WriteJSON(w []byte) (_ []byte, err er
 }
 func (item *BarsicSnapshotDependencyBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if len(item.ClusterId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"cluster_id":`...)
-		w = basictl.JSONWriteStringBytes(w, item.ClusterId)
+	backupIndexClusterId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"cluster_id":`...)
+	w = basictl.JSONWriteStringBytes(w, item.ClusterId)
+	if (len(item.ClusterId) != 0) == false {
+		w = w[:backupIndexClusterId]
 	}
-	if len(item.ShardId) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"shard_id":`...)
-		w = basictl.JSONWriteStringBytes(w, item.ShardId)
+	backupIndexShardId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"shard_id":`...)
+	w = basictl.JSONWriteStringBytes(w, item.ShardId)
+	if (len(item.ShardId) != 0) == false {
+		w = w[:backupIndexShardId]
 	}
-	if item.PayloadOffset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"payload_offset":`...)
-		w = basictl.JSONWriteInt64(w, item.PayloadOffset)
+	backupIndexPayloadOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"payload_offset":`...)
+	w = basictl.JSONWriteInt64(w, item.PayloadOffset)
+	if (item.PayloadOffset != 0) == false {
+		w = w[:backupIndexPayloadOffset]
 	}
 	return append(w, '}'), nil
 }
@@ -425,11 +373,7 @@ func (item *BarsicSnapshotDependencyBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicSnapshotDependencyBytes) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.snapshotDependency", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.snapshotDependency", err.Error())
 	}
 	return nil

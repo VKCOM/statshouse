@@ -42,24 +42,6 @@ func BuiltinVectorLongWrite(w []byte, vec []int64) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorLongReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]int64) error {
-	l, _arr, err := JsonReadArray("[]int64", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]int64, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := JsonReadInt64(_arr[i], &(*vec)[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func BuiltinVectorLongReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]int64) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0

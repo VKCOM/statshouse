@@ -45,17 +45,6 @@ func (item RpcServerWantsFin) String() string {
 	return string(w)
 }
 
-func (item *RpcServerWantsFin) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcServerWantsFin", "expected json object")
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcServerWantsFin", k)
-	}
-	return nil
-}
-
 func (item *RpcServerWantsFin) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	if in != nil {
 		in.Delim('{')
@@ -86,11 +75,7 @@ func (item *RpcServerWantsFin) MarshalJSON() ([]byte, error) {
 }
 
 func (item *RpcServerWantsFin) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcServerWantsFin", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcServerWantsFin", err.Error())
 	}
 	return nil

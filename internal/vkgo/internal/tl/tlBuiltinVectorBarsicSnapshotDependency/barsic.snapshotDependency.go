@@ -16,12 +16,14 @@ import (
 var _ = basictl.NatWrite
 var _ = internal.ErrorInvalidEnumTag
 
-func BuiltinVectorBarsicSnapshotDependencyFillRandom(gen basictl.Rand, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) {
-	l := basictl.RandomUint(gen)
+func BuiltinVectorBarsicSnapshotDependencyFillRandom(rg *basictl.RandGenerator, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) {
+	rg.IncreaseDepth()
+	l := rg.LimitValue(basictl.RandomUint(rg))
 	*vec = make([]tlBarsicSnapshotDependency.BarsicSnapshotDependency, l)
 	for i := range *vec {
-		(*vec)[i].FillRandom(gen)
+		(*vec)[i].FillRandom(rg)
 	}
+	rg.DecreaseDepth()
 }
 func BuiltinVectorBarsicSnapshotDependencyRead(w []byte, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) (_ []byte, err error) {
 	var l uint32
@@ -52,24 +54,6 @@ func BuiltinVectorBarsicSnapshotDependencyWrite(w []byte, vec []tlBarsicSnapshot
 		}
 	}
 	return w, nil
-}
-
-func BuiltinVectorBarsicSnapshotDependencyReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) error {
-	l, _arr, err := internal.JsonReadArray("[]tlBarsicSnapshotDependency.BarsicSnapshotDependency", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]tlBarsicSnapshotDependency.BarsicSnapshotDependency, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := (*vec)[i].ReadJSONLegacy(legacyTypeNames, _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func BuiltinVectorBarsicSnapshotDependencyReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependency) error {
@@ -114,12 +98,14 @@ func BuiltinVectorBarsicSnapshotDependencyWriteJSONOpt(newTypeNames bool, short 
 	return append(w, ']'), nil
 }
 
-func BuiltinVectorBarsicSnapshotDependencyBytesFillRandom(gen basictl.Rand, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) {
-	l := basictl.RandomUint(gen)
+func BuiltinVectorBarsicSnapshotDependencyBytesFillRandom(rg *basictl.RandGenerator, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) {
+	rg.IncreaseDepth()
+	l := rg.LimitValue(basictl.RandomUint(rg))
 	*vec = make([]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes, l)
 	for i := range *vec {
-		(*vec)[i].FillRandom(gen)
+		(*vec)[i].FillRandom(rg)
 	}
+	rg.DecreaseDepth()
 }
 func BuiltinVectorBarsicSnapshotDependencyBytesRead(w []byte, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) (_ []byte, err error) {
 	var l uint32
@@ -150,24 +136,6 @@ func BuiltinVectorBarsicSnapshotDependencyBytesWrite(w []byte, vec []tlBarsicSna
 		}
 	}
 	return w, nil
-}
-
-func BuiltinVectorBarsicSnapshotDependencyBytesReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) error {
-	l, _arr, err := internal.JsonReadArray("[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := (*vec)[i].ReadJSONLegacy(legacyTypeNames, _arr[i]); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func BuiltinVectorBarsicSnapshotDependencyBytesReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]tlBarsicSnapshotDependency.BarsicSnapshotDependencyBytes) error {

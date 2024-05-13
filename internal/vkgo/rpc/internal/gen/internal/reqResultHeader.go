@@ -52,22 +52,6 @@ func (item ReqResultHeader) String() string {
 	return string(w)
 }
 
-func (item *ReqResultHeader) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("reqResultHeader", "expected json object")
-	}
-	_jExtra := _jm["extra"]
-	delete(_jm, "extra")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("reqResultHeader", k)
-	}
-	if err := item.Extra.ReadJSONLegacy(legacyTypeNames, _jExtra); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *ReqResultHeader) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propExtraPresented bool
 
@@ -122,11 +106,7 @@ func (item *ReqResultHeader) MarshalJSON() ([]byte, error) {
 }
 
 func (item *ReqResultHeader) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("reqResultHeader", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("reqResultHeader", err.Error())
 	}
 	return nil

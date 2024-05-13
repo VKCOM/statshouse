@@ -42,24 +42,6 @@ func BuiltinVectorStringWrite(w []byte, vec []string) (_ []byte, err error) {
 	return w, nil
 }
 
-func BuiltinVectorStringReadJSONLegacy(legacyTypeNames bool, j interface{}, vec *[]string) error {
-	l, _arr, err := JsonReadArray("[]string", j)
-	if err != nil {
-		return err
-	}
-	if cap(*vec) < l {
-		*vec = make([]string, l)
-	} else {
-		*vec = (*vec)[:l]
-	}
-	for i := range *vec {
-		if err := JsonReadString(_arr[i], &(*vec)[i]); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func BuiltinVectorStringReadJSON(legacyTypeNames bool, in *basictl.JsonLexer, vec *[]string) error {
 	*vec = (*vec)[:cap(*vec)]
 	index := 0
@@ -140,14 +122,6 @@ func (item String) String() string {
 	return string(w)
 }
 
-func (item *String) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	ptr := (*string)(item)
-	if err := JsonReadString(j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *String) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*string)(item)
 	if err := Json2ReadString(in, ptr); err != nil {
@@ -155,6 +129,7 @@ func (item *String) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error 
 	}
 	return nil
 }
+
 func (item *String) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -169,11 +144,7 @@ func (item *String) MarshalJSON() ([]byte, error) {
 }
 
 func (item *String) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("string", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("string", err.Error())
 	}
 	return nil

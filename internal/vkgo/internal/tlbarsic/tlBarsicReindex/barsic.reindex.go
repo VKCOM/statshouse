@@ -47,8 +47,16 @@ func (item *BarsicReindex) Reset() {
 	item.FieldsMask = 0
 }
 
-func (item *BarsicReindex) FillRandom(gen basictl.Rand) {
-	item.FieldsMask = basictl.RandomUint(gen)
+func (item *BarsicReindex) FillRandom(rg *basictl.RandGenerator) {
+	var maskFieldsMask uint32
+	maskFieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = 0
+	if maskFieldsMask&(1<<0) != 0 {
+		item.FieldsMask |= (1 << 0)
+	}
+	if maskFieldsMask&(1<<1) != 0 {
+		item.FieldsMask |= (1 << 1)
+	}
 }
 
 func (item *BarsicReindex) Read(w []byte) (_ []byte, err error) {
@@ -83,8 +91,8 @@ func (item *BarsicReindex) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicReindex) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
-	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
+func (item *BarsicReindex) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
@@ -120,12 +128,9 @@ func (item *BarsicReindex) ReadResultWriteResultJSONOpt(newTypeNames bool, short
 }
 
 func (item *BarsicReindex) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.reindex", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(true, j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -138,48 +143,6 @@ func (item BarsicReindex) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *BarsicReindex) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.reindex", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jFast := _jm["fast"]
-	delete(_jm, "fast")
-	_jDiff := _jm["diff"]
-	delete(_jm, "diff")
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.reindex", k)
-	}
-	if _jFast != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jFast, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
-		}
-	}
-	if _jDiff != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jDiff, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 1
-		} else {
-			item.FieldsMask &^= 1 << 1
-		}
-	}
-	return nil
 }
 
 func (item *BarsicReindex) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -261,10 +224,12 @@ func (item *BarsicReindex) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *BarsicReindex) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -282,11 +247,7 @@ func (item *BarsicReindex) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicReindex) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.reindex", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.reindex", err.Error())
 	}
 	return nil

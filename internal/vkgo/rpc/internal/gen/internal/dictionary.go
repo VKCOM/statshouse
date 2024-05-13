@@ -53,14 +53,6 @@ func (item DictionaryLong) String() string {
 	return string(w)
 }
 
-func (item *DictionaryLong) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	ptr := (*map[string]int64)(item)
-	if err := BuiltinVectorDictionaryFieldLongReadJSONLegacy(legacyTypeNames, j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *DictionaryLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*map[string]int64)(item)
 	if err := BuiltinVectorDictionaryFieldLongReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -68,6 +60,7 @@ func (item *DictionaryLong) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer
 	}
 	return nil
 }
+
 func (item *DictionaryLong) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -84,11 +77,7 @@ func (item *DictionaryLong) MarshalJSON() ([]byte, error) {
 }
 
 func (item *DictionaryLong) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("dictionary", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("dictionary", err.Error())
 	}
 	return nil
@@ -134,14 +123,6 @@ func (item DictionaryString) String() string {
 	return string(w)
 }
 
-func (item *DictionaryString) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	ptr := (*map[string]string)(item)
-	if err := BuiltinVectorDictionaryFieldStringReadJSONLegacy(legacyTypeNames, j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *DictionaryString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*map[string]string)(item)
 	if err := BuiltinVectorDictionaryFieldStringReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -149,6 +130,7 @@ func (item *DictionaryString) ReadJSON(legacyTypeNames bool, in *basictl.JsonLex
 	}
 	return nil
 }
+
 func (item *DictionaryString) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -165,11 +147,7 @@ func (item *DictionaryString) MarshalJSON() ([]byte, error) {
 }
 
 func (item *DictionaryString) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("dictionary", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("dictionary", err.Error())
 	}
 	return nil

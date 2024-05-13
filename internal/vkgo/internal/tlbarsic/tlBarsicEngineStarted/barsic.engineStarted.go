@@ -53,11 +53,19 @@ func (item *BarsicEngineStarted) Reset() {
 	item.ControlMeta = ""
 }
 
-func (item *BarsicEngineStarted) FillRandom(gen basictl.Rand) {
-	item.FieldsMask = basictl.RandomUint(gen)
-	item.Offset = basictl.RandomLong(gen)
-	item.SnapshotMeta = basictl.RandomString(gen)
-	item.ControlMeta = basictl.RandomString(gen)
+func (item *BarsicEngineStarted) FillRandom(rg *basictl.RandGenerator) {
+	var maskFieldsMask uint32
+	maskFieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = 0
+	if maskFieldsMask&(1<<0) != 0 {
+		item.FieldsMask |= (1 << 0)
+	}
+	if maskFieldsMask&(1<<1) != 0 {
+		item.FieldsMask |= (1 << 1)
+	}
+	item.Offset = basictl.RandomLong(rg)
+	item.SnapshotMeta = basictl.RandomString(rg)
+	item.ControlMeta = basictl.RandomString(rg)
 }
 
 func (item *BarsicEngineStarted) Read(w []byte) (_ []byte, err error) {
@@ -100,8 +108,8 @@ func (item *BarsicEngineStarted) WriteResult(w []byte, ret tlTrue.True) (_ []byt
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicEngineStarted) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
-	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
+func (item *BarsicEngineStarted) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
@@ -137,12 +145,9 @@ func (item *BarsicEngineStarted) ReadResultWriteResultJSONOpt(newTypeNames bool,
 }
 
 func (item *BarsicEngineStarted) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.engineStarted", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(true, j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -155,63 +160,6 @@ func (item BarsicEngineStarted) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *BarsicEngineStarted) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.engineStarted", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jLegacyStart := _jm["legacy_start"]
-	delete(_jm, "legacy_start")
-	_jEngineUpgrade := _jm["engine_upgrade"]
-	delete(_jm, "engine_upgrade")
-	_jOffset := _jm["offset"]
-	delete(_jm, "offset")
-	if err := internal.JsonReadInt64(_jOffset, &item.Offset); err != nil {
-		return err
-	}
-	_jSnapshotMeta := _jm["snapshot_meta"]
-	delete(_jm, "snapshot_meta")
-	if err := internal.JsonReadString(_jSnapshotMeta, &item.SnapshotMeta); err != nil {
-		return err
-	}
-	_jControlMeta := _jm["control_meta"]
-	delete(_jm, "control_meta")
-	if err := internal.JsonReadString(_jControlMeta, &item.ControlMeta); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.engineStarted", k)
-	}
-	if _jLegacyStart != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jLegacyStart, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
-		}
-	}
-	if _jEngineUpgrade != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jEngineUpgrade, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 1
-		} else {
-			item.FieldsMask &^= 1 << 1
-		}
-	}
-	return nil
 }
 
 func (item *BarsicEngineStarted) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -329,10 +277,12 @@ func (item *BarsicEngineStarted) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *BarsicEngineStarted) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -342,20 +292,26 @@ func (item *BarsicEngineStarted) WriteJSONOpt(newTypeNames bool, short bool, w [
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"engine_upgrade":true`...)
 	}
-	if item.Offset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"offset":`...)
-		w = basictl.JSONWriteInt64(w, item.Offset)
+	backupIndexOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"offset":`...)
+	w = basictl.JSONWriteInt64(w, item.Offset)
+	if (item.Offset != 0) == false {
+		w = w[:backupIndexOffset]
 	}
-	if len(item.SnapshotMeta) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"snapshot_meta":`...)
-		w = basictl.JSONWriteString(w, item.SnapshotMeta)
+	backupIndexSnapshotMeta := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"snapshot_meta":`...)
+	w = basictl.JSONWriteString(w, item.SnapshotMeta)
+	if (len(item.SnapshotMeta) != 0) == false {
+		w = w[:backupIndexSnapshotMeta]
 	}
-	if len(item.ControlMeta) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"control_meta":`...)
-		w = basictl.JSONWriteString(w, item.ControlMeta)
+	backupIndexControlMeta := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"control_meta":`...)
+	w = basictl.JSONWriteString(w, item.ControlMeta)
+	if (len(item.ControlMeta) != 0) == false {
+		w = w[:backupIndexControlMeta]
 	}
 	return append(w, '}'), nil
 }
@@ -365,11 +321,7 @@ func (item *BarsicEngineStarted) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicEngineStarted) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.engineStarted", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.engineStarted", err.Error())
 	}
 	return nil
@@ -412,11 +364,19 @@ func (item *BarsicEngineStartedBytes) Reset() {
 	item.ControlMeta = item.ControlMeta[:0]
 }
 
-func (item *BarsicEngineStartedBytes) FillRandom(gen basictl.Rand) {
-	item.FieldsMask = basictl.RandomUint(gen)
-	item.Offset = basictl.RandomLong(gen)
-	item.SnapshotMeta = basictl.RandomStringBytes(gen)
-	item.ControlMeta = basictl.RandomStringBytes(gen)
+func (item *BarsicEngineStartedBytes) FillRandom(rg *basictl.RandGenerator) {
+	var maskFieldsMask uint32
+	maskFieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = 0
+	if maskFieldsMask&(1<<0) != 0 {
+		item.FieldsMask |= (1 << 0)
+	}
+	if maskFieldsMask&(1<<1) != 0 {
+		item.FieldsMask |= (1 << 1)
+	}
+	item.Offset = basictl.RandomLong(rg)
+	item.SnapshotMeta = basictl.RandomStringBytes(rg)
+	item.ControlMeta = basictl.RandomStringBytes(rg)
 }
 
 func (item *BarsicEngineStartedBytes) Read(w []byte) (_ []byte, err error) {
@@ -459,8 +419,8 @@ func (item *BarsicEngineStartedBytes) WriteResult(w []byte, ret tlTrue.True) (_ 
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicEngineStartedBytes) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
-	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
+func (item *BarsicEngineStartedBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
@@ -496,12 +456,9 @@ func (item *BarsicEngineStartedBytes) ReadResultWriteResultJSONOpt(newTypeNames 
 }
 
 func (item *BarsicEngineStartedBytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.engineStarted", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(true, j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -514,63 +471,6 @@ func (item BarsicEngineStartedBytes) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *BarsicEngineStartedBytes) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.engineStarted", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jLegacyStart := _jm["legacy_start"]
-	delete(_jm, "legacy_start")
-	_jEngineUpgrade := _jm["engine_upgrade"]
-	delete(_jm, "engine_upgrade")
-	_jOffset := _jm["offset"]
-	delete(_jm, "offset")
-	if err := internal.JsonReadInt64(_jOffset, &item.Offset); err != nil {
-		return err
-	}
-	_jSnapshotMeta := _jm["snapshot_meta"]
-	delete(_jm, "snapshot_meta")
-	if err := internal.JsonReadStringBytes(_jSnapshotMeta, &item.SnapshotMeta); err != nil {
-		return err
-	}
-	_jControlMeta := _jm["control_meta"]
-	delete(_jm, "control_meta")
-	if err := internal.JsonReadStringBytes(_jControlMeta, &item.ControlMeta); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.engineStarted", k)
-	}
-	if _jLegacyStart != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jLegacyStart, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
-		}
-	}
-	if _jEngineUpgrade != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jEngineUpgrade, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 1
-		} else {
-			item.FieldsMask &^= 1 << 1
-		}
-	}
-	return nil
 }
 
 func (item *BarsicEngineStartedBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -688,10 +588,12 @@ func (item *BarsicEngineStartedBytes) WriteJSON(w []byte) (_ []byte, err error) 
 }
 func (item *BarsicEngineStartedBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -701,20 +603,26 @@ func (item *BarsicEngineStartedBytes) WriteJSONOpt(newTypeNames bool, short bool
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"engine_upgrade":true`...)
 	}
-	if item.Offset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"offset":`...)
-		w = basictl.JSONWriteInt64(w, item.Offset)
+	backupIndexOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"offset":`...)
+	w = basictl.JSONWriteInt64(w, item.Offset)
+	if (item.Offset != 0) == false {
+		w = w[:backupIndexOffset]
 	}
-	if len(item.SnapshotMeta) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"snapshot_meta":`...)
-		w = basictl.JSONWriteStringBytes(w, item.SnapshotMeta)
+	backupIndexSnapshotMeta := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"snapshot_meta":`...)
+	w = basictl.JSONWriteStringBytes(w, item.SnapshotMeta)
+	if (len(item.SnapshotMeta) != 0) == false {
+		w = w[:backupIndexSnapshotMeta]
 	}
-	if len(item.ControlMeta) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"control_meta":`...)
-		w = basictl.JSONWriteStringBytes(w, item.ControlMeta)
+	backupIndexControlMeta := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"control_meta":`...)
+	w = basictl.JSONWriteStringBytes(w, item.ControlMeta)
+	if (len(item.ControlMeta) != 0) == false {
+		w = w[:backupIndexControlMeta]
 	}
 	return append(w, '}'), nil
 }
@@ -724,11 +632,7 @@ func (item *BarsicEngineStartedBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicEngineStartedBytes) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.engineStarted", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.engineStarted", err.Error())
 	}
 	return nil

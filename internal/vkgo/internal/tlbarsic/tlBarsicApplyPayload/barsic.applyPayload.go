@@ -51,10 +51,18 @@ func (item *BarsicApplyPayload) Reset() {
 	item.Payload = ""
 }
 
-func (item *BarsicApplyPayload) FillRandom(gen basictl.Rand) {
-	item.FieldsMask = basictl.RandomUint(gen)
-	item.Offset = basictl.RandomLong(gen)
-	item.Payload = basictl.RandomString(gen)
+func (item *BarsicApplyPayload) FillRandom(rg *basictl.RandGenerator) {
+	var maskFieldsMask uint32
+	maskFieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = 0
+	if maskFieldsMask&(1<<0) != 0 {
+		item.FieldsMask |= (1 << 0)
+	}
+	if maskFieldsMask&(1<<1) != 0 {
+		item.FieldsMask |= (1 << 1)
+	}
+	item.Offset = basictl.RandomLong(rg)
+	item.Payload = basictl.RandomString(rg)
 }
 
 func (item *BarsicApplyPayload) Read(w []byte) (_ []byte, err error) {
@@ -93,8 +101,8 @@ func (item *BarsicApplyPayload) WriteResult(w []byte, ret tlTrue.True) (_ []byte
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicApplyPayload) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
-	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
+func (item *BarsicApplyPayload) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
@@ -130,12 +138,9 @@ func (item *BarsicApplyPayload) ReadResultWriteResultJSONOpt(newTypeNames bool, 
 }
 
 func (item *BarsicApplyPayload) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(true, j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -148,58 +153,6 @@ func (item BarsicApplyPayload) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *BarsicApplyPayload) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.applyPayload", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jCommitASAP := _jm["commitASAP"]
-	delete(_jm, "commitASAP")
-	_jCommitted := _jm["committed"]
-	delete(_jm, "committed")
-	_jOffset := _jm["offset"]
-	delete(_jm, "offset")
-	if err := internal.JsonReadInt64(_jOffset, &item.Offset); err != nil {
-		return err
-	}
-	_jPayload := _jm["payload"]
-	delete(_jm, "payload")
-	if err := internal.JsonReadString(_jPayload, &item.Payload); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.applyPayload", k)
-	}
-	if _jCommitASAP != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jCommitASAP, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
-		}
-	}
-	if _jCommitted != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jCommitted, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 1
-		} else {
-			item.FieldsMask &^= 1 << 1
-		}
-	}
-	return nil
 }
 
 func (item *BarsicApplyPayload) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -305,10 +258,12 @@ func (item *BarsicApplyPayload) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *BarsicApplyPayload) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -318,15 +273,19 @@ func (item *BarsicApplyPayload) WriteJSONOpt(newTypeNames bool, short bool, w []
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"committed":true`...)
 	}
-	if item.Offset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"offset":`...)
-		w = basictl.JSONWriteInt64(w, item.Offset)
+	backupIndexOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"offset":`...)
+	w = basictl.JSONWriteInt64(w, item.Offset)
+	if (item.Offset != 0) == false {
+		w = w[:backupIndexOffset]
 	}
-	if len(item.Payload) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"payload":`...)
-		w = basictl.JSONWriteString(w, item.Payload)
+	backupIndexPayload := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"payload":`...)
+	w = basictl.JSONWriteString(w, item.Payload)
+	if (len(item.Payload) != 0) == false {
+		w = w[:backupIndexPayload]
 	}
 	return append(w, '}'), nil
 }
@@ -336,11 +295,7 @@ func (item *BarsicApplyPayload) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicApplyPayload) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
 	}
 	return nil
@@ -381,10 +336,18 @@ func (item *BarsicApplyPayloadBytes) Reset() {
 	item.Payload = item.Payload[:0]
 }
 
-func (item *BarsicApplyPayloadBytes) FillRandom(gen basictl.Rand) {
-	item.FieldsMask = basictl.RandomUint(gen)
-	item.Offset = basictl.RandomLong(gen)
-	item.Payload = basictl.RandomStringBytes(gen)
+func (item *BarsicApplyPayloadBytes) FillRandom(rg *basictl.RandGenerator) {
+	var maskFieldsMask uint32
+	maskFieldsMask = basictl.RandomUint(rg)
+	item.FieldsMask = 0
+	if maskFieldsMask&(1<<0) != 0 {
+		item.FieldsMask |= (1 << 0)
+	}
+	if maskFieldsMask&(1<<1) != 0 {
+		item.FieldsMask |= (1 << 1)
+	}
+	item.Offset = basictl.RandomLong(rg)
+	item.Payload = basictl.RandomStringBytes(rg)
 }
 
 func (item *BarsicApplyPayloadBytes) Read(w []byte) (_ []byte, err error) {
@@ -423,8 +386,8 @@ func (item *BarsicApplyPayloadBytes) WriteResult(w []byte, ret tlTrue.True) (_ [
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicApplyPayloadBytes) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
-	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
+func (item *BarsicApplyPayloadBytes) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
@@ -460,12 +423,9 @@ func (item *BarsicApplyPayloadBytes) ReadResultWriteResultJSONOpt(newTypeNames b
 }
 
 func (item *BarsicApplyPayloadBytes) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(true, j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -478,58 +438,6 @@ func (item BarsicApplyPayloadBytes) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *BarsicApplyPayloadBytes) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.applyPayload", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jCommitASAP := _jm["commitASAP"]
-	delete(_jm, "commitASAP")
-	_jCommitted := _jm["committed"]
-	delete(_jm, "committed")
-	_jOffset := _jm["offset"]
-	delete(_jm, "offset")
-	if err := internal.JsonReadInt64(_jOffset, &item.Offset); err != nil {
-		return err
-	}
-	_jPayload := _jm["payload"]
-	delete(_jm, "payload")
-	if err := internal.JsonReadStringBytes(_jPayload, &item.Payload); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.applyPayload", k)
-	}
-	if _jCommitASAP != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jCommitASAP, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 0
-		} else {
-			item.FieldsMask &^= 1 << 0
-		}
-	}
-	if _jCommitted != nil {
-		_bit := false
-		if err := internal.JsonReadBool(_jCommitted, &_bit); err != nil {
-			return err
-		}
-		if _bit {
-			item.FieldsMask |= 1 << 1
-		} else {
-			item.FieldsMask &^= 1 << 1
-		}
-	}
-	return nil
 }
 
 func (item *BarsicApplyPayloadBytes) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -635,10 +543,12 @@ func (item *BarsicApplyPayloadBytes) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *BarsicApplyPayloadBytes) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
 	if item.FieldsMask&(1<<0) != 0 {
 		w = basictl.JSONAddCommaIfNeeded(w)
@@ -648,15 +558,19 @@ func (item *BarsicApplyPayloadBytes) WriteJSONOpt(newTypeNames bool, short bool,
 		w = basictl.JSONAddCommaIfNeeded(w)
 		w = append(w, `"committed":true`...)
 	}
-	if item.Offset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"offset":`...)
-		w = basictl.JSONWriteInt64(w, item.Offset)
+	backupIndexOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"offset":`...)
+	w = basictl.JSONWriteInt64(w, item.Offset)
+	if (item.Offset != 0) == false {
+		w = w[:backupIndexOffset]
 	}
-	if len(item.Payload) != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"payload":`...)
-		w = basictl.JSONWriteStringBytes(w, item.Payload)
+	backupIndexPayload := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"payload":`...)
+	w = basictl.JSONWriteStringBytes(w, item.Payload)
+	if (len(item.Payload) != 0) == false {
+		w = w[:backupIndexPayload]
 	}
 	return append(w, '}'), nil
 }
@@ -666,11 +580,7 @@ func (item *BarsicApplyPayloadBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicApplyPayloadBytes) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.applyPayload", err.Error())
 	}
 	return nil

@@ -52,22 +52,6 @@ func (item RpcDestFlags) String() string {
 	return string(w)
 }
 
-func (item *RpcDestFlags) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("rpcDestFlags", "expected json object")
-	}
-	_jExtra := _jm["extra"]
-	delete(_jm, "extra")
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("rpcDestFlags", k)
-	}
-	if err := item.Extra.ReadJSONLegacy(legacyTypeNames, _jExtra); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *RpcDestFlags) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propExtraPresented bool
 
@@ -122,11 +106,7 @@ func (item *RpcDestFlags) MarshalJSON() ([]byte, error) {
 }
 
 func (item *RpcDestFlags) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("rpcDestFlags", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("rpcDestFlags", err.Error())
 	}
 	return nil

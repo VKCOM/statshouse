@@ -76,42 +76,6 @@ func (item FsbinlogLevStart) String() string {
 	return string(w)
 }
 
-func (item *FsbinlogLevStart) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return ErrorInvalidJSON("fsbinlog.levStart", "expected json object")
-	}
-	_jSchemaId := _jm["SchemaId"]
-	delete(_jm, "SchemaId")
-	if err := JsonReadInt32(_jSchemaId, &item.SchemaId); err != nil {
-		return err
-	}
-	_jExtraBytes := _jm["ExtraBytes"]
-	delete(_jm, "ExtraBytes")
-	if err := JsonReadInt32(_jExtraBytes, &item.ExtraBytes); err != nil {
-		return err
-	}
-	_jSplitMod := _jm["SplitMod"]
-	delete(_jm, "SplitMod")
-	if err := JsonReadInt32(_jSplitMod, &item.SplitMod); err != nil {
-		return err
-	}
-	_jSplitMin := _jm["SplitMin"]
-	delete(_jm, "SplitMin")
-	if err := JsonReadInt32(_jSplitMin, &item.SplitMin); err != nil {
-		return err
-	}
-	_jSplitMax := _jm["SplitMax"]
-	delete(_jm, "SplitMax")
-	if err := JsonReadInt32(_jSplitMax, &item.SplitMax); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return ErrorInvalidJSONExcessElement("fsbinlog.levStart", k)
-	}
-	return nil
-}
-
 func (item *FsbinlogLevStart) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	var propSchemaIdPresented bool
 	var propExtraBytesPresented bool
@@ -201,30 +165,40 @@ func (item *FsbinlogLevStart) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *FsbinlogLevStart) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.SchemaId != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"SchemaId":`...)
-		w = basictl.JSONWriteInt32(w, item.SchemaId)
+	backupIndexSchemaId := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"SchemaId":`...)
+	w = basictl.JSONWriteInt32(w, item.SchemaId)
+	if (item.SchemaId != 0) == false {
+		w = w[:backupIndexSchemaId]
 	}
-	if item.ExtraBytes != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"ExtraBytes":`...)
-		w = basictl.JSONWriteInt32(w, item.ExtraBytes)
+	backupIndexExtraBytes := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"ExtraBytes":`...)
+	w = basictl.JSONWriteInt32(w, item.ExtraBytes)
+	if (item.ExtraBytes != 0) == false {
+		w = w[:backupIndexExtraBytes]
 	}
-	if item.SplitMod != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"SplitMod":`...)
-		w = basictl.JSONWriteInt32(w, item.SplitMod)
+	backupIndexSplitMod := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"SplitMod":`...)
+	w = basictl.JSONWriteInt32(w, item.SplitMod)
+	if (item.SplitMod != 0) == false {
+		w = w[:backupIndexSplitMod]
 	}
-	if item.SplitMin != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"SplitMin":`...)
-		w = basictl.JSONWriteInt32(w, item.SplitMin)
+	backupIndexSplitMin := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"SplitMin":`...)
+	w = basictl.JSONWriteInt32(w, item.SplitMin)
+	if (item.SplitMin != 0) == false {
+		w = w[:backupIndexSplitMin]
 	}
-	if item.SplitMax != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"SplitMax":`...)
-		w = basictl.JSONWriteInt32(w, item.SplitMax)
+	backupIndexSplitMax := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"SplitMax":`...)
+	w = basictl.JSONWriteInt32(w, item.SplitMax)
+	if (item.SplitMax != 0) == false {
+		w = w[:backupIndexSplitMax]
 	}
 	return append(w, '}'), nil
 }
@@ -234,11 +208,7 @@ func (item *FsbinlogLevStart) MarshalJSON() ([]byte, error) {
 }
 
 func (item *FsbinlogLevStart) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("fsbinlog.levStart", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("fsbinlog.levStart", err.Error())
 	}
 	return nil

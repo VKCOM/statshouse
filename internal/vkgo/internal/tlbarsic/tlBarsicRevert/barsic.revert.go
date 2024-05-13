@@ -29,9 +29,8 @@ func (item *BarsicRevert) Reset() {
 	item.Offset = 0
 }
 
-func (item *BarsicRevert) FillRandom(gen basictl.Rand) {
-	item.FieldsMask = basictl.RandomUint(gen)
-	item.Offset = basictl.RandomLong(gen)
+func (item *BarsicRevert) FillRandom(rg *basictl.RandGenerator) {
+	item.Offset = basictl.RandomLong(rg)
 }
 
 func (item *BarsicRevert) Read(w []byte) (_ []byte, err error) {
@@ -66,8 +65,8 @@ func (item *BarsicRevert) WriteResult(w []byte, ret tlTrue.True) (_ []byte, err 
 	return ret.WriteBoxed(w)
 }
 
-func (item *BarsicRevert) ReadResultJSON(legacyTypeNames bool, j interface{}, ret *tlTrue.True) error {
-	if err := ret.ReadJSONLegacy(legacyTypeNames, j); err != nil {
+func (item *BarsicRevert) ReadResultJSON(legacyTypeNames bool, in *basictl.JsonLexer, ret *tlTrue.True) error {
+	if err := ret.ReadJSON(legacyTypeNames, in); err != nil {
 		return err
 	}
 	return nil
@@ -103,12 +102,9 @@ func (item *BarsicRevert) ReadResultWriteResultJSONOpt(newTypeNames bool, short 
 }
 
 func (item *BarsicRevert) ReadResultJSONWriteResult(r []byte, w []byte) ([]byte, []byte, error) {
-	j, err := internal.JsonBytesToInterface(r)
-	if err != nil {
-		return r, w, internal.ErrorInvalidJSON("barsic.revert", err.Error())
-	}
 	var ret tlTrue.True
-	if err = item.ReadResultJSON(true, j, &ret); err != nil {
+	err := item.ReadResultJSON(true, &basictl.JsonLexer{Data: r}, &ret)
+	if err != nil {
 		return r, w, err
 	}
 	w, err = item.WriteResult(w, ret)
@@ -121,27 +117,6 @@ func (item BarsicRevert) String() string {
 		return err.Error()
 	}
 	return string(w)
-}
-
-func (item *BarsicRevert) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	_jm, _ok := j.(map[string]interface{})
-	if j != nil && !_ok {
-		return internal.ErrorInvalidJSON("barsic.revert", "expected json object")
-	}
-	_jFieldsMask := _jm["fields_mask"]
-	delete(_jm, "fields_mask")
-	if err := internal.JsonReadUint32(_jFieldsMask, &item.FieldsMask); err != nil {
-		return err
-	}
-	_jOffset := _jm["offset"]
-	delete(_jm, "offset")
-	if err := internal.JsonReadInt64(_jOffset, &item.Offset); err != nil {
-		return err
-	}
-	for k := range _jm {
-		return internal.ErrorInvalidJSONExcessElement("barsic.revert", k)
-	}
-	return nil
 }
 
 func (item *BarsicRevert) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
@@ -197,15 +172,19 @@ func (item *BarsicRevert) WriteJSON(w []byte) (_ []byte, err error) {
 }
 func (item *BarsicRevert) WriteJSONOpt(newTypeNames bool, short bool, w []byte) (_ []byte, err error) {
 	w = append(w, '{')
-	if item.FieldsMask != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"fields_mask":`...)
-		w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	backupIndexFieldsMask := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"fields_mask":`...)
+	w = basictl.JSONWriteUint32(w, item.FieldsMask)
+	if (item.FieldsMask != 0) == false {
+		w = w[:backupIndexFieldsMask]
 	}
-	if item.Offset != 0 {
-		w = basictl.JSONAddCommaIfNeeded(w)
-		w = append(w, `"offset":`...)
-		w = basictl.JSONWriteInt64(w, item.Offset)
+	backupIndexOffset := len(w)
+	w = basictl.JSONAddCommaIfNeeded(w)
+	w = append(w, `"offset":`...)
+	w = basictl.JSONWriteInt64(w, item.Offset)
+	if (item.Offset != 0) == false {
+		w = w[:backupIndexOffset]
 	}
 	return append(w, '}'), nil
 }
@@ -215,11 +194,7 @@ func (item *BarsicRevert) MarshalJSON() ([]byte, error) {
 }
 
 func (item *BarsicRevert) UnmarshalJSON(b []byte) error {
-	j, err := internal.JsonBytesToInterface(b)
-	if err != nil {
-		return internal.ErrorInvalidJSON("barsic.revert", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return internal.ErrorInvalidJSON("barsic.revert", err.Error())
 	}
 	return nil

@@ -53,14 +53,6 @@ func (item Tuple8) String() string {
 	return string(w)
 }
 
-func (item *Tuple8) ReadJSONLegacy(legacyTypeNames bool, j interface{}) error {
-	ptr := (*[8]uint32)(item)
-	if err := BuiltinTuple8ReadJSONLegacy(legacyTypeNames, j, ptr); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (item *Tuple8) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error {
 	ptr := (*[8]uint32)(item)
 	if err := BuiltinTuple8ReadJSON(legacyTypeNames, in, ptr); err != nil {
@@ -68,6 +60,7 @@ func (item *Tuple8) ReadJSON(legacyTypeNames bool, in *basictl.JsonLexer) error 
 	}
 	return nil
 }
+
 func (item *Tuple8) WriteJSON(w []byte) (_ []byte, err error) {
 	return item.WriteJSONOpt(true, false, w)
 }
@@ -84,11 +77,7 @@ func (item *Tuple8) MarshalJSON() ([]byte, error) {
 }
 
 func (item *Tuple8) UnmarshalJSON(b []byte) error {
-	j, err := JsonBytesToInterface(b)
-	if err != nil {
-		return ErrorInvalidJSON("tuple", err.Error())
-	}
-	if err = item.ReadJSONLegacy(true, j); err != nil {
+	if err := item.ReadJSON(true, &basictl.JsonLexer{Data: b}); err != nil {
 		return ErrorInvalidJSON("tuple", err.Error())
 	}
 	return nil
