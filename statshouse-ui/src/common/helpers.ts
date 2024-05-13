@@ -275,3 +275,16 @@ export const emptyArray = [];
 export const emptyObject = {};
 export const emptyFunction = () => undefined;
 export const defaultBaseRange = 'last-2d';
+
+export function getClipboard(): Promise<string> {
+  return new Promise((resolve) => {
+    (navigator.clipboard.readText ? navigator.clipboard.readText() : Promise.reject())
+      .then((url) => {
+        resolve(url);
+      })
+      .catch(() => {
+        const url = prompt('Paste url') ?? '';
+        resolve(url);
+      });
+  });
+}
