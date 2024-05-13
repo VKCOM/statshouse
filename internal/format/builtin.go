@@ -386,6 +386,7 @@ Set only if greater than 1.`,
 			Description: `Difference between timestamp of received bucket and aggregator wall clock.
 Count of this metric is # of agents who sent this second (per replica*shard), and they do it every second to keep this metric stable.
 Set by aggregator.`,
+			MetricType: MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -412,6 +413,7 @@ Set by aggregator.`,
 			Name:        "__agg_insert_size",
 			Kind:        MetricKindValue,
 			Description: "Size of aggregated bucket inserted into clickhouse. Written when second is inserted, which can be much later.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -432,6 +434,7 @@ Set by aggregator.`,
 			Name:        "__src_tl_byte_size_per_inflight_type",
 			Kind:        MetricKindValue,
 			Description: "Approximate uncompressed byte size of various parts of TL representation of time bucket.\nSet by agent.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description:   "inflight_type",
 				ValueComments: convertToValueComments(insertKindToValue),
@@ -455,6 +458,7 @@ Set by aggregator.`,
 			Name:        "__agg_size_compressed",
 			Kind:        MetricKindValue,
 			Description: "Compressed size of bucket received from agent (size of raw TL request).\nSet by aggregator.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -475,6 +479,7 @@ Set by aggregator.`,
 			Name:        "__agg_size_uncompressed",
 			Kind:        MetricKindValue,
 			Description: "Uncompressed size of bucket received from agent.\nSet by aggregator.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -609,6 +614,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 			Name:        "__agg_insert_time",
 			Kind:        MetricKindValue,
 			Description: "Time inserting this second into clickhouse took. Written when second is inserted, which can be much later.",
+			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -631,6 +637,7 @@ This metric uses sampling budgets of metric it refers to, so flooding by errors 
 			Kind: MetricKindValue,
 			Description: `Time difference of historic seconds (several per contributor) waiting to be inserted via historic conveyor.
 Count is number of such seconds waiting.`,
+			MetricType: MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -647,6 +654,7 @@ Count is number of such seconds waiting.`,
 			Kind: MetricKindValue,
 			Description: `Time between agent bucket is received and fully aggregated into aggregator bucket.
 Set by aggregator. Max(value)@host shows agent responsible for longest aggregation.`,
+			MetricType: MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -722,6 +730,7 @@ Set by either agent or aggregator, depending on status.`,
 			Name:        "__src_ingested_metric_batch_size",
 			Kind:        MetricKindValue,
 			Description: "Size in bytes of metric batches received by agent.\nCount is # of such batches.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description:   "format",
 				ValueComments: convertToValueComments(packetFormatToValue),
@@ -770,6 +779,7 @@ Set by either agent or aggregator, depending on status.`,
 			Name:        "__agg_insert_time_real",
 			Kind:        MetricKindValue,
 			Description: "Time of aggregated bucket inserting into clickhouse took in this second.\nactual seconds inserted can be from the past.",
+			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -797,6 +807,7 @@ Set by either agent or aggregator, depending on status.`,
 			Name:        "__src_historic_queue_size_bytes",
 			Kind:        MetricKindValue,
 			Description: "Historic queue size in memory and on disk.\nDisk size increases when second is written, decreases when file is deleted.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description: "storage",
 				ValueComments: convertToValueComments(map[int32]string{
@@ -818,6 +829,7 @@ Set by either agent or aggregator, depending on status.`,
 			Name:        "__src_historic_queue_size_sum_bytes",
 			Kind:        MetricKindValue,
 			Description: "Historic queue size in memory and on disk, sum for shards sent to every shard.\nCan be compared with __src_historic_queue_size_bytes to find if subset of aggregators is inaccessible.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description: "storage",
 				ValueComments: convertToValueComments(map[int32]string{
@@ -854,6 +866,7 @@ Set by either agent or aggregator, depending on status.`,
 			Name:        "__agg_insert_size_real",
 			Kind:        MetricKindValue,
 			Description: "Size of aggregated bucket inserted into clickhouse in this second (actual seconds inserted can be from the past).",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description: "-",
 			}, {
@@ -881,6 +894,7 @@ Set by either agent or aggregator, depending on status.`,
 			Name:        "__src_per_metric_sample_budget_bytes",
 			Kind:        MetricKindValue,
 			Description: "Agent sampling budget per sampled metric, or remaining budget if none were sampled.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description: "status",
 				ValueComments: convertToValueComments(map[int32]string{
@@ -915,6 +929,7 @@ Set by either agent or aggregator, depending on status.`,
 			Name:        "__src_ingested_packet_size",
 			Kind:        MetricKindValue,
 			Description: "Size in bytes of packets received by agent. Also count is # of received packets.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description:   "format",
 				ValueComments: convertToValueComments(packetFormatToValue),
@@ -931,6 +946,7 @@ Set by either agent or aggregator, depending on status.`,
 			Kind:        MetricKindValue,
 			Resolution:  60,
 			Description: "Size in bytes of agent UDP receive buffer.",
+			MetricType:  MetricByte,
 		},
 		BuiltinMetricIDAggMappingCreated: {
 			Name: BuiltinMetricNameAggMappingCreated,
@@ -1064,6 +1080,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Name:        BuiltinMetricNamePromScrapeTime,
 			Kind:        MetricKindValue,
 			Description: "Time of scraping prom metrics",
+			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{
 				{
 					Description: "-",
@@ -1086,6 +1103,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Name:        BuiltinMetricNameUsageMemory,
 			Kind:        MetricKindValue,
 			Description: "Memory usage of statshouse components.",
+			MetricType:  MetricByte,
 			Resolution:  60,
 			Tags: []MetricMetaTag{{
 				Description:   "component",
@@ -1096,6 +1114,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Name:        BuiltinMetricNameUsageCPU,
 			Kind:        MetricKindValue,
 			Description: "CPU usage of statshouse components, CPU seconds per second.",
+			MetricType:  MetricSecond,
 			Resolution:  60,
 			Tags: []MetricMetaTag{{
 				Description:   "component",
@@ -1111,6 +1130,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Name:                 BuiltinMetricNameHeartbeatVersion,
 			Kind:                 MetricKindValue,
 			Description:          "Heartbeat value is uptime",
+			MetricType:           MetricSecond,
 			StringTopDescription: "Build Commit",
 			Resolution:           60,
 			Tags: []MetricMetaTag{{
@@ -1143,6 +1163,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Name:                 "__heartbeat_args",
 			Kind:                 MetricKindValue,
 			Description:          "Commandline of statshouse components.\nHeartbeat value is uptime.",
+			MetricType:           MetricSecond,
 			StringTopDescription: "Arguments",
 			Resolution:           60,
 			Tags: []MetricMetaTag{{
@@ -1191,6 +1212,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Name:        BuiltinMetricNameAPIServiceTime,
 			Kind:        MetricKindValue,
 			Description: "Time to handle API query.",
+			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description: "endpoint",
 			}, {
@@ -1230,6 +1252,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Name:        BuiltinMetricNameAPIResponseTime,
 			Kind:        MetricKindValue,
 			Description: "Time to handle and respond to query by API",
+			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description: "endpoint",
 			}, {
@@ -1324,6 +1347,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 			Name:        BuiltinMetricNameMetaServiceTime,
 			Kind:        MetricKindValue,
 			Description: "Time to handle RPC query by meta.",
+			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description: "host",
 			}, {
@@ -1373,6 +1397,7 @@ Ingress proxies first proxy request (to record host and IP of agent), then repla
 		BuiltinMetricIDAPISelectDuration: {
 			Name:        BuiltinMetricNameAPISelectDuration,
 			Kind:        MetricKindValue,
+			MetricType:  MetricSecond,
 			Description: "Duration of clickhouse query",
 			Tags: []MetricMetaTag{
 				{
@@ -1550,6 +1575,7 @@ Value is delta between second value and time it was inserted.`,
 			Name:        "__group_size_after_sampling",
 			Kind:        MetricKindValue,
 			Description: "Group size after sampling, bytes.",
+			MetricType:  MetricByte,
 			Tags: []MetricMetaTag{{
 				Description:   "component",
 				ValueComments: convertToValueComments(componentToValue),
@@ -1568,6 +1594,7 @@ Value is delta between second value and time it was inserted.`,
 			Name:        BuiltinMetricNameSystemMetricScrapeDuration,
 			Kind:        MetricKindValue,
 			Description: "System metrics scrape duration in seconds",
+			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description: "collector",
 				ValueComments: convertToValueComments(map[int32]string{
@@ -1588,6 +1615,7 @@ Value is delta between second value and time it was inserted.`,
 			Kind:        MetricKindValue,
 			Resolution:  60,
 			Description: "Aggregator time - agent time when start testConnection",
+			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description:   "component",
 				ValueComments: convertToValueComments(componentToValue),
@@ -1598,6 +1626,7 @@ Value is delta between second value and time it was inserted.`,
 			Kind:        MetricKindValue,
 			Resolution:  60,
 			Description: "Duration of call test connection rpc method",
+			MetricType:  MetricSecond,
 			Tags: []MetricMetaTag{{
 				Description:   "component",
 				ValueComments: convertToValueComments(componentToValue),
@@ -1878,6 +1907,7 @@ Value is delta between second value and time it was inserted.`,
 		BuiltinMetricIDAggSamplingTime: {
 			Name:        "__agg_sampling_time",
 			Kind:        MetricKindValue,
+			MetricType:  MetricSecond,
 			Description: "Time sampling this second took. Written when second is inserted, which can be much later.",
 			Tags: []MetricMetaTag{{
 				Description: "-",
