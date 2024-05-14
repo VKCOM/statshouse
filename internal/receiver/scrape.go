@@ -324,7 +324,7 @@ func (s *scraper) scrape(opt scrapeOptions) error {
 			if metric := s.counters[hashSum]; metric == nil {
 				// initialize counter
 				metric = &scrapeCounter{
-					description: description + "\n\n" + format.PromQLPrefixSumMark,
+					description: description,
 					tags:        make([]labels.Label, 0, len(l)),
 					value:       v,
 				}
