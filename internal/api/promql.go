@@ -375,71 +375,113 @@ func (h *Handler) QuerySeries(ctx context.Context, qry *promql.SeriesQuery) (pro
 	}()
 	for _, args := range getHandlerArgs(qry, ai, step) {
 		var tx int // time index
-		fns, qs, pq := args.fns, args.qs, args.pq
 		for _, lod := range lods {
-			var err error
-			var data [][]tsSelectRow
-			if qry.Options.Collapse { // "point" query
-				if s, err := h.pointsCache.get(ctx, qs, &pq, lod, qry.Options.AvoidCache); err == nil {
-					data = make([][]tsSelectRow, 1)
-					data[0] = make([]tsSelectRow, len(s))
-					for i := range s {
-						data[0][i] = tsSelectRow{tsTags: s[i].tsTags, tsValues: s[i].tsValues}
-					}
+			if qry.Options.Collapse {
+				// "point" query
+				data, err := h.pointsCache.get(ctx, args.qs, &args.pq, lod, qry.Options.AvoidCache)
+				if err != nil {
+					return promql.Series{}, nil, err
 				}
-			} else {
-				data, err = h.cache.Get(ctx, version, qs, &pq, lod, qry.Options.AvoidCache)
-			}
-			if err != nil {
-				return promql.Series{}, nil, err
-			}
-			for i := 0; i < len(data); i++ {
-				for j := 0; j < len(data[i]); j++ {
-					k := tx
-					if !qry.Options.Collapse { // "point" query does not return timestamp
-						x, err := lod.IndexOf(data[i][j].time)
-						if err != nil {
-							return promql.Series{}, nil, err
-						}
-						k += x
-					}
-					x, ok := tagX[data[i][j].tsTags]
+				for i := 0; i < len(data); i++ {
+					x, ok := tagX[data[i].tsTags]
 					if !ok {
 						x = len(res.Data)
-						tagX[data[i][j].tsTags] = x
-						for _, fn := range fns {
+						tagX[data[i].tsTags] = x
+						for _, fn := range args.what {
 							v := h.Alloc(len(qry.Timescale.Time))
 							buffers = append(buffers, v)
 							for y := range *v {
 								(*v)[y] = promql.NilValue
 							}
-							var h [2][]int32
-							for z, qryHost := range qry.MinMaxHost {
-								if qryHost {
-									h[z] = make([]int32, len(qry.Timescale.Time))
-								}
-							}
 							res.Data = append(res.Data, promql.SeriesData{
-								Values:     v,
-								MinMaxHost: h,
-								What:       fn,
+								Values: v,
+								What:   fn,
 							})
 						}
 					}
-					for y, fn := range fns {
-						(*res.Data[x+y].Values)[k] = selectTSValue(fn.Digest, qry.MinMaxHost[0] || qry.MinMaxHost[1], int64(step), &data[i][j])
-						for z, qryHost := range qry.MinMaxHost {
-							if qryHost {
-								res.Data[x+y].MinMaxHost[z][k] = data[i][j].host[z]
+					// select "point" value
+					for y, what := range args.what {
+						var v float64
+						row := &data[i]
+						switch what.Digest {
+						case data_model.DigestCount, data_model.DigestCountRaw, data_model.DigestCountSec:
+							v = row.countNorm
+						case data_model.DigestMin,
+							data_model.DigestP0_1, data_model.DigestP25,
+							data_model.DigestUnique, data_model.DigestUniqueSec,
+							data_model.DigestCardinality, data_model.DigestCardinalityRaw, data_model.DigestCardinalitySec:
+							v = row.val[0]
+						case data_model.DigestMax, data_model.DigestP1, data_model.DigestP50:
+							v = row.val[1]
+						case data_model.DigestAvg, data_model.DigestP5, data_model.DigestP75:
+							v = row.val[2]
+						case data_model.DigestSum, data_model.DigestSumRaw, data_model.DigestSumSec, data_model.DigestP10, data_model.DigestP90:
+							v = row.val[3]
+						case data_model.DigestStdDev, data_model.DigestP95:
+							v = row.val[4]
+						case data_model.DigestStdVar:
+							v = row.val[4] * row.val[4]
+						case data_model.DigestP99:
+							v = row.val[5]
+						case data_model.DigestP999:
+							v = row.val[6]
+						default:
+							v = math.NaN()
+						}
+						(*res.Data[x+y].Values)[tx] = v
+					}
+				}
+				tx++
+			} else {
+				data, err := h.cache.Get(ctx, version, args.qs, &args.pq, lod, qry.Options.AvoidCache)
+				if err != nil {
+					return promql.Series{}, nil, err
+				}
+				for i := 0; i < len(data); i++ {
+					for j := 0; j < len(data[i]); j++ {
+						x, ok := tagX[data[i][j].tsTags]
+						if !ok {
+							x = len(res.Data)
+							tagX[data[i][j].tsTags] = x
+							for _, fn := range args.what {
+								v := h.Alloc(len(qry.Timescale.Time))
+								buffers = append(buffers, v)
+								for y := range *v {
+									(*v)[y] = promql.NilValue
+								}
+								var h [2][]int32
+								for z, qryHost := range qry.MinMaxHost {
+									if qryHost {
+										h[z] = make([]int32, len(qry.Timescale.Time))
+									}
+								}
+								res.Data = append(res.Data, promql.SeriesData{
+									Values:     v,
+									MinMaxHost: h,
+									What:       fn,
+								})
+							}
+						}
+						k, err := lod.IndexOf(data[i][j].time)
+						if err != nil {
+							return promql.Series{}, nil, err
+						}
+						k += tx
+						for y, what := range args.what {
+							(*res.Data[x+y].Values)[k] = selectTSValue(what.Digest, qry.MinMaxHost[0] || qry.MinMaxHost[1], int64(step), &data[i][j])
+							for z, qryHost := range qry.MinMaxHost {
+								if qryHost {
+									res.Data[x+y].MinMaxHost[z][k] = data[i][j].host[z]
+								}
 							}
 						}
 					}
 				}
+				tx += len(data)
 			}
-			tx += len(data)
 		}
 		tagWhat := len(qry.Whats) > 1 || qry.Options.TagWhat
-		for i, what := range fns {
+		for i, what := range args.what {
 			for v, j := range tagX {
 				for _, groupBy := range qry.GroupBy {
 					switch groupBy {
@@ -585,9 +627,9 @@ func (h *Handler) QueryStringTop(ctx context.Context, qry promql.TagValuesQuery)
 }
 
 type handlerArgs struct {
-	qs  string // cache key
-	pq  preparedPointsQuery
-	fns []promql.SelectorWhat
+	qs   string // cache key
+	pq   preparedPointsQuery
+	what []promql.SelectorWhat
 }
 
 func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[data_model.DigestKind]handlerArgs {
@@ -655,7 +697,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[dat
 		}
 		kind := v.Digest.Kind(qry.MinMaxHost[0] || qry.MinMaxHost[1])
 		args := res[kind]
-		args.fns = append(args.fns, v)
+		args.what = append(args.what, v)
 		res[kind] = args
 	}
 	// all kinds contain counter value, there is
@@ -665,7 +707,7 @@ func getHandlerArgs(qry *promql.SeriesQuery, ai *accessInfo, step int64) map[dat
 			if kind == data_model.DigestKindCount {
 				continue
 			}
-			args.fns = append(args.fns, v.fns...)
+			args.what = append(args.what, v.what...)
 			res[kind] = args
 			delete(res, data_model.DigestKindCount)
 			break

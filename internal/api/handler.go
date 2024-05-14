@@ -2907,10 +2907,6 @@ func (h *Handler) loadPoint(ctx context.Context, pq *preparedPointsQuery, lod da
 }
 
 func stableMulDiv(v float64, mul int64, div int64) float64 {
-	if div == 0 {
-		// "point" query does not return timestamp
-		return v
-	}
 	// Often desiredStepMul is multiple of row.StepSec
 	if mul%div == 0 {
 		// so we make FP desiredStepMul by row.StepSec division first which often gives us whole number, even 1 in many cases
