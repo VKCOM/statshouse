@@ -54,6 +54,7 @@ func (h *Handler) handlePromQuery(w http.ResponseWriter, r *http.Request, rangeQ
 	}
 	q.End++ // handler expects half open interval [start, end)
 	q.Options.Namespace = r.Header.Get("X-StatsHouse-Namespace")
+	q.Options.Compat = true
 	// execute query
 	ctx, cancel := context.WithTimeout(r.Context(), h.querySelectTimeout)
 	defer cancel()

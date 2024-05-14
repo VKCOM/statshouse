@@ -50,7 +50,6 @@ type Query struct {
 	Options Options // StatsHouse specific
 }
 
-// NB! If you add an option make sure that default Options{} corresponds to Prometheus behavior.
 type Options struct {
 	Version          string
 	Namespace        string
@@ -67,7 +66,7 @@ type Options struct {
 	MinHost          bool
 	MaxHost          bool
 	QuerySequential  bool
-	Simple           bool // expression is generated for a simple user interface
+	Compat           bool // Prometheus compatibilty mode
 	Offsets          []int64
 	Limit            int
 	Rand             *rand.Rand
@@ -1020,7 +1019,7 @@ func (ev *evaluator) buildSeriesQuery(ctx context.Context, sel *parser.VectorSel
 	if len(whats) == 0 {
 		var what data_model.DigestWhat
 		if metric.Kind == format.MetricKindCounter {
-			if !ev.opt.Simple && (metric.PromQLPrefixSum || len(metric.HistorgamBuckets) != 0) {
+			if ev.opt.Compat {
 				what = data_model.DigestCountRaw
 				prefixSum = true
 			} else {
