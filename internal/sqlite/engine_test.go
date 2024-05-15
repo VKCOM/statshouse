@@ -632,7 +632,71 @@ func Test_Engine_Backup(t *testing.T) {
 	require.Equal(t, int64(1), id)
 }
 
-func Test_Engine_RO(t *testing.T) {
+func Test_Engine_OpenRO(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
+	var id int64
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
+	var err error
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Int64("$id", 1))
+		return cache, err
+	})
+	require.NoError(t, err)
+	require.NoError(t, engine.commitTXAndStartNew(true, true))
+	backupPath, _, err := engine.Backup(context.Background(), path.Join(dir, "db1"))
+	require.NoError(t, err)
+	require.NoError(t, engine.Close(context.Background()))
+	engineRO, err := OpenRO(Options{
+		Path: backupPath,
+	})
+	require.NoError(t, err)
+	err = engineRO.View(context.Background(), "test", func(conn Conn) error {
+		rows := conn.Query("test", "SELECT id FROM test_db")
+		for rows.Next() {
+			id, err = rows.ColumnInt64(0)
+			if err != nil {
+				return err
+			}
+		}
+		return rows.Error()
+	})
+	require.Equal(t, int64(1), id)
+	require.NoError(t, engineRO.Close(context.Background()))
+}
+
+func Test_Engine_OpenRO_Journal_Wal(t *testing.T) {
+	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
+	var id int64
+	dir := t.TempDir()
+	engine, _ := openEngine(t, dir, "db", schema, true, false, false, false, WaitCommit, nil)
+	var err error
+	err = engine.Do(context.Background(), "test", func(conn Conn, cache []byte) ([]byte, error) {
+		_, err = conn.Exec("test", "INSERT INTO test_db(id) VALUES ($id)", Int64("$id", 1))
+		return cache, err
+	})
+	require.NoError(t, err)
+	require.NoError(t, engine.commitTXAndStartNew(true, true))
+	engineRO, err := OpenRO(Options{
+		Path: path.Join(dir, "db"),
+	})
+	require.NoError(t, err)
+	err = engineRO.View(context.Background(), "test", func(conn Conn) error {
+		rows := conn.Query("test", "SELECT id FROM test_db")
+		for rows.Next() {
+			id, err = rows.ColumnInt64(0)
+			if err != nil {
+				return err
+			}
+		}
+		return rows.Error()
+	})
+	require.Equal(t, int64(1), id)
+	require.NoError(t, engine.Close(context.Background()))
+	require.NoError(t, engineRO.Close(context.Background()))
+}
+
+func Test_Engine_OpenROWal(t *testing.T) {
 	schema := "CREATE TABLE IF NOT EXISTS test_db (id INTEGER);"
 	var id int64
 	dir := t.TempDir()
@@ -648,7 +712,7 @@ func Test_Engine_RO(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NoError(t, engine.commitTXAndStartNew(true, true))
-	engineRO, err := OpenRO(Options{
+	engineRO, err := OpenROWal(Options{
 		Path:                   dir + "/" + dbfile,
 		APPID:                  32,
 		Scheme:                 schema,
