@@ -159,6 +159,11 @@ func (h *RPCHandler) RawGetQuery(ctx context.Context, hctx *rpc.HandlerContext) 
 		for _, data := range sr.Series.SeriesData {
 			res.Series.SeriesData = append(res.Series.SeriesData, *data)
 		}
+	} else if chunkMaxSize < metaSize {
+		return rpc.Error{
+			Code:        rpcErrorCodeChunkStorageFailed,
+			Description: fmt.Sprintf("response metadata size %d out of range", metaSize),
+		}
 	} else {
 		chunks := chunkResponse(sr, columnSize, totalSize, metaSize)
 		res.Series = chunks[0] // return first chunk immediately
