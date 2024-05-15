@@ -227,7 +227,7 @@ func (s *Shard) sampleBucket(bucket *data_model.MetricsBucket, rnd *rand.Rand) [
 		SampleKeys:       config.SampleKeys,
 		Meta:             s.agent.metricStorage,
 		Rand:             rnd,
-		DiscardF:         func(key data_model.Key, _ *data_model.MultiItem) { delete(bucket.MultiItems, key) }, // remove from map
+		DiscardF:         func(key data_model.Key, _ *data_model.MultiItem, _ uint32) { delete(bucket.MultiItems, key) }, // remove from map
 	})
 	for k, item := range bucket.MultiItems {
 		whaleWeight := item.FinishStringTop(config.StringTopCountSend) // all excess items are baked into Tail
